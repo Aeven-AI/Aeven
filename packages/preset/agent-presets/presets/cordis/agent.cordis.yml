@@ -274,8 +274,8 @@
 - id: tool-media
   name: '@aeven/tool-media'
   config:
-    # The only selectable image models: the picker, `/image-models`, and a model
-    # a call names are limited to these. Both are served by `media-aeven` over
+    # The configured image models: the picker, `/image-models`, and a model a
+    # call names are limited to these plus the `listedProviders` models below. Both are served by `media-aeven` over
     # the signed-in Aeven session.
     choices:
       - provider: aeven
@@ -291,6 +291,9 @@
     model: Aeven-1.0-Image-Flash
     provider: aeven
     confirmModel: false
+    # Each subscription's image model, offered while it is signed in and
+    # switched on in Settings → Providers.
+    listedProviders: [grok-subscription, codex-subscription]
 
 - id: tool-web
   name: '@aeven/tool-web'

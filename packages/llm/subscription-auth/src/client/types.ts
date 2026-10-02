@@ -3,11 +3,20 @@
 import type { GrokBuildSettingsKey } from './locales.ts'
 
 /** A provider the settings page shows a card for. */
-export type ProviderSlug = 'grok' | 'codex' | 'claude'
+export type ProviderSlug = 'grok' | 'codex'
 /** How a sign-in completes: a browser redirect to the local callback (`pkce`, `browser`) or a device code. */
 export type LoginMethod = 'pkce' | 'device' | 'browser'
-/** Where Grok's model catalogue came from: fetched live, a cached copy, or the built-in fallback. */
-export type CatalogSource = 'live' | 'cache' | 'fallback'
+
+/** Mirrors the Host `SubscriptionModelView`: one model and whether the user keeps it on. */
+export interface ModelView {
+  id: string
+  name: string
+  /** The model reads images in a conversation. */
+  imageInput: boolean
+  /** The model generates images. */
+  imageOutput: boolean
+  selected: boolean
+}
 
 /** Grok's sign-in state from the status route. */
 export type GrokStatus =
@@ -15,27 +24,21 @@ export type GrokStatus =
 	| { status: 'signing-in'; method: 'pkce' | 'device'; url?: string; userCode?: string; grokImportAvailable: boolean }
 	| {
 	  status: 'signed-in'
-	  models: string[]
-	  available: string[]
-	  selected: string[]
-	  catalogSource: CatalogSource
-	  catalogError?: string
+	  models: ModelView[]
 	  grokImportAvailable: boolean
 	  accounts: readonly AccountSummary[]
 	  activeAccountId: string
 	}
 	| { status: 'error'; message: string; grokImportAvailable: boolean }
 
-/** Codex's or Claude's sign-in state from the status route. */
+/** Codex's sign-in state from the status route. */
 export type SubscriptionStatus = {
   provider: Exclude<ProviderSlug, 'grok'>
   route: string
   displayName: string
   loginMethods: readonly ('browser' | 'device')[]
   recommendedLoginMethod: 'browser' | 'device'
-  models: string[]
-  available: string[]
-  selected: string[]
+  models: ModelView[]
 } & (
 	| { status: 'signed-out' }
 	| { status: 'signing-in'; method: 'browser' | 'device'; url?: string; userCode?: string }
@@ -67,7 +70,6 @@ export interface CodingOAuthStatus {
   providers: {
     grok: GrokStatus
     codex: SubscriptionStatus
-    claude: SubscriptionStatus
   }
 }
 
@@ -78,23 +80,18 @@ export interface LoginChallenge {
   userCode?: string
 }
 
-/** One provider card: its copy keys and the sign-in methods it offers. */
+/**
+ * One provider card: its copy keys and its two sign-in methods. The browser
+ * method completes through the Host's local callback, so it is used when this
+ * page runs on the Host's own machine; the device method shows a code instead
+ * and is used when the page is opened from another machine.
+ */
 export interface ProviderCardDefinition {
   slug: ProviderSlug
-  route: string
   titleKey: GrokBuildSettingsKey
   descriptionKey: GrokBuildSettingsKey
-  methods: readonly LoginMethod[]
-  recommended: LoginMethod
-  /** Preferred method when the Settings UI is opened on a remote / non-loopback host. */
-  remoteRecommended?: LoginMethod
-  /**
-   * A pending browser sign-in also finishes from the redirect URL the user
-   * pastes. Set for a provider with no device flow, whose browser sign-in
-   * otherwise completes only when the browser can reach the Host's loopback
-   * callback.
-   */
-  acceptsPastedRedirect?: boolean
+  localMethod: LoginMethod
+  remoteMethod: LoginMethod
 }
 
 /** Mirrors the Host `UsageEntitlement`; see `src/usage-view.ts` for what each means. */
@@ -104,7 +101,6 @@ export type UsageEntitlementView = 'entitled' | 'no-subscription' | 'not-entitle
 export type UsageWindowLabelView =
 	| 'fiveHour'
 	| 'weekly'
-	| 'weeklyOpus'
 	| 'monthly'
 	| 'session'
 	| 'codeReview'

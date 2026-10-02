@@ -27,7 +27,7 @@ export type { ModelsKey } from './locales.ts'
 
 declare module '@aeven/client-ui-slots' {
   interface LocaleNamespaceMap {
-    /** The Model providers page copy. */
+    /** The Providers page copy. */
     'settings.models': ModelsKey
   }
 }

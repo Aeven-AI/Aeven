@@ -3,23 +3,17 @@
  * @module @aeven/subscription-auth/oauth-providers
  */
 
-import type { ApiKeyAuth, Provider } from '@earendil-works/pi-ai'
-import { anthropicProvider } from '@earendil-works/pi-ai/providers/anthropic'
+import type { Api, ApiKeyAuth, Model, Provider } from '@earendil-works/pi-ai'
 import { openaiCodexProvider } from '@earendil-works/pi-ai/providers/openai-codex'
 import {
-  CLAUDE_CODE_OAUTH_AUTH_FILENAME,
-  CLAUDE_CODE_OAUTH_MODELS_CACHE_FILENAME,
-  CLAUDE_CODE_OAUTH_ROUTE,
-  CLAUDE_PI_PROVIDER,
   CODEX_OAUTH_AUTH_FILENAME,
   CODEX_OAUTH_MODELS_CACHE_FILENAME,
   CODEX_OAUTH_ROUTE,
   CODEX_PI_PROVIDER,
-  type CodingOAuthProviderSlug,
 } from './ids.ts'
 
-/** Subscription provider slug. */
-export type SubscriptionProviderSlug = Exclude<CodingOAuthProviderSlug, 'grok'>
+/** Slug of a provider served through pi-ai's native OAuth provider; Grok has its own session. */
+export type SubscriptionProviderSlug = 'codex'
 /** Subscription login method. */
 export type SubscriptionLoginMethod = 'browser' | 'device'
 
@@ -34,7 +28,8 @@ export interface OAuthProviderDefinition {
   loginMethods: readonly SubscriptionLoginMethod[]
   recommendedLoginMethod: SubscriptionLoginMethod
   providerFactory(): Provider
-  requestProvider(selectedIds?: readonly string[]): Provider
+  /** The request provider serving exactly `models`, which may include ids the shipped catalog lacks. */
+  requestProvider(models: readonly Model<Api>[]): Provider
 }
 
 function requestTokenAuth(name: string): ApiKeyAuth {
@@ -48,28 +43,15 @@ function requestTokenAuth(name: string): ApiKeyAuth {
   }
 }
 
-function selectedProvider(
-  base: Provider,
-  selectedIds: readonly string[] | undefined,
-  apiKey: ApiKeyAuth | undefined,
-): Provider {
-  const selected = selectedIds === undefined || selectedIds.length === 0 ? undefined : new Set(selectedIds)
+function servingProvider(base: Provider, models: readonly Model<Api>[], apiKey: ApiKeyAuth): Provider {
   return {
     ...base,
-    auth: apiKey === undefined ? base.auth : { ...base.auth, apiKey },
-    getModels: () => {
-      const models = base.getModels()
-      return selected === undefined ? models : models.filter(model => selected.has(model.id))
-    },
+    auth: { ...base.auth, apiKey },
+    getModels: () => [...models],
   }
 }
 
-function asProvider(factory: () => Provider): () => Provider {
-  return factory
-}
-
-const createCodexProvider = asProvider(openaiCodexProvider)
-const createClaudeProvider = asProvider(anthropicProvider)
+const createCodexProvider = (): Provider => openaiCodexProvider()
 
 /** Provider definition for codex oauth. */
 export const CODEX_OAUTH_PROVIDER: OAuthProviderDefinition = {
@@ -82,29 +64,12 @@ export const CODEX_OAUTH_PROVIDER: OAuthProviderDefinition = {
   loginMethods: ['device', 'browser'],
   recommendedLoginMethod: 'device',
   providerFactory: createCodexProvider,
-  requestProvider: selectedIds =>
-    selectedProvider(createCodexProvider(), selectedIds, requestTokenAuth('OpenAI Codex OAuth token')),
-}
-
-/** Provider definition for claude code oauth. */
-export const CLAUDE_CODE_OAUTH_PROVIDER: OAuthProviderDefinition = {
-  slug: 'claude',
-  route: CLAUDE_CODE_OAUTH_ROUTE,
-  nativeProviderId: CLAUDE_PI_PROVIDER,
-  displayName: 'Claude Code (Pro/Max)',
-  authFilename: CLAUDE_CODE_OAUTH_AUTH_FILENAME,
-  modelsCacheFilename: CLAUDE_CODE_OAUTH_MODELS_CACHE_FILENAME,
-  loginMethods: ['browser'],
-  recommendedLoginMethod: 'browser',
-  providerFactory: createClaudeProvider,
-  requestProvider: selectedIds => selectedProvider(createClaudeProvider(), selectedIds, undefined),
+  requestProvider: models =>
+    servingProvider(createCodexProvider(), models, requestTokenAuth('OpenAI Codex OAuth token')),
 }
 
 /** Oauth provider definitions. */
-export const OAUTH_PROVIDER_DEFINITIONS = [
-  CODEX_OAUTH_PROVIDER,
-  CLAUDE_CODE_OAUTH_PROVIDER,
-] as const
+export const OAUTH_PROVIDER_DEFINITIONS = [CODEX_OAUTH_PROVIDER] as const
 
 /**
  * Oauth provider definition.

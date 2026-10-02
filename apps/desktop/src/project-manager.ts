@@ -103,6 +103,33 @@ const VERSION_PATTERN = /^[0-9A-Za-z][0-9A-Za-z.+_-]*$/u
 const MAX_PNPM_DIAGNOSTIC_BYTES = 64 * 1024
 const DESKTOP_REGISTRY = 'https://registry.npmjs.org/'
 
+/** Dependencies of `@aeven/client-ui-primitives`, a browser library the web frontend build compiles in. */
+const BROWSER_LIBRARY_DEPENDENCIES = [
+  '@types/mdast', 'anser', 'clsx', 'highlight.js', 'katex', 'mdast-util-from-markdown', 'mdast-util-gfm', 'mermaid',
+  'micromark-core-commonmark', 'micromark-extension-gfm', 'micromark-util-character', 'micromark-util-classify-character',
+  'micromark-util-symbol', 'micromark-util-types', 'react', 'react-dom', 'rehype-highlight', 'rehype-katex',
+  'remark-cjk-friendly', 'remark-math', 'tippy.js',
+] as const
+
+/**
+ * Third-party dependency edges the Desktop graph rewrites; pnpm keeps a package any other edge still reaches.
+ *
+ * `-` removes an edge the Host never loads. The web frontend `dist` contains `@aeven/client-ui-primitives` and its
+ * dependencies, and each plugin's `lib/client.js` contains its Lexical copy or resolves xterm from that `dist`.
+ * MemOS runs `tsx` only to respawn its standalone bridge daemon from `bridge.cts` sources the seed does not ship.
+ * Transformers.js imports `sharp` at load but never decodes images for text embeddings, so it shares the
+ * attachment reader's `sharp` release instead of carrying a second libvips.
+ */
+export const DESKTOP_DEPENDENCY_OVERRIDES: Readonly<Record<string, string>> = Object.fromEntries<string>([
+  ...BROWSER_LIBRARY_DEPENDENCIES.map((name): [string, string] => [`@aeven/client-ui-primitives>${name}`, '-']),
+  ...['lexical', '@lexical/history', '@lexical/plain-text', '@lexical/text', '@lexical/utils']
+    .map((name): [string, string] => [`@aeven/client-ui-conversation>${name}`, '-']),
+  ...['@xterm/xterm', '@xterm/addon-fit']
+    .map((name): [string, string] => [`@aeven/client-ui-sidebar-terminal>${name}`, '-']),
+  ['@memtensor/memos-local-plugin>tsx', '-'],
+  ['@huggingface/transformers>sharp', '^0.35.3'],
+])
+
 function errorOf(reason: unknown, fallback: string): Error {
   return reason instanceof Error ? reason : new Error(fallback)
 }
@@ -115,16 +142,17 @@ function readJson(path: string): unknown {
   return JSON.parse(readFileSync(path, 'utf8'))
 }
 
-function workspaceFile(overrides: Readonly<Record<string, string>> = {}): string {
-  const entries = Object.entries(overrides).sort(([left], [right]) => left.localeCompare(right))
-  const overrideSection = entries.length === 0
-    ? ''
-    : `overrides:\n${entries.map(([name, spec]) => `  ${JSON.stringify(name)}: ${JSON.stringify(spec)}`).join('\n')}\n`
-  const coreBuildSpec = overrides[CORE_BUILD_PACKAGE]
+function workspaceFile(corePackages: Readonly<Record<string, string>> = {}): string {
+  const entries = Object.entries({ ...DESKTOP_DEPENDENCY_OVERRIDES, ...corePackages })
+    .sort(([left], [right]) => left.localeCompare(right))
+  const overrideSection = `overrides:\n${entries.map(([name, spec]) => `  ${JSON.stringify(name)}: ${JSON.stringify(spec)}`).join('\n')}\n`
+  const coreBuildSpec = corePackages[CORE_BUILD_PACKAGE]
   const coreBuildKey = coreBuildSpec === undefined
     ? CORE_BUILD_PACKAGE
     : `${CORE_BUILD_PACKAGE}@${coreBuildSpec.replace('file:./', 'file:')}`
-  return `packages:\n  - .\n\n${overrideSection}${WORKSPACE_SETTINGS}allowBuilds:\n  node-pty: true\n  koffi: true\n  fs-ext: true\n  esbuild: true\n  better-sqlite3: true\n  onnxruntime-node: true\n  sharp: true\n  ${JSON.stringify(coreBuildKey)}: true\n  '@google/genai': false\n  protobufjs: false\n  node-addon-require-builtin: false\n  tesseract.js: false\n  '@memtensor/memos-local-plugin': false\n`
+  // onnxruntime-node's install script only downloads CUDA execution providers (Linux x64); MemOS embeds on the
+  // CPU runtime the package ships, so allowing it would put about 300 MB of GPU libraries into every install.
+  return `packages:\n  - .\n\n${overrideSection}${WORKSPACE_SETTINGS}allowBuilds:\n  node-pty: true\n  koffi: true\n  fs-ext: true\n  esbuild: true\n  better-sqlite3: true\n  onnxruntime-node: false\n  sharp: true\n  ${JSON.stringify(coreBuildKey)}: true\n  '@google/genai': false\n  protobufjs: false\n  node-addon-require-builtin: false\n  tesseract.js: false\n  '@memtensor/memos-local-plugin': false\n`
 }
 
 function releaseFile(projectDir: string): DesktopRelease {

@@ -7,7 +7,6 @@ import type {} from '@aeven/llm'
 import type { AuthEvent, AuthPrompt } from '@earendil-works/pi-ai'
 import { CODING_OAUTH_CORE_ABI } from 'dsh-coding-oauth-core'
 import { grokBuildAuthStatus, importGrokBuildSession, loginGrokBuildSession } from './auth.ts'
-import type { CatalogSource } from './catalog.ts'
 import type { AvnCompatibility } from './compatibility.ts'
 import { probeGrokAuth } from './grok-import.ts'
 import { readJsonRequest, requestErrorStatus } from './http-json.ts'
@@ -16,14 +15,15 @@ import {
   CODING_OAUTH_LOGIN_CODE_PATH,
   CODING_OAUTH_LOGIN_PATH,
   CODING_OAUTH_LOGOUT_PATH,
+  CODING_OAUTH_MODELS_PATH,
   CODING_OAUTH_STATUS_PATH,
-  type CodingOAuthProviderSlug,
   GROK_BUILD_AUTH_IMPORT_PATH,
   GROK_BUILD_AUTH_LOGIN_CANCEL_PATH,
   GROK_BUILD_AUTH_LOGIN_CODE_PATH,
   GROK_BUILD_AUTH_LOGIN_PATH,
   GROK_BUILD_AUTH_LOGOUT_PATH,
   GROK_BUILD_AUTH_STATUS_PATH,
+  type SubscriptionSlug,
   XAI_PI_PROVIDER,
 } from './ids.ts'
 import { loginGrokBuildPkce } from './oauth.ts'
@@ -32,6 +32,7 @@ import type { OAuthProviderSession } from './oauth-session.ts'
 import { safeMessage } from './redact.ts'
 import type { GrokBuildSession } from './session.ts'
 import type { AccountSummary, OAuthCredentialFileStore } from './store.ts'
+import type { SubscriptionModelView } from './subscription-models.ts'
 import { LOOPBACK_OWNER_REQUEST_POLICY, type OwnerAccessMode, type OwnerRequestPolicy } from './web-origin.ts'
 import { registerWebRouteSetupAtomically } from './web-routes.ts'
 
@@ -40,6 +41,7 @@ export {
   CODING_OAUTH_LOGIN_CODE_PATH,
   CODING_OAUTH_LOGIN_PATH,
   CODING_OAUTH_LOGOUT_PATH,
+  CODING_OAUTH_MODELS_PATH,
   CODING_OAUTH_STATUS_PATH,
   GROK_BUILD_AUTH_IMPORT_PATH,
   GROK_BUILD_AUTH_LOGIN_CANCEL_PATH,
@@ -48,6 +50,10 @@ export {
   GROK_BUILD_AUTH_LOGOUT_PATH,
   GROK_BUILD_AUTH_STATUS_PATH,
 } from './ids.ts'
+
+/** One provider's model list with selection, as the status route reports it. */
+export type ModelViewsProvider = () => SubscriptionModelView[]
+
 /** Grok build login method. */
 export type GrokBuildLoginMethod = 'pkce' | 'device'
 
@@ -63,11 +69,7 @@ export type GrokBuildWebAuthStatus =
 	}
 	| {
 	  status: 'signed-in'
-	  models: string[]
-	  available: string[]
-	  selected: string[]
-	  catalogSource: CatalogSource
-	  catalogError?: string
+	  models: SubscriptionModelView[]
 	  grokImportAvailable: boolean
 	  accounts: AccountSummary[]
 	  activeAccountId: string
@@ -147,7 +149,10 @@ export class GrokBuildWebAuth {
   private challengeWaiters: Array<{ resolve(value: LoginChallenge): void; reject(error: unknown): void }> = []
   private codeResolver: ((code: string) => void) | undefined
 
-  constructor(private readonly session: GrokBuildSession) {}
+  constructor(
+    private readonly session: GrokBuildSession,
+    private readonly modelViews: ModelViewsProvider = () => [],
+  ) {}
 
   /**
    * Return the current state.
@@ -336,18 +341,12 @@ export class GrokBuildWebAuth {
   private async readStoredStatus(): Promise<GrokBuildWebAuthStatus> {
     const [stored, grok] = await Promise.all([grokBuildAuthStatus(this.session.store), grokImportAvailable()])
     if (!stored.authenticated) return { status: 'signed-out', grokImportAvailable: grok }
-    const available = this.session.availableModels().map(model => model.id)
-    const selected = this.session.selectedModelIds()
     const accounts = await signedInAccountFields(this.session.store)
     return {
       status: 'signed-in',
-      models: this.session.visibleModels().map(model => model.id),
-      available,
-      selected: selected ?? available,
-      catalogSource: this.session.catalogSource,
+      models: this.modelViews(),
       grokImportAvailable: grok,
       ...accounts,
-      ...(this.session.catalogError === undefined ? {} : { catalogError: this.session.catalogError }),
     }
   }
 
@@ -358,14 +357,12 @@ export class GrokBuildWebAuth {
 
 /** Reported subscription web auth status. */
 export type SubscriptionWebAuthStatus = {
-  provider: Exclude<CodingOAuthProviderSlug, 'grok'>
+  provider: Exclude<SubscriptionSlug, 'grok'>
   route: string
   displayName: string
   loginMethods: readonly SubscriptionLoginMethod[]
   recommendedLoginMethod: SubscriptionLoginMethod
-  models: string[]
-  available: string[]
-  selected: string[]
+  models: SubscriptionModelView[]
 } & (
 	| { status: 'signed-out' }
 	| { status: 'signing-in'; method: SubscriptionLoginMethod; url?: string; userCode?: string }
@@ -407,6 +404,7 @@ export class SubscriptionWebAuth {
   constructor(
     readonly session: OAuthProviderSession,
     private readonly challengeTimeoutMs = 60_000,
+    private readonly modelViews: ModelViewsProvider = () => [],
   ) {
     this.method = session.definition.recommendedLoginMethod
   }
@@ -501,18 +499,13 @@ export class SubscriptionWebAuth {
     SubscriptionWebAuthStatus,
 		'status' | 'method' | 'url' | 'userCode' | 'message' | 'expiresAt'
   > {
-    // Every subscription model is offered, so `selected` mirrors `available`.
-    const available = this.session.availableModels().map(model => model.id)
-    const selected = available
     return {
       provider: this.session.definition.slug,
       route: this.session.definition.route,
       displayName: this.session.definition.displayName,
       loginMethods: this.session.definition.loginMethods,
       recommendedLoginMethod: this.session.definition.recommendedLoginMethod,
-      models: this.session.visibleModels().map(model => model.id),
-      available,
-      selected,
+      models: this.modelViews(),
     }
   }
 
@@ -740,7 +733,6 @@ export interface CodingOAuthWebStatus {
   providers: {
     grok: GrokBuildWebAuthStatus
     codex: SubscriptionWebAuthStatus
-    claude: SubscriptionWebAuthStatus
   }
 }
 
@@ -751,10 +743,30 @@ function recordBody(body: unknown): Record<string, unknown> {
   return body as Record<string, unknown>
 }
 
-function providerSlug(body: unknown): CodingOAuthProviderSlug {
+function providerSlug(body: unknown): SubscriptionSlug {
   const provider = recordBody(body)['provider']
-  if (provider === 'grok' || provider === 'codex' || provider === 'kimi' || provider === 'claude') return provider
-  throw new Error('provider must be one of grok, codex, kimi, or claude')
+  if (provider === 'grok' || provider === 'codex') return provider
+  throw new Error('provider must be one of grok or codex')
+}
+
+function selectedIds(body: unknown): string[] {
+  const selected = recordBody(body)['selected']
+  if (!Array.isArray(selected) || !selected.every((id): id is string => typeof id === 'string')) {
+    throw new Error('selected must be an array of model ids')
+  }
+  return selected
+}
+
+/** Model selection seam of the Coding OAuth routes. */
+export interface CodingOAuthModelSelection {
+  /** Every model the provider offers, with its selection. */
+  views(slug: SubscriptionSlug): SubscriptionModelView[]
+  /**
+   * Keep exactly `selected` on among the provider's current models.
+   * @param slug - the provider.
+   * @param selected - the model ids to keep on.
+   */
+  setSelected(slug: SubscriptionSlug, selected: readonly string[]): Promise<void>
 }
 
 /**
@@ -831,12 +843,17 @@ export function registerCodingOAuthRoutes(
   subscriptionSessions: readonly OAuthProviderSession[],
   ownerRequestPolicy: OwnerRequestPolicy = LOOPBACK_OWNER_REQUEST_POLICY,
   compatibility?: (accessMode: OwnerAccessMode) => AvnCompatibility,
+  selection?: CodingOAuthModelSelection,
 ): void {
-  const grok = new GrokBuildWebAuth(grokSession)
+  const views = (slug: SubscriptionSlug): ModelViewsProvider => () => selection?.views(slug) ?? []
+  const grok = new GrokBuildWebAuth(grokSession, views('grok'))
   const subscriptions = new Map(
-    subscriptionSessions.map(session => [session.definition.slug, new SubscriptionWebAuth(session)]),
+    subscriptionSessions.map(session => [
+      session.definition.slug,
+      new SubscriptionWebAuth(session, undefined, views(session.definition.slug)),
+    ]),
   )
-  const subscription = (slug: Exclude<CodingOAuthProviderSlug, 'grok'>): SubscriptionWebAuth => {
+  const subscription = (slug: Exclude<SubscriptionSlug, 'grok'>): SubscriptionWebAuth => {
     const auth = subscriptions.get(slug)
     if (auth === undefined) throw new Error(`OAuth provider "${slug}" is not configured`)
     return auth
@@ -850,7 +867,7 @@ export function registerCodingOAuthRoutes(
   registerGrokBuildAuthRoutes(ctx, grokSession, grok, ownerRequestPolicy)
 
   const allStatus = async (accessMode: OwnerAccessMode): Promise<CodingOAuthWebStatus> => {
-    const [grokStatus, codex, claude] = await Promise.all([
+    const [grokStatus, codex] = await Promise.all([
       grok.status().catch(
         async (error: unknown): Promise<GrokBuildWebAuthStatus> => ({
           status: 'error',
@@ -859,13 +876,12 @@ export function registerCodingOAuthRoutes(
         }),
       ),
       subscription('codex').status(),
-      subscription('claude').status(),
     ])
     return {
       accessMode,
       uiOwner: 'standalone',
       compatibility: compatibility?.(accessMode) ?? fallbackCompatibility(accessMode),
-      providers: { grok: grokStatus, codex, claude },
+      providers: { grok: grokStatus, codex },
     }
   }
 
@@ -877,7 +893,7 @@ export function registerCodingOAuthRoutes(
    * @returns the route handler.
    */
   const lifecycleHandler = (
-    apply: (slug: CodingOAuthProviderSlug) => Promise<unknown>,
+    apply: (slug: SubscriptionSlug) => Promise<unknown>,
   ): (req: IncomingMessage, res: ServerResponse) => Promise<void> =>
     async (req, res) => {
       const accessMode = authorizeManagementPost(req, res, ownerRequestPolicy)
@@ -960,6 +976,22 @@ export function registerCodingOAuthRoutes(
         kind: 'exact',
         path: CODING_OAUTH_LOGOUT_PATH,
         handler: lifecycleHandler(slug => (slug === 'grok' ? grok.signOut() : subscription(slug).signOut())),
+      }),
+      webServer.register({
+        kind: 'exact',
+        path: CODING_OAUTH_MODELS_PATH,
+        handler: async (req, res) => {
+          const accessMode = authorizeManagementPost(req, res, ownerRequestPolicy)
+          if (accessMode === undefined) return
+          try {
+            if (selection === undefined) throw new Error('model selection is not available')
+            const body = await readJsonRequest(req)
+            await selection.setSelected(providerSlug(body), selectedIds(body))
+            json(res, 200, await allStatus(accessMode))
+          } catch (error: unknown) {
+            json(res, requestErrorStatus(error, 400), { error: safeMessage(error) })
+          }
+        },
       }),
     ])
     return releaseRoutes

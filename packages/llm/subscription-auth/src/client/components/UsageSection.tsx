@@ -26,7 +26,6 @@ export interface UsageSectionProps {
 const WINDOW_LABEL_KEYS: Readonly<Record<UsageWindowView['label'], GrokBuildSettingsKey>> = {
   fiveHour: 'usageWindowFiveHour',
   weekly: 'usageWindowWeekly',
-  weeklyOpus: 'usageWindowWeeklyOpus',
   monthly: 'usageWindowMonthly',
   session: 'usageWindowSession',
   codeReview: 'usageWindowCodeReview',

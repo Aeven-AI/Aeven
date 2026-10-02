@@ -25,7 +25,8 @@
       "@deepseek-ai/schemastery": "3.18.2",
       "@earendil-works/pi-ai": "0.84.2",
       "react": "18.3.1",
-      "react-dom": "18.3.1"
+      "react-dom": "18.3.1",
+      "@aeven/media": "0.1.2-alpha.5"
     }
   },
   "candidates": []

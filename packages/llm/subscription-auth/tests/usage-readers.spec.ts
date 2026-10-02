@@ -2,21 +2,20 @@
  * Per-provider usage readers, with the free-tier answers as the main subject.
  *
  * A free plan is the case most likely to be mishandled, because each provider
- * expresses it differently: Claude answers 200 with no buckets, Codex refuses
- * outright, and Grok still meters a capped allowance. Each is asserted here so
+ * expresses it differently: Codex refuses outright, and Grok still meters a
+ * capped allowance. Each is asserted here so
  * the card cannot silently collapse them into "no data".
  */
 
 import { LlmError } from '@aeven/llm'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { claudeTierFromProfile, createClaudeUsageReader, normalizeClaudeUsage } from '../src/claude-usage.ts'
 import type { CodexUsage } from '../src/codex-usage.ts'
 import { codexUsageToProviderUsage, createCodexProviderUsageReader } from '../src/codex-usage-adapter.ts'
 import { createGrokUsageReader, isQualifyingGrokTier, normalizeGrokUsage } from '../src/grok-usage.ts'
 import { createUsageReader } from '../src/usage-reader.ts'
 import { type UsageHttpOptions, UsageHttpError, usageGetJson } from '../src/usage-http.ts'
 import type { ProviderUsage } from '../src/usage-view.ts'
-import { epochSecondsFromRfc3339, hasMeteredUsage, noSubscriptionUsage, remainingFromUsed } from '../src/usage-view.ts'
+import { epochSecondsFromRfc3339, noSubscriptionUsage, remainingFromUsed } from '../src/usage-view.ts'
 
 const NOW = 1_800_000_000_000
 
@@ -298,218 +297,6 @@ describe('usage http transport', () => {
     )
     expect(failure).toBeInstanceOf(UsageHttpError)
     expect((failure as UsageHttpError).message).toBe('usage request timed out')
-  })
-})
-
-describe('Claude usage', () => {
-  const usageBody = {
-    five_hour: { utilization: 14, resets_at: '2026-09-09T14:38:00Z' },
-    seven_day: { utilization: 49, resets_at: '2026-09-15T11:26:00Z' },
-    seven_day_opus: { utilization: null },
-  }
-
-  it('projects the metered windows as remaining percentages', () => {
-    const usage = normalizeClaudeUsage(usageBody, NOW, 'Max')
-    expect(usage.entitlement).toBe('entitled')
-    expect(usage.tier).toBe('Max')
-    // The null Opus bucket is absence, not zero usage, so it contributes no bar.
-    expect(usage.windows.map(window => window.id)).toEqual(['five_hour', 'seven_day'])
-    expect(usage.windows[0]).toMatchObject({ label: 'fiveHour', remainingPercent: 86 })
-    expect(usage.windows[1]).toMatchObject({ label: 'weekly', remainingPercent: 51 })
-    expect(usage.windows[0]?.resetsAt).toBe(Math.floor(Date.parse('2026-09-09T14:38:00Z') / 1000))
-  })
-
-  it('reports what is left of the extra-usage allowance as credits in its currency', () => {
-    const capped = normalizeClaudeUsage(
-      { ...usageBody, extra_usage: { is_enabled: true, monthly_limit: 5000, used_credits: 1234, utilization: 24.7, currency: 'EUR' } },
-      NOW,
-    )
-    expect(capped.credits).toEqual({ kind: 'money', currency: 'EUR', remaining: 3766 })
-
-    const uncapped = normalizeClaudeUsage(
-      { ...usageBody, extra_usage: { is_enabled: true, monthly_limit: null, used_credits: 800, utilization: null } },
-      NOW,
-    )
-    expect(uncapped.credits).toEqual({ kind: 'money', currency: 'USD', remaining: 0, unlimited: true })
-
-    // Extra usage turned off leaves nothing beyond the plan, which reads as a zero balance.
-    const disabled = normalizeClaudeUsage(
-      { ...usageBody, extra_usage: { is_enabled: false, monthly_limit: null, used_credits: null, utilization: null } },
-      NOW,
-    )
-    expect(disabled.credits).toEqual({ kind: 'money', currency: 'USD', remaining: 0 })
-    expect(normalizeClaudeUsage(usageBody, NOW).credits).toBeUndefined()
-  })
-
-  it('reports a plan with no metered buckets as no-subscription rather than empty', () => {
-    const free = normalizeClaudeUsage({}, NOW, 'Free')
-    expect(free.entitlement).toBe('no-subscription')
-    expect(free.windows).toEqual([])
-    expect(free.tier).toBe('Free')
-    expect(hasMeteredUsage(free)).toBe(false)
-  })
-
-  it('names the plan from the profile, falling back to Free for an unpaid account', () => {
-    expect(claudeTierFromProfile({ organization: { organization_type: 'claude_max' } })).toBe('Max')
-    expect(claudeTierFromProfile({ organization: { organization_type: 'claude_pro' } })).toBe('Pro')
-    expect(claudeTierFromProfile({ organization: { organization_type: 'claude_enterprise' } })).toBe('Enterprise')
-    expect(claudeTierFromProfile({ account: { has_claude_pro: false, has_claude_max: false } })).toBe('Free')
-    expect(claudeTierFromProfile('nonsense')).toBeUndefined()
-  })
-
-  it('reads usage and tier together over HTTP', async () => {
-    const fetchImpl = fetchStub({
-      '/api/oauth/profile': { body: { organization: { organization_type: 'claude_pro' } } },
-      '/api/oauth/usage': { body: usageBody },
-    })
-    const reader = createClaudeUsageReader({ ...tokenSeam(), fetchImpl, now: () => NOW })
-    const usage = await reader.read()
-    expect(usage.entitlement).toBe('entitled')
-    expect(usage.tier).toBe('Pro')
-    expect(usage.windows).toHaveLength(2)
-  })
-
-  it("turns a refusal into not-entitled and keeps the provider's own wording", async () => {
-    const fetchImpl = fetchStub({
-      '/api/oauth/profile': { body: { account: {} } },
-      '/api/oauth/usage': { status: 403, body: { error: { message: 'This plan has no Claude Code access' } } },
-    })
-    const reader = createClaudeUsageReader({ ...tokenSeam(), fetchImpl, now: () => NOW })
-    const usage = await reader.read()
-    expect(usage.entitlement).toBe('not-entitled')
-    expect(usage.gate?.message).toBe('This plan has no Claude Code access')
-    expect(usage.tier).toBe('Free')
-  })
-
-  it('still answers when the profile read fails, because the tier is only a label', async () => {
-    const fetchImpl = fetchStub({
-      '/api/oauth/profile': { status: 500, body: {} },
-      '/api/oauth/usage': { body: usageBody },
-    })
-    const reader = createClaudeUsageReader({ ...tokenSeam(), fetchImpl, now: () => NOW })
-    const usage = await reader.read()
-    expect(usage.entitlement).toBe('entitled')
-    expect(usage.tier).toBeUndefined()
-  })
-
-  it('keeps a metered window that reports no reset time', () => {
-    const usage = normalizeClaudeUsage({ five_hour: { utilization: 30 } }, NOW, 'Pro')
-    expect(usage.windows).toEqual([{ id: 'five_hour', label: 'fiveHour', remainingPercent: 70 }])
-  })
-
-  it('ignores an extra-usage cap that is not a number', () => {
-    const usage = normalizeClaudeUsage(
-      { ...usageBody, extra_usage: { is_enabled: true, monthly_limit: 'lots', used_credits: 10 } },
-      NOW,
-    )
-    expect(usage.credits).toBeUndefined()
-    expect('credits' in usage).toBe(false)
-  })
-
-  it('treats an unusable spend figure as nothing spent', () => {
-    const usage = normalizeClaudeUsage(
-      { ...usageBody, extra_usage: { is_enabled: true, monthly_limit: 5_000, used_credits: null } },
-      NOW,
-    )
-    expect(usage.credits).toEqual({ kind: 'money', currency: 'USD', remaining: 5_000 })
-  })
-
-  it('ignores a usage document that is not an object', () => {
-    expect(normalizeClaudeUsage('nope', NOW)).toEqual({ entitlement: 'no-subscription', windows: [], fetchedAt: NOW })
-  })
-
-  it('falls back to the account flags when the organization names no known plan', () => {
-    // An unrecognised or untyped organization is not a plan, and a body with no
-    // account at all cannot name one either.
-    expect(claudeTierFromProfile({ organization: { organization_type: 'claude_free' } })).toBeUndefined()
-    expect(claudeTierFromProfile({ organization: { organization_type: 42 } })).toBeUndefined()
-    expect(claudeTierFromProfile({ account: { has_claude_max: true } })).toBe('Max')
-    expect(claudeTierFromProfile({ account: { has_claude_pro: true } })).toBe('Pro')
-  })
-
-  it('reports a gate the provider left unexplained without inventing a plan', async () => {
-    const fetchImpl = fetchStub({
-      '/api/oauth/profile': { status: 500, body: {} },
-      '/api/oauth/usage': { status: 403, body: {} },
-    })
-    const reader = createClaudeUsageReader({ ...tokenSeam(), fetchImpl, now: () => NOW })
-    const usage = await reader.read()
-    expect(usage).toEqual({ entitlement: 'not-entitled', windows: [], fetchedAt: NOW })
-  })
-
-  it('reports an unknown entitlement when no token can be resolved', async () => {
-    const fetchImpl = fetchStub({ '/api/oauth': { status: 401, body: {} } })
-    const reader = createClaudeUsageReader({
-      resolveToken: async () => undefined,
-      invalidateToken: async () => undefined,
-      fetchImpl,
-      now: () => NOW,
-    })
-    const usage = await reader.read()
-    expect(usage).toEqual({ entitlement: 'unknown', windows: [], fetchedAt: NOW })
-    expect(fetchImpl).not.toHaveBeenCalled()
-  })
-
-  it('keeps the profile tier when the quota read refuses the token', async () => {
-    let calls = 0
-    const fetchImpl = fetchStub({
-      '/api/oauth/profile': { body: { organization: { organization_type: 'claude_max' } } },
-      '/api/oauth/usage': { status: 401, body: {} },
-    })
-    const reader = createClaudeUsageReader({
-      resolveToken: async () => (calls++ === 0 ? 'token' : undefined),
-      invalidateToken: async () => undefined,
-      fetchImpl,
-      now: () => NOW,
-    })
-    const usage = await reader.read()
-    expect(usage).toEqual({ entitlement: 'unknown', windows: [], fetchedAt: NOW, tier: 'Max' })
-  })
-
-  it('honours explicit cache lifetimes', async () => {
-    const fetchImpl = fetchStub({
-      '/api/oauth/profile': { body: { account: {} } },
-      '/api/oauth/usage': { body: usageBody },
-    })
-    const reader = createClaudeUsageReader({ ...tokenSeam(), fetchImpl, now: () => NOW, ttlMs: 0, negativeTtlMs: 0 })
-
-    await reader.read()
-    await reader.read()
-
-    expect(fetchImpl.mock.calls.filter(call => call[0].includes('/api/oauth/usage'))).toHaveLength(2)
-  })
-
-  it('uses the global fetch when no transport is injected', async () => {
-    const globalFetch = vi.fn(async (input: string) =>
-      input.includes('/profile')
-        ? new Response(JSON.stringify({ account: {} }), {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        })
-        : new Response(JSON.stringify(usageBody), { status: 200, headers: { 'content-type': 'application/json' } }))
-    vi.stubGlobal('fetch', globalFetch)
-
-    const reader = createClaudeUsageReader({ ...tokenSeam(), now: () => NOW })
-    const usage = await reader.read()
-
-    expect(usage.entitlement).toBe('entitled')
-    expect(usage.tier).toBe('Free')
-    expect(globalFetch).toHaveBeenCalledTimes(2)
-  })
-
-  it('stamps the projection with the wall clock when no clock is injected', async () => {
-    const fetchImpl = fetchStub({
-      '/api/oauth/profile': { body: { account: {} } },
-      '/api/oauth/usage': { body: usageBody },
-    })
-    const before = Date.now()
-    const reader = createClaudeUsageReader({ ...tokenSeam(), fetchImpl })
-
-    const usage = await reader.read()
-
-    expect(usage.entitlement).toBe('entitled')
-    expect(usage.fetchedAt).toBeGreaterThanOrEqual(before)
-    expect(usage.fetchedAt).toBeLessThanOrEqual(Date.now())
   })
 })
 

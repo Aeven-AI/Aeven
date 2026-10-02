@@ -12,7 +12,6 @@ import type {
   StreamChunk,
 } from '@aeven/llm'
 import { LlmAdapter, LlmError } from '@aeven/llm'
-import { remapClaudeCreditsFailure } from './claude-errors.ts'
 import { remapXaiCapacityFailure } from './grok-errors.ts'
 
 /** Alias llm route policy. */
@@ -128,7 +127,7 @@ export class AliasLlmAdapter extends LlmAdapter {
             ...raw,
             reason: {
               ...raw.reason,
-              failure: remapClaudeCreditsFailure(remapXaiCapacityFailure(raw.reason.failure)),
+              failure: remapXaiCapacityFailure(raw.reason.failure),
             },
           }
           : raw

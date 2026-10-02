@@ -10,8 +10,6 @@ import { AliasLlmAdapter } from './alias-adapter.ts'
 import { preferredGrokBuildModelFrom } from './catalog.ts'
 import { withCodexFastRouting } from './codex-model-capabilities.ts'
 import {
-  CLAUDE_CODE_OAUTH_ROUTE,
-  CLAUDE_PI_PROVIDER,
   CODEX_OAUTH_FAST_ROUTE,
   CODEX_OAUTH_ROUTE,
   CODEX_PI_PROVIDER,
@@ -89,7 +87,7 @@ export function preferredGrokBuildModel(models: readonly { id: string }[] = grok
 
 function missingCredential(name: string): never {
   throw new LlmError(
-    `${name} is not signed in. Open Settings → Model providers and sign in with your subscription.`,
+    `${name} is not signed in. Open Settings → Providers and sign in with your subscription.`,
     'MISSING_CREDENTIAL',
   )
 }
@@ -202,7 +200,7 @@ function splitCodingOAuthAdapterArgs(
 }
 
 /**
- * Create the four-route OAuth adapter while preserving each pi-ai native id.
+ * Create the Grok and Codex OAuth adapter while preserving each pi-ai native id.
  * @param grok - Grok value.
  * @param subscriptions - Subscriptions value.
  * @param resolveAttachments - Resolve attachments value.
@@ -244,7 +242,6 @@ export function createCodingOAuthAdapter(
   const aliases = new Map<string, string>([
     [GROK_BUILD_ROUTE, GROK_BUILD_ROUTE],
     [CODEX_OAUTH_ROUTE, CODEX_PI_PROVIDER],
-    [CLAUDE_CODE_OAUTH_ROUTE, CLAUDE_PI_PROVIDER],
   ])
   if (codexFast !== undefined && codexSession !== undefined) {
     aliases.set(CODEX_OAUTH_FAST_ROUTE, CODEX_OAUTH_FAST_ROUTE)
@@ -358,7 +355,7 @@ async function resolveOAuthToken(
   } catch (error) {
     throw new LlmError(
       `${displayName} could not refresh its sign-in (${safeMessage(error)}).` +
-				' Open Settings → Model providers and sign in again.',
+				' Open Settings → Providers and sign in again.',
       'MISSING_CREDENTIAL',
     )
   }

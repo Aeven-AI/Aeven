@@ -1,5 +1,5 @@
 ---
-description: "Coding-subscription OAuth for Grok Build, ChatGPT Codex, and Claude Code: model routes, quota reporting, image and video generation, and a group on the Model providers settings page."
+description: "Coding-subscription OAuth for Grok Build and ChatGPT Codex: model routes with per-model selection, quota reporting, image and video generation, and a group on the Providers settings page."
 kind: "package-bundle"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`avn-subscription-auth` lets a deployment drive models from coding subscriptions the operator already pays for, instead of an API key. It signs in to Grok Build, ChatGPT Codex, and Claude Code over OAuth, publishes each as an LLM route, reports what quota is left, and offers image and video generation through its own tools. A Subscriptions group on the Model providers settings page owns sign-in and quota in the browser, in the same rows as the API-key providers. It is experimental: excluded from official releases, and it talks to private endpoints the vendors do not document, so a provider change can break a route without warning.
+`avn-subscription-auth` lets a deployment drive models from coding subscriptions the operator already pays for, instead of an API key. It signs in to Grok Build and ChatGPT Codex over OAuth, publishes each as an LLM route serving the models the user keeps selected, reports what quota is left, and offers image and video generation through its own tools and the harness media seam. A Subscriptions group on the Providers settings page owns sign-in, quota, and model selection in the browser, one foldout card per subscription. It is experimental: excluded from official releases, and it talks to private endpoints the vendors do not document, so a provider change can break a route without warning.
 
 ## Table of Contents
 
@@ -28,11 +28,11 @@ Add the package to a profile as a bundle. Its `cordis.patch.yml` inserts the `ll
 
 ### When to choose it
 
-Choose it when the operator holds a SuperGrok, ChatGPT Plus/Pro, or Claude Pro/Max subscription and wants those models available without provisioning API keys. Do not choose it to serve those subscriptions to anything but this deployment: each vendor's terms govern what a subscription may drive, and this package uses each vendor's own client route rather than a public API.
+Choose it when the operator holds a SuperGrok or ChatGPT Plus/Pro subscription and wants those models available without provisioning API keys. Claude is not offered: Anthropic bills a Claude subscription's OAuth use outside its own apps against usage credits rather than the plan's limits, which is API-key billing by another route. Do not choose it to serve those subscriptions to anything but this deployment: each vendor's terms govern what a subscription may drive, and this package uses each vendor's own client route rather than a public API.
 
 ### Sign in
 
-Every provider is signed in from Settings → Model providers, in its Subscriptions group. **Sign in** opens the vendor's sign-in page in a new tab and completes through the harness's local callback, so nothing is entered in Settings. Grok Build and Codex also offer **Sign in with code**, a device-code flow that shows a code to enter on the vendor's page; it comes first when the browser is not on the harness host, because the local callback would reach the wrong machine. Claude Code is browser only. Settings closes the provider tab it opened once the sign-in lands; Grok's consent page confirms delivery itself because the local callback lets `https://accounts.x.ai` read its answer. Credentials live under `${AVN_HOME}` in one file per provider, readable only by the operator, and are never rendered in the browser.
+Every provider is signed in from Settings → Providers, in its Subscriptions group: open the provider's card and choose **Sign in** at its foot. On the harness host the button opens the vendor's sign-in page in a new tab and completes through the harness's local callback, so nothing is entered in Settings. When the browser is not on the harness host the same button starts the device-code flow instead and shows a code to enter on the vendor's page, because the local callback would reach the wrong machine. Settings closes the provider tab it opened once the sign-in lands; Grok's consent page confirms delivery itself because the local callback lets `https://accounts.x.ai` read its answer. Credentials live under `${AVN_HOME}` in one file per provider, readable only by the operator, and are never rendered in the browser.
 
 ### Configuration
 
@@ -43,19 +43,24 @@ Every provider is signed in from Settings → Model providers, in its Subscripti
 | `capabilities.codexSearch` | `false` | Publish Codex-backed web search, which spends Codex quota. |
 | `capabilities.codexFast` | `false` | Publish the Codex Fast route when the live catalogue confirms priority eligibility. |
 | `capabilities.searchResults` | `5` | Upper bound on results returned by that search. |
+| `modelSyncIntervalMs` | `1800000` | Interval between automatic model-list syncs of the signed-in subscriptions. A sync also runs at startup and after each sign-in; `0` limits it to those two moments. |
 
-Image and video generation are not configurable. They are part of the subscription rather than a deployment choice, so they are fixed on with their limits at the provider maximum, and the Settings page does not offer them.
+Image and video generation have no configuration field. Each subscription's image model appears in its card's model list, marked as generating images, and switching it off there withdraws it from the harness image-model list and withdraws the matching generation tools.
+
+### Models
+
+An open, signed-in card lists every model the subscription offers with one checkbox each, plus **Select all** or **Deselect all**. A new model is selected by default. Small icons mark a model that understands images and a model that generates images. A change applies at once: the route's model list, the composer's model picker, and the image-model list follow it. The selection lives in `${AVN_HOME}/subscription-model-selection.json` as the ids the user switched off, so a model the vendor adds later starts selected and a model it removes drops out without touching other choices.
 
 -----
 
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 
-Each provider is one `OAuthProviderSession` over a per-provider credential file, plus `GrokBuildSession` for Grok. Every route offers its shipped catalogue: nothing fetches a provider's model list automatically, and a listing cached by an earlier fetch is not restored. `createCodingOAuthAdapter` publishes each signed-in provider as an LLM route and resolves a refreshed access token per request.
+Codex is one `OAuthProviderSession` over its credential file, and Grok is one `GrokBuildSession`. Each serves the vendor's live model listing — Grok's `/v1/models-v2`, Codex's `/backend-api/codex/models` without the entries Codex hides — and falls back to its shipped catalog until the first listing arrives. `src/model-sync.ts` re-reads both listings at startup, after each sign-in, and on `modelSyncIntervalMs`; the last listing is cached under `${AVN_HOME}` and restored at startup. A listed Codex id the shipped catalog does not know inherits the newest catalog entry's transport and limits. `createCodingOAuthAdapter` publishes each signed-in provider as an LLM route serving its selected models and resolves a refreshed access token per request.
 
-Usage reporting normalizes three unrelated vendor payloads into one projection (`src/usage-view.ts`): remaining percent per window and epoch-second resets, whatever the vendor reports. Codex answers `wham/usage` with used-percent windows and a credit balance, Claude answers `/api/oauth/usage` with three utilization buckets and a monthly extra-usage allowance, and Grok answers `/billing?format=credits` with one billing period, a per-product split, and a prepaid cent balance. Money balances carry their ISO 4217 currency and are shown in its minor unit. Each reader caches a successful read briefly and a refusal for much longer, because only a sign-in change can alter a refusal.
+Usage reporting normalizes two unrelated vendor payloads into one projection (`src/usage-view.ts`): remaining percent per window and epoch-second resets, whatever the vendor reports. Codex answers `wham/usage` with used-percent windows and a credit balance, and Grok answers `/billing?format=credits` with one billing period, a per-product split, and a prepaid cent balance. Money balances carry their ISO 4217 currency and are shown in its minor unit. Each reader caches a successful read briefly and a refusal for much longer, because only a sign-in change can alter a refusal.
 
-Media generation reaches the model only through this package's own Imagine and Codex tools; it registers no provider into the harness media seam, whose image models are the deployment's own. Tool advertisement is gated on credential readiness rather than on a setting — a tool whose backend holds no usable credential is withdrawn rather than offered and failed.
+Media generation reaches the model through this package's own Imagine and Codex tools, and each subscription's image model is also registered into the harness media seam (`src/media-providers.ts`) as `grok-subscription` and `codex-subscription`, so it appears wherever the harness lists image models. Both are gated on credential readiness and on the model's selection rather than on a setting — a tool or media provider whose backend holds no usable credential, or whose image model the user switched off, is withdrawn rather than offered and failed.
 
 **Runtime invariant:** No companion is published. OAuth sessions and credential files have no independent package-owned observation to compare, while capability, route, and tool contributions are owned by their registries and covered by lifecycle tests.
 

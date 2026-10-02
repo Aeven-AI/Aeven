@@ -294,21 +294,21 @@ async function resolveAccess(auth: CodexAuthSession): Promise<CodexAccess> {
     resolved = await auth.resolve()
   } catch (error) {
     throw new LlmError(
-      `Codex could not refresh its sign-in (${safeMessage(error)}). Open Settings → Model providers and sign in again.`,
+      `Codex could not refresh its sign-in (${safeMessage(error)}). Open Settings → Providers and sign in again.`,
       'MISSING_CREDENTIAL',
     )
   }
   const accessToken = resolved?.accessToken.trim()
   if (accessToken === undefined || accessToken.length === 0) {
     throw new LlmError(
-      'Codex is not signed in. Open Settings → Model providers and sign in with your ChatGPT subscription.',
+      'Codex is not signed in. Open Settings → Providers and sign in with your ChatGPT subscription.',
       'MISSING_CREDENTIAL',
     )
   }
   const accountId = chatgptAccountIdFromAccessToken(accessToken) ?? optionalNonEmptyString(resolved?.accountId)
   if (accountId === undefined) {
     throw new LlmError(
-      'Codex access token has no usable chatgpt_account_id claim. Open Settings → Model providers and sign in again.',
+      'Codex access token has no usable chatgpt_account_id claim. Open Settings → Providers and sign in again.',
       'INVALID_CREDENTIAL',
     )
   }

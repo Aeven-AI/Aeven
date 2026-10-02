@@ -1,5 +1,5 @@
 ---
-description: "面向 Grok Build、ChatGPT Codex 与 Claude Code 的编码订阅 OAuth：模型路由、额度上报、图像与视频生成，以及模型提供方设置页中的一个分组。"
+description: "面向 Grok Build 与 ChatGPT Codex 的编码订阅 OAuth：可逐个选择模型的模型路由、额度上报、图像与视频生成，以及提供方设置页中的一个分组。"
 kind: "package-bundle"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-bundle"
 
 ## 概述
 
-`avn-subscription-auth` 让部署用操作者已经付费的编码订阅来驱动模型，而不是使用 API key。它通过 OAuth 登录 Grok Build、ChatGPT Codex 与 Claude Code，把每个订阅发布为一条 LLM 路由，上报剩余额度，并通过它自己的工具提供图像与视频生成。模型提供方设置页中的「订阅」分组在浏览器中承载登录与额度，与 API 密钥提供方使用相同的行。它属于 experimental：不进入正式发布，并且调用的是供应商未公开文档的私有端点，因此供应商的一次改动就可能在没有预告的情况下让某条路由失效。
+`avn-subscription-auth` 让部署用操作者已经付费的编码订阅来驱动模型，而不是使用 API key。它通过 OAuth 登录 Grok Build 与 ChatGPT Codex，把每个订阅发布为一条只提供用户所选模型的 LLM 路由，上报剩余额度，并通过它自己的工具以及 harness 的 media seam 提供图像与视频生成。提供方设置页中的「订阅」分组在浏览器中承载登录、额度与模型选择，每个订阅一张可展开的卡片。它属于 experimental：不进入正式发布，并且调用的是供应商未公开文档的私有端点，因此供应商的一次改动就可能在没有预告的情况下让某条路由失效。
 
 ## 目录
 
@@ -28,11 +28,11 @@ kind: "package-bundle"
 
 ### 何时选择它
 
-当操作者持有 SuperGrok、ChatGPT Plus/Pro 或 Claude Pro/Max 订阅，并希望在不配置 API key 的情况下使用这些模型时选择它。不要用它把这些订阅提供给本部署之外的任何东西：各供应商的条款约束着一个订阅可以驱动什么，而这个包走的是各供应商自己的客户端路由，而非公开 API。
+当操作者持有 SuperGrok 或 ChatGPT Plus/Pro 订阅，并希望在不配置 API key 的情况下使用这些模型时选择它。本包不提供 Claude：Anthropic 将 Claude 订阅在其自家应用之外的 OAuth 使用计入用量积分而非套餐额度，这等同于换了一条路的 API key 计费。不要用它把这些订阅提供给本部署之外的任何东西：各供应商的条款约束着一个订阅可以驱动什么，而这个包走的是各供应商自己的客户端路由，而非公开 API。
 
 ### 登录
 
-每个供应商都在 设置 → 模型提供方 的「订阅」分组中登录。**登录** 会在新标签页中打开供应商的登录页，并通过 harness 的本地回调完成，因此无需在设置页中输入任何内容。Grok Build 与 Codex 另外提供 **使用代码登录**，这是一个设备码流程，会显示一个需要在供应商页面输入的代码；当浏览器不在 harness 所在主机上时它排在最前，因为本地回调会到达错误的机器。Claude Code 仅支持浏览器。登录完成后，设置页会关闭它打开的供应商标签页；Grok 的授权页会自行确认 code 已送达，因为本地回调允许 `https://accounts.x.ai` 读取它的应答。凭据按供应商各存一个文件，位于 `${AVN_HOME}` 下，仅操作者可读，且从不在浏览器中呈现。
+每个供应商都在 设置 → 提供方 的「订阅」分组中登录：展开该供应商的卡片，在卡片底部选择 **登录**。在 harness 所在主机上，该按钮会在新标签页中打开供应商的登录页，并通过 harness 的本地回调完成，因此无需在设置页中输入任何内容。当浏览器不在 harness 所在主机上时，同一个按钮改为启动设备码流程，显示一个需要在供应商页面输入的代码，因为本地回调会到达错误的机器。登录完成后，设置页会关闭它打开的供应商标签页；Grok 的授权页会自行确认 code 已送达，因为本地回调允许 `https://accounts.x.ai` 读取它的应答。凭据按供应商各存一个文件，位于 `${AVN_HOME}` 下，仅操作者可读，且从不在浏览器中呈现。
 
 ### 配置
 
@@ -43,19 +43,24 @@ kind: "package-bundle"
 | `capabilities.codexSearch` | `false` | 发布由 Codex 支撑的网页搜索，会消耗 Codex 额度。 |
 | `capabilities.codexFast` | `false` | 当在线目录确认优先资格后发布 Codex Fast 路由。 |
 | `capabilities.searchResults` | `5` | 该搜索返回结果数量的上限。 |
+| `modelSyncIntervalMs` | `1800000` | 对已登录订阅自动同步模型列表的间隔。启动时与每次登录后也会同步一次；`0` 表示只在这两个时刻同步。 |
 
-图像与视频生成不可配置。它们属于订阅本身而非部署选择，因此固定开启、上限取供应商最大值，设置页也不再提供这些开关。
+图像与视频生成没有配置字段。每个订阅的图像模型出现在其卡片的模型列表中，并标为可生成图片；在那里关闭它，会把它从 harness 的图像模型列表中撤下，并撤下对应的生成工具。
+
+### 模型
+
+已登录且展开的卡片会列出该订阅提供的每个模型，每个模型一个复选框，另有 **全选** 或 **全部取消**。新模型默认选中。小图标标出可理解图片的模型与可生成图片的模型。改动立即生效：路由的模型列表、输入框的模型选择器与图像模型列表都会随之更新。选择保存在 `${AVN_HOME}/subscription-model-selection.json`，内容是用户关闭的模型 id，因此供应商之后新增的模型默认选中，被移除的模型直接消失，而不影响其他选择。
 
 -----
 
 <a id="understand-the-implementation"></a>
 ## 理解实现
 
-每个供应商是一个 `OAuthProviderSession`，其下是按供应商划分的凭据文件；Grok 另有 `GrokBuildSession`。每条路由提供其内置目录：不会自动获取供应商的模型列表，之前获取并缓存的列表也不会恢复。`createCodingOAuthAdapter` 把每个已登录供应商发布为一条 LLM 路由，并按请求解析一个已刷新的 access token。
+Codex 是一个基于其凭据文件的 `OAuthProviderSession`，Grok 是一个 `GrokBuildSession`。两者都提供供应商的在线模型列表——Grok 的 `/v1/models-v2`，以及 Codex 的 `/backend-api/codex/models`（去掉 Codex 隐藏的条目）——在首份列表到达前回落到内置目录。`src/model-sync.ts` 在启动时、每次登录后以及每隔 `modelSyncIntervalMs` 重新读取两份列表；最近一份列表缓存在 `${AVN_HOME}` 下并在启动时恢复。内置目录不认识的 Codex id 会继承目录中最新条目的传输方式与上限。`createCodingOAuthAdapter` 把每个已登录供应商发布为一条只提供所选模型的 LLM 路由，并按请求解析一个已刷新的 access token。
 
-额度上报把三份互不相同的供应商载荷归一到一个投影（`src/usage-view.ts`）：无论供应商怎么报，都化为每个窗口的剩余百分比与以秒为单位的重置时刻。Codex 在 `wham/usage` 返回已用百分比窗口与积分余额，Claude 在 `/api/oauth/usage` 返回三个使用率桶与一份每月额外用量额度，Grok 在 `/billing?format=credits` 返回一个计费周期、按产品的拆分与预付分值余额。金额余额带有其 ISO 4217 币种，并以该币种的最小单位表示。每个 reader 对成功结果只做短暂缓存，对拒绝结果缓存得久得多，因为只有登录状态变化才能改变一次拒绝。
+额度上报把两份互不相同的供应商载荷归一到一个投影（`src/usage-view.ts`）：无论供应商怎么报，都化为每个窗口的剩余百分比与以秒为单位的重置时刻。Codex 在 `wham/usage` 返回已用百分比窗口与积分余额，Grok 在 `/billing?format=credits` 返回一个计费周期、按产品的拆分与预付分值余额。金额余额带有其 ISO 4217 币种，并以该币种的最小单位表示。每个 reader 对成功结果只做短暂缓存，对拒绝结果缓存得久得多，因为只有登录状态变化才能改变一次拒绝。
 
-媒体生成只通过这个包自己的 Imagine 与 Codex 工具到达模型；它不向 harness 的 media seam 注册任何 provider，该 seam 的图像模型属于部署自己。工具的对外暴露以凭据就绪状态为准，而不是以某个设置为准——后端没有可用凭据的工具会被撤下，而不是先提供再失败。
+媒体生成通过这个包自己的 Imagine 与 Codex 工具到达模型，同时每个订阅的图像模型也以 `grok-subscription` 与 `codex-subscription` 注册进 harness 的 media seam（`src/media-providers.ts`），因此会出现在 harness 列出图像模型的任何地方。两者都以凭据就绪状态与模型的选择为准，而不是以某个设置为准——后端没有可用凭据、或其图像模型已被用户关闭的工具或媒体 provider 会被撤下，而不是先提供再失败。
 
 **运行时不变量：** 不发布 companion。OAuth 会话与凭据文件没有可供比较的、由本包独立持有的观察值；能力、路由和工具贡献则由各自的 registry 持有，并由生命周期测试覆盖。
 

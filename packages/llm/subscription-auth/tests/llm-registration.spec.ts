@@ -5,7 +5,6 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import LlmRuntime from '@aeven/llm'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  CLAUDE_CODE_OAUTH_ROUTE,
   CODEX_OAUTH_ROUTE,
   CODING_OAUTH_ROUTES,
   GROK_BUILD_ROUTE,
@@ -105,7 +104,6 @@ describe('OAuth LLM route registration', () => {
 
   it.each([
     ['codex', CODEX_OAUTH_ROUTE],
-    ['claude', CLAUDE_CODE_OAUTH_ROUTE],
   ] as const)('publishes the %s catalog once its sign-in lands', async (slug, route) => {
     const app = await boot()
     await vi.waitFor(() => {

@@ -28,6 +28,8 @@ Mount the tool alongside `avn-media` and one or more image providers. `model` na
 
 `choices` is the whole set of selectable models, each naming its provider. When it is non-empty, the picker, the `/image-models` command, and a model a call names are all limited to it, so a model outside the list is refused before any generation. The shipped presets list `Aeven-1.0-Image-Flash` and `Aeven-1.0-Image-Pro`, default to Flash, and set `confirmModel: false`, so the first generation runs on Flash without asking and `/image-models` changes the stored choice.
 
+`listedProviders` names media providers whose own image-model listing is offered after `choices`. The listing is read on every call, so the picker, `/image-models`, and call validation follow a provider whose models change at runtime. The shipped presets name `grok-subscription` and `codex-subscription`, whose image models are listed while the subscription is signed in and the model is switched on in Settings → Providers.
+
 A deployment mounting two image providers pins one, either here or as the seam's `imageProvider`: the seam reports ambiguous selection rather than guessing.
 
 ### Requests

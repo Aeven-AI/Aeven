@@ -8082,6 +8082,9 @@ importers:
       '@aeven/llm-pi-ai':
         specifier: workspace:^
         version: link:../llm-pi-ai
+      '@aeven/media':
+        specifier: workspace:^
+        version: link:../../media/media
       '@aeven/tools':
         specifier: workspace:^
         version: link:../../core/tools

@@ -5,6 +5,7 @@ import {
   CODING_OAUTH_LOGIN_CODE_PATH,
   CODING_OAUTH_LOGIN_PATH,
   CODING_OAUTH_LOGOUT_PATH,
+  CODING_OAUTH_MODELS_PATH,
   CODING_OAUTH_STATUS_PATH,
 } from 'dsh-coding-oauth-core/contracts'
 import type { ProviderCardDefinition } from './types.ts'
@@ -19,6 +20,8 @@ export const LOGIN_CODE_PATH = CODING_OAUTH_LOGIN_CODE_PATH
 export const LOGIN_CANCEL_PATH = CODING_OAUTH_LOGIN_CANCEL_PATH
 /** Sign one provider out. */
 export const LOGOUT_PATH = CODING_OAUTH_LOGOUT_PATH
+/** Replace one provider's model selection. */
+export const MODELS_PATH = CODING_OAUTH_MODELS_PATH
 
 /**
  * Per-provider usage reads. Mirrors the Host `subscriptionUsagePath`; the
@@ -39,38 +42,20 @@ export function subscriptionUsagePath(slug: string): string {
 /** Status poll cadence while any provider is signing in, in milliseconds. */
 export const POLL_INTERVAL_MS = 1_000
 
-/**
- * The provider cards, in render order: the subscriptions users reach for
- * first, not the order they were implemented in. A browser flow leads locally;
- * the device flow leads when the browser is not on the harness host.
- */
+/** The provider cards, in render order. */
 export const PROVIDERS: readonly ProviderCardDefinition[] = [
   {
-    slug: 'claude',
-    route: 'claude-code-oauth',
-    titleKey: 'claudeTitle',
-    descriptionKey: 'claudeDescription',
-    methods: ['browser'],
-    recommended: 'browser',
-    remoteRecommended: 'browser',
-    acceptsPastedRedirect: true,
+    slug: 'grok',
+    titleKey: 'grokTitle',
+    descriptionKey: 'grokDescription',
+    localMethod: 'pkce',
+    remoteMethod: 'device',
   },
   {
     slug: 'codex',
-    route: 'codex-oauth',
     titleKey: 'codexTitle',
     descriptionKey: 'codexDescription',
-    methods: ['device', 'browser'],
-    recommended: 'browser',
-    remoteRecommended: 'device',
-  },
-  {
-    slug: 'grok',
-    route: 'grok-build',
-    titleKey: 'grokTitle',
-    descriptionKey: 'grokDescription',
-    methods: ['pkce', 'device'],
-    recommended: 'pkce',
-    remoteRecommended: 'device',
+    localMethod: 'browser',
+    remoteMethod: 'device',
   },
 ]

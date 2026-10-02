@@ -47,6 +47,7 @@ export const AVN_EXACT_BOM = Object.freeze({
   '@aeven/invariants': '0.1.2-alpha.5',
   '@aeven/llm': '0.1.2-alpha.5',
   '@aeven/llm-pi-ai': '0.1.2-alpha.5',
+  '@aeven/media': '0.1.2-alpha.5',
   '@aeven/tools': '0.1.2-alpha.5',
   '@deepseek-ai/schemastery': '3.18.2',
   '@earendil-works/pi-ai': '0.84.2',

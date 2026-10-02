@@ -8,8 +8,6 @@ import {
   withCodexFastRouting,
 } from '../src/codex-model-capabilities.ts'
 import {
-  CLAUDE_CODE_OAUTH_ROUTE,
-  CLAUDE_PI_PROVIDER,
   CODEX_OAUTH_FAST_ROUTE,
   CODEX_OAUTH_ROUTE,
   CODEX_PI_PROVIDER,
@@ -17,7 +15,6 @@ import {
   CODING_OAUTH_ROUTES,
 } from '../src/ids.ts'
 import {
-  CLAUDE_CODE_OAUTH_PROVIDER,
   CODEX_OAUTH_PROVIDER,
   oauthProviderDefinition,
 } from '../src/oauth-providers.ts'
@@ -33,7 +30,7 @@ afterEach(() => {
 
 describe('OAuth request providers', () => {
   it('bridges a Codex OAuth token through the apiKey override seam', async () => {
-    const provider = CODEX_OAUTH_PROVIDER.requestProvider()
+    const provider = CODEX_OAUTH_PROVIDER.requestProvider(CODEX_OAUTH_PROVIDER.providerFactory().getModels())
     const auth = await provider.auth.apiKey?.resolve({
       ctx,
       credential: { type: 'api_key', key: 'codex-token' },
@@ -44,24 +41,21 @@ describe('OAuth request providers', () => {
     expect(auth?.auth).toEqual({ apiKey: 'codex-token' })
   })
 
-  it('keeps Claude model identity native and filters selected ids', () => {
-    const all = CLAUDE_CODE_OAUTH_PROVIDER.requestProvider().getModels()
-    expect(all.length).toBeGreaterThan(1)
-    const chosen = all[0]!
-    const provider = CLAUDE_CODE_OAUTH_PROVIDER.requestProvider([chosen.id])
-    expect(provider.id).toBe(CLAUDE_PI_PROVIDER)
-    expect(provider.getModels().map(model => model.id)).toEqual([chosen.id])
-    expect(provider.getModels()[0]?.provider).toBe(CLAUDE_PI_PROVIDER)
+  it('serves exactly the models it is given, including ids the shipped catalog lacks', () => {
+    const catalog = CODEX_OAUTH_PROVIDER.providerFactory().getModels()
+    expect(catalog.length).toBeGreaterThan(1)
+    const chosen = { ...catalog[0]!, id: 'gpt-next', name: 'GPT Next' }
+    const provider = CODEX_OAUTH_PROVIDER.requestProvider([chosen])
+    expect(provider.id).toBe(CODEX_PI_PROVIDER)
+    expect(provider.getModels().map(model => model.id)).toEqual(['gpt-next'])
   })
 
-  it('uses collision-free Aeven route aliases', () => {
+  it('uses the collision-free Aeven route alias', () => {
     expect(CODEX_OAUTH_PROVIDER.route).toBe(CODEX_OAUTH_ROUTE)
-    expect(CLAUDE_CODE_OAUTH_PROVIDER.route).toBe(CLAUDE_CODE_OAUTH_ROUTE)
-    expect(new Set([CODEX_OAUTH_PROVIDER.route, CLAUDE_CODE_OAUTH_PROVIDER.route]).size).toBe(2)
   })
 
   it('keeps ordinary Codex native and Fast outside the default route list', () => {
-    const provider = CODEX_OAUTH_PROVIDER.requestProvider()
+    const provider = CODEX_OAUTH_PROVIDER.requestProvider(CODEX_OAUTH_PROVIDER.providerFactory().getModels())
     expect(provider.id).toBe(CODEX_PI_PROVIDER)
     expect(provider.getModels().every(model => model.provider === CODEX_PI_PROVIDER)).toBe(true)
     expect(CODING_OAUTH_ROUTES).not.toContain(CODEX_OAUTH_FAST_ROUTE)
@@ -71,7 +65,7 @@ describe('OAuth request providers', () => {
   it('injects Fast hint and service_tier only on the wrapped provider', async () => {
     const seen: Array<{ model: CodexStreamModel; options?: CodexFastStreamOptions }> = []
     const base = {
-      ...CODEX_OAUTH_PROVIDER.requestProvider(),
+      ...CODEX_OAUTH_PROVIDER.requestProvider([]),
       id: CODEX_PI_PROVIDER,
       stream: (model: CodexStreamModel, _context: unknown, options?: CodexFastStreamOptions) => {
         seen.push({ model, ...(options === undefined ? {} : { options }) })
@@ -104,7 +98,7 @@ describe('OAuth request providers', () => {
   })
 
   it('bridges nothing when the stored key is blank or absent', async () => {
-    const auth = CODEX_OAUTH_PROVIDER.requestProvider().auth.apiKey!
+    const auth = CODEX_OAUTH_PROVIDER.requestProvider([]).auth.apiKey!
     const signal = new AbortController().signal
     await expect(auth.resolve({ ctx, credential: { type: 'api_key', key: '   ' }, signal })).resolves.toBeUndefined()
     await expect(auth.resolve({ ctx, signal })).resolves.toBeUndefined()
@@ -112,7 +106,7 @@ describe('OAuth request providers', () => {
 
   it('resolves a definition by slug and reports an unknown slug as absent', () => {
     expect(oauthProviderDefinition(CODEX_OAUTH_PROVIDER.slug)).toBe(CODEX_OAUTH_PROVIDER)
-    expect(oauthProviderDefinition(CLAUDE_CODE_OAUTH_PROVIDER.slug)).toBe(CLAUDE_CODE_OAUTH_PROVIDER)
+    expect(oauthProviderDefinition('claude')).toBeUndefined()
     expect(oauthProviderDefinition('antigravity')).toBeUndefined()
   })
 })

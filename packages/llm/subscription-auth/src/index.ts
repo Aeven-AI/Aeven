@@ -11,6 +11,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { AttachmentStore } from '@aeven/attachment'
 import type { CredentialInfo, CredentialProvider, CredentialRef } from '@aeven/credentials'
 import type {} from '@aeven/host-webserver'
+import type {} from '@aeven/media'
 import { assertUsableApiKey, type RetryPolicyConfig, RetryPolicySchema } from '@aeven/llm'
 import z from '@deepseek-ai/schemastery'
 import { acquireCodingOAuthRuntime, CODING_OAUTH_CORE_ABI, type CodingOAuthRuntime } from 'dsh-coding-oauth-core'
@@ -41,8 +42,7 @@ import {
   resolveCodexImageRouteFromLlm,
   type SaveArtifactToWorkspace,
 } from './capability-tools.ts'
-import { createClaudeUsageReader } from './claude-usage.ts'
-import { codexAuthFromSession } from './codex-http.ts'
+import { codexAuthFromSession, createCodexHttpClient } from './codex-http.ts'
 import { createCodexModelCapabilities } from './codex-model-capabilities.ts'
 import { createCodexSearchProvider } from './codex-search.ts'
 import { createCodexUsageReader } from './codex-usage.ts'
@@ -59,7 +59,6 @@ import {
 } from './grok-imagine.ts'
 import { createGrokUsageReader } from './grok-usage.ts'
 import {
-  CLAUDE_PI_PROVIDER,
   CODEX_PI_PROVIDER,
   CODING_OAUTH_ROUTES,
   IMAGINE_MEDIA_STORE_DIRNAME,
@@ -68,12 +67,16 @@ import {
 } from './ids.ts'
 import { registerImagineRoutes } from './imagine-routes.ts'
 import { createTrustedImagineAuthz, MediaStore, migrateLegacyMediaStoreDir } from './media-store.ts'
+import { createCodexMediaProvider, createGrokMediaProvider, type SubscriptionMediaGate } from './media-providers.ts'
+import { ModelSelection } from './model-selection.ts'
+import { startModelSync } from './model-sync.ts'
 import { OAUTH_PROVIDER_DEFINITIONS } from './oauth-providers.ts'
 import { OAuthProviderSession } from './oauth-session.ts'
 import { grokBuildFingerprintHeaders } from './provider.ts'
 import { acquireCodingOAuthProxy } from './proxy.ts'
 import { GrokBuildSession } from './session.ts'
 import { GrokBuildCredentialStore } from './store.ts'
+import { SUBSCRIPTION_IMAGE_MODELS, subscriptionModelViews } from './subscription-models.ts'
 import type { UsageReader } from './usage-reader.ts'
 import { createOwnerRequestPolicy, safeguardOwnerRequestPolicy } from './web-origin.ts'
 
@@ -140,10 +143,6 @@ export type { GrokImportProbe } from './grok-import.ts'
 export { grokAuthPath, importGrokAuth, parseGrokAuthDocument, probeGrokAuth } from './grok-import.ts'
 export type { CodingOAuthProviderSlug, CodingOAuthRoute } from './ids.ts'
 export {
-  CLAUDE_CODE_OAUTH_AUTH_FILENAME,
-  CLAUDE_CODE_OAUTH_MODELS_CACHE_FILENAME,
-  CLAUDE_CODE_OAUTH_ROUTE,
-  CLAUDE_PI_PROVIDER,
   CODEX_OAUTH_AUTH_FILENAME,
   CODEX_OAUTH_MODELS_CACHE_FILENAME,
   CODEX_OAUTH_ROUTE,
@@ -154,8 +153,10 @@ export {
   GROK_BUILD_MODELS_CACHE_FILENAME,
   GROK_BUILD_ROUTE,
   GROK_BUILD_STREAM_IDLE_TIMEOUT_MS,
+  SUBSCRIPTION_PROVIDER_SLUGS,
   XAI_PI_PROVIDER,
 } from './ids.ts'
+export type { SubscriptionSlug } from './ids.ts'
 export type { GrokBuildOAuthErrorCode, GrokBuildOAuthParams, PkceLoginCallbacks } from './oauth.ts'
 export {
   buildAuthorizeUrl,
@@ -173,13 +174,16 @@ export {
 } from './oauth.ts'
 export type { OAuthProviderDefinition, SubscriptionLoginMethod, SubscriptionProviderSlug } from './oauth-providers.ts'
 export {
-  CLAUDE_CODE_OAUTH_PROVIDER,
   CODEX_OAUTH_PROVIDER,
   OAUTH_PROVIDER_DEFINITIONS,
   oauthProviderDefinition,
 } from './oauth-providers.ts'
-export type { OAuthProviderStatus } from './oauth-session.ts'
-export { OAuthProviderSession, oauthModelsCachePath } from './oauth-session.ts'
+export type { LiveSubscriptionModel, OAuthProviderSessionOptions, OAuthProviderStatus } from './oauth-session.ts'
+export { materializeSubscriptionModel, OAuthProviderSession, oauthModelsCachePath } from './oauth-session.ts'
+export { CODEX_MEDIA_PROVIDER_ID, GROK_MEDIA_PROVIDER_ID } from './media-providers.ts'
+export { MODEL_SELECTION_FILENAME, ModelSelection } from './model-selection.ts'
+export type { SubscriptionImageModel, SubscriptionModelView } from './subscription-models.ts'
+export { SUBSCRIPTION_IMAGE_MODELS, subscriptionModelViews } from './subscription-models.ts'
 export {
   GROK_BUILD_BASE_URL,
   GROK_BUILD_MODELS_URL,
@@ -275,6 +279,12 @@ export interface Config {
    * so the ceiling is deployment-varying rather than fixed.
    */
   imagineApiTimeoutMs?: number
+  /**
+   * Interval between automatic model-list syncs of the signed-in
+   * subscriptions, in milliseconds. A sync also runs at startup and after each
+   * sign-in; `0` limits it to those two moments.
+   */
+  modelSyncIntervalMs?: number
   /** Owner-only request authorization for loopback, SSH tunnels, and trusted HTTPS proxies. */
   ownerRequest?: {
     /** Whether a loopback caller is the operator directly, or arrives over an SSH tunnel. */
@@ -299,6 +309,7 @@ export const Config: z<Config> = z.object({
   capabilities: CapabilitySettingsSchema,
   imagineTransport: z.union([z.const('auto'), z.const('xai-api'), z.const('grok-build')]).default('auto'),
   imagineApiTimeoutMs: z.number().min(1000).default(180_000),
+  modelSyncIntervalMs: z.natural().default(30 * 60 * 1000),
   ownerRequest: z.object({
     loopbackAccessMode: z.union([z.const('loopback'), z.const('ssh-tunnel')]),
     trustedProxy: z.object({
@@ -573,34 +584,64 @@ function applyOwned(ctx: Context, config: Config): void {
       logger.warn(error)
     }
   }
-  const grok = new GrokBuildSession(new GrokBuildCredentialStore(), () => {
-    usageReaders['grok']?.clear()
+  // Replaced once the sync starts below; a sign-in before then is picked up by its first pass.
+  let syncModels = (): void => undefined
+  const signedIn = { grok: false, codex: false }
+  /**
+   * Start a model sync when a provider becomes signed in. Session callbacks
+   * fire for credential and catalog changes alike, so only the signed-out to
+   * signed-in edge triggers one; a sync's own catalog change cannot loop.
+   */
+  const watchSignIn = (slug: keyof typeof signedIn, isSignedIn: () => Promise<boolean>): void => {
+    void isSignedIn().then((now) => {
+      if (!active) return
+      const was = signedIn[slug]
+      signedIn[slug] = now
+      if (now && !was) syncModels()
+    }, () => {
+      // An unreadable credential reads as signed out; the status route reports the error itself.
+      signedIn[slug] = false
+    })
+  }
+  const selection = new ModelSelection((slug) => {
+    if (slug === 'grok') grok.notifySelectionChange()
+    else codex.notifySelectionChange()
     refreshMediaReadiness()
-    notifyCatalogChange()
   })
+  const grok = new GrokBuildSession(
+    new GrokBuildCredentialStore(),
+    () => {
+      usageReaders['grok']?.clear()
+      refreshMediaReadiness()
+      notifyCatalogChange()
+      watchSignIn('grok', grokSignedIn)
+    },
+    modelId => selection.isSelected('grok', modelId),
+  )
+  const grokSignedIn = (): Promise<boolean> => hasStoredOAuth(grok, XAI_PI_PROVIDER)
   const subscriptions = OAUTH_PROVIDER_DEFINITIONS.map(
     definition =>
-      new OAuthProviderSession(definition, () => {
-        if (definition.nativeProviderId === CODEX_PI_PROVIDER) invalidateOptionalAuthState()
-        // Every provider's usage answer is keyed to the account that was
-        // signed in when it was read, including a settled "this plan has
-        // no subscription" answer, so a credential change retires it.
-        usageReaders[definition.slug]?.clear()
-        refreshMediaReadiness()
-        notifyCatalogChange()
+      new OAuthProviderSession(definition, {
+        onCatalogChange: () => {
+          if (definition.nativeProviderId === CODEX_PI_PROVIDER) invalidateOptionalAuthState()
+          // Every provider's usage answer is keyed to the account that was
+          // signed in when it was read, including a settled "this plan has
+          // no subscription" answer, so a credential change retires it.
+          usageReaders[definition.slug]?.clear()
+          refreshMediaReadiness()
+          notifyCatalogChange()
+          watchSignIn(definition.slug, codexSignedIn)
+        },
+        isSelected: modelId => selection.isSelected(definition.slug, modelId),
       }),
   )
   const codex = requireSubscription(subscriptions, CODEX_PI_PROVIDER)
-  const claude = requireSubscription(subscriptions, CLAUDE_PI_PROVIDER)
+  const codexSignedIn = async (): Promise<boolean> => (await codex.status()).authenticated
   const codexAuth = codexAuthFromSession(codex)
   const usage = createCodexUsageReader({ auth: codexAuth })
   const codexModels = createCodexModelCapabilities({ auth: codexAuth })
   const usageReaders: Record<string, UsageReader> = {
     codex: createCodexProviderUsageReader({ usage, resolveToken: () => codex.resolveAccessToken() }),
-    claude: createClaudeUsageReader({
-      resolveToken: () => claude.resolveAccessToken(),
-      invalidateToken: () => claude.invalidateAccessToken(),
-    }),
     grok: createGrokUsageReader({
       resolveToken: () => grok.resolveAccessToken(),
       invalidateToken: () => grok.invalidateAccessToken(),
@@ -612,6 +653,10 @@ function applyOwned(ctx: Context, config: Config): void {
    * withdraw the tools; without this the model spends a turn discovering it.
    */
   const mediaReadiness = { imagine: false, codex: false }
+  /** Credential readiness alone, which the media-seam providers combine with the live selection. */
+  const credentialReadiness = { imagine: false, codex: false }
+  const imageModelSelected = (slug: 'grok' | 'codex'): boolean =>
+    SUBSCRIPTION_IMAGE_MODELS[slug].some(model => selection.isSelected(slug, model.id))
   const refreshMediaReadiness = (): void => {
     void Promise.all([
       (async (): Promise<boolean> => {
@@ -621,7 +666,12 @@ function applyOwned(ctx: Context, config: Config): void {
       })(),
       hasStoredOAuth(codex, CODEX_PI_PROVIDER),
     ])
-      .then(([imagine, codexReady]) => {
+      .then(([imagineCredential, codexCredential]) => {
+        credentialReadiness.imagine = imagineCredential
+        credentialReadiness.codex = codexCredential
+        // A switched-off image model withdraws its generation tools as well as its media-seam entry.
+        const imagine = imagineCredential && imageModelSelected('grok')
+        const codexReady = codexCredential && imageModelSelected('codex')
         if (!active) return
         if (mediaReadiness.imagine === imagine && mediaReadiness.codex === codexReady) return
         mediaReadiness.imagine = imagine
@@ -642,19 +692,49 @@ function applyOwned(ctx: Context, config: Config): void {
   }
 
   refreshMediaReadiness()
-  // The shipped catalogues are what each subscription offers; nothing asks a
-  // provider for its model list on its own.
-  void Promise.allSettled([grok.loadCachedCatalog(), ...subscriptions.map(session => session.loadCachedModels())])
+  // Restore the selection and the last live listings, then keep the listings
+  // current: at startup, on every sign-in, and on the configured interval.
+  void Promise.allSettled([
+    selection.load(),
+    grok.loadCachedCatalog(),
+    ...subscriptions.map(session => session.loadCachedModels()),
+  ])
     .then((results) => {
       if (!active) return
       if (results.some(result => result.status === 'rejected')) {
-        logger.warn('one or more OAuth model caches could not be loaded; using in-memory fallbacks')
+        logger.warn('the model selection or a cached model listing could not be loaded; every model stays selected')
       }
+      grok.notifySelectionChange()
+      codex.notifySelectionChange()
+      refreshMediaReadiness()
+      const sync = startModelSync({
+        intervalMs: config.modelSyncIntervalMs ?? 30 * 60 * 1000,
+        onError: () => { logger.warn('a subscription model sync failed; the last listing stays in use') },
+        providers: [
+          {
+            isSignedIn: grokSignedIn,
+            sync: signal => grok.refreshLiveCatalog(signal),
+          },
+          {
+            isSignedIn: codexSignedIn,
+            sync: async (signal) => {
+              const listed = (await codexModels.refresh(signal)).filter(model => model.listed)
+              await codex.setLiveModels(listed.map(model => ({
+                id: model.id,
+                ...(model.name === undefined ? {} : { name: model.name }),
+                ...(model.imageInput === undefined ? {} : { imageInput: model.imageInput }),
+              })))
+            },
+          },
+        ],
+      })
+      syncModels = () => { void sync.syncNow() }
+      ctx.effect(() => () => { sync.dispose() }, 'avn-subscription-auth: model sync')
     })
     .catch(() => {
-      // Contain every startup refresh failure so plugin activation cannot leave
-      // an unhandled rejection. The static provider catalogs remain usable.
-      if (active) logger.warn('background OAuth model catalog initialization failed; using static fallbacks')
+      // Contain every startup failure so plugin activation cannot leave an
+      // unhandled rejection. The shipped catalogs remain usable.
+      if (active) logger.warn('subscription model initialization failed; using the shipped catalogs')
     })
 
   let settingsOwner = 0
@@ -721,13 +801,44 @@ function applyOwned(ctx: Context, config: Config): void {
     credentialInfo: () => describeImagineCredential(ctx.get('credentials')),
     ownerRequestPolicy,
   })
-  registerCodingOAuthRoutes(ctx, grok, subscriptions, ownerRequestPolicy, accessMode =>
-    host.compatibility({
-      accessMode,
-      uiOwner: 'standalone',
-      diagnostics: ownerRequestPolicy.diagnostics(),
-    }),
+  registerCodingOAuthRoutes(
+    ctx,
+    grok,
+    subscriptions,
+    ownerRequestPolicy,
+    accessMode =>
+      host.compatibility({
+        accessMode,
+        uiOwner: 'standalone',
+        diagnostics: ownerRequestPolicy.diagnostics(),
+      }),
+    {
+      views: slug => subscriptionModelViews(
+        slug,
+        slug === 'grok' ? grok.availableModels() : codex.availableModels(),
+        modelId => selection.isSelected(slug, modelId),
+      ),
+      setSelected: async (slug, selected) => {
+        const available = subscriptionModelViews(
+          slug,
+          slug === 'grok' ? grok.availableModels() : codex.availableModels(),
+          () => true,
+        ).map(model => model.id)
+        await selection.setSelected(slug, available, selected)
+      },
+    },
   )
+
+  const mediaGate = (slug: 'grok' | 'codex'): SubscriptionMediaGate => ({
+    ready: () => (slug === 'grok' ? credentialReadiness.imagine : credentialReadiness.codex),
+    isSelected: modelId => selection.isSelected(slug, modelId),
+  })
+  ctx.inject(['media'], (mediaCtx) => {
+    mediaCtx.effect(
+      () => mediaCtx.media.registerImageProvider(createCodexMediaProvider(createCodexHttpClient({ auth: codexAuth }), mediaGate('codex'))),
+      'avn-subscription-auth: Codex image media provider',
+    )
+  })
 
   const search = createCodexSearchProvider({
     auth: codexAuth,
@@ -791,6 +902,12 @@ function applyOwned(ctx: Context, config: Config): void {
         return result
       },
     }
+    toolCtx.inject(['media'], (mediaCtx) => {
+      mediaCtx.effect(
+        () => mediaCtx.media.registerImageProvider(createGrokMediaProvider(routedImagine, mediaGate('grok'))),
+        'avn-subscription-auth: Grok Imagine media provider',
+      )
+    })
     const saveToWorkspace = createWorkspaceArtifactWriter(toolCtx, attachments, media)
     const definitions = (
       await createCapabilityTools({

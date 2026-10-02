@@ -1,4 +1,4 @@
-/** Browser half: coding-subscription providers as a group on the Model providers settings page. */
+/** Browser half: coding-subscription providers as a group on the Providers settings page. */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@aeven/client-locale/client'
