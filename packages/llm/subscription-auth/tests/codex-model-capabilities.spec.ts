@@ -42,6 +42,22 @@ afterEach(() => {
 })
 
 describe('parseCodexModelCapabilities', () => {
+  it('offers only models Codex lists in its picker, with their name, modalities, and order', () => {
+    expect(parseCodexModelCapabilities({
+      models: [
+        { slug: 'gpt-next', display_name: 'GPT Next', visibility: 'list', priority: 2, input_modalities: ['text', 'image'] },
+        { slug: 'gpt-hidden', visibility: 'hide' },
+        { slug: 'gpt-internal', visibility: 'none' },
+        { slug: 'gpt-text', visibility: 'list', priority: 1, input_modalities: ['text'] },
+      ],
+    })).toEqual([
+      { id: 'gpt-next', serviceTiers: [], name: 'GPT Next', listed: true, priority: 2, imageInput: true },
+      { id: 'gpt-hidden', serviceTiers: [], listed: false },
+      { id: 'gpt-internal', serviceTiers: [], listed: false },
+      { id: 'gpt-text', serviceTiers: [], listed: true, priority: 1, imageInput: false },
+    ])
+  })
+
   it('reads service_tiers and ignores unknown items', () => {
     expect(
       parseCodexModelCapabilities({

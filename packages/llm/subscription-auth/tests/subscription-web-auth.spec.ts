@@ -405,7 +405,10 @@ describe('SubscriptionWebAuth code prompts', () => {
 describe('SubscriptionWebAuth teardown', () => {
   it('cancels a sign-in whose settled flow cannot read the catalog', async () => {
     const catalog = catalogFailureSession(announcingLogin)
-    const auth = new SubscriptionWebAuth(catalog.session)
+    const auth = new SubscriptionWebAuth(catalog.session, undefined, () => {
+      catalog.session.availableModels()
+      return []
+    })
     expect(await auth.signIn('browser')).toEqual({ method: 'browser', url: AUTHORIZE_URL })
     catalog.breakCatalog()
     await expect(auth.cancel()).rejects.toThrow('model catalog unavailable')
@@ -413,7 +416,10 @@ describe('SubscriptionWebAuth teardown', () => {
 
   it('ends a provider session whose settled flow cannot read the catalog', async () => {
     const catalog = catalogFailureSession(announcingLogin)
-    const auth = new SubscriptionWebAuth(catalog.session)
+    const auth = new SubscriptionWebAuth(catalog.session, undefined, () => {
+      catalog.session.availableModels()
+      return []
+    })
     expect(await auth.signIn('browser')).toEqual({ method: 'browser', url: AUTHORIZE_URL })
     catalog.breakCatalog()
     await expect(auth.signOut()).rejects.toThrow('model catalog unavailable')
@@ -421,7 +427,10 @@ describe('SubscriptionWebAuth teardown', () => {
 
   it('disposes a sign-in whose settled flow cannot read the catalog', async () => {
     const catalog = catalogFailureSession(announcingLogin)
-    const auth = new SubscriptionWebAuth(catalog.session)
+    const auth = new SubscriptionWebAuth(catalog.session, undefined, () => {
+      catalog.session.availableModels()
+      return []
+    })
     expect(await auth.signIn('browser')).toEqual({ method: 'browser', url: AUTHORIZE_URL })
     catalog.breakCatalog()
     await expect(auth.dispose()).resolves.toBeUndefined()

@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-02-subscription-providers-model-selection.md
-2026-10-02-subscription-providers-model-selection.md: 02fa2bc8e036fb63bd88591de40cca79f42cad9d
-2026-10-02-subscription-providers-model-selection.zh.md: 601eeb88f8dce3f2059d249b958c2b19bb820477
+2026-10-02-subscription-providers-model-selection.md: 3f2cf3a09adb02bb48a0e874d7be6ff6eb8d47b0
+2026-10-02-subscription-providers-model-selection.zh.md: b9b5343b6dcd4ba73e32945213a5ac10d2880e5d

@@ -32,6 +32,7 @@ const rowStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: 10,
+  margin: 0,
   padding: '8px 0',
   borderTop: '0.5px solid var(--dsw-alias-border-l2)',
   cursor: 'pointer',

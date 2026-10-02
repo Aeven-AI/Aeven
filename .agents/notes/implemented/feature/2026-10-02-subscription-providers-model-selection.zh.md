@@ -16,7 +16,7 @@ Status: implemented
 
 **选择以排除项保存。** `ModelSelection` 把每个提供方中用户关闭的模型 id 保存在 `${AVN_HOME}/subscription-model-selection.json`。两个会话都通过它过滤所提供的模型，因此路由的模型列表、输入框的模型选择器与图像模型列表会立即随改动更新。新模型默认选中；被撤下的模型直接消失，不影响其他选择。状态路由为每个提供方报告带有 `imageInput`、`imageOutput` 与 `selected` 的模型，`POST /plugins/dsh-grok-build/oauth/models` 替换某一提供方的选择。
 
-**模型列表自动同步。** `startModelSync` 在启动时、每次登录后以及每隔 `modelSyncIntervalMs`（默认 30 分钟）读取 Grok 的 `/v1/models-v2` 与 Codex 的 `/backend-api/codex/models`（去掉 Codex 隐藏的条目）。每份列表缓存在 `${AVN_HOME}` 下并在启动时恢复；读取失败时保留上一份列表。内置 pi-ai 目录不认识的 Codex id 会继承目录中最新条目的传输方式与上限，因此请求 provider 恰好提供所列出的模型。
+**模型列表自动同步。** `startModelSync` 在启动时、每次登录后以及每隔 `modelSyncIntervalMs`（默认 30 分钟）读取 Grok 的 `/v1/models` 与 Codex 的 `/backend-api/codex/models`（去掉 Codex 隐藏的条目）。每份列表缓存在 `${AVN_HOME}` 下并在启动时恢复；读取失败时保留上一份列表。内置 pi-ai 目录不认识的 Codex id 会继承目录中最新条目的传输方式与上限，因此请求 provider 恰好提供所列出的模型。
 
 **订阅图像模型加入图像模型列表。** `grok-subscription` 与 `codex-subscription` 注册到 `ctx.media`，只在订阅持有凭据且该模型被选中时列出其图像模型；被关闭的图像模型也会撤下对应的生成工具。`tool-media` 新增 `listedProviders`，其在线列表排在已配置的 `choices` 之后，出现在选择器、`/image-models` 与调用校验中；内置预设列出了这两个订阅提供方。这对预设明确列出的提供方推翻了 [Aeven 的两个图像模型是仅有的图像模型](../architecture/2026-10-01-aeven-image-models-only.zh.md) 中关于 media seam 的段落；Aeven Flash 仍是默认模型。
 

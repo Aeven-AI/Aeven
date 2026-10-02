@@ -56,7 +56,7 @@ kind: "package-bundle"
 <a id="understand-the-implementation"></a>
 ## 理解实现
 
-Codex 是一个基于其凭据文件的 `OAuthProviderSession`，Grok 是一个 `GrokBuildSession`。两者都提供供应商的在线模型列表——Grok 的 `/v1/models-v2`，以及 Codex 的 `/backend-api/codex/models`（去掉 Codex 隐藏的条目）——在首份列表到达前回落到内置目录。`src/model-sync.ts` 在启动时、每次登录后以及每隔 `modelSyncIntervalMs` 重新读取两份列表；最近一份列表缓存在 `${AVN_HOME}` 下并在启动时恢复。内置目录不认识的 Codex id 会继承目录中最新条目的传输方式与上限。`createCodingOAuthAdapter` 把每个已登录供应商发布为一条只提供所选模型的 LLM 路由，并按请求解析一个已刷新的 access token。
+Codex 是一个基于其凭据文件的 `OAuthProviderSession`，Grok 是一个 `GrokBuildSession`。两者都提供供应商的在线模型列表——Grok 的 `/v1/models`，以及 Codex 的 `/backend-api/codex/models`（去掉 Codex 隐藏的条目）——在首份列表到达前回落到内置目录。`src/model-sync.ts` 在启动时、每次登录后以及每隔 `modelSyncIntervalMs` 重新读取两份列表；最近一份列表缓存在 `${AVN_HOME}` 下并在启动时恢复。内置目录不认识的 Codex id 会继承目录中最新条目的传输方式与上限。`createCodingOAuthAdapter` 把每个已登录供应商发布为一条只提供所选模型的 LLM 路由，并按请求解析一个已刷新的 access token。
 
 额度上报把两份互不相同的供应商载荷归一到一个投影（`src/usage-view.ts`）：无论供应商怎么报，都化为每个窗口的剩余百分比与以秒为单位的重置时刻。Codex 在 `wham/usage` 返回已用百分比窗口与积分余额，Grok 在 `/billing?format=credits` 返回一个计费周期、按产品的拆分与预付分值余额。金额余额带有其 ISO 4217 币种，并以该币种的最小单位表示。每个 reader 对成功结果只做短暂缓存，对拒绝结果缓存得久得多，因为只有登录状态变化才能改变一次拒绝。
 

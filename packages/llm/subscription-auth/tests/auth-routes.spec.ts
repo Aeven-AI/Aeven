@@ -13,6 +13,7 @@ import {
   CODING_OAUTH_LOGIN_CODE_PATH,
   CODING_OAUTH_LOGIN_PATH,
   CODING_OAUTH_LOGOUT_PATH,
+  CODING_OAUTH_MODELS_PATH,
   CODING_OAUTH_STATUS_PATH,
   GROK_BUILD_AUTH_IMPORT_PATH,
   GROK_BUILD_AUTH_LOGIN_CANCEL_PATH,
@@ -416,22 +417,16 @@ describe('GrokBuildWebAuth status', () => {
     })
   })
 
-  it('reports the live catalog together with the stored account selection', async () => {
+  it('reports the stored accounts beside the model list', async () => {
     const { session } = fakeGrokSession({
       credential,
       modelIds: ['grok-4', 'grok-3'],
-      visibleIds: ['grok-4'],
-      selectedIds: ['grok-4'],
-      catalogSource: 'live',
       accounts: [{ id: 'acct-1', expires: credential.expires }],
       activeAccountId: 'acct-1',
     })
     await expect(new GrokBuildWebAuth(session).status()).resolves.toEqual({
       status: 'signed-in',
-      models: ['grok-4'],
-      available: ['grok-4', 'grok-3'],
-      selected: ['grok-4'],
-      catalogSource: 'live',
+      models: [],
       grokImportAvailable: false,
       accounts: [{ id: 'acct-1', expires: credential.expires }],
       activeAccountId: 'acct-1',
@@ -843,6 +838,7 @@ describe('coding OAuth route registration', () => {
         CODING_OAUTH_LOGIN_CODE_PATH,
         CODING_OAUTH_LOGIN_PATH,
         CODING_OAUTH_LOGOUT_PATH,
+        CODING_OAUTH_MODELS_PATH,
         CODING_OAUTH_STATUS_PATH,
         ...GROK_MUTATION_PATHS,
         GROK_BUILD_AUTH_STATUS_PATH,
@@ -931,7 +927,7 @@ describe('Grok auth status route', () => {
       callRoute(handlerFor(routes, GROK_BUILD_AUTH_STATUS_PATH), '', { method: 'GET' }),
     ).resolves.toMatchObject({
       status: 200,
-      body: { status: 'signed-in', activeAccountId: 'acct-1', selected: ['grok-4'] },
+      body: { status: 'signed-in', activeAccountId: 'acct-1', models: [] },
     })
   })
 })

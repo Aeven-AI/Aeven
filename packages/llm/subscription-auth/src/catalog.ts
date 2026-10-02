@@ -1,5 +1,5 @@
 /**
- * Account-specific Grok Build catalog: live GET /v1/models-v2 merged onto the
+ * Account-specific Grok Build catalog: live GET /v1/models merged onto the
  * static baseline descriptors. Failures keep the last good list, then the
  * static baseline.
  * @module @aeven/subscription-auth/catalog
@@ -17,7 +17,7 @@ const PI_THINKING_LEVELS = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 
 /** Catalog source. */
 export type CatalogSource = 'live' | 'cache' | 'fallback'
 
-/** Vendor listing fields we keep after a live `/models-v2` fetch. */
+/** Vendor listing fields we keep after a live `/models` fetch. */
 export interface LiveModelDescriptor {
   id: string
   name?: string
@@ -114,7 +114,7 @@ export function extractLiveModels(body: unknown): LiveModelDescriptor[] {
 }
 
 /**
- * Pull model ids from a listing body. The `/v1/models-v2` response shape is
+ * Pull model ids from a listing body. The `/v1/models` response shape is
  * not a published contract, so accept the common envelopes: a bare array, an
  * OpenAI-style `{ data: [...] }`, or `{ models: [...] }`; rows may be plain
  * ids or objects with an `id` field.
@@ -186,7 +186,7 @@ export function materializeLiveModel(
 /**
  * If `liveIds` is missing or empty, serve the baseline catalog.
  * Otherwise serve only the live ids, each materialized against the baseline
- * and optionally overlaid with live `/models-v2` reasoning metadata.
+ * and optionally overlaid with live `/models` reasoning metadata.
  * @param catalog - Catalog value.
  * @param liveIds - Live ids value.
  * @param liveModels - Live models value.
@@ -241,7 +241,7 @@ async function readBoundedResponse(response: Response): Promise<Buffer> {
 }
 
 /**
- * Fetch the account-visible models from `/v1/models-v2` with the CLI
+ * Fetch the account-visible models from `/v1/models` with the CLI
  * fingerprint headers. Throws a secret-free error on failure.
  * @param accessToken - Access token value.
  * @param signal - Cancellation signal for the operation.
@@ -290,7 +290,7 @@ export async function fetchLiveModels(accessToken: string, signal?: AbortSignal)
 }
 
 /**
- * Fetch only the account-visible model ids from `/v1/models-v2`.
+ * Fetch only the account-visible model ids from `/v1/models`.
  * @param accessToken - Access token value.
  * @param signal - Cancellation signal for the operation.
  * @returns The live model ids.

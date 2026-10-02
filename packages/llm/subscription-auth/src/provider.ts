@@ -33,15 +33,18 @@ export function grokBuildReasoningMap(levels: readonly ('low' | 'medium' | 'high
 /** Inference backend base URL (Responses API lives under `${baseUrl}/responses`). */
 export const GROK_BUILD_BASE_URL = 'https://cli-chat-proxy.grok.com/v1'
 
-/** Account model catalog endpoint fetched by the official CLI. */
-export const GROK_BUILD_MODELS_URL = `${GROK_BUILD_BASE_URL}/models-v2`
+/**
+ * Account model listing the official CLI prefetches (Grok CLI 1.x). The older
+ * `/models-v2` document no longer tracks the models the CLI offers.
+ */
+export const GROK_BUILD_MODELS_URL = `${GROK_BUILD_BASE_URL}/models`
 
 /**
  * Official Grok CLI version this plugin fingerprints as.
  * Track the `@xai-official/grok` npm release stream; make overridable via
  * GROK_BUILD_CLIENT_VERSION for urgent drift fixes without a release.
  */
-export const GROK_CLIENT_VERSION: string = process.env['GROK_BUILD_CLIENT_VERSION'] ?? '0.1.220'
+export const GROK_CLIENT_VERSION: string = process.env['GROK_BUILD_CLIENT_VERSION'] ?? '1.0.46'
 
 /**
  * Fingerprint headers required by the Grok Build middleware. Missing headers
@@ -58,7 +61,7 @@ export function grokBuildFingerprintHeaders(): Record<string, string> {
 }
 
 /**
- * Static baseline catalog, used until a live `/models-v2` listing succeeds.
+ * Static baseline catalog, used until a live `/models` listing succeeds.
  * @returns The resulting grok build baseline models.
  */
 export function grokBuildBaselineModels(): Model<'openai-responses'>[] {

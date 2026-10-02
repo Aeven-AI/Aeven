@@ -907,14 +907,16 @@ describe('owner composition over a real Cordis context', () => {
     await app.dispose()
   })
 
-  it('registers no image model into the generated-media seam beside a mounted one', async () => {
+  it('registers both subscription image providers, offering Codex only once signed in', async () => {
     const app = await bootOwner({
       media: true,
       sandbox: true,
-      ready: (harness) => { expect(harness.tools.registered.size).toBeGreaterThan(0) },
+      ready: (harness) => { expect(harness.media!.providers).toHaveLength(2) },
     })
 
-    expect(app.media!.providers).toEqual([])
+    expect(app.media!.providers.map(provider => provider.id).sort()).toEqual(['codex-subscription', 'grok-subscription'])
+    const codex = app.media!.providers.find(provider => provider.id === 'codex-subscription') as unknown as { available(): boolean }
+    expect(codex.available()).toBe(false)
 
     await app.dispose()
   })
@@ -1658,7 +1660,8 @@ describe('owner composition runtime seams', () => {
     // subscription readers report that as data, while the Codex reader surfaces
     // the transport failure.
     expect(invalidated.mock.calls.length).toBeGreaterThanOrEqual(2)
-    expect(answered['claude']!.status).toBe(200)
+    // Claude is no longer a subscription provider, so its usage path names nothing.
+    expect(answered['claude']!.status).toBe(404)
     expect(answered['grok']!.status).toBe(200)
     expect(answered['codex']!.status).toBe(500)
     expect(answered['codex']!.json).toEqual({ error: 'request failed' })

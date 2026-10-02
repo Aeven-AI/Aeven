@@ -718,7 +718,11 @@ function applyOwned(ctx: Context, config: Config): void {
           {
             isSignedIn: codexSignedIn,
             sync: async (signal) => {
-              const listed = (await codexModels.refresh(signal)).filter(model => model.listed)
+              const listed = (await codexModels.refresh(signal))
+                .filter(model => model.listed)
+                .sort((left, right) => (left.priority ?? Number.MAX_SAFE_INTEGER) - (right.priority ?? Number.MAX_SAFE_INTEGER))
+              // The capability cache answers a failed read with an empty list; the sync reports it instead.
+              if (listed.length === 0) throw new Error('the Codex model listing returned no models')
               await codex.setLiveModels(listed.map(model => ({
                 id: model.id,
                 ...(model.name === undefined ? {} : { name: model.name }),

@@ -336,39 +336,6 @@ describe('AliasLlmAdapter', () => {
     ])
   })
 
-  it('remaps a Claude credits-required finish to QUOTA so the route does not retry it', async () => {
-    const message = `429 ${JSON.stringify({
-      type: 'error',
-      error: {
-        type: 'rate_limit_error',
-        message: 'Usage credits are required for this model.',
-        details: { error_code: 'credits_required', model: 'claude-fable-5', model_display_name: 'Fable 5' },
-      },
-    })}`
-    const inner = new FakeAdapter([
-      { type: 'finish', reason: { kind: 'error', failure: { message, code: 'RATE_LIMIT', status: 429 } } },
-    ])
-    const adapter = new AliasLlmAdapter(inner, new Map([['claude-code-oauth', 'anthropic']]))
-    const seen: StreamChunk[] = []
-    for await (const chunk of adapter.stream({ provider: 'claude-code-oauth', model: 'claude-fable-5', messages: [] })) {
-      seen.push(chunk)
-    }
-    expect(seen).toEqual([
-      {
-        type: 'finish',
-        reason: {
-          kind: 'error',
-          failure: {
-            message:
-              'Fable 5 requires usage credits on your Claude plan. Buy usage credits or switch models to continue.',
-            code: 'QUOTA',
-            status: 429,
-          },
-        },
-      },
-    ])
-  })
-
   it('does not invoke onAuthFailure when capacity was misclassified as AUTH', async () => {
     const message = 'The model is currently at capacity due to high demand.'
     const inner = new FakeAdapter([

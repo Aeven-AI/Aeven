@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context, Service } from '@deepseek-ai/cordis'
@@ -11,6 +11,7 @@ import {
   XAI_PI_PROVIDER,
 } from '../src/ids.ts'
 import { apply, inject, name } from '../src/index.ts'
+import { MODEL_SELECTION_FILENAME } from '../src/model-selection.ts'
 import { OAuthProviderSession } from '../src/oauth-session.ts'
 import { GrokBuildSession } from '../src/session.ts'
 
@@ -77,7 +78,7 @@ async function boot(): Promise<{
   await fiber
   await vi.waitFor(() => {
     expect(grokSessions).toHaveLength(1)
-    expect(subscriptions).toHaveLength(2)
+    expect(subscriptions).toHaveLength(1)
   })
   return {
     root,
@@ -132,6 +133,27 @@ describe('OAuth LLM route registration', () => {
     const models = await app.llm.listModels(GROK_BUILD_ROUTE)
     expect(models.map(model => model.id)).toEqual(app.grok.visibleModels().map(model => model.id))
     expect(models.length).toBeGreaterThan(0)
+    await app.dispose()
+  })
+
+  it('leaves a switched-off model out of the route listing', async () => {
+    const app0 = await boot()
+    const all = app0.subscriptions[0]!.availableModels().map(model => model.id)
+    await app0.dispose()
+    const off = all[0]!
+    await writeFile(
+      join(home, MODEL_SELECTION_FILENAME),
+      JSON.stringify({ version: 1, deselected: { codex: [off] } }),
+    )
+    const app = await boot()
+    const session = app.subscriptions[0]!
+    await session.store.modify(session.definition.nativeProviderId, async () => SIGNED_IN)
+    session.notifyCredentialChange()
+    await vi.waitFor(async () => {
+      const listed = (await app.llm.listModels(CODEX_OAUTH_ROUTE)).map(model => model.id)
+      expect(listed.length).toBe(all.length - 1)
+      expect(listed).not.toContain(off)
+    })
     await app.dispose()
   })
 })

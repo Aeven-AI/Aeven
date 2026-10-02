@@ -30,7 +30,7 @@ export { CODEX_OAUTH_FAST_ROUTE }
 /** Codex models url. */
 export const CODEX_MODELS_URL = 'https://chatgpt.com/backend-api/codex/models'
 /** Default codex client version. */
-export const DEFAULT_CODEX_CLIENT_VERSION = '0.144.0'
+export const DEFAULT_CODEX_CLIENT_VERSION = '0.160.0'
 /** Default codex service tier. */
 export const DEFAULT_CODEX_SERVICE_TIER = 'priority'
 /** HTTP header name for codex routing hint. */
@@ -44,8 +44,10 @@ export interface CodexModelCapability {
   readonly serviceTiers: readonly string[]
   /** Display name, when the listing states one. */
   readonly name?: string
-  /** Codex lists this model for its own picker; a hidden model is not offered. */
+  /** Codex lists this model in its own picker (`visibility: list`); `hide` and `none` are not offered. */
   readonly listed: boolean
+  /** Codex's picker order, lowest first, when the listing states one. */
+  readonly priority?: number
   /** Whether the model reads images, when the listing states its input modalities. */
   readonly imageInput?: boolean
 }
@@ -161,7 +163,8 @@ export function parseCodexModelCapabilities(value: unknown): CodexModelCapabilit
     models.push({
       id,
       serviceTiers: parseServiceTiers(item['service_tiers']),
-      listed: item['visibility'] !== 'hide' && item['visibility'] !== 'hidden',
+      listed: item['visibility'] === undefined || item['visibility'] === 'list',
+      ...(typeof item['priority'] === 'number' && Number.isFinite(item['priority']) ? { priority: item['priority'] } : {}),
       ...(name === undefined ? {} : { name }),
       ...(modalities === undefined ? {} : { imageInput: modalities.includes('image') }),
     })

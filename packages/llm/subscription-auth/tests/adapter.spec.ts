@@ -257,6 +257,17 @@ describe('GrokBuildSession cached catalog', () => {
     await expect(session.loadCachedCatalog()).rejects.toThrow()
   })
 
+  it('keeps Imagine media models out of the chat listing', async () => {
+    const session = cachedSession()
+    await signIn(session)
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({ data: [{ id: 'grok-4.7' }, { id: 'grok-imagine-image-quality' }] }), { status: 200 })),
+    )
+    await session.refreshLiveCatalog()
+    expect(session.availableModels().map(model => model.id)).toEqual(['grok-4.7'])
+  })
+
   it('persists the live ids and the selected models after a refresh', async () => {
     const session = cachedSession()
     await signIn(session)

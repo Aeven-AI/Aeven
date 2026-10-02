@@ -29,7 +29,7 @@ describe('Cordis webServer lifecycle', () => {
     await fiber
     expect(webServer?.paths.size).toBeGreaterThan(0)
     const initialPaths = [...webServer!.paths].sort()
-    expect(initialPaths).toHaveLength(15)
+    expect(initialPaths).toHaveLength(16)
     await serviceFiber.dispose()
     expect(webServer!.paths.size).toBe(0)
     let replacement: TestWebServer | undefined
@@ -39,7 +39,7 @@ describe('Cordis webServer lifecycle', () => {
     await replacementFiber
     await fiber
     expect([...replacement!.paths].sort()).toEqual(initialPaths)
-    expect(replacement!.paths).toHaveLength(15)
+    expect(replacement!.paths).toHaveLength(16)
     expect(root.registry.get(apply)?.fibers.length).toBe(1)
     await replacementFiber.dispose()
     expect(replacement?.paths.size).toBe(0)

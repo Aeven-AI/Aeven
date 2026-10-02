@@ -188,7 +188,9 @@ export class GrokBuildSession {
         this.listingError = undefined
         return
       }
-      const live = await fetchLiveModels(access, signal)
+      // The listing also carries Imagine media models, which are not chat
+      // models; the Providers card lists those as image models instead.
+      const live = (await fetchLiveModels(access, signal)).filter(model => !/imagine/iu.test(model.id))
       this.liveIds = live.map(model => model.id)
       this.liveModels = live
       this.source = 'live'
