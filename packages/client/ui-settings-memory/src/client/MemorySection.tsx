@@ -71,6 +71,13 @@ const VERDICT_LABEL = {
   unknown: 'verdictUnknown',
 } satisfies Record<ExecutionVerdict, MemoryLocaleKey>
 
+/** The domains each memory tab lists; the provider filters, so paging and totals count only the tab's own memories. */
+const TAB_DOMAINS: Record<MemoriesTab, readonly MemoryDomain[]> = {
+  person: ['person'],
+  project: ['project'],
+  knowledge: ['world', 'experience'],
+}
+
 const EMPTY: Record<MemoriesTab, MemoryLocaleKey> = {
   person: 'emptyPerson',
   project: 'emptyProject',
@@ -197,14 +204,6 @@ function standingMessage(change: ManagedInvariantChange, t: Translate): string {
   }
 }
 
-function inTab(memory: ManagedMemory, tab: MemoriesTab): boolean {
-  switch (tab) {
-    case 'person': return memory.domain === 'person'
-    case 'project': return memory.domain === 'project'
-    case 'knowledge': return memory.domain === 'world' || memory.domain === 'experience'
-  }
-}
-
 /** A loaded list: the fetched records, the provider's match count, and the offset the next page starts at. */
 interface MemoryList {
   readonly available: boolean
@@ -233,8 +232,8 @@ function Memories({
 
   const fetchPage = useCallback(async (offset: number): Promise<ManagedMemoryPage> => {
     const text = query.trim()
-    return memories({ ...text ? { query: text } : {}, limit: PAGE_SIZE, offset })
-  }, [memories, query])
+    return memories({ ...text ? { query: text } : {}, domains: TAB_DOMAINS[tab], limit: PAGE_SIZE, offset })
+  }, [memories, query, tab])
 
   const load = useCallback(async () => {
     const current = ++generation.current
@@ -295,10 +294,7 @@ function Memories({
 
   useEffect(() => { setOpenId(undefined) }, [tab])
 
-  const visible = useMemo(
-    () => state.status === 'ready' ? state.value.items.filter(memory => inTab(memory, tab)) : [],
-    [state, tab],
-  )
+  const visible = state.status === 'ready' ? state.value.items : []
   const grouped = useMemo(() => groupProjects(visible, tab, t), [visible, tab, t])
 
   const update = (id: MemoryItemId, next: ManagedMemory | undefined) => {
@@ -540,7 +536,10 @@ function Facts({ t, invariants, addInvariant, editInvariant, removeInvariant }: 
   const composerId = useId()
   const [state, setState] = useState<Load<ManagedInvariantsPage>>({ status: 'loading' })
   const [draft, setDraft] = useState('')
-  const [editing, setEditing] = useState<{ readonly id: InvariantId; readonly text: string } | undefined>()
+  /** The one statement being edited or confirmed for removal. */
+  const [active, setActive] = useState<
+    { readonly id: InvariantId; readonly mode: 'edit'; readonly text: string } | { readonly id: InvariantId; readonly mode: 'remove' } | undefined
+  >()
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
   const [outcome, setOutcome] = useState<ManagedInvariantChange | undefined>()
@@ -595,30 +594,18 @@ function Facts({ t, invariants, addInvariant, editInvariant, removeInvariant }: 
         : (
           <ul className={css.cards}>
             {view.entries.map((entry) => {
-              const row = editing?.id === entry.id ? editing : undefined
+              const row = active?.id === entry.id ? active : undefined
               return (
                 <li key={entry.id} className={css.factRow}>
-                  {row === undefined
+                  {row?.mode === 'edit'
                     ? (
-                      <>
-                        <p className={css.factText}>{entry.text}</p>
-                        <div className={css.factMeta}>
-                          <span>{t('confirmed', { time: ago(entry.confirmedAt, now, t) })}</span>
-                          <span className={css.factActions}>
-                            <button type="button" className={css.textButton} onClick={() => { setEditing({ id: entry.id, text: entry.text }) }}>{t('edit')}</button>
-                            <button type="button" className={`${css.textButton} ${css.textDanger}`} disabled={busy} onClick={() => { run(() => removeInvariant(entry.id)) }}>{t('remove')}</button>
-                          </span>
-                        </div>
-                      </>
-                    )
-                    : (
                       <>
                         <textarea
                           className={css.composerArea}
                           rows={3}
                           aria-label={t('edit')}
                           value={row.text}
-                          onChange={(event) => { setEditing({ id: entry.id, text: event.target.value }) }}
+                          onChange={(event) => { setActive({ id: entry.id, mode: 'edit', text: event.target.value }) }}
                         />
                         <div className={css.factMeta}>
                           <span className={css.composerHint}>{`${String(row.text.trim().length)} / ${String(view.maxEntryChars)}`}</span>
@@ -628,10 +615,54 @@ function Facts({ t, invariants, addInvariant, editInvariant, removeInvariant }: 
                               label="save"
                               busy={busy}
                               blocked={row.text.trim() === ''}
-                              onCancel={() => { setEditing(undefined) }}
-                              onCommit={() => { run(() => editInvariant(entry.id, row.text), () => { setEditing(undefined) }) }}
+                              onCancel={() => { setActive(undefined) }}
+                              onCommit={() => { run(() => editInvariant(entry.id, row.text), () => { setActive(undefined) }) }}
                             />
                           </span>
+                        </div>
+                      </>
+                    )
+                    : (
+                      <>
+                        <p className={css.factText}>{entry.text}</p>
+                        <div className={css.factMeta}>
+                          {row?.mode === 'remove'
+                            ? (
+                              <>
+                                <span className={css.factConfirm}>{t('removeConfirm')}</span>
+                                <span className={css.factActions}>
+                                  <Commit
+                                    t={t}
+                                    label="remove"
+                                    danger
+                                    busy={busy}
+                                    onCancel={() => { setActive(undefined) }}
+                                    onCommit={() => { run(() => removeInvariant(entry.id), () => { setActive(undefined) }) }}
+                                  />
+                                </span>
+                              </>
+                            )
+                            : (
+                              <>
+                                <span>{t('confirmed', { time: ago(entry.confirmedAt, now, t) })}</span>
+                                <span className={css.factActions}>
+                                  <button
+                                    type="button"
+                                    className={css.textButton}
+                                    onClick={() => { setActive({ id: entry.id, mode: 'edit', text: entry.text }) }}
+                                  >
+                                    {t('edit')}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className={`${css.textButton} ${css.textDanger}`}
+                                    onClick={() => { setActive({ id: entry.id, mode: 'remove' }) }}
+                                  >
+                                    {t('remove')}
+                                  </button>
+                                </span>
+                              </>
+                            )}
                         </div>
                       </>
                     )}

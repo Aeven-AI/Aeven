@@ -64,7 +64,7 @@ export default class MemoryManagerController extends TypertRemoteService {
 
   /**
    * List the caller's memories, newest first.
-   * @param request - optional text filter and page bounds.
+   * @param request - optional text and domain filters, and page bounds.
    * @returns the page, or `available: false` when no memory provider runs.
    */
   @Remote
@@ -74,6 +74,7 @@ export default class MemoryManagerController extends TypertRemoteService {
     const page = await this.ctx.memory.list({
       owner,
       ...request.query ? { query: request.query } : {},
+      ...request.domains ? { domains: request.domains } : {},
       limit: Math.min(Math.max(request.limit, 1), this.config.maxPageSize),
       offset: Math.max(request.offset, 0),
       signal: AbortSignal.timeout(this.config.timeoutMs),
@@ -164,7 +165,9 @@ export default class MemoryManagerController extends TypertRemoteService {
   async capabilities(): Promise<ManagedCapability[]> {
     const owner = this.owner()
     const records = await this.ctx.capabilities.list(owner)
-    return await Promise.all(records.map(async record => managedCapability(record, await this.ctx.capabilities.evidence(owner, record.name))))
+    return await Promise.all(records.map(async (record) => {
+      return managedCapability(record, await this.ctx.capabilities.evidence(owner, record.name))
+    }))
   }
 
   /**
@@ -254,7 +257,11 @@ export default class MemoryManagerController extends TypertRemoteService {
   /** Working directory of each of the owner's sessions, by session id. */
   private async workspaces(owner: string): Promise<ReadonlyMap<string, string>> {
     const sessions = await this.ctx.sessionQuery.listSessions(AbortSignal.timeout(this.config.timeoutMs))
-    return new Map(sessions.flatMap(({ header }) => header.owner === owner && header.cwd !== undefined ? [[header.id as string, header.cwd]] : []))
+    const workspaces = new Map<string, string>()
+    for (const { header } of sessions) {
+      if (header.owner === owner && header.cwd !== undefined) workspaces.set(header.id, header.cwd)
+    }
+    return workspaces
   }
 
   private async detail(owner: string, capability: Capability): Promise<ManagedCapabilityDetail> {
@@ -310,7 +317,9 @@ function impact(before: CapabilityRunMetrics, judged: readonly JudgedExecution[]
       durationMs: median(recent.map(run => run.endedAt - run.startedAt)),
       toolCalls: median(recent.map(run => run.tools.length)),
       failedToolCalls: median(recent.map(run => run.tools.filter(tool => tool.failed).length)),
-      ...withTokens.length === 0 ? {} : { tokens: { input: median(withTokens.map(tokens => tokens.input)), output: median(withTokens.map(tokens => tokens.output)) } },
+      ...withTokens.length === 0
+        ? {}
+        : { tokens: { input: median(withTokens.map(tokens => tokens.input)), output: median(withTokens.map(tokens => tokens.output)) } },
     },
   }
 }

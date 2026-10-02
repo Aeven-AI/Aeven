@@ -189,6 +189,18 @@ export interface MemoryRecord {
   readonly episodeId: MemoryEpisodeId
 }
 
+/** Page request for {@link MemoryProvider.list}. */
+export interface MemoryListRequest {
+  readonly owner: string
+  /** Text filter; absent lists everything. */
+  readonly query?: string
+  /** Domains to list; absent lists every domain. */
+  readonly domains?: readonly MemoryDomain[]
+  readonly limit: number
+  readonly offset: number
+  readonly signal: AbortSignal
+}
+
 /** One page of the owner's memories. */
 export interface MemoryPage {
   readonly records: readonly MemoryRecord[]
@@ -231,49 +243,85 @@ export interface MemoryProvider {
    * @param request - scope, item kind, and id.
    * @returns the item, or undefined when the scope holds no such item.
    */
-  detail(request: { readonly scope: MemoryScope; readonly kind: MemoryDetailKind; readonly id: MemoryItemId; readonly signal: AbortSignal }): Promise<MemoryDetail | undefined>
+  detail(request: {
+    readonly scope: MemoryScope
+    readonly kind: MemoryDetailKind
+    readonly id: MemoryItemId
+    readonly signal: AbortSignal
+  }): Promise<MemoryDetail | undefined>
   /**
    * Read the ordered traces of one episode.
    * @param request - scope, episode id, and maximum entry count.
    * @returns entries in capture order, at most `limit`.
    */
-  timeline(request: { readonly scope: MemoryScope; readonly episodeId: MemoryEpisodeId; readonly limit: number; readonly signal: AbortSignal }): Promise<readonly MemoryTimelineEntry[]>
+  timeline(request: {
+    readonly scope: MemoryScope
+    readonly episodeId: MemoryEpisodeId
+    readonly limit: number
+    readonly signal: AbortSignal
+  }): Promise<readonly MemoryTimelineEntry[]>
   /**
    * List learned environment models.
    * @param request - scope, optional keyword filter, and maximum count.
    * @returns at most `limit` models.
    */
-  environments(request: { readonly scope: MemoryScope; readonly query?: string; readonly limit: number; readonly signal: AbortSignal }): Promise<readonly MemoryEnvironment[]>
+  environments(request: {
+    readonly scope: MemoryScope
+    readonly query?: string
+    readonly limit: number
+    readonly signal: AbortSignal
+  }): Promise<readonly MemoryEnvironment[]>
   /**
    * List crystallized skills.
    * @param request - scope, optional status filter, and maximum count.
    * @returns at most `limit` skills.
    */
-  skills(request: { readonly scope: MemoryScope; readonly status?: MemorySkillStatus; readonly limit: number; readonly signal: AbortSignal }): Promise<readonly MemorySkill[]>
+  skills(request: {
+    readonly scope: MemoryScope
+    readonly status?: MemorySkillStatus
+    readonly limit: number
+    readonly signal: AbortSignal
+  }): Promise<readonly MemorySkill[]>
   /**
    * Load one skill and record that the session selected it for its current task.
    * @param request - scope, skill id, and the tool call that selected it.
    * @returns the skill, or undefined when the scope holds no such skill.
    */
-  useSkill(request: { readonly scope: MemoryScope; readonly id: MemoryItemId; readonly callId: string; readonly signal: AbortSignal }): Promise<MemorySkill | undefined>
+  useSkill(request: {
+    readonly scope: MemoryScope
+    readonly id: MemoryItemId
+    readonly callId: string
+    readonly signal: AbortSignal
+  }): Promise<MemorySkill | undefined>
   /**
    * List an owner's memories, newest first. Needs no session: the memory manager lists outside one.
-   * @param request - account id, optional text query, and page bounds.
+   * With `domains`, the page, its offset, and `total` all count only memories in one of those domains.
+   * @param request - account id, optional text query, optional domain filter, and page bounds.
    * @returns one page and the total match count.
    */
-  list(request: { readonly owner: string; readonly query?: string; readonly limit: number; readonly offset: number; readonly signal: AbortSignal }): Promise<MemoryPage>
+  list(request: MemoryListRequest): Promise<MemoryPage>
   /**
    * Store one fact the user explicitly asked to be remembered.
    * @param request - scope, the fact in the user's words, and whether it is about the user or the scope's project.
    * @returns the stored memory's id, after it is durable.
    */
-  remember(request: { readonly scope: MemoryScope; readonly text: string; readonly domain: 'person' | 'project'; readonly signal: AbortSignal }): Promise<MemoryItemId>
+  remember(request: {
+    readonly scope: MemoryScope
+    readonly text: string
+    readonly domain: 'person' | 'project'
+    readonly signal: AbortSignal
+  }): Promise<MemoryItemId>
   /**
    * Replace the summary of one of an owner's memories.
    * @param request - account id, memory id, and the corrected summary.
    * @returns the updated memory, or undefined when the owner has no such memory.
    */
-  edit(request: { readonly owner: string; readonly id: MemoryItemId; readonly summary: string; readonly signal: AbortSignal }): Promise<MemoryRecord | undefined>
+  edit(request: {
+    readonly owner: string
+    readonly id: MemoryItemId
+    readonly summary: string
+    readonly signal: AbortSignal
+  }): Promise<MemoryRecord | undefined>
   /**
    * Delete one of an owner's memories.
    * @param request - account id and memory id.
@@ -285,5 +333,10 @@ export interface MemoryProvider {
    * @param request - scope, turn number, polarity, and optional note.
    * @returns true when the turn's memory was found and the judgment recorded.
    */
-  feedback(request: { readonly scope: MemoryScope; readonly turn: number; readonly polarity: MemoryFeedbackPolarity; readonly note?: string }): Promise<boolean>
+  feedback(request: {
+    readonly scope: MemoryScope
+    readonly turn: number
+    readonly polarity: MemoryFeedbackPolarity
+    readonly note?: string
+  }): Promise<boolean>
 }

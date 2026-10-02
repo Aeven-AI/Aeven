@@ -13,7 +13,7 @@ kind: "package-reference"
 
 The `avn-web-app` bundle mounts it after the `capability` row. Methods:
 
-- `memories({ query?, limit, offset })` returns one page, or `{ available: false }` while no memory provider runs. Each memory carries the working directory of the session it came from, when that session is still listed, so the page can group project memories by workspace.
+- `memories({ query?, domains?, limit, offset })` returns one page, or `{ available: false }` while no memory provider runs. Each memory carries the working directory of the session it came from, when that session is still listed, so the page can group project memories by workspace. With `domains`, the page, its offset, and `total` count only memories in those domains.
 - `editMemory(id, summary)` and `forgetMemory(id)` change only the caller's memories.
 - `invariants()` returns the statements the caller confirmed as always true, with the characters their block costs and the bound it is rendered under, or `{ available: false }` while no `memory-invariants` row runs.
 - `addInvariant(text)`, `editInvariant(id, text)`, and `removeInvariant(id)` write that document and return the caller's state after the attempt. A statement the block has no room for, one longer than the block, blank text, or an unknown identifier is refused with a reason instead of being written and dropped from the block.
@@ -32,7 +32,6 @@ None. The Remote is user-facing only; edits reach the model through later recall
 
 ## Known Limitations and Deferred Work
 
-- Memory listing pages newest first without a domain filter, so the client filters one loaded page by domain.
 - Workspace grouping reads every listed session header per page request.
 
 ## Dev Note

@@ -30,6 +30,8 @@ export type ManagedMemoryPage =
 export interface ManagedMemoryQuery {
   /** Text filter; absent lists everything. */
   readonly query?: string
+  /** Domains to list; absent lists every domain. `offset` and `total` count only the listed domains. */
+  readonly domains?: readonly MemoryDomain[]
   readonly limit: number
   readonly offset: number
 }

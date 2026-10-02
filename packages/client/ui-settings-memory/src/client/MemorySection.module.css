@@ -533,6 +533,11 @@
   color: var(--dsw-alias-label-tertiary);
 }
 
+/* The removal question takes the confirmed line's place, in the primary ink a card's confirm question uses. */
+.factConfirm {
+  color: var(--dsw-alias-label-primary);
+}
+
 /* The text buttons' padding overhangs the meta line rather than heightening the row. */
 .factActions {
   display: flex;

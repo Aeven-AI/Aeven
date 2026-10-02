@@ -189,7 +189,14 @@ export class MemosMemory implements MemoryProvider {
    * Automatic recall states the distilled summary, because it is injected on every turn; an explicit search
    * returns the whole trace, so a fact the distillation dropped is still reachable.
    */
-  private async hitOrigin(hit: RetrievalHitDTO, namespace: RuntimeNamespace, turnStart: boolean): Promise<{ domain: MemoryDomain; workspaceId: string | null | undefined; summary?: string; correction?: boolean; superseded?: boolean; recordedAt?: number }> {
+  private async hitOrigin(hit: RetrievalHitDTO, namespace: RuntimeNamespace, turnStart: boolean): Promise<{
+    domain: MemoryDomain
+    workspaceId: string | null | undefined
+    summary?: string
+    correction?: boolean
+    superseded?: boolean
+    recordedAt?: number
+  }> {
     switch (hit.refKind) {
       case 'experience':
       case 'skill':
@@ -267,15 +274,20 @@ export class MemosMemory implements MemoryProvider {
     return run
   }
 
-  private async captureTurn(state: SessionState, turn: MemoryTurn, turnKey: string, domain?: TurnDomain): Promise<{ traceId: string; episodeId: string }> {
+  private async captureTurn(
+    state: SessionState,
+    turn: MemoryTurn,
+    turnKey: string,
+    domain?: TurnDomain,
+  ): Promise<{ traceId: string; episodeId: string }> {
     const { scope } = turn
     const namespace = this.namespaceOf(scope)
     let memorySessionId: string = scope.sessionId
     let episodeId: string | undefined
     try {
-      const prepareTurn = this.core.prepareTurn
+      const prepareTurn = this.core.prepareTurn?.bind(this.core)
       if (!prepareTurn) throw new Error('MemoryCore does not expose prepareTurn')
-      const prepared = await this.withRoute(scope.route, () => prepareTurn.call(this.core, {
+      const prepared = await this.withRoute(scope.route, () => prepareTurn({
         agent: MEMOS_AGENT,
         namespace,
         sessionId: memorySessionId,
@@ -301,15 +313,17 @@ export class MemosMemory implements MemoryProvider {
       if (tool.endedAt === undefined) continue
       const endedAt = tool.endedAt
       try {
-        this.withRoute(scope.route, () => this.core.recordToolOutcome({
-          sessionId: memorySessionId,
-          episodeId,
-          tool: tool.name,
-          success: tool.errorCode === undefined,
-          ...tool.errorCode === undefined ? {} : { errorCode: tool.errorCode },
-          durationMs: Math.max(0, endedAt - (tool.startedAt ?? endedAt)),
-          ts: endedAt,
-        }))
+        this.withRoute(scope.route, () => {
+          this.core.recordToolOutcome({
+            sessionId: memorySessionId,
+            episodeId,
+            tool: tool.name,
+            success: tool.errorCode === undefined,
+            ...tool.errorCode === undefined ? {} : { errorCode: tool.errorCode },
+            durationMs: Math.max(0, endedAt - (tool.startedAt ?? endedAt)),
+            ts: endedAt,
+          })
+        })
       } catch (error) {
         this.options.warn(`recordToolOutcome failed for ${tool.name}: ${describe(error)}`)
       }
@@ -476,7 +490,8 @@ export class MemosMemory implements MemoryProvider {
   }
 
   async timeline(request: Parameters<MemoryProvider['timeline']>[0]): Promise<readonly MemoryTimelineEntry[]> {
-    const traces = await this.read(request, () => this.core.timeline({ episodeId: request.episodeId, namespace: this.namespaceOf(request.scope) }))
+    const namespace = this.namespaceOf(request.scope)
+    const traces = await this.read(request, () => this.core.timeline({ episodeId: request.episodeId, namespace }))
     return traces.slice(0, request.limit).map(trace => ({
       id: brandString<MemoryItemId>(trace.id),
       time: trace.ts,
@@ -534,11 +549,30 @@ export class MemosMemory implements MemoryProvider {
       includeAllNamespaces: true,
       ...request.query ? { q: request.query } : {},
     }
-    const [traces, total] = await this.read(request, () => Promise.all([
-      this.core.listTraces({ ...filter, limit: request.limit, offset: request.offset }),
-      this.core.countTraces(filter),
-    ]))
-    return { records: traces.filter(trace => trace.ownerProfileId === profile).map(toRecord), total }
+    if (request.domains === undefined) {
+      const [traces, total] = await this.read(request, () => Promise.all([
+        this.core.listTraces({ ...filter, limit: request.limit, offset: request.offset }),
+        this.core.countTraces(filter),
+      ]))
+      return { records: traces.filter(trace => trace.ownerProfileId === profile).map(toRecord), total }
+    }
+    // A domain is a trace tag with a workspace fallback, which the core cannot filter on, so every matching
+    // trace is read in `limit`-sized chunks to place the requested page and count the domain's total.
+    const chunk = Math.max(request.limit, 1)
+    const domains = new Set(request.domains)
+    const records: MemoryRecord[] = []
+    let total = 0
+    for (let offset = 0; ; offset += chunk) {
+      const traces = await this.read(request, () => this.core.listTraces({ ...filter, limit: chunk, offset }))
+      for (const trace of traces) {
+        if (trace.ownerProfileId !== profile) continue
+        const record = toRecord(trace)
+        if (!domains.has(record.domain)) continue
+        if (total >= request.offset && records.length < request.limit) records.push(record)
+        total++
+      }
+      if (traces.length < chunk) return { records, total }
+    }
   }
 
   async remember(request: Parameters<MemoryProvider['remember']>[0]): Promise<MemoryItemId> {
@@ -590,9 +624,12 @@ export class MemosMemory implements MemoryProvider {
    * Read a trace only when it belongs to the scope's owner. MemOS deletes and updates by id alone,
    * so ownership is checked here before either.
    */
-  private async ownedTrace(request: { readonly owner: string; readonly id: MemoryItemId; readonly signal: AbortSignal }): Promise<TraceDTO | undefined> {
+  private async ownedTrace(
+    request: { readonly owner: string; readonly id: MemoryItemId; readonly signal: AbortSignal },
+  ): Promise<TraceDTO | undefined> {
     const profile = ownerProfile(request.owner)
-    const trace = await this.read(request, () => this.core.getTrace(request.id, { agentKind: MEMOS_AGENT, profileId: profile, profileLabel: request.owner }))
+    const namespace = { agentKind: MEMOS_AGENT, profileId: profile, profileLabel: request.owner }
+    const trace = await this.read(request, () => this.core.getTrace(request.id, namespace))
     return trace?.ownerProfileId === profile ? trace : undefined
   }
 
@@ -612,10 +649,10 @@ export class MemosMemory implements MemoryProvider {
  * @returns the trace's readable text, in the order a reader needs it.
  */
 function traceSnippet(trace: TraceDTO): string {
-  const tools = trace.toolCalls.map(tool => {
-    const input = JSON.stringify(tool.input)
+  const tools = trace.toolCalls.map((tool) => {
+    const input = tool.input === undefined ? '' : JSON.stringify(tool.input)
     const output = tool.output === undefined ? '' : ` => ${JSON.stringify(tool.output)}`
-    return `${tool.name} ${input ?? ''}${output}${tool.errorCode ? ` (${tool.errorCode})` : ''}`
+    return `${tool.name} ${input}${output}${tool.errorCode ? ` (${tool.errorCode})` : ''}`
   })
   return [
     trace.summary?.trim(),
@@ -677,7 +714,7 @@ function facts(input: Record<string, FactValue>): Record<string, JsonValue> {
   const out: Record<string, JsonValue> = {}
   for (const [key, value] of Object.entries(input)) {
     if (value === undefined || value === null || value === '') continue
-    out[key] = Array.isArray(value) ? [...value] : value as JsonValue
+    out[key] = typeof value === 'object' ? [...value] : value
   }
   return out
 }
