@@ -6,9 +6,9 @@
 
 ## 添加 DeepSeek
 
-打开**设置 → 模型提供方**。默认不配置任何提供方。选择**添加提供方**，选取 DeepSeek，输入其 API 密钥并保存；其模型随即出现在输入框的模型选择器中，删除该提供方后这些模型也会移除。
+打开**设置 → 提供方**。默认不配置任何提供方。选择**添加提供方**，选取 DeepSeek，输入其 API 密钥并保存；其模型随即出现在输入框的模型选择器中，删除该提供方后这些模型也会移除。
 
-![模型提供方页：添加提供方与添加自定义提供方两个入口](providers-models-page.zh.png)
+![提供方页：添加提供方与添加自定义提供方两个入口](providers-models-page.zh.png)
 
 密钥是只写的。保存后，页面只会收到脱敏描述符，永远不会收到明文密钥。密钥存储在 `$AVN_HOME/.credentials.yaml` 中，settings 只保留它的凭据引用。
 
@@ -123,7 +123,7 @@ llm-pi-ai:
 
 ## 排错
 
-- **`MISSING_CREDENTIAL`**：通过模型提供方页存储提供方密钥，或提供被引用的环境变量。
+- **`MISSING_CREDENTIAL`**：通过提供方页存储提供方密钥，或提供被引用的环境变量。
 - **`UNKNOWN_MODEL`**：选择已配置的模型，或向自定义提供方添加缺失的模型。
 - **获取可用模型返回 401**：检查密钥。模型发现会调用 OpenAI 兼容的 `GET /models` 端点；对于不提供该端点的服务，请手动输入模型。
 - **密钥与地址都正确，网关却拒绝每一个请求**：它的请求形状与 OpenAI 不同。先在路由上设 `compat.supportsDeveloperRole: false` 与 `compat.maxTokensField: max_tokens`。

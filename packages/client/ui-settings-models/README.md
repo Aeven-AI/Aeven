@@ -1,5 +1,5 @@
 ---
-description: "Model providers settings plugin for the avn web client: provider rows, API-key management, and model lists."
+description: "Providers settings plugin for the avn web client: provider rows, API-key management, and model lists."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`avn-client-ui-settings-models` is the Model providers settings page of the avn web client: users configure API keys (stored write-only under the profile's credential reference), edit each provider's model list, and hand-declare custom pi-ai routes, with provider rows and one editor card at a time. The page joins the provider directory, the settings document, and the credential descriptions into one shared snapshot, so a row's state stays consistent across all three.
+`avn-client-ui-settings-models` is the Providers settings page of the avn web client: users configure API keys (stored write-only under the profile's credential reference), edit each provider's model list, and hand-declare custom pi-ai routes, with provider rows and one editor card at a time. The page joins the provider directory, the settings document, and the credential descriptions into one shared snapshot, so a row's state stays consistent across all three.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Open the Model providers page from the Settings navigation to see every configured provider as a row. No provider is configured by default: a provider appears only once the user adds it, or when the composition keeps its route live (such as the signed-in Aeven route), and its models reach the composer's model selector only while it is configured. Each card kind owns its own open state, so closing one never discards a draft in another.
+Open the Providers page from the Settings navigation to see every configured provider as a row. No provider is configured by default: a provider appears only once the user adds it, or when the composition keeps its route live (such as the signed-in Aeven route), and its models reach the composer's model selector only while it is configured. Each card kind owns its own open state, so closing one never discards a draft in another.
 
 ### API keys
 

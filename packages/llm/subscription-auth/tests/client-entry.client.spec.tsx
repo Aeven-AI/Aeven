@@ -7,7 +7,7 @@
  */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
-import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { GrokBuildSettings } from '../src/client/GrokBuildSettings.tsx'
 import { STATUS_PATH } from '../src/client/constants.ts'
@@ -43,19 +43,6 @@ function statusBody(): unknown {
         loginMethods: ['device', 'browser'],
         recommendedLoginMethod: 'browser',
         models: [],
-        available: [],
-        selected: [],
-        status: 'signed-out',
-      },
-      claude: {
-        provider: 'claude',
-        route: 'claude-code-oauth',
-        displayName: 'Claude',
-        loginMethods: ['browser'],
-        recommendedLoginMethod: 'browser',
-        models: [],
-        available: [],
-        selected: [],
         status: 'signed-out',
       },
     },
@@ -272,10 +259,8 @@ describe('independent settings entry', () => {
     ] as unknown as DOMRectList)
     mounted = await mountEntry()
     fireEvent.click(screen.getByRole('button', { name: en.nav }))
-    // The controls inside the dialog belong to the accounts it loads on opening.
-    await waitFor(() => {
-      expect(document.getElementById('coding-oauth-login-codex')).toBeTruthy()
-    })
+    // The controls inside the dialog belong to the provider cards it loads on opening.
+    await screen.findByRole('button', { name: `${en.expand}: ${en.codexTitle}` })
 
     const dialog = screen.getByRole('dialog')
     const targets = [...dialog.querySelectorAll<HTMLElement>(FOCUSABLE)]

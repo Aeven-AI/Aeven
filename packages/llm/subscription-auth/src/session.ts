@@ -14,7 +14,6 @@ import {
   type CatalogSource,
   fetchLiveModels,
   type LiveModelDescriptor,
-  materializeLiveModel,
   mergeLiveCatalog,
 } from './catalog.ts'
 import { GROK_BUILD_MODELS_CACHE_FILENAME, GROK_BUILD_ROUTE, XAI_PI_PROVIDER } from './ids.ts'
@@ -22,18 +21,18 @@ import { grokBuildBaselineModels, grokBuildProvider } from './provider.ts'
 import { safeMessage } from './redact.ts'
 import { GrokBuildCredentialStore } from './store.ts'
 
-const MODELS_CACHE_VERSION = 2
+const MODELS_CACHE_VERSION = 3
 
 interface ModelsCacheDocument {
   version: typeof MODELS_CACHE_VERSION
   ids: string[]
-  selected?: string[]
+  models?: LiveModelDescriptor[]
   fetchedAt: number
 }
 
 interface ParsedCache {
   ids: string[]
-  selected?: string[]
+  models: LiveModelDescriptor[]
 }
 
 function isENOENT(error: unknown): boolean {
@@ -58,14 +57,30 @@ function parseCache(text: string): ParsedCache | undefined {
   }
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined
   const document = value as Record<string, unknown>
-  if (document['version'] !== 1 && document['version'] !== MODELS_CACHE_VERSION) return undefined
+  if (document['version'] !== MODELS_CACHE_VERSION) return undefined
   const ids = parseIdList(document['ids'])
-  const selected = parseIdList(document['selected'])
-  if (ids.length === 0 && selected.length === 0) return undefined
-  return {
-    ids,
-    ...(selected.length === 0 ? {} : { selected }),
+  if (ids.length === 0) return undefined
+  const models = Array.isArray(document['models']) ? document['models'].flatMap(cachedDescriptor) : []
+  return { ids, models }
+}
+
+/**
+ * Restore one cached descriptor written by {@link GrokBuildSession.writeCache}.
+ * The file is this plugin's own, so a malformed row is dropped rather than repaired.
+ */
+function cachedDescriptor(row: unknown): LiveModelDescriptor[] {
+  if (typeof row !== 'object' || row === null || Array.isArray(row)) return []
+  const value = row as Record<string, unknown>
+  if (typeof value['id'] !== 'string' || value['id'].length === 0) return []
+  const descriptor: LiveModelDescriptor = { id: value['id'] }
+  if (typeof value['name'] === 'string') descriptor.name = value['name']
+  if (typeof value['contextWindow'] === 'number') descriptor.contextWindow = value['contextWindow']
+  if (typeof value['reasoning'] === 'boolean') descriptor.reasoning = value['reasoning']
+  const map = value['thinkingLevelMap']
+  if (typeof map === 'object' && map !== null && !Array.isArray(map)) {
+    descriptor.thinkingLevelMap = map as NonNullable<LiveModelDescriptor['thinkingLevelMap']>
   }
+  return [descriptor]
 }
 
 function asHarnessModels(models: readonly Model<Api>[]): Model<Api>[] {
@@ -81,14 +96,24 @@ export class GrokBuildSession {
   private readonly baselineCatalog: readonly Model<Api>[]
   private liveIds: string[] | undefined
   private liveModels: readonly LiveModelDescriptor[] | undefined
-  private selectedIds: string[] | undefined
   private source: CatalogSource = 'fallback'
   private listingError: string | undefined
   private readonly cacheFile: string
   private onCatalogChange: (() => void) | undefined
+  private readonly isSelected: (modelId: string) => boolean
 
-  constructor(store: GrokBuildCredentialStore = new GrokBuildCredentialStore(), onCatalogChange?: () => void) {
+  /**
+   * @param store - the Grok OAuth credential file.
+   * @param onCatalogChange - called whenever the served model list may have changed.
+   * @param isSelected - whether the user keeps a model on; every model is on when omitted.
+   */
+  constructor(
+    store: GrokBuildCredentialStore = new GrokBuildCredentialStore(),
+    onCatalogChange?: () => void,
+    isSelected: (modelId: string) => boolean = () => true,
+  ) {
     this.store = store
+    this.isSelected = isSelected
     this.cacheFile = modelsCachePath()
     this.baselineCatalog = grokBuildBaselineModels()
     // The built-in xai provider owns login/refresh (device flow today); the
@@ -117,22 +142,11 @@ export class GrokBuildSession {
   }
 
   /**
-   * Return the selected model ids.
-   * @returns The resulting selected model ids.
-   */
-  selectedModelIds(): string[] | undefined {
-    return this.selectedIds
-  }
-
-  /**
-   * Return the visible models.
-   * @returns The visible models.
+   * The models the user keeps selected, in catalog order.
+   * @returns The selected subset of {@link availableModels}.
    */
   visibleModels(): Model<Api>[] {
-    const available = this.availableModels()
-    if (this.selectedIds === undefined || this.selectedIds.length === 0) return available
-    const byId = new Map(available.map(model => [model.id, model]))
-    return this.selectedIds.map(id => byId.get(id) ?? materializeLiveModel(id, this.baselineCatalog))
+    return this.availableModels().filter(model => this.isSelected(model.id))
   }
 
   /**
@@ -153,9 +167,10 @@ export class GrokBuildSession {
     try {
       const cache = parseCache(await readFile(this.cacheFile, 'utf8'))
       if (cache === undefined) return
-      // A listing cached by an earlier live fetch is not restored: the model
-      // list is the shipped catalogue unless a refresh is explicitly requested.
-      this.selectedIds = cache.selected
+      // The last live listing serves until the next sync replaces it.
+      this.liveIds = cache.ids
+      this.liveModels = cache.models
+      this.source = 'cache'
     } catch (error) {
       if (!isENOENT(error)) throw error
     }
@@ -188,14 +203,8 @@ export class GrokBuildSession {
     }
   }
 
-  /**
-   * Update selected models.
-   * @param ids - Ids value.
-   */
-  async setSelectedModels(ids: readonly string[]): Promise<void> {
-    const unique = [...new Set(ids.filter(id => id.length > 0))]
-    this.selectedIds = unique.length === 0 ? undefined : unique
-    await this.writeCache()
+  /** Tell model discovery that the selection changed. */
+  notifySelectionChange(): void {
     this.onCatalogChange?.()
   }
 
@@ -231,7 +240,6 @@ export class GrokBuildSession {
       await this.store.delete(XAI_PI_PROVIDER)
       this.liveIds = undefined
       this.liveModels = undefined
-      this.selectedIds = undefined
       this.source = 'fallback'
       this.listingError = undefined
       await mkdir(dirname(this.cacheFile), { recursive: true, mode: 0o700 })
@@ -247,8 +255,8 @@ export class GrokBuildSession {
     const document: ModelsCacheDocument = {
       version: MODELS_CACHE_VERSION,
       ids: this.liveIds === undefined ? [] : [...this.liveIds],
+      ...(this.liveModels === undefined ? {} : { models: [...this.liveModels] }),
       fetchedAt: Date.now(),
-      ...(this.selectedIds === undefined ? {} : { selected: [...this.selectedIds] }),
     }
     await mkdir(dirname(this.cacheFile), { recursive: true, mode: 0o700 })
     await writeFileAtomic(this.cacheFile, `${JSON.stringify(document)}\n`, {

@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-01-aeven-image-models-only.md
-2026-10-01-aeven-image-models-only.md: bc64c9d0230cf0fc17ea886bbb5ef52f14b4b379
-2026-10-01-aeven-image-models-only.zh.md: f6522ede9f001a4264ac8a13e0025372699cce3c
+2026-10-01-aeven-image-models-only.md: 14024d829b12e116cd293592edc6c73dedcc2afd
+2026-10-01-aeven-image-models-only.zh.md: fe69627d402028fb2c82bd3a3b81f857eb62d74c

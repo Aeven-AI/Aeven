@@ -1,9 +1,9 @@
-/** Copy dictionaries for the Model providers settings section. */
+/** Copy dictionaries for the Providers settings section. */
 
 /** English strings (the key-set source of truth for this pair). */
 export const en = {
-  nav: 'Model providers',
-  title: 'Model providers',
+  nav: 'Providers',
+  title: 'Providers',
   intro: 'Add a provider with its API key to choose its models in the composer.',
   empty: 'No API-key providers yet. Add one to make its models available.',
   edit: 'Edit',
@@ -101,8 +101,8 @@ export type ModelsKey = keyof typeof en
 
 /** Chinese strings (same keys as {@link en}). */
 export const zh: { [Key in keyof typeof en]: string } = {
-  nav: '模型提供方',
-  title: '模型提供方',
+  nav: '提供方',
+  title: '提供方',
   intro: '添加提供方并填入其 API 密钥，即可在输入框中选择其模型。',
   empty: '尚未添加 API 密钥提供方。添加后即可使用其模型。',
   edit: '编辑',

@@ -4,7 +4,6 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
   CAPABILITY_SETTINGS_PATH,
-  CLAUDE_CODE_OAUTH_ROUTE,
   CODEX_OAUTH_FAST_ROUTE,
   CODEX_OAUTH_ROUTE,
   CODING_OAUTH_ROUTES,
@@ -25,12 +24,8 @@ describe('bundle composition', () => {
   })
 
   it('exposes collision-free OAuth route aliases', async () => {
-    expect([GROK_BUILD_ROUTE, CODEX_OAUTH_ROUTE, CLAUDE_CODE_OAUTH_ROUTE]).toEqual([
-      'grok-build',
-      'codex-oauth',
-      'claude-code-oauth',
-    ])
-    expect(CODING_OAUTH_ROUTES).toEqual([GROK_BUILD_ROUTE, CODEX_OAUTH_ROUTE, CLAUDE_CODE_OAUTH_ROUTE])
+    expect([GROK_BUILD_ROUTE, CODEX_OAUTH_ROUTE]).toEqual(['grok-build', 'codex-oauth'])
+    expect(CODING_OAUTH_ROUTES).toEqual([GROK_BUILD_ROUTE, CODEX_OAUTH_ROUTE])
     const source = await readFile(join(root, 'src/index.ts'), 'utf8')
     expect(source).toContain('[...CODING_OAUTH_ROUTES]')
     expect(source).toContain('registerCodingOAuthRoutes')

@@ -33,6 +33,10 @@ function imageProvider(
     provider: {
       id: 'stub',
       available: () => true,
+      listImageModels: async () => [
+        { provider: 'stub', id: 'flux-pro' },
+        { provider: 'stub', id: 'live-model', label: 'Live model' },
+      ],
       generateImage: async (request) => {
         seen.push(request)
         return { provider: 'stub', model: request.model, images }
@@ -374,6 +378,27 @@ describe('the model picker', () => {
     })
     await call({ prompt: 'x' })
     expect(seen[0]).toMatchObject({ model: 'flux-pro' })
+  })
+})
+
+describe('listed providers', () => {
+  it('offers a listed provider’s live models after the configured choices', async () => {
+    const { call, seen, asked } = await mount({
+      config: { choices: CHOICES, listedProviders: ['stub'], confirmModel: true, model: 'flux-pro' },
+      answer: 'Live model',
+    })
+    await call({ prompt: 'a lighthouse' })
+    expect(asked[0]).toMatchObject({
+      questions: [{ options: [{ label: 'FLUX Pro' }, { label: 'stub/flux.2-pro' }, { label: 'Live model' }] }],
+    })
+    expect(seen[0]).toMatchObject({ model: 'live-model', provider: 'stub' })
+  })
+
+  it('refuses a live model whose provider is not listed', async () => {
+    const { call, seen } = await mount({ config: { choices: CHOICES, confirmModel: false, model: 'flux-pro' } })
+    const result = await call({ prompt: 'a lighthouse', model: 'live-model' })
+    expect(JSON.stringify(result)).toContain('not an available image model')
+    expect(seen).toHaveLength(0)
   })
 })
 

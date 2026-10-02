@@ -18,7 +18,7 @@ Status: implemented
 
 **`choices` 是完整的可选集合，在请求解析时执行。** 内置 Preset 列出 Flash 与 Pro；`resolveRequest` 拒绝任何其他模型，因此选择器、`/image-models` 以及调用中指明的模型都无法选中其他模型。"Other — list every image model"这一出口已被移除。Preset 默认 Flash 并设置 `confirmModel: false`，因此第一次生成不弹窗，`/image-model` 更名为 `/image-models`，作为更改已存储选择的入口。
 
-**订阅插件不再向媒体 seam 注册 provider。** 其 Grok Imagine 与 Codex 工具保留；只移除它们向 `ctx.media` 的重复注册，因为 seam 的图像模型现在属于部署自己，而该处按订阅出现的条目就是一个"其他模型"。
+**订阅插件不再向媒体 seam 注册 provider。** 其 Grok Imagine 与 Codex 工具保留；只移除它们向 `ctx.media` 的重复注册，因为 seam 的图像模型现在属于部署自己，而该处按订阅出现的条目就是一个"其他模型"。[以可展开卡片呈现订阅提供方并逐个选择模型](../feature/2026-10-02-subscription-providers-model-selection.zh.md) 恢复了这两项注册，且只通过 `tool-media` 显式的 `listedProviders` 提供、只在用户保持该模型选中时可用。
 
 **`generate_image` 可以使用参考图与背景选项。** `reference_images` 接受经由 `ctx.fs` 读取的路径，既涵盖工作区文件，也涵盖模型看到的对话图像的规范化副本；`background` 映射到新的 seam 字段 `MediaImageRequest.background`。该工具去掉了没有任何 Aeven 模型接受的 `provider`、`aspect_ratio`、`resolution` 与 `seed`，其描述列出每个 choice 及其选项，使模型知道只有 Pro 具备背景选项。
 

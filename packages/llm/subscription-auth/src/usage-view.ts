@@ -45,7 +45,6 @@ export type UsageEntitlement =
 export type UsageWindowLabel =
 	| 'fiveHour'
 	| 'weekly'
-	| 'weeklyOpus'
 	| 'monthly'
 	| 'session'
 	| 'codeReview'
@@ -159,16 +158,6 @@ export function epochSecondsFromRfc3339(value: unknown): number | undefined {
   if (!Number.isFinite(parsed)) return undefined
   const seconds = Math.floor(parsed / 1000)
   return seconds > 0 ? seconds : undefined
-}
-
-/**
- * Whether a projection carries anything worth rendering as a bar or balance.
- * Drives the card's choice between the meters and an explanatory state.
- * @param usage - the projection to inspect.
- * @returns true when at least one window or a credit balance is present.
- */
-export function hasMeteredUsage(usage: ProviderUsage): boolean {
-  return usage.windows.length > 0 || usage.credits !== undefined
 }
 
 /**

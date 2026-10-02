@@ -1,6 +1,6 @@
 /** Compatibility facade for stable identifiers owned by dsh-coding-oauth-core. */
 
-import { CLAUDE_CODE_OAUTH_ROUTE, CODEX_OAUTH_ROUTE, GROK_BUILD_ROUTE } from 'dsh-coding-oauth-core'
+import { CODEX_OAUTH_ROUTE, GROK_BUILD_ROUTE } from 'dsh-coding-oauth-core'
 
 export type {
   CodingOAuthOptionalRoute,
@@ -10,10 +10,6 @@ export {
   ANTIGRAVITY_ROUTE,
   CAPABILITY_SETTINGS_NAMESPACE,
   CAPABILITY_SETTINGS_PATH,
-  CLAUDE_CODE_OAUTH_AUTH_FILENAME,
-  CLAUDE_CODE_OAUTH_MODELS_CACHE_FILENAME,
-  CLAUDE_CODE_OAUTH_ROUTE,
-  CLAUDE_PI_PROVIDER,
   CODEX_OAUTH_AUTH_FILENAME,
   CODEX_OAUTH_FAST_ROUTE,
   CODEX_OAUTH_MODELS_CACHE_FILENAME,
@@ -59,11 +55,17 @@ export {
 
 /**
  * LLM routes the OAuth adapter serves, registered as one set. Owned here
- * because core's list also names `kimi-code-oauth`, which this package does
- * not serve: `llm.registerAdapter` rejects the whole set when the adapter
- * cannot describe any one route, leaving no subscription route registered.
+ * because core's list also names routes this package does not serve:
+ * `llm.registerAdapter` rejects the whole set when the adapter cannot
+ * describe any one route, leaving no subscription route registered.
  */
-export const CODING_OAUTH_ROUTES = [GROK_BUILD_ROUTE, CODEX_OAUTH_ROUTE, CLAUDE_CODE_OAUTH_ROUTE] as const
+export const CODING_OAUTH_ROUTES = [GROK_BUILD_ROUTE, CODEX_OAUTH_ROUTE] as const
+
+/** Provider slugs the Providers page shows, in display order. */
+export const SUBSCRIPTION_PROVIDER_SLUGS = ['grok', 'codex'] as const
+
+/** One provider the Providers page shows. */
+export type SubscriptionSlug = (typeof SUBSCRIPTION_PROVIDER_SLUGS)[number]
 
 /** One LLM route the OAuth adapter serves. */
 export type CodingOAuthRoute = (typeof CODING_OAUTH_ROUTES)[number]
