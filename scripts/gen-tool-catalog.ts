@@ -651,8 +651,23 @@ const TOOL_PACKAGES: ToolPackage[] = [
     async mount(ctx) {
       await ctx.plugin(LlmRuntime)
       // The store is only constructed here; schema harvest never reads or writes it.
-      await ctx.plugin(Capabilities, { root: join(tmpdir(), 'avn-tool-catalog-capabilities') })
-      await ctx.plugin(ToolCapability, { learn: false })
+      await ctx.plugin(Capabilities, {
+        root: join(tmpdir(), 'avn-tool-catalog-capabilities'),
+        skillRank: 550,
+        trustAfter: 3,
+        degradeAfter: 2,
+        candidateTtlDays: 30,
+      })
+      await ctx.plugin(ToolCapability, {
+        promptOrder: 116,
+        maxRecalled: 3,
+        learn: false,
+        minSteps: 3,
+        settleMs: 300_000,
+        timeoutMs: 120_000,
+        maxOutputTokens: 4_000,
+        maxInputTokens: 16_000,
+      })
     },
     note:
       'capability_manage acts on the calling session owner\'s learned capabilities; a session with no signed-in owner is refused. Automatic learning from completed turns is a separate part of the same plugin and adds no tool.',
