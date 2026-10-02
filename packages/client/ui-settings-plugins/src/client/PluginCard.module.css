@@ -30,7 +30,7 @@
   text-align: left;
   cursor: pointer;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
   padding: 14px 16px;
   border-radius: 12px;
@@ -64,8 +64,10 @@
   color: var(--dsw-alias-label-tertiary);
 }
 
+/* Top-aligned with the header, centered on the name's first line: (14px x 1.4 - 14px) / 2. */
 .chevron {
   flex: none;
+  margin-top: 3px;
   color: var(--dsw-alias-label-tertiary);
   transition: transform 0.16s;
 }

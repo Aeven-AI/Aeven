@@ -82,7 +82,8 @@
 
 .search input,
 .field input,
-.field textarea {
+.field textarea,
+.composerArea {
   width: 100%;
   box-sizing: border-box;
   border: 0.5px solid var(--dsw-alias-border-l4);
@@ -99,14 +100,16 @@
 }
 
 .field input,
-.field textarea {
+.field textarea,
+.composerArea {
   padding: 8px 10px;
   resize: vertical;
 }
 
 .search input:focus-visible,
 .field input:focus-visible,
-.field textarea:focus-visible {
+.field textarea:focus-visible,
+.composerArea:focus-visible {
   border-color: var(--dsw-alias-state-business-primary);
   box-shadow: 0 0 0 2px var(--dsw-tint-business-18);
 }
@@ -184,18 +187,23 @@
     background 0.16s;
 }
 
-.card:hover {
-  background: var(--dsw-alias-bg-layer-2);
+.card:hover,
+.factRow:hover {
+  border-color: var(--dsw-alias-label-dimmed);
 }
 
+/* An open card reads as the one being worked on, the way a Plugins card does. */
 .cardOpen {
   background: var(--dsw-alias-bg-layer-2);
+  border-color: var(--dsw-alias-label-dimmed);
 }
 
 .header,
 .foldButton,
 .textButton,
-.primary {
+.primary,
+.secondary,
+.danger {
   appearance: none;
   border: 0;
   background: none;
@@ -220,7 +228,9 @@
 }
 
 .textButton:focus-visible,
-.primary:focus-visible {
+.primary:focus-visible,
+.secondary:focus-visible,
+.danger:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--dsw-alias-border-l3);
 }
@@ -229,7 +239,7 @@
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   min-width: 0;
 }
 
@@ -241,7 +251,7 @@
 }
 
 .title {
-  font-weight: 400;
+  font-weight: 500;
 }
 
 .cardOpen .title,
@@ -266,6 +276,7 @@
 
 .body {
   margin: 0 16px;
+  padding-bottom: 8px;
   border-top: 0.5px solid var(--dsw-alias-border-l2);
 }
 
@@ -349,8 +360,8 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 16px;
-  padding: 12px 0 8px;
+  gap: 8px;
+  padding: 12px 0 4px;
   border-top: 0.5px solid var(--dsw-alias-border-l2);
 }
 
@@ -358,31 +369,88 @@
   margin-right: auto;
 }
 
+/* A text button's hover fill overhangs the card's text inset, so an edge label lines up with the text above it. */
+.footer > .textButton:first-child {
+  margin-left: -6px;
+}
+
+.footer > .textButton:last-child,
+.factActions > .textButton:last-child {
+  margin-right: -6px;
+}
+
+/* Three button weights, shared by every tab: a text button for an action the open card offers,
+   the Plugins card's outlined Discard for backing out or asking for more, and its filled Save for
+   committing. A destructive commit is outlined in the error color, as the preset delete is. */
 .textButton {
-  padding: 5px 0;
+  border-radius: 8px;
+  padding: 3px 6px;
   color: var(--dsw-alias-label-secondary);
+  transition:
+    background 0.16s,
+    color 0.16s;
 }
 
 .textButton:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
   color: var(--dsw-alias-label-primary);
 }
 
-.primary {
-  border-radius: 9px;
-  padding: 7px 16px;
+.textDanger:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover-danger);
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.primary,
+.secondary,
+.danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 5px 14px;
   line-height: 20px;
+}
+
+.primary {
   background: var(--dsw-alias-label-primary);
   color: var(--dsw-alias-bg-layer-3);
 }
 
+.secondary {
+  border-color: var(--dsw-alias-border-l2);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.secondary:hover:not(:disabled) {
+  border-color: var(--dsw-alias-label-dimmed);
+  color: var(--dsw-alias-label-primary);
+}
+
+.danger {
+  border-color: var(--dsw-alias-state-error-primary);
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.danger:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover-danger);
+}
+
 .textButton:disabled,
-.primary:disabled {
+.primary:disabled,
+.secondary:disabled,
+.danger:disabled {
   opacity: 0.4;
   cursor: default;
 }
 
+/* Shown only while the provider reports records past the loaded pages. */
 .more {
-  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
   padding: 4px 0 8px;
 }
 
@@ -438,26 +506,23 @@
 
 /* A statement row is a foldout card in its collapsed form: the same card chrome
    and the same 14px 16px header inset as `.card`, so a statement and a memory
-   read as one family. Its text and its confirmed line sit at the header's own 2px
+   read as one family. Its text and its confirmed line sit at the header's own 4px
    step, the way a card's title sits over its subtitle. */
 .factRow {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   border: 0.5px solid var(--dsw-alias-border-l4);
   border-radius: 16px;
   background: var(--dsw-alias-bg-layer-3);
   padding: 14px 16px;
-  transition: background 0.16s;
-}
-
-.factRow:hover {
-  background: var(--dsw-alias-bg-layer-2);
+  transition: border-color 0.16s;
 }
 
 .factText {
   margin: 0;
   color: var(--dsw-alias-label-primary);
+  font-weight: 500;
 }
 
 .factMeta {
@@ -468,10 +533,12 @@
   color: var(--dsw-alias-label-tertiary);
 }
 
+/* The text buttons' padding overhangs the meta line rather than heightening the row. */
 .factActions {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 8px;
+  margin: -3px 0;
 }
 
 /* The composer is the foldout's edit body standing on its own: the card chrome,
@@ -488,26 +555,6 @@
   transition: border-color 0.16s;
 }
 
-/* The `.field textarea` the foldout's edit mode renders, off the section's one
-   type scale. */
-.composerArea {
-  width: 100%;
-  box-sizing: border-box;
-  border: 0.5px solid var(--dsw-alias-border-l4);
-  border-radius: 10px;
-  background: transparent;
-  color: var(--dsw-alias-label-primary);
-  font: inherit;
-  padding: 8px 10px;
-  outline: none;
-  resize: vertical;
-}
-
-.composerArea:focus-visible {
-  border-color: var(--dsw-alias-state-business-primary);
-  box-shadow: 0 0 0 2px var(--dsw-tint-business-18);
-}
-
 .composerLabel {
   color: var(--dsw-alias-label-tertiary);
 }
@@ -516,7 +563,7 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 16px;
+  gap: 8px;
 }
 
 .composerHint {

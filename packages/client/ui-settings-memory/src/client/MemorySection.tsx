@@ -2,8 +2,8 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import type {
   CapabilityRunMetrics, CapabilityStatus, ExecutionVerdict, InvariantId, ManagedCapability, ManagedCapabilityDetail, ManagedCapabilityEdit,
-  ManagedCapabilityStatusChange, ManagedInvariantChange, ManagedInvariantsPage, ManagedMemory, ManagedMemoryPage, ManagedMemoryQuery, MemoryDomain,
-  MemoryItemId,
+  ManagedCapabilityStatusChange, ManagedInvariantChange, ManagedInvariantsPage, ManagedMemory, ManagedMemoryPage, ManagedMemoryQuery,
+  MemoryDomain, MemoryItemId,
 } from '@aeven/api-remotes/client'
 import { IconChevronDownOutline14, IconSearchOutline16, MarkdownText, SectionHeader, Spinner, relativeTime } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
@@ -205,35 +205,90 @@ function inTab(memory: ManagedMemory, tab: MemoriesTab): boolean {
   }
 }
 
-function Memories({ t, tab, close, memories, editMemory, forgetMemory, openConversation, addInvariant }: MemorySectionProps & { readonly tab: MemoriesTab }) {
+/** A loaded list: the fetched records, the provider's match count, and the offset the next page starts at. */
+interface MemoryList {
+  readonly available: boolean
+  readonly items: readonly ManagedMemory[]
+  readonly total: number
+  readonly next: number
+  /** Whether the provider may hold records past `next`: it reported more matches and the last page was not empty. */
+  readonly more: boolean
+}
+
+/** An empty page means the provider has nothing past `next`, whatever its count says. */
+function hasMore(pageLength: number, next: number, total: number): boolean {
+  return pageLength > 0 && next < total
+}
+
+function Memories({
+  t, tab, close, memories, editMemory, forgetMemory, openConversation, addInvariant,
+}: MemorySectionProps & { readonly tab: MemoriesTab }) {
   const [query, setQuery] = useState('')
-  const [state, setState] = useState<Load<{ available: boolean; items: ManagedMemory[]; total: number }>>({ status: 'loading' })
-  const [limit, setLimit] = useState(PAGE_SIZE)
+  const [state, setState] = useState<Load<MemoryList>>({ status: 'loading' })
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [moreFailed, setMoreFailed] = useState(false)
   const [openId, setOpenId] = useState<MemoryItemId | undefined>()
+  const generation = useRef(0)
   const now = Date.now()
 
-  const load = useCallback(async (signal: { cancelled: boolean }) => {
+  const fetchPage = useCallback(async (offset: number): Promise<ManagedMemoryPage> => {
+    const text = query.trim()
+    return memories({ ...text ? { query: text } : {}, limit: PAGE_SIZE, offset })
+  }, [memories, query])
+
+  const load = useCallback(async () => {
+    const current = ++generation.current
     setState({ status: 'loading' })
+    setLoadingMore(false)
+    setMoreFailed(false)
     try {
-      const page = await memories({ ...query.trim() ? { query: query.trim() } : {}, limit, offset: 0 })
-      if (signal.cancelled) return
+      const page = await fetchPage(0)
+      if (current !== generation.current) return
       setState({
         status: 'ready',
         value: page.available
-          ? { available: true, items: [...page.memories], total: page.total }
-          : { available: false, items: [], total: 0 },
+          ? {
+            available: true,
+            items: page.memories,
+            total: page.total,
+            next: page.memories.length,
+            more: hasMore(page.memories.length, page.memories.length, page.total),
+          }
+          : { available: false, items: [], total: 0, next: 0, more: false },
       })
     } catch {
       // The failure is shown as the page's error state with a retry.
-      if (!signal.cancelled) setState({ status: 'error' })
+      if (current === generation.current) setState({ status: 'error' })
     }
-  }, [memories, query, limit])
+  }, [fetchPage])
+
+  const loadMore = (list: MemoryList) => {
+    const current = generation.current
+    setLoadingMore(true)
+    setMoreFailed(false)
+    void fetchPage(list.next).then((page) => {
+      if (current !== generation.current) return
+      setLoadingMore(false)
+      setState((previous) => {
+        if (previous.status !== 'ready') return previous
+        if (!page.available) return { status: 'ready', value: { ...previous.value, more: false } }
+        const seen = new Set(previous.value.items.map(memory => memory.id))
+        const items = [...previous.value.items, ...page.memories.filter(memory => !seen.has(memory.id))]
+        const next = previous.value.next + page.memories.length
+        return { status: 'ready', value: { ...previous.value, items, total: page.total, next, more: hasMore(page.memories.length, next, page.total) } }
+      })
+    }, () => {
+      // The failure is shown beside the load-more button, which retries.
+      if (current !== generation.current) return
+      setLoadingMore(false)
+      setMoreFailed(true)
+    })
+  }
 
   useEffect(() => {
-    const signal = { cancelled: false }
-    const timer = setTimeout(() => { void load(signal) }, query ? 250 : 0)
+    const timer = setTimeout(() => { void load() }, query ? 250 : 0)
     return () => {
-      signal.cancelled = true
+      generation.current++
       clearTimeout(timer)
     }
   }, [load, query])
@@ -247,12 +302,16 @@ function Memories({ t, tab, close, memories, editMemory, forgetMemory, openConve
   const grouped = useMemo(() => groupProjects(visible, tab, t), [visible, tab, t])
 
   const update = (id: MemoryItemId, next: ManagedMemory | undefined) => {
-    setState(current => {
+    setState((current) => {
       if (current.status !== 'ready') return current
-      const items = next === undefined
-        ? current.value.items.filter(memory => memory.id !== id)
-        : current.value.items.map(memory => memory.id === id ? next : memory)
-      return { status: 'ready', value: { ...current.value, items, total: next === undefined ? Math.max(0, current.value.total - 1) : current.value.total } }
+      if (next !== undefined) {
+        return { status: 'ready', value: { ...current.value, items: current.value.items.map(memory => memory.id === id ? next : memory) } }
+      }
+      // A forgotten record shifts every later record one place toward the start of the provider's list.
+      const items = current.value.items.filter(memory => memory.id !== id)
+      const total = Math.max(0, current.value.total - 1)
+      const nextOffset = Math.max(0, current.value.next - 1)
+      return { status: 'ready', value: { ...current.value, items, total, next: nextOffset, more: current.value.more && nextOffset < total } }
     })
   }
 
@@ -264,11 +323,11 @@ function Memories({ t, tab, close, memories, editMemory, forgetMemory, openConve
           value={query}
           placeholder={t('search')}
           aria-label={t('search')}
-          onChange={(event) => { setLimit(PAGE_SIZE); setQuery(event.target.value) }}
+          onChange={(event) => { setQuery(event.target.value) }}
         />
       </label>
       {state.status === 'loading' && <p className={css.status}><Spinner /> {t('loading')}</p>}
-      {state.status === 'error' && <Failure t={t} onRetry={() => { setState({ status: 'loading' }); void load({ cancelled: false }) }} />}
+      {state.status === 'error' && <Failure t={t} onRetry={() => { void load() }} />}
       {state.status === 'ready' && !state.value.available && <p className={css.status}>{t('unavailable')}</p>}
       {state.status === 'ready' && state.value.available && visible.length === 0 && (
         <p className={css.status}>{t(query.trim() ? 'emptySearch' : EMPTY[tab])}</p>
@@ -296,14 +355,23 @@ function Memories({ t, tab, close, memories, editMemory, forgetMemory, openConve
           </ul>
         </section>
       ))}
-      {state.status === 'ready' && state.value.available && state.value.items.length < state.value.total && (
-        <button type="button" className={`${css.textButton} ${css.more}`} onClick={() => { setLimit(limit + PAGE_SIZE) }}>{t('loadMore')}</button>
+      {state.status === 'ready' && state.value.more && (
+        <div className={css.more}>
+          {moreFailed && <span className={css.failure}>{t('failed')}</span>}
+          <button type="button" className={css.secondary} disabled={loadingMore} onClick={() => { loadMore(state.value) }}>
+            {loadingMore ? <><Spinner /> {t('loading')}</> : t('loadMore')}
+          </button>
+        </div>
       )}
     </>
   )
 }
 
-function groupProjects(items: readonly ManagedMemory[], tab: MemoriesTab, t: Translate): { key: string; label: string; title: string; items: ManagedMemory[] }[] {
+function groupProjects(
+  items: readonly ManagedMemory[],
+  tab: MemoriesTab,
+  t: Translate,
+): { key: string; label: string; title: string; items: ManagedMemory[] }[] {
   if (tab !== 'project') return [{ key: 'all', label: '', title: '', items: [...items] }]
   const map = new Map<string, ManagedMemory[]>()
   for (const memory of items) {
@@ -438,34 +506,28 @@ function MemoryCard({ t, memory, now, open, onToggle, editMemory, forgetMemory, 
                   {t('rememberAlways')}
                 </button>
                 <button type="button" className={css.textButton} onClick={() => { setDraft(fact); setMode('edit') }}>{t('edit')}</button>
-                <button type="button" className={css.textButton} onClick={() => { setMode('forget') }}>{t('forget')}</button>
+                <button type="button" className={`${css.textButton} ${css.textDanger}`} onClick={() => { setMode('forget') }}>{t('forget')}</button>
               </>
             )}
             {mode === 'edit' && (
-              <>
-                <button type="button" className={css.textButton} disabled={busy} onClick={() => { setMode('view') }}>{t('cancel')}</button>
-                <button
-                  type="button"
-                  className={css.primary}
-                  disabled={busy || draft.trim() === ''}
-                  onClick={() => { run(async () => { onChange(memory.id, await editMemory(memory.id, draft)); setMode('view') }) }}
-                >
-                  {t('save')}
-                </button>
-              </>
+              <Commit
+                t={t}
+                label="save"
+                busy={busy}
+                blocked={draft.trim() === ''}
+                onCancel={() => { setMode('view') }}
+                onCommit={() => { run(async () => { onChange(memory.id, await editMemory(memory.id, draft)); setMode('view') }) }}
+              />
             )}
             {mode === 'forget' && (
-              <>
-                <button type="button" className={css.textButton} disabled={busy} onClick={() => { setMode('view') }}>{t('cancel')}</button>
-                <button
-                  type="button"
-                  className={css.primary}
-                  disabled={busy}
-                  onClick={() => { run(async () => { await forgetMemory(memory.id); onChange(memory.id, undefined) }) }}
-                >
-                  {t('forget')}
-                </button>
-              </>
+              <Commit
+                t={t}
+                label="forget"
+                danger
+                busy={busy}
+                onCancel={() => { setMode('view') }}
+                onCommit={() => { run(async () => { await forgetMemory(memory.id); onChange(memory.id, undefined) }) }}
+              />
             )}
           </div>
         </div>
@@ -544,7 +606,7 @@ function Facts({ t, invariants, addInvariant, editInvariant, removeInvariant }: 
                           <span>{t('confirmed', { time: ago(entry.confirmedAt, now, t) })}</span>
                           <span className={css.factActions}>
                             <button type="button" className={css.textButton} onClick={() => { setEditing({ id: entry.id, text: entry.text }) }}>{t('edit')}</button>
-                            <button type="button" className={css.textButton} disabled={busy} onClick={() => { run(() => removeInvariant(entry.id)) }}>{t('remove')}</button>
+                            <button type="button" className={`${css.textButton} ${css.textDanger}`} disabled={busy} onClick={() => { run(() => removeInvariant(entry.id)) }}>{t('remove')}</button>
                           </span>
                         </div>
                       </>
@@ -561,15 +623,14 @@ function Facts({ t, invariants, addInvariant, editInvariant, removeInvariant }: 
                         <div className={css.factMeta}>
                           <span className={css.composerHint}>{`${String(row.text.trim().length)} / ${String(view.maxEntryChars)}`}</span>
                           <span className={css.factActions}>
-                            <button type="button" className={css.textButton} disabled={busy} onClick={() => { setEditing(undefined) }}>{t('cancel')}</button>
-                            <button
-                              type="button"
-                              className={css.primary}
-                              disabled={busy || row.text.trim() === ''}
-                              onClick={() => { run(() => editInvariant(entry.id, row.text), () => { setEditing(undefined) }) }}
-                            >
-                              {t('save')}
-                            </button>
+                            <Commit
+                              t={t}
+                              label="save"
+                              busy={busy}
+                              blocked={row.text.trim() === ''}
+                              onCancel={() => { setEditing(undefined) }}
+                              onCommit={() => { run(() => editInvariant(entry.id, row.text), () => { setEditing(undefined) }) }}
+                            />
                           </span>
                         </div>
                       </>
@@ -602,7 +663,9 @@ function Facts({ t, invariants, addInvariant, editInvariant, removeInvariant }: 
         </div>
       </div>
       {failed && <p className={css.failure}>{t('failed')}</p>}
-      {outcome !== undefined && <p className={outcome.available && outcome.changed ? css.note : css.failure}>{standingMessage(outcome, t)}</p>}
+      {outcome !== undefined && (
+        <p className={outcome.available && outcome.changed ? css.note : css.failure}>{standingMessage(outcome, t)}</p>
+      )}
     </>
   )
 }
@@ -621,6 +684,25 @@ function Fold({ label, open, onToggle, children }: {
       </button>
       {open ? <div className={css.foldBody}>{children}</div> : null}
     </div>
+  )
+}
+
+/** The open card's Cancel and its commit action; a destructive commit is outlined in the error color. */
+function Commit({ t, label, danger = false, busy, blocked = false, onCancel, onCommit }: {
+  readonly t: Translate
+  readonly label: MemoryLocaleKey
+  readonly danger?: boolean
+  readonly busy: boolean
+  /** The draft cannot be committed as it stands. */
+  readonly blocked?: boolean
+  readonly onCancel: () => void
+  readonly onCommit: () => void
+}) {
+  return (
+    <>
+      <button type="button" className={css.secondary} disabled={busy} onClick={onCancel}>{t('cancel')}</button>
+      <button type="button" className={danger ? css.danger : css.primary} disabled={busy || blocked} onClick={onCommit}>{t(label)}</button>
+    </>
   )
 }
 
@@ -668,7 +750,10 @@ function Capabilities(props: MemorySectionProps) {
   )
 }
 
-function CapabilityCard({ t, item, open, onToggle, capability: loadCapability, editCapability, setCapabilityStatus, deleteCapability, openConversation, close, onChanged }: MemorySectionProps & {
+function CapabilityCard({
+  t, item, open, onToggle, capability: loadCapability, editCapability, setCapabilityStatus, deleteCapability,
+  openConversation, close, onChanged,
+}: MemorySectionProps & {
   readonly item: ManagedCapability
   readonly open: boolean
   readonly onToggle: () => void
@@ -795,7 +880,9 @@ function CapabilityCard({ t, item, open, onToggle, capability: loadCapability, e
                         <li key={run.id} className={css.run}>
                           <span>{t(VERDICT_LABEL[run.verdict])} · {formatWhen(run.endedAt)}</span>
                           <button type="button" className={css.textButton} onClick={() => { showConversation(run.sessionId) }}>{t('openSession')}</button>
-                          {(run.correction ?? run.notes) !== undefined && <span className={css.subtitle}>{run.correction ?? run.notes}</span>}
+                          {(run.correction ?? run.notes) !== undefined && (
+                            <span className={css.subtitle}>{run.correction ?? run.notes}</span>
+                          )}
                         </li>
                       ))}
                     </ul>
@@ -823,7 +910,11 @@ function CapabilityCard({ t, item, open, onToggle, capability: loadCapability, e
                   </label>
                   <label className={css.field}>
                     {t('procedure')}
-                    <textarea rows={8} value={draft.content} onChange={(event) => { setDraft({ ...draft, content: event.target.value }) }} />
+                    <textarea
+                      rows={8}
+                      value={draft.content}
+                      onChange={(event) => { setDraft({ ...draft, content: event.target.value }) }}
+                    />
                   </label>
                 </>
               )}
@@ -844,34 +935,28 @@ function CapabilityCard({ t, item, open, onToggle, capability: loadCapability, e
                 >
                   {t(retired ? 'restore' : 'retire')}
                 </button>
-                <button type="button" className={css.textButton} onClick={() => { setMode('delete') }}>{t('delete')}</button>
+                <button type="button" className={`${css.textButton} ${css.textDanger}`} onClick={() => { setMode('delete') }}>{t('delete')}</button>
               </>
             )}
             {mode === 'edit' && (
-              <>
-                <button type="button" className={css.textButton} disabled={busy} onClick={() => { setMode('view') }}>{t('cancel')}</button>
-                <button
-                  type="button"
-                  className={css.primary}
-                  disabled={busy || draft.description.trim() === '' || draft.content.trim() === ''}
-                  onClick={() => { run(() => editCapability(item.name, draft)) }}
-                >
-                  {t('save')}
-                </button>
-              </>
+              <Commit
+                t={t}
+                label="save"
+                busy={busy}
+                blocked={draft.description.trim() === '' || draft.content.trim() === ''}
+                onCancel={() => { setMode('view') }}
+                onCommit={() => { run(() => editCapability(item.name, draft)) }}
+              />
             )}
             {mode === 'delete' && (
-              <>
-                <button type="button" className={css.textButton} disabled={busy} onClick={() => { setMode('view') }}>{t('cancel')}</button>
-                <button
-                  type="button"
-                  className={css.primary}
-                  disabled={busy}
-                  onClick={() => { run(async () => { await deleteCapability(item.name); return undefined }) }}
-                >
-                  {t('delete')}
-                </button>
-              </>
+              <Commit
+                t={t}
+                label="delete"
+                danger
+                busy={busy}
+                onCancel={() => { setMode('view') }}
+                onCommit={() => { run(async () => { await deleteCapability(item.name); return undefined }) }}
+              />
             )}
           </div>
         </div>

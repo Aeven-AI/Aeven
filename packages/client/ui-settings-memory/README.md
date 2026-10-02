@@ -15,6 +15,7 @@ The page uses the same underline tabs as Plugins:
 
 - **About you**, **Projects**, and **Knowledge** list memories as quiet cards. A card shows the fact and when it was remembered. Opening it reveals what was said, and a Details fold for the kind, time, and project. Edit, Forget, and Show conversation sit in that open card. Show conversation selects the session inside the app and closes Settings.
 - **Projects** groups cards by the workspace folder of the session they came from.
+- The memory tabs load the provider's records one page at a time. **Load more** appears only while the provider reports records past the loaded pages, and disappears once an empty page or the reported total ends the list.
 - **Capabilities** lists learned capabilities the same way: name and description on the card, and Procedure, Runs, and Learned from behind folds. Edit, retire, restore, and delete stay in the open card.
 
 Copy lives in the `settings.memory` dictionaries (English and Simplified Chinese).
@@ -26,6 +27,7 @@ None.
 ## Known Limitations and Deferred Work
 
 - The page reloads on open and after its own changes; it does not follow changes made by a running session.
+- The memory provider lists every domain together, and the page sorts records into tabs after loading. A **Load more** on one tab can therefore load records that belong only to another tab.
 
 ## Dev Note
 
