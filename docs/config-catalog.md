@@ -197,7 +197,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/api/gateway/src/index.ts:119`](../packages/api/gateway/src/index.ts)
+Source: [`packages/api/gateway/src/index.ts:127`](../packages/api/gateway/src/index.ts)
 
 <a id="aevenapi-job-controller"></a>
 
@@ -215,7 +215,25 @@ export interface Config {
 }
 ```
 
-Source: [`packages/api/job-controller/src/index.ts:38`](../packages/api/job-controller/src/index.ts)
+Source: [`packages/api/job-controller/src/index.ts:40`](../packages/api/job-controller/src/index.ts)
+
+<a id="aevenapi-memory-manager"></a>
+
+## `@aeven/api-memory-manager`
+
+Requires: `typert` · `memory` · `capabilities` · `identityUsers` · `sessionQuery`
+
+```ts config-catalog
+/** Service configuration. */
+export interface Config {
+  /** Budget of one memory provider read or write, in milliseconds. */
+  timeoutMs: number
+  /** Largest memory page one request may ask for. */
+  maxPageSize: number
+}
+```
+
+Source: [`packages/memory/api-memory-manager/src/index.ts:41`](../packages/memory/api-memory-manager/src/index.ts)
 
 <a id="aevenapi-session-controller"></a>
 
@@ -231,7 +249,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/api/session-controller/src/index.ts:74`](../packages/api/session-controller/src/index.ts)
+Source: [`packages/api/session-controller/src/index.ts:80`](../packages/api/session-controller/src/index.ts)
 
 <a id="aevenapi-settings-controller"></a>
 
@@ -246,6 +264,24 @@ export interface Config {
 ```
 
 Source: [`packages/api/settings-controller/src/index.ts:36`](../packages/api/settings-controller/src/index.ts)
+
+<a id="aevenapi-speech-to-text"></a>
+
+## `@aeven/api-speech-to-text`
+
+Requires: `speechToText` · `typert`
+
+```ts config-catalog
+/** Limits applied before decoding or calling a provider. */
+export interface Config {
+  /** Maximum decoded WAV bytes per request. */
+  maxAudioBytes: number
+  /** Maximum PCM recording duration in seconds. */
+  maxDurationSeconds: number
+}
+```
+
+Source: [`packages/speech/api-speech-to-text/src/index.ts:20`](../packages/speech/api-speech-to-text/src/index.ts)
 
 <a id="aevenapi-terminal-controller"></a>
 
@@ -290,7 +326,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/api/terminal-controller/src/index.ts:26`](../packages/api/terminal-controller/src/index.ts)
+Source: [`packages/api/terminal-controller/src/index.ts:27`](../packages/api/terminal-controller/src/index.ts)
 
 <a id="aevenapi-workspace-files"></a>
 
@@ -348,10 +384,18 @@ export interface Config {
   normalizedImageMaxBytes?: number
   /** Maximum simultaneous normalization or request-image transformations in this service instance. */
   imageCompressionConcurrency?: number
+  /** Maximum original bytes of one uploaded file. Default: 50 MiB. */
+  maxFileBytes?: number
+  /** Maximum files in one prompt. Default: 10. */
+  maxFilesPerMessage?: number
+  /** Maximum aggregate original file bytes in one prompt. Default: 200 MiB. */
+  maxMessageFileBytes?: number
+  /** Lifetime of an unclaimed file upload in milliseconds. Default: one hour. */
+  uploadTtlMs?: number
 }
 ```
 
-Source: [`packages/attachment/attachment-local/src/index.ts:55`](../packages/attachment/attachment-local/src/index.ts)
+Source: [`packages/attachment/attachment-local/src/index.ts:68`](../packages/attachment/attachment-local/src/index.ts)
 
 <a id="aevenbash-local"></a>
 
@@ -407,8 +451,11 @@ Source: [`packages/shell/bash-sandbox/src/index.ts:35`](../packages/shell/bash-s
 ```ts config-catalog
 /** Where the browser runs and what it stores. */
 export interface Config {
-  /** Chromium or Chrome executable to launch. */
-  executablePath: string
+  /**
+   * Chromium or Chrome executable. A blank or omitted value uses
+   * `AVN_CHROME_PATH`, then a platform install. None found leaves the host up.
+   */
+  executablePath?: string
   /** Remote debugging port; chrome-devtools-mcp's `--browserUrl` names the same one. */
   port: number
   /** Profile directory. Omit for `<AVN_HOME>/runtime/chrome-profile`. */
@@ -419,10 +466,34 @@ export interface Config {
    * when it is not answering. Empty disables the launch-on-call.
    */
   mcpServerName: string
+  /** Launch during plugin start when an executable is found. A missing browser does not fail the host. */
+  launchOnStart: boolean
 }
 ```
 
-Source: [`packages/web/browser-chromium/src/index.ts:52`](../packages/web/browser-chromium/src/index.ts)
+Source: [`packages/web/browser-chromium/src/index.ts:59`](../packages/web/browser-chromium/src/index.ts)
+
+<a id="aevencapability"></a>
+
+## `@aeven/capability`
+
+```ts config-catalog
+/** Service configuration. */
+export interface Config {
+  /** Absolute directory holding one subdirectory per owner. */
+  root: string
+  /** Skill-catalog rank of learned capabilities; lower ranks win duplicate names. */
+  skillRank: number
+  /** Successful executions of the current revision needed to become trusted; at least one must be verified. */
+  trustAfter: number
+  /** Consecutive failed executions of the current revision that degrade a capability, or retire a candidate. */
+  degradeAfter: number
+  /** Days an unused candidate stays in the skill catalog; a candidate never executed in that time decays out of it. */
+  candidateTtlDays: number
+}
+```
+
+Source: [`packages/capability/capability/src/index.ts:50`](../packages/capability/capability/src/index.ts)
 
 <a id="aevenclient-connection"></a>
 
@@ -643,7 +714,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/extensions/cordis-host-runner/src/index.ts:88`](../packages/extensions/cordis-host-runner/src/index.ts)
+Source: [`packages/extensions/cordis-host-runner/src/index.ts:90`](../packages/extensions/cordis-host-runner/src/index.ts)
 
 <a id="aevencredentials-local"></a>
 
@@ -695,7 +766,7 @@ export interface DeviceConsent {
 }
 ```
 
-Source: [`packages/device/device/src/index.ts:56`](../packages/device/device/src/index.ts)
+Source: [`packages/device/device/src/index.ts:58`](../packages/device/device/src/index.ts)
 
 <a id="aevendevice-local"></a>
 
@@ -732,6 +803,84 @@ export interface Config {
 ```
 
 Source: [`packages/device/device-local/src/index.ts:38`](../packages/device/device-local/src/index.ts)
+
+<a id="aevendocument-extract"></a>
+
+## `@aeven/document-extract`
+
+```ts config-catalog
+/** Deployment policy for extracted text. */
+export interface Config {
+  /** Maximum characters kept from one document; longer text is cut and marked truncated. */
+  maxTextChars: number
+}
+```
+
+Source: [`packages/document/document-extract/src/index.ts:46`](../packages/document/document-extract/src/index.ts)
+
+<a id="aevendocument-extract-js"></a>
+
+## `@aeven/document-extract-js`
+
+Requires: `documentExtract`
+
+```ts config-catalog
+/** Worker resource policy. */
+export interface Config {
+  /** Wall-clock limit for one document before its worker is terminated. */
+  timeoutMs: number
+  /** Old-generation heap limit of one extraction worker, in MiB. */
+  maxWorkerHeapMb: number
+  /** Simultaneous extraction workers. */
+  concurrency: number
+}
+```
+
+Source: [`packages/document/document-extract-js/src/index.ts:29`](../packages/document/document-extract-js/src/index.ts)
+
+<a id="aevendocument-extract-ocr"></a>
+
+## `@aeven/document-extract-ocr`
+
+Requires: `documentExtract`
+
+```ts config-catalog
+/** OCR policy. */
+export interface Config {
+  /** Pages recognized at most, from the first. */
+  maxPages: number
+  /** Render scale relative to 72 DPI; 2 renders at 144 DPI. */
+  scale: number
+  /** Wall-clock limit for one document before its worker is terminated. */
+  timeoutMs: number
+  /** Old-generation heap limit of one OCR worker, in MiB. */
+  maxWorkerHeapMb: number
+  /** Simultaneous OCR workers. */
+  concurrency: number
+  /** Tesseract recognizers one document's pages are spread across. */
+  recognizers: number
+}
+```
+
+Source: [`packages/document/document-extract-ocr/src/index.ts:27`](../packages/document/document-extract-ocr/src/index.ts)
+
+<a id="aevendocument-extract-office"></a>
+
+## `@aeven/document-extract-office`
+
+Requires: `documentExtract`
+
+```ts config-catalog
+/** Office reader policy. */
+export interface Config {
+  /** Wall-clock limit of one conversion, measured from when it leaves the queue. */
+  timeoutMs: number
+  /** Simultaneous conversions; each runs its own engine process. */
+  concurrency: number
+}
+```
+
+Source: [`packages/document/document-extract-office/src/index.ts:26`](../packages/document/document-extract-office/src/index.ts)
 
 <a id="aevene2b"></a>
 
@@ -934,92 +1083,6 @@ export interface InspectorOptions {
 
 Source: [`packages/experimental/inspector/src/index.ts:66`](../packages/experimental/inspector/src/index.ts)
 
-<a id="aevensubscription-auth"></a>
-
-## `@aeven/subscription-auth`
-
-Requires: `webServer`
-
-```ts config-catalog
-/** Plugin configuration; every field is optional. */
-export interface Config {
-  /** HTTP(S) proxy URL for the audited coding-subscription host allowlist. */
-  proxy?: string
-  /**
-	 * Optional provider retry policy override for the four OAuth routes. When
-	 * omitted, the plugin retries transient failures (rate limit, server,
-	 * timeout, transport, empty response) plus AUTH — the latter is safe because
-	 * the stored credential is invalidated on every AUTH finish, so the retried
-	 * step refreshes before reuse. Quota exhaustion is never retried.
-	 */
-  retryPolicy?: RetryPolicyConfig
-  /** Secret-free composition/YAML defaults below live user settings. */
-  capabilities?: CapabilitySettingsPatch
-  /**
-	 * Which upstream Imagine calls authorize against. `auto` (the default) uses
-	 * `XAI_API_KEY` against the developer API when that credential is configured
-	 * and otherwise takes the Grok Build chat proxy with the subscription's OAuth
-	 * access token, which is the route the official Grok CLI takes and requires a
-	 * SuperGrok tier. `xai-api` and `grok-build` pin one route and fail loudly
-	 * when its credential is missing.
-	 */
-  imagineTransport?: 'auto' | 'xai-api' | 'grok-build'
-  /**
-   * Imagine API request timeout. The subscription route proxies generation
-   * through the Grok Build chat proxy, which is slower than the direct xAI API,
-   * so the ceiling is deployment-varying rather than fixed.
-   */
-  imagineApiTimeoutMs?: number
-  /** Owner-only request authorization for loopback, SSH tunnels, and trusted HTTPS proxies. */
-  ownerRequest?: {
-    /** Whether a loopback caller is the operator directly, or arrives over an SSH tunnel. */
-    loopbackAccessMode?: 'loopback' | 'ssh-tunnel'
-    /** Accept owner requests forwarded by a proxy that proves itself with the fields below. */
-    trustedProxy?: {
-      /** Peer addresses whose forwarded requests may be considered at all. */
-      peers?: string[]
-      /** Origins the forwarded request may declare. */
-      origins?: string[]
-      /** Shared secret the proxy sends to prove it speaks for the operator. */
-      ownerProof?: string
-      /** Token the proxy echoes on state-changing requests, defeating cross-site forgery. */
-      csrfToken?: string
-    }
-  }
-}
-
-/** Sparse overlay used for YAML/composition `base` and the user section. */
-export type CapabilitySettingsPatch = Partial<CapabilitySettings>
-
-/** Resolved, secret-free capability section. */
-export interface CapabilitySettings {
-  /** Publish Codex-backed web search, which spends the Codex subscription's quota. */
-  readonly codexSearch: boolean
-  /** Publish the Codex image generation tool. Fixed on; see {@link FIXED_CAPABILITIES}. */
-  readonly codexImages: boolean
-  /** Publish the Codex image edit tool. Fixed on; see {@link FIXED_CAPABILITIES}. */
-  readonly codexImageEdits: boolean
-  /** Allow non-Codex-route models to use the Codex image generate/edit tools. Fixed on. */
-  readonly codexImagesAnyModel: boolean
-  /** Publish the Codex Fast route when the live catalogue confirms priority eligibility. */
-  readonly codexFast: boolean
-  /** Publish the Grok Imagine image tool. Fixed on; see {@link FIXED_CAPABILITIES}. */
-  readonly grokImagineImage: boolean
-  /** Publish the Grok Imagine video tools. Fixed on; see {@link FIXED_CAPABILITIES}. */
-  readonly grokImagineVideo: boolean
-  /** Upper bound on results returned by Codex-backed search. */
-  readonly searchResults: number
-  /** Images one generate call may return. Pinned to the provider maximum. */
-  readonly imageCount: number
-  /** How long a generated video artifact is retained. Pinned to the provider maximum. */
-  readonly videoArtifactTtlMs: number
-}
-```
-
-Depends on: [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts)
-
-Source: [`packages/llm/subscription-auth/src/index.ts:252`](../packages/llm/subscription-auth/src/index.ts)
-
 <a id="aevenexperimental-tool-agent-team"></a>
 
 ## `@aeven/experimental-tool-agent-team`
@@ -1124,6 +1187,11 @@ Requires: `agentDefaultModel` · `agents` · `sessions`
 export interface Config {
   /** The prompt text for the single run. */
   task: string
+  /**
+   * Account id the run's session belongs to; absent leaves the session
+   * without an owner, so per-user memory and capabilities stay off.
+   */
+  owner?: string
 }
 ```
 
@@ -1455,7 +1523,7 @@ export interface Config {
 
 Depends on: [`DeepSeekCatalogModel`](../packages/llm/llm-deepseek/src/index.ts) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts)
 
-Source: [`packages/llm/llm-aeven/src/index.ts:219`](../packages/llm/llm-aeven/src/index.ts)
+Source: [`packages/llm/llm-aeven/src/index.ts:218`](../packages/llm/llm-aeven/src/index.ts)
 
 <a id="aevenllm-deepseek"></a>
 
@@ -1473,6 +1541,12 @@ Requires: `llm`
  * reasoning effort resolves to `high`.
  */
 export interface Config {
+  /**
+   * Whether the `deepseek-official` route serves requests (default true).
+   * `false` keeps the route declared to configuration surfaces, which may
+   * enable it, while registering no route and advertising no model.
+   */
+  enabled?: boolean
   /** Credential reference (environment-variable name) resolved per request; defaults to `DEEPSEEK_API_KEY`. */
   apiKeyEnv?: string
   /** Endpoint base; falls back to $DEEPSEEK_BASE_URL from a trusted environment layer, then the public API. */
@@ -1536,7 +1610,7 @@ export interface DeepSeekCatalogModel {
 
 Depends on: [`ModelModality`](../packages/llm/llm/src/index.ts) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts)
 
-Source: [`packages/llm/llm-deepseek/src/index.ts:125`](../packages/llm/llm-deepseek/src/index.ts)
+Source: [`packages/llm/llm-deepseek/src/index.ts:124`](../packages/llm/llm-deepseek/src/index.ts)
 
 <a id="aevenllm-pi-ai"></a>
 
@@ -2068,7 +2142,27 @@ export interface MediaRuntimeConfig {
 }
 ```
 
-Source: [`packages/media/media/src/index.ts:57`](../packages/media/media/src/index.ts)
+Source: [`packages/media/media/src/index.ts:58`](../packages/media/media/src/index.ts)
+
+<a id="aevenmedia-aeven"></a>
+
+## `@aeven/media-aeven`
+
+Requires: `media`
+
+```ts config-catalog
+/** Config for the Aeven image provider. */
+export interface Config {
+  /** Registry key under `ctx.media`. Defaults to `aeven`. */
+  id?: string
+  /** Aeven API origin; `/v1` is appended. Defaults to the development gateway. */
+  apiUrl?: string
+  /** Credential reference holding the signed-in session; defaults to `AEVEN_TOKEN`. */
+  apiKeyEnv?: string
+}
+```
+
+Source: [`packages/media/media-aeven/src/index.ts:91`](../packages/media/media-aeven/src/index.ts)
 
 <a id="aevenmedia-deepinfra"></a>
 
@@ -2132,6 +2226,102 @@ export interface Config {
 
 Source: [`packages/media/media-pi-ai/src/index.ts:33`](../packages/media/media-pi-ai/src/index.ts)
 
+<a id="aevenmemory-context"></a>
+
+## `@aeven/memory-context`
+
+Requires: `agents` · `memory` · `systemPrompt`
+
+```ts config-catalog
+/** Consumer configuration. */
+export interface Config {
+  /** Recall memory for every accepted direct-user turn. */
+  recall: boolean
+  /** Hand completed turns to the memory provider. */
+  capture: boolean
+  /** Hard budget for one turn-start recall, in milliseconds; the turn proceeds without memory when it elapses. */
+  recallTimeoutMs: number
+  /** Maximum characters of one injected memory block, framing included. */
+  contextMaxChars: number
+  /** Maximum characters of one memory line in the block; a longer memory keeps its opening fact, and its detail stays behind `memory_get`. */
+  itemMaxChars: number
+  /** Maximum recalled items from each domain. */
+  domainMaxItems: Record<MemoryDomain, number>
+  /**
+   * Share of shared words at which two recalled memories are taken to describe one subject, so a later one
+   * supersedes an earlier one. `1` limits supersession to summaries with identical word sets.
+   */
+  supersedeOverlap: number
+  /** System-prompt section order of the memory guidance. */
+  promptOrder: number
+}
+```
+
+Depends on: [`MemoryDomain`](../packages/memory/memory/src/index.ts)
+
+Source: [`packages/memory/memory-context/src/index.ts:32`](../packages/memory/memory-context/src/index.ts)
+
+<a id="aevenmemory-invariants"></a>
+
+## `@aeven/memory-invariants`
+
+```ts config-catalog
+/** Provider configuration. */
+export interface Config {
+  /** Absolute directory holding one document per owner. */
+  root: string
+  /**
+   * Bound on the rendered content of one owner's block, framing and item lines included. It is paid for on every
+   * request, so it stays bounded, and every write is refused rather than clipped when a statement would not fit.
+   * The shipped default holds roughly twenty statements: the block is stable while the user leaves it alone, so it
+   * sits in the cached prompt prefix, and it is the user's own floor rather than retrieved context.
+   */
+  maxChars: number
+}
+```
+
+Source: [`packages/memory/memory-invariants/src/index.ts:33`](../packages/memory/memory-invariants/src/index.ts)
+
+<a id="aevenmemory-memos"></a>
+
+## `@aeven/memory-memos`
+
+Requires: `memory` · `llm`
+
+```ts config-catalog
+/** Provider configuration. */
+export interface Config {
+  /** Absolute MemOS runtime root holding `config.yaml`, `data/memos.db`, and `skills/`; `MEMOS_HOME` overrides it. */
+  home: string
+  /** Route MemOS auxiliary LLM calls through the owning session's `ctx.llm` route when `config.yaml` names no provider. */
+  hostLlm: boolean
+  /** How long one route's reasoning capability stays cached, in milliseconds. */
+  capabilityTtlMs: number
+  /** Language of stored summaries and learned knowledge written through the Host bridge; `auto` detects English or Chinese from each request's text. */
+  language: MemoryLanguage
+  /** Classify each captured turn as person, project, or world memory with one short call on the session's route; needs `hostLlm`. */
+  classifyDomains: boolean
+  /** Bound on one domain classification call, in milliseconds. */
+  classifyTimeoutMs: number
+  /** Number of trace candidates MemOS ranks for turn-start recall before Aeven orders them. */
+  candidateTraces: number
+  /**
+   * Serve the MemOS Viewer and its read/write memory API over every owner's memory, without sign-in. Off by
+   * default: the surface answers anyone who reaches it, so a composition opts in rather than inheriting it.
+   */
+  viewer: boolean
+  /** Viewer listener port. */
+  viewerPort: number
+  /** Viewer bind address; only `localhost` and IPv4 `127.*` are accepted. */
+  viewerHost: string
+}
+
+/** Natural language MemOS writes stored memory in; `auto` follows the language of the captured user text. */
+export type MemoryLanguage = 'auto' | 'en' | 'zh'
+```
+
+Source: [`packages/memory/memory-memos/src/index.ts:27`](../packages/memory/memory-memos/src/index.ts)
+
 <a id="aevenmessage-feedback"></a>
 
 ## `@aeven/message-feedback`
@@ -2146,7 +2336,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/feedback/message-feedback/src/index.ts:50`](../packages/feedback/message-feedback/src/index.ts)
+Source: [`packages/feedback/message-feedback/src/index.ts:51`](../packages/feedback/message-feedback/src/index.ts)
 
 <a id="aevenpermission-presets"></a>
 
@@ -2556,7 +2746,7 @@ export type JournalMode = 'wal' | 'delete' | 'truncate' | 'persist'
 
 Depends on: [`SessionQueryConfig`](../packages/session-query/session-query/src/index.ts)
 
-Source: [`packages/session-query/session-query-sqlite/src/index.ts:111`](../packages/session-query/session-query-sqlite/src/index.ts)
+Source: [`packages/session-query/session-query-sqlite/src/index.ts:112`](../packages/session-query/session-query-sqlite/src/index.ts)
 
 <a id="aevensession-reference"></a>
 
@@ -2720,7 +2910,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/skill/skill/src/index.ts:280`](../packages/skill/skill/src/index.ts)
+Source: [`packages/skill/skill/src/index.ts:285`](../packages/skill/skill/src/index.ts)
 
 <a id="aevenskill-filesystem"></a>
 
@@ -2759,6 +2949,80 @@ export interface Config {
 ```
 
 Source: [`packages/skill/skill-filesystem/src/index.ts:49`](../packages/skill/skill-filesystem/src/index.ts)
+
+<a id="aevenspeech-to-text"></a>
+
+## `@aeven/speech-to-text`
+
+```ts config-catalog
+/** Composition defaults for the recognition preferences; saved user preferences take precedence. */
+export interface Config {
+  /** Registered provider selected when the caller omits an id. */
+  defaultProvider: string
+  /** Provider language hint selected when the caller omits one. */
+  language: string
+}
+```
+
+Source: [`packages/speech/speech-to-text/src/index.ts:20`](../packages/speech/speech-to-text/src/index.ts)
+
+<a id="aevenspeech-to-text-whisper"></a>
+
+## `@aeven/speech-to-text-whisper`
+
+Requires: `speechToText` · `subprocess`
+
+```ts config-catalog
+/** Local runtime, inference, and retention settings. */
+export interface Config {
+  /** Unique registration id; consumers select this exact id. */
+  providerId: string
+  /** Absolute directory for verified models. */
+  dataRoot: string
+  /** Existing Whisper ggml model file; omission downloads the verified model. */
+  modelPath?: string | undefined
+  /** Existing Silero VAD ggml file; omission downloads the verified model. */
+  vadModelPath?: string | undefined
+  /** Existing worker executable; omission resolves the platform package's prebuilt worker. */
+  workerPath?: string | undefined
+  /** Explicit Hugging Face-compatible origin; bypasses automatic selection and public fallback. */
+  modelOrigin?: string | undefined
+  /** Hugging Face-compatible origins compared before downloading each missing asset. */
+  modelOrigins: string[]
+  /** Deadline for concurrent HEAD probes, including redirects to the actual asset. */
+  modelProbeTimeoutMs: number
+  /** CPU thread count for inference outside the GPU. */
+  threads: number
+  /** Silero speech probability threshold. */
+  vadThreshold: number
+  /** Minimum speech duration retained by VAD. */
+  vadMinSpeechMs: number
+  /** Silence separating two speech segments. */
+  vadMinSilenceMs: number
+  /** Padding kept before and after each speech segment. */
+  vadSpeechPadMs: number
+  /** Maximum decoded WAV bytes accepted per recording. */
+  maxAudioBytes: number
+  /** Deadline for runtime preparation and cold model loading. */
+  prepareTimeoutMs: number
+  /** Deadline for one inference after the worker is ready. */
+  inferenceTimeoutMs: number
+  /** Idle period before stopping the worker; zero keeps it warm. */
+  idleTimeoutMs: number
+  /** Maximum accepted running and waiting transcriptions. */
+  maxPending: number
+  /** Managed process termination grace period. */
+  graceMs: number
+  /** Maximum retained worker diagnostic bytes. */
+  maxLogBytes: number
+  /** Maximum bytes of one worker response line. */
+  maxResponseBytes: number
+  /** Minimum interval between intermediate download progress notifications. */
+  progressIntervalMs: number
+}
+```
+
+Source: [`packages/speech/speech-to-text-whisper/src/config.ts:6`](../packages/speech/speech-to-text-whisper/src/config.ts)
 
 <a id="aevenspill-local"></a>
 
@@ -3118,6 +3382,92 @@ export interface Config {
 
 Source: [`packages/e2b/subprocess-e2b/src/index.ts:25`](../packages/e2b/subprocess-e2b/src/index.ts)
 
+<a id="aevensubscription-auth"></a>
+
+## `@aeven/subscription-auth`
+
+Requires: `webServer`
+
+```ts config-catalog
+/** Plugin configuration; every field is optional. */
+export interface Config {
+  /** HTTP(S) proxy URL for the audited coding-subscription host allowlist. */
+  proxy?: string
+  /**
+	 * Optional provider retry policy override for the four OAuth routes. When
+	 * omitted, the plugin retries transient failures (rate limit, server,
+	 * timeout, transport, empty response) plus AUTH — the latter is safe because
+	 * the stored credential is invalidated on every AUTH finish, so the retried
+	 * step refreshes before reuse. Quota exhaustion is never retried.
+	 */
+  retryPolicy?: RetryPolicyConfig
+  /** Secret-free composition/YAML defaults below live user settings. */
+  capabilities?: CapabilitySettingsPatch
+  /**
+	 * Which upstream Imagine calls authorize against. `auto` (the default) uses
+	 * `XAI_API_KEY` against the developer API when that credential is configured
+	 * and otherwise takes the Grok Build chat proxy with the subscription's OAuth
+	 * access token, which is the route the official Grok CLI takes and requires a
+	 * SuperGrok tier. `xai-api` and `grok-build` pin one route and fail loudly
+	 * when its credential is missing.
+	 */
+  imagineTransport?: 'auto' | 'xai-api' | 'grok-build'
+  /**
+   * Imagine API request timeout. The subscription route proxies generation
+   * through the Grok Build chat proxy, which is slower than the direct xAI API,
+   * so the ceiling is deployment-varying rather than fixed.
+   */
+  imagineApiTimeoutMs?: number
+  /** Owner-only request authorization for loopback, SSH tunnels, and trusted HTTPS proxies. */
+  ownerRequest?: {
+    /** Whether a loopback caller is the operator directly, or arrives over an SSH tunnel. */
+    loopbackAccessMode?: 'loopback' | 'ssh-tunnel'
+    /** Accept owner requests forwarded by a proxy that proves itself with the fields below. */
+    trustedProxy?: {
+      /** Peer addresses whose forwarded requests may be considered at all. */
+      peers?: string[]
+      /** Origins the forwarded request may declare. */
+      origins?: string[]
+      /** Shared secret the proxy sends to prove it speaks for the operator. */
+      ownerProof?: string
+      /** Token the proxy echoes on state-changing requests, defeating cross-site forgery. */
+      csrfToken?: string
+    }
+  }
+}
+
+/** Sparse overlay used for YAML/composition `base` and the user section. */
+export type CapabilitySettingsPatch = Partial<CapabilitySettings>
+
+/** Resolved, secret-free capability section. */
+export interface CapabilitySettings {
+  /** Publish Codex-backed web search, which spends the Codex subscription's quota. */
+  readonly codexSearch: boolean
+  /** Publish the Codex image generation tool. Fixed on; see {@link FIXED_CAPABILITIES}. */
+  readonly codexImages: boolean
+  /** Publish the Codex image edit tool. Fixed on; see {@link FIXED_CAPABILITIES}. */
+  readonly codexImageEdits: boolean
+  /** Allow non-Codex-route models to use the Codex image generate/edit tools. Fixed on. */
+  readonly codexImagesAnyModel: boolean
+  /** Publish the Codex Fast route when the live catalogue confirms priority eligibility. */
+  readonly codexFast: boolean
+  /** Publish the Grok Imagine image tool. Fixed on; see {@link FIXED_CAPABILITIES}. */
+  readonly grokImagineImage: boolean
+  /** Publish the Grok Imagine video tools. Fixed on; see {@link FIXED_CAPABILITIES}. */
+  readonly grokImagineVideo: boolean
+  /** Upper bound on results returned by Codex-backed search. */
+  readonly searchResults: number
+  /** Images one generate call may return. Pinned to the provider maximum. */
+  readonly imageCount: number
+  /** How long a generated video artifact is retained. Pinned to the provider maximum. */
+  readonly videoArtifactTtlMs: number
+}
+```
+
+Depends on: [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts)
+
+Source: [`packages/llm/subscription-auth/src/index.ts:250`](../packages/llm/subscription-auth/src/index.ts)
+
 <a id="aevensystem-prompt"></a>
 
 ## `@aeven/system-prompt`
@@ -3296,7 +3646,64 @@ export interface Config {
 }
 ```
 
-Source: [`packages/web/tool-browser/src/index.ts:35`](../packages/web/tool-browser/src/index.ts)
+Source: [`packages/web/tool-browser/src/index.ts:36`](../packages/web/tool-browser/src/index.ts)
+
+<a id="aeventool-call-access-policy"></a>
+
+## `@aeven/tool-call-access-policy`
+
+Requires: `tools` · `sandboxPolicy`
+
+```ts config-catalog
+/**
+ * Plugin config, validated by the same-named schemastery schema plus the declared interface.
+ * Deployments narrow or extend `deny` from `cordis.yml`; an empty list disables the policy.
+ */
+export interface Config {
+  /** Access mode in which the listed tools are denied. */
+  mode: SandboxMode
+  /** Tool names denied while the session's access mode equals `mode`. */
+  deny: string[]
+}
+```
+
+Depends on: [`SandboxMode`](subsystems/sandbox.md)
+
+Source: [`packages/guard/access-policy/src/index.ts:54`](../packages/guard/access-policy/src/index.ts)
+
+<a id="aeventool-capability"></a>
+
+## `@aeven/tool-capability`
+
+Requires: `capabilities` · `tools` · `systemPrompt` · `llm`
+
+```ts config-catalog
+/** Consumer configuration. */
+export interface Config {
+  /** System-prompt section order of the capability guidance. */
+  promptOrder: number
+  /** Maximum learned procedures pointed out for one request. */
+  maxRecalled: number
+  /** Whether completed work is learned from automatically. */
+  learn: boolean
+  /** Tool calls a turn needs, excluding bookkeeping, before its work is learned from. */
+  minSteps: number
+  /** Milliseconds a finished turn waits for a correction before it is learned from without one. */
+  settleMs: number
+  /** Budget of one learning model call, in milliseconds. */
+  timeoutMs: number
+  /** Output token limit of one learning model call. */
+  maxOutputTokens: number
+  /** Input token budget of one learning model call; a longer transcript is cut down to its newest evidence. */
+  maxInputTokens: number
+  /** Explicit learning route, set together with `model`; absent uses each session's own route. */
+  provider?: string
+  /** Model of the explicit learning route, set together with `provider`; absent uses each session's own model. */
+  model?: string
+}
+```
+
+Source: [`packages/capability/tool-capability/src/index.ts:25`](../packages/capability/tool-capability/src/index.ts)
 
 <a id="aeventool-fs"></a>
 
@@ -3456,15 +3863,16 @@ Requires: `tools` · `media` · `attachments`
 export interface Config {
   /**
    * Model id used when a call names none and no choice is made. Provider-specific
-   * and verbatim, e.g. `black-forest-labs/flux.2-pro`. Omitted means every call
-   * must name a model or answer the picker.
+   * and verbatim, e.g. `Aeven-1.0-Image-Flash`. Omitted means every call must
+   * name a model or answer the picker.
    */
   model?: string
   /** Media provider id used when a call names none. Omitted defers to the seam's own selection. */
   provider?: string
   /**
-   * Models offered before each generation. An empty list disables the picker
-   * and generates with the resolved model directly.
+   * The selectable models, in menu order. When non-empty, a call naming a model
+   * outside this list is refused. An empty list disables the picker and leaves
+   * the model unrestricted.
    */
   choices?: ImageModelChoice[]
   /**
@@ -3478,9 +3886,11 @@ export interface Config {
    * deployment default from a choice, so the picker asks exactly once.
    */
   modelChosen?: boolean
+  /** Largest reference image file one call may read, in bytes. */
+  maxReferenceImageBytes?: number
 }
 
-/** One selectable image model offered before a generation runs. */
+/** One selectable image model. */
 export interface ImageModelChoice {
   /** Media provider id that serves this model. */
   provider: string
@@ -3488,12 +3898,30 @@ export interface ImageModelChoice {
   model: string
   /** Menu label; the `provider/model` pair when omitted. */
   label?: string
-  /** Optional one-line note the menu shows beside the label. */
+  /** Optional one-line note the menu and the tool description show beside the model. */
   description?: string
 }
 ```
 
-Source: [`packages/media/tool-media/src/index.ts:62`](../packages/media/tool-media/src/index.ts)
+Source: [`packages/media/tool-media/src/index.ts:68`](../packages/media/tool-media/src/index.ts)
+
+<a id="aeventool-memory"></a>
+
+## `@aeven/tool-memory`
+
+Requires: `memory` · `tools`
+
+```ts config-catalog
+/** Consumer configuration. */
+export interface Config {
+  /** Maximum characters of each body or snippet a tool returns. */
+  resultMaxChars: number
+  /** Hard budget for one `memory_search`, in milliseconds. */
+  searchTimeoutMs: number
+}
+```
+
+Source: [`packages/memory/tool-memory/src/index.ts:19`](../packages/memory/tool-memory/src/index.ts)
 
 <a id="aeventool-pwsh"></a>
 
@@ -3962,7 +4390,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/web/web-search-deepseek/src/index.ts:46`](../packages/web/web-search-deepseek/src/index.ts)
+Source: [`packages/web/web-search-deepseek/src/index.ts:47`](../packages/web/web-search-deepseek/src/index.ts)
 
 <a id="aevenweb-search-exa"></a>
 
@@ -4119,6 +4547,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@aeven/client-ui-session` ([`packages/client/ui-session/src/index.ts`](../packages/client/ui-session/src/index.ts))
 - `@aeven/client-ui-settings` ([`packages/client/ui-settings/src/index.ts`](../packages/client/ui-settings/src/index.ts))
 - `@aeven/client-ui-settings-general` ([`packages/client/ui-settings-general/src/index.ts`](../packages/client/ui-settings-general/src/index.ts))
+- `@aeven/client-ui-settings-memory` ([`packages/client/ui-settings-memory/src/index.ts`](../packages/client/ui-settings-memory/src/index.ts))
 - `@aeven/client-ui-settings-models` ([`packages/client/ui-settings-models/src/index.ts`](../packages/client/ui-settings-models/src/index.ts))
 - `@aeven/client-ui-settings-plugin-inventory` ([`packages/client/ui-settings-plugin-inventory/src/index.ts`](../packages/client/ui-settings-plugin-inventory/src/index.ts))
 - `@aeven/client-ui-settings-plugins` ([`packages/client/ui-settings-plugins/src/index.ts`](../packages/client/ui-settings-plugins/src/index.ts))
@@ -4135,6 +4564,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@aeven/client-ui-tool` ([`packages/client/ui-tool/src/index.ts`](../packages/client/ui-tool/src/index.ts))
 - `@aeven/client-ui-trajectory` ([`packages/client/ui-trajectory/src/index.ts`](../packages/client/ui-trajectory/src/index.ts))
 - `@aeven/client-ui-user-questions` ([`packages/client/ui-user-questions/src/index.ts`](../packages/client/ui-user-questions/src/index.ts))
+- `@aeven/client-ui-voice-input` ([`packages/client/ui-voice-input/src/index.ts`](../packages/client/ui-voice-input/src/index.ts))
 - `@aeven/client-ui-workflow-run` ([`packages/client/ui-workflow-run/src/index.ts`](../packages/client/ui-workflow-run/src/index.ts))
 - `@aeven/client-ui-workspace` ([`packages/client/ui-workspace/src/index.ts`](../packages/client/ui-workspace/src/index.ts))
 - `@aeven/command-compact` — requires `commands` · `compaction` ([`packages/compaction/command-compact/src/index.ts`](../packages/compaction/command-compact/src/index.ts))
@@ -4154,6 +4584,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@aeven/identity-user` ([`packages/identity/user/src/index.ts`](../packages/identity/user/src/index.ts))
 - `@aeven/llm` ([`packages/llm/llm/src/index.ts`](../packages/llm/llm/src/index.ts))
 - `@aeven/lsp` ([`packages/lsp/lsp/src/index.ts`](../packages/lsp/lsp/src/index.ts))
+- `@aeven/memory` ([`packages/memory/memory/src/index.ts`](../packages/memory/memory/src/index.ts))
 - `@aeven/schedule` — requires `agents` · `sessions` · `tools` · `sessionPersistence` ([`packages/schedule/schedule/src/index.ts`](../packages/schedule/schedule/src/index.ts))
 - `@aeven/session` ([`packages/core/session/src/index.ts`](../packages/core/session/src/index.ts))
 - `@aeven/session-checkpoint-policy` — requires `llm` · `sessionPersistence` · `sessions` · `tools` ([`packages/session/session-checkpoint-policy/src/index.ts`](../packages/session/session-checkpoint-policy/src/index.ts))

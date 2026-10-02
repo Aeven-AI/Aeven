@@ -41,6 +41,7 @@ export interface Config {
   maxInputTokens: number
   /** Explicit learning route, set together with `model`; absent uses each session's own route. */
   provider?: string
+  /** Model of the explicit learning route, set together with `provider`; absent uses each session's own model. */
   model?: string
 }
 
@@ -60,11 +61,11 @@ export const Config: z<Config> = z.object({
 const TOOL = 'capability_manage'
 
 /** Model-facing guidance on learned capabilities. */
-export const LEARNING_GUIDANCE = `Aeven learns capabilities, reusable procedures for this user, from completed work and offers them in the skill catalog. ` +
-  `When a learned capability fits the task, load it with the skill tool and follow it instead of working the task out again. ` +
+export const LEARNING_GUIDANCE = 'Aeven learns capabilities, reusable procedures for this user, from completed work and offers them in the skill catalog. ' +
+  'When a learned capability fits the task, load it with the skill tool and follow it instead of working the task out again. ' +
   `After following one, report the outcome with ${TOOL} (action "report"), including whether its verification step passed; if a step was wrong or could be faster, fix it with action "update". ` +
-  `When the user asks you to learn or remember how to do something, save it with action "learn": when to use it, requirements, numbered steps with the exact commands, paths, and settings, how to verify success, and how to recover from known failures. ` +
-  `Learning is automatic and silent: never ask the user whether to save, keep, or update a procedure, and do not announce it.`
+  'When the user asks you to learn or remember how to do something, save it with action "learn": when to use it, requirements, numbered steps with the exact commands, paths, and settings, how to verify success, and how to recover from known failures. ' +
+  'Learning is automatic and silent: never ask the user whether to save, keep, or update a procedure, and do not announce it.'
 
 const TEXT_OUTPUT = {
   schema: {
@@ -170,7 +171,12 @@ export function apply(ctx: Context, config: Config): void {
           const records = await ctx.capabilities.list(owner)
           return json({
             text: records.length === 0 ? 'No capabilities learned yet.' : records.map(describeRecord).join('\n'),
-            capabilities: records.map(record => ({ name: record.name, status: record.status, revision: record.revision, description: record.description })),
+            capabilities: records.map(record => ({
+              name: record.name,
+              status: record.status,
+              revision: record.revision,
+              description: record.description,
+            })),
           })
         }
         case 'view': {
@@ -294,7 +300,7 @@ export function apply(ctx: Context, config: Config): void {
     const executions = previous === undefined || !Number.isFinite(previous) ? undefined : byTurn?.get(previous)
     for (const execution of executions ?? []) {
       void ctx.capabilities.amend(owner, execution.name, { kind: 'correction', executionId: execution.id, at: Date.now(), text: text.slice(0, 500) })
-        .catch((error: unknown) => logger.warn(`correction for ${execution.name} failed: ${error instanceof Error ? error.message : String(error)}`))
+        .catch((error: unknown) => { logger.warn(`correction for ${execution.name} failed: ${error instanceof Error ? error.message : String(error)}`) })
     }
   }
 
@@ -317,7 +323,7 @@ export function apply(ctx: Context, config: Config): void {
         byTurn.set(execution.turn, [...byTurn.get(execution.turn) ?? [], { name: capabilityName, id }])
         recorded.set(session.id, byTurn)
       }
-    })().catch((error: unknown) => logger.warn(`recording capability execution failed: ${error instanceof Error ? error.message : String(error)}`))
+    })().catch((error: unknown) => { logger.warn(`recording capability execution failed: ${error instanceof Error ? error.message : String(error)}`) })
   })
 
   ctx.on('message-feedback/changed', (change) => {
@@ -336,7 +342,7 @@ export function apply(ctx: Context, config: Config): void {
         at: Date.now(),
         rating: change.item.rating,
         ...change.item.note === undefined ? {} : { note: change.item.note },
-      }).catch((error: unknown) => logger.warn(`rating for ${execution.name} failed: ${error instanceof Error ? error.message : String(error)}`))
+      }).catch((error: unknown) => { logger.warn(`rating for ${execution.name} failed: ${error instanceof Error ? error.message : String(error)}`) })
     }
   })
 
