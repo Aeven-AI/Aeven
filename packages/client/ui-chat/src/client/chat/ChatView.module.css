@@ -106,6 +106,10 @@
   --avn-chat-flow-gap: 8px;
 }
 
+.flowItem[data-chat-work-row]:not([data-chat-flow-kind='assistant-step']):not([hidden]):not(:empty) {
+  margin-bottom: 4px;
+}
+
 /* The answer step opens with its own Think row while the process is open. */
 .flowItem[data-turn-process-answer-step] {
   --avn-chat-flow-gap: 8px;

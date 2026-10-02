@@ -1385,7 +1385,7 @@ body .content-block .table-wrapper .table-container .table-content table {
   font-size: 14px;
   line-height: 24px;
   /* Google Sans Flex carries a tabular set, so numeric columns align. */
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: normal;
   border-spacing: 6px;
   /* Cells wrap rather than running a table out to its content width.
      $maxWidthCell is what does the work: auto table layout keeps
@@ -2232,7 +2232,7 @@ body .content-block .mermaid-wrapper .mermaid-container .mermaid-content table {
   font-size: 14px;
   line-height: 24px;
   /* Google Sans Flex carries a tabular set, so numeric columns align. */
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: normal;
   border-spacing: 6px;
   /* Cells wrap rather than running a table out to its content width.
      $maxWidthCell is what does the work: auto table layout keeps

@@ -62,40 +62,41 @@ export const ChatNodeSeat = memo(function ChatNodeSeat({
     ? undefined
     : storedTurnProcessEntry(state, processSpec.turn))
   const processEntry = processSpec !== undefined
-    && processSpec.answerStep !== null
-    && storedEntry?.answerStep === processSpec.answerStep
+    && storedEntry !== undefined
+    && (storedEntry.answerStep === null || storedEntry.answerStep === processSpec.answerStep)
     ? storedEntry
     : undefined
   const processOpen = processEntry !== undefined
   const setOpen = useCallback((open: boolean) => {
-    if (processSpec !== undefined && processSpec.answerStep !== null) {
-      actions.setTurnProcessOpen(processSpec.turn, processSpec.answerStep, open)
+    if (processSpec !== undefined) {
+      actions.setTurnProcessOpen(
+        processSpec.turn, processPresentation?.turnClosed ? processSpec.answerStep : null, open,
+      )
     }
-  }, [actions, processSpec])
+  }, [actions, processPresentation?.turnClosed, processSpec])
   const processWindowReady = processSpec !== undefined
     && processPresentation !== undefined
     && !extendedTranscript
-    && processSpec.answerAnchorSeq !== null
     && processPresentation.turn === processSpec.turn
-    && processPresentation.turnClosed
+    && (!processPresentation.turnClosed || processSpec.answerAnchorSeq !== null)
     && (!historyIncomplete || processPresentation.turnStarted)
   const processMember = routedNode !== undefined
     && processWindowReady
     && !TURN_PROCESS_INDEPENDENT_KINDS.has(routedNode.kind)
     && routedNode.anchorSeq >= processSpec.processStartSeq
-    && routedNode.anchorSeq < processSpec.answerAnchorSeq
+    && (processSpec.answerAnchorSeq === null || routedNode.anchorSeq < processSpec.answerAnchorSeq)
+    && !(processPresentation.turnClosed === false && routedNode.kind === 'assistant-step'
+      && hasAssistantReplyContent(routedNode.data.blocks))
   const processAnswer = routedNode !== undefined
     && processWindowReady
     && routedNode.kind === 'assistant-step'
     && routedNode.data.step === processSpec.answerStep
   const ownsDisclosure = routedNode?.kind === 'turn-process' || processAnswer
-  // Every settled Turn shows its header; only a Turn with work or reasoning
-  // before its answer can fold.
+  // Only a Turn with work or reasoning can fold.
   const hasContent = processPresentation?.hasExternalProcess === true
     || processSpec?.inlineReasoning === true
-  const foldable = processWindowReady && (processMember || ownsDisclosure)
-  // A running Turn shows its header above its work (the live clock) and keeps
-  // everything open: it cannot fold until it closes.
+  const foldable = processWindowReady
+    && (processMember || ownsDisclosure || !processPresentation.turnClosed)
   const liveProcess = processSpec !== undefined
     && processPresentation !== undefined
     && processPresentation.turn === processSpec.turn
@@ -106,8 +107,8 @@ export const ChatNodeSeat = memo(function ChatNodeSeat({
     : {
       spec: processSpec,
       foldable: foldable || liveHeader,
-      hasContent: hasContent && !liveProcess,
-      open: processOpen || liveProcess,
+      hasContent,
+      open: processOpen,
       setOpen,
     }, [
     foldable, hasContent, liveHeader, liveProcess, processOpen, processSpec, setOpen,

@@ -117,7 +117,10 @@
   background: transparent;
   color: var(--dsw-alias-label-secondary);
   cursor: pointer;
-  transition: background-color 150ms ease, box-shadow 150ms ease, color 150ms ease;
+  transition:
+    background-color 150ms ease,
+    box-shadow 150ms ease,
+    color 150ms ease;
 }
 
 .search .iconButton {
@@ -127,7 +130,7 @@
 }
 
 .iconButton:hover:not(:disabled),
-.iconButton[aria-pressed='true'] {
+.iconButton[aria-pressed="true"] {
   background: var(--dsw-alias-bg-base);
   box-shadow: none;
   color: var(--dsw-alias-label-primary);
@@ -168,7 +171,7 @@
    Unprefixed only: the CSS pipeline adds the -webkit- form per its targets. */
 .scrollFrame::before,
 .scrollFrame::after {
-  content: '';
+  content: "";
   position: absolute;
   right: 0;
   left: 0;
@@ -180,13 +183,21 @@
 .scrollFrame::before {
   top: 0;
   height: var(--files-fade-top);
-  mask-image: linear-gradient(to bottom, #000 0, transparent var(--files-fade-top));
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0,
+    transparent var(--files-fade-top)
+  );
 }
 
 .scrollFrame::after {
   bottom: 0;
   height: var(--files-fade-bottom);
-  mask-image: linear-gradient(to top, #000 0, transparent var(--files-fade-bottom));
+  mask-image: linear-gradient(
+    to top,
+    #000 0,
+    transparent var(--files-fade-bottom)
+  );
 }
 
 /* Scroll areas scroll without drawing a bar, and fade their content out at
@@ -270,7 +281,7 @@
 .note {
   padding: 6px 10px 6px 0;
   color: var(--dsw-alias-label-tertiary);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 20px;
 }
 
@@ -377,7 +388,7 @@
    black glyph, including on hover and while pressed. */
 .iconButton.lightButton,
 .iconButton.lightButton:hover:not(:disabled),
-.iconButton.lightButton[aria-pressed='true'] {
+.iconButton.lightButton[aria-pressed="true"] {
   background: var(--dsw-static-neutral-00);
   color: var(--dsw-static-neutral-1000);
 }
@@ -462,7 +473,7 @@
 
 .openWithMain:hover,
 .openWithMore:hover,
-.openWithMore[aria-expanded='true'] {
+.openWithMore[aria-expanded="true"] {
   background: transparent;
   color: inherit;
 }

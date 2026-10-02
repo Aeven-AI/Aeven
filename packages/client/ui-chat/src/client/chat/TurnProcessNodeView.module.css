@@ -21,7 +21,8 @@
   cursor: default;
 }
 
-.root:not([data-open]) {
+.root:not([data-open]),
+.root[data-turn-pending] {
   margin-bottom: 8px;
 }
 
@@ -29,9 +30,15 @@
   flex: none;
   width: 14px;
   height: 14px;
-  margin-left: 4px;
+  margin-left: auto;
   color: var(--dsw-alias-label-primary);
-  transition: transform 100ms ease;
+  opacity: 0;
+  transition: opacity 100ms ease, transform 100ms ease;
+}
+
+.root:hover .chevron,
+.root[data-open] .chevron {
+  opacity: 1;
 }
 
 .root[data-open] .chevron {

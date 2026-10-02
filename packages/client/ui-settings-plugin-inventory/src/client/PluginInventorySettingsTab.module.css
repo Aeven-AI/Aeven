@@ -96,7 +96,7 @@
   font-size: 12px;
   line-height: 18px;
   color: var(--dsw-alias-label-tertiary);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: normal;
 }
 
 .cards {
@@ -294,7 +294,7 @@
   color: var(--dsw-alias-label-tertiary);
   font-size: 12px;
   line-height: 18px;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: normal;
 }
 
 .failedCount {

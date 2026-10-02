@@ -32,7 +32,7 @@
 
 .groupAside {
   font-weight: 400;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: normal;
 }
 
 /* Setting cell. */
@@ -190,7 +190,7 @@
   font-size: 12px;
   line-height: 18px;
   text-align: right;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: normal;
   color: var(--dsw-alias-label-secondary);
 }
 
@@ -287,7 +287,7 @@
   font-weight: 500;
   line-height: 32px;
   letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: normal;
 }
 
 .pricePer {
@@ -339,7 +339,7 @@
   padding: 4px 4px 4px 16px;
   border-radius: var(--dsw-aeven-radius-compact);
   background: var(--dsw-alias-bg-module-platform);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 20px;
 }
 
@@ -371,7 +371,7 @@
   font-weight: 500;
   line-height: 28px;
   letter-spacing: -0.01em;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: normal;
 }
 
 /* Segmented amount picker: the selector-pill track (module fill, control
@@ -403,7 +403,7 @@
   font: inherit;
   font-size: 14px;
   line-height: 22px;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: normal;
   cursor: pointer;
   transition:
     background 0.16s,
@@ -463,7 +463,7 @@
   font-size: 14px;
   font-weight: 400;
   line-height: 22px;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: normal;
 }
 
 /* The payment-history control is the group's one action, not a form control:
@@ -510,7 +510,7 @@
   align-items: baseline;
   gap: 12px;
   padding: 8px 0;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 20px;
 }
 
@@ -519,7 +519,7 @@
 }
 
 .figureSmall {
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: normal;
 }
 
 .segment:focus-visible,

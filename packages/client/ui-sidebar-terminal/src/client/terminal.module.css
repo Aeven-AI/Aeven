@@ -1,17 +1,75 @@
 /* The pane wears the screen's white from its first frame, so a new terminal
    shows one surface while its shell starts. */
-.root { display: flex; flex: 1; flex-direction: column; box-sizing: border-box; height: 100%; min-height: 0; padding-top: 8px; color: var(--dsw-alias-label-primary); font-size: 13px; background: var(--dsw-specific-sidebar-fill); }
+.root {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 0;
+  padding-top: 8px;
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  background: var(--dsw-specific-sidebar-fill);
+}
 /* Transparent until the shell's first screen has rendered, then faded in. The
    24px sides match the column's page inset. */
-.screen { flex: 1; min-height: 0; min-width: 0; overflow: hidden; padding: 0 24px; color: var(--dsw-alias-label-primary); background: var(--dsw-specific-sidebar-fill); opacity: 0; transition: opacity 150ms ease; }
-.screen[data-ready] { opacity: 1; }
-.screen :global(.xterm) { height: 100%; }
-.screen :global(.xterm-viewport) { background: var(--dsw-specific-sidebar-fill); }
-.status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 5px 12px; background: var(--dsw-alias-bg-l2); }
-.error { margin: 0; padding: 10px 12px; overflow-wrap: anywhere; color: var(--dsw-alias-label-primary); background: var(--dsw-alias-bg-l2); }
-.empty { display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: 16px; min-height: 0; padding: 24px; overflow: auto; text-align: center; }
-.emptyMessage { max-width: 28ch; margin: 0; line-height: 1.6; overflow-wrap: anywhere; }
-.actionIcon { display: flex; }
+.screen {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0 24px;
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-specific-sidebar-fill);
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+.screen[data-ready] {
+  opacity: 1;
+}
+.screen :global(.xterm) {
+  height: 100%;
+}
+.screen :global(.xterm-viewport) {
+  background: var(--dsw-specific-sidebar-fill);
+}
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  background: var(--dsw-alias-bg-l2);
+}
+.error {
+  margin: 0;
+  padding: 10px 12px;
+  overflow-wrap: anywhere;
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-l2);
+}
+.empty {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 0;
+  padding: 24px;
+  overflow: auto;
+  text-align: center;
+}
+.emptyMessage {
+  max-width: 28ch;
+  margin: 0;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.actionIcon {
+  display: flex;
+}
 
 /* The launch guide is the pane's own launcher: one row per shell, stacked with
    no gap and starting at the top of the column on the row the content-kind
@@ -20,22 +78,96 @@
    sidebar row inset, an 8px glyph gap and the static-extreme ink over the
    panel fill — and the guide drops the pane's 8px top inset to keep the rows on
    those lines. */
-.root[data-choosing] { padding-top: 0; }
-.shells { display: flex; flex: 1 1 auto; flex-direction: column; align-items: stretch; min-height: 0; overflow: auto; outline: none; }
-.shell { display: flex; align-items: center; gap: 8px; height: var(--dsw-aeven-control-size); padding: 0 var(--dsw-aeven-sidebar-row-inset); border: none; border-radius: 20px; background: var(--dsw-static-neutral-00); color: var(--dsw-static-neutral-1000); font: inherit; font-size: 14px; text-align: start; cursor: pointer; }
-.shellGlyph { display: flex; flex: none; align-items: center; }
-.shellGlyph svg { width: 18px; height: 18px; }
-.shellLabel { flex: 1 1 auto; }
+.root[data-choosing] {
+  padding-top: 0;
+}
+.shells {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: stretch;
+  min-height: 0;
+  overflow: auto;
+  outline: none;
+}
+.shell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--dsw-aeven-control-size);
+  padding: 0 var(--dsw-aeven-sidebar-row-inset);
+  border: none;
+  border-radius: 20px;
+  background: var(--dsw-static-neutral-00);
+  color: var(--dsw-static-neutral-1000);
+  font: inherit;
+  font-size: 14px;
+  text-align: start;
+  cursor: pointer;
+}
+.shellGlyph {
+  display: flex;
+  flex: none;
+  align-items: center;
+}
+.shellGlyph svg {
+  width: 18px;
+  height: 18px;
+}
+.shellLabel {
+  flex: 1 1 auto;
+}
 
 /* Shell discovery is a few file lookups; the first row's place holds the wait. */
-.shellNote { display: flex; align-items: center; height: var(--dsw-aeven-control-size); margin: 0; padding: 0 var(--dsw-aeven-sidebar-row-inset); color: var(--dsw-alias-label-tertiary); font-size: 14px; }
+.shellNote {
+  display: flex;
+  align-items: center;
+  height: var(--dsw-aeven-control-size);
+  margin: 0;
+  padding: 0 var(--dsw-aeven-sidebar-row-inset);
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 14px;
+}
 
 /* Cursor colors depend on its cell, so they must not update xterm's shared ANSI theme. */
-.screen :global(.xterm-cursor) { opacity: 1; }
-.screen :global(.xterm .xterm-rows .xterm-cursor.xterm-cursor-block) { background-color: var(--terminal-cursor); color: var(--terminal-cursor-accent); }
-.screen :global(.xterm .xterm-rows .xterm-cursor.xterm-cursor-block:not(.xterm-cursor-blink)) { background-color: var(--terminal-cursor) !important; color: var(--terminal-cursor-accent) !important; }
-.screen :global(.xterm .xterm-rows .xterm-cursor.xterm-cursor-outline) { outline-color: var(--terminal-cursor); }
-.screen :global(.xterm .xterm-rows .xterm-cursor.xterm-cursor-bar) { box-shadow: 1px 0 0 var(--terminal-cursor) inset; }
-.screen :global(.xterm .xterm-rows .xterm-cursor.xterm-cursor-underline) { border-bottom-color: var(--terminal-cursor); }
-.screen :global(.xterm .xterm-rows.xterm-focus .xterm-cursor.xterm-cursor-block.xterm-cursor-blink) { animation: terminal-cursor-blink 1s step-end infinite; }
-@keyframes terminal-cursor-blink { 0% { background-color: var(--terminal-cursor); color: var(--terminal-cursor-accent); } 50% { background-color: var(--terminal-cursor-cell-background); color: var(--terminal-cursor-cell-foreground); } }
+.screen :global(.xterm-cursor) {
+  opacity: 1;
+}
+.screen :global(.xterm .xterm-rows .xterm-cursor.xterm-cursor-block) {
+  background-color: var(--terminal-cursor);
+  color: var(--terminal-cursor-accent);
+}
+.screen
+  :global(
+    .xterm .xterm-rows .xterm-cursor.xterm-cursor-block:not(.xterm-cursor-blink)
+  ) {
+  background-color: var(--terminal-cursor) !important;
+  color: var(--terminal-cursor-accent) !important;
+}
+.screen :global(.xterm .xterm-rows .xterm-cursor.xterm-cursor-outline) {
+  outline-color: var(--terminal-cursor);
+}
+.screen :global(.xterm .xterm-rows .xterm-cursor.xterm-cursor-bar) {
+  box-shadow: 1px 0 0 var(--terminal-cursor) inset;
+}
+.screen :global(.xterm .xterm-rows .xterm-cursor.xterm-cursor-underline) {
+  border-bottom-color: var(--terminal-cursor);
+}
+.screen
+  :global(
+    .xterm
+      .xterm-rows.xterm-focus
+      .xterm-cursor.xterm-cursor-block.xterm-cursor-blink
+  ) {
+  animation: terminal-cursor-blink 1s step-end infinite;
+}
+@keyframes terminal-cursor-blink {
+  0% {
+    background-color: var(--terminal-cursor);
+    color: var(--terminal-cursor-accent);
+  }
+  50% {
+    background-color: var(--terminal-cursor-cell-background);
+    color: var(--terminal-cursor-cell-foreground);
+  }
+}

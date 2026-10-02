@@ -83,3 +83,21 @@ button.leading {
   line-height: calc(28px + var(--avn-content-font-delta, 0px));
   color: var(--dsw-alias-label-caption);
 }
+
+.row[data-trailing-chevron] {
+  padding-right: 22px;
+}
+
+.trailingChevron {
+  position: absolute;
+  right: 0;
+  width: calc(14px + var(--avn-content-font-delta, 0px));
+  height: calc(14px + var(--avn-content-font-delta, 0px));
+  opacity: 0;
+  transition: opacity 100ms ease;
+}
+
+.row:hover .trailingChevron,
+.root[data-open] .trailingChevron {
+  opacity: 1;
+}

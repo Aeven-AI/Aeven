@@ -58,16 +58,17 @@ export const CompactionItem = memo(function CompactionItem({
           <span className={css.compactionContextIcon} data-compaction-icon="context">
             <IconApiOutline14 />
           </span>
-          <span
-            className={css.compactionDisclosureIcon}
-            data-compaction-disclosure={open ? 'expanded' : 'collapsed'}
-          >
-            {open ? <IconChevronDownOutline14 /> : <IconChevronRightOutline14 />}
-          </span>
         </span>
         <span className={css.compactionTitle}>{title ?? t('message.compaction')}</span>
         <span className={css.compactionSep} aria-hidden />
         <span className={css.compactionSummary}>{summary}</span>
+        <span
+          className={css.compactionDisclosureIcon}
+          data-compaction-disclosure={open ? 'expanded' : 'collapsed'}
+          aria-hidden
+        >
+          {open ? <IconChevronDownOutline14 /> : <IconChevronRightOutline14 />}
+        </span>
       </button>
       {open && node.summary !== null
         && <div className={css.compactionBody}><MarkdownText text={node.summary} labels={labels} /></div>}

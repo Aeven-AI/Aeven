@@ -48,28 +48,199 @@ export function convertMath(
     // Bracketed block "[\n … \n]" → "$$ … $$"
     text = convertBracketBlocks(text)
 
+    text = protectOrphanDollar(text)
+
     text = protectNonMathDollars(text)
 
     return convertInlineOutsideMath(text)
   }
 
+  /**
+   * Keep an opening dollar that whitespace follows out of maths.
+   *
+   * Text trained on the usual maths syntax never opens a formula on "$ ", but
+   * micromark-extension-math does. Left alone, a stray one in prose opens a
+   * formula that runs on to the next dollar anywhere in the block — including
+   * a dollar inside an inline code span, which it then swallows as formula
+   * text. Only a dollar that nothing closes is rewritten, so a formula whose
+   * closer is still arriving is left for the parser.
+   *
+   * @param text - the unprotected text to rewrite.
+   * @returns the text with the orphan prose dollar escaped, when it has one.
+   */
+  function protectOrphanDollar(text: string): string {
+    const orphan = findOrphanDollar(text)
+
+    if (orphan === -1) {
+      return text
+    }
+
+    return text.slice(0, orphan) + '\\' + text.slice(orphan)
+  }
+
+  /**
+   * Offset of the single dollar that opens a formula nothing closes.
+   *
+   * Dollars pair left to right, and a run of two matches only another run of
+   * two, so a "$$" block is stepped over whole and never reported. A dollar
+   * that whitespace follows counts only as prose here: an unclosed "$ " is a
+   * price or a quotation, not a formula waiting for its tail.
+   *
+   * @param text - the text to scan.
+   * @returns the offset of the orphan dollar, or -1 when none is unclosed.
+   */
+  function findOrphanDollar(text: string): number {
+    let i = 0
+
+    while (i < text.length) {
+      const char = text.charAt(i)
+
+      if (char === '\\') {
+        i += 2
+        continue
+      }
+
+      if (char !== '$') {
+        i++
+        continue
+      }
+
+      const size = text.charAt(i + 1) === '$' ? 2 : 1
+      const close = findDelimiterRun(text, i + size, size)
+
+      if (close === -1) {
+        return size === 1 &&
+          patterns.mathSpaceRegex.test(text.charAt(i + 1))
+          ? i
+          : -1
+      }
+
+      i = close + size
+    }
+
+    return -1
+  }
+
+  /**
+   * Offset of the next dollar run of `size` that nothing escapes.
+   *
+   * A run longer or shorter than the opening one is not a closer, and a dollar
+   * behind a backslash is content: `$$100\$$$` closes on its final fence, not
+   * on the escaped dollar inside the body.
+   *
+   * @param text - the text to scan.
+   * @param from - the offset to start scanning at.
+   * @param size - the run length the opening delimiter had.
+   * @returns the offset of the matching run, or -1 when the block holds none.
+   */
+  function findDelimiterRun(text: string, from: number, size: number): number {
+    let i = from
+
+    while (i < text.length) {
+      const char = text.charAt(i)
+
+      if (char === '\\') {
+        i += 2
+        continue
+      }
+
+      if (char !== '$') {
+        i++
+        continue
+      }
+
+      let run = 0
+
+      while (text.charAt(i + run) === '$') {
+        run++
+      }
+
+      if (run === size) {
+        return i
+      }
+
+      i += run
+    }
+
+    return -1
+  }
+
   function protectNonMathDollars(text: string): string {
-    return text.replace(/(?<![$\\])\$([^$\r\n]+)\$(?!\$)/g, (match, body) =>
-      looksLikeDollarMath(body) ? match : `\\$${body}\\$`,
+    return text.replace(
+      /(?<![$\\])\$([^$\r\n]+)\$(?!\$)/g,
+      (match, body, offset: number, whole: string) =>
+        looksLikeDollarMath(body, whole, offset + match.length)
+          ? match
+          : `\\$${body}\\$`,
     )
   }
 
-  function looksLikeDollarMath(body: string): boolean {
+  /**
+   * Whether the dollars around `body` delimit a formula.
+   *
+   * Maths is the exception here, not the rule: models write prices in prose,
+   * and two of them on one line look to remark-math exactly like a formula —
+   * "13.4s video → $68k GMV; … units/$270k" renders the sentence between the
+   * two amounts through KaTeX. The signals below separate the two.
+   *
+   * @param body - the text between the two dollars.
+   * @param source - the slice the pair was found in, for the character that
+   *   follows the closing dollar.
+   * @param after - the offset of that following character.
+   * @returns true when the pair is maths and must keep its dollars.
+   */
+  function looksLikeDollarMath(
+    body: string,
+    source: string,
+    after: number,
+  ): boolean {
     let trimmed
 
     trimmed = body.trim()
 
-    return (
-      trimmed !== '' &&
-      !
-      /^(?:\.{3,}|…+)$/.test(trimmed) &&
-      !
+    if (
+      trimmed === '' ||
+      /^(?:\.{3,}|…+)$/.test(trimmed) ||
       trimmed.endsWith('~')
+    ) {
+      return false
+    }
+
+    // A closing dollar a digit follows closes a price, not a formula: no TeX
+    // run ends on the amount of the next one. This is the general form of the
+    // "$2000~$5000" range above, which the trailing "~" catches first.
+    if (patterns.digitRegex.test(source.charAt(after))) {
+      return false
+    }
+
+    // Without a TeX escape to mark it as maths, a body carrying prose words is
+    // a sentence that happens to sit between two prices.
+    if (!trimmed.includes('\\') && readsAsProse(trimmed)) {
+      return false
+    }
+
+    return true
+  }
+
+  /**
+   * Whether a dollar-delimited body reads as a sentence fragment.
+   *
+   * Two or more words settle it. A single word only counts beside a leading
+   * amount, which is what "→ $2.63M views …" carries and what a formula such
+   * as "$F = ma$" does not.
+   *
+   * @param body - the trimmed body between two dollars.
+   * @returns true when the body is prose rather than maths.
+   */
+  function readsAsProse(body: string): boolean {
+    const words = body.match(/[A-Za-z]{2,}/g)
+
+    if (words === null) {
+      return false
+    }
+
+    return (
+      words.length >= 2 || /(?:^|\s)\d[\d.,]*\s*[kKmM]?(?=\s)/.test(body)
     )
   }
 

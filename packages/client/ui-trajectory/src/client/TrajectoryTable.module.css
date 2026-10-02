@@ -402,7 +402,7 @@
   color: var(--dsw-alias-label-tertiary);
   background: var(--dsw-alias-bg-module-platform);
   font: 400 8px/10px var(--ds-font-family-code);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: normal;
   user-select: none;
   white-space: nowrap;
 }

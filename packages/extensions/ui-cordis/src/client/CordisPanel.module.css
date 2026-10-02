@@ -55,7 +55,7 @@
   color: var(--dsw-alias-label-tertiary);
   font-size: 12px;
   line-height: 16px;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: normal;
 }
 
 .layer.rail {
@@ -207,23 +207,23 @@
   color: var(--dsw-alias-label-caption);
 }
 
-.row[data-cordis-status='idle'] .rowStatus {
+.row[data-cordis-status="idle"] .rowStatus {
   background: var(--dsw-alias-button-ghost-active-fill);
   color: var(--dsw-alias-label-caption);
 }
 
-.row[data-cordis-status='awaiting-approval'] .rowStatus,
-.row[data-cordis-status='client-pending'] .rowStatus {
+.row[data-cordis-status="awaiting-approval"] .rowStatus,
+.row[data-cordis-status="client-pending"] .rowStatus {
   background: var(--dsw-alias-state-warn-tertiary);
   color: var(--dsw-alias-state-warn-label);
 }
 
-.row[data-cordis-status='failed'] .rowStatus {
+.row[data-cordis-status="failed"] .rowStatus {
   background: var(--dsw-alias-interactive-bg-hover-danger);
   color: var(--dsw-alias-state-error-primary);
 }
 
-.row[data-cordis-status='running'] .rowStatus {
+.row[data-cordis-status="running"] .rowStatus {
   background: var(--dsw-alias-state-success-tertiary);
   color: var(--dsw-alias-state-success-primary);
 }

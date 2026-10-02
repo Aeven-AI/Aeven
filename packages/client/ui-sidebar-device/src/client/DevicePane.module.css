@@ -126,7 +126,7 @@
     var(--device-glass-edge),
     0 8px 24px rgba(0, 0, 0, 0.1);
   color: var(--dsw-alias-label-secondary);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 20px;
   white-space: pre-line;
   overflow-wrap: anywhere;
@@ -374,7 +374,7 @@
 .loadingMessage {
   margin: 0;
   color: var(--dsw-alias-label-tertiary);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 20px;
   overflow-wrap: anywhere;
 }
@@ -511,7 +511,7 @@
   border-radius: 20px;
   background: var(--dsw-alias-bg-layer-1);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.16);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 @container (min-width: 620px) {
@@ -844,7 +844,7 @@
 .setupDescription {
   margin: -10px 0 0;
   color: var(--dsw-alias-label-secondary);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .setupSteps {
@@ -883,7 +883,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .setupSectionTitle {

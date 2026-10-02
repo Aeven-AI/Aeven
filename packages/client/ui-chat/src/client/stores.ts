@@ -7,7 +7,7 @@ type ChatActions = {
   setTurnProcessOpen: (
     draft: ChatStoreState,
     turn: number,
-    answerStep: number,
+    answerStep: number | null,
     open: boolean,
   ) => void
 }

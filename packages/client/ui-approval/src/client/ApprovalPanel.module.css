@@ -19,7 +19,9 @@
   box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.1);
   color: var(--dsw-alias-label-primary);
   font-size: var(--avn-content-font-size, 16px);
-  line-height: calc(var(--dsw-aeven-reading-line-height) + var(--avn-content-font-delta, 0px));
+  line-height: calc(
+    var(--dsw-aeven-reading-line-height) + var(--avn-content-font-delta, 0px)
+  );
   --avn-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
   --avn-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
 }
@@ -45,7 +47,7 @@
 
 .headline {
   color: var(--dsw-alias-label-primary);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 400;
   line-height: 24px;
 }

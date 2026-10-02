@@ -28,7 +28,7 @@
   border-radius: 28px;
   background: transparent;
   font-size: var(--avn-content-font-size, 16px);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: normal;
   line-height: calc(28px + var(--avn-content-font-delta, 0px));
   white-space: nowrap;
   cursor: pointer;
@@ -51,7 +51,7 @@
 /* Hover and the open dialog's anchor keep the pill's own ink; the interactive
    background carries the affordance (a secondary step here would lighten it). */
 .trigger:hover,
-.trigger[aria-expanded='true'] {
+.trigger[aria-expanded="true"] {
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
@@ -119,7 +119,7 @@
 }
 
 .titleValue {
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: normal;
 }
 
 /* Section-heading glyph seated left of the section name. */
@@ -152,7 +152,7 @@
 
 .details dd {
   color: var(--dsw-alias-label-secondary);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: normal;
   text-align: right;
 }
 

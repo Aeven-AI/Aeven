@@ -35,7 +35,7 @@
   min-width: 16px;
   border-radius: 8px;
   background: var(--dsw-alias-fill-l2);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: normal;
   text-align: center;
 }
 

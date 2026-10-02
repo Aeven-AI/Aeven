@@ -3,6 +3,7 @@
    body reads through the compact Markdown variant under the title. */
 
 .root {
+  margin-bottom: 4px;
   display: flex;
   flex-direction: column;
 }
@@ -117,6 +118,8 @@
   to { opacity: 1; }
 }
 
+.row:hover .leading,
+.row:hover .chevron,
 .row:hover .title,
 .row:hover .summary {
   color: var(--dsw-alias-label-primary);
@@ -128,8 +131,7 @@
 }
 
 .thinkBody {
-  /* Indent under the title, which starts at leading (16 + delta) + gap 6. */
-  padding: 4px 0 4px calc(22px + var(--avn-content-font-delta, 0px));
+  padding: 4px 0;
   min-width: 0;
 }
 

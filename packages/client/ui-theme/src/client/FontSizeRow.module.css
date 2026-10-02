@@ -58,7 +58,7 @@
   text-align: center;
   font-size: 14px;
   line-height: 22px;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: normal;
   color: var(--dsw-alias-label-primary);
 }
 

@@ -105,7 +105,7 @@
 }
 
 .leading {
-  position: relative; /* .chevronHover overlay anchor */
+  position: relative;
   flex: none;
   width: calc(16px + var(--avn-content-font-delta, 0px));
   height: calc(16px + var(--avn-content-font-delta, 0px));
@@ -129,31 +129,27 @@
 }
 
 .chevron {
+  flex: none;
+  width: calc(14px + var(--avn-content-font-delta, 0px));
+  height: calc(14px + var(--avn-content-font-delta, 0px));
+  margin-left: 8px;
   color: var(--dsw-alias-label-caption);
-}
-
-/* Hover preview on the expandable row: the idle icon crossfades (100ms) into
-   a down chevron before the row is opened — same overlay as ToolRow. */
-.iconIdle {
-  display: inline-flex;
-  opacity: 1;
-  transition: opacity 100ms ease;
-}
-
-.chevronHover {
-  position: absolute;
-  inset: 0;
-  margin: auto;
   opacity: 0;
-  transition: opacity 100ms ease;
+  transition: opacity 100ms ease, transform 100ms ease;
 }
 
-.root:hover .iconIdle {
-  opacity: 0;
-}
-
-.root:hover .chevronHover {
+.root:hover .chevron,
+.root[aria-expanded='true'] .chevron {
   opacity: 1;
+}
+
+.root[aria-expanded='true'] .chevron {
+  transform: rotate(180deg);
+}
+
+.root:hover .leading,
+.root:hover .chevron {
+  color: var(--dsw-alias-label-primary);
 }
 
 .title {

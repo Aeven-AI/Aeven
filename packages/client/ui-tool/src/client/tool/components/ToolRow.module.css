@@ -110,6 +110,8 @@
 /* Hovering a row lifts its title and summary to the primary label colour,
    the cue that the whole row is the disclosure target. A notice summary
    keeps its secondary tone. */
+.row:hover .leading,
+.row:hover .chevron,
 .row:hover .title,
 .row:hover .summary:not(.noticeSummary),
 .row:hover .summarySuffix,

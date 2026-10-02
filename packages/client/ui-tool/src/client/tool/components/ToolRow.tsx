@@ -200,6 +200,7 @@ export function ToolRow({
         open={open}
         expandable={expandable}
         expandOnRowClick
+        trailingChevron
         keepContentWhenOpen
         onToggle={toggleExpand}
         collapsedContent={summaryText !== '' && (

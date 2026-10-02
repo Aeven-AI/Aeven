@@ -15,6 +15,8 @@ export interface DisclosureRowProps {
   expandOnRowClick?: boolean | undefined
   /** Replaces the collapsed icon with a chevron while the row is hovered. */
   previewChevron?: boolean | undefined
+  /** Keeps the leading icon visible and shows a trailing chevron on hover or expansion. */
+  trailingChevron?: boolean | undefined
   /** Keeps `collapsedContent` inline while open. */
   keepContentWhenOpen?: boolean | undefined
   collapsedContent?: ReactNode
@@ -43,6 +45,7 @@ export const DisclosureRow = memo(function DisclosureRow({
   expandOnRowClick = false,
   previewChevron = expandable,
   keepContentWhenOpen = false,
+  trailingChevron = true,
   collapsedContent,
   children,
   className,
@@ -70,7 +73,7 @@ export const DisclosureRow = memo(function DisclosureRow({
       </>
     )
     : icon
-  const leading = open
+  const leading = trailingChevron ? icon : open
     ? <IconChevronUpOutline14 className={chevronClassName} />
     : collapsedLeading
 
@@ -79,6 +82,7 @@ export const DisclosureRow = memo(function DisclosureRow({
       <div
         className={clsx(css.row, rowClassName)}
         data-disclosure-row
+        data-trailing-chevron={trailingChevron && expandable || undefined}
         data-expandable={rowExpands || undefined}
         role={rowExpands ? 'button' : undefined}
         tabIndex={rowExpands ? 0 : undefined}
@@ -102,6 +106,9 @@ export const DisclosureRow = memo(function DisclosureRow({
         )}
         <TextShimmer className={clsx(css.title, titleClassName)} active={running}>{title}</TextShimmer>
         {(keepContentWhenOpen || !open) && collapsedContent}
+        {trailingChevron && expandable && (open
+          ? <IconChevronUpOutline14 className={clsx(css.trailingChevron, chevronClassName)} />
+          : <IconChevronDownOutline14 className={clsx(css.trailingChevron, chevronClassName)} />)}
       </div>
       {open && children}
     </div>

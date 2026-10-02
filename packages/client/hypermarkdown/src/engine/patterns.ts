@@ -85,6 +85,8 @@ export const patterns = {
   mathLooksLeftRegex: /[\\](?:left|bigl|Bigl|biggl|Biggl)\s*$/,
   mathLooksRightRegex: /^\s*[\\](?:right|bigr|Bigr|biggr|Biggr)/,
   mathSpaceRegex: /\s/,
+  /** A single digit, read after a closing dollar to tell a price from maths. */
+  digitRegex: /\d/,
   /**
    * Where a withheld formula will appear. A Private Use Area code point, so it
    * travels as ordinary text through every HTML mode and cannot collide with

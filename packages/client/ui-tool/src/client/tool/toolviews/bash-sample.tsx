@@ -76,16 +76,7 @@ export function BashRow({ toolName, block, sessionId, useSessions, inspect, t }:
     event.preventDefault()
     toggleExpand()
   }
-  const leading = open
-    ? <IconChevronDownOutline14 className={css.chevron} />
-    : expandable
-      ? (
-        <>
-          <span className={css.iconIdle}>{leadingFor(state)}</span>
-          <IconChevronDownOutline14 className={clsx(css.chevron, css.chevronHover)} />
-        </>
-      )
-      : leadingFor(state)
+  const leading = leadingFor(state)
   return (
     <div className={css.card}>
       <div
@@ -107,6 +98,7 @@ export function BashRow({ toolName, block, sessionId, useSessions, inspect, t }:
         <span className={css.summary}>
           {failureLine ?? terminal?.description ?? model.summary}
         </span>
+        {expandable && <IconChevronDownOutline14 className={css.chevron} />}
       </div>
       {open && (
         <div className={css.bodyWrap}>

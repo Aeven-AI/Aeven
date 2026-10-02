@@ -216,7 +216,7 @@
 .unavailable {
   padding: 16px;
   color: var(--dsw-alias-label-tertiary);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 /* The empty column: one row per kind, starting at the top of the panel on the

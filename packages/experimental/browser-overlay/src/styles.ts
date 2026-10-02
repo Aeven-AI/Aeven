@@ -107,7 +107,7 @@ ${root} {
   /* NOT contain: strict — paint containment would anchor fixed descendants here. */
   contain: layout style;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.25;
   color: rgb(15, 23, 42);
 }

@@ -156,6 +156,7 @@ export const ReasoningRow = memo(function ReasoningRow({ text, running, mentions
         open={expanded}
         expandable
         expandOnRowClick
+        trailingChevron
         running={running}
         onToggle={toggle}
         collapsedContent={collapsedContent}

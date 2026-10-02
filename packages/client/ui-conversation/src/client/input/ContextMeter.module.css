@@ -65,7 +65,7 @@
 .figures {
   margin-left: auto;
   font-weight: 400;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: normal;
   color: var(--dsw-alias-label-primary);
 }
 
@@ -143,6 +143,6 @@
 
 .row dd {
   margin: 0;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: normal;
   color: var(--dsw-alias-label-primary);
 }

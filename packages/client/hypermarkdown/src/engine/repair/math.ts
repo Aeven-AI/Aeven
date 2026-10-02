@@ -116,7 +116,9 @@ export function findOpenMath(chunk: string): number {
 
       next = chunk.charAt(i + 1)
 
-      // remark-math never opens on "$ " — leave prose dollars alone.
+      // convertMath escapes a dollar that whitespace follows, so the parser
+      // never opens maths on one: skipping it withholds nothing the settled
+      // render would show as a formula.
       if (next !== '' && patterns.mathSpaceRegex.test(next)) {
         i++
         continue

@@ -30,7 +30,7 @@
 }
 
 .trigger:hover,
-.trigger[aria-expanded='true'] {
+.trigger[aria-expanded="true"] {
   color: var(--dsw-alias-label-primary);
 }
 
@@ -215,7 +215,6 @@
   white-space: nowrap;
 }
 
-
 /* How a settled job ended, right after its name. */
 .status {
   flex: 0 0 auto;
@@ -231,7 +230,7 @@
 .duration {
   flex: 0 0 auto;
   color: var(--dsw-alias-label-tertiary);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: normal;
   white-space: nowrap;
 }
 
@@ -337,7 +336,7 @@
   color: var(--dsw-alias-label-primary);
   font-size: 14px;
   line-height: 22px;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: normal;
   overflow-wrap: anywhere;
 }
 

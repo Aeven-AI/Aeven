@@ -111,7 +111,9 @@
    with no transition. Only the discrete moves — a double-click and a return to
    fit — carry this attribute and ease into place. */
 .image[data-settling] {
-  transition: opacity 0.4s linear, transform 180ms ease-out;
+  transition:
+    opacity 0.4s linear,
+    transform 180ms ease-out;
 }
 
 .button {
@@ -172,7 +174,9 @@
    (`--dsw-aeven-window-controls-gutter`). A browser page has no lights and keeps
    the plain inset above. */
 :global(html[data-avn-desktop]) .infoCorner {
-  left: calc(var(--dsw-aeven-window-controls-gutter) + var(--dsw-aeven-page-inset));
+  left: calc(
+    var(--dsw-aeven-window-controls-gutter) + var(--dsw-aeven-page-inset)
+  );
 }
 
 .actions {
@@ -202,7 +206,7 @@
     inset 0 0 1px 1px var(--avn-lightbox-info-ring),
     0 2px 20px rgba(0, 0, 0, 0.1);
   color: var(--avn-lightbox-info-fg);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
   line-height: normal;
 }

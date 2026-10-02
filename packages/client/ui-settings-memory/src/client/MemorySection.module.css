@@ -33,11 +33,11 @@
 }
 
 .tab:hover,
-.tab[data-active='true'] {
+.tab[data-active="true"] {
   color: var(--dsw-alias-label-primary);
 }
 
-.tab[data-active='true']::after,
+.tab[data-active="true"]::after,
 .tab:focus-visible::after {
   position: absolute;
   right: 0;
@@ -46,7 +46,7 @@
   height: 2px;
   border-radius: 2px 2px 0 0;
   background: var(--dsw-alias-label-primary);
-  content: '';
+  content: "";
 }
 
 /* The ring is the quiet one the sibling settings section draws
@@ -179,7 +179,9 @@
   border: 0.5px solid var(--dsw-alias-border-l4);
   border-radius: 16px;
   background: var(--dsw-alias-bg-layer-3);
-  transition: border-color 0.16s, background 0.16s;
+  transition:
+    border-color 0.16s,
+    background 0.16s;
 }
 
 .card:hover {
@@ -431,7 +433,7 @@
   justify-content: space-between;
   gap: 12px;
   color: var(--dsw-alias-label-tertiary);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: normal;
 }
 
 /* A statement row is a foldout card in its collapsed form: the same card chrome
@@ -520,7 +522,7 @@
 .composerHint {
   margin-right: auto;
   color: var(--dsw-alias-label-dimmed);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: normal;
 }
 
 .factsEmpty {

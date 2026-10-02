@@ -33,6 +33,8 @@ kind: "package-library"
 
 `Button`、`Pill`、`Input`、`Menu`、`Modal`、`Tooltip`、`DisclosureRow`、`StateDot`、`HoverCard`、`Toast`、`ConnectionIndicator`、`RiskConfirmation` 与首次运行接管层 `OnboardingSurface` 覆盖常见的交互形态。`SectionHeader` 是每个设置分区开头共用的标题与说明块，使来自不同包的分区使用同一种标题样式。`ic_ds_*` 图标集与 `AevenMark`/`BrandWordmark` 标记填充品牌与行内图标 slot。`ConnectionIndicator` 可渲染警告色的断联操作、以独立于 retry 时序的 500ms 节奏推进一至三个点的连接中状态，或成功色的恢复状态。所有状态都为最长的输入 label 预留空间，并使用固定的图标列和文字列，因此文案变化不会移动控件或改变其宽度。它的 owner 提供可见性、恢复驻留时间、本地化 label 与立即重连回调；该原语不使用原生 title tooltip。`useAnchoredPosition` 与 `useAnchoredMaxHeight` 让浮动面板与底部锚定浮层始终钳制在视口内并跟随锚点。`HoverCard` 通过指针离开宽限期让采用 portal 的预览在跨过锚点间隙时仍可触及，并可通过 `copyText` prop 提供复制按钮。 `Toast` 的停留时长由使用方通过 `holdMs` 指定，因为横幅该留多久取决于有多少内容要读；同一个值同时驱动它的卸载定时器与样式表的淡出延迟，两者不可能再错位。 `rankByName` 是 `/` 菜单命令源与 skill 源共享的候选排序器：查询必须是名字的不区分大小写的有序子序列；前缀命中排最前，其次按对齐分数，再按来源顺序（[排名决策](../../../.agents/notes/implemented/feature/2026-08-04-web-slash-command-fuzzy-discovery.zh.md)）。
 
+`DisclosureRow` 默认启用 `trailingChevron`：左侧图标始终可见，右侧箭头仅在悬停或展开时显示。
+
 ### 渲染 agent 输出
 
 `MarkdownText` 通过 [HyperMarkdown](../hypermarkdown/README.zh.md) 引擎渲染不可信的 GFM 与 TeX 公式，阻止不安全的链接与图片协议，并可把已解析的文件提及转换为显式控件。原始 HTML 从不被解析，因此作者写下的标记以字符而非元素抵达读者，而 ```` ```mermaid ```` fence 渲染为固定在 Mermaid strict 安全级别的图表。回复流式输出时，组件只把新追加的文本写入引擎的 store，该 store 按代码行、表格行与列表项缓存；定稿调用引擎的流式定稿操作，其外部 store hook 会发布并保留最终带动画的渲染。`TerminalBlock`、`ReadBlock`、`DiffBlock`、`SearchBlock` 与 `WebBlock` 把对应的工具结果意图渲染为带复制控件、溢出处理及适用时 ANSI 处理的卡片。`JsonTree` 与 `JsonBlock` 以只读方式检查 JSON 值；`projectUserText` 把已发送的用户文本投影为行内普通文本段与引用 chip，供消息气泡和排队行使用。

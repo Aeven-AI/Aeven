@@ -84,7 +84,7 @@ body {
   --dsw-font-markdown-h1: 700 calc(21px + var(--avn-content-font-delta)) /
     calc(30px + var(--avn-content-font-delta)) var(--dsw-font-family);
   --dsw-font-markdown-h1-font-family: var(--dsw-font-family);
-  --dsw-font-markdown-h1-font-weight: 700;
+  --dsw-font-markdown-h1-font-weight: 500;
   --dsw-font-markdown-h1-line-height: calc(
     30px + var(--avn-content-font-delta)
   );
@@ -94,7 +94,7 @@ body {
   --dsw-font-markdown-h2: 700 calc(19px + var(--avn-content-font-delta)) /
     calc(28px + var(--avn-content-font-delta)) var(--dsw-font-family);
   --dsw-font-markdown-h2-font-family: var(--dsw-font-family);
-  --dsw-font-markdown-h2-font-weight: 700;
+  --dsw-font-markdown-h2-font-weight: 500;
   --dsw-font-markdown-h2-line-height: calc(
     28px + var(--avn-content-font-delta)
   );
@@ -104,7 +104,7 @@ body {
   --dsw-font-markdown-h3: 700 calc(18px + var(--avn-content-font-delta)) /
     calc(26px + var(--avn-content-font-delta)) var(--dsw-font-family);
   --dsw-font-markdown-h3-font-family: var(--dsw-font-family);
-  --dsw-font-markdown-h3-font-weight: 700;
+  --dsw-font-markdown-h3-font-weight: 500;
   --dsw-font-markdown-h3-line-height: calc(
     26px + var(--avn-content-font-delta)
   );

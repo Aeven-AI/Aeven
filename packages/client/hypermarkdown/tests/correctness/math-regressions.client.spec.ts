@@ -46,6 +46,43 @@ describe('Markstream-derived math correctness', () => {
     ])
   })
 
+  it('keeps two currency amounts on one prose line out of maths', () => {
+    const source =
+      '1. **LED Halloween silhouette wall lights** — 13.4s video → $68k GMV; another article: bat light 14 days 14.8k units/$270k.'
+    const document = parseMarkup(renderStatic(source, options))
+
+    expect(document.querySelector('.katex')).toBeNull()
+    expect(document.body.textContent).toContain('$68k GMV')
+    expect(document.body.textContent).toContain('units/$270k')
+  })
+
+  it('keeps a table cell holding two amounts out of maths', () => {
+    const source =
+      '| Product | Proof |\n| --- | --- |\n| Bat lights | 14 days → $271,500 GMV; second video 245K views → $8,385 |'
+    const document = parseMarkup(renderStatic(source, options))
+
+    expect(document.querySelector('.katex')).toBeNull()
+    expect(document.body.textContent).toContain('$271,500 GMV')
+    expect(document.body.textContent).toContain('$8,385')
+  })
+
+  it('keeps a stray prose dollar from swallowing a following code span', () => {
+    const source =
+      'It claimed "never opens on \'$ \'" and then wrote `a $ 5$ b` as the proof.'
+    const document = parseMarkup(renderStatic(source, options))
+
+    expect(document.querySelector('.katex')).toBeNull()
+    expect(document.querySelector('code')?.textContent).toBe('a $ 5$ b')
+    expect(document.body.textContent).toContain("never opens on '$ '")
+  })
+
+  it('keeps a closing dollar that a space follows closing its formula', () => {
+    const document = parseMarkup(renderStatic('$x$ and $y$ here', options))
+
+    expect(document.querySelectorAll('.katex')).toHaveLength(2)
+    expect(document.querySelector('.katex-error')).toBeNull()
+  })
+
   it('protects dollar and parenthesis notation inside inline code', () => {
     const document = parseMarkup(renderStatic('`$...$`, `\\(...\\)`', options))
     const codes = Array.from(document.querySelectorAll('code'))

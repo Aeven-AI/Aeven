@@ -176,10 +176,12 @@
   pointer-events: none;
   transform: scaleX(1);
   transform-origin: left;
-  transition: transform 150ms ease-out, opacity 150ms ease-out 220ms;
+  transition:
+    transform 150ms ease-out,
+    opacity 150ms ease-out 220ms;
 }
 
-.progress[data-loading='true'] {
+.progress[data-loading="true"] {
   opacity: 1;
   animation: progress 5.3s cubic-bezier(0.1, 0.5, 0.2, 1) forwards;
 }
@@ -197,7 +199,7 @@
 @media (prefers-reduced-motion: reduce) {
   .spin,
   .progress,
-  .progress[data-loading='true'] {
+  .progress[data-loading="true"] {
     animation: none;
     transition: none;
   }
@@ -271,7 +273,7 @@
   min-width: 48px;
   color: var(--dsw-alias-label-secondary);
   font-size: 12px;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: normal;
   text-align: center;
 }
 

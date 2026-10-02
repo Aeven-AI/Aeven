@@ -25,7 +25,7 @@
 }
 
 .headline {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 400;
   line-height: 24px;
 }
@@ -37,13 +37,13 @@
 
 .explain {
   color: var(--dsw-alias-label-tertiary);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 18px;
 }
 
 .notice {
   color: var(--dsw-alias-state-warn-primary);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 18px;
 }
 

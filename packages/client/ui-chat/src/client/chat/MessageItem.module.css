@@ -285,7 +285,8 @@
 
 /* Same glyph-scaling rule as DisclosureRow's leading: the CSS edge overrides
    the svg attributes so the 14px glyphs follow the font-size delta. */
-.compactionLeading svg {
+.compactionLeading svg,
+.compactionDisclosureIcon svg {
   width: calc(14px + var(--avn-content-font-delta, 0px));
   height: calc(14px + var(--avn-content-font-delta, 0px));
 }
@@ -299,16 +300,13 @@
 }
 
 .compactionDisclosureIcon {
-  opacity: 0;
-}
-
-.compactionButton:not(:disabled):hover .compactionContextIcon,
-.compactionButton:not(:disabled):focus-visible .compactionContextIcon {
+  flex: none;
+  margin-left: 8px;
   opacity: 0;
 }
 
 .compactionButton:not(:disabled):hover .compactionDisclosureIcon,
-.compactionButton:not(:disabled):focus-visible .compactionDisclosureIcon {
+.compactionButton[aria-expanded='true'] .compactionDisclosureIcon {
   opacity: 1;
 }
 
