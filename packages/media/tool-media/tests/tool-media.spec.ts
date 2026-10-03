@@ -450,12 +450,13 @@ describe('asking exactly once', () => {
   })
 })
 
-describe('the /image-models command', () => {
-  const invocation = { agent: undefined, signal } as never
+describe('the /image-model command', () => {
+  const bare = { agent: undefined, signal, rawInput: '' } as never
+  const argued = (input: string) => ({ agent: undefined, signal, rawInput: ` ${input}` } as never)
 
   it('is registered so a stored choice stays changeable', async () => {
     const { commands } = await mount({ config: { model: 'm', provider: 'stub', choices: CHOICES } })
-    expect(commands.map(c => c.name)).toEqual(['image-models'])
+    expect(commands.map(c => c.name)).toEqual(['image-model'])
   })
 
   it('re-opens the picker even though a choice is already stored, and persists the new one', async () => {
@@ -464,7 +465,7 @@ describe('the /image-models command', () => {
       answer: 'stub/flux.2-pro',
       settings: true,
     })
-    const result = await commands[0]!.handler(invocation)
+    const result = await commands[0]!.handler(bare)
     expect(asked).toHaveLength(1)
     expect(installed[0]!.patches).toEqual([{ provider: 'stub', model: 'flux.2-pro', modelChosen: true }])
     expect(result).toEqual({ kind: 'success', text: 'Image model set to flux.2-pro.' })
@@ -476,13 +477,72 @@ describe('the /image-models command', () => {
       answer: null,
       settings: true,
     })
-    expect(await commands[0]!.handler(invocation))
+    expect(await commands[0]!.handler(bare))
       .toEqual({ kind: 'success', text: 'Image model unchanged: flux-pro.' })
   })
 
   it('reports an error where nothing can be chosen', async () => {
     const { commands } = await mount({ config: { choices: [] } })
-    expect(await commands[0]!.handler(invocation)).toMatchObject({ kind: 'error' })
+    expect(await commands[0]!.handler(bare)).toMatchObject({ kind: 'error' })
+  })
+
+  it('stores the model an argued line names, without asking', async () => {
+    const { commands, asked, installed } = await mount({
+      config: { model: 'flux-pro', provider: 'stub', choices: CHOICES, confirmModel: true },
+      settings: true,
+    })
+    expect(await commands[0]!.handler(argued('stub/flux.2-pro')))
+      .toEqual({ kind: 'success', text: 'Image model set to flux.2-pro.' })
+    expect(asked).toEqual([])
+    expect(installed[0]!.patches).toEqual([{ provider: 'stub', model: 'flux.2-pro', modelChosen: true }])
+  })
+
+  it('accepts a bare model id that exactly one offered choice carries', async () => {
+    const { commands, installed } = await mount({
+      config: { model: 'flux-pro', provider: 'stub', choices: CHOICES, confirmModel: true },
+      settings: true,
+    })
+    expect(await commands[0]!.handler(argued('flux.2-pro')))
+      .toEqual({ kind: 'success', text: 'Image model set to flux.2-pro.' })
+    expect(installed[0]!.patches).toEqual([{ provider: 'stub', model: 'flux.2-pro', modelChosen: true }])
+  })
+
+  it('reaches a listed provider’s live model by the pair a picker row carries', async () => {
+    const { commands, installed } = await mount({
+      config: { model: 'flux-pro', provider: 'stub', choices: CHOICES, listedProviders: ['stub'], confirmModel: false },
+      settings: true,
+    })
+    expect(await commands[0]!.handler(argued('stub/live-model')))
+      .toEqual({ kind: 'success', text: 'Image model set to live-model.' })
+    expect(installed[0]!.patches).toEqual([{ provider: 'stub', model: 'live-model', modelChosen: true }])
+  })
+
+  it('refuses a name no offered choice carries, and stores nothing', async () => {
+    const { commands, installed } = await mount({
+      config: { model: 'flux-pro', provider: 'stub', choices: CHOICES },
+      settings: true,
+    })
+    expect(await commands[0]!.handler(argued('dall-e'))).toEqual({
+      kind: 'error',
+      text: '"dall-e" is not an available image model; use one of stub/flux-pro, stub/flux.2-pro',
+    })
+    expect(installed[0]!.patches).toEqual([])
+  })
+
+  it('refuses a bare model id two providers serve, naming the pair that resolves it', async () => {
+    const twice = [{ provider: 'stub', model: 'shared' }, { provider: 'other', model: 'shared' }]
+    const { commands, installed } = await mount({
+      config: { choices: twice, provider: 'stub', model: 'shared' },
+      settings: true,
+    })
+    expect(await commands[0]!.handler(argued('shared'))).toEqual({
+      kind: 'error',
+      text: '"shared" is served by more than one provider; name one as stub/shared or other/shared',
+    })
+    expect(installed[0]!.patches).toEqual([])
+    expect(await commands[0]!.handler(argued('other/shared')))
+      .toEqual({ kind: 'success', text: 'Image model set to shared.' })
+    expect(installed[0]!.patches).toEqual([{ provider: 'other', model: 'shared', modelChosen: true }])
   })
 })
 

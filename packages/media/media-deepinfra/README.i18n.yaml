@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/media/media-deepinfra/README.md
-README.md: b1727e7add7e7d607ada79cb0cdd318e622a7147
-README.zh.md: ff2aff17c90d1313f91fc6cd41139695242d5726
+README.md: 45bd2ff27f39adff36681f02a8d98f8dd7c899f8
+README.zh.md: cd9675e539af1e5dff2cecfd6159f0fc52d20d7d

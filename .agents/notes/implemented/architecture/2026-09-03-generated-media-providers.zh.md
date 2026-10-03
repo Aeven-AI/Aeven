@@ -12,13 +12,15 @@ Status: implemented
 
 **三个 provider 包，按传输层而非按厂商切分。** `avn-media-pi-ai` 注册 pi-ai 的 images 注册表，从而无需手写客户端即可带来 OpenRouter 的图片目录。`avn-media-openrouter` 与 `avn-media-deepinfra` 直接对接视频 API，而 DeepInfra 还自带图片，因为它的 OpenAI 兼容路由与 pi-ai 的 chat-modality 路径是不同的传输层。这种切分保持每个协议一个包；由两种协议提供服务的厂商会出现在两个包中，OpenRouter 今天正是如此。
 
-**每个 provider 都通过自身的内容路由取回字节。** 绝不使用任务体携带的 URL。DeepInfra 的任务体指向 `api.pruna.ai`——实际服务该模型的上游——因此针对这些主机的出口白名单是无界的。两家 provider 都自行代理字节，这让各自的出口保持在一个可固定的 origin 上，也正是 `fetchVideo` 存在于 seam 上、而非由调用方读取 `job.data[].url` 的原因。
+**每个视频 provider 都通过自身的内容路由取回字节。** 绝不使用任务体携带的 URL。DeepInfra 的任务体指向 `api.pruna.ai`——实际服务该模型的上游——因此针对这些主机的出口白名单是无界的。两家 provider 都自行代理字节，这让各自的出口保持在一个可固定的 origin 上，也正是 `fetchVideo` 存在于 seam 上、而非由调用方读取 `job.data[].url` 的原因。
 
 **片段被两次限制大小：针对声明的 `Content-Length`，以及针对实际收到的字节。** provider 可能少报，起作用的是第二道检查。
 
 **provider 的状态词汇来自观察而非文档。** OpenRouter 枚举了自身状态，因此它的表就是文档化的集合。DeepInfra 一个也没枚举——其 OpenAPI 规范把 `status` 标为裸字符串——因此它的表记录的是三个实际任务产生的结果，`queued` 映射为 `running`，因为任务在该状态下渲染完整个生命周期；无法识别的值继续轮询，明确的 `error` 字段是唯一可信的失败信号。
 
 **图片按其字节标注类型。** DeepInfra 的 `response_format` 命名的是编码而非图片格式，并且它会以 JPEG 回应一个默认 PNG 的请求。provider 嗅探每张解码图片的签名，对无法识别的签名保留 `application/octet-stream` 而不是猜测。
+
+原生 Seedream 图片使用 [Seedream 原生图片能力](../feature/2026-10-02-seedream-native-capabilities.zh.md) 中描述的不带凭据、受大小限制的 CDN 下载。
 
 ## 影响
 

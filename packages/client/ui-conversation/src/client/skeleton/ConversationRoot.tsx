@@ -426,7 +426,6 @@ export function ConversationRoot({
         <header className={css.header} data-nav-fold={toggleSidebar !== undefined || undefined}>
           <div className={css.navBackground} aria-hidden="true">
             <div className={css.navFade} />
-            <div className={css.navBlur} />
           </div>
           {toggleSidebar === undefined ? null : (
             <NavFold

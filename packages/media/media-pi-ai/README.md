@@ -34,6 +34,8 @@ Mount the provider in a composition that already loads `avn-media`; it registers
 
 The seam's prompt becomes pi-ai's leading text content, and each reference image follows it as inline base64 in the order given, which is what the image-to-image models read as their references. The model id passes through verbatim: this provider validates only that pi-ai's catalog knows it, and rejects an unknown id before spending a call.
 
+Image providers in this package refuse `guidanceScale`, `outputFormat` and `optimizePromptMode`; these native Seedream controls are served by the Aeven and DeepInfra providers.
+
 -----
 
 <a id="understand-the-implementation"></a>

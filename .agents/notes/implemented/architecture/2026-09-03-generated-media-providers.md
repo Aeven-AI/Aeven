@@ -12,13 +12,15 @@ The [media seam](2026-09-03-generated-media-capability-seam.md) shipped with no 
 
 **Three provider packages, split by transport rather than by vendor.** `avn-media-pi-ai` registers pi-ai's images registry, which brings OpenRouter's image catalog with no hand-written client. `avn-media-openrouter` and `avn-media-deepinfra` speak the video APIs directly, and DeepInfra also carries its own images because its OpenAI-compatible route is a different transport from pi-ai's chat-modality path. The split keeps one package per protocol; a vendor served by two protocols appears in two packages, which is what OpenRouter does today.
 
-**Every provider retrieves bytes through its own content route.** Never a URL a job body carries. DeepInfra's job body named `api.pruna.ai` — whichever upstream actually served the model — so an egress allowlist over those hosts is unbounded. Both providers proxy the bytes themselves, which keeps egress at one pinnable origin each and is why `fetchVideo` exists on the seam rather than callers reading `job.data[].url`.
+**Every video provider retrieves bytes through its own content route.** Never a URL a job body carries. DeepInfra's job body named `api.pruna.ai` — whichever upstream actually served the model — so an egress allowlist over those hosts is unbounded. Both providers proxy the bytes themselves, which keeps egress at one pinnable origin each and is why `fetchVideo` exists on the seam rather than callers reading `job.data[].url`.
 
 **A clip is size-capped twice: on the declared `Content-Length` and again on the received bytes.** A provider may under-declare, and the second check is the one that holds.
 
 **Provider status vocabularies are recorded from observation, not from documentation.** OpenRouter enumerates its states, so its table is the documented set. DeepInfra enumerates none — its OpenAPI specification types `status` as a bare string — so its table records what three live jobs actually produced, `queued` maps to `running` because a job renders for its whole life in that state, an unrecognized value keeps polling, and the explicit `error` field is the only trustworthy failure signal.
 
 **Images are labelled by their bytes.** DeepInfra's `response_format` names the encoding, not the image format, and it answers a PNG-defaulted request with JPEG. The provider sniffs each decoded image's signature and leaves an unrecognized one as `application/octet-stream` rather than guessing.
+
+Native Seedream images use the credential-free, bounded CDN download described in [Seedream native image capabilities](../feature/2026-10-02-seedream-native-capabilities.md).
 
 ## Consequences
 

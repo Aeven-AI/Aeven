@@ -2,7 +2,7 @@
 
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { errorChain } from '@aeven/llm'
+import { createUserMessage, errorChain } from '@aeven/llm'
 import { resolve } from 'node:path'
 import {
   canOpenNativePath, nativeFileApplications, openNativeFileApplication, openNativePath, revealNativePath,
@@ -156,6 +156,24 @@ export class SessionController extends TypertRemoteService {
     ctx.inject(['connection'], (readCtx) => {
       registerFileReadRoute(readCtx, (sessionId, attachmentId) => this.commands.referencedFile(sessionId, attachmentId))
     })
+
+    ctx.on('agent/pre-step', async ({ step, signal }, next) => {
+      const decision = await next()
+      if (decision.kind === 'reject' || signal.aborted || step !== 1) return decision
+      const source = decision.messages.findLast(message =>
+        message.source.kind === 'user' && 'clientDisplayName' in message.source)?.source
+      if (source === undefined || !('clientDisplayName' in source) || source.clientDisplayName === undefined) return decision
+      const text = `<user_profile>
+The user's account display name is ${JSON.stringify(source.clientDisplayName)}.
+</user_profile>`
+      return {
+        ...decision,
+        messages: [...decision.messages, createUserMessage({
+          content: [{ type: 'text', text }],
+          source: { kind: 'plugin', plugin: 'api-session-controller', form: 'snapshot', sections: [{ name: 'user-profile', text }] },
+        })],
+      }
+    }, { prepend: true })
 
     ctx.on('session/created', (session) => {
       ctx.emit('api-session/added', this.listState.summaryFor(session))

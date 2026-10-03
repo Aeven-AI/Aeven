@@ -173,8 +173,11 @@ export function ImageLightbox({ images, index: startIndex, labels, onClose }: {
   useEffect(() => {
     const gallery = galleryRef.current
     if (gallery === null) return
-    // The transform is drawn on the selected image, and `offsetWidth` is its
-    // unscaled box, so the clamp keeps the frame inside the stage's bounds.
+    // The transform is drawn on the selected image. Its box is the whole stage,
+    // and `object-fit: contain` letterboxes the picture inside that box, so the
+    // clamp below measures the drawn picture rather than the box: measuring the
+    // box would let a drag push the picture out of the stage, because the
+    // letterbox travels with it.
     const paint = (settle: boolean): void => {
       const image = gallery.querySelector<HTMLImageElement>('[data-selected] img')
       if (image === null) return
@@ -190,13 +193,22 @@ export function ImageLightbox({ images, index: startIndex, labels, onClose }: {
         ? ''
         : `translate(${String(x)}px, ${String(y)}px) scale(${String(scale)})`
     }
+    /** The picture `object-fit: contain` draws inside the stage-sized box. */
+    const drawnSize = (image: HTMLImageElement, box: DOMRect): { readonly width: number; readonly height: number } => {
+      const ratio = image.naturalWidth / image.naturalHeight
+      if (!Number.isFinite(ratio) || ratio <= 0) return { width: box.width, height: box.height }
+      return box.width / box.height > ratio
+        ? { width: box.height * ratio, height: box.height }
+        : { width: box.width, height: box.width / ratio }
+    }
     const clamp = (): void => {
       const image = gallery.querySelector<HTMLImageElement>('[data-selected] img')
       const box = gallery.getBoundingClientRect()
       if (image === null) return
       const { scale } = view.current
-      const maxX = Math.max(0, (image.offsetWidth * scale - box.width) / 2)
-      const maxY = Math.max(0, (image.offsetHeight * scale - box.height) / 2)
+      const drawn = drawnSize(image, box)
+      const maxX = Math.max(0, (drawn.width * scale - box.width) / 2)
+      const maxY = Math.max(0, (drawn.height * scale - box.height) / 2)
       view.current.x = Math.min(maxX, Math.max(-maxX, view.current.x))
       view.current.y = Math.min(maxY, Math.max(-maxY, view.current.y))
     }

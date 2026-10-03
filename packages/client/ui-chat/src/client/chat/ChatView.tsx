@@ -7,6 +7,8 @@ import type { RenderMessageImages } from '@aeven/client-ui-conversation/client'
 import { Button, IconChevronDownOutline14, Modal, Spinner, TextAnimationContext } from '@aeven/client-ui-primitives'
 import type { ChatViewSlotProps } from '../contract/slots.ts'
 import type { ChatSnapshot } from '../contract/snapshot.ts'
+import type { ChatNode } from '../contract/chat-nodes.ts'
+import { turnImagesOf } from '../contract/turn-images.ts'
 import { PendingSteeringBubble, PendingSubmissionBubble, QueuedMessageBubble } from './MessageItem.tsx'
 import { latestTranscriptSend, TurnPendingRow } from './TurnProcessNodeView.tsx'
 import { ChatNodeSeat } from './ChatNodeSeat.tsx'
@@ -295,9 +297,20 @@ export function ChatView({
     () => visibleSubmissions.filter(submission => submission.placement === 'queued'),
     [visibleSubmissions],
   )
+  // Gallery scope: every image the Turn shows, so a preview opened on any one
+  // of them walks the whole Turn. Derived from the node list, never from the
+  // group a record happens to render.
+  const turnImages = useMemo(() => {
+    const nodes = order.flatMap(key => {
+      const node = nodeStore.get(key)
+      return node === undefined ? [] : [node as ChatNode]
+    })
+    return turnImagesOf(nodes)
+  }, [order, nodeStore])
   const renderMessageImages = useCallback<RenderMessageImages>(
-    owner => renderSlot('conversation.message.images', {
+    ({ turn, ...owner }) => renderSlot('conversation.message.images', {
       ...owner,
+      ...(turn === undefined ? {} : { turnImages: turnImages.get(turn) }),
       loadImage,
       fileUrl: (file) => {
         const url = new URL('api/attachment-file', document.baseURI)
@@ -306,7 +319,7 @@ export function ChatView({
         return url.href
       },
     }),
-    [loadImage, renderSlot, sessionId],
+    [loadImage, renderSlot, sessionId, turnImages],
   )
 
   const listRef = useRef<HTMLDivElement | null>(null)

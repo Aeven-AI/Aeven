@@ -38,14 +38,17 @@ import {
   GROK_BUILD_IMAGINE_IMAGE_MODEL,
   GROK_BUILD_IMAGINE_ORIGIN,
   GROK_IMAGINE_IMAGE_MODEL,
+  GROK_IMAGINE_IMAGE_EDIT_PATH,
   GROK_IMAGINE_IMAGE_PATH,
   GROK_IMAGINE_VIDEO_MODEL,
   GROK_IMAGINE_VIDEO_START_PATH,
   type GrokImagineClientOptions,
   GrokImagineError,
   IMAGE_ASPECT_SET,
+  IMAGE_QUALITY_SET,
   IMAGE_RESOLUTION_SET,
   IMAGINE_API_ORIGINS,
+  IMAGINE_IMAGE_IDS_MAX,
   IMAGINE_IMAGE_MAX_N,
   IMAGINE_PROMPT_MAX_LENGTH,
   IMAGINE_VIDEO_MAX_DURATION_SECONDS,
@@ -61,6 +64,7 @@ import {
   type ImagineImageDownloadView,
   type ImagineImageMediaType,
   type ImagineImageResult,
+  type ImagineImageSource,
   type ImagineMediaHop,
   type ImagineMediaHopRequest,
   type ImagineMediaTransport,
@@ -678,6 +682,19 @@ function optionalEnum(value: string | undefined, allowed: ReadonlySet<string>, l
   return value
 }
 
+/**
+ * One edit source image as the data URI the Imagine edit route accepts.
+ *
+ * A source must be a public URL, a data URI, or a Files API id; session images
+ * reach this client as bytes, so a data URI is the form that keeps the request
+ * self-contained and off any public host.
+ * @param source - the stored bytes and their media type.
+ * @returns the `data:` URI carrying those bytes.
+ */
+function imagineImageDataUri(source: ImagineImageSource): string {
+  return `data:${source.mediaType};base64,${Buffer.from(source.data).toString('base64')}`
+}
+
 function optionalDuration(value: number | undefined): number | undefined {
   if (value === undefined) return undefined
   const min = IMAGINE_VIDEO_MIN_DURATION_SECONDS
@@ -865,6 +882,22 @@ export class GrokImagineClient {
       }
       const aspectRatio = optionalEnum(input.aspectRatio, IMAGE_ASPECT_SET, 'aspectRatio')
       const resolution = optionalEnum(input.resolution, IMAGE_RESOLUTION_SET, 'resolution')
+      const quality = optionalEnum(input.quality, IMAGE_QUALITY_SET, 'quality')
+      const sources = input.images ?? []
+      if (sources.length > IMAGINE_IMAGE_IDS_MAX) {
+        throw new GrokImagineError(
+          'INVALID_INPUT',
+          `an Imagine edit takes at most ${String(IMAGINE_IMAGE_IDS_MAX)} source images`,
+        )
+      }
+      if (sources.length === 1 && aspectRatio !== undefined) {
+        // The API derives a single-image edit's ratio from its input; it
+        // documents `aspect_ratio` for multi-reference edits only.
+        throw new GrokImagineError(
+          'INVALID_INPUT',
+          'a single-source Imagine edit takes no aspect_ratio; its ratio follows the source image',
+        )
+      }
       const body: Record<string, unknown> = {
         model,
         prompt,
@@ -876,7 +909,23 @@ export class GrokImagineClient {
       }
       if (aspectRatio !== undefined) body['aspect_ratio'] = aspectRatio
       if (resolution !== undefined) body['resolution'] = resolution
-      const payload = await this.apiJson('POST', GROK_IMAGINE_IMAGE_PATH, credential, body, external)
+      if (quality !== undefined) body['quality'] = quality
+      // One source image travels in `image`, several in `images` — the API
+      // makes the two mutually exclusive, and the prompt names them
+      // `<IMAGE_0>`, `<IMAGE_1>`, and so on in the order they are sent.
+      const [firstSource] = sources
+      if (firstSource !== undefined) {
+        const encoded = { url: imagineImageDataUri(firstSource), type: 'image_url' }
+        if (sources.length === 1) body['image'] = encoded
+        else body['images'] = sources.map(source => ({ url: imagineImageDataUri(source), type: 'image_url' }))
+      }
+      const payload = await this.apiJson(
+        'POST',
+        sources.length === 0 ? GROK_IMAGINE_IMAGE_PATH : GROK_IMAGINE_IMAGE_EDIT_PATH,
+        credential,
+        body,
+        external,
+      )
       const rows = Array.isArray(payload['data']) ? payload['data'] : undefined
       if (rows === undefined) {
         throw new GrokImagineError('UPSTREAM', 'Imagine image response did not include data')

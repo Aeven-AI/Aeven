@@ -9,8 +9,8 @@
     inset 1px 1px 0 0 var(--dsw-specific-popup-highlight),
     inset 0 0 1px 1px var(--dsw-specific-popup-highlight),
     var(--dsw-elevation-stroke);
-  /* How far each scroll area fades and blurs at its ends. Every scroll padding
-     below is at least its own end's band, so nothing fades or blurs at rest. */
+  /* How far each scroll area fades at its ends. Every scroll padding below is
+     at least its own end's band, so nothing fades at rest. */
   --files-fade-top: 20px;
   --files-fade-bottom: 40px;
   display: flex;
@@ -155,49 +155,13 @@
   outline: none;
 }
 
-/* Holds one scroll area and the blur over its two edges. The blur layers are
-   the frame's own, so they stay put while the content scrolls under them. */
+/* Holds one scroll area; the scroll area's own mask fades it out at each end. */
 .scrollFrame {
   position: relative;
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
   min-height: 0;
-}
-
-/* Blur over the faded edges: the conversation header's `.navBlur` recipe
-   (ui-conversation ConversationRoot.module.css), confined to each end's own
-   fade band so the blur reaches no row the padding is meant to keep clear.
-   Unprefixed only: the CSS pipeline adds the -webkit- form per its targets. */
-.scrollFrame::before,
-.scrollFrame::after {
-  content: "";
-  position: absolute;
-  right: 0;
-  left: 0;
-  z-index: 1;
-  backdrop-filter: blur(1px);
-  pointer-events: none;
-}
-
-.scrollFrame::before {
-  top: 0;
-  height: var(--files-fade-top);
-  mask-image: linear-gradient(
-    to bottom,
-    #000 0,
-    transparent var(--files-fade-top)
-  );
-}
-
-.scrollFrame::after {
-  bottom: 0;
-  height: var(--files-fade-bottom);
-  mask-image: linear-gradient(
-    to top,
-    #000 0,
-    transparent var(--files-fade-bottom)
-  );
 }
 
 /* Scroll areas scroll without drawing a bar, and fade their content out at

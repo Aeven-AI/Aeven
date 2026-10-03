@@ -268,13 +268,13 @@
 }
 
 /* The engine's own image element (loader and error states around it) takes
-   the same presentation; an openable image shows the enlarge cursor. */
+   the same presentation; an openable image shows the enlarge cursor. Corner
+   radius stays with the engine's own `img` rule, which owns it for every host. */
 .markdown :global(img.image) {
   display: block;
   width: auto;
   max-width: 100%;
   height: auto;
-  border-radius: 8px;
   background: var(--dsw-alias-bg-base);
   object-fit: contain;
 }

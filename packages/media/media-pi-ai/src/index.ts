@@ -120,6 +120,12 @@ export function apply(ctx: Context, config: Config): void {
     // resolved per call.
     available: () => process.env[apiKeyEnv] !== undefined || ctx.get('credentials') !== undefined,
     async generateImage(request: MediaImageRequest, signal?: AbortSignal): Promise<MediaImageResult> {
+      for (const [field, value] of [
+        ['guidanceScale', request.guidanceScale], ['outputFormat', request.outputFormat],
+        ['optimizePromptMode', request.optimizePromptMode],
+      ]) {
+        if (value !== undefined) throw new MediaError(`${String(field)} is not supported by ${request.provider ?? request.model}`, 'MEDIA_INVALID_REQUEST')
+      }
       const model = models.get(request.model)
       if (model === undefined) {
         throw new MediaError(

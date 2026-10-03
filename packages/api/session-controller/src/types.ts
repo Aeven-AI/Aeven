@@ -363,6 +363,8 @@ export interface SessionPromptRequest {
   /** At least one non-whitespace text part or attachment. */
   readonly content: readonly PromptContentPart[]
   readonly clientTimeZone?: string
+  /** Display name from the browser's restored account profile. */
+  readonly clientDisplayName?: string
 }
 
 /** Receipt after one prompt enters the target Agent inbox. */
@@ -380,6 +382,8 @@ export interface SessionEditRequest {
   /** Replacement text with at least one non-whitespace character; the prompt's attachments are kept. */
   readonly text: string
   readonly clientTimeZone?: string
+  /** Display name from the browser's restored account profile. */
+  readonly clientDisplayName?: string
 }
 
 /** Receipt after the rewind commits and the replacement prompt enters the Agent inbox. */
@@ -443,8 +447,8 @@ export type SessionRequestId = Branded<'session-request-id'>
 
 declare module '@aeven/llm' {
   interface MessageSourceMap {
-    /** Browser prompt correlation and optional Host-validated time zone. */
-    'user-rpc': { kind: 'user'; rpcId: SessionRequestId; clientTimeZone?: string }
+    /** Browser prompt correlation, optional Host-validated time zone, and reported profile name. */
+    'user-rpc': { kind: 'user'; rpcId: SessionRequestId; clientTimeZone?: string; clientDisplayName?: string }
   }
 }
 

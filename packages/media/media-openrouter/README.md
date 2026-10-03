@@ -40,6 +40,8 @@ Returned images are base64 in `data[].b64_json`. The route reports `media_type` 
 
 `duration`, `aspectRatio`, `resolution`, `size`, `seed` and `generateAudio` forward to the route's own field names, and reference images ride as `input_references` data URIs — so image-to-video and reference-guided generation work through the same call. Only fields the caller set are sent, so the model's own defaults apply to everything else.
 
+Image providers in this package refuse `guidanceScale`, `outputFormat` and `optimizePromptMode`; these native Seedream controls are served by the Aeven and DeepInfra providers.
+
 -----
 
 <a id="understand-the-implementation"></a>

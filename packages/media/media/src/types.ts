@@ -78,12 +78,20 @@ export interface MediaImageRequest {
   readonly resolution?: string
   /** Exact pixel size in `WIDTHxHEIGHT` form. */
   readonly size?: string
-  /** Deterministic generation seed. */
+  /** Provider generation seed; reproducibility depends on the model. */
   readonly seed?: number
   /** Reference images for image-to-image work, in the order the prompt refers to them. */
   readonly references?: readonly MediaImageReference[]
   /** Background to generate. Omitted = the model's own choice. */
   readonly background?: MediaImageBackground
+  /** Named quality tier the provider understands, e.g. `high`. Omitted = the provider's own choice. */
+  readonly quality?: string
+  /** Guidance strength, where the model exposes it. */
+  readonly guidanceScale?: number
+  /** Image file format, where the model exposes it. */
+  readonly outputFormat?: 'png' | 'jpeg'
+  /** Prompt optimization mode, where the model exposes it. */
+  readonly optimizePromptMode?: 'standard' | 'fast'
 }
 
 /**

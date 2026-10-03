@@ -29,10 +29,10 @@ export interface GenericToolCardProps extends ToolCallOwnerProps {
 }
 
 export function GenericToolCard({
-  toolName, block, cwd, home, openFile, inspect, renderImages, t,
+  toolName, block, cwd, home, openFile, inspect, renderImages, generatedImageIds, t,
 }: GenericToolCardProps) {
   const model = toolRowModel(toolName, block, cwd, home)
-  const resultImages = imageCardModel(block)
+  const resultImages = imageCardModel(block).filter(image => !generatedImageIds?.has(String(image.attachmentId)))
   // A composition without an attachment presentation leaves the row text-only
   // rather than rendering an empty gallery frame.
   const images = renderImages === undefined || resultImages.length === 0

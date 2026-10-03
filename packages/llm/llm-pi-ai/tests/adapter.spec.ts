@@ -1,3 +1,4 @@
+import { zstdDecompressSync } from 'node:zlib'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Context, Service } from '@deepseek-ai/cordis'
 import { AttachmentId, AttachmentStore, ImageVariantId } from '@aeven/attachment'
@@ -121,6 +122,27 @@ describe('PiAiAdapter provider routing', () => {
     await assemble(ctx, { model: 'deepseek-v4-flash', messages: [] })
     expect(server.headers[0]?.['x-company']).toBe('private')
     expect(server.headers[0]?.['user-agent']).toBe(userAgent())
+  })
+
+  it('omits temperature for Codex Responses requests', () => {
+    const token = `header.${Buffer.from(JSON.stringify({ 'https://api.openai.com/auth': { chatgpt_account_id: 'test-account' } })).toString('base64url')}.signature`
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{"error":{"message":"test rejection"}}', { status: 400 }))
+    const ctx = new Context()
+    return Promise.resolve(ctx.plugin(LlmRuntime))
+      .then(() => {
+        const adapter = adapterOf({ 'openai-codex': { apiKeyEnv: 'PI_TEST_KEY', transport: 'sse' } }, token)
+        ctx.llm.registerAdapter(['openai-codex'], adapter)
+        return assemble(ctx, { provider: 'openai-codex', model: 'gpt-5.4', messages: [], temperature: 0 })
+      })
+      .then((result) => {
+        const request = fetchMock.mock.calls[0]?.[1]
+        const body = Buffer.from(request?.body as Uint8Array)
+        const json = new Headers(request?.headers).get('content-encoding') === 'zstd' ? zstdDecompressSync(body) : body
+        expect(result.finish).toMatchObject({ kind: 'error', failure: { message: 'test rejection' } })
+        expect(fetchMock).toHaveBeenCalled()
+        expect(JSON.parse(json.toString('utf8'))).not.toHaveProperty('temperature')
+      })
+      .finally(() => { fetchMock.mockRestore() })
   })
 
   it('forwards common stream options and profile reasoning', async () => {

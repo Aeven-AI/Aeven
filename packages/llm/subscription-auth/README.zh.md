@@ -51,6 +51,8 @@ kind: "package-bundle"
 
 已登录且展开的卡片会列出该订阅提供的每个模型，每个模型一个复选框，另有 **全选** 或 **全部取消**。新模型默认选中。小图标标出可理解图片的模型与可生成图片的模型。改动立即生效：路由的模型列表、输入框的模型选择器与图像模型列表都会随之更新。选择保存在 `${AVN_HOME}/subscription-model-selection.json`，内容是用户关闭的模型 id，因此供应商之后新增的模型默认选中，被移除的模型直接消失，而不影响其他选择。
 
+Codex 生成／编辑和 Grok Imagine 图片结果返回持久图片块，摘要说明图片已显示，不得在回复中重复或嵌入。工作区副本路径保留在类型化输出及可重放的展示元数据中，而非面向模型的摘要。
+
 -----
 
 <a id="understand-the-implementation"></a>
@@ -95,6 +97,8 @@ Codex 是一个基于其凭据文件的 `OAuthProviderSession`，Grok 是一个 
 ## 已知限制与延期工作
 
 <a id="known-limitations-and-deferred-work"></a>
+
+本包的图片提供方拒绝 `guidanceScale`、`outputFormat` 与 `optimizePromptMode`；这些原生 Seedream 控制项由 Aeven 和 DeepInfra 提供方服务。
 
 - **供应商端点是私有且无文档的。** 额度读取与 Grok Build 媒体路由调用的是各供应商自己的客户端端点。供应商可能在没有通知的情况下更改或撤除其中之一，失败表现为工具被拒绝，而不是构建错误。
 - **Grok Imagine 的图像模型有两个名字。** 直连 xAI API 称其为 `grok-imagine-image-2.0`，Grok Build proxy 称其为 `grok-imagine-image-quality`。两种写法都被接受并归一到当前 transport，因此模型选择器提供任一 id 都能在任一凭据下工作。

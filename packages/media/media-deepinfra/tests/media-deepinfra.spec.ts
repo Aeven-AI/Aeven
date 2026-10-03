@@ -48,25 +48,28 @@ afterEach(() => {
 })
 
 describe('the image catalog', () => {
-  it('keeps only the image-tagged models and stamps the provider', async () => {
+  it('takes image models from the vendor catalog and stamps the provider', async () => {
     respond = () => json({ data: [
-      { id: 'black-forest-labs/FLUX-1.1-pro', metadata: { tags: ['text-to-image'], description: 'fast' } },
-      { id: 'meta/llama', metadata: { tags: ['chat'] } },
-      { id: 'x/img', metadata: { tags: ['image'] } },
+      { model_name: 'black-forest-labs/FLUX-1.1-pro', type: 'text-to-image', description: 'fast' },
+      { model_name: 'meta/llama', type: 'text-generation' },
+      { model_name: 'ByteDance/Seedream-5.0-Pro', type: 'text-to-image', description: 'flagship' },
+      { model_name: 'quiet/img', type: 'text-to-image', description: '' },
+      { model_name: 'retired/img', type: 'text-to-image', deprecated: true },
     ] })
     const runtime = await media()
     expect(await runtime.listImageModels()).toEqual([
       { provider: 'deepinfra', id: 'black-forest-labs/FLUX-1.1-pro', description: 'fast' },
-      { provider: 'deepinfra', id: 'x/img' },
+      { provider: 'deepinfra', id: 'ByteDance/Seedream-5.0-Pro', description: 'flagship' },
+      { provider: 'deepinfra', id: 'quiet/img' },
     ])
-    expect(calls[0]?.url).toBe('https://api.deepinfra.com/v1/openai/models')
+    expect(calls[0]?.url).toBe('https://api.deepinfra.com/models/list')
   })
 
-  it('skips rows with no usable id and a document with no data array', async () => {
-    respond = () => json({ data: [null, 'nope', { id: '' }, { id: 'untagged' }, { id: 'b', metadata: { tags: 'nope' } }, { id: 'a', metadata: { tags: ['image'] } }] })
+  it('skips rows with no usable id and answers [] when the document carries no rows', async () => {
+    respond = () => json([null, 'nope', { model_name: '' }, { model_name: 'untagged' }, { model_name: 'a', type: 'chat' }])
     const runtime = await media()
-    expect(await runtime.listImageModels()).toEqual([{ provider: 'deepinfra', id: 'a' }])
-    respond = () => json({})
+    expect(await runtime.listImageModels()).toEqual([])
+    respond = () => json({ models: 'elsewhere' })
     expect(await (await media({ id: 'other' })).listImageModels()).toEqual([])
   })
 })
@@ -85,6 +88,41 @@ describe('images', () => {
     })
     expect(calls[0]?.headers['authorization']).toBe('Bearer sk-test')
     expect(result.images).toEqual([{ kind: 'bytes', mediaType: 'image/png', data: PNG }])
+  })
+
+  it('sends one reference image as a data URI and passes the background choice', async () => {
+    respond = () => json({ data: [{ b64_json: Buffer.from(PNG).toString('base64') }] })
+    const runtime = await media()
+    await runtime.generateImage({
+      model: 'ByteDance/Seedream-4',
+      prompt: 'a fox',
+      size: '1024x1024',
+      background: 'transparent',
+      references: [{ mediaType: 'image/png', data: Uint8Array.of(1, 2, 3) }],
+    })
+    expect(calls[0]?.body).toEqual({
+      model: 'ByteDance/Seedream-4',
+      prompt: 'a fox',
+      response_format: 'b64_json',
+      size: '1024x1024',
+      background: 'transparent',
+      image: 'data:image/png;base64,AQID',
+    })
+  })
+
+  it('refuses a resolution tier and more than one reference image instead of dropping them', async () => {
+    const runtime = await media()
+    await expect(runtime.generateImage({ model: 'm', prompt: 'x', resolution: '2K' }))
+      .rejects.toMatchObject({ code: 'MEDIA_INVALID_REQUEST' })
+    await expect(runtime.generateImage({
+      model: 'm',
+      prompt: 'x',
+      references: [
+        { mediaType: 'image/png', data: Uint8Array.of(1) },
+        { mediaType: 'image/png', data: Uint8Array.of(2) },
+      ],
+    })).rejects.toThrow(/multi-reference/u)
+    expect(calls).toHaveLength(0)
   })
 
   it('labels each image by its actual bytes, not by a fixed type', async () => {

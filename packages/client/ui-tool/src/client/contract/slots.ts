@@ -49,6 +49,8 @@ export interface ToolCallOwnerProps {
    * image-producing tool with its text summary alone.
    */
   renderImages?: RenderMessageImages | undefined
+  /** Generated attachments displayed by their dedicated atomic views. */
+  generatedImageIds?: ReadonlySet<string> | undefined
 }
 
 /** Full props of a registered atomic Tool view. */

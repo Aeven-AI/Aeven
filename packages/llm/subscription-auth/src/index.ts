@@ -908,7 +908,7 @@ function applyOwned(ctx: Context, config: Config): void {
     }
     toolCtx.inject(['media'], (mediaCtx) => {
       mediaCtx.effect(
-        () => mediaCtx.media.registerImageProvider(createGrokMediaProvider(routedImagine, mediaGate('grok'))),
+        () => mediaCtx.media.registerImageProvider(createGrokMediaProvider(routedImagine, mediaGate('grok'), attachments)),
         'avn-subscription-auth: Grok Imagine media provider',
       )
     })

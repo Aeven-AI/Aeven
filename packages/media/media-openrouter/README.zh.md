@@ -40,6 +40,8 @@ kind: "package-reference"
 
 `duration`、`aspectRatio`、`resolution`、`size`、`seed` 与 `generateAudio` 转发到该路由自身的字段名，参考图以 `input_references` 的 data URI 形式随行——因此图生视频与参考引导生成都通过同一次调用完成。只发送调用方设置过的字段，其余一律采用模型自身的默认值。
 
+本包的图片提供方拒绝 `guidanceScale`、`outputFormat` 与 `optimizePromptMode`；这些原生 Seedream 控制项由 Aeven 和 DeepInfra 提供方服务。
+
 -----
 
 <a id="understand-the-implementation"></a>

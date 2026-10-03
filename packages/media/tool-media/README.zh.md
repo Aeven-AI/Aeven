@@ -26,15 +26,15 @@ kind: "package-reference"
 
 请与 `avn-media` 及一个或多个图像 Provider 一起挂载。`model` 指定调用未给出模型时所用的模型，按 Provider 自己的写法原样传递；`provider` 固定由哪个已注册 Provider 服务这些调用。两者默认都不设置，即交由 Seam 自行选择，并要求每次调用自己指明模型。
 
-`choices` 是可选模型的完整集合，每项都指明自己的 Provider。它非空时，选择器、`/image-models` 命令以及调用指明的模型都限于该列表，因此列表之外的模型会在任何生成之前被拒绝。内置 Preset 列出 `Aeven-1.0-Image-Flash` 与 `Aeven-1.0-Image-Pro`，默认 Flash，并设置 `confirmModel: false`，因此首次生成不经询问直接使用 Flash，`/image-models` 用于更改已存储的选择。
+`choices` 是可选模型的完整集合，每项都指明自己的 Provider。它非空时，选择器、`/image-model` 命令以及调用指明的模型都限于该列表，因此列表之外的模型会在任何生成之前被拒绝。内置 Preset 列出 `Aeven-1.0-Image-Flash` 与 `Aeven-1.0-Image-Pro`，默认 Flash，并设置 `confirmModel: false`，因此首次生成不经询问直接使用 Flash，`/image-model` 用于更改已存储的选择：不带参数的行会打开选择器，而 `/image-model <provider>/<model>`（或恰好只有一个可选模型使用的模型 id）会直接存储该模型。
 
-`listedProviders` 指定一些媒体 Provider，它们自己的图像模型列表会排在 `choices` 之后提供。该列表在每次调用时读取，因此选择器、`/image-models` 与调用校验会跟随在运行时变化模型的 Provider。内置 Preset 指定 `grok-subscription` 与 `codex-subscription`，它们的图像模型在订阅已登录、且该模型在 设置 → 提供方 中开启时被列出。
+`listedProviders` 指定一些媒体 Provider，它们自己的图像模型列表会排在 `choices` 之后提供。该列表在每次调用时读取，因此选择器、`/image-model` 与调用校验会跟随在运行时变化模型的 Provider。内置 Preset 指定 `grok-subscription` 与 `codex-subscription`，它们的图像模型在订阅已登录、且该模型在 设置 → 提供方 中开启时被列出。
 
 挂载两个图像 Provider 的部署需要固定其一，或在此处、或作为 Seam 的 `imageProvider`：选择存在歧义时，Seam 会报错而不是猜测。
 
 ### 请求
 
-`prompt` 是唯一必填参数。`model` 为单次调用覆盖所选模型，并由其 choice 指明的 Provider 服务。`n`、`size` 与 `background` 按 Seam 自己的字段名转发；只发送调用实际设置的字段，其余沿用 Provider 自身的默认值，Provider 会拒绝所选模型没有的选项。`reference_images` 按 prompt 引用的顺序列出图像文件；每个文件在会话工作目录下经由 `ctx.fs` 读取，受 `maxReferenceImageBytes`（默认 4 MiB）限制，按其字节识别格式，并作为参考图发送给 Provider。对话中的图像通过其句柄文本显示的规范化副本路径传入。
+`prompt` 是唯一必填参数。`model` 为单次调用覆盖所选模型，并由其 choice 指明的 Provider 服务。`n`、`size`、`resolution`、`seed` 与 `background` 转发至 Seam；`guidance_scale`、`output_format` 与 `optimize_prompt_mode` 映射为其驼峰命名字段；只发送调用实际设置的字段，其余沿用 Provider 自身的默认值，Provider 会拒绝所选模型没有的选项。`reference_images` 按 prompt 引用的顺序列出图像文件；每个文件在会话工作目录下经由 `ctx.fs` 读取，受 `maxReferenceImageBytes`（默认 4 MiB）限制，按其字节识别格式，并作为参考图发送给 Provider。对话中的图像通过其句柄文本显示的规范化副本路径传入。
 
 -----
 
@@ -58,7 +58,7 @@ kind: "package-reference"
 
 #### 模型看到什么
 
-模型看到生成的 [`generate_image` Schema](../../../docs/tool-catalog.zh.md#aeventool-media)：一个必填的 `prompt` 和五个可选控制项——用于单次调用覆盖的 `model`，转发给 Seam 的 `n`、`size` 与 `background`，以及用于编辑或基于现有图像绘制的 `reference_images`。描述写明了一个好的 prompt 应涵盖什么、如何传入参考图，以及每个已配置的 choice 及其描述和默认项，使模型知道哪个模型具备哪个选项；它还告诉模型不要再调用其他工具去定位或校验图像，因为附件本身就是结果。
+模型看到生成的 [`generate_image` Schema](../../../docs/tool-catalog.zh.md#aeventool-media)：一个必填的 `prompt` 和可选控制项——用于单次调用覆盖的 `model`；用于受支持生成设置的 `n`、`size`、`resolution`、`seed`、`guidance_scale`、`output_format`、`optimize_prompt_mode` 与 `background`；以及用于编辑或基于现有图像绘制的 `reference_images`。描述写明了一个好的 prompt 应涵盖什么、如何传入参考图，以及每个已配置的 choice 及其描述和默认项，使模型知道哪个模型具备哪个选项；它还告诉模型不要再调用其他工具去定位或校验图像，因为附件本身就是结果。
 
 #### Token 影响
 
@@ -72,7 +72,7 @@ kind: "package-reference"
 
 #### 模型看到什么
 
-成功返回一行——`Generated <n> image(s) with <model>.`——其后是每张已存图像对应的一个图像块。失败则呈现 Seam 自己的消息，其中写明失败条件：未指明或不可用的模型、模型没有的选项、无法读取的参考图、上游拒绝，或无法存储的媒体类型。
+成功返回一行——`Generated <n> image(s) with <model>. Already displayed to the user; do not repeat or embed them in your reply.`——其后是每张已存图像对应的一个图像块。Imagine 在生成调用位置渲染这些块，包括进行中的占位视图；无需助手复述。失败则呈现 Seam 自己的消息，其中写明失败条件：未指明或不可用的模型、模型没有的选项、无法读取的参考图、上游拒绝，或无法存储的媒体类型。
 
 #### Token 影响
 

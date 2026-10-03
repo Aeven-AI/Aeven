@@ -124,9 +124,8 @@
    over the light and dark canvases rather than following the layer and label
    aliases the rest of the bar uses.
 
-   Above the fade and blur scrims, which are absolutely positioned in this
-   header and would otherwise paint over a control that takes part in the static
-   flow. */
+   Above the fade scrim, which is absolutely positioned in this header and
+   would otherwise paint over a control that takes part in the static flow. */
 .foldButton {
   position: relative;
   z-index: 11;
@@ -194,7 +193,7 @@
   }
 }
 
-/* Aeven `.navigation-background` / `.navigation-fade` / `.navigation-blur`. */
+/* Aeven `.navigation-background` / `.navigation-fade`. */
 .navBackground {
   display: block;
   position: absolute;
@@ -218,18 +217,6 @@
     var(--dsw-alias-bg-base) 0px,
     rgb(from var(--dsw-alias-bg-base) r g b / 0) 56px
   );
-}
-
-.navBlur {
-  display: block;
-  position: absolute;
-  top: 0;
-  right: 0;
-  left: 0;
-  height: 56px;
-  /* Unprefixed only: the CSS pipeline adds the -webkit- form per its targets. */
-  backdrop-filter: blur(1px);
-  mask-image: linear-gradient(to bottom, #000 10px, transparent 56px);
 }
 
 .titleRow {
@@ -705,16 +692,13 @@
   }
 }
 
-/* Aeven `.chat-fade-content` / `.chat-blur-content`: two 55px bands starting
-   50px above the seat, so the transcript both dims and softens as it slides
-   under the composer. Aeven orders them before `.chat-content`, so the input
-   card paints over the 5px both bands overhang into the seat; here they are
-   pseudo-elements, and only a negative z-index puts BOTH under the card
-   (`::after` would otherwise paint above it). Negative children still paint
-   over the seat's own opaque background, so the band stays visible where it
-   overlaps. */
-.root[data-phase="active"] .composerSeat::before,
-.root[data-phase="active"] .composerSeat::after {
+/* Aeven `.chat-fade-content`: one 55px band starting 50px above the seat, so
+   the transcript dims as it slides under the composer. A negative z-index puts
+   the band under the card. It still paints over the seat's own opaque
+   background, so the band stays visible where it overlaps.
+   The 0px stop is bg-base at zero alpha, not Aeven's hardcoded
+   rgb(242, 242, 242), so both themes fade from their own base. */
+.root[data-phase="active"] .composerSeat::before {
   content: "";
   position: absolute;
   z-index: -1;
@@ -722,22 +706,12 @@
   right: 0;
   left: 0;
   height: 55px;
-  pointer-events: none;
-}
-
-/* The 0px stop is bg-base at zero alpha, not Aeven's hardcoded
-   rgb(242, 242, 242), so both themes fade from their own base. */
-.root[data-phase="active"] .composerSeat::before {
   background: linear-gradient(
     180deg,
     transparent 0px,
     var(--dsw-alias-bg-base) 50px
   );
-}
-
-.root[data-phase="active"] .composerSeat::after {
-  backdrop-filter: blur(2px);
-  mask-image: linear-gradient(to bottom, transparent 20px, #000 50px);
+  pointer-events: none;
 }
 
 /* Views may opt into a composer overlay while ConversationRoot retains

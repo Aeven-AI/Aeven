@@ -63,9 +63,10 @@ function hasPromptContent(content: readonly PromptContentCandidate[]): boolean {
   return content.some(part => part.type !== 'text' || part.text.trim().length > 0)
 }
 
-/** Build the user-message source of a prompt or edit, validating its client time zone. */
+/** Build the user-message source of a prompt or edit, validating its client time zone and retaining its reported profile name. */
 function userSource(request: SessionPromptRequest | SessionEditRequest): MessageSource {
-  if (request.clientTimeZone === undefined) return { kind: 'user', rpcId: request.requestId }
+  const profile = request.clientDisplayName === undefined ? {} : { clientDisplayName: request.clientDisplayName }
+  if (request.clientTimeZone === undefined) return { kind: 'user', rpcId: request.requestId, ...profile }
   const clientTimeZone = canonicalClientTimeZone(request.clientTimeZone)
   if (clientTimeZone === undefined) {
     throw new RemoteError(
@@ -74,7 +75,7 @@ function userSource(request: SessionPromptRequest | SessionEditRequest): Message
       { value: request.clientTimeZone },
     )
   }
-  return { kind: 'user', rpcId: request.requestId, clientTimeZone }
+  return { kind: 'user', rpcId: request.requestId, clientTimeZone, ...profile }
 }
 
 /**

@@ -123,9 +123,8 @@ const LINK_SAFETY = {
   allowedProtocols: ['http', 'https', 'mailto'],
   allowedLinkPrefixes: ['*'],
   // Remote `https:` images, and absolute local paths, which `resolveImage`
-  // turns into this app's authenticated file route. A tool's result card
-  // folds away with its turn, so the reply is where a produced image stays
-  // visible. Plain `http:` stays out: it is only ever this app's own origin.
+  // turns into this app's authenticated file route. Plain `http:` stays out:
+  // it is only ever this app's own origin.
   allowedImagePrefixes: ['https://', '/'],
   allowDataImages: false,
 }
@@ -257,6 +256,8 @@ interface MarkdownTextCommonProps {
   streaming?: boolean
   labels: MarkdownLabels
   fileMentions?: MarkdownFileMentions | undefined
+  /** Whether an authored image may render beside separately displayed artifacts. */
+  imageVisible?: ((src: string) => boolean) | undefined
   /** Keep an enclosing transcript on its live tail after an engine render. */
   scrollDown?: (() => void) | undefined
   /**
@@ -344,8 +345,11 @@ export function defuseClosingTag(text: string): string {
  */
 export const MarkdownText = memo(function MarkdownText({
   text, streaming = false, labels, fileMentions, scrollDown, onFullscreenChange, variant = 'default',
-  animation: animationProp,
+  animation: animationProp, imageVisible,
 }: MarkdownTextProps) {
+  const imageVisibility = useRef(imageVisible)
+  imageVisibility.current = imageVisible
+  const imageSource = useCallback((src: string) => imageVisibility.current?.(src) === false ? undefined : resolveImage(src), [])
   const preferredAnimation = useTextAnimation()
   const animation = animationProp ?? preferredAnimation
   const handleRef = useRef<HyperMarkdownHandle>(null)
@@ -444,7 +448,7 @@ export const MarkdownText = memo(function MarkdownText({
         className={variant === 'compact' ? `${css.markdown} ${css.compact}` : css.markdown}
         {...scrollDown === undefined ? {} : { scrollDown }}
         {...onFullscreenChange === undefined ? {} : { onFullscreenChange }}
-        resolveImage={resolveImage}
+        resolveImage={imageSource}
         {...labels.image === undefined ? {} : { onImageOpen: openImage }}
       />
       {enlarged !== null && labels.image !== undefined && (

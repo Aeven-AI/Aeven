@@ -16,6 +16,8 @@ export const XAI_API_ORIGIN = 'https://api.x.ai'
 export const GROK_BUILD_IMAGINE_ORIGIN = 'https://cli-chat-proxy.grok.com'
 /** Image generation path, the same on both Imagine origins. */
 export const GROK_IMAGINE_IMAGE_PATH = '/v1/images/generations'
+/** Image edit path, the same on both Imagine origins. */
+export const GROK_IMAGINE_IMAGE_EDIT_PATH = '/v1/images/edits'
 /** Video generation start path, the same on both Imagine origins. */
 export const GROK_IMAGINE_VIDEO_START_PATH = '/v1/videos/generations'
 /** Image model id on the developer API (`api.x.ai`). */
@@ -56,6 +58,12 @@ export const XAI_OUTPUT_HOSTS = ['imgen.x.ai', 'videogen.x.ai', 'vidgen.x.ai'] a
 
 /** Image resolutions the Imagine API accepts. */
 export const IMAGINE_IMAGE_RESOLUTIONS = ['1k', '2k'] as const
+/**
+ * Image quality tiers the Imagine API documents for `grok-imagine-image-2.0`;
+ * `auto` lets the service choose (`low` for generation, `medium` for editing).
+ * The OpenAPI schema omits this field, so it is sent only when a caller asks.
+ */
+export const IMAGINE_IMAGE_QUALITIES = ['low', 'medium', 'auto'] as const
 /** Video resolutions the Imagine API accepts. */
 export const IMAGINE_VIDEO_RESOLUTIONS = ['480p', '720p', '1080p'] as const
 /** Image aspect ratios the Imagine API accepts; `auto` lets the model choose. */
@@ -129,6 +137,8 @@ export const MAX_CACHED_VIDEO_JOBS = 256
 export type ImagineOperation = 'image.generate' | 'video.start' | 'video.status'
 /** One of {@link IMAGINE_IMAGE_RESOLUTIONS}. */
 export type ImagineImageResolution = (typeof IMAGINE_IMAGE_RESOLUTIONS)[number]
+/** One of {@link IMAGINE_IMAGE_QUALITIES}. */
+export type ImagineImageQuality = (typeof IMAGINE_IMAGE_QUALITIES)[number]
 /** One of {@link IMAGINE_VIDEO_RESOLUTIONS}. */
 export type ImagineVideoResolution = (typeof IMAGINE_VIDEO_RESOLUTIONS)[number]
 /** One of {@link IMAGINE_IMAGE_ASPECT_RATIOS}. */
@@ -246,13 +256,28 @@ export interface ImagineAttachmentStore {
   ): Promise<{ ref: ImagineImageAttachmentRef; data: Uint8Array }>
 }
 
-/** One image generation request, before resolution and aspect validation. */
+/**
+ * One source image for an edit, as bytes this client encodes into the data URI
+ * the Imagine API accepts.
+ */
+export interface ImagineImageSource {
+  mediaType: ImagineImageMediaType
+  data: Uint8Array
+}
+
+/**
+ * One image request, before resolution, aspect, and quality validation.
+ * `images` selects the edit endpoint: one source sends `image`, several send
+ * `images`, and the prompt refers to them as `<IMAGE_0>`, `<IMAGE_1>`, and so on.
+ */
 export interface GenerateImagineImageInput {
   prompt: string
   model?: string
   n?: number
   aspectRatio?: string
   resolution?: string
+  quality?: string
+  images?: readonly ImagineImageSource[]
   name?: string
 }
 
@@ -344,6 +369,8 @@ export const VIDEO_REQUEST_ID_PATTERN = /^[A-Za-z0-9_-]{1,256}$/
 export const FROZEN_OUTPUT_HOSTS = new Set<string>(XAI_OUTPUT_HOSTS)
 /** {@link IMAGINE_IMAGE_RESOLUTIONS} as a set, for membership checks. */
 export const IMAGE_RESOLUTION_SET = new Set<string>(IMAGINE_IMAGE_RESOLUTIONS)
+/** {@link IMAGINE_IMAGE_QUALITIES} as a set, for membership checks. */
+export const IMAGE_QUALITY_SET = new Set<string>(IMAGINE_IMAGE_QUALITIES)
 /** {@link IMAGINE_VIDEO_RESOLUTIONS} as a set, for membership checks. */
 export const VIDEO_RESOLUTION_SET = new Set<string>(IMAGINE_VIDEO_RESOLUTIONS)
 /** {@link IMAGINE_IMAGE_ASPECT_RATIOS} as a set, for membership checks. */

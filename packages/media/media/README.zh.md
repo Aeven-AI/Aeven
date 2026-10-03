@@ -38,6 +38,8 @@ kind: "package-reference"
 
 每个失败都是携带 `MediaErrorCode` 的 `MediaError`。选择类失败区分被指定但不存在的 provider（`MEDIA_PROVIDER_CONFIGURED_MISSING`）与存在但不可用的 provider（`MEDIA_PROVIDER_CONFIGURED_UNAVAILABLE`），也区分空注册表（`MEDIA_PROVIDER_UNAVAILABLE`）与有歧义的注册表（`MEDIA_PROVIDER_AMBIGUOUS`），因此调用方能分辨配置错误与缺失凭据。
 
+图片请求携带提供方专用的 `guidanceScale`、`outputFormat` 与 `optimizePromptMode` 控制项；支持的值取决于所选模型。种子是提供方输入，不保证可复现。
+
 -----
 
 <a id="understand-the-implementation"></a>

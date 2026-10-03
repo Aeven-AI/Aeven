@@ -26,6 +26,8 @@ AVN 既不读该标记，也不读该路由。profile 中的 `displayNameSet` �
 
 该界面的样式表是 Aeven 的 `_initCheck.scss` 在本应用作用域下的版本，外加该界面在源头从 `_home.scss` 继承的那一条规则——首页栏的 `.content-container`，正是它的 flex 纵向布局与满高让 `.form-container` 得以居中。68px 的问候语使用本应用自带的 Google Sans Flex 字族，因为 Aeven 样式表的 vendored 副本已丢弃其声明过却从未使用的 Bodoni 字体。
 
+浏览器随会话提示和编辑发送恢复的资料显示名。Session Controller 将报告的名字记录在用户消息上，并在模型的第一步以持久化资料快照提供它。这使选择的名字无需依赖记忆检索即可使用，且不再次获取资料。报告的名字仍是展示数据；认证仍由凭据决定。
+
 ## Alternatives considered
 
 **在运行中的应用之上弹一个模态框。** 它能让侧边栏与账户头像在提问背后保持可见，这正是 Aeven 客户端版本的做法。但 AVN 唯一始终存在的表面是覆盖整个 frame 的 `shell.overlay`，而一个无法关闭的模态框会让读者面对一个用不了的应用；gate 本就拥有「这个页面还不属于你」这一状态，而该界面正是这个状态。

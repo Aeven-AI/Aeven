@@ -274,20 +274,20 @@
 - id: tool-media
   name: '@aeven/tool-media'
   config:
-    # The configured image models: the picker, `/image-models`, and a model a
+    # The configured image models: the picker, `/image-model`, and a model a
     # call names are limited to these plus the `listedProviders` models below. Both are served by `media-aeven` over
     # the signed-in Aeven session.
     choices:
       - provider: aeven
         model: Aeven-1.0-Image-Flash
         label: Aeven Image Flash
-        description: Fast, low-cost generation and editing; size WIDTHxHEIGHT, 128–1920 px per side (default 1024x1024); up to 4 reference images; no background option
+        description: Seedream 4 generation and editing; size 1K, 2K (default), 4K or WIDTHxHEIGHT; one reference image; seed and guidance_scale 1–10; no background option
       - provider: aeven
         model: Aeven-1.0-Image-Pro
         label: Aeven Image Pro
-        description: Accurate text rendering and detailed scenes; size 1K, 1.5K, 2K (default) or WIDTHxHEIGHT; up to 4 reference images; transparent or opaque background
+        description: Seedream 5.0 Pro; size 1K, 1.5K, 2K (default) or WIDTHxHEIGHT; up to 4 reference images; PNG/JPEG output; transparent or opaque background; standard/fast prompt optimization
     # Generates with Flash until a person picks another model through
-    # `/image-models`, rather than asking before the first generation.
+    # `/image-model`, rather than asking before the first generation.
     model: Aeven-1.0-Image-Flash
     provider: aeven
     confirmModel: false

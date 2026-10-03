@@ -120,10 +120,26 @@ export interface MessageImagesOwnerProps {
    * counterpart of the composer tray.
    */
   layout: 'gallery' | 'tray'
+  /**
+   * Every image the record's Turn puts on screen, in log order, when the
+   * composition can resolve it: the opened preview navigates this whole list.
+   * Absent leaves the preview on the record's own `images`.
+   */
+  turnImages?: readonly MessageImageSource[] | undefined
+}
+
+/**
+ * One attachment group as its owning record asks for it. `turn` names the Turn
+ * the record belongs to, so the composition can attach that Turn's
+ * `turnImages`; the presentation package never reads Turn coordinates itself.
+ */
+export interface RenderMessageImagesRequest extends Omit<MessageImagesOwnerProps, 'loadImage' | 'fileUrl' | 'turnImages'> {
+  /** Turn the record belongs to; absent on a record without Turn coordinates. */
+  turn?: number | undefined
 }
 
 /** Slot-backed renderer used by Conversation targets without importing an attachment implementation. */
-export type RenderMessageImages = (owner: Omit<MessageImagesOwnerProps, 'loadImage' | 'fileUrl'>) => ReactNode
+export type RenderMessageImages = (owner: RenderMessageImagesRequest) => ReactNode
 
 /** Selector hook over the current Session's assembled Conversation. */
 export type UseConversation = SnapshotSelectorHook<ConversationSnapshot>

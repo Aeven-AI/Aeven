@@ -9,6 +9,12 @@
   ],
   "references": [
     {
+      "path": "../../api/remotes/tsconfig.client.json"
+    },
+    {
+      "path": "../../api/session-controller/tsconfig.client.json"
+    },
+    {
       "path": "../../../vendor/cordis"
     },
     {
@@ -16,6 +22,12 @@
     },
     {
       "path": "../locale"
+    },
+    {
+      "path": "../ui-commands"
+    },
+    {
+      "path": "../ui-input-trigger"
     },
     {
       "path": "../ui-layout"
@@ -27,7 +39,31 @@
       "path": "../ui-renderer"
     },
     {
+      "path": "../ui-session"
+    },
+    {
+      "path": "../ui-settings"
+    },
+    {
       "path": "../ui-slots"
+    },
+    {
+      "path": "../ui-chat"
+    },
+    {
+      "path": "../ui-conversation"
+    },
+    {
+      "path": "../ui-tool"
+    },
+    {
+      "path": "../../llm/llm"
+    },
+    {
+      "path": "../../core/session"
+    },
+    {
+      "path": "../../core/tools"
     }
   ]
 }

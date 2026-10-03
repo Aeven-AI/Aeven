@@ -45,6 +45,8 @@ KaTeX accepts a literal en dash in model-authored math without a compatibility w
 
 The atoms cannot read the application locale, so every piece of user-facing copy arrives through required label props. `HoverCard`, `TerminalBlock`, `JsonTree`, `CodeBlock`, `MarkdownText`, `JsonBlock`, `ConnectionIndicator`, `Modal`, `DiffBlock`, `ReadBlock`, `SearchBlock`, and `WebBlock` accept complete localized labels. The package owns no language fallback; omission fails typechecking, and each feature maps its typed `t` seat into the primitive's label interface.
 
+`MarkdownText.imageVisible` lets the transcript owner suppress a generated artifact already displayed elsewhere. The source resolver still supports other authored images; the predicate reads the current owner state while streamed Markdown keeps its rendering store.
+
 -----
 
 <a id="understand-the-implementation"></a>

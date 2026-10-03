@@ -36,6 +36,11 @@ import type { ProjectionsBaseline } from './projection-store.ts'
 import { resolvedClientTimeZone } from '../time-zone.ts'
 import { SessionQueueMirror } from './queue-mirror.ts'
 
+function clientDisplayName(): string | undefined {
+  return (globalThis as { __AVN_AEVEN_READER__?: { readonly displayName?: string } })
+    .__AVN_AEVEN_READER__?.displayName
+}
+
 function projectionsBaseline(value: SessionProjectionBaseline): ProjectionsBaseline {
   return {
     ...value,
@@ -270,12 +275,14 @@ export class Session implements SessionFace {
     let result: RemoteResult<{ accepted: true }>
     if (this.address === undefined) {
       const clientTimeZone = resolvedClientTimeZone()
+      const displayName = clientDisplayName()
       result = await this.remote.session.prompt({
         requestId: requestId ?? randomUUID() as SessionRequestId,
         sessionId: this.sessionId,
         mode,
         content,
         clientTimeZone,
+        ...displayName === undefined ? {} : { clientDisplayName: displayName },
       }, signal)
     } else {
       const routed = await this.remote.subagents.prompt({
@@ -347,11 +354,13 @@ export class Session implements SessionFace {
     if (this.hasNewer) void this.returnToLive()
     this.notifier.markDirty()
     const requestId = randomUUID() as SessionRequestId
+    const displayName = clientDisplayName()
     const result = await this.remote.session.edit({
       requestId,
       sessionId: this.sessionId,
       messageSeq,
       text,
+      ...displayName === undefined ? {} : { clientDisplayName: displayName },
       clientTimeZone: resolvedClientTimeZone(),
     })
     if (!result.ok) {

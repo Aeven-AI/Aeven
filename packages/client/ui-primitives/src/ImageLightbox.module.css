@@ -76,17 +76,13 @@
   opacity: 1;
 }
 
-/* The image is capped by the viewport, never stretched to it: an image smaller
-   than the window keeps its own pixels instead of being scaled up, which is
-   what made a small screenshot soft in the gallery. */
+/* The image is contained by the stage, not capped at its own pixels: a picture
+   smaller than the window is scaled up until one of its sides reaches the
+   stage, so the gallery always shows it as large as the window allows. */
 .image {
   position: absolute;
-  inset: 0;
-  margin: auto;
-  width: auto;
-  height: auto;
-  max-width: 100%;
-  max-height: 100%;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
   object-position: center;
   opacity: 0;

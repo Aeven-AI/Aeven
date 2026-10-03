@@ -26,15 +26,15 @@ English | [中文](README.zh.md)
 
 Mount the tool alongside `avn-media` and one or more image providers. `model` names the model a call gets when it asks for none, verbatim in the provider's own spelling; `provider` pins which registered provider serves those calls. Both default to absent, which defers to the seam's own selection and requires every call to name its model.
 
-`choices` is the whole set of selectable models, each naming its provider. When it is non-empty, the picker, the `/image-models` command, and a model a call names are all limited to it, so a model outside the list is refused before any generation. The shipped presets list `Aeven-1.0-Image-Flash` and `Aeven-1.0-Image-Pro`, default to Flash, and set `confirmModel: false`, so the first generation runs on Flash without asking and `/image-models` changes the stored choice.
+`choices` is the whole set of selectable models, each naming its provider. When it is non-empty, the picker, the `/image-model` command, and a model a call names are all limited to it, so a model outside the list is refused before any generation. The shipped presets list `Aeven-1.0-Image-Flash` and `Aeven-1.0-Image-Pro`, default to Flash, and set `confirmModel: false`, so the first generation runs on Flash without asking and `/image-model` changes the stored choice: the bare line opens a picker, and `/image-model <provider>/<model>` — or a bare model id exactly one offered choice carries — stores that model directly.
 
-`listedProviders` names media providers whose own image-model listing is offered after `choices`. The listing is read on every call, so the picker, `/image-models`, and call validation follow a provider whose models change at runtime. The shipped presets name `grok-subscription` and `codex-subscription`, whose image models are listed while the subscription is signed in and the model is switched on in Settings → Providers.
+`listedProviders` names media providers whose own image-model listing is offered after `choices`. The listing is read on every call, so the picker, `/image-model`, and call validation follow a provider whose models change at runtime. The shipped presets name `grok-subscription` and `codex-subscription`, whose image models are listed while the subscription is signed in and the model is switched on in Settings → Providers.
 
 A deployment mounting two image providers pins one, either here or as the seam's `imageProvider`: the seam reports ambiguous selection rather than guessing.
 
 ### Requests
 
-`prompt` is the only required argument. `model` overrides the selected model for one call and is served by the provider its choice names. `n`, `size`, and `background` forward to the seam under its own names; only the fields a call set are sent, so the provider's own defaults apply to the rest, and a provider refuses an option the chosen model lacks. `reference_images` names image files in the order the prompt refers to them; each is read through `ctx.fs` under the session's working directory, bounded by `maxReferenceImageBytes` (4 MiB by default), labelled by its bytes, and sent to the provider as a reference. A conversation image is passed by the normalized-copy path its handle text shows.
+`prompt` is the only required argument. `model` overrides the selected model for one call and is served by the provider its choice names. `n`, `size`, `resolution`, `seed` and `background` forward to the seam; `guidance_scale`, `output_format` and `optimize_prompt_mode` map to its camel-case fields; only the fields a call set are sent, so the provider's own defaults apply to the rest, and a provider refuses an option the chosen model lacks. `reference_images` names image files in the order the prompt refers to them; each is read through `ctx.fs` under the session's working directory, bounded by `maxReferenceImageBytes` (4 MiB by default), labelled by its bytes, and sent to the provider as a reference. A conversation image is passed by the normalized-copy path its handle text shows.
 
 -----
 
@@ -58,7 +58,7 @@ A deployment mounting two image providers pins one, either here or as the seam's
 
 #### What the model sees
 
-The model sees the generated [`generate_image` schema](../../../docs/tool-catalog.md#aeventool-media) with one required `prompt` and five optional controls: `model` for a one-call override, `n`, `size`, and `background` forwarded to the seam, and `reference_images` for editing or drawing from existing images. The description names what a good prompt covers, how to pass reference images, and each configured choice with its description and the default, so the model knows which model has which option; it tells the model not to call other tools to locate or verify the image, because the attachment is already the result.
+The model sees the generated [`generate_image` schema](../../../docs/tool-catalog.md#aeventool-media) with one required `prompt` and optional controls: `model` for a one-call override; `n`, `size`, `resolution`, `seed`, `guidance_scale`, `output_format`, `optimize_prompt_mode` and `background` for supported generation settings; and `reference_images` for editing or drawing from existing images. The description names what a good prompt covers, how to pass reference images, and each configured choice with its description and the default, so the model knows which model has which option; it tells the model not to call other tools to locate or verify the image, because the attachment is already the result.
 
 #### Token effect
 
@@ -72,7 +72,7 @@ Prefix-stable while the definition and visibility are unchanged. Plugin lifecycl
 
 #### What the model sees
 
-A success returns one line — `Generated <n> image(s) with <model>.` — followed by one image block per stored image. A failure surfaces the seam's own message, which names the failing condition: an unnamed or unavailable model, an option the model lacks, an unreadable reference image, an upstream refusal, or a media type that cannot be stored.
+A success returns one line — `Generated <n> image(s) with <model>. Already displayed to the user; do not repeat or embed them in your reply.` — followed by one image block per stored image. Imagine renders these blocks at the generating call, including its in-flight placeholder; no assistant restatement is needed. A failure surfaces the seam's own message, which names the failing condition: an unnamed or unavailable model, an option the model lacks, an unreadable reference image, an upstream refusal, or a media type that cannot be stored.
 
 #### Token effect
 

@@ -20,6 +20,8 @@ The visible consequence was that a generated image existed — stored, durable, 
 
 **The renderer is the owner's, not the card's.** `ToolCallOwnerProps` gained an optional `renderImages`, threaded from the chat node's existing `renderMessageImages`. `ui-tool` keeps no attachment implementation and no image loader; it decides only *that* images belong in the card, while the attachment package keeps deciding how one is fetched and drawn.
 
+Generated-image tools use the independent call views and placeholders described in [generated images at their tool calls](../feature/2026-10-02-generated-images-at-tool-calls.md). The generic gallery remains the fallback for other image-bearing tools.
+
 ## Consequences
 
 Any tool returning `image` content blocks now shows them in the transcript with no further work, and a new image-producing tool inherits the behaviour by returning the block its `render()` already can. `ToolCallOwnerProps` gained one optional field, so registered business tool views keep compiling unchanged and opt in only by reading it.

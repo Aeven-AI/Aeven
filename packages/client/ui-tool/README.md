@@ -49,6 +49,8 @@ This package owns the generic fallback and the built-in shell/pwsh, read, write/
 
 A settled result's `image` content blocks render as a gallery below the row, outside the disclosure: a generated image is the tool's result rather than a detail of it, so it appears without the reader expanding anything. Running calls, failed results, and results whose content is text alone show no gallery, and a composition without an attachment presentation leaves the row text-only instead of an empty frame. Every tool that returns image blocks gets this, with no per-tool registration.
 
+Imagine owns the atomic views for generated-image tools. When process is collapsed, image calls remain visible and ordinary ancestors and siblings stay hidden; opening process restores those rows. The generic card omits attachments already displayed by an image call, including images forwarded by a parent code-execution result, and retains its gallery for other images.
+
 -----
 
 <a id="understand-the-implementation"></a>

@@ -192,9 +192,11 @@ export function arrivalFade(age: number | null): { className?: string | undefine
 function UserStyleBubble({
   content, renderMessageImages, actions, pending = false, echo = false, queued = false,
   arrivalAge = null, body, bubbleRef, referenceLabels = [], skillNames = [],
-  previewImages, previewFiles, t,
+  previewImages, previewFiles, turn, t,
 }: {
   content: readonly unknown[]
+  /** Turn the message belongs to; the attachment preview navigates all of it. */
+  turn?: number | undefined
   /** Receives the text bubble element, as the inline editor reads its height. */
   bubbleRef?: Ref<HTMLDivElement>
 
@@ -245,7 +247,7 @@ function UserStyleBubble({
           ? <>
             {/* The attachment tray and the text share one card; an open editor sits below it. */}
             <div className={css.attachmentCard}>
-              {renderMessageImages({ images, files, align: 'end', layout: 'tray' })}
+              {renderMessageImages({ images, files, align: 'end', layout: 'tray', turn })}
               {body === undefined && (showBubble
                 ? <div ref={bubbleRef} className={css.cardText}>{bubbleContent}</div>
                 : <div className={css.cardFoot} />)}
@@ -568,6 +570,7 @@ export const UserMessageNodeView = memo(function UserMessageNodeView({
     <UserStyleBubble
       content={data.content}
       renderMessageImages={renderMessageImages}
+      turn={node.location.kind === 'turn' || node.location.kind === 'step' ? node.location.turn.turn : undefined}
       arrivalAge={arrivalAge}
       bubbleRef={bubbleRef}
       {...data.referenceLabels === undefined ? {} : { referenceLabels: data.referenceLabels }}

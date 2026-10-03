@@ -45,17 +45,21 @@ kind: "package-reference"
 
 | 选项 | `Aeven-1.0-Image-Flash`（默认） | `Aeven-1.0-Image-Pro` |
 |---|---|---|
-| 实际服务 | FLUX.2 [klein] 9B | Seedream 5.0 Pro |
-| `size` | `WIDTHxHEIGHT`，每边 128–1920 px；默认 `1024x1024` | `1K`、`1.5K`、`2K`（默认）或 `WIDTHxHEIGHT` |
+| 实际服务 | Seedream 4 | Seedream 5.0 Pro |
+| `size` | `1K`、`2K`（默认）、`4K` 或 `WIDTHxHEIGHT` | `1K`、`1.5K`、`2K`（默认）或 `WIDTHxHEIGHT` |
 | `n` | 1–4 | 1–4 |
-| 参考图 | 最多 4 张 | 最多 4 张 |
+| 参考图 | 一张 | 最多 4 张 |
 | `background` | 无 | `transparent` 或 `opaque` |
+| `seed` | −1（随机）至 4294967295；不保证可复现 | 无 |
+| `guidance_scale` | 1–10 | 无 |
+| `output_format` | 无 | `png` 或 `jpeg` |
+| `optimize_prompt_mode` | 无 | `standard` 或 `fast` |
 
 Pro 的透明背景需要恰好一张带 alpha 通道的参考图；该规则由网关执行。
 
 ### 请求
 
-`requestBody` 在发出任何请求之前拒绝：Aeven 不提供的模型、在没有该选项的模型上指定背景、超出 1–4 的 `n`、多于四张参考图，以及网关没有对应字段的 seam 字段 `aspectRatio`、`resolution` 与 `seed`。其余一切——尺寸词汇、透明背景的 alpha 要求、账号的套餐与余额——由网关负责拒绝，其消息会携带在 `MediaError` 中。参考图以内联 `data:` URL 发送，因为网关不会抓取远程地址。
+`requestBody` 在发出任何请求之前拒绝：Aeven 不提供的模型、在没有该选项的模型上指定背景、超出 1–4 的 `n`、超出模型上限的参考图，以及 `aspectRatio`。`resolution` 映射为 `size`，不能与显式尺寸同时提供；`seed`、`guidanceScale`、`outputFormat` 与 `optimizePromptMode` 映射为网关对应的蛇形命名字段。其余一切——尺寸词汇、透明背景的 alpha 要求、账号的套餐与余额——由网关负责拒绝，其消息会携带在 `MediaError` 中。参考图以内联 `data:` URL 发送，因为网关不会抓取远程地址。
 
 ### 以登录代替持有密钥
 

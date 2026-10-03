@@ -45,17 +45,21 @@ Mount the provider in a composition that already loads `avn-media`. It registers
 
 | Option | `Aeven-1.0-Image-Flash` (default) | `Aeven-1.0-Image-Pro` |
 |---|---|---|
-| Served by | FLUX.2 [klein] 9B | Seedream 5.0 Pro |
-| `size` | `WIDTHxHEIGHT`, 128–1920 px per side; default `1024x1024` | `1K`, `1.5K`, `2K` (default), or `WIDTHxHEIGHT` |
+| Served by | Seedream 4 | Seedream 5.0 Pro |
+| `size` | `1K`, `2K` (default), `4K`, or `WIDTHxHEIGHT` | `1K`, `1.5K`, `2K` (default), or `WIDTHxHEIGHT` |
 | `n` | 1–4 | 1–4 |
-| Reference images | up to 4 | up to 4 |
+| Reference images | one | up to 4 |
 | `background` | none | `transparent` or `opaque` |
+| `seed` | −1 (random) to 4294967295; no reproducibility guarantee | none |
+| `guidance_scale` | 1–10 | none |
+| `output_format` | none | `png` or `jpeg` |
+| `optimize_prompt_mode` | none | `standard` or `fast` |
 
 A transparent background on Pro needs one reference image that has an alpha channel; the gateway enforces that rule.
 
 ### Requests
 
-`requestBody` refuses, before any request is made, a model Aeven does not serve, a background on a model without that option, `n` outside 1–4, more than four reference images, and the seam's `aspectRatio`, `resolution`, and `seed`, which the gateway has no field for. Everything else — the size vocabulary, a transparent background's alpha requirement, the account's plan and balance — is the gateway's to refuse, and its message is carried in the `MediaError`. Reference images are sent inline as `data:` URLs, because the gateway fetches no remote address.
+`requestBody` refuses, before any request is made, a model Aeven does not serve, a background on a model without that option, `n` outside 1–4, too many reference images for the model, and `aspectRatio`. `resolution` maps to `size` and cannot accompany an explicit size; `seed`, `guidanceScale`, `outputFormat` and `optimizePromptMode` map to the gateway's corresponding snake-case fields. Everything else — the size vocabulary, a transparent background's alpha requirement, the account's plan and balance — is the gateway's to refuse, and its message is carried in the `MediaError`. Reference images are sent inline as `data:` URLs, because the gateway fetches no remote address.
 
 ### Signing in instead of holding a key
 

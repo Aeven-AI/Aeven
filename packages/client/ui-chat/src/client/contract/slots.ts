@@ -87,6 +87,8 @@ export interface ChatNodeOwnerProps {
    */
   editMessage?: ChatViewInjected['editMessage'] | undefined
   renderMessageImages: RenderMessageImages
+  /** Generated image calls and artifacts owned by this Turn. */
+  generatedImages?: import('./generated-images.ts').GeneratedImages | undefined
   fileMentions: (owner: TurnTailOwnerProps) => MarkdownFileMentions | undefined
   /** Keep the transcript on its live tail after streamed Markdown renders. */
   scrollDown?: (() => void) | undefined

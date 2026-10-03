@@ -72,15 +72,15 @@ export const AEVEN_IMAGE_MODELS: readonly AevenImageModel[] = [
   {
     id: 'Aeven-1.0-Image-Flash',
     label: 'Aeven Image Flash',
-    description: 'Fast, low-cost generation and editing. Size WIDTHxHEIGHT, 128–1920 px per side (default 1024x1024); up to 4 reference images.',
+    description: 'Seedream 4 generation and editing. Size 1K, 2K (default), 4K or WIDTHxHEIGHT; one reference image; seed and guidance scale 1–10.',
     maxImages: 4,
-    maxReferenceImages: 4,
+    maxReferenceImages: 1,
     backgrounds: [],
   },
   {
     id: 'Aeven-1.0-Image-Pro',
     label: 'Aeven Image Pro',
-    description: 'Accurate text rendering and detailed scenes. Size 1K, 1.5K, 2K (default) or WIDTHxHEIGHT; up to 4 reference images; transparent or opaque background.',
+    description: 'Seedream 5.0 Pro. Size 1K, 1.5K, 2K (default) or WIDTHxHEIGHT; four references; PNG/JPEG, background and standard/fast prompt optimization.',
     maxImages: 4,
     maxReferenceImages: 4,
     backgrounds: ['transparent', 'opaque'],
@@ -149,19 +149,11 @@ export function requestBody(request: MediaImageRequest): Record<string, unknown>
       'MEDIA_INVALID_REQUEST',
     )
   }
-  // The gateway has no field for these, so dropping one would produce and
-  // charge for an image that is not the one asked for.
-  for (const [field, value] of [
-    ['aspectRatio', request.aspectRatio],
-    ['resolution', request.resolution],
-    ['seed', request.seed],
-  ] as const) {
-    if (value !== undefined) {
-      throw new MediaError(
-        `${field} is not supported by ${model.id}; pass size as WIDTHxHEIGHT instead`,
-        'MEDIA_INVALID_REQUEST',
-      )
-    }
+  if (request.aspectRatio !== undefined) {
+    throw new MediaError(
+      `aspectRatio is not supported by ${model.id}; pass size as WIDTHxHEIGHT instead`,
+      'MEDIA_INVALID_REQUEST',
+    )
   }
   if (request.background !== undefined && !model.backgrounds.includes(request.background)) {
     const offering = AEVEN_IMAGE_MODELS.filter(entry => entry.backgrounds.includes(request.background as MediaImageBackground))
@@ -172,6 +164,9 @@ export function requestBody(request: MediaImageRequest): Record<string, unknown>
   }
   if (request.n !== undefined && (request.n < 1 || request.n > model.maxImages)) {
     throw new MediaError(`${model.id} generates 1 to ${String(model.maxImages)} images per call`, 'MEDIA_INVALID_REQUEST')
+  }
+  if (request.size !== undefined && request.resolution !== undefined) {
+    throw new MediaError('Pass either size or resolution, not both', 'MEDIA_INVALID_REQUEST')
   }
   const references = request.references ?? []
   if (references.length > model.maxReferenceImages) {
@@ -187,7 +182,11 @@ export function requestBody(request: MediaImageRequest): Record<string, unknown>
     // the seam returns.
     response_format: 'b64_json',
     ...request.n === undefined ? {} : { n: request.n },
-    ...request.size === undefined ? {} : { size: request.size },
+    ...request.size === undefined && request.resolution === undefined ? {} : { size: request.size ?? request.resolution },
+    ...request.seed === undefined ? {} : { seed: request.seed },
+    ...request.guidanceScale === undefined ? {} : { guidance_scale: request.guidanceScale },
+    ...request.outputFormat === undefined ? {} : { output_format: request.outputFormat },
+    ...request.optimizePromptMode === undefined ? {} : { optimize_prompt_mode: request.optimizePromptMode },
     ...request.background === undefined ? {} : { background: request.background },
     ...references.length === 0 ? {} : {
       image: references.map(reference => `data:${reference.mediaType};base64,${Buffer.from(reference.data).toString('base64')}`),

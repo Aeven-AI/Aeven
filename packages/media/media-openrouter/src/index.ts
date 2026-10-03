@@ -109,6 +109,12 @@ export function apply(ctx: Context, config: Config): void {
     },
 
     async generateImage(request: MediaImageRequest, signal?: AbortSignal): Promise<MediaImageResult> {
+      for (const [field, value] of [
+        ['guidanceScale', request.guidanceScale], ['outputFormat', request.outputFormat],
+        ['optimizePromptMode', request.optimizePromptMode],
+      ]) {
+        if (value !== undefined) throw new MediaError(`${String(field)} is not supported by ${request.provider ?? request.model}`, 'MEDIA_INVALID_REQUEST')
+      }
       const body: Record<string, unknown> = { model: request.model, prompt: request.prompt }
       if (request.n !== undefined) body['n'] = request.n
       if (request.aspectRatio !== undefined) body['aspect_ratio'] = request.aspectRatio

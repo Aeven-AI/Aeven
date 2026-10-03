@@ -51,6 +51,8 @@ Image and video generation have no configuration field. Each subscription's imag
 
 An open, signed-in card lists every model the subscription offers with one checkbox each, plus **Select all** or **Deselect all**. A new model is selected by default. Small icons mark a model that understands images and a model that generates images. A change applies at once: the route's model list, the composer's model picker, and the image-model list follow it. The selection lives in `${AVN_HOME}/subscription-model-selection.json` as the ids the user switched off, so a model the vendor adds later starts selected and a model it removes drops out without touching other choices.
 
+Codex generation/editing and Grok Imagine image results return durable image blocks with a summary stating that the images are already displayed and must not be repeated or embedded in the reply. Workspace-copy paths remain in the typed output and replayable presentation metadata, rather than the model-facing summary.
+
 -----
 
 <a id="understand-the-implementation"></a>
@@ -95,6 +97,8 @@ Tool advertisement changes the tool catalogue, and the catalogue is part of the 
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
+
+Image providers in this package refuse `guidanceScale`, `outputFormat` and `optimizePromptMode`; these native Seedream controls are served by the Aeven and DeepInfra providers.
 
 - **Vendor endpoints are private and undocumented.** Quota reads and the Grok Build media route call each vendor's own client endpoints. A vendor may change or withdraw one without notice, and the failure surfaces as a refused tool rather than a build error.
 - **The Grok Imagine image model has two names.** The direct xAI API calls it `grok-imagine-image-2.0` and the Grok Build proxy calls it `grok-imagine-image-quality`. Both spellings are accepted and normalized to the transport in play, so a model picker offering either id works whichever credential resolves.

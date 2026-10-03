@@ -1,5 +1,5 @@
 ---
-description: "面向 ctx.media 的 DeepInfra 图片与视频 provider：在单一固定 origin 上进行 OpenAI 兼容的图片生成与提交／轮询／取回的视频任务，把 DeepInfra 观察到的任务状态映射到 seam 的联合类型。"
+description: "面向 ctx.media 的 DeepInfra 图片与视频 provider：原生 Seedream 和 OpenAI 兼容图片生成，以及提交／轮询／取回的视频任务，把 DeepInfra 观察到的任务状态映射到 seam 的联合类型。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`avn-media-deepinfra` 把 DeepInfra 同时注册为 `ctx.media` 的图片与视频后端。图片走 DeepInfra 的 OpenAI 兼容路由并以 base64 返回；视频是一个任务——提交、轮询、取回——面向同一个账号与 origin。撰写本文时 DeepInfra 中介了 16 个带 `video-gen` 标签的模型，从 Wan、Seedance 到 Veo，按秒计价。当部署希望用一把 DeepInfra 密钥获得两种媒介时挂载它。
+`avn-media-deepinfra` 把 DeepInfra 同时注册为 `ctx.media` 的图片与视频后端。Seedream 图片走原生推理及不带凭据的 Ark CDN 下载；其他图片走 DeepInfra 的 OpenAI 兼容路由并以 base64 返回；视频是一个任务——提交、轮询、取回——面向同一个账号与 origin。撰写本文时 DeepInfra 中介了 16 个带 `video-gen` 标签的模型，从 Wan、Seedance 到 Veo，按秒计价。当部署希望用一把 DeepInfra 密钥获得两种媒介时挂载它。
 
 ## 目录
 
@@ -28,11 +28,23 @@ kind: "package-reference"
 
 ### 最小配置
 
-`id` 是注册键，`apiKeyEnv` 是凭据引用，`maxVideoBytes` 限制单个取回片段的大小；三者都有默认值。挂载了 `ctx.credentials` 服务时凭据经由它解析，否则回退到同名环境变量。
+`id` 是注册键，`apiKeyEnv` 是凭据引用，`maxVideoBytes` 限制单个取回片段的大小，`maxImageBytes` 把每张原生图片的下载限制为 32 MiB；所有字段都有默认值。挂载了 `ctx.credentials` 服务时凭据经由它解析，否则回退到同名环境变量。
 
 ### 请求
 
-图片请求携带提示词、`n` 与 `size`；该路由文档说明 base64 是它唯一支持的响应格式，因此始终按此请求。视频请求把 `duration` 转发为 `seconds`，另加 `aspectRatio`、`size` 与 `seed`，单张参考图成为用于图生视频的 `image_url` 首帧。
+图片模型来自 `GET /models/list` 中未弃用的 `text-to-image` 条目。OpenAI 格式的列表遗漏 Seedream 4.5 和 5.0 Pro。Seedream 4、4.5 和 5.0 Pro 使用 `POST /v1/inference/{model}`；`size` 或 `resolution` 提供模型支持的档位或 `WIDTHxHEIGHT`，`n` 发起相应次数的原生调用。
+
+| 控制项 | Seedream 4 / 4.5 | Seedream 5.0 Pro |
+|---|---|---|
+| 档位 | 2K（默认）、4K；Seedream 4 支持 1K | 1K、1.5K、2K（默认） |
+| 参考图 | 一张 | 最多四张，按顺序 |
+| `seed` | −1（随机）至 4294967295；不可复现 | 拒绝 |
+| `guidanceScale` | 1–10 | 拒绝 |
+| `outputFormat` | 拒绝 | `png` 或 `jpeg` |
+| `background` | 拒绝 | `transparent` 或 `opaque` |
+| `optimizePromptMode` | 拒绝 | `standard` 或 `fast` |
+
+透明输出需要恰好一张带 alpha 通道的参考图，且不能使用 JPEG。其他图片模型沿用兼容路由的显式像素尺寸、单张参考图、`background` 和 base64 响应。视频请求把 `duration` 转发为 `seconds`，另加 `aspectRatio`、`size` 与 `seed`；第一张参考图提供 `image_url` 首帧。
 
 -----
 
@@ -46,6 +58,14 @@ DeepInfra 对正在渲染的任务报告 `queued`，且根本不发布任何运�
 ### 图片按其字节标注类型
 
 该路由的 `response_format` 命名的是编码而非图片格式，并且它会以 JPEG 回应一个默认 PNG 的请求。因此本包嗅探每张解码图片的起始字节而非假定类型，并把无法识别的签名保留为 `application/octet-stream` 而不是猜测。
+
+### 原生图片下载
+
+原生结果指向 Ark 的 `ark-content-generation-v2-ap-southeast-1.tos-ap-southeast-1.volces.com` 或 `ark-acg-ap-southeast-1.tos-ap-southeast-1.volces.com` CDN。下载仅接受这些精确主机上的 HTTPS，拒绝重定向，不发送授权标头，并在读取流时执行 `maxImageBytes` 限制。DeepInfra 的 bearer 只发送到 `api.deepinfra.com`；返回图片的字节决定媒体类型和实际尺寸。
+
+### 兼容图片控制项
+
+兼容路由要求显式 `WIDTHxHEIGHT`，并忽略未知字段。对于原生 Seedream 集合之外的模型，拒绝分辨率档位和多张参考图；种子、引导强度、输出格式及提示词优化也在此被拒绝，而非静默忽略。
 
 ### 取回字节
 
@@ -78,6 +98,9 @@ DeepInfra 对正在渲染的任务报告 `queued`，且根本不发布任何运�
 - **不支持 webhook**——对长任务 DeepInfra 推荐用 webhook 替代轮询；本 provider 只轮询。
 - **无成本报告**——按秒计价发布在模型列表上而非任务上，且 seam 没有承载它的位置。
 
+- **种子不等于可复现**——Seedream 4 和 4.5 接受提供方的种子字段；相同种子不保证相同字节。
+- **Ark 专有开关不可用**——DeepInfra 不暴露 `watermark`、`sequential_image_generation` 或 `max_images`。`n` 执行独立生成，不会创建原生故事或变体集。
+
 <a id="dev-note"></a>
 ### 开发备注
 
@@ -86,8 +109,8 @@ DeepInfra 对正在渲染的任务报告 `queued`，且根本不发布任何运�
 
 本开发备注是面向维护者的工作上下文：尚未决定的方向与开放问题。它明确不具权威性——已交付的行为、限制与理由位于上文各节。
 
-#### 未来：旧版 inference 路由
+#### 原生视频推理
 
-DeepInfra 还提供 `POST /v1/inference/{model}`，它以 `data:` URI 内联返回片段而非返回任务。对轮询开销占主导的短片段它可能更合适，但它复制了一套传输层，并且完全没有状态词汇。未予采用。
+DeepInfra 的原生路由也以 `data:` URI 内联返回视频。视频 provider 保留提交／轮询／取回路径，其状态及取消方法与媒体 seam 匹配。
 
 </details>

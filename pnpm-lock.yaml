@@ -9,6 +9,7 @@ overrides:
   '@deepseek-ai/schemastery': link:vendor/schemastery
 
 patchedDependencies:
+  '@memtensor/memos-local-plugin@2.0.20': 607d26b7a3f3362e4b1535119ab014223a64a1107aa08c9efe7be18618eddb1a
   node-pty@1.2.0-beta.15: e6fba930d7e1698e1661b1062f999232a38e5bc2bb9b772d862a7598dd80b943
 
 importers:
@@ -3167,12 +3168,30 @@ importers:
         specifier: ^2.0.0
         version: 2.1.1
     devDependencies:
+      '@aeven/api-remotes':
+        specifier: workspace:^
+        version: link:../../api/remotes
+      '@aeven/api-session-controller':
+        specifier: workspace:^
+        version: link:../../api/session-controller
       '@aeven/client-locale':
         specifier: workspace:^
         version: link:../locale
       '@aeven/client-test-runtime':
         specifier: workspace:^
         version: link:../../test-support/client-runtime
+      '@aeven/client-ui-chat':
+        specifier: workspace:^
+        version: link:../ui-chat
+      '@aeven/client-ui-commands':
+        specifier: workspace:^
+        version: link:../ui-commands
+      '@aeven/client-ui-conversation':
+        specifier: workspace:^
+        version: link:../ui-conversation
+      '@aeven/client-ui-input-trigger':
+        specifier: workspace:^
+        version: link:../ui-input-trigger
       '@aeven/client-ui-layout':
         specifier: workspace:^
         version: link:../ui-layout
@@ -3182,9 +3201,27 @@ importers:
       '@aeven/client-ui-renderer':
         specifier: workspace:^
         version: link:../ui-renderer
+      '@aeven/client-ui-session':
+        specifier: workspace:^
+        version: link:../ui-session
+      '@aeven/client-ui-settings':
+        specifier: workspace:^
+        version: link:../ui-settings
       '@aeven/client-ui-slots':
         specifier: workspace:^
         version: link:../ui-slots
+      '@aeven/client-ui-tool':
+        specifier: workspace:^
+        version: link:../ui-tool
+      '@aeven/llm':
+        specifier: workspace:^
+        version: link:../../llm/llm
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@aeven/tools':
+        specifier: workspace:^
+        version: link:../../core/tools
       '@aeven/util-crypto':
         specifier: workspace:^
         version: link:../../util/crypto
@@ -8548,7 +8585,7 @@ importers:
         version: link:../../../vendor/schemastery
       '@memtensor/memos-local-plugin':
         specifier: 2.0.20
-        version: 2.0.20(@deepseek-ai/cordis@vendor+cordis)(@deepseek-ai/schemastery@vendor+schemastery)
+        version: 2.0.20(patch_hash=607d26b7a3f3362e4b1535119ab014223a64a1107aa08c9efe7be18618eddb1a)(@deepseek-ai/cordis@vendor+cordis)(@deepseek-ai/schemastery@vendor+schemastery)
     devDependencies:
       '@aeven/llm':
         specifier: workspace:^
@@ -21596,7 +21633,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@memtensor/memos-local-plugin@2.0.20(@deepseek-ai/cordis@vendor+cordis)(@deepseek-ai/schemastery@vendor+schemastery)':
+  '@memtensor/memos-local-plugin@2.0.20(patch_hash=607d26b7a3f3362e4b1535119ab014223a64a1107aa08c9efe7be18618eddb1a)(@deepseek-ai/cordis@vendor+cordis)(@deepseek-ai/schemastery@vendor+schemastery)':
     dependencies:
       '@huggingface/transformers': 4.2.0
       '@preact/signals': 2.11.2(preact@10.29.7)

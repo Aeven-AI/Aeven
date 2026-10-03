@@ -575,8 +575,7 @@ function codexImageSummary(
   },
 ): string {
   const summary = `${verb} ${String(value.images.length)} Codex image(s) with ${value.model}`
-  const paths = value.workspacePaths
-  return paths === undefined || paths.length === 0 ? `${summary}.` : `${summary}, saved to ${paths.join(', ')}.`
+  return `${summary}. Already displayed to the user; do not repeat or embed them in your reply.`
 }
 
 /**
@@ -601,7 +600,7 @@ export async function createCapabilityTools(options: CapabilityToolsOptions): Pr
   const generate = defineTool({
     name: CODEX_IMAGE_GENERATE_TOOL,
     description:
-			'Generate images with the signed-in Codex subscription. Uses the fixed gpt-image-2 model. Does not accept a model id or image URL.',
+			'Generate images with the signed-in Codex subscription. Uses the fixed gpt-image-2 model. Does not accept a model id or image URL. Images are displayed directly to the user; do not repeat, embed or write their paths in your reply.',
     parameters: {
       prompt: {
         ...promptParameter,
@@ -612,6 +611,7 @@ export async function createCapabilityTools(options: CapabilityToolsOptions): Pr
     output: {
       schema: codexImageOutputSchema('generate'),
       render: (_args, value) => renderImageRefs(codexImageSummary('Generated', value), value.images),
+      presentationMeta: (_args, value) => ({ imagePaths: value.workspacePaths ?? [] }),
     },
     async execute(args, exec) {
       const settings = options.current()
@@ -631,7 +631,7 @@ export async function createCapabilityTools(options: CapabilityToolsOptions): Pr
   const edit = defineTool({
     name: CODEX_IMAGE_EDIT_TOOL,
     description:
-			'Edit current-session Codex images. imageIds must be canonical attachment ids visible in this session. Does not accept HTTP(S) URLs or a model id.',
+			'Edit current-session Codex images. imageIds must be canonical attachment ids visible in this session. Does not accept HTTP(S) URLs or a model id. Images are displayed directly to the user; do not repeat, embed or write their paths in your reply.',
     parameters: {
       prompt: {
         ...promptParameter,
@@ -648,6 +648,7 @@ export async function createCapabilityTools(options: CapabilityToolsOptions): Pr
     output: {
       schema: codexImageOutputSchema('edit'),
       render: (_args, value) => renderImageRefs(codexImageSummary('Edited', value), value.images),
+      presentationMeta: (_args, value) => ({ imagePaths: value.workspacePaths ?? [] }),
     },
     async execute(args, exec) {
       const settings = options.current()
@@ -667,7 +668,7 @@ export async function createCapabilityTools(options: CapabilityToolsOptions): Pr
   const imagineImage = defineTool({
     name: GROK_IMAGINE_IMAGE_TOOL,
     description:
-			'Generate images with official xAI Imagine. Uses the fixed grok-imagine-image-2.0 model. Does not accept a model id or source URL.',
+			'Generate images with official xAI Imagine. Uses the fixed grok-imagine-image-2.0 model. Does not accept a model id or source URL. Images are displayed directly to the user; do not repeat, embed or write their paths in your reply.',
     parameters: {
       prompt: {
         ...promptParameter,
@@ -703,11 +704,10 @@ export async function createCapabilityTools(options: CapabilityToolsOptions): Pr
       },
       render: (_args, value) =>
         renderImageRefs(
-          value.workspacePaths === undefined || value.workspacePaths.length === 0
-            ? `Generated ${String(value.images.length)} Imagine image(s).`
-            : `Generated ${String(value.images.length)} Imagine image(s), saved to ${value.workspacePaths.join(', ')}.`,
+          `Generated ${String(value.images.length)} Imagine image(s). Already displayed to the user; do not repeat or embed them in your reply.`,
           value.images.map(image => image.attachment),
         ),
+      presentationMeta: (_args, value) => ({ imagePaths: [...(value.workspacePaths ?? []), ...value.images.map(image => image.path)] }),
     },
     async execute(args, exec) {
       const settings = options.current()

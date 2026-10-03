@@ -1,0 +1,64 @@
+diff --git a/dist/core/retrieval/tier2-trace.js b/dist/core/retrieval/tier2-trace.js
+index a5311c394e08642cdbf9a3efa1c0f9b0b4ed097b..60d5de35eaf7bc0f4a1a2a6a589ba3fdfb40d35c 100644
+--- a/dist/core/retrieval/tier2-trace.js
++++ b/dist/core/retrieval/tier2-trace.js
+@@ -44,7 +44,6 @@ export async function runTier2(deps, input) {
+                 anyOfTags: tagsForStorage,
+                 where: vectorFilters.where,
+                 params: vectorFilters.params,
+-                hardCap: vecPoolSize * 4,
+             }), config, input.profile);
+             mergeChannelHits(blended, summaryHits, "vec_summary");
+             if (!config.lightweightMemory &&
+@@ -54,7 +53,6 @@ export async function runTier2(deps, input) {
+                     anyOfTags: tagsForStorage,
+                     where: vectorFilters.where,
+                     params: vectorFilters.params,
+-                    hardCap: vecPoolSize * 4,
+                 }), config, input.profile, "action");
+                 mergeChannelHits(blended, actionHits, "vec_action");
+             }
+@@ -68,7 +66,6 @@ export async function runTier2(deps, input) {
+                     kind: "summary",
+                     where: vectorFilters.where,
+                     params: vectorFilters.params,
+-                    hardCap: vecPoolSize * 4,
+                 }), config, input.profile);
+                 mergeChannelHits(blended, retry, "vec_summary");
+             }
+@@ -288,13 +285,7 @@ function resolveTagFilter(tags, config) {
+ function filterVectorHits(hits, config, profile, channel = "summary") {
+     if (hits.length === 0)
+         return [];
+-    const topScore = Math.max(...hits.map((hit) => hit.score));
+-    const adaptiveRatio = profile === "personal_fact"
+-        ? channel === "action"
+-            ? 0.65
+-            : 0.55
+-        : 0.45;
+-    const floor = Math.max(config.minTraceSim, topScore * adaptiveRatio);
++    const floor = config.minTraceSim;
+     return hits.filter((hit) => hit.score >= floor);
+ }
+ function mergeChannelHits(into, hits, channel) {
+diff --git a/dist/core/storage/keyword.js b/dist/core/storage/keyword.js
+index bfe439a4bb24000ec6939ccb7f1816fb10a4dc51..0fdb25b3a42b16ec5c7e0525e4503ababcd8ac41 100644
+--- a/dist/core/storage/keyword.js
++++ b/dist/core/storage/keyword.js
+@@ -21,6 +21,7 @@ const PUNCT = /["“”'’(){}\[\]<>«»《》【】（）\\^~!@#$%&*+/=:;,.，
+ const CJK_RUN = /[\u4e00-\u9fff\u3400-\u4dbf\uF900-\uFAFF]+/g;
+ const TRIGRAM_MIN = 3;
+ const PATTERN_MIN = 2;
++const ASCII_PATTERN_NOISE = new Set(["am", "an", "as", "at", "be", "by", "do", "he", "if", "in", "is", "it", "me", "my", "of", "on", "or", "so", "to", "up", "us", "we"]);
+ const MAX_FTS_TOKENS = 12;
+ const MAX_PATTERN_TERMS = 16;
+ const MAX_EXACT_IDENTIFIERS = 8;
+@@ -145,7 +146,7 @@ export function extractPatternTerms(query) {
+     const out = new Set();
+     // Short ASCII tokens (length === 2). Length 1 is too noisy.
+     for (const tok of cleaned.split(/\s+/).filter(Boolean)) {
+-        if (tok.length === PATTERN_MIN && /[^\u4e00-\u9fff]/.test(tok)) {
++        if (tok.length === PATTERN_MIN && /[^\u4e00-\u9fff]/.test(tok) && !ASCII_PATTERN_NOISE.has(tok.toLowerCase())) {
+             out.add(tok.toLowerCase());
+         }
+     }

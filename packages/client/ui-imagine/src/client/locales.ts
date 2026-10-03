@@ -6,6 +6,10 @@ export const zh = {
   'placeholder': '描述你想象的画面…',
   'add': '添加',
   'send': '发送',
+  'image.generating': '正在生成图片…',
+  'image.elapsed': '{seconds} 秒',
+  'image.failed': '图片生成失败',
+  'image.unavailable': '图片无法显示',
 } satisfies Record<string, string>
 
 /** The imagine namespace key union. */
@@ -17,6 +21,10 @@ export const en = {
   'placeholder': 'Describe what you want to imagine…',
   'add': 'Add',
   'send': 'Send',
+  'image.generating': 'Generating image…',
+  'image.elapsed': '{seconds}s',
+  'image.failed': 'Image generation failed',
+  'image.unavailable': 'Image unavailable',
 } satisfies Record<ImagineKey, string>
 
 declare module '@aeven/client-ui-slots' {

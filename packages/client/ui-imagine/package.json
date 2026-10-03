@@ -1,6 +1,6 @@
 {
   "name": "@aeven/client-ui-imagine",
-  "description": "Imagine surface: the /i/<id> start page that takes the center column in place of the chat",
+  "description": "Imagine surface: the /i/<id> start page that takes the center column in place of the chat, and the /image-model picker",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
     "access": "public"
@@ -28,9 +28,16 @@
   "avn": {
     "client": {
       "inject": [
+        "@aeven/api-remotes",
+        "@aeven/api-session-controller",
         "@aeven/client-locale",
+        "@aeven/client-ui-commands",
         "@aeven/client-ui-layout",
-        "@aeven/client-ui-renderer"
+        "@aeven/client-ui-renderer",
+        "@aeven/client-ui-settings",
+        "@aeven/client-ui-chat",
+        "@aeven/client-ui-conversation",
+        "@aeven/client-ui-tool"
       ],
       "platform": "web"
     }
@@ -47,12 +54,24 @@
     "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
+    "@aeven/api-remotes": "workspace:^",
+    "@aeven/api-session-controller": "workspace:^",
     "@aeven/client-locale": "workspace:^",
     "@aeven/client-test-runtime": "workspace:^",
+    "@aeven/client-ui-chat": "workspace:^",
+    "@aeven/client-ui-commands": "workspace:^",
+    "@aeven/client-ui-conversation": "workspace:^",
+    "@aeven/client-ui-input-trigger": "workspace:^",
     "@aeven/client-ui-layout": "workspace:^",
     "@aeven/client-ui-primitives": "workspace:^",
     "@aeven/client-ui-renderer": "workspace:^",
+    "@aeven/client-ui-session": "workspace:^",
+    "@aeven/client-ui-settings": "workspace:^",
     "@aeven/client-ui-slots": "workspace:^",
+    "@aeven/client-ui-tool": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/tools": "workspace:^",
     "@aeven/util-crypto": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
     "@testing-library/react": "^16.1.0",

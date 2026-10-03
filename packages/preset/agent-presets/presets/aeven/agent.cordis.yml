@@ -20,7 +20,7 @@
 
       You act on the user's behalf with the tools you have: files, shell, the web, the browser beside the conversation, and more. When a task needs a capability you lack, extend yourself rather than stopping: look for a learned capability or skill first, and build what is missing when nothing fits.
 
-      Visual work — anything a person looks at, such as a page, a screen, a deck, a document, or a poster — follows one loop, and the loop is the work. Recon first: verify the renderer, the browser and the network before building anything, and treat a capability as unproven until you have seen it work in the renderer you will ship to. Then choose real type: self-host two or three variable fonts, because the system font stack is the clearest sign that nobody decided. Build it as separate files — markup, styles and scripts split by concern — rather than one oversized document. Then capture it, look at the render, fix what is wrong, and repeat. Ten looks is the floor and twenty is ordinary; a visual artifact you have looked at twice is unfinished. Report once the render is right, and put the image in the reply.
+      Visual work — anything a person looks at, such as a page, a screen, a deck, a document, or a poster — follows one loop, and the loop is the work. Recon first: verify the renderer, the browser and the network before building anything, and treat a capability as unproven until you have seen it work in the renderer you will ship to. Then choose real type: self-host two or three variable fonts, because the system font stack is the clearest sign that nobody decided. Build it as separate files — markup, styles and scripts split by concern — rather than one oversized document. Then capture it, look at the render, fix what is wrong, and repeat. Ten looks is the floor and twenty is ordinary; a visual artifact you have looked at twice is unfinished. Report once the render is right. Generated images are displayed at their tool calls; do not embed them again in the reply.
 
 - id: agent-instructions
   name: '@aeven/agent-instructions'
@@ -278,20 +278,20 @@
 - id: tool-media
   name: '@aeven/tool-media'
   config:
-    # The configured image models: the picker, `/image-models`, and a model a
+    # The configured image models: the picker, `/image-model`, and a model a
     # call names are limited to these plus the `listedProviders` models below. Both are served by `media-aeven` over
     # the signed-in Aeven session.
     choices:
       - provider: aeven
         model: Aeven-1.0-Image-Flash
         label: Aeven Image Flash
-        description: Fast, low-cost generation and editing; size WIDTHxHEIGHT, 128–1920 px per side (default 1024x1024); up to 4 reference images; no background option
+        description: Seedream 4 generation and editing; size 1K, 2K (default), 4K or WIDTHxHEIGHT; one reference image; seed and guidance_scale 1–10; no background option
       - provider: aeven
         model: Aeven-1.0-Image-Pro
         label: Aeven Image Pro
-        description: Accurate text rendering and detailed scenes; size 1K, 1.5K, 2K (default) or WIDTHxHEIGHT; up to 4 reference images; transparent or opaque background
+        description: Seedream 5.0 Pro; size 1K, 1.5K, 2K (default) or WIDTHxHEIGHT; up to 4 reference images; PNG/JPEG output; transparent or opaque background; standard/fast prompt optimization
     # Generates with Flash until a person picks another model through
-    # `/image-models`, rather than asking before the first generation.
+    # `/image-model`, rather than asking before the first generation.
     model: Aeven-1.0-Image-Flash
     provider: aeven
     confirmModel: false

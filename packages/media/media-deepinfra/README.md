@@ -1,5 +1,5 @@
 ---
-description: "The DeepInfra image and video provider for ctx.media: OpenAI-compatible image generation and submit/poll/retrieve video jobs against one pinned origin, with DeepInfra's observed job states mapped onto the seam's union."
+description: "The DeepInfra image and video provider for ctx.media: native Seedream and OpenAI-compatible image generation, with submit/poll/retrieve video jobs, with DeepInfra's observed job states mapped onto the seam's union."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`avn-media-deepinfra` registers DeepInfra as both an image and a video backend for `ctx.media`. Images go through DeepInfra's OpenAI-compatible route and come back as base64; video is a job — submit, poll, retrieve — against the same account and origin. DeepInfra brokers 16 models tagged `video-gen` at the time of writing, from Wan and Seedance to Veo, at per-second pricing. Mount it when a deployment wants both media from one DeepInfra key.
+`avn-media-deepinfra` registers DeepInfra as both an image and a video backend for `ctx.media`. Seedream images use native inference and credential-free Ark CDN downloads; other images use DeepInfra's OpenAI-compatible route and come back as base64; video is a job — submit, poll, retrieve — against the same account and origin. DeepInfra brokers 16 models tagged `video-gen` at the time of writing, from Wan and Seedance to Veo, at per-second pricing. Mount it when a deployment wants both media from one DeepInfra key.
 
 ## Table of Contents
 
@@ -28,11 +28,23 @@ Mount the provider in a composition that already loads `avn-media`; it registers
 
 ### Minimal configuration
 
-`id` is the registry key, `apiKeyEnv` is the credential reference, and `maxVideoBytes` caps one retrieved clip; all three default. The credential resolves through `ctx.credentials` when that service is mounted, and falls back to the named environment variable.
+`id` is the registry key, `apiKeyEnv` is the credential reference, and `maxVideoBytes` caps one retrieved clip, and `maxImageBytes` caps each native image download at 32 MiB; all fields default. The credential resolves through `ctx.credentials` when that service is mounted, and falls back to the named environment variable.
 
 ### Requests
 
-Image requests carry the prompt, `n`, and `size`; the route documents base64 as its only supported response format, so that is always what is asked for. Video requests forward `duration` as `seconds`, plus `aspectRatio`, `size` and `seed`, and a single reference image becomes the `image_url` first frame for image-to-video.
+Image models come from `GET /models/list`, selecting non-deprecated `text-to-image` entries. The OpenAI-shaped listings omit Seedream 4.5 and 5.0 Pro. Seedream 4, 4.5 and 5.0 Pro use `POST /v1/inference/{model}`; `size` or `resolution` supplies a model-supported tier or `WIDTHxHEIGHT`, and `n` makes that many native calls.
+
+| Control | Seedream 4 / 4.5 | Seedream 5.0 Pro |
+|---|---|---|
+| Tiers | 2K (default), 4K; 1K on Seedream 4 | 1K, 1.5K, 2K (default) |
+| References | one | up to four, in order |
+| `seed` | −1 (random) to 4294967295; not reproducible | refused |
+| `guidanceScale` | 1–10 | refused |
+| `outputFormat` | refused | `png` or `jpeg` |
+| `background` | refused | `transparent` or `opaque` |
+| `optimizePromptMode` | refused | `standard` or `fast` |
+
+Transparent output requires a single alpha-channel reference and cannot use JPEG. Other image models retain the compatible route's explicit pixel size, one reference, `background` and base64 response. Video requests forward `duration` as `seconds`, plus `aspectRatio`, `size` and `seed`; the first reference supplies the `image_url` first frame.
 
 -----
 
@@ -46,6 +58,14 @@ DeepInfra reports `queued` for a job that is actively rendering and publishes no
 ### Images are labelled by their bytes
 
 The route's `response_format` names the encoding, not the image format, and it answers a request defaulting to PNG with JPEG. This package therefore sniffs each decoded image's leading bytes rather than assuming a type, and leaves an unrecognized signature as `application/octet-stream` instead of guessing.
+
+### Native image downloads
+
+Native results name Ark's `ark-content-generation-v2-ap-southeast-1.tos-ap-southeast-1.volces.com` or `ark-acg-ap-southeast-1.tos-ap-southeast-1.volces.com` CDN. Downloads accept only HTTPS on these exact hosts, refuse redirects, send no authorization header, and enforce `maxImageBytes` while reading the stream. DeepInfra's bearer remains on `api.deepinfra.com`; returned image bytes determine the media type and actual dimensions.
+
+### Compatible image controls
+
+The compatible route requires explicit `WIDTHxHEIGHT` and ignores unknown fields. Resolution tiers and multiple references are refused for models outside the native Seedream set; seed, guidance, output format and prompt optimization are also refused there rather than silently ignored.
 
 ### Retrieving bytes
 
@@ -77,6 +97,8 @@ These limits define when the provider is a poor fit. They are current package co
 - **Only the first reference image is used** — the route takes one first-frame `image_url`, so additional references a caller supplies are silently unused.
 - **No webhook support** — DeepInfra recommends webhooks over polling for long jobs; this provider polls only.
 - **No cost reporting** — per-second pricing is published on the model listing, not on a job, and the seam has nowhere to carry it.
+- **Seed is not reproducibility** — Seedream 4 and 4.5 accept the provider's seed field; identical seeds do not guarantee identical bytes.
+- **Ark-only switches are unavailable** — DeepInfra does not expose `watermark`, `sequential_image_generation` or `max_images`. `n` performs separate generations and does not create a native story or variation set.
 
 <a id="dev-note"></a>
 ### Dev Note
@@ -86,8 +108,8 @@ These limits define when the provider is a poor fit. They are current package co
 
 This Dev Note is working context for maintainers: open questions and undecided directions. It is explicitly non-authoritative — shipped behavior, limits, and rationale live in the sections above.
 
-#### Future: the legacy inference route
+#### Native video inference
 
-DeepInfra also exposes `POST /v1/inference/{model}`, which returns a clip inline as a `data:` URI rather than as a job. It may suit short clips where a job's polling overhead dominates, but it duplicates the transport and has no status vocabulary at all. Not pursued.
+DeepInfra's native route also returns videos inline as `data:` URIs. The video provider retains its submit/poll/retrieve path, whose status and cancellation methods match the media seam.
 
 </details>

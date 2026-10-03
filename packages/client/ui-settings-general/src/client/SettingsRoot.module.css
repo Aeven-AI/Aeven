@@ -234,11 +234,9 @@
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
-/* Holds the section's scroll area and the blur over each of its ends: a blur
-   layer has to sit above the content without scrolling with it, so the frame is
-   the positioned box and `.options` scrolls inside it — the FilesPane
-   `.scrollFrame` arrangement. The band is the page inset at both ends, which is
-   also the scroll padding, so no section row sits inside a fade at rest. */
+/* Holds the section's scroll area: the section's own mask fades it out at each
+   end. The band is the page inset at both ends, which is also the scroll
+   padding, so no section row sits inside a fade at rest. */
 .optionsFrame {
   --avn-settings-fade: var(--dsw-aeven-page-inset);
   position: relative;
@@ -248,48 +246,14 @@
   min-height: 0;
 }
 
-/* One blur layer per end, confined to that end's own fade band so it reaches no
-   row the padding keeps clear: the conversation header's `.navBlur` recipe
-   (ui-conversation ConversationRoot.module.css). Unprefixed only: the CSS
-   pipeline adds the -webkit- form per its targets. */
-.optionsFrame::before,
-.optionsFrame::after {
-  content: "";
-  position: absolute;
-  right: 0;
-  left: 0;
-  z-index: 1;
-  height: var(--avn-settings-fade);
-  backdrop-filter: blur(2px);
-  pointer-events: none;
-}
-
-.optionsFrame::before {
-  top: 0;
-  mask-image: linear-gradient(
-    to bottom,
-    #000 0,
-    transparent var(--avn-settings-fade)
-  );
-}
-
-.optionsFrame::after {
-  bottom: 0;
-  mask-image: linear-gradient(
-    to top,
-    #000 0,
-    transparent var(--avn-settings-fade)
-  );
-}
-
 /* Options area (figma Options 501:29983): page-inset sides and bottom, scrolls
-   under the frame's fade and blur. The mask holds the fade to the scrollport,
-   so the section dims as it leaves each end while the frame's blur softens what
-   is left; the padding is that same band at each end, so nothing fades or blurs
-   at rest. The scroller carries `no-scrollbar` (ui-theme), so no bar draws on
-   its right edge and no width is reserved for one; the right padding still
-   subtracts the width SettingsPanel measures (`--avn-settings-scrollbar`),
-   which reads 0 and leaves the plain page inset. */
+   under the frame's fade. The mask holds the fade to the scrollport, so the
+   section dims as it leaves each end; the padding is that same band at each
+   end, so nothing fades at rest. The scroller carries `no-scrollbar`
+   (ui-theme), so no bar draws on its right edge and no width is reserved for
+   one; the right padding still subtracts the width SettingsPanel measures
+   (`--avn-settings-scrollbar`), which reads 0 and leaves the plain page
+   inset. */
 .options {
   flex: 1;
   min-height: 0;

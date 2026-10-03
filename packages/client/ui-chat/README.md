@@ -54,6 +54,8 @@ History pages in as the reader approaches it: reaching within four scrollport he
 
 -----
 
+Generated-image calls remain visible independently of the Turn process disclosure. Imagine publishes the Turn’s call-id, attachment-id and recorded-path indexes; tool nodes retain image ownership. Chat suppresses assistant image blocks and authored image sources that repeat these generated attachments, while preserving other authored images. Nested image calls remain visible without exposing their ordinary parent or sibling rows.
+
 <a id="model-experience"></a>
 ## Model Experience
 

@@ -20,6 +20,8 @@ Status: implemented
 
 **渲染器归 owner 所有，而非卡片所有。** `ToolCallOwnerProps` 新增可选的 `renderImages`，由 chat node 既有的 `renderMessageImages` 贯穿传入。`ui-tool` 不保留附件实现，也不保留图片加载器；它只决定图片*是否*属于卡片，而附件包继续决定图片如何获取与绘制。
 
+生成图片工具使用 [在工具调用位置显示生成图片](../feature/2026-10-02-generated-images-at-tool-calls.zh.md) 中描述的独立调用视图与占位视图。通用图库仍是其他带图片工具的后备展示。
+
 ## 影响
 
 任何返回 `image` 内容块的工具现在无需额外工作即可在记录中展示它们，新的产图工具只要返回其 `render()` 本就能返回的块便自动继承该行为。`ToolCallOwnerProps` 只新增了一个可选字段，因此已注册的业务工具视图无需改动即可继续编译，读取该字段才算选择加入。

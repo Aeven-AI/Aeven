@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ImageAttachmentRef } from '@aeven/attachment'
-import { ImageLightbox, type ImageLightboxLabels } from '@aeven/client-ui-primitives'
+import { ImageLightbox, type ImageLightboxLabels, type LightboxImage } from '@aeven/client-ui-primitives'
+import { resolvedUrl, useImageResolutions } from './image-resolutions.ts'
 import css from './MessageImage.module.css'
 
 /** Loads a session-authorized durable image URL and may expose a cached URL synchronously. */
@@ -73,25 +74,25 @@ function dimensionsOf(image: MessageImageSpec): { readonly width: number; readon
  * @param props.load - session-authorized URL loader for the durable arm.
  * @param props.variant - `single` for a message's lone image, `tile` otherwise.
  * @param props.labels - resolved strings (tooltip, loading, retry, lightbox).
+ * @param props.onOpen - opens the group's preview on this image's resolved URL.
  * @returns the bounded thumbnail button, or the retry control on failure.
  */
-export function MessageImage({ image, load, variant, labels }: {
+export function MessageImage({ image, load, variant, labels, onOpen }: {
   image: MessageImageSpec
   load: ImageLoader
   variant: 'single' | 'tile'
   labels: MessageImageLabels
+  onOpen: (src: string) => void
 }) {
   const preview = 'preview' in image ? image.preview : undefined
   const attachment = 'attachment' in image ? image.attachment : undefined
   const [loaded, setLoaded] = useState<string | null>(() =>
     attachment === undefined ? null : (load.peek?.(attachment) ?? null))
   const [error, setError] = useState(false)
-  const [open, setOpen] = useState(false)
   // Retry re-arms the one load effect below, so every attempt — first load or
   // retry — runs under the same liveness guard and the same reset.
   const [attempt, setAttempt] = useState(0)
   const request = useCallback(() => { setAttempt(a => a + 1) }, [])
-  const close = useCallback(() => { setOpen(false) }, [])
   const dimensions = useMemo(() => dimensionsOf(image), [image])
   const fit = useMemo(
     () => {
@@ -126,45 +127,80 @@ export function MessageImage({ image, load, variant, labels }: {
         style={fit === undefined ? undefined : { width: fit.width, height: fit.height }}
         title={labels.open}
         aria-label={labels.openNamed(label)}
-        onClick={() => { if (src !== null) setOpen(true) }}
+        onClick={() => { if (src !== null) onOpen(src) }}
       >
         {src === null
           ? <span className={css.loading}>{labels.loading}</span>
           : <img src={src} alt={label} style={fit === undefined ? undefined : { objectPosition: fit.objectPosition }} />}
       </button>
-      {open && src !== null && (
-        <ImageLightbox
-          images={[{ src, alt: label, name: label, mediaType: attachment?.mediaType, bytes: attachment?.bytes }]}
-          index={0}
-          labels={labels.lightbox}
-          onClose={close}
-        />
-      )}
     </>
   )
 }
 
-/** Wrapping image group shared by user and assistant history: a lone image
- * renders large, several render as 64px square tiles (DeepSeek Chat rule). */
-export function ImageGallery({ images, load, align, labels }: {
+/** One lightbox entry of a group image, with the metadata its source carries. */
+function galleryEntry(image: MessageImageSpec, src: string, labels: MessageImageLabels): LightboxImage {
+  if ('preview' in image) {
+    return { src, alt: image.preview.name ?? labels.image, name: image.preview.name }
+  }
+  return {
+    src,
+    alt: image.attachment.name ?? labels.image,
+    name: image.attachment.name,
+    mediaType: image.attachment.mediaType,
+    bytes: image.attachment.bytes,
+  }
+}
+
+/**
+ * Wrapping image group shared by user and assistant history: a lone image
+ * renders large, several render as 64px square tiles (DeepSeek Chat rule).
+ *
+ * The tiles this group shows are the record's own images, but its preview
+ * navigates the whole Turn's: `turnImages` is the scope the composition
+ * resolved, so previous/next reach an image in another row of the same Turn
+ * instead of stopping at this row's edge.
+ */
+export function ImageGallery({ images, turnImages, load, align, labels }: {
   images: readonly MessageImageSpec[]
+  /** Every image the Turn shows, in log order; absent keeps the preview on `images`. */
+  turnImages?: readonly MessageImageSpec[] | undefined
   load: ImageLoader
   align: 'start' | 'end'
   labels: MessageImageLabels
 }) {
+  const scope = turnImages === undefined || turnImages.length === 0 ? images : turnImages
+  const { resolutions } = useImageResolutions(scope, load)
+  const [openSrc, setOpenSrc] = useState<string | null>(null)
+  const entries: LightboxImage[] = []
+  for (const image of scope) {
+    const src = resolvedUrl(image, resolutions, load)
+    if (src !== null) entries.push(galleryEntry(image, src, labels))
+  }
+  const openIndex = openSrc === null ? -1 : entries.findIndex(entry => entry.src === openSrc)
   if (images.length === 0) return null
   const variant = images.length === 1 ? 'single' : 'tile'
   return (
-    <div className={css.gallery} data-align={align}>
-      {images.map((image, index) => (
-        <MessageImage
-          key={`${'attachment' in image ? image.attachment.attachmentId : image.preview.url}:${index}`}
-          image={image}
-          load={load}
-          variant={variant}
-          labels={labels}
+    <>
+      <div className={css.gallery} data-align={align}>
+        {images.map((image, index) => (
+          <MessageImage
+            key={`${'attachment' in image ? image.attachment.attachmentId : image.preview.url}:${index}`}
+            image={image}
+            load={load}
+            variant={variant}
+            labels={labels}
+            onOpen={setOpenSrc}
+          />
+        ))}
+      </div>
+      {openIndex >= 0 && (
+        <ImageLightbox
+          images={entries}
+          index={openIndex}
+          labels={labels.lightbox}
+          onClose={() => { setOpenSrc(null) }}
         />
-      ))}
-    </div>
+      )}
+    </>
   )
 }

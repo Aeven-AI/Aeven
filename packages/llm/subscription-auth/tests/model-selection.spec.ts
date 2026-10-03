@@ -150,15 +150,56 @@ describe('subscription media providers', () => {
     expect(requestJson).toHaveBeenCalledWith(expect.objectContaining({ method: 'POST', body: expect.objectContaining({ prompt: 'a cat' }) }))
   })
 
-  it('refuses reference images for Grok Imagine and unknown models for both', async () => {
-    const imagine = { generateImage: vi.fn() }
-    const grok = createGrokMediaProvider(imagine, { ready: () => true, isSelected: () => true })
-    await expect(grok.generateImage({
+  it('routes reference images into the Imagine edit call and refuses unknown models', async () => {
+    const attachment = { attachmentId: 'sha256:abc', mediaType: 'image/png' as const, bytes: 3, width: 1, height: 1 }
+    const generateImage = vi.fn(async () => ({
+      model: 'grok-imagine-image-2.0',
+      images: [{ attachment, path: '/plugins/avn-grok-build/imagine/images/sha256%3Aabc' }],
+      attachment,
+      path: '/plugins/avn-grok-build/imagine/images/sha256%3Aabc',
+    }))
+    const grok = createGrokMediaProvider({ generateImage }, { ready: () => true, isSelected: () => true }, {
+      readImage: async ref => ({ ref, data: new Uint8Array([9]) }),
+    })
+    await grok.generateImage({
       model: 'grok-imagine-image-2.0',
       prompt: 'a cat',
       references: [{ mediaType: 'image/png', data: new Uint8Array([1]) }],
-    })).rejects.toThrow(/reference images/u)
+    })
+    expect(generateImage).toHaveBeenCalledWith(
+      expect.objectContaining({ images: [{ mediaType: 'image/png', data: new Uint8Array([1]) }] }),
+      undefined,
+    )
+    await expect(grok.generateImage({
+      model: 'grok-imagine-image-2.0',
+      prompt: 'a cat',
+      references: [{ mediaType: 'image/tiff', data: new Uint8Array([1]) }],
+    })).rejects.toThrow(/PNG, JPEG, WebP or GIF/u)
     await expect(grok.generateImage({ model: 'other', prompt: 'a cat' })).rejects.toThrow(/not offered/u)
-    expect(imagine.generateImage).not.toHaveBeenCalled()
+  })
+
+  it('returns a persisted Imagine image by reading the store, not the plugin route it publishes', async () => {
+    // The persisted image carries the public route the client renders; the
+    // bytes live in the store the Imagine client saved them to.
+    const attachment = { attachmentId: 'sha256:abc', mediaType: 'image/png' as const, bytes: 3, width: 1, height: 1 }
+    const persisted = {
+      attachment,
+      path: '/plugins/avn-grok-build/imagine/images/sha256%3Aabc',
+    }
+    const imagine = {
+      generateImage: vi.fn(async () => ({
+        model: 'grok-imagine-image-2.0',
+        images: [persisted],
+        attachment,
+        path: persisted.path,
+      })),
+    }
+    const readImage = vi.fn(async () => ({ ref: attachment, data: new Uint8Array([1, 2, 3]) }))
+    const grok = createGrokMediaProvider(imagine, { ready: () => true, isSelected: () => true }, { readImage })
+
+    const result = await grok.generateImage({ model: 'grok-imagine-image-2.0', prompt: 'a cat' })
+
+    expect(readImage).toHaveBeenCalledWith(attachment, undefined)
+    expect(result.images).toEqual([{ kind: 'bytes', mediaType: 'image/png', data: new Uint8Array([1, 2, 3]) }])
   })
 })

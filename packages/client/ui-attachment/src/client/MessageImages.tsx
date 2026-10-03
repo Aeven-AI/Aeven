@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { ImageAttachmentRef } from '@aeven/attachment'
+import { useCallback, useMemo, useState } from 'react'
 import type { MessageImagesProps } from '@aeven/client-ui-chat/client'
-import type { MessageFileSource, MessageImageLoader, MessageImageSource } from '@aeven/client-ui-conversation/client'
+import type { MessageFileSource, MessageImageSource } from '@aeven/client-ui-conversation/client'
 import { ImageLightbox } from '@aeven/client-ui-primitives'
 import type { LightboxImage } from '@aeven/client-ui-primitives'
+import { imageKey, resolvedUrl, useImageResolutions } from '../image-resolutions.ts'
 import { ImageGallery } from '../MessageImage.tsx'
 import { UploadTray } from '../UploadTray.tsx'
 import type { UploadTrayFileItem, UploadTrayImageItem } from '../UploadTray.tsx'
@@ -13,49 +13,6 @@ import { lightboxLabels, messageImageLabels, uploadTrayLabels } from './labels.t
 type MessageTrayItem =
   | UploadTrayImageItem & { image: MessageImageSource }
   | UploadTrayFileItem & { file: MessageFileSource }
-
-/** Resolution of one durable image URL. */
-type Resolution = { readonly url: string } | { readonly failed: true }
-
-function imageKey(attachment: ImageAttachmentRef): string {
-  return String(attachment.attachmentId)
-}
-
-/**
- * Resolve durable image URLs through the session loader, once per attachment.
- * @param images - the message's image sources; preview sources need no load.
- * @param load - session-authorized loader with its optional cache read.
- * @returns resolutions by attachment id, and a retry that re-arms one failed load.
- */
-function useImageResolutions(images: readonly MessageImageSource[], load: MessageImageLoader): {
-  resolutions: ReadonlyMap<string, Resolution>
-  retry: (attachment: ImageAttachmentRef) => void
-} {
-  const [resolutions, setResolutions] = useState<ReadonlyMap<string, Resolution>>(() => new Map())
-  const inFlight = useRef(new Set<string>())
-  useEffect(() => {
-    for (const image of images) {
-      if (!('attachment' in image)) continue
-      const { attachment } = image
-      const key = imageKey(attachment)
-      if (resolutions.has(key) || inFlight.current.has(key) || load.peek?.(attachment) !== undefined) continue
-      inFlight.current.add(key)
-      const settle = (resolution: Resolution): void => {
-        inFlight.current.delete(key)
-        setResolutions(previous => new Map(previous).set(key, resolution))
-      }
-      void load(attachment).then((url) => { settle({ url }) }, () => { settle({ failed: true }) })
-    }
-  }, [images, load, resolutions])
-  const retry = useCallback((attachment: ImageAttachmentRef) => {
-    setResolutions((previous) => {
-      const next = new Map(previous)
-      next.delete(imageKey(attachment))
-      return next
-    })
-  }, [])
-  return { resolutions, retry }
-}
 
 /** Lightbox entry of one resolved message image, with the metadata its source carries. */
 function lightboxImage(image: MessageImageSource, src: string, alt: string): LightboxImage {
@@ -68,8 +25,10 @@ function lightboxImage(image: MessageImageSource, src: string, alt: string): Lig
  * counterpart of the composer tray. An image opens the lightbox and a file
  * opens its stored original in a new tab.
  */
-function MessageAttachmentTray({ images, files, loadImage, fileUrl, align, t }: MessageImagesProps) {
-  const { resolutions, retry } = useImageResolutions(images, loadImage)
+function MessageAttachmentTray({ images, files, turnImages, loadImage, fileUrl, align, t }: MessageImagesProps) {
+  // The tray shows this record's images; its preview navigates the Turn's.
+  const scope = turnImages === undefined || turnImages.length === 0 ? images : turnImages
+  const { resolutions, retry } = useImageResolutions(scope, loadImage)
   const [preview, setPreview] = useState<string | null>(null)
   const closePreview = useCallback(() => { setPreview(null) }, [])
   const items = useMemo<MessageTrayItem[]>(() => [
@@ -109,9 +68,14 @@ function MessageAttachmentTray({ images, files, loadImage, fileUrl, align, t }: 
       }
     }),
   ], [images, files, fileUrl, loadImage, resolutions, t])
-  const viewable = items.filter((item): item is Extract<MessageTrayItem, { kind: 'image' }> & { previewUrl: string } =>
-    item.kind === 'image' && item.previewUrl !== null && item.failed !== true)
-  const previewIndex = viewable.findIndex(item => item.id === preview)
+  const entries: LightboxImage[] = []
+  for (const image of scope) {
+    const src = resolvedUrl(image, resolutions, loadImage)
+    if (src === null) continue
+    const name = ('attachment' in image ? image.attachment.name : image.preview.name) ?? t('image.label')
+    entries.push(lightboxImage(image, src, t('image.openOriginalLabel', { label: name })))
+  }
+  const previewIndex = preview === null ? -1 : entries.findIndex(entry => entry.src === preview)
   if (items.length === 0) return null
   return (
     <>
@@ -135,7 +99,7 @@ function MessageAttachmentTray({ images, files, loadImage, fileUrl, align, t }: 
       />
       {previewIndex >= 0 && (
         <ImageLightbox
-          images={viewable.map(item => lightboxImage(item.image, item.previewUrl, item.alt))}
+          images={entries}
           index={previewIndex}
           labels={lightboxLabels(t)}
           onClose={closePreview}
@@ -148,5 +112,13 @@ function MessageAttachmentTray({ images, files, loadImage, fileUrl, align, t }: 
 /** Message attachments in the owner's layout: the count-sized image gallery, or the sent-message tile tray. */
 export function MessageImages(props: MessageImagesProps) {
   if (props.layout === 'tray') return <MessageAttachmentTray {...props} />
-  return <ImageGallery images={props.images} load={props.loadImage} align={props.align} labels={messageImageLabels(props.t)} />
+  return (
+    <ImageGallery
+      images={props.images}
+      turnImages={props.turnImages}
+      load={props.loadImage}
+      align={props.align}
+      labels={messageImageLabels(props.t)}
+    />
+  )
 }

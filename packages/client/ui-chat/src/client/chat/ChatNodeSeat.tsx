@@ -7,6 +7,8 @@ import { TURN_PROCESS_INDEPENDENT_KINDS } from '../contract/turn-process.ts'
 import { hasAssistantReplyContent } from '../contract/assistant-content.ts'
 import { storedTurnProcessEntry } from '../stores.ts'
 import { useSearchableHidden } from './searchable-hidden.ts'
+import { hasGeneratedImageCall } from '../contract/generated-images.ts'
+import { useTurnDataValue } from './use-turn-data.ts'
 import css from './ChatView.module.css'
 
 interface ChatNodeSeatProps extends ChatNodeOwnerProps {
@@ -120,7 +122,9 @@ export const ChatNodeSeat = memo(function ChatNodeSeat({
     && foldable
     && processPresentation.compactAnswer
     && !processOpen
-  const processHidden = controllerInactive || (foldable && processMember && !processOpen)
+  const generatedImages = useTurnDataValue(turnDataOf(routedNode), 'generated-images')
+  const imageLane = routedNode?.kind === 'tool-call' && hasGeneratedImageCall(routedNode.data.root, generatedImages)
+  const processHidden = controllerInactive || (foldable && processMember && !processOpen && !imageLane)
   const revealProcess = useCallback(() => {
     if (processMember) setOpen(true)
   }, [processMember, setOpen])
@@ -135,6 +139,7 @@ export const ChatNodeSeat = memo(function ChatNodeSeat({
       forkAt,
       editMessage,
       renderMessageImages,
+      generatedImages,
       fileMentions,
       scrollDown,
       onFullscreenChange,
@@ -142,7 +147,7 @@ export const ChatNodeSeat = memo(function ChatNodeSeat({
       turnProcess,
     }, [
     node, selectedCallId, cwd, openFile, inspectCall, forkAt, editMessage,
-    renderMessageImages, fileMentions, scrollDown, onFullscreenChange, extendedTranscript, turnProcess,
+    renderMessageImages, generatedImages, fileMentions, scrollDown, onFullscreenChange, extendedTranscript, turnProcess,
   ])
   if (routedNode === undefined || owner === null) return null
   const turnData = turnDataOf(routedNode)
@@ -162,7 +167,7 @@ export const ChatNodeSeat = memo(function ChatNodeSeat({
       data-turn-process-member={processMember || undefined}
       data-turn-process-hidden={processHidden || undefined}
       data-turn-process-answer={compactAnswer || undefined}
-      data-chat-work-row={isWorkRow(routedNode) || undefined}
+      data-chat-work-row={(!imageLane && isWorkRow(routedNode)) || undefined}
       data-turn-process-answer-step={(processAnswer && foldable) || undefined}
     >
       {renderSlot('conversation.chat.node', routedOwner, {

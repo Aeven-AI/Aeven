@@ -52,11 +52,11 @@ The generated [configuration catalog](../../../docs/config-catalog.md#aevenapi-s
 <a id="model-experience"></a>
 ## Model Experience
 
-None, as invoked Agent commands own any model-visible effect.
+Browser prompts and edits carry the display name from the restored account profile. The Host records it on the accepted user message and adds a durable `<user_profile>` message at the first step of each turn that reports a name. The name is browser-reported presentation data, not authenticated identity or an instruction. Clients without a profile name add no profile context. No additional profile fetch or model call is made.
 
 #### KV Cache effect
 
-No direct effect; model requests remain owned by the Agent and LLM packages.
+A short profile message extends request history once per named turn; the system prefix is unchanged.
 
 ## Known Limitations and Deferred Work
 

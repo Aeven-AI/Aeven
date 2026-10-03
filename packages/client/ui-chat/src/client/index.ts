@@ -60,3 +60,5 @@ type PublicChatNodeDataMap = ChatNodeDataMap
 declare module './contract/chat-nodes.ts' {
   interface ChatNodeDataMap extends PublicChatNodeDataMap {}
 }
+
+export type { GeneratedImages } from './contract/generated-images.ts'

@@ -26,6 +26,8 @@ Success moves to the destination the same way the sign-in screens do: `authRefer
 
 The step's stylesheet is Aeven's `_initCheck.scss` under this app's scope, with the one rule the step inherited from `_home.scss` at the origin — the home column's `.content-container`, whose flex column and full height are what let `.form-container` centre. The 68px greeting names the Google Sans Flex stack this app ships, because the vendored copy of Aeven's sheet drops the Bodoni faces it declared and never used.
 
+The browser sends its restored profile display name with session prompts and edits. The Session Controller records that reported name on the user message and supplies it as a durable profile snapshot on the first model step. This makes the chosen name available independently of memory retrieval without fetching the profile again. The reported name remains presentation data; authentication still derives from the credential.
+
 ## Alternatives considered
 
 **A modal over the running application.** It keeps the sidebar and the account avatar visible behind the question, which is what the Aeven client's version does. But AVN's only always-present surface is the frame-wide `shell.overlay`, and a reader who cannot dismiss it is looking at a modal in front of an application they cannot use; the gate already owns "this page is not yours yet", and the step is that state.

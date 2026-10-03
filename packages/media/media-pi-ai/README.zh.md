@@ -34,6 +34,8 @@ kind: "package-reference"
 
 seam 的提示词成为 pi-ai 的首条文本内容，每张参考图按给定顺序以内联 base64 紧随其后，这正是图生图模型读取参考的方式。模型 id 原样传递：本 provider 只校验 pi-ai 的目录是否认识它，并在花费调用之前拒绝未知 id。
 
+本包的图片提供方拒绝 `guidanceScale`、`outputFormat` 与 `optimizePromptMode`；这些原生 Seedream 控制项由 Aeven 和 DeepInfra 提供方服务。
+
 -----
 
 <a id="understand-the-implementation"></a>

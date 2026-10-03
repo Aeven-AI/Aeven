@@ -38,6 +38,8 @@ Selection resolves per call, in one order: the request's own `provider`, then th
 
 Every failure is a `MediaError` carrying a `MediaErrorCode`. Selection failures distinguish a pinned provider that is absent (`MEDIA_PROVIDER_CONFIGURED_MISSING`) from one that is present but unusable (`MEDIA_PROVIDER_CONFIGURED_UNAVAILABLE`), and an empty registry (`MEDIA_PROVIDER_UNAVAILABLE`) from an ambiguous one (`MEDIA_PROVIDER_AMBIGUOUS`), so a caller can tell a misconfiguration from a missing credential.
 
+Image requests carry provider-specific `guidanceScale`, `outputFormat` and `optimizePromptMode` controls; supported values depend on the selected model. Seed is a provider input, not a reproducibility guarantee.
+
 -----
 
 <a id="understand-the-implementation"></a>
