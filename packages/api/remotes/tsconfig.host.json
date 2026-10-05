@@ -67,6 +67,9 @@
     },
     {
       "path": "../../typert/protocol"
+    },
+    {
+      "path": "../../skill/skill"
     }
   ]
 }

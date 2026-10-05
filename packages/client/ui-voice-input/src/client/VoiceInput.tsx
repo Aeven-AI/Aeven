@@ -143,7 +143,7 @@ export function VoiceInput({ sessionId, inputActions, locked, onActiveChange, cr
   }, [dictationRequest])
 
   if (!expanded) {
-    return <Tooltip label={error === '' ? t('dictate') : error} side="top">
+    return <Tooltip label={error === '' ? t('dictate') : error} side="top-end">
       <button type="button" className={css.mic} data-loading={phase === 'starting' ? '' : undefined} aria-label={t('dictate')}
         disabled={locked} onMouseDown={(event) => { event.preventDefault() }} onClick={() => { void start() }}>
         <span className={css.micIcon}><IconLucideMic /></span>
@@ -155,7 +155,7 @@ export function VoiceInput({ sessionId, inputActions, locked, onActiveChange, cr
   return <div className={css.recorder} data-voice-phase={phase}>
     <Waveform analyser={capture.current?.analyser} className={css.canvas} />
     <div className={css.buttons}>
-      <Tooltip label={t(transcribing ? 'cancelTranscription' : 'cancelRecording')} side="top">
+      <Tooltip label={t(transcribing ? 'cancelTranscription' : 'cancelRecording')} side="top-start">
         <button type="button" className={css.cancel} aria-label={t(transcribing ? 'cancelTranscription' : 'cancelRecording')}
           onClick={reset}><span className={css.icon}><IconLucideX /></span></button>
       </Tooltip>

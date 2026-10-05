@@ -24,10 +24,8 @@ function service(root: string): Capabilities {
   const ctx = new Context()
   return new Capabilities(ctx, {
     root,
-    skillRank: 100,
     trustAfter: 2,
     degradeAfter: 2,
-    candidateTtlDays: 30,
   } satisfies Config)
 }
 

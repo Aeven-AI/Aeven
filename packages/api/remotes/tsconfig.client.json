@@ -103,6 +103,12 @@
     },
     {
       "path": "../../memory/api-memory-manager"
+    },
+    {
+      "path": "../../host/account-integrations"
+    },
+    {
+      "path": "../../skill/skill"
     }
   ]
 }

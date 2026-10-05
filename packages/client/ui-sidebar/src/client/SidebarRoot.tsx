@@ -65,19 +65,25 @@ export function SidebarRoot({
   // `.visible` class alone, so no render writes a width during the transition.
 
   /**
-   * The chat the New Session link names, as its address and the id to create
-   * under if that address is opened here.
+   * The address a browser-owned open of the New Session link starts: a middle
+   * click, "Open link in new window", a copied address.
    *
    * Asked once and held in state, not re-asked every render: the address has to
    * hold still while the reader looks at it, or it could not be copied or
-   * opened deliberately. Re-asked after activation, because that id then
-   * belongs to a live Session and the link must name a fresh chat.
+   * opened deliberately.
    */
   const [target, setTarget] = useState(newSessionHref)
 
-  /** Create the Session this link already names, and open it in place. */
+  /**
+   * Start a New Session from this link, and open it in place.
+   *
+   * Reuse comes first: the flow returns to the Workspace's chat that nobody has
+   * prompted yet, so text left unsent there comes back instead of being
+   * stranded behind a second empty chat. The link then names a fresh chat,
+   * because the address it shows is what the browser would start elsewhere.
+   */
   const activate = (): void => {
-    startSession(undefined, target.sessionId)
+    startSession()
     setTarget(newSessionHref())
   }
 

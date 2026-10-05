@@ -37,6 +37,23 @@ function workspace(
   }
 }
 
+/**
+ * The built-in Chats registration as the Host projects it: virtual, so it
+ * carries no directory of its own for its chats to sit in.
+ */
+function chats(sessionIds: readonly SessionId[] = []): WorkspaceView {
+  return {
+    workspaceId: wid('chats'),
+    isDefault: true,
+    kind: 'virtual',
+    path: null,
+    title: 'Chats',
+    sessionIds,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  }
+}
+
 function summary(id: string, overrides: Partial<SessionSummary> = {}): SessionSummary {
   return {
     id: sid(id),
@@ -486,6 +503,24 @@ describe('UiWorkspaceService', () => {
     expect(b.sessions.create).toHaveBeenLastCalledWith({ workspaceId: wid('gamma') })
     await expect(b.uiWorkspace.connectWorkspace(wid('ghost')))
       .rejects.toThrow('uiWorkspace.connectWorkspace: unknown workspace ghost')
+  })
+
+  it('reuses the built-in Chats blank, whose chats have no directory to match', async () => {
+    // Chats is virtual: every chat in it is accounted to it while sharing no
+    // directory with it, so a cwd equality would never hold and each New
+    // Session would create a second empty chat and strand unsent text in the
+    // first one — the reported difference from a folder Workspace.
+    const blank = sid('chats-blank')
+    const b = bench({
+      sessions: sessionState([
+        summary('chats-blank', { blank: true }),
+        summary('chats-active'),
+      ], blank),
+      workspaces: workspaceState([chats([blank, sid('chats-active')])]),
+    })
+
+    await expect(b.uiWorkspace.connectWorkspace(wid('chats'))).resolves.toBe(blank)
+    expect(b.sessions.create).not.toHaveBeenCalled()
   })
 
   it('targets an explicit, current-session, then recent Workspace and reports failed starts', async () => {

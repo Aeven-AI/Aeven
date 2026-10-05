@@ -1,3 +1,7 @@
+/* The generated-image lane: one frame per image, tiled across the conversation
+   column. A frame is the only thing that decides geometry — the image is
+   rendered into it by the shared fill layout, edge to edge — and it is rounded
+   and clipped so the image inherits the corner. */
 .root {
   margin: 0;
   display: flex;
@@ -5,21 +9,71 @@
   gap: 8px;
 }
 
+.frames {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+}
+
+/* One image fills the column when it is landscape. A lone portrait takes two
+   thirds of it, centred, so a tall image never runs the full message width. */
+.frames[data-frames='1'] .frame {
+  flex: 0 0 100%;
+  width: 100%;
+}
+
+.frames[data-frames='1'] .frame[data-orientation='portrait'] {
+  flex: 0 0 auto;
+  width: 66.666%;
+}
+
+/* Three images share the column in equal thirds. */
+.frames[data-frames='3'] .frame {
+  flex: 1 1 calc(33.333% - 8px);
+}
+
+/* Two images share the column in halves, which is also what the fourth image
+   wraps into: two rows of two. */
 .frame {
-  width: 240px;
-  max-width: 100%;
+  flex: 1 1 calc(50% - 6px);
+  aspect-ratio: 3 / 2;
+  min-width: 0;
+  position: relative;
+  overflow: hidden;
+  border-radius: 30px;
+  background: #ffffff;
+}
+
+/* Every image is shown in one of two tile shapes: 3:2 landscape, 2:3 portrait. */
+.frame[data-orientation='portrait'] {
+  aspect-ratio: 2 / 3;
+}
+
+/* Whatever the frame renders — the filled image or the not-yet-available note —
+   takes the whole box. */
+.frame > * {
+  width: 100%;
+  height: 100%;
+}
+
+/* The loader layer: the app's own loading mark on a white sheet, over the box
+   the image will fill. It fades away once that image is loaded. */
+.loader {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 12px;
-  background: var(--dsw-alias-bg-base);
+  background: #ffffff;
 }
 
 .status {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
   color: var(--dsw-alias-label-secondary);
 }
 

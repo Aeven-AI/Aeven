@@ -6,11 +6,15 @@
  * sections) arrives from registrants through slots; accessible names resolve to
  * that content (dialog: aria-labelledby the title node; close: visually-hidden
  * slot text). No trigger sits in the sidebar: the panel opens on a
- * `settings/open` request from another surface. Modal
- * open state and the active section id are component-local viewing state;
- * the onboarding coordinator mounts exactly one ordered registrant while the
- * sessions-derived empty-Hero fact is active. Visible dialog chrome belongs
- * to the step, so a mounted-but-deciding step paints nothing here.
+ * `settings/open` request from another surface.
+ *
+ * Whether the panel is open, and which section it shows, is the address bar's
+ * state (`#!/settings/<section>`), read through the bound address hook and
+ * moved through the injected commands: a nav click addresses the section the
+ * reader picked, so each tab is a history entry and a link. The onboarding
+ * coordinator mounts exactly one ordered registrant while the sessions-derived
+ * empty-Hero fact is active. Visible dialog chrome belongs to the step, so a
+ * mounted-but-deciding step paints nothing here.
  */
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -145,25 +149,14 @@ function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose }: PanelP
  */
 export function SettingsRoot(props: SettingsRootComponentProps) {
   const {
-    wide, reconnect, onOpenRequest, useConnectionState, useSections, useOnboardingSteps, useSessions,
-    renderSlot, t,
+    wide, reconnect, show, close, useConnectionState, useSections, useSettingsAddress, useOnboardingSteps,
+    useSessions, renderSlot, t,
   } = props
-  const [open, setOpen] = useState(false)
-  const [activeId, setActiveId] = useState<string | undefined>(undefined)
+  const address = useSettingsAddress(address => address)
+  const open = address !== undefined
   const [completedOnboarding, setCompletedOnboarding] = useState<ReadonlySet<string>>(() => new Set())
   const [showRecovery, setShowRecovery] = useState(false)
-  const close = useCallback(() => {
-    setOpen(false)
-    setActiveId(undefined)
-  }, [])
-  const openSection = useCallback((id: string) => {
-    setActiveId(id)
-    setOpen(true)
-  }, [])
-  useEffect(() => onOpenRequest((section) => {
-    if (section === undefined) setOpen(true)
-    else openSection(section)
-  }), [onOpenRequest, openSection])
+  const openSection = useCallback((id: string) => { show(id) }, [show])
 
   // The ledger tick keeps the nav rows fresh: registrants re-register with
   // freshly localized text on locale change, and the trigger/header/close
@@ -231,8 +224,8 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
         <SettingsPanel
           rows={rows}
           renderSlot={renderSlot}
-          activeId={activeId}
-          onSelect={setActiveId}
+          activeId={address.section}
+          onSelect={show}
           onClose={close}
         />
       )}

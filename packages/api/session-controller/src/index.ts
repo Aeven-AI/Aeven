@@ -23,7 +23,7 @@ import { SessionControlController } from './control.ts'
 import { SessionHistoryController } from './history.ts'
 import { SessionFileReferences } from './file-references.ts'
 import { SessionMediaReferences } from './media-references.ts'
-import { registerFileReadRoute, registerFileUploadRoutes } from './file-uploads.ts'
+import { registerFileReadRoute, registerFileUploadRoutes, registerImageReadRoute } from './file-uploads.ts'
 import { ApiSessionList } from './list.ts'
 import { buildModelCatalog } from './catalog.ts'
 import { buildImageModelCatalog, type ImageModelCatalog } from './image-catalog.ts'
@@ -153,8 +153,13 @@ export class SessionController extends TypertRemoteService {
     ctx.plugin(SessionSkillCatalog)
     ctx.plugin(SessionMediaReferences)
     ctx.inject(['connection', 'attachments', 'documentExtract'], (uploadCtx) => { registerFileUploadRoutes(uploadCtx) })
-    ctx.inject(['connection'], (readCtx) => {
+    ctx.inject(['connection', 'attachments'], (readCtx) => {
       registerFileReadRoute(readCtx, (sessionId, attachmentId) => this.commands.referencedFile(sessionId, attachmentId))
+      registerImageReadRoute(
+        readCtx,
+        (sessionId, attachmentId) => this.commands.referencedImage(sessionId, attachmentId),
+        ref => readCtx.attachments.readImage(ref),
+      )
     })
 
     ctx.on('agent/pre-step', async ({ step, signal }, next) => {

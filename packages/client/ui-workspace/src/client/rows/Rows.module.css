@@ -357,8 +357,11 @@
   bottom: -7px;
 }
 
-/* A row action button: an 18px cell on the sidebar's own grapheme size, in the
-   row's ink, with no hover tint of its own. */
+/* A row action cell: an 18px cell on the sidebar's own grapheme size, in the
+   row's ink, with no hover tint of its own. It carries both a button (a row's
+   options) and an anchor (the Workspace row's New Session link), so it also
+   resets what a UA sheet paints on a link: the browser's own blue and the
+   underline, exactly as ui-sidebar resets them on the New Session link. */
 .iconButton {
   flex: none;
   display: inline-flex;
@@ -372,6 +375,7 @@
   background: transparent;
   cursor: pointer;
   color: var(--dsw-alias-label-primary);
+  text-decoration: none;
 }
 
 /* A row action on the row's full height, so its hit area is the whole row

@@ -12,7 +12,7 @@ import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slo
 // Type-only: pulls the ui-layout SlotMap merge (the frame's corner seat).
 import type {} from '@aeven/client-ui-layout/client'
 import { Avatar } from './Avatar.tsx'
-import { ACCOUNT_ICON, LOGOUT_ICON, SETTINGS_ICON } from './icons.ts'
+import { LOGOUT_ICON, SETTINGS_ICON } from './icons.ts'
 import { NS } from './locales.ts'
 import css from './AccountMenu.module.css'
 import '../vendor/aeven-account.css'
@@ -33,12 +33,8 @@ export interface AccountReader {
 export interface AccountMenuInjected {
   /** The signed-in reader, or undefined when nobody is. */
   reader: () => AccountReader | undefined
-  /** The Aeven account page, or undefined when no web client is configured. */
-  accountUrl: () => string | undefined
   /** Open the app's settings panel. */
   openSettings: () => void
-  /** Open the settings panel on the Account page. */
-  openAccount: () => void
   /** End the Aeven session and return the reader to the sign-in screen. */
   signOut: () => void
 }
@@ -55,7 +51,7 @@ export type AccountMenuProps =
  * @returns the menu, or null when nobody is signed in.
  */
 export function AccountMenu({
-  reader, accountUrl, openSettings, openAccount, signOut, t,
+  reader, openSettings, signOut, t,
 }: AccountMenuProps) {
   const person = reader()
   const [open, setOpen] = useState(false)
@@ -77,16 +73,10 @@ export function AccountMenu({
     openSettings()
   }, [openSettings])
 
-  const accountPage = useCallback(() => {
-    setOpen(false)
-    openAccount()
-  }, [openAccount])
-
   // Nobody signed in means no Aeven authority on this page at all; the shell
   // keeps the shape it has without this plugin.
   if (person === undefined) return null
 
-  const account = accountUrl()
   const avatar = {
     ...person.displayName === undefined ? {} : { name: person.displayName },
     ...person.email === undefined ? {} : { email: person.email },
@@ -127,14 +117,7 @@ export function AccountMenu({
           >
             <div className="tippy-content" data-state="visible">
               <div className="menu-container">
-                {account === undefined
-                  ? <span className="profile-overview">{profile}</span>
-                  : <a className="profile-overview" href={account}>{profile}</a>}
-
-                <button type="button" className="menu-button" role="menuitem" onClick={accountPage}>
-                  <span className="icon" dangerouslySetInnerHTML={{ __html: ACCOUNT_ICON }} />
-                  <span className="txt">{t('account')}</span>
-                </button>
+                <span className="profile-overview" role="presentation">{profile}</span>
 
                 <button type="button" className="menu-button" role="menuitem" onClick={settings}>
                   <span className="icon" dangerouslySetInnerHTML={{ __html: SETTINGS_ICON }} />

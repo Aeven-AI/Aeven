@@ -8,6 +8,7 @@ import { apply, inject } from '../src/client/index.ts'
 import { apply as applyNode } from '../src/index.ts'
 import { en, NS, zh } from '../src/client/locales.ts'
 import type { AccountMenuInjected } from '../src/client/AccountMenu.tsx'
+import type { AccountSectionInjected } from '../src/client/AccountSection.tsx'
 
 const Empty = () => null
 
@@ -27,6 +28,12 @@ function injectedFace(ctx: Context): AccountMenuInjected {
   return entry?.inject?.() as unknown as AccountMenuInjected
 }
 
+function sectionFace(ctx: Context): AccountSectionInjected {
+  const entry = ctx.slots.entries('settings.section')
+    .find(e => e.options.id === 'account')
+  return entry?.inject?.() as unknown as AccountSectionInjected
+}
+
 async function baseContext(): Promise<Context> {
   const ctx = new Context()
   await ctx.plugin(SlotRegistry).await()
@@ -37,10 +44,13 @@ async function baseContext(): Promise<Context> {
   return ctx
 }
 
-function declareNavigationUtilities(ctx: Context): () => void {
+function declareSeats(ctx: Context): () => void {
   return ctx.slots.register({
     name: 'root',
-    children: { 'shell.corner': { kind: 'list', scope: 'root' } },
+    children: {
+      'shell.corner': { kind: 'list', scope: 'root' },
+      'settings.section': { kind: 'list', scope: 'root' },
+    },
   } as never, Empty)
 }
 
@@ -68,7 +78,7 @@ describe('ui-account-aeven browser half', () => {
     await fiber.await()
     expect(utilityIds(ctx)).toEqual([])
 
-    const utilities = declareNavigationUtilities(ctx)
+    const utilities = declareSeats(ctx)
     expect(utilityIds(ctx)).toEqual(['aeven-account'])
 
     await fiber.dispose()
@@ -79,10 +89,9 @@ describe('ui-account-aeven browser half', () => {
   it('reports no reader until the gate states one', async () => {
     const ctx = await baseContext()
     await ctx.plugin({ inject: [...inject], apply }).await()
-    declareNavigationUtilities(ctx)
+    declareSeats(ctx)
     const face = injectedFace(ctx)
     expect(face.reader()).toBeUndefined()
-    expect(face.accountUrl()).toBeUndefined()
 
     scope.__AVN_AEVEN_READER__ = {
       userId: 'u-1',
@@ -97,13 +106,33 @@ describe('ui-account-aeven browser half', () => {
       displayName: 'Ollie',
       imageUrl: 'https://media.test/u-1.png',
     })
-    expect(face.accountUrl()).toBe('https://aeven.test/account/')
+  })
+
+  it('gives the Account page the Aeven web client the deployment names', async () => {
+    const ctx = await baseContext()
+    scope.__AVN_AEVEN_READER__ = {
+      userId: 'u-4',
+      accountUrl: 'https://aeven.test/account/',
+      signOut: () => Promise.resolve(),
+      cloud: () => Promise.reject(new Error('unused')),
+    }
+    await ctx.plugin({ inject: [...inject], apply }).await()
+    declareSeats(ctx)
+    expect(sectionFace(ctx).accountUrl()).toBe('https://aeven.test/account/')
+  })
+
+  it('leaves the Account page unlinked when the deployment names no web client', async () => {
+    const ctx = await baseContext()
+    scope.__AVN_AEVEN_READER__ = { userId: 'u-5', signOut: () => Promise.resolve(), cloud: () => Promise.reject(new Error('unused')) }
+    await ctx.plugin({ inject: [...inject], apply }).await()
+    declareSeats(ctx)
+    expect(sectionFace(ctx).accountUrl()).toBeUndefined()
   })
 
   it('carries only the facts the deployment stated', async () => {
     const ctx = await baseContext()
     await ctx.plugin({ inject: [...inject], apply }).await()
-    declareNavigationUtilities(ctx)
+    declareSeats(ctx)
     scope.__AVN_AEVEN_READER__ = { userId: 'u-2', signOut: () => Promise.resolve(), cloud: () => Promise.reject(new Error('unused')) }
     expect(injectedFace(ctx).reader()).toEqual({ userId: 'u-2' })
   })
@@ -111,7 +140,7 @@ describe('ui-account-aeven browser half', () => {
   it('asks the settings shell to open', async () => {
     const ctx = await baseContext()
     await ctx.plugin({ inject: [...inject], apply }).await()
-    declareNavigationUtilities(ctx)
+    declareSeats(ctx)
     const listener = vi.fn()
     ctx.on('settings/open', listener)
     injectedFace(ctx).openSettings()
@@ -124,7 +153,7 @@ describe('ui-account-aeven browser half', () => {
     const signOut = vi.fn(() => Promise.resolve())
     const ctx = await baseContext()
     await ctx.plugin({ inject: [...inject], apply }).await()
-    declareNavigationUtilities(ctx)
+    declareSeats(ctx)
 
     injectedFace(ctx).signOut()
     expect(signOut).not.toHaveBeenCalled()

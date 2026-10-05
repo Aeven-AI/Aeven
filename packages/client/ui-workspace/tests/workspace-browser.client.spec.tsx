@@ -80,6 +80,7 @@ function mount(overrides: Partial<WorkspaceBrowserProps> = {}) {
     useStore: bindSnapshotSelector(store),
     actions: store.actions,
     startSession: vi.fn(),
+    newSessionHref: () => ({ href: '/c/new-1', sessionId: sid('session-new-1') }),
     open: vi.fn(),
     renameSession: vi.fn(async () => {}),
     forkSession: vi.fn(),
@@ -469,7 +470,7 @@ describe('WorkspaceBrowser', () => {
     expect(screen.getByText('child-s').closest('[role="treeitem"]')?.getAttribute('draggable')).toBe('true')
   })
 
-  it('expands the target group before starting a session from its ＋', () => {
+  it('expands the target group before starting a session from its New Session link', () => {
     const startSession = vi.fn()
     const b = mount({
       useSessions: hook(sessionState([summary('alpha-s', 1)])),
@@ -480,13 +481,16 @@ describe('WorkspaceBrowser', () => {
       expect(b.store.getSnapshot().groupExpansion).toEqual({ alpha: true })
     })
     expect(screen.queryByText('alpha-s')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: '在“alpha”中新建会话' }))
+    fireEvent.click(screen.getByRole('link', { name: '在“alpha”中新建会话' }))
     expect(b.store.getSnapshot().groupExpansion).toEqual({ alpha: true })
     expect(screen.getByText('alpha-s')).toBeTruthy()
+    // The press runs the New Session flow for this Workspace without naming an
+    // id: the flow reuses that Workspace's never-prompted chat before it
+    // creates one, which is what keeps unsent text in front of the reader.
     expect(startSession).toHaveBeenCalledWith(wid('alpha'))
   })
 
-  it('auto-expands the Ungrouped bucket for a loose current session; its header has no menu and its ＋ is inert', () => {
+  it('auto-expands the Ungrouped bucket for a loose current session; its header has no menu and no create link', () => {
     const startSession = vi.fn()
     mount({
       useSessions: hook(sessionState([summary('loose', 1)], { current: sid('loose') })),
@@ -496,7 +500,7 @@ describe('WorkspaceBrowser', () => {
     // The loose session's group is UNGROUPED_KEY: expanded by the effect.
     expect(screen.getByText('loose')).toBeTruthy()
     expect(screen.queryByRole('button', { name: '工作区“未分组”的操作' })).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: '在“未分组”中新建会话' }))
+    expect(screen.queryByRole('link', { name: '在“未分组”中新建会话' })).toBeNull()
     expect(startSession).not.toHaveBeenCalled()
   })
 
@@ -533,7 +537,7 @@ describe('WorkspaceBrowser', () => {
     startSession.mockImplementation(() => {
       rerender(b, { useSessions: hook(sessionState(items, { current: sid('blank') })) })
     })
-    fireEvent.click(screen.getByRole('button', { name: '在“alpha”中新建会话' }))
+    fireEvent.click(screen.getByRole('link', { name: '在“alpha”中新建会话' }))
     expect(startSession).toHaveBeenCalledWith(wid('alpha'))
     await waitFor(() => {
       expect(b.store.getSnapshot().sessionOrderByAccount.alpha).toEqual(['blank', 'old', 'mid'])

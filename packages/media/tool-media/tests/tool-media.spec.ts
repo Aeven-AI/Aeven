@@ -45,16 +45,24 @@ function imageProvider(
   }
 }
 
-/** A store that hands back a deterministic reference per saved image. */
-function attachments(): { saved: { mediaType: string }[] } & Record<string, unknown> {
+/**
+ * A store that hands back a deterministic reference per saved image.
+ * @param stored - extra reference fields to report, such as the dimensions a
+ *   store normalized a larger image down from.
+ * @returns the seam double, with the saved media types it was handed.
+ */
+function attachments(stored: Record<string, unknown> = {}): { saved: { mediaType: string }[]; names: (string | undefined)[] } & Record<string, unknown> {
   const saved: { mediaType: string }[] = []
+  const names: (string | undefined)[] = []
   let counter = 0
   return {
     saved,
+    names,
     imageLimits: { maxImageBytes: 1024, maxImagesPerMessage: 8, maxMessageImageBytes: 4096, maxImageDimension: 4096, mediaTypes: ['image/png', 'image/jpeg', 'image/webp', 'image/gif'] },
-    saveImage: async (input: { data: Uint8Array; mediaType: string }) => {
+    saveImage: async (input: { data: Uint8Array; mediaType: string; name?: string }) => {
       saved.push({ mediaType: input.mediaType })
-      return { attachmentId: `att-${++counter}`, mediaType: input.mediaType, bytes: input.data.byteLength, width: 8, height: 8 }
+      names.push(input.name)
+      return { attachmentId: `att-${++counter}`, mediaType: input.mediaType, bytes: input.data.byteLength, width: 8, height: 8, ...stored }
     },
   }
 }
@@ -66,6 +74,7 @@ async function mount(opts: {
   answers?: readonly (string | null)[]
   files?: Record<string, Uint8Array>
   settings?: boolean
+  stored?: Record<string, unknown>
 } = {}): Promise<{
   commands: { name: string; handler: (invocation: unknown) => Promise<{ kind: string; text?: string }> }[]
   installed: { ns: string; patches: object[]; set: (next: ToolMedia.Config) => void }[]
@@ -120,7 +129,7 @@ async function mount(opts: {
     })
   }
   await ctx.plugin(MediaRuntime)
-  const store = attachments()
+  const store = attachments(opts.stored)
   ctx.provide('attachments', store)
   if (opts.files !== undefined) ctx.provide('fs', fileSystem(opts.files).fs)
   const { provider, seen } = imageProvider(opts.images)
@@ -557,8 +566,17 @@ describe('generate_image', () => {
       model: 'flux',
       images: [{ attachmentId: 'att-1', mediaType: 'image/png', bytes: 4, width: 8, height: 8 }],
     })
-    expect(out.content[0]).toEqual({ type: 'text', text: 'Generated 1 image(s) with flux.' })
+    expect(out.content[0]).toEqual({ type: 'text', text: 'Generated 1 image(s) with flux. Already displayed to the user; do not repeat or embed them in your reply.' })
     expect(out.content[1]).toMatchObject({ type: 'image', attachment: { attachmentId: 'att-1' } })
+  })
+
+  it('names each stored image after its model and position, so a preview titles it', async () => {
+    const { call, store } = await mount({
+      config: { model: 'flux' },
+      images: [{ kind: 'bytes', mediaType: 'image/png', data: PNG }, { kind: 'bytes', mediaType: 'image/jpeg', data: PNG }],
+    })
+    await call({ prompt: 'two of them', n: 2 })
+    expect(store.names).toEqual(['flux-1.png', 'flux-2.jpg'])
   })
 
   it('stores every image a multi-image generation returned, in provider order', async () => {
@@ -569,7 +587,7 @@ describe('generate_image', () => {
     const out = await call({ prompt: 'two of them', n: 2 })
     expect(store.saved).toEqual([{ mediaType: 'image/png' }, { mediaType: 'image/jpeg' }])
     expect(out.content).toHaveLength(3)
-    expect(out.content[0]).toEqual({ type: 'text', text: 'Generated 2 image(s) with flux.' })
+    expect(out.content[0]).toEqual({ type: 'text', text: 'Generated 2 image(s) with flux. Already displayed to the user; do not repeat or embed them in your reply.' })
   })
 
   it('carries a provider-stored image straight into the result without re-storing it', async () => {
@@ -580,6 +598,39 @@ describe('generate_image', () => {
     const out = await call({ prompt: 'x' })
     expect(store.saved).toEqual([])
     expect(out.content[1]).toMatchObject({ type: 'image', attachment: { attachmentId: 'att-9' } })
+  })
+
+  it('carries the dimensions a store reports for an image it scaled down', async () => {
+    const { call } = await mount({
+      config: { model: 'flux' },
+      stored: { originalDimensions: { width: 4096, height: 2048 } },
+    })
+    const out = await call({ prompt: 'a wide valley' })
+    expect(out.isError).not.toBe(true)
+    expect(out.value).toEqual({
+      provider: 'stub',
+      model: 'flux',
+      images: [{
+        attachmentId: 'att-1',
+        mediaType: 'image/png',
+        bytes: 4,
+        width: 8,
+        height: 8,
+        originalDimensions: { width: 4096, height: 2048 },
+      }],
+    })
+    expect(out.content[1]).toMatchObject({ type: 'image', attachment: { attachmentId: 'att-1' } })
+  })
+
+  it('carries a provider-stored reference that names itself', async () => {
+    const named = { attachmentId: 'att-9', mediaType: 'image/png', bytes: 4, width: 8, height: 8, name: 'render.png' } as never
+    const { call } = await mount({
+      config: { model: 'm', provider: 'stub' },
+      images: [{ kind: 'attachment', attachment: named }],
+    })
+    const out = await call({ prompt: 'x' })
+    expect(out.isError).not.toBe(true)
+    expect(out.value).toMatchObject({ images: [named] })
   })
 
   it('reports an unstorable generated media type as a tool error', async () => {

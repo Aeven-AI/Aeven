@@ -41,15 +41,15 @@ type SessionPendingInteractions = ReadonlyMap<SessionId, SessionPendingInteracti
 /** One top-level session row in a group or the flat list. */
 export interface SessionNode {
   id: SessionId
-  /** Stored display title; the renderer substitutes the localized New Session label for blank rows. */
+  /** Stored display title; the renderer substitutes the localized New Session label for a Session with no durable title. */
   title: string
   /** The provisional blank session (renderer shows the localized New Session title). */
   blank: boolean
   /**
    * The Session has no durable title, so `title` is only the identity fallback
-   * the list resolves. The renderer labels these rows as untitled: a session
-   * named after its directory, or after its own id, is worse than one that
-   * says it has no name yet.
+   * the list resolves. The renderer keeps the New Session label on these rows:
+   * the fallback is the Session id, and a row named after its own id is worse
+   * than one that says no title has arrived.
    */
   untitled: boolean
   /** A Session-scoped UI consumer is awaiting this user. */
@@ -106,7 +106,14 @@ export interface SearchResultNode {
   id: SessionId
   /** Exact matched message event, when this row came from content search. */
   matchSeq?: SessionSeq
+  /** Stored display title; the renderer substitutes the localized New Session label for a Session with no durable title. */
   title: string
+  /**
+   * The Session has no durable title, so `title` is only the identity fallback
+   * the list resolves. Blank Sessions never reach search, so this is the same
+   * fact {@link SessionNode.untitled} carries.
+   */
+  untitled: boolean
   workspace: string
   /** A Session-scoped UI consumer is awaiting this user. */
   pendingInteraction?: SessionPendingInteractionStatus
@@ -481,6 +488,7 @@ function resultRows(
     return {
       id: summary.id,
       title: sessionTitle(summary),
+      untitled: summary.title === undefined,
       workspace: workspaceBySession.get(summary.id) ?? workspaceLabel(summary.cwd),
       running: summary.running,
       runningSubagentCount: descendants.get(summary.id)?.runningCount ?? 0,

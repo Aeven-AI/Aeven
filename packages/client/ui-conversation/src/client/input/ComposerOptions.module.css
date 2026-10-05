@@ -1,0 +1,158 @@
+/* The composer Options control: the transparent settings-2 disc (Aeven
+   `.loader-icon-button.transparent`, the same disc the dictation mic wears) and
+   the popup it opens, drawn with the model chooser's card chrome. */
+
+.root {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+
+.disc {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--dsw-aeven-control-size);
+  height: var(--dsw-aeven-control-size);
+  padding: 0;
+  border: none;
+  border-radius: var(--dsw-aeven-radius-control);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+}
+
+.disc svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+  stroke-width: 2;
+}
+
+/* The popup card: the model chooser's own surface (surface radius, translucent
+   fill, 4px blur, prominent elevation) opened above the disc. Neither this card
+   nor the composer card carries a transform or a filter, so the fixed-position
+   `.pane` cards below stay in the viewport's coordinate space. */
+.card {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  width: max-content;
+  min-width: 232px;
+  max-width: min(360px, calc(100vw - 32px));
+  /* The card padding of the popup family: a row's own 8px cell then sits 16px
+     from the card's edge. */
+  padding: 8px;
+  border: 0;
+  border-radius: var(--dsw-aeven-radius-surface);
+  background: var(--dsw-tint-menu);
+  backdrop-filter: blur(4px);
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
+  box-shadow:
+    inset 1px 1px 0 0 var(--dsw-specific-popup-highlight),
+    inset 0 0 1px 1px var(--dsw-specific-popup-highlight),
+    var(--dsw-elevation-prominent);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* A row and the card it opens share one seat, so the card sits beside the row
+   that asked for it. */
+.rowSeat {
+  position: relative;
+}
+
+/* Popup row, the model chooser's own cell: 40px, 8px padding, 8px gap, control
+   radius, 14/22 name in primary ink and its value in the tertiary tone. */
+.row {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: var(--dsw-aeven-control-size);
+  padding: 8px;
+  border: none;
+  border-radius: var(--dsw-aeven-radius-control);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  line-height: 22px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.row:hover:not(:disabled),
+.rowOpen {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.row:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.rowIcon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--dsw-alias-label-primary);
+}
+
+/* The name takes the row's free width, so every row's chevron lands on the
+   card's trailing edge whatever its name is. */
+/* A popup row's CSS-sized glyph: the lucide transcriptions carry no
+   width/height, so their box is stated here, in the row's icon seat. */
+.rowGlyph {
+  width: 16px;
+  height: 16px;
+}
+
+.rowLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowChevron {
+  display: inline-flex;
+  flex: none;
+  color: var(--dsw-alias-label-caption);
+}
+
+/* The row's own card, opened beside the popup with a 10px step (the popup card's
+   own 8px pad plus 2). An opaque surface: the card lands over the conversation,
+   and a translucent one would let the text behind it read through. */
+.pane {
+  position: absolute;
+  left: calc(100% + 10px);
+  bottom: -4px;
+  z-index: 30;
+  box-sizing: border-box;
+  width: max-content;
+  min-width: 179px;
+  max-width: min(360px, calc(100vw - 32px));
+  padding: 8px;
+  border: 0;
+  border-radius: var(--dsw-aeven-radius-surface);
+  background: var(--dsw-specific-menu);
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
+  box-shadow: var(--dsw-elevation-prominent);
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--dsw-alias-label-secondary);
+  cursor: default;
+}
+
+/* The breakdown card spends the popup family's roomier inset: its rows are
+   read, not picked, so they get the spacing a list of choices does not. */
+.paneDetails {
+  padding: 14px 16px 12px;
+}

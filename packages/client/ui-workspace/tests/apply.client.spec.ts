@@ -131,11 +131,15 @@ describe('ui-workspace apply', () => {
     const startSession = vi.spyOn(b.ctx.uiWorkspace, 'startSession').mockImplementation(() => undefined)
 
     const browser = (b.slots.entries('sidebar.workspaces')[0]!.inject as () => WorkspaceBrowserInjected)()
-    // Both arms delegate to the shared Session navigation action.
+    // Both arms delegate to the shared Session navigation action. Neither names
+    // an id: the action reuses a never-prompted chat before creating one.
     browser.startSession('ws' as never)
     expect(startSession).toHaveBeenCalledWith('ws')
     browser.startSession()
     expect(startSession).toHaveBeenLastCalledWith(undefined)
+    // A row's link address is minted by the same service the sidebar's is.
+    const target = browser.newSessionHref()
+    expect(target.href).toBe(`/c/${target.sessionId.slice('session-'.length)}`)
     browser.open('session' as never)
     expect(b.open).toHaveBeenCalledWith('session')
     const search = (b.slots.entries('sidebar.header.leading')[0]!.inject as () => WorkspaceHeaderSearchInjected)()

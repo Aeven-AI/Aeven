@@ -30,7 +30,10 @@ body[data-ds-dark-theme] #root {
   position: fixed;
   inset: 0;
   opacity: 1;
-  z-index: 100;
+  /* Above every in-app layer, whose highest is the browser pane's 1300: the app
+     boots behind the preloader even when its address already names an open
+     modal, so no popup paints until the preloader is gone. */
+  z-index: 2000;
   width: 100vw;
   height: 100%;
   max-width: 100%;

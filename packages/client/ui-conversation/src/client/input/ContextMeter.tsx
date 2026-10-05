@@ -1,16 +1,15 @@
-/** Composer context-occupancy meter: a ring beside the send button fed by the
- * `contextPressure` projection, with a click-open panel of the heuristic
- * `contextBreakdown` composition (system prompt, tools, conversation).
- * Renders nothing until a provider reports both pressure and a route
- * capacity. */
+/** Composer context occupancy, drawn for the Options popup: the ring glyph its
+ * row shows, and the panel of heuristic `contextBreakdown` composition (system
+ * prompt, tools, conversation) that row opens. The popup owns both the row and
+ * the placement, so this module carries only the reading. */
 
-import { useEffect, useRef, useState } from 'react'
-import type { UseProjection } from '@aeven/api-session-controller/client'
+import type { ReactNode } from 'react'
+import { IconChevronRightOutline14 } from '@aeven/client-ui-primitives'
+import type { ContextBreakdownProjection } from '@aeven/token-meter/client'
 // Type-only: the `contextPressure` / `contextBreakdown` projection key merges.
 import type {} from '@aeven/token-meter/client'
-import { Tooltip } from '@aeven/client-ui-primitives'
 import type { ComposerBarProps } from '../contract/slots.ts'
-import { contextOccupancy } from '../context-occupancy.ts'
+import type { ContextOccupancy } from '../context-occupancy.ts'
 import css from './ContextMeter.module.css'
 
 /** Ring geometry: 14px viewBox, 2px stroke. */
@@ -46,45 +45,73 @@ function formatTokens(value: number, t: ComposerBarProps['t']): string {
   return t('number.million', { value: scaled(value / 1_000_000) })
 }
 
-export interface ContextMeterProps {
-  useProjection: UseProjection
+/**
+ * The occupancy ring the Options row leads with.
+ * @param props.percent - occupancy as a whole percentage.
+ * @returns the ring glyph.
+ */
+export function ContextRing({ percent }: { percent: number }): ReactNode {
+  return (
+    <svg viewBox="0 0 14 14" width="14" height="14" aria-hidden>
+      <circle className={css.track} cx="7" cy="7" r={RADIUS} />
+      <circle
+        className={css.fill}
+        cx="7"
+        cy="7"
+        r={RADIUS}
+        strokeDasharray={`${CIRCUMFERENCE * percent / 100} ${CIRCUMFERENCE}`}
+        transform="rotate(-90 7 7)"
+      />
+    </svg>
+  )
+}
+
+export interface ContextActionsProps {
+  /** The owning bar's locale seat, passed down as a plain prop. */
+  t: ComposerBarProps['t']
+  /** Compact the conversation, the `/compact` command behind the reading. */
+  onCompact: () => void
+  /** Show the breakdown this card's second action opens. */
+  onDetails: () => void
+}
+
+/**
+ * Render the two actions the context row's card offers, ahead of the reading.
+ * @param props - the locale seat and the two actions.
+ * @returns the action rows.
+ */
+export function ContextActions({ t, onCompact, onDetails }: ContextActionsProps) {
+  return (
+    <>
+      <button type="button" role="menuitem" className={css.action} onClick={onCompact}>
+        <span className={css.actionLabel}>{t('options.compact')}</span>
+      </button>
+      <button type="button" role="menuitem" className={css.action} onClick={onDetails}>
+        <span className={css.actionLabel}>{t('options.details')}</span>
+        <span className={css.actionChevron} aria-hidden>
+          <IconChevronRightOutline14 />
+        </span>
+      </button>
+    </>
+  )
+}
+
+export interface ContextPanelProps {
+  /** The occupancy reading (`contextOccupancy` over the pressure projection). */
+  context: ContextOccupancy
+  /** Heuristic composition shares; absent while no provider reports them. */
+  breakdown: ContextBreakdownProjection | undefined
   /** The owning bar's locale seat, passed down as a plain prop. */
   t: ComposerBarProps['t']
 }
 
-export function ContextMeter({ useProjection, t }: ContextMeterProps) {
-  const pressure = useProjection('contextPressure')
-  const breakdown = useProjection('contextBreakdown')
-  const [open, setOpen] = useState(false)
-  const rootRef = useRef<HTMLSpanElement | null>(null)
-  const context = contextOccupancy(pressure)
-  const available = context !== null
-
-  // A model switch can temporarily remove capacity while this component stays
-  // mounted. Close the now-unavailable panel instead of preserving stale UI.
-  useEffect(() => {
-    if (!available && open) setOpen(false)
-  }, [available, open])
-
-  // Outside click / Escape close, one document listener while open (Menu's pattern).
-  useEffect(() => {
-    if (!open || !available) return
-    const onPointerDown = (e: PointerEvent): void => {
-      if (e.target instanceof Node && rootRef.current?.contains(e.target) === true) return
-      setOpen(false)
-    }
-    const onKeyDown = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') setOpen(false)
-    }
-    document.addEventListener('pointerdown', onPointerDown)
-    document.addEventListener('keydown', onKeyDown)
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown)
-      document.removeEventListener('keydown', onKeyDown)
-    }
-  }, [available, open])
-
-  if (context === null) return null
+/**
+ * Render the context breakdown: the occupancy headline, its bar, and the
+ * composition rows.
+ * @param props - the reading, the composition shares, and the locale seat.
+ * @returns the panel content of the context row's card.
+ */
+export function ContextPanel({ context, breakdown, t }: ContextPanelProps) {
   const percent = context.percent
   const reading = `${percent}%`
   const [headBefore = '', headAfter = ''] = t('context.aria', { percent: READING_SLOT })
@@ -104,65 +131,39 @@ export function ContextMeter({ useProjection, t }: ContextMeterProps) {
   const segments = parts.filter(part => part.width > 0)
 
   return (
-    <span ref={rootRef} className={css.root}>
-      <Tooltip label={t('context.aria', { percent: reading })} side="top" disabled={open}>
-        <button
-          type="button"
-          className={css.trigger}
-          aria-label={t('context.aria', { percent: reading })}
-          aria-haspopup="dialog"
-          aria-expanded={open}
-          onClick={() => { setOpen(!open) }}
-        >
-          <svg viewBox="0 0 14 14" width="14" height="14" aria-hidden>
-            <circle className={css.track} cx="7" cy="7" r={RADIUS} />
-            <circle
-              className={css.fill}
-              cx="7"
-              cy="7"
-              r={RADIUS}
-              strokeDasharray={`${CIRCUMFERENCE * percent / 100} ${CIRCUMFERENCE}`}
-              transform="rotate(-90 7 7)"
-            />
-          </svg>
-        </button>
-      </Tooltip>
-      {open && (
-        <div className={css.panel} role="dialog" aria-label={t('context.used')}>
-          <div className={css.header}>
-            {/* Empty sides collapse through `.headline:empty` so the locale that
-                needs no leading (or trailing) text spends no header gap. */}
-            <span className={css.headline}>{headBefore}</span>
-            <span className={css.percent}>{reading}</span>
-            <span className={css.headline}>{headAfter}</span>
-            <span className={css.figures}>
-              {`~${formatTokens(context.usedTokens, t)} / ${formatTokens(context.contextWindow, t)}`}
-            </span>
-          </div>
-          <div className={css.bar}>
-            {segments.map(segment => (
-              <div
-                key={segment.key}
-                className={segment.color === undefined ? css.segment : `${css.segment} ${segment.color}`}
-                style={{ width: `${segment.width}%` }}
-              />
-            ))}
-          </div>
-          {breakdown !== undefined && (
-            <dl className={css.rows}>
-              {ROWS.map(row => (
-                <div key={row.key} className={css.row}>
-                  <dt>
-                    <span className={`${css.swatch} ${row.color}`} aria-hidden />
-                    {t(row.label)}
-                  </dt>
-                  <dd>{`~${formatTokens(breakdown[row.key], t)}`}</dd>
-                </div>
-              ))}
-            </dl>
-          )}
-        </div>
+    <div className={css.panel}>
+      <div className={css.header}>
+        {/* Empty sides collapse through `.headline:empty` so the locale that
+            needs no leading (or trailing) text spends no header gap. */}
+        <span className={css.headline}>{headBefore}</span>
+        <span className={css.percent}>{reading}</span>
+        <span className={css.headline}>{headAfter}</span>
+        <span className={css.figures}>
+          {`~${formatTokens(context.usedTokens, t)} / ${formatTokens(context.contextWindow, t)}`}
+        </span>
+      </div>
+      <div className={css.bar}>
+        {segments.map(segment => (
+          <div
+            key={segment.key}
+            className={segment.color === undefined ? css.segment : `${css.segment} ${segment.color}`}
+            style={{ width: `${segment.width}%` }}
+          />
+        ))}
+      </div>
+      {breakdown !== undefined && (
+        <dl className={css.rows}>
+          {ROWS.map(row => (
+            <div key={row.key} className={css.row}>
+              <dt>
+                <span className={`${css.swatch} ${row.color}`} aria-hidden />
+                {t(row.label)}
+              </dt>
+              <dd>{`~${formatTokens(breakdown[row.key], t)}`}</dd>
+            </div>
+          ))}
+        </dl>
       )}
-    </span>
+    </div>
   )
 }

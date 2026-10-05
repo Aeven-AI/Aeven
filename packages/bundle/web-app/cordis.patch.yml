@@ -109,6 +109,9 @@
     - id: plugin-inventory
       name: '@aeven/host-plugin-inventory'
 
+    - id: account-integrations
+      name: '@aeven/host-account-integrations'
+
     # ── the authenticated reader ────────────────────────────────────────────────
 
     # The seam every authority registers into. Mounted before the authority so
@@ -406,6 +409,9 @@
 
     - id: ui-settings-models
       name: '@aeven/client-ui-settings-models'
+
+    - id: ui-settings-integrations
+      name: '@aeven/client-ui-settings-integrations'
 
     - id: ui-settings-plugin-inventory
       name: '@aeven/client-ui-settings-plugin-inventory'

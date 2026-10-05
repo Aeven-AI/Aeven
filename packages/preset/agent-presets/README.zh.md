@@ -39,6 +39,8 @@ kind: "package-reference"
 
 随包交付 skill 的 `SKILL.md` 是唯一正本，仓库路径 `.agents/skills/<name>/SKILL.md` 是指向它的相对符号链接，因此在本 checkout 中工作的 agent 发现的是同一个文件。该根目录在组装旁解析，所以复制到用户根目录的 preset 不携带任何随包交付的 skill，而同名的本地 skill 会让位于随包交付的那一份。
 
+Google Drive、Docs、Drive Comments、Sheets 和 Slides 技能包复制自 [OpenAI plugins](https://github.com/openai/plugins/tree/5fd93af4cd0c623e020d0cc7e9ce178b4ac1f70f/plugins/google-drive/skills)，包含入口和配套资源。它们使用上游连接器和运行时 API；执行相关工作流需要这些 API 可用。账户集成包通过发布的 MCP 地址连接 Google 服务；仅复制技能不能证明所有应用连接器操作可用。Aeven 编写的 Google Forms 技能使用同一 Drive 连接器创建和编辑表单及读取回应。
+
 ### 最小配置
 
 插件需要一个 `default` preset id，并在 `roots` 中扫描 preset：

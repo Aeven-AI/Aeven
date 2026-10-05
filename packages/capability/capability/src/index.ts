@@ -1,16 +1,15 @@
 /**
  * Learned capabilities: Aeven-owned, per-user procedures an agent learned, stored as agentskills-compatible
- * directories. Learned capabilities are published through `ctx.skills`; candidates stay out of the catalog.
+ * directories. Recall consumers read procedures directly; the registry contributes no skills.
  *
  * @module @aeven/capability
  */
-import { isAbsolute, join } from 'node:path'
+import { isAbsolute } from 'node:path'
 import { Context, Service } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import type { SkillCandidate, SkillDefinition, SkillProvider } from '@aeven/skill'
 import { randomUUID } from 'node:crypto'
 import { capabilityName, CapabilityStore, supportingPath } from './store.ts'
-import { currentEnvironment, evidenceNote, EXECUTABLE_STATUSES, judge, supportedStatus } from './policy.ts'
+import { judge, supportedStatus } from './policy.ts'
 import type {
   Capability,
   CapabilityAmendment,
@@ -50,48 +49,28 @@ declare module '@deepseek-ai/cordis' {
 export interface Config {
   /** Absolute directory holding one subdirectory per owner. */
   root: string
-  /** Skill-catalog rank of learned capabilities; lower ranks win duplicate names. */
-  skillRank: number
   /** Successful executions of the current revision needed to become trusted; at least one must be verified. */
   trustAfter: number
   /** Consecutive failed executions of the current revision that degrade a capability, or retire a candidate. */
   degradeAfter: number
-  /** Days an unused candidate stays in the skill catalog; a candidate never executed in that time decays out of it. */
-  candidateTtlDays: number
-}
-
-/** Provider name learned capabilities are published under in `ctx.skills`. */
-export const SKILL_PROVIDER = 'learned-capabilities'
-
-interface Locator {
-  readonly owner: string
-  readonly name: string
 }
 
 /** Registry of learned capabilities for every signed-in user of this Host. */
 export default class Capabilities extends Service {
   static Config: z<Config> = z.object({
     root: z.string().min(1).required(),
-    skillRank: z.natural().default(550),
     trustAfter: z.natural().min(1).default(3),
     degradeAfter: z.natural().min(1).default(2),
-    candidateTtlDays: z.natural().min(1).default(30),
   })
 
   private readonly store: CapabilityStore
   private readonly writes = new Map<string, Promise<unknown>>()
-  private invalidateSkills: (() => void) | undefined
 
   constructor(ctx: Context, private readonly config: Config) {
     super(ctx, 'capabilities')
     if (!isAbsolute(config.root)) throw new Error(`capabilities root must be absolute: ${config.root}`)
     this.store = new CapabilityStore(config.root)
-    ctx.inject(['skills'], (skillsCtx) => {
-      skillsCtx.effect(() => skillsCtx.skills.registerProvider((control) => {
-        this.invalidateSkills = control.invalidate
-        return this.skillProvider()
-      }), 'capabilities.skills')
-    })
+
   }
 
   /**
@@ -352,7 +331,6 @@ export default class Capabilities extends Service {
       if (this.writes.get(key) === settled) this.writes.delete(key)
     })
     return run.then((result) => {
-      this.invalidateSkills?.()
       try {
         this.ctx.emit('capabilities/changed', { owner, name })
       } catch (error: unknown) {
@@ -363,51 +341,7 @@ export default class Capabilities extends Service {
     })
   }
 
-  /** Publish the viewing owner's executable capabilities; a candidate unused for `candidateTtlDays` decays out. */
-  private skillProvider(): SkillProvider {
-    return {
-      name: SKILL_PROVIDER,
-      list: async (options) => {
-        if (options.owner === undefined) return []
-        const owner = options.owner
-        const records = await this.store.list(owner)
-        const expired = Date.now() - this.config.candidateTtlDays * 86_400_000
-        const stale = new Set(await Promise.all(records
-          .filter(record => record.status === 'candidate' && record.updatedAt < expired)
-          .map(async record => (await this.store.evidence(owner, record.name)).length === 0 ? record.name : '')))
-        return records.filter(record => EXECUTABLE_STATUSES.includes(record.status) && !stale.has(record.name)).map((record): SkillCandidate => {
-          const directory = this.store.directory(owner, record.name)
-          return {
-            name: record.name,
-            description: record.description,
-            invocation: { modelInvocable: true, userInvocable: true },
-            source: 'learned',
-            provider: SKILL_PROVIDER,
-            resourceBase: { kind: 'directory', path: directory },
-            rank: this.config.skillRank,
-            locator: { owner, name: record.name } satisfies Locator,
-            path: join(directory, 'SKILL.md'),
-          }
-        })
-      },
-      get: async (candidate): Promise<SkillDefinition | undefined> => {
-        const { owner, name } = candidate.locator as Locator
-        const capability = await this.store.get(owner, name)
-        if (capability === undefined || !EXECUTABLE_STATUSES.includes(capability.status)) return undefined
-        const note = evidenceNote(capability, judge(await this.store.evidence(owner, name)), currentEnvironment())
-        return {
-          name: capability.name,
-          description: capability.description,
-          invocation: candidate.invocation,
-          source: candidate.source,
-          provider: SKILL_PROVIDER,
-          resourceBase: { kind: 'directory', path: capability.directory },
-          content: note ? `${note}\n\n${capability.content}` : capability.content,
-          path: join(capability.directory, 'SKILL.md'),
-        }
-      },
-    }
-  }
+
 }
 
 function record(capability: Capability): CapabilityRecord {

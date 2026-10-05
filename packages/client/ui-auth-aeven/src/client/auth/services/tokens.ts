@@ -9,7 +9,7 @@
  */
 
 import { apiUrl } from './config.ts'
-import { AevenApiError } from './errors.ts'
+import { AevenApiError, IDENTITY_CHANGED_CODE } from './errors.ts'
 import { session, storage } from './session.ts'
 
 /** Aeven refuses a token within two minutes of expiry rather than racing it. */
@@ -112,14 +112,34 @@ export function usableToken(token: string, userId: string | null): boolean {
 }
 
 /**
+ * Whether a token naming one account may serve this page.
+ *
+ * The page runs as the account its gate restored, and every document of one
+ * origin shares `userId` and `appBearers`. Another tab signing in therefore
+ * leaves an account id here that this page never restored; adopting it would
+ * keep rendering one account's reader and Sessions while every call acts as the
+ * other, and the Host answers those reads as missing.
+ * @param userId - the account a stored token or an exchange grant names.
+ * @returns true when the page restored that account, or restored none yet.
+ */
+function servesPage(userId: string): boolean {
+  return session.userId === null || session.userId === userId
+}
+
+/**
  * The stored token when it is still worth sending, adopting its user.
  * @param rejected - a token the caller already saw refused, which is never returned.
  * @returns the token, or undefined when a refresh is needed.
  */
 function heldBearer(rejected: string | undefined): string | undefined {
   const userId = storage.getItem('userId')
+  if (userId === null) return undefined
   const held = bearerToken(userId)
   if (held === undefined || held === rejected || !usableToken(held, userId)) return undefined
+  // A stored id naming another account is reported by leaving this undefined:
+  // the page session owner ends this document's session rather than trading the
+  // reader and the Session it renders for an account it never restored.
+  if (!servesPage(userId)) return undefined
   session.userId = userId
   session.userSignedIn = true
   return held
@@ -133,7 +153,8 @@ function heldBearer(rejected: string | undefined): string | undefined {
  * cookie therefore end the session, so this must only run under
  * {@link renewBearer}'s serialization.
  * @returns the new grant.
- * @throws {AevenApiError} when the cookie is missing or the API refuses it.
+ * @throws {AevenApiError} when the cookie is missing or the API refuses it, and
+ * with {@link IDENTITY_CHANGED_CODE} when it answers as another account.
  */
 async function exchangeRefreshCookie(): Promise<SessionGrant> {
   const response = await fetch(`${apiUrl()}/refresh-token`, {
@@ -144,6 +165,10 @@ async function exchangeRefreshCookie(): Promise<SessionGrant> {
   })
   if (!response.ok) throw new AevenApiError('refresh-failed', response.status)
   const grant = await response.json() as SessionGrant
+  // The cookie follows whichever tab signed in last, so an exchange answered
+  // with another account names that document's session, not a fresher
+  // credential for this one: nothing is stored for it.
+  if (!servesPage(grant.userId)) throw new AevenApiError(IDENTITY_CHANGED_CODE)
   setBearerToken(grant.userId, grant.accessToken)
   storage.setItem('userId', grant.userId)
   session.userId = grant.userId

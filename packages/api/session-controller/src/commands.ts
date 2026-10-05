@@ -5,7 +5,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { brandString } from '@aeven/brand'
 import type { Agent, ModelSelection as AgentModelSelection } from '@aeven/agent'
 import { AttachmentError, admitPromptContent } from '@aeven/attachment'
-import type { FileAttachmentRef, ImageAttachmentRef, StoredFileAttachment } from '@aeven/attachment'
+import type { FileAttachmentRef, ImageAttachmentRef, StoredFileAttachment, StoredImageAttachment } from '@aeven/attachment'
 import {
   ReasoningEffortId, createUserMessage, freezeMessage,
 } from '@aeven/llm'
@@ -506,6 +506,18 @@ export class SessionCommandController {
     const source = await this.readSessionState(sessionId)
     const ref = referencedAttachment<FileAttachmentRef>(source.events, 'file', attachmentId)
     return ref === undefined ? undefined : this.ctx.attachments.readFile(ref)
+  }
+
+  /**
+   * Read one image the addressed Session log cites.
+   * @param sessionId - the Session whose log is searched.
+   * @param attachmentId - the cited image's reference id.
+   * @returns the stored image, or undefined when the log cites no such image.
+   */
+  async referencedImage(sessionId: SessionId, attachmentId: string): Promise<StoredImageAttachment | undefined> {
+    const source = await this.readSessionState(sessionId)
+    const ref = referencedAttachment<ImageAttachmentRef>(source.events, 'image', attachmentId)
+    return ref === undefined ? undefined : this.ctx.attachments.readImage(ref)
   }
 
   /**

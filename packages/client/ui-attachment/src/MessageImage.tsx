@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Spinner } from '@aeven/client-ui-primitives'
 import type { ImageAttachmentRef } from '@aeven/attachment'
 import { ImageLightbox, type ImageLightboxLabels, type LightboxImage } from '@aeven/client-ui-primitives'
 import { resolvedUrl, useImageResolutions } from './image-resolutions.ts'
@@ -80,7 +81,7 @@ function dimensionsOf(image: MessageImageSpec): { readonly width: number; readon
 export function MessageImage({ image, load, variant, labels, onOpen }: {
   image: MessageImageSpec
   load: ImageLoader
-  variant: 'single' | 'tile'
+  variant: 'single' | 'tile' | 'fill'
   labels: MessageImageLabels
   onOpen: (src: string) => void
 }) {
@@ -122,19 +123,34 @@ export function MessageImage({ image, load, variant, labels, onOpen }: {
     <>
       <button
         type="button"
-        className={css.frame}
+        className={variant === 'fill' ? css.fill : css.frame}
         data-variant={variant}
         style={fit === undefined ? undefined : { width: fit.width, height: fit.height }}
         title={labels.open}
         aria-label={labels.openNamed(label)}
         onClick={() => { if (src !== null) onOpen(src) }}
       >
-        {src === null
-          ? <span className={css.loading}>{labels.loading}</span>
-          : <img src={src} alt={label} style={fit === undefined ? undefined : { objectPosition: fit.objectPosition }} />}
+        {src !== null && <img src={src} alt={label} style={fit === undefined ? undefined : { objectPosition: fit.objectPosition }} />}
+        <span className={css.loader} data-loaded={src === null ? undefined : ''} aria-hidden="true">
+          <Spinner />
+        </span>
       </button>
     </>
   )
+}
+
+/**
+ * A filename for a stored image that carries none: the first bytes of its
+ * content digest and the extension its media type names. The preview titles the
+ * image with it and a download is saved under it, so an unnamed attachment is
+ * never reported as `unknown`.
+ * @param attachment - the durable reference, which has an id and a media type.
+ * @returns the file name to show.
+ */
+function derivedFileName(attachment: { attachmentId: string; mediaType: string }): string {
+  const digest = String(attachment.attachmentId).replace(/^sha256:/, '').slice(0, 12)
+  const extension = attachment.mediaType === 'image/jpeg' ? 'jpg' : (attachment.mediaType.split('/')[1] ?? 'img')
+  return `${digest}.${extension}`
 }
 
 /** One lightbox entry of a group image, with the metadata its source carries. */
@@ -142,10 +158,11 @@ function galleryEntry(image: MessageImageSpec, src: string, labels: MessageImage
   if ('preview' in image) {
     return { src, alt: image.preview.name ?? labels.image, name: image.preview.name }
   }
+  const name = image.attachment.name ?? derivedFileName(image.attachment)
   return {
     src,
-    alt: image.attachment.name ?? labels.image,
-    name: image.attachment.name,
+    alt: name,
+    name,
     mediaType: image.attachment.mediaType,
     bytes: image.attachment.bytes,
   }
@@ -160,13 +177,15 @@ function galleryEntry(image: MessageImageSpec, src: string, labels: MessageImage
  * resolved, so previous/next reach an image in another row of the same Turn
  * instead of stopping at this row's edge.
  */
-export function ImageGallery({ images, turnImages, load, align, labels }: {
+export function ImageGallery({ images, turnImages, load, align, labels, variant: filled }: {
   images: readonly MessageImageSpec[]
   /** Every image the Turn shows, in log order; absent keeps the preview on `images`. */
   turnImages?: readonly MessageImageSpec[] | undefined
   load: ImageLoader
   align: 'start' | 'end'
   labels: MessageImageLabels
+  /** `fill` when the owner owns the box; absent sizes images by count. */
+  variant?: 'fill' | undefined
 }) {
   const scope = turnImages === undefined || turnImages.length === 0 ? images : turnImages
   const { resolutions } = useImageResolutions(scope, load)
@@ -178,10 +197,10 @@ export function ImageGallery({ images, turnImages, load, align, labels }: {
   }
   const openIndex = openSrc === null ? -1 : entries.findIndex(entry => entry.src === openSrc)
   if (images.length === 0) return null
-  const variant = images.length === 1 ? 'single' : 'tile'
+  const variant = filled ?? (images.length === 1 ? 'single' : 'tile')
   return (
     <>
-      <div className={css.gallery} data-align={align}>
+      <div className={filled === 'fill' ? css.fillRow : css.gallery} data-align={align}>
         {images.map((image, index) => (
           <MessageImage
             key={`${'attachment' in image ? image.attachment.attachmentId : image.preview.url}:${index}`}

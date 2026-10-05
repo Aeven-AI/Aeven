@@ -25,7 +25,7 @@ This package adds per-message feedback to the Web GUI: a Like/Dislike pair plus 
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this plugin alongside `ui-conversation`; the Like/Dislike pair then appears in the action row of each turn's closing assistant message, between copy and branch. Clicking the recorded rating retracts the feedback; switching sides carries the existing note forward. The note editor is a dialog popover anchored under its trigger, so the row keeps its single line whether the editor is open or closed.
+Mount this plugin alongside `ui-conversation`; the Like/Dislike pair then appears in the action row of each turn's closing assistant message, between copy and branch. A recorded rating renders as the filled thumb, and clicking it retracts the feedback; switching sides carries the existing note forward. The note trigger is an edit glyph that widens to show the note once one is recorded, and it opens the popup card the product's other popups draw — the surface radius, translucent menu fill and prominent elevation of the avatar and composer menus — anchored under the trigger, so the row keeps its single line whether the editor is open or closed.
 
 ### Failures
 

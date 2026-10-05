@@ -6,7 +6,7 @@ import type { CapabilityExecution, CapabilityReport } from '@aeven/capability'
 import type { ContentBlock } from '@aeven/llm'
 import type { Session, SessionEvent } from '@aeven/session'
 import type {} from '@aeven/llm-retry'
-import type {} from '@aeven/skill'
+import type {} from './recall.ts'
 import type {} from '@aeven/tools'
 
 /** One capability used in one turn, ready to record. */
@@ -36,7 +36,7 @@ export interface CompletedWork {
   readonly endedAt: number
   readonly endReason: string
   readonly tokens?: { readonly input: number; readonly output: number }
-  /** Capabilities the turn loaded. */
+  /** Procedures the turn reported using. */
   readonly loaded: readonly string[]
 }
 
@@ -58,9 +58,9 @@ interface TurnUse {
   readonly steps: Map<string, { name: string; input: string; output?: string; failed: boolean }>
   readonly request: string[]
   readonly answer: string[]
-  /** Skill tool calls awaiting their result, by call id. */
+  /** Procedure view calls awaiting their result, by call id. */
   readonly loading: Map<string, string>
-  /** Capabilities loaded in the turn, in load order, with the tools called after each load. */
+  /** Procedures exposed in the turn, with subsequent tools; only reported use becomes evidence. */
   readonly loaded: Map<string, { name: string; failed: boolean }[]>
   retries: number
   input: number
@@ -78,12 +78,12 @@ function textOf(content: readonly ContentBlock[]): string {
   return content.map(block => block.type === 'text' ? block.text : '').filter(Boolean).join('\n\n').trim()
 }
 
-function skillName(rawArguments: string): string | undefined {
+function viewedProcedure(rawArguments: string): string | undefined {
   try {
-    const parsed = JSON.parse(rawArguments) as { name?: unknown }
-    return typeof parsed.name === 'string' ? parsed.name : undefined
+    const parsed = JSON.parse(rawArguments) as { action?: unknown; name?: unknown }
+    return parsed.action === 'view' && typeof parsed.name === 'string' ? parsed.name : undefined
   } catch {
-    // Unparsable arguments cannot name a skill; the call is not a capability load.
+    // Unparsable arguments cannot identify a procedure view.
     return undefined
   }
 }
@@ -109,7 +109,7 @@ export class ExecutionTracker {
    * @param sessionId - reporting session.
    * @param name - capability name.
    * @param report - the model's account of the run.
-   * @returns false when the capability was not loaded in the current turn.
+   * @returns false when the procedure was neither recalled nor viewed in the current turn.
    */
   report(sessionId: string, name: string, report: CapabilityReport): boolean {
     const use = this.turns.get(sessionId)
@@ -152,7 +152,9 @@ export class ExecutionTracker {
         })
         return undefined
       case 'user/message':
-        if (use && event.data.source.kind === 'skill-invocation') use.loaded.set(event.data.source.name, use.loaded.get(event.data.source.name) ?? [])
+        if (use && event.data.source.kind === 'procedure-context') {
+          for (const procedure of event.data.source.procedures) use.loaded.set(procedure.name, use.loaded.get(procedure.name) ?? [])
+        }
         if (use && event.data.source.kind === 'user') {
           const text = textOf(event.data.content)
           if (text) use.request.push(text)
@@ -162,8 +164,8 @@ export class ExecutionTracker {
         if (!use) return undefined
         use.calls.set(event.data.callId, event.data.name)
         use.steps.set(event.data.callId, { name: event.data.name, input: clipped(event.data.arguments), failed: false })
-        if (event.data.name === 'skill') {
-          const name = skillName(event.data.arguments)
+        if (event.data.name === 'capability_manage') {
+          const name = viewedProcedure(event.data.arguments)
           if (name !== undefined) use.loading.set(event.data.callId, name)
         }
         return undefined
@@ -217,9 +219,9 @@ export class ExecutionTracker {
           endedAt: event.time,
           endReason: event.data.reason.kind,
           ...tokens,
-          loaded: [...use.loaded.keys()],
+          loaded: [...use.loaded.keys()].filter(name => use.reports.has(name)),
         } : undefined
-        const used = [...use.loaded].map(([name, tools]): UsedCapability => {
+        const used = [...use.loaded].filter(([name]) => use.reports.has(name)).map(([name, tools]): UsedCapability => {
           const report = use.reports.get(name)
           return {
             name,

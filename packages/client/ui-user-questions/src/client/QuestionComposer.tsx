@@ -338,7 +338,11 @@ function QuestionFlow({ pending, t, useStore, actions }: QuestionFlowProps) {
                   return (
                     <button
                       type="button" key={`${option.label}-${String(optionIndex)}`}
-                      className={clsx(css.option, selected && question.multiSelect !== true && css.optionSelected)}
+                      className={clsx(
+                        css.option,
+                        question.multiSelect === true && css.optionMulti,
+                        selected && question.multiSelect !== true && css.optionSelected,
+                      )}
                       role={question.multiSelect === true ? 'checkbox' : 'radio'}
                       aria-checked={selected}
                       aria-label={display.label}
@@ -374,7 +378,11 @@ function QuestionFlow({ pending, t, useStore, actions }: QuestionFlowProps) {
 
                 {hasOptions
                   ? (
-                    <div className={clsx(css.customRow, draft.custom !== '' && css.customRowActive)}>
+                    <div className={clsx(
+                      css.customRow,
+                      question.multiSelect === true && css.customRowMulti,
+                      draft.custom !== '' && css.customRowActive,
+                    )}>
                       {question.multiSelect === true
                         ? (
                           <span
@@ -440,7 +448,7 @@ function QuestionFlow({ pending, t, useStore, actions }: QuestionFlowProps) {
                   {t('action.skip')}
                 </Button>
                 <Button
-                  variant="primary" className={css.action}
+                  variant="primary" className={clsx(css.action, css.submit)}
                   disabled={busy !== null || !answered(draft)} onClick={continueFlow}
                 >
                   {busy === 'answer'

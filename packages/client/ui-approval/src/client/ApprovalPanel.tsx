@@ -30,22 +30,33 @@ function ApprovalFlow({ pending, detail, t }: {
   return (
     <div className={css.root} data-approval-key={pending.key}>
       <div className={css.card}>
-        <div className={css.header}>{t('waiting')}</div>
+        <div className={css.header}>
+          <div>{t('waiting')}</div>
+          <div className={css.headline}>
+            {pending.reason ?? t('escalation', { toolName: pending.toolName })}
+          </div>
+        </div>
         <div
-          className={css.body}
+          className={`${css.body} no-scrollbar`}
           data-approval-scroll=""
           tabIndex={0}
           role="group"
           aria-label={t('detail.aria')}
         >
-          <div className={css.headline}>{pending.reason ?? t('escalation', { toolName: pending.toolName })}</div>
           {detail !== null && <div className={css.command}>{detail}</div>}
         </div>
+        <div className={css.note}>{t('once')}</div>
         <div className={css.actionRow}>
-          <Button variant="outline" className={css.reject} disabled={answered} onClick={() => { answer('rejected') }}>
+          <Button
+            variant="outline" className={`${css.reject} ${css.action}`}
+            disabled={answered} onClick={() => { answer('rejected') }}
+          >
             {t('reject')}
           </Button>
-          <Button variant="primary" disabled={answered} onClick={() => { answer('allowed-once') }}>
+          <Button
+            variant="primary" className={css.action}
+            disabled={answered} onClick={() => { answer('allowed-once') }}
+          >
             {t('allowOnce')}
           </Button>
         </div>

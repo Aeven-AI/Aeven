@@ -6,7 +6,6 @@ import { AccountMenu, type AccountMenuProps } from '../src/client/AccountMenu.ts
 function props(overrides: Partial<AccountMenuProps> = {}): AccountMenuProps {
   return {
     reader: () => ({ userId: 'u-1', displayName: 'Ollie' }),
-    accountUrl: () => 'https://aeven.test/account/',
     openSettings: () => {},
     signOut: () => {},
     t: (key: string) => key,
@@ -35,23 +34,13 @@ describe('Aeven account menu', () => {
     expect(screen.queryByText('Ollie')).toBeNull()
   })
 
-  it('links the reader and Account at the configured account page', () => {
+  it('offers the reader and no row beyond Settings and Log out', () => {
     render(<AccountMenu {...props()} />)
     fireEvent.click(screen.getByLabelText('trigger.aria'))
-    const links = [...document.querySelectorAll('a')].map(a => a.getAttribute('href'))
-    expect(links).toEqual([
-      'https://aeven.test/account/',
-      'https://aeven.test/account/',
-    ])
-  })
-
-  it('offers no account rows when the deployment names no web client', () => {
-    render(<AccountMenu {...props({ accountUrl: () => undefined })} />)
-    fireEvent.click(screen.getByLabelText('trigger.aria'))
-    expect(document.querySelectorAll('a')).toHaveLength(0)
+    const rows = screen.getAllByRole('menuitem').map(row => row.textContent)
+    expect(rows).toEqual(['settings', 'logout'])
     expect(screen.getByText('Ollie')).toBeDefined()
-    expect(screen.getByText('settings')).toBeDefined()
-    expect(screen.getByText('logout')).toBeDefined()
+    expect(document.querySelectorAll('a')).toHaveLength(0)
   })
 
   it('signs out from its own row', () => {

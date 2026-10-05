@@ -40,9 +40,6 @@
     },
     {
       "path": "../../llm/llm-retry"
-    },
-    {
-      "path": "../../skill/skill"
     }
   ]
 }

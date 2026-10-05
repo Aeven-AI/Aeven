@@ -20,6 +20,7 @@ import {
   Spinner, StateDot, Tooltip,
 } from '@aeven/client-ui-primitives'
 import type { StateDotState } from '@aeven/client-ui-primitives'
+import type { SessionId } from '@aeven/session/types'
 import type { WorkspaceBrowserProps } from '../contract/slots.ts'
 import { sessionPathOf } from '../session-url.ts'
 import type { GroupNode, SearchResultNode, SessionNode } from '../tree.ts'
@@ -41,7 +42,7 @@ const NAVIGATION_MODIFIER_KEYS = ['metaKey', 'ctrlKey', 'shiftKey', 'altKey'] as
  * Only an unmodified primary pointer click is. Middle click, the context menu's
  * "Open link in new window", and Cmd/Ctrl/Shift/Alt-click each mean "somewhere
  * else", and swallowing them would leave a link that behaves like a button.
- * @param event - the React activation event on the Session row link.
+ * @param event - the React activation event on a row's link.
  * @returns true when the row should open the Session in place instead.
  */
 function isPlainActivation(event: ReactMouseEvent): boolean {
@@ -52,13 +53,14 @@ function isPlainActivation(event: ReactMouseEvent): boolean {
 }
 
 /**
- * Row display title: the blank placeholder shows the localized New Session
- * label, and a Session with no durable title shows the untitled label rather
- * than the fallback the data layer resolves (its id).
+ * Row display title: a Session with no durable title — the provisional New
+ * Session row, and the just-started row whose title the Host has not projected
+ * yet — shows the localized New Session label rather than the fallback the data
+ * layer resolves (its id). The label the reader saw when the row appeared is
+ * the one it keeps until a real title arrives.
  */
 function displayTitle(node: SessionNode, t: RowTranslate): string {
-  if (node.blank) return t('session.new')
-  return node.untitled ? t('session.untitled') : node.title
+  return node.blank || node.untitled ? t('session.new') : node.title
 }
 
 /**
@@ -93,19 +95,24 @@ function rowHalf(e: { clientY: number; currentTarget: HTMLElement }): 'before' |
 /**
  * Project (workspace) header row: folder + title, where the folder itself is
  * the fold state (open while the group is expanded, closed while it is
- * folded); row hover reveals the options and create buttons, and dwelling on a real
+ * folded); row hover reveals the options and create controls, and dwelling on a real
  * Workspace shows its hover card (the ungrouped bucket has none).
  * `containsCurrent` arrives on the node (derivation fact, no renderer scan).
  * @param props.group - derived group node.
  * @param props.onToggle - expand/collapse the group.
- * @param props.onCreate - start a frontend Session inside this Workspace.
+ * @param props.newSessionHref - mint the address the row's New Session link names.
+ * @param props.onCreate - start a New Session in this row's Workspace.
+ * @param props.actions - real-Workspace actions; absent for the ungrouped bucket.
  * @param props.drag - optional workspace-row drag wiring.
  * @param props.t - the browser root's locale seat.
  * @returns the row element.
  */
-export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, t }: {
+export function ProjectRowItem({ group, onToggle, newSessionHref, onCreate, actions, drag, t }: {
   group: GroupNode
   onToggle: () => void
+  /** Mint the address for a browser-owned open of this row's New Session link. */
+  newSessionHref: () => { href: string; sessionId: SessionId }
+  /** Start a New Session in this row's Workspace. */
   onCreate: () => void
   /** Real-Workspace actions; absent for the ungrouped bucket (no menu shown). */
   actions?: { rename: () => void; delete: () => void } | undefined
@@ -117,6 +124,22 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, t }: 
   // The ungrouped bucket has no workspace title: its label is dictionary copy.
   const label = row.workspaceId === undefined ? t('group.ungrouped') : row.label
   const [menuOpen, setMenuOpen] = useState(false)
+  /**
+   * The chat a browser-owned open of this row's New Session link starts.
+   *
+   * Asked once and held in state, not re-asked every render: the address has to
+   * hold still while the reader looks at it, or it could not be copied or
+   * opened deliberately. A plain press runs the New Session flow instead — see
+   * the link's own comment — so this is what middle click, the context menu and
+   * a copied address produce, not what a plain press opens.
+   *
+   * The ungrouped bucket accounts for Sessions no Workspace owns, so it has no
+   * Workspace to name and mints no chat: its row carries no create control
+   * rather than one that would start a chat somewhere else.
+   */
+  const [newSession, setNewSession] = useState(() => (
+    row.workspaceId === undefined ? undefined : newSessionHref().href
+  ))
   const workspaceMenuItems = [
     { id: 'rename', label: t('rename'), icon: <IconEditOutline16 /> },
     { id: 'delete', label: t('delete.workspace'), icon: <IconTrashOutline16 />, danger: true },
@@ -174,18 +197,42 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, t }: 
             )}
           />
         )}
-        <Tooltip label={t('actions.newSession.tooltip')} side="top" anchor="icon">
-          <button
-            type="button"
-            className={clsx(css.iconButton, css.trailingAction)}
-            aria-label={t('actions.newSession.aria', { name: label })}
-            onClick={(e) => { e.stopPropagation(); onCreate() }}
-          >
-            {/* The New Session mark itself, so the row's add affordance and the
-                Chat row above it read as the same action. */}
-            <IconLucideMessageCirclePlus className={css.actionIcon} />
-          </button>
-        </Tooltip>
+        {newSession !== undefined && (
+          <Tooltip label={t('actions.newSession.tooltip')} side="top" anchor="icon">
+            {/* A real anchor, not a button with a click handler: the browser
+                then owns middle-click, "Open link in new window" and the
+                status-bar address, which no scripted `window.open` gives back.
+                A plain press runs the New Session flow, which reuses the
+                Workspace's never-prompted chat before it creates one — text
+                left unsent there comes back with it. `draggable` is off so a
+                press here starts the row's own reorder drag rather than the
+                browser's link drag. */}
+            <a
+              className={clsx(css.iconButton, css.trailingAction)}
+              href={newSession}
+              draggable={false}
+              aria-label={t('actions.newSession.aria', { name: label })}
+              onClick={(event) => {
+                // The row's own click owns the fold toggle, so this control
+                // stays separate from it whatever the activation means.
+                event.stopPropagation()
+                if (!isPlainActivation(event)) return
+                // A plain press is ours: the SPA starts the chat, and cancelling
+                // the default action is what keeps the browser from following
+                // the href out of the page. Every other activation is left to
+                // the browser, which owns the window it can open this address
+                // in.
+                event.preventDefault()
+                onCreate()
+                setNewSession(newSessionHref().href)
+              }}
+            >
+              {/* The New Session mark itself, so the row's add affordance and the
+                  Chat row above it read as the same action. */}
+              <IconLucideMessageCirclePlus className={css.actionIcon} />
+            </a>
+          </Tooltip>
+        )}
       </span>
     </div>
   )
@@ -315,6 +362,11 @@ function ActiveScheduleIndicator({ t, search = false }: { t: RowTranslate; searc
 /**
  * One flat search result: title, Workspace context, and optional content
  * excerpt. Content matches retain their exact durable event destination.
+ *
+ * The title follows the Session row's rule: a Session with no durable title
+ * reads as the New Session label rather than the identity fallback the data
+ * layer resolves, so a content match inside a chat the reader just started is
+ * named the way the navigation names it.
  * @param props.result - merged local/content search row.
  * @param props.currentId - selected session id.
  * @param props.onOpen - open the selected session.
@@ -341,7 +393,9 @@ export function SearchResultItem({ result, currentId, onOpen, t }: {
         <span className={css.slot}>
           <SessionStatusDots statuses={statuses} />
         </span>
-        <span className={css.searchResultTitle}>{result.title}</span>
+        <span className={css.searchResultTitle}>
+          {result.untitled ? t('session.new') : result.title}
+        </span>
         {result.hasActiveSchedule && <ActiveScheduleIndicator t={t} search />}
       </span>
       <span className={css.searchResultMeta}>

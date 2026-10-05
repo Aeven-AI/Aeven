@@ -53,7 +53,7 @@ describe('permission settings store', () => {
     expect(resolveDefault(view('read-only'))).toEqual({
       currentValue: 'read-only',
       options: [
-        { id: 'read-only', label: 'Read Only' },
+        { id: 'read-only', label: 'Read only' },
         { id: 'workspace-write', label: 'Workspace' },
       ],
     })
@@ -66,7 +66,7 @@ describe('permission settings store', () => {
     }
     expect(resolveDefault(view('read-only', 0, single))).toEqual({
       currentValue: 'read-only',
-      options: [{ id: 'read-only', label: 'Read Only' }],
+      options: [{ id: 'read-only', label: 'Read only' }],
     })
     const undescribed = {
       uid: 2,
@@ -76,7 +76,7 @@ describe('permission settings store', () => {
       },
     }
     expect(resolveDefault(view('read-only', 0, undescribed)).options)
-      .toEqual([{ id: 'read-only', label: 'Read Only' }])
+      .toEqual([{ id: 'read-only', label: 'Read only' }])
   })
 
   it('rejects malformed values and dynamic enums at the wire boundary', () => {

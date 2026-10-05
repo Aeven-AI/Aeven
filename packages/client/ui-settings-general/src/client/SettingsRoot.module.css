@@ -198,7 +198,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
-  padding: var(--dsw-aeven-page-inset) var(--dsw-aeven-page-inset) 0 10px;
+  padding: var(--dsw-aeven-page-inset) var(--dsw-aeven-page-inset) 0 24px;
   box-sizing: border-box;
 }
 
@@ -211,10 +211,13 @@
   margin-left: auto;
 }
 
+.actions:has([data-settings-back]) { flex: 1; margin-left: 0; justify-content: flex-start; }
+
 /* Close button (figma .Icon_container 501:29982): 28x28, r28, 14px glyph, the
    header row's last item. Its box takes the header's 24px top and right
    padding, which puts its centre on `--avn-settings-close-center` — the line
-   the nav title centres on too. */
+   the nav title centres on too. The disc is black and the glyph white on both
+   themes' panel, so the control carries no hover state. */
 .close {
   display: inline-flex;
   align-items: center;
@@ -225,13 +228,9 @@
   padding: 0;
   border: none;
   border-radius: 28px;
-  background: transparent;
+  background: var(--dsw-static-neutral-1000);
   cursor: pointer;
-  color: var(--dsw-alias-label-primary);
-}
-
-.close:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-static-neutral-00);
 }
 
 /* Holds the section's scroll area: the section's own mask fades it out at each

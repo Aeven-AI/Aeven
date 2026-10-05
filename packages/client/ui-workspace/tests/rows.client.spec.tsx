@@ -44,17 +44,18 @@ function fireDrag(row: HTMLElement, kind: 'dragOver' | 'drop', clientY: number):
 }
 
 describe('workspace browser rows', () => {
-  it('names a session without a durable title instead of its folder or id', () => {
-    // The reported row: a listed session whose title the list could not
-    // resolve used to be named after its working directory ("project"), which
-    // reads as a real title. It now says what it is.
+  it('keeps the New Session label on a session whose durable title has not arrived', () => {
+    // The reported row: a session whose first prompt has landed but whose
+    // title the list has not resolved yet used to switch from the New Session
+    // label to an untitled one mid-flight, then to the generated title. It now
+    // holds the label it was created with, and never shows its id.
     const untitled: SessionNode = {
       id: sid('untitled'), title: 'untitled', blank: false, untitled: true, running: false,
       runningSubagentCount: 0, runningJobCount: 0, completed: false, hasActiveSchedule: false, createdAt: 0, updatedAt: 0,
     }
     render(<SessionNodeItem node={untitled} currentId={undefined} onOpen={vi.fn()}
       onRename={vi.fn()} onFork={vi.fn()} onArchive={vi.fn()} t={t} />)
-    expect(screen.getByText('未命名会话')).toBeTruthy()
+    expect(screen.getByText('新会话')).toBeTruthy()
     expect(screen.queryByText('untitled')).toBeNull()
   })
 
@@ -78,6 +79,7 @@ describe('workspace browser rows', () => {
     const result: SearchResultNode = {
       id: sid('result'),
       title: 'Result title',
+      untitled: false,
       workspace: 'Workspace context',
       running: true,
       runningSubagentCount: 0, runningJobCount: 0,
@@ -100,10 +102,24 @@ describe('workspace browser rows', () => {
     expect(onOpen).toHaveBeenCalledWith(result.id, 12)
   })
 
+  it('keeps the New Session label on a title-less search row instead of its id', () => {
+    // A content match inside a chat that has no durable title yet: the row used
+    // to render the identity fallback the data layer resolves, so searching
+    // surfaced a raw `session-<uuid>` where the navigation says New Session.
+    const result: SearchResultNode = {
+      id: sid('session-0f1e'), title: 'session-0f1e', untitled: true, workspace: 'Project',
+      running: false, runningSubagentCount: 0, runningJobCount: 0, completed: false,
+      hasActiveSchedule: false, matchSeq: 4 as SessionSeq, snippet: 'three primary colors',
+    }
+    render(<SearchResultItem result={result} currentId={undefined} onOpen={vi.fn()} t={t} />)
+    expect(screen.getByText('新会话')).toBeTruthy()
+    expect(screen.queryByText('session-0f1e')).toBeNull()
+  })
+
   it('keeps the active-Schedule marker after a search title and inside the row action', () => {
     const onOpen = vi.fn()
     const result: SearchResultNode = {
-      id: sid('scheduled-result'), title: 'Scheduled result', workspace: 'Project',
+      id: sid('scheduled-result'), title: 'Scheduled result', untitled: false, workspace: 'Project',
       running: false, runningSubagentCount: 0, runningJobCount: 0, completed: false, hasActiveSchedule: true,
     }
     render(<SearchResultItem result={result} currentId={undefined} onOpen={onOpen} t={t} />)
@@ -126,7 +142,7 @@ describe('workspace browser rows', () => {
     ['question', '等待回答'],
   ] as const)('shows %s ahead of running in search results', (pendingInteraction, label) => {
     const result: SearchResultNode = {
-      id: sid(pendingInteraction), title: 'Needs input', workspace: 'Project',
+      id: sid(pendingInteraction), title: 'Needs input', untitled: false, workspace: 'Project',
       pendingInteraction, running: true, runningSubagentCount: 0, runningJobCount: 0, completed: false,
       hasActiveSchedule: false,
     }
@@ -137,21 +153,73 @@ describe('workspace browser rows', () => {
     expect(screen.getByText(label)).toBeTruthy()
   })
 
-  it('renders an active Workspace and keeps its create action separate from toggling', () => {
+  it('addresses a Workspace row\'s New Session action as a link the browser can open in a new window', () => {
     const onToggle = vi.fn()
     const onCreate = vi.fn()
+    let minted = 0
+    const newSessionHref = () => {
+      minted += 1
+      return { href: `/c/new-${minted}`, sessionId: sid(`session-new-${minted}`) }
+    }
     const group: GroupNode = {
       key: 'project', workspaceId: wid('project'), isDefault: false, cwd: '/projects/project', createdAt: 0, label: 'Project',
       sessionCount: 1, expanded: true, containsCurrent: true, sessions: [],
     }
-    render(<ProjectRowItem group={group} onToggle={onToggle} onCreate={onCreate} t={t} />)
+    render(
+      <ProjectRowItem group={group} onToggle={onToggle} newSessionHref={newSessionHref} onCreate={onCreate} t={t} />,
+    )
 
     expect(screen.getByRole('treeitem').getAttribute('aria-expanded')).toBe('true')
-    fireEvent.click(screen.getByRole('button', { name: '在“Project”中新建会话' }))
+    // The create control is a real anchor on a New Session address, in the same
+    // shape the address bar uses: a real href is the only thing that gives the
+    // browser's context menu an "Open link in new window" to offer. The id it
+    // names is what a browser-owned open starts, not what the plain press opens.
+    const link = screen.getByRole('link', { name: '在“Project”中新建会话' })
+    expect(link.getAttribute('href')).toBe('/c/new-1')
+    // The press belongs to the row's own reorder drag, not to the browser's link drag.
+    expect(link.getAttribute('draggable')).toBe('false')
+    // A plain press is the SPA's: it starts the New Session — the flow reuses
+    // the Workspace's never-prompted chat before it creates one, so unsent text
+    // comes back with it — and cancelling the default action is what keeps the
+    // browser from following the href out of the page.
+    const press = createEvent.click(link)
+    fireEvent(link, press)
+    expect(press.defaultPrevented).toBe(true)
     expect(onCreate).toHaveBeenCalledOnce()
+    // The link then names the fresh chat a browser-owned open would start.
+    expect(link.getAttribute('href')).toBe('/c/new-2')
+    // The row's own click owns the fold toggle: the create action never reaches it.
     expect(onToggle).not.toHaveBeenCalled()
     fireEvent.click(screen.getByText('Project'))
     expect(onToggle).toHaveBeenCalledOnce()
+  })
+
+  it('leaves every non-plain press on a Workspace row\'s New Session link to the browser', () => {
+    const onCreate = vi.fn()
+    const group: GroupNode = {
+      key: 'project', workspaceId: wid('project'), isDefault: false, cwd: '/projects/project', createdAt: 0, label: 'Project',
+      sessionCount: 0, expanded: false, containsCurrent: false, sessions: [],
+    }
+    render(
+      <ProjectRowItem
+        group={group} onToggle={vi.fn()} onCreate={onCreate} t={t}
+        newSessionHref={() => ({ href: '/c/new-1', sessionId: sid('session-new-1') })}
+      />,
+    )
+
+    // Middle click, Cmd/Ctrl/Shift/Alt-click and the context menu's own items
+    // each mean "somewhere else". Intercepting them would start the chat in
+    // place as well as in the window the reader asked for, and would cancel the
+    // navigation that window depends on.
+    const link = screen.getByRole('link', { name: '在“Project”中新建会话' })
+    for (const modifier of [
+      { button: 1 }, { metaKey: true }, { ctrlKey: true }, { shiftKey: true }, { altKey: true },
+    ]) {
+      const press = createEvent.click(link, modifier)
+      fireEvent(link, press)
+      expect(press.defaultPrevented).toBe(false)
+    }
+    expect(onCreate).not.toHaveBeenCalled()
   })
 
   it('renders and opens a selected running Session row', () => {
@@ -387,7 +455,7 @@ describe('workspace browser rows', () => {
   it('shows the green done dot on a finished search result row', () => {
     render(<SearchResultItem
       result={{
-        id: sid('result'), title: 'Done', workspace: 'Workspace', running: false,
+        id: sid('result'), title: 'Done', untitled: false, workspace: 'Workspace', running: false,
         runningSubagentCount: 0, runningJobCount: 0, completed: true, hasActiveSchedule: false,
       }}
       currentId={undefined} onOpen={vi.fn()} t={t}
@@ -405,6 +473,7 @@ describe('workspace browser rows', () => {
     }
     render(<ProjectRowItem
       group={group} onToggle={onToggle} onCreate={vi.fn()}
+      newSessionHref={() => ({ href: '/c/new-1', sessionId: sid('session-new-1') })}
       actions={{ rename: onRename, delete: onDelete }} t={t}
     />)
     fireEvent.click(screen.getByRole('button', { name: '工作区“Project”的操作' }))
@@ -425,13 +494,18 @@ describe('workspace browser rows', () => {
     expect(screen.queryByRole('menu')).toBeNull()
   })
 
-  it('ungrouped bucket renders no workspace menu', () => {
+  it('ungrouped bucket renders no workspace menu and no create control', () => {
     const group: GroupNode = {
       key: '', workspaceId: undefined, isDefault: false, cwd: undefined, createdAt: undefined, label: 'Ungrouped',
       sessionCount: 0, expanded: false, containsCurrent: false, sessions: [],
     }
-    render(<ProjectRowItem group={group} onToggle={vi.fn()} onCreate={vi.fn()} t={t} />)
+    const newSessionHref = vi.fn(() => ({ href: '/c/new-1', sessionId: sid('session-new-1') }))
+    render(<ProjectRowItem group={group} onToggle={vi.fn()} newSessionHref={newSessionHref} onCreate={vi.fn()} t={t} />)
     expect(screen.queryByRole('button', { name: /工作区/ })).toBeNull()
+    // No Workspace to start in means no chat to name: the bucket carries no
+    // control rather than a link that would open a chat somewhere else.
+    expect(screen.queryByRole('link', { name: /新建会话/ })).toBeNull()
+    expect(newSessionHref).not.toHaveBeenCalled()
   })
 
   it('blank New Session rows carry no menu, no time label, and no hover-card time', () => {

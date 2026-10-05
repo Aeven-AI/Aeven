@@ -3,12 +3,12 @@
 /**
  * Lifecycle status of a capability. Evidence from recorded executions moves a capability between statuses;
  * nobody is asked. The user can retire, restore, edit, or delete any capability afterwards.
- * - `candidate`: learned from completed work and not yet validated; published with a note to check each step.
+ * - `candidate`: learned from completed work and not yet validated; excluded from automatic recall until deliberately validated.
  * - `learned`: at least one execution of a candidate succeeded.
  * - `trusted`: learned, and the current revision has enough successful executions, at least one verified.
  * - `needs-validation`: the procedure changed after it was trusted; the next execution must verify it.
  * - `degraded`: the most recent executions of the current revision failed.
- * - `retired`: withdrawn by the user or by repeated failure as a candidate; kept with its history but not published.
+ * - `retired`: withdrawn by the user or by repeated failure as a candidate; kept with its history but excluded from recall.
  */
 export type CapabilityStatus = 'candidate' | 'learned' | 'trusted' | 'needs-validation' | 'degraded' | 'retired'
 
@@ -112,7 +112,7 @@ export interface CapabilityOrigin {
 
 /** Durable metadata of one capability; the executable body lives in its `SKILL.md`. */
 export interface CapabilityRecord {
-  /** Kebab-case name, unique per owner; also the skill name it is published under. */
+  /** Kebab-case procedure name, unique per owner. */
   readonly name: string
   /** One-line routing description: what the capability does and when to use it. */
   readonly description: string

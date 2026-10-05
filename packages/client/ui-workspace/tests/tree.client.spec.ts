@@ -439,6 +439,7 @@ describe('deriveSearchResults', () => {
         {
           id: titleHit.id,
           title: 'Needle title',
+          untitled: false,
           workspace: 'Alpha',
           running: false,
           runningSubagentCount: 0, runningJobCount: 0,
@@ -451,6 +452,7 @@ describe('deriveSearchResults', () => {
         {
           id: workspaceHit.id,
           title: 'Ordinary title',
+          untitled: false,
           workspace: 'Needle Workspace',
           running: false,
           runningSubagentCount: 0, runningJobCount: 0,
@@ -460,6 +462,7 @@ describe('deriveSearchResults', () => {
         {
           id: contentHit.id,
           title: 'content-hit',
+          untitled: false,
           workspace: 'c',
           running: false,
           runningSubagentCount: 0, runningJobCount: 0,

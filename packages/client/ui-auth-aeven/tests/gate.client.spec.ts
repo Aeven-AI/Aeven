@@ -135,6 +135,20 @@ describe('restoring the session at boot', () => {
     expect(await restoreSession()).toEqual({ state: 'authenticated', userId: 'u-1' })
   })
 
+  it('boots nobody from the kept profile once the Host refused the page', async () => {
+    const { restoreSession, session } = await load()
+    const watch = await import('../src/client/auth/services/watch.ts')
+    window.localStorage.setItem('aevenProfile', JSON.stringify(profile))
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('Failed to fetch') }))
+    // The Host refused a request this document presented nothing for: it
+    // authenticated neither a bearer nor the refresh cookie, so the kept profile
+    // names a reader whose every call would be unauthenticated.
+    watch.noteHostRefusal()
+
+    expect(await restoreSession()).toEqual({ state: 'unauthenticated' })
+    expect(session.userSignedIn).toBe(false)
+  })
+
   it('authenticates nobody when no Aeven API is configured', async () => {
     const { restoreSession } = await load()
     delete (globalThis as { __AVN_AEVEN__?: unknown }).__AVN_AEVEN__

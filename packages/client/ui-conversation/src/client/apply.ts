@@ -382,15 +382,24 @@ export function apply(ctx: Context): void {
               span: { ...selection, draftRev: snapshot.draftRev },
             })
           },
-        invokeCommand: (name, selection) => {
+        invokeCommand: (name, selection, anchor) => {
           // Property access throws unless commandUi is injected. This bar only
           // calls it, so resolve the service from the store.
           const commandUi = ctx.get('commandUi') as {
-            invokeFromButton(id: SessionId, command: string, span: { start: number; end: number; draftRev: number }): Promise<boolean>
+            invokeFromButton(
+              id: SessionId,
+              command: string,
+              span: { start: number; end: number; draftRev: number },
+              anchor?: Element | null,
+              placement?: 'end' | 'beside',
+            ): Promise<boolean>
           } | undefined
           if (commandUi === undefined) return Promise.resolve(false)
           const snapshot = shell.snapshot
-          return commandUi.invokeFromButton(sessionId, name, { ...selection, draftRev: snapshot.draftRev })
+          return commandUi.invokeFromButton(
+            sessionId, name, { ...selection, draftRev: snapshot.draftRev }, anchor ?? null,
+            anchor === undefined ? 'end' : 'beside',
+          )
         },
         exportSession: () => exportSessionLog(ctx.remote.session, sessionId),
         stop: () => {

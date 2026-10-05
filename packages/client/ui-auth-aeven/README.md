@@ -76,13 +76,15 @@ The API rotates the refresh token on every exchange, refuses the token it replac
 
 ### Session lifetime after boot
 
-`installAuthenticatedTransport` also renews the access token shortly before it expires, and again when the page becomes visible or the network returns; each renewal rotates the year-long refresh token, so an open page stays signed in. A Host 401 renews the bearer and retries the call once. When the API refuses a renewal with 400 or 401, or another tab's sign-out removes the stored bearer, the page discards the held bearer and tells whoever owns the page through `onSessionEnded` — the boot kernel, which disposes the plugin tree and runs its gate again, so the reader reaches the sign-in screen in the document they are in rather than in a new one. Installing the transport a second time, as a page that boots again does, replaces the watcher rather than adding one. A transport failure or 5xx leaves the session in place and retries.
+`installAuthenticatedTransport` also renews the access token shortly before it expires, and again when the page becomes visible or the network returns; each renewal rotates the year-long refresh token, so an open page stays signed in. A Host 401 renews the bearer and retries the call once. A Host 401 to a request that presented no bearer cannot be renewed — the refresh cookie identified nobody either — so the page records the refusal and signs in again. When the API refuses a renewal with 400 or 401, or another tab's sign-out removes the stored bearer, the page discards the held bearer and tells whoever owns the page through `onSessionEnded` — the boot kernel, which disposes the plugin tree and runs its gate again, so the reader reaches the sign-in screen in the document they are in rather than in a new one. Installing the transport a second time, as a page that boots again does, replaces the watcher rather than adding one. A transport failure or 5xx leaves the session in place and retries.
+
+**One document holds one account.** `appBearers` and `userId` are shared by every tab of the origin, so a sign-in in another tab changes what this one would present. A stored id or an exchange grant naming another account than the page restored is never adopted: the page ends its own session and runs its gate again as the account the browser now holds, so the reader, the navigation and the Sessions on screen all move together. The account that replaced it keeps its bearer — only the tab that signed in signs out. Between sessions (`pageIsLeaving`) the transport presents nothing at all and answers the caller `401` without reaching the Host, because a request sent then would be authenticated by whichever account replaced this one's.
 
 While Aeven is unreachable the access token lapses and no renewal can replace it, so calls go out with no `Authorization` header and the Host authenticates them by the refresh cookie alone. Requests keep succeeding, and the first renewal after Aeven returns restores the bearer.
 
 ### The kept profile
 
-Every `/get-profile` answer is kept under `aevenProfile`, and a boot that cannot reach Aeven restores the reader from it, so the account menu shows their name and picture instead of a bare user. A name the reader chooses is written back into that kept entry, so the next load does not ask again. A sign-out discards it along with the bearer; an unparsable entry, or one naming nobody, is treated as absent and the reader signs in.
+Every `/get-profile` answer is kept under `aevenProfile`, and a boot that cannot reach Aeven restores the reader from it, so the account menu shows their name and picture instead of a bare user. A name the reader chooses is written back into that kept entry, so the next load does not ask again. A sign-out discards it along with the bearer; an unparsable entry, or one naming nobody, is treated as absent and the reader signs in. A Host refusal — a 401 this document had no bearer to renew — also outranks it for the pass that follows, because a cookie that identified nobody cannot carry an application whose every call needs a credential.
 
 ### Following the page's own loopback host
 
@@ -96,8 +98,8 @@ A configured `localhost` origin is rewritten to the page's own hostname when bot
 | [`src/client/auth/mount.tsx`](src/client/auth/mount.tsx) | Mounting a screen, following in-surface navigation, and handing over on success |
 | [`src/client/auth/views/NameCheck.tsx`](src/client/auth/views/NameCheck.tsx) | The naming step: the greeting, the name field, and Continue |
 | [`src/client/auth/services/tokens.ts`](src/client/auth/services/tokens.ts) | Held bearers, usability check, and the serialized refresh exchange |
-| [`src/client/auth/services/watch.ts`](src/client/auth/services/watch.ts) | Background renewal and leaving for the sign-in screen when the session ends |
-| [`src/client/auth/services/errors.ts`](src/client/auth/services/errors.ts) | `AevenApiError` and the session-refusal classification |
+| [`src/client/auth/services/watch.ts`](src/client/auth/services/watch.ts) | Background renewal, leaving for the sign-in screen when the session ends, and ending this document's session when the browser holds another account |
+| [`src/client/auth/services/errors.ts`](src/client/auth/services/errors.ts) | `AevenApiError`, the session-refusal classification, and the identity-change code |
 | [`src/client/auth/services/api.ts`](src/client/auth/services/api.ts) | The Aeven authentication routes the screens call |
 | [`src/client/auth/services/config.ts`](src/client/auth/services/config.ts) | Reading the injected endpoints and the loopback-following rule |
 | [`src/client/auth/services/reader.ts`](src/client/auth/services/reader.ts) | Stating the restored reader on the page for plugin bundles |

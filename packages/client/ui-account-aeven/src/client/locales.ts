@@ -7,7 +7,6 @@ export const NS = 'account.aeven'
 export const zh = {
   'trigger.aria': '账户菜单',
   'avatar.alt': '头像',
-  'account': '账户',
   'settings': '设置',
   'logout': '退出登录',
   'section.nav': '账户',
@@ -92,7 +91,6 @@ export const zh = {
 export const en: Record<AccountAevenKey, string> = {
   'trigger.aria': 'Account menu',
   'avatar.alt': 'profile',
-  'account': 'Account',
   'settings': 'Settings',
   'logout': 'Log out',
   'section.nav': 'Account',

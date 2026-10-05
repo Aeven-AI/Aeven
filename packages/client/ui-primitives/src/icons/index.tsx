@@ -1210,6 +1210,27 @@ export const IconLucideSettings2 = ({ className }: LucideGlyphProps) => (
   </svg>
 )
 
+/** lucide `database-check`: a database with a check (the composer's model seat). */
+export const IconLucideDatabaseCheck = ({ className }: LucideGlyphProps) => (
+  <svg
+    aria-hidden="true"
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="m16 19 2 2 4-4" />
+    <path d="M21 13.127V5" />
+    <path d="M3 12A9 3 0 0 0 21 12" />
+    <path d="M3 5V19A9 3 0 0 0 13.318 21.968" />
+    <ellipse cx="12" cy="5" rx="9" ry="3" />
+  </svg>
+)
+
 /** lucide `folder-plus`: folder with a plus (add workspace). */
 export const IconLucideFolderPlus = ({ className }: LucideGlyphProps) => (
   <svg

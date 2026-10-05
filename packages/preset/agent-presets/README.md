@@ -39,6 +39,8 @@ The presets that discover local skills also mount the skills shipped inside this
 
 A shipped skill's `SKILL.md` is the canonical file, and the repository path `.agents/skills/<name>/SKILL.md` is a relative symbolic link to it, so an agent working in this checkout discovers the same file. The root resolves beside the composition, so a preset copied into a user root carries none of the shipped skills, and a locally authored skill of the same name loses to the shipped one.
 
+The Google Drive, Docs, Drive Comments, Sheets, and Slides skill bundles are copied from [OpenAI plugins](https://github.com/openai/plugins/tree/5fd93af4cd0c623e020d0cc7e9ce178b4ac1f70f/plugins/google-drive/skills), including entrypoints and supporting resources. They use upstream connector and runtime APIs, which must be available for the referenced workflow to execute. The account integrations package connects Google services through the published MCP endpoints; copying skills alone does not establish availability of every app-backed operation. The Aeven-authored Google Forms skill uses the same Drive connector for form creation, edits, and response reads.
+
 ### Minimal configuration
 
 The plugin needs a `default` preset id and scans `roots` for presets:

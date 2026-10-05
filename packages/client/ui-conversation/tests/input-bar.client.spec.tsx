@@ -1342,11 +1342,18 @@ describe('strips and variants', () => {
 })
 
 describe('command launcher chrome and control seats', () => {
+  /** The permission row of the Options popup, opened by the disc on its left. */
+  function openPermissionRow(view: ReturnType<typeof bench>['view']): HTMLButtonElement {
+    fireEvent.click(view.getByLabelText('选项'))
+    return view.getByLabelText(/^权限/) as HTMLButtonElement
+  }
+
   it('renders the command launcher; the Access chip is absent without the permissions projection; the control seats render EMPTY without entries', () => {
     const { view, slotCalls } = bench()
     expect(view.getByLabelText('指令')).toBeTruthy()
-    // Capability absent (no projection value): the chip renders nothing.
-    expect(view.queryByLabelText(/^访问模式/)).toBeNull()
+    // Capability absent (no projection value, no context reading): nothing to
+    // hold, so the Options disc stays off the row.
+    expect(view.queryByLabelText('选项')).toBeNull()
     // Every seat dispatched, nothing rendered (render passes may repeat; the
     // seat set is the contract).
     expect([...new Set(slotCalls.map(c => c.key))]).toEqual([
@@ -1357,6 +1364,29 @@ describe('command launcher chrome and control seats', () => {
     ])
     expect(view.queryByLabelText('Plan mode')).toBeNull()
     expect(view.queryByLabelText('Model')).toBeNull()
+  })
+
+  it('seats the Options disc after attach, and its popup stays open while a row opens its own card', () => {
+    const permissions = {
+      options: [{ value: 'workspace-write', name: 'workspace-write' }],
+      currentValue: 'workspace-write',
+    }
+    const { view } = bench({ draft: 'hello', permissions })
+    const attach = view.getByLabelText('添加文件或运行指令')
+    const options = view.getByLabelText('选项') as HTMLButtonElement
+    // DOM order is the tab order: attach, options, then the mode chips.
+    expect(attach.compareDocumentPosition(options) & Node.DOCUMENT_POSITION_FOLLOWING)
+      .toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    fireEvent.click(options)
+    expect(options.getAttribute('aria-expanded')).toBe('true')
+    // The permission row opens the mode list beside the popup; the popup the
+    // row belongs to stays open behind it.
+    fireEvent.click(view.getByLabelText(/^权限/))
+    expect(view.getByRole('menuitemradio', { name: '需要时先询问' })).toBeTruthy()
+    expect(view.getByLabelText(/^权限/)).toBeTruthy()
+    // An outside pointerdown closes the popup and the card it holds.
+    fireEvent.pointerDown(document.body)
+    expect(view.queryByLabelText(/^权限/)).toBeNull()
   })
 
   it('passes the textarea selection to the command menu launcher and reflects its expanded state', () => {
@@ -1382,22 +1412,23 @@ describe('command launcher chrome and control seats', () => {
       currentValue: 'read-only',
     }
     const { view } = bench({ permissions, command })
-    const trigger = view.getByLabelText(/^访问模式/) as HTMLButtonElement
-    // Product-label display is presentation only; the menu ids stay machine names.
-    expect(trigger.textContent).toBe('仅可查看')
-    expect([...trigger.querySelectorAll('svg')]
-      .every(icon => icon.closest('[aria-hidden="true"]') !== null)).toBe(true)
-    fireEvent.click(trigger)
-    const items = view.getAllByRole('menuitem')
-    expect(items.map(o => o.textContent)).toEqual(['仅可查看', '工作区内修改', '完全权限'])
+    const row = openPermissionRow(view)
+    // The row states the mode beside the row's own name; product-label display
+    // is presentation only and the command ids stay machine names.
+    expect(row.textContent).toContain('仅可查看')
+    fireEvent.click(row)
+    const items = view.getAllByRole('menuitemradio')
+    // A row is the mode's name alone: the popup is a choice between two words,
+    // not a place to read what each one does.
+    expect(items.map(o => o.textContent)).toEqual(['仅可查看', '需要时先询问', '完全权限'])
     fireEvent.click(items[1]!)
     // Optimistic pick + disable until admission resolves (command stub resolves true).
-    const busy = view.getByLabelText(/^访问模式/) as HTMLButtonElement
-    expect(busy.textContent).toBe('工作区内修改')
+    const busy = view.getByLabelText(/^权限/) as HTMLButtonElement
+    expect(busy.textContent).toContain('需要时先询问')
     expect(busy.disabled).toBe(true)
     expect(command).toHaveBeenCalledWith('/permission workspace-write')
     await act(async () => {})
-    expect((view.getByLabelText(/^访问模式/) as HTMLButtonElement).disabled).toBe(false)
+    expect((view.getByLabelText(/^权限/) as HTMLButtonElement).disabled).toBe(false)
   })
 
   it('the Access chip preserves host labels for built-in preset values', () => {
@@ -1412,10 +1443,10 @@ describe('command launcher chrome and control seats', () => {
       currentValue: 'workspace-write',
     }
     const { view } = bench({ permissions })
-    const trigger = view.getByLabelText(/^访问模式/) as HTMLButtonElement
-    expect(trigger.textContent).toBe('Project Files')
-    fireEvent.click(trigger)
-    expect(view.getAllByRole('menuitem').map(item => item.textContent))
+    const row = openPermissionRow(view)
+    expect(row.textContent).toContain('Project Files')
+    fireEvent.click(row)
+    expect(view.getAllByRole('menuitemradio').map(item => item.textContent))
       .toEqual(['Review Only', 'Project Files', 'Operator Mode', 'Custom Mode', '__proto__'])
   })
 
@@ -1429,8 +1460,8 @@ describe('command launcher chrome and control seats', () => {
       currentValue: 'workspace-write',
     }
     const { view } = bench({ permissions, command })
-    fireEvent.click(view.getByLabelText(/^访问模式/))
-    fireEvent.click(view.getByRole('menuitem', { name: '完全权限' }))
+    fireEvent.click(openPermissionRow(view))
+    fireEvent.click(view.getByRole('menuitemradio', { name: /^完全权限/ }))
 
     expect(command).not.toHaveBeenCalled()
     expect(view.getByRole('dialog', { name: '确认启用完全权限？' })).toBeTruthy()
@@ -1444,7 +1475,7 @@ describe('command launcher chrome and control seats', () => {
     expect(command).toHaveBeenCalledOnce()
     expect(command).toHaveBeenCalledWith('/permission danger-full-access')
     expect(view.queryByRole('dialog')).toBeNull()
-    expect((view.getByLabelText(/^访问模式/) as HTMLButtonElement).textContent).toBe('完全权限')
+    expect((view.getByLabelText(/^权限/) as HTMLButtonElement).textContent).toContain('完全权限')
     await act(async () => {})
   })
 
@@ -1459,15 +1490,15 @@ describe('command launcher chrome and control seats', () => {
     }
     const { view } = bench({ permissions, command })
     const openConfirmation = () => {
-      fireEvent.click(view.getByLabelText(/^访问模式/))
-      fireEvent.click(view.getByRole('menuitem', { name: '完全权限' }))
+      fireEvent.click(openPermissionRow(view))
+      fireEvent.click(view.getByRole('menuitemradio', { name: /^完全权限/ }))
     }
 
     openConfirmation()
     fireEvent.click(view.getByRole('checkbox'))
     fireEvent.click(view.getByRole('button', { name: '取消' }))
     expect(command).not.toHaveBeenCalled()
-    expect((view.getByLabelText(/^访问模式/) as HTMLButtonElement).textContent).toBe('工作区内修改')
+    expect((view.getByLabelText(/^权限/) as HTMLButtonElement).textContent).toContain('需要时先询问')
 
     openConfirmation()
     expect((view.getByRole('checkbox') as HTMLInputElement).checked).toBe(false)
@@ -1484,8 +1515,8 @@ describe('command launcher chrome and control seats', () => {
       currentValue: 'workspace-write',
     }
     const { view, session } = bench({ permissions, command })
-    fireEvent.click(view.getByLabelText(/^访问模式/))
-    fireEvent.click(view.getByRole('menuitem', { name: '完全权限' }))
+    fireEvent.click(openPermissionRow(view))
+    fireEvent.click(view.getByRole('menuitemradio', { name: /^完全权限/ }))
     fireEvent.click(view.getByRole('checkbox'))
     act(() => { session.set(snapshotOf({ removed: true })) })
     expect(view.queryByRole('dialog')).toBeNull()
@@ -1502,8 +1533,8 @@ describe('command launcher chrome and control seats', () => {
       currentValue: 'workspace-write',
     }
     const { view, props } = bench({ permissions, command })
-    fireEvent.click(view.getByLabelText(/^访问模式/))
-    fireEvent.click(view.getByRole('menuitem', { name: '完全权限' }))
+    fireEvent.click(openPermissionRow(view))
+    fireEvent.click(view.getByRole('menuitemradio', { name: /^完全权限/ }))
     fireEvent.click(view.getByRole('checkbox'))
     view.rerender(<InputBar {...props} sessionId={'s2' as SessionId} />)
     expect(view.queryByRole('dialog')).toBeNull()
@@ -1530,13 +1561,13 @@ describe('command launcher chrome and control seats', () => {
     expect(attachmentOwner(live.slotCalls).canAcceptDrop).toBe(true)
   })
 
-  it('disabled locks the Access chip and command launcher (running does not)', () => {
+  it('disabled locks the permission row and command launcher (running does not)', () => {
     const permissions = { options: [{ value: 'workspace-write', name: 'workspace-write' }], currentValue: 'workspace-write' }
     const { view } = bench({ disabled: true, permissions })
     expect((view.getByLabelText('指令') as HTMLButtonElement).disabled).toBe(true)
-    expect((view.getByLabelText(/^访问模式/) as HTMLButtonElement).disabled).toBe(true)
+    expect(openPermissionRow(view).disabled).toBe(true)
     cleanup()
     const live = bench({ running: true, permissions })
-    expect((live.view.getByLabelText(/^访问模式/) as HTMLButtonElement).disabled).toBe(false)
+    expect(openPermissionRow(live.view).disabled).toBe(false)
   })
 })

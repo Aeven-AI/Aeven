@@ -28,6 +28,7 @@ import { CloseLabel, HeaderContent, TriggerContent } from './chrome.tsx'
 import { GeneralSection } from './GeneralSection.tsx'
 import { DeveloperModeRow, type DeveloperModeRowInjected } from './DeveloperModeRow.tsx'
 import { DeveloperModePolicy } from './developer-mode.ts'
+import { BrowserSettingsAddressRoute } from './settings-url.ts'
 import { en, zh, type SettingsKey } from './locales.ts'
 import { DEVELOPER_SETTINGS_NAMESPACE, type DeveloperSettings } from '../developer-settings.ts'
 
@@ -74,10 +75,19 @@ interface DesktopShellCarrier {
  */
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-settings-general: dictionaries')
+  // The panel's open state and active section are the address bar's, so a
+  // `settings/open` request — from the account menu, a settings section, or the
+  // Desktop shell's menu — is an address write and lands in history like any
+  // other tab the reader picks.
+  const route = new BrowserSettingsAddressRoute(() => window)
+  ctx.effect(
+    () => ctx.on('settings/open', (section) => { route.show(section) }),
+    'ui-settings-general: settings address',
+  )
   // The Desktop shell's menu has no other route into this surface, so it asks
   // through the carrier its preload exposes. The same client served over HTTP
   // has no carrier, and nothing here runs.
-  const carrier = (window as { avnDesktop?: DesktopShellCarrier }).avnDesktop
+  const carrier = typeof window === 'undefined' ? undefined : (window as { avnDesktop?: DesktopShellCarrier }).avnDesktop
   const onCommand = carrier?.onCommand?.bind(carrier)
   if (onCommand !== undefined) {
     ctx.effect(
@@ -101,12 +111,13 @@ export function apply(ctx: ClientContext): void {
   let rows: readonly SettingsSectionRow[] = []
   let onboardingVersion = -1
   let onboardingSteps: readonly SettingsOnboardingStep[] = []
-  const onOpenRequest = (listener: (section?: string) => void) => ctx.on('settings/open', listener)
   const shellInjected = (): SettingsRootInjected => ({
     reconnect: () => { connection.reconnect() },
-    onOpenRequest,
+    show: (section) => { route.show(section) },
+    close: () => { route.close() },
     hooks: {
       connectionState: connection.state,
+      settingsAddress: route.current,
       sections: {
         getSnapshot: () => {
           const version = ctx.slots.getVersion('settings.section')

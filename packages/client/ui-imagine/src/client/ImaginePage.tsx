@@ -50,12 +50,12 @@ export function ImaginePage({ heroT, t }: ImaginePageProps) {
                   }}
                 />
                 <div className={css.row}>
-                  <Tooltip label={t('add')} side="top">
+                  <Tooltip label={t('add')} side="top-start">
                     <button type="button" className={css.add} aria-label={t('add')} disabled>
                       <IconPlusOutline20 />
                     </button>
                   </Tooltip>
-                  <Tooltip label={t('send')} side="top">
+                  <Tooltip label={t('send')} side="top-end">
                     <button type="button" className={css.primary} aria-label={t('send')} disabled>
                       <IconArrowUpOutline20 />
                     </button>

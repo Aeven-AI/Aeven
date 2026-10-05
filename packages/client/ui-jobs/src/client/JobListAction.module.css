@@ -293,6 +293,12 @@
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
+/* Nothing follows the last group to be set apart from, and the menu's own
+   padding already closes the list below it. */
+.itemOpen:last-child {
+  margin-bottom: 0;
+}
+
 /* The details, on a 4px grid and flush with the row's 8px inner edge, under
    the opened row that titles them: the facts, then the cards. */
 .panel {

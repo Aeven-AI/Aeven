@@ -16,7 +16,8 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  IconDislikeOutline16, IconLikeOutline16, Tooltip, useAnchoredPosition,
+  Button, IconDislikeFill16, IconDislikeOutline16, IconEditOutline16, IconLikeFill16,
+  IconLikeOutline16, Tooltip, useAnchoredPosition,
 } from '@aeven/client-ui-primitives'
 import type { MessageFeedbackRating } from '@aeven/message-feedback/types'
 import type { MessageFeedbackActionProps } from './slots.ts'
@@ -224,8 +225,14 @@ export function MessageFeedbackActions({ messageId, ensure, rate, toggle, clearN
     wasOpen.current = false
   }, [noteOpen])
 
+  // The recorded rating is shown by the filled glyph, the same visible swap the
+  // host row's own copy action makes for its check; `aria-pressed` carries the
+  // state for assistive technology.
   const likeLabel = rating === 'positive' ? t('action.likeActive') : t('action.like')
   const dislikeLabel = rating === 'negative' ? t('action.dislikeActive') : t('action.dislike')
+  // The note trigger is one glyph whatever is recorded; its bubble names what
+  // the click does.
+  const noteLabel = item?.note === undefined ? t('note.open') : t('note.edit')
 
   return (
     <>
@@ -235,13 +242,12 @@ export function MessageFeedbackActions({ messageId, ensure, rate, toggle, clearN
           className={css.action}
           aria-label={likeLabel}
           aria-pressed={rating === 'positive'}
-          data-active={rating === 'positive' || undefined}
           disabled={pending}
           onFocus={seed}
           onPointerEnter={seed}
           onClick={() => { onRate('positive') }}
         >
-          <IconLikeOutline16 />
+          {rating === 'positive' ? <IconLikeFill16 /> : <IconLikeOutline16 />}
         </button>
       </Tooltip>
       <Tooltip label={dislikeLabel} side="bottom">
@@ -250,26 +256,31 @@ export function MessageFeedbackActions({ messageId, ensure, rate, toggle, clearN
           className={css.action}
           aria-label={dislikeLabel}
           aria-pressed={rating === 'negative'}
-          data-active={rating === 'negative' || undefined}
           disabled={pending}
           onFocus={seed}
           onPointerEnter={seed}
           onClick={() => { onRate('negative') }}
         >
-          <IconDislikeOutline16 />
+          {rating === 'negative' ? <IconDislikeFill16 /> : <IconDislikeOutline16 />}
         </button>
       </Tooltip>
       {rating !== undefined && (
-        <button
-          ref={triggerRef}
-          type="button"
-          className={css.noteOpen}
-          aria-haspopup="dialog"
-          aria-expanded={noteOpen}
-          onClick={toggleNote}
-        >
-          {item?.note === undefined ? t('note.open') : item.note}
-        </button>
+        <Tooltip label={noteLabel} side="bottom">
+          <button
+            ref={triggerRef}
+            type="button"
+            className={css.noteOpen}
+            aria-haspopup="dialog"
+            aria-expanded={noteOpen}
+            // A recorded note is the button's own visible label, so only the
+            // bare glyph needs a name of its own.
+            aria-label={item?.note === undefined ? noteLabel : undefined}
+            onClick={toggleNote}
+          >
+            <IconEditOutline16 />
+            {item?.note !== undefined && <span className={css.noteLabel}>{item.note}</span>}
+          </button>
+        </Tooltip>
       )}
       {rowFailure === null && loadFailed && (
         <span className={css.failure} role="status">{t('error.load')}</span>
@@ -303,17 +314,20 @@ export function MessageFeedbackActions({ messageId, ensure, rate, toggle, clearN
             onChange={(event) => { setDraft(event.target.value) }}
           />
           <div className={css.noteActions}>
-            <button
-              type="button"
-              className={css.noteSave}
+            <Button
+              variant="ghost"
+              disabled={pending}
+              onClick={closeNote}
+            >
+              {t('cancel')}
+            </Button>
+            <Button
+              variant="primary"
               disabled={pending}
               onClick={() => { onSaveNote(rating) }}
             >
-              {t('note.save')}
-            </button>
-            <button type="button" className={css.noteCancel} onClick={closeNote}>
-              {t('note.cancel')}
-            </button>
+              {t('ok')}
+            </Button>
           </div>
           {noteFailure !== null && <span className={css.failure} role="status">{noteFailure}</span>}
         </div>,

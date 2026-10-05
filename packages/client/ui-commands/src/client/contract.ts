@@ -7,6 +7,7 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { ClientSessionContext } from '@aeven/client-ui-input-trigger/client'
 import type { SessionId } from '@aeven/session/types'
 import type { TokenSpan } from '@aeven/client-ui-input-trigger/client'
+import type { PopupAnchorPlacement } from './popup.ts'
 
 /** Copy for an option that must be acknowledged before onSelect can run. */
 export interface SelectConfirmation {
@@ -82,8 +83,19 @@ export interface CommandDecoration {
 
 /** The `ctx.commandUi` service face visible to business packages. */
 export interface CommandUiContract {
-  /** Invoke a visible command from a composer control, preserving the current draft. */
-  invokeFromButton(sessionId: SessionId, name: string, span: TokenSpan): Promise<boolean>
+  /**
+   * Invoke a visible command from a composer control, preserving the current
+   * draft. A contribution or decorated host command opens its picker instead of
+   * running the bare line; `anchor` names the control that asked, which is what
+   * lets the card sit beside that control rather than on the composer's edge.
+   */
+  invokeFromButton(
+    sessionId: SessionId,
+    name: string,
+    span: TokenSpan,
+    anchor?: Element | null,
+    placement?: PopupAnchorPlacement,
+  ): Promise<boolean>
   /**
    * Register one client command contribution; effect disposer. Duplicate
    * names throw at registration.
@@ -108,9 +120,17 @@ export interface CommandUiContract {
    * lines its trailing edge up with that element, so a picker opened from a
    * composer seat sits under the seat rather than under the composer card. The
    * token paths pass nothing and keep the card on the composer's own edge.
+   * @param placement - where the card sits against that control: its trailing
+   * edge lined up (default), or beside it.
    * @returns whether the session resolved a scope and the shell opened.
    */
-  openSelect(sessionId: SessionId, command: string, spec: CommandUiSpec, anchor?: Element | null): boolean
+  openSelect(
+    sessionId: SessionId,
+    command: string,
+    spec: CommandUiSpec,
+    anchor?: Element | null,
+    placement?: PopupAnchorPlacement,
+  ): boolean
   /** Resolve the per-session popup controller for one session scope (wiring/overlay layer). */
   popupFor(actx: ClientContext): unknown
 }

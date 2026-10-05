@@ -27,9 +27,13 @@
      hidden): cap the card against the viewport and scroll the option list
      so header and footer actions stay reachable on long batches. */
   max-height: min(60vh, 520px);
-  padding: 0 0 16px;
+  padding: 0 0 24px;
   border: 0;
   --dsw-elevation-stroke-color: transparent;
+  /* One fill for every option affordance — the hovered row, the selected row,
+     the number disc and the disabled Submit — so they read as one tone on the
+     card instead of three neighbouring greys. */
+  --avn-question-fill: var(--dsw-alias-interactive-bg-hover);
   border-radius: var(--dsw-aeven-radius-surface);
   background: var(--dsw-specific-input-major);
   box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.1);
@@ -188,28 +192,32 @@
   flex-direction: column;
   gap: 2px;
   margin: 8px 0 0;
-  /* The row highlights span the footer's 16px inset, so their edges line up
-     with the Submit capsule; each row's 8px leading pad puts the indicator on
-     the title's 24px inset. */
-  padding: 4px 16px;
+  /* The 24px side inset holds the row highlights level with the header text
+     and the footer capsules. The rows carry no side padding of their own, so
+     a row's indicator sits on the title's 24px inset. */
+  padding: 4px 24px;
 }
 
 .option {
   display: flex;
   /* flex-start, not center: with a wrapped description the indicator must
      stay on the FIRST line (centering drifts it down the taller copy block).
-     The 6px padding makes a single-line row 40px exactly, so nothing reads
-     as top-heavy; .number/.checkbox share the first line box's height. */
+     The row carries no padding at all, so the indicator's own line box is the
+     whole floor of a single-line row and the copy sits on the same lines. */
   align-items: flex-start;
   gap: 10px;
   width: 100%;
-  min-height: 40px;
+  min-height: 30px;
   /* Rows are the scroll content, never the slack absorber: a shrinkable row
      collapses to min-height while its wrapped copy keeps the taller
      intrinsic height, and centered content then paints outside the row box —
      over the title and the next row. Overflow belongs to .options. */
   flex-shrink: 0;
-  padding: 6px 12px 6px 8px;
+  padding: 0;
+  /* The row's own box hugs its text, so a fill or fade covers the line alone;
+     the 6px above and below put the spacing back outside that box, leaving the
+     list's original pitch (row + 12px + the 2px gap) untouched. */
+  margin: 6px 0;
   border: 0;
   border-radius: var(--dsw-aeven-radius-control);
   background: transparent;
@@ -221,18 +229,39 @@
 }
 
 .option:hover:not(:disabled) {
-  background: var(--dsw-alias-interactive-bg-hover);
+  background: var(--avn-question-fill);
 }
 
-/* Selection is a fill, not a stroke: the active fill sits one step above the
-   hover fill so a hovered sibling never reads as the chosen one. */
+/* Selection takes the same fill as hover: a chosen row keeps it at rest, a
+   pointed row shows it only while the pointer is over it. */
 .optionSelected,
 .optionSelected:hover:not(:disabled) {
-  background: var(--dsw-alias-interactive-bg-active);
+  background: var(--avn-question-fill);
 }
 
 .option:disabled {
   cursor: default;
+}
+
+/* Multi-select rows take no hover fill: pointing at one fades the row itself
+   to half strength instead, which keeps the box the row's only mark and tells
+   a pointed row apart from a ticked one. The doubled class outranks the shared
+   hover fill above, so no fill paints here at all. */
+.optionMulti {
+  transition: opacity 120ms ease;
+}
+
+/* 1lh - 8px is the line box (the number disc's own width) plus the shared
+   10px gap, less the box's 18px: the label then starts where a single-select
+   row's label does, while the box stays tight on the row's leading inset. The
+   doubled class keeps this above the shared gap whatever the rule order. */
+.option.optionMulti {
+  column-gap: calc(1lh - 8px);
+}
+
+.option.optionMulti:hover:not(:disabled) {
+  background: transparent;
+  opacity: 0.5;
 }
 
 /* Leading indicator, one line box tall and square: single-select shows the
@@ -247,19 +276,22 @@
   width: 1lh;
   height: 1lh;
   border-radius: 999px;
-  background: var(--dsw-alias-bg-overlay);
+  background: var(--avn-question-fill);
   color: var(--dsw-alias-label-secondary);
   font-weight: 400;
 }
 
-/* Multi-select box: a radius-5 box centered in the same line-box seat as
-   .number; the box itself is the ::before layer so the check icon stacks over
-   it in the same grid cell. */
+/* Multi-select box: the ::before layer draws it and the check icon stacks over
+   it in the same grid cell. The seat is the box's own width, on the same
+   first-line height as .number. */
 .checkbox {
   display: grid;
   place-items: center;
   flex: 0 0 auto;
-  width: 1lh;
+  /* The seat is the box's own 18px, so the box takes the row's leading inset
+     with nothing to shift and the check centres inside it; the height stays
+     the line box, which keeps the first-line alignment .option relies on. */
+  width: 18px;
   height: 1lh;
 }
 
@@ -328,11 +360,14 @@
   align-items: flex-start;
   gap: 10px;
   width: 100%;
-  min-height: 40px;
+  min-height: 30px;
   /* Same reason as .option: the custom row is scroll content, and shrinking
      it pushes the inline input past the footer. */
   flex-shrink: 0;
-  padding: 6px 12px 6px 8px;
+  padding: 0;
+  /* Same 6px as .option: the row boxes keep one pitch with the fill outside
+     the text's own line. */
+  margin: 6px 0;
   border-radius: var(--dsw-aeven-radius-control);
   transition: background-color 120ms ease;
 }
@@ -340,7 +375,26 @@
 .customRow:hover,
 .customRow:focus-within,
 .customRowActive {
-  background: var(--dsw-alias-interactive-bg-hover);
+  background: var(--avn-question-fill);
+}
+
+/* In a multi-select card the free-text row answers the pointer the way its
+   sibling rows do — it fades and carries no fill — while a row being typed in
+   keeps that fill as the mark of the draft being edited. The doubled class
+   outranks the shared hover fill above. */
+.customRowMulti {
+  transition: opacity 120ms ease;
+}
+
+/* Same gap as the multi-select rows above, so one card keeps one label
+   column. */
+.customRow.customRowMulti {
+  column-gap: calc(1lh - 8px);
+}
+
+.customRow.customRowMulti:hover:not(:focus-within) {
+  background: transparent;
+  opacity: 0.5;
 }
 
 /* Auto-growing free-text answer (see AnswerField): mirror and textarea share
@@ -400,17 +454,16 @@
 }
 
 /* Optionless question: the free-form answer is the whole body and sits on
-   the card surface unframed, as the composer draft does. The 8px side
-   margins add to the .options 16px padding so the text aligns with the
-   title's 24px inset; two lines are reserved before the answer grows. */
+   the card surface unframed, as the composer draft does. It takes the option
+   strip's 24px inset from .options alone, so the text lines up with the
+   title; two lines are reserved before the answer grows. */
 .customBlock {
   min-height: 2lh;
   flex-shrink: 0;
-  margin: 0 8px;
 }
 
-/* Same insets as the composer's control row: 16px from the card edge, so the
-   40px capsules nest in the surface radius the way the send circle does. */
+/* 24px side inset: the pager and the capsules sit level with the header text
+   and the option fills above them. */
 .footer {
   display: flex;
   align-items: center;
@@ -418,7 +471,7 @@
   gap: 12px;
   flex-shrink: 0;
   margin-top: 12px;
-  padding: 0 16px 0 20px;
+  padding: 0 24px;
 }
 
 .feedback {
@@ -433,7 +486,19 @@
   line-height: inherit;
 }
 
+/* Disabled Submit keeps its own fill and full-opacity ink rather than taking
+   the primitive's dimmed primary capsule: the action is unavailable, not
+   faded, and its label stays legible on the card. The double class outranks
+   the primitive's own `.button:disabled` dimming. */
+.action.submit:disabled {
+  background: var(--avn-question-fill);
+  color: var(--dsw-alias-label-primary);
+  opacity: 1;
+}
+
 @media (max-width: 768px) {
+  /* The narrower 18px leading inset is the header's own, and it carries down
+     to the rows and the footer so the alignment above still holds. */
   .header {
     padding: 16px 16px 0 18px;
   }
@@ -443,21 +508,12 @@
   }
 
   .options {
-    padding: 4px 12px;
-  }
-
-  .option,
-  .customRow {
-    padding: 6px 10px 6px 6px;
-  }
-
-  .customBlock {
-    margin: 0 6px;
+    padding: 4px 18px;
   }
 
   .footer {
     align-items: flex-end;
-    padding: 0 12px;
+    padding: 0 18px;
   }
 
   .footerActions {
@@ -467,7 +523,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   .option,
-  .customRow {
+  .customRow,
+  .optionMulti,
+  .customRowMulti {
     transition: none;
   }
 }

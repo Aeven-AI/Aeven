@@ -24,8 +24,8 @@ export interface ModelSelectInjected {
    * controller, spec, rows, and search the `/model` command opens. Nothing in
    * the draft is consumed when a selection settles. No-op when the seat is
    * unavailable.
-   * @param anchor - the trigger the card should line up with (the shell's card
-   * is otherwise anchored to the composer card's own edge).
+   * @param anchor - the control the card opens beside — the row that asked. The
+   * seat's own card stays open while that list is in use.
    */
   openModel: (anchor: Element | null) => void
   /**

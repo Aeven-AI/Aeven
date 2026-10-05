@@ -129,6 +129,7 @@
     { "path": "./packages/client/web" },
     { "path": "./packages/context/file-reference" },
     { "path": "./apps/web" },
+    { "path": "./packages/client/ui-settings-integrations" },
     { "path": "./packages/llm/subscription-auth/tsconfig.client.json" }
   ]
 }

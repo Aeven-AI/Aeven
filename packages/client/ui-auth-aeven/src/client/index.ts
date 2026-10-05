@@ -30,7 +30,7 @@ import { isSessionRefusal } from './auth/services/errors.ts'
 import { AUTH_ROUTES, isAuthRoute, navigateRoute } from './auth/services/routes.ts'
 import { publishReader } from './auth/services/reader.ts'
 import { cachedProfile, session, storage, type AevenProfile } from './auth/services/session.ts'
-import { sessionBearer, watchSession } from './auth/services/watch.ts'
+import { sessionBearer, watchSession, hostRefusedSession, leaveForSignIn, noteHostRefusal, pageIsLeaving } from './auth/services/watch.ts'
 
 /** How the gate resolved for this page load. */
 export type AuthGateResult =
@@ -85,8 +85,11 @@ export async function restoreSession(): Promise<AuthGateResult> {
     // Aeven refusing the credential ends the session; Aeven being unreachable
     // says nothing about it, and signing the reader out over an outage would
     // put an authentication screen between them and providers that are still
-    // running. The cookie the Host authenticates by outlives the outage.
-    const kept = isSessionRefusal(error) ? undefined : cachedProfile()
+    // running. The cookie the Host authenticates by outlives the outage — but
+    // once the Host has refused a request this document presented nothing for,
+    // that cookie identifies nobody, and a kept profile would rebuild a
+    // signed-in application whose every call is unauthenticated.
+    const kept = isSessionRefusal(error) || hostRefusedSession() ? undefined : cachedProfile()
     if (kept !== undefined) {
       session.adoptProfile(kept)
       publishReader()
@@ -134,7 +137,13 @@ let stopWatching: (() => void) | undefined
  *
  * A Host 401 renews the bearer and retries once. When Aeven refuses the renewal
  * — here or in the background renewal — the session has ended and the page
- * loads the sign-in screen.
+ * loads the sign-in screen. A 401 to a request that presented no bearer is that
+ * same answer from the other credential: the refresh cookie identified nobody,
+ * so the session is gone however the API reads.
+ *
+ * Between sessions the hook presents nothing at all. A request made then would
+ * be authenticated by whichever account replaced this one's, which is how a page
+ * that restored one reader ends up reading another's Sessions.
  *
  * Must be called before the plugin graph boots: the connection builds its
  * caller once, from whatever the hook holds at that moment.
@@ -149,13 +158,26 @@ export function installAuthenticatedTransport(): () => void {
     if (bearer !== undefined) headers.set('Authorization', `Bearer ${bearer}`)
     return send(input, { ...init, headers })
   }
+  /** The answer a page with no session of its own owes a caller. */
+  const unauthorized = (): Response => new Response(null, { status: 401 })
 
   scope.__AVN_TRANSPORT__ = {
     ...scope.__AVN_TRANSPORT__,
     fetch: async (input: URL, init: RequestInit): Promise<Response> => {
+      if (pageIsLeaving()) return unauthorized()
       const bearer = await sessionBearer()
+      // The call itself may have ended the session, and this document must not
+      // reach the Host under the account that replaced it.
+      if (pageIsLeaving()) return unauthorized()
       const response = await sendWith(input, init, bearer)
-      if (response.status !== 401 || bearer === undefined) return response
+      if (response.status !== 401) return response
+      if (bearer === undefined) {
+        // Nothing was presented: the Host authenticated neither a bearer nor
+        // the refresh cookie, so no renewal can restore this document's session.
+        noteHostRefusal()
+        leaveForSignIn()
+        return response
+      }
       const renewed = await sessionBearer(bearer)
       return renewed === undefined ? response : sendWith(input, init, renewed)
     },

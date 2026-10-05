@@ -133,10 +133,10 @@ describe('SidebarRoot shell', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Chat' }))
     fireEvent.click(link)
     expect(b.startSession).toHaveBeenCalledTimes(2)
-    // The link's own id is the one created, so the address the reader opened
-    // and the Session that appears are the same chat...
-    expect(b.startSession).toHaveBeenLastCalledWith(undefined, 'session-test-1')
-    // ...and the next render names a fresh one, because that id is now live.
+    // Both run the same New Session flow, which reuses the Workspace's
+    // never-prompted chat before creating one, so unsent text there comes back.
+    expect(b.startSession).toHaveBeenLastCalledWith()
+    // The link then names the fresh chat a browser-owned open would start.
     expect(screen.getByRole('link', { name: 'Chat' }).getAttribute('href')).toBe('/c/test-2')
     fireEvent.click(screen.getByRole('button', { name: 'Close sidebar' }))
     expect(b.toggleSidebar).toHaveBeenCalledOnce()
@@ -215,9 +215,11 @@ describe('SidebarRoot New Session activation', () => {
     }
 
     // A plain primary click is the shell's: the browser's own navigation is
-    // cancelled and the Session the address names is created in its place.
+    // cancelled and the New Session flow runs in its place — the Workspace's
+    // never-prompted chat is reused before one is created, so text left unsent
+    // there comes back instead of being stranded.
     expect(fireEvent.click(link)).toBe(false)
-    expect(b.startSession).toHaveBeenCalledWith(undefined, 'session-test-1')
+    expect(b.startSession).toHaveBeenCalledWith()
   })
 
   it('applies the same guard to Enter on the link', () => {
@@ -232,12 +234,12 @@ describe('SidebarRoot New Session activation', () => {
     expect(modified).not.toHaveBeenCalled()
     expect(b.startSession).not.toHaveBeenCalled()
 
-    // Plain Enter is intercepted: the shell creates the named Session and the
-    // link then names the fresh one.
+    // Plain Enter is intercepted: the shell runs the New Session flow and the
+    // link then names the fresh chat a browser-owned open would start.
     const intercepted = vi.fn()
     act(() => { handler(enterActivation(intercepted)) })
     expect(intercepted).toHaveBeenCalledOnce()
-    expect(b.startSession).toHaveBeenCalledWith(undefined, 'session-test-1')
+    expect(b.startSession).toHaveBeenCalledWith()
     expect(screen.getByRole('link', { name: 'Chat' }).getAttribute('href')).toBe('/c/test-2')
   })
 

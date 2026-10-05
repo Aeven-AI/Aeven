@@ -31,7 +31,7 @@ export interface ImageLightboxLabels {
 
 /** One image the lightbox can show. */
 export interface LightboxImage {
-  /** Original image URL; also the download source. */
+  /** Original image URL; also the download source when no `href` is given. */
   src: string
   alt: string
   /** File name shown in the info popover and used for the download. */

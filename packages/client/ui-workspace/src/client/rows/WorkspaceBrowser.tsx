@@ -157,7 +157,7 @@ function workspaceGroupHalf(e: { clientY: number; currentTarget: HTMLElement }):
 
 type SessionTreeProps = Pick<
   WorkspaceBrowserProps,
-  'useSessions' | 'useSessionPendingInteraction' | 'startSession' | 'open' | 'forkSession'
+  'useSessions' | 'useSessionPendingInteraction' | 'startSession' | 'newSessionHref' | 'open' | 'forkSession'
   | 'insertWorkspaceBefore' | 'insertSessionBefore' | 't'
 > & {
   workspaces: readonly WorkspaceView[]
@@ -195,7 +195,8 @@ type SessionTreeProps = Pick<
 
 /** The scrolling session tree; unmounting drops the sessions subscription and expand-all state. */
 function SessionTree({
-  useSessions, useSessionPendingInteraction, startSession, open, forkSession, workspaces, archivedSessionIds,
+  useSessions, useSessionPendingInteraction, startSession, newSessionHref, open, forkSession, workspaces,
+  archivedSessionIds,
   workspaceReady,
   onRenameRequest, onDeleteRequest, onSessionRename, onSessionArchive,
   insertWorkspaceBefore, insertSessionBefore, orderBy,
@@ -455,11 +456,13 @@ function SessionTree({
                   setGroupExpanded(group.key, !group.expanded)
                 }}
                 onCreate={() => {
-                  if (group.workspaceId !== undefined) {
-                    setGroupExpanded(group.key, true)
-                    startSession(group.workspaceId)
-                  }
+                  // An explicit Workspace starts or reuses its chat; the
+                  // ungrouped bucket renders no create control, so this is a
+                  // real one.
+                  setGroupExpanded(group.key, true)
+                  startSession(group.workspaceId)
                 }}
+                newSessionHref={newSessionHref}
                 drag={group.isDefault ? undefined : workspaceDragProps}
                 // The built-in workspace offers no actions: it cannot be renamed,
                 // deleted, or moved, so a menu would present only choices that
@@ -686,6 +689,7 @@ export function WorkspaceBrowser({
   useStore,
   actions,
   startSession,
+  newSessionHref,
   open,
   renameSession,
   forkSession,
@@ -901,6 +905,7 @@ export function WorkspaceBrowser({
               setSessionOrder={actions.setSessionOrder}
               archivedSessionIds={archivedSessionIds}
               startSession={startSession}
+              newSessionHref={newSessionHref}
               open={open}
               insertWorkspaceBefore={insertWorkspaceBefore}
               insertSessionBefore={insertSessionBefore}

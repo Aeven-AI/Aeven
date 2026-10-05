@@ -40,3 +40,24 @@ export function isSessionRefusal(error: unknown): boolean {
     && error.message !== NAME_REFUSAL_CODE
     && (error.status === 400 || error.status === 401)
 }
+
+/**
+ * The one exchange answer that ends this document's session and nobody else's.
+ *
+ * Every document of one origin shares `userId` and `appBearers`, so another tab
+ * signing in leaves this one holding a credential for an account its gate never
+ * restored. An exchange answered with that account names the end of *this*
+ * document's session, not of that account's: the tab which signed in keeps its
+ * own credential, so the caller re-runs its gate rather than discarding a stored
+ * bearer the way a refusal lets it.
+ */
+export const IDENTITY_CHANGED_CODE = 'identity-changed'
+
+/**
+ * Whether a failure means the credential names another account than this page restored.
+ * @param error - the failure a session operation threw.
+ * @returns true when the page must run its gate again as the account it now holds.
+ */
+export function isIdentityChange(error: unknown): boolean {
+  return error instanceof AevenApiError && error.message === IDENTITY_CHANGED_CODE
+}

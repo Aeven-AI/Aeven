@@ -138,9 +138,11 @@ describe('renewing the Aeven session', () => {
     window.localStorage.setItem('appBearers', JSON.stringify({ 'u-1': refused }))
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({ userId: 'u-1', accessToken: fresh })))
     const presented: (string | null)[] = []
-    const host = vi.fn(async (_input: URL, init: RequestInit) => {
+    const host = vi.fn(async (input: URL, init: RequestInit) => {
       const authorization = new Headers(init.headers).get('authorization')
-      presented.push(authorization)
+      // Only the call under test: installing the transport also starts the
+      // watcher, which hands its token over on `api/credential`.
+      if (input.pathname.endsWith('/api/x')) presented.push(authorization)
       return new Response(null, { status: authorization === `Bearer ${fresh}` ? 200 : 401 })
     })
     const scope = globalThis as { __AVN_TRANSPORT__?: { fetch?: typeof host } }
@@ -193,6 +195,107 @@ describe('renewing the Aeven session', () => {
       expect(assign).not.toHaveBeenCalled()
     } finally {
       vi.useRealTimers()
+    }
+  })
+
+  it('ends this document’s session when another tab signs in as a different account', async () => {
+    const { watchSession, session, onSessionEnded } = await load()
+    stubNavigation('/')
+    const ended = vi.fn()
+    const stop = onSessionEnded(ended)
+    window.localStorage.setItem('userId', 'u-1')
+    window.localStorage.setItem('appBearers', JSON.stringify({ 'u-1': token('u-1', 7200) }))
+    vi.stubGlobal('fetch', vi.fn())
+    vi.useFakeTimers()
+    try {
+      stops.push(watchSession(() => {}))
+      await vi.waitFor(() => { expect(session.userId).toBe('u-1') })
+      // Every document of one origin shares both keys, so the sign-in stores its
+      // account beside the token this one holds.
+      window.localStorage.setItem('userId', 'u-2')
+      window.localStorage.setItem('appBearers', JSON.stringify({
+        'u-1': token('u-1', 7200), 'u-2': token('u-2', 7200),
+      }))
+      window.dispatchEvent(new StorageEvent('storage', { key: 'userId' }))
+      expect(ended).toHaveBeenCalledOnce()
+      expect(session.userId).toBeNull()
+      // Neither account's credential is this document's to discard: the tab that
+      // signed in stays signed in.
+      expect(held()).toHaveProperty('u-1')
+      expect(held()).toHaveProperty('u-2')
+    } finally {
+      vi.useRealTimers()
+      stop()
+    }
+  })
+
+  it('refuses a renewal answered as another account, and stores nothing for it', async () => {
+    const { currentBearer, session } = await load()
+    session.userId = 'u-1'
+    session.userSignedIn = true
+    window.localStorage.setItem('userId', 'u-1')
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ userId: 'u-2', accessToken: token('u-2', 7200) })))
+
+    await expect(currentBearer()).rejects.toMatchObject({ message: 'identity-changed' })
+    expect(held()).toEqual({})
+    expect(window.localStorage.getItem('userId')).toBe('u-1')
+  })
+
+  it('presents nothing to the Host once the browser holds another account', async () => {
+    const { installAuthenticatedTransport, session } = await load()
+    stubNavigation('/')
+    session.userId = 'u-1'
+    session.userSignedIn = true
+    window.localStorage.setItem('userId', 'u-2')
+    window.localStorage.setItem('appBearers', JSON.stringify({ 'u-2': token('u-2', 7200) }))
+    vi.stubGlobal('fetch', vi.fn())
+    vi.useFakeTimers()
+    const host = vi.fn(async () => new Response(null, { status: 200 }))
+    const scope = globalThis as { __AVN_TRANSPORT__?: { fetch?: typeof fetch } }
+    scope.__AVN_TRANSPORT__ = { fetch: host }
+    try {
+      stops.push(installAuthenticatedTransport())
+      const response = await scope.__AVN_TRANSPORT__.fetch?.(
+        new URL('http://host.test/api/x'),
+        { method: 'POST', body: '{}' },
+      )
+      // A request sent now would be authenticated by the account that replaced
+      // this page's, which is how one reader's page reads another's Sessions.
+      expect(host).not.toHaveBeenCalled()
+      expect(response?.status).toBe(401)
+    } finally {
+      vi.useRealTimers()
+      delete scope.__AVN_TRANSPORT__
+    }
+  })
+
+  it('ends the session when the Host refuses a request that presented nothing', async () => {
+    const { installAuthenticatedTransport, session, onSessionEnded, hostRefusedSession } = await load()
+    const assign = stubNavigation('/')
+    const ended = vi.fn()
+    const stop = onSessionEnded(ended)
+    // The access token is gone and Aeven cannot be reached, so the request goes
+    // out with no bearer; the cookie was to identify it.
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('Failed to fetch') }))
+    vi.useFakeTimers()
+    const host = vi.fn(async () => new Response(null, { status: 401 }))
+    const scope = globalThis as { __AVN_TRANSPORT__?: { fetch?: typeof fetch } }
+    scope.__AVN_TRANSPORT__ = { fetch: host }
+    try {
+      session.userId = 'u-1'
+      session.userSignedIn = true
+      window.localStorage.setItem('userId', 'u-1')
+      stops.push(installAuthenticatedTransport())
+      const response = await scope.__AVN_TRANSPORT__.fetch?.(new URL('http://host.test/api/x'), {})
+      expect(response?.status).toBe(401)
+      expect(host).toHaveBeenCalledOnce()
+      expect(ended).toHaveBeenCalledOnce()
+      expect(hostRefusedSession()).toBe(true)
+      expect(assign).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+      stop()
+      delete scope.__AVN_TRANSPORT__
     }
   })
 

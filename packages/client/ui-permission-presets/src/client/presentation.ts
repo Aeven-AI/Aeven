@@ -32,6 +32,21 @@ export function displayPresetName(name: string): string {
 }
 
 /**
+ * Resolve a built-in preset's label key, but only while the host still
+ * presents that preset under its own name: a deployment that renames a mode
+ * owns the meaning of its label, so built-in product copy would name behavior
+ * the deployment may no longer configure.
+ * @param value - preset machine value.
+ * @param name - host-supplied preset name.
+ * @returns the built-in label key, or undefined for a custom value or renamed preset.
+ */
+function builtInPreset(value: string, name: string): PermissionPresetLabelKey | undefined {
+  const key = PRESET_LABEL_KEYS.get(value)
+  if (key === undefined) return undefined
+  return name === value || name === DEFAULT_PRESET_LABELS[key] ? key : undefined
+}
+
+/**
  * Render a permission preset under its product label.
  * @param value - preset machine value.
  * @param name - host-supplied preset name.
@@ -43,9 +58,7 @@ export function displayPermissionPreset(
   name: string,
   t?: (key: PermissionPresetLabelKey) => string,
 ): string {
-  const key = PRESET_LABEL_KEYS.get(value)
-  if (key !== undefined && (name === value || name === DEFAULT_PRESET_LABELS[key])) {
-    return t?.(key) ?? DEFAULT_PRESET_LABELS[key]
-  }
-  return displayPresetName(name)
+  const key = builtInPreset(value, name)
+  if (key === undefined) return displayPresetName(name)
+  return t?.(key) ?? DEFAULT_PRESET_LABELS[key]
 }

@@ -7,6 +7,7 @@
  */
 
 import type {} from '@aeven/api-session-controller/remote-events'
+import type {} from '@aeven/skill'
 import type { TypertForwardableEventEntry } from '@aeven/typert-protocol'
 
 /**
@@ -33,5 +34,6 @@ export const API_REMOTE_FORWARDED_EVENTS = [
   { event: 'llm/adapters-updated', mode: 'emit' },
   { event: 'location/request', mode: 'waterfall' },
   { event: 'settings/document-updated', mode: 'emit' },
+  { event: 'skills/change', mode: 'emit' },
   { event: 'user-questions/request', mode: 'waterfall' },
 ] as const satisfies readonly TypertForwardableEventEntry[]

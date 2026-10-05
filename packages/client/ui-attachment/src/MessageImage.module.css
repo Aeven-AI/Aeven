@@ -16,6 +16,7 @@
 }
 
 .frame {
+  position: relative;
   display: grid;
   flex: 0 0 auto;
   place-items: center;
@@ -27,6 +28,57 @@
   border-radius: 16px;
   background: var(--dsw-alias-interactive-bg-hover);
   cursor: zoom-in;
+}
+
+/* The loading layer covers the frame's own surface with the app's loading mark
+   until the bytes arrive, then fades off the image it was covering. */
+.loader {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #ffffff;
+  transition: opacity 200ms ease;
+}
+
+.loader[data-loaded] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loader {
+    transition: none;
+  }
+}
+
+/* The fill layout: the owner sized the box, so the row and the image only fill
+   it — no padding, border or background of their own, and the image covers the
+   box exactly. */
+.fillRow,
+.fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.fill {
+  position: relative;
+  cursor: zoom-in;
+}
+
+.fill img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .frame[data-variant='tile'] {

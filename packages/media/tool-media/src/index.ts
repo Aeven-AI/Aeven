@@ -306,6 +306,28 @@ export function storable(mediaType: string, data: Uint8Array): { data: Uint8Arra
   return { data, mediaType: mediaType as ImageMediaType }
 }
 
+/** File extension for each media type the attachment path stores. */
+const IMAGE_EXTENSIONS: Record<ImageMediaType, string> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+}
+
+/**
+ * Display name of one generated image: the model that produced it and its
+ * position in the call, which is what the conversation's image preview titles
+ * and what a download is called.
+ * @param model - the model the provider reported for the call.
+ * @param index - zero-based position of the image within the call.
+ * @param mediaType - the stored media type, which picks the extension.
+ * @returns a display name the attachment store accepts.
+ */
+export function generatedImageName(model: string, index: number, mediaType: ImageMediaType): string {
+  const stem = model.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'generated'
+  return `${stem}-${String(index + 1)}.${IMAGE_EXTENSIONS[mediaType]}`
+}
+
 /**
  * The durable reference for one generated image.
  *
@@ -602,6 +624,18 @@ export function apply(ctx: Context, config: Config): void {
                 bytes: { type: 'integer', required: true },
                 width: { type: 'integer', required: true },
                 height: { type: 'integer', required: true },
+                // A stored reference also reports the display name a provider
+                // gave the image, and the dimensions normalization scaled down
+                // from; a closed schema must declare both to accept it.
+                name: { type: 'string' },
+                originalDimensions: {
+                  type: 'object',
+                  additionalProperties: false,
+                  properties: {
+                    width: { type: 'integer', required: true },
+                    height: { type: 'integer', required: true },
+                  },
+                },
               },
             },
           },
@@ -628,8 +662,13 @@ export function apply(ctx: Context, config: Config): void {
       )
       const result = await ctx.media.generateImage(resolveRequest(args, chosen, references), exec.signal)
       const images: ImageAttachmentRef[] = []
-      for (const image of result.images) {
-        images.push(await storeImage(image, input => ctx.attachments.saveImage(input)))
+      for (const [index, image] of result.images.entries()) {
+        images.push(await storeImage(image, input => ctx.attachments.saveImage({
+          ...input,
+          // The name is what the conversation's image preview titles and what a
+          // download is called; without one it can only report `unknown`.
+          name: generatedImageName(result.model, index, input.mediaType),
+        })))
       }
       return { provider: result.provider, model: result.model, images }
     },

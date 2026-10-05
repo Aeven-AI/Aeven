@@ -3,35 +3,30 @@
   min-width: 0;
 }
 
-/* Figma 313:14108 ToggleButton: 13/20 medium secondary label, 4px gap,
-   12px caption chevron; 28px chip height matches the sibling Plan /
-   Read-only selects in the same tool row. The trigger opens the shared
-   popupSelect shell, so it carries no dropdown chrome of its own. */
+/* The model seat's disc: the same 40px transparent control the Options disc
+   wears, so the composer's icon controls stand as one family. Its accessible
+   name and title carry the model and effort the card's first row states; the
+   card above it is the affordance. */
 .trigger {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-  /* Legacy fallback, then a row-relative cap that grants long names more
-     room without letting this trailing control consume the composer. */
-  max-width: 220px;
-  max-width: min(360px, 45cqw);
-  height: 28px;
-  padding: 0 4px 0 8px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--dsw-aeven-control-size);
+  height: var(--dsw-aeven-control-size);
+  padding: 0;
   border: none;
-  /* Rounded chip chrome, matching the sibling permission trigger. */
-  border-radius: 24px;
+  border-radius: var(--dsw-aeven-radius-control);
   outline: none;
   background: transparent;
-  color: var(--dsw-alias-label-secondary);
-  font-size: 14px;
-  line-height: 20px;
-  font-weight: 400;
+  color: var(--dsw-alias-label-primary);
   cursor: pointer;
 }
 
-.trigger:hover:not(:disabled) {
-  background: var(--dsw-alias-interactive-bg-hover);
+.trigger svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+  stroke-width: 2;
 }
 
 .trigger:focus-visible {
@@ -41,29 +36,6 @@
 .trigger:disabled {
   color: var(--dsw-alias-label-dimmed);
   cursor: default;
-}
-
-.triggerLabel {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Effort value beside the model name (mock's 'High': same 13/20/400, caption tone). */
-.triggerEffort {
-  flex: 0 0 auto;
-  color: var(--dsw-alias-label-caption);
-}
-
-.chevron {
-  flex: 0 0 auto;
-  color: var(--dsw-alias-label-caption);
-  transition: transform 120ms ease;
-}
-
-.chevronOpen {
-  transform: rotate(180deg);
 }
 
 /* The chooser card. Each row is a cell (label + current value + a right

@@ -78,7 +78,7 @@ describe('web e2e: durable per-message feedback', () => {
     await page.getByRole('button', { name: 'Add a note' }).first().click()
     const editor = page.getByRole('textbox', { name: 'Feedback note' })
     await editor.fill(NOTE)
-    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    await page.getByRole('button', { name: 'OK', exact: true }).click()
     await expect.poll(() => editor.count(), { timeout: 10_000 }).toBe(0)
     await page.getByText(NOTE, { exact: true }).waitFor({ timeout: 10_000 })
 

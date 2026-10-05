@@ -29,7 +29,7 @@ kind: "package-reference"
 
 ### 选择器
 
-选中即提交 `/permission <preset>` 命令行。带参路径（直接键入 `/permission <preset>`）仍直接切换；装饰只替换裸调用。内置标签在英文界面中是 `Read Only`、`Workspace Write` 和 `Full access`，在中文界面中是「仅可查看」「工作区内修改」和「完全权限」；`custom` 只是显示状态，绝非目标。
+选中即提交 `/permission <preset>` 命令行。带参路径（直接键入 `/permission <preset>`）仍直接切换；装饰只替换裸调用。内置标签描述的是智能体可以做什么，而不是背后的沙箱旋钮：英文界面为 `Read only`、`Ask for approval` 和 `Full access`，中文界面为「仅可查看」「需要时先询问」和「完全权限」。被部署改名的预设以部署自己的名称呈现，因为此时该模式的含义归部署所有。部署提供 `description` 时行内显示它，此外不显示任何内置解释：选择器是在模式之间做选择，不是阅读每个模式做什么的地方。`custom` 只是显示状态，绝非目标。
 
 ### 设置行
 

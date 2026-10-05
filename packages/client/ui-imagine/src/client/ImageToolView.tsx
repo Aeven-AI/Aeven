@@ -1,5 +1,4 @@
 /** In-place generated images backed by the existing atomic tool-call node. @module */
-import { useEffect, useState } from 'react'
 import { Spinner } from '@aeven/client-ui-primitives'
 import type { ToolCallViewProps } from '@aeven/client-ui-tool/client'
 import type { PropsLocale } from '@aeven/client-ui-slots'
@@ -25,34 +24,46 @@ export function ImageToolView({ block, renderImages, t }: ToolCallViewProps & Pr
   } catch {
     // Invalid tool arguments have no generation caption; the failure remains visible.
   }
-  const started = settled ? block.callTime : block.time
-  const [now, setNow] = useState(Date.now)
-  useEffect(() => {
-    if (settled) return
-    const timer = setInterval(() => { setNow(Date.now()) }, 1000)
-    return () => { clearInterval(timer) }
-  }, [settled])
   const failed = settled && block.isError
   const images = settled && !failed ? block.content.flatMap(content => content.type === 'image' ? [{ attachment: content.attachment }] : []) : []
   const error = failed ? block.content.find(content => content.type === 'text') : undefined
-  const elapsed = started == null ? 0 : Math.max(0, Math.floor(((settled ? block.time : now) - started) / 1000))
+  // One placeholder per image the call asks for, and never fewer than it
+  // delivered: a two-image generation reserves two frames, each showing its own.
+  const frames = Math.max(count, images.length)
+  // A frame takes the shape its image is shown in, not the shape the provider
+  // happened to return: landscape tiles are 3:2 and portrait tiles 2:3, and the
+  // image covers whichever box it lands in.
+  const orientationOf = (index: number): 'portrait' | 'landscape' => {
+    const attachment = images[index]?.attachment
+    return attachment !== undefined && attachment.height > attachment.width ? 'portrait' : 'landscape'
+  }
   return (
-    <figure className={css.root} data-generated-image-call={block.callId} data-state={failed ? 'error' : settled ? 'settled' : 'running'}>
-      <div className={css.frame} style={{ minHeight: Math.max(240, Math.ceil(count / 3) * 72) }}>
-        {!settled ? (
-          <div className={css.status} role="status">
-            <Spinner />
-            <span>{t('image.generating')}</span>
-            <span>{t('image.elapsed', { seconds: String(elapsed) })}</span>
+    <figure className={css.root} data-generated-image-call={block.callId} data-state={failed ? 'error' : settled ? 'settled' : 'running'} data-image-count={frames}>
+      <div className={css.frames} data-frames={frames}>
+        {failed ? (
+          <div className={css.frame}>
+            <div className={css.error} role="alert">
+              <span>{t('image.failed')}</span>
+              {error?.type === 'text' && <span>{error.text}</span>}
+            </div>
           </div>
-        ) : failed ? (
-          <div className={css.error} role="alert">
-            <span>{t('image.failed')}</span>
-            {error?.type === 'text' && <span>{error.text}</span>}
+        ) : Array.from({ length: frames }, (_, index) => (
+          <div
+            className={css.frame}
+            key={index}
+            data-generated-image-frame={index}
+            data-orientation={orientationOf(index)}
+          >
+            {images[index] !== undefined && renderImages !== undefined
+              ? renderImages({ images: [images[index]!], align: 'start', layout: 'fill' })
+              : <span className={css.status}>{t('image.unavailable')}</span>}
+            {!settled && (
+              <span className={css.loader} role="status" aria-label={t('image.generating')}>
+                <Spinner />
+              </span>
+            )}
           </div>
-        ) : renderImages === undefined || images.length === 0 ? (
-          <span className={css.status}>{t('image.unavailable')}</span>
-        ) : renderImages({ images, align: 'start', layout: 'gallery' })}
+        ))}
       </div>
       {prompt !== '' && <figcaption className={css.caption}>{prompt}</figcaption>}
     </figure>

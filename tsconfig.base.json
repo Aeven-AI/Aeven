@@ -28,6 +28,10 @@
     // not declaration path aliases, keep each package/vendor source compiled
     // under its own tsconfig boundary.
     "paths": {
+      "@aeven/host-account-integrations": ["./packages/host/account-integrations/src"],
+      "@aeven/host-account-integrations/types": ["./packages/host/account-integrations/src/types.ts"],
+      "@aeven/client-ui-settings-integrations": ["./packages/client/ui-settings-integrations/src"],
+      "@aeven/client-ui-settings-integrations/client": ["./packages/client/ui-settings-integrations/src/client"],
       "@deepseek-ai/cordis": ["./vendor/cordis/src"],
       "@deepseek-ai/cosmokit": ["./vendor/cosmokit/src"],
       "@deepseek-ai/schemastery": ["./vendor/schemastery/src"],

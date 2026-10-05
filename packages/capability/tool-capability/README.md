@@ -10,8 +10,8 @@ kind: "package-reference"
 `avn-tool-capability` makes Aeven learn reusable procedures for the session's owner without asking anyone.
 
 - **Learner.** A turn that completed with at least `minSteps` tool calls (skill, capability, memory, and todo bookkeeping excluded), whose last call succeeded, is held until the user's next message. A correction discards it; any other message, `settleMs`, or the session's end releases it. A background model call on the session's route (or the configured `provider`/`model`) then decides to skip it, create a candidate capability, or merge it into an existing one, and writes the procedure with "When to use", "Requirements", "Steps", "Verification", and "Recovery". A new capability records its origin: the request, the tools used, and the turn's duration, tool calls, failures, and tokens as the baseline. Work that followed a learned capability without failures teaches nothing new; its execution is evidence instead. A retired capability is never recreated.
-- **Reuse.** At the start of a direct-user turn, executable capabilities whose name, description, or originating request share at least two words with the request are pointed out once per session.
-- **Evidence.** Every turn that loaded an executable capability records one execution with its tools, retries, tokens, and the model's `report`; a correction in the next turn and a rating on the reply are attached afterwards. The registry's rules turn that evidence into status changes.
+- **Reuse.** At the start of a direct-user turn, a bounded model call scores eligible procedure summaries by intent, outcome, and constraints. Candidates and retired procedures are excluded. Up to `maxRecalled` matches above `recallMinScore` are read into bounded advisory context; none is returned when nothing qualifies.
+- **Evidence.** Only a turn that reports actually using a recalled or deliberately viewed procedure records an execution with its tools, retries, tokens, and the model's `report`; a correction in the next turn and a rating on the reply are attached afterwards. The registry's rules turn that evidence into status changes.
 - **Tool.** `capability_manage` offers `learn` (when the user asks), `view`, `list`, `update`, `write_file`, `report`, `retire`, and `restore`. None of them asks the user; deletion is left to Settings → Memory.
 
 ## Use this package
@@ -21,7 +21,10 @@ Mount it per agent beside a host `capability` registry (the `standard`, `cordis`
 | Field | Default | Meaning |
 |---|---|---|
 | `promptOrder` | `116` | Order of the capability guidance section |
-| `maxRecalled` | `3` | Maximum learned procedures pointed out for one request |
+| `maxRecalled` | `3` | Maximum procedures recalled per turn |
+| `recallTimeoutMs` | `15000` | Foreground intent-selection deadline |
+| `recallMinScore` | `0.8` | Minimum intent relevance score; this score does not measure trust |
+| `recallMaxChars` | `6000` | Character limit of the complete advisory context |
 | `learn` | `true` | Whether completed work is learned from automatically |
 | `minSteps` | `3` | Tool calls a turn needs before its work is learned from |
 | `settleMs` | `300000` | Wait for a correction before learning without one |
@@ -36,11 +39,11 @@ Mount it per agent beside a host `capability` registry (the `standard`, `cordis`
 
 #### What the model sees
 
-In sessions with an owner, one system-prompt section: learned capabilities appear in the skill catalog; load a fitting one and follow it; report the outcome and fix wrong steps with `update`; save with `learn` when the user asks; never ask the user whether to save, keep, or update a procedure, and do not announce it.
+In owned sessions, learned procedures are untrusted historical reference. The current request takes precedence; procedures never authorize actions, expand the task, or require following steps. Only actual use is reported as evidence. New candidates require deliberate validation before automatic recall.
 
 #### Token effect
 
-About 170 tokens per request in owned sessions; none elsewhere.
+The static guidance is included per request in owned sessions; none elsewhere.
 
 #### KV Cache effect
 
@@ -50,16 +53,11 @@ Static per session.
 
 #### What the model sees
 
-```text
-<learned_procedures>
-Procedures learned from earlier work that may fit this request. Load a fitting one with the skill tool and follow it.
-- <name>: <description>
-</learned_procedures>
-```
+The consumer appends a durable `<procedure_context>` message containing advisory framing and JSON records with name, revision, status, resource directory, description, and procedure text. Truncated records are marked. A separate selector call sees bounded summaries and returns name/score pairs; only names from the eligible input are accepted. Deliberate reads use `capability_manage` with action `view`, with the same advisory framing.
 
 #### Token effect
 
-Only when a capability matches; at most `maxRecalled` lines, each capability once per session.
+The selector uses the learning input/output limits and its own foreground deadline. Recalled text is bounded by `recallMaxChars`; the model may incur this selection call at each direct-user turn with eligible procedures.
 
 #### KV Cache effect
 
@@ -71,7 +69,10 @@ The learner's model call is a separate request outside the session; the session 
 
 ## Known Limitations and Deferred Work
 
-- **Keyword matching** — recall and related-capability lookup match words, not meaning.
+- **Selection adds latency and cost** — recall uses a model relevance score, not a calibrated confidence estimate. Related-capability lookup in the background learner still uses keyword overlap.
+- **Candidates need deliberate validation** — automatic learning stores candidates without making them eligible for recall.
+- **Exposure is not use** — execution evidence requires a model report; viewing or ignoring a procedure records no successful use.
+- **Instruction precedence is behavioral** — advisory framing does not prove that a model will always reject conflicting historical text; conflict regression tests are deferred.
 - **Corrections are recognized by phrasing** — a correction must open with a phrase such as "that's wrong" or "it didn't work" to count against the previous turn.
 - **One sample baseline** — the "first time" metrics come from the single turn a capability was learned from.
 

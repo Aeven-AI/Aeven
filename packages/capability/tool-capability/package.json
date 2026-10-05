@@ -39,8 +39,7 @@
     "@aeven/tools": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
     "@aeven/message-feedback": "workspace:^",
-    "@aeven/llm-retry": "workspace:^",
-    "@aeven/skill": "workspace:^"
+    "@aeven/llm-retry": "workspace:^"
   },
   "devDependencies": {
     "@aeven/agent": "workspace:^",
@@ -51,8 +50,7 @@
     "@aeven/tools": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
     "@aeven/message-feedback": "workspace:^",
-    "@aeven/llm-retry": "workspace:^",
-    "@aeven/skill": "workspace:^"
+    "@aeven/llm-retry": "workspace:^"
   },
   "peerDependenciesMeta": {
     "@aeven/user-questions": {

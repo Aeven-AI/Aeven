@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { makeTranslate } from '@aeven/client-test-runtime'
 import type { SettingsRootComponentProps } from '../src/client/shell-contract.ts'
+import type { SettingsAddress } from '../src/client/settings-url.ts'
 import { SettingsRoot } from '../src/client/SettingsRoot.tsx'
 import { en } from '../src/client/locales.ts'
 
@@ -39,9 +40,11 @@ afterEach(() => {
 type Row = { id: string; order: number; label: string }
 type Step = { id: string; order: number }
 
+/** Handle of the most recent mount, so openPanel() can write that mount's address. */
+let mountedHandle: { requestOpen: (section?: string) => void } | undefined
+
 /** Slot-content stand-ins: the shell renders whatever the seats contribute. */
 const SEAT_CONTENT: Record<string, string> = {
-  'settings.trigger': 'Settings',
   'settings.header': 'Settings Title',
   'settings.action': 'Open configuration file',
   'settings.close': 'Close',
@@ -75,18 +78,23 @@ function mount({
   // Mutable row source standing in for the bound useSections hook; bump()
   // plays a ledger change through the same observable contract.
   let current = rows
+  // Mutable address source standing in for the bound useSettingsAddress hook;
+  // show/close play the injected commands that write the browser address.
+  let address: SettingsAddress | undefined
   let currentConnectionState = connectionState
   const listeners = new Set<() => void>()
   const connectionListeners = new Set<() => void>()
+  const addressListeners = new Set<() => void>()
   const reconnect = vi.fn()
-  const openListeners = new Set<() => void>()
-  const onOpenRequest = (listener: () => void) => {
-    openListeners.add(listener)
-    return () => { openListeners.delete(listener) }
+  const setAddress = (next: SettingsAddress | undefined) => {
+    act(() => {
+      address = next
+      for (const fn of [...addressListeners]) fn()
+    })
   }
-  const requestOpen = () => {
-    act(() => { for (const fn of [...openListeners]) fn() })
-  }
+  const show = vi.fn((section?: string) => { setAddress(section === undefined ? {} : { section }) })
+  const close = vi.fn(() => { setAddress(undefined) })
+  const requestOpen = (section?: string) => { show(section) }
   const renderSlot = vi.fn(
     ((key: string, _owner: unknown, opts?: { only?: string }) => {
       if (key === 'settings.section') return <div data-testid={`section-${opts?.only ?? 'all'}`} />
@@ -107,7 +115,8 @@ function mount({
     useWorkspaces: unusedHook,
     wide,
     reconnect,
-    onOpenRequest,
+    show,
+    close,
     t: makeTranslate(en),
     useConnectionState: (select) => {
       const [, force] = useState(0)
@@ -117,6 +126,15 @@ function mount({
         return () => { connectionListeners.delete(listener) }
       }, [])
       return select(currentConnectionState)
+    },
+    useSettingsAddress: (select) => {
+      const [, force] = useState(0)
+      useEffect(() => {
+        const listener = () => { force(n => n + 1) }
+        addressListeners.add(listener)
+        return () => { addressListeners.delete(listener) }
+      }, [])
+      return select(address)
     },
     useOnboardingSteps: select => select(steps),
     useSections: (select) => {
@@ -143,41 +161,26 @@ function mount({
       for (const fn of [...connectionListeners]) fn()
     })
   }
-  return { view, renderSlot, bump, listeners, reconnect, setConnectionState, requestOpen, openListeners }
+  const handle = {
+    view, renderSlot, bump, listeners, reconnect, setConnectionState, requestOpen, addressListeners, show, close,
+  }
+  mountedHandle = handle
+  return handle
 }
 
 function openPanel() {
-  const trigger = screen.getByRole('button', { name: 'Settings' })
-  trigger.focus()
-  fireEvent.click(trigger)
-  return trigger
+  mountedHandle!.requestOpen()
 }
 
-describe('SettingsRoot trigger', () => {
-  it('renders the trigger seat content as the accessible name (no aria-label of its own)', () => {
-    const { renderSlot } = mount()
-    const trigger = screen.getByRole('button', { name: 'Settings' })
-    expect(trigger.hasAttribute('aria-label')).toBe(false)
-    expect(renderSlot).toHaveBeenCalledWith('settings.trigger', { wide: true })
-    expect(trigger.getAttribute('aria-expanded')).toBe('false')
-    fireEvent.click(trigger)
-    expect(screen.getByRole('dialog')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Settings', expanded: true })).toBeTruthy()
-  })
-
-  it('opens the panel on a settings/open request and stops listening on unmount', () => {
-    const { view, requestOpen, openListeners } = mount()
+describe('SettingsRoot', () => {
+  it('opens the panel from the address and stops observing it on unmount', () => {
+    const { view, requestOpen, addressListeners } = mount()
     expect(screen.queryByRole('dialog')).toBeNull()
     requestOpen()
     expect(screen.getByRole('dialog')).toBeTruthy()
     expect(screen.getByTestId('section-general')).toBeTruthy()
     view.unmount()
-    expect(openListeners.size).toBe(0)
-  })
-
-  it('hands the closed state to the trigger seat', () => {
-    const { renderSlot } = mount({ wide: false })
-    expect(renderSlot).toHaveBeenCalledWith('settings.trigger', { wide: false })
+    expect(addressListeners.size).toBe(0)
   })
 
   it('shows outage, retry progress, and a two-second recovery confirmation', () => {
@@ -240,29 +243,27 @@ describe('SettingsPanel chrome seats', () => {
 })
 
 describe('SettingsPanel close paths', () => {
-  it('closes via the header button and restores trigger focus', async () => {
-    mount()
-    const trigger = openPanel()
+  it('closes via the header button and drops the panel address', () => {
+    const { close } = mount()
+    openPanel()
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(close).toHaveBeenCalledOnce()
     expect(screen.queryByRole('dialog')).toBeNull()
-    await vi.waitFor(() => { expect(document.activeElement).toBe(trigger) })
   })
 
-  it('closes via a mask click and restores trigger focus', async () => {
+  it('closes via a mask click', () => {
     mount()
-    const trigger = openPanel()
+    openPanel()
     const dialog = screen.getByRole('dialog')
     fireEvent.click(dialog.parentElement!.firstElementChild!)
     expect(screen.queryByRole('dialog')).toBeNull()
-    await vi.waitFor(() => { expect(document.activeElement).toBe(trigger) })
   })
 
-  it('closes via document-level Escape, restores trigger focus, and unhooks the listener', async () => {
+  it('closes via document-level Escape and unhooks the listener', () => {
     mount()
-    const trigger = openPanel()
+    openPanel()
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).toBeNull()
-    await vi.waitFor(() => { expect(document.activeElement).toBe(trigger) })
     // Ignored while closed (listener removed with the panel) and non-Escape
     // keys are ignored while open.
     fireEvent.keyDown(document, { key: 'Escape' })

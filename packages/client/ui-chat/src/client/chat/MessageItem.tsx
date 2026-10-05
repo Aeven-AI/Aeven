@@ -534,7 +534,7 @@ function MessageEditorInput({ value, minHeight, busy, onChange, onCancel, onSend
 
 /**
  * User and admitted-steering keyed Chat renderer. Both offer inline editing: the bubble becomes a text field and its icon row becomes
- * cancel / confirm, where confirm stays unavailable until the text differs
+ * confirm / cancel, where confirm stays unavailable until the text differs
  * from the prompt and holds non-whitespace text.
  */
 export const UserMessageNodeView = memo(function UserMessageNodeView({

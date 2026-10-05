@@ -14,12 +14,11 @@
  */
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { CSSProperties, KeyboardEvent, MouseEvent, ReactNode } from 'react'
+import type { CSSProperties, KeyboardEvent, MouseEvent } from 'react'
 import clsx from 'clsx'
 import {
-  IconArrowUpOutline20, IconCompactOutline16, IconDataOutline16, IconDownloadOutline16, IconGoalOutline16,
-  IconListPenOutline16, IconPaperPlaneOutline16, IconPaperclipOutline16, IconPermissionOutline16,
-  IconPlusOutline20, IconStopFill20, IconWarningOutline16, Menu, Toast, Tooltip,
+  IconArrowUpOutline20, IconGoalOutline16, IconListPenOutline16, IconPaperPlaneOutline16,
+  IconPaperclipOutline16, IconPlusOutline20, IconStopFill20, IconWarningOutline16, Menu, Toast, Tooltip,
 } from '@aeven/client-ui-primitives'
 import type { MenuEntry } from '@aeven/client-ui-primitives'
 // Type-only: the `plan` projection key merge (the TodoDock posture — the
@@ -36,8 +35,7 @@ import { ComposerContentEditable } from './editor/ComposerContentEditable.tsx'
 import { DecoratorPortals } from './editor/DecoratorPortals.tsx'
 import { registerComposerKeymap } from './editor/keymap.ts'
 import { attachmentErrorText, imageSizeText } from '../image-labels.ts'
-import { ContextMeter } from './ContextMeter.tsx'
-import { PermissionSelect } from './PermissionSelect.tsx'
+import { ComposerOptions } from './ComposerOptions.tsx'
 import css from './InputBar.module.css'
 
 export type InputBarProps = ComposerBarProps
@@ -119,6 +117,9 @@ export const InputBar = memo(function InputBar({
     if (notice?.level === 'error') showToast(notice.text)
   }, [notice, showToast])
   const cardRef = useRef<HTMLDivElement | null>(null)
+  /* The composer's overlay seat: the popup a row opens renders here, and the
+     Options popup reads it so that using that popup does not dismiss it. */
+  const overlayRef = useRef<HTMLDivElement | null>(null)
   const scrollRef = useRef<HTMLDivElement | null>(null)
 
   // The Access seat's data: the host-computed permissions projection
@@ -392,30 +393,21 @@ export const InputBar = memo(function InputBar({
     editor?.getRootElement()?.focus({ preventScroll: true })
   }
 
+  // The attach menu: one flat list, no group headings, holding only what the
+  // row and the Options popup do not already offer. Each glyph is sized by the
+  // primitive's own 16px icon box and carries the row's ink (`.addIcon`), and
+  // no row carries a trailing description — its label names the action.
   const addItems: MenuEntry[] = [
-    { type: 'label', id: 'add', text: t('add.group') },
-    { id: 'file', label: t('add.file'), icon: <IconPaperclipOutline16 size={14} />, disabled: addImages === undefined && addFiles === undefined },
-    { id: 'goal', label: t('add.goal'), description: t('add.goal.description'), icon: <IconGoalOutline16 size={14} /> },
-    { id: 'plan', label: t('add.plan'), description: t('add.plan.description'), icon: <IconListPenOutline16 size={14} /> },
-    { id: 'feedback', label: t('add.feedback'), description: t('add.feedback.description'), icon: <IconPaperPlaneOutline16 size={14} /> },
-    { type: 'separator', id: 'commands-separator' },
-    { type: 'label', id: 'commands', text: t('add.commands') },
-    { id: 'compact', label: t('add.compact'), description: t('add.compact.description'), icon: <IconCompactOutline16 size={14} /> },
-    { id: 'permission', label: t('add.permission'), description: t('add.permission.description'), icon: <IconPermissionOutline16 size={14} /> },
-    { id: 'model', label: t('add.model'), description: t('add.model.description'), icon: <IconDataOutline16 size={14} /> },
-    { id: 'export', label: t('add.export'), description: t('add.export.description'), icon: <IconDownloadOutline16 size={14} />, disabled: exportSession === undefined },
+    { id: 'file', label: t('add.file'), icon: <IconPaperclipOutline16 className={css.addIcon} />, disabled: addImages === undefined && addFiles === undefined },
+    { id: 'goal', label: t('add.goal'), icon: <IconGoalOutline16 className={css.addIcon} /> },
+    { id: 'plan', label: t('add.plan'), icon: <IconListPenOutline16 className={css.addIcon} /> },
+    { id: 'feedback', label: t('add.feedback'), icon: <IconPaperPlaneOutline16 className={css.addIcon} /> },
   ]
 
   const selectAddItem = (id: string): void => {
     setAddOpen(false)
     if (id === 'file') {
       fileInputRef.current?.click()
-      return
-    }
-    if (id === 'export') {
-      void exportSession?.().catch((error: unknown) => {
-        showToast(error instanceof Error ? error.message : String(error))
-      })
       return
     }
     if (sessionId === undefined || invokeCommand === undefined || addSelection.current === null) return
@@ -455,13 +447,6 @@ export const InputBar = memo(function InputBar({
     /* v8 ignore next -- defensive: the primary button is disabled while empty||disabled, so a click cannot reach the false arm. */
     if (!empty && !disabled && !machineBusy) inputActions.submit()
   }
-
-  // The Access seat: the projection-fed permission chip (renders nothing
-  // while the permissions key is absent — permission-less host or Draft —
-  // or while the command face is absent with the session).
-  const accessSelect: ReactNode = command === undefined
-    ? null
-    : <PermissionSelect key={sessionId} value={permissions} locked={locked} command={command} t={t} />
 
   // Claim ghost hint: rendered by CSS as generated content after the last
   // paragraph while the claim's args are blank (a hint implies a single-line
@@ -523,7 +508,7 @@ export const InputBar = memo(function InputBar({
         onPointerDown={workspaceTrigger ? (e) => { e.stopPropagation() } : undefined}
       >
         {sessionId !== undefined && (
-          <div className={css.overlayAnchor}>{renderSlot('conversation.input.overlay', {})}</div>
+          <div ref={overlayRef} className={css.overlayAnchor}>{renderSlot('conversation.input.overlay', {})}</div>
         )}
         {accessory !== undefined && <div className={css.accessory}>{accessory}</div>}
         {renderSlot('conversation.input.attachments', {
@@ -588,26 +573,53 @@ export const InputBar = memo(function InputBar({
               onClose={() => { setAddOpen(false) }}
               side="top"
               portal
-              anchor={<Tooltip label={t('add.aria')} side="top">
-              <button
-                type="button"
-                className={css.add}
-                aria-label={t('add.aria')}
-                aria-haspopup="menu"
-                aria-expanded={addOpen}
-                disabled={locked || invokeCommand === undefined}
-                onMouseDown={keepFocus}
-                onClick={() => {
-                  addSelection.current = keyboard?.caretSpan() ?? null
-                  setAddOpen(!addOpen)
-                }}
-              >
-                <IconPlusOutline20 />
-              </button>
+              anchor={<Tooltip label={t('add.aria')} side="top-start">
+                <button
+                  type="button"
+                  className={css.add}
+                  aria-label={t('add.aria')}
+                  aria-haspopup="menu"
+                  aria-expanded={addOpen}
+                  disabled={locked || invokeCommand === undefined}
+                  onMouseDown={keepFocus}
+                  onClick={() => {
+                    addSelection.current = keyboard?.caretSpan() ?? null
+                    setAddOpen(!addOpen)
+                  }}
+                >
+                  <IconPlusOutline20 />
+                </button>
               </Tooltip>}
             />
+            {/* Options: the reference client seats its settings-2 disc beside
+                attach, ahead of the mode chips, and holds the permission mode
+                and context occupancy the row used to carry. */}
+            <ComposerOptions
+              permissions={permissions}
+              locked={locked}
+              command={command}
+              onExport={exportSession === undefined ? undefined : () => {
+                void exportSession().catch((error: unknown) => {
+                  showToast(error instanceof Error ? error.message : String(error))
+                })
+              }}
+              onImageModel={invokeCommand === undefined ? undefined : (anchor) => {
+                // The picker's decoration path reads no draft span; a control
+                // that finds no live caret still hands one at the draft's end,
+                // so the generic control path stays meaningful.
+                const span = keyboard?.caretSpan() ?? { start: draft.length, end: draft.length }
+                void invokeCommand('image-model', span, anchor).then((handled) => {
+                  if (!handled) showToast(t('add.unavailable'))
+                }).catch((error: unknown) => {
+                  showToast(error instanceof Error ? error.message : String(error))
+                })
+              }}
+              useProjection={useProjection}
+              keepFocus={keepFocus}
+              overlayRef={overlayRef}
+              t={t}
+            />
             <div className={css.modes}>
-              {accessSelect}
               {sessionId === undefined ? null : renderSlot('conversation.input.plan', { locked })}
             </div>
             {input === undefined || sessionId === undefined
@@ -619,12 +631,11 @@ export const InputBar = memo(function InputBar({
               ? null
               : renderSlot('conversation.input.right', {})}
             {sessionId === undefined ? null : renderSlot('conversation.input.model', { locked: modelSeatLocked })}
-            <ContextMeter useProjection={useProjection} t={t} />
             {sessionId === undefined ? null : (
               <div className={css.activity}>{renderSlot('conversation.input.activity', { locked, onActiveChange: setActivity })}</div>
             )}
             {interruptible && (
-              <Tooltip label={t('input.stop')} side="top">
+              <Tooltip label={t('input.stop')} side="top-end">
                 <button
                   type="button"
                   className={css.primary}
@@ -637,7 +648,7 @@ export const InputBar = memo(function InputBar({
                 </button>
               </Tooltip>
             )}
-            <Tooltip label={primaryLabel} side="top">
+            <Tooltip label={primaryLabel} side="top-end">
               <button
                 type="button"
                 className={css.primary}

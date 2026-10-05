@@ -1,0 +1,582 @@
+/** Personal skill storage and account-scoped MCP connections exposed to Settings. */
+
+import { createHash, randomUUID } from 'node:crypto'
+import { realpath, writeFile } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
+import { mkdir } from 'node:fs/promises'
+import { Context, Service, type Fiber } from '@deepseek-ai/cordis'
+import Schema from '@deepseek-ai/schemastery'
+import { z } from 'zod'
+import { Remote, TypertRemoteService } from '@aeven/typert-protocol'
+import { defineDomain, domainTable, type Domain } from '@aeven/storage-domain'
+import { avnHomePath } from '@aeven/home-paths'
+import { createScope, type Scope } from '@aeven/scope'
+import type {} from '@aeven/identity-user'
+import type { Agent, PreStepDecision } from '@aeven/agent'
+import type {} from '@aeven/tools'
+import type {} from '@aeven/workspace'
+import type {} from '@aeven/agent-presets/types'
+import { isSkillName, type SkillCandidate } from '@aeven/skill'
+import type {} from '@aeven/host-webserver'
+import * as mcp from '@aeven/mcp-client'
+import { Client } from '@modelcontextprotocol/sdk/client/index.js'
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
+import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js'
+import { googleConnection, googleService, verifyGoogle } from './google.ts'
+import { parsePersonalSkill } from './skills.ts'
+import { connectorCredential, createConsent, exchangeGrant, grantSchema } from './oauth.ts'
+import type { OAuthProviderConfig, PendingConsent } from './oauth.ts'
+import type { AccountIntegrationsView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, SkillViewId, SkillUploadFile } from './types.ts'
+
+export type * from './types.ts'
+export type { OAuthProviderConfig } from './oauth.ts'
+
+declare module '@deepseek-ai/cordis' {
+  interface Context {
+    /** Signed-in account integration management. */
+    accountIntegrations: AccountIntegrations
+  }
+}
+
+/** Deployment upload, network, and registered OAuth application settings. */
+export interface Config {
+  /** Largest decoded skill bundle. */
+  maxSkillBytes: number
+  /** MCP discovery, tool, and OAuth request budget. */
+  timeoutMs: number
+  /** Maximum time between consent initiation and callback. */
+  consentLifetimeMs: number
+  /** Registered callback URL; must end in /connectors/oauth/callback. */
+  redirectUri: string
+  /** Maximum retained Google API response size in bytes. */
+  /** Deployment-owned OAuth applications for Google, GitHub and Microsoft 365 MCP resources. */
+  providers: Partial<Record<'github' | 'google' | 'microsoft365', OAuthProviderConfig>>
+}
+
+const skillSchema = z.object({
+  owner: z.string(), name: z.string().refine(isSkillName), description: z.string(), content: z.string(), enabled: z.boolean(),
+  modelInvocable: z.boolean(), userInvocable: z.boolean(),
+  resources: z.record(z.string().refine(path => !path.startsWith('/') && !path.includes('\\') && !/^[A-Za-z]:/.test(path)
+    && path.split('/').every(part => part !== '' && part !== '.' && part !== '..')), z.string()), revision: z.uuid(),
+})
+const connectorSchema = z.object({
+  owner: z.string(), id: z.string().transform(value => value as ConnectorId),
+  provider: z.enum(['github', 'gmail', 'google-drive', 'google-calendar', 'microsoft365', 'mcp']), name: z.string(),
+  endpoint: z.url(), enabled: z.boolean(),
+})
+const domainSpec = defineDomain({ name: 'account_integrations', version: 0, tables: {
+  skills: domainTable<string, z.infer<typeof skillSchema>>(skillSchema),
+  skill_preferences: domainTable<string, { enabled: boolean }>(z.object({ enabled: z.boolean() })),
+  connectors: domainTable<ConnectorId, z.infer<typeof connectorSchema>>(connectorSchema),
+} })
+const createSchema = z.object({
+  provider: z.enum(['github', 'gmail', 'google-drive', 'google-calendar', 'microsoft365', 'mcp']), name: z.string().trim().min(1).max(100),
+  endpoint: z.url().optional(), token: z.string().min(1).optional(),
+})
+const uploadsSchema = z.array(z.object({ path: z.string().min(1), base64: z.string() })).min(1)
+const callbackPath = '/connectors/oauth/callback'
+
+/** Connector-owned skill names; bodies and resources remain in the skill registry. */
+const connectorSkills: Record<ConnectorProvider, readonly string[]> = {
+  'google-drive': ['google-drive', 'google-docs', 'google-sheets', 'google-slides', 'google-drive-comments', 'google-forms'],
+  gmail: ['gmail'], 'google-calendar': ['google-calendar'], github: ['github'], microsoft365: [], mcp: [],
+}
+
+const connectorSkillNames = new Set(Object.values(connectorSkills).flat())
+
+/** Reject plaintext credentials outside loopback and URLs with embedded credentials. */
+function endpoint(value: string): string {
+  const url = new URL(value)
+  if (url.username || url.password || url.hash
+    || (url.protocol !== 'https:' && !(url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)))) {
+    throw new Error('connector URL requires HTTPS, or HTTP on loopback, without embedded credentials')
+  }
+  return url.href
+}
+
+/** Private filesystem account name; original account ids never become paths. */
+function accountDirectory(owner: string): string {
+  return createHash('sha256').update(owner).digest('hex')
+}
+
+/** Signed-in users manage their own integrations; each agent mounts only its owner's connectors. */
+export default class AccountIntegrations extends TypertRemoteService {
+  static inject = ['typert', 'identityUsers', 'storageDomain', 'credentials', 'skills', 'agents', 'tools', 'workspaceRegistry']
+
+  static Config: Schema<Config> = Schema.object({
+    maxSkillBytes: Schema.natural().min(1).default(10 * 1024 * 1024),
+    timeoutMs: Schema.natural().min(1).default(60_000),
+    consentLifetimeMs: Schema.natural().min(1).default(600_000),
+    redirectUri: Schema.string().default(`http://127.0.0.1:3080${callbackPath}`),
+    providers: Schema.dict(Schema.object({
+      endpoint: Schema.string(), authorizationUrl: Schema.string().required(), tokenUrl: Schema.string().required(),
+      clientId: Schema.string().required(), clientSecretRef: Schema.string(), scopes: Schema.array(String).default([]),
+    })).default({}),
+  })
+
+  private domain!: Domain<typeof domainSpec>
+  private invalidateSkills: () => void = () => {}
+  private readonly connected = new Set<ConnectorId>()
+  private readonly consents = new Map<string, PendingConsent>()
+  private readonly mounts = new Map<Agent, {
+    scope: Scope
+    connections: Map<ConnectorId, { token: string; endpoint: string; fiber: Fiber }>
+  }>()
+
+  /**
+   * @param ctx - identity, durable storage, credentials, skills, and tools context.
+   * @param config - deployment limits and provider registrations.
+   */
+  constructor(ctx: Context, private readonly config: Config) {
+    super(ctx, 'accountIntegrations')
+    const redirect = new URL(endpoint(config.redirectUri))
+    if (redirect.pathname !== callbackPath || redirect.search) throw new Error(`connector callback URL must end in ${callbackPath}`)
+    for (const [provider, app] of Object.entries(config.providers)) {
+      if (!['github', 'google', 'microsoft365'].includes(provider)) throw new Error(`unknown connector provider: ${provider}`)
+      if (provider !== 'google' && app.scopes.length === 0) throw new Error(`${provider} requires explicit OAuth scopes`)
+      if (provider !== 'google' && app.endpoint === undefined) throw new Error(`${provider} requires an MCP endpoint`)
+      if (app.endpoint !== undefined) endpoint(app.endpoint)
+      if (new URL(app.authorizationUrl).protocol !== 'https:' || new URL(app.tokenUrl).protocol !== 'https:') {
+        throw new Error('provider OAuth endpoints require HTTPS')
+      }
+    }
+  }
+
+  /** Open account data and register reversible skill, tool, and callback contributions. */
+  async [Service.init](): Promise<void> {
+    this.domain = await this.ctx.storageDomain.open(domainSpec)
+    this.ctx.effect(() => () => this.domain.close(), 'account-integrations: storage')
+    for (const [id, connector] of this.domain.table('connectors').entries()) {
+      if (await this.isConnected(connector)) this.connected.add(id)
+    }
+    this.ctx.effect(() => this.ctx.skills.registerProvider((control) => {
+      this.invalidateSkills = control.invalidate
+      return {
+        name: 'account-integrations',
+        list: async options => options.owner === undefined ? [] : [...this.domain.table('skills').entries()]
+          .filter(([, skill]) => skill.owner === options.owner && skill.enabled)
+          .map(([key, skill]): SkillCandidate => ({
+            name: skill.name, description: skill.description, source: 'account', provider: 'account-integrations',
+            invocation: { modelInvocable: skill.modelInvocable, userInvocable: skill.userInvocable },
+            rank: 350, locator: key,
+          })),
+        get: async (candidate, options) => {
+          const skill = this.domain.table('skills').get(String(candidate.locator))
+          if (skill === undefined || skill.owner !== options.owner || !skill.enabled) return undefined
+          const directory = avnHomePath('accounts', accountDirectory(skill.owner), 'skills', skill.name, skill.revision)
+          for (const [path, data] of Object.entries(skill.resources)) {
+            const file = join(directory, path)
+            await mkdir(dirname(file), { recursive: true, mode: 0o700 })
+            await writeFile(file, Buffer.from(data, 'base64'), { mode: 0o600 })
+          }
+          return { ...candidate, content: skill.content, resourceBase: { kind: 'directory' as const, path: directory } }
+        },
+      }
+    }), 'account-integrations: personal skill provider')
+    this.ctx.effect(() => this.ctx.skills.registerInvocationPolicy((name, options) =>
+      (connectorSkillNames.has(name) || options.owner === undefined || this.domain.table('skill_preferences').get(`${accountDirectory(options.owner)}:${name}`)?.enabled !== false)
+        && this.skillConnectorAvailable(name, options.owner)),
+    'account-integrations: skill invocation preferences')
+    this.ctx.on('agent/pre-step', async ({ agent }, next): Promise<PreStepDecision> => {
+      await this.syncConnectors(agent)
+      return next()
+    })
+    this.ctx.on('tools/pre-execute', async (exec, next) => {
+      const match = /^mcp__account_([a-f0-9]{24})__/.exec(exec.name)
+      if (match !== null) {
+        const connector = [...this.domain.table('connectors').entries()].find(([id]) => id.replaceAll('-', '').slice(0, 24) === match[1])?.[1]
+        if (connector === undefined || !connector.enabled || connector.owner !== exec.agent?.session.header.owner || !await this.isConnected(connector)) {
+          return { kind: 'deny', reason: 'This connector is unavailable for the conversation owner.' }
+        }
+        const google = googleService(connector.provider)
+        if (google !== undefined) {
+          const record = await this.ctx.credentials.readRecord(connectorCredential(connector.owner, connector.id))
+          if (record?.kind !== 'grant' || grantSchema.parse(record.payload).scopes?.includes(google.scopes[0]) !== true) {
+            return { kind: 'deny', reason: 'Reconnect this Google account in Settings to grant the required permissions.' }
+          }
+          if (exec.name.endsWith('__workspace_raw')) {
+            const args = exec.arguments as { service: string; path: string[] }
+            if (!args.path.every(part => /^[A-Za-z][A-Za-z0-9]*$/.test(part))) {
+              return { kind: 'deny', reason: 'Workspace API paths must contain resource and method names, without CLI options or file paths.' }
+            }
+            const formEdit = args.service === 'forms' && args.path.length === 2 && args.path[0] === 'forms'
+              && /^(create|batchUpdate)$/.test(args.path[1]!)
+            if (!formEdit && !/^(get|list|export|download)$/i.test(args.path.at(-1)!)) {
+              return { kind: 'ask', reason: 'Approve this change to your connected Google account.' }
+            }
+          }
+          if (/__(gmail_send_draft|drive_share|drive_trash|calendar_delete_event)$/.test(exec.name)) {
+            return { kind: 'ask', reason: 'Approve sending, sharing, or deleting through your connected Google account.' }
+          }
+        }
+      }
+      return next()
+    })
+    this.ctx.effect(() => () => {
+      this.consents.clear()
+      this.connected.clear()
+      this.mounts.clear()
+    }, 'account-integrations: connector scopes')
+    this.ctx.inject(['webServer'], (ctx) => {
+      ctx.effect(() => ctx.webServer.register({
+        kind: 'exact', path: callbackPath,
+        handler: async (request, response) => {
+          const url = new URL(request.url!, this.config.redirectUri)
+          const state = url.searchParams.get('state')
+          const consent = state === null ? undefined : this.consents.get(state)
+          response.setHeader('Cache-Control', 'no-store')
+          response.setHeader('Referrer-Policy', 'no-referrer')
+          const finish = (status: 200 | 400 | 502, detail?: { en: string; zh: string }): void => {
+            const chinese = request.headers['accept-language']?.startsWith('zh') === true
+            const title = status === 200 ? (chinese ? '账户已连接' : 'Account connected') : (chinese ? '连接未完成' : 'Connection not completed')
+            const message = detail !== undefined ? (chinese ? detail.zh : detail.en) : status === 200
+              ? (chinese ? '您可以关闭此窗口并返回 Aeven。' : 'You can close this window and return to Aeven.')
+              : (chinese ? '请返回 Aeven 并重新开始登录。您可以关闭此窗口。' : 'Return to Aeven and start sign-in again. You can close this window.')
+            response.writeHead(status, {
+              'Content-Type': 'text/html; charset=utf-8',
+              'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'",
+            }).end(`<!doctype html><html lang="${chinese ? 'zh' : 'en'}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} · Aeven</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f6f6f5;color:#202020;font:16px/1.6 system-ui,sans-serif}main{max-width:440px;margin:24px;padding:40px;border:1px solid #e4e4e1;border-radius:20px;background:white;text-align:center}small{color:#666}h1{font-size:26px;line-height:1.3}p{color:#666}.mark{font-size:36px}</style><main><small>Aeven</small><div class="mark" aria-hidden="true">${status === 200 ? '✓' : '!'}</div><h1>${title}</h1><p>${message}</p></main></html>`)
+          }
+
+          const code = url.searchParams.get('code')
+          if (request.method !== 'GET' || state === null || consent === undefined || consent.completion !== undefined || consent.expiresAt <= Date.now() || code === null || url.searchParams.has('error')) {
+            finish(400, { en: 'Sign-in expired, was cancelled, or was already completed. Return to Aeven and start a new sign-in.', zh: '登录已过期、已取消或已完成。请返回 Aeven 并重新开始登录。' })
+            return
+          }
+          const completion = (async (): Promise<void> => {
+            let failure = { en: 'The account token could not be obtained. Check the configured OAuth client ID and secret, then start a new sign-in in Aeven.', zh: '无法获取账户令牌。请检查 OAuth 客户端 ID 和密钥，然后在 Aeven 中重新开始登录。' }
+            try {
+              const provider = this.oauthApplication(consent.provider)
+              if (provider === undefined) throw new Error('connector provider is not configured')
+              const grant = await exchangeGrant(this.ctx, provider, {
+                grant_type: 'authorization_code', code, code_verifier: consent.verifier, redirect_uri: this.config.redirectUri,
+              }, AbortSignal.timeout(this.config.timeoutMs))
+              const google = googleService(consent.provider)
+              failure = google === undefined
+                ? { en: 'The connector could not verify account access. Check the provider permissions and start a new sign-in in Aeven.', zh: '连接器无法验证账户访问权限。请检查提供商权限，然后在 Aeven 中重新开始登录。' }
+                : { en: 'Google API access could not be verified. Enable the selected service API in the OAuth application’s Google Cloud project, grant the requested permissions, then start a new sign-in in Aeven.', zh: '无法验证 Google API 访问权限。请在 OAuth 应用的 Google Cloud 项目中启用所选服务的 API 并授予请求的权限，然后在 Aeven 中重新开始登录。' }
+              if (google === undefined) await this.verifyMcp(provider.endpoint!, grant.accessToken)
+              else await verifyGoogle(consent.provider, await googleConnection(consent.provider, grant.accessToken,
+                avnHomePath('accounts', accountDirectory(consent.owner), 'connectors', consent.id), this.config.timeoutMs), this.config.timeoutMs)
+              failure = { en: 'The connection could not be saved. Return to Aeven and start a new sign-in.', zh: '无法保存连接。请返回 Aeven 并重新开始登录。' }
+              if (this.consents.get(state) !== consent) throw new Error('connector sign-in was cancelled')
+              await this.ctx.credentials.modifyRecord(connectorCredential(consent.owner, consent.id), async () => ({ kind: 'grant', payload: grant }))
+              await this.domain.table('connectors').put(consent.id, {
+                owner: consent.owner, id: consent.id, provider: consent.provider,
+                name: consent.provider, endpoint: google?.endpoint ?? provider.endpoint!, enabled: true,
+              })
+              this.connected.add(consent.id)
+              this.invalidateSkills()
+              finish(200)
+            } catch {
+            // Provider responses may contain credentials; only fixed messages for the failed step are shown.
+              finish(502, failure)
+            } finally {
+              if (this.consents.get(state) === consent) this.consents.delete(state)
+            }
+          })()
+          consent.completion = completion
+          await completion
+        },
+      }), 'account-integrations: OAuth callback')
+    })
+  }
+
+  /**
+   * Read the caller's integrations without exposing credentials.
+   * @returns visible skills, personal connections, and deployment sign-in availability.
+   */
+  @Remote
+  async list(): Promise<AccountIntegrationsView> {
+    const owner = this.owner()
+    const connectors = [...this.domain.table('connectors').entries()].filter(([, item]) => item.owner === owner)
+    const personal = [...this.domain.table('skills').entries()].filter(([, item]) => item.owner === owner)
+      .map(([, item]) => ({ id: `${accountDirectory(owner)}:${item.name}` as SkillViewId, name: item.name, description: item.description, content: item.content, enabled: this.domain.table('skill_preferences').get(`${accountDirectory(owner)}:${item.name}`)?.enabled ?? item.enabled,
+        files: Object.keys(item.resources), source: 'account', managed: true }))
+    const scope = await this.ctx.get('agentPresets')?.standingKeyFor()
+    const workspaces = this.ctx.workspaceRegistry.list().filter(workspace => workspace.owner === owner && workspace.kind === 'folder')
+    const views = [{ cwd: undefined as string | undefined, workspace: undefined as string | undefined },
+      ...workspaces.map(workspace => ({ cwd: workspace.path, workspace: workspace.title }))]
+    const existing = new Map<string, AccountIntegrationsView['skills'][number]>()
+    for (const view of views) {
+      const options = { owner, cwd: view.cwd, scope }
+      const catalog = (await this.ctx.skills.list(options)).filter(skill => skill.provider !== 'account-integrations')
+      for (const skill of catalog) {
+        const definition = await this.ctx.skills.get(skill.name, options)
+        if (definition === undefined) throw new Error('skill is no longer available')
+        const key = definition.path === undefined
+          ? `${skill.provider}:${skill.source}:${skill.name}`
+          : `file:${await realpath(definition.path)}`
+        if (existing.has(key)) continue
+        existing.set(key, { id: createHash('sha256').update(key).digest('hex') as SkillViewId, name: skill.name, description: skill.description, content: definition.content,
+          enabled: this.domain.table('skill_preferences').get(`${accountDirectory(owner)}:${skill.name}`)?.enabled !== false, managed: false, source: skill.source, files: [],
+          ...skill.source.startsWith('project-') && view.workspace !== undefined ? { workspace: view.workspace } : {},
+        })
+      }
+    }
+    const skills: AccountIntegrationsView['skills'] = [...personal, ...existing.values()].sort((a, b) => a.name.localeCompare(b.name))
+    const connections = await Promise.all(connectors.map(async ([id, item]) => {
+      const connected = await this.isConnected(item)
+      if (connected) this.connected.add(id)
+      else this.connected.delete(id)
+      return { id, name: item.name, provider: item.provider, endpoint: item.endpoint, enabled: item.enabled, connected }
+    }))
+    for (const skill of skills) {
+      if (connectorSkillNames.has(skill.name)) skill.enabled = true
+      skill.available = skill.enabled && this.skillConnectorAvailable(skill.name, owner)
+    }
+    return {
+      skills: skills.filter(skill => !connectorSkillNames.has(skill.name)), connectors: connections,
+      providers: (['github', 'gmail', 'google-drive', 'google-calendar', 'microsoft365', 'mcp'] as const).map(provider => ({
+        provider, configured: provider === 'mcp' || (this.oauthApplication(provider) !== undefined && this.ctx.get('webServer') !== undefined),
+        skills: connectorSkills[provider].flatMap((name) => {
+          const skill = skills.find(candidate => candidate.name === name && candidate.workspace === undefined)
+          return skill === undefined ? [] : [skill]
+        }),
+      })),
+    }
+  }
+
+  /**
+   * Install or replace one personal bundle after validating every resource path.
+   * @param files - uploaded SKILL.md and resources, or one ZIP/.skill file.
+   */
+  @Remote
+  async importSkill(files: SkillUploadFile[]): Promise<void> {
+    const owner = this.owner()
+    const skill = parsePersonalSkill(uploadsSchema.parse(files), this.config.maxSkillBytes)
+    await this.domain.table('skills').put(`${accountDirectory(owner)}:${skill.name}`, {
+      owner, name: skill.name, description: skill.description, content: skill.content, enabled: this.domain.table('skill_preferences').get(`${accountDirectory(owner)}:${skill.name}`)?.enabled !== false,
+      modelInvocable: skill.modelInvocable, userInvocable: skill.userInvocable,
+      resources: Object.fromEntries([...skill.files].map(([path, bytes]) => [path, Buffer.from(bytes).toString('base64')])), revision: randomUUID(),
+    })
+    this.invalidateSkills()
+  }
+
+  /**
+   * Change account invocation availability for a skill across its installed sources.
+   * @param name - skill name visible in the account library.
+   * @param enabled - invocation availability.
+   */
+  @Remote
+  async setSkillEnabled(name: string, enabled: boolean): Promise<void> {
+    if (!(await this.list()).skills.some(skill => skill.name === name)) throw new Error('skill is not in the account library')
+    const key = `${accountDirectory(this.owner())}:${name}`
+    await this.domain.table('skill_preferences').put(key, { enabled })
+    if (this.domain.table('skills').get(key) !== undefined) {
+      await this.domain.table('skills').update(key, skill => ({ ...skill, enabled }))
+    }
+    this.invalidateSkills()
+  }
+
+  /**
+   * Remove one caller-owned skill from discovery.
+   * @param name - personal skill name.
+   */
+  @Remote
+  async removeSkill(name: string): Promise<void> {
+    await this.domain.table('skills').delete(`${accountDirectory(this.owner())}:${name}`)
+    this.invalidateSkills()
+  }
+
+  /**
+   * Verify a custom remote MCP server and store its optional bearer credential privately.
+   * @param request - endpoint, name, and write-only access token.
+   * @returns the new connector identity.
+   */
+  @Remote
+  async connect(request: ConnectorCreateRequest): Promise<ConnectorId> {
+    const owner = this.owner()
+    const input = createSchema.parse(request)
+    if (input.provider !== 'mcp' && input.provider !== 'github') throw new Error('this provider requires OAuth sign-in')
+    const url = endpoint(input.endpoint ?? (input.provider === 'github' ? 'https://api.githubcopilot.com/mcp/' : ''))
+    await this.verifyMcp(url, input.token)
+    const id = randomUUID() as ConnectorId
+    await this.ctx.credentials.modifyRecord(connectorCredential(owner, id), async () => ({ kind: 'api-key', ...input.token === undefined ? {} : { key: input.token } }))
+    await this.domain.table('connectors').put(id, { owner, id, provider: input.provider, name: input.name, endpoint: url, enabled: true })
+    this.connected.add(id)
+    this.invalidateSkills()
+    return id
+  }
+
+  /**
+   * Start a provider consent flow bound to the authenticated caller.
+   * @param provider - registered provider to connect.
+   * @returns the provider consent URL.
+   */
+  @Remote
+  async authorize(provider: ConnectorProvider): Promise<ConnectorAuthorization> {
+    const owner = this.owner()
+    const app = this.oauthApplication(provider)
+    if (app === undefined || this.ctx.get('webServer') === undefined) throw new Error('provider sign-in is not configured for this deployment')
+    for (const [state, pending] of this.consents) if (pending.expiresAt <= Date.now()) this.consents.delete(state)
+    const consent = createConsent(app, this.config.redirectUri, this.config.consentLifetimeMs, { owner, id: ([...this.domain.table('connectors').entries()].find(([, item]) => item.owner === owner && item.provider === provider)?.[0] ?? randomUUID()) as ConnectorId, provider })
+    this.consents.set(consent.state, consent.consent)
+    return { url: consent.url }
+  }
+
+  /**
+   * Enable or disable one personal connector; disabled calls are immediately denied.
+   * @param id - caller-owned connector.
+   * @param enabled - availability for subsequent conversation steps.
+   */
+  @Remote
+  async setConnectorEnabled(id: ConnectorId, enabled: boolean): Promise<void> {
+    const owner = this.owner()
+    const saved = this.domain.table('connectors').get(id)
+    if (saved === undefined || saved.owner !== owner) throw new Error('connector not found')
+    if (enabled && !await this.isConnected(saved)) throw new Error('reconnect this connector before enabling it')
+    await this.domain.table('connectors').update(id, (connector) => {
+      if (connector.owner !== owner) throw new Error('connector not found')
+      return { ...connector, enabled }
+    })
+    this.invalidateSkills()
+    if (!enabled) await this.unmountConnector(id)
+  }
+
+  /**
+   * Disconnect a personal connector and delete its stored credential.
+   * @param id - caller-owned connector.
+   */
+  @Remote
+  async disconnect(id: ConnectorId): Promise<void> {
+    const owner = this.owner()
+    if (this.domain.table('connectors').get(id)?.owner !== owner) throw new Error('connector not found')
+    const completions: Promise<void>[] = []
+    for (const [state, consent] of this.consents) {
+      if (consent.owner !== owner || consent.id !== id) continue
+      this.consents.delete(state)
+      if (consent.completion !== undefined) completions.push(consent.completion)
+    }
+    await Promise.all(completions)
+    await this.domain.table('connectors').delete(id)
+    this.connected.delete(id)
+    this.invalidateSkills()
+    await this.unmountConnector(id)
+    await this.ctx.credentials.deleteRecord(connectorCredential(owner, id))
+  }
+
+  private skillConnectorAvailable(name: string, owner: string | undefined): boolean {
+    const provider = (Object.keys(connectorSkills) as ConnectorProvider[]).find(provider => connectorSkills[provider].includes(name))
+    if (provider === undefined) return true
+    return owner !== undefined && [...this.domain.table('connectors').entries()].some(([id, connector]) =>
+      connector.owner === owner && connector.provider === provider && connector.enabled && this.connected.has(id))
+  }
+
+  private async isConnected(connector: z.infer<typeof connectorSchema>): Promise<boolean> {
+    const record = await this.ctx.credentials.readRecord(connectorCredential(connector.owner, connector.id))
+    if (record === undefined) return false
+    if (record.kind === 'grant') {
+      const grant = grantSchema.parse(record.payload)
+      if (grant.expiresAt !== undefined && grant.expiresAt <= Date.now()
+        && (grant.refreshToken === undefined || this.oauthApplication(connector.provider) === undefined)) return false
+    }
+    const google = googleService(connector.provider)
+    return google === undefined || (connector.endpoint === google.endpoint && record.kind === 'grant'
+      && grantSchema.parse(record.payload).scopes?.includes(google.scopes[0]) === true)
+  }
+
+  private async unmountConnector(id: ConnectorId): Promise<void> {
+    for (const mount of this.mounts.values()) {
+      const connection = mount.connections.get(id)
+      if (connection === undefined) continue
+      await connection.fiber.dispose()
+      mount.connections.delete(id)
+    }
+  }
+
+  private oauthApplication(provider: ConnectorProvider): OAuthProviderConfig | undefined {
+    if (provider === 'mcp') return undefined
+    const google = googleService(provider)
+    if (google === undefined) return this.config.providers[provider as 'github' | 'microsoft365']
+    const app = this.config.providers.google
+    return app === undefined ? undefined : { ...app, endpoint: google.endpoint, scopes: [...google.scopes] }
+  }
+
+  private owner(): string {
+    const user = this.ctx.identityUsers.actingUser()
+    if (user === undefined) throw new Error('sign in to manage personal skills and connectors')
+    return user.id
+  }
+
+  private async accessToken(owner: string, connector: z.infer<typeof connectorSchema>, signal?: AbortSignal): Promise<string> {
+    const key = connectorCredential(owner, connector.id)
+    const record = await this.ctx.credentials.readRecord(key)
+    if (record === undefined) throw new Error('connector credential is missing; reconnect in Settings')
+    if (record.kind === 'api-key') return record.key ?? ''
+    const grant = grantSchema.parse(record.payload)
+    if (grant.expiresAt === undefined || grant.expiresAt > Date.now()) return grant.accessToken
+    const updated = await this.ctx.credentials.modifyRecord(key, async (current) => {
+      if (current?.kind !== 'grant') throw new Error('connector was disconnected')
+      const previous = grantSchema.parse(current.payload)
+      if (previous.expiresAt === undefined || previous.expiresAt > Date.now()) return current
+      const provider = this.oauthApplication(connector.provider)
+      if (provider === undefined || previous.refreshToken === undefined) throw new Error('connector authorization expired; reconnect in Settings')
+      const next = await exchangeGrant(this.ctx, provider, { grant_type: 'refresh_token', refresh_token: previous.refreshToken }, signal === undefined ? AbortSignal.timeout(this.config.timeoutMs) : AbortSignal.any([signal, AbortSignal.timeout(this.config.timeoutMs)]))
+      return { kind: 'grant', payload: {
+        ...next,
+        ...next.scopes === undefined && previous.scopes !== undefined ? { scopes: previous.scopes } : {},
+        ...next.refreshToken === undefined && previous.refreshToken !== undefined ? { refreshToken: previous.refreshToken } : {},
+      } }
+    })
+    if (updated?.kind !== 'grant') throw new Error('connector authorization is unavailable')
+    return grantSchema.parse(updated.payload).accessToken
+  }
+
+  private async syncConnectors(agent: Agent): Promise<void> {
+    const owner = agent.session.header.owner
+    if (owner === undefined) return
+    let owned = this.mounts.get(agent)
+    if (owned === undefined) {
+      owned = { scope: createScope(this.ctx, agent), connections: new Map() }
+      this.mounts.set(agent, owned)
+      const scope = owned.scope
+      agent.ctx.effect(() => async () => {
+        await scope.dispose()
+        this.mounts.delete(agent)
+      }, 'account-integrations: agent connections')
+    }
+    const mounts = owned.connections
+    const connectors = [...this.domain.table('connectors').entries()].filter(([, connector]) => connector.owner === owner && connector.enabled
+      && (googleService(connector.provider) === undefined || connector.endpoint === googleService(connector.provider)!.endpoint))
+    for (const [id, mount] of mounts) {
+      if (!connectors.some(([active]) => active === id)) { await mount.fiber.dispose(); mounts.delete(id) }
+    }
+    for (const [id, connector] of connectors) {
+      if (!await this.isConnected(connector)) {
+        this.connected.delete(id)
+        await this.unmountConnector(id)
+        this.invalidateSkills()
+        continue
+      }
+      this.connected.add(id)
+      const google = googleService(connector.provider)
+      const token = await this.accessToken(owner, connector)
+      const existing = mounts.get(id)
+      if (existing?.token === token && existing.endpoint === connector.endpoint) continue
+      if (existing !== undefined) { await existing.fiber.dispose(); mounts.delete(id) }
+      const serverName = `account_${id.replaceAll('-', '').slice(0, 24)}`
+      const fiber = owned.scope.ctx.plugin(mcp, google === undefined ? {
+        transport: 'streamable-http', serverName,
+        url: connector.endpoint, headers: token === '' ? {} : { Authorization: `Bearer ${token}` },
+        toolCallTimeoutMs: this.config.timeoutMs, failOnStartupError: true, reconnect: { enabled: false },
+      } : { ...await googleConnection(connector.provider, token,
+        avnHomePath('accounts', accountDirectory(owner), 'connectors', id), this.config.timeoutMs), serverName })
+      await fiber
+      mounts.set(id, { token, endpoint: connector.endpoint, fiber })
+    }
+  }
+
+  private async verifyMcp(url: string, token?: string): Promise<void> {
+    const client = new Client({ name: 'aeven-account-connectors', version: '1.0.0' })
+    try {
+      // The SDK transport's optional sessionId declaration is narrower than its implementation.
+      await client.connect(new StreamableHTTPClientTransport(new URL(url), {
+        requestInit: { headers: token === undefined ? {} : { Authorization: `Bearer ${token}` } },
+      }) as Transport, { timeout: this.config.timeoutMs })
+      await client.listTools({}, { timeout: this.config.timeoutMs })
+    } finally {
+      await client.close()
+    }
+  }
+}

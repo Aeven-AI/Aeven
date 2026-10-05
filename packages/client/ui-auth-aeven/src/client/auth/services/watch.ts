@@ -4,14 +4,16 @@
  * The gate restores the session once, before the plugin graph boots. This
  * renews the access token before it lapses — each renewal also rotates the
  * year-long refresh token, so a page left open never signs out — and, when the
- * API refuses the session, discards it and tells whoever owns the page. The
- * boot kernel is that owner: it disposes the plugin tree and runs its gate
- * again, so the reader reaches the sign-in screen in the document they are in.
+ * API refuses the session or another tab replaces it with a different account,
+ * discards this document's session and tells whoever owns the page. The boot
+ * kernel is that owner: it disposes the plugin tree and runs its gate again, so
+ * the reader reaches the sign-in screen — or the account the browser now holds
+ * — in the document they are in.
  * @module
  */
 
-import { isSessionRefusal } from './errors.ts'
-import { session } from './session.ts'
+import { isIdentityChange, isSessionRefusal } from './errors.ts'
+import { session, storage } from './session.ts'
 import { bearerRenewalTime, bearerToken, currentBearer, deleteBearerToken } from './tokens.ts'
 
 /** Delay before retrying a renewal that failed without the API refusing it. */
@@ -21,6 +23,9 @@ const TRANSIENT_RETRY_MILLISECONDS = 30_000
 const MAX_TIMER_MILLISECONDS = 2 ** 31 - 1
 
 let leaving = false
+
+/** Whether the Host refused a request this document presented nothing for. */
+let refused = false
 
 /** Listeners told that this document's session ended, in the order they were added. */
 const sessionEnded = new Set<() => void>()
@@ -36,6 +41,47 @@ export function onSessionEnded(listener: () => void): () => void {
 }
 
 /**
+ * Whether this document is between sessions, so it may present no credential.
+ *
+ * True from the moment its session ended until the gate it asked for boots the
+ * next one.
+ * @returns true while a request made now would carry no session of this page's.
+ */
+export function pageIsLeaving(): boolean {
+  return leaving
+}
+
+/**
+ * Whether the Host has refused this document's session since its last gate run.
+ *
+ * A refusal with nothing presented is the one answer that proves the refresh
+ * cookie no longer identifies this browser, so the next gate must not rebuild a
+ * signed-in application out of the kept profile.
+ * @returns true when the kept profile may not restore a reader.
+ */
+export function hostRefusedSession(): boolean {
+  return refused
+}
+
+/** Record that the Host refused a request this document presented no bearer for. */
+export function noteHostRefusal(): void {
+  refused = true
+}
+
+/**
+ * End this document's session and tell its owner to run the gate again.
+ * @param discardBearerOf - account whose stored bearer the end discards, or null
+ * to keep every stored bearer.
+ */
+function endPageSession(discardBearerOf: string | null): void {
+  if (leaving) return
+  leaving = true
+  if (discardBearerOf !== null) deleteBearerToken(discardBearerOf)
+  session.reset()
+  for (const listener of [...sessionEnded]) listener()
+}
+
+/**
  * Discard the ended session and tell the page owner to present the sign-in screen.
  *
  * The held bearer is deleted first: it may still verify locally, and a gate that
@@ -44,25 +90,51 @@ export function onSessionEnded(listener: () => void): () => void {
  * records the reader's own path as the referrer when it does.
  */
 export function leaveForSignIn(): void {
-  if (leaving) return
-  leaving = true
-  deleteBearerToken(session.userId)
-  session.reset()
-  for (const listener of [...sessionEnded]) listener()
+  endPageSession(session.userId)
 }
 
 /**
- * The token to present, leaving for the sign-in screen when the session has ended.
+ * End this document's session because the browser now holds another account.
+ *
+ * No stored bearer is discarded: the account that replaced this page's is
+ * signed in, and its session belongs to the tab that established it. The gate
+ * that follows restores that account, so the reader, the navigation and the
+ * Sessions on screen are the ones the browser's credential reaches.
+ */
+function replacePageAccount(): void {
+  endPageSession(null)
+}
+
+/**
+ * Whether the account the browser stores is the one this document restored.
+ *
+ * Every document of one origin shares `userId` and `appBearers`, so a sign-in in
+ * one tab changes what the others would present.
+ * @returns true when the page restored that account, or restored none yet.
+ */
+function storedAccountIsPages(): boolean {
+  const stored = storage.getItem('userId')
+  return stored === null || session.userId === null || stored === session.userId
+}
+
+/**
+ * The token to present, ending this document's session when it is no longer the
+ * session the browser holds.
  * @param rejected - a token the Host refused, forcing a renewal.
  * @returns the token, or undefined when none could be obtained.
  */
 export async function sessionBearer(rejected?: string): Promise<string | undefined> {
+  if (!storedAccountIsPages()) {
+    replacePageAccount()
+    return undefined
+  }
   try {
     return await currentBearer(rejected)
   } catch (error) {
-    if (isSessionRefusal(error)) leaveForSignIn()
+    if (isIdentityChange(error)) replacePageAccount()
+    else if (isSessionRefusal(error)) leaveForSignIn()
     // A transport failure leaves the session intact; the request goes out
-    // without a bearer and the next call or the renewal timer tries again.
+    // without a bearer and the Host authenticates it by the refresh cookie.
     return undefined
   }
 }
@@ -84,8 +156,11 @@ export function watchSession(handOver: (token: string) => void): () => void {
   let stopped = false
   let handedOver: string | undefined
   // Watching a session is what says this page is not leaving one: a reader who
-  // signs in again after an ended session is renewed, not left standing.
+  // signs in again after an ended session is renewed, not left standing. The
+  // refusal latch belongs to the pass that recorded it, so the gate this watch
+  // follows reads it exactly once.
   leaving = false
+  refused = false
 
   const schedule = (delay: number): void => {
     clearTimeout(timer)
@@ -108,7 +183,15 @@ export function watchSession(handOver: (token: string) => void): () => void {
   }
   const onOnline = (): void => { void check() }
   const onStorage = (event: StorageEvent): void => {
-    if (event.key !== 'appBearers' || session.userId === null) return
+    if (event.key !== 'appBearers' && event.key !== 'userId') return
+    if (session.userId === null) return
+    // A stored account id that is no longer this page's is another tab's
+    // sign-in. This document ends its session and runs its gate again rather
+    // than reading the reader's own Sessions as another account.
+    if (!storedAccountIsPages()) {
+      replacePageAccount()
+      return
+    }
     if (bearerToken(session.userId) === undefined) leaveForSignIn()
   }
   document.addEventListener('visibilitychange', onVisibility)

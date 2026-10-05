@@ -117,9 +117,10 @@ export interface MessageImagesOwnerProps {
   /**
    * `gallery` sizes images by count (assistant, tool, and trajectory records);
    * `tray` renders images and files as one tile grid, the sent-message
-   * counterpart of the composer tray.
+   * counterpart of the composer tray; `fill` renders each image edge to edge in
+   * the box the owner laid out, for an owner that owns its own geometry.
    */
-  layout: 'gallery' | 'tray'
+  layout: 'gallery' | 'tray' | 'fill'
   /**
    * Every image the record's Turn puts on screen, in log order, when the
    * composition can resolve it: the opened preview navigates this whole list.
@@ -349,7 +350,7 @@ export interface ComposerBarInjected {
     steeringAvailable: boolean,
   ) => InputSubmitMode
   toggleCommandMenu: ((selection: EditSelection) => void) | undefined
-  invokeCommand: ((name: string, selection: EditSelection) => Promise<boolean>) | undefined
+  invokeCommand: ((name: string, selection: EditSelection, anchor?: Element | null) => Promise<boolean>) | undefined
   exportSession: (() => Promise<void>) | undefined
   stop: (() => void) | undefined
   command: ((line: string) => Promise<boolean>) | undefined

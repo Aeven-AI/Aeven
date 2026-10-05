@@ -1,17 +1,29 @@
+/* The takeover seats where the input card sits, centered on the InputBar
+   axis at the shared content width, exactly as the question takeover does: an
+   approval and a question are both answered in the composer's seat. */
 .root {
+  box-sizing: border-box;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 8px calc(var(--avn-composer-side-clearance) + 16px) 12px;
+  align-items: flex-end;
+  justify-content: center;
+  min-height: var(--avn-composer-seat-min-height);
+  padding: 6px calc(var(--avn-composer-side-clearance) + 16px) 24px;
 }
 
 /* Wears the composer card's surface, as the question takeover does: flat
    fill, surface radius, the same box-shadow and no stroke. An approval is a
    decision the reader makes in the composer's seat, not an alarm. */
 .card {
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   width: 100%;
   max-width: var(--avn-chat-content-width);
+  /* Composer seat sits in a fixed-height conversation column (overflow
+     hidden): cap the card against the viewport and scroll the detail, so the
+     question and the actions stay reachable beside a long command. */
+  max-height: min(60vh, 520px);
+  padding: 0 0 24px;
   border: 0;
   --dsw-elevation-stroke-color: transparent;
   border-radius: var(--dsw-aeven-radius-surface);
@@ -22,45 +34,52 @@
   line-height: calc(
     var(--dsw-aeven-reading-line-height) + var(--avn-content-font-delta, 0px)
   );
-  --avn-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
-  --avn-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
 }
 
-/* Header line at the question takeover's own insets and eyebrow tone. */
+.card,
+.card * {
+  box-sizing: border-box;
+}
+
+/* Header line at the question takeover's own insets and eyebrow tone, with
+   the question itself beneath the eyebrow as that takeover's title is. */
 .header {
   flex-shrink: 0;
   padding: 20px 20px 0 24px;
-  color: var(--dsw-alias-label-tertiary);
 }
 
-.body {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  box-sizing: border-box;
-  max-height: var(--avn-composer-text-max-height);
-  overflow-y: auto;
-  /* The takeover's own insets: body copy lines up under the header's 24px
-     lead inset, as the question takeover's detail does. */
-  padding: 12px 20px 0 24px;
+.eyebrow {
+  color: var(--dsw-alias-label-tertiary);
 }
 
 .headline {
   color: var(--dsw-alias-label-primary);
-  font-size: 14px;
+  font-size: inherit;
   font-weight: 400;
-  line-height: 24px;
+  line-height: inherit;
 }
 
-/* The detail is the correlated command, not a card of its own: it reads at the
-   takeover's type on the takeover's paper. Whatever chrome the correlated tool
-   would have painted (its surface, insets, smaller mono size) stays out, so a
-   long command reads as a quoted line instead of a slab wedged into the card. */
+/* The scroller holds the correlated command alone, so the question and the
+   one-shot note stay in view while a long command is read. */
+.body {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin-top: 8px;
+  padding: 0 16px 0 24px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* The detail is the correlated command, not a card of its own: it reads one
+   step under the question, on the takeover's paper. Whatever chrome the
+   correlated tool would have painted (its surface, insets, banner) stays out,
+   so a long command reads as a quoted line instead of a slab wedged into the
+   card. */
 .command {
   color: var(--dsw-alias-label-secondary);
   font-family: var(--ds-font-family-code);
-  font-size: inherit;
-  line-height: inherit;
+  font-size: 14px;
+  line-height: 22px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -75,11 +94,31 @@
   white-space: inherit;
 }
 
+/* What the grant covers, stated where the decision is made: the answer is a
+   one-shot consent, and the reader is told so before pressing it rather than
+   after the next prompt arrives. */
+.note {
+  flex-shrink: 0;
+  margin-top: 12px;
+  padding: 0 16px 0 24px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* Same insets as the question takeover's footer, so the capsules nest in the
+   surface radius the way that footer's actions do. */
 .actionRow {
   display: flex;
+  flex-shrink: 0;
   justify-content: flex-end;
-  gap: 8px;
-  padding: 12px 20px 16px 24px;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 0 24px;
+}
+
+/* Action capsules read at the card's size, not the Button primitive's 14px. */
+.action {
+  font-size: inherit;
+  line-height: inherit;
 }
 
 .reject:hover:not(:disabled) {

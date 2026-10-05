@@ -119,6 +119,7 @@ export function MessageImages(props: MessageImagesProps) {
       load={props.loadImage}
       align={props.align}
       labels={messageImageLabels(props.t)}
+      {...props.layout === 'fill' ? { variant: 'fill' as const } : {}}
     />
   )
 }

@@ -20,6 +20,10 @@ type InitialNavigation = 'waiting' | 'connecting' | 'done'
 export interface UiWorkspace {
   /**
    * Resolve the reusable or newly created blank Session for a Workspace.
+   *
+   * Reusable means a chat nobody has prompted yet that the Workspace accounts
+   * for and that sits in its directory; a Workspace with no directory of its
+   * own takes the account alone. Reuse is what returns unsent composer text.
    * @param workspaceId - target Workspace.
    * @param sessionId - preallocated id to create under; when present the
    * Workspace's reusable blank is skipped, because the caller already
@@ -173,7 +177,12 @@ class UiWorkspaceService extends Service implements UiWorkspace {
       const sessions = this.sessions.list.getSnapshot()
       for (const id of sessions.ids) {
         const summary = sessions.byId[id]
-        if (summary !== undefined && summary.blank && summary.cwd === workspace.path
+        // A Workspace with no directory of its own — the built-in Chats, or a
+        // remote one — has no cwd for its chats to match, which is why the
+        // account alone decides there. A folder Workspace needs both, so a chat
+        // that only shares the directory it was started in is not adopted.
+        const inWorkspaceDirectory = workspace.path === null || summary?.cwd === workspace.path
+        if (summary !== undefined && summary.blank && inWorkspaceDirectory
           && workspace.sessionIds.includes(summary.id)
           && !archived.includes(summary.id)) return summary.id
       }

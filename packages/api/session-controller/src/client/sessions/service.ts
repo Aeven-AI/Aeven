@@ -148,8 +148,8 @@ export { scopeOf } from '../scope.ts'
  * directory, so rows read "project" — a plausible-looking name for the wrong
  * thing, indistinguishable in the navigation from a real title, and impossible
  * to tell apart from a title that genuinely says "project". The id at least
- * announces that no title is known; the renderer labels those rows with the
- * localized untitled copy.
+ * announces that no title is known; the renderer keeps the localized New
+ * Session label on those rows.
  * @param title - durable title, when the Session has one.
  * @param id - Session identity, the last resort.
  * @returns the row's display title.

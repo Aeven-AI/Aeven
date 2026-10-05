@@ -27,6 +27,7 @@ import type { CommandContribution, CommandDecoration, CommandUiContract, Command
 import type { CommandDescriptor } from './directory.ts'
 import { CommandDirectory } from './directory.ts'
 import { PopupSelectController } from './popup.ts'
+import type { PopupAnchorPlacement } from './popup.ts'
 import type { TokenPathSegment, TokenSegment } from './popup.ts'
 
 declare module '@deepseek-ai/cordis' {
@@ -215,21 +216,28 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
     command: string,
     spec: CommandUiSpec,
     anchor: Element | null = null,
+    placement: PopupAnchorPlacement = 'end',
   ): boolean {
     const actx = this.scopeFor(sessionId)
     if (actx === undefined) return false
-    this.popupFor(actx).open(command, spec, { sessionId }, { via: 'button' }, anchor)
+    this.popupFor(actx).open(command, spec, { sessionId }, { via: 'button' }, anchor, placement)
     return true
   }
 
   /** Run the same command decision as a slash-menu pick, without replacing draft text. */
-  async invokeFromButton(sessionId: SessionId, name: string, span: TokenSpan): Promise<boolean> {
+  async invokeFromButton(
+    sessionId: SessionId,
+    name: string,
+    span: TokenSpan,
+    anchor: Element | null = null,
+    placement: PopupAnchorPlacement = 'end',
+  ): Promise<boolean> {
     const actx = this.scopeFor(sessionId)
     if (actx === undefined) return false
     const session = { sessionId }
     const contribution = this.live.contributions.get(name)
     if (contribution !== undefined && contribution.available(session)) {
-      this.openPopup(name, contribution.ui, session, { via: 'button' })
+      this.openPopup(name, contribution.ui, session, { via: 'button' }, anchor, placement)
       return true
     }
     await this.directory.ensureReady(sessionId, new AbortController().signal)
@@ -237,7 +245,7 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
     if (desc === undefined) return false
     const decoration = this.live.decorations.get(name)
     if (decoration !== undefined && decoration.available(session)) {
-      this.openPopup(name, decoration.ui, session, { via: 'button' })
+      this.openPopup(name, decoration.ui, session, { via: 'button' }, anchor, placement)
       return true
     }
     if (desc.input !== undefined) {
@@ -372,10 +380,12 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
     ui: CommandContribution['ui'],
     session: ClientSessionContext,
     segment: TokenSegment,
+    anchor: Element | null = null,
+    placement: PopupAnchorPlacement = 'end',
   ): void {
     const actx = this.scopeFor(session.sessionId)
     if (actx === undefined) return
-    this.popupFor(actx).open(name, ui, session, segment)
+    this.popupFor(actx).open(name, ui, session, segment, anchor, placement)
   }
 
   /** Build the leadingInput claim: token `/name ` + the command.execute submit transaction. */

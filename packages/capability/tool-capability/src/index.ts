@@ -12,8 +12,8 @@ import { currentEnvironment, EXECUTABLE_STATUSES, type CapabilityRecord, type Ju
 import type {} from '@aeven/message-feedback'
 import type { Session } from '@aeven/session'
 import { correctionOf, ExecutionTracker } from './executions.ts'
-import { CapabilityLearner, capabilityWords, MIN_INPUT_TOKENS, words } from './learner.ts'
-import { createUserMessage } from '@aeven/llm'
+import { CapabilityLearner, MIN_INPUT_TOKENS } from './learner.ts'
+import { recallProcedures, PROCEDURE_GUIDANCE } from './recall.ts'
 import { defineTool } from '@aeven/tools'
 import type {} from '@aeven/system-prompt'
 import type { JsonValue } from '@aeven/util-values'
@@ -25,8 +25,14 @@ export const inject = ['capabilities', 'tools', 'systemPrompt', 'llm']
 export interface Config {
   /** System-prompt section order of the capability guidance. */
   promptOrder: number
-  /** Maximum learned procedures pointed out for one request. */
+  /** Maximum learned procedures recalled for one request. */
   maxRecalled: number
+  /** Foreground procedure selection budget, in milliseconds. */
+  recallTimeoutMs: number
+  /** Minimum intent relevance score, from zero to one, accepted for recall. */
+  recallMinScore: number
+  /** Maximum characters in the complete recalled context message. */
+  recallMaxChars: number
   /** Whether completed work is learned from automatically. */
   learn: boolean
   /** Tool calls a turn needs, excluding bookkeeping, before its work is learned from. */
@@ -47,6 +53,9 @@ export interface Config {
 export const Config: z<Config> = z.object({
   promptOrder: z.number().default(116),
   maxRecalled: z.natural().min(1).default(3),
+  recallTimeoutMs: z.natural().min(1).default(15_000),
+  recallMinScore: z.number().min(0).max(1).default(0.8),
+  recallMaxChars: z.natural().min(512).default(6_000),
   learn: z.boolean().default(true),
   minSteps: z.natural().min(1).default(3),
   settleMs: z.natural().min(1).default(300_000),
@@ -60,11 +69,10 @@ export const Config: z<Config> = z.object({
 const TOOL = 'capability_manage'
 
 /** Model-facing guidance on learned capabilities. */
-export const LEARNING_GUIDANCE = `Aeven learns capabilities, reusable procedures for this user, from completed work and offers them in the skill catalog. ` +
-  `When a learned capability fits the task, load it with the skill tool and follow it instead of working the task out again. ` +
-  `After following one, report the outcome with ${TOOL} (action "report"), including whether its verification step passed; if a step was wrong or could be faster, fix it with action "update". ` +
-  `When the user asks you to learn or remember how to do something, save it with action "learn": when to use it, requirements, numbered steps with the exact commands, paths, and settings, how to verify success, and how to recover from known failures. ` +
-  `Learning is automatic and silent: never ask the user whether to save, keep, or update a procedure, and do not announce it.`
+export const LEARNING_GUIDANCE = PROCEDURE_GUIDANCE + ' ' +
+  `If you actually use a recalled or deliberately viewed procedure, report its outcome with ${TOOL} (action "report"), including whether verification passed. Reading it alone is not use. ` +
+  'When the user asks you to learn or remember how to do something, save it with action "learn": when to use it, requirements, steps, verification, and known recovery advice. ' +
+  'Learning is automatic and silent. New candidates remain stored for deliberate validation and are excluded from automatic recall.'
 
 const TEXT_OUTPUT = {
   schema: {
@@ -126,7 +134,6 @@ function evidenceSummary(record: CapabilityRecord, judged: readonly JudgedExecut
  */
 export function apply(ctx: Context, config: Config): void {
   const logger = ctx.logger(name)
-  const recalled = new Map<string, Set<string>>()
   const tracker = new ExecutionTracker()
   const learner = config.learn ? new CapabilityLearner(ctx, config) : undefined
   ctx.effect(() => () => learner?.dispose(), 'tool-capability.learner')
@@ -178,7 +185,7 @@ export function apply(ctx: Context, config: Config): void {
           if (!capability) return json({ text: `No capability named ${args.name}.`, found: false })
           const status = `Status: ${statusLabel(capability.status)}. ${evidenceSummary(capability, await ctx.capabilities.evidence(owner, capability.name))}`
           return json({
-            text: `${status}\n${capability.description}\n\n${capability.content}${capability.files.length > 0 ? `\n\nSupporting files in ${capability.directory}: ${capability.files.join(', ')}` : ''}`,
+            text: `${PROCEDURE_GUIDANCE}\n${status}\n${capability.description}\n\n${capability.content}${capability.files.length > 0 ? `\n\nSupporting files in ${capability.directory}: ${capability.files.join(', ')}` : ''}`,
             found: true,
             status: capability.status,
             revision: capability.revision,
@@ -197,7 +204,7 @@ export function apply(ctx: Context, config: Config): void {
             return json({ text: `A capability named ${draft.name} already exists (${statusLabel(existing.status)}); change it with action "update".`, status: 'exists' })
           }
           const saved = await ctx.capabilities.save(owner, draft, { status: 'candidate', source: 'agent', sessionId })
-          return json({ text: `Saved ${saved.name}. It is offered in the skill catalog and becomes established once a run of it succeeds.`, status: saved.status })
+          return json({ text: `Saved ${saved.name}. It is stored as a candidate, excluded from automatic recall until deliberately validated.`, status: saved.status })
         }
         case 'update': {
           const capabilityName = required(args.name, 'name', action)
@@ -221,6 +228,8 @@ export function apply(ctx: Context, config: Config): void {
         }
         case 'report': {
           const capabilityName = required(args.name, 'name', action)
+          const capability = await ctx.capabilities.get(owner, capabilityName)
+          if (capability === undefined || capability.status === 'retired') throw new Error(`no active procedure named ${capabilityName}`)
           const outcome = args.outcome
           if (outcome === undefined) throw new Error('action "report" requires outcome')
           const notes = args.notes?.trim()
@@ -232,7 +241,7 @@ export function apply(ctx: Context, config: Config): void {
           return json({
             text: accepted
               ? `Recorded: ${capabilityName} ${outcome}, verification ${args.validation ?? 'not-run'}.`
-              : `${capabilityName} was not loaded in this turn; report only on a capability you loaded with the skill tool this turn.`,
+              : `${capabilityName} was not recalled or viewed in this turn; report only after actually using a procedure available in this turn.`,
             recorded: accepted,
           })
         }
@@ -251,7 +260,7 @@ export function apply(ctx: Context, config: Config): void {
     },
   })), 'tool-capability.tool')
 
-  // Reuse: learned procedures that match a new request are pointed out once per session.
+  // Recall is scoped to the current direct-user turn and persisted with its selected revisions.
   ctx.on('agent/pre-step', async (payload, next): Promise<PreStepDecision> => {
     const decision = await next()
     if (payload.step !== 1 || decision.kind !== 'enter') return decision
@@ -265,21 +274,9 @@ export function apply(ctx: Context, config: Config): void {
     const correction = correctionOf(query)
     if (correction !== undefined) amendPreviousTurn(owner, sessionId, payload.turn, correction)
     learner?.next(sessionId, correction !== undefined)
-    const queryWords = words(query)
-    if (queryWords.size === 0) return decision
     try {
-      const seen = recalled.get(sessionId) ?? new Set<string>()
-      const matches = (await ctx.capabilities.list(owner))
-        .filter(record => EXECUTABLE_STATUSES.includes(record.status) && !seen.has(record.name))
-        .map(record => ({ record, overlap: [...capabilityWords(record)].filter(word => queryWords.has(word)).length }))
-        .filter(item => item.overlap >= 2)
-        .sort((a, b) => b.overlap - a.overlap)
-        .slice(0, config.maxRecalled)
-      if (matches.length === 0) return decision
-      for (const { record } of matches) seen.add(record.name)
-      recalled.set(sessionId, seen)
-      const text = `<learned_procedures>\nProcedures learned from earlier work that may fit this request. Load a fitting one with the skill tool and follow it.\n${matches.map(({ record }) => `- ${record.name}: ${record.description}`).join('\n')}\n</learned_procedures>`
-      const message = createUserMessage({ content: [{ type: 'text', text }], source: { kind: 'plugin', plugin: name, form: 'recall' } })
+      const message = await recallProcedures(ctx, payload.agent, query, config, payload.signal)
+      if (message === undefined) return decision
       return { ...decision, messages: [...decision.messages, message] }
     } catch (error) {
       logger.warn(`procedure recall failed: ${error instanceof Error ? error.message : String(error)}`)
@@ -310,7 +307,7 @@ export function apply(ctx: Context, config: Config): void {
     void (async () => {
       for (const { name: capabilityName, execution } of outcome.used) {
         const capability = await ctx.capabilities.get(owner, capabilityName).catch(() => undefined)
-        // A loaded skill that is not one of the owner's executable capabilities has no lifecycle here.
+        // Deliberate candidate validation contributes evidence; retired procedures do not.
         if (capability === undefined || !EXECUTABLE_STATUSES.includes(capability.status)) continue
         const id = await ctx.capabilities.recordExecution(owner, capabilityName, { ...execution, environment: currentEnvironment() })
         const byTurn = recorded.get(session.id) ?? new Map<number, { name: string; id: string }[]>()
@@ -345,7 +342,6 @@ export function apply(ctx: Context, config: Config): void {
 
   ctx.on('session/disposed', (session) => {
     learner?.close(session.id)
-    recalled.delete(session.id)
     recorded.delete(session.id)
     sessions.delete(session.id)
     tracker.forget(session.id)

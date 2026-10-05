@@ -5,6 +5,25 @@ import type { ISessions } from '@aeven/api-session-controller/client'
 import type { SessionId } from '@aeven/session/types'
 import { bytesToBase64 } from '@aeven/util-crypto'
 
+/**
+ * The durable URL one stored image is served from: the reference names every
+ * fact the route verifies against the stored bytes, so the browser reads the
+ * image itself instead of this page minting a blob for it. A new window opened
+ * on the image therefore shows the stored original, not an object URL.
+ * @param attachment - the durable reference the log carries.
+ * @returns the URL the image is displayed and re-opened from.
+ */
+export function durableImageUrl(attachment: ImageAttachmentRef): string {
+  const url = new URL('api/attachment-image', document.baseURI)
+  url.searchParams.set('id', String(attachment.attachmentId))
+  url.searchParams.set('type', attachment.mediaType)
+  url.searchParams.set('bytes', String(attachment.bytes))
+  url.searchParams.set('width', String(attachment.width))
+  url.searchParams.set('height', String(attachment.height))
+  if (attachment.name !== undefined && attachment.name !== '') url.searchParams.set('name', attachment.name)
+  return url.href
+}
+
 interface ImageUrlEntry {
   readonly sessionId: SessionId
   readonly generation: number
@@ -111,6 +130,10 @@ export class HistoricalImageCache {
     entry: ImageUrlEntry,
     attachment: ImageAttachmentRef,
   ): Promise<string> {
+    // A browser reads the stored object from its own URL; only an environment
+    // without one (a test runtime) falls back to reading the bytes through the
+    // session binding and minting an object URL.
+    if (typeof document !== 'undefined') return Promise.resolve(durableImageUrl(attachment))
     const binding = this.sessions.binding(entry.sessionId)
     if (binding === undefined) return Promise.reject(new Error(`ui-conversation: unknown session "${entry.sessionId}"`))
     return binding.session.readAttachment(attachment.attachmentId)

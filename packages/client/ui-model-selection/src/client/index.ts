@@ -240,7 +240,9 @@ export function apply(ctx: ClientContext): void {
             if (available) directory.load().catch(() => { /* surfaced on the store */ })
           },
           openModel: (anchor: Element | null) => {
-            if (available) command.openSelect(sessionId, SHELL_COMMAND, shared, anchor)
+            // Beside, not under: the seat's own card stays open around the
+            // list, so the row that asked keeps its place on screen.
+            if (available) command.openSelect(sessionId, SHELL_COMMAND, shared, anchor, 'beside')
           },
           selectEffort: (levelId: string) => {
             if (!available) return Promise.resolve(false)

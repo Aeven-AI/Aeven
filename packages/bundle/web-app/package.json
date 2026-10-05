@@ -145,7 +145,9 @@
     "@aeven/workspace": "workspace:^",
     "@deepseek-ai/schemastery": "workspace:^",
     "commander": "^15.0.0",
-    "open": "^11.0.0"
+    "open": "^11.0.0",
+    "@aeven/host-account-integrations": "workspace:^",
+    "@aeven/client-ui-settings-integrations": "workspace:^"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis-plugin-loader": "workspace:^",

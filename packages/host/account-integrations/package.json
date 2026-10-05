@@ -1,0 +1,95 @@
+{
+  "name": "@aeven/host-account-integrations",
+  "description": "Signed-in account skill and connector management",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/host/account-integrations"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./types": {
+      "types": "./lib/types/types.d.ts",
+      "default": "./lib/types/types.js"
+    },
+    "./typert": {
+      "types": "./lib/typert.host.d.ts",
+      "default": "./lib/typert.host.js"
+    },
+    "./remote": {
+      "types": "./lib/typert.remote-client.d.ts",
+      "default": "./lib/typert.remote-client.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.js",
+    "lib/types/**/*.d.ts",
+    "lib/typert.host.js",
+    "lib/typert.host.d.ts",
+    "lib/typert.remote-client.js",
+    "lib/typert.remote-client.d.ts"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@aeven/brand": "workspace:^",
+    "@aeven/home-paths": "workspace:^",
+    "@aeven/scope": "workspace:^",
+    "@deepseek-ai/schemastery": "workspace:^",
+    "@googleworkspace/cli": "0.22.5",
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "@thenavidm/google-workspace-mcp-cli": "0.2.2",
+    "fflate": "0.8.3",
+    "js-yaml": "^4.3.1",
+    "zod": "^4.4.3"
+  },
+  "peerDependencies": {
+    "@aeven/agent": "workspace:^",
+    "@aeven/agent-presets": "workspace:^",
+    "@aeven/credentials": "workspace:^",
+    "@aeven/host-webserver": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
+    "@aeven/mcp-client": "workspace:^",
+    "@aeven/skill": "workspace:^",
+    "@aeven/storage-domain": "workspace:^",
+    "@aeven/tools": "workspace:^",
+    "@aeven/typert-protocol": "workspace:^",
+    "@aeven/workspace": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "devDependencies": {
+    "@aeven/agent": "workspace:^",
+    "@aeven/agent-presets": "workspace:^",
+    "@aeven/brand": "workspace:^",
+    "@aeven/credentials": "workspace:^",
+    "@aeven/home-paths": "workspace:^",
+    "@aeven/host-webserver": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
+    "@aeven/mcp-client": "workspace:^",
+    "@aeven/skill": "workspace:^",
+    "@aeven/storage-domain": "workspace:^",
+    "@aeven/tools": "workspace:^",
+    "@aeven/typert-protocol": "workspace:^",
+    "@aeven/workspace": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/schemastery": "workspace:^",
+    "@types/js-yaml": "^4.0.9"
+  },
+  "peerDependenciesMeta": {
+    "@aeven/agent-presets": {
+      "optional": true
+    }
+  }
+}

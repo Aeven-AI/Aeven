@@ -386,6 +386,7 @@
     { "path": "./packages/lsp/tool-lsp" },
     { "path": "./apps/cli" },
     { "path": "./apps/desktop-host" },
+    { "path": "./packages/host/account-integrations" },
     { "path": "./apps/desktop" }
   ]
 }

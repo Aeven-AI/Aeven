@@ -249,11 +249,12 @@
   flex: 1;
 }
 
-/* figma 75:8208 drew 16 between + and the mode chips and 4 between Plan /
+/* The leading cluster spaces its controls 8px apart, the trailing cluster's own
+   gap (figma 75:8208 drew 16 between + and the mode chips and 4 between Plan /
    Read-only; the chip gap widened to 12 so the pill chips read as separate
-   controls. */
+   controls). */
 .tools {
-  gap: 16px;
+  gap: 8px;
 }
 
 .modes {
@@ -268,7 +269,14 @@
      model trigger (external:107). The auto margin re-anchors it right on the
      wrapped line; on a single line space-between already pins it right. */
   margin-left: auto;
-  gap: 12px;
+  /* The same 8px the leading cluster spaces its controls with. */
+  gap: 8px;
+}
+
+/* Attach-menu glyphs: the icon box is the primitive's, the ink is the row's
+   own, so a menu glyph reads at the same weight as the label beside it. */
+.addIcon {
+  color: var(--dsw-alias-label-primary);
 }
 
 /* Attach circle, Aeven `.loader-icon-button.outline`: a transparent 40px disc

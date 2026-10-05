@@ -94,10 +94,31 @@ describe('MessageFeedbackActions theme styles', () => {
   it('slot-injected actions ride the content font-size axis like their host row', () => {
     // These buttons render inside ui-chat's MessageIconActions row; a fixed
     // 28px would leave them undersized (or overflowing) once the Settings
-    // font size moves the row.
+    // font size moves the row. Their glyphs stay one fixed 16px metric, the
+    // same one every action glyph in that row is drawn at, so the row's
+    // glyphs do not drift apart across sizes.
     expect(block('.action')).toMatch(/width:\s*calc\(28px \+ var\(--avn-content-font-delta, 0px\)\)/)
     expect(block('.action')).toMatch(/height:\s*calc\(28px \+ var\(--avn-content-font-delta, 0px\)\)/)
-    expect(block('.action svg')).toMatch(/width:\s*calc\(15px \+ var\(--avn-content-font-delta, 0px\)\)/)
+    expect(block('.action svg')).toMatch(/width:\s*16px/)
     expect(block('.noteOpen')).toMatch(/line-height:\s*calc\(28px \+ var\(--avn-content-font-delta, 0px\)\)/)
+    // The glyph-only trigger is a flex box, so its 28px hit area has to be
+    // stated: an icon-only one collapses onto its 16px glyph otherwise.
+    expect(block('.noteOpen')).toMatch(/height:\s*calc\(28px \+ var\(--avn-content-font-delta, 0px\)\)/)
+    expect(block('.noteOpen svg')).toMatch(/width:\s*16px/)
+  })
+
+  it('wears the popup family\'s own card and writes straight onto it', () => {
+    // The note editor is the same material as the menus it shares a screen
+    // with: the popup surface radius, the translucent menu fill over a blur,
+    // and the inset highlight those cards draw.
+    expect(block('.notePanel')).toMatch(/border-radius:\s*var\(--dsw-aeven-radius-surface\)/)
+    expect(block('.notePanel')).toMatch(/background:\s*var\(--dsw-tint-menu\)/)
+    expect(block('.notePanel')).toMatch(/backdrop-filter:\s*blur\(/)
+    // The draft is unframed: a stroke or a fill of its own would draw a
+    // second card inside the popup. The vertical grip stays, so a long note
+    // can be pulled taller.
+    expect(block('.noteInput')).toMatch(/border:\s*0;/)
+    expect(block('.noteInput')).toMatch(/background:\s*transparent/)
+    expect(block('.noteInput')).toMatch(/resize:\s*vertical/)
   })
 })

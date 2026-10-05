@@ -78,9 +78,7 @@ export function apply(ctx: ClientContext): void {
 
   const injected = (): AccountMenuInjected => ({
     reader: currentReader,
-    accountUrl,
     openSettings: () => { ctx.emit('settings/open') },
-    openAccount: () => { ctx.emit('settings/open', ACCOUNT_SECTION) },
     // A full load, not a route change: signing out invalidates the credential
     // every plugin was booted with, so the page starts again at the gate.
     signOut: () => {

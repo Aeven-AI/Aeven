@@ -25,7 +25,7 @@ import HyperMarkdown, {
   cjkPlugin, highlightPlugin, katexPlugin, mermaidPlugin,
 } from '@aeven/client-hypermarkdown'
 import type {
-  CodeComponentProps, HyperMarkdownHandle, RendererComponents, Translations,
+  CodeComponentProps, ControlsConfig, HyperMarkdownHandle, RendererComponents, Translations,
 } from '@aeven/client-hypermarkdown'
 import type { StrictFunction } from 'katex'
 import 'katex/dist/katex.min.css'
@@ -255,6 +255,8 @@ interface MarkdownTextCommonProps {
   /** Whether the reply is still arriving; feeds the engine's streaming path. */
   streaming?: boolean
   labels: MarkdownLabels
+  /** Toolbar controls for rendered blocks; omitted entries retain the engine defaults. */
+  controls?: ControlsConfig | undefined
   fileMentions?: MarkdownFileMentions | undefined
   /** Whether an authored image may render beside separately displayed artifacts. */
   imageVisible?: ((src: string) => boolean) | undefined
@@ -344,7 +346,7 @@ export function defuseClosingTag(text: string): string {
  * and diagram fences stay code blocks.
  */
 export const MarkdownText = memo(function MarkdownText({
-  text, streaming = false, labels, fileMentions, scrollDown, onFullscreenChange, variant = 'default',
+  text, streaming = false, labels, controls, fileMentions, scrollDown, onFullscreenChange, variant = 'default',
   animation: animationProp, imageVisible,
 }: MarkdownTextProps) {
   const imageVisibility = useRef(imageVisible)
@@ -445,6 +447,7 @@ export const MarkdownText = memo(function MarkdownText({
         plugins={PLUGINS}
         translations={translations}
         components={components}
+        controls={controls}
         className={variant === 'compact' ? `${css.markdown} ${css.compact}` : css.markdown}
         {...scrollDown === undefined ? {} : { scrollDown }}
         {...onFullscreenChange === undefined ? {} : { onFullscreenChange }}

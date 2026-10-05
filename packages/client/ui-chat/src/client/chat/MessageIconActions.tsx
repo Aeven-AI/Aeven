@@ -151,9 +151,9 @@ export interface EditIconActionsProps {
 }
 
 /**
- * Cancel / confirm IconActions row that stands in for a user prompt's row while
+ * Confirm / cancel IconActions row that stands in for a user prompt's row while
  * its inline editor is open.
- * @param props - Cancel and confirm callbacks, availability, className.
+ * @param props - Confirm and cancel callbacks, availability, className.
  * @returns The actions row element.
  */
 export function EditIconActions({
@@ -162,20 +162,7 @@ export function EditIconActions({
   const confirmOff = busy || confirmUnavailable
   return (
     <div className={className === undefined ? css.actions : `${css.actions} ${className}`}>
-      <Tooltip label={t('message.edit.cancel')} side="bottom" boundary={chatColumn}>
-        <button
-          type="button"
-          className={css.action}
-          aria-label={t('message.edit.cancel')}
-          aria-disabled={busy || undefined}
-          data-unavailable={busy || undefined}
-          onClick={busy ? undefined : onCancel}
-        >
-          <IconCloseOutline16 />
-        </button>
-      </Tooltip>
-      {/* The row's right edge is the chat column's: the bubble aligns to it and stays inside the column. */}
-      <Tooltip label={t('message.edit.send')} side="bottom-end" boundary={chatColumn}>
+      <Tooltip label={t('message.edit.send')} side="bottom" boundary={chatColumn}>
         {/* Native disabled buttons do not deliver the hover/focus events Tooltip needs. */}
         <button
           type="button"
@@ -186,6 +173,19 @@ export function EditIconActions({
           onClick={confirmOff ? undefined : onConfirm}
         >
           <IconCheckOutline16 />
+        </button>
+      </Tooltip>
+      {/* The row's right edge is the chat column's: the bubble aligns to it and stays inside the column. */}
+      <Tooltip label={t('message.edit.cancel')} side="bottom-end" boundary={chatColumn}>
+        <button
+          type="button"
+          className={css.action}
+          aria-label={t('message.edit.cancel')}
+          aria-disabled={busy || undefined}
+          data-unavailable={busy || undefined}
+          onClick={busy ? undefined : onCancel}
+        >
+          <IconCloseOutline16 />
         </button>
       </Tooltip>
     </div>

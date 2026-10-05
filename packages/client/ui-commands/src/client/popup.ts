@@ -63,6 +63,13 @@ export interface PopupSelectDeps {
   focusComposer(): void
 }
 
+/** Where an anchored card sits against the control that opened it. */
+export type PopupAnchorPlacement =
+  /** Trailing edges lined up, the card above the composer card (the seat and token paths). */
+  | 'end'
+  /** Beside the control, its foot 4px past the control's — a picker a popup row opened. */
+  | 'beside'
+
 /** Popup shell state (the shell component renders from here; closed = render null). */
 export interface PopupState {
   readonly open: boolean
@@ -81,6 +88,8 @@ export interface PopupState {
    * which pass null.
    */
   readonly anchor: Element | null
+  /** How {@link PopupState.anchor} places the card; read only while an anchor is set. */
+  readonly placement: PopupAnchorPlacement
   /** Highlight index into the filtered row list: the first row marked `active` once options load, else 0. */
   readonly active: number
   /** A select() settlement is in flight: further select/search/highlight no-op until it settles. */
@@ -94,7 +103,7 @@ export interface PopupState {
 }
 
 const CLOSED: PopupState = {
-  open: false, command: null, status: 'pending', options: [], search: '', anchor: null, active: 0,
+  open: false, command: null, status: 'pending', options: [], search: '', anchor: null, placement: 'end', active: 0,
   submitting: false, confirming: null, acknowledged: false, error: null,
 }
 
@@ -153,6 +162,7 @@ export class PopupSelectController<TCtx = unknown> {
    * @param context - open-time context snapshot, handed verbatim to options/onSelect.
    * @param segment - open-time token segment snapshot for post-select consumption.
    * @param anchor - the control that opened the shell (null for token paths).
+   * @param placement - where an anchored card sits against that control.
    */
   open(
     command: string,
@@ -160,11 +170,12 @@ export class PopupSelectController<TCtx = unknown> {
     context: TCtx,
     segment: TokenSegment,
     anchor: Element | null = null,
+    placement: PopupAnchorPlacement = 'end',
   ): void {
     this.binding?.abort.abort()
     const binding: OpenBinding<TCtx> = { command, spec, context, segment, abort: new AbortController() }
     this.binding = binding
-    this.state.set({ ...CLOSED, open: true, command, anchor })
+    this.state.set({ ...CLOSED, open: true, command, anchor, placement })
     this.load(binding)
   }
 

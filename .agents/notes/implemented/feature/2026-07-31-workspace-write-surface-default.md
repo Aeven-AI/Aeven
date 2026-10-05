@@ -18,7 +18,7 @@ The mode governs file effects only. Sandboxed bash and filesystem mutations admi
 
 ## Testing
 
-The keyless shipped-TUI pseudo-terminal smoke boots the real Loader tree, reads the persisted first request, and asserts both the `sandbox_permissions`/`justification` bash schema and the initial workspace-write event triplet. The shipped-Web composition smoke asserts the same policy, approval, and Permission defaults. The assembled browser Settings snapshot opens on Workspace Write, preserves an existing workspace-write session while changing the future default, and still proves the confirmed Full-access path.
+The keyless shipped-TUI pseudo-terminal smoke boots the real Loader tree, reads the persisted first request, and asserts both the `sandbox_permissions`/`justification` bash schema and the initial workspace-write event triplet. The shipped-Web composition smoke asserts the same policy, approval, and Permission defaults. The assembled browser Settings snapshot opens on the `workspace-write` preset under its product label `Ask for approval`, preserves an existing workspace-write session while changing the future default, and still proves the confirmed Full-access path.
 
 ## Alternatives considered
 

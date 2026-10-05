@@ -40,3 +40,19 @@ describe('composer card no-workspace trigger styles', () => {
     expect(disabled?.body).toContain('pointer-events: none')
   })
 })
+
+/** Declarations of one exact selector, comments already stripped. */
+function bodyOf(selector: string): string {
+  const rule = [...declarationText.matchAll(/([^{}]*)\{([^{}]*)\}/g)]
+    .find(match => (match[1] ?? '').trim() === selector)
+  return rule?.[2] ?? ''
+}
+
+describe('composer control row spacing', () => {
+  it('spaces both clusters 8px apart', () => {
+    // The leading cluster (attach, options, mode chips) and the trailing one
+    // (model, activity, send) draw the same 8px between controls.
+    expect(bodyOf('.tools')).toContain('gap: 8px')
+    expect(bodyOf('.trailing')).toContain('gap: 8px')
+  })
+})

@@ -21,6 +21,12 @@ import css from './PopupSelectView.module.css'
 /** Design cap on the card height (same MenuDropdown family as the slash menu). */
 const MAX_HEIGHT = 320
 
+/** Step between the control that opened the card and the card's leading edge. */
+const BESIDE_GAP = 10
+
+/** Distance the beside card keeps from the viewport's own edges. */
+const BESIDE_MARGIN = 12
+
 /** Injected business face of the popupSelect overlay entry. */
 export interface PopupSelectInjected {
   /** The session's shell controller (state store + verbs; the view never touches the open-context type). */
@@ -52,6 +58,10 @@ export function PopupSelectView({ popup, t }: PopupSelectViewProps) {
   // anchor) after mount and before paint, so the card never renders at the
   // composer's edge first and jumps.
   const [anchorInset, setAnchorInset] = useState<number | null>(null)
+  /* Beside placement: the card's foot 4px past the control's, to its right —
+     the seat a popup row opens its picker into. Coordinates are the card's own
+     offsets inside the overlay anchor, which is the card's offset parent. */
+  const [besidePos, setBesidePos] = useState<{ left: number; bottom: number } | null>(null)
   useLayoutEffect(() => {
     const anchor = state.anchor
     const card = cardRef.current
@@ -60,12 +70,29 @@ export function PopupSelectView({ popup, t }: PopupSelectViewProps) {
     const parent = card?.offsetParent ?? card?.parentElement
     if (anchor === null || card === null || parent === null || parent === undefined || !anchor.isConnected) {
       setAnchorInset(null)
+      setBesidePos(null)
       return
     }
     const parentRect = parent.getBoundingClientRect()
     const anchorRect = anchor.getBoundingClientRect()
+    if (state.placement === 'beside') {
+      setAnchorInset(null)
+      const width = card.offsetWidth
+      const toRight = anchorRect.right + BESIDE_GAP - parentRect.left
+      // A control near the viewport's trailing edge (the composer's own right
+      // end) has no room beside it: the card flips to the control's other side
+      // rather than running off the edge.
+      const toLeft = anchorRect.left - BESIDE_GAP - width - parentRect.left
+      const fitsRight = anchorRect.right + BESIDE_GAP + width <= window.innerWidth - BESIDE_MARGIN
+      setBesidePos({
+        left: Math.max(0, fitsRight ? toRight : toLeft),
+        bottom: parentRect.bottom - anchorRect.bottom - 4,
+      })
+      return
+    }
+    setBesidePos(null)
     setAnchorInset(Math.max(0, parentRect.right - anchorRect.right))
-  }, [state.anchor, state.open, state.status, state.options])
+  }, [state.anchor, state.placement, state.open, state.status, state.options, state.search])
 
   // The card is `max-content`, so filtering rows away would narrow it while the
   // reader is still typing — the box would jump under the text each keystroke.
@@ -159,6 +186,7 @@ export function PopupSelectView({ popup, t }: PopupSelectViewProps) {
             maxHeight,
             minWidth: minWidth === 0 ? undefined : minWidth,
             ...anchorInset === null ? {} : { right: anchorInset, left: 'auto' },
+            ...besidePos === null ? {} : { left: besidePos.left, right: 'auto', bottom: besidePos.bottom },
           }}
           aria-label={t('overlay.aria', { command: String(state.command) })}
           onKeyDown={onKeyDown}

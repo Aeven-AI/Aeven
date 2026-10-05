@@ -37,6 +37,7 @@ External packages that a workspace package resolves at runtime. The tier covers 
 | [`@babel/code-frame`](https://github.com/babel/babel) | MIT |
 | [`@deepseek-ai/libreoffice-kit`](https://github.com/deepseek-harness/libreoffice-kit) | MPL-2.0 |
 | [`@earendil-works/pi-ai`](https://github.com/earendil-works/pi) | MIT |
+| [`@googleworkspace/cli`](https://github.com/googleworkspace/cli) | Apache-2.0 |
 | [`@joplin/turndown-plugin-gfm`](https://github.com/laurent22/joplin-turndown-plugin-gfm) | MIT |
 | [`@jridgewell/gen-mapping`](https://github.com/jridgewell/sourcemaps) | MIT |
 | [`@lexical/history`](https://github.com/facebook/lexical) | MIT |
@@ -58,6 +59,7 @@ External packages that a workspace package resolves at runtime. The tier covers 
 | [`@standard-schema/spec`](https://github.com/standard-schema/standard-schema) | MIT |
 | [`@tanstack/react-virtual`](https://github.com/TanStack/virtual) | MIT |
 | [`@tesseract.js-data/eng`](https://github.com/naptha/tessdata) | MIT |
+| [`@thenavidm/google-workspace-mcp-cli`](https://github.com/thenavidm/google-workspace-mcp-cli) | MIT |
 | [`@types/hast`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
 | [`@types/mdast`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
 | [`@types/unist`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
@@ -144,6 +146,7 @@ External packages that a workspace package resolves at runtime. The tier covers 
 
 pnpm applies local patches to the following packages at install time, so shipped artifacts carry modified copies; each patch file is the complete record of the modification:
 
+- `@memtensor/memos-local-plugin@2.0.20` — [`patches/@memtensor__memos-local-plugin@2.0.20.patch`](patches/@memtensor__memos-local-plugin@2.0.20.patch)
 - `node-pty@1.2.0-beta.15` — [`patches/node-pty@1.2.0-beta.15.patch`](patches/node-pty@1.2.0-beta.15.patch)
 
 ## Official Claude Code platform payloads

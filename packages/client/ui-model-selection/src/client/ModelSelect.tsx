@@ -1,5 +1,10 @@
 /**
- * ModelSelect: the composer's named model seat (`conversation.input.model`).
+ * ModelSelect: the composer's model seat (`conversation.input.model`), an
+ * icon-only control on the composer's own 40px disc — the current model and
+ * effort are the card's own first row rather than the trigger's label, so the
+ * row keeps one control width whatever the catalog names. The card opens on
+ * hover and closes when the pointer leaves it; a click pins it open, which is
+ * what the seat's keyboard path and any careful pick need.
  * Two levels, each keeping the picker its list fits:
  *
  * - the Model row hands over to the shared popupSelect shell, so the composer
@@ -11,10 +16,10 @@
  *   submits read ONE derivation (`effort.ts`), so it cannot offer a level the
  *   adapter does not serve.
  *
- * The seat owns the chooser and the trigger's label (Figma 313:14108's
- * ToggleButton: the model name in the secondary tone plus the effective effort
- * in the caption tone) and nothing else. Data rides the per-session
- * ModelDirectory, so a switch made anywhere is what these labels show next.
+ * The seat owns the chooser and the trigger's accessible name and title (the
+ * model name and the effective effort) and nothing else. Data rides the
+ * per-session ModelDirectory, so a switch made anywhere is what these labels
+ * show next.
  */
 import {
   useEffect, useId, useRef, useState, useSyncExternalStore,
@@ -22,8 +27,8 @@ import {
 } from 'react'
 import clsx from 'clsx'
 import {
-  IconCheckOutline16, IconChevronDownOutline14, IconChevronRightOutline14,
-  IconWarningOutline16, Toast,
+  IconCheckOutline16, IconChevronRightOutline14, IconLucideDatabaseCheck,
+  IconWarningOutline16, Toast, usePointerGrace,
 } from '@aeven/client-ui-primitives'
 import type { PropsLocale } from '@aeven/client-ui-slots'
 import { effectiveEffortOf, effortLevelsOf, type EffortLevel } from './effort.ts'
@@ -49,6 +54,8 @@ export function ModelSelect(
     () => directory.getSnapshot(),
   )
   const [open, setOpen] = useState(false)
+  // A click pins the card against the hover dismissal; every close clears it.
+  const [pinned, setPinned] = useState(false)
   const [pane, setPane] = useState<Pane>('root')
   // A refused selection announces through the shared transient Toast anchored
   // to the composer card; catalog-load failures keep the shell's own retry
@@ -57,13 +64,27 @@ export function ModelSelect(
   const toastSeq = useRef(0)
   const rootRef = useRef<HTMLDivElement | null>(null)
   const triggerRef = useRef<HTMLButtonElement | null>(null)
+  const modelRowRef = useRef<HTMLButtonElement | null>(null)
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([])
   const id = useId()
+
+  // A picker this seat's rows open renders in the composer's overlay seat, not
+  // inside the seat's own card: presses and focus there belong to that picker,
+  // so they neither dismiss the card nor count as leaving it.
+  const inOverlaySeat = (node: Node | null): boolean => {
+    if (node === null) return false
+    const seat = rootRef.current
+      ?.closest<HTMLElement>('[data-composer-card]')
+      ?.querySelector('[data-slot="conversation.input.overlay"]')
+    return seat?.contains(node) === true
+  }
 
   useEffect(() => {
     if (!open) return
     const closeOutside = (event: MouseEvent): void => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false)
+      const target = event.target as Node
+      if (rootRef.current?.contains(target) === true || inOverlaySeat(target)) return
+      setOpen(false)
     }
     document.addEventListener('mousedown', closeOutside)
     return () => { document.removeEventListener('mousedown', closeOutside) }
@@ -111,8 +132,24 @@ export function ModelSelect(
 
   const close = (restoreFocus = false): void => {
     setOpen(false)
+    setPinned(false)
     setPane('root')
     if (restoreFocus) queueMicrotask(() => { triggerRef.current?.focus() })
+  }
+
+  // The hover-opened card outlives the pointer leaving the trigger for the 8px
+  // gap to the card: the grace drops the close when the pointer arrives, and a
+  // pinned card ignores it entirely.
+  const pinnedRef = useRef(pinned)
+  pinnedRef.current = pinned
+  const { arm: armHoverClose, cancel: cancelHoverClose } = usePointerGrace(() => {
+    if (!pinnedRef.current) close()
+  })
+
+  /** Open from the trigger's hover, and from the first click of a pinned pair. */
+  const openFromHover = (): void => {
+    cancelHoverClose()
+    if (!open) show()
   }
 
   const moveFocus = (offset: number): void => {
@@ -139,18 +176,29 @@ export function ModelSelect(
   }
 
   const onBlur = (event: FocusEvent<HTMLDivElement>): void => {
-    if (event.relatedTarget instanceof Node && rootRef.current?.contains(event.relatedTarget)) return
+    if (event.relatedTarget instanceof Node
+      && (rootRef.current?.contains(event.relatedTarget) === true || inOverlaySeat(event.relatedTarget))) return
     close()
+  }
+
+  /**
+   * Back to the seat's rows after an effort pick. The card stays open — the
+   * pick changed what its Effort row states — and the picked row unmounts with
+   * the pane, so the trigger takes the focus back to keep the card alive.
+   */
+  const returnToRows = (): void => {
+    setPane('root')
+    queueMicrotask(() => { triggerRef.current?.focus() })
   }
 
   const chooseEffort = (level: EffortLevel): void => {
     if (level.effort === effectiveEffort) {
-      close(true)
+      returnToRows()
       return
     }
     void selectEffort(level.id).then((accepted) => {
       if (accepted) {
-        if (rootRef.current !== null) close(true)
+        returnToRows()
         return
       }
       const message = directory.getSnapshot().error
@@ -167,9 +215,17 @@ export function ModelSelect(
     const at = itemIndex++
     return (node: HTMLButtonElement | null) => { itemRefs.current[at] = node }
   }
+  const modelCellRef = itemRef()
 
   return (
-    <div ref={rootRef} className={css.root} onKeyDown={onRootKeyDown} onBlur={onBlur}>
+    <div
+      ref={rootRef}
+      className={css.root}
+      onKeyDown={onRootKeyDown}
+      onBlur={onBlur}
+      onPointerEnter={cancelHoverClose}
+      onPointerLeave={armHoverClose}
+    >
       <button
         ref={triggerRef}
         type="button"
@@ -180,17 +236,19 @@ export function ModelSelect(
         aria-controls={open ? `${id}-menu` : undefined}
         title={triggerLabel}
         disabled={locked}
+        onPointerEnter={openFromHover}
+        onFocus={openFromHover}
         onClick={() => {
-          if (open) {
+          if (pinned) {
             close()
-          } else {
-            show()
+            return
           }
+          // A click pins the card: the pointer may leave it without closing.
+          setPinned(true)
+          if (!open) show()
         }}
       >
-        <span className={css.triggerLabel}>{modelLabel}</span>
-        {effortLabel !== undefined && <span className={css.triggerEffort}>{effortLabel}</span>}
-        <IconChevronDownOutline14 className={clsx(css.chevron, open && css.chevronOpen)} />
+        <IconLucideDatabaseCheck />
       </button>
 
       {open && (
@@ -204,16 +262,18 @@ export function ModelSelect(
           {pane === 'root' && (
             <>
               <button
-                ref={itemRef()}
+                ref={(node) => {
+                  modelCellRef(node)
+                  modelRowRef.current = node
+                }}
                 type="button"
                 role="menuitem"
                 className={css.cell}
                 onClick={() => {
-                  // The shell owns that list; the seat hands it the trigger, so
-                  // the card lines up with the control that opened it.
-                  setOpen(false)
-                  setPane('root')
-                  openModel(triggerRef.current)
+                  // The shell owns that list; the row hands the seat its own
+                  // control, so the list opens beside this card rather than at
+                  // the composer's edge — and the card stays open around it.
+                  openModel(modelRowRef.current)
                 }}
               >
                 <span className={css.cellLabel}>{t('menu.model')}</span>

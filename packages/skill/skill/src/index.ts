@@ -371,6 +371,7 @@ export class SkillRegistry extends Service {
     () => { this.invalidateCache() },
   )
   private readonly collectCache = new Map<string, Map<string, IndexedCandidate>>()
+  private readonly invocationPolicies = new Set<(name: string, options: SkillViewOptions) => boolean>()
   private revision = 0
   private nextProviderOrder = 0
   /** Stable identities for cache keys; scope keys are opaque identity-compared objects. */
@@ -435,6 +436,24 @@ export class SkillRegistry extends Service {
   }
 
   /**
+   * Restrict invocation without removing skills from management catalogs.
+   * @param policy - returns whether a named skill may be invoked in the requested view.
+   * @returns disposer removing the policy and invalidating catalog observations.
+   */
+  registerInvocationPolicy(policy: (name: string, options: SkillViewOptions) => boolean): () => void {
+    return this.ctx.effect(() => {
+      this.invocationPolicies.add(policy)
+      this.invalidateCache()
+      return () => { this.invocationPolicies.delete(policy); this.invalidateCache() }
+    })
+  }
+
+  private applyInvocationPolicies<T extends SkillSummary>(skill: T, options: SkillViewOptions): T {
+    if ([...this.invocationPolicies].every(policy => policy(skill.name, options))) return skill
+    return { ...skill, invocation: { modelInvocable: false, userInvocable: false } }
+  }
+
+  /**
    * Register a borrowed readonly runtime skill into the calling context's
    * layer. Project entries outrank runtime entries, which outrank user
    * entries, within one layer. Same-name runtime entries in one layer are
@@ -489,7 +508,7 @@ export class SkillRegistry extends Service {
     const collected = await this.collect(options)
     return {
       skills: [...collected.entries.values()]
-        .map(entry => toSummary(entry.candidate))
+        .map(entry => this.applyInvocationPolicies(toSummary(entry.candidate), options))
         .sort(compareSkillSummary),
       complete: collected.cacheable,
     }
@@ -520,7 +539,7 @@ export class SkillRegistry extends Service {
       this.invalidateEntry(match)
       return undefined
     }
-    return definition
+    return this.applyInvocationPolicies(definition, options)
   }
 
   private async collect(options: SkillViewOptions): Promise<CollectResult> {

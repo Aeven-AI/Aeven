@@ -219,10 +219,10 @@ export class ApiSessionList {
    *
    * The cache is a fold shortcut, not the authority: a row that is absent,
    * identity-mismatched, or stamped with a version this build does not accept
-   * reads as missing, and serving that as a title-less row renders a session
-   * the user already named as "untitled". The durable `session/title` events
-   * still exist in the log, so the value is recoverable and the list recovers
-   * it rather than displaying a name the session does not have.
+   * reads as missing, and serving that as a title-less row shows a session the
+   * user already named as one that has no name. The durable `session/title`
+   * events still exist in the log, so the value is recoverable and the list
+   * recovers it rather than displaying a name the session does not have.
    *
    * This is the exceptional path. A hit costs nothing extra, the work is
    * bounded by {@link COLD_TITLE_REFOLD_LIMIT} sessions per listing, and each
@@ -289,8 +289,8 @@ export class ApiSessionList {
       sessionId: header.id,
       updatedAt: updatedAt(header, metadata),
       running: false,
-      // A cache miss stays visible; the renderer labels a title-less row as
-      // untitled rather than ever showing the Session id.
+      // A cache miss stays visible; the renderer keeps the localized New
+      // Session label on a title-less row rather than ever showing the Session id.
       blank: metadata?.blank ?? false,
       ...listFields(header),
       ...(projections === undefined ? {} : { projections }),

@@ -13,6 +13,7 @@ import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { deflateSync } from 'node:zlib'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import yaml from 'js-yaml'
 import { Context } from '@deepseek-ai/cordis'
@@ -28,6 +29,57 @@ import * as ToolMedia from '../src/index.ts'
 
 /** 1x1 red PNG (valid signature, IHDR, IDAT), which the attachment store fully decodes. */
 const PNG_1X1 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC'
+
+/** CRC-32 over one PNG chunk, per the PNG specification's polynomial. */
+function crc32(data: Buffer): number {
+  let crc = 0xffffffff
+  for (const byte of data) {
+    crc ^= byte
+    for (let bit = 0; bit < 8; bit += 1) crc = (crc & 1) === 1 ? (crc >>> 1) ^ 0xedb88320 : crc >>> 1
+  }
+  return (crc ^ 0xffffffff) >>> 0
+}
+
+/**
+ * A valid truecolor PNG of the given size. Sized above the store's normalized
+ * 2048² pixel budget, it forces the downscale path that reports the input
+ * dimensions beside the stored raster.
+ * @param width - raster width in pixels.
+ * @param height - raster height in pixels.
+ * @returns the encoded PNG as base64, the form a gateway answer carries.
+ */
+function png(width: number, height: number): string {
+  const header = Buffer.alloc(13)
+  header.writeUInt32BE(width, 0)
+  header.writeUInt32BE(height, 4)
+  header[8] = 8
+  header[9] = 2
+  const stride = 1 + width * 3
+  const raw = Buffer.alloc(height * stride)
+  for (let y = 0; y < height; y += 1) {
+    const row = y * stride
+    for (let x = 0; x < width; x += 1) {
+      const at = row + 1 + x * 3
+      raw[at] = y % 256
+      raw[at + 1] = (x >> 4) % 256
+      raw[at + 2] = 96
+    }
+  }
+  const chunk = (type: string, data: Buffer): Buffer => {
+    const length = Buffer.alloc(4)
+    length.writeUInt32BE(data.length, 0)
+    const body = Buffer.concat([Buffer.from(type, 'ascii'), data])
+    const checksum = Buffer.alloc(4)
+    checksum.writeUInt32BE(crc32(body), 0)
+    return Buffer.concat([length, body, checksum])
+  }
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', header),
+    chunk('IDAT', deflateSync(raw)),
+    chunk('IEND', Buffer.alloc(0)),
+  ]).toString('base64')
+}
 
 const PRESET = fileURLToPath(new URL('../../../preset/agent-presets/presets/aeven/agent.cordis.yml', import.meta.url))
 
@@ -58,8 +110,12 @@ async function shippedToolMediaConfig(): Promise<ToolMedia.Config> {
   return entry.config
 }
 
-/** Start the gateway double; it records each body and answers one PNG. */
-async function startGateway(): Promise<{ url: string; bodies: unknown[]; auth: (string | undefined)[] }> {
+/**
+ * Start the gateway double; it records each body and answers the given image.
+ * @param image - base64 PNG the gateway answers with.
+ * @returns the gateway URL, the bodies it received, and their authorization headers.
+ */
+async function startGateway(image: string = PNG_1X1): Promise<{ url: string; bodies: unknown[]; auth: (string | undefined)[] }> {
   const bodies: unknown[] = []
   const auth: (string | undefined)[] = []
   gateway = createServer((request: IncomingMessage, response) => {
@@ -69,7 +125,7 @@ async function startGateway(): Promise<{ url: string; bodies: unknown[]; auth: (
       bodies.push(JSON.parse(raw))
       auth.push(request.headers.authorization)
       response.writeHead(200, { 'content-type': 'application/json' })
-      response.end(JSON.stringify({ created: 0, data: [{ b64_json: PNG_1X1 }] }))
+      response.end(JSON.stringify({ created: 0, data: [{ b64_json: image }] }))
     })
   })
   const address = await new Promise<AddressInfo>((resolve) => {
@@ -148,8 +204,26 @@ describe('image generation through the shipped preset composition', () => {
     expect(out.isError).not.toBe(true)
     expect(bodies).toEqual([{ model: 'Aeven-1.0-Image-Flash', prompt: 'a lighthouse at dusk', response_format: 'b64_json' }])
     expect(auth).toEqual(['Bearer session-token'])
-    expect(out.content[0]).toEqual({ type: 'text', text: 'Generated 1 image(s) with Aeven-1.0-Image-Flash.' })
+    expect(out.content[0]).toEqual({ type: 'text', text: 'Generated 1 image(s) with Aeven-1.0-Image-Flash. Already displayed to the user; do not repeat or embed them in your reply.' })
     expect(out.content[1]).toMatchObject({ type: 'image', attachment: { mediaType: 'image/png', width: 1, height: 1 } })
+  })
+
+  it('stores an image the store had to scale down, keeping its images and their reported dimensions', async () => {
+    const { url } = await startGateway(png(4096, 1755))
+    const ctx = await loadComposition(url)
+
+    const out = await ctx.tools.execute({
+      signal: new AbortController().signal,
+      callId: ToolCallId('call-1'),
+      name: 'generate_image',
+      arguments: { prompt: 'a wide valley', resolution: '2K' },
+    })
+    expect(out.isError).not.toBe(true)
+    const [image] = (out.value as { images: { width: number; height: number; originalDimensions?: { width: number; height: number } }[] }).images
+    expect(image?.originalDimensions).toEqual({ width: 4096, height: 1755 })
+    expect(image!.width).toBeLessThan(4096)
+    expect(image!.width * image!.height).toBeLessThanOrEqual(2048 * 2048)
+    expect(out.content.some(block => block.type === 'image')).toBe(true)
   })
 
   it('serves Pro with a background when the call names it, and refuses any other model', async () => {

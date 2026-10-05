@@ -102,11 +102,24 @@ export type WorkspaceBrowserInjected = {
     hostInfo: HostObservable<RemoteHostFacts>
   }
   /**
-   * Start a New Session in a Workspace: reuse-or-create its blank session and
-   * open it; without an explicit workspace, inherit the current Session
-   * Workspace, then the recent Workspace, or clear into the New Session view.
+   * Start a New Session: reuse-or-create its blank Session in an explicit
+   * Workspace and open it; without an explicit workspace, inherit the current
+   * Session Workspace, then the recent Workspace, or clear into the New Session
+   * view.
+   *
+   * Reuse comes first on purpose: a chat nobody has prompted yet holds whatever
+   * was drafted in it, so a New Session action taken while that text is unsent
+   * returns to the same chat instead of stranding the text behind a second one.
+   * @param workspaceId - Workspace to start in; absent resolves by that policy.
    */
   startSession: (workspaceId?: WorkspaceId) => void
+  /**
+   * Address a New Session link publishes for the open the browser owns — a
+   * middle click, "Open link in new window", a copied address. A plain press
+   * runs `startSession` instead, so this is what those produce, not what a
+   * plain press opens.
+   */
+  newSessionHref: () => { href: string; sessionId: SessionId }
   /** Open a real Session. */
   open: (sessionId: SessionId) => void
   /** Rename a Session (explicit user title; resolves on host acceptance). */

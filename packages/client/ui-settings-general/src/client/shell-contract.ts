@@ -15,6 +15,7 @@ import type {
 import type {} from '@aeven/client-ui-sidebar/client'
 // Type-only: pulls the settings slot declarations the shell renders into.
 import type {} from '@aeven/client-ui-settings/client'
+import type { SettingsAddress } from './settings-url.ts'
 
 /** One nav row projected from a settings.section registration's options. */
 export interface SettingsSectionRow {
@@ -31,18 +32,20 @@ export interface SettingsOnboardingStep {
 
 /**
  * Registrant-private injected share of the settings shell (assembled in
- * apply): connection state and ledger projections arrive as hook-compartment
- * sources, while the reconnect command remains a plain callback.
+ * apply): connection state, ledger projections, and the panel's address arrive
+ * as hook-compartment sources, while the reconnect command and the two address
+ * navigations remain plain callbacks.
  */
 export type SettingsRootInjected = {
   /** Request a fresh logical generation and physical WebSocket immediately. */
   reconnect: () => void
   /**
-   * Subscribe to `settings/open` requests from other surfaces.
-   * @param listener - called once per request with the requested section id, if any.
-   * @returns the unsubscribe function.
+   * Address the panel at a section, opening it when it was closed.
+   * @param section - section id; absent addresses the panel's first section.
    */
-  onOpenRequest: (listener: (section?: string) => void) => () => void
+  show: (section?: string) => void
+  /** Drop the panel's address, closing it. */
+  close: () => void
   hooks: {
     /** Connection-owned state for the current Host connection. */
     connectionState: HostObservable<ConnectionState | undefined>
@@ -50,14 +53,17 @@ export type SettingsRootInjected = {
     sections: HostObservable<readonly SettingsSectionRow[]>
     /** settings.onboarding ledger projected into coordinator order. */
     onboardingSteps: HostObservable<readonly SettingsOnboardingStep[]>
+    /** Address of the open settings panel; undefined while the panel is closed. */
+    settingsAddress: HostObservable<SettingsAddress | undefined>
   }
 }
 
 /**
  * Full component props of the settings shell root: the sidebar owner share
  * (expanded/closed state) plus the declared render shares and the injected face
- * (hooks compartment bound to useSections). No store is registered — modal
- * open state and active section id are component-local viewing state.
+ * (hooks compartment bound to useSections and useSettingsAddress). No store is
+ * registered: whether the panel is open, and which section it shows, is the
+ * address bar's state, read through the bound hook.
  */
 export type SettingsRootComponentProps =
   PropsRuntime<'sidebar.settings'>

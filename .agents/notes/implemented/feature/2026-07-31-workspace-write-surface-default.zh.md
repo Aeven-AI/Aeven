@@ -18,7 +18,7 @@ Status: implemented
 
 ## 测试
 
-已交付 TUI 的无密钥伪终端冒烟测试会启动真实 Loader 树，读取已持久化的首个请求，并断言 bash schema 中的 `sandbox_permissions`／`justification`，以及初始的 workspace-write 事件三元组。已交付 Web 组合的冒烟测试断言相同的策略、审批与 Permission 默认值。组装后的浏览器 Settings 快照打开时选中 Workspace Write，在更改后续会话默认值时保持现有 `workspace-write` 会话不变，并仍然验证经确认后选择 Full access 的路径。
+已交付 TUI 的无密钥伪终端冒烟测试会启动真实 Loader 树，读取已持久化的首个请求，并断言 bash schema 中的 `sandbox_permissions`／`justification`，以及初始的 workspace-write 事件三元组。已交付 Web 组合的冒烟测试断言相同的策略、审批与 Permission 默认值。组装后的浏览器 Settings 快照打开时选中产品标签为「需要时先询问」的 `workspace-write` 预设，在更改后续会话默认值时保持现有 `workspace-write` 会话不变，并仍然验证经确认后选择 Full access 的路径。
 
 ## 曾考虑的替代方案
 

@@ -9,6 +9,7 @@
 import { useSyncExternalStore } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react'
+import { IconDislikeOutline16, IconEditOutline16, IconLikeFill16 } from '@aeven/client-ui-primitives'
 import { makeTranslate } from '@aeven/client-test-runtime'
 import { zh as commonZh } from '@aeven/client-locale/src/locales/zh.ts'
 import type { MessageId } from '@aeven/api-remotes/client'
@@ -80,6 +81,43 @@ describe('MessageFeedbackActions', () => {
     expect(ui.getByLabelText(zh['action.like']).getAttribute('aria-pressed')).toBe('false')
   })
 
+  it('shows the recorded rating as the filled thumb and the other side outlined', () => {
+    const ui = mount({ current: item({ rating: 'positive' }) })
+
+    expect(ui.getByLabelText(zh['action.likeActive']).innerHTML)
+      .toBe(render(<IconLikeFill16 />).container.innerHTML)
+    expect(ui.getByLabelText(zh['action.dislike']).innerHTML)
+      .toBe(render(<IconDislikeOutline16 />).container.innerHTML)
+  })
+
+  it('offers the note editor as an edit glyph rather than the words', () => {
+    const ui = mount({ current: item({ rating: 'positive' }) })
+
+    const trigger = ui.getByLabelText(zh['note.open'])
+    expect(trigger.innerHTML).toBe(render(<IconEditOutline16 />).container.innerHTML)
+  })
+
+  it('shows a recorded note as the edit glyph plus the note text', () => {
+    const ui = mount({ current: item({ rating: 'positive', note: 'old note' }) })
+
+    const trigger = ui.getByText('old note').closest('button')
+    expect(trigger).not.toBeNull()
+    // The recorded note is the button's visible label, so it carries the
+    // accessible name itself and keeps the "Add a note" wording off the row.
+    expect(trigger?.getAttribute('aria-label')).toBeNull()
+    expect(trigger?.querySelector('svg')?.innerHTML)
+      .toBe(render(<IconEditOutline16 />).container.querySelector('svg')?.innerHTML)
+  })
+
+  it('names the note editor\'s actions OK and Cancel', () => {
+    const ui = mount({ current: item({ rating: 'positive' }) })
+
+    fireEvent.click(ui.getByLabelText(zh['note.open']))
+
+    expect(ui.getByText(commonZh['ok'])).toBeTruthy()
+    expect(ui.getByText(commonZh['cancel'])).toBeTruthy()
+  })
+
   it('reads the Session feedback on first interaction, once', () => {
     const ui = mount()
     const like = ui.getByLabelText(zh['action.like'])
@@ -127,9 +165,9 @@ describe('MessageFeedbackActions', () => {
   it('saves a typed note through the rate verb and closes the editor', async () => {
     const ui = mount({ current: item({ rating: 'positive' }) })
 
-    fireEvent.click(ui.getByText(zh['note.open']))
+    fireEvent.click(ui.getByLabelText(zh['note.open']))
     fireEvent.change(ui.getByLabelText(zh['note.aria']), { target: { value: '  precise and short  ' } })
-    fireEvent.click(ui.getByText(zh['note.save']))
+    fireEvent.click(ui.getByText(commonZh['ok']))
 
     await waitFor(() => { expect(ui.rate).toHaveBeenCalledWith(MSG, 'positive', 'precise and short') })
     await waitFor(() => { expect(ui.queryByLabelText(zh['note.aria'])).toBeNull() })
@@ -140,7 +178,7 @@ describe('MessageFeedbackActions', () => {
 
     fireEvent.click(ui.getByText('old note'))
     fireEvent.change(ui.getByLabelText(zh['note.aria']), { target: { value: '   ' } })
-    fireEvent.click(ui.getByText(zh['note.save']))
+    fireEvent.click(ui.getByText(commonZh['ok']))
 
     await waitFor(() => { expect(ui.clearNote).toHaveBeenCalledWith(MSG) })
   })
@@ -151,7 +189,7 @@ describe('MessageFeedbackActions', () => {
     fireEvent.click(ui.getByText('old note'))
     expect((ui.getByLabelText(zh['note.aria']) as HTMLTextAreaElement).value).toBe('old note')
 
-    fireEvent.click(ui.getByText(zh['note.cancel']))
+    fireEvent.click(ui.getByText(commonZh['cancel']))
     expect(ui.queryByLabelText(zh['note.aria'])).toBeNull()
     expect(ui.rate).not.toHaveBeenCalled()
   })
@@ -159,7 +197,7 @@ describe('MessageFeedbackActions', () => {
   it('offers no note editor before a rating is recorded', () => {
     const ui = mount()
 
-    expect(ui.queryByText(zh['note.open'])).toBeNull()
+    expect(ui.queryByLabelText(zh['note.open'])).toBeNull()
   })
 
   it('reports a lost race with the conflict copy', async () => {
@@ -188,9 +226,9 @@ describe('MessageFeedbackActions', () => {
       rateResult: { ok: false, error: { code: 'note-too-large', message: 'too long' } },
     })
 
-    fireEvent.click(ui.getByText(zh['note.open']))
+    fireEvent.click(ui.getByLabelText(zh['note.open']))
     fireEvent.change(ui.getByLabelText(zh['note.aria']), { target: { value: 'x'.repeat(20) } })
-    fireEvent.click(ui.getByText(zh['note.save']))
+    fireEvent.click(ui.getByText(commonZh['ok']))
 
     await waitFor(() => { expect(ui.getByText(zh['error.generic'])).toBeTruthy() })
     // The draft survives so the human can shorten it instead of retyping.
@@ -250,7 +288,7 @@ describe('MessageFeedbackActions', () => {
   it('portals the note editor to the document body, not into the actions row', () => {
     const ui = mount({ current: item({ rating: 'positive' }) })
 
-    fireEvent.click(ui.getByText(zh['note.open']))
+    fireEvent.click(ui.getByLabelText(zh['note.open']))
 
     // The editor must float above the transcript (escaping the conversation
     // column's overflow clip), so it renders through a portal to document.body
@@ -264,7 +302,7 @@ describe('MessageFeedbackActions', () => {
   it('closes the note popover on Escape', () => {
     const ui = mount({ current: item({ rating: 'positive' }) })
 
-    fireEvent.click(ui.getByText(zh['note.open']))
+    fireEvent.click(ui.getByLabelText(zh['note.open']))
     expect(ui.getByRole('dialog')).toBeTruthy()
 
     fireEvent.keyDown(document, { key: 'Escape' })
@@ -275,7 +313,7 @@ describe('MessageFeedbackActions', () => {
   it('closes the note popover on an outside pointer-down', () => {
     const ui = mount({ current: item({ rating: 'positive' }) })
 
-    fireEvent.click(ui.getByText(zh['note.open']))
+    fireEvent.click(ui.getByLabelText(zh['note.open']))
     expect(ui.getByRole('dialog')).toBeTruthy()
 
     fireEvent.pointerDown(document.body)
@@ -286,7 +324,7 @@ describe('MessageFeedbackActions', () => {
   it('keeps the note popover open on a pointer-down inside it', () => {
     const ui = mount({ current: item({ rating: 'positive' }) })
 
-    fireEvent.click(ui.getByText(zh['note.open']))
+    fireEvent.click(ui.getByLabelText(zh['note.open']))
     const panel = ui.getByRole('dialog')
     expect(panel).toBeTruthy()
 
@@ -298,33 +336,33 @@ describe('MessageFeedbackActions', () => {
   it('does not close the note popover on a pointer-down on its trigger', () => {
     const ui = mount({ current: item({ rating: 'positive' }) })
 
-    fireEvent.click(ui.getByText(zh['note.open']))
+    fireEvent.click(ui.getByLabelText(zh['note.open']))
     expect(ui.getByRole('dialog')).toBeTruthy()
 
     // The trigger is inside the panel's own region, so pressing it must not be
     // treated as an outside click; the toggle click below then closes it.
-    fireEvent.pointerDown(ui.getByText(zh['note.open']))
+    fireEvent.pointerDown(ui.getByLabelText(zh['note.open']))
     expect(ui.getByRole('dialog')).toBeTruthy()
   })
 
   it('toggles the note popover closed and open from its trigger', () => {
     const ui = mount({ current: item({ rating: 'positive' }) })
 
-    fireEvent.click(ui.getByText(zh['note.open']))
+    fireEvent.click(ui.getByLabelText(zh['note.open']))
     expect(ui.getByRole('dialog')).toBeTruthy()
     expect(ui.getByLabelText(zh['note.aria'])).toBeTruthy()
 
-    fireEvent.click(ui.getByText(zh['note.open']))
+    fireEvent.click(ui.getByLabelText(zh['note.open']))
     expect(ui.queryByRole('dialog')).toBeNull()
 
-    fireEvent.click(ui.getByText(zh['note.open']))
+    fireEvent.click(ui.getByLabelText(zh['note.open']))
     expect(ui.getByRole('dialog')).toBeTruthy()
   })
 
   it('ignores keys other than Escape while the popover is open', () => {
     const ui = mount({ current: item({ rating: 'positive' }) })
 
-    fireEvent.click(ui.getByText(zh['note.open']))
+    fireEvent.click(ui.getByLabelText(zh['note.open']))
     expect(ui.getByRole('dialog')).toBeTruthy()
 
     fireEvent.keyDown(document, { key: 'Enter' })
@@ -391,9 +429,9 @@ describe('MessageFeedbackActions', () => {
     window.addEventListener('error', onError)
 
     const ui = render(<MessageFeedbackActions {...props} />)
-    fireEvent.click(ui.getByText(zh['note.open']))
+    fireEvent.click(ui.getByLabelText(zh['note.open']))
     fireEvent.change(ui.getByLabelText(zh['note.aria']), { target: { value: 'hi' } })
-    fireEvent.click(ui.getByText(zh['note.save']))
+    fireEvent.click(ui.getByText(commonZh['ok']))
     ui.unmount()
     release()
     await gate
@@ -405,7 +443,7 @@ describe('MessageFeedbackActions', () => {
   it('ignores a pointer-down whose target is not a DOM node', () => {
     const ui = mount({ current: item({ rating: 'positive' }) })
 
-    fireEvent.click(ui.getByText(zh['note.open']))
+    fireEvent.click(ui.getByLabelText(zh['note.open']))
     expect(ui.getByRole('dialog')).toBeTruthy()
 
     // The outside-click guard returns without closing when the event target is
@@ -420,7 +458,7 @@ describe('MessageFeedbackActions', () => {
 
   it('returns focus to the trigger when the popover closes', () => {
     const ui = mount({ current: item({ rating: 'positive' }) })
-    const trigger = ui.getByText(zh['note.open'])
+    const trigger = ui.getByLabelText(zh['note.open'])
 
     fireEvent.click(trigger)
     expect(ui.getByRole('dialog')).toBeTruthy()
@@ -455,13 +493,13 @@ describe('MessageFeedbackActions', () => {
       rateResult: { ok: false, error: { code: 'note-too-large', message: 'too long' } },
     })
 
-    fireEvent.click(ui.getByText(zh['note.open']))
+    fireEvent.click(ui.getByLabelText(zh['note.open']))
     fireEvent.change(ui.getByLabelText(zh['note.aria']), { target: { value: 'x'.repeat(20) } })
-    fireEvent.click(ui.getByText(zh['note.save']))
+    fireEvent.click(ui.getByText(commonZh['ok']))
     await waitFor(() => { expect(ui.getByText(zh['error.generic'])).toBeTruthy() })
 
     fireEvent.keyDown(document, { key: 'Escape' })
-    fireEvent.click(ui.getByText(zh['note.open']))
+    fireEvent.click(ui.getByLabelText(zh['note.open']))
 
     expect(ui.queryByText(zh['error.generic'])).toBeNull()
   })
@@ -494,9 +532,9 @@ describe('MessageFeedbackActions', () => {
     } as unknown as Parameters<typeof MessageFeedbackActions>[0]
     const ui = render(<MessageFeedbackActions {...props} />)
 
-    fireEvent.click(ui.getByText(zh['note.open']))
+    fireEvent.click(ui.getByLabelText(zh['note.open']))
     fireEvent.change(ui.getByLabelText(zh['note.aria']), { target: { value: 'hi' } })
-    fireEvent.click(ui.getByText(zh['note.save']))
+    fireEvent.click(ui.getByText(commonZh['ok']))
 
     // The retract lands first, then the save rejects.
     view.items = new Map()
@@ -534,13 +572,13 @@ describe('MessageFeedbackActions', () => {
     } as unknown as Parameters<typeof MessageFeedbackActions>[0]
     const ui = render(<MessageFeedbackActions {...props} />)
 
-    fireEvent.click(ui.getByText(zh['note.open']))
+    fireEvent.click(ui.getByLabelText(zh['note.open']))
     fireEvent.change(ui.getByLabelText(zh['note.aria']), { target: { value: 'first' } })
-    fireEvent.click(ui.getByText(zh['note.save']))
+    fireEvent.click(ui.getByText(commonZh['ok']))
 
     // Abandon that session and start another before the save lands.
     fireEvent.keyDown(document, { key: 'Escape' })
-    fireEvent.click(ui.getByText(zh['note.open']))
+    fireEvent.click(ui.getByLabelText(zh['note.open']))
     expect(ui.getByRole('dialog')).toBeTruthy()
 
     release()
@@ -556,7 +594,7 @@ describe('MessageFeedbackActions', () => {
     // Save, and leaving it set locks this message's row until it remounts.
     expect(ui.getByLabelText(zh['action.likeActive']).hasAttribute('disabled')).toBe(false)
     expect(ui.getByLabelText(zh['action.dislike']).hasAttribute('disabled')).toBe(false)
-    expect(ui.getByText(zh['note.save']).hasAttribute('disabled')).toBe(false)
+    expect(ui.getByText(commonZh['ok']).hasAttribute('disabled')).toBe(false)
   })
 
   it('reports a save that fails after the human closed the panel', async () => {
@@ -588,9 +626,9 @@ describe('MessageFeedbackActions', () => {
     } as unknown as Parameters<typeof MessageFeedbackActions>[0]
     const ui = render(<MessageFeedbackActions {...props} />)
 
-    fireEvent.click(ui.getByText(zh['note.open']))
+    fireEvent.click(ui.getByLabelText(zh['note.open']))
     fireEvent.change(ui.getByLabelText(zh['note.aria']), { target: { value: 'hi' } })
-    fireEvent.click(ui.getByText(zh['note.save']))
+    fireEvent.click(ui.getByText(commonZh['ok']))
 
     // Walk away before the reply lands, and leave it closed.
     fireEvent.keyDown(document, { key: 'Escape' })
@@ -632,14 +670,14 @@ describe('MessageFeedbackActions', () => {
     } as unknown as Parameters<typeof MessageFeedbackActions>[0]
     const ui = render(<MessageFeedbackActions {...props} />)
 
-    fireEvent.click(ui.getByText(zh['note.open']))
+    fireEvent.click(ui.getByLabelText(zh['note.open']))
     fireEvent.change(ui.getByLabelText(zh['note.aria']), { target: { value: 'first' } })
-    fireEvent.click(ui.getByText(zh['note.save']))
+    fireEvent.click(ui.getByText(commonZh['ok']))
 
     // Abandon that session and start another before the save rejects; unlike
     // the closed-and-left case, a new panel is now on screen.
     fireEvent.keyDown(document, { key: 'Escape' })
-    fireEvent.click(ui.getByText(zh['note.open']))
+    fireEvent.click(ui.getByLabelText(zh['note.open']))
     expect(ui.getByRole('dialog')).toBeTruthy()
 
     release()
@@ -681,7 +719,7 @@ describe('MessageFeedbackActions', () => {
 
     fireEvent.click(ui.getByText('old'))
     fireEvent.change(ui.getByLabelText(zh['note.aria']), { target: { value: 'saved text' } })
-    fireEvent.click(ui.getByText(zh['note.save']))
+    fireEvent.click(ui.getByText(commonZh['ok']))
 
     // Close and reopen before the save lands: the new draft is seeded from the
     // still-stale stored note.
@@ -724,7 +762,7 @@ describe('MessageFeedbackActions', () => {
 
     fireEvent.click(ui.getByText('old'))
     fireEvent.change(ui.getByLabelText(zh['note.aria']), { target: { value: 'saved text' } })
-    fireEvent.click(ui.getByText(zh['note.save']))
+    fireEvent.click(ui.getByText(commonZh['ok']))
 
     fireEvent.keyDown(document, { key: 'Escape' })
     fireEvent.click(ui.getByText('old'))
