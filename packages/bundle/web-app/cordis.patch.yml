@@ -186,10 +186,9 @@
     # the owning session's `llm` route. The slot always mounts because the
     # presets' `memory-context` and `tool-memory` rows inject it; they add
     # prompt text and tools only while a provider is registered. The provider is
-    # on by default, so a fresh install remembers from its first session. Its
-    # Viewer stays off: it serves every account's stored memory with no sign-in,
-    # while this Host serves several accounts, each reaching only its own memory
-    # through the memory manager.
+    # on by default, so a fresh install remembers from its first session. Each
+    # account's memory is its own database under `accounts/<account>/memory`,
+    # reached through the memory manager.
     - id: memory
       name: '@aeven/memory'
 
@@ -197,7 +196,7 @@
       name: '@aeven/memory-memos'
       config:
         home: !!js avnHomePath('memory')
-        viewer: false
+        accounts: !!js avnHomePath('accounts')
 
     # Learned capabilities: per-user procedures the agent learned, stored as
     # agentskills directories and published through the skill catalog once the

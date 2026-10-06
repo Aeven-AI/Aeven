@@ -28,10 +28,12 @@
   "license": "MIT",
   "dependencies": {
     "@aeven/brand": "workspace:^",
+    "@aeven/home-paths": "workspace:^",
     "@aeven/timeout": "workspace:^",
     "@aeven/util-values": "workspace:^",
+    "@deepseek-ai/memos-local-plugin": "workspace:^",
     "@deepseek-ai/schemastery": "workspace:^",
-    "@memtensor/memos-local-plugin": "2.0.20"
+    "better-sqlite3": "^12.10.0"
   },
   "peerDependencies": {
     "@aeven/llm": "workspace:^",
@@ -43,6 +45,7 @@
     "@aeven/llm": "workspace:^",
     "@aeven/memory": "workspace:^",
     "@aeven/session": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@types/better-sqlite3": "^7.6.12"
   }
 }

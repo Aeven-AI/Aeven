@@ -1,7 +1,7 @@
 /** Memory domains stored as MemOS trace tags, and the classification that assigns them at capture. */
 import { AsyncLocalStorage } from 'node:async_hooks'
 import type { MemoryDomain } from '@aeven/memory'
-import type { HostLlmBridge, HostLlmCompleteInput } from '@memtensor/memos-local-plugin/dist/core/llm/host-bridge.js'
+import type { HostLlmBridge, HostLlmCompleteInput } from '@deepseek-ai/memos-local-plugin/core/llm/host-bridge.js'
 
 /** Prefix of the trace tag that records a memory's domain. */
 export const DOMAIN_TAG = 'domain:'

@@ -37,6 +37,16 @@ const settings = avnHomePath('settings')     // join one child onto the resolved
 
 显式配置的路径优先级最高，然后是 `$AVN_HOME`，最后是默认的 `~/.aeven`。空或仅含空白的 `$AVN_HOME` 视为未设置，因此空白的覆盖值绝不会把主目录解析到当前工作目录。
 
+### 定位账户数据
+
+```ts
+import { accountHomePath } from '@aeven/home-paths'
+
+const memory = accountHomePath(owner, 'memory')   // <home>/accounts/<sha256 of owner>/memory
+```
+
+按账户划分的状态位于 `accounts/` 下，每个账户一个目录，由 `accountDirectoryName` 命名：账户 id 的十六进制 SHA-256，对任何 id 都是文件系统安全的，且不会直接写出该 id。
+
 ### 展示主目录
 
 面向用户的路径请以符号形式渲染根目录，而不是机器路径：默认主目录显示为 `~/.aeven`，任何已配置的主目录显示为 `$AVN_HOME`。展示形式绝不会泄露机器的绝对路径。

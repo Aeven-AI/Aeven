@@ -315,6 +315,11 @@ async function main(): Promise<void> {
   mkdirSync(buildPaths.packedWhatsApp, { recursive: true })
   await runPnpm(['--dir', 'native/whatsapp-mcp', 'run', 'build:native', '--target', whisperPlatform], buildEnv, REPOSITORY_ROOT)
   await runNpm(['pack', `./native/whatsapp-mcp/packages/${whisperPlatform}`, '--pack-destination', buildPaths.packedWhatsApp], buildEnv)
+  // The Telegram connector daemon is plain JavaScript, so one build and one tarball serve every target.
+  rmSync(buildPaths.packedTelegram, { recursive: true, force: true })
+  mkdirSync(buildPaths.packedTelegram, { recursive: true })
+  await runPnpm(['--dir', 'native/telegram-mcp', 'run', 'build'], buildEnv, REPOSITORY_ROOT)
+  await runPnpm(['--dir', 'native/telegram-mcp', 'pack', '--pack-destination', buildPaths.packedTelegram], buildEnv, REPOSITORY_ROOT)
   rmSync(buildPaths.packedLandlock, { recursive: true, force: true })
   mkdirSync(buildPaths.packedLandlock, { recursive: true })
   await runPnpm(['--dir', 'native/landlock-run', 'run', 'build:ts'], buildEnv, REPOSITORY_ROOT)

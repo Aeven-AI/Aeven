@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-02-desktop-seed-excludes-unloaded-dependencies.md
-2026-10-02-desktop-seed-excludes-unloaded-dependencies.md: 2b2c43812dfdc08041f51e69f247eaf30db10a6d
-2026-10-02-desktop-seed-excludes-unloaded-dependencies.zh.md: 38905e7bf07e53086202d24ede64ee9006553304
+2026-10-02-desktop-seed-excludes-unloaded-dependencies.md: 65539db75fb8ce04f19a5ea2f6e95b6e55a7160b
+2026-10-02-desktop-seed-excludes-unloaded-dependencies.zh.md: 8e693f6e645d16e749940fa0063213e1d2deafc5

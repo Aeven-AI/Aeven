@@ -2,6 +2,7 @@
  * The least MemOS core the recall path needs: a candidate list and a trace lookup, with the runtime over them.
  * Capture reaches further into MemOS and is out of scope for the recall specs that share this.
  */
+import { OwnerCores } from '../src/cores.ts'
 import { LlmRouteContext } from '../src/host-llm.ts'
 import { MemosMemory } from '../src/runtime.ts'
 
@@ -40,7 +41,7 @@ export function fakeCore(traces: readonly FakeTrace[]) {
  */
 export function memory(traces: readonly FakeTrace[]): MemosMemory {
   return new MemosMemory({
-    core: fakeCore(traces) as never,
+    cores: new OwnerCores(async () => fakeCore(traces) as never),
     routes: new LlmRouteContext(),
     toolLimits: { skills: 8, traces: 8, worldModels: 8 },
     warn: () => {},

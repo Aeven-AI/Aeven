@@ -11,12 +11,16 @@
  *
  * A live Host that answers on its advertised URL already owns the home, and
  * the shell renders the same Web application either way, so adopting it is
- * both the correct and the cheaper choice. Anything short of a proven live
- * Host falls back to today's behaviour: the shell starts its own.
+ * both the correct and the cheaper choice. A Host claims the lease when it
+ * starts booting and adds its URL once it serves, so while the leased process
+ * is alive the shell waits for that URL and for an answer instead of starting
+ * a second Host. Only a lease whose process is gone, or a wait that runs out,
+ * makes the shell start its own.
  * @module @aeven/desktop/attached-host
  */
 
-import { liveHostLease, probeHostUrl, resolveAvnHome } from '@aeven/home-paths'
+import { setTimeout as delay } from 'node:timers/promises'
+import { isHostProcessAlive, liveHostLease, probeHostUrl, resolveAvnHome } from '@aeven/home-paths'
 
 /** The backend this shell should render. */
 export type DesktopBackendPlan =
@@ -29,6 +33,8 @@ export type DesktopBackendPlan =
   | {
     /** Nothing live owns this home; start a desktop Host as usual. */
     readonly kind: 'spawn'
+    /** Why no Host was adopted, for the shell's startup log. */
+    readonly reason: string
   }
 
 /** Injection points kept open so a test drives every branch without a network. */
@@ -39,26 +45,51 @@ export interface DesktopBackendOptions {
   readonly ownPid?: number
   /** Home to inspect; defaults to the resolved Aeven home. */
   readonly home?: string
+  /**
+   * How long to wait for a live leased Host to advertise its URL and answer
+   * before starting a Host of our own; defaults to 30 seconds, about three
+   * times a cold web Host boot.
+   */
+  readonly waitMs?: number
+  /** Interval between lease reads and probes while waiting; defaults to 250 ms. */
+  readonly pollMs?: number
 }
 
 /**
  * Choose the backend for this shell.
  *
- * A lease is trusted only when its owning process is alive AND its URL answers:
- * a crashed Host leaves a stale record, and refusing to start over one would
+ * A lease is trusted only while its owning process is alive, and adopted only
+ * once its URL answers. A booting Host holds a lease without a URL, and a busy
+ * one can miss a single probe, so both are retried until `waitMs` runs out. A
+ * crashed Host leaves a stale record, and refusing to start over one would
  * strand the user with no window at all.
- * @param options - probe, self-pid, and home overrides.
+ * @param options - probe, self-pid, home, and wait overrides.
  * @returns the plan to render.
  */
 export async function planDesktopBackend(
   options: DesktopBackendOptions = {},
 ): Promise<DesktopBackendPlan> {
   const home = options.home ?? resolveAvnHome()
-  const lease = await liveHostLease(home).catch(() => undefined)
-  // An incumbent with no advertised URL has no HTTP surface to render.
-  if (lease === undefined || lease.url === undefined) return { kind: 'spawn' }
-  if (lease.pid === (options.ownPid ?? process.pid)) return { kind: 'spawn' }
+  const ownPid = options.ownPid ?? process.pid
   const probe = options.probe ?? ((url: string) => probeHostUrl(url))
-  const reachable = await probe(lease.url).catch(() => false)
-  return reachable ? { kind: 'attach', url: lease.url } : { kind: 'spawn' }
+  const deadline = Date.now() + (options.waitMs ?? 30_000)
+  const pollMs = options.pollMs ?? 250
+  for (;;) {
+    const lease = await liveHostLease(home).catch(() => undefined)
+    if (lease === undefined) return { kind: 'spawn', reason: 'the home advertises no Host' }
+    if (lease.pid === ownPid) return { kind: 'spawn', reason: 'the lease belongs to this shell' }
+    if (lease.url !== undefined && await probe(lease.url).catch(() => false)) {
+      return { kind: 'attach', url: lease.url }
+    }
+    if (!isHostProcessAlive(lease.pid)) return { kind: 'spawn', reason: `leased Host pid ${String(lease.pid)} exited` }
+    if (Date.now() >= deadline) {
+      return {
+        kind: 'spawn',
+        reason: lease.url === undefined
+          ? `leased Host pid ${String(lease.pid)} advertised no URL in time`
+          : `leased Host pid ${String(lease.pid)} did not answer in time`,
+      }
+    }
+    await delay(pollMs)
+  }
 }

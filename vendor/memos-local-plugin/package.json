@@ -1,0 +1,50 @@
+{
+  "name": "@deepseek-ai/memos-local-plugin",
+  "description": "MemOS local memory core: layered memory, policy induction, skill crystallization, and three-tier retrieval",
+  "version": "2.0.20",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "vendor/memos-local-plugin"
+  },
+  "type": "module",
+  "main": "lib/core/index.js",
+  "types": "lib/types/core/index.d.ts",
+  "exports": {
+    "./*.js": {
+      "types": "./lib/types/*.d.ts",
+      "default": "./lib/*.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/_virtual/**/*.js",
+    "lib/agent-contract/**/*.js",
+    "lib/core/**/*.js",
+    "lib/server/**/*.js",
+    "lib/core/storage/migrations/*.sql",
+    "lib/types/**/*.d.ts",
+    "lib/types/**/*.d.ts.map",
+    "viewer/dist",
+    "src"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "4.2.0",
+    "@sinclair/typebox": "^0.34.48",
+    "better-sqlite3": "^12.10.0",
+    "uuid": "^10.0.0",
+    "yaml": "^2.6.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/uuid": "^10.0.0"
+  }
+}

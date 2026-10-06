@@ -31,7 +31,7 @@ export function resolveDesktopBuildTarget(
 /**
  * Return the mutable preparation and artifact directories owned by one release target.
  * @param {'mac-arm64' | 'win-arm64' | 'win-x64' | 'linux-arm64' | 'linux-x64'} target - Supported Desktop target name.
- * @returns {{ root: string, artifacts: string, runtime: string, packageSet: string, seed: string, seedPnpm: string, nodeExtract: string, packedAvn: string, packedVendor: string, packedLandlock: string, packedWhisper: string, packedWhatsApp: string, downloads: string }} Target paths plus the shared immutable download cache.
+ * @returns {{ root: string, artifacts: string, runtime: string, packageSet: string, seed: string, seedPnpm: string, nodeExtract: string, packedAvn: string, packedVendor: string, packedLandlock: string, packedWhisper: string, packedWhatsApp: string, packedTelegram: string, downloads: string }} Target paths plus the shared immutable download cache.
  */
 export function desktopTargetBuildPaths(target) {
   if (!SUPPORTED_TARGETS.has(target)) {
@@ -52,6 +52,7 @@ export function desktopTargetBuildPaths(target) {
     packedLandlock: join(packed, 'landlock'),
     packedWhisper: join(packed, 'whisper-cpp'),
     packedWhatsApp: join(packed, 'whatsapp-mcp'),
+    packedTelegram: join(packed, 'telegram-mcp'),
     downloads: join(BUILD_ROOT, 'downloads'),
   }
 }

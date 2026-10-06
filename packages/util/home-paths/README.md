@@ -37,6 +37,16 @@ const settings = avnHomePath('settings')     // join one child onto the resolved
 
 An explicit configured path has the highest precedence, then `$AVN_HOME`, then the default `~/.aeven`. An empty or whitespace-only `$AVN_HOME` is treated as unset, so a blank override never resolves the home to the current working directory.
 
+### Locating an account's data
+
+```ts
+import { accountHomePath } from '@aeven/home-paths'
+
+const memory = accountHomePath(owner, 'memory')   // <home>/accounts/<sha256 of owner>/memory
+```
+
+Per-account state lives under `accounts/`, one directory per account named by `accountDirectoryName`: the hex SHA-256 of the account id, which is filesystem-safe for any id and does not spell it out.
+
 ### Displaying a home
 
 For user-facing paths, render the root symbolically rather than as a machine path: the default home displays as `~/.aeven` and any configured home displays as `$AVN_HOME`. The display form never leaks an absolute machine path.

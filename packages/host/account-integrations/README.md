@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Signed-in users can import, inspect, enable, and remove their own skills and connect remote MCP servers. Every management operation derives its owner from the authenticated request. Skills and connector credentials persist across restarts; conversations receive only their owner's integrations.
+Signed-in users can import, inspect, enable, and remove their own skills, connect remote MCP servers, link WhatsApp numbers, and sign in Telegram accounts. Every management operation derives its owner from the authenticated request. Skills and connector credentials persist across restarts; conversations receive only their owner's integrations.
 
 ## Table of Contents
 
@@ -31,6 +31,12 @@ Connector details list installed skill definitions from the existing registry: D
 
 GitHub and Microsoft 365 sign-in require applications under `providers.github` and `providers.microsoft365` with `endpoint`, `authorizationUrl`, `tokenUrl`, `clientId`, nonempty `scopes`, and optionally `clientSecretRef`. Their MCP endpoints must accept the delegated access token. Consent uses account-bound, expiring state and PKCE; the callback verifies access to the selected API or MCP resource before saving. Expired grants refresh through serialized credential writes before conversation steps. The callback displays a localized completion page telling the user to close the browser window and return to Aeven; failed consent identifies token exchange, API access verification, or connection storage without displaying provider responses; expired consent displays restart instructions.
 
+WhatsApp and Telegram hold one connector row per account, and each row owns one supervised daemon process bound to a loopback port the operating system chooses. The Host starts and restarts that process with backoff, holds its standard input open so a crashed Host leaves no process holding a session, and mounts its tools at `mcp__account_<connector-id-prefix>__<tool>`. Every connector is mounted before each conversation step; one that cannot connect is logged and left out of that step, and the next step tries it again, so a broken account never ends a turn. Settings links a WhatsApp number by scanning a QR code, and signs in a Telegram account by typing its phone number, the code Telegram sends, and the account's 2FA password when Telegram asks for one. A WhatsApp number is saved once the phone scans the code; a Telegram account is saved once Telegram authorizes it, and an account already signed in is rejected instead of added twice. Unlinking ends the session at the provider and deletes the connector's data directory. Each account keeps its own process and namespace, so a conversation can reach several accounts without mixing them.
+
+The Telegram daemon is the vendored [`bstuff/telegram-mcp`](../../../native/telegram-mcp/README.md) server under an Aeven entry that adds the loopback MCP endpoint and the sign-in control routes. The deployment owns one registered Telegram application and points `telegramApiIdRef` and `telegramApiHashRef` at credential references; the Host resolves those values and passes them only to the daemon's environment, so they never reach a tool schema, a model request, or a browser response. Each account's session string, cached identity, and downloads stay in that account's own directory. A user signs in by scanning a QR code with the Telegram app or with a phone number and code, and Telegram then asks for the 2FA password when the account has one. A Telegram account keeps one connector id for each user, derived from the user and the Telegram user id: signing in a signed-out account again restores it in place, and signing it in again after unlinking it gets the same id, so its tool names stay stable for conversations that already use them. Signing in an account that is already signed in is refused as a duplicate.
+
+Reading WhatsApp or Telegram content — message text, file names, member lists — reaches the model as other people's data. Tools that only read the account run directly; sending, editing, deleting, forwarding, reacting, pinning, muting, marking as read, scheduling, typing indicators, dice, polls, and every group change ask the user for approval first.
+
 An administrator can configure Google in the web profile's `cordis.patch.yml`; `clientSecretRef` names a credential managed by the deployment's credential provider:
 
 ```yaml
@@ -48,10 +54,22 @@ An administrator can configure Google in the web profile's `cordis.patch.yml`; `
 | Field | Default | Meaning |
 |---|---|---|
 | `maxSkillBytes` | 10485760 | Maximum decoded bundle size |
-| `timeoutMs` | 60000 | OAuth, MCP discovery, and tool request budget |
-| `consentLifetimeMs` | 600000 | Maximum consent duration |
+| `timeoutMs` | 60000 | OAuth, MCP discovery, daemon control, and tool request budget |
+| `consentLifetimeMs` | 600000 | Maximum consent or sign-in duration |
 | `redirectUri` | `http://127.0.0.1:3080/connectors/oauth/callback` | Registered callback URL |
 | `providers` | `{}` | Deployment-owned OAuth applications and optional MCP resources |
+| `maxEmailAccounts` | 20 | Email accounts one account may connect |
+| `maxWhatsAppAccounts` | 10 | WhatsApp numbers one account may link |
+| `maxTelegramAccounts` | 10 | Telegram accounts one account may sign in |
+| `whatsappBinaryPath` | platform package | WhatsApp daemon executable |
+| `whatsappStartupTimeoutMs`, `whatsappStopGraceMs` | 15000, 5000 | Time to bind the loopback port, and to exit after stdin closes |
+| `whatsappPairingPollMs` | 1500 | Interval between QR-state reads |
+| `whatsappRestartDelayMs`, `whatsappMaxRestartDelayMs` | 1000, 60000 | Restart backoff bounds |
+| `telegramEntryPath` | vendored package | Telegram daemon entry |
+| `telegramApiIdRef`, `telegramApiHashRef` | `TELEGRAM_API_ID`, `TELEGRAM_API_HASH` | Credential references holding the registered Telegram application |
+| `telegramStartupTimeoutMs`, `telegramStopGraceMs` | 15000, 5000 | Time to bind the loopback port, and to exit after stdin closes |
+| `telegramPairingPollMs` | 1500 | Interval between sign-in state reads |
+| `telegramRestartDelayMs`, `telegramMaxRestartDelayMs` | 1000, 60000 | Restart backoff bounds |
 
 ## Understand the implementation
 
@@ -95,6 +113,8 @@ Connecting, disabling, or disconnecting a server changes the next step's tool ca
 ## Known Limitations and Deferred Work
 
 - Provider sign-in requires registered applications and user authorization; compilation does not verify real consent. Microsoft 365 additionally needs a compatible MCP server.
+- Linking a WhatsApp number needs the user's phone, and signing in Telegram needs that deployment's registered Telegram application plus the user's phone, code, and 2FA password. Neither path signs in against a live account in tests; the daemon's sign-in handling is covered with a replaced Telegram client.
+- Telegram signs in as the user's own account (a user session, not a bot), so Telegram's API terms apply and automated bulk action can put the account at risk.
 - The Workspace bridge exposes the selected Google services. Its available tools can differ from ChatGPT’s app-backed connector.
 - Custom stdio servers and generic MCP OAuth discovery are not exposed by these pages.
 - Imported resources materialized for skill loading remain on disk after the catalog entry is removed.

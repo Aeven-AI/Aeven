@@ -160,6 +160,7 @@ function main(): void {
     buildPaths.packedLandlock,
     buildPaths.packedWhisper,
     buildPaths.packedWhatsApp,
+    buildPaths.packedTelegram,
   ]
   const { values } = parseArgs({
     options: { from: { type: 'string', multiple: true }, out: { type: 'string' } },

@@ -15,7 +15,13 @@
       "path": "../../../vendor/schemastery"
     },
     {
+      "path": "../../../vendor/memos-local-plugin"
+    },
+    {
       "path": "../../util/brand"
+    },
+    {
+      "path": "../../util/home-paths"
     },
     {
       "path": "../../util/timeout"

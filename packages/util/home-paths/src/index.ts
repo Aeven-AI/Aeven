@@ -4,6 +4,7 @@
  * @module @aeven/home-paths
  */
 
+import { createHash } from 'node:crypto'
 import { opendir, realpath } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
@@ -97,6 +98,29 @@ export function resolveAvnHome(configured?: string, env: Record<string, string |
  */
 export function avnHomePath(...segments: string[]): string {
   return join(resolveAvnHome(), ...segments)
+}
+
+/** Home-relative directory holding one subtree per signed-in account. */
+export const ACCOUNTS_DIR_NAME = 'accounts'
+
+/**
+ * Directory name of one account's subtree under {@link ACCOUNTS_DIR_NAME}: the hex SHA-256 of the account
+ * id, so the name is filesystem-safe for any id and does not spell the id out.
+ * @param owner - account id of the signed-in user.
+ * @returns the account's directory name.
+ */
+export function accountDirectoryName(owner: string): string {
+  return createHash('sha256').update(owner).digest('hex')
+}
+
+/**
+ * Join path segments onto one account's subtree of the resolved Aeven home.
+ * @param owner - account id of the signed-in user.
+ * @param segments - path segments inside the account's subtree.
+ * @returns the normalized absolute path.
+ */
+export function accountHomePath(owner: string, ...segments: string[]): string {
+  return avnHomePath(ACCOUNTS_DIR_NAME, accountDirectoryName(owner), ...segments)
 }
 
 /**

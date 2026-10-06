@@ -191,6 +191,8 @@ export interface RunProfileOptions {
   patchFiles: readonly string[]
   /** The invocation's inner arguments, handed to the tree through `ctx.cmdlineArgs`. */
   args: readonly string[]
+  /** Whether the CLI entry claimed the home's Host lease for this process before loading the boot graph. */
+  hostLeaseClaimed: boolean
 }
 
 /**
@@ -237,7 +239,7 @@ function hostUrlSourceOf(value: unknown): HostUrlSource | undefined {
 
 /**
  * Publish this process as its home's serving Host when the booted tree serves
- * an HTTP surface.
+ * an HTTP surface, and release the boot-time claim when it does not.
  *
  * The home's durable shares are single-writer by construction except the
  * domain KV documents, whose JSON backend republishes a whole document from
@@ -248,14 +250,18 @@ function hostUrlSourceOf(value: unknown): HostUrlSource | undefined {
  * guessing — and reporting it here turns a silent overwrite into a visible
  * one.
  * @param ctx - the booted Host context.
+ * @param claimed - whether the CLI entry's boot-time claim took the lease for this process.
  */
-async function advertiseServingHost(ctx: Context): Promise<void> {
+async function advertiseServingHost(ctx: Context, claimed: boolean): Promise<void> {
   const webServer = ctx.get('webServer')
   const urlSource = hostUrlSourceOf(ctx.get('connection'))
   // Only a Host with an HTTP surface is attachable, and only it is a serving
   // Host worth advertising; a headless invocation must stay free to share the
-  // home with a running GUI.
-  if (webServer === undefined || urlSource === undefined) return
+  // home with a running GUI, so it gives its boot-time claim back.
+  if (webServer === undefined || urlSource === undefined) {
+    if (claimed) await clearHostLease(resolveAvnHome(), process.pid)
+    return
+  }
 
   try {
     const home = resolveAvnHome()
@@ -361,7 +367,7 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
     })
   })
   app.current = ctx
-  await advertiseServingHost(ctx)
+  await advertiseServingHost(ctx, options.hostLeaseClaimed)
   // A live-reload profile can dispose the whole tree while post-boot watcher
   // setup is in flight — a signal or appExit. Loader presence and fiber state
   // own liveness; the initial check skips a tree that already exited, and the

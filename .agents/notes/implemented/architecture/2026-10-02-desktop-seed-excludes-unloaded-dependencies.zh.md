@@ -12,13 +12,13 @@ Desktop 应用携带完整生产依赖图的离线 seed（[打包 Agent Note](20
 
 pnpm 依赖图会安装每条声明的 `dependencies` 边，其中包括 `@aeven/client-ui-primitives` 的浏览器库（mermaid、cytoscape、KaTeX、highlight.js、react-dom）、`@aeven/client-ui-conversation` 中的 Lexical，以及 `@aeven/client-ui-sidebar-terminal` 中的 xterm：每个目标约 73 MB。Host 从不导入它们。Web 前端 `dist` 已编译进 `@aeven/client-ui-primitives` 及其字体和样式表，插件的 `lib/client.js` bundle 自带 Lexical 副本，xterm 则从该 `dist` 提供的浏览器模块表解析。这些库包仍然声明这些边，因为它们发布的 `lib/index.js` 由打包工具消费。
 
-MemOS 的依赖图又增加了两份副本。`@memtensor/memos-local-plugin` 依赖 `tsx`，并经由它依赖 `esbuild`（11–12 MB），仅用于从 `bridge.cts` 重新启动其独立的 Hermes/OpenClaw bridge 守护进程；seed 裁剪已经删除了该源码，所以这条路由在 Desktop 中无法运行。`@huggingface/transformers` 在附件读取器的 `^0.35.3` 之外请求 `sharp@^0.34.5`，因而安装了第二份 libvips（17–20 MB）。Transformers.js 在加载时导入 `sharp`，但文本 embedding 不解码任何图像。
+MemOS 的依赖图又增加了一份副本。`@huggingface/transformers` 在附件读取器的 `^0.35.3` 之外请求 `sharp@^0.34.5`，因而安装了第二份 libvips（17–20 MB）。Transformers.js 在加载时导入 `sharp`，但文本 embedding 不解码任何图像。
 
 ## 决定
 
 生成的 Desktop workspace 文件（[`project-manager.ts`](../../../../apps/desktop/src/project-manager.ts)）拒绝 `onnxruntime-node` 的构建，仓库的 `pnpm-workspace.yaml` 采用同一策略。MemOS 使用该包自带的 CPU 运行时进行 embedding。
 
-`DESKTOP_DEPENDENCY_OVERRIDES` 向每个 Desktop workspace 文件添加 pnpm `overrides`。`parent>child: "-"` 条目移除一条边，pnpm 会保留任何其他边仍能到达的包，因此 Host 包同样声明的库仍会安装。这些 overrides 移除 `@aeven/client-ui-primitives` 的全部依赖边、`@aeven/client-ui-conversation` 的 Lexical 边、`@aeven/client-ui-sidebar-terminal` 的 xterm 边，以及 MemOS 的 `tsx` 边。`@huggingface/transformers>sharp` 解析到附件读取器的 `sharp` 版本范围。当某条被 override 的第一方边从其 workspace 清单中消失、`@aeven/client-ui-primitives` 新增了 overrides 未移除的依赖，或两个 `sharp` 范围出现分歧时，Desktop 单元测试会失败。
+`DESKTOP_DEPENDENCY_OVERRIDES` 向每个 Desktop workspace 文件添加 pnpm `overrides`。`parent>child: "-"` 条目移除一条边，pnpm 会保留任何其他边仍能到达的包，因此 Host 包同样声明的库仍会安装。这些 overrides 移除 `@aeven/client-ui-primitives` 的全部依赖边、`@aeven/client-ui-conversation` 的 Lexical 边以及 `@aeven/client-ui-sidebar-terminal` 的 xterm 边。收录的 MemOS 核心不声明 `tsx` 依赖，因为其 stdio bridge 未被收录（[收录 note](../process/2026-10-06-vendor-memos-core.zh.md)）。`@huggingface/transformers>sharp` 解析到附件读取器的 `sharp` 版本范围。当某条被 override 的第一方边从其 workspace 清单中消失、`@aeven/client-ui-primitives` 新增了 overrides 未移除的依赖，或两个 `sharp` 范围出现分歧时，Desktop 单元测试会失败。
 
 overrides 写入 workspace 文件，而不是作为存储裁剪应用，因此锁文件、离线安装证明、macOS seed 签名与 `integrity.json` 都描述缩减后的依赖图。启动时将已安装 profile 的 workspace 文件与该版本预期文件进行比较的检查无需改动即可覆盖它们。
 

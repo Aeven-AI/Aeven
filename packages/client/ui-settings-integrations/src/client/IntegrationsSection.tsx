@@ -1,12 +1,13 @@
 /** Personal skill import and connector account management. */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { AccountIntegrationsView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillUploadFile, WhatsAppPairingView } from '@aeven/api-remotes/client'
+import type { AccountIntegrationsView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillUploadFile, TelegramPairingView, WhatsAppPairingView } from '@aeven/api-remotes/client'
 import { SectionHeader, MarkdownText, Modal, IconCloseOutline16, IconChevronLeftOutline14 } from '@aeven/client-ui-primitives'
 import type { HostObservable, InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import css from './IntegrationsSection.module.css'
 import { connectorIcons } from './connector-icons.ts'
 import { EmailAccounts } from './EmailAccounts.tsx'
+import { TelegramAccounts } from './TelegramAccounts.tsx'
 import { WhatsAppAccounts } from './WhatsAppAccounts.tsx'
 
 /** Browser callbacks bound to the authenticated account Remote. */
@@ -26,6 +27,12 @@ export interface IntegrationsSectionInjected {
   startWhatsAppPairing: () => Promise<WhatsAppPairingView>
   whatsAppPairing: (id: ConnectorId) => Promise<WhatsAppPairingView>
   cancelWhatsAppPairing: (id: ConnectorId) => Promise<void>
+  startTelegramPairing: (phone: string) => Promise<TelegramPairingView>
+  startTelegramQrPairing: () => Promise<TelegramPairingView>
+  telegramPairing: (id: ConnectorId) => Promise<TelegramPairingView>
+  submitTelegramCode: (id: ConnectorId, code: string) => Promise<TelegramPairingView>
+  submitTelegramPassword: (id: ConnectorId, password: string) => Promise<TelegramPairingView>
+  cancelTelegramPairing: (id: ConnectorId) => Promise<void>
 }
 
 /** Settings slot props with locale and account operations. */
@@ -198,8 +205,8 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
     const live = connections.filter(connection => connection.connected)
     // A provider without sign-in configured can still connect through a token form.
     const connectable = live.length > 0 || provider.configured || provider.provider === 'mcp' || provider.provider === 'github'
-    // Email is available exactly when the deployment mounts the mail capability; WhatsApp when this host has its daemon.
-    if (provider.provider === 'email' || provider.provider === 'whatsapp') return { connections, live, on: live.some(connection => connection.enabled), expired: connections.length > 0 && live.length === 0, connectable: provider.configured }
+    // Email is available exactly when the deployment mounts the mail capability; WhatsApp and Telegram when this host has their daemon.
+    if (provider.provider === 'email' || provider.provider === 'whatsapp' || provider.provider === 'telegram') return { connections, live, on: live.some(connection => connection.enabled), expired: connections.length > 0 && live.length === 0, connectable: provider.configured }
     const on = live.some(connection => connection.enabled)
     return { connections, live, on, expired: connections.length > 0 && live.length === 0, connectable }
   }
@@ -214,8 +221,8 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
   }
   const switchProvider = (provider: Provider): void => {
     const { connections, live, on, connectable } = stateOf(provider)
-    // Email accounts and WhatsApp numbers each hold their own sign-in, so the provider switch pauses them instead of removing them.
-    if (provider.provider === 'email' || provider.provider === 'whatsapp') {
+    // Email accounts, WhatsApp numbers, and Telegram accounts each hold their own sign-in, so the provider switch pauses them instead of removing them.
+    if (provider.provider === 'email' || provider.provider === 'whatsapp' || provider.provider === 'telegram') {
       if (on) { void run(async () => { for (const connection of live) if (connection.enabled) await props.setConnectorEnabled(connection.id, false) }); return }
       if (live.length > 0) { void run(async () => { for (const connection of live) await props.setConnectorEnabled(connection.id, true) }); return }
       openDetail(provider.provider)
@@ -241,10 +248,11 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
   }
   const providerHint = (provider: Provider): string | undefined => {
     const { expired, connectable } = stateOf(provider)
-    if (expired) return t(provider.provider === 'email' ? 'emailReconnect' : provider.provider === 'whatsapp' ? 'whatsappRelink' : 'reconnectHint')
+    if (expired) return t(provider.provider === 'email' ? 'emailReconnect' : provider.provider === 'whatsapp' ? 'whatsappRelink' : provider.provider === 'telegram' ? 'telegramRelink' : 'reconnectHint')
     if (connectable) return undefined
     if (provider.provider === 'email') return t('emailSetupRequired')
     if (provider.provider === 'whatsapp') return t('whatsappUnavailable')
+    if (provider.provider === 'telegram') return t('telegramUnavailable')
     return t(['gmail', 'google-drive', 'google-calendar'].includes(provider.provider) ? 'googleSetupRequired' : 'setupRequired')
   }
   const connectForm = (provider: 'mcp' | 'github') => <form className={css.card} onSubmit={(event) => {
@@ -336,7 +344,7 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
         <div className={css.connectorHeading}>
           {connectorIcon(providerDetail.provider, true)}
           <h2>{t(providerDetail.provider)}</h2>
-          {providerDetail.provider !== 'mcp' && providerDetail.provider !== 'email' && providerDetail.provider !== 'whatsapp' && providerSwitch(providerDetail, true)}
+          {providerDetail.provider !== 'mcp' && providerDetail.provider !== 'email' && providerDetail.provider !== 'whatsapp' && providerDetail.provider !== 'telegram' && providerSwitch(providerDetail, true)}
         </div>
         <p className={css.detailDescription}>{t(`${providerDetail.provider}Description`)}</p>
         {providerDetail.provider === 'email' ? providerDetail.configured
@@ -353,41 +361,60 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
             startWithForm={addRequested}
           />
           : <p className={css.hint}>{t('emailSetupRequired')}</p>
-        : providerDetail.provider === 'whatsapp' ? providerDetail.configured
-          ? <WhatsAppAccounts
-            t={t}
-            busy={busy}
-            connections={stateOf(providerDetail).connections}
-            run={run}
-            toggle={toggle}
-            startWhatsAppPairing={props.startWhatsAppPairing}
-            whatsAppPairing={props.whatsAppPairing}
-            cancelWhatsAppPairing={props.cancelWhatsAppPairing}
-            setConnectorEnabled={props.setConnectorEnabled}
-            disconnect={props.disconnect}
-            refresh={refreshList}
-            startWithPairing={addRequested}
-          />
-          : <p className={css.hint}>{t('whatsappUnavailable')}</p>
-        : providerDetail.provider === 'mcp' ? <>
-          <div className={css.serverList}>{stateOf(providerDetail).connections.map(connection => <div
-            key={connection.id}
-            className={css.serverRow}
-          >
-            <span className={css.skillSummary}>
-              <strong>{connection.name}</strong>
-              <span className={css.address}>{connection.endpoint}</span>
-              {!connection.connected && <span className={css.attention}>{t('serverUnavailable')}</span>}
-            </span>
-            <button type="button" className={css.textAction} disabled={busy} onClick={() => { disconnectAll([connection]) }}>{t('remove')}</button>
-          </div>)}</div>
-          {form === undefined && <button type="button" className={css.secondaryAction} disabled={busy} onClick={() => { openForm('mcp') }}>{t('addServer')}</button>}
-        </> : <>
-          {providerHint(providerDetail) !== undefined && <p className={css.hint}>{providerHint(providerDetail)}</p>}
-          <div className={css.actions}>
-            {providerDetail.provider === 'github' && stateOf(providerDetail).live.length === 0 && form === undefined && <button type="button" className={css.textAction} disabled={busy} onClick={() => { openForm('github') }}>{t('useToken')}</button>}
-          </div>
-        </>}
+          : providerDetail.provider === 'whatsapp' ? providerDetail.configured
+            ? <WhatsAppAccounts
+              t={t}
+              busy={busy}
+              connections={stateOf(providerDetail).connections}
+              run={run}
+              toggle={toggle}
+              startWhatsAppPairing={props.startWhatsAppPairing}
+              whatsAppPairing={props.whatsAppPairing}
+              cancelWhatsAppPairing={props.cancelWhatsAppPairing}
+              setConnectorEnabled={props.setConnectorEnabled}
+              disconnect={props.disconnect}
+              refresh={refreshList}
+              startWithPairing={addRequested}
+            />
+            : <p className={css.hint}>{t('whatsappUnavailable')}</p>
+            : providerDetail.provider === 'telegram' ? providerDetail.configured
+              ? <TelegramAccounts
+                t={t}
+                busy={busy}
+                connections={stateOf(providerDetail).connections}
+                run={run}
+                toggle={toggle}
+                startTelegramPairing={props.startTelegramPairing}
+                startTelegramQrPairing={props.startTelegramQrPairing}
+                telegramPairing={props.telegramPairing}
+                submitTelegramCode={props.submitTelegramCode}
+                submitTelegramPassword={props.submitTelegramPassword}
+                cancelTelegramPairing={props.cancelTelegramPairing}
+                setConnectorEnabled={props.setConnectorEnabled}
+                disconnect={props.disconnect}
+                refresh={refreshList}
+                startWithPairing={addRequested}
+              />
+              : <p className={css.hint}>{t('telegramUnavailable')}</p>
+              : providerDetail.provider === 'mcp' ? <>
+                <div className={css.serverList}>{stateOf(providerDetail).connections.map(connection => <div
+                  key={connection.id}
+                  className={css.serverRow}
+                >
+                  <span className={css.skillSummary}>
+                    <strong>{connection.name}</strong>
+                    <span className={css.address}>{connection.endpoint}</span>
+                    {!connection.connected && <span className={css.attention}>{t('serverUnavailable')}</span>}
+                  </span>
+                  <button type="button" className={css.textAction} disabled={busy} onClick={() => { disconnectAll([connection]) }}>{t('remove')}</button>
+                </div>)}</div>
+                {form === undefined && <button type="button" className={css.secondaryAction} disabled={busy} onClick={() => { openForm('mcp') }}>{t('addServer')}</button>}
+              </> : <>
+                {providerHint(providerDetail) !== undefined && <p className={css.hint}>{providerHint(providerDetail)}</p>}
+                <div className={css.actions}>
+                  {providerDetail.provider === 'github' && stateOf(providerDetail).live.length === 0 && form === undefined && <button type="button" className={css.textAction} disabled={busy} onClick={() => { openForm('github') }}>{t('useToken')}</button>}
+                </div>
+              </>}
         {form !== undefined && connectForm(form)}
         {providerDetail.skills.length > 0 && <>
           <h3>{t('skills')}</h3>

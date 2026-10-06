@@ -1,0 +1,28 @@
+{
+  "name": "@aeven/telegram-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "Vendored bstuff/telegram-mcp source at a pinned commit, plus the Aeven-managed loopback daemon entry that the Telegram connector spawns",
+  "files": [
+    "dist",
+    "source/LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsx scripts/build.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "big-integer": "^1.6.52",
+    "teleproto": "^1.228.5",
+    "uqr": "^0.1.3",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.0",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3"
+  }
+}

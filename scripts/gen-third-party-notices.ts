@@ -84,7 +84,6 @@ const OVERRIDES: Record<string, { license?: string; repo?: string }> = {
   '@modelcontextprotocol/server-filesystem': { license: 'MIT / Apache-2.0', repo: 'https://github.com/modelcontextprotocol/servers' },
   // No repository field in the published manifest.
   'node-addon-require-builtin': { repo: 'https://www.npmjs.com/package/node-addon-require-builtin' },
-  '@memtensor/memos-local-plugin': { repo: 'https://github.com/MemTensor/MemOS' },
 }
 
 /**
@@ -746,7 +745,7 @@ The complete npm transitive closure, including the Landlock launcher workspace, 
 
 ## Vendored source (\`vendor/\`)
 
-The Cordis framework and its foundation libraries are source-vendored into this repository rather than consumed from npm, and republished under the \`@deepseek-ai\` scope. All are MIT-licensed; each directory preserves its upstream \`LICENSE\` file. Exact upstream commits and local modifications are recorded in [\`vendor/README.md\`](vendor/README.md).
+The Cordis framework, its foundation libraries, and the MemOS local memory core are source-vendored into this repository rather than consumed from npm. All are republished under the \`@deepseek-ai\` scope. Every manifest declares MIT; each Cordis directory preserves its upstream \`LICENSE\` file, and the MemOS package ships none while its repository root carries an Apache-2.0 \`LICENSE\`. Exact upstream commits and local modifications are recorded in [\`vendor/README.md\`](vendor/README.md).
 
 | Package | Upstream name | Upstream | License |
 | --- | --- | --- | --- |

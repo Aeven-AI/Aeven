@@ -1,22 +1,22 @@
 /**
- * MemOS memory provider: runs the MemOS local core in the Host process, sends its auxiliary LLM calls
- * through `ctx.llm`, and optionally serves the MemOS Viewer on a loopback port.
+ * MemOS memory provider: runs one MemOS local core per account in the Host process, each over that
+ * account's own database, and sends their auxiliary LLM calls through `ctx.llm`.
  *
  * @module @aeven/memory-memos
  */
-import { createRequire } from 'node:module'
-import { isIP } from 'node:net'
-import { dirname, isAbsolute, join } from 'node:path'
+import { mkdirSync } from 'node:fs'
+import { isAbsolute, join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
+import { accountDirectoryName } from '@aeven/home-paths'
 import type {} from '@aeven/llm'
 import type {} from '@aeven/memory'
-import { loadConfig, resolveHome, type ResolvedConfig } from '@memtensor/memos-local-plugin/dist/core/config/index.js'
-import { bootstrapMemoryCore } from '@memtensor/memos-local-plugin/dist/core/index.js'
-import { memoryBuffer } from '@memtensor/memos-local-plugin/dist/core/logger/index.js'
-import { startHttpServer } from '@memtensor/memos-local-plugin/dist/server/http.js'
-import type { ServerHandle } from '@memtensor/memos-local-plugin/dist/server/types.js'
+import { loadConfig, resolveHome, type ResolvedConfig } from '@deepseek-ai/memos-local-plugin/core/config/index.js'
+import type { ResolvedHome } from '@deepseek-ai/memos-local-plugin/core/config/paths.js'
+import { bootstrapMemoryCore } from '@deepseek-ai/memos-local-plugin/core/index.js'
+import { OwnerCores } from './cores.ts'
 import { createHostLlmBridge, LlmRouteContext, type MemoryLanguage } from './host-llm.ts'
+import { splitSharedMemory } from './migrate.ts'
 import { MEMOS_AGENT, MemosMemory } from './runtime.ts'
 import { classifyTurnDomain, TurnJudgeContext } from './domain.ts'
 
@@ -25,8 +25,10 @@ export const inject = ['memory', 'llm']
 
 /** Provider configuration. */
 export interface Config {
-  /** Absolute MemOS runtime root holding `config.yaml`, `data/memos.db`, and `skills/`; `MEMOS_HOME` overrides it. */
+  /** Absolute MemOS runtime root holding the `config.yaml` every account's core uses; `MEMOS_HOME` overrides it. */
   home: string
+  /** Absolute directory of per-account subtrees; each account's MemOS data lives in `<account>/memory`. */
+  accounts: string
   /** Route MemOS auxiliary LLM calls through the owning session's `ctx.llm` route when `config.yaml` names no provider. */
   hostLlm: boolean
   /** How long one route's reasoning capability stays cached, in milliseconds. */
@@ -42,35 +44,18 @@ export interface Config {
   classifyTimeoutMs: number
   /** Number of trace candidates MemOS ranks for turn-start recall before Aeven orders them. */
   candidateTraces: number
-  /**
-   * Serve the MemOS Viewer and its read/write memory API over every owner's memory, without sign-in. Off by
-   * default: the surface answers anyone who reaches it, so a composition opts in rather than inheriting it.
-   */
-  viewer: boolean
-  /** Viewer listener port. */
-  viewerPort: number
-  /** Viewer bind address; only `localhost` and IPv4 `127.*` are accepted. */
-  viewerHost: string
 }
 
 export const Config: z<Config> = z.object({
   home: z.string().min(1).required(),
+  accounts: z.string().min(1).required(),
   hostLlm: z.boolean().default(true),
   capabilityTtlMs: z.natural().min(1000).default(600_000),
   language: z.union(['auto', 'en', 'zh'] as const).default('auto'),
   classifyDomains: z.boolean().default(true),
   classifyTimeoutMs: z.natural().min(1000).default(15_000),
   candidateTraces: z.natural().min(1).default(20),
-  viewer: z.boolean().default(false),
-  viewerPort: z.natural().min(1).max(65_535).default(18_801),
-  viewerHost: z.string().default('127.0.0.1'),
 })
-
-/** The Viewer has no authentication until the user sets a password, so it only binds loopback. */
-function isLoopback(host: string): boolean {
-  const normalized = host.trim().toLowerCase()
-  return normalized === 'localhost' || (isIP(normalized) === 4 && normalized.startsWith('127.'))
-}
 
 /** MemOS core configuration with the Host bridge selected when `config.yaml` leaves the LLM provider empty. */
 function withHostLlm(config: ResolvedConfig, enabled: boolean): ResolvedConfig {
@@ -86,9 +71,21 @@ function autoRecoveryEnabled(config: ResolvedConfig): boolean {
   return config.llm.provider.trim().toLowerCase() !== 'host' || config.algorithm.lightweightMemory.enabled
 }
 
-function viewerAssets(): string {
-  const manifest = createRequire(import.meta.url).resolve('@memtensor/memos-local-plugin/package.json')
-  return join(dirname(manifest), 'viewer', 'dist')
+/**
+ * MemOS runtime paths of one account. Built here rather than through `resolveHome`, whose `MEMOS_HOME`
+ * override would point every account at the same database.
+ */
+function accountHome(accounts: string, owner: string): ResolvedHome {
+  const root = join(accounts, accountDirectoryName(owner), 'memory')
+  return {
+    root,
+    configFile: join(root, 'config.yaml'),
+    dataDir: join(root, 'data'),
+    dbFile: join(root, 'data', 'memos.db'),
+    skillsDir: join(root, 'skills'),
+    logsDir: join(root, 'logs'),
+    daemonDir: join(root, 'daemon'),
+  }
 }
 
 /**
@@ -98,9 +95,7 @@ function viewerAssets(): string {
  */
 export async function apply(ctx: Context, config: Config): Promise<void> {
   if (!isAbsolute(config.home)) throw new Error(`memory-memos home must be absolute: ${config.home}`)
-  if (config.viewer && !isLoopback(config.viewerHost)) {
-    throw new Error(`memory-memos viewerHost must be loopback: ${config.viewerHost}`)
-  }
+  if (!isAbsolute(config.accounts)) throw new Error(`memory-memos accounts must be absolute: ${config.accounts}`)
   const logger = ctx.logger('memory-memos')
   const home = resolveHome(MEMOS_AGENT, config.home)
   const loaded = await loadConfig(home, MEMOS_AGENT)
@@ -117,19 +112,30 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   const judges = config.hostLlm && config.classifyDomains ? new TurnJudgeContext() : undefined
   const bridge = config.hostLlm ? createHostLlmBridge(ctx.llm, routes, config.capabilityTtlMs, config.language, judges) : null
   const recovery = autoRecoveryEnabled(memosConfig)
-  const core = await bootstrapMemoryCore({
-    agent: MEMOS_AGENT,
-    // Every read and write passes its owner's namespace; this default only labels the Viewer's own requests.
-    namespace: { agentKind: MEMOS_AGENT, profileId: 'aeven', profileLabel: 'Aeven' },
-    home,
-    config: memosConfig,
-    hostLlmBridge: bridge,
-    autoRecovery: recovery,
-    initLogging: false,
+  splitSharedMemory({
+    sharedDbFile: home.dbFile,
+    accountDbFile: owner => accountHome(config.accounts, owner).dbFile,
+    info: message => logger.info(message),
+    warn: message => logger.warn(message),
   })
-  await core.init()
+  const cores = new OwnerCores(async (owner) => {
+    const accountRoot = accountHome(config.accounts, owner)
+    mkdirSync(accountRoot.dataDir, { recursive: true, mode: 0o700 })
+    const core = await bootstrapMemoryCore({
+      agent: MEMOS_AGENT,
+      // Every read and write passes its owner's namespace; this default labels the core's own requests.
+      namespace: { agentKind: MEMOS_AGENT, profileId: 'aeven', profileLabel: 'Aeven' },
+      home: accountRoot,
+      config: memosConfig,
+      hostLlmBridge: bridge,
+      autoRecovery: recovery,
+      initLogging: false,
+    })
+    await core.init()
+    return core
+  })
   const memory = new MemosMemory({
-    core,
+    cores,
     routes,
     toolLimits: {
       skills: configured.algorithm.retrieval.tier1TopK,
@@ -141,21 +147,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     info: message => logger.debug(message),
   })
 
-  let viewer: ServerHandle | undefined
-  if (config.viewer) {
-    try {
-      viewer = await startHttpServer(
-        { core, home, logTail: () => memoryBuffer().tail({ limit: 200 }) },
-        { port: config.viewerPort, host: config.viewerHost, staticRoot: viewerAssets(), agent: MEMOS_AGENT, closeActiveSseOnShutdown: true },
-      )
-      // Warn, not info: an operator reading the log sees that a surface with no sign-in is answering.
-      logger.warn(`viewer live at ${viewer.url} — it serves every owner's memory without sign-in`)
-    } catch (error) {
-      // Memory stays usable without its Viewer; a busy port is the common cause.
-      logger.warn(`viewer unavailable on ${config.viewerHost}:${config.viewerPort}: ${error instanceof Error ? error.message : String(error)}`)
-    }
-  }
-  logger.info(`ready (home=${home.root}, hostLlm=${String(config.hostLlm)}, autoRecovery=${String(recovery)})`)
+  logger.info(`ready (accounts=${config.accounts}, hostLlm=${String(config.hostLlm)}, autoRecovery=${String(recovery)})`)
 
   ctx.effect(() => {
     const unregister = ctx.memory.register(memory)
@@ -163,7 +155,6 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     return async () => {
       unwatch()
       unregister()
-      await viewer?.close()
       await memory.dispose()
     }
   }, 'memory-memos.provider')

@@ -6,7 +6,7 @@ import type { Branded } from '@aeven/brand'
 export type ConnectorId = Branded<'account-connector-id'>
 
 /** Provider selected when creating a connector. */
-export type ConnectorProvider = 'github' | 'gmail' | 'google-drive' | 'google-calendar' | 'microsoft365' | 'mcp' | 'email' | 'whatsapp'
+export type ConnectorProvider = 'github' | 'gmail' | 'google-drive' | 'google-calendar' | 'microsoft365' | 'mcp' | 'email' | 'whatsapp' | 'telegram'
 
 /** Stable Settings identity of one skill definition. */
 export type SkillViewId = Branded<'account-skill-view-id'>
@@ -39,6 +39,8 @@ export interface PersonalConnectorView {
   email?: EmailConnectorSettings
   /** Linked account of a `whatsapp` connector. */
   whatsapp?: WhatsAppConnectorSettings
+  /** Signed-in account of a `telegram` connector. */
+  telegram?: TelegramConnectorSettings
 }
 
 /** Current signed-in account's skills and connectors. */
@@ -149,5 +151,47 @@ export interface WhatsAppPairingView {
   id?: ConnectorId
   state: WhatsAppPairingState
   /** PNG data URL of the current QR code, present only in the `qr` state. */
+  qr?: string
+}
+
+/** The Telegram account one `telegram` connector is signed in to. */
+export interface TelegramConnectorSettings {
+  /** Telegram user id; two connectors may not carry the same one. */
+  userId: string
+  /** Display name Telegram reports. */
+  name?: string
+  /** Public username without the leading `@`. */
+  username?: string
+  /** International number without `+`, when the account has one. */
+  phone?: string
+}
+
+/**
+ * Why Telegram refused the last submitted step. Mirrors the daemon's fixed
+ * reasons, which replace Telegram's own error text.
+ */
+export type TelegramLoginFailure = 'code-invalid' | 'password-invalid' | 'phone-invalid' | 'too-many-attempts' | 'unreachable' | 'other'
+
+/**
+ * Progress of signing in a Telegram account.
+ * `code` and `password` wait for the value the user types, and `qr` waits for the Telegram app to
+ * scan the login code; `connected` means the account was
+ * saved as a connector; `unlinked`, `expired`, `failed`, `duplicate`, `limit`, and `unavailable`
+ * are terminal and need a new attempt.
+ */
+export type TelegramPairingState = 'starting' | 'code' | 'qr' | 'password' | 'connected' | 'unlinked' | 'expired' | 'failed' | 'duplicate' | 'limit' | 'unavailable'
+
+/** One Telegram sign-in attempt as shown in Settings. */
+export interface TelegramPairingView {
+  /** Identity of the attempt and of the connector it creates; absent when the attempt could not start. */
+  id?: ConnectorId
+  state: TelegramPairingState
+  /** Number the attempt is signing in. */
+  phone?: string
+  /** Why Telegram refused the last submitted step; the same step accepts another value. */
+  reason?: TelegramLoginFailure
+  /** The signed-in account, present once it was saved as a connector. */
+  account?: TelegramConnectorSettings
+  /** Image data URL of the current login QR code, present in the `qr` state once Telegram issued a token. */
   qr?: string
 }

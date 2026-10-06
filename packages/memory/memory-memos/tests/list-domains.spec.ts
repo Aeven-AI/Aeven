@@ -3,6 +3,7 @@
  * count only memories in those domains, including domains read from a workspace instead of a tag.
  */
 import { describe, expect, it } from 'vitest'
+import { OwnerCores } from '../src/cores.ts'
 import { LlmRouteContext } from '../src/host-llm.ts'
 import { MemosMemory, ownerProfile } from '../src/runtime.ts'
 import { signal } from './harness.ts'
@@ -38,7 +39,7 @@ function listingCore(traces: readonly ListedTrace[]) {
 function provider(traces: readonly ListedTrace[]) {
   const { core, calls } = listingCore(traces)
   const memory = new MemosMemory({
-    core: core as never,
+    cores: new OwnerCores(async () => core as never),
     routes: new LlmRouteContext(),
     toolLimits: { skills: 8, traces: 8, worldModels: 8 },
     warn: () => {},

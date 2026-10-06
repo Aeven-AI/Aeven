@@ -114,6 +114,9 @@ const pwshCoverageExclusions = spawnSync(resolvePwshPath(), ['-NoLogo', '-NoProf
 const testIncludes = [
   'packages/*/*/tests/**/*.spec.{ts,tsx}',
   'apps/*/tests/**/*.spec.ts',
+  // Aeven-owned entries under native/ keep their behaviour suites beside the vendored source
+  // they wrap, and run with the same forks and setup as the package suites.
+  'native/*/tests/**/*.spec.ts',
   'scripts/**/*.spec.ts',
 ]
 

@@ -32,7 +32,7 @@ Every notification the API forwards to clients is classified in `packages/api/re
 
 ### Other Session-scoped surfaces
 
-Jobs (list, follow, kill, dismiss), subagents (list, prompt, interrupt), terminals (list, retain), devices (open, close, and the Sessions in the device state), message feedback, dynamic Cordis plugins (inventory, invoke, request resolution), and Session references (candidates and referenced reads, limited to the target Session's account) check the owner of the Session they name. The web-app composition turns the MemOS Viewer off, because it serves every account's memory without sign-in; each account reaches its own memory through the memory manager, which was already keyed by owner.
+Jobs (list, follow, kill, dismiss), subagents (list, prompt, interrupt), terminals (list, retain), devices (open, close, and the Sessions in the device state), message feedback, dynamic Cordis plugins (inventory, invoke, request resolution), and Session references (candidates and referenced reads, limited to the target Session's account) check the owner of the Session they name. Each account's memory is its own MemOS database under `accounts/<account>/memory` ([per-account memory databases](2026-10-07-per-account-memory-databases.md)), reached through the memory manager, which was already keyed by owner; the MemOS Viewer, which served every account's memory without sign-in, is gone.
 
 ### Shared by design
 

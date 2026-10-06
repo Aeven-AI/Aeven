@@ -36,8 +36,10 @@ export interface HostLease {
   readonly startedAt: string
   /**
    * Tokenized root URL of the Host's HTTP surface, when it serves one. A Host
-   * reachable only through its own carrier (the Electron pipes, for example)
-   * omits this and cannot be attached to from outside.
+   * claims the lease without it while booting and adds it once its server is
+   * bound; a Host reachable only through its own carrier (the Electron pipes,
+   * for example) gives the claim back after boot, since nothing outside can
+   * attach to it.
    */
   readonly url?: string
 }

@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## Summary
 
-已登录用户可导入、查看、启用和移除自己的技能，并连接远程 MCP 服务器。每项管理操作均从已认证请求确定所属账户。技能和连接器凭据在重启后保留；对话仅获得其所属账户的集成。
+已登录用户可导入、查看、启用和移除自己的技能、连接远程 MCP 服务器、关联 WhatsApp 号码并登录 Telegram 账户。每项管理操作均从已认证请求确定所属账户。技能和连接器凭据在重启后保留；对话仅获得其所属账户的集成。
 
 ## Table of Contents
 
@@ -31,6 +31,12 @@ Gmail、Google 云端硬盘和 Google 日历使用维护中的 Google Workspace 
 
 GitHub 和 Microsoft 365 登录需要在 `providers.github` 和 `providers.microsoft365` 下配置应用，提供 `endpoint`、`authorizationUrl`、`tokenUrl`、`clientId`、非空 `scopes` 和可选的 `clientSecretRef`。MCP 地址必须接受委托访问令牌。授权使用绑定账户且有时限的 state 和 PKCE；回调在保存前验证所选 API 或 MCP 资源的访问权限。过期授权在对话步骤前通过串行凭据写入刷新。回调展示本地化完成页面，提示用户关闭浏览器窗口并返回 Aeven；失败授权会区分令牌交换、API 访问验证和连接保存，不会显示提供商响应；登录过期时会提示重新开始。
 
+WhatsApp 和 Telegram 每个账户各自占一行连接器，每行拥有一个受监管的守护进程，其绑定的回环端口由操作系统分配。宿主启动该进程并在异常退出后按退避策略重启，保持其标准输入打开，因此宿主崩溃后不会遗留持有会话的进程；其工具挂载为 `mcp__account_<connector-id-prefix>__<tool>`。每个对话步骤开始前都会挂载所有连接器；无法连接的连接器会被记录并在该步骤中略过，下一步骤再次尝试，因此出问题的账户绝不会终止一个轮次。设置中扫描二维码即可关联 WhatsApp 号码；Telegram 账户则输入手机号、Telegram 发送的验证码，以及 Telegram 要求时的两步验证密码完成登录。手机扫描二维码后保存该号码；Telegram 授权后保存该账户，已在列表中的账户会被拒绝而不会重复添加。取消关联会在提供商侧结束会话并删除该连接器的数据目录。每个账户各自拥有进程与命名空间，因此一个对话可以访问多个账户而不会相互混淆。
+
+Telegram 守护进程是 vendored 的 [`bstuff/telegram-mcp`](../../../native/telegram-mcp/README.zh.md) 服务，外加 Aeven 提供的入口，用于增加回环 MCP 端点与登录控制路由。部署方拥有一个已注册的 Telegram 应用，并将 `telegramApiIdRef` 与 `telegramApiHashRef` 指向凭据引用；宿主解析这些值后仅传入守护进程的环境，因此它们不会出现在工具 schema、模型请求或浏览器响应中。每个账户的会话字符串、身份缓存与下载内容都保存在该账户自己的目录中。用户可以用 Telegram 应用扫描二维码登录，也可以用手机号和验证码登录；若账户启用了两步验证，Telegram 随后会要求输入密码。同一用户的每个 Telegram 账户只有一个连接器 id，由该用户与 Telegram 用户 id 派生：重新登录已退出的账户会就地恢复，取消关联后重新登录也会得到相同的 id，因此已在使用该账户工具的对话中，工具名称保持不变。登录一个已登录的账户会作为重复而被拒绝。
+
+读取 WhatsApp 或 Telegram 内容——消息文本、文件名、成员列表——对模型而言都是他人的数据。仅读取账户的工具直接执行；发送、编辑、删除、转发、回应、置顶、静音、标记已读、定时发送、正在输入提示、骰子、投票以及所有群组变更都会先征求用户批准。
+
 管理员可在 web profile 的 `cordis.patch.yml` 中配置 Google；`clientSecretRef` 指向部署凭据提供方管理的凭据：
 
 ```yaml
@@ -48,10 +54,22 @@ GitHub 和 Microsoft 365 登录需要在 `providers.github` 和 `providers.micro
 | Field | Default | Meaning |
 |---|---|---|
 | `maxSkillBytes` | 10485760 | 解码后技能包的最大字节数 |
-| `timeoutMs` | 60000 | OAuth、MCP 发现及工具请求的时限 |
-| `consentLifetimeMs` | 600000 | 授权操作的最大持续时间 |
+| `timeoutMs` | 60000 | OAuth、MCP 发现、守护进程控制及工具请求的时限 |
+| `consentLifetimeMs` | 600000 | 授权或登录操作的最大持续时间 |
 | `redirectUri` | `http://127.0.0.1:3080/connectors/oauth/callback` | 已注册的回调 URL |
 | `providers` | `{}` | 部署所属的 OAuth 应用和可选 MCP 资源 |
+| `maxEmailAccounts` | 20 | 一个账户可连接的邮箱数 |
+| `maxWhatsAppAccounts` | 10 | 一个账户可关联的 WhatsApp 号码数 |
+| `maxTelegramAccounts` | 10 | 一个账户可登录的 Telegram 账户数 |
+| `whatsappBinaryPath` | 平台包 | WhatsApp 守护进程可执行文件 |
+| `whatsappStartupTimeoutMs`、`whatsappStopGraceMs` | 15000、5000 | 绑定回环端口的时限，以及标准输入关闭后的退出时限 |
+| `whatsappPairingPollMs` | 1500 | 读取二维码状态的间隔 |
+| `whatsappRestartDelayMs`、`whatsappMaxRestartDelayMs` | 1000、60000 | 重启退避的上下限 |
+| `telegramEntryPath` | vendored 包 | Telegram 守护进程入口 |
+| `telegramApiIdRef`、`telegramApiHashRef` | `TELEGRAM_API_ID`、`TELEGRAM_API_HASH` | 持有已注册 Telegram 应用的凭据引用 |
+| `telegramStartupTimeoutMs`、`telegramStopGraceMs` | 15000、5000 | 绑定回环端口的时限，以及标准输入关闭后的退出时限 |
+| `telegramPairingPollMs` | 1500 | 读取登录状态的间隔 |
+| `telegramRestartDelayMs`、`telegramMaxRestartDelayMs` | 1000、60000 | 重启退避的上下限 |
 
 ## Understand the implementation
 
@@ -95,6 +113,8 @@ GitHub 和 Microsoft 365 登录需要在 `providers.github` 和 `providers.micro
 ## Known Limitations and Deferred Work
 
 - 提供方登录需要注册应用和用户授权；编译无法验证真实授权。Microsoft 365 还需要兼容的 MCP 服务器。
+- 关联 WhatsApp 号码需要用户手机；登录 Telegram 需要该部署已注册的 Telegram 应用以及用户的手机号、验证码和两步验证密码。两条路径都不会在测试中登录真实账户；守护进程的登录处理通过替换 Telegram 客户端进行覆盖。
+- Telegram 以用户自己的账户（用户会话，而非机器人）登录，因此适用 Telegram 的 API 条款，自动化批量操作可能使账户受限。
 - Workspace 桥接提供所选 Google 服务，其可用工具可能与 ChatGPT 应用连接器不同。
 - 这些页面不提供自定义 stdio 服务器或通用 MCP OAuth 发现。
 - 为加载技能而写入磁盘的导入资源，在移除目录项后仍保留。

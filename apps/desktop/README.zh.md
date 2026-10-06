@@ -29,7 +29,7 @@ Electron 根据应用 locale 选择类型化的英文或中文桌面壳文案，
 
 ### Seed 安装
 
-安装包内的 seed 是安装工具包，不是可以直接运行的 `node_modules` 目录。生成的 pnpm workspace 与仓库策略一致：明确允许必要的原生依赖构建，并拒绝 MemOS 安装提示脚本以及 onnxruntime-node 的 CUDA provider 下载。它的 `overrides` 移除 Host 从不加载的依赖边：Web 前端 `dist` 与插件客户端 bundle 已经包含的浏览器库，以及 MemOS 仅用于重新启动其独立 bridge 守护进程的 `tsx`；Transformers.js 与附件读取器共用同一个 `sharp` 版本。打包过程会生成锁文件，在禁用生命周期脚本的情况下在线物化生产依赖图，从存储中裁剪运行时从不加载的第三方文件，删除 `node_modules` 以及所有临时 pnpm cache、配置和 state 目录，然后只使用最终存储完成一次完整离线安装，并验证私有 Desktop Host 的入口与 overlay 均存在。macOS 构建随后暂存 pnpm 内容寻址存储中的每个 Mach-O 对象，最多并发签署四个独立副本，并且只在所有签名成功后才更新受影响的 SHA-512 索引记录。再一次离线安装会在分片前证明重写后的存储；准备过程随后解包最终归档，并验证每个内嵌签名。签名 seed 保留发布身份、本地第一方 tarball 及其描述文件、项目元数据、锁文件、完整性清单，以及在用户机器上重复该安装所需的 pnpm 存储内容。
+安装包内的 seed 是安装工具包，不是可以直接运行的 `node_modules` 目录。生成的 pnpm workspace 与仓库策略一致：明确允许必要的原生依赖构建，并拒绝 onnxruntime-node 的 CUDA provider 下载。它的 `overrides` 移除 Host 从不加载的依赖边，即 Web 前端 `dist` 与插件客户端 bundle 已经包含的浏览器库；Transformers.js 与附件读取器共用同一个 `sharp` 版本。打包过程会生成锁文件，在禁用生命周期脚本的情况下在线物化生产依赖图，从存储中裁剪运行时从不加载的第三方文件，删除 `node_modules` 以及所有临时 pnpm cache、配置和 state 目录，然后只使用最终存储完成一次完整离线安装，并验证私有 Desktop Host 的入口与 overlay 均存在。macOS 构建随后暂存 pnpm 内容寻址存储中的每个 Mach-O 对象，最多并发签署四个独立副本，并且只在所有签名成功后才更新受影响的 SHA-512 索引记录。再一次离线安装会在分片前证明重写后的存储；准备过程随后解包最终归档，并验证每个内嵌签名。签名 seed 保留发布身份、本地第一方 tarball 及其描述文件、项目元数据、锁文件、完整性清单，以及在用户机器上重复该安装所需的 pnpm 存储内容。
 
 | Seed 内容 | 可写目标或用途 |
 |---|---|
@@ -59,7 +59,7 @@ GUI 插件修改会在把注册表包安装到共享 Desktop pnpm 存储后，�
 pnpm run dev:desktop
 ```
 
-开发时使用读者自己的 Aeven home，因此开发应用显示与 CLI 和 Web 相同的会话和工作区；若已有 `avn web` Host 服务该 home，外壳会接管它，而不会在其上启动第二个 Host。一次性 npm 项目位于 `apps/desktop/.desktop-build/development/project`，Electron 浏览器数据则位于 `apps/desktop/.desktop-build/development/electron-user-data`。显式 `AVN_HOME` 可选择另一个 Aeven home。Renderer DevTools 默认自动打开，Main、Renderer 和 avn Host 调试端口依次为 9229、9222 和 9230。`AVN_DESKTOP_MAIN_INSPECT_PORT`、`AVN_DESKTOP_RENDERER_DEBUG_PORT` 与 `AVN_DESKTOP_HOST_INSPECT_PORT` 可以替换这些端口，`AVN_DESKTOP_OPEN_DEVTOOLS=0` 则保持 Renderer 调试窗口关闭。
+开发时使用读者自己的 Aeven home，因此开发应用显示与 CLI 和 Web 相同的会话和工作区；若已有 `avn web` Host 服务该 home，外壳会接管它，而不会在其上启动第二个 Host。Host 在开始启动时即占用该 home 的租约，因此在其启动期间打开的外壳会最多等待 30 秒，直到被租约记录的 Host 公布其 URL 并响应；若外壳改为启动自己的 Host，会打印原因。一次性 npm 项目位于 `apps/desktop/.desktop-build/development/project`，Electron 浏览器数据则位于 `apps/desktop/.desktop-build/development/electron-user-data`。显式 `AVN_HOME` 可选择另一个 Aeven home。Renderer DevTools 默认自动打开，Main、Renderer 和 avn Host 调试端口依次为 9229、9222 和 9230。`AVN_DESKTOP_MAIN_INSPECT_PORT`、`AVN_DESKTOP_RENDERER_DEBUG_PORT` 与 `AVN_DESKTOP_HOST_INSPECT_PORT` 可以替换这些端口，`AVN_DESKTOP_OPEN_DEVTOOLS=0` 则保持 Renderer 调试窗口关闭。
 
 显式构建完成后，`start:desktop` 会重新生成一次性项目，并跳过构建直接启动已有产物：
 

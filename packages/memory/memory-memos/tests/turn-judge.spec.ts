@@ -3,8 +3,9 @@
  * correction, and capture uses that answer instead of a separate classification call.
  */
 import { describe, expect, it } from 'vitest'
-import type { HostLlmCompleteInput } from '@memtensor/memos-local-plugin/dist/core/llm/host-bridge.js'
+import type { HostLlmCompleteInput } from '@deepseek-ai/memos-local-plugin/core/llm/host-bridge.js'
 import { SUPERSEDED_TAG, TurnJudgeContext } from '../src/domain.ts'
+import { OwnerCores } from '../src/cores.ts'
 import { LlmRouteContext } from '../src/host-llm.ts'
 import { MemosMemory } from '../src/runtime.ts'
 import { SCOPE } from './harness.ts'
@@ -114,7 +115,7 @@ describe('capture with a turn judgment', () => {
     const { core, tags } = captureCore(judges, { 1: '{"summary":"User\'s son: Alan","domain":"person","corrects":false}' })
     const classified: string[] = []
     const memory = new MemosMemory({
-      core: core as never,
+      cores: new OwnerCores(async () => core as never),
       routes: new LlmRouteContext(),
       toolLimits: { skills: 8, traces: 8, worldModels: 8 },
       judges,
@@ -138,7 +139,7 @@ describe('capture with a turn judgment', () => {
       2: '{"summary":"User goes by Ollie; son Alan has no nickname","domain":"person","corrects":true}',
     })
     const memory = new MemosMemory({
-      core: core as never,
+      cores: new OwnerCores(async () => core as never),
       routes: new LlmRouteContext(),
       toolLimits: { skills: 8, traces: 8, worldModels: 8 },
       judges,
@@ -159,7 +160,7 @@ describe('capture with a turn judgment', () => {
       2: '{"summary":"User\'s dog: Bram; Pixel is their sister\'s dog","domain":"person","corrects":true}',
     })
     const memory = new MemosMemory({
-      core: core as never,
+      cores: new OwnerCores(async () => core as never),
       routes: new LlmRouteContext(),
       toolLimits: { skills: 8, traces: 8, worldModels: 8 },
       judges,

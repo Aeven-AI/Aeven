@@ -116,7 +116,6 @@ const BROWSER_LIBRARY_DEPENDENCIES = [
  *
  * `-` removes an edge the Host never loads. The web frontend `dist` contains `@aeven/client-ui-primitives` and its
  * dependencies, and each plugin's `lib/client.js` contains its Lexical copy or resolves xterm from that `dist`.
- * MemOS runs `tsx` only to respawn its standalone bridge daemon from `bridge.cts` sources the seed does not ship.
  * Transformers.js imports `sharp` at load but never decodes images for text embeddings, so it shares the
  * attachment reader's `sharp` release instead of carrying a second libvips.
  */
@@ -126,7 +125,6 @@ export const DESKTOP_DEPENDENCY_OVERRIDES: Readonly<Record<string, string>> = Ob
     .map((name): [string, string] => [`@aeven/client-ui-conversation>${name}`, '-']),
   ...['@xterm/xterm', '@xterm/addon-fit']
     .map((name): [string, string] => [`@aeven/client-ui-sidebar-terminal>${name}`, '-']),
-  ['@memtensor/memos-local-plugin>tsx', '-'],
   ['@huggingface/transformers>sharp', '^0.35.3'],
 ])
 
@@ -154,7 +152,7 @@ function workspaceFile(corePackages: Readonly<Record<string, string>> = {}): str
   // CPU runtime the package ships, so allowing it would put about 300 MB of GPU libraries into every install.
   // The Google connectors spawn the platform CLI this package's install script downloads into its own `bin/`; denying
   // the script leaves `bin/gws` missing and the connector tools unusable.
-  return `packages:\n  - .\n\n${overrideSection}${WORKSPACE_SETTINGS}allowBuilds:\n  '@googleworkspace/cli': true\n  node-pty: true\n  koffi: true\n  fs-ext: true\n  esbuild: true\n  better-sqlite3: true\n  onnxruntime-node: false\n  sharp: true\n  ${JSON.stringify(coreBuildKey)}: true\n  '@google/genai': false\n  protobufjs: false\n  node-addon-require-builtin: false\n  tesseract.js: false\n  '@memtensor/memos-local-plugin': false\n`
+  return `packages:\n  - .\n\n${overrideSection}${WORKSPACE_SETTINGS}allowBuilds:\n  '@googleworkspace/cli': true\n  node-pty: true\n  koffi: true\n  fs-ext: true\n  esbuild: true\n  better-sqlite3: true\n  onnxruntime-node: false\n  sharp: true\n  ${JSON.stringify(coreBuildKey)}: true\n  '@google/genai': false\n  protobufjs: false\n  node-addon-require-builtin: false\n  tesseract.js: false\n`
 }
 
 function releaseFile(projectDir: string): DesktopRelease {

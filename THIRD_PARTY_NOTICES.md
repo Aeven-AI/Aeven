@@ -11,7 +11,7 @@ The complete npm transitive closure, including the Landlock launcher workspace, 
 
 ## Vendored source (`vendor/`)
 
-The Cordis framework and its foundation libraries are source-vendored into this repository rather than consumed from npm, and republished under the `@deepseek-ai` scope. All are MIT-licensed; each directory preserves its upstream `LICENSE` file. Exact upstream commits and local modifications are recorded in [`vendor/README.md`](vendor/README.md).
+The Cordis framework, its foundation libraries, and the MemOS local memory core are source-vendored into this repository rather than consumed from npm. All are republished under the `@deepseek-ai` scope. Every manifest declares MIT; each Cordis directory preserves its upstream `LICENSE` file, and the MemOS package ships none while its repository root carries an Apache-2.0 `LICENSE`. Exact upstream commits and local modifications are recorded in [`vendor/README.md`](vendor/README.md).
 
 | Package | Upstream name | Upstream | License |
 | --- | --- | --- | --- |
@@ -24,6 +24,7 @@ The Cordis framework and its foundation libraries are source-vendored into this 
 | `@deepseek-ai/cordis-plugin-timer` | `@cordisjs/plugin-timer` | [github.com/aeven/cordis](https://github.com/aeven/cordis) | MIT |
 | `@deepseek-ai/cordis-plugin-hmr` | `@cordisjs/plugin-hmr` | [github.com/aeven/cordis](https://github.com/aeven/cordis) | MIT |
 | `@deepseek-ai/cordis-plugin-logger-console` | `@cordisjs/plugin-logger-console` | [github.com/aeven/cordis](https://github.com/aeven/cordis) | MIT |
+| `@deepseek-ai/memos-local-plugin` | `@memtensor/memos-local-plugin` | [github.com/MemTensor/MemOS](https://github.com/MemTensor/MemOS) | MIT |
 
 ## Runtime npm dependencies
 
@@ -44,7 +45,6 @@ External packages that a workspace package resolves at runtime. The tier covers 
 | [`@lexical/plain-text`](https://github.com/facebook/lexical) | MIT |
 | [`@lexical/text`](https://github.com/facebook/lexical) | MIT |
 | [`@lexical/utils`](https://github.com/facebook/lexical) | MIT |
-| [`@memtensor/memos-local-plugin`](https://github.com/MemTensor/MemOS) | MIT |
 | [`@modelcontextprotocol/sdk`](https://github.com/modelcontextprotocol/typescript-sdk) | MIT |
 | [`@napi-rs/canvas`](https://github.com/Brooooooklyn/canvas) | MIT |
 | [`@noble/hashes`](https://github.com/paulmillr/noble-hashes) | MIT |
@@ -146,7 +146,6 @@ External packages that a workspace package resolves at runtime. The tier covers 
 
 pnpm applies local patches to the following packages at install time, so shipped artifacts carry modified copies; each patch file is the complete record of the modification:
 
-- `@memtensor/memos-local-plugin@2.0.20` — [`patches/@memtensor__memos-local-plugin@2.0.20.patch`](patches/@memtensor__memos-local-plugin@2.0.20.patch)
 - `node-pty@1.2.0-beta.15` — [`patches/node-pty@1.2.0-beta.15.patch`](patches/node-pty@1.2.0-beta.15.patch)
 
 ## Official Claude Code platform payloads

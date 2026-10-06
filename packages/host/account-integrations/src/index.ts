@@ -1,7 +1,7 @@
 /** Personal skill storage and account-scoped MCP connections exposed to Settings. */
 
 import { createHash, randomUUID } from 'node:crypto'
-import { realpath, rm, writeFile } from 'node:fs/promises'
+import { realpath, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { mkdir } from 'node:fs/promises'
 import { Context, Service, type Fiber } from '@deepseek-ai/cordis'
@@ -9,6 +9,8 @@ import Schema from '@deepseek-ai/schemastery'
 import { z } from 'zod'
 import { Remote, TypertRemoteService } from '@aeven/typert-protocol'
 import { defineDomain, domainTable, type Domain } from '@aeven/storage-domain'
+import { assertNever } from '@aeven/util-values'
+import { credentialRef } from '@aeven/credentials'
 import { avnHomePath } from '@aeven/home-paths'
 import { createScope, type Scope } from '@aeven/scope'
 import type {} from '@aeven/identity-user'
@@ -26,9 +28,10 @@ import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js'
 import { googleConnection, googleService, verifyGoogle } from './google.ts'
 import { parsePersonalSkill } from './skills.ts'
 import { resolveWhatsAppBinary, WhatsAppDaemon } from './whatsapp.ts'
+import { resolveTelegramEntry, TelegramDaemon, type TelegramCredentials, type TelegramDaemonStatus } from './telegram.ts'
 import { connectorCredential, createConsent, exchangeGrant, grantSchema } from './oauth.ts'
 import type { OAuthProviderConfig, PendingConsent } from './oauth.ts'
-import type { AccountIntegrationsView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, EmailConnectionFailure, EmailConnectorSettings, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillViewId, SkillUploadFile, WhatsAppPairingView } from './types.ts'
+import type { AccountIntegrationsView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, ConnectorProviderView, EmailConnectionFailure, EmailConnectorSettings, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillViewId, SkillUploadFile, TelegramConnectorSettings, TelegramPairingView, WhatsAppPairingView } from './types.ts'
 
 export type * from './types.ts'
 export type { OAuthProviderConfig } from './oauth.ts'
@@ -54,8 +57,26 @@ export interface Config {
   maxEmailAccounts: number
   /** WhatsApp numbers one signed-in user may link. */
   maxWhatsAppAccounts: number
+  /** Telegram accounts one signed-in user may sign in. */
+  maxTelegramAccounts: number
   /** WhatsApp daemon executable; defaults to the platform package installed for this host. */
   whatsappBinaryPath?: string
+  /** Telegram daemon entry; defaults to the vendored package installed for this host. */
+  telegramEntryPath?: string
+  /** Credential reference holding the deployment's Telegram application id. */
+  telegramApiIdRef: string
+  /** Credential reference holding the deployment's Telegram application hash. */
+  telegramApiHashRef: string
+  /** Time allowed for a Telegram daemon to bind its loopback port. */
+  telegramStartupTimeoutMs: number
+  /** Time a stopping Telegram daemon gets to exit cleanly before it is killed. */
+  telegramStopGraceMs: number
+  /** Interval between sign-in state reads while a Telegram code or password is awaited. */
+  telegramPairingPollMs: number
+  /** First delay before restarting a Telegram daemon that exited unexpectedly; doubles per consecutive failure. */
+  telegramRestartDelayMs: number
+  /** Longest restart delay; a daemon that ran this long resets the failure count. */
+  telegramMaxRestartDelayMs: number
   /** Time allowed for a WhatsApp daemon to bind its loopback port. */
   whatsappStartupTimeoutMs: number
   /** Time a stopping WhatsApp daemon gets to exit cleanly before it is killed. */
@@ -76,7 +97,7 @@ const skillSchema = z.object({
   resources: z.record(z.string().refine(path => !path.startsWith('/') && !path.includes('\\') && !/^[A-Za-z]:/.test(path)
     && path.split('/').every(part => part !== '' && part !== '.' && part !== '..')), z.string()), revision: z.uuid(),
 })
-const providers = ['github', 'gmail', 'google-drive', 'google-calendar', 'microsoft365', 'email', 'whatsapp', 'mcp'] as const satisfies readonly ConnectorProvider[]
+const providers = ['github', 'gmail', 'google-drive', 'google-calendar', 'microsoft365', 'email', 'whatsapp', 'telegram', 'mcp'] as const satisfies readonly ConnectorProvider[]
 const emailServerSchema = z.object({
   host: z.string().trim().min(1).max(253).regex(/^[A-Za-z0-9.-]+$/), port: z.number().int().min(1).max(65_535),
   security: z.enum(['tls', 'starttls']), username: z.string().trim().min(1).max(320),
@@ -103,6 +124,10 @@ const connectorSchema = z.object({
   authFailed: z.boolean().optional(),
   /** Linked account of a `whatsapp` row; `linked` turns false when the phone removes the device. */
   whatsapp: z.object({ phone: z.string(), profileName: z.string().optional(), linked: z.boolean() }).optional(),
+  /** Signed-in account of a `telegram` row; `linked` turns false when Telegram rejects the session. */
+  telegram: z.object({
+    userId: z.string(), name: z.string().optional(), username: z.string().optional(), phone: z.string().optional(), linked: z.boolean(),
+  }).optional(),
 })
 const domainSpec = defineDomain({ name: 'account_integrations', version: 0, tables: {
   skills: domainTable<string, z.infer<typeof skillSchema>>(skillSchema),
@@ -124,19 +149,89 @@ function emailSecret(value: z.infer<typeof emailSecretSchema>): MailSecret {
   return { receivePassword: value.receivePassword, ...value.sendPassword !== undefined ? { sendPassword: value.sendPassword } : {} }
 }
 
+/** Account identity as either the daemon or a stored connector row reports it. */
+interface TelegramIdentityLike {
+  /** The daemon's field name for the account id. */
+  id?: string | undefined
+  /** The stored row's field name for the account id. */
+  userId?: string | undefined
+  name?: string | undefined
+  username?: string | undefined
+  phone?: string | undefined
+}
+
+/** Project one account identity onto the connector settings Settings shows. */
+function telegramSettings(value: TelegramIdentityLike): TelegramConnectorSettings {
+  const userId = value.userId ?? value.id
+  if (userId === undefined) throw new Error('Telegram account identity carries no user id')
+  const { name, username, phone } = value
+  return { userId, ...name === undefined ? {} : { name }, ...username === undefined ? {} : { username }, ...phone === undefined ? {} : { phone } }
+}
+
+/**
+ * Connector id of one Telegram account of one user, the same for every sign-in of that account, so the
+ * account's tool names (`mcp__account_<id prefix>__…`) survive signing it in again.
+ * @param owner - Aeven account that signs the Telegram account in.
+ * @param userId - Telegram user id.
+ * @returns a UUID-formatted id derived from both.
+ */
+function telegramConnectorId(owner: string, userId: string): ConnectorId {
+  const hex = createHash('sha256').update(`telegram\0${owner}\0${userId}`).digest('hex')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-${((Number.parseInt(hex.slice(16, 18), 16) & 0x3f) | 0x80).toString(16)}${hex.slice(18, 20)}-${hex.slice(20, 32)}` as ConnectorId
+}
+
+/** Project one daemon status onto the sign-in view Settings renders. */
+function telegramView(id: ConnectorId, status: TelegramDaemonStatus): TelegramPairingView {
+  const reason = status.reason
+  return {
+    id, state: telegramPairingState(status.state),
+    ...status.phone === undefined ? {} : { phone: status.phone },
+    ...reason === undefined ? {} : { reason },
+    ...status.identity === undefined ? {} : { account: telegramSettings(status.identity) },
+    ...status.qr === undefined ? {} : { qr: status.qr },
+  }
+}
+
+/** Map the daemon's sign-in state onto the state Settings renders. */
+function telegramPairingState(state: TelegramDaemonStatus['state']): TelegramPairingView['state'] {
+  switch (state) {
+    case 'login': return 'starting'
+    case 'code': return 'code'
+    case 'qr': return 'qr'
+    case 'password': return 'password'
+    case 'authorized': return 'connected'
+    case 'unlinked': return 'unlinked'
+    case 'failed': return 'failed'
+    default: return assertNever(state)
+  }
+}
+
 const uploadsSchema = z.array(z.object({ path: z.string().min(1), base64: z.string() })).min(1)
 const callbackPath = '/connectors/oauth/callback'
 
 /** Connector-owned skill names; bodies and resources remain in the skill registry. */
 const connectorSkills: Record<ConnectorProvider, readonly string[]> = {
   'google-drive': ['google-drive', 'google-docs', 'google-sheets', 'google-slides', 'google-drive-comments', 'google-forms'],
-  gmail: ['gmail'], 'google-calendar': ['google-calendar'], github: ['github'], microsoft365: [], mcp: [], email: [], whatsapp: ['whatsapp'],
+  gmail: ['gmail'], 'google-calendar': ['google-calendar'], github: ['github'], microsoft365: [], mcp: [], email: [], whatsapp: ['whatsapp'], telegram: ['telegram'],
 }
 
 /** WhatsApp tools that only read the cache or the account; every other tool acts visibly and asks first. */
 const whatsappReadTools = new Set([
   'list_messages', 'list_chats', 'get_chat', 'get_message_context', 'search_contacts', 'is_on_whatsapp', 'get_status', 'pairing_status',
   'download_media', 'get_poll_results', 'list_groups', 'get_group_info', 'get_blocklist', 'get_privacy_settings', 'request_sync',
+])
+
+/**
+ * Telegram tools that only read the account; every other tool acts on a real account other people
+ * see and asks first. This mirrors `TELEGRAM_READ_TOOLS` in `native/telegram-mcp/aeven/tools.ts`,
+ * which the daemon's own suite pins against the served `readOnlyHint` annotations.
+ */
+const telegramReadTools = new Set([
+  'whoami', 'list_chats', 'get_chat', 'list_members', 'find_public_chat',
+  'get_history', 'search_messages', 'get_message', 'get_replies', 'get_unread', 'chat_digest',
+  'list_media', 'download_media',
+  'poll_results', 'list_scheduled', 'get_draft', 'random_member',
+  'list_blocked', 'list_banned', 'list_invite_links',
 ])
 
 /** One linked number's supervised daemon. */
@@ -160,6 +255,32 @@ interface WhatsAppPairing {
   /** Set once the attempt reached a terminal state; the next read returns that state and forgets the attempt. */
   done: boolean
   /** Set while a status read is in flight, so overlapping polls cannot save the number twice. */
+  busy: boolean
+  poll?: NodeJS.Timeout
+  expiry?: NodeJS.Timeout
+}
+
+/** One signed-in account's supervised daemon. */
+interface SupervisedTelegram {
+  daemon: TelegramDaemon
+  /** Settles when the daemon has bound its port; rejects when startup failed. */
+  ready: Promise<void>
+  /** False once the process exited. */
+  alive: boolean
+  /** Consecutive unexpected exits, used for restart backoff. */
+  failures: number
+  startedAt: number
+  restart?: NodeJS.Timeout
+}
+
+/** A sign-in attempt; it becomes a connector row only once Telegram authorized the account. */
+interface TelegramPairing {
+  owner: string
+  daemon: TelegramDaemon
+  view: TelegramPairingView
+  /** Set once the attempt reached a terminal state; the next read returns that state and forgets the attempt. */
+  done: boolean
+  /** Set while a state read is in flight, so overlapping polls cannot save the account twice. */
   busy: boolean
   poll?: NodeJS.Timeout
   expiry?: NodeJS.Timeout
@@ -192,7 +313,16 @@ export default class AccountIntegrations extends TypertRemoteService {
     consentLifetimeMs: Schema.natural().min(1).default(600_000),
     maxEmailAccounts: Schema.natural().min(1).default(20),
     maxWhatsAppAccounts: Schema.natural().min(1).default(10),
+    maxTelegramAccounts: Schema.natural().min(1).default(10),
     whatsappBinaryPath: Schema.string(),
+    telegramEntryPath: Schema.string(),
+    telegramApiIdRef: Schema.string().default('TELEGRAM_API_ID'),
+    telegramApiHashRef: Schema.string().default('TELEGRAM_API_HASH'),
+    telegramStartupTimeoutMs: Schema.natural().min(1).default(15_000),
+    telegramStopGraceMs: Schema.natural().min(1).default(5_000),
+    telegramPairingPollMs: Schema.natural().min(100).default(1_500),
+    telegramRestartDelayMs: Schema.natural().min(1).default(1_000),
+    telegramMaxRestartDelayMs: Schema.natural().min(1).default(60_000),
     whatsappStartupTimeoutMs: Schema.natural().min(1).default(15_000),
     whatsappStopGraceMs: Schema.natural().min(1).default(5_000),
     whatsappPairingPollMs: Schema.natural().min(100).default(1_500),
@@ -210,8 +340,11 @@ export default class AccountIntegrations extends TypertRemoteService {
   private readonly connected = new Set<ConnectorId>()
   private readonly consents = new Map<string, PendingConsent>()
   private readonly whatsappBinary: string | undefined
+  private readonly telegramEntry: string | undefined
   private readonly whatsapp = new Map<ConnectorId, SupervisedWhatsApp>()
+  private readonly telegram = new Map<ConnectorId, SupervisedTelegram>()
   private readonly pairings = new Map<ConnectorId, WhatsAppPairing>()
+  private readonly telegramPairings = new Map<ConnectorId, TelegramPairing>()
   private readonly mounts = new Map<Agent, {
     scope: Scope
     connections: Map<ConnectorId, { token: string; endpoint: string; fiber: Fiber }>
@@ -224,6 +357,7 @@ export default class AccountIntegrations extends TypertRemoteService {
   constructor(ctx: Context, private readonly config: Config) {
     super(ctx, 'accountIntegrations')
     this.whatsappBinary = resolveWhatsAppBinary(config.whatsappBinaryPath)
+    this.telegramEntry = resolveTelegramEntry(config.telegramEntryPath)
     const redirect = new URL(endpoint(config.redirectUri))
     if (redirect.pathname !== callbackPath || redirect.search) throw new Error(`connector callback URL must end in ${callbackPath}`)
     for (const [provider, app] of Object.entries(config.providers)) {
@@ -245,20 +379,33 @@ export default class AccountIntegrations extends TypertRemoteService {
       if (await this.isConnected(connector)) this.connected.add(id)
     }
     this.ctx.effect(() => {
-      // Linked numbers run continuously so the daemon caches incoming messages between conversations.
+      // Signed-in accounts and linked numbers run continuously, so each daemon keeps its
+      // Telegram or WhatsApp connection warm between conversations.
       for (const [id, connector] of this.domain.table('connectors').entries()) {
         if (connector.provider === 'whatsapp' && connector.enabled && connector.whatsapp?.linked === true && this.whatsappBinary !== undefined) {
           this.runWhatsApp(id, connector.owner).catch(() => {
             // A daemon that cannot start now is started again by the next conversation step or Settings action.
           })
         }
+        if (connector.provider === 'telegram' && connector.enabled && connector.telegram?.linked === true && this.telegramEntry !== undefined) {
+          this.runTelegram(id, connector.owner).catch(() => {
+            // A daemon that cannot start now is started again by the next conversation step or Settings action.
+          })
+        }
       }
       return async () => {
         const pairings = [...this.pairings.keys()]
-        await Promise.all([...[...this.whatsapp.keys()].map(id => this.stopWhatsApp(id)), ...pairings.map(id => this.endPairing(id, 'expired'))])
+        const telegramPairings = [...this.telegramPairings.keys()]
+        await Promise.all([
+          ...[...this.whatsapp.keys()].map(id => this.stopWhatsApp(id)),
+          ...[...this.telegram.keys()].map(id => this.stopTelegram(id)),
+          ...pairings.map(id => this.endPairing(id, 'expired')),
+          ...telegramPairings.map(id => this.endTelegramPairing(id, 'expired')),
+        ])
         this.pairings.clear()
+        this.telegramPairings.clear()
       }
-    }, 'account-integrations: WhatsApp daemons')
+    }, 'account-integrations: WhatsApp and Telegram daemons')
     this.ctx.effect(() => this.ctx.skills.registerProvider((control) => {
       this.invalidateSkills = control.invalidate
       return {
@@ -315,8 +462,17 @@ export default class AccountIntegrations extends TypertRemoteService {
       const match = /^mcp__account_([a-f0-9]{24})__/.exec(exec.name)
       if (match !== null) {
         const connector = [...this.domain.table('connectors').entries()].find(([id]) => id.replaceAll('-', '').slice(0, 24) === match[1])?.[1]
-        if (connector === undefined || !connector.enabled || connector.owner !== exec.agent?.session.header.owner || !await this.isConnected(connector)) {
+        if (connector === undefined) {
+          return { kind: 'deny', reason: 'This connector no longer exists: its account was unlinked. Search the tool catalog for the tools of the account that replaced it.' }
+        }
+        if (connector.owner !== exec.agent?.session.header.owner) {
           return { kind: 'deny', reason: 'This connector is unavailable for the conversation owner.' }
+        }
+        if (!connector.enabled) {
+          return { kind: 'deny', reason: 'This connector is turned off. The user can turn it on in Settings → Connectors.' }
+        }
+        if (!await this.isConnected(connector)) {
+          return { kind: 'deny', reason: 'This connector\'s account is signed out. The user has to sign it in again in Settings → Connectors.' }
         }
         const google = googleService(connector.provider)
         if (google !== undefined) {
@@ -341,6 +497,9 @@ export default class AccountIntegrations extends TypertRemoteService {
         }
         if (connector.provider === 'whatsapp' && !whatsappReadTools.has(exec.name.slice(match[0].length))) {
           return { kind: 'ask', reason: 'Approve this action on your linked WhatsApp number. Other people can see it.' }
+        }
+        if (connector.provider === 'telegram' && !telegramReadTools.has(exec.name.slice(match[0].length))) {
+          return { kind: 'ask', reason: 'Approve this action on your signed-in Telegram account. Other people can see it.' }
         }
       }
       return next()
@@ -449,13 +608,15 @@ export default class AccountIntegrations extends TypertRemoteService {
     }
     const skills: AccountIntegrationsView['skills'] = [...personal, ...existing.values()].sort((a, b) => a.name.localeCompare(b.name))
     const connections = await Promise.all(connectors.map(async ([id, entry]) => {
-      const item = entry.provider === 'whatsapp' ? await this.refreshWhatsApp(id, entry) : entry
+      const item = entry.provider === 'whatsapp' ? await this.refreshWhatsApp(id, entry)
+        : entry.provider === 'telegram' ? await this.refreshTelegram(id, entry) : entry
       const connected = await this.isConnected(item)
       if (connected) this.connected.add(id)
       else this.connected.delete(id)
       return { id, name: item.name, provider: item.provider, enabled: item.enabled, connected,
         ...item.endpoint !== undefined ? { endpoint: item.endpoint } : {}, ...item.email !== undefined ? { email: emailSettings(item.email) } : {},
-        ...item.whatsapp !== undefined ? { whatsapp: { phone: item.whatsapp.phone, ...item.whatsapp.profileName !== undefined ? { profileName: item.whatsapp.profileName } : {} } } : {} }
+        ...item.whatsapp !== undefined ? { whatsapp: { phone: item.whatsapp.phone, ...item.whatsapp.profileName !== undefined ? { profileName: item.whatsapp.profileName } : {} } } : {},
+        ...item.telegram !== undefined ? { telegram: telegramSettings(item.telegram) } : {} }
     }))
     for (const skill of skills) {
       if (connectorSkillNames.has(skill.name)) skill.enabled = true
@@ -463,15 +624,16 @@ export default class AccountIntegrations extends TypertRemoteService {
     }
     return {
       skills: skills.filter(skill => !connectorSkillNames.has(skill.name)), connectors: connections,
-      providers: providers.map(provider => ({
+      providers: await Promise.all(providers.map(async (provider): Promise<ConnectorProviderView> => ({
         provider, configured: provider === 'mcp' || (provider === 'email' ? this.ctx.get('mail') !== undefined
           : provider === 'whatsapp' ? this.whatsappBinary !== undefined
-            : this.oauthApplication(provider) !== undefined && this.ctx.get('webServer') !== undefined),
+            : provider === 'telegram' ? this.telegramEntry !== undefined && await this.telegramCredentials() !== undefined
+              : this.oauthApplication(provider) !== undefined && this.ctx.get('webServer') !== undefined),
         skills: connectorSkills[provider].flatMap((name) => {
           const skill = skills.find(candidate => candidate.name === name && candidate.workspace === undefined)
           return skill === undefined ? [] : [skill]
         }),
-      })),
+      }))),
     }
   }
 
@@ -528,6 +690,7 @@ export default class AccountIntegrations extends TypertRemoteService {
     const input = createSchema.parse(request)
     if (input.provider === 'email') throw new Error('email accounts are added with connectEmail')
     if (input.provider === 'whatsapp') throw new Error('WhatsApp numbers are linked with startWhatsAppPairing')
+    if (input.provider === 'telegram') throw new Error('Telegram accounts are signed in with startTelegramPairing')
     if (input.provider !== 'mcp' && input.provider !== 'github') throw new Error('this provider requires OAuth sign-in')
     const url = endpoint(input.endpoint ?? (input.provider === 'github' ? 'https://api.githubcopilot.com/mcp/' : ''))
     await this.verifyMcp(url, input.token)
@@ -653,6 +816,14 @@ export default class AccountIntegrations extends TypertRemoteService {
         })
       }
     }
+    if (saved.provider === 'telegram') {
+      if (!enabled) await this.stopTelegram(id)
+      else {
+        this.runTelegram(id, owner).catch(() => {
+          // The next conversation step starts the daemon again and reports the account as unlinked if Telegram rejected the session.
+        })
+      }
+    }
   }
 
   /**
@@ -666,6 +837,10 @@ export default class AccountIntegrations extends TypertRemoteService {
     if (saved?.owner !== owner) throw new Error('connector not found')
     if (saved.provider === 'whatsapp') {
       await this.unlinkWhatsApp(id, owner)
+      return
+    }
+    if (saved.provider === 'telegram') {
+      await this.unlinkTelegram(id, owner)
       return
     }
     const completions: Promise<void>[] = []
@@ -740,9 +915,211 @@ export default class AccountIntegrations extends TypertRemoteService {
     this.pairings.delete(id)
   }
 
+  /**
+   * Start signing in a Telegram account: launch a daemon on a fresh data directory and send the login code.
+   * A caller's earlier unfinished attempt is cancelled; the account is saved only after Telegram authorizes it.
+   * @param phone - international number, with or without a leading `+`.
+   * @returns the attempt, or the reason it could not start.
+   */
+  @Remote
+  async startTelegramPairing(phone: string): Promise<TelegramPairingView> {
+    return await this.beginTelegramPairing(async daemon => daemon.loginStart(phone))
+  }
+
+  /**
+   * Start signing in a Telegram account by QR code: launch a daemon on a fresh data directory and show the
+   * login code the Telegram app scans. A caller's earlier unfinished attempt is cancelled; the account is saved
+   * only after Telegram authorizes it.
+   * @returns the attempt, `qr` with the code to scan, or the reason it could not start.
+   */
+  @Remote
+  async startTelegramQrPairing(): Promise<TelegramPairingView> {
+    return await this.beginTelegramPairing(async daemon => daemon.loginQr())
+  }
+
+  /** Launch an attempt's daemon, run its first sign-in step, and keep polling while Telegram waits for the user. */
+  private async beginTelegramPairing(first: (daemon: TelegramDaemon) => Promise<TelegramDaemonStatus>): Promise<TelegramPairingView> {
+    const owner = this.owner()
+    if (this.telegramEntry === undefined || await this.telegramCredentials() === undefined) return { state: 'unavailable' }
+    for (const [id, pairing] of this.telegramPairings) if (pairing.owner === owner) { await this.endTelegramPairing(id, 'expired'); this.telegramPairings.delete(id) }
+    const signedIn = [...this.domain.table('connectors').entries()].map(([, connector]) => connector).filter(connector => connector.owner === owner && connector.provider === 'telegram')
+    if (signedIn.length >= this.config.maxTelegramAccounts) return { state: 'limit' }
+    const id = randomUUID() as ConnectorId
+    const pairing: TelegramPairing = { owner, daemon: await this.newTelegramDaemon(owner, id), view: { id, state: 'starting' }, done: false, busy: false }
+    this.telegramPairings.set(id, pairing)
+    try {
+      await pairing.daemon.start()
+    } catch {
+      // The daemon's own diagnostics are not shown; Settings offers a new attempt.
+      await this.endTelegramPairing(id, 'failed')
+      this.telegramPairings.delete(id)
+      return { id, state: 'failed' }
+    }
+    const status = await first(pairing.daemon).catch(() => undefined)
+    if (status === undefined) {
+      await this.endTelegramPairing(id, 'failed')
+      this.telegramPairings.delete(id)
+      return { id, state: 'failed' }
+    }
+    pairing.view = telegramView(id, status)
+    if (pairing.view.state === 'starting' || pairing.view.state === 'code' || pairing.view.state === 'qr' || pairing.view.state === 'password') {
+      pairing.poll = setInterval(() => { void this.advanceTelegramPairing(id) }, this.config.telegramPairingPollMs)
+      pairing.expiry = setTimeout(() => { void this.endTelegramPairing(id, 'expired') }, this.config.consentLifetimeMs)
+    } else {
+      await this.endTelegramPairing(id, pairing.view.state)
+      this.telegramPairings.delete(id)
+    }
+    return pairing.view
+  }
+
+  /**
+   * Read a sign-in attempt; a terminal state is returned once and the attempt is then forgotten.
+   * @param id - attempt identity from startTelegramPairing.
+   * @returns current step, or outcome.
+   */
+  @Remote
+  async telegramPairing(id: ConnectorId): Promise<TelegramPairingView> {
+    const owner = this.owner()
+    const pairing = this.telegramPairings.get(id)
+    if (pairing === undefined || pairing.owner !== owner) {
+      return { id, state: this.domain.table('connectors').get(id)?.owner === owner ? 'connected' : 'expired' }
+    }
+    await this.advanceTelegramPairing(id)
+    if (pairing.done) this.telegramPairings.delete(id)
+    return pairing.view
+  }
+
+  /**
+   * Submit the code Telegram sent to the account.
+   * @param id - attempt identity from startTelegramPairing.
+   * @param code - digits from the Telegram message.
+   * @returns the attempt after Telegram answered.
+   */
+  @Remote
+  async submitTelegramCode(id: ConnectorId, code: string): Promise<TelegramPairingView> {
+    return await this.submitTelegramStep(id, async daemon => daemon.loginCode(code))
+  }
+
+  /**
+   * Submit the account's 2FA password when Telegram asked for it.
+   * @param id - attempt identity from startTelegramPairing.
+   * @param password - the account password; it is passed straight to the daemon and never stored.
+   * @returns the attempt after Telegram answered.
+   */
+  @Remote
+  async submitTelegramPassword(id: ConnectorId, password: string): Promise<TelegramPairingView> {
+    return await this.submitTelegramStep(id, async daemon => daemon.loginPassword(password))
+  }
+
+  /**
+   * Abandon a sign-in attempt and delete its data directory.
+   * @param id - attempt identity from startTelegramPairing.
+   */
+  @Remote
+  async cancelTelegramPairing(id: ConnectorId): Promise<void> {
+    const pairing = this.telegramPairings.get(id)
+    if (pairing === undefined || pairing.owner !== this.owner()) return
+    await this.endTelegramPairing(id, 'expired')
+    this.telegramPairings.delete(id)
+  }
+
+  /** Pass one sign-in step to the attempt's daemon and report what Telegram answered. */
+  private async submitTelegramStep(id: ConnectorId, step: (daemon: TelegramDaemon) => Promise<TelegramDaemonStatus>): Promise<TelegramPairingView> {
+    const pairing = this.telegramPairings.get(id)
+    if (pairing === undefined || pairing.owner !== this.owner() || pairing.done) return { id, state: 'expired' }
+    const status = await step(pairing.daemon).catch(() => undefined)
+    if (status === undefined) return pairing.view
+    pairing.view = telegramView(id, status)
+    await this.advanceTelegramPairing(id)
+    if (pairing.done) this.telegramPairings.delete(id)
+    return pairing.view
+  }
+
+  /** Read the attempt's daemon once and save the account once Telegram has authorized it. */
+  private async advanceTelegramPairing(id: ConnectorId): Promise<void> {
+    const pairing = this.telegramPairings.get(id)
+    if (pairing === undefined || pairing.done || pairing.busy) return
+    pairing.busy = true
+    try {
+      const status = await pairing.daemon.status()
+      if (pairing.done) return
+      pairing.view = telegramView(id, status)
+      if (status.state === 'code' || status.state === 'qr' || status.state === 'password') return
+      if (status.state === 'unlinked') {
+        await this.endTelegramPairing(id, 'unlinked')
+        return
+      }
+      if (status.state === 'failed' || status.state === 'login') {
+        await this.endTelegramPairing(id, status.state === 'login' ? 'expired' : 'failed')
+        return
+      }
+      const identity = status.identity
+      if (identity === undefined || identity.id === '') {
+        await this.endTelegramPairing(id, 'failed')
+        return
+      }
+      const existing = [...this.domain.table('connectors').entries()].find(([, connector]) =>
+        connector.owner === pairing.owner && connector.provider === 'telegram' && connector.telegram?.userId === identity.id)
+      if (existing !== undefined && existing[1].telegram?.linked === true) {
+        await pairing.daemon.logout().catch(() => {
+          // The local session is deleted with the directory; the account can end it from Telegram.
+        })
+        await this.endTelegramPairing(id, 'duplicate')
+        return
+      }
+      // A signed-out account is signed in again in place, and a new one gets the id derived from the account,
+      // so a conversation that already uses the account's tools keeps working after it signs in again.
+      const target = existing?.[0] ?? telegramConnectorId(pairing.owner, identity.id)
+      const settings = { userId: identity.id, linked: true,
+        ...identity.name === undefined ? {} : { name: identity.name },
+        ...identity.username === undefined ? {} : { username: identity.username },
+        ...identity.phone === undefined ? {} : { phone: identity.phone } }
+      if (target !== id) {
+        // The attempt's daemon stores its session under the attempt id; it moves to the account's directory
+        // and a daemon is started there.
+        await pairing.daemon.stop()
+        await this.stopTelegram(target)
+        const directory = this.telegramDirectory(pairing.owner, target)
+        await rm(directory, { recursive: true, force: true })
+        await rename(pairing.daemon.directory, directory)
+      }
+      await this.domain.table('connectors').put(target, {
+        owner: pairing.owner, id: target, provider: 'telegram',
+        name: identity.name ?? (identity.username === undefined ? identity.id : `@${identity.username}`),
+        enabled: existing?.[1].enabled ?? true, telegram: settings,
+      })
+      if (target === id) this.superviseTelegram(id, pairing.owner, pairing.daemon, Promise.resolve(), 0)
+      else {
+        this.runTelegram(target, pairing.owner).catch(() => {
+          // The next conversation step starts the daemon again and reports the account as unlinked if Telegram rejected the session.
+        })
+      }
+      await this.endTelegramPairing(id, 'connected', true)
+      pairing.view = { id: target, state: 'connected', account: telegramSettings(settings) }
+      this.connected.add(target)
+      this.invalidateSkills()
+    } catch {
+      // A failed status read is retried on the next poll; the expiry timer bounds the attempt.
+    } finally {
+      pairing.busy = false
+    }
+  }
+
+  /** Finish an attempt with a terminal state, deleting its daemon and directory unless the account was saved. */
+  private async endTelegramPairing(id: ConnectorId, state: TelegramPairingView['state'], saved = false): Promise<void> {
+    const pairing = this.telegramPairings.get(id)
+    if (pairing === undefined || pairing.done) return
+    pairing.done = true
+    pairing.view = { ...pairing.view, id, state }
+    clearInterval(pairing.poll)
+    clearTimeout(pairing.expiry)
+    if (saved) return
+    await pairing.daemon.stop()
+    await rm(pairing.daemon.directory, { recursive: true, force: true })
+  }
+
   /** Read the attempt's daemon once and save the number when the phone has scanned the code. */
-  private async advancePairing(id: ConnectorId): Promise<void> {
-    const pairing = this.pairings.get(id)
+  private async advancePairing(id: ConnectorId): Promise<void> {    const pairing = this.pairings.get(id)
     if (pairing === undefined || pairing.done || pairing.busy) return
     pairing.busy = true
     try {
@@ -911,6 +1288,129 @@ export default class AccountIntegrations extends TypertRemoteService {
     return avnHomePath('accounts', accountDirectory(owner), 'connectors', id)
   }
 
+  /** End the account's Telegram session, then delete the daemon's data and the connector. */
+  private async unlinkTelegram(id: ConnectorId, owner: string): Promise<void> {
+    try {
+      await (await this.runTelegram(id, owner)).logout()
+    } catch {
+      // Without a network the session stays listed in Telegram until it is ended there; the local session is deleted regardless.
+    }
+    await this.stopTelegram(id)
+    await this.domain.table('connectors').delete(id)
+    this.connected.delete(id)
+    this.invalidateSkills()
+    await this.unmountConnector(id)
+    await rm(this.telegramDirectory(owner, id), { recursive: true, force: true })
+  }
+
+  /** The running daemon of a signed-in account, or undefined when it cannot run or Telegram rejected the session. */
+  private async linkedTelegram(id: ConnectorId, connector: z.infer<typeof connectorSchema>): Promise<TelegramDaemon | undefined> {
+    if (connector.telegram?.linked !== true || this.telegramEntry === undefined) return undefined
+    let daemon: TelegramDaemon
+    let state: TelegramDaemonStatus['state']
+    try {
+      daemon = await this.runTelegram(id, connector.owner)
+      state = (await daemon.status()).state
+    } catch {
+      // A daemon that cannot start or answer is retried on the next step; its tools stay unmounted meanwhile.
+      return undefined
+    }
+    if (state === 'authorized') return daemon
+    await this.markTelegramUnlinked(id)
+    return undefined
+  }
+
+  /** Re-read a running daemon so Settings shows a session Telegram rejected. */
+  private async refreshTelegram(id: ConnectorId, connector: z.infer<typeof connectorSchema>): Promise<z.infer<typeof connectorSchema>> {
+    const entry = this.telegram.get(id)
+    if (entry === undefined || !entry.alive || connector.telegram?.linked !== true) return connector
+    try {
+      await entry.ready
+      if ((await entry.daemon.status(true)).state === 'authorized') return connector
+    } catch {
+      // A daemon that is restarting keeps its last known link state.
+      return connector
+    }
+    await this.markTelegramUnlinked(id)
+    return this.domain.table('connectors').get(id) ?? connector
+  }
+
+  private async markTelegramUnlinked(id: ConnectorId): Promise<void> {
+    await this.domain.table('connectors').update(id, connector => ({ ...connector, telegram: connector.telegram === undefined ? undefined : { ...connector.telegram, linked: false } }))
+    this.connected.delete(id)
+    await this.stopTelegram(id)
+    await this.unmountConnector(id)
+    this.invalidateSkills()
+  }
+
+  /**
+   * Return the account's daemon, starting it when it is not running.
+   * @returns the daemon once it has bound its port.
+   */
+  private async runTelegram(id: ConnectorId, owner: string): Promise<TelegramDaemon> {
+    const current = this.telegram.get(id)
+    if (current?.alive === true) {
+      await current.ready
+      return current.daemon
+    }
+    clearTimeout(current?.restart)
+    const daemon = await this.newTelegramDaemon(owner, id)
+    const entry = this.superviseTelegram(id, owner, daemon, daemon.start(), current?.failures ?? 0)
+    await entry.ready
+    return daemon
+  }
+
+  /** Track a daemon and restart it with backoff when it exits while its account stays enabled and signed in. */
+  private superviseTelegram(id: ConnectorId, owner: string, daemon: TelegramDaemon, ready: Promise<void>, failures: number): SupervisedTelegram {
+    const entry: SupervisedTelegram = { daemon, ready, alive: true, failures, startedAt: Date.now() }
+    this.telegram.set(id, entry)
+    void daemon.exited.then(() => {
+      entry.alive = false
+      if (daemon.stopped || this.telegram.get(id) !== entry) return
+      const connector = this.domain.table('connectors').get(id)
+      if (connector?.enabled !== true || connector.telegram?.linked !== true) { this.telegram.delete(id); return }
+      entry.failures = Date.now() - entry.startedAt >= this.config.telegramMaxRestartDelayMs ? 0 : entry.failures + 1
+      const delay = Math.min(this.config.telegramRestartDelayMs * 2 ** Math.max(0, entry.failures - 1), this.config.telegramMaxRestartDelayMs)
+      entry.restart = setTimeout(() => {
+        this.runTelegram(id, owner).catch(() => {
+          // Startup failures do not schedule another restart; the next conversation step or Settings action retries.
+        })
+      }, delay)
+    })
+    return entry
+  }
+
+  private async stopTelegram(id: ConnectorId): Promise<void> {
+    const entry = this.telegram.get(id)
+    if (entry === undefined) return
+    this.telegram.delete(id)
+    clearTimeout(entry.restart)
+    await entry.daemon.stop()
+  }
+
+  private async newTelegramDaemon(owner: string, id: ConnectorId): Promise<TelegramDaemon> {
+    const credentials = await this.telegramCredentials()
+    if (credentials === undefined) throw new Error('Telegram application credentials are not configured')
+    return new TelegramDaemon(this.telegramEntry!, this.telegramDirectory(owner, id), credentials, {
+      startupTimeoutMs: this.config.telegramStartupTimeoutMs, requestTimeoutMs: this.config.timeoutMs, stopGraceMs: this.config.telegramStopGraceMs,
+    })
+  }
+
+  /** Aeven-owned data directory of one account: the session string, its identity cache, and downloads. */
+  private telegramDirectory(owner: string, id: ConnectorId): string {
+    return avnHomePath('accounts', accountDirectory(owner), 'connectors', id)
+  }
+
+  /** The deployment's Telegram application credentials, resolved privately and never returned to a caller. */
+  private async telegramCredentials(): Promise<TelegramCredentials | undefined> {
+    const [id, hash] = await Promise.all([
+      this.ctx.credentials.resolve(credentialRef(this.config.telegramApiIdRef)).catch(() => undefined),
+      this.ctx.credentials.resolve(credentialRef(this.config.telegramApiHashRef)).catch(() => undefined),
+    ])
+    if (id === undefined || hash === undefined || id.value === '' || hash.value === '') return undefined
+    return { apiId: id.value, apiHash: hash.value }
+  }
+
   private skillConnectorAvailable(name: string, owner: string | undefined): boolean {
     const provider = (Object.keys(connectorSkills) as ConnectorProvider[]).find(provider => connectorSkills[provider].includes(name))
     if (provider === undefined) return true
@@ -921,6 +1421,9 @@ export default class AccountIntegrations extends TypertRemoteService {
   private async isConnected(connector: z.infer<typeof connectorSchema>): Promise<boolean> {
     // The whatsmeow session lives in the daemon's store directory, not in the credential provider.
     if (connector.provider === 'whatsapp') return connector.whatsapp?.linked === true && this.whatsappBinary !== undefined
+    // The teleproto session string lives in the daemon's directory, and the deployment's
+    // application credentials live in the credential provider rather than in the row.
+    if (connector.provider === 'telegram') return connector.telegram?.linked === true && this.telegramEntry !== undefined
     const record = await this.ctx.credentials.readRecord(connectorCredential(connector.owner, connector.id))
     if (record === undefined) return false
     if (connector.provider === 'email') {
@@ -946,7 +1449,7 @@ export default class AccountIntegrations extends TypertRemoteService {
   }
 
   private oauthApplication(provider: ConnectorProvider): OAuthProviderConfig | undefined {
-    if (provider === 'mcp' || provider === 'email' || provider === 'whatsapp') return undefined
+    if (provider === 'mcp' || provider === 'email' || provider === 'whatsapp' || provider === 'telegram') return undefined
     const google = googleService(provider)
     if (google === undefined) return this.config.providers[provider as 'github' | 'microsoft365']
     const app = this.config.providers.google
@@ -997,19 +1500,23 @@ export default class AccountIntegrations extends TypertRemoteService {
       }, 'account-integrations: agent connections')
     }
     const mounts = owned.connections
-    // Email rows have no MCP server; their tools come from the mail capability. WhatsApp rows get their endpoint from the running daemon.
+    // Email rows have no MCP server; their tools come from the mail capability. WhatsApp and
+    // Telegram rows get their endpoint and bearer token from their running daemon.
     const connectors = [...this.domain.table('connectors').entries()].flatMap(([id, connector]) => connector.owner === owner && connector.enabled
-      && (connector.endpoint !== undefined || connector.provider === 'whatsapp') && connector.provider !== 'email'
+      && (connector.endpoint !== undefined || connector.provider === 'whatsapp' || connector.provider === 'telegram') && connector.provider !== 'email'
       && (googleService(connector.provider) === undefined || connector.endpoint === googleService(connector.provider)!.endpoint)
       ? [[id, connector] as const] : [])
     for (const [id, mount] of mounts) {
       if (!connectors.some(([active]) => active === id)) { await mount.fiber.dispose(); mounts.delete(id) }
     }
     for (const [id, saved] of connectors) {
-      const daemon = saved.provider === 'whatsapp' ? await this.linkedWhatsApp(id, saved) : undefined
+      const daemon = saved.provider === 'whatsapp' ? await this.linkedWhatsApp(id, saved)
+        : saved.provider === 'telegram' ? await this.linkedTelegram(id, saved) : undefined
       const connector = this.domain.table('connectors').get(id) ?? saved
-      if (!await this.isConnected(connector) || (connector.provider === 'whatsapp' && daemon === undefined)) {
-        if (connector.provider !== 'whatsapp' || connector.whatsapp?.linked !== true) this.connected.delete(id)
+      const daemonRequired = connector.provider === 'whatsapp' || connector.provider === 'telegram'
+      if (!await this.isConnected(connector) || (daemonRequired && daemon === undefined)) {
+        const linked = connector.provider === 'whatsapp' ? connector.whatsapp?.linked : connector.provider === 'telegram' ? connector.telegram?.linked : undefined
+        if (linked !== true) this.connected.delete(id)
         await this.unmountConnector(id)
         this.invalidateSkills()
         continue
@@ -1028,7 +1535,15 @@ export default class AccountIntegrations extends TypertRemoteService {
         toolCallTimeoutMs: this.config.timeoutMs, failOnStartupError: true, reconnect: { enabled: false },
       } : { ...await googleConnection(connector.provider, token,
         avnHomePath('accounts', accountDirectory(owner), 'connectors', id), this.config.timeoutMs), serverName })
-      await fiber
+      try {
+        await fiber
+      } catch (error) {
+        // One account that cannot connect must not end the conversation's turn: the step runs without that
+        // account's tools, and the next step tries to connect it again.
+        await fiber.dispose()
+        this.ctx.logger('account-integrations').warn(`connector ${id} could not connect: ${error instanceof Error ? error.message : String(error)}`)
+        continue
+      }
       mounts.set(id, { token, endpoint: url, fiber })
     }
   }

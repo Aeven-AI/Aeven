@@ -304,6 +304,7 @@ async function main(): Promise<void> {
       return undefined
     })
   } else {
+    console.log(`desktop: starting a Host of its own because ${plan.reason}`)
     host = await startHost()
   }
 

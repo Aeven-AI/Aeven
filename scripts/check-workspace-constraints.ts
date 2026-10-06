@@ -31,6 +31,7 @@ const vendoredPackages = new Set([
   '@deepseek-ai/cordis-plugin-timer',
   '@deepseek-ai/cordis-plugin-hmr',
   '@deepseek-ai/cordis-plugin-logger-console',
+  '@deepseek-ai/memos-local-plugin',
 ])
 const publicLandlockPackages = new Set([
   '@deepseek-ai/node-addon-landlock-run',

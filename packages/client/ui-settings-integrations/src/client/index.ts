@@ -57,6 +57,12 @@ export function apply(ctx: Context): void {
     startWhatsAppPairing: () => value(remote.startWhatsAppPairing()),
     whatsAppPairing: id => value(remote.whatsAppPairing(id)),
     cancelWhatsAppPairing: id => value(remote.cancelWhatsAppPairing(id)),
+    startTelegramPairing: phone => value(remote.startTelegramPairing(phone)),
+    startTelegramQrPairing: () => value(remote.startTelegramQrPairing()),
+    telegramPairing: id => value(remote.telegramPairing(id)),
+    submitTelegramCode: (id, code) => value(remote.submitTelegramCode(id, code)),
+    submitTelegramPassword: (id, password) => value(remote.submitTelegramPassword(id, password)),
+    cancelTelegramPairing: id => value(remote.cancelTelegramPairing(id)),
   }
   ctx.slots.inject('settings.action', () => ctx.slots.register({
     name: 'settings.action', id: 'detail-back', locale: namespace,

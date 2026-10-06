@@ -22,13 +22,14 @@ import type {
 } from '@aeven/memory'
 import type { SessionId } from '@aeven/session'
 import type { JsonValue } from '@aeven/util-values'
-import type { RetrievalHitDTO, RuntimeNamespace, SkillDTO, TraceDTO } from '@memtensor/memos-local-plugin/dist/agent-contract/dto.js'
-import type { MemoryCore } from '@memtensor/memos-local-plugin/dist/agent-contract/memory-core.js'
+import type { RetrievalHitDTO, RuntimeNamespace, SkillDTO, TraceDTO } from '@deepseek-ai/memos-local-plugin/agent-contract/dto.js'
+import type { MemoryCore } from '@deepseek-ai/memos-local-plugin/agent-contract/memory-core.js'
+import type { OwnerCores } from './cores.ts'
 import { MemoryDeadlineError, withDeadline } from './deadline.ts'
 import { withoutExactIdentifiers } from './query.ts'
 import type { LlmRouteContext } from './host-llm.ts'
 import { SUPERSEDED_TAG, traceDomain, withDomainTag, withSupersededTag, type ClassifyInput, type TurnDomain, type TurnJudgeContext } from './domain.ts'
-import { normalizeNamespace } from '@memtensor/memos-local-plugin/dist/core/runtime/namespace.js'
+import { normalizeNamespace } from '@deepseek-ai/memos-local-plugin/core/runtime/namespace.js'
 
 /** MemOS agent kind. The embedded Viewer server keys its in-process host behavior on this value. */
 export const MEMOS_AGENT = 'deepseek-harness'
@@ -43,9 +44,10 @@ export function ownerProfile(owner: string): string {
   return `user-${owner}`
 }
 
-/** Facts the runtime needs beyond the MemOS core. */
+/** Facts the runtime needs beyond the MemOS cores. */
 export interface MemosMemoryOptions {
-  readonly core: MemoryCore
+  /** One MemOS core per owning account, each over that account's own database. */
+  readonly cores: OwnerCores
   readonly routes: LlmRouteContext
   /** MemOS's configured per-tier result limits for an explicit search. */
   readonly toolLimits: MemoryRecallLimits
@@ -62,6 +64,8 @@ export interface MemosMemoryOptions {
 
 /** Per-Aeven-session state; one Aeven session may span several MemOS sessions after episode routing. */
 interface SessionState {
+  /** Account whose core holds the session's MemOS sessions; set by the session's first scoped operation. */
+  owner?: string
   readonly memorySessions: Set<string>
   route?: MemoryLlmRoute
   lastEpisode?: string
@@ -85,10 +89,6 @@ export class MemosMemory implements MemoryProvider {
 
   constructor(private readonly options: MemosMemoryOptions) {}
 
-  private get core(): MemoryCore {
-    return this.options.core
-  }
-
   /** One MemOS profile per owning account, so recall, capture, and reads never cross accounts. */
   private namespaceOf(scope: MemoryScope): RuntimeNamespace {
     return {
@@ -100,11 +100,11 @@ export class MemosMemory implements MemoryProvider {
     }
   }
 
-  private state(sessionId: SessionId): SessionState {
-    let state = this.sessions.get(sessionId)
+  private state(scope: MemoryScope): SessionState {
+    let state = this.sessions.get(scope.sessionId)
     if (!state) {
-      state = { memorySessions: new Set(), turns: new Map(), remembered: [] }
-      this.sessions.set(sessionId, state)
+      state = { owner: scope.owner, memorySessions: new Set(), turns: new Map(), remembered: [] }
+      this.sessions.set(scope.sessionId, state)
     }
     return state
   }
@@ -115,7 +115,7 @@ export class MemosMemory implements MemoryProvider {
 
   async recall(request: MemoryRecallRequest): Promise<MemoryRecall> {
     const { scope } = request
-    if (scope.route) this.state(scope.sessionId).route = scope.route
+    if (scope.route) this.state(scope).route = scope.route
     const deadlineAt = Date.now() + request.timeoutMs
     const turnStart = request.purpose === 'turn-start'
     try {
@@ -143,7 +143,7 @@ export class MemosMemory implements MemoryProvider {
   private async search(request: MemoryRecallRequest, deadlineAt: number, turnStart: boolean): Promise<MemoryHit[]> {
     const { scope } = request
     const limits = turnStart ? request.limits : request.limits ?? this.options.toolLimits
-    const search = this.withRoute(scope.route, () => this.core.searchMemory({
+    const search = this.options.cores.get(scope.owner).then(core => this.withRoute(scope.route, () => core.searchMemory({
       agent: MEMOS_AGENT,
       namespace: this.namespaceOf(scope),
       ...turnStart || request.sessionOnly === true ? { sessionId: scope.sessionId } : {},
@@ -159,10 +159,10 @@ export class MemosMemory implements MemoryProvider {
       ...limits === undefined ? {} : {
         topK: { tier1: limits.skills, tier2: limits.traces, tier3: limits.worldModels },
       },
-    }, { signal: request.signal, ...turnStart ? {} : { foreground: true } }))
+    }, { signal: request.signal, ...turnStart ? {} : { foreground: true } })).then(result => this.visibleHits(core, scope, result.hits, turnStart)))
     // A provider can be temporarily non-cancellable (for example while a local ONNX model loads),
-    // so the deadline is enforced here as well as inside the core.
-    return withDeadline(Promise.resolve(search).then(result => this.visibleHits(scope, result.hits, turnStart)), deadlineAt, request.signal, `Memory recall exceeded ${request.timeoutMs}ms`)
+    // so the deadline is enforced here as well as inside the core; it also bounds the account's first core open.
+    return withDeadline(search, deadlineAt, request.signal, `Memory recall exceeded ${request.timeoutMs}ms`)
   }
 
   /** MemOS workspace key of the scope's working directory, as MemOS stamps it on captured memory. */
@@ -174,11 +174,11 @@ export class MemosMemory implements MemoryProvider {
    * Classify each hit's domain and drop project memory of other workspaces; MemOS retrieval does not
    * filter by workspace, so this is where project memory stays in its project.
    */
-  private async visibleHits(scope: MemoryScope, hits: readonly RetrievalHitDTO[], turnStart: boolean): Promise<MemoryHit[]> {
+  private async visibleHits(core: MemoryCore, scope: MemoryScope, hits: readonly RetrievalHitDTO[], turnStart: boolean): Promise<MemoryHit[]> {
     const workspace = this.workspaceOf(scope)
     const namespace = this.namespaceOf(scope)
     const classified = await Promise.all(hits.map(async (hit) => {
-      const { domain, workspaceId, summary, correction, superseded, recordedAt } = await this.hitOrigin(hit, namespace, turnStart)
+      const { domain, workspaceId, summary, correction, superseded, recordedAt } = await this.hitOrigin(core, hit, namespace, turnStart)
       const memory: MemoryHit = {
         kind: hit.refKind,
         id: brandString<MemoryItemId>(hit.refId),
@@ -201,7 +201,7 @@ export class MemosMemory implements MemoryProvider {
    * Automatic recall states the distilled summary, because it is injected on every turn; an explicit search
    * returns the whole trace, so a fact the distillation dropped is still reachable.
    */
-  private async hitOrigin(hit: RetrievalHitDTO, namespace: RuntimeNamespace, turnStart: boolean): Promise<{
+  private async hitOrigin(core: MemoryCore, hit: RetrievalHitDTO, namespace: RuntimeNamespace, turnStart: boolean): Promise<{
     domain: MemoryDomain
     workspaceId: string | null | undefined
     summary?: string
@@ -216,7 +216,7 @@ export class MemosMemory implements MemoryProvider {
       case 'world-model':
         return { domain: 'world', workspaceId: hit.ownerWorkspaceId }
       case 'trace': {
-        const trace = await this.core.getTrace(hit.refId, namespace)
+        const trace = await core.getTrace(hit.refId, namespace)
         const workspaceId = trace?.ownerWorkspaceId ?? hit.ownerWorkspaceId
         const domain = traceDomain(trace?.tags, workspaceId)
         const summary = trace === null ? undefined : turnStart ? trace.summary : traceSnippet(trace)
@@ -236,7 +236,7 @@ export class MemosMemory implements MemoryProvider {
 
   capture(turn: MemoryTurn): void {
     if (this.disposing) return
-    const state = this.state(turn.scope.sessionId)
+    const state = this.state(turn.scope)
     if (turn.scope.route) state.route = turn.scope.route
     void this.schedule(state, async () => {
       const remembered = state.remembered.splice(0)
@@ -263,12 +263,13 @@ export class MemosMemory implements MemoryProvider {
   private async supersedePrevious(state: SessionState, turn: MemoryTurn, replacementTraceId: string): Promise<void> {
     const previous = state.turns.get(turn.turn - 1)
     if (previous === undefined) return
+    const core = await this.options.cores.get(turn.scope.owner)
     for (const traceId of [previous.traceId, ...previous.remembered]) {
       if (traceId === replacementTraceId) continue
       try {
-        const trace = await this.core.getTrace(traceId, this.namespaceOf(turn.scope))
+        const trace = await core.getTrace(traceId, this.namespaceOf(turn.scope))
         if (trace === null) continue
-        await this.core.updateTrace(traceId, {
+        await core.updateTrace(traceId, {
           tags: withSupersededTag(trace.tags, replacementTraceId),
         })
       } catch (error) {
@@ -298,11 +299,12 @@ export class MemosMemory implements MemoryProvider {
     domain?: TurnDomain,
   ): Promise<{ traceId: string; episodeId: string; corrects: boolean }> {
     const { scope } = turn
+    const core = await this.options.cores.get(scope.owner)
     const namespace = this.namespaceOf(scope)
     let memorySessionId: string = scope.sessionId
     let episodeId: string | undefined
     try {
-      const prepareTurn = this.core.prepareTurn?.bind(this.core)
+      const prepareTurn = core.prepareTurn?.bind(core)
       if (!prepareTurn) throw new Error('MemoryCore does not expose prepareTurn')
       const prepared = await this.withRoute(scope.route, () => prepareTurn({
         agent: MEMOS_AGENT,
@@ -320,10 +322,10 @@ export class MemosMemory implements MemoryProvider {
       this.options.warn(`turn routing failed for session ${scope.sessionId}; opening a lazy episode: ${describe(error)}`)
     }
     if (!state.memorySessions.has(memorySessionId)) {
-      memorySessionId = await this.core.openSession({ agent: MEMOS_AGENT, sessionId: memorySessionId, namespace, meta: { namespace } })
+      memorySessionId = await core.openSession({ agent: MEMOS_AGENT, sessionId: memorySessionId, namespace, meta: { namespace } })
       state.memorySessions.add(memorySessionId)
     }
-    episodeId ??= await this.core.openEpisode({ sessionId: memorySessionId, userMessage: turn.userText })
+    episodeId ??= await core.openEpisode({ sessionId: memorySessionId, userMessage: turn.userText })
     state.lastEpisode = episodeId
 
     for (const tool of turn.toolCalls) {
@@ -331,7 +333,7 @@ export class MemosMemory implements MemoryProvider {
       const endedAt = tool.endedAt
       try {
         this.withRoute(scope.route, () => {
-          this.core.recordToolOutcome({
+          core.recordToolOutcome({
             sessionId: memorySessionId,
             episodeId,
             tool: tool.name,
@@ -346,7 +348,7 @@ export class MemosMemory implements MemoryProvider {
       }
     }
 
-    const turnEnd = () => this.withRoute(scope.route, () => this.core.onTurnEnd({
+    const turnEnd = () => this.withRoute(scope.route, () => core.onTurnEnd({
       agent: MEMOS_AGENT,
       namespace,
       sessionId: memorySessionId,
@@ -375,10 +377,10 @@ export class MemosMemory implements MemoryProvider {
       ? await this.options.judges.run({ project: scope.cwd, previousReply }, turnEnd)
       : { result: await turnEnd(), judgment: undefined }
     this.options.info(`captured session=${scope.sessionId} turn=${turn.turn} trace=${result.traceId}`)
-    await this.annotateTrace(turn, result.traceId, domain ?? judgment?.domain)
+    await this.annotateTrace(core, turn, result.traceId, domain ?? judgment?.domain)
     if (turn.outcome?.completedGoal !== undefined) {
       try {
-        await this.withRoute(scope.route, () => this.core.submitFeedback({
+        await this.withRoute(scope.route, () => core.submitFeedback({
           channel: 'implicit',
           polarity: 'positive',
           magnitude: 1,
@@ -398,9 +400,9 @@ export class MemosMemory implements MemoryProvider {
    * judgment's domain; without it the classifier runs, and without a classified domain the
    * capture-location fallback applies at read time.
    */
-  private async annotateTrace(turn: MemoryTurn, traceId: string, explicit: TurnDomain | undefined): Promise<void> {
+  private async annotateTrace(core: MemoryCore, turn: MemoryTurn, traceId: string, explicit: TurnDomain | undefined): Promise<void> {
     try {
-      const trace = await this.core.getTrace(traceId, this.namespaceOf(turn.scope))
+      const trace = await core.getTrace(traceId, this.namespaceOf(turn.scope))
       if (!trace) return
       const domain = explicit ?? await this.withRoute(turn.scope.route, () => this.options.classify?.({
         userText: turn.userText,
@@ -420,7 +422,7 @@ export class MemosMemory implements MemoryProvider {
         ...turn.outcome?.completedGoal ? [`Goal marked complete: ${turn.outcome.completedGoal.slice(0, 300)}`] : [],
       ]
       if (domain === undefined && evidence.length === 0) return
-      await this.core.updateTrace(traceId, {
+      await core.updateTrace(traceId, {
         tags: [...new Set(tags)],
         ...evidence.length === 0 ? {} : { summary: [trace.summary || trace.userText, ...evidence].join('\n') },
       })
@@ -433,9 +435,12 @@ export class MemosMemory implements MemoryProvider {
     const state = this.sessions.get(sessionId)
     if (!state) return
     await this.schedule(state, async () => {
+      // A session holds MemOS sessions only after a capture opened its owner's core.
+      if (state.memorySessions.size === 0 || state.owner === undefined) return
+      const core = await this.options.cores.get(state.owner)
       for (const memorySessionId of state.memorySessions) {
         try {
-          await this.withRoute(state.route, () => this.core.closeSession(memorySessionId))
+          await this.withRoute(state.route, () => core.closeSession(memorySessionId))
         } catch (error) {
           this.options.warn(`closeSession failed for ${memorySessionId}: ${describe(error)}`)
         }
@@ -446,13 +451,13 @@ export class MemosMemory implements MemoryProvider {
   }
 
   /**
-   * Stop accepting captures, drain every session queue, close MemOS sessions, and shut the core down.
-   * @returns after the core shut down.
+   * Stop accepting captures, drain every session queue, close MemOS sessions, and shut every opened core down.
+   * @returns after the cores shut down.
    */
   dispose(): Promise<void> {
     this.disposing ??= (async () => {
       await Promise.all([...this.sessions.keys()].map(sessionId => this.closeSession(sessionId)))
-      await this.core.shutdown()
+      await this.options.cores.shutdown()
     })()
     return this.disposing
   }
@@ -460,9 +465,10 @@ export class MemosMemory implements MemoryProvider {
   async detail(request: Parameters<MemoryProvider['detail']>[0]): Promise<MemoryDetail | undefined> {
     const namespace = this.namespaceOf(request.scope)
     const id = request.id
+    const core = await this.options.cores.get(request.scope.owner)
     switch (request.kind) {
       case 'trace': {
-        const trace = await this.read(request, () => this.core.getTrace(id, namespace))
+        const trace = await this.read(request, () => core.getTrace(id, namespace))
         if (!trace) return undefined
         return {
           kind: 'trace',
@@ -480,7 +486,7 @@ export class MemosMemory implements MemoryProvider {
         }
       }
       case 'policy': {
-        const policy = await this.read(request, () => this.core.getPolicy(id, namespace))
+        const policy = await this.read(request, () => core.getPolicy(id, namespace))
         if (!policy) return undefined
         return {
           kind: 'policy',
@@ -498,7 +504,7 @@ export class MemosMemory implements MemoryProvider {
         }
       }
       case 'world-model': {
-        const model = await this.read(request, () => this.core.getWorldModel(id, namespace))
+        const model = await this.read(request, () => core.getWorldModel(id, namespace))
         if (!model) return undefined
         return {
           kind: 'world-model',
@@ -513,7 +519,8 @@ export class MemosMemory implements MemoryProvider {
 
   async timeline(request: Parameters<MemoryProvider['timeline']>[0]): Promise<readonly MemoryTimelineEntry[]> {
     const namespace = this.namespaceOf(request.scope)
-    const traces = await this.read(request, () => this.core.timeline({ episodeId: request.episodeId, namespace }))
+    const core = await this.options.cores.get(request.scope.owner)
+    const traces = await this.read(request, () => core.timeline({ episodeId: request.episodeId, namespace }))
     return traces.slice(0, request.limit).map(trace => ({
       id: brandString<MemoryItemId>(trace.id),
       time: trace.ts,
@@ -525,7 +532,8 @@ export class MemosMemory implements MemoryProvider {
   }
 
   async environments(request: Parameters<MemoryProvider['environments']>[0]): Promise<readonly MemoryEnvironment[]> {
-    const models = await this.read(request, () => this.core.listWorldModels({
+    const core = await this.options.cores.get(request.scope.owner)
+    const models = await this.read(request, () => core.listWorldModels({
       limit: request.limit,
       ...request.query ? { q: request.query } : {},
       namespace: this.namespaceOf(request.scope),
@@ -540,7 +548,8 @@ export class MemosMemory implements MemoryProvider {
   }
 
   async skills(request: Parameters<MemoryProvider['skills']>[0]): Promise<readonly MemorySkill[]> {
-    const skills = await this.read(request, () => this.core.listSkills({
+    const core = await this.options.cores.get(request.scope.owner)
+    const skills = await this.read(request, () => core.listSkills({
       ...request.status === undefined ? {} : { status: request.status },
       limit: request.limit,
       namespace: this.namespaceOf(request.scope),
@@ -550,7 +559,8 @@ export class MemosMemory implements MemoryProvider {
 
   async useSkill(request: Parameters<MemoryProvider['useSkill']>[0]): Promise<MemorySkill | undefined> {
     const episodeId = this.sessions.get(request.scope.sessionId)?.lastEpisode
-    const skill = await this.read(request, () => this.core.getSkill(request.id, {
+    const core = await this.options.cores.get(request.scope.owner)
+    const skill = await this.read(request, () => core.getSkill(request.id, {
       recordUse: true,
       recordTrial: true,
       sessionId: request.scope.sessionId,
@@ -563,8 +573,9 @@ export class MemosMemory implements MemoryProvider {
 
   async list(request: Parameters<MemoryProvider['list']>[0]): Promise<MemoryPage> {
     const profile = ownerProfile(request.owner)
+    const core = await this.options.cores.get(request.owner)
     // Owner memories are private to the owner's namespace, which the core's own default namespace
-    // cannot see; listing therefore spans namespaces and the owner filter is the isolation.
+    // cannot see; listing therefore spans the database's namespaces and keeps the owner's rows.
     const filter = {
       ownerAgentKind: MEMOS_AGENT,
       ownerProfileId: profile,
@@ -573,8 +584,8 @@ export class MemosMemory implements MemoryProvider {
     }
     if (request.domains === undefined) {
       const [traces, total] = await this.read(request, () => Promise.all([
-        this.core.listTraces({ ...filter, limit: request.limit, offset: request.offset }),
-        this.core.countTraces(filter),
+        core.listTraces({ ...filter, limit: request.limit, offset: request.offset }),
+        core.countTraces(filter),
       ]))
       return { records: traces.filter(trace => trace.ownerProfileId === profile).map(toRecord), total }
     }
@@ -585,7 +596,7 @@ export class MemosMemory implements MemoryProvider {
     const records: MemoryRecord[] = []
     let total = 0
     for (let offset = 0; ; offset += chunk) {
-      const traces = await this.read(request, () => this.core.listTraces({ ...filter, limit: chunk, offset }))
+      const traces = await this.read(request, () => core.listTraces({ ...filter, limit: chunk, offset }))
       for (const trace of traces) {
         if (trace.ownerProfileId !== profile) continue
         const record = toRecord(trace)
@@ -600,7 +611,7 @@ export class MemosMemory implements MemoryProvider {
   async remember(request: Parameters<MemoryProvider['remember']>[0]): Promise<MemoryItemId> {
     request.signal.throwIfAborted()
     const { scope } = request
-    const state = this.state(scope.sessionId)
+    const state = this.state(scope)
     const now = Date.now()
     const traceId = await this.schedule(state, async () => {
       const { traceId: written } = await this.captureTurn(state, {
@@ -621,14 +632,16 @@ export class MemosMemory implements MemoryProvider {
   }
 
   async edit(request: Parameters<MemoryProvider['edit']>[0]): Promise<MemoryRecord | undefined> {
-    if (await this.ownedTrace(request) === undefined) return undefined
-    const updated = await this.read(request, () => this.core.updateTrace(request.id, { summary: request.summary }))
+    const core = await this.options.cores.get(request.owner)
+    if (await this.ownedTrace(core, request) === undefined) return undefined
+    const updated = await this.read(request, () => core.updateTrace(request.id, { summary: request.summary }))
     return updated ? toRecord(updated) : undefined
   }
 
   async forget(request: Parameters<MemoryProvider['forget']>[0]): Promise<boolean> {
-    if (await this.ownedTrace(request) === undefined) return false
-    const { deleted } = await this.read(request, () => this.core.deleteTrace(request.id))
+    const core = await this.options.cores.get(request.owner)
+    if (await this.ownedTrace(core, request) === undefined) return false
+    const { deleted } = await this.read(request, () => core.deleteTrace(request.id))
     return deleted
   }
 
@@ -636,7 +649,8 @@ export class MemosMemory implements MemoryProvider {
     const state = this.sessions.get(request.scope.sessionId)
     const captured = state?.turns.get(request.turn)
     if (!state || !captured) return false
-    await this.schedule(state, () => this.withRoute(request.scope.route ?? state.route, () => this.core.submitFeedback({
+    const core = await this.options.cores.get(request.scope.owner)
+    await this.schedule(state, () => this.withRoute(request.scope.route ?? state.route, () => core.submitFeedback({
       channel: 'explicit',
       polarity: request.polarity,
       magnitude: 1,
@@ -648,15 +662,16 @@ export class MemosMemory implements MemoryProvider {
   }
 
   /**
-   * Read a trace only when it belongs to the scope's owner. MemOS deletes and updates by id alone,
-   * so ownership is checked here before either.
+   * Read a trace only when it belongs to the request's owner. MemOS deletes and updates by id alone,
+   * so ownership is checked here before either, even inside the owner's own database.
    */
   private async ownedTrace(
+    core: MemoryCore,
     request: { readonly owner: string; readonly id: MemoryItemId; readonly signal: AbortSignal },
   ): Promise<TraceDTO | undefined> {
     const profile = ownerProfile(request.owner)
     const namespace = { agentKind: MEMOS_AGENT, profileId: profile, profileLabel: request.owner }
-    const trace = await this.read(request, () => this.core.getTrace(request.id, namespace))
+    const trace = await this.read(request, () => core.getTrace(request.id, namespace))
     return trace?.ownerProfileId === profile ? trace : undefined
   }
 
