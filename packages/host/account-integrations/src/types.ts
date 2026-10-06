@@ -6,7 +6,7 @@ import type { Branded } from '@aeven/brand'
 export type ConnectorId = Branded<'account-connector-id'>
 
 /** Provider selected when creating a connector. */
-export type ConnectorProvider = 'github' | 'gmail' | 'google-drive' | 'google-calendar' | 'microsoft365' | 'mcp' | 'email'
+export type ConnectorProvider = 'github' | 'gmail' | 'google-drive' | 'google-calendar' | 'microsoft365' | 'mcp' | 'email' | 'whatsapp'
 
 /** Stable Settings identity of one skill definition. */
 export type SkillViewId = Branded<'account-skill-view-id'>
@@ -37,6 +37,8 @@ export interface PersonalConnectorView {
   endpoint?: string
   /** Server settings of an `email` connector; passwords are never returned. */
   email?: EmailConnectorSettings
+  /** Linked account of a `whatsapp` connector. */
+  whatsapp?: WhatsAppConnectorSettings
 }
 
 /** Current signed-in account's skills and connectors. */
@@ -125,3 +127,27 @@ export type EmailConnectionFailure = 'authentication' | 'connection' | 'tls' | '
 export type EmailConnectionResult =
   | { kind: 'connected'; id: ConnectorId }
   | { kind: 'failed'; reason: EmailConnectionFailure; step?: EmailProbeStep }
+
+/** The WhatsApp account one `whatsapp` connector is linked to. */
+export interface WhatsAppConnectorSettings {
+  /** International number without `+`, as WhatsApp reports it. */
+  phone: string
+  /** The account's WhatsApp profile name, when it has one. */
+  profileName?: string
+}
+
+/**
+ * Progress of linking a WhatsApp number.
+ * `qr` carries the code to scan; `connected` means the number was saved as a connector;
+ * `expired`, `failed`, `duplicate`, `limit`, and `unavailable` are terminal and need a new attempt.
+ */
+export type WhatsAppPairingState = 'starting' | 'qr' | 'connected' | 'expired' | 'failed' | 'duplicate' | 'limit' | 'unavailable'
+
+/** One WhatsApp linking attempt as shown in Settings. */
+export interface WhatsAppPairingView {
+  /** Identity of the attempt and of the connector it creates; absent when the attempt could not start. */
+  id?: ConnectorId
+  state: WhatsAppPairingState
+  /** PNG data URL of the current QR code, present only in the `qr` state. */
+  qr?: string
+}

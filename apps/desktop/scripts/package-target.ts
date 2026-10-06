@@ -310,6 +310,11 @@ async function main(): Promise<void> {
   await runPnpm(['--dir', 'native/whisper-cpp', 'run', 'build:native', '--target', whisperPlatform], buildEnv, REPOSITORY_ROOT)
   // npm, not pnpm: pnpm pack strips the executable bit, which would ship a worker no Host can spawn.
   await runNpm(['pack', `./native/whisper-cpp/packages/${whisperPlatform}`, '--pack-destination', buildPaths.packedWhisper], buildEnv)
+  // The WhatsApp connector daemon is pure Go, so it cross-compiles for this target from any build host.
+  rmSync(buildPaths.packedWhatsApp, { recursive: true, force: true })
+  mkdirSync(buildPaths.packedWhatsApp, { recursive: true })
+  await runPnpm(['--dir', 'native/whatsapp-mcp', 'run', 'build:native', '--target', whisperPlatform], buildEnv, REPOSITORY_ROOT)
+  await runNpm(['pack', `./native/whatsapp-mcp/packages/${whisperPlatform}`, '--pack-destination', buildPaths.packedWhatsApp], buildEnv)
   rmSync(buildPaths.packedLandlock, { recursive: true, force: true })
   mkdirSync(buildPaths.packedLandlock, { recursive: true })
   await runPnpm(['--dir', 'native/landlock-run', 'run', 'build:ts'], buildEnv, REPOSITORY_ROOT)

@@ -8,6 +8,9 @@ packages:
   # The whisper.cpp speech worker keeps its pinned source and native build under native/whisper-cpp.
   - native/whisper-cpp
   - native/whisper-cpp/packages/*
+  # The WhatsApp connector daemon keeps its vendored Go source and cross-compiled build under native/whatsapp-mcp.
+  - native/whatsapp-mcp
+  - native/whatsapp-mcp/packages/*
   # Product assemblies over the package tier; apps/cli owns the `avn` bin.
   - apps/*
   - website

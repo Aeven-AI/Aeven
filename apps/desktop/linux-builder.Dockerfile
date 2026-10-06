@@ -13,4 +13,9 @@ RUN apt-get update \
 
 RUN npm install --global "pnpm@${PNPM_VERSION}"
 
+# Go builds the WhatsApp connector daemon (native/whatsapp-mcp); GOTOOLCHAIN=auto fetches the version its go.mod pins.
+ARG GO_VERSION=1.26.0
+RUN curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-$(dpkg --print-architecture).tar.gz" | tar -C /usr/local -xz
+ENV PATH=/usr/local/go/bin:$PATH
+
 ENV USE_SYSTEM_FPM=true

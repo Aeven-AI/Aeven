@@ -52,7 +52,7 @@ async function value<T>(result: Promise<RemoteResult<T>>): Promise<T> {
 }
 
 /**
- * Register the Personalization section, between General and Appearance.
+ * Register the Personalization section, last in the nav after Plugins.
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
@@ -74,7 +74,7 @@ export function apply(ctx: ClientContext): void {
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section',
     id: 'personalization',
-    order: 25,
+    order: 80,
     label: () => t('nav'),
     locale: NS,
     inject: () => operations,

@@ -1,7 +1,7 @@
 /** Personal skill storage and account-scoped MCP connections exposed to Settings. */
 
 import { createHash, randomUUID } from 'node:crypto'
-import { realpath, writeFile } from 'node:fs/promises'
+import { realpath, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { mkdir } from 'node:fs/promises'
 import { Context, Service, type Fiber } from '@deepseek-ai/cordis'
@@ -25,9 +25,10 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js'
 import { googleConnection, googleService, verifyGoogle } from './google.ts'
 import { parsePersonalSkill } from './skills.ts'
+import { resolveWhatsAppBinary, WhatsAppDaemon } from './whatsapp.ts'
 import { connectorCredential, createConsent, exchangeGrant, grantSchema } from './oauth.ts'
 import type { OAuthProviderConfig, PendingConsent } from './oauth.ts'
-import type { AccountIntegrationsView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, EmailConnectionFailure, EmailConnectorSettings, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillViewId, SkillUploadFile } from './types.ts'
+import type { AccountIntegrationsView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, EmailConnectionFailure, EmailConnectorSettings, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillViewId, SkillUploadFile, WhatsAppPairingView } from './types.ts'
 
 export type * from './types.ts'
 export type { OAuthProviderConfig } from './oauth.ts'
@@ -51,6 +52,20 @@ export interface Config {
   redirectUri: string
   /** Email accounts one signed-in user may connect. */
   maxEmailAccounts: number
+  /** WhatsApp numbers one signed-in user may link. */
+  maxWhatsAppAccounts: number
+  /** WhatsApp daemon executable; defaults to the platform package installed for this host. */
+  whatsappBinaryPath?: string
+  /** Time allowed for a WhatsApp daemon to bind its loopback port. */
+  whatsappStartupTimeoutMs: number
+  /** Time a stopping WhatsApp daemon gets to exit cleanly before it is killed. */
+  whatsappStopGraceMs: number
+  /** Interval between pairing-state reads while a QR code is shown. */
+  whatsappPairingPollMs: number
+  /** First delay before restarting a WhatsApp daemon that exited unexpectedly; doubles per consecutive failure. */
+  whatsappRestartDelayMs: number
+  /** Longest restart delay; a daemon that ran this long resets the failure count. */
+  whatsappMaxRestartDelayMs: number
   /** Deployment-owned OAuth applications for Google, GitHub and Microsoft 365 MCP resources. */
   providers: Partial<Record<'github' | 'google' | 'microsoft365', OAuthProviderConfig>>
 }
@@ -61,7 +76,7 @@ const skillSchema = z.object({
   resources: z.record(z.string().refine(path => !path.startsWith('/') && !path.includes('\\') && !/^[A-Za-z]:/.test(path)
     && path.split('/').every(part => part !== '' && part !== '.' && part !== '..')), z.string()), revision: z.uuid(),
 })
-const providers = ['github', 'gmail', 'google-drive', 'google-calendar', 'microsoft365', 'email', 'mcp'] as const satisfies readonly ConnectorProvider[]
+const providers = ['github', 'gmail', 'google-drive', 'google-calendar', 'microsoft365', 'email', 'whatsapp', 'mcp'] as const satisfies readonly ConnectorProvider[]
 const emailServerSchema = z.object({
   host: z.string().trim().min(1).max(253).regex(/^[A-Za-z0-9.-]+$/), port: z.number().int().min(1).max(65_535),
   security: z.enum(['tls', 'starttls']), username: z.string().trim().min(1).max(320),
@@ -86,6 +101,8 @@ const connectorSchema = z.object({
   email: emailSettingsSchema.optional(),
   /** Set when a mail server rejected the stored password; the account needs to be added again. */
   authFailed: z.boolean().optional(),
+  /** Linked account of a `whatsapp` row; `linked` turns false when the phone removes the device. */
+  whatsapp: z.object({ phone: z.string(), profileName: z.string().optional(), linked: z.boolean() }).optional(),
 })
 const domainSpec = defineDomain({ name: 'account_integrations', version: 0, tables: {
   skills: domainTable<string, z.infer<typeof skillSchema>>(skillSchema),
@@ -113,7 +130,39 @@ const callbackPath = '/connectors/oauth/callback'
 /** Connector-owned skill names; bodies and resources remain in the skill registry. */
 const connectorSkills: Record<ConnectorProvider, readonly string[]> = {
   'google-drive': ['google-drive', 'google-docs', 'google-sheets', 'google-slides', 'google-drive-comments', 'google-forms'],
-  gmail: ['gmail'], 'google-calendar': ['google-calendar'], github: ['github'], microsoft365: [], mcp: [], email: [],
+  gmail: ['gmail'], 'google-calendar': ['google-calendar'], github: ['github'], microsoft365: [], mcp: [], email: [], whatsapp: ['whatsapp'],
+}
+
+/** WhatsApp tools that only read the cache or the account; every other tool acts visibly and asks first. */
+const whatsappReadTools = new Set([
+  'list_messages', 'list_chats', 'get_chat', 'get_message_context', 'search_contacts', 'is_on_whatsapp', 'get_status', 'pairing_status',
+  'download_media', 'get_poll_results', 'list_groups', 'get_group_info', 'get_blocklist', 'get_privacy_settings', 'request_sync',
+])
+
+/** One linked number's supervised daemon. */
+interface SupervisedWhatsApp {
+  daemon: WhatsAppDaemon
+  /** Settles when the daemon has bound its port; rejects when startup failed. */
+  ready: Promise<void>
+  /** False once the process exited. */
+  alive: boolean
+  /** Consecutive unexpected exits, used for restart backoff. */
+  failures: number
+  startedAt: number
+  restart?: NodeJS.Timeout
+}
+
+/** A linking attempt; it becomes a connector row only once the phone has scanned the code. */
+interface WhatsAppPairing {
+  owner: string
+  daemon: WhatsAppDaemon
+  view: WhatsAppPairingView
+  /** Set once the attempt reached a terminal state; the next read returns that state and forgets the attempt. */
+  done: boolean
+  /** Set while a status read is in flight, so overlapping polls cannot save the number twice. */
+  busy: boolean
+  poll?: NodeJS.Timeout
+  expiry?: NodeJS.Timeout
 }
 
 const connectorSkillNames = new Set(Object.values(connectorSkills).flat())
@@ -142,6 +191,13 @@ export default class AccountIntegrations extends TypertRemoteService {
     timeoutMs: Schema.natural().min(1).default(60_000),
     consentLifetimeMs: Schema.natural().min(1).default(600_000),
     maxEmailAccounts: Schema.natural().min(1).default(20),
+    maxWhatsAppAccounts: Schema.natural().min(1).default(10),
+    whatsappBinaryPath: Schema.string(),
+    whatsappStartupTimeoutMs: Schema.natural().min(1).default(15_000),
+    whatsappStopGraceMs: Schema.natural().min(1).default(5_000),
+    whatsappPairingPollMs: Schema.natural().min(100).default(1_500),
+    whatsappRestartDelayMs: Schema.natural().min(1).default(1_000),
+    whatsappMaxRestartDelayMs: Schema.natural().min(1).default(60_000),
     redirectUri: Schema.string().default(`http://127.0.0.1:3080${callbackPath}`),
     providers: Schema.dict(Schema.object({
       endpoint: Schema.string(), authorizationUrl: Schema.string().required(), tokenUrl: Schema.string().required(),
@@ -153,6 +209,9 @@ export default class AccountIntegrations extends TypertRemoteService {
   private invalidateSkills: () => void = () => {}
   private readonly connected = new Set<ConnectorId>()
   private readonly consents = new Map<string, PendingConsent>()
+  private readonly whatsappBinary: string | undefined
+  private readonly whatsapp = new Map<ConnectorId, SupervisedWhatsApp>()
+  private readonly pairings = new Map<ConnectorId, WhatsAppPairing>()
   private readonly mounts = new Map<Agent, {
     scope: Scope
     connections: Map<ConnectorId, { token: string; endpoint: string; fiber: Fiber }>
@@ -164,6 +223,7 @@ export default class AccountIntegrations extends TypertRemoteService {
    */
   constructor(ctx: Context, private readonly config: Config) {
     super(ctx, 'accountIntegrations')
+    this.whatsappBinary = resolveWhatsAppBinary(config.whatsappBinaryPath)
     const redirect = new URL(endpoint(config.redirectUri))
     if (redirect.pathname !== callbackPath || redirect.search) throw new Error(`connector callback URL must end in ${callbackPath}`)
     for (const [provider, app] of Object.entries(config.providers)) {
@@ -184,6 +244,21 @@ export default class AccountIntegrations extends TypertRemoteService {
     for (const [id, connector] of this.domain.table('connectors').entries()) {
       if (await this.isConnected(connector)) this.connected.add(id)
     }
+    this.ctx.effect(() => {
+      // Linked numbers run continuously so the daemon caches incoming messages between conversations.
+      for (const [id, connector] of this.domain.table('connectors').entries()) {
+        if (connector.provider === 'whatsapp' && connector.enabled && connector.whatsapp?.linked === true && this.whatsappBinary !== undefined) {
+          this.runWhatsApp(id, connector.owner).catch(() => {
+            // A daemon that cannot start now is started again by the next conversation step or Settings action.
+          })
+        }
+      }
+      return async () => {
+        const pairings = [...this.pairings.keys()]
+        await Promise.all([...[...this.whatsapp.keys()].map(id => this.stopWhatsApp(id)), ...pairings.map(id => this.endPairing(id, 'expired'))])
+        this.pairings.clear()
+      }
+    }, 'account-integrations: WhatsApp daemons')
     this.ctx.effect(() => this.ctx.skills.registerProvider((control) => {
       this.invalidateSkills = control.invalidate
       return {
@@ -263,6 +338,9 @@ export default class AccountIntegrations extends TypertRemoteService {
           if (/__(gmail_send_draft|drive_share|drive_trash|calendar_delete_event)$/.test(exec.name)) {
             return { kind: 'ask', reason: 'Approve sending, sharing, or deleting through your connected Google account.' }
           }
+        }
+        if (connector.provider === 'whatsapp' && !whatsappReadTools.has(exec.name.slice(match[0].length))) {
+          return { kind: 'ask', reason: 'Approve this action on your linked WhatsApp number. Other people can see it.' }
         }
       }
       return next()
@@ -370,12 +448,14 @@ export default class AccountIntegrations extends TypertRemoteService {
       }
     }
     const skills: AccountIntegrationsView['skills'] = [...personal, ...existing.values()].sort((a, b) => a.name.localeCompare(b.name))
-    const connections = await Promise.all(connectors.map(async ([id, item]) => {
+    const connections = await Promise.all(connectors.map(async ([id, entry]) => {
+      const item = entry.provider === 'whatsapp' ? await this.refreshWhatsApp(id, entry) : entry
       const connected = await this.isConnected(item)
       if (connected) this.connected.add(id)
       else this.connected.delete(id)
       return { id, name: item.name, provider: item.provider, enabled: item.enabled, connected,
-        ...item.endpoint !== undefined ? { endpoint: item.endpoint } : {}, ...item.email !== undefined ? { email: emailSettings(item.email) } : {} }
+        ...item.endpoint !== undefined ? { endpoint: item.endpoint } : {}, ...item.email !== undefined ? { email: emailSettings(item.email) } : {},
+        ...item.whatsapp !== undefined ? { whatsapp: { phone: item.whatsapp.phone, ...item.whatsapp.profileName !== undefined ? { profileName: item.whatsapp.profileName } : {} } } : {} }
     }))
     for (const skill of skills) {
       if (connectorSkillNames.has(skill.name)) skill.enabled = true
@@ -385,7 +465,8 @@ export default class AccountIntegrations extends TypertRemoteService {
       skills: skills.filter(skill => !connectorSkillNames.has(skill.name)), connectors: connections,
       providers: providers.map(provider => ({
         provider, configured: provider === 'mcp' || (provider === 'email' ? this.ctx.get('mail') !== undefined
-          : this.oauthApplication(provider) !== undefined && this.ctx.get('webServer') !== undefined),
+          : provider === 'whatsapp' ? this.whatsappBinary !== undefined
+            : this.oauthApplication(provider) !== undefined && this.ctx.get('webServer') !== undefined),
         skills: connectorSkills[provider].flatMap((name) => {
           const skill = skills.find(candidate => candidate.name === name && candidate.workspace === undefined)
           return skill === undefined ? [] : [skill]
@@ -446,6 +527,7 @@ export default class AccountIntegrations extends TypertRemoteService {
     const owner = this.owner()
     const input = createSchema.parse(request)
     if (input.provider === 'email') throw new Error('email accounts are added with connectEmail')
+    if (input.provider === 'whatsapp') throw new Error('WhatsApp numbers are linked with startWhatsAppPairing')
     if (input.provider !== 'mcp' && input.provider !== 'github') throw new Error('this provider requires OAuth sign-in')
     const url = endpoint(input.endpoint ?? (input.provider === 'github' ? 'https://api.githubcopilot.com/mcp/' : ''))
     await this.verifyMcp(url, input.token)
@@ -563,6 +645,14 @@ export default class AccountIntegrations extends TypertRemoteService {
     })
     this.invalidateSkills()
     if (!enabled) await this.unmountConnector(id)
+    if (saved.provider === 'whatsapp') {
+      if (!enabled) await this.stopWhatsApp(id)
+      else {
+        this.runWhatsApp(id, owner).catch(() => {
+          // The next conversation step starts the daemon again and reports the number as unlinked if the phone removed it.
+        })
+      }
+    }
   }
 
   /**
@@ -572,7 +662,12 @@ export default class AccountIntegrations extends TypertRemoteService {
   @Remote
   async disconnect(id: ConnectorId): Promise<void> {
     const owner = this.owner()
-    if (this.domain.table('connectors').get(id)?.owner !== owner) throw new Error('connector not found')
+    const saved = this.domain.table('connectors').get(id)
+    if (saved?.owner !== owner) throw new Error('connector not found')
+    if (saved.provider === 'whatsapp') {
+      await this.unlinkWhatsApp(id, owner)
+      return
+    }
     const completions: Promise<void>[] = []
     for (const [state, consent] of this.consents) {
       if (consent.owner !== owner || consent.id !== id) continue
@@ -587,6 +682,235 @@ export default class AccountIntegrations extends TypertRemoteService {
     await this.ctx.credentials.deleteRecord(connectorCredential(owner, id))
   }
 
+  /**
+   * Start linking a WhatsApp number: launch a daemon on a fresh data directory and wait for its QR code.
+   * A caller's earlier unfinished attempt is cancelled; the number is saved only after the phone scans the code.
+   * @returns the attempt, or the reason it could not start.
+   */
+  @Remote
+  async startWhatsAppPairing(): Promise<WhatsAppPairingView> {
+    const owner = this.owner()
+    if (this.whatsappBinary === undefined) return { state: 'unavailable' }
+    for (const [id, pairing] of this.pairings) if (pairing.owner === owner) { await this.endPairing(id, 'expired'); this.pairings.delete(id) }
+    const linked = [...this.domain.table('connectors').entries()].map(([, connector]) => connector).filter(connector => connector.owner === owner && connector.provider === 'whatsapp')
+    if (linked.length >= this.config.maxWhatsAppAccounts) return { state: 'limit' }
+    const id = randomUUID() as ConnectorId
+    const pairing: WhatsAppPairing = { owner, daemon: this.newWhatsAppDaemon(owner, id), view: { id, state: 'starting' }, done: false, busy: false }
+    this.pairings.set(id, pairing)
+    try {
+      await pairing.daemon.start()
+    } catch {
+      // The daemon's own diagnostics are not shown; Settings offers a new attempt.
+      await this.endPairing(id, 'failed')
+      this.pairings.delete(id)
+      return { id, state: 'failed' }
+    }
+    if (pairing.done) return pairing.view
+    pairing.poll = setInterval(() => { void this.advancePairing(id) }, this.config.whatsappPairingPollMs)
+    pairing.expiry = setTimeout(() => { void this.endPairing(id, 'expired') }, this.config.consentLifetimeMs)
+    await this.advancePairing(id)
+    return pairing.view
+  }
+
+  /**
+   * Read a linking attempt; a terminal state is returned once and the attempt is then forgotten.
+   * @param id - attempt identity from startWhatsAppPairing.
+   * @returns current QR code or outcome.
+   */
+  @Remote
+  async whatsAppPairing(id: ConnectorId): Promise<WhatsAppPairingView> {
+    const owner = this.owner()
+    const pairing = this.pairings.get(id)
+    if (pairing === undefined || pairing.owner !== owner) {
+      return { id, state: this.domain.table('connectors').get(id)?.owner === owner ? 'connected' : 'expired' }
+    }
+    if (pairing.done) this.pairings.delete(id)
+    return pairing.view
+  }
+
+  /**
+   * Abandon a linking attempt and delete its data directory.
+   * @param id - attempt identity from startWhatsAppPairing.
+   */
+  @Remote
+  async cancelWhatsAppPairing(id: ConnectorId): Promise<void> {
+    const pairing = this.pairings.get(id)
+    if (pairing === undefined || pairing.owner !== this.owner()) return
+    await this.endPairing(id, 'expired')
+    this.pairings.delete(id)
+  }
+
+  /** Read the attempt's daemon once and save the number when the phone has scanned the code. */
+  private async advancePairing(id: ConnectorId): Promise<void> {
+    const pairing = this.pairings.get(id)
+    if (pairing === undefined || pairing.done || pairing.busy) return
+    pairing.busy = true
+    try {
+      const status = await pairing.daemon.status()
+      if (pairing.done) return
+      switch (status.state) {
+        case 'starting': return
+        case 'qr':
+          pairing.view = { id, state: 'qr', ...status.qr_png !== undefined ? { qr: `data:image/png;base64,${status.qr_png}` } : {} }
+          return
+        case 'expired':
+        case 'failed':
+          await this.endPairing(id, status.state)
+          return
+        case 'paired': {
+          const phone = status.phone ?? ''
+          const duplicate = [...this.domain.table('connectors').entries()].map(([, connector]) => connector).some(connector =>
+            connector.owner === pairing.owner && connector.provider === 'whatsapp' && connector.whatsapp?.phone === phone)
+          if (phone === '' || duplicate) {
+            await pairing.daemon.logout().catch(() => {
+              // The local session is deleted with the directory; the phone can remove a device that stayed listed.
+            })
+            await this.endPairing(id, phone === '' ? 'failed' : 'duplicate')
+            return
+          }
+          const profileName = status.name === undefined || status.name === '' ? undefined : status.name
+          await this.domain.table('connectors').put(id, {
+            owner: pairing.owner, id, provider: 'whatsapp', name: profileName ?? `+${phone}`, enabled: true,
+            whatsapp: { phone, linked: true, ...profileName !== undefined ? { profileName } : {} },
+          })
+          this.superviseWhatsApp(id, pairing.owner, pairing.daemon, Promise.resolve(), 0)
+          await this.endPairing(id, 'connected', true)
+          this.connected.add(id)
+          this.invalidateSkills()
+          return
+        }
+      }
+    } catch {
+      // A failed status read is retried on the next poll; the expiry timer bounds the attempt.
+    } finally {
+      pairing.busy = false
+    }
+  }
+
+  /** Finish an attempt with a terminal state, deleting its daemon and directory unless the number was saved. */
+  private async endPairing(id: ConnectorId, state: WhatsAppPairingView['state'], saved = false): Promise<void> {
+    const pairing = this.pairings.get(id)
+    if (pairing === undefined || pairing.done) return
+    pairing.done = true
+    pairing.view = { id, state }
+    clearInterval(pairing.poll)
+    clearTimeout(pairing.expiry)
+    if (saved) return
+    await pairing.daemon.stop()
+    await rm(pairing.daemon.directory, { recursive: true, force: true })
+  }
+
+  /** Remove the device from the WhatsApp account, then delete the daemon's data and the connector. */
+  private async unlinkWhatsApp(id: ConnectorId, owner: string): Promise<void> {
+    try {
+      await (await this.runWhatsApp(id, owner)).logout()
+    } catch {
+      // Without a network the phone keeps listing the device until removed there; the local session is deleted regardless.
+    }
+    await this.stopWhatsApp(id)
+    await this.domain.table('connectors').delete(id)
+    this.connected.delete(id)
+    this.invalidateSkills()
+    await this.unmountConnector(id)
+    await rm(this.whatsappDirectory(owner, id), { recursive: true, force: true })
+  }
+
+  /** The running daemon of a linked number, or undefined when it cannot run or the phone removed the device. */
+  private async linkedWhatsApp(id: ConnectorId, connector: z.infer<typeof connectorSchema>): Promise<WhatsAppDaemon | undefined> {
+    if (connector.whatsapp?.linked !== true || this.whatsappBinary === undefined) return undefined
+    let daemon: WhatsAppDaemon
+    let state: string
+    try {
+      daemon = await this.runWhatsApp(id, connector.owner)
+      state = (await daemon.status()).state
+    } catch {
+      // A daemon that cannot start or answer is retried on the next step; its tools stay unmounted meanwhile.
+      return undefined
+    }
+    if (state === 'paired') return daemon
+    await this.markWhatsAppUnlinked(id)
+    return undefined
+  }
+
+  /** Re-read a running daemon so Settings shows a device the phone removed. */
+  private async refreshWhatsApp(id: ConnectorId, connector: z.infer<typeof connectorSchema>): Promise<z.infer<typeof connectorSchema>> {
+    const entry = this.whatsapp.get(id)
+    if (entry === undefined || !entry.alive || connector.whatsapp?.linked !== true) return connector
+    try {
+      await entry.ready
+      if ((await entry.daemon.status()).state === 'paired') return connector
+    } catch {
+      // A daemon that is restarting keeps its last known link state.
+      return connector
+    }
+    await this.markWhatsAppUnlinked(id)
+    return this.domain.table('connectors').get(id) ?? connector
+  }
+
+  private async markWhatsAppUnlinked(id: ConnectorId): Promise<void> {
+    await this.domain.table('connectors').update(id, connector => ({ ...connector, whatsapp: connector.whatsapp === undefined ? undefined : { ...connector.whatsapp, linked: false } }))
+    this.connected.delete(id)
+    await this.stopWhatsApp(id)
+    await this.unmountConnector(id)
+    this.invalidateSkills()
+  }
+
+  /**
+   * Return the number's daemon, starting it when it is not running.
+   * @returns the daemon once it has bound its port.
+   */
+  private async runWhatsApp(id: ConnectorId, owner: string): Promise<WhatsAppDaemon> {
+    const current = this.whatsapp.get(id)
+    if (current?.alive === true) {
+      await current.ready
+      return current.daemon
+    }
+    clearTimeout(current?.restart)
+    const daemon = this.newWhatsAppDaemon(owner, id)
+    const entry = this.superviseWhatsApp(id, owner, daemon, daemon.start(), current?.failures ?? 0)
+    await entry.ready
+    return daemon
+  }
+
+  /** Track a daemon and restart it with backoff when it exits while its number stays enabled and linked. */
+  private superviseWhatsApp(id: ConnectorId, owner: string, daemon: WhatsAppDaemon, ready: Promise<void>, failures: number): SupervisedWhatsApp {
+    const entry: SupervisedWhatsApp = { daemon, ready, alive: true, failures, startedAt: Date.now() }
+    this.whatsapp.set(id, entry)
+    void daemon.exited.then(() => {
+      entry.alive = false
+      if (daemon.stopped || this.whatsapp.get(id) !== entry) return
+      const connector = this.domain.table('connectors').get(id)
+      if (connector?.enabled !== true || connector.whatsapp?.linked !== true) { this.whatsapp.delete(id); return }
+      entry.failures = Date.now() - entry.startedAt >= this.config.whatsappMaxRestartDelayMs ? 0 : entry.failures + 1
+      const delay = Math.min(this.config.whatsappRestartDelayMs * 2 ** Math.max(0, entry.failures - 1), this.config.whatsappMaxRestartDelayMs)
+      entry.restart = setTimeout(() => {
+        this.runWhatsApp(id, owner).catch(() => {
+          // Startup failures do not schedule another restart; the next conversation step or Settings action retries.
+        })
+      }, delay)
+    })
+    return entry
+  }
+
+  private async stopWhatsApp(id: ConnectorId): Promise<void> {
+    const entry = this.whatsapp.get(id)
+    if (entry === undefined) return
+    this.whatsapp.delete(id)
+    clearTimeout(entry.restart)
+    await entry.daemon.stop()
+  }
+
+  private newWhatsAppDaemon(owner: string, id: ConnectorId): WhatsAppDaemon {
+    return new WhatsAppDaemon(this.whatsappBinary!, this.whatsappDirectory(owner, id), {
+      startupTimeoutMs: this.config.whatsappStartupTimeoutMs, requestTimeoutMs: this.config.timeoutMs, stopGraceMs: this.config.whatsappStopGraceMs,
+    })
+  }
+
+  /** Aeven-owned data directory of one number: the whatsmeow session and message cache in `store/`, sendable files in `media/`. */
+  private whatsappDirectory(owner: string, id: ConnectorId): string {
+    return avnHomePath('accounts', accountDirectory(owner), 'connectors', id)
+  }
+
   private skillConnectorAvailable(name: string, owner: string | undefined): boolean {
     const provider = (Object.keys(connectorSkills) as ConnectorProvider[]).find(provider => connectorSkills[provider].includes(name))
     if (provider === undefined) return true
@@ -595,6 +919,8 @@ export default class AccountIntegrations extends TypertRemoteService {
   }
 
   private async isConnected(connector: z.infer<typeof connectorSchema>): Promise<boolean> {
+    // The whatsmeow session lives in the daemon's store directory, not in the credential provider.
+    if (connector.provider === 'whatsapp') return connector.whatsapp?.linked === true && this.whatsappBinary !== undefined
     const record = await this.ctx.credentials.readRecord(connectorCredential(connector.owner, connector.id))
     if (record === undefined) return false
     if (connector.provider === 'email') {
@@ -620,7 +946,7 @@ export default class AccountIntegrations extends TypertRemoteService {
   }
 
   private oauthApplication(provider: ConnectorProvider): OAuthProviderConfig | undefined {
-    if (provider === 'mcp' || provider === 'email') return undefined
+    if (provider === 'mcp' || provider === 'email' || provider === 'whatsapp') return undefined
     const google = googleService(provider)
     if (google === undefined) return this.config.providers[provider as 'github' | 'microsoft365']
     const app = this.config.providers.google
@@ -671,36 +997,39 @@ export default class AccountIntegrations extends TypertRemoteService {
       }, 'account-integrations: agent connections')
     }
     const mounts = owned.connections
-    // Email rows have no MCP server; their tools come from the mail capability.
+    // Email rows have no MCP server; their tools come from the mail capability. WhatsApp rows get their endpoint from the running daemon.
     const connectors = [...this.domain.table('connectors').entries()].flatMap(([id, connector]) => connector.owner === owner && connector.enabled
-      && connector.endpoint !== undefined && connector.provider !== 'email'
+      && (connector.endpoint !== undefined || connector.provider === 'whatsapp') && connector.provider !== 'email'
       && (googleService(connector.provider) === undefined || connector.endpoint === googleService(connector.provider)!.endpoint)
-      ? [[id, { ...connector, endpoint: connector.endpoint }] as const] : [])
+      ? [[id, connector] as const] : [])
     for (const [id, mount] of mounts) {
       if (!connectors.some(([active]) => active === id)) { await mount.fiber.dispose(); mounts.delete(id) }
     }
-    for (const [id, connector] of connectors) {
-      if (!await this.isConnected(connector)) {
-        this.connected.delete(id)
+    for (const [id, saved] of connectors) {
+      const daemon = saved.provider === 'whatsapp' ? await this.linkedWhatsApp(id, saved) : undefined
+      const connector = this.domain.table('connectors').get(id) ?? saved
+      if (!await this.isConnected(connector) || (connector.provider === 'whatsapp' && daemon === undefined)) {
+        if (connector.provider !== 'whatsapp' || connector.whatsapp?.linked !== true) this.connected.delete(id)
         await this.unmountConnector(id)
         this.invalidateSkills()
         continue
       }
       this.connected.add(id)
       const google = googleService(connector.provider)
-      const token = await this.accessToken(owner, connector)
+      const token = daemon?.token ?? await this.accessToken(owner, connector)
+      const url = daemon?.endpoint ?? connector.endpoint!
       const existing = mounts.get(id)
-      if (existing?.token === token && existing.endpoint === connector.endpoint) continue
+      if (existing?.token === token && existing.endpoint === url) continue
       if (existing !== undefined) { await existing.fiber.dispose(); mounts.delete(id) }
       const serverName = `account_${id.replaceAll('-', '').slice(0, 24)}`
       const fiber = owned.scope.ctx.plugin(mcp, google === undefined ? {
         transport: 'streamable-http', serverName,
-        url: connector.endpoint, headers: token === '' ? {} : { Authorization: `Bearer ${token}` },
+        url, headers: token === '' ? {} : { Authorization: `Bearer ${token}` },
         toolCallTimeoutMs: this.config.timeoutMs, failOnStartupError: true, reconnect: { enabled: false },
       } : { ...await googleConnection(connector.provider, token,
         avnHomePath('accounts', accountDirectory(owner), 'connectors', id), this.config.timeoutMs), serverName })
       await fiber
-      mounts.set(id, { token, endpoint: connector.endpoint, fiber })
+      mounts.set(id, { token, endpoint: url, fiber })
     }
   }
 

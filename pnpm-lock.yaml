@@ -713,6 +713,27 @@ importers:
 
   native/landlock-run/packages/linux-x64: {}
 
+  native/whatsapp-mcp:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.20.0
+        version: 22.20.1
+      tsx:
+        specifier: ^4.22.4
+        version: 4.22.4
+
+  native/whatsapp-mcp/packages/darwin-arm64: {}
+
+  native/whatsapp-mcp/packages/darwin-x64: {}
+
+  native/whatsapp-mcp/packages/linux-arm64: {}
+
+  native/whatsapp-mcp/packages/linux-x64: {}
+
+  native/whatsapp-mcp/packages/win32-arm64: {}
+
+  native/whatsapp-mcp/packages/win32-x64: {}
+
   native/whisper-cpp:
     devDependencies:
       '@types/node':
@@ -7410,6 +7431,25 @@ importers:
       '@types/js-yaml':
         specifier: ^4.0.9
         version: 4.0.9
+    optionalDependencies:
+      '@aeven/whatsapp-mcp-darwin-arm64':
+        specifier: workspace:^
+        version: link:../../../native/whatsapp-mcp/packages/darwin-arm64
+      '@aeven/whatsapp-mcp-darwin-x64':
+        specifier: workspace:^
+        version: link:../../../native/whatsapp-mcp/packages/darwin-x64
+      '@aeven/whatsapp-mcp-linux-arm64':
+        specifier: workspace:^
+        version: link:../../../native/whatsapp-mcp/packages/linux-arm64
+      '@aeven/whatsapp-mcp-linux-x64':
+        specifier: workspace:^
+        version: link:../../../native/whatsapp-mcp/packages/linux-x64
+      '@aeven/whatsapp-mcp-win32-arm64':
+        specifier: workspace:^
+        version: link:../../../native/whatsapp-mcp/packages/win32-arm64
+      '@aeven/whatsapp-mcp-win32-x64':
+        specifier: workspace:^
+        version: link:../../../native/whatsapp-mcp/packages/win32-x64
 
   packages/host/directory-picker:
     devDependencies:

@@ -54,6 +54,9 @@ export function apply(ctx: Context): void {
     authorize: provider => value(remote.authorize(provider)),
     setConnectorEnabled: (id, enabled) => value(remote.setConnectorEnabled(id, enabled)),
     disconnect: id => value(remote.disconnect(id)),
+    startWhatsAppPairing: () => value(remote.startWhatsAppPairing()),
+    whatsAppPairing: id => value(remote.whatsAppPairing(id)),
+    cancelWhatsAppPairing: id => value(remote.cancelWhatsAppPairing(id)),
   }
   ctx.slots.inject('settings.action', () => ctx.slots.register({
     name: 'settings.action', id: 'detail-back', locale: namespace,

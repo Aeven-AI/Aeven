@@ -13,6 +13,7 @@ export interface DesktopTargetBuildPaths {
   readonly packedVendor: string
   readonly packedLandlock: string
   readonly packedWhisper: string
+  readonly packedWhatsApp: string
   readonly downloads: string
 }
 

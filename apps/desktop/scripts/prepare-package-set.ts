@@ -159,6 +159,7 @@ function main(): void {
     buildPaths.packedVendor,
     buildPaths.packedLandlock,
     buildPaths.packedWhisper,
+    buildPaths.packedWhatsApp,
   ]
   const { values } = parseArgs({
     options: { from: { type: 'string', multiple: true }, out: { type: 'string' } },

@@ -29,7 +29,7 @@ export type {
   AccountIntegrationsView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId,
   ConnectorProvider, EmailConnectionFailure, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, EmailConnectorSettings,
   EmailProbeStep, EmailReceiveSettings, EmailSecurity, EmailServerSettings,
-  PersonalSkillView, PersonalConnectorView, SkillUploadFile,
+  PersonalSkillView, PersonalConnectorView, SkillUploadFile, WhatsAppConnectorSettings, WhatsAppPairingState, WhatsAppPairingView,
 } from '@aeven/host-account-integrations/types'
 export type { PluginInventorySnapshot } from '@aeven/host-plugin-inventory/types'
 export type {} from '@aeven/agent-presets/remote'

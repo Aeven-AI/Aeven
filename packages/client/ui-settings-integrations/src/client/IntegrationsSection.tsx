@@ -1,12 +1,13 @@
 /** Personal skill import and connector account management. */
 
-import { useEffect, useRef, useState } from 'react'
-import type { AccountIntegrationsView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillUploadFile } from '@aeven/api-remotes/client'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import type { AccountIntegrationsView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillUploadFile, WhatsAppPairingView } from '@aeven/api-remotes/client'
 import { SectionHeader, MarkdownText, Modal, IconCloseOutline16, IconChevronLeftOutline14 } from '@aeven/client-ui-primitives'
 import type { HostObservable, InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import css from './IntegrationsSection.module.css'
 import { connectorIcons } from './connector-icons.ts'
 import { EmailAccounts } from './EmailAccounts.tsx'
+import { WhatsAppAccounts } from './WhatsAppAccounts.tsx'
 
 /** Browser callbacks bound to the authenticated account Remote. */
 export interface IntegrationsSectionInjected {
@@ -22,6 +23,9 @@ export interface IntegrationsSectionInjected {
   authorize: (provider: ConnectorProvider) => Promise<ConnectorAuthorization>
   setConnectorEnabled: (id: ConnectorId, enabled: boolean) => Promise<void>
   disconnect: (id: ConnectorId) => Promise<void>
+  startWhatsAppPairing: () => Promise<WhatsAppPairingView>
+  whatsAppPairing: (id: ConnectorId) => Promise<WhatsAppPairingView>
+  cancelWhatsAppPairing: (id: ConnectorId) => Promise<void>
 }
 
 /** Settings slot props with locale and account operations. */
@@ -84,14 +88,14 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
   const [token, setToken] = useState('')
   const [consent, setConsent] = useState<string>()
   const [pendingProvider, setPendingProvider] = useState<ConnectorProvider>()
-  /** Set when turning Email on opened its page, so the add-account form starts open. */
-  const [emailFormRequested, setEmailFormRequested] = useState(false)
+  /** Set when turning Email or WhatsApp on opened its page, so adding an account starts right away. */
+  const [addRequested, setAddRequested] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
   const sectionTop = useRef<HTMLDivElement>(null)
   const consentCard = useRef<HTMLDivElement>(null)
   /** Where the list sat when a detail took its place, so Back returns the reader to it. */
   const listOffset = useRef<number>()
-  useEffect(() => { if (selectedConnector === undefined) { setConnectorSkillId(undefined); setForm(undefined); setToken(''); setEmailFormRequested(false) } }, [selectedConnector])
+  useEffect(() => { if (selectedConnector === undefined) { setConnectorSkillId(undefined); setForm(undefined); setToken(''); setAddRequested(false) } }, [selectedConnector])
   // A detail reads from its top; closing it puts the list back where the reader left it.
   useEffect(() => {
     if (selectedSkillId !== undefined || selectedConnector !== undefined) { sectionTop.current?.scrollIntoView({ block: 'start' }); return }
@@ -100,6 +104,8 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
   }, [selectedSkillId, selectedConnector])
   // A blocked popup falls back to the in-page consent link, which sits below the provider grid.
   useEffect(() => { if (consent !== undefined) consentCard.current?.scrollIntoView({ block: 'nearest' }) }, [consent])
+  const [refreshes, setRefreshes] = useState(0)
+  const refreshList = useCallback(() => { setRefreshes(count => count + 1) }, [])
   useEffect(() => {
     let active = true
     const refresh = (): void => {
@@ -114,7 +120,7 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
     refresh()
     window.addEventListener('focus', refresh)
     return () => { active = false; window.removeEventListener('focus', refresh) }
-  }, [list, changes])
+  }, [list, changes, refreshes])
   useEffect(() => {
     if (pendingProvider !== undefined && snapshot?.connectors.some(connector => connector.provider === pendingProvider && connector.connected)) {
       setConsent(undefined)
@@ -192,8 +198,8 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
     const live = connections.filter(connection => connection.connected)
     // A provider without sign-in configured can still connect through a token form.
     const connectable = live.length > 0 || provider.configured || provider.provider === 'mcp' || provider.provider === 'github'
-    // Email is available exactly when the deployment mounts the mail capability.
-    if (provider.provider === 'email') return { connections, live, on: live.some(connection => connection.enabled), expired: connections.length > 0 && live.length === 0, connectable: provider.configured }
+    // Email is available exactly when the deployment mounts the mail capability; WhatsApp when this host has its daemon.
+    if (provider.provider === 'email' || provider.provider === 'whatsapp') return { connections, live, on: live.some(connection => connection.enabled), expired: connections.length > 0 && live.length === 0, connectable: provider.configured }
     const on = live.some(connection => connection.enabled)
     return { connections, live, on, expired: connections.length > 0 && live.length === 0, connectable }
   }
@@ -208,12 +214,12 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
   }
   const switchProvider = (provider: Provider): void => {
     const { connections, live, on, connectable } = stateOf(provider)
-    // Email accounts each hold their own passwords, so the provider switch pauses them instead of removing them.
-    if (provider.provider === 'email') {
+    // Email accounts and WhatsApp numbers each hold their own sign-in, so the provider switch pauses them instead of removing them.
+    if (provider.provider === 'email' || provider.provider === 'whatsapp') {
       if (on) { void run(async () => { for (const connection of live) if (connection.enabled) await props.setConnectorEnabled(connection.id, false) }); return }
       if (live.length > 0) { void run(async () => { for (const connection of live) await props.setConnectorEnabled(connection.id, true) }); return }
       openDetail(provider.provider)
-      if (connectable) setEmailFormRequested(true)
+      if (connectable) setAddRequested(true)
       return
     }
     // Off disconnects: a user sees no use in a paused state between connected and not connected.
@@ -235,9 +241,10 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
   }
   const providerHint = (provider: Provider): string | undefined => {
     const { expired, connectable } = stateOf(provider)
-    if (expired) return t(provider.provider === 'email' ? 'emailReconnect' : 'reconnectHint')
+    if (expired) return t(provider.provider === 'email' ? 'emailReconnect' : provider.provider === 'whatsapp' ? 'whatsappRelink' : 'reconnectHint')
     if (connectable) return undefined
     if (provider.provider === 'email') return t('emailSetupRequired')
+    if (provider.provider === 'whatsapp') return t('whatsappUnavailable')
     return t(['gmail', 'google-drive', 'google-calendar'].includes(provider.provider) ? 'googleSetupRequired' : 'setupRequired')
   }
   const connectForm = (provider: 'mcp' | 'github') => <form className={css.card} onSubmit={(event) => {
@@ -322,14 +329,14 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
       >
         <button type="button" className={css.connectorOpen} onClick={() => { openDetail(provider.provider) }}>
           {connectorIcon(provider.provider)}
-          <span className={css.skillSummary}><strong>{t(provider.provider)}</strong><span className={css.connectorDescription}>{t(`${provider.provider}Description`)}</span>{stateOf(provider).expired && <span className={css.attention}>{t(provider.provider === 'email' ? 'emailReconnect' : 'reconnectHint')}</span>}</span>
+          <span className={css.skillSummary}><strong>{t(provider.provider)}</strong><span className={css.connectorDescription}>{t(`${provider.provider}Description`)}</span>{stateOf(provider).expired && <span className={css.attention}>{providerHint(provider)}</span>}</span>
         </button>
         {providerSwitch(provider)}
       </article>)}</div> : <article className={css.connectorDetail}>
         <div className={css.connectorHeading}>
           {connectorIcon(providerDetail.provider, true)}
           <h2>{t(providerDetail.provider)}</h2>
-          {providerDetail.provider !== 'mcp' && providerDetail.provider !== 'email' && providerSwitch(providerDetail, true)}
+          {providerDetail.provider !== 'mcp' && providerDetail.provider !== 'email' && providerDetail.provider !== 'whatsapp' && providerSwitch(providerDetail, true)}
         </div>
         <p className={css.detailDescription}>{t(`${providerDetail.provider}Description`)}</p>
         {providerDetail.provider === 'email' ? providerDetail.configured
@@ -343,9 +350,25 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
             updateEmail={props.updateEmail}
             setConnectorEnabled={props.setConnectorEnabled}
             disconnect={props.disconnect}
-            startWithForm={emailFormRequested}
+            startWithForm={addRequested}
           />
           : <p className={css.hint}>{t('emailSetupRequired')}</p>
+        : providerDetail.provider === 'whatsapp' ? providerDetail.configured
+          ? <WhatsAppAccounts
+            t={t}
+            busy={busy}
+            connections={stateOf(providerDetail).connections}
+            run={run}
+            toggle={toggle}
+            startWhatsAppPairing={props.startWhatsAppPairing}
+            whatsAppPairing={props.whatsAppPairing}
+            cancelWhatsAppPairing={props.cancelWhatsAppPairing}
+            setConnectorEnabled={props.setConnectorEnabled}
+            disconnect={props.disconnect}
+            refresh={refreshList}
+            startWithPairing={addRequested}
+          />
+          : <p className={css.hint}>{t('whatsappUnavailable')}</p>
         : providerDetail.provider === 'mcp' ? <>
           <div className={css.serverList}>{stateOf(providerDetail).connections.map(connection => <div
             key={connection.id}

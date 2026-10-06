@@ -65,6 +65,15 @@ export const en = {
   emailFailDuplicate: 'This address is already connected.', emailFailLimit: 'You have reached the maximum number of email accounts.',
   emailFailUnavailable: 'Email accounts are not available in this deployment.', emailFailOther: 'The server could not complete the check. Try again.',
   emailEdit: 'Edit connection', emailSave: 'Save', emailKeepPassword: 'Leave blank to keep the saved password', emailTesting: 'Testing the connection to your mail servers…',
+  whatsapp: 'WhatsApp', whatsappDescription: 'Read, search, and send messages from your linked WhatsApp numbers.',
+  whatsappAdd: 'Link a WhatsApp number', whatsappUnavailable: 'WhatsApp is not available on this device.',
+  whatsappStepOpen: 'Open WhatsApp on your phone.', whatsappStepLinked: 'Go to Settings → Linked devices → Link a device.', whatsappStepScan: 'Point your phone at this code.',
+  whatsappQrAlt: 'WhatsApp linking code', whatsappPreparing: 'Preparing a code…', whatsappWaiting: 'Waiting for your phone to scan the code…',
+  whatsappConnected: 'Connected', whatsappExpired: 'The code expired before it was scanned.', whatsappFailed: 'WhatsApp could not be reached. Check your internet connection and try again.',
+  whatsappDuplicate: 'This number is already linked.', whatsappLimit: 'You have reached the maximum number of WhatsApp numbers.', whatsappRetry: 'Get a new code',
+  whatsappRelink: 'This number was removed from Linked devices on the phone. Unlink it here and link it again.',
+  whatsappUnlink: 'Unlink WhatsApp', whatsappUnlinkConfirm: 'Remove Aeven from this number’s linked devices and delete its local messages?',
+  whatsappPrivacy: 'Aeven links as a device of your WhatsApp account. Messages and the session stay on this computer.',
 }
 
 /** Locale keys owned by these pages. */
@@ -133,4 +142,13 @@ export const zh: Record<IntegrationsLocaleKey, string> = {
   emailFailDuplicate: '此地址已连接。', emailFailLimit: '邮件账户数量已达上限。',
   emailFailUnavailable: '此部署不提供电子邮件账户。', emailFailOther: '服务器无法完成检查，请重试。',
   emailEdit: '编辑连接', emailSave: '保存', emailKeepPassword: '留空则保留已保存的密码', emailTesting: '正在测试与邮件服务器的连接…',
+  whatsapp: 'WhatsApp', whatsappDescription: '通过已关联的 WhatsApp 号码阅读、搜索及发送消息。',
+  whatsappAdd: '关联 WhatsApp 号码', whatsappUnavailable: '此设备不支持 WhatsApp。',
+  whatsappStepOpen: '在手机上打开 WhatsApp。', whatsappStepLinked: '前往“设置”→“已关联的设备”→“关联新设备”。', whatsappStepScan: '用手机扫描此二维码。',
+  whatsappQrAlt: 'WhatsApp 关联二维码', whatsappPreparing: '正在生成二维码…', whatsappWaiting: '正在等待手机扫描二维码…',
+  whatsappConnected: '已连接', whatsappExpired: '二维码已过期，未完成扫描。', whatsappFailed: '无法连接 WhatsApp。请检查网络连接后重试。',
+  whatsappDuplicate: '此号码已关联。', whatsappLimit: 'WhatsApp 号码数量已达上限。', whatsappRetry: '获取新二维码',
+  whatsappRelink: '此号码已在手机的“已关联的设备”中移除。请在此取消关联后重新关联。',
+  whatsappUnlink: '取消关联 WhatsApp', whatsappUnlinkConfirm: '从此号码的已关联设备中移除 Aeven，并删除其本地消息？',
+  whatsappPrivacy: 'Aeven 作为您 WhatsApp 账户的关联设备。消息和会话仅保存在此电脑上。',
 }
