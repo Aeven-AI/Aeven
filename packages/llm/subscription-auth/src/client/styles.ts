@@ -152,7 +152,7 @@ export const cardHeaderStyle: CSSProperties = {
   textAlign: 'left',
   cursor: 'pointer',
   display: 'flex',
-  alignItems: 'center',
+  alignItems: 'flex-start',
   gap: 12,
   padding: '14px 16px',
   borderRadius: 12,

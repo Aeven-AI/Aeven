@@ -1,3 +1,49 @@
+diff --git a/dist/core/capture/summarizer.js b/dist/core/capture/summarizer.js
+index de6eaa0fa1e74ef0ff364418b67c328fae277b3d..9a74d26b42d9f422080425517f529ec9b4138207 100644
+--- a/dist/core/capture/summarizer.js
++++ b/dist/core/capture/summarizer.js
+@@ -76,8 +76,14 @@ Rules:
+ - Output MUST be a single JSON object: { "summary": "..." }
+ - The summary must be ≤ 100 characters, in the user's original language.
+ - Focus on the *fact worth remembering next time* — a preference, a name, a
+-  decision, a file path, an error signature, an answer that was confirmed.
+-- Do NOT prefix with "The user said" / "用户说了". Just state the fact.
++  decision, a file path, an error signature.
++- Name whom each fact is about: "User goes by Ollie", "User's son: Alan".
++  Never leave a name, nickname, or "that" without its owner.
++- A fact about the user or a person they know comes only from the USER's
++  words. When the user asks and the assistant answers about them, summarize
++  only the question ("User asked for their son's name") and leave the
++  answer out.
++- Do NOT prefix with "The user said" / "用户说了".
+ - Do NOT quote whole sentences. Compress.
+ - If nothing is worth remembering, still produce a short summary (e.g. the
+   main topic of the exchange) — never return an empty string.`;
+diff --git a/dist/core/llm/host-bridge.d.ts b/dist/core/llm/host-bridge.d.ts
+index e810bcd91937372869afbf5c1c542be15a931987..ee75799d9667665adb57ade211d0a111fdebe745 100644
+--- a/dist/core/llm/host-bridge.d.ts
++++ b/dist/core/llm/host-bridge.d.ts
+@@ -17,6 +17,8 @@ export interface HostLlmCompleteInput {
+     maxTokens?: number;
+     timeoutMs?: number;
+     signal?: AbortSignal;
++    /** MemOS operation that issued the call, such as `capture.summarize`. */
++    op?: string;
+ }
+ export interface HostLlmCompletion {
+     text: string;
+diff --git a/dist/core/llm/providers/host.js b/dist/core/llm/providers/host.js
+index 7db4dd239c86055f5c4aa860f06f96bd18444422..5ad947320df79953a773e8ca6a5eb3c61fc3ebaf 100644
+--- a/dist/core/llm/providers/host.js
++++ b/dist/core/llm/providers/host.js
+@@ -24,6 +24,7 @@ export class HostLlmProvider {
+             maxTokens: opts.maxTokens,
+             timeoutMs: ctx.config.timeoutMs,
+             signal: ctx.signal,
++            op: opts.op,
+         });
+         return {
+             text: res.text,
 diff --git a/dist/core/retrieval/tier2-trace.js b/dist/core/retrieval/tier2-trace.js
 index a5311c394e08642cdbf9a3efa1c0f9b0b4ed097b..60d5de35eaf7bc0f4a1a2a6a589ba3fdfb40d35c 100644
 --- a/dist/core/retrieval/tier2-trace.js

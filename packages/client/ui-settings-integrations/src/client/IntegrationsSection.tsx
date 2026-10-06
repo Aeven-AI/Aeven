@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { AccountIntegrationsView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, SkillUploadFile } from '@aeven/api-remotes/client'
-import { SectionHeader, MarkdownText, Modal, IconCloseOutline16, IconRefreshOutline16, IconChevronLeftOutline14, IconChevronRightOutline14 } from '@aeven/client-ui-primitives'
+import { SectionHeader, MarkdownText, Modal, IconCloseOutline16, IconChevronLeftOutline14, IconChevronRightOutline14 } from '@aeven/client-ui-primitives'
 import type { HostObservable, InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import css from './IntegrationsSection.module.css'
 import { connectorIcons } from './connector-icons.ts'
@@ -142,10 +142,11 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
     : <img className={css.connectorIcon} src={connectorIcons[provider]} alt="" />
   const connectorSwitch = (connection: AccountIntegrationsView['connectors'][number]) => <button type="button" role="switch" aria-label={`${t('enabled')}: ${connection.name}`} aria-checked={connection.enabled} title={t(connection.enabled ? 'enabled' : 'disabled')} className={`${css.switch} ${connection.enabled ? css.switchOn : ''}`} disabled={busy || !connection.connected} onClick={() => { void run(() => props.setConnectorEnabled(connection.id, !connection.enabled)) }}><span className={css.thumb} /></button>
   const skillSwitch = (skill: AccountIntegrationsView['skills'][number]) => <button type="button" role="switch" aria-label={skill.name} aria-checked={skill.enabled} title={t(skill.enabled ? 'enabled' : 'disabled')} className={`${css.switch} ${skill.enabled ? css.switchOn : ''}`} disabled={busy} onClick={() => { void run(() => props.setSkillEnabled(skill.name, !skill.enabled)) }}><span className={css.thumb} /></button>
+  const catalogVisible = page !== 'connectors' || selectedConnector === undefined
+  const catalogActions = catalogVisible && ((page === 'skills' && selected === undefined) || busy)
   return <div ref={sectionTop} className={`${css.section} ${page === 'connectors' ? css.connectors : ''}`}>
-    {(page !== 'connectors' || selectedConnector === undefined) && <SectionHeader title={t(page)} description={t(page === 'skills' ? 'skillsIntro' : 'connectorsIntro')} />}
-    {(page !== 'connectors' || selectedConnector === undefined) && <div className={css.actions}>
-      <button type="button" className={css.iconButton} aria-label={t('refresh')} title={t('refresh')} disabled={busy} onClick={() => { void run(async () => {}) }}><IconRefreshOutline16 /></button>
+    {catalogVisible && <SectionHeader title={t(page)} description={t(page === 'skills' ? 'skillsIntro' : 'connectorsIntro')} />}
+    {catalogActions && <div className={css.actions}>
       {page === 'skills' && selected === undefined && <button type="button" disabled={busy} onClick={() => { fileInput.current?.click() }}>{t('import')}</button>}
       {busy && <span role="status">{t(signingIn ? 'openingSignIn' : 'working')}</span>}
     </div>}

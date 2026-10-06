@@ -27,7 +27,7 @@ import type { MemoryCore } from '@memtensor/memos-local-plugin/dist/agent-contra
 import { MemoryDeadlineError, withDeadline } from './deadline.ts'
 import { withoutExactIdentifiers } from './query.ts'
 import type { LlmRouteContext } from './host-llm.ts'
-import { SUPERSEDED_TAG, traceDomain, withDomainTag, withSupersededTag, type ClassifyInput, type TurnDomain } from './domain.ts'
+import { SUPERSEDED_TAG, traceDomain, withDomainTag, withSupersededTag, type ClassifyInput, type TurnDomain, type TurnJudgeContext } from './domain.ts'
 import { normalizeNamespace } from '@memtensor/memos-local-plugin/dist/core/runtime/namespace.js'
 
 /** MemOS agent kind. The embedded Viewer server keys its in-process host behavior on this value. */
@@ -49,8 +49,13 @@ export interface MemosMemoryOptions {
   readonly routes: LlmRouteContext
   /** MemOS's configured per-tier result limits for an explicit search. */
   readonly toolLimits: MemoryRecallLimits
-  /** Classifies a captured turn's domain on the owning session's route; absent leaves the capture-location fallback. */
+  /**
+   * Classifies a captured turn's domain on the owning session's route when no turn judgment exists;
+   * absent leaves the capture-location fallback.
+   */
   readonly classify?: (input: ClassifyInput) => Promise<TurnDomain | undefined>
+  /** Turn-capture scope whose final-reply summarize request judges the turn; absent captures without judgment. */
+  readonly judges?: TurnJudgeContext
   readonly warn: (message: string) => void
   readonly info: (message: string) => void
 }
@@ -60,8 +65,15 @@ interface SessionState {
   readonly memorySessions: Set<string>
   route?: MemoryLlmRoute
   lastEpisode?: string
-  /** MemOS trace and episode of each captured turn, for feedback on that turn. */
-  readonly turns: Map<number, { readonly traceId: string; readonly episodeId: string }>
+  /**
+   * MemOS trace and episode of each captured turn, for feedback on that turn, and the traces `remember` wrote
+   * during it, which a correction of the turn supersedes with it.
+   */
+  readonly turns: Map<number, { readonly traceId: string; readonly episodeId: string; readonly remembered: readonly string[] }>
+  /** Traces `remember` wrote since the last captured turn; that turn's capture claims them. */
+  readonly remembered: string[]
+  /** Assistant reply of the latest captured turn, which the next turn's judgment reads for its referent. */
+  lastReply?: { readonly turn: number; readonly text: string }
   pending?: Promise<void>
 }
 
@@ -91,7 +103,7 @@ export class MemosMemory implements MemoryProvider {
   private state(sessionId: SessionId): SessionState {
     let state = this.sessions.get(sessionId)
     if (!state) {
-      state = { memorySessions: new Set(), turns: new Map() }
+      state = { memorySessions: new Set(), turns: new Map(), remembered: [] }
       this.sessions.set(sessionId, state)
     }
     return state
@@ -227,9 +239,11 @@ export class MemosMemory implements MemoryProvider {
     const state = this.state(turn.scope.sessionId)
     if (turn.scope.route) state.route = turn.scope.route
     void this.schedule(state, async () => {
+      const remembered = state.remembered.splice(0)
       const captured = await this.captureTurn(state, turn, `${turn.scope.sessionId}:${turn.turn}`)
-      state.turns.set(turn.turn, captured)
-      if (turn.outcome?.correction !== undefined) await this.supersedePrevious(state, turn, captured.traceId)
+      state.turns.set(turn.turn, { traceId: captured.traceId, episodeId: captured.episodeId, remembered })
+      state.lastReply = { turn: turn.turn, text: turn.assistantText }
+      if (turn.outcome?.correction !== undefined || captured.corrects) await this.supersedePrevious(state, turn, captured.traceId)
     }).catch((error: unknown) => {
       this.options.warn(`background write failed for session ${turn.scope.sessionId}: ${describe(error)}`)
     })
@@ -237,8 +251,8 @@ export class MemosMemory implements MemoryProvider {
 
   /**
    * Record that a correction replaced what the turn before it stated. A correction answers the exchange it
-   * follows, so that trace is the one that stops being current; the tag names its replacement, and automatic
-   * recall then leaves the earlier statement out while explicit search still returns it as history.
+   * follows, so that trace and the facts `remember` wrote during that turn stop being current; the tag names
+   * their replacement, and automatic recall then leaves them out while explicit search still returns them as history.
    *
    * This runs at capture, after the turn ended, so it costs the request path nothing. A correction whose
    * preceding turn was never captured, or which replaced the same trace twice, writes nothing.
@@ -248,15 +262,18 @@ export class MemosMemory implements MemoryProvider {
    */
   private async supersedePrevious(state: SessionState, turn: MemoryTurn, replacementTraceId: string): Promise<void> {
     const previous = state.turns.get(turn.turn - 1)
-    if (previous === undefined || previous.traceId === replacementTraceId) return
-    try {
-      const trace = await this.core.getTrace(previous.traceId, this.namespaceOf(turn.scope))
-      if (trace === null) return
-      await this.core.updateTrace(previous.traceId, {
-        tags: withSupersededTag(trace.tags, replacementTraceId),
-      })
-    } catch (error) {
-      this.options.warn(`supersede failed for ${previous.traceId}: ${describe(error)}`)
+    if (previous === undefined) return
+    for (const traceId of [previous.traceId, ...previous.remembered]) {
+      if (traceId === replacementTraceId) continue
+      try {
+        const trace = await this.core.getTrace(traceId, this.namespaceOf(turn.scope))
+        if (trace === null) continue
+        await this.core.updateTrace(traceId, {
+          tags: withSupersededTag(trace.tags, replacementTraceId),
+        })
+      } catch (error) {
+        this.options.warn(`supersede failed for ${traceId}: ${describe(error)}`)
+      }
     }
   }
 
@@ -279,7 +296,7 @@ export class MemosMemory implements MemoryProvider {
     turn: MemoryTurn,
     turnKey: string,
     domain?: TurnDomain,
-  ): Promise<{ traceId: string; episodeId: string }> {
+  ): Promise<{ traceId: string; episodeId: string; corrects: boolean }> {
     const { scope } = turn
     const namespace = this.namespaceOf(scope)
     let memorySessionId: string = scope.sessionId
@@ -329,7 +346,7 @@ export class MemosMemory implements MemoryProvider {
       }
     }
 
-    const result = await this.withRoute(scope.route, () => this.core.onTurnEnd({
+    const turnEnd = () => this.withRoute(scope.route, () => this.core.onTurnEnd({
       agent: MEMOS_AGENT,
       namespace,
       sessionId: memorySessionId,
@@ -353,8 +370,12 @@ export class MemosMemory implements MemoryProvider {
       },
       ts: turn.endedAt,
     }))
+    const previousReply = state.lastReply?.turn === turn.turn - 1 ? state.lastReply.text : undefined
+    const { result, judgment } = this.options.judges
+      ? await this.options.judges.run({ project: scope.cwd, previousReply }, turnEnd)
+      : { result: await turnEnd(), judgment: undefined }
     this.options.info(`captured session=${scope.sessionId} turn=${turn.turn} trace=${result.traceId}`)
-    await this.annotateTrace(turn, result.traceId, domain)
+    await this.annotateTrace(turn, result.traceId, domain ?? judgment?.domain)
     if (turn.outcome?.completedGoal !== undefined) {
       try {
         await this.withRoute(scope.route, () => this.core.submitFeedback({
@@ -369,12 +390,13 @@ export class MemosMemory implements MemoryProvider {
         this.options.warn(`goal outcome feedback failed for ${result.traceId}: ${describe(error)}`)
       }
     }
-    return { traceId: result.traceId, episodeId }
+    return { traceId: result.traceId, episodeId, corrects: judgment?.corrects ?? false }
   }
 
   /**
-   * Record the turn's domain and outcome evidence on its trace. Without a classified domain,
-   * the capture-location fallback applies at read time.
+   * Record the turn's domain and outcome evidence on its trace. `explicit` is the caller's or the turn
+   * judgment's domain; without it the classifier runs, and without a classified domain the
+   * capture-location fallback applies at read time.
    */
   private async annotateTrace(turn: MemoryTurn, traceId: string, explicit: TurnDomain | undefined): Promise<void> {
     try {
@@ -580,16 +602,21 @@ export class MemosMemory implements MemoryProvider {
     const { scope } = request
     const state = this.state(scope.sessionId)
     const now = Date.now()
-    const { traceId } = await this.schedule(state, () => this.captureTurn(state, {
-      scope,
-      turn: 0,
-      userText: request.text,
-      assistantText: 'Noted.',
-      toolCalls: [],
-      startedAt: now,
-      endedAt: now,
-      endReason: 'completed',
-    }, `${scope.sessionId}:remember:${now}`, request.domain === 'project' && scope.cwd !== undefined ? 'project' : 'person'))
+    const traceId = await this.schedule(state, async () => {
+      const { traceId: written } = await this.captureTurn(state, {
+        scope,
+        turn: 0,
+        userText: request.text,
+        assistantText: 'Noted.',
+        toolCalls: [],
+        startedAt: now,
+        endedAt: now,
+        endReason: 'completed',
+      }, `${scope.sessionId}:remember:${now}`, request.domain === 'project' && scope.cwd !== undefined ? 'project' : 'person')
+      // Recorded inside the queued write, so the capture of the turn in progress, queued after it, claims it.
+      state.remembered.push(written)
+      return written
+    })
     return brandString<MemoryItemId>(traceId)
   }
 

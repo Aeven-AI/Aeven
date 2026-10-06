@@ -19,6 +19,7 @@ import { ERROR_CODES, MemosError } from '@memtensor/memos-local-plugin/dist/agen
 import type { HostLlmBridge, HostLlmCompleteInput, HostLlmCompletion } from '@memtensor/memos-local-plugin/dist/core/llm/host-bridge.js'
 import { detectDominantLanguage } from '@memtensor/memos-local-plugin/dist/core/llm/prompts/index.js'
 import type { LlmMessage, LlmUsage } from '@memtensor/memos-local-plugin/dist/core/llm/types.js'
+import type { TurnJudgeContext } from './domain.ts'
 
 const BRIDGE_ID = 'aeven.host.v1'
 const TIMEOUT_CODE = 'MEMORY_HOST_LLM_TIMEOUT'
@@ -90,9 +91,16 @@ interface CapabilityCache {
  * @param routes - route scope set by the provider around each session's MemOS work.
  * @param capabilityTtlMs - how long one route's reasoning capability stays cached.
  * @param language - output language rule appended to every MemOS system prompt.
+ * @param judges - turn-capture scope whose final-reply summarize request also judges the turn; undefined sends every request unchanged.
  * @returns bridge registered with MemOS at bootstrap.
  */
-export function createHostLlmBridge(llm: HostLlm, routes: LlmRouteContext, capabilityTtlMs: number, language: MemoryLanguage): AevenHostLlmBridge {
+export function createHostLlmBridge(
+  llm: HostLlm,
+  routes: LlmRouteContext,
+  capabilityTtlMs: number,
+  language: MemoryLanguage,
+  judges: TurnJudgeContext | undefined,
+): AevenHostLlmBridge {
   const cache: CapabilityCache = { entries: new Map(), generation: 0 }
   return {
     id: BRIDGE_ID,
@@ -100,7 +108,9 @@ export function createHostLlmBridge(llm: HostLlm, routes: LlmRouteContext, capab
       cache.generation++
       cache.entries.clear()
     },
-    async complete(input: HostLlmCompleteInput): Promise<HostLlmCompletion> {
+    async complete(sent: HostLlmCompleteInput): Promise<HostLlmCompletion> {
+      const judged = judges?.extend(sent)
+      const input = judged?.input ?? sent
       const route = routes.current()
       if (!route) {
         throw new MemosError(ERROR_CODES.LLM_UNAVAILABLE, 'no active Aeven LLM route for this memory operation', { aevenCode: 'NO_ACTIVE_ROUTE' })
@@ -124,6 +134,7 @@ export function createHostLlmBridge(llm: HostLlm, routes: LlmRouteContext, capab
         }
         const text = blocks.map(block => block.type === 'text' ? block.text : '').join('')
         if (!text.trim()) throw outputError('Aeven host LLM produced no text content', 'EMPTY_TEXT')
+        judged?.read(text)
         return {
           text,
           model: route.model,

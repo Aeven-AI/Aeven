@@ -18,7 +18,7 @@ import { startHttpServer } from '@memtensor/memos-local-plugin/dist/server/http.
 import type { ServerHandle } from '@memtensor/memos-local-plugin/dist/server/types.js'
 import { createHostLlmBridge, LlmRouteContext, type MemoryLanguage } from './host-llm.ts'
 import { MEMOS_AGENT, MemosMemory } from './runtime.ts'
-import { classifyTurnDomain } from './domain.ts'
+import { classifyTurnDomain, TurnJudgeContext } from './domain.ts'
 
 export const name = 'memory-memos'
 export const inject = ['memory', 'llm']
@@ -33,9 +33,12 @@ export interface Config {
   capabilityTtlMs: number
   /** Language of stored summaries and learned knowledge written through the Host bridge; `auto` detects English or Chinese from each request's text. */
   language: MemoryLanguage
-  /** Classify each captured turn as person, project, or world memory with one short call on the session's route; needs `hostLlm`. */
+  /**
+   * Classify each captured turn as person, project, or world memory and detect corrections on the session's route; needs `hostLlm`.
+   * The judgment rides on MemOS's summarize request for the turn's final reply, with one short classification call as the fallback.
+   */
   classifyDomains: boolean
-  /** Bound on one domain classification call, in milliseconds. */
+  /** Bound on one fallback domain classification call, in milliseconds. */
   classifyTimeoutMs: number
   /** Number of trace candidates MemOS ranks for turn-start recall before Aeven orders them. */
   candidateTraces: number
@@ -111,7 +114,8 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     },
   }
   const routes = new LlmRouteContext()
-  const bridge = config.hostLlm ? createHostLlmBridge(ctx.llm, routes, config.capabilityTtlMs, config.language) : null
+  const judges = config.hostLlm && config.classifyDomains ? new TurnJudgeContext() : undefined
+  const bridge = config.hostLlm ? createHostLlmBridge(ctx.llm, routes, config.capabilityTtlMs, config.language, judges) : null
   const recovery = autoRecoveryEnabled(memosConfig)
   const core = await bootstrapMemoryCore({
     agent: MEMOS_AGENT,
@@ -132,7 +136,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       traces: configured.algorithm.retrieval.tier2TopK,
       worldModels: configured.algorithm.retrieval.tier3TopK,
     },
-    ...bridge && config.classifyDomains ? { classify: input => classifyTurnDomain(bridge, input, config.classifyTimeoutMs) } : {},
+    ...bridge && judges ? { judges, classify: input => classifyTurnDomain(bridge, input, config.classifyTimeoutMs) } : {},
     warn: message => logger.warn(message),
     info: message => logger.debug(message),
   })

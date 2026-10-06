@@ -16,7 +16,7 @@ export const en = {
   connectorsIntro: 'Connect your accounts and MCP servers. Enabled connections are available in your conversations.',
   import: 'Import skill', importHint: 'Choose a SKILL.md, .skill, or ZIP bundle. Only import skills you trust.',
   skillsEmpty: 'No skills were found in your library or workspaces.', connectorsEmpty: 'You haven’t connected any accounts or servers yet.',
-  loading: 'Loading…', openingSignIn: 'Opening sign-in…', working: 'Saving…', refresh: 'Refresh', failed: 'The operation failed. Check the connection and the supplied values, then try again.',
+  loading: 'Loading…', openingSignIn: 'Opening sign-in…', working: 'Saving…', failed: 'The operation failed. Check the connection and the supplied values, then try again.',
   searchSkills: 'Search skills', backToSkills: 'All skills', copy: 'Copy', copied: 'Copied', footnotes: 'References',
   enabled: 'Enabled', disabled: 'Disabled', remove: 'Remove', disconnect: 'Disconnect',
   inspect: 'View details', files: 'Bundle files',
@@ -43,7 +43,7 @@ export const en = {
   name: 'Connection name', endpoint: 'MCP server URL', token: 'Access token',
   tokenHint: 'Stored privately for your account. It is never shown again.',
   accountConnected: 'Your account is connected. Manage access with the switch or disconnect below.', connected: 'Connected', unavailable: 'Reconnect required', cancel: 'Cancel',
-  consent: 'Continue to provider sign-in', consentHint: 'Complete sign-in in your browser, then refresh to see the connection. If the browser did not open, use the link above.',
+  consent: 'Continue to provider sign-in', consentHint: 'Complete sign-in in your browser, then return to Aeven to see the connection. If the browser did not open, use the link above.',
 }
 
 /** Locale keys owned by these pages. */
@@ -63,7 +63,7 @@ export const zh: Record<IntegrationsLocaleKey, string> = {
   connectorsIntro: '连接您的账户和 MCP 服务器。启用的连接可在您的对话中使用。',
   import: '导入技能', importHint: '选择 SKILL.md、.skill 或 ZIP 包。请仅导入您信任的技能。',
   skillsEmpty: '技能库和您的工作区中未找到技能。', connectorsEmpty: '您尚未连接账户或服务器。',
-  loading: '正在加载…', openingSignIn: '正在打开登录…', working: '正在保存…', refresh: '刷新', failed: '操作失败。请检查连接和输入值，然后重试。',
+  loading: '正在加载…', openingSignIn: '正在打开登录…', working: '正在保存…', failed: '操作失败。请检查连接和输入值，然后重试。',
   searchSkills: '搜索技能', backToSkills: '所有技能', copy: '复制', copied: '已复制', footnotes: '参考资料',
   enabled: '已启用', disabled: '已禁用', remove: '移除', disconnect: '断开连接',
   inspect: '查看详情', files: '资源文件',
@@ -90,5 +90,5 @@ export const zh: Record<IntegrationsLocaleKey, string> = {
   name: '连接名称', endpoint: 'MCP 服务器 URL', token: '访问令牌',
   tokenHint: '仅为您的账户私密保存，不会再次显示。',
   accountConnected: '您的账户已连接。可通过开关管理访问，或在下方断开连接。', connected: '已连接', unavailable: '需要重新连接', cancel: '取消',
-  consent: '继续到提供方登录', consentHint: '在浏览器中完成登录后，刷新以查看连接。如浏览器未打开，请使用上方链接。',
+  consent: '继续到提供方登录', consentHint: '在浏览器中完成登录后，返回 Aeven 即可查看连接。如浏览器未打开，请使用上方链接。',
 }

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Settings contains separate Skills and Connectors pages for the signed-in user. Skills lists the account’s personal imports, installed skills, and skills from all owned folder workspaces, with source labels and instruction inspection. Skills outside connectors have a persistent account invocation switch. Connector skills appear only in their connector details, without individual switches; their instructions open in a scrollable popup with a close button and plain tables without copy or fullscreen controls. Compact searchable rows open a dedicated detail view with rendered Markdown instructions; Refresh uses an accessible icon button. Personal imports also support removal. Token connection forms focus their name field when opened so they become visible in the scrolling Settings pane. Configured provider sign-in is the primary action and opens consent in the system browser on Electron or a new tab on Web. The page retains a continuation link and refreshes account state when the user returns to the application or the host invalidates the skill catalog after a connection change. Earlier list responses cannot overwrite newer refreshes. Connector rows use branded icons and show connection and activation status. Each row opens a detail view with connection controls and its installed skills. Details omit the catalog heading and refresh action; a circular Back control sits in the Settings header. Disabling a connection keeps its credentials. Connectors shows GitHub, Gmail, Google Drive, Google Calendar, Microsoft 365, and custom MCP connections with account-owned management actions.
+Settings contains separate Skills and Connectors pages for the signed-in user. Skills lists the account’s personal imports, installed skills, and skills from all owned folder workspaces, with source labels and instruction inspection. Skills outside connectors have a persistent account invocation switch. Connector skills appear only in their connector details, without individual switches; their instructions open in a scrollable popup with a close button and plain tables without copy or fullscreen controls. Compact searchable rows open a dedicated detail view with rendered Markdown instructions. Personal imports also support removal. Token connection forms focus their name field when opened so they become visible in the scrolling Settings pane. Configured provider sign-in is the primary action and opens consent in the system browser on Electron or a new tab on Web. The page retains a continuation link and refreshes account state when the user returns to the application or the host invalidates the skill catalog after a connection change. Earlier list responses cannot overwrite newer refreshes. Connector rows use branded icons and show connection and activation status. Each row opens a detail view with connection controls and its installed skills. Details omit the catalog heading; a circular Back control sits in the Settings header. Disabling a connection keeps its credentials. Connectors shows GitHub, Gmail, Google Drive, Google Calendar, Microsoft 365, and custom MCP connections with account-owned management actions.
 
 ## Table of Contents
 
@@ -28,7 +28,7 @@ The Web bundle includes both pages. Open Settings, then Skills or Connectors. Im
 <details>
 <summary>Implementation internals</summary>
 
-The plugin contributes two settings.section entries with locale-owned English and Chinese copy. Browser callbacks use the accountIntegrations Remote; no account id or stored secret is accepted from the page. The skill library is account-wide and reads no conversation state. Preset and filesystem entries display an availability label; personal imports have an enablement switch. Page state reloads on open, after successful changes, and through Refresh. No invariant companion is published because this page renders the authoritative Remote snapshot without a second registry.
+The plugin contributes two settings.section entries with locale-owned English and Chinese copy. Browser callbacks use the accountIntegrations Remote; no account id or stored secret is accepted from the page. The skill library is account-wide and reads no conversation state. Preset and filesystem entries display an availability label; personal imports have an enablement switch. Page state reloads on open, after successful changes, and when the window regains focus. No invariant companion is published because this page renders the authoritative Remote snapshot without a second registry.
 
 </details>
 
@@ -38,7 +38,7 @@ None, as these pages only manage integrations through the host Remote.
 
 ## Known Limitations and Deferred Work
 
-- Complete provider consent in the opened link, then use Refresh to display the saved connection.
+- Complete provider consent in the opened link, then return to Aeven to display the saved connection.
 - Saved authorization status does not continuously monitor server reachability.
 
 ## Dev Note

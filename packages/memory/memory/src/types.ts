@@ -31,7 +31,7 @@ export interface MemoryScope {
  * What a memory is about, which decides where it is recalled. `person` and `project` memories come
  * from conversations; `world` is general knowledge about applications and environments; `experience`
  * is distilled know-how from earlier tasks.
- * - `person`: the user themselves, recalled in every session of the owner.
+ * - `person`: the user and the people the user tells about, recalled in every session of the owner.
  * - `project`: one workspace, recalled only in sessions of that workspace.
  * - `world` and `experience`: recalled in every session of the owner.
  */

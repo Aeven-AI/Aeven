@@ -9,7 +9,7 @@ overrides:
   '@deepseek-ai/schemastery': link:vendor/schemastery
 
 patchedDependencies:
-  '@memtensor/memos-local-plugin@2.0.20': 607d26b7a3f3362e4b1535119ab014223a64a1107aa08c9efe7be18618eddb1a
+  '@memtensor/memos-local-plugin@2.0.20': c8c4e39d39f4069728a464bc60cd9f8fac6d7bcf97c433c03684283d8363cd6a
   node-pty@1.2.0-beta.15: e6fba930d7e1698e1661b1062f999232a38e5bc2bb9b772d862a7598dd80b943
 
 importers:
@@ -8697,7 +8697,7 @@ importers:
         version: link:../../../vendor/schemastery
       '@memtensor/memos-local-plugin':
         specifier: 2.0.20
-        version: 2.0.20(patch_hash=607d26b7a3f3362e4b1535119ab014223a64a1107aa08c9efe7be18618eddb1a)(@deepseek-ai/cordis@vendor+cordis)(@deepseek-ai/schemastery@vendor+schemastery)
+        version: 2.0.20(patch_hash=c8c4e39d39f4069728a464bc60cd9f8fac6d7bcf97c433c03684283d8363cd6a)(@deepseek-ai/cordis@vendor+cordis)(@deepseek-ai/schemastery@vendor+schemastery)
     devDependencies:
       '@aeven/llm':
         specifier: workspace:^
@@ -21770,7 +21770,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@memtensor/memos-local-plugin@2.0.20(patch_hash=607d26b7a3f3362e4b1535119ab014223a64a1107aa08c9efe7be18618eddb1a)(@deepseek-ai/cordis@vendor+cordis)(@deepseek-ai/schemastery@vendor+schemastery)':
+  '@memtensor/memos-local-plugin@2.0.20(patch_hash=c8c4e39d39f4069728a464bc60cd9f8fac6d7bcf97c433c03684283d8363cd6a)(@deepseek-ai/cordis@vendor+cordis)(@deepseek-ai/schemastery@vendor+schemastery)':
     dependencies:
       '@huggingface/transformers': 4.2.0
       '@preact/signals': 2.11.2(preact@10.29.7)
