@@ -26,7 +26,7 @@
 import clsx from 'clsx'
 import { useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react'
 import {
-  AevenMark, IconLucideImages, IconLucideMessageCirclePlus, Tooltip,
+  AevenMark, IconLucideMessageCirclePlus, Tooltip,
 } from '@aeven/client-ui-primitives'
 import type { SidebarRootComponentProps } from './contract/slots.ts'
 import css from './SidebarRoot.module.css'
@@ -153,13 +153,13 @@ export function SidebarRoot({
               </a>
             </Tooltip>
 
-            {/* Imagine sits under the New Session link on the same row
-                geometry. It has no destination yet, so it is a static row
-                rather than a control that would do nothing when activated. */}
-            <div className={clsx(css.newSession, css.imagine)}>
-              <IconLucideImages className={css.newSessionIcon} />
-              <span className={css.newSessionLabel}>{t('imagine')}</span>
-            </div>
+            {/* Rows contributed under the New Session link, such as Imagine,
+                drawn with the same row geometry. */}
+            {renderSlot('sidebar.nav', {
+              rowClassName: css.newSession ?? '',
+              iconClassName: css.newSessionIcon ?? '',
+              labelClassName: css.newSessionLabel ?? '',
+            })}
 
             {/* The gap above the browsing region is its own box: neither the
                 Imagine row nor the region's first row carries the other's

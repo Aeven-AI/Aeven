@@ -25,6 +25,7 @@ import { resolveRetryPolicy, RetryPolicySchema } from '@aeven/llm'
 import type { ResolvedRetryPolicy, RetryPolicyConfig } from '@aeven/llm'
 import {
   CACHE_CONTROL_FORMATS,
+  catalogProvider,
   CHAT_TEMPLATE_VARS,
   MAX_TOKENS_FIELDS,
   MODALITIES,
@@ -541,7 +542,8 @@ export function resolveProfiles(
     // all the Models page writes — is a complete route.
     const api = source.api ?? known?.api
     const baseURL = source.baseURL ?? known?.baseURL
-    const displayName = source.displayName ?? known?.displayName ?? provider
+    // pi-ai names every catalog provider ("Hugging Face", "Moonshot AI CN"); the route key is the last resort.
+    const displayName = source.displayName ?? known?.displayName ?? catalogProvider(provider)?.name ?? provider
     const added = liveModels?.get(provider)
     const catalog = resolveRouteModels({
       provider,

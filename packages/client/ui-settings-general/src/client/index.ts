@@ -81,7 +81,7 @@ export function apply(ctx: ClientContext): void {
   // other tab the reader picks.
   const route = new BrowserSettingsAddressRoute(() => window)
   ctx.effect(
-    () => ctx.on('settings/open', (section) => { route.show(section) }),
+    () => ctx.on('settings/open', (section, detail) => { route.show(section, detail) }),
     'ui-settings-general: settings address',
   )
   // The Desktop shell's menu has no other route into this surface, so it asks
@@ -113,7 +113,7 @@ export function apply(ctx: ClientContext): void {
   let onboardingSteps: readonly SettingsOnboardingStep[] = []
   const shellInjected = (): SettingsRootInjected => ({
     reconnect: () => { connection.reconnect() },
-    show: (section) => { route.show(section) },
+    show: (section, detail) => { route.show(section, detail) },
     close: () => { route.close() },
     hooks: {
       connectionState: connection.state,

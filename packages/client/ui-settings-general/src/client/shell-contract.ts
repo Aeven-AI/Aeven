@@ -40,10 +40,11 @@ export type SettingsRootInjected = {
   /** Request a fresh logical generation and physical WebSocket immediately. */
   reconnect: () => void
   /**
-   * Address the panel at a section, opening it when it was closed.
+   * Address the panel at a section, or a page inside it, opening it when it was closed.
    * @param section - section id; absent addresses the panel's first section.
+   * @param detail - page inside the section; absent addresses the section itself.
    */
-  show: (section?: string) => void
+  show: (section?: string, detail?: string) => void
   /** Drop the panel's address, closing it. */
   close: () => void
   hooks: {

@@ -62,10 +62,9 @@ const STATIC_MISS_CODES: ReadonlySet<string | undefined> = new Set([
 
 /**
  * Client-owned route roots that resolve to the SPA index: the root itself, as
- * in `/c`, and every path beneath it, as in `/c/<session>` or Imagine's
- * `/i/<id>`.
+ * in `/c` or `/imagine`, and every path beneath it, as in `/c/<session>`.
  */
-const SPA_ROUTE_ROOTS = ['/c', '/i', '/sign-in', '/sign-up', '/oauth-result'] as const
+const SPA_ROUTE_ROOTS = ['/c', '/imagine', '/sign-in', '/sign-up', '/oauth-result'] as const
 
 /**
  * Whether a pathname is one of the client's own routes.

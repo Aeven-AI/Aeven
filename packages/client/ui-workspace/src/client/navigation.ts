@@ -12,6 +12,7 @@ import type {
 } from '@aeven/api-workspace-controller/client'
 import type { SessionId } from '@aeven/session/types'
 import { randomUUID } from '@aeven/util-crypto'
+import type { ObservableSnapshot } from '@aeven/client-store'
 import { sessionPathOf, type SessionUrlNavigation } from './session-url.ts'
 
 type InitialNavigation = 'waiting' | 'connecting' | 'done'
@@ -51,6 +52,22 @@ export interface UiWorkspace {
    * @returns the absolute `/c/<uuid>` path, and the Session id it addresses.
    */
   newSessionHref(): { href: string; sessionId: SessionId }
+  /**
+   * Claim a start address, such as `/imagine`: a chat address that names no
+   * Session. A blank Session is shown under it, and the address moves to that
+   * Session's own `/c/<uuid>` once the Session is no longer blank.
+   * @param path - absolute single-segment path.
+   * @returns disposer releasing the claim.
+   */
+  registerStartAddress(path: string): () => void
+  /**
+   * Move to a start address as a new history entry, and show a blank Session
+   * under it: the current one when it is still blank, else a New Session.
+   * @param path - a registered start address.
+   */
+  openStartAddress(path: string): void
+  /** The start address the address bar shows, or undefined on any other address. */
+  readonly startAddress: ObservableSnapshot<string | undefined>
   /**
    * Archive a Session and clear it when it is the current selection.
    * @param sessionId - Session to archive.
@@ -134,6 +151,54 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   ) {
     super(ctx, 'uiWorkspace')
     ctx.effect(() => this.watchNavigation(), 'ui-workspace: Workspace navigation policy')
+    ctx.effect(() => this.sessionUrl.subscribeAddress(() => { this.publishStart() }), 'ui-workspace: start address')
+  }
+
+  private currentStart: string | undefined
+  /** The blank Session the current start address opened; the only one shown under it. */
+  private startSessionId: SessionId | undefined
+  /** Whether the start address's blank Session is still being created. */
+  private startPending = false
+  private readonly startListeners = new Set<() => void>()
+
+  readonly startAddress: ObservableSnapshot<string | undefined> = {
+    getSnapshot: () => this.currentStart,
+    subscribe: (fn) => {
+      this.startListeners.add(fn)
+      return () => { this.startListeners.delete(fn) }
+    },
+  }
+
+  registerStartAddress(path: string): () => void {
+    const release = this.sessionUrl.registerStart(path)
+    this.publishStart()
+    return () => {
+      release()
+      this.publishStart()
+    }
+  }
+
+  openStartAddress(path: string): void {
+    this.sessionUrl.pushStart(path)
+    this.showStart()
+  }
+
+  /** Re-read the start address and notify its subscribers when it moved. */
+  private publishStart(): void {
+    const next = this.sessionUrl.readStart()
+    if (next === this.currentStart) return
+    this.currentStart = next
+    for (const fn of this.startListeners) fn()
+  }
+
+  /**
+   * Whether a Session is still blank. A Session the list does not carry yet was
+   * just created by a New Session flow, so it counts as blank.
+   * @param sessionId - the Session to check.
+   * @returns true while nobody has prompted it.
+   */
+  private isBlank(sessionId: SessionId): boolean {
+    return this.sessions.list.getSnapshot().byId[sessionId]?.blank !== false
   }
 
   /**
@@ -196,7 +261,29 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   }
 
   startSession(workspaceId?: WorkspaceId, sessionId?: SessionId): void {
+    // A New Session started on a start address leaves it: the reused blank
+    // Session may be the very one the start address shows, so the claim is
+    // dropped and the address moved to the Session's own explicitly.
+    const leavingStart = this.sessionUrl.readStart() !== undefined
+    if (leavingStart) this.startSessionId = undefined
+    this.openNewSession(workspaceId, sessionId, false, leavingStart)
+  }
+
+  /**
+   * Create or reuse a blank Session and select it.
+   * @param workspaceId - explicit target Workspace.
+   * @param sessionId - the id a New Session link named.
+   * @param forStart - whether the Session is the one the current start address shows.
+   * @param leaveStart - move the address from a start address to the Session's own once it is open.
+   */
+  private openNewSession(
+    workspaceId: WorkspaceId | undefined,
+    sessionId: SessionId | undefined,
+    forStart: boolean,
+    leaveStart = false,
+  ): void {
     const target = this.targetWorkspace(workspaceId)
+    this.startPending = forStart
     // Without a Workspace to put it in, the chat is created without one:
     // clearing the selection instead would leave a page with no composer.
     const opening = target === undefined
@@ -210,9 +297,46 @@ class UiWorkspaceService extends Service implements UiWorkspace {
         return this.connectWorkspace(fallback, sessionId)
       })
     void opening.then(
-      (opened) => { this.sessions.open(opened) },
-      (reason: unknown) => { console.warn('new session failed:', reason) },
+      (opened) => {
+        if (forStart) {
+          this.startSessionId = opened
+          this.startPending = false
+        }
+        this.sessions.open(opened)
+        if (leaveStart) this.sessionUrl.push(opened)
+      },
+      (reason: unknown) => {
+        if (forStart) this.startPending = false
+        console.warn('new session failed:', reason)
+      },
     )
+  }
+
+  /**
+   * Show a blank Session under the current start address: the current Session
+   * when it is still blank, else a New Session.
+   */
+  private showStart(): void {
+    const current = this.sessions.list.getSnapshot().current
+    if (current !== undefined && this.isBlank(current)) {
+      this.startSessionId = current
+      return
+    }
+    this.openNewSession(undefined, undefined, true)
+  }
+
+  /**
+   * Whether the address should stay on a start address for the current
+   * selection: only the blank Session the start address itself opened keeps
+   * it. Any other selection — a New Session link, a chat row — moves the
+   * address to that Session's own.
+   * @param current - the selected Session.
+   * @returns true while the start address keeps its address.
+   */
+  private keepsStart(current: SessionId | undefined): boolean {
+    if (this.sessionUrl.readStart() === undefined) return false
+    if (this.startPending) return true
+    return current !== undefined && current === this.startSessionId && this.isBlank(current)
   }
 
   /** The built-in Workspace every reader has, when the Host seeds one. */
@@ -378,11 +502,19 @@ class UiWorkspaceService extends Service implements UiWorkspace {
         if (sessions.current !== undefined) {
           urlInitialized = true
           this.markInitialNav('done')
+          // A start address keeps its own address over a blank Session, and
+          // opens a New Session when the restored one has been prompted.
+          if (this.sessionUrl.readStart() !== undefined) {
+            this.showStart()
+            return
+          }
           this.sessionUrl.replace(sessions.current)
           return
         }
       } else if (this.sessionUrl.read() !== sessions.current) {
-        this.sessionUrl.push(sessions.current)
+        // Under a start address a blank Session keeps the address; its first
+        // prompt moves the address to the Session's own.
+        if (!this.keepsStart(sessions.current)) this.sessionUrl.push(sessions.current)
       }
 
       if (this.initialNav !== 'waiting') return
@@ -420,6 +552,10 @@ class UiWorkspaceService extends Service implements UiWorkspace {
       if (sessions.phase !== 'ready') return
       const requested = this.sessionUrl.read()
       if (requested === sessions.current) return
+      if (requested === undefined && this.sessionUrl.readStart() !== undefined) {
+        this.showStart()
+        return
+      }
       // An address naming no chat opens one, as the New Session action does;
       // an empty selection has no composer to continue from.
       if (requested === undefined) {

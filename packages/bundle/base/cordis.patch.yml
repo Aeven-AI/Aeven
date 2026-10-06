@@ -134,10 +134,12 @@
     # search call needs them. A user setting may switch `openAt` to `never`
     # without removing ctx.sessionQuery, so exact reads, titles, and lineage
     # traces (session export, subagent-fork Workspace inheritance) remain.
+    # The index lives in the Aeven home so a restart re-reads only the logs
+    # whose revision changed; an in-memory index re-reads every log.
     - id: session-query-sqlite
       name: '@aeven/session-query-sqlite'
       config:
-        path: ':memory:'
+        path: !!js avnHomePath('session-query', 'index.db')
         openAt: first-search
 
     # Shared projection registry: subagent catalog identity (mode/label) folds

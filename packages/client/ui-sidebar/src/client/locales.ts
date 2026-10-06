@@ -4,7 +4,6 @@
 export const zh = {
   'session.new': '对话',
   'session.new.label': '对话',
-  'imagine': '想象',
 } satisfies Record<string, string>
 
 /** The sidebar namespace key union. */
@@ -14,5 +13,4 @@ export type SidebarKey = keyof typeof zh
 export const en = {
   'session.new': 'Chat',
   'session.new.label': 'Chat',
-  'imagine': 'Imagine',
 } satisfies Record<SidebarKey, string>

@@ -53,6 +53,14 @@ export interface Config {
    * orientation text would be false.
    */
   surfaceContext: boolean
+  /**
+   * Add the developer orientation to the surface context: the harness source
+   * checkout (`harness:source`), the client rebuild and reload rules, and the
+   * replacement-server rule. Only a deployment whose user develops Aeven from
+   * this checkout turns it on; for anyone else the text is false and off-topic.
+   * Ignored while {@link Config.surfaceContext} is off.
+   */
+  developerContext: boolean
   /** Explicit `--trusted-host` authorities from this invocation. */
   trustedHosts: string[]
 }
@@ -61,6 +69,7 @@ export const Config: z<Config> = z.object({
   openBrowser: z.boolean().default(true),
   printUrl: z.boolean().default(true),
   surfaceContext: z.boolean().default(true),
+  developerContext: z.boolean().default(false),
   trustedHosts: z.array(String).default([]),
 })
 
@@ -140,11 +149,8 @@ export function resolveLanTrust(bindHost: string, extra: readonly string[]): Web
   return { lanAddresses, trustedHosts: [...lanAddresses, ...extra] }
 }
 
-/** Model-visible orientation and acceptance boundary for sessions created through `avn web`. */
-function webSurfacePrompt(webUrl: string): string {
-  const updateContract = 'The client-plugin HMR receiver is active, but client-plugin changes reload without a refresh only while '
-    + '`pnpm run dev:web` is also running from this same checkout to rebuild their bundles; verify that watcher before promising automatic updates. '
-    + 'Every other change — the apps/web shell and plain packages — requires rebuilding the affected Web artifacts and verifying this existing URL after a page refresh. '
+/** Model-visible orientation for sessions created through `avn web`; `developer` appends the rules for changing the GUI itself. */
+function webSurfacePrompt(webUrl: string, developer: boolean): string {
   // What the GUI renders is a fact about this surface, not a preference, and it
   // is stated here because a model that cannot see the renderer otherwise
   // assumes a plain-text transcript and refuses requests this surface serves.
@@ -162,12 +168,17 @@ function webSurfacePrompt(webUrl: string): string {
   return `You are interacting with the user through the Aeven Web GUI at ${webUrl}. `
     + 'When the user refers to "this page", "this GUI", or "this app" without naming another target, they mean this GUI. '
     + 'The browser provides no implicit DOM, route, or screenshot context. '
-    + renderContract
-    + updateContract
-    + 'Starting another server does not update this GUI. '
-    + 'The apps/web Vite entry builds the shell but is not a standalone application because only avn web injects window.__AVN_BOOT__. '
-    + 'Do not start a replacement server unless the user asks; if one is needed, use a managed background job and verify its exact URL.'
+    + renderContract.trimEnd()
+    + (developer ? ' ' + developerContract : '')
 }
+
+/** How changes to this GUI reach the running instance; model-visible only under {@link Config.developerContext}. */
+const developerContract = 'The client-plugin HMR receiver is active, but client-plugin changes reload without a refresh only while '
+  + '`pnpm run dev:web` is also running from this same checkout to rebuild their bundles; verify that watcher before promising automatic updates. '
+  + 'Every other change — the apps/web shell and plain packages — requires rebuilding the affected Web artifacts and verifying this existing URL after a page refresh. '
+  + 'Starting another server does not update this GUI. '
+  + 'The apps/web Vite entry builds the shell but is not a standalone application because only avn web injects window.__AVN_BOOT__. '
+  + 'Do not start a replacement server unless the user asks; if one is needed, use a managed background job and verify its exact URL.'
 
 /** Resolve the canonical loopback URL from the active Web server. */
 function localWebUrl(ctx: Context): string {
@@ -256,11 +267,11 @@ export function apply(ctx: Context, config: Config): void {
   ctx.plugin(FrontendStatic, { distIndex: internals.resolveDistIndex() })
   if (config.surfaceContext) {
     ctx.inject(['systemPrompt'], (promptCtx) => {
-      addHarnessSourceSection(promptCtx, SOURCE_ROOT)
+      if (config.developerContext) addHarnessSourceSection(promptCtx, SOURCE_ROOT)
       promptCtx.systemPrompt.section({
         name: 'app:web-surface',
         order: promptCtx.systemPrompt.getSectionOrder('WEB_SURFACE'),
-        text: () => webSurfacePrompt(localWebUrl(promptCtx)),
+        text: () => webSurfacePrompt(localWebUrl(promptCtx), config.developerContext),
       })
     })
     ctx.inject(['shellEnv'], (runtimeCtx) => {

@@ -19,8 +19,7 @@ export interface PluginInventorySettingsTabInjected {
   /** Read a current Host inventory snapshot. */
   list: () => Promise<PluginInventorySnapshot>
   /**
-   * Display name for one preset: shipped presets resolve through the
-   * agent-preset dictionaries, user-authored ones keep their own metadata.
+   * Display name for one preset: the name its metadata publishes, else its id.
    */
   presetName: (preset: AgentPresetGroup) => string
 }

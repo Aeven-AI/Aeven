@@ -61,6 +61,7 @@
     "@aeven/credentials": "workspace:^",
     "@aeven/host-webserver": "workspace:^",
     "@aeven/identity-user": "workspace:^",
+    "@aeven/mail": "workspace:^",
     "@aeven/mcp-client": "workspace:^",
     "@aeven/skill": "workspace:^",
     "@aeven/storage-domain": "workspace:^",
@@ -77,6 +78,7 @@
     "@aeven/home-paths": "workspace:^",
     "@aeven/host-webserver": "workspace:^",
     "@aeven/identity-user": "workspace:^",
+    "@aeven/mail": "workspace:^",
     "@aeven/mcp-client": "workspace:^",
     "@aeven/skill": "workspace:^",
     "@aeven/storage-domain": "workspace:^",
@@ -89,6 +91,9 @@
   },
   "peerDependenciesMeta": {
     "@aeven/agent-presets": {
+      "optional": true
+    },
+    "@aeven/mail": {
       "optional": true
     }
   }

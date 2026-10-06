@@ -9,7 +9,7 @@
  */
 
 import { mediaUrl, webUrl } from './config.ts'
-import { cloud, signOut } from './api.ts'
+import { cloud, setDisplayName, signOut } from './api.ts'
 import { session } from './session.ts'
 
 /** What a plugin may know about the signed-in reader. */
@@ -26,6 +26,14 @@ export interface AevenReader {
   readonly accountUrl?: string
   /** End the Aeven session; the caller decides where the reader goes next. */
   readonly signOut: () => Promise<void>
+  /**
+   * Store the name Aeven calls the reader by — the same account name the
+   * sign-up naming step asks for — and restate the reader with it, so the
+   * account menu and the next message carry the new name.
+   * @param displayName - the name to store, trimmed.
+   * @returns the name the API stored.
+   */
+  readonly setDisplayName: (displayName: string) => Promise<string>
   /**
    * Call one of Aeven's `/api/cloud` account routes as this reader.
    * @param path - the route below `/api/cloud`, starting with `/`.
@@ -63,6 +71,11 @@ export function publishReader(): void {
     ...path === undefined || media === undefined ? {} : { imageUrl: `${media}${path}` },
     ...web === undefined ? {} : { accountUrl: `${web}/account/` },
     signOut,
+    setDisplayName: async (displayName: string) => {
+      const stored = await setDisplayName(displayName)
+      publishReader()
+      return stored
+    },
     cloud,
   }
 }

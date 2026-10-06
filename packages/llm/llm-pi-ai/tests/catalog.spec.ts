@@ -157,12 +157,12 @@ describe('hand-declared providers', () => {
     const names = directory.map(entry => entry.displayName)
     expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })))
     // A known route sits among the catalog's own rather than after them, and
-    // carries a route-key name like theirs.
+    // carries a provider name cased like theirs.
     expect(directory.find(entry => entry.provider === 'deepinfra')).toMatchObject({
-      displayName: 'deepinfra',
+      displayName: 'DeepInfra',
       declared: false,
     })
-    expect(names.indexOf('deepinfra')).toBeLessThan(names.indexOf('deepseek'))
+    expect(names.indexOf('DeepInfra')).toBeLessThan(names.indexOf('DeepSeek'))
   })
 
   it('sizes a model the catalog cannot describe from the route\u2019s own fallbacks', () => {
@@ -1265,7 +1265,7 @@ describe('configurable-provider directory', () => {
 
     expect(ctx.llm.listConfigurableProviders()).toContainEqual({
       provider: 'openai-codex',
-      displayName: 'openai-codex',
+      displayName: 'OpenAI Codex',
       settingsNs: 'llm-pi-ai',
       settingsPath: ['providers', 'openai-codex'],
       declared: false,

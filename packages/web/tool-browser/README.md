@@ -64,12 +64,13 @@ The user has the in-app browser open beside this chat, showing: <title> — <url
 
 This browser is the collaborative browser shared with the user. Prefer the preview_* tools for browser navigation, inspection, and interaction on it.
 For browser work, first call preview_status. Then use preview_navigate, preview_snapshot, and the focused interaction tools. Prefer snapshot-provided selectors over coordinates.
-A failed preview call is retried with corrected arguments when the error is actionable. When the page itself refuses it — it needs a signed-in session, or it answers automated reads with a block page — stop retrying: call preview_status and drive the browser surface it reports. Ask the user to sign in; never type credentials.
+A page served from this machine (localhost or 127.0.0.1) is an application under development: verify it first in the browser the user can see — this pane, or the Chromium preview_status reports. Use the headless browser tools for it only when neither is available, and say that the check ran in a headless copy.
+A failed preview call is retried with corrected arguments when the error is actionable. When a remote page itself refuses it — it needs a signed-in session, or it answers automated reads with a block page — stop retrying and escalate in order: the headless browser tools open no window, and a page that refuses those too is read in the browser the user can see, which does open one. Ask the user to sign in; never type credentials.
 ```
 
 #### Token effect
 
-About 130 tokens plus the title and address, once per turn while a page is open; zero when no page is open or the lookup times out.
+About 200 tokens plus the title and address, once per turn while a page is open; zero when no page is open or the lookup times out.
 
 #### KV Cache effect
 
@@ -79,7 +80,7 @@ Append-only: the message is logged as a `user/message` at the start of the turn,
 
 #### What the model sees
 
-`preview_status` answers with one JSON object and never fails for a missing browser. `sessionTab` is the page the browser beside the session shows, or null. `hostBrowser` is the Chromium this Host runs — its debugging endpoint, whether a browser answers there, whether an executable was found, and the prefix of the tool names that drive it — or null when the composition mounts none. `nextStep` names what to drive: the open page first, then the Host's Chromium, and otherwise what to ask the user for. A page that refuses `web_fetch` is the case this report exists for, because the Host's Chromium is reachable while the browser beside the session is not.
+`preview_status` answers with one JSON object and never fails for a missing browser. `sessionTab` is the page the browser beside the session shows, or null. `hostBrowser` is the Chromium this Host runs — its debugging endpoint, whether a browser answers there, whether an executable was found, and the prefix of the tool names that drive it — or null when the composition mounts none. `nextStep` names what to drive: the open page first, then the Host's Chromium, and otherwise what to ask the user for; it sends a page served from this machine to the Host's Chromium, because that page is an application under development the user watches there. A page that refuses `web_fetch` is the case this report exists for, because the Host's Chromium is reachable while the browser beside the session is not.
 
 #### Token effect
 

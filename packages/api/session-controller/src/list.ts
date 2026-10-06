@@ -325,7 +325,8 @@ export class ApiSessionList {
       const seenCursors = new Set<SessionSearchCursor>()
       let cursor: SessionSearchCursor | undefined
       let providerCalls = 0
-      let pageLimit = SESSION_SEARCH_RESULT_LIMIT
+      // One extra hit answers `hasMore` without a second provider search.
+      let pageLimit = SESSION_SEARCH_RESULT_LIMIT + 1
       while (authorized.length <= SESSION_SEARCH_RESULT_LIMIT) {
         signal.throwIfAborted()
         if (providerCalls >= SEARCH_PROVIDER_CALL_LIMIT) {

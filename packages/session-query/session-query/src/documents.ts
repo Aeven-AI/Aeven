@@ -28,17 +28,23 @@ export function buildSessionEventRecords(
 
 /**
  * Build first-party semantic documents for one complete raw event log.
+ *
+ * Surfaces are always classified over the complete log; `fromSeq` only limits
+ * which events contribute documents, so an append-only consumer can extract
+ * text for the new tail alone.
  * @param sessionId - session that owns the log.
  * @param events - complete contiguous raw event log.
+ * @param fromSeq - first event seq that contributes a document; defaults to the log start.
  * @returns searchable documents in ascending seq order; structural events are omitted.
  */
 export function buildSessionEventSearchDocuments(
   sessionId: SessionId,
   events: readonly SessionEvent[],
+  fromSeq = 0,
 ): SessionEventSearchDocument[] {
   const surfaceBySeq = classifySurface(events)
   const documents: SessionEventSearchDocument[] = []
-  for (const event of events) {
+  for (const event of fromSeq === 0 ? events : events.slice(fromSeq)) {
     const text = extractSessionEventText(event)
     if (text.length === 0) continue
     documents.push({

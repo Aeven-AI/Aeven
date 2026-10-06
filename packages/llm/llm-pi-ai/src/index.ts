@@ -141,7 +141,7 @@ function directoryEntries(
       declared: !catalog.has(provider) && knownRoute(provider) === undefined,
     })
   }
-  for (const provider of catalog) declare(provider, provider)
+  for (const provider of catalog) declare(provider, catalogProvider(provider)?.name ?? provider)
   // Known routes join the directory beside the catalog's own: pi-ai ships
   // nothing about them, but this package supplies the protocol, endpoint, and
   // model document, so adding a credential is the whole step here too.

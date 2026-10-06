@@ -20,13 +20,16 @@ import jobRemote from '@aeven/api-job-controller/remote'
 import workspaceRemote from '@aeven/api-workspace-controller/remote'
 import speechRemote from '@aeven/api-speech-to-text/remote'
 import memoryManagerRemote from '@aeven/api-memory-manager/remote'
+import personalizationRemote from '@aeven/personalization/remote'
 import accountIntegrationsRemote from '@aeven/host-account-integrations/remote'
 import type { ClientRemote } from '@aeven/api-gateway/client'
 
 export type { ClientRemote } from '@aeven/api-gateway/client'
 export type {
   AccountIntegrationsView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId,
-  ConnectorProvider, PersonalSkillView, PersonalConnectorView, SkillUploadFile,
+  ConnectorProvider, EmailConnectionFailure, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, EmailConnectorSettings,
+  EmailProbeStep, EmailReceiveSettings, EmailSecurity, EmailServerSettings,
+  PersonalSkillView, PersonalConnectorView, SkillUploadFile,
 } from '@aeven/host-account-integrations/types'
 export type { PluginInventorySnapshot } from '@aeven/host-plugin-inventory/types'
 export type {} from '@aeven/agent-presets/remote'
@@ -54,6 +57,8 @@ export type {} from '@aeven/api-memory-manager/remote'
 export type {} from '@aeven/host-account-integrations/remote'
 export type {} from '@aeven/skill'
 export type * from '@aeven/api-memory-manager/types'
+export type {} from '@aeven/personalization/remote'
+export type * from '@aeven/personalization/types'
 export type { SessionJob as JobView } from '@aeven/api-session-controller/types'
 // The forwarded-event allowlist's selection seat: without it in the consumer's
 // compilation face `TypertRemoteEvent` is `never` and every `$on` call fails.
@@ -172,7 +177,7 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       agentPresetsRemote, commandsRemote, settingsControllerRemote, goalsRemote, llmRemote, dynamicRemote,
       pluginInventoryRemote, messageFeedbackRemote, sessionReferencesRemote,
       subagentsRemote, sessionRemote, jobRemote, workspaceRemote, browserChromiumRemote, workspaceFilesRemote,
-      terminalRemote, deviceRemote, speechRemote, memoryManagerRemote, accountIntegrationsRemote,
+      terminalRemote, deviceRemote, speechRemote, memoryManagerRemote, personalizationRemote, accountIntegrationsRemote,
     ]) {
       disposers.push(await ctx.remote.$mount(contribution))
     }

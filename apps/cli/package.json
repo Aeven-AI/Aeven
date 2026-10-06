@@ -34,7 +34,6 @@
     "@aeven/app-boot": "workspace:^",
     "@aeven/base": "workspace:^",
     "@aeven/browser-chromium": "workspace:^",
-    "@aeven/client-ui-agent-preset": "workspace:^",
     "@aeven/client-ui-cordis": "workspace:^",
     "@aeven/cmdline": "workspace:^",
     "@aeven/command-compact": "workspace:^",

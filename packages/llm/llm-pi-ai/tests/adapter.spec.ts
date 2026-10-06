@@ -480,8 +480,8 @@ describe('provider profile lifecycle', () => {
       },
     })
     expect(ctx.llm.listProviders()).toEqual([
-      { id: 'openai', name: 'openai' },
-      { id: 'anthropic', name: 'anthropic' },
+      { id: 'openai', name: 'OpenAI' },
+      { id: 'anthropic', name: 'Anthropic' },
     ])
     expect(ctx.llm.providerRetryPolicy('openai')).toEqual({
       mode: 'always',

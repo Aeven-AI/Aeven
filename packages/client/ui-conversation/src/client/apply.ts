@@ -230,6 +230,7 @@ export function apply(ctx: Context): void {
       'conversation.input.dock': { kind: 'list', scope: 'session' },
       'conversation.hero.workspace': { kind: 'single', scope: 'root' },
       'conversation.hero.agentPreset': { kind: 'single', scope: 'root' },
+      'conversation.start': { kind: 'list', scope: 'session' },
       // Resident navigation-band utilities. Declared here, by the resident
       // root, because the band outlives any one Session: gating these on a
       // Session is what left the signed-in reader's avatar missing on a
@@ -240,6 +241,7 @@ export function apply(ctx: Context): void {
       hooks: {
         composerBlock: sessionId === undefined ? ABSENT_BLOCK : composerBlocks.storeFor(sessionId),
         selectedView: sessionId === undefined ? ABSENT_SELECTED_VIEW : uiConversation.binding(sessionId).selectedView,
+        startPage: uiConversation.startPage,
       },
       // The fold control is chrome for the frame's own column, so its action is
       // read rather than declared as a hard dependency.

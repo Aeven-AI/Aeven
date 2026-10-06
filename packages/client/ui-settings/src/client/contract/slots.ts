@@ -33,7 +33,7 @@ declare module '@aeven/client-ui-slots' {
      * Registrants own visibility, behavior, copy, and failure presentation;
      * the shell supplies only the ordered render site.
      */
-    'settings.action': { kind: 'list'; scope: 'root'; owner: SettingsHeaderOwnerProps }
+    'settings.action': { kind: 'list'; scope: 'root'; owner: SettingsActionOwnerProps }
     /**
      * The close button's visually-hidden label text (the button itself —
      * icon, geometry, focus — is shell chrome). Absent contribution leaves
@@ -128,14 +128,35 @@ export interface SettingsHeaderOwnerProps {
 
 /**
  * Owner share of a settings section entry. The shell owns modal visibility
- * and navigation; a section's data arrives through its own inject faces and
- * stores. `close` is the one shell affordance a section receives, for flows
- * that leave settings altogether (starting a session from a section) — the
- * onboarding coordinator's `openSection`/`complete` precedent, inverted.
+ * and navigation, including the address of a page inside the section
+ * (`#!/settings/<section>/<detail>`), so a detail page can be linked and the
+ * browser's Back returns to the section. A section's data arrives through its
+ * own inject faces and stores. `close` serves flows that leave settings
+ * altogether (starting a session from a section).
  */
 export interface SettingsSectionOwnerProps {
   /** Close the settings panel (the shell owns the open state). */
   close: () => void
+  /** Page inside this section the address names; undefined shows the section itself. */
+  detail: string | undefined
+  /**
+   * Address a page inside this section, adding a history entry.
+   * @param detail - page id; undefined returns to the section itself.
+   */
+  showDetail: (detail?: string) => void
+}
+
+/** Owner share of a content-column header action: the active section's detail address. */
+export interface SettingsActionOwnerProps {
+  /** Active section id, or undefined while no section is registered. */
+  section: string | undefined
+  /** Page inside the active section the address names; undefined shows the section itself. */
+  detail: string | undefined
+  /**
+   * Address a page inside the active section, adding a history entry.
+   * @param detail - page id; undefined returns to the section itself.
+   */
+  showDetail: (detail?: string) => void
 }
 
 /** Owner share of the currently active settings-backed onboarding step. */

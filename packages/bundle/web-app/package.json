@@ -42,6 +42,7 @@
     "@aeven/agent-presets": "workspace:^",
     "@aeven/api-job-controller": "workspace:^",
     "@aeven/api-memory-manager": "workspace:^",
+    "@aeven/personalization": "workspace:^",
     "@aeven/api-remotes": "workspace:^",
     "@aeven/api-session-controller": "workspace:^",
     "@aeven/api-settings-controller": "workspace:^",
@@ -57,7 +58,6 @@
     "@aeven/client-locale": "workspace:^",
     "@aeven/client-modules": "workspace:^",
     "@aeven/client-ui-account-aeven": "workspace:^",
-    "@aeven/client-ui-agent-preset": "workspace:^",
     "@aeven/client-ui-approval": "workspace:^",
     "@aeven/client-ui-attachment": "workspace:^",
     "@aeven/client-ui-brand-official": "workspace:^",
@@ -84,6 +84,7 @@
     "@aeven/client-ui-settings": "workspace:^",
     "@aeven/client-ui-settings-general": "workspace:^",
     "@aeven/client-ui-settings-memory": "workspace:^",
+    "@aeven/client-ui-settings-personalization": "workspace:^",
     "@aeven/client-ui-settings-models": "workspace:^",
     "@aeven/client-ui-settings-plugin-inventory": "workspace:^",
     "@aeven/client-ui-settings-plugins": "workspace:^",
@@ -147,7 +148,9 @@
     "commander": "^15.0.0",
     "open": "^11.0.0",
     "@aeven/host-account-integrations": "workspace:^",
-    "@aeven/client-ui-settings-integrations": "workspace:^"
+    "@aeven/client-ui-settings-integrations": "workspace:^",
+    "@aeven/mail": "workspace:^",
+    "@aeven/tool-mail": "workspace:^"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis-plugin-loader": "workspace:^",

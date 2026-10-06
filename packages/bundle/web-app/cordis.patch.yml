@@ -13,18 +13,22 @@
 
 # ── surface-specific values the base deliberately omits ─────────────────────
 
+# Aeven speaks as itself: the session composition's persona opens with "You are
+# Aeven", so the harness opener ("an AI agent powered by Aeven") is dropped and
+# the deployment-wide persona stays empty.
 - id: system-prompt
   config:
-    persona: >-
-      You are a coding agent powered by the {{model}} model. Your working directory is {{cwd}}.
+    includeHarnessIdentity: false
 
-# Full-text session search is available by default but stays lazy. This
-# restatement keeps the Web values on one ephemeral in-memory index and defers
-# the node:sqlite import and handle until the first content search.
+# Full-text session search keeps its durable index in the Aeven home. Boot
+# never imports node:sqlite; five seconds after activation the Web Host opens
+# the index and brings it up to date in the background, so the search box finds
+# it current instead of building it on the first query.
 - id: session-query-sqlite
   config:
-    path: ':memory:'
+    path: !!js avnHomePath('session-query', 'index.db')
     openAt: first-search
+    warmAfter: 5000
 
 # Web search runs through the Aeven gateway's Messages route, which forwards to
 # DeepSeek's search and bills the signed-in reader, so no DeepSeek key is held
@@ -108,6 +112,12 @@
     # Read-only projection of current Loader entries for trusted client RPCs.
     - id: plugin-inventory
       name: '@aeven/host-plugin-inventory'
+
+    # Mail accounts and IMAP/POP3/SMTP operations. Account integrations registers
+    # each user's Email connectors as its account source; the model-facing tools
+    # are per-session and live in the agent preset.
+    - id: mail
+      name: '@aeven/mail'
 
     - id: account-integrations
       name: '@aeven/host-account-integrations'
@@ -202,6 +212,13 @@
     - id: api-memory-manager
       name: '@aeven/api-memory-manager'
 
+    # Settings → Personalization: how each signed-in person wants Aeven to
+    # talk with them, rendered into their sessions right after the persona.
+    - id: personalization
+      name: '@aeven/personalization'
+      config:
+        root: !!js avnHomePath('personalization')
+
     # Coding subscriptions (Grok, ChatGPT Codex, Claude): signed in from the
     # Subscriptions group on the Model providers page. A route serves only
     # once its subscription is signed in.
@@ -268,6 +285,18 @@
           - chrome-devtools-mcp@latest
           - '--browser-url=http://127.0.0.1:9333'
           - '--no-usage-statistics'
+          # Chrome DevTools MCP restricts file paths to the OS temp directory
+          # when the connecting client negotiates no MCP roots, which refuses
+          # every file a session actually handles: an upload the user chose from
+          # their own Downloads folder, a screenshot written into the workspace.
+          # The client here is `@aeven/mcp-client`, which declares no
+          # capabilities, so the restriction applied and bought nothing. Name
+          # the Host user's own files as the root the client may hand over;
+          # upstream's suggested `--workspace=/` cannot work, because the
+          # containment check compares against the root plus a separator and
+          # `//` never prefixes a real path.
+          - '--workspace'
+          - !!js "process.env.HOME ?? process.env.USERPROFILE"
         failOnStartupError: false
     - id: mcp-playwright
       name: '@aeven/mcp-client'
@@ -330,6 +359,9 @@
         openBrowser: !!js ctx.webStartup.openBrowser
         printUrl: true
         surfaceContext: true
+        # The harness checkout and GUI rebuild rules are developer facts; a
+        # profile patch of someone developing Aeven turns them on.
+        developerContext: false
         trustedHosts: !!js ctx.webStartup.trustedHosts
 
     # The client-plugin reload chain, always mounted: it is idle until a
@@ -419,6 +451,10 @@
     # Settings → Memory, over the memoryManager Remote.
     - id: ui-settings-memory
       name: '@aeven/client-ui-settings-memory'
+
+    # Settings → Personalization, over the personalization Remote.
+    - id: ui-settings-personalization
+      name: '@aeven/client-ui-settings-personalization'
 
     - id: ui-conversation
       name: '@aeven/client-ui-conversation'
@@ -514,11 +550,6 @@
 
     - id: ui-permission
       name: '@aeven/client-ui-permission-presets'
-
-    # The agent-preset row in General settings: the default preset for
-    # sessions created later. Absent a roster it renders nothing.
-    - id: ui-agent-preset
-      name: '@aeven/client-ui-agent-preset'
 
     # Plugin configuration: the host-plane sections a user owns, as expandable
     # cards. A namespace this deployment does not expose renders nothing.
@@ -676,20 +707,12 @@
       config:
         apiUrl: !!js process.env.AEVEN_API_URL ?? 'http://localhost:9000'
 
-# The preset roster. The shipped presets are bundled inside
-# `avn-agent-presets` itself and prepended as a read-only `system` root
-# (`includeShippedRoot`); `$AVN_HOME/.agent-presets` is where a person — or an
-# agent — authors their own, appended by the same package (`includeUserRoot`),
-# and carries the same trust as shell access because a preset IS a
-# composition. This row only names the default and any deployment-added
-# `roots`; no launcher patching is involved.
-#
-# The default is the shipped `aeven` composition, the one every session runs;
-# the other presets are chosen only from Developer mode. A user's own
-# `agent-presets.default` still outranks this value, as does the Developer-mode
-# picker.
+# Every session runs the one shipped `aeven` composition, bundled inside
+# `avn-agent-presets`. There is no preset choice: changing what a session can
+# do means editing that composition, and the harness-home user root is off.
 - insert:
     - id: agent-presets
       name: '@aeven/agent-presets'
       config:
         default: aeven
+        includeUserRoot: false

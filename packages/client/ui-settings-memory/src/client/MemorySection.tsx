@@ -5,7 +5,7 @@ import type {
   ManagedCapabilityStatusChange, ManagedInvariantChange, ManagedInvariantsPage, ManagedMemory, ManagedMemoryPage, ManagedMemoryQuery,
   MemoryDomain, MemoryItemId,
 } from '@aeven/api-remotes/client'
-import { IconChevronDownOutline14, IconSearchOutline16, MarkdownText, SectionHeader, Spinner, relativeTime } from '@aeven/client-ui-primitives'
+import { Button, IconChevronDownOutline14, IconSearchOutline16, MarkdownText, Modal, SectionHeader, Spinner, relativeTime } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import type { MemoryLocaleKey } from './locales.ts'
 import css from './MemorySection.module.css'
@@ -354,9 +354,9 @@ function Memories({
       {state.status === 'ready' && state.value.more && (
         <div className={css.more}>
           {moreFailed && <span className={css.failure}>{t('failed')}</span>}
-          <button type="button" className={css.secondary} disabled={loadingMore} onClick={() => { loadMore(state.value) }}>
+          <Button variant="outline" disabled={loadingMore} onClick={() => { loadMore(state.value) }}>
             {loadingMore ? <><Spinner /> {t('loading')}</> : t('loadMore')}
-          </button>
+          </Button>
         </div>
       )}
     </>
@@ -399,7 +399,8 @@ function MemoryCard({ t, memory, now, open, onToggle, editMemory, forgetMemory, 
 }) {
   const fact = memory.summary || memory.userText
   const said = memory.summary.trim() !== '' && memory.userText.trim() !== memory.summary.trim() ? memory.userText : undefined
-  const [mode, setMode] = useState<'view' | 'edit' | 'forget'>('view')
+  const [mode, setMode] = useState<'view' | 'edit'>('view')
+  const [confirming, setConfirming] = useState(false)
   const [draft, setDraft] = useState(fact)
   const [details, setDetails] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -483,8 +484,7 @@ function MemoryCard({ t, memory, now, open, onToggle, editMemory, forgetMemory, 
               <textarea rows={4} value={draft} onChange={(event) => { setDraft(event.target.value) }} />
             </label>
           )}
-          {mode === 'forget' && <p className={css.confirm}>{t('forgetConfirm')}</p>}
-          {failed && <p className={css.failure}>{t('failed')}</p>}
+          {failed && !confirming && <p className={css.failure}>{t('failed')}</p>}
           {gone && <p className={css.failure}>{t('conversationGone')}</p>}
           {standing !== undefined && (
             <p className={standing.available && standing.changed ? css.note : css.failure}>{standingMessage(standing, t)}</p>
@@ -492,17 +492,16 @@ function MemoryCard({ t, memory, now, open, onToggle, editMemory, forgetMemory, 
           <div className={css.footer}>
             {mode === 'view' && (
               <>
-                <button type="button" className={`${css.textButton} ${css.footerStart}`} onClick={showConversation}>{t('openSession')}</button>
-                <button
-                  type="button"
-                  className={css.textButton}
+                <Button variant="outline" className={css.footerStart} onClick={showConversation}>{t('openSession')}</Button>
+                <Button
+                  variant="outline"
                   disabled={busy || fact.trim() === ''}
                   onClick={() => { setStanding(undefined); run(async () => { setStanding(await addInvariant(fact)) }) }}
                 >
                   {t('rememberAlways')}
-                </button>
-                <button type="button" className={css.textButton} onClick={() => { setDraft(fact); setMode('edit') }}>{t('edit')}</button>
-                <button type="button" className={`${css.textButton} ${css.textDanger}`} onClick={() => { setMode('forget') }}>{t('forget')}</button>
+                </Button>
+                <Button variant="outline" onClick={() => { setDraft(fact); setMode('edit') }}>{t('edit')}</Button>
+                <Button variant="outline" onClick={() => { setFailed(false); setConfirming(true) }}>{t('forget')}</Button>
               </>
             )}
             {mode === 'edit' && (
@@ -515,19 +514,20 @@ function MemoryCard({ t, memory, now, open, onToggle, editMemory, forgetMemory, 
                 onCommit={() => { run(async () => { onChange(memory.id, await editMemory(memory.id, draft)); setMode('view') }) }}
               />
             )}
-            {mode === 'forget' && (
-              <Commit
-                t={t}
-                label="forget"
-                danger
-                busy={busy}
-                onCancel={() => { setMode('view') }}
-                onCommit={() => { run(async () => { await forgetMemory(memory.id); onChange(memory.id, undefined) }) }}
-              />
-            )}
           </div>
         </div>
       )}
+      <ConfirmDialog
+        t={t}
+        open={confirming}
+        title={t('forgetConfirm')}
+        subject={fact}
+        action={t('forget')}
+        busy={busy}
+        failed={failed}
+        onCancel={() => { setConfirming(false) }}
+        onConfirm={() => { run(async () => { await forgetMemory(memory.id); setConfirming(false); onChange(memory.id, undefined) }) }}
+      />
     </li>
   )
 }
@@ -626,43 +626,15 @@ function Facts({ t, invariants, addInvariant, editInvariant, removeInvariant }: 
                       <>
                         <p className={css.factText}>{entry.text}</p>
                         <div className={css.factMeta}>
-                          {row?.mode === 'remove'
-                            ? (
-                              <>
-                                <span className={css.factConfirm}>{t('removeConfirm')}</span>
-                                <span className={css.factActions}>
-                                  <Commit
-                                    t={t}
-                                    label="remove"
-                                    danger
-                                    busy={busy}
-                                    onCancel={() => { setActive(undefined) }}
-                                    onCommit={() => { run(() => removeInvariant(entry.id), () => { setActive(undefined) }) }}
-                                  />
-                                </span>
-                              </>
-                            )
-                            : (
-                              <>
-                                <span>{t('confirmed', { time: ago(entry.confirmedAt, now, t) })}</span>
-                                <span className={css.factActions}>
-                                  <button
-                                    type="button"
-                                    className={css.textButton}
-                                    onClick={() => { setActive({ id: entry.id, mode: 'edit', text: entry.text }) }}
-                                  >
-                                    {t('edit')}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className={`${css.textButton} ${css.textDanger}`}
-                                    onClick={() => { setActive({ id: entry.id, mode: 'remove' }) }}
-                                  >
-                                    {t('remove')}
-                                  </button>
-                                </span>
-                              </>
-                            )}
+                          <span>{t('confirmed', { time: ago(entry.confirmedAt, now, t) })}</span>
+                          <span className={css.factActions}>
+                            <Button variant="outline" size="sm" onClick={() => { setActive({ id: entry.id, mode: 'edit', text: entry.text }) }}>
+                              {t('edit')}
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => { setFailed(false); setActive({ id: entry.id, mode: 'remove' }) }}>
+                              {t('remove')}
+                            </Button>
+                          </span>
                         </div>
                       </>
                     )}
@@ -683,20 +655,33 @@ function Facts({ t, invariants, addInvariant, editInvariant, removeInvariant }: 
         />
         <div className={css.composerFooter}>
           <span className={css.composerHint}>{draft.trim() === '' ? '' : `${String(draft.trim().length)} / ${String(view.maxEntryChars)}`}</span>
-          <button
-            type="button"
-            className={css.primary}
+          <Button
+            variant="primary"
             disabled={busy || draft.trim() === ''}
             onClick={() => { run(() => addInvariant(draft), () => { setDraft('') }) }}
           >
             {t('factsSubmit')}
-          </button>
+          </Button>
         </div>
       </div>
-      {failed && <p className={css.failure}>{t('failed')}</p>}
+      {failed && active?.mode !== 'remove' && <p className={css.failure}>{t('failed')}</p>}
       {outcome !== undefined && (
         <p className={outcome.available && outcome.changed ? css.note : css.failure}>{standingMessage(outcome, t)}</p>
       )}
+      <ConfirmDialog
+        t={t}
+        open={active?.mode === 'remove'}
+        title={t('removeConfirm')}
+        subject={view.entries.find(entry => entry.id === active?.id)?.text ?? ''}
+        action={t('remove')}
+        busy={busy}
+        failed={failed}
+        onCancel={() => { setActive(undefined) }}
+        onConfirm={() => {
+          if (active === undefined) return
+          run(() => removeInvariant(active.id), () => { setActive(undefined) })
+        }}
+      />
     </>
   )
 }
@@ -718,11 +703,10 @@ function Fold({ label, open, onToggle, children }: {
   )
 }
 
-/** The open card's Cancel and its commit action; a destructive commit is outlined in the error color. */
-function Commit({ t, label, danger = false, busy, blocked = false, onCancel, onCommit }: {
+/** The open card's Cancel and its commit action. */
+function Commit({ t, label, busy, blocked = false, onCancel, onCommit }: {
   readonly t: Translate
   readonly label: MemoryLocaleKey
-  readonly danger?: boolean
   readonly busy: boolean
   /** The draft cannot be committed as it stands. */
   readonly blocked?: boolean
@@ -731,9 +715,45 @@ function Commit({ t, label, danger = false, busy, blocked = false, onCancel, onC
 }) {
   return (
     <>
-      <button type="button" className={css.secondary} disabled={busy} onClick={onCancel}>{t('cancel')}</button>
-      <button type="button" className={danger ? css.danger : css.primary} disabled={busy || blocked} onClick={onCommit}>{t(label)}</button>
+      <Button variant="outline" disabled={busy} onClick={onCancel}>{t('cancel')}</Button>
+      <Button variant="primary" disabled={busy || blocked} onClick={onCommit}>{t(label)}</Button>
     </>
+  )
+}
+
+/**
+ * The confirmation every removal asks for: a dialog naming what goes, answered by Cancel or the filled
+ * removal button. A failed removal keeps the dialog open with its error.
+ */
+function ConfirmDialog({ t, open, title, subject, action, busy, failed, onCancel, onConfirm }: {
+  readonly t: Translate
+  readonly open: boolean
+  readonly title: string
+  /** What the removal applies to, quoted in the dialog. */
+  readonly subject: string
+  readonly action: string
+  readonly busy: boolean
+  readonly failed: boolean
+  readonly onCancel: () => void
+  readonly onConfirm: () => void
+}) {
+  return (
+    <Modal
+      open={open}
+      onClose={() => { if (!busy) onCancel() }}
+      title={title}
+      closeLabel={t('cancel')}
+      className={css.dialog as string}
+      footer={(
+        <>
+          <Button variant="outline" autoFocus disabled={busy} onClick={onCancel}>{t('cancel')}</Button>
+          <Button variant="primary" className={css.dangerFill} disabled={busy} onClick={onConfirm}>{action}</Button>
+        </>
+      )}
+    >
+      {subject.trim() === '' ? null : <p className={css.dialogSubject}>{subject}</p>}
+      {failed ? <p className={css.failure}>{t('failed')}</p> : null}
+    </Modal>
   )
 }
 
@@ -791,7 +811,8 @@ function CapabilityCard({
   readonly onChanged: () => void
 }) {
   const [fold, setFold] = useState<Fold | undefined>()
-  const [mode, setMode] = useState<'view' | 'edit' | 'delete'>('view')
+  const [mode, setMode] = useState<'view' | 'edit'>('view')
+  const [confirming, setConfirming] = useState(false)
   const [detail, setDetail] = useState<Load<ManagedCapabilityDetail | undefined> | undefined>()
   const [draft, setDraft] = useState({ description: item.description, content: '' })
   const [busy, setBusy] = useState(false)
@@ -951,22 +972,20 @@ function CapabilityCard({
               )}
             </DetailBody>
           )}
-          {mode === 'delete' && <p className={css.confirm}>{t('deleteConfirm')}</p>}
-          {failed && <p className={css.failure}>{t('failed')}</p>}
+          {failed && !confirming && <p className={css.failure}>{t('failed')}</p>}
           {gone && <p className={css.failure}>{t('conversationGone')}</p>}
           <div className={css.footer}>
             {mode === 'view' && (
               <>
-                <button type="button" className={css.textButton} onClick={() => { setMode('edit') }}>{t('edit')}</button>
-                <button
-                  type="button"
-                  className={css.textButton}
+                <Button variant="outline" onClick={() => { setMode('edit') }}>{t('edit')}</Button>
+                <Button
+                  variant="outline"
                   disabled={busy}
                   onClick={() => { run(() => setCapabilityStatus(item.name, retired ? 'learned' : 'retired')) }}
                 >
                   {t(retired ? 'restore' : 'retire')}
-                </button>
-                <button type="button" className={`${css.textButton} ${css.textDanger}`} onClick={() => { setMode('delete') }}>{t('delete')}</button>
+                </Button>
+                <Button variant="outline" onClick={() => { setFailed(false); setConfirming(true) }}>{t('delete')}</Button>
               </>
             )}
             {mode === 'edit' && (
@@ -979,19 +998,20 @@ function CapabilityCard({
                 onCommit={() => { run(() => editCapability(item.name, draft)) }}
               />
             )}
-            {mode === 'delete' && (
-              <Commit
-                t={t}
-                label="delete"
-                danger
-                busy={busy}
-                onCancel={() => { setMode('view') }}
-                onCommit={() => { run(async () => { await deleteCapability(item.name); return undefined }) }}
-              />
-            )}
           </div>
         </div>
       )}
+      <ConfirmDialog
+        t={t}
+        open={confirming}
+        title={t('deleteConfirm')}
+        subject={item.name}
+        action={t('delete')}
+        busy={busy}
+        failed={failed}
+        onCancel={() => { setConfirming(false) }}
+        onConfirm={() => { run(async () => { await deleteCapability(item.name); setConfirming(false); return undefined }) }}
+      />
     </li>
   )
 }

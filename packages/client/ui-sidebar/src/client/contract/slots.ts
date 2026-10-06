@@ -63,7 +63,23 @@ declare module '@aeven/client-ui-slots' {
      * package's 'sidebar' entry; each action receives only the column state.
      */
     'sidebar.footer.action': { kind: 'list'; scope: 'root'; owner: SidebarFooterActionOwnerProps }
+    /**
+     * Navigation rows under the New Session link, such as Imagine. Each
+     * occupant renders one row and draws it with the shell's row classes, so
+     * it shares the New Session link's geometry.
+     */
+    'sidebar.nav': { kind: 'list'; scope: 'root'; owner: SidebarNavOwnerProps }
   }
+}
+
+/** The shell's row classes handed to each `sidebar.nav` occupant. */
+export interface SidebarNavOwnerProps {
+  /** Class of the row itself: the New Session link's box. */
+  rowClassName: string
+  /** Class of the row's leading icon. */
+  iconClassName: string
+  /** Class of the row's label. */
+  labelClassName: string
 }
 
 /** Geometry supplied to the sidebar brand-mark occupant. */
@@ -168,5 +184,6 @@ export type SidebarRootComponentProps =
     | 'sidebar.workspaces'
     | 'sidebar.settings'
     | 'sidebar.footer.action'
+    | 'sidebar.nav'
   >
   & SidebarRootInjected & PropsLocale<'sidebar'>

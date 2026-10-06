@@ -474,7 +474,7 @@ describe('known routes', () => {
     )
     const route = resolved.get('deepinfra')
 
-    expect(route?.displayName).toBe('deepinfra')
+    expect(route?.displayName).toBe('DeepInfra')
     expect(route?.api).toBe(known.api)
     expect(route?.baseURL).toBe(known.baseURL)
     expect(route?.catalogRefresh).toMatchObject({

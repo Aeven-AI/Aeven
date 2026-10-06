@@ -12,14 +12,17 @@ const SETTINGS_SEGMENT = 'settings'
 export interface SettingsAddress {
   /** Section id the address names, absent when it names the panel's first section. */
   section?: string
+  /** Page inside that section, such as one connector; absent shows the section itself. */
+  detail?: string
 }
 
 /**
  * Read the settings panel's address.
  *
  * The address names a section id, never a translated label, so one reader's
- * bookmark resolves for another. `#!/settings` and `#!/settings/<section>` are
- * the addresses {@link settingsFragment} writes; a hand-typed `#!settings`
+ * bookmark resolves for another. `#!/settings`, `#!/settings/<section>`, and
+ * `#!/settings/<section>/<detail>` are the addresses {@link settingsFragment}
+ * writes; a hand-typed `#!settings`
  * without the slash after the bang names the same panel and reads the same.
  * @param href - the address bar's href.
  * @returns the settings address, or undefined when the fragment is not the panel's.
@@ -28,9 +31,11 @@ export function settingsAddressOf(href: string): SettingsAddress | undefined {
   const segments = new URL(href).hash.slice(SETTINGS_FRAGMENT.length).split('/').filter(part => part !== '')
   if (segments[0] !== SETTINGS_SEGMENT) return undefined
   if (segments.length === 1) return {}
-  if (segments.length !== 2) return undefined
+  const [, section, detail] = segments
+  if (section === undefined || segments.length > 3) return undefined
   try {
-    return { section: decodeURIComponent(segments[1]!) }
+    const decoded = decodeURIComponent(section)
+    return detail === undefined ? { section: decoded } : { section: decoded, detail: decodeURIComponent(detail) }
   } catch {
     // A malformed escape names no section; it is not another address's either.
     return undefined
@@ -38,13 +43,16 @@ export function settingsAddressOf(href: string): SettingsAddress | undefined {
 }
 
 /**
- * The fragment naming the panel at one section.
+ * The fragment naming the panel at one section, or at one page inside it.
  * @param section - section id; absent names the panel's first section.
+ * @param detail - page inside the section; ignored without a section.
  * @returns the fragment, `#!` included.
  */
-export function settingsFragment(section?: string): string {
+export function settingsFragment(section?: string, detail?: string): string {
   const path = `${SETTINGS_FRAGMENT}/${SETTINGS_SEGMENT}`
-  return section === undefined ? path : `${path}/${encodeURIComponent(section)}`
+  if (section === undefined) return path
+  const sectionPath = `${path}/${encodeURIComponent(section)}`
+  return detail === undefined ? sectionPath : `${sectionPath}/${encodeURIComponent(detail)}`
 }
 
 /** Browser members the settings address reads and writes. */
@@ -62,18 +70,20 @@ export interface SettingsAddressRoute {
   /** Address of the open panel; undefined while the panel is closed. */
   readonly current: HostObservable<SettingsAddress | undefined>
   /**
-   * Address the panel at a section, opening it when it was closed. A no-op
-   * while the address already names that section, so re-opening the panel never
-   * adds a history entry the reader cannot get back past.
+   * Address the panel at a section, or a page inside it, opening the panel
+   * when it was closed. A no-op while the address already names that section
+   * and page, so re-opening the panel never adds a history entry the reader
+   * cannot get back past.
    * @param section - section id; absent addresses the panel's first section.
+   * @param detail - page inside the section; absent addresses the section itself.
    */
-  show(section?: string): void
+  show(section?: string, detail?: string): void
   /** Drop the panel's address, closing it. A no-op while the panel is closed. */
   close(): void
 }
 
 /**
- * Browser implementation over `#!/settings/<section>` fragments.
+ * Browser implementation over `#!/settings/<section>/<detail>` fragments.
  *
  * The window arrives as a thunk, not a value: applying this plugin costs no
  * browser access, and only an actual navigation needs one.
@@ -113,11 +123,11 @@ export class BrowserSettingsAddressRoute implements SettingsAddressRoute {
     },
   }
 
-  show(section?: string): void {
+  show(section?: string, detail?: string): void {
     const href = this.window().location.href
     const current = settingsAddressOf(href)
-    if (current !== undefined && current.section === section) return
-    this.#write(href, settingsFragment(section))
+    if (current !== undefined && current.section === section && current.detail === detail) return
+    this.#write(href, settingsFragment(section, detail))
   }
 
   close(): void {

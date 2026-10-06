@@ -26,13 +26,9 @@
 
 .empty {
   margin: 0;
-  padding: 18px 14px;
-  border: 0.5px dashed var(--dsw-alias-border-l3);
-  border-radius: 16px;
   font-size: 14px;
   line-height: 20px;
-  text-align: center;
-  color: var(--dsw-alias-label-secondary);
+  color: var(--dsw-alias-label-tertiary);
 }
 
 .rows {
@@ -206,12 +202,119 @@
      evenly and repeat the row cards' corner. Dashed, like every other "nothing
      here yet" affordance on this page, to read as a place rather than a
      command. */
-  flex: 1 1 0;
-  min-width: 180px;
   gap: 6px;
-  height: 44px;
-  border: 1px dashed var(--dsw-alias-border-l3);
-  border-radius: 16px;
+}
+
+/* The filled capsule of Apply, for the common way to gain a provider. */
+.addButtonPrimary {
+  border-color: transparent;
+  background: var(--dsw-alias-button-primary-fill);
+  color: var(--dsw-alias-label-primary-foreground);
+}
+
+.addButtonPrimary:hover:not(:disabled) {
+  background: var(--dsw-alias-button-primary-hover);
+}
+
+/* Searchable provider picker: a field-width trigger and a popover list. */
+.picker {
+  position: relative;
+}
+
+.pickerTrigger {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 40px;
+  padding: 0 36px 0 12px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-layer-1) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%2381858C' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 14px center / 12px 12px;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pickerTrigger:focus-visible {
+  outline: none;
+  border-color: var(--dsw-alias-brand-primary);
+}
+
+.pickerPlaceholder {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.pickerPopover {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-1);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 12%);
+  overflow: hidden;
+}
+
+.pickerSearch {
+  box-sizing: border-box;
+  height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 14px;
+}
+
+.pickerSearch:focus {
+  outline: none;
+}
+
+.pickerList {
+  max-height: 280px;
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.pickerOption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 20px;
+  cursor: pointer;
+}
+
+.pickerOptionActive {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.pickerOption[aria-selected='true'] {
+  font-weight: 500;
+}
+
+.pickerOptionId {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+}
+
+.pickerEmpty {
+  padding: 8px 10px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 14px;
 }
 
 .addCard {
@@ -431,10 +534,10 @@
 .input {
   box-sizing: border-box;
   width: 100%;
-  height: 32px;
-  padding: 0 10px;
-  border: 0.5px solid var(--dsw-alias-border-l4);
-  border-radius: 8px;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 10px;
   font: inherit;
   font-size: 14px;
   line-height: 22px;
@@ -488,13 +591,16 @@ select.input {
   width: min(480px, 100%);
 }
 
-.deleteConfirm:not(:disabled) {
-  border-color: var(--dsw-alias-state-error-primary);
-  color: var(--dsw-alias-state-error-primary);
+/* The confirmed removal: the shared capsule filled in the error color. */
+.deleteConfirm,
+.deleteConfirm:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--dsw-alias-state-error-primary);
+  color: #fff;
 }
 
 .deleteConfirm:hover:not(:disabled) {
-  background: var(--dsw-alias-interactive-bg-hover-danger);
+  opacity: 0.88;
 }
 
 /* Icon-button label seat: named for assistive tech and for the tests that

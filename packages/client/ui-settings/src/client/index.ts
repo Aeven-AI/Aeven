@@ -25,7 +25,7 @@ import { SettingsScopeBinder } from './settings-scope.ts'
 import { SettingsDescribeMirror } from './settings-mirror.ts'
 
 export type {
-  SettingsGeneralItemOwnerProps, SettingsHeaderOwnerProps, SettingsOnboardingOwnerProps,
+  SettingsActionOwnerProps, SettingsGeneralItemOwnerProps, SettingsHeaderOwnerProps, SettingsOnboardingOwnerProps,
   SettingsPluginsTabOwnerProps, SettingsSectionOwnerProps, SettingsTriggerOwnerProps,
 } from './contract/slots.ts'
 export type { SettingsScopeController, SettingsScopeBinder } from './settings-scope.ts'
@@ -45,8 +45,9 @@ declare module '@deepseek-ai/cordis' {
      * ignores it.
      * @mode emit
      * @param section - optional `settings.section` entry id to show.
+     * @param detail - optional page inside that section, such as one connector; the section interprets it.
      */
-    'settings/open'(section?: string): void
+    'settings/open'(section?: string, detail?: string): void
   }
 }
 

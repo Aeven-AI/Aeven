@@ -18,6 +18,7 @@ import type {} from '@aeven/workspace'
 import type {} from '@aeven/agent-presets/types'
 import { isSkillName, type SkillCandidate } from '@aeven/skill'
 import type {} from '@aeven/host-webserver'
+import { MailError, type MailAccount, type MailAccountId, type MailSecret } from '@aeven/mail'
 import * as mcp from '@aeven/mcp-client'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
@@ -26,7 +27,7 @@ import { googleConnection, googleService, verifyGoogle } from './google.ts'
 import { parsePersonalSkill } from './skills.ts'
 import { connectorCredential, createConsent, exchangeGrant, grantSchema } from './oauth.ts'
 import type { OAuthProviderConfig, PendingConsent } from './oauth.ts'
-import type { AccountIntegrationsView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, SkillViewId, SkillUploadFile } from './types.ts'
+import type { AccountIntegrationsView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, EmailConnectionFailure, EmailConnectorSettings, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillViewId, SkillUploadFile } from './types.ts'
 
 export type * from './types.ts'
 export type { OAuthProviderConfig } from './oauth.ts'
@@ -48,7 +49,8 @@ export interface Config {
   consentLifetimeMs: number
   /** Registered callback URL; must end in /connectors/oauth/callback. */
   redirectUri: string
-  /** Maximum retained Google API response size in bytes. */
+  /** Email accounts one signed-in user may connect. */
+  maxEmailAccounts: number
   /** Deployment-owned OAuth applications for Google, GitHub and Microsoft 365 MCP resources. */
   providers: Partial<Record<'github' | 'google' | 'microsoft365', OAuthProviderConfig>>
 }
@@ -59,10 +61,31 @@ const skillSchema = z.object({
   resources: z.record(z.string().refine(path => !path.startsWith('/') && !path.includes('\\') && !/^[A-Za-z]:/.test(path)
     && path.split('/').every(part => part !== '' && part !== '.' && part !== '..')), z.string()), revision: z.uuid(),
 })
+const providers = ['github', 'gmail', 'google-drive', 'google-calendar', 'microsoft365', 'email', 'mcp'] as const satisfies readonly ConnectorProvider[]
+const emailServerSchema = z.object({
+  host: z.string().trim().min(1).max(253).regex(/^[A-Za-z0-9.-]+$/), port: z.number().int().min(1).max(65_535),
+  security: z.enum(['tls', 'starttls']), username: z.string().trim().min(1).max(320),
+})
+const emailSettingsSchema = z.object({
+  address: z.email(), aliases: z.array(z.email()).max(20),
+  receive: emailServerSchema.extend({ protocol: z.enum(['imap', 'pop3']) }), send: emailServerSchema.optional(),
+})
+/** Email passwords kept as the connector's credential grant. */
+const emailSecretSchema = z.object({ receivePassword: z.string().min(1), sendPassword: z.string().min(1).optional() })
+const emailRequestSchema = emailSettingsSchema.extend({
+  name: z.string().trim().min(1).max(100).optional(), receivePassword: z.string().min(1).max(1024), sendPassword: z.string().min(1).max(1024).optional(),
+})
+const emailUpdateSchema = emailSettingsSchema.extend({
+  name: z.string().trim().min(1).max(100).optional(), receivePassword: z.string().min(1).max(1024).optional(), sendPassword: z.string().min(1).max(1024).optional(),
+})
 const connectorSchema = z.object({
   owner: z.string(), id: z.string().transform(value => value as ConnectorId),
-  provider: z.enum(['github', 'gmail', 'google-drive', 'google-calendar', 'microsoft365', 'mcp']), name: z.string(),
-  endpoint: z.url(), enabled: z.boolean(),
+  provider: z.enum(providers), name: z.string(),
+  /** Absent for `email`, which has server settings instead of an MCP endpoint. */
+  endpoint: z.url().optional(), enabled: z.boolean(),
+  email: emailSettingsSchema.optional(),
+  /** Set when a mail server rejected the stored password; the account needs to be added again. */
+  authFailed: z.boolean().optional(),
 })
 const domainSpec = defineDomain({ name: 'account_integrations', version: 0, tables: {
   skills: domainTable<string, z.infer<typeof skillSchema>>(skillSchema),
@@ -70,16 +93,27 @@ const domainSpec = defineDomain({ name: 'account_integrations', version: 0, tabl
   connectors: domainTable<ConnectorId, z.infer<typeof connectorSchema>>(connectorSchema),
 } })
 const createSchema = z.object({
-  provider: z.enum(['github', 'gmail', 'google-drive', 'google-calendar', 'microsoft365', 'mcp']), name: z.string().trim().min(1).max(100),
+  provider: z.enum(providers), name: z.string().trim().min(1).max(100),
   endpoint: z.url().optional(), token: z.string().min(1).optional(),
 })
+/** Drop absent optional fields that zod reports as `undefined`. */
+function emailSettings(value: z.infer<typeof emailSettingsSchema>): EmailConnectorSettings {
+  const { send, ...rest } = value
+  return { ...rest, ...send !== undefined ? { send } : {} }
+}
+
+/** Drop an absent send password that zod reports as `undefined`. */
+function emailSecret(value: z.infer<typeof emailSecretSchema>): MailSecret {
+  return { receivePassword: value.receivePassword, ...value.sendPassword !== undefined ? { sendPassword: value.sendPassword } : {} }
+}
+
 const uploadsSchema = z.array(z.object({ path: z.string().min(1), base64: z.string() })).min(1)
 const callbackPath = '/connectors/oauth/callback'
 
 /** Connector-owned skill names; bodies and resources remain in the skill registry. */
 const connectorSkills: Record<ConnectorProvider, readonly string[]> = {
   'google-drive': ['google-drive', 'google-docs', 'google-sheets', 'google-slides', 'google-drive-comments', 'google-forms'],
-  gmail: ['gmail'], 'google-calendar': ['google-calendar'], github: ['github'], microsoft365: [], mcp: [],
+  gmail: ['gmail'], 'google-calendar': ['google-calendar'], github: ['github'], microsoft365: [], mcp: [], email: [],
 }
 
 const connectorSkillNames = new Set(Object.values(connectorSkills).flat())
@@ -107,6 +141,7 @@ export default class AccountIntegrations extends TypertRemoteService {
     maxSkillBytes: Schema.natural().min(1).default(10 * 1024 * 1024),
     timeoutMs: Schema.natural().min(1).default(60_000),
     consentLifetimeMs: Schema.natural().min(1).default(600_000),
+    maxEmailAccounts: Schema.natural().min(1).default(20),
     redirectUri: Schema.string().default(`http://127.0.0.1:3080${callbackPath}`),
     providers: Schema.dict(Schema.object({
       endpoint: Schema.string(), authorizationUrl: Schema.string().required(), tokenUrl: Schema.string().required(),
@@ -177,6 +212,26 @@ export default class AccountIntegrations extends TypertRemoteService {
       (connectorSkillNames.has(name) || options.owner === undefined || this.domain.table('skill_preferences').get(`${accountDirectory(options.owner)}:${name}`)?.enabled !== false)
         && this.skillConnectorAvailable(name, options.owner)),
     'account-integrations: skill invocation preferences')
+    this.ctx.inject(['mail'], (ctx) => {
+      ctx.effect(() => ctx.mail.registerSource({
+        id: 'account-integrations',
+        list: async owner => [...this.domain.table('connectors').entries()].flatMap(([id, connector]): MailAccount[] =>
+          connector.owner === owner && connector.provider === 'email' && connector.enabled && connector.authFailed !== true && connector.email !== undefined
+            ? [{ id: id as string as MailAccountId, owner, settings: emailSettings(connector.email) }]
+            : []),
+        secret: async (account) => {
+          const record = await this.ctx.credentials.readRecord(connectorCredential(account.owner, account.id as string as ConnectorId))
+          const secret = record?.kind === 'grant' ? emailSecretSchema.safeParse(record.payload) : undefined
+          return secret?.success === true ? emailSecret(secret.data) : undefined
+        },
+        authenticationFailed: async (account) => {
+          const id = account.id as string as ConnectorId
+          if (this.domain.table('connectors').get(id)?.owner !== account.owner) return
+          await this.domain.table('connectors').update(id, connector => ({ ...connector, authFailed: true }))
+          this.connected.delete(id)
+        },
+      }), 'account-integrations: mail account source')
+    })
     this.ctx.on('agent/pre-step', async ({ agent }, next): Promise<PreStepDecision> => {
       await this.syncConnectors(agent)
       return next()
@@ -319,7 +374,8 @@ export default class AccountIntegrations extends TypertRemoteService {
       const connected = await this.isConnected(item)
       if (connected) this.connected.add(id)
       else this.connected.delete(id)
-      return { id, name: item.name, provider: item.provider, endpoint: item.endpoint, enabled: item.enabled, connected }
+      return { id, name: item.name, provider: item.provider, enabled: item.enabled, connected,
+        ...item.endpoint !== undefined ? { endpoint: item.endpoint } : {}, ...item.email !== undefined ? { email: emailSettings(item.email) } : {} }
     }))
     for (const skill of skills) {
       if (connectorSkillNames.has(skill.name)) skill.enabled = true
@@ -327,8 +383,9 @@ export default class AccountIntegrations extends TypertRemoteService {
     }
     return {
       skills: skills.filter(skill => !connectorSkillNames.has(skill.name)), connectors: connections,
-      providers: (['github', 'gmail', 'google-drive', 'google-calendar', 'microsoft365', 'mcp'] as const).map(provider => ({
-        provider, configured: provider === 'mcp' || (this.oauthApplication(provider) !== undefined && this.ctx.get('webServer') !== undefined),
+      providers: providers.map(provider => ({
+        provider, configured: provider === 'mcp' || (provider === 'email' ? this.ctx.get('mail') !== undefined
+          : this.oauthApplication(provider) !== undefined && this.ctx.get('webServer') !== undefined),
         skills: connectorSkills[provider].flatMap((name) => {
           const skill = skills.find(candidate => candidate.name === name && candidate.workspace === undefined)
           return skill === undefined ? [] : [skill]
@@ -388,6 +445,7 @@ export default class AccountIntegrations extends TypertRemoteService {
   async connect(request: ConnectorCreateRequest): Promise<ConnectorId> {
     const owner = this.owner()
     const input = createSchema.parse(request)
+    if (input.provider === 'email') throw new Error('email accounts are added with connectEmail')
     if (input.provider !== 'mcp' && input.provider !== 'github') throw new Error('this provider requires OAuth sign-in')
     const url = endpoint(input.endpoint ?? (input.provider === 'github' ? 'https://api.githubcopilot.com/mcp/' : ''))
     await this.verifyMcp(url, input.token)
@@ -397,6 +455,79 @@ export default class AccountIntegrations extends TypertRemoteService {
     this.connected.add(id)
     this.invalidateSkills()
     return id
+  }
+
+  /**
+   * Verify an IMAP or POP3 mailbox and its optional SMTP server, then store the account with its passwords kept privately.
+   * @param request - server settings and write-only passwords.
+   * @returns the new connector identity, or the reason and verification step that failed.
+   */
+  @Remote
+  async connectEmail(request: EmailConnectionRequest): Promise<EmailConnectionResult> {
+    const owner = this.owner()
+    const parsed = emailRequestSchema.safeParse(request)
+    if (!parsed.success) return { kind: 'failed', reason: 'invalid' }
+    const { name, receivePassword, sendPassword, ...fields } = parsed.data
+    const settings = emailSettings(fields)
+    const existing = [...this.domain.table('connectors').entries()].map(([, connector]) => connector).filter(connector => connector.owner === owner && connector.provider === 'email')
+    if (existing.some(connector => connector.email?.address.toLowerCase() === settings.address.toLowerCase())) return { kind: 'failed', reason: 'duplicate' }
+    if (existing.length >= this.config.maxEmailAccounts) return { kind: 'failed', reason: 'limit' }
+    const secret = { receivePassword, ...sendPassword !== undefined ? { sendPassword } : {} }
+    const failure = await this.probeEmail(settings, secret)
+    if (failure !== undefined) return failure
+    const id = randomUUID() as ConnectorId
+    await this.ctx.credentials.modifyRecord(connectorCredential(owner, id), async () => ({ kind: 'grant', payload: secret }))
+    await this.domain.table('connectors').put(id, { owner, id, provider: 'email', name: name ?? settings.address, email: settings, enabled: true })
+    this.connected.add(id)
+    return { kind: 'connected', id }
+  }
+
+  /**
+   * Change an email account's settings, re-verifying the servers before saving; an absent password keeps the stored one.
+   * @param id - caller-owned email connector.
+   * @param request - server settings and optional replacement passwords.
+   * @returns the connector identity, or the reason and verification step that failed.
+   */
+  @Remote
+  async updateEmail(id: ConnectorId, request: EmailConnectionUpdate): Promise<EmailConnectionResult> {
+    const owner = this.owner()
+    const saved = this.domain.table('connectors').get(id)
+    if (saved === undefined || saved.owner !== owner || saved.provider !== 'email') throw new Error('connector not found')
+    const parsed = emailUpdateSchema.safeParse(request)
+    if (!parsed.success) return { kind: 'failed', reason: 'invalid' }
+    const { name, receivePassword, sendPassword, ...fields } = parsed.data
+    const settings = emailSettings(fields)
+    const others = [...this.domain.table('connectors').entries()].filter(([other, connector]) => other !== id && connector.owner === owner && connector.provider === 'email')
+    if (others.some(([, connector]) => connector.email?.address.toLowerCase() === settings.address.toLowerCase())) return { kind: 'failed', reason: 'duplicate' }
+    const record = await this.ctx.credentials.readRecord(connectorCredential(owner, id))
+    const stored = record?.kind === 'grant' ? emailSecretSchema.safeParse(record.payload) : undefined
+    const previous = stored?.success === true ? emailSecret(stored.data) : undefined
+    const nextReceive = receivePassword ?? previous?.receivePassword
+    if (nextReceive === undefined) return { kind: 'failed', reason: 'invalid' }
+    const nextSend = sendPassword ?? (receivePassword === undefined ? previous?.sendPassword : undefined)
+    const secret = { receivePassword: nextReceive, ...nextSend !== undefined ? { sendPassword: nextSend } : {} }
+    const failure = await this.probeEmail(settings, secret)
+    if (failure !== undefined) return failure
+    await this.ctx.credentials.modifyRecord(connectorCredential(owner, id), async () => ({ kind: 'grant', payload: secret }))
+    await this.domain.table('connectors').put(id, { owner, id, provider: 'email', name: name ?? settings.address, email: settings, enabled: saved.enabled })
+    this.connected.add(id)
+    return { kind: 'connected', id }
+  }
+
+  /** Verify email settings, translating a probe failure into the reason and step shown in Settings. */
+  private async probeEmail(settings: EmailConnectorSettings, secret: MailSecret): Promise<EmailConnectionResult | undefined> {
+    const mail = this.ctx.get('mail')
+    if (mail === undefined) return { kind: 'failed', reason: 'unavailable' }
+    try {
+      await mail.probe(settings, secret)
+      return undefined
+    } catch (error) {
+      if (!(error instanceof MailError)) return { kind: 'failed', reason: 'other' }
+      const reasons: Partial<Record<MailError['code'], EmailConnectionFailure>> = {
+        MAIL_AUTHENTICATION: 'authentication', MAIL_CONNECTION: 'connection', MAIL_TLS: 'tls', MAIL_INVALID: 'invalid', MAIL_UNSUPPORTED: 'invalid',
+      }
+      return { kind: 'failed', reason: reasons[error.code] ?? 'other', ...error.step !== undefined ? { step: error.step } : {} }
+    }
   }
 
   /**
@@ -466,6 +597,9 @@ export default class AccountIntegrations extends TypertRemoteService {
   private async isConnected(connector: z.infer<typeof connectorSchema>): Promise<boolean> {
     const record = await this.ctx.credentials.readRecord(connectorCredential(connector.owner, connector.id))
     if (record === undefined) return false
+    if (connector.provider === 'email') {
+      return connector.authFailed !== true && record.kind === 'grant' && emailSecretSchema.safeParse(record.payload).success
+    }
     if (record.kind === 'grant') {
       const grant = grantSchema.parse(record.payload)
       if (grant.expiresAt !== undefined && grant.expiresAt <= Date.now()
@@ -486,7 +620,7 @@ export default class AccountIntegrations extends TypertRemoteService {
   }
 
   private oauthApplication(provider: ConnectorProvider): OAuthProviderConfig | undefined {
-    if (provider === 'mcp') return undefined
+    if (provider === 'mcp' || provider === 'email') return undefined
     const google = googleService(provider)
     if (google === undefined) return this.config.providers[provider as 'github' | 'microsoft365']
     const app = this.config.providers.google
@@ -537,8 +671,11 @@ export default class AccountIntegrations extends TypertRemoteService {
       }, 'account-integrations: agent connections')
     }
     const mounts = owned.connections
-    const connectors = [...this.domain.table('connectors').entries()].filter(([, connector]) => connector.owner === owner && connector.enabled
-      && (googleService(connector.provider) === undefined || connector.endpoint === googleService(connector.provider)!.endpoint))
+    // Email rows have no MCP server; their tools come from the mail capability.
+    const connectors = [...this.domain.table('connectors').entries()].flatMap(([id, connector]) => connector.owner === owner && connector.enabled
+      && connector.endpoint !== undefined && connector.provider !== 'email'
+      && (googleService(connector.provider) === undefined || connector.endpoint === googleService(connector.provider)!.endpoint)
+      ? [[id, { ...connector, endpoint: connector.endpoint }] as const] : [])
     for (const [id, mount] of mounts) {
       if (!connectors.some(([active]) => active === id)) { await mount.fiber.dispose(); mounts.delete(id) }
     }

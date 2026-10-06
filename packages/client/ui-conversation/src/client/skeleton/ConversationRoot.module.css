@@ -664,6 +664,13 @@
   pointer-events: none;
 }
 
+/* A start page grows like the transcript it stands in for, so the composer
+   seat stays on the floor below it and its content scrolls under the seat. */
+.startPage {
+  flex: 1 0 auto;
+  min-width: 0;
+}
+
 .root[data-phase="active"] .composerSeat {
   /* Stuck to the scroller's floor, in the same content box as the transcript
      and the header: that shared box is what puts all three on one axis without

@@ -1135,7 +1135,8 @@ describe('SQLite reconciliation and source lifecycle', () => {
 
     const page = await ctx.sessionQuery.searchSessions({ query: 'needle' })
     expect(page.items.map(item => item.header.id).sort()).toEqual([added.id, first.id].sort())
-    expect(TestPersistence.inspections.get(first.id)).toBe(2)
+    // The retry reuses the revision the first attempt already committed.
+    expect(TestPersistence.inspections.get(first.id)).toBe(1)
     expect(TestPersistence.inspections.get(added.id)).toBe(1)
   })
 
@@ -1160,6 +1161,10 @@ describe('SQLite reconciliation and source lifecycle', () => {
     TestPersistence.reset([{ meta: durable, events: messageEvents('durable needle') }])
     const ctx = await liveContext()
     await ctx.plugin(TestPersistence)
+    let lists = 0
+    TestPersistence.snapshotEffect = () => {
+      lists += 1
+    }
     const internals = ctx.sessionQuery as unknown as {
       _persistenceBinding: { identity: symbol; service?: SessionPersistence }
     }
@@ -1178,7 +1183,9 @@ describe('SQLite reconciliation and source lifecycle', () => {
 
     await expect(ctx.sessionQuery.searchSessions({ query: 'needle' }))
       .resolves.toMatchObject({ items: [{ header: durable }] })
-    expect(TestPersistence.inspections.get(durable.id)).toBe(2)
+    // Two attempts list twice each; the retry reuses the committed revision.
+    expect(lists).toBe(4)
+    expect(TestPersistence.inspections.get(durable.id)).toBe(1)
     list.mockRestore()
   })
 

@@ -193,6 +193,20 @@ class FakeSessionUrl implements SessionUrlNavigation {
     return this.owned
   }
 
+  registerStart(): () => void {
+    return () => {}
+  }
+
+  readStart(): string | undefined {
+    return undefined
+  }
+
+  pushStart(): void {}
+
+  subscribeAddress(): () => void {
+    return () => {}
+  }
+
   read(): SessionId | undefined {
     return this.owned ? this.current : undefined
   }

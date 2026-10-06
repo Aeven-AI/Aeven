@@ -21,7 +21,7 @@ import { createPortal } from 'react-dom'
 import clsx from 'clsx'
 import {
   ConnectionIndicator,
-  IconAgentPresetOutline16, IconCloseOutline16, IconCreditCardOutline16, IconDataOutline16,
+  IconCloseOutline16, IconCreditCardOutline16, IconDataOutline16, IconEnhanceOutline16,
   IconLightOutline16, IconPersonalizationOutline16, IconSettingsOutline16, IconThinkOutline16, IconUserOutline16,
 } from '@aeven/client-ui-primitives'
 import type { ConnectionIndicatorState } from '@aeven/client-ui-primitives'
@@ -35,7 +35,7 @@ function navIcon(id: string) {
   if (id === 'account') return <IconUserOutline16 className={css.navIcon} size={16} />
   if (id === 'appearance') return <IconLightOutline16 className={css.navIcon} size={16} />
   if (id === 'models') return <IconDataOutline16 className={css.navIcon} size={16} />
-  if (id === 'agent-presets') return <IconAgentPresetOutline16 className={css.navIcon} size={16} />
+  if (id === 'personalization') return <IconEnhanceOutline16 className={css.navIcon} size={16} />
   if (id === 'plugins') return <IconPersonalizationOutline16 className={css.navIcon} size={16} />
   if (id === 'grok-build') return <IconCreditCardOutline16 className={css.navIcon} size={16} />
   if (id === 'memory') return <IconThinkOutline16 className={css.navIcon} size={16} />
@@ -46,7 +46,9 @@ type PanelProps = {
   rows: readonly SettingsSectionRow[]
   renderSlot: SettingsRootComponentProps['renderSlot']
   activeId: string | undefined
-  onSelect: (id: string) => void
+  /** Page inside the addressed section; it applies only while that section is the one shown. */
+  detail: string | undefined
+  onSelect: (id: string, detail?: string) => void
   onClose: () => void
 }
 
@@ -57,10 +59,12 @@ type PanelProps = {
  * the header button, a mask click, and document-level Escape (mounted only
  * while open, so the listener lifetime is the panel's).
  */
-function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose }: PanelProps) {
+function SettingsPanel({ rows, renderSlot, activeId, detail: addressedDetail, onSelect, onClose }: PanelProps) {
   // Entries can unmount underneath the requested id, so the render-time
   // projection falls back to the first row when the id is gone.
   const active = rows.find(r => r.id === activeId)?.id ?? rows[0]?.id
+  const detail = active === activeId ? addressedDetail : undefined
+  const showDetail = useCallback((page?: string) => { if (active !== undefined) onSelect(active, page) }, [active, onSelect])
   const titleId = useId()
 
   useEffect(() => {
@@ -123,7 +127,7 @@ function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose }: PanelP
         </nav>
         <div className={css.content}>
           <div className={css.header}>
-            <div className={css.actions}>{renderSlot('settings.action', {})}</div>
+            <div className={css.actions}>{renderSlot('settings.action', { section: active, detail, showDetail })}</div>
             <button ref={closeButton} type="button" className={css.close} onClick={onClose}>
               <IconCloseOutline16 size={14} />
               <span className={css.hiddenLabel}>{renderSlot('settings.close', {})}</span>
@@ -132,7 +136,7 @@ function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose }: PanelP
           <div className={css.optionsFrame}>
             <div ref={options} className={clsx(css.options, 'no-scrollbar')}>
               <div ref={optionsBody}>
-                {active !== undefined && renderSlot('settings.section', { close: onClose }, { only: active })}
+                {active !== undefined && renderSlot('settings.section', { close: onClose, detail, showDetail }, { only: active })}
               </div>
             </div>
           </div>
@@ -225,6 +229,7 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
           rows={rows}
           renderSlot={renderSlot}
           activeId={address.section}
+          detail={address.detail}
           onSelect={show}
           onClose={close}
         />

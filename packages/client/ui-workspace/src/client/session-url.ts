@@ -5,14 +5,15 @@ import type { SessionId } from '@aeven/session/types'
 const SESSION_PATH_PREFIX = '/c/'
 
 /**
- * The chat's address space: the root and `/c` with every path beneath it.
- * Every other client route belongs to another surface (Imagine's `/i`), whose
- * address the chat neither reads a Session from nor rewrites.
+ * The chat's address space: the root, `/c` with every path beneath it, and the
+ * registered start addresses. Every other client route belongs to another
+ * surface, whose address the chat neither reads a Session from nor rewrites.
  * @param pathname - the address bar's pathname.
+ * @param starts - the registered start addresses.
  * @returns true when the chat owns the address.
  */
-function chatOwns(pathname: string): boolean {
-  return pathname === '/' || pathname === '/c' || pathname.startsWith(SESSION_PATH_PREFIX)
+function chatOwns(pathname: string, starts: ReadonlySet<string>): boolean {
+  return pathname === '/' || pathname === '/c' || pathname.startsWith(SESSION_PATH_PREFIX) || starts.has(pathname)
 }
 
 /**
@@ -58,6 +59,23 @@ export interface SessionUrlNavigation {
   replace(sessionId: SessionId | undefined): void
   /** Observe browser Back and Forward navigation. */
   subscribe(listener: () => void): () => void
+  /**
+   * Claim a start address, such as `/imagine`: an address of the chat that
+   * names no Session. A blank Session is shown under it, and the address moves
+   * to that Session's own once the Session is no longer blank.
+   * @param path - absolute single-segment path.
+   * @returns disposer releasing the claim.
+   */
+  registerStart(path: string): () => void
+  /** The start address the address bar shows, or undefined on any other address. */
+  readStart(): string | undefined
+  /**
+   * Move to a registered start address as a new history entry.
+   * @param path - the start address.
+   */
+  pushStart(path: string): void
+  /** Observe every change of address this projection makes or the browser reports. */
+  subscribeAddress(listener: () => void): () => void
 }
 
 /** Browser members required by the URL projection. */
@@ -80,6 +98,9 @@ export interface SessionUrlWindow {
  * requirement the plugin does not otherwise have.
  */
 export class BrowserSessionUrlNavigation implements SessionUrlNavigation {
+  private readonly starts = new Set<string>()
+  private readonly addressListeners = new Set<() => void>()
+
   /** @param window - resolves the current browser window's URL, History, and event faces. */
   constructor(private readonly window: () => SessionUrlWindow) {}
 
@@ -89,7 +110,38 @@ export class BrowserSessionUrlNavigation implements SessionUrlNavigation {
   }
 
   ownsAddress(): boolean {
-    return chatOwns(new URL(this.browser.location.href).pathname)
+    return chatOwns(new URL(this.browser.location.href).pathname, this.starts)
+  }
+
+  registerStart(path: string): () => void {
+    this.starts.add(path)
+    return () => { this.starts.delete(path) }
+  }
+
+  readStart(): string | undefined {
+    const { pathname } = new URL(this.browser.location.href)
+    return this.starts.has(pathname) ? pathname : undefined
+  }
+
+  pushStart(path: string): void {
+    if (this.readStart() === path) return
+    const next = new URL(this.browser.location.href)
+    this.browser.history.pushState(null, '', `${path}${next.search}${next.hash}`)
+    this.notifyAddress()
+  }
+
+  subscribeAddress(listener: () => void): () => void {
+    this.addressListeners.add(listener)
+    const onPop = (): void => { listener() }
+    this.browser.addEventListener('popstate', onPop)
+    return () => {
+      this.addressListeners.delete(listener)
+      this.browser.removeEventListener('popstate', onPop)
+    }
+  }
+
+  private notifyAddress(): void {
+    for (const listener of this.addressListeners) listener()
   }
 
   read(): SessionId | undefined {
@@ -133,5 +185,6 @@ export class BrowserSessionUrlNavigation implements SessionUrlNavigation {
     const next = new URL(this.browser.location.href)
     next.pathname = sessionId === undefined ? '/' : sessionPathOf(sessionId)
     this.browser.history[method](null, '', `${next.pathname}${next.search}${next.hash}`)
+    this.notifyAddress()
   }
 }

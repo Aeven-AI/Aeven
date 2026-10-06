@@ -5,8 +5,8 @@ import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@aeven/client-locale/client'
 import type {} from '@aeven/client-ui-settings/client'
 import type {} from '@aeven/client-ui-renderer/client'
-import type { ConnectorProvider, RemoteResult } from '@aeven/api-remotes/client'
-import { ConnectorBack, IntegrationsSection, type IntegrationsSectionInjected } from './IntegrationsSection.tsx'
+import type { RemoteResult } from '@aeven/api-remotes/client'
+import { DetailBack, IntegrationsSection, type IntegrationsSectionInjected } from './IntegrationsSection.tsx'
 import { en, zh, type IntegrationsLocaleKey } from './locales.ts'
 
 export type { IntegrationsSectionInjected, IntegrationsSectionProps } from './IntegrationsSection.tsx'
@@ -39,29 +39,28 @@ export function apply(ctx: Context): void {
   const t = ctx.locale.bind(namespace)
   const remote = ctx.remote.accountIntegrations
   const changes = createSnapshotStore(0)
-  const selectedConnector = createSnapshotStore<ConnectorProvider | undefined>(undefined)
-  const selectConnector = (provider: ConnectorProvider | undefined): void => { selectedConnector.set(provider) }
   const refresh = (): void => { changes.set(changes.getSnapshot() + 1) }
   ctx.remote.$on('skills/change', refresh)
   ctx.on('connection/reset', refresh)
   const operations: Omit<IntegrationsSectionInjected, 'page'> = {
-    hooks: { changes, selectedConnector },
-    selectConnector,
+    hooks: { changes },
     list: () => value(remote.list()),
     importSkill: files => value(remote.importSkill(files)),
     setSkillEnabled: (name, enabled) => value(remote.setSkillEnabled(name, enabled)),
     removeSkill: name => value(remote.removeSkill(name)),
     connect: request => value(remote.connect(request)),
+    connectEmail: request => value(remote.connectEmail(request)),
+    updateEmail: (id, request) => value(remote.updateEmail(id, request)),
     authorize: provider => value(remote.authorize(provider)),
     setConnectorEnabled: (id, enabled) => value(remote.setConnectorEnabled(id, enabled)),
     disconnect: id => value(remote.disconnect(id)),
   }
   ctx.slots.inject('settings.action', () => ctx.slots.register({
-    name: 'settings.action', id: 'connector-back', locale: namespace,
-    inject: () => ({ hooks: { changes, selectedConnector }, selectConnector }),
-  }, ConnectorBack))
+    name: 'settings.action', id: 'detail-back', locale: namespace,
+  }, DetailBack))
   ctx.slots.inject('settings.section', function* () {
-    for (const [page, order] of [['skills', 55], ['connectors', 60]] as const) {
+    // Voice also registers at 60; Connectors sits just before it so the nav order does not depend on load order.
+    for (const [page, order] of [['skills', 55], ['connectors', 58]] as const) {
       yield ctx.slots.register({
         name: 'settings.section', id: page, order, label: () => t(page), locale: namespace,
         inject: () => ({ ...operations, page }),

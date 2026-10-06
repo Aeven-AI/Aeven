@@ -303,10 +303,6 @@
 
 /* The Imagine row: the New Session row's geometry without its affordances —
    nothing to activate until the destination exists. */
-.imagine {
-  cursor: default;
-}
-
 .newSessionLabel {
   max-width: 200px;
   overflow: hidden;

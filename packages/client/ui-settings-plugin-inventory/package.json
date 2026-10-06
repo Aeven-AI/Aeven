@@ -30,8 +30,7 @@
       "inject": [
         "@aeven/api-remotes",
         "@aeven/client-ui-settings",
-        "@aeven/client-locale",
-        "@aeven/client-ui-agent-preset"
+        "@aeven/client-locale"
       ],
       "platform": "web"
     }
@@ -48,7 +47,6 @@
     "@aeven/api-remotes": "workspace:^",
     "@aeven/client-locale": "workspace:^",
     "@aeven/client-test-runtime": "workspace:^",
-    "@aeven/client-ui-agent-preset": "workspace:^",
     "@aeven/client-ui-primitives": "workspace:^",
     "@aeven/client-ui-settings": "workspace:^",
     "@aeven/client-ui-slots": "workspace:^",
@@ -57,8 +55,7 @@
     "@deepseek-ai/cordis": "workspace:^",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "@aeven/client-ui-renderer": "workspace:^",
-    "@aeven/agent-presets": "workspace:^"
+    "@aeven/client-ui-renderer": "workspace:^"
   },
   "files": [
     "lib/index.js",

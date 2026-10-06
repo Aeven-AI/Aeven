@@ -27,6 +27,7 @@ import type { ModelsSettingsStore, ProviderRow } from './store.ts'
 import type { ModelsOperations } from './operations.ts'
 import type { SettingsSchemaOperations } from './schema-operations.ts'
 import { ProviderEditor, type ProviderEditorProps } from './ProviderEditor.tsx'
+import { ProviderPicker } from './ProviderPicker.tsx'
 import type { en } from './locales.ts'
 import styles from './ModelsSection.module.css'
 
@@ -177,6 +178,21 @@ function byDisplayName(left: ProviderRow, right: ProviderRow): number {
     || left.entry.provider.localeCompare(right.entry.provider)
 }
 
+/**
+ * Drop a multi-provider catalog route that a dedicated adapter also offers
+ * under the same name: the dedicated adapter's whole-section route (an empty
+ * settings path) is the one built for that provider, and listing both shows
+ * one provider twice.
+ * @param rows - addable rows.
+ * @returns the rows without the shadowed catalog routes.
+ */
+function withoutShadowedRoutes(rows: readonly ProviderRow[]): ProviderRow[] {
+  const dedicated = new Set(rows
+    .filter(row => row.entry.settingsPath.length === 0)
+    .map(row => row.entry.displayName.toLowerCase()))
+  return rows.filter(row => row.entry.settingsPath.length === 0 || !dedicated.has(row.entry.displayName.toLowerCase()))
+}
+
 /** Stable visible and accessible identity for one provider target. */
 export function providerTargetLabel(target: ProviderIdentity): string {
   return target.provider === target.displayName
@@ -286,9 +302,9 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
   const configured = state.rows.filter(row => row.configured)
   // A dormant keyed profile is added by writing it; a dormant whole-section
   // provider only when its section can switch it on.
-  const addable = state.rows
+  const addable = withoutShadowedRoutes(state.rows
     .filter(row => !row.configured && row.entry.settingsNs !== ''
-      && (row.entry.settingsPath.length > 0 || row.switchable))
+      && (row.entry.settingsPath.length > 0 || row.switchable)))
     .sort(byDisplayName)
   // Two adapter families may ship a route under the same name; the route id
   // tells their options apart.
@@ -297,6 +313,10 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
       ? providerTargetLabel(row.entry)
       : row.entry.displayName
   const addTarget = adding ? editing : undefined
+  const cancelAdd = (): void => {
+    setAdding(false)
+    setEditing(undefined)
+  }
   const addNamespace = addTarget === undefined ? undefined : state.namespaces.get(addTarget.settingsNs)
   // The draft's directory row, for the card extension seat. A refresh can drop
   // the row mid-draft (the route was adopted or withdrawn elsewhere); the
@@ -323,7 +343,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
       {configured.length === 0 && state.status === 'ready'
         ? <p className={styles['empty']}>{t('empty')}</p>
         : null}
-      <div className={styles['rows']}>
+      <div className={configured.length === 0 ? undefined : styles['rows']}>
         <ProviderRowList>
           {configured.map((row) => {
             const target = targetOf(row)
@@ -410,46 +430,52 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
         </ProviderRowList>
       </div>
       <div className={styles['addBlock']}>
-        {addTarget !== undefined && addNamespace !== undefined
+        {adding
           ? (
             <div className={styles['addCard']}>
               <div className={styles['field']}>
                 <span className={styles['fieldLabel']}>{t('provider')}</span>
-                <select
-                  className={`${styles['input']} ${styles['selectInput']}`}
-                  value={addTarget.provider}
-                  aria-label={t('provider')}
-                  onChange={(event) => {
-                    const row = addable.find(candidate => candidate.entry.provider === event.target.value)
-                    /* v8 ignore next -- the select only lists addable rows */
+                <ProviderPicker
+                  options={addable.map(row => ({ id: row.entry.provider, label: addLabel(row) }))}
+                  value={addTarget?.provider}
+                  label={t('chooseProvider')}
+                  searchLabel={t('searchProviders')}
+                  emptyLabel={t('noProviderMatches')}
+                  defaultOpen={addTarget === undefined}
+                  disabled={!state.writable}
+                  onChange={(id) => {
+                    const row = addable.find(candidate => candidate.entry.provider === id)
+                    /* v8 ignore next -- the picker only lists addable rows */
                     if (row === undefined) return
                     setEditing(targetOf(row))
                   }}
-                >
-                  {addable.map(row => (
-                    <option key={row.entry.provider} value={row.entry.provider}>{addLabel(row)}</option>
-                  ))}
-                </select>
+                  // Closing the list before any choice abandons the add.
+                  onDismiss={() => { if (addTarget === undefined) cancelAdd() }}
+                />
               </div>
-              <ProviderEditor
-                key={addTarget.provider}
-                provider={addTarget.provider}
-                displayName={addTarget.displayName}
-                hideTitle
-                namespace={addNamespace}
-                schema={schema}
-                settingsPath={addTarget.settingsPath}
-                operations={operations}
-                t={t}
-                readOnly={!state.writable}
-                {...addTarget.switchable === true ? { activate: true } : {}}
-                // Switching a keyed route on without a key would only add
-                // models that fail on first use.
-                {...addTarget.switchable === true && addRow?.credential?.configured !== true
-                  ? { credentialRequired: true }
-                  : {}}
-                onClose={(changed) => { closeEditor(changed, addTarget) }}
-              />
+              {addTarget !== undefined && addNamespace !== undefined
+                ? (
+                  <ProviderEditor
+                    key={addTarget.provider}
+                    provider={addTarget.provider}
+                    displayName={addTarget.displayName}
+                    hideTitle
+                    namespace={addNamespace}
+                    schema={schema}
+                    settingsPath={addTarget.settingsPath}
+                    operations={operations}
+                    t={t}
+                    readOnly={!state.writable}
+                    {...addTarget.switchable === true ? { activate: true } : {}}
+                    // Switching a keyed route on without a key would only add
+                    // models that fail on first use.
+                    {...addTarget.switchable === true && addRow?.credential?.configured !== true
+                      ? { credentialRequired: true }
+                      : {}}
+                    onClose={(changed) => { closeEditor(changed, addTarget) }}
+                  />
+                )
+                : null}
               {addRow === undefined
                 ? null
                 : renderSlot(
@@ -478,23 +504,19 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
               </div>
             )
             : (
-              // One row for the two ways to gain a provider: adopt one the
-              // adapter already knows, or declare one it does not. Side by side
-              // and equal-width so they read as siblings and line up with the
-              // rows above, rather than two pills of different lengths.
+              // The two ways to gain a provider: adopt one the adapter already
+              // knows (the common path, so the primary button), or declare one
+              // it does not.
               <div className={styles['addActions']}>
                 <button
                   type="button"
-                  className={styles['addButton']}
+                  className={`${styles['addButton']} ${styles['addButtonPrimary']}`}
                   disabled={addable.length === 0 || !state.writable}
                   onClick={() => {
-                    const first = addable[0]
-                    /* v8 ignore next -- the button is disabled while nothing is addable */
-                    if (first === undefined) return
                     setSavedTarget(undefined)
                     setDeclaring(false)
                     setAdding(true)
-                    setEditing(targetOf(first))
+                    setEditing(undefined)
                   }}
                 >
                   <IconPlusOutline16 size={14} />

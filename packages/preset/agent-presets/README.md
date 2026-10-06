@@ -35,7 +35,7 @@ The presets you can choose from come from two places: the presets shipped inside
 
 ### Shipped skills
 
-The presets that discover local skills also mount the skills shipped inside this package, so a session gets them without a local copy. They live once, under `presets/aeven/skills/`, and each composition resolves that directory from its own URL: `aeven` mounts `./skills/`, and `standard`, `ptc`, and `cordis` mount `../aeven/skills/`. `minimal` mounts no filesystem discovery and therefore none of them.
+The `aeven` composition mounts the skills shipped inside this package, so a session gets them without a local copy. They live under `presets/aeven/skills/`, which the composition resolves from its own URL as `./skills/`.
 
 A shipped skill's `SKILL.md` is the canonical file, and the repository path `.agents/skills/<name>/SKILL.md` is a relative symbolic link to it, so an agent working in this checkout discovers the same file. The root resolves beside the composition, so a preset copied into a user root carries none of the shipped skills, and a locally authored skill of the same name loses to the shipped one.
 
@@ -48,7 +48,7 @@ The plugin needs a `default` preset id and scans `roots` for presets:
 ```yaml
 - name: '@aeven/agent-presets'
   config:
-    default: standard
+    default: aeven
     roots:
       - path: ~/company-presets
         trust: system
@@ -71,10 +71,10 @@ The `default` config sets the deployment default. When a settings provider is co
 
 ```yaml
 agent-presets:
-  default: minimal
+  default: aeven
 ```
 
-The value is read when a session is created, so a changed default affects only sessions created afterwards; running sessions stay on the preset they were composed from. Clearing the user field re-inherits the composition default. The shipped Web composition defaults to `aeven`, the full agent without the Cordis runtime toolset that the `cordis` preset mounts; the other shipped presets stay installed so sessions created on them still resume, and the Web GUI offers them only in Developer mode.
+The value is read when a session is created, so a changed default affects only sessions created afterwards; running sessions stay on the preset they were composed from. Clearing the user field re-inherits the composition default. The package ships one composition, `aeven`, and the Web composition runs every session on it with the user root turned off, so the Web GUI offers no preset choice. Changing what a session can do means editing `presets/aeven/agent.cordis.yml`; its developer switches — PTC mode and the Cordis self-extension toolset — are rows that ship disabled.
 
 ### Authoring presets
 
@@ -183,7 +183,7 @@ These limits define when the roster is a poor fit or needs special operational c
 - **A superseded generation is never reclaimed** — sessions already joined keep the generation they run on, and the roster holds no join count that could tell when the last one left, so the whole subtree stays mounted until the process ends. The cost is per generation rather than per session, but it is not free: `avn-skill-filesystem` watches its roots by default, so each edit-then-create cycle adds a live watcher set.
 - **A copy is never mounted to validate** — it is byte-identical to its source, so a source broken on disk yields a copy exactly as broken as the source; discovery's health check marks both rows on the next roster read rather than deferring the failure to a session start.
 - **Health asks what is installed, not what would import** — discovery proves the composition parses in the loader dialect, holds named rows, and that each row it can prove will start names a package present above the harness base or a file that exists; it never imports one, so a package whose own entry file is missing, a plugin that throws on apply, and one waiting forever for a service all still fail at the first session. `disabled` is the one entry field the Loader interpolates, so a row carrying an expression there is left unchecked rather than judged from the file.
-- **A copy is a snapshot that drifts** — upgrading the deployment does not update copies of shipped presets, and there is no patch semantics at this layer to express "standard plus one change"; the shipped set itself accepts the same cost — `aeven` and `cordis` each duplicate `standard`'s full assembly and then edit it — so the whole assembly stays readable in one file.
+- **A copy is a snapshot that drifts** — upgrading the deployment does not update copies of shipped presets, and there is no patch semantics at this layer to express "standard plus one change"; the shipped `aeven` composition keeps its whole assembly in one file for the same reason.
 - **Root scans are not watched** — every read hits the filesystem instead, which keeps the roster fresh but puts one `readdir` per root on each `list()`.
 
 <a id="dev-note"></a>

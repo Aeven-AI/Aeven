@@ -46,10 +46,8 @@ export interface KnownRoute {
  */
 export const KNOWN_ROUTES: Readonly<Record<string, KnownRoute>> = {
   deepinfra: {
-    // Lower case like every catalog route's name, which is its route key: the
-    // directory shows these side by side and a capitalized outlier reads as a
-    // different kind of entry.
-    displayName: 'deepinfra',
+    // Cased like the catalog's own provider names, which the directory shows beside it.
+    displayName: 'DeepInfra',
     api: 'openai-completions',
     baseURL: 'https://api.deepinfra.com/v1/openai',
     apiKeyEnv: 'DEEPINFRA_API_KEY',

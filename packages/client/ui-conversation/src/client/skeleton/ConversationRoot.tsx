@@ -200,7 +200,7 @@ function WidthHandle(props: {
 
 export function ConversationRoot({
   sessionId, useSession, useSessions, useSessionPendingInteraction,
-  useInput, useComposerBlock, useSelectedView,
+  useInput, useComposerBlock, useSelectedView, useStartPage,
   renderSlot, renderSlotChain, t, sidebarCollapsed, toggleSidebar,
 }: ConversationRootProps) {
   const session = useSession(s => s)
@@ -214,6 +214,7 @@ export function ConversationRoot({
   // send; its reason is already localized by whoever raised it.
   const composerBlock = useComposerBlock(block => block)
   const composerOverlay = useSelectedView(view => view?.composerPlacement === 'overlay')
+  const startPageSet = useStartPage(active => active)
 
   // Nothing measures the composer seat. A View that floats a composer over its
   // own ledger clears it with the static `--avn-composer-height` fallback in
@@ -285,6 +286,10 @@ export function ConversationRoot({
     || (summaryBlank === true && session?.promptAttempted !== true)
     || (summaryBlank === undefined && session?.blank === true && !session.promptAttempted
       && (openState === 'open' || openState === 'error' || openState === 'cold'))
+  // A start page replaces the blank Session's centred Hero: its own content
+  // fills the column and the composer sits on the floor, as in a settled chat.
+  const startPage = hero && startPageSet && sessionId !== undefined
+  const centered = hero && !startPage
   const zone: InputZone | undefined =
     session === undefined || inputState === undefined ? undefined : { session, input: inputState }
 
@@ -300,7 +305,7 @@ export function ConversationRoot({
   // one disabled textarea, never a second tree.
   const blocked = !inert && composerBlock !== undefined
   const inputBar = renderSlot('conversation.composer.bar', {
-    variant: hero ? 'hero' : 'composer',
+    variant: centered ? 'hero' : 'composer',
     ...(inert
       // The placeholder names what the reader is about to do rather than an
       // action they are missing: with a built-in workspace there is nothing to
@@ -315,8 +320,8 @@ export function ConversationRoot({
   })
 
   const composerBar = (
-    <div className={clsx(css.composerStack, hero && css.composerHero)}>
-      {hero && <HeroShell t={t} />}
+    <div className={clsx(css.composerStack, centered && css.composerHero)}>
+      {centered && <HeroShell t={t} />}
       {zone !== undefined && (
         <div className={css.dockFrame}>
           <div className={css.dockStack}>{renderSlot('conversation.input.dock', zone)}</div>
@@ -326,7 +331,7 @@ export function ConversationRoot({
     </div>
   )
 
-  const phase = settling ? 'settling' : hero ? 'hero' : 'active'
+  const phase = settling ? 'settling' : centered ? 'hero' : 'active'
   const composer = renderSlotChain(
     'conversation.composer',
     { sessionId, session, pendingInteraction },
@@ -441,7 +446,9 @@ export function ConversationRoot({
         </header>
         {/* This hold keeps the scrollport's growing item present while
             conversation.session is dropped so the overlay can present. */}
-        {mountedSessionId === undefined
+        {startPage
+          ? <div className={css.startPage} data-start-page="">{renderSlot('conversation.start', {})}</div>
+          : mountedSessionId === undefined
           ? (phase === 'active'
             ? <div className={css.transcriptHold} data-transcript-hold="" aria-hidden="true" />
             : null)

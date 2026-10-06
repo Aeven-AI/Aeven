@@ -105,6 +105,9 @@
       "path": "../../memory/api-memory-manager"
     },
     {
+      "path": "../../preset/personalization"
+    },
+    {
       "path": "../../host/account-integrations"
     },
     {

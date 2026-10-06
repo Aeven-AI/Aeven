@@ -14,6 +14,7 @@ export type {
   SidebarBrandMarkOwnerProps, SidebarBrandNameOwnerProps, SidebarFooterActionOwnerProps,
   SidebarHeaderActionOwnerProps, SidebarRootComponentProps, SidebarRootInjected, SidebarSectionOwnerProps,
   SidebarSettingsOwnerProps,
+  SidebarNavOwnerProps,
 } from './contract/slots.ts'
 export type { SidebarKey } from './locales.ts'
 
@@ -72,6 +73,7 @@ export function apply(ctx: ClientContext): void {
         'sidebar.workspaces': { kind: 'single', scope: 'root' },
         'sidebar.settings': { kind: 'single', scope: 'root' },
         'sidebar.footer.action': { kind: 'list', scope: 'root' },
+        'sidebar.nav': { kind: 'list', scope: 'root' },
       },
       inject: injectProps,
     }, SidebarRoot),

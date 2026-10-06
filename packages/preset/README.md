@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The preset group provides per-session agent composition: an agent preset is a directory holding one `agent.cordis.yml`, and a session composed from a preset runs that preset's tools, prompt sections, and skills while every other session keeps its own. `agent-presets` owns the roster — discovery over configured roots plus the harness home, the guarded per-agent mount, and copy-only authoring — and `persona` supplies the composable row that lets a preset change an agent's identity and not only its tools. Together they let one process run several differently composed agents at once.
+The preset group provides per-session agent composition: an agent preset is a directory holding one `agent.cordis.yml`, and a session composed from a preset runs that preset's tools, prompt sections, and skills while every other session keeps its own. `agent-presets` owns the roster — discovery over configured roots plus the harness home, the guarded per-agent mount, and copy-only authoring — and `persona` supplies the composable row that lets a preset change an agent's identity and not only its tools. Together they let one process run several differently composed agents at once. `personalization` adds what each signed-in person asked for about how Aeven talks with them.
 
 ## Table of Contents
 
@@ -26,6 +26,7 @@ The preset group provides per-session agent composition: an agent preset is a di
 |---|---|---|
 | [`agent-presets`](agent-presets/README.md) | Preset roster, discovery over trusted and user roots, per-agent composition, copy-only authoring | `ctx.agentPresets` |
 | [`persona`](persona/README.md) | The composable persona row a preset mounts to shadow or replace the deployment persona | — |
+| [`personalization`](personalization/README.md) | Per-account voice, name, and notes rendered after the persona, with the Remote behind Settings → Personalization | `ctx.personalizationController` |
 
 -----
 

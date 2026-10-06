@@ -1,6 +1,6 @@
 {
   "name": "@aeven/client-ui-imagine",
-  "description": "Imagine surface: the /i/<id> start page that takes the center column in place of the chat, and the /image-model picker",
+  "description": "Imagine: a sidebar row that starts a chat with starter image prompts under its composer, the in-chat generated-image view, and the /image-model picker",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
     "access": "public"
@@ -32,7 +32,8 @@
         "@aeven/api-session-controller",
         "@aeven/client-locale",
         "@aeven/client-ui-commands",
-        "@aeven/client-ui-layout",
+        "@aeven/client-ui-sidebar",
+        "@aeven/client-ui-workspace",
         "@aeven/client-ui-renderer",
         "@aeven/client-ui-settings",
         "@aeven/client-ui-chat",
@@ -66,6 +67,7 @@
     "@aeven/client-ui-primitives": "workspace:^",
     "@aeven/client-ui-renderer": "workspace:^",
     "@aeven/client-ui-session": "workspace:^",
+    "@aeven/client-ui-sidebar": "workspace:^",
     "@aeven/client-ui-settings": "workspace:^",
     "@aeven/client-ui-slots": "workspace:^",
     "@aeven/client-ui-tool": "workspace:^",

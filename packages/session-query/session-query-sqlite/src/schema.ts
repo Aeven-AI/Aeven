@@ -5,7 +5,7 @@ import { mkdir, open } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 
 /** Current derived-index schema version. Incompatible versions reset in place. */
-export const SESSION_QUERY_SQLITE_SCHEMA_VERSION = 10
+export const SESSION_QUERY_SQLITE_SCHEMA_VERSION = 11
 
 /** SQLite application id protecting unrelated databases from derived resets. */
 export const SESSION_QUERY_SQLITE_APPLICATION_ID = 0x44534851
@@ -43,9 +43,14 @@ async function createDatabaseFile(path: string): Promise<void> {
  * Open, validate, and initialize persistent and connection-local schemas.
  * @param path - dedicated derived-index path or `:memory:`; missing filesystem paths are created owner-only.
  * @param journalMode - validated SQLite journal mode.
+ * @param busyTimeout - milliseconds a statement waits for another process's write lock before failing.
  * @returns initialized database handle owned by the search service.
  */
-export async function openSearchDatabase(path: string, journalMode: JournalMode): Promise<DatabaseSync> {
+export async function openSearchDatabase(
+  path: string,
+  journalMode: JournalMode,
+  busyTimeout: number,
+): Promise<DatabaseSync> {
   const actual = path === ':memory:' ? path : resolve(path)
   if (actual !== ':memory:') {
     await mkdir(dirname(actual), { recursive: true, mode: 0o700 })
@@ -54,6 +59,10 @@ export async function openSearchDatabase(path: string, journalMode: JournalMode)
   const { DatabaseSync } = await import('node:sqlite')
   const db = new DatabaseSync(actual)
   try {
+    // Processes sharing one Aeven home share this index; a writer waits for
+    // another process's transaction instead of failing with SQLITE_BUSY.
+    // busyTimeout is a validated non-negative integer, not caller-controlled SQL.
+    db.exec(`PRAGMA busy_timeout = ${String(busyTimeout)}`)
     const { application_id: applicationId } = db.prepare('PRAGMA application_id').get() as { application_id: number }
     const { user_version: version } = db.prepare('PRAGMA user_version').get() as { user_version: number }
     const userTables = listUserTables(db)
@@ -127,20 +136,12 @@ function ensurePersistentSchema(db: DatabaseSync): void {
     ) STRICT
   `)
   db.exec(`
-    CREATE VIRTUAL TABLE IF NOT EXISTS persisted_docs USING fts5(
-      text,
-      session_id UNINDEXED,
-      seq UNINDEXED,
-      type UNINDEXED,
-      time UNINDEXED,
-      surface UNINDEXED,
-      codepoint_length UNINDEXED,
-      tokenize = 'unicode61'
-    )
+    CREATE VIRTUAL TABLE IF NOT EXISTS persisted_docs USING fts5(text, tokenize = 'unicode61')
   `)
-  // Filters and match counts read these side tables. The FTS content row holds
-  // the document text, and a query that selected it would read that text for
-  // every hit before it knew which rows to return.
+  // Filters, match counts, and per-session deletes read these side tables by
+  // FTS rowid. The FTS content row holds only the document text, so a query
+  // never reads that text before it knows which rows to return, and removing
+  // one session never scans the whole content table.
   db.exec(`
     CREATE TABLE IF NOT EXISTS persisted_doc_meta (
       doc_rowid        INTEGER PRIMARY KEY,
@@ -170,21 +171,13 @@ function ensureTemporarySchema(db: DatabaseSync): void {
       agent_preset  TEXT,
       owner          TEXT,
       fingerprint    TEXT NOT NULL,
+      indexed_seq    INTEGER NOT NULL,
       persisted      INTEGER NOT NULL CHECK (persisted IN (0, 1)),
       generation     INTEGER NOT NULL
     ) STRICT
   `)
   db.exec(`
-    CREATE VIRTUAL TABLE IF NOT EXISTS temp.live_docs USING fts5(
-      text,
-      session_id UNINDEXED,
-      seq UNINDEXED,
-      type UNINDEXED,
-      time UNINDEXED,
-      surface UNINDEXED,
-      codepoint_length UNINDEXED,
-      tokenize = 'unicode61'
-    )
+    CREATE VIRTUAL TABLE IF NOT EXISTS temp.live_docs USING fts5(text, tokenize = 'unicode61')
   `)
   db.exec(`
     CREATE TABLE IF NOT EXISTS temp.live_doc_meta (
@@ -201,6 +194,16 @@ function ensureTemporarySchema(db: DatabaseSync): void {
   db.exec('CREATE VIRTUAL TABLE IF NOT EXISTS temp.live_docs_inst USING fts5vocab(live_docs, instance)')
   db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS temp.query_probe USING fts5(text, tokenize = 'unicode61')`)
   db.exec('CREATE VIRTUAL TABLE IF NOT EXISTS temp.query_probe_inst USING fts5vocab(query_probe, instance)')
+  // Instances of a phrase's second and later tokens, keyed for point lookups
+  // from the first token's instances.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS temp.phrase_terms (
+      position     INTEGER NOT NULL,
+      doc          INTEGER NOT NULL,
+      token_offset INTEGER NOT NULL,
+      PRIMARY KEY (position, doc, token_offset)
+    ) WITHOUT ROWID
+  `)
   db.exec(`
     CREATE TABLE IF NOT EXISTS temp.match_counts (
       source      TEXT NOT NULL,

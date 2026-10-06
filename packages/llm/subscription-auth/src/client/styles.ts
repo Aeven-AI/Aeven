@@ -1,6 +1,6 @@
 /**
- * Shared inline styles using AVN design tokens. Card, header, body, footer,
- * and button values copy the Plugins card (`PluginCard.module.css`) so the
+ * Shared inline styles using AVN design tokens. Card, header, body, and footer
+ * values copy the Plugins card (`PluginCard.module.css`) and buttons are the shared capsule, so the
  * provider cards read as the same component family. Every text style is
  * 14px or larger.
  */
@@ -69,30 +69,37 @@ export const sectionTitleStyle: CSSProperties = {
   color: 'var(--dsw-alias-label-primary)',
 }
 
+/** The shared capsule control of the Button primitive and the Providers page's Apply and Cancel. */
 const buttonBase: CSSProperties = {
   appearance: 'none',
-  border: '1px solid transparent',
-  borderRadius: 8,
-  padding: '5px 14px',
+  boxSizing: 'border-box',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  height: 'var(--dsw-aeven-control-size)',
+  padding: '0 14px',
+  border: '0.5px solid transparent',
+  borderRadius: 'var(--dsw-aeven-radius-control)',
   font: 'inherit',
   fontSize: 14,
-  lineHeight: 1.5,
+  lineHeight: '22px',
+  whiteSpace: 'nowrap',
   cursor: 'pointer',
 }
-/** The Plugins card's Discard button. */
+/** Outline capsule, like the Providers page's Cancel. */
 export const secondaryButtonStyle: CSSProperties = {
   ...buttonBase,
-  borderColor: 'var(--dsw-alias-border-l2)',
-  background: 'none',
-  color: 'var(--dsw-alias-label-secondary)',
+  borderColor: 'var(--dsw-alias-border-l3)',
+  background: 'transparent',
+  color: 'var(--dsw-alias-label-primary)',
 }
 /** Generic button, used outside the cards. */
 export const buttonStyle: CSSProperties = secondaryButtonStyle
-/** The Plugins card's Save button. */
+/** Filled capsule, like the Providers page's Apply. */
 export const primaryButtonStyle: CSSProperties = {
   ...buttonBase,
-  background: 'var(--dsw-alias-label-primary)',
-  color: 'var(--dsw-alias-bg-layer-3)',
+  background: 'var(--dsw-alias-button-primary-fill)',
+  color: 'var(--dsw-alias-label-primary-foreground)',
 }
 /** A confirmed destructive action, such as signing out. */
 export const dangerButtonStyle: CSSProperties = {

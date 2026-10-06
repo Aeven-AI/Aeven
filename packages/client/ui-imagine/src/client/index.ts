@@ -1,55 +1,60 @@
 /**
- * Imagine plugin, browser half: claims the `/i` path root on the layout's
- * surface router and contributes the Imagine page to the `surface` slot, so
- * `/i/<id>` shows Imagine in the center column in place of the chat. Imagine
- * is independent of chat Sessions: the id in its address names no Session.
+ * Imagine plugin, browser half. Imagine is a way to start an ordinary chat: `/imagine` is a start address of the
+ * chat, which shows a blank Session with a gallery of starter prompts in place of the Hero and the regular composer
+ * on the floor below it. Choosing a prompt puts it in the composer; sending it is an ordinary first message, after
+ * which the address becomes the chat's own and `generate_image` makes the images. The sidebar's Imagine row opens
+ * `/imagine`.
  *
- * The image models this page will generate with are chosen from the chat
- * composer: this plugin also hangs the `/image-model` popup on the host
- * command, the surface that shows and changes the stored choice until Imagine
- * has a model control of its own.
+ * The same plugin renders generated images at their tool call, and hangs the `/image-model` popup on the host
+ * command in the chat composer.
  * @module @aeven/client-ui-imagine/client
  */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
-// Type-only: pulls the layout Context merge (ctx.layout) and the `surface` slot.
-import type {} from '@aeven/client-ui-layout/client'
 // Type-only: pulls the locale plugin's Context merge (ctx.locale).
 import type {} from '@aeven/client-locale/client'
 // Type-only: pulls the SlotRegistry service merge (ctx.slots).
 import type {} from '@aeven/client-ui-renderer/client'
+// Type-only: pulls the sidebar's `sidebar.nav` slot declaration.
+import type {} from '@aeven/client-ui-sidebar/client'
 import type { CommandUiContract } from '@aeven/client-ui-commands/client'
 import { ImageToolView } from './ImageToolView.tsx'
 import { IMAGE_TOOLS, registerGeneratedImages } from './generated-images.ts'
 import type {} from '@aeven/client-ui-tool/client'
-import { ImaginePage } from './ImaginePage.tsx'
 import { imageModelDecoration } from './image-model-picker.ts'
-import { IMAGINE_ROOT, imagineIdOf, newImaginePath } from './imagine-url.ts'
-import type { ImaginePageInjected } from './slots.ts'
+import { ImaginePrompts } from './ImaginePrompts.tsx'
+import { ImagineRow, type ImagineRowInjected } from './ImagineRow.tsx'
 import { en, zh } from './locales.ts'
 
-export { IMAGINE_ROOT, imagineIdOf, newImaginePath } from './imagine-url.ts'
-export type { ImaginePageInjected, ImaginePageProps } from './slots.ts'
 export type { ImagineKey } from './locales.ts'
+
+/** Imagine's start address. */
+const IMAGINE_PATH = '/imagine'
+
+/** The Workspace UI's start-address face. */
+interface StartAddresses {
+  registerStartAddress(path: string): () => void
+  openStartAddress(path: string): void
+  readonly startAddress: { getSnapshot(): string | undefined; subscribe(fn: () => void): () => void }
+}
+
+/** The conversation's start-page switch. */
+interface StartPageSwitch {
+  readonly startPage: { set(active: boolean): void }
+}
 
 /** Dictionary namespace owned by this plugin. */
 const NS = 'imagine'
 
-/** Surface id; the `surface` slot key the page registers under. */
-const SURFACE = 'imagine'
-
-/** Required services: the slot registry, the layout's surface router, and the copy. */
-export const inject = ['slots', 'layout', 'locale']
+/** Required services: the slot registry and the copy. */
+export const inject = ['slots', 'locale']
 
 /**
- * Client plugin body: the `/i` claim, its address canonicalization, the page,
- * and the image-model picker.
+ * Client plugin body: the Imagine row, the starter prompts, the in-chat image view and the image-model picker.
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
-  const { surfaces } = ctx.layout
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-imagine: dictionaries')
-  ctx.effect(() => surfaces.register({ id: SURFACE, root: IMAGINE_ROOT }), 'ui-imagine: /i surface')
 
   // The picker waits on the surfaces it decorates rather than holding the page
   // behind them: a deployment with no command surface and no settings document
@@ -67,25 +72,36 @@ export function apply(ctx: ClientContext): void {
     }
   })
 
-  // Every Imagine address names an id: a bare `/i`, or one whose id is not a
-  // UUID, is rewritten in place to a fresh `/i/<uuid>`, as a New Session
-  // link names its chat before the chat exists.
-  ctx.effect(() => {
-    const canonicalize = (): void => {
-      if (surfaces.current.getSnapshot() !== SURFACE) return
-      if (imagineIdOf(surfaces.pathname()) !== undefined) return
-      surfaces.replace(newImaginePath())
+  // `/imagine` is a start address of the chat: the Workspace UI keeps it over a blank Session, and while it is the
+  // address the conversation shows this plugin's gallery in place of the Hero.
+  ctx.inject(['uiWorkspace', 'uiConversation'], (startCtx: ClientContext) => {
+    const addresses = startCtx.get('uiWorkspace') as unknown as StartAddresses
+    const conversation = startCtx.get('uiConversation') as unknown as StartPageSwitch
+    startCtx.effect(() => addresses.registerStartAddress(IMAGINE_PATH), 'ui-imagine: /imagine start address')
+    startCtx.effect(() => {
+      const sync = (): void => { conversation.startPage.set(addresses.startAddress.getSnapshot() === IMAGINE_PATH) }
+      sync()
+      const unsubscribe = addresses.startAddress.subscribe(sync)
+      return () => {
+        unsubscribe()
+        conversation.startPage.set(false)
+      }
+    }, 'ui-imagine: start page')
+    const row: ImagineRowInjected = {
+      href: IMAGINE_PATH,
+      open: () => { addresses.openStartAddress(IMAGINE_PATH) },
     }
-    const unsubscribe = surfaces.current.subscribe(canonicalize)
-    canonicalize()
-    return unsubscribe
-  }, 'ui-imagine: address canonicalization')
+    startCtx.slots.inject('sidebar.nav', () => startCtx.slots.register({
+      name: 'sidebar.nav',
+      id: 'imagine',
+      locale: NS,
+      inject: () => row,
+    }, ImagineRow))
+  })
 
-  const injected: ImaginePageInjected = { heroT: ctx.locale.bind('conversation') }
-  ctx.slots.inject('surface', () => ctx.slots.register({
-    name: 'surface',
-    key: SURFACE,
+  ctx.slots.inject('conversation.start', () => ctx.slots.register({
+    name: 'conversation.start',
+    id: 'imagine-prompts',
     locale: NS,
-    inject: () => injected,
-  }, ImaginePage))
+  }, ImaginePrompts))
 }

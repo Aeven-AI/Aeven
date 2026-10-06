@@ -182,7 +182,7 @@ describe('session.search', () => {
         },
         { kind: 'surface', values: ['current'] },
       ],
-      limit: 20,
+      limit: 21,
     })
     expect(exec.signal).toBe(signal)
   })
@@ -324,7 +324,7 @@ describe('session.search', () => {
       limit: providerRequest.limit,
       cursor: providerRequest.cursor,
     }))).toEqual([
-      { limit: 20, cursor: undefined },
+      { limit: 21, cursor: undefined },
       { limit: 10, cursor: undefined },
       { limit: 10, cursor: 'offset-10' },
       { limit: 10, cursor: 'offset-20' },
@@ -340,7 +340,7 @@ describe('session.search', () => {
     )
     const searchSessions = vi.fn((providerRequest: SessionSearchRequest) => {
       if (searchSessions.mock.calls.length === 1) {
-        expect(providerRequest).toMatchObject({ limit: 20 })
+        expect(providerRequest).toMatchObject({ limit: 21 })
         return Promise.reject(invalidLimit)
       }
       expect(providerRequest.limit).toBe(10)
@@ -384,7 +384,7 @@ describe('session.search', () => {
     const searchSessions = vi.fn((providerRequest: SessionSearchRequest) => {
       switch (searchSessions.mock.calls.length) {
         case 1:
-          expect(providerRequest).toMatchObject({ limit: 20 })
+          expect(providerRequest).toMatchObject({ limit: 21 })
           expect(providerRequest).not.toHaveProperty('cursor')
           return Promise.reject(invalidLimit)
         case 2:
@@ -542,7 +542,7 @@ describe('session.search', () => {
     expect(searchSessions.mock.calls.map(([providerRequest]) => (
       providerRequest as SessionSearchRequest
     ).limit))
-      .toEqual([20, 20])
+      .toEqual([21, 21])
   })
 
   it('stops page-limit adaptation at one item', async () => {
@@ -566,7 +566,7 @@ describe('session.search', () => {
       error: { code: 'gateway/internal' },
     })
     expect(searchSessions.mock.calls.map(([providerRequest]) => providerRequest.limit))
-      .toEqual([20, 10, 5, 2, 1])
+      .toEqual([21, 10, 5, 2, 1])
   })
 
   it('gives abort priority over a coincident invalid first-page limit', async () => {
@@ -576,7 +576,7 @@ describe('session.search', () => {
     const searchSessions = vi.fn(() => {
       controller.abort()
       return Promise.reject(new SessionQueryError(
-        'provider rejects 20',
+        'provider rejects 21',
         'SESSION_QUERY_INVALID_LIMIT',
       ))
     })
@@ -597,7 +597,7 @@ describe('session.search', () => {
   it('rejects an oversized provider page', async () => {
     const ctx = await baseContext()
     ctx.sessions.create(sid('visible'), { meta: header('visible') })
-    const oversized = Array.from({ length: 21 }, (_, index) => hit(`oversized-${index}`))
+    const oversized = Array.from({ length: 22 }, (_, index) => hit(`oversized-${index}`))
     const searchSessions = vi.fn(() => Promise.resolve({ items: oversized }))
     installSearchQuery(ctx, searchSessions)
 
@@ -609,7 +609,7 @@ describe('session.search', () => {
     expect(response.ok).toBe(false)
     if (response.ok) throw new Error('unreachable')
     expect(response.error).toMatchObject({ code: 'gateway/internal' })
-    expect(response.error.message).toContain('returned 21 items; maximum is 20')
+    expect(response.error.message).toContain('returned 22 items; maximum is 21')
   })
 
   it('uses the learned provider limit for the overproduction guard', async () => {
@@ -617,7 +617,7 @@ describe('session.search', () => {
     ctx.sessions.create(sid('visible'), { meta: header('visible') })
     const oversized = Array.from({ length: 11 }, (_, index) => hit(`oversized-${index}`))
     const searchSessions = vi.fn((providerRequest: SessionSearchRequest) => {
-      if (providerRequest.limit === 20) {
+      if (providerRequest.limit === 21) {
         return Promise.reject(new SessionQueryError(
           'provider accepts at most 10 items',
           'SESSION_QUERY_INVALID_LIMIT',

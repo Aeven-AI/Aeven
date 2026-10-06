@@ -71,7 +71,12 @@ stop and ask the user to sign in instead.
 - **No page is open.** `preview_status` names the next step. Ask the user to open
   the browser from the right sidebar (Browser) rather than reporting that no
   browser exists.
-- **The page refuses automated reads.** Escalate in the order the harness
+- **The page is served from this machine.** A `localhost` or `127.0.0.1` page is
+  an application under development. Verify it first in the browser the user can
+  see — this pane, or the Chrome attached to the user's own browser. Use the
+  headless browser tools only when neither is available, and say that the check
+  ran in a headless copy.
+- **A remote page refuses automated reads.** Escalate in the order the harness
   documents: the headless browser tools open no window, and a page that refuses
   those too is read in the Chrome attached to the user's own browser, which does
   open one.

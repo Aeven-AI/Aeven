@@ -27,6 +27,7 @@ import SessionQueryEngine, {
   SessionQueryError,
   SessionSearchCursor,
   assertSessionHeadersCompatible,
+  buildSessionEventRecords,
   buildSessionEventSearchDocuments,
 } from '@aeven/session-query'
 import type {} from '@aeven/settings'
@@ -87,6 +88,8 @@ export const SESSION_QUERY_SQLITE_DEFAULT_LIMIT = 20
 export const SESSION_QUERY_SQLITE_MAX_LIMIT = 100
 /** Default maximum snippet length in Unicode code points. */
 export const SESSION_QUERY_SQLITE_SNIPPET_CHARS = 240
+/** Default milliseconds a write waits for another process's lock on a shared index. */
+export const SESSION_QUERY_SQLITE_BUSY_TIMEOUT = 5000
 
 // One transient source change gets a retry; repeated churn fails rather than monopolizing the queue.
 const STABLE_OBSERVATION_ATTEMPTS = 2
@@ -124,8 +127,21 @@ export interface Config extends SessionQueryConfig {
    * never imported or opened. Defaults to `startup`.
    */
   openAt?: OpenAt
+  /**
+   * Milliseconds after activation at which the service opens the index and
+   * reconciles it in the background, so the first search finds it current.
+   * Omitted: the first search opens and reconciles the index. Ignored while
+   * `openAt` is `never`.
+   */
+  warmAfter?: number
   /** SQLite journal mode. Defaults to `wal`. */
   journalMode?: JournalMode
+  /**
+   * Milliseconds a statement waits for another process's write lock before
+   * failing. Processes sharing one index file serialize their writes through
+   * this wait. Defaults to 5000.
+   */
+  busyTimeout?: number
   /** Page size when a request omits `limit`. At most `Number.MAX_SAFE_INTEGER - 1`; defaults to 20. */
   defaultLimit?: number
   /** Largest accepted page size. At most `Number.MAX_SAFE_INTEGER - 1`; defaults to 100. */
@@ -139,7 +155,9 @@ export interface Config extends SessionQueryConfig {
 interface ResolvedConfig {
   path: string
   openAt: OpenAt
+  warmAfter?: number
   journalMode: JournalMode
+  busyTimeout: number
   defaultLimit: number
   maxLimit: number
   snippetChars: number
@@ -151,13 +169,22 @@ interface ObservedSession {
   header: SessionHeader
   inheritedEventCount: SessionLogOffset
   documents: SessionEventSearchDocument[]
+}
+
+interface ObservedLiveSession extends ObservedSession {
+  /** Identity stamp of the header and inherited cut. */
   fingerprint: string
+  /** Log length this observation covers. */
+  seq: SessionLogOffset
+  /** First seq of `documents` when they extend the indexed row; absent for a full replacement. */
+  appendFrom?: number
+  /** Surface of every seq, present for an append that added events. */
+  surfaces?: ReadonlyMap<SessionSeq, string>
 }
 
 interface ObservedPersistedSession {
   header: SessionHeader
   revision: SessionPersistenceRevision
-  loaded?: ObservedSession
 }
 
 interface PersistenceBinding {
@@ -168,7 +195,7 @@ interface PersistenceBinding {
 interface Observation {
   persistenceBinding: PersistenceBinding
   persisted: Map<SessionId, ObservedPersistedSession>
-  live: Map<SessionId, ObservedSession>
+  live: Map<SessionId, ObservedLiveSession>
 }
 
 interface IndexedPersistedRow {
@@ -180,6 +207,7 @@ interface IndexedPersistedRow {
 interface IndexedLiveRow {
   id: string
   fingerprint: string
+  indexed_seq: number
   persisted: number
   generation: number
 }
@@ -224,7 +252,9 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
   static Config: z<Config> = z.object({
     path: z.string().required(),
     openAt: z.union(['startup', 'first-search', 'never'] as const).default('startup'),
+    warmAfter: z.number().step(1).min(0),
     journalMode: z.union(['wal', 'delete', 'truncate', 'persist'] as const).default('wal'),
+    busyTimeout: z.number().step(1).min(0).default(SESSION_QUERY_SQLITE_BUSY_TIMEOUT),
     defaultLimit: z.number().step(1).min(1).max(SQLITE_MAX_PAGE_LIMIT).default(SESSION_QUERY_SQLITE_DEFAULT_LIMIT),
     maxLimit: z.number().step(1).min(1).max(SQLITE_MAX_PAGE_LIMIT).default(SESSION_QUERY_SQLITE_MAX_LIMIT),
     snippetChars: z.number().step(1).min(1).default(SESSION_QUERY_SQLITE_SNIPPET_CHARS),
@@ -250,6 +280,7 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
   private _tail: Promise<void> = Promise.resolve()
   private _closed = false
   private _closePromise: Promise<void> | undefined
+  private _warmAbort: AbortController | undefined
   private readonly _optionalPersistenceFiber: Fiber
 
   constructor(ctx: Context, config: Config) {
@@ -288,6 +319,13 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
       return () => this._optionalPersistenceFiber.dispose()
     }, 'sessionQuerySqlite.optionalPersistence')
     ctx.effect(() => async () => this.close(), 'sessionQuerySqlite.close')
+    const warmAfter = entry.warmAfter
+    if (warmAfter !== undefined) {
+      ctx.effect(() => {
+        const timer = setTimeout(() => { void this._warm() }, warmAfter)
+        return () => { clearTimeout(timer) }
+      }, 'sessionQuerySqlite.warm')
+    }
   }
 
   /** Open eagerly only when activation owns the configured readiness boundary. */
@@ -306,7 +344,8 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
       await this._ensureReady(signal)
       const persistenceBinding = await this._reconcile(signal)
       assertNotAborted(signal)
-      const generation = String(this._globalGeneration)
+      // Another process sharing this index file advances only the stored generation.
+      const generation = `${String(this._mainGeneration())}:${String(this._globalGeneration)}`
       const fingerprint = requestFingerprint(normalized)
       const offset = normalized.cursor === undefined
         ? 0
@@ -354,6 +393,30 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
     })
   }
 
+  /**
+   * Open and reconcile the index as one queued operation with no caller, so a
+   * search that arrives meanwhile waits for it instead of repeating it. Every
+   * inspected persisted log commits on its own, so a cancelled or failed pass
+   * keeps its progress and the next search continues from there.
+   */
+  private async _warm(): Promise<void> {
+    if (this.config.openAt === 'never' || this._isClosed()) return
+    const controller = new AbortController()
+    this._warmAbort = controller
+    try {
+      await this._serialized(controller.signal, async () => {
+        await this._ensureReady(controller.signal)
+        await this._reconcile(controller.signal)
+      })
+    } catch (error: unknown) {
+      if (!controller.signal.aborted && !this._isClosed()) {
+        this.ctx.logger.warn(`session-query-sqlite: background index refresh failed; the next search retries: ${errorMessage(error)}`)
+      }
+    } finally {
+      if (this._warmAbort === controller) this._warmAbort = undefined
+    }
+  }
+
   /** Close the database after every accepted operation reaches quiescence. */
   close(): Promise<void> {
     this._closePromise ??= this._close()
@@ -375,6 +438,8 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
 
   private async _close(): Promise<void> {
     this._closed = true
+    // A background refresh stops at its next step instead of finishing the corpus.
+    this._warmAbort?.abort()
     await this._tail
     if (this._ready !== undefined) {
       try {
@@ -388,7 +453,7 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
   }
 
   private async _open(): Promise<void> {
-    this._db = await openSearchDatabase(this.config.path, this.config.journalMode)
+    this._db = await openSearchDatabase(this.config.path, this.config.journalMode, this.config.busyTimeout)
     const state = this._db.prepare(
       'SELECT global_generation FROM search_state WHERE singleton = 1',
     ).get() as { global_generation: number }
@@ -441,78 +506,44 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
       'SELECT id, revision, generation FROM persisted_sessions',
     ).all() as unknown as IndexedPersistedRow[]
     const liveRows = db.prepare(
-      'SELECT id, fingerprint, persisted, generation FROM temp.live_sessions',
+      'SELECT id, fingerprint, indexed_seq, persisted, generation FROM temp.live_sessions',
     ).all() as unknown as IndexedLiveRow[]
     const persistedById = new Map(persistedRows.map(row => [row.id as SessionId, row]))
     const liveById = new Map(liveRows.map(row => [row.id as SessionId, row]))
     const observation = await this._observeStable(persistedById, liveById, signal)
     assertNotAborted(signal)
-    const persistentChanges = observation.persistenceBinding.service === undefined
-      ? []
-      : [...observation.persisted.values()].filter(entry => entry.loaded !== undefined)
     const persistentDeletes = observation.persistenceBinding.service === undefined
       ? []
       : persistedRows.filter(row => !observation.persisted.has(row.id as SessionId))
     const liveChanges = [...observation.live.values()].filter((entry) => {
       const indexed = liveById.get(entry.header.id)
       const persisted = observation.persisted.has(entry.header.id) ? 1 : 0
-      return indexed?.fingerprint !== entry.fingerprint || indexed.persisted !== persisted
+      return indexed?.fingerprint !== entry.fingerprint
+        || indexed.indexed_seq !== entry.seq
+        || indexed.persisted !== persisted
     })
     const liveDeletes = liveRows.filter(row => !observation.live.has(row.id as SessionId))
     const pointerChanged = this._lastPersistenceIdentity !== undefined
       && this._lastPersistenceIdentity !== observation.persistenceBinding.identity
-    const hasWrites = persistentChanges.length > 0
-      || persistentDeletes.length > 0
+    const hasWrites = persistentDeletes.length > 0
       || liveChanges.length > 0
       || liveDeletes.length > 0
 
-    let nextMainGeneration = this._mainGeneration()
     let nextLocalGeneration = this._localGeneration
-    if (persistentChanges.length > 0 || persistentDeletes.length > 0) nextMainGeneration += 1
-    const liveReplacements = liveChanges.map((entry) => {
-      nextLocalGeneration = Math.max(nextLocalGeneration, nextMainGeneration) + 1
-      return {
-        entry,
-        generation: nextLocalGeneration,
-        persisted: observation.persisted.has(entry.header.id),
-      }
-    })
-
     if (hasWrites) {
-      let began = false
-      try {
-        db.exec('BEGIN IMMEDIATE')
-        began = true
-        for (const row of persistentDeletes) this._deleteSession('persisted', row.id as SessionId)
-        for (const entry of persistentChanges) {
-          /* v8 ignore next -- observation loads every entry whose revision differs */
-          if (entry.loaded === undefined) throw new Error(`missing loaded revision for session "${entry.header.id}"`)
-          this._replacePersistedSession(entry.loaded, entry.revision, nextMainGeneration)
-        }
-        if (persistentChanges.length > 0 || persistentDeletes.length > 0) {
-          db.prepare('UPDATE search_state SET global_generation = ? WHERE singleton = 1').run(nextMainGeneration)
+      this._transaction(() => {
+        let mainGeneration = this._mainGeneration()
+        if (persistentDeletes.length > 0) {
+          mainGeneration += 1
+          for (const row of persistentDeletes) this._deleteSession('persisted', row.id as SessionId)
+          db.prepare('UPDATE search_state SET global_generation = ? WHERE singleton = 1').run(mainGeneration)
         }
         for (const row of liveDeletes) this._deleteSession('live', row.id as SessionId)
-        for (const { entry, generation, persisted } of liveReplacements) {
-          this._replaceLiveSession(entry, generation, persisted)
+        for (const entry of liveChanges) {
+          nextLocalGeneration = Math.max(nextLocalGeneration, mainGeneration) + 1
+          this._replaceLiveSession(entry, nextLocalGeneration, observation.persisted.has(entry.header.id))
         }
-        db.exec('COMMIT')
-      } catch (error: unknown) {
-        /* v8 ignore next -- a BEGIN failure has no transaction to roll back; the common wrapper still reports it. */
-        if (began) {
-          /* v8 ignore next 5 -- ROLLBACK failure requires a SQLite double fault; the original failure remains actionable. */
-          try {
-            db.exec('ROLLBACK')
-          } catch {
-            // The original SQLite failure remains the actionable cause.
-          }
-        }
-        throw new SessionQueryError(
-          `session-search reconciliation failed: ${errorMessage(error)}`,
-          'SESSION_QUERY_INDEX_FAILED',
-          { cause: error },
-        )
-      }
+      })
     }
 
     if (hasWrites || pointerChanged) this._globalGeneration += 1
@@ -522,8 +553,53 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
     return observation.persistenceBinding
   }
 
+  /**
+   * Run index writes in one immediate transaction.
+   * @param write - synchronous writes; a throw rolls every one back.
+   */
+  private _transaction(write: () => void): void {
+    const db = this._requireDb()
+    let began = false
+    try {
+      db.exec('BEGIN IMMEDIATE')
+      began = true
+      write()
+      db.exec('COMMIT')
+    } catch (error: unknown) {
+      /* v8 ignore next -- a BEGIN failure has no transaction to roll back; the common wrapper still reports it. */
+      if (began) {
+        /* v8 ignore next 5 -- ROLLBACK failure requires a SQLite double fault; the original failure remains actionable. */
+        try {
+          db.exec('ROLLBACK')
+        } catch {
+          // The original SQLite failure remains the actionable cause.
+        }
+      }
+      throw new SessionQueryError(
+        `session-search reconciliation failed: ${errorMessage(error)}`,
+        'SESSION_QUERY_INDEX_FAILED',
+        { cause: error },
+      )
+    }
+  }
+
+  /**
+   * Index one inspected persisted revision in its own transaction, so an
+   * aborted search keeps every session it already read.
+   */
+  private _commitPersistedSession(entry: ObservedSession, revision: SessionPersistenceRevision): IndexedPersistedRow {
+    let generation = 0
+    this._transaction(() => {
+      generation = this._mainGeneration() + 1
+      this._replacePersistedSession(entry, revision, generation)
+      this._requireDb().prepare('UPDATE search_state SET global_generation = ? WHERE singleton = 1').run(generation)
+    })
+    this._globalGeneration += 1
+    return { id: entry.header.id, revision, generation }
+  }
+
   private async _observeStable(
-    indexed: ReadonlyMap<SessionId, IndexedPersistedRow>,
+    indexed: Map<SessionId, IndexedPersistedRow>,
     liveIndexed: ReadonlyMap<SessionId, IndexedLiveRow>,
     signal: AbortSignal | undefined,
   ): Promise<Observation> {
@@ -551,11 +627,12 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
             const loaded = await persistence.inspect(entry.header.id, signal)
             assertNotAborted(signal)
             assertSessionHeadersCompatible(entry.header, loaded.meta)
-            entry.loaded = observeSession(
-              loaded.meta,
-              loaded.inheritedEventCount,
-              loaded.events,
-            )
+            // Rows are keyed by revision, so a revision committed here stays
+            // correct even if this observation later retries or aborts.
+            indexed.set(entry.header.id, this._commitPersistedSession(
+              observeSession(loaded.meta, loaded.inheritedEventCount, loaded.events),
+              entry.revision,
+            ))
           }
           assertNotAborted(signal)
           const afterSnapshots = await persistence.listSnapshots(signal)
@@ -578,24 +655,9 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
           )
         }
       }
-      const live = new Map<SessionId, ObservedSession>()
+      const live = new Map<SessionId, ObservedLiveSession>()
       for (const session of this.ctx.sessions.list()) {
-        const stamp = liveStamp(session)
-        const indexedLive = liveIndexed.get(session.id)
-        const persistedFlag = persisted.has(session.id) ? 1 : 0
-        // Events are frozen and append-only, so the header, inherited cut, and
-        // log length identify the indexed body. A match skips the event read.
-        const unchanged = indexedLive !== undefined
-          && indexedLive.fingerprint === stamp
-          && indexedLive.persisted === persistedFlag
-        const observed = unchanged
-          ? {
-            header: structuredClone(session.header),
-            inheritedEventCount: session.inheritedEventCount,
-            documents: [],
-            fingerprint: stamp,
-          }
-          : observeLive(session)
+        const observed = observeLive(session, liveIndexed.get(session.id))
         const durable = persisted.get(session.id)
         if (durable !== undefined) assertSessionHeadersCompatible(observed.header, durable.header)
         live.set(session.id, observed)
@@ -616,15 +678,16 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
     return row.global_generation
   }
 
+  /** Remove one session's rows; FTS rows are addressed through the indexed meta table. */
   private _deleteSession(source: 'persisted' | 'live', id: SessionId): void {
     const db = this._requireDb()
     if (source === 'persisted') {
+      db.prepare('DELETE FROM persisted_docs WHERE rowid IN (SELECT doc_rowid FROM persisted_doc_meta WHERE session_id = ?)').run(id)
       db.prepare('DELETE FROM persisted_doc_meta WHERE session_id = ?').run(id)
-      db.prepare('DELETE FROM persisted_docs WHERE session_id = ?').run(id)
       db.prepare('DELETE FROM persisted_sessions WHERE id = ?').run(id)
     } else {
+      db.prepare('DELETE FROM temp.live_docs WHERE rowid IN (SELECT doc_rowid FROM temp.live_doc_meta WHERE session_id = ?)').run(id)
       db.prepare('DELETE FROM temp.live_doc_meta WHERE session_id = ?').run(id)
-      db.prepare('DELETE FROM temp.live_docs WHERE session_id = ?').run(id)
       db.prepare('DELETE FROM temp.live_sessions WHERE id = ?').run(id)
     }
   }
@@ -635,8 +698,7 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
     generation: number,
   ): void {
     this._deleteSession('persisted', entry.header.id)
-    const db = this._requireDb()
-    db.prepare(`
+    this._requireDb().prepare(`
       INSERT INTO persisted_sessions
         (id, version, created_at, cwd, parent_session, seed_length, delegation_depth, agent_preset, owner, revision, generation)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -645,73 +707,64 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
       revision,
       generation,
     )
-    const insert = db.prepare(`
-      INSERT INTO persisted_docs (text, session_id, seq, type, time, surface, codepoint_length)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `)
-    const meta = db.prepare(`
-      INSERT INTO persisted_doc_meta
-        (doc_rowid, session_id, seq, type, time, surface, codepoint_length)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `)
-    for (const document of entry.documents) {
-      const text = sanitizeFtsText(document.text)
-      const length = Array.from(text).length
-      const inserted = insert.run(
-        text,
-        document.sessionId,
-        document.seq,
-        document.type,
-        document.time,
-        document.surface,
-        length,
+    this._insertDocuments('persisted', entry.documents)
+  }
+
+  /**
+   * Bring one live row up to its observation: a full replacement, or for an
+   * append, the new tail's documents plus any surface an append reclassified.
+   */
+  private _replaceLiveSession(entry: ObservedLiveSession, generation: number, persisted: boolean): void {
+    const db = this._requireDb()
+    if (entry.appendFrom === undefined) {
+      this._deleteSession('live', entry.header.id)
+      db.prepare(`
+        INSERT INTO temp.live_sessions
+          (id, version, created_at, cwd, parent_session, seed_length, delegation_depth, agent_preset, owner, fingerprint, indexed_seq, persisted, generation)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        ...headerBindings(entry.header, entry.inheritedEventCount),
+        entry.fingerprint,
+        entry.seq,
+        persisted ? 1 : 0,
+        generation,
       )
-      meta.run(
-        Number(inserted.lastInsertRowid),
-        document.sessionId,
-        document.seq,
-        document.type,
-        document.time,
-        document.surface,
-        length,
-      )
+    } else {
+      db.prepare(
+        'UPDATE temp.live_sessions SET indexed_seq = ?, persisted = ?, generation = ? WHERE id = ?',
+      ).run(entry.seq, persisted ? 1 : 0, generation, entry.header.id)
+      if (entry.surfaces !== undefined) this._updateLiveSurfaces(entry.header.id, entry.surfaces)
+    }
+    this._insertDocuments('live', entry.documents)
+  }
+
+  /** Rewrite the surface of indexed live documents an append reclassified. */
+  private _updateLiveSurfaces(id: SessionId, surfaces: ReadonlyMap<SessionSeq, string>): void {
+    const db = this._requireDb()
+    const rows = db.prepare(
+      'SELECT doc_rowid, seq, surface FROM temp.live_doc_meta WHERE session_id = ?',
+    ).all(id) as unknown as Array<{ doc_rowid: number; seq: number; surface: string }>
+    const update = db.prepare('UPDATE temp.live_doc_meta SET surface = ? WHERE doc_rowid = ?')
+    for (const row of rows) {
+      const surface = surfaces.get(SessionSeq(row.seq))
+      if (surface !== undefined && surface !== row.surface) update.run(surface, row.doc_rowid)
     }
   }
 
-  private _replaceLiveSession(entry: ObservedSession, generation: number, persisted: boolean): void {
-    this._deleteSession('live', entry.header.id)
+  /** Insert FTS text rows and their metadata rows, linked by FTS rowid. */
+  private _insertDocuments(source: 'persisted' | 'live', documents: readonly SessionEventSearchDocument[]): void {
     const db = this._requireDb()
-    db.prepare(`
-      INSERT INTO temp.live_sessions
-        (id, version, created_at, cwd, parent_session, seed_length, delegation_depth, agent_preset, owner, fingerprint, persisted, generation)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      ...headerBindings(entry.header, entry.inheritedEventCount),
-      entry.fingerprint,
-      persisted ? 1 : 0,
-      generation,
-    )
-    const insert = db.prepare(`
-      INSERT INTO temp.live_docs (text, session_id, seq, type, time, surface, codepoint_length)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `)
+    const insert = db.prepare(source === 'persisted'
+      ? 'INSERT INTO persisted_docs (text) VALUES (?)'
+      : 'INSERT INTO temp.live_docs (text) VALUES (?)')
     const meta = db.prepare(`
-      INSERT INTO temp.live_doc_meta
+      INSERT INTO ${source === 'persisted' ? 'persisted_doc_meta' : 'temp.live_doc_meta'}
         (doc_rowid, session_id, seq, type, time, surface, codepoint_length)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `)
-    for (const document of entry.documents) {
+    for (const document of documents) {
       const text = sanitizeFtsText(document.text)
-      const length = Array.from(text).length
-      const inserted = insert.run(
-        text,
-        document.sessionId,
-        document.seq,
-        document.type,
-        document.time,
-        document.surface,
-        length,
-      )
+      const inserted = insert.run(text)
       meta.run(
         Number(inserted.lastInsertRowid),
         document.sessionId,
@@ -719,7 +772,7 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
         document.type,
         document.time,
         document.surface,
-        length,
+        Array.from(text).length,
       )
     }
   }
@@ -857,23 +910,36 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
     write('live', this._phraseStarts('temp.live_docs_inst', tokens))
   }
 
-  /** Phrase start positions, ordered by document then token offset. */
+  /**
+   * Phrase start positions, ordered by document then token offset.
+   *
+   * Each later token's instances are read once into a keyed temp table, and
+   * the first token's instances probe it. Joining the vocabulary table to
+   * itself instead rescans a whole token instance list for every outer row.
+   */
   private _phraseStarts(vocab: string, tokens: readonly string[]): PhraseStart[] {
+    const db = this._requireDb()
+    db.prepare('DELETE FROM temp.phrase_terms').run()
+    const fill = db.prepare(`
+      INSERT INTO temp.phrase_terms(position, doc, token_offset)
+      SELECT ?, doc, offset FROM ${vocab} WHERE term = ? AND col = 'text'
+    `)
     const joins: string[] = []
     for (let index = 1; index < tokens.length; index += 1) {
-      const alias = `i${index}`
+      fill.run(index, tokens[index] as string)
+      const alias = `t${index}`
+      // CROSS JOIN keeps the vocabulary scan as the outer loop.
       joins.push(
-        `JOIN ${vocab} ${alias} ON ${alias}.doc = i0.doc AND ${alias}.col = 'text' AND ${alias}.offset = i0.offset + ${index}`,
+        `CROSS JOIN temp.phrase_terms ${alias} ON ${alias}.position = ${index} AND ${alias}.doc = i0.doc AND ${alias}.token_offset = i0.offset + ${index}`,
       )
     }
-    const terms = tokens.map((_, index) => `i${index}.term = ?`).join(' AND ')
-    const rows = this._requireDb().prepare(`
+    const rows = db.prepare(`
       SELECT i0.doc AS doc, i0.offset AS token_offset
       FROM ${vocab} i0
       ${joins.join('\n')}
-      WHERE i0.col = 'text' AND ${terms}
+      WHERE i0.term = ? AND i0.col = 'text'
       ORDER BY i0.doc, i0.offset
-    `).all(...tokens) as unknown as Array<{ doc: number; token_offset: number }>
+    `).all(tokens[0] as string) as unknown as Array<{ doc: number; token_offset: number }>
     return rows.map(row => ({ doc: Number(row.doc), offset: Number(row.token_offset) }))
   }
 
@@ -1129,21 +1195,47 @@ function documentRankSql(partitionBySession: boolean, where: string): string {
     LIMIT ? OFFSET ?`
 }
 
-function observeLive(session: Session): ObservedSession {
-  const events = session.snapshotEvents()
-  return {
+/**
+ * Observe one live log against its indexed row.
+ *
+ * Events are frozen and the log only grows, so a row with the same identity
+ * stamp needs only the events after its `indexed_seq`; surfaces are still
+ * reclassified over the whole log because a later event can shadow earlier ones.
+ * @param session - live session being observed.
+ * @param indexed - this session's indexed row, if any.
+ * @returns the documents to add and, for an append, the current surface of every seq.
+ */
+function observeLive(session: Session, indexed: IndexedLiveRow | undefined): ObservedLiveSession {
+  const fingerprint = liveStamp(session)
+  const seq = session.seq
+  const base = {
     header: structuredClone(session.header),
     inheritedEventCount: session.inheritedEventCount,
-    documents: buildSessionEventSearchDocuments(session.id, events),
-    fingerprint: liveStamp(session),
+    fingerprint,
+    seq,
+  }
+  const appendFrom = indexed?.fingerprint === fingerprint && indexed.indexed_seq <= seq
+    ? indexed.indexed_seq
+    : undefined
+  if (appendFrom === seq) return { ...base, documents: [], appendFrom }
+  const events = session.snapshotEvents()
+  if (appendFrom === undefined) {
+    return { ...base, documents: buildSessionEventSearchDocuments(session.id, events) }
+  }
+  return {
+    ...base,
+    documents: buildSessionEventSearchDocuments(session.id, events, appendFrom),
+    appendFrom,
+    surfaces: new Map(buildSessionEventRecords(session.id, events).map(record => [record.seq, record.surface])),
   }
 }
 
 /**
- * Identity of one live log.
+ * Identity of one live log apart from its length.
  *
- * Session events are frozen at append time and the log only grows, so a later
- * search with the same header, inherited cut, and length still has the same body.
+ * The header and inherited cut fix every event already in the log; only
+ * appends follow, so the indexed row with this stamp stays valid up to its
+ * `indexed_seq`.
  * @param session - live session being observed.
  * @returns a stamp stored as the live row's fingerprint.
  */
@@ -1152,25 +1244,22 @@ function liveStamp(session: Session): string {
     .update(JSON.stringify(session.header))
     .update('\0')
     .update(String(session.inheritedEventCount))
-    .update('\0')
-    .update(String(session.seq))
     .digest('base64url')
 }
 
+/**
+ * Build the persisted index body for one inspected log. Inspection returns
+ * immutable events, and only the derived document text is retained.
+ */
 function observeSession(
   header: SessionHeader,
   inheritedEventCount: SessionLogOffset,
   events: readonly SessionEvent[],
 ): ObservedSession {
-  const detachedHeader = structuredClone(header)
-  const detachedEvents = events.map(event => structuredClone(event))
   return {
-    header: detachedHeader,
+    header: structuredClone(header),
     inheritedEventCount,
-    documents: buildSessionEventSearchDocuments(detachedHeader.id, detachedEvents),
-    fingerprint: createHash('sha256')
-      .update(JSON.stringify({ header: detachedHeader, inheritedEventCount, events: detachedEvents }))
-      .digest('base64url'),
+    documents: buildSessionEventSearchDocuments(header.id, events),
   }
 }
 
@@ -1308,7 +1397,9 @@ function resolveConfig(config: Config): ResolvedConfig {
   const resolved: ResolvedConfig = {
     path: config.path,
     openAt: config.openAt ?? 'startup',
+    ...config.warmAfter === undefined ? {} : { warmAfter: config.warmAfter },
     journalMode: config.journalMode ?? 'wal',
+    busyTimeout: config.busyTimeout ?? SESSION_QUERY_SQLITE_BUSY_TIMEOUT,
     defaultLimit: config.defaultLimit ?? SESSION_QUERY_SQLITE_DEFAULT_LIMIT,
     maxLimit: config.maxLimit ?? SESSION_QUERY_SQLITE_MAX_LIMIT,
     snippetChars: config.snippetChars ?? SESSION_QUERY_SQLITE_SNIPPET_CHARS,
@@ -1324,6 +1415,12 @@ function resolveConfig(config: Config): ResolvedConfig {
   assertPageLimit('defaultLimit', resolved.defaultLimit)
   assertPageLimit('maxLimit', resolved.maxLimit)
   assertPositiveInteger('snippetChars', resolved.snippetChars)
+  if (resolved.warmAfter !== undefined && (!Number.isSafeInteger(resolved.warmAfter) || resolved.warmAfter < 0)) {
+    throw invalidConfig('warmAfter must be a non-negative integer')
+  }
+  if (!Number.isSafeInteger(resolved.busyTimeout) || resolved.busyTimeout < 0) {
+    throw invalidConfig('busyTimeout must be a non-negative integer')
+  }
   if (!Number.isInteger(resolved.readWindowMax) || resolved.readWindowMax < 0) {
     throw invalidConfig('readWindowMax must be a non-negative integer')
   }

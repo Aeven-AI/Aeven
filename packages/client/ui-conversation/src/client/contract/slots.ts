@@ -186,6 +186,12 @@ declare module '@aeven/client-ui-slots' {
     'conversation.hero.workspace': { kind: 'single'; scope: 'root'; owner: EmptyWorkspaceOwnerProps }
     /** Agent-preset control staged for a New Session. */
     'conversation.hero.agentPreset': { kind: 'single'; scope: 'root'; owner: HeroAgentPresetOwnerProps }
+    /**
+     * The start page shown in place of a blank Session's Hero while
+     * `uiConversation.startPage` is set, such as Imagine's prompt gallery; the
+     * composer sits on the column's floor below it.
+     */
+    'conversation.start': { kind: 'list'; scope: 'session' }
     /** Full-width entries above the composer card. */
     'conversation.input.dock': { kind: 'list'; scope: 'session'; owner: InputZone }
     /** Floating entries rendered inside the resident composer card. */
@@ -294,6 +300,7 @@ export interface ConversationInjected {
   hooks: {
     composerBlock: ObservableSnapshot<ComposerBlock | undefined>
     selectedView: ObservableSnapshot<ViewTab | undefined>
+    startPage: ObservableSnapshot<boolean>
   }
 }
 
@@ -408,6 +415,7 @@ export type ConversationSlotProps =
     | 'conversation.input.dock'
     | 'conversation.hero.workspace'
     | 'conversation.hero.agentPreset'
+    | 'conversation.start'
     | 'conversation.navigation.utilities'
   >
   & InjectFace<ConversationInjected>

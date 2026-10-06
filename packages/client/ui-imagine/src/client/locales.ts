@@ -1,11 +1,33 @@
-/** `imagine` namespace dictionaries: the Imagine start page's own copy. */
+/** `imagine` namespace dictionaries: the Imagine row, its starter prompts, and the in-chat image view. */
 
 /** Simplified Chinese dictionary (the key-set source of truth). */
 export const zh = {
   'title': '想象',
-  'placeholder': '描述你想象的画面…',
-  'add': '添加',
-  'send': '发送',
+  'prompts.label': '图片灵感',
+  'prompt.watercolor.title': '水彩风景',
+  'prompt.watercolor.text': '画一幅水彩画：清晨的宁静海港小镇，柔和的色彩晕染，能看到纸张纹理。',
+  'prompt.product.title': '产品照片',
+  'prompt.product.text': '拍一张专业产品照片：一个陶瓷咖啡杯放在浅色大理石台面上，柔和的侧光，干净的背景。',
+  'prompt.stickers.title': '贴纸',
+  'prompt.stickers.text': '设计一组可爱的贴纸：咖啡、植物和猫，粗白边，扁平鲜艳的配色。',
+  'prompt.anime.title': '动漫风',
+  'prompt.anime.text': '画一幅动漫风格插画：一个女孩在黄昏的屋顶上眺望城市，温暖的天空，细腻的光影。',
+  'prompt.poster.title': '复古海报',
+  'prompt.poster.text': '设计一张复古旅行海报：阿尔卑斯山间的小火车，大胆的几何构图，有限的配色和粗体标题。',
+  'prompt.claymation.title': '黏土世界',
+  'prompt.claymation.text': '创作一个定格黏土动画风格的场景：雨夜街角的小面馆，手捏的人物和道具，温暖的灯光。',
+  'prompt.pixel.title': '像素艺术',
+  'prompt.pixel.text': '画一幅 16 位像素艺术：森林中的小木屋，萤火虫在夜空中发光。',
+  'prompt.isometric.title': '等距房间',
+  'prompt.isometric.text': '画一个等距视角的迷你房间：舒适的书房，书架、台灯和一只睡着的猫，柔和的配色。',
+  'prompt.blueprint.title': '蓝图',
+  'prompt.blueprint.text': '画一张蓝图风格的技术图纸：一辆复古自行车，白色线条、尺寸标注和注释，蓝色背景。',
+  'prompt.oil.title': '油画',
+  'prompt.oil.text': '画一幅印象派油画：夏日午后的向日葵田，厚重的笔触和明亮的阳光。',
+  'prompt.neon.title': '霓虹城市',
+  'prompt.neon.text': '拍一张电影感照片：雨夜的霓虹街道，湿漉漉的路面映出彩色灯光，一个撑伞的行人。',
+  'prompt.logo.title': '标志',
+  'prompt.logo.text': '设计一个简洁的标志：一家名为“晨光”的面包店，线条风格，一个麦穗和太阳的组合图形。',
   'image.generating': '正在生成图片…',
   'image.elapsed': '{seconds} 秒',
   'image.failed': '图片生成失败',
@@ -18,9 +40,31 @@ export type ImagineKey = keyof typeof zh
 /** English dictionary, checked complete against the zh key set. */
 export const en = {
   'title': 'Imagine',
-  'placeholder': 'Describe what you want to imagine…',
-  'add': 'Add',
-  'send': 'Send',
+  'prompts.label': 'Image ideas',
+  'prompt.watercolor.title': 'Watercolor',
+  'prompt.watercolor.text': 'Paint a watercolor of a quiet harbor town at sunrise, with soft washes of color and visible paper texture.',
+  'prompt.product.title': 'Product photo',
+  'prompt.product.text': 'Take a professional product photo of a ceramic coffee cup on a light marble counter, soft side light, clean background.',
+  'prompt.stickers.title': 'Stickers',
+  'prompt.stickers.text': 'Design a set of cute stickers of coffee, plants and cats, with thick white borders and flat, bright colors.',
+  'prompt.anime.title': 'Anime',
+  'prompt.anime.text': 'Draw an anime-style illustration of a girl on a rooftop looking over the city at dusk, warm sky, detailed light and shadow.',
+  'prompt.poster.title': 'Retro poster',
+  'prompt.poster.text': 'Design a retro travel poster of a little train in the Alps, bold geometric composition, limited palette and a big title.',
+  'prompt.claymation.title': 'Claymation',
+  'prompt.claymation.text': 'Create a stop-motion claymation scene of a small noodle shop on a rainy street corner at night, handmade figures and props, warm light.',
+  'prompt.pixel.title': 'Pixel art',
+  'prompt.pixel.text': 'Make 16-bit pixel art of a small cabin in the forest with fireflies glowing in the night sky.',
+  'prompt.isometric.title': 'Isometric room',
+  'prompt.isometric.text': 'Draw a tiny isometric room: a cozy study with bookshelves, a desk lamp and a sleeping cat, in soft colors.',
+  'prompt.blueprint.title': 'Blueprint',
+  'prompt.blueprint.text': 'Draw a blueprint-style technical drawing of a vintage bicycle, white lines with dimensions and notes on a blue background.',
+  'prompt.oil.title': 'Oil painting',
+  'prompt.oil.text': 'Paint an impressionist oil painting of a sunflower field on a summer afternoon, thick brushstrokes and bright sunlight.',
+  'prompt.neon.title': 'Neon city',
+  'prompt.neon.text': 'Take a cinematic photo of a neon-lit street on a rainy night, wet pavement reflecting the colors, one person with an umbrella.',
+  'prompt.logo.title': 'Logo',
+  'prompt.logo.text': 'Design a simple logo for a bakery called "Morning Light": line art combining an ear of wheat and a rising sun.',
   'image.generating': 'Generating image…',
   'image.elapsed': '{seconds}s',
   'image.failed': 'Image generation failed',
@@ -29,7 +73,7 @@ export const en = {
 
 declare module '@aeven/client-ui-slots' {
   interface LocaleNamespaceMap {
-    /** The Imagine start page's copy. */
+    /** The Imagine row, its starter prompts, and the in-chat image view. */
     imagine: ImagineKey
   }
 }

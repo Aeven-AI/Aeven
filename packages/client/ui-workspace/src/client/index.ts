@@ -120,7 +120,8 @@ export function apply(ctx: Context): void {
       // each plugin would hold the service the other waits for and neither
       // would ever activate. Resolved per call instead, by which point the
       // conversation surface that owns the transcript is running.
-      if (matchSeq !== undefined) ctx.get('uiConversation')?.navigateToEvent(sessionId, matchSeq)
+      // The result lands on its matched message without a highlight ring.
+      if (matchSeq !== undefined) ctx.get('uiConversation')?.navigateToEvent(sessionId, matchSeq, { highlight: false })
       sessions.open(sessionId)
     },
     searchSessions,

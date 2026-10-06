@@ -65,7 +65,6 @@ This provider adds no prompt text or tools of its own. Its recall context reache
 ## Known Limitations and Deferred Work
 
 - **No Aeven-native memory UI** — inspection and deletion go through the MemOS Viewer until an Aeven settings surface exists.
-- **Desktop packaging** — MemOS brings native `better-sqlite3`, `onnxruntime-node`, and `sharp` builds that the desktop packager does not yet rebuild or ship.
 - **Capture provenance** — MemOS stores tool output in traces, so text a tool read can reappear in later recalls; recalled context is framed as untrusted data.
 
 ## Dev Note

@@ -451,13 +451,15 @@ export function presentFetchResult(args: { url: string }, result: ToolResult): W
  *
  * A page that needs the user's signed-in session skips the order: a headless
  * browser with its own profile can never hold that session, so only the
- * attached browser can serve it.
+ * attached browser can serve it. A page served from this machine reverses it:
+ * it is an application under development, and a check in a headless copy says
+ * less about the window the user is watching, so headless is its fallback.
  * @param browserTool - whether this composition registers the browser tools.
  * @returns the limit, with the escalation appended when the browser tools are visible.
  */
 function fetchEscalation(browserTool: boolean): string {
   const limit = ' It runs no JavaScript, so a page that builds itself in a browser, or that answers non-browser requests with a block page, returns little or nothing.'
-  const escalation = " Read those pages in a browser instead of fetching them again, and escalate in order: the headless browser tools (mcp__playwright__*) open no window, and a page that refuses those as well is read in the Chrome attached to the user's browser (mcp__chrome_devtools__*), which does open a visible window — reach for it only after a headless read returned 403 or an empty page, or when the page needs the user's signed-in session."
+  const escalation = " Read those pages in a browser instead of fetching them again, and escalate in order: the headless browser tools (mcp__playwright__*) open no window, and a page that refuses those as well is read in the Chrome attached to the user's browser (mcp__chrome_devtools__*), which does open a visible window — reach for it only after a headless read returned 403 or an empty page, or when the page needs the user's signed-in session. A page served from this machine (localhost or 127.0.0.1) is an application under development and reverses the order: verify it first in that attached Chrome, the window the user is watching, and in the headless browser only when that Chrome is unavailable."
   return browserTool ? limit + escalation : limit
 }
 
