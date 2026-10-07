@@ -36,7 +36,9 @@
   --avn-question-fill: var(--dsw-alias-interactive-bg-hover);
   border-radius: var(--dsw-aeven-radius-surface);
   background: var(--dsw-specific-input-major);
-  box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.1);
+  /* Flat like the composer card and the plan takeover: the lift stays a
+     transparent box-shadow. */
+  box-shadow: 0px 5px 15px rgba(0, 0, 0, 0);
   color: var(--dsw-alias-label-primary);
   font-size: var(--avn-content-font-size, 16px);
   line-height: calc(

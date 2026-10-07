@@ -6,7 +6,7 @@ import type { Branded } from '@aeven/brand'
 export type ConnectorId = Branded<'account-connector-id'>
 
 /** Provider selected when creating a connector. */
-export type ConnectorProvider = 'github' | 'gmail' | 'google-drive' | 'google-calendar' | 'microsoft365' | 'mcp' | 'email' | 'whatsapp' | 'telegram'
+export type ConnectorProvider = 'github' | 'gmail' | 'google-drive' | 'google-calendar' | 'outlook' | 'outlook-calendar' | 'onedrive' | 'sharepoint' | 'teams' | 'mcp' | 'email' | 'whatsapp' | 'telegram' | 'discord' | 'slack'
 
 /** Stable Settings identity of one skill definition. */
 export type SkillViewId = Branded<'account-skill-view-id'>
@@ -37,10 +37,42 @@ export interface PersonalConnectorView {
   endpoint?: string
   /** Server settings of an `email` connector; passwords are never returned. */
   email?: EmailConnectorSettings
+  /** Microsoft account identity and refresh tenant; contains no tokens. */
+  microsoft?: MicrosoftConnectorSettings
   /** Linked account of a `whatsapp` connector. */
   whatsapp?: WhatsAppConnectorSettings
   /** Signed-in account of a `telegram` connector. */
   telegram?: TelegramConnectorSettings
+  /** Guild one `discord` connector is installed into. */
+  discord?: DiscordConnectorSettings
+  /** Workspace one `slack` connector is connected to; the user token stays private. */
+  slack?: SlackConnectorSettings
+}
+
+/** The Slack workspace one `slack` connector is connected to, and the account that consented. */
+export interface SlackConnectorSettings {
+  /** Slack team id; two connectors of one account may not carry the same one. */
+  teamId: string
+  /** Workspace name Slack reports. */
+  teamName: string
+  /** Workspace domain, when Slack reported a usable workspace URL. */
+  domain?: string
+  /** Slack user id of the account that consented. */
+  userId: string
+  /** That account's Slack username. */
+  userName: string
+  /** User scopes the workspace granted. */
+  scopes: string[]
+  /** False once Slack refuses the stored token and the workspace has to be connected again. */
+  linked: boolean
+}
+
+/** Non-secret Microsoft identity recorded after broker consent and Graph verification. */
+export interface MicrosoftConnectorSettings {
+  id: string
+  name: string
+  username: string
+  tenantId: string
 }
 
 /** Current signed-in account's skills and connectors. */
@@ -54,6 +86,10 @@ export interface AccountIntegrationsView {
 export interface ConnectorProviderView {
   provider: ConnectorProvider
   configured: boolean
+  /** Last consent failure for this provider in the current Host session. */
+  authorizationFailure?: 'admin-consent-required' | 'failed'
+  /** Application-specific administrator approval link supplied by the Aeven API. */
+  adminConsentUrl?: string
   /** Installed skill definitions belonging to this connector. */
   skills: PersonalSkillView[]
 }
@@ -194,4 +230,28 @@ export interface TelegramPairingView {
   account?: TelegramConnectorSettings
   /** Image data URL of the current login QR code, present in the `qr` state once Telegram issued a token. */
   qr?: string
+}
+
+/**
+ * The guild one `discord` connector is installed into. Every guild row is
+ * backed by the same Aeven Discord application and bot; the guild id is what
+ * makes two rows distinct, and the bot token stays on the Aeven API.
+ */
+export interface DiscordConnectorSettings {
+  /** Registered Aeven Discord application the bot belongs to. */
+  applicationId: string
+  /** Bot user id of that application. */
+  botUserId: string
+  /** Guild id; two connectors of one account may not carry the same one. */
+  guildId: string
+  /** Guild name Discord reports. */
+  guildName: string
+  /** Icon URL of the guild, when it has one. */
+  icon?: string
+  /** Aeven account that authorized the installation, when Discord reported it. */
+  installedById?: string
+  /** Display name of that account. */
+  installedByName?: string
+  /** False once the bot is no longer a member of the guild. */
+  linked: boolean
 }

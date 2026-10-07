@@ -50,7 +50,7 @@ The Email provider asks for the address and password first. Presets keyed by dom
 ## Phasing
 
 1. Phase 1: the mail seam and providers, the five tools, the `email` row and probe, the Settings form, and composition in the shipped bundles.
-2. Phase 2: XOAUTH2 for Gmail and Outlook through the existing provider applications, autoconfig discovery, and IMAP IDLE notifications, which need their own session event.
+2. Phase 2: XOAUTH2 for Gmail through the existing provider application, autoconfig discovery, and IMAP IDLE notifications, which need their own session event. Outlook mail leaves this phase: it is reached through a delegated Graph transport instead ([Microsoft 365 connectors](2026-10-07-microsoft-365-connectors.md)).
 
 ## Alternatives considered
 

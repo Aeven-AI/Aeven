@@ -23,7 +23,7 @@ WhatsApp 连接器为“账户本身是设备或会话、而不是 OAuth 授权�
 
 连接器为每个账户保留一行记录、一个数据目录、一个守护进程和一个 `mcp__account_<id>__` 命名空间，与 WhatsApp 完全一致，并按 Telegram 用户 id（而非手机号或名称）拒绝重复登录同一账户。
 
-部署所属的应用凭据通过凭据引用命名（`telegramApiIdRef`、`telegramApiHashRef`，默认 `TELEGRAM_API_ID` 与 `TELEGRAM_API_HASH`），由宿主在启动子进程时解析，并仅通过子进程环境传入。用户账户、浏览器响应、工具 schema 或模型请求都不会携带这些值，用户也无需访问 `my.telegram.org`。
+部署的应用标识保存在 Aeven API 上（[连接器密钥位于 Aeven API](2026-10-07-connector-secrets-on-aeven-api.zh.md)）。宿主以已登录用户的会话读取它们，并缓存在其凭据提供方中，使已关联的账户可在启动时运行，且仅在子进程环境中传递。浏览器响应、工具 schema 或模型请求都不携带它们，用户也无需访问 `my.telegram.org`。每个 MTProto 客户端都会出示这些标识，它们只标识应用，不授予任何账户权限。
 
 权限遵循工具注解：标记 `readOnlyHint` 的 20 个工具——上游的 17 个加上 Aeven 的三个清单类工具——直接执行，其余 31 个会改变真实账户的工具仍由现有 `ask` 门控把关。一旦所提供的注解与 `aeven/tools.ts` 出现偏差，`native/telegram-mcp/tests/daemon.spec.ts` 即失败，`packages/host/account-integrations` 为其门控镜像该清单。
 

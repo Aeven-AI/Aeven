@@ -47,6 +47,7 @@ export interface Config {
   maxInputTokens: number
   /** Explicit learning route, set together with `model`; absent uses each session's own route. */
   provider?: string
+  /** Learning model on the explicit provider route; absent uses the session model. */
   model?: string
 }
 

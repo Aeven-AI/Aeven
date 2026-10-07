@@ -161,6 +161,7 @@ function main(): void {
     buildPaths.packedWhisper,
     buildPaths.packedWhatsApp,
     buildPaths.packedTelegram,
+    buildPaths.packedDiscord,
   ]
   const { values } = parseArgs({
     options: { from: { type: 'string', multiple: true }, out: { type: 'string' } },

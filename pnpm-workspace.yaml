@@ -13,6 +13,8 @@ packages:
   - native/whatsapp-mcp/packages/*
   # The Telegram connector daemon keeps its pinned upstream source and the Aeven daemon entry under native/telegram-mcp.
   - native/telegram-mcp
+  # The Discord connector server keeps the Aeven-owned curated MCP surface under native/discord-mcp.
+  - native/discord-mcp
   # Product assemblies over the package tier; apps/cli owns the `avn` bin.
   - apps/*
   - website

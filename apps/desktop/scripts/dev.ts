@@ -60,8 +60,8 @@ async function launchElectron(projectDir: string): Promise<void> {
   const mainPort = debugPort('AVN_DESKTOP_MAIN_INSPECT_PORT', 9229)
   const rendererPort = debugPort('AVN_DESKTOP_RENDERER_DEBUG_PORT', 9222)
   const hostPort = debugPort('AVN_DESKTOP_HOST_INSPECT_PORT', 9230)
-  // The repository `.env` holds the deployment secrets the profile's identity
-  // and provider rows read (`AEVEN_JWT_SECRET`, the OAuth URLs). A shell that
+  // The repository `.env` holds the deployment settings the profile's identity
+  // and provider rows read (the API and OAuth URLs). A shell that
   // exported them already wins, since `loadEnvFile` does not overwrite.
   try {
     process.loadEnvFile(join(REPOSITORY_ROOT, '.env'))

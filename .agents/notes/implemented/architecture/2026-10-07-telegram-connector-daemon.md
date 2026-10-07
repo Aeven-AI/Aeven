@@ -23,7 +23,7 @@ Vendor the upstream source under `native/telegram-mcp/source/` at a pinned commi
 
 The connector keeps one row, one data directory, one daemon, and one `mcp__account_<id>__` namespace per account, exactly as WhatsApp does, and rejects a second attempt for an account already signed in by Telegram user id rather than by phone number or name.
 
-Deployment-owned application credentials are named by credential references (`telegramApiIdRef`, `telegramApiHashRef`, defaulting to `TELEGRAM_API_ID` and `TELEGRAM_API_HASH`), resolved in the Host at spawn time, and passed only in the child's environment. No user account, browser response, tool schema, or model request carries them, and users never visit `my.telegram.org`.
+The deployment's application identifiers live on the Aeven API ([connector secrets on the Aeven API](2026-10-07-connector-secrets-on-aeven-api.md)). The Host reads them with a signed-in user's session, caches them in its credential provider so linked accounts start at boot, and passes them only in the child's environment. No browser response, tool schema, or model request carries them, and users never visit `my.telegram.org`. Every MTProto client presents them, so they identify the application and grant no account.
 
 Permissions follow the tool annotations: the 20 tools marked `readOnlyHint` — upstream's 17 and the three Aeven listings — run directly, and the 31 that change a real account sit behind the existing `ask` gate. `native/telegram-mcp/tests/daemon.spec.ts` fails if the served annotations and `aeven/tools.ts` drift apart, and `packages/host/account-integrations` mirrors that list for the gate.
 

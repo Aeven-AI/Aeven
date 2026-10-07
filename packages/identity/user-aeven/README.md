@@ -1,5 +1,5 @@
 ---
-description: "Aeven authority for the authenticated-user seam: verifies the Aeven access bearer and refresh cookie locally against the API's own signing secrets, and states the Aeven endpoints in the served page."
+description: "Aeven authority for the authenticated-user seam: verifies the Aeven access bearer and refresh cookie locally against the public keys the API publishes, and states the Aeven endpoints in the served page."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`avn-identity-user-aeven` makes an Aeven account the credential a AVN deployment authenticates against, so a reader signed in to Aeven is signed in here without a second login. It verifies both credentials the Aeven client presents — the access bearer on HTTP calls and the `refreshToken` cookie on a WebSocket upgrade — locally against the API's own signing secrets, so identifying a caller costs no request to Aeven. Mounting it makes the request fence demand a session instead of the launch token, which is a decision a deployment operating an Aeven API makes deliberately. It also states the Aeven endpoints in the served page, which is what gives the browser its sign-in screens.
+`avn-identity-user-aeven` makes an Aeven account the credential a AVN deployment authenticates against, so a reader signed in to Aeven is signed in here without a second login. It verifies both credentials the Aeven client presents — the access bearer on HTTP calls and the `refreshToken` cookie on a WebSocket upgrade — locally against the ES256 public keys the API publishes at `/.well-known/jwks.json`, so identifying a caller costs no request to Aeven and this Host holds nothing that can sign a token. Mounting it makes the request fence demand a session instead of the launch token, which is a decision a deployment operating an Aeven API makes deliberately. It also states the Aeven endpoints in the served page, which is what gives the browser its sign-in screens.
 
 ## Table of Contents
 
@@ -25,15 +25,15 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount it after the seam, give it the Aeven API's two signing secrets, and the Web surface presents Aeven's sign-in screens to anyone without a session.
+Mount it after the seam, point `apiUrl` at the Aeven API, and the Web surface presents Aeven's sign-in screens to anyone without a session.
 
 ### When to choose it
 
-Choose it when AVN and an Aeven API are operated together and readers should reach AVN with their Aeven account. Local verification is only sound under that condition, because it depends on sharing the API's secrets. A deployment that does not run an Aeven API must not mount this row: with an authority present and no reachable API, every `/api` route answers 401 and no reader can sign in.
+Choose it when AVN and an Aeven API are operated together and readers should reach AVN with their Aeven account. The Host fetches the API's public keys when it starts, so the API must be reachable from the Host. A deployment that does not run an Aeven API must not mount this row: with an authority present and no reachable API, every `/api` route answers 401 and no reader can sign in.
 
 ### Minimal configuration
 
-The row injects the seam and reads its secrets from the environment:
+The row injects the seam and names the API whose keys it verifies against:
 
 ```yaml
 - id: identity-user-aeven
@@ -41,15 +41,13 @@ The row injects the seam and reads its secrets from the environment:
   inject: [identityUsers]
   config:
     apiUrl: 'http://localhost:9000'
-    accessSecretEnv: AEVEN_JWT_SECRET
-    refreshSecretEnv: AEVEN_REFRESH_SECRET
 ```
 
 | Field | Default | Meaning |
 |---|---|---|
 | `id` | `aeven` | Registry key under the seam |
-| `accessSecretEnv` | `AEVEN_JWT_SECRET` | Environment variable holding the access-token secret |
-| `refreshSecretEnv` | `AEVEN_REFRESH_SECRET` | Environment variable holding the refresh-token secret |
+| `jwksRefreshIntervalMs` | 60000 | Least time between two fetches of `<apiUrl>/.well-known/jwks.json` |
+| `jwksTimeoutMs` | 10000 | Budget for one key set fetch |
 | `refreshCookieName` | `refreshToken` | Cookie carrying the refresh token on a WebSocket upgrade |
 | `apiUrl` | none | Aeven API origin the browser signs in against; absent leaves the client with no authentication surface |
 | `webUrl` | none | Aeven web client origin the account menu links to |
@@ -82,11 +80,11 @@ This section covers how verification and injection are built; observable behavio
 
 ### Two credentials, one resolver
 
-The resolver reads the bearer first: an HTTP call carries the access token, the shorter-lived of the two and the one the client keeps fresh. It then falls back to the cookie, which is the only credential a WebSocket upgrade can present. Each is verified against its own shared secret, mirroring the Aeven API's own `authenticate` and `authenticateSocketUpgrade`. A missing or empty secret disables that path rather than accepting anything.
+The resolver reads the bearer first: an HTTP call carries the access token, the shorter-lived of the two and the one the client keeps fresh. It then falls back to the cookie, which is the only credential a WebSocket upgrade can present. Both are ES256 tokens under one key; the `typ` claim (`access` or `refresh`) keeps one from standing in for the other, mirroring the Aeven API's own `authenticate` and `authenticateSocketUpgrade`. Until the key set has loaded, or without an `apiUrl`, no token verifies.
 
 ### Why verification is local
 
-The seam resolves synchronously, so the authority cannot call Aeven. It checks the signature with the API's secret instead, which makes identifying a caller free of an outbound request. The price is a revocation window: a token revoked before it expires still verifies here until it does. A sign-out invalidates the credential at its source, which is what keeps that window narrow in practice.
+The seam resolves synchronously, so the authority cannot call Aeven. It checks the signature against the API's public keys instead, held in memory, which makes identifying a caller free of an outbound request. A token naming a key id the Host does not hold starts a background refetch, rate-limited by `jwksRefreshIntervalMs`, so a rotated key verifies from the caller's next request. The price is a revocation window: a token revoked before it expires still verifies here until it does. A sign-out invalidates the credential at its source, which is what keeps that window narrow in practice.
 
 ### Stating the endpoints in the page
 
@@ -132,7 +130,7 @@ None; this package neither assembles nor sends a provider request.
 These are current constraints of the authority, not a task backlog.
 
 - **Revoked-before-expiry tokens still verify** — local verification cannot observe a revocation the API recorded. The window closes when the token expires.
-- **AVN and the API must share a site and a secret** — the cookie path requires one site, and local verification requires the API's own `JWT_SECRET` and `REFRESH_SECRET`. This authority suits AVN and Aeven operated together, not a third party integrating against a public Aeven.
+- **AVN and the API must share a site** — the cookie path requires one site, and the Host must reach the API to load its public keys. This authority suits AVN and Aeven operated together, not a third party integrating against a public Aeven.
 - **Mounting it fences the whole surface** — there is no per-route opt-out. A deployment with no reachable Aeven API must remove the row rather than expect a degraded mode.
 
 <a id="dev-note"></a>

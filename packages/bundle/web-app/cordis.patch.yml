@@ -119,8 +119,19 @@
     - id: mail
       name: '@aeven/mail'
 
+    # Every connector credential — OAuth client secrets and refresh tokens, the
+    # Discord bot token, the Telegram application identifiers — lives on the Aeven
+    # API; this row reaches it with each signed-in user's own session.
     - id: account-integrations
       name: '@aeven/host-account-integrations'
+      config:
+        apiUrl: !!js process.env.AEVEN_API_URL ?? 'http://localhost:9000'
+        # Slack needs no credential on the Aeven API: its PKCE client is public, so the only
+        # Slack value a deployment holds is this application client id. Register
+        # `http://127.0.0.1:12751/callback` on that application and enable PKCE there; without
+        # a client id, Settings reports Slack as unavailable instead of offering a broken sign-in.
+        slackClientId: !!js process.env.SLACK_CLIENT_ID
+        slackCallbackPort: 12751
 
     # ── the authenticated reader ────────────────────────────────────────────────
 
@@ -134,8 +145,8 @@
     # launch token, so a deployment that does not operate an Aeven API must
     # disable this row and `ui-account-aeven` together.
     #
-    # The two secrets are the Aeven API's own JWT_SECRET and REFRESH_SECRET;
-    # verification is local, so identifying a caller costs no request. AVN must
+    # Tokens are verified locally against the public keys the API publishes at
+    # `/.well-known/jwks.json`; no signing secret is held here. AVN must
     # be served from the same site as the API: a WebSocket upgrade carries no
     # header and authenticates by cookie alone, and `localhost` and `127.0.0.1`
     # are different sites to a browser.
@@ -144,8 +155,6 @@
       inject: [identityUsers]
       config:
         apiUrl: !!js process.env.AEVEN_API_URL ?? 'http://localhost:9000'
-        accessSecretEnv: AEVEN_JWT_SECRET
-        refreshSecretEnv: AEVEN_REFRESH_SECRET
         xOAuthUrl: !!js process.env.AEVEN_OAUTH_X_URL
         appleOAuthUrl: !!js process.env.AEVEN_OAUTH_APPLE_URL
         googleOAuthUrl: !!js process.env.AEVEN_OAUTH_GOOGLE_URL

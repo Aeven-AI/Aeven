@@ -31,6 +31,8 @@ export interface ToolBridgeOptions {
   /** Whether a registry conflict is contained or rejects this synchronization. */
   registrationFailure: 'contain' | 'throw'
   serverName: string
+  /** Raw tool allowlist enforced during every discovery generation. */
+  allowedTools?: readonly string[]
   toolCallTimeoutMs: number
 }
 
@@ -154,6 +156,7 @@ export async function syncTools(
   do {
     const response = await listToolsUncached(client, cursor)
     for (const tool of response.tools) {
+      if (opts.allowedTools !== undefined && !opts.allowedTools.includes(tool.name)) continue
       const publicName = publicToolName(opts.serverName, tool.name)
       if (definitions.has(publicName)) {
         throw new Error(

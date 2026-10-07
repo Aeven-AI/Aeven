@@ -4,9 +4,10 @@
  * The Aeven client presents a different credential per transport, so this
  * resolver reads both: an HTTP RPC call carries the short-lived access token in
  * `Authorization: Bearer`, while a WebSocket upgrade carries only the
- * `refreshToken` cookie, because a browser cannot set a header on one. Each is
- * verified against its own shared secret, mirroring the Aeven API's
- * `authenticate` and `authenticateSocketUpgrade`.
+ * `refreshToken` cookie, because a browser cannot set a header on one. Both are
+ * ES256 tokens verified against the public keys the Aeven API publishes at
+ * `/.well-known/jwks.json`, mirroring the API's `authenticate` and
+ * `authenticateSocketUpgrade`. This Host holds no secret that can sign a token.
  *
  * Verification is local, so identifying a caller costs no request to Aeven and
  * the seam stays synchronous. The price is that a token revoked before it
@@ -22,7 +23,8 @@ import type {} from '@aeven/identity-user'
 import { sameHostLoopbackUrl } from '@aeven/host-webserver'
 import type {} from '@aeven/host-webserver'
 import { credentialRef } from '@aeven/credentials'
-import { verifiedUserId } from './jwt.ts'
+import { verifyToken, type TokenType } from './jwt.ts'
+import { RemoteKeySet } from './jwks.ts'
 
 /** Cordis plugin name. */
 export const name = 'identity-user-aeven'
@@ -64,10 +66,13 @@ export const inject = ['identityUsers']
 export interface Config {
   /** Registry key under the seam. Defaults to `aeven`. */
   id?: string
-  /** Environment variable holding the access-token secret; the API's `JWT_SECRET`. */
-  accessSecretEnv?: string
-  /** Environment variable holding the refresh-token secret; the API's `REFRESH_SECRET`. */
-  refreshSecretEnv?: string
+  /**
+   * Least time between two fetches of the API's key set. A token naming a key the
+   * Host does not hold starts a fetch, so a rotated key is picked up without a restart.
+   */
+  jwksRefreshIntervalMs?: number
+  /** Budget for one key set fetch. */
+  jwksTimeoutMs?: number
   /** Cookie carrying the refresh token on a WebSocket upgrade. */
   refreshCookieName?: string
   /**
@@ -117,8 +122,8 @@ export interface Config {
 
 export const Config: z<Config> = z.object({
   id: z.string().default('aeven'),
-  accessSecretEnv: z.string().default('AEVEN_JWT_SECRET'),
-  refreshSecretEnv: z.string().default('AEVEN_REFRESH_SECRET'),
+  jwksRefreshIntervalMs: z.natural().min(1).default(60_000),
+  jwksTimeoutMs: z.natural().min(1).default(10_000),
   refreshCookieName: z.string().default('refreshToken'),
   credentialRef: z.string().default('AEVEN_TOKEN'),
   apiUrl: z.string(),
@@ -196,11 +201,39 @@ function resolveOAuthFlow(config: Config): OAuthFlow | undefined {
  */
 export function apply(ctx: Context, config: Config): void {
   // schemastery (Config) has already filled every defaulted field.
-  const { id, accessSecretEnv, refreshSecretEnv, refreshCookieName } = config as ResolvedConfig
+  const { id, refreshCookieName, jwksRefreshIntervalMs, jwksTimeoutMs } = config as ResolvedConfig
   // Read at load: an offered provider with no stated flow is self-contained
   // misconfiguration, and failing when the page is served would report it hours
   // after the deployment that stated it.
   const oauthFlow = resolveOAuthFlow(config)
+
+  // Without an API there are no published keys, so no token can verify and the
+  // resolver admits nobody, the same as a deployment without Aeven.
+  const keySet = config.apiUrl === undefined ? undefined : new RemoteKeySet({
+    url: new URL('/.well-known/jwks.json', config.apiUrl).href,
+    minRefreshIntervalMs: jwksRefreshIntervalMs,
+    timeoutMs: jwksTimeoutMs,
+    warn: message => ctx.logger('identity-user-aeven').warn(message),
+  })
+  if (keySet !== undefined) {
+    ctx.effect(() => {
+      void keySet.refresh()
+      return () => keySet.dispose()
+    }, 'identity-user-aeven: key set')
+  }
+
+  /**
+   * Verify one presented token against the published keys.
+   * @param token - the compact JWS from a header or cookie.
+   * @param type - the token type that transport carries.
+   * @param nowSeconds - current time, for the expiry comparison.
+   * @returns the verified user id, or undefined.
+   */
+  function verifiedUserId(token: string, type: TokenType, nowSeconds: number): string | undefined {
+    if (keySet === undefined) return undefined
+    const result = verifyToken(token, type, kid => keySet.keyFor(kid), nowSeconds)
+    return result.kind === 'verified' ? result.userId : undefined
+  }
 
   const resolver: UserResolver = {
     id,
@@ -214,11 +247,10 @@ export function apply(ctx: Context, config: Config): void {
       // The bearer first: an HTTP call carries the access token, which is the
       // shorter-lived of the two and the one the client keeps fresh.
       const authorization = headerValue(request.headers, 'authorization')
-      const accessSecret = process.env[accessSecretEnv]
-      if (authorization !== undefined && accessSecret !== undefined && accessSecret !== '') {
+      if (authorization !== undefined) {
         const [scheme, token] = authorization.split(' ')
         if (scheme?.toLowerCase() === 'bearer' && token !== undefined) {
-          const userId = verifiedUserId(token, accessSecret, nowSeconds)
+          const userId = verifiedUserId(token, 'access', nowSeconds)
           if (userId !== undefined) return { id: userId }
         }
       }
@@ -226,11 +258,10 @@ export function apply(ctx: Context, config: Config): void {
       // Then the cookie: a WebSocket upgrade has no way to send a header, so
       // the refresh token is the only credential it can present.
       const cookie = headerValue(request.headers, 'cookie')
-      const refreshSecret = process.env[refreshSecretEnv]
-      if (cookie !== undefined && refreshSecret !== undefined && refreshSecret !== '') {
+      if (cookie !== undefined) {
         const token = cookieValue(cookie, refreshCookieName)
         if (token !== undefined) {
-          const userId = verifiedUserId(token, refreshSecret, nowSeconds)
+          const userId = verifiedUserId(token, 'refresh', nowSeconds)
           if (userId !== undefined) return { id: userId }
         }
       }

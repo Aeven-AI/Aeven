@@ -10,7 +10,7 @@ import { z } from 'zod'
 import { Remote, TypertRemoteService } from '@aeven/typert-protocol'
 import { defineDomain, domainTable, type Domain } from '@aeven/storage-domain'
 import { assertNever } from '@aeven/util-values'
-import { credentialRef } from '@aeven/credentials'
+import { credentialKey, credentialRef } from '@aeven/credentials'
 import { avnHomePath } from '@aeven/home-paths'
 import { createScope, type Scope } from '@aeven/scope'
 import type {} from '@aeven/identity-user'
@@ -19,22 +19,25 @@ import type {} from '@aeven/tools'
 import type {} from '@aeven/workspace'
 import type {} from '@aeven/agent-presets/types'
 import { isSkillName, type SkillCandidate } from '@aeven/skill'
-import type {} from '@aeven/host-webserver'
 import { MailError, type MailAccount, type MailAccountId, type MailSecret } from '@aeven/mail'
 import * as mcp from '@aeven/mcp-client'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js'
 import { googleConnection, googleService, verifyGoogle } from './google.ts'
+import { microsoftConnection, microsoftService, verifyMicrosoft } from './microsoft.ts'
+import { publicToolName } from '@aeven/mcp-client'
 import { parsePersonalSkill } from './skills.ts'
 import { resolveWhatsAppBinary, WhatsAppDaemon } from './whatsapp.ts'
 import { resolveTelegramEntry, TelegramDaemon, type TelegramCredentials, type TelegramDaemonStatus } from './telegram.ts'
-import { connectorCredential, createConsent, exchangeGrant, grantSchema } from './oauth.ts'
-import type { OAuthProviderConfig, PendingConsent } from './oauth.ts'
-import type { AccountIntegrationsView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, ConnectorProviderView, EmailConnectionFailure, EmailConnectorSettings, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillViewId, SkillUploadFile, TelegramConnectorSettings, TelegramPairingView, WhatsAppPairingView } from './types.ts'
+import { discordGuildIcon, resolveDiscordEntry, DISCORD_ADMIN_PERMISSIONS, DISCORD_CURATED_PERMISSIONS, type DiscordGuild } from './discord.ts'
+import { isSlackReadTool, slackConnectorId, SLACK_DIRECT_MESSAGE_SCOPES, SLACK_MCP_ENDPOINT, SLACK_WORKSPACE_SCOPES, type SlackWorkspace } from './slack.ts'
+import { isSlackConsentFailure, probeSlackToken, revokeSlackToken, refreshSlackToken, SlackLoginError, startSlackLogin, type SlackLogin, type SlackToken } from './slack-login.ts'
+import { connectorCredential, type PendingConsent } from './oauth.ts'
+import { BrokerError, ConnectorBroker, type ConsentStatus, type IssuedToken } from './broker.ts'
+import type { AccountIntegrationsView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, ConnectorProviderView, DiscordConnectorSettings, EmailConnectionFailure, EmailConnectorSettings, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillViewId, SkillUploadFile, SlackConnectorSettings, TelegramConnectorSettings, TelegramPairingView, WhatsAppPairingView } from './types.ts'
 
 export type * from './types.ts'
-export type { OAuthProviderConfig } from './oauth.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -43,30 +46,59 @@ declare module '@deepseek-ai/cordis' {
   }
 }
 
-/** Deployment upload, network, and registered OAuth application settings. */
+/** Deployment upload, network, and connector settings; no connector credential is configured here. */
 export interface Config {
   /** Largest decoded skill bundle. */
   maxSkillBytes: number
   /** MCP discovery, tool, and OAuth request budget. */
   timeoutMs: number
-  /** Maximum time between consent initiation and callback. */
+  /** Maximum time between starting a consent and the provider returning to the Aeven API. */
   consentLifetimeMs: number
-  /** Registered callback URL; must end in /connectors/oauth/callback. */
-  redirectUri: string
+  /**
+   * Aeven API origin whose connector broker holds every provider credential: OAuth
+   * client secrets and refresh tokens, the Discord bot token, and the Telegram
+   * application identifiers. Absent leaves Google, GitHub, Discord, and Telegram unavailable.
+   */
+  apiUrl?: string
+  /** Credential reference holding each signed-in user's Aeven access token; the broker authenticates it. */
+  credentialRef: string
   /** Email accounts one signed-in user may connect. */
   maxEmailAccounts: number
   /** WhatsApp numbers one signed-in user may link. */
   maxWhatsAppAccounts: number
   /** Telegram accounts one signed-in user may sign in. */
   maxTelegramAccounts: number
+  /** Discord guilds one signed-in user may install the Aeven bot into. */
+  maxDiscordGuilds: number
+  /** Slack workspaces one signed-in user may connect. */
+  maxSlackWorkspaces: number
+  /**
+   * The deployment's Slack app client id, which is public because Slack's PKCE client is a public
+   * client. Absent leaves Slack unavailable, and no Slack secret exists for this Host to hold.
+   */
+  slackClientId?: string
+  /**
+   * Loopback callback port the Slack app registered as `http://127.0.0.1:<port>/callback`. Slack
+   * matches the registered redirect exactly, so this value and the application agree or the
+   * consent fails at the redirect.
+   */
+  slackCallbackPort: number
+  /** Whether a login also asks for direct-message search and history, which the app must register too. */
+  slackDirectMessages: boolean
+  /** Time a live Slack token is trusted before Slack is asked again. */
+  slackVerifyIntervalMs: number
   /** WhatsApp daemon executable; defaults to the platform package installed for this host. */
   whatsappBinaryPath?: string
   /** Telegram daemon entry; defaults to the vendored package installed for this host. */
   telegramEntryPath?: string
-  /** Credential reference holding the deployment's Telegram application id. */
-  telegramApiIdRef: string
-  /** Credential reference holding the deployment's Telegram application hash. */
-  telegramApiHashRef: string
+  /** Discord connector server entry; defaults to the vendored package installed for this host. */
+  discordEntryPath?: string
+  /** Discord permissions the install link requests, as a base-10 bitfield string. */
+  discordPermissions?: string
+  /** Whether connected guilds also serve the administration and moderation tools. */
+  discordAdminTools: boolean
+  /** Time a verified guild membership is trusted before Discord is asked again. */
+  discordVerifyIntervalMs: number
   /** Time allowed for a Telegram daemon to bind its loopback port. */
   telegramStartupTimeoutMs: number
   /** Time a stopping Telegram daemon gets to exit cleanly before it is killed. */
@@ -87,8 +119,6 @@ export interface Config {
   whatsappRestartDelayMs: number
   /** Longest restart delay; a daemon that ran this long resets the failure count. */
   whatsappMaxRestartDelayMs: number
-  /** Deployment-owned OAuth applications for Google, GitHub and Microsoft 365 MCP resources. */
-  providers: Partial<Record<'github' | 'google' | 'microsoft365', OAuthProviderConfig>>
 }
 
 const skillSchema = z.object({
@@ -97,7 +127,7 @@ const skillSchema = z.object({
   resources: z.record(z.string().refine(path => !path.startsWith('/') && !path.includes('\\') && !/^[A-Za-z]:/.test(path)
     && path.split('/').every(part => part !== '' && part !== '.' && part !== '..')), z.string()), revision: z.uuid(),
 })
-const providers = ['github', 'gmail', 'google-drive', 'google-calendar', 'microsoft365', 'email', 'whatsapp', 'telegram', 'mcp'] as const satisfies readonly ConnectorProvider[]
+const providers = ['github', 'gmail', 'google-drive', 'google-calendar', 'outlook', 'outlook-calendar', 'onedrive', 'sharepoint', 'teams', 'email', 'whatsapp', 'telegram', 'discord', 'slack', 'mcp'] as const satisfies readonly ConnectorProvider[]
 const emailServerSchema = z.object({
   host: z.string().trim().min(1).max(253).regex(/^[A-Za-z0-9.-]+$/), port: z.number().int().min(1).max(65_535),
   security: z.enum(['tls', 'starttls']), username: z.string().trim().min(1).max(320),
@@ -108,6 +138,10 @@ const emailSettingsSchema = z.object({
 })
 /** Email passwords kept as the connector's credential grant. */
 const emailSecretSchema = z.object({ receivePassword: z.string().min(1), sendPassword: z.string().min(1).optional() })
+/** The user token and refresh credential of one Slack workspace, kept as that connector's own grant. */
+const slackTokenSchema = z.object({
+  accessToken: z.string().min(1), refreshToken: z.string().min(1).optional(), expiresAt: z.number().optional(), scopes: z.array(z.string()),
+})
 const emailRequestSchema = emailSettingsSchema.extend({
   name: z.string().trim().min(1).max(100).optional(), receivePassword: z.string().min(1).max(1024), sendPassword: z.string().min(1).max(1024).optional(),
 })
@@ -120,6 +154,7 @@ const connectorSchema = z.object({
   /** Absent for `email`, which has server settings instead of an MCP endpoint. */
   endpoint: z.url().optional(), enabled: z.boolean(),
   email: emailSettingsSchema.optional(),
+  microsoft: z.object({ id: z.string(), name: z.string(), username: z.string(), tenantId: z.string() }).optional(),
   /** Set when a mail server rejected the stored password; the account needs to be added again. */
   authFailed: z.boolean().optional(),
   /** Linked account of a `whatsapp` row; `linked` turns false when the phone removes the device. */
@@ -127,6 +162,24 @@ const connectorSchema = z.object({
   /** Signed-in account of a `telegram` row; `linked` turns false when Telegram rejects the session. */
   telegram: z.object({
     userId: z.string(), name: z.string().optional(), username: z.string().optional(), phone: z.string().optional(), linked: z.boolean(),
+  }).optional(),
+  /**
+   * OAuth grant of a Google, Microsoft, or GitHub row, held by the Aeven API: the scopes it granted, and
+   * `expired` once the API reports the provider revoked it and the user must consent again.
+   */
+  grant: z.object({ scopes: z.array(z.string()), expired: z.boolean().optional() }).optional(),
+  /** Guild of a `discord` row; `linked` turns false when the bot leaves the guild. */
+  discord: z.object({
+    applicationId: z.string(), botUserId: z.string(), guildId: z.string(), guildName: z.string(),
+    icon: z.string().optional(), installedById: z.string().optional(), installedByName: z.string().optional(), linked: z.boolean(),
+  }).optional(),
+  /**
+   * Workspace of a `slack` row, with the scopes its grant carried. The user token lives in the
+   * account's credential provider, never here; `linked` turns false once Slack refuses it.
+   */
+  slack: z.object({
+    teamId: z.string(), teamName: z.string(), domain: z.string().optional(), userId: z.string(), userName: z.string(),
+    scopes: z.array(z.string()), linked: z.boolean(),
   }).optional(),
 })
 const domainSpec = defineDomain({ name: 'account_integrations', version: 0, tables: {
@@ -206,13 +259,50 @@ function telegramPairingState(state: TelegramDaemonStatus['state']): TelegramPai
   }
 }
 
+/** Project one stored guild row onto the Discord settings Settings shows. */
+function discordSettings(value: NonNullable<z.infer<typeof connectorSchema>['discord']>): DiscordConnectorSettings {
+  return {
+    applicationId: value.applicationId, botUserId: value.botUserId, guildId: value.guildId, guildName: value.guildName, linked: value.linked,
+    ...value.icon === undefined ? {} : { icon: value.icon },
+    ...value.installedById === undefined ? {} : { installedById: value.installedById },
+    ...value.installedByName === undefined ? {} : { installedByName: value.installedByName },
+  }
+}
+
+/** Project one stored workspace row onto the Slack settings Settings shows. */
+function slackSettings(value: NonNullable<z.infer<typeof connectorSchema>['slack']>): SlackConnectorSettings {
+  return {
+    teamId: value.teamId, teamName: value.teamName, userId: value.userId, userName: value.userName,
+    scopes: value.scopes, linked: value.linked,
+    ...value.domain === undefined ? {} : { domain: value.domain },
+  }
+}
+
+/**
+ * Connector id of one Discord guild of one user, the same for every install into that guild, so the
+ * guild's tool names (`mcp__account_<id prefix>__…`) survive installing it again.
+ * @param owner - Aeven account that installed the Aeven bot into the guild.
+ * @param guildId - Discord guild id.
+ * @returns a UUID-formatted id derived from both.
+ */
+function discordConnectorId(owner: string, guildId: string): ConnectorId {
+  const hex = createHash('sha256').update(`discord\0${owner}\0${guildId}`).digest('hex')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-${((Number.parseInt(hex.slice(16, 18), 16) & 0x3f) | 0x80).toString(16)}${hex.slice(18, 20)}-${hex.slice(20, 32)}` as ConnectorId
+}
+
 const uploadsSchema = z.array(z.object({ path: z.string().min(1), base64: z.string() })).min(1)
-const callbackPath = '/connectors/oauth/callback'
+/** Google and GitHub sign in through OAuth grants the Aeven API holds. */
+const brokeredProviders = new Set<ConnectorProvider>(['github', 'gmail', 'google-drive', 'google-calendar', 'outlook', 'outlook-calendar', 'onedrive', 'sharepoint', 'teams'])
+/** Key of the Telegram application identifiers cached after the first signed-in fetch, so linked accounts start at boot. */
+const telegramAppKey = credentialKey('account-integrations', 'telegram-application')
+/** Time before an issued access token's expiry at which the Host asks for a new one. */
+const TOKEN_MARGIN_MS = 60_000
 
 /** Connector-owned skill names; bodies and resources remain in the skill registry. */
 const connectorSkills: Record<ConnectorProvider, readonly string[]> = {
   'google-drive': ['google-drive', 'google-docs', 'google-sheets', 'google-slides', 'google-drive-comments', 'google-forms'],
-  gmail: ['gmail'], 'google-calendar': ['google-calendar'], github: ['github'], microsoft365: [], mcp: [], email: [], whatsapp: ['whatsapp'], telegram: ['telegram'],
+  gmail: ['gmail'], 'google-calendar': ['google-calendar'], github: ['github'], outlook: ['outlook'], 'outlook-calendar': ['outlook-calendar'], onedrive: ['onedrive'], sharepoint: ['sharepoint'], teams: ['teams'], mcp: [], email: [], whatsapp: ['whatsapp'], telegram: ['telegram'],
+  discord: ['discord'], slack: ['slack'],
 }
 
 /** WhatsApp tools that only read the cache or the account; every other tool acts visibly and asks first. */
@@ -232,6 +322,35 @@ const telegramReadTools = new Set([
   'list_media', 'download_media',
   'poll_results', 'list_scheduled', 'get_draft', 'random_member',
   'list_blocked', 'list_banned', 'list_invite_links',
+])
+
+/**
+ * Discord tools that only read the guild; the connector mounts one server per guild, so no tool
+ * takes a guild argument. This mirrors `DISCORD_CURATED_READ_TOOLS` in `native/discord-mcp/aeven/tools.ts`,
+ * which that package's own suite pins against the served surface.
+ */
+const discordReadTools = new Set([
+  'list_channels', 'get_channel', 'get_messages', 'get_thread', 'search_messages', 'list_members', 'get_guild_info',
+])
+
+/** Discord tools that post, react, upload, or open a thread: visible to other people, so the user approves first. */
+const discordWriteTools = new Set([
+  'send_message', 'reply_message', 'add_reaction', 'remove_reaction', 'send_file', 'create_thread',
+])
+
+/**
+ * Discord administration and moderation tools, served only by a deployment that turns them on.
+ * Each one changes the server for everyone, so it never runs on the same approval as a message.
+ * This mirrors `DISCORD_ADMIN_TOOL_NAMES` in `native/discord-mcp/aeven/admin.ts`.
+ */
+const discordAdminTools = new Set([
+  'list_roles', 'create_role', 'edit_role', 'delete_role', 'assign_role', 'remove_role',
+  'list_bans', 'get_ban', 'ban_member', 'unban_member', 'timeout_member', 'clear_timeout', 'delete_messages',
+  'kick_member', 'bulk_ban_members', 'get_member', 'edit_member', 'purge_messages',
+  'create_channel', 'delete_channel', 'edit_channel', 'set_channel_permissions',
+  'list_invites', 'revoke_invite', 'read_audit_log',
+  'list_automod_rules', 'create_automod_rule', 'edit_automod_rule', 'delete_automod_rule',
+  'edit_guild',
 ])
 
 /** One linked number's supervised daemon. */
@@ -314,10 +433,18 @@ export default class AccountIntegrations extends TypertRemoteService {
     maxEmailAccounts: Schema.natural().min(1).default(20),
     maxWhatsAppAccounts: Schema.natural().min(1).default(10),
     maxTelegramAccounts: Schema.natural().min(1).default(10),
+    maxDiscordGuilds: Schema.natural().min(1).default(25),
+    maxSlackWorkspaces: Schema.natural().min(1).default(10),
+    slackClientId: Schema.string(),
+    slackCallbackPort: Schema.natural().min(1).max(65_535).default(12_751),
+    slackDirectMessages: Schema.boolean().default(false),
+    slackVerifyIntervalMs: Schema.natural().min(1).default(300_000),
     whatsappBinaryPath: Schema.string(),
     telegramEntryPath: Schema.string(),
-    telegramApiIdRef: Schema.string().default('TELEGRAM_API_ID'),
-    telegramApiHashRef: Schema.string().default('TELEGRAM_API_HASH'),
+    discordEntryPath: Schema.string(),
+    discordPermissions: Schema.string(),
+    discordAdminTools: Schema.boolean().default(false),
+    discordVerifyIntervalMs: Schema.natural().min(1).default(300_000),
     telegramStartupTimeoutMs: Schema.natural().min(1).default(15_000),
     telegramStopGraceMs: Schema.natural().min(1).default(5_000),
     telegramPairingPollMs: Schema.natural().min(100).default(1_500),
@@ -328,26 +455,35 @@ export default class AccountIntegrations extends TypertRemoteService {
     whatsappPairingPollMs: Schema.natural().min(100).default(1_500),
     whatsappRestartDelayMs: Schema.natural().min(1).default(1_000),
     whatsappMaxRestartDelayMs: Schema.natural().min(1).default(60_000),
-    redirectUri: Schema.string().default(`http://127.0.0.1:3080${callbackPath}`),
-    providers: Schema.dict(Schema.object({
-      endpoint: Schema.string(), authorizationUrl: Schema.string().required(), tokenUrl: Schema.string().required(),
-      clientId: Schema.string().required(), clientSecretRef: Schema.string(), scopes: Schema.array(String).default([]),
-    })).default({}),
+    apiUrl: Schema.string(),
+    credentialRef: Schema.string().default('AEVEN_TOKEN'),
   })
 
   private domain!: Domain<typeof domainSpec>
   private invalidateSkills: () => void = () => {}
   private readonly connected = new Set<ConnectorId>()
   private readonly consents = new Map<string, PendingConsent>()
+  private readonly consentFailures = new Map<string, { authorizationFailure: 'admin-consent-required' | 'failed'; adminConsentUrl?: string }>()
   private readonly whatsappBinary: string | undefined
   private readonly telegramEntry: string | undefined
+  private readonly discordEntry: string | undefined
+  /** The Aeven API's connector broker; undefined without an `apiUrl`. */
+  private readonly broker: ConnectorBroker | undefined
+  /** Access tokens the broker issued, per connector, kept until shortly before they expire. */
+  private readonly issuedTokens = new Map<ConnectorId, IssuedToken>()
   private readonly whatsapp = new Map<ConnectorId, SupervisedWhatsApp>()
   private readonly telegram = new Map<ConnectorId, SupervisedTelegram>()
+  /** Last guild-membership verdict per connector, so a conversation step does not ask Discord again. */
+  private readonly discordPresence = new Map<ConnectorId, { at: number; present: boolean }>()
+  /** Workspace logins in flight, keyed by the connector each is about to store. */
+  private readonly slackLogins = new Map<ConnectorId, { owner: string; cancel: () => void; completion: Promise<void> }>()
+  /** Last token verdict per workspace, so a settings read does not ask Slack every time. */
+  private readonly slackPresence = new Map<ConnectorId, { at: number; present: boolean }>()
   private readonly pairings = new Map<ConnectorId, WhatsAppPairing>()
   private readonly telegramPairings = new Map<ConnectorId, TelegramPairing>()
   private readonly mounts = new Map<Agent, {
     scope: Scope
-    connections: Map<ConnectorId, { token: string; endpoint: string; fiber: Fiber }>
+    connections: Map<ConnectorId, { key: string; fiber: Fiber }>
   }>()
 
   /**
@@ -358,20 +494,19 @@ export default class AccountIntegrations extends TypertRemoteService {
     super(ctx, 'accountIntegrations')
     this.whatsappBinary = resolveWhatsAppBinary(config.whatsappBinaryPath)
     this.telegramEntry = resolveTelegramEntry(config.telegramEntryPath)
-    const redirect = new URL(endpoint(config.redirectUri))
-    if (redirect.pathname !== callbackPath || redirect.search) throw new Error(`connector callback URL must end in ${callbackPath}`)
-    for (const [provider, app] of Object.entries(config.providers)) {
-      if (!['github', 'google', 'microsoft365'].includes(provider)) throw new Error(`unknown connector provider: ${provider}`)
-      if (provider !== 'google' && app.scopes.length === 0) throw new Error(`${provider} requires explicit OAuth scopes`)
-      if (provider !== 'google' && app.endpoint === undefined) throw new Error(`${provider} requires an MCP endpoint`)
-      if (app.endpoint !== undefined) endpoint(app.endpoint)
-      if (new URL(app.authorizationUrl).protocol !== 'https:' || new URL(app.tokenUrl).protocol !== 'https:') {
-        throw new Error('provider OAuth endpoints require HTTPS')
-      }
+    this.discordEntry = resolveDiscordEntry(config.discordEntryPath)
+    if (config.discordPermissions !== undefined && !/^\d+$/.test(config.discordPermissions)) {
+      throw new Error('discordPermissions must be a base-10 permission bitfield')
     }
+    const ref = credentialRef(config.credentialRef)
+    this.broker = config.apiUrl === undefined ? undefined : new ConnectorBroker({
+      apiUrl: endpoint(config.apiUrl),
+      timeoutMs: config.timeoutMs,
+      sessionToken: async owner => (await this.ctx.credentials.resolve(ref, owner).catch(() => undefined))?.value,
+    })
   }
 
-  /** Open account data and register reversible skill, tool, and callback contributions. */
+  /** Open account data and register reversible skill and tool contributions. */
   async [Service.init](): Promise<void> {
     this.domain = await this.ctx.storageDomain.open(domainSpec)
     this.ctx.effect(() => () => this.domain.close(), 'account-integrations: storage')
@@ -476,8 +611,7 @@ export default class AccountIntegrations extends TypertRemoteService {
         }
         const google = googleService(connector.provider)
         if (google !== undefined) {
-          const record = await this.ctx.credentials.readRecord(connectorCredential(connector.owner, connector.id))
-          if (record?.kind !== 'grant' || grantSchema.parse(record.payload).scopes?.includes(google.scopes[0]) !== true) {
+          if (connector.grant?.scopes.includes(google.scopes[0]) !== true) {
             return { kind: 'deny', reason: 'Reconnect this Google account in Settings to grant the required permissions.' }
           }
           if (exec.name.endsWith('__workspace_raw')) {
@@ -495,83 +629,51 @@ export default class AccountIntegrations extends TypertRemoteService {
             return { kind: 'ask', reason: 'Approve sending, sharing, or deleting through your connected Google account.' }
           }
         }
+        const microsoft = microsoftService(connector.provider)
+        if (microsoft !== undefined) {
+          const serverName = `account_${connector.id.replaceAll('-', '').slice(0, 24)}`
+          if (microsoft.read.some(tool => publicToolName(serverName, tool) === exec.name)) return next()
+          if (microsoft.write.some(tool => publicToolName(serverName, tool) === exec.name)) {
+            return { kind: 'ask', reason: 'Approve this change through your connected Microsoft account.' }
+          }
+          return { kind: 'deny', reason: 'This tool is outside the connected Microsoft service.' }
+        }
         if (connector.provider === 'whatsapp' && !whatsappReadTools.has(exec.name.slice(match[0].length))) {
           return { kind: 'ask', reason: 'Approve this action on your linked WhatsApp number. Other people can see it.' }
         }
         if (connector.provider === 'telegram' && !telegramReadTools.has(exec.name.slice(match[0].length))) {
           return { kind: 'ask', reason: 'Approve this action on your signed-in Telegram account. Other people can see it.' }
         }
+        if (connector.provider === 'discord') {
+          const tool = exec.name.slice(match[0].length)
+          if (discordReadTools.has(tool)) return next()
+          if (discordWriteTools.has(tool)) {
+            return { kind: 'ask', reason: 'Approve this action on your connected Discord server. Other people can see it.' }
+          }
+          // Administration and moderation change the server for everyone, so they never ride on a message approval.
+          return { kind: 'ask', reason: discordAdminTools.has(tool)
+            ? 'Approve this Discord administration action: it changes the server for everyone.'
+            : 'Approve this unrecognized action on your connected Discord server.' }
+        }
+        if (connector.provider === 'slack') {
+          const tool = exec.name.slice(match[0].length)
+          if (isSlackReadTool(tool)) return next()
+          // Slack owns these names, so an unrecognized one asks rather than posting unreviewed.
+          return { kind: 'ask', reason: 'Approve this action on your connected Slack workspace. It will appear as you.' }
+        }
       }
       return next()
     })
     this.ctx.effect(() => () => {
       this.consents.clear()
+      this.consentFailures.clear()
+      this.issuedTokens.clear()
       this.connected.clear()
+      this.discordPresence.clear()
+      for (const [, pending] of this.slackLogins) pending.cancel()
+      this.slackLogins.clear()
       this.mounts.clear()
     }, 'account-integrations: connector scopes')
-    this.ctx.inject(['webServer'], (ctx) => {
-      ctx.effect(() => ctx.webServer.register({
-        kind: 'exact', path: callbackPath,
-        handler: async (request, response) => {
-          const url = new URL(request.url!, this.config.redirectUri)
-          const state = url.searchParams.get('state')
-          const consent = state === null ? undefined : this.consents.get(state)
-          response.setHeader('Cache-Control', 'no-store')
-          response.setHeader('Referrer-Policy', 'no-referrer')
-          const finish = (status: 200 | 400 | 502, detail?: { en: string; zh: string }): void => {
-            const chinese = request.headers['accept-language']?.startsWith('zh') === true
-            const title = status === 200 ? (chinese ? '账户已连接' : 'Account connected') : (chinese ? '连接未完成' : 'Connection not completed')
-            const message = detail !== undefined ? (chinese ? detail.zh : detail.en) : status === 200
-              ? (chinese ? '您可以关闭此窗口并返回 Aeven。' : 'You can close this window and return to Aeven.')
-              : (chinese ? '请返回 Aeven 并重新开始登录。您可以关闭此窗口。' : 'Return to Aeven and start sign-in again. You can close this window.')
-            response.writeHead(status, {
-              'Content-Type': 'text/html; charset=utf-8',
-              'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'",
-            }).end(`<!doctype html><html lang="${chinese ? 'zh' : 'en'}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} · Aeven</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f6f6f5;color:#202020;font:16px/1.6 system-ui,sans-serif}main{max-width:440px;margin:24px;padding:40px;border:1px solid #e4e4e1;border-radius:20px;background:white;text-align:center}small{color:#666}h1{font-size:26px;line-height:1.3}p{color:#666}.mark{font-size:36px}</style><main><small>Aeven</small><div class="mark" aria-hidden="true">${status === 200 ? '✓' : '!'}</div><h1>${title}</h1><p>${message}</p></main></html>`)
-          }
-
-          const code = url.searchParams.get('code')
-          if (request.method !== 'GET' || state === null || consent === undefined || consent.completion !== undefined || consent.expiresAt <= Date.now() || code === null || url.searchParams.has('error')) {
-            finish(400, { en: 'Sign-in expired, was cancelled, or was already completed. Return to Aeven and start a new sign-in.', zh: '登录已过期、已取消或已完成。请返回 Aeven 并重新开始登录。' })
-            return
-          }
-          const completion = (async (): Promise<void> => {
-            let failure = { en: 'The account token could not be obtained. Check the configured OAuth client ID and secret, then start a new sign-in in Aeven.', zh: '无法获取账户令牌。请检查 OAuth 客户端 ID 和密钥，然后在 Aeven 中重新开始登录。' }
-            try {
-              const provider = this.oauthApplication(consent.provider)
-              if (provider === undefined) throw new Error('connector provider is not configured')
-              const grant = await exchangeGrant(this.ctx, provider, {
-                grant_type: 'authorization_code', code, code_verifier: consent.verifier, redirect_uri: this.config.redirectUri,
-              }, AbortSignal.timeout(this.config.timeoutMs))
-              const google = googleService(consent.provider)
-              failure = google === undefined
-                ? { en: 'The connector could not verify account access. Check the provider permissions and start a new sign-in in Aeven.', zh: '连接器无法验证账户访问权限。请检查提供商权限，然后在 Aeven 中重新开始登录。' }
-                : { en: 'Google API access could not be verified. Enable the selected service API in the OAuth application’s Google Cloud project, grant the requested permissions, then start a new sign-in in Aeven.', zh: '无法验证 Google API 访问权限。请在 OAuth 应用的 Google Cloud 项目中启用所选服务的 API 并授予请求的权限，然后在 Aeven 中重新开始登录。' }
-              if (google === undefined) await this.verifyMcp(provider.endpoint!, grant.accessToken)
-              else await verifyGoogle(consent.provider, await googleConnection(consent.provider, grant.accessToken,
-                avnHomePath('accounts', accountDirectory(consent.owner), 'connectors', consent.id), this.config.timeoutMs), this.config.timeoutMs)
-              failure = { en: 'The connection could not be saved. Return to Aeven and start a new sign-in.', zh: '无法保存连接。请返回 Aeven 并重新开始登录。' }
-              if (this.consents.get(state) !== consent) throw new Error('connector sign-in was cancelled')
-              await this.ctx.credentials.modifyRecord(connectorCredential(consent.owner, consent.id), async () => ({ kind: 'grant', payload: grant }))
-              await this.domain.table('connectors').put(consent.id, {
-                owner: consent.owner, id: consent.id, provider: consent.provider,
-                name: consent.provider, endpoint: google?.endpoint ?? provider.endpoint!, enabled: true,
-              })
-              this.connected.add(consent.id)
-              this.invalidateSkills()
-              finish(200)
-            } catch {
-            // Provider responses may contain credentials; only fixed messages for the failed step are shown.
-              finish(502, failure)
-            } finally {
-              if (this.consents.get(state) === consent) this.consents.delete(state)
-            }
-          })()
-          consent.completion = completion
-          await completion
-        },
-      }), 'account-integrations: OAuth callback')
-    })
   }
 
   /**
@@ -581,6 +683,9 @@ export default class AccountIntegrations extends TypertRemoteService {
   @Remote
   async list(): Promise<AccountIntegrationsView> {
     const owner = this.owner()
+    // Settings reads the list when the reader returns from a provider's consent window, so
+    // this is where a consent the Aeven API completed becomes a connector.
+    await this.settleConsents(owner)
     const connectors = [...this.domain.table('connectors').entries()].filter(([, item]) => item.owner === owner)
     const personal = [...this.domain.table('skills').entries()].filter(([, item]) => item.owner === owner)
       .map(([, item]) => ({ id: `${accountDirectory(owner)}:${item.name}` as SkillViewId, name: item.name, description: item.description, content: item.content, enabled: this.domain.table('skill_preferences').get(`${accountDirectory(owner)}:${item.name}`)?.enabled ?? item.enabled,
@@ -609,14 +714,18 @@ export default class AccountIntegrations extends TypertRemoteService {
     const skills: AccountIntegrationsView['skills'] = [...personal, ...existing.values()].sort((a, b) => a.name.localeCompare(b.name))
     const connections = await Promise.all(connectors.map(async ([id, entry]) => {
       const item = entry.provider === 'whatsapp' ? await this.refreshWhatsApp(id, entry)
-        : entry.provider === 'telegram' ? await this.refreshTelegram(id, entry) : entry
+        : entry.provider === 'telegram' ? await this.refreshTelegram(id, entry)
+          : entry.provider === 'slack' ? await this.refreshSlack(id, entry) : entry
       const connected = await this.isConnected(item)
       if (connected) this.connected.add(id)
       else this.connected.delete(id)
       return { id, name: item.name, provider: item.provider, enabled: item.enabled, connected,
         ...item.endpoint !== undefined ? { endpoint: item.endpoint } : {}, ...item.email !== undefined ? { email: emailSettings(item.email) } : {},
+        ...item.microsoft !== undefined ? { microsoft: item.microsoft } : {},
         ...item.whatsapp !== undefined ? { whatsapp: { phone: item.whatsapp.phone, ...item.whatsapp.profileName !== undefined ? { profileName: item.whatsapp.profileName } : {} } } : {},
-        ...item.telegram !== undefined ? { telegram: telegramSettings(item.telegram) } : {} }
+        ...item.telegram !== undefined ? { telegram: telegramSettings(item.telegram) } : {},
+        ...item.discord === undefined ? {} : { discord: discordSettings(item.discord) },
+        ...item.slack === undefined ? {} : { slack: slackSettings(item.slack) } }
     }))
     for (const skill of skills) {
       if (connectorSkillNames.has(skill.name)) skill.enabled = true
@@ -625,10 +734,12 @@ export default class AccountIntegrations extends TypertRemoteService {
     return {
       skills: skills.filter(skill => !connectorSkillNames.has(skill.name)), connectors: connections,
       providers: await Promise.all(providers.map(async (provider): Promise<ConnectorProviderView> => ({
-        provider, configured: provider === 'mcp' || (provider === 'email' ? this.ctx.get('mail') !== undefined
+        provider, ...this.consentFailures.get(`${owner}\0${provider}`), configured: provider === 'mcp' || (provider === 'email' ? this.ctx.get('mail') !== undefined
           : provider === 'whatsapp' ? this.whatsappBinary !== undefined
-            : provider === 'telegram' ? this.telegramEntry !== undefined && await this.telegramCredentials() !== undefined
-              : this.oauthApplication(provider) !== undefined && this.ctx.get('webServer') !== undefined),
+            : provider === 'telegram' ? this.telegramEntry !== undefined && this.broker !== undefined
+              : provider === 'discord' ? this.discordEntry !== undefined && this.broker !== undefined
+                : provider === 'slack' ? this.slackApplicationId !== undefined
+                  : brokeredProviders.has(provider) && this.broker !== undefined),
         skills: connectorSkills[provider].flatMap((name) => {
           const skill = skills.find(candidate => candidate.name === name && candidate.workspace === undefined)
           return skill === undefined ? [] : [skill]
@@ -691,6 +802,8 @@ export default class AccountIntegrations extends TypertRemoteService {
     if (input.provider === 'email') throw new Error('email accounts are added with connectEmail')
     if (input.provider === 'whatsapp') throw new Error('WhatsApp numbers are linked with startWhatsAppPairing')
     if (input.provider === 'telegram') throw new Error('Telegram accounts are signed in with startTelegramPairing')
+    if (input.provider === 'discord') throw new Error('Discord servers are installed with authorize')
+    if (input.provider === 'slack') throw new Error('Slack workspaces are connected with authorize')
     if (input.provider !== 'mcp' && input.provider !== 'github') throw new Error('this provider requires OAuth sign-in')
     const url = endpoint(input.endpoint ?? (input.provider === 'github' ? 'https://api.githubcopilot.com/mcp/' : ''))
     await this.verifyMcp(url, input.token)
@@ -777,18 +890,35 @@ export default class AccountIntegrations extends TypertRemoteService {
 
   /**
    * Start a provider consent flow bound to the authenticated caller.
+   *
+   * The Aeven API starts the consent and receives the provider's redirect; the next {@link list}
+   * after it completes stores the connector. For `discord` this is the bot installation: the user
+   * picks the server to add the Aeven application to, and one connector row is stored for that guild.
    * @param provider - registered provider to connect.
    * @returns the provider consent URL.
    */
   @Remote
   async authorize(provider: ConnectorProvider): Promise<ConnectorAuthorization> {
     const owner = this.owner()
-    const app = this.oauthApplication(provider)
-    if (app === undefined || this.ctx.get('webServer') === undefined) throw new Error('provider sign-in is not configured for this deployment')
+    if (provider === 'slack') return this.authorizeSlack(owner)
+    if (this.broker === undefined || (provider !== 'discord' && !brokeredProviders.has(provider))) {
+      throw new Error('provider sign-in is not configured for this deployment')
+    }
+    this.consentFailures.delete(`${owner}\0${provider}`)
     for (const [state, pending] of this.consents) if (pending.expiresAt <= Date.now()) this.consents.delete(state)
-    const consent = createConsent(app, this.config.redirectUri, this.config.consentLifetimeMs, { owner, id: ([...this.domain.table('connectors').entries()].find(([, item]) => item.owner === owner && item.provider === provider)?.[0] ?? randomUUID()) as ConnectorId, provider })
-    this.consents.set(consent.state, consent.consent)
-    return { url: consent.url }
+    // A Discord install authorizes one guild, so the attempt carries no connector id of its own.
+    const id = provider === 'discord'
+      ? randomUUID() as ConnectorId
+      : ([...this.domain.table('connectors').entries()].find(([, item]) => item.owner === owner && item.provider === provider)?.[0] ?? randomUUID()) as ConnectorId
+    const started = await this.broker.start(owner, provider === 'discord'
+      ? { provider, permissions: this.discordPermissions() }
+      : { provider, connectorId: id }).catch((error: unknown) => {
+      throw new Error(error instanceof BrokerError && error.reason === 'not-configured'
+        ? 'provider sign-in is not configured for this deployment'
+        : 'provider sign-in could not start; try again')
+    })
+    this.consents.set(started.state, { owner, id, provider, expiresAt: Math.min(Date.parse(started.expiresAt), Date.now() + this.config.consentLifetimeMs) })
+    return { url: started.url }
   }
 
   /**
@@ -843,6 +973,14 @@ export default class AccountIntegrations extends TypertRemoteService {
       await this.unlinkTelegram(id, owner)
       return
     }
+    if (saved.provider === 'discord') {
+      await this.uninstallDiscord(id)
+      return
+    }
+    if (saved.provider === 'slack') {
+      await this.uninstallSlack(id)
+      return
+    }
     const completions: Promise<void>[] = []
     for (const [state, consent] of this.consents) {
       if (consent.owner !== owner || consent.id !== id) continue
@@ -850,8 +988,11 @@ export default class AccountIntegrations extends TypertRemoteService {
       if (consent.completion !== undefined) completions.push(consent.completion)
     }
     await Promise.all(completions)
+    // The grant lives on the Aeven API; deleting it there revokes it at the provider.
+    if (saved.grant !== undefined) await this.broker?.remove(owner, id)
     await this.domain.table('connectors').delete(id)
     this.connected.delete(id)
+    this.issuedTokens.delete(id)
     this.invalidateSkills()
     await this.unmountConnector(id)
     await this.ctx.credentials.deleteRecord(connectorCredential(owner, id))
@@ -940,7 +1081,7 @@ export default class AccountIntegrations extends TypertRemoteService {
   /** Launch an attempt's daemon, run its first sign-in step, and keep polling while Telegram waits for the user. */
   private async beginTelegramPairing(first: (daemon: TelegramDaemon) => Promise<TelegramDaemonStatus>): Promise<TelegramPairingView> {
     const owner = this.owner()
-    if (this.telegramEntry === undefined || await this.telegramCredentials() === undefined) return { state: 'unavailable' }
+    if (this.telegramEntry === undefined || await this.telegramCredentials(owner) === undefined) return { state: 'unavailable' }
     for (const [id, pairing] of this.telegramPairings) if (pairing.owner === owner) { await this.endTelegramPairing(id, 'expired'); this.telegramPairings.delete(id) }
     const signedIn = [...this.domain.table('connectors').entries()].map(([, connector]) => connector).filter(connector => connector.owner === owner && connector.provider === 'telegram')
     if (signedIn.length >= this.config.maxTelegramAccounts) return { state: 'limit' }
@@ -1335,6 +1476,29 @@ export default class AccountIntegrations extends TypertRemoteService {
     return this.domain.table('connectors').get(id) ?? connector
   }
 
+  /** Re-ask Slack about a workspace's token at most once per `slackVerifyIntervalMs`, so a revoked one stops claiming to be connected. */
+  private async refreshSlack(id: ConnectorId, connector: z.infer<typeof connectorSchema>): Promise<z.infer<typeof connectorSchema>> {
+    if (connector.slack?.linked !== true || this.slackApplicationId === undefined) return connector
+    const cached = this.slackPresence.get(id)
+    if (cached !== undefined && Date.now() - cached.at < this.config.slackVerifyIntervalMs) {
+      if (cached.present) return connector
+      await this.markSlackUnlinked(id)
+      return this.domain.table('connectors').get(id) ?? connector
+    }
+    let present: boolean
+    try {
+      const token = await this.slackAccessToken(connector.owner, connector)
+      present = await probeSlackToken({ accessToken: token, timeoutMs: this.config.timeoutMs })
+    } catch {
+      // An unreachable Slack keeps the row's last known state; the next read asks again.
+      return connector
+    }
+    this.slackPresence.set(id, { at: Date.now(), present })
+    if (present) return connector
+    await this.markSlackUnlinked(id)
+    return this.domain.table('connectors').get(id) ?? connector
+  }
+
   private async markTelegramUnlinked(id: ConnectorId): Promise<void> {
     await this.domain.table('connectors').update(id, connector => ({ ...connector, telegram: connector.telegram === undefined ? undefined : { ...connector.telegram, linked: false } }))
     this.connected.delete(id)
@@ -1389,8 +1553,8 @@ export default class AccountIntegrations extends TypertRemoteService {
   }
 
   private async newTelegramDaemon(owner: string, id: ConnectorId): Promise<TelegramDaemon> {
-    const credentials = await this.telegramCredentials()
-    if (credentials === undefined) throw new Error('Telegram application credentials are not configured')
+    const credentials = await this.telegramCredentials(owner)
+    if (credentials === undefined) throw new Error('Telegram application credentials are unavailable until the account owner signs in')
     return new TelegramDaemon(this.telegramEntry!, this.telegramDirectory(owner, id), credentials, {
       startupTimeoutMs: this.config.telegramStartupTimeoutMs, requestTimeoutMs: this.config.timeoutMs, stopGraceMs: this.config.telegramStopGraceMs,
     })
@@ -1401,14 +1565,309 @@ export default class AccountIntegrations extends TypertRemoteService {
     return avnHomePath('accounts', accountDirectory(owner), 'connectors', id)
   }
 
-  /** The deployment's Telegram application credentials, resolved privately and never returned to a caller. */
-  private async telegramCredentials(): Promise<TelegramCredentials | undefined> {
-    const [id, hash] = await Promise.all([
-      this.ctx.credentials.resolve(credentialRef(this.config.telegramApiIdRef)).catch(() => undefined),
-      this.ctx.credentials.resolve(credentialRef(this.config.telegramApiHashRef)).catch(() => undefined),
-    ])
-    if (id === undefined || hash === undefined || id.value === '' || hash.value === '') return undefined
-    return { apiId: id.value, apiHash: hash.value }
+  /**
+   * The deployment's Telegram application identifiers, read from the Aeven API with a signed-in
+   * user's session and cached in the credential provider, so accounts already linked start at
+   * boot before anyone signs in.
+   * @param owner - a signed-in user whose session may fetch them when no copy is cached.
+   * @returns the identifiers, or undefined when none is cached and none can be fetched.
+   */
+  private async telegramCredentials(owner?: string): Promise<TelegramCredentials | undefined> {
+    const cached = await this.ctx.credentials.readRecord(telegramAppKey).catch(() => undefined)
+    const parsed = cached?.kind === 'grant' ? z.object({ apiId: z.string().min(1), apiHash: z.string().min(1) }).safeParse(cached.payload) : undefined
+    if (parsed?.success === true) return parsed.data
+    if (owner === undefined || this.broker === undefined) return undefined
+    const app = await this.broker.telegramApp(owner).catch(() => undefined)
+    if (app === undefined) return undefined
+    await this.ctx.credentials.modifyRecord(telegramAppKey, async () => ({ kind: 'grant', payload: app }))
+    return app
+  }
+
+  /** Discord permissions the install link asks for: the curated surface, or the administration set when it is served. */
+  private discordPermissions(): string {
+    if (this.config.discordPermissions !== undefined) return this.config.discordPermissions
+    return this.config.discordAdminTools ? DISCORD_ADMIN_PERMISSIONS : DISCORD_CURATED_PERMISSIONS
+  }
+
+  /** Guild rows one account has installed. */
+  private discordGuilds(owner: string): [ConnectorId, z.infer<typeof connectorSchema>][] {
+    return [...this.domain.table('connectors').entries()].filter(([, connector]) => connector.owner === owner && connector.provider === 'discord')
+  }
+
+  /**
+   * Record one guild the Aeven API reports the user installed the Aeven bot into. The API spent
+   * the code and confirmed the bot's membership; a guild beyond the account's limit is removed again.
+   * @param consent - the account-bound consent this install belongs to.
+   * @param result - the guild, installer, and bot the API recorded.
+   */
+  private async recordDiscordInstall(consent: PendingConsent, result: NonNullable<ConsentStatus['result']>): Promise<void> {
+    if (result.guild === undefined || result.botUserId === undefined || result.applicationId === undefined) throw new Error('Discord reported no guild for this installation')
+    const guild: DiscordGuild = { id: result.guild.id, name: result.guild.name, ...result.guild.icon === undefined ? {} : { icon: result.guild.icon } }
+    const existing = this.discordGuilds(consent.owner).find(([, connector]) => connector.discord?.guildId === guild.id)
+    if (existing === undefined && this.discordGuilds(consent.owner).length >= this.config.maxDiscordGuilds) {
+      await this.broker?.removeDiscord(consent.owner, guild.id)
+      throw new Error('Discord server limit reached')
+    }
+    // One row per guild: adding a server the account already connected refreshes that row instead of duplicating it.
+    const id = existing?.[0] ?? discordConnectorId(consent.owner, guild.id)
+    const icon = discordGuildIcon(guild)
+    await this.domain.table('connectors').put(id, {
+      owner: consent.owner, id, provider: 'discord', name: guild.name, enabled: existing?.[1].enabled ?? true,
+      discord: {
+        applicationId: result.applicationId, botUserId: result.botUserId, guildId: guild.id, guildName: guild.name, linked: true,
+        ...icon === undefined ? {} : { icon },
+        ...result.installer === undefined ? {} : { installedById: result.installer.id, installedByName: result.installer.name },
+      },
+    })
+    this.discordPresence.set(id, { at: Date.now(), present: true })
+    this.connected.add(id)
+    this.invalidateSkills()
+  }
+
+  /**
+   * Read one guild's membership, remembering the verdict for the configured interval.
+   * @param id - Discord connector.
+   * @param connector - its stored row.
+   * @returns true while the Aeven bot is still a member of the guild.
+   */
+  private async discordPresent(id: ConnectorId, connector: z.infer<typeof connectorSchema>): Promise<boolean> {
+    const guildId = connector.discord?.guildId
+    if (guildId === undefined || connector.discord?.linked !== true) return false
+    const cached = this.discordPresence.get(id)
+    if (cached !== undefined && Date.now() - cached.at < this.config.discordVerifyIntervalMs) return cached.present
+    if (this.broker === undefined) return cached?.present ?? false
+    let guild: DiscordGuild | undefined
+    try {
+      guild = await this.broker.discordGuild(connector.owner, guildId)
+    } catch {
+      // A lookup that failed for any reason other than membership keeps the last known verdict;
+      // the next step asks Discord again.
+      return cached?.present ?? true
+    }
+    const present = guild !== undefined
+    this.discordPresence.set(id, { at: Date.now(), present })
+    if (guild === undefined) return false
+    // The server may have been renamed or given another icon since the install.
+    const icon = discordGuildIcon(guild)
+    if (guild.name !== connector.discord.guildName || icon !== connector.discord.icon) {
+      await this.domain.table('connectors').update(id, row => ({
+        ...row, name: guild.name,
+        discord: row.discord === undefined ? undefined : { ...row.discord, guildName: guild.name, ...icon === undefined ? {} : { icon } },
+      }))
+    }
+    return present
+  }
+
+  /** Mark one guild connection as no longer installed: the bot is not a member anymore. */
+  private async markDiscordUnlinked(id: ConnectorId): Promise<void> {
+    await this.domain.table('connectors').update(id, connector => ({
+      ...connector, discord: connector.discord === undefined ? undefined : { ...connector.discord, linked: false },
+    }))
+    this.discordPresence.delete(id)
+    this.connected.delete(id)
+    await this.unmountConnector(id)
+    this.invalidateSkills()
+  }
+
+  /** Remove the user's installation at the Aeven API, which takes the bot out of the guild once no user has it installed there, then delete the row. */
+  private async uninstallDiscord(id: ConnectorId): Promise<void> {
+    const connector = this.domain.table('connectors').get(id)
+    const guildId = connector?.discord?.guildId
+    if (guildId !== undefined && connector !== undefined && this.broker !== undefined) {
+      await this.broker.removeDiscord(connector.owner, guildId)
+    }
+    await this.domain.table('connectors').delete(id)
+    this.discordPresence.delete(id)
+    this.connected.delete(id)
+    this.invalidateSkills()
+    await this.unmountConnector(id)
+  }
+
+  /**
+   * The stdio server configuration of one guild connector: one child process serving that guild alone.
+   * @param connector - the guild row.
+   * @param session - the owner's current Aeven access token, which the API's Discord proxy authenticates.
+   * @returns the child's command and environment, or undefined when this Host cannot serve Discord.
+   */
+  private discordServer(connector: z.infer<typeof connectorSchema>, session: string): {
+    command: string
+    args: string[]
+    env: Record<string, string>
+  } | undefined {
+    const discord = connector.discord
+    if (discord === undefined || this.discordEntry === undefined || this.broker === undefined) return undefined
+    return {
+      command: process.execPath,
+      args: [this.discordEntry],
+      // The bot token stays on the Aeven API: the child calls the API's Discord proxy as the
+      // owner, which acts as the bot only inside guilds that owner installed it into.
+      env: {
+        DISCORD_API_BASE: this.broker.discordApiBase(discord.guildId),
+        DISCORD_AUTHORIZATION: `Bearer ${session}`,
+        DISCORD_GUILD_ID: discord.guildId,
+        DISCORD_GUILD_NAME: discord.guildName,
+        ...this.config.discordAdminTools ? { DISCORD_ADMIN_TOOLS: '1' } : {},
+      },
+    }
+  }
+
+  /**
+   * Start one Slack workspace login: bind the callback, hand Settings the consent URL, and store
+   * the row when the reader finishes in the browser.
+   *
+   * The login runs on this Host with a public client, so the token never passes through the Aeven
+   * API, and the row is written only after Slack confirms which workspace and account it belongs to.
+   * @param owner - signed-in account connecting the workspace.
+   * @returns the consent URL to open.
+   * @throws when Slack is unconfigured, the account is at its limit, or the callback port is taken.
+   */
+  private async authorizeSlack(owner: string): Promise<ConnectorAuthorization> {
+    const clientId = this.slackApplicationId
+    if (clientId === undefined) throw new Error('provider sign-in is not configured for this deployment')
+    if (this.slackWorkspaces(owner).length >= this.config.maxSlackWorkspaces) throw new Error('workspace limit reached')
+    for (const [id, pending] of this.slackLogins) if (pending.owner === owner) { pending.cancel(); this.slackLogins.delete(id) }
+    this.consentFailures.delete(`${owner}\0slack`)
+    const scopes = this.slackScopes()
+    let login: SlackLogin
+    try {
+      login = await startSlackLogin({ clientId, port: this.config.slackCallbackPort, scopes, timeoutMs: this.config.consentLifetimeMs })
+    } catch (error) {
+      // A blocked port is the deployment's own configuration, and Settings has to say so rather than report a failed sign-in.
+      throw new Error(error instanceof SlackLoginError && error.reason === 'port'
+        ? `the Slack callback port ${this.config.slackCallbackPort} is already in use on this computer`
+        : 'Slack sign-in could not start; try again')
+    }
+    const id = randomUUID() as ConnectorId
+    const completion = login.completion
+      .then(async ({ token, workspace }) => {
+        await this.recordSlackWorkspace(owner, workspace, token)
+        this.consentFailures.delete(`${owner}\0slack`)
+      })
+      .catch((error: unknown) => {
+        this.consentFailures.set(`${owner}\0slack`, { authorizationFailure: error instanceof SlackLoginError && error.reason === 'approval' ? 'admin-consent-required' : 'failed' })
+        this.ctx.logger('account-integrations').warn(`Slack sign-in was not completed: ${error instanceof Error ? error.message : String(error)}`)
+      })
+      .finally(() => {
+        if (this.slackLogins.get(id)?.completion === completion) this.slackLogins.delete(id)
+      })
+    this.slackLogins.set(id, { owner, cancel: login.cancel, completion })
+    return { url: login.url }
+  }
+
+  /**
+   * The deployment's Slack application client id. It is public — Slack's PKCE client is a public
+   * client — and an empty value is a deployment that has not registered one.
+   */
+  private get slackApplicationId(): string | undefined {
+    const clientId = this.config.slackClientId?.trim()
+    return clientId === undefined || clientId === '' ? undefined : clientId
+  }
+
+  /** User scopes one login asks for: the workspace surface, plus direct messages only where the deployment serves them. */
+  private slackScopes(): readonly string[] {
+    return this.config.slackDirectMessages ? [...SLACK_WORKSPACE_SCOPES, ...SLACK_DIRECT_MESSAGE_SCOPES] : SLACK_WORKSPACE_SCOPES
+  }
+
+  /** Workspace rows one account has connected. */
+  private slackWorkspaces(owner: string): [ConnectorId, z.infer<typeof connectorSchema>][] {
+    return [...this.domain.table('connectors').entries()].filter(([, connector]) => connector.owner === owner && connector.provider === 'slack')
+  }
+
+  /**
+   * Store one connected workspace under the id its team id derives, replacing any row this account
+   * already had for it, and revoke the grant a row over the account's limit would have added.
+   * @param owner - the account that consented.
+   * @param workspace - the team and account Slack reported.
+   * @param token - the user token and refresh credential the login obtained.
+   */
+  private async recordSlackWorkspace(owner: string, workspace: SlackWorkspace, token: SlackToken): Promise<void> {
+    const id = slackConnectorId(owner, workspace.teamId)
+    const existing = this.slackWorkspaces(owner).some(([, connector]) => connector.slack?.teamId === workspace.teamId)
+    if (!existing && this.slackWorkspaces(owner).length >= this.config.maxSlackWorkspaces) {
+      await revokeSlackToken({ accessToken: token.accessToken, timeoutMs: this.config.timeoutMs }).catch(() => undefined)
+      throw new Error('workspace limit reached')
+    }
+    // The workspace is kept only if Slack's MCP server accepts the token it just issued, as the
+    // other connectors verify their provider before a row is written.
+    try {
+      await this.verifyMcp(SLACK_MCP_ENDPOINT, token.accessToken)
+    } catch {
+      await revokeSlackToken({ accessToken: token.accessToken, timeoutMs: this.config.timeoutMs }).catch(() => undefined)
+      throw new Error('Slack did not accept this workspace; ask an administrator to approve the Aeven app, then connect it again')
+    }
+    await this.ctx.credentials.modifyRecord(connectorCredential(owner, id), async () => ({ kind: 'grant', payload: token }))
+    await this.domain.table('connectors').put(id, {
+      owner, id, provider: 'slack', name: workspace.teamName, endpoint: SLACK_MCP_ENDPOINT, enabled: true,
+      slack: {
+        teamId: workspace.teamId, teamName: workspace.teamName, userId: workspace.userId, userName: workspace.userName,
+        scopes: [...token.scopes], linked: true,
+        ...workspace.domain === undefined ? {} : { domain: workspace.domain },
+      },
+    })
+    this.connected.add(id)
+    this.invalidateSkills()
+  }
+
+  /**
+   * The user token one workspace row presents, refreshed when Slack issued a rotating token.
+   * @param owner - the account the credential belongs to.
+   * @param connector - the workspace row.
+   * @returns the access token.
+   * @throws when the stored consent is gone, which also marks the row for reconnecting.
+   */
+  private async slackAccessToken(owner: string, connector: z.infer<typeof connectorSchema>): Promise<string> {
+    const record = await this.ctx.credentials.readRecord(connectorCredential(owner, connector.id))
+    const token = record?.kind === 'grant' ? slackTokenSchema.safeParse(record.payload) : undefined
+    if (token?.success !== true) throw new Error('the Slack workspace has no stored token; connect it again in Settings')
+    const stored = token.data
+    if (stored.expiresAt === undefined || stored.expiresAt - TOKEN_MARGIN_MS > Date.now()) return stored.accessToken
+    if (stored.refreshToken === undefined) {
+      await this.markSlackUnlinked(connector.id)
+      throw new Error('the Slack token expired; connect the workspace again in Settings')
+    }
+    const clientId = this.slackApplicationId
+    if (clientId === undefined) throw new Error('Slack sign-in is not configured for this deployment')
+    try {
+      const refreshed = await refreshSlackToken({ clientId, refreshToken: stored.refreshToken, timeoutMs: this.config.timeoutMs })
+      const bundle: SlackToken = { ...refreshed, scopes: refreshed.scopes.length === 0 ? stored.scopes : refreshed.scopes }
+      await this.ctx.credentials.modifyRecord(connectorCredential(owner, connector.id), async () => ({ kind: 'grant', payload: bundle }))
+      return bundle.accessToken
+    } catch (error) {
+      if (!isSlackConsentFailure(error)) throw error
+      await this.markSlackUnlinked(connector.id)
+      throw new Error('the Slack workspace has to be connected again in Settings')
+    }
+  }
+
+  /** Mark one workspace as needing to be connected again and drop its mounted tools. */
+  private async markSlackUnlinked(id: ConnectorId): Promise<void> {
+    await this.domain.table('connectors').update(id, connector => ({ ...connector, slack: connector.slack === undefined ? undefined : { ...connector.slack, linked: false } }))
+    this.connected.delete(id)
+    await this.unmountConnector(id)
+    this.invalidateSkills()
+  }
+
+  /** Stop every login in flight and delete the rows they left, which is what disconnecting a workspace does. */
+  private async uninstallSlack(id: ConnectorId): Promise<void> {
+    const connector = this.domain.table('connectors').get(id)
+    const pending = this.slackLogins.get(id)
+    if (pending !== undefined) {
+      this.slackLogins.delete(id)
+      pending.cancel()
+    }
+    const record = connector === undefined ? undefined : await this.ctx.credentials.readRecord(connectorCredential(connector.owner, id))
+    const token = record?.kind === 'grant' ? slackTokenSchema.safeParse(record.payload) : undefined
+    if (token?.success === true) {
+      await revokeSlackToken({ accessToken: token.data.accessToken, timeoutMs: this.config.timeoutMs }).catch((error: unknown) => {
+        // Slack refusing the revocation leaves the local row gone all the same: the reader asked for the connection to end.
+        this.ctx.logger('account-integrations').warn(`Slack token revocation was refused: ${error instanceof Error ? error.message : String(error)}`)
+      })
+    }
+    if (connector !== undefined) await this.ctx.credentials.deleteRecord(connectorCredential(connector.owner, id))
+    await this.domain.table('connectors').delete(id)
+    this.connected.delete(id)
+    this.invalidateSkills()
+    await this.unmountConnector(id)
   }
 
   private skillConnectorAvailable(name: string, owner: string | undefined): boolean {
@@ -1422,21 +1881,34 @@ export default class AccountIntegrations extends TypertRemoteService {
     // The whatsmeow session lives in the daemon's store directory, not in the credential provider.
     if (connector.provider === 'whatsapp') return connector.whatsapp?.linked === true && this.whatsappBinary !== undefined
     // The teleproto session string lives in the daemon's directory, and the deployment's
-    // application credentials live in the credential provider rather than in the row.
+    // application identifiers come from the Aeven API rather than from the row.
     if (connector.provider === 'telegram') return connector.telegram?.linked === true && this.telegramEntry !== undefined
+    // A Discord guild is installed through the Aeven API, which holds the bot token: the row records
+    // the guild, so there is no per-connector credential record.
+    if (connector.provider === 'discord') {
+      return connector.discord?.linked === true && this.discordEntry !== undefined && this.broker !== undefined
+    }
+    // A Slack workspace holds its own user token in the credential provider, so nothing on the API is involved.
+    if (connector.provider === 'slack') {
+      return connector.slack?.linked === true && this.slackApplicationId !== undefined
+        && connector.endpoint === SLACK_MCP_ENDPOINT
+        && (await this.ctx.credentials.readRecord(connectorCredential(connector.owner, connector.id)))?.kind === 'grant'
+    }
+    // An OAuth grant lives on the Aeven API; the row keeps the granted scopes and whether it expired.
+    if (connector.grant !== undefined) {
+      if (connector.grant.expired === true || this.broker === undefined) return false
+      const google = googleService(connector.provider)
+      const microsoft = microsoftService(connector.provider)
+      if (microsoft !== undefined) return connector.microsoft !== undefined && connector.endpoint === microsoft.endpoint
+        && microsoft.scopes.every(scope => connector.grant!.scopes.some(granted => granted.replace('https://graph.microsoft.com/', '') === scope))
+      return google === undefined || (connector.endpoint === google.endpoint && connector.grant.scopes.includes(google.scopes[0]))
+    }
     const record = await this.ctx.credentials.readRecord(connectorCredential(connector.owner, connector.id))
-    if (record === undefined) return false
     if (connector.provider === 'email') {
-      return connector.authFailed !== true && record.kind === 'grant' && emailSecretSchema.safeParse(record.payload).success
+      return connector.authFailed !== true && record?.kind === 'grant' && emailSecretSchema.safeParse(record.payload).success
     }
-    if (record.kind === 'grant') {
-      const grant = grantSchema.parse(record.payload)
-      if (grant.expiresAt !== undefined && grant.expiresAt <= Date.now()
-        && (grant.refreshToken === undefined || this.oauthApplication(connector.provider) === undefined)) return false
-    }
-    const google = googleService(connector.provider)
-    return google === undefined || (connector.endpoint === google.endpoint && record.kind === 'grant'
-      && grantSchema.parse(record.payload).scopes?.includes(google.scopes[0]) === true)
+    // A custom MCP server or a GitHub personal access token; any other row predates the broker and must reconnect.
+    return record?.kind === 'api-key'
   }
 
   private async unmountConnector(id: ConnectorId): Promise<void> {
@@ -1448,42 +1920,129 @@ export default class AccountIntegrations extends TypertRemoteService {
     }
   }
 
-  private oauthApplication(provider: ConnectorProvider): OAuthProviderConfig | undefined {
-    if (provider === 'mcp' || provider === 'email' || provider === 'whatsapp' || provider === 'telegram') return undefined
-    const google = googleService(provider)
-    if (google === undefined) return this.config.providers[provider as 'github' | 'microsoft365']
-    const app = this.config.providers.google
-    return app === undefined ? undefined : { ...app, endpoint: google.endpoint, scopes: [...google.scopes] }
-  }
-
   private owner(): string {
     const user = this.ctx.identityUsers.actingUser()
     if (user === undefined) throw new Error('sign in to manage personal skills and connectors')
     return user.id
   }
 
-  private async accessToken(owner: string, connector: z.infer<typeof connectorSchema>, signal?: AbortSignal): Promise<string> {
-    const key = connectorCredential(owner, connector.id)
-    const record = await this.ctx.credentials.readRecord(key)
-    if (record === undefined) throw new Error('connector credential is missing; reconnect in Settings')
-    if (record.kind === 'api-key') return record.key ?? ''
-    const grant = grantSchema.parse(record.payload)
-    if (grant.expiresAt === undefined || grant.expiresAt > Date.now()) return grant.accessToken
-    const updated = await this.ctx.credentials.modifyRecord(key, async (current) => {
-      if (current?.kind !== 'grant') throw new Error('connector was disconnected')
-      const previous = grantSchema.parse(current.payload)
-      if (previous.expiresAt === undefined || previous.expiresAt > Date.now()) return current
-      const provider = this.oauthApplication(connector.provider)
-      if (provider === undefined || previous.refreshToken === undefined) throw new Error('connector authorization expired; reconnect in Settings')
-      const next = await exchangeGrant(this.ctx, provider, { grant_type: 'refresh_token', refresh_token: previous.refreshToken }, signal === undefined ? AbortSignal.timeout(this.config.timeoutMs) : AbortSignal.any([signal, AbortSignal.timeout(this.config.timeoutMs)]))
-      return { kind: 'grant', payload: {
-        ...next,
-        ...next.scopes === undefined && previous.scopes !== undefined ? { scopes: previous.scopes } : {},
-        ...next.refreshToken === undefined && previous.refreshToken !== undefined ? { refreshToken: previous.refreshToken } : {},
-      } }
+  /**
+   * The bearer one connector presents: a stored personal access token, or a short-lived access
+   * token the Aeven API issues for its OAuth grant, reused until shortly before it expires.
+   * @param owner - the connector's owner, whose session the API authenticates.
+   * @param connector - the connector row.
+   * @returns the bearer token; empty for a custom MCP server without one.
+   * @throws when the grant expired at the provider, which also marks the row for reconnection.
+   */
+  private async accessToken(owner: string, connector: z.infer<typeof connectorSchema>): Promise<string> {
+    // A Slack workspace's own user token, refreshed here; no API grant is involved.
+    if (connector.provider === 'slack') return this.slackAccessToken(owner, connector)
+    if (connector.grant === undefined) {
+      const record = await this.ctx.credentials.readRecord(connectorCredential(owner, connector.id))
+      if (record?.kind !== 'api-key') throw new Error('connector credential is missing; reconnect in Settings')
+      return record.key ?? ''
+    }
+    const cached = this.issuedTokens.get(connector.id)
+    if (cached !== undefined && (cached.expiresAt === undefined || cached.expiresAt - TOKEN_MARGIN_MS > Date.now())) return cached.accessToken
+    if (this.broker === undefined) throw new Error('connector sign-in is not configured for this deployment')
+    let issued: IssuedToken
+    try {
+      issued = await this.broker.token(owner, connector.id)
+    } catch (error) {
+      if (error instanceof BrokerError && (error.reason === 'reauthorize' || error.reason === 'not-connected')) {
+        await this.domain.table('connectors').update(connector.id, row => row.grant === undefined ? row : { ...row, grant: { ...row.grant, expired: true } })
+        this.connected.delete(connector.id)
+        this.invalidateSkills()
+        throw new Error('connector authorization expired; reconnect in Settings')
+      }
+      throw error
+    }
+    this.issuedTokens.set(connector.id, issued)
+    return issued.accessToken
+  }
+
+  /**
+   * Turn the caller's consents the Aeven API completed into connectors. A consent still
+   * pending stays; an expired or failed one is dropped.
+   * @param owner - the signed-in user whose consents are settled.
+   */
+  private async settleConsents(owner: string): Promise<void> {
+    if (this.broker === undefined) return
+    const broker = this.broker
+    await Promise.all([...this.consents].filter(([, consent]) => consent.owner === owner && consent.completion === undefined)
+      .map(async ([state, consent]) => {
+        let status: ConsentStatus
+        try {
+          status = await broker.status(owner, state)
+        } catch (error) {
+          // An unreachable API leaves the consent for the next read; a consent the API no longer knows is gone.
+          if (error instanceof BrokerError && error.reason === 'not-connected') this.consents.delete(state)
+          return
+        }
+        if (status.status === 'pending') {
+          if (consent.expiresAt <= Date.now()) this.consents.delete(state)
+          return
+        }
+        if (status.status === 'failed' || status.result === undefined) {
+          this.consentFailures.set(`${owner}\0${consent.provider}`, {
+            authorizationFailure: status.error === 'admin-consent-required' ? 'admin-consent-required' : 'failed',
+            ...status.adminConsentUrl === undefined ? {} : { adminConsentUrl: status.adminConsentUrl },
+          })
+          this.consents.delete(state)
+          return
+        }
+        const result = status.result
+        consent.completion = this.completeConsent(state, consent, result).catch((error: unknown) => {
+          this.consentFailures.set(`${owner}\0${consent.provider}`, { authorizationFailure: 'failed' })
+          this.ctx.logger('account-integrations').warn(`connector ${consent.provider} sign-in was not completed: ${error instanceof Error ? error.message : String(error)}`)
+        }).finally(() => {
+          if (this.consents.get(state) === consent) this.consents.delete(state)
+        })
+        await consent.completion
+      }))
+  }
+
+  /**
+   * Verify a completed consent's access and store its connector row.
+   * @param state - the consent's state value, re-checked so a cancelled consent writes nothing.
+   * @param consent - the account-bound consent.
+   * @param result - what the Aeven API recorded.
+   */
+  private async completeConsent(state: string, consent: PendingConsent, result: NonNullable<ConsentStatus['result']>): Promise<void> {
+    if (consent.provider === 'discord') {
+      await this.recordDiscordInstall(consent, result)
+      return
+    }
+    const broker = this.broker!
+    const google = googleService(consent.provider)
+    const microsoft = microsoftService(consent.provider)
+    const endpointUrl = google?.endpoint ?? microsoft?.endpoint ?? 'https://api.githubcopilot.com/mcp/'
+    try {
+      const issued = await broker.token(consent.owner, consent.id)
+      if (microsoft !== undefined) {
+        if (result.account === undefined || result.tenantId === undefined) throw new Error('Microsoft account metadata is missing')
+        await verifyMicrosoft(consent.provider, await microsoftConnection(consent.provider, issued.accessToken,
+          avnHomePath('accounts', accountDirectory(consent.owner), 'connectors', consent.id), this.config.timeoutMs), result.account.id, this.config.timeoutMs)
+      } else if (google === undefined) await this.verifyMcp(endpointUrl, issued.accessToken)
+      else await verifyGoogle(consent.provider, await googleConnection(consent.provider, issued.accessToken,
+        avnHomePath('accounts', accountDirectory(consent.owner), 'connectors', consent.id), this.config.timeoutMs), this.config.timeoutMs)
+      if (this.consents.get(state) !== consent) throw new Error('connector sign-in was cancelled')
+      this.issuedTokens.set(consent.id, issued)
+    } catch (error) {
+      // An account the provider granted but whose API access fails is not kept anywhere.
+      await broker.remove(consent.owner, consent.id).catch(() => undefined)
+      throw error
+    }
+    // A grant from before the broker may still sit in the credential provider; the API's grant replaces it.
+    await this.ctx.credentials.deleteRecord(connectorCredential(consent.owner, consent.id))
+    await this.domain.table('connectors').put(consent.id, {
+      owner: consent.owner, id: consent.id, provider: consent.provider, name: result.account?.username ?? consent.provider,
+      endpoint: endpointUrl, enabled: true, grant: { scopes: result.scopes ?? [] },
+      ...microsoft === undefined ? {} : { microsoft: { ...result.account!, tenantId: result.tenantId! } },
     })
-    if (updated?.kind !== 'grant') throw new Error('connector authorization is unavailable')
-    return grantSchema.parse(updated.payload).accessToken
+    this.consentFailures.delete(`${consent.owner}\0${consent.provider}`)
+    this.connected.add(consent.id)
+    this.invalidateSkills()
   }
 
   private async syncConnectors(agent: Agent): Promise<void> {
@@ -1501,10 +2060,12 @@ export default class AccountIntegrations extends TypertRemoteService {
     }
     const mounts = owned.connections
     // Email rows have no MCP server; their tools come from the mail capability. WhatsApp and
-    // Telegram rows get their endpoint and bearer token from their running daemon.
+    // Telegram rows get their endpoint and bearer token from their running daemon, and a Discord
+    // row gets a stdio server of its own that serves that guild alone.
     const connectors = [...this.domain.table('connectors').entries()].flatMap(([id, connector]) => connector.owner === owner && connector.enabled
-      && (connector.endpoint !== undefined || connector.provider === 'whatsapp' || connector.provider === 'telegram') && connector.provider !== 'email'
+      && (connector.endpoint !== undefined || connector.provider === 'whatsapp' || connector.provider === 'telegram' || connector.provider === 'discord') && connector.provider !== 'email'
       && (googleService(connector.provider) === undefined || connector.endpoint === googleService(connector.provider)!.endpoint)
+      && (microsoftService(connector.provider) === undefined || connector.endpoint === microsoftService(connector.provider)!.endpoint)
       ? [[id, connector] as const] : [])
     for (const [id, mount] of mounts) {
       if (!connectors.some(([active]) => active === id)) { await mount.fiber.dispose(); mounts.delete(id) }
@@ -1521,15 +2082,38 @@ export default class AccountIntegrations extends TypertRemoteService {
         this.invalidateSkills()
         continue
       }
+      if (connector.provider === 'discord' && !await this.discordPresent(id, connector)) {
+        await this.markDiscordUnlinked(id)
+        continue
+      }
       this.connected.add(id)
       const google = googleService(connector.provider)
-      const token = daemon?.token ?? await this.accessToken(owner, connector)
-      const url = daemon?.endpoint ?? connector.endpoint!
+      const microsoft = microsoftService(connector.provider)
+      let token: string
+      let stdio: ReturnType<AccountIntegrations['discordServer']>
+      try {
+        // A Discord child authenticates to the API's proxy as the owner; its environment changes when
+        // the owner's session rotates, which restarts the child with the new session below.
+        token = daemon?.token ?? (connector.provider === 'discord' ? '' : await this.accessToken(owner, connector))
+        stdio = connector.provider === 'discord' ? this.discordServer(connector, await this.broker!.session(owner)) : undefined
+      } catch (error) {
+        this.ctx.logger('account-integrations').warn(`connector ${id} is unavailable this step: ${error instanceof Error ? error.message : String(error)}`)
+        await this.unmountConnector(id)
+        continue
+      }
+      const url = daemon?.endpoint ?? connector.endpoint ?? ''
+      // Mounts are kept across steps while what the server needs has not changed: the endpoint and
+      // token of a remote server, or the entry and guild of a local one.
+      const key = stdio === undefined ? `${token}\0${url}` : `${stdio.command}\0${stdio.args.join(' ')}\0${Object.entries(stdio.env).sort().flat().join('\0')}`
       const existing = mounts.get(id)
-      if (existing?.token === token && existing.endpoint === url) continue
+      if (existing?.key === key) continue
       if (existing !== undefined) { await existing.fiber.dispose(); mounts.delete(id) }
       const serverName = `account_${id.replaceAll('-', '').slice(0, 24)}`
-      const fiber = owned.scope.ctx.plugin(mcp, google === undefined ? {
+      const fiber = owned.scope.ctx.plugin(mcp, stdio !== undefined ? {
+        transport: 'stdio', serverName, command: stdio.command, args: stdio.args, env: stdio.env,
+        toolCallTimeoutMs: this.config.timeoutMs, failOnStartupError: true, reconnect: { enabled: false },
+      } : microsoft !== undefined ? { ...await microsoftConnection(connector.provider, token,
+        avnHomePath('accounts', accountDirectory(owner), 'connectors', id), this.config.timeoutMs), serverName } : google === undefined ? {
         transport: 'streamable-http', serverName,
         url, headers: token === '' ? {} : { Authorization: `Bearer ${token}` },
         toolCallTimeoutMs: this.config.timeoutMs, failOnStartupError: true, reconnect: { enabled: false },
@@ -1544,7 +2128,7 @@ export default class AccountIntegrations extends TypertRemoteService {
         this.ctx.logger('account-integrations').warn(`connector ${id} could not connect: ${error instanceof Error ? error.message : String(error)}`)
         continue
       }
-      mounts.set(id, { token, endpoint: url, fiber })
+      mounts.set(id, { key, fiber })
     }
   }
 

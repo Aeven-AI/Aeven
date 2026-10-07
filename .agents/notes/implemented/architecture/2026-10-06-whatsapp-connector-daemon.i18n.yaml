@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-06-whatsapp-connector-daemon.md
+2026-10-06-whatsapp-connector-daemon.md: 2b93fb3812090b36245852315165a06ea30bb047
+2026-10-06-whatsapp-connector-daemon.zh.md: b274213bd9e8a69734103a105d37a17c253d8bc3

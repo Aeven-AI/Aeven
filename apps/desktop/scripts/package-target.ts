@@ -320,6 +320,11 @@ async function main(): Promise<void> {
   mkdirSync(buildPaths.packedTelegram, { recursive: true })
   await runPnpm(['--dir', 'native/telegram-mcp', 'run', 'build'], buildEnv, REPOSITORY_ROOT)
   await runPnpm(['--dir', 'native/telegram-mcp', 'pack', '--pack-destination', buildPaths.packedTelegram], buildEnv, REPOSITORY_ROOT)
+  // The Discord connector server is plain JavaScript too, so one build and one tarball serve every target.
+  rmSync(buildPaths.packedDiscord, { recursive: true, force: true })
+  mkdirSync(buildPaths.packedDiscord, { recursive: true })
+  await runPnpm(['--dir', 'native/discord-mcp', 'run', 'build'], buildEnv, REPOSITORY_ROOT)
+  await runPnpm(['--dir', 'native/discord-mcp', 'pack', '--pack-destination', buildPaths.packedDiscord], buildEnv, REPOSITORY_ROOT)
   rmSync(buildPaths.packedLandlock, { recursive: true, force: true })
   mkdirSync(buildPaths.packedLandlock, { recursive: true })
   await runPnpm(['--dir', 'native/landlock-run', 'run', 'build:ts'], buildEnv, REPOSITORY_ROOT)

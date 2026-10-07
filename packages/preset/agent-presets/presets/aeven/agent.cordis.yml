@@ -180,6 +180,8 @@
     - id: tool-subagent-list-agents
       name: '@aeven/tool-subagent-control/list-agents'
 
+    # Only the session agent delegates: children are leaves. Depth counts both
+    # rows, so a spawn or fork child cannot start its own subagents.
     - id: tool-subagent
       name: '@aeven/tool-subagent'
       config:
@@ -187,6 +189,7 @@
         toolName: subagent
         modelSelectionSettings: true
         backgroundMode: continuable
+        maxDepth: 1
 
     # Fork omits model selection so provider/model stay equal to the parent and
     # the inherited history remains eligible for KV Cache reuse. This preset
@@ -198,6 +201,7 @@
         provider: fork
         toolName: subagent_fork
         backgroundMode: continuable
+        maxDepth: 1
 
     # Production avn does not install these optional providers. Install the
     # matching Bundle in this Profile and restart the Host, then copy this

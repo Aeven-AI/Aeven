@@ -15,6 +15,7 @@ export interface DesktopTargetBuildPaths {
   readonly packedWhisper: string
   readonly packedWhatsApp: string
   readonly packedTelegram: string
+  readonly packedDiscord: string
   readonly downloads: string
 }
 

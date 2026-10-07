@@ -61,7 +61,7 @@ const statusSchema = z.object({
 /** Sign-in progress of one daemon. */
 export type TelegramDaemonStatus = z.infer<typeof statusSchema>
 
-/** Telegram application credentials the daemon signs in with, resolved privately by the Host. */
+/** Telegram application identifiers the daemon signs in with, read from the Aeven API by the Host. */
 export interface TelegramCredentials {
   /** Application id from the deployment's registered Telegram application. */
   apiId: string

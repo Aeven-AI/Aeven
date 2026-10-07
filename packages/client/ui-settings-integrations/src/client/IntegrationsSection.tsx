@@ -6,6 +6,7 @@ import { SectionHeader, MarkdownText, Modal, IconCloseOutline16, IconChevronLeft
 import type { HostObservable, InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import css from './IntegrationsSection.module.css'
 import { connectorIcons } from './connector-icons.ts'
+import { DiscordAccounts } from './DiscordAccounts.tsx'
 import { EmailAccounts } from './EmailAccounts.tsx'
 import { TelegramAccounts } from './TelegramAccounts.tsx'
 import { WhatsAppAccounts } from './WhatsAppAccounts.tsx'
@@ -129,7 +130,8 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
     return () => { active = false; window.removeEventListener('focus', refresh) }
   }, [list, changes, refreshes])
   useEffect(() => {
-    if (pendingProvider !== undefined && snapshot?.connectors.some(connector => connector.provider === pendingProvider && connector.connected)) {
+    if (pendingProvider !== undefined && (snapshot?.connectors.some(connector => connector.provider === pendingProvider && connector.connected)
+      || snapshot?.providers.some(provider => provider.provider === pendingProvider && provider.authorizationFailure !== undefined))) {
       setConsent(undefined)
       setPendingProvider(undefined)
     }
@@ -205,8 +207,11 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
     const live = connections.filter(connection => connection.connected)
     // A provider without sign-in configured can still connect through a token form.
     const connectable = live.length > 0 || provider.configured || provider.provider === 'mcp' || provider.provider === 'github'
-    // Email is available exactly when the deployment mounts the mail capability; WhatsApp and Telegram when this host has their daemon.
-    if (provider.provider === 'email' || provider.provider === 'whatsapp' || provider.provider === 'telegram') return { connections, live, on: live.some(connection => connection.enabled), expired: connections.length > 0 && live.length === 0, connectable: provider.configured }
+    // Email is available exactly when the deployment mounts the mail capability; WhatsApp and Telegram when this host
+    // has their daemon; Discord when this deployment registered an Aeven Discord application.
+    if (provider.provider === 'email' || provider.provider === 'whatsapp' || provider.provider === 'telegram' || provider.provider === 'discord') {
+      return { connections, live, on: live.some(connection => connection.enabled), expired: connections.length > 0 && live.length === 0, connectable: provider.configured }
+    }
     const on = live.some(connection => connection.enabled)
     return { connections, live, on, expired: connections.length > 0 && live.length === 0, connectable }
   }
@@ -221,8 +226,9 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
   }
   const switchProvider = (provider: Provider): void => {
     const { connections, live, on, connectable } = stateOf(provider)
-    // Email accounts, WhatsApp numbers, and Telegram accounts each hold their own sign-in, so the provider switch pauses them instead of removing them.
-    if (provider.provider === 'email' || provider.provider === 'whatsapp' || provider.provider === 'telegram') {
+    // Email accounts, WhatsApp numbers, Telegram accounts, and Discord servers each hold their own sign-in,
+    // so the provider switch pauses them instead of removing them.
+    if (provider.provider === 'email' || provider.provider === 'whatsapp' || provider.provider === 'telegram' || provider.provider === 'discord') {
       if (on) { void run(async () => { for (const connection of live) if (connection.enabled) await props.setConnectorEnabled(connection.id, false) }); return }
       if (live.length > 0) { void run(async () => { for (const connection of live) await props.setConnectorEnabled(connection.id, true) }); return }
       openDetail(provider.provider)
@@ -248,12 +254,18 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
   }
   const providerHint = (provider: Provider): string | undefined => {
     const { expired, connectable } = stateOf(provider)
-    if (expired) return t(provider.provider === 'email' ? 'emailReconnect' : provider.provider === 'whatsapp' ? 'whatsappRelink' : provider.provider === 'telegram' ? 'telegramRelink' : 'reconnectHint')
+    if (provider.authorizationFailure !== undefined) return t(provider.authorizationFailure === 'admin-consent-required' ? 'adminConsentRequired' : 'consentFailed')
+    if (expired) return t(provider.provider === 'email' ? 'emailReconnect' : provider.provider === 'whatsapp' ? 'whatsappRelink'
+      : provider.provider === 'telegram' ? 'telegramRelink' : provider.provider === 'discord' ? 'discordRelink'
+        : provider.provider === 'slack' ? 'slackRelink' : 'reconnectHint')
     if (connectable) return undefined
     if (provider.provider === 'email') return t('emailSetupRequired')
     if (provider.provider === 'whatsapp') return t('whatsappUnavailable')
     if (provider.provider === 'telegram') return t('telegramUnavailable')
-    return t(['gmail', 'google-drive', 'google-calendar'].includes(provider.provider) ? 'googleSetupRequired' : 'setupRequired')
+    if (provider.provider === 'discord') return t('discordUnavailable')
+    if (provider.provider === 'slack') return t('slackUnavailable')
+    return t(['gmail', 'google-drive', 'google-calendar'].includes(provider.provider) ? 'googleSetupRequired'
+      : ['outlook', 'outlook-calendar', 'onedrive', 'sharepoint', 'teams'].includes(provider.provider) ? 'microsoftSetupRequired' : 'setupRequired')
   }
   const connectForm = (provider: 'mcp' | 'github') => <form className={css.card} onSubmit={(event) => {
     event.preventDefault()
@@ -337,14 +349,14 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
       >
         <button type="button" className={css.connectorOpen} onClick={() => { openDetail(provider.provider) }}>
           {connectorIcon(provider.provider)}
-          <span className={css.skillSummary}><strong>{t(provider.provider)}</strong><span className={css.connectorDescription}>{t(`${provider.provider}Description`)}</span>{stateOf(provider).expired && <span className={css.attention}>{providerHint(provider)}</span>}</span>
+          <span className={css.skillSummary}><strong>{t(provider.provider)}</strong><span className={css.connectorDescription}>{t(`${provider.provider}Description`)}</span>{(stateOf(provider).expired || provider.authorizationFailure !== undefined) && <span className={css.attention}>{providerHint(provider)}</span>}</span>
         </button>
         {providerSwitch(provider)}
       </article>)}</div> : <article className={css.connectorDetail}>
         <div className={css.connectorHeading}>
           {connectorIcon(providerDetail.provider, true)}
           <h2>{t(providerDetail.provider)}</h2>
-          {providerDetail.provider !== 'mcp' && providerDetail.provider !== 'email' && providerDetail.provider !== 'whatsapp' && providerDetail.provider !== 'telegram' && providerSwitch(providerDetail, true)}
+          {providerDetail.provider !== 'mcp' && providerDetail.provider !== 'email' && providerDetail.provider !== 'whatsapp' && providerDetail.provider !== 'telegram' && providerDetail.provider !== 'discord' && providerSwitch(providerDetail, true)}
         </div>
         <p className={css.detailDescription}>{t(`${providerDetail.provider}Description`)}</p>
         {providerDetail.provider === 'email' ? providerDetail.configured
@@ -396,25 +408,43 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
                 startWithPairing={addRequested}
               />
               : <p className={css.hint}>{t('telegramUnavailable')}</p>
-              : providerDetail.provider === 'mcp' ? <>
-                <div className={css.serverList}>{stateOf(providerDetail).connections.map(connection => <div
-                  key={connection.id}
-                  className={css.serverRow}
-                >
-                  <span className={css.skillSummary}>
-                    <strong>{connection.name}</strong>
-                    <span className={css.address}>{connection.endpoint}</span>
-                    {!connection.connected && <span className={css.attention}>{t('serverUnavailable')}</span>}
-                  </span>
-                  <button type="button" className={css.textAction} disabled={busy} onClick={() => { disconnectAll([connection]) }}>{t('remove')}</button>
-                </div>)}</div>
-                {form === undefined && <button type="button" className={css.secondaryAction} disabled={busy} onClick={() => { openForm('mcp') }}>{t('addServer')}</button>}
-              </> : <>
-                {providerHint(providerDetail) !== undefined && <p className={css.hint}>{providerHint(providerDetail)}</p>}
-                <div className={css.actions}>
-                  {providerDetail.provider === 'github' && stateOf(providerDetail).live.length === 0 && form === undefined && <button type="button" className={css.textAction} disabled={busy} onClick={() => { openForm('github') }}>{t('useToken')}</button>}
-                </div>
-              </>}
+              : providerDetail.provider === 'discord' ? providerDetail.configured
+                ? <DiscordAccounts
+                  t={t}
+                  busy={busy}
+                  connections={stateOf(providerDetail).connections}
+                  run={run}
+                  toggle={toggle}
+                  setConnectorEnabled={props.setConnectorEnabled}
+                  disconnect={props.disconnect}
+                  refresh={refreshList}
+                  startInstall={() => { startSignIn('discord') }}
+                  startWithInstall={addRequested}
+                />
+                : <p className={css.hint}>{t('discordUnavailable')}</p>
+                : providerDetail.provider === 'mcp' ? <>
+                  <div className={css.serverList}>{stateOf(providerDetail).connections.map(connection => <div
+                    key={connection.id}
+                    className={css.serverRow}
+                  >
+                    <span className={css.skillSummary}>
+                      <strong>{connection.name}</strong>
+                      <span className={css.address}>{connection.endpoint}</span>
+                      {!connection.connected && <span className={css.attention}>{t('serverUnavailable')}</span>}
+                    </span>
+                    <button type="button" className={css.textAction} disabled={busy} onClick={() => { disconnectAll([connection]) }}>{t('remove')}</button>
+                  </div>)}</div>
+                  {form === undefined && <button type="button" className={css.secondaryAction} disabled={busy} onClick={() => { openForm('mcp') }}>{t('addServer')}</button>}
+                </> : <>
+                  {providerHint(providerDetail) !== undefined && <p className={css.hint}>{providerHint(providerDetail)}</p>}
+                  {providerDetail.authorizationFailure === 'admin-consent-required' && providerDetail.adminConsentUrl !== undefined && <a
+                    className={css.textAction} href={providerDetail.adminConsentUrl} target="_blank" rel="noopener noreferrer"
+                  >{t('adminConsentLink')}</a>}
+                  {stateOf(providerDetail).live.map(connection => <p key={connection.id} className={css.address}>{connection.microsoft?.username ?? connection.name}</p>)}
+                  <div className={css.actions}>
+                    {providerDetail.provider === 'github' && stateOf(providerDetail).live.length === 0 && form === undefined && <button type="button" className={css.textAction} disabled={busy} onClick={() => { openForm('github') }}>{t('useToken')}</button>}
+                  </div>
+                </>}
         {form !== undefined && connectForm(form)}
         {providerDetail.skills.length > 0 && <>
           <h3>{t('skills')}</h3>

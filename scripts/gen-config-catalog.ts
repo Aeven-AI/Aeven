@@ -521,8 +521,15 @@ function findSchemaExpr(ctx: FileCtx, pluginClass: ts.ClassDeclaration | null): 
  * file, else `static inject = […]` on the plugin class. */
 function findInject(ctx: FileCtx, pluginClass: ts.ClassDeclaration | null, violations: string[]): string[] {
   const fromArray = (expr: ts.Expression, where: string): string[] => {
+    if (ts.isObjectLiteralExpression(expr)) {
+      return expr.properties.flatMap((property) => {
+        if (ts.isPropertyAssignment(property) && (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name))) return [property.name.text]
+        violations.push(`${where}: inject object contains an unsupported service declaration.`)
+        return []
+      })
+    }
     if (!ts.isArrayLiteralExpression(expr)) {
-      violations.push(`${where}: inject is not a plain string-array literal; teach the generator the new declaration form.`)
+      violations.push(`${where}: inject is not a plain string-array or object literal; teach the generator the new declaration form.`)
       return []
     }
     return expr.elements.map(el => ts.isStringLiteral(el) ? el.text : el.getText(ctx.sf))

@@ -24,9 +24,9 @@ Status: proposed
 
 ```yaml
 address: olivier@example.com
-aliases: [olivier@alias.example.com]   # 允许的 From 地址
+aliases: [olivier@alias.example.com]   # allowed From addresses
 receive: { protocol: imap | pop3, host, port, security: tls | starttls, username }
-send:    { host, port, security: tls | starttls, username }   # 可选
+send:    { host, port, security: tls | starttls, username }   # optional
 ```
 
 独立的 `connectEmail` Remote 在保存前探测（连接、认证、列出文件夹、SMTP `EHLO` 与 `AUTH`），并以结果值返回失败原因与步骤，使表单能以本地化文案说明。之后认证失败时会设置 `authFailed`，该账户从 `ctx.mail` 中隐藏，并显示为需要重新添加。
@@ -50,7 +50,7 @@ Email 提供方首先询问地址和密码。按域名匹配的预设为 Gmail�
 ## 分阶段
 
 1. 第一阶段：邮件接缝与提供方、五个工具、`email` 行与探测、设置表单，以及在发布 bundle 中的组合。
-2. 第二阶段：通过现有提供方应用为 Gmail 与 Outlook 提供 XOAUTH2、autoconfig 自动发现，以及需要独立会话事件的 IMAP IDLE 通知。
+2. 第二阶段：通过现有提供方应用为 Gmail 提供 XOAUTH2、autoconfig 自动发现，以及需要独立会话事件的 IMAP IDLE 通知。Outlook 邮件不再属于本阶段：它改为通过委托的 Graph 传输到达（[Microsoft 365 连接器](2026-10-07-microsoft-365-connectors.zh.md)）。
 
 ## 考虑过的替代方案
 
