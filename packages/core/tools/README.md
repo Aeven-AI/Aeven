@@ -114,6 +114,7 @@ The registry holds typed `ToolDefinition`s in scoped layers and projects them on
 | [`src/ptc.ts`](src/ptc.ts) | PTC mode: SDK generation, `run_code` dispatch bridge, settlement |
 | [`src/ts-types.ts`](src/ts-types.ts) | TypeScript SDK type rendering |
 | [`src/py-types.ts`](src/py-types.ts) | Python SDK type rendering |
+| [`src/schema-projection.ts`](src/schema-projection.ts) | Projection of any JSON Schema onto the subset the SDK renderers type |
 | [`src/invariant.ts`](src/invariant.ts) | Invariant companion |
 
 ### Execution and cancellation
@@ -123,6 +124,8 @@ Each typed invocation materializes and freezes parsed arguments, assigns an opaq
 ### PTC mode
 
 Under `ptc` or `both`, the registry exposes the reserved `run_code` transport plus a deterministic SDK generated in the loaded runtime's language. Each SDK binding call re-enters the complete tool pipeline with logged correlation to the outer call, scheduled through a per-run pool that reuses the native concurrency contract. Under `ptc` alone, a model-direct call naming any other visible tool resolves to `UNKNOWN_TOOL` before policy — the announced surface and the callable surface stay the same. Intermediate binding values are execution-local; only the outer `run_code` result has a hard size cap. The [executor-collapse note](../../../.agents/notes/implemented/bug-fix/2026-08-07-ptc-executor-collapse.md) owns the collapse contract.
+
+The SDK renderers type each parameter and output schema after projecting it onto the enforced subset node by node: a type array, `anyOf`, `nullable`, or local `$ref` becomes its union or target, an unsupported construct widens only its own node to `JsonValue` (`Any` in Python), and dropped constraints such as `minimum`, `pattern`, or `format` become doc-comment hints. MCP tools therefore keep typed parameters in the SDK; validation still runs against the registered schema. `renderToolsSdkDeclarations` and `renderToolsSdkPyDeclarations` render the declaration block alone for callers that deliver declarations on demand, such as [`@aeven/tool-search`](../tool-search/README.md). While a sub-call waits for a user approval, the registry holds the run's `pauses`, so the wait does not spend the code runtime's wall clock; a run's dispatch lane finishes each sub-call's pre-execute pipeline before starting the next, so at most one approval per run is open.
 
 <a id="extension-points"></a>
 ### Extension points

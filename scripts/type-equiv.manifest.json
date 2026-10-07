@@ -1128,6 +1128,11 @@
     },
     {
       "doc": "docs/subsystems/code-runtime.md",
+      "symbol": "CodeRunPauses",
+      "source": "packages/code-runtime/code-runtime/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/code-runtime.md",
       "symbol": "CodeRunResult",
       "source": "packages/code-runtime/code-runtime/src/types.ts"
     },

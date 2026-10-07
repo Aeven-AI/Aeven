@@ -18,13 +18,15 @@ import z from '@deepseek-ai/schemastery'
 import { scopeOf } from '@aeven/scope'
 import { MAX_TIMER_DELAY_MS } from '@aeven/timeout'
 import { RECONNECT_DEFAULTS, resolveReconnectPolicy, startConnection } from './connection.ts'
-import type { ReconnectConfig } from './connection.ts'
+import type { ConnectionStatus, ReconnectConfig } from './connection.ts'
+import type { McpServerReport } from './types.ts'
 // Side-effect type import: declaration-merges `ctx.tools` onto Context.
 import type {} from '@aeven/tools'
 
 export type { McpResult } from './tools.ts'
 export { publicToolName } from './tools.ts'
-export type { ReconnectConfig, ResolvedReconnectPolicy } from './connection.ts'
+export type { ConnectionState, ConnectionStatus, ReconnectConfig, ResolvedReconnectPolicy } from './connection.ts'
+export type { McpServerReport } from './types.ts'
 
 /** Cordis plugin name used by loader diagnostics. */
 export const name = 'mcp-client'
@@ -57,6 +59,8 @@ export interface StdioConfig {
    * unique across live mcp-client instances.
    */
   serverName: string
+  /** What the server's tools act on, for the model's tool index (`Chrome the user can see`); omission shows the server name. */
+  title?: string
   /** Executable used to start the server. */
   command: string
   /** Arguments passed directly, without shell interpolation. */
@@ -85,6 +89,8 @@ export interface StreamableHttpConfig {
    * unique across live mcp-client instances.
    */
   serverName: string
+  /** What the server's tools act on, for the model's tool index (`Chrome the user can see`); omission shows the server name. */
+  title?: string
   /** MCP endpoint URL. */
   url: string
   /** Additional headers attached to MCP requests. */
@@ -117,11 +123,13 @@ export const Config = z.union([
   z.object({
     transport: z.const('stdio'),
     serverName: z.string().required().pattern(SERVER_NAME_PATTERN),
+    title: z.string(),
     command: z.string().required(),
     args: z.array(String).default([]),
     env: z.dict(String).default({}),
     cwd: z.string().default(''),
-    allowedTools: z.array(String),
+    // Omitted must stay absent: a schemastery array otherwise defaults to [], which admits no tool.
+    allowedTools: z.array(String).default(undefined as unknown as string[]),
     toolCallTimeoutMs: z.number().default(DEFAULT_TOOL_CALL_TIMEOUT_MS),
     failOnStartupError: z.boolean().default(false),
     reconnect: Reconnect,
@@ -129,6 +137,7 @@ export const Config = z.union([
   z.object({
     transport: z.const('streamable-http'),
     serverName: z.string().required().pattern(SERVER_NAME_PATTERN),
+    title: z.string(),
     url: z.string().required(),
     headers: z.dict(String).default({}),
     toolCallTimeoutMs: z.number().default(DEFAULT_TOOL_CALL_TIMEOUT_MS),
@@ -179,6 +188,21 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   ctx.effect(() => {
     return () => connection.dispose()
   }, 'mcp-client.connection')
+
+  // Report this server to whoever lists the agent's tool sources. Registered
+  // through this plugin's context, so a server mounted in an agent scope
+  // answers only for that agent.
+  ctx.on('mcp/servers', async (_request, next) => {
+    const reports = await next()
+    const report = (status: ConnectionStatus): McpServerReport => ({
+      serverName: config.serverName,
+      toolPrefix: `mcp__${config.serverName}__`,
+      ...config.title === undefined ? {} : { title: config.title },
+      ...status,
+      restart: () => connection.restart(),
+    })
+    return [...reports, report(connection.status())]
+  })
 
   // Block plugin activation on the initial connection + tool discovery so
   // Cordis consumers observe the tools immediately after the fiber activates.

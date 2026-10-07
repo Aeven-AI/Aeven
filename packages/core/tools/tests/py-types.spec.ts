@@ -46,9 +46,9 @@ describe('jsonSchemaToPy', () => {
     expect(jsonSchemaToPy({ type: 'null' })).toBe('None')
     expect(jsonSchemaToPy({ oneOf: [{ type: 'string' }, { type: 'null' }] })).toBe('str | None')
     expect(jsonSchemaToPy({ oneOf: [] })).toBe('Any')
-    expect(jsonSchemaToPy({ type: 'object', properties: 7 })).toBe('Any')
-    expect(jsonSchemaToPy({ type: 'string', enum: [1, 2] })).toBe('Any')
-    expect(jsonSchemaToPy({ type: 'string', enum: [] })).toBe('Any')
+    expect(jsonSchemaToPy({ type: 'object', properties: 7 })).toBe('dict[str, Any]')
+    expect(jsonSchemaToPy({ type: 'string', enum: [1, 2] })).toBe('str')
+    expect(jsonSchemaToPy({ type: 'string', enum: [] })).toBe('str')
   })
 
   it('leans on JSON.stringify to keep a Literal parseable', () => {
@@ -197,18 +197,19 @@ describe('renderToolsSdkPy', () => {
     expect(text).toContain('from typing import NotRequired, Protocol, TypedDict')
   })
 
-  it('prefixes Tool when a name CamelCases to a non-letter head, and degrades a malformed schema to Any', () => {
+  it('prefixes Tool when a name CamelCases to a non-letter head, and widens only a malformed node', () => {
     const tool: ToolSdkSchema = {
       name: '1st-tool', // subscript path; CamelCases to "1stTool" → prefixed "Tool1stTool"
       description: 'Hostile-shape probe.',
-      // Malformed node: the unified schema validator rejects it whole, so the
-      // args position degrades to Any (registration would refuse this schema;
-      // the renderer just must not throw on it).
+      // Malformed annotation: projection drops the non-string description and
+      // keeps the field (registration would refuse this schema; the renderer
+      // just must not throw on it).
       parameters: { type: 'object', properties: { field: { type: 'string', description: 42 } } },
       output: { type: 'object', additionalProperties: false, properties: { ok: { type: 'boolean' } }, required: ['ok'] },
     }
     const text = renderToolsSdkPy([tool])
-    expect(text).toContain('# tools["1st-tool"](args: Any) -> Tool1stToolOutput')
+    expect(text).toContain('# tools["1st-tool"](args: Tool1stToolArgs) -> Tool1stToolOutput')
+    expect(text).toContain('    field: NotRequired[str]')
     expect(text).toContain('class Tool1stToolOutput(TypedDict):')
     expect(text).toContain('    ok: bool')
   })

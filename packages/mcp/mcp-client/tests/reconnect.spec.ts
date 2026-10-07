@@ -9,7 +9,9 @@ import { Context } from '@deepseek-ai/cordis'
 import SystemPrompt from '@aeven/system-prompt'
 import ToolRuntime from '@aeven/tools'
 import { ToolCallId } from '@aeven/llm'
-import type { Config } from '@aeven/mcp-client'
+import type { Agent } from '@aeven/agent'
+import type { Config, McpServerReport } from '@aeven/mcp-client'
+import { scopeTarget } from '@aeven/scope'
 
 // ---- Mock MCP SDK ----
 
@@ -481,6 +483,81 @@ describe('reconnect supervisor', () => {
 })
 
 // ---- Policy resolution ----
+
+describe('connection status and restart', () => {
+  let ctx: Context
+  const agent = {} as Agent
+
+  beforeEach(async () => {
+    vi.clearAllMocks()
+    instances.length = 0
+    mockConnect.mockResolvedValue(undefined)
+    mockClose.mockImplementation(function (this: { onclose?: () => void }) {
+      this.onclose?.()
+      return Promise.resolve()
+    })
+    mockListTools.mockResolvedValue(listing('remote'))
+    ctx = await mountRegistry()
+    captureLogs(ctx)
+  })
+
+  const report = async (): Promise<McpServerReport> => {
+    const reports = await ctx.waterfall(scopeTarget(agent, agent), 'mcp/servers', { agent }, () => Promise.resolve([]))
+    expect(reports).toHaveLength(1)
+    return reports[0]!
+  }
+
+  it('reports each state with its title and the last error, and restarts a stopped server with a fresh budget', async () => {
+    await apply(ctx, { ...stdioConfig({ initialDelayMs: 2, maxDelayMs: 8, maxAttempts: 1 }), title: 'Chrome the user can see' })
+    expect(await report()).toMatchObject({ serverName: 'srv', toolPrefix: 'mcp__srv__', title: 'Chrome the user can see', state: 'connected' })
+    expect((await report()).error).toBeUndefined()
+
+    mockConnect.mockRejectedValue(new Error('server gone'))
+    instances[0]!.onclose?.()
+    await vi.waitFor(async () => { expect((await report()).state).toBe('failed') })
+    expect((await report()).error).toBe('server gone')
+    expect(ctx.tools.get('mcp__srv__remote')).toBeUndefined()
+
+    mockConnect.mockResolvedValue(undefined)
+    expect(await (await report()).restart()).toEqual({ state: 'connected' })
+    expect(ctx.tools.get('mcp__srv__remote')).toBeDefined()
+  })
+
+  it('cancels a scheduled retry and connects at once, and leaves a connected server alone', async () => {
+    mockConnect.mockRejectedValueOnce(new Error('not yet'))
+    await apply(ctx, stdioConfig({ initialDelayMs: 60_000, maxDelayMs: 60_000, maxAttempts: 3 }))
+    expect(await report()).toMatchObject({ state: 'retrying', error: 'not yet' })
+
+    expect(await (await report()).restart()).toEqual({ state: 'connected' })
+    expect(await (await report()).restart()).toEqual({ state: 'connected' })
+    expect(mockConnect).toHaveBeenCalledTimes(2)
+  })
+
+  it('names a lost connection when reconnect is disabled', async () => {
+    await apply(ctx, stdioConfig({ enabled: false }))
+    instances[0]!.onclose?.()
+
+    expect(await report()).toMatchObject({ state: 'failed', error: 'the connection to the server closed' })
+  })
+
+  it('reports a generation that never closed as stopped, and a disposed handle never reconnects', async () => {
+    vi.useFakeTimers()
+    try {
+      mockConnect.mockRejectedValue(new Error('initialize failed'))
+      mockClose.mockResolvedValue(undefined)
+      const handle = startConnection(ctx, stdioConfig({ initialDelayMs: 2, maxDelayMs: 8, maxAttempts: 2 }), resolveReconnectPolicy(undefined, 'test'))
+      await vi.advanceTimersByTimeAsync(5_000)
+      await handle.ready
+      expect(handle.status()).toEqual({ state: 'failed', error: 'initialize failed' })
+
+      await handle.dispose()
+      expect(await handle.restart()).toEqual({ state: 'failed', error: 'initialize failed' })
+      expect(mockConnect).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
 
 describe('resolveReconnectPolicy', () => {
   const path = 'mcp-client(srv): reconnect'

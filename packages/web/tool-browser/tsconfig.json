@@ -37,6 +37,9 @@
     },
     {
       "path": "../browser-chromium"
+    },
+    {
+      "path": "../../mcp/mcp-client"
     }
   ]
 }

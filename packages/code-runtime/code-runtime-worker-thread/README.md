@@ -34,7 +34,7 @@ Mount this backend with the code-runtime seam when a composition should execute 
 - name: '@aeven/code-runtime-worker-thread'
   config:
     computeMs: 60000            # busy-time budget (measured event-loop active time)
-    maxWallMs: 600000           # wall-clock ceiling; never pauses for anything
+    maxWallMs: 600000           # wall-clock ceiling; stops while request.pauses is held
     maxOutputBytes: 67108864    # combined serialized outer-output cap (64 MiB)
     maxOldGenerationSizeMb: 512 # worker heap cap
 ```
@@ -42,7 +42,7 @@ Mount this backend with the code-runtime seam when a composition should execute 
 | Field | Default | Meaning |
 |---|---|---|
 | `computeMs` | `60,000` | Busy-time budget: the run fails with `timeout` once the worker's measured event-loop active time exceeds it |
-| `maxWallMs` | `600,000` | Wall-clock ceiling, the backstop for waits that busy time cannot see; at most `2_147_483_647` |
+| `maxWallMs` | `600,000` | Wall-clock ceiling, the backstop for waits that busy time cannot see; stops while the request's `pauses` is held; at most `2_147_483_647` |
 | `maxOutputBytes` | `67,108,864` | Hard cap for serialized logs plus the completion value or failure message; at least `4` |
 | `maxOldGenerationSizeMb` | `512` | Worker heap cap; overflow kills the worker and surfaces as `worker-exit` |
 
@@ -84,7 +84,7 @@ Model code can reach `parentPort` and forge traffic, so every inbound message is
 
 ### Budgets
 
-Two independent budgets exist because the peer is hostile: `computeMs` meters the worker's measured busy time (`eventLoopUtilization()` polling every 25 ms), so a hot loop expires it whether or not a decoy dispatch is in flight, while a program idling on a slow binding accrues nothing; `maxWallMs` backstops what busy time cannot see, such as a promise nobody resolves. Both funnel into `worker.terminate()`. `maxWallMs` is range-checked at load against `MAX_TIMER_DELAY_MS` because `setTimeout` clamps a longer delay to 1 ms.
+Two independent budgets exist because the peer is hostile: `computeMs` meters the worker's measured busy time (`eventLoopUtilization()` polling every 25 ms), so a hot loop expires it whether or not a decoy dispatch is in flight, while a program idling on a slow binding accrues nothing; `maxWallMs` backstops what busy time cannot see, such as a promise nobody resolves. Both funnel into `worker.terminate()`. When the request carries `pauses`, the wall clock stops while `paused` is true and resumes with the time it had left; PTC mode holds it while a sub-call waits for a user approval, so a person deciding does not expire the run. `maxWallMs` is range-checked at load against `MAX_TIMER_DELAY_MS` because `setTimeout` clamps a longer delay to 1 ms.
 
 ### Output ledger
 

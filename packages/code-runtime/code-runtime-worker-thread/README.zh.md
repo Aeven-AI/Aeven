@@ -34,7 +34,7 @@ kind: "package-reference"
 - name: '@aeven/code-runtime-worker-thread'
   config:
     computeMs: 60000            # busy-time budget (measured event-loop active time)
-    maxWallMs: 600000           # wall-clock ceiling; never pauses for anything
+    maxWallMs: 600000           # wall-clock ceiling; stops while request.pauses is held
     maxOutputBytes: 67108864    # combined serialized outer-output cap (64 MiB)
     maxOldGenerationSizeMb: 512 # worker heap cap
 ```
@@ -42,7 +42,7 @@ kind: "package-reference"
 | 字段 | 默认值 | 含义 |
 |---|---|---|
 | `computeMs` | `60,000` | 忙碌时间预算：worker 实测事件循环活跃时间超过该值时，运行以 `timeout` 失败 |
-| `maxWallMs` | `600,000` | 墙钟上限，为忙碌时间无法观测的等待兜底；最大 `2_147_483_647` |
+| `maxWallMs` | `600,000` | 墙钟上限，为忙碌时间无法观测的等待兜底；请求的 `pauses` 处于暂停时停止计时；最大 `2_147_483_647` |
 | `maxOutputBytes` | `67,108,864` | 序列化日志加完成值或失败消息的硬上限；至少 `4` |
 | `maxOldGenerationSizeMb` | `512` | worker 堆上限；溢出会杀死 worker，并以 `worker-exit` 呈现 |
 
@@ -84,7 +84,7 @@ kind: "package-reference"
 
 ### 预算
 
-存在两个独立预算，因为对端不可信：`computeMs` 计量 worker 的实测忙碌时间（每 25 ms 轮询一次 `eventLoopUtilization()`），因此热循环无论是否有诱饵 dispatch 在途都会到期，而等待慢绑定的程序不累计；`maxWallMs` 为忙碌时间无法观测的情况兜底，例如永远不会 resolve 的 promise。二者最终都会调用 `worker.terminate()`。`maxWallMs` 在加载时对照 `MAX_TIMER_DELAY_MS` 做范围校验，因为 `setTimeout` 会把更长的延迟限制为 1 ms。
+存在两个独立预算，因为对端不可信：`computeMs` 计量 worker 的实测忙碌时间（每 25 ms 轮询一次 `eventLoopUtilization()`），因此热循环无论是否有诱饵 dispatch 在途都会到期，而等待慢绑定的程序不累计；`maxWallMs` 为忙碌时间无法观测的情况兜底，例如永远不会 resolve 的 promise。二者最终都会调用 `worker.terminate()`。请求携带 `pauses` 时，墙钟在 `paused` 为 true 期间停止，恢复后按剩余时间继续；PTC 模式在子调用等待用户审批期间保持暂停，因此用户做决定的时间不会让运行到期。`maxWallMs` 在加载时对照 `MAX_TIMER_DELAY_MS` 做范围校验，因为 `setTimeout` 会把更长的延迟限制为 1 ms。
 
 ### 输出账本
 

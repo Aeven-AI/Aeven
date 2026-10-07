@@ -27,6 +27,7 @@
   ],
   "license": "MIT",
   "peerDependencies": {
+    "@aeven/agent": "workspace:^",
     "@aeven/attachment": "workspace:^",
     "@aeven/llm": "workspace:^",
     "@aeven/scope": "workspace:^",
@@ -51,6 +52,7 @@
     "@modelcontextprotocol/server-everything": "^2026.7.4",
     "@modelcontextprotocol/server-filesystem": "^2026.7.4",
     "@deepseek-ai/cordis": "workspace:^",
-    "@aeven/http-proxy": "workspace:^"
+    "@aeven/http-proxy": "workspace:^",
+    "@aeven/agent": "workspace:^"
   }
 }

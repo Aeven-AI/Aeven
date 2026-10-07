@@ -34,6 +34,7 @@
   "peerDependencies": {
     "@aeven/agent": "workspace:^",
     "@aeven/llm": "workspace:^",
+    "@aeven/mcp-client": "workspace:^",
     "@aeven/scope": "workspace:^",
     "@aeven/timeout": "workspace:^",
     "@aeven/tools": "workspace:^",
@@ -43,6 +44,7 @@
     "@aeven/agent": "workspace:^",
     "@aeven/browser-chromium": "workspace:^",
     "@aeven/llm": "workspace:^",
+    "@aeven/mcp-client": "workspace:^",
     "@aeven/scope": "workspace:^",
     "@aeven/session": "workspace:^",
     "@aeven/system-prompt": "workspace:^",

@@ -79,7 +79,7 @@ export function slackRedirectUri(port: number): string {
 
 /**
  * Connector id of one Slack workspace of one user, the same for every login to that workspace, so
- * the workspace's tool names (`mcp__account_<id prefix>__…`) survive disconnecting and reconnecting.
+ * the workspace's tool names (`mcp__slack_<id prefix>__…`) survive disconnecting and reconnecting.
  * @param owner - Aeven account that consented.
  * @param teamId - Slack team id.
  * @returns a UUID-formatted id derived from both.

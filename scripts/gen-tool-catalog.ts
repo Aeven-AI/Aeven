@@ -56,6 +56,7 @@ import * as ToolSchedule from '@aeven/schedule'
 import Lsp from '@aeven/lsp'
 import * as ToolLsp from '@aeven/tool-lsp'
 import * as ToolSkill from '@aeven/tool-skill'
+import * as ToolSearch from '@aeven/tool-search'
 import * as ToolSessionQuery from '@aeven/tool-session-query'
 import * as ToolTasks from '@aeven/tool-jobs'
 import type TeamService from '@aeven/experimental-agent-team'
@@ -442,6 +443,18 @@ const TOOL_PACKAGES: ToolPackage[] = [
       })
       await ctx.plugin(ToolSkill)
     },
+  },
+  {
+    pkg: '@aeven/tool-search',
+    dir: 'tool-search',
+    source: 'packages/core/tool-search/src/index.ts',
+    requires: ['ctx.tools', 'ctx.systemPrompt', 'mcp/servers listeners (opportunistic)', 'ctx.codeRuntime (opportunistic, for run_code declarations)'],
+    writes: ['tool/call', 'tool/result', 'one plugin user message when the deferred tool index changes'],
+    async mount(ctx) {
+      await ctx.plugin(ToolSearch, {})
+    },
+    note:
+      'Presented to the model only while at least one tool is deferred or a deferring MCP server is not serving. Keyword queries list tools without loading them; `select:` loads schemas into following requests, or returns SDK declarations when the request presents `run_code`; `restart:` reconnects an MCP server.',
   },
   {
     pkg: '@aeven/tool-session-query',

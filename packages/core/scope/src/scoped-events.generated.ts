@@ -24,6 +24,7 @@ const scopedSubjectResolvers: Readonly<Record<string, ScopedSubjectResolver | nu
   'browser/automation': args => (args[0] as Record<string, unknown>)['agent'],
   'goal/changed': args => (args[0] as Record<string, unknown>)['agent'],
   'location/request': args => (args[0] as Record<string, unknown>)['agent'],
+  'mcp/servers': args => (args[0] as Record<string, unknown>)['agent'],
   'session/created': null,
   'session/disposed': null,
   'session/event': null,

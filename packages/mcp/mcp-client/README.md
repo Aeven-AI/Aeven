@@ -56,6 +56,7 @@ Add one entry per server; nothing else is required. After the harness starts, th
 |---|---|---|
 | `transport` | required | `stdio` or `streamable-http` |
 | `serverName` | required | Namespace for the server's tool names; `[A-Za-z0-9_-]{1,32}`, unique inside one registration scope |
+| `title` | the server name | What the server's tools act on, shown as the namespace title in the model's deferred tool index (`Chrome the user can see`) |
 | `command` / `args` / `env` / `cwd` | — | stdio: executable, arguments, extra env merged over scrubbed ambient env, working directory |
 | `allowedTools` | all discovered tools | stdio: raw tool names admitted on every discovery; excluded tools have no harness executor |
 | `url` / `headers` | — | streamable-http: endpoint URL and extra request headers |
@@ -91,6 +92,8 @@ Images are supported when the current model accepts image input and the harness 
 The server's tools appear before the harness starts its first turn. When the server changes its tool list, the model's tool set updates automatically; if the update fails, the previous tool set keeps working.
 
 When a server connection drops — for example a local server process crashes — the plugin reconnects automatically with delays that double from 500 ms up to 30 s and then refreshes the tool set; reconnect progress is visible in the logs. During an outage the last known tools stay listed but calls to them fail until the server recovers. After ten consecutive failed attempts the server's tools are removed and reconnection stops until you reload the configuration or restart the harness; a server that stays connected for a while resets that counter. Set `reconnect.enabled: false` to disable automatic reconnection — tools then stay listed but fail until you reload. Editing the configuration entry reloads the server connection in place, and unchanged names stay unchanged.
+
+Every instance answers the agent-scoped `mcp/servers` waterfall with its server name, tool prefix, `title`, connection state (`connecting`, `connected`, `retrying`, or `failed`), the last error while it is not connected, and a `restart()` that connects at once with a fresh attempt budget, including after the supervisor gave up. A server mounted in an agent scope answers only for that agent. [`@aeven/tool-search`](../../core/tool-search/README.md) lists the servers that are not serving in the model's tool index and restarts one on request, and `preview_status` uses the report to explain missing browser tools.
 
 -----
 

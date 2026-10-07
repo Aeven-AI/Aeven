@@ -9,11 +9,11 @@
 import { brandString } from '@aeven/brand'
 import { createUserMessage, HarnessError } from '@aeven/llm'
 import type { ContentBlock, ToolCallId } from '@aeven/llm'
-import type { CodeBindingFunction, CodeRunResult, CodeRuntime } from '@aeven/code-runtime'
+import type { CodeBindingFunction, CodeRunPauses, CodeRunResult, CodeRuntime } from '@aeven/code-runtime'
 import { snapshotJsonValue, type JsonValue } from '@aeven/util-values'
 import { defineTool, parameterSchemaSpecToJsonSchema } from './schema.ts'
 import { TOOL_RUNTIME_SCHEDULER } from './index.ts'
-import type { PtcDispatchLog, ToolDefinition, ToolExecutionResult, ToolRuntime, ToolRunContext } from './index.ts'
+import type { PtcDispatchLog, ToolDefinition, ToolExecutionResult, ToolExecutionToken, ToolRuntime, ToolRunContext } from './index.ts'
 import type {} from './types.ts'
 
 /** The model-facing name of the PTC mode tool. */
@@ -277,6 +277,12 @@ export interface RunCodeBridgeOptions {
   maxParallel: number
   /** Runs the contained `tools/ptc-dispatch-log` waterfall over one settled sub-dispatch (the registry's private invoker). */
   shapeDispatchLog: (dispatch: PtcDispatchLog) => Promise<ContentBlock[]>
+  /**
+   * Pause state that is held while one of the run's sub-calls waits for a user
+   * approval, so that wait does not spend the runtime's wall clock. The caller
+   * disposes it when the run settles.
+   */
+  approvalPauses: (run: ToolExecutionToken) => CodeRunPauses & Disposable
 }
 
 /**
@@ -291,7 +297,7 @@ export interface RunCodeBridgeOptions {
  * @returns the registry-ready definition.
  */
 export function createRunCodeTool(registry: ToolRuntime, options: RunCodeBridgeOptions): ToolDefinition {
-  const { requireRuntime, peekRuntime, maxParallel, shapeDispatchLog } = options
+  const { requireRuntime, peekRuntime, maxParallel, shapeDispatchLog, approvalPauses } = options
   const definition = defineTool({
     name: RUN_CODE_NAME,
     // The description and `code` parameter description are placeholders here:
@@ -615,6 +621,7 @@ export function createRunCodeTool(registry: ToolRuntime, options: RunCodeBridgeO
 
       try {
         let result: CodeRunResult
+        using pauses = approvalPauses(exec.token)
         try {
           result = await runtime.run({
             program: args.code,
@@ -624,6 +631,7 @@ export function createRunCodeTool(registry: ToolRuntime, options: RunCodeBridgeO
               errorClass: { name: 'ToolCallError', memberNameProperty: 'toolName' },
             }],
             signal: runController.signal,
+            pauses,
           })
         } finally {
           // Abort sub-dispatches and drain every in-flight dispatch before

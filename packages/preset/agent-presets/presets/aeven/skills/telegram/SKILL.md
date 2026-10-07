@@ -5,7 +5,7 @@ description: Read, search, send, and moderate Telegram messages, media, reaction
 
 # Telegram
 
-Use the current tool catalog to find the signed-in Telegram tools named `mcp__account_<id>__<tool>`; each account has its own `<id>` and its own set of tools. If no Telegram tools are available, ask the user to sign in an account in Settings → Connectors → Telegram.
+Use the current tool catalog to find the signed-in Telegram tools named `mcp__telegram_<id>__<tool>`; each account has its own `<id>` and its own set of tools. If no Telegram tools are available, ask the user to sign in an account in Settings → Connectors → Telegram.
 
 When more than one account is signed in, call each connection's `whoami` and tell them apart by its `id`, `@username`, and `phone`. Use the account the user names; ask which one to use when the request does not make it clear. Never mix tools from different accounts in one conversation thread.
 

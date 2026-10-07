@@ -16,6 +16,24 @@ async function setup(config: Config = {}) {
   return { ctx, runtime }
 }
 
+/** Caller-owned pause state for one run, as the PTC bridge provides it. */
+function pauseSource(initial = false) {
+  let paused = initial
+  const listeners = new Set<(value: boolean) => void>()
+  return {
+    get paused() { return paused },
+    subscribe(listener: (value: boolean) => void) {
+      listeners.add(listener)
+      return () => { listeners.delete(listener) }
+    },
+    set(value: boolean) {
+      paused = value
+      for (const listener of listeners) listener(value)
+    },
+    listeners: () => listeners.size,
+  }
+}
+
 /** Convenience: one namespace `tools` with the given functions. */
 function tools(functions: Record<string, (args: unknown) => Promise<unknown>>): CodeBindingNamespace[] {
   return [{
@@ -194,6 +212,36 @@ describe('WorkerThreadCodeRuntime — budgets and containment (real workers)', (
     })
     expect(result.error).toBeUndefined()
     expect(result.value).toBe('slow-done')
+  }, 15_000)
+
+  it('stops the wall clock while the caller reports an excluded wait', async () => {
+    const { runtime } = await setup({ computeMs: 30_000, maxWallMs: 300 })
+    const pauses = pauseSource()
+    const result = await runtime.run({
+      program: 'return await tools.wait({})',
+      bindings: tools({
+        wait: async () => {
+          pauses.set(true)
+          await new Promise(resolve => setTimeout(resolve, 600))
+          pauses.set(false)
+          return 'answered'
+        },
+      }),
+      pauses,
+    })
+    expect(result.error).toBeUndefined()
+    expect(result.value).toBe('answered')
+  }, 15_000)
+
+  it('arms the wall clock only once a run that starts paused resumes', async () => {
+    const { runtime } = await setup({ computeMs: 30_000, maxWallMs: 300 })
+    const pauses = pauseSource(true)
+    setTimeout(() => { pauses.set(false) }, 500)
+    const started = Date.now()
+    const result = await runtime.run({ program: 'await new Promise(() => {})', bindings: [], pauses })
+    expect(result.error?.message).toContain('wall-clock ceiling')
+    expect(Date.now() - started).toBeGreaterThanOrEqual(750)
+    expect(pauses.listeners()).toBe(0)
   }, 15_000)
 
   it('ends an idle-forever run at the wall-clock ceiling', async () => {

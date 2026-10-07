@@ -19,7 +19,6 @@ examples/*/.sessions/
 oxlint-contract-*.ts
 .humanize/
 tmp/
-.tmp-brief/
 .claude/commands/
 .claude/launch.json
 .claude/settings.json

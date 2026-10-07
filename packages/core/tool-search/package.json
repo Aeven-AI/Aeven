@@ -1,6 +1,6 @@
 {
   "name": "@aeven/tool-search",
-  "description": "Deferred tools: MCP tool schemas leave the model request until the model loads them with tool_search",
+  "description": "Deferred tools: tool schemas stay out of the model request until the model finds and loads them with tool_search",
   "version": "0.1.2-alpha.5",
   "publishConfig": {
     "access": "public"
@@ -31,16 +31,25 @@
   },
   "peerDependencies": {
     "@aeven/agent": "workspace:^",
+    "@aeven/code-runtime": "workspace:^",
     "@aeven/llm": "workspace:^",
+    "@aeven/mcp-client": "workspace:^",
+    "@aeven/scope": "workspace:^",
+    "@aeven/session": "workspace:^",
     "@aeven/system-prompt": "workspace:^",
     "@aeven/tools": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
     "@aeven/agent": "workspace:^",
+    "@aeven/code-runtime": "workspace:^",
     "@aeven/llm": "workspace:^",
+    "@aeven/mcp-client": "workspace:^",
+    "@aeven/scope": "workspace:^",
+    "@aeven/session": "workspace:^",
     "@aeven/system-prompt": "workspace:^",
     "@aeven/tools": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/cordis-plugin-loader": "workspace:^"
   }
 }

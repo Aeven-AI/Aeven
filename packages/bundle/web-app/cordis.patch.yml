@@ -287,6 +287,7 @@
       config:
         transport: stdio
         serverName: chrome_devtools
+        title: Chrome the user can see (signed-in sessions)
         command: !!js "process.platform === 'win32' ? 'npx.cmd' : 'npx'"
         args:
           - '-y'
@@ -311,6 +312,7 @@
       config:
         transport: stdio
         serverName: playwright
+        title: Headless browser
         command: !!js "process.platform === 'win32' ? 'npx.cmd' : 'npx'"
         args:
           - '-y'

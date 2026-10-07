@@ -33,6 +33,29 @@ interface CodeRunRequest {
    * binding calls are the CALLER's to settle — the runtime only stops asking.
    */
   signal?: AbortSignal
+  /**
+   * Waits outside the program that the wall-clock ceiling must not count, such
+   * as a user deciding an approval a binding call asked for. While `paused` is
+   * true the runtime stops its wall clock; compute budgets are unaffected,
+   * since a waiting program is idle. Omission counts every wait.
+   */
+  pauses?: CodeRunPauses
+}
+```
+
+`pauses` is the caller's pause state; while it is held the runtime stops its wall clock:
+
+```ts type-equiv
+/** Caller-owned pause state for one run's wall clock (see {@link CodeRunRequest.pauses}). */
+interface CodeRunPauses {
+  /** Whether a wait the wall clock excludes is open now. */
+  readonly paused: boolean
+  /**
+   * Observe changes of {@link paused}.
+   * @param listener - called with the new value on each change.
+   * @returns the unsubscribe function.
+   */
+  subscribe(listener: (paused: boolean) => void): () => void
 }
 ```
 

@@ -7,7 +7,7 @@ description: Analyze and edit connected Google Sheets with range precision. Use 
 
 ## Aeven connector tools
 
-The connected Drive account exposes Drive, Docs, Sheets and Slides operations together. Discover its exact `mcp__account_<id>__` namespace in the tool catalog. Use the named tools for common operations and `workspace_schema` followed by `workspace_raw` for native Google API operations referenced below. Upstream `mcp__codex_apps__google_drive` names identify the equivalent operation, not an Aeven tool name. Do not call unavailable OpenAI runtime helpers; perform their read, mutation and verification steps through these tools.
+The connected Drive account exposes Drive, Docs, Sheets and Slides operations together. Discover its exact `mcp__google-drive_<id>__` namespace in the tool catalog. Use the named tools for common operations and `workspace_schema` followed by `workspace_raw` for native Google API operations referenced below. Upstream `mcp__codex_apps__google_drive` names identify the equivalent operation, not an Aeven tool name. Do not call unavailable OpenAI runtime helpers; perform their read, mutation and verification steps through these tools.
 
 Use `sheets_get` with `{spreadsheetId}` to inspect sheet titles, then `sheets_read` with `{spreadsheetId, range}` using an observed tab title and A1 range. Arguments are at the top level; do not use `sheet_id`, `spreadsheet_id`, or wrap them in `params`. Native API query fields belong to `workspace_raw` with `service: "sheets"` and schema-grounded `params`.
 

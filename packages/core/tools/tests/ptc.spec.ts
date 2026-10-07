@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
+import { Context, Service } from '@deepseek-ai/cordis'
 import { createUserMessage, ToolCallId  } from '@aeven/llm'
 import { createScope } from '@aeven/scope'
 import type { Scope } from '@aeven/scope'
@@ -7,10 +7,11 @@ import SystemPrompt from '@aeven/system-prompt'
 import { CodeRuntime } from '@aeven/code-runtime'
 import type { CodeRunRequest, CodeRunResult } from '@aeven/code-runtime'
 import ToolRuntime, { CodeRunFailedError, RUN_CODE_NAME, TOOL_ABORTED_BEFORE_DISPATCH, defineContentToolFixture, defineTool } from '@aeven/tools'
-import type { Config, JsonSchemaNode, PostToolDecision, ToolExecutionResult } from '@aeven/tools'
+import type { Config, JsonSchemaNode, PostToolDecision, PreToolDecision, ToolExecutionResult } from '@aeven/tools'
 import type { Agent } from '@aeven/agent'
 import { Session, SessionId } from '@aeven/session'
 import type { SessionEventMap } from '@aeven/session'
+import type { ApprovalOutcome } from '@aeven/user-approval'
 import type { JsonValue } from '@aeven/util-values'
 
 const testToolSignal = new AbortController().signal
@@ -1874,5 +1875,49 @@ describe('per-agent presentation', () => {
 
     await expect(systemPrompt.assemble({ scope: agent }))
       .rejects.toThrow('mode "both" requires a code runtime')
+  })
+})
+
+describe('approval waits inside a run', () => {
+  /** An approval service whose answers the test releases by hand. */
+  class HeldApproval extends Service {
+    readonly pending: (() => void)[] = []
+
+    constructor(ctx: Context) {
+      super(ctx, 'approval')
+    }
+
+    request(): Promise<ApprovalOutcome> {
+      return new Promise((resolve) => { this.pending.push(() => { resolve('allowed-once') }) })
+    }
+  }
+
+  it('holds the run pause state while a sub-call waits for approval', async () => {
+    const { ctx, runtime } = await setup({ mode: 'ptc' })
+    registerEcho(ctx)
+    await ctx.plugin(HeldApproval)
+    const approval = ctx.get('approval') as unknown as HeldApproval
+    ctx.on('tools/pre-execute', (exec, next) => exec.name === 'echo' ? Promise.resolve<PreToolDecision>({ kind: 'ask', reason: 'confirm' }) : next())
+    const agent = { session: Session.create(SessionId('approving')) } as unknown as Agent
+    const changes: boolean[] = []
+    let pausedWhileWaiting: boolean | undefined
+    runtime.behavior = async (request) => {
+      const pauses = request.pauses!
+      const stop = pauses.subscribe((paused) => { changes.push(paused) })
+      const call = request.bindings[0]!.functions.echo!({ value: 'x' })
+      while (approval.pending.length === 0) await new Promise(resolve => setImmediate(resolve))
+      pausedWhileWaiting = pauses.paused
+      approval.pending.shift()!()
+      await call
+      stop()
+      return { logs: [], value: pauses.paused }
+    }
+
+    const result = await runCode(ctx, 'await tools.echo({ value: "x" })', { agent })
+
+    expect(result.isError).toBe(false)
+    expect(result.content).toEqual([{ type: 'text', text: 'false' }])
+    expect(pausedWhileWaiting).toBe(true)
+    expect(changes).toEqual([true, false])
   })
 })

@@ -5847,9 +5847,21 @@ importers:
       '@aeven/agent':
         specifier: workspace:^
         version: link:../agent
+      '@aeven/code-runtime':
+        specifier: workspace:^
+        version: link:../../code-runtime/code-runtime
       '@aeven/llm':
         specifier: workspace:^
         version: link:../../llm/llm
+      '@aeven/mcp-client':
+        specifier: workspace:^
+        version: link:../../mcp/mcp-client
+      '@aeven/scope':
+        specifier: workspace:^
+        version: link:../scope
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../session
       '@aeven/system-prompt':
         specifier: workspace:^
         version: link:../system-prompt
@@ -5859,6 +5871,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
+      '@deepseek-ai/cordis-plugin-loader':
+        specifier: workspace:^
+        version: link:../../../vendor/loader
 
   packages/core/tools:
     dependencies:
@@ -8533,6 +8548,9 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
+      '@aeven/agent':
+        specifier: workspace:^
+        version: link:../../core/agent
       '@aeven/attachment':
         specifier: workspace:^
         version: link:../../attachment/attachment
@@ -11760,6 +11778,9 @@ importers:
       '@aeven/llm':
         specifier: workspace:^
         version: link:../../llm/llm
+      '@aeven/mcp-client':
+        specifier: workspace:^
+        version: link:../../mcp/mcp-client
       '@aeven/scope':
         specifier: workspace:^
         version: link:../../core/scope

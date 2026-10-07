@@ -5,7 +5,7 @@ description: Create, read, and edit Google Forms surveys, quizzes, and registrat
 
 # Google Forms
 
-Use the Google Drive connector's discovered `mcp__account_<id>__` tools. Google Forms API must be enabled in the OAuth application's Google Cloud project. The existing Drive authorization covers form edits and response reads; a separate connection is unnecessary.
+Use the Google Drive connector's discovered `mcp__google-drive_<id>__` tools. Google Forms API must be enabled in the OAuth application's Google Cloud project. The existing Drive authorization covers form edits and response reads; a separate connection is unnecessary.
 
 ## Tools
 

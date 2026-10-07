@@ -7,8 +7,8 @@
  */
 
 import type { ToolSchema } from '@aeven/llm'
-import { assertSupportedJsonSchema } from './json-schema.ts'
 import type { JsonSchemaNode, JsonSchemaScalar } from './json-schema.ts'
+import { projectRenderableSchema } from './schema-projection.ts'
 /** Internal PTC mode projection: the model-facing schema plus the canonical output schema. */
 export interface ToolSdkSchema extends ToolSchema {
   /** Validated canonical value returned by the tool binding. */
@@ -230,20 +230,17 @@ function renderSupportedSchema(schema: JsonSchemaNode, indent: number): TypeDocu
 }
 
 /**
- * Map one enforced JSON-Schema node to a TypeScript type literal. Supports
- * every unified schema construct and returns `unknown` for malformed or
- * unsupported inputs without throwing.
+ * Map one JSON-Schema node to a TypeScript type literal. A schema outside the
+ * enforced subset is first projected onto it node by node
+ * ({@link projectRenderableSchema}), so an unsupported construct widens only
+ * its own node to `JsonValue` and dropped constraints appear as doc hints.
+ * A value that is not a schema object renders `JsonValue`.
  * @param schema - the JSON-Schema node (any shape; hostile inputs degrade).
  * @param indent - the indentation level for nested object members.
  * @returns the TS type text (multi-line for objects with properties).
  */
 export function jsonSchemaToTs(schema: unknown, indent = 0): string {
-  try {
-    assertSupportedJsonSchema(schema)
-    return flattenTypeDocument(renderSupportedSchema(schema, indent))
-  } catch {
-    return 'unknown'
-  }
+  return flattenTypeDocument(renderSupportedSchema(projectRenderableSchema(schema), indent))
 }
 
 /** The fixed model-facing usage contract rendered above the declarations (see the PTC mode Agent Note's "What the model sees"). */
@@ -295,6 +292,18 @@ function renderBashExample(schemas: ToolSdkSchema[]): string {
  * @returns the complete section text.
  */
 export function renderToolsSdk(schemas: ToolSdkSchema[]): string {
+  return `${SDK_INSTRUCTIONS}${renderBashExample(schemas)}\n\n${SDK_PROGRAM_INSTRUCTIONS}\n\n${renderToolsSdkDeclarations(schemas)}`
+}
+
+/**
+ * Render only the fenced `declare const tools` block of {@link renderToolsSdk}
+ * for the given tools, for callers that deliver declarations separately from
+ * the usage instructions (a tool loaded on demand). Deterministic in the same
+ * lexicographic order.
+ * @param schemas - the tool schemas to declare.
+ * @returns the fenced TypeScript declaration block.
+ */
+export function renderToolsSdkDeclarations(schemas: ToolSdkSchema[]): string {
   const sorted = [...schemas].sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0)
   const argsMembers: string[] = []
   const outputMembers: string[] = []
@@ -313,5 +322,5 @@ export function renderToolsSdk(schemas: ToolSdkSchema[]): string {
     ['declare const tools: {', '  [K in ToolName]: (args: ToolArgsMap[K]) => Promise<ToolOutputMap[K]>;', '}'].join('\n'),
   ].join('\n\n')
   const jsonValue = 'type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue }'
-  return `${SDK_INSTRUCTIONS}${renderBashExample(sorted)}\n\n${SDK_PROGRAM_INSTRUCTIONS}\n\n\`\`\`ts\n${jsonValue}\n\n${declaration}\n\`\`\``
+  return `\`\`\`ts\n${jsonValue}\n\n${declaration}\n\`\`\``
 }

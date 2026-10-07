@@ -5,7 +5,8 @@ import BrowserChromium from '@aeven/browser-chromium'
 import { ToolCallId } from '@aeven/llm'
 import { Session, SessionId } from '@aeven/session'
 import SystemPrompt from '@aeven/system-prompt'
-import ToolRuntime from '@aeven/tools'
+import ToolRuntime, { defineTool } from '@aeven/tools'
+import type {} from '@aeven/mcp-client'
 import * as ToolBrowser from '@aeven/tool-browser'
 import type { BrowserAutomationRequestEvent, Config } from '@aeven/tool-browser'
 
@@ -35,6 +36,17 @@ async function mountHostBrowser(ctx: Context): Promise<void> {
     mcpServerName: 'chrome_devtools',
     launchOnStart: false,
   })
+}
+
+/** Register one tool under the Host browser's MCP prefix, as a connected chrome-devtools-mcp would. */
+function registerDevtoolsTool(ctx: Context): void {
+  ctx.tools.register(defineTool({
+    name: 'mcp__chrome_devtools__list_pages',
+    description: 'List pages.',
+    parameters: {},
+    output: { schema: { type: 'string' }, render: (_args: unknown, value: string) => [{ type: 'text' as const, text: value }] },
+    execute: () => Promise.resolve('[]'),
+  }))
 }
 
 /** Run one registered tool as `agent`, or without a calling agent when it is omitted. */
@@ -283,6 +295,7 @@ describe('tool-browser status report', () => {
   it('reports the Host browser when no page is open beside the session', async () => {
     const ctx = await mount()
     await mountHostBrowser(ctx)
+    registerDevtoolsTool(ctx)
 
     const report = reportOf(await call(ctx, 'preview_status', {}, sessionAgent()))
 
@@ -293,7 +306,35 @@ describe('tool-browser status report', () => {
       launchable: true,
       toolPrefix: 'mcp__chrome_devtools__',
     })
-    expect(report.nextStep).toContain('mcp__chrome_devtools__')
+    expect(report.nextStep).toContain('the mcp__chrome_devtools__* tools drive it')
+  })
+
+  it('says the Host browser tools are not serving when no server registered them', async () => {
+    const ctx = await mount()
+    await mountHostBrowser(ctx)
+
+    const report = reportOf(await call(ctx, 'preview_status', {}, sessionAgent()))
+
+    expect(report.hostBrowser).toMatchObject({ toolsUnavailable: 'no tool server for them is mounted' })
+    expect(report.nextStep).toContain('are not serving: no tool server for them is mounted')
+  })
+
+  it('names the failed server and how to restart it when its tools are missing', async () => {
+    const ctx = await mount()
+    await mountHostBrowser(ctx)
+    ctx.on('mcp/servers', async (_request, next) => [...await next(), {
+      serverName: 'chrome_devtools',
+      toolPrefix: 'mcp__chrome_devtools__',
+      state: 'failed' as const,
+      error: 'spawn npx ENOENT',
+      restart: () => Promise.resolve({ state: 'failed' as const }),
+    }])
+
+    const report = reportOf(await call(ctx, 'preview_status', {}, sessionAgent()))
+
+    expect(report.hostBrowser).toMatchObject({
+      toolsUnavailable: 'the chrome_devtools server is stopped (spawn npx ENOENT); tool_search "restart:chrome_devtools" connects it again',
+    })
   })
 
   it('reports the Host browser when the page lookup never answers', async () => {

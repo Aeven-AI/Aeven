@@ -1,6 +1,6 @@
 # Slack tool surface
 
-The surface belongs to Slack's own MCP server, which Aeven mounts once per connected workspace. The names are Slack's — they carry a `slack_` prefix inside the connector's `mcp__account_<id>__` namespace — so the catalog in front of the model is what names them, and this page describes what those names cover rather than fixing them.
+The surface belongs to Slack's own MCP server, which Aeven mounts once per connected workspace. The names are Slack's — they carry a `slack_` prefix inside the connector's `mcp__slack_<id>__` namespace — so the catalog in front of the model is what names them, and this page describes what those names cover rather than fixing them.
 
 ## Reading
 

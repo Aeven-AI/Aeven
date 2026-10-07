@@ -13,6 +13,7 @@ export type {
   CodeBindingNamespace,
   CodeJsonValue,
   CodeRunFailure,
+  CodeRunPauses,
   CodeRunRequest,
   CodeRunResult,
 } from './types.ts'

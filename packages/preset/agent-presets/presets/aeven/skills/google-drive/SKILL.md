@@ -7,7 +7,7 @@ description: Use connected Google Drive as the single entrypoint for Drive, Docs
 
 ## Aeven connector tools
 
-The connected Drive account exposes Drive, Docs, Sheets, Slides and Forms operations together. Discover its exact `mcp__account_<id>__` namespace in the tool catalog. Use the named tools for common operations and `workspace_schema` followed by `workspace_raw` for native Google API operations referenced below. Upstream `mcp__codex_apps__google_drive` names identify the equivalent operation, not an Aeven tool name. Do not call unavailable OpenAI runtime helpers; perform their read, mutation and verification steps through these tools.
+The connected Drive account exposes Drive, Docs, Sheets, Slides and Forms operations together. Discover its exact `mcp__google-drive_<id>__` namespace in the tool catalog. Use the named tools for common operations and `workspace_schema` followed by `workspace_raw` for native Google API operations referenced below. Upstream `mcp__codex_apps__google_drive` names identify the equivalent operation, not an Aeven tool name. Do not call unavailable OpenAI runtime helpers; perform their read, mutation and verification steps through these tools.
 
 Use the named tools exactly as discovered: `drive_search` accepts `{q, max, orderBy}` (for the latest file: `{q: "trashed = false", max: 1, orderBy: "modifiedTime desc"}`); `drive_get_file` accepts `{fileId}`. Their arguments are at the top level. Native `fields` and `pageSize` belong to `workspace_raw` API `params`, not to `drive_search`. Never copy upstream tool names or snake_case argument names into these calls.
 

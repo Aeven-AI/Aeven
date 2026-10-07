@@ -20,6 +20,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { Agent, PreStepDecision } from '@aeven/agent'
 import type { BrowserChromiumStatus } from '@aeven/browser-chromium'
+import type { McpServerReport } from '@aeven/mcp-client'
 import { createUserMessage, HarnessError } from '@aeven/llm'
 import { scopeTarget } from '@aeven/scope'
 import { deadline, MAX_TIMER_DELAY_MS, timeoutOf } from '@aeven/timeout'
@@ -112,6 +113,14 @@ type SessionTabLookup =
   | { readonly kind: 'unanswered' }
   | { readonly kind: 'failed'; readonly error: unknown }
 
+/** How the model reads one MCP server state. */
+const SERVER_STATE_TEXT: Record<McpServerReport['state'], string> = {
+  connecting: 'starting',
+  connected: 'connected',
+  retrying: 'reconnecting',
+  failed: 'stopped',
+}
+
 /** What the Host's Chromium reports, narrowed to the fields the model acts on. */
 type HostBrowserReport = {
   /** The debugging endpoint the tools that drive this browser attach to. */
@@ -122,6 +131,8 @@ type HostBrowserReport = {
   readonly launchable: boolean
   /** Prefix of the tool names that drive this browser; absent when no MCP server drives it. */
   readonly toolPrefix?: string
+  /** Why the tools under `toolPrefix` are not registered for this session; absent while they are. */
+  readonly toolsUnavailable?: string
 }
 
 /**
@@ -140,6 +151,9 @@ function nextStepFor(pageOpen: boolean, host: HostBrowserReport | null): string 
   }
   if (host.toolPrefix === undefined) {
     return `Nothing answers on ${host.browserUrl} and this deployment configures no tool server to drive a browser there. Ask the user to open the browser from the right sidebar (Browser).`
+  }
+  if (host.toolsUnavailable !== undefined) {
+    return `The Chromium on this Host is the browser the user can see and sign in to, but the ${host.toolPrefix}* tools that drive it are not serving: ${host.toolsUnavailable}. If they still do not connect, ask the user to open the browser from the right sidebar (Browser).`
   }
   if (!host.running && !host.launchable) {
     return `No Chrome or Chromium executable was found on this Host, so the browser behind ${host.browserUrl} cannot start. Ask the user to install one, or to open the browser from the right sidebar (Browser).`
@@ -201,16 +215,26 @@ export function apply(ctx: Context, config: Config): void {
    * @param signal - the tool call's cancellation.
    * @returns the fields the model acts on, or null when no `browserChromium` service is mounted.
    */
-  const readHostBrowser = async (signal: AbortSignal): Promise<HostBrowserReport | null> => {
+  const readHostBrowser = async (agent: Agent, signal: AbortSignal): Promise<HostBrowserReport | null> => {
     const chromium = ctx.get('browserChromium')
     if (chromium === undefined) return null
     const status: BrowserChromiumStatus = await chromium.status(signal)
-    return {
+    const report: HostBrowserReport = {
       browserUrl: status.browserUrl,
       running: status.running,
       launchable: status.launchable,
       ...status.toolPrefix === undefined ? {} : { toolPrefix: status.toolPrefix },
     }
+    const prefix = status.toolPrefix
+    if (prefix === undefined || ctx.tools.schemas(agent).some(tool => tool.name.startsWith(prefix))) return report
+    const servers = await ctx.waterfall(scopeTarget(agent, agent), 'mcp/servers', { agent }, () => Promise.resolve([]))
+    const server = servers.find(candidate => candidate.toolPrefix === prefix)
+    const toolsUnavailable = server === undefined
+      ? 'no tool server for them is mounted'
+      : server.state === 'connected'
+        ? `the ${server.serverName} server is connected but registered no tools for this session`
+        : `the ${server.serverName} server is ${SERVER_STATE_TEXT[server.state]}${server.error === undefined ? '' : ` (${server.error})`}; tool_search "restart:${server.serverName}" connects it again`
+    return { ...report, toolsUnavailable }
   }
 
   const run = async (
@@ -303,7 +327,7 @@ export function apply(ctx: Context, config: Config): void {
     async execute(_args, exec) {
       const lookup = await readSessionTab(callingAgent(exec), exec.signal)
       const page = lookup.kind === 'page' ? asSessionTabPage(lookup.page) : null
-      const host = await readHostBrowser(exec.signal)
+      const host = await readHostBrowser(callingAgent(exec), exec.signal)
       const report: { [key: string]: JsonValue } = {
         sessionTab: page,
         hostBrowser: host === null ? null : { ...host },

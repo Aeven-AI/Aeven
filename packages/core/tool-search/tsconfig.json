@@ -25,6 +25,18 @@
     },
     {
       "path": "../tools"
+    },
+    {
+      "path": "../../code-runtime/code-runtime"
+    },
+    {
+      "path": "../../mcp/mcp-client"
+    },
+    {
+      "path": "../scope"
+    },
+    {
+      "path": "../session"
     }
   ]
 }

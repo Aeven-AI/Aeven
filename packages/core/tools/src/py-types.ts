@@ -14,7 +14,7 @@
  * @module @aeven/tools/src/py-types
  */
 
-import { assertSupportedJsonSchema } from './json-schema.ts'
+import { projectRenderableSchema } from './schema-projection.ts'
 import type { JsonSchemaNode, JsonSchemaScalar } from './json-schema.ts'
 import type { ToolSdkSchema } from './ts-types.ts'
 
@@ -472,15 +472,15 @@ function renderConstrainedScalar(node: JsonSchemaNode, broad: string, state: Ren
  * needs. `className` is the name to give an object node with properties (and
  * the prefix for its nested objects). Handles every unified schema construct —
  * `oneOf` (→ `X | Y`), `const`/`enum` (→ `Literal[...]`), `integer` (→ `int`),
- * `null` (→ `None`) — and degrades an unsupported or malformed schema to `Any`
- * without throwing, the same trusted-after-validation stance as the sibling
+ * `null` (→ `None`) — and widens each unsupported or malformed node to `Any`
+ * without throwing, the same projected-then-trusted stance as the sibling
  * {@link ./ts-types.ts | ts-types} renderer. {@link jsonSchemaToPy} is the
  * context-free entry point; this is the collecting core.
  */
 function renderType(schema: unknown, className: string, state: RenderState): string {
   interface Frame {
-    // A validated JSON-schema node past the root `assertSupportedJsonSchema`
-    // (the root frame's schema is asserted before any frame is built), so the
+    // A subset JSON-schema node produced by the root `projectRenderableSchema`
+    // (the root frame's schema is projected before any frame is built), so the
     // walk reads its fields without casts — the same typed-frame shape as the
     // sibling ts-types renderer.
     schema: JsonSchemaNode
@@ -498,217 +498,204 @@ function renderType(schema: unknown, className: string, state: RenderState): str
   }
   const newFrame = (schema: JsonSchemaNode, className: string, listDepth: number): Frame =>
     ({ schema, className, phase: 'start', listDepth, children: [], childIndex: 0, childTypes: [], entries: [] })
-  try {
-    // Validate the WHOLE tree once, then trust it — the same contract the
-    // sibling ts-types renderer follows at a typed same-process boundary. Every
-    // node past this point is a validated JSON-schema node, so the walk reads
-    // its fields without re-checking. An unsupported or malformed schema throws
-    // here (before anything is emitted) and degrades to `Any`, the Python
-    // counterpart of the TS flavor's `unknown`.
-    assertSupportedJsonSchema(schema)
-    const frames: Frame[] = [newFrame(schema, className, 0)]
-    let result: string | undefined
-    /* jscpd:ignore-start -- the explicit-stack walk skeleton deliberately parallels
-       ts-types.ts's renderSupportedSchema; the two sibling renderers keep symmetric shapes. */
-    const finish = (type: string): void => {
-      frames.pop()
-      const parent = frames.at(-1)
-      if (parent === undefined) result = type
-      else parent.childTypes.push(type)
+  // Project the WHOLE tree onto the enforced subset once, then trust it — the
+  // same contract the sibling ts-types renderer follows. An unsupported node
+  // widens to `Any` on its own instead of the whole schema.
+  const frames: Frame[] = [newFrame(projectRenderableSchema(schema), className, 0)]
+  let result: string | undefined
+  /* jscpd:ignore-start -- the explicit-stack walk skeleton deliberately parallels
+     ts-types.ts's renderSupportedSchema; the two sibling renderers keep symmetric shapes. */
+  const finish = (type: string): void => {
+    frames.pop()
+    const parent = frames.at(-1)
+    if (parent === undefined) result = type
+    else parent.childTypes.push(type)
+  }
+
+  while (frames.length > 0) {
+    const frame = frames.at(-1)
+    /* v8 ignore next -- the loop condition guarantees a current frame. */
+    if (frame === undefined) break
+
+    if (frame.phase === 'children') {
+      if (frame.childIndex < frame.children.length) {
+        const child = frame.children[frame.childIndex]
+        /* v8 ignore next -- childIndex is bounded by children.length. */
+        if (child === undefined) throw new Error('missing python render child')
+        frame.childIndex++
+        frames.push(newFrame(child.schema, child.className, child.listDepth))
+        continue
+      }
+      if (frame.kind === 'oneOf') {
+        // Concatenate incrementally (template literal, not `Array.join`): V8
+        // builds a lazy ConsString, so a deep oneOf chain materializes once
+        // at the root instead of re-materializing the accumulated string at
+        // every level (which `join` would, making it Θ(depth²)). This matches
+        // the array arm's template-literal laziness and ts-types' composable-
+        // document approach — the whole walk stays linear in schema depth.
+        let union = ''
+        for (const [index, childType] of frame.childTypes.entries()) {
+          union = index === 0 ? childType : `${union} | ${childType}`
+        }
+        finish(union)
+        continue
+      }
+      /* jscpd:ignore-end */
+      if (frame.kind === 'array') {
+        // `list[A | B]` needs no parentheses in Python. Array frames always
+        // schedule exactly one child, so its type is present.
+        /* v8 ignore next -- the ?? arm needs a childless array frame, which start never builds. */
+        finish(`list[${frame.childTypes[0] ?? 'Any'}]`)
+        continue
+      }
+      // typeddict: assemble AFTER the children so any nested class this one
+      // references is already declared (declaration order = reference order).
+      const node = frame.node
+      const name = frame.allocated
+      /* v8 ignore next -- typeddict frames always set node and allocated at start. */
+      if (node === undefined || name === undefined) throw new Error('missing typeddict frame state')
+      const required = new Set(node.required)
+      const lines = [`class ${name}(TypedDict):`]
+      for (let index = 0; index < frame.entries.length; index++) {
+        const entry = frame.entries[index]
+        const fieldType = frame.childTypes[index]
+        /* v8 ignore next -- entries and childTypes correspond one-to-one. */
+        if (entry === undefined || fieldType === undefined) throw new Error('missing typeddict field type')
+        const [field, fieldSchema] = entry
+        // The parent node is a projected subset node, so every property
+        // value is a validated schema node.
+        const description = describe(fieldSchema)
+        if (description !== undefined) lines.push(`${pad(1)}# ${description}`)
+        if (required.has(field)) {
+          lines.push(`${pad(1)}${field}: ${fieldType}`)
+        } else {
+          state.typing.add('NotRequired')
+          lines.push(`${pad(1)}${field}: NotRequired[${fieldType}]`)
+        }
+      }
+      // TypedDict syntax cannot express openness, so an open object states it
+      // in-band: the annotation is advisory either way, and `mode: 'ptc'`
+      // omits the native schemas, making this line the model's only signal
+      // that extra keys are accepted.
+      if (node.additionalProperties !== false) {
+        lines.push(`${pad(1)}# Additional keys beyond those declared are allowed.`)
+      }
+      // A closed empty object still needs a class body (`pass`) to be valid
+      // Python; the declared emptiness is the information.
+      if (lines.length === 1) lines.push(`${pad(1)}pass`)
+      state.classes.push(lines.join('\n'))
+      finish(name)
+      continue
     }
 
-    while (frames.length > 0) {
-      const frame = frames.at(-1)
-      /* v8 ignore next -- the loop condition guarantees a current frame. */
-      if (frame === undefined) break
-
-      if (frame.phase === 'children') {
-        if (frame.childIndex < frame.children.length) {
-          const child = frame.children[frame.childIndex]
-          /* v8 ignore next -- childIndex is bounded by children.length. */
-          if (child === undefined) throw new Error('missing python render child')
-          frame.childIndex++
-          frames.push(newFrame(child.schema, child.className, child.listDepth))
-          continue
-        }
-        if (frame.kind === 'oneOf') {
-          // Concatenate incrementally (template literal, not `Array.join`): V8
-          // builds a lazy ConsString, so a deep oneOf chain materializes once
-          // at the root instead of re-materializing the accumulated string at
-          // every level (which `join` would, making it Θ(depth²)). This matches
-          // the array arm's template-literal laziness and ts-types' composable-
-          // document approach — the whole walk stays linear in schema depth.
-          let union = ''
-          for (const [index, childType] of frame.childTypes.entries()) {
-            union = index === 0 ? childType : `${union} | ${childType}`
-          }
-          finish(union)
-          continue
-        }
-        /* jscpd:ignore-end */
-        if (frame.kind === 'array') {
-          // `list[A | B]` needs no parentheses in Python. Array frames always
-          // schedule exactly one child, so its type is present.
-          /* v8 ignore next -- the ?? arm needs a childless array frame, which start never builds. */
-          finish(`list[${frame.childTypes[0] ?? 'Any'}]`)
-          continue
-        }
-        // typeddict: assemble AFTER the children so any nested class this one
-        // references is already declared (declaration order = reference order).
-        const node = frame.node
-        const name = frame.allocated
-        /* v8 ignore next -- typeddict frames always set node and allocated at start. */
-        if (node === undefined || name === undefined) throw new Error('missing typeddict frame state')
-        const required = new Set(node.required)
-        const lines = [`class ${name}(TypedDict):`]
-        for (let index = 0; index < frame.entries.length; index++) {
-          const entry = frame.entries[index]
-          const fieldType = frame.childTypes[index]
-          /* v8 ignore next -- entries and childTypes correspond one-to-one. */
-          if (entry === undefined || fieldType === undefined) throw new Error('missing typeddict field type')
-          const [field, fieldSchema] = entry
-          // The parent node passed assertSupportedJsonSchema, so every property
-          // value is a validated schema node.
-          const description = describe(fieldSchema)
-          if (description !== undefined) lines.push(`${pad(1)}# ${description}`)
-          if (required.has(field)) {
-            lines.push(`${pad(1)}${field}: ${fieldType}`)
-          } else {
-            state.typing.add('NotRequired')
-            lines.push(`${pad(1)}${field}: NotRequired[${fieldType}]`)
-          }
-        }
-        // TypedDict syntax cannot express openness, so an open object states it
-        // in-band: the annotation is advisory either way, and `mode: 'ptc'`
-        // omits the native schemas, making this line the model's only signal
-        // that extra keys are accepted.
-        if (node.additionalProperties !== false) {
-          lines.push(`${pad(1)}# Additional keys beyond those declared are allowed.`)
-        }
-        // A closed empty object still needs a class body (`pass`) to be valid
-        // Python; the declared emptiness is the information.
-        if (lines.length === 1) lines.push(`${pad(1)}pass`)
-        state.classes.push(lines.join('\n'))
-        finish(name)
-        continue
-      }
-
-      frame.phase = 'children'
-      const node = frame.schema
-      if (node.oneOf !== undefined) {
-        frame.kind = 'oneOf'
-        // A union renders as `A | B` — no brackets of its own, so the branches
-        // inherit the enclosing depth unchanged.
-        //
-        // Union LENGTH is deliberately uncapped, unlike list nesting. The two
-        // limits are different in kind: >200 open brackets is a SyntaxError
-        // from the tokenizer, so the text is not Python; a long `A | B | …`
-        // chain is grammatically valid at any length and only defeats CPython's
-        // C-recursion when `compile()` walks the left-nested BinOp spine
-        // (measured: 1,000 branches compile, 5,000 raise RecursionError). This
-        // block is prompt text — nothing compiles it — so that limit costs
-        // nothing here, while capping would retire the deep-chain tests that
-        // pin the walk's linear time and the class-name propagation cap. The
-        // standard this renderer holds is grammatical validity, not
-        // compilability under one interpreter's stack.
-        frame.children = node.oneOf.map((branch, index) => ({ schema: branch, className: childClassName(frame.className, `${index + 1}`), listDepth: frame.listDepth }))
-        continue
-      }
-      if (node.type === undefined) {
-        state.typing.add('Any')
-        finish('Any')
-        continue
-      }
-      switch (node.type) {
-        case 'string': finish(renderConstrainedScalar(node, 'str', state)); break
-        case 'number': finish(renderConstrainedScalar(node, 'float', state)); break
-        case 'integer': finish(renderConstrainedScalar(node, 'int', state)); break
-        case 'boolean': finish(renderConstrainedScalar(node, 'bool', state)); break
-        case 'null': finish('None'); break
-        case 'array': {
-          if (node.items === undefined) {
-            state.typing.add('Any')
-            finish('list[Any]')
-            break
-          }
-          // Past MAX_LIST_NESTING another `list[` would push the annotation
-          // beyond CPython's open-bracket limit and make the whole SDK block
-          // unparseable, so the chain degrades here instead — an unusable
-          // annotation either way, and this one is valid Python.
-          if (frame.listDepth >= MAX_LIST_NESTING) {
-            state.typing.add('Any')
-            finish('Any')
-            break
-          }
-          // An array of objects names its item type after the array field.
-          frame.kind = 'array'
-          frame.children = [{ schema: node.items, className: frame.className, listDepth: frame.listDepth + 1 }]
+    frame.phase = 'children'
+    const node = frame.schema
+    if (node.oneOf !== undefined) {
+      frame.kind = 'oneOf'
+      // A union renders as `A | B` — no brackets of its own, so the branches
+      // inherit the enclosing depth unchanged.
+      //
+      // Union LENGTH is deliberately uncapped, unlike list nesting. The two
+      // limits are different in kind: >200 open brackets is a SyntaxError
+      // from the tokenizer, so the text is not Python; a long `A | B | …`
+      // chain is grammatically valid at any length and only defeats CPython's
+      // C-recursion when `compile()` walks the left-nested BinOp spine
+      // (measured: 1,000 branches compile, 5,000 raise RecursionError). This
+      // block is prompt text — nothing compiles it — so that limit costs
+      // nothing here, while capping would retire the deep-chain tests that
+      // pin the walk's linear time and the class-name propagation cap. The
+      // standard this renderer holds is grammatical validity, not
+      // compilability under one interpreter's stack.
+      frame.children = node.oneOf.map((branch, index) => ({ schema: branch, className: childClassName(frame.className, `${index + 1}`), listDepth: frame.listDepth }))
+      continue
+    }
+    if (node.type === undefined) {
+      state.typing.add('Any')
+      finish('Any')
+      continue
+    }
+    switch (node.type) {
+      case 'string': finish(renderConstrainedScalar(node, 'str', state)); break
+      case 'number': finish(renderConstrainedScalar(node, 'float', state)); break
+      case 'integer': finish(renderConstrainedScalar(node, 'int', state)); break
+      case 'boolean': finish(renderConstrainedScalar(node, 'bool', state)); break
+      case 'null': finish('None'); break
+      case 'array': {
+        if (node.items === undefined) {
+          state.typing.add('Any')
+          finish('list[Any]')
           break
         }
-        case 'object': {
-          // A missing `properties` is an empty property map, exactly as the
-          // unified validator and the TS renderer read it — NOT an unknown
-          // shape. The openness of the resulting empty object is decided below,
-          // so a closed empty object still declares an empty TypedDict rather
-          // than a permissive `dict[str, Any]`.
-          const entries = Object.entries(node.properties ?? {})
-          // An empty `className` marks the context-free `jsonSchemaToPy` entry:
-          // there is no naming context to declare into, so degrade. This reads
-          // the CALL's className, not `frame.className`: the marker belongs to
-          // the whole walk, and frames propagate a derived name (a `oneOf`
-          // branch of the context-free root gets the index-derived name `1` —
-          // `childClassName` concatenates and caps, it does not go through
-          // `camelCase`), so a per-frame read would declare classes the caller
-          // has no way to receive, under a name that is not even a legal
-          // identifier: `class 1(TypedDict):`. A field
-          // name that is not a legal Python attribute is inexpressible as a
-          // class-syntax `TypedDict` field, so such an object degrades whole.
-          // A leading-double-underscore non-dunder field (`__token`) would be
-          // NAME-MANGLED inside class syntax (`_ClassName__token`), describing a
-          // different JSON key than the registered schema — degrade like any
-          // other inexpressible field name.
-          if (className === '' || !entries.every(([name]) => isBareIdentifier(name) && !RESERVED.has(name) && !(name.startsWith('__') && !name.endsWith('__')))) {
-            state.typing.add('Any')
-            finish('dict[str, Any]')
-            break
-          }
-          // An OPEN empty object is any dict; a CLOSED empty object declares an
-          // empty TypedDict so "no keys accepted" survives into the SDK.
-          if (entries.length === 0 && node.additionalProperties !== false) {
-            state.typing.add('Any')
-            finish('dict[str, Any]')
-            break
-          }
-          frame.kind = 'typeddict'
-          frame.node = node
-          frame.allocated = allocateClassName(frame.className, state)
-          state.typing.add('TypedDict')
-          frame.entries = entries
-          // A field annotation is its own logical line, so nesting restarts —
-          // at 1, reserving the bracket an optional field's `NotRequired[…]`
-          // wraps around it. frame.allocated was assigned three statements up;
-          // the ?? arm is for the type system only.
-          /* v8 ignore next -- allocated is always set before children are built. */
-          frame.children = entries.map(([field, child]) => ({ schema: child, className: childClassName(frame.allocated ?? '', camelCase(field)), listDepth: 1 }))
-          break
-        }
-        /* v8 ignore next 4 -- assertSupportedJsonSchema narrowed this closed type union. */
-        default: {
+        // Past MAX_LIST_NESTING another `list[` would push the annotation
+        // beyond CPython's open-bracket limit and make the whole SDK block
+        // unparseable, so the chain degrades here instead — an unusable
+        // annotation either way, and this one is valid Python.
+        if (frame.listDepth >= MAX_LIST_NESTING) {
           state.typing.add('Any')
           finish('Any')
+          break
         }
+        // An array of objects names its item type after the array field.
+        frame.kind = 'array'
+        frame.children = [{ schema: node.items, className: frame.className, listDepth: frame.listDepth + 1 }]
+        break
+      }
+      case 'object': {
+        // A missing `properties` is an empty property map, exactly as the
+        // unified validator and the TS renderer read it — NOT an unknown
+        // shape. The openness of the resulting empty object is decided below,
+        // so a closed empty object still declares an empty TypedDict rather
+        // than a permissive `dict[str, Any]`.
+        const entries = Object.entries(node.properties ?? {})
+        // An empty `className` marks the context-free `jsonSchemaToPy` entry:
+        // there is no naming context to declare into, so degrade. This reads
+        // the CALL's className, not `frame.className`: the marker belongs to
+        // the whole walk, and frames propagate a derived name (a `oneOf`
+        // branch of the context-free root gets the index-derived name `1` —
+        // `childClassName` concatenates and caps, it does not go through
+        // `camelCase`), so a per-frame read would declare classes the caller
+        // has no way to receive, under a name that is not even a legal
+        // identifier: `class 1(TypedDict):`. A field
+        // name that is not a legal Python attribute is inexpressible as a
+        // class-syntax `TypedDict` field, so such an object degrades whole.
+        // A leading-double-underscore non-dunder field (`__token`) would be
+        // NAME-MANGLED inside class syntax (`_ClassName__token`), describing a
+        // different JSON key than the registered schema — degrade like any
+        // other inexpressible field name.
+        if (className === '' || !entries.every(([name]) => isBareIdentifier(name) && !RESERVED.has(name) && !(name.startsWith('__') && !name.endsWith('__')))) {
+          state.typing.add('Any')
+          finish('dict[str, Any]')
+          break
+        }
+        // An OPEN empty object is any dict; a CLOSED empty object declares an
+        // empty TypedDict so "no keys accepted" survives into the SDK.
+        if (entries.length === 0 && node.additionalProperties !== false) {
+          state.typing.add('Any')
+          finish('dict[str, Any]')
+          break
+        }
+        frame.kind = 'typeddict'
+        frame.node = node
+        frame.allocated = allocateClassName(frame.className, state)
+        state.typing.add('TypedDict')
+        frame.entries = entries
+        // A field annotation is its own logical line, so nesting restarts —
+        // at 1, reserving the bracket an optional field's `NotRequired[…]`
+        // wraps around it. frame.allocated was assigned three statements up;
+        // the ?? arm is for the type system only.
+        /* v8 ignore next -- allocated is always set before children are built. */
+        frame.children = entries.map(([field, child]) => ({ schema: child, className: childClassName(frame.allocated ?? '', camelCase(field)), listDepth: 1 }))
+        break
+      }
+      /* v8 ignore next 4 -- projectRenderableSchema emits only this closed type union. */
+      default: {
+        state.typing.add('Any')
+        finish('Any')
       }
     }
-    /* v8 ignore next -- every root frame produces one expression. */
-    return result ?? 'Any'
-  } catch {
-    // An unsupported or malformed schema failed validation (before any
-    // emission), or an unreachable internal invariant tripped. Either degrades
-    // the node to `Any` rather than crashing prompt assembly — the Python
-    // counterpart of the TS flavor's `unknown` fallback.
-    state.typing.add('Any')
-    return 'Any'
   }
+  /* v8 ignore next -- every root frame produces one expression. */
+  return result ?? 'Any'
 }
 
 /**
@@ -761,6 +748,17 @@ The available tools:`
  * @returns the complete section text.
  */
 export function renderToolsSdkPy(schemas: ToolSdkSchema[]): string {
+  return `${SDK_INSTRUCTIONS}\n\n${renderToolsSdkPyDeclarations(schemas)}`
+}
+
+/**
+ * Render only the fenced stub block of {@link renderToolsSdkPy} for the given
+ * tools, for callers that deliver declarations separately from the usage
+ * instructions (a tool loaded on demand). Deterministic in the same order.
+ * @param schemas - the tool schemas plus canonical output schemas to declare.
+ * @returns the fenced Python stub block.
+ */
+export function renderToolsSdkPyDeclarations(schemas: ToolSdkSchema[]): string {
   const sorted = [...schemas].sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0)
   const state: RenderState = { classes: [], usedClassNames: new Set(), nextClassCounter: new Map(), typing: new Set(['Protocol']) }
   // ONE ordered member stream, matching the documented lexicographic contract
@@ -814,5 +812,5 @@ export function renderToolsSdkPy(schemas: ToolSdkSchema[]): string {
   const classBlock = state.classes.length > 0 ? `${state.classes.join('\n\n')}\n\n` : ''
   const errorDeclaration = 'class ToolCallError(Exception):\n    toolName: str'
   const declaration = `from typing import ${imports.join(', ')}\n\n${errorDeclaration}\n\n${classBlock}class Tools(Protocol):\n${body}\n\ntools: Tools`
-  return `${SDK_INSTRUCTIONS}\n\n\`\`\`python\n${declaration}\n\`\`\``
+  return `\`\`\`python\n${declaration}\n\`\`\``
 }

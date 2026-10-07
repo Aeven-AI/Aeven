@@ -61,7 +61,7 @@ describe('jsonSchemaToTs', () => {
     ].join('\n'))
   })
 
-  it('is total: unsupported or hostile constructs degrade to unknown, never throw', () => {
+  it('is total: unsupported or hostile constructs widen only their own node, never throw', () => {
     const cases: unknown[] = [
       undefined,
       null,
@@ -77,13 +77,15 @@ describe('jsonSchemaToTs', () => {
     for (const schema of cases) {
       expect(() => jsonSchemaToTs(schema), JSON.stringify(schema)).not.toThrow()
     }
-    expect(jsonSchemaToTs({ oneOf: [] })).toBe('unknown')
-    expect(jsonSchemaToTs({ type: 'object', properties: 7 })).toBe('unknown')
-    expect(jsonSchemaToTs({ type: 'object', properties: { bad: { $ref: 'x' } }, required: ['bad'] })).toBe('unknown')
-    expect(jsonSchemaToTs({ type: 'string', enum: [1, 2] })).toBe('unknown')
-    expect(jsonSchemaToTs({ type: 'string', enum: [] })).toBe('unknown')
-    expect(jsonSchemaToTs({ type: 'object', properties: { a: { type: 'string' } }, required: [7] })).toBe('unknown')
-    expect(jsonSchemaToTs({ type: 'object', properties: { weird: 42 } })).toBe('unknown')
+    expect(jsonSchemaToTs({ oneOf: [] })).toBe('JsonValue')
+    expect(jsonSchemaToTs({ type: 'object', properties: 7 })).toBe('Record<string, JsonValue>')
+    expect(jsonSchemaToTs({ type: 'object', properties: { bad: { $ref: 'x' } }, required: ['bad'] }))
+      .toBe('{\n  bad: JsonValue;\n} & Record<string, JsonValue>')
+    expect(jsonSchemaToTs({ type: 'string', enum: [1, 2] })).toBe('string')
+    expect(jsonSchemaToTs({ type: 'string', enum: [] })).toBe('string')
+    expect(jsonSchemaToTs({ type: 'object', properties: { a: { type: 'string' } }, required: [7] }))
+      .toBe('{\n  a?: string;\n} & Record<string, JsonValue>')
+    expect(jsonSchemaToTs({ type: 'object', properties: { weird: 42 } })).toBe('{\n  weird?: JsonValue;\n} & Record<string, JsonValue>')
   })
 
   it('escapes a comment-closer inside a description so the generated JSDoc cannot end early', () => {

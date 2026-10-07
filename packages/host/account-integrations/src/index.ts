@@ -223,7 +223,7 @@ function telegramSettings(value: TelegramIdentityLike): TelegramConnectorSetting
 
 /**
  * Connector id of one Telegram account of one user, the same for every sign-in of that account, so the
- * account's tool names (`mcp__account_<id prefix>__…`) survive signing it in again.
+ * account's tool names (`mcp__<provider>_<id prefix>__…`) survive signing it in again.
  * @param owner - Aeven account that signs the Telegram account in.
  * @param userId - Telegram user id.
  * @returns a UUID-formatted id derived from both.
@@ -280,7 +280,7 @@ function slackSettings(value: NonNullable<z.infer<typeof connectorSchema>['slack
 
 /**
  * Connector id of one Discord guild of one user, the same for every install into that guild, so the
- * guild's tool names (`mcp__account_<id prefix>__…`) survive installing it again.
+ * guild's tool names (`mcp__<provider>_<id prefix>__…`) survive installing it again.
  * @param owner - Aeven account that installed the Aeven bot into the guild.
  * @param guildId - Discord guild id.
  * @returns a UUID-formatted id derived from both.
@@ -303,6 +303,28 @@ const connectorSkills: Record<ConnectorProvider, readonly string[]> = {
   'google-drive': ['google-drive', 'google-docs', 'google-sheets', 'google-slides', 'google-drive-comments', 'google-forms'],
   gmail: ['gmail'], 'google-calendar': ['google-calendar'], github: ['github'], outlook: ['outlook'], 'outlook-calendar': ['outlook-calendar'], onedrive: ['onedrive'], sharepoint: ['sharepoint'], teams: ['teams'], mcp: [], email: [], whatsapp: ['whatsapp'], telegram: ['telegram'],
   discord: ['discord'], slack: ['slack'],
+}
+
+/** Provider names the model's tool index shows beside each connector's own name. */
+const providerTitles: Record<ConnectorProvider, string> = {
+  github: 'GitHub', gmail: 'Gmail', 'google-drive': 'Google Drive', 'google-calendar': 'Google Calendar', outlook: 'Outlook mail',
+  'outlook-calendar': 'Outlook Calendar', onedrive: 'OneDrive', sharepoint: 'SharePoint', teams: 'Microsoft Teams', mcp: 'MCP server',
+  email: 'Email', whatsapp: 'WhatsApp', telegram: 'Telegram', discord: 'Discord', slack: 'Slack',
+}
+
+/** Connector tool names: `mcp__<provider>_<first 8 hex digits of the connector id>__<tool>`. */
+const CONNECTOR_TOOL_NAME = /^mcp__([a-z-]+)_([a-f0-9]{8})__/
+
+/**
+ * MCP server name of one connector. The provider makes its tools readable in the
+ * model's index; the id prefix keeps two accounts of one provider apart, and a
+ * derived id (Telegram, Discord) keeps the names across signing in again.
+ * @param id - the connector id.
+ * @param provider - the connector's provider.
+ * @returns the server name, at most 26 characters.
+ */
+function connectorServerName(id: string, provider: ConnectorProvider): string {
+  return `${provider}_${id.replaceAll('-', '').slice(0, 8)}`
 }
 
 /** WhatsApp tools that only read the cache or the account; every other tool acts visibly and asks first. */
@@ -594,9 +616,10 @@ export default class AccountIntegrations extends TypertRemoteService {
       return next()
     })
     this.ctx.on('tools/pre-execute', async (exec, next) => {
-      const match = /^mcp__account_([a-f0-9]{24})__/.exec(exec.name)
+      const match = CONNECTOR_TOOL_NAME.exec(exec.name)
       if (match !== null) {
-        const connector = [...this.domain.table('connectors').entries()].find(([id]) => id.replaceAll('-', '').slice(0, 24) === match[1])?.[1]
+        const connector = [...this.domain.table('connectors').entries()]
+          .find(([id, candidate]) => candidate.provider === match[1] && connectorServerName(id, candidate.provider) === `${match[1]}_${match[2]}`)?.[1]
         if (connector === undefined) {
           return { kind: 'deny', reason: 'This connector no longer exists: its account was unlinked. Search the tool catalog for the tools of the account that replaced it.' }
         }
@@ -631,7 +654,7 @@ export default class AccountIntegrations extends TypertRemoteService {
         }
         const microsoft = microsoftService(connector.provider)
         if (microsoft !== undefined) {
-          const serverName = `account_${connector.id.replaceAll('-', '').slice(0, 24)}`
+          const serverName = connectorServerName(connector.id, connector.provider)
           if (microsoft.read.some(tool => publicToolName(serverName, tool) === exec.name)) return next()
           if (microsoft.write.some(tool => publicToolName(serverName, tool) === exec.name)) {
             return { kind: 'ask', reason: 'Approve this change through your connected Microsoft account.' }
@@ -2108,17 +2131,18 @@ export default class AccountIntegrations extends TypertRemoteService {
       const existing = mounts.get(id)
       if (existing?.key === key) continue
       if (existing !== undefined) { await existing.fiber.dispose(); mounts.delete(id) }
-      const serverName = `account_${id.replaceAll('-', '').slice(0, 24)}`
+      const serverName = connectorServerName(id, connector.provider)
+      const title = `${providerTitles[connector.provider]} (${connector.name})`
       const fiber = owned.scope.ctx.plugin(mcp, stdio !== undefined ? {
-        transport: 'stdio', serverName, command: stdio.command, args: stdio.args, env: stdio.env,
+        transport: 'stdio', serverName, title, command: stdio.command, args: stdio.args, env: stdio.env,
         toolCallTimeoutMs: this.config.timeoutMs, failOnStartupError: true, reconnect: { enabled: false },
       } : microsoft !== undefined ? { ...await microsoftConnection(connector.provider, token,
-        avnHomePath('accounts', accountDirectory(owner), 'connectors', id), this.config.timeoutMs), serverName } : google === undefined ? {
-        transport: 'streamable-http', serverName,
+        avnHomePath('accounts', accountDirectory(owner), 'connectors', id), this.config.timeoutMs), serverName, title } : google === undefined ? {
+        transport: 'streamable-http', serverName, title,
         url, headers: token === '' ? {} : { Authorization: `Bearer ${token}` },
         toolCallTimeoutMs: this.config.timeoutMs, failOnStartupError: true, reconnect: { enabled: false },
       } : { ...await googleConnection(connector.provider, token,
-        avnHomePath('accounts', accountDirectory(owner), 'connectors', id), this.config.timeoutMs), serverName })
+        avnHomePath('accounts', accountDirectory(owner), 'connectors', id), this.config.timeoutMs), serverName, title })
       try {
         await fiber
       } catch (error) {

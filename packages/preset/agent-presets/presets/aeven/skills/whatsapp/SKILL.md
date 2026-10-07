@@ -5,7 +5,7 @@ description: Read, search, and send WhatsApp messages, media, reactions, and gro
 
 # WhatsApp
 
-Use the current tool catalog to find the linked WhatsApp tools named `mcp__account_<id>__<tool>`; each linked number has its own `<id>` and its own set of tools. If no WhatsApp tools are available, ask the user to link a number in Settings → Connectors → WhatsApp.
+Use the current tool catalog to find the linked WhatsApp tools named `mcp__whatsapp_<id>__<tool>`; each linked number has its own `<id>` and its own set of tools. If no WhatsApp tools are available, ask the user to link a number in Settings → Connectors → WhatsApp.
 
 When more than one number is linked, call each connection's `get_status` and use `own_phone` to tell them apart. Use the number the user names; ask which one to use when the request does not make it clear. Never mix tools from different numbers in one conversation thread.
 

@@ -5,7 +5,7 @@ description: Use the connected Slack workspaces to find messages, files, channel
 
 # Slack
 
-Each connected workspace has its own tools, named `mcp__account_<id>__<tool>`; one `<id>` belongs to exactly one workspace. When no Slack tools are available, ask the user to connect a workspace in Settings → Connectors → Slack.
+Each connected workspace has its own tools, named `mcp__slack_<id>__<tool>`; one `<id>` belongs to exactly one workspace. When no Slack tools are available, ask the user to connect a workspace in Settings → Connectors → Slack.
 
 Identify the workspace before acting. A connection whose `<id>` is not yet familiar is worth one read that names the workspace, and the name is matched against the one the user named. When several workspaces are connected and the request does not say which, ask. Never carry a channel, message, or member id from one workspace to another: every id is scoped to the workspace it came from.
 

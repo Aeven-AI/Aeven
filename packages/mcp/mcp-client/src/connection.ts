@@ -95,6 +95,24 @@ export interface ConnectionOutcome {
   error?: unknown
 }
 
+/**
+ * Where one server's supervised connection stands. `connecting`: an attempt is
+ * in flight. `connected`: the server is up and its tools are registered.
+ * `retrying`: an attempt failed or the connection dropped, and the next attempt
+ * is scheduled. `failed`: the supervisor stopped trying (attempts exhausted,
+ * reconnect disabled, or a failed generation would not close) and only
+ * {@link ConnectionHandle.restart} or a plugin reload starts it again.
+ */
+export type ConnectionState = 'connecting' | 'connected' | 'retrying' | 'failed'
+
+/** Snapshot of one server's connection for diagnostics and model-facing status. */
+export interface ConnectionStatus {
+  /** Current supervisor state. */
+  state: ConnectionState
+  /** The most recent attempt or connection error, while the server is not connected. */
+  error?: string
+}
+
 /** Handle for one plugin instance's supervised connection. */
 export interface ConnectionHandle {
   /**
@@ -103,6 +121,14 @@ export interface ConnectionHandle {
    * whether a failed startup is fatal via `failOnStartupError`.
    */
   ready: Promise<ConnectionOutcome>
+  /** Current connection state and the last error while down. */
+  status(): ConnectionStatus
+  /**
+   * Connect now with a fresh attempt budget: cancels a scheduled retry, or
+   * starts a `failed` supervisor again. A connected or connecting server is
+   * left alone. Resolves when that attempt settles; never rejects.
+   */
+  restart(): Promise<ConnectionStatus>
   /**
    * Stop reconnection, close the live client, wait for the in-flight attempt
    * and queued tool syncs to quiesce, then unregister every tool this server
@@ -149,6 +175,9 @@ export function startConnection(ctx: Context, config: Config, policy: ResolvedRe
   let connectedAt: number | undefined
   /** The real error from the first connection attempt, for startup-await diagnostics. */
   let firstAttemptError: unknown
+  let state: ConnectionState = 'connecting'
+  /** Most recent failure text while not connected. */
+  let lastError: string | undefined
 
   /** A generation may act only while it is the current one on a live plugin. */
   const isCurrent = (generation: Client): boolean => !disposed && client === generation
@@ -173,6 +202,7 @@ export function startConnection(ctx: Context, config: Config, policy: ResolvedRe
   /** One disconnect decision per generation: the isCurrent guard makes racing close/error signals idempotent. */
   function generationDown(generation: Client): void {
     if (!isCurrent(generation)) return
+    if (connectedAt !== undefined) lastError = 'the connection to the server closed'
     client = undefined
     clientClosed = undefined
     scheduleReconnect()
@@ -197,6 +227,7 @@ export function startConnection(ctx: Context, config: Config, policy: ResolvedRe
         ? 'connection lost and reconnect is disabled — registered tools will fail until an HMR reload or Host restart'
         : 'connection failed and reconnect is disabled — no tools were registered; reload the plugin or restart the Host to connect'
       ctx.logger.error(`${label}: ${message}`)
+      state = 'failed'
       return
     }
     // A connection that stayed up past the stability window (= maxDelayMs, the
@@ -212,11 +243,13 @@ export function startConnection(ctx: Context, config: Config, policy: ResolvedRe
         disposers = new Map()
       })
       ctx.logger.error(`${label}: giving up after ${policy.maxAttempts} consecutive failed reconnect attempts — tools unregistered; reload the plugin or restart the Host to reconnect`)
+      state = 'failed'
       return
     }
     const delayMs = Math.min(policy.maxDelayMs, policy.initialDelayMs * 2 ** (failedAttempts - 1))
     const action = lostEstablishedConnection ? 'connection lost; reconnecting' : 'connection failed; retrying'
     ctx.logger.warn(`${label}: ${action} in ${delayMs}ms (attempt ${failedAttempts}/${policy.maxAttempts})`)
+    state = 'retrying'
     reconnectTimer = setTimeout(() => {
       reconnectTimer = undefined
       settling = connectGeneration(false)
@@ -246,6 +279,7 @@ export function startConnection(ctx: Context, config: Config, policy: ResolvedRe
     const hasClosed = (): boolean => closeObserved
     client = generation
     clientClosed = closed.promise
+    state = 'connecting'
     generation.onclose = () => {
       closeObserved = true
       closed.resolve()
@@ -283,6 +317,7 @@ export function startConnection(ctx: Context, config: Config, policy: ResolvedRe
       await enqueueSync(generation, startup ? startupOpts : opts)
     } catch (error) {
       if (firstAttemptError === undefined) firstAttemptError = error
+      lastError = error instanceof Error ? error.message : String(error)
       // Disposal clears current ownership before it closes the generation, so
       // only a live supervisor reports an attempt failure.
       if (isCurrent(generation)) ctx.logger.warn(`${label}: connection attempt failed: ${String(error)}`)
@@ -293,6 +328,7 @@ export function startConnection(ctx: Context, config: Config, policy: ResolvedRe
       if (!quiesced) {
         client = undefined
         clientClosed = undefined
+        state = 'failed'
         ctx.logger.error(`${label}: failed generation did not close within ${GENERATION_CLOSE_TIMEOUT_MS}ms — reconnect stopped to avoid overlapping server processes; reload the plugin or restart the Host to retry`)
         return
       }
@@ -306,6 +342,8 @@ export function startConnection(ctx: Context, config: Config, policy: ResolvedRe
     }
     if (!isCurrent(generation)) return
     connectedAt = Date.now()
+    state = 'connected'
+    lastError = undefined
     if (failedAttempts > 0) ctx.logger.info(`${label}: reconnected and re-synced tools (attempt ${failedAttempts}/${policy.maxAttempts})`)
   }
 
@@ -327,8 +365,25 @@ export function startConnection(ctx: Context, config: Config, policy: ResolvedRe
     return { error: firstAttemptError ?? new Error(`${label}: initial connection failed`) }
   })
 
+  const status = (): ConnectionStatus => state === 'connected' || lastError === undefined
+    ? { state }
+    : { state, error: lastError }
+
   return {
     ready,
+    status,
+    async restart(): Promise<ConnectionStatus> {
+      if (disposed || state === 'connected' || state === 'connecting') return status()
+      if (reconnectTimer !== undefined) {
+        clearTimeout(reconnectTimer)
+        reconnectTimer = undefined
+      }
+      failedAttempts = 0
+      ctx.logger.info(`${label}: restart requested`)
+      settling = connectGeneration(false)
+      await settling
+      return status()
+    },
     async dispose(): Promise<void> {
       disposed = true
       if (reconnectTimer !== undefined) {

@@ -2183,6 +2183,8 @@ export interface StdioConfig {
    * unique across live mcp-client instances.
    */
   serverName: string
+  /** What the server's tools act on, for the model's tool index (`Chrome the user can see`); omission shows the server name. */
+  title?: string
   /** Executable used to start the server. */
   command: string
   /** Arguments passed directly, without shell interpolation. */
@@ -2211,6 +2213,8 @@ export interface StreamableHttpConfig {
    * unique across live mcp-client instances.
    */
   serverName: string
+  /** What the server's tools act on, for the model's tool index (`Chrome the user can see`); omission shows the server name. */
+  title?: string
   /** MCP endpoint URL. */
   url: string
   /** Additional headers attached to MCP requests. */
@@ -2236,7 +2240,7 @@ export interface ReconnectConfig {
 }
 ```
 
-Source: [`packages/mcp/mcp-client/src/index.ts:101`](../packages/mcp/mcp-client/src/index.ts)
+Source: [`packages/mcp/mcp-client/src/index.ts:107`](../packages/mcp/mcp-client/src/index.ts)
 
 <a id="aevenmedia"></a>
 
@@ -3800,7 +3804,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/web/tool-browser/src/index.ts:36`](../packages/web/tool-browser/src/index.ts)
+Source: [`packages/web/tool-browser/src/index.ts:37`](../packages/web/tool-browser/src/index.ts)
 
 <a id="aeventool-call-access-policy"></a>
 
@@ -4175,16 +4179,28 @@ Source: [`packages/workflow/tool-ralph/src/index.ts:21`](../packages/workflow/to
 Requires: `tools` · `systemPrompt`
 
 ```ts config-catalog
-/** Which tools wait for `tool_search` and how many schemas one search returns. */
+/** Which tools wait for `tool_search`, how they are grouped, and the request limits. */
 export interface Config {
   /** Tool name patterns to defer; `*` matches any run of characters. */
-  defer: string[]
-  /** Schemas one keyword search returns at most. */
-  maxResults: number
+  defer?: string[]
+  /** Titles for deferred tools that are not MCP tools; the first matching group wins. */
+  groups?: ToolGroup[]
+  /** Tools one keyword search lists at most. */
+  maxResults?: number
+  /** Most tools one model request may declare; a `select:` that would exceed it is refused. */
+  maxRequestTools?: number
+}
+
+/** A titled group of deferred tools that are not MCP tools. */
+export interface ToolGroup {
+  /** What the group's tools do, shown in the index (`Image and video generation`). */
+  title: string
+  /** Tool name patterns in the group; `*` matches any run of characters. */
+  tools: string[]
 }
 ```
 
-Source: [`packages/core/tool-search/src/index.ts:32`](../packages/core/tool-search/src/index.ts)
+Source: [`packages/core/tool-search/src/index.ts:53`](../packages/core/tool-search/src/index.ts)
 
 <a id="aeventool-session-query"></a>
 
@@ -4428,7 +4444,7 @@ export interface Config {
 export type ToolPresentationMode = 'native' | 'ptc' | 'both'
 ```
 
-Source: [`packages/core/tools/src/index.ts:647`](../packages/core/tools/src/index.ts)
+Source: [`packages/core/tools/src/index.ts:648`](../packages/core/tools/src/index.ts)
 
 <a id="aeventypert-loader"></a>
 

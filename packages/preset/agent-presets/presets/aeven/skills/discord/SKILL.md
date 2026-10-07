@@ -5,7 +5,7 @@ description: Use the connected Discord servers to read channels, messages, and m
 
 # Discord
 
-Each connected Discord server has its own tools, named `mcp__account_<id>__<tool>`; one `<id>` belongs to exactly one server. When no Discord tools are available, ask the user to add a server in Settings → Connectors → Discord.
+Each connected Discord server has its own tools, named `mcp__discord_<id>__<tool>`; one `<id>` belongs to exactly one server. When no Discord tools are available, ask the user to add a server in Settings → Connectors → Discord.
 
 Identify the server before acting. Call `get_guild_info` on a connection whose `<id>` is not yet familiar, and match the name against the server the user named. When several servers are connected and the request does not say which one, ask before acting. Never use one server's tools for a task about another, and never carry a channel, message, or member id from one server to another: every id is scoped to the server it came from.
 

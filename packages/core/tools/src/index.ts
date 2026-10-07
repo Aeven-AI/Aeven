@@ -14,10 +14,10 @@ import type { Agent } from '@aeven/agent'
 import type { UserMessage } from '@aeven/session'
 import { assertNever, deepFreeze, snapshotJsonValue, type JsonValue } from '@aeven/util-values'
 import type { ToolProviderResult } from '@aeven/system-prompt'
-import type { CodeRuntime } from '@aeven/code-runtime'
+import type { CodeRunPauses, CodeRuntime } from '@aeven/code-runtime'
 // Type-only: makes `ctx.get('approval')` resolve to the ApprovalService
 // augmentation. The seam stays optional at runtime — see `serviceAsk`.
-import type {} from '@aeven/user-approval'
+import type { ApprovalOutcome } from '@aeven/user-approval'
 import type { ToolCallView, ToolResultView } from './presentation.ts'
 import { assertSupportedJsonSchema, validateJsonSchemaValue } from './json-schema.ts'
 import type { JsonSchemaNode } from './json-schema.ts'
@@ -92,10 +92,11 @@ export {
 } from './json-schema.ts'
 
 export type { PtcDispatchEventData, PtcDispatchStartEventData } from './types.ts'
+export type { ToolSdkSchema } from './ts-types.ts'
 
 export { CodeRunFailedError, RUN_CODE_NAME } from './ptc.ts'
-export { jsonSchemaToTs, renderToolsSdk } from './ts-types.ts'
-export { jsonSchemaToPy, renderToolsSdkPy } from './py-types.ts'
+export { jsonSchemaToTs, renderToolsSdk, renderToolsSdkDeclarations } from './ts-types.ts'
+export { jsonSchemaToPy, renderToolsSdkPy, renderToolsSdkPyDeclarations } from './py-types.ts'
 export { defineContentToolFixture, type ContentToolFixtureOptions } from './testing.ts'
 
 // The render-intent vocabulary a tool declares via `presentCall`/`presentResult`
@@ -920,6 +921,7 @@ export class ToolRuntime extends Service {
       peekRuntime: () => this.ctx.get('codeRuntime'),
       maxParallel: this.maxParallelSubCalls,
       shapeDispatchLog: dispatch => this.shapeDispatchLog(dispatch),
+      approvalPauses: run => this.approvalPauses(run),
     })
     return this.ptcTransport
   }
@@ -1694,13 +1696,20 @@ export class ToolRuntime extends Service {
         approvalCancelled: false,
       }
     }
-    const outcome = await approval.request({
-      agent: exec.agent,
-      toolName: exec.name,
-      callId: exec.callId,
-      ...ask.reason !== undefined ? { reason: ask.reason } : {},
-      signal: exec.signal,
-    })
+    const wait = exec.parent === undefined ? undefined : this.approvalWaits.get(exec.parent)
+    wait?.(true)
+    let outcome: ApprovalOutcome
+    try {
+      outcome = await approval.request({
+        agent: exec.agent,
+        toolName: exec.name,
+        callId: exec.callId,
+        ...ask.reason !== undefined ? { reason: ask.reason } : {},
+        signal: exec.signal,
+      })
+    } finally {
+      wait?.(false)
+    }
     switch (outcome) {
       case 'allowed-once': return { decision: { kind: 'allow' }, approvalCancelled: false }
       case 'rejected': return {
@@ -1773,6 +1782,33 @@ export class ToolRuntime extends Service {
 
   /** Registry-normalized results and the exact dispatch that validated each value. */
   private readonly canonicalResults = new WeakMap<object, ToolExecutionToken>()
+  /** Approval-wait reporters of live `run_code` runs, keyed by the run's execution token. */
+  private readonly approvalWaits = new Map<ToolExecutionToken, (waiting: boolean) => void>()
+
+  /**
+   * Track approval waits of one `run_code` run's sub-calls as pause state for
+   * its code runtime. The run's dispatch lane finishes each sub-call's
+   * pre-execute pipeline, approval included, before starting the next, so at
+   * most one approval of a run is open at a time.
+   * @param run - the outer `run_code` execution's token, the sub-calls' `parent`.
+   * @returns the pause state, disposed when the run settles.
+   */
+  private approvalPauses(run: ToolExecutionToken): CodeRunPauses & Disposable {
+    let waiting = false
+    const listeners = new Set<(paused: boolean) => void>()
+    this.approvalWaits.set(run, (next) => {
+      waiting = next
+      for (const listener of listeners) listener(waiting)
+    })
+    return {
+      get paused() { return waiting },
+      subscribe: (listener) => {
+        listeners.add(listener)
+        return () => { listeners.delete(listener) }
+      },
+      [Symbol.dispose]: () => { this.approvalWaits.delete(run) },
+    }
+  }
 
   /** Mark one registry-normalized result as canonical only for its owning dispatch. */
   private markCanonical<T extends ToolExecutionResult>(exec: ToolExecution, result: T): T {

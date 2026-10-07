@@ -259,11 +259,54 @@
 - id: tool-device
   name: '@aeven/tool-device'
 
-# MCP tool schemas stay out of the request until the model loads them with
-# tool_search: a computer-use driver and browser DevTools alone carry close to
-# a hundred tools, past the providers' 128-tool request limit.
+# Specialist tools stay out of the request until the model loads them with
+# tool_search: connected accounts and browser servers alone carry well over a
+# hundred tools, past the providers' 128-tool request limit, and every change to
+# the request's tool list re-bills the cached prompt. The core tools below stay
+# in every request; the groups title the deferred native tools in the index.
 - id: tool-search
   name: '@aeven/tool-search'
+  config:
+    defer:
+      - 'mcp__*'
+      - codex_image_*
+      - generate_image
+      - grok_imagine_*
+      - mail_*
+      - memory_*
+      - capability_manage
+      - device_*
+      - preview_back
+      - preview_click
+      - preview_evaluate
+      - preview_forward
+      - preview_navigate
+      - preview_press
+      - preview_reload
+      - preview_scroll
+      - preview_snapshot
+      - preview_type
+      - get_location
+      - list_agents
+      - interrupt_agent
+      - send_message
+      - ralph
+      - workflow
+    groups:
+      - title: Image and video generation
+        tools: [codex_image_*, generate_image, grok_imagine_*]
+      - title: Email accounts
+        tools: [mail_*]
+      - title: Long-term memory and learned procedures
+        tools: [memory_*, capability_manage]
+      - title: Simulators and emulators beside this session
+        tools: [device_*]
+      - title: Browser beside this session (preview_status reports it)
+        tools: [preview_*]
+      - title: Device location
+        tools: [get_location]
+      - title: Running subagents and workflows
+        tools: [list_agents, interrupt_agent, send_message, ralph, workflow]
 
 - id: tool-todo
   name: '@aeven/tool-todo'
@@ -348,16 +391,18 @@
 
 # ── developer switches ──────────────────────────────────────────────────────
 
-# PTC mode: present the tool registry to the model as a generated TypeScript SDK
-# that one `run_code` program composes, instead of one native call per tool.
-# Needs the host's `codeRuntime`. Set `disabled: false` to turn it on, and
-# disable the `workflow` row above so `run_code` is the only model-authored
-# orchestration surface.
+# PTC mode: `both` keeps the core tools as native calls and adds `run_code`,
+# a TypeScript program that composes tools. tool_search then answers a
+# `select:` with SDK declarations, and the model calls deferred tools inside a
+# program, so loading a tool never changes the request's tool list or its
+# cached prompt. Needs the host's `codeRuntime`. Set `disabled: false` to turn
+# it on once the discovery evaluation shows the model writes these programs
+# reliably.
 - id: tool-presentation
   name: '@aeven/agent-tool-presentation'
   disabled: true
   config:
-    mode: ptc
+    mode: both
 
 # Self-extension: read the live runtime, mount a temporary plugin, unmount it.
 # `cordis_mount` evaluates model-written JavaScript against the running

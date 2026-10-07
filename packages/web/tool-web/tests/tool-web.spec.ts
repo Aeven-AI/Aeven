@@ -4,7 +4,7 @@ import { createScope, type Scope } from '@aeven/scope'
 import TurndownService from 'turndown'
 import { ToolCallId } from '@aeven/llm'
 import SystemPrompt, { renderPrompt } from '@aeven/system-prompt'
-import ToolRuntime, { type ToolExecutionResult } from '@aeven/tools'
+import ToolRuntime, { defineTool, type ToolExecutionResult } from '@aeven/tools'
 import WebRuntime from '@aeven/web'
 import type { WebSearchProvider, WebSearchResult } from '@aeven/web'
 import * as ToolWeb from '@aeven/tool-web'
@@ -983,6 +983,41 @@ describe('scope-aware web guidance', () => {
     } finally {
       await scope.dispose()
     }
+  })
+})
+
+describe('web_fetch browser escalation', () => {
+  const stub = (name: string) => defineTool({
+    name,
+    description: `${name} stub.`,
+    parameters: {},
+    output: { schema: { type: 'string' }, render: (_args: unknown, value: string) => [{ type: 'text' as const, text: value }] },
+    execute: () => Promise.resolve(''),
+  })
+  const fetchSection = async (names: string[]) => {
+    const { ctx } = await mountTools({ config: { searchMaxQueries: 3 } })
+    for (const name of names) ctx.tools.register(stub(name))
+    return renderPrompt(await ctx.systemPrompt.assemble())
+  }
+
+  it('escalates through both browsers only while both servers registered their tools', async () => {
+    const text = await fetchSection(['preview_status', 'mcp__playwright__browser_navigate', 'mcp__chrome_devtools__new_page'])
+    expect(text).toContain('escalate in order: the headless browser tools (mcp__playwright__*) open no window')
+  })
+
+  it('names only the browser whose tools exist', async () => {
+    const attached = await fetchSection(['preview_status', 'mcp__chrome_devtools__new_page'])
+    expect(attached).toContain("Read those pages in the Chrome attached to the user's browser (mcp__chrome_devtools__*)")
+    expect(attached).not.toContain('mcp__playwright__')
+    const headless = await fetchSection(['preview_status', 'mcp__playwright__browser_navigate'])
+    expect(headless).toContain('Read those pages with the headless browser tools (mcp__playwright__*)')
+    expect(headless).not.toContain('mcp__chrome_devtools__')
+  })
+
+  it('points to preview_status when neither browser server is serving', async () => {
+    const text = await fetchSection(['preview_status'])
+    expect(text).toContain('Call preview_status to see which browser this session can read those pages in.')
+    expect(text).not.toContain('mcp__')
   })
 })
 

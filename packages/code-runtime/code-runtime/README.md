@@ -73,7 +73,7 @@ The exhaustive semantics live in the [code runtime subsystem reference](../../..
 
 ### Vocabulary
 
-`CodeRunRequest` (`program`, `bindings`, `signal?`) carries everything the runtime acts on; defaulting (time budgets, output caps) is each provider's validated config, never a hidden `??` inside `run()`. `bindings` is a list of `CodeBindingNamespace`s (`global` + `functions` + optional `errorClass`), each exposed to the program as one global object of async callables returning `CodeJsonValue` — the seam's structural lossless-JSON type. An `errorClass` descriptor names a real program-global constructor and the own property that receives the rejected member name, so backends never learn consumer terms such as `ToolCallError`. `CodeRunResult` reports the lossless-JSON completion `value?`, per-channel-ordered `logs: string[]` with backend-dependent cross-channel interleaving, and `error?` (`CodeRunFailure`: orthogonal `kind` + model-feedable `message`). See `src/types.ts` for the full contracts.
+`CodeRunRequest` (`program`, `bindings`, `signal?`, `pauses?`) carries everything the runtime acts on; defaulting (time budgets, output caps) is each provider's validated config, never a hidden `??` inside `run()`. `bindings` is a list of `CodeBindingNamespace`s (`global` + `functions` + optional `errorClass`), each exposed to the program as one global object of async callables returning `CodeJsonValue` — the seam's structural lossless-JSON type. An `errorClass` descriptor names a real program-global constructor and the own property that receives the rejected member name, so backends never learn consumer terms such as `ToolCallError`. `CodeRunResult` reports the lossless-JSON completion `value?`, per-channel-ordered `logs: string[]` with backend-dependent cross-channel interleaving, and `error?` (`CodeRunFailure`: orthogonal `kind` + model-feedable `message`). `pauses?` (`CodeRunPauses`: a `paused` flag plus `subscribe`) lets the caller exclude waits outside the program, such as a user deciding an approval, from a provider's wall-clock budget. See `src/types.ts` for the full contracts.
 
 ### Portable identifiers
 
@@ -84,7 +84,7 @@ Binding-global and error-class names are language-portable: they must match the 
 | File | Role |
 |---|---|
 | [`src/index.ts`](src/index.ts) | Plugin entry: abstract `CodeRuntime` service and the portable-identifier exclusion sets |
-| [`src/types.ts`](src/types.ts) | Vocabulary: `CodeRunRequest`, `CodeBindingNamespace`, `CodeJsonValue`, `CodeRunResult`, `CodeRunFailure` |
+| [`src/types.ts`](src/types.ts) | Vocabulary: `CodeRunRequest`, `CodeRunPauses`, `CodeBindingNamespace`, `CodeJsonValue`, `CodeRunResult`, `CodeRunFailure` |
 | — | No runtime invariant companion is published; this package exposes no independent event sequence or mutable data relation beyond contracts enforced at its owning seam. |
 
 </details>

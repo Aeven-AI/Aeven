@@ -56,6 +56,7 @@ kind: "package-reference"
 |---|---|---|
 | `transport` | 必填 | `stdio` 或 `streamable-http` |
 | `serverName` | 必填 | 服务器工具名称的 namespace；`[A-Za-z0-9_-]{1,32}`，在一个注册作用域内唯一 |
+| `title` | 服务器名称 | 服务器工具所操作的对象，在模型的延迟工具索引中作为 namespace 标题显示（`Chrome the user can see`） |
 | `command` / `args` / `env` / `cwd` | — | stdio：可执行文件、参数、合并到清洗过的环境之上的额外环境变量、工作目录 |
 | `allowedTools` | 所有发现的工具 | stdio：每次发现时允许注册的原始工具名称；排除的工具没有 harness 执行器 |
 | `url` / `headers` | — | streamable-http：端点 URL 与额外请求标头 |
@@ -91,6 +92,8 @@ kind: "package-reference"
 服务器的工具会在 harness 开始首个轮次之前出现。服务器更改工具列表时，模型的工具集会自动更新；更新失败时，上一组工具继续可用。
 
 服务器连接断开时——例如本地服务器进程崩溃——插件会以从 500 ms 起逐次翻倍、上限 30 s 的延迟自动重连，并刷新工具集；重连进度在日志中可见。中断期间最后已知的工具仍会列出，但对它们的调用会失败，直到服务器恢复。连续失败十次后，该服务器的工具会被移除，重连停止，直到你重载配置或重启 harness；服务器持续连接一段时间后，该计数会重置。设置 `reconnect.enabled: false` 可禁用自动重连——此时工具在断开后仍会列出，但调用失败，直到你重载。编辑配置项会在原地重载服务器连接，未变的名称保持不变。
+
+每个实例都会响应按 agent 作用域分发的 `mcp/servers` waterfall，报告服务器名称、工具前缀、`title`、连接状态（`connecting`、`connected`、`retrying` 或 `failed`）、未连接期间的最近一次错误，以及一个 `restart()`：它以全新的尝试预算立即连接，监管器已放弃时同样有效。挂载在 agent 作用域中的服务器只为该 agent 响应。[`@aeven/tool-search`](../../core/tool-search/README.zh.md) 在模型的工具索引中列出未在服务的服务器，并按请求重启它们；`preview_status` 借助该报告说明浏览器工具缺失的原因。
 
 -----
 

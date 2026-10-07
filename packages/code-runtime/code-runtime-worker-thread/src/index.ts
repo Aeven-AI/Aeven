@@ -426,6 +426,7 @@ export class WorkerThreadCodeRuntime extends CodeRuntime {
         settled = true
         clearInterval(eluTimer)
         clearTimeout(wallTimer)
+        stopObservingPauses?.()
         request.signal?.removeEventListener('abort', onAbort)
         this.live.delete(live)
         // Let the poll phase deliver pipe bytes already queued independently
@@ -540,9 +541,27 @@ export class WorkerThreadCodeRuntime extends CodeRuntime {
           finish(() => output.failure([...logs, ...strayLogs], { kind: 'timeout', message: `compute budget exhausted (${this.config.computeMs}ms busy)` }))
         }
       }, ELU_POLL_INTERVAL_MS)
-      const wallTimer = setTimeout(() => {
-        finish(() => output.failure([...logs, ...strayLogs], { kind: 'timeout', message: `wall-clock ceiling reached (${this.config.maxWallMs}ms)` }))
-      }, this.config.maxWallMs)
+      // The wall clock stops while the caller reports an excluded wait (a user
+      // deciding an approval) and resumes with the time it had left.
+      let wallRemainingMs = this.config.maxWallMs
+      let wallArmedAt = 0
+      let wallTimer: NodeJS.Timeout | undefined
+      const armWall = (): void => {
+        wallArmedAt = Date.now()
+        wallTimer = setTimeout(() => {
+          finish(() => output.failure([...logs, ...strayLogs], { kind: 'timeout', message: `wall-clock ceiling reached (${this.config.maxWallMs}ms)` }))
+        }, wallRemainingMs)
+      }
+      if (request.pauses?.paused !== true) armWall()
+      const stopObservingPauses = request.pauses?.subscribe((paused) => {
+        if (paused && wallTimer !== undefined) {
+          clearTimeout(wallTimer)
+          wallTimer = undefined
+          wallRemainingMs -= Date.now() - wallArmedAt
+        } else if (!paused && wallTimer === undefined && !settled) {
+          armWall()
+        }
+      })
       const onAbort = (): void => {
         finish(() => output.failure([...logs, ...strayLogs], { kind: 'abort', message: String(request.signal?.reason) }))
       }

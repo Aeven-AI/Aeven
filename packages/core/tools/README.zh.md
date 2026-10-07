@@ -114,6 +114,7 @@ ctx.tools.register(defineTool({
 | [`src/ptc.ts`](src/ptc.ts) | PTC mode：SDK 生成、`run_code` 分发桥接层、结算 |
 | [`src/ts-types.ts`](src/ts-types.ts) | TypeScript SDK 类型渲染 |
 | [`src/py-types.ts`](src/py-types.ts) | Python SDK 类型渲染 |
+| [`src/schema-projection.ts`](src/schema-projection.ts) | 把任意 JSON Schema 投影到 SDK 渲染器可类型化的子集 |
 | [`src/invariant.ts`](src/invariant.ts) | 不变式配套 |
 
 ### 执行与取消
@@ -123,6 +124,8 @@ ctx.tools.register(defineTool({
 ### PTC mode
 
 在 `ptc` 或 `both` 下，注册表公开保留的 `run_code` 传输以及按所加载运行时语言生成的确定性 SDK。每个 SDK 绑定调用都会在日志中与外层调用关联，重新进入完整工具流水线，并通过复用原生并发约定的每次运行独有池调度。在纯 `ptc` 下，模型直呼其他任何可见工具都会在策略之前解析为 `UNKNOWN_TOOL`——通告面与可调用面保持一致。中间绑定值只存在于执行局部；只有外层 `run_code` 结果有硬大小上限。[执行器塌缩 note](../../../.agents/notes/implemented/bug-fix/2026-08-07-ptc-executor-collapse.zh.md) 拥有该收束约定。
+
+SDK 渲染器先把每个参数与输出 schema 逐节点投影到强制子集，再为其生成类型：类型数组、`anyOf`、`nullable` 或本地 `$ref` 变为对应的联合类型或目标，不受支持的构造只把它自己的节点放宽为 `JsonValue`（Python 中为 `Any`），而 `minimum`、`pattern`、`format` 等被丢弃的约束变为文档注释提示。因此 MCP 工具在 SDK 中保留有类型的参数；校验仍按注册的 schema 执行。`renderToolsSdkDeclarations` 与 `renderToolsSdkPyDeclarations` 只渲染声明块，供按需提供声明的调用方使用，例如 [`@aeven/tool-search`](../tool-search/README.zh.md)。子调用等待用户审批期间，注册表会保持该次运行的 `pauses`，因此这段等待不消耗代码运行时的墙钟；一次运行的分发通道会先完成每个子调用的 pre-execute 流水线再启动下一个，因此每次运行至多只有一项审批处于打开状态。
 
 <a id="extension-points"></a>
 ### 扩展点
