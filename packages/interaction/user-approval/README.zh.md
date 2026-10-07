@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`avn-user-approval` 让敏感的工具操作暂停等待一次性的允许／拒绝决定：`ctx.approval.request(req)` 向已组合的应答者询问某个具体操作是否可以继续，并返回 `allowed-once`、`rejected`、`cancelled` 或 `unavailable`。应答者缺失、不负责或抛出异常时，请求以 `unavailable` 关闭；授权也只适用于所请求的操作。按会话策略——`ask`（默认）或 `never`——决定在任何应答者运行之前发生什么：`ask` 委托给已组合的应答者，`never` 确定性地拒绝每个请求，不提示任何人。每个请求都会记录在发起请求的会话审计日志中；模型只会看到发起请求的消费方的工具结果，以及运行时上下文快照中的当前策略。UI 通道提供人类应答者；ACP（Agent Client Protocol）自动化桥接层为其自有 agent 作答。
+`avn-user-approval` 让敏感的工具操作暂停等待一次性的允许／拒绝决定：`ctx.approval.request(req)` 向已组合的应答者询问某个具体操作是否可以继续，并返回 `allowed-once`、`rejected`、`cancelled` 或 `unavailable`。应答者缺失、不负责或抛出异常时，请求以 `unavailable` 关闭；一次性授权只适用于所请求的操作；明确限定范围的会话授权涵盖同一会话中的重复操作。按会话策略——`ask`（默认）或 `never`——决定在任何应答者运行之前发生什么：`ask` 委托给已组合的应答者，`never` 确定性地拒绝每个请求，不提示任何人。每个请求都会记录在发起请求的会话审计日志中；模型只会看到发起请求的消费方的工具结果，以及运行时上下文快照中的当前策略。UI 通道提供人类应答者；ACP（Agent Client Protocol）自动化桥接层为其自有 agent 作答。
 
 ## 目录
 
@@ -152,7 +152,7 @@ Approval prompts are disabled in this session: actions that require approval are
 这些限制说明该 seam 何时不合适，或何时需要特别的组合注意。它们是当前包约束，不是通用权限对比。
 
 - **请求只在尚未结束的轮次内有效**：在空闲时或轮次之间发起调用，会在审计前抛出异常；持久化的轮次外审批工作流仍属延期工作。
-- **仅存在一次性授权**：结果词汇包含 `allowed-once`，但不含 `allow-always`、已记住的规则、撤销或授权存储；会话策略只有 `ask`／`never`。
+- **会话授权需要请求方提供范围**：`allowed-session` 应答授权请求方标识的确切账户和操作。已提交的决定记录范围和原会话 ID；重复调用无需提示，返回 `allowed-once`。分叉不会继承授权，`never` 仍拒绝请求；不提供全局授权或撤销。
 - **请求不携带工具参数**：应答者会看到工具名称、原因和可选调用 id；ACP 机器通道要求调用 id，并会委托不含 id 的请求。
 - **没有内置应答者**：无头或组合不完整的部署会返回 `unavailable` 并以拒绝方式关闭；服务自身绝不会提示人类。
 

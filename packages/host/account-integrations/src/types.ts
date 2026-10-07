@@ -11,20 +11,16 @@ export type ConnectorProvider = 'github' | 'gmail' | 'google-drive' | 'google-ca
 /** Stable Settings identity of one skill definition. */
 export type SkillViewId = Branded<'account-skill-view-id'>
 
-/** Skill visible in Settings, with account-owned management availability. */
+/** One skill Settings lists: the account's own library entry, or a skill a connector owns. */
 export interface PersonalSkillView {
   id: SkillViewId
   name: string
   description: string
   enabled: boolean
-  /** Effective invocation availability, including connector activation. */
-  available?: boolean
   content: string
   files: string[]
+  /** `account` for an imported bundle; the discovery source of a connector-owned skill. */
   source: string
-  /** Account-owned content may be removed; all sources support account invocation preferences. */
-  managed: boolean
-  workspace?: string
 }
 
 /** Connector metadata; credentials are never returned. */
@@ -77,6 +73,7 @@ export interface MicrosoftConnectorSettings {
 
 /** Current signed-in account's skills and connectors. */
 export interface AccountIntegrationsView {
+  /** The account's own skill library: imported bundles and installed skills, minus connector-owned names. */
   skills: PersonalSkillView[]
   connectors: PersonalConnectorView[]
   providers: ConnectorProviderView[]
@@ -90,7 +87,7 @@ export interface ConnectorProviderView {
   authorizationFailure?: 'admin-consent-required' | 'failed'
   /** Application-specific administrator approval link supplied by the Aeven API. */
   adminConsentUrl?: string
-  /** Installed skill definitions belonging to this connector. */
+  /** Skill definitions this connector owns; its connection decides whether they are invocable. */
   skills: PersonalSkillView[]
 }
 

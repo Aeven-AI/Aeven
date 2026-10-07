@@ -1,6 +1,6 @@
 /**
  * Service Definition for the approval capability seam, covering requests, cancellation, audit, and per-session policy. Missing
- * answerers fail closed; grants apply only to the requested action.
+ * answerers fail closed; session grants require an explicitly offered account-specific tool.
  * @module @aeven/user-approval
  */
 
@@ -39,13 +39,13 @@ declare module '@aeven/session/types' {
 }
 
 import { ApprovalRequestId } from './types.ts'
-import type { ApprovalOutcome, ApprovalRequestEvent } from './types.ts'
+import type { ApprovalAnswer, ApprovalOutcome, ApprovalRequestEvent } from './types.ts'
 
 export { ApprovalRequestId } from './types.ts'
 export type { ApprovalOutcome } from './types.ts'
 
 /** Every {@link ApprovalOutcome}, for runtime normalization of answerer returns. */
-const OUTCOMES: readonly ApprovalOutcome[] = ['allowed-once', 'rejected', 'cancelled', 'unavailable']
+const OUTCOMES: readonly ApprovalAnswer[] = ['allowed-session', 'allowed-once', 'rejected', 'cancelled', 'unavailable']
 
 /**
  * A session's approval policy — what happens to an {@link ApprovalService}
@@ -116,6 +116,8 @@ export interface ApprovalRequest extends ApprovalRequestEvent {
   readonly callId?: ToolCallId
   /** The asker's human-readable explanation of WHY it is asking. */
   readonly reason?: string
+  /** Account-and-operation identifier; absent when only one-shot approval is offered. */
+  readonly allowSession?: string
   /**
    * Aborting withdraws the question: the request settles `'cancelled'`
    * immediately and a late answer from a still-pending answerer is discarded.
@@ -219,9 +221,16 @@ export class ApprovalService extends Service {
       toolName: req.toolName,
       ...req.callId !== undefined ? { callId: req.callId } : {},
       ...req.reason !== undefined ? { reason: req.reason } : {},
+      ...(req.allowSession === undefined ? {} : { allowSession: req.allowSession }),
     })
-    const outcome = await this.decide(req, session)
-    session.append('approval/decided', { id, outcome })
+    const answer = await this.decide(req, session)
+    const outcome = answer === 'allowed-session' ? 'allowed-once' : answer
+    session.append('approval/decided', {
+      id, outcome,
+      ...(answer === 'allowed-session'
+        ? { sessionGrant: { sessionId: session.id, toolName: req.toolName, scope: req.allowSession! } }
+        : {}),
+    })
     return outcome
   }
 
@@ -255,7 +264,7 @@ export class ApprovalService extends Service {
    * @param session - the request agent's session used for policy lookup.
    * @returns the normalized closed outcome.
    */
-  private async decide(req: ApprovalRequest, session: Session): Promise<ApprovalOutcome> {
+  private async decide(req: ApprovalRequest, session: Session): Promise<ApprovalAnswer> {
     const signal = req.signal
     if (signal?.aborted) return 'cancelled'
     // The 'never' policy is decided HERE, before any dispatch: a listener
@@ -264,11 +273,20 @@ export class ApprovalService extends Service {
     // documented promise that 'never' rejects deterministically regardless
     // of registration order — only the service's own request path can.
     if (this.effectivePolicy(session) === 'never') return 'rejected'
+    if (req.allowSession !== undefined) {
+      for (let seq = session.seq - 1; seq >= 0; seq -= 1) {
+        const event = session.eventAt(SessionSeq(seq))
+        if (event?.type === 'approval/decided' && event.data.outcome === 'allowed-once'
+          && event.data.sessionGrant?.sessionId === session.id
+          && event.data.sessionGrant.toolName === req.toolName
+          && event.data.sessionGrant.scope === req.allowSession) return 'allowed-once'
+      }
+    }
     // Enter the promise chain BEFORE dispatching: a listener that throws
     // SYNCHRONOUSLY (before its first await) must land in the same rejection
     // path as an async one — `Promise.resolve(call())` would let it escape
     // the containment into the caller.
-    const answer: Promise<ApprovalOutcome> = Promise.resolve().then(
+    const answer: Promise<ApprovalAnswer> = Promise.resolve().then(
       () => this.ctx.waterfall(
         scopeTarget(req.agent, req.agent), 'approval/request', req,
         () => Promise.resolve<ApprovalOutcome>('unavailable'),
@@ -276,13 +294,14 @@ export class ApprovalService extends Service {
     ).then(
       // Normalize a rogue (non-vocabulary) answerer return to the fail-closed
       // outcome instead of leaking it into callers' closed-union switches.
-      outcome => OUTCOMES.includes(outcome) ? outcome : 'unavailable',
+      outcome => OUTCOMES.includes(outcome)
+        && (outcome !== 'allowed-session' || req.allowSession !== undefined) ? outcome : 'unavailable',
       // A throwing answerer must fail the QUESTION closed, not the caller's
       // tool call open — the seam contains its callbacks.
       () => 'unavailable',
     )
     if (signal === undefined) return answer
-    return await new Promise<ApprovalOutcome>((resolve) => {
+    return await new Promise<ApprovalAnswer>((resolve) => {
       const onAbort = () => {
         signal.removeEventListener('abort', onAbort)
         resolve('cancelled')

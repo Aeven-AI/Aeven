@@ -188,6 +188,17 @@ body {
     var(--ds-font-family-code);
 }
 
+/* Message text is the product's black ink in the light theme: inside the
+   transcript the three muted label steps resolve to rgb(0, 0, 0), so message
+   prose, tool rows, timings, and notes read at one colour. Scoped to the
+   transcript because the surrounding chrome keeps its steps, and light-only
+   because the block below owns the dark palette. */
+body:not([data-ds-dark-theme]) [data-chat-flow] {
+  --dsw-alias-label-secondary: rgb(0, 0, 0);
+  --dsw-alias-label-tertiary: rgb(0, 0, 0);
+  --dsw-alias-label-caption: rgb(0, 0, 0);
+}
+
 @media (max-width: 640px) {
   body {
     --dsw-aeven-page-inset: 16px;

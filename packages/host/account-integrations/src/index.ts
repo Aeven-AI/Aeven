@@ -1,7 +1,7 @@
 /** Personal skill storage and account-scoped MCP connections exposed to Settings. */
 
 import { createHash, randomUUID } from 'node:crypto'
-import { realpath, rename, rm, writeFile } from 'node:fs/promises'
+import { rename, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { mkdir } from 'node:fs/promises'
 import { Context, Service, type Fiber } from '@deepseek-ai/cordis'
@@ -645,11 +645,11 @@ export default class AccountIntegrations extends TypertRemoteService {
             const formEdit = args.service === 'forms' && args.path.length === 2 && args.path[0] === 'forms'
               && /^(create|batchUpdate)$/.test(args.path[1]!)
             if (!formEdit && !/^(get|list|export|download)$/i.test(args.path.at(-1)!)) {
-              return { kind: 'ask', reason: 'Approve this change to your connected Google account.' }
+              return { kind: 'ask', allowSession: `${exec.name}:${args.service}:${args.path.join('.')}`, reason: 'Approve this change to your connected Google account.' }
             }
           }
           if (/__(gmail_send_draft|drive_share|drive_trash|calendar_delete_event)$/.test(exec.name)) {
-            return { kind: 'ask', reason: 'Approve sending, sharing, or deleting through your connected Google account.' }
+            return { kind: 'ask', allowSession: exec.name, reason: 'Approve sending, sharing, or deleting through your connected Google account.' }
           }
         }
         const microsoft = microsoftService(connector.provider)
@@ -657,24 +657,24 @@ export default class AccountIntegrations extends TypertRemoteService {
           const serverName = connectorServerName(connector.id, connector.provider)
           if (microsoft.read.some(tool => publicToolName(serverName, tool) === exec.name)) return next()
           if (microsoft.write.some(tool => publicToolName(serverName, tool) === exec.name)) {
-            return { kind: 'ask', reason: 'Approve this change through your connected Microsoft account.' }
+            return { kind: 'ask', allowSession: exec.name, reason: 'Approve this change through your connected Microsoft account.' }
           }
           return { kind: 'deny', reason: 'This tool is outside the connected Microsoft service.' }
         }
         if (connector.provider === 'whatsapp' && !whatsappReadTools.has(exec.name.slice(match[0].length))) {
-          return { kind: 'ask', reason: 'Approve this action on your linked WhatsApp number. Other people can see it.' }
+          return { kind: 'ask', allowSession: exec.name, reason: 'Approve this action on your linked WhatsApp number. Other people can see it.' }
         }
         if (connector.provider === 'telegram' && !telegramReadTools.has(exec.name.slice(match[0].length))) {
-          return { kind: 'ask', reason: 'Approve this action on your signed-in Telegram account. Other people can see it.' }
+          return { kind: 'ask', allowSession: exec.name, reason: 'Approve this action on your signed-in Telegram account. Other people can see it.' }
         }
         if (connector.provider === 'discord') {
           const tool = exec.name.slice(match[0].length)
           if (discordReadTools.has(tool)) return next()
           if (discordWriteTools.has(tool)) {
-            return { kind: 'ask', reason: 'Approve this action on your connected Discord server. Other people can see it.' }
+            return { kind: 'ask', allowSession: exec.name, reason: 'Approve this action on your connected Discord server. Other people can see it.' }
           }
           // Administration and moderation change the server for everyone, so they never ride on a message approval.
-          return { kind: 'ask', reason: discordAdminTools.has(tool)
+          return { kind: 'ask', allowSession: exec.name, reason: discordAdminTools.has(tool)
             ? 'Approve this Discord administration action: it changes the server for everyone.'
             : 'Approve this unrecognized action on your connected Discord server.' }
         }
@@ -682,7 +682,7 @@ export default class AccountIntegrations extends TypertRemoteService {
           const tool = exec.name.slice(match[0].length)
           if (isSlackReadTool(tool)) return next()
           // Slack owns these names, so an unrecognized one asks rather than posting unreviewed.
-          return { kind: 'ask', reason: 'Approve this action on your connected Slack workspace. It will appear as you.' }
+          return { kind: 'ask', allowSession: exec.name, reason: 'Approve this action on your connected Slack workspace. It will appear as you.' }
         }
       }
       return next()
@@ -701,7 +701,7 @@ export default class AccountIntegrations extends TypertRemoteService {
 
   /**
    * Read the caller's integrations without exposing credentials.
-   * @returns visible skills, personal connections, and deployment sign-in availability.
+   * @returns the account's own skills, personal connections, and deployment sign-in availability.
    */
   @Remote
   async list(): Promise<AccountIntegrationsView> {
@@ -710,31 +710,27 @@ export default class AccountIntegrations extends TypertRemoteService {
     // this is where a consent the Aeven API completed becomes a connector.
     await this.settleConsents(owner)
     const connectors = [...this.domain.table('connectors').entries()].filter(([, item]) => item.owner === owner)
-    const personal = [...this.domain.table('skills').entries()].filter(([, item]) => item.owner === owner)
+    const skills: AccountIntegrationsView['skills'] = [...this.domain.table('skills').entries()].filter(([, item]) => item.owner === owner)
       .map(([, item]) => ({ id: `${accountDirectory(owner)}:${item.name}` as SkillViewId, name: item.name, description: item.description, content: item.content, enabled: this.domain.table('skill_preferences').get(`${accountDirectory(owner)}:${item.name}`)?.enabled ?? item.enabled,
-        files: Object.keys(item.resources), source: 'account', managed: true }))
+        files: Object.keys(item.resources), source: 'account' }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+    // Discovered skills are not the account's to switch off, so the library lists none of them.
+    // A connector-owned skill documents the connector that decides its invocation instead.
+    const connectorOwned = new Map<string, AccountIntegrationsView['skills'][number]>()
     const scope = await this.ctx.get('agentPresets')?.standingKeyFor()
-    const workspaces = this.ctx.workspaceRegistry.list().filter(workspace => workspace.owner === owner && workspace.kind === 'folder')
-    const views = [{ cwd: undefined as string | undefined, workspace: undefined as string | undefined },
-      ...workspaces.map(workspace => ({ cwd: workspace.path, workspace: workspace.title }))]
-    const existing = new Map<string, AccountIntegrationsView['skills'][number]>()
-    for (const view of views) {
-      const options = { owner, cwd: view.cwd, scope }
-      const catalog = (await this.ctx.skills.list(options)).filter(skill => skill.provider !== 'account-integrations')
-      for (const skill of catalog) {
+    const views: (string | undefined)[] = [undefined, ...this.ctx.workspaceRegistry.list()
+      .filter(workspace => workspace.owner === owner && workspace.kind === 'folder')
+      .map(workspace => workspace.path)]
+    for (const cwd of views) {
+      const options = { owner, cwd, scope }
+      for (const skill of await this.ctx.skills.list(options)) {
+        if (skill.provider === 'account-integrations' || !connectorSkillNames.has(skill.name) || connectorOwned.has(skill.name)) continue
         const definition = await this.ctx.skills.get(skill.name, options)
         if (definition === undefined) throw new Error('skill is no longer available')
-        const key = definition.path === undefined
-          ? `${skill.provider}:${skill.source}:${skill.name}`
-          : `file:${await realpath(definition.path)}`
-        if (existing.has(key)) continue
-        existing.set(key, { id: createHash('sha256').update(key).digest('hex') as SkillViewId, name: skill.name, description: skill.description, content: definition.content,
-          enabled: this.domain.table('skill_preferences').get(`${accountDirectory(owner)}:${skill.name}`)?.enabled !== false, managed: false, source: skill.source, files: [],
-          ...skill.source.startsWith('project-') && view.workspace !== undefined ? { workspace: view.workspace } : {},
-        })
+        connectorOwned.set(skill.name, { id: createHash('sha256').update(`connector:${skill.name}`).digest('hex') as SkillViewId, name: skill.name, description: skill.description,
+          content: definition.content, enabled: true, source: skill.source, files: [] })
       }
     }
-    const skills: AccountIntegrationsView['skills'] = [...personal, ...existing.values()].sort((a, b) => a.name.localeCompare(b.name))
     const connections = await Promise.all(connectors.map(async ([id, entry]) => {
       const item = entry.provider === 'whatsapp' ? await this.refreshWhatsApp(id, entry)
         : entry.provider === 'telegram' ? await this.refreshTelegram(id, entry)
@@ -750,10 +746,6 @@ export default class AccountIntegrations extends TypertRemoteService {
         ...item.discord === undefined ? {} : { discord: discordSettings(item.discord) },
         ...item.slack === undefined ? {} : { slack: slackSettings(item.slack) } }
     }))
-    for (const skill of skills) {
-      if (connectorSkillNames.has(skill.name)) skill.enabled = true
-      skill.available = skill.enabled && this.skillConnectorAvailable(skill.name, owner)
-    }
     return {
       skills: skills.filter(skill => !connectorSkillNames.has(skill.name)), connectors: connections,
       providers: await Promise.all(providers.map(async (provider): Promise<ConnectorProviderView> => ({
@@ -764,7 +756,7 @@ export default class AccountIntegrations extends TypertRemoteService {
                 : provider === 'slack' ? this.slackApplicationId !== undefined
                   : brokeredProviders.has(provider) && this.broker !== undefined),
         skills: connectorSkills[provider].flatMap((name) => {
-          const skill = skills.find(candidate => candidate.name === name && candidate.workspace === undefined)
+          const skill = connectorOwned.get(name)
           return skill === undefined ? [] : [skill]
         }),
       }))),

@@ -76,8 +76,8 @@
    so a long command reads as a quoted line instead of a slab wedged into the
    card. */
 .command {
-  color: var(--dsw-alias-label-secondary);
-  font-family: var(--ds-font-family-code);
+  color: var(--dsw-alias-label-primary);
+  font-family: inherit;
   font-size: 14px;
   line-height: 22px;
   white-space: pre-wrap;
@@ -110,6 +110,7 @@
   display: flex;
   flex-shrink: 0;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 12px;
   margin-top: 12px;
   padding: 0 24px;
@@ -125,4 +126,8 @@
   background: var(--dsw-alias-interactive-bg-hover-danger);
   color: var(--dsw-alias-state-error-primary);
   border-color: transparent;
+}
+
+.command code {
+  font-family: var(--ds-font-family-code);
 }

@@ -45,7 +45,7 @@ function mount(connections: Connection[], startWithInstall = false) {
     type="button" role="switch" aria-label={label} aria-checked={on} disabled={disabled} onClick={onChange}
   />
   const props = {
-    t: (key: IntegrationsLocaleKey) => COPY[key] ?? key,
+    t: (key: string) => COPY[key as IntegrationsLocaleKey] ?? key,
     busy: false, connections, run, toggle, setConnectorEnabled, disconnect,
     refresh: vi.fn(), startInstall, startWithInstall,
   }

@@ -31,7 +31,7 @@ kind: "package-reference"
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **面板只提供临时决定**——它支持仅本次允许和拒绝；持久权限策略仍由 Host 侧审批 package 拥有。
+- **会话审批由请求方限定范围**——仅当 Host 提供账户和操作范围时，面板才显示本会话允许。Host 记录并执行授权；shell 提权仍需逐次审批。
 
 
 <a id="dev-note"></a>

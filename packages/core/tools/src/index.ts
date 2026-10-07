@@ -582,7 +582,7 @@ export type ToolExecutionResult = ToolExecutionSuccess | ToolExecutionFailure
 export type PreToolDecision =
   | { kind: 'allow' }
   | { kind: 'deny'; reason: string }
-  | { kind: 'ask'; reason?: string }
+  | { kind: 'ask'; reason?: string; allowSession?: string }
 
 /**
  * Post-dispatch decision: accept, replace one projection, attach context for the
@@ -1705,6 +1705,7 @@ export class ToolRuntime extends Service {
         toolName: exec.name,
         callId: exec.callId,
         ...ask.reason !== undefined ? { reason: ask.reason } : {},
+        ...(ask.allowSession === undefined ? {} : { allowSession: ask.allowSession }),
         signal: exec.signal,
       })
     } finally {

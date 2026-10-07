@@ -28,6 +28,11 @@ type ApprovalRequestId = Branded<'ApprovalRequestId'>
 type ApprovalOutcome = 'allowed-once' | 'rejected' | 'cancelled' | 'unavailable'
 ```
 
+```ts type-equiv
+/** Interactive answer; session grants require the requester to offer that scope. */
+type ApprovalAnswer = ApprovalOutcome | 'allowed-session'
+```
+
 ## Per-session policy
 
 `ApprovalPolicy` determines what happens before interactive answerers run. `ask` delegates to the composed answerer chain, whose no-answer default is `unavailable`; `never` deterministically returns `rejected` without dispatching any answerer. The effective value is the last `approval/policy` event in the session log, falling back to the service config. Consumers read it with `ctx.approval.effectivePolicy(session)`; `setApprovalPolicy(session, policy)` is the single write path, so replay reconstructs the override.
@@ -73,6 +78,8 @@ interface ApprovalRequest extends ApprovalRequestEvent {
   readonly callId?: ToolCallId
   /** The asker's human-readable explanation of WHY it is asking. */
   readonly reason?: string
+  /** Account-and-operation identifier; absent when only one-shot approval is offered. */
+  readonly allowSession?: string
   /**
    * Aborting withdraws the question: the request settles `'cancelled'`
    * immediately and a late answer from a still-pending answerer is discarded.
@@ -80,6 +87,8 @@ interface ApprovalRequest extends ApprovalRequestEvent {
   readonly signal?: AbortSignal
 }
 ```
+
+An answerer may return `allowed-session` only when the request offers an `allowSession` account-and-operation identifier. The service commits that scope and original session id in `approval/decided`, then returns `allowed-once` to the caller. Later requests with the same tool and scope in that session reuse the grant; forks do not inherit it. The `never` policy and cancellation take precedence over stored grants.
 
 ## Dispatch and audit
 
@@ -161,7 +170,7 @@ Ask composed answerers for one decision. Return an outcome to claim the request 
  * @param req - pending approval request.
  * @mode waterfall
  */
-'approval/request'( this: Scoped<Agent>, req: ApprovalRequestEvent, next: () => Promise<ApprovalOutcome>, ): Promise<ApprovalOutcome>
+'approval/request'( this: Scoped<Agent>, req: ApprovalRequestEvent, next: () => Promise<ApprovalAnswer>, ): Promise<ApprovalAnswer>
 ```
 
 Types: [Agent](core.md) · [Scoped](scope.md)

@@ -31,7 +31,7 @@ None; approval request and response rendering does not alter a model request.
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **The panel exposes transient decisions only** — it supports allow-once and reject; persistent permission policy remains owned by Host-side approval packages.
+- **Session approval is requester-scoped** — the panel offers Allow for this session only when the Host supplies an account-and-operation scope. The Host records and enforces the grant; shell escalation remains one-shot.
 
 
 <a id="dev-note"></a>

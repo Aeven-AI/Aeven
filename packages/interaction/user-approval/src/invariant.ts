@@ -15,12 +15,12 @@ export const name = 'user-approval-invariant'
 export const inject = ['invariants']
 
 type ApprovalTransition =
-  | { kind: 'asked'; id: ApprovalRequestId }
+  | { kind: 'asked'; id: ApprovalRequestId; toolName: string; allowSession: string | undefined }
   | { kind: 'decided'; id: ApprovalRequestId }
 
 interface ApprovalTrace {
   openTurn: number | null
-  pending: Set<ApprovalRequestId>
+  pending: Map<ApprovalRequestId, { toolName: string; allowSession: string | undefined }>
 }
 
 /** Validate one approval event against committed unmatched questions. */
@@ -33,13 +33,19 @@ function validateApprovalEvent(
     if (trace.openTurn === null) fail('approval/asked appended outside any open turn')
     if (event.data.toolName.length === 0) fail('approval/asked toolName must be non-empty')
     if (trace.pending.has(event.data.id)) fail(`approval/asked repeated open id ${JSON.stringify(event.data.id)}`)
-    return { kind: 'asked', id: event.data.id }
+    return { kind: 'asked', id: event.data.id, toolName: event.data.toolName, allowSession: event.data.allowSession }
   }
   if (event.type === 'approval/decided') {
     if (trace.openTurn === null) fail('approval/decided appended outside any open turn')
     if (!trace.pending.has(event.data.id)) fail(`approval/decided has no matching approval/asked for id ${JSON.stringify(event.data.id)}`)
     if (!APPROVAL_OUTCOMES.includes(event.data.outcome)) {
       fail(`approval/decided carries unknown outcome ${JSON.stringify(event.data.outcome)}`)
+    }
+    const grant = event.data.sessionGrant
+    const asked = trace.pending.get(event.data.id)
+    if (grant !== undefined && (event.data.outcome !== 'allowed-once'
+      || asked?.allowSession === undefined || asked.allowSession !== grant.scope || asked.toolName !== grant.toolName)) {
+      fail('approval/decided session grant must match an offered tool permission')
     }
     return { kind: 'decided', id: event.data.id }
   }
@@ -50,8 +56,8 @@ function validateApprovalEvent(
 }
 
 /** Apply one accepted approval-pair transition. */
-function applyApprovalTransition(pending: Set<ApprovalRequestId>, transition: ApprovalTransition): void {
-  if (transition.kind === 'asked') pending.add(transition.id)
+function applyApprovalTransition(pending: Map<ApprovalRequestId, { toolName: string; allowSession: string | undefined }>, transition: ApprovalTransition): void {
+  if (transition.kind === 'asked') pending.set(transition.id, { toolName: transition.toolName, allowSession: transition.allowSession })
   else pending.delete(transition.id)
 }
 
@@ -62,7 +68,7 @@ const install: InvariantInstaller = Object.assign((ctx: Context, fail: Invariant
   const traces = new WeakMap<Session, ApprovalTrace>()
   const staged = new WeakMap<SessionEvent, { session: Session; transition: ApprovalTransition }>()
   const seed = (session: Session): ApprovalTrace => {
-    const trace: ApprovalTrace = { openTurn: null, pending: new Set() }
+    const trace: ApprovalTrace = { openTurn: null, pending: new Map() }
     traces.set(session, trace)
     for (const event of session.snapshotEvents()) {
       if (event.type === 'turn/start') trace.openTurn = event.data.turn

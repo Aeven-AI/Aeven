@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { Context } from '@deepseek-ai/cordis'
 import type { ChatSnapshot, UseChat } from '@aeven/client-ui-chat/client'
-import type { PropsRuntime } from '@aeven/client-ui-slots'
+import type { PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { ApprovalCommand, commandOf } from '../src/client/chat/ApprovalCommand.tsx'
@@ -10,12 +10,14 @@ import { apply as nodeApply } from '../src/index.ts'
 function props(
   nodes: readonly unknown[],
   callId = 'call-1',
-): PropsRuntime<'conversation.approval.detail'> {
+): PropsRuntime<'conversation.approval.detail'> & PropsLocale<'approval'> {
   const snapshot = {
     nodes: { values: () => nodes },
   } as unknown as ChatSnapshot
   const useChat = ((selector: (value: ChatSnapshot) => unknown) => selector(snapshot)) as UseChat
-  return { callId, useChat } as PropsRuntime<'conversation.approval.detail'>
+  // Detail labels stay verbatim: these specs assert the correlated call text, not copy.
+  const t = ((key: string) => key) as PropsLocale<'approval'>['t']
+  return { callId, useChat, t } as PropsRuntime<'conversation.approval.detail'> & PropsLocale<'approval'>
 }
 
 describe('commandOf', () => {

@@ -8,6 +8,15 @@ export const zh = {
   once: '「允许一次」只对这一次调用生效，权限模式不会改变。',
   reject: '拒绝',
   allowOnce: '允许一次',
+  allowSession: '本会话允许',
+  session: '本会话允许将授权此账户执行同一操作，包括不同收件人和内容；其他操作仍需审批。',
+  send: '发送 {provider} 消息',
+  action: '{provider}：{operation}',
+  to: '收件人',
+  channel: '频道',
+  subject: '主题',
+  message: '消息',
+  details: '操作详情',
 } satisfies Record<string, string>
 
 /** Approval dictionary key union. */
@@ -21,4 +30,13 @@ export const en = {
   once: 'Allowing applies to this one call; your permission mode does not change.',
   reject: 'Reject',
   allowOnce: 'Allow once',
+  allowSession: 'Allow for this session',
+  session: 'Session approval allows this account to repeat this operation with different recipients and content. Other operations still ask.',
+  send: 'Send a {provider} message',
+  action: '{provider}: {operation}',
+  to: 'To',
+  channel: 'Channel',
+  subject: 'Subject',
+  message: 'Message',
+  details: 'Action details',
 } satisfies Record<ApprovalKey, string>

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`avn-user-approval` lets a sensitive tool action pause for a one-shot allow/reject decision: `ctx.approval.request(req)` asks the composed answerers whether one specific action may proceed and returns `allowed-once`, `rejected`, `cancelled`, or `unavailable`. Missing, non-owning, or throwing answerers fail closed to `unavailable`, and a grant applies only to the requested action. A per-session policy — `ask` (the default) or `never` — decides what happens before any answerer runs: `ask` delegates to the composed answerers, `never` rejects every request deterministically without prompting anyone. Each request is recorded in the requesting session's audit log, and the model sees only the asking consumer's tool outcome plus the current policy in the runtime-context snapshot. UI channels provide human answerers; the ACP automation bridge answers for its own agents.
+`avn-user-approval` lets a sensitive tool action pause for a one-shot allow/reject decision: `ctx.approval.request(req)` asks the composed answerers whether one specific action may proceed and returns `allowed-once`, `rejected`, `cancelled`, or `unavailable`. Missing, non-owning, or throwing answerers fail closed to `unavailable`, and a one-shot grant applies only to the requested action; explicitly scoped session grants cover repeat operations in the same session. A per-session policy — `ask` (the default) or `never` — decides what happens before any answerer runs: `ask` delegates to the composed answerers, `never` rejects every request deterministically without prompting anyone. Each request is recorded in the requesting session's audit log, and the model sees only the asking consumer's tool outcome plus the current policy in the runtime-context snapshot. UI channels provide human answerers; the ACP automation bridge answers for its own agents.
 
 ## Table of Contents
 
@@ -152,7 +152,7 @@ Append-only; newly visible content follows the reusable request prefix and does 
 These limits define when the seam is a poor fit or needs special composition care. They are current package constraints, not a general permission comparison.
 
 - **Requests are valid only inside an open turn** — an idle or between-turn caller throws before auditing; a durable out-of-turn approval workflow is deferred.
-- **Only one-shot grants exist** — the outcome vocabulary has `allowed-once` but no `allow-always`, remembered rule, revocation, or grant store; session policy is only `ask` / `never`.
+- **Session grants require an offered scope** — `allowed-session` answers authorize the exact account and operation identified by the requester. The committed decision stores the scope and original session id; repeat calls return `allowed-once` without prompting. Forks do not inherit grants, `never` still rejects, and global grants and revocation are not provided.
 - **The request carries no tool arguments** — an answerer sees the tool name, reason, and optional call id; the ACP machine channel requires a call id and delegates requests without one.
 - **No built-in answerer** — headless or incompletely composed deployments resolve `unavailable` and fail closed; the service itself never prompts a human.
 

@@ -28,6 +28,11 @@ type ApprovalRequestId = Branded<'ApprovalRequestId'>
 type ApprovalOutcome = 'allowed-once' | 'rejected' | 'cancelled' | 'unavailable'
 ```
 
+```ts type-equiv
+/** Interactive answer; session grants require the requester to offer that scope. */
+type ApprovalAnswer = ApprovalOutcome | 'allowed-session'
+```
+
 ## 按会话策略
 
 `ApprovalPolicy` 决定在交互式应答者运行之前发生什么。`ask` 委托给组合的应答者链，链的无应答默认值为 `unavailable`；`never` 确定性地返回 `rejected`，不分发任何应答者。生效值为会话日志中最后一条 `approval/policy` 事件，回退到服务配置。消费方通过 `ctx.approval.effectivePolicy(session)` 读取；`setApprovalPolicy(session, policy)` 是唯一的写入路径，因此回放能重建覆盖值。
@@ -73,6 +78,8 @@ interface ApprovalRequest extends ApprovalRequestEvent {
   readonly callId?: ToolCallId
   /** The asker's human-readable explanation of WHY it is asking. */
   readonly reason?: string
+  /** Account-and-operation identifier; absent when only one-shot approval is offered. */
+  readonly allowSession?: string
   /**
    * Aborting withdraws the question: the request settles `'cancelled'`
    * immediately and a late answer from a still-pending answerer is discarded.
@@ -80,6 +87,8 @@ interface ApprovalRequest extends ApprovalRequestEvent {
   readonly signal?: AbortSignal
 }
 ```
+
+仅当请求通过 `allowSession` 提供账户及操作标识符时，应答者才可返回 `allowed-session`。服务在 `approval/decided` 中提交该范围和原会话 ID，然后向调用方返回 `allowed-once`。该会话后续相同工具和范围的请求复用授权；分叉不继承授权。`never` 策略和取消优先于已存储的授权。
 
 ## 分发与审计
 
@@ -161,7 +170,7 @@ Ask composed answerers for one decision. Return an outcome to claim the request 
  * @param req - pending approval request.
  * @mode waterfall
  */
-'approval/request'( this: Scoped<Agent>, req: ApprovalRequestEvent, next: () => Promise<ApprovalOutcome>, ): Promise<ApprovalOutcome>
+'approval/request'( this: Scoped<Agent>, req: ApprovalRequestEvent, next: () => Promise<ApprovalAnswer>, ): Promise<ApprovalAnswer>
 ```
 
 Types: [Agent](core.zh.md) · [Scoped](scope.zh.md)

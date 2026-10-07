@@ -349,6 +349,7 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   SessionLogSnapshot: 'session-query.md',
   SessionSurfaceSnapshot: 'session-query.md',
   ApprovalOutcome: 'approval.md',
+  ApprovalAnswer: 'approval.md',
   ApprovalPolicy: 'approval.md',
   ApprovalRequest: 'approval.md',
   ApprovalRequestEvent: 'approval.md',

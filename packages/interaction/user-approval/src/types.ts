@@ -31,6 +31,9 @@ export function ApprovalRequestId(id: string): ApprovalRequestId {
  */
 export type ApprovalOutcome = 'allowed-once' | 'rejected' | 'cancelled' | 'unavailable'
 
+/** Interactive answer; session grants require the requester to offer that scope. */
+export type ApprovalAnswer = ApprovalOutcome | 'allowed-session'
+
 declare module '@aeven/session/types' {
   interface SessionEventMap {
     /**
@@ -46,6 +49,8 @@ declare module '@aeven/session/types' {
       toolName: string
       callId?: ToolCallId
       reason?: string
+      /** Account-and-operation identifier offered for a session grant. */
+      allowSession?: string
     }
     /**
      * The outcome of a prior `approval/asked` (same `id`) — log-only audit.
@@ -55,6 +60,8 @@ declare module '@aeven/session/types' {
     'approval/decided': {
       id: ApprovalRequestId
       outcome: ApprovalOutcome
+      /** Account-specific tool permission confined to the original session. */
+      sessionGrant?: { sessionId: import('@aeven/session/types').SessionId; toolName: string; scope: string }
     }
   }
 }
@@ -69,6 +76,8 @@ export interface ApprovalRequestEvent {
   readonly callId?: ToolCallId
   /** Human-readable reason supplied by the asker. */
   readonly reason?: string
+  /** Account-and-operation identifier; absent when only one-shot approval is offered. */
+  readonly allowSession?: string
   /** Cancellation lifetime of the pending request. */
   readonly signal?: AbortSignal
 }
@@ -85,7 +94,7 @@ declare module '@deepseek-ai/cordis' {
     'approval/request'(
       this: Scoped<Agent>,
       req: ApprovalRequestEvent,
-      next: () => Promise<ApprovalOutcome>,
-    ): Promise<ApprovalOutcome>
+      next: () => Promise<ApprovalAnswer>,
+    ): Promise<ApprovalAnswer>
   }
 }

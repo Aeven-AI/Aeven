@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
 
 Signed-in users can import, inspect, enable, and remove their own skills, connect remote MCP servers, link WhatsApp numbers, sign in Telegram accounts, add Discord servers, and connect Slack workspaces. Every management operation derives its owner from the authenticated request. Skills and connector credentials persist across restarts; conversations receive only their owner's integrations.
 
+Connector write approvals offer a session grant for the same account and tool operation. Google Workspace raw calls additionally scope the grant to the service and resource-method path. Account ownership, connection, and enablement checks run before every approval request.
+
 ## Table of Contents
 
 - [Use this package](#use-this-package)
@@ -21,7 +23,7 @@ Signed-in users can import, inspect, enable, and remove their own skills, connec
 
 ## Use this package
 
-The Web bundle mounts this plugin with the [Skills and Connectors pages](../../client/ui-settings-integrations/README.md). Settings lists the account’s personal imports, skills from the deployment’s default preset, and skills from every folder workspace owned by that account. Listing is independent of open conversations; Disabled skills remain visible. File-backed entries are deduplicated by their resolved file path, including symlinks. Skills outside connectors support a persistent account-level invocation switch; removal applies only to personal imports. Preferences apply to the skill name across sources and restrict both model and user invocation without changing files or expanding workspace access. Import one `SKILL.md`, `.skill`, or ZIP bundle with exactly one skill definition. Resource paths must stay within its directory; duplicate paths, malformed frontmatter, and oversized bundles are rejected. Imports use the existing skill provider registry and invocation controls.
+The Web bundle mounts this plugin with the [Skills and Connectors pages](../../client/ui-settings-integrations/README.md). Settings lists the account’s own skills: imported bundles and installed skills. Discovered skills — a repository, the deployment’s preset, and every owned folder workspace — are not listed, because they are always available and carry no account-level switch; a skill a connector owns appears only in that connector’s details. Listing is independent of open conversations, and a disabled skill remains visible. Each listed skill has one persistent account-level invocation switch, and removing it deletes the stored bundle. The preference applies to that skill name and restricts both model and user invocation without changing files or expanding workspace access. Import one `SKILL.md`, `.skill`, or ZIP bundle with exactly one skill definition. Resource paths must stay within its directory; duplicate paths, malformed frontmatter, and oversized bundles are rejected. Imports use the existing skill provider registry and invocation controls.
 
 Custom connections accept Streamable HTTP MCP endpoints and optional bearer tokens; GitHub also accepts a personal access token for its official remote endpoint. Connection creation verifies MCP discovery before saving. Tokens are write-only and stored through the credential provider under an account-derived key. Disablement and disconnection deny subsequent calls even when a conversation still holds an older tool catalog.
 

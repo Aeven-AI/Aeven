@@ -281,10 +281,6 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
     <div className={css.actions}><button type="submit" className={css.primaryAction} disabled={busy}>{t('connect')}</button><button type="button" className={css.secondaryAction} disabled={busy} onClick={() => { setToken(''); setForm(undefined) }}>{t('cancel')}</button></div>
   </form>
   const catalogVisible = (page === 'skills' ? selectedSkillId : selectedConnector) === undefined
-  const skillMeta = (skill: AccountIntegrationsView['skills'][number]) => [
-    skill.workspace ?? skill.source,
-    ...skill.available === false ? [t('needsConnector')] : [],
-  ].join(' · ')
   return <div ref={sectionTop} className={`${css.section} ${css.compact}`}>
     {catalogVisible && <SectionHeader title={t(page)} description={t(page === 'skills' ? 'skillsIntro' : 'connectorsIntro')} />}
     {busy && <p role="status" className={css.hint}>{t(signingIn ? 'openingSignIn' : 'working')}</p>}
@@ -315,7 +311,6 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
             <span className={css.skillSummary}>
               <strong>{skill.name}</strong>
               <span className={css.connectorDescription}>{skill.description}</span>
-              <span className={css.meta}>{skillMeta(skill)}</span>
             </span>
           </button>
           {skillSwitch(skill)}
@@ -325,7 +320,7 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
         : <article className={`${css.connectorDetail} ${css.skillContent}`}>
           <div className={css.connectorHeading}><h2>{selectedSkill.name}</h2>{skillSwitch(selectedSkill)}</div>
           <p className={css.detailDescription}>{selectedSkill.description}</p>
-          <p className={css.meta}>{[skillMeta(selectedSkill), t(selectedSkill.managed ? 'personalSkill' : 'readOnlySkill')].join(' · ')}</p>
+          <p className={css.meta}>{t('personalSkill')}</p>
           <div className={css.instructions}>
             <MarkdownText
               key={selectedSkill.id}
@@ -338,9 +333,9 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
             <h3>{t('files')}</h3>
             <ul className={css.fileList}>{selectedSkill.files.map(path => <li key={path}>{path}</li>)}</ul>
           </div>}
-          {selectedSkill.managed && <button type="button" className={css.textAction} disabled={busy} onClick={() => {
+          <button type="button" className={css.textAction} disabled={busy} onClick={() => {
             void run(async () => { await props.removeSkill(selectedSkill.name); props.showDetail(undefined) })
-          }}>{t('removeSkill')}</button>}
+          }}>{t('removeSkill')}</button>
         </article>}
     </> : <>
       {providerDetail === undefined ? <div className={css.connectorList}>{snapshot?.providers.map(provider => <article

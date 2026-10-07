@@ -385,7 +385,7 @@ type ToolExecutionResult = ToolExecutionSuccess | ToolExecutionFailure
 type PreToolDecision =
   | { kind: 'allow' }
   | { kind: 'deny'; reason: string }
-  | { kind: 'ask'; reason?: string }
+  | { kind: 'ask'; reason?: string; allowSession?: string }
 ```
 
 ```ts type-equiv
