@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AccountIntegrationsView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillUploadFile, TelegramPairingView, WhatsAppPairingView } from '@aeven/api-remotes/client'
-import { SectionHeader, MarkdownText, Modal, IconCloseOutline16, IconChevronLeftOutline14 } from '@aeven/client-ui-primitives'
+import { LoadingBlock, SectionHeader, MarkdownText, Modal, IconCloseOutline16, IconChevronLeftOutline14 } from '@aeven/client-ui-primitives'
 import type { HostObservable, InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import css from './IntegrationsSection.module.css'
 import { connectorIcons } from './connector-icons.ts'
@@ -16,6 +16,12 @@ export interface IntegrationsSectionInjected {
   hooks: { changes: HostObservable<number> }
   page: 'skills' | 'connectors'
   list: () => Promise<AccountIntegrationsView>
+  /**
+   * The list this page read the last time it was mounted, so a revisit paints
+   * it before the re-read lands.
+   * @returns that list, or undefined when the page has not settled one yet.
+   */
+  cachedList: () => AccountIntegrationsView | undefined
   importSkill: (files: SkillUploadFile[]) => Promise<void>
   setSkillEnabled: (name: string, enabled: boolean) => Promise<void>
   removeSkill: (name: string) => Promise<void>
@@ -80,7 +86,7 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
   const { page, t, list } = props
   const changes = props.useChanges(value => value)
   const requestVersion = useRef(0)
-  const [snapshot, setSnapshot] = useState<AccountIntegrationsView>()
+  const [snapshot, setSnapshot] = useState<AccountIntegrationsView | undefined>(() => props.cachedList())
   // The address owns which skill or connector page is open, so a page can be linked and Back returns to the list.
   const selectedSkillId = page === 'skills' ? props.detail : undefined
   const selectedConnector = page === 'connectors' ? props.detail : undefined
@@ -281,12 +287,15 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
     <div className={css.actions}><button type="submit" className={css.primaryAction} disabled={busy}>{t('connect')}</button><button type="button" className={css.secondaryAction} disabled={busy} onClick={() => { setToken(''); setForm(undefined) }}>{t('cancel')}</button></div>
   </form>
   const catalogVisible = (page === 'skills' ? selectedSkillId : selectedConnector) === undefined
+  // Nothing the list owns is drawn while the first read is in flight, so the
+  // page shows the header and the spinner alone.
+  const loading = snapshot === undefined && !failed
   return <div ref={sectionTop} className={`${css.section} ${css.compact}`}>
     {catalogVisible && <SectionHeader title={t(page)} description={t(page === 'skills' ? 'skillsIntro' : 'connectorsIntro')} />}
     {busy && <p role="status" className={css.hint}>{t(signingIn ? 'openingSignIn' : 'working')}</p>}
     {failed && <p role="alert">{t('failed')}</p>}
-    {snapshot === undefined && !failed && <p role="status">{t('loading')}</p>}
-    {page === 'skills' ? <>
+    {loading && <LoadingBlock label={t('loading')} />}
+    {!loading && (page === 'skills' ? <>
       <input ref={fileInput} type="file" accept=".md,.zip,.skill" className={css.upload} aria-label={t('import')} onChange={(event) => {
         const file = event.currentTarget.files?.[0]
         if (file !== undefined) void run(async () => { await props.importSkill([await upload(file)]) })
@@ -304,7 +313,6 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
           />
           <button type="button" className={css.primaryAction} disabled={busy} title={t('importHint')} onClick={() => { fileInput.current?.click() }}>{t('import')}</button>
         </div>
-        {snapshot?.skills.length === 0 && <p className={css.hint}>{t('skillsEmpty')}</p>}
         {snapshot !== undefined && snapshot.skills.length > 0 && matchingSkills.length === 0 && <p className={css.hint}>{t('noMatches')}</p>}
         <div className={css.connectorList}>{matchingSkills.map(skill => <article key={skill.id} className={css.connectorRow}>
           <button type="button" className={css.connectorOpen} onClick={() => { openDetail(skill.id) }}>
@@ -462,7 +470,7 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
         const desktop = (window as Window & { avnDesktop?: { browser?: { openExternal: (url: string) => Promise<void> } } }).avnDesktop?.browser
         if (desktop !== undefined) { event.preventDefault(); void run(() => desktop.openExternal(consent)) }
       }}>{t('consent')}</a><p className={css.hint}>{t('consentHint')}</p></div>}
-    </>}
+    </>)}
   </div>
 }
 

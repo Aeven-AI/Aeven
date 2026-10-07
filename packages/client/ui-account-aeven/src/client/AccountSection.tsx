@@ -1,7 +1,7 @@
 /** The Account settings page: who is signed in, the plans, their credits, and this period's usage. */
 import { useCallback, useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import {
-  Button, IconCheckOutline14, IconChevronDownOutline14, IconRightUpOutline16, SectionHeader, Spinner,
+  Button, IconCheckOutline14, IconChevronDownOutline14, IconRightUpOutline16, LoadingBlock, SectionHeader, Spinner,
 } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import { Avatar } from './Avatar.tsx'
@@ -30,6 +30,12 @@ export interface AccountSectionInjected {
    * @returns the decoded response body.
    */
   cloud: <T>(path: string, init?: RequestInit) => Promise<T>
+  /**
+   * The last accepted answer for a route this page already read.
+   * @param path - the route below `/api/cloud`.
+   * @returns that answer, or undefined when the route has not settled yet.
+   */
+  cached: <T>(path: string) => T | undefined
 }
 
 /** Full component props assembled by the slot renderer. */
@@ -95,16 +101,27 @@ function priceOf(plan: CloudPlan): number {
 }
 
 /**
- * Load one account route and keep its latest outcome.
- * @param load - the call to make.
+ * Load one account route and keep its latest outcome. The page's own cache
+ * seeds the first state, so a revisit paints that answer and re-reads behind it
+ * instead of showing the spinner again.
+ * @param cloud - the account face's route reader.
+ * @param cached - the account face's last-answer reader.
+ * @param path - the route below `/api/cloud`.
  * @returns the outcome, a reload that shows the spinner, and a quiet refresh that does not.
  */
-function useLoad<T>(load: () => Promise<T>): { state: Load<T>; reload: () => void; refresh: () => Promise<T | undefined> } {
-  const [state, setState] = useState<Load<T>>({ status: 'loading' })
+function useLoad<T>(
+  cloud: AccountSectionInjected['cloud'],
+  cached: AccountSectionInjected['cached'],
+  path: string,
+): { state: Load<T>; reload: () => void; refresh: () => Promise<T | undefined> } {
+  const [state, setState] = useState<Load<T>>(() => {
+    const value = cached<T>(path)
+    return value === undefined ? { status: 'loading' } : { status: 'ready', value }
+  })
   const live = useRef(true)
   const refresh = useCallback(async () => {
     try {
-      const value = await load()
+      const value = await cloud<T>(path)
       if (live.current) setState({ status: 'ready', value })
       return value
     } catch {
@@ -112,7 +129,7 @@ function useLoad<T>(load: () => Promise<T>): { state: Load<T>; reload: () => voi
       if (live.current) setState(current => current.status === 'ready' ? current : { status: 'error' })
       return undefined
     }
-  }, [load])
+  }, [cloud, cached, path])
   const reload = useCallback(() => {
     setState({ status: 'loading' })
     void refresh()
@@ -131,12 +148,12 @@ function useLoad<T>(load: () => Promise<T>): { state: Load<T>; reload: () => voi
  * @returns the section element tree.
  */
 export function AccountSection(props: AccountSectionProps) {
-  const { t, cloud } = props
-  const usage = useLoad(useCallback(() => cloud<CloudUsage>('/usage'), [cloud]))
-  const subscription = useLoad(useCallback(() => cloud<CloudSubscription>('/subscription'), [cloud]))
-  const options = useLoad(useCallback(() => cloud<TopUpOptions>('/topup/options'), [cloud]))
-  const wallet = useLoad(useCallback(() => cloud<CloudWallet>('/wallet'), [cloud]))
-  const plans = useLoad(useCallback(() => cloud<CloudPlans>('/plans'), [cloud]))
+  const { t, cloud, cached } = props
+  const usage = useLoad<CloudUsage>(cloud, cached, '/usage')
+  const subscription = useLoad<CloudSubscription>(cloud, cached, '/subscription')
+  const options = useLoad<TopUpOptions>(cloud, cached, '/topup/options')
+  const wallet = useLoad<CloudWallet>(cloud, cached, '/wallet')
+  const plans = useLoad<CloudPlans>(cloud, cached, '/plans')
   const refreshPlan = useCallback(async () => {
     void usage.refresh()
     return subscription.refresh()
@@ -180,11 +197,7 @@ export function AccountSection(props: AccountSectionProps) {
       <SectionHeader title={t('section.nav')} description={t('section.intro')} />
       <Identity {...props} />
 
-      {!painted && (
-        <div className={css.row}>
-          <span className={css.pending}><Spinner /> {t('section.loading')}</span>
-        </div>
-      )}
+      {!painted && <LoadingBlock label={t('section.loading')} />}
 
       {painted && <>
         <Group title={t('plan.heading')}>
@@ -250,7 +263,7 @@ function Loaded<T>({ t, load, retry, children }: {
   readonly retry: () => void
   readonly children: (value: T) => ReactNode
 }) {
-  if (load.status === 'loading') return <div className={css.row}><span className={css.pending}><Spinner /> {t('section.loading')}</span></div>
+  if (load.status === 'loading') return <LoadingBlock label={t('section.loading')} />
   if (load.status === 'error') {
     return (
       <div className={css.row}>

@@ -2535,6 +2535,9 @@ importers:
       '@aeven/client-locale':
         specifier: workspace:^
         version: link:../locale
+      '@aeven/client-store':
+        specifier: workspace:^
+        version: link:../store
       '@aeven/client-ui-auth-aeven':
         specifier: workspace:^
         version: link:../ui-auth-aeven
@@ -4047,6 +4050,9 @@ importers:
       '@aeven/client-locale':
         specifier: workspace:^
         version: link:../locale
+      '@aeven/client-store':
+        specifier: workspace:^
+        version: link:../store
       '@aeven/client-ui-auth-aeven':
         specifier: workspace:^
         version: link:../ui-auth-aeven
@@ -4083,6 +4089,9 @@ importers:
       '@aeven/client-locale':
         specifier: workspace:^
         version: link:../locale
+      '@aeven/client-store':
+        specifier: workspace:^
+        version: link:../store
       '@aeven/client-test-runtime':
         specifier: workspace:^
         version: link:../../test-support/client-runtime

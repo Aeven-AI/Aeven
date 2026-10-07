@@ -7,6 +7,7 @@
  */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
+import { createReadCache } from '@aeven/client-store'
 import type { AevenReader } from '@aeven/client-ui-auth-aeven'
 import type {} from '@aeven/client-locale/client'
 import type {} from '@aeven/client-ui-layout/client'
@@ -110,11 +111,24 @@ export function apply(ctx: ClientContext): void {
   const reader = publishedReader()
   if (reader === undefined) return
   const t = ctx.locale.bind(NS)
+  // The account routes are this plugin's own reads, so their cache is too: a
+  // revisiting page paints the last answer and re-reads behind it. A write can
+  // move any of them (a top-up changes the wallet and the allowance), so a
+  // non-GET drops every key.
+  const cache = createReadCache()
+  const cloud = <T>(path: string, init?: RequestInit): Promise<T> => {
+    if (init !== undefined) {
+      cache.invalidate()
+      return reader.cloud<T>(path, init)
+    }
+    return cache.read<T>(path, () => reader.cloud<T>(path, init))
+  }
   const section: AccountSectionInjected = {
     reader: currentReader,
     accountUrl,
     signOut: injected().signOut,
-    cloud: (path, init) => reader.cloud(path, init),
+    cloud,
+    cached: <T>(path: string) => cache.peek<T>(path),
   }
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section',

@@ -83,6 +83,13 @@
   color: var(--dsw-alias-label-error);
 }
 
+/* The card's own loading state: the shared centered mark at card height, not
+   the section-height block a whole settings page reserves. */
+.loading {
+  min-height: 0;
+  padding: 12px 0;
+}
+
 .catalogError {
   display: flex;
   align-items: center;

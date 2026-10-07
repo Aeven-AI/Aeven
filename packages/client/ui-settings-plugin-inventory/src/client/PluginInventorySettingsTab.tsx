@@ -4,6 +4,7 @@ import {
   IconChevronDownOutline14,
   IconLucideCircleDot,
   IconSearchOutline16,
+  LoadingBlock,
   Menu,
 } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
@@ -18,6 +19,12 @@ type AgentPresetRow = AgentPresetGroup['rows'][number]
 export interface PluginInventorySettingsTabInjected {
   /** Read a current Host inventory snapshot. */
   list: () => Promise<PluginInventorySnapshot>
+  /**
+   * The inventory this tab read the last time it was mounted, so reopening it
+   * paints that inventory before the re-read lands.
+   * @returns that snapshot, or undefined when the tab has not settled one yet.
+   */
+  cachedList: () => PluginInventorySnapshot | undefined
   /**
    * Display name for one preset: the name its metadata publishes, else its id.
    */
@@ -169,7 +176,7 @@ function StateTag({ kind, label }: { readonly kind: string; readonly label: stri
 }
 
 /** Render the read-only plugin inventory: agent presets first, then the global plane. */
-export function PluginInventorySettingsTab({ list, presetName, t }: PluginInventorySettingsTabProps): ReactNode {
+export function PluginInventorySettingsTab({ list, cachedList, presetName, t }: PluginInventorySettingsTabProps): ReactNode {
   const sectionId = useId()
   const [request, setRequest] = useState(0)
   const [query, setQuery] = useState('')
@@ -178,7 +185,10 @@ export function PluginInventorySettingsTab({ list, presetName, t }: PluginInvent
   const [switcherOpen, setSwitcherOpen] = useState(false)
   const [presetOpen, setPresetOpen] = useState<boolean | null>(null)
   const [globalOpen, setGlobalOpen] = useState<boolean | null>(null)
-  const [state, setState] = useState<ViewState>({ status: 'loading' })
+  const [state, setState] = useState<ViewState>(() => {
+    const snapshot = cachedList()
+    return snapshot === undefined ? { status: 'loading' } : { status: 'ready', snapshot }
+  })
 
   useEffect(() => {
     let current = true
@@ -347,7 +357,7 @@ export function PluginInventorySettingsTab({ list, presetName, t }: PluginInvent
 
   return (
     <div className={css.section} aria-busy={state.status === 'loading'}>
-      {state.status === 'loading' ? <p className={css.status}>{t('loading')}</p> : null}
+      {state.status === 'loading' ? <LoadingBlock label={t('loading')} /> : null}
       {state.status === 'error' ? (
         <div className={css.failure}>
           <p role="alert">{t('error')}</p>

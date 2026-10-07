@@ -1,13 +1,18 @@
 /** The Personalization settings page: a voice picked from example replies, the account name, and notes in the person's own words. */
 import { useCallback, useEffect, useId, useState } from 'react'
 import type { PersonalizationChange, PersonalizationUpdate, PersonalizationView, PersonalizationVoice } from '@aeven/api-remotes/client'
-import { Button, SectionHeader, Spinner } from '@aeven/client-ui-primitives'
+import { Button, LoadingBlock, SectionHeader } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import css from './PersonalizationSection.module.css'
 
 /** Registration-side operations the page calls. */
 export interface PersonalizationSectionInjected {
   read: () => Promise<PersonalizationView>
+  /**
+   * The view this page read the last time it was mounted.
+   * @returns that view, or undefined when the page has not settled one yet.
+   */
+  cachedView: () => PersonalizationView | undefined
   update: (update: PersonalizationUpdate) => Promise<PersonalizationChange>
   /**
    * The account display name and how to change it, or undefined when nobody is signed in to an Aeven account.
@@ -32,8 +37,13 @@ const VOICES: readonly PersonalizationVoice[] = ['automatic', 'warm', 'direct', 
  * @param props - composed Settings slot props.
  * @returns the section.
  */
-export function PersonalizationSection({ read, update, accountName, t }: PersonalizationSectionProps) {
-  const [load, setLoad] = useState<Load>({ status: 'loading' })
+export function PersonalizationSection({ read, cachedView, update, accountName, t }: PersonalizationSectionProps) {
+  // The page's own cache answers first, so a revisit paints the view it read
+  // last and revalidates behind it instead of showing the spinner again.
+  const [load, setLoad] = useState<Load>(() => {
+    const view = cachedView()
+    return view === undefined ? { status: 'loading' } : { status: 'ready', view }
+  })
   const [account] = useState(accountName)
   const [savedName, setSavedName] = useState(account?.name ?? '')
   const [callName, setCallName] = useState(account?.name ?? '')
@@ -97,7 +107,7 @@ export function PersonalizationSection({ read, update, accountName, t }: Persona
     return (
       <div className={css.section}>
         <SectionHeader title={t('nav')} description={t('intro')} />
-        <p className={css.status}><Spinner /> {t('loading')}</p>
+        <LoadingBlock label={t('loading')} />
       </div>
     )
   }

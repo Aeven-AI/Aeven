@@ -1,10 +1,11 @@
 /** Settings → Personalization: how the signed-in person wants Aeven to talk with them, over the personalization Remote. */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
+import { createReadCache } from '@aeven/client-store'
 import type {} from '@aeven/client-locale/client'
 import type {} from '@aeven/client-ui-settings/client'
 import type {} from '@aeven/client-ui-renderer/client'
-import type { RemoteResult } from '@aeven/api-remotes/client'
+import type { PersonalizationView, RemoteResult } from '@aeven/api-remotes/client'
 import type { AevenReader } from '@aeven/client-ui-auth-aeven'
 import { PersonalizationSection, type PersonalizationSectionInjected } from './PersonalizationSection.tsx'
 import { en, zh, type PersonalizationLocaleKey } from './locales.ts'
@@ -60,9 +61,17 @@ export function apply(ctx: ClientContext): void {
 
   const t = ctx.locale.bind(NS)
   const remote = ctx.remote.personalization
+  // One cached view, owned here: a revisit paints the view the page read last
+  // and re-reads behind it. A write moves that view, so it drops the entry.
+  const cache = createReadCache()
   const operations: PersonalizationSectionInjected = {
-    read: () => value(remote.get()),
-    update: update => value(remote.update(update)),
+    read: () => cache.read('view', () => value(remote.get())),
+    cachedView: () => cache.peek<PersonalizationView>('view'),
+    update: async (update) => {
+      const change = await value(remote.update(update))
+      cache.invalidate()
+      return change
+    },
     // The name is the account's display name — the one the sign-up naming step asks for — so it is read from and
     // written to the account, and every surface that names the reader follows the change.
     accountName: () => {

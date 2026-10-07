@@ -1,0 +1,21 @@
+/* The section loading state. One mark on the section's horizontal centre, with
+   room reserved around it so the sheet does not collapse while data is in
+   flight. Nothing else is drawn: the status text reaches assistive technology
+   through the clipped label, never as visible copy. */
+.block {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 220px;
+  padding: 24px 0;
+}
+
+.label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

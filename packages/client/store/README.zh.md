@@ -8,7 +8,7 @@ kind: "package-library"
 
 ## 概述
 
-供 Client controller 与 renderer adapter 共用的不依赖 React 的 observable 和 snapshot-store 基础设施。本包负责同步与 animation-frame 发布、基于 Immer 的更新、浅比较，以及可选的浏览器持久化——整份状态或声明出的持久字段；React hook 的构造仍属于 `@aeven/client-ui-renderer`。当 Client 状态必须在不依赖 React 的情况下发布稳定 snapshot 时，请使用它。
+供 Client controller 与 renderer adapter 共用的不依赖 React 的 observable 和 snapshot-store 基础设施。本包负责同步与 animation-frame 发布、基于 Immer 的更新、浅比较，以及可选的浏览器持久化——整份状态或声明出的持久字段；React hook 的构造仍属于 `@aeven/client-ui-renderer`。当 Client 状态必须在不依赖 React 的情况下发布稳定 snapshot 时，请使用它。`createReadCache` 是与之独立、由插件按自身 key 包装远程读取的读穿透缓存：`peek` 把最后一次被接受的结果交给重新挂载的界面，使其先绘制并在后台重新校验，而不是再次显示加载状态；`read` 对同一 key 只保留一个进行中的读取；`invalidate` 丢弃已被写入改动的 key。
 
 ## 目录
 

@@ -67,6 +67,15 @@ function SettingsPanel({ rows, renderSlot, activeId, detail: addressedDetail, on
   const showDetail = useCallback((page?: string) => { if (active !== undefined) onSelect(active, page) }, [active, onSelect])
   const titleId = useId()
 
+  // A section the reader has opened stays mounted: its wrapper keeps that
+  // section's own state (scroll, query, expanded rows) together with the data
+  // it already read, so returning to a tab never starts those reads again.
+  const [visited, setVisited] = useState<readonly string[]>(active === undefined ? [] : [active])
+  useEffect(() => {
+    if (active === undefined) return
+    setVisited(previous => previous.includes(active) ? previous : [...previous, active])
+  }, [active])
+
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
@@ -136,7 +145,19 @@ function SettingsPanel({ rows, renderSlot, activeId, detail: addressedDetail, on
           <div className={css.optionsFrame}>
             <div ref={options} className={clsx(css.options, 'no-scrollbar')}>
               <div ref={optionsBody}>
-                {active !== undefined && renderSlot('settings.section', { close: onClose, detail, showDetail }, { only: active })}
+                {visited.map(id => (
+                  <div key={id} className={id === active ? css.paneActive : css.pane}>
+                    {renderSlot(
+                      'settings.section',
+                      {
+                        close: onClose,
+                        detail: id === active ? detail : undefined,
+                        showDetail: (page?: string) => { onSelect(id, page) },
+                      },
+                      { only: id },
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
           </div>

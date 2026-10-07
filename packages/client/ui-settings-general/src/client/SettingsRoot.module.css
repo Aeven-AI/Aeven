@@ -337,3 +337,14 @@
     grid-area: options;
   }
 }
+
+/* Sections the reader has opened stay mounted, so a revisit keeps that
+   section's state and the data it already read. Only the addressed one is
+   painted; the rest are hidden and keep running without layout cost. */
+.pane {
+  display: none;
+}
+
+.paneActive {
+  display: block;
+}

@@ -1,11 +1,11 @@
 /** Skills and Connectors navigation, backed by the signed-in account Remote. */
 
-import { createSnapshotStore } from '@aeven/client-store'
+import { createReadCache, createSnapshotStore } from '@aeven/client-store'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@aeven/client-locale/client'
 import type {} from '@aeven/client-ui-settings/client'
 import type {} from '@aeven/client-ui-renderer/client'
-import type { RemoteResult } from '@aeven/api-remotes/client'
+import type { AccountIntegrationsView, RemoteResult } from '@aeven/api-remotes/client'
 import { DetailBack, IntegrationsSection, type IntegrationsSectionInjected } from './IntegrationsSection.tsx'
 import { en, zh, type IntegrationsLocaleKey } from './locales.ts'
 
@@ -42,9 +42,15 @@ export function apply(ctx: Context): void {
   const refresh = (): void => { changes.set(changes.getSnapshot() + 1) }
   ctx.remote.$on('skills/change', refresh)
   ctx.on('connection/reset', refresh)
+  // Both pages read this one list, so they share one cache entry: whichever
+  // mounts second paints the answer the first already read and re-reads behind
+  // it, and every mutation re-lists through the same call.
+  const cache = createReadCache()
+  const list = (): Promise<AccountIntegrationsView> => cache.read('list', () => value(remote.list()))
   const operations: Omit<IntegrationsSectionInjected, 'page'> = {
     hooks: { changes },
-    list: () => value(remote.list()),
+    list,
+    cachedList: () => cache.peek<AccountIntegrationsView>('list'),
     importSkill: files => value(remote.importSkill(files)),
     setSkillEnabled: (name, enabled) => value(remote.setSkillEnabled(name, enabled)),
     removeSkill: name => value(remote.removeSkill(name)),

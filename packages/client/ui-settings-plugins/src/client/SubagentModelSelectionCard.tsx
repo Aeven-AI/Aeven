@@ -1,6 +1,7 @@
 /** User control for model-selectable subagent delegation in new sessions. */
 
 import clsx from 'clsx'
+import { LoadingBlock } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import type {
   SubagentModelCandidate,
@@ -93,7 +94,7 @@ export function SubagentModelSelectionCard(props: SubagentModelSelectionCardProp
         ? (
           <div className={css.selection}>
             {state.catalogStatus === 'loading'
-              ? <p className={css.notice} role="status">{t('subagentModelSelectionLoading')}</p>
+              ? <LoadingBlock className={css.loading} label={t('subagentModelSelectionLoading')} />
               : null}
             {state.catalogStatus === 'error'
               ? (

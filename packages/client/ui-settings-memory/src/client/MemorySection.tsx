@@ -5,7 +5,7 @@ import type {
   ManagedCapabilityStatusChange, ManagedInvariantChange, ManagedInvariantsPage, ManagedMemory, ManagedMemoryPage, ManagedMemoryQuery,
   MemoryDomain, MemoryItemId,
 } from '@aeven/api-remotes/client'
-import { Button, IconChevronDownOutline14, IconSearchOutline16, MarkdownText, Modal, SectionHeader, Spinner, relativeTime } from '@aeven/client-ui-primitives'
+import { Button, IconChevronDownOutline14, IconSearchOutline16, LoadingBlock, MarkdownText, Modal, SectionHeader, Spinner, relativeTime } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import type { MemoryLocaleKey } from './locales.ts'
 import css from './MemorySection.module.css'
@@ -94,10 +94,18 @@ export function MemorySection(props: MemorySectionProps) {
   const tabsId = useId()
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
   const [tab, setTab] = useState<Tab>('person')
+  // The active pane reports its own read: while the first one is in flight the
+  // section shows its header and the loading mark alone, so neither the strip
+  // nor a pane's own controls sit above an empty page.
+  const [paneLoading, setPaneLoading] = useState(true)
+  const select = (next: Tab): void => {
+    setPaneLoading(true)
+    setTab(next)
+  }
   return (
     <div className={css.section}>
       <SectionHeader title={t('nav')} description={t('intro')} />
-      <div className={css.tabs} role="tablist" aria-label={t('tabs')}>
+      {!paneLoading && <div className={css.tabs} role="tablist" aria-label={t('tabs')}>
         {TABS.map((item, index) => {
           const selected = tab === item.id
           return (
@@ -112,7 +120,7 @@ export function MemorySection(props: MemorySectionProps) {
               aria-controls={`${tabsId}-panel-${item.id}`}
               data-active={selected ? 'true' : undefined}
               tabIndex={selected ? 0 : -1}
-              onClick={() => { setTab(item.id) }}
+              onClick={() => { select(item.id) }}
               onKeyDown={(event) => {
                 let nextIndex: number
                 switch (event.key) {
@@ -126,7 +134,7 @@ export function MemorySection(props: MemorySectionProps) {
                 const next = TABS[nextIndex]
                 const button = tabRefs.current[nextIndex]
                 if (next === undefined || button === null || button === undefined) return
-                setTab(next.id)
+                select(next.id)
                 button.focus()
               }}
             >
@@ -134,13 +142,18 @@ export function MemorySection(props: MemorySectionProps) {
             </button>
           )
         })}
-      </div>
-      <div id={`${tabsId}-panel-${tab}`} className={css.panel} role="tabpanel" aria-labelledby={`${tabsId}-tab-${tab}`}>
+      </div>}
+      <div
+        id={`${tabsId}-panel-${tab}`}
+        className={css.panel}
+        role={paneLoading ? undefined : 'tabpanel'}
+        aria-labelledby={paneLoading ? undefined : `${tabsId}-tab-${tab}`}
+      >
         {tab === 'capabilities'
-          ? <Capabilities {...props} />
+          ? <Capabilities {...props} reportLoading={setPaneLoading} />
           : tab === 'facts'
-            ? <Facts {...props} />
-            : <Memories {...props} tab={tab} />}
+            ? <Facts {...props} reportLoading={setPaneLoading} />
+            : <Memories {...props} tab={tab} reportLoading={setPaneLoading} />}
       </div>
     </div>
   )
@@ -220,8 +233,8 @@ function hasMore(pageLength: number, next: number, total: number): boolean {
 }
 
 function Memories({
-  t, tab, close, memories, editMemory, forgetMemory, openConversation, addInvariant,
-}: MemorySectionProps & { readonly tab: MemoriesTab }) {
+  t, tab, close, memories, editMemory, forgetMemory, openConversation, addInvariant, reportLoading,
+}: MemorySectionProps & { readonly tab: MemoriesTab; readonly reportLoading: (loading: boolean) => void }) {
   const [query, setQuery] = useState('')
   const [state, setState] = useState<Load<MemoryList>>({ status: 'loading' })
   const [loadingMore, setLoadingMore] = useState(false)
@@ -229,6 +242,8 @@ function Memories({
   const [openId, setOpenId] = useState<MemoryItemId | undefined>()
   const generation = useRef(0)
   const now = Date.now()
+
+  useEffect(() => { reportLoading(state.status === 'loading') }, [state.status, reportLoading])
 
   const fetchPage = useCallback(async (offset: number): Promise<ManagedMemoryPage> => {
     const text = query.trim()
@@ -313,7 +328,7 @@ function Memories({
 
   return (
     <>
-      <label className={css.search}>
+      {state.status !== 'loading' && <label className={css.search}>
         <IconSearchOutline16 />
         <input
           value={query}
@@ -321,8 +336,8 @@ function Memories({
           aria-label={t('search')}
           onChange={(event) => { setQuery(event.target.value) }}
         />
-      </label>
-      {state.status === 'loading' && <p className={css.status}><Spinner /> {t('loading')}</p>}
+      </label>}
+      {state.status === 'loading' && <LoadingBlock label={t('loading')} />}
       {state.status === 'error' && <Failure t={t} onRetry={() => { void load() }} />}
       {state.status === 'ready' && !state.value.available && <p className={css.status}>{t('unavailable')}</p>}
       {state.status === 'ready' && state.value.available && visible.length === 0 && (
@@ -532,7 +547,7 @@ function MemoryCard({ t, memory, now, open, onToggle, editMemory, forgetMemory, 
   )
 }
 
-function Facts({ t, invariants, addInvariant, editInvariant, removeInvariant }: MemorySectionProps) {
+function Facts({ t, invariants, addInvariant, editInvariant, removeInvariant, reportLoading }: MemorySectionProps & { readonly reportLoading: (loading: boolean) => void }) {
   const composerId = useId()
   const [state, setState] = useState<Load<ManagedInvariantsPage>>({ status: 'loading' })
   const [draft, setDraft] = useState('')
@@ -556,6 +571,8 @@ function Facts({ t, invariants, addInvariant, editInvariant, removeInvariant }: 
 
   useEffect(() => { void load() }, [load])
 
+  useEffect(() => { reportLoading(state.status === 'loading') }, [state.status, reportLoading])
+
   // A refused statement leaves the list standing and reports why, so the user decides what to drop instead of
   // finding a statement silently absent from what every request carries.
   const run = (work: () => Promise<ManagedInvariantChange>, then?: () => void) => {
@@ -571,7 +588,7 @@ function Facts({ t, invariants, addInvariant, editInvariant, removeInvariant }: 
     }, () => { setBusy(false); setFailed(true) })
   }
 
-  if (state.status === 'loading') return <p className={css.status}><Spinner /> {t('loading')}</p>
+  if (state.status === 'loading') return <LoadingBlock label={t('loading')} />
   if (state.status === 'error') return <Failure t={t} onRetry={() => { setState({ status: 'loading' }); void load() }} />
   const view = state.value
   if (!view.available) return <p className={css.status}>{t('factsUnavailable')}</p>
@@ -766,8 +783,8 @@ function Failure({ t, onRetry }: { readonly t: Translate; readonly onRetry: () =
   )
 }
 
-function Capabilities(props: MemorySectionProps) {
-  const { t, capabilities } = props
+function Capabilities(props: MemorySectionProps & { readonly reportLoading: (loading: boolean) => void }) {
+  const { t, capabilities, reportLoading } = props
   const [state, setState] = useState<Load<ManagedCapability[]>>({ status: 'loading' })
   const [open, setOpen] = useState<string | undefined>()
 
@@ -782,7 +799,9 @@ function Capabilities(props: MemorySectionProps) {
 
   useEffect(() => { void load() }, [load])
 
-  if (state.status === 'loading') return <p className={css.status}><Spinner /> {t('loading')}</p>
+  useEffect(() => { reportLoading(state.status === 'loading') }, [state.status, reportLoading])
+
+  if (state.status === 'loading') return <LoadingBlock label={t('loading')} />
   if (state.status === 'error') return <Failure t={t} onRetry={() => { setState({ status: 'loading' }); void load() }} />
   if (state.value.length === 0) return <p className={css.status}>{t('emptyCapabilities')}</p>
   return (

@@ -20,7 +20,7 @@ beforeEach(() => { Element.prototype.scrollIntoView = vi.fn() })
 /** Copy for the keys the page reads, in the shape the locale seat returns. */
 const COPY: Partial<Record<IntegrationsLocaleKey, string>> = {
   skills: 'Skills', skillsIntro: 'Skills you add by importing a SKILL.md, .skill, or ZIP bundle.',
-  skillsEmpty: 'You haven’t added any skills yet.', import: 'Import skill', importHint: 'Choose a SKILL.md.',
+  import: 'Import skill', importHint: 'Choose a SKILL.md.',
   searchSkills: 'Search skills', personalSkill: 'Personal import', removeSkill: 'Remove skill',
   files: 'Bundle files', copy: 'Copy', copied: 'Copied', footnotes: 'References', noMatches: 'No skills match your search.',
 }
@@ -58,6 +58,7 @@ function mount(view: AccountIntegrationsView, detail?: string) {
     page: 'skills' as const, detail, close: vi.fn(),
     useChanges: (selector => selector(0)) as IntegrationsSectionProps['useChanges'],
     list: () => Promise.resolve(view),
+    cachedList: () => undefined,
     showDetail, importSkill: vi.fn().mockResolvedValue(undefined), setSkillEnabled, removeSkill,
     connect: vi.fn(), connectEmail: vi.fn(), updateEmail: vi.fn(), authorize: vi.fn(),
     setConnectorEnabled: vi.fn().mockResolvedValue(undefined), disconnect: vi.fn().mockResolvedValue(undefined),
@@ -79,8 +80,7 @@ describe('the skills library', () => {
 
   it('keeps connector-owned skills off the library page', async () => {
     mount({ skills: [], connectors: [], providers: [connectorOwned()] })
-    await waitFor(() => { expect(screen.getByText('You haven’t added any skills yet.')).toBeDefined() })
-    expect(screen.queryByText('github')).toBeNull()
+    await waitFor(() => { expect(screen.queryByText('github')).toBeNull() })
     expect(screen.queryByRole('switch')).toBeNull()
   })
 

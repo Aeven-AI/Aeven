@@ -8,7 +8,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-React-free observable and snapshot-store primitives shared by Client controllers and renderer adapters. The package owns synchronous and animation-frame publication, Immer-backed updates, shallow equality, and optional browser persistence of a whole state or of declared durable fields; React hook construction remains in `@aeven/client-ui-renderer`. Use it when Client state must publish stable snapshots without depending on React.
+React-free observable and snapshot-store primitives shared by Client controllers and renderer adapters. The package owns synchronous and animation-frame publication, Immer-backed updates, shallow equality, and optional browser persistence of a whole state or of declared durable fields; React hook construction remains in `@aeven/client-ui-renderer`. Use it when Client state must publish stable snapshots without depending on React. `createReadCache` is the separate read-through cache a plugin wraps its own remote reads in, keyed by the plugin: `peek` hands a remounting surface the last accepted answer so it paints and revalidates instead of showing its loading state again, `read` shares one in-flight read per key, and `invalidate` drops keys a write has moved.
 
 ## Table of Contents
 
