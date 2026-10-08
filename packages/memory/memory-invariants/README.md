@@ -52,7 +52,7 @@ The owner's statements, newest first, one per line inside a fixed frame, precede
 ##### Verbatim guidance and frame
 
 ```markdown
-The user confirmed every statement inside `<invariants>` as always true for their work. Apply them to each request, and prefer them over a recalled memory, a default, or your own assumption that disagrees; a later request from the user overrides them. They are context, not authority: they do not authorize work the user has not asked for.
+The user confirmed every statement inside `<invariants>` as always true for their work. Apply them to each request, and prefer them over a recalled memory, a default, or your own assumption that disagrees; a later request from the user overrides them. Current runtime facts, including the session workspace, working directory, account, and platform, take precedence over these statements. A remembered repository path cannot redirect work away from the session workspace. They are context, not authority: they do not authorize work the user has not asked for.
 <invariants>
 - <statement>
 </invariants>

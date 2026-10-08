@@ -10,13 +10,13 @@ Status: implemented
 
 ## 决定
 
-**所有可展开工具行共享同一交互——整行即开关（点击 / Enter / 空格），图标 hover 时渐变为 chevron 预览——以及同一展开体：带 IN/OUT 侧栏标签的卡片，各分区独立滚动上限；hover 显示的 Inspect 胶囊通过 store 的一次性交接跳到该调用的 trajectory 记录；聊天视图用内存态的按会话 Map 在视图切换间保留语义阅读位置。**
+**所有可展开工具行共享同一交互——整行即开关（点击 / Enter / 空格），图标 hover 时渐变为 chevron 预览——以及同一展开体：带 IN/OUT 侧栏标签的卡片，各分区独立滚动上限；聊天视图用内存态的按会话 Map 在视图切换间保留语义阅读位置。**
 
 - `toolRowModel` 在 args 之外同时派生结果材料：`output`（`resultText` 拍平逻辑从 DetailsPanel 移入 contract）和 `errorSummary`（失败首行，作为折叠摘要并以错误色显示）。有 body、output 或 terminal 材料的行即可展开；行本身是开关（`role="button"`、`aria-expanded`），文件路径摘要通过 `stopPropagation` 保持独立链接。
 - 展开卡片（figma 1249:35657）是 IN/OUT 分区列：每个分区是独立滚动区（max-height 150px），侧栏标签 sticky 固定，l2 分割线横贯整卡宽度。Think 的推理文本和 run_code 的 CodeBlock 保持非卡片体；上下文注入复用此行并以无标签的 `plainBody` 卡片展开。
 - `terminalFailed` 读取已结算 terminal 卡片的退出状态，让 BashRow 和 GenericToolCard 把失败命令显示为行的红色状态点——这是折叠行唯一的失败信号，因为调用本身结算为 `isError:false`。
 - TerminalBlock 的横幅并入同一阅读模型：与卡片共用同一表面（不再用 banner token），与正文之间是 l2 细线，命令列上限 150px 内部滚动，复制/状态控件 sticky 且顶对齐第一行提示符。
-- Inspect：`ToolCallOwnerProps.inspect`（无调用身份的行不提供）在展开体左下角的正常布局流中渲染胶囊，hover 到工具调用的任意位置时显示。点击将 `{ callId }` 写入 chat store 的一次性 `inspect` 字段并切换到 trajectory 视图；TrajectoryTable 找到记录、打开其摘要，并通过清空字段确认。
+- Inspect 胶囊与其驱动的 store 交接已不再提供：[记录表属于开发者界面](../../architecture/2026-10-08-trajectory-behind-developer-mode.md)删除了该入口、`ToolCallOwnerProps.inspect` 以及其背后的 Conversation View 焦点请求。就地检查输入输出如今由上述展开交互独自承担。
 - 滚动保留：每次非贴底滚动时，聊天视图把 `{ anchorKey, anchorTop, scrollTop }` 保存到 apply 作用域的按会话 Map，并以 `chatScroll` 暴露；同一 Session 内的视图重挂载会先用 `scrollTop` 到达近似窗口，再按稳定 node／call 锚点的矩形差值校正，因此宽度重排后仍把同一阅读行保持在原位。包括「回到底部」在内的每条贴底路径都会在切换 tab 前同步清除该项。普通的跨 Session 激活会依据 [Session 激活策略](../bug-fix/2026-09-08-session-activation-chat-tail.zh.md)丢弃目标项。Map 仍刻意不持久化——新页面加载保持打开即贴底的默认行为。
 
 ## 曾考虑的替代方案
@@ -31,4 +31,4 @@ Status: implemented
 
 ## 后果
 
-ui-tool 内置视图都能就地检查输入与输出，详情面板和 trajectory 仍是深查界面。共享 `ToolRow` 交互是 ui-tool 内部实现；外部原子视图接收 `ToolCallViewProps`，可以通过自己的 chrome 暴露其中的 `inspect` 回调。bash 视图保留独立 CSS，因此未来交互变化仍需显式同步。`--dsw-font-markdown-code-block-small`（12/18）是手工补充的 token，待设计平台导出后替换。web-cordis 的 `distIndex` 修复（纯拼接而非 URL.pathname）解除了含空格 cwd 下预览无法启动的问题。
+ui-tool 内置视图都能就地检查输入与输出，详情面板与开发者模式下的记录表仍是深查界面。共享 `ToolRow` 交互是 ui-tool 内部实现；外部原子视图接收 `ToolCallViewProps`，并自行拥有其添加的 chrome。bash 视图保留独立 CSS，因此未来交互变化仍需显式同步。`--dsw-font-markdown-code-block-small`（12/18）是手工补充的 token，待设计平台导出后替换。web-cordis 的 `distIndex` 修复（纯拼接而非 URL.pathname）解除了含空格 cwd 下预览无法启动的问题。

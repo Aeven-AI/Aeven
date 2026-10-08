@@ -463,7 +463,7 @@ describe('workspace browser rows', () => {
     expect(screen.getByRole('treeitem').querySelector('[data-state="done"]')).not.toBeNull()
   })
 
-  it('workspace row menu opens on the ellipsis, renames, and shows the danger delete row', () => {
+  it('workspace row menu opens on the ellipsis, renames, and deletes', () => {
     const onRename = vi.fn()
     const onDelete = vi.fn()
     const onToggle = vi.fn()
@@ -479,7 +479,9 @@ describe('workspace browser rows', () => {
     fireEvent.click(screen.getByRole('button', { name: '工作区“Project”的操作' }))
     // Opening the menu neither toggles the group nor renames yet.
     expect(onToggle).not.toHaveBeenCalled()
-    expect(screen.getByRole('menuitem', { name: '删除工作区' }).className).toMatch(/danger/)
+    // The delete row reads like the others: the workspace's folder and session
+    // logs survive it, so it carries no destructive styling.
+    expect(screen.getByRole('menuitem', { name: '删除工作区' }).className).not.toMatch(/danger/)
     fireEvent.click(screen.getByRole('menuitem', { name: '重命名' }))
     expect(onRename).toHaveBeenCalledOnce()
     expect(screen.queryByRole('menu')).toBeNull()
@@ -568,6 +570,35 @@ describe('workspace browser rows', () => {
     expect(screen.queryByRole('menu')).toBeNull()
   })
 
+
+  it('withholds Rename while the row has no title yet and offers it once the title lands', () => {
+    const creating: SessionNode = {
+      id: sid('s-creating'), title: 's-creating', blank: false, untitled: true, running: true,
+      runningSubagentCount: 0, runningJobCount: 0, completed: false, hasActiveSchedule: false, createdAt: 0, updatedAt: 0,
+    }
+    const rendered = (node: SessionNode) => (
+      <SessionNodeItem node={node} currentId={undefined} onOpen={vi.fn()}
+        onRename={vi.fn()} onFork={vi.fn()} onArchive={vi.fn()} t={t} />
+    )
+    const view = render(rendered(creating))
+    // The row's own title is still being created, so it offers fork and archive
+    // but no Rename: the text it shows is the New Session label, not a name.
+    fireEvent.click(screen.getByRole('button', { name: '会话“新会话”的操作' }))
+    expect(screen.queryByRole('menuitem', { name: '重命名' })).toBeNull()
+    expect(screen.getByRole('menuitem', { name: '分叉会话' })).toBeTruthy()
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    // A title-less Session at rest keeps Rename: no revision is coming for it.
+    view.rerender(rendered({ ...creating, running: false }))
+    fireEvent.click(screen.getByRole('button', { name: '会话“新会话”的操作' }))
+    expect(screen.getByRole('menuitem', { name: '重命名' })).toBeTruthy()
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    // The accepted title restores the action while the Session keeps working.
+    view.rerender(rendered({ ...creating, title: 'Created title', untitled: false }))
+    fireEvent.click(screen.getByRole('button', { name: '会话“Created title”的操作' }))
+    expect(screen.getByRole('menuitem', { name: '重命名' })).toBeTruthy()
+  })
 
   it('shows the hover card after the dwell and suppresses it while the row menu is open', () => {
     vi.useFakeTimers()

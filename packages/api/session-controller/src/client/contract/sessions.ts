@@ -96,6 +96,15 @@ export interface ISessions {
    */
   fork(opts: { sessionId: SessionId; atSeq?: number; increaseTitle?: boolean }): Promise<SessionId>
   /**
+   * Move an idle Session into another Workspace. The Host replaces it with a
+   * new Session located at the target's directory and deletes the original;
+   * on resolution the replacement is in the list store and `open()` can target it.
+   * @param opts - source session id and target Workspace.
+   * @returns the replacing session id.
+   * @throws {SessionMoveError} when the Host refuses or fails the move.
+   */
+  move(opts: { sessionId: SessionId; workspaceId: WorkspaceId }): Promise<SessionId>
+  /**
    * Resolve an Agent-scoped context view (use-and-discard).
    * @param id - session id.
    * @returns scoped ctx, or undefined for a session neither listed nor already scoped.

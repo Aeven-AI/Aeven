@@ -1,4 +1,4 @@
-/** Generated-image call registration and replayable Turn presentation indexes. @module */
+/** Generated-image and generated-video call registration and replayable Turn presentation indexes. @module */
 import type { Context } from '@deepseek-ai/cordis'
 import type { ContentBlock } from '@aeven/llm/types'
 import type { ConversationNodeDefinition } from '@aeven/client-ui-conversation/client'
@@ -9,6 +9,15 @@ import type {} from '@aeven/tools/types'
 /** Image tools whose atomic views own the displayed output. */
 export const IMAGE_TOOLS = ['generate_image', 'codex_image_generate', 'codex_image_edit', 'grok_imagine_image'] as const
 
+/** Video tools whose atomic views own the displayed clip. */
+export const VIDEO_TOOLS = ['generate_video'] as const
+
+/**
+ * Every generating tool the index records. A recorded call stays visible
+ * outside the collapsed process group, so its frame shows at the call.
+ */
+const GENERATING_TOOLS: readonly string[] = [...IMAGE_TOOLS, ...VIDEO_TOOLS]
+
 interface ImageState extends GeneratedImages {
   readonly names: ReadonlyMap<string, string>
 }
@@ -18,8 +27,7 @@ function empty(): ImageState {
 }
 
 function record(state: ImageState, callId: string, name: string, content?: readonly ContentBlock[], meta?: unknown): ImageState {
-  const generated = IMAGE_TOOLS.some(tool => tool === name)
-  if (!generated) return state
+  if (!GENERATING_TOOLS.includes(name)) return state
   const names = new Map(state.names)
   names.set(callId, name)
   const callIds = new Set(state.callIds).add(callId)

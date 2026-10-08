@@ -65,7 +65,7 @@ describe('tsdown client artifact', () => {
     expect(handoff.id).toBe(PLUGIN_ID)
     expect(exports.apply).toBeTypeOf('function')
     expect(exports.inject).toEqual([
-      'slots', 'sessions', 'uiSession', 'uiConversation', 'locale',
+      'slots', 'sessions', 'uiSession', 'uiConversation', 'locale', 'settingsScope',
     ])
   })
 
@@ -89,7 +89,11 @@ describe('tsdown client artifact', () => {
     const { events, views } = uiConversation
     ctx.provide('connection', { api: { settings: {} }, isLoopback: false } as never)
     ctx.provide('remote', { $on: () => () => {} } as never)
-    ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
+    // The ledger mounts only while Developer mode is on, so the stub section
+    // carries the enabled value before the plugin's gate reads it.
+    const developer = stubSettingsScope<{ enabled: boolean }>()
+    developer.publish({ status: 'ready', value: { enabled: true } })
+    ctx.provide('settingsScope', { bind: () => developer.scope } as never)
     const locale = await import('@aeven/client-locale/client')
     ctx.plugin({ inject: [...locale.inject], apply: locale.apply })
     const fiber = ctx.plugin(exports as { apply: (ctx: Context) => void })

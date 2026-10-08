@@ -10,25 +10,16 @@ beforeEach(() => {
 })
 
 describe('createConversationStore', () => {
-  it('owns draft, selected View, and one-shot View requests', () => {
+  it('owns the draft and the selected View', () => {
     const store = createConversationStore().create()
-    expect(store.store.getSnapshot()).toEqual({ draft: '', view: null, viewRequest: null })
+    expect(store.store.getSnapshot()).toEqual({ draft: '', view: null })
 
     store.actions.setDraft('hello')
     store.actions.setView('chat')
-    expect(store.store.getSnapshot()).toEqual({
-      draft: 'hello',
-      view: 'chat',
-      viewRequest: null,
-    })
+    expect(store.store.getSnapshot()).toEqual({ draft: 'hello', view: 'chat' })
 
-    store.actions.openView('trajectory', 'call-1')
-    expect(store.store.getSnapshot()).toMatchObject({
-      view: 'trajectory',
-      viewRequest: { view: 'trajectory', focus: 'call-1' },
-    })
-    store.actions.completeViewRequest()
-    expect(store.store.getSnapshot().viewRequest).toBeNull()
+    store.actions.setView('trajectory')
+    expect(store.store.getSnapshot()).toMatchObject({ view: 'trajectory' })
   })
 
   it('persists per Session scope and clears the persisted value', () => {

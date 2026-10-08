@@ -71,20 +71,21 @@
 }
 
 /* The detail is the correlated command, not a card of its own: it reads one
-   step under the question, on the takeover's paper. Whatever chrome the
-   correlated tool would have painted (its surface, insets, banner) stays out,
-   so a long command reads as a quoted line instead of a slab wedged into the
-   card. */
+   step under the question, on the takeover's paper, in the card's own size and
+   line height so every line of the takeover carries one font. Whatever chrome
+   the correlated tool would have painted (its surface, insets, banner) stays
+   out, so a long command reads as a quoted line instead of a slab wedged into
+   the card. */
 .command {
   color: var(--dsw-alias-label-primary);
   font-family: inherit;
-  font-size: 14px;
-  line-height: 22px;
+  font-size: inherit;
+  line-height: inherit;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
-.command :is(pre, code, div, span) {
+.command :is(pre, code, div, span, strong, b) {
   margin: 0;
   padding: 0;
   border: 0;
@@ -92,6 +93,13 @@
   color: inherit;
   font: inherit;
   white-space: inherit;
+}
+
+/* Field labels stand out by weight alone, as the question takeover's headings
+   do: 500, never the browser's bold. Declared after the reset above, which
+   would otherwise inherit the card's 400. */
+.command :is(strong, b) {
+  font-weight: 500;
 }
 
 /* What the grant covers, stated where the decision is made: the answer is a

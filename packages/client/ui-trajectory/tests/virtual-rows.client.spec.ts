@@ -36,7 +36,7 @@ describe('trajectory virtual rows', () => {
         { logicalIndex: 1, record: second },
         { logicalIndex: 2, record: content },
       ],
-      height: 30,
+      height: 40,
       key: trajectoryVirtualRecordKey(content),
     }])
   })
@@ -57,7 +57,7 @@ describe('trajectory virtual rows', () => {
   it('uses the rendered collapsed-summary height', () => {
     const summary = record(1, { sourceSeq: 10 }, 'turn')
 
-    expect(groupTrajectoryVirtualRows([summary])[0]?.height).toBe(20)
+    expect(groupTrajectoryVirtualRows([summary])[0]?.height).toBe(32)
   })
 
   it('keeps an existing row key stable when older history is prepended', () => {

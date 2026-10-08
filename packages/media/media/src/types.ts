@@ -119,6 +119,11 @@ export interface MediaImageResult {
   readonly model: string
   /** The generated images, in provider order. */
   readonly images: readonly GeneratedImage[]
+  /**
+   * What the caller's account was charged for the call, in millionths of a US
+   * dollar, where the provider reports it. Omitted where it reports none.
+   */
+  readonly costUsdMicros?: number
 }
 
 /**
@@ -170,6 +175,11 @@ export interface MediaVideoJob {
   readonly status: MediaVideoStatus
   /** Present only on `failed`; already free of credentials. */
   readonly error?: string
+  /**
+   * What the caller's account was charged for the job, in millionths of a US
+   * dollar. Present only on `succeeded`, and only where the provider reports it.
+   */
+  readonly costUsdMicros?: number
 }
 
 /** What every media provider declares, whichever kinds it serves. */

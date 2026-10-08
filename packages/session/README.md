@@ -58,7 +58,7 @@ The group splits into four families: durable storage (persistence seam, backends
 | [`session-telemetry/`](session-telemetry/README.md) | Captures session activity and hands records to a configured reporting backend | `ctx.sessionTelemetry` |
 | [`session-telemetry-otel/`](session-telemetry-otel/README.md) | Delivers telemetry through OpenTelemetry logs in `FULL`, `FEEDBACK_ONLY`, or `DISABLED` mode | registers on `ctx.sessionTelemetry` |
 
-Only one title provider may register at a time; without one, the title service keeps its deterministic fallback. The subsystem pages below are the backend-neutral references for each family.
+Only one title provider may register at a time, and a revision it leaves untitled falls back to the service's deterministic title. The subsystem pages below are the backend-neutral references for each family.
 
 -----
 

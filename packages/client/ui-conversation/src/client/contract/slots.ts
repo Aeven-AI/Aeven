@@ -272,12 +272,8 @@ export interface InputZone {
 
 /** Conversation View entries obtain their data from registered standard hooks. */
 export interface ConvViewOwnerProps {
-  /** Focus request addressed to the selected View. */
-  viewRequest: import('./views.ts').ConversationViewRequest | null
-  /** Select a View and address one opaque focus identity to it. */
-  openView: (view: string, focus: string) => void
-  /** Acknowledge the current one-shot focus request. */
-  completeViewRequest: () => void
+  /** Marker field: entries receive no owner-specific values. */
+  children?: never
 }
 
 /** Base props of one target-owned Conversation View entry. */
@@ -310,18 +306,37 @@ export interface ConversationSessionInjected {
   readonly hooks: { readonly conversationViews: ObservableSnapshot<readonly ViewTab[]> }
   /** Bind input draft persistence to the Session-owned store instance. */
   bindDraftMirror: (write: (text: string) => void) => () => void
-  /** Select and activate one View while addressing an opaque focus request to it. */
-  openView: (view: string, focus: string) => void
 }
 
 /** Business callbacks injected into the strict Session header. */
 export interface ConversationSessionHeaderInjected {
   /** Package-owned View roster source bound only for the Conversation header. */
-  readonly hooks: { readonly conversationViews: ObservableSnapshot<readonly ViewTab[]> }
+  readonly hooks: {
+    readonly conversationViews: ObservableSnapshot<readonly ViewTab[]>
+    /** The View the Session is showing, or undefined before one is activated. */
+    readonly selectedView: ObservableSnapshot<ViewTab | undefined>
+    /** Workspaces this Session can move into, in list order. */
+    readonly moveTargets: ObservableSnapshot<readonly SessionMoveTarget[]>
+  }
   /** Select a Session through the Session Controller. */
   open: (sessionId: SessionId) => void
+  /** Fork this Session at its last completed turn and open the child. */
+  forkSession: () => void
+  /** Download this Session's complete history as a ZIP archive. */
+  exportSession: () => Promise<void>
+  /**
+   * Move this Session into another Workspace and open the Session that
+   * replaces it; absent in an assembly without a Workspace surface.
+   */
+  moveSession: ((workspaceId: WorkspaceId) => void) | undefined
   /** Select and activate one registered Conversation View. */
   selectView: (view: string) => void
+}
+
+/** One Workspace the header offers as a move destination. */
+export interface SessionMoveTarget {
+  readonly workspaceId: WorkspaceId
+  readonly title: string
 }
 
 /** Owner share of the resident composer bar. */
@@ -358,7 +373,6 @@ export interface ComposerBarInjected {
   ) => InputSubmitMode
   toggleCommandMenu: ((selection: EditSelection) => void) | undefined
   invokeCommand: ((name: string, selection: EditSelection, anchor?: Element | null) => Promise<boolean>) | undefined
-  exportSession: (() => Promise<void>) | undefined
   stop: (() => void) | undefined
   command: ((line: string) => Promise<boolean>) | undefined
   hooks: {
@@ -367,6 +381,7 @@ export interface ComposerBarInjected {
     menuLauncher: ObservableSnapshot<string | null>
   }
 }
+
 
 /** Owner share of the named plan and model controls. */
 export interface InputControlOwnerProps {

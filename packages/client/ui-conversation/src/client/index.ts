@@ -33,7 +33,7 @@ export type {
   ConversationPromptSnapshot, RequestInspectionSnapshot, RequestPromptChange, RequestPromptInspection, RequestPromptInspector, RequestView,
 } from './contract/request-inspection.ts'
 export { inspectRequestPrompt } from './contract/request-inspection.ts'
-export type { ConversationStoreState, ConversationViewRequest, ViewTab } from './contract/views.ts'
+export type { ConversationStoreState, ViewTab } from './contract/views.ts'
 
 export { ConversationNodeAssembler } from './conversation/assembler.ts'
 export type {

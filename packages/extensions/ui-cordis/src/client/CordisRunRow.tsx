@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'
 import {
-  IconCodeOutline16, IconInspectOutline12, StateDot,
+  IconCodeOutline16, StateDot,
 } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRenderSlots } from '@aeven/client-ui-slots'
 import type { ToolCallViewProps } from '@aeven/client-ui-tool/client'
@@ -33,7 +33,7 @@ const READING_LABELS = {
 
 /** Render one activation result and, when eligible, its Package-owned view. */
 export function CordisRunRow({
-  callId, block, inspect, renderSlot, useInventory, useLoaded, useRunCards, useActiveRuns,
+  callId, block, renderSlot, useInventory, useLoaded, useRunCards, useActiveRuns,
   onObserveRunCard, t,
 }: CordisRunRowProps) {
   const card = cordisRunCard(block)
@@ -104,11 +104,6 @@ export function CordisRunRow({
         <span className={css.separator} aria-hidden />
         <span className={card.errorSummary === null ? css.summary : css.error}>{summary}</span>
         <span className={css.status}>{status}</span>
-        {inspect !== undefined && (
-          <button type="button" className={css.inspect} aria-label={t('action.inspect')} onClick={inspect}>
-            <IconInspectOutline12 />
-          </button>
-        )}
       </div>
       {reading === 'removed' && <div className={css.message}>{t('run.removed')}</div>}
       {reading === 'superseded' && <div className={css.message}>{t('run.superseded')}</div>}

@@ -43,12 +43,22 @@ function iconGutter(): number | undefined {
 }
 
 /**
- * The box an icon-anchored bubble is placed against: across the placement
- * axis it is the control's icon, so the arrow sits on the glyph's centre;
- * along it, the control's own edge pulled in by `--dsw-aeven-tooltip-icon-offset`
- * (read from the control, so a control or its group can restate it), which
- * brings the bubble closer to a glyph centred in a padded button. A control
- * without an icon keeps its own box.
+ * How far past the glyph's own edge an icon-anchored bubble hangs, so it
+ * clears the mark rather than touching it.
+ */
+const ICON_TIP = 1
+
+/**
+ * The box an icon-anchored bubble is placed against: the icon's own box, so
+ * the arrow sits on the glyph's centre across the placement axis and the
+ * bubble hangs `ICON_TIP` past the glyph along it.
+ *
+ * The glyph, not the control's box, is what makes every icon control in a row
+ * place its bubble on one line: a control's padding is part of its box, so
+ * measuring the box put the same 30px circle's bubble 5px above the circle
+ * beside it wherever one of the two stated a padding offset and the other did
+ * not. Reading the glyph states the geometry once, in the mark itself. A
+ * control without an icon keeps its own box.
  * @param reference - the tooltip's trigger element.
  * @param side - the bubble's placement.
  * @returns the placement box.
@@ -58,14 +68,13 @@ function iconAnchorRect(reference: Element, side: TooltipSide): DOMRect {
   const icon = reference.querySelector('svg')
   if (icon === null) return box
   const glyph = icon.getBoundingClientRect()
-  const offset = Number.parseFloat(getComputedStyle(reference).getPropertyValue('--dsw-aeven-tooltip-icon-offset')) || 0
   if (side === 'left' || side === 'right') {
-    const left = side === 'left' ? box.left + offset : box.left
-    const right = side === 'right' ? box.right - offset : box.right
+    const left = side === 'left' ? glyph.left - ICON_TIP : box.left
+    const right = side === 'right' ? glyph.right + ICON_TIP : box.right
     return new DOMRect(left, glyph.top, right - left, glyph.height)
   }
-  const top = side.startsWith('top') ? box.top + offset : box.top
-  const bottom = side.startsWith('bottom') ? box.bottom - offset : box.bottom
+  const top = side.startsWith('top') ? glyph.top - ICON_TIP : box.top
+  const bottom = side.startsWith('bottom') ? glyph.bottom + ICON_TIP : box.bottom
   return new DOMRect(glyph.left, top, glyph.width, bottom - top)
 }
 
@@ -81,8 +90,8 @@ function iconAnchorRect(reference: Element, side: TooltipSide): DOMRect {
  * @param props.label - bubble text, or a resolver evaluated when the anchor renders.
  * @param props.side - preferred placement relative to the anchor (default 'right'); the
  * bubble flips or shifts where the viewport refuses it.
- * @param props.anchor - `'icon'` points the arrow at the control's icon and pulls the bubble
- * in by the icon offset token; `'box'` (default) places it against the whole anchor.
+ * @param props.anchor - `'icon'` places the bubble against the control's glyph; `'box'`
+ * (default) places it against the whole anchor.
  * @param props.boundary - resolves the element the bubble stays inside, flush with its
  * edges (e.g. a chat column); omitted or null keeps the viewport clamp at the page inset.
  * @param props.disabled - suppress the bubble while true, hiding one already open; the

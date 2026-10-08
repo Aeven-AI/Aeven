@@ -3,7 +3,8 @@
  * all data and callbacks arrive via props. Hover swaps (time->ellipsis, action
  * buttons) are CSS-only. Row ... menus are visual-only except workspace
  * Rename/Delete and session Rename/Fork/Archive; the session hover card is
- * suppressed while its menu is open.
+ * suppressed while its menu is open, and a session row whose title is still
+ * being created offers no Rename.
  *
  * A Workspace row's leading glyph has exactly two states — the open folder
  * while the group is expanded, the closed folder while it is folded — and the
@@ -13,7 +14,7 @@ import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 
 import clsx from 'clsx'
 import {
   IconAlarmClockOutline16, IconArchiveOutline20, IconBranchOutline16,
-  IconEditOutline16, IconLucideEllipsis, IconLucideEllipsisVertical, IconLucideMessageCircleCheck,
+  IconEditOutline16, IconLucideEllipsis, IconLucideEllipsisVertical, IconLucideMessageCircle,
   IconLucideMessageCircleQuestionMark,
   IconLucideFolder, IconLucideFolderOpen,
   IconLucideMessageCirclePlus, IconTrashOutline16, Menu,
@@ -61,6 +62,23 @@ function isPlainActivation(event: ReactMouseEvent): boolean {
  */
 function displayTitle(node: SessionNode, t: RowTranslate): string {
   return node.blank || node.untitled ? t('session.new') : node.title
+}
+
+/**
+ * Whether the row withholds its own Rename action.
+ *
+ * A Session with no durable title is still having that title created: its
+ * model call is in flight, or the deterministic fallback that fills a failed
+ * call has not landed yet. The row's text is then the localized New Session
+ * label rather than a name to edit, and renaming it would name a Session the
+ * title revision is about to name. A title-less Session at rest — one whose
+ * prompt produced no eligible title input — keeps the action, because nothing
+ * is coming that could replace a name the reader gives it.
+ * @param node - derived session node.
+ * @returns true while the row offers no Rename action.
+ */
+function titleCreationPending(node: SessionNode): boolean {
+  return node.untitled && node.running
 }
 
 /**
@@ -140,9 +158,11 @@ export function ProjectRowItem({ group, onToggle, newSessionHref, onCreate, acti
   const [newSession, setNewSession] = useState(() => (
     row.workspaceId === undefined ? undefined : newSessionHref().href
   ))
+  // Deleting a workspace keeps its folder and session logs and archives its
+  // sessions, so the row reads like the others rather than as destructive.
   const workspaceMenuItems = [
     { id: 'rename', label: t('rename'), icon: <IconEditOutline16 /> },
-    { id: 'delete', label: t('delete.workspace'), icon: <IconTrashOutline16 />, danger: true },
+    { id: 'delete', label: t('delete.workspace'), icon: <IconTrashOutline16 /> },
   ]
   return (
     <div
@@ -322,12 +342,13 @@ function withLiveWork(
  * The status mark itself: work in flight is the shared Aeven loading glyph —
  * one 18px #000000 mark rotating — rather than a state dot, so a running
  * Session reads the same in the list as every other in-flight surface; a
- * Session at rest carries the circle that marks a chat at low opacity until
- * the row is the selected Session or its menu is open.
+ * Session at rest carries the empty chat bubble the View menu's Chat row
+ * draws, at low opacity until the pointer is on the row, the row is the
+ * selected Session, or its menu is open.
  */
 function StatusMark({ state }: { state: SessionMarkState }) {
   if (state === 'ongoing') return <Spinner className={css.runningMark} />
-  if (state === 'done') return <IconLucideMessageCircleCheck className={css.idleMark} />
+  if (state === 'done') return <IconLucideMessageCircle className={css.idleMark} />
   if (state === 'pending') return <IconLucideMessageCircleQuestionMark className={css.pendingMark} />
   return <StateDot state={state} />
 }
@@ -458,7 +479,9 @@ export function SessionNodeItem({
   // touches the session log, so it is not styled as destructive and needs no
   // confirmation dialog.
   const sessionMenuItems = [
-    { id: 'rename', label: t('rename'), icon: <IconEditOutline16 /> },
+    // Withheld while the row's title is still being created; see
+    // {@link titleCreationPending}.
+    ...(titleCreationPending(row) ? [] : [{ id: 'rename', label: t('rename'), icon: <IconEditOutline16 /> }]),
     { id: 'fork', label: t('menu.fork'), icon: <IconBranchOutline16 /> },
     // 20-native glyph in the menu's 16px icon slot (Menu.module.css .itemIcon).
     { id: 'archive', label: t('menu.archiveSession'), icon: <IconArchiveOutline20 size={16} /> },

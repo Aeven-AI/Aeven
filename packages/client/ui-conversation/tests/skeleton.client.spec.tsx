@@ -13,6 +13,7 @@ import type { SessionId } from '@aeven/session/types'
 import type { SessionPendingInteractionSnapshot } from '@aeven/client-ui-session/client'
 import type { WorkspaceId } from '@aeven/workspace/types'
 import type { ConversationRootProps } from '../src/client/skeleton/ConversationRoot.tsx'
+import type { ConversationSessionHeaderProps } from '../src/client/skeleton/ConversationSession.tsx'
 import { en as commonEn } from '@aeven/client-locale/src/locales/en.ts'
 import { zh as commonZh } from '@aeven/client-locale/src/locales/zh.ts'
 import { EMPTY_CONVERSATION_SNAPSHOT } from '../src/client/contract/snapshot.ts'
@@ -29,6 +30,7 @@ import type { InputBarProps } from '../src/client/input/InputBar.tsx'
 import type {
   ComposerBarOwnerProps, ConversationHeaderLineageOwnerProps,
 } from '../src/client/contract/slots.ts'
+import type { SessionMoveTarget } from '../src/client/contract/slots.ts'
 import type { ViewTab } from '../src/client/contract/views.ts'
 
 // jsdom implements no Range geometry (Lexical's scroll-into-view measures the
@@ -207,6 +209,7 @@ function mount(
   )
   const session = createSnapshotStore<SessionSnapshot>(snapshot)
   const useSession = bindSnapshotSelector(session)
+  const selectedView = createSnapshotStore<ViewTab | undefined>(options.selectedView)
   const conversation = createSnapshotStore<ConversationSnapshot>(EMPTY_CONVERSATION_SNAPSHOT)
   const useConversation = bindSnapshotSelector(conversation)
   const useSessionPendingInteraction = bindSnapshotSelector(
@@ -226,6 +229,7 @@ function mount(
     { id: 'trajectory', label: 'Trajectory' },
   ]
   const useConversationViews: SessionSlotProps['useConversationViews'] = selector => selector(viewTabs)
+  const useSelectedView: ConversationSessionHeaderProps['useSelectedView'] = bindSnapshotSelector(selectedView)
   /** Owner share handed to the two composer tool-row seats, per render. */
   const seatOwners: { key: string; owner: unknown }[] = []
   let pickerOwner: unknown
@@ -247,6 +251,8 @@ function mount(
           useSession={useSession}
           useConversation={useConversation}
           useConversationViews={useConversationViews}
+          useSelectedView={useSelectedView}
+          useMoveTargets={bindSnapshotSelector(createSnapshotStore<readonly SessionMoveTarget[]>([]))}
           useChat={useChat}
           useTrajectory={useTrajectory}
           useSessions={props.useSessions}
@@ -259,6 +265,9 @@ function mount(
           actions={store.actions}
           renderSlot={renderSlot as never}
           open={open}
+          forkSession={vi.fn()}
+          exportSession={() => Promise.resolve()}
+          moveSession={undefined}
           selectView={(view) => { store.actions.setView(view) }}
           t={t}
         />
@@ -284,7 +293,6 @@ function mount(
           actions={store.actions}
           renderSlot={renderSlot as never}
           bindDraftMirror={write => wiring.bindMirror(write)}
-          openView={(view, focus) => { store.actions.openView(view, focus) }}
         />
       )
     }
@@ -313,7 +321,6 @@ function mount(
           resolveSubmitMode={() => 'queue'}
           toggleCommandMenu={vi.fn()}
           invokeCommand={undefined}
-          exportSession={undefined}
           useNotices={bindSnapshotSelector(wiring.notices)}
           useLexicon={bindSnapshotSelector(wiring.lexicon)}
           useMenuLauncher={bindSnapshotSelector(createSnapshotStore<string | null>(null))}

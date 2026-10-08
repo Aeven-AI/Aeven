@@ -163,20 +163,53 @@ interface StoredOriginal {
 }
 
 /**
+ * The byte span one single-range `Range` header asks for.
+ * @param header - the request's `Range` value.
+ * @param size - the stored original's length.
+ * @returns the inclusive span, `unsatisfiable` for a span past the end, or undefined to serve the whole original.
+ */
+function requestedRange(header: string | null, size: number): { start: number; end: number } | 'unsatisfiable' | undefined {
+  const match = header === null ? null : /^bytes=(\d*)-(\d*)$/.exec(header.trim())
+  if (match === null || (match[1] === '' && match[2] === '')) return undefined
+  const start = match[1] === '' ? Math.max(0, size - Number(match[2])) : Number(match[1])
+  const end = match[1] === '' || match[2] === '' ? size - 1 : Math.min(Number(match[2]), size - 1)
+  if (start >= size || start > end) return 'unsatisfiable'
+  return { start, end }
+}
+
+/**
  * Answer one stored original: its type, its length, and the name a browser
  * saves it under, inline for viewing and as an attachment when the caller asks
- * for a download. A `HEAD` request carries the headers with no body.
+ * for a download. A `HEAD` request carries the headers with no body. A single
+ * byte range is answered with `206`, which is what lets a video player seek.
  * @param stored - the bytes and the name to serve them under.
- * @param request - the request being answered, for its method and `download`.
+ * @param request - the request being answered, for its method, `Range`, and `download`.
  * @returns the response the route returns.
  */
 function storedOriginal(stored: StoredOriginal, request: Request): Response {
+  const size = stored.data.byteLength
   const headers: Record<string, string> = {
     ...BASE_HEADERS,
     ...stored.cache === undefined ? {} : { 'Cache-Control': stored.cache },
     'Content-Type': stored.mediaType,
-    'Content-Length': String(stored.data.byteLength),
+    'Content-Length': String(size),
+    'Accept-Ranges': 'bytes',
     'Content-Disposition': `${new URL(request.url).searchParams.get('download') === '1' ? 'attachment' : 'inline'}; ${dispositionName(stored.name)}`,
+  }
+  const range = requestedRange(request.headers.get('range'), size)
+  if (range === 'unsatisfiable') {
+    return new Response(null, { status: 416, headers: { ...headers, 'Content-Length': '0', 'Content-Range': `bytes */${String(size)}` } })
+  }
+  if (range !== undefined) {
+    const body = stored.data.slice(range.start, range.end + 1)
+    return new Response(request.method === 'HEAD' ? null : body, {
+      status: 206,
+      headers: {
+        ...headers,
+        'Content-Length': String(body.byteLength),
+        'Content-Range': `bytes ${String(range.start)}-${String(range.end)}/${String(size)}`,
+      },
+    })
   }
   return new Response(request.method === 'HEAD' ? null : stored.data.slice(), { headers })
 }

@@ -1,5 +1,5 @@
 ---
-description: "面向 ctx.media 的 Aeven 网关图片 provider：通过已登录的 Aeven 会话提供 Aeven-1.0-Image-Flash 与 Aeven-1.0-Image-Pro，目录随包内置且始终提供。"
+description: "面向 ctx.media 的 Aeven 网关图片与视频 provider：通过已登录的 Aeven 会话提供 Aeven-1.0-Image-Flash、Aeven-1.0-Image-Pro、Aeven-1.0-Video-Flash 与 Aeven-1.0-Video-Pro，目录随包内置且始终提供。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`avn-media-aeven` 把 Aeven 自己的网关注册为 `ctx.media` 的图片 provider。它通过网关的 `POST /v1/images/generations` 提供两个模型 `Aeven-1.0-Image-Flash` 与 `Aeven-1.0-Image-Pro`，并以已登录用户的 Aeven 会话作为 bearer，因此生成图片只需登录，无需厂商密钥。当部署提供 Aeven 的图片模型时挂载它。
+`avn-media-aeven` 把 Aeven 自己的网关注册为 `ctx.media` 的图片 provider 与视频 provider。它通过网关的 `POST /v1/images/generations` 提供两个图片模型 `Aeven-1.0-Image-Flash` 与 `Aeven-1.0-Image-Pro`，并以网关任务的形式提供两个视频模型 `Aeven-1.0-Video-Flash`（默认）与 `Aeven-1.0-Video-Pro`：用 `POST /v1/videos` 启动，在 `GET /v1/videos/{id}` 读取。每个请求都以已登录用户的 Aeven 会话作为 bearer，因此生成只需登录，无需厂商密钥。当部署提供 Aeven 的图片或视频模型时挂载它。
 
 ## 目录
 
@@ -40,18 +40,18 @@ kind: "package-reference"
 | `id` | `aeven` | `ctx.media` 下的注册键 |
 | `apiUrl` | `http://localhost:9000` | Aeven API origin；与 `llm-aeven` 配置的 origin 相同 |
 | `apiKeyEnv` | `AEVEN_TOKEN` | 持有已登录会话的凭据引用，先经凭据 seam 解析，再回退到环境 |
+| `maxVideoBytes` | 52428800（50 MiB） | 一次下载接受的最大成片字节数 |
 
 ### 模型及其选项
 
 | 选项 | `Aeven-1.0-Image-Flash`（默认） | `Aeven-1.0-Image-Pro` |
 |---|---|---|
-| 实际服务 | Seedream 4 | Seedream 5.0 Pro |
-| `size` | `1K`、`2K`（默认）、`4K` 或 `WIDTHxHEIGHT` | `1K`、`1.5K`、`2K`（默认）或 `WIDTHxHEIGHT` |
+| `size` | `1K`、`2K`（默认）或 `WIDTHxHEIGHT`（按最接近的宽高比发送，长边最多 2048） | `1K`、`1.5K`、`2K`（默认）或 `WIDTHxHEIGHT` |
 | `n` | 1–4 | 1–4 |
-| 参考图 | 一张 | 最多 4 张 |
+| 参考图 | 最多 14 张 | 最多 4 张 |
 | `background` | 无 | `transparent` 或 `opaque` |
-| `seed` | −1（随机）至 4294967295；不保证可复现 | 无 |
-| `guidance_scale` | 1–10 | 无 |
+| `seed` | 0 至 4294967295；不保证可复现 | 无 |
+| `guidance_scale` | 无 | 无 |
 | `output_format` | 无 | `png` 或 `jpeg` |
 | `optimize_prompt_mode` | 无 | `standard` 或 `fast` |
 
@@ -59,7 +59,20 @@ Pro 的透明背景需要恰好一张带 alpha 通道的参考图；该规则由
 
 ### 请求
 
-`requestBody` 在发出任何请求之前拒绝：Aeven 不提供的模型、在没有该选项的模型上指定背景、超出 1–4 的 `n`、超出模型上限的参考图，以及 `aspectRatio`。`resolution` 映射为 `size`，不能与显式尺寸同时提供；`seed`、`guidanceScale`、`outputFormat` 与 `optimizePromptMode` 映射为网关对应的蛇形命名字段。其余一切——尺寸词汇、透明背景的 alpha 要求、账号的套餐与余额——由网关负责拒绝，其消息会携带在 `MediaError` 中。参考图以内联 `data:` URL 发送，因为网关不会抓取远程地址。
+`requestBody` 在发出任何请求之前拒绝：Aeven 不提供的模型、在没有该选项的模型上指定背景、超出 1–4 的 `n`、超出模型上限的参考图，以及 `aspectRatio`。`resolution` 映射为 `size`，不能与显式尺寸同时提供；`seed`、`guidanceScale`、`outputFormat` 与 `optimizePromptMode` 映射为网关对应的蛇形命名字段；对没有引导选项的模型，不发送 `guidanceScale`。其余一切——尺寸词汇、透明背景的 alpha 要求、账号的套餐与余额——由网关负责拒绝，其消息会携带在 `MediaError` 中。参考图以内联 `data:` URL 发送，因为网关不会抓取远程地址。
+
+### 视频
+
+| 选项 | `Aeven-1.0-Video-Flash`（默认） | `Aeven-1.0-Video-Pro` |
+|---|---|---|
+| 定位 | 快速、经济 | 更慢、更贵，画质更好 |
+| `duration` | 4、6 或 8（默认 8） | 4–15（默认 5）或 `-1`（由模型决定） |
+| `resolution` | `720p`、`1080p`（默认）或 `4K` | `480p`、`720p`（默认）或 `1080p` |
+| `aspectRatio` | `16:9`（默认）或 `9:16` | `16:9`（默认）、`4:3`、`1:1`、`3:4`、`9:16`、`21:9` 或 `adaptive` |
+| 首帧与尾帧 | 均支持 | 均支持 |
+| `seed` | 0 至 4294967295 | −1（随机）至 4294967295 |
+
+`videoRequestBody` 在任务启动之前拒绝：Aeven 不提供的模型、`size`、上表中该模型一栏未列出的 `duration`、分辨率或宽高比，以及超过两张的参考图。第一张参考图作为 `first_frame_image` 发送，第二张作为 `last_frame_image` 发送，二者都以内联 `data:` URL 传递；`seed` 与 `generateAudio` 映射为 `seed` 与 `generate_audio`。任务以 `Prefer: respond-async` 启动，因此渲染由网关持有，连接中断既不会丢失也不会重复计费。其 `in_progress`、`completed`、`failed` 状态映射为 seam 的 `running`、`succeeded`、`failed`。`fetchVideo` 读取已完成的任务，并从其结果中取得视频：结果带有 `b64_json` 时直接使用这些字节（Video Flash 上游的链接未预签名，所以由网关用自己的密钥下载），否则下载其指明的 HTTPS URL，且不携带凭据。两种情况下，超过 `maxVideoBytes` 的一律拒绝。
 
 ### 以登录代替持有密钥
 
@@ -72,13 +85,13 @@ bearer 按每次生成解析：先取凭据 seam 中属于发起生成的 Sessio
 
 ### 目录随包内置
 
-`AEVEN_IMAGE_MODELS` 随包内置，而非从网关的 `GET /v1/models` 获取。该列表按权益限定——它回答的是某个账号的套餐可以使用什么——不适合作为每个账号都读取的菜单的输入。`available()` 始终为真，因此两个模型始终列出；缺少登录或账号无权使用该模型，由生成本身报告。
+`AEVEN_IMAGE_MODELS` 与 `AEVEN_VIDEO_MODELS` 随包内置，而非从网关的 `GET /v1/models` 获取。该列表按权益限定——它回答的是某个账号的套餐可以使用什么——不适合作为每个账号都读取的菜单的输入。两个 provider 的 `available()` 都始终为真，因此每个模型始终列出；缺少登录或账号无权使用该模型，由生成本身报告。
 
-这些条目镜像网关的目录（Aeven API 中的 `services/inference/modelCatalog.js`），其 `GET /v1/models` 在 `image` 下列出同样的逐模型词汇。网关仍是权威：本列表只会提前拒绝它自己声明的内容。
+这些条目镜像网关的目录（Aeven API 中的 `services/inference/modelCatalog.js`），其 `GET /v1/models` 在 `image` 与 `video` 下列出同样的逐模型词汇。网关仍是权威：本列表只会提前拒绝它自己声明的内容。
 
 ### 源码地图
 
-- `src/index.ts` — 配置、内置目录、请求转换与提前拒绝、网关错误映射、响应解码，以及 provider 注册。
+- `src/index.ts` — 配置、内置目录、请求转换与提前拒绝、网关错误映射、响应与任务解码、成片下载，以及两个 provider 的注册。
 
 <a id="model-experience"></a>
 ## 模型体验
@@ -95,10 +108,10 @@ bearer 按每次生成解析：先取凭据 seam 中属于发起生成的 Sessio
 
 这些限制界定了本 provider 何时不适用。它们是当前的包约束。
 
-- **没有 invariant 配套** — 不发布运行时 invariant 配套，因为本包不拥有两个独立观察者可能产生分歧的关系；它唯一的注册随调用 fiber 一同释放，并由本包测试覆盖。
+- **没有 invariant 配套** — 不发布运行时 invariant 配套，因为本包不拥有两个独立观察者可能产生分歧的关系；它的两个注册随调用 fiber 一同释放，并由本包测试覆盖。
 - **目录是一个镜像** — 网关新增的模型在本列表随包发布之前不会被提供；网关更改的选项在本列表跟进之前会在此被提前拒绝。
-- **没有视频** — 网关不提供视频路由。
-- **没有费用报告** — 网关在自己的账本上结算每次生成，而 seam 没有地方承载该费用。
+- **视频参考仅限首尾帧** — 本地图片只能作为成片的首帧和尾帧；网关的 `reference_images`、`reference_videos`、`reference_audios` 只接受 HTTPS 或 `asset://` URL，而本地文件没有这样的地址。
+- **费用以网关数字为准** — 图片结果或成功视频任务上的 `costUsdMicros` 是网关账本记录的客户扣费（`usage.cost_usd_micros`）；不报告它的网关会让该字段缺省。
 
 <a id="dev-note"></a>
 ### 开发备注

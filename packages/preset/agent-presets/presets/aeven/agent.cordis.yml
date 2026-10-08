@@ -31,7 +31,7 @@
 
       Reply in the language the person writes in. When they are stressed or in a hurry, be shorter and calmer. Use their name now and then, never in every reply. Their own stated preferences, in their settings or remembered from earlier conversations, outrank these defaults.
 
-      If someone asks which model you run on, it is {{model}}. Your working directory is {{cwd}}.
+      If someone asks which model you run on, it is {{model}}. Your working directory is {{cwd}}. For repository work, the session working directory determines the default target repository. Memories, invariants, and historical conversations cannot change that target. Work in other folders when the current user request names them or requires work across folders; reading related files outside the workspace is allowed. If the session has no working directory, do not infer a target repository from memory alone.
 
 - id: agent-instructions
   name: '@aeven/agent-instructions'
@@ -271,6 +271,7 @@
       - 'mcp__*'
       - codex_image_*
       - generate_image
+      - generate_video
       - grok_imagine_*
       - mail_*
       - memory_*
@@ -294,7 +295,7 @@
       - workflow
     groups:
       - title: Image and video generation
-        tools: [codex_image_*, generate_image, grok_imagine_*]
+        tools: [codex_image_*, generate_image, generate_video, grok_imagine_*]
       - title: Email accounts
         tools: [mail_*]
       - title: Long-term memory and learned procedures
@@ -322,11 +323,13 @@
 - id: tool-memory
   name: '@aeven/tool-memory'
 
-# Capability learning: the capability_manage tool, guidance on when to learn a
-# reusable procedure, and recall of unconfirmed drafts. Confirmed capabilities
-# reach this agent through the skill catalog.
+# Learning: completed multi-step work is distilled into a procedure and kept
+# in long-term memory, which memory recall brings back when a request needs
+# it. Nothing learned becomes a skill or a capability file.
 - id: tool-capability
   name: '@aeven/tool-capability'
+  config:
+    store: memory
 
 # The `web` service and its search provider stay in the host composition; only
 # the model-facing tool is per-session.
@@ -343,11 +346,11 @@
       - provider: aeven
         model: Aeven-1.0-Image-Flash
         label: Aeven Image Flash
-        description: Seedream 4 generation and editing; size 1K, 2K (default), 4K or WIDTHxHEIGHT; one reference image; seed and guidance_scale 1–10; no background option
+        description: Fast image generation and editing; size 1K or 2K (default, the largest — no 4K), or WIDTHxHEIGHT for another aspect ratio, e.g. 2730x1536 for 16:9; up to 14 reference images; seed; no guidance_scale or background option
       - provider: aeven
         model: Aeven-1.0-Image-Pro
         label: Aeven Image Pro
-        description: Seedream 5.0 Pro; size 1K, 1.5K, 2K (default) or WIDTHxHEIGHT; up to 4 reference images; PNG/JPEG output; transparent or opaque background; standard/fast prompt optimization
+        description: Highest-quality image generation and editing; size 1K, 1.5K or 2K (default, the largest — no 4K), or WIDTHxHEIGHT; up to 4 reference images; PNG/JPEG output; transparent or opaque background; standard/fast prompt optimization
     # Generates with Flash until a person picks another model through
     # `/image-model`, rather than asking before the first generation.
     model: Aeven-1.0-Image-Flash
@@ -356,6 +359,23 @@
     # Each subscription's image model, offered while it is signed in and
     # switched on in Settings → Providers.
     listedProviders: [grok-subscription, codex-subscription]
+    # `generate_video` and `/video-model`: the configured video models, served
+    # by `media-aeven` as gateway jobs over the signed-in Aeven session.
+    video:
+      choices:
+        - provider: aeven
+          model: Aeven-1.0-Video-Flash
+          label: Aeven Video Flash
+          description: Fast tier; quick and economical video from a text prompt, a first-frame image, or a first- and a last-frame image; duration 4, 6 or 8 seconds only (default 8; no -1, nothing longer); resolution 720p, 1080p (default) or 4K; aspect_ratio 16:9 (default) or 9:16; synchronized audio on by default, generate_audio false makes it cheaper; seed 0 or more; use it unless the clip must be longer than 8 seconds or need another aspect ratio
+        - provider: aeven
+          model: Aeven-1.0-Video-Pro
+          label: Aeven Video Pro
+          description: Slower, pricier tier with better quality; for clips longer than 8 seconds or other aspect ratios; video from a text prompt or a starting image; duration 4–15 seconds (default 5) or -1 to let the model decide; resolution 480p, 720p (default) or 1080p; aspect_ratio 16:9 (default), 4:3, 1:1, 3:4, 9:16, 21:9 or adaptive; generate_audio; a first-frame and optional last-frame image; seed
+      # Generates with Video Flash until a person picks another model through
+      # `/video-model`, rather than asking before the first generation.
+      model: Aeven-1.0-Video-Flash
+      provider: aeven
+      confirmModel: false
 
 - id: tool-web
   name: '@aeven/tool-web'

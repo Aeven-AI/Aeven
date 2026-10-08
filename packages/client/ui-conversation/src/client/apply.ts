@@ -1,9 +1,10 @@
 /** Registers the target-neutral Conversation assembly, shell, input, and docks. */
 import type { Context } from '@deepseek-ai/cordis'
 import type { ISessions } from '@aeven/api-session-controller/client'
-import { createSnapshotStore, type BoundActions } from '@aeven/client-store'
+import { createSnapshotStore, type BoundActions, type ObservableSnapshot } from '@aeven/client-store'
 import { resolveSlotLabel } from '@aeven/client-ui-slots'
 import type { SessionId } from '@aeven/session/types'
+import type { WorkspaceId } from '@aeven/workspace/types'
 import type {} from '@aeven/api-remotes/client'
 // Type-only service and declaration merges used by this assembly.
 import type {} from '@aeven/client-locale/client'
@@ -14,7 +15,7 @@ import { UiConversation } from './conversation/assembly.ts'
 import type { ViewTab } from './contract/views.ts'
 import type {
   ComposerBarInjected, ConversationInjected, ConversationSessionHeaderInjected,
-  ConversationSessionInjected,
+  ConversationSessionInjected, SessionMoveTarget,
 } from './contract/slots.ts'
 import type { InputNotice } from './contract/input.ts'
 import { createConversationStore, readConversationViewPreference } from './stores.ts'
@@ -29,7 +30,7 @@ import type { EnterBehaviorRowInjected } from './settings/EnterBehaviorRow.tsx'
 import { ConversationRoot } from './skeleton/ConversationRoot.tsx'
 import { ConversationSession, ConversationSessionHeader } from './skeleton/ConversationSession.tsx'
 import { InputBar } from './input/InputBar.tsx'
-import { exportSessionLog } from './input/export-session.ts'
+import { exportSessionLog } from './export-session.ts'
 import { todoDockEntry } from './skeleton/TodoPanel.tsx'
 import { resolveActiveView } from './view-selection.ts'
 import { en, NS, zh, type ConversationKey } from './locales.ts'
@@ -70,11 +71,30 @@ const ABSENT_MENU_LAUNCHER = {
   getSnapshot: (): string | null => null,
   subscribe: () => () => {},
 }
+const NO_MOVE_TARGETS: readonly SessionMoveTarget[] = []
+const ABSENT_MOVE_TARGETS = {
+  getSnapshot: () => NO_MOVE_TARGETS,
+  subscribe: () => () => {},
+}
 
 interface WorkspaceNavigation {
   connectWorkspace(
     workspaceId: Parameters<ConversationInjected['selectWorkspace']>[0],
   ): Promise<SessionId>
+  /**
+   * Ask the browsing region to open its Session rename dialog. Optional: an
+   * assembly without that region keeps the band and loses the row.
+   */
+  requestSessionRename?: ((sessionId: SessionId, currentTitle: string) => void) | undefined
+  /**
+   * Archive one Session into the registry-global hidden set. Optional for the
+   * same reason as the rename request.
+   */
+  archiveSession?: ((sessionId: SessionId) => Promise<void>) | undefined
+  /** Workspaces a Session can move into. Optional for the same reason as the rename request. */
+  moveTargets?: ((sessionId: SessionId) => ObservableSnapshot<readonly SessionMoveTarget[]>) | undefined
+  /** Move a Session and open its replacement. Optional for the same reason as the rename request. */
+  moveSession?: ((sessionId: SessionId, workspaceId: WorkspaceId) => Promise<SessionId>) | undefined
 }
 
 /** Resolve the session-scoped Conversation action face, failing loud. */
@@ -274,13 +294,9 @@ export function apply(ctx: Context): void {
       'conversation.view': { kind: 'list', scope: 'session' },
     },
     store: conversationStore,
-    inject: (sessionId: SessionId, actions: BoundActions<typeof conversationStore>): ConversationSessionInjected => ({
+    inject: (sessionId: SessionId): ConversationSessionInjected => ({
       hooks: { conversationViews },
       bindDraftMirror: write => inputHub.shell(sessionId).bindMirror(write),
-      openView: (view, focus) => {
-        activateView(sessionId, view)
-        actions.openView(view, focus)
-      },
     }),
   }, ConversationSession)
 
@@ -293,8 +309,30 @@ export function apply(ctx: Context): void {
     },
     store: conversationStore,
     inject: (sessionId: SessionId, actions: BoundActions<typeof conversationStore>): ConversationSessionHeaderInjected => ({
-      hooks: { conversationViews },
+      hooks: {
+        conversationViews,
+        selectedView: uiConversation.binding(sessionId).selectedView,
+        moveTargets: workspaceNavigation.moveTargets?.(sessionId) ?? ABSENT_MOVE_TARGETS,
+      },
       open: (id) => { sessions.open(id) },
+      // The Session's lifecycle actions the header offers, as its row menu runs
+      // them: fork at the last completed turn and open the child, export the
+      // history as a ZIP archive.
+      forkSession: () => {
+        sessions.fork({ sessionId, increaseTitle: true })
+          .then((childId) => { sessions.open(childId) })
+          .catch(() => {
+            // Fork or child-rename failure keeps the current selection.
+          })
+      },
+      exportSession: () => exportSessionLog(ctx.remote.session, sessionId),
+      moveSession: workspaceNavigation.moveSession === undefined
+        ? undefined
+        : (workspaceId) => {
+          workspaceNavigation.moveSession?.(sessionId, workspaceId).catch(() => {
+            // Move failure keeps the current selection, as a failed fork does.
+          })
+        },
       selectView: (view) => {
         activateView(sessionId, view)
         actions.setView(view)
@@ -328,7 +366,6 @@ export function apply(ctx: Context): void {
             submissionPolicy.resolve(running, gesture, steeringAvailable),
           toggleCommandMenu: undefined,
           invokeCommand: undefined,
-          exportSession: undefined,
           stop: undefined,
           command: undefined,
           hooks: {
@@ -403,7 +440,6 @@ export function apply(ctx: Context): void {
             anchor === undefined ? 'end' : 'beside',
           )
         },
-        exportSession: () => exportSessionLog(ctx.remote.session, sessionId),
         stop: () => {
           scopedConversation(sessions, sessionId).cancel().catch(() => {
             // Stop failure is published through Session promptError.

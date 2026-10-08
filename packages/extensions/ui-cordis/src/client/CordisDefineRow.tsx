@@ -2,7 +2,7 @@
 
 import { useId, useState, type ReactNode } from 'react'
 import {
-  CodeBlock, DisclosureRow, IconCodeOutline16, IconInspectOutline12, StateDot,
+  CodeBlock, DisclosureRow, IconCodeOutline16, StateDot,
 } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale } from '@aeven/client-ui-slots'
 import type { ToolCallViewProps } from '@aeven/client-ui-tool/client'
@@ -44,7 +44,7 @@ function leadingFor(state: CordisToolState): ReactNode {
 
 /** Render one immutable Package definition. */
 export function CordisDefineRow({
-  callId, block, inspect, useInventory, useLoaded, t,
+  callId, block, useInventory, useLoaded, t,
 }: CordisDefineRowProps) {
   const card = cordisDefineCard(block)
   const inventory = useInventory(snapshot => snapshot)
@@ -156,12 +156,6 @@ export function CordisDefineRow({
               <div className={css.sectionLabel}>{t('body.output')}</div>
               <pre className={css.output} data-error={card.state === 'error' || undefined}>{card.output}</pre>
             </section>
-          )}
-          {inspect !== undefined && (
-            <button type="button" className={css.inspectButton} onClick={inspect}>
-              <IconInspectOutline12 />
-              {t('action.inspect')}
-            </button>
           )}
         </div>
       </DisclosureRow>

@@ -618,6 +618,25 @@ export class SessionManager {
   }
 
   /**
+   * Contract session.move; on success swap the source summary for the
+   * replacing Session so the list addresses it before the Host echoes land.
+   * @param opts - source Session and target Workspace.
+   * @returns the move result (the replacing Session id).
+   */
+  async move(
+    opts: { sessionId: SessionId; workspaceId: WorkspaceId },
+  ): Promise<RemoteResult<{ sessionId: SessionId }>> {
+    const source = this.summaries.find(s => s.sessionId === opts.sessionId)
+    const result = await this.remote.session.move({ sessionId: opts.sessionId, workspaceId: opts.workspaceId })
+    if (result.ok) {
+      const { cwd: _cwd, ...rest } = source ?? { sessionId: opts.sessionId, createdAt: Date.now(), updatedAt: Date.now(), running: false, blank: false }
+      this.recordMutation({ kind: 'upsert', summary: { ...rest, sessionId: result.value.sessionId, running: false } })
+      this.handleSessionRemoved(opts.sessionId)
+    }
+    return result
+  }
+
+  /**
    * Insert-or-enrich a locally synthesized summary: a new id prepends; an
    * existing entry only gains fields it lacks (the session-added frame and the
    * create() echo race — whichever lands second must fill the placeholder's

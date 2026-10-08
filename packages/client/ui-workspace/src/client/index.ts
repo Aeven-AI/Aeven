@@ -39,7 +39,7 @@ import { WorkspaceBrowser } from './rows/WorkspaceBrowser.tsx'
 import { WorkspacePicker } from './WorkspacePicker.tsx'
 import { en, zh, type WorkspaceKey } from './locales.ts'
 
-export type { UiWorkspace } from './navigation.ts'
+export type { SessionMoveTarget, UiWorkspace } from './navigation.ts'
 export type {
   DirectoryFlowOwnerProps, DirectoryFlowSlotName, DirectoryPickingHooks, DirectoryPickingInjected,
   WorkspaceBrowserInjected, WorkspaceBrowserProps, WorkspaceHeaderActionsInjected,
@@ -157,7 +157,8 @@ export function apply(ctx: Context): void {
     insertSessionBefore: async (workspaceId, sessionId, beforeSessionId) => {
       await workspaces.insertSessionBefore(workspaceId, sessionId, beforeSessionId)
     },
-    hooks: { hostInfo },
+    clearSessionRenameRequest: () => { uiWorkspace.clearSessionRenameRequest() },
+    hooks: { hostInfo, sessionRenameRequest: uiWorkspace.sessionRenameRequest },
   })
   const pickerInjected = (): WorkspacePickerInjected => ({
     createWorkspace: input => workspaces.create(input),

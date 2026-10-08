@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`avn-session-title-first-prompt-llm` summarizes the first eligible human message through `ctx.llm` as an optional `ctx.sessionTitle` provider. It registers the `first-prompt` cadence, runs automatically only when a fresh non-fork session first creates its fallback, and attributes the result to that message's exact seq. An automatic failure retains the fallback and is retried only through `ctx.sessionTitle.refresh()`. It uses the complete required shared LLM configuration from `avn-session-title-llm`, so route, prompt, budget, and cancellation behavior cannot drift. Automatic behavior and configuration come first; the implementation is a thin registration over the shared policy.
+`avn-session-title-first-prompt-llm` summarizes the first eligible human message through `ctx.llm` as an optional `ctx.sessionTitle` provider. It registers the `first-prompt` cadence, runs automatically only for a fresh non-fork session that has no title after its first eligible human message, and attributes the result to that message's exact seq. The service titles that session from this call alone, so an automatic failure falls back to the deterministic title, which is retried only through `ctx.sessionTitle.refresh()`. It uses the complete required shared LLM configuration from `avn-session-title-llm`, so route, prompt, budget, and cancellation behavior cannot drift. Automatic behavior and configuration come first; the implementation is a thin registration over the shared policy.
 
 ## Table of Contents
 
@@ -29,7 +29,7 @@ Mount this plugin beside the title service when a session should be titled from 
 
 ### When titles are generated
 
-Automatic generation runs only for a fresh session with no parent and no prior title: after its first eligible human message, the fallback is created and one auxiliary request summarizes that message. Later prompts, explicit user renames, and inherited fork history do not trigger another automatic call. An automatic failure keeps the fallback; `ctx.sessionTitle.refresh()` is the explicit retry. Forks keep their inherited title and never run this provider automatically, even when their seeded first message came from the parent.
+Automatic generation runs only for a fresh session with no parent and no prior title: after its first eligible human message, one auxiliary request summarizes that message, and the session stays untitled until it answers. Later prompts, explicit user renames, and inherited fork history do not trigger another automatic call. An automatic failure leaves the deterministic fallback as the session's title; `ctx.sessionTitle.refresh()` is the explicit retry. Forks keep their inherited title and never run this provider automatically, even when their seeded first message came from the parent.
 
 ### Configuration
 

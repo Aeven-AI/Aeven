@@ -35,6 +35,8 @@ The presets you can choose from come from two places: the presets shipped inside
 
 ### Shipped skills
 
+The shipped persona uses the session working directory as the default target for repository work. Memory and confirmed invariants cannot redirect that target; the current user request may require other folders, and related files outside the workspace remain readable.
+
 The `aeven` composition mounts the skills shipped inside this package, so a session gets them without a local copy. They live under `presets/aeven/skills/`, which the composition resolves from its own URL as `./skills/`.
 
 A shipped skill's `SKILL.md` is the canonical file, and the repository path `.agents/skills/<name>/SKILL.md` is a relative symbolic link to it, so an agent working in this checkout discovers the same file. The root resolves beside the composition, so a preset copied into a user root carries none of the shipped skills, and a locally authored skill of the same name loses to the shipped one.

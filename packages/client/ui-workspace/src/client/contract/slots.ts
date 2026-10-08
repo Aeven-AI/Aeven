@@ -35,6 +35,7 @@ import type { SessionSearchResultItem } from '@aeven/api-session-controller/clie
 import type { RemoteHostFacts } from '@aeven/api-remotes/client'
 import type { WorkspaceId, WorkspaceView } from '@aeven/api-workspace-controller/client'
 import type { SessionId, SessionSeq } from '@aeven/session/types'
+import type { SessionRenameRequest } from '../navigation.ts'
 import type { createWorkspaceViewStore } from '../stores.ts'
 
 /**
@@ -100,6 +101,8 @@ export type WorkspaceBrowserInjected = {
      * saw. Select the field the surface needs (`info => info.home`).
      */
     hostInfo: HostObservable<RemoteHostFacts>
+    /** Rename requested by a surface outside this region, or null. */
+    sessionRenameRequest: HostObservable<SessionRenameRequest | null>
   }
   /**
    * Start a New Session: reuse-or-create its blank Session in an explicit
@@ -124,6 +127,8 @@ export type WorkspaceBrowserInjected = {
   open: (sessionId: SessionId) => void
   /** Rename a Session (explicit user title; resolves on host acceptance). */
   renameSession: (sessionId: SessionId, title: string) => Promise<void>
+  /** Clear the pending rename request once this region's dialog is open. */
+  clearSessionRenameRequest: () => void
   /** Fork a Session at its last completed turn and open the child. */
   forkSession: (sessionId: SessionId) => void
   /** Rename a Host Workspace (rejects on name conflict; resolves on durability). */

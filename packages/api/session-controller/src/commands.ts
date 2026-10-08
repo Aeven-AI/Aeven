@@ -39,6 +39,8 @@ import type {
   SessionEditValue,
   SessionForkRequest,
   SessionForkValue,
+  SessionMoveRequest,
+  SessionMoveValue,
   SessionPromptRequest,
   SessionPromptValue,
   SessionRenameRequest,
@@ -334,7 +336,7 @@ export class SessionCommandController {
     const composition = await this.agents.composeAgent(this.agents.presetForObservation(source))
     try {
       const { provider, model } = this.ctx.agentDefaultModel.currentSelection()
-      await this.ctx.agents.create({
+      this.agents.own(await this.ctx.agents.create({
         sessionId: childId,
         seed: source.events.slice(0, cut),
         inheritedEventCount: cut,
@@ -349,7 +351,7 @@ export class SessionCommandController {
         },
         agentOptions: { provider, model },
         setup: composition.setup,
-      })
+      }))
     } catch (error) {
       throw new RemoteError(
         'gateway/internal',
@@ -369,6 +371,115 @@ export class SessionCommandController {
       }
     }
     return { sessionId: childId }
+  }
+
+  /**
+   * Move one idle Session into another Workspace. A Session's cwd is fixed at
+   * creation, so the move writes the complete log into a new Session located
+   * at the target Workspace's directory, then deletes the source: its Agent,
+   * its stored log, its projection-cache record, and its Workspace and
+   * archive entries.
+   * @param request - source Session and target Workspace.
+   * @returns the identity of the Session that replaces the source.
+   */
+  async move(request: SessionMoveRequest): Promise<SessionMoveValue> {
+    const workspace = this.ctx.workspaceRegistry.get(request.workspaceId)
+    if (workspace === undefined
+      || !(workspace.isDefault || (this.ctx.get('identityUsers')?.mayAccess(workspace.owner) ?? true))) {
+      throw new RemoteError('workspace/not-found', `workspace "${request.workspaceId}" not found`, {
+        workspaceId: request.workspaceId,
+      })
+    }
+    const unavailable = (reason: 'same-workspace' | 'missing-directory' | 'subagent', message: string) =>
+      new RemoteError('session/move-unavailable', message, { sessionId: request.sessionId, reason })
+    if (workspace.sessionIds.includes(request.sessionId)) {
+      throw unavailable('same-workspace', `session "${request.sessionId}" already belongs to workspace "${workspace.id}"`)
+    }
+    if (await workspace.status() === 'missing-dir') {
+      throw unavailable('missing-directory', `workspace "${workspace.id}" directory is missing`)
+    }
+    if (this.ctx.agents.get(request.sessionId)?.status === 'running') {
+      throw new RemoteError('session/agent-busy', 'move rejected', { reason: 'the session is running a turn' })
+    }
+    let observed: SessionObservation
+    try {
+      observed = await this.ctx.sessionQuery.observeSession(request.sessionId)
+    } catch (error) {
+      if (error instanceof SessionQueryError
+        && error.code === 'SESSION_QUERY_SESSION_NOT_FOUND') {
+        throw new RemoteError('session/not-found', `session "${request.sessionId}" not found`, {
+          sessionId: request.sessionId,
+        })
+      }
+      throw new RemoteError(
+        'gateway/internal',
+        `move source unavailable for session "${request.sessionId}": ${String(error)}`,
+        {},
+      )
+    }
+    const movedId = brandString<SessionId>(`session-${randomUUID()}`)
+    {
+      using source = observed
+      if (!this.agents.callerMayAccess(source.header)) {
+        throw new RemoteError('session/not-found', `session "${request.sessionId}" not found`, {
+          sessionId: request.sessionId,
+        })
+      }
+      if (hasApiSessionSubagentOwner(this.ctx, { header: source.header }, undefined)) {
+        throw unavailable('subagent', `session "${request.sessionId}" belongs to a subagent`)
+      }
+      const composition = await this.agents.composeAgent(this.agents.presetForObservation(source))
+      try {
+        const { provider, model } = this.ctx.agentDefaultModel.currentSelection()
+        // The whole log moves, and the source's own fork lineage moves with it:
+        // the new Session inherits what the source inherited, from the same parent.
+        this.agents.own(await this.ctx.agents.create({
+          sessionId: movedId,
+          seed: source.events,
+          inheritedEventCount: source.inheritedEventCount,
+          meta: {
+            ...(workspace.path === undefined ? {} : { cwd: workspace.path }),
+            ...(source.header.parentSession === undefined ? {} : { parentSession: source.header.parentSession }),
+            isSeeded: true,
+            ...(source.header.owner === undefined ? {} : { owner: source.header.owner }),
+            ...(composition.agentPreset === undefined
+              ? {}
+              : { agentPreset: composition.agentPreset }),
+          },
+          agentOptions: { provider, model },
+          setup: composition.setup,
+        }))
+      } catch (error) {
+        throw new RemoteError(
+          'gateway/internal',
+          `failed to move session "${request.sessionId}": ${String(error)}`,
+          {},
+        )
+      }
+    }
+    try {
+      await workspace.attachSession(movedId)
+    } catch (error) {
+      throw new RemoteError(
+        'session/workspace-attach-failed',
+        `session "${movedId}" was moved but could not attach to workspace "${workspace.id}": ${String(error)}`,
+        { sessionId: movedId, workspaceId: workspace.id },
+      )
+    }
+    try {
+      await this.agents.release(request.sessionId)
+      await this.ctx.sessionPersistence.delete(request.sessionId)
+      await this.ctx.get('sessionProjectionCache')?.forget(request.sessionId)
+      await this.ctx.workspaceRegistry.forgetSession(request.sessionId)
+    } catch (error) {
+      throw new RemoteError(
+        'gateway/internal',
+        `session moved to "${movedId}" but the original "${request.sessionId}" could not be deleted: ${String(error)}`,
+        {},
+      )
+    }
+    this.ctx.emit('api-session/removed', request.sessionId)
+    return { sessionId: movedId }
   }
 
   /**

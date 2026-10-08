@@ -164,7 +164,6 @@ async function scopedBench(register?: (inputTriggers: InputTriggerService) => vo
     })),
     resolveSubmitMode: () => 'queue',
     invokeCommand: undefined,
-    exportSession: undefined,
     toggleCommandMenu: (selection) => {
       const snapshot = shell.snapshot
       controller.toggleSource('command', {

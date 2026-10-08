@@ -1,5 +1,5 @@
 ---
-description: "ctx.media 之上的 generate_image 工具：解析请求、经选定 Provider 生成、并把字节存为会话内的持久附件，只此一个面向模型的接触面。"
+description: "ctx.media 之上的 generate_image 与 generate_video 工具：解析请求、经选定 Provider 生成、并把字节存为会话内的持久附件的面向模型接触面。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`avn-tool-media` 发布 `generate_image`，即生成式媒体 Seam 面向模型的接触面。它解析一次调用的模型与 Provider，经 `ctx.media` 生成，再用 `ctx.attachments` 存下每张返回的图像，因此结果携带的是持久图像块，而不是文件或 URL。请在已加载 `avn-media` 且至少有一个图像 Provider 的组合中挂载它。
+`avn-tool-media` 发布 `generate_image`，并在配置了 `video` 时发布 `generate_video`：即生成式媒体 Seam 面向模型的接触面。每个工具解析一次调用的模型与 Provider 并经 `ctx.media` 生成；图像用 `ctx.attachments` 存为持久图像块，成片存为持久文件块，而不是文件或 URL。请在已加载 `avn-media` 且至少有一个图像 Provider 的组合中挂载它；设置了 `video` 时还需一个视频 Provider。
 
 ## 目录
 
@@ -32,9 +32,13 @@ kind: "package-reference"
 
 挂载两个图像 Provider 的部署需要固定其一，或在此处、或作为 Seam 的 `imageProvider`：选择存在歧义时，Seam 会报错而不是猜测。
 
+`video` 以同样的 `model`、`provider`、`choices`、`confirmModel` 与 `maxReferenceImageBytes` 字段配置 `generate_video`，存于独立的 `media-video` 设置文档，另有用于等待任务的 `pollIntervalMs`（默认 5 秒）与 `maxWaitMs`（默认 31 分钟）。省略 `video` 时既不注册该工具，也不注册 `/video-model`。随附预设提供 `Aeven-1.0-Video-Flash`（默认）与 `Aeven-1.0-Video-Pro`，以 `confirmModel: false` 将 Video Flash 设为默认，`/video-model` 修改已存储选择的方式与 `/image-model` 对图像的方式完全相同。
+
 ### 请求
 
 `prompt` 是唯一必填参数。`model` 为单次调用覆盖所选模型，并由其 choice 指明的 Provider 服务。`n`、`size`、`resolution`、`seed` 与 `background` 转发至 Seam；`guidance_scale`、`output_format` 与 `optimize_prompt_mode` 映射为其驼峰命名字段；只发送调用实际设置的字段，其余沿用 Provider 自身的默认值，Provider 会拒绝所选模型没有的选项。`reference_images` 按 prompt 引用的顺序列出图像文件；每个文件在会话工作目录下经由 `ctx.fs` 读取，受 `maxReferenceImageBytes`（默认 4 MiB）限制，按其字节识别格式，并作为参考图发送给 Provider。对话中的图像通过其句柄文本显示的规范化副本路径传入。
+
+`generate_video` 同样只需 `prompt`。`model` 为单次调用覆盖所选视频模型；`duration`、`resolution`、`aspect_ratio`、`seed` 与 `generate_audio` 转发至 Seam 的视频请求；`reference_images` 最多列出两张图像，按上述方式读取，Provider 将其用作首帧与尾帧。
 
 -----
 
@@ -47,7 +51,9 @@ kind: "package-reference"
 
 `storable` 把生成的媒体类型收窄到第一版附件路径能存储的四种位图格式。Provider 可能返回别的东西——OpenRouter 按请求提供 SVG，签名无法识别的字节会被标为 `application/octet-stream`——这些在此处连同类型名一起被拒绝，而不是在存储层变成一句无信息的拒绝。
 
-`imageBlockRef` 恢复输出 Schema 压平成字符串的 `AttachmentId` 品牌类型。字节由本工具经 `saveImage` 存入，因此该品牌成立，无需二次读取存储。
+`imageBlockRef` 恢复输出 Schema 压平成字符串的 `AttachmentId` 品牌类型。字节由本工具经 `saveImage` 存入，因此该品牌成立，无需二次读取存储。`fileBlockRef` 对经 `saveFile` 存入的成片做同样的事。
+
+`generate_video` 启动 Provider 的任务，随后 `awaitVideo` 每隔 `pollIntervalMs` 读取一次，直到成功、失败或超过 `maxWaitMs`；调用的中止信号会结束等待。成片经 `saveFile` 以模型名存储，并附一行写明模型与 prompt 的文本，模型读到的就是这行文本而非字节。模型选择字段、选择器以及 `/image-model` 与 `/video-model` 命令都来自每种类型各一次的 `installSelection`，因此二者行为一致。
 
 -----
 
@@ -58,7 +64,7 @@ kind: "package-reference"
 
 #### 模型看到什么
 
-模型看到生成的 [`generate_image` Schema](../../../docs/tool-catalog.zh.md#aeventool-media)：一个必填的 `prompt` 和可选控制项——用于单次调用覆盖的 `model`；用于受支持生成设置的 `n`、`size`、`resolution`、`seed`、`guidance_scale`、`output_format`、`optimize_prompt_mode` 与 `background`；以及用于编辑或基于现有图像绘制的 `reference_images`。描述写明了一个好的 prompt 应涵盖什么、如何传入参考图，以及每个已配置的 choice 及其描述和默认项，使模型知道哪个模型具备哪个选项；它还告诉模型不要再调用其他工具去定位或校验图像，因为附件本身就是结果。
+模型看到生成的 [`generate_image` Schema](../../../docs/tool-catalog.zh.md#aeventool-media)：一个必填的 `prompt` 和可选控制项——用于单次调用覆盖的 `model`；用于受支持生成设置的 `n`、`size`、`resolution`、`seed`、`guidance_scale`、`output_format`、`optimize_prompt_mode` 与 `background`；以及用于编辑或基于现有图像绘制的 `reference_images`。描述写明了一个好的 prompt 应涵盖什么、如何传入参考图，以及每个已配置的 choice 及其描述和默认项，使模型知道哪个模型具备哪个选项；它还告诉模型不要再调用其他工具去定位或校验图像，因为附件本身就是结果。[`generate_video` Schema](../../../docs/tool-catalog.zh.md#aeventool-media) 具有同样的 `prompt`、`model` 与 `reference_images` 参数，另加 `duration`、`resolution`、`aspect_ratio`、`seed` 与 `generate_audio`，其描述列出视频 choice，并说明生成需要数分钟。
 
 #### Token 影响
 
@@ -72,7 +78,7 @@ kind: "package-reference"
 
 #### 模型看到什么
 
-成功返回一行——`Generated <n> image(s) with <model>. Already displayed to the user; do not repeat or embed them in your reply.`——其后是每张已存图像对应的一个图像块。Imagine 在生成调用位置渲染这些块，包括进行中的占位视图；无需助手复述。失败则呈现 Seam 自己的消息，其中写明失败条件：未指明或不可用的模型、模型没有的选项、无法读取的参考图、上游拒绝，或无法存储的媒体类型。
+成功返回一行——`Generated <n> image(s) with <label>. Charged $<amount> to the user's Aeven account. Already displayed to the user; do not repeat or embed them in your reply.`——其后是每张已存图像对应的一个图像块。Imagine 在生成调用位置渲染这些块，包括进行中的占位视图；无需助手复述。失败则呈现 Seam 自己的消息，其中写明失败条件：未指明或不可用的模型、模型没有的选项、无法读取的参考图、上游拒绝，或无法存储的媒体类型。视频成功时返回 `Generated a video with <label>. Charged $<amount> to the user's Aeven account. Already displayed to the user with playback controls; do not repeat or embed it in your reply.`，其后是一个文件块，它以 `<attached_file>` 元素到达模型，携带已存文本与成片路径；Imagine 在调用位置播放它。`<label>` 是所提供 choice 的标签，例如 Aeven Video Pro；扣费句仅在 Provider 报告费用时出现。任务失败或超时时呈现 Provider 给出的原因。
 
 #### Token 影响
 
@@ -89,8 +95,8 @@ kind: "package-reference"
 这些限制界定了本包不适用的场景，均为当前的包级约束。
 
 - **不发布配套 invariant**——本工具不拥有持久状态，也不拥有可独立观测的关系：Provider 选择归 Seam，存储归 `ctx.attachments`（它校验自己的摘要），而已存引用只经写入它的那个存储读回。
-- **不支持视频**——Seam 把视频建模为带自身轮询与取回调用的任务，这需要独立的工具接触面，而不是本工具上的一个参数。
-- **不报告成本**——Provider 会报告每次生成的成本，而 Seam 没有承载它的地方，因此它不会抵达结果。
+- **视频调用在整个渲染期间占用其工具位**——任务在调用内等待，因此数分钟的渲染会让调用一直保持打开；在此期间模型无法在该轮做其他工作。
+- **仅在 Provider 报告时给出费用**——只有 Provider 设置了 `costUsdMicros` 时结果才会说明扣费；否则不写任何价格，模型也没有其他来源。
 
 <a id="dev-note"></a>
 ### 开发备注

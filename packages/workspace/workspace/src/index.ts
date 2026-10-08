@@ -386,6 +386,29 @@ export class WorkspaceRegistry extends Service {
   }
 
   /**
+   * Drop every registry fact about a deleted session: its workspace
+   * accounting, its archive entry, and its indexed header. The caller has
+   * already removed the session from live state and persistence, so nothing
+   * re-adopts it.
+   * @param sessionId - The deleted session.
+   * @returns resolution after durability.
+   */
+  forgetSession(sessionId: SessionId): Promise<void> {
+    return this.enqueueOperation(async () => {
+      this.headers.delete(sessionId)
+      this.sessionPaths.delete(sessionId)
+      this.invalidSessionPaths.delete(sessionId)
+      // `sessionIds` is the path-filtered projection, so it no longer lists the
+      // dropped id; detach reads the stored record and writes only on a change.
+      for (const entity of this.entities.values()) await entity.detachSession(sessionId)
+      const state = this.requireState()
+      if (state.archivedSessionIds.includes(sessionId)) {
+        await this.setState({ ...state, archivedSessionIds: state.archivedSessionIds.filter(id => id !== sessionId) })
+      }
+    })
+  }
+
+  /**
    * Whether a session is live, header-indexed, or present in a fresh
    * persistence listing. Only a definite miss returns false — a failing
    * `sessionPersistence.list()` propagates so storage faults never

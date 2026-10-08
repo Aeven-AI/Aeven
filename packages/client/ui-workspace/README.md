@@ -43,7 +43,7 @@ Collapsed search is one header action beside the view and add actions: activatin
 
 ### Managing sessions
 
-The Session row's Rename action opens a dialog prefilled with the row's display title; confirming an unchanged title is deliberately allowed — it pins the current automatic title against regeneration. Archive commits without a confirmation dialog and the row disappears from every grouping surface when the archive-set echo lands. Fork forks at the source's last completed turn, increments the inherited persisted title on the client, and then opens the child. Workspace Delete opens a confirmation that states the retention boundary; success removes the group and archives its Sessions.
+The Session row's Rename action opens a dialog prefilled with the row's display title; confirming an unchanged title is deliberately allowed — it pins the current automatic title against regeneration. A row whose title is still being created — no durable title yet while the Session works, so the row reads as the New Session label — offers no Rename action until that title lands, because there is no name to prefill and one is already on its way. Archive commits without a confirmation dialog and the row disappears from every grouping surface when the archive-set echo lands. Fork forks at the source's last completed turn, increments the inherited persisted title on the client, and then opens the child. Workspace Delete opens a confirmation that states the retention boundary; success removes the group and archives its Sessions.
 
 ### Pending interactions
 

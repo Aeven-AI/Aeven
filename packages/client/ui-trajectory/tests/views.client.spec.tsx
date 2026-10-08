@@ -37,6 +37,7 @@ import {
   type ConversationSessionHeaderProps, type ConversationSessionProps,
 } from '@aeven/client-ui-conversation/src/client/skeleton/ConversationSession.tsx'
 import { createConversationStore } from '@aeven/client-ui-conversation/src/client/stores.ts'
+import type { SessionMoveTarget } from '@aeven/client-ui-conversation/src/client/contract/slots.ts'
 import { zh as conversationZh } from '@aeven/client-ui-conversation/src/client/locales.ts'
 import { apply as localeApply, inject as localeInject } from '@aeven/client-locale/client'
 import { apply, inject } from '@aeven/client-ui-trajectory/client'
@@ -230,9 +231,6 @@ function standaloneProps(
     useInput: bindSnapshotSelector(input),
     inputActions,
     useProjection,
-    viewRequest: null,
-    openView: () => {},
-    completeViewRequest: () => {},
     // Image seats the outlet would bake: standalone renders omit the gallery.
     renderSlot: () => null,
     SessionProvider: ({ children }) => <>{children}</>,
@@ -323,12 +321,17 @@ function tabsOf(slots: SlotRegistry, views?: readonly ConversationViewDefinition
     })
 }
 
-type ConvViewOwner = Pick<ConvViewProps, 'viewRequest' | 'openView' | 'completeViewRequest'>
+type ConvViewOwner = ConvViewProps
 
+/**
+ * Whether the outlet handed this entry the Conversation View owner share. The
+ * share declares no values of its own (its marker field is never set), so the
+ * fixture accepts exactly an empty owner object.
+ * @param owner - owner props a render site passed.
+ * @returns whether the owner is the Conversation View share.
+ */
 function isConvViewOwner(owner: object): owner is ConvViewOwner {
-  return 'viewRequest' in owner
-    && 'openView' in owner && typeof owner.openView === 'function'
-    && 'completeViewRequest' in owner && typeof owner.completeViewRequest === 'function'
+  return Object.keys(owner).length === 0
 }
 
 /** Mount the strict Session header/body over the ring ledger with outlet-faithful render shares. */
@@ -360,6 +363,7 @@ function mount(fixture: Awaited<ReturnType<typeof bench>>) {
     pruneImages: vi.fn(),
     submit: vi.fn(),
   }
+  const selectedView = createSnapshotStore<ViewTab | undefined>(undefined)
   const standardProps = {
     sessionId: SID,
     useSession,
@@ -367,6 +371,8 @@ function mount(fixture: Awaited<ReturnType<typeof bench>>) {
     useChat,
     useConversation,
     useConversationViews,
+    useSelectedView: bindSnapshotSelector(selectedView),
+    useMoveTargets: bindSnapshotSelector(createSnapshotStore<readonly SessionMoveTarget[]>([])),
     useSessions,
     useSessionPendingInteraction,
     useWorkspaces,
@@ -415,6 +421,9 @@ function mount(fixture: Awaited<ReturnType<typeof bench>>) {
         actions={conversation.actions}
         renderSlot={() => null}
         open={vi.fn()}
+        forkSession={vi.fn()}
+        exportSession={() => Promise.resolve()}
+        moveSession={undefined}
         selectView={conversation.actions.setView}
         t={tConversation}
       />
@@ -425,7 +434,6 @@ function mount(fixture: Awaited<ReturnType<typeof bench>>) {
         actions={conversation.actions}
         renderSlot={renderSlot}
         bindDraftMirror={() => () => {}}
-        openView={conversation.actions.openView}
       />
     </>,
   )
@@ -1418,59 +1426,6 @@ describe('TrajectoryView state', () => {
     fireEvent.click(screen.getByRole('button', { name: '请求 #11' }))
     fireEvent.click(screen.getByRole('tab', { name: '用量' }))
     expect(screen.getByText('会话累计').closest('section')?.textContent).toContain('11 tok')
-  })
-
-  it.each([
-    ['root', {
-      kind: 'assistant' as const,
-      seq: 3,
-      time: 3,
-      turn: 1,
-      step: 1,
-      blocks: [{ kind: 'tool-call' as const, callId: 'hidden-root', name: 'bash', argsRaw: '{}' }],
-    }, 'hidden-root'],
-    ['nested', {
-      kind: 'tool-result' as const,
-      seq: 3,
-      time: 3,
-      callId: 'hidden-root',
-      call: { name: 'run_code', argsRaw: '{}' },
-      callTime: 2,
-      content: [],
-      isError: false,
-      subCalls: [{
-        callId: 'hidden-child', parentCallId: 'hidden-root', name: 'bash', argsRaw: '{}',
-        turn: 1, step: 1, time: 3, subCalls: [],
-      }],
-    }, 'hidden-child'],
-  ])('reveals a hidden resident %s call for cross-view inspection', (_kind, target, focus) => {
-    const nodes: LegacyConversationSlice['nodes'] = [
-      { kind: 'user', seq: 1, time: 1, content: [], source: null },
-      {
-        kind: 'tool-result', seq: 2, time: 2, callId: 'unrelated', call: null, callTime: null,
-        content: [], isError: false, subCalls: [],
-      },
-      target,
-      ...Array.from({ length: 50 }, (_, index) => ({
-        kind: 'user' as const,
-        seq: index + 4,
-        time: index + 4,
-        content: [{ type: 'text' as const, text: `later ${String(index + 1)}` }],
-        source: null,
-      })),
-    ]
-    const completeViewRequest = vi.fn()
-    render(
-      <TrajectoryView
-        {...standaloneProps([])}
-        {...standaloneHistory(historySnapshot(nodes))}
-        {...standaloneDuration()}
-        viewRequest={{ view: 'trajectory', focus }}
-        completeViewRequest={completeViewRequest}
-      />,
-    )
-
-    expect(completeViewRequest).toHaveBeenCalledOnce()
   })
 
   it('persists the duration preference through the runtime snapshot-store seam', () => {

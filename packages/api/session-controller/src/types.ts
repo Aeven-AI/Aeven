@@ -250,6 +250,11 @@ declare module '@aeven/typert-protocol' {
     'session/title-invalid': { readonly sessionId: SessionId }
     'session/search-disabled': Record<string, never>
     'session/fork-unavailable': { readonly sessionId: SessionId }
+    /** The Session cannot leave its current place for the named Workspace. */
+    'session/move-unavailable': {
+      readonly sessionId: SessionId
+      readonly reason: 'same-workspace' | 'missing-directory' | 'subagent'
+    }
     /** The edit target is not a current user-authored prompt of the Session. */
     'session/edit-unavailable': { readonly sessionId: SessionId; readonly messageSeq: number }
     'subagent/not-found': {
@@ -351,6 +356,18 @@ export interface SessionForkRequest {
 
 /** Identity of a newly forked Session. */
 export interface SessionForkValue {
+  readonly sessionId: SessionId
+}
+
+/** Session move request. */
+export interface SessionMoveRequest {
+  readonly sessionId: SessionId
+  /** Workspace the Session moves into; its directory becomes the Session's cwd. */
+  readonly workspaceId: WorkspaceId
+}
+
+/** Identity of the Session that replaces the moved one. */
+export interface SessionMoveValue {
   readonly sessionId: SessionId
 }
 

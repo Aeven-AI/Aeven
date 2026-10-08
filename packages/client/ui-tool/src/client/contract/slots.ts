@@ -41,8 +41,6 @@ export interface ToolCallOwnerProps {
   home?: string | undefined
   /** Open a Tool argument path through the Host. */
   openFile: (path: string) => void
-  /** Inspect this call in the trajectory view when available. */
-  inspect?: (() => void) | undefined
   /**
    * Render image content blocks a settled result carries. Absent when the
    * composition mounts no attachment presentation, which leaves an

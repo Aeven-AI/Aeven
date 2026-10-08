@@ -86,8 +86,121 @@
   color: var(--dsw-alias-state-error-primary);
 }
 
-.caption {
+/* The prompt trigger: the Gallery's own round control (white face, dark glyph)
+   in the image's lower-left corner. It rides above the loading sheet, so the
+   prompt stays reachable while the image is still generating. It carries no
+   hover state and no shadow of its own: the tooltip names it, and the flat disc
+   sits on the image without an edge around it. */
+.promptTrigger {
+  display: flex;
+  position: absolute;
+  z-index: 3;
+  left: 12px;
+  bottom: 12px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  outline: none;
+  appearance: none;
+  background-color: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+}
+
+.promptTrigger:focus-visible {
+  box-shadow: 0 0 0 2px var(--dsw-alias-label-primary);
+}
+
+.promptTrigger svg {
+  display: flex;
+  width: 16px;
+  height: 16px;
+}
+
+/* The prompt dialog: the connectors skill popup's card — a sheet centred under
+   the modal mask, its title row over one scrolling body. The attribute
+   selector outranks the primitive's own card width, padding and gap, which a
+   bare class cannot: both are one class deep and stylesheet order decides. */
+.promptDialog[role='dialog'] {
+  width: min(720px, 100%);
+  max-height: min(640px, calc(100dvh - 48px));
+  padding: 0;
+  gap: 0;
+}
+
+.promptHeader {
+  display: flex;
+  flex: none;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: var(--dsw-aeven-page-inset) var(--dsw-aeven-page-inset) 0;
+}
+
+.promptTitle {
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+  color: var(--dsw-alias-label-primary);
+}
+
+/* The header's trailing controls: the prompt's one-click copy, then close. */
+.promptActions {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+}
+
+/* The inverted disc close control that card carries. */
+.promptClose {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--dsw-alias-label-primary);
+  color: var(--dsw-alias-bg-layer-2);
+  cursor: pointer;
+}
+
+/* No fade mask here, unlike the skill sheet's body: that one always holds
+   enough text to scroll, while a short prompt would sit under the fade. */
+.promptBody {
+  flex: 1;
+  min-height: 0;
+  padding: var(--dsw-aeven-page-inset);
+  overflow-y: auto;
+}
+
+.promptText {
+  margin: 0;
+  font-size: var(--avn-content-font-size, 16px);
+  line-height: 26px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  color: var(--dsw-alias-label-secondary);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* The prompt trigger moves to the upper-left corner of a video frame, clear of
+   the player's controls along its bottom edge. */
+.frame[data-generated-video-frame] .promptTrigger {
+  top: 12px;
+  bottom: auto;
+}
+
+/* A portrait clip takes under half the column, so a 9:16 frame stays within a
+   screen's height. */
+.frames[data-frames='1'] .frame[data-generated-video-frame][data-orientation='portrait'] {
+  width: 45%;
 }

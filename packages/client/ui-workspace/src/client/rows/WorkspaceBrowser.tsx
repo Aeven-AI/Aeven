@@ -688,10 +688,12 @@ export function WorkspaceBrowser({
   useWorkspaces,
   useStore,
   actions,
+  useSessionRenameRequest,
   startSession,
   newSessionHref,
   open,
   renameSession,
+  clearSessionRenameRequest,
   forkSession,
   renameWorkspace,
   deleteWorkspace,
@@ -820,6 +822,16 @@ export function WorkspaceBrowser({
     setSessionRenameDraft(currentTitle)
     setSessionRenameError(null)
   }
+
+  // A surface outside this region — the conversation band's options control —
+  // asks for this dialog rather than growing one of its own. The request is
+  // cleared as it is taken up, so a remount does not reopen a stale dialog.
+  const sessionRenameRequest = useSessionRenameRequest(value => value)
+  useEffect(() => {
+    if (sessionRenameRequest === null) return
+    onSessionRename(sessionRenameRequest.sessionId, sessionRenameRequest.currentTitle)
+    clearSessionRenameRequest()
+  }, [sessionRenameRequest, clearSessionRenameRequest])
 
   // Archive is dialog-free: not destructive (the log and the accounting slot
   // remain), so the menu action commits directly; the row disappears when the

@@ -1,5 +1,5 @@
 ---
-description: "The Imagine surface: the /i/<id> page that takes the center column in place of the chat, and the /image-model picker."
+description: "The Imagine surface: the /i/<id> page that takes the center column in place of the chat, the in-chat image and video views, and the /image-model and /video-model pickers."
 kind: "package-reference"
 ---
 # @aeven/client-ui-imagine
@@ -12,9 +12,9 @@ Imagine is a page of its own at `/i/<id>`, separate from chat Sessions. The plug
 
 The start page is the chat's New Session screen: the product name and the reader's greeting (the chat's `HeroShell`), over a composer card with the chat hero composer's geometry. The card keeps what the reader types; its add and send controls stay disabled until Imagine can generate.
 
-The same plugin hangs the `/image-model` picker on the host command in the chat composer: one searchable list of the deployment's image models, the stored choice marked active, and a pick submitting `/image-model <provider>/<model>`, which is the line that stores it. The rows are the deployment's configured `choices` plus the models a `listedProviders` provider currently serves, read from this client's `media` settings scope and the seam's own catalog. That is the surface an image model is chosen from while Imagine itself has no model control; the choice is the deployment's image-generation setting, so it is shared with `generate_image` rather than private to this page.
+The same plugin hangs the `/image-model` picker on the host command in the chat composer: one searchable list of the deployment's image models, the stored choice marked active, and a pick submitting `/image-model <provider>/<model>`, which is the line that stores it. The rows are the deployment's configured `choices` plus the models a `listedProviders` provider currently serves, read from this client's `media` settings scope and the seam's own catalog. That is the surface an image model is chosen from while Imagine itself has no model control; the choice is the deployment's image-generation setting, so it is shared with `generate_image` rather than private to this page. `/video-model` gets the same picker over the `media-video` settings scope; its rows are that document's `choices` alone, since no listed provider offers video models.
 
-Image generation in chat is rendered at its tool call by `ImageToolView`, registered for `generate_image`, `codex_image_generate`, `codex_image_edit` and `grok_imagine_image`. The running view shows the prompt, spinner and elapsed seconds; success uses the shared attachment gallery and failure keeps an error in the same reserved frame. A lone image reserves 240×240 px across generation, attachment loading and settlement. Explicit larger image counts reserve additional rows. These calls remain visible with process collapsed, including nested code dispatches; no progress event or separate image store is added.
+Image generation in chat is rendered at its tool call by `ImageToolView`, registered for `generate_image`, `codex_image_generate`, `codex_image_edit` and `grok_imagine_image`. Each frame carries a round prompt control in its lower-left corner: it names itself on hover and opens the prompt in the connectors skill popup's dialog, title row carrying a one-click copy. The control sits over the spinner while the call runs and stays on the failure frame. Success uses the shared attachment gallery and failure keeps an error in the same reserved frame. A lone image reserves 240×240 px across generation, attachment loading and settlement. Explicit larger image counts reserve additional rows. These calls remain visible with process collapsed, including nested code dispatches; no progress event or separate image store is added. `VideoToolView`, registered for `generate_video`, renders the same frame: a spinner over a frame in the requested aspect ratio while the job runs, then an inline clip under `VideoPlayer`'s own playback chrome, read from `/api/attachment-file` for the clip the result cites, with the frame taking the clip's own shape once its metadata loads. That chrome is the product's own rather than the browser's: a flat white disc carrying the lucide `play` glyph, the elapsed and total readout, a scrubber, a `volume-2`/`volume-x` disc beside its level slider, a save popup opened from a vertical-dots disc whose `download` row saves the clip under its own file name, drawn with the composer's own popup card and cell recipe, and a `maximize-2`/`minimize-2` disc for full screen. Every face is a white surface carrying the product's black glyph, the clip's own events drive them all, full screen is taken on the player element so the chrome stays with the clip, and a playing clip the pointer has left alone clears the bar until the pointer returns or the clip is held. Its prompt control sits in the upper-left corner, clear of the controls.
 
 ## Table of Contents
 
@@ -27,7 +27,7 @@ Image generation in chat is rendered at its tool call by `ImageToolView`, regist
 <a id="model-experience"></a>
 ## Model Experience
 
-None, as nothing on the Imagine page or in its picker reaches a model request: the picker stores a settings choice and leaves every generation to `generate_image`.
+None, as nothing on the Imagine page or in its pickers reaches a model request: a picker stores a settings choice and leaves every generation to `generate_image` or `generate_video`.
 
 #### KV Cache effect
 

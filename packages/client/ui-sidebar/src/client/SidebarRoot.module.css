@@ -103,12 +103,6 @@
      line the rows below inset to. */
   padding: 0 var(--avn-sidebar-inline-padding);
   box-sizing: border-box;
-  /* Tooltips of the row's controls share one line with the conversation band's
-     (the fold control, the right sidebar toggle), which place theirs 10px under
-     the band's 40px control box. The row's occupants are 28px and end 6px above
-     that box's bottom, so the offset pulls in 6px less. Declared on the row so
-     every occupant inherits it. */
-  --dsw-aeven-tooltip-icon-offset: 4px;
   /* The row itself is inert: only its controls take pointer input. Collapsed it
      is zero wide, and a padded row still occupies its padding as a hit target —
      a 48px invisible strip over the conversation's band, where the fold control

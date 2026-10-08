@@ -12,9 +12,9 @@ function callName(node: ToolCallBlock): string {
 
 /** One atomic call dispatched through the Tool-owned keyed slot. */
 const ToolCall = memo(function ToolCall({
-  renderSlot, callId, toolName, block, openFile, selected, cwd, home, inspectCall,
+  renderSlot, callId, toolName, block, openFile, selected, cwd, home,
   renderMessageImages, generatedImages, collapsed, t, children,
-}: Pick<ToolTreeProps, 'renderSlot' | 'openFile' | 'cwd' | 'inspectCall' | 'renderMessageImages' | 't'> & {
+}: Pick<ToolTreeProps, 'renderSlot' | 'openFile' | 'cwd' | 'renderMessageImages' | 't'> & {
   callId: string
   toolName: string
   block: ToolCallBlock
@@ -39,10 +39,9 @@ const ToolCall = memo(function ToolCall({
     openFile,
     cwd,
     home,
-    inspect: () => { inspectCall(callId) },
     renderImages: renderMessageImages,
     generatedImageIds: generatedImages?.attachmentIds,
-  }), [callId, toolName, block, openFile, cwd, home, inspectCall, renderMessageImages, generatedImages])
+  }), [callId, toolName, block, openFile, cwd, home, renderMessageImages, generatedImages])
   return (
     <div
       className={css.callRow}
@@ -63,9 +62,9 @@ const ToolCall = memo(function ToolCall({
 })
 
 const ToolCallBranch = memo(function ToolCallBranch({
-  renderSlot, block, selectedCallId, cwd, home, openFile, inspectCall, renderMessageImages, generatedImages, collapsed, t,
+  renderSlot, block, selectedCallId, cwd, home, openFile, renderMessageImages, generatedImages, collapsed, t,
 }: Pick<ToolTreeProps,
-  'renderSlot' | 'selectedCallId' | 'cwd' | 'openFile' | 'inspectCall' | 'renderMessageImages' | 't'
+  'renderSlot' | 'selectedCallId' | 'cwd' | 'openFile' | 'renderMessageImages' | 't'
 > & {
   block: ToolCallBlock
   home?: string | undefined
@@ -82,7 +81,6 @@ const ToolCallBranch = memo(function ToolCallBranch({
       selected={block.callId === selectedCallId}
       cwd={cwd}
       home={home}
-      inspectCall={inspectCall}
       renderMessageImages={renderMessageImages}
       generatedImages={generatedImages}
       collapsed={collapsed}
@@ -99,7 +97,6 @@ const ToolCallBranch = memo(function ToolCallBranch({
               cwd={cwd}
               home={home}
               openFile={openFile}
-              inspectCall={inspectCall}
               renderMessageImages={renderMessageImages}
               generatedImages={generatedImages}
               collapsed={collapsed}
@@ -119,7 +116,7 @@ const ToolCallBranch = memo(function ToolCallBranch({
  * @returns the Tool call tree.
  */
 export function ToolCallTree({
-  renderSlot, node, selectedCallId, cwd, openFile, inspectCall, renderMessageImages, generatedImages, turnProcess, useHostInfo, t,
+  renderSlot, node, selectedCallId, cwd, openFile, renderMessageImages, generatedImages, turnProcess, useHostInfo, t,
 }: ToolTreeProps) {
   const home = useHostInfo(info => info.home)
   const block = node.data.root
@@ -135,7 +132,6 @@ export function ToolCallTree({
       cwd={cwd}
       home={home}
       openFile={openFile}
-      inspectCall={inspectCall}
       renderMessageImages={renderToolImages}
       generatedImages={generatedImages}
       collapsed={turnProcess?.foldable === true && !turnProcess.open}

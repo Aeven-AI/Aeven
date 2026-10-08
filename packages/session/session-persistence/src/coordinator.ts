@@ -206,6 +206,14 @@ export interface PersistenceBackend<TornMarker = unknown> {
   materializeHeader?(storage: SessionStorageMetadata): Promise<void>
 
   /**
+   * Remove one stored session artifact across every backend storage scope.
+   * The coordinator calls this only after the id has no live owner.
+   * @param id - persisted session id to remove.
+   * @returns whether an artifact existed.
+   */
+  deleteStored?(id: SessionId): Promise<boolean>
+
+  /**
    * Durably append a CONTIGUOUS batch, lazily materializing the session first
    * when `!isMaterialized`. The materialize-write and the first event batch MUST
    * commit ATOMICALLY (a crash between them must not leave a materialized-but-
@@ -749,6 +757,26 @@ export class PersistenceCoordinator<TornMarker = unknown> {
       await this.backend.materializeHeader(state.storage)
       state.materialized = true
       this.preparations.invalidate(session.id)
+    })
+  }
+
+  /**
+   * Remove one stored session after its live lifecycle has retired.
+   * @param id - persisted session id to remove.
+   * @returns whether a stored artifact existed.
+   * @throws when the backend cannot delete, or a live Session still owns the id.
+   */
+  async delete(id: SessionId): Promise<boolean> {
+    const deleteStored = this.backend.deleteStored?.bind(this.backend)
+    if (deleteStored === undefined) throw new Error(`${this.backend.name} cannot delete sessions`)
+    await this.waitForRetirement(id)
+    return this.serialize(id, async () => {
+      if (this.states.get(id)?.owner !== undefined || this.ctx.sessions.get(id) !== undefined) {
+        throw new Error(`session "${id}" is live; dispose it before deleting its log`)
+      }
+      this.states.delete(id)
+      this.preparations.invalidate(id)
+      return deleteStored(id)
     })
   }
 

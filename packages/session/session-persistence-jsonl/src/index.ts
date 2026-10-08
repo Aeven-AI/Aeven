@@ -252,6 +252,10 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
     return this.coordinator.borrowSession(id, signal)
   }
 
+  override delete(id: SessionId): Promise<boolean> {
+    return this.coordinator.delete(id)
+  }
+
   // JSONL is sequential media: no loadStoredFrom hook, so the coordinator
   // parses the stored prefix (both encodings) and skips forward to fromSeq.
   readFrom(id: SessionId, fromSeq: SessionLogOffset, signal?: AbortSignal): Promise<SessionEventSuffix> {
@@ -495,6 +499,15 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
     } else {
       await this.materialize(storage, events)
     }
+  }
+
+  /** Remove the session's directory, which holds its log and nothing another session reads. */
+  async deleteStored(id: SessionId): Promise<boolean> {
+    await this.ensureRootEncoding()
+    const path = await this.findLog(id)
+    if (path === undefined) return false
+    await rm(dirname(path), { recursive: true, force: true })
+    return true
   }
 
   /** Materialize a header-only JSONL artifact for an explicitly durable empty session. */

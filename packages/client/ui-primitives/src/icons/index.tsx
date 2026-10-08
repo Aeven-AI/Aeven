@@ -1666,6 +1666,24 @@ export const IconLucideSquareTerminal = ({ className }: LucideGlyphProps) => (
   </svg>
 )
 
+/** lucide `terminal`: the prompt a generated image was made from. */
+export const IconLucideTerminal = ({ className }: LucideGlyphProps) => (
+  <svg
+    aria-hidden="true"
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="M12 19h8" />
+    <path d="m4 17 6-6-6-6" />
+  </svg>
+)
+
 /** lucide `smartphone`: the device surface. */
 export const IconLucideSmartphone = ({ className }: LucideGlyphProps) => (
   <svg
@@ -1983,5 +2001,97 @@ export const IconLucideRotateCcw = ({ className }: LucideGlyphProps) => (
   >
     <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
     <path d="M3 3v5h5" />
+  </svg>
+)
+
+/** lucide `play`: start the clip. */
+export const IconLucidePlay = ({ className }: LucideGlyphProps) => (
+  <svg
+    aria-hidden="true"
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" />
+  </svg>
+)
+
+/** lucide `pause`: hold the clip. */
+export const IconLucidePause = ({ className }: LucideGlyphProps) => (
+  <svg
+    aria-hidden="true"
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <rect x="14" y="3" width="5" height="18" rx="1" />
+    <rect x="5" y="3" width="5" height="18" rx="1" />
+  </svg>
+)
+
+/** lucide `volume-2`: the clip carries its own sound. */
+export const IconLucideVolume2 = ({ className }: LucideGlyphProps) => (
+  <svg
+    aria-hidden="true"
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z" />
+    <path d="M16 9a5 5 0 0 1 0 6" />
+    <path d="M19.364 18.364a9 9 0 0 0 0-12.728" />
+  </svg>
+)
+
+/** lucide `volume-x`: the clip is muted. */
+export const IconLucideVolumeX = ({ className }: LucideGlyphProps) => (
+  <svg
+    aria-hidden="true"
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="M11 4.702a.7.7 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.7.7 0 0 0 11 19.298z" />
+    <path d="m16.5 14.5 5-5" />
+    <path d="m16.5 9.5 5 5" />
+  </svg>
+)
+
+/** lucide `download`: save a produced file. */
+export const IconLucideDownload = ({ className }: LucideGlyphProps) => (
+  <svg
+    aria-hidden="true"
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="M12 15V3" />
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <path d="m7 10 5 5 5-5" />
   </svg>
 )

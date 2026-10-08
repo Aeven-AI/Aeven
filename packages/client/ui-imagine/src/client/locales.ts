@@ -1,4 +1,4 @@
-/** `imagine` namespace dictionaries: the Imagine row, its starter prompts, and the in-chat image view. */
+/** `imagine` namespace dictionaries: the Imagine row, its starter prompts, and the in-chat image and video views. */
 
 /** Simplified Chinese dictionary (the key-set source of truth). */
 export const zh = {
@@ -32,6 +32,25 @@ export const zh = {
   'image.elapsed': '{seconds} 秒',
   'image.failed': '图片生成失败',
   'image.unavailable': '图片无法显示',
+  'image.prompt.show': '查看提示词',
+  'image.prompt.title': '提示词',
+  'image.prompt.copy': '复制提示词',
+  'image.prompt.copied': '已复制',
+  'image.prompt.close': '关闭',
+  'video.generating': '正在生成视频…',
+  'video.failed': '视频生成失败',
+  'video.unavailable': '视频无法显示',
+  'video.label': '生成的视频',
+  'video.play': '播放',
+  'video.pause': '暂停',
+  'video.seek': '播放进度',
+  'video.mute': '静音',
+  'video.unmute': '取消静音',
+  'video.fullscreen': '全屏',
+  'video.exitFullscreen': '退出全屏',
+  'video.volume': '音量',
+  'video.save': '保存选项',
+  'video.download': '下载视频',
 } satisfies Record<string, string>
 
 /** The imagine namespace key union. */
@@ -69,6 +88,25 @@ export const en = {
   'image.elapsed': '{seconds}s',
   'image.failed': 'Image generation failed',
   'image.unavailable': 'Image unavailable',
+  'image.prompt.show': 'Show prompt',
+  'image.prompt.title': 'Prompt',
+  'image.prompt.copy': 'Copy prompt',
+  'image.prompt.copied': 'Copied',
+  'image.prompt.close': 'Close',
+  'video.generating': 'Generating video…',
+  'video.failed': 'Video generation failed',
+  'video.unavailable': 'Video unavailable',
+  'video.label': 'Generated video',
+  'video.play': 'Play',
+  'video.pause': 'Pause',
+  'video.seek': 'Playback position',
+  'video.mute': 'Mute',
+  'video.unmute': 'Unmute',
+  'video.fullscreen': 'Full screen',
+  'video.exitFullscreen': 'Exit full screen',
+  'video.volume': 'Volume',
+  'video.save': 'Save options',
+  'video.download': 'Download video',
 } satisfies Record<ImagineKey, string>
 
 declare module '@aeven/client-ui-slots' {

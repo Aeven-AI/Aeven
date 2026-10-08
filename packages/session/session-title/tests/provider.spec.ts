@@ -141,7 +141,9 @@ describe('SessionTitleService Provider lifecycle', () => {
     })
     const first = appendHumanPrompt(session, 'Explain asynchronous title generation')
     await settle()
-    expect(ctx.sessionTitle.get(session)?.source.kind).toBe('fallback')
+    // The scheduled provider owns this revision, so no fallback is accepted
+    // first: the session stays untitled until the model answers.
+    expect(ctx.sessionTitle.get(session)).toBeUndefined()
 
     appendRoute(session)
     await settle()
@@ -161,6 +163,7 @@ describe('SessionTitleService Provider lifecycle', () => {
         model: { provider: 'aux-route', model: 'title-model' },
       },
     })
+    expect(session.snapshotEvents().filter(event => event.type === 'session/title')).toHaveLength(1)
 
     const second = appendHumanPrompt(session, 'A later prompt')
     appendRoute(session, 'change')
@@ -330,6 +333,8 @@ describe('SessionTitleService Provider lifecycle', () => {
     firstResult.resolve({ title: 'Old ignored result', messageSeqs: [first.seq] })
     await settle()
     expect(ctx.sessionTitle.get(session)?.title).toBe('Newest complete title')
+    // The superseded revision fills no fallback: the newer revision titles the session itself.
+    expect(session.snapshotEvents().filter(event => event.type === 'session/title')).toHaveLength(1)
   })
 
   it('runs an all-messages revision when the next main request reuses its logged header', async () => {
@@ -440,12 +445,48 @@ describe('SessionTitleService Provider lifecycle', () => {
     })
     appendHumanPrompt(session, 'Keep a fallback')
     await settle()
+    expect(ctx.sessionTitle.get(session)).toBeUndefined()
     appendRoute(session)
     await settle()
 
-    expect(ctx.sessionTitle.get(session)?.source.kind).toBe('fallback')
+    // The failed call leaves the deterministic fallback as the only title.
+    expect(ctx.sessionTitle.get(session)).toMatchObject({
+      title: 'Keep a fallback',
+      source: { kind: 'fallback' },
+    })
+    expect(session.snapshotEvents().filter(event => event.type === 'session/title')).toHaveLength(1)
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('automatic title generation failed'))
     await expect(ctx.sessionTitle.refresh(session)).rejects.toThrow('title backend failed')
+    warn.mockRestore()
+  })
+
+  it('fills no fallback for a revision whose session is already gone', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SessionStore)
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(SessionTitleService, CONFIG)
+    const warn = vi.spyOn(ctx.logger, 'warn').mockImplementation(() => undefined)
+    const session = ctx.sessions.prepare(SessionId('gone-before-fill'))
+    const detach = ctx.sessions.enter(session)
+    ctx.sessions.announce(session)
+    session.append('turn/start', {
+      turn: 1,
+    })
+    ctx.sessionTitle.register({
+      id: SessionTitleProviderId('detaching'),
+      automatic: 'first-prompt',
+      generate: async () => {
+        detach()
+        throw new Error('title backend failed')
+      },
+    })
+    appendHumanPrompt(session, 'The session disappears with the call')
+    await settle()
+    appendRoute(session)
+    await settle()
+
+    expect(ctx.sessionTitle.get(session)).toBeUndefined()
+    expect(warn).not.toHaveBeenCalledWith(expect.stringContaining('fallback title update failed'))
     warn.mockRestore()
   })
 })

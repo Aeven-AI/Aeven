@@ -1,5 +1,5 @@
 ---
-description: "Automatic capability learning: the background learner, recall of learned procedures, execution evidence, and the capability_manage tool."
+description: "Automatic learning: the background learner that distills completed work into procedures kept in long-term memory (or, opt-in, capability files), and the capability_manage tool."
 kind: "package-reference"
 ---
 
@@ -7,7 +7,7 @@ kind: "package-reference"
 
 ## Summary
 
-`avn-tool-capability` makes Aeven learn reusable procedures for the session's owner without asking anyone.
+`avn-tool-capability` makes Aeven learn reusable procedures for the session's owner without asking anyone. With `store: memory` (the default) each learned procedure is one long-term memory: its full Markdown is the stored text and its summary is the procedure condensed, so the memory recall at the start of a turn already carries the steps, and `memory_get` reads the rest. A procedure the work improves replaces the older memory instead of piling up beside it. Nothing is written as a skill or a capability file. With `store: capabilities` the learner writes candidate capabilities instead, recalled as `<procedure_context>`, as described below.
 
 - **Learner.** A turn that completed with at least `minSteps` tool calls (skill, capability, memory, and todo bookkeeping excluded), whose last call succeeded, is held until the user's next message. A correction discards it; any other message, `settleMs`, or the session's end releases it. A background model call on the session's route (or the configured `provider`/`model`) then decides to skip it, create a candidate capability, or merge it into an existing one, and writes the procedure with "When to use", "Requirements", "Steps", "Verification", and "Recovery". A new capability records its origin: the request, the tools used, and the turn's duration, tool calls, failures, and tokens as the baseline. Work that followed a learned capability without failures teaches nothing new; its execution is evidence instead. A retired capability is never recreated.
 - **Reuse.** At the start of a direct-user turn, a bounded model call scores eligible procedure summaries by intent, outcome, and constraints. Candidates and retired procedures are excluded. Up to `maxRecalled` matches above `recallMinScore` are read into bounded advisory context; none is returned when nothing qualifies.
@@ -25,11 +25,12 @@ Mount it per agent beside a host `capability` registry (the `standard`, `cordis`
 | `recallTimeoutMs` | `15000` | Foreground intent-selection deadline |
 | `recallMinScore` | `0.8` | Minimum intent relevance score; this score does not measure trust |
 | `recallMaxChars` | `6000` | Character limit of the complete advisory context |
+| `store` | `memory` | Where learned procedures are kept: `memory` (long-term memory, recalled by memory recall) or `capabilities` (capability files) |
 | `learn` | `true` | Whether completed work is learned from automatically |
 | `minSteps` | `3` | Tool calls a turn needs before its work is learned from |
 | `settleMs` | `300000` | Wait for a correction before learning without one |
 | `timeoutMs` | `120000` | Budget of one learning model call |
-| `maxOutputTokens` | `4000` | Output limit of one learning model call |
+| `maxOutputTokens` | `16000` | Output limit of one learning model call; a reasoning model spends part of it thinking before it answers |
 | `maxInputTokens` | `16000` | Input budget of one learning model call, estimated at four characters per token; a longer transcript is cut |
 | `provider`, `model` | — | Explicit learning route; absent uses each session's route |
 

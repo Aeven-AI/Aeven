@@ -188,7 +188,7 @@ const ChatNodeList = memo(function ChatNodeList({ order, ...seatProps }: ChatNod
  */
 export function ChatView({
   useSession, useChat, useChatNode, useChatNodeProcess, useSessions, useStore, actions, renderSlot,
-  sessionId, openFile, loadOlder, loadNewer, returnToLive, loadThrough, navigateToEvent, completeEventNavigation, loadImage, openView,
+  sessionId, openFile, loadOlder, loadNewer, returnToLive, loadThrough, navigateToEvent, completeEventNavigation, loadImage,
   chatScroll, forkAt, editMessage, fileMentions, onFullscreenChange, updateQueue, notifyError, useTranscriptView,
   useTextAnimationPreference, useEventNavigation, useProjection, t,
 }: ChatViewSlotProps) {
@@ -218,9 +218,6 @@ export function ChatView({
   const extendedTranscript = useTranscriptView(mode => mode === 'extended')
   const textAnimation = useTextAnimationPreference(enabled => enabled)
   const eventNavigation = useEventNavigation(request => request)
-  const inspectCall = useCallback((callId: string) => {
-    openView('trajectory', callId)
-  }, [openView])
   const [fileOpenError, setFileOpenError] = useState<{ path: string; message: string } | null>(null)
   const [fileOpenBusy, setFileOpenBusy] = useState(false)
   // Close/retry must ignore a settlement that started before the latest
@@ -1131,7 +1128,6 @@ export function ChatView({
               selectedCallId={selectedCallId}
               cwd={cwd}
               openFile={requestOpenFile}
-              inspectCall={inspectCall}
               forkAt={forkAt}
               editMessage={queueMutable ? editMessage : undefined}
               renderMessageImages={renderMessageImages}

@@ -1,2 +1,6 @@
-2026-10-07-connector-session-approval.md: ce1b7ee923a6a3e0665807f8cd913edbe1403aa7
-2026-10-07-connector-session-approval.zh.md: 9e6d7422ad69fd5eaa07d46614b14b830405540d
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-07-connector-session-approval.md
+2026-10-07-connector-session-approval.md: 47dbe0bb687cfb8af0bdd1c11dc1d1ba2a330eea
+2026-10-07-connector-session-approval.zh.md: 851e528d8eaf13c5b1eddc93dd4958147ed8d16f

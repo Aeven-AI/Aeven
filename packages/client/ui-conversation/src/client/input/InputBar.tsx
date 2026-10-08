@@ -42,7 +42,7 @@ export type InputBarProps = ComposerBarProps
 
 export const InputBar = memo(function InputBar({
   useSession, useInput, inputActions, keyboard, addImages, addFiles, removeImage, draftImages, subscribeDrafts,
-  resolveSubmitMode, invokeCommand, exportSession, stop, command, t,
+  resolveSubmitMode, invokeCommand, stop, command, t,
   renderSlot, useNotices, useLexicon, useMenuLauncher,
   useProjection, sessionId, variant, disabled: inert = false, blocked,
   workspacePickerOpen = false, onRequestWorkspace,
@@ -598,17 +598,23 @@ export const InputBar = memo(function InputBar({
               permissions={permissions}
               locked={locked}
               command={command}
-              onExport={exportSession === undefined ? undefined : () => {
-                void exportSession().catch((error: unknown) => {
-                  showToast(error instanceof Error ? error.message : String(error))
-                })
-              }}
               onImageModel={invokeCommand === undefined ? undefined : (anchor) => {
                 // The picker's decoration path reads no draft span; a control
                 // that finds no live caret still hands one at the draft's end,
                 // so the generic control path stays meaningful.
                 const span = keyboard?.caretSpan() ?? { start: draft.length, end: draft.length }
                 void invokeCommand('image-model', span, anchor).then((handled) => {
+                  if (!handled) showToast(t('add.unavailable'))
+                }).catch((error: unknown) => {
+                  showToast(error instanceof Error ? error.message : String(error))
+                })
+              }}
+              onVideoModel={invokeCommand === undefined ? undefined : (anchor) => {
+                // The picker's decoration path reads no draft span; a control
+                // that finds no live caret still hands one at the draft's end,
+                // so the generic control path stays meaningful.
+                const span = keyboard?.caretSpan() ?? { start: draft.length, end: draft.length }
+                void invokeCommand('video-model', span, anchor).then((handled) => {
                   if (!handled) showToast(t('add.unavailable'))
                 }).catch((error: unknown) => {
                   showToast(error instanceof Error ? error.message : String(error))

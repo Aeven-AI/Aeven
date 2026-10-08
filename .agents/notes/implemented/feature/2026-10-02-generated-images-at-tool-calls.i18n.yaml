@@ -1,3 +1,6 @@
-# Bilingual-pair consistency record (docs/i18n/README.md).
-2026-10-02-generated-images-at-tool-calls.md: d2fabad6e97552650cb1848f0a502d0110e297e8
-2026-10-02-generated-images-at-tool-calls.zh.md: e8a1651f43f578ebc88c08bca139823c71da401c
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-02-generated-images-at-tool-calls.md
+2026-10-02-generated-images-at-tool-calls.md: 853dabf6ca68cb4c01db5bb77ae3dbc3daf1964b
+2026-10-02-generated-images-at-tool-calls.zh.md: 841535d21adea1096e61f1602371b3533e3cf087

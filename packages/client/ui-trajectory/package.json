@@ -32,7 +32,9 @@
         "@aeven/client-locale",
         "@aeven/client-ui-conversation",
         "@aeven/client-ui-renderer",
-        "@aeven/client-ui-session"
+        "@aeven/client-ui-session",
+        "@aeven/client-ui-settings",
+        "@aeven/client-ui-settings-general"
       ],
       "platform": "web"
     }
@@ -70,7 +72,9 @@
     "@aeven/client-ui-renderer": "workspace:^",
     "@aeven/client-ui-session": "workspace:^",
     "@aeven/llm": "workspace:^",
-    "@aeven/attachment": "workspace:^"
+    "@aeven/attachment": "workspace:^",
+    "@aeven/client-ui-settings": "workspace:^",
+    "@aeven/client-ui-settings-general": "workspace:^"
   },
   "files": [
     "lib/index.js",

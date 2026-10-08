@@ -102,6 +102,15 @@ export class SessionProjectionCache extends Service {
   }
 
   /**
+   * Drop the stored record of a session whose log was deleted.
+   * @param id - the deleted session.
+   * @returns whether a record existed.
+   */
+  forget(id: SessionId): Promise<boolean> {
+    return this.requireTable().delete(id)
+  }
+
+  /**
    * The stored record for one session, accepted only when its bound log
    * identity matches `expected`. A session id names a slot, not a lifecycle:
    * a recreated id or a persistence store swapped under a surviving cache

@@ -5,6 +5,7 @@ import type { CSSProperties, ReactNode } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import {
   IconChevronRightOutline14,
+  IconLucideX,
   IconSettingsOutline16,
   IconSparkle16,
   IconUserOutline16,
@@ -246,7 +247,8 @@ function markdownLabels(t: TrajectoryTranslate): MarkdownLabels {
 }
 
 type TrajectorySplitStyle = CSSProperties & {
-  '--trajectory-tool-request-width': string
+  '--trajectory-tool-request-width'?: string
+  '--trajectory-details-width'?: string
 }
 
 type RequestBoundaryStyle = CSSProperties & {
@@ -261,6 +263,21 @@ interface OlderLoadAnchor {
   readonly historyStartSeq: number | undefined
   readonly scrollHeight: number
   readonly scrollTop: number
+}
+
+/**
+ * Width of the content column the details card shares with the rows: the
+ * split is full-bleed and the card sits flush with the column's right edge,
+ * so the canvas on either side equals the card's distance from the split's
+ * right edge.
+ * @param details - the details card.
+ * @param split - the full-bleed split holding the rows and the card.
+ * @returns the content column's width in CSS pixels.
+ */
+function contentColumnWidth(details: HTMLElement, split: HTMLElement): number {
+  const splitRect = split.getBoundingClientRect()
+  const gutter = splitRect.right - details.getBoundingClientRect().right
+  return splitRect.width - 2 * gutter
 }
 
 function clampDetailsWidth(width: number, splitWidth: number): number {
@@ -418,10 +435,6 @@ export interface TrajectoryTableProps {
   collapsedAssistants: ReadonlySet<string>
   /** Toggle tool calls under one assistant record. */
   onToggleAssistant: (id: string) => void
-  /** One-shot cross-view inspect: open and scroll to this call's record. */
-  inspectCallId?: string | null
-  /** Acknowledge a consumed (or unresolvable) inspect request. */
-  onInspectApplied?: (() => void) | undefined
 }
 
 /** Request-inspector fields shared by ordinary generation and compaction. */
@@ -1819,8 +1832,6 @@ export function TrajectoryTable({
   onToggleTurn,
   collapsedAssistants,
   onToggleAssistant,
-  inspectCallId = null,
-  onInspectApplied,
 }: TrajectoryTableProps) {
   const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null)
   const [selectedRequest, setSelectedRequest] = useState<SelectedRequest | null>(null)
@@ -2049,11 +2060,15 @@ export function TrajectoryTable({
   const hasSelectedHierarchy = selectedAssistantRequestTarget !== undefined
     || selectedParents.message !== undefined
     || selectedParents.tool !== undefined
-  const splitStyle: TrajectorySplitStyle | undefined = toolRequestOffset === null
-    ? undefined
-    : {
-      '--trajectory-tool-request-width': `calc(58cqw - ${toolRequestOffset}px)`,
-    }
+  const splitStyle: TrajectorySplitStyle = {
+    ...(toolRequestOffset === null
+      ? {}
+      : { '--trajectory-tool-request-width': `calc(58cqw - ${toolRequestOffset}px)` }),
+    ...(detailsWidth === null ? {} : { '--trajectory-details-width': `${detailsWidth}px` }),
+  }
+  const detailsOpen = selectedRequestInfo !== undefined
+    || promptSelected
+    || (selected !== undefined && selectedState !== undefined)
 
   const activateTab = (tab: DetailTab) => {
     tabHistory.current.delete(tab)
@@ -2135,20 +2150,6 @@ export function TrajectoryTable({
     if (target !== undefined) openRecordSummary(target)
   }
 
-  // Cross-view inspect handoff: resolve the requested call to its record,
-  // open its summary, and remember the row to scroll once the un-collapsed
-  // ledger has rendered. Not-found leaves the request pending (`turns` in the
-  // deps retries as history pages in); the ack clears the store field.
-  const openRecordSummaryRef = useRef(openRecordSummary)
-  openRecordSummaryRef.current = openRecordSummary
-  useEffect(() => {
-    if (inspectCallId === null) return
-    const target = flattenRecords(turns).find(record => record.cell.callId === inspectCallId)
-    if (target === undefined) return
-    openRecordSummaryRef.current(target)
-    pendingScrollRecordId.current = trajectoryRecordId(target.cell)
-    onInspectApplied?.()
-  }, [inspectCallId, turns, onInspectApplied])
   useEffect(() => {
     const id = pendingScrollRecordId.current
     if (id === null) return
@@ -2299,11 +2300,17 @@ export function TrajectoryTable({
   const historyRowOffset = hasOlderRecords ? 1 : 0
 
   return (
-    <div ref={rootRef} className={css.split} style={splitStyle}>
+    <div
+      ref={rootRef}
+      className={css.split}
+      style={splitStyle}
+      data-details-open={detailsOpen || undefined}
+    >
       <div
         ref={tablePaneRef}
         className={css.tablePane}
         data-trajectory-scroll=""
+        data-conversation-view-scroll=""
         onScroll={(event) => {
           const pane = event.currentTarget
           followsTableTail.current =
@@ -2643,13 +2650,10 @@ export function TrajectoryTable({
           </tbody>
         </table>
       </div>
-      {(selectedRequestInfo !== undefined
-        || promptSelected
-        || (selected !== undefined && selectedState !== undefined)) && (
+      {detailsOpen && (
         <aside
           className={css.details}
           aria-label={t('details.event')}
-          style={detailsWidth === null ? undefined : { width: detailsWidth }}
         >
           <div
             className={css.detailsResizeHandle}
@@ -2669,7 +2673,7 @@ export function TrajectoryTable({
               if (details === null) return
               const split = details.parentElement
               if (split === null) return
-              const splitWidth = split.getBoundingClientRect().width
+              const splitWidth = contentColumnWidth(details, split)
               detailsResizeDrag.current = {
                 pointerId: event.pointerId,
                 startX: event.clientX,
@@ -2711,7 +2715,7 @@ export function TrajectoryTable({
               if (split === null) return
               const direction = event.key === 'ArrowLeft' ? 1 : -1
               const currentDetailsWidth = details.getBoundingClientRect().width
-              const splitWidth = split.getBoundingClientRect().width
+              const splitWidth = contentColumnWidth(details, split)
               const nextDetailsWidth = clampDetailsWidth(
                 currentDetailsWidth + direction * DETAILS_RESIZE_STEP,
                 splitWidth,
@@ -2782,7 +2786,7 @@ export function TrajectoryTable({
               aria-label={t('details.close')}
               onClick={clearInspectorSelection}
             >
-              <span aria-hidden="true">×</span>
+              <IconLucideX className={css.closeIcon} />
             </button>
           </div>
           <div className={css.detailTabs} role="tablist" aria-label={t('details.event')}>

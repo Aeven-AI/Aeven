@@ -467,7 +467,7 @@ const SEARCH_MATCHES_FIXTURE: { path: string; matches: { lineNumber: number; lin
   {
     path: 'packages/client/ui-tool/src/client/tool/toolviews/search-row.tsx',
     matches: [
-      { lineNumber: 34, line: 'export function SearchRow({ toolName, block, inspect, t }: SearchRowProps) {' },
+      { lineNumber: 34, line: 'export function SearchRow({ toolName, block, t }: SearchRowProps) {' },
       { lineNumber: 36, line: '  const search = searchCardModel(block)' },
       { lineNumber: 56, line: '      search={search}' },
       { lineNumber: 78, line: "      yield ctx.slots.register({ name: 'tool.call.toolview', key: 'grep', locale: NS }, SearchRow)" },

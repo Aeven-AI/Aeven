@@ -189,7 +189,6 @@ function bench(over?: BenchOptions) {
     },
     toggleCommandMenu: over?.toggleCommandMenu ?? vi.fn(),
     invokeCommand: undefined,
-    exportSession: undefined,
     useNotices: bindSnapshotSelector(shell.notices),
     useLexicon: bindSnapshotSelector(shell.lexicon),
     useMenuLauncher: bindSnapshotSelector(menuLauncher),

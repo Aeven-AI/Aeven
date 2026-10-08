@@ -71,31 +71,6 @@
   color: var(--dsw-alias-state-error-primary);
 }
 
-.inspect {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  margin-left: 4px;
-  padding: 0;
-  border: none;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--dsw-alias-label-tertiary);
-  cursor: pointer;
-  opacity: 0;
-}
-
-.card:hover .inspect,
-.inspect:focus-visible {
-  opacity: 1;
-}
-
-.inspect:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
-}
-
 .message {
   padding: 8px 12px;
   border-radius: 8px;

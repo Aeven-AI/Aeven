@@ -13,6 +13,8 @@ kind: "package-reference"
 
 浏览器 shell 使用集中定义的 Aeven 1024px 阅读轴、响应式内边距和 30px 平面 composer 表面。blank Session 会让 Hero composer 组在对话栏中居中；active Session 则把同一个 composer 停靠在底部且不重新挂载，View tab 会保留选择。在该 composer 之上，Hero 指称产品名，并以 Aeven 自身的时段用语、按认证 gate 在页面上声明的名字问候读者。
 
+输入框选项在图像模型和视频模型行旁打开选择器，与 `/image-model` 和 `/video-model` 使用相同的选择器。
+
 ## 目录
 
 - [Conversation 组装](#conversation-assembly)

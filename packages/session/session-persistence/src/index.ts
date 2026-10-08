@@ -162,6 +162,20 @@ export abstract class SessionPersistence extends Service {
   }
 
   /**
+   * Permanently remove one stored session's artifact and this backend's cached
+   * state for it. The session must not be live: its owner disposes it first,
+   * and a still-attached session rejects. Derived stores that reconcile
+   * against {@link listSnapshots} drop the session on their next observation.
+   * @param _id - the stored session to remove (unused by the default: no
+   * deletable artifact).
+   * @returns whether a stored artifact existed and was removed.
+   * @throws when this backend cannot delete sessions, or the session is live.
+   */
+  delete(_id: SessionId): Promise<boolean> {
+    return Promise.reject(new Error('this session persistence backend cannot delete sessions'))
+  }
+
+  /**
    * Register a new session's metadata. A backend MAY defer the physical write
    * until the first {@link append} (lazy materialization), in which case a
    * created-but-never-appended session is absent from {@link list}

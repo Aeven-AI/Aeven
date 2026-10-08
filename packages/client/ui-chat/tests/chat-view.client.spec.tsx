@@ -292,7 +292,6 @@ function makeHarness(
   })
   // Mutable outline holder: tests swap the value and drive a re-render via set().
   let outlineValue: unknown
-  const openView = vi.fn<(view: string, focus: string) => void>()
   // In-memory scroll memory matching the apply.ts per-session map contract.
   let savedScroll: ReturnType<ChatViewSlotProps['chatScroll']['read']> = null
   const chatScroll: ChatViewSlotProps['chatScroll'] = {
@@ -311,7 +310,6 @@ function makeHarness(
     block: ToolCallBlock
     selectedCallId: string | undefined
     openFile: ChatNodeOwnerProps['openFile']
-    inspectCall: ChatNodeOwnerProps['inspectCall']
   }> = []
   const renderCommandSlot = ((_key: string, _owner: object, opts?: { fallback?: React.ReactNode }) =>
     opts?.fallback ?? null) as unknown as React.ComponentProps<typeof CommandNodeView>['renderSlot']
@@ -383,7 +381,6 @@ function makeHarness(
           block,
           selectedCallId: nodeOwner.selectedCallId,
           openFile: nodeOwner.openFile,
-          inspectCall: nodeOwner.inspectCall,
         }
         toolOwners.push(tool)
         return (
@@ -434,9 +431,6 @@ function makeHarness(
     useEventNavigation: bindSnapshotSelector(eventNavigation),
     renderSlot,
     SessionProvider: SessionProviderStub,
-    viewRequest: null,
-    openView,
-    completeViewRequest: () => {},
     openDetails,
     openFile,
     loadOlder,
@@ -477,7 +471,7 @@ function makeHarness(
   const setSelection = (next: SelectionTarget | null): void => { chat.actions.select(next) }
   return {
     set, setSession: session.set, setChat: chatSource.set, ChatView, props,
-    openDetails, openFile, loadOlder, loadNewer, returnToLive, loadThrough, navigateToEvent, completeEventNavigation, openView,
+    openDetails, openFile, loadOlder, loadNewer, returnToLive, loadThrough, navigateToEvent, completeEventNavigation,
     setOutline: (value: unknown) => { outlineValue = value },
     chatScroll, forkAt, setSelection, toolOwners,
     setTranscriptView: (mode: TranscriptViewMode) => { transcriptView.set(mode) },
@@ -1632,15 +1626,6 @@ describe('ChatView', () => {
     expect(view.queryByText('本轮运行失败')).toBeNull()
   })
 
-  it('hands the trajectory callback to the Tool seat', () => {
-    const h = makeHarness({
-      nodes: [toolResult(3, 'a')],
-    })
-    render(<h.ChatView {...h.props} />)
-    h.toolOwners[0]?.inspectCall('a')
-    expect(h.openView).toHaveBeenCalledWith('trajectory', 'a')
-  })
-
   it('shows assistant IconActions only on the last content message of each turn', () => {
     const h = makeHarness({
       nodes: [
@@ -2569,8 +2554,6 @@ describe('ChatView', () => {
     expect(owner.openFile).not.toBe(h.openFile)
     owner.openFile('src/a.ts')
     expect(h.openFile).toHaveBeenCalledWith('src/a.ts')
-    owner.inspectCall('a')
-    expect(h.openView).toHaveBeenCalledWith('trajectory', 'a')
   })
 
   it('shows a Host open refusal with the reason and retries the same path', async () => {

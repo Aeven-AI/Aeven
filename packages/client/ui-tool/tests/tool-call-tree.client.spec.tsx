@@ -46,7 +46,6 @@ function props(
     },
     selectedCallId,
     openFile: vi.fn(),
-    inspectCall: vi.fn(),
     forkAt: vi.fn(),
     fileMentions: vi.fn(),
     useHostInfo: ((selector: (info: { home: string | undefined }) => unknown) => selector({ home })) as ToolTreeProps['useHostInfo'],

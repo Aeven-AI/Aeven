@@ -1,7 +1,7 @@
 import { useMemo, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 import clsx from 'clsx'
 import {
-  CodeBlock, DiffBlock, DisclosureRow, FailMark, IconInspectOutline12, ReadBlock, SearchBlock, TerminalBlock, WebBlock,
+  CodeBlock, DiffBlock, DisclosureRow, FailMark, ReadBlock, SearchBlock, TerminalBlock, WebBlock,
   diffTotals,
 } from '@aeven/client-ui-primitives'
 import type { TranslateNS } from '@aeven/client-ui-slots'
@@ -69,11 +69,6 @@ export interface ToolRowProps {
   /** Open the path with the host OS default application (already cwd-resolved). */
   onOpenFile?: ((path: string) => void) | undefined
   /**
-   * Jump to this call in the trajectory view: a hover-revealed Inspect pill
-   * over the expanded body. Absent = no affordance.
-   */
-  inspect?: (() => void) | undefined
-  /**
    * Images the settled result produced, rendered below the row and outside the
    * disclosure: a generated image is the result, so it shows without the
    * reader expanding anything. Absent/null = no gallery.
@@ -125,7 +120,6 @@ export function ToolRow({
   state,
   filePath,
   onOpenFile,
-  inspect,
   images,
 }: ToolRowProps) {
   const [expanded, setExpanded] = useState(false)
@@ -294,16 +288,6 @@ export function ToolRow({
                           )}
                         </>
                       )}
-          {inspect !== undefined && (
-            <button
-              type="button"
-              className={css.inspectButton}
-              onClick={inspect}
-            >
-              <IconInspectOutline12 />
-              {t('row.inspect')}
-            </button>
-          )}
         </div>
       </DisclosureRow>
       {images !== null && images !== undefined && <div className={css.images}>{images}</div>}

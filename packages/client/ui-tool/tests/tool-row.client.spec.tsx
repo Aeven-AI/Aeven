@@ -418,25 +418,6 @@ describe('ToolRow', () => {
     expect(view.container.querySelector('[class*="fileLink"]')).toBeNull()
   })
 
-  it('the expanded body carries a hover Inspect pill that fires the callback', () => {
-    const inspect = vi.fn()
-    const view = render(<ToolRow {...rowProps} inspect={inspect} />)
-    // Collapsed: no pill.
-    expect(view.queryByText('查看')).toBeNull()
-    fireEvent.click(view.getByRole('button', { name: /Bash/ }))
-    const pill = view.getByText('查看')
-    fireEvent.click(pill)
-    expect(inspect).toHaveBeenCalledTimes(1)
-    // The pill click must not collapse the row (body is a .row sibling).
-    expect(view.getByRole('button', { name: /Bash/ }).getAttribute('aria-expanded')).toBe('true')
-  })
-
-  it('no inspect callback, no pill', () => {
-    const view = render(<ToolRow {...rowProps} />)
-    fireEvent.click(view.getByRole('button'))
-    expect(view.queryByText('查看')).toBeNull()
-  })
-
   it('the expanded card gutter-labels each section it carries (IN / OUT)', () => {
     const both = render(<ToolRow {...rowProps} output="result text" />)
     fireEvent.click(both.getByRole('button'))
@@ -502,14 +483,6 @@ describe('GenericToolCard', () => {
     expect(view.getByText('src/x.ts')).toBeTruthy()
     expect(view.container.querySelector('[data-variant="write"]')).not.toBeNull()
     expect(view.container.querySelector('svg')).not.toBeNull()
-  })
-
-  it('passes the owner inspect callback through to the expanded row pill', () => {
-    const inspect = vi.fn()
-    const view = render(<GenericToolCard {...props('bash', result())} inspect={inspect} />)
-    fireEvent.click(view.getByRole('button', { name: /Bash/ }))
-    fireEvent.click(view.getByText('查看'))
-    expect(inspect).toHaveBeenCalledTimes(1)
   })
 
   it('file-path summary click reaches openFile; bash summary does not', () => {

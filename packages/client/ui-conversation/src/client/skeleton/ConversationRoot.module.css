@@ -33,10 +33,12 @@
   /* Session header height; slot-owned chrome under it offsets by this. */
   --avn-session-header-height: 56px;
   /* The navigation band's leading control — the 30px fold circle — plus the gap
-     the Session header's own actions keep after it. Stated here, where the
-     clearance is applied, the way the frame states the corner dock's seats; the
-     control's own box is the 30px circle above. */
-  --avn-nav-leading-box: calc(30px + 12px);
+     the Session header's own controls keep after it, which is the cluster's own
+     gap: the options control leads that cluster, so the circle and the control
+     beside it read as one pair. Stated here, where the clearance is applied, the
+     way the frame states the corner dock's seats; the control's own box is the
+     30px circle above. */
+  --avn-nav-leading-box: calc(30px + 8px);
   /* The seat's resting height before it has been measured: an empty draft plus
      the stats line the dock renders under it. The transcript's hold no longer
      needs a seat height — the scroller is a flex column and the transcript grows
@@ -141,11 +143,6 @@
   color: var(--dsw-static-neutral-1000);
   cursor: pointer;
   transition: background var(--ds-transition-duration-fast) var(--ds-ease-in-out);
-  /* The icon offset assumes a 40px control box; this circle is 30px and ends 5px
-     inside that box, and it paints its own fill. Halving the offset puts the
-     bubble on the line the band's other controls (the right sidebar toggle)
-     place theirs, clear of the circle's edge rather than flush against it. */
-  --dsw-aeven-tooltip-icon-offset: 5px;
 }
 
 /* No hover tint: the pointer cursor and the tooltip are the hover affordance.
@@ -413,11 +410,10 @@
    would extend the scrollable range and ride the rubber-band) and inset by the
    page inset, the same box the width's use sites resolve `100%` in, so a strip
    lands exactly at the content edge. At the widest drag the content fills the
-   frame and the strips sit in the 24px padding outside it. The frame spans
-   the full column height above the header bar (z-index 30) so the rule runs
-   top to bottom; the strips themselves start below the bar, so its controls
-   keep their pointer. The wheel over a strip is handed to the transcript's
-   scroller (see WidthHandle). */
+   frame and the strips sit in the 24px padding outside it, level with the
+   header bar's leading fold and options controls; the strips, and the rule each
+   one carries, therefore start below that bar and leave its controls clear. The
+   wheel over a strip is handed to the transcript's scroller (see WidthHandle). */
 .widthHandles {
   position: absolute;
   top: 0;
@@ -446,12 +442,12 @@
 }
 
 /* The indicator: a 1px rule centred in the strip, black at 10% opacity in
-   both themes, reaching up past the strip's top through the header bar so it
-   spans the full column height. */
+   both themes, stopping at the strip's own top so it stays out of the header
+   bar. */
 .widthHandle::after {
   content: "";
   position: absolute;
-  top: calc(0px - var(--avn-session-header-height));
+  top: 0;
   bottom: 0;
   left: calc(50% - 0.5px);
   width: 1px;
@@ -463,12 +459,6 @@
 .widthHandle:hover::after,
 .widthHandle[data-dragging]::after {
   opacity: 1;
-}
-
-/* Views that elect a composer overlay (trajectory etc.) own their full-bleed
-   scrollers; the strips would sit over their content and steal clicks. */
-.root[data-composer-overlay] .widthHandles {
-  display: none;
 }
 
 /* Composer context stack (Figma 9:937): the dock surface, then the input card. */

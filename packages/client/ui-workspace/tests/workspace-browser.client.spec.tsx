@@ -83,6 +83,7 @@ function mount(overrides: Partial<WorkspaceBrowserProps> = {}) {
     newSessionHref: () => ({ href: '/c/new-1', sessionId: sid('session-new-1') }),
     open: vi.fn(),
     renameSession: vi.fn(async () => {}),
+    clearSessionRenameRequest: vi.fn(),
     forkSession: vi.fn(),
     renameWorkspace: vi.fn(async () => {}),
     deleteWorkspace: vi.fn(async () => {}),
@@ -90,6 +91,7 @@ function mount(overrides: Partial<WorkspaceBrowserProps> = {}) {
     insertWorkspaceBefore: vi.fn(async () => {}),
     insertSessionBefore: vi.fn(async () => {}),
     useHostInfo: selector => selector({ home: undefined, isLoopback: true }),
+    useSessionRenameRequest: selector => selector(null),
     t,
     ...overrides,
   }

@@ -382,14 +382,7 @@ export class SessionTitleService extends Service {
   /** Materialize a fallback for resumed sessions whose earlier prompts lacked one. */
   private ensureExistingTitle(session: Session): void {
     if (this.get(session) !== undefined || this.titleInputOf(session).first === null) return
-    this.defer(async () => {
-      try {
-        await this.ensureFallback(session)
-      } catch (error: unknown) {
-        if (!this.serviceActive()) return
-        this.ctx.logger.warn(`session "${session.id}": fallback title update failed: ${String(error)}`)
-      }
-    })
+    this.queueFallback(session)
   }
 
   /**
@@ -496,8 +489,13 @@ export class SessionTitleService extends Service {
       this.registration = registration
       yield async () => {
         registration.closing = true
-        for (const state of this.work.values()) {
-          if (state.pending?.registration === registration) delete state.pending
+        for (const [session, state] of this.work) {
+          if (state.pending?.registration === registration) {
+            // Work that never started owns no title: its provider is going
+            // away, so the session keeps a last-resort title instead.
+            delete state.pending
+            this.fillFallback(session)
+          }
           if (state.active?.registration === registration) {
             state.active.controller.abort(new Error(`session-title provider "${provider.id}" was disposed`))
           }
@@ -509,7 +507,14 @@ export class SessionTitleService extends Service {
     return dispose
   }
 
-  /** Schedule fallback creation and any provider cadence for one eligible event. */
+  /**
+   * Schedule provider cadence for one eligible event, or create the fallback
+   * when no provider owns this revision.
+   *
+   * Exactly one title revision is accepted per scheduled revision: while a
+   * provider owns it the session stays untitled, and one that ends without a
+   * title leaves the fallback to {@link SessionTitleService.fillFallback}.
+   */
   private onUserMessage(session: Session, event: Extract<SessionEvent, { type: 'user/message' }>): void {
     if (!this.serviceActive()) return
     if (event.data.source.kind !== 'user' || sessionTitleUserMessageOf(event) === undefined) return
@@ -524,16 +529,10 @@ export class SessionTitleService extends Service {
         const state = this.stateFor(session)
         const revision = this.supersede(state, 'newer user message superseded title generation')
         state.pending = { registration, revision, throughSeq: event.seq }
+        return
       }
     }
-    this.defer(async () => {
-      try {
-        await this.ensureFallback(session)
-      } catch (error: unknown) {
-        if (!this.serviceActive()) return
-        this.ctx.logger.warn(`session "${session.id}": fallback title update failed: ${String(error)}`)
-      }
-    })
+    this.fillFallback(session)
   }
 
   /** Start pending automatic work only after its exact main-request route is logged. */
@@ -577,7 +576,13 @@ export class SessionTitleService extends Service {
       if (this.registration !== pending.registration
         || pending.registration.closing
         || this.work.get(session) !== state
-        || state.revision !== pending.revision) return
+        || state.revision !== pending.revision) {
+        // A revision dropped before its call owns no title: a provider that is
+        // gone leaves the fallback to the session, and a newer revision titles
+        // it itself.
+        this.fillFallback(session)
+        return
+      }
       const work = this.activate(pending, state)
       try {
         await this.startProvider(session, work, route)
@@ -598,15 +603,13 @@ export class SessionTitleService extends Service {
     return this.track(run, work.registration)
   }
 
-  /** Execute and accept one current provider revision. */
+  /** Execute and accept one current provider revision, filling a failed one with the fallback. */
   private async runProvider(
     session: Session,
     work: ActiveProviderWork,
     route?: SessionTitleModelProvenance,
   ): Promise<SessionTitleSnapshot | undefined> {
     try {
-      this.assertCurrent(session, work)
-      await this.ensureFallback(session)
       this.assertCurrent(session, work)
       const messages = collectSessionTitleMessages(session.snapshotEvents(), work.throughSeq)
       const result = await work.registration.provider.generate({
@@ -627,10 +630,47 @@ export class SessionTitleService extends Service {
         },
       })
       return this.get(session)
+    } catch (error: unknown) {
+      // This revision owns no outcome from here on, so the session may fall
+      // back to its last-resort title.
+      const state = this.work.get(session)
+      if (state?.active === work) delete state.active
+      this.fillFallback(session)
+      throw error
     } finally {
       const state = this.work.get(session)
       if (state?.active === work) delete state.active
     }
+  }
+
+  /**
+   * Queue the deterministic fallback for one live session that no title
+   * revision is currently producing a title for.
+   *
+   * The fallback is the title of last resort: a session must not stay untitled
+   * because its title work failed, was dropped, or was disposed. Nothing is
+   * queued while a revision is queued or in flight for the session, or for one
+   * that is gone; an already-titled session is left standing by
+   * {@link SessionTitleService.ensureFallback}.
+   * @param session - session whose title revision ended without a title.
+   */
+  private fillFallback(session: Session): void {
+    if (!this.serviceActive() || this.ctx.sessions.get(session.id) !== session) return
+    const state = this.work.get(session)
+    if (state?.pending !== undefined || state?.active !== undefined) return
+    this.queueFallback(session)
+  }
+
+  /** Queue one detached fallback materialization, retained through service teardown. */
+  private queueFallback(session: Session): void {
+    this.defer(async () => {
+      try {
+        await this.ensureFallback(session)
+      } catch (error: unknown) {
+        if (!this.serviceActive()) return
+        this.ctx.logger.warn(`session "${session.id}": fallback title update failed: ${String(error)}`)
+      }
+    })
   }
 
   /** Validate and normalize provider output against the supplied message snapshot. */

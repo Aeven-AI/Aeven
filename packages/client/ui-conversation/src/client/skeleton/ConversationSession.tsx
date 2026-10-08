@@ -6,6 +6,7 @@ import type {
 } from '../contract/slots.ts'
 import { conversationPhase } from '../contract/snapshot.ts'
 import { resolveActiveView } from '../view-selection.ts'
+import { NavigationOptions } from './NavigationOptions.tsx'
 import css from './ConversationRoot.module.css'
 
 /** Full props composed from the strict session body contract. */
@@ -15,18 +16,43 @@ export type ConversationSessionProps = ConversationSessionSlotProps
 export type ConversationSessionHeaderProps = ConversationSessionHeaderSlotProps
 
 /**
- * Renders the Session header's seats into the resident header shell: the
- * lineage mark and the contributed actions. ConversationRoot owns the
- * `<header>` element so it stays mounted across Session switches; this slot
- * fills the row and may remount with the Session while that shell does not.
- * @param props - composed slot props (Session store and render share).
+ * Renders the Session header's seats into the resident header shell: the band's
+ * options control, the lineage mark, and the contributed actions.
+ * ConversationRoot owns the `<header>` element so it stays mounted across
+ * Session switches; this slot fills the row and may remount with the Session
+ * while that shell does not.
+ * @param props - composed slot props (Session store, View roster, locale, and render share).
  * @returns the header row.
  */
-export function ConversationSessionHeader({ sessionId, useSessions, renderSlot }: ConversationSessionHeaderProps) {
+export function ConversationSessionHeader({
+  sessionId, useSessions, useConversationViews, useSelectedView, useMoveTargets, useStore, renderSlot,
+  forkSession, exportSession, moveSession, selectView, t,
+}: ConversationSessionHeaderProps) {
   const displayTitle = useSessions(state => state.byId[sessionId]?.displayTitle)
+  const views = useConversationViews(value => value)
+  const selectedView = useSelectedView(value => value)
+  const moveTargets = useMoveTargets(value => value)
+  const running = useSessions(state => state.byId[sessionId]?.running) ?? false
+  // The resolved View is what the reader is looking at; the stored preference
+  // answers before the Session's binding has activated one.
+  const activeId = selectedView?.id ?? resolveActiveView(views, useStore(s => s.view))?.id
   return (
     <div className={css.titleRow}>
       <div className={css.headerActions}>
+        {/* Leads the cluster: the bar's padding clears the fold control, so the
+            control stands beside the toggle that folds the column, ahead of
+            everything the Session itself contributes. */}
+        <NavigationOptions
+          views={views}
+          activeId={activeId}
+          onSelect={selectView}
+          onFork={forkSession}
+          onExport={exportSession}
+          moveTargets={moveSession === undefined ? [] : moveTargets}
+          moveDisabled={running}
+          onMove={moveSession ?? (() => {})}
+          t={t}
+        />
         {renderSlot(
           'conversation.session.header.lineage',
           { lineageSessionId: sessionId, displayTitle: displayTitle ?? sessionId },
@@ -46,7 +72,7 @@ export function ConversationSessionHeader({ sessionId, useSessions, renderSlot }
  */
 export function ConversationSession({
   useSession, useConversation, useConversationViews, useInput, inputActions, useStore, actions,
-  renderSlot, bindDraftMirror, openView,
+  renderSlot, bindDraftMirror,
 }: ConversationSessionProps) {
   const tabs = useConversationViews(value => value)
   const selectedId = useStore(s => s.view)
@@ -55,7 +81,6 @@ export function ConversationSession({
   const conversation = useConversation(s => s)
   const inputState = useInput(s => s)
   const storedDraft = useStore(s => s.draft)
-  const viewRequest = useStore(s => s.viewRequest ?? null)
 
   useEffect(() => {
     if (inputState.draft === '' && storedDraft !== '') inputActions.setDraft(storedDraft)
@@ -68,11 +93,7 @@ export function ConversationSession({
   if (session.blank && conversationPhase(session, conversation) === 'blank') return null
   return (
     <div className={css.viewArea}>
-      {active !== undefined && renderSlot('conversation.view', {
-        viewRequest,
-        openView,
-        completeViewRequest: actions.completeViewRequest,
-      }, { only: active.id })}
+      {active !== undefined && renderSlot('conversation.view', {}, { only: active.id })}
     </div>
   )
 }

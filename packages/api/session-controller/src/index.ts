@@ -44,6 +44,8 @@ import type {
   SessionFollowRequest,
   SessionForkRequest,
   SessionForkValue,
+  SessionMoveRequest,
+  SessionMoveValue,
   SessionListRequest,
   SessionListValue,
   SessionOpenWorkspacePathRequest,
@@ -399,6 +401,17 @@ The user's account display name is ${JSON.stringify(source.clientDisplayName)}.
   @Remote('fork')
   fork(request: SessionForkRequest): Promise<SessionForkValue> {
     return this.commands.fork(request)
+  }
+
+  /**
+   * Move one idle Session into another Workspace, replacing it with a new
+   * Session at the target directory and deleting the original.
+   * @param request - source Session and target Workspace.
+   * @returns the identity of the replacing Session.
+   */
+  @Remote('move')
+  move(request: SessionMoveRequest): Promise<SessionMoveValue> {
+    return this.commands.move(request)
   }
 
   /**

@@ -1,6 +1,6 @@
 import { useState, type KeyboardEvent, type ReactNode } from 'react'
 import {
-  IconChevronDownOutline14, IconInspectOutline12, IconSkillOutline16, StateDot,
+  IconChevronDownOutline14, IconSkillOutline16, StateDot,
 } from '@aeven/client-ui-primitives'
 import type { ToolCallViewProps } from '@aeven/client-ui-tool/client'
 import type { PropsLocale } from '@aeven/client-ui-slots'
@@ -96,7 +96,7 @@ function stateStatus(state: SkillRowState, t: SkillRowProps['t']): string | null
  * @param props - keyed toolview payload plus the skill locale seat.
  * @returns the dedicated skill row.
  */
-export function SkillRow({ block, inspect, t }: SkillRowProps) {
+export function SkillRow({ block, t }: SkillRowProps) {
   const model = skillRowModel(block)
   const [expanded, setExpanded] = useState(false)
   const expandable = model.output !== null
@@ -141,12 +141,6 @@ export function SkillRow({ block, inspect, t }: SkillRowProps) {
             <div className={css.instructionsHeader}>{t('row.instructions')}</div>
             <pre className={css.instructions} data-error={model.state === 'error' || undefined}>{model.output}</pre>
           </section>
-          {inspect !== undefined ? (
-            <button type="button" className={css.inspectButton} onClick={inspect}>
-              <IconInspectOutline12 />
-              {t('row.inspect')}
-            </button>
-          ) : null}
         </div>
       ) : null}
     </div>

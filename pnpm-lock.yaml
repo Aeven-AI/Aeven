@@ -2268,6 +2268,9 @@ importers:
       '@aeven/llm-retry':
         specifier: workspace:^
         version: link:../../llm/llm-retry
+      '@aeven/memory':
+        specifier: workspace:^
+        version: link:../../memory/memory
       '@aeven/message-feedback':
         specifier: workspace:^
         version: link:../../feedback/message-feedback
@@ -4783,6 +4786,12 @@ importers:
       '@aeven/client-ui-session':
         specifier: workspace:^
         version: link:../ui-session
+      '@aeven/client-ui-settings':
+        specifier: workspace:^
+        version: link:../ui-settings
+      '@aeven/client-ui-settings-general':
+        specifier: workspace:^
+        version: link:../ui-settings-general
       '@aeven/client-ui-slots':
         specifier: workspace:^
         version: link:../ui-slots

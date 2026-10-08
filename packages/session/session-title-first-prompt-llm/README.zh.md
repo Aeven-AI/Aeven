@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`avn-session-title-first-prompt-llm` 作为可选的 `ctx.sessionTitle` 提供方，通过 `ctx.llm` 总结第一条符合条件的用户消息。它注册 `first-prompt` 节奏，只在全新非 fork 会话首次创建回退时自动运行，并把结果归因于该消息的确切 seq。自动失败会保留回退，之后只能通过 `ctx.sessionTitle.refresh()` 重试。它使用 `avn-session-title-llm` 的完整必填共享 LLM 配置，因此路由、提示词、预算与取消行为不会漂移。自动行为与配置在前；实现是对共享策略的薄注册。
+`avn-session-title-first-prompt-llm` 作为可选的 `ctx.sessionTitle` 提供方，通过 `ctx.llm` 总结第一条符合条件的用户消息。它注册 `first-prompt` 节奏，只对首条符合条件用户消息之后仍无标题的全新非 fork 会话自动运行，并把结果归因于该消息的确切 seq。服务只依据这次调用为该会话命名，因此自动失败会退回确定性标题，之后只能通过 `ctx.sessionTitle.refresh()` 重试。它使用 `avn-session-title-llm` 的完整必填共享 LLM 配置，因此路由、提示词、预算与取消行为不会漂移。自动行为与配置在前；实现是对共享策略的薄注册。
 
 ## 目录
 
@@ -29,7 +29,7 @@ kind: "package-reference"
 
 ### 标题生成时机
 
-自动生成只对无父会话、也无先前标题的全新会话运行：在其第一条符合条件用户消息之后，创建回退并发出一次辅助请求来总结该消息。后续提示词、显式用户重命名与继承的 fork 历史都不会触发再次自动调用。自动失败会保留回退；`ctx.sessionTitle.refresh()` 是显式重试。fork 会保留继承的标题，绝不会自动运行此提供方，即使其预置的首消息来自父会话。
+自动生成只对无父会话、也无先前标题的全新会话运行：在其第一条符合条件用户消息之后，发出一次辅助请求来总结该消息，会话在它答复之前保持无标题。后续提示词、显式用户重命名与继承的 fork 历史都不会触发再次自动调用。自动失败会让确定性回退成为该会话的标题；`ctx.sessionTitle.refresh()` 是显式重试。fork 会保留继承的标题，绝不会自动运行此提供方，即使其预置的首消息来自父会话。
 
 ### 配置
 

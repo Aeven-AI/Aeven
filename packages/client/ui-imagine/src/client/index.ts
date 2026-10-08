@@ -5,8 +5,8 @@
  * which the address becomes the chat's own and `generate_image` makes the images. The sidebar's Imagine row opens
  * `/imagine`.
  *
- * The same plugin renders generated images at their tool call, and hangs the `/image-model` popup on the host
- * command in the chat composer.
+ * The same plugin renders generated images and videos at their tool call, and hangs the `/image-model` and
+ * `/video-model` popups on the host commands in the chat composer.
  * @module @aeven/client-ui-imagine/client
  */
 
@@ -19,9 +19,10 @@ import type {} from '@aeven/client-ui-renderer/client'
 import type {} from '@aeven/client-ui-sidebar/client'
 import type { CommandUiContract } from '@aeven/client-ui-commands/client'
 import { ImageToolView } from './ImageToolView.tsx'
-import { IMAGE_TOOLS, registerGeneratedImages } from './generated-images.ts'
+import { VideoToolView } from './VideoToolView.tsx'
+import { IMAGE_TOOLS, VIDEO_TOOLS, registerGeneratedImages } from './generated-images.ts'
 import type {} from '@aeven/client-ui-tool/client'
-import { imageModelDecoration } from './image-model-picker.ts'
+import { imageModelDecoration, videoModelDecoration } from './image-model-picker.ts'
 import { ImaginePrompts } from './ImaginePrompts.tsx'
 import { ImagineRow, type ImagineRowInjected } from './ImagineRow.tsx'
 import { en, zh } from './locales.ts'
@@ -50,7 +51,7 @@ const NS = 'imagine'
 export const inject = ['slots', 'locale']
 
 /**
- * Client plugin body: the Imagine row, the starter prompts, the in-chat image view and the image-model picker.
+ * Client plugin body: the Imagine row, the starter prompts, the in-chat image and video views and the model pickers.
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
@@ -63,12 +64,17 @@ export function apply(ctx: ClientContext): void {
     const command = pickerCtx.get('commandUi') as CommandUiContract
     pickerCtx.effect(() => command.decorate(imageModelDecoration(pickerCtx)),
       'ui-imagine: /image-model decoration')
+    pickerCtx.effect(() => command.decorate(videoModelDecoration(pickerCtx)),
+      'ui-imagine: /video-model decoration')
   })
 
   ctx.inject(['uiConversation'], imageCtx => { registerGeneratedImages(imageCtx) })
   ctx.slots.inject('tool.call.toolview', function* () {
     for (const key of IMAGE_TOOLS) {
       yield ctx.slots.register({ name: 'tool.call.toolview', key, locale: NS }, ImageToolView)
+    }
+    for (const key of VIDEO_TOOLS) {
+      yield ctx.slots.register({ name: 'tool.call.toolview', key, locale: NS }, VideoToolView)
     }
   })
 

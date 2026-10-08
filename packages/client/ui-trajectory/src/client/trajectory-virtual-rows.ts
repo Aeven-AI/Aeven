@@ -3,8 +3,8 @@
 import type { TrajectoryCellProps } from './trajectory-record.ts'
 import { trajectoryRecordId } from './trajectory-record.ts'
 
-const CONTENT_ROW_HEIGHT = 30
-const COLLAPSED_SUMMARY_HEIGHT = 20
+const CONTENT_ROW_HEIGHT = 40
+const COLLAPSED_SUMMARY_HEIGHT = 32
 const TERMINAL_BOUNDARY_HEIGHT = 9
 
 /** Minimal record shape required by the trajectory virtual-row projection. */

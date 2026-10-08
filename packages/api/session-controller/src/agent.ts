@@ -4,7 +4,7 @@ import { mkdir } from 'node:fs/promises'
 import type { Context } from '@deepseek-ai/cordis'
 import { installModelSelection } from '@aeven/agent'
 import type {
-  Agent, AgentOptions, AgentSetup, ModelSelection as AgentModelSelection, ModelSelectionRef,
+  Agent, AgentHandle, AgentOptions, AgentSetup, ModelSelection as AgentModelSelection, ModelSelectionRef,
 } from '@aeven/agent'
 import type {} from '@aeven/agent-default-model'
 import type {} from '@aeven/agent-presets'
@@ -164,6 +164,8 @@ export async function inspectApiSession(
 export class ApiSessionAgentController {
   private readonly resumes = new Map<SessionId, Promise<Agent>>()
   private readonly creations = new Map<SessionId, Promise<Agent>>()
+  /** Disposers of the Agents this controller created or resumed. */
+  private readonly handles = new Map<SessionId, AgentHandle>()
   private readonly selections = new WeakMap<Agent, InstalledSelection>()
   private readonly imageAdmissionChains = new WeakMap<Agent, Promise<void>>()
 
@@ -480,11 +482,11 @@ export class ApiSessionAgentController {
     if (published !== undefined && hasApiSessionSubagentOwner(this.ctx, published, live)) {
       throw new ApiSessionSubagentOwnership(sessionId)
     }
-    return (await this.ctx.agents.resume({
+    return this.own(await this.ctx.agents.resume({
       resumeSessionId: sessionId,
       agentOptions: this.agentOptions(),
       setup: composition.setup,
-    })).agent
+    }))
   }
 
   /**
@@ -523,11 +525,11 @@ export class ApiSessionAgentController {
         const storedPreset = this.presetForObservation(observation)
         this.assertPresetUnchanged(sessionId, presetId, storedPreset)
         const composition = await this.composeAgent(storedPreset)
-        return (await this.ctx.agents.resume({
+        return this.own(await this.ctx.agents.resume({
           resumeSessionId: sessionId,
           agentOptions: this.agentOptions(),
           setup: composition.setup,
-        })).agent
+        }))
       } catch (error: unknown) {
         if (!(error instanceof SessionQueryError)
           || error.code !== 'SESSION_QUERY_SESSION_NOT_FOUND') throw error
@@ -547,7 +549,7 @@ export class ApiSessionAgentController {
     const composition = await this.composeAgent(presetId)
     // The signed-in caller of the creating request owns the session and its per-user state.
     const owner = this.ctx.get('identityUsers')?.actingUser()?.id
-    return (await this.ctx.agents.create({
+    return this.own(await this.ctx.agents.create({
       sessionId,
       agentOptions: this.agentOptions(),
       meta: {
@@ -556,7 +558,34 @@ export class ApiSessionAgentController {
         ...owner === undefined ? {} : { owner },
       },
       setup: composition.setup,
-    })).agent
+    }))
+  }
+
+  /**
+   * Retain the disposer of an Agent this controller created or resumed.
+   * @param handle - the Agent and its disposer.
+   * @returns the Agent.
+   */
+  own(handle: AgentHandle): Agent {
+    this.handles.set(handle.agent.id, handle)
+    return handle.agent
+  }
+
+  /**
+   * Stop one idle Agent this controller owns and remove its Session from the store.
+   * @param sessionId - Session whose Agent to stop.
+   * @throws when the Session is live under an Agent this controller does not own.
+   */
+  async release(sessionId: SessionId): Promise<void> {
+    const handle = this.handles.get(sessionId)
+    if (handle === undefined) {
+      if (this.ctx.sessions.get(sessionId) !== undefined) {
+        throw new Error(`session "${sessionId}" is live under an owner other than the Session Controller`)
+      }
+      return
+    }
+    this.handles.delete(sessionId)
+    await handle.dispose()
   }
 
   private agentOptions(): AgentOptions {

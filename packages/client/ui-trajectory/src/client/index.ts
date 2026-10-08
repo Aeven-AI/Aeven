@@ -1,8 +1,14 @@
 /**
  * Browser trajectory plugin contributing one entry to the conversation view
  * slot without defining a service.
+ *
+ * The ledger is a developer surface. Developer mode mounts its View, the
+ * Conversation Definitions that feed it, and the Session hook that carries its
+ * snapshot as one child plugin, so turning the setting off disposes all of
+ * them: an ordinary Session's View roster never lists Trajectory, and no part
+ * of the ledger stays mounted behind the hidden entry.
  */
-import type { Context } from '@deepseek-ai/cordis'
+import type { Context, Fiber } from '@deepseek-ai/cordis'
 import type { ImageAttachmentRef } from '@aeven/attachment'
 import type { SessionBinding } from '@aeven/api-session-controller/client'
 import type { ObservableSnapshot } from '@aeven/client-store'
@@ -14,6 +20,11 @@ import type {} from '@aeven/client-locale/client'
 import type {} from '@aeven/client-ui-conversation/client'
 import type {} from '@aeven/client-ui-renderer/client'
 import type {} from '@aeven/client-ui-session/client'
+// Type-only: pulls the settings scope merge (ctx.settingsScope).
+import type {} from '@aeven/client-ui-settings/client'
+import type {
+  DeveloperSettings, DeveloperSettingsNamespace,
+} from '@aeven/client-ui-settings-general/client'
 import { createTrajectoryDurationStore } from './duration-store.ts'
 import { en, NS, zh } from './locales.ts'
 import { registerTrajectoryAssistantDefinition } from './trajectory-assistant-definition.ts'
@@ -36,15 +47,58 @@ export type {
   UseTrajectory,
 } from './trajectory-contract.ts'
 
-/** Required services: the conversation slot, registries, ordinary Session paging, and the locale service. */
-export const inject = ['slots', 'sessions', 'uiSession', 'uiConversation', 'locale']
+/**
+ * Required services: the conversation slot, registries, ordinary Session
+ * paging, the locale service, and the settings scope carrying Developer mode.
+ */
+export const inject = ['slots', 'sessions', 'uiSession', 'uiConversation', 'locale', 'settingsScope']
 
 /**
- * Client plugin body: register the trajectory view tab. The registration
- * rides the slot service's effect wrapper, so plugin unload removes the tab.
+ * The Developer mode namespace, owned by `ui-settings-general`; typed from its
+ * declaration because plugins share types, never values.
+ */
+const DEVELOPER_SETTINGS_NAMESPACE: DeveloperSettingsNamespace = 'ui-developer'
+
+/** Services the mounted ledger surface uses. */
+const VIEW_INJECT = ['slots', 'sessions', 'uiSession', 'uiConversation', 'locale']
+
+/**
+ * Client plugin body: register the dictionaries, then mount the ledger's View
+ * surface while Developer mode is on. The registration rides the slot service's
+ * effect wrapper, so plugin unload or turning Developer mode off removes the
+ * tab.
  * @param ctx - client root context.
  */
 export function apply(ctx: Context): void {
+  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-trajectory: dictionaries')
+  const developer = ctx.settingsScope.bind<DeveloperSettings>({ namespace: DEVELOPER_SETTINGS_NAMESPACE })
+  ctx.effect(() => {
+    let view: Fiber | undefined
+    const sync = (): void => {
+      const enabled = developer.getSnapshot().value?.enabled === true
+      if (enabled === (view !== undefined)) return
+      if (enabled) {
+        view = ctx.plugin({ name: 'ui-trajectory: view', inject: VIEW_INJECT, apply: mountView })
+        return
+      }
+      void view?.dispose()
+      view = undefined
+    }
+    sync()
+    const stop = developer.subscribe(sync)
+    return () => {
+      stop()
+      void view?.dispose()
+    }
+  }, 'ui-trajectory: Developer mode gate')
+}
+
+/**
+ * Mount the ledger View: its Conversation Definitions, the 'conversation.view'
+ * entry, and the Session hook the entry's component reads.
+ * @param ctx - context of the Developer mode child plugin.
+ */
+function mountView(ctx: Context): void {
   const trajectorySources = new WeakMap<SessionBinding, ObservableSnapshot<TrajectorySnapshot>>()
   const trajectorySource = (binding: SessionBinding): ObservableSnapshot<TrajectorySnapshot> => {
     let source = trajectorySources.get(binding)
@@ -58,7 +112,6 @@ export function apply(ctx: Context): void {
     }
     return source
   }
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-trajectory: dictionaries')
   // Registration-time text (the view tab label) reads through the bound
   // translate as a thunk, so it follows the active locale without
   // re-registration.

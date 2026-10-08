@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`avn-session-title` gives every session a title clients can display: a deterministic fallback from the first eligible human message, an optional asynchronous provider (such as a model-backed one), or an explicit user rename. Every accepted revision is a log-only `session/title` event, so titles survive replay, resume, and paging exactly like any other session event and never enter the model surface. The service owns scheduling and acceptance; the optional provider owns generation. Automatic work never delays the main agent response, and a newer revision supersedes older work. Configuration and title sources come first; the implementation internals live in a collapsible developer section below.
+`avn-session-title` gives every session a title clients can display: a deterministic fallback from the first eligible human message, an optional asynchronous provider (such as a model-backed one), or an explicit user rename. Every accepted revision is a log-only `session/title` event, so titles survive replay, resume, and paging exactly like any other session event and never enter the model surface. The service owns scheduling and acceptance; the optional provider owns generation. Automatic work never delays the main agent response, and a newer revision supersedes older work. Exactly one revision is accepted per scheduled automatic revision, so a session the provider titles is never given a fallback first and then renamed by the model. Configuration and title sources come first; the implementation internals live in a collapsible developer section below.
 
 ## Table of Contents
 
@@ -29,7 +29,7 @@ Mount the service to give sessions titles that clients can display and that neve
 
 ### Choosing a title source
 
-Titles come from three sources, newest wins. The built-in fallback derives from the first eligible human message's leading words within the configured caps; a registered provider generates a title over eligible messages; an explicit `rename()` accepts a user-supplied title. Human `user/message` text blocks are eligible; an image-only prompt contributes `Image` as its title input. Empty prompts and other non-text prompts wait for later eligible input. Sessions resumed without a title receive the fallback when eligible input exists. A user-sourced latest title pins the session — later user messages schedule no automatic revision, and an explicit `refresh()` remains the deliberate unpin.
+Titles come from three sources, newest wins. A registered provider generates a title over eligible messages; the built-in fallback derives the first eligible human message's leading words within the configured caps; an explicit `rename()` accepts a user-supplied title. Human `user/message` text blocks are eligible; an image-only prompt contributes `Image` as its title input. Empty prompts and other non-text prompts wait for later eligible input. The fallback is the title of last resort: it titles every session no provider covers, fills a revision that ends without a title, and titles sessions resumed without one. A provider-owned revision is titled by that provider alone, so a fresh session stays untitled until its model answer arrives rather than being named twice. A user-sourced latest title pins the session — later user messages schedule no automatic revision, and an explicit `refresh()` remains the deliberate unpin.
 
 ### Minimal configuration
 
@@ -54,15 +54,15 @@ The generated [configuration catalog](../../../docs/config-catalog.md#aevensessi
 
 ### Adding a provider
 
-One optional asynchronous provider may be registered through `ctx.sessionTitle.register(provider)`; a second registration throws. The shipped model-backed providers are [first-prompt](../session-title-first-prompt-llm/README.md) and [all-prompts](../session-title-all-prompts-llm/README.md), both using the shared [LLM generation policy](../session-title-llm/README.md). A provider starts only after a marked loop-built request's exact route matches the logged `request/header`, and a newer revision supersedes and aborts older work.
+One optional asynchronous provider may be registered through `ctx.sessionTitle.register(provider)`; a second registration throws. The shipped model-backed providers are [first-prompt](../session-title-first-prompt-llm/README.md) and [all-prompts](../session-title-all-prompts-llm/README.md), both using the shared [LLM generation policy](../session-title-llm/README.md). A provider starts only after a marked loop-built request's exact route matches the logged `request/header`, and a newer revision supersedes and aborts older work. A scheduled revision is titled by the provider alone: a call that fails, is dropped, or is disposed without a title leaves the deterministic fallback to fill it.
 
 ### Reading titles
 
-`get(session)` reads the latest folded title from one live or replayed session, and `foldSessionTitle(events)` is the pure fold over a log. The service requires `ctx.sessionProjections` and registers two units: the client-visible `title` unit (the accepted title string for client list rows) and the host-only `titleInput` unit, which folds the first and latest eligible messages plus their count so scheduling and fallback reads are O(1) through `stateOf()`; the full eligible prefix for one provider generation is scanned from the session log at execution time. An explicit `refresh(session)` materializes the fallback when needed, then explicitly runs the registered provider over the current eligible messages.
+`get(session)` reads the latest folded title from one live or replayed session, and `foldSessionTitle(events)` is the pure fold over a log. The service requires `ctx.sessionProjections` and registers two units: the client-visible `title` unit (the accepted title string for client list rows) and the host-only `titleInput` unit, which folds the first and latest eligible messages plus their count so scheduling and fallback reads are O(1) through `stateOf()`; the full eligible prefix for one provider generation is scanned from the session log at execution time. An explicit `refresh(session)` runs the registered provider over the current eligible messages, or materializes the fallback when no provider is registered.
 
 ### Failures and recovery
 
-Automatic failures warn and retain the latest title; explicit `refresh()` rejects on provider error or caller cancellation, and cancellation does not roll back an already accepted fallback event. Automatic work never delays the main agent response, its late completion appends a standalone log-only event without opening a turn, and a stale completion cannot append. Forks inherit title events in their seed unchanged.
+Automatic failures warn, retain any accepted title, and fill the deterministic fallback when the session has none; explicit `refresh()` rejects on provider error or caller cancellation. Automatic work never delays the main agent response, its late completion appends a standalone log-only event without opening a turn, and a stale completion cannot append. Forks inherit title events in their seed unchanged.
 
 -----
 
@@ -88,7 +88,7 @@ Titles are durable, log-only state: every accepted revision is a `session/title`
 
 ### Lifecycle and concurrency
 
-Per-session work state tracks a revision counter, an in-flight fallback, and pending and active provider work. A newer user message, provider disposal, session disposal, or explicit refresh aborts older work through an `AbortController`; a completion whose provider, revision, session, or signal is stale cannot append. Explicit refreshes reserve their revision before provider work; overlapping automatic and explicit fallback requests share one session-local in-flight append. Service teardown cancels queued work and drains calls that ignore cancellation before unloading completes.
+Per-session work state tracks a revision counter, an in-flight fallback, and pending and active provider work. A newer user message, provider disposal, session disposal, or explicit refresh aborts older work through an `AbortController`; a completion whose provider, revision, session, or signal is stale cannot append. Explicit refreshes reserve their revision before provider work; overlapping automatic and explicit fallback requests share one session-local in-flight append. A revision dropped before its call, or one that ends without a title, hands the session to the deterministic fallback unless a newer revision is queued to title it. Service teardown cancels queued work and drains calls that ignore cancellation before unloading completes.
 
 ### Normalization
 

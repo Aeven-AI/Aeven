@@ -1,6 +1,6 @@
 /* Account settings in the General/Appearance cell rhythm: hairline rows
    (pad 16/0, 14/400 title over a 12/18 tertiary description, control on the
-   right), grouped under quiet titles. The plan grid reuses the Appearance
+   right), grouped under 16/500 titles. The plan grid reuses the Appearance
    cube geometry; the recommended plan is the one filled call to action. */
 
 .section {
@@ -24,14 +24,17 @@
   justify-content: space-between;
   gap: 12px;
   margin: 0 0 4px;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+  color: var(--dsw-alias-label-primary);
+}
+
+/* The period beside a group title is metadata, not part of the title. */
+.groupAside {
   font-size: 12px;
   font-weight: 400;
   line-height: 18px;
-  color: var(--dsw-alias-label-tertiary);
-}
-
-.groupAside {
-  font-weight: 400;
   font-variant-numeric: normal;
 }
 
@@ -139,8 +142,9 @@
   text-overflow: ellipsis;
 }
 
-/* Allowance read-out: the status copy carries the period's end date, the
-   percentage sits on that same line, and the bar spans the row underneath. */
+/* Allowance read-out: the plan name carries the row at the section's heading
+   scale, the period's end date and the percentage are metadata on the line
+   below it, and the bar spans the row underneath. */
 .meterRow {
   display: flex;
   flex-direction: column;
@@ -156,11 +160,21 @@
   flex: none;
 }
 
+.meterRow .title {
+  font-size: 16px;
+  line-height: 24px;
+}
+
 .meterLine {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
+}
+
+.meterLine .desc {
+  font-size: 12px;
+  line-height: 18px;
 }
 
 .meter {
@@ -207,13 +221,15 @@
   border-bottom: none;
 }
 
+/* The allowance nudge and the past-due notice sit on the page itself rather
+   than in a filled card, flush with the rows above them: the vertical padding
+   is the only spacing they take. */
 .nudge {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 12px 16px;
-  border-radius: var(--dsw-aeven-radius-compact);
-  background: var(--dsw-alias-bg-module-platform);
+  padding: 12px 0;
+  background: transparent;
 }
 
 .nudge[data-tone="error"] .title {
@@ -423,9 +439,12 @@
 }
 
 /* The amount the reader types is a preset's pill too, so it keeps the preset
-   geometry and lets its digits set the width. */
+   geometry and lets its digits set the width. It is a `label`, and the
+   vendored auth stylesheet gives every label an 8px bottom margin, which
+   inside the track lifted this pill half of that above its neighbours. */
 .customSegment {
   gap: 2px;
+  margin: 0;
   cursor: text;
 }
 

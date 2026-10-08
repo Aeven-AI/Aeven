@@ -83,7 +83,7 @@ These limits define when the service is incomplete on its own. They are current 
 - **No model catalog** — the seam takes a provider's model id verbatim and never validates it. Which models exist, and which of them generate video rather than chat, stays with the provider and its catalog configuration.
 - **No storage** — the seam returns bytes and forgets them. Persistence, retention, and any addressable route belong to the consumer that decides how long an artifact lives.
 - **No polling loop** — `videoStatus()` reports a job's state once. Callers own their own cadence, so a tool can surface progress rather than block inside the seam.
-- **No cost or usage reporting** — providers report neither, so a caller cannot see what one generation cost.
+- **Cost only where a provider reports it** — `costUsdMicros` on an image result or a succeeded video job carries the caller's charge where the provider reports one; providers that report none leave callers without a price.
 
 <a id="dev-note"></a>
 ### Dev Note

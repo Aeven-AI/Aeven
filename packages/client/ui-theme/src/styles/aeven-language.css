@@ -42,9 +42,6 @@ body {
   --dsw-aeven-rightbar-transition-duration: 460ms;
   --dsw-aeven-rightbar-transition-timing: cubic-bezier(0.32, 0.72, 0, 1);
   --dsw-aeven-control-size: 40px;
-  /* How much closer an icon-anchored tooltip sits than the control's edge
-     (ui-primitives Tooltip anchor="icon"); restate it on a control to tune it. */
-  --dsw-aeven-tooltip-icon-offset: 10px;
   --dsw-aeven-radius-surface: 30px;
   --dsw-aeven-radius-content: 20px;
   --dsw-aeven-radius-control: 20px;

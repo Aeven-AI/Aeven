@@ -8,7 +8,7 @@ import type { MouseEvent, ReactNode, RefObject } from 'react'
 import clsx from 'clsx'
 import type { PermissionSelect as PermissionSelectValue } from '@aeven/permission-presets/client'
 import {
-  IconChevronRightOutline14, IconDownloadOutline16, IconLucideImages, IconLucideSettings2,
+  IconChevronRightOutline14, IconLucideImages, IconLucideSettings2, IconLucidePlay,
   RiskConfirmation, Tooltip, useDismissOnOutsidePointer,
 } from '@aeven/client-ui-primitives'
 import type { UseProjection } from '@aeven/api-session-controller/client'
@@ -67,13 +67,13 @@ export interface ComposerOptionsProps {
   locked: boolean
   /** Command face; absent with the session, so the popup offers no mode pick. */
   command: ((line: string) => Promise<boolean>) | undefined
-  /** Downloads the session log; absent when the bar has no export face. */
-  onExport: (() => void) | undefined
   /**
    * Opens the host's image-model picker, anchored to the row that asked; absent
    * when the bar has no command face.
    */
   onImageModel: ((anchor: Element) => void) | undefined
+  /** Opens the host video-model picker beside its row; absent without a command face. */
+  onVideoModel: ((anchor: Element) => void) | undefined
   useProjection: UseProjection
   /** The bar's pointerdown guard, so opening the popup or a row keeps the draft focused. */
   keepFocus: (event: MouseEvent<HTMLButtonElement>) => void
@@ -89,7 +89,7 @@ export interface ComposerOptionsProps {
 }
 
 export function ComposerOptions({
-  permissions, locked, command, onExport, onImageModel, useProjection, keepFocus, overlayRef, t,
+  permissions, locked, command, onImageModel, onVideoModel, useProjection, keepFocus, overlayRef, t,
 }: ComposerOptionsProps) {
   const [open, setOpen] = useState(false)
   const [pane, setPane] = useState<Pane | null>(null)
@@ -166,7 +166,7 @@ export function ComposerOptions({
   // Nothing to hold: a composer with none of the popup's rows keeps the disc
   // off the row rather than opening an empty card.
   if (permissions === undefined && context === null
-    && onExport === undefined && onImageModel === undefined) return null
+    && onImageModel === undefined && onVideoModel === undefined) return null
 
   return (
     <span ref={rootRef} className={css.root}>
@@ -215,6 +215,24 @@ export function ComposerOptions({
               )}
             </div>
           )}
+          {onImageModel === undefined ? null : (
+            <OptionsRow
+              glyph={<IconLucideImages className={css.rowGlyph} />}
+              label={t('options.imageModel')}
+              ariaLabel={t('options.imageModel')}
+              keepFocus={keepFocus}
+              onToggle={(trigger) => { onImageModel(trigger) }}
+            />
+          )}
+          {onVideoModel === undefined ? null : (
+            <OptionsRow
+              glyph={<IconLucidePlay className={css.rowGlyph} />}
+              label={t('options.videoModel')}
+              ariaLabel={t('options.videoModel')}
+              keepFocus={keepFocus}
+              onToggle={(trigger) => { onVideoModel(trigger) }}
+            />
+          )}
           {permissions === undefined ? null : (
             <div className={css.rowSeat}>
               <OptionsRow
@@ -239,27 +257,6 @@ export function ComposerOptions({
                 </div>
               )}
             </div>
-          )}
-          {onImageModel === undefined ? null : (
-            <OptionsRow
-              glyph={<IconLucideImages className={css.rowGlyph} />}
-              label={t('options.imageModel')}
-              ariaLabel={t('options.imageModel')}
-              keepFocus={keepFocus}
-              onToggle={(trigger) => { onImageModel(trigger) }}
-            />
-          )}
-          {onExport === undefined ? null : (
-            <OptionsRow
-              glyph={<IconDownloadOutline16 />}
-              label={t('options.export')}
-              ariaLabel={t('options.export')}
-              keepFocus={keepFocus}
-              onToggle={() => {
-                setOpen(false)
-                onExport()
-              }}
-            />
           )}
         </div>
       )}

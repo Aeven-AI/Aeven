@@ -36,6 +36,9 @@
       "path": "../capability"
     },
     {
+      "path": "../../memory/memory"
+    },
+    {
       "path": "../../feedback/message-feedback"
     },
     {

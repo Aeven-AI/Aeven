@@ -78,7 +78,6 @@ export interface ChatNodeOwnerProps {
   selectedCallId?: ToolCallId | undefined
   cwd?: string | undefined
   openFile: (path: string) => void
-  inspectCall: (callId: ToolCallId) => void
   forkAt: (seq: number) => void
   /**
    * Replace a user prompt's text; the Host discards the prompt (with its turn

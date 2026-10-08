@@ -9,8 +9,6 @@ const CONVERSATION_STORE_KEY = 'avn.conversation'
 type ConversationActions = {
   setDraft: (draft: ConversationStoreState, text: string) => void
   setView: (draft: ConversationStoreState, view: string) => void
-  openView: (draft: ConversationStoreState, view: string, focus: string) => void
-  completeViewRequest: (draft: ConversationStoreState) => void
 }
 
 /**
@@ -19,16 +17,11 @@ type ConversationActions = {
  */
 export function createConversationStore(): EngineStoreHandle<ConversationStoreState, ConversationActions> {
   return defineStore({
-    init: (): ConversationStoreState => ({ draft: '', view: null, viewRequest: null }),
+    init: (): ConversationStoreState => ({ draft: '', view: null }),
     persist: CONVERSATION_STORE_KEY,
     actions: {
       setDraft: (d, text: string) => { d.draft = text },
       setView: (d, view: string) => { d.view = view },
-      openView: (d, view: string, focus: string) => {
-        d.view = view
-        d.viewRequest = { view, focus }
-      },
-      completeViewRequest: (d) => { d.viewRequest = null },
     },
   })
 }

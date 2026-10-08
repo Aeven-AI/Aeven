@@ -29,7 +29,7 @@ export interface GenericToolCardProps extends ToolCallOwnerProps {
 }
 
 export function GenericToolCard({
-  toolName, block, cwd, home, openFile, inspect, renderImages, generatedImageIds, t,
+  toolName, block, cwd, home, openFile, renderImages, generatedImageIds, t,
 }: GenericToolCardProps) {
   const model = toolRowModel(toolName, block, cwd, home)
   const resultImages = imageCardModel(block).filter(image => !generatedImageIds?.has(String(image.attachmentId)))
@@ -72,7 +72,6 @@ export function GenericToolCard({
       state={state}
       filePath={model.filePath}
       onOpenFile={singleFile ? openFile : undefined}
-      inspect={inspect}
       images={images}
     />
   )

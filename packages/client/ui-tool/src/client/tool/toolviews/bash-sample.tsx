@@ -2,7 +2,7 @@ import { useMemo, useState, type KeyboardEvent } from 'react'
 import type { Context } from '@deepseek-ai/cordis'
 import clsx from 'clsx'
 import {
-  FailMark, IconApiOutline14, IconChevronDownOutline14, IconInspectOutline12, TerminalBlock,
+  FailMark, IconApiOutline14, IconChevronDownOutline14, TerminalBlock,
 } from '@aeven/client-ui-primitives'
 import type { PropsLocale } from '@aeven/client-ui-slots'
 import type { ToolCallViewProps } from '../../contract/slots.ts'
@@ -40,7 +40,7 @@ function stateStatus(state: ToolRowState, t: BashRowProps['t']): string | null {
 }
 
 /** Renders expandable Bash output with an accessible lifecycle label. */
-export function BashRow({ toolName, block, sessionId, useSessions, inspect, t }: BashRowProps) {
+export function BashRow({ toolName, block, sessionId, useSessions, t }: BashRowProps) {
   const model = toolRowModel(toolName, block)
   // An omitted shell workdir is the session workspace; relative values resolve
   // against it before reaching the terminal primitive.
@@ -132,12 +132,6 @@ export function BashRow({ toolName, block, sessionId, useSessions, inspect, t }:
                 )}
               </div>
             )}
-          {inspect !== undefined && (
-            <button type="button" className={css.inspectButton} onClick={inspect}>
-              <IconInspectOutline12 />
-              {t('row.inspect')}
-            </button>
-          )}
         </div>
       )}
     </div>

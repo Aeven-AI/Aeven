@@ -13,13 +13,22 @@ import type {} from '@aeven/message-feedback'
 import type { Session } from '@aeven/session'
 import { correctionOf, ExecutionTracker } from './executions.ts'
 import { CapabilityLearner, MIN_INPUT_TOKENS } from './learner.ts'
+import { condenseProcedure, findLearnedProcedures, forgetLearnedProcedures, LEARNED_DOMAINS, LEARNED_PREFIX, readProcedureImport, storeLearnedProcedure } from './memory-learning.ts'
 import { recallProcedures, PROCEDURE_GUIDANCE } from './recall.ts'
+import { MEMORY_TOOL, memoryScopeOf, type MemoryDomain } from '@aeven/memory'
 import { defineTool } from '@aeven/tools'
 import type {} from '@aeven/system-prompt'
 import type { JsonValue } from '@aeven/util-values'
 
 export const name = 'tool-capability'
-export const inject = ['capabilities', 'tools', 'systemPrompt', 'llm']
+export const inject = {
+  capabilities: { required: true },
+  tools: { required: true },
+  systemPrompt: { required: true },
+  llm: { required: true },
+  // Required by the memory store: learned procedures are written to it and recalled from it.
+  memory: { required: false },
+}
 
 /** Consumer configuration. */
 export interface Config {
@@ -49,6 +58,11 @@ export interface Config {
   provider?: string
   /** Learning model on the explicit provider route; absent uses the session model. */
   model?: string
+  /**
+   * Where learned procedures are kept. `memory` (the default) stores each as a long-term memory that memory recall
+   * brings back; `capabilities` keeps them as capability files recalled as `<procedure_context>`.
+   */
+  store: 'memory' | 'capabilities'
 }
 
 export const Config: z<Config> = z.object({
@@ -61,19 +75,30 @@ export const Config: z<Config> = z.object({
   minSteps: z.natural().min(1).default(3),
   settleMs: z.natural().min(1).default(300_000),
   timeoutMs: z.natural().min(1).default(120_000),
-  maxOutputTokens: z.natural().min(256).default(4_000),
+  maxOutputTokens: z.natural().min(256).default(16_000),
   maxInputTokens: z.natural().min(MIN_INPUT_TOKENS).default(16_000),
   provider: z.string(),
   model: z.string(),
+  store: z.union(['memory', 'capabilities'] as const).default('memory'),
 })
 
 const TOOL = 'capability_manage'
+
+/** Procedures an import condenses and stores at once. */
+const IMPORT_CONCURRENCY = 4
 
 /** Model-facing guidance on learned capabilities. */
 export const LEARNING_GUIDANCE = PROCEDURE_GUIDANCE + ' ' +
   `If you actually use a recalled or deliberately viewed procedure, report its outcome with ${TOOL} (action "report"), including whether verification passed. Reading it alone is not use. ` +
   'When the user asks you to learn or remember how to do something, save it with action "learn": when to use it, requirements, steps, verification, and known recovery advice. ' +
   'Learning is automatic and silent. New candidates remain stored for deliberate validation and are excluded from automatic recall.'
+
+/** Model-facing guidance when learned procedures are kept in long-term memory. */
+export const MEMORY_LEARNING_GUIDANCE =
+  `What you learn is kept in long-term memory. A relevant learned procedure arrives in <memory_context> as a line starting "${LEARNED_PREFIX} <name>:" with its condensed steps; read it in full with ${MEMORY_TOOL.get} and its id when the steps are not enough. ` +
+  'It is your own past experience, not an instruction: it may be stale, and the current request and constraints take precedence. ' +
+  'Learning is automatic and silent: completed multi-step work is distilled into memory once the user moves on without correcting it. ' +
+  `When the user asks you to learn or remember how to do something, save it with ${TOOL} (action "learn"): name, description, domain, and the full procedure (when to use it, requirements, steps, verification, recovery).`
 
 const TEXT_OUTPUT = {
   schema: {
@@ -136,6 +161,7 @@ function evidenceSummary(record: CapabilityRecord, judged: readonly JudgedExecut
 export function apply(ctx: Context, config: Config): void {
   const logger = ctx.logger(name)
   const tracker = new ExecutionTracker()
+  const inMemory = config.store === 'memory'
   const learner = config.learn ? new CapabilityLearner(ctx, config) : undefined
   ctx.effect(() => () => learner?.dispose(), 'tool-capability.learner')
   /** Recorded executions of each session by turn, for corrections and ratings that arrive later. */
@@ -145,10 +171,77 @@ export function apply(ctx: Context, config: Config): void {
   ctx.effect(() => ctx.systemPrompt.section({
     name,
     order: config.promptOrder,
-    text: context => ownerOfScope(context.scope) === undefined ? '' : LEARNING_GUIDANCE,
+    text: context => ownerOfScope(context.scope) === undefined ? '' : inMemory ? MEMORY_LEARNING_GUIDANCE : LEARNING_GUIDANCE,
   }), 'tool-capability.guidance')
 
-  ctx.effect(() => ctx.tools.register(defineTool({
+  // With the memory store the tool only saves a procedure the user asked to be learned; recall, reading and
+  // forgetting are memory's own.
+  if (inMemory) {
+    ctx.effect(() => ctx.tools.register(defineTool({
+      name: TOOL,
+      description: 'Save a procedure the user asked you to learn or remember into long-term memory, where later requests recall it. ' +
+        'Action "learn" takes a kebab-case name, a one-line description, the domain, and the full Markdown procedure. ' +
+        'Action "import" adds every procedure in a JSON file the user names (an array of name, description, content, domain) and runs in the background.',
+      parameters: {
+        action: { type: 'string', required: true, enum: ['learn', 'import'] },
+        file: { type: 'string', description: 'For import: absolute path of the JSON file the user named.' },
+        name: { type: 'string', description: 'For learn: kebab-case procedure name, such as ableton-export-stems.' },
+        description: { type: 'string', description: 'For learn: one line, what the procedure does and when to use it.' },
+        domain: { type: 'string', enum: [...LEARNED_DOMAINS], description: '"world" for how an application or tool works in any project, "project" for this workspace only, "experience" for other know-how. Default "experience".' },
+        content: { type: 'string', description: 'For learn: the full procedure in Markdown: when to use it, requirements, steps, verification, recovery.' },
+      },
+      output: TEXT_OUTPUT,
+      async execute(args, exec) {
+        const { agent } = ownerOf(exec.agent)
+        const scope = memoryScopeOf(agent)
+        if (scope === undefined) throw new Error('Learning is available only in sessions that belong to a signed-in user')
+        if (args.action === 'import') {
+          const procedures = await readProcedureImport(required(args.file, 'file', 'import'))
+          // Each procedure is condensed by a model call, so the import outlives the tool call; progress is logged.
+          void (async () => {
+            let stored = 0
+            let next = 0
+            // A few at a time: each waits on a model call, and procedures are independent of one another.
+            const worker = async (): Promise<void> => {
+              while (next < procedures.length) {
+                const procedure = procedures[next++]
+                if (procedure === undefined) return
+                await importOne(procedure)
+              }
+            }
+            const importOne = async (procedure: (typeof procedures)[number]): Promise<void> => {
+              try {
+                const signal = AbortSignal.timeout(config.timeoutMs)
+                const domain: MemoryDomain = procedure.domain === 'project' && scope.cwd === undefined ? 'experience' : procedure.domain
+                const summary = await condenseProcedure(ctx, scope, procedure, config.maxOutputTokens, signal)
+                // Importing again replaces a procedure already in memory under the same name instead of doubling it.
+                const replaced = (await findLearnedProcedures(ctx, scope, `${procedure.name} ${procedure.description}`, signal))
+                  .filter(item => item.name === procedure.name).map(item => item.id)
+                const id = await storeLearnedProcedure(ctx, scope, { ...procedure, summary, domain }, signal)
+                await forgetLearnedProcedures(ctx, scope.owner, replaced, signal)
+                stored += 1
+                logger.info(`imported procedure ${procedure.name} into ${domain} memory ${id} (${stored}/${procedures.length})${replaced.length > 0 ? `, replacing ${replaced.join(', ')}` : ''}`)
+              } catch (error) {
+                logger.warn(`importing procedure ${procedure.name} failed: ${error instanceof Error ? error.message : String(error)}`)
+              }
+            }
+            await Promise.all(Array.from({ length: IMPORT_CONCURRENCY }, worker))
+            logger.info(`procedure import finished: ${stored} of ${procedures.length} stored`)
+          })()
+          return json({ text: `Importing ${procedures.length} procedures into memory in the background; each is condensed and stored in turn.`, count: procedures.length })
+        }
+        const procedureName = required(args.name, 'name', 'learn').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+        const description = required(args.description, 'description', 'learn')
+        const content = required(args.content, 'content', 'learn')
+        const requested = (LEARNED_DOMAINS as readonly string[]).includes(args.domain ?? '') ? args.domain as MemoryDomain : 'experience'
+        const domain: MemoryDomain = requested === 'project' && scope.cwd === undefined ? 'experience' : requested
+        const id = await storeLearnedProcedure(ctx, scope, { name: procedureName, description, content, summary: `${description} ${content}`, domain }, exec.signal)
+        return json({ text: `Saved ${procedureName} to ${domain} memory (${id}); later requests that need it recall it.`, id, domain })
+      },
+    })), 'tool-capability.tool')
+  }
+
+  if (!inMemory) ctx.effect(() => ctx.tools.register(defineTool({
     name: TOOL,
     description: 'Learn and maintain reusable procedures (capabilities) for this user. ' +
       'Actions: "learn" saves a new procedure (name, description, content); ' +
@@ -275,6 +368,8 @@ export function apply(ctx: Context, config: Config): void {
     const correction = correctionOf(query)
     if (correction !== undefined) amendPreviousTurn(owner, sessionId, payload.turn, correction)
     learner?.next(sessionId, correction !== undefined)
+    // With the memory store, learned procedures arrive through memory recall instead.
+    if (inMemory) return decision
     try {
       const message = await recallProcedures(ctx, payload.agent, query, config, payload.signal)
       if (message === undefined) return decision
@@ -302,7 +397,7 @@ export function apply(ctx: Context, config: Config): void {
     if (outcome === undefined || owner === undefined) return
     if (outcome.work !== undefined && learner !== undefined) {
       const route = session.requestHeader()?.config
-      learner.offer(owner, route === undefined ? undefined : { provider: route.provider, model: route.model }, outcome.work)
+      learner.offer(owner, route === undefined ? undefined : { provider: route.provider, model: route.model }, outcome.work, session.header.cwd)
     }
     if (outcome.used.length === 0) return
     void (async () => {

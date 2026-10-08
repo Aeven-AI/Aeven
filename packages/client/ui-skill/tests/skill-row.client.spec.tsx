@@ -35,22 +35,19 @@ function running(argsRaw = '{"name":"avn-manage-issues"}'): RunningToolCall {
   }
 }
 
-function props(block: SkillRowProps['block'], inspect?: () => void): SkillRowProps {
+function props(block: SkillRowProps['block']): SkillRowProps {
   return {
     callId: block.callId,
     toolName: 'skill',
     block,
-
     openFile: vi.fn(),
-    inspect,
     t,
   } as unknown as SkillRowProps
 }
 
 describe('SkillRow', () => {
   it('renders a compact Bash-shaped summary and discloses the exact instructions', () => {
-    const inspect = vi.fn()
-    const view = render(<SkillRow {...props(settled(), inspect)} />)
+    const view = render(<SkillRow {...props(settled())} />)
     const row = screen.getByRole('button', { name: 'Skillavn-manage-issues' })
     expect(row.getAttribute('aria-expanded')).toBe('false')
     expect(view.container.querySelector('[data-tool="skill"]')?.getAttribute('data-state')).toBe('ok')
@@ -62,8 +59,6 @@ describe('SkillRow', () => {
     const card = screen.getByLabelText('说明')
     expect(card.textContent).toBe('说明Follow the issue workflow.\nKeep project fields in sync.')
     expect(view.container.textContent).not.toContain('{"name":"avn-manage-issues"}')
-    fireEvent.click(screen.getByRole('button', { name: '查看' }))
-    expect(inspect).toHaveBeenCalledTimes(1)
 
     fireEvent.click(row)
     expect(row.getAttribute('aria-expanded')).toBe('false')

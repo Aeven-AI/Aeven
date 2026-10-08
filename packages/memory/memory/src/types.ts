@@ -301,14 +301,15 @@ export interface MemoryProvider {
    */
   list(request: MemoryListRequest): Promise<MemoryPage>
   /**
-   * Store one fact the user explicitly asked to be remembered.
-   * @param request - scope, the fact in the user's words, and whether it is about the user or the scope's project.
+   * Store one memory: a fact the user explicitly asked to be remembered, or know-how learned from completed work.
+   * @param request - scope, the text, and its domain: the user, the scope's project, an application or tool
+   *   (`world`), or know-how from earlier tasks (`experience`).
    * @returns the stored memory's id, after it is durable.
    */
   remember(request: {
     readonly scope: MemoryScope
     readonly text: string
-    readonly domain: 'person' | 'project'
+    readonly domain: MemoryDomain
     readonly signal: AbortSignal
   }): Promise<MemoryItemId>
   /**

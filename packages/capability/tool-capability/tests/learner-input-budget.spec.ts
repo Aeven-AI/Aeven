@@ -13,6 +13,7 @@ const CONFIG: LearnerConfig = {
   timeoutMs: 5_000,
   maxOutputTokens: 4_000,
   maxInputTokens: UNBOUNDED,
+  store: 'capabilities',
 }
 
 /** One tool call whose output is long enough that dropping it pays for the omission line. */

@@ -125,6 +125,22 @@ export class SessionForkError extends Error {
   }
 }
 
+/** Structured session-move failure. */
+export class SessionMoveError extends Error {
+  override readonly name = 'SessionMoveError'
+
+  /**
+   * @param rpcError - Host business or folded transport error.
+   * @param sourceSessionId - the session that was asked to move.
+   */
+  constructor(
+    readonly rpcError: RemoteFailure,
+    readonly sourceSessionId: SessionId,
+  ) {
+    super(`session move failed: ${rpcError.code}: ${rpcError.message}`)
+  }
+}
+
 /** Identity-stable logical binding for one materialized Client Session. */
 export interface SessionBinding {
   readonly sessionId: SessionId
@@ -456,6 +472,13 @@ export class ClientSessions implements ISessions {
       if (!renamed.ok) throw new Error(`fork child rename failed: ${renamed.error.code}: ${renamed.error.message}`)
     }
     return childId
+  }
+
+  async move(opts: { sessionId: SessionId; workspaceId: WorkspaceId }): Promise<SessionId> {
+    const result = await this.manager.move(opts)
+    if (!result.ok) throw new SessionMoveError(result.error, opts.sessionId)
+    this.projectList()
+    return result.value.sessionId
   }
 
   /**

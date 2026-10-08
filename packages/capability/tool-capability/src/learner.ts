@@ -1,13 +1,17 @@
 /**
- * Automatic capability learning. Completed work that looks like a reusable procedure is held until the user's
- * next message shows it was not corrected, then a background model call distills it into a candidate
- * capability or merges it into an existing one. Nobody is asked; the registry's evidence rules validate the
- * result when it is next used.
+ * Automatic learning. Completed work that looks like a reusable procedure is held until the user's next message
+ * shows it was not corrected, then a background model call distills it into a procedure or merges it into one
+ * already learned. Nobody is asked. With `store: 'memory'` the procedure is a long-term memory that memory recall
+ * brings back when a request needs it; with `store: 'capabilities'` it is a candidate capability that the
+ * registry's evidence rules validate when it is next used.
  */
 import type { Context } from '@deepseek-ai/cordis'
 import { BlockAssembler, createUserMessage } from '@aeven/llm'
 import type { CapabilityOrigin, CapabilityRecord } from '@aeven/capability'
+import type { MemoryDomain, MemoryScope } from '@aeven/memory'
+import type { SessionId } from '@aeven/session/types'
 import type { CompletedWork } from './executions.ts'
+import { findLearnedProcedures, forgetLearnedProcedures, LEARNED_DOMAINS, storeLearnedProcedure } from './memory-learning.ts'
 
 /** Learner configuration. */
 export interface LearnerConfig {
@@ -24,6 +28,8 @@ export interface LearnerConfig {
   /** Explicit distillation route; absent uses the session's own route. Set together with `model`. */
   readonly provider?: string
   readonly model?: string
+  /** Where a learned procedure is kept: long-term memory, or the capability registry. */
+  readonly store: 'memory' | 'capabilities'
 }
 
 /** Model route of one session's requests. */
@@ -36,12 +42,23 @@ interface Pending {
   readonly owner: string
   readonly route: LearnerRoute
   readonly work: CompletedWork
+  /** The session's workspace, which a project procedure is filed under. */
+  readonly cwd?: string
   readonly timer: ReturnType<typeof setTimeout>
 }
 
 type Decision =
   | { readonly decision: 'skip' }
-  | { readonly decision: 'create' | 'update'; readonly name: string; readonly description: string; readonly content: string }
+  | {
+    readonly decision: 'create' | 'update'
+    readonly name: string
+    readonly description: string
+    readonly content: string
+    /** Memory store only: where the procedure applies. */
+    readonly domain?: MemoryDomain
+    /** Memory store only: the procedure condensed for recall. */
+    readonly summary?: string
+  }
 
 /** Tool calls that record bookkeeping rather than doing the work. */
 const BOOKKEEPING = /^(?:skill|capability_manage|todo_write|memory_[a-z_]+|ask_user(?:_question)?)$/
@@ -59,7 +76,7 @@ const CHARS_PER_TOKEN = 4
 const CUT_MARKER = '…[transcript cut to the learning input budget]'
 
 /**
- * Smallest input budget a learning call accepts. It stays above the fixed system prompt of about 423
+ * Smallest input budget a learning call accepts. It stays above the longer fixed system prompt of about 583
  * estimated tokens, so a transcript bounded to any accepted budget still leaves that prompt room.
  */
 export const MIN_INPUT_TOKENS = 1_000
@@ -77,6 +94,27 @@ Reply with one JSON object and nothing else:
 or
 {"decision":"create" or "update","name":"kebab-case-name","description":"One line: what it does and when to use it.","content":"The Markdown procedure."}`
 
+/** Distillation prompt when learned procedures are kept in long-term memory. */
+const MEMORY_SYSTEM = `You maintain the know-how an assistant learned for one user, kept in its long-term memory and recalled when a later request needs it. You receive one completed piece of work: the user's request, the tool calls that did it with their results, and the final answer. Decide whether it taught a procedure worth remembering, and write it.
+
+Learn from successful multi-step operational work: how an application or tool does something (for example how to do a task in Ableton, Figma, or a CLI), setup, build, release, deployment, data or file processing, reporting, diagnosis, and similar work that took several tool calls. Learn it even when the work went smoothly, because next time the exploration is skipped; work that needed retries, dead ends, or a correction is the most valuable. Skip one-off questions, explanations, conversation, facts about the user, and work that failed.
+
+When the work repeats or improves one of the procedures already learned, update it: return its exact name and the complete merged procedure, keeping what still holds and fixing what the work showed to be wrong. Otherwise create a new one.
+
+Write "content" so another session can follow it without this conversation, in Markdown with these sections: "When to use", "Requirements", "Steps" (numbered, with the exact commands, paths, settings, menu items, and tool parameters that worked; replace values that vary between uses with named placeholders), "Verification" (observable success criteria), and "Recovery" (known failures and their fixes, from the work). Do not include the dead ends except as recovery advice.
+
+Write "summary" as the procedure condensed to at most 800 characters that can be followed on its own: the trigger, then the essential steps with their exact commands or settings, then the check.
+
+Choose "domain": "world" when it is how an application, tool, service, or environment works and applies in any project; "project" when it only applies to the current workspace's code or files; "experience" for other reusable know-how.
+
+Reply with one JSON object and nothing else:
+{"decision":"skip"}
+or
+{"decision":"create" or "update","name":"kebab-case-name","description":"One line: what it does and when to use it.","domain":"world" or "project" or "experience","summary":"The condensed procedure.","content":"The Markdown procedure."}`
+
+/** Characters of the longer distillation prompt, which every input budget is measured against. */
+const PROMPT_CHARS = Math.max(SYSTEM.length, MEMORY_SYSTEM.length)
+
 /** One distillation request: the fixed system prompt and the transcript of the work. */
 interface Transcript {
   /** The turn's request, verbatim. */
@@ -85,7 +123,7 @@ interface Transcript {
   readonly steps: readonly string[]
   /** The turn's final answer, clipped. */
   readonly answer: string
-  /** One line per existing capability, or `(none)`. */
+  /** One line per procedure already learned, or `(none)`. */
   readonly existing: string
   /** Full procedures of the capabilities this work may merge into. */
   readonly related: readonly string[]
@@ -99,7 +137,7 @@ interface Transcript {
  * @returns estimated input tokens of the request.
  */
 export function estimateDistillationTokens(transcript: string): number {
-  return Math.ceil((SYSTEM.length + transcript.length) / CHARS_PER_TOKEN)
+  return Math.ceil((PROMPT_CHARS + transcript.length) / CHARS_PER_TOKEN)
 }
 
 function renderTranscript(transcript: Transcript): string {
@@ -107,7 +145,7 @@ function renderTranscript(transcript: Transcript): string {
     `<request>\n${transcript.request}\n</request>`,
     `<tool_calls>\n${transcript.steps.join('\n')}\n</tool_calls>`,
     `<answer>\n${transcript.answer}\n</answer>`,
-    `<existing_capabilities>\n${transcript.existing}\n</existing_capabilities>`,
+    `<existing_procedures>\n${transcript.existing}\n</existing_procedures>`,
     ...transcript.related,
   ].join('\n\n')
 }
@@ -136,7 +174,7 @@ function boundTranscript(transcript: Transcript, maxInputTokens: number): { read
   }
   const text = assembled()
   // Transcript characters left once the fixed system prompt is paid for.
-  const room = Math.max(0, maxInputTokens * CHARS_PER_TOKEN - SYSTEM.length)
+  const room = Math.max(0, maxInputTokens * CHARS_PER_TOKEN - PROMPT_CHARS)
   if (text.length <= room) return { text, dropped }
   const cut = room >= CUT_MARKER.length ? `${text.slice(0, room - CUT_MARKER.length)}${CUT_MARKER}` : text.slice(0, room)
   return { text: cut, dropped }
@@ -183,10 +221,19 @@ function parseDecision(text: string): Decision | undefined {
   const record = value as Record<string, unknown>
   if (record['decision'] === 'skip') return { decision: 'skip' }
   if (record['decision'] !== 'create' && record['decision'] !== 'update') return undefined
-  const { name, description, content } = record
+  const { name, description, content, domain, summary } = record
   if (typeof name !== 'string' || typeof description !== 'string' || typeof content !== 'string') return undefined
   if (!name.trim() || !description.trim() || !content.trim()) return undefined
-  return { decision: record['decision'], name: name.trim(), description: description.trim(), content: content.trim() }
+  const kebab = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+  if (!kebab) return undefined
+  return {
+    decision: record['decision'],
+    name: kebab,
+    description: description.trim(),
+    content: content.trim(),
+    ...typeof domain === 'string' && (LEARNED_DOMAINS as readonly string[]).includes(domain) ? { domain: domain as MemoryDomain } : {},
+    ...typeof summary === 'string' && summary.trim() ? { summary: summary.trim() } : {},
+  }
 }
 
 /** Learns capabilities from the completed work of every live session this agent runs. */
@@ -208,8 +255,9 @@ export class CapabilityLearner {
    * @param owner - account id of the session.
    * @param route - the session's model route.
    * @param work - the turn's work.
+   * @param cwd - the session's workspace, when it has one.
    */
-  offer(owner: string, route: LearnerRoute | undefined, work: CompletedWork): void {
+  offer(owner: string, route: LearnerRoute | undefined, work: CompletedWork, cwd?: string): void {
     void this.flush(work.sessionId)
     if (!this.qualifies(work)) return
     const resolved = this.config.provider !== undefined && this.config.model !== undefined
@@ -218,7 +266,7 @@ export class CapabilityLearner {
     if (resolved === undefined) return
     const timer = setTimeout(() => { void this.flush(work.sessionId) }, this.config.settleMs)
     timer.unref?.()
-    this.pending.set(work.sessionId, { owner, route: resolved, work, timer })
+    this.pending.set(work.sessionId, { owner, route: resolved, work, ...cwd === undefined ? {} : { cwd }, timer })
   }
 
   /**
@@ -283,7 +331,9 @@ export class CapabilityLearner {
     })
   }
 
-  private async learn({ owner, route, work }: Pending): Promise<void> {
+  private async learn(held: Pending): Promise<void> {
+    if (this.config.store === 'memory') return this.learnIntoMemory(held)
+    const { owner, route, work } = held
     const records = (await this.ctx.capabilities.list(owner)).filter(record => record.status !== 'retired')
     const requestWords = words(work.request)
     const related = [
@@ -296,7 +346,8 @@ export class CapabilityLearner {
         .map(item => item.record),
     ].slice(0, MAX_RELATED)
     const relatedFull = await Promise.all(related.map(record => this.ctx.capabilities.get(owner, record.name)))
-    const decision = await this.distill(route, work, records, relatedFull.filter(item => item !== undefined))
+    const existingLines = records.slice(0, MAX_EXISTING).map(record => `- ${record.name}: ${record.description}`).join('\n') || '(none)'
+    const decision = await this.distill(route, work, existingLines, relatedFull.filter(item => item !== undefined), SYSTEM)
     if (decision === undefined) return
     if (decision.decision === 'skip') {
       this.logger.info(`nothing reusable in ${work.sessionId} turn ${work.turn}`)
@@ -328,22 +379,58 @@ export class CapabilityLearner {
     this.logger.info(`learned capability ${saved.name} from ${work.sessionId} turn ${work.turn}`)
   }
 
-  private async distill(route: LearnerRoute, work: CompletedWork, records: readonly CapabilityRecord[], related: readonly { name: string; description: string; content: string }[]): Promise<Decision | undefined> {
+  /**
+   * Learn into long-term memory: look up the procedures memory already holds for the request, distill the work
+   * against them, and store the result as a memory. A procedure the work improves is replaced rather than kept
+   * beside its newer version.
+   * @param held - the work to learn from.
+   */
+  private async learnIntoMemory({ owner, route, work, cwd }: Pending): Promise<void> {
+    const signal = AbortSignal.timeout(this.config.timeoutMs)
+    const scope: MemoryScope = {
+      owner,
+      sessionId: work.sessionId as SessionId,
+      ...cwd === undefined ? {} : { cwd },
+      route: { provider: route.provider, model: route.model },
+    }
+    const known = await findLearnedProcedures(this.ctx, scope, work.request, signal)
+    const existing = known.slice(0, MAX_EXISTING).map(item => `- ${item.name}: ${item.summary}`).join('\n') || '(none)'
+    const related = known.filter(item => item.body !== undefined).map(item => ({ name: item.name, description: item.summary, content: item.body ?? '' }))
+    const decision = await this.distill(route, work, existing, related, MEMORY_SYSTEM)
+    if (decision === undefined) return
+    if (decision.decision === 'skip') {
+      this.logger.info(`nothing reusable in ${work.sessionId} turn ${work.turn}`)
+      return
+    }
+    const domain: MemoryDomain = decision.domain === 'project' && cwd === undefined ? 'experience' : decision.domain ?? 'experience'
+    const replaced = known.filter(item => item.name === decision.name).map(item => item.id)
+    const id = await storeLearnedProcedure(this.ctx, scope, {
+      name: decision.name,
+      description: decision.description,
+      content: decision.content,
+      summary: decision.summary ?? `${decision.description} ${decision.content}`,
+      domain,
+    }, signal)
+    await forgetLearnedProcedures(this.ctx, owner, replaced, signal)
+    this.logger.info(`learned procedure ${decision.name} into ${domain} memory ${id} from ${work.sessionId} turn ${work.turn}${replaced.length > 0 ? `, replacing ${replaced.join(', ')}` : ''}`)
+  }
+
+  private async distill(route: LearnerRoute, work: CompletedWork, existing: string, related: readonly { name: string; description: string; content: string }[], system: string): Promise<Decision | undefined> {
     const steps = work.steps.filter(step => !BOOKKEEPING.test(step.name)).map((step, index) =>
       `${index + 1}. ${step.name} ${step.input}\n   ${step.failed ? 'FAILED' : 'ok'}: ${step.output ?? '(no result)'}`)
     const { text, dropped } = boundTranscript({
       request: work.request,
       steps,
       answer: work.answer.slice(0, 4_000),
-      existing: records.slice(0, MAX_EXISTING).map(record => `- ${record.name}: ${record.description}`).join('\n') || '(none)',
-      related: related.map(capability => `<capability name="${capability.name}">\n${capability.description}\n\n${capability.content}\n</capability>`),
+      existing,
+      related: related.map(procedure => `<procedure name="${procedure.name}">\n${procedure.description}\n\n${procedure.content}\n</procedure>`),
     }, this.config.maxInputTokens)
     if (dropped > 0) this.logger.info(`learning from ${work.sessionId} turn ${work.turn} omitted ${dropped} older tool calls to stay within ${this.config.maxInputTokens} input tokens`)
     const assembler = new BlockAssembler()
     for await (const chunk of this.ctx.llm.stream({
       provider: route.provider,
       model: route.model,
-      system: SYSTEM,
+      system,
       messages: [createUserMessage({ content: [{ type: 'text', text }], source: { kind: 'plugin', plugin: 'tool-capability' } })],
       maxTokens: this.config.maxOutputTokens,
       signal: AbortSignal.timeout(this.config.timeoutMs),

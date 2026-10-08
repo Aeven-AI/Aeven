@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   AssistantBlock, AssistantMessageNode, ConvViewProps, MessageImageLoader, RenderMessageImages,
-  ToolCallBlock,
 } from '@aeven/client-ui-conversation/client'
 import type { InjectFace, PropsLocale, PropsRenderSlots } from '@aeven/client-ui-slots'
 import type { SnapshotStore } from '@aeven/client-store'
@@ -32,13 +31,6 @@ const EMPTY_TURN_IDS: ReadonlySet<number> = new Set()
 const EMPTY_RECORD_IDS: ReadonlySet<string> = new Set()
 const SEARCH_INDEX_THROTTLE_MS = 3_000
 const HISTORY_PAGE_NODES = 50
-
-function containsCall(calls: readonly ToolCallBlock[], callId: string): boolean {
-  for (const call of calls) {
-    if (call.callId === callId || containsCall(call.subCalls, callId)) return true
-  }
-  return false
-}
 
 function lastCellIndex(turns: readonly TrajectoryTurnModel[]): number {
   let last = 0
@@ -128,7 +120,7 @@ function addUsage(
 
 export function TrajectoryView({
   useSession, useTrajectory, useDuration, loadOlder, loadImage, setActualDuration,
-  viewRequest, completeViewRequest, renderSlot, t,
+  renderSlot, t,
 }: ConvViewProps
   & PropsRenderSlots<'conversation.trajectory.images'>
   & InjectFace<TrajectoryViewInjected>
@@ -196,17 +188,6 @@ export function TrajectoryView({
   const runningCalls = inspection.runningCalls
   const requests = inspection.requests
   const callSchemas = inspection.callSchemas
-  const inspectCallId = viewRequest?.view === 'trajectory' ? viewRequest.focus : null
-  const inspectNodeIndex = useMemo(() => inspectCallId === null
-    ? -1
-    : completeInspection.eventNodes.findIndex(node => node.kind === 'assistant'
-      ? node.blocks.some(block => block.kind === 'tool-call' && block.callId === inspectCallId)
-      : node.kind === 'tool-result' && containsCall([node], inspectCallId)),
-  [completeInspection.eventNodes, inspectCallId])
-  useEffect(() => {
-    if (inspectNodeIndex < 0 || inspectNodeIndex >= historyStartIndex) return
-    setHistoryNodeLimit(limit => limit + historyStartIndex - inspectNodeIndex)
-  }, [historyStartIndex, inspectNodeIndex])
   const requestNumbers = useMemo<readonly TrajectoryRequestNumber[]>(() => {
     const assistantsByStep = new Map<string, AssistantMessageNode>()
     for (const node of completeInspection.eventNodes) {
@@ -560,8 +541,6 @@ export function TrajectoryView({
           onToggleTurn={toggleTurn}
           collapsedAssistants={collapsedAssistants}
           onToggleAssistant={toggleAssistant}
-          inspectCallId={inspectCallId}
-          onInspectApplied={completeViewRequest}
         />
       </div>
     </div>

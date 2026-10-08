@@ -706,17 +706,18 @@
 - id: tool-web
   disabled: true
 
-# Image generation. The seam and its provider stay in the host composition;
-# only the model-facing tool is per-session, and it lives in the agent preset
-# beside the other tools. Aeven's own gateway is the one image provider: it
-# serves Aeven-1.0-Image-Flash and Aeven-1.0-Image-Pro over the signed-in
-# session, the same credential `llm-aeven` presents, so no vendor key is held
-# here.
+# Image and video generation. The seam and its providers stay in the host
+# composition; only the model-facing tools are per-session, and they live in
+# the agent preset beside the other tools. Aeven's own gateway is the one image
+# and video provider: it serves Aeven-1.0-Image-Flash, Aeven-1.0-Image-Pro,
+# Aeven-1.0-Video-Flash and Aeven-1.0-Video-Pro over the signed-in session, the same credential
+# `llm-aeven` presents, so no vendor key is held here.
 - insert:
     - id: media
       name: '@aeven/media'
       config:
         imageProvider: aeven
+        videoProvider: aeven
     - id: media-aeven
       name: '@aeven/media-aeven'
       config:

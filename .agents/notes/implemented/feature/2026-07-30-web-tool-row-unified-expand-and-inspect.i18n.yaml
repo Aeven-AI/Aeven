@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-07-30-web-tool-row-unified-expand-and-inspect.md
-2026-07-30-web-tool-row-unified-expand-and-inspect.md: f2650bf934a799c60d1f55f760b1d911da513d34
-2026-07-30-web-tool-row-unified-expand-and-inspect.zh.md: 3381563c7eeb38a926eb51feb66dfe9318ae9a87
+2026-07-30-web-tool-row-unified-expand-and-inspect.md: 077d4820ca7feb31e32e15462c14f6ff45e484fa
+2026-07-30-web-tool-row-unified-expand-and-inspect.zh.md: 1680105dd6780e2e91cbd32af28eb7db9ee39e19

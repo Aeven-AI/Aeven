@@ -1,7 +1,9 @@
 /** Trajectory toolbar: timeline and ledger fold controls. */
 
 import type { TranslateNS } from '@aeven/client-ui-slots'
-import { IconSearchOutline16 } from '@aeven/client-ui-primitives'
+import {
+  IconClockOutline16, IconLucideListChevronsDownUp, IconLucideListChevronsUpDown, IconLucideSearch,
+} from '@aeven/client-ui-primitives'
 import type { NS } from './locales.ts'
 import css from './TrajectoryToolbar.module.css'
 
@@ -60,16 +62,8 @@ export function TrajectoryToolbar({
             title={actualDuration ? t('toolbar.useEqualWidth') : t('toolbar.useActualDuration')}
             onClick={() => { onActualDurationChange(!actualDuration) }}
           >
-            <svg
-              className={css.toggleIcon}
-              viewBox="0 0 16 16"
-              fill="none"
-              aria-hidden="true"
-            >
-              <circle cx="8" cy="8" r="5.25" />
-              <path d="M8 4.75V8l2.25 1.5" />
-            </svg>
-            {t('toolbar.duration')}
+            <IconClockOutline16 size={16} className={css.toggleIcon} />
+            <span className={css.toggleLabel}>{t('toolbar.duration')}</span>
           </button>
           <button
             type="button"
@@ -92,10 +86,10 @@ export function TrajectoryToolbar({
             title={allTurnsCollapsed ? t('toolbar.expandTurns') : t('toolbar.collapseTurns')}
             onClick={onToggleAllTurns}
           >
-            <span className={css.actionIcon} aria-hidden="true">
-              {allTurnsCollapsed ? '⊞' : '⊟'}
-            </span>
-            {t('toolbar.turns')}
+            {allTurnsCollapsed
+              ? <IconLucideListChevronsUpDown className={css.actionIcon} />
+              : <IconLucideListChevronsDownUp className={css.actionIcon} />}
+            <span className={css.toggleLabel}>{t('toolbar.turns')}</span>
           </button>
           <button
             type="button"
@@ -105,14 +99,14 @@ export function TrajectoryToolbar({
             title={allAssistantsCollapsed ? t('toolbar.expandCalls') : t('toolbar.collapseCalls')}
             onClick={onToggleAllAssistants}
           >
-            <span className={css.actionIcon} aria-hidden="true">
-              {allAssistantsCollapsed ? '⊞' : '⊟'}
-            </span>
-            {t('toolbar.calls')}
+            {allAssistantsCollapsed
+              ? <IconLucideListChevronsUpDown className={css.actionIcon} />
+              : <IconLucideListChevronsDownUp className={css.actionIcon} />}
+            <span className={css.toggleLabel}>{t('toolbar.calls')}</span>
           </button>
         </div>
-        <div className={css.search}>
-          <IconSearchOutline16 size={11} className={css.searchIcon} />
+        <label className={css.search}>
+          <IconLucideSearch className={css.searchIcon} />
           <input
             type="search"
             className={css.searchInput}
@@ -121,7 +115,7 @@ export function TrajectoryToolbar({
             value={searchQuery}
             onChange={(event) => { onSearchQueryChange(event.currentTarget.value) }}
           />
-        </div>
+        </label>
       </div>
     </div>
   )

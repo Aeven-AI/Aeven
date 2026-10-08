@@ -623,7 +623,7 @@ export class MemosMemory implements MemoryProvider {
         startedAt: now,
         endedAt: now,
         endReason: 'completed',
-      }, `${scope.sessionId}:remember:${now}`, request.domain === 'project' && scope.cwd !== undefined ? 'project' : 'person')
+      }, `${scope.sessionId}:remember:${now}`, rememberedDomain(request.domain, scope.cwd))
       // Recorded inside the queued write, so the capture of the turn in progress, queued after it, claims it.
       state.remembered.push(written)
       return written
@@ -735,6 +735,18 @@ function toRecord(trace: TraceDTO): MemoryRecord {
     sessionId: brandString<SessionId>(trace.sessionId),
     episodeId: brandString<MemoryEpisodeId>(trace.episodeId),
   }
+}
+
+/**
+ * Domain a remembered memory is filed under. `world` and `experience` are kept as asked. A project memory needs a
+ * workspace; without one, or with no domain stated, it is about the user.
+ * @param domain - requested domain.
+ * @param cwd - the session's workspace, when it has one.
+ * @returns the domain to store.
+ */
+function rememberedDomain(domain: TurnDomain | undefined, cwd: string | undefined): TurnDomain {
+  if (domain === 'world' || domain === 'experience') return domain
+  return domain === 'project' && cwd !== undefined ? 'project' : 'person'
 }
 
 function toSkill(skill: SkillDTO): MemorySkill {

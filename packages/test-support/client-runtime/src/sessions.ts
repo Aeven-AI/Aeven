@@ -222,7 +222,7 @@ export class TestSessions implements ISessions {
   /** Calls observed on the service-level face, newest last. */
   readonly calls: {
     method: 'create' | 'open' | 'openSubagent' | 'setSubagentCatalogOpen' | 'refreshSubagents'
-      | 'clear' | 'refresh' | 'search' | 'fork'
+      | 'clear' | 'refresh' | 'search' | 'fork' | 'move'
     args: unknown[]
   }[] = []
 
@@ -539,6 +539,11 @@ export class TestSessions implements ISessions {
    */
   fork(opts: { sessionId: SessionId; atSeq?: number; increaseTitle?: boolean }): Promise<SessionId> {
     this.calls.push({ method: 'fork', args: [opts] })
+    return Promise.resolve(opts.sessionId)
+  }
+
+  move(opts: Parameters<ISessions['move']>[0]): Promise<SessionId> {
+    this.calls.push({ method: 'move', args: [opts] })
     return Promise.resolve(opts.sessionId)
   }
 

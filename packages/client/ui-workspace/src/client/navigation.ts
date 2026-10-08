@@ -12,10 +12,24 @@ import type {
 } from '@aeven/api-workspace-controller/client'
 import type { SessionId } from '@aeven/session/types'
 import { randomUUID } from '@aeven/util-crypto'
-import type { ObservableSnapshot } from '@aeven/client-store'
+import { createSnapshotStore, type ObservableSnapshot } from '@aeven/client-store'
 import { sessionPathOf, type SessionUrlNavigation } from './session-url.ts'
 
 type InitialNavigation = 'waiting' | 'connecting' | 'done'
+
+/** One Session rename the browsing region has been asked to open. */
+export interface SessionRenameRequest {
+  /** Session the dialog renames. */
+  readonly sessionId: SessionId
+  /** Title the dialog opens with. */
+  readonly currentTitle: string
+}
+
+/** One Workspace a Session can move into. */
+export interface SessionMoveTarget {
+  readonly workspaceId: WorkspaceId
+  readonly title: string
+}
 
 /** Workspace archive and directory operations consumed by Client UI domains. */
 export interface UiWorkspace {
@@ -69,10 +83,39 @@ export interface UiWorkspace {
   /** The start address the address bar shows, or undefined on any other address. */
   readonly startAddress: ObservableSnapshot<string | undefined>
   /**
+   * Ask the browsing region to open its Session rename dialog.
+   *
+   * The dialog belongs to the region that lists Sessions: it holds the draft,
+   * the empty-title rule, and the rename call. A surface outside that region —
+   * the conversation band's options control — asks for it rather than growing
+   * a second dialog.
+   * @param sessionId - Session to rename.
+   * @param currentTitle - title the dialog opens with.
+   */
+  requestSessionRename(sessionId: SessionId, currentTitle: string): void
+  /** Rename request the browsing region has not opened yet, or null. */
+  readonly sessionRenameRequest: ObservableSnapshot<SessionRenameRequest | null>
+  /** Clear the pending rename request once its dialog is open. */
+  clearSessionRenameRequest(): void
+  /**
    * Archive a Session and clear it when it is the current selection.
    * @param sessionId - Session to archive.
    */
   archiveSession(sessionId: SessionId): Promise<void>
+  /**
+   * Workspaces a Session can move into: every listed Workspace that does not
+   * already account for it, in list order. The source is stable per Session.
+   * @param sessionId - Session that would move.
+   * @returns the observable target list.
+   */
+  moveTargets(sessionId: SessionId): ObservableSnapshot<readonly SessionMoveTarget[]>
+  /**
+   * Move a Session into another Workspace and open the Session that replaces it.
+   * @param sessionId - Session to move; the Host deletes it once the move lands.
+   * @param workspaceId - target Workspace.
+   * @returns the replacing Session.
+   */
+  moveSession(sessionId: SessionId, workspaceId: WorkspaceId): Promise<SessionId>
   /**
    * Open the Host-native directory picker.
    * @returns the selected directory, or null when cancelled.
@@ -160,6 +203,17 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   /** Whether the start address's blank Session is still being created. */
   private startPending = false
   private readonly startListeners = new Set<() => void>()
+
+  /** Pending rename request; the browsing region clears it when its dialog opens. */
+  readonly sessionRenameRequest = createSnapshotStore<SessionRenameRequest | null>(null)
+
+  requestSessionRename(sessionId: SessionId, currentTitle: string): void {
+    this.sessionRenameRequest.set({ sessionId, currentTitle })
+  }
+
+  clearSessionRenameRequest(): void {
+    this.sessionRenameRequest.set(null)
+  }
 
   readonly startAddress: ObservableSnapshot<string | undefined> = {
     getSnapshot: () => this.currentStart,
@@ -369,6 +423,38 @@ class UiWorkspaceService extends Service implements UiWorkspace {
 
   async archiveSession(sessionId: SessionId): Promise<void> {
     await this.workspaces.archiveSession(sessionId)
+  }
+
+  private readonly moveTargetSources = new Map<SessionId, ObservableSnapshot<readonly SessionMoveTarget[]>>()
+
+  moveTargets(sessionId: SessionId): ObservableSnapshot<readonly SessionMoveTarget[]> {
+    const existing = this.moveTargetSources.get(sessionId)
+    if (existing !== undefined) return existing
+    let items: readonly WorkspaceView[] | undefined
+    let targets: readonly SessionMoveTarget[] = []
+    const source: ObservableSnapshot<readonly SessionMoveTarget[]> = {
+      getSnapshot: () => {
+        const next = this.workspaces.list.getSnapshot().items
+        if (next !== items) {
+          items = next
+          targets = next
+            .filter(item => !item.sessionIds.includes(sessionId))
+            .map(item => ({ workspaceId: item.workspaceId, title: item.title }))
+        }
+        return targets
+      },
+      subscribe: listener => this.workspaces.list.subscribe(listener),
+    }
+    this.moveTargetSources.set(sessionId, source)
+    return source
+  }
+
+  async moveSession(sessionId: SessionId, workspaceId: WorkspaceId): Promise<SessionId> {
+    const movedId = await this.sessions.move({ sessionId, workspaceId })
+    this.moveTargetSources.delete(sessionId)
+    this.created.add(movedId)
+    this.sessions.open(movedId)
+    return movedId
   }
 
   async pickDirectory(): Promise<string | null> {

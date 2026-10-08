@@ -1,9 +1,17 @@
+/* A white card on the canvas at the chat's content width, like the composer
+   card below it. */
 .root {
   position: relative;
   z-index: 1;
   isolation: isolate;
   flex: none;
-  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
+  box-sizing: border-box;
+  width: var(--avn-chat-content-width);
+  max-width: 100%;
+  margin: 0 auto 8px;
+  padding: 16px;
+  border-radius: var(--dsw-aeven-radius-surface);
+  background: var(--dsw-alias-bg-layer-1);
   user-select: none;
 }
 
@@ -13,29 +21,24 @@
 
 .plot {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr);
+  grid-template-columns: 52px minmax(0, 1fr);
   height: 50px;
   overflow: hidden;
-  background: var(--dsw-alias-bg-layer-2);
 }
 
 .labels {
   position: relative;
-  border-right: 0.5px solid var(--dsw-alias-border-l1);
   color: var(--dsw-alias-label-caption);
-  font: var(--dsw-font-xs-14);
-  font-size: 10px;
+  font: var(--dsw-font-xxs-12);
   line-height: 1;
 }
 
 .labels span {
   position: absolute;
-  right: 3px;
+  left: 0;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
   height: 8px;
-  text-align: right;
 }
 
 .labels span:nth-child(1) {
@@ -78,11 +81,11 @@
   outline: none;
   background: linear-gradient(
     to right,
-    var(--dsw-alias-bg-layer-2) 0,
-    var(--dsw-alias-bg-layer-2) 38%,
+    var(--dsw-alias-bg-layer-1) 0,
+    var(--dsw-alias-bg-layer-1) 38%,
     transparent 100%
   );
-  color: var(--dsw-alias-label-secondary);
+  color: var(--dsw-alias-label-caption);
   font: var(--dsw-font-xs-14);
   line-height: 1;
   opacity: 0.72;
@@ -111,8 +114,9 @@
 }
 
 .track:focus-visible {
-  outline: 1px solid var(--dsw-alias-state-business-primary);
-  outline-offset: -1px;
+  border-radius: var(--dsw-aeven-radius-tight);
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: -2px;
 }
 
 .lanes {
@@ -146,8 +150,8 @@
   top: 0;
   bottom: 0;
   left: var(--trajectory-turn-left);
-  width: 0.5px;
-  background: var(--dsw-alias-border-l2);
+  width: 1px;
+  background: var(--dsw-alias-border-l1);
 }
 
 .span {
@@ -164,22 +168,25 @@
   );
   height: 8px;
   min-width: 2px;
-  border-radius: 1px;
-  background: var(--dsw-alias-label-secondary);
-  opacity: 0.78;
+  border-radius: 4px;
+  background: var(--dsw-alias-label-caption);
+  opacity: 0.6;
 }
 
 .span[data-timeline-span='user'] {
-  background: var(--dsw-alias-state-business-primary);
+  background: var(--dsw-alias-label-primary);
+  opacity: 1;
 }
 
 .span[data-timeline-span='context'] {
-  background: var(--dsw-blend-success-label);
+  background: var(--dsw-alias-label-caption);
 }
 
+/* Model spans: time to first token in a light grey, decoding in the label
+   colour, so a lane reads as waiting then writing. */
 .span[data-timeline-span='message'] {
-  --trajectory-assistant-decoding-color: var(--dsw-blend-brand-error);
-  --trajectory-assistant-ttft-color: var(--dsw-blend-decoding-ttft);
+  --trajectory-assistant-decoding-color: var(--dsw-alias-label-primary);
+  --trajectory-assistant-ttft-color: color-mix(in srgb, var(--dsw-alias-label-caption) 45%, transparent);
 
   background: var(--trajectory-assistant-decoding-color);
   opacity: 1;
@@ -197,7 +204,7 @@
 
 .span[data-timeline-span='tool'],
 .span[data-timeline-span='subtool'] {
-  background: var(--dsw-alias-state-warn-label);
+  background: var(--dsw-alias-label-caption);
   opacity: 1;
 }
 
@@ -218,15 +225,15 @@
   z-index: 1;
   opacity: 1;
   box-shadow:
-    0 0 0 1px var(--dsw-alias-bg-layer-2),
-    0 0 0 2px var(--dsw-tint-business-primary-80);
+    0 0 0 1px var(--dsw-alias-bg-layer-1),
+    0 0 0 2px var(--dsw-alias-label-caption);
 }
 
 .span[data-current='true'] {
   z-index: 1;
   opacity: 1;
   box-shadow:
-    0 0 0 1px var(--dsw-alias-bg-layer-2),
+    0 0 0 1px var(--dsw-alias-bg-layer-1),
     0 0 0 2px var(--dsw-alias-state-business-primary);
 }
 

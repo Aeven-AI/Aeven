@@ -156,11 +156,14 @@ function WidthHandle(props: {
   // The strips sit outside the scroller, so the wheel over them would scroll
   // nothing. It is handed to the transcript's scroller: re-dispatched first so
   // the scroller's own wheel listeners see the reader's intent, then applied,
-  // because a synthetic wheel event never scrolls by itself.
+  // because a synthetic wheel event never scrolls by itself. A View with a
+  // composer overlay scrolls inside itself and marks that scroller
+  // `data-conversation-view-scroll`; it wins over the non-scrolling body.
   const onWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
     // The handle's frame is a child of the conversation root, beside the scroller.
-    const scroller = e.currentTarget.parentElement?.parentElement
-      ?.querySelector<HTMLElement>('[data-conversation-scroll]')
+    const root = e.currentTarget.parentElement?.parentElement
+    const scroller = root?.querySelector<HTMLElement>('[data-conversation-view-scroll]')
+      ?? root?.querySelector<HTMLElement>('[data-conversation-scroll]')
     if (scroller === null || scroller === undefined) return
     const unit = e.deltaMode === WheelEvent.DOM_DELTA_LINE
       ? 16

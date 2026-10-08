@@ -1,5 +1,5 @@
 /**
- * The `/image-model` picker: a popupSelect DECORATION hung on the host
+ * The `/image-model` and `/video-model` pickers: popupSelect DECORATIONS hung on the host
  * command, so the surfaces that ask which image model to generate with show
  * one searchable list — the stored choice marked active, the same card the
  * `/model` line opens. The decoration owns the bare invocation only: the host
@@ -30,13 +30,14 @@ import type {} from '@aeven/client-ui-renderer/client'
 import type {} from '@aeven/client-ui-settings/client'
 
 /**
- * Settings namespace the media tool owns. Its document holds the selectable
- * `choices`, the `listedProviders`, and the stored `provider`/`model` pair.
+ * Settings namespaces the media tool owns, one per kind. Each document holds
+ * the selectable `choices` and the stored `provider`/`model` pair; the image
+ * document also holds the `listedProviders`.
  */
-const MEDIA_SETTINGS_NAMESPACE = 'media'
+const SETTINGS_NAMESPACE = { image: 'media', video: 'media-video' } as const
 
-/** The host command this picker decorates. */
-const COMMAND = 'image-model'
+/** What one picker selects a model for. */
+type MediaKind = keyof typeof SETTINGS_NAMESPACE
 
 /** One selectable image model. */
 interface OfferableModel {
@@ -130,12 +131,33 @@ function rowsOf(models: readonly OfferableModel[], current: MediaSettings): Sele
  * @returns the decoration the command surface hangs on the host command.
  */
 export function imageModelDecoration(ctx: ClientContext): CommandDecoration {
-  const settings = ctx.settingsScope.bind<MediaSettings>({ namespace: MEDIA_SETTINGS_NAMESPACE })
+  return modelDecoration(ctx, 'image')
+}
+
+/**
+ * The `/video-model` decoration, offering the configured video models.
+ * @param ctx - client root context, carrying the settings scope and the session faces.
+ * @returns the decoration the command surface hangs on the host command.
+ */
+export function videoModelDecoration(ctx: ClientContext): CommandDecoration {
+  return modelDecoration(ctx, 'video')
+}
+
+/**
+ * One kind's model decoration. Only images read the seam's catalog, because
+ * only the image document lists providers whose models come and go.
+ * @param ctx - client root context.
+ * @param kind - what the picked model generates.
+ * @returns the decoration for `/<kind>-model`.
+ */
+function modelDecoration(ctx: ClientContext, kind: MediaKind): CommandDecoration {
+  const command = `${kind}-model`
+  const settings = ctx.settingsScope.bind<MediaSettings>({ namespace: SETTINGS_NAMESPACE[kind] })
   const sessions = ctx.sessions
   const sessionFor = (session: ClientSessionContext): SessionFace | undefined =>
     sessions.binding(session.sessionId)?.session
   return {
-    name: COMMAND,
+    name: command,
     // The decoration holds exactly while this client can read the deployment's
     // image-model settings; where it cannot — a host that exposes no such
     // document — the bare line falls through to the host command instead of
@@ -148,7 +170,8 @@ export function imageModelDecoration(ctx: ClientContext): CommandDecoration {
         // open waits for that answer rather than reporting a host without one.
         await ctx.settingsScope.describe().ensure()
         const value = settings.getSnapshot().value
-        if (value === undefined) throw new Error('the image-model settings are not available on this host')
+        if (value === undefined) throw new Error(`the ${kind}-model settings are not available on this host`)
+        if (kind === 'video') return rowsOf(offeredModels(value, []), value)
         const response = await ctx.remote.session.imageModelCatalog()
         if (!response.ok) {
           throw new Error(`image model catalog failed: ${response.error.code}: ${response.error.message}`)
@@ -158,9 +181,9 @@ export function imageModelDecoration(ctx: ClientContext): CommandDecoration {
       onSelect: async (option, session) => {
         const live = sessionFor(session)
         if (live === undefined) throw new Error('this session is not materialized yet')
-        const result = await live.command(`/${COMMAND} ${option.id}`)
-        if (!result.ok) throw new Error(`image model switch failed: ${result.error.code}: ${result.error.message}`)
-        if (!result.value.matched) throw new Error('this host serves no /image-model command')
+        const result = await live.command(`/${command} ${option.id}`)
+        if (!result.ok) throw new Error(`${kind} model switch failed: ${result.error.code}: ${result.error.message}`)
+        if (!result.value.matched) throw new Error(`this host serves no /${command} command`)
       },
     },
   }

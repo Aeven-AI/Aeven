@@ -10,7 +10,7 @@ Connector writes need readable content before consent. Repeated approval must no
 
 ## Decision
 
-Approval previews derive from the correlated logged tool call, including nested calls. They show destination and message text before remaining arguments; tool arguments are not copied into approval requests.
+Approval previews derive from the correlated logged tool call, including nested calls. They show destination and message text before remaining arguments; tool arguments are not copied into approval requests. The preview reads in the takeover's own font — one size, line height and family across the card — with field labels set apart by weight alone at 500, never the browser's bold. Only a correlated command keeps the code family.
 
 Requesters offer an account-and-operation scope. Connector scopes include the account-specific tool name; Google Workspace raw scopes also include service and resource-method path. The approval service commits the scope and original session ID in the decided event and returns the existing one-shot outcome to consumers. Cancellation and the never policy take precedence. Forks cannot reuse grants recorded for another session ID.
 
