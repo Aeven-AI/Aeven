@@ -33,7 +33,7 @@ kind: "package-reference"
 
 ### 已发送附件与画廊
 
-带附件的用户消息（`layout: 'tray'`）渲染为一张卡片：上方是图块网格，下方是文本，每个图块使卡片最小宽度增加栏宽的五分之一，最多五个。提交回显用本地预览显示同样的图块。助手、工具与 Trajectory 图片（`layout: 'gallery'`）保留按数量定尺寸的画廊：单图按长边 240px，多图为 64px 方块。画廊以选中图片铺满视口，提供信息浮层（类型、大小、名称）、下载与关闭，多于一张时提供上一张／下一张；Escape 关闭，方向键循环切换。
+带附件的用户消息（`layout: 'tray'`）渲染为一张卡片：上方是图块网格，下方是文本，每个图块使卡片最小宽度增加栏宽的五分之一，最多五个。提交回显用本地预览显示同样的图块。助手、工具与 Trajectory 图片（`layout: 'gallery'`）保留按数量定尺寸的画廊：单图按长边 240px，多图为 64px 方块。画廊以选中图片铺满视口，提供信息浮层（类型、大小、名称）、下载与关闭，多于一张时提供上一张／下一张；Escape 关闭，方向键循环切换。图片图块显示放大指针，并在其所属 Turn 的全部图片上打开该画廊；信息中的名称取存储的文件名，附件未存名称时则取由摘要派生的名称。
 
 ### 拖放遮罩
 
@@ -55,6 +55,7 @@ kind: "package-reference"
 | [`src/UploadTray.tsx`](src/UploadTray.tsx) | composer 与已发送消息共用的可换行图片与文件图块网格 |
 | [`src/client/MessageImages.tsx`](src/client/MessageImages.tsx) | 按持有方的 `layout` 渲染已发送消息托盘或按数量定尺寸的画廊 |
 | [`src/MessageImage.tsx`](src/MessageImage.tsx) | 单图尺寸、加载／重试、点击打开；本地提交回显预览直接显示其 object URL |
+| [`src/message-image-entry.ts`](src/message-image-entry.ts) | 托盘与画廊共用的原图预览条目元数据——显示名称、媒体类型、字节大小 |
 | [`ImageLightbox`](../ui-primitives/src/ImageLightbox.tsx)（ui-primitives） | 带信息、下载与上一张／下一张的文档级图片画廊 |
 | [`src/DropOverlay.tsx`](src/DropOverlay.tsx) | 不接收指针事件的拖拽邀请 portal |
 

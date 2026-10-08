@@ -42,11 +42,37 @@ export interface LightboxImage {
   bytes?: number | undefined
 }
 
-/** Download name: the image's own name, else the URL's last path segment. */
+/** Metadata one source's own bytes report, for the fields its caller did not supply. */
+interface SourceMetadata {
+  readonly mediaType?: string | undefined
+  readonly bytes?: number | undefined
+}
+
+/**
+ * File name a source URL names: the `path` this app's file route carries, else
+ * the URL's last path segment. A source that names no file — an opaque `blob:`
+ * URL, or a URL ending in a bare origin — reports none rather than an invented
+ * name.
+ *
+ * @param src - the URL the image loads from.
+ * @returns the file name, or undefined.
+ */
+export function imageFileName(src: string): string | undefined {
+  let url: URL
+  try {
+    url = new URL(src, document.baseURI)
+  } catch {
+    // A source the URL parser refuses names no file.
+    return undefined
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return undefined
+  return (url.searchParams.get('path') ?? url.pathname).split('/').filter(Boolean).pop()
+}
+
+/** Download name: the image's own name, else the name its URL carries. */
 function downloadName(image: LightboxImage): string {
   if (image.name !== undefined && image.name !== '') return image.name
-  const segment = image.src.split(/[?#]/)[0]?.split('/').pop()
-  return segment === undefined || segment === '' ? 'image' : segment
+  return imageFileName(image.src) ?? 'image'
 }
 
 /** Largest magnification the gallery offers, and the lowest (never below fit). */
@@ -125,10 +151,13 @@ export function ImageLightbox({ images, index: startIndex, labels, onClose }: {
   const [closing, setClosing] = useState(false)
   const [infoOpen, setInfoOpen] = useState(false)
   const [loaded, setLoaded] = useState<ReadonlySet<string>>(() => new Set())
+  const [sourceMetadata, setSourceMetadata] = useState<ReadonlyMap<string, SourceMetadata>>(() => new Map())
   const closeRef = useRef<HTMLButtonElement | null>(null)
   const restoreRef = useRef<HTMLElement | null>(null)
   const infoRef = useRef<HTMLDivElement | null>(null)
   const galleryRef = useRef<HTMLDivElement | null>(null)
+  /** Sources whose metadata read is in flight, so a re-render does not start a second one. */
+  const metadataPending = useRef(new Set<string>())
   /** The image's own transform, held outside React so a pinch does not re-render per frame. */
   const view = useRef<ViewTransform>({ scale: MIN_ZOOM, x: 0, y: 0 })
   const selected = images[Math.min(index, count - 1)]
@@ -164,6 +193,30 @@ export function ImageLightbox({ images, index: startIndex, labels, onClose }: {
     document.addEventListener('pointerdown', onPointerDown)
     return () => { document.removeEventListener('pointerdown', onPointerDown) }
   }, [infoOpen])
+
+  // The info popover reports what its caller knew and resolves the rest from
+  // the source's own bytes: the image is already on screen, so a same-origin
+  // read of it reports the media type and the exact size. An unreadable source
+  // (a cross-origin image, an object URL) keeps the caller's own fields.
+  useEffect(() => {
+    if (!infoOpen || selected === undefined) return
+    const { src, mediaType, bytes } = selected
+    if ((mediaType !== undefined && bytes !== undefined) || sourceMetadata.has(src) || metadataPending.current.has(src)) return
+    metadataPending.current.add(src)
+    let live = true
+    void fetch(src, { credentials: 'include' }).then(async (response) => {
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const blob = await response.blob()
+      if (!live) return
+      setSourceMetadata(previous => new Map(previous).set(src, {
+        mediaType: blob.type === '' ? undefined : blob.type,
+        bytes: blob.size,
+      }))
+    }).catch(() => {
+      // The popover keeps reporting `unknown` for a source whose bytes it cannot read.
+    }).finally(() => { metadataPending.current.delete(src) })
+    return () => { live = false }
+  }, [infoOpen, selected, sourceMetadata])
 
   // Pinch, wheel, drag, and double-click magnify the IMAGE and never the layout:
   // an unprevented trackpad pinch is the browser's own ctrl+wheel page zoom, so
@@ -329,7 +382,11 @@ export function ImageLightbox({ images, index: startIndex, labels, onClose }: {
   }, [index])
 
   if (selected === undefined) return null
-  const size = selected.bytes === undefined ? labels.unknown : labels.megabytes((selected.bytes / 1_000_000).toFixed(2))
+  const resolved = sourceMetadata.get(selected.src)
+  const name = selected.name ?? imageFileName(selected.src)
+  const mediaType = selected.mediaType ?? resolved?.mediaType
+  const bytes = selected.bytes ?? resolved?.bytes
+  const size = bytes === undefined ? labels.unknown : labels.megabytes((bytes / 1_000_000).toFixed(2))
 
   return createPortal(
     <div
@@ -379,7 +436,7 @@ export function ImageLightbox({ images, index: startIndex, labels, onClose }: {
           <div className={css.info} role="status">
             <span className={css.infoItem}>
               <span className={css.infoCaption}>{labels.infoType}</span>
-              <span className={css.infoValue}>{selected.mediaType ?? labels.unknown}</span>
+              <span className={css.infoValue}>{mediaType ?? labels.unknown}</span>
             </span>
             <span className={css.infoItem}>
               <span className={css.infoCaption}>{labels.infoSize}</span>
@@ -387,7 +444,7 @@ export function ImageLightbox({ images, index: startIndex, labels, onClose }: {
             </span>
             <span className={css.infoItem}>
               <span className={css.infoCaption}>{labels.infoName}</span>
-              <span className={css.infoValue}>{selected.name ?? labels.unknown}</span>
+              <span className={css.infoValue}>{name ?? labels.unknown}</span>
             </span>
           </div>
         )}

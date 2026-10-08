@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render } from '@testing-library/react'
+import { cleanup, fireEvent, render, waitFor } from '@testing-library/react'
 import { ImageLightbox } from '@aeven/client-ui-primitives'
 import type { ImageLightboxLabels } from '@aeven/client-ui-primitives'
 
@@ -94,5 +94,93 @@ describe('ImageLightbox', () => {
     expect(view.getByRole('status').textContent).toBe('图片类型：未知文件大小：未知文件名：未知')
     fireEvent.pointerDown(document.body)
     expect(view.queryByRole('status')).toBeNull()
+  })
+
+  it('reads type and size from the source for a caller that supplied neither, once per source', async () => {
+    const images = [{ src: 'http://localhost:3000/api/file?path=%2Ftmp%2Fchart.webp', alt: '图' }]
+    let release: ((response: Response) => void) | undefined
+    const fetchMock = vi.fn(() => new Promise<Response>((resolve) => { release = resolve }))
+    vi.stubGlobal('fetch', fetchMock)
+    try {
+      const view = render(<ImageLightbox images={images} index={0} labels={labels} onClose={vi.fn()} />)
+      fireEvent.click(view.getByRole('button', { name: '图片信息' }))
+      // A re-render while the read is still in flight must not start a second one.
+      view.rerender(<ImageLightbox images={[...images]} index={0} labels={labels} onClose={vi.fn()} />)
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      release?.(new Response(new Blob([new Uint8Array(512_000)], { type: 'image/webp' })))
+      await waitFor(() => {
+        expect(view.getByRole('status').textContent).toBe('图片类型：image/webp文件大小：0.51 MB文件名：chart.webp')
+      })
+      view.rerender(<ImageLightbox images={[...images]} index={0} labels={labels} onClose={vi.fn()} />)
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('keeps unknown for a source whose bytes it cannot read or that reports no type', async () => {
+    const blocked = vi.fn(async () => { throw new Error('blocked') })
+    vi.stubGlobal('fetch', blocked)
+    try {
+      const view = render(<ImageLightbox images={[{ src: 'http://localhost:3000/', alt: '图' }]} index={0} labels={labels} onClose={vi.fn()} />)
+      fireEvent.click(view.getByRole('button', { name: '图片信息' }))
+      await waitFor(() => { expect(blocked).toHaveBeenCalledTimes(1) })
+      expect(view.getByRole('status').textContent).toBe('图片类型：未知文件大小：未知文件名：未知')
+    } finally {
+      vi.unstubAllGlobals()
+    }
+
+    // A failing response and an untyped payload each leave the unreadable field unknown.
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 404 })))
+    try {
+      const view = render(<ImageLightbox images={[{ src: 'http://localhost:3000/failed', alt: '图' }]} index={0} labels={labels} onClose={vi.fn()} />)
+      fireEvent.click(view.getByRole('button', { name: '图片信息' }))
+      await waitFor(() => { expect(view.getByRole('status').textContent).toContain('文件大小：未知') })
+    } finally {
+      vi.unstubAllGlobals()
+    }
+
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(new Blob([new Uint8Array(2048)]))))
+    try {
+      const view = render(<ImageLightbox images={[{ src: 'http://localhost:3000/untyped', alt: '图' }]} index={0} labels={labels} onClose={vi.fn()} />)
+      fireEvent.click(view.getByRole('button', { name: '图片信息' }))
+      await waitFor(() => {
+        expect(view.getByRole('status').textContent).toBe('图片类型：未知文件大小：0.00 MB文件名：untyped')
+      })
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('reads no source whose caller reported both type and size', () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    try {
+      const view = render(<ImageLightbox images={two} index={0} labels={labels} onClose={vi.fn()} />)
+      fireEvent.click(view.getByRole('button', { name: '图片信息' }))
+      expect(view.getByRole('status').textContent).toBe('图片类型：image/png文件大小：0.18 MB文件名：first.png')
+      expect(fetchMock).not.toHaveBeenCalled()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('renders nothing without images and drops a metadata read that settles after unmount', async () => {
+    const empty = render(<ImageLightbox images={[]} index={0} labels={labels} onClose={vi.fn()} />)
+    expect(empty.container.firstChild).toBeNull()
+    empty.unmount()
+
+    let release: ((response: Response) => void) | undefined
+    const fetchMock = vi.fn(() => new Promise<Response>((resolve) => { release = resolve }))
+    vi.stubGlobal('fetch', fetchMock)
+    try {
+      const view = render(<ImageLightbox images={[{ src: 'http://localhost:3000/late.png', alt: '图' }]} index={0} labels={labels} onClose={vi.fn()} />)
+      fireEvent.click(view.getByRole('button', { name: '图片信息' }))
+      view.unmount()
+      release?.(new Response(new Blob([new Uint8Array(8)], { type: 'image/png' })))
+      await waitFor(() => { expect(fetchMock).toHaveBeenCalledTimes(1) })
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 })

@@ -634,20 +634,6 @@ export const InputBar = memo(function InputBar({
             {sessionId === undefined ? null : (
               <div className={css.activity}>{renderSlot('conversation.input.activity', { locked, onActiveChange: setActivity })}</div>
             )}
-            {interruptible && (
-              <Tooltip label={t('input.stop')} side="top-end">
-                <button
-                  type="button"
-                  className={css.primary}
-                  aria-label={t('input.stop')}
-                  disabled={stop === undefined}
-                  onMouseDown={keepFocus}
-                  onClick={stop}
-                >
-                  <IconStopFill20 />
-                </button>
-              </Tooltip>
-            )}
             <Tooltip label={primaryLabel} side="top-end">
               <button
                 type="button"
@@ -664,6 +650,21 @@ export const InputBar = memo(function InputBar({
                 )}
               </button>
             </Tooltip>
+            {/* The independent Stop holds the trailing seat every other running session gives Stop. */}
+            {interruptible && (
+              <Tooltip label={t('input.stop')} side="top-end">
+                <button
+                  type="button"
+                  className={css.primary}
+                  aria-label={t('input.stop')}
+                  disabled={stop === undefined}
+                  onMouseDown={keepFocus}
+                  onClick={stop}
+                >
+                  <IconStopFill20 />
+                </button>
+              </Tooltip>
+            )}
           </div>
         </div>
       </div>

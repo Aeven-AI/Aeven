@@ -71,6 +71,36 @@ export interface MicrosoftConnectorSettings {
   tenantId: string
 }
 
+/** One installable skill from the vendored catalog. */
+export interface CatalogSkillView {
+  /** Name the skill installs under, which is also the name the library then lists. */
+  name: string
+  /** Upstream name, which may not be kebab-case. */
+  displayName: string
+  category: string
+  description: string
+  keywords: string[]
+  /** Upstream install count when the catalog was vendored; Settings sorts on it. */
+  downloads: number
+  author: string
+  path: string
+  bytes: number
+  /** Reviewed judgement against the harness native surface; absent until curation covers the skill. */
+  verdict?: string
+  /** Reviewed value 1-5; Settings shows the recommended set by default. */
+  value?: number
+}
+
+/** The vendored catalog Settings browses and installs from. */
+export interface SkillCatalogView {
+  /** Upstream commit the catalog was vendored from. */
+  commit: string
+  /** Date that vendoring ran. */
+  synced: string
+  categories: { name: string; skills: number }[]
+  skills: CatalogSkillView[]
+}
+
 /** Current signed-in account's skills and connectors. */
 export interface AccountIntegrationsView {
   /** The account's own skill library: imported bundles and installed skills, minus connector-owned names. */

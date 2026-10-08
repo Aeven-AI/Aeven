@@ -122,6 +122,11 @@
     # Every connector credential — OAuth client secrets and refresh tokens, the
     # Discord bot token, the Telegram application identifiers — lives on the Aeven
     # API; this row reaches it with each signed-in user's own session.
+    # The vendored skill catalog ships inside this package: Settings browses and installs from it
+    # with no network access, and the release that publishes the app regenerates it.
+    - id: skill-catalog
+      name: '@aeven/skill-catalog'
+
     - id: account-integrations
       name: '@aeven/host-account-integrations'
       config:

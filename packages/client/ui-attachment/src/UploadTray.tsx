@@ -130,7 +130,7 @@ function ImageTile({ item, labels, onOpen }: {
   }
   const shown = item.previewUrl !== null && loaded === item.previewUrl
   return (
-    <button type="button" className={css.open} aria-label={item.alt} onClick={onOpen}>
+    <button type="button" className={clsx(css.open, css.openImage)} aria-label={item.alt} onClick={onOpen}>
       {!shown && (
         <span className={css.spinnerBox}>
           <span className={css.spinner}><UploadSpinnerIcon /></span>

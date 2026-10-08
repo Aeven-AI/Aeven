@@ -2181,6 +2181,9 @@ importers:
       '@aeven/session-turn-outline':
         specifier: workspace:^
         version: link:../../session/session-turn-outline
+      '@aeven/skill-catalog':
+        specifier: workspace:^
+        version: link:../../skill/skill-catalog
       '@aeven/speech-to-text':
         specifier: workspace:^
         version: link:../../speech/speech-to-text
@@ -7486,6 +7489,9 @@ importers:
       '@aeven/skill':
         specifier: workspace:^
         version: link:../../skill/skill
+      '@aeven/skill-catalog':
+        specifier: workspace:^
+        version: link:../../skill/skill-catalog
       '@aeven/storage-domain':
         specifier: workspace:^
         version: link:../../storage/storage-domain
@@ -10288,6 +10294,16 @@ importers:
       '@aeven/skill':
         specifier: workspace:^
         version: link:../skill
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/skill/skill-catalog:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis

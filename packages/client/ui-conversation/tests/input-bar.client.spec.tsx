@@ -237,6 +237,15 @@ function placeholderOf(container: HTMLElement): string {
   return container.querySelector('[data-composer-input]')?.getAttribute('data-placeholder') ?? ''
 }
 
+/** The trailing Send/Stop controls in DOM order, left to right; Stop owns the last seat while a child runs. */
+function trailingControlLabels(container: HTMLElement): (string | null)[] {
+  const composerControls = new Set(['发送消息', '停止生成'])
+  // One `button` lookup keeps document order: a grouped selector answers in selector order here.
+  return [...container.querySelectorAll<HTMLButtonElement>('button')]
+    .map(control => control.getAttribute('aria-label'))
+    .filter((label): label is string => label !== null && composerControls.has(label))
+}
+
 /** Whether the composer surface accepts edits right now (setEditable's DOM face). */
 function editableOf(input: HTMLElement): boolean {
   return input.getAttribute('contenteditable') === 'true'
@@ -824,7 +833,7 @@ describe('running and lock semantics', () => {
   })
 
   it('running continuable subagent keeps Send beside an independent Stop', () => {
-    const { button, interruptButton, textarea, sink, stop } = bench({
+    const { button, interruptButton, textarea, sink, stop, view } = bench({
       running: true,
       draft: '后续消息',
       subagent: {
@@ -838,6 +847,7 @@ describe('running and lock semantics', () => {
     })
     expect(button.getAttribute('aria-label')).toBe('发送消息')
     expect(interruptButton).not.toBeNull()
+    expect(trailingControlLabels(view.container)).toEqual(['发送消息', '停止生成'])
     expect(textarea.getAttribute('aria-disabled')).not.toBe('true')
     fireEvent.click(button)
     expect(sink).toHaveBeenCalledWith('后续消息', [], 'queue', expect.any(AbortSignal))

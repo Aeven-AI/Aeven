@@ -3,6 +3,7 @@ import { Spinner } from '@aeven/client-ui-primitives'
 import type { ImageAttachmentRef } from '@aeven/attachment'
 import { ImageLightbox, type ImageLightboxLabels, type LightboxImage } from '@aeven/client-ui-primitives'
 import { resolvedUrl, useImageResolutions } from './image-resolutions.ts'
+import { messageImageEntry } from './message-image-entry.ts'
 import css from './MessageImage.module.css'
 
 /** Loads a session-authorized durable image URL and may expose a cached URL synchronously. */
@@ -140,35 +141,6 @@ export function MessageImage({ image, load, variant, labels, onOpen }: {
 }
 
 /**
- * A filename for a stored image that carries none: the first bytes of its
- * content digest and the extension its media type names. The preview titles the
- * image with it and a download is saved under it, so an unnamed attachment is
- * never reported as `unknown`.
- * @param attachment - the durable reference, which has an id and a media type.
- * @returns the file name to show.
- */
-function derivedFileName(attachment: { attachmentId: string; mediaType: string }): string {
-  const digest = String(attachment.attachmentId).replace(/^sha256:/, '').slice(0, 12)
-  const extension = attachment.mediaType === 'image/jpeg' ? 'jpg' : (attachment.mediaType.split('/')[1] ?? 'img')
-  return `${digest}.${extension}`
-}
-
-/** One lightbox entry of a group image, with the metadata its source carries. */
-function galleryEntry(image: MessageImageSpec, src: string, labels: MessageImageLabels): LightboxImage {
-  if ('preview' in image) {
-    return { src, alt: image.preview.name ?? labels.image, name: image.preview.name }
-  }
-  const name = image.attachment.name ?? derivedFileName(image.attachment)
-  return {
-    src,
-    alt: name,
-    name,
-    mediaType: image.attachment.mediaType,
-    bytes: image.attachment.bytes,
-  }
-}
-
-/**
  * Wrapping image group shared by user and assistant history: a lone image
  * renders large, several render as 64px square tiles (DeepSeek Chat rule).
  *
@@ -193,7 +165,7 @@ export function ImageGallery({ images, turnImages, load, align, labels, variant:
   const entries: LightboxImage[] = []
   for (const image of scope) {
     const src = resolvedUrl(image, resolutions, load)
-    if (src !== null) entries.push(galleryEntry(image, src, labels))
+    if (src !== null) entries.push(messageImageEntry(image, src, labels.image))
   }
   const openIndex = openSrc === null ? -1 : entries.findIndex(entry => entry.src === openSrc)
   if (images.length === 0) return null

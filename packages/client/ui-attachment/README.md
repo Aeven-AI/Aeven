@@ -33,7 +33,7 @@ Draft attachments show as 80px tiles, five per row, wrapping: images first as co
 
 ### Sent attachments and the gallery
 
-A user message with attachments (`layout: 'tray'`) renders one card: the tile grid on top and the text below, with a minimum width of one fifth of the column per tile up to five. A submission echo shows the same tiles from its local previews. Assistant, tool, and Trajectory images (`layout: 'gallery'`) keep the count-sized gallery: a lone image at 240px on its longer edge, several as 64px squares. The gallery fills the viewport with the selected image, offers an info popover (type, size, name), download, and close, and previous/next when there is more than one image; Escape closes it and the arrow keys wrap through the images.
+A user message with attachments (`layout: 'tray'`) renders one card: the tile grid on top and the text below, with a minimum width of one fifth of the column per tile up to five. A submission echo shows the same tiles from its local previews. Assistant, tool, and Trajectory images (`layout: 'gallery'`) keep the count-sized gallery: a lone image at 240px on its longer edge, several as 64px squares. The gallery fills the viewport with the selected image, offers an info popover (type, size, name), download, and close, and previous/next when there is more than one image; Escape closes it and the arrow keys wrap through the images. An image tile shows the enlarge pointer and opens that gallery over every image of its Turn; the info name is the stored file name, or one derived from the attachment digest while it stores none.
 
 ### Drop overlay
 
@@ -55,6 +55,7 @@ The plugin waits for `conversation.input.attachments`, `conversation.message.ima
 | [`src/UploadTray.tsx`](src/UploadTray.tsx) | Wrapping image and file tile grid for the composer and the sent message |
 | [`src/client/MessageImages.tsx`](src/client/MessageImages.tsx) | Sent-message tray or count-sized gallery, by the owner's `layout` |
 | [`src/MessageImage.tsx`](src/MessageImage.tsx) | Single image sizing, load/retry, click-to-open; local submission-echo previews render their object URL directly |
+| [`src/message-image-entry.ts`](src/message-image-entry.ts) | Lightbox entry metadata — display name, media type, byte size — shared by the tray and the gallery |
 | [`ImageLightbox`](../ui-primitives/src/ImageLightbox.tsx) (ui-primitives) | Document-level image gallery with info, download, and previous/next |
 | [`src/DropOverlay.tsx`](src/DropOverlay.tsx) | Pointer-inert drag invitation portal |
 

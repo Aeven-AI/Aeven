@@ -168,6 +168,7 @@ export const TRANSLATION_SCOPE_GLOB_EXCLUDES = [
   'python/sdk-runtime/src/aeven_runtime/runtime/aeven-sdk-runtime-*/**',
   'python/sdk-runtime/src/aeven_runtime/runtime/node/**',
   'vendor/**',
+  'packages/skill/skill-catalog/catalog/**',
 ]
 
 /** Whether a repository-relative path belongs to a dependency or generated tree. */

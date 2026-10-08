@@ -51,6 +51,11 @@ export function apply(ctx: Context): void {
     hooks: { changes },
     list,
     cachedList: () => cache.peek<AccountIntegrationsView>('list'),
+    // The catalog is read once per mount and never cached here: a mutation that installs a skill
+    // re-lists the library, which is what flips the row to Installed.
+    catalog: () => value(remote.catalog()),
+    catalogSkillContent: name => value(remote.catalogSkillContent(name)),
+    installCatalogSkill: name => value(remote.installCatalogSkill(name)),
     importSkill: files => value(remote.importSkill(files)),
     setSkillEnabled: (name, enabled) => value(remote.setSkillEnabled(name, enabled)),
     removeSkill: name => value(remote.removeSkill(name)),

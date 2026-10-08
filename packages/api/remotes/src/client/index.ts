@@ -26,10 +26,10 @@ import type { ClientRemote } from '@aeven/api-gateway/client'
 
 export type { ClientRemote } from '@aeven/api-gateway/client'
 export type {
-  AccountIntegrationsView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId,
+  AccountIntegrationsView, CatalogSkillView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId,
   ConnectorProvider, DiscordConnectorSettings, EmailConnectionFailure, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, EmailConnectorSettings,
   EmailProbeStep, EmailReceiveSettings, EmailSecurity, EmailServerSettings,
-  PersonalSkillView, PersonalConnectorView, SkillUploadFile, TelegramConnectorSettings, TelegramLoginFailure, TelegramPairingState, TelegramPairingView, WhatsAppConnectorSettings, WhatsAppPairingState, WhatsAppPairingView,
+  PersonalSkillView, PersonalConnectorView, SkillCatalogView, SkillUploadFile, TelegramConnectorSettings, TelegramLoginFailure, TelegramPairingState, TelegramPairingView, WhatsAppConnectorSettings, WhatsAppPairingState, WhatsAppPairingView,
 } from '@aeven/host-account-integrations/types'
 export type { PluginInventorySnapshot } from '@aeven/host-plugin-inventory/types'
 export type {} from '@aeven/agent-presets/remote'

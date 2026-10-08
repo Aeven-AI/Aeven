@@ -7,18 +7,13 @@ import { imageKey, resolvedUrl, useImageResolutions } from '../image-resolutions
 import { ImageGallery } from '../MessageImage.tsx'
 import { UploadTray } from '../UploadTray.tsx'
 import type { UploadTrayFileItem, UploadTrayImageItem } from '../UploadTray.tsx'
+import { messageImageEntry } from '../message-image-entry.ts'
 import { lightboxLabels, messageImageLabels, uploadTrayLabels } from './labels.ts'
 
 /** Sent-message tray tile retaining what its open action needs. */
 type MessageTrayItem =
   | UploadTrayImageItem & { image: MessageImageSource }
   | UploadTrayFileItem & { file: MessageFileSource }
-
-/** Lightbox entry of one resolved message image, with the metadata its source carries. */
-function lightboxImage(image: MessageImageSource, src: string, alt: string): LightboxImage {
-  if ('preview' in image) return { src, alt, name: image.preview.name }
-  return { src, alt, name: image.attachment.name, mediaType: image.attachment.mediaType, bytes: image.attachment.bytes }
-}
 
 /**
  * Sent-message tile grid: images then files in one wrapping tray, the
@@ -29,8 +24,8 @@ function MessageAttachmentTray({ images, files, turnImages, loadImage, fileUrl, 
   // The tray shows this record's images; its preview navigates the Turn's.
   const scope = turnImages === undefined || turnImages.length === 0 ? images : turnImages
   const { resolutions, retry } = useImageResolutions(scope, loadImage)
-  const [preview, setPreview] = useState<string | null>(null)
-  const closePreview = useCallback(() => { setPreview(null) }, [])
+  const [previewSrc, setPreviewSrc] = useState<string | null>(null)
+  const closePreview = useCallback(() => { setPreviewSrc(null) }, [])
   const items = useMemo<MessageTrayItem[]>(() => [
     ...images.map((image, index): MessageTrayItem => {
       if ('preview' in image) {
@@ -72,10 +67,9 @@ function MessageAttachmentTray({ images, files, turnImages, loadImage, fileUrl, 
   for (const image of scope) {
     const src = resolvedUrl(image, resolutions, loadImage)
     if (src === null) continue
-    const name = ('attachment' in image ? image.attachment.name : image.preview.name) ?? t('image.label')
-    entries.push(lightboxImage(image, src, t('image.openOriginalLabel', { label: name })))
+    entries.push(messageImageEntry(image, src, t('image.label')))
   }
-  const previewIndex = preview === null ? -1 : entries.findIndex(entry => entry.src === preview)
+  const previewIndex = previewSrc === null ? -1 : entries.findIndex(entry => entry.src === previewSrc)
   if (items.length === 0) return null
   return (
     <>
@@ -94,7 +88,7 @@ function MessageAttachmentTray({ images, files, turnImages, loadImage, fileUrl, 
             retry(item.image.attachment)
             return
           }
-          if (item.previewUrl !== null) setPreview(item.id)
+          if (item.previewUrl !== null) setPreviewSrc(item.previewUrl)
         }}
       />
       {previewIndex >= 0 && (

@@ -28,6 +28,7 @@
     // not declaration path aliases, keep each package/vendor source compiled
     // under its own tsconfig boundary.
     "paths": {
+      "@aeven/skill-catalog": ["./packages/skill/skill-catalog/src"],
       "@aeven/host-account-integrations": ["./packages/host/account-integrations/src"],
       "@aeven/host-account-integrations/types": ["./packages/host/account-integrations/src/types.ts"],
       "@aeven/client-ui-settings-integrations": ["./packages/client/ui-settings-integrations/src"],

@@ -78,6 +78,12 @@ div.open {
   cursor: default;
 }
 
+/* An image tile opens the original-size preview, so it advertises the same
+   enlarge pointer as the history gallery's own frame. */
+.openImage {
+  cursor: zoom-in;
+}
+
 .fileIcon {
   display: flex;
   position: absolute;

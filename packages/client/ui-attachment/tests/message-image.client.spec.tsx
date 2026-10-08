@@ -278,62 +278,148 @@ describe('ImageGallery', () => {
   })
 
   it('renders the conversation slot entry with translated labels', async () => {
-    const t = ((key: string, params?: Readonly<Record<string, unknown>>) => {
-      const translated: Record<string, string> = {
-        'image.label': '图片',
-        'image.openOriginal': '查看原图',
-        'image.loading': '图片加载中…',
-        'image.loadFailed': '图片加载失败，点击重试',
-        'image.preview': '原图预览',
-        'image.closePreview': '关闭原图预览',
-      }
-      if (key === 'image.openOriginalLabel') {
-        const label = params?.label
-        return `${typeof label === 'string' ? label : ''}，点击查看原图`
-      }
-      return translated[key] ?? key
-    }) as MessageImagesProps['t']
     const loadImage = vi.fn().mockResolvedValue('blob:slot-image')
-    const useSession: MessageImagesProps['useSession'] = () => {
-      throw new Error('MessageImages does not read the session snapshot')
-    }
-    const useInput: MessageImagesProps['useInput'] = () => {
-      throw new Error('MessageImages does not read the input snapshot')
-    }
-    const useSessions: MessageImagesProps['useSessions'] = () => {
-      throw new Error('MessageImages does not read the session list snapshot')
-    }
-    const useWorkspaces: MessageImagesProps['useWorkspaces'] = () => {
-      throw new Error('MessageImages does not read the workspace list snapshot')
-    }
-    const props: MessageImagesProps = {
-      sessionId: 'message-images-test' as MessageImagesProps['sessionId'],
-      useSession,
-      useSessions,
-      useSessionPendingInteraction,
-      useWorkspaces,
-      useProjection: () => undefined,
-      useConversation,
-      useChat,
-      useTrajectory,
-      useInput,
-      inputActions: {
-        setDraft: vi.fn(),
-        appendText: vi.fn(() => true),
-        addImages: vi.fn(() => true),
-        removeImage: vi.fn(),
-        pruneImages: vi.fn(),
-        submit: vi.fn(),
-      },
-      images: [{ attachment }],
-      loadImage,
-      align: 'end',
-      layout: 'gallery',
-      t,
-    }
+    const props = messageImagesOwnerProps({ layout: 'gallery', images: [{ attachment }], loadImage })
     const view = render(<MessageImages {...props} />)
     await waitFor(() => { expect(view.getByAltText('history.png')).toBeTruthy() })
     expect(view.getByRole('button', { name: 'history.png，点击查看原图' })).toBeTruthy()
     expect(view.container.querySelector('[data-align="end"]')).not.toBeNull()
   })
 })
+
+describe('MessageImages tray', () => {
+  it('opens the Turn preview from a sent-message tile and steps through the Turn', async () => {
+    const other = { ...attachment, attachmentId: AttachmentId(`sha256:${'b'.repeat(64)}`), name: 'other.png' }
+    const loadImage = vi.fn(async (reference: { readonly attachmentId: string }) =>
+      `blob:${String(reference.attachmentId).slice(-4)}`)
+    const view = render(<MessageImages {...messageImagesOwnerProps({
+      layout: 'tray',
+      images: [{ attachment }],
+      turnImages: [{ attachment }, { attachment: other }],
+      loadImage,
+    })} />)
+
+    // The tile opens only once its own thumbnail URL resolved, as in production.
+    await waitFor(() => { expect(view.container.querySelector('img[src="blob:aaaa"]')).not.toBeNull() })
+    fireEvent.click(view.getByRole('button', { name: 'history.png，点击查看原图' }))
+    const dialog = view.getByRole('dialog', { name: '原图预览' })
+    const selectedSrc = (): string => dialog.querySelector('[data-selected] img')?.getAttribute('src') ?? ''
+    await waitFor(() => { expect(selectedSrc()).toBe('blob:aaaa') })
+    // Previous/next exist only because the preview holds the whole Turn's images.
+    fireEvent.click(view.getByRole('button', { name: '下一张图片' }))
+    await waitFor(() => { expect(selectedSrc()).toBe('blob:bbbb') })
+  })
+
+  it('reports the sent image name, media type, and byte size in the preview info', async () => {
+    const screenshot = {
+      ...attachment,
+      attachmentId: AttachmentId(`sha256:${'c'.repeat(64)}`),
+      mediaType: 'image/webp' as const,
+      bytes: 328_008,
+      name: 'Screenshot 2026-10-08 at 01.35.15.png',
+    }
+    const view = render(<MessageImages {...messageImagesOwnerProps({
+      layout: 'tray',
+      images: [{ attachment: screenshot }],
+      loadImage: vi.fn().mockResolvedValue('blob:info'),
+    })} />)
+
+    await waitFor(() => { expect(view.container.querySelector('img[src="blob:info"]')).not.toBeNull() })
+    fireEvent.click(view.getByRole('button', { name: 'Screenshot 2026-10-08 at 01.35.15.png，点击查看原图' }))
+    fireEvent.click(view.getByRole('button', { name: '图片信息' }))
+    expect(view.getByRole('status').textContent).toMatchInlineSnapshot(
+      `"图片类型：image/webp文件大小：0.33 MB文件名：Screenshot 2026-10-08 at 01.35.15.png"`,
+    )
+  })
+
+  it('titles an unnamed durable image with the name derived from its digest', async () => {
+    const { name: _stored, ...unnamedRef } = attachment
+    const unnamed = { ...unnamedRef, attachmentId: AttachmentId(`sha256:${'d'.repeat(64)}`) }
+    const view = render(<MessageImages {...messageImagesOwnerProps({
+      layout: 'tray',
+      images: [{ attachment: unnamed }],
+      loadImage: vi.fn().mockResolvedValue('blob:unnamed'),
+    })} />)
+
+    await waitFor(() => { expect(view.container.querySelector('img[src="blob:unnamed"]')).not.toBeNull() })
+    fireEvent.click(view.getByRole('button', { name: '图片，点击查看原图' }))
+    fireEvent.click(view.getByRole('button', { name: '图片信息' }))
+    expect(view.getByRole('status').textContent).toMatchInlineSnapshot(
+      `"图片类型：image/png文件大小：0.00 MB文件名：dddddddddddd.png"`,
+    )
+  })
+
+  it('opens the preview from a submission echo tile before its admission', async () => {
+    const view = render(<MessageImages {...messageImagesOwnerProps({
+      layout: 'tray',
+      images: [{ preview: { url: 'blob:echo', name: 'echo.png' } }],
+    })} />)
+
+    fireEvent.click(view.getByRole('button', { name: 'echo.png，点击查看原图' }))
+    const dialog = view.getByRole('dialog', { name: '原图预览' })
+    expect(dialog.querySelector('[data-selected] img')?.getAttribute('src')).toBe('blob:echo')
+    expect(view.queryByRole('button', { name: '下一张图片' })).toBeNull()
+  })
+})
+
+/** Translator stub for the conversation namespace keys the message-image slot reads. */
+const slotT = ((key: string, params?: Readonly<Record<string, unknown>>) => {
+  const translated: Record<string, string> = {
+    'image.label': '图片',
+    'image.openOriginal': '查看原图',
+    'image.loading': '图片加载中…',
+    'image.loadFailed': '图片加载失败，点击重试',
+    'image.preview': '原图预览',
+    'image.closePreview': '关闭原图预览',
+    'image.previous': '上一张图片',
+    'image.next': '下一张图片',
+    'image.download': '下载图片',
+    'image.info': '图片信息',
+    'image.infoType': '图片类型：',
+    'image.infoSize': '文件大小：',
+    'image.infoName': '文件名：',
+    'image.infoUnknown': '未知',
+  }
+  if (key === 'image.openOriginalLabel') {
+    const label = params?.label
+    return `${typeof label === 'string' ? label : ''}，点击查看原图`
+  }
+  if (key === 'image.megabytes') return `${String(params?.value)} MB`
+  return translated[key] ?? key
+}) as MessageImagesProps['t']
+
+/**
+ * The conversation slot's owner props for one record, with the standing seats
+ * the message-image slot never reads stubbed to fail loudly.
+ * @param owner - the layout, images, and optional Turn scope and loader under test.
+ * @returns props the assembled slot renders from.
+ */
+function messageImagesOwnerProps(
+  owner: Pick<MessageImagesProps, 'layout' | 'images'> & Partial<Pick<MessageImagesProps, 'turnImages' | 'loadImage'>>,
+): MessageImagesProps {
+  const unread = (name: string) => (): never => { throw new Error(`MessageImages does not read ${name}`) }
+  return {
+    sessionId: 'message-images-test' as MessageImagesProps['sessionId'],
+    useSession: unread('the session snapshot'),
+    useInput: unread('the input snapshot'),
+    useSessions: unread('the session list snapshot'),
+    useWorkspaces: unread('the workspace list snapshot'),
+    useSessionPendingInteraction,
+    useProjection: () => undefined,
+    useConversation,
+    useChat,
+    useTrajectory,
+    inputActions: {
+      setDraft: vi.fn(),
+      appendText: vi.fn(() => true),
+      addImages: vi.fn(() => true),
+      removeImage: vi.fn(),
+      pruneImages: vi.fn(),
+      submit: vi.fn(),
+    },
+    loadImage: vi.fn().mockResolvedValue('blob:slot-image'),
+    align: 'end',
+    t: slotT,
+    ...owner,
+  }
+}

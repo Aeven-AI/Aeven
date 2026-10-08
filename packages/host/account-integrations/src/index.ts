@@ -18,6 +18,7 @@ import type { Agent, PreStepDecision } from '@aeven/agent'
 import type {} from '@aeven/tools'
 import type {} from '@aeven/workspace'
 import type {} from '@aeven/agent-presets/types'
+import type {} from '@aeven/skill-catalog'
 import { isSkillName, type SkillCandidate } from '@aeven/skill'
 import { MailError, type MailAccount, type MailAccountId, type MailSecret } from '@aeven/mail'
 import * as mcp from '@aeven/mcp-client'
@@ -35,7 +36,7 @@ import { isSlackReadTool, slackConnectorId, SLACK_DIRECT_MESSAGE_SCOPES, SLACK_M
 import { isSlackConsentFailure, probeSlackToken, revokeSlackToken, refreshSlackToken, SlackLoginError, startSlackLogin, type SlackLogin, type SlackToken } from './slack-login.ts'
 import { connectorCredential, type PendingConsent } from './oauth.ts'
 import { BrokerError, ConnectorBroker, type ConsentStatus, type IssuedToken } from './broker.ts'
-import type { AccountIntegrationsView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, ConnectorProviderView, DiscordConnectorSettings, EmailConnectionFailure, EmailConnectorSettings, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillViewId, SkillUploadFile, SlackConnectorSettings, TelegramConnectorSettings, TelegramPairingView, WhatsAppPairingView } from './types.ts'
+import type { AccountIntegrationsView, CatalogSkillView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, ConnectorProviderView, DiscordConnectorSettings, EmailConnectionFailure, EmailConnectorSettings, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillCatalogView, SkillViewId, SkillUploadFile, SlackConnectorSettings, TelegramConnectorSettings, TelegramPairingView, WhatsAppPairingView } from './types.ts'
 
 export type * from './types.ts'
 
@@ -761,6 +762,48 @@ export default class AccountIntegrations extends TypertRemoteService {
         }),
       }))),
     }
+  }
+
+  /**
+   * Read the vendored skill catalog this deployment ships.
+   * @returns the catalog listing, or undefined when the deployment mounts no catalog.
+   */
+  @Remote
+  async catalog(): Promise<SkillCatalogView | undefined> {
+    const catalog = this.ctx.get('skillCatalog')
+    if (catalog === undefined) return undefined
+    const view = catalog.list()
+    return {
+      commit: view.commit,
+      synced: view.synced,
+      categories: view.categories.map(category => ({ ...category })),
+      skills: view.skills.map((skill): CatalogSkillView => ({ ...skill, keywords: [...skill.keywords] })),
+    }
+  }
+
+  /**
+   * Read one catalogued skill's instructions, so Settings can show a skill before it is installed.
+   * @param name - catalogued skill name.
+   * @returns the instruction body the skill installs with, or undefined when the deployment mounts no catalog or does not catalogue that name.
+   */
+  @Remote
+  async catalogSkillContent(name: string): Promise<string | undefined> {
+    const catalog = this.ctx.get('skillCatalog')
+    if (catalog === undefined) return undefined
+    if (!catalog.list().skills.some(skill => skill.name === name)) return undefined
+    return parsePersonalSkill([catalog.bundle(name)], this.config.maxSkillBytes).content
+  }
+
+  /**
+   * Install one catalogued skill into the account's library.
+   * @param name - catalogued skill name.
+   * @throws Error when the deployment mounts no catalog, or the name is not catalogued.
+   */
+  @Remote
+  async installCatalogSkill(name: string): Promise<void> {
+    const catalog = this.ctx.get('skillCatalog')
+    if (catalog === undefined) throw new Error('this deployment ships no skill catalog')
+    await this.importSkill([catalog.bundle(name)])
   }
 
   /**

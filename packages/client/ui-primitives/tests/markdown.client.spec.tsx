@@ -3,12 +3,31 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, describe, expect, it } from 'vitest'
 import { JsonBlock, MarkdownText } from './markdown-test-components.tsx'
 import { defuseClosingTag, reasoningSource } from '../src/markdown/MarkdownText.tsx'
+import { imageFileName } from '../src/ImageLightbox.tsx'
 import { markdownLabels as baseMarkdownLabels } from './labels.client.ts'
 
 /** The label fixture plus the reasoning chrome the engine reads. */
 const reasoningLabels = {
   ...baseMarkdownLabels,
   reasoning: { thinking: '思考', thoughtFor: '思考了 {seconds} 秒' },
+}
+
+/** The label fixture plus the enlarged-image dialog copy that opens an image on click. */
+const imageLightboxLabels = {
+  ...baseMarkdownLabels,
+  image: {
+    dialog: '原图预览',
+    close: '关闭原图预览',
+    previous: '上一张图片',
+    next: '下一张图片',
+    download: '下载图片',
+    info: '图片信息',
+    infoType: '图片类型：',
+    infoSize: '文件大小：',
+    infoName: '文件名：',
+    unknown: '未知',
+    megabytes: (value: string) => `${value} MB`,
+  },
 }
 import { cjkFriendlyStrong } from '../src/markdown/cjkFriendlyStrong.ts'
 
@@ -281,6 +300,34 @@ describe('MarkdownText', () => {
   it('forwards localized labels to fenced code blocks', () => {
     render(<MarkdownText text={'```ts\nconst answer = 42\n```'} codeLabels={{ copyLabel: 'Copy code', copiedLabel: 'Copied' }} />)
     expect(screen.getByRole('button', { name: 'Copy code' })).toBeTruthy()
+  })
+
+  it('names the enlarged image after the file its resolved source carries', () => {
+    const view = render(
+      <MarkdownText text={'![workspace diagram](/workspace/private.png)'} labels={imageLightboxLabels} />,
+    )
+    const workspaceImage = view.container.querySelector('img')
+    expect(workspaceImage?.getAttribute('src')).toBe('http://localhost:3000/api/file?path=%2Fworkspace%2Fprivate.png')
+    fireEvent.click(workspaceImage!)
+    fireEvent.click(screen.getByRole('button', { name: '图片信息' }))
+    expect(screen.getByText('private.png')).toBeTruthy()
+    view.unmount()
+
+    // A remote source names the file its own path ends in.
+    const remote = render(
+      <MarkdownText text={'![remote diagram](https://example.com/chart.png)'} labels={imageLightboxLabels} />,
+    )
+    fireEvent.click(remote.container.querySelector('img')!)
+    fireEvent.click(screen.getByRole('button', { name: '图片信息' }))
+    expect(screen.getByText('chart.png')).toBeTruthy()
+  })
+
+  it('names no file for an image source that names none', () => {
+    expect(imageFileName('blob:http://localhost:3000/4f9c')).toBeUndefined()
+    expect(imageFileName('https://example.com/')).toBeUndefined()
+    expect(imageFileName('http://[')).toBeUndefined()
+    expect(imageFileName('api/file?path=%2Fworkspace%2Fprivate.png')).toBe('private.png')
+    expect(imageFileName('https://example.com/chart.png?v=2')).toBe('chart.png')
   })
 
   it('renders remote https images and refuses http, which this app serves its own files over', () => {
