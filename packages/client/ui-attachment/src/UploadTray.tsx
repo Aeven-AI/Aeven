@@ -92,7 +92,7 @@ export function UploadTray<T extends UploadTrayItem>({ items, labels, onOpen, on
             ? <ImageTile item={item} labels={labels} onOpen={() => { onOpen(item) }} />
             : <FileTile item={item} labels={labels} onOpen={() => { onOpen(item) }} />}
           {onRemove !== undefined && (
-            <Tooltip label={labels.remove} side="top-end">
+            <Tooltip label={labels.remove} side="top">
               <button
                 type="button"
                 className={css.remove}
@@ -119,7 +119,9 @@ function ImageTile({ item, labels, onOpen }: {
   labels: UploadTrayLabels
   onOpen: () => void
 }) {
-  const [loaded, setLoaded] = useState<string | null>(null)
+  const [previewUrl, setPreviewUrl] = useState(item.previewUrl)
+  const [loaded, setLoaded] = useState(false)
+  if (item.previewUrl !== null && item.previewUrl !== previewUrl) setPreviewUrl(item.previewUrl)
   if (item.failed === true) {
     return (
       <button type="button" className={css.open} aria-label={`${item.alt}: ${labels.error}`} onClick={onOpen}>
@@ -128,7 +130,7 @@ function ImageTile({ item, labels, onOpen }: {
       </button>
     )
   }
-  const shown = item.previewUrl !== null && loaded === item.previewUrl
+  const shown = previewUrl !== null && loaded
   return (
     <button type="button" className={clsx(css.open, css.openImage)} aria-label={item.alt} onClick={onOpen}>
       {!shown && (
@@ -136,9 +138,9 @@ function ImageTile({ item, labels, onOpen }: {
           <span className={css.spinner}><UploadSpinnerIcon /></span>
         </span>
       )}
-      {item.previewUrl !== null && (
+      {previewUrl !== null && (
         <span className={clsx(css.imageBox, shown && css.imageLoaded)}>
-          <img className={css.thumb} src={item.previewUrl} alt="" onLoad={() => { setLoaded(item.previewUrl) }} />
+          <img className={css.thumb} src={previewUrl} alt="" onLoad={() => { setLoaded(true) }} />
         </span>
       )}
     </button>

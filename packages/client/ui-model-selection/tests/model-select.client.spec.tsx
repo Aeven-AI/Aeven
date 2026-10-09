@@ -194,7 +194,9 @@ describe('ModelSelect chooser', () => {
     seat(state())
     const trigger = screen.getByRole('button', { name: /当前 DeepSeek-V4-Flash/ })
     expect(trigger.getAttribute('aria-expanded')).toBe('false')
-    expect(trigger.getAttribute('title')).toBe('DeepSeek-V4-Flash · High')
+    // The tip is the shared tooltip's, so the trigger carries no native title
+    // that would open a second, slower bubble beside it.
+    expect(trigger.hasAttribute('title')).toBe(false)
     fireEvent.click(trigger)
     expect(trigger.getAttribute('aria-expanded')).toBe('true')
   })

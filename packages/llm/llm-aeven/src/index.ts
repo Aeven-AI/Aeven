@@ -50,10 +50,6 @@ import {
   DEFAULT_FILE_QUOTA_CLEANUP_BATCH,
   DEFAULT_FILE_REFRESH_MARGIN_SECONDS,
   DEFAULT_IMAGE_OFFLOAD_BYTE_QUANTUM,
-  DEFAULT_IMAGE_OFFLOAD_COUNT_QUANTUM,
-  DEFAULT_INLINE_IMAGE_OFFLOAD_BYTE_QUANTUM,
-  DEFAULT_MAX_IMAGES_PER_REQUEST,
-  DEFAULT_MAX_INLINE_REQUEST_IMAGE_BYTES,
   DEFAULT_MAX_REQUEST_FILES_BYTES,
   DEFAULT_MAX_TOKENS,
   DEFAULT_STREAM_IDLE_TIMEOUT_MS,
@@ -68,6 +64,18 @@ export const inject = ['llm']
 
 /** The provider route these models are served under. */
 export const PROVIDER = 'aeven-cloud'
+
+/** Inline base64 image budget, leaving 2 MiB of the gateway's 8 MiB body for text and schemas. */
+export const DEFAULT_MAX_INLINE_REQUEST_IMAGE_BYTES = 6 * 1024 * 1024
+
+/** Oldest inline images offloaded per byte-budget step. */
+export const DEFAULT_INLINE_IMAGE_OFFLOAD_BYTE_QUANTUM = 3 * 1024 * 1024
+
+/** Request image cap: DeepInfra, which the gateway routes DeepSeek models through, refuses more than 30. */
+export const DEFAULT_MAX_IMAGES_PER_REQUEST = 30
+
+/** Oldest images offloaded per count-overflow step. */
+export const DEFAULT_IMAGE_OFFLOAD_COUNT_QUANTUM = 10
 
 /** User-settings section that overrides this entry. */
 export const NS = 'llm-aeven'
@@ -190,10 +198,9 @@ export const Config: z<Config> = z.object({
   defaultContextWindow: z.number().step(1).min(1).default(DEFAULT_CONTEXT_WINDOW),
   streamIdleTimeoutMs: z.number().min(Number.MIN_VALUE).max(MAX_TIMER_DELAY_MS).default(DEFAULT_STREAM_IDLE_TIMEOUT_MS),
   /**
-   * Present because the adapter's connection facts require them, not because
-   * this route uses them: the gateway takes images inline and has no files API.
-   * Pinned to the adapter's own defaults so a change upstream is inherited
-   * rather than silently overridden here.
+   * The gateway takes images inline and has no files API, so the Files knobs
+   * keep the adapter's defaults; the inline byte and image-count budgets are
+   * the gateway's own limits.
    */
   maxRequestFilesBytes: z.number().step(1).min(1).default(DEFAULT_MAX_REQUEST_FILES_BYTES),
   maxInlineRequestImageBytes: z.number().step(1).min(1).default(DEFAULT_MAX_INLINE_REQUEST_IMAGE_BYTES),
@@ -233,13 +240,10 @@ export interface Config {
   /** Maximum provider idle time while one stream read is outstanding. */
   streamIdleTimeoutMs?: number
   /**
-   * The image and Files knobs below are inert on this route: the gateway accepts
-   * images inline as `image_url` parts and has no files API to upload them to,
-   * so nothing here ever offloads, uploads, or expires. They are declared
-   * because {@link DeepSeekConnectionOptions} requires a complete set, and they
-   * are pinned to the adapter's own defaults so an upstream change is inherited
-   * rather than silently overridden here. Each is documented for what it does on
-   * the route that uses it, not for what it does on this one.
+   * The gateway accepts images inline as `image_url` parts and has no files
+   * API, so only the inline byte budget, the image-count cap, and their
+   * offload quanta act on this route; the Files knobs are declared because
+   * {@link DeepSeekConnectionOptions} requires a complete set.
    */
   /** High watermark for retained request-image bytes before oldest-first offload. */
   maxRequestFilesBytes?: number
@@ -354,10 +358,7 @@ export function apply(ctx: Context, config: Config): void {
     defaultContextWindow: config.defaultContextWindow ?? DEFAULT_CONTEXT_WINDOW,
     models: config.models ?? DEFAULT_MODELS,
     streamIdleTimeoutMs: config.streamIdleTimeoutMs ?? DEFAULT_STREAM_IDLE_TIMEOUT_MS,
-    // Present because the adapter's connection facts require them, not because
-    // this route uses them: the gateway takes images inline and has no files API
-    // to upload to. Kept at the adapter's own defaults so a change upstream is
-    // inherited rather than silently pinned here.
+    // The gateway's 8 MiB JSON ceiling includes inline base64 images, text, and schemas.
     maxRequestFilesBytes: config.maxRequestFilesBytes ?? DEFAULT_MAX_REQUEST_FILES_BYTES,
     maxInlineRequestImageBytes:
       config.maxInlineRequestImageBytes ?? DEFAULT_MAX_INLINE_REQUEST_IMAGE_BYTES,

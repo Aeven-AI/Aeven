@@ -58,7 +58,11 @@ Only `apiUrl` and `apiKeyEnv` describe where requests go and what authenticates 
 | `maxTokens` | `384,000` | Per-request output cap; a model's own cap and explicit request values win |
 | `defaultContextWindow` | `1,000,000` | Capacity fallback for models without an exact value |
 | `streamIdleTimeoutMs` | `300,000` | Maximum provider idle time per outstanding stream read |
-| `maxRequestFilesBytes` … `fileQuotaCleanupBatch` | adapter defaults | Inert here — see [Known Limitations](#known-limitations-and-deferred-work) |
+| `maxInlineRequestImageBytes` | 6 MiB | Base64 preview budget; leaves 2 MiB of the gateway body ceiling for text and schemas |
+| `inlineImageOffloadByteQuantum` | 3 MiB | Oldest previews removed per byte-budget step; durable images and local reference paths remain available |
+| `maxImagesPerRequest` | 30 | Image cap; DeepInfra, which the gateway routes DeepSeek models through, refuses more |
+| `imageOffloadCountQuantum` | 10 | Oldest images removed per count-overflow step |
+| Files API settings | adapter defaults | No Files API on this route |
 | `retryPolicy` | normal, 5 retries | Provider-owned retry policy, resolved once at registration |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#aevenllm-aeven) is the exhaustive source for every accepted field and its JSDoc.
@@ -154,7 +158,7 @@ Loop-retained response blocks append to the next request and preserve its earlie
 These limits define where the adapter stops and future work begins. They are current package constraints, not a general Aeven-gateway comparison or a task backlog.
 
 - **No files API, so no upload behaviour** — images travel inline as `image_url` parts. The Files-API paths the transport implements (upload caching, expiry, refresh, stale-id recovery, quota cleanup) are unreachable on this route, and a gateway that gains a files API would need this route to start using them.
-- **The image and Files config knobs are accepted but inert** — they are declared because the transport's connection facts require a complete set, and are pinned to the adapter's own defaults so an upstream change is inherited rather than silently overridden here.
+- **The body budget includes text and schemas** — the default inline image budget reserves 2 MiB for other JSON content. Deployments with a different gateway ceiling or larger text payloads must configure a matching image budget.
 - **The catalog is shipped, not fetched** — deliberately, because a live listing is entitlement-scoped. A model the gateway adds is not offered until this package ships it.
 - **No plugin-contributed top-level request fields** — `prepareExtensions` contributes nothing, so the session-log and plugin-inventory extensions the DeepSeek route carries are absent here.
 - **`thinking` and `reasoningEffort` are forwarded, not enforced** — the gateway accepts both values; what it does with them is its own contract, and a model that ignores an effort reports usage accordingly.

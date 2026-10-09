@@ -8,12 +8,45 @@ import { ImageGallery } from '../MessageImage.tsx'
 import { UploadTray } from '../UploadTray.tsx'
 import type { UploadTrayFileItem, UploadTrayImageItem } from '../UploadTray.tsx'
 import { messageImageEntry } from '../message-image-entry.ts'
+import { isSvgAttachment } from '../svg-attachment.ts'
 import { lightboxLabels, messageImageLabels, uploadTrayLabels } from './labels.ts'
 
 /** Sent-message tray tile retaining what its open action needs. */
 type MessageTrayItem =
   | UploadTrayImageItem & { image: MessageImageSource }
+  | UploadTrayImageItem & { picture: MessageFileSource }
   | UploadTrayFileItem & { file: MessageFileSource }
+
+/**
+ * One sent file as the tray presents it. An SVG original is a picture the
+ * browser renders even though the harness stores it as a file, so its tile
+ * shows the bytes and opens the preview; a file the tray keeps as a file
+ * reports no URL.
+ */
+interface SentFile {
+  readonly file: MessageFileSource
+  readonly name: string
+  readonly mediaType: string
+  /** Picture URL, or null while a submission echo's original is not yet stored. */
+  readonly url: string | null | undefined
+}
+
+/** Classify the record's files: the stored original's URL for a picture, nothing for a file. */
+function sentFiles(
+  files: readonly MessageFileSource[] | undefined,
+  fileUrl: MessageImagesProps['fileUrl'],
+): readonly SentFile[] {
+  return (files ?? []).map((file) => {
+    const { name, mediaType } = 'attachment' in file ? file.attachment : file.preview
+    if (!isSvgAttachment(name, mediaType)) return { file, name, mediaType, url: undefined }
+    return {
+      file,
+      name,
+      mediaType,
+      url: 'attachment' in file && fileUrl !== undefined ? fileUrl(file.attachment) : null,
+    }
+  })
+}
 
 /**
  * Sent-message tile grid: images then files in one wrapping tray, the
@@ -26,12 +59,13 @@ function MessageAttachmentTray({ images, files, turnImages, loadImage, fileUrl, 
   const { resolutions, retry } = useImageResolutions(scope, loadImage)
   const [previewSrc, setPreviewSrc] = useState<string | null>(null)
   const closePreview = useCallback(() => { setPreviewSrc(null) }, [])
+  const pictures = useMemo(() => sentFiles(files, fileUrl), [files, fileUrl])
   const items = useMemo<MessageTrayItem[]>(() => [
     ...images.map((image, index): MessageTrayItem => {
       if ('preview' in image) {
         const name = image.preview.name ?? t('image.label')
         return {
-          kind: 'image', id: `preview:${image.preview.url}:${index}`, previewUrl: image.preview.url,
+          kind: 'image', id: `image:${index}`, previewUrl: image.preview.url,
           alt: t('image.openOriginalLabel', { label: name }), removeLabel: '', image,
         }
       }
@@ -39,7 +73,7 @@ function MessageAttachmentTray({ images, files, turnImages, loadImage, fileUrl, 
       const name = image.attachment.name ?? t('image.label')
       return {
         kind: 'image',
-        id: `image:${imageKey(image.attachment)}:${index}`,
+        id: `image:${index}`,
         previewUrl: resolution !== undefined && 'url' in resolution
           ? resolution.url
           : (loadImage.peek?.(image.attachment) ?? null),
@@ -49,25 +83,46 @@ function MessageAttachmentTray({ images, files, turnImages, loadImage, fileUrl, 
         image,
       }
     }),
-    ...(files ?? []).map((file, index): MessageTrayItem => {
-      const { name, mediaType } = 'attachment' in file ? file.attachment : file.preview
+    ...pictures.map((picture, index): MessageTrayItem => {
+      if (picture.url === undefined) {
+        return {
+          kind: 'file',
+          id: 'attachment' in picture.file
+            ? `file:${String(picture.file.attachment.attachmentId)}:${index}`
+            : `file-preview:${picture.name}:${index}`,
+          name: picture.name,
+          mediaType: picture.mediaType,
+          status: 'ready',
+          openLabel: t('file.open', { name: picture.name }),
+          removeLabel: '',
+          file: picture.file,
+        }
+      }
       return {
-        kind: 'file',
-        id: 'attachment' in file ? `file:${String(file.attachment.attachmentId)}:${index}` : `file-preview:${name}:${index}`,
-        name,
-        mediaType,
-        status: 'ready',
-        openLabel: t('file.open', { name }),
+        kind: 'image',
+        id: `picture:${picture.name}:${index}`,
+        previewUrl: picture.url,
+        alt: t('image.openOriginalLabel', { label: picture.name }),
         removeLabel: '',
-        file,
+        picture: picture.file,
       }
     }),
-  ], [images, files, fileUrl, loadImage, resolutions, t])
+  ], [images, pictures, resolutions, loadImage, t])
   const entries: LightboxImage[] = []
   for (const image of scope) {
     const src = resolvedUrl(image, resolutions, loadImage)
     if (src === null) continue
     entries.push(messageImageEntry(image, src, t('image.label')))
+  }
+  for (const picture of pictures) {
+    if (picture.url === undefined || picture.url === null) continue
+    entries.push({
+      src: picture.url,
+      alt: picture.name,
+      name: picture.name,
+      mediaType: picture.mediaType,
+      ...'attachment' in picture.file ? { bytes: picture.file.attachment.bytes } : {},
+    })
   }
   const previewIndex = previewSrc === null ? -1 : entries.findIndex(entry => entry.src === previewSrc)
   if (items.length === 0) return null
@@ -84,7 +139,7 @@ function MessageAttachmentTray({ images, files, turnImages, loadImage, fileUrl, 
             if (fileUrl !== undefined && 'attachment' in item.file) window.open(fileUrl(item.file.attachment), '_blank', 'noopener')
             return
           }
-          if (item.failed === true && 'attachment' in item.image) {
+          if ('image' in item && item.failed === true && 'attachment' in item.image) {
             retry(item.image.attachment)
             return
           }

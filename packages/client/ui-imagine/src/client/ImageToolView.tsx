@@ -4,6 +4,7 @@ import { CopyIconButton, IconCloseOutline16, IconLucideTerminal, Modal, Spinner,
 import type { ToolCallViewProps } from '@aeven/client-ui-tool/client'
 import type { PropsLocale } from '@aeven/client-ui-slots'
 import type {} from './locales.ts'
+import { ErrorDetailControl } from './ErrorDetailControl.tsx'
 import css from './ImageToolView.module.css'
 
 /**
@@ -41,12 +42,29 @@ export function ImagePromptControl({ prompt, t }: { prompt: string; t: PropsLoca
             </button>
           </span>
         </header>
-        <div className={css.promptBody} data-image-prompt-card="">
+        <div className={`${css.promptBody} no-scrollbar`} data-image-prompt-card="">
           <p className={css.promptText}>{prompt}</p>
         </div>
       </Modal>
     </>
   )
+}
+
+/**
+ * The frame orientation a call's own request names: a `WIDTHxHEIGHT` size or a
+ * `W:H` aspect ratio, whichever the call carries.
+ * @param args - the call's parsed tool arguments.
+ * @returns the requested orientation — a square request frames landscape — or `undefined` for a request that names none: a resolution tier, `auto`, or no size.
+ */
+function requestedOrientation(args: object): 'portrait' | 'landscape' | undefined {
+  const row = args as { size?: unknown; aspectRatio?: unknown; aspect_ratio?: unknown }
+  for (const value of [row.size, row.aspectRatio, row.aspect_ratio]) {
+    if (typeof value !== 'string') continue
+    const named = /^(\d+)\s*[x:]\s*(\d+)$/.exec(value)
+    if (named === null) continue
+    return Number(named[2]) > Number(named[1]) ? 'portrait' : 'landscape'
+  }
+  return undefined
 }
 
 /**
@@ -59,11 +77,13 @@ export function ImageToolView({ block, renderImages, t }: ToolCallViewProps & Pr
   const argsRaw = settled ? block.call?.argsRaw : block.argsRaw
   let prompt = ''
   let count = 1
+  let asked: 'portrait' | 'landscape' | undefined = undefined
   try {
     const args: unknown = JSON.parse(argsRaw ?? '{}')
     if (typeof args === 'object' && args !== null) {
       if ('prompt' in args && typeof args.prompt === 'string') prompt = args.prompt
       if ('n' in args && typeof args.n === 'number' && Number.isInteger(args.n) && args.n > 0) count = args.n
+      asked = requestedOrientation(args)
     }
   } catch {
     // Invalid tool arguments have no generation prompt; the failure remains visible.
@@ -76,20 +96,20 @@ export function ImageToolView({ block, renderImages, t }: ToolCallViewProps & Pr
   const frames = Math.max(count, images.length)
   // A frame takes the shape its image is shown in, not the shape the provider
   // happened to return: landscape tiles are 3:2 and portrait tiles 2:3, and the
-  // image covers whichever box it lands in.
+  // image covers whichever box it lands in. A frame with no image yet takes the
+  // shape the call asked for, so the placeholder reserves the exact box the
+  // image later fills.
   const orientationOf = (index: number): 'portrait' | 'landscape' => {
     const attachment = images[index]?.attachment
-    return attachment !== undefined && attachment.height > attachment.width ? 'portrait' : 'landscape'
+    if (attachment !== undefined) return attachment.height > attachment.width ? 'portrait' : 'landscape'
+    return asked ?? 'landscape'
   }
   return (
     <figure className={css.root} data-generated-image-call={block.callId} data-state={failed ? 'error' : settled ? 'settled' : 'running'} data-image-count={frames}>
       <div className={css.frames} data-frames={frames}>
         {failed ? (
           <div className={css.frame}>
-            <div className={css.error} role="alert">
-              <span>{t('image.failed')}</span>
-              {error?.type === 'text' && <span>{error.text}</span>}
-            </div>
+            <ErrorDetailControl title={t('image.failed')} message={error?.type === 'text' ? error.text : ''} t={t} />
             {prompt !== '' && <ImagePromptControl prompt={prompt} t={t} />}
           </div>
         ) : Array.from({ length: frames }, (_, index) => (

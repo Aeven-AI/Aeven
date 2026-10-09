@@ -10,7 +10,7 @@ Generated images inside a tool card disappear when the Turn process is collapsed
 
 ## Decision
 
-Imagine registers atomic views for `generate_image`, `codex_image_generate`, `codex_image_edit` and `grok_imagine_image`. The existing tool-call node owns the prompt, running/result state and durable image blocks. A running call keeps the prompt control over the spinner; settlement replaces the status with the shared attachment gallery or a failure. A lone image retains a 240×240 px frame, including attachment loading; explicit larger counts reserve additional rows.
+Imagine registers atomic views for `generate_image`, `codex_image_generate`, `codex_image_edit` and `grok_imagine_image`. The existing tool-call node owns the prompt, running/result state and durable image blocks. A running call keeps the prompt control over the spinner; settlement replaces the status with the shared attachment gallery or a failure. A frame is the box its image is shown in — a lone image fills the conversation column at 3:2, a lone portrait takes two thirds of it at 2:3, and several images tile the column — and a call that has no image yet frames the shape its own arguments name, a `WIDTHxHEIGHT` size or a `W:H` aspect ratio, so its placeholder reserves the exact box the image later fills. Explicit image counts reserve one frame each, including attachment loading.
 
 A replayable Turn index records image call ids, displayed attachment ids and known artifact paths. Chat keeps call trees containing these image calls visible outside process disclosure; Tool hides ordinary ancestors and siblings while retaining each atomic image view. Expanding process restores those ordinary rows. The index contains no image bytes and adds no HTTP request or session event.
 

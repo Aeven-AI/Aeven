@@ -1610,6 +1610,27 @@ export const IconLucideCircleDot = ({ className }: LucideGlyphProps) => (
   </svg>
 )
 
+/** lucide `circle-alert`: an open ring around an exclamation — the mark a
+ *  failed generation carries, where the bare glyph names the failure rather
+ *  than warning about something else. */
+export const IconLucideCircleAlert = ({ className }: LucideGlyphProps) => (
+  <svg
+    aria-hidden="true"
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <circle cx="12" cy="12" r="10" />
+    <path d="M12 8v4" />
+    <path d="M12 16h.01" />
+  </svg>
+)
+
 /** lucide `plus`: add. */
 export const IconLucidePlus = ({ className }: LucideGlyphProps) => (
   <svg

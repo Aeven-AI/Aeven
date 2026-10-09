@@ -138,6 +138,28 @@ describe('images on the aeven-cloud route', () => {
     expect(handle).toContain('.png')
   })
 
+  it('offloads old previews before image history exceeds the gateway body ceiling', async () => {
+    await tempHome()
+    vi.stubEnv(DEFAULT_API_KEY_ENV, 'ambient-token')
+    const gateway = stubGatewayWithoutFilesApi()
+    ctx = await mountContext(true)
+    const ref = await ctx.attachments.saveImage({ data: PNG_1X1, mediaType: 'image/png', name: 'shot.png' })
+    const version = await ctx.attachments.readImageRequest(ref, { maxPixels: 1, maxBytes: 1024 * 1024 })
+    const data = new Uint8Array(1024 * 1024)
+    vi.spyOn(ctx.attachments, 'readImageRequest').mockResolvedValue({ ...version, data, bytes: data.byteLength })
+    const messages = Array.from({ length: 8 }, () => messageWithImage(ref))
+
+    await generate(ctx, 'Aeven-1.0-Flash', { messages })
+
+    const body = gateway.chat[0]?.body
+    expect(Buffer.byteLength(JSON.stringify(body))).toBeLessThan(8 * 1024 * 1024)
+    const wire = JSON.stringify(body)
+    expect(wire).toContain('image omitted to fit request image limits')
+    expect(wire).toContain('Normalized copy (read-only')
+    expect(wire).toContain('data:image/png;base64,')
+    expect(messages.every(message => message.content.some(block => block.type === 'image'))).toBe(true)
+  })
+
   it('never enters the image path for a request that carries no image', async () => {
     await tempHome()
     vi.stubEnv(DEFAULT_API_KEY_ENV, 'ambient-token')

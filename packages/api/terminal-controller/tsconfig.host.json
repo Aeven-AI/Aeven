@@ -52,6 +52,12 @@
     },
     {
       "path": "../../identity/user"
+    },
+    {
+      "path": "../../core/tools"
+    },
+    {
+      "path": "../../util/values"
     }
   ]
 }

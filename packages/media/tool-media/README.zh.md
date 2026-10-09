@@ -64,7 +64,7 @@ kind: "package-reference"
 
 #### 模型看到什么
 
-模型看到生成的 [`generate_image` Schema](../../../docs/tool-catalog.zh.md#aeventool-media)：一个必填的 `prompt` 和可选控制项——用于单次调用覆盖的 `model`；用于受支持生成设置的 `n`、`size`、`resolution`、`seed`、`guidance_scale`、`output_format`、`optimize_prompt_mode` 与 `background`；以及用于编辑或基于现有图像绘制的 `reference_images`。描述写明了一个好的 prompt 应涵盖什么、如何传入参考图，以及每个已配置的 choice 及其描述和默认项，使模型知道哪个模型具备哪个选项；它还告诉模型不要再调用其他工具去定位或校验图像，因为附件本身就是结果。[`generate_video` Schema](../../../docs/tool-catalog.zh.md#aeventool-media) 具有同样的 `prompt`、`model` 与 `reference_images` 参数，另加 `duration`、`resolution`、`aspect_ratio`、`seed` 与 `generate_audio`，其描述列出视频 choice，并说明生成需要数分钟。
+模型看到生成的 [`generate_image` Schema](../../../docs/tool-catalog.zh.md#aeventool-media)：一个必填的 `prompt` 和可选控制项——用于单次调用覆盖的 `model`；用于受支持生成设置的 `n`、`size`、`resolution`、`seed`、`guidance_scale`、`output_format`、`optimize_prompt_mode` 与 `background`；以及用于编辑或基于现有图像绘制的 `reference_images`。描述要求原样保留用户提供的完整提示词，说明如何传入参考图，以及每个已配置的 choice 及其描述和默认项，使模型知道哪个模型具备哪个选项；它还告诉模型不要再调用其他工具去定位或校验图像，因为附件本身就是结果。[`generate_video` Schema](../../../docs/tool-catalog.zh.md#aeventool-media) 具有同样的 `prompt`、`model` 与 `reference_images` 参数，另加 `duration`、`resolution`、`aspect_ratio`、`seed` 与 `generate_audio`，其描述列出视频 choice，并说明生成需要数分钟。
 
 #### Token 影响
 

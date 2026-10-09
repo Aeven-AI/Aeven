@@ -7,6 +7,7 @@ import type { PropsLocale } from '@aeven/client-ui-slots'
 import type {} from '@aeven/client-ui-session/client'
 import type {} from './locales.ts'
 import { ImagePromptControl } from './ImageToolView.tsx'
+import { ErrorDetailControl } from './ErrorDetailControl.tsx'
 import { VideoPlayer } from './VideoPlayer.tsx'
 import css from './ImageToolView.module.css'
 
@@ -74,21 +75,19 @@ export function VideoToolView({ block, sessionId, t }: ToolCallViewProps & Props
         <div
           className={css.frame}
           data-generated-video-frame=""
+          data-failed={failed ? '' : undefined}
           data-orientation={ratio < 1 ? 'portrait' : 'landscape'}
           style={{ aspectRatio: String(ratio) }}
         >
           {failed ? (
-            <div className={css.error} role="alert">
-              <span>{t('video.failed')}</span>
-              {error?.type === 'text' && <span>{error.text}</span>}
-            </div>
+            <ErrorDetailControl title={t('video.failed')} message={error?.type === 'text' ? error.text : ''} t={t} />
           ) : src !== undefined ? (
             <VideoPlayer
               src={src}
               label={t('video.label')}
               saveName={file === undefined ? 'video.mp4' : clipFileName(file)}
               t={t}
-              onRatio={ratio => { setLoaded(ratio) }}
+              onRatio={(ratio) => { setLoaded(ratio) }}
             />
           ) : settled ? (
             <span className={css.status}>{t('video.unavailable')}</span>

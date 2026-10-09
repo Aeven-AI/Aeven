@@ -68,47 +68,16 @@
   word-break: break-word;
 }
 
-/* A message with attachments (the Aeven web client's _Message.scss
-   .message-container): the tile tray and the text share one card that spans
-   the column, with a minimum width of one fifth per tile up to five. */
+/* A message that carries attachments measures its tray against the message
+   row, not the card: the card itself hugs its tiles (a message with no text is
+   as wide as its tray plus the card's inset), so the tile cap needs a base that
+   does not move with it. */
+.userRow {
+  container: avn-message-row / inline-size;
+}
+
 .userStack[data-attachments] {
   max-width: 100%;
-}
-
-.userStack[data-attachments="1"] {
-  min-width: 20%;
-}
-
-.userStack[data-attachments="2"] {
-  min-width: 40%;
-}
-
-.userStack[data-attachments="3"] {
-  min-width: 60%;
-}
-
-.userStack[data-attachments="4"] {
-  min-width: 80%;
-}
-
-.userStack[data-attachments="5"] {
-  min-width: 100%;
-}
-
-@media screen and (max-width: 1024px) {
-  .userStack[data-attachments="1"] {
-    min-width: 33%;
-  }
-}
-
-@media screen and (max-width: 768px) {
-  .userStack[data-attachments="1"] {
-    min-width: 50%;
-  }
-
-  .userStack[data-attachments]:not([data-attachments="1"]) {
-    min-width: 100%;
-  }
 }
 
 .attachmentCard {

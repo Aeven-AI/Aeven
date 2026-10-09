@@ -74,7 +74,11 @@ export class RemoteStreamMuxServer {
     this.server.handleUpgrade(req, socket, head, (websocket) => {
       if (user !== undefined) this.users.set(websocket, user)
       this.missedHeartbeats.set(websocket, 0)
-      websocket.on('pong', () => { this.missedHeartbeats.set(websocket, 0) })
+      // Any inbound frame proves the peer is alive, so a peer busy sending
+      // stream traffic is not terminated for a Pong queued behind it.
+      const alive = (): void => { this.missedHeartbeats.set(websocket, 0) }
+      websocket.on('pong', alive)
+      websocket.on('message', alive)
       this.startHeartbeat()
       const connection = new RemoteStreamMuxConnection(websocket, this.open, this.failure, user, this.runAs)
       const done = connection.run()
@@ -199,9 +203,18 @@ class RemoteStreamMuxConnection {
         try {
           await this.send({ type: 'error', streamId, error: this.failure(error) })
         } catch {
-          // A terminal frame that cannot be encoded or written leaves the
-          // logical stream ambiguous, so fail the physical generation.
-          this.socket.close(1011, 'Remote stream failure could not be delivered')
+          // The mapped failure could not be encoded or written. A plain
+          // internal failure still ends this logical stream alone; only when
+          // even that cannot be written is the physical generation failed.
+          try {
+            await this.send({
+              type: 'error',
+              streamId,
+              error: { code: 'gateway/internal', message: 'Remote stream failed', details: {} },
+            })
+          } catch {
+            this.socket.close(1011, 'Remote stream failure could not be delivered')
+          }
         }
       }
     }

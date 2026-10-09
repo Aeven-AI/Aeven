@@ -77,15 +77,6 @@
   color: var(--dsw-alias-label-secondary);
 }
 
-.error {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  overflow-wrap: anywhere;
-  color: var(--dsw-alias-state-error-primary);
-}
-
 /* The prompt trigger: the Gallery's own round control (white face, dark glyph)
    in the image's lower-left corner. It rides above the loading sheet, so the
    prompt stays reachable while the image is still generating. It carries no
@@ -119,6 +110,15 @@
   display: flex;
   width: 16px;
   height: 16px;
+}
+
+/* The alert trigger a failed generation carries: the prompt control's own disc
+ * — white face, the product's black glyph — in the frame's upper-left corner.
+ * It rides above the loading sheet exactly as the prompt control does, and the
+ * failure's own message lives behind it rather than in the frame. */
+.errorTrigger {
+  top: 12px;
+  bottom: auto;
 }
 
 /* The prompt dialog: the connectors skill popup's card — a sheet centred under
@@ -174,13 +174,16 @@
   cursor: pointer;
 }
 
-/* No fade mask here, unlike the skill sheet's body: that one always holds
-   enough text to scroll, while a short prompt would sit under the fade. */
+/* The connectors skill sheet's body treatment: one scrolling body under the
+   card's title row, its scrollbar hidden and both ends faded. Each fade band is
+   the body's own padding, so the transparent end covers no text — a prompt
+   shorter than the card keeps its first and last line fully opaque. */
 .promptBody {
   flex: 1;
   min-height: 0;
   padding: var(--dsw-aeven-page-inset);
   overflow-y: auto;
+  mask-image: linear-gradient(to bottom, transparent 0, #000 var(--dsw-aeven-page-inset), #000 calc(100% - var(--dsw-aeven-page-inset)), transparent 100%);
 }
 
 .promptText {
@@ -203,4 +206,12 @@
    screen's height. */
 .frames[data-frames='1'] .frame[data-generated-video-frame][data-orientation='portrait'] {
   width: 45%;
+}
+
+/* A failed video frame has no player along its bottom edge, and the alert
+   trigger owns its upper-left corner: the prompt trigger returns to the
+   gallery's own lower-left position. */
+.frame[data-generated-video-frame][data-failed] .promptTrigger {
+  top: auto;
+  bottom: 12px;
 }

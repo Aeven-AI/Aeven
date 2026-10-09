@@ -143,7 +143,7 @@ export function VoiceInput({ sessionId, inputActions, locked, onActiveChange, cr
   }, [dictationRequest])
 
   if (!expanded) {
-    return <Tooltip label={error === '' ? t('dictate') : error} side="top-end">
+    return <Tooltip label={error === '' ? t('dictate') : error} side="top">
       <button type="button" className={css.mic} data-loading={phase === 'starting' ? '' : undefined} aria-label={t('dictate')}
         disabled={locked} onMouseDown={(event) => { event.preventDefault() }} onClick={() => { void start() }}>
         <span className={css.micIcon}><IconLucideMic /></span>
@@ -155,17 +155,17 @@ export function VoiceInput({ sessionId, inputActions, locked, onActiveChange, cr
   return <div className={css.recorder} data-voice-phase={phase}>
     <Waveform analyser={capture.current?.analyser} className={css.canvas} />
     <div className={css.buttons}>
-      <Tooltip label={t(transcribing ? 'cancelTranscription' : 'cancelRecording')} side="top-start">
+      <Tooltip label={t(transcribing ? 'cancelTranscription' : 'cancelRecording')} side="top">
         <button type="button" className={css.cancel} aria-label={t(transcribing ? 'cancelTranscription' : 'cancelRecording')}
           onClick={reset}><span className={css.icon}><IconLucideX /></span></button>
       </Tooltip>
       {transcribing
-        ? <Tooltip label={t('transcribing')} side="top-end">
+        ? <Tooltip label={t('transcribing')} side="top">
           <span className={css.save} role="status" aria-label={t('transcribing')}>
             <span className={css.circle}><span className={css.loader}>{LOADER}</span></span>
           </span>
         </Tooltip>
-        : <Tooltip label={t('transcribe')} side="top-end">
+        : <Tooltip label={t('transcribe')} side="top">
           <button type="button" className={css.save} aria-label={t('transcribe')} onClick={() => { void finish() }}>
             <span className={css.circle}><span className={css.icon}><IconLucideCheck /></span></span>
           </button>

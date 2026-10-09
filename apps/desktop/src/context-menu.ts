@@ -4,8 +4,9 @@ import { clipboard, Menu, type ContextMenuParams, type MenuItemConstructorOption
 import type { DesktopMessages } from './locale.ts'
 
 /**
- * Menu items for one right-click: spelling suggestions and edit actions in an
- * editable field, Copy over a selection, and link or image copy actions.
+ * Menu items for one right-click: spelling suggestions and undo/redo in an
+ * editable field, the edit actions on every page with each enabled from
+ * Chromium's edit flags, and link or image copy actions.
  * @param contents - page that was right-clicked.
  * @param params - Chromium's description of the click target.
  * @param messages - shell copy for the items without an Electron role.
@@ -27,15 +28,14 @@ export function contextMenuTemplate(
     groups.push([
       { role: 'undo', enabled: params.editFlags.canUndo },
       { role: 'redo', enabled: params.editFlags.canRedo },
-    ], [
-      { role: 'cut', enabled: params.editFlags.canCut },
-      { role: 'copy', enabled: params.editFlags.canCopy },
-      { role: 'paste', enabled: params.editFlags.canPaste },
-      { role: 'selectAll', enabled: params.editFlags.canSelectAll },
     ])
-  } else if (params.selectionText.trim() !== '') {
-    groups.push([{ role: 'copy' }])
   }
+  groups.push([
+    { role: 'cut', enabled: params.editFlags.canCut },
+    { role: 'copy', enabled: params.editFlags.canCopy },
+    { role: 'paste', enabled: params.editFlags.canPaste },
+    { role: 'selectAll', enabled: params.editFlags.canSelectAll },
+  ])
   if (params.linkURL !== '') {
     groups.push([{ label: messages.copyLink, click: () => { clipboard.writeText(params.linkURL) } }])
   }
@@ -54,6 +54,9 @@ export function contextMenuTemplate(
  */
 export function installContextMenu(contents: WebContents, messages: DesktopMessages): void {
   contents.on('context-menu', (_event, params) => {
+    // Native edit roles act on the focused contents, which may still be
+    // another page of this window when the click lands in a guest page.
+    contents.focus()
     const template = contextMenuTemplate(contents, params, messages)
     if (template.length > 0) Menu.buildFromTemplate(template).popup()
   })

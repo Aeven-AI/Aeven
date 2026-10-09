@@ -218,7 +218,7 @@ afterEach(async () => {
 
 describe('Typert Remote streams', () => {
   it('validates the WebSocket heartbeat timer range', () => {
-    expect(TypertGatewayService.Config({})).toEqual({ websocketHeartbeatIntervalMs: 2_000 })
+    expect(TypertGatewayService.Config({})).toEqual({ websocketHeartbeatIntervalMs: 10_000 })
     expect(TypertGatewayService.Config({ websocketHeartbeatIntervalMs: MAX_TIMER_DELAY_MS }))
       .toEqual({ websocketHeartbeatIntervalMs: MAX_TIMER_DELAY_MS })
     for (const websocketHeartbeatIntervalMs of [0, 1.5, MAX_TIMER_DELAY_MS + 1]) {

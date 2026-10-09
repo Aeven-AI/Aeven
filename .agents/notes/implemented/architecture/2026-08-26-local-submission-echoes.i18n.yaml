@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-08-26-local-submission-echoes.md
-2026-08-26-local-submission-echoes.md: d335996dea7353c96c446dea2fadc80771b83240
-2026-08-26-local-submission-echoes.zh.md: 3f0ba5e253af23ebe7220f4f06518c57476fb5b3
+2026-08-26-local-submission-echoes.md: 5e4d7f358956bebb7fcb3bd3fb5e4b540080d445
+2026-08-26-local-submission-echoes.zh.md: 45af1931d654cc65d880e6d1f834002acb3d77a1

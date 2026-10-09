@@ -20,6 +20,12 @@
   min-width: 0;
   overflow: hidden;
   padding: 0 24px;
+  /* The fit addon measures the emulator's parent through `getComputedStyle`,
+     which reports the border box while the app-wide border-box rule is in
+     force — the 48px of side inset included, so the emulator fitted about six
+     columns wider than the box it draws in and its last columns sat under the
+     scrollbar. Stated as content-box, that reading is the drawing area. */
+  box-sizing: content-box;
   color: var(--dsw-alias-label-primary);
   background: var(--dsw-specific-sidebar-fill);
   opacity: 0;
@@ -33,6 +39,31 @@
 }
 .screen :global(.xterm-viewport) {
   background: var(--dsw-specific-sidebar-fill);
+}
+/* xterm draws its scrollbar from VS Code's scrollbar.css: a 14px track whose
+   slider it positions inline and colours from its own theme keys. The pane
+   draws one of the sidebar's scroll surfaces instead — the shared thumb tokens
+   out of scrollbar.css, narrow, inset, rounded, and stronger on hover or drag —
+   so the bar reads as part of the panel it scrolls. The thumb colour is stated
+   here rather than through xterm's scrollbarSlider* keys because the tokens are
+   the stylesheet's to consume, and these selectors outrank the sheet xterm
+   injects for the keys. */
+.screen :global(.xterm .xterm-scrollable-element > .scrollbar > .slider) {
+  border-radius: 3px;
+  background: var(--avn-scrollbar-thumb);
+}
+.screen :global(.xterm .xterm-scrollable-element > .scrollbar > .slider:hover),
+.screen :global(.xterm .xterm-scrollable-element > .scrollbar > .slider.active) {
+  background: var(--avn-scrollbar-thumb-hover);
+}
+/* xterm states the slider's width and inset as inline styles, so only an
+   important declaration reaches them; 6px centred in the 14px track leaves 4px
+   on either side. The horizontal bar keeps xterm's own metrics: the pane fits
+   its columns to the box, so it appears only when a line really is wider. */
+.screen
+  :global(.xterm .xterm-scrollable-element > .scrollbar.vertical > .slider) {
+  left: 4px !important;
+  width: 6px !important;
 }
 .status {
   display: flex;

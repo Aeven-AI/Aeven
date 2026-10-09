@@ -121,11 +121,11 @@ interface PendingRemoteEvent {
 type ConnectionRpcResult = Awaited<ReturnType<ConnectionRpcHandler>>
 type ConnectionRpcError = Extract<ConnectionRpcResult, { readonly ok: false }>['error']
 const NEVER_ABORTED_SIGNAL = new AbortController().signal
-const DEFAULT_WEBSOCKET_HEARTBEAT_INTERVAL_MS = 2_000
+const DEFAULT_WEBSOCKET_HEARTBEAT_INTERVAL_MS = 10_000
 
 /** Gateway transport configuration. */
 export interface Config {
-  /** WebSocket Ping interval from 1 through 2,147,483,647 milliseconds. @default 2000 */
+  /** WebSocket Ping interval from 1 through 2,147,483,647 milliseconds. @default 10000 */
   readonly websocketHeartbeatIntervalMs?: number
 }
 

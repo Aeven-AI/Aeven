@@ -102,10 +102,15 @@ const ROOT_CONFIG = '# Electron desktop composition root; package transactions o
 const ROOT_CONFIG_FILENAME = 'desktop.cordis.yml'
 const DESKTOP_STREAM_PATH = '/.aeven/remote-stream'
 
+/**
+ * Page transport hooks. Streams send through the hook's `fetch` as resolved at
+ * call time, so the bearer an authority installs there identifies the caller.
+ */
 const DESKTOP_TRANSPORT_SCRIPT = `globalThis.__AVN_TRANSPORT__={
   ownsHost:true,
   async *openStream(endpoint,payload,signal){
-    const response=await fetch(${JSON.stringify(DESKTOP_STREAM_PATH)},{
+    const send=globalThis.__AVN_TRANSPORT__.fetch??((input,init)=>fetch(input,init))
+    const response=await send(new URL(${JSON.stringify(DESKTOP_STREAM_PATH)},document.baseURI),{
       method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({endpoint,payload}),signal
     })
     if(!response.ok||response.body===null)throw new Error('desktop stream transport failed: HTTP '+response.status)

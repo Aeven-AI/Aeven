@@ -55,7 +55,9 @@
   "license": "MIT",
   "dependencies": {
     "@aeven/deque": "workspace:^",
+    "@aeven/tools": "workspace:^",
     "@aeven/typert-protocol": "workspace:^",
+    "@aeven/util-values": "workspace:^",
     "@deepseek-ai/schemastery": "workspace:^",
     "@xterm/addon-serialize": "^0.14.0",
     "@xterm/headless": "^6.0.0",
@@ -72,11 +74,19 @@
     "@aeven/brand": "workspace:^",
     "@aeven/client-store": "workspace:^",
     "@aeven/identity-user": "workspace:^",
+    "@aeven/llm": "workspace:^",
     "@aeven/sandbox-policy": "workspace:^",
     "@aeven/session": "workspace:^",
+    "@aeven/session-projection": "workspace:^",
     "@aeven/subprocess": "workspace:^",
+    "@aeven/subprocess-local": "workspace:^",
+    "@aeven/system-prompt": "workspace:^",
+    "@aeven/typert-registry": "workspace:^",
+    "@aeven/user-approval": "workspace:^",
     "@aeven/util-crypto": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/cordis-plugin-include": "workspace:^",
+    "@deepseek-ai/cordis-plugin-loader": "workspace:^"
   },
   "files": [
     "lib/index.js",

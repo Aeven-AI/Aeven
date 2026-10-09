@@ -1238,9 +1238,15 @@ importers:
       '@aeven/deque':
         specifier: workspace:^
         version: link:../../util/deque
+      '@aeven/tools':
+        specifier: workspace:^
+        version: link:../../core/tools
       '@aeven/typert-protocol':
         specifier: workspace:^
         version: link:../../typert/protocol
+      '@aeven/util-values':
+        specifier: workspace:^
+        version: link:../../util/values
       '@deepseek-ai/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
@@ -1269,21 +1275,45 @@ importers:
       '@aeven/identity-user':
         specifier: workspace:^
         version: link:../../identity/user
+      '@aeven/llm':
+        specifier: workspace:^
+        version: link:../../llm/llm
       '@aeven/sandbox-policy':
         specifier: workspace:^
         version: link:../../sandbox/sandbox-policy
       '@aeven/session':
         specifier: workspace:^
         version: link:../../core/session
+      '@aeven/session-projection':
+        specifier: workspace:^
+        version: link:../../session/session-projection
       '@aeven/subprocess':
         specifier: workspace:^
         version: link:../../subprocess/subprocess
+      '@aeven/subprocess-local':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess-local
+      '@aeven/system-prompt':
+        specifier: workspace:^
+        version: link:../../core/system-prompt
+      '@aeven/typert-registry':
+        specifier: workspace:^
+        version: link:../../typert/registry
+      '@aeven/user-approval':
+        specifier: workspace:^
+        version: link:../../interaction/user-approval
       '@aeven/util-crypto':
         specifier: workspace:^
         version: link:../../util/crypto
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
+      '@deepseek-ai/cordis-plugin-include':
+        specifier: workspace:^
+        version: link:../../../vendor/include
+      '@deepseek-ai/cordis-plugin-loader':
+        specifier: workspace:^
+        version: link:../../../vendor/loader
 
   packages/api/workspace-controller:
     dependencies:

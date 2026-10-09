@@ -5,8 +5,8 @@
 
 /* The model seat's disc: the same 40px transparent control the Options disc
    wears, so the composer's icon controls stand as one family. Its accessible
-   name and title carry the model and effort the card's first row states; the
-   card above it is the affordance. */
+   name carries the model and effort the card's first row states and its
+   tooltip names the seat; the card above it is the affordance. */
 .trigger {
   display: grid;
   place-items: center;

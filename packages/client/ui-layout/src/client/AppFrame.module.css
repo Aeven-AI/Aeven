@@ -332,29 +332,39 @@
   }
 }
 
-/* The desktop shell hides its title bar, so the page supplies the strip that
-   drags the window and answers a double-click with zoom.
+/* The desktop shell hides its title bar, so the page supplies the band that
+   drags the window and answers a double-click with zoom: the full width of the
+   frame, one header row tall.
 
-   It covers only the gutter the window controls sit in — from the frame's left
-   edge to where the conversation's leading control begins — because everything
-   further right is the conversation's own header, whose tabs and controls must
-   keep their clicks. A band across the full width takes those clicks even with
-   `pointer-events: none`, since a drag rectangle is applied by the window
-   rather than by hit testing. */
+   A drag rectangle is applied by the window rather than by hit testing, so the
+   band would take every click inside it. Each control that can sit in the band
+   therefore declares `no-drag` below, which the window subtracts from the band
+   because the control follows this pseudo-element in document order. The band
+   itself ignores the pointer, so a click that reaches the page through one of
+   those holes lands on the control under it. */
 :global(html[data-avn-desktop]) .frame::before {
   content: '';
   position: absolute;
   top: 0;
+  right: 0;
   left: 0;
-  /* The controls' gutter plus the empty band beside the lights, and no
-     further: the header row's leading control begins at 108px in both sidebar
-     states (measured in the app), so the strip stops 4px short of it. It is
-     painted above the content, so reaching any further would take that
-     control's clicks — the header is the only other place a double click can
-     land, and its own box is covered by its children. */
-  width: calc(var(--dsw-aeven-window-controls-gutter) + 20px);
   /* The header band's own row: its top padding plus one control. */
   height: calc(8px + var(--dsw-aeven-control-size));
   z-index: 60;
+  pointer-events: none;
   -webkit-app-region: drag;
+}
+
+/* The holes in the band: every element that takes a click, a key, or a drag
+   of its own, wherever it renders. Outside the band the declaration has no
+   effect. */
+:global(html[data-avn-desktop]) :global(:is(
+  button, input, textarea, select, a[href], label, summary, iframe, webview,
+  [contenteditable]:not([contenteditable='false']),
+  [role='button'], [role='tab'], [role='link'], [role='menuitem'], [role='option'],
+  [role='switch'], [role='checkbox'], [role='radio'], [role='slider'], [role='combobox'],
+  [role='separator'][tabindex], [draggable='true']
+)),
+:global(html[data-avn-desktop]) .handle {
+  -webkit-app-region: no-drag;
 }

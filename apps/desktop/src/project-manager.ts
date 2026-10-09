@@ -152,7 +152,7 @@ function workspaceFile(corePackages: Readonly<Record<string, string>> = {}): str
   // CPU runtime the package ships, so allowing it would put about 300 MB of GPU libraries into every install.
   // The Google connectors spawn the platform CLI this package's install script downloads into its own `bin/`; denying
   // the script leaves `bin/gws` missing and the connector tools unusable.
-  return `packages:\n  - .\n\n${overrideSection}${WORKSPACE_SETTINGS}allowBuilds:\n  '@googleworkspace/cli': true\n  node-pty: true\n  koffi: true\n  fs-ext: true\n  esbuild: true\n  better-sqlite3: true\n  onnxruntime-node: false\n  sharp: true\n  ${JSON.stringify(coreBuildKey)}: true\n  '@google/genai': false\n  protobufjs: false\n  node-addon-require-builtin: false\n  tesseract.js: false\n`
+  return `packages:\n  - .\n\n${overrideSection}${WORKSPACE_SETTINGS}allowBuilds:\n  '@googleworkspace/cli': true\n  node-pty: true\n  koffi: true\n  keytar: true\n  fs-ext: true\n  esbuild: true\n  better-sqlite3: true\n  onnxruntime-node: false\n  sharp: true\n  ${JSON.stringify(coreBuildKey)}: true\n  '@google/genai': false\n  protobufjs: false\n  node-addon-require-builtin: false\n  tesseract.js: false\n`
 }
 
 function releaseFile(projectDir: string): DesktopRelease {

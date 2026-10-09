@@ -62,7 +62,7 @@ function extension(mediaType: ImageMediaType): string {
 function normalizedAccessText(ref: ImageAttachmentRef, access: ImageAttachmentAccess): string {
   return ` Normalized copy (read-only; may be resized or re-encoded): ${quoted(access.readonlyPath)} (${ref.width}x${ref.height}px, ${ref.mediaType}).`
     + ' Source dimensions, format, and byte size may differ.'
-    + ` Copy to a writable path ending in ${extension(ref.mediaType)} before editing.`
+    + ` For generate_image, pass this path directly as reference_images. Copy to a writable path ending in ${extension(ref.mediaType)} only before modifying the file itself.`
 }
 
 /**

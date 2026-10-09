@@ -538,7 +538,7 @@ function MessageEditorInput({ value, minHeight, busy, onChange, onCancel, onSend
  * from the prompt and holds non-whitespace text.
  */
 export const UserMessageNodeView = memo(function UserMessageNodeView({
-  node, renderMessageImages, useSession, t, extendedTranscript, editMessage,
+  node, submission, renderMessageImages, useSession, t, extendedTranscript, editMessage,
 }: ChatNodeViewProps<'user' | 'steering'>) {
   const data = node.data
   const rpcId = sourceRpcId(data.source)
@@ -547,12 +547,21 @@ export const UserMessageNodeView = memo(function UserMessageNodeView({
     : state.pendingSubmissions.find(submission => submission.requestId === rpcId))
   // Latched at mount: the echo retires a frame after this row appears, and
   // the fade must survive its disappearance.
-  const arrivalAge = useArrivalAge(echo?.time)
+  const arrivalAge = useArrivalAge(submission?.time ?? echo?.time)
+  const previewImages = useMemo<readonly MessageImageSource[] | undefined>(() => submission?.images.map(image => ({
+    preview: {
+      url: image.previewUrl,
+      ...(image.name === undefined ? {} : { name: image.name }),
+      ...(image.width === undefined ? {} : { width: image.width }),
+      ...(image.height === undefined ? {} : { height: image.height }),
+    },
+  })), [submission?.images])
+  const previewFiles = useMemo<readonly MessageFileSource[] | undefined>(() => submission?.files.map(file => ({ preview: file })), [submission?.files])
   const bubbleRef = useRef<HTMLDivElement>(null)
   const [editing, setEditing] = useState<{ draft: string; minHeight: number | undefined } | null>(null)
   const [busy, setBusy] = useState(false)
   const original = useMemo(() => contentParts(data.content).text, [data.content])
-  const edit = editMessage
+  const edit = submission === undefined ? editMessage : undefined
   const unchanged = editing === null || editing.draft.trim() === '' || editing.draft === original
   const cancel = (): void => { setEditing(null) }
   const send = async (): Promise<void> => {
@@ -569,6 +578,9 @@ export const UserMessageNodeView = memo(function UserMessageNodeView({
   return (
     <UserStyleBubble
       content={data.content}
+      {...previewImages === undefined ? {} : { previewImages }}
+      {...previewFiles === undefined ? {} : { previewFiles }}
+      echo={submission !== undefined}
       renderMessageImages={renderMessageImages}
       turn={node.location.kind === 'turn' || node.location.kind === 'step' ? node.location.turn.turn : undefined}
       arrivalAge={arrivalAge}

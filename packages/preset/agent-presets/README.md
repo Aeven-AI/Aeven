@@ -168,6 +168,8 @@ Read these pages when the package-level contract is not enough; they move from t
 
 Indirectly, through the plugins a preset's standing composition installs, which own every tool schema, prompt section, and skill the preset makes visible to the agents joined to it. The skills this package ships add their catalog descriptions to every session on a preset that mounts them; the bodies themselves load only when a session asks for one.
 
+The shipped `aeven` preset exposes `generate_image` from the first request and uses the selected image model for creation and editing. Supplied image prompts pass verbatim, and uploaded references use their normalized-copy paths directly. Subscription-specific image tools require an explicit provider request; a generation failure is reported without automatic retries or repository inspection.
+
 #### KV Cache effect
 
 Prefix-stable for the life of an agent: a composition is installed once, before the agent is published and therefore before its first request, and is never re-read while the agent runs. Choosing a different preset for a new session establishes a different prefix for that session alone and cannot invalidate reuse for any session already running.

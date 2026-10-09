@@ -1431,7 +1431,8 @@ describe('ChatView', () => {
       },
     )
     const view = render(<h.ChatView {...h.props} />)
-    expect(view.getByText('即发即显').closest('[data-submission-echo]')).not.toBeNull()
+    const bubble = view.getByText('即发即显').closest('[data-submission-echo]')
+    expect(bubble).not.toBeNull()
 
     // The durable node arrives while the echo is STILL in the session
     // snapshot: the render-time rpcId dedupe keeps exactly one bubble.
@@ -1449,6 +1450,7 @@ describe('ChatView', () => {
     })
     expect(view.getAllByText('即发即显')).toHaveLength(1)
     expect(view.container.querySelector('[data-submission-echo]')).toBeNull()
+    expect(view.getByText('即发即显').closest('[data-chat-flow-key]')?.contains(bubble)).toBe(true)
 
     // The delayed snapshot retirement changes nothing visible.
     act(() => { h.setSession({ pendingSubmissions: [] }) })

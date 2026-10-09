@@ -11,6 +11,8 @@ kind: "package-group"
 
 `terminal/` 组为 agent 提供持久且限定所有者范围的终端会话：shell 与 REPL 状态——cwd、导出的变量、激活的环境、正在运行的交互式子进程——都能跨工具调用存活。三个包共同覆盖整个家族：`terminal/` 提供限定所有者范围的 `ctx.terminals` 会话服务（会话获得不透明 id，每个操作都限制在所属 agent 内）；`terminal-bash/` 在共享沙箱策略下启动交互式 bash 或 pwsh shell；`tool-terminal/` 提供 6 个结果有界的面向模型工具。终端是单次 bash 与文件系统工具的补充：仅在需要交互式 stdin 或跨调用状态时使用。会话只存在于进程本地，harness 重启后不会恢复。
 
+侧边栏终端由 [`api-terminal-controller`](../api/terminal-controller/src/index.ts) 管理。它的 `sidebar_terminal` 工具允许聊天在 Web 和 Electron 中列出、读取、输入、重命名、调整大小和关闭已有侧边栏 shell。这些 shell 使用系统用户权限；受限 agent 会话需要针对终端和操作的批准。工具输入与返回文本进入会话日志，浏览器保留键盘连接。
+
 ## 目录
 
 - [包](#packages)

@@ -170,7 +170,7 @@ export function ComposerOptions({
 
   return (
     <span ref={rootRef} className={css.root}>
-      <Tooltip label={t('input.options')} side="top-start" disabled={open}>
+      <Tooltip label={t('input.options')} side="top" disabled={open}>
         <button
           type="button"
           className={css.disc}

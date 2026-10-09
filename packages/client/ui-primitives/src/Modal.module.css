@@ -40,14 +40,14 @@
   width: 100%;
 }
 
-/* Header row (figma Title row): pad l24/t22/r14/b12, SPACE_BETWEEN —
- * title left, close button right. */
+/* Header row (figma Title row): pad l24/t22/r24/b12, SPACE_BETWEEN —
+ * title left, close button right, both on the card's 24px page inset. */
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 22px 14px 12px 24px;
+  padding: 22px 24px 12px;
 }
 
 .title {
@@ -58,22 +58,22 @@
   color: var(--dsw-alias-label-primary);
 }
 
+/* The card's close control: 28x28 r28 with a 14px glyph, the header row's last
+   item, its box on the header's 24px right inset. The disc is black with a
+   white glyph on either theme's card, so it carries no hover state. */
 .close {
   flex: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: var(--dsw-aeven-control-size);
-  height: var(--dsw-aeven-control-size);
+  width: 28px;
+  height: 28px;
+  padding: 0;
   border: none;
-  border-radius: 50%;
-  background: transparent;
+  border-radius: 28px;
+  background: var(--dsw-static-neutral-1000);
+  color: var(--dsw-static-neutral-00);
   cursor: pointer;
-  color: var(--dsw-alias-label-secondary);
-}
-
-.close:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
 }
 
 /* Description and body share the 332px content column (24px side pads). */

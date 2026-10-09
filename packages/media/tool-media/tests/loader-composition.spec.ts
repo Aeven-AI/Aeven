@@ -204,7 +204,7 @@ describe('image generation through the shipped preset composition', () => {
     expect(out.isError).not.toBe(true)
     expect(bodies).toEqual([{ model: 'Aeven-1.0-Image-Flash', prompt: 'a lighthouse at dusk', response_format: 'b64_json' }])
     expect(auth).toEqual(['Bearer session-token'])
-    expect(out.content[0]).toEqual({ type: 'text', text: 'Generated 1 image(s) with Aeven-1.0-Image-Flash. Already displayed to the user; do not repeat or embed them in your reply.' })
+    expect(out.content[0]).toEqual({ type: 'text', text: 'Generated 1 image(s) with Aeven Image Flash. Already displayed to the user; do not repeat or embed them in your reply.' })
     expect(out.content[1]).toMatchObject({ type: 'image', attachment: { mediaType: 'image/png', width: 1, height: 1 } })
   })
 

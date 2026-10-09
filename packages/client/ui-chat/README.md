@@ -14,7 +14,7 @@ The browser Chat target for Conversation assembly. It registers Chat event defin
 Approval detail resolves the correlated root or nested tool call. Shell calls display their command; MCP calls display destinations, message text, and remaining arguments as plain text. Draft references display the supplied draft identifier rather than fetching its contents.
 The transcript consumes ui-theme's Aeven width, spacing, typography, and radius variables; Chat keeps its existing node renderers, actions, and icons.
 
-Transcript and steering echoes remain in the flow while the Host claims their inbox items. Their inbox rows are hidden until the durable user or steering node replaces the echo; queued echoes hand off to queue rows.
+Transcript and steering echoes remain in the flow while the Host claims their inbox items. Their inbox rows are hidden until durable admission. Transcript echoes and admitted user nodes share a React row keyed by the prompt rpcId; the bubble and loaded image tiles remain mounted during admission and timer updates. Steering echoes hand off to steering nodes, and queued echoes hand off to queue rows.
 
 ## Table of Contents
 

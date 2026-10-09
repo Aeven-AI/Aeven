@@ -3,6 +3,7 @@
 
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentProps, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import type { PendingSubmission } from '@aeven/api-session-controller/client'
 import type { RenderMessageImages } from '@aeven/client-ui-conversation/client'
 import { Button, IconChevronDownOutline14, Modal, Spinner, TextAnimationContext } from '@aeven/client-ui-primitives'
 import type { ChatViewSlotProps } from '../contract/slots.ts'
@@ -172,14 +173,38 @@ function observedRpcIds(
   return observed
 }
 
-type ChatNodeListProps = Omit<ComponentProps<typeof ChatNodeSeat>, 'nodeKey'> & {
-  readonly order: readonly string[]
+/**
+ * Whether the row at one position belongs to a Turn that is still open, so
+ * material after it joins that running Turn rather than starting another.
+ * @param order - the transcript's node keys in flow order.
+ * @param nodes - the Chat node store.
+ * @param index - position to read; negative reads no row.
+ * @returns true when that row's Turn is open.
+ */
+function insideOpenTurn(order: readonly string[], nodes: ChatSnapshot['nodes'], index: number): boolean {
+  const key = order[index]
+  const location = key === undefined ? undefined : nodes.get(key)?.location
+  return (location?.kind === 'turn' || location?.kind === 'step') && location.turn.status === 'open'
 }
 
-const ChatNodeList = memo(function ChatNodeList({ order, ...seatProps }: ChatNodeListProps) {
-  return order.map(nodeKey => (
-    <ChatNodeSeat key={nodeKey} nodeKey={nodeKey} {...seatProps} />
-  ))
+type ChatNodeListProps = Omit<ComponentProps<typeof ChatNodeSeat>, 'nodeKey' | 'submission'> & {
+  readonly order: readonly string[]
+  readonly nodes: ChatSnapshot['nodes']
+  readonly submissions: readonly PendingSubmission[]
+}
+
+const ChatNodeList = memo(function ChatNodeList({ order, nodes, submissions, ...seatProps }: ChatNodeListProps) {
+  const rows = order.map((nodeKey) => {
+    const node = nodes.get(nodeKey)
+    const source = node?.kind === 'user' ? (node.data as ChatNode<'user'>['data']).source as { kind?: string; rpcId?: string } | undefined : undefined
+    const key = source?.kind === 'user' && source.rpcId !== undefined ? `submission:${source.rpcId}` : nodeKey
+    return <ChatNodeSeat key={key} nodeKey={nodeKey} {...seatProps} />
+  })
+  for (const submission of submissions) {
+    const key = `submission:${submission.requestId}`
+    rows.push(<ChatNodeSeat key={key} nodeKey={key} submission={submission} {...seatProps} />)
+  }
+  return rows
 })
 
 /**
@@ -298,7 +323,7 @@ export function ChatView({
   // of them walks the whole Turn. Derived from the node list, never from the
   // group a record happens to render.
   const turnImages = useMemo(() => {
-    const nodes = order.flatMap(key => {
+    const nodes = order.flatMap((key) => {
       const node = nodeStore.get(key)
       return node === undefined ? [] : [node as ChatNode]
     })
@@ -1097,6 +1122,13 @@ export function ChatView({
     </div>
   )
 
+  // A sent message starts a Turn whose header the pending row stands in for,
+  // unless the message landed inside a Turn that is still open above it: that
+  // Turn's own header already shows the run.
+  const turnPending = (transcriptSubmissions.some(submission => submission.placement === 'transcript')
+    || lastNode?.kind === 'user')
+    && !insideOpenTurn(order, nodeStore, lastNode?.kind === 'user' ? order.length - 2 : order.length - 1)
+
   return (
     <TextAnimationContext.Provider value={textAnimation}>
       <div className={css.root}>
@@ -1118,6 +1150,8 @@ export function ChatView({
             )}
             <ChatNodeList
               order={order}
+              nodes={nodeStore}
+              submissions={transcriptSubmissions.filter(submission => submission.placement === 'transcript')}
               highlightedNodeKey={highlightedNodeKey}
               useChatNode={useChatNode}
               useChatNodeProcess={useChatNodeProcess}
@@ -1151,7 +1185,7 @@ export function ChatView({
                 t={t}
               />
             ))}
-            {transcriptSubmissions.map(submission => (
+            {transcriptSubmissions.filter(submission => submission.placement !== 'transcript').map(submission => (
               <PendingSubmissionBubble
                 key={submission.requestId}
                 submission={submission}
@@ -1163,8 +1197,7 @@ export function ChatView({
             {/* A sent message starts a Turn: its header shows from the click
                 until the Host opens the Turn and renders its own, including the
                 moment the durable message has landed but the Turn row has not. */}
-            {(transcriptSubmissions.some(submission => submission.placement === 'transcript')
-              || lastNode?.kind === 'user') && <TurnPendingRow sentAt={latestTranscriptSend(transcriptSubmissions)} t={t} />}
+            {turnPending && <TurnPendingRow sentAt={latestTranscriptSend(transcriptSubmissions)} t={t} />}
             {queuedRows.map(row => (
               <QueuedMessageBubble
                 key={row.id}
@@ -1191,6 +1224,15 @@ export function ChatView({
                 scrollport means the tail is on screen. It carries no margin of
                 its own — the observer's rootMargin owns the threshold — and adds
                 nothing to scrollHeight, so no anchoring or paging math moves. */}
+            {/* Running-turn mark pinned to the scrollport's floor: the Turn
+                header that names the run scrolls away above long work, and
+                this mark keeps the run visible at the reading edge. The
+                header carries the status text for assistive technology. */}
+            {running && !turnPending && (
+              <div className={css.workingFloor} data-chat-working="">
+                <Spinner />
+              </div>
+            )}
             <div ref={floorSentinelRef} className={css.floorSentinel} aria-hidden />
           </div>
         </div>

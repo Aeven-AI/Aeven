@@ -116,6 +116,49 @@ export class BrowserTerminal {
   }
 
   /**
+   * Read rendered text without attaching or changing browser input ownership.
+   * @param count - positive maximum number of newest screen and history lines.
+   * @param maxBytes - maximum UTF-8 bytes returned to the model.
+   * @returns a consistent text snapshot and whether older text was omitted.
+   */
+  read(count: number, maxBytes: number): Promise<{ text: string; truncated: boolean }> {
+    return this.enqueue(() => {
+      const buffer = this.screen.buffer.active
+      const lines: string[] = []
+      let bytes = 0
+      let truncated = buffer.length > count
+      for (let index = buffer.length - 1; index >= Math.max(0, buffer.length - count); index -= 1) {
+        const line = buffer.getLine(index)!.translateToString(true)
+        const size = Buffer.byteLength(line, 'utf8') + (lines.length === 0 ? 0 : 1)
+        if (bytes + size > maxBytes) { truncated = true; break }
+        lines.unshift(line)
+        bytes += size
+      }
+      return { text: lines.join('\n'), truncated }
+    })
+  }
+
+  /**
+   * Share ordered raw input with the browser without replacing its attachment.
+   * @param data - approved UTF-8 text or terminal control characters.
+   * @returns after provider acceptance; this does not imply command completion.
+   */
+  send(data: string): Promise<void> {
+    this.retention?.invalidate()
+    return this.enqueue(async () => { this.requireRunning(); await this.handle.write(data) })
+  }
+
+  /**
+   * Resize from an approved tool call without taking browser input ownership.
+   * @param cols - validated width.
+   * @param rows - validated height.
+   * @returns after provider and emulator dimensions agree.
+   */
+  setDimensions(cols: number, rows: number): Promise<void> {
+    return this.enqueue(async () => { this.requireRunning(); await this.resizeScreen(cols, rows) })
+  }
+
+  /**
    * Resize the PTY and recovery screen in the same operation order as output.
    * @param id - current writable attachment.
    * @param cols - validated column count.
@@ -125,10 +168,7 @@ export class BrowserTerminal {
   resize(id: TerminalAttachmentId, cols: number, rows: number): Promise<void> {
     return this.enqueue(async () => {
       this.requireController(id)
-      await this.handle.resize(cols, rows)
-      this.screen.resize(cols, rows)
-      this.info = { ...this.info, cols, rows }
-      this.broadcast({ type: 'state', info: this.info })
+      await this.resizeScreen(cols, rows)
     })
   }
 
@@ -167,8 +207,19 @@ export class BrowserTerminal {
     return this.closing
   }
 
-  private requireController(id: TerminalAttachmentId): void {
+  private async resizeScreen(cols: number, rows: number): Promise<void> {
+    await this.handle.resize(cols, rows)
+    this.screen.resize(cols, rows)
+    this.info = { ...this.info, cols, rows }
+    this.broadcast({ type: 'state', info: this.info })
+  }
+
+  private requireRunning(): void {
     if (this.closing !== undefined || this.info.state !== 'running') throw new RemoteError('terminal/control-unavailable', 'Terminal is not running', { reason: 'not-running' })
+  }
+
+  private requireController(id: TerminalAttachmentId): void {
+    this.requireRunning()
     if (this.controller?.id !== id) throw new RemoteError('terminal/control-unavailable', 'Terminal input is controlled by another attachment', { reason: 'read-only' })
   }
 

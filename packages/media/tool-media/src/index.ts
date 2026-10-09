@@ -903,10 +903,10 @@ export function apply(ctx: Context, config: Config): void {
 
   ctx.tools.register(defineTool({
     name: 'generate_image',
-    description: 'Generate an image from a text prompt and attach it to the conversation. Use when the user asks to create, draw, edit, or generate a picture. Give a complete visual prompt covering subject, composition, style, and lighting. To edit or draw from existing images, pass them as reference_images and refer to them by position in the prompt. The image is displayed directly to the user. Do not repeat or embed it in your reply, write an image path, or call other tools to locate or verify it.'
+    description: 'Generate an image from a text prompt and attach it to the conversation. Use when the user asks to create, draw, edit, or generate a picture. When the user supplies a complete image prompt, pass it verbatim without rewriting, expanding, or inventing details. Otherwise compose a visual prompt from their request. To edit or draw from existing images, pass them as reference_images and refer to them by position in the prompt. The image is displayed directly to the user. Do not repeat or embed it in your reply, write an image path, or call other tools to locate or verify it.'
       + modelsText(config),
     parameters: {
-      prompt: { type: 'string', required: true, description: 'Complete description of the image to generate.' },
+      prompt: { type: 'string', required: true, description: 'The user-supplied image prompt verbatim when provided; otherwise a visual description based on their request.' },
       model: { type: 'string', description: 'Optional model id for this call only, verbatim, from the available models. Omit to use the selected default.' },
       n: { type: 'integer', description: 'How many images to generate. Omit for one.' },
       size: { type: 'string', description: "Pixel size in WIDTHxHEIGHT form, e.g. '1024x1024' or '2730x1536' for 16:9, or a named size the chosen model lists in its description, e.g. '2K'. Never a tier the model does not list. Omit for the model default." },

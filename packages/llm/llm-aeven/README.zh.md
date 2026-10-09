@@ -58,7 +58,11 @@ kind: "package-reference"
 | `maxTokens` | `384,000` | 单请求输出上限；模型自身上限与请求显式取值优先 |
 | `defaultContextWindow` | `1,000,000` | 模型没有精确值时的容量回退 |
 | `streamIdleTimeoutMs` | `300,000` | 单次未结束流读取允许的最大提供方空闲时间 |
-| `maxRequestFilesBytes` … `fileQuotaCleanupBatch` | 适配器默认值 | 在本路由上不生效——见[已知限制](#known-limitations-and-deferred-work) |
+| `maxInlineRequestImageBytes` | 6 MiB | Base64 预览预算；为文本和工具 schema 保留网关请求上限中的 2 MiB |
+| `inlineImageOffloadByteQuantum` | 3 MiB | 每次超出字节预算时移除最旧的预览；持久图片和本地引用路径仍然可用 |
+| `maxImagesPerRequest` | 30 | 图片数量上限；网关转发 DeepSeek 模型所经的 DeepInfra 拒绝更多图片 |
+| `imageOffloadCountQuantum` | 10 | 每次超出数量上限时移除的最旧图片数 |
+| Files API 设置 | 适配器默认值 | 本路由没有 Files API |
 | `retryPolicy` | 常规，5 次重试 | 提供方自有的重试策略，在注册时解析一次 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#aevenllm-aeven)是每个可接受字段及其 JSDoc 的完整来源。
@@ -154,7 +158,7 @@ kind: "package-reference"
 这些限制界定适配器止步之处与未来工作的起点。它们是当前的包约束，不是与 Aeven 网关的一般性对比，也不是任务清单。
 
 - **没有 files API，因此没有上传行为** —— 图片以内联 `image_url` 片段传输。传输层实现的 Files API 路径（上传缓存、过期、刷新、失效 id 恢复、配额清理）在本路由上不可达；若网关将来提供 files API，本路由需要开始使用它们。
-- **图片与 Files 配置项被接受但不生效** —— 之所以声明它们，是因为传输层的连接事实需要完整的一组，并且它们被固定为适配器自身的默认值，以便上游变更被继承而不是在此被无声覆盖。
+- **请求预算包括文本和 schema**——默认内联图片预算为其他 JSON 内容保留 2 MiB。采用不同网关上限或更大文本请求的部署必须配置相应的图片预算。
 - **目录是随包提供而非实时拉取** —— 这是有意为之，因为实时列表按权益范围裁剪。网关新增的模型在随包发布之前不会被提供。
 - **不含插件贡献的顶层请求字段** —— `prepareExtensions` 不贡献任何内容，因此 DeepSeek 路由所携带的会话日志与插件清单扩展在此不存在。
 - **`thinking` 与 `reasoningEffort` 只转发、不强制** —— 网关接受这两个值；它如何处理属于其自身契约，而忽略某强度的模型会相应地报告用量。

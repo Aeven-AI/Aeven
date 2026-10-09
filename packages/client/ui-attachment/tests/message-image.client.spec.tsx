@@ -184,7 +184,7 @@ describe('MessageImage preview arm', () => {
         load={load}
         variant="single"
         labels={labels}
-       onOpen={noopOpen} />,
+        onOpen={noopOpen} />,
     )
     expect(load).not.toHaveBeenCalled()
     const img = view.getByAltText('echo.png') as HTMLImageElement
@@ -288,6 +288,22 @@ describe('ImageGallery', () => {
 })
 
 describe('MessageImages tray', () => {
+  it('retains the loaded tile when a submission preview becomes a durable attachment', () => {
+    const loadImage = Object.assign(vi.fn().mockResolvedValue('blob:echo'), { peek: () => 'blob:echo' })
+    const props = messageImagesOwnerProps({ layout: 'tray', images: [{ preview: { url: 'blob:echo', name: 'history.png' } }], loadImage })
+    const view = render(<MessageImages {...props} />)
+    const image = view.container.querySelector('img')
+    expect(image).not.toBeNull()
+    fireEvent.load(image!)
+    const loadedClass = image!.parentElement!.className
+
+    view.rerender(<MessageImages {...props} images={[{ attachment }]} />)
+
+    expect(view.container.querySelector('img')).toBe(image)
+    expect(image!.parentElement!.className).toBe(loadedClass)
+    expect(view.container.querySelector('[role="status"]')).toBeNull()
+  })
+
   it('opens the Turn preview from a sent-message tile and steps through the Turn', async () => {
     const other = { ...attachment, attachmentId: AttachmentId(`sha256:${'b'.repeat(64)}`), name: 'other.png' }
     const loadImage = vi.fn(async (reference: { readonly attachmentId: string }) =>
@@ -328,7 +344,7 @@ describe('MessageImages tray', () => {
     fireEvent.click(view.getByRole('button', { name: 'Screenshot 2026-10-08 at 01.35.15.png，点击查看原图' }))
     fireEvent.click(view.getByRole('button', { name: '图片信息' }))
     expect(view.getByRole('status').textContent).toMatchInlineSnapshot(
-      `"图片类型：image/webp文件大小：0.33 MB文件名：Screenshot 2026-10-08 at 01.35.15.png"`,
+      '"图片类型：image/webp文件大小：0.33 MB文件名：Screenshot 2026-10-08 at 01.35.15.png"',
     )
   })
 
@@ -345,7 +361,7 @@ describe('MessageImages tray', () => {
     fireEvent.click(view.getByRole('button', { name: '图片，点击查看原图' }))
     fireEvent.click(view.getByRole('button', { name: '图片信息' }))
     expect(view.getByRole('status').textContent).toMatchInlineSnapshot(
-      `"图片类型：image/png文件大小：0.00 MB文件名：dddddddddddd.png"`,
+      '"图片类型：image/png文件大小：0.00 MB文件名：dddddddddddd.png"',
     )
   })
 

@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
 
 The `terminal/` group gives agents persistent, owner-scoped terminal sessions: shell and REPL state — cwd, exported variables, activated environments, running interactive children — survives across tool calls. Three packages cover the family: `terminal/` provides the owner-scoped session service behind `ctx.terminals` (sessions get opaque ids, and every operation stays fenced to the owning agent); `terminal-bash/` starts an interactive bash or pwsh shell under the shared sandbox policy; and `tool-terminal/` exposes six model-facing tools with bounded results. A terminal complements the one-shot bash and filesystem tools: use it when work needs interactive stdin or cross-call state. Sessions are process-local and do not survive a harness restart.
 
+Sidebar terminals use [`api-terminal-controller`](../api/terminal-controller/src/index.ts). Its `sidebar_terminal` tool lets a chat list, read, send input to, rename, resize, and close its existing sidebar shells in web and Electron. These shells have system-user permissions; restricted agent sessions require terminal-and-operation approval. Tool input and returned text enter the session log, while the browser keeps its keyboard attachment.
+
 ## Table of Contents
 
 - [Packages](#packages)

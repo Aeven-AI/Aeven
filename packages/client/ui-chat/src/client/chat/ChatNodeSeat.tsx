@@ -1,3 +1,4 @@
+import type { PendingSubmission } from '@aeven/api-session-controller/client'
 import { memo, useCallback, useMemo } from 'react'
 import { JsonBlock } from '@aeven/client-ui-primitives'
 import type { ConversationLocationDataStore, ConversationTurnDataMap } from '@aeven/client-ui-conversation/client'
@@ -12,6 +13,7 @@ import { useTurnDataValue } from './use-turn-data.ts'
 import css from './ChatView.module.css'
 
 interface ChatNodeSeatProps extends ChatNodeOwnerProps {
+  readonly submission?: PendingSubmission | undefined
   readonly nodeKey: string
   readonly highlightedNodeKey: string | null
   readonly useChatNode: ChatViewSlotProps['useChatNode']
@@ -51,11 +53,20 @@ function turnOf(node: ChatNode | undefined): number | undefined {
 
 /** Subscribe, apply Turn-process visibility, and dispatch one stable Context key. */
 export const ChatNodeSeat = memo(function ChatNodeSeat({
-  nodeKey, highlightedNodeKey, useChatNode, useChatNodeProcess, historyIncomplete, extendedTranscript,
+  nodeKey, submission, highlightedNodeKey, useChatNode, useChatNodeProcess, historyIncomplete, extendedTranscript,
   selectedCallId, cwd, openFile, forkAt, editMessage,
   renderMessageImages, fileMentions, scrollDown, onFullscreenChange, useStore, actions, renderSlot, t,
 }: ChatNodeSeatProps) {
-  const node = useChatNode(nodeKey)
+  const durableNode = useChatNode(nodeKey)
+  const node = useMemo(() => durableNode ?? (submission === undefined ? undefined : {
+    key: nodeKey, id: submission.requestId, target: 'chat', kind: 'user',
+    anchorSeq: 0, location: { kind: 'session' }, visibility: 'visible',
+    data: {
+      kind: 'user', seq: 0, time: submission.time,
+      content: submission.text === '' ? [] : [{ type: 'text', text: submission.text }],
+      source: { kind: 'user', rpcId: submission.requestId },
+    },
+  } satisfies ChatNode<'user'>), [durableNode, submission, nodeKey])
   const routedNode = node as ChatNode | undefined
   const turn = turnOf(routedNode)
   const processPresentation = useChatNodeProcess(nodeKey)
@@ -132,6 +143,7 @@ export const ChatNodeSeat = memo(function ChatNodeSeat({
   const owner = useMemo<ChatNodeOwnerProps | null>(() => node === undefined
     ? null
     : {
+      submission: durableNode === undefined ? submission : undefined,
       selectedCallId,
       cwd,
       openFile,
@@ -145,7 +157,7 @@ export const ChatNodeSeat = memo(function ChatNodeSeat({
       extendedTranscript,
       turnProcess,
     }, [
-    node, selectedCallId, cwd, openFile, forkAt, editMessage,
+    node, durableNode, submission, selectedCallId, cwd, openFile, forkAt, editMessage,
     renderMessageImages, generatedImages, fileMentions, scrollDown, onFullscreenChange, extendedTranscript, turnProcess,
   ])
   if (routedNode === undefined || owner === null) return null

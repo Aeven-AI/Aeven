@@ -1,6 +1,8 @@
 /** Session-owned user terminals with the execution environment's system-user permissions. */
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
+import { defineTool } from '@aeven/tools'
+import { assertNever } from '@aeven/util-values'
 import type { Agent } from '@aeven/agent'
 import type { SessionId } from '@aeven/session'
 import type {} from '@aeven/sandbox-policy'
@@ -18,7 +20,7 @@ export type * from './types.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
-    /** Interactive user terminals, separate from the Agent terminal tool registry. */
+    /** Interactive user terminals shared by the sidebar and session-scoped model tools. */
     terminalController: TerminalController
   }
 }
@@ -48,6 +50,8 @@ export interface Config {
   readonly maxBufferedBytes: number
   /** Maximum UTF-8 bytes in one input request. */
   readonly maxInputBytes: number
+  /** Maximum UTF-8 bytes of screen text returned by one model read. */
+  readonly maxToolOutputBytes: number
   /** Provider process-termination grace period in milliseconds. */
   readonly disposeGraceMs: number
   /** Continuous confirmed idle time without window holds before reclamation; zero disables reclamation. */
@@ -88,6 +92,7 @@ export class TerminalController extends TypertRemoteService {
     scrollback: z.number().step(1).min(0).default(1000),
     maxBufferedBytes: z.number().step(1).min(1024).default(2 * 1024 * 1024),
     maxInputBytes: z.number().step(1).min(1).default(64 * 1024),
+    maxToolOutputBytes: z.number().step(1).min(4096).default(32 * 1024),
     disposeGraceMs: z.number().step(1).min(1).default(1000),
     unattendedTimeoutMs: z.number().step(1).min(0).max(Number.MAX_SAFE_INTEGER).default(7_200_000),
     activityPollIntervalMs: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(30_000),
@@ -103,6 +108,7 @@ export class TerminalController extends TypertRemoteService {
    */
   constructor(ctx: Context, private readonly config: Config) {
     super(ctx, 'terminalController', { namespace: 'terminal' })
+    ctx.inject(['tools'], (scoped) => { this.registerTool(scoped) })
     ctx.effect(() => async () => {
       this.lifetime.abort(new Error('Terminal controller disposed'))
       const results = await Promise.allSettled([...this.owners].map(([id, owner]) => this.disposeOwner(id, owner)))
@@ -284,6 +290,85 @@ export class TerminalController extends TypertRemoteService {
       await allocation.cleanup.close()
       owner.allocations.delete(id)
     }
+  }
+
+  private registerTool(ctx: Context): void {
+    const controller = this
+    ctx.on('tools/pre-execute', async (exec, next) => {
+      const decision = await next()
+      if (decision.kind !== 'allow' || exec.name !== 'sidebar_terminal' || exec.agent === undefined) return decision
+      const args = exec.arguments
+      if (typeof args !== 'object' || args === null || Array.isArray(args) || !('action' in args) || args.action === 'list') return decision
+      const policy = this.execution(exec.agent).sandboxPolicy.resolve({ session: exec.agent.session })
+      if (policy.mode === 'danger-full-access') return decision
+      const id = 'terminalId' in args && typeof args.terminalId === 'string' ? args.terminalId : undefined
+      if (id === undefined) return decision
+      const terminal = this.terminal(exec.agent, id as WebTerminalId)
+      return {
+        kind: 'ask',
+        reason: `Allow ${String(args.action)} access to sidebar terminal "${terminal.info.title}" (${id}) with system-user permissions?`,
+        allowSession: JSON.stringify([exec.agent.session.header.owner ?? exec.agent.id, id, args.action]),
+      }
+    })
+    ctx.effect(() => ctx.tools.register(defineTool({
+      name: 'sidebar_terminal',
+      description: 'Control the existing terminals beside this chat in web or Electron. List returns this session’s terminal ids; read returns bounded rendered screen and history text without taking keyboard ownership. Send shares the same shell and writes text, optionally followed by Enter; use submit=false for raw control keys such as Ctrl-C (\\u0003), Tab (\\t), or arrow escape sequences. Input acceptance does not prove command completion: read again to inspect output. Rename, resize, and close affect that same sidebar terminal. These are user shells with system-user permissions; restricted agent sessions require approval. To start a shell, ask the user to open Terminal in the sidebar.',
+      parameters: {
+        action: { type: 'string', required: true, enum: ['list', 'read', 'send', 'rename', 'resize', 'close'] },
+        terminalId: { type: 'string', description: 'Id from list; required for every action except list.' },
+        text: { type: 'string', description: 'Required for send; UTF-8 input, including control characters.' },
+        submit: { type: 'boolean', description: 'Append Enter for send (default true). False sends text exactly.' },
+        count: { type: 'integer', description: 'Maximum newest lines for read (default 100).' },
+        title: { type: 'string', description: 'Required nonempty display title for rename.' },
+        cols: { type: 'integer', description: 'Required columns for resize.' },
+        rows: { type: 'integer', description: 'Required rows for resize.' },
+      },
+      output: {
+        schema: { type: 'string' },
+        render: (_args, value) => [{ type: 'text', text: value }],
+      },
+      async execute(args, exec) {
+        const agent = exec.agent
+        if (agent === undefined) throw new Error('Sidebar terminal control requires a calling agent')
+        exec.signal.throwIfAborted()
+        if (args.action === 'list') return JSON.stringify(controller.list(agent.id))
+        if (args.terminalId === undefined) throw new Error('terminalId is required for this action; call list for current ids')
+        const id = args.terminalId as WebTerminalId
+        const terminal = controller.terminal(agent, id)
+        switch (args.action) {
+          case 'read': {
+            const count = args.count ?? 100
+            if (count < 1) throw new Error('count must be a positive integer')
+            return JSON.stringify({ info: terminal.info, ...await terminal.read(count, controller.config.maxToolOutputBytes) })
+          }
+          case 'send': {
+            if (args.text === undefined) throw new Error('text is required for send')
+            const data = args.text + (args.submit === false ? '' : '\r')
+            if (Buffer.byteLength(data, 'utf8') > controller.config.maxInputBytes) throw new Error('Terminal input exceeds the configured limit')
+            await terminal.send(data)
+            return JSON.stringify({ accepted: true, info: terminal.info })
+          }
+          case 'rename':
+            if (args.title === undefined) throw new Error('title is required for rename')
+            controller.rename(agent, id, args.title)
+            return JSON.stringify(terminal.info)
+          case 'resize':
+            if (args.cols === undefined || args.rows === undefined) throw new Error('cols and rows are required for resize')
+            controller.dimensions(args.cols, args.rows)
+            await terminal.setDimensions(args.cols, args.rows)
+            return JSON.stringify(terminal.info)
+          case 'close':
+            await controller.close(agent, id)
+            return JSON.stringify({ closed: id })
+          default: return assertNever(args.action)
+        }
+      },
+      presentCall: args => ({
+        card: 'generic', title: `Sidebar terminal: ${args.action}`,
+        kind: args.action === 'list' || args.action === 'read' ? 'read' : args.action === 'close' ? 'delete' : 'execute',
+        rawInput: args.text ?? args.terminalId,
+      }),
+    })), 'terminal-controller.model-tool')
   }
 
   private callerMayAccess(owner: OwnedSession): boolean {

@@ -14,7 +14,7 @@ Conversation 组装的浏览器 Chat target。本包注册 Chat event definition
 审批详情解析关联的根工具调用或嵌套调用。shell 调用显示命令；MCP 调用以纯文本显示目标、消息内容和其余参数。草稿引用显示提供的草稿标识符，不读取草稿内容。
 Transcript 使用 ui-theme 的 Aeven 宽度、间距、排版与圆角变量；Chat 保留原有 node renderer、操作和图标。
 
-Host 领取收件箱消息期间，transcript 和 steering 回显继续留在消息流中。其收件箱行会隐藏，直到带有相同 `rpcId` 的持久化 user 或 steering 节点替换回显；queued 回显则交接给队列行。
+Host 领取收件箱消息期间，transcript 和 steering 回显继续留在消息流中。其收件箱行会隐藏，直到消息持久化。transcript 回显与已接收的 user 节点共用以 prompt rpcId 为键的 React 行；接收消息和更新计时器时，消息气泡与已加载的图片图块保持挂载。steering 回显交接给 steering 节点，queued 回显则交接给队列行。
 
 ## 目录
 

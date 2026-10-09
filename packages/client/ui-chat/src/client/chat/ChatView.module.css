@@ -178,6 +178,26 @@
   height: 0;
 }
 
+/* Running-turn mark: sticky to the scrollport's floor, so it stays at the
+   reading edge while the transcript above it scrolls. The page fill behind the
+   glyph keeps it legible over rows passing under it; reduced motion stills the
+   glyph, and its presence alone still marks the run. It follows the last row
+   at the work-row step rather than the message gap, and its padding sits
+   outside the column so the glyph lines up with the text's leading edge. */
+.workingFloor {
+  --avn-chat-flow-gap: 12px;
+  position: sticky;
+  bottom: 8px;
+  z-index: 1;
+  flex: none;
+  align-self: flex-start;
+  display: flex;
+  margin-left: -4px;
+  padding: 4px;
+  border-radius: 100px;
+  background: var(--dsw-alias-bg-base);
+}
+
 /* Back-to-bottom: zero-height slot in the host's non-scrolling chrome layer,
    so the control neither extends scrollHeight nor rides the scrollport's
 /* Centred on the transcript's axis: the host layer carries the same symmetric

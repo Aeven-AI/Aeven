@@ -134,6 +134,8 @@ Read these pages when the package-level contract is not enough. They move from t
 
 None, as the LLM service adds no content; adapters choose when to add the shared image descriptors and per-image placeholders exported by this package.
 
+Image descriptors name the attachment identifier and normalized-copy path. Image generation reads that path directly as a reference; copying is required only before modifying the file itself.
+
 #### KV Cache effect
 
 Reasoning-effort materialization preserves the assembled request prefix. Image identity and request-preview text are deterministic, while an optional execution-world path is resolved for each request; a changed path or image-offload boundary can prevent reuse from that image.

@@ -218,7 +218,7 @@ describe('model-facing image access', () => {
       `Image "source \\"map\\".png" (${attachment.attachmentId}); request preview 923x692px.`
       + ' Normalized copy (read-only; may be resized or re-encoded): "/tmp/.aeven/attachments/v1/objects/bb/object" (2048x1536px, image/png).'
       + ' Source dimensions, format, and byte size may differ.'
-      + ' Copy to a writable path ending in .png before editing.',
+      + ' For generate_image, pass this path directly as reference_images. Copy to a writable path ending in .png only before modifying the file itself.',
     )
   })
 
@@ -286,7 +286,7 @@ describe('model-facing image access', () => {
       `[image omitted to fit request image limits; "photo.jpg" (${ref.attachmentId}).`
       + ' Normalized copy (read-only; may be resized or re-encoded): "/tmp/object" (10x5px, image/jpeg).'
       + ' Source dimensions, format, and byte size may differ.'
-      + ' Copy to a writable path ending in .jpg before editing.]',
+      + ' For generate_image, pass this path directly as reference_images. Copy to a writable path ending in .jpg only before modifying the file itself.]',
     )
   })
 

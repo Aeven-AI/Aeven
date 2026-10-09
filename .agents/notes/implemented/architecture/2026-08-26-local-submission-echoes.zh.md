@@ -14,7 +14,7 @@
 
 **退休由观察驱动并延迟一帧；显示去重是渲染期的声明式规则。**Session 在带其 rpcId 的 durable `user/message` 或 queue occurrence 到达时（append、窗口安装或 control frame）标记回显为已观察，并在一个动画帧之后移除，晚于先注册的会话组装帧。ChatView 独立地隐藏 rpcId 出现在已渲染 user/steering 节点或 queue 行中的回显，因此无论 store 更新顺序如何，每一次渲染中回显与 durable 恰有一个可见。带标识的 prompt 失败、`abandon()` 或销毁使回显立即按 failed 退休；先到的 settlement 生效。
 
-**Composer 乐观提交。**Enter 在一个 machine 事务里清空草稿、occurrence 表和撤销历史，phase 保持 `plain`；发送作为 detached attempt 运行，允许并发发送，唯一的冻结 in-flight 槽只留给命令。回显行出现时淡入，而替换它的 durable 行不带这次淡入，因此一次提交只淡入一次；仍在运行的 step 的正文 run 在首次带上文本的那次提交里同样淡入，而从历史装配出来的 step 已是 settled，永不播放动画。多个 detached 发送失败时，只要 composer 为空或仍是上一次自动还原的内容，就按提交顺序合并还原；用户编辑后停止这一轮自动还原。草稿图片由 detached attempt 持有到回显退休，因此图片离开 rail 后销毁 Session scope 仍能释放它们。回显以 observed 退休时，`HistoricalImageCache.seed` 把每个预览 URL 挂到 admitted 引用名下。缓存同步公开预览 URL，同时读取 durable 附件；读取完成后用规范化 URL 替换预览，并按各自生命周期撤销两个 URL。直接 subagent continuation 不注册回显，因为它的 transport 会分配另一个 RPC id，而且不支持图片输入。
+**Composer 乐观提交。**Enter 在一个 machine 事务里清空草稿、occurrence 表和撤销历史，phase 保持 `plain`；发送作为 detached attempt 运行，允许并发发送，唯一的冻结 in-flight 槽只留给命令。普通会话回显与 durable 用户节点共用以 prompt rpcId 标识的 keyed renderer seat。本地 payload 仅用于展示，不进入 Conversation assembler 或 session log。气泡与附件瓦片在 admission 过程中保持挂载；首次淡入和图片加载状态保留，因此一次提交只淡入一次；仍在运行的 step 的正文 run 在首次带上文本的那次提交里同样淡入，而从历史装配出来的 step 已是 settled，永不播放动画。多个 detached 发送失败时，只要 composer 为空或仍是上一次自动还原的内容，就按提交顺序合并还原；用户编辑后停止这一轮自动还原。草稿图片由 detached attempt 持有到回显退休，因此图片离开 rail 后销毁 Session scope 仍能释放它们。回显以 observed 退休时，`HistoricalImageCache.seed` 把每个预览 URL 挂到 admitted 引用名下。缓存同步公开预览 URL，同时读取 durable 附件；读取完成后用规范化 URL 替换预览，并按各自生命周期撤销两个 URL。直接 subagent continuation 不注册回显，因为它的 transport 会分配另一个 RPC id，而且不支持图片输入。
 
 客户端图片编码从同步分块 `btoa` 循环换成 `FileReader.readAsDataURL`（原生编码）。browser→host 传输仍是一个 base64 JSON 整包；#2885 剩余的传输改造不在本决定范围内。
 

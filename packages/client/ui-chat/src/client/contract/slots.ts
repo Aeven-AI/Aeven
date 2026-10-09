@@ -1,6 +1,6 @@
 /** Chat-owned Slot declarations and composed component props. */
 import type { MessageId } from '@aeven/llm/brand'
-import type { SessionFace } from '@aeven/api-session-controller/client'
+import type { PendingSubmission, SessionFace } from '@aeven/api-session-controller/client'
 import type { SessionSeq } from '@aeven/session/types'
 import type {
   ConversationEventNavigation, ConversationLocationDataStore, ConversationTurnDataMap,
@@ -75,6 +75,8 @@ export interface ChatNodeTurnDataInjected {
 
 /** Stable owner currency delivered to a keyed Chat renderer. */
 export interface ChatNodeOwnerProps {
+  /** Local transcript submission retained by the same row until durable admission. */
+  submission?: PendingSubmission | undefined
   selectedCallId?: ToolCallId | undefined
   cwd?: string | undefined
   openFile: (path: string) => void
