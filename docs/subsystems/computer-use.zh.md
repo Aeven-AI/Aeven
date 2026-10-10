@@ -6,7 +6,7 @@
 
 ## 选择提供方
 
-在同一组合中挂载 [`@aeven/computer-use`](../../packages/computer-use/computer-use/README.zh.md) 和一个提供方。Electron 桌面应用在已安装 `cua-driver` 可执行程序时挂载 Cua Driver MCP 提供方；其他组合需显式启用。
+在同一组合中挂载 [`@aeven/computer-use`](../../packages/computer-use/computer-use/README.zh.md) 和一个提供方。macOS 上的 Web 应用和 Electron 桌面应用在已安装 `cua-driver` 可执行程序时挂载 Cua Driver MCP 提供方；其他组合需显式启用。
 
 | 提供方 | 运行时 |
 |---|---|

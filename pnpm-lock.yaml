@@ -584,12 +584,6 @@ importers:
       '@aeven/cmdline':
         specifier: workspace:^
         version: link:../../packages/boot/cmdline
-      '@aeven/computer-use':
-        specifier: workspace:^
-        version: link:../../packages/computer-use/computer-use
-      '@aeven/computer-use-cua-driver-mcp':
-        specifier: workspace:^
-        version: link:../../packages/computer-use/computer-use-cua-driver-mcp
       '@aeven/host-directory-picker-native':
         specifier: workspace:^
         version: link:../../packages/host/directory-picker-native
@@ -2124,6 +2118,12 @@ importers:
       '@aeven/code-runtime-worker-thread':
         specifier: workspace:^
         version: link:../../code-runtime/code-runtime-worker-thread
+      '@aeven/computer-use':
+        specifier: workspace:^
+        version: link:../../computer-use/computer-use
+      '@aeven/computer-use-cua-driver-mcp':
+        specifier: workspace:^
+        version: link:../../computer-use/computer-use-cua-driver-mcp
       '@aeven/cordis-client-runner':
         specifier: workspace:^
         version: link:../../extensions/cordis-client-runner

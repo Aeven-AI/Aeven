@@ -106,6 +106,8 @@
     "@aeven/client-ui-workspace": "workspace:^",
     "@aeven/cmdline": "workspace:^",
     "@aeven/code-runtime-worker-thread": "workspace:^",
+    "@aeven/computer-use": "workspace:^",
+    "@aeven/computer-use-cua-driver-mcp": "workspace:^",
     "@aeven/cordis-client-runner": "workspace:^",
     "@aeven/cordis-host-runner": "workspace:^",
     "@aeven/device": "workspace:^",

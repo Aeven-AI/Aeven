@@ -41,17 +41,3 @@
     - id: ui-directory-picker-native
       name: '@aeven/client-ui-directory-picker-native'
 
-    # Computer use on the reader's own Mac through an installed Cua Driver,
-    # whose app holds the Accessibility and Screen Recording grants. A failed
-    # provider start fails the whole tree, so the rows stay off on a machine
-    # without the driver rather than refusing to boot there.
-    - id: computer-use
-      name: '@aeven/computer-use'
-      disabled: !!js "process.platform !== 'darwin' || !process.getBuiltinModule('node:fs').existsSync('/Applications/CuaDriver.app/Contents/MacOS/cua-driver')"
-
-    - id: computer-use-cua-driver
-      name: '@aeven/computer-use-cua-driver-mcp'
-      disabled: !!js "process.platform !== 'darwin' || !process.getBuiltinModule('node:fs').existsSync('/Applications/CuaDriver.app/Contents/MacOS/cua-driver')"
-      config:
-        command: /Applications/CuaDriver.app/Contents/MacOS/cua-driver
-        args: [mcp]

@@ -326,6 +326,22 @@
           - '--caps=devtools'
         failOnStartupError: false
 
+    # Computer use on the Host's own Mac through an installed Cua Driver,
+    # whose app holds the Accessibility and Screen Recording grants. The
+    # Electron app inherits these rows. A failed provider start fails the whole
+    # tree, so the rows stay off on a machine without the driver rather than
+    # refusing to boot there.
+    - id: computer-use
+      name: '@aeven/computer-use'
+      disabled: !!js "process.platform !== 'darwin' || !process.getBuiltinModule('node:fs').existsSync('/Applications/CuaDriver.app/Contents/MacOS/cua-driver')"
+
+    - id: computer-use-cua-driver
+      name: '@aeven/computer-use-cua-driver-mcp'
+      disabled: !!js "process.platform !== 'darwin' || !process.getBuiltinModule('node:fs').existsSync('/Applications/CuaDriver.app/Contents/MacOS/cua-driver')"
+      config:
+        command: /Applications/CuaDriver.app/Contents/MacOS/cua-driver
+        args: [mcp]
+
     # Configuration-surface reads and writes over Typert Remote. Each method
     # reports an actionable error when its settings-domain provider is absent.
     - id: settings-controller
