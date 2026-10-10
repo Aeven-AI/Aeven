@@ -13,6 +13,7 @@ import type { MessageSource } from '@aeven/llm'
 import { SessionLogOffset, SessionSeq } from '@aeven/session'
 import type { SessionEvent, SessionHeader, SessionId, UserMessage } from '@aeven/session'
 import { SessionQueryError, type SessionObservation } from '@aeven/session-query'
+import { SessionPersistenceBusyError } from '@aeven/session-persistence'
 import { SessionTitleInvalidError } from '@aeven/session-title'
 import { canonicalClientTimeZone } from '@aeven/util-time'
 import { RemoteError, remoteErrorOf } from '@aeven/typert-protocol'
@@ -154,11 +155,12 @@ export class SessionCommandController {
     }
     const sessionId = request.sessionId ?? brandString<SessionId>(`session-${randomUUID()}`)
     let workspace: Workspace | undefined
-    if (request.workspaceId !== undefined) {
-      workspace = this.ctx.workspaceRegistry.get(request.workspaceId)
+    const workspaceId = request.workspaceId ?? (request.cwd === undefined ? this.ctx.workspaceRegistry.defaultWorkspaceId : undefined)
+    if (workspaceId !== undefined) {
+      workspace = this.ctx.workspaceRegistry.get(workspaceId)
       if (workspace === undefined) {
-        throw new RemoteError('workspace/not-found', `workspace "${request.workspaceId}" not found`, {
-          workspaceId: request.workspaceId,
+        throw new RemoteError('workspace/not-found', `workspace "${workspaceId}" not found`, {
+          workspaceId,
         })
       }
     }
@@ -725,6 +727,9 @@ export class SessionCommandController {
 
   private rejectCreation(sessionId: SessionId, error: unknown): never {
     if (remoteErrorOf(error) !== undefined) throw error
+    if (error instanceof SessionPersistenceBusyError) {
+      throw new RemoteError('session/agent-busy', error.message, { reason: error.message })
+    }
     if (error instanceof ApiSessionPresetConflict) {
       throw new RemoteError('agent-preset/conflict', error.message, {
         sessionId: error.sessionId,

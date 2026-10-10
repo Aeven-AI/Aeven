@@ -7,9 +7,11 @@ kind: "package-library"
 
 English | [中文](README.zh.md)
 
+GUI launchers call `claimOrAttachHost` before mounting stateful plugins. A kernel lock at `runtime/host.lock` holds ownership through boot and serving; an atomic, owner-only `runtime/host.json` publishes the authenticated endpoint. Contenders reuse that endpoint or reject after the readiness deadline; a timeout never authorizes another Host. Process death releases the kernel lock. Persistent lock files must not be removed while Hosts can run.
+
 ## Summary
 
-`avn-home-paths` resolves the single Aeven home that all user data lives under, and joins child paths onto it, so every product package agrees on where its files go. Precedence is explicit: a configured path wins, then `$AVN_HOME`, then `~/.aeven`, and an empty or whitespace-only `$AVN_HOME` counts as unset. The package also expands `~`, `~/...`, and `~\...` prefixes against the operating-system home, and canonicalizes a watch target so a native filesystem watcher gets one stable path spelling even when the final components do not exist yet. It is a zero-dependency library that product packages import directly; a `cordis.yml` cannot load it.
+`avn-home-paths` resolves the single Aeven home that all user data lives under, and joins child paths onto it, so every product package agrees on where its files go. Precedence is explicit: a configured path wins, then `$AVN_HOME`, then `~/.aeven`, and an empty or whitespace-only `$AVN_HOME` counts as unset. The package also expands `~`, `~/...`, and `~\...` prefixes against the operating-system home, and canonicalizes a watch target so a native filesystem watcher gets one stable path spelling even when the final components do not exist yet. It is a library using the existing Koffi runtime for kernel locking that product packages import directly; a `cordis.yml` cannot load it.
 
 ## Table of Contents
 

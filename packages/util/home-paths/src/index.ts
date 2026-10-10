@@ -136,3 +136,4 @@ export function avnHomeDisplay(resolvedHome: string): string {
 }
 
 export * from './host-lease.ts'
+export * from './file-lock.ts'

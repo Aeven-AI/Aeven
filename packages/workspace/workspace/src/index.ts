@@ -889,8 +889,8 @@ export class WorkspaceRegistry extends Service {
 
   /**
    * Re-assert membership the durable record may have lost while another Host
-   * held the shared storage root: every indexed Session whose canonical cwd is
-   * an existing Workspace's path is attached again. An already-accounted
+   * held the shared storage root: ordinary Sessions with a matching folder
+   * are attached again, and unassigned pathless Sessions enter Chats. An already-accounted
    * Session costs one set lookup and no write, so a healthy start performs no
    * storage write at all. A registration the user deleted stays deleted: only
    * Workspaces that still exist admit.
@@ -899,18 +899,16 @@ export class WorkspaceRegistry extends Service {
     const byPath = new Map<string, Workspace>()
     const accounted = new Set<SessionId>()
     for (const workspace of this.list()) {
-      // Only a folder workspace can be re-admitted to by a header cwd; a
-      // pathless workspace's members are already accounted by its record.
       if (isFolderWorkspace(workspace)) byPath.set(workspace.path, workspace)
       for (const sessionId of workspace.sessionIds) accounted.add(sessionId)
     }
-    if (byPath.size === 0) return
-
+    const defaultWorkspace = this.defaultWorkspaceId === undefined ? undefined : this.get(this.defaultWorkspaceId)
     const pending: Array<{ sessionId: SessionId; workspace: Workspace; header: SessionHeader }> = []
-    for (const [sessionId, path] of this.sessionPaths) {
-      const workspace = byPath.get(path)
-      const header = this.headers.get(sessionId)
-      if (workspace === undefined || header === undefined || accounted.has(sessionId)) continue
+    for (const [sessionId, header] of this.headers) {
+      if (header.origin === 'subagent' || accounted.has(sessionId)) continue
+      const path = this.sessionPaths.get(sessionId)
+      const workspace = header.cwd === undefined ? defaultWorkspace : path === undefined ? undefined : byPath.get(path)
+      if (workspace === undefined || workspace.owner !== header.owner) continue
       pending.push({ sessionId, workspace, header })
     }
     // Attach prepends, so adopting oldest-first leaves the newest Session on top.

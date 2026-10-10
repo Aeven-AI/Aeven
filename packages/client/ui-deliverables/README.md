@@ -35,6 +35,8 @@ The row uses CSS container-width bands to show a responsive prefix of up to six 
 
 The closing prose carries the same vocabulary: an inline-code token resolves by exact path, or by being exactly the basename of exactly one produced path — a basename two paths share stays inert rather than guessing, so a mention can never open the wrong file. A resolved mention keeps its code chip and takes the markdown sheet's link language, with the full path as its title.
 
+On the desktop, that chip and the row's chips also answer a right-click: the menu the Electron shell draws offers the desktop's own handler for the file, the file manager, and the file's relative and absolute paths, with the handler list queried for that file as the menu opens. Served over HTTP no menu is intercepted, so the platform's own right-click menu stands.
+
 -----
 
 <a id="understand-the-implementation"></a>

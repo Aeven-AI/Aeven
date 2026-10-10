@@ -18,7 +18,7 @@ import type { SessionPersistenceRevision } from './revision.ts'
 // Re-export the metadata vocabulary so Consumers import it from the Service Definition.
 export type { SessionHeader } from '@aeven/session'
 export { SessionPersistenceRevision } from './revision.ts'
-export { SessionPersistenceNotFoundError } from './errors.ts'
+export { SessionPersistenceBusyError, SessionPersistenceNotFoundError } from './errors.ts'
 
 /** Lightweight immutable source identity returned without loading a full log. */
 export interface SessionPersistenceSnapshot {

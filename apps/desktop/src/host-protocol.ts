@@ -1,7 +1,7 @@
 /** Versioned control messages and framed byte transport for the Desktop Host child. */
 
 /** Protocol version implemented by the Electron shell and installed avn Host. */
-export const DESKTOP_HOST_PROTOCOL_VERSION = 4 as const
+export const DESKTOP_HOST_PROTOCOL_VERSION = 5 as const
 
 /** Same-origin path the renderer addresses for Aeven sign-in; Electron forwards it to the Aeven API. */
 export const DESKTOP_AEVEN_API_PATH = '/.aeven/api'
@@ -60,6 +60,8 @@ export type DesktopHostEvent = {
   readonly type: 'ready'
   readonly protocolVersion: typeof DESKTOP_HOST_PROTOCOL_VERSION
   readonly avnVersion: string
+  readonly url: string
+  readonly ownsHost: boolean
   readonly aevenSignIn?: DesktopAevenSignIn
 } | {
   readonly type: 'fatal'

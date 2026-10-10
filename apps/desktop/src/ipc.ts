@@ -7,6 +7,9 @@ export type DesktopMenuCommand = 'open-settings' | 'start-dictation'
 /** IPC channel names kept private to the desktop application bundle. */
 export const DESKTOP_IPC = {
   menuCommand: 'avn-desktop:menu-command',
+  appMenuShow: 'avn-desktop:app-menu-show',
+  linksOpen: 'avn-desktop:links-open',
+  linksListen: 'avn-desktop:links-listen',
   updatesCheck: 'avn-desktop:updates-check',
   updatesInstall: 'avn-desktop:updates-install',
   updatesState: 'avn-desktop:updates-state',
@@ -23,6 +26,25 @@ export const DESKTOP_IPC = {
 
 /** `prefers-color-scheme` a browser guest is shown with; `system` clears the override. */
 export type DesktopBrowserColorScheme = 'system' | 'light' | 'dark'
+
+/**
+ * One row of a menu the app page describes for the shell to pop.
+ *
+ * The app page knows what its own links and file names mean — an address it
+ * can show in the sidebar's browser, a file it can reveal — and the shell
+ * knows how to draw a native menu. A row carries only what it takes to draw
+ * one, because the page performs the action itself once the reader chooses.
+ */
+export type DesktopMenuItem =
+  | { readonly type: 'separator' }
+  | {
+    readonly type: 'row'
+    /** Value the page receives back when this row is chosen; unique within its menu. */
+    readonly id: string
+    readonly label: string
+    /** Whether the row can be chosen; a row that omits it can. */
+    readonly enabled?: boolean
+  }
 
 /**
  * One agent pointer step the app window draws over a guest, in the guest's
@@ -133,12 +155,48 @@ export interface AvnDesktopBrowserApi {
 export interface AvnDesktopAppApi {
   readonly protocolVersion: 1
   readonly browser: AvnDesktopBrowserApi
+  readonly contextMenu: AvnDesktopContextMenuApi
+  readonly links: AvnDesktopLinksApi
   /**
    * Observe the application menu's commands, which the shell issues on the page's behalf.
    * @param listener - called with each command the menu sends.
    * @returns disposer removing the listener.
    */
   onCommand(listener: (command: DesktopMenuCommand) => void): () => void
+}
+
+/**
+ * Native menus the app page describes.
+ *
+ * The page owns what a right-click means — its links carry destinations the
+ * sidebar's browser, the system browser, or the clipboard can take, and its
+ * file names carry paths a desktop can open — while the shell owns the menu
+ * itself. The page suppresses the platform's own menu on the elements it
+ * answers for, so exactly one menu is ever up.
+ */
+export interface AvnDesktopContextMenuApi {
+  /**
+   * Pop one native menu for the app page and settle on the row the reader chose.
+   * @param items - the rows to show, in display order.
+   * @returns the chosen row's id, or null when the reader dismissed the menu.
+   */
+  show(items: readonly DesktopMenuItem[]): Promise<string | null>
+}
+
+/**
+ * External addresses the app page's own content asked to open.
+ *
+ * A window the page asks for never opens here: the page is told the address
+ * instead, because it owns where a link lands — the sidebar's browser, the
+ * Host's Chromium, or the operating system's default browser.
+ */
+export interface AvnDesktopLinksApi {
+  /**
+   * Observe the external addresses the page's content asked to open.
+   * @param listener - called with each absolute http(s) address.
+   * @returns disposer removing the listener.
+   */
+  onOpen(listener: (url: string) => void): () => void
 }
 
 /** Desktop release update state rendered by desktop-owned UI. */

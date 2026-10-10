@@ -1,24 +1,16 @@
 /**
- * Cross-host advertisement for one Aeven home.
- *
- * Every durable share in an Aeven home is single-writer by construction
- * except the domain KV documents under `storages/`, whose backend republishes
- * a whole document from one process's memory with no cross-process
- * coordination. Two Hosts sharing a home therefore do not merge: whichever
- * writes last replaces the other's view, which is how a Session that one Host
- * attached to a Workspace silently loses that membership.
- *
- * This module is the missing primitive that makes such a conflict visible
- * instead of silent. A serving Host advertises the identity a peer needs —
- * its pid, when it started, and the tokenized root URL a browser or shell can
- * attach with — at `runtime/host.json` inside the home. Because the lease
- * carries a live launch token, it is written owner-only and must never be
- * logged.
+ * GUI Host ownership and discovery for one Aeven home. The kernel lock guards
+ * boot and the complete serving lifetime; runtime/host.json advertises the
+ * authenticated endpoint after readiness. The advertisement is owner-only
+ * because its URL carries a live browser launch credential.
  * @module @aeven/home-paths/host-lease
  */
 
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm, writeFile, rename } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
+import { setTimeout as delay } from 'node:timers/promises'
 import { dirname, join } from 'node:path'
+import { tryAcquireFileLock } from './file-lock.ts'
 
 /** Home-relative path of the serving-Host lease. */
 export const HOST_LEASE_FILE = 'runtime/host.json'
@@ -36,10 +28,8 @@ export interface HostLease {
   readonly startedAt: string
   /**
    * Tokenized root URL of the Host's HTTP surface, when it serves one. A Host
-   * claims the lease without it while booting and adds it once its server is
-   * bound; a Host reachable only through its own carrier (the Electron pipes,
-   * for example) gives the claim back after boot, since nothing outside can
-   * attach to it.
+   * claims ownership without it while booting and adds it after the complete
+   * application is ready for browser and Electron clients.
    */
   readonly url?: string
 }
@@ -113,7 +103,13 @@ export async function readHostLease(home: string): Promise<HostLease | undefined
 export async function writeHostLease(home: string, lease: HostLease): Promise<void> {
   const path = hostLeasePath(home)
   await mkdir(dirname(path), { recursive: true })
-  await writeFile(path, `${JSON.stringify(lease, undefined, 2)}\n`, { mode: 0o600 })
+  const temporary = `${path}.${randomUUID()}`
+  try {
+    await writeFile(temporary, `${JSON.stringify(lease, undefined, 2)}\n`, { mode: 0o600, flag: 'wx' })
+    await rename(temporary, path)
+  } finally {
+    await rm(temporary, { force: true })
+  }
 }
 
 /**
@@ -132,7 +128,7 @@ export async function clearHostLease(home: string, pid: number): Promise<void> {
 
 /**
  * Read the home's lease, discarding one whose owning process has exited. Stale
- * removal is best-effort: a Host that cannot write still gets a usable answer.
+ * advertisements are replaced only by the next kernel-lock owner.
  * @param home - absolute Aeven home.
  * @returns the live lease, or undefined when the home is unclaimed.
  */
@@ -140,7 +136,6 @@ export async function liveHostLease(home: string): Promise<HostLease | undefined
   const recorded = await readHostLease(home)
   if (recorded === undefined) return undefined
   if (isHostProcessAlive(recorded.pid)) return recorded
-  await rm(hostLeasePath(home), { force: true }).catch(() => undefined)
   return undefined
 }
 
@@ -151,12 +146,12 @@ export async function liveHostLease(home: string): Promise<HostLease | undefined
  * @param home - absolute Aeven home.
  * @param pid - the claiming process id.
  * @param url - tokenized root URL clients attach with.
- * @returns resolution after the attempt; failures stay silent.
+ * @returns resolution after publication; ownership or write failures reject.
  */
 export async function advertiseHostUrl(home: string, pid: number, url: string): Promise<void> {
   const recorded = await readHostLease(home)
-  if (recorded === undefined || recorded.pid !== pid) return
-  await writeHostLease(home, { ...recorded, url }).catch(() => undefined)
+  if (recorded === undefined || recorded.pid !== pid) throw new Error('cannot advertise a Host without its startup ownership record')
+  await writeHostLease(home, { ...recorded, url })
 }
 
 /**
@@ -169,9 +164,56 @@ export async function advertiseHostUrl(home: string, pid: number, url: string): 
  */
 export async function probeHostUrl(url: string, timeoutMs = 1500): Promise<boolean> {
   try {
-    const response = await fetch(url, { signal: AbortSignal.timeout(timeoutMs), redirect: 'follow' })
-    return response.status < 500
+    const response = await fetch(url, { signal: AbortSignal.timeout(timeoutMs), redirect: 'manual' })
+    return response.ok || (response.status === 303 && response.headers.get('location') === '/' && response.headers.has('set-cookie'))
   } catch {
     return false
+  }
+}
+
+/** One GUI Host startup owner, or the incumbent's authenticated endpoint. */
+export type HostStartup =
+  | { readonly kind: 'owner'; readonly release: () => Promise<void> }
+  | { readonly kind: 'attach'; readonly url: string }
+
+/**
+ * Serialize GUI Host startup before any stateful plugin mounts.
+ * A live incumbent that cannot serve within the deadline is an error; its
+ * process is never displaced by a second Host. Legacy advertisements also
+ * block startup until their owning process exits.
+ * @param home - shared Aeven home.
+ * @param waitMs - maximum wait for the incumbent's endpoint.
+ * @param pollMs - interval between ownership and readiness checks.
+ * @returns exclusive startup ownership or the serving Host's endpoint.
+ */
+export async function claimOrAttachHost(home: string, waitMs = 30_000, pollMs = 250): Promise<HostStartup> {
+  const deadline = Date.now() + waitMs
+  for (;;) {
+    const releaseLock = await tryAcquireFileLock(join(home, 'runtime', 'host.lock'))
+    if (releaseLock !== undefined) {
+      try {
+        const existing = await liveHostLease(home)
+        if (existing === undefined || existing.pid === process.pid) {
+          await writeHostLease(home, { version: HOST_LEASE_VERSION, pid: process.pid, startedAt: new Date().toISOString() })
+          let released = false
+          return { kind: 'owner', release: async () => {
+            if (released) return
+            released = true
+            try { await clearHostLease(home, process.pid) } finally { releaseLock() }
+          } }
+        }
+      } catch (error: unknown) {
+        releaseLock()
+        throw error
+      }
+      releaseLock()
+    }
+    const incumbent = await liveHostLease(home)
+    if (incumbent?.url !== undefined && await probeHostUrl(incumbent.url)) {
+      const current = await liveHostLease(home)
+      if (current?.pid === incumbent.pid && current.url === incumbent.url) return { kind: 'attach', url: incumbent.url }
+    }
+    if (Date.now() >= deadline) throw new Error('the existing Aeven Host did not become ready; stop that Host before starting another')
+    await delay(pollMs)
   }
 }

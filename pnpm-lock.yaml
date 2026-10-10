@@ -584,9 +584,15 @@ importers:
       '@aeven/cmdline':
         specifier: workspace:^
         version: link:../../packages/boot/cmdline
+      '@aeven/home-paths':
+        specifier: workspace:^
+        version: link:../../packages/util/home-paths
       '@aeven/host-directory-picker-native':
         specifier: workspace:^
         version: link:../../packages/host/directory-picker-native
+      '@aeven/host-frontend-static':
+        specifier: workspace:^
+        version: link:../../packages/host/frontend-static
       '@aeven/host-webserver':
         specifier: workspace:^
         version: link:../../packages/host/webserver
@@ -3062,6 +3068,9 @@ importers:
       '@aeven/api-remotes':
         specifier: workspace:^
         version: link:../../api/remotes
+      '@aeven/api-session-controller':
+        specifier: workspace:^
+        version: link:../../api/session-controller
       '@aeven/client-connection':
         specifier: workspace:^
         version: link:../connection
@@ -3095,6 +3104,9 @@ importers:
       '@aeven/system-prompt':
         specifier: workspace:^
         version: link:../../core/system-prompt
+      '@aeven/util-workspace-path':
+        specifier: workspace:^
+        version: link:../../util/workspace-path
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -9563,6 +9575,9 @@ importers:
 
   packages/session/session-persistence-jsonl:
     dependencies:
+      '@aeven/home-paths':
+        specifier: workspace:^
+        version: link:../../util/home-paths
       '@deepseek-ai/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
@@ -11764,6 +11779,10 @@ importers:
         version: link:../../../vendor/cordis
 
   packages/util/home-paths:
+    dependencies:
+      koffi:
+        specifier: ^3.1.0
+        version: 3.1.1
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: workspace:^

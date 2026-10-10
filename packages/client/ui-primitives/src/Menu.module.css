@@ -237,11 +237,13 @@
   color: var(--dsw-alias-label-tertiary);
 }
 
-/* Separator cell (figma 122:9481): py 4 / px 2 around the hairline. */
+/* Separator cell (figma 122:9481): py 4 / px 2 around the hairline. The hairline
+ * takes l2, not l1: l1 is near-invisible on the menu surface, so its divider
+ * reads as stray spacing between the rows it separates. */
 .separator {
   height: 0.5px;
   margin: 4px 2px;
-  background: var(--dsw-alias-border-l1);
+  background: var(--dsw-alias-border-l2);
 }
 
 /* Nested card beside the parent's row (figma 419:16920).

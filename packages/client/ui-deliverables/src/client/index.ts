@@ -15,6 +15,7 @@ import type {} from '@aeven/client-locale/client'
 import type {} from '@aeven/client-ui-conversation/client'
 import type {} from '@aeven/client-ui-renderer/client'
 import { ProducedFiles } from './ProducedFiles.tsx'
+import { desktopFileMenus, fileMenuLabels, showFileMenu } from './file-menu.ts'
 import { en, NS, zh, type DeliverablesKey } from './locales.ts'
 import {
   deliverablesDefinition, producedFileMentions, selectProducedFiles,
@@ -66,6 +67,15 @@ export function apply(ctx: ClientContext): void {
   })
   ctx.uiConversation.events.register(deliverablesDefinition)
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-deliverables: dictionaries')
+  const t = ctx.locale.bind(NS)
+  // The desktop draws the file menu; the browser-served client leaves the
+  // platform's own right-click menu alone, which is what its reader expects.
+  const menus = desktopFileMenus()
+  const showMenu = menus === undefined
+    ? undefined
+    : (path: string, cwd: string | undefined): void => {
+      void showFileMenu({ menus, remote: ctx.remote, labels: fileMenuLabels(t) }, path, cwd)
+    }
   ctx.slots.inject(
     'conversation.chat.turnTail',
     () => ctx.slots.register({
@@ -75,20 +85,25 @@ export function apply(ctx: ClientContext): void {
       inject: () => ({
         isLoopback: ctx.remote.$host.isLoopback,
         ensureWorkspacePathOpen,
+        openFileMenu: showMenu,
         hooks: { workspacePathOpen },
       }),
     }, ProducedFiles),
   )
   // The prose side of the same vocabulary: the chat view reaches this face
   // via ctx.get, so its absence — this plugin composed out — is the off state.
-  const t = ctx.locale.bind(NS)
   const mentions: ChatFileMentions = {
     forClosing(owner) {
       // Same claim test the turn-tail chain entry runs: no produced files,
       // no vocabulary — the two surfaces agree by construction.
       const paths = selectProducedFiles(owner)
       if (paths === null) return undefined
-      return producedFileMentions(paths, owner.openFile, path => t('produced.open', { name: path }))
+      return producedFileMentions(
+        paths,
+        owner.openFile,
+        path => t('produced.open', { name: path }),
+        showMenu === undefined ? undefined : path => { showMenu(path, owner.cwd) },
+      )
     },
   }
   ctx.provide('chatFileMentions', mentions)

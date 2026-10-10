@@ -130,7 +130,7 @@ const AEVEN_CONFIG_ROW = /<script>globalThis\["__AVN_AEVEN__"\] = ([\s\S]*?)<\/s
  */
 export async function adoptedHostSignIn(
   pageUrl: string,
-  fetcher: AevenApiFetch = (url, init) => fetch(url, init),
+  fetcher: AevenApiFetch = (url, init) => session.defaultSession.fetch(url, init),
 ): Promise<DesktopAevenSignIn | undefined> {
   const response = await fetcher(pageUrl, { headers: { accept: 'text/html' } })
   if (!response.ok) throw new Error(`avn desktop: adopted Host page answered ${String(response.status)}`)

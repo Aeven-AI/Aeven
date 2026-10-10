@@ -37,8 +37,17 @@ export const DETAILS_MIN = 300
 export const DETAILS_MAX = 520
 /** Details width before any user drag. */
 export const DETAILS_DEFAULT = 360
-/** Right sidebar drag clamp floor. */
+/** Right sidebar drag clamp floor on a frame below {@link RIGHTBAR_MIN_BREAKPOINT}. */
 export const RIGHTBAR_MIN = 360
+/** Right sidebar drag clamp floor on a frame at or above {@link RIGHTBAR_MIN_BREAKPOINT}. */
+export const RIGHTBAR_MIN_WIDE = 400
+/**
+ * Frame width at which the right sidebar's floor rises to
+ * {@link RIGHTBAR_MIN_WIDE}. The floor narrows rather than widens with the
+ * frame: below this width the column is already a large share of what it is
+ * drawn in, so it gets the smaller floor.
+ */
+export const RIGHTBAR_MIN_BREAKPOINT = 420
 /**
  * Right sidebar ceiling as a fraction of the frame. A fraction rather than a
  * fixed px ceiling: the panel is a reading column whose useful width scales
@@ -67,16 +76,28 @@ export function clampWidth(px: number, min: number, max: number): number {
 }
 
 /**
- * Clamp a right sidebar width against the frame it is drawn in. The ceiling is
- * a fraction of the frame, so it is never below the floor on a narrow frame:
- * the floor wins there and the center concedes, which keeps a dragged edge
- * tracking the pointer instead of sticking at an inverted range.
+ * The right sidebar's drag clamp floor for one frame width, from
+ * {@link RIGHTBAR_MIN_BREAKPOINT}.
+ * @param viewport - available frame width in px.
+ * @returns the floor in px.
+ */
+export function rightbarMin(viewport: number): number {
+  return viewport < RIGHTBAR_MIN_BREAKPOINT ? RIGHTBAR_MIN : RIGHTBAR_MIN_WIDE
+}
+
+/**
+ * Clamp a right sidebar width against the frame it is drawn in. Both bounds
+ * follow the frame: the floor from {@link rightbarMin}, the ceiling as a
+ * fraction of the frame, and the ceiling is never below the floor on a narrow
+ * frame — the floor wins there and the center concedes, which keeps a dragged
+ * edge tracking the pointer instead of sticking at an inverted range.
  * @param px - requested width.
  * @param viewport - available frame width in px.
  * @returns the clamped width.
  */
 export function clampRightbar(px: number, viewport: number): number {
-  return clampWidth(px, RIGHTBAR_MIN, Math.max(RIGHTBAR_MIN, viewport * RIGHTBAR_MAX_RATIO))
+  const min = rightbarMin(viewport)
+  return clampWidth(px, min, Math.max(min, viewport * RIGHTBAR_MAX_RATIO))
 }
 
 /**

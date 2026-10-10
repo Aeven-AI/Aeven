@@ -85,7 +85,7 @@ it('reports no live Host on an unclaimed home', async () => {
   expect(await liveHostLease(home)).toBeUndefined()
 })
 
-it('reports a live Host and silently takes over a dead one', async () => {
+it('reports a live Host and leaves replacement of a dead advertisement to its next owner', async () => {
   const home = await makeHome()
   await writeHostLease(home, {
     version: HOST_LEASE_VERSION,
@@ -100,8 +100,7 @@ it('reports a live Host and silently takes over a dead one', async () => {
     startedAt: '2026-09-14T00:00:00.000Z',
   })
   expect(await liveHostLease(home)).toBeUndefined()
-  // A crashed Host leaves no advertisement behind to mislead the next start.
-  expect(await readHostLease(home)).toBeUndefined()
+  expect((await readHostLease(home))?.pid).toBe(DEAD_PID)
 })
 
 it('never lets a loser release or rewrite the winner\'s advertisement', async () => {
@@ -113,7 +112,7 @@ it('never lets a loser release or rewrite the winner\'s advertisement', async ()
   })
 
   await clearHostLease(home, DEAD_PID)
-  await advertiseHostUrl(home, DEAD_PID, 'http://127.0.0.1:9999/?token=other')
+  await expect(advertiseHostUrl(home, DEAD_PID, 'http://127.0.0.1:9999/?token=other')).rejects.toThrow('startup ownership')
   expect((await readHostLease(home))?.pid).toBe(process.pid)
   expect((await readHostLease(home))?.url).toBeUndefined()
 
@@ -171,7 +170,7 @@ it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)('keeps a usa
     // The same for the two disposal helpers: neither may throw because the
     // medium refused the write.
     await expect(clearHostLease(home, DEAD_PID)).resolves.toBeUndefined()
-    await expect(advertiseHostUrl(home, DEAD_PID, 'http://127.0.0.1:9999/?token=x')).resolves.toBeUndefined()
+    await expect(advertiseHostUrl(home, DEAD_PID, 'http://127.0.0.1:9999/?token=x')).rejects.toThrow()
   } finally {
     await chmod(runtime, 0o700)
     await chmod(hostLeasePath(home), 0o600)

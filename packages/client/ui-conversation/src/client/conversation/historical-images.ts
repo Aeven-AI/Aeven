@@ -14,7 +14,7 @@ import { bytesToBase64 } from '@aeven/util-crypto'
  * @returns the URL the image is displayed and re-opened from.
  */
 export function durableImageUrl(attachment: ImageAttachmentRef): string {
-  const url = new URL('api/attachment-image', document.baseURI)
+  const url = new URL('/api/attachment-image', document.baseURI)
   url.searchParams.set('id', String(attachment.attachmentId))
   url.searchParams.set('type', attachment.mediaType)
   url.searchParams.set('bytes', String(attachment.bytes))

@@ -4,6 +4,8 @@
 
 `avn` 是唯一受支持的 Node 应用启动器；profile 由多个插件组合包 patch 层按顺序叠加而成，其上再应用用户自己的覆盖配置。SDK 与 ACP 都是 profile，而不是独立的公开 bin。Python 运行时 wheel 会打包同一个命令；SDK 默认使用 `sdk`，极简示例选择 `sdk-minimal`。[`src/args.ts`](src/args.ts) 负责命令语法，[`src/bin.ts`](src/bin.ts) 只加载选中的运行器。无效命令、来自其他模式的选项、配置错误和启动失败都会以非零状态退出。
 
+挂载 HTTP 服务器的 profile 在插件启动前认领共享 GUI Host。同一 Aeven 主目录已有 Host 提供服务时，本次调用打印其已认证 URL，然后退出，不启动第二棵插件树。运行中的 Host 保持原有配置；第二次启动不会应用新的参数或 patch。Headless 与 stdio profile 保持独立执行生命周期。GUI 所有权在应用完成销毁或进程死亡后释放。
+
 ## 入口模式
 
 | 命令 | 用途 |

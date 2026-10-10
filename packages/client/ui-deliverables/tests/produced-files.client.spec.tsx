@@ -440,6 +440,33 @@ describe('ProducedFiles row', () => {
     expect(openFile).toHaveBeenLastCalledWith('.')
   })
 
+  it("offers the row's own menu where the client has one, and leaves the platform's alone without", () => {
+    const openFileMenu = vi.fn<(path: string, cwd: string | undefined) => void>()
+    const paths = ['deep/a.html']
+    const view = render(
+      <ProducedFiles
+        matched={paths}
+        openFile={() => {}}
+        cwd="/workspace"
+        {...capability(true)}
+        openFileMenu={openFileMenu}
+        t={t}
+      />,
+    )
+    const owned = view.getByRole('button', { name: '打开 deep/a.html' })
+    const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
+    owned.dispatchEvent(event)
+    expect(event.defaultPrevented).toBe(true)
+    expect(openFileMenu).toHaveBeenCalledWith('deep/a.html', '/workspace')
+
+    // No menu to offer: the element carries no handler, so the platform's own
+    // right-click menu is what the reader gets.
+    view.rerender(<ProducedFiles matched={paths} openFile={() => {}} {...capability(true)} t={t} />)
+    const inert = new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
+    view.getByRole('button', { name: '打开 deep/a.html' }).dispatchEvent(inert)
+    expect(inert.defaultPrevented).toBe(false)
+  })
+
   it('keeps the folder action absent without overflow or a local native opener', () => {
     const openFile = vi.fn<(path: string) => void>()
     const view = render(
@@ -492,6 +519,22 @@ describe('producedFileMentions resolver', () => {
     expect(resolver.resolve('style.css')).toBeUndefined()
     expect(resolver.resolve('notes.md')).toBeUndefined()
     expect(basename('a\\b\\c.txt')).toBe('c.txt')
+    // With no menu offered, a resolved file carries none — the platform's own
+    // menu stays in place on the opener.
+    expect(byBasename?.menu).toBeUndefined()
+  })
+
+  it('carries the owner menu on a resolved file where the client has one', () => {
+    const menus: string[] = []
+    const resolver = producedFileMentions(
+      ['out/index.html'],
+      () => {},
+      label,
+      path => { menus.push(path) },
+    )
+    resolver.resolve('index.html')?.menu?.()
+    expect(menus).toEqual(['out/index.html'])
+    expect(resolver.resolve('nothing.md')).toBeUndefined()
   })
 })
 
@@ -526,6 +569,10 @@ describe('plugin registration', () => {
     const injected = entry?.inject?.() as unknown as ProducedFilesInjected
     expect(injected.isLoopback).toBe(false)
     expect(typeof injected.ensureWorkspacePathOpen).toBe('function')
+    // Served over HTTP there is no desktop to draw a file menu, so neither the
+    // row nor the prose mention carries one; the platform's own menu is what
+    // this reader gets on a produced file.
+    expect(injected.openFileMenu).toBeUndefined()
     expect(injected.hooks.workspacePathOpen.getSnapshot()).toBeUndefined()
     ctx.emit('connection/reset')
     injected.ensureWorkspacePathOpen()
@@ -553,6 +600,51 @@ describe('plugin registration', () => {
     expect(ctx.slots.entries('conversation.chat.turnTail')).toHaveLength(0)
     // Fiber teardown retracts the service: the consumer's ctx.get sees the off state.
     expect((ctx as unknown as { get(name: string): unknown }).get('chatFileMentions')).toBeUndefined()
+  })
+
+  it('hands both surfaces the desktop file menu when the shell provides one', async () => {
+    const shown: { readonly items: readonly unknown[] }[] = []
+    vi.stubGlobal('window', {
+      avnDesktop: {
+        contextMenu: {
+          show: (items: readonly unknown[]) => { shown.push({ items }); return Promise.resolve(null) },
+        },
+      },
+    })
+    const ctx = new Context()
+    await ctx.plugin(SlotRegistry).await()
+    new UiConversation(ctx, { binding: () => undefined } as never)
+    ctx.slots.register({
+      name: 'root',
+      children: { 'conversation.chat.turnTail': { kind: 'chain', scope: 'session' } },
+    } as never, () => null)
+    const session = {
+      canOpenWorkspacePath: () => Promise.resolve({ ok: true as const, value: true }),
+      workspacePathApplications: () => Promise.resolve({ ok: true as const, value: [] }),
+    }
+    ctx.provide('remote', {
+      $on: () => () => {},
+      $host: { home: undefined, isLoopback: true },
+      session,
+    } as never)
+    ctx.provide('remote.session', session as never)
+    ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
+    await ctx.plugin({ inject: localeInject, apply: applyLocale }).await()
+
+    const fiber = ctx.plugin({ inject: [...inject], apply })
+    await fiber.await()
+    const injected = ctx.slots.entries('conversation.chat.turnTail')[0]?.inject?.() as unknown as ProducedFilesInjected
+    expect(typeof injected.openFileMenu).toBe('function')
+    injected.openFileMenu?.('site/report.html', '/workspace')
+    await vi.waitFor(() => { expect(shown).toHaveLength(1) })
+
+    // The prose face carries the same menu, resolved per closing turn.
+    const service = (ctx as unknown as { get(name: string): ChatFileMentions | undefined }).get('chatFileMentions')
+    service?.forClosing(tailOwner(produced([2, 'site/report.html']), 3, () => {}))?.resolve('report.html')?.menu?.()
+    await vi.waitFor(() => { expect(shown).toHaveLength(2) })
+
+    await fiber.dispose()
+    vi.unstubAllGlobals()
   })
 
   it('queries the workspace opener lazily and replaces stale results after reconnect', async () => {

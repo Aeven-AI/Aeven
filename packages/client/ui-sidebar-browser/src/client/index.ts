@@ -16,10 +16,14 @@ import type { SidebarContentPaneProps } from '@aeven/client-ui-sidebar-select/cl
 // the settings slots this plugin's Browser section registers into.
 import type {} from '@aeven/client-ui-settings/client'
 import { createElement } from 'react'
+import { writeClipboard } from '@aeven/client-ui-primitives'
 import { BrowserPane } from './BrowserPane.tsx'
 import { SearchEngineRow, type SearchEngineRowInjected } from './SearchEngineRow.tsx'
 import { automate } from './automation.ts'
-import { isDesktopShell, liveGuests, setPointerHold } from './guest.ts'
+import {
+  desktopBrowser, desktopLinks, desktopMenus, isDesktopShell, liveGuests, setPointerHold, writeLastUrl,
+} from './guest.ts'
+import { installLinkHandling } from './links.ts'
 import { en, zh, type SidebarBrowserKey } from './locales.ts'
 import { SearchEnginePreference } from './search-engine.ts'
 import { BROWSER_SETTINGS_NAMESPACE, type BrowserSettings } from '../browser-settings.ts'
@@ -63,15 +67,22 @@ export function apply(ctx: ClientContext): void {
   // chrome-devtools-mcp, and adds no pill.
   // The Host's Chromium: the profile chrome-devtools-mcp drives, where the
   // agent's DevTools tools see what the reader opens. Null while the Host
-  // does not provide it.
-  let openChromium: ((sessionId: string, url: string) => void) | null = null
+  // does not provide it; `false` when it refused to come up, which is when the
+  // address belongs to the operating system's browser instead.
+  let openChromium: ((sessionId: string, url: string) => Promise<boolean>) | null = null
   ctx.inject(['remote', 'remote.browserChromium'], (scoped) => {
     const remote = scoped.remote
     scoped.effect(() => {
-      openChromium = (sessionId, url) => {
-        void remote.browserChromium.open(sessionId as SessionId, url).then((result) => {
-          if (!result.ok) console.error('ui-sidebar-browser: opening Chromium failed', result.error)
-        }, (error: unknown) => { console.error('ui-sidebar-browser: opening Chromium failed', error) })
+      openChromium = async (sessionId, url) => {
+        try {
+          const result = await remote.browserChromium.open(sessionId as SessionId, url)
+          if (result.ok) return true
+          console.error('ui-sidebar-browser: opening Chromium failed', result.error)
+          return false
+        } catch (error: unknown) {
+          console.error('ui-sidebar-browser: opening Chromium failed', error)
+          return false
+        }
       }
       return () => { openChromium = null }
     }, 'ui-sidebar-browser: Host Chromium')
@@ -80,7 +91,7 @@ export function apply(ctx: ClientContext): void {
   if (!isDesktopShell()) {
     ctx.inject(['sidebarContent', 'remote.browserChromium'], (scoped) => {
       scoped.effect(
-        () => scoped.sidebarContent.registerLauncher('browser', (sessionId) => { openChromium?.(sessionId, '') }),
+        () => scoped.sidebarContent.registerLauncher('browser', (sessionId) => { void openChromium?.(sessionId, '') }),
         'ui-sidebar-browser: web launcher',
       )
     })
@@ -92,7 +103,60 @@ export function apply(ctx: ClientContext): void {
   const t = ctx.locale.bind(NS)
   const openInChrome = (sessionId: string, url: string): void => {
     if (openChromium === null) console.error('ui-sidebar-browser: the Host provides no Chromium to open in')
-    else openChromium(sessionId, url)
+    else void openChromium(sessionId, url)
+  }
+  // The window is an Electron page, so a click on a link reaches the shell
+  // instead of opening a tab. Where it lands is decided here rather than in the
+  // shell, because this is the side that can reach a session's own pane and the
+  // Chromium the agent's DevTools tools drive. Served over HTTP none of this is
+  // installed: a tab opens the link itself, which is what a browser can do.
+  const menus = desktopMenus()
+  const links = desktopLinks()
+  const browser = desktopBrowser()
+  if (menus !== undefined && links !== undefined && browser !== undefined) {
+    ctx.inject(['sidebarContent', 'sessions'], (scoped) => {
+      const openInSidebar = (url: string): void => {
+        const sessionId = (scoped.sessions as ISessions).list.getSnapshot().current
+        if (sessionId === undefined) {
+          openInSystemBrowser(url)
+          return
+        }
+        // A mounted pane navigates the page it already shows; a pane that is
+        // not mounted reopens at this address when the column mounts it.
+        const guest = liveGuests.get(sessionId)
+        if (guest === undefined) writeLastUrl(sessionId, url)
+        else void guest.loadURL(url).catch((error: unknown) => {
+          console.error('ui-sidebar-browser: the sidebar browser refused an address', error)
+        })
+        // Asking for the kind also shows the column it belongs to.
+        scoped.sidebarContent.requestOpen(sessionId, 'browser')
+      }
+      const openInSystemBrowser = (url: string): void => {
+        const sessionId = (scoped.sessions as ISessions).list.getSnapshot().current
+        const driven = openChromium === null || sessionId === undefined
+          ? Promise.resolve(false)
+          : openChromium(sessionId, url)
+        void driven.then((opened) => {
+          if (opened) return
+          void browser.openExternal(url).catch((error: unknown) => {
+            console.error('ui-sidebar-browser: the system browser refused an address', error)
+          })
+        })
+      }
+      scoped.effect(() => installLinkHandling({
+        menus,
+        links,
+        t,
+        document: window.document,
+        openInSidebar,
+        openInSystemBrowser,
+        copyLink: (url) => {
+          void writeClipboard(url).then((copied) => {
+            if (!copied) console.error('ui-sidebar-browser: the clipboard refused a link')
+          })
+        },
+      }), 'ui-sidebar-browser: desktop links')
+    })
   }
   // One preference serves the pane and its Settings row, so choosing an engine
   // there changes what an already-open address bar searches with.

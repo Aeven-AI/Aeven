@@ -1,6 +1,17 @@
 /** Right-click menu for every page the shell hosts: Chromium shows none unless the embedder builds one. */
 
-import { clipboard, Menu, type ContextMenuParams, type MenuItemConstructorOptions, type WebContents } from 'electron'
+import {
+  BrowserWindow,
+  clipboard,
+  ipcMain,
+  Menu,
+  type ContextMenuParams,
+  type IpcMainInvokeEvent,
+  type MenuItemConstructorOptions,
+  type WebContents,
+} from 'electron'
+import { appMenuRows } from './app-menu.ts'
+import { DESKTOP_IPC, type DesktopMenuItem } from './ipc.ts'
 import type { DesktopMessages } from './locale.ts'
 
 /**
@@ -61,3 +72,50 @@ export function installContextMenu(contents: WebContents, messages: DesktopMessa
     if (template.length > 0) Menu.buildFromTemplate(template).popup()
   })
 }
+
+/**
+ * Pop one menu the app page described, at the pointer, and settle on the row
+ * the reader chose.
+ *
+ * The menu is drawn in this process because a native menu is the only one that
+ * behaves like the rest of the desktop; the rows come from the page because it
+ * is the side that knows what its own links and file names mean. A menu
+ * dismissed without a choice settles on null, which is the same answer for a
+ * reader who pressed Escape and one who clicked elsewhere.
+ * @param window - the window the menu belongs to, which keeps it up while the window is key.
+ * @param rows - the validated rows to show, in display order.
+ * @returns the chosen row's id, or null when the menu closed without a choice.
+ */
+export async function popupAppMenu(window: BrowserWindow, rows: readonly DesktopMenuItem[]): Promise<string | null> {
+  return await new Promise<string | null>((resolve) => {
+    let settled = false
+    const settle = (id: string | null): void => {
+      if (settled) return
+      settled = true
+      resolve(id)
+    }
+    const template: MenuItemConstructorOptions[] = rows.map(row => row.type === 'separator'
+      ? { type: 'separator' }
+      : {
+        id: row.id,
+        label: row.label,
+        ...row.enabled === undefined ? {} : { enabled: row.enabled },
+        click: () => { settle(row.id) },
+      })
+    Menu.buildFromTemplate(template).popup({ window, callback: () => { settle(null) } })
+  })
+}
+
+/**
+ * Register the app page's menu requests.
+ * @param isAppSender - whether a message comes from the application window's own page.
+ */
+export function registerContextMenuIpc(isAppSender: (event: IpcMainInvokeEvent) => boolean): void {
+  ipcMain.handle(DESKTOP_IPC.appMenuShow, async (event, items: unknown) => {
+    if (!isAppSender(event)) throw new Error('avn desktop: rejected a menu request from an unowned renderer')
+    const window = BrowserWindow.fromWebContents(event.sender)
+    if (window === null) throw new Error('avn desktop: a menu request named no window')
+    return await popupAppMenu(window, appMenuRows(items))
+  })
+}
+

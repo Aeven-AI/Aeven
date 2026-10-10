@@ -1,7 +1,7 @@
 /** Framed request and response bytes for the Electron Desktop Host transport. */
 
 /** Protocol version shared with the Electron shell. */
-export const DESKTOP_HOST_PROTOCOL_VERSION = 4 as const
+export const DESKTOP_HOST_PROTOCOL_VERSION = 5 as const
 
 /** Same-origin path the renderer addresses for Aeven sign-in; Electron forwards it to the Aeven API. */
 export const DESKTOP_AEVEN_API_PATH = '/.aeven/api'

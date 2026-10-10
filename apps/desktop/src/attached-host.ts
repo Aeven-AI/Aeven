@@ -1,21 +1,8 @@
 /**
- * Backend selection for the Electron shell: adopt a Host that already serves
- * this home, or start one of our own.
- *
- * Every durable share in an Aeven home is single-writer by construction
- * except the domain KV documents, whose JSON backend republishes a whole
- * document from one process's memory with no cross-process coordination. Two
- * Hosts on one home therefore do not merge: the last writer replaces the
- * other's state, and a Session that one Host attached to a Workspace silently
- * loses that membership.
- *
- * A live Host that answers on its advertised URL already owns the home, and
- * the shell renders the same Web application either way, so adopting it is
- * both the correct and the cheaper choice. A Host claims the lease when it
- * starts booting and adds its URL once it serves, so while the leased process
- * is alive the shell waits for that URL and for an answer instead of starting
- * a second Host. Only a lease whose process is gone, or a wait that runs out,
- * makes the shell start its own.
+ * Attach Electron to this home's serving Host, or plan a fenced child startup.
+ * The child claims the kernel lock before boot; a missing advertisement does
+ * not give the shell authority to start a competing backend. A live incumbent
+ * that misses the readiness deadline blocks launch rather than losing ownership.
  * @module @aeven/desktop/attached-host
  */
 
@@ -47,7 +34,7 @@ export interface DesktopBackendOptions {
   readonly home?: string
   /**
    * How long to wait for a live leased Host to advertise its URL and answer
-   * before starting a Host of our own; defaults to 30 seconds, about three
+   * before rejecting startup; defaults to 30 seconds, about three
    * times a cold web Host boot.
    */
   readonly waitMs?: number
@@ -83,12 +70,7 @@ export async function planDesktopBackend(
     }
     if (!isHostProcessAlive(lease.pid)) return { kind: 'spawn', reason: `leased Host pid ${String(lease.pid)} exited` }
     if (Date.now() >= deadline) {
-      return {
-        kind: 'spawn',
-        reason: lease.url === undefined
-          ? `leased Host pid ${String(lease.pid)} advertised no URL in time`
-          : `leased Host pid ${String(lease.pid)} did not answer in time`,
-      }
+      throw new Error(`the existing Aeven Host (pid ${String(lease.pid)}) did not become ready; stop that Host before starting another`)
     }
     await delay(pollMs)
   }

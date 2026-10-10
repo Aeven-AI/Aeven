@@ -227,6 +227,8 @@ export function parentFolder(path: string, cwd: string | undefined): string {
  * @param paths - The turn's produced paths (tool order, already deduped).
  * @param openFile - The chat view's file opener.
  * @param label - Localizes the accessible open-label for a resolved path.
+ * @param menu - Shows this reader's own menu for a resolved path; omitted where
+ * the client has none, which leaves the platform's menu in place.
  * @returns The resolver MarkdownText consumes; the full path rides `title`,
  * the same disambiguator the row's chips carry.
  */
@@ -234,12 +236,18 @@ export function producedFileMentions(
   paths: readonly string[],
   openFile: (path: string) => void,
   label: (path: string) => string,
+  menu?: (path: string) => void,
 ): MarkdownFileMentions {
   return {
     resolve(value) {
       const path = paths.includes(value) ? value : onlyPathWithBasename(paths, value)
       if (path === undefined) return undefined
-      return { open: () => { openFile(path) }, label: label(path), title: path }
+      return {
+        open: () => { openFile(path) },
+        label: label(path),
+        title: path,
+        ...menu === undefined ? {} : { menu: () => { menu(path) } },
+      }
     },
   }
 }

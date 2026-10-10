@@ -156,6 +156,15 @@ export interface PersistenceBackend<TornMarker = unknown> {
   readonly name: string
 
   /**
+   * Claim exclusive recovery and write ownership across processes.
+   * Readers do not claim ownership. The coordinator retains the claim through
+   * publication and the live Session's final flush; process exit must release it.
+   * @param id - session whose writer is claimed.
+   * @returns synchronous disposer for the claim.
+   */
+  acquireWriter?(id: SessionId): Promise<() => void>
+
+  /**
    * Read a stored prefix by id, scanning every backend storage scope. Returns
    * `undefined` if no stored artifact exists. Returned metadata must identify
    * `id` before repair or state publication. Used by resume/load, live adoption,
@@ -686,6 +695,7 @@ export class PersistenceCoordinator<TornMarker = unknown> {
    * same id, so writes for one session never interleave. Keyed by session id.
    */
   private chains = new Map<SessionId, Promise<unknown>>()
+  private readonly writers = new Map<SessionId, () => void>()
   /** Resolved fixed write-batching window shared by per-session controllers. */
   private readonly writeBatchMaxDelayMs: number
 
@@ -771,12 +781,18 @@ export class PersistenceCoordinator<TornMarker = unknown> {
     if (deleteStored === undefined) throw new Error(`${this.backend.name} cannot delete sessions`)
     await this.waitForRetirement(id)
     return this.serialize(id, async () => {
-      if (this.states.get(id)?.owner !== undefined || this.ctx.sessions.get(id) !== undefined) {
+      if (this.states.get(id)?.owner !== undefined || this.ctx.sessions.get(id) !== undefined
+        || this.preparations.hasReservation(id)) {
         throw new Error(`session "${id}" is live; dispose it before deleting its log`)
       }
-      this.states.delete(id)
-      this.preparations.invalidate(id)
-      return deleteStored(id)
+      await this.claimWriter(id)
+      try {
+        this.states.delete(id)
+        this.preparations.invalidate(id)
+        return await deleteStored(id)
+      } finally {
+        this.releaseWriter(id)
+      }
     })
   }
 
@@ -786,11 +802,17 @@ export class PersistenceCoordinator<TornMarker = unknown> {
     if (this.states.has(meta.id) || this.preparations.has(meta.id)) {
       throw new Error(`session "${meta.id}" already exists in this backend`)
     }
+    await this.claimWriter(meta.id)
     // A persisted artifact under this id (in ANY scope) blocks creation: load/
     // resume identify a session by id alone, so a second artifact would make
     // resume nondeterministic.
-    if (await this.backend.loadStored(meta.id) !== undefined) {
-      throw new Error(`session "${meta.id}" already has a persisted log on disk; load/resume it instead of creating`)
+    try {
+      if (await this.backend.loadStored(meta.id) !== undefined) {
+        throw new Error(`session "${meta.id}" already has a persisted log on disk; load/resume it instead of creating`)
+      }
+    } catch (error: unknown) {
+      this.releaseWriter(meta.id)
+      throw error
     }
     // Pure lazy: record intent only. No artifact until the first append.
     this.states.set(meta.id, {
@@ -834,6 +856,7 @@ export class PersistenceCoordinator<TornMarker = unknown> {
     assertSupportedEvents(events, id)
     if (events.length === 0) return
     this.preparations.assertWritable(id)
+    await this.claimWriter(id)
     let state = this.states.get(id)
     if (state === undefined) state = await this.adopt(id)
 
@@ -871,15 +894,11 @@ export class PersistenceCoordinator<TornMarker = unknown> {
       if (this.ctx.sessions.get(id) !== undefined) {
         throw new Error(`cannot prepare session "${id}" while it is live`)
       }
-      const reservation = await this.preparations.reserve(
-        id,
-        () => this.serialize(id, () => this.prepareCore(id)),
-        source => this.serialize(id, () => this.commitPrepared(source), signal),
-        signal,
-      )
+      const reservation = await this.reservePrepared(id, signal)
       if (reservation === undefined) continue
       if (this.ctx.sessions.get(id) !== undefined) {
         this.preparations.release(reservation, false)
+        this.releaseWriter(id)
         throw new Error(`cannot prepare session "${id}" while it is live`)
       }
       return SessionPreparation.create(reservation.source.session, {
@@ -889,6 +908,7 @@ export class PersistenceCoordinator<TornMarker = unknown> {
             reservation.state.owner === undefined
               && reservation.source.session.seq === reservation.source.sessionLength,
           )
+          if (reservation.state.owner === undefined) this.releaseWriter(id)
         },
       })
     }
@@ -906,11 +926,7 @@ export class PersistenceCoordinator<TornMarker = unknown> {
       await this.waitForRetirement(id)
       const live = this.ctx.sessions.get(id)
       if (live !== undefined) return this.loadLiveSnapshot(live)
-      const reservation = await this.preparations.reserve(
-        id,
-        () => this.serialize(id, () => this.prepareCore(id)),
-        source => this.serialize(id, () => this.commitPrepared(source)),
-      )
+      const reservation = await this.reservePrepared(id)
       if (reservation === undefined) continue
       const attached = this.ctx.sessions.get(id)
       if (attached !== undefined) {
@@ -918,6 +934,7 @@ export class PersistenceCoordinator<TornMarker = unknown> {
         return this.loadLiveSnapshot(attached)
       }
       this.preparations.discard(reservation)
+      this.releaseWriter(id)
       return reservation.source.inspection
     }
   }
@@ -1176,6 +1193,7 @@ export class PersistenceCoordinator<TornMarker = unknown> {
     if (existing?.owner !== undefined) {
       throw new Error(`session "${id}" already has a live persistence owner`)
     }
+    await this.claimWriter(id)
     if (!await this.isPreparedSourceCurrent(source)) return undefined
     if (source.tornMarker !== undefined || source.closers.length > 0) {
       await this.backend.commitRepair(source.inspection, source.tornMarker, source.closers)
@@ -1276,6 +1294,35 @@ export class PersistenceCoordinator<TornMarker = unknown> {
     return signal === undefined ? next : observeQueuedAbort(next, signal, () => started)
   }
 
+  private async claimWriter(id: SessionId): Promise<void> {
+    if (this.backend.acquireWriter === undefined || this.writers.has(id)) return
+    this.writers.set(id, await this.backend.acquireWriter(id))
+  }
+
+  private async reservePrepared(id: SessionId, signal?: AbortSignal) {
+    try {
+      return await this.preparations.reserve(
+        id,
+        () => this.serialize(id, () => this.prepareCore(id)),
+        source => this.serialize(id, () => this.commitPrepared(source), signal),
+        signal,
+      )
+    } catch (error: unknown) {
+      await this.serialize(id, () => { this.releaseWriter(id) })
+      throw error
+    }
+  }
+
+  private releaseWriter(id: SessionId): void {
+    if (this.states.get(id)?.owner !== undefined || this.preparations.hasReservation(id)) return
+    const release = this.writers.get(id)
+    if (release === undefined) return
+    this.states.delete(id)
+    this.preparations.invalidate(id)
+    this.writers.delete(id)
+    release()
+  }
+
   /** Build a state for a session discovered in storage but not yet in memory. */
   private async adopt(id: SessionId): Promise<SessionState> {
     // This runs inside the id's serialization chain, so it uses core helpers
@@ -1346,6 +1393,8 @@ export class PersistenceCoordinator<TornMarker = unknown> {
         throw error
       } finally {
         try {
+          for (const release of this.writers.values()) release()
+          this.writers.clear()
           await this.backend.close?.()
         } catch (closeError: unknown) {
           // A close failure can only add teardown context; keep the already-
@@ -1400,6 +1449,7 @@ export class PersistenceCoordinator<TornMarker = unknown> {
     await this.serialize(id, () => {
       this.live.delete(session)
       if (this.states.get(id)?.owner === session) this.states.delete(id)
+      this.releaseWriter(id)
     })
   }
 
@@ -1483,6 +1533,7 @@ export class PersistenceCoordinator<TornMarker = unknown> {
    */
   private async onCreated(session: Session, seed: readonly SessionEvent[]): Promise<void> {
     const id = session.header.id
+    await this.claimWriter(id)
     const tracked = this.states.get(id)
     if (tracked !== undefined) {
       // case 1: already tracked.

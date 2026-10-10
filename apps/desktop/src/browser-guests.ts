@@ -25,7 +25,7 @@ import { DESKTOP_IPC, type DesktopBrowserColorScheme, type DesktopBrowserDataKin
 const BROWSER_PARTITION_PREFIX = 'persist:avn-browser-'
 
 /** Schemes a guest may display. */
-const GUEST_PROTOCOLS = new Set(['http:', 'https:'])
+const GUEST_PROTOCOLS = new Set(['http:', 'https:', 'file:'])
 
 /** CDP protocol version the guest debugger attaches with. */
 const CDP_VERSION = '1.3'
@@ -40,8 +40,8 @@ function isBrowserPartition(partition: string): boolean {
 }
 
 /**
- * Whether a guest may display an address: web pages, and the blank page a
- * guest starts on.
+ * Whether a guest may display an address: web pages, local files, and the blank
+ * page a guest starts on.
  * @param url - the address a guest navigates or redirects to.
  * @returns true when the guest may show it.
  */
@@ -60,8 +60,8 @@ function isGuestAddress(url: string): boolean {
  *
  * Attachment is allowlisted by partition: a guest naming any other partition
  * never attaches, so a renderer cannot host a page in the application's own
- * storage. An attached guest keeps to web pages, and a popup opens in the guest
- * that asked for it rather than in a window of its own.
+ * storage. An attached guest displays web pages and local files, and a popup
+ * opens in the guest that asked for it rather than in a window of its own.
  * @param host - the window contents that may hold browser guests.
  */
 export function hardenBrowserGuests(host: WebContents): void {
@@ -87,11 +87,11 @@ export function hardenBrowserGuests(host: WebContents): void {
       if (url !== 'about:blank' && isGuestAddress(url)) void guest.loadURL(url)
       return { action: 'deny' }
     })
-    const keepToWeb = (event: Electron.Event, url: string): void => {
+    const keepToGuestAddress = (event: Electron.Event, url: string): void => {
       if (!isGuestAddress(url)) event.preventDefault()
     }
-    guest.on('will-navigate', keepToWeb)
-    guest.on('will-redirect', keepToWeb)
+    guest.on('will-navigate', keepToGuestAddress)
+    guest.on('will-redirect', keepToGuestAddress)
   })
 }
 
@@ -207,7 +207,7 @@ export function registerBrowserIpc(isAppSender: (event: IpcMainEvent | IpcMainIn
   }
   ipcMain.handle(DESKTOP_IPC.browserOpenExternal, async (event, url: unknown) => {
     assertApp(event)
-    if (typeof url !== 'string' || !GUEST_PROTOCOLS.has(new URL(url).protocol)) {
+    if (typeof url !== 'string' || !['http:', 'https:'].includes(new URL(url).protocol)) {
       throw new Error('avn desktop: only an HTTP(S) address opens in the system browser')
     }
     await shell.openExternal(url)

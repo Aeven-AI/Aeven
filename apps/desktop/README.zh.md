@@ -2,7 +2,9 @@
 
 [English](README.md) | 中文
 
-桌面应用是包裹 avn Web UI 的 Electron 壳。内置的上游 Node.js 子进程启动已安装的 avn 项目，带版本的分帧字节管道在没有外层 Base64 信封的情况下承载 Fetch 请求与流式响应，Node IPC 承载生命周期控制，`avn-app://` 则提供与后端版本匹配的客户端资源。订阅 HTTP 路由通过自定义协议使用操作系统分配的本机回环端口；登录通过与连接器相同的桥接在默认浏览器中打开。
+桌面应用是共享 avn Web UI 的 Electron 壳。Web 与 Electron 通过内核控制的启动互斥及已认证 HTTP 端点，在每个 Aeven 主目录复用一个 GUI Host。没有现有 Host 时，Electron 使用内置的上游 Node.js 启动 Host；退出 Electron 只分离桌面壳，Host 继续为浏览器客户端与运行中的任务提供服务。显式关闭 Host 或进程死亡会释放所有权。桌面启动的 Host 默认使用回环端口 3080。
+
+被接入的 Host 拥有其后端包依赖图。Desktop 包更新要求该 Host 在验证与激活之前停止；接入运行中的 Host 不会替换其包。第一个启动器决定提供服务的 profile 与能力。两个客户端使用同一份 Session 和工作区状态。
 
 ## 关键技术决策
 
@@ -24,6 +26,8 @@
 Electron 拥有保留 profile `$AVN_HOME/profiles/desktop`。其 manifest（元数据清单）通过 `avn.profile.bundles` 列出内置与已安装插件 bundle，`node_modules` 则同时包含精确版本的 `@aeven/cli`、与之匹配的私有 `@aeven/desktop-host` 和所有桌面插件。把 Electron 专用进程入口与 overlay 放入私有应用包，可以避免 Desktop 实现成为公共 CLI 包的一部分。CLI 不能启动或修改该 profile。Electron 始终调用自身内置的 Node.js 与 pnpm，并把存储固定在 `$AVN_HOME/desktop/pnpm/store`；它绝不使用系统 pnpm 或调用方的 npm/pnpm 配置。
 
 avn 主渲染进程只获得桌面协议标记。独立插件窗口获得结构化的列出、安装、移除、更新和更新检查操作；两个渲染进程都拿不到文件系统、原始 Electron IPC、shell 或任意 pnpm 参数。
+
+链接点击与右键菜单同样分工。窗口自己不打开任何浏览器：内容请求打开的地址会被上报给页面（`external-links.ts`），由页面在侧边栏浏览器、agent 所驱动的 Host Chromium，或系统浏览器中打开；从未订阅的页面仍走操作系统交接。右键菜单在本进程中绘制，但由页面描述（`app-menu.ts`、`context-menu.ts`），因为页面才知道自己的链接与文件名意味着什么：shell 校验这些行，弹出原生菜单，并把读者所选的行回传给页面。侧边栏地址栏与 agent 导航接受 HTTP(S) 和 `file:` URL；本地页面仍使用 guest 的沙箱、上下文隔离，并禁用 Node integration。
 
 Electron 根据应用 locale 选择类型化的英文或中文桌面壳文案，并以英文作为 fallback。菜单、原生对话框与插件管理渲染进程使用同一 locale 数据；仓库的 Client UI i18n gate 会检查这些桌面源文件。
 

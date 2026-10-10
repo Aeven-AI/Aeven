@@ -19,6 +19,7 @@ import {
   loadProfileDirectory,
   loadOverlayPatches,
 } from '@aeven/app-boot'
+import { claimOrAttachHost, advertiseHostUrl, resolveAvnHome } from '@aeven/home-paths'
 import { provideCmdline } from '@aeven/cmdline'
 import { AVN_LAUNCH_ENVIRONMENT_KEY } from '@aeven/launch-environment'
 import type {} from '@aeven/api-gateway'
@@ -63,6 +64,9 @@ export type DesktopHostEvent = {
   readonly type: 'ready'
   readonly protocolVersion: typeof DESKTOP_HOST_PROTOCOL_VERSION
   readonly avnVersion: string
+  /** Authenticated HTTP endpoint shared by Electron and browser clients. */
+  readonly url: string
+  readonly ownsHost: boolean
   readonly aevenSignIn?: DesktopAevenSignIn
 } | {
   readonly type: 'fatal'
@@ -73,6 +77,8 @@ export type DesktopHostEvent = {
 export interface DesktopHostController {
   /** Installed avn version carried by this host. */
   readonly avnVersion: string
+  /** Authenticated HTTP endpoint shared by Electron and browsers. */
+  readonly url: string
   /** Aeven sign-in endpoints, when the composition mounts the Aeven authority. */
   readonly aevenSignIn: DesktopAevenSignIn | undefined
   /** Dispatch one custom-protocol request and stream its response to the response pipe. */
@@ -115,6 +121,10 @@ const DESKTOP_TRANSPORT_SCRIPT = `globalThis.__AVN_TRANSPORT__={
     })
     if(!response.ok||response.body===null)throw new Error('desktop stream transport failed: HTTP '+response.status)
     const reader=response.body.getReader(),decoder=new TextDecoder()
+    const item=frame=>{
+      if(frame.type==='error')throw Object.assign(new Error(frame.error.message),frame.error,{isAvnRemoteError:true})
+      return frame.value
+    }
     let pending=''
     for(;;){
       const {done,value}=await reader.read()
@@ -122,11 +132,11 @@ const DESKTOP_TRANSPORT_SCRIPT = `globalThis.__AVN_TRANSPORT__={
       let newline
       while((newline=pending.indexOf('\\n'))!==-1){
         const line=pending.slice(0,newline);pending=pending.slice(newline+1)
-        if(line!=='')yield JSON.parse(line)
+        if(line!=='')yield item(JSON.parse(line))
       }
       if(done)break
     }
-    if(pending!=='')yield JSON.parse(pending)
+    if(pending!=='')yield item(JSON.parse(pending))
   }
 }`
 
@@ -184,6 +194,10 @@ function desktopPatches(projectDir: string, allowLinkedPackages: boolean): Patch
       },
     }])
   }
+  layers.push([{ insert: [{
+    id: 'desktop-http-frontend', name: '@aeven/host-frontend-static',
+    config: { distIndex: join(projectDir, 'node_modules', '@aeven', 'web-frontend', 'dist', 'index.html') },
+  }] }])
   return layers.flat()
 }
 
@@ -289,11 +303,19 @@ function remoteStreamHandler(ctx: Context): ConnectionFetchHandler {
           try {
             const values = await gateway.wireStream.open(body.endpoint as string, body.payload, abort.signal)
             for await (const value of values) {
-              controller.enqueue(encoder.encode(`${JSON.stringify(value)}\n`))
+              controller.enqueue(encoder.encode(`${JSON.stringify({ type: 'item', value })}\n`))
             }
             controller.close()
           } catch (error) {
-            controller.error(error)
+            if (abort.signal.aborted) {
+              controller.error(error)
+            } else {
+              const failure = isRecord(error) && error.isAvnRemoteError === true
+                ? { code: error.code, message: error.message, details: error.details }
+                : { code: 'gateway/internal', message: error instanceof Error ? error.message : String(error), details: {} }
+              controller.enqueue(encoder.encode(`${JSON.stringify({ type: 'error', error: failure })}\n`))
+              controller.close()
+            }
           } finally {
             request.signal.removeEventListener('abort', cancel)
           }
@@ -330,6 +352,7 @@ export async function runDesktopHost(
   writeFileSync(rootConfig, ROOT_CONFIG)
   const environment = loadLayeredEnv('avn desktop')
   let current: Context | undefined
+  try {
   const ctx = await boot('avn desktop', rootConfig, structuredClone(desktopPatches(
     absoluteProject,
     options.allowLinkedPackages === true,
@@ -399,6 +422,7 @@ export async function runDesktopHost(
 
   return {
     avnVersion: avnVersion(absoluteProject),
+    url: connection.authenticatedUrl(subscriptionOrigin),
     aevenSignIn: aevenSignIn(ctx),
     cancel(streamId) {
       requests.get(streamId)?.abort()
@@ -453,6 +477,10 @@ export async function runDesktopHost(
     },
     dispose,
   }
+  } catch (error: unknown) {
+    await current?.fiber.dispose()
+    throw error
+  }
 }
 
 async function main(): Promise<void> {
@@ -485,11 +513,29 @@ async function main(): Promise<void> {
       if ((error as NodeJS.ErrnoException).code !== 'ERR_IPC_CHANNEL_CLOSED') throw error
     }
   }
-  const controller = await runDesktopHost(projectDir, writeResponse, { allowLinkedPackages: option !== undefined })
+  const home = resolveAvnHome()
+  const startup = await claimOrAttachHost(home)
+  if (startup.kind === 'attach') {
+    send({ type: 'ready', protocolVersion: DESKTOP_HOST_PROTOCOL_VERSION, avnVersion: avnVersion(projectDir), url: startup.url, ownsHost: false })
+    requestPipe.destroy()
+    responsePipe.destroy()
+    process.disconnect?.()
+    return
+  }
+  let controller: DesktopHostController | undefined
+  try {
+    controller = await runDesktopHost(projectDir, writeResponse, { allowLinkedPackages: option !== undefined })
+    await advertiseHostUrl(home, process.pid, controller.url)
+  } catch (error: unknown) {
+    await controller?.dispose()
+    throw error
+  }
   send({
     type: 'ready',
     protocolVersion: DESKTOP_HOST_PROTOCOL_VERSION,
     avnVersion: controller.avnVersion,
+    url: controller.url,
+    ownsHost: true,
     ...(controller.aevenSignIn === undefined ? {} : { aevenSignIn: controller.aevenSignIn }),
   })
   const decoder = new DesktopHostRequestDecoder()
@@ -518,6 +564,7 @@ async function main(): Promise<void> {
       requestPipe.destroy()
       closeSync(DESKTOP_REQUEST_PIPE_FD)
       await controller.dispose()
+      await startup.release()
       await Promise.allSettled([...runs])
       await responseWriteTail.catch(() => undefined)
       if (!responsePipe.destroyed) {
@@ -640,13 +687,20 @@ async function main(): Promise<void> {
     if (stopping !== undefined) return
     try {
       decoder.finish()
-      failTransport(new Error('avn desktop: Electron request pipe ended'))
+      requestPipe.destroy()
     } catch (error) {
       failTransport(error)
     }
   })
-  requestPipe.once('error', failTransport)
-  responsePipe.once('error', failTransport)
+  requestPipe.once('error', (error: NodeJS.ErrnoException) => {
+    if (error.code !== 'EPIPE') failTransport(error)
+  })
+  responsePipe.once('error', (error: NodeJS.ErrnoException) => {
+    if (error.code !== 'EPIPE') failTransport(error)
+  })
+  for (const output of [process.stdout, process.stderr]) output.on('error', (error: NodeJS.ErrnoException) => {
+    if (error.code !== 'EPIPE') throw error
+  })
   process.on('message', (message: unknown) => {
     if (!isDesktopHostCommand(message)) {
       send({ type: 'fatal', message: 'avn desktop: invalid Electron IPC command' })
@@ -655,7 +709,11 @@ async function main(): Promise<void> {
     }
     void stop()
   })
-  process.once('disconnect', () => { void stop() })
+  process.once('disconnect', () => {
+    // The shell is a client; its departure does not stop browser clients or work.
+    requestPipe.destroy()
+    responsePipe.destroy()
+  })
   process.once('SIGTERM', () => { void stop() })
   process.once('SIGINT', () => { void stop() })
 }
@@ -663,8 +721,10 @@ async function main(): Promise<void> {
 if (import.meta.main) {
   main().catch((error: unknown) => {
     const message = error instanceof Error ? error.message : String(error)
-    if (process.send !== undefined) process.send({ type: 'fatal', message } satisfies DesktopHostEvent)
-    else process.stderr.write(`avn desktop: ${message}\n`)
-    process.exitCode = 1
+    if (process.send !== undefined && process.connected) {
+      process.send({ type: 'fatal', message } satisfies DesktopHostEvent, () => { process.exit(1) })
+    } else {
+      process.stderr.write(`avn desktop: ${message}\n`, () => { process.exit(1) })
+    }
   })
 }

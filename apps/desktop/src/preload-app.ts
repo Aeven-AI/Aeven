@@ -10,6 +10,20 @@ const api: AvnDesktopAppApi = {
     ipcRenderer.on(DESKTOP_IPC.menuCommand, handle)
     return () => { ipcRenderer.off(DESKTOP_IPC.menuCommand, handle) }
   },
+  contextMenu: {
+    show: items => ipcRenderer.invoke(DESKTOP_IPC.appMenuShow, items) as Promise<string | null>,
+  },
+  links: {
+    onOpen(listener) {
+      const handle = (_event: Electron.IpcRendererEvent, url: string): void => { listener(url) }
+      ipcRenderer.on(DESKTOP_IPC.linksOpen, handle)
+      // Said once per page: until the shell knows a listener exists it hands
+      // addresses to the operating system, which is what a page that never
+      // subscribes — another build's client, a Host served elsewhere — expects.
+      ipcRenderer.send(DESKTOP_IPC.linksListen)
+      return () => { ipcRenderer.off(DESKTOP_IPC.linksOpen, handle) }
+    },
+  },
   browser: {
     openExternal: url => ipcRenderer.invoke(DESKTOP_IPC.browserOpenExternal, url) as Promise<void>,
     setColorScheme: (webContentsId, scheme) =>

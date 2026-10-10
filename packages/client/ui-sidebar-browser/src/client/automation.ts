@@ -26,7 +26,7 @@ export async function automate(guest: BrowserGuest, request: Pick<BrowserAutomat
       return status(guest)
     case 'navigate': {
       const url = resolveAddress(String(request.input.url ?? ''))
-      if (url === undefined) throw new Error(`not a navigable http(s) address: ${String(request.input.url)}`)
+      if (url === undefined) throw new Error(`not a navigable address: ${String(request.input.url)}`)
       // A navigation is the agent using the browser, so the address bar shows it.
       await livePaneCursors.get(guest)?.announceNavigation(url)
       request.signal?.throwIfAborted()

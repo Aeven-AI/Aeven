@@ -31,7 +31,7 @@ describe('desktop backend selection', () => {
   it('starts its own Host when the home advertises nothing', async () => {
     const home = await makeHome()
     const probe = vi.fn(async () => true)
-    expect(await planDesktopBackend({ home, probe })).toEqual({ kind: 'spawn' })
+    expect(await planDesktopBackend({ home, probe })).toMatchObject({ kind: 'spawn' })
     // Nothing to probe means no network work on the ordinary path.
     expect(probe).not.toHaveBeenCalled()
   })
@@ -48,28 +48,27 @@ describe('desktop backend selection', () => {
     expect(plan).toEqual({ kind: 'attach', url: 'http://127.0.0.1:3080' })
   })
 
-  it('starts its own Host when the advertised Host no longer answers', async () => {
+  it('refuses a competing Host when the live incumbent no longer answers', async () => {
     const home = await makeHome()
     await advertise(home, process.pid === 1 ? 2 : process.pid, 'http://127.0.0.1:3080')
-    // A crashed Host must not block the shell: a stale record is not an owner.
-    expect(await planDesktopBackend({ home, ownPid: -1, probe: async () => false }))
-      .toEqual({ kind: 'spawn' })
+    await expect(planDesktopBackend({ home, ownPid: -1, waitMs: 0, probe: async () => false }))
+      .rejects.toThrow('did not become ready')
   })
 
   it('ignores a lease whose process is gone, without probing it', async () => {
     const home = await makeHome()
     await advertise(home, 2 ** 30, 'http://127.0.0.1:3080')
     const probe = vi.fn(async () => true)
-    expect(await planDesktopBackend({ home, ownPid: -1, probe })).toEqual({ kind: 'spawn' })
+    expect(await planDesktopBackend({ home, ownPid: -1, probe })).toMatchObject({ kind: 'spawn' })
     expect(probe).not.toHaveBeenCalled()
   })
 
-  it('starts its own Host when the incumbent advertises no URL', async () => {
+  it('refuses a competing Host when the live incumbent advertises no URL', async () => {
     const home = await makeHome()
     // A carrier-only Host has no HTTP surface, so it cannot be rendered here.
     await advertise(home, process.pid === 1 ? 2 : process.pid)
     const probe = vi.fn(async () => true)
-    expect(await planDesktopBackend({ home, ownPid: -1, probe })).toEqual({ kind: 'spawn' })
+    await expect(planDesktopBackend({ home, ownPid: -1, waitMs: 0, probe })).rejects.toThrow('did not become ready')
     expect(probe).not.toHaveBeenCalled()
   })
 
@@ -77,17 +76,18 @@ describe('desktop backend selection', () => {
     const home = await makeHome()
     await advertise(home, 4242, 'http://127.0.0.1:3080')
     const probe = vi.fn(async () => true)
-    expect(await planDesktopBackend({ home, ownPid: 4242, probe })).toEqual({ kind: 'spawn' })
+    expect(await planDesktopBackend({ home, ownPid: 4242, probe })).toMatchObject({ kind: 'spawn' })
     expect(probe).not.toHaveBeenCalled()
   })
 
-  it('starts its own Host when the probe itself fails', async () => {
+  it('refuses a competing Host when the live incumbent probe fails', async () => {
     const home = await makeHome()
     await advertise(home, process.pid === 1 ? 2 : process.pid, 'http://127.0.0.1:3080')
-    expect(await planDesktopBackend({
+    await expect(planDesktopBackend({
       home,
       ownPid: -1,
+      waitMs: 0,
       probe: async () => { throw new Error('connection refused') },
-    })).toEqual({ kind: 'spawn' })
+    })).rejects.toThrow('did not become ready')
   })
 })

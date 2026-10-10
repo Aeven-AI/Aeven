@@ -42,6 +42,7 @@ import {
   compressZstdFrame, createZstdFrameDecoder, decompressZstdFrame, decompressZstdPrefix, scanZstdFrames,
 } from './zstd.ts'
 import { ensureDurableDirectoryWin32, publishNewFileWin32 } from './win32.ts'
+import { acquireSessionWriter } from './writer-lock.ts'
 
 export type { JsonlCompression } from './format.ts'
 
@@ -218,6 +219,11 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
   // extracting these trivial forwards would add an inheritance layer.
   /* jscpd:ignore-start */
   // --- SessionPersistence service API (delegated to the coordinator) ---
+
+  /** @inheritdoc */
+  acquireWriter(id: SessionId): Promise<() => void> {
+    return acquireSessionWriter(this.root, id)
+  }
 
   /** Resolve the absolute target path without touching the filesystem. */
   locate(meta: SessionHeader): SessionLocation {

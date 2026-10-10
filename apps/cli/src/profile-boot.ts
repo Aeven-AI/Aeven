@@ -29,14 +29,7 @@ import {
   watchUserPatches,
   type Profile,
 } from '@aeven/app-boot'
-import {
-  clearHostLease,
-  avnHomeDisplay,
-  HOST_LEASE_VERSION,
-  liveHostLease,
-  resolveAvnHome,
-  writeHostLease,
-} from '@aeven/home-paths'
+import { advertiseHostUrl, claimOrAttachHost, resolveAvnHome } from '@aeven/home-paths'
 import { installProxyFromEnvironment } from '@aeven/http-proxy'
 import type {} from '@aeven/host-webserver'
 import { AVN_LAUNCH_ENVIRONMENT_KEY, type LaunchEnvironmentSnapshot } from '@aeven/launch-environment'
@@ -191,8 +184,6 @@ export interface RunProfileOptions {
   patchFiles: readonly string[]
   /** The invocation's inner arguments, handed to the tree through `ctx.cmdlineArgs`. */
   args: readonly string[]
-  /** Whether the CLI entry claimed the home's Host lease for this process before loading the boot graph. */
-  hostLeaseClaimed: boolean
 }
 
 /**
@@ -211,12 +202,6 @@ function suppressShutdownError(ctx: Context, signal: AbortSignal, error: unknown
   throw error
 }
 
-/**
- * Boot one profile invocation end to end and leave process lifetime to the
- * mounted plugins (or to a one-shot runner the composition mounts).
- * @param options - environment snapshot, profile name, overlays, and the booted app's own arguments.
- * @returns the settled root context and the shutdown controller.
- */
 /**
  * The one Connection capability this launcher uses. It is declared
  * structurally rather than as a service dependency so a custom profile that
@@ -238,68 +223,23 @@ function hostUrlSourceOf(value: unknown): HostUrlSource | undefined {
 }
 
 /**
- * Publish this process as its home's serving Host when the booted tree serves
- * an HTTP surface, and release the boot-time claim when it does not.
- *
- * The home's durable shares are single-writer by construction except the
- * domain KV documents, whose JSON backend republishes a whole document from
- * one process's memory. Two Hosts on one home therefore do not merge: the last
- * writer replaces the other's state, and a Session that one Host attached to a
- * Workspace silently loses that membership. Advertising the attachable URL
- * makes the conflict discoverable by a peer that can attach instead of
- * guessing — and reporting it here turns a silent overwrite into a visible
- * one.
- * @param ctx - the booted Host context.
- * @param claimed - whether the CLI entry's boot-time claim took the lease for this process.
+ * Advertise the authenticated endpoint only after the complete Host boots.
+ * @param ctx - booted application context.
+ * @returns resolution after publication, or no action for a non-GUI profile.
  */
-async function advertiseServingHost(ctx: Context, claimed: boolean): Promise<void> {
+async function advertiseServingHost(ctx: Context): Promise<void> {
   const webServer = ctx.get('webServer')
   const urlSource = hostUrlSourceOf(ctx.get('connection'))
-  // Only a Host with an HTTP surface is attachable, and only it is a serving
-  // Host worth advertising; a headless invocation must stay free to share the
-  // home with a running GUI, so it gives its boot-time claim back.
-  if (webServer === undefined || urlSource === undefined) {
-    if (claimed) await clearHostLease(resolveAvnHome(), process.pid)
-    return
-  }
-
-  try {
-    const home = resolveAvnHome()
-    const existing = await liveHostLease(home)
-    // The incumbent keeps the advertisement: it is a live serving Host, so its
-    // record is the one a peer should attach to, and it is the only process
-    // whose teardown clears the file. A conflicting Host still reports itself,
-    // then leaves the record alone rather than stealing it and leaving the home
-    // pointing at whichever Host started last.
-    if (existing !== undefined && existing.pid !== process.pid) {
-      console.error(
-        `avn: another Host (pid ${String(existing.pid)}`
-        + `${existing.url === undefined ? '' : `, ${existing.url}`}) is already serving ${avnHomeDisplay(home)}. `
-        + 'Two Hosts on one home overwrite each other\'s domain state, including which '
-        + 'Workspace a Session belongs to. Quit one of them.',
-      )
-      if (existing.url !== undefined) return
-    }
-    // The loopback spelling must match what the Web surface serves and prints.
-    const url = urlSource.authenticatedUrl(`http://127.0.0.1:${String(webServer.port)}`)
-    await writeHostLease(home, {
-      version: HOST_LEASE_VERSION,
-      pid: process.pid,
-      startedAt: new Date().toISOString(),
-      url,
-    })
-    // Awaiting this disposer is what lets a clean shutdown remove the record;
-    // a `void`ed unlink races process exit and leaves a file behind for the
-    // next start to classify as stale.
-    ctx.effect(() => () => clearHostLease(home, process.pid), 'host-lease: release on teardown')
-  } catch (error) {
-    // Advertising is how a peer discovers this Host; it is never a reason for
-    // this one to fail to serve.
-    console.error(`avn: could not advertise this Host: ${error instanceof Error ? error.message : String(error)}`)
-  }
+  if (webServer === undefined || urlSource === undefined) return
+  await advertiseHostUrl(resolveAvnHome(), process.pid, urlSource.authenticatedUrl(`http://127.0.0.1:${String(webServer.port)}`))
 }
 
-export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Context; shutdown: ProcessShutdown }> {
+/**
+ * Boot a profile after GUI ownership is resolved, or report the incumbent URL.
+ * @param options - environment, profile, overlays, and application arguments.
+ * @returns the booted context and shutdown controller, or undefined when reusing an existing GUI Host.
+ */
+export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Context; shutdown: ProcessShutdown } | undefined> {
   // Before the first plugin mounts and before anything can issue a request: Node's fetch ignores the
   // proxy environment on its own, so every profile would otherwise connect directly. Resolving from
   // the launcher's snapshot — not `process.env` — is what lets a proxy declared in a `.env` layer
@@ -310,11 +250,23 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
   )
 
   const composed = await composeProfile(options.profile, options.patchFiles)
+  let releaseHost: (() => Promise<void>) | undefined
+  const servesHttp = composeEntries([allPatches(composed)]).some(row => row.name === '@aeven/host-webserver' && row.disabled !== true)
+  if (servesHttp && !options.args.some(arg => arg === '--help' || arg === '-h')) {
+    const startup = await claimOrAttachHost(resolveAvnHome())
+    if (startup.kind === 'attach') {
+      await disposeProxy()
+      process.stdout.write(`${startup.url}\n`)
+      return undefined
+    }
+    releaseHost = startup.release
+  }
   const app: { current?: Context } = {}
   const appReady = createAppReady()
   const shutdown = createProcessShutdown(async () => {
     await app.current?.fiber.dispose()
     await disposeProxy()
+    await releaseHost?.()
   })
   const signalShutdown = new AbortController()
   const interrupt = (code: number): void => {
@@ -353,7 +305,8 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
   ])
   // Cloned for the same insert-aliasing reason as composeLive: the boot
   // application must not mutate the objects later reloads recompose from.
-  const ctx = await boot(NAME, rootConfig, structuredClone(allPatches(composed)), (hostCtx) => {
+  let ctx: Context
+  try { ctx = await boot(NAME, rootConfig, structuredClone(allPatches(composed)), (hostCtx) => {
     app.current = hostCtx
     // Before any config-tree entry mounts, so plugins resolve all launch-time
     // environment values from the same immutable provenance snapshot.
@@ -366,8 +319,14 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
       ready: appReady.service,
     })
   })
+    await advertiseServingHost(ctx)
+  } catch (error: unknown) {
+    await app.current?.fiber.dispose()
+    await disposeProxy()
+    await releaseHost?.()
+    throw error
+  }
   app.current = ctx
-  await advertiseServingHost(ctx, options.hostLeaseClaimed)
   // A live-reload profile can dispose the whole tree while post-boot watcher
   // setup is in flight — a signal or appExit. Loader presence and fiber state
   // own liveness; the initial check skips a tree that already exited, and the

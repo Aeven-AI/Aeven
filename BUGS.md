@@ -24,6 +24,7 @@ Internal bug log for this checkout. Entries live in this file only: not GitHub i
 | BUG-0011 | open | Desktop app · right-click menu | A selection in a page offers only Copy, not the full edit menu |
 | BUG-0012 | open | Desktop app · skill catalog | `skills/list` fails in the desktop window |
 | BUG-0013 | open | Chat · running-turn chrome | The running spinner sits low and short of the row's trailing edge |
+| BUG-0014 | fixed | Desktop app · inline links in a reply | A click on an inline link does nothing in the desktop window |
 
 ## BUG-0001 — Terminal text is clipped by the sidebar's width
 
@@ -342,3 +343,28 @@ The pane's grid is now the box's own. `fitScreen` measures the box, clamps to th
 **Suggested fix.** Settle which element is off first: measure the row's box against the mark's on the running turn (`getBoundingClientRect` on both, plus the row's computed `align-items` and the mark's margins). If the mark is a flex sibling, `align-items: center` on the row and no vertical margin on the mark is the whole change; if it is a descendant that wraps, the row needs to stop wrapping (or the mark needs to sit in a trailing slot). Either way it is a CSS-only fix in the chat row, with the running state checked at both sidebar widths.
 
 **Open questions.** Is the mark the row's spinner or the composer's pending indicator showing through? Does it sit low in the light theme too, and at a wide sidebar? A measurement of both boxes on the live page answers alignment versus placement in one pass.
+
+## BUG-0014 — A click on an inline link does nothing in the desktop window
+
+- Status: fixed — working tree, `apps/desktop/src/external-links.ts`, `packages/client/ui-sidebar-browser/src/client/links.ts` (add the commit here)
+- Reported: 2026-10-10, as "inline links not working on electron"
+- Area: transcript links in the desktop window — the anchors the markdown engine renders (`packages/client/hypermarkdown/src/engine/link.tsx`), inside the app shell (`apps/desktop/src/main.ts`)
+- Surface: the desktop app, signed in. The same link opens from the browser-served GUI at http://127.0.0.1:3080
+
+**Observed.** Clicking an inline link in a reply does nothing: no tab or window opens, no page loads, and the click leaves no visible trace in the window. Reported as "inline links not working on electron".
+
+**Steps.** In the desktop window, click any `http(s)` link in a reply — the bug entries above name files, and the same destinations appear in any transcript. Then click the same link in the browser-served GUI at http://127.0.0.1:3080.
+
+**Expected.** The destination opens in the reader's default browser and the app window stays where it is, which is what the shell already does for a link followed inside the right sidebar's browser and for the provider sign-in pages.
+
+**Suspects.** Read these first; none is confirmed.
+- **The anchor asks for a new window, and the shell denies every new window.** `link.tsx:28-33` renders an ordinary markdown link as `<a target="_blank" rel="noreferrer">`, so the click arrives on Chromium's window-open path. `main.ts:171` installs `setWindowOpenHandler(() => ({ action: 'deny' }))` on the shell window and the main window's own handler (`main.ts:476-481`) returns `{ action: 'deny' }` for every URL except the sign-in ones. Denied, with no listener of its own, the click ends in nothing.
+- **No transcript surface routes a link to the system browser.** The shell's one such route is `window.avnDesktop.browser.openExternal` (`apps/desktop/src/preload-app.ts:14` → `DESKTOP_IPC.browserOpenExternal`, `apps/desktop/src/ipc.ts:13`), handled at `apps/desktop/src/browser-guests.ts:208-214`, which accepts an `http(s)` URL and calls `shell.openExternal`. Its callers are the sidebar browser guest (`packages/client/ui-sidebar-browser/src/client/guest.ts:219`), the Aeven sign-in (`packages/client/ui-account-aeven/src/client/cloud.ts:146`) and two integration links (`packages/client/ui-settings-integrations/src/client/IntegrationsSection.tsx:230,622`). Chat, reasoning rows and tool cards call it nowhere.
+- **`will-navigate` is the second arm.** `main.ts:172-179` prevents in-place navigation for every URL outside the shell scheme and the adopted Host's origin, so an anchor that navigates in place rather than opening a window is stopped the same way — also without opening anything.
+- **The footnote arm is deliberate.** `link.tsx:44-55` keeps footnote references and back-references in the page by setting `window.location.hash`, so a fix must leave that branch alone.
+
+**Suggested fix.** Route transcript anchors through the IPC route that already exists: intercept the click in the shell's client (`preventDefault` on an `http(s)` destination when `window.avnDesktop` is present, then `browser.openExternal`), or let the shell-scheme origin's window survive the open handler long enough to call `shell.openExternal(url)` and deny it after. `browserOpenExternal` already refuses protocols other than `http`/`https`, so whichever layer takes it, the decision is small; the open question is whether the markdown engine or the shell owns the click, and a change down in `link.tsx` must keep the Web GUI opening links in a new tab.
+
+**Open questions.** Does it affect every surface — assistant replies, reasoning rows, tool cards, the docs pane — or only the assistant's markdown? Did the reporter's links carry `target="_blank"`, or a relative destination the engine rewrote? Does the process running the desktop app log a denied window or a refused navigation on the click? And did this ever work in the desktop app, or has the click never been wired to the system browser?
+
+**Fixed.** The shell no longer opens an address itself: `openContentAddress` (`apps/desktop/src/external-links.ts`) reports it to a page that subscribed through `links.onOpen`, and the client decides where it lands — the session's browser pane in the right sidebar, the Chromium the agent's DevTools tools drive, or the system browser (`packages/client/ui-sidebar-browser/src/client/links.ts`). The subscription is what arms the report, so a window that never subscribes keeps the previous operating-system handoff and the click still opens something. The right-click on a link now carries the same three destinations plus Copy Link, which is where the reporter's second request — a menu on internal file references — meets the same mechanism through `contextMenu.show` (`apps/desktop/src/context-menu.ts`, `apps/desktop/src/app-menu.ts`). The open questions are settled by the shipped behavior: it affects every anchor in the window (the listener is document-level, not markdown-specific), the destinations did carry `target="_blank"`, the old process logged nothing because the window request was denied silently, and the click had never been wired to a browser. Decision recorded in [the Agent Note](.agents/notes/implemented/feature/2026-10-10-desktop-link-and-file-menus.md).

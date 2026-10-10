@@ -11,6 +11,8 @@ kind: "package-reference"
 
 `avn-session-persistence-jsonl` 把每个会话存为一份仅追加 JSONL 日志——默认以带校验和的 Zstandard 帧存储，禁用压缩时以换行分隔的原始文本行存储。它提供与任何持久化后端相同的逻辑 `SessionEvent` 流，因此选择它不会改变 agent loop、模型或回放的任何行为；压缩、打包与崩溃恢复都是存储内部细节。当消费方需要按会话的磁盘产物时选择它：`locate(meta)` 返回 transcript 路径，选择 `compression: 'none'` 后日志可作为纯文本按行读取。根目录是唯一必填配置；持久性、延迟实体化与中断轮次恢复都随后端提供。
 
+共享根目录的 Host 可以并发写入不同 Session。同一 Session 在恢复与 live 执行期间只有一个由内核管理的写入者；竞争的 resume 会以 `SessionPersistenceBusyError` 拒绝。只读历史仍可读取，进程退出会释放所有权，Host 使用根目录期间必须保留 `.writers/` 锁文件。
+
 ## 目录
 
 - [使用本包](#use-this-package)

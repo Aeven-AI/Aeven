@@ -51,6 +51,15 @@ export class SessionPreparations<Source extends PreparedSource, CommitState> {
   }
 
   /**
+   * @param id - session identity.
+   * @returns whether a committing or unpublished reservation owns the writer.
+   */
+  hasReservation(id: SessionId): boolean {
+    const phase = this.entries.get(id)?.phase
+    return phase === 'committing' || phase === 'reserved'
+  }
+
+  /**
    * Observe one prepared source, sharing an in-flight read for the same id.
    * @param id - session identity.
    * @param load - cold loader used when no entry exists.

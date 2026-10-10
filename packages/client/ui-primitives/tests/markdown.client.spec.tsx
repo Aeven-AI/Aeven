@@ -217,6 +217,34 @@ describe('MarkdownText', () => {
     expect(streamed.container.querySelector('button')).toBeNull()
   })
 
+  it('a mention with its own menu suppresses the platform menu; one without leaves it alone', () => {
+    const menus: string[] = []
+    const open = () => {}
+    const owning = {
+      resolve: (value: string) => (value === 'index.html'
+        ? { open, label: 'Open index.html', title: 'index.html', menu: () => { menus.push(value) } }
+        : undefined),
+    }
+    const inert = {
+      resolve: (value: string) => (value === 'index.html'
+        ? { open, label: 'Open index.html', title: 'index.html' }
+        : undefined),
+    }
+    // An owner with no menu to offer intercepts nothing: the platform's own
+    // right-click menu is what its reader gets there.
+    const plain = render(<MarkdownText text={'`index.html`'} fileMentions={inert} />)
+    const plainEvent = new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
+    plain.getByRole('button', { name: 'Open index.html' }).dispatchEvent(plainEvent)
+    expect(plainEvent.defaultPrevented).toBe(false)
+    plain.unmount()
+
+    const owned = render(<MarkdownText text={'`index.html`'} fileMentions={owning} />)
+    const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
+    owned.getByRole('button', { name: 'Open index.html' }).dispatchEvent(event)
+    expect(event.defaultPrevented).toBe(true)
+    expect(menus).toEqual(['index.html'])
+  })
+
   it('exposes the CJK strong syntax as a micromark extension needing CommonMark attention markers', () => {
     const extension = cjkFriendlyStrong()
     expect(cjkFriendlyStrong()).toBe(extension)

@@ -14,6 +14,10 @@ export const zh = {
   'produced.showInFolder': '在文件夹中显示',
   'produced.showInFinder': '在访达中显示',
   'produced.showInExplorer': '在资源管理器中显示',
+  'file.open': '打开',
+  'file.openIn': '在 {app} 中打开',
+  'file.copyRelativePath': '复制相对路径',
+  'file.copyFullPath': '复制完整路径',
 }
 
 /** English dictionary (same key set). */
@@ -27,6 +31,10 @@ export const en: Record<DeliverablesKey, string> = {
   'produced.showInFolder': 'Show in folder',
   'produced.showInFinder': 'Show in Finder',
   'produced.showInExplorer': 'Show in Explorer',
+  'file.open': 'Open',
+  'file.openIn': 'Open in {app}',
+  'file.copyRelativePath': 'Copy relative path',
+  'file.copyFullPath': 'Copy full path',
 }
 
 /** Union of this namespace's dictionary keys. */

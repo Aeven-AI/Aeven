@@ -1,7 +1,7 @@
 /** Address-bar input to a URL the browser will navigate to, or to a search query. */
 
 /** Schemes a guest may load. */
-const ALLOWED_PROTOCOLS = new Set(['http:', 'https:'])
+const ALLOWED_PROTOCOLS = new Set(['http:', 'https:', 'file:'])
 
 /** Leading token that names a URL scheme, so `mailto:x` is not read as a query. */
 const SCHEME = /^[a-z][a-z0-9+.-]*:/i
@@ -92,6 +92,7 @@ function parse(text: string): string | undefined {
     return undefined
   }
   if (!ALLOWED_PROTOCOLS.has(url.protocol)) return undefined
+  if (url.protocol === 'file:') return url.toString()
   if (url.hostname === '') return undefined
   if (isLoopbackHost(url.hostname)) url.hostname = 'localhost'
   return url.toString()

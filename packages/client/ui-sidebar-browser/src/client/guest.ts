@@ -88,6 +88,53 @@ export interface DesktopBrowserBridge {
 }
 
 /**
+ * One row of a menu the app page describes for the shell to pop (desktop
+ * `ipc.ts` `DesktopMenuItem`), restated for the same reason as the bridge below.
+ */
+export type DesktopMenuItem =
+  | { readonly type: 'separator' }
+  | {
+    readonly type: 'row'
+    /** Value the page receives back when this row is chosen. */
+    readonly id: string
+    readonly label: string
+    /** Whether the row can be chosen; a row that omits it can. */
+    readonly enabled?: boolean
+  }
+
+/**
+ * The shell's menu operations, as this client needs them.
+ *
+ * The page owns what a right-click means — the destinations its links carry,
+ * the paths its file names name — while the shell owns the menu a desktop
+ * draws. The page suppresses the platform's own menu on the elements it
+ * answers for, so exactly one menu is ever up.
+ */
+export interface DesktopMenuBridge {
+  /**
+   * Pop one native menu for the app page.
+   * @param items - the rows to show, in display order.
+   * @returns the chosen row's id, or null when the reader dismissed the menu.
+   */
+  show: (items: readonly DesktopMenuItem[]) => Promise<string | null>
+}
+
+/**
+ * The shell's report of the addresses the app page's own content opened,
+ * as this client needs it. A window the page asks for never opens in the
+ * shell: it is told the address instead, because where a link lands is the
+ * client's decision.
+ */
+export interface DesktopLinksBridge {
+  /**
+   * Observe the external addresses the page's content asked to open.
+   * @param listener - called with each absolute http(s) address.
+   * @returns disposer removing the listener.
+   */
+  onOpen: (listener: (url: string) => void) => () => void
+}
+
+/**
  * One agent pointer step, in the guest's viewport CSS pixels (desktop `ipc.ts`
  * `DesktopBrowserCursor`). Animation does not delay native input.
  */
@@ -217,6 +264,26 @@ export function setPointerHold(sessionId: string, hold: boolean): void {
 export function desktopBrowser(): DesktopBrowserBridge | undefined {
   if (typeof window === 'undefined') return undefined
   return (window as { avnDesktop?: { browser?: DesktopBrowserBridge } }).avnDesktop?.browser
+}
+
+/**
+ * The shell's menu bridge, present only inside the desktop shell.
+ * @returns the bridge, or undefined when served over HTTP.
+ */
+export function desktopMenus(): DesktopMenuBridge | undefined {
+  if (typeof window === 'undefined') return undefined
+  return (window as { avnDesktop?: { contextMenu?: DesktopMenuBridge } }).avnDesktop?.contextMenu
+}
+
+/**
+ * The shell's link bridge, present only inside the desktop shell. Subscribing
+ * is also what tells the shell this page takes the addresses its content opens
+ * instead of handing them to the system browser.
+ * @returns the bridge, or undefined when served over HTTP.
+ */
+export function desktopLinks(): DesktopLinksBridge | undefined {
+  if (typeof window === 'undefined') return undefined
+  return (window as { avnDesktop?: { links?: DesktopLinksBridge } }).avnDesktop?.links
 }
 
 /**

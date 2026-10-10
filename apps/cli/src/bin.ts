@@ -25,12 +25,8 @@ const invocation = parseAvnArgs(process.argv.slice(2), readVersion())
 
 switch (invocation.mode) {
   case 'profile': {
-    // Before the boot graph loads: a desktop shell that finds no lease starts a second Host on this home.
-    const { claimBootingHost } = await import('./host-claim.ts')
-    const hostLeaseClaimed = await claimBootingHost()
     const { runProfile } = await import('./profile-boot.ts')
     await runProfile({
-      hostLeaseClaimed,
       environment: loadLayeredEnv('avn'),
       profile: invocation.profile,
       patchFiles: invocation.patches,

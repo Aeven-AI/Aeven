@@ -43,6 +43,7 @@ function isDesktopHostEvent(message: unknown): message is DesktopHostEvent {
   switch (candidate.type) {
     case 'ready':
       return candidate.protocolVersion === DESKTOP_HOST_PROTOCOL_VERSION && typeof candidate.avnVersion === 'string'
+        && typeof candidate.url === 'string' && URL.canParse(candidate.url) && typeof candidate.ownsHost === 'boolean'
         && (candidate.aevenSignIn === undefined || isAevenSignIn(candidate.aevenSignIn))
     case 'fatal':
       return typeof candidate.message === 'string'
@@ -72,11 +73,17 @@ async function exitsWithin(exit: Promise<void>, milliseconds: number): Promise<b
 export interface DesktopHostReady {
   readonly protocolVersion: typeof DESKTOP_HOST_PROTOCOL_VERSION
   readonly avnVersion: string
+  readonly url: string
+  readonly ownsHost: boolean
   readonly aevenSignIn?: DesktopAevenSignIn
 }
 
 /** One avn backend running under the bundled upstream Node.js executable. */
 export class DesktopHostProcess {
+  private owner = false
+  /** Whether this child owns the shared Host rather than reporting an incumbent. */
+  get ownsHost(): boolean { return this.owner }
+
   private child: ChildProcess | undefined
   private requestPipe: Writable | undefined
   private responsePipe: Readable | undefined
@@ -116,6 +123,7 @@ export class DesktopHostProcess {
       ...(this.inspectPort === undefined ? [] : ['--allow-linked-profile']),
     ], {
       cwd: this.projectDir,
+      detached: true,
       env: Object.fromEntries(Object.entries(process.env).filter(([name]) => (
         name !== 'NODE_OPTIONS' && !/^AVN_DESKTOP_/u.test(name) && !/^(?:npm|pnpm|corepack)_/iu.test(name)
       ))),
@@ -205,6 +213,17 @@ export class DesktopHostProcess {
         this.failPending(streamId, errorOf(error, 'avn desktop request upload failed'))
       })
     })
+  }
+
+  /** Detach the shell while the shared HTTP Host continues serving. */
+  detach(): void {
+    const child = this.child
+    if (child === undefined) return
+    if (child.connected) child.disconnect()
+    child.stdout?.unpipe(process.stdout)
+    for (const pipe of child.stdio) pipe?.destroy()
+    child.unref()
+    this.child = undefined
   }
 
   /** Request graceful teardown, then wait for child exit. */
@@ -398,6 +417,7 @@ export class DesktopHostProcess {
   private handleMessage(message: DesktopHostEvent): void {
     switch (message.type) {
       case 'ready':
+        this.owner = message.ownsHost
         this.readyResolve(message)
         return
       case 'fatal':

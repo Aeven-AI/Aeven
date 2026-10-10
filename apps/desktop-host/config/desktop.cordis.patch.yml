@@ -1,4 +1,4 @@
-# Electron carries the browser composition over its custom protocol.
+# Electron and ordinary browsers share the authenticated loopback Host.
 
 - id: web-startup
   disabled: true
@@ -7,7 +7,7 @@
   inject: []
   config:
     host: 127.0.0.1
-    port: 0
+    port: 3080
     compression: none
 
 - id: web-runtime
@@ -25,9 +25,6 @@
 - id: directory-picker
   disabled: true
 
-# Workspace file URLs are an HTTP route on the disabled webserver.
-- id: workspace-files
-  disabled: true
 
 - id: connection
   inject:

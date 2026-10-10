@@ -275,7 +275,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     const recent = workspace.phase === 'ready' && sessions.phase === 'ready'
       ? recentWorkspace(workspace.items, sessions.byId)
       : undefined
-    return workspaceId ?? currentWorkspaceId ?? recent
+    return workspaceId ?? currentWorkspaceId ?? recent ?? this.defaultWorkspaceId()
   }
 
   async connectWorkspace(workspaceId: WorkspaceId, sessionId?: SessionId): Promise<SessionId> {

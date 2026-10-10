@@ -80,8 +80,15 @@ export interface MarkdownFileMentions {
    * @param value - The authored token, exactly as written.
    * @returns The opener with its accessible label and full-path title, or
    * undefined when the token names no known file — it then stays inert code.
+   * A resolved file also carries `menu` where the owner has its own right-click
+   * menu for that file; the platform's own menu is left alone without one.
    */
-  resolve(value: string): { open: () => void; label: string; title: string } | undefined
+  resolve(value: string): {
+    open: () => void
+    label: string
+    title: string
+    menu?: (() => void) | undefined
+  } | undefined
 }
 
 /**
@@ -231,8 +238,11 @@ function codeComponents(
       }
       const target = streaming || mentions === undefined ? undefined : mentions.resolve(value)
       if (target === undefined) return <code>{value}</code>
+      const menu = target.menu
       // The opener sits inside the code element rather than replacing it: the
       // token is still code, and a reader copying it should get the token.
+      // An owner that has a menu for this file suppresses the platform's own on
+      // the same element, so the reader sees one menu and not two.
       return (
         <code>
           <button
@@ -241,6 +251,10 @@ function codeComponents(
             title={target.title}
             aria-label={target.label}
             onClick={target.open}
+            onContextMenu={menu === undefined ? undefined : (event) => {
+              event.preventDefault()
+              menu()
+            }}
           >
             {value}
           </button>

@@ -3,6 +3,7 @@ import { fileGlyph, IconLucideFolderOpen, Tooltip } from '@aeven/client-ui-primi
 import type { HostObservable, InjectFace, PropsLocale } from '@aeven/client-ui-slots'
 import type { TurnTailOwnerProps } from '@aeven/client-ui-chat/client'
 import { basename, parentFolder } from './turn-deliverables.ts'
+import { revealLabel } from './file-menu.ts'
 import type { NS } from './locales.ts'
 import css from './ProducedFiles.module.css'
 
@@ -15,6 +16,14 @@ export interface ProducedFilesInjected {
   isLoopback: boolean
   /** Load the opener capability when this row first reaches the page. */
   ensureWorkspacePathOpen(): void
+  /**
+   * Show the row's own right-click menu for one produced path. Absent where the
+   * client has no menu to offer — served over HTTP, the platform's own menu is
+   * what its reader expects.
+   * @param path - the produced path as the assistant wrote it.
+   * @param cwd - the Session workspace root, used to resolve a relative path.
+   */
+  openFileMenu?: ((path: string, cwd: string | undefined) => void) | undefined
   hooks: {
     /** Current generation's Session workspace opener capability. */
     workspacePathOpen: HostObservable<boolean | undefined>
@@ -30,21 +39,13 @@ function moreLabel(t: ProducedFilesProps['t'], count: number): string {
   return count === 1 ? t('produced.moreOne') : t('produced.more', { count: String(count) })
 }
 
-/** The workspace-folder action names the desktop's own file manager where the browser reveals it. */
-function showFolderLabel(t: ProducedFilesProps['t']): string {
-  const platform = typeof navigator === 'undefined' ? '' : navigator.userAgent
-  if (/Mac/.test(platform)) return t('produced.showInFinder')
-  if (/Windows/.test(platform)) return t('produced.showInExplorer')
-  return t('produced.showInFolder')
-}
-
 /**
  * Render one turn's produced files as a table of openable files, styled as the answer's table block.
  * @param props - selector-matched paths, the chat view's file opener and workspace root, and the locale seat.
  * @returns The produced-files card.
  */
 export function ProducedFiles({
-  matched: paths, openFile, cwd, isLoopback, ensureWorkspacePathOpen, useWorkspacePathOpen, t,
+  matched: paths, openFile, cwd, isLoopback, ensureWorkspacePathOpen, openFileMenu, useWorkspacePathOpen, t,
 }: ProducedFilesProps) {
   useEffect(() => { ensureWorkspacePathOpen() }, [ensureWorkspacePathOpen])
   const hostCanOpenPath = useWorkspacePathOpen(available => available === true)
@@ -56,11 +57,11 @@ export function ProducedFiles({
       <header className={css.header}>
         <span className={css.title}>{t('produced.label')}</span>
         {paths.length > 1 && canOpenPath && (
-          <Tooltip label={showFolderLabel(t)} side="top" anchor="icon">
+          <Tooltip label={revealLabel(t)} side="top" anchor="icon">
             <button
               type="button"
               className={css.iconButton}
-              aria-label={showFolderLabel(t)}
+              aria-label={revealLabel(t)}
               onClick={() => { openFile('.') }}
             >
               <IconLucideFolderOpen />
@@ -89,6 +90,10 @@ export function ProducedFiles({
                     title={path}
                     aria-label={t('produced.open', { name: path })}
                     onClick={() => { openFile(path) }}
+                    onContextMenu={openFileMenu === undefined ? undefined : (event) => {
+                      event.preventDefault()
+                      openFileMenu(path, cwd)
+                    }}
                   >
                     {fileGlyph(name)}
                     <span className={css.name}>{name}</span>

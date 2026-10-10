@@ -4,6 +4,8 @@ English | [中文](README.zh.md)
 
 The `avn` command is the sole supported Node application launcher: profiles are ordered stacks of plugin-bundle patch layers under the user's own overrides. SDK and ACP are profiles, not separate public bins. The Python runtime wheel packages this same command; the SDK defaults to `sdk`, and the minimal example selects `sdk-minimal`. [`src/args.ts`](src/args.ts) owns the command grammar, and [`src/bin.ts`](src/bin.ts) loads only the selected runner. Invalid commands, options from another mode, configuration errors, and boot failures exit nonzero.
 
+A profile that mounts the HTTP server claims the shared GUI Host before plugin boot. When a Host already serves the same Aeven home, the invocation prints its authenticated URL and exits without booting a second tree. The running Host retains its configuration; a second launch does not apply new flags or patches. Headless and stdio profiles keep their independent execution lifecycle. GUI ownership releases after application teardown or process death.
+
 ## Entry modes
 
 | Command | Purpose |

@@ -16,7 +16,8 @@ import {
 import { DESKTOP_MENU_ZOOM_STEP, FULL_SCREEN_ITEM_ID, applicationMenuTemplate, type DesktopMenuZoom } from './application-menu.ts'
 import { adoptedHostSignIn, completeOAuthLanding, forwardAevenApiRequest } from './aeven-sign-in.ts'
 import { startBrowserSignIn } from './oauth-browser.ts'
-import { installContextMenu } from './context-menu.ts'
+import { installContextMenu, registerContextMenuIpc } from './context-menu.ts'
+import { listenForPageLinks, openContentAddress } from './external-links.ts'
 import { hardenBrowserGuests, registerBrowserIpc } from './browser-guests.ts'
 import { planDesktopBackend } from './attached-host.ts'
 import { resolveDesktopPaths } from './paths.ts'
@@ -44,6 +45,14 @@ const START_DICTATION_COMMAND: DesktopMenuCommand = 'start-dictation'
  * browser.
  */
 let attachedBackend: { readonly url: string; readonly origin: string } | undefined
+
+/**
+ * Whether the shell's own provider sign-in claims an address before the
+ * navigation guard hands it to the system browser. The flow needs the window
+ * that started it, so the window that runs it sets this; nothing claims an
+ * address until then.
+ */
+let claimsAppAddress: (url: string) => boolean = () => false
 
 /** Root URL the main window renders: the adopted Host, or this shell's own app. */
 function appEntryUrl(): string {
@@ -168,7 +177,14 @@ function createWindow(preload: string): BrowserWindow {
     },
   })
   hardenBrowserGuests(window.webContents)
-  window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  // A window the page asks for is a web destination the reader chose. The page
+  // opens it where the client's own policy says when it listens for addresses,
+  // and the operating system opens it otherwise; either way no second Electron
+  // window is created.
+  window.webContents.setWindowOpenHandler(({ url }) => {
+    openContentAddress(window.webContents, url)
+    return { action: 'deny' }
+  })
   window.webContents.on('will-navigate', (event, url) => {
     const target = new URL(url)
     if (target.protocol === `${SCHEME}:`) return
@@ -176,6 +192,9 @@ function createWindow(preload: string): BrowserWindow {
     // origin is the one non-shell destination this window may reach.
     if (attachedBackend !== undefined && target.origin === attachedBackend.origin) return
     event.preventDefault()
+    // A flow the shell runs itself loads its landing into a window, so the
+    // window that started it keeps the address rather than the system browser.
+    if (!claimsAppAddress(url)) openContentAddress(window.webContents, url)
   })
   return window
 }
@@ -184,7 +203,8 @@ function assertDesktopSender(event: IpcMainInvokeEvent, hostnames: readonly stri
   const senderFrame = event.senderFrame
   if (senderFrame === null) throw new Error('avn desktop: rejected IPC without a sender frame')
   const url = new URL(senderFrame.url)
-  if (url.protocol !== `${SCHEME}:` || !hostnames.includes(url.hostname)) {
+  const applicationHost = hostnames.includes('app') && attachedBackend !== undefined && url.origin === attachedBackend.origin
+  if (!applicationHost && (url.protocol !== `${SCHEME}:` || !hostnames.includes(url.hostname))) {
     throw new Error('avn desktop: rejected IPC from an unowned renderer')
   }
 }
@@ -216,7 +236,8 @@ async function main(): Promise<void> {
   const activeProject = development ?? paths.profile
   const hostInspectPort = developmentHostInspectPort(development !== undefined)
   const manager = new DesktopProjectManager(paths, resources)
-  if (development === undefined) manager.recover()
+  const plan = await planDesktopBackend()
+  if (development === undefined && plan.kind === 'spawn') manager.recover()
   let host: DesktopHostProcess | undefined
   let aevenSignIn: DesktopAevenSignIn | undefined
   let mainWindow: BrowserWindow | undefined
@@ -239,12 +260,20 @@ async function main(): Promise<void> {
   const startHost = async (projectDir = activeProject): Promise<DesktopHostProcess> => {
     const next = new DesktopHostProcess(resources.node, projectDir, hostInspectPort)
     const ready = await next.start()
-    if (projectDir === activeProject) aevenSignIn = ready.aevenSignIn
+    if (!ready.ownsHost && projectDir !== activeProject) {
+      next.detach()
+      throw new Error('stop the existing Aeven Host before validating a desktop update')
+    }
+    if (projectDir === activeProject) {
+      aevenSignIn = ready.aevenSignIn ?? await adoptedHostSignIn(ready.url)
+      attachedBackend = { url: ready.url, origin: new URL(ready.url).origin }
+    }
     return next
   }
   const hooks: DesktopProjectHooks = {
     healthCheck: async (projectDir) => {
       const active = host
+      if (attachedBackend !== undefined && (active === undefined || !active.ownsHost)) throw new Error('stop the existing Aeven Host before updating the desktop backend')
       host = undefined
       await active?.stop()
       let healthFailure: unknown
@@ -274,6 +303,7 @@ async function main(): Promise<void> {
       if (restartFailure !== undefined) throw errorOf(restartFailure, 'desktop project: active backend restart failed')
     },
     beforeActivate: async () => {
+      if (attachedBackend !== undefined && (host === undefined || !host.ownsHost)) throw new Error('stop the existing Aeven Host before updating the desktop backend')
       const active = host
       host = undefined
       await active?.stop()
@@ -283,7 +313,7 @@ async function main(): Promise<void> {
     },
   }
 
-  if (development === undefined) {
+  if (development === undefined && plan.kind === 'spawn') {
     await manager.applyRelease(resources.seed, app.getVersion(), {
       ...hooks,
       beforeActivate: async () => {},
@@ -293,7 +323,6 @@ async function main(): Promise<void> {
   // Decide the backend before starting one. A live Host that answers on its
   // advertised URL already owns this home, and two Hosts on one home overwrite
   // each other's domain state, so adopting it is both correct and cheaper.
-  const plan = await planDesktopBackend()
   if (plan.kind === 'attach') {
     attachedBackend = { url: plan.url, origin: new URL(plan.url).origin }
     console.log(`desktop: adopting the Host already serving this home at ${attachedBackend.origin}`)
@@ -342,6 +371,17 @@ async function main(): Promise<void> {
   registerBrowserIpc(event => mainWindow !== undefined
     && event.sender === mainWindow.webContents
     && event.senderFrame === event.sender.mainFrame)
+  registerContextMenuIpc(event => mainWindow !== undefined
+    && event.sender === mainWindow.webContents
+    && event.senderFrame === event.sender.mainFrame)
+  // The app page says once that it takes the addresses its own content opens;
+  // until then the shell hands them to the system browser, which is what a page
+  // the client does not drive expects.
+  ipcMain.on(DESKTOP_IPC.linksListen, (event) => {
+    if (mainWindow === undefined || event.sender !== mainWindow.webContents) return
+    if (event.senderFrame !== event.sender.mainFrame) return
+    listenForPageLinks(event.sender)
+  })
 
   const checkAndPrompt = async (manual: boolean): Promise<void> => {
     const state = await updates.check()
@@ -469,13 +509,19 @@ async function main(): Promise<void> {
   const createMainWindow = (): BrowserWindow => {
     const window = createWindow(appPreload)
     mainWindow = window
+    claimsAppAddress = url => aevenSignIn?.oauthUrls.includes(url) === true
     // Either way the page reaches a provider, the provider opens in the default
     // browser and every other window stays denied. A page whose flow is a window
     // waits for the session this shell exchanges; a page whose flow is a redirect
     // gets the landing it expects loaded back into the window it came from.
+    // Every other address the page asks a window for is content the reader
+    // chose: the page opens it itself when it listens for addresses, and the
+    // system browser opens it otherwise.
     window.webContents.setWindowOpenHandler(({ url }) => {
       if (aevenSignIn?.oauthUrls.includes(url) === true) {
         beginProviderSignIn(window, url, (path) => { void completeOAuthLanding(path, aevenSignIn) })
+      } else {
+        openContentAddress(window.webContents, url)
       }
       return { action: 'deny' }
     })
@@ -523,7 +569,8 @@ async function main(): Promise<void> {
     event.preventDefault()
     const active = host
     host = undefined
-    void active.stop().finally(() => { app.quit() })
+    active.detach()
+    app.quit()
   })
 }
 

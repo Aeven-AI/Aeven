@@ -9,6 +9,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { createLayoutStore } from '@aeven/client-ui-layout/src/client/stores.ts'
 import {
   DETAILS_DEFAULT, DETAILS_MAX, DETAILS_MIN, RIGHTBAR_DEFAULT, RIGHTBAR_MIN,
+  RIGHTBAR_MIN_BREAKPOINT, RIGHTBAR_MIN_WIDE,
   SIDEBAR_DEFAULT, SIDEBAR_MAX, SIDEBAR_MIN,
 } from '@aeven/client-ui-layout/src/client/columns.ts'
 
@@ -198,6 +199,16 @@ describe('the right sidebar is one surface per session', () => {
     actions.toggleRightbar('s1', FRAME)
     actions.setRightbar(0, FRAME)
     expect(store.getSnapshot().rightbar['s1']?.shown).toBe(true)
+    expect(store.getSnapshot().rightbarWidth).toBe(RIGHTBAR_MIN_WIDE)
+  })
+
+  it('takes the smaller floor on a frame below the breakpoint', () => {
+    const { store, actions } = createLayoutStore().create()
+    actions.toggleRightbar('s1', FRAME)
+    actions.setRightbar(0, FRAME)
+    expect(store.getSnapshot().rightbarWidth).toBe(RIGHTBAR_MIN_WIDE)
+
+    actions.setRightbar(0, RIGHTBAR_MIN_BREAKPOINT - 1)
     expect(store.getSnapshot().rightbarWidth).toBe(RIGHTBAR_MIN)
   })
 

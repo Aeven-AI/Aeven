@@ -1,4 +1,4 @@
-# Agent Note: The desktop shell waits for a booting Host instead of starting a second one
+# Agent Note: One shared GUI Host per Aeven home
 
 Status: implemented
 
@@ -6,22 +6,24 @@ English | [中文](2026-10-07-desktop-waits-for-booting-host.zh.md)
 
 ## Problem
 
-The desktop shell adopts a Host that already serves its Aeven home, because two Hosts on one home overwrite each other's domain documents. It decided once, at launch: read `runtime/host.json`, probe the advertised URL for 1.5 seconds, and start a Host of its own on any miss. A web Host writes that lease only after its whole boot, about nine seconds on a development machine, and a restarting Host removes its lease on shutdown first. A shell launched in that window found no lease and started a second Host on the same home; in development every session then failed to load its history with `gateway/internal`, and the sidebar showed every session as ungrouped.
+Independent Web and Electron Hosts can read the same durable data while holding separate Sessions, sequence cursors, and workspace documents in memory. Concurrent appends produce overlapping sequences; whole-document domain writes replace another Host's workspace membership. An advertisement published only after boot leaves a startup race. An advisory PID record and a readiness timeout cannot prevent competing execution.
 
 ## Decision
 
-The CLI entry claims the lease for a profile run before it loads the boot graph ([`apps/cli/src/host-claim.ts`](../../../../apps/cli/src/host-claim.ts)), recording only its pid and start time, so the unclaimed window is Node startup alone. After boot, a Host with an HTTP surface adds its tokenized URL to that claim ([`apps/cli/src/profile-boot.ts`](../../../../apps/cli/src/profile-boot.ts)); a Host without one gives the claim back, so a headless invocation still leaves the home free for a GUI. A live lease held by another process is never overwritten by the claim.
+GUI launchers claim a kernel lock at `runtime/host.lock` before mounting stateful plugins. The CLI inspects the composed profile for its HTTP server; headless and stdio profiles retain independent execution. Electron's child uses the same claim. The owner publishes an authenticated endpoint atomically at `runtime/host.json` after complete boot. A contender attaches to that endpoint or reports a readiness failure; a live process never loses ownership because a probe or deadline expires. Lock files remain in place, and process death releases the kernel claim. Existing live advertisements also block a new writer during upgrades.
 
-`planDesktopBackend` ([`apps/desktop/src/attached-host.ts`](../../../../apps/desktop/src/attached-host.ts)) re-reads the lease every 250 ms while its process is alive, until the lease carries a URL that answers or 30 seconds pass. It starts a Host of its own only when the home has no lease, the leased process has exited, or the wait runs out, and the shell logs which of those applied.
+Electron and ordinary browsers use the same authenticated HTTP application. The Electron child defaults to loopback port 3080 and serves the matching frontend plus workspace-file routes. Electron's IPC admits its application origin, and adopted sign-in discovery uses Electron's cookie-aware session. The serving profile and plugin capabilities belong to the first launcher; another launch reports the existing endpoint without applying new flags or patches.
+
+Quitting Electron disconnects its shell from the detached upstream Node.js process; browser clients and running work continue. Explicit shutdown drains the application before releasing ownership. A failed teardown keeps the kernel claim until process exit. Desktop startup does not replace an adopted Host's package graph, and package validation or activation refuses an externally owned Host. The [per-session writer lock](2026-10-10-session-writer-ownership.md) remains necessary for independent non-GUI processes.
 
 ## Alternatives considered
 
-**Lengthen the single probe.** A longer timeout covers a slow answer but not a Host that has not advertised yet, which is the window that produced the second Host.
+**A longer readiness probe or PID-only advertisement.** Neither serializes the decision to boot when two launchers find no serving Host. A live but stalled Host may resume writing after a timeout, so starting a competing backend is unsafe.
 
-**Make the shell refuse to start while any lease is live.** A Host that hangs before advertising would leave the user with no window; the bounded wait falls back to today's behavior instead.
+**Separate Hosts with shared session files.** Session locks prevent corrupt appends but cannot provide one live execution and shared account-domain state to both clients.
 
-**Claim the lease only for the web profile.** Whether a tree serves HTTP is known only after its plugins mount, so the claim is taken for every profile and returned by trees without a web server.
+**Stop the Host when Electron quits.** Electron is one client of the shared application. Its departure does not authorize interrupting another client's work.
 
 ## Consequences
 
-A shell launched while a web Host boots or restarts adopts it once it serves; one whose check lands before the new process has started Node still finds no lease. A shell launched while a headless run boots waits until that run finishes booting and returns its claim, then starts its own Host. A Host that stays alive without ever answering delays the shell by 30 seconds before it starts its own. The adoption specs in `apps/desktop/tests/attached-host.spec.ts` that expect an immediate fallback for an unanswering or URL-less live lease describe the replaced single-probe behavior.
+Web-first, Electron-first, and simultaneous GUI launches select one serving Host. Non-GUI processes keep per-session exclusion. A detached desktop-started Host remains running until explicit process shutdown. Updating an externally owned backend requires stopping its Host first. Old running processes must restart to participate. Validation is limited to TypeScript and the repository build at the user's request; launch-order, crash, Windows-lock, and visible-client behavior remain unverified at runtime.

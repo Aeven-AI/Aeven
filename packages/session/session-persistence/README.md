@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
 
 `avn-session-persistence` stores a session's event log durably, reloads it on resume, and lists stored sessions through the backend-neutral `ctx.sessionPersistence` service. The persisted unit is the existing `SessionEvent` log — there is no parallel stored message type. `SessionHeader.isSeeded` makes lineage visible to lightweight listing, while the exact `inheritedEventCount` accompanies every body-bearing storage read and prepared Session. A backend owns its storage, while the service owns append-only logs, contiguous sequence numbers, crash recovery that preserves an interrupted turn instead of truncating it, and durable writes that resolve only after the batch is safe. The shipped JSONL provider implements this service with one artifact per Session; third-party providers may implement the same contract without changing the loop or model.
 
+The coordinator retains a backend-provided per-session writer claim across recovery and live execution, releasing it after final flush or unpublished rollback. Read-only observation does not claim the writer.
+
 ## Table of Contents
 
 - [Use this package](#use-this-package)

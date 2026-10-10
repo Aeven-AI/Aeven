@@ -48,6 +48,7 @@
   },
   "devDependencies": {
     "@aeven/api-remotes": "workspace:^",
+    "@aeven/api-session-controller": "workspace:^",
     "@aeven/client-connection": "workspace:^",
     "@aeven/client-locale": "workspace:^",
     "@aeven/client-store": "workspace:^",
@@ -61,7 +62,8 @@
     "react": "^18.2.0",
     "@aeven/client-ui-primitives": "workspace:^",
     "@aeven/session": "workspace:^",
-    "@aeven/system-prompt": "workspace:^"
+    "@aeven/system-prompt": "workspace:^",
+    "@aeven/util-workspace-path": "workspace:^"
   },
   "files": [
     "lib/index.js",
