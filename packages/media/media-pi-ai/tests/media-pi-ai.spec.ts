@@ -120,6 +120,20 @@ describe('failures', () => {
     expect(generateImages).not.toHaveBeenCalled()
   })
 
+  it('refuses a requested image count rather than returning fewer images than it asked for', async () => {
+    const runtime = await media()
+    await expect(runtime.generateImage({ model: MODEL, prompt: 'a fox', n: 3 })).rejects.toMatchObject({
+      code: 'MEDIA_INVALID_REQUEST',
+      message: `n is not supported by ${MODEL}`,
+    })
+    expect(generateImages).not.toHaveBeenCalled()
+  })
+
+  it('accepts a count of one, which the route answers without being asked', async () => {
+    const runtime = await media()
+    await expect(runtime.generateImage({ model: MODEL, prompt: 'a fox', n: 1 })).resolves.toMatchObject({ model: MODEL })
+  })
+
   it('reports an upstream error result as a failure rather than an empty success', async () => {
     generateImages.mockResolvedValue(answer({ stopReason: 'error', errorMessage: 'model overloaded', output: [] }))
     const runtime = await media()

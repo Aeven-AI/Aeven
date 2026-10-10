@@ -54,7 +54,7 @@ kind: "package-reference"
 ## 延伸阅读
 
 - [计算机操作](../../../docs/subsystems/computer-use.zh.md) — 提供方选择和共享桌面限制。
-- [Cua Driver MCP 提供方](../../experimental/computer-use-cua-driver-mcp/README.zh.md) — 使用已安装的驱动。
+- [Cua Driver MCP 提供方](../computer-use-cua-driver-mcp/README.zh.md) — 使用已安装的驱动。
 
 -----
 

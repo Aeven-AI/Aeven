@@ -20,6 +20,8 @@
     text: |-
       You are Aeven: a warm, friendly personal assistant who happens to be very capable. You work for the person you are talking with, with everything you have: their files, the shell, the web, the browser beside the conversation, their connected apps, and what you remember about them. When something needs a capability you lack, find or build it rather than stopping: look for a learned capability or skill first, and make what is missing when nothing fits.
 
+      For work in an app on the person's own computer that no connector, command or the browser beside the conversation can do, such as a native file dialog, a desktop app's window or a drag between apps, use computer use: its tools are named mcp__cua-driver-mcp__*, so load them with tool_search when they are listed. Before the first action, check permissions with mcp__cua-driver-mcp__check_permissions and prompt false; when one is missing, call computer_use_setup, which asks the person and opens the macOS permission settings, instead of telling them to run a command. Look at the screen before acting and check the result after. Ask the person immediately before an action that deletes data, sends a message or post on their behalf, submits a form or payment, or changes an account or its permissions; leave password entry and security warnings to them.
+
       For image creation and editing, use generate_image with the selected image model; omit model unless the user explicitly requests another model. The user's image-generation or editing request is the prompt: pass its text verbatim, including wording and punctuation; do not rewrite it, expand it, or invent a date, clothing, age, or other detail. Include uploaded images as reference_images using their normalized-copy paths directly; copying them is unnecessary for generation. Use subscription-specific image tools only when the user explicitly requests that provider. Generate once per request; do not regenerate or revise the prompt after seeing the result unless the user asks. If generation fails, report the failure instead of retrying or inspecting application code unless the user asks you to debug it.
 
       How you talk matters as much as what you know.
@@ -278,16 +280,6 @@
       - memory_*
       - capability_manage
       - device_*
-      - preview_back
-      - preview_click
-      - preview_evaluate
-      - preview_forward
-      - preview_navigate
-      - preview_press
-      - preview_reload
-      - preview_scroll
-      - preview_snapshot
-      - preview_type
       - get_location
       - list_agents
       - interrupt_agent
@@ -347,11 +339,11 @@
       - provider: aeven
         model: Aeven-1.0-Image-Flash
         label: Aeven Image Flash
-        description: Fast image generation and editing; size 1K or 2K (default, the largest — no 4K), or WIDTHxHEIGHT for another aspect ratio, e.g. 2730x1536 for 16:9; up to 14 reference images; seed; no guidance_scale or background option
+        description: Fast image generation and editing; size 1K or 2K (default, the largest — no 4K), or WIDTHxHEIGHT for another aspect ratio, e.g. 2730x1536 for 16:9; up to 4 images per call; up to 14 reference images; seed; no guidance_scale or background option
       - provider: aeven
         model: Aeven-1.0-Image-Pro
         label: Aeven Image Pro
-        description: Highest-quality image generation and editing; size 1K, 1.5K or 2K (default, the largest — no 4K), or WIDTHxHEIGHT; up to 4 reference images; PNG/JPEG output; transparent or opaque background; standard/fast prompt optimization
+        description: Highest-quality image generation and editing; size 1K, 1.5K or 2K (default, the largest — no 4K), or WIDTHxHEIGHT; up to 4 images per call; up to 4 reference images; PNG/JPEG output; transparent or opaque background; standard/fast prompt optimization
     # Generates with Flash until a person picks another model through
     # `/image-model`, rather than asking before the first generation.
     model: Aeven-1.0-Image-Flash

@@ -17,7 +17,7 @@ import {
   type IpcMainInvokeEvent,
   type WebContents,
 } from 'electron'
-import { automate, notifyCursorArrived } from './browser-automation.ts'
+import { automate } from './browser-automation.ts'
 import { fetchSuggestions } from './browser-search.ts'
 import { DESKTOP_IPC, type DesktopBrowserColorScheme, type DesktopBrowserDataKind } from './ipc.ts'
 
@@ -159,11 +159,12 @@ const reportingGuests = new WeakSet<WebContents>()
 async function reportPageScroll(guest: WebContents): Promise<void> {
   if (reportingGuests.has(guest)) return
   reportingGuests.add(guest)
-  guest.debugger.on('message', (_event, method, params: unknown) => {
+  const report = (_event: Electron.Event, method: string, params: unknown): void => {
     if (method !== 'Runtime.bindingCalled') return
     if ((params as { name?: unknown }).name !== PAGE_SCROLL_BINDING) return
     guest.hostWebContents?.send(DESKTOP_IPC.browserPageScroll, guest.id)
-  })
+  }
+  guest.debugger.on('message', report)
   /** Put the reporter into the document now open. */
   const installReporter = (): void => {
     // A guest between documents has no context to evaluate in, and the navigation
@@ -185,6 +186,12 @@ async function reportPageScroll(guest: WebContents): Promise<void> {
     reportingGuests.delete(guest)
     return
   }
+  guest.debugger.once('detach', () => {
+    reportingGuests.delete(guest)
+    guest.debugger.off('message', report)
+    guest.off('did-navigate', installReporter)
+    guest.off('did-finish-load', installReporter)
+  })
   guest.on('did-navigate', installReporter)
   guest.on('did-finish-load', installReporter)
   installReporter()
@@ -245,20 +252,55 @@ export function registerBrowserIpc(isAppSender: (event: IpcMainEvent | IpcMainIn
     const png = new Blob([new Uint8Array(image.toPNG())], { type: 'image/png' })
     await clipboard.write([new ClipboardItem({ 'image/png': png })])
   })
-  ipcMain.handle(DESKTOP_IPC.browserAutomate, async (event, webContentsId: unknown, operation: unknown, input: unknown) => {
+  const pending = new Map<string, { guest: Electron.WebContents; controller: AbortController }>()
+  ipcMain.on(DESKTOP_IPC.browserCancelAutomation, (event, webContentsId: unknown, requestId: unknown) => {
+    if (!isAppSender(event) || typeof requestId !== 'string') return
+    const request = pending.get(`${String(event.sender.id)}:${requestId}`)
+    if (request !== undefined && request.guest.id === webContentsId) request.controller.abort(new Error('browser action cancelled'))
+  })
+  ipcMain.handle(DESKTOP_IPC.browserAutomate, async (event, webContentsId: unknown, operation: unknown, input: unknown, requestId: unknown, timeoutMs: unknown) => {
     assertApp(event)
     if (typeof operation !== 'string') throw new Error('avn desktop: browser operation must be a string')
     if (typeof input !== 'object' || input === null) throw new Error('avn desktop: browser input must be an object')
-    return automate(hostedGuest(event, webContentsId), operation, input as Record<string, unknown>)
+    if (requestId !== undefined && typeof requestId !== 'string') throw new Error('browser request id must be a string')
+    if (timeoutMs !== undefined && (typeof timeoutMs !== 'number' || !Number.isFinite(timeoutMs) || timeoutMs <= 0)) throw new Error('browser timeout must be positive')
+    const guest = hostedGuest(event, webContentsId)
+    const controller = new AbortController()
+    const key = `${String(event.sender.id)}:${String(requestId)}`
+    if (requestId !== undefined && pending.has(key)) throw new Error('browser request id is already pending')
+    if (requestId !== undefined) pending.set(key, { guest, controller })
+    const duration = typeof timeoutMs === 'number' ? timeoutMs : 20_000
+    const timer = setTimeout(() => { controller.abort(new Error(`browser action timed out after ${String(duration)}ms`)) }, duration)
+    const destroyed = (): void => { controller.abort(new Error('browser page closed')) }
+    guest.once('destroyed', destroyed)
+    let abort: () => void = () => {}
+    const cancelled = new Promise<never>((_resolve, reject) => {
+      abort = (): void => {
+        if (!guest.isDestroyed() && guest.debugger.isAttached()) {
+          // Detaching releases pending CDP replies; it does not undo page timers or completed input.
+          void guest.debugger.sendCommand('Runtime.terminateExecution').catch(() => { /* Detachment can reject the termination reply. */ })
+          guest.debugger.detach()
+        }
+        reject(controller.signal.reason as Error)
+      }
+      controller.signal.addEventListener('abort', abort, { once: true })
+    })
+    try {
+      const work = async (): Promise<unknown> => {
+        if (!guest.debugger.isAttached()) await reportPageScroll(guest)
+        controller.signal.throwIfAborted()
+        return automate(guest, operation, input as Record<string, unknown>, controller.signal)
+      }
+      return await Promise.race([work(), cancelled])
+    } finally {
+      clearTimeout(timer)
+      guest.off('destroyed', destroyed)
+      controller.signal.removeEventListener('abort', abort)
+      if (requestId !== undefined) pending.delete(key)
+    }
   })
   ipcMain.handle(DESKTOP_IPC.browserSuggest, async (event, url: unknown) => {
     assertApp(event)
     return await fetchSuggestions(url)
-  })
-  // Fire-and-forget: a report from anywhere else, or naming no waiting move, is
-  // dropped, and the waiting action proceeds on its own timeout.
-  ipcMain.on(DESKTOP_IPC.browserCursorArrived, (event, webContentsId: unknown, sequence: unknown) => {
-    if (!isAppSender(event) || typeof webContentsId !== 'number' || typeof sequence !== 'number') return
-    notifyCursorArrived(webContentsId, sequence)
   })
 }

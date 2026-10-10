@@ -20,6 +20,8 @@
     "@aeven/client-modules": "workspace:^",
     "@aeven/client-ui-directory-picker-native": "workspace:^",
     "@aeven/cmdline": "workspace:^",
+    "@aeven/computer-use": "workspace:^",
+    "@aeven/computer-use-cua-driver-mcp": "workspace:^",
     "@aeven/host-directory-picker-native": "workspace:^",
     "@aeven/host-webserver": "workspace:^",
     "@aeven/identity-user-aeven": "workspace:^",

@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-01-sidebar-browser-agent-pointer.md
-2026-10-01-sidebar-browser-agent-pointer.md: f31f7ab6d913fd99f142920a492664c952d689bc
-2026-10-01-sidebar-browser-agent-pointer.zh.md: 81333f363e99bc0b25a98a8d97183f126fb6467f
+2026-10-01-sidebar-browser-agent-pointer.md: 469e0bc9a3f0eae2d8270efe7be9b55883306aad
+2026-10-01-sidebar-browser-agent-pointer.zh.md: 9fd5ec49542e64d48bf3f18dc2bcce6671a25342

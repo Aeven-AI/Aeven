@@ -71,7 +71,8 @@ These limits define when the provider is a poor fit. They are current package co
 - **No invariant companion** — No runtime invariant companion is published because this package owns no relationship two independent observers could disagree about; its single registration is disposed with the calling fiber and covered by the package's tests.
 - **Images only** — pi-ai models no video seam at all, so a deployment wanting video mounts a provider that speaks a video API directly.
 - **The catalog is pinned to pi-ai's snapshot** — the model list ships with the pi-ai version this workspace resolves, so a model OpenRouter added later is unknown until pi-ai is upgraded, and is rejected as an unserved model rather than attempted.
-- **`n`, `aspectRatio`, `resolution`, `size` and `seed` are not forwarded** — pi-ai's images context carries prompt and reference images only. A deployment needing those controls wants OpenRouter's dedicated image endpoint rather than the chat-modality path pi-ai uses.
+- **`aspectRatio`, `resolution`, `size` and `seed` are not forwarded** — pi-ai's images context carries prompt and reference images only, so a request naming one of them generates at the model's own settings. A deployment needing those controls wants OpenRouter's dedicated image endpoint rather than the chat-modality path pi-ai uses.
+- **`n` above one is refused** — the route carries no count and answers with what the model produced, so this provider rejects a larger `n` with `MEDIA_INVALID_REQUEST` instead of returning fewer images than the caller asked for.
 - **No cost or usage reporting** — pi-ai returns usage on its result, but the seam has nowhere to carry it, so it is dropped.
 
 <a id="dev-note"></a>

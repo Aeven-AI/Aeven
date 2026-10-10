@@ -373,7 +373,7 @@
     { "path": "./packages/computer-use/computer-use-formats" },
     { "path": "./packages/computer-use/computer-use-layout" },
     { "path": "./packages/computer-use/computer-use-macos-provider" },
-    { "path": "./packages/experimental/computer-use-cua-driver-mcp" },
+    { "path": "./packages/computer-use/computer-use-cua-driver-mcp" },
     { "path": "./packages/experimental/browser-overlay" },
     { "path": "./packages/host/directory-picker" },
     { "path": "./packages/host/directory-picker-auto" },

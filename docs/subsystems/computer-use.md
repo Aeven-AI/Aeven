@@ -6,11 +6,11 @@ Computer use lets a model observe and operate the local desktop through a config
 
 ## Choose a provider
 
-Mount [`@aeven/computer-use`](../../packages/computer-use/computer-use/README.md) and one provider in the same composition. The Cua Driver MCP provider is an experimental package that requires explicit activation.
+Mount [`@aeven/computer-use`](../../packages/computer-use/computer-use/README.md) and one provider in the same composition. The Electron desktop app mounts the Cua Driver MCP provider when a `cua-driver` executable is installed; other compositions activate it explicitly.
 
 | Provider | Runtime |
 |---|---|
-| [Cua Driver MCP](../../packages/experimental/computer-use-cua-driver-mcp/README.md) | An already installed `cua-driver` executable connected through MCP |
+| [Cua Driver MCP](../../packages/computer-use/computer-use-cua-driver-mcp/README.md) | An already installed `cua-driver` executable connected through MCP |
 
 Each provider supplies its upstream tool catalog. The shared service registers only a name and rejects any second provider, including another instance with the same name. It has no common desktop-operation methods or model-controlled selector.
 

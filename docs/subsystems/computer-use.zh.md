@@ -6,11 +6,11 @@
 
 ## 选择提供方
 
-在同一组合中挂载 [`@aeven/computer-use`](../../packages/computer-use/computer-use/README.zh.md) 和一个提供方。Cua Driver MCP 提供方是实验性包，需显式启用。
+在同一组合中挂载 [`@aeven/computer-use`](../../packages/computer-use/computer-use/README.zh.md) 和一个提供方。Electron 桌面应用在已安装 `cua-driver` 可执行程序时挂载 Cua Driver MCP 提供方；其他组合需显式启用。
 
 | 提供方 | 运行时 |
 |---|---|
-| [Cua Driver MCP](../../packages/experimental/computer-use-cua-driver-mcp/README.zh.md) | 通过 MCP 连接已安装的 `cua-driver` 可执行文件 |
+| [Cua Driver MCP](../../packages/computer-use/computer-use-cua-driver-mcp/README.zh.md) | 通过 MCP 连接已安装的 `cua-driver` 可执行文件 |
 
 各提供方提供上游工具目录。共享服务只注册名称，并拒绝任何第二个提供方，包括使用相同名称的另一个实例。服务不包含通用桌面操作方法或模型控制的选择器。
 

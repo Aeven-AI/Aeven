@@ -48,7 +48,8 @@
     "clsx": "^2.0.0"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/brand": "workspace:^"
   },
   "devDependencies": {
     "@aeven/api-remotes": "workspace:^",
@@ -72,7 +73,8 @@
     "@types/react": "~18.3.1",
     "@types/react-dom": "~18.3.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "@aeven/brand": "workspace:^"
   },
   "files": [
     "lib/index.js",

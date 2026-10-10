@@ -669,6 +669,23 @@ describe('generate_image', () => {
       .toMatch(/Available models: flux-pro \(default\) — best; flux\.2-pro\.$/)
   })
 
+  it('leaves a call\'s image count to the chosen model, and names the recovery for more', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SystemPrompt)
+    await ctx.plugin(ToolRuntime)
+    await ctx.plugin(MediaRuntime)
+    ctx.provide('attachments', attachments())
+    await ctx.plugin(ToolMedia, { model: 'flux-pro', choices: CHOICES })
+    // The count is per model and the choice's own text states it, so the tool
+    // states no number of its own and names what a larger request does instead.
+    expect(ctx.tools.get('generate_image')?.description)
+      .toContain("no more images in one call than the chosen model's description allows; for more images, make another call")
+    const argumentsSchema = ctx.tools.get('generate_image')?.parameters as
+      { properties: Record<string, { description?: string }> }
+    expect(argumentsSchema.properties['n']?.description)
+      .toBe("How many images to generate, at most the count the chosen model's description states. Omit for one.")
+  })
+
   it('reports a call that names no model and has no configured default', async () => {
     const { call } = await mount()
     const out = await call({ prompt: 'x' })

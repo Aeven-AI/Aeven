@@ -126,6 +126,12 @@ export function apply(ctx: Context, config: Config): void {
       ]) {
         if (value !== undefined) throw new MediaError(`${String(field)} is not supported by ${request.provider ?? request.model}`, 'MEDIA_INVALID_REQUEST')
       }
+      // The route carries no count: it answers with what the model produced, so
+      // a call asking for several cannot be honored and is refused instead of
+      // returning fewer images than it asked for.
+      if (request.n !== undefined && request.n !== 1) {
+        throw new MediaError(`n is not supported by ${request.provider ?? request.model}`, 'MEDIA_INVALID_REQUEST')
+      }
       const model = models.get(request.model)
       if (model === undefined) {
         throw new MediaError(

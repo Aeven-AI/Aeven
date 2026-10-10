@@ -14,7 +14,7 @@ Imagine 需要一个位于 `/i/<id>`、与对话 Session 相互分离的独立�
 
 **对话自行声明其地址空间，而不是询问路由。** `BrowserSessionUrlNavigation.ownsAddress()` 对 `/`、`/c` 与 `/c/…` 为 true。在其他任何地址上，投影不读取 Session，也不写入任何内容，`navigateFromUrl` 会忽略它，因此后退到 Imagine 不会开启新会话。Session 的协调本身在 Imagine 地址上照常运行：启动时仍会选中或创建一个对话 Session，而 `whenInitialDataReady` 与页面预加载层正是在等待它。
 
-**Imagine 只是可能的多个界面之一。** `@aeven/client-ui-imagine` 声明 `/i`，把裸 `/i` 或非 UUID 的 id 原地改写为新的 `/i/<uuid>`，并在 `imagine` 键下注册页面。该 id 不指向任何 Session。`frontend-static` 把 `/i` 列入其客户端路由根。
+**目前没有任何界面声明路径根。** Imagine 已是对话的启动地址，而非独立整页界面；`frontend-static` 的路由根列表列出 `/imagine`，使该地址提供应用（见[预设弹窗](../feature/2026-10-10-imagine-starter-prompt-popup.md)）。该路由仍是未来整页界面注册所依据的机制：`AppFrame` 在当前路径的归属界面之下，以 keyed 的 `surface` slot 取代 `conversation` 渲染，界面显示期间详情栏与右侧边栏保持关闭。
 
 ## Alternatives considered
 
@@ -26,4 +26,4 @@ Imagine 需要一个位于 `/i/<id>`、与对话 Session 相互分离的独立�
 
 ## Consequences
 
-一个界面就是一个路径根加一个页面：新增界面无需修改 ui-layout、ui-workspace 或对话。Host 的路由根列表仍是固定列表，因此每个新根都要在那里加一行。界面之下对话 Session 仍保持选中，因此右上角的右侧边栏开关在面板隐藏时仍作用于该 Session 的面板。在两个输入框共用组件之前，Imagine 起始页重述了对话首屏输入框的 CSS；其 README 列出了这一点。
+一个界面就是一个路径根加一个页面：新增界面无需修改 ui-layout、ui-workspace 或对话。Host 的路由根列表仍是固定列表，因此每个新根都要在那里加一行。界面之下对话 Session 仍保持选中，因此右上角的右侧边栏开关在面板隐藏时仍作用于该 Session 的面板。Imagine 自身不再占用任何路径根：它作为对话的启动地址运行在常驻输入框之上，因此从不注册任何界面的部署会带有一个没有占用者的路由。

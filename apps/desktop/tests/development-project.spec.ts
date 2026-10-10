@@ -52,6 +52,7 @@ describe('desktop development project', () => {
       cliDir: cli,
       hostDir: host,
       dependencyDir: dependencies,
+      workspacePackageRoots: [],
       release: release(),
     })
     expect(realpathSync(join(project, 'node_modules', '@aeven', 'cli'))).toBe(realpathSync(cli))
@@ -83,6 +84,7 @@ describe('desktop development project', () => {
       cliDir: cli,
       hostDir: host,
       dependencyDir: dependencies,
+      workspacePackageRoots: [],
       release: release(),
     })).toThrow(/must be @aeven\/cli@1\.2\.3/u)
   })

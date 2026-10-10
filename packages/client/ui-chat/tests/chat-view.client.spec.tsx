@@ -420,6 +420,7 @@ function makeHarness(
       setDraft: () => {},
       appendText: () => true,
       addImages: () => true,
+      addImageFiles: () => null,
       removeImage: () => {},
       pruneImages: () => {},
       submit: () => {},

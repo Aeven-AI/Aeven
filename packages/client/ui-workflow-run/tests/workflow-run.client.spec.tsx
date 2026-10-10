@@ -320,6 +320,7 @@ function panelProps(data: WorkflowRunChatData, sessions = listState(), openSessi
       setDraft: () => {},
       appendText: () => true,
       addImages: () => false,
+      addImageFiles: () => null,
       removeImage: () => {},
       pruneImages: () => {},
       submit: () => {},

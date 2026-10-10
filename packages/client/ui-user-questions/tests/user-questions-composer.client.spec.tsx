@@ -89,6 +89,7 @@ const kitBase: Omit<QuestionComposerProps, 'matched' | 'useStore' | 'actions'> =
     setDraft: () => { throw new Error('unused') },
     appendText: () => { throw new Error('unused') },
     addImages: () => { throw new Error('unused') },
+    addImageFiles: () => null,
     removeImage: () => { throw new Error('unused') },
     pruneImages: () => { throw new Error('unused') },
     submit: () => { throw new Error('unused') },

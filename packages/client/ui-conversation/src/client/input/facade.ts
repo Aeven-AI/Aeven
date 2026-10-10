@@ -40,6 +40,11 @@ export interface PopupDismissFace {
   dismiss(): void
 }
 
+/** Outcome of registering chosen files as one draft's images. */
+export type DraftImageIntake =
+  | { readonly kind: 'created'; readonly ids: readonly DraftAttachmentId[] }
+  | { readonly kind: 'refused'; readonly message: string }
+
 /**
  * Construction dependencies of one facade. The slash/popup faces are THUNKS: the
  * shell is created inside the sessions provide materialization (before the
@@ -75,6 +80,19 @@ export interface SessionInputDeps {
     release(ids: readonly DraftAttachmentId[]): void
     /** Localized composer notice for a claimed command that does not accept images. */
     unsupportedNotice(token: string): string
+  }
+  /**
+   * Image intake for a slot component's own upload (the hub owns the
+   * conversation face and the copy): the same registration the composer's
+   * attach control performs.
+   */
+  draftImages: {
+    /** Register browser files as draft images, or refuse them with the notice the caller surfaces. */
+    create(files: readonly File[]): DraftImageIntake
+    /** Free drafted images this draft refused. */
+    release(ids: readonly DraftAttachmentId[]): void
+    /** Localized notice for a draft that cannot take images while a submit is in flight. */
+    busyNotice(): string
   }
 }
 
@@ -137,6 +155,7 @@ export class SessionInputShell implements SessionInput {
     setDraft: (text) => { this.setDraft(text) },
     appendText: text => this.appendText(text),
     addImages: ids => this.addImages(ids),
+    addImageFiles: files => this.addImageFiles(files),
     removeImage: (id) => { this.removeImage(id) },
     pruneImages: (ids) => { this.pruneImages(ids) },
     submit: () => { this.submit('queue') },
@@ -307,6 +326,23 @@ export class SessionInputShell implements SessionInput {
     this.imageIds = [...this.imageIds, ...ids]
     this.publish()
     return true
+  }
+
+  /**
+   * Append images chosen as files, registering them through the same intake
+   * the composer's attach control uses (a slot component's own upload, such as
+   * Imagine's preset reference picker).
+   * @param files - the chosen image files, in order.
+   * @returns the notice the caller surfaces, or null when the images joined the draft.
+   */
+  addImageFiles(files: readonly File[]): string | null {
+    if (files.length === 0) return null
+    const intake = this.deps.draftImages.create(files)
+    if (intake.kind === 'refused') return intake.message
+    if (this.addImages(intake.ids)) return null
+    // A locked draft keeps nothing: the descriptors' preview URLs die with them.
+    this.deps.draftImages.release(intake.ids)
+    return this.deps.draftImages.busyNotice()
   }
 
   /**

@@ -397,6 +397,7 @@ describe('DetailsPanel Output section (search)', () => {
           setDraft: () => {},
           appendText: () => true,
           addImages: () => true,
+          addImageFiles: () => null,
           removeImage: () => {},
           pruneImages: () => {},
           submit: () => {},

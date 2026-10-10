@@ -1,9 +1,9 @@
 ---
-description: "通过已安装的 Cua Driver MCP 可执行程序和独占提供者注册，配置实验性本地计算机使用能力。"
+description: "通过已安装的 Cua Driver MCP 可执行程序和独占提供者注册，配置本地计算机使用能力。"
 kind: "package-reference"
 ---
 
-# @aeven/experimental-computer-use-cua-driver-mcp
+# @aeven/computer-use-cua-driver-mcp
 
 [English](README.md) | 中文
 
@@ -33,7 +33,7 @@ kind: "package-reference"
 
 ```yaml
 - name: '@aeven/computer-use'
-- name: '@aeven/experimental-computer-use-cua-driver-mcp'
+- name: '@aeven/computer-use-cua-driver-mcp'
   config:
     command: cua-driver
     args: [mcp]
@@ -46,13 +46,13 @@ kind: "package-reference"
 | `toolCallTimeoutMs` | MCP 客户端默认值 | 单次调用的超时覆盖值，单位为毫秒 |
 | `reconnect` | MCP 客户端策略 | 可选的重连覆盖配置 |
 
-生成的[配置目录](../../../docs/config-catalog.zh.md#aevenexperimental-computer-use-cua-driver-mcp)列出了接受的字段。超时和重连默认值由 [MCP 客户端](../../mcp/mcp-client/README.zh.md)定义。
+生成的[配置目录](../../../docs/config-catalog.zh.md#aevencomputer-use-cua-driver-mcp)列出了接受的字段。超时和重连默认值由 [MCP 客户端](../../mcp/mcp-client/README.zh.md)定义。
 
 ### 激活与所有权
 
 提供者在连接前以 `cua-driver-mcp` 注册。第二个计算机使用提供者会激活失败，包括本包的另一个实例。初始化或首次工具发现失败会使本条目激活失败，并在清理后释放注册。之后连接断开时，MCP 客户端重连或耗尽尝试次数均保留注册；卸载条目才会释放注册。
 
-模型看到的工具使用固定的 `mcp__cua-driver-mcp__` 命名空间。工具名称、描述、输入模式、规范结果和图像准入遵循现有 [MCP 桥接器](../../mcp/mcp-client/README.zh.md)。本包不额外提供 Aeven 操作目录或提供者选择工具。
+模型看到的工具使用固定的 `mcp__cua-driver-mcp__` 命名空间。工具名称、描述、输入模式、规范结果和图像准入遵循现有 [MCP 桥接器](../../mcp/mcp-client/README.zh.md)。本包不额外提供 Aeven 操作目录或提供者选择工具。提供方只添加一个自有工具 `computer_use_setup`：每次调用都先请求用户批准，然后启动驱动的 `permissions grant` 流程，该流程通过 LaunchServices 启动 CuaDriver，使 macOS 将辅助功能与屏幕录制请求归属于该应用，并打开对应的系统设置面板。工具不等待该流程结束；模型随后以 `prompt: false` 调用 `check_permissions` 重新检查。
 
 -----
 
@@ -73,7 +73,7 @@ kind: "package-reference"
 ```sh
 AVN_COMPUTER_USE_MCP_EXECUTABLE=/absolute/path/to/cua-driver \
 AVN_COMPUTER_USE_MCP_ARGS='["mcp","--direct"]' \
-pnpm run test:e2e packages/experimental/computer-use-cua-driver-mcp/tests/installed-driver.e2e.ts
+pnpm run test:e2e packages/computer-use/computer-use-cua-driver-mcp/tests/installed-driver.e2e.ts
 ```
 
 </details>

@@ -1,4 +1,5 @@
 /** Typed preload operations exposed only by the Electron shell. */
+import type { Branded } from '@aeven/brand'
 
 /** One application-menu command the shell sends to the page it renders. */
 export type DesktopMenuCommand = 'open-settings' | 'start-dictation'
@@ -14,9 +15,9 @@ export const DESKTOP_IPC = {
   browserClearData: 'avn-desktop:browser-clear-data',
   browserCapture: 'avn-desktop:browser-capture',
   browserAutomate: 'avn-desktop:browser-automate',
+  browserCancelAutomation: 'avn-desktop:browser-cancel-automation',
   browserSuggest: 'avn-desktop:browser-suggest',
   browserCursor: 'avn-desktop:browser-cursor',
-  browserCursorArrived: 'avn-desktop:browser-cursor-arrived',
   browserPageScroll: 'avn-desktop:browser-page-scroll',
 } as const
 
@@ -25,16 +26,15 @@ export type DesktopBrowserColorScheme = 'system' | 'light' | 'dark'
 
 /**
  * One agent pointer step the app window draws over a guest, in the guest's
- * viewport CSS pixels. A `move` glides the pointer to a point and is answered
- * with {@link AvnDesktopBrowserApi.cursorArrived} once it is there; the other
- * actions draw their effect at the point as the input lands.
+ * viewport CSS pixels. A `move` glides the pointer to a point; action effects
+ * animate independently of native input completion.
  */
 export interface DesktopBrowserCursor {
   /** The guest the action happens in. */
   readonly webContentsId: number
   /** What the pointer shows. */
   readonly action: 'move' | 'click' | 'type' | 'scroll' | 'control'
-  /** Per-shell step number; a `move`'s arrival report names it. */
+  /** Per-shell pointer step number. */
   readonly sequence: number
   readonly x: number
   readonly y: number
@@ -60,6 +60,9 @@ export interface DesktopBrowserCursor {
 
 /** Storage a browser guest's partition can be cleared of. */
 export type DesktopBrowserDataKind = 'cookies' | 'cache'
+
+/** Identity of one pending Electron browser action. */
+export type DesktopBrowserRequestId = Branded<'DesktopBrowserRequestId'>
 
 /**
  * Right sidebar browser operations the app renderer cannot perform on the
@@ -92,11 +95,15 @@ export interface AvnDesktopBrowserApi {
   /**
    * Perform one agent action on a guest over its CDP debugger.
    * @param webContentsId - the guest's web contents id.
-   * @param operation - `snapshot`, `click`, `type`, `press`, `scroll`, or `evaluate`.
+   * @param operation - `snapshot`, `click`, `type`, `press`, `scroll`, `evaluate`, `upload`, `wait`, or `sequence`.
    * @param input - the tool's validated arguments.
+   * @param requestId - id used to cancel a pending request.
+   * @param timeoutMs - execution deadline in milliseconds.
    * @returns the action's JSON result.
    */
-  automate(webContentsId: number, operation: string, input: Record<string, unknown>): Promise<unknown>
+  automate(webContentsId: number, operation: string, input: Record<string, unknown>, requestId?: DesktopBrowserRequestId, timeoutMs?: number): Promise<unknown>
+  /** Cancel the owned browser request. @param webContentsId - guest id. @param requestId - pending request id. */
+  cancelAutomation(webContentsId: number, requestId: DesktopBrowserRequestId): void
   /**
    * Ask a search engine to complete a query: the endpoint's response body.
    * @param url - the engine's completion endpoint.
@@ -119,14 +126,7 @@ export interface AvnDesktopBrowserApi {
    * @returns disposer removing the listener.
    */
   onPageScroll(listener: (webContentsId: number) => void): () => void
-  /**
-   * Report that the pointer finished a `move`, or that it cannot be shown, so
-   * the input it announced may land. The shell stops waiting after a timeout
-   * either way.
-   * @param webContentsId - the guest the move was drawn over.
-   * @param sequence - the `move`'s {@link DesktopBrowserCursor.sequence}.
-   */
-  cursorArrived(webContentsId: number, sequence: number): void
+
 }
 
 /** Bridge the app renderer receives: the carrier marker, the browser operations, and menu commands. */

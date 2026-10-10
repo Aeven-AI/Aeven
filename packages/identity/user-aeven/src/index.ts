@@ -198,8 +198,9 @@ function resolveOAuthFlow(config: Config): OAuthFlow | undefined {
  * Register the Aeven authority on the identity seam.
  * @param ctx - context carrying the seam.
  * @param config - registry key, secret references, and the cookie name.
+ * @returns settles once the first key set fetch has completed or failed.
  */
-export function apply(ctx: Context, config: Config): void {
+export async function apply(ctx: Context, config: Config): Promise<void> {
   // schemastery (Config) has already filled every defaulted field.
   const { id, refreshCookieName, jwksRefreshIntervalMs, jwksTimeoutMs } = config as ResolvedConfig
   // Read at load: an offered provider with no stated flow is self-contained
@@ -216,10 +217,7 @@ export function apply(ctx: Context, config: Config): void {
     warn: message => ctx.logger('identity-user-aeven').warn(message),
   })
   if (keySet !== undefined) {
-    ctx.effect(() => {
-      void keySet.refresh()
-      return () => keySet.dispose()
-    }, 'identity-user-aeven: key set')
+    ctx.effect(() => () => keySet.dispose(), 'identity-user-aeven: key set')
   }
 
   /**
@@ -297,4 +295,11 @@ export function apply(ctx: Context, config: Config): void {
     }
     table.push({ kind: 'global', name: AEVEN_CLIENT_CONFIG_GLOBAL, value })
   })
+
+  // The plugin becomes active only once the first key set fetch settles, so a
+  // Host that waits for its plugin tree does not admit its first requests
+  // while no token can verify yet. The resolver is already registered, so
+  // those requests are refused rather than unauthenticated; a failed fetch is
+  // reported through the logger and later misses refresh in the background.
+  if (keySet !== undefined) await keySet.refresh()
 }

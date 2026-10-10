@@ -107,7 +107,7 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/client/ui-conversation': { kind: 'none', reason: 'Browser-side UI plugin layer; registers nothing model-facing.' },
   'packages/client/ui-sidebar-right': { kind: 'none', reason: 'Browser-side panel surface over the layout column; it registers no prompt, tool, or result.' },
   'packages/client/ui-approval': { kind: 'none', reason: 'Browser-side approval presentation; registers nothing model-facing.' },
-  'packages/client/ui-imagine': { kind: 'none', reason: 'Browser-side Imagine page; no generation is wired, so nothing reaches a model request.' },
+  'packages/client/ui-imagine': { kind: 'none', reason: 'Browser-side Imagine page: it registers no tool, schema, or prompt section, and the starter-prompt text it writes into the composer is the reader\'s own message, which the conversation owns.' },
   'packages/client/ui-location': { kind: 'none', reason: 'Browser-side location consent; the get_location tool owns what the model sees.' },
   'packages/client/ui-chat': { kind: 'none', reason: 'Browser-side Chat presentation; registers nothing model-facing.' },
   'packages/client/ui-message-feedback': { kind: 'none', reason: 'Browser-side controls over the message-feedback sidecar; ratings and notes never enter the Session log, model context, or telemetry.' },

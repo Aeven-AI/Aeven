@@ -382,6 +382,9 @@ importers:
       '@aeven/bash-local':
         specifier: workspace:^
         version: link:../../packages/shell/bash-local
+      '@aeven/computer-use-cua-driver-mcp':
+        specifier: workspace:^
+        version: link:../../packages/computer-use/computer-use-cua-driver-mcp
       '@aeven/credentials-local':
         specifier: workspace:^
         version: link:../../packages/credentials/credentials-local
@@ -397,9 +400,6 @@ importers:
       '@aeven/experimental-code-runtime-python':
         specifier: workspace:^
         version: link:../../packages/experimental/code-runtime-python
-      '@aeven/experimental-computer-use-cua-driver-mcp':
-        specifier: workspace:^
-        version: link:../../packages/experimental/computer-use-cua-driver-mcp
       '@aeven/experimental-tool-agent-team':
         specifier: workspace:^
         version: link:../../packages/experimental/tool-agent-team
@@ -512,6 +512,9 @@ importers:
         specifier: ^7.8.5
         version: 7.8.5
     devDependencies:
+      '@aeven/brand':
+        specifier: workspace:^
+        version: link:../../packages/util/brand
       '@aeven/home-paths':
         specifier: workspace:^
         version: link:../../packages/util/home-paths
@@ -581,6 +584,12 @@ importers:
       '@aeven/cmdline':
         specifier: workspace:^
         version: link:../../packages/boot/cmdline
+      '@aeven/computer-use':
+        specifier: workspace:^
+        version: link:../../packages/computer-use/computer-use
+      '@aeven/computer-use-cua-driver-mcp':
+        specifier: workspace:^
+        version: link:../../packages/computer-use/computer-use-cua-driver-mcp
       '@aeven/host-directory-picker-native':
         specifier: workspace:^
         version: link:../../packages/host/directory-picker-native
@@ -4260,6 +4269,9 @@ importers:
       '@aeven/api-session-controller':
         specifier: workspace:^
         version: link:../../api/session-controller
+      '@aeven/brand':
+        specifier: workspace:^
+        version: link:../../util/brand
       '@aeven/browser-chromium':
         specifier: workspace:^
         version: link:../../web/browser-chromium
@@ -5334,6 +5346,25 @@ importers:
       '@aeven/computer-use-session':
         specifier: workspace:^
         version: link:../computer-use-session
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/computer-use/computer-use-cua-driver-mcp:
+    dependencies:
+      '@aeven/computer-use':
+        specifier: workspace:^
+        version: link:../computer-use
+      '@aeven/mcp-client':
+        specifier: workspace:^
+        version: link:../../mcp/mcp-client
+      '@aeven/tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: workspace:^
@@ -6448,22 +6479,6 @@ importers:
       '@aeven/util-values':
         specifier: workspace:^
         version: link:../../util/values
-      '@deepseek-ai/cordis':
-        specifier: workspace:^
-        version: link:../../../vendor/cordis
-
-  packages/experimental/computer-use-cua-driver-mcp:
-    dependencies:
-      '@deepseek-ai/schemastery':
-        specifier: link:../../../vendor/schemastery
-        version: link:../../../vendor/schemastery
-    devDependencies:
-      '@aeven/computer-use':
-        specifier: workspace:^
-        version: link:../../computer-use/computer-use
-      '@aeven/mcp-client':
-        specifier: workspace:^
-        version: link:../../mcp/mcp-client
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -11845,6 +11860,9 @@ importers:
       '@aeven/mcp-client':
         specifier: workspace:^
         version: link:../../mcp/mcp-client
+      '@aeven/sandbox-policy':
+        specifier: workspace:^
+        version: link:../../sandbox/sandbox-policy
       '@aeven/scope':
         specifier: workspace:^
         version: link:../../core/scope
@@ -11860,6 +11878,9 @@ importers:
       '@aeven/tools':
         specifier: workspace:^
         version: link:../../core/tools
+      '@aeven/user-approval':
+        specifier: workspace:^
+        version: link:../../interaction/user-approval
       '@aeven/util-values':
         specifier: workspace:^
         version: link:../../util/values

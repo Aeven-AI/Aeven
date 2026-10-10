@@ -38,7 +38,9 @@
     "@aeven/scope": "workspace:^",
     "@aeven/timeout": "workspace:^",
     "@aeven/tools": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/user-approval": "workspace:^",
+    "@aeven/sandbox-policy": "workspace:^"
   },
   "devDependencies": {
     "@aeven/agent": "workspace:^",
@@ -51,6 +53,8 @@
     "@aeven/timeout": "workspace:^",
     "@aeven/tools": "workspace:^",
     "@aeven/util-values": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/user-approval": "workspace:^",
+    "@aeven/sandbox-policy": "workspace:^"
   }
 }

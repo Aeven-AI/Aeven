@@ -82,12 +82,6 @@ const ADDRESS_TEXT_INSET_PX = 14
  * both axes: the tip then sits on the control's centre instead of up and to its left.
  */
 const CURSOR_TIP_OFFSET_PX = 12
-/** How fast the agent's address types into the address bar, per character, in ms. */
-const ADDRESS_TYPE_MS = 24
-/** How long a typed address holds before the load replaces it, in ms. */
-const ADDRESS_SETTLE_MS = 140
-/** How long the pointer rests on a chrome control it pressed, in ms. */
-const CONTROL_PRESS_MS = 220
 
 /** How long the capture banner holds before it fades, in ms. */
 const CAPTURE_TOAST_HOLD_MS = 1500
@@ -130,8 +124,6 @@ export function BrowserPane({ sessionId, t, openInChrome, visible, search }: Bro
   const anchorRef = useRef<string | undefined>(undefined)
   /** The address field, so the pointer can be shown typing into it. */
   const addressRef = useRef<HTMLInputElement | null>(null)
-  /** An address the agent is typing, shown in place of the committed one. */
-  const [typingUrl, setTypingUrl] = useState<string | undefined>(undefined)
   const [state, setState] = useState<GuestState>({ url: '', loading: false, canGoBack: false, canGoForward: false })
   const [suggestions, setSuggestions] = useState<readonly string[]>([])
   const engine = useSyncExternalStore(search.engine.subscribe, search.engine.getSnapshot)
@@ -236,7 +228,6 @@ export function BrowserPane({ sessionId, t, openInChrome, visible, search }: Bro
     // The pointer belongs to the pane's own canvas: its position is a fraction of
     // the pane, so resizing the pane moves it with the layout instead of leaving
     // it at the pixel it was put on. A pointer at the centre stays at the centre.
-    const wait = (ms: number): Promise<void> => new Promise((resolve) => { setTimeout(resolve, ms) })
     /** One measurement as a plain box: the aiming rule takes numbers, not elements. */
     const measured = (element: Element): AimBox => {
       const rect = element.getBoundingClientRect()
@@ -270,38 +261,18 @@ export function BrowserPane({ sessionId, t, openInChrome, visible, search }: Bro
       const anywhere = document.querySelector(`[data-control="${name}"]`)
       return anywhere instanceof HTMLElement && anywhere.getClientRects().length > 0 ? anywhere : null
     }
-    /**
-     * Wait for the pointer to arrive, but never longer than the press itself should take: a
-     * window the reader has behind another one throttles animation frames, and a press that
-     * depended on the arrival would then never happen.
-     */
-    const settled = async (): Promise<void> => {
-      await Promise.race([overlay.arrived(), wait(CONTROL_PRESS_MS)])
-    }
     const presentation: PaneCursorPresentation = {
       async announceControl(controlName) {
         const control = findControl(controlName)
         const point = aimedCentre(control)
         if (point === null || !visibleRef.current) return
         overlay.click(point)
-        await settled()
-        await wait(CONTROL_PRESS_MS)
       },
-      async announceNavigation(url) {
-        // The address field is the exception to centring: the pointer goes to the start of the
-        // text it is about to type. The load belongs to whoever owns the navigation — the
-        // agent's own navigate, or the shell's request below — because this presentation
-        // cannot know whether the page is still the one the caller asked for.
+      async announceNavigation(_url) {
+        // The pointer targets the start of the address text; the caller owns the load.
         const point = aimedTextStart(addressRef.current, ADDRESS_TEXT_INSET_PX)
         if (point === null || !visibleRef.current) return
         overlay.type(point)
-        await overlay.arrived()
-        for (let index = 1; index <= url.length; index += 1) {
-          setTypingUrl(url.slice(0, index))
-          await wait(ADDRESS_TYPE_MS)
-        }
-        await wait(ADDRESS_SETTLE_MS)
-        setTypingUrl(undefined)
       },
     }
     livePaneCursors.set(guest, presentation)
@@ -401,12 +372,9 @@ export function BrowserPane({ sessionId, t, openInChrome, visible, search }: Bro
       // none leaves the pointer on no element, so the anchor goes with it rather than surviving as an
       // element the pointer has since left, such as the page it moved off to press a control.
       anchorRef.current = cursor.selector
-      scrolling = cursor.action === 'scroll'      // A pointer that cannot be drawn is not waited for: the shell's input lands
-      // at once rather than after its arrival timeout. A guest that has not
-      // reported its webContents id cannot be drawn in either, and it is the
-      // pane that owes the shell an answer, not the shell that owes it patience.
+      scrolling = cursor.action === 'scroll'
+      // Offscreen panes receive input without drawing the pointer.
       if (id === undefined || !visibleRef.current || !onScreen) {
-        if (cursor.action === 'move') bridge.cursorArrived(cursor.webContentsId, cursor.sequence)
         return
       }
       // The shell reports guest CSS pixels; the overlay draws in the pane's own
@@ -422,17 +390,12 @@ export function BrowserPane({ sessionId, t, openInChrome, visible, search }: Bro
       switch (cursor.action) {
         case 'move':
           overlay.moveTo(point)
-          void overlay.arrived().then(() => { bridge.cursorArrived(cursor.webContentsId, cursor.sequence) })
           return
         case 'click': overlay.click(point); return
         case 'type': overlay.type(point); return
         case 'scroll': overlay.scroll(point); return
         case 'control': {
-          // A chrome control is not part of the page, so its position is the pane's
-          // own to give: the pointer travels to the target and acts on it. A
-          // navigation types into the address field rather than pressing a button,
-          // and this request carries no load of its own, so the typed address is
-          // what loads — once, after the typing has been drawn.
+          // Pane controls use app coordinates; their animation does not delay navigation.
           if (cursor.control === 'navigate') {
             const address = cursor.url ?? ''
             const target = resolveTarget(address)
@@ -445,10 +408,7 @@ export function BrowserPane({ sessionId, t, openInChrome, visible, search }: Bro
           const spot = aimedCentre(control)
           if (spot === null || !visibleRef.current) return
           overlay.click(spot)
-          void settled().then(() => {
-            // Zoom controls are spans with a role, not buttons, so anything clickable counts.
-            if (control instanceof HTMLElement && !(control instanceof HTMLButtonElement && control.disabled)) control.click()
-          })
+          if (control instanceof HTMLElement && !(control instanceof HTMLButtonElement && control.disabled)) control.click()
           return
         }
       }
@@ -531,7 +491,6 @@ export function BrowserPane({ sessionId, t, openInChrome, visible, search }: Bro
       )}
       <ChromeRow
         addressRef={addressRef}
-        typing={typingUrl}
         url={state.url}
         loading={state.loading}
         canGoBack={state.canGoBack}

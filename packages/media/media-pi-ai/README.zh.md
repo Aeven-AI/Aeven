@@ -71,7 +71,8 @@ pi-ai 通过返回带 `error` 停止原因的结果来报告失败，而不是�
 - **无 invariant 伴随模块**——不发布运行时 invariant 伴随模块，因为本包不拥有任何两个独立观察者可能产生分歧的关系；它唯一的注册随调用方 fiber 释放，并由本包测试覆盖。
 - **仅图片**——pi-ai 完全没有为视频建模，因此需要视频的部署应挂载直接对接视频 API 的 provider。
 - **目录固定于 pi-ai 的快照**——模型列表随本工作区解析到的 pi-ai 版本一同交付，因此 OpenRouter 后来新增的模型在升级 pi-ai 之前都是未知的，会被当作未提供的模型拒绝而不是尝试调用。
-- **不转发 `n`、`aspectRatio`、`resolution`、`size` 与 `seed`**——pi-ai 的 images 上下文只承载提示词与参考图。需要这些控制项的部署应使用 OpenRouter 的专用图片端点，而非 pi-ai 采用的 chat-modality 路径。
+- **不转发 `aspectRatio`、`resolution`、`size` 与 `seed`**——pi-ai 的 images 上下文只承载提示词与参考图，因此指明其中任一项的请求会按模型自身设置生成。需要这些控制项的部署应使用 OpenRouter 的专用图片端点，而非 pi-ai 采用的 chat-modality 路径。
+- **大于一的 `n` 会被拒绝**——该路径不承载数量，返回的是模型实际产出的图像，因此本 provider 对更大的 `n` 返回 `MEDIA_INVALID_REQUEST`，而不是给出比调用方请求更少的图像。
 - **无成本或用量报告**——pi-ai 在结果上返回用量，但 seam 没有承载它的位置，因此被丢弃。
 
 <a id="dev-note"></a>

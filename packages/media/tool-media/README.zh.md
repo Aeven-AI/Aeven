@@ -36,7 +36,7 @@ kind: "package-reference"
 
 ### 请求
 
-`prompt` 是唯一必填参数。`model` 为单次调用覆盖所选模型，并由其 choice 指明的 Provider 服务。`n`、`size`、`resolution`、`seed` 与 `background` 转发至 Seam；`guidance_scale`、`output_format` 与 `optimize_prompt_mode` 映射为其驼峰命名字段；只发送调用实际设置的字段，其余沿用 Provider 自身的默认值，Provider 会拒绝所选模型没有的选项。`reference_images` 按 prompt 引用的顺序列出图像文件；每个文件在会话工作目录下经由 `ctx.fs` 读取，受 `maxReferenceImageBytes`（默认 4 MiB）限制，按其字节识别格式，并作为参考图发送给 Provider。对话中的图像通过其句柄文本显示的规范化副本路径传入。
+`prompt` 是唯一必填参数。`model` 为单次调用覆盖所选模型，并由其 choice 指明的 Provider 服务。`n`、`size`、`resolution`、`seed` 与 `background` 转发至 Seam；`guidance_scale`、`output_format` 与 `optimize_prompt_mode` 映射为其驼峰命名字段；只发送调用实际设置的字段，其余沿用 Provider 自身的默认值，Provider 会拒绝所选模型没有的选项。`n` 自身不携带上限：数量因模型与 Provider 而异，因此工具指明该数量由所选模型的描述持有，更大的请求应改为再次调用。`reference_images` 按 prompt 引用的顺序列出图像文件；每个文件在会话工作目录下经由 `ctx.fs` 读取，受 `maxReferenceImageBytes`（默认 4 MiB）限制，按其字节识别格式，并作为参考图发送给 Provider。对话中的图像通过其句柄文本显示的规范化副本路径传入。
 
 `generate_video` 同样只需 `prompt`。`model` 为单次调用覆盖所选视频模型；`duration`、`resolution`、`aspect_ratio`、`seed` 与 `generate_audio` 转发至 Seam 的视频请求；`reference_images` 最多列出两张图像，按上述方式读取，Provider 将其用作首帧与尾帧。
 
@@ -64,7 +64,7 @@ kind: "package-reference"
 
 #### 模型看到什么
 
-模型看到生成的 [`generate_image` Schema](../../../docs/tool-catalog.zh.md#aeventool-media)：一个必填的 `prompt` 和可选控制项——用于单次调用覆盖的 `model`；用于受支持生成设置的 `n`、`size`、`resolution`、`seed`、`guidance_scale`、`output_format`、`optimize_prompt_mode` 与 `background`；以及用于编辑或基于现有图像绘制的 `reference_images`。描述要求原样保留用户提供的完整提示词，说明如何传入参考图，以及每个已配置的 choice 及其描述和默认项，使模型知道哪个模型具备哪个选项；它还告诉模型不要再调用其他工具去定位或校验图像，因为附件本身就是结果。[`generate_video` Schema](../../../docs/tool-catalog.zh.md#aeventool-media) 具有同样的 `prompt`、`model` 与 `reference_images` 参数，另加 `duration`、`resolution`、`aspect_ratio`、`seed` 与 `generate_audio`，其描述列出视频 choice，并说明生成需要数分钟。
+模型看到生成的 [`generate_image` Schema](../../../docs/tool-catalog.zh.md#aeventool-media)：一个必填的 `prompt` 和可选控制项——用于单次调用覆盖的 `model`；用于受支持生成设置的 `n`、`size`、`resolution`、`seed`、`guidance_scale`、`output_format`、`optimize_prompt_mode` 与 `background`；以及用于编辑或基于现有图像绘制的 `reference_images`。描述要求原样保留用户提供的完整提示词，说明如何传入参考图，以及每个已配置的 choice 及其描述和默认项，使模型知道哪个模型具备哪个选项、单次调用可以向它请求多少张图像，以及更大的请求应改为再次调用；它还告诉模型不要再调用其他工具去定位或校验图像，因为附件本身就是结果。[`generate_video` Schema](../../../docs/tool-catalog.zh.md#aeventool-media) 具有同样的 `prompt`、`model` 与 `reference_images` 参数，另加 `duration`、`resolution`、`aspect_ratio`、`seed` 与 `generate_audio`，其描述列出视频 choice，并说明生成需要数分钟。
 
 #### Token 影响
 

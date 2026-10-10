@@ -663,8 +663,8 @@ export interface Config {
 
 来源：[`packages/experimental/code-runtime-python/src/index.ts:47`](../packages/experimental/code-runtime-python/src/index.ts)
 
-<a id="aevenexperimental-computer-use-cua-driver-mcp"></a>
-## `@aeven/experimental-computer-use-cua-driver-mcp`
+<a id="aevencomputer-use-cua-driver-mcp"></a>
+## `@aeven/computer-use-cua-driver-mcp`
 
 需要：`computerUse` · `tools`
 
@@ -684,7 +684,7 @@ export interface Config {
 
 依赖：[`McpClient`](../packages/mcp/mcp-client/src/index.ts)
 
-来源：[`packages/experimental/computer-use-cua-driver-mcp/src/index.ts:20`](../packages/experimental/computer-use-cua-driver-mcp/src/index.ts)
+来源：[`packages/computer-use/computer-use-cua-driver-mcp/src/index.ts:20`](../packages/computer-use/computer-use-cua-driver-mcp/src/index.ts)
 
 <a id="aevenexperimental-inspector"></a>
 ## `@aeven/experimental-inspector`

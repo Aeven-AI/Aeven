@@ -245,6 +245,7 @@ describe('DetailsPanel web Output section', () => {
           setDraft: () => {},
           appendText: () => true,
           addImages: () => true,
+          addImageFiles: () => null,
           removeImage: () => {},
           pruneImages: () => {},
           submit: () => {},

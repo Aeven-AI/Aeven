@@ -8,6 +8,10 @@ English | [中文](2026-10-06-local-pages-verify-in-the-visible-browser.zh.md)
 
 [The browser surface status report](2026-10-01-browser-surface-status-report.md) ordered the browser surfaces by cost to the user: headless Playwright first, the attached Chrome only after a refusal or for a signed-in page. That order is about reading pages the session does not control. It had no case for a page the workspace itself serves. On 2026-10-06 a session restyling the Aeven settings page verified every change in headless Playwright at `127.0.0.1:3080`. Its measurements described a browser the user could not see, and one of them disagreed with what the user saw in the visible window.
 
+## Current scope
+
+The [selected-sidebar actions decision](../feature/2026-10-09-fast-sidebar-browser-actions.md) supersedes the remote-page headless-first order. Local pages still verify in the visible browser first.
+
 ## Decision
 
 The page's address decides, not the kind of task. A page served from this machine (`localhost` or `127.0.0.1`) is an application under development and is verified first in the browser the user can see: the pane beside the session, or the Host's Chromium that the `mcp__chrome_devtools__*` tools drive. The headless browser stays its fallback when neither is available, and the model then says the check ran in a headless copy. Remote pages keep the headless-first escalation. The first-step browser context, the `preview_status` next step, `web_fetch`'s prompt section, and the `in-app-browser` skill all state the rule.

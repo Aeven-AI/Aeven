@@ -54,7 +54,7 @@ No runtime invariant companion is published: the registry has one authoritative 
 ## Further Exploration
 
 - [Computer use](../../../docs/subsystems/computer-use.md) — provider selection and shared-desktop limits.
-- [Cua Driver MCP provider](../../experimental/computer-use-cua-driver-mcp/README.md) — use an installed driver.
+- [Cua Driver MCP provider](../computer-use-cua-driver-mcp/README.md) — use an installed driver.
 
 -----
 

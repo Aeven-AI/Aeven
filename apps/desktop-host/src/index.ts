@@ -1,6 +1,6 @@
 /**
- * Electron child-process entry: boots the desktop project without a listening
- * socket and carries API plus validated Web assets over framed byte pipes.
+ * Electron child-process entry: carries API plus validated Web assets over
+ * framed byte pipes and forwards subscription HTTP routes to local loopback.
  * @module @aeven/desktop-host
  */
 
@@ -355,6 +355,35 @@ export async function runDesktopHost(
   }
   const assets = assetHandler(ctx, absoluteProject)
   const streams = remoteStreamHandler(ctx)
+  const webServer = ctx.get('webServer')
+  if (webServer === undefined) {
+    await ctx.fiber.dispose()
+    throw new Error('avn desktop: composition did not provide webServer')
+  }
+  const subscriptionOrigin = `http://127.0.0.1:${String(webServer.port)}`
+  // Only the app's subscription requests cross into the loopback HTTP carrier.
+  // Its owner policy receives the loopback origin, never an external page's.
+  const dispatchSubscription = (request: Request): Promise<Response> => {
+    const url = new URL(request.url)
+    const origin = request.headers.get('origin')
+    if (url.protocol !== 'avn-app:' || url.hostname !== 'app'
+      || (origin !== null && origin !== 'avn-app://app')
+      || request.headers.get('sec-fetch-site') === 'cross-site') {
+      return Promise.resolve(new Response(null, { status: 403 }))
+    }
+    const headers = new Headers(request.headers)
+    headers.delete('host')
+    headers.set('origin', subscriptionOrigin)
+    headers.set('sec-fetch-site', 'same-origin')
+    return fetch(new URL(url.pathname + url.search, subscriptionOrigin), {
+      method: request.method,
+      headers,
+      body: request.body,
+      duplex: 'half',
+      signal: request.signal,
+      redirect: 'manual',
+    } as NodeRequestInit)
+  }
   const requests = new Map<number, AbortController>()
   let disposing: Promise<void> | undefined
 
@@ -391,7 +420,9 @@ export async function runDesktopHost(
           ? await connection.runAsCaller(request, () => streams.fetch(request))
           : url.pathname.startsWith('/api/')
             ? await dispatchApi(request)
-            : await assets.fetch(request)
+            : url.pathname.startsWith('/plugins/avn-grok-build/')
+              ? await dispatchSubscription(request)
+              : await assets.fetch(request)
         await writeResponse(encodeDesktopResponseStart(command.streamId, {
           status: response.status,
           headers: [...response.headers.entries()],

@@ -123,20 +123,20 @@ export function GrokBuildSettings({ t }: GrokBuildSettingsProps) {
   /**
    * Start one provider sign-in.
    *
-   * A browser flow completes through the local callback, so the provider page
-   * opens straight away. It opens inside the click, before the request,
-   * because a window opened after an `await` is no longer a user gesture and a
-   * popup blocker would stop it. A device flow opens nothing: the card shows
-   * its code and the link to the provider page.
+   * Electron opens the default browser through its connector bridge. Web
+   * opens a tab during the click to retain the browser's user gesture.
+   * Device flows also show the code in the card.
    */
   const signIn = async (provider: ProviderSlug, method: LoginMethod): Promise<void> => {
-    const tab = method === 'device' ? null : window.open('about:blank', '_blank')
+    const desktop = (window as Window & { avnDesktop?: { browser?: { openExternal: (url: string) => Promise<void> } } }).avnDesktop?.browser
+    const tab = desktop !== undefined ? null : window.open('about:blank', '_blank')
     if (tab !== null) tab.opener = null
     setBusyProvider(provider)
     setRequestError(undefined)
-    setPopupBlocked(current => ({ ...current, [provider]: method !== 'device' && tab === null }))
+    setPopupBlocked(current => ({ ...current, [provider]: desktop === undefined && tab === null }))
     try {
       const challenge = await jsonRequest<LoginChallenge>(LOGIN_PATH, 'POST', { provider, method })
+      if (desktop !== undefined) await desktop.openExternal(challenge.url)
       if (tab !== null) {
         tab.location.replace(challenge.url)
         providerTabs.current.set(provider, tab)
@@ -240,6 +240,14 @@ export function GrokBuildSettings({ t }: GrokBuildSettingsProps) {
                 onSignOut={() => { void statusAction(slug, LOGOUT_PATH) }}
                 onCancelLogin={() => { void statusAction(slug, LOGIN_CANCEL_PATH) }}
                 onSelectModels={(selected) => { void selectModels(slug, selected) }}
+                onOpenAuthUrl={(event, url) => {
+                  const desktop = (window as Window & { avnDesktop?: { browser?: { openExternal: (url: string) => Promise<void> } } }).avnDesktop?.browser
+                  if (desktop === undefined) return
+                  event.preventDefault()
+                  void desktop.openExternal(url).catch((error: unknown) => {
+                    setRequestError(error instanceof Error ? error.message : t('requestFailed'))
+                  })
+                }}
               />
             )
           })}

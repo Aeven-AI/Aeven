@@ -6,7 +6,7 @@
  * Plugins cards it mirrors.
  */
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { IconChevronDownOutline14, StateDot } from '@aeven/client-ui-primitives'
 import {
   bodyStyle,
@@ -51,6 +51,8 @@ export interface ProviderFoldoutProps {
   onSignOut: () => void
   onCancelLogin: () => void
   onSelectModels: (selected: readonly string[]) => void
+  /** Electron opens provider links through the external-browser bridge. */
+  onOpenAuthUrl?: (event: MouseEvent<HTMLAnchorElement>, url: string) => void
 }
 
 function statusLabel(providerStatus: ProviderStatus, t: GrokBuildSettingsInjected['t']): string {
@@ -67,7 +69,7 @@ function statusLabel(providerStatus: ProviderStatus, t: GrokBuildSettingsInjecte
 }
 
 /** Where a pending sign-in waits on the user: the provider page to open and, for a device flow, the code to enter there. */
-function SignInSteps({ t, url, userCode }: { t: GrokBuildSettingsInjected['t']; url?: string | undefined; userCode?: string | undefined }) {
+function SignInSteps({ t, url, userCode, onOpenAuthUrl }: { t: GrokBuildSettingsInjected['t']; url?: string | undefined; userCode?: string | undefined; onOpenAuthUrl?: ProviderFoldoutProps['onOpenAuthUrl'] }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {userCode === undefined || userCode.length === 0 ? null : (
@@ -80,7 +82,7 @@ function SignInSteps({ t, url, userCode }: { t: GrokBuildSettingsInjected['t']; 
         </>
       )}
       {url === undefined || url.length === 0 ? null : (
-        <a href={url} target="_blank" rel="noreferrer" style={linkStyle}>
+        <a href={url} target="_blank" rel="noreferrer" style={linkStyle} onClick={event => onOpenAuthUrl?.(event, url)}>
           {t('openAuthUrl')}
         </a>
       )}
@@ -139,7 +141,7 @@ export function ProviderFoldout(props: ProviderFoldoutProps) {
           {status === 'signed-out' ? <p style={bodyStyle}>{t('signInHint')}</p> : null}
           {status === 'signing-in' ? (
             showSteps
-              ? <SignInSteps t={t} url={providerStatus.url} userCode={providerStatus.userCode} />
+              ? <SignInSteps t={t} url={providerStatus.url} userCode={providerStatus.userCode} onOpenAuthUrl={props.onOpenAuthUrl} />
               : <p style={bodyStyle}>{t('signingInHint')}</p>
           ) : null}
           {status === 'signed-in' ? (

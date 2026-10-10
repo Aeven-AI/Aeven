@@ -40,6 +40,12 @@
     },
     {
       "path": "../../mcp/mcp-client"
+    },
+    {
+      "path": "../../interaction/user-approval"
+    },
+    {
+      "path": "../../sandbox/sandbox-policy"
     }
   ]
 }

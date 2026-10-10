@@ -71,13 +71,13 @@ async function load(mode?: string): Promise<{ ctx: Context; root: string; model:
     ['@aeven/session-projection', SessionProjectionRegistry],
     ['@aeven/attachment-local', LocalAttachmentStore],
     ['@fixture/model', { inject: ['llm'], apply(ctx: Context) { ctx.effect(() => ctx.llm.registerAdapter(['fixture'], model)) } }],
-    ['@aeven/experimental-computer-use-cua-driver-mcp', Provider],
+    ['@aeven/computer-use-cua-driver-mcp', Provider],
   ])
   const configPath = join(root, 'cordis.yml')
   await writeFile(configPath, JSON.stringify([...modules.keys()].map(name => ({
-    id: name === '@aeven/experimental-computer-use-cua-driver-mcp' ? 'computer-use-driver' : undefined,
+    id: name === '@aeven/computer-use-cua-driver-mcp' ? 'computer-use-driver' : undefined,
     name,
-    config: name === '@aeven/experimental-computer-use-cua-driver-mcp'
+    config: name === '@aeven/computer-use-cua-driver-mcp'
       ? {
         command: process.execPath,
         args: [fixture, root, ...(mode === undefined ? [] : [mode])],

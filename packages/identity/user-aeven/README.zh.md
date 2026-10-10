@@ -80,7 +80,7 @@ WebSocket 升级不携带 header，因此只能凭 cookie 认证，而浏览器�
 
 ### 两种凭据，一个 resolver
 
-resolver 先读 bearer：HTTP 调用携带 access token，它是两者中存活更短、且由客户端保持新鲜的那个。随后回退到 cookie，那是 WebSocket 升级唯一能出示的凭据。两者都是同一密钥下的 ES256 token；`typ` claim（`access` 或 `refresh`）防止一种冒充另一种，对应 Aeven API 自身的 `authenticate` 与 `authenticateSocketUpgrade`。在密钥集加载之前或未配置 `apiUrl` 时，任何 token 都不会校验通过。
+resolver 先读 bearer：HTTP 调用携带 access token，它是两者中存活更短、且由客户端保持新鲜的那个。随后回退到 cookie，那是 WebSocket 升级唯一能出示的凭据。两者都是同一密钥下的 ES256 token；`typ` claim（`access` 或 `refresh`）防止一种冒充另一种，对应 Aeven API 自身的 `authenticate` 与 `authenticateSocketUpgrade`。插件仅在首次获取密钥集完成或在 `jwksTimeoutMs` 内失败后才变为活动状态，因此等待其插件树的 Host 在 token 能够校验之前不会接纳任何请求。若该次获取失败或未配置 `apiUrl`，在后续获取成功之前任何 token 都不会校验通过。
 
 ### 为什么在本地校验
 

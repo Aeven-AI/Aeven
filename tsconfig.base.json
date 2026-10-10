@@ -245,7 +245,7 @@
       "@aeven/experimental-inspector": ["./packages/experimental/inspector/src"],
       "@aeven/experimental-inspector/client": ["./packages/experimental/inspector/src/client/index.ts"],
       "@aeven/experimental-code-runtime-python": ["./packages/experimental/code-runtime-python/src"],
-      "@aeven/experimental-computer-use-cua-driver-mcp": ["./packages/experimental/computer-use-cua-driver-mcp/src"],
+      "@aeven/computer-use-cua-driver-mcp": ["./packages/computer-use/computer-use-cua-driver-mcp/src"],
       "@aeven/util-crypto": ["./packages/util/crypto/src"],
       "@aeven/util-values": ["./packages/util/values/src"],
       // util/ folders are role-named without the util- prefix their npm names carry,

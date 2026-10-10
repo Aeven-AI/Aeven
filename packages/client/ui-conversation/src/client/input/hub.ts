@@ -19,8 +19,9 @@ import type {
   SubmitImageAttachment, SubmitOutcome,
 } from '../contract/input.ts'
 import type { InputSubmitMode } from '../contract/composer-submission.ts'
-import type { PopupDismissFace } from './facade.ts'
+import type { DraftImageIntake, PopupDismissFace } from './facade.ts'
 import { SessionInputShell } from './facade.ts'
+import { UnsupportedImageMediaTypeError } from '../service.ts'
 
 /** Structural command face for per-session popup resolution. */
 interface CommandFace {
@@ -43,6 +44,8 @@ interface ConversationAttachmentFace {
     signal?: AbortSignal,
   ): Promise<SubmitOutcome>
   serializeDraftImages(imageIds: readonly DraftAttachmentId[]): Promise<readonly SubmitImageAttachment[]>
+  /** Register browser files as draft images; rejects an unsupported media type. */
+  createDraftImages(files: readonly File[]): readonly { readonly id: DraftAttachmentId }[]
   releaseDraftImage(id: DraftAttachmentId): void
 }
 
@@ -96,13 +99,28 @@ export class InputHub implements SessionInputResolver {
         // submit RPC, where session teardown may already have unloaded the
         // conversation service (the same tolerance as the scope disposer
         // above); leaked preview URLs then die with the document.
-        release: (ids) => {
-          const conversation = this.rootCtx.get('conversation') as ConversationAttachmentFace | undefined
-          for (const imageId of ids) conversation?.releaseDraftImage(imageId)
-        },
+        release: ids => { this.releaseDraftImages(ids) },
         unsupportedNotice: token => this.t('command.imagesUnsupported', {
           command: token.trim().replace(/^\//u, ''),
         }),
+      },
+      // A slot component's own upload (Imagine's preset reference picker)
+      // registers through the composer's intake, so limits, media-type checks,
+      // and preview-url ownership keep one owner.
+      draftImages: {
+        create: (files): DraftImageIntake => {
+          try {
+            const images = this.conversation().createDraftImages(files)
+            return { kind: 'created', ids: images.map(image => image.id) }
+          } catch (error: unknown) {
+            if (error instanceof UnsupportedImageMediaTypeError) {
+              return { kind: 'refused', message: this.t('image.unsupportedType') }
+            }
+            throw error
+          }
+        },
+        release: ids => { this.releaseDraftImages(ids) },
+        busyNotice: () => this.t('file.busy'),
       },
     })
     this.shells.set(id, shell)
@@ -123,8 +141,7 @@ export class InputHub implements SessionInputResolver {
         for (const off of offs) off()
         const drafts = shell.dispose()
         this.shells.delete(id)
-        const conversation = this.rootCtx.get('conversation') as ConversationAttachmentFace | undefined
-        for (const imageId of drafts) conversation?.releaseDraftImage(imageId)
+        this.releaseDraftImages(drafts)
       }
     }, 'conversation.input: session shell')
     return shell
@@ -227,5 +244,16 @@ export class InputHub implements SessionInputResolver {
     const conversation = this.rootCtx.get('conversation') as ConversationAttachmentFace | undefined
     if (conversation === undefined) throw new Error('conversation.input: conversation service unavailable')
     return conversation
+  }
+
+  /**
+   * Free draft images through the conversation face, tolerating an already
+   * unloaded service: a release outliving its session only leaks preview URLs
+   * that die with the document.
+   * @param ids - draft image ids to free.
+   */
+  private releaseDraftImages(ids: readonly DraftAttachmentId[]): void {
+    const conversation = this.rootCtx.get('conversation') as ConversationAttachmentFace | undefined
+    for (const imageId of ids) conversation?.releaseDraftImage(imageId)
   }
 }

@@ -59,7 +59,7 @@ A transparent background on Pro needs one reference image that has an alpha chan
 
 ### Requests
 
-`requestBody` refuses, before any request is made, a model Aeven does not serve, a background on a model without that option, `n` outside 1–4, too many reference images for the model, and `aspectRatio`. `resolution` maps to `size` and cannot accompany an explicit size; `seed`, `guidanceScale`, `outputFormat` and `optimizePromptMode` map to the gateway's corresponding snake-case fields; `guidanceScale` is left out for a model without a guidance option. Everything else — the size vocabulary, a transparent background's alpha requirement, the account's plan and balance — is the gateway's to refuse, and its message is carried in the `MediaError`. Reference images are sent inline as `data:` URLs, because the gateway fetches no remote address.
+`requestBody` refuses, before any request is made, a model Aeven does not serve, a background on a model without that option, `n` outside 1–4, too many reference images for the model, and `aspectRatio`. Each model's `description` states its own `n` range beside its other options, so the text a tool publishes for the model carries the count a call may ask for. `resolution` maps to `size` and cannot accompany an explicit size; `seed`, `guidanceScale`, `outputFormat` and `optimizePromptMode` map to the gateway's corresponding snake-case fields; `guidanceScale` is left out for a model without a guidance option. Everything else — the size vocabulary, a transparent background's alpha requirement, the account's plan and balance — is the gateway's to refuse, and its message is carried in the `MediaError`. Reference images are sent inline as `data:` URLs, because the gateway fetches no remote address.
 
 ### Video
 

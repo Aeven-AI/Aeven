@@ -120,7 +120,7 @@ const SERVICE_ROLES: ServiceRole[] = [
     pkg: 'computer-use',
     title: 'Computer-use provider registry',
     mode: 'seam',
-    implementations: ['experimental-computer-use-cua-driver-mcp'],
+    implementations: ['computer-use-cua-driver-mcp'],
     note: 'The registry holds one optional provider slot for the shared computer-use service; the Cua Driver MCP adapter reserves it and exposes the driver\'s own tools through the shared tool runtime, releasing the slot with them.',
   },
   {

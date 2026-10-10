@@ -5,7 +5,7 @@ description: Control the browser beside the session — read and drive the page 
 
 # Control the in-app browser
 
-The browser beside the session is the pane the user is watching. Serve that pane:
+The in-app browser is available in Electron. When the user selects it, keep the task in that pane. Prefer it to external Chrome/CDP; use Chrome/CDP only when the required operation is unavailable in the pane. Serve that pane:
 read it, drive it, capture it, and say plainly when it cannot be driven. Resolve
 every relative path below against the base directory reported in
 `<skill_resources>`.
@@ -30,10 +30,14 @@ this Host runs, and which of the two to drive.
 
 Then `preview_navigate`, `preview_snapshot`, `preview_click`, `preview_type`,
 `preview_press`, `preview_scroll`, `preview_evaluate`, `preview_reload`,
-`preview_back`, and `preview_forward`. Take selectors from `preview_snapshot`'s
+`preview_back`, `preview_forward`, `preview_upload`, and `preview_sequence`. Take selectors from `preview_snapshot`'s
 `interactiveElements` rather than coordinates. Retry a call that failed with an
 actionable error and corrected arguments; do not retry a page that answers
 automated reads with a block page.
+
+Use `preview_type` for a whole caption, including paragraph breaks; it inserts the text in one native action. Use `preview_upload` with absolute paths on the Electron computer and an explicit file-input selector, or the Upload button selector. The button's chooser is intercepted and answered within that upload call. When no selector is supplied, exactly one file input must exist. Remote uploads request approval naming the destination origin and files; localhost is exempt. Do not use clipboard paste, a temporary HTTP server, or a native file dialog for these uploads.
+
+Use `preview_sequence` for known consecutive actions. Include `wait` actions for visible/enabled or hidden elements between page transitions, rather than sleeps. It stops at the first failure and returns the completed count and failed action index. Inspect the resulting editor or attachment before submitting; include a submission only when the user authorized it.
 
 There is no `preview_screenshot` and no `preview_open`: capture through the pane
 as below, and ask the user to open the pane when `preview_status` reports no page.
@@ -76,10 +80,9 @@ stop and ask the user to sign in instead.
   see — this pane, or the Chrome attached to the user's own browser. Use the
   headless browser tools only when neither is available, and say that the check
   ran in a headless copy.
-- **A remote page refuses automated reads.** Escalate in the order the harness
-  documents: the headless browser tools open no window, and a page that refuses
-  those too is read in the Chrome attached to the user's own browser, which does
-  open one.
+- **A remote page refuses automated reads.** Inspect it in the selected pane.
+  If the pane cannot perform the required operation, use external Chrome/CDP.
+  Use headless browsing only when neither visible surface is available.
 - **A consent wall or modal covers the page.** The overlay usually lives in a
   shadow root, so a top-level `querySelectorAll` finds nothing and the page looks
   empty. Enumerate elements for one carrying a `shadowRoot`, read its text, then

@@ -16,6 +16,8 @@
  * @module @aeven/tool-browser
  */
 
+import type {} from '@aeven/user-approval'
+import type {} from '@aeven/sandbox-policy'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { Agent, PreStepDecision } from '@aeven/agent'
@@ -75,9 +77,11 @@ function unlessAborted<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
  */
 const BROWSER_INSTRUCTIONS = [
   'This browser is the collaborative browser shared with the user. Prefer the preview_* tools for browser navigation, inspection, and interaction on it.',
+  'When this browser is selected, stay in it for the task. Use external Chrome/CDP only when this browser cannot perform the required action; never switch merely because an interaction failed.',
+  'Use preview_sequence for known consecutive actions; it runs locally in order and waits for specified elements without another model request between actions. Use preview_upload to attach files directly; never use clipboard tricks, a local HTTP server, or a native picker for a supported upload.',
   'For browser work, first call preview_status. Then use preview_navigate, preview_snapshot, and the focused interaction tools. Prefer snapshot-provided selectors over coordinates.',
   'A page served from this machine (localhost or 127.0.0.1) is an application under development: verify it first in the browser the user can see — this pane, or the Chromium preview_status reports. Use the headless browser tools for it only when neither is available, and say that the check ran in a headless copy.',
-  'A failed preview call is retried with corrected arguments when the error is actionable. When a remote page itself refuses it — it needs a signed-in session, or it answers automated reads with a block page — stop retrying and escalate in order: the headless browser tools open no window, and a page that refuses those too is read in the browser the user can see, which does open one. Ask the user to sign in; never type credentials.',
+  'Correct an actionable error in this browser. If this browser needs authentication, ask the user to sign in here; never type credentials or switch browsers to bypass sign-in. Prefer preview_snapshot and focused actions over writing JavaScript for ordinary clicks or text entry.',
 ].join('\n')
 
 /**
@@ -158,7 +162,7 @@ function nextStepFor(pageOpen: boolean, host: HostBrowserReport | null): string 
   if (!host.running && !host.launchable) {
     return `No Chrome or Chromium executable was found on this Host, so the browser behind ${host.browserUrl} cannot start. Ask the user to install one, or to open the browser from the right sidebar (Browser).`
   }
-  return `No page is open beside this session. The Chromium on this Host is the browser the user can see and sign in to, and the ${host.toolPrefix}* tools drive it, starting it when it is not running. A page served from this machine (localhost or 127.0.0.1) is an application under development: verify it there first, and in the headless browser only when this one cannot start. For a remote page it opens a visible window, so reach for it after a headless read was refused, or when the page needs a signed-in session.`
+  return `No page is open beside this session. The Chromium on this Host is the browser the user can see and sign in to, and the ${host.toolPrefix}* tools drive it, starting it when it is not running. A page served from this machine (localhost or 127.0.0.1) is an application under development: verify it there first, and in the headless browser only when this one cannot start. Use it for remote pages too, preserving the user's signed-in browser session; use headless browsing only when neither visible surface is available.`
 }
 
 const selector = { type: 'string', description: "CSS selector such as button[type='submit'], from preview_snapshot's interactiveElements." } as const
@@ -250,9 +254,32 @@ export function apply(ctx: Context, config: Config): void {
     return ctx.waterfall(
       scopeTarget(agent, agent),
       'browser/automation',
-      { operation, input, agent, signal: exec.signal },
+      { operation, input, agent, signal: exec.signal, timeoutMs: actionTimeoutMs },
       unavailable,
     )
+  }
+
+  const uploadInput = async (input: { [key: string]: JsonValue }, exec: ToolRunContext): Promise<{ [key: string]: JsonValue }> => {
+    const agent = callingAgent(exec)
+    const policy = ctx.get('sandboxPolicy')
+    if (policy === undefined) throw new HarnessError('upload requires the session file policy', 'BROWSER_UPLOAD_POLICY_UNAVAILABLE')
+    if (policy.resolve({ session: agent.session }).mode === 'read-only') throw new HarnessError('file upload shares local file contents with a page; read-only access forbids it', 'BROWSER_UPLOAD_DENIED')
+    const page = await run('status', {}, exec)
+    if (typeof page !== 'object' || page === null || Array.isArray(page) || typeof page.url !== 'string') throw new HarnessError('the browser has no upload destination', 'BROWSER_UNAVAILABLE')
+    const url = new URL(page.url)
+    const paths = input.paths
+    if (!Array.isArray(paths) || paths.length === 0 || !paths.every(path => typeof path === 'string')) throw new HarnessError('upload requires file paths', 'BROWSER_UPLOAD_PATHS')
+    if (!['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) {
+      const approval = ctx.get('approval')
+      if (approval === undefined) throw new HarnessError('upload requires user approval', 'BROWSER_UPLOAD_APPROVAL_UNAVAILABLE')
+      const outcome = await approval.request({
+        agent, toolName: exec.name, callId: exec.callId, signal: exec.signal,
+        reason: `Share these local files with ${url.origin}: ${paths.join(', ')}`,
+        allowSession: JSON.stringify({ origin: url.origin, paths }),
+      })
+      if (outcome !== 'allowed-once') throw new HarnessError('file upload was not approved', 'BROWSER_UPLOAD_DENIED')
+    }
+    return { ...input, origin: url.origin }
   }
 
   // The first step of each turn carries the open page, so the model knows what
@@ -310,7 +337,18 @@ export function apply(ctx: Context, config: Config): void {
     timeoutMs: actionTimeoutMs,
     output: { schema: { type: 'string' }, ...text },
     async execute(args, exec) {
-      return JSON.stringify(await run(operation, args as { [key: string]: JsonValue }, exec))
+      let input = args as { [key: string]: JsonValue }
+      if (operation === 'upload') input = await uploadInput(input, exec)
+      if (operation === 'sequence' && (!Array.isArray(input.actions) || input.actions.length === 0 || input.actions.length > 20)) throw new HarnessError('sequence requires 1 to 20 actions', 'BROWSER_SEQUENCE_ACTION')
+      if (operation === 'sequence' && Array.isArray(input.actions)) {
+        const actions: JsonValue[] = []
+        for (const action of input.actions) {
+          if (typeof action !== 'object' || action === null || Array.isArray(action)) throw new HarnessError('sequence actions must be objects', 'BROWSER_SEQUENCE_ACTION')
+          actions.push(action.operation === 'upload' ? await uploadInput(action, exec) : action)
+        }
+        input = { ...input, actions }
+      }
+      return JSON.stringify(await run(operation, input, exec))
     },
   })
 
@@ -372,6 +410,32 @@ export function apply(ctx: Context, config: Config): void {
     action('preview_scroll', 'scroll',
       'Scroll the collaborative browser tab. Positive deltaY scrolls down and positive deltaX scrolls right; a selector targets a container.',
       { deltaX: { type: 'number', description: 'Horizontal scroll delta in CSS pixels. Positive scrolls right. Defaults to 0.' }, deltaY: { type: 'number', description: 'Vertical scroll delta in CSS pixels. Positive scrolls down. Defaults to 0.' }, selector }),
+    action('preview_upload', 'upload',
+      'Attach local files in this browser. Prefer the file input selector; an Upload button selector opens and answers its chooser in the same action. Paths must be absolute paths on the Electron computer. Remote uploads require approval.',
+      { selector, paths: { type: 'array', required: true, items: { type: 'string' }, description: 'Absolute local file paths to attach.' } }),
+    action('preview_sequence', 'sequence',
+      'Execute 1 to 20 known actions in order in this browser, without model round trips. Stops at the first failure and reports its index. Use wait actions for page transitions, not fixed sleeps. Obtain selectors from the page first; include a final submit only when the user authorized that exact submission.',
+      { actions: { type: 'array', required: true, items: { oneOf: [
+        { type: 'object', additionalProperties: false, properties: {
+          operation: { type: 'string', const: 'click', required: true }, selector: { ...selector, required: true },
+        } },
+        { type: 'object', additionalProperties: false, properties: {
+          operation: { type: 'string', const: 'type', required: true }, selector,
+          text: { type: 'string', required: true }, clear: { type: 'boolean' },
+        } },
+        { type: 'object', additionalProperties: false, properties: {
+          operation: { type: 'string', const: 'press', required: true }, key: { type: 'string', required: true },
+          modifiers: { type: 'array', items: { type: 'string', enum: ['Alt', 'Control', 'Meta', 'Shift'] } },
+        } },
+        { type: 'object', additionalProperties: false, properties: {
+          operation: { type: 'string', const: 'upload', required: true }, selector,
+          paths: { type: 'array', required: true, items: { type: 'string' } },
+        } },
+        { type: 'object', additionalProperties: false, properties: {
+          operation: { type: 'string', const: 'wait', required: true }, selector: { ...selector, required: true },
+          state: { type: 'string', enum: ['visible', 'hidden'] }, timeoutMs: { type: 'number' },
+        } },
+      ] }, description: '1 to 20 ordered actions. wait defaults to visible and enabled, with a 5000ms deadline; timeoutMs must be 1 to 60000.' } }),
     action('preview_evaluate', 'evaluate',
       'Evaluate JavaScript in the collaborative browser tab. Returns {value} with a serializable result up to 64 KB; the expression may mutate page state.',
       { expression: { type: 'string', required: true, description: "JavaScript expression evaluated in the page's main frame, for example document.title or (() => ({href: location.href}))()." } }),

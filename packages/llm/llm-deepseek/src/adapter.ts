@@ -640,8 +640,15 @@ export class DeepSeekAdapter extends LlmAdapter {
         }
       }
       // Prepared outside the try so the TRANSPORT label below covers exactly the
-      // transport boundary, never a serialization failure.
-      const payload = JSON.stringify({ ...body, ...extensions.fields })
+      // transport boundary, never a serialization failure. Every string is made
+      // well-formed: JSON.stringify writes a lone surrogate as a `\uD8xx`
+      // escape, which the API's JSON parser rejects for the whole request, so
+      // one truncated character in any message or tool result would fail the
+      // turn. U+FFFD replaces each lone surrogate.
+      const payload = JSON.stringify(
+        { ...body, ...extensions.fields },
+        (_key, value: unknown) => typeof value === 'string' ? value.toWellFormed() : value,
+      )
 
       // TODO(http): adopt the Cordis HTTP service when shared transport configuration
       // outweighs its additional runtime dependencies.

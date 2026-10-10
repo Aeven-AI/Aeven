@@ -13,7 +13,7 @@ Draws the agent's pointer and action feedback into a page the model is operating
 
 The cursor sprite, its rotation, its two-stop glow, and its motion model are the Codex desktop app's browser-agent cursor, read out of its extracted bundle. The sprite itself is the extracted asset, embedded verbatim.
 
-Motion is spring-driven and interrupted-friendly: a long move arcs along a quadratic Bézier with the cursor banked into the turn, a short one scoots with a brief overshoot, and a redirect mid-flight keeps its velocity instead of restarting. Past arrival the cursor holds a short damped wobble before settling. The integrator is React Spring's, reproduced rather than re-derived, because a spring with the same nominal damping and response but a different solver does not produce the same motion.
+Motion is spring-driven and interrupted-friendly: a long move arcs along a quadratic Bézier with the cursor banked into the turn, a short one scoots with a brief overshoot, and a redirect mid-flight keeps its velocity instead of restarting. Past arrival the cursor holds a short damped wobble before settling; `setHold(true)` repeats that wobble while the agent works. Repeated moves to the same destination preserve the glide, and short-move lean depends on direction rather than pixel distance. The integrator is React Spring's, reproduced rather than re-derived, because a spring with the same nominal damping and response but a different solver does not produce the same motion.
 
 The sprite rests **unrotated**, in the orientation its artwork is authored in, and is **centred in its box**. Both are asserted by `demo/measure-tip.mjs`; see [Verify the cursor's geometry](#verify-cursor-geometry).
 

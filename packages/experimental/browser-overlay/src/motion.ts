@@ -216,7 +216,7 @@ export class CursorMotion {
    * action shows a pointer that is present rather than one that froze.
    */
   keepThinking(): void {
-    if (this.#thinkEnabled) this.#thinkStartedAt = performance.now()
+    if (this.#thinkEnabled && this.#thinkStartedAt === undefined) this.#thinkStartedAt = performance.now()
   }
 
   /** Whether anything is still moving; used to stop the animation frame loop. */
@@ -289,9 +289,11 @@ export class CursorMotion {
    * @returns the move's expected duration in milliseconds, so a caller can decide whether to wait; 0 when already there.
    */
   travelTo(x: number, y: number): number {
+    this.#thinkStartedAt = undefined
+    const destination = this.#path?.end ?? this.#scootTo
+    if (destination?.x === x && destination.y === y) return this.#path === undefined ? 420 : 700
     const from: PathPoint = { x: this.positionX.value, y: this.positionY.value, tangent: 0 }
     const distance = Math.hypot(x - from.x, y - from.y)
-    this.#thinkStartedAt = undefined
     if (distance < ARRIVAL_EPSILON_PX) {
       this.positionX.target = x
       this.positionY.target = y
@@ -313,7 +315,7 @@ export class CursorMotion {
       const axis = distance < 0.001 ? 0 : Math.atan2(y - from.y, x - from.x) * 180 / Math.PI
       this.#scootAxisTarget = axis
       // Small overshoot whose direction depends on which way the move leans.
-      this.#scootRotationTarget = clamp((x - from.x) * 0.75 + -(y - from.y) * 0.62, -1, 1) * MAX_LEAN_DEG
+      this.#scootRotationTarget = clamp(((x - from.x) * 0.75 - (y - from.y) * 0.62) / Math.hypot(x - from.x, y - from.y), -1, 1) * MAX_LEAN_DEG
       this.scootAxis.target = this.#scootAxisTarget
       this.scootRotation.target = this.#scootRotationTarget
       this.positionX.target = x

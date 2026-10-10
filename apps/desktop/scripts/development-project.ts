@@ -30,6 +30,13 @@ export interface DevelopmentProjectOptions {
   readonly hostDir: string
   /** pnpm's workspace-wide virtual-hoist directory. */
   readonly dependencyDir: string
+  /**
+   * Workspace directories holding packages one or two levels down
+   * (`vendor/<pkg>`, `packages/<group>/<pkg>`). Each package is linked under
+   * its own name over the hoist, which pnpm leaves stale for a package added
+   * or renamed after its last full install.
+   */
+  readonly workspacePackageRoots: readonly string[]
   /** Release identity written into the disposable project metadata. */
   readonly release: DesktopRelease
 }
@@ -62,6 +69,12 @@ function linkDirectory(source: string, destination: string): void {
   symlinkSync(realpathSync(source), destination, process.platform === 'win32' ? 'junction' : 'dir')
 }
 
+/** Link one hoisted entry; a link pnpm left behind for a moved or removed package is skipped. */
+function mirrorDependencyLink(source: string, destination: string): void {
+  if (!existsSync(source)) return
+  linkDirectory(source, destination)
+}
+
 function mirrorDependencyLinks(sourceRoot: string, destinationRoot: string): void {
   for (const entry of readdirSync(sourceRoot, { withFileTypes: true })) {
     if (entry.name === '.bin') continue
@@ -70,17 +83,41 @@ function mirrorDependencyLinks(sourceRoot: string, destinationRoot: string): voi
       mkdirSync(join(destinationRoot, entry.name), { recursive: true })
       for (const scoped of readdirSync(source, { withFileTypes: true })) {
         if (!scoped.isDirectory() && !scoped.isSymbolicLink()) continue
-        linkDirectory(join(source, scoped.name), join(destinationRoot, entry.name, scoped.name))
+        mirrorDependencyLink(join(source, scoped.name), join(destinationRoot, entry.name, scoped.name))
       }
       continue
     }
-    if (entry.isDirectory() || entry.isSymbolicLink()) linkDirectory(source, join(destinationRoot, entry.name))
+    if (entry.isDirectory() || entry.isSymbolicLink()) mirrorDependencyLink(source, join(destinationRoot, entry.name))
+  }
+}
+
+function linkWorkspacePackage(dir: string, destinationRoot: string): boolean {
+  const manifestPath = join(dir, 'package.json')
+  if (!existsSync(manifestPath)) return false
+  const name = readManifest(manifestPath).name
+  if (name === undefined) return true
+  const destination = join(destinationRoot, name)
+  removeOwnedPath(destination)
+  linkDirectory(dir, destination)
+  return true
+}
+
+function linkWorkspacePackages(roots: readonly string[], destinationRoot: string): void {
+  for (const root of roots) {
+    for (const entry of readdirSync(root, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue
+      const dir = join(root, entry.name)
+      if (linkWorkspacePackage(dir, destinationRoot)) continue
+      for (const nested of readdirSync(dir, { withFileTypes: true })) {
+        if (nested.isDirectory()) linkWorkspacePackage(join(dir, nested.name), destinationRoot)
+      }
+    }
   }
 }
 
 /**
  * Replace one disposable project with links to the current built workspace.
- * @param options - Project destination, CLI package, and release identity.
+ * @param options - Project destination, CLI package, workspace package roots, and release identity.
  * @returns the absolute project directory supplied by the caller.
  */
 export function prepareDevelopmentProject(options: DevelopmentProjectOptions): string {
@@ -110,6 +147,7 @@ export function prepareDevelopmentProject(options: DevelopmentProjectOptions): s
   const destinationModules = join(options.projectDir, 'node_modules')
   mkdirSync(destinationModules, { recursive: true })
   mirrorDependencyLinks(options.dependencyDir, destinationModules)
+  linkWorkspacePackages(options.workspacePackageRoots, destinationModules)
   const avnLink = join(destinationModules, '@aeven', 'cli')
   removeOwnedPath(avnLink)
   linkDirectory(options.cliDir, avnLink)

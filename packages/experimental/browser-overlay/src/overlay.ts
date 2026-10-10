@@ -319,6 +319,10 @@ export class BrowserOverlay {
     if (hold) {
       if (this.#idleTimer !== undefined) clearTimeout(this.#idleTimer)
       this.#idleTimer = undefined
+      if (this.#motion?.visibility.target === 1) {
+        this.#motion.keepThinking()
+        this.#startFrameLoop()
+      }
       return
     }
     this.#armIdleTimer()
@@ -584,7 +588,7 @@ export class BrowserOverlay {
       // A held pointer keeps breathing. The idle wobble is otherwise a fixed
       // moment of life after arriving, and its end leaves a pointer that looks
       // switched off while the agent is still working.
-      if (this.#hold && !motion.isTravelling) motion.keepThinking()
+      if (this.#hold && motion.visibility.target === 1 && !motion.isTravelling) motion.keepThinking()
       if (!motion.isTravelling) this.#settleArrivals()
       if (moving || motion.isThinking || motion.visibility.value !== motion.visibility.target) {
         this.#frame = requestAnimationFrame(tick)

@@ -16,15 +16,15 @@ const api: AvnDesktopAppApi = {
       ipcRenderer.invoke(DESKTOP_IPC.browserSetColorScheme, webContentsId, scheme) as Promise<void>,
     clearData: (partition, kind) => ipcRenderer.invoke(DESKTOP_IPC.browserClearData, partition, kind) as Promise<void>,
     capture: webContentsId => ipcRenderer.invoke(DESKTOP_IPC.browserCapture, webContentsId) as Promise<void>,
-    automate: (webContentsId, operation, input) =>
-      ipcRenderer.invoke(DESKTOP_IPC.browserAutomate, webContentsId, operation, input) as Promise<unknown>,
+    automate: (webContentsId, operation, input, requestId, timeoutMs) =>
+      ipcRenderer.invoke(DESKTOP_IPC.browserAutomate, webContentsId, operation, input, requestId, timeoutMs) as Promise<unknown>,
+    cancelAutomation: (webContentsId, requestId) => { ipcRenderer.send(DESKTOP_IPC.browserCancelAutomation, webContentsId, requestId) },
     suggest: url => ipcRenderer.invoke(DESKTOP_IPC.browserSuggest, url) as Promise<string>,
     onCursor(listener) {
       const handle = (_event: Electron.IpcRendererEvent, cursor: DesktopBrowserCursor): void => { listener(cursor) }
       ipcRenderer.on(DESKTOP_IPC.browserCursor, handle)
       return () => { ipcRenderer.off(DESKTOP_IPC.browserCursor, handle) }
     },
-    cursorArrived: (webContentsId, sequence) => { ipcRenderer.send(DESKTOP_IPC.browserCursorArrived, webContentsId, sequence) },
     onPageScroll(listener) {
       const handle = (_event: Electron.IpcRendererEvent, webContentsId: number): void => { listener(webContentsId) }
       ipcRenderer.on(DESKTOP_IPC.browserPageScroll, handle)

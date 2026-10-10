@@ -14,7 +14,7 @@ Imagine needs a page of its own at `/i/<id>`, separate from chat Sessions. Nothi
 
 **The chat states its own address space instead of consulting the router.** `BrowserSessionUrlNavigation.ownsAddress()` is true for `/`, `/c`, and `/c/…`. On any other address the projection reads no Session and writes nothing, and `navigateFromUrl` ignores it, so Back into Imagine does not start a New Session. Session reconciliation itself keeps running on an Imagine address: boot still selects or creates a chat Session, which is what `whenInitialDataReady` and the page preloader wait on.
 
-**Imagine is one surface among possible others.** `@aeven/client-ui-imagine` claims `/i`, rewrites a bare `/i` or a non-UUID id to a fresh `/i/<uuid>` in place, and registers its page under the `imagine` key. The id names no Session. `frontend-static` lists `/i` among its client route roots.
+**No surface claims a root today.** Imagine is a start address of the chat rather than a full-page surface, and `frontend-static`'s route-root list names `/imagine` so that address serves the application ([starter-prompt popup](../feature/2026-10-10-imagine-starter-prompt-popup.md)). The router stays the mechanism a future full-page surface registers on: `AppFrame` renders a keyed `surface` slot in place of `conversation` under whichever id owns the current path, and the details and right sidebar columns stay closed while one shows.
 
 ## Alternatives considered
 
@@ -26,4 +26,4 @@ Imagine needs a page of its own at `/i/<id>`, separate from chat Sessions. Nothi
 
 ## Consequences
 
-A surface is a path root plus a page: adding one needs no change to ui-layout, ui-workspace, or the chat. The Host's route-root list stays a fixed list, so each new root is one line there. The chat Session stays selected underneath a surface, so the corner's right-sidebar toggle still acts on that Session's panel while it is hidden. The Imagine start page restates the chat hero composer's CSS until the two composers share a component; its README lists this.
+A surface is a path root plus a page: adding one needs no change to ui-layout, ui-workspace, or the chat. The Host's route-root list stays a fixed list, so each new root is one line there. The chat Session stays selected underneath a surface, so the corner's right-sidebar toggle still acts on that Session's panel while it is hidden. Imagine itself takes no root: it runs as a chat start address on the resident composer, so a deployment that never registers a surface carries the router with no occupant.

@@ -80,7 +80,7 @@ This section covers how verification and injection are built; observable behavio
 
 ### Two credentials, one resolver
 
-The resolver reads the bearer first: an HTTP call carries the access token, the shorter-lived of the two and the one the client keeps fresh. It then falls back to the cookie, which is the only credential a WebSocket upgrade can present. Both are ES256 tokens under one key; the `typ` claim (`access` or `refresh`) keeps one from standing in for the other, mirroring the Aeven API's own `authenticate` and `authenticateSocketUpgrade`. Until the key set has loaded, or without an `apiUrl`, no token verifies.
+The resolver reads the bearer first: an HTTP call carries the access token, the shorter-lived of the two and the one the client keeps fresh. It then falls back to the cookie, which is the only credential a WebSocket upgrade can present. Both are ES256 tokens under one key; the `typ` claim (`access` or `refresh`) keeps one from standing in for the other, mirroring the Aeven API's own `authenticate` and `authenticateSocketUpgrade`. The plugin becomes active only after the first key set fetch completes or fails within `jwksTimeoutMs`, so a Host that waits for its plugin tree admits no request before tokens can verify. If that fetch fails, or without an `apiUrl`, no token verifies until a later fetch succeeds.
 
 ### Why verification is local
 

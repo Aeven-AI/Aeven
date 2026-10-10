@@ -189,6 +189,13 @@ export interface SessionInput extends InputTarget {
   appendText(text: string): boolean
   /** Append ordered browser-owned image ids; busy admission phases refuse. */
   addImages(ids: readonly DraftAttachmentId[]): boolean
+  /**
+   * Register chosen files as this draft's images through the same intake the
+   * composer's own attach control uses.
+   * @param files - the chosen image files, in order.
+   * @returns the notice a caller surfaces, or null when the images joined the draft.
+   */
+  addImageFiles(files: readonly File[]): string | null
   /** Remove one browser-owned image id; busy admission phases refuse. */
   removeImage(id: DraftAttachmentId): void
   /** Drop ids whose browser-owned objects no longer exist. */
@@ -235,6 +242,13 @@ export interface InputActions {
   appendText(text: string): boolean
   /** Append ordered browser-owned image ids; busy admission phases refuse. */
   addImages(ids: readonly DraftAttachmentId[]): boolean
+  /**
+   * Register chosen files as this draft's images through the same intake the
+   * composer's own attach control uses.
+   * @param files - the chosen image files, in order.
+   * @returns the notice a caller surfaces, or null when the images joined the draft.
+   */
+  addImageFiles(files: readonly File[]): string | null
   /** Remove one browser-owned image id; busy admission phases refuse. */
   removeImage(id: DraftAttachmentId): void
   /** Drop ids whose browser-owned objects no longer exist. */

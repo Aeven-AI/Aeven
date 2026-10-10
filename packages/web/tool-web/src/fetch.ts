@@ -440,22 +440,9 @@ export function presentFetchResult(args: { url: string }, result: ToolResult): W
  * non-browser client, so a page that builds its content in a browser, or that
  * filters automated reads, returns nothing usable.
  *
- * Headless comes first because it is free: no window over the user's work and
- * no claim on the profile their own browsing uses. The Chrome attached to
- * their browser opens a visible window and holds that profile, so it is the
- * rung after a refusal rather than a default — a page that refuses headless is
- * answering a browser-trust question that only their real profile settles.
- * Measured 2026-10-01 on one Tripadvisor URL: this fetcher 403, headless
- * Playwright 403 with an empty body, a launched headed browser 403, and the
- * attached Chrome on the user's profile 200.
- *
- * A page that needs the user's signed-in session skips the order: a headless
- * browser with its own profile can never hold that session, so only the
- * attached browser can serve it. A page served from this machine reverses it:
- * it is an application under development, and a check in a headless copy says
- * less about the window the user is watching, so headless is its fallback.
- * Each browser is named only while its tools are registered for the scope, so
- * the guidance never sends the model to tools a failed server never provided.
+ * A selected sidebar stays the task's browser. External Chrome/CDP is next;
+ * headless browsing serves tasks neither visible browser can perform.
+ * Each browser is named only while its tools are registered for the scope.
  * @param browsers - which browser surfaces the scope can reach.
  * @param browsers.preview - whether this composition registers the browser tools.
  * @param browsers.headless - whether the headless browser's `mcp__playwright__*` tools are registered.
@@ -465,16 +452,15 @@ export function presentFetchResult(args: { url: string }, result: ToolResult): W
 function fetchEscalation(browsers: { preview: boolean; headless: boolean; attached: boolean }): string {
   const limit = ' It runs no JavaScript, so a page that builds itself in a browser, or that answers non-browser requests with a block page, returns little or nothing.'
   if (!browsers.preview) return limit
-  if (browsers.headless && browsers.attached) {
-    return limit + " Read those pages in a browser instead of fetching them again, and escalate in order: the headless browser tools (mcp__playwright__*) open no window, and a page that refuses those as well is read in the Chrome attached to the user's browser (mcp__chrome_devtools__*), which does open a visible window — reach for it only after a headless read returned 403 or an empty page, or when the page needs the user's signed-in session. A page served from this machine (localhost or 127.0.0.1) is an application under development and reverses the order: verify it first in that attached Chrome, the window the user is watching, and in the headless browser only when that Chrome is unavailable."
-  }
+  const visible = limit + ' Call preview_status to see the available browser surfaces. When the user selected the Electron in-app browser, drive that page with preview_* and keep the task there; correct actionable errors and ask the user to sign in there when needed. Never switch browsers merely because a click or text insertion failed.'
   if (browsers.attached) {
-    return limit + " Read those pages in the Chrome attached to the user's browser (mcp__chrome_devtools__*) instead of fetching them again; it opens a visible window and holds the user's signed-in session."
+    return visible + " If the selected pane cannot perform the required operation, or no pane is selected, use the Chrome attached to the user's browser (mcp__chrome_devtools__*). Use headless browsing only when neither visible browser can serve the task."
   }
   if (browsers.headless) {
-    return limit + ' Read those pages with the headless browser tools (mcp__playwright__*) instead of fetching them again; they open no window and cannot use the user\'s signed-in session.'
+    return visible + ' Use the headless browser tools (mcp__playwright__*) only when the visible browser cannot serve the task; they cannot use the user\'s signed-in session.'
   }
-  return limit + ' Call preview_status to see which browser this session can read those pages in.'
+  return visible
+
 }
 
 /**

@@ -31,6 +31,8 @@ export const inject = ['tools', 'sandboxPolicy']
  * command in a terminal session, or power a device on and off.
  */
 export const DEFAULT_EFFECT_TOOLS: readonly string[] = [
+  'preview_upload',
+  'preview_sequence',
   'preview_click',
   'preview_type',
   'preview_press',

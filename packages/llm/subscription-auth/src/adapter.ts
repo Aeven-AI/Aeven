@@ -147,11 +147,13 @@ function profile(
  * Existing Grok-only constructor retained for public API compatibility.
  * @param session - Provider session used by the operation.
  * @param resolveAttachments - Resolve attachments value.
+ * @param resolveImageAccess - Map an image attachment to its model-tool path; omitted, images carry no path.
  * @returns The created grok build adapter.
  */
 export function createGrokBuildAdapter(
   session: GrokBuildSession,
   resolveAttachments: () => AttachmentStore | undefined,
+  resolveImageAccess?: PiAiAdapterOptions['resolveImageAccess'],
 ): PiAiAdapter {
   return new PiAiAdapter({
     profiles: () =>
@@ -168,13 +170,21 @@ export function createGrokBuildAdapter(
       }),
     auth: oauthAuthInjection(session, []),
     resolveAttachments,
+    ...(resolveImageAccess === undefined ? {} : { resolveImageAccess }),
   })
 }
 
-/** Opt-in Codex Fast wiring; ordinary `codex-oauth` is unchanged when this is omitted. */
+/** Opt-in Codex Fast wiring and image-path access for the OAuth adapters. */
 export interface CodingOAuthAdapterOptions {
   retryPolicy?: RetryPolicyConfig
+  /** Codex Fast eligibility; ordinary `codex-oauth` is unchanged when omitted. */
   codexFast?: { isEligible(modelId: string): boolean }
+  /**
+   * Map one durable image attachment to its read-only path in the model-tool
+   * execution world. When omitted, requests show conversation images without
+   * a path, so the model cannot pass them to `generate_image` as references.
+   */
+  resolveImageAccess?: PiAiAdapterOptions['resolveImageAccess']
 }
 
 function isRetryPolicyConfig(value: object): value is RetryPolicyConfig {
@@ -196,6 +206,7 @@ function splitCodingOAuthAdapterArgs(
   return {
     ...(fourth.retryPolicy === undefined ? {} : { retryPolicy: fourth.retryPolicy }),
     ...(fourth.codexFast === undefined ? {} : { codexFast: fourth.codexFast }),
+    ...(fourth.resolveImageAccess === undefined ? {} : { resolveImageAccess: fourth.resolveImageAccess }),
   }
 }
 
@@ -236,7 +247,7 @@ export function createCodingOAuthAdapter(
   retryPolicyOrOptions?: RetryPolicyConfig | CodingOAuthAdapterOptions,
   options?: CodingOAuthAdapterOptions,
 ): LlmAdapter {
-  const { retryPolicy, codexFast } = splitCodingOAuthAdapterArgs(retryPolicyOrOptions, options)
+  const { retryPolicy, codexFast, resolveImageAccess } = splitCodingOAuthAdapterArgs(retryPolicyOrOptions, options)
   const byNativeId = new Map(subscriptions.map(session => [session.definition.nativeProviderId, session]))
   const codexSession = byNativeId.get(CODEX_PI_PROVIDER)
   const aliases = new Map<string, string>([
@@ -329,6 +340,7 @@ export function createCodingOAuthAdapter(
     },
     auth: oauthAuthInjection(grok, subscriptions),
     resolveAttachments,
+    ...(resolveImageAccess === undefined ? {} : { resolveImageAccess }),
   })
 
   // The Fast wrapper restores wire/replay model identity to openai-codex.

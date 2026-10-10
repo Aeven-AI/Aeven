@@ -49,7 +49,13 @@ function json(value: { text: string } & Record<string, unknown>): TextResult {
 
 function clip(value: string | undefined, maxChars: number): string {
   if (!value) return ''
-  return value.length <= maxChars ? value : `${value.slice(0, Math.max(0, maxChars - 1))}…`
+  if (value.length <= maxChars) return value
+  let end = Math.max(0, maxChars - 1)
+  // Never end on the first half of a surrogate pair: a lone surrogate is not
+  // valid in the JSON a provider parses, and it fails the whole request.
+  const last = value.charCodeAt(end - 1)
+  if (last >= 0xd800 && last <= 0xdbff) end -= 1
+  return `${value.slice(0, end)}…`
 }
 
 function bounded(value: number | undefined, fallback: number, min: number, max: number): number {

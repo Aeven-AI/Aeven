@@ -120,7 +120,7 @@
     "@aeven/experimental-agent-team": "workspace:^",
     "@aeven/experimental-agent-team-profile": "workspace:^",
     "@aeven/experimental-code-runtime-python": "workspace:^",
-    "@aeven/experimental-computer-use-cua-driver-mcp": "workspace:^",
+    "@aeven/computer-use-cua-driver-mcp": "workspace:^",
     "@aeven/experimental-tool-agent-team": "workspace:^",
     "@aeven/fs-observation-policy": "workspace:^",
     "@aeven/fs-sandbox": "workspace:^",

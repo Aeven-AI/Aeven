@@ -14,7 +14,7 @@ Status: implemented
 
 **指针的层位于页面的顶层。** 它作为 `position: fixed` 且 `z-index: 1300` portal 到 `BODY`，其盒子在挂载时、窗口尺寸变化时与滚动时由面板矩形写入。portal 是要求而非偏好：菜单是直接挂在 `BODY` 下的 `position: fixed; z-index: 1100` portal，因此它与整个面板子树平级，子树内任何 z-index 都无法绘制到它之上。带 `backdrop-filter` 的弹层会模糊其下绘制的一切，这正是指针变暗并被涂抹的原因。
 
-**chrome 控件由名称指认，而非由 shell 定位。** 指针载荷携带 `action: 'control'` 与一个 `control` 名称（`back`、`forward`、`refresh`、`capture`、`more`、`zoom-in`、`zoom-out`、`zoom-reset`，地址栏则为 `navigate`）。shell 指认控件；面板找到它、把指针放到其中心并点击它。控件先在面板自身的 chrome 行中查找，再在文档中任何可见元素中查找，因为三点菜单的各行被 portal 到面板之外。按下会等待指针抵达，但绝不超过按下本身应耗的时间：读者置于另一个窗口之后的窗口会节流动画帧，而一个以该动画为条件的按下将永不触发。chrome 动作还会清除 shell 对指针页面位置的记录，因为指针离开了页面，去往一行并不在页面中的控件。
+**chrome 控件由名称指认，而非由 shell 定位。** 指针载荷携带 `action: 'control'` 与一个 `control` 名称（`back`、`forward`、`refresh`、`capture`、`more`、`zoom-in`、`zoom-out`、`zoom-reset`，地址栏则为 `navigate`）。shell 指认控件；面板找到它、把指针放到其中心并点击它。控件先在面板自身的 chrome 行中查找，再在文档中任何可见元素中查找，因为三点菜单的各行被 portal 到面板之外。原生输入与导航不等待指针动画；后台窗口的帧节流不会延迟操作。chrome 动作还会清除 shell 对指针页面位置的记录，因为指针离开了页面，去往一行并不在页面中的控件。
 
 **页面移动后，指针回到它所在的元素上。** guest 自行上报它的滚动：桌面端为每个 guest 添加一个 CDP 绑定，并向每个文档安装一段上报脚本 —— `Page.addScriptToEvaluateOnNewDocument` 覆盖其后创建的文档，而每次导航都会向该导航打开的文档安装这段脚本，因为一次发生在两个文档之间的安装会让绑定无人调用。宿主窗口把每份上报转发给面板，面板重新测量它所在的元素并把指针放到该元素上；移动持续期间按面板自身的节流频率执行，停止后再执行一次。shell 自己执行的滚动的每一步都以 `action: 'scroll'` 上报，这是面板判断“指针正在自行定位”的信号；在手势过程中重新瞄准会与手势自身的定位相争。无目标的滚动会记录指针停下的点，于是下一次滚动从指针实际所在的位置开始它自己的手势。
 

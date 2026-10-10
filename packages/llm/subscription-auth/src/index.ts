@@ -12,7 +12,7 @@ import type { AttachmentStore } from '@aeven/attachment'
 import type { CredentialInfo, CredentialProvider, CredentialRef } from '@aeven/credentials'
 import type {} from '@aeven/host-webserver'
 import type {} from '@aeven/media'
-import { assertUsableApiKey, type RetryPolicyConfig, RetryPolicySchema } from '@aeven/llm'
+import { assertUsableApiKey, resolveImageAttachmentAccess, type RetryPolicyConfig, RetryPolicySchema } from '@aeven/llm'
 import z from '@deepseek-ai/schemastery'
 import { acquireCodingOAuthRuntime, CODING_OAUTH_CORE_ABI, type CodingOAuthRuntime } from 'dsh-coding-oauth-core'
 import { createCodingOAuthAdapter } from './adapter.ts'
@@ -977,6 +977,13 @@ function applyOwnedLlm(ctx: Context, config: Config, owner: OwnedLlmDependencies
       codexFast: {
         isEligible: modelId => owner.runtime.current().codexFast && owner.codexModels.isPriorityEligible(modelId),
       },
+      // Optional execution-world mapping; the filesystem capability is not a dependency of this package.
+      resolveImageAccess: (attachments, ref) => resolveImageAttachmentAccess(
+        attachments,
+        hostPath => (ctx.get('fs') as { processPathFromHostPath?: (hostPath: string) => string | undefined } | undefined)
+          ?.processPathFromHostPath?.(hostPath),
+        ref,
+      ),
     }),
   )
   ctx.effect(() => adapterRegistration, 'avn-subscription-auth: OAuth LLM adapters')

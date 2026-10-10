@@ -1,4 +1,5 @@
 /** The Electron `<webview>` guest: what the pane may call on it, where it stores, and the shell's browser bridge. */
+import type { Branded } from '@aeven/brand'
 
 /**
  * The guest element's surface, narrowed to what the pane uses.
@@ -46,6 +47,9 @@ export interface BrowserGuest extends HTMLElement {
  */
 export type BrowserColorScheme = 'system' | 'light' | 'dark'
 
+/** Identity of one pending Electron browser action. */
+export type DesktopBrowserRequestId = Branded<'DesktopBrowserRequestId'>
+
 /**
  * The shell's browser operations (desktop `ipc.ts` `AvnDesktopBrowserApi`),
  * restated because the client cannot import the desktop application.
@@ -68,7 +72,9 @@ export interface DesktopBrowserBridge {
    */
   suggest: (url: string) => Promise<string>
   /** Perform one agent action on a guest over its CDP debugger. */
-  automate: (webContentsId: number, operation: string, input: Record<string, unknown>) => Promise<unknown>
+  automate: (webContentsId: number, operation: string, input: Record<string, unknown>, requestId?: DesktopBrowserRequestId, timeoutMs?: number) => Promise<unknown>
+  /** Cancel the owned browser request. */
+  cancelAutomation: (webContentsId: number, requestId: DesktopBrowserRequestId) => void
   /** Observe the agent pointer actions the shell performs on guests; returns a disposer. */
   onCursor: (listener: (cursor: BrowserCursor) => void) => () => void
   /**
@@ -79,14 +85,11 @@ export interface DesktopBrowserBridge {
    * acting: a resting pointer is put back on the element it names.
    */
   onPageScroll: (listener: (webContentsId: number) => void) => () => void
-  /** Report that the pointer finished a `move`, or cannot be shown, so its input may land. */
-  cursorArrived: (webContentsId: number, sequence: number) => void
 }
 
 /**
  * One agent pointer step, in the guest's viewport CSS pixels (desktop `ipc.ts`
- * `DesktopBrowserCursor`). A `move` is answered with
- * {@link DesktopBrowserBridge.cursorArrived} naming its `sequence`.
+ * `DesktopBrowserCursor`). Animation does not delay native input.
  */
 export interface BrowserCursor {
   readonly webContentsId: number

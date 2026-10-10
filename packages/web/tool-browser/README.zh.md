@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概要
 
-`@aeven/tool-browser` 让模型读取并操作用户在会话旁看到的浏览器。它注册八个 `preview_*` 工具，并在每轮的第一步把当前打开的页面作为一条记录在日志中的插件消息加入请求。插件本身不执行任何浏览器操作：每次调用都是一个 `browser/automation` waterfall，由持有该会话浏览器的 Client 应答；`preview_status` 例外，它同时报告 Host 运行的 Chromium。对该 waterfall 的每次等待都有上限，因此轮次永远不会等待一个没有任何已连接 Client 持有的浏览器。
+`@aeven/tool-browser` 让模型读取并操作用户在会话旁看到的浏览器。它注册十三个 `preview_*` 工具，并在每轮的第一步把当前打开的页面作为一条记录在日志中的插件消息加入请求。插件本身不执行任何浏览器操作：每次调用都是一个 `browser/automation` waterfall，由持有该会话浏览器的 Client 应答；`preview_status` 例外，它同时报告 Host 运行的 Chromium。对该 waterfall 的每次等待都有上限，因此轮次永远不会等待一个没有任何已连接 Client 持有的浏览器。
 
 ## 目录
 
@@ -63,14 +63,16 @@ kind: "package-reference"
 The user has the in-app browser open beside this chat, showing: <title> — <url>
 
 This browser is the collaborative browser shared with the user. Prefer the preview_* tools for browser navigation, inspection, and interaction on it.
+When this browser is selected, stay in it for the task. Use external Chrome/CDP only when this browser cannot perform the required action; never switch merely because an interaction failed.
+Use preview_sequence for known consecutive actions; it runs locally in order and waits for specified elements without another model request between actions. Use preview_upload to attach files directly; never use clipboard tricks, a local HTTP server, or a native picker for a supported upload.
 For browser work, first call preview_status. Then use preview_navigate, preview_snapshot, and the focused interaction tools. Prefer snapshot-provided selectors over coordinates.
 A page served from this machine (localhost or 127.0.0.1) is an application under development: verify it first in the browser the user can see — this pane, or the Chromium preview_status reports. Use the headless browser tools for it only when neither is available, and say that the check ran in a headless copy.
-A failed preview call is retried with corrected arguments when the error is actionable. When a remote page itself refuses it — it needs a signed-in session, or it answers automated reads with a block page — stop retrying and escalate in order: the headless browser tools open no window, and a page that refuses those too is read in the browser the user can see, which does open one. Ask the user to sign in; never type credentials.
+Correct an actionable error in this browser. If this browser needs authentication, ask the user to sign in here; never type credentials or switch browsers to bypass sign-in. Prefer preview_snapshot and focused actions over writing JavaScript for ordinary clicks or text entry.
 ```
 
 #### Token effect
 
-页面打开时每轮一次，约 200 个 token 加上标题和地址；没有打开页面或查询超时时为零。
+页面打开时每轮一次，约 400 个 token 加上标题和地址；没有打开页面或查询超时时为零。
 
 #### KV Cache effect
 
@@ -80,7 +82,7 @@ A failed preview call is retried with corrected arguments when the error is acti
 
 #### What the model sees
 
-`preview_status` 以一个 JSON 对象应答，并且不会因浏览器缺失而失败。`sessionTab` 是会话旁的浏览器当前显示的页面，或为 null。`hostBrowser` 是本 Host 运行的 Chromium —— 其调试端点、是否已有浏览器在该端点应答、是否找到了可执行文件，以及驱动它的工具名前缀 —— 当组合未挂载任何 Host 浏览器时为 null。当本会话注册的工具中没有任何一个带有该前缀时，`hostBrowser.toolsUnavailable` 依据 MCP 服务器的 `mcp/servers` 报告（其状态、最近一次错误以及 `tool_search` 重启查询）说明原因，`nextStep` 也会说明这些工具未在服务，而不是让模型去调用它们。`nextStep` 指明应当驱动什么：优先会话旁的页面，其次是 Host 的 Chromium，两者皆无时说明需要向用户请求什么；本机提供的页面被指向 Host 的 Chromium，因为该页面是用户在那里观看的开发中应用。被 `web_fetch` 拒绝的页面正是这份报告存在的理由：会话旁的浏览器此时不可用，而 Host 的 Chromium 仍然可达。
+`preview_status` 以一个 JSON 对象应答，并且不会因浏览器缺失而失败。`sessionTab` 是会话旁的浏览器当前显示的页面，或为 null。`hostBrowser` 是本 Host 运行的 Chromium —— 其调试端点、是否已有浏览器在该端点应答、是否找到了可执行文件，以及驱动它的工具名前缀 —— 当组合未挂载任何 Host 浏览器时为 null。当本会话注册的工具中没有任何一个带有该前缀时，`hostBrowser.toolsUnavailable` 依据 MCP 服务器的 `mcp/servers` 报告（其状态、最近一次错误以及 `tool_search` 重启查询）说明原因，`nextStep` 也会说明这些工具未在服务，而不是让模型去调用它们。`nextStep` 指明应当驱动什么：优先会话旁的页面，其次是 Host 的 Chromium，两者皆无时说明需要向用户请求什么；已打开的侧边栏浏览器保持选定，否则优先使用 Host 的可见 Chromium，再考虑无头浏览器。被 `web_fetch` 拒绝的页面正是这份报告存在的理由：会话旁的浏览器此时不可用，而 Host 的 Chromium 仍然可达。
 
 #### Token effect
 

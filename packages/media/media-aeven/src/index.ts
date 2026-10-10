@@ -63,7 +63,7 @@ export interface AevenImageModel {
   readonly label: string
   /** One-line note naming what the model is for and the options it has. */
   readonly description: string
-  /** Most images one request may ask for. */
+  /** Most images one request may ask for; the model's `description` states this count. */
   readonly maxImages: number
   /** Most reference images one request may supply. */
   readonly maxReferenceImages: number
@@ -81,7 +81,7 @@ export const AEVEN_IMAGE_MODELS: readonly AevenImageModel[] = [
   {
     id: 'Aeven-1.0-Image-Flash',
     label: 'Aeven Image Flash',
-    description: 'Fast image generation and editing. Size 1K or 2K (default, the largest — no 4K), or WIDTHxHEIGHT for another aspect ratio, e.g. 2730x1536 for 16:9; up to 14 reference images; seed. No guidance scale or background option.',
+    description: 'Fast image generation and editing. Size 1K or 2K (default, the largest — no 4K), or WIDTHxHEIGHT for another aspect ratio, e.g. 2730x1536 for 16:9; up to 4 images per call; up to 14 reference images; seed. No guidance scale or background option.',
     maxImages: 4,
     maxReferenceImages: 14,
     backgrounds: [],
@@ -90,7 +90,7 @@ export const AEVEN_IMAGE_MODELS: readonly AevenImageModel[] = [
   {
     id: 'Aeven-1.0-Image-Pro',
     label: 'Aeven Image Pro',
-    description: 'Highest-quality image generation and editing. Size 1K, 1.5K or 2K (default, the largest — no 4K), or WIDTHxHEIGHT; four references; PNG/JPEG, background and standard/fast prompt optimization.',
+    description: 'Highest-quality image generation and editing. Size 1K, 1.5K or 2K (default, the largest — no 4K), or WIDTHxHEIGHT; up to 4 images per call; four references; PNG/JPEG, background and standard/fast prompt optimization.',
     maxImages: 4,
     maxReferenceImages: 4,
     backgrounds: ['transparent', 'opaque'],

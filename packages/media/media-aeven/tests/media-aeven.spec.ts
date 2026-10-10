@@ -87,6 +87,12 @@ describe('the shipped catalog', () => {
     ])
   })
 
+  it('states each model\'s per-call image count in the text a tool publishes for it', () => {
+    for (const model of AEVEN_IMAGE_MODELS) {
+      expect(model.description).toContain(`up to ${String(model.maxImages)} images per call`)
+    }
+  })
+
   it('is listed under the configured registry key', async () => {
     const { runtime } = await media({ config: { id: 'cloud' } })
     expect((await runtime.listImageModels()).every(model => model.provider === 'cloud')).toBe(true)

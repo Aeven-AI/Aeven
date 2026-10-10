@@ -41,7 +41,12 @@ Range.prototype.getBoundingClientRect = () => ({
 
 function fakeWiring() {
   const sink = vi.fn(() => Promise.resolve({ kind: 'success' as const }))
-  const shell = new SessionInputShell({ actx: {} as Context, defaultSink: sink, commandImages: { serialize: () => Promise.resolve([]), release: () => {}, unsupportedNotice: (token: string) => `${token.trim()} images-unsupported` } })
+  const shell = new SessionInputShell({
+    actx: {} as Context,
+    defaultSink: sink,
+    commandImages: { serialize: () => Promise.resolve([]), release: () => {}, unsupportedNotice: (token: string) => `${token.trim()} images-unsupported` },
+    draftImages: { create: () => ({ kind: 'created', ids: [] }), release: () => {}, busyNotice: () => 'file-busy' },
+  })
   return { wiring: shell, sink, shell }
 }
 

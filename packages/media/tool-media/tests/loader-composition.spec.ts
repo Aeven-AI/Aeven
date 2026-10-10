@@ -208,6 +208,23 @@ describe('image generation through the shipped preset composition', () => {
     expect(out.content[1]).toMatchObject({ type: 'image', attachment: { mediaType: 'image/png', width: 1, height: 1 } })
   })
 
+  it('states each configured model\'s per-call image count as the provider declares it', async () => {
+    const { url } = await startGateway()
+    const ctx = await loadComposition(url)
+
+    const description = ctx.tools.get('generate_image')?.description ?? ''
+    const listed = description.split('Available models: ')[1] ?? ''
+    // Every shipped choice states the count its own provider enforces, so a
+    // model composes a call the gateway will accept instead of losing a turn.
+    // A choice's own text carries `; ` separators, so each entry runs to where
+    // the next model's id begins.
+    for (const [index, model] of MediaAeven.AEVEN_IMAGE_MODELS.entries()) {
+      const next = MediaAeven.AEVEN_IMAGE_MODELS[index + 1]
+      const clause = listed.slice(listed.indexOf(`${model.id} `), next === undefined ? undefined : listed.indexOf(`${next.id} `))
+      expect(clause).toContain(`up to ${String(model.maxImages)} images per call`)
+    }
+  })
+
   it('stores an image the store had to scale down, keeping its images and their reported dimensions', async () => {
     const { url } = await startGateway(png(4096, 1755))
     const ctx = await loadComposition(url)

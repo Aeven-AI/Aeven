@@ -59,7 +59,7 @@ Pro 的透明背景需要恰好一张带 alpha 通道的参考图；该规则由
 
 ### 请求
 
-`requestBody` 在发出任何请求之前拒绝：Aeven 不提供的模型、在没有该选项的模型上指定背景、超出 1–4 的 `n`、超出模型上限的参考图，以及 `aspectRatio`。`resolution` 映射为 `size`，不能与显式尺寸同时提供；`seed`、`guidanceScale`、`outputFormat` 与 `optimizePromptMode` 映射为网关对应的蛇形命名字段；对没有引导选项的模型，不发送 `guidanceScale`。其余一切——尺寸词汇、透明背景的 alpha 要求、账号的套餐与余额——由网关负责拒绝，其消息会携带在 `MediaError` 中。参考图以内联 `data:` URL 发送，因为网关不会抓取远程地址。
+`requestBody` 在发出任何请求之前拒绝：Aeven 不提供的模型、在没有该选项的模型上指定背景、超出 1–4 的 `n`、超出模型上限的参考图，以及 `aspectRatio`。每个模型的 `description` 在其各项选项之间写明自身的 `n` 范围，因此工具为模型发布的文本就携带了单次调用可请求的数量。`resolution` 映射为 `size`，不能与显式尺寸同时提供；`seed`、`guidanceScale`、`outputFormat` 与 `optimizePromptMode` 映射为网关对应的蛇形命名字段；对没有引导选项的模型，不发送 `guidanceScale`。其余一切——尺寸词汇、透明背景的 alpha 要求、账号的套餐与余额——由网关负责拒绝，其消息会携带在 `MediaError` 中。参考图以内联 `data:` URL 发送，因为网关不会抓取远程地址。
 
 ### 视频
 
