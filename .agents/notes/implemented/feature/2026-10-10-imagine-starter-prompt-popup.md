@@ -12,7 +12,7 @@ Two constraints shaped the fix. The Aeven image providers refuse an aspect-ratio
 
 ## Decision
 
-The starter prompts are catalogue data. `prompts.ts` carries each prompt's id, its shipped example (`image`, and `before` for a retouch pair), whether it edits a photo the reader supplies, its default ratio, and the ratios it offers; the title, the one-line description, the prompt text, and the popup's own copy live in the `imagine` locale dictionaries. Instagram original leads the list; Instagram retouch and Aerial view follow it as the two editing cards, and those three are the prompts whose example assets ship today.
+The starter prompts are catalogue data. `prompts.ts` carries each prompt's id, its shipped example (`image`, and `before` for a retouch pair), whether it edits a photo the reader supplies, its default ratio, and the ratios it offers; the title, the one-line description, the prompt text, and the popup's own copy live in the `imagine` locale dictionaries. Instagram original leads the list; Instagram improve and Aerial view follow it as the two editing cards, and those three are the prompts whose example assets ship today.
 
 Aerial view is a second editing card whose point is prompt brevity: one ask — re-shoot the exact same place and subject as a real drone photograph from high above — and two guards, not an illustration or a map and not a miniature or tilt-shift effect, with no craft paragraph at all. Its wording names the floor or the ground rather than the ground alone, so an indoor photo transforms as well as an outdoor one, and the card's demo pair is what verifies a prompt this short still delivers.
 
