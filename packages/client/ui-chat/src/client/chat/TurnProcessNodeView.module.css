@@ -63,6 +63,12 @@
   white-space: nowrap;
 }
 
+/* The row that will hold the trace, standing in while the model's first
+   streamed row is still on its way. */
+.awaiting {
+  display: block;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .root,
   .chevron {

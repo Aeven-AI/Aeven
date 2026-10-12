@@ -17,7 +17,7 @@ import type { ToolProviderResult } from '@aeven/system-prompt'
 import type { CodeRunPauses, CodeRuntime } from '@aeven/code-runtime'
 // Type-only: makes `ctx.get('approval')` resolve to the ApprovalService
 // augmentation. The seam stays optional at runtime — see `serviceAsk`.
-import type { ApprovalOutcome } from '@aeven/user-approval'
+import type { ApprovalOutcome, SessionGrantCoverage } from '@aeven/user-approval'
 import type { ToolCallView, ToolResultView } from './presentation.ts'
 import { assertSupportedJsonSchema, validateJsonSchemaValue } from './json-schema.ts'
 import type { JsonSchemaNode } from './json-schema.ts'
@@ -582,7 +582,7 @@ export type ToolExecutionResult = ToolExecutionSuccess | ToolExecutionFailure
 export type PreToolDecision =
   | { kind: 'allow' }
   | { kind: 'deny'; reason: string }
-  | { kind: 'ask'; reason?: string; allowSession?: string }
+  | { kind: 'ask'; reason?: string; allowSession?: string; allowSessionCoverage?: SessionGrantCoverage }
 
 /**
  * Post-dispatch decision: accept, replace one projection, attach context for the
@@ -1706,6 +1706,7 @@ export class ToolRuntime extends Service {
         callId: exec.callId,
         ...ask.reason !== undefined ? { reason: ask.reason } : {},
         ...(ask.allowSession === undefined ? {} : { allowSession: ask.allowSession }),
+        ...(ask.allowSessionCoverage === undefined ? {} : { allowSessionCoverage: ask.allowSessionCoverage }),
         signal: exec.signal,
       })
     } finally {

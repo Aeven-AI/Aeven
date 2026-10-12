@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概要
 
-`@aeven/tool-browser` 让模型读取并操作用户在会话旁看到的浏览器。它注册十三个 `preview_*` 工具，并在每轮的第一步把当前打开的页面作为一条记录在日志中的插件消息加入请求。插件本身不执行任何浏览器操作：每次调用都是一个 `browser/automation` waterfall，由持有该会话浏览器的 Client 应答；`preview_status` 例外，它同时报告 Host 运行的 Chromium。对该 waterfall 的每次等待都有上限，因此轮次永远不会等待一个没有任何已连接 Client 持有的浏览器。
+`@aeven/tool-browser` 让模型读取并操作用户在会话旁看到的浏览器。它注册十四个 `preview_*` 工具，并在每轮的第一步把当前打开的页面作为一条记录在日志中的插件消息加入请求。插件本身不执行任何浏览器操作：每次调用都是一个 `browser/automation` waterfall，由持有该会话浏览器的 Client 应答；`preview_status` 例外，它同时报告 Host 运行的 Chromium。对该 waterfall 的每次等待都有上限，因此轮次永远不会等待一个没有任何已连接 Client 持有的浏览器。
 
 ## 目录
 
@@ -24,6 +24,10 @@ kind: "package-reference"
 ## 使用此包
 
 在其 Client 能够承载浏览器的代理组合中挂载本插件，例如 `@aeven/client-ui-sidebar-browser` 的右侧边栏浏览器。随附的 `cordis`、`standard` 与 `ptc` 预设都会挂载它。
+
+`preview_snapshot` 接受 `mode: dom`（默认）或 `mode: ax`。无障碍模式读取 Chromium 的无障碍树，包括 shadow DOM，并返回 `snapshotId`、带索引的 `nodes` 和 `truncated`。节点采用桌面元素字段 `index`、`token`、`role`、`title`、`value` 和 `editable`。将返回的令牌传给 `preview_click` 或 `preview_type`，代替选择器。令牌在下一次观察或浏览器操作时过期；导航后以及目标已分离、隐藏或禁用时会拒绝操作。操作后重新观察；框架内的无障碍目标不属于本阶段。
+
+`preview_screenshot` 在 `actionTimeoutMs` 内将可见视口捕获为 JPEG，并把它存为工具结果中的持久图像附件。截图经普通图像结果路径进入会话日志和模型历史；此工具需要附件存储。
 
 ### 配置
 

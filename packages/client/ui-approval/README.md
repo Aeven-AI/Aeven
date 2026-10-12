@@ -31,7 +31,7 @@ None; approval request and response rendering does not alter a model request.
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **Session approval is requester-scoped** — the panel offers Allow for this session only when the Host supplies an account-and-operation scope. The Host records and enforces the grant; shell escalation remains one-shot.
+- **Session approval is requester-scoped** — the panel offers Allow for this session only when the Host supplies a grant scope, and explains the grant with the copy its declared `allowSessionCoverage` selects. The Host records and enforces the grant; a sandbox escalation offers one for its exact widening.
 
 
 <a id="dev-note"></a>

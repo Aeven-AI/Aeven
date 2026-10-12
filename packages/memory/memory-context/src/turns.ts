@@ -21,7 +21,7 @@ export interface TurnState {
   readonly turn: number
   startedAt: number
   scope: MemoryScope
-  /** Direct-user text of the turn; the pre-step decision is authoritative once `promptResolved`. */
+  /** User or approved automation task text; the pre-step decision is authoritative once `promptResolved`. */
   userText: string
   promptResolved: boolean
   recallAttempted: boolean
@@ -64,12 +64,14 @@ export function textOf(content: readonly ContentBlock[], type: 'text' | 'reasoni
 }
 
 /**
- * Text of the direct-user messages in a batch; plugin, tool, and model messages are excluded.
+ * Text of direct-user messages and approved automation task notices; other plugin messages are excluded.
  * @param messages - messages entering a step.
  * @returns joined user text, empty when the batch has none.
  */
 export function userTextOf(messages: readonly UserMessage[]): string {
-  return messages.filter(message => message.source.kind === 'user').map(message => textOf(message.content, 'text')).filter(Boolean).join('\n\n').trim()
+  return messages.filter(message => message.source.kind === 'user'
+    || (message.source.kind === 'plugin' && message.source.plugin === 'automations' && message.source.form === 'notice'))
+    .map(message => textOf(message.content, 'text')).filter(Boolean).join('\n\n').trim()
 }
 
 function parseArguments(raw: string): unknown {

@@ -119,8 +119,8 @@ describe('travel paths', () => {
   it('keeps a straight move straight', () => {
     // A degenerate span must not divide by zero when building the perpendicular.
     const path = createArcPath({ x: 10, y: 10, tangent: 0 }, { x: 10, y: 10, tangent: 0 })
-    expect(Number.isFinite(path.control.x)).toBe(true)
-    expect(Number.isFinite(path.control.y)).toBe(true)
+    expect(Number.isFinite(path.segments[0]!.control1.x)).toBe(true)
+    expect(Number.isFinite(path.segments[0]!.control1.y)).toBe(true)
   })
 
   it('starts and ends exactly on the requested points', () => {
@@ -131,15 +131,9 @@ describe('travel paths', () => {
     expect(end.y).toBeCloseTo(207, 6)
   })
 
-  it('reports the tangent as the direction of travel', () => {
-    // A straight 45deg move still leaves the tangent short of 45deg at the end,
-    // because the arc's control point damps the final approach. The direction is
-    // what matters, and the angle must stay on the same side of the travel line.
+  it('approaches the destination along the click direction', () => {
     const path = createArcPath({ x: 0, y: 0, tangent: 0 }, { x: 400, y: 400, tangent: 0 })
-    const tangent = samplePath(path, 1).tangent
-    expect(tangent).toBeGreaterThan(0)
-    expect(tangent).toBeLessThan(45)
-    expect(samplePath(path, 0.5).tangent).toBeCloseTo(45, 6)
+    expect(samplePath(path, 1).tangent).toBeCloseTo(BASE_ROTATION_DEG, 6)
   })
 })
 
@@ -328,21 +322,18 @@ describe('transform composition', () => {
   it('centres the box on the point', () => {
     // The box is positioned so that its own origin lands on the point, which is
     // the anchor the tip is calibrated against.
-    // Zero rotation is the resting state: the sprite is authored in the
-    // orientation it should be seen in, so the model must not impose an angle.
-    expect(cursorTransform(base)).toBe('translate3d(88px, 188px, 0) rotate(0deg) scale(1, 1)')
+    expect(cursorTransform(base)).toBe('translate3d(88px, 188px, 0) rotate(316deg) scale(1, 1)')
   })
 
   it('omits the scoot pair when the cursor is not scooting', () => {
     expect(cursorTransform(base)).not.toContain('rotate(0deg) scale(1, 1) rotate(-0deg)')
   })
 
-  it('draws one size, whatever the travel or the scoot', () => {
-    // A pointer that stretches along its travel reads as a different pointer
-    // mid-flight, so the composition carries exactly one scale: the appearance.
-    const scooting = cursorTransform({ ...base, scootAxisRotation: 30, scootStretch: 0.9, stretch: 5 })
-    expect(scooting.match(/scale\(/g)).toHaveLength(1)
-    expect(scooting).toContain('scale(1, 1)')
+  it('composes scoot stretch and lengthwise travel stretch', () => {
+    const scooting = cursorTransform({ ...base, scootAxisRotation: 30, scootStretch: 0.9, stretch: 0.8 })
+    expect(scooting.match(/scale\(/g)).toHaveLength(2)
+    expect(scooting).toContain('rotate(30deg) scale(1, 0.9) rotate(-30deg)')
+    expect(scooting).toContain('scale(0.8, 1)')
   })
 
   it('scales the whole cursor by its appearance, so a faded pointer is small too', () => {
@@ -350,7 +341,7 @@ describe('transform composition', () => {
     // sprite in, so the appearance scale multiplies both stretch axes.
     expect(cursorTransform({ ...base, appearance: APPEAR_SCALE })).toContain('scale(0.4, 0.4)')
     const arriving = cursorTransform({ ...base, stretch: 0.5, appearance: APPEAR_SCALE })
-    expect(arriving).toContain('scale(0.4, 0.4)')
+    expect(arriving).toContain('scale(0.2, 0.4)')
   })
 
   it('emits a soft blur and a small scale as the cursor fades in', () => {

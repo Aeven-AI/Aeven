@@ -31,6 +31,20 @@ export interface SessionMoveTarget {
   readonly title: string
 }
 
+/**
+ * Copy one start-address claim contributes to the shell that shows its page.
+ *
+ * A start page's own plugin authors this copy in its dictionary and binds the
+ * namespace, so the shell never carries another feature's words.
+ */
+export interface StartAddressCopy {
+  /**
+   * Placeholder of the empty composer while this page is the open address.
+   * Read on every render, so it follows the active locale.
+   */
+  composerPlaceholder?: (() => string) | undefined
+}
+
 /** Workspace archive and directory operations consumed by Client UI domains. */
 export interface UiWorkspace {
   /**
@@ -70,16 +84,26 @@ export interface UiWorkspace {
    * Claim a start address, such as `/imagine`: a chat address that names no
    * Session. A blank Session is shown under it, and the address moves to that
    * Session's own `/c/<uuid>` once the Session is no longer blank.
+   *
+   * The claim carries the page's own copy, so the address and what the shared
+   * shell says about it are registered together and cannot disagree.
    * @param path - absolute single-segment path.
+   * @param copy - copy this page contributes to the shell; absent claims none.
    * @returns disposer releasing the claim.
    */
-  registerStartAddress(path: string): () => void
+  registerStartAddress(path: string, copy?: StartAddressCopy): () => void
   /**
    * Move to a start address as a new history entry, and show a blank Session
    * under it: the current one when it is still blank, else a New Session.
    * @param path - a registered start address.
    */
   openStartAddress(path: string): void
+  /**
+   * Composer placeholder the page at one start address declares.
+   * @param path - a registered start address.
+   * @returns the placeholder in the active locale, or undefined when the claim declared none.
+   */
+  composerPlaceholder(path: string): string | undefined
   /** The start address the address bar shows, or undefined on any other address. */
   readonly startAddress: ObservableSnapshot<string | undefined>
   /**
@@ -200,6 +224,8 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   private currentStart: string | undefined
   /** The blank Session the current start address opened; the only one shown under it. */
   private startSessionId: SessionId | undefined
+  /** Copy each claimed start address contributes to the shell, by address. */
+  private readonly startCopy = new Map<string, StartAddressCopy>()
   /** Whether the start address's blank Session is still being created. */
   private startPending = false
   private readonly startListeners = new Set<() => void>()
@@ -223,13 +249,20 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     },
   }
 
-  registerStartAddress(path: string): () => void {
+  registerStartAddress(path: string, copy?: StartAddressCopy): () => void {
     const release = this.sessionUrl.registerStart(path)
+    if (copy !== undefined) this.startCopy.set(path, copy)
     this.publishStart()
+    if (this.currentStart === path && this.sessions.list.getSnapshot().phase === 'ready') this.showStart()
     return () => {
+      this.startCopy.delete(path)
       release()
       this.publishStart()
     }
+  }
+
+  composerPlaceholder(path: string): string | undefined {
+    return this.startCopy.get(path)?.composerPlaceholder?.()
   }
 
   openStartAddress(path: string): void {

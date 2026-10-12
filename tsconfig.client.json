@@ -47,6 +47,7 @@
     "packages/experimental/browser-overlay/tests/**"
   ],
   "references": [
+    { "path": "./packages/client/ui-automations" },
     // Producer-to-UI spill tests execute the real nested dispatch worker.
     { "path": "./packages/code-runtime/code-runtime-worker-thread" },
     // Shared leaf: web e2e boots the real host webserver (fixture + real-host

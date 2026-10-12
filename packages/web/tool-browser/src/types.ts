@@ -7,7 +7,7 @@ import type { JsonValue } from '@aeven/util-values'
 /** One browser action a `browser_*` tool asks the session's browser to perform. */
 export type BrowserAutomationOperation =
   | 'status' | 'navigate' | 'back' | 'forward' | 'reload'
-  | 'snapshot' | 'click' | 'type' | 'press' | 'scroll' | 'evaluate' | 'upload' | 'wait' | 'sequence'
+  | 'snapshot' | 'screenshot' | 'click' | 'type' | 'press' | 'scroll' | 'evaluate' | 'upload' | 'wait' | 'sequence'
 
 /** Client-safe payload declared for the browser automation waterfall. */
 export interface BrowserAutomationRequestEvent {

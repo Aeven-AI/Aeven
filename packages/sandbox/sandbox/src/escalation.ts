@@ -102,10 +102,20 @@ export type EscalationOutcome = 'allowed-once' | 'rejected' | 'cancelled' | 'una
 export interface EscalationApprover<A = object, C = string> {
   /**
    * Ask the human to approve one action, resolving to a closed outcome.
-   * @param req - the audit-self-contained request (agent, tool, call id, reason, optional signal).
+   * @param req - the audit-self-contained request (agent, tool, call id, reason, offered grant, optional signal).
    * @returns the human's decision as a closed {@link EscalationOutcome}.
    */
-  request(req: { agent: A; toolName: string; callId: C; reason: string; signal?: AbortSignal }): Promise<EscalationOutcome>
+  request(req: {
+    agent: A
+    toolName: string
+    callId: C
+    reason: string
+    /** Scope of the offered session grant: this exact widening by this tool. */
+    allowSession?: string
+    /** What that grant covers: the same escalation, for any call that needs it. */
+    allowSessionCoverage?: 'sandbox'
+    signal?: AbortSignal
+  }): Promise<EscalationOutcome>
 }
 
 /**
@@ -149,7 +159,9 @@ export interface EscalationRequest {
  * non-widening request, a missing approval service, an agent-less execution,
  * a rejection, a cancellation, an unanswerable ask) — the tool registry turns
  * the throw into the call's isError result, and nothing has run. A
- * non-widening request never prompts a human.
+ * non-widening request never prompts a human. The ask offers a session grant
+ * for this exact widening, which the approval seam enforces on the later asks
+ * it matches; the returned mode still applies to this call alone.
  * @param request - the escalation to judge (see {@link EscalationRequest}).
  * @param approval - the approval ingredients the tool holds (see {@link EscalationApproval}).
  * @returns the granted mode, consumed by the one call that asked.
@@ -169,12 +181,17 @@ export async function approveEscalation<A, C>(request: EscalationRequest, approv
     throw new Error(`sandbox escalation to "${mode}" requires approval, but the call has no agent to route it through`)
   }
   // Self-contained for the audit trail: approval/asked stores this reason,
-  // and the target mode is part of the grant's identity.
+  // and the target mode is part of the grant's identity. The offered session
+  // grant names the exact widening — this tool, this standing mode, this
+  // target mode — so a person can let the same escalation repeat unaided while
+  // a session narrowed below the ask (a switched-down mode) asks again.
   const outcome = await approval.approver.request({
     agent: approval.agent,
     toolName: approval.toolName,
     callId: approval.callId,
     reason: `escalate sandbox to ${mode}: ${justification}`,
+    allowSession: `sandbox:${effectiveMode}->${mode}`,
+    allowSessionCoverage: 'sandbox',
     ...approval.signal ? { signal: approval.signal } : {},
   })
   switch (outcome) {

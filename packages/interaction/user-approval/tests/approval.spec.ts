@@ -83,6 +83,25 @@ describe('ApprovalService.request', () => {
     expect(Object.keys(appended[0]?.data ?? {}).sort()).toEqual(['id', 'toolName'])
   })
 
+  it('audits an offered grant with its coverage, then reuses the grant without asking again', async () => {
+    const ctx = await mounted()
+    const { agent, appended } = fakeAgent()
+    const ask = vi.fn(() => Promise.resolve('allowed-session' as const))
+    ctx.on('approval/request', ask)
+    const scope = 'sandbox:workspace-write->danger-full-access'
+    const granted = requestOf(agent, { allowSession: scope, allowSessionCoverage: 'sandbox' })
+
+    await expect(ctx.approval.request(granted)).resolves.toBe('allowed-once')
+    expect(appended[0]?.data).toMatchObject({ allowSession: scope, allowSessionCoverage: 'sandbox' })
+    expect(appended[1]?.data).toMatchObject({
+      outcome: 'allowed-once',
+      sessionGrant: { toolName: 'echo', scope },
+    })
+
+    await expect(ctx.approval.request({ ...granted })).resolves.toBe('allowed-once')
+    expect(ask).toHaveBeenCalledTimes(1)
+  })
+
   it('borrows the exact readonly request for scoped dispatch and audit', async () => {
     const ctx = await mounted()
     const { agent, appended } = fakeAgent()

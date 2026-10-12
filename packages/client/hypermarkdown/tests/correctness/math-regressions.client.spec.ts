@@ -56,6 +56,18 @@ describe('Markstream-derived math correctness', () => {
     expect(document.body.textContent).toContain('units/$270k')
   })
 
+  it('keeps a price pair that spans a soft line break out of maths', () => {
+    const source =
+      '**1. Amazon is negotiating to buy Decart AI for about $7 billion**\nThe *Wall Street Journal* reported this morning that Amazon is in talks for the Israeli startup behind **Lucy** and **Oasis**, for roughly $6 billion.'
+    const document = parseMarkup(renderStatic(source, options))
+
+    expect(document.querySelector('.katex')).toBeNull()
+    expect(document.querySelector('strong')?.textContent).toContain(
+      '$7 billion',
+    )
+    expect(document.body.textContent).toContain('$6 billion')
+  })
+
   it('keeps a table cell holding two amounts out of maths', () => {
     const source =
       '| Product | Proof |\n| --- | --- |\n| Bat lights | 14 days → $271,500 GMV; second video 245K views → $8,385 |'

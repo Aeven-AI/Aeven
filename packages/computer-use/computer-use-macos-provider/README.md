@@ -27,14 +27,16 @@ It exists so that mounting macOS computer use is one row in a composition rather
 ## Use this package
 
 ```ts
-import computerUseMacosProvider from '@aeven/computer-use-macos-provider'
+import * as computerUseMacosProvider from '@aeven/computer-use-macos-provider'
 
 // In a composition, as one row:
 //   '@aeven/computer-use': {}
 //   '@aeven/computer-use-macos-provider': {}
 ```
 
-`store: ['computerUse']` is declared as `inject` on the plugin, so the row waits for the registry rather than failing when it is mounted first. A deployment staging a migration off the MCP wrapper can set `register: false`, which publishes the provider for its readiness reporting and session while leaving the slot free for another provider to drive.
+`inject: ['computerUse']` is declared as `inject` on the plugin, so the row waits for the registry rather than failing when it is mounted first. A deployment staging a migration off the MCP wrapper can set `register: false`, which publishes the provider for its readiness reporting and session while leaving the slot free for another provider to drive.
+
+`computer_use_run` accepts 1 to 20 `execute`, `observe`, or `readiness` steps. An execute step names a recipe task, optional application bundle id, and string parameters; the result includes per-expectation outcomes and `verified`. Each call owns a fresh session and forwards cancellation to host commands. Execution steps require write access and explicit approval; observation and readiness do not request execution approval. The Web bundle mounts semantic batches alongside the Cua Driver with `register: false`; the driver retains the exclusive registration and its accessibility and vision tools. The batch tool does not downgrade to those tools.
 
 ## Understand the implementation
 

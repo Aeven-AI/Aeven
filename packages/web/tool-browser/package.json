@@ -40,7 +40,8 @@
     "@aeven/tools": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
     "@aeven/user-approval": "workspace:^",
-    "@aeven/sandbox-policy": "workspace:^"
+    "@aeven/sandbox-policy": "workspace:^",
+    "@aeven/attachment": "workspace:^"
   },
   "devDependencies": {
     "@aeven/agent": "workspace:^",
@@ -55,6 +56,7 @@
     "@aeven/util-values": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
     "@aeven/user-approval": "workspace:^",
-    "@aeven/sandbox-policy": "workspace:^"
+    "@aeven/sandbox-policy": "workspace:^",
+    "@aeven/attachment": "workspace:^"
   }
 }

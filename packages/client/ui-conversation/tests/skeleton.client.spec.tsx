@@ -367,7 +367,7 @@ function mount(
     useProjection: (() => undefined),
     useComposerBlock: select => select(options.composerBlock),
     useSelectedView: select => select(options.selectedView),
-    useStartPage: select => select(false),
+    useStartAddress: select => select(undefined),
     useInput,
     inputActions,
     renderSlot,

@@ -14,6 +14,8 @@ Mount [`@aeven/computer-use`](../../packages/computer-use/computer-use/README.md
 
 Each provider supplies its upstream tool catalog. The shared service registers only a name and rejects any second provider, including another instance with the same name. It has no common desktop-operation methods or model-controlled selector.
 
+The macOS Web and Electron compositions also mount [semantic batches](../../packages/computer-use/computer-use-macos-provider/README.md) with `register: false`. `computer_use_run` exposes `ComputerUseSession.run()` with per-expectation verification while the Cua Driver retains its registration and interaction tools. Batch calls do not implement accessibility or vision downgrade.
+
 ## Lifetime and desktop sharing
 
 A provider retains its registration while it shuts down its tools and owned resources. Startup failure releases the attempted registration. The MCP provider keeps its registration during reconnects.

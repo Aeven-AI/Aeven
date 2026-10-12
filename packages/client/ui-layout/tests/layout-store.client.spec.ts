@@ -215,10 +215,10 @@ describe('the right sidebar is one surface per session', () => {
   it('restores which sessions were open, and the shared width, across a reload', () => {
     const first = createLayoutStore().create()
     first.actions.toggleRightbar('s1', FRAME)
-    first.actions.setRightbar(460, FRAME)
+    first.actions.setRightbar(520, FRAME)
 
     const reloaded = createLayoutStore().create().store.getSnapshot()
     expect(reloaded.rightbar['s1']?.shown).toBe(true)
-    expect(reloaded.rightbarWidth).toBe(460)
+    expect(reloaded.rightbarWidth).toBe(520)
   })
 })

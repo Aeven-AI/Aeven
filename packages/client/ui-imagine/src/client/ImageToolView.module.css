@@ -215,3 +215,82 @@
   top: auto;
   bottom: 12px;
 }
+
+/* Headline cards: a square thumbnail with the headline and its source beside
+   it, one result per card, the way a news list reads. */
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+  padding: 10px 12px;
+}
+
+.cardThumb {
+  flex: 0 0 auto;
+  width: 120px;
+  height: 120px;
+  min-width: 120px;
+  min-height: 120px;
+  overflow: hidden;
+  border-radius: 30px;
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cardTitle {
+  margin: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  font-size: var(--avn-content-font-size, 16px);
+  line-height: 30px;
+  font-weight: 600;
+  color: var(--dsw-alias-label-primary);
+}
+
+.cardSource {
+  margin: 0;
+  font-size: 14px;
+  line-height: 30px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* The opening of the story itself, under its headline and above the source. */
+.cardSummary {
+  margin: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  font-size: var(--avn-content-font-size, 16px);
+  line-height: 30px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* The card is the link to the story: the headline, its opening text and the
+   host all open the article, with no chrome of their own. */
+.cardBody {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.cardBody:hover .cardTitle {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

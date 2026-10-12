@@ -109,8 +109,19 @@ export interface ChatNodeOwnerProps {
 export interface TurnProcessOwnerProps {
   readonly spec: TurnProcessSpec
   readonly foldable: boolean
-  /** Whether the Turn holds work or reasoning the disclosure can fold. */
-  readonly hasContent: boolean
+  /**
+   * Whether the reader can open the disclosure. An open Turn is always
+   * openable: its process rows and its streamed reasoning wait behind the
+   * control. A closed Turn is openable when it holds process rows or its Answer
+   * Step's reasoning.
+   */
+  readonly openable: boolean
+  /**
+   * Whether the projection has placed process content — rows, or the Answer
+   * Step's reasoning — behind the control. An open Turn with none is still
+   * waiting for its first streamed row.
+   */
+  readonly holdsProcess: boolean
   readonly open: boolean
   setOpen(open: boolean): void
 }

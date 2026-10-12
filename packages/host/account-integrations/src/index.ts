@@ -646,11 +646,11 @@ export default class AccountIntegrations extends TypertRemoteService {
             const formEdit = args.service === 'forms' && args.path.length === 2 && args.path[0] === 'forms'
               && /^(create|batchUpdate)$/.test(args.path[1]!)
             if (!formEdit && !/^(get|list|export|download)$/i.test(args.path.at(-1)!)) {
-              return { kind: 'ask', allowSession: `${exec.name}:${args.service}:${args.path.join('.')}`, reason: 'Approve this change to your connected Google account.' }
+              return { kind: 'ask', allowSession: `${exec.name}:${args.service}:${args.path.join('.')}`, allowSessionCoverage: 'account', reason: 'Approve this change to your connected Google account.' }
             }
           }
           if (/__(gmail_send_draft|drive_share|drive_trash|calendar_delete_event)$/.test(exec.name)) {
-            return { kind: 'ask', allowSession: exec.name, reason: 'Approve sending, sharing, or deleting through your connected Google account.' }
+            return { kind: 'ask', allowSession: exec.name, allowSessionCoverage: 'account', reason: 'Approve sending, sharing, or deleting through your connected Google account.' }
           }
         }
         const microsoft = microsoftService(connector.provider)
@@ -658,24 +658,24 @@ export default class AccountIntegrations extends TypertRemoteService {
           const serverName = connectorServerName(connector.id, connector.provider)
           if (microsoft.read.some(tool => publicToolName(serverName, tool) === exec.name)) return next()
           if (microsoft.write.some(tool => publicToolName(serverName, tool) === exec.name)) {
-            return { kind: 'ask', allowSession: exec.name, reason: 'Approve this change through your connected Microsoft account.' }
+            return { kind: 'ask', allowSession: exec.name, allowSessionCoverage: 'account', reason: 'Approve this change through your connected Microsoft account.' }
           }
           return { kind: 'deny', reason: 'This tool is outside the connected Microsoft service.' }
         }
         if (connector.provider === 'whatsapp' && !whatsappReadTools.has(exec.name.slice(match[0].length))) {
-          return { kind: 'ask', allowSession: exec.name, reason: 'Approve this action on your linked WhatsApp number. Other people can see it.' }
+          return { kind: 'ask', allowSession: exec.name, allowSessionCoverage: 'account', reason: 'Approve this action on your linked WhatsApp number. Other people can see it.' }
         }
         if (connector.provider === 'telegram' && !telegramReadTools.has(exec.name.slice(match[0].length))) {
-          return { kind: 'ask', allowSession: exec.name, reason: 'Approve this action on your signed-in Telegram account. Other people can see it.' }
+          return { kind: 'ask', allowSession: exec.name, allowSessionCoverage: 'account', reason: 'Approve this action on your signed-in Telegram account. Other people can see it.' }
         }
         if (connector.provider === 'discord') {
           const tool = exec.name.slice(match[0].length)
           if (discordReadTools.has(tool)) return next()
           if (discordWriteTools.has(tool)) {
-            return { kind: 'ask', allowSession: exec.name, reason: 'Approve this action on your connected Discord server. Other people can see it.' }
+            return { kind: 'ask', allowSession: exec.name, allowSessionCoverage: 'account', reason: 'Approve this action on your connected Discord server. Other people can see it.' }
           }
           // Administration and moderation change the server for everyone, so they never ride on a message approval.
-          return { kind: 'ask', allowSession: exec.name, reason: discordAdminTools.has(tool)
+          return { kind: 'ask', allowSession: exec.name, allowSessionCoverage: 'account', reason: discordAdminTools.has(tool)
             ? 'Approve this Discord administration action: it changes the server for everyone.'
             : 'Approve this unrecognized action on your connected Discord server.' }
         }
@@ -683,7 +683,7 @@ export default class AccountIntegrations extends TypertRemoteService {
           const tool = exec.name.slice(match[0].length)
           if (isSlackReadTool(tool)) return next()
           // Slack owns these names, so an unrecognized one asks rather than posting unreviewed.
-          return { kind: 'ask', allowSession: exec.name, reason: 'Approve this action on your connected Slack workspace. It will appear as you.' }
+          return { kind: 'ask', allowSession: exec.name, allowSessionCoverage: 'account', reason: 'Approve this action on your connected Slack workspace. It will appear as you.' }
         }
       }
       return next()

@@ -1,30 +1,7 @@
-/**
- * The cursor's motion model: spring physics, travel paths, and the transforms
- * they produce.
- *
- * This is a faithful port of the Codex desktop app's browser-agent cursor, read
- * out of its extracted bundle. The integrator is React Spring's, reproduced
- * exactly — including the stiffness clamp, the half-step force/velocity exchange,
- * and the rest test — because a re-derived spring with the same nominal
- * "damping and response" does not produce the same motion.
- *
- * Three behaviours matter for the feel, and all three are here:
- *   - **Travel** is spring-driven, so a redirect mid-flight continues from the
- *     current velocity instead of restarting.
- *   - **Long moves arc.** Past `LONG_MOVE_PX` the cursor follows a quadratic
- *     Bézier whose control point is offset perpendicular to the travel line, and
- *     its rotation tracks the curve's tangent.
- *   - **Short moves scoot.** Below that threshold it moves straight with a brief
- *     axis-aligned stretch and a small overshoot rotation.
- *
- * Plus the idle "think" wobble: after arriving, the cursor holds a small damped
- * oscillation for a moment, which is what makes it read as alive rather than
- * parked.
- * @module
- */
+/** Spring-driven browser pointer paths, rotation, stretch, and finite idle motion. @module */
 
 import { BASE_ROTATION_DEG } from './styles.ts'
-import { CURSOR_SPRINGS, createSpring, isAtRest, stepSpring } from './springs.ts'
+import { CURSOR_SPRINGS, createSpring, isAtRest, jumpSpring, stepSpring } from './springs.ts'
 
 /** At or above this distance a move arcs instead of scooting, in CSS pixels. */
 export const LONG_MOVE_PX = 196
@@ -37,14 +14,6 @@ export const STRETCH_SPEED_PX_PER_SECOND = 5500
 
 /** Minimum lengthwise stretch, applied at top speed. */
 export const MIN_STRETCH = 0.65
-
-/** Peak curvature of a long move, as a fraction of the travel distance. */
-export const ARC_CURVATURE = 0.18
-
-/** Lower bound on the arc's curvature, so a tiny move does not under-bend. */
-export const ARC_CURVATURE_MIN = 0.035
-/** Upper bound on the arc's curvature, so a huge move does not over-bend. */
-export const ARC_CURVATURE_MAX = 0.12
 
 /** Delay before the idle wobble starts, in seconds; the reference is 0. */
 export const THINK_DELAY_SECONDS = 0
@@ -113,49 +82,155 @@ export interface PathPoint {
   tangent: number
 }
 
-/** A travel path the cursor follows, sampled by a spring-driven progress value. */
-export interface TravelPath {
-  start: PathPoint
-  control: PathPoint
+/** One cubic segment of a cursor journey. */
+interface PathSegment {
+  control1: PathPoint
+  control2: PathPoint
   end: PathPoint
 }
 
-/**
- * Build the arc for a long move: a quadratic Bézier bowed off the direct line.
- * @param start - the point the move begins at.
- * @param end - the point the move ends at.
- * @returns the path the cursor follows, with its control point offset perpendicular to the direct line.
- */
-export function createArcPath(start: PathPoint, end: PathPoint): TravelPath {
-  const dx = end.x - start.x
-  const dy = end.y - start.y
-  const distance = Math.hypot(dx, dy)
-  // Offset the control point perpendicular to the travel line so the bow is
-  // always to one side rather than along the direction of travel.
-  const curvature = clamp(distance * ARC_CURVATURE, ARC_CURVATURE_MIN, ARC_CURVATURE_MAX)
-  const midpoint = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 }
-  const perpendicular = distance < 0.001 ? { x: 0, y: 0 } : { x: -dy / distance, y: dx / distance }
-  return {
-    start,
-    control: { x: midpoint.x + perpendicular.x * distance * curvature, y: midpoint.y + perpendicular.y * distance * curvature, tangent: 0 },
-    end,
+/** A bounded cubic journey, optionally passing through an intermediate arc. */
+export interface TravelPath {
+  start: PathPoint
+  end: PathPoint
+  segments: PathSegment[]
+  arc: boolean
+}
+
+/** Size of the region in which cursor paths are selected. */
+export interface MotionBounds {
+  width: number
+  height: number
+}
+
+function distance(a: PathPoint, b: PathPoint): number { return Math.hypot(b.x - a.x, b.y - a.y) }
+function point(x: number, y: number): PathPoint { return { x, y, tangent: 0 } }
+function unit(x: number, y: number): PathPoint {
+  const length = Math.hypot(x, y)
+  return length < 0.001 ? point(1, 0) : point(x / length, y / length)
+}
+function handle(bounds: MotionBounds, origin: PathPoint, direction: PathPoint, length: number): PathPoint {
+  let span = length
+  if (direction.x < 0) span = Math.min(span, origin.x / -direction.x)
+  if (direction.x > 0) span = Math.min(span, (bounds.width - origin.x) / direction.x)
+  if (direction.y < 0) span = Math.min(span, origin.y / -direction.y)
+  if (direction.y > 0) span = Math.min(span, (bounds.height - origin.y) / direction.y)
+  return point(origin.x + direction.x * Math.max(0, span), origin.y + direction.y * Math.max(0, span))
+}
+function cubic(start: PathPoint, segment: PathSegment, t: number): PathPoint {
+  const u = 1 - t
+  return point(
+    start.x * u ** 3 + 3 * segment.control1.x * u ** 2 * t + 3 * segment.control2.x * u * t ** 2 + segment.end.x * t ** 3,
+    start.y * u ** 3 + 3 * segment.control1.y * u ** 2 * t + 3 * segment.control2.y * u * t ** 2 + segment.end.y * t ** 3,
+  )
+}
+function metrics(path: TravelPath, bounds?: MotionBounds) {
+  let length = 0, energy = 0, maxTurn = 0, totalTurn = 0
+  let angle: number | undefined
+  let previous = path.start
+  const inside = (p: PathPoint): boolean => bounds === undefined ||
+    (p.x >= 20 && p.x <= bounds.width - 20 && p.y >= 20 && p.y <= bounds.height - 20)
+  let staysInBounds = inside(previous)
+  let start = path.start
+  for (const segment of path.segments) {
+    for (let sample = 1; sample <= 24; sample++) {
+      const at = cubic(start, segment, sample / 24)
+      length += distance(previous, at)
+      staysInBounds &&= inside(at)
+      if (distance(previous, at) > 0.01) {
+        const next = Math.atan2(at.y - previous.y, at.x - previous.x)
+        if (angle !== undefined) {
+          const turn = shortestAngleDelta(angle * 180 / Math.PI, next * 180 / Math.PI) * Math.PI / 180
+          energy += turn * turn
+          maxTurn = Math.max(maxTurn, Math.abs(turn))
+          totalTurn += Math.abs(turn)
+        }
+        angle = next
+      }
+      previous = at
+    }
+    start = segment.end
   }
+  return { length, energy, maxTurn, totalTurn, staysInBounds }
+}
+function reversePenalty(path: TravelPath): number {
+  const direction = unit(path.end.x - path.start.x, path.end.y - path.start.y)
+  const angle = -44 * Math.PI / 180
+  return clamp((-(direction.x * Math.sin(angle) - direction.y * Math.cos(angle)) - 0.08) / 0.92, 0, 1)
 }
 
 /**
- * Sample a quadratic Bézier at `t`, including its tangent direction.
- * @param path - the path to sample.
- * @param t - position along the path, in [0, 1].
- * @returns the point at `t` and the direction of travel there, in degrees.
+ * Select the reference's smoothest bounded cubic or two-segment arc.
+ * @param start - initial cursor position.
+ * @param end - destination.
+ * @param bounds - drawing region; omitted for standalone callers with no measured viewport.
+ * @returns the lowest-scoring in-bounds path, or the lowest-scoring candidate if none fits.
+ */
+export function createArcPath(start: PathPoint, end: PathPoint, bounds: MotionBounds = { width: Infinity, height: Infinity }): TravelPath {
+  const span = distance(start, end)
+  const angle = -44 * Math.PI / 180
+  const click = point(Math.sin(angle), -Math.cos(angle))
+  const reverse = point(-click.x, -click.y)
+  const direction = unit(end.x - start.x, end.y - start.y)
+  const startLength = Math.max(48, Math.min(640, span * 0.41960295031576633, span * 0.9))
+  const endLength = Math.max(48, Math.min(640, span * 0.15, span * 0.9))
+  const first = handle(bounds, start, click, startLength)
+  const last = handle(bounds, end, reverse, endLength)
+  const candidates: TravelPath[] = [
+    { start, end, arc: false, segments: [{ control1: first, control2: last, end }] },
+    { start, end, arc: false, segments: [{ control1: handle(bounds, start, click, startLength * 0.65), control2: handle(bounds, end, reverse, endLength * 0.65), end }] },
+  ]
+  const normal = point(-direction.y, direction.x)
+  const sign = normal.x * click.x + normal.y * click.y >= 0 ? 1 : -1
+  for (const arcScale of [0.55, 0.8, 1.05]) {
+    for (const handleScale of [0.65, 1, 1.35]) {
+      for (const side of [sign, -sign]) {
+        const offset = Math.max(50, Math.min(520, span * 0.2765523188064277)) * arcScale
+        const flow = Math.max(38, Math.min(440, span * 0.5783555327868779)) * handleScale
+        const arc = point((start.x + end.x) / 2 + normal.x * side * offset + click.x * startLength * 0.16,
+          (start.y + end.y) / 2 + normal.y * side * offset + click.y * startLength * 0.16)
+        candidates.push({ start, end, arc: true, segments: [
+          { control1: first, control2: point(arc.x - direction.x * flow, arc.y - direction.y * flow), end: arc },
+          { control1: point(arc.x + direction.x * flow, arc.y + direction.y * flow), control2: last, end },
+        ] })
+      }
+    }
+  }
+  let best = candidates[0]!, bestInside: TravelPath | undefined
+  let score = Infinity, insideScore = Infinity
+  for (const candidate of candidates.slice(0, 20)) {
+    const m = metrics(candidate, bounds)
+    const detour = Math.max(0, m.length / Math.max(1, span) - 1)
+    const value = m.length + detour * 320 + m.energy * 140 + m.maxTurn * 180 + m.totalTurn * 18 + reversePenalty(candidate) * 90 + (candidate.arc ? 45 : 0)
+    if (value < score) { best = candidate; score = value }
+    if (m.staysInBounds && value < insideScore) { bestInside = candidate; insideScore = value }
+  }
+  return bestInside ?? best
+}
+
+/**
+ * Sample a cubic journey and its tangent as a screen rotation.
+ * @param path - selected journey.
+ * @param t - progress in [0, 1].
+ * @returns sampled position and rotation in degrees, where zero points upwards.
  */
 export function samplePath(path: TravelPath, t: number): PathPoint {
-  const u = 1 - t
-  const x = u * u * path.start.x + 2 * u * t * path.control.x + t * t * path.end.x
-  const y = u * u * path.start.y + 2 * u * t * path.control.y + t * t * path.end.y
-  // Derivative of the quadratic: direction of travel, not position.
-  const dx = 2 * u * (path.control.x - path.start.x) + 2 * t * (path.end.x - path.control.x)
-  const dy = 2 * u * (path.control.y - path.start.y) + 2 * t * (path.end.y - path.control.y)
-  return { x, y, tangent: Math.atan2(dy, dx) * 180 / Math.PI }
+  const progress = clamp(t, 0, 1)
+  const index = progress === 1 ? path.segments.length - 1 : Math.floor(progress * path.segments.length)
+  const segment = path.segments[index]!
+  const start = index === 0 ? path.start : path.segments[index - 1]!.end
+  const local = progress === 1 ? 1 : progress * path.segments.length - index
+  const u = 1 - local
+  const at = cubic(start, segment, local)
+  const dx = 3 * u * u * (segment.control1.x - start.x) + 6 * u * local * (segment.control2.x - segment.control1.x) + 3 * local * local * (segment.end.x - segment.control2.x)
+  const dy = 3 * u * u * (segment.control1.y - start.y) + 6 * u * local * (segment.control2.y - segment.control1.y) + 3 * local * local * (segment.end.y - segment.control2.y)
+  return { ...at, tangent: Math.hypot(dx, dy) < 0.001 ? -44 : Math.atan2(dy, dx) * 180 / Math.PI + 90 }
+}
+function pathResponse(path: TravelPath): number {
+  const m = metrics(path)
+  const detour = Math.max(0, m.length / Math.max(1, distance(path.start, path.end)) - 1)
+  const complexity = clamp(clamp(detour / 0.55, 0, 1) * 0.42 + clamp(m.totalTurn / (Math.PI * 1.4), 0, 1) * 0.38 + clamp(m.energy / 1.25, 0, 1) * 0.2, 0, 1)
+  return clamp((0.42 + clamp((m.length - 180) / 760, 0, 1) * 0.22 + complexity * 0.12 + reversePenalty(path) * 0.28 + (path.arc ? 0.04 : 0)) * 0.7 * (path.arc ? 0.9 : 1), 0.12, 2.2)
 }
 
 /**
@@ -235,26 +310,16 @@ export class CursorMotion {
    * @param y - target y coordinate in CSS pixels.
    */
   jumpTo(x: number, y: number): void {
-    this.positionX.value = x
-    this.positionX.target = x
-    this.positionX.velocity = 0
-    this.positionY.value = y
-    this.positionY.target = y
-    this.positionY.velocity = 0
+    jumpSpring(this.positionX, x)
+    jumpSpring(this.positionY, y)
     this.#path = undefined
     this.#scootFrom = undefined
     this.#scootTo = undefined
-    this.rotation.target = BASE_ROTATION_DEG
-    this.rotation.value = BASE_ROTATION_DEG
-    this.rotation.velocity = 0
-    this.scootAxis.target = 0
-    this.scootAxis.value = 0
-    this.scootRotation.target = 0
-    this.scootRotation.value = 0
-    this.scootStretch.target = 1
-    this.scootStretch.value = 1
-    this.stretch.target = 1
-    this.stretch.value = 1
+    jumpSpring(this.rotation, BASE_ROTATION_DEG)
+    jumpSpring(this.scootAxis, 0)
+    jumpSpring(this.scootRotation, 0)
+    jumpSpring(this.scootStretch, 1)
+    jumpSpring(this.stretch, 1)
   }
 
   /**
@@ -286,9 +351,10 @@ export class CursorMotion {
    * The move itself is driven by {@link step}.
    * @param x - target x coordinate in CSS pixels.
    * @param y - target y coordinate in CSS pixels.
+   * @param bounds - measured drawing region for path selection.
    * @returns the move's expected duration in milliseconds, so a caller can decide whether to wait; 0 when already there.
    */
-  travelTo(x: number, y: number): number {
+  travelTo(x: number, y: number, bounds?: MotionBounds): number {
     this.#thinkStartedAt = undefined
     const destination = this.#path?.end ?? this.#scootTo
     if (destination?.x === x && destination.y === y) return this.#path === undefined ? 420 : 700
@@ -300,15 +366,21 @@ export class CursorMotion {
       return 0
     }
     if (distance >= LONG_MOVE_PX) {
-      this.#path = createArcPath(from, { x, y, tangent: 0 })
-      this.progress.value = 0
+      this.#path = createArcPath(from, { x, y, tangent: 0 }, bounds)
+      const response = pathResponse(this.#path)
+      this.progress.config = { response, dampingFraction: 0.9 }
+      jumpSpring(this.progress, 0)
       this.progress.target = 1
-      this.progress.velocity = 0
+      this.positionX.config = this.positionY.config = { response: clamp(response * 0.18, 0.035, 0.12), dampingFraction: 0.9 }
       this.scootAxis.target = 0
       this.scootRotation.target = 0
       this.scootStretch.target = 1
     } else {
       this.#path = undefined
+      this.positionX.config = this.positionY.config = CURSOR_SPRINGS.position
+      this.progress.config = { response: 0.19, dampingFraction: 0.94 }
+      jumpSpring(this.progress, 0)
+      this.progress.target = 1
       this.#scootFrom = from
       this.#scootTo = { x, y, tangent: 0 }
       /* v8 ignore next -- unreachable: the ARRIVAL_EPSILON_PX early return above already holds distance >= 0.5. */
@@ -356,26 +428,21 @@ export class CursorMotion {
     const at = samplePath(path, t)
     this.positionX.target = at.x
     this.positionY.target = at.y
-    // The curve's tangent is an absolute screen angle, so it is a *bank* only after
-    // the resting orientation is subtracted: taking it as the target directly makes
-    // a rightward move aim the cursor sideways instead of tipping it forward. The
-    // bank is also clamped, because a curve's tangent can point anywhere.
-    const bank = clamp(shortestAngleDelta(BASE_ROTATION_DEG, at.tangent), -MAX_LEAN_DEG, MAX_LEAN_DEG)
-    this.rotation.target = BASE_ROTATION_DEG + bank
+    this.rotation.target = this.rotation.value + shortestAngleDelta(this.rotation.value, at.tangent)
     this.scootAxis.target = 0
     this.scootRotation.target = 0
     this.scootStretch.target = 1
+    const previous = this.point
     stepSpring(this.positionX, seconds)
     stepSpring(this.positionY, seconds)
     stepSpring(this.rotation, seconds)
-    const speed = Math.hypot(this.positionX.velocity, this.positionY.velocity)
+    const speed = Math.hypot(this.positionX.value - previous.x, this.positionY.value - previous.y) / Math.max(seconds, 1 / 240)
     this.stretch.target = clamp(1 - speed / STRETCH_SPEED_PX_PER_SECOND, MIN_STRETCH, 1)
     stepSpring(this.stretch, seconds)
-    if (t >= 0.999 && isAtRest(this.progress)) {
+    if (t >= 0.999 && Math.abs(this.progress.velocity) < 0.01 && this.#near(at)) {
       const end = samplePath(path, 1)
       this.jumpTo(end.x, end.y)
-      this.rotation.target = BASE_ROTATION_DEG
-      this.rotation.value = BASE_ROTATION_DEG
+      jumpSpring(this.rotation, end.tangent)
       this.#path = undefined
       this.#thinkStartedAt = performance.now()
     }
@@ -386,6 +453,7 @@ export class CursorMotion {
     const to = this.#scootTo
     /* v8 ignore next -- narrowing only: the sole call site tests #scootFrom, and the pair is written and cleared together. */
     if (from === undefined || to === undefined) return
+    stepSpring(this.progress, seconds)
     this.rotation.target = this.rotation.value + shortestAngleDelta(this.rotation.value, BASE_ROTATION_DEG)
     stepSpring(this.positionX, seconds)
     stepSpring(this.positionY, seconds)
@@ -404,8 +472,8 @@ export class CursorMotion {
     const bell = Math.sin(Math.min(1, travelled) * Math.PI)
     // The overshoot rotation peaks mid-move, then unwinds.
     this.scootRotation.target = this.#scootRotationTarget * bell
-    this.scootStretch.target = 1 - (1 - MIN_STRETCH) * 0.15 * bell
-    if (travelled >= 0.999 && isAtRest(this.positionX) && isAtRest(this.positionY)) {
+    this.scootStretch.target = 1 - 0.15 * bell
+    if (travelled >= 0.999 && Math.abs(this.progress.velocity) < 0.01 && this.#near(to)) {
       this.jumpTo(to.x, to.y)
       this.rotation.target = BASE_ROTATION_DEG
       this.rotation.value = BASE_ROTATION_DEG
@@ -416,6 +484,11 @@ export class CursorMotion {
       this.#scootTo = undefined
       this.#thinkStartedAt = performance.now()
     }
+  }
+
+  #near(target: PathPoint): boolean {
+    return Math.hypot(this.positionX.value - target.x, this.positionY.value - target.y) <= 0.85
+      && Math.abs(this.positionX.velocity) <= 12 && Math.abs(this.positionY.velocity) <= 12
   }
 
   /**
@@ -490,10 +563,11 @@ export function cursorTransform(input: {
   const half = input.boxSize / 2
   const parts = [`translate3d(${round(input.point.x - half)}px, ${round(input.point.y - half)}px, 0)`]
   const total = normalizeDegrees(input.rotation + input.scootRotation)
-  // One size, always: a pointer that stretches along its travel reads as a
-  // different pointer mid-flight. The appearance scale is how it arrives.
-  const scale = input.appearance
-  parts.push(`rotate(${round(total)}deg)`, `scale(${round(scale)}, ${round(scale)})`)
+  const scoot = clamp(input.scootStretch, 0, 1)
+  if (Math.abs(shortestAngleDelta(0, input.scootAxisRotation)) > 0.001 || Math.abs(scoot - 1) > 0.001) {
+    parts.push(`rotate(${round(input.scootAxisRotation)}deg)`, `scale(1, ${round(scoot)})`, `rotate(${round(-input.scootAxisRotation)}deg)`)
+  }
+  parts.push(`rotate(${round(total)}deg)`, `scale(${round(input.stretch * input.appearance)}, ${round(input.appearance)})`)
   return parts.join(' ')
 }
 

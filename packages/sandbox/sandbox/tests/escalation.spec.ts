@@ -81,6 +81,19 @@ describe('approveEscalation', () => {
     expect(seen[0]?.reason).toBe('escalate sandbox to workspace-write: the user asked to write in the workspace')
   })
 
+  it('offers a session grant for this exact widening under the sandbox coverage', async () => {
+    const seen: Array<{ allowSession?: string; allowSessionCoverage?: string }> = []
+    await approveEscalation(
+      req({ requestedMode: 'danger-full-access' }),
+      ingredients({ approver: approver('allowed-once', r => seen.push(r as { allowSession?: string; allowSessionCoverage?: string })) }),
+    )
+
+    expect(seen[0]).toMatchObject({
+      allowSession: 'sandbox:read-only->danger-full-access',
+      allowSessionCoverage: 'sandbox',
+    })
+  })
+
   it('a non-widening request fails closed with its own text and never asks', async () => {
     const seen: unknown[] = []
     const spy = ingredients({ approver: approver('allowed-once', r => seen.push(r)) })

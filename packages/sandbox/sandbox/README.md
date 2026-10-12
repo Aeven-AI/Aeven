@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`avn-sandbox` confines same-world subprocesses to a file-effect policy: commands run `read-only`, write only under the session workspace (`workspace-write`), or run unrestricted (`danger-full-access`), and every confined execution runs under a per-call policy. The bash and pwsh executors consume it, so a command — and everything it spawns — runs confined without the consumer knowing which platform runner is behind it. When the requested mode cannot be enforced, the call fails closed with a `SANDBOX_UNAVAILABLE` error instead of running unconfined. A denied call can request a strictly wider mode that a human approves once. Confinement is same-world only — backends share the host kernel and filesystem, while containers, microVMs, and remote executors replace whole capabilities instead.
+`avn-sandbox` confines same-world subprocesses to a file-effect policy: commands run `read-only`, write only under the session workspace (`workspace-write`), or run unrestricted (`danger-full-access`), and every confined execution runs under a per-call policy. The bash and pwsh executors consume it, so a command — and everything it spawns — runs confined without the consumer knowing which platform runner is behind it. When the requested mode cannot be enforced, the call fails closed with a `SANDBOX_UNAVAILABLE` error instead of running unconfined. A denied call can request a strictly wider mode that a human approves once, or for the rest of the session. Confinement is same-world only — backends share the host kernel and filesystem, while containers, microVMs, and remote executors replace whole capabilities instead.
 
 ## Table of Contents
 
@@ -63,7 +63,7 @@ Enforcement is reported per call: `full` means the backend governs every promise
 
 ### Denied calls and escalation
 
-When a confined call is denied, the operation reports a denial marker naming the mode — `[sandbox: file access denied under <mode> mode]` — and, when the composition advertises escalation, an escalation hint. The model may retry the exact call once with `sandbox_permissions` (the narrowest wider mode that suffices) plus a `justification`; the user sees one approval prompt and can allow once, reject, or cancel. The escalation must be strictly wider than the call's effective mode, and it applies to that one call only.
+When a confined call is denied, the operation reports a denial marker naming the mode — `[sandbox: file access denied under <mode> mode]` — and, when the composition advertises escalation, an escalation hint. The model may retry the exact call once with `sandbox_permissions` (the narrowest wider mode that suffices) plus a `justification`; the user sees one approval prompt and can allow once, allow the same widening for the rest of the session, reject, or cancel. The escalation must be strictly wider than the call's effective mode, and a grant applies to that one call only unless the user allowed it for the session.
 
 ### Fail-closed behavior
 

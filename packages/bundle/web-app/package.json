@@ -146,6 +146,7 @@
     "@aeven/subprocess": "workspace:^",
     "@aeven/subscription-auth": "workspace:^",
     "@aeven/tool-device": "workspace:^",
+    "@aeven/tool-image-search": "workspace:^",
     "@aeven/tool-mail": "workspace:^",
     "@aeven/tool-media": "workspace:^",
     "@aeven/tool-subagent": "workspace:^",
@@ -153,7 +154,10 @@
     "@aeven/workspace": "workspace:^",
     "@deepseek-ai/schemastery": "workspace:^",
     "commander": "^15.0.0",
-    "open": "^11.0.0"
+    "open": "^11.0.0",
+    "@aeven/automations": "workspace:^",
+    "@aeven/client-ui-automations": "workspace:^",
+    "@aeven/computer-use-macos-provider": "workspace:^"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis-plugin-loader": "workspace:^",

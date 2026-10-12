@@ -293,15 +293,15 @@ export class BrowserOverlay {
   /**
    * Move the pointer to a point a layout change put its target at.
    *
-   * It travels there like any other move: a pointer that blinks from one place
-   * to another reads as two different pointers, and the reader who watched it
-   * land on an element needs to see it follow that element when the layout
-   * moves. A host reporting a resize repeatedly still coalesces its own calls;
-   * this one is a single glide, not a restart per frame.
+   * Layout corrections preserve visibility and replace position without starting a journey.
    * @param point - the new point, in the same coordinates {@link moveTo} takes.
    */
   reposition(point: Point): void {
-    this.moveTo(point)
+    const target = this.#clampPoint(point)
+    this.#point = target
+    this.#motion?.jumpTo(target.x, target.y)
+    this.#settleArrivals()
+    this.#startFrameLoop()
   }
 
   /**
@@ -316,11 +316,11 @@ export class BrowserOverlay {
   setHold(hold: boolean): void {
     if (this.#hold === hold) return
     this.#hold = hold
+    if (hold && (this.#motion?.visibility.value ?? 0) <= 0.001) this.#point = undefined
     if (hold) {
       if (this.#idleTimer !== undefined) clearTimeout(this.#idleTimer)
       this.#idleTimer = undefined
       if (this.#motion?.visibility.target === 1) {
-        this.#motion.keepThinking()
         this.#startFrameLoop()
       }
       return
@@ -331,12 +331,29 @@ export class BrowserOverlay {
   /**
    * Wait for the pointer to finish its current glide, so a host can let the
    * action it announced land where the pointer visibly is.
-   * @returns a promise that resolves once the pointer rests on its target, at
-   * once when it is not travelling, and when the overlay is hidden or destroyed.
+   * @param signal - cancels an owned action waiting for arrival.
+   * @returns a promise that resolves within 1500ms, once the pointer rests on its target, at
+   * once when it is not travelling, and when the overlay is hidden or destroyed; cancellation rejects.
    */
-  arrived(): Promise<void> {
+  arrived(signal?: AbortSignal): Promise<void> {
+    signal?.throwIfAborted()
     if (this.#motion === undefined || this.#frame === undefined || !this.#motion.isTravelling) return Promise.resolve()
-    return new Promise((resolve) => { this.#arrivals.push(resolve) })
+    return new Promise((resolve, reject) => {
+      const finish = (): void => {
+        clearTimeout(timer)
+        signal?.removeEventListener('abort', abort)
+        const index = this.#arrivals.indexOf(finish)
+        if (index >= 0) this.#arrivals.splice(index, 1)
+        resolve()
+      }
+      const abort = (): void => {
+        reject(signal?.reason)
+        finish()
+      }
+      const timer = setTimeout(finish, 1500)
+      this.#arrivals.push(finish)
+      signal?.addEventListener('abort', abort, { once: true })
+    })
   }
 
   /**
@@ -514,22 +531,6 @@ export class BrowserOverlay {
     }
   }
 
-  /**
-   * Where a pointer with no history starts travelling from.
-   *
-   * The middle of the region the overlay draws in, so a first move crosses the
-   * reader's view; with no region to measure, the target itself, which leaves no
-   * distance to skip because there is nothing to cross.
-   */
-  #originOf(target: Point): Point {
-    const container = this.#container
-    const region = this.#clip ?? (container === undefined || container.clientWidth === 0 || container.clientHeight === 0
-      ? undefined
-      : { x: 0, y: 0, width: container.clientWidth, height: container.clientHeight })
-    if (region === undefined) return target
-    return { x: region.x + region.width / 2, y: region.y + region.height / 2 }
-  }
-
   #glideTo(point: Point): void {
     const cursor = this.#cursor
     const root = this.#root
@@ -541,15 +542,17 @@ export class BrowserOverlay {
     cursor.dataset.visible = 'true'
     root.dataset.visible = 'true'
 
-    // A first appearance starts at the middle of the region it draws in and
-    // travels the whole way. Appearing already near its target reads as a
-    // different pointer: the reader saw nothing move, so nothing arrived.
-    if (first) {
-      const origin = this.#originOf(target)
-      motion.jumpTo(origin.x, origin.y)
-    }
     motion.setVisible(true)
-    motion.travelTo(target.x, target.y)
+    if (first) {
+      motion.jumpTo(target.x, target.y)
+      motion.visibility.value = motion.visibility.target = 1
+      this.#settleArrivals()
+    } else {
+      motion.travelTo(target.x, target.y, {
+        width: this.#container?.clientWidth ?? innerWidth,
+        height: this.#container?.clientHeight ?? innerHeight,
+      })
+    }
     this.#startFrameLoop()
   }
 
@@ -585,10 +588,7 @@ export class BrowserOverlay {
         boxSize: CURSOR_BOX,
       })
       cursor.style.opacity = `${visibility.opacity}`
-      // A held pointer keeps breathing. The idle wobble is otherwise a fixed
-      // moment of life after arriving, and its end leaves a pointer that looks
-      // switched off while the agent is still working.
-      if (this.#hold && motion.visibility.target === 1 && !motion.isTravelling) motion.keepThinking()
+      cursor.style.filter = `blur(${visibility.blurPx}px)`
       if (!motion.isTravelling) this.#settleArrivals()
       if (moving || motion.isThinking || motion.visibility.value !== motion.visibility.target) {
         this.#frame = requestAnimationFrame(tick)

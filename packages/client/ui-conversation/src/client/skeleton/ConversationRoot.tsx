@@ -6,6 +6,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { CSSProperties } from 'react'
 import clsx from 'clsx'
 import { HeroShell, Tooltip } from '@aeven/client-ui-primitives'
+import type { SessionId } from '@aeven/session/types'
 import type { ConversationSlotProps, InputZone } from '../contract/slots.ts'
 import { useContentCover } from './content-cover.ts'
 import { ContentLoader } from './ContentLoader.tsx'
@@ -13,6 +14,9 @@ import css from './ConversationRoot.module.css'
 
 /** Full props composed from the slot contract. */
 export type ConversationRootProps = ConversationSlotProps
+
+/** Where the composer seat is laid out: the settling hold, the centred hero, or the settled floor. */
+type ComposerPhase = 'settling' | 'hero' | 'active'
 
 /** localStorage key for the dragged transcript width preference (px). */
 const WIDTH_PREF_KEY = 'avn.conversation.contentWidth'
@@ -203,8 +207,8 @@ function WidthHandle(props: {
 
 export function ConversationRoot({
   sessionId, useSession, useSessions, useSessionPendingInteraction,
-  useInput, useComposerBlock, useSelectedView, useStartPage,
-  renderSlot, renderSlotChain, t, sidebarCollapsed, toggleSidebar,
+  useInput, useComposerBlock, useSelectedView, useStartAddress,
+  renderSlot, renderSlotChain, t, sidebarCollapsed, toggleSidebar, composerPlaceholder,
 }: ConversationRootProps) {
   const session = useSession(s => s)
   const pendingInteraction = useSessionPendingInteraction(snapshot =>
@@ -217,7 +221,7 @@ export function ConversationRoot({
   // send; its reason is already localized by whoever raised it.
   const composerBlock = useComposerBlock(block => block)
   const composerOverlay = useSelectedView(view => view?.composerPlacement === 'overlay')
-  const startPageSet = useStartPage(active => active)
+  const startAddress = useStartAddress(address => address)
 
   // Nothing measures the composer seat. A View that floats a composer over its
   // own ledger clears it with the static `--avn-composer-height` fallback in
@@ -233,6 +237,10 @@ export function ConversationRoot({
   /* The seat's own top, kept from the last measured layout: the frame the hero
      hands over to the settled phase reads it to slide the card down. */
   const heroTop = useRef<number | null>(null)
+  /* The phase and Session that laid that top out. The hand-over the slide below
+     serves is one chat leaving its hero for its own floor, so a top recorded
+     under another chat's hero, or under a start page, is not a hand-over. */
+  const lastSeat = useRef<{ phase: ComposerPhase; sessionId: SessionId | undefined } | null>(null)
   // The stored preference, mirrored into the DOM so CSS can clamp it against
   // the live column. Written on mount and on a committed drag only.
   const [userWidth, setUserWidth] = useState<number | null>(() => readWidthPreference())
@@ -291,8 +299,13 @@ export function ConversationRoot({
       && (openState === 'open' || openState === 'error' || openState === 'cold'))
   // A start page replaces the blank Session's centred Hero: its own content
   // fills the column and the composer sits on the floor, as in a settled chat.
-  const startPage = hero && startPageSet && sessionId !== undefined
+  const startPage = hero && startAddress !== undefined && sessionId !== undefined
   const centered = hero && !startPage
+  // A start page names what its own composer is for, in its own words; read on
+  // every render so the page's copy follows the active locale.
+  const startPlaceholder = startAddress === undefined
+    ? undefined
+    : composerPlaceholder?.(startAddress)
   const zone: InputZone | undefined =
     session === undefined || inputState === undefined ? undefined : { session, input: inputState }
 
@@ -319,7 +332,7 @@ export function ConversationRoot({
         // block keeps the model seat live because choosing a model is how the
         // user clears it.
         ? { blocked: composerBlock, placeholder: composerBlock.reason }
-        : hero ? { placeholder: t('placeholder.hero') } : {}),
+        : hero ? { placeholder: startPlaceholder ?? t('placeholder.hero') } : {}),
   })
 
   const composerBar = (
@@ -334,7 +347,7 @@ export function ConversationRoot({
     </div>
   )
 
-  const phase = settling ? 'settling' : centered ? 'hero' : 'active'
+  const phase: ComposerPhase = settling ? 'settling' : centered ? 'hero' : 'active'
   const composer = renderSlotChain(
     'conversation.composer',
     { sessionId, session, pendingInteraction },
@@ -385,14 +398,20 @@ export function ConversationRoot({
   // The hero centres the seat and the settled phase puts it on the scroller's
   // floor: a layout jump between two phases, which the `settling` phase used to
   // hide outright. Record where the seat sat, then play the difference back as a
-  // transform that returns to zero, so the card slides into place instead.
+  // transform that returns to zero, so the card slides into place instead — but
+  // only for the hero handing over to its own chat's floor: a start page
+  // replacing the hero, another chat's transcript opening, and the settling hold
+  // are navigation, and those land the seat where it belongs.
   useLayoutEffect(() => {
     const seat = seatRef.current
     if (seat === null) return
     const top = seat.getBoundingClientRect().top
     const from = heroTop.current
+    const previous = lastSeat.current
+    lastSeat.current = { phase, sessionId }
     heroTop.current = top
-    if (phase !== 'active' || from === null) return
+    if (phase !== 'active' || startPage || from === null
+      || previous?.phase !== 'hero' || previous.sessionId !== sessionId) return
     const delta = from - top
     if (Math.abs(delta) < 1) return
     seat.style.transition = 'none'
@@ -401,7 +420,7 @@ export function ConversationRoot({
       seat.style.transition = ''
       seat.style.transform = ''
     })
-  }, [phase])
+  }, [phase, sessionId, startPage])
 
   return (
     <div
@@ -450,7 +469,7 @@ export function ConversationRoot({
         {/* This hold keeps the scrollport's growing item present while
             conversation.session is dropped so the overlay can present. */}
         {startPage
-          ? <div className={css.startPage} data-start-page="">{renderSlot('conversation.start', {})}</div>
+          ? <div className={css.startPage} data-start-page="">{renderSlot('conversation.start', {}, { entryKey: startAddress! })}</div>
           : mountedSessionId === undefined
           ? (phase === 'active'
             ? <div className={css.transcriptHold} data-transcript-hold="" aria-hidden="true" />

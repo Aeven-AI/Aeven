@@ -17,7 +17,7 @@ import {
   type IpcMainInvokeEvent,
   type WebContents,
 } from 'electron'
-import { automate } from './browser-automation.ts'
+import { acknowledgeBrowserCursor, automate } from './browser-automation.ts'
 import { fetchSuggestions } from './browser-search.ts'
 import { DESKTOP_IPC, type DesktopBrowserColorScheme, type DesktopBrowserDataKind } from './ipc.ts'
 
@@ -251,6 +251,10 @@ export function registerBrowserIpc(isAppSender: (event: IpcMainEvent | IpcMainIn
     const image = await hostedGuest(event, webContentsId).capturePage()
     const png = new Blob([new Uint8Array(image.toPNG())], { type: 'image/png' })
     await clipboard.write([new ClipboardItem({ 'image/png': png })])
+  })
+  ipcMain.on(DESKTOP_IPC.browserCursorArrived, (event, guestId: unknown, sequence: unknown) => {
+    if (!isAppSender(event) || typeof guestId !== 'number' || typeof sequence !== 'number' || !Number.isSafeInteger(sequence)) return
+    acknowledgeBrowserCursor(event.sender, guestId, sequence)
   })
   const pending = new Map<string, { guest: Electron.WebContents; controller: AbortController }>()
   ipcMain.on(DESKTOP_IPC.browserCancelAutomation, (event, webContentsId: unknown, requestId: unknown) => {

@@ -38,6 +38,8 @@ Target packages declaration-merge their snapshot and Location data maps, then re
 <a id="shell-and-standard-props"></a>
 ## Shell and standard props
 
+Registered start addresses select keyed `conversation.start` entries while a blank session retains the ordinary composer. Each address owns one page, so `/imagine` and `/automations` cannot render each other’s content.
+
 The package registers the optional-Session `conversation` shell, strict Session header/body entries, the resident navigation band and its utilities, View list, composer chain and bar, input regions, Hero regions, queue dock, draft persistence, and phase calculation. `ctx.uiSession.provide()` materializes the Conversation and input sources from the same Session binding and supplies `inputActions` as a stable standard prop.
 
 View selection is deterministic: a registered persisted selection wins, otherwise registered `chat` wins, otherwise no View renders. It never chooses the first registered View. Shell phase combines Session lifecycle with the active-target set; no target-specific snapshot is read by the shell. The conversation column covers the transcript with a spinner until the selected Session view has painted; the session header and composer stay uncovered and stay in place, including while `conversation.session` remounts under that overlay. That overlay stays off while `#avn-preloader` is present without `.screen-hidden`.

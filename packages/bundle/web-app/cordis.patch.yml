@@ -342,6 +342,12 @@
         command: /Applications/CuaDriver.app/Contents/MacOS/cua-driver
         args: [mcp]
 
+    - id: computer-use-semantic-batches
+      name: '@aeven/computer-use-macos-provider'
+      disabled: !!js "process.platform !== 'darwin' || !process.getBuiltinModule('node:fs').existsSync('/Applications/CuaDriver.app/Contents/MacOS/cua-driver')"
+      config:
+        register: false
+
     # Configuration-surface reads and writes over Typert Remote. Each method
     # reports an actionable error when its settings-domain provider is absent.
     - id: settings-controller
@@ -748,3 +754,14 @@
       config:
         default: aeven
         includeUserRoot: false
+
+    - id: automations
+      name: '@aeven/automations'
+      config:
+        maxConcurrentRuns: 2
+        runTimeoutMinutes: 60
+        misfireGraceMinutes: 15
+        historyLimit: 200
+
+    - id: ui-automations
+      name: '@aeven/client-ui-automations'

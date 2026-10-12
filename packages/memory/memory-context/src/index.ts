@@ -1,5 +1,5 @@
 /**
- * Memory Consumer for the agent loop: one bounded recall enters each direct-user turn as a durable
+ * Memory Consumer for the agent loop: one bounded recall enters each user or approved automation turn as a durable
  * source-labelled message retained across later requests, completed turns are handed to the memory
  * provider for learning, and the owner's confirmed invariants — held by the host plane — lead every turn.
  *
@@ -30,7 +30,7 @@ export const INVARIANTS_ORDER = 116
 
 /** Consumer configuration. */
 export interface Config {
-  /** Recall memory for every accepted direct-user turn. */
+  /** Recall memory for every accepted user or approved automation turn. */
   recall: boolean
   /** Hand completed turns to the memory provider. */
   capture: boolean

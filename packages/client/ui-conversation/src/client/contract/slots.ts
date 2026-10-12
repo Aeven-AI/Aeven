@@ -188,10 +188,10 @@ declare module '@aeven/client-ui-slots' {
     'conversation.hero.agentPreset': { kind: 'single'; scope: 'root'; owner: HeroAgentPresetOwnerProps }
     /**
      * The start page shown in place of a blank Session's Hero while
-     * `uiConversation.startPage` is set, such as Imagine's prompt gallery; the
+     * a registered start address is selected, such as Imagine's gallery; the
      * composer sits on the column's floor below it.
      */
-    'conversation.start': { kind: 'list'; scope: 'session' }
+    'conversation.start': { kind: 'keyed'; scope: 'session' }
     /** Full-width entries above the composer card. */
     'conversation.input.dock': { kind: 'list'; scope: 'session'; owner: InputZone }
     /** Floating entries rendered inside the resident composer card. */
@@ -292,11 +292,21 @@ export interface ConversationInjected {
    * loses the control, rather than showing a button that does nothing.
    */
   toggleSidebar?: (() => void) | undefined
+  /**
+   * Composer placeholder the open start page declares for its own composer,
+   * such as Imagine's gallery or the automation page.
+   *
+   * Optional: a shell mounted without the Workspace navigation that owns the
+   * start addresses has no page to ask, and the shared prompt stands.
+   * @param path - the open start address.
+   * @returns the placeholder, or undefined when that page declared none.
+   */
+  composerPlaceholder?: ((path: string) => string | undefined) | undefined
   /** Session-addressed shell sources, or stable absent sources without a Session. */
   hooks: {
     composerBlock: ObservableSnapshot<ComposerBlock | undefined>
     selectedView: ObservableSnapshot<ViewTab | undefined>
-    startPage: ObservableSnapshot<boolean>
+    startAddress: ObservableSnapshot<string | undefined>
   }
 }
 

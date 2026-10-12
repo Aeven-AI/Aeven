@@ -4,6 +4,7 @@ import type { PendingSubmission } from '@aeven/api-session-controller/client'
 import type { ChatNodeViewProps } from '../contract/slots.ts'
 import { formatRunDuration } from './message-chrome.ts'
 import { arrivalFade, useArrivalAge } from './MessageItem.tsx'
+import { ReasoningRow } from './ReasoningRow.tsx'
 import css from './TurnProcessNodeView.module.css'
 
 /**
@@ -36,7 +37,11 @@ export const TurnProcessNodeView = memo(function TurnProcessNodeView({
   }, [ticking])
   if (!turnProcess.foldable) return null
   const open = turnProcess.open
-  const canCollapse = turnProcess.hasContent
+  const canCollapse = turnProcess.openable
+  // An open Turn that has produced nothing yet: the reader opened the
+  // disclosure and the model's first streamed row has not arrived, so the row
+  // that will hold the trace stands in for it instead of an empty region.
+  const awaitingTrace = running && open && !turnProcess.holdsProcess
   const reason = turn?.end?.data.reason.kind
   const elapsedMs = turn?.start === undefined || (!running && turn.end === undefined)
     ? undefined
@@ -49,27 +54,34 @@ export const TurnProcessNodeView = memo(function TurnProcessNodeView({
         : duration === undefined ? t('message.turnProcess.worked')
           : t('message.turnProcess.took', { duration })
   return (
-    <button
-      type="button"
-      className={fade.className === undefined ? css.root : `${css.root} ${fade.className}`}
-      style={fade.style}
-      data-open={open || undefined}
-      data-running={running || undefined}
-      data-turn-process={node.data.turn}
-      data-turn-process-messages={node.data.messageCount}
-      data-turn-process-tool-calls={node.data.toolCallCount}
-      data-turn-process-subagents={node.data.subagentCount}
-      disabled={!canCollapse}
-      aria-expanded={canCollapse ? open : undefined}
-      onClick={(event) => {
-        event.currentTarget.focus()
-        turnProcess.setOpen(!open)
-      }}
-    >
-      <TextShimmer className={css.label} active={running}>{label}</TextShimmer>
-      {running && <span className={css.srOnly} role="status" aria-live="polite">{t('chat.deepDiving')}</span>}
-      {canCollapse && <IconChevronDownOutline14 className={css.chevron} />}
-    </button>
+    <>
+      <button
+        type="button"
+        className={fade.className === undefined ? css.root : `${css.root} ${fade.className}`}
+        style={fade.style}
+        data-open={open || undefined}
+        data-running={running || undefined}
+        data-turn-process={node.data.turn}
+        data-turn-process-messages={node.data.messageCount}
+        data-turn-process-tool-calls={node.data.toolCallCount}
+        data-turn-process-subagents={node.data.subagentCount}
+        disabled={!canCollapse}
+        aria-expanded={canCollapse ? open : undefined}
+        onClick={(event) => {
+          event.currentTarget.focus()
+          turnProcess.setOpen(!open)
+        }}
+      >
+        <TextShimmer className={css.label} active={running}>{label}</TextShimmer>
+        {running && <span className={css.srOnly} role="status" aria-live="polite">{t('chat.deepDiving')}</span>}
+        {canCollapse && <IconChevronDownOutline14 className={css.chevron} />}
+      </button>
+      {awaitingTrace && (
+        <div className={css.awaiting} data-turn-process-awaiting="">
+          <ReasoningRow text="" running t={t} />
+        </div>
+      )}
+    </>
   )
 })
 

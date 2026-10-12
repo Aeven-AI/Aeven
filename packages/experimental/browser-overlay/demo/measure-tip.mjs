@@ -1,22 +1,4 @@
-/**
- * Verify the cursor's geometry in a real rendering.
- *
- * Two properties matter, and neither is visible in a screenshot:
- *
- *   1. **The sprite is centred in the cursor box.** A plausible-looking arrow
- *      carries no information about whether its box is centred on it.
- *   2. **The sprite is unrotated at rest.** The artwork is authored in the
- *      orientation it should be seen in, so any resting angle is a bug — and one a
- *      screenshot cannot distinguish from the artwork itself being tilted.
- *
- * It also reports the arrow tip for information. The tip is the sprite's
- * top-left corner, so centring the sprite necessarily leaves the tip up and to the
- * left of the coordinate. That is a consequence of centring, not a misalignment,
- * so it is reported rather than asserted.
- *
- * Run: node packages/experimental/browser-overlay/demo/measure-tip.mjs
- * @module
- */
+/** Verify the reference sprite offset, compensated rotations, and rendered arrow pixels. */
 
 import { writeFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
@@ -129,16 +111,22 @@ const offset = {
   y: measured.spriteCentre.y - measured.cursorCentre.y,
 }
 const rotation = ((measured.rotationDeg % 360) + 360) % 360
-const restError = Math.min(rotation, 360 - rotation)
+const restError = Math.abs(rotation - 316)
 
-if (Math.abs(offset.x) > CENTRING_TOLERANCE_PX || Math.abs(offset.y) > CENTRING_TOLERANCE_PX) {
-  failures.push(`sprite centre is (${offset.x.toFixed(3)}, ${offset.y.toFixed(3)})px from the cursor box centre`)
+const angle = 44 * Math.PI / 180
+const expectedOffset = {
+  x: 11.5 - 14.5 * Math.sin(angle),
+  y: 12 - 14.5 * Math.cos(angle),
 }
-if (measured.spriteTransform !== 'none') {
-  failures.push(`sprite layer carries its own transform: ${measured.spriteTransform}`)
+if (Math.abs(offset.x - expectedOffset.x) > CENTRING_TOLERANCE_PX || Math.abs(offset.y - expectedOffset.y) > CENTRING_TOLERANCE_PX) {
+  failures.push(`sprite centre differs from the reference offset: (${offset.x.toFixed(3)}, ${offset.y.toFixed(3)})px`)
+}
+const artwork = measured.spriteTransform.slice(7, -1).split(",").map(Number)
+if (Math.abs(Math.atan2(artwork[1], artwork[0]) * 180 / Math.PI - 44) > ROTATION_TOLERANCE_DEG) {
+  failures.push(`sprite rotation differs from 44 degrees: ${measured.spriteTransform}`)
 }
 if (restError > ROTATION_TOLERANCE_DEG) {
-  failures.push(`resting rotation is ${measured.rotationDeg.toFixed(2)}deg, expected 0`)
+  failures.push(`resting rotation is ${measured.rotationDeg.toFixed(2)}deg, expected -44`)
 }
 if (measured.tip === null) failures.push('no arrow pixels rendered')
 

@@ -42,7 +42,7 @@ import { ApprovalRequestId } from './types.ts'
 import type { ApprovalAnswer, ApprovalOutcome, ApprovalRequestEvent } from './types.ts'
 
 export { ApprovalRequestId } from './types.ts'
-export type { ApprovalOutcome } from './types.ts'
+export type { ApprovalOutcome, SessionGrantCoverage } from './types.ts'
 
 /** Every {@link ApprovalOutcome}, for runtime normalization of answerer returns. */
 const OUTCOMES: readonly ApprovalAnswer[] = ['allowed-session', 'allowed-once', 'rejected', 'cancelled', 'unavailable']
@@ -201,7 +201,7 @@ export class ApprovalService extends Service {
    * violate the pair. Session contains post-commit observer failures, so an
    * authoritative append cannot reject the request or suppress its matching
    * audit event.
-   * @param req - the pending decision (agent, tool identity, reason, signal).
+   * @param req - the pending decision (agent, tool identity, reason, offered grant, signal).
    * @returns the closed outcome; `'allowed-once'` is the only grant.
    * @throws when no turn is open or either audit event fails before the session
    *   append commit point.
@@ -222,6 +222,7 @@ export class ApprovalService extends Service {
       ...req.callId !== undefined ? { callId: req.callId } : {},
       ...req.reason !== undefined ? { reason: req.reason } : {},
       ...(req.allowSession === undefined ? {} : { allowSession: req.allowSession }),
+      ...(req.allowSessionCoverage === undefined ? {} : { allowSessionCoverage: req.allowSessionCoverage }),
     })
     const answer = await this.decide(req, session)
     const outcome = answer === 'allowed-session' ? 'allowed-once' : answer

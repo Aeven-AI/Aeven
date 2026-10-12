@@ -40,6 +40,8 @@ target package 通过 declaration merge 扩展 snapshot 与 Location data map，
 <a id="shell-and-standard-props"></a>
 ## Shell 与标准 props
 
+注册的起始地址选择按键分派的 `conversation.start` 页面，空白会话保留普通输入框。每个地址拥有一个页面，因此 `/imagine` 和 `/automations` 不会渲染彼此的内容。
+
 本包注册 optional-Session `conversation` shell、strict Session header/body、常驻导航条及其 utilities、View list、composer chain 与 bar、输入区域、Hero 区域、queue dock、草稿持久化和 phase 计算。`ctx.uiSession.provide()` 从同一个 Session binding 物化 Conversation 与 input source，并将 `inputActions` 作为稳定标准 prop 提供。
 
 View 选择规则固定：有效且已注册的持久化选择优先，其次是已注册的 `chat`，否则不渲染 View；绝不选择第一个已注册 View。Shell phase 只组合 Session lifecycle 与 active-target set，不读取任何 target-specific snapshot。会话栏在所选 Session 视图完成绘制前用转轮覆盖 transcript；session header 与 composer 不被覆盖，并保持原位，包括 `conversation.session` 在该 overlay 下重新挂载期间。`#avn-preloader` 仍在且尚未 `.screen-hidden` 时不显示该 overlay。

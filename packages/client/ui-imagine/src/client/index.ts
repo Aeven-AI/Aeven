@@ -18,9 +18,10 @@ import type {} from '@aeven/client-ui-renderer/client'
 // Type-only: pulls the sidebar's `sidebar.nav` slot declaration.
 import type {} from '@aeven/client-ui-sidebar/client'
 import type { CommandUiContract } from '@aeven/client-ui-commands/client'
+import { ImageResultView } from './ImageResultView.tsx'
 import { ImageToolView } from './ImageToolView.tsx'
 import { VideoToolView } from './VideoToolView.tsx'
-import { IMAGE_TOOLS, VIDEO_TOOLS, registerGeneratedImages } from './generated-images.ts'
+import { IMAGE_RESULT_TOOLS, IMAGE_TOOLS, VIDEO_TOOLS, registerGeneratedImages } from './generated-images.ts'
 import type {} from '@aeven/client-ui-tool/client'
 import { imageModelDecoration, videoModelDecoration } from './image-model-picker.ts'
 import { ImaginePrompts } from './ImaginePrompts.tsx'
@@ -34,14 +35,9 @@ const IMAGINE_PATH = '/imagine'
 
 /** The Workspace UI's start-address face. */
 interface StartAddresses {
-  registerStartAddress(path: string): () => void
+  registerStartAddress(path: string, copy?: { composerPlaceholder?: () => string }): () => void
   openStartAddress(path: string): void
   readonly startAddress: { getSnapshot(): string | undefined; subscribe(fn: () => void): () => void }
-}
-
-/** The conversation's start-page switch. */
-interface StartPageSwitch {
-  readonly startPage: { set(active: boolean): void }
 }
 
 /** Dictionary namespace owned by this plugin. */
@@ -56,6 +52,7 @@ export const inject = ['slots', 'locale']
  */
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-imagine: dictionaries')
+  const t = ctx.locale.bind(NS)
 
   // The picker waits on the surfaces it decorates rather than holding the page
   // behind them: a deployment with no command surface and no settings document
@@ -76,23 +73,22 @@ export function apply(ctx: ClientContext): void {
     for (const key of VIDEO_TOOLS) {
       yield ctx.slots.register({ name: 'tool.call.toolview', key, locale: NS }, VideoToolView)
     }
+    // Tools that show photographs found elsewhere: the same lane, the same row,
+    // so the images a result carries are visible without unfolding anything.
+    for (const key of IMAGE_RESULT_TOOLS) {
+      yield ctx.slots.register({ name: 'tool.call.toolview', key, locale: NS }, ImageResultView)
+    }
   })
 
   // `/imagine` is a start address of the chat: the Workspace UI keeps it over a blank Session, and while it is the
   // address the conversation shows this plugin's gallery in place of the Hero.
-  ctx.inject(['uiWorkspace', 'uiConversation'], (startCtx: ClientContext) => {
+  ctx.inject(['uiWorkspace'], (startCtx: ClientContext) => {
     const addresses = startCtx.get('uiWorkspace') as unknown as StartAddresses
-    const conversation = startCtx.get('uiConversation') as unknown as StartPageSwitch
-    startCtx.effect(() => addresses.registerStartAddress(IMAGINE_PATH), 'ui-imagine: /imagine start address')
-    startCtx.effect(() => {
-      const sync = (): void => { conversation.startPage.set(addresses.startAddress.getSnapshot() === IMAGINE_PATH) }
-      sync()
-      const unsubscribe = addresses.startAddress.subscribe(sync)
-      return () => {
-        unsubscribe()
-        conversation.startPage.set(false)
-      }
-    }, 'ui-imagine: start page')
+    startCtx.effect(() => addresses.registerStartAddress(IMAGINE_PATH, {
+      // The page's own composer prompt: what the reader describes here is an
+      // image or a video, not a question.
+      composerPlaceholder: () => t('composer.placeholder'),
+    }), 'ui-imagine: /imagine start address')
     const row: ImagineRowInjected = {
       href: IMAGINE_PATH,
       open: () => { addresses.openStartAddress(IMAGINE_PATH) },
@@ -107,7 +103,7 @@ export function apply(ctx: ClientContext): void {
 
   ctx.slots.inject('conversation.start', () => ctx.slots.register({
     name: 'conversation.start',
-    id: 'imagine-prompts',
+    key: IMAGINE_PATH,
     locale: NS,
   }, ImaginePrompts))
 }

@@ -152,7 +152,7 @@ Append-only; newly visible content follows the reusable request prefix and does 
 These limits define when the seam is a poor fit or needs special composition care. They are current package constraints, not a general permission comparison.
 
 - **Requests are valid only inside an open turn** — an idle or between-turn caller throws before auditing; a durable out-of-turn approval workflow is deferred.
-- **Session grants require an offered scope** — `allowed-session` answers authorize the exact account and operation identified by the requester. The committed decision stores the scope and original session id; repeat calls return `allowed-once` without prompting. Forks do not inherit grants, `never` still rejects, and global grants and revocation are not provided.
+- **Session grants require an offered scope** — `allowed-session` answers authorize the exact account, operation, or escalation identified by the requester, whose `allowSessionCoverage` tells the prompt which consent copy explains it. The committed decision stores the scope and original session id; repeat calls return `allowed-once` without prompting. Forks do not inherit grants, `never` still rejects, and global grants and revocation are not provided.
 - **The request carries no tool arguments** — an answerer sees the tool name, reason, and optional call id; the ACP machine channel requires a call id and delegates requests without one.
 - **No built-in answerer** — headless or incompletely composed deployments resolve `unavailable` and fail closed; the service itself never prompts a human.
 

@@ -288,6 +288,84 @@
   font-style: italic;
 }
 
+/* A run of images the engine grouped: the generated-image lane's own geometry,
+   so a reply's photographs tile exactly the way generated ones do. Two share
+   the column in halves, three take equal thirds, and four or more wrap two to a
+   row. Every tile in a row is one size — one aspect ratio for the lot, whatever
+   shape each photograph is — so the row reads as a single band instead of a
+   ragged line, and the image covers the tile it lands in. */
+.markdown :global(.markdown-image-grid) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+  margin: 16px 0;
+}
+
+.markdown :global(.markdown-image-grid[data-count='3']) {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.markdown :global(.markdown-image-grid > *) {
+  aspect-ratio: 4 / 3;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 30px;
+}
+
+.markdown :global(.markdown-image-grid .markdown-image-container),
+.markdown :global(.markdown-image-grid .markdown-image) {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.markdown :global(.markdown-image-grid img.image) {
+  width: 100%;
+  height: 100%;
+  border-radius: 30px;
+  object-fit: cover;
+}
+
+/* A tile shows the app's loading surface until its bytes arrive, then fades it
+   off the image — the same beat a generating image holds while it is produced.
+   The placeholder takes no pointer events, so the tile is a control the moment
+   the image is. */
+.markdown :global(.markdown-image-grid .markdown-image) {
+  position: relative;
+}
+
+.markdown :global(.markdown-image-grid .image-loader) {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: var(--dsw-alias-interactive-bg-hover);
+  opacity: 1;
+  transition: opacity 240ms ease;
+}
+
+.markdown :global(.markdown-image-grid [data-loaded]) .image-loader {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .markdown :global(.markdown-image-grid .image-loader) {
+    transition: none;
+  }
+}
+
+/* A lone image keeps its own shape rather than a tile's, so it is never cropped:
+   a landscape one spans the column and a portrait one takes two thirds of it,
+   centred — the share the generated-image lane gives it. Only a paragraph's own
+   image is matched: a row's images have left their paragraph for the grid. */
+.markdown :global(p > .markdown-image-container[data-orientation='portrait'] img.image) {
+  max-width: 66.666%;
+  margin-right: auto;
+  margin-left: auto;
+}
+
 /* Inline file mention: the same link language this sheet gives anchors (and
    thereby URL-promoted inline code) — link-blue at rest, underline only on
    hover/focus. An underline at rest reads badly inside the code chip, where

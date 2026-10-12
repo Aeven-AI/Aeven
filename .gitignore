@@ -71,3 +71,6 @@ packages/*/*/src/**/*.d.ts.map
 # Workspace output of the image/video generation tools: the model writes these
 # files at runtime, so a session run from the repo root leaves them here.
 /videos/
+
+# Files downloaded from mail by the mail connector, never source.
+/mail-attachments/

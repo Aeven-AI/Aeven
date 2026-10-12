@@ -40,14 +40,16 @@ export const DETAILS_DEFAULT = 360
 /** Right sidebar drag clamp floor on a frame below {@link RIGHTBAR_MIN_BREAKPOINT}. */
 export const RIGHTBAR_MIN = 360
 /** Right sidebar drag clamp floor on a frame at or above {@link RIGHTBAR_MIN_BREAKPOINT}. */
-export const RIGHTBAR_MIN_WIDE = 400
+export const RIGHTBAR_MIN_WIDE = 464
 /**
  * Frame width at which the right sidebar's floor rises to
- * {@link RIGHTBAR_MIN_WIDE}. The floor narrows rather than widens with the
- * frame: below this width the column is already a large share of what it is
- * drawn in, so it gets the smaller floor.
+ * {@link RIGHTBAR_MIN_WIDE} — the responsive scale's smallest step, stated
+ * literally because a custom property cannot appear in a `@media` condition
+ * (aeven-language.css). The floor narrows rather than widens with the frame:
+ * below this width the column is already a large share of what it is drawn in,
+ * so it gets the smaller floor.
  */
-export const RIGHTBAR_MIN_BREAKPOINT = 420
+export const RIGHTBAR_MIN_BREAKPOINT = 480
 /**
  * Right sidebar ceiling as a fraction of the frame. A fraction rather than a
  * fixed px ceiling: the panel is a reading column whose useful width scales

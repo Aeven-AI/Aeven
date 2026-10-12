@@ -102,7 +102,7 @@ None; this package neither assembles nor sends a provider request.
 These limits define when a served asset class is not yet covered. They are current package constraints, not a task backlog.
 
 - **The starter MIME table is minimal** — it covers the Vite-emitted asset set plus the shipped PWA manifest; other extensions fall back to `application/octet-stream` until an asset class ships.
-- **SPA path routing is explicit** — `/sessions/:id` is the current client route. Another top-level route requires a matching server rule and real-composition coverage rather than a broad fallback for every miss.
+- **SPA path routing is explicit** — Conversation paths (`/c/:id`), `/imagine`, `/automations`, and the authentication paths resolve to the SPA index. Another top-level route requires a matching server rule and real-composition coverage rather than a broad fallback for every miss.
 
 <a id="dev-note"></a>
 ### Dev Note

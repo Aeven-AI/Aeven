@@ -13,15 +13,8 @@
  * place that has to know the whole shape. That is also why it is the *provider* rather
  * than more code inside the adapter — a second platform adds a provider, not a branch.
  *
- * ## What is wired, and what is not
- *
- * Wired: the command runner, the Apple Events mechanism handler, the recipe book, the
- * executor, the session, and the readiness report.
- *
- * **Not wired: the model-facing tool surface.** Nothing here registers a tool, a prompt
- * section, or a schema, so a Session cannot yet ask the model to do anything — this
- * exposes the service and the session object a tool would drive. `@aeven/computer-use`
- * owns the exclusive registration slot; this provider claims it.
+ * The model-facing batch tool drives an operation-local session, returns independent
+ * verification, and requires approval for tasks that change applications or files.
  *
  * @module @aeven/computer-use-macos-provider
  */
@@ -29,6 +22,8 @@
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import type { Context } from '@deepseek-ai/cordis'
+import { defineTool } from '@aeven/tools'
+import type {} from '@aeven/sandbox-policy'
 import ComputerUseRegistry, { ComputerUseProviderName } from '@aeven/computer-use'
 
 import type { DesktopAdapter, ReadinessReport } from '@aeven/computer-use-desktop'
@@ -80,14 +75,15 @@ export interface Config {
  * Non-zero exits resolve rather than reject: `osascript` reports application-level
  * failures through its exit status, and a caller needs to see the status and the
  * message together to tell "the app said no" from "the command did not run".
+ * @param signal - cancellation of the calling batch.
  * @returns the runner the Apple Events handler uses.
  */
-export function createOsascriptRunner(): AppleEventsRunner {
+export function createOsascriptRunner(signal?: AbortSignal): AppleEventsRunner {
   const run = promisify(execFile)
   return {
     run: async (script: string, language: 'JavaScript' | 'AppleScript' = 'JavaScript') => {
       try {
-        const { stdout, stderr } = await run('osascript', ['-l', language, '-e', script], { maxBuffer: 32 * 1024 * 1024 })
+        const { stdout, stderr } = await run('osascript', ['-l', language, '-e', script], { maxBuffer: 32 * 1024 * 1024, ...signal === undefined ? {} : { signal } })
         return { code: 0, stdout, stderr }
       } catch (error) {
         const failure = error as { code?: number; stdout?: string; stderr?: string }
@@ -148,16 +144,18 @@ export class MacComputerUseProvider {
 
   /**
    * @param config - the deployment's configuration.
+   * @param signal - cancellation forwarded to the batch's host commands.
    */
-  constructor(config: Config = {}) {
+  constructor(config: Config = {}, signal?: AbortSignal) {
     // The adapter runs programs — the AX walk and the readiness probes — so it
     // takes the command runner. The Apple Events handler speaks AppleScript, so it
     // takes the `osascript` runner: handing it the command runner would run the
     // script text as a program name.
     const commands = createMacCommandRunner()
-    const scripts = createOsascriptRunner()
+    const scripts = createOsascriptRunner(signal)
     this.adapter = new MacDesktopAdapter({
       runner: commands,
+      ...signal === undefined ? {} : { signal },
       ...config.automationTargets === undefined ? {} : { automationTargets: config.automationTargets },
     })
     const book: RecipeBook = [...STARTER_BOOK, ...config.recipes ?? []]
@@ -229,6 +227,67 @@ export function apply(ctx: Context, config: Config = {}): void {
   // `provide`, not `set`: the name has to be claimed before it can hold a value, and
   // the returned disposer is what makes unloading this plugin release the slot again.
   ctx.provide('computerUseProvider', provider)
+  ctx.inject(['tools'], (ctx) => {
+    ctx.on('tools/pre-execute', async (exec, next) => {
+      const decision = await next()
+      if (decision.kind !== 'allow' || exec.name !== 'computer_use_run') return decision
+      const args = exec.arguments as { steps?: unknown } | null
+      if (args === null || !Array.isArray(args.steps)) return { kind: 'deny', reason: 'Computer-use batches require a steps array.' }
+      if (!args.steps.some((step: unknown) => typeof step === 'object' && step !== null && 'kind' in step && step.kind === 'execute')) return decision
+      const policy = ctx.get('sandboxPolicy')
+      if (exec.agent === undefined || policy === undefined || policy.resolve({ session: exec.agent.session }).mode === 'read-only') {
+        return { kind: 'deny', reason: 'Computer-use tasks require a calling session with write access.' }
+      }
+      return { kind: 'ask', reason: `Allow these computer-use tasks on this Mac? ${JSON.stringify(exec.arguments)}` }
+    })
+    ctx.effect(() => ctx.tools.register(defineTool({
+      name: 'computer_use_run',
+      description: 'Run 1 to 20 computer-use steps in order on this Mac in one call. execute performs a recipe task and independently verifies its expectations; observe returns accessibility nodes and a tree diff; readiness reports permissions. Stops at the first error or unverified task and returns per-step results plus verified. Only verified execution outcomes establish success. Completed steps may have changed the application: do not repeat them when correcting a later failure. Prefer existing connectors and file tools when they cover the task. This batch supports semantic recipes; use the computer-use interaction tools for tasks requiring accessibility or vision.',
+      parameters: {
+        steps: { type: 'array', required: true, items: { oneOf: [
+          { type: 'object', additionalProperties: false, properties: {
+            kind: { type: 'string', const: 'execute', required: true },
+            task: { type: 'string', enum: provider.tasks(), required: true },
+            app: { type: 'string', description: 'Application bundle id when the recipe is application-specific.' },
+            parameters: { type: 'object', additionalProperties: true, description: 'String recipe values such as path, text, title. The same values fill the verification expectations.' },
+          } },
+          { type: 'object', additionalProperties: false, properties: {
+            kind: { type: 'string', const: 'observe', required: true },
+            pid: { type: 'integer' }, windowId: { type: 'string' }, maxNodes: { type: 'integer' },
+          } },
+          { type: 'object', additionalProperties: false, properties: { kind: { type: 'string', const: 'readiness', required: true } } },
+        ] } },
+      },
+      output: { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: value }] },
+      async execute(args, exec) {
+        if (args.steps.length === 0 || args.steps.length > 20) throw new Error('computer_use_run requires 1 to 20 steps')
+        const session = new MacComputerUseProvider(config, exec.signal).session
+        const steps = args.steps.map(step => {
+          switch (step.kind) {
+            case 'execute': {
+              const parameters: Record<string, string> = {}
+              for (const [key, value] of Object.entries(step.parameters ?? {})) {
+                if (typeof value !== 'string') throw new Error(`recipe parameter ${key} must be a string`)
+                parameters[key] = value
+              }
+              return { kind: 'execute' as const, request: {
+                task: step.task, platform: 'darwin' as const, availableRungs: ['semantic' as const],
+                ...step.app === undefined ? {} : { app: step.app },
+                parameters,
+              } }
+            }
+            case 'observe': return { kind: 'observe' as const, scope: {
+              ...step.pid === undefined ? {} : { pid: step.pid },
+              ...step.windowId === undefined ? {} : { windowId: step.windowId },
+              ...step.maxNodes === undefined ? {} : { maxNodes: step.maxNodes },
+            } }
+            case 'readiness': return { kind: 'readiness' as const }
+          }
+        })
+        return JSON.stringify(await session.run(steps, exec.signal))
+      },
+    })), 'computer-use-macos-provider.batch-tool')
+  })
   // Not optional-chained: Cordis types `logger` and its methods as always present,
   // and guarding a value that cannot be absent only hides it if that ever changes.
   ctx.logger.info('computer use: macOS provider ready on %s with %d task(s)', resolveDesktopPlatform(process.platform), provider.tasks().length)
@@ -241,5 +300,4 @@ declare module '@deepseek-ai/cordis' {
   }
 }
 
-export default apply
 export { ComputerUseRegistry }

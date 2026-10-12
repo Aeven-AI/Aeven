@@ -384,7 +384,7 @@ export async function runDesktopHost(
     throw new Error('avn desktop: composition did not provide webServer')
   }
   const subscriptionOrigin = `http://127.0.0.1:${String(webServer.port)}`
-  // Only the app's subscription requests cross into the loopback HTTP carrier.
+  // Owned application requests cross into the loopback HTTP carrier.
   // Its owner policy receives the loopback origin, never an external page's.
   const dispatchSubscription = (request: Request): Promise<Response> => {
     const url = new URL(request.url)
@@ -444,7 +444,7 @@ export async function runDesktopHost(
           ? await connection.runAsCaller(request, () => streams.fetch(request))
           : url.pathname.startsWith('/api/')
             ? await dispatchApi(request)
-            : url.pathname.startsWith('/plugins/avn-grok-build/')
+            : url.pathname.startsWith('/plugins/avn-grok-build/') || url.pathname.startsWith('/automation-control/')
               ? await dispatchSubscription(request)
               : await assets.fetch(request)
         await writeResponse(encodeDesktopResponseStart(command.streamId, {

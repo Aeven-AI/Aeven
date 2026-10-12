@@ -88,7 +88,7 @@ interface ApprovalRequest extends ApprovalRequestEvent {
 }
 ```
 
-仅当请求通过 `allowSession` 提供账户及操作标识符时，应答者才可返回 `allowed-session`。服务在 `approval/decided` 中提交该范围和原会话 ID，然后向调用方返回 `allowed-once`。该会话后续相同工具和范围的请求复用授权；分叉不继承授权。`never` 策略和取消优先于已存储的授权。
+仅当请求通过 `allowSession` 提供账户及操作标识符时，应答者才可返回 `allowed-session`。服务在 `approval/decided` 中提交该范围和原会话 ID，然后向调用方返回 `allowed-once`。该会话后续相同工具和范围的请求复用授权；分叉不继承授权。请求方通过 `allowSessionCoverage` 声明授权覆盖的内容——`'account'` 表示可能触及其他收件人和内容的连接器操作，`'sandbox'` 表示后续任何调用都可复用的沙箱升权，`'action'` 表示重复同一操作——提示据此用请求方自己的说法解释该授权。`never` 策略和取消优先于已存储的授权。
 
 ## 分发与审计
 

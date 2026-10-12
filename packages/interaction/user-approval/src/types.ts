@@ -34,6 +34,18 @@ export type ApprovalOutcome = 'allowed-once' | 'rejected' | 'cancelled' | 'unava
 /** Interactive answer; session grants require the requester to offer that scope. */
 export type ApprovalAnswer = ApprovalOutcome | 'allowed-session'
 
+/**
+ * What an offered session grant covers, declared by the requester so the
+ * prompt can explain the grant before consent:
+ *
+ * - `'action'` — the same action on the same subject, repeated.
+ * - `'account'` — any operation of that kind on that account, including other
+ *   recipients and content.
+ * - `'sandbox'` — the same sandbox escalation, for the rest of the session's
+ *   calls that need it.
+ */
+export type SessionGrantCoverage = 'action' | 'account' | 'sandbox'
+
 declare module '@aeven/session/types' {
   interface SessionEventMap {
     /**
@@ -51,6 +63,8 @@ declare module '@aeven/session/types' {
       reason?: string
       /** Account-and-operation identifier offered for a session grant. */
       allowSession?: string
+      /** What the offered grant covers; absent means the requester's own action. */
+      allowSessionCoverage?: SessionGrantCoverage
     }
     /**
      * The outcome of a prior `approval/asked` (same `id`) — log-only audit.
@@ -78,6 +92,11 @@ export interface ApprovalRequestEvent {
   readonly reason?: string
   /** Account-and-operation identifier; absent when only one-shot approval is offered. */
   readonly allowSession?: string
+  /**
+   * What the offered grant covers, so the prompt explains the grant in the
+   * requester's own terms; absent means the same action on the same subject.
+   */
+  readonly allowSessionCoverage?: SessionGrantCoverage
   /** Cancellation lifetime of the pending request. */
   readonly signal?: AbortSignal
 }

@@ -31,7 +31,7 @@ kind: "package-reference"
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **会话审批由请求方限定范围**——仅当 Host 提供账户和操作范围时，面板才显示本会话允许。Host 记录并执行授权；shell 提权仍需逐次审批。
+- **会话审批由请求方限定范围**——仅当 Host 提供授权范围时，面板才显示本会话允许，并用其声明的 `allowSessionCoverage` 所选文案解释该授权。Host 记录并执行授权；沙箱升权会为其确切放宽范围提供该选项。
 
 
 <a id="dev-note"></a>

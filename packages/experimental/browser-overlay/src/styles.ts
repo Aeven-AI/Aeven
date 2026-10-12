@@ -11,18 +11,8 @@
  * @module
  */
 
-/**
- * The sprite's resting rotation, in degrees.
- *
- * Zero, because the artwork is authored in the orientation it should be seen in:
- * the arrow already points up-left as drawn. The reference carries a -44 here and
- * then normalizes the composed angle back into [0, 360), which lands the sprite at
- * its authored orientation anyway — so a non-zero resting angle in this
- * implementation only ever produces a sideways cursor.
- *
- * The motion model still leans the sprite while travelling; this is where it rests.
- */
-export const BASE_ROTATION_DEG = 0
+/** Resting model angle, compensated by the sprite's 44-degree rotation. */
+export const BASE_ROTATION_DEG = -44
 
 /** Accent used for selection boxes, labels, and the cursor's glow. */
 export const ACCENT = '#0069FB'
@@ -38,18 +28,8 @@ export const CURSOR_BOX = 24
  */
 export const CURSOR_SPRITE = { width: 23, height: 24 } as const
 
-/**
- * Nudge from the box's top-left to the sprite's top-left.
- *
- * The reference nudges by (12, -2.5) because its sprite carries asymmetric
- * padding. Ours does not: with no resting rotation the sprite fills its box, so
- * the offset that centres it is the half-difference of the two sizes, and the
- * sprite's centre lands on the box centre exactly.
- */
-export const CURSOR_NUDGE = {
-  x: (CURSOR_BOX - CURSOR_SPRITE.width) / 2,
-  y: (CURSOR_BOX - CURSOR_SPRITE.height) / 2,
-} as const
+/** Sprite origin relative to the cursor box, matching the reference artwork. */
+export const CURSOR_NUDGE = { x: 12, y: -2.5 } as const
 
 /**
  * The cursor's glow, matching the reference's two-stop drop shadow.
@@ -171,12 +151,7 @@ ${root} .${cls('cursor-sprite')} img {
   max-height: none;
   width: ${CURSOR_SPRITE.width}px !important;
   height: ${CURSOR_SPRITE.height}px !important;
-  /*
-   * No rotation here on purpose. The sprite is authored already pointing up-left,
-   * and the motion model's settled rotation is what holds it there, so rotating
-   * here too would double the angle. Verified by measurement: with this left at
-   * none, the rendered tip sits on the requested coordinate.
-   */
+  transform: rotate(44deg) scale(1);
   transform-origin: 0 0;
   filter: ${CURSOR_GLOW_FILTER};
   -webkit-user-drag: none;

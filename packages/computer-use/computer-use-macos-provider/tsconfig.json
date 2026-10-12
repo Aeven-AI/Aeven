@@ -10,6 +10,8 @@
     { "path": "../computer-use-macos-apple-events" },
     { "path": "../computer-use-router" },
     { "path": "../computer-use-session" },
+    { "path": "../../core/tools" },
+    { "path": "../../sandbox/sandbox-policy" },
     { "path": "../../util/brand" },
     { "path": "../../../vendor/cordis" },
     { "path": "../../../vendor/cosmokit" }

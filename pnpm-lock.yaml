@@ -1956,6 +1956,9 @@ importers:
       '@aeven/app-boot':
         specifier: workspace:^
         version: link:../../boot/app-boot
+      '@aeven/automations':
+        specifier: workspace:^
+        version: link:../../core/automations
       '@aeven/browser-chromium':
         specifier: workspace:^
         version: link:../../web/browser-chromium
@@ -1983,6 +1986,9 @@ importers:
       '@aeven/client-ui-attachment':
         specifier: workspace:^
         version: link:../../client/ui-attachment
+      '@aeven/client-ui-automations':
+        specifier: workspace:^
+        version: link:../../client/ui-automations
       '@aeven/client-ui-brand-official':
         specifier: workspace:^
         version: link:../../client/ui-brand-official
@@ -2130,6 +2136,9 @@ importers:
       '@aeven/computer-use-cua-driver-mcp':
         specifier: workspace:^
         version: link:../../computer-use/computer-use-cua-driver-mcp
+      '@aeven/computer-use-macos-provider':
+        specifier: workspace:^
+        version: link:../../computer-use/computer-use-macos-provider
       '@aeven/cordis-client-runner':
         specifier: workspace:^
         version: link:../../extensions/cordis-client-runner
@@ -2244,6 +2253,9 @@ importers:
       '@aeven/tool-device':
         specifier: workspace:^
         version: link:../../device/tool-device
+      '@aeven/tool-image-search':
+        specifier: workspace:^
+        version: link:../../web/tool-image-search
       '@aeven/tool-mail':
         specifier: workspace:^
         version: link:../../mail/tool-mail
@@ -2726,6 +2738,48 @@ importers:
         specifier: workspace:^
         version: link:../ui-theme
     devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@types/react':
+        specifier: ~18.3.1
+        version: 18.3.31
+      '@types/react-dom':
+        specifier: ~18.3.0
+        version: 18.3.7(@types/react@18.3.31)
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.2.0
+        version: 18.3.1(react@18.3.1)
+
+  packages/client/ui-automations:
+    devDependencies:
+      '@aeven/client-connection':
+        specifier: workspace:^
+        version: link:../connection
+      '@aeven/client-locale':
+        specifier: workspace:^
+        version: link:../locale
+      '@aeven/client-ui-conversation':
+        specifier: workspace:^
+        version: link:../ui-conversation
+      '@aeven/client-ui-primitives':
+        specifier: workspace:^
+        version: link:../ui-primitives
+      '@aeven/client-ui-renderer':
+        specifier: workspace:^
+        version: link:../ui-renderer
+      '@aeven/client-ui-sidebar':
+        specifier: workspace:^
+        version: link:../ui-sidebar
+      '@aeven/client-ui-slots':
+        specifier: workspace:^
+        version: link:../ui-slots
+      '@aeven/client-ui-workspace':
+        specifier: workspace:^
+        version: link:../ui-workspace
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -5476,6 +5530,12 @@ importers:
       '@aeven/computer-use-session':
         specifier: workspace:^
         version: link:../computer-use-session
+      '@aeven/sandbox-policy':
+        specifier: workspace:^
+        version: link:../../sandbox/sandbox-policy
+      '@aeven/tools':
+        specifier: workspace:^
+        version: link:../../core/tools
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: workspace:^
@@ -5875,6 +5935,67 @@ importers:
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
+
+  packages/core/automations:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+      luxon:
+        specifier: ^3.7.2
+        version: 3.7.2
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@aeven/agent':
+        specifier: workspace:^
+        version: link:../agent
+      '@aeven/agent-default-model':
+        specifier: workspace:^
+        version: link:../agent-default-model
+      '@aeven/agent-presets':
+        specifier: workspace:^
+        version: link:../../preset/agent-presets
+      '@aeven/brand':
+        specifier: workspace:^
+        version: link:../../util/brand
+      '@aeven/client-connection':
+        specifier: workspace:^
+        version: link:../../client/connection
+      '@aeven/home-paths':
+        specifier: workspace:^
+        version: link:../../util/home-paths
+      '@aeven/identity-user':
+        specifier: workspace:^
+        version: link:../../identity/user
+      '@aeven/llm':
+        specifier: workspace:^
+        version: link:../../llm/llm
+      '@aeven/permission-presets':
+        specifier: workspace:^
+        version: link:../../interaction/permission-presets
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../session
+      '@aeven/storage-domain':
+        specifier: workspace:^
+        version: link:../../storage/storage-domain
+      '@aeven/tools':
+        specifier: workspace:^
+        version: link:../tools
+      '@aeven/user-approval':
+        specifier: workspace:^
+        version: link:../../interaction/user-approval
+      '@aeven/workspace':
+        specifier: workspace:^
+        version: link:../../workspace/workspace
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@types/luxon':
+        specifier: ^3.7.1
+        version: 3.7.6
 
   packages/core/scope:
     devDependencies:
@@ -11870,6 +11991,9 @@ importers:
       '@aeven/agent':
         specifier: workspace:^
         version: link:../../core/agent
+      '@aeven/attachment':
+        specifier: workspace:^
+        version: link:../../attachment/attachment
       '@aeven/browser-chromium':
         specifier: workspace:^
         version: link:../browser-chromium
@@ -11903,6 +12027,31 @@ importers:
       '@aeven/util-values':
         specifier: workspace:^
         version: link:../../util/values
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/web/tool-image-search:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@aeven/attachment':
+        specifier: workspace:^
+        version: link:../../attachment/attachment
+      '@aeven/llm':
+        specifier: workspace:^
+        version: link:../../llm/llm
+      '@aeven/tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+      '@aeven/util-values':
+        specifier: workspace:^
+        version: link:../../util/values
+      '@aeven/web':
+        specifier: workspace:^
+        version: link:../web
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -16013,6 +16162,9 @@ packages:
   '@types/linkify-it@5.0.0':
     resolution: {integrity: sha512-sVDA58zAw4eWAffKOaQH5/5j3XeayukzDk+ewSsnv3p4yJEZHCCzMDiZM8e0OUrRvmpGZ85jf4yDHkHsgBNr9Q==}
 
+  '@types/luxon@3.7.6':
+    resolution: {integrity: sha512-6KSjliQAXK8ZLgFQO4B7iE4Rpf/B3rItzCFuXezBY/XIAGxOdLd7vRNK9/StRPwiS/yJsVbB7HKpW46B8tcEuQ==}
+
   '@types/mailparser@3.9.0':
     resolution: {integrity: sha512-YnhrRiRVDiEAphFvd72hKa1n8y2b9Q3rgSQiONZQyhQz67h5g4MZHNApET3XWXVEFdInWtHqDHKEwnyjxU3QVw==}
 
@@ -18688,6 +18840,10 @@ packages:
   lru-cache@6.0.0:
     resolution: {integrity: sha512-Jo6dJ04CmSjuznwJSS3pUeWmd/H0ffTlkXXgwZi+eq1UCmqQwCh+eLsYOYCwY991i2Fah4h1BEMCx4qThGbsiA==}
     engines: {node: '>=10'}
+
+  luxon@3.7.2:
+    resolution: {integrity: sha512-vtEhXh/gNjI9Yg1u4jX/0YVPMvxzHuGgCm6tC5kZyb08yjGWGnqAjGJvcXbqQR2P3MyMEFnRbpcdFS6PBcLqew==}
+    engines: {node: '>=12'}
 
   lz-string@1.5.0:
     resolution: {integrity: sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==}
@@ -22770,11 +22926,11 @@ snapshots:
 
   '@modelcontextprotocol/server-everything@2026.7.4':
     dependencies:
-      '@modelcontextprotocol/sdk': 1.32.0(zod@4.6.5)
+      '@modelcontextprotocol/sdk': 1.32.0(zod@4.4.3)
       cors: 2.8.6
       express: 5.2.1
       jszip: 3.10.1
-      zod: 4.6.5
+      zod: 4.4.3
     transitivePeerDependencies:
       - '@cfworker/json-schema'
       - supports-color
@@ -23819,6 +23975,8 @@ snapshots:
       '@types/node': 22.20.1
 
   '@types/linkify-it@5.0.0': {}
+
+  '@types/luxon@3.7.6': {}
 
   '@types/mailparser@3.9.0':
     dependencies:
@@ -26712,6 +26870,8 @@ snapshots:
   lru-cache@6.0.0:
     dependencies:
       yallist: 4.0.0
+
+  luxon@3.7.2: {}
 
   lz-string@1.5.0: {}
 

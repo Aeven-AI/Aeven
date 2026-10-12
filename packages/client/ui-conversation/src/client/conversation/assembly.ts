@@ -195,28 +195,6 @@ export class UiConversation extends Service {
   readonly events: ConversationEventRegistry
   /** Registry of target View definitions. */
   readonly views: ConversationViewRegistry
-  /**
-   * Whether a start page takes a blank Session's Hero: while true, the Hero's
-   * centred greeting and card give way to the `conversation.start` slot, with
-   * the composer on the column's floor. Set by the plugin owning the start
-   * page, such as Imagine on its own address.
-   */
-  readonly startPage: ObservableSnapshot<boolean> & { set(active: boolean): void } = (() => {
-    let active = false
-    const listeners = new Set<() => void>()
-    return {
-      getSnapshot: () => active,
-      subscribe: (fn: () => void) => {
-        listeners.add(fn)
-        return () => { listeners.delete(fn) }
-      },
-      set: (next: boolean) => {
-        if (next === active) return
-        active = next
-        for (const fn of listeners) fn()
-      },
-    }
-  })()
   private readonly bindings = new Map<SessionId, BindingRecord>()
   private readonly eventNavigations = new Map<SessionId, SnapshotStore<ConversationEventNavigation | null>>()
   private nextNavigationRequestId = 0

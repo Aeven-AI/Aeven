@@ -165,9 +165,21 @@ export function convertMath(
     return -1
   }
 
+  /**
+   * Escape both dollars of every pair that is not a formula.
+   *
+   * The body may cross a soft line break: remark-math accepts a line ending
+   * inside `$…$`, so a paragraph that opens on one price and closes on the next
+   * one several lines later is read as one formula, and the prose between the
+   * two amounts is rendered as its body. Only prose that fits on one line would
+   * be caught if the scan stopped at the break.
+   *
+   * @param text - the unprotected text to rewrite.
+   * @returns the text with the dollars of every non-formula pair escaped.
+   */
   function protectNonMathDollars(text: string): string {
     return text.replace(
-      /(?<![$\\])\$([^$\r\n]+)\$(?!\$)/g,
+      /(?<![$\\])\$([^$]+)\$(?!\$)/g,
       (match, body, offset: number, whole: string) =>
         looksLikeDollarMath(body, whole, offset + match.length)
           ? match
@@ -179,9 +191,11 @@ export function convertMath(
    * Whether the dollars around `body` delimit a formula.
    *
    * Maths is the exception here, not the rule: models write prices in prose,
-   * and two of them on one line look to remark-math exactly like a formula —
-   * "13.4s video → $68k GMV; … units/$270k" renders the sentence between the
-   * two amounts through KaTeX. The signals below separate the two.
+   * and two of them around a sentence look to remark-math exactly like a
+   * formula — "13.4s video → $68k GMV; … units/$270k" renders the sentence
+   * between the two amounts through KaTeX, and a pair opened in one line and
+   * closed three lines later takes the lines between them with it. The signals
+   * below separate the two.
    *
    * @param body - the text between the two dollars.
    * @param source - the slice the pair was found in, for the character that

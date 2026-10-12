@@ -75,7 +75,9 @@ export interface DesktopBrowserBridge {
   automate: (webContentsId: number, operation: string, input: Record<string, unknown>, requestId?: DesktopBrowserRequestId, timeoutMs?: number) => Promise<unknown>
   /** Cancel the owned browser request. */
   cancelAutomation: (webContentsId: number, requestId: DesktopBrowserRequestId) => void
-  /** Observe the agent pointer actions the shell performs on guests; returns a disposer. */
+  /** Acknowledge a cursor step after arrival or when the pane is invisible. @param webContentsId - guest id. @param sequence - announced step. */
+  cursorArrived(webContentsId: number, sequence: number): void
+  /** Observe pointer steps before native input; returns a disposer. */
   onCursor: (listener: (cursor: BrowserCursor) => void) => () => void
   /**
    * Observe the guests' pages scrolling; returns a disposer.
@@ -136,11 +138,11 @@ export interface DesktopLinksBridge {
 
 /**
  * One agent pointer step, in the guest's viewport CSS pixels (desktop `ipc.ts`
- * `DesktopBrowserCursor`). Animation does not delay native input.
+ * `DesktopBrowserCursor`). Visible arrival precedes discrete native input.
  */
 export interface BrowserCursor {
   readonly webContentsId: number
-  readonly action: 'move' | 'click' | 'type' | 'scroll' | 'control'
+  readonly action: 'move' | 'click' | 'type' | 'scroll' | 'control' | 'cancel'
   readonly sequence: number
   readonly x: number
   readonly y: number
@@ -179,19 +181,21 @@ export type PaneCursorControl = 'back' | 'forward' | 'refresh' | 'stop'
 export interface PaneCursorPresentation {
   /**
    * Glide the pointer onto one of the pane's controls and show it pressed.
+   * @param signal - cancels the action while its pointer travels.
    * @param control - the control being driven.
    * @returns once the pointer has arrived and the press is drawn.
    */
-  announceControl(control: PaneCursorControl): Promise<void>
+  announceControl(control: PaneCursorControl, signal?: AbortSignal): Promise<void>
   /**
    * Glide the pointer to the address bar and type the address into it.
    *
    * The presentation draws the gesture only: the caller that owns the request
    * loads the page, exactly once, after this resolves.
    * @param url - the address being typed.
+   * @param signal - cancels the action while its pointer travels.
    * @returns once the address has been typed and the gesture has settled.
    */
-  announceNavigation(url: string): Promise<void>
+  announceNavigation(url: string, signal?: AbortSignal): Promise<void>
 }
 
 /**

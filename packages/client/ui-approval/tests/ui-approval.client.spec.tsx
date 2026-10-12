@@ -314,6 +314,9 @@ function panelProps(
     escalation: `Tool ${pending.toolName} asks`,
     reject: 'Reject',
     allowOnce: 'Allow once',
+    allowSession: 'Allow for this session',
+    sessionAction: 'Session approval repeats this action in this session without asking. Your access mode does not change.',
+    sessionSandbox: 'Session approval lets any command take this wider access in this session without asking. Your access mode does not change.',
   }
   return {
     matched: pending,
@@ -355,6 +358,21 @@ describe('ApprovalPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Allow once' }))
 
     await expect(pending.result).resolves.toBe('allowed-once')
+  })
+
+  it('offers the session grant on a sandbox escalation with its own consent copy', async () => {
+    const pending = new PendingApproval(id('s1'), {
+      toolName: 'bash',
+      reason: 'escalate sandbox to danger-full-access: the export writes beside the app bundle',
+      allowSession: 'sandbox:workspace-write->danger-full-access',
+      allowSessionCoverage: 'sandbox',
+    })
+    render(<ApprovalPanel {...panelProps(pending)} />)
+
+    expect(screen.getByText('Session approval lets any command take this wider access in this session without asking. Your access mode does not change.')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Allow for this session' }))
+
+    await expect(pending.result).resolves.toBe('allowed-session')
   })
 
   it('re-enables actions when answering fails', async () => {

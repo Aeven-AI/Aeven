@@ -88,7 +88,7 @@ interface ApprovalRequest extends ApprovalRequestEvent {
 }
 ```
 
-An answerer may return `allowed-session` only when the request offers an `allowSession` account-and-operation identifier. The service commits that scope and original session id in `approval/decided`, then returns `allowed-once` to the caller. Later requests with the same tool and scope in that session reuse the grant; forks do not inherit it. The `never` policy and cancellation take precedence over stored grants.
+An answerer may return `allowed-session` only when the request offers an `allowSession` account-and-operation identifier. The service commits that scope and original session id in `approval/decided`, then returns `allowed-once` to the caller. Later requests with the same tool and scope in that session reuse the grant; forks do not inherit it. The requester declares what the grant covers with `allowSessionCoverage` — `'account'` for a connector operation that may reach other recipients and content, `'sandbox'` for a sandbox escalation any later call may reuse, `'action'` for the same action repeated — so the prompt explains the grant in the requester's own terms. The `never` policy and cancellation take precedence over stored grants.
 
 ## Dispatch and audit
 

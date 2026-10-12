@@ -16,6 +16,7 @@ import rehypeReact from 'rehype-react'
 import { remarkFootnotes } from './remark/footnotes.ts'
 import { rehypeCodeContext } from './rehype/code-context.ts'
 import { rehypeData } from './rehype/element-data.ts'
+import { rehypeImageGroup } from './rehype/image-group.ts'
 import { rehypeMathPending } from './rehype/math-pending.ts'
 import { rehypeMermaid } from './rehype/mermaid.ts'
 import { rehypeAnimation } from './rehype/animate-words.ts'
@@ -276,6 +277,14 @@ export function createProcessor(
   // After sanitization, and in every HTML mode: the marker is renderer chrome
   // that the repair pass leaves in the text, not author markup.
   afterRehype.push(rehypeMathPending)
+
+  // Consecutive images become one row. Also after sanitization, for the class
+  // and count the container carries, and only on the pipelines that end at
+  // React: the cached shapes lift a single row or item out of the tree, where a
+  // container spanning several blocks is the wrong unit.
+  if (shape.react) {
+    afterRehype.push(rehypeImageGroup)
+  }
 
   // After sanitization, which would drop unknown properties, and only when the
   // host replaced `code`: on the built-in element these become DOM attributes.

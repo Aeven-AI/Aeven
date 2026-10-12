@@ -7,7 +7,7 @@ kind: "package-reference"
 
 ## Summary
 
-`avn-memory-context` connects the agent loop to `ctx.memory`. At the first step of each accepted direct-user turn it runs one bounded recall and appends the result after the user's message as a durable `user/message` with source `{ kind: 'plugin', plugin: 'memory-context', form: 'recall' }`, so the recalled text is logged and replays exactly. It assembles each completed turn from committed session events (user text, assistant text and reasoning, tool calls and results, including PTC mode sub-dispatches) and hands it to the provider at `turn/end`. The captured turn also carries retry failure codes, explicit user corrections, assistant-reported verification paired with successful tool calls, and goals marked complete in the log. A rating stored through `message-feedback` (`message-feedback/changed`) on an assistant message of a session this instance ran becomes `ctx.memory.feedback` for that turn. A recall failure or timeout never blocks the step; a turn that receives no block states that it ran without memory. A one-shot driver drains this turn's queued captures at the `session/settle` checkpoint, because such a driver exits as soon as that checkpoint resolves.
+`avn-memory-context` connects the agent loop to `ctx.memory`. At the first step of each accepted user or approved automation turn it runs one bounded recall and appends the result after the user's message as a durable `user/message` with source `{ kind: 'plugin', plugin: 'memory-context', form: 'recall' }`, so the recalled text is logged and replays exactly. It assembles each completed turn from committed session events (user text, assistant text and reasoning, tool calls and results, including PTC mode sub-dispatches) and hands it to the provider at `turn/end`. The captured turn also carries retry failure codes, explicit user corrections, assistant-reported verification paired with successful tool calls, and goals marked complete in the log. A rating stored through `message-feedback` (`message-feedback/changed`) on an assistant message of a session this instance ran becomes `ctx.memory.feedback` for that turn. A recall failure or timeout never blocks the step; a turn that receives no block states that it ran without memory. A one-shot driver drains this turn's queued captures at the `session/settle` checkpoint, because such a driver exits as soon as that checkpoint resolves.
 
 The block stays in history for the rest of the turn, so later requests carry it without a second provider lookup. Guidance asks the agent to apply relevant remembered preferences and lessons while giving the current request precedence; memory cannot authorize additional work.
 
@@ -19,7 +19,7 @@ Mount it per agent (the `standard`, `cordis`, and `ptc` presets include it) besi
 
 | Field | Default | Meaning |
 |---|---|---|
-| `recall` | `true` | Recall for every accepted direct-user turn |
+| `recall` | `true` | Recall for every accepted user or approved automation turn |
 | `capture` | `true` | Hand completed turns to the provider |
 | `recallTimeoutMs` | `3000` | Hard budget for one recall; the turn proceeds without memory when it elapses |
 | `contextMaxChars` | `6000` | Bound on one framed memory block |
@@ -28,7 +28,7 @@ Mount it per agent (the `standard`, `cordis`, and `ptc` presets include it) besi
 | `supersedeOverlap` | `0.6` | Share of shared words at which two recalled memories describe one subject, so the later one retires the earlier |
 | `promptOrder` | `114` | Order of the memory guidance prompt section |
 
-Only messages whose source kind is `user` trigger recall or become captured user text; plugin and tool messages never do, so recall cannot recall itself. The pre-step decision returned by downstream listeners is authoritative: rewritten or rejected input is what recall and capture see.
+Messages whose source kind is `user`, and approved task notices from the built-in `automations` service, trigger recall and become captured task text. Other plugin and tool messages do neither, so recall cannot recall itself. The pre-step decision returned by downstream listeners is authoritative: rewritten or rejected input is what recall and capture see.
 
 ## Model Experience
 

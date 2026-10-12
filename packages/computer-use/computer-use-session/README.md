@@ -56,6 +56,9 @@ batch.results   // one entry per step, tagged by kind
 
 ## Understand the implementation
 
+`run()` returns a `failed` step with its error when execution throws, preserving earlier results. Caller cancellation rejects the batch. The optional signal is checked between steps; the provider forwards it to its command runners. Completed steps are not rolled back or safe to replay automatically.
+
+
 ### One call, many steps
 
 `run()` performs its steps in order and **stops at the first failure**. A later step in a batch almost always depends on an earlier one having succeeded, so continuing would act on an interface that never reached the expected state.
@@ -78,7 +81,7 @@ There is nothing to act on in an unchanged node, and it would carry a token the 
 <a id="known-limitations-and-deferred-work"></a>
 ## Known Limitations and Deferred Work
 
-- **Not wired to a model-facing tool yet.** This is the session object a consumer would expose; nothing registers it as a `run_code`-style binding or a model tool.
+- **The macOS provider exposes `computer_use_run`.** It returns per-step results and independent verification; accessibility and vision recipe handlers remain outside the batch tool.
 - **No persistent kernel.** The session lives in the host process, which is what lets a batch share state while the code runtime stays stateless and reconstructable from the log.
 - **No wait policy.** `isQuiet(diff)` gives a caller the signal for polling until an interface settles, but nothing waits for it automatically.
 - **Steps are not resumable.** A batch that stops at a failed step reports what it did and returns; re-running it repeats the steps that already succeeded.

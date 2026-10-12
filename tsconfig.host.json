@@ -121,6 +121,7 @@
     "scripts/client-bundle-purity.spec.ts"
   ],
   "references": [
+    { "path": "./packages/core/automations" },
     { "path": "./vendor/cosmokit" },
     { "path": "./vendor/schemastery" },
     { "path": "./vendor/cordis" },
@@ -235,6 +236,7 @@
     { "path": "./packages/memory/api-memory-manager" },
     { "path": "./packages/interaction/tool-ask-user" },
     { "path": "./packages/web/tool-browser" },
+    { "path": "./packages/web/tool-image-search" },
     { "path": "./packages/interaction/tool-location" },
     { "path": "./packages/web/browser-chromium" },
     { "path": "./packages/device/device" },

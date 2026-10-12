@@ -1,0 +1,67 @@
+{
+  "name": "@aeven/automations",
+  "version": "0.1.2-alpha.5",
+  "description": "Built-in durable local automations",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./types": {
+      "types": "./lib/types/types.d.ts",
+      "default": "./lib/types/types.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "license": "MIT",
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.js",
+    "lib/types/**/*.d.ts",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "luxon": "^3.7.2",
+    "zod": "4.4.3"
+  },
+  "peerDependencies": {
+    "@aeven/agent": "workspace:^",
+    "@aeven/agent-default-model": "workspace:^",
+    "@aeven/agent-presets": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
+    "@aeven/permission-presets": "workspace:^",
+    "@aeven/workspace": "workspace:^",
+    "@aeven/client-connection": "workspace:^",
+    "@aeven/brand": "workspace:^",
+    "@aeven/home-paths": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/storage-domain": "workspace:^",
+    "@aeven/user-approval": "workspace:^",
+    "@aeven/tools": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/schemastery": "workspace:^"
+  },
+  "devDependencies": {
+    "@aeven/agent": "workspace:^",
+    "@aeven/agent-default-model": "workspace:^",
+    "@aeven/agent-presets": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
+    "@aeven/permission-presets": "workspace:^",
+    "@aeven/workspace": "workspace:^",
+    "@aeven/client-connection": "workspace:^",
+    "@aeven/brand": "workspace:^",
+    "@aeven/home-paths": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/storage-domain": "workspace:^",
+    "@aeven/user-approval": "workspace:^",
+    "@aeven/tools": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/schemastery": "workspace:^",
+    "@types/luxon": "^3.7.1"
+  }
+}

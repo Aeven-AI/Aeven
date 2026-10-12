@@ -91,30 +91,39 @@ export class ComputerUseSession {
    * batch almost always depends on an earlier one having succeeded; continuing
    * would act on an interface that never reached the expected state.
    * @param steps - the steps to perform.
-   * @returns the per-step results and whether everything verified.
-   * @throws {ComputerUseError} `capability-unavailable` when a step needs an
-   * adapter this session was not given.
+   * @param signal - caller cancellation, checked before and after each step.
+   * @returns the per-step results and whether everything verified; failures stop the batch.
+   * @throws the caller's abort reason when cancellation is requested.
    */
-  async run(steps: readonly SessionStep[]): Promise<BatchResult> {
+  async run(steps: readonly SessionStep[], signal?: AbortSignal): Promise<BatchResult> {
     const results: SessionStepResult[] = []
     for (const step of steps) {
-      if (step.kind === 'execute') {
-        const outcome = await this.executor.execute(step.request)
-        results.push({ kind: 'execute', outcome })
-        if (!outcome.verified) {
-          return { results, verified: false, steps: steps.length }
+      signal?.throwIfAborted()
+      try {
+        if (step.kind === 'execute') {
+          const outcome = await this.executor.execute(step.request)
+          signal?.throwIfAborted()
+          results.push({ kind: 'execute', outcome })
+          if (!outcome.verified) {
+            return { results, verified: false, steps: steps.length }
+          }
+          continue
         }
-        continue
+        if (step.kind === 'observe') {
+          const observation = await this.observe(step.scope)
+          results.push({ kind: 'observe', observation: observation.observation, diff: observation.diff })
+          continue
+        }
+        const adapter = this.requireAdapter('readiness')
+        const readiness = await adapter.readiness()
+        results.push({ kind: 'readiness', readiness })
+      } catch (error) {
+        signal?.throwIfAborted()
+        results.push({ kind: 'failed', error: error instanceof Error ? error.message : String(error), step })
+        return { results, verified: false, steps: steps.length }
       }
-      if (step.kind === 'observe') {
-        const observation = await this.observe(step.scope)
-        results.push({ kind: 'observe', observation: observation.observation, diff: observation.diff })
-        continue
-      }
-      const adapter = this.requireAdapter('readiness')
-      const readiness = await adapter.readiness()
-      results.push({ kind: 'readiness', readiness })
     }
+    signal?.throwIfAborted()
     return {
       results,
       verified: results.every(entry => entry.kind !== 'execute' || entry.outcome.verified),

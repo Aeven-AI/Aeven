@@ -21,6 +21,7 @@ export const DESKTOP_IPC = {
   browserCancelAutomation: 'avn-desktop:browser-cancel-automation',
   browserSuggest: 'avn-desktop:browser-suggest',
   browserCursor: 'avn-desktop:browser-cursor',
+  browserCursorArrived: 'avn-desktop:browser-cursor-arrived',
   browserPageScroll: 'avn-desktop:browser-page-scroll',
 } as const
 
@@ -48,14 +49,13 @@ export type DesktopMenuItem =
 
 /**
  * One agent pointer step the app window draws over a guest, in the guest's
- * viewport CSS pixels. A `move` glides the pointer to a point; action effects
- * animate independently of native input completion.
+ * viewport CSS pixels. A `move` glides the pointer to a point; discrete input waits for visible arrival.
  */
 export interface DesktopBrowserCursor {
   /** The guest the action happens in. */
   readonly webContentsId: number
   /** What the pointer shows. */
-  readonly action: 'move' | 'click' | 'type' | 'scroll' | 'control'
+  readonly action: 'move' | 'click' | 'type' | 'scroll' | 'control' | 'cancel'
   /** Per-shell pointer step number. */
   readonly sequence: number
   readonly x: number
@@ -132,11 +132,9 @@ export interface AvnDesktopBrowserApi {
    * @returns the response body, for the renderer to parse.
    */
   suggest(url: string): Promise<string>
-  /**
-   * Observe the agent pointer actions the shell performs on guests.
-   * @param listener - called with each action, before its input lands.
-   * @returns disposer removing the listener.
-   */
+  /** Acknowledge a cursor step after arrival or when the pane is invisible. @param webContentsId - guest id. @param sequence - announced step. */
+  cursorArrived(webContentsId: number, sequence: number): void
+  /** Observe pointer steps before native input. @param listener - action observer. @returns observer disposer. */
   onCursor(listener: (cursor: DesktopBrowserCursor) => void): () => void
   /**
    * Observe the guests' pages scrolling.

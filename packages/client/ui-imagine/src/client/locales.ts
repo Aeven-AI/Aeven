@@ -4,6 +4,7 @@
 export const zh = {
   'title': '想象',
   'prompts.label': '图片灵感',
+  'composer.placeholder': '描述一张新图片或一段视频',
   'prompt.instagram-retouch.title': 'Instagram 优化',
   'prompt.instagram-retouch.description': '把一张普通的手机照片修成精致的 Instagram 作品：匀净肤色、暖色调、胶片颗粒，长相保持不变。',
   'prompt.instagram-retouch.text': '请把我附加的照片作为参考图，对这张照片本身进行精修。保持人物、姿势、拍摄角度、构图和背景完全不变，不要重画整个场景。按摄影师修 Instagram 成片的方式全力精修：匀净肤色和泛红，淡化瑕疵和眼袋，同时保留真实的皮肤质感和毛孔——不要塑料感、模糊或蜡像皮肤，不要改变五官形状；保持自然的眼型和笑容，加一点柔和的眼部高光并稍稍提亮眼睛，牙齿略微增白；提亮暗部、保护高光，给面部加柔和暖光，并用减淡加深做出轻微的立体感；最后整体调色成暖夏日感——青绿色暗部、暖色高光、淡淡的橙青分离色调、自然的肤色、轻微的对比曲线、柔和的暖色暗角和细腻的胶片颗粒。头发和衣服保持原样，只是更干净、更有细节。目标是锐利、自然、杂志级质感的照片，看起来像专业摄影师拍的：不要过度修图，不要 HDR 光晕，不要卡通或 AI 感，不要新增物体或人物，不要文字和水印，人物的长相必须完全保持一致。',
@@ -127,6 +128,7 @@ export type ImagineKey = keyof typeof zh
 export const en = {
   'title': 'Imagine',
   'prompts.label': 'Image ideas',
+  'composer.placeholder': 'Describe a new image or video',
   'prompt.instagram-retouch.title': 'Instagram improve',
   'prompt.instagram-retouch.description': 'Turn a plain phone photo into a polished Instagram post: even skin, a warm grade, film grain, the same face.',
   'prompt.instagram-retouch.text': 'Use the photo I attached as the reference image and edit that exact photo. Keep the person, the pose, the camera angle, the framing and the background exactly as they are, and do not redraw the scene. Retouch it the way a photographer finishes an Instagram post at full strength: even out skin tone and redness, soften blemishes and under-eye shadows while keeping real skin texture and pores visible — no plastic, blurred or waxy skin, no reshaped features; keep the natural eye shape and smile, add a soft catchlight and a slight lift to the eyes, and whiten the teeth a touch; lift the shadows, protect the highlights, add soft warm light on the face and gentle dodge and burn for subtle contouring; then grade the whole frame with a warm summer palette — teal shadows, warm highlights, a light orange-and-teal split tone, natural skin tones, a mild contrast curve, a soft warm vignette and fine film grain. Keep hair and clothing as they are, just cleaner and more detailed. Aim for a sharp, natural, magazine-quality photo that reads as shot by a professional: not over-edited, no HDR halo, no cartoon or AI look, no extra objects or people, no text and no watermark, and keep the person\'s identity exactly.',

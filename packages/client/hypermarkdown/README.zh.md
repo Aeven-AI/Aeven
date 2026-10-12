@@ -78,6 +78,7 @@ Mermaid 图表默认提供缩放控件与指针平移。普通滚轮输入会缩
 | Markdown 修复 | `src/engine/repair/**` |
 | 解析流水线与净化 | `src/engine/processors.ts`、`src/engine/sanitize.ts` |
 | 围栏、表格、图表与推理外观 | `src/engine/code/**`、`src/engine/table/**`、`src/engine/mermaid/**`、`src/engine/reasoning/**` |
+| 图片成组 | `src/engine/rehype/image-group.ts` |
 | 插件工厂 | `src/engine/plugins/**` |
 | 样式表 | `src/styles/hypermarkdown.css` |
 
@@ -85,6 +86,7 @@ Mermaid 图表默认提供缩放控件与指针平移。普通滚轮输入会缩
 
 引擎用声明在 `.hypermarkdown` 上的 `--hm-*` 自定义属性绘制自己的外观。样式表是使用原生嵌套的纯 CSS，并随产物一起分发：构建的 static-linked 预设会把它与 JavaScript 一起输出并保留相对导入，因此类名哈希与投递由 shell 的 CSS 流水线负责。
 表格单元格在最大宽度 32ch 内换行；超过容器宽度的表格可以水平滚动。行内代码使用 `--hm-size-small`、上下 1px 左右 6px 的内边距、16px 圆角和 `#f2f2f2` 背景。
+连续多个区块各写一张图片时，整段会合并为一个带 `data-count` 的 `div.markdown-image-grid`；单张图片保持它被写入时的区块形态。合并只负责结构：图块的形状、圆角与填充方式，以及整行的几何，仍由宿主负责，渲染图片的其他规则本来也归宿主所有。图片加载完成后会带上 `data-orientation`（`portrait` 或 `landscape`），宿主因此可以按图片实际形态决定每个图块的长宽。
 
 </details>
 

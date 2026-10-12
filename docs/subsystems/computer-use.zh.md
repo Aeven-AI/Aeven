@@ -14,6 +14,8 @@
 
 各提供方提供上游工具目录。共享服务只注册名称，并拒绝任何第二个提供方，包括使用相同名称的另一个实例。服务不包含通用桌面操作方法或模型控制的选择器。
 
+macOS Web 和 Electron 组合还通过 `register: false` 挂载[语义批次](../../packages/computer-use/computer-use-macos-provider/README.zh.md)。`computer_use_run` 暴露 `ComputerUseSession.run()` 和逐期望校验，Cua Driver 保留注册和交互工具。批量调用不实现无障碍或视觉降级。
+
 ## 生命周期和桌面共享
 
 提供方在关闭工具和自有资源期间保留注册。启动失败会释放此次尝试的注册。MCP 提供方在重连期间保留注册。

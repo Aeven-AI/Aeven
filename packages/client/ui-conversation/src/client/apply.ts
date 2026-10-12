@@ -78,6 +78,13 @@ const ABSENT_MOVE_TARGETS = {
 }
 
 interface WorkspaceNavigation {
+  readonly startAddress: ObservableSnapshot<string | undefined>
+  /**
+   * Composer placeholder a start page declared with its address. Optional: an
+   * assembly mounted over a Workspace UI that predates the claim keeps the
+   * shared prompt.
+   */
+  composerPlaceholder?: ((path: string) => string | undefined) | undefined
   connectWorkspace(
     workspaceId: Parameters<ConversationInjected['selectWorkspace']>[0],
   ): Promise<SessionId>
@@ -250,7 +257,7 @@ export function apply(ctx: Context): void {
       'conversation.input.dock': { kind: 'list', scope: 'session' },
       'conversation.hero.workspace': { kind: 'single', scope: 'root' },
       'conversation.hero.agentPreset': { kind: 'single', scope: 'root' },
-      'conversation.start': { kind: 'list', scope: 'session' },
+      'conversation.start': { kind: 'keyed', scope: 'session' },
       // Resident navigation-band utilities. Declared here, by the resident
       // root, because the band outlives any one Session: gating these on a
       // Session is what left the signed-in reader's avatar missing on a
@@ -261,11 +268,12 @@ export function apply(ctx: Context): void {
       hooks: {
         composerBlock: sessionId === undefined ? ABSENT_BLOCK : composerBlocks.storeFor(sessionId),
         selectedView: sessionId === undefined ? ABSENT_SELECTED_VIEW : uiConversation.binding(sessionId).selectedView,
-        startPage: uiConversation.startPage,
+        startAddress: workspaceNavigation.startAddress,
       },
       // The fold control is chrome for the frame's own column, so its action is
       // read rather than declared as a hard dependency.
       toggleSidebar: foldAction(ctx),
+      composerPlaceholder: (path) => workspaceNavigation.composerPlaceholder?.(path),
       selectWorkspace: async (workspaceId) => {
         const nextId = await workspaceNavigation.connectWorkspace(workspaceId)
         if (sessionId !== undefined && nextId !== sessionId) {

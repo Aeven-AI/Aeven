@@ -40,7 +40,7 @@ export interface Spring {
   force: number
   simulationTime: number
   scriptTime: number
-  readonly config: SpringConfig
+  config: SpringConfig
 }
 
 /**
@@ -61,17 +61,6 @@ const MAX_STIFFNESS = 1 / (2 * STEP_SECONDS ** 2)
 
 /** Velocity and force below this count as stopped, in 1/60 s-scaled units. */
 const REST_VELOCITY = 0.001 * 60
-
-/**
- * Most simulated time one call may add, in seconds.
- *
- * A frame longer than this is truncated rather than integrated, because the
- * stiffest configured spring is only stable below roughly 2/omega — about 48ms —
- * and integrating past that makes a dropped frame change the motion instead of
- * merely delaying it. Truncating loses a little distance on that frame and keeps
- * the trajectory identical to a finely stepped one.
- */
-const MAX_ADVANCE_SECONDS = 0.05
 
 /**
  * Create a spring already at `value`, so nothing animates on first paint.
@@ -108,7 +97,7 @@ export function stepSpring(spring: Spring, seconds: number): void {
   const stiffness = Math.min((Math.PI * 2) ** 2 / response ** 2, MAX_STIFFNESS)
   const damping = Math.sqrt(stiffness) * 2 * spring.config.dampingFraction
 
-  spring.scriptTime += Math.min(seconds, MAX_ADVANCE_SECONDS)
+  spring.scriptTime += seconds
   if (spring.scriptTime - spring.simulationTime > 1) spring.simulationTime = spring.scriptTime - STEP_SECONDS
   while (spring.simulationTime < spring.scriptTime) {
     integrate(spring, stiffness, damping)

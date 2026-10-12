@@ -28,7 +28,7 @@ export async function automate(guest: BrowserGuest, request: Pick<BrowserAutomat
       const url = resolveAddress(String(request.input.url ?? ''))
       if (url === undefined) throw new Error(`not a navigable address: ${String(request.input.url)}`)
       // A navigation is the agent using the browser, so the address bar shows it.
-      await livePaneCursors.get(guest)?.announceNavigation(url)
+      await livePaneCursors.get(guest)?.announceNavigation(url, request.signal)
       request.signal?.throwIfAborted()
       const cancel = (): void => { guest.stop() }
       request.signal?.addEventListener('abort', cancel, { once: true })
@@ -44,7 +44,7 @@ export async function automate(guest: BrowserGuest, request: Pick<BrowserAutomat
     case 'forward':
     case 'reload': {
       const pane = livePaneCursors.get(guest)
-      await pane?.announceControl(request.operation === 'reload' ? 'refresh' : request.operation)
+      await pane?.announceControl(request.operation === 'reload' ? 'refresh' : request.operation, request.signal)
       request.signal?.throwIfAborted()
       if (request.operation === 'back') guest.goBack()
       else if (request.operation === 'forward') guest.goForward()
@@ -55,6 +55,7 @@ export async function automate(guest: BrowserGuest, request: Pick<BrowserAutomat
     case 'wait':
     case 'sequence':
     case 'snapshot':
+    case 'screenshot':
     case 'click':
     case 'type':
     case 'press':

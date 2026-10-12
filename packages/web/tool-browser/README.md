@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`@aeven/tool-browser` lets the model read and drive the browser the user sees beside a session. It registers thirteen `preview_*` tools and, on the first step of each turn, adds the open page to the request as a logged plugin message. The plugin performs no browser work itself: every call is a `browser/automation` waterfall that the Client holding the session's browser answers, except `preview_status`, which also reports the Chromium the Host runs. Every wait on that waterfall is bounded, so a turn never waits on a browser that no connected Client holds.
+`@aeven/tool-browser` lets the model read and drive the browser the user sees beside a session. It registers fourteen `preview_*` tools and, on the first step of each turn, adds the open page to the request as a logged plugin message. The plugin performs no browser work itself: every call is a `browser/automation` waterfall that the Client holding the session's browser answers, except `preview_status`, which also reports the Chromium the Host runs. Every wait on that waterfall is bounded, so a turn never waits on a browser that no connected Client holds.
 
 ## Table of Contents
 
@@ -26,6 +26,10 @@ English | [中文](README.zh.md)
 Mount the plugin in an agent composition whose Client can host a browser, such as the right-sidebar browser of `@aeven/client-ui-sidebar-browser`. The shipped `cordis`, `standard`, and `ptc` presets mount it.
 
 `preview_upload` takes absolute paths on the Electron computer and a file-input or Upload-button selector; an omitted selector requires exactly one file input. Remote uploads request approval scoped to the destination origin and paths, while localhost is exempt. `preview_sequence` runs 1–20 typed actions locally, with condition-based waits and a first-failure result. Upload and sequence execution require write access. These operations are implemented for Electron; embedded-frame upload choosers are unsupported.
+
+`preview_snapshot` accepts `mode: dom` (the default) or `mode: ax`. The accessibility mode reads Chromium's accessibility tree, including shadow DOM, and returns `snapshotId`, indexed `nodes`, and `truncated`. Nodes use the desktop element fields `index`, `token`, `role`, `title`, `value`, and `editable`. Pass a returned token to `preview_click` or `preview_type` instead of a selector. Tokens expire on the next observation or browser action, and navigation or detached, hidden, or disabled targets are refused. Re-observe after acting; accessibility targets inside frames remain outside this milestone.
+
+`preview_screenshot` captures the visible viewport as JPEG under `actionTimeoutMs` and stores it as a durable image attachment in the tool result. The screenshot enters the session log and model history through the ordinary image result path; attachment storage is required.
 
 ### Configuration
 

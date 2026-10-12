@@ -1,8 +1,16 @@
 /** Composer takeover for one pending approval waterfall. */
 import { useState, type ReactNode } from 'react'
 import { Button } from '@aeven/client-ui-primitives'
-import type { ApprovalComposerProps, ApprovalDecision, PendingApproval } from './contract/slots.ts'
+import type {
+  ApprovalComposerProps, ApprovalDecision, ApprovalSessionCoverage, PendingApproval,
+} from './contract/slots.ts'
 import css from './ApprovalPanel.module.css'
+
+const SESSION_NOTES: Record<ApprovalSessionCoverage, 'session' | 'sessionAction' | 'sessionSandbox'> = {
+  account: 'session',
+  action: 'sessionAction',
+  sandbox: 'sessionSandbox',
+}
 
 /**
  * Render one pending approval and its optional Tool-owned detail.
@@ -59,7 +67,7 @@ function ApprovalFlow({ pending, detail, t }: {
         >
           {detail !== null && <div className={css.command}>{detail}</div>}
         </div>
-        <div className={css.note}>{t(pending.allowSession ? 'session' : 'once')}</div>
+        <div className={css.note}>{t(pending.allowSession ? SESSION_NOTES[pending.sessionCoverage] : 'once')}</div>
         <div className={css.actionRow}>
           <Button
             variant="outline" className={`${css.reject} ${css.action}`}

@@ -58,9 +58,21 @@ export interface ApprovalPresentationRequest {
   readonly reason?: string
   /** Whether a session grant is offered for this operation. */
   readonly allowSession?: string
+  /**
+   * What the offered grant covers (mirrors the Host seam's
+   * `SessionGrantCoverage`); absent means the requester's own action repeated.
+   */
+  readonly allowSessionCoverage?: ApprovalSessionCoverage
   /** Cancellation projected from the Host waterfall. */
   readonly signal?: AbortSignal
 }
+
+/**
+ * What a session grant covers, for the consent copy that explains it:
+ * `'account'` reaches other recipients and content, `'sandbox'` other calls
+ * that need the same wider access, `'action'` the same action again.
+ */
+export type ApprovalSessionCoverage = 'action' | 'account' | 'sandbox'
 
 /** Decisions this interactive Client presentation can return. */
 export type ApprovalDecision = 'allowed-once' | 'allowed-session' | 'rejected'
@@ -81,6 +93,8 @@ export class PendingApproval {
   readonly reason: string | undefined
   /** Whether a session grant is offered for this operation. */
   readonly allowSession: boolean
+  /** What the offered grant covers; `'action'` when the requester declared none. */
+  readonly sessionCoverage: ApprovalSessionCoverage
   /** Result returned by the Remote Event listener to the Host waterfall. */
   readonly result: Promise<ApprovalDecision>
 
@@ -102,6 +116,7 @@ export class PendingApproval {
     this.callId = request.callId
     this.reason = request.reason
     this.allowSession = request.allowSession !== undefined
+    this.sessionCoverage = request.allowSessionCoverage ?? 'action'
     const completion = Promise.withResolvers<ApprovalDecision>()
     this.result = completion.promise
     this.#resolve = completion.resolve

@@ -21,3 +21,7 @@ A global session allow policy would combine unrelated accounts, shell escalation
 ## Consequences
 
 Repeated operations may use different recipients and content; the panel explains this before consent. Session grants survive session reloads and have no revocation interface. Draft identifiers remain identifiers unless their tool call includes the actual draft content. Automated tests and snapshot updates are omitted at the user's explicit request; validation uses TypeScript, the build, and manual live verification.
+
+## Related
+
+A second requester scope — sandbox escalation — reuses this grant mechanism under [sandbox escalation session grants](../feature/2026-10-12-sandbox-escalation-session-grant.md).

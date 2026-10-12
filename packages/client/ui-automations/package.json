@@ -1,0 +1,58 @@
+{
+  "name": "@aeven/client-ui-automations",
+  "version": "0.1.2-alpha.5",
+  "description": "Built-in task-first automation management",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "types": "./lib/types/client/index.d.ts",
+      "default": "./lib/client.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "license": "MIT",
+  "files": [
+    "lib/index.js",
+    "lib/client.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "avn": {
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@aeven/client-connection",
+        "@aeven/client-locale",
+        "@aeven/client-ui-sidebar",
+        "@aeven/client-ui-renderer",
+        "@aeven/client-ui-slots",
+        "@aeven/client-ui-primitives",
+        "@aeven/client-ui-conversation",
+        "@aeven/client-ui-workspace"
+      ]
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/client-connection": "workspace:^",
+    "@aeven/client-locale": "workspace:^",
+    "@aeven/client-ui-sidebar": "workspace:^",
+    "@aeven/client-ui-renderer": "workspace:^",
+    "@aeven/client-ui-slots": "workspace:^",
+    "@aeven/client-ui-primitives": "workspace:^",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "@types/react": "~18.3.1",
+    "@types/react-dom": "~18.3.0",
+    "@aeven/client-ui-conversation": "workspace:^",
+    "@aeven/client-ui-workspace": "workspace:^"
+  }
+}

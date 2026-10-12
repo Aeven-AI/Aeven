@@ -18,6 +18,7 @@
 
 import type {} from '@aeven/user-approval'
 import type {} from '@aeven/sandbox-policy'
+import type { ImageAttachmentRef } from '@aeven/attachment'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { Agent, PreStepDecision } from '@aeven/agent'
@@ -166,6 +167,7 @@ function nextStepFor(pageOpen: boolean, host: HostBrowserReport | null): string 
 }
 
 const selector = { type: 'string', description: "CSS selector such as button[type='submit'], from preview_snapshot's interactiveElements." } as const
+const token = { type: 'string', description: 'Element token from the latest preview_snapshot with mode ax. Valid until the next browser action; do not combine with selector or coordinates.' } as const
 const text = { render: (_args: unknown, value: string) => [{ type: 'text' as const, text: value }] }
 
 /**
@@ -251,12 +253,13 @@ export function apply(ctx: Context, config: Config): void {
       'No browser is open beside this session, and preview_* drives only that browser. Call preview_status to see the browser surfaces this session has, or ask the user to open one from the right sidebar (Browser).',
       'BROWSER_UNAVAILABLE',
     ))
-    return ctx.waterfall(
+    using bounded = deadline(exec.signal, actionTimeoutMs, 'BROWSER_ACTION_TIMEOUT')
+    return await unlessAborted(ctx.waterfall(
       scopeTarget(agent, agent),
       'browser/automation',
-      { operation, input, agent, signal: exec.signal, timeoutMs: actionTimeoutMs },
+      { operation, input, agent, signal: bounded.signal, timeoutMs: actionTimeoutMs },
       unavailable,
-    )
+    ), bounded.signal)
   }
 
   const uploadInput = async (input: { [key: string]: JsonValue }, exec: ToolRunContext): Promise<{ [key: string]: JsonValue }> => {
@@ -380,6 +383,27 @@ export function apply(ctx: Context, config: Config): void {
   // parameters this browser implements.
   for (const tool of [
     status,
+    defineTool({
+      name: 'preview_screenshot',
+      description: 'Capture the visible viewport of the collaborative browser as a JPEG image. Use it when page pixels are needed; inspect accessibility or DOM state for ordinary interaction.',
+      parameters: {},
+      timeoutMs: actionTimeoutMs,
+      output: {
+        schema: { type: 'object', additionalProperties: false, properties: { attachment: { type: 'object', additionalProperties: true, required: true } } },
+        render: (_args, value) => [{ type: 'image', attachment: value.attachment as unknown as ImageAttachmentRef }],
+      },
+      async execute(_args, exec) {
+        const attachments = ctx.get('attachments')
+        if (attachments === undefined) throw new HarnessError('browser screenshots require attachment storage', 'BROWSER_SCREENSHOT_STORAGE')
+        const capture = await run('screenshot', {}, exec)
+        if (typeof capture !== 'object' || capture === null || Array.isArray(capture) || typeof capture.data !== 'string' || capture.mimeType !== 'image/jpeg') {
+          throw new HarnessError('the browser returned an invalid JPEG capture', 'BROWSER_SCREENSHOT_INVALID')
+        }
+        exec.signal.throwIfAborted()
+        const attachment = await attachments.saveImage({ data: Buffer.from(capture.data, 'base64'), mediaType: 'image/jpeg', name: 'browser.jpg' })
+        return { attachment: { ...attachment } }
+      },
+    }),
     action('preview_navigate', 'navigate',
       "Navigate the collaborative browser tab. Pass {url:'https://t3.chat'} for a website or a local dev server URL.",
       { url: { type: 'string', required: true, description: 'Website URL. Use this for public pages and directly reachable URLs.' } }),
@@ -393,14 +417,14 @@ export function apply(ctx: Context, config: Config): void {
       'Reload the page in the collaborative browser tab, showing the pointer pressing the control.',
       {}),
     action('preview_snapshot', 'snapshot',
-      'Inspect a page before interacting. Returns page state: URL, title, visible text, and interactive elements with CSS selectors.',
-      {}),
+      'Inspect a page before interacting. mode dom returns visible text and CSS selectors. mode ax reads the browser accessibility tree, including shadow DOM, and returns indexed nodes with snapshot-scoped tokens. Refresh after every action; truncated means nodes were omitted.',
+      { mode: { type: 'string', enum: ['dom', 'ax'], description: 'Observation mode. Defaults to dom.' } }),
     action('preview_click', 'click',
       'Click exactly one target in the collaborative browser tab. Prefer a selector from preview_snapshot; x and y must be supplied together.',
-      { selector, x: { type: 'number', description: 'Viewport-relative X coordinate in CSS pixels. Must be paired with y.' }, y: { type: 'number', description: 'Viewport-relative Y coordinate in CSS pixels. Must be paired with x.' } }),
+      { selector, token, x: { type: 'number', description: 'Viewport-relative X coordinate in CSS pixels. Must be paired with y.' }, y: { type: 'number', description: 'Viewport-relative Y coordinate in CSS pixels. Must be paired with x.' } }),
     action('preview_type', 'type',
       'Insert literal text into one input in the collaborative browser tab. Types into selector, or into the currently focused element when omitted; set clear=true to replace existing text.',
-      { text: { type: 'string', required: true, description: 'Literal text to insert.' }, selector, clear: { type: 'boolean', description: 'Clear the existing input value before inserting text. Defaults to false.' } }),
+      { text: { type: 'string', required: true, description: 'Literal text to insert.' }, selector, token, clear: { type: 'boolean', description: 'Clear the existing input value before inserting text. Defaults to false.' } }),
     action('preview_press', 'press',
       "Press one keyboard key in the collaborative browser tab. Examples: {key:'Enter'}, {key:'Escape'}, or {key:'a',modifiers:['Meta']}.",
       {

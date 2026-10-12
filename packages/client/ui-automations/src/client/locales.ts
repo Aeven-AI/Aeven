@@ -1,0 +1,48 @@
+/** Automation page, starter instructions, and result-resolution copy. */
+export const en = {
+  title: 'Automations',
+  create: 'New automation', composerPlaceholder: 'Describe a new automation',
+  newDraft: 'Help me create an automation. Ask what I want done and when, then show me the task, schedule, and permissions for confirmation before creating it.',
+  offlineDetail: 'Reconnect to manage automations. Saved schedules have not been removed.',
+  routines: 'Automations', recommended: 'Templates', empty: 'Make room for what matters', emptyDetail: 'Start with an idea below, or describe a routine in the composer.',
+  next: 'Next run', last: 'Last result', noNext: 'Schedule finished', noRuns: 'No runs yet', history: 'Runs',
+  active: 'Active', paused: 'Paused', queued: 'Queued', running: 'Running', succeeded: 'Finished', failed: 'Needs attention', skipped: 'Skipped', cancelled: 'Stopped',
+  run: 'Run now', pause: 'Pause', resume: 'Resume', edit: 'Adjust', remove: 'Delete',
+  clearRuns: 'Clear history', clearConfirm: 'Clear the run history? This removes the record of past runs and cannot be undone.',
+  editDraft: 'Help me adjust the automation “{name}” (ID: {id}). First show its current task and schedule, then ask what I would like to change. Confirm the changes before saving them.',
+  confirmation: 'Delete this automation? A run already in progress will continue, and its history will be kept.',
+  conversation: 'Open conversation', confirmResult: 'Confirm that you checked the result and the intended work was completed?', confirmResultAction: 'Confirm result', confirmed: 'Result confirmed',
+  retry: 'Retry', retryWarning: 'This run may already have changed something outside Æven. Check its conversation before retrying. Run the same task again?', linkedRetry: 'Deliberately retried from an earlier run',
+  loading: 'Loading…', error: 'Could not load automations.',
+  rolesTitle: 'Find my next freelance role', rolesDescription: 'Find suitable opportunities and prepare tailored CVs.',
+  rolesDraft: 'Create an automation every day at 10:00 in {zone}: find freelance roles on LinkedIn that match my background, shortlist the best matches, and prepare tailored CVs. Ask where my CV is and which roles I want if that is not known. Use my browser and saved preferences. Ask for permission to create the CV files. Do not send applications without separate authorization. Show me the complete task, schedule, and permissions before creating it.',
+  inboxTitle: 'Start the day with a clear inbox', inboxDescription: 'Summarize important email and prepare replies.',
+  inboxDraft: 'Create an automation every weekday at 08:00 in {zone}: check my connected email account, summarize the important messages, and prepare replies for my review. Ask which account to use if necessary. Keep messages unsent. Show me the task, schedule, account, and permissions before creating it.',
+  briefingTitle: 'My daily briefing', briefingDescription: 'A short, sourced update on the topics I care about.',
+  briefingDraft: 'Help me create a daily briefing automation at 09:00 in {zone}. Ask which topics I care about, then search for new developments and produce a concise update with source links. Show me the task, schedule, and permissions before creating it.',
+  weeklyTitle: 'Wrap up my week', weeklyDescription: 'Bring together progress, loose ends, and next steps.',
+  weeklyDraft: 'Help me create an automation every Friday at 16:00 in {zone}: summarize my week, identify unfinished work, and suggest next steps. Ask which files or connected work sources to use. Show me the task, schedule, sources, and permissions before creating it.',
+} as const
+/** Dictionary keys shared by the page and the typed starter catalogue. */
+export type AutomationKey = keyof typeof en
+/** Chinese copy for all automation page and composer instructions. */
+export const zh: Record<AutomationKey, string> = {
+  title: '自动任务', create: '新建自动任务', composerPlaceholder: '描述一个新自动化',
+  newDraft: '帮我创建自动任务。询问我希望完成什么以及何时执行，然后展示任务、计划和权限，得到确认后再创建。',
+  offlineDetail: '重新连接后可管理自动任务。已保存的计划没有被删除。',
+  routines: '自动任务', recommended: '模板', empty: '把时间留给重要的事', emptyDetail: '从下方的想法开始，或在输入框描述一项日常工作。',
+  clearRuns: '清除记录', clearConfirm: '清除执行历史记录？此操作无法撤销。', next: '下次执行', last: '上次结果', noNext: '计划已结束', noRuns: '暂无执行记录', history: '执行记录',
+  active: '已启用', paused: '已暂停', queued: '已排队', running: '执行中', succeeded: '执行已结束', failed: '需要处理', skipped: '已跳过', cancelled: '已停止',
+  run: '立即执行', pause: '暂停', resume: '恢复', edit: '调整', remove: '删除',
+  editDraft: '帮我调整自动任务“{name}”（ID：{id}）。先展示当前任务和计划，然后询问我希望修改什么。得到确认后再保存。',
+  confirmation: '删除此自动任务？已开始的执行会继续，历史记录将保留。', conversation: '打开对话', confirmResult: '确认您已检查结果，且预期工作已经完成？', confirmResultAction: '确认结果', confirmed: '结果已确认',
+  retry: '重试', retryWarning: '此次执行可能已在 Æven 外进行了修改。请先检查对话。再次执行同一任务？', linkedRetry: '从较早的执行记录主动重试', loading: '加载中…', error: '无法加载自动任务。',
+  rolesTitle: '寻找下一个自由职业机会', rolesDescription: '查找合适的机会并准备定制简历。',
+  rolesDraft: '创建每天 {zone} 时区 10:00 执行的自动任务：在 LinkedIn 查找符合我的背景的自由职业机会，筛选最佳职位并准备定制简历。若不了解我的简历位置或目标职位，请先询问。使用浏览器和已保存的偏好。创建简历文件前获取权限。未经另行授权不要发送申请。创建前向我展示完整任务、计划和权限。',
+  inboxTitle: '从清晰的收件箱开始一天', inboxDescription: '整理重要邮件并准备回复。',
+  inboxDraft: '创建每个工作日 {zone} 时区 08:00 执行的自动任务：检查关联邮件账户，整理重要邮件并准备回复供我审阅。必要时询问使用哪个账户。不要发送邮件。创建前向我展示任务、计划、账户和权限。',
+  briefingTitle: '我的每日简报', briefingDescription: '关注主题的简短更新，附上来源。',
+  briefingDraft: '帮我创建每天 {zone} 时区 09:00 执行的简报任务。询问我关注哪些主题，然后搜索最新进展并生成带来源链接的简短更新。创建前向我展示任务、计划和权限。',
+  weeklyTitle: '回顾我的一周', weeklyDescription: '汇总进展、未完成事项和下一步。',
+  weeklyDraft: '帮我创建每周五 {zone} 时区 16:00 执行的自动任务：总结本周，指出未完成的工作并建议下一步。询问使用哪些文件或关联工作资料。创建前向我展示任务、计划、资料来源和权限。',
+}

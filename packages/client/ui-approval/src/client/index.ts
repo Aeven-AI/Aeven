@@ -44,6 +44,7 @@ async function answerApproval(
   const pending = new PendingApproval(sessionId, {
     toolName: request.toolName,
     ...(request.allowSession === undefined ? {} : { allowSession: request.allowSession }),
+    ...(request.allowSessionCoverage === undefined ? {} : { allowSessionCoverage: request.allowSessionCoverage }),
     ...(request.callId === undefined
       ? {}
       : { callId: request.callId }),

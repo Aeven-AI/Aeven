@@ -13,11 +13,11 @@ Draws the agent's pointer and action feedback into a page the model is operating
 
 The cursor sprite, its rotation, its two-stop glow, and its motion model are the Codex desktop app's browser-agent cursor, read out of its extracted bundle. The sprite itself is the extracted asset, embedded verbatim.
 
-Motion is spring-driven and interrupted-friendly: a long move arcs along a quadratic Bézier with the cursor banked into the turn, a short one scoots with a brief overshoot, and a redirect mid-flight keeps its velocity instead of restarting. Past arrival the cursor holds a short damped wobble before settling; `setHold(true)` repeats that wobble while the agent works. Repeated moves to the same destination preserve the glide, and short-move lean depends on direction rather than pixel distance. The integrator is React Spring's, reproduced rather than re-derived, because a spring with the same nominal damping and response but a different solver does not produce the same motion.
+Long moves select among 20 cubic and segmented-arc candidates using viewport bounds, path length, turn smoothness, and approach direction. Path complexity determines spring timing; short moves use axis-aligned scoot stretch. Travel stretch, rotation, visibility blur, and appearance scale share one frame loop. The idle wobble finishes after 1.41 seconds; holding the pointer keeps it visible without repeating the wobble.
 
-The sprite rests **unrotated**, in the orientation its artwork is authored in, and is **centred in its box**. Both are asserted by `demo/measure-tip.mjs`; see [Verify the cursor's geometry](#verify-cursor-geometry).
+The sprite uses the reference's `(12, -2.5)` offset and 44-degree artwork rotation, compensated by a -44-degree resting model angle. Hosts pass the cursor's target coordinate directly. First appearance can jump to the target; layout corrections replace position without starting a journey.
 
-One consequence is worth stating plainly: the arrow's tip is the sprite's top-left corner, so centring the sprite leaves the tip about 9px up and to the left of the coordinate you pass. That is the trade centring makes. If you would rather the tip sit exactly on the coordinate, move `CURSOR_NUDGE` in `src/styles.ts` so the tip lands on the box centre and accept that the sprite's visual weight shifts down-right.
+The Electron sidebar waits for numbered cursor-arrival acknowledgements before discrete input. Hidden panes acknowledge immediately; waits are bounded to 1500ms and cancellation prevents queued chrome input. Scrolling does not wait for arrival or synthesize pointer drift.
 
 ## Table of Contents
 
@@ -42,7 +42,7 @@ await session.send('Runtime.evaluate', { expression: 'window.__aevenOverlay.clic
 | Call | What it draws |
 |---|---|
 | `moveTo(point, { mode, label })` | Glides the pointer to a point and names the action; a first appearance fades in 120px short of the point and glides onto it |
-| `arrived()` | Resolves once the pointer rests on its target, so a host can land the input it announced there |
+| `arrived(signal?)` | Resolves at arrival, hide, destruction, or 1500ms; cancellation rejects |
 | `click(point, { label })` | Arrives, expands a ring, flashes, and dwells briefly |
 | `type(point, { label })` | Blinks a caret at a point — visually distinct from a click |
 | `scroll(point, { deltaY, label })` | Moves the pointer with the gesture, in the direction the content is going |
@@ -68,7 +68,7 @@ Points are viewport coordinates in CSS pixels, and the anchor is the arrow's **t
 node packages/experimental/browser-overlay/demo/measure-tip.mjs
 ```
 
-Asserts that the sprite is centred in the cursor box to within 0.01px, that the sprite layer carries no transform of its own, and that the resting rotation is zero. It reports the tip position for information rather than asserting it, for the reason given above.
+Asserts the reference's sprite offset, 44-degree artwork rotation, and -44-degree resting model angle, and reports the rendered tip position.
 
 Run it after any change to the sprite, the nudge, the rotation, or the transform composition. A screenshot cannot check any of these: a centred arrow and a ten-pixel-off arrow look the same in a PNG, and a tilted sprite is indistinguishable from tilted artwork.
 
@@ -119,9 +119,8 @@ This overlay draws what a host tells it and verifies nothing about the page.
 - **Host-driven, not self-observing.** The overlay never installs page listeners to infer actions. A host that forgets to call it shows no feedback, and a host that reports an action that did not happen draws a confident pointer at a point nothing touched.
 - **One instance per document.** Installation is idempotent through a `window` global. Two bundles from different hosts would share one overlay rather than each drawing its own.
 - **No cross-frame coverage.** An iframe's contents are a separate document; the overlay covers only the document it is installed into.
-- **Rotation is a transient bank, not a pose.** The sprite rests unrotated and leans by at most 70° while travelling along an arc, settling back to zero. There is no per-action pose (pressing, typing, dragging) beyond the distinct caret and ripple.
-- **The tip is not the anchor.** Centring the sprite puts the arrow's tip about 9px up-left of the coordinate, because the tip is the sprite's top-left corner. See the note in the summary for the alternative.
-- **Not yet wired to a provider.** This package draws; nothing calls it yet. Connecting it to the `browser_*` tool results of a browser provider is the remaining work.
+- **No per-action sprite.** Movement rotates and stretches the same sprite; pressing and typing use the same artwork.
+- **Host-owned input.** The Electron sidebar supplies pointer actions and arrival acknowledgements; other consumers must supply their own input ordering.
 
 <a id="dev-note"></a>
 ### Dev Note

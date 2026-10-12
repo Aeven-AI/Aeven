@@ -306,8 +306,10 @@ export class HostConnectionService extends Service implements HostConnectionHand
         await this.runAsCaller(req, () => bridge(req, res, fetchHandler))
       },
     }
+    const webServer = owner.get('webServer')
+    if (webServer === undefined) throw new Error('connection: RPC channel registration requires webServer')
     return owner.effect(
-      () => owner.webServer.register(route),
+      () => webServer.register(route),
       `client-connection: ${channel} rpc channel`,
     )
   }

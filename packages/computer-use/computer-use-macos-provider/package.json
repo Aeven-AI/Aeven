@@ -25,7 +25,9 @@
     "@aeven/computer-use-macos": "workspace:^",
     "@aeven/computer-use-macos-apple-events": "workspace:^",
     "@aeven/computer-use-router": "workspace:^",
-    "@aeven/computer-use-session": "workspace:^"
+    "@aeven/computer-use-session": "workspace:^",
+    "@aeven/tools": "workspace:^",
+    "@aeven/sandbox-policy": "workspace:^"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:^"

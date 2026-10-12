@@ -105,26 +105,31 @@ export const ChatNodeSeat = memo(function ChatNodeSeat({
     && routedNode.kind === 'assistant-step'
     && routedNode.data.step === processSpec.answerStep
   const ownsDisclosure = routedNode?.kind === 'turn-process' || processAnswer
-  // Only a Turn with work or reasoning can fold.
-  const hasContent = processPresentation?.hasExternalProcess === true
-    || processSpec?.inlineReasoning === true
-  const foldable = processWindowReady
-    && (processMember || ownsDisclosure || !processPresentation.turnClosed)
   const liveProcess = processSpec !== undefined
     && processPresentation !== undefined
     && processPresentation.turn === processSpec.turn
     && !processPresentation.turnClosed
+  // An open Turn is always openable: its rows and the reasoning it streams wait
+  // behind the control, and only the closed Turn's projection knows which of
+  // them it keeps. A closed Turn is openable when it holds process rows or its
+  // Answer Step's reasoning.
+  const holdsProcess = processPresentation?.hasExternalProcess === true
+    || processSpec?.inlineReasoning === true
+  const openable = liveProcess || holdsProcess
+  const foldable = processWindowReady
+    && (processMember || ownsDisclosure || !processPresentation.turnClosed)
   const liveHeader = liveProcess && routedNode?.kind === 'turn-process'
   const turnProcess = useMemo(() => processSpec === undefined
     ? undefined
     : {
       spec: processSpec,
       foldable: foldable || liveHeader,
-      hasContent,
+      openable,
+      holdsProcess,
       open: processOpen,
       setOpen,
     }, [
-    foldable, hasContent, liveHeader, liveProcess, processOpen, processSpec, setOpen,
+    foldable, holdsProcess, liveHeader, openable, processOpen, processSpec, setOpen,
   ])
   const controllerInactive = routedNode?.kind === 'turn-process'
     && !foldable

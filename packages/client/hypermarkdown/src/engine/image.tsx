@@ -1,4 +1,4 @@
-import { memo, type ImgHTMLAttributes } from 'react'
+import { memo, useState, type ImgHTMLAttributes } from 'react'
 
 import type { RendererHost } from './components.tsx'
 
@@ -12,6 +12,10 @@ interface ImageProps extends ImgHTMLAttributes<HTMLImageElement> {
  * states around them. The host's `resolveImage` maps the authored source to
  * the URL that loads (an unresolvable source shows the alt text), and its
  * `onImageOpen` makes the image a control that opens it enlarged.
+ *
+ * A loaded image also reports its own orientation, which is what lets a host
+ * lay a row of images out in the shape each one actually has. Until the bytes
+ * arrive nothing is stamped, so the host's own default holds.
  */
 function MarkdownImage(props: ImageProps) {
   const { src, alt, title, renderer } = props
@@ -19,6 +23,8 @@ function MarkdownImage(props: ImageProps) {
   const resolved = src === undefined || options?.resolveImage === undefined
     ? src
     : options.resolveImage(src)
+  const [orientation, setOrientation] = useState<'portrait' | 'landscape' | undefined>(undefined)
+  const [loaded, setLoaded] = useState(false)
 
   if (resolved === undefined) {
     return <span className="markdown-image-alt">{alt ?? ''}</span>
@@ -30,7 +36,7 @@ function MarkdownImage(props: ImageProps) {
     : () => { open({ src: resolved, alt: alt ?? '' }) }
 
   return (
-    <span className="markdown-image-container">
+    <span className="markdown-image-container" data-orientation={orientation} data-loaded={loaded ? true : undefined}>
       <span className="markdown-image">
         <span className="image-error" />
         <span className="image-loader" />
@@ -49,9 +55,15 @@ function MarkdownImage(props: ImageProps) {
           decoding="async"
           referrerPolicy="no-referrer"
           data-openable={onOpen === undefined ? undefined : true}
+          data-orientation={orientation}
           role={onOpen === undefined ? undefined : 'button'}
           tabIndex={onOpen === undefined ? undefined : 0}
           onClick={onOpen}
+          onLoad={(event) => {
+            const image = event.currentTarget
+            setOrientation(image.naturalHeight > image.naturalWidth ? 'portrait' : 'landscape')
+            setLoaded(true)
+          }}
           onKeyDown={onOpen === undefined ? undefined : (event) => {
             if (event.key !== 'Enter' && event.key !== ' ') return
             event.preventDefault()

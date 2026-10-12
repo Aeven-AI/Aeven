@@ -1,0 +1,492 @@
+/* Automation management in the product's surface language: flat white blocks at
+   the 30px surface radius with no stroke, 0.5px hairline separators inside a
+   card, 400/500 type weights, and 32/40px controls. The page holds the
+   composer's own horizontal box, so the column edges are the composer card's
+   edges at every width. */
+
+.root {
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 53px var(--avn-composer-side-clearance) 48px;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: var(--avn-composer-card-max-width);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* One 30px control row: the view switcher at the leading edge, the primary
+   action at the trailing one, both stopped on the same line. */
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.bar .headerAction {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 15px;
+  font-size: 14px;
+  line-height: 30px;
+}
+
+/* View switcher, sized to the row: 30px items that fill their own track, the
+   selected one the surface colour again. */
+.tabs {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  border-radius: 15px;
+  background: var(--dsw-alias-bg-module-platform);
+}
+
+.tab {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 15px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  font-size: 14px;
+  line-height: 30px;
+  cursor: pointer;
+}
+
+.tab:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.tab[aria-pressed='true'] {
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+}
+
+.sectionTitle {
+  margin: 32px 0 12px;
+  font-size: 16px;
+  line-height: normal;
+  font-weight: 500;
+  text-align: center;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card {
+  box-sizing: border-box;
+  padding: 16px;
+  border-radius: var(--dsw-aeven-radius-surface);
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.taskName {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.taskName:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+  border-radius: var(--dsw-aeven-radius-tight);
+}
+
+.chevron {
+  flex: none;
+  color: var(--dsw-alias-label-caption);
+  transition: transform 160ms ease;
+}
+
+.taskName[aria-expanded='true'] .chevron {
+  transform: rotate(180deg);
+}
+
+.status {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-module-platform);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.status[data-tone='active'] {
+  background: var(--dsw-tint-success-10);
+  color: var(--dsw-blend-success-label-strong);
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 40px;
+  margin: 16px 0 0;
+}
+
+.fact {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* The user agent bolds a definition term, so the pair states its own weight. */
+.factLabel {
+  margin: 0;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 400;
+  color: var(--dsw-alias-label-caption);
+}
+
+.factValue {
+  margin: 0;
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: 400;
+}
+
+.factValue[data-tone='attention'] {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.cardActions,
+.resultActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.cardActions {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.resultActions {
+  margin-top: 12px;
+}
+
+/* One 30px row of primary ink. The actions carry no hover state: the tooltip
+   names each glyph, and the labelled action states itself. */
+.cardActions button {
+  height: 30px;
+}
+
+.cardActions .action {
+  color: var(--dsw-alias-label-primary);
+}
+
+.cardActions .action:hover:not(:disabled) {
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+}
+
+.cardActions .runNow:hover:not(:disabled) {
+  background: var(--dsw-alias-button-primary-fill);
+}
+
+.cardActions .iconAction {
+  width: 30px;
+  padding: 0;
+}
+
+.cardActions svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* The bubble anchors to the glyph, so a wrapped control still places it on the
+   mark rather than on the wrapper. */
+.tip {
+  display: inline-flex;
+}
+
+.clearRow {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.clearRow button {
+  height: 30px;
+}
+
+.resultActions a {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--dsw-aeven-radius-compact);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 14px;
+  line-height: 20px;
+  text-decoration: none;
+}
+
+.resultActions .action {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.resultActions .action:hover:not(:disabled),
+.resultActions a:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.resultActions a:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+}
+
+.empty {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 44px 24px;
+  border-radius: var(--dsw-aeven-radius-surface);
+  background: var(--dsw-alias-bg-layer-1);
+  text-align: center;
+}
+
+.emptyIcon {
+  width: 28px;
+  height: 28px;
+  color: var(--dsw-alias-label-caption);
+}
+
+.emptyTitle {
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+}
+
+.emptyText {
+  margin: 0;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.templates {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.template {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border: 0;
+  border-radius: var(--dsw-aeven-radius-surface);
+  background: var(--dsw-alias-bg-layer-1);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.template:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.template:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+}
+
+/* The starter's mark: the product's own black tile, glyph inverted, fixed. */
+.templateIcon {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--dsw-aeven-radius-control);
+  background: var(--dsw-alias-button-primary-fill);
+  color: var(--dsw-alias-label-primary-foreground);
+}
+
+.templateIcon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.templateTitle {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+}
+
+.templateDescription {
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.details,
+.result {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.prompt,
+.summary {
+  margin: 0;
+  font-size: 14px;
+  line-height: 22px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.summary {
+  margin-top: 8px;
+}
+
+.meta,
+.note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-caption);
+}
+
+.note {
+  margin-top: 8px;
+}
+
+.alert {
+  margin: 16px 0 0;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.result .alert {
+  margin-top: 8px;
+}
+
+.hint {
+  margin: 16px 0 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* A run row discloses in place. The header stays the summary element itself, so
+   its contents carry the flex row and the disclosure keeps its native marker
+   handling at the browser floor. */
+.runSummary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.runSummary::-webkit-details-marker {
+  display: none;
+}
+
+.runSummary:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+  border-radius: var(--dsw-aeven-radius-tight);
+}
+
+.runSummaryRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.runName {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+}
+
+.runMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-caption);
+}
+
+details[open] .runSummary .chevron {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron {
+    transition: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .templates {
+    grid-template-columns: 1fr;
+  }
+
+  .bar .headerAction {
+    flex: 1;
+  }
+}

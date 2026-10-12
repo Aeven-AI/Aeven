@@ -385,7 +385,7 @@ Each interception waterfall returns a typed **Decision** (the idiom shared with 
 type PreToolDecision =
   | { kind: 'allow' }
   | { kind: 'deny'; reason: string }
-  | { kind: 'ask'; reason?: string; allowSession?: string }
+  | { kind: 'ask'; reason?: string; allowSession?: string; allowSessionCoverage?: SessionGrantCoverage }
 ```
 
 ```ts type-equiv

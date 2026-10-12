@@ -1610,6 +1610,25 @@ export const IconLucideCircleDot = ({ className }: LucideGlyphProps) => (
   </svg>
 )
 
+/** lucide `clock`: an open ring with one hand upright and one to the right —
+ *  the Automations row's mark for work that runs on a schedule. */
+export const IconLucideClock = ({ className }: LucideGlyphProps) => (
+  <svg
+    aria-hidden="true"
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <circle cx="12" cy="12" r="10" />
+    <polyline points="12 6 12 12 16 14" />
+  </svg>
+)
+
 /** lucide `circle-alert`: an open ring around an exclamation — the mark a
  *  failed generation carries, where the bare glyph names the failure rather
  *  than warning about something else. */

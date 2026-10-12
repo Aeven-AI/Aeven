@@ -13,10 +13,17 @@ export const IMAGE_TOOLS = ['generate_image', 'codex_image_generate', 'codex_ima
 export const VIDEO_TOOLS = ['generate_video'] as const
 
 /**
+ * Tools that return photographs from somewhere out in the world. Their images
+ * travel the same lane a generated one does, so the row shows at the call
+ * instead of inside the collapsed process group.
+ */
+export const IMAGE_RESULT_TOOLS = ['find_images'] as const
+
+/**
  * Every generating tool the index records. A recorded call stays visible
  * outside the collapsed process group, so its frame shows at the call.
  */
-const GENERATING_TOOLS: readonly string[] = [...IMAGE_TOOLS, ...VIDEO_TOOLS]
+const GENERATING_TOOLS: readonly string[] = [...IMAGE_TOOLS, ...VIDEO_TOOLS, ...IMAGE_RESULT_TOOLS]
 
 interface ImageState extends GeneratedImages {
   readonly names: ReadonlyMap<string, string>
