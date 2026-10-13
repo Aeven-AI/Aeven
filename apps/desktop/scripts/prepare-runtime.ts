@@ -7,7 +7,7 @@ import { chmod, readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { pipeline } from 'node:stream/promises'
-import extractZip from 'extract-zip'
+import { unzipSync } from 'fflate'
 import { extract } from 'tar'
 import { resolveDesktopTargetBuildPaths } from './desktop-build-paths.mjs'
 
@@ -55,8 +55,14 @@ async function prepareNode(platform: RuntimePlatform, arch: RuntimeArch): Promis
   const extraction = BUILD_PATHS.nodeExtract
   rmSync(extraction, { recursive: true, force: true })
   mkdirSync(extraction, { recursive: true })
-  if (platform === 'win') await extractZip(archive, { dir: extraction })
-  else await extract({ cwd: extraction, file: archive })
+  if (platform === 'win') {
+    // Only node.exe is shipped; extract-zip 2.0.1 stalls mid-archive on Node 26 and leaves this await unsettled.
+    const entry = `${folder}/node.exe`
+    const bytes = unzipSync(await readFile(archive), { filter: file => file.name === entry })[entry]
+    if (bytes === undefined) throw new Error(`desktop runtime: ${archiveName} has no ${entry}`)
+    mkdirSync(join(extraction, folder), { recursive: true })
+    writeFileSync(join(extraction, folder, 'node.exe'), bytes)
+  } else await extract({ cwd: extraction, file: archive })
   const source = join(extraction, folder, platform === 'win' ? 'node.exe' : 'bin/node')
   const destinationRoot = join(RUNTIME_ROOT, 'node')
   const destination = join(destinationRoot, platform === 'win' ? 'node.exe' : 'node')

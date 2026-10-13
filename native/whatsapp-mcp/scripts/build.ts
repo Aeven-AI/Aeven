@@ -8,7 +8,7 @@
  * Run: `pnpm run build:native [--target <platform>-<arch>]` (Go 1.21+ on PATH; the default target is the host).
  */
 import { spawnSync } from 'node:child_process'
-import { mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 
@@ -23,6 +23,17 @@ function goTarget(target: Target): { GOOS: string; GOARCH: string } {
   return { GOOS: platform === 'win32' ? 'windows' : platform, GOARCH: arch === 'x64' ? 'amd64' : arch }
 }
 
+/**
+ * Go on PATH, else (Windows) the standard install, so a shell started before Go joined PATH
+ * (an editor's integrated terminal) still builds.
+ */
+function goCommand(): string {
+  if (process.platform !== 'win32' || spawnSync('go', ['version'], { stdio: 'ignore' }).error === undefined) return 'go'
+  const installed = join(process.env['ProgramFiles'] ?? 'C:\\Program Files', 'Go', 'bin', 'go.exe')
+  if (!existsSync(installed)) throw new Error(`build: go is not on PATH and was not found at ${installed}`)
+  return installed
+}
+
 function main(): void {
   const { values } = parseArgs({ options: { target: { type: 'string' } } })
   const target = (values.target ?? `${process.platform}-${process.arch}`) as Target
@@ -30,7 +41,7 @@ function main(): void {
   const name = target.startsWith('win32-') ? 'whatsapp-mcp.exe' : 'whatsapp-mcp'
   const destination = join(ROOT, 'packages', target, 'bin', name)
   mkdirSync(join(ROOT, 'packages', target, 'bin'), { recursive: true })
-  const result = spawnSync('go', [
+  const result = spawnSync(goCommand(), [
     'build', '-trimpath', '-ldflags', `-s -w -X main.Version=aeven-${UPSTREAM.slice(0, 12)}`, '-o', destination, './cmd/whatsapp-mcp',
   ], { cwd: join(ROOT, 'source'), stdio: 'inherit', env: { ...process.env, ...goTarget(target), CGO_ENABLED: '0', GOTOOLCHAIN: process.env.GOTOOLCHAIN ?? 'auto' } })
   if (result.error !== undefined || result.status !== 0) {
