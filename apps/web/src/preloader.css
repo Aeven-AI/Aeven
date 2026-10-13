@@ -19,7 +19,7 @@ body,
 
 body[data-ds-dark-theme],
 body[data-ds-dark-theme] #root {
-  background-color: rgb(21, 21, 23);
+  background-color: #111111;
 }
 
 #avn-preloader {
@@ -42,7 +42,7 @@ body[data-ds-dark-theme] #root {
 }
 
 body[data-ds-dark-theme] #avn-preloader {
-  --avn-preloader-bg: rgb(21, 21, 23);
+  --avn-preloader-bg: #111111;
   --avn-preloader-fg: rgb(249, 250, 251);
 }
 

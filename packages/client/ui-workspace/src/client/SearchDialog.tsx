@@ -8,6 +8,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import clsx from 'clsx'
 import { IconCloseOutline16 } from '@aeven/client-ui-primitives'
 import type { SessionSearchResultItem } from '@aeven/api-session-controller/client'
 import type { SessionId, SessionSeq } from '@aeven/session/types'
@@ -165,7 +166,7 @@ export function SearchDialog({
             <IconCloseOutline16 size={14} />
           </button>
         </div>
-        <div className={css.results}>
+        <div className={clsx(css.results, 'no-scrollbar')}>
           {normalizedQuery === '' && results.items.length > 0 && (
             <div className={css.sectionLabel}>{t('search.recent')}</div>
           )}

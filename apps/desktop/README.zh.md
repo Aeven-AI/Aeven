@@ -104,6 +104,10 @@ macOS arm64 命令要求 Apple Silicon；Intel Mac 不是 Desktop 构建目标�
 
 每个目标都在 `apps/desktop/.desktop-build/targets/<target>/` 下持有自己的打包输入、已准备运行时、包集合、seed、pnpm 准备状态、未打包应用、更新元数据和最终产物。Node.js 归档缓存继续由 `.desktop-build/downloads` 共享，因为每个归档文件名都包含版本、平台和架构，并且在解包前经过验证。目标构建绝不读取其他目标的可变准备状态。
 
+### 图标
+
+`resources/` 存放应用图标，`installer/assets/` 存放 NSIS 侧边栏图片；每个位图都按自身边长从同目录的 SVG 渲染。macOS 的应用与挂载后的 DMG 卷使用 `icon-macos.icns`，Windows 的可执行文件、安装程序与卸载程序使用 `icon-windows.ico`，Linux 使用 `icon-macos.png`。`installer-sidebar.bmp` 填充 Windows 安装程序与卸载程序的欢迎页和完成页。`tray-windows.ico`（16–64 px）与 macOS 菜单栏模板图 `trayTemplate.png`（16 px，附 `@2x`）在应用显示托盘图标之前不会被打包。
+
 ### Linux 软件包
 
 Linux 目标会生成未经代码签名的 AppImage 与 `.deb`。可以在架构匹配的 Linux 宿主上构建，也可以在任意 Docker 宿主上使用 `:docker` 命令构建：

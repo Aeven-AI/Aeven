@@ -64,9 +64,13 @@
 }
 
 /* The row that will hold the trace, standing in while the model's first
-   streamed row is still on its way. */
+   streamed row is still on its way. It takes the work-row gap the trace row
+   takes once it lands in the Answer Step's flow item, so the row keeps one
+   place and does not jump as the first token arrives. The fallback repeats the
+   chat column's value for a render outside that column. */
 .awaiting {
   display: block;
+  margin-top: var(--avn-chat-work-row-gap, 8px);
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -2,7 +2,7 @@
 
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { MACOS_USAGE_DESCRIPTIONS } from './macos-usage-descriptions.mjs'
 
@@ -55,14 +55,21 @@ export function prepareDevelopmentApp(options: DevelopmentAppOptions): string {
   const executable = join(bundle, 'Contents', 'MacOS', 'AevenDev')
   const stamp = join(bundle, 'Contents', 'Resources', 'avn-development.json')
   const launcher = developmentLauncher(options, bundle)
+  const icon = join(options.appRoot, 'resources', 'icon-macos.icns')
   const values = {
     CFBundleIdentifier: `ai.aeven.dev.${createHash('sha256').update(options.appRoot).digest('hex').slice(0, 12)}`,
     CFBundleName: 'Aeven Dev',
     CFBundleDisplayName: 'Aeven Dev',
     CFBundleExecutable: 'AevenDev',
+    // Electron.app's own electron.icns stays in the copy; the Dock, Finder, and app switcher read this one.
+    CFBundleIconFile: 'aeven.icns',
     ...MACOS_USAGE_DESCRIPTIONS,
   }
-  const identity = JSON.stringify({ ...options, launcher, values, plist: readFileSync(join(source, 'Contents', 'Info.plist'), 'utf8') })
+  const identity = JSON.stringify({
+    ...options, launcher, values,
+    plist: readFileSync(join(source, 'Contents', 'Info.plist'), 'utf8'),
+    icon: createHash('sha256').update(readFileSync(icon)).digest('hex'),
+  })
   if (!existsSync(stamp) || readFileSync(stamp, 'utf8') !== identity) {
     rmSync(bundle, { recursive: true, force: true })
     execFileSync('/usr/bin/ditto', [source, bundle])
@@ -71,6 +78,7 @@ export function prepareDevelopmentApp(options: DevelopmentAppOptions): string {
       execFileSync('/usr/bin/plutil', ['-replace', key, '-json', JSON.stringify(value), plist])
     }
     writeFileSync(executable, launcher, { mode: 0o755 })
+    copyFileSync(icon, join(bundle, 'Contents', 'Resources', 'aeven.icns'))
     writeFileSync(stamp, identity, { mode: 0o600 })
     execFileSync('/usr/bin/codesign', ['--force', '--deep', '--sign', '-', bundle], { stdio: 'pipe' })
   }

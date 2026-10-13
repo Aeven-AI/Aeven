@@ -207,12 +207,12 @@ body:not([data-ds-dark-theme]) [data-chat-flow] {
 }
 
 body[data-ds-dark-theme] {
-  --dsw-alias-bg-base: #000000;
-  --dsw-alias-bg-layer-1: rgb(24, 24, 24);
-  --dsw-alias-bg-layer-2: rgb(30, 30, 30);
+  --dsw-alias-bg-base: #111111;
+  --dsw-alias-bg-layer-1: #1a1a1a;
+  --dsw-alias-bg-layer-2: #1e1e1e;
   --dsw-alias-bg-layer-3: rgb(36, 36, 36);
   --dsw-alias-bg-module-platform: rgb(18, 18, 18);
-  --dsw-alias-bg-multi-select: rgb(24, 24, 24);
+  --dsw-alias-bg-multi-select: #1a1a1a;
   --dsw-alias-label-primary: rgb(245, 245, 245);
   --dsw-alias-label-primary-dimmed: rgb(205, 205, 205);
   --dsw-alias-label-secondary: rgb(190, 190, 190);
@@ -227,8 +227,8 @@ body[data-ds-dark-theme] {
 
   --dsw-tint-menu: rgba(36, 36, 36, 0.7);
   --dsw-tint-surface-fade: rgba(0, 0, 0, 0.6);
-  --dsw-tint-layer-1-58: rgba(24, 24, 24, 0.58);
-  --dsw-tint-layer-1-75: rgba(24, 24, 24, 0.75);
+  --dsw-tint-layer-1-58: rgba(26, 26, 26, 0.58);
+  --dsw-tint-layer-1-75: rgba(26, 26, 26, 0.75);
   --dsw-tint-business-08: rgba(245, 245, 245, 0.08);
   --dsw-tint-business-10: rgba(245, 245, 245, 0.1);
   --dsw-tint-business-12: rgba(245, 245, 245, 0.12);
@@ -254,16 +254,16 @@ body[data-ds-dark-theme] {
   --dsw-blend-error-surface: rgb(72, 39, 39);
   --dsw-blend-error-surface-soft: rgb(50, 32, 32);
   --dsw-blend-decoding-ttft: rgb(94, 76, 115);
-  --dsw-specific-bubble: rgb(30, 30, 30);
-  --dsw-specific-input-major: rgb(24, 24, 24);
+  --dsw-specific-bubble: #1a1a1a;
+  --dsw-specific-input-major: #1a1a1a;
   --dsw-specific-menu: rgb(36, 36, 36);
   /* The same rim on the dark palette, at the alpha its hairlines use. */
   --dsw-specific-popup-highlight: rgba(255, 255, 255, 0.08);
   --dsw-specific-selector: rgb(36, 36, 36);
-  --dsw-specific-sidebar-fill: rgb(18, 18, 18);
+  --dsw-specific-sidebar-fill: #1a1a1a;
   --dsw-specific-sidebar-nav-item-active-accent: transparent;
   --dsw-specific-sidebar-nav-item-active: transparent;
   --dsw-alias-markdown-code-block-banner: rgb(36, 36, 36);
-  --dsw-alias-markdown-code-block: rgb(24, 24, 24);
+  --dsw-alias-markdown-code-block: #1a1a1a;
   --dsw-alias-markdown-inline-code: rgb(44, 44, 44);
 }

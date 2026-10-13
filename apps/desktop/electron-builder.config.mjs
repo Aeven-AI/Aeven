@@ -69,6 +69,8 @@ export function createElectronBuilderConfig(
       { from: buildPaths.seed, to: 'seed' },
     ],
     mac: {
+      // Each ICNS slot is rendered from resources/icon-macos.svg instead of downscaled from 1024 px.
+      icon: 'resources/icon-macos.icns',
       category: 'public.app-category.developer-tools',
       // Apple Silicon refuses to launch code without a signature, so an unsigned build is
       // ad-hoc signed; hardened runtime would then reject the seed's unsigned native addons.
@@ -84,6 +86,8 @@ export function createElectronBuilderConfig(
       extendInfo: { ...MACOS_USAGE_DESCRIPTIONS },
     },
     dmg: {
+      // Mounted-volume icon in Finder and on the desktop.
+      icon: 'resources/icon-macos.icns',
       sign: !unsigned,
       writeUpdateInfo: false,
     },
@@ -100,6 +104,7 @@ export function createElectronBuilderConfig(
       )
     },
     win: {
+      icon: 'resources/icon-windows.ico',
       forceCodeSigning: !unsigned,
       signtoolOptions: {
         sign: windowsSigner,
@@ -108,6 +113,8 @@ export function createElectronBuilderConfig(
       target: ['nsis'],
     },
     linux: {
+      // Linux launchers draw icons unmasked on a padded grid, which the inset macOS tile matches.
+      icon: 'resources/icon-macos.png',
       category: 'Development',
       executableName: 'aeven',
       // The deb installs Chromium's setuid sandbox helper, which distributions that restrict
@@ -116,6 +123,11 @@ export function createElectronBuilderConfig(
       maintainer: 'Aeven',
     },
     nsis: {
+      installerIcon: 'resources/icon-windows.ico',
+      uninstallerIcon: 'resources/icon-windows.ico',
+      // Welcome and finish pages of the assisted installer and uninstaller; makensis reads only 24-bit BMP.
+      installerSidebar: 'installer/assets/installer-sidebar.bmp',
+      uninstallerSidebar: 'installer/assets/installer-sidebar.bmp',
       oneClick: false,
       allowToChangeInstallationDirectory: true,
       differentialPackage: true,

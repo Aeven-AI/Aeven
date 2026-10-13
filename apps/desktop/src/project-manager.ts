@@ -117,7 +117,9 @@ const BROWSER_LIBRARY_DEPENDENCIES = [
  * `-` removes an edge the Host never loads. The web frontend `dist` contains `@aeven/client-ui-primitives` and its
  * dependencies, and each plugin's `lib/client.js` contains its Lexical copy or resolves xterm from that `dist`.
  * Transformers.js imports `sharp` at load but never decodes images for text embeddings, so it shares the
- * attachment reader's `sharp` release instead of carrying a second libvips.
+ * attachment reader's `sharp` release instead of carrying a second libvips. The Microsoft 365 Graph bridge loads its
+ * optional Azure Identity and Key Vault packages only when `MS365_MCP_KEYVAULT_URL` is set, which the account
+ * connector never sets; removing them also removes the second MSAL Node release and the browser MSAL build.
  */
 export const DESKTOP_DEPENDENCY_OVERRIDES: Readonly<Record<string, string>> = Object.fromEntries<string>([
   ...BROWSER_LIBRARY_DEPENDENCIES.map((name): [string, string] => [`@aeven/client-ui-primitives>${name}`, '-']),
@@ -126,6 +128,8 @@ export const DESKTOP_DEPENDENCY_OVERRIDES: Readonly<Record<string, string>> = Ob
   ...['@xterm/xterm', '@xterm/addon-fit']
     .map((name): [string, string] => [`@aeven/client-ui-sidebar-terminal>${name}`, '-']),
   ['@huggingface/transformers>sharp', '^0.35.3'],
+  ...['@azure/identity', '@azure/keyvault-secrets']
+    .map((name): [string, string] => [`@softeria/ms-365-mcp-server>${name}`, '-']),
 ])
 
 function errorOf(reason: unknown, fallback: string): Error {

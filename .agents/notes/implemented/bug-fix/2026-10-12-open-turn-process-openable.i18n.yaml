@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-10-12-open-turn-process-openable.md
-2026-10-12-open-turn-process-openable.md: 259496dbd81f41b45c977242c0f6b6b5a2d6555e
-2026-10-12-open-turn-process-openable.zh.md: 89eb7790888bd50da8041de5addac59c50d41a50
+2026-10-12-open-turn-process-openable.md: 469d2ea24fec060c361dfdb5a5e0303710b4014d
+2026-10-12-open-turn-process-openable.zh.md: 9e4310f71f1f52f50be3d658bf19187f04173eb6

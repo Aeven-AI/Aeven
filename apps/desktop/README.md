@@ -104,6 +104,10 @@ The macOS arm64 command requires Apple Silicon; Intel Macs are not a Desktop tar
 
 Each target owns its packed package inputs, prepared runtime, package set, seed, pnpm preparation state, unpacked application, update metadata, and final artifacts under `apps/desktop/.desktop-build/targets/<target>/`. The Node.js archive cache remains shared under `.desktop-build/downloads` because every archive name includes its version, platform, and architecture and is verified before extraction. A target build never consumes another target's mutable preparation state.
 
+### Icons
+
+`resources/` holds the application icons and `installer/assets/` the NSIS sidebar; each raster is rendered from the SVG beside it at its own edge length. macOS uses `icon-macos.icns` for the application and the mounted DMG volume, Windows uses `icon-windows.ico` for the executable, installer, and uninstaller, and Linux uses `icon-macos.png`. `installer-sidebar.bmp` fills the welcome and finish pages of the Windows installer and uninstaller. `tray-windows.ico` (16–64 px) and the macOS menu bar template `trayTemplate.png` (16 px, with `@2x`) are not packaged until the application shows a tray icon.
+
 ### Linux packages
 
 Linux targets produce an AppImage and a `.deb` without code signing. Build on a matching Linux host, or from any Docker host with the `:docker` command:

@@ -165,6 +165,11 @@ function createWindow(preload: string): BrowserWindow {
     ...process.platform === 'darwin'
       ? { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: TRAFFIC_LIGHT_INSET_X, y: TRAFFIC_LIGHT_INSET_Y } }
       : { titleBarStyle: 'hidden' as const },
+    // Packaged builds take the icon from the executable or desktop entry; an unpackaged
+    // Windows or Linux run would otherwise show Electron's. macOS development uses its bundle icon.
+    ...!app.isPackaged && process.platform !== 'darwin'
+      ? { icon: join(app.getAppPath(), 'resources', process.platform === 'win32' ? 'icon-windows.ico' : 'icon-macos.png') }
+      : {},
     webPreferences: {
       preload,
       nodeIntegration: false,

@@ -160,11 +160,9 @@ export function VoiceInput({ sessionId, inputActions, locked, onActiveChange, cr
           onClick={reset}><span className={css.icon}><IconLucideX /></span></button>
       </Tooltip>
       {transcribing
-        ? <Tooltip label={t('transcribing')} side="top">
-          <span className={css.save} role="status" aria-label={t('transcribing')}>
-            <span className={css.circle}><span className={css.loader}>{LOADER}</span></span>
-          </span>
-        </Tooltip>
+        ? <span className={css.save} role="status" aria-label={t('transcribing')}>
+          <span className={css.circle}><span className={css.loader}>{LOADER}</span></span>
+        </span>
         : <Tooltip label={t('transcribe')} side="top">
           <button type="button" className={css.save} aria-label={t('transcribe')} onClick={() => { void finish() }}>
             <span className={css.circle}><span className={css.icon}><IconLucideCheck /></span></span>

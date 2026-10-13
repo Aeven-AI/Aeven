@@ -40,6 +40,11 @@
   margin: 0 auto;
   display: flex;
   flex-direction: column;
+  /* One-line work rows (tool calls, commands, reasoning-only steps) sit 8px
+     apart. The stand-in row a live Turn's process header holds takes the same
+     gap, because that reasoning row lands in the Answer Step's flow item and
+     keeps the box the stand-in occupied. */
+  --avn-chat-work-row-gap: 8px;
 }
 
 /* Block toolbars float just below this column's navigation band instead of
@@ -103,7 +108,7 @@
 }
 
 .flowItem[data-chat-work-row] {
-  --avn-chat-flow-gap: 8px;
+  --avn-chat-flow-gap: var(--avn-chat-work-row-gap);
 }
 
 .flowItem[data-chat-work-row]:not([data-chat-flow-kind='assistant-step']):not([hidden]):not(:empty) {
