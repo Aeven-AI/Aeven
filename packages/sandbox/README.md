@@ -22,7 +22,7 @@ The `sandbox/` group confines subprocess execution to a file-effect policy: comm
 <a id="packages"></a>
 ## Packages
 
-Four packages play the confinement roles; the subsystem reference owns the exhaustive contracts and the per-call policy semantics.
+Four packages play the confinement roles, and `tool-elevation/` carries the opposite axis — running one command as administrator through the operating system's consent prompt. The subsystem reference owns the exhaustive contracts and the per-call policy semantics.
 
 | Package | Role | ctx key |
 |---|---|---|
@@ -30,6 +30,7 @@ Four packages play the confinement roles; the subsystem reference owns the exhau
 | [`sandbox-local/`](sandbox-local/README.md) | Per-platform confinement backends: Linux bwrap then Landlock, macOS Seatbelt, Windows restricted token | registers on `ctx.sandbox` |
 | [`sandbox-policy/`](sandbox-policy/README.md) | Shared policy home: deployment defaults and per-session mode overrides for every enforcing family | `ctx.sandboxPolicy` |
 | [`sandbox-windows-acl/`](sandbox-windows-acl/README.md) | Windows write restriction: confined children may write only in the workspace and a private temp directory | — (mounted by `sandbox-local` as the win32 backend) |
+| [`tool-elevation/`](tool-elevation/README.md) | The `elevated` tool: one command as administrator on Windows, after the harness approval and the user-account-control prompt | — (registers a tool) |
 
 -----
 

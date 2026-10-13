@@ -43,8 +43,11 @@ export type ApprovalAnswer = ApprovalOutcome | 'allowed-session'
  *   recipients and content.
  * - `'sandbox'` — the same sandbox escalation, for the rest of the session's
  *   calls that need it.
+ * - `'privilege'` — the same host-privilege elevation, for the rest of the
+ *   session's calls that need it. Held apart from `'sandbox'` so a grant for
+ *   wider file access never authorizes an elevated run.
  */
-export type SessionGrantCoverage = 'action' | 'account' | 'sandbox'
+export type SessionGrantCoverage = 'action' | 'account' | 'sandbox' | 'privilege'
 
 declare module '@aeven/session/types' {
   interface SessionEventMap {

@@ -146,6 +146,7 @@
     "@aeven/subprocess": "workspace:^",
     "@aeven/subscription-auth": "workspace:^",
     "@aeven/tool-device": "workspace:^",
+    "@aeven/tool-elevation": "workspace:^",
     "@aeven/tool-image-search": "workspace:^",
     "@aeven/tool-mail": "workspace:^",
     "@aeven/tool-media": "workspace:^",

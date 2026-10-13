@@ -269,6 +269,7 @@
     { "path": "./packages/shell/pwsh-sandbox" },
     { "path": "./packages/shell/tool-pwsh" },
     { "path": "./native/landlock-run/packages/entry" },
+    { "path": "./packages/sandbox/tool-elevation" },
     { "path": "./packages/sandbox/sandbox" },
     { "path": "./packages/sandbox/sandbox-local" },
     { "path": "./packages/sandbox/sandbox-policy" },

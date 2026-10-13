@@ -22,7 +22,7 @@ kind: "package-group"
 <a id="packages"></a>
 ## 包
 
-四个包承担隔离角色；子系统参考文档拥有穷尽式约定与逐调用策略语义。
+四个包承担隔离角色，`tool-elevation/` 承担相反的维度——通过操作系统的同意提示以管理员身份运行一条命令。子系统参考文档拥有穷尽式约定与逐调用策略语义。
 
 | 包 | 职责 | ctx key |
 |---|---|---|
@@ -30,6 +30,7 @@ kind: "package-group"
 | [`sandbox-local/`](sandbox-local/README.zh.md) | 各平台隔离后端：Linux bwrap 与 Landlock、macOS Seatbelt、Windows 受限令牌 | 注册到 `ctx.sandbox` |
 | [`sandbox-policy/`](sandbox-policy/README.zh.md) | 共享策略归属：每个执行家族的部署默认值与逐会话模式覆盖 | `ctx.sandboxPolicy` |
 | [`sandbox-windows-acl/`](sandbox-windows-acl/README.zh.md) | Windows 写入限制：受限子进程只能写入工作区与私有临时目录 | —（由 `sandbox-local` 挂载为 win32 后端） |
+| [`tool-elevation/`](tool-elevation/README.zh.md) | `elevated` 工具：在 Windows 上经过 harness 审批与用户账户控制提示后，以管理员身份运行一条命令 | —（注册一个工具） |
 
 -----
 

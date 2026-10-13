@@ -274,6 +274,12 @@
     - id: device-local
       name: '@aeven/device-local'
 
+    # On-request administrator execution (Windows only): the `elevated` tool
+    # runs one command through the user-account-control prompt. Nothing spawns
+    # until a call resolves the harness approval.
+    - id: tool-elevation
+      name: '@aeven/tool-elevation'
+
     # One visible Chrome on 9333 (not the desktop renderer's 9222), shared by
     # the sidebar and chrome-devtools-mcp. Playwright starts its own browser
     # on first use, so boot does not wait on that CDP attach; it runs headless
