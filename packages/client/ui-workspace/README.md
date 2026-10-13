@@ -43,7 +43,7 @@ Collapsed search is one header action beside the view and add actions: activatin
 
 ### Managing sessions
 
-The Session row's Rename action opens a dialog prefilled with the row's display title; confirming an unchanged title is deliberately allowed — it pins the current automatic title against regeneration. A row whose title is still being created — no durable title yet while the Session works, so the row reads as the New Session label — offers no Rename action until that title lands, because there is no name to prefill and one is already on its way. Archive commits without a confirmation dialog and the row disappears from every grouping surface when the archive-set echo lands. Fork forks at the source's last completed turn, increments the inherited persisted title on the client, and then opens the child. Workspace Delete opens a confirmation that states the retention boundary; success removes the group and archives its Sessions.
+The Session row's Rename action opens a dialog prefilled with the row's display title; confirming an unchanged title is deliberately allowed — it pins the current automatic title against regeneration. A row whose title is still being created — no durable title yet while the Session works, so the row reads as the New Session label — offers no Rename action until that title lands, because there is no name to prefill and one is already on its way. Archive commits without a confirmation dialog and the row disappears from every grouping surface when the archive-set echo lands. The view options' Show section toggles managed Workspaces such as Automations (on by default; off hides their group and their Sessions from both list modes) and a trailing section titled Archived conversations (off by default) that lists every archived Session newest first; its rows open read-only behind an Unarchive bar and offer Unarchive in their menu, which returns the Session to its recorded Workspace position. Fork forks at the source's last completed turn, increments the inherited persisted title on the client, and then opens the child. Workspace Delete opens a confirmation that states the retention boundary; success removes the group and archives its Sessions.
 
 ### Pending interactions
 
@@ -114,7 +114,7 @@ None; this package neither assembles nor sends a provider request.
 These limits define the search depth, the archive surface, and the picking carrier; they are current package constraints.
 
 - **No fuzzy content search or event deep links** — the content backend uses literal token/phrase matching, and selecting a result opens the Session rather than the matching event.
-- **No Session deletion or unarchive control** — sessions can be archived, but archived sessions have no viewing or unarchive surface, and Workspace registration deletion does not delete Sessions.
+- **No Session deletion control** — sessions can be archived and unarchived, and Workspace registration deletion does not delete Sessions.
 - **Pending user interaction is not aggregated into collapsed groups** — a waiting row inside a collapsed group lights no group-header indicator and becomes visible only after that group is expanded.
 - **Native folder selection depends on the local Host carrier** — under the `-native` composition, in-process or remote browser deployments cannot open a local operating-system dialog; remote-capable picking is the `-browse` composition's in-app flow.
 

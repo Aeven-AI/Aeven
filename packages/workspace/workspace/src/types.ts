@@ -66,6 +66,14 @@ export interface Workspace {
   readonly isDefault: boolean
 
   /**
+   * Whether this registration is fixed product structure: the default
+   * workspace, or a pathless workspace a plugin declared through
+   * `WorkspaceRegistry.builtIn`. A built-in workspace refuses delete, rename,
+   * and move, and every account can reach it.
+   */
+  readonly isBuiltIn: boolean
+
+  /**
    * How this workspace binds to a filesystem location. Consumers that need a
    * directory must narrow on `'folder'` (see `isFolderWorkspace`) rather than
    * assume {@link path} is present.

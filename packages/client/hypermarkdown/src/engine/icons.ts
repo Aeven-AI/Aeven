@@ -58,3 +58,10 @@ export const ICON_RESET_VIEW =
  */
 export const ICON_CHEVRON =
   '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="chevron-icon chevron-down"><path d="m6 9 6 6 6-6"/></svg>'
+
+/**
+ * A filled play triangle, drawn white on the dark disc a video's poster
+ * carries. Default for `IconMap.play`.
+ */
+export const ICON_PLAY =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" class="play-icon play"><path d="M8 5.14v13.72a1 1 0 0 0 1.52.85l11.03-6.86a1 1 0 0 0 0-1.7L9.52 4.29A1 1 0 0 0 8 5.14z"/></svg>'

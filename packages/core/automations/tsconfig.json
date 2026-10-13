@@ -33,13 +33,13 @@
       "path": "../../util/brand"
     },
     {
-      "path": "../../util/home-paths"
-    },
-    {
       "path": "../../llm/llm"
     },
     {
       "path": "../session"
+    },
+    {
+      "path": "../../session/session-title"
     },
     {
       "path": "../../storage/storage-domain"

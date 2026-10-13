@@ -79,6 +79,7 @@ Mermaid 图表默认提供缩放控件与指针平移。普通滚轮输入会缩
 | 解析流水线与净化 | `src/engine/processors.ts`、`src/engine/sanitize.ts` |
 | 围栏、表格、图表与推理外观 | `src/engine/code/**`、`src/engine/table/**`、`src/engine/mermaid/**`、`src/engine/reasoning/**` |
 | 图片成组 | `src/engine/rehype/image-group.ts` |
+| 内联视频播放器 | `src/engine/rehype/video-embed.ts`、`src/engine/video.tsx`、`src/engine/video-url.ts` |
 | 插件工厂 | `src/engine/plugins/**` |
 | 样式表 | `src/styles/hypermarkdown.css` |
 
@@ -87,6 +88,7 @@ Mermaid 图表默认提供缩放控件与指针平移。普通滚轮输入会缩
 引擎用声明在 `.hypermarkdown` 上的 `--hm-*` 自定义属性绘制自己的外观。样式表是使用原生嵌套的纯 CSS，并随产物一起分发：构建的 static-linked 预设会把它与 JavaScript 一起输出并保留相对导入，因此类名哈希与投递由 shell 的 CSS 流水线负责。
 表格单元格在最大宽度 32ch 内换行；超过容器宽度的表格可以水平滚动。行内代码使用 `--hm-size-small`、上下 1px 左右 6px 的内边距、16px 圆角和 `#f2f2f2` 背景。
 连续多个区块各写一张图片时，整段会合并为一个带 `data-count` 的 `div.markdown-image-grid`；单张图片保持它被写入时的区块形态。合并只负责结构：图块的形状、圆角与填充方式，以及整行的几何，仍由宿主负责，渲染图片的其他规则本来也归宿主所有。图片加载完成后会带上 `data-orientation`（`portrait` 或 `landscape`），宿主因此可以按图片实际形态决定每个图块的长宽。
+只包含 YouTube 或 Vimeo 链接的段落会为每个链接生成一个播放器，连续的一组播放器（单个视频也算）合并为一个带 `data-count` 的 `div.markdown-video-grid`；写在正文句子里的视频链接保留为链接，提到它的段落或列表项之后会跟上它的播放器。回复流式输出时，连续的图片或视频行会保持为同一个未关闭的区块，直到其后的段落到达，因此整组只渲染为一行。播放器先显示视频封面和播放按钮，读者按下后才加载提供方的内嵌页面：YouTube 走 `youtube-nocookie.com`，Vimeo 带 `dnt=1`，内嵌地址由视频 id 重新构造，不取自链接本身。所有图块均为 3:2，封面与播放器相同；Vimeo 的封面来自其 oEmbed 查询。封面加载完成前，图块显示与图片相同的 `.image-loader` 底面，加载完成后带上 `data-loaded`。引擎负责绘制图块与按钮，整组的几何仍由宿主负责。按钮的无障碍名称来自翻译项 `playVideo` 与 `playVideoUntitled`，图标来自 `icons.play`。
 
 </details>
 

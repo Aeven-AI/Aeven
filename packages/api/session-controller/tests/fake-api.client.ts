@@ -41,6 +41,7 @@ function fakeWorkspace(id: string, over: Partial<WorkspaceView> = {}): Workspace
   return {
     workspaceId: id as WorkspaceId,
     isDefault: false,
+    isBuiltIn: over.isDefault ?? false,
     kind: 'folder',
     path: '/f/ws',
     title: 'ws',
@@ -277,6 +278,7 @@ export class FakeApiClient {
           payload,
           this.onWorkspaceArchiveSession(payload),
         ),
+        unarchiveSession: () => { throw new Error('unused') },
         follow: signal => this.openWorkspace(signal),
       },
     }

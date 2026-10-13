@@ -24,7 +24,7 @@ import type { StateDotState } from '@aeven/client-ui-primitives'
 import type { SessionId } from '@aeven/session/types'
 import type { WorkspaceBrowserProps } from '../contract/slots.ts'
 import { sessionPathOf } from '../session-url.ts'
-import type { GroupNode, SearchResultNode, SessionNode } from '../tree.ts'
+import { ARCHIVED_KEY, type GroupNode, type SearchResultNode, type SessionNode } from '../tree.ts'
 import css from './Rows.module.css'
 
 /** The standard locale seat, prop-passed from the browser root. */
@@ -139,8 +139,10 @@ export function ProjectRowItem({ group, onToggle, newSessionHref, onCreate, acti
   t: RowTranslate
 }) {
   const row = group
-  // The ungrouped bucket has no workspace title: its label is dictionary copy.
-  const label = row.workspaceId === undefined ? t('group.ungrouped') : row.label
+  // The ungrouped bucket and the Archived section have no workspace title: their labels are dictionary copy.
+  const label = row.key === ARCHIVED_KEY
+    ? t('group.archived')
+    : row.workspaceId === undefined ? t('group.ungrouped') : row.label
   const [menuOpen, setMenuOpen] = useState(false)
   /**
    * The chat a browser-owned open of this row's New Session link starts.
@@ -156,7 +158,7 @@ export function ProjectRowItem({ group, onToggle, newSessionHref, onCreate, acti
    * rather than one that would start a chat somewhere else.
    */
   const [newSession, setNewSession] = useState(() => (
-    row.workspaceId === undefined ? undefined : newSessionHref().href
+    row.workspaceId === undefined || row.managed ? undefined : newSessionHref().href
   ))
   // Deleting a workspace keeps its folder and session logs and archives its
   // sessions, so the row reads like the others rather than as destructive.
@@ -441,13 +443,14 @@ export function SearchResultItem({ result, currentId, onOpen, t }: {
  * @param props.onRename - open the session rename dialog (id + current title).
  * @param props.onFork - fork a session at its last completed turn.
  * @param props.onArchive - archive a session by id.
+ * @param props.onUnarchive - unarchive a session by id; present only on Archived-section rows, which offer it in place of Archive.
  * @param props.onReveal - scroll this row into view after search navigation, then acknowledge it.
  * @param props.drag - optional draggable-row wiring.
  * @param props.t - the browser root's locale seat.
  * @returns the session row.
  */
 export function SessionNodeItem({
-  node, currentId, onOpen, onRename, onFork, onArchive, onReveal, drag, t,
+  node, currentId, onOpen, onRename, onFork, onArchive, onUnarchive, onReveal, drag, t,
 }: {
   node: SessionNode
   currentId: string | undefined
@@ -458,6 +461,8 @@ export function SessionNodeItem({
   onFork: (id: SessionNode['id']) => void
   /** Archive this session (row menu action; commits without a dialog). */
   onArchive: (id: SessionNode['id']) => void
+  /** Unarchive this session; present only on rows of the Archived section. */
+  onUnarchive?: ((id: SessionNode['id']) => void) | undefined
   /** Scroll this row into view after search navigation, then acknowledge it. */
   onReveal?: (() => void) | undefined
   /** Present only on draggable rows (workspace-group sessions outside search). */
@@ -484,7 +489,9 @@ export function SessionNodeItem({
     ...(titleCreationPending(row) ? [] : [{ id: 'rename', label: t('rename'), icon: <IconEditOutline16 /> }]),
     { id: 'fork', label: t('menu.fork'), icon: <IconBranchOutline16 /> },
     // 20-native glyph in the menu's 16px icon slot (Menu.module.css .itemIcon).
-    { id: 'archive', label: t('menu.archiveSession'), icon: <IconArchiveOutline20 size={16} /> },
+    onUnarchive === undefined
+      ? { id: 'archive', label: t('menu.archiveSession'), icon: <IconArchiveOutline20 size={16} /> }
+      : { id: 'unarchive', label: t('menu.unarchiveSession'), icon: <IconArchiveOutline20 size={16} /> },
   ]
   // Figma session cell: pad 8, status slot 16, then a 4px title gap.
   const ownRow = (
@@ -562,6 +569,7 @@ export function SessionNodeItem({
               if (id === 'rename') onRename(node.id, row.title)
               if (id === 'fork') onFork(node.id)
               if (id === 'archive') onArchive(node.id)
+              if (id === 'unarchive') onUnarchive?.(node.id)
             }}
             portal
             closeOnPointerLeave

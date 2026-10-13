@@ -762,6 +762,7 @@
         runTimeoutMinutes: 60
         misfireGraceMinutes: 15
         historyLimit: 200
+        workspaceTitle: Automations
 
     - id: ui-automations
       name: '@aeven/client-ui-automations'

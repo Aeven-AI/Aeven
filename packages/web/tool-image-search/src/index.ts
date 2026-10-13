@@ -12,18 +12,20 @@
  * public domain or openly licensed. Then the web seam, whose results carry the
  * page an image sits on — the route that reaches news, products, and anything
  * else Commons does not hold. A licence is cited when the source states one;
- * the page is cited either way.
+ * the page is cited either way. News cards come from the article pages the
+ * model names, so each card is the story the reply is about.
  *
  * @module @aeven/tool-image-search
  */
 
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
+import { decodeHTML } from 'entities'
 import type { ImageAttachmentRef, ImageMediaType } from '@aeven/attachment'
 import { BlockAssembler, createUserMessage, HarnessError } from '@aeven/llm'
 import { defineTool } from '@aeven/tools'
+import type { WebFetchResult } from '@aeven/web'
 import type { JsonValue } from '@aeven/util-values'
-import type {} from '@aeven/web'
 
 export const name = 'tool-image-search'
 export const inject = ['tools', 'attachments', 'llm']
@@ -36,6 +38,12 @@ const USER_AGENT = 'Aeven harness (https://aeven.io) image search'
 
 /** Milliseconds one HTTP request may take. */
 const DEFAULT_TIMEOUT_MS = 20_000
+
+/** Milliseconds the call that translates the cards may take. */
+const DEFAULT_TRANSLATION_TIMEOUT_MS = 30_000
+
+/** Requests one call makes one after another at most: Commons, a web search, the pages it found, and the images. */
+const SEQUENTIAL_REQUESTS = 4
 
 /** Largest image stored by one call, in bytes. */
 const DEFAULT_MAX_BYTES = 12 * 1024 * 1024
@@ -51,6 +59,12 @@ const THUMBNAIL_WIDTH = 1600
 
 /** Pages one web search may contribute an image from. */
 const WEB_PAGES = 6
+
+/** The most articles one call turns into cards. */
+const MAX_PAGES = 10
+
+/** Longest opening text a card carries, in characters. */
+const LEAD_LENGTH = 320
 
 /** Image types stored as they arrive; anything else is a drawing, a book scan, or a video. */
 const BITMAP_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const satisfies readonly ImageMediaType[]
@@ -79,6 +93,8 @@ const QUESTION_WORDS = new Set([
 export interface Config {
   /** Milliseconds one HTTP request may take. */
   requestTimeoutMs?: number
+  /** Milliseconds the model call that translates the cards may take. */
+  translationTimeoutMs?: number
   /** Largest image one call stores, in bytes. */
   maxImageBytes?: number
 }
@@ -86,8 +102,12 @@ export interface Config {
 /** Schemastery validation for {@link Config}. */
 export const Config: z<Config> = z.object({
   requestTimeoutMs: z.natural().min(1_000).max(120_000).default(DEFAULT_TIMEOUT_MS),
+  translationTimeoutMs: z.natural().min(1_000).max(300_000).default(DEFAULT_TRANSLATION_TIMEOUT_MS),
   maxImageBytes: z.natural().min(1_024).default(DEFAULT_MAX_BYTES),
 })
+
+/** A fresh deadline for one request, joined with the caller's cancellation. */
+type Deadline = () => AbortSignal
 
 /** One photograph a source offers, before its bytes are stored. */
 interface FoundImage {
@@ -259,26 +279,40 @@ function publishedImage(html: string, pageUrl: string): string | undefined {
 
 /**
  * The text an HTML fragment actually reads as, with its character references
- * resolved: a card shows a sentence, not `Decart&#039;s`.
+ * resolved: a card shows a sentence, not `Decart&#039;s` or `Truy&ecirc;̀n`.
+ * A page that escaped its text twice (`&amp;ecirc;`) is decoded a second time.
  * @param text - the fragment.
- * @returns the same text with its references decoded.
+ * @returns the same text with its references decoded and its whitespace collapsed.
  */
 function decodeEntities(text: string): string {
-  const named: Record<string, string> = {
-    amp: '&', apos: "'", gt: '>', hellip: '\u2026', ldquo: '\u201c', lsquo: '\u2018', lt: '<',
-    mdash: '\u2014', nbsp: ' ', ndash: '\u2013', quot: '"', rdquo: '\u201d', rsquo: '\u2019',
-  }
-
-  return text.replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (match, body: string) => {
-    if (body.startsWith('#')) {
-      const code = body.startsWith('#x') || body.startsWith('#X')
-        ? Number.parseInt(body.slice(2), 16)
-        : Number.parseInt(body.slice(1), 10)
-      return Number.isFinite(code) && code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : match
-    }
-    return named[body.toLowerCase()] ?? match
-  })
+  const once = decodeHTML(text)
+  const twice = /&(?:#x?[0-9a-f]+|[a-z][a-z0-9]*);/i.test(once) ? decodeHTML(once) : once
+  return twice.replace(/\s+/g, ' ').trim()
 }
+
+/**
+ * Text cut to a length a card can hold, ending on a whole sentence when one
+ * ends late enough and otherwise on a whole word with an ellipsis — so a card
+ * never stops in the middle of a word, as a page's own truncated description
+ * often does.
+ * @param text - one line of text.
+ * @param limit - the longest result, in characters.
+ * @returns the text, cut.
+ */
+function finish(text: string, limit: number): string {
+  const cut = text.length > limit ? text.slice(0, limit) : text
+
+  if (/[.!?…"”’')\]]$/.test(cut) && cut.length === text.length) return cut
+
+  const end = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('? '), cut.lastIndexOf('! '))
+  if (end > limit * 0.4) return cut.slice(0, end + 1)
+
+  const space = cut.lastIndexOf(' ')
+  return `${(space > 0 ? cut.slice(0, space) : cut).replace(/[\s,;:–—-]+$/, '')}…`
+}
+
+/** A paragraph that is page furniture — a photo credit, a follow prompt, a share bar — rather than the story. */
+const FURNITURE = /cookie|subscribe|newsletter|sign in|advertisement|all rights reserved|getty images|shutterstock|preferred source|google discover|add .{1,40} on google|follow us|share this|read more|photo:|image:|credit:/i
 
 /**
  * The headline a page announces.
@@ -288,9 +322,9 @@ function decodeEntities(text: string): string {
 function publishedTitle(html: string): string | undefined {
   const tag = /<meta[^>]+(?:property|name)=["'](?:og:title|twitter:title)["'][^>]*>/i.exec(html)
   const title = tag === null ? undefined : /content=["']([^"']+)["']/i.exec(tag[0])?.[1]
-  if (title !== undefined && title.trim() !== '') return title.trim()
+  if (title !== undefined && title.trim() !== '') return decodeEntities(title)
   const document = /<title[^>]*>([^<]{1,200})<\/title>/i.exec(html)?.[1]
-  return document === undefined || document.trim() === '' ? undefined : document.trim()
+  return document === undefined || document.trim() === '' ? undefined : decodeEntities(document)
 }
 
 /**
@@ -315,25 +349,23 @@ function articleLead(html: string): string {
 
   for (const match of stripped.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)) {
     const text = decodeEntities((match[1] ?? '').replace(/<[^>]+>/g, ' '))
-      .replace(/\s+/g, ' ')
-      .trim()
 
     if (text.length < 40) continue
-    if (/cookie|subscribe|newsletter|sign in|advertisement|all rights reserved/i.test(text)) continue
+    // A line that opens on a separator or bullet is a navigation or share bar.
+    if (/^[|•·>]/.test(text) || FURNITURE.test(text)) continue
     paragraphs.push(text)
-    if (paragraphs.join(' ').length >= 320) break
+    if (paragraphs.join(' ').length >= LEAD_LENGTH) break
   }
 
-  const lead = decodeEntities(paragraphs.join(' ')).slice(0, 320).trim()
+  const lead = paragraphs.join(' ')
 
   if (lead !== '') {
-    const end = Math.max(lead.lastIndexOf('. '), lead.lastIndexOf('? '), lead.lastIndexOf('! '))
-    return end > 120 ? lead.slice(0, end + 1) : lead
+    return finish(lead, LEAD_LENGTH)
   }
 
   const meta = /<meta[^>]+(?:property|name)=["'](?:og:description|twitter:description|description)["'][^>]*>/i.exec(html)
   const text = meta === null ? undefined : /content=["']([^"']+)["']/i.exec(meta[0])?.[1]
-  return text === undefined ? '' : decodeEntities(text).replace(/\s+/g, ' ').trim().slice(0, 240)
+  return text === undefined || text.trim() === '' ? '' : finish(decodeEntities(text), LEAD_LENGTH)
 }
 
 /**
@@ -349,6 +381,68 @@ function mediaTypeOf(url: string): BitmapType {
 }
 
 /**
+ * The card one fetched page makes: the image it publishes as its own, its
+ * headline, and the opening of its story.
+ * @param page - the fetched page.
+ * @param headline - the title a search gave the page, when one did.
+ * @returns the card, or undefined for a page that failed or names no image.
+ */
+function pageImage(page: WebFetchResult, headline: string | undefined): FoundImage | undefined {
+  if (page.statusCode >= 400 || page.body.kind !== 'html') {
+    return undefined
+  }
+
+  const imageUrl = publishedImage(page.body.content, page.url)
+
+  if (imageUrl === undefined) {
+    return undefined
+  }
+
+  const searched = headline === undefined ? '' : decodeEntities(headline)
+
+  return {
+    title: searched !== '' ? searched : publishedTitle(page.body.content) ?? new URL(page.url).hostname,
+    summary: articleLead(page.body.content),
+    source: page.url,
+    license: 'see the source page',
+    imageUrl,
+    mediaType: mediaTypeOf(imageUrl),
+  }
+}
+
+/**
+ * The cards a list of pages makes, fetched all at once and kept in the order
+ * given. A page that cannot be fetched or names no image makes no card.
+ * @param web - the web seam.
+ * @param pages - each page's address, and the title a search gave it.
+ * @param deadline - one request's deadline.
+ * @returns one photograph per page that published one, in order.
+ */
+async function pageImages(
+  web: Context['web'],
+  pages: readonly { url: string; title?: string | undefined }[],
+  deadline: Deadline,
+): Promise<readonly FoundImage[]> {
+  const settled = await Promise.allSettled(pages.map(async (source) => {
+    const page = await web.fetch({ url: source.url }, deadline())
+    return pageImage(page, source.title)
+  }))
+
+  const found: FoundImage[] = []
+  const seen = new Set<string>()
+
+  for (const result of settled) {
+    // A page that cannot be fetched or read contributes no image; the rest
+    // still answer the question.
+    if (result.status !== 'fulfilled' || result.value === undefined || seen.has(result.value.imageUrl)) continue
+    seen.add(result.value.imageUrl)
+    found.push(result.value)
+  }
+
+  return found
+}
+
+/**
  * Photographs from the pages a web search returns.
  *
  * Each page is fetched for the image it publishes as its own; a page that
@@ -357,50 +451,35 @@ function mediaTypeOf(url: string): BitmapType {
  *
  * @param web - the web seam, when the deployment mounts one.
  * @param query - the subject to photograph.
- * @param limit - how many photographs are still wanted.
- * @param signal - caller cancellation and the request deadline.
- * @returns the photographs those pages publish.
+ * @param deadline - one request's deadline.
+ * @returns the photographs those pages publish, in the order the search ranked them.
  */
-async function searchWeb(web: Context['web'], query: string, limit: number, signal: AbortSignal): Promise<readonly FoundImage[]> {
-  const search = await web.search({ query, maxResults: WEB_PAGES }, signal)
-  const found: FoundImage[] = []
+async function searchWeb(web: Context['web'], query: string, deadline: Deadline): Promise<readonly FoundImage[]> {
+  const search = await web.search({ query, maxResults: WEB_PAGES }, deadline())
+  return pageImages(web, search.sources, deadline)
+}
 
-  for (const source of search.sources) {
-    if (found.length === limit) {
-      break
-    }
+/**
+ * The article addresses a call names for its cards.
+ * @param value - the call's `urls` argument.
+ * @returns the http(s) addresses, without repeats, at most {@link MAX_PAGES}.
+ */
+function readUrls(value: unknown): readonly string[] {
+  if (!Array.isArray(value)) return []
 
+  const urls: string[] = []
+
+  for (const entry of value) {
+    if (typeof entry !== 'string') continue
     try {
-      const page = await web.fetch({ url: source.url }, signal)
-
-      if (page.body.kind !== 'html') {
-        continue
-      }
-
-      const imageUrl = publishedImage(page.body.content, page.url)
-
-      if (imageUrl === undefined) {
-        continue
-      }
-
-      const headline = source.title ?? publishedTitle(page.body.content) ?? new URL(page.url).hostname
-      const summary = articleLead(page.body.content)
-
-      found.push({
-        title: headline,
-        summary,
-        source: page.url,
-        license: 'see the source page',
-        imageUrl,
-        mediaType: mediaTypeOf(imageUrl),
-      })
+      const url = new URL(entry.trim())
+      if ((url.protocol === 'https:' || url.protocol === 'http:') && !urls.includes(url.toString())) urls.push(url.toString())
     } catch {
-      // A page that cannot be fetched or read contributes no image; the rest of
-      // the results still answer the question.
+      // An address that does not parse names no article; the others still make cards.
     }
   }
 
-  return found
+  return urls.slice(0, MAX_PAGES)
 }
 
 /**
@@ -493,15 +572,27 @@ function readTranslations(value: unknown): readonly { title: string; summary: st
  * The model-facing text of one call, naming what the user is now looking at.
  * @param query - what was searched for.
  * @param images - the photographs that were stored, in the order shown.
+ * @param cards - whether they are shown as cards rather than a row.
  * @returns the result text.
  */
-function summary(query: string, images: readonly FoundImage[]): string {
+function summary(query: string, images: readonly FoundImage[], cards: boolean): string {
   if (images.length === 0) {
-    return `No photographs of "${query}" could be found. Answer without images, and say where you looked.`
+    return cards
+      ? `No cards could be made for ${query}: none of the pages could be read or published an image. Present the stories in prose instead.`
+      : `No photographs of "${query}" could be found. Answer without images, and say where you looked.`
   }
 
   const lines = images.map((image, index) =>
     `${String(index + 1)}. ${image.title} — ${image.source} (${image.license})`)
+
+  if (cards) {
+    return [
+      `Made ${String(images.length)} card(s) for ${query}.`,
+      'They are already displayed to the user, one card per story with its image, headline, opening text and source, each linking to its article. Do not list these stories again as links or headlines; write only what the cards do not say.',
+      'The cards, in order:',
+      ...lines,
+    ].join('\n')
+  }
 
   return [
     `Found ${String(images.length)} photograph(s) for "${query}".`,
@@ -523,7 +614,7 @@ function summary(query: string, images: readonly FoundImage[]): string {
  * @param route - the calling session's provider and model.
  * @param language - the language the conversation uses.
  * @param images - the items to translate, in order.
- * @param signal - caller cancellation and the request deadline.
+ * @param signal - caller cancellation and the translation's own deadline.
  * @returns the items, in the same order, in `language` where the call answered.
  */
 async function translateItems(
@@ -582,22 +673,28 @@ async function translateItems(
  */
 export function apply(ctx: Context, config: Config): void {
   const requestTimeoutMs = config.requestTimeoutMs as number
+  const translationTimeoutMs = config.translationTimeoutMs as number
   const maxImageBytes = config.maxImageBytes as number
 
   ctx.tools.register(defineTool({
     name: 'find_images',
     description: 'Find real photographs of a subject — a place, building, object, artwork, product, event, or person — and show them to the user as a row of images with their sources. '
       + 'Call it whenever a question is about how something actually looks, when the user asks for photos, or when a picture carries the answer better than prose. '
-      + 'It searches Wikimedia Commons and the web. Never describe a photograph you have not shown.',
+      + 'It searches Wikimedia Commons and the web. Never describe a photograph you have not shown. '
+      + 'For news, pass the articles you chose as `urls` with layout `cards`: each becomes one card with its image, headline, opening text and source.',
     parameters: {
       query: {
         type: 'string',
-        required: true,
-        description: 'What to photograph, in a few words, for example "Crystal Palace Hyde Park 1851" or "Sagrada Familia interior".',
+        description: 'What to photograph, in a few words, for example "Crystal Palace Hyde Park 1851" or "Sagrada Familia interior". With `urls`, what the stories are about, for example "today\'s tech news". Required without `urls`.',
+      },
+      urls: {
+        type: 'array',
+        items: { type: 'string' },
+        description: `With layout \`cards\`: the article pages to show, one card each, in the order you present the stories — at most ${String(MAX_PAGES)}. Give one article per story.`,
       },
       count: {
         type: 'number',
-        description: `How many photographs to show, 1 to ${String(MAX_COUNT)}. Defaults to ${String(DEFAULT_COUNT)}.`,
+        description: `How many photographs to show, 1 to ${String(MAX_COUNT)}. Defaults to ${String(DEFAULT_COUNT)}. Ignored with \`urls\`, which shows one card per article.`,
       },
       layout: {
         type: 'string',
@@ -621,7 +718,10 @@ export function apply(ctx: Context, config: Config): void {
         },
       },
     },
-    timeoutMs: requestTimeoutMs * 4,
+    timeoutMs: requestTimeoutMs * SEQUENTIAL_REQUESTS + translationTimeoutMs,
+    // Each call fetches and stores its own images; the attachment store keys
+    // what it holds by content, so two calls storing the same file agree.
+    isConcurrencySafe: () => true,
     output: {
       schema: {
         type: 'object',
@@ -641,36 +741,40 @@ export function apply(ctx: Context, config: Config): void {
     async execute(args, exec) {
       const raw = (args as { query?: unknown }).query
       const query = typeof raw === 'string' ? raw.trim() : ''
+      const cards = (args as { layout?: unknown }).layout === 'cards'
+      const urls = cards ? readUrls((args as { urls?: unknown }).urls) : []
 
-      if (query === '') {
-        throw new HarnessError('find_images needs what to photograph', 'IMAGE_SEARCH_QUERY')
+      if (query === '' && urls.length === 0) {
+        throw new HarnessError('find_images needs what to photograph, or the article urls to show as cards', 'IMAGE_SEARCH_QUERY')
       }
 
       const asked = (args as { count?: unknown }).count
       const wanted = typeof asked === 'number' && Number.isFinite(asked) ? Math.trunc(asked) : DEFAULT_COUNT
-      const count = Math.min(Math.max(wanted, 1), MAX_COUNT)
-      const signal = AbortSignal.any([exec.signal, AbortSignal.timeout(requestTimeoutMs)])
-      const cards = (args as { layout?: unknown }).layout === 'cards'
+      const count = urls.length > 0 ? urls.length : Math.min(Math.max(wanted, 1), MAX_COUNT)
+      const deadline: Deadline = () => AbortSignal.any([exec.signal, AbortSignal.timeout(requestTimeoutMs)])
       const translations = readTranslations((args as { translations?: unknown }).translations)
       const web = ctx.get('web')
       const candidates: FoundImage[] = []
 
-      // A card is a headline: it comes from the pages a search returns, because
-      // a file name from an archive is not a headline and its subject is often
-      // not the story. Everything else asks Commons first for the photographed
-      // record, then the web for what an archive does not hold.
+      // A card is a headline: it comes from the article pages the model chose,
+      // or from the pages a search returns, because a file name from an archive
+      // is not a headline and its subject is often not the story. Everything
+      // else asks Commons first for the photographed record, then the web for
+      // what an archive does not hold.
       if (cards && web !== undefined) {
-        candidates.push(...await searchWeb(web, query, count, signal))
+        candidates.push(...urls.length > 0
+          ? await pageImages(web, urls.map(url => ({ url })), deadline)
+          : await searchWeb(web, query, deadline))
       } else {
         try {
-          candidates.push(...await searchCommons(subject(query), count * 2, signal))
+          candidates.push(...await searchCommons(subject(query), count * 2, deadline()))
         } catch {
           // A Commons outage is not a failed call: the web source may still answer.
         }
 
         if (candidates.length < count && web !== undefined) {
           try {
-            candidates.push(...await searchWeb(web, query, count - candidates.length, signal))
+            candidates.push(...await searchWeb(web, query, deadline))
           } catch {
             // Same reasoning: the photographs already found are still worth showing.
           }
@@ -679,48 +783,60 @@ export function apply(ctx: Context, config: Config): void {
 
       const stored: ImageAttachmentRef[] = []
       const used: FoundImage[] = []
+      let next = 0
 
-      for (const image of candidates) {
-        if (used.length === count) {
-          break
-        }
+      // Downloads run a batch at a time, each batch as large as the row still
+      // needs, so a file that fails is replaced by the next candidate without
+      // fetching every candidate up front.
+      while (used.length < count && next < candidates.length) {
+        const batch = candidates.slice(next, next + count - used.length)
+        next += batch.length
 
-        // A translated call replaces what the cards read; the bytes are the same
-        // files, which the attachment store already holds by content.
-        const translation = translations[used.length]
-        const described: FoundImage = translation === undefined
-          ? image
-          : { ...image, title: translation.title, summary: translation.summary === '' ? image.summary : translation.summary }
-
-        try {
-          const fetched = await download(image.imageUrl, image.mediaType, maxImageBytes, signal)
-          stored.push(await ctx.attachments.saveImage({
+        const settled = await Promise.allSettled(batch.map(async (image, index) => {
+          const fetched = await download(image.imageUrl, image.mediaType, maxImageBytes, deadline())
+          return ctx.attachments.saveImage({
             data: fetched.data,
             mediaType: fetched.mediaType,
-            name: imageName(described, used.length),
-          }))
-          used.push(described)
-        } catch {
+            name: imageName(image, used.length + index),
+          })
+        }))
+
+        settled.forEach((result, index) => {
+          const image = batch[index]
           // One file that cannot be fetched or stored is left out of the row;
           // the remaining photographs still answer the question.
-        }
+          if (result.status !== 'fulfilled' || image === undefined) return
+          stored.push(result.value)
+          used.push(image)
+        })
       }
+
+      // A translated call replaces what the cards read; the bytes are the same
+      // files, which the attachment store already holds by content.
+      const supplied = used.map((image, index) => {
+        const translation = translations[index]
+        return translation === undefined
+          ? image
+          : { ...image, title: translation.title, summary: translation.summary === '' ? image.summary : translation.summary }
+      })
 
       // A card never reads in a language the conversation is not using: the
       // session's own model translates the source text when a language was
-      // named and the model did not supply the wording itself.
+      // named and the model did not supply the wording itself. The translation
+      // has its own deadline, so a slow search never leaves it no time to run.
       const language = typeof (args as { language?: unknown }).language === 'string'
         ? ((args as { language: string }).language).trim()
         : ''
       const provider = exec.agent?.options.provider
       const model = exec.agent?.options.model
-      const described = language !== '' && translations.length === 0 && provider !== undefined && model !== undefined
-        ? await translateItems(ctx, { provider, model }, language, used, signal)
-        : used
+      const described = language !== '' && translations.length === 0 && provider !== undefined && model !== undefined && supplied.length > 0
+        ? await translateItems(ctx, { provider, model }, language, supplied, AbortSignal.any([exec.signal, AbortSignal.timeout(translationTimeoutMs)]))
+        : supplied
+      const subjectText = query === '' ? 'the stories' : `"${query}"`
 
       // The schema describes the attachments as plain objects, which is what a
       // tool result carries; `render` reads them back as attachment references.
-      return { text: summary(query, described), items: items(described), images: stored as unknown as Record<string, JsonValue>[] }
+      return { text: summary(cards ? subjectText : query, described, cards), items: items(described), images: stored as unknown as Record<string, JsonValue>[] }
     },
   }))
 }

@@ -23,6 +23,10 @@ export interface WorkStep {
   /** Text of the result, clipped; absent while the call had no result. */
   readonly output?: string
   readonly failed: boolean
+  /** When the model issued the call, in epoch milliseconds. */
+  readonly calledAt: number
+  /** When its result arrived, in epoch milliseconds; absent while the call had no result. */
+  readonly answeredAt?: number
 }
 
 /** The work of one completed turn that answered a direct-user request. */
@@ -47,7 +51,7 @@ export interface TurnOutcome {
   readonly work?: CompletedWork
 }
 
-const STEP_TEXT_MAX = 1_500
+const STEP_TEXT_MAX = 4_000
 
 interface TurnUse {
   readonly turn: number
@@ -55,7 +59,7 @@ interface TurnUse {
   /** Tool names of the turn's calls, by call id. */
   readonly calls: Map<string, string>
   /** Every tool call of the turn in call order, by call id. */
-  readonly steps: Map<string, { name: string; input: string; output?: string; failed: boolean }>
+  readonly steps: Map<string, { name: string; input: string; output?: string; failed: boolean; calledAt: number; answeredAt?: number }>
   readonly request: string[]
   readonly answer: string[]
   /** Procedure view calls awaiting their result, by call id. */
@@ -96,6 +100,18 @@ function viewedProcedure(rawArguments: string): string | undefined {
 export function correctionOf(text: string): string | undefined {
   const trimmed = text.trim()
   return /^(?:that's (?:wrong|incorrect|not right)|that (?:was|is) (?:wrong|incorrect)|it (?:didn't|did not|doesn't|does not) work|don't (?:use|do|repeat) (?:that|the (?:same|previous|old))|stop (?:using|doing) (?:that|the (?:same|previous|old))|不对|不要再|别再)/iu.test(trimmed)
+    ? trimmed
+    : undefined
+}
+
+/**
+ * A direct-user message that complains the previous turn was slow or did too much.
+ * @param text - the user's message.
+ * @returns the complaint in the user's words, or undefined.
+ */
+export function slownessOf(text: string): string | undefined {
+  const trimmed = text.trim()
+  return /(?:too (?:long|slow|many steps)|took (?:\w+ )?(?:too |so |way )?long|taking (?:forever|ages|so long)|so slow|way too long|\b\d+ minutes for\b|太慢|太久)/iu.test(trimmed)
     ? trimmed
     : undefined
 }
@@ -163,7 +179,7 @@ export class ExecutionTracker {
       case 'tool/call': {
         if (!use) return undefined
         use.calls.set(event.data.callId, event.data.name)
-        use.steps.set(event.data.callId, { name: event.data.name, input: clipped(event.data.arguments), failed: false })
+        use.steps.set(event.data.callId, { name: event.data.name, input: clipped(event.data.arguments), failed: false, calledAt: event.time })
         if (event.data.name === 'capability_manage') {
           const name = viewedProcedure(event.data.arguments)
           if (name !== undefined) use.loading.set(event.data.callId, name)
@@ -178,6 +194,7 @@ export class ExecutionTracker {
         if (step) {
           step.output = clipped(textOf(event.data.message.content[0].content))
           step.failed = failed
+          step.answeredAt = event.time
         }
         const loading = use.loading.get(callId)
         if (loading !== undefined) {

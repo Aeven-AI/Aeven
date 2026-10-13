@@ -31,7 +31,7 @@ function workspace(
 ): WorkspaceView {
   return {
     workspaceId: wid(id),
-    isDefault: false,
+    isDefault: false, isBuiltIn: false,
     kind: 'folder',
     path: `/w/${id}`,
     title: id,
@@ -115,6 +115,10 @@ class FakeWorkspaceRemote implements WorkspaceRemote {
   archiveSession(request: WorkspaceArchiveSessionRequest): Promise<RemoteResult<WorkspaceArchiveValue>> {
     this.record('archiveSession', request)
     return this.onArchiveSession(request)
+  }
+
+  unarchiveSession(): Promise<RemoteResult<WorkspaceArchiveValue>> {
+    throw new Error('unused')
   }
 
   async *follow(_signal?: AbortSignal): AsyncGenerator<WorkspaceFollowFrame> {}

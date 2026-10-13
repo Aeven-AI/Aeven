@@ -1,7 +1,8 @@
 /**
- * Settings shell root: the sidebar-foot status row plus the centered modal
- * panel (figma 501:29947, 1080x700) with the section nav rail, which becomes
- * a horizontal tab strip under the title row on narrow viewports. The shell is
+ * Settings shell root: the connection toast, the sidebar-foot spacing row,
+ * and the centered modal panel (figma 501:29947, 1080x700) with the section
+ * nav rail, which becomes a horizontal tab strip under the title row on
+ * narrow viewports. The shell is
  * a pure composition face — every piece of text (panel title, close label,
  * sections) arrives from registrants through slots; accessible names resolve to
  * that content (dialog: aria-labelledby the title node; close: visually-hidden
@@ -168,7 +169,7 @@ function SettingsPanel({ rows, renderSlot, activeId, detail: addressedDetail, on
 }
 
 /**
- * Render the sidebar-foot status row and the settings panel.
+ * Render the connection toast, the sidebar-foot spacing row, and the settings panel.
  * @param props - composed slot props (contract/slots.ts).
  * @returns the settings shell element tree.
  */
@@ -181,6 +182,9 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
   const open = address !== undefined
   const [completedOnboarding, setCompletedOnboarding] = useState<ReadonlySet<string>>(() => new Set())
   const [showRecovery, setShowRecovery] = useState(false)
+  // A dismissed toast stays hidden for the rest of that outage; the next
+  // healthy connection clears the dismissal.
+  const [connectionDismissed, setConnectionDismissed] = useState(false)
   const openSection = useCallback((id: string) => { show(id) }, [show])
 
   // The ledger tick keeps the nav rows fresh: registrants re-register with
@@ -209,6 +213,7 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
       setShowRecovery(false)
       return
     }
+    setConnectionDismissed(false)
     if (previous !== 'disconnected' && previous !== 'connecting') return
     setShowRecovery(true)
     const timeout = window.setTimeout(() => { setShowRecovery(false) }, RECOVERY_CONFIRMATION_MS)
@@ -222,8 +227,15 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
     })
   }, [])
 
+  const dismissConnection = () => {
+    if (connectionState === 'connected') setShowRecovery(false)
+    else setConnectionDismissed(true)
+  }
+
   let connectionIndicator: ConnectionIndicatorState | undefined
-  if (connectionState === 'disconnected') {
+  if (connectionDismissed) {
+    connectionIndicator = undefined
+  } else if (connectionState === 'disconnected') {
     connectionIndicator = 'disconnected'
   } else if (connectionState === 'connecting') {
     connectionIndicator = 'connecting'
@@ -233,18 +245,19 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
 
   return (
     <>
-      <div className={clsx(css.triggerRow, !wide && css.railRow)}>
-        <ConnectionIndicator
-          state={wide ? connectionIndicator : undefined}
-          disconnectedLabel={t('connection.error')}
-          reconnectLabel={t('connection.retry')}
-          connectingLabel={t('connection.connecting')}
-          recoveredLabel={t('connection.connected')}
-          reconnectActionLabel={t('connection.reconnect')}
-          restartActionLabel={t('connection.restart')}
-          onReconnect={reconnect}
-        />
-      </div>
+      <div className={clsx(css.triggerRow, !wide && css.railRow)} />
+      <ConnectionIndicator
+        state={connectionIndicator}
+        disconnectedLabel={t('connection.error')}
+        reconnectLabel={t('connection.retry')}
+        connectingLabel={t('connection.connecting')}
+        recoveredLabel={t('connection.connected')}
+        reconnectActionLabel={t('connection.reconnect')}
+        restartActionLabel={t('connection.restart')}
+        dismissLabel={t('close')}
+        onReconnect={reconnect}
+        onDismiss={dismissConnection}
+      />
       {open && (
         <SettingsPanel
           rows={rows}

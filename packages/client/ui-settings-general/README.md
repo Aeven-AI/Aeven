@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`avn-client-ui-settings-general` is the settings shell of the avn web client: the Settings panel opens from the sidebar's bottom control, a connection-failure indicator beside that control offers immediate recovery, the navigation is built from the sections features contribute, and first-run users are walked through one onboarding step at a time. It also registers everything on the Settings pages that belongs to no single feature: the trigger/header/close chrome content, the local configuration-file action, the General section and its `settings.general.item` slot, and the `settings` dictionaries. Feature-owned rows (Permission, Language), sections (Appearance, Models), and conditional onboarding steps stay with their feature packages; the shell itself ships no onboarding copy of its own.
+`avn-client-ui-settings-general` is the settings shell of the avn web client: the Settings panel opens from the sidebar's bottom control, a connection toast at the top of the window offers immediate recovery, the navigation is built from the sections features contribute, and first-run users are walked through one onboarding step at a time. It also registers everything on the Settings pages that belongs to no single feature: the trigger/header/close chrome content, the local configuration-file action, the General section and its `settings.general.item` slot, and the `settings` dictionaries. Feature-owned rows (Permission, Language), sections (Appearance, Models), and conditional onboarding steps stay with their feature packages; the shell itself ships no onboarding copy of its own.
 
 The panel and navigation consume the Aeven 30px surface radius, 20px control radius, neutral surfaces, and Google Sans Flex typography while retaining the settings information architecture. At viewport widths of 768px and below, the navigation moves from the side rail to a horizontally scrolling tab strip under the title row so the section keeps the full panel width; at 640px and below, the panel fills the viewport.
 
@@ -27,7 +27,7 @@ The panel and navigation consume the Aeven 30px surface radius, 20px control rad
 <a id="use-this-package"></a>
 ## Use this package
 
-Users reach the shell through the sidebar's bottom Settings control; feature plugins contribute their pages and onboarding steps through the slot ledgers this shell projects. After a Host connection failure, a pale-yellow **Disconnected** action appears to the right of Settings. Automatic recovery shows **Connecting** with one to three dots advancing every 500ms. Hover or keyboard focus changes either yellow label to **Reconnect now** without changing its background; press feedback stays within the warning palette, and selecting it starts retry 1 immediately. Recovery changes the region to pale-green **Connected** for two seconds before it disappears. The icon, left-aligned text origin, height, and width remain fixed across every visible state. Initial startup and uninterrupted healthy operation remain silent. The shell renders the modal panel, the navigation built from `settings.section` entries, and exactly one mounted onboarding step at a time.
+Users reach the shell through the sidebar's bottom Settings control; feature plugins contribute their pages and onboarding steps through the slot ledgers this shell projects. After a Host connection failure, a toast centered at the top of the window shows **Disconnected** with a **Reconnect now** action; automatic recovery shows **Connecting** with one to three dots advancing every 500ms, and the action starts retry 1 immediately. Its close button hides the toast for the rest of that outage. Recovery changes the toast to **Connected** for two seconds before it disappears. Initial startup and uninterrupted healthy operation remain silent. The shell renders the modal panel, the navigation built from `settings.section` entries, and exactly one mounted onboarding step at a time.
 
 ### The General section
 
@@ -57,7 +57,7 @@ Models, Agent presets, Plugins, and Subscriptions (`grok-build`) each carry thei
 
 ### Connection recovery
 
-The shell is an explicit recovery consumer, so it injects Connection directly rather than adding lifecycle controls to `ctx.remote`. Its private hooks compartment binds `ctx.connection.state`, while the component receives only the selected state and an injected callback for `ctx.connection.reconnect()`. `ConnectionIndicator` owns the inline presentation and receives all visible and accessible copy from the `settings` locale namespace; the shell owns the two-second recovered-state timer.
+The shell is an explicit recovery consumer, so it injects Connection directly rather than adding lifecycle controls to `ctx.remote`. Its private hooks compartment binds `ctx.connection.state`, while the component receives only the selected state and an injected callback for `ctx.connection.reconnect()`. `ConnectionIndicator` owns the toast presentation and receives all visible and accessible copy from the `settings` locale namespace; the shell owns the two-second recovered-state timer.
 
 ### Document availability
 

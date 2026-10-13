@@ -71,6 +71,11 @@ const ABSENT_MENU_LAUNCHER = {
   getSnapshot: (): string | null => null,
   subscribe: () => () => {},
 }
+const NO_ARCHIVED: readonly SessionId[] = []
+const ABSENT_ARCHIVED = {
+  getSnapshot: () => NO_ARCHIVED,
+  subscribe: () => () => {},
+}
 const NO_MOVE_TARGETS: readonly SessionMoveTarget[] = []
 const ABSENT_MOVE_TARGETS = {
   getSnapshot: () => NO_MOVE_TARGETS,
@@ -98,6 +103,10 @@ interface WorkspaceNavigation {
    * same reason as the rename request.
    */
   archiveSession?: ((sessionId: SessionId) => Promise<void>) | undefined
+  /** Restore an archived Session. Optional for the same reason as the rename request. */
+  unarchiveSession?: ((sessionId: SessionId) => Promise<void>) | undefined
+  /** The registry-global archive set. Optional for the same reason as the rename request. */
+  readonly archivedSessionIds?: ObservableSnapshot<readonly SessionId[]> | undefined
   /** Workspaces a Session can move into. Optional for the same reason as the rename request. */
   moveTargets?: ((sessionId: SessionId) => ObservableSnapshot<readonly SessionMoveTarget[]>) | undefined
   /** Move a Session and open its replacement. Optional for the same reason as the rename request. */
@@ -269,7 +278,17 @@ export function apply(ctx: Context): void {
         composerBlock: sessionId === undefined ? ABSENT_BLOCK : composerBlocks.storeFor(sessionId),
         selectedView: sessionId === undefined ? ABSENT_SELECTED_VIEW : uiConversation.binding(sessionId).selectedView,
         startAddress: workspaceNavigation.startAddress,
+        archivedSessionIds: workspaceNavigation.archivedSessionIds ?? ABSENT_ARCHIVED,
       },
+      ...(sessionId === undefined || workspaceNavigation.unarchiveSession === undefined
+        ? {}
+        : {
+          unarchiveSession: () => {
+            workspaceNavigation.unarchiveSession?.(sessionId).catch((reason: unknown) => {
+              console.warn('session unarchive rejected:', reason)
+            })
+          },
+        }),
       // The fold control is chrome for the frame's own column, so its action is
       // read rather than declared as a hard dependency.
       toggleSidebar: foldAction(ctx),

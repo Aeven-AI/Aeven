@@ -47,6 +47,16 @@ export interface MarkdownLabels {
   reasoning?: MarkdownReasoningLabels | undefined
   /** Enlarged-image dialog copy; images open enlarged on click when present. */
   image?: ImageLightboxLabels | undefined
+  /** A video's play button; the engine's English labels apply when absent. */
+  video?: MarkdownVideoLabels | undefined
+}
+
+/** Accessible names for the play button over a video written on its own line. */
+export interface MarkdownVideoLabels {
+  /** Name for a video whose link gave it a title, containing `{title}`. */
+  play: string
+  /** Name for a video whose link is only its address. */
+  playUntitled: string
 }
 
 /**
@@ -375,6 +385,7 @@ export const MarkdownText = memo(function MarkdownText({
 
   const translations = useMemo<Partial<Translations>>(() => {
     const reasoning = labels.reasoning
+    const video = labels.video
 
     return {
       copy: labels.code.copyLabel,
@@ -383,6 +394,9 @@ export const MarkdownText = memo(function MarkdownText({
       ...reasoning === undefined
         ? {}
         : { thinking: reasoning.thinking, thoughtFor: reasoning.thoughtFor },
+      ...video === undefined
+        ? {}
+        : { playVideo: video.play, playVideoUntitled: video.playUntitled },
     }
   }, [labels])
 

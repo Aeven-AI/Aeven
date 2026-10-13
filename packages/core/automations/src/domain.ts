@@ -24,7 +24,8 @@ export const inputSchema = z.object({ name: text.max(160), prompt: text.max(32_0
 export const patchSchema = inputSchema.partial().extend({ status: z.enum(['active', 'paused']).optional() }).strict()
 const definitionSchema: z.ZodType<AutomationDefinition> = inputSchema.extend({
   id: text.transform(value => brandString<AutomationId>(value)), owner: text.optional(), revision: z.number().int().positive(),
-  status: z.enum(['active', 'paused']), cwd: text, agentPreset: text,
+  status: z.enum(['active', 'paused']), agentPreset: text,
+  grants: z.array(z.object({ toolName: text, scope: text, grantedAt: instant }).strict()),
   executionTarget: z.object({ kind: z.literal('local'), runnerId: text.transform(value => brandString<AutomationRunnerId>(value)) }).strict(),
   lastAdmittedAt: instant.nullable(),
   model: z.object({ provider: text, model: text, reasoningEffort: text.optional() }).transform(value => ({ provider: value.provider, model: value.model, ...value.reasoningEffort === undefined ? {} : { reasoningEffort: ReasoningEffortId(value.reasoningEffort) } })), createdAt: instant, updatedAt: instant,
@@ -37,10 +38,10 @@ const runSchema: z.ZodType<AutomationRun> = z.object({
   summary: z.string().nullable(), error: z.string().nullable(),
   admittedBy: text.transform(value => brandString<AutomationRunnerId>(value)),
   retryOfRunId: text.transform(value => brandString<AutomationRunId>(value)).nullable(),
-  resolution: z.object({ kind: z.enum(['confirmed', 'retried']), at: instant, retryRunId: text.transform(value => brandString<AutomationRunId>(value)).nullable() }).strict().nullable(),
+  resolution: z.object({ kind: z.literal('retried'), at: instant, retryRunId: text.transform(value => brandString<AutomationRunId>(value)).nullable() }).strict().nullable(),
 }).strict()
 /** Storage authority for definitions and already-admitted occurrences. */
-export const automationDomain = defineDomain({ name: 'automations', version: 2, tables: {
+export const automationDomain = defineDomain({ name: 'automations', version: 3, tables: {
   definitions: domainTable<AutomationId, AutomationDefinition>(definitionSchema), runs: domainTable<AutomationRunId, AutomationRun>(runSchema),
   runners: domainTable<'local', { id: AutomationRunnerId }>(z.object({ id: text.transform(value => brandString<AutomationRunnerId>(value)) }).strict()),
 } })

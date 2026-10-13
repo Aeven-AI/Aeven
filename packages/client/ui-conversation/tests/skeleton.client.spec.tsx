@@ -132,7 +132,7 @@ const useTrajectory: SessionSlotProps['useTrajectory'] = () => { throw new Error
 
 function workspace(id = 'w1'): WorkspaceView {
   return {
-    workspaceId: wid(id), kind: 'folder', isDefault: false, path: `/projects/${id}`, title: id, sessionIds: [],
+    workspaceId: wid(id), kind: 'folder', isDefault: false, isBuiltIn: false, path: `/projects/${id}`, title: id, sessionIds: [],
     createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z',
   }
 }
@@ -368,6 +368,7 @@ function mount(
     useComposerBlock: select => select(options.composerBlock),
     useSelectedView: select => select(options.selectedView),
     useStartAddress: select => select(undefined),
+    useArchivedSessionIds: select => select([]),
     useInput,
     inputActions,
     renderSlot,

@@ -20,6 +20,9 @@ import {
 /** Group key for Sessions outside every Workspace. */
 export const UNGROUPED_KEY = ''
 
+/** Group key of the trailing Archived section; never a Workspace id. */
+export const ARCHIVED_KEY = '__archived__'
+
 /**
  * Resolve the Workspace browser group that owns one Session.
  * @param workspaces - authoritative Workspace membership.
@@ -82,12 +85,18 @@ export interface GroupNode {
   /** Backing Workspace id; absent only for the ungrouped bucket. */
   workspaceId: WorkspaceId | undefined
   /**
-   * Whether the backing Workspace is the built-in one. Such a row is part of
-   * the product rather than a registration the reader owns, so the renderer
-   * offers it no actions and no drag — there are none to offer, and the
-   * registry refuses every one of them.
+   * Whether the backing Workspace is built-in (Chats, or a plugin-declared one
+   * such as Automations). Such a row is part of the product rather than a
+   * registration the reader owns, so the renderer offers it no actions and no
+   * drag — there are none to offer, and the registry refuses every one of them.
    */
-  isDefault: boolean
+  isBuiltIn: boolean
+  /**
+   * Whether the backing Workspace is a plugin-declared built-in one, such as
+   * Automations: its plugin creates every Session in it, so the renderer offers
+   * no New Session control there.
+   */
+  managed: boolean
   cwd: string | undefined
   /** Workspace creation time (epoch ms); absent only for the ungrouped bucket. */
   createdAt: number | undefined
@@ -140,16 +149,39 @@ export interface TreeView {
   expandedGroups: readonly string[]
   /** Browser-local order for Sessions without a backing Workspace account. */
   ungroupedOrder?: readonly string[]
+  /** Leave out managed Workspace groups such as Automations; their Sessions stay accounted, not Ungrouped. */
+  hideManaged?: boolean
 }
 
 interface Group {
   key: string
   workspaceId: WorkspaceId | undefined
-  isDefault: boolean
+  isBuiltIn: boolean
+  managed: boolean
   cwd: string | undefined
   createdAt: number | undefined
   label: string
   sessions: SessionSummary[]
+}
+
+/**
+ * Whether a Workspace is a plugin-declared built-in one, whose plugin creates
+ * every Session in it; New Sessions never start there.
+ * @param workspace - Workspace projection.
+ * @returns true for a built-in Workspace other than the default one.
+ */
+export function isManagedWorkspace(workspace: WorkspaceView): boolean {
+  return workspace.isBuiltIn && !workspace.isDefault
+}
+
+/**
+ * Sessions accounted by managed Workspaces, which the Show automations view
+ * option hides from every list.
+ * @param workspaces - Workspace membership.
+ * @returns the Session ids those Workspaces account for.
+ */
+export function managedSessionIds(workspaces: readonly WorkspaceView[]): ReadonlySet<SessionId> {
+  return new Set(workspaces.filter(isManagedWorkspace).flatMap(workspace => workspace.sessionIds))
 }
 
 /**
@@ -208,6 +240,7 @@ export function orderGroupsByRecency(
     .map((workspace, index) => ({ workspace, index, recency: groupRecency(workspace, list.byId) }))
     .sort((left, right) =>
       Number(right.workspace.isDefault) - Number(left.workspace.isDefault)
+      || Number(right.workspace.isBuiltIn) - Number(left.workspace.isBuiltIn)
       || right.recency - left.recency
       || left.index - right.index)
     .map(entry => entry.workspace)
@@ -261,7 +294,8 @@ function indexRunningJobs(
 function buildGroup(
   key: string,
   workspaceId: WorkspaceId | undefined,
-  isDefault: boolean,
+  isBuiltIn: boolean,
+  managed: boolean,
   cwd: string | undefined,
   createdAt: number | undefined,
   label: string,
@@ -272,7 +306,7 @@ function buildGroup(
   // Real Workspace order comes from sessionIds. Ungrouped falls back to
   // recency until the browser supplies its persisted local order.
   if (order === 'recency') sessions.sort(byRecency)
-  return { key, workspaceId, isDefault, cwd, createdAt, label, sessions }
+  return { key, workspaceId, isBuiltIn, managed, cwd, createdAt, label, sessions }
 }
 
 /** Apply a stored Ungrouped order and append newly loose Sessions by recency. */
@@ -304,6 +338,7 @@ function groupByWorkspace(
   workspaces: readonly WorkspaceView[],
   archived: ReadonlySet<SessionId>,
   ungroupedOrder: readonly string[] | undefined,
+  hideManaged: boolean,
 ): Group[] {
   const groups: Group[] = []
   const accounted = new Set<SessionId>()
@@ -316,10 +351,12 @@ function groupByWorkspace(
       if (!sessionVisible(summary, list.current, archived)) continue
       members.push(summary)
     }
+    // A managed Workspace exists to hold its plugin's Sessions, so it shows only while it holds a visible one.
+    if (isManagedWorkspace(workspace) && (hideManaged || members.length === 0)) continue
     groups.push(buildGroup(
       // The wire carries "no directory" as JSON `null`; the grouping vocabulary
       // speaks `undefined`, so absence is translated once, here.
-      workspace.workspaceId, workspace.workspaceId, workspace.isDefault, workspace.path ?? undefined,
+      workspace.workspaceId, workspace.workspaceId, workspace.isBuiltIn, isManagedWorkspace(workspace), workspace.path ?? undefined,
       Date.parse(workspace.createdAt), workspace.title, members, 'account',
     ))
   }
@@ -333,6 +370,7 @@ function groupByWorkspace(
       undefined,
       // The ungrouped bucket has no backing Workspace at all, so it is never
       // the built-in one; it already renders without row actions.
+      false,
       false,
       undefined,
       undefined,
@@ -409,12 +447,13 @@ export function deriveGroups(
     ? undefined
     : owningGroupKey(workspaces, list.current)
   const groups: GroupNode[] = []
-  for (const g of groupByWorkspace(list, workspaces, archived, view.ungroupedOrder)) {
+  for (const g of groupByWorkspace(list, workspaces, archived, view.ungroupedOrder, view.hideManaged === true)) {
     const expanded = expandedGroups.has(g.key)
     groups.push({
       key: g.key,
       workspaceId: g.workspaceId,
-      isDefault: g.isDefault,
+      isBuiltIn: g.isBuiltIn,
+      managed: g.managed,
       cwd: g.cwd,
       createdAt: g.createdAt,
       label: g.label,
@@ -437,12 +476,14 @@ export function deriveGroups(
  * @param list - sessions list snapshot.
  * @param archivedSessionIds - registry-global archive set.
  * @param pendingInteractions - pending UI interactions by Session.
+ * @param hidden - Sessions a view option leaves out, such as managed Workspace members.
  * @returns flat rows in render order.
  */
 export function deriveFlat(
   list: SessionListState,
   archivedSessionIds: readonly SessionId[],
   pendingInteractions: SessionPendingInteractions,
+  hidden: ReadonlySet<SessionId> = new Set(),
 ): SessionNode[] {
   const archived = new Set(archivedSessionIds)
   const descendants = indexSubagentDescendants(list.byId)
@@ -450,7 +491,34 @@ export function deriveFlat(
   const rows: SessionSummary[] = []
   for (const id of list.ids) {
     const s = list.byId[id]
-    if (s === undefined || !sessionVisible(s, list.current, archived)) continue
+    if (s === undefined || hidden.has(s.id) || !sessionVisible(s, list.current, archived)) continue
+    rows.push(s)
+  }
+  rows.sort(byRecency)
+  return rows.map(session => sessionNode(session, descendants, runningJobs, pendingInteractions))
+}
+
+/**
+ * Derive the Archived section's rows: every archived top-level Session,
+ * newest update first, whatever Workspace accounts for it.
+ * @param list - sessions list snapshot.
+ * @param archivedSessionIds - registry-global archive set.
+ * @param pendingInteractions - pending UI interactions by Session.
+ * @param hidden - Sessions a view option leaves out, such as managed Workspace members.
+ * @returns archived rows in render order.
+ */
+export function deriveArchived(
+  list: SessionListState,
+  archivedSessionIds: readonly SessionId[],
+  pendingInteractions: SessionPendingInteractions,
+  hidden: ReadonlySet<SessionId>,
+): SessionNode[] {
+  const descendants = indexSubagentDescendants(list.byId)
+  const runningJobs = indexRunningJobs(list.jobsBySession)
+  const rows: SessionSummary[] = []
+  for (const id of archivedSessionIds) {
+    const s = list.byId[id]
+    if (s === undefined || hidden.has(s.id) || s.origin === 'subagent' || s.blank) continue
     rows.push(s)
   }
   rows.sort(byRecency)

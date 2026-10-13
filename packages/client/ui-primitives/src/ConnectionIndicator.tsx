@@ -1,4 +1,5 @@
-import { IconCheckOutline16, IconWarningOutline16 } from './icons/index.tsx'
+import { createPortal } from 'react-dom'
+import { IconCheckOutline16, IconCloseOutline16, IconWarningOutline16 } from './icons/index.tsx'
 import css from './ConnectionIndicator.module.css'
 
 /** Visual state rendered by {@link ConnectionIndicator}. */
@@ -8,16 +9,21 @@ export type ConnectionIndicatorState =
   | 'recovered'
 
 /**
- * Render an inline connection-recovery control.
+ * Render the connection-recovery toast: a floating card centered at the top of
+ * the viewport, portaled to `document.body` so no sidebar or transformed
+ * ancestor clips it. Outage and retry states carry an immediate-reconnect
+ * action; every state carries a dismiss button.
  * @param props.state - visible outage, retry-attempt, or recovered state.
  * @param props.disconnectedLabel - localized outage text.
- * @param props.reconnectLabel - localized action text shown on hover or focus.
+ * @param props.reconnectLabel - localized reconnect action text.
  * @param props.connectingLabel - localized retry text followed by the attempt dots.
  * @param props.recoveredLabel - localized recovery confirmation.
  * @param props.reconnectActionLabel - accessible label for the outage action.
  * @param props.restartActionLabel - accessible label for replacing an active attempt.
+ * @param props.dismissLabel - accessible label for the dismiss button.
  * @param props.onReconnect - request an immediate reconnect attempt.
- * @returns the indicator, or null when no connection feedback is active.
+ * @param props.onDismiss - hide the toast; the owner decides when it returns.
+ * @returns the toast, or null when no connection feedback is active.
  */
 export function ConnectionIndicator({
   state,
@@ -27,7 +33,9 @@ export function ConnectionIndicator({
   recoveredLabel,
   reconnectActionLabel,
   restartActionLabel,
+  dismissLabel,
   onReconnect,
+  onDismiss,
 }: {
   state: ConnectionIndicatorState | undefined
   disconnectedLabel: string
@@ -36,59 +44,50 @@ export function ConnectionIndicator({
   recoveredLabel: string
   reconnectActionLabel: string
   restartActionLabel: string
+  dismissLabel: string
   onReconnect: () => void
+  onDismiss: () => void
 }) {
   if (state === undefined) return null
-  const sizeLabels = (
-    <>
-      <span className={css.sizeLabel} aria-hidden="true">{disconnectedLabel}</span>
-      <span className={css.sizeLabel} aria-hidden="true">{reconnectLabel}</span>
-      <span className={css.sizeLabel} aria-hidden="true">
-        {connectingLabel}<span className={css.dots}>...</span>
-      </span>
-      <span className={css.sizeLabel} aria-hidden="true">{recoveredLabel}</span>
-    </>
-  )
-  if (state === 'recovered') {
-    return (
-      <div className={`${css.indicator} ${css.success}`} role="status" aria-label={recoveredLabel}>
-        <span className={css.icon} aria-hidden="true"><IconCheckOutline16 size={14} /></span>
-        <span className={css.label}>
-          {sizeLabels}
-          <span className={css.stateLabel}>{recoveredLabel}</span>
-        </span>
-      </div>
-    )
-  }
-
+  const recovered = state === 'recovered'
   const connecting = state === 'connecting'
-  return (
-    <button
-      type="button"
-      className={`${css.indicator} ${css.warning}`}
+  return createPortal(
+    <div
+      className={`${css.toast} ${recovered ? css.success : css.warning}`}
       data-phase={state}
-      aria-label={connecting ? restartActionLabel : reconnectActionLabel}
-      onClick={onReconnect}
+      role={recovered ? 'status' : 'alert'}
     >
-      <span className={css.icon} aria-hidden="true"><IconWarningOutline16 size={14} /></span>
-      <span className={css.label}>
-        {sizeLabels}
-        <span className={css.stateLabel}>
-          {connecting
-            ? (
-              <>
-                {connectingLabel}
-                <span className={css.dots} aria-hidden="true">
-                  <span>.</span>
-                  <span className={css.secondDot}>.</span>
-                  <span className={css.thirdDot}>.</span>
-                </span>
-              </>
-            )
-            : disconnectedLabel}
-        </span>
-        <span className={css.hoverLabel}>{reconnectLabel}</span>
+      <span className={css.icon} aria-hidden="true">
+        {recovered ? <IconCheckOutline16 size={14} /> : <IconWarningOutline16 size={14} />}
       </span>
-    </button>
+      <span className={css.label}>
+        {recovered && recoveredLabel}
+        {state === 'disconnected' && disconnectedLabel}
+        {connecting && (
+          <>
+            {connectingLabel}
+            <span className={css.dots} aria-hidden="true">
+              <span>.</span>
+              <span className={css.secondDot}>.</span>
+              <span className={css.thirdDot}>.</span>
+            </span>
+          </>
+        )}
+      </span>
+      {!recovered && (
+        <button
+          type="button"
+          className={css.action}
+          aria-label={connecting ? restartActionLabel : reconnectActionLabel}
+          onClick={onReconnect}
+        >
+          {reconnectLabel}
+        </button>
+      )}
+      <button type="button" className={css.dismiss} aria-label={dismissLabel} onClick={onDismiss}>
+        <IconCloseOutline16 size={14} />
+      </button>
+    </div>,
+    document.body,
   )
 }

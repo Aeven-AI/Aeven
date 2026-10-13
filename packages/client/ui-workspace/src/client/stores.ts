@@ -1,6 +1,6 @@
 /**
- * The workspace browser's viewing store: the session-list grouping, ordering
- * and expansion state, persisted across reloads. Module level exports
+ * The workspace browser's viewing store: the session-list grouping, ordering,
+ * section visibility and expansion state, persisted across reloads. Module level exports
  * the factory only (a module-level handle would pin the store identity across
  * plugin reloads); register() receives the handle and each component derives
  * its PropsStore share from the return type.
@@ -19,6 +19,10 @@ export type SessionOrderBy = 'manual' | 'updated'
 type WorkspaceViewState = {
   groupBy: SessionGroupBy
   orderBy: SessionOrderBy
+  /** Show managed Workspace groups such as Automations and their Sessions. */
+  showAutomations: boolean
+  /** Show the trailing Archived section listing every archived Session. */
+  showArchived: boolean
   /** Explicit zero-or-five-session state keyed by Workspace group identity. */
   groupExpansion: Record<string, boolean>
   /** Shared editable order per Workspace group plus the browser-local flat-list account. */
@@ -34,6 +38,8 @@ type WorkspaceViewState = {
 type WorkspaceViewActions = {
   setGroupBy: (draft: WorkspaceViewState, mode: SessionGroupBy) => void
   setOrderBy: (draft: WorkspaceViewState, mode: SessionOrderBy) => void
+  setShowAutomations: (draft: WorkspaceViewState, show: boolean) => void
+  setShowArchived: (draft: WorkspaceViewState, show: boolean) => void
   setGroupExpanded: (draft: WorkspaceViewState, key: string, expanded: boolean) => void
   retainAccountKeys: (draft: WorkspaceViewState, workspaceKeys: readonly string[]) => void
   syncSessionOrderAccount: (
@@ -54,6 +60,8 @@ export function createWorkspaceViewStore(): EngineStoreHandle<WorkspaceViewState
     init: (): WorkspaceViewState => ({
       groupBy: 'workspace',
       orderBy: 'updated',
+      showAutomations: true,
+      showArchived: false,
       groupExpansion: {},
       sessionOrderByAccount: {},
       sessionUpdatedAtByAccount: {},
@@ -61,12 +69,14 @@ export function createWorkspaceViewStore(): EngineStoreHandle<WorkspaceViewState
     persist: {
       key: 'avn.workspace.view.v5',
       fields: [
-        'groupBy', 'orderBy', 'groupExpansion', 'sessionOrderByAccount', 'sessionUpdatedAtByAccount',
+        'groupBy', 'orderBy', 'showAutomations', 'showArchived', 'groupExpansion', 'sessionOrderByAccount', 'sessionUpdatedAtByAccount',
       ],
     },
     actions: {
       setGroupBy: (d, mode: SessionGroupBy) => { d.groupBy = mode },
       setOrderBy: (d, mode: SessionOrderBy) => { d.orderBy = mode },
+      setShowAutomations: (d, show: boolean) => { d.showAutomations = show },
+      setShowArchived: (d, show: boolean) => { d.showArchived = show },
       setGroupExpanded: (d, key: string, expanded: boolean) => { d.groupExpansion[key] = expanded },
       retainAccountKeys: (d, workspaceKeys: readonly string[]) => {
         const retained = new Set(workspaceKeys)

@@ -85,6 +85,14 @@
   opacity: 1;
 }
 
+/* At Aeven's small breakpoint the frame opens this panel across its whole
+   width (ui-layout AppFrame.module.css), so it has no inner edge to round. */
+@media screen and (max-width: 640px) {
+  .panel {
+    border-top-left-radius: 0;
+  }
+}
+
 /* The panel's whole body narrows and fades as one. Its fixed-width content is
    pinned to the column's moving left edge, so it slides out to the right with
    that edge and is clipped by the frame, the left sidebar's mirror. */

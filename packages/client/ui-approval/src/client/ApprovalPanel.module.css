@@ -7,7 +7,7 @@
   align-items: flex-end;
   justify-content: center;
   min-height: var(--avn-composer-seat-min-height);
-  padding: 6px calc(var(--avn-composer-side-clearance) + 16px) 24px;
+  padding: 6px calc(var(--avn-composer-side-clearance) + 16px) var(--avn-composer-side-clearance);
 }
 
 /* Wears the composer card's surface, as the question takeover does: flat

@@ -24,6 +24,7 @@ import type {
   WorkspaceInsertSessionBeforeRequest,
   WorkspaceOrderValue,
   WorkspaceRenameRequest,
+  WorkspaceUnarchiveSessionRequest,
   WorkspaceValue,
 } from './types.ts'
 
@@ -78,7 +79,7 @@ export class WorkspaceCommands {
       if (title !== workspace.title) {
         if (this.ctx.workspaceRegistry.list().some(candidate =>
           candidate.id !== workspace.id && candidate.title === title
-          && workspaceVisible(this.ctx, candidate.isDefault, candidate.owner))) {
+          && workspaceVisible(this.ctx, candidate.isBuiltIn, candidate.owner))) {
           throw new RemoteError(
             'workspace/name-conflict',
             `Workspace name '${title}' is already in use`,
@@ -124,7 +125,7 @@ export class WorkspaceCommands {
       return {
         workspaceIds: workspaceIds.filter((id) => {
           const workspace = this.ctx.workspaceRegistry.get(id)
-          return workspace !== undefined && workspaceVisible(this.ctx, workspace.isDefault, workspace.owner)
+          return workspace !== undefined && workspaceVisible(this.ctx, workspace.isBuiltIn, workspace.owner)
         }),
       }
     } catch (error) {
@@ -184,10 +185,24 @@ export class WorkspaceCommands {
     }
   }
 
+  /**
+   * Remove one Session from the registry-global archive set.
+   * @param request - Session identity to unarchive.
+   * @returns the complete resulting archive set.
+   */
+  async unarchiveSession(request: WorkspaceUnarchiveSessionRequest): Promise<WorkspaceArchiveValue> {
+    this.requireSession(request.sessionId)
+    await this.ctx.workspaceRegistry.unarchiveSession(request.sessionId)
+    return {
+      archivedSessionIds: this.ctx.workspaceRegistry.archivedSessionIds
+        .filter(id => workspaceSessionVisible(this.ctx, id)),
+    }
+  }
+
   /** Another account's workspace reads as absent. */
   private requireWorkspace(workspaceId: WorkspaceId): Workspace {
     const workspace = this.ctx.workspaceRegistry.get(WorkspaceId(workspaceId))
-    if (workspace === undefined || !workspaceVisible(this.ctx, workspace.isDefault, workspace.owner)) {
+    if (workspace === undefined || !workspaceVisible(this.ctx, workspace.isBuiltIn, workspace.owner)) {
       throw workspaceNotFound(workspaceId)
     }
     return workspace

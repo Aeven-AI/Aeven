@@ -230,7 +230,7 @@
   align-items: flex-start;
   gap: 12px;
   min-width: 0;
-  padding: 10px 12px;
+  padding: 10px 0;
 }
 
 .cardThumb {
@@ -265,7 +265,7 @@
 
 .cardSource {
   margin: 0;
-  font-size: 14px;
+  font-size: 12px;
   line-height: 30px;
   color: var(--dsw-alias-label-tertiary);
 }

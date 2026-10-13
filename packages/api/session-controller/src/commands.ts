@@ -387,7 +387,7 @@ export class SessionCommandController {
   async move(request: SessionMoveRequest): Promise<SessionMoveValue> {
     const workspace = this.ctx.workspaceRegistry.get(request.workspaceId)
     if (workspace === undefined
-      || !(workspace.isDefault || (this.ctx.get('identityUsers')?.mayAccess(workspace.owner) ?? true))) {
+      || !(workspace.isBuiltIn || (this.ctx.get('identityUsers')?.mayAccess(workspace.owner) ?? true))) {
       throw new RemoteError('workspace/not-found', `workspace "${request.workspaceId}" not found`, {
         workspaceId: request.workspaceId,
       })

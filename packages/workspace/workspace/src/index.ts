@@ -166,6 +166,7 @@ export class WorkspaceRegistry extends Service {
       this.invalidSessionPaths.delete(id)
     },
     isDefault: id => this.requireState().defaultWorkspaceId === id,
+    isBuiltIn: id => this.isBuiltInId(this.requireState(), id),
   }
 
   /**
@@ -252,11 +253,6 @@ export class WorkspaceRegistry extends Service {
    * @param owner - Account id of the signed-in user registering the directory; absent when nobody is signed in.
    * @returns the existing or newly durable workspace.
    */
-  // TODO: `title` lost its last production caller when the gateway's
-  // create-by-name branch was deleted
-  // (.agents/notes/implemented/simplification/2026-07-31-one-route-to-add-a-workspace.md);
-  // drop the parameter with its @param clause and the `create(path, title?)`
-  // lines in this package's README pair.
   async create(path: string, title?: string, owner?: string): Promise<Workspace> {
     const canonical = await realpathNormalize(path)
     if (!(await stat(canonical)).isDirectory()) {
@@ -310,7 +306,7 @@ export class WorkspaceRegistry extends Service {
    */
   delete(id: WorkspaceId): Promise<boolean> {
     return this.enqueueOperation(() => {
-      if (this.requireState().defaultWorkspaceId === id) {
+      if (this.isBuiltInId(this.requireState(), id)) {
         throw new WorkspaceDefaultImmutableError(id, 'delete')
       }
       return this.deleteKnown(id)
@@ -329,16 +325,15 @@ export class WorkspaceRegistry extends Service {
    * @param id - Workspace to move.
    * @param beforeId - Workspace anchor; omitted appends.
    * @returns the complete committed workspace order.
-   * @throws {WorkspaceDefaultImmutableError} when the id names the built-in workspace.
+   * @throws {WorkspaceDefaultImmutableError} when the id names a built-in workspace.
    */
   insertBefore(id: WorkspaceId, beforeId?: WorkspaceId): Promise<readonly WorkspaceId[]> {
     return this.enqueueOperation(async () => {
       const state = this.requireState()
-      const pinned = state.defaultWorkspaceId
-      // The built-in workspace does not move at all — not by an anchor, not by
-      // an append: the head is where the product puts it, so the registry
+      // A built-in workspace does not move at all — not by an anchor, not by
+      // an append: its position is where the product puts it, so the registry
       // refuses the move instead of computing one and undoing it afterwards.
-      if (pinned !== undefined && id === pinned) {
+      if (this.isBuiltInId(state, id)) {
         throw new WorkspaceDefaultImmutableError(id, 'move')
       }
       if (!state.workspaceIds.includes(id)) throw new WorkspaceOrderInvalidError(id)
@@ -382,6 +377,23 @@ export class WorkspaceRegistry extends Service {
       }
       const state = this.requireState()
       await this.setState({ ...state, archivedSessionIds: [...state.archivedSessionIds, sessionId] })
+    })
+  }
+
+  /**
+   * Unarchive one session durably by dropping it from the registry-global
+   * archive set; the accounting slot was never touched, so the session
+   * returns to its recorded position. Removing an id cannot introduce an
+   * unknown one, so no session-existence check runs. An id that is not
+   * archived resolves without writing.
+   * @param sessionId - The session to unarchive.
+   * @returns resolution after durability.
+   */
+  unarchiveSession(sessionId: SessionId): Promise<void> {
+    return this.enqueueOperation(async () => {
+      const state = this.requireState()
+      if (!state.archivedSessionIds.includes(sessionId)) return
+      await this.setState({ ...state, archivedSessionIds: state.archivedSessionIds.filter(id => id !== sessionId) })
     })
   }
 
@@ -498,14 +510,41 @@ export class WorkspaceRegistry extends Service {
   }
 
   /**
-   * Create the one workspace that has no directory, using the same three-write
+   * Seed or return one built-in workspace declared by a plugin under a stable
+   * key. The registration has no directory, every account reaches it, and it
+   * refuses delete, rename, and move like the default workspace. The key binds
+   * durably to the registration, so repeated calls and restarts return the
+   * same workspace without changing its title; a new one lands directly below
+   * the default workspace.
+   * @param key - stable key naming the declaring plugin's registration.
+   * @param title - display title used only when the registration is created.
+   * @returns the built-in workspace.
+   */
+  builtIn(key: string, title: string): Promise<Workspace> {
+    return this.enqueueOperation(async () => {
+      const existing = this.requireState().builtInWorkspaceIds?.[key]
+      const entity = existing === undefined ? undefined : this.entities.get(existing)
+      if (entity !== undefined) return entity
+      return await this.createVirtualCanonical(title, (state, id) => ({
+        ...this.carryState(state, { initialized: true, workspaceIds: this.withNewWorkspace(state, id) }),
+        builtInWorkspaceIds: { ...state.builtInWorkspaceIds, [key]: id },
+      }))
+    })
+  }
+
+  /**
+   * Create one workspace that has no directory, using the same three-write
    * choreography as {@link createCanonical} — pending marker, record, then
    * order — so an interrupted seeding is recovered exactly like any other
-   * create, and the new registration lands at the head of the order.
+   * create.
    * @param title - display title for the new registration.
+   * @param place - the committed state that orders and marks the new registration.
    * @returns the newly durable pathless entity, already cached.
    */
-  private async createVirtualCanonical(title: string): Promise<WorkspaceEntity> {
+  private async createVirtualCanonical(
+    title: string,
+    place: (state: WorkspaceDomainState, id: WorkspaceId) => WorkspaceDomainState,
+  ): Promise<WorkspaceEntity> {
     const table = this.requireTable()
     const state = this.requireState()
     const id = WorkspaceId(randomUUID())
@@ -530,15 +569,12 @@ export class WorkspaceRegistry extends Service {
       id,
       state,
       record,
-      `default workspace '${id}' record write and pending-marker rollback both failed`,
+      `built-in workspace '${id}' record write and pending-marker rollback both failed`,
       pendingState,
     )
 
     try {
-      await this.setState({
-        ...this.carryState(state, { initialized: true, workspaceIds: [id, ...state.workspaceIds] }),
-        defaultWorkspaceId: id,
-      })
+      await this.setState(place(state, id))
     } catch (error) {
       this.entities.delete(id)
       try {
@@ -546,7 +582,7 @@ export class WorkspaceRegistry extends Service {
       } catch (rollbackError) {
         throw new AggregateError(
           [error, rollbackError],
-          `default workspace '${id}' order write and record rollback both failed; the pending marker remains recoverable`,
+          `built-in workspace '${id}' order write and record rollback both failed; the pending marker remains recoverable`,
         )
       }
       try {
@@ -554,7 +590,7 @@ export class WorkspaceRegistry extends Service {
       } catch (rollbackError) {
         throw new AggregateError(
           [error, rollbackError],
-          `default workspace '${id}' order write and pending-marker rollback both failed`,
+          `built-in workspace '${id}' order write and pending-marker rollback both failed`,
         )
       }
       throw error
@@ -592,13 +628,16 @@ export class WorkspaceRegistry extends Service {
     const table = this.requireTable()
     const adoptable = state.workspaceIds.find((id) => {
       const record = table.get(id)
-      return record !== undefined && record.kind !== 'folder'
+      return record !== undefined && record.kind !== 'folder' && !this.isBuiltInId(state, id)
     })
     if (adoptable !== undefined) {
       await this.setState({ ...state, defaultWorkspaceId: adoptable })
       return
     }
-    await this.createVirtualCanonical(this.config.defaultWorkspaceTitle ?? DEFAULT_DEFAULT_WORKSPACE_TITLE)
+    await this.createVirtualCanonical(this.config.defaultWorkspaceTitle ?? DEFAULT_DEFAULT_WORKSPACE_TITLE, (current, id) => ({
+      ...this.carryState(current, { initialized: true, workspaceIds: [id, ...current.workspaceIds] }),
+      defaultWorkspaceId: id,
+    }))
   }
 
   /**
@@ -802,6 +841,11 @@ export class WorkspaceRegistry extends Service {
         `workspace domain is inconsistent: default workspace '${state.defaultWorkspaceId}' `
         + 'is absent from registry order',
       )
+    }
+    for (const [key, id] of Object.entries(state.builtInWorkspaceIds ?? {})) {
+      if (!order.has(id)) {
+        throw new Error(`workspace domain is inconsistent: built-in workspace '${key}' (${id}) is absent from registry order`)
+      }
     }
 
     const paths = new Map<string, WorkspaceId>()
@@ -1118,7 +1162,12 @@ export class WorkspaceRegistry extends Service {
       workspaceIds: [...changes.workspaceIds],
       archivedSessionIds: state.archivedSessionIds,
       ...state.defaultWorkspaceId === undefined ? {} : { defaultWorkspaceId: state.defaultWorkspaceId },
+      ...state.builtInWorkspaceIds === undefined ? {} : { builtInWorkspaceIds: state.builtInWorkspaceIds },
     }
+  }
+
+  private isBuiltInId(state: WorkspaceDomainState, id: WorkspaceId): boolean {
+    return state.defaultWorkspaceId === id || Object.values(state.builtInWorkspaceIds ?? {}).includes(id)
   }
 
   private enqueueOperation<T>(operation: () => Promise<T>): Promise<T> {

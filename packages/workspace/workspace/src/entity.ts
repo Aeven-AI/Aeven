@@ -27,10 +27,10 @@ export class WorkspaceMoveInvalidError extends Error {
 }
 
 /**
- * A mutation targeted the built-in workspace, which the product pins: it is the
- * one registration a reader always has, so it can be neither removed, renamed,
- * nor displaced from the head of the order. Defined here rather than beside the
- * registry so the entity can raise it without importing its own owner.
+ * A mutation targeted a built-in workspace, which the product pins: the default
+ * workspace and every plugin-declared built-in registration can be neither
+ * removed, renamed, nor reordered. Defined here rather than beside the registry
+ * so the entity can raise it without importing its own owner.
  */
 export class WorkspaceDefaultImmutableError extends Error {
   /**
@@ -93,6 +93,13 @@ export interface WorkspaceEntityHost {
    * @returns whether the registry publishes that id as its built-in workspace.
    */
   isDefault(id: WorkspaceId): boolean
+
+  /**
+   * Whether this id names the default workspace or a plugin-declared built-in one.
+   * @param id - workspace whose built-in status is requested.
+   * @returns whether the registry publishes that id as built-in.
+   */
+  isBuiltIn(id: WorkspaceId): boolean
 }
 
 /** Chain-slot abort sentinel thrown by the update fn when the record needs no change; only `mutate` observes it. */
@@ -138,6 +145,10 @@ export class WorkspaceEntity implements Workspace {
    */
   get isDefault(): boolean {
     return this.host.isDefault(this.id)
+  }
+
+  get isBuiltIn(): boolean {
+    return this.host.isBuiltIn(this.id)
   }
 
   get path(): string | undefined {
@@ -199,11 +210,10 @@ export class WorkspaceEntity implements Workspace {
   }
 
   async setTitle(title: string): Promise<void> {
-    // The built-in workspace's identity is that it is the one everyone has, so
-    // its name is product copy rather than a field a reader owns. Renaming it
-    // would also desynchronise every client that renders its own localized
-    // label for that registration.
-    if (this.host.isDefault(this.id)) {
+    // A built-in workspace's name is product copy rather than a field a reader
+    // owns. Renaming it would also desynchronise every client that renders its
+    // own localized label for that registration.
+    if (this.host.isBuiltIn(this.id)) {
       throw new WorkspaceDefaultImmutableError(this.id, 'rename')
     }
     await this.mutate(record => ({ ...record, title }))

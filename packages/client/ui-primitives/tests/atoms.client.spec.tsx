@@ -459,7 +459,9 @@ describe('ConnectionIndicator', () => {
       recoveredLabel: 'Connected',
       reconnectActionLabel: 'Disconnected, reconnect now',
       restartActionLabel: 'Connecting, restart now',
+      dismissLabel: 'Close',
       onReconnect: reconnect,
+      onDismiss: vi.fn(),
     }
     const { container, rerender } = render(
       <ConnectionIndicator state={undefined} {...labels} />,

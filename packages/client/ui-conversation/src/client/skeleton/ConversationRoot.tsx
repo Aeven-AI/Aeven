@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import clsx from 'clsx'
-import { HeroShell, Tooltip } from '@aeven/client-ui-primitives'
+import { Button, HeroShell, Tooltip } from '@aeven/client-ui-primitives'
 import type { SessionId } from '@aeven/session/types'
 import type { ConversationSlotProps, InputZone } from '../contract/slots.ts'
 import { useContentCover } from './content-cover.ts'
@@ -207,8 +207,8 @@ function WidthHandle(props: {
 
 export function ConversationRoot({
   sessionId, useSession, useSessions, useSessionPendingInteraction,
-  useInput, useComposerBlock, useSelectedView, useStartAddress,
-  renderSlot, renderSlotChain, t, sidebarCollapsed, toggleSidebar, composerPlaceholder,
+  useInput, useComposerBlock, useSelectedView, useStartAddress, useArchivedSessionIds,
+  renderSlot, renderSlotChain, t, sidebarCollapsed, toggleSidebar, composerPlaceholder, unarchiveSession,
 }: ConversationRootProps) {
   const session = useSession(s => s)
   const pendingInteraction = useSessionPendingInteraction(snapshot =>
@@ -222,6 +222,7 @@ export function ConversationRoot({
   const composerBlock = useComposerBlock(block => block)
   const composerOverlay = useSelectedView(view => view?.composerPlacement === 'overlay')
   const startAddress = useStartAddress(address => address)
+  const archived = useArchivedSessionIds(ids => sessionId !== undefined && ids.includes(sessionId))
 
   // Nothing measures the composer seat. A View that floats a composer over its
   // own ledger clears it with the static `--avn-composer-height` fallback in
@@ -347,12 +348,25 @@ export function ConversationRoot({
     </div>
   )
 
+  // An archived Session reads only: the bar in the composer's place says so and
+  // offers the way back, after which the Session continues as before.
+  const archivedBar = (
+    <div className={css.archivedFrame}>
+      <div className={css.archivedBar} role="status">
+        <span>{t('archived.body')}</span>
+        {unarchiveSession !== undefined && (
+          <Button variant="primary" size="sm" onClick={unarchiveSession}>{t('archived.unarchive')}</Button>
+        )}
+      </div>
+    </div>
+  )
+
   const phase: ComposerPhase = settling ? 'settling' : centered ? 'hero' : 'active'
   const composer = renderSlotChain(
     'conversation.composer',
     { sessionId, session, pendingInteraction },
     {
-      fallback: composerBar,
+      fallback: archived ? archivedBar : composerBar,
       fallbackOnly: sessionId === undefined,
       overlay: true,
     },
@@ -450,7 +464,11 @@ export function ConversationRoot({
             same chrome — the account avatar among it — whether or not one is
             open. Only the Session header's own content (crumbs, View tabs,
             Session actions) is gated on a Session. */}
-        <header className={css.header} data-nav-fold={toggleSidebar !== undefined || undefined}>
+        <header
+          className={css.header}
+          data-nav-fold={toggleSidebar !== undefined || undefined}
+          data-sidebar-open={sidebarCollapsed === false || undefined}
+        >
           <div className={css.navBackground} aria-hidden="true">
             <div className={css.navFade} />
           </div>

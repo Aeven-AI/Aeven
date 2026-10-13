@@ -20,7 +20,7 @@ const NAMED = /^Learned procedure ([a-z0-9][a-z0-9-]*):\s*/
 const SUMMARY_MAX = 950
 
 /** Learned procedures whose full text is read for a merge. */
-const MAX_FULL = 2
+const MAX_FULL = 3
 
 /** Recall budget of the lookup that runs before a distillation, in milliseconds. */
 const LOOKUP_TIMEOUT_MS = 15_000
@@ -109,8 +109,8 @@ export async function forgetLearnedProcedures(ctx: Context, owner: string, ids: 
   for (const id of ids) await ctx.memory.forget({ owner, id, signal })
 }
 
-/** Prompt that condenses an imported procedure into the summary memory recall shows. */
-const CONDENSE = `Condense one procedure into at most 800 characters that can be followed on its own: the trigger, then the essential steps with their exact commands, settings, or tool names, then the check. Keep placeholders such as <name> as they are. Reply with the condensed text only.`
+/** Prompt that condenses an imported or explicitly saved procedure into the summary memory recall shows. */
+const CONDENSE = `Condense one procedure into at most 800 characters that can be followed on its own: the trigger, then the fast path (the fewest steps, with their exact commands, files, settings, or tool names), then what to avoid and the user's preferences, then the check. Keep placeholders such as <name> as they are. Reply with the condensed text only.`
 
 /** Reasoning effort asked of the condensing call. */
 const LOW_REASONING = 'low' as ReasoningEffortId
@@ -142,7 +142,7 @@ export async function readProcedureImport(path: string): Promise<ImportedProcedu
 }
 
 /**
- * Condense a procedure with the session's model, so an imported memory is recalled with its steps.
+ * Condense a procedure with the session's model, so an imported or saved memory is recalled with its steps.
  * @param ctx - context with the LLM service.
  * @param scope - the session's memory scope, whose route runs the call.
  * @param procedure - the procedure.

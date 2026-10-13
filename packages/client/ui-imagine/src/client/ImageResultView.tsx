@@ -61,7 +61,13 @@ function itemsOf(block: ToolCallViewProps['block']): readonly ResultItem[] {
  */
 function layoutOf(block: ToolCallViewProps['block']): 'row' | 'cards' {
   const raw = ('kind' in block ? block.call?.argsRaw : block.argsRaw) ?? ''
-  return raw.includes('"cards"') ? 'cards' : 'row'
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    return (parsed as { layout?: unknown } | null)?.layout === 'cards' ? 'cards' : 'row'
+  } catch {
+    // Arguments that do not parse — still streaming, or malformed — ask for no layout.
+    return 'row'
+  }
 }
 
 /**

@@ -63,7 +63,7 @@ export interface SessionUrlNavigation {
    * Claim a start address, such as `/imagine`: an address of the chat that
    * names no Session. A blank Session is shown under it, and the address moves
    * to that Session's own once the Session is no longer blank.
-   * @param path - absolute single-segment path.
+   * @param path - absolute path, such as `/imagine` or `/automations/runs`.
    * @returns disposer releasing the claim.
    */
   registerStart(path: string): () => void

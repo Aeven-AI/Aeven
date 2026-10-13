@@ -9,7 +9,6 @@ const UNBOUNDED = 1_000_000
 
 const CONFIG: LearnerConfig = {
   minSteps: 1,
-  settleMs: 3_600_000,
   timeoutMs: 5_000,
   maxOutputTokens: 4_000,
   maxInputTokens: UNBOUNDED,
@@ -18,7 +17,7 @@ const CONFIG: LearnerConfig = {
 
 /** One tool call whose output is long enough that dropping it pays for the omission line. */
 function step(index: number): WorkStep {
-  return { name: `step_${index}`, input: '{}', output: 'x'.repeat(300), failed: false }
+  return { name: `step_${index}`, input: '{}', output: 'x'.repeat(300), failed: false, calledAt: 0 }
 }
 
 function work(steps: number, request = 'read the file and report what it contains'): CompletedWork {

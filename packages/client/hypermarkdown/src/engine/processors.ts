@@ -17,6 +17,7 @@ import { remarkFootnotes } from './remark/footnotes.ts'
 import { rehypeCodeContext } from './rehype/code-context.ts'
 import { rehypeData } from './rehype/element-data.ts'
 import { rehypeImageGroup } from './rehype/image-group.ts'
+import { rehypeVideoEmbed } from './rehype/video-embed.ts'
 import { rehypeMathPending } from './rehype/math-pending.ts'
 import { rehypeMermaid } from './rehype/mermaid.ts'
 import { rehypeAnimation } from './rehype/animate-words.ts'
@@ -282,8 +283,10 @@ export function createProcessor(
   // and count the container carries, and only on the pipelines that end at
   // React: the cached shapes lift a single row or item out of the tree, where a
   // container spanning several blocks is the wrong unit.
+  // A video linked on its own line becomes a player first, so a thumbnail
+  // linked to a video is not taken for a photograph by the image row.
   if (shape.react) {
-    afterRehype.push(rehypeImageGroup)
+    afterRehype.push(rehypeVideoEmbed, rehypeImageGroup)
   }
 
   // After sanitization, which would drop unknown properties, and only when the

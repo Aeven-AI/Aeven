@@ -33,6 +33,6 @@ Two rendering changes went with it, because a row of photographs has to look lik
 
 A clean session now answers that question with cited photographs from Commons, drawn in the generator's lane at its own geometry.
 
-Commons holds little contemporary material, so news, products, and living people still need a second provider; the search, the download, and the tool also live in one package rather than split across a capability seam, which is the split a second source should force.
+Commons holds little contemporary material, so news, products, and living people come from the `web` seam's result pages, and news reads as cards built from the articles the model chose ([videos and news cards](2026-10-13-videos-in-a-reply-and-news-cards-from-articles.md)); the search, the scraping, the download, and the tool still live in one package rather than split across a capability seam.
 
 The package ships without specs: its wire-boundary parsing, its timeout, and its size bound are unmeasured, and the row's layout is verified only in a live session. The preset row takes effect on the next Host start, so a server already running keeps answering in prose until it is restarted.

@@ -2,20 +2,19 @@
 import { Context, Service } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { randomUUID, createHash } from 'node:crypto'
-import { mkdir } from 'node:fs/promises'
 import { installModelSelection, type Agent, type AgentHandle } from '@aeven/agent'
 import type {} from '@aeven/agent-default-model'
 import type {} from '@aeven/agent-presets'
 import type {} from '@aeven/identity-user'
 import type {} from '@aeven/permission-presets'
-import type {} from '@aeven/workspace'
+import type {} from '@aeven/session-title'
+import type { Workspace } from '@aeven/workspace'
 import type {} from '@aeven/client-connection'
 import { brandString } from '@aeven/brand'
-import { avnHomePath } from '@aeven/home-paths'
 import { boundContextSummary, createUserMessage } from '@aeven/llm'
-import { SessionId } from '@aeven/session'
+import { SessionId, SessionSeq, type Session } from '@aeven/session'
 import type { Domain } from '@aeven/storage-domain'
-import { setApprovalPolicy } from '@aeven/user-approval'
+import { setApprovalPolicy, type ApprovalRequestId } from '@aeven/user-approval'
 import { automationDomain, inputSchema, patchSchema } from './domain.ts'
 import { latestDueOccurrence, nextOccurrence } from './recurrence.ts'
 import { registerAutomationTools } from './tools.ts'
@@ -35,13 +34,16 @@ export interface Config {
   readonly runTimeoutMinutes: number
   readonly misfireGraceMinutes: number
   readonly historyLimit: number
+  /** Display title of the built-in workspace that holds every run conversation. */
+  readonly workspaceTitle: string
 }
 /** Built-in automation service; schedules never authorize additional tool access. */
 export class Automations extends Service<Config> {
-  static inject = ['storageDomain', 'agents', 'sessions', 'agentDefaultModel', 'agentPresets', 'permissionPresets', 'workspaceRegistry', 'identityUsers', 'connection', 'webServer', 'tools']
+  static inject = ['storageDomain', 'agents', 'sessions', 'agentDefaultModel', 'agentPresets', 'permissionPresets', 'workspaceRegistry', 'identityUsers', 'connection', 'webServer', 'tools', 'sessionTitle']
   static Config = z.object({
     maxConcurrentRuns: z.number().step(1).min(1).required(), runTimeoutMinutes: z.number().min(1).required(),
     misfireGraceMinutes: z.number().min(0).required(), historyLimit: z.number().step(1).min(1).required(),
+    workspaceTitle: z.string().required(),
   })
   private readonly ready: Promise<Domain<typeof automationDomain>>
   private tail: Promise<unknown> = Promise.resolve()
@@ -54,6 +56,21 @@ export class Automations extends Service<Config> {
     super(ctx, 'automations')
     this.ready = ctx.storageDomain.open(automationDomain).then(async domain => {
       if (domain.table('runners').get('local') === undefined) await domain.table('runners').put('local', { id: brandString<AutomationRunnerId>(randomUUID()) })
+      // Every run conversation belongs to the Automations workspace, including one a crash left unattached.
+      const workspace = await this.workspace()
+      for (const [, { sessionId }] of domain.table('runs').entries()) {
+        if (sessionId === null || workspace.sessionIds.includes(sessionId)) continue
+        const holder = ctx.workspaceRegistry.list().find(candidate => candidate.sessionIds.includes(sessionId))
+        if (holder?.path !== undefined) continue
+        await holder?.detachSession(sessionId)
+        await workspace.attachSession(sessionId).catch(error => ctx.logger.warn(`automations: run conversation ${sessionId} stays outside the Automations workspace: ${String(error)}`))
+      }
+      // A conversation whose run record is gone is removed history, so it stays out of the sidebar.
+      const recorded = new Set([...domain.table('runs').entries()].map(([, run]) => run.sessionId))
+      for (const sessionId of workspace.sessionIds) {
+        if (recorded.has(sessionId) || ctx.workspaceRegistry.archivedSessionIds.includes(sessionId)) continue
+        await ctx.workspaceRegistry.archiveSession(sessionId).catch(error => ctx.logger.warn(`automations: run conversation ${sessionId} was not archived: ${String(error)}`))
+      }
       for (const [id, run] of domain.table('runs').entries()) {
         if (run.status === 'queued' || run.status === 'running') await domain.table('runs').put(id, {
           ...run, status: 'failed', finishedAt: new Date().toISOString(), error: 'Execution was interrupted. External changes may already exist; inspect the conversation before retrying.',
@@ -97,34 +114,49 @@ export class Automations extends Service<Config> {
     }
     for (const agent of ctx.agents.roots()) installTools(agent)
     ctx.on('agent/created', ({ agent }) => installTools(agent))
+    // An approval the owner gave once in a run conversation answers the same request in every later run.
+    ctx.on('approval/request', async (req, next) => {
+      const scope = req.allowSession
+      if (scope === undefined) return next()
+      const definition = this.definitionOf(await this.ready, req.agent.session.id)
+      return definition?.grants.some(grant => grant.toolName === req.toolName && grant.scope === scope) ? 'allowed-session' : next()
+    }, { prepend: true })
+    ctx.on('session/event', (session, event) => {
+      if (event.type !== 'approval/decided' || event.data.outcome !== 'allowed-once') return
+      this.rememberGrant(session, event.data.id).catch(error => ctx.logger.warn(`automations: an approval was not saved for later runs: ${String(error)}`))
+    })
     ctx.on('tools/pre-execute', async (exec, next) => {
       const decision = await next()
       if (decision.kind !== 'allow' || !exec.name.startsWith('automation_')) return decision
-      if (exec.name === 'automation_create' || exec.name === 'automation_update' || exec.name === 'automation_retry' || exec.name === 'automation_confirm_result') {
+      if (exec.name === 'automation_create' || exec.name === 'automation_update' || exec.name === 'automation_retry') {
         const args = exec.arguments as Record<string, unknown>
         if (exec.name === 'automation_update' && args.status === 'paused' && Object.keys(args).every(key => key === 'id' || key === 'status')) return decision
         return { kind: 'ask', reason: exec.name === 'automation_retry'
           ? 'Inspect the earlier run before retrying: external changes may already exist.'
-          : exec.name === 'automation_confirm_result' ? 'Confirm that you inspected the result and the intended work was completed.'
-            : 'Confirm this automation’s task, schedule, and allowed file access before enabling unattended work.' }
+          : 'Confirm this automation’s task, schedule, and allowed file access before enabling unattended work.' }
       }
       return decision
     })
   }
 
-  /** Read the acting account's definitions and bounded execution history.
+  /** Read the acting account's definitions, newest created first, and bounded execution history, newest scheduled first.
+   * History leaves out runs whose conversation is archived, so it lists what the sidebar's Automations
+   * workspace shows; unarchiving the conversation lists the run again. Each definition's `lastRun` is its
+   * latest retained run either way.
    * @returns owned definitions and latest run records.
    */
   async list(): Promise<{ definitions: (AutomationDefinition & { nextRunAt: string | null; lastRun: AutomationRun | null })[]; runs: AutomationRun[]; capabilities: { executionTarget: 'local'; triggers: readonly ['once', 'interval', 'daily', 'weekly'] } }> {
     const domain = await this.ready
     const definitions = [...domain.table('definitions').entries()].map(([, value]) => value).filter(value => this.ctx.identityUsers.mayAccess(value.owner))
+      .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
     const runs = [...domain.table('runs').entries()].map(([, value]) => value).filter(value => this.ctx.identityUsers.mayAccess(value.definition.owner))
       .sort((a, b) => Date.parse(b.scheduledFor) - Date.parse(a.scheduledFor))
+    const archived = new Set(this.ctx.workspaceRegistry.archivedSessionIds)
     const now = new Date().toISOString()
     return { definitions: definitions.map(definition => ({ ...definition,
       nextRunAt: definition.status === 'paused' ? null : nextOccurrence(definition.schedule, now),
       lastRun: runs.find(run => run.definition.id === definition.id) ?? null,
-    })), runs, capabilities: { executionTarget: 'local', triggers: ['once', 'interval', 'daily', 'weekly'] } }
+    })), runs: runs.filter(run => run.sessionId === null || !archived.has(run.sessionId)), capabilities: { executionTarget: 'local', triggers: ['once', 'interval', 'daily', 'weekly'] } }
   }
 
   /** Save one confirmed task using the caller's execution context.
@@ -140,12 +172,10 @@ export class Automations extends Service<Config> {
       const now = new Date().toISOString()
       if (nextOccurrence(parsed.schedule, now) === null) throw new Error('Choose a schedule with a future occurrence.')
       const id = brandString<AutomationId>(randomUUID())
-      const cwd = agent?.session.header.cwd ?? avnHomePath('automations', id)
       const agentPreset = agent?.session.header.agentPreset ?? this.ctx.agentPresets.defaultId
       const model = this.ctx.agentDefaultModel.currentSelection()
-      await mkdir(cwd, { recursive: true })
       const definition: AutomationDefinition = {
-        ...parsed, id, ...owner === undefined ? {} : { owner }, revision: 1, status: 'active', cwd, agentPreset,
+        ...parsed, id, ...owner === undefined ? {} : { owner }, revision: 1, status: 'active', agentPreset, grants: [],
         model, createdAt: now, updatedAt: now, lastAdmittedAt: null, executionTarget: { kind: 'local', runnerId: this.runnerId(domain) },
       }
       await domain.table('definitions').put(id, definition)
@@ -197,7 +227,7 @@ export class Automations extends Service<Config> {
     })
   }
 
-  /** Delete the acting account's finished run history.
+  /** Delete the acting account's finished run history and archive each removed run's conversation.
    * A run that is queued or running is kept, so clearing never hides work in flight.
    * @returns the number of run records removed.
    */
@@ -207,6 +237,7 @@ export class Automations extends Service<Config> {
       for (const [id, run] of [...domain.table('runs').entries()]) {
         if (run.status === 'queued' || run.status === 'running') continue
         if (!this.ctx.identityUsers.mayAccess(run.definition.owner)) continue
+        await this.archiveRun(run)
         await domain.table('runs').delete(id)
         cleared += 1
       }
@@ -214,19 +245,32 @@ export class Automations extends Service<Config> {
     })
   }
 
-  /** Record the owner's explicit verification of an inactive run's actual result.
+  /** Remove one finished run from the acting account's history and archive its conversation.
+   * A queued or running run is refused, so removal never hides work in flight.
    * @param id - owned run identity.
-   * @returns the durably confirmed run.
+   * @returns resolution after durable deletion.
    */
-  confirm(id: AutomationRunId): Promise<AutomationRun> {
+  removeRun(id: AutomationRunId): Promise<void> {
     return this.transaction(async domain => {
       const run = this.ownedRun(domain, id)
-      this.requireInactive(domain, run)
-      if (run.resolution !== null) throw new Error('This run has already been resolved.')
-      const confirmed: AutomationRun = { ...run, resolution: { kind: 'confirmed', at: new Date().toISOString(), retryRunId: null } }
-      await domain.table('runs').put(id, confirmed)
-      return confirmed
+      if (run.status === 'queued' || run.status === 'running') throw new Error('Wait for the run to finish.')
+      await this.archiveRun(run)
+      await domain.table('runs').delete(id)
     })
+  }
+
+  /** Hide one removed run's conversation from the sidebar, keeping its log readable.
+   * The archive write lands before the run record is deleted: an interruption
+   * between the two leaves a record whose conversation is already archived,
+   * which a repeated removal finishes, while the reverse order would strand the
+   * conversation in the sidebar with no record naming it.
+   * A run that never started has no conversation, and one whose conversation its
+   * owner already deleted is absent; neither leaves the removal incomplete.
+   */
+  private async archiveRun(run: AutomationRun): Promise<void> {
+    const sessionId = run.sessionId
+    if (sessionId === null) return
+    await this.ctx.workspaceRegistry.archiveSession(sessionId).catch(error => this.ctx.logger.warn(`automations: run conversation ${sessionId} was not archived: ${String(error)}`))
   }
 
   /** Deliberately retry one unresolved failed run using its original approved task.
@@ -246,6 +290,31 @@ export class Automations extends Service<Config> {
     })
   }
 
+  /** Current definition of the automation whose run created a session, when the session is a run conversation. */
+  private definitionOf(domain: Domain<typeof automationDomain>, sessionId: SessionId): AutomationDefinition | undefined {
+    for (const [, run] of domain.table('runs').entries()) {
+      if (run.sessionId === sessionId) return domain.table('definitions').get(run.definition.id)
+    }
+    return undefined
+  }
+
+  /** Save one scoped approval from a run conversation on its automation, so later runs need no answer. */
+  private rememberGrant(session: Session, id: ApprovalRequestId): Promise<void> {
+    let asked: { toolName: string; allowSession?: string } | undefined
+    for (let seq = session.seq - 1; seq >= 0 && asked === undefined; seq -= 1) {
+      const event = session.eventAt(SessionSeq(seq))
+      if (event?.type === 'approval/asked' && event.data.id === id) asked = event.data
+    }
+    const scope = asked?.allowSession
+    if (asked === undefined || scope === undefined) return Promise.resolve()
+    const toolName = asked.toolName
+    return this.transaction(async domain => {
+      const definition = this.definitionOf(domain, session.id)
+      if (definition === undefined || definition.grants.some(grant => grant.toolName === toolName && grant.scope === scope)) return
+      await domain.table('definitions').put(definition.id, { ...definition, grants: [...definition.grants, { toolName, scope, grantedAt: new Date().toISOString() }] })
+    })
+  }
+
   private ownedRun(domain: Domain<typeof automationDomain>, id: AutomationRunId): AutomationRun {
     const run = domain.table('runs').get(id)
     if (run === undefined || !this.ctx.identityUsers.mayAccess(run.definition.owner)) throw new Error('Run not found.')
@@ -254,6 +323,11 @@ export class Automations extends Service<Config> {
 
   private requireInactive(domain: Domain<typeof automationDomain>, run: AutomationRun): void {
     if ([...domain.table('runs').entries()].some(([, value]) => value.definition.id === run.definition.id && (value.status === 'queued' || value.status === 'running'))) throw new Error('Wait for the active run to finish.')
+  }
+
+  /** The built-in pathless workspace that holds every account's run conversations; each account sees only its own. */
+  private workspace(): Promise<Workspace> {
+    return this.ctx.workspaceRegistry.builtIn('automations', this.config.workspaceTitle)
   }
 
   private runnerId(domain: Domain<typeof automationDomain>): AutomationRunnerId {
@@ -275,7 +349,9 @@ export class Automations extends Service<Config> {
     for (const run of completed) {
       const count = (counts.get(run.definition.owner) ?? 0) + 1
       counts.set(run.definition.owner, count)
-      if (count > this.config.historyLimit) await domain.table('runs').delete(run.id)
+      if (count <= this.config.historyLimit) continue
+      await this.archiveRun(run)
+      await domain.table('runs').delete(run.id)
     }
   }
 
@@ -304,11 +380,13 @@ export class Automations extends Service<Config> {
         if (typeof input?.id !== 'string' || input.patch === null || typeof input.patch !== 'object') throw new Error('Invalid automation update.')
         return this.update(brandString<AutomationId>(input.id), patchSchema.parse(input.patch))
       }
-      case 'confirm':
       case 'retry': {
         if (typeof input?.id !== 'string') throw new Error('Choose a run.')
-        const id = brandString<AutomationRunId>(input.id)
-        return endpoint === 'confirm' ? this.confirm(id) : this.retry(id)
+        return this.retry(brandString<AutomationRunId>(input.id))
+      }
+      case 'remove-run': {
+        if (typeof input?.id !== 'string') throw new Error('Choose a run.')
+        return this.removeRun(brandString<AutomationRunId>(input.id))
       }
       case 'run':
       case 'delete': {
@@ -387,9 +465,15 @@ export class Automations extends Service<Config> {
     }
   }
 
+  /**
+   * Execute one admitted run in a fresh root conversation of the Automations workspace.
+   * Approvals reach the owner's open client or a saved grant; without either they fail closed. The
+   * conversation stays live after the run so the owner can open it, continue it, and grant what it needed.
+   */
   private async execute(domain: Domain<typeof automationDomain>, run: AutomationRun, entry: { handle?: AgentHandle }): Promise<void> {
     let timeout: ReturnType<typeof setTimeout> | undefined
     let timedOut = false
+    let releaseGuard: (() => void) | undefined
     const sessionId = SessionId(`session-${randomUUID()}`)
     const startedAt = new Date().toISOString()
     const running: AutomationRun = { ...run, status: 'running', sessionId, startedAt }
@@ -397,8 +481,9 @@ export class Automations extends Service<Config> {
     this.executionSessions.add(sessionId)
     try {
       const preset = await this.ctx.agentPresets.resolve(run.definition.agentPreset)
+      const workspace = await this.workspace()
       const handle = await this.ctx.agents.withoutInitiator(() => this.ctx.agents.create({
-        sessionId, meta: { cwd: run.definition.cwd, agentPreset: preset.id, ...run.definition.owner === undefined ? {} : { owner: run.definition.owner } },
+        sessionId, meta: { agentPreset: preset.id, ...run.definition.owner === undefined ? {} : { owner: run.definition.owner } },
         agentOptions: { provider: run.definition.model.provider, model: run.definition.model.model },
         setup: async agentCtx => {
           await this.ctx.agentPresets.mount(agentCtx, preset.id)
@@ -406,14 +491,14 @@ export class Automations extends Service<Config> {
           const agent = agentCtx.agent
           if (agent === undefined) throw new Error('Automation agent was not created.')
           this.ctx.permissionPresets.set(agent.session, run.definition.permission)
-          setApprovalPolicy(agent.session, 'never')
-          agentCtx.tools.guard(exec => exec.name.startsWith('automation_') || exec.name === 'ask_user' ? 'Automations cannot create more unattended work or ask interactive questions.' : undefined)
+          setApprovalPolicy(agent.session, 'ask')
+          releaseGuard = agentCtx.tools.guard(exec => exec.name.startsWith('automation_') || exec.name === 'ask_user' ? 'Automations cannot create more unattended work or ask interactive questions.' : undefined)
         },
       }))
       entry.handle = handle
       if (this.stopped) throw new Error('Automation Host is stopping.')
-      const workspace = await this.ctx.workspaceRegistry.create(run.definition.cwd, undefined, run.definition.owner)
       await workspace.attachSession(sessionId)
+      this.ctx.sessionTitle.rename(handle.agent.session, run.definition.name)
       await handle.agent.whenIdle()
       handle.agent.followup(createUserMessage({ content: [{ type: 'text', text: `Automation: ${run.definition.name}\nRun: ${run.id}\nScheduled for: ${run.scheduledFor}\n\n${run.definition.prompt}\n\nReport completed work with evidence. Do not claim an external action succeeded without confirmation.` }], source: { kind: 'plugin', plugin: 'automations', form: 'notice', summary: boundContextSummary(run.definition.name) } }))
       timeout = setTimeout(() => { timedOut = true; handle.agent.cancel({ kind: 'user' }) }, this.config.runTimeoutMinutes * 60_000)
@@ -431,7 +516,7 @@ export class Automations extends Service<Config> {
       await domain.table('runs').put(run.id, { ...running, status: 'failed', finishedAt: new Date().toISOString(), error: error instanceof Error ? error.message : String(error) })
     } finally {
       clearTimeout(timeout)
-      await entry.handle?.dispose()
+      releaseGuard?.()
       this.executionSessions.delete(sessionId)
       await this.prune(domain)
     }

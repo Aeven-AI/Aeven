@@ -16,12 +16,18 @@ import type { SessionOrderBy } from './tree.ts'
 import { WorkspacePickFlow } from './WorkspacePicker.tsx'
 import css from './HeaderActions.module.css'
 
-/** Grouping and ordering menu; own open state so it resets with the wide chrome. */
-function ViewOptionsMenu({ groupBy, orderBy, onGroupPick, onOrderPick, t }: {
+/** Grouping, ordering and section-visibility menu; own open state so it resets with the wide chrome. */
+function ViewOptionsMenu({
+  groupBy, orderBy, showAutomations, showArchived, onGroupPick, onOrderPick, onShowAutomations, onShowArchived, t,
+}: {
   groupBy: 'workspace' | 'flat'
   orderBy: SessionOrderBy
+  showAutomations: boolean
+  showArchived: boolean
   onGroupPick: (mode: 'workspace' | 'flat') => void
   onOrderPick: (mode: SessionOrderBy) => void
+  onShowAutomations: (show: boolean) => void
+  onShowArchived: (show: boolean) => void
   t: WorkspaceHeaderActionsProps['t']
 }) {
   const [open, setOpen] = useState(false)
@@ -37,11 +43,21 @@ function ViewOptionsMenu({ groupBy, orderBy, onGroupPick, onOrderPick, t }: {
         { type: 'label' as const, id: 'order-by', text: t('orderBy.label') },
         { id: 'manual', label: t('orderBy.manual') },
         { id: 'updated', label: t('orderBy.updated') },
+        { type: 'separator' as const, id: 'show-separator' },
+        { type: 'label' as const, id: 'show', text: t('show.label') },
+        { id: 'show-archived', label: t('show.archived') },
+        { id: 'show-automations', label: t('show.automations') },
       ]}
-      selectedIds={[groupBy, orderBy]}
+      selectedIds={[
+        groupBy, orderBy,
+        ...(showArchived ? ['show-archived'] : []),
+        ...(showAutomations ? ['show-automations'] : []),
+      ]}
       onSelect={(id) => {
         if (id === 'workspace' || id === 'flat') onGroupPick(id)
         else if (id === 'manual' || id === 'updated') onOrderPick(id)
+        else if (id === 'show-automations') onShowAutomations(!showAutomations)
+        else if (id === 'show-archived') onShowArchived(!showArchived)
         setOpen(false)
       }}
       align="end"
@@ -80,6 +96,8 @@ export function WorkspaceHeaderActions({
 }: WorkspaceHeaderActionsProps) {
   const groupBy = useStore(s => s.groupBy)
   const orderBy = useStore(s => s.orderBy)
+  const showAutomations = useStore(s => s.showAutomations)
+  const showArchived = useStore(s => s.showArchived)
   // Live occupancy of this surface's directory-flow hole (the same source the
   // flow reads): a composition without a picking affordance can add nothing.
   const directoryFlowAvailable = useDirectoryFlow(occupied => occupied)
@@ -93,6 +111,10 @@ export function WorkspaceHeaderActions({
         orderBy={orderBy}
         onGroupPick={(mode) => { actions.setGroupBy(mode) }}
         onOrderPick={(mode) => { actions.setOrderBy(mode) }}
+        showAutomations={showAutomations}
+        showArchived={showArchived}
+        onShowAutomations={(show) => { actions.setShowAutomations(show) }}
+        onShowArchived={(show) => { actions.setShowArchived(show) }}
         t={t}
       />
       {/* Adding is the button's one action, so a composition with no picking

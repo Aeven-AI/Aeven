@@ -22,6 +22,13 @@ export interface WorkspaceView {
    */
   readonly isDefault: boolean
   /**
+   * Whether this registration is fixed product structure: the default
+   * workspace or a plugin-declared built-in one. Every account sees it, and it
+   * cannot be removed, renamed, or moved, so a client offers it no row actions
+   * and no drag.
+   */
+  readonly isBuiltIn: boolean
+  /**
    * How this Workspace binds to a filesystem location. Browser consumers must
    * narrow on `'folder'` before treating {@link path} as a directory.
    */
@@ -122,6 +129,11 @@ export interface WorkspaceInsertSessionBeforeRequest {
 
 /** Session requested for archival from Workspace grouping surfaces. */
 export interface WorkspaceArchiveSessionRequest {
+  readonly sessionId: SessionId
+}
+
+/** Session requested for restoration to Workspace grouping surfaces. */
+export interface WorkspaceUnarchiveSessionRequest {
   readonly sessionId: SessionId
 }
 

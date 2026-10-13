@@ -30,6 +30,7 @@ export function workspaceView(workspace: Workspace): WorkspaceView {
   return {
     workspaceId: workspace.id,
     isDefault: workspace.isDefault,
+    isBuiltIn: workspace.isBuiltIn,
     kind: workspace.kind,
     path: workspace.path ?? null,
     title: workspace.title,
@@ -42,23 +43,26 @@ export function workspaceView(workspace: Workspace): WorkspaceView {
 /**
  * Project one durable record that arrived as a domain change.
  *
- * The built-in bit is not in the record — it lives in the domain global — so it
- * is decided by comparing the changed id against the registry's current answer
- * rather than by reading the changed value.
+ * The built-in bits are not in the record — they live in the domain global — so
+ * they are decided by the registry's current answer for the changed id rather
+ * than by reading the changed value.
  * @param workspaceId - id the change names.
  * @param value - the changed record value.
- * @param defaultWorkspaceId - the registry's built-in id, when it has one.
+ * @param defaultWorkspaceId - the registry's default id, when it has one.
+ * @param isBuiltIn - whether the registry publishes the id as built-in.
  * @returns detached Workspace projection for Remote consumers.
  */
 function changedWorkspaceView(
   workspaceId: string,
   value: unknown,
   defaultWorkspaceId: string | undefined,
+  isBuiltIn: boolean,
 ): WorkspaceView {
   const record: WorkspaceRecord = workspaceRecord.parse(value)
   return {
     workspaceId: WorkspaceId(workspaceId),
     isDefault: defaultWorkspaceId === workspaceId,
+    isBuiltIn,
     kind: record.kind,
     path: record.path ?? null,
     title: record.title,
@@ -69,21 +73,21 @@ function changedWorkspaceView(
 }
 
 /**
- * Whether a caller may see a workspace: the built-in one belongs to the
- * product and every account sees it, every other one only its owner.
+ * Whether a caller may see a workspace: built-in ones belong to the product
+ * and every account sees them, every other one only its owner.
  * @param ctx - Host context carrying the identity seam.
- * @param isDefault - whether the workspace is the built-in one.
+ * @param isBuiltIn - whether the workspace is built-in.
  * @param owner - account id the workspace records.
  * @param caller - the caller captured at admission; defaults to the acting user.
  * @returns true when the caller may see and change the workspace.
  */
 export function workspaceVisible(
   ctx: Context,
-  isDefault: boolean,
+  isBuiltIn: boolean,
   owner: string | undefined,
   caller: User | undefined = ctx.get('identityUsers')?.actingUser(),
 ): boolean {
-  return isDefault || (ctx.get('identityUsers')?.mayAccess(owner, caller) ?? true)
+  return isBuiltIn || (ctx.get('identityUsers')?.mayAccess(owner, caller) ?? true)
 }
 
 /**
@@ -140,7 +144,7 @@ export class WorkspaceFeed {
   baseline(caller: User | undefined = this.ctx.get('identityUsers')?.actingUser()): WorkspaceBaseline {
     return {
       items: this.ctx.workspaceRegistry.list()
-        .filter(workspace => workspaceVisible(this.ctx, workspace.isDefault, workspace.owner, caller))
+        .filter(workspace => workspaceVisible(this.ctx, workspace.isBuiltIn, workspace.owner, caller))
         .map(workspace => callerWorkspaceView(this.ctx, workspaceView(workspace), caller)),
       archivedSessionIds: this.ctx.workspaceRegistry.archivedSessionIds
         .filter(id => workspaceSessionVisible(this.ctx, id, caller)),
@@ -190,7 +194,7 @@ export class WorkspaceFeed {
             workspaceIds: state.workspaceIds.filter((id) => {
               const workspace = this.ctx.workspaceRegistry.get(id)
               return workspace !== undefined
-                && workspaceVisible(this.ctx, workspace.isDefault, workspace.owner, follower.caller)
+                && workspaceVisible(this.ctx, workspace.isBuiltIn, workspace.owner, follower.caller)
             }),
           })
         }
@@ -218,14 +222,19 @@ export class WorkspaceFeed {
     // The registry's owner, not the stored field: a record written before
     // workspaces carried an owner takes the owner of its Sessions there.
     this.publishUpsert(
-      changedWorkspaceView(change.key, change.value, this.ctx.workspaceRegistry.defaultWorkspaceId),
+      changedWorkspaceView(
+        change.key,
+        change.value,
+        this.ctx.workspaceRegistry.defaultWorkspaceId,
+        this.ctx.workspaceRegistry.get(WorkspaceId(change.key))?.isBuiltIn ?? false,
+      ),
       this.ctx.workspaceRegistry.get(WorkspaceId(change.key))?.owner,
     )
   }
 
   private publishUpsert(view: WorkspaceView, owner: string | undefined): void {
     for (const follower of this.followers) {
-      if (!workspaceVisible(this.ctx, view.isDefault, owner, follower.caller)) continue
+      if (!workspaceVisible(this.ctx, view.isBuiltIn, owner, follower.caller)) continue
       follower.push({ type: 'upsert', workspace: callerWorkspaceView(this.ctx, view, follower.caller) })
     }
   }

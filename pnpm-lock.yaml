@@ -2756,6 +2756,12 @@ importers:
 
   packages/client/ui-automations:
     devDependencies:
+      '@aeven/api-remotes':
+        specifier: workspace:^
+        version: link:../../api/remotes
+      '@aeven/api-session-controller':
+        specifier: workspace:^
+        version: link:../../api/session-controller
       '@aeven/client-connection':
         specifier: workspace:^
         version: link:../connection
@@ -2771,6 +2777,9 @@ importers:
       '@aeven/client-ui-renderer':
         specifier: workspace:^
         version: link:../ui-renderer
+      '@aeven/client-ui-settings':
+        specifier: workspace:^
+        version: link:../ui-settings
       '@aeven/client-ui-sidebar':
         specifier: workspace:^
         version: link:../ui-sidebar
@@ -5963,9 +5972,6 @@ importers:
       '@aeven/client-connection':
         specifier: workspace:^
         version: link:../../client/connection
-      '@aeven/home-paths':
-        specifier: workspace:^
-        version: link:../../util/home-paths
       '@aeven/identity-user':
         specifier: workspace:^
         version: link:../../identity/user
@@ -5978,6 +5984,9 @@ importers:
       '@aeven/session':
         specifier: workspace:^
         version: link:../session
+      '@aeven/session-title':
+        specifier: workspace:^
+        version: link:../../session/session-title
       '@aeven/storage-domain':
         specifier: workspace:^
         version: link:../../storage/storage-domain
@@ -12036,6 +12045,9 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
+      entities:
+        specifier: ^8.0.0
+        version: 8.0.0
     devDependencies:
       '@aeven/attachment':
         specifier: workspace:^

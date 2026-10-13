@@ -45,7 +45,7 @@ const sessionState = (items: readonly SessionSummary[], overrides: Partial<Sessi
   ...overrides,
 })
 const workspace = (id: string, sessionIds: string[], title = id): WorkspaceView => ({
-  workspaceId: wid(id), kind: 'folder', isDefault: false, path: `/projects/${id}`, title,
+  workspaceId: wid(id), kind: 'folder', isDefault: false, isBuiltIn: false, path: `/projects/${id}`, title,
   sessionIds: sessionIds.map(sid), createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z',
 })
 const workspaceState = (
@@ -88,6 +88,7 @@ function mount(overrides: Partial<WorkspaceBrowserProps> = {}) {
     renameWorkspace: vi.fn(async () => {}),
     deleteWorkspace: vi.fn(async () => {}),
     archiveSession: vi.fn(async () => {}),
+    unarchiveSession: vi.fn(async () => {}),
     insertWorkspaceBefore: vi.fn(async () => {}),
     insertSessionBefore: vi.fn(async () => {}),
     useHostInfo: selector => selector({ home: undefined, isLoopback: true }),

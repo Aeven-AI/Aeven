@@ -33,7 +33,8 @@
         "@aeven/client-ui-slots",
         "@aeven/client-ui-primitives",
         "@aeven/client-ui-conversation",
-        "@aeven/client-ui-workspace"
+        "@aeven/client-ui-workspace",
+        "@aeven/api-session-controller"
       ]
     }
   },
@@ -53,6 +54,9 @@
     "@types/react": "~18.3.1",
     "@types/react-dom": "~18.3.0",
     "@aeven/client-ui-conversation": "workspace:^",
-    "@aeven/client-ui-workspace": "workspace:^"
+    "@aeven/client-ui-workspace": "workspace:^",
+    "@aeven/api-session-controller": "workspace:^",
+    "@aeven/api-remotes": "workspace:^",
+    "@aeven/client-ui-settings": "workspace:^"
   }
 }

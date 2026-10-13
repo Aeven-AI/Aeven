@@ -1,74 +1,99 @@
-.indicator {
-  flex: none;
-  display: inline-grid;
-  grid-template-columns: 14px max-content;
+/* Same placement and material as Toast.module.css, but interactive and held
+   for as long as its owner keeps a state mounted. */
+.toast {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  /* Above the 1000 the image lightbox backdrop uses, like Toast. */
+  z-index: 1100;
+  display: flex;
   align-items: center;
-  column-gap: 4px;
-  height: 32px;
-  padding: 0 10px;
+  gap: 10px;
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 8px 8px 8px 14px;
   box-sizing: border-box;
-  border: none;
-  border-radius: 8px;
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 400;
-  line-height: 18px;
+  border-radius: var(--dsw-aeven-radius-surface);
+  background: var(--dsw-tint-menu);
+  backdrop-filter: blur(4px);
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  line-height: 22px;
   white-space: nowrap;
-  transition: background-color 160ms ease-out, color 160ms ease-out;
-}
-
-.warning {
-  background: var(--dsw-alias-state-warn-tertiary);
-  color: var(--dsw-alias-state-warn-label);
-  cursor: pointer;
-}
-
-.warning:active {
-  background: var(--dsw-blend-warn-surface);
-}
-
-.warning:focus-visible {
-  outline: 2px solid var(--dsw-alias-state-warn-label);
-  outline-offset: 2px;
-}
-
-.success {
-  background: var(--dsw-alias-state-success-tertiary);
-  color: var(--dsw-alias-state-success-primary);
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
+  box-shadow:
+    inset 1px 1px 0 0 var(--dsw-specific-popup-highlight),
+    inset 0 0 1px 1px var(--dsw-specific-popup-highlight),
+    var(--dsw-elevation-prominent);
+  transform: translateX(-50%);
+  animation: avn-connection-toast-in 160ms ease-out;
 }
 
 .icon {
+  flex: none;
   display: grid;
   place-items: center;
   width: 14px;
   height: 14px;
 }
 
+.warning .icon {
+  color: var(--dsw-alias-state-warn-label);
+}
+
+.success .icon {
+  color: var(--dsw-alias-state-success-primary);
+}
+
 .label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.action,
+.dismiss {
+  flex: none;
   display: grid;
-  text-align: left;
+  place-items: center;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 160ms ease-out, color 160ms ease-out;
 }
 
-.stateLabel,
-.hoverLabel,
-.sizeLabel {
-  grid-area: 1 / 1;
+.action {
+  padding: 0 10px;
+  background: var(--dsw-alias-state-warn-tertiary);
+  color: var(--dsw-alias-state-warn-label);
 }
 
-.sizeLabel {
-  visibility: hidden;
+.action:hover {
+  background: var(--dsw-blend-warn-surface);
 }
 
-.warning:is(:hover, :focus-visible) .stateLabel {
-  visibility: hidden;
+.action:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-warn-label);
+  outline-offset: 2px;
 }
 
-.hoverLabel {
-  visibility: hidden;
+.dismiss {
+  width: 28px;
+  padding: 0;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
 }
 
-.warning:is(:hover, :focus-visible) .hoverLabel {
-  visibility: visible;
+.dismiss:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.dismiss:focus-visible {
+  outline: 2px solid var(--dsw-alias-label-primary);
+  outline-offset: 2px;
 }
 
 .dots {
@@ -85,6 +110,18 @@
   animation: reveal-third-dot 1.5s step-end infinite;
 }
 
+@keyframes avn-connection-toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
 @keyframes reveal-second-dot {
   0%, 33.32% { visibility: hidden; }
   33.33%, 100% { visibility: visible; }
@@ -96,6 +133,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .toast,
   .secondDot,
   .thirdDot {
     animation: none;

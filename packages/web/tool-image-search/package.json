@@ -27,7 +27,8 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@deepseek-ai/schemastery": "workspace:^"
+    "@deepseek-ai/schemastery": "workspace:^",
+    "entities": "^8.0.0"
   },
   "peerDependencies": {
     "@aeven/attachment": "workspace:^",

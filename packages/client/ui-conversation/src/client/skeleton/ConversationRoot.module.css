@@ -22,12 +22,11 @@
      `syntax: '<length>'` rejects a percentage at computed-value time and falls
      back to its initial value, collapsing the transcript to zero width.
 
-     The baseline caps at the theme-owned reading width and leaves one page
-     inset per side. */
-  --avn-chat-content-width: min(
-    var(--dsw-aeven-chat-width),
-    calc(100% - var(--dsw-aeven-page-inset) - var(--dsw-aeven-page-inset))
-  );
+     The baseline caps at the theme-owned reading width. Every use site sits
+     inside the page inset's padding (see the dragged branch below), so `100%`
+     there already leaves one page inset per side and this term subtracts none
+     of its own. */
+  --avn-chat-content-width: min(var(--dsw-aeven-chat-width), 100%);
   --avn-composer-card-max-width: var(--avn-chat-content-width);
   --avn-composer-side-clearance: var(--dsw-aeven-page-inset);
   /* Session header height; slot-owned chrome under it offsets by this. */
@@ -175,6 +174,41 @@
 
 .navFold {
   margin-left: var(--avn-nav-window-controls);
+}
+
+/* Below the med breakpoint the left sidebar overlays this column instead of
+   pushing it (ui-sidebar SidebarRoot.module.css), which would bury the fold
+   control under the open panel. The control travels with the panel instead:
+   it slides by the panel's open width on the panel's own curve, landing at the
+   panel's edge plus the bar's inset, where the wide layout seats it. The bar
+   rises above the sidebar's layer (50) to carry it, and every other occupant
+   of the bar hides while it does, since they belong to the conversation the
+   panel's scrim covers and would otherwise paint over the panel's own row. */
+@media screen and (max-width: 1024px) {
+  .navFold {
+    transition: transform var(--dsw-aeven-sidebar-transition-duration)
+      var(--dsw-aeven-sidebar-transition-timing);
+  }
+
+  .header[data-sidebar-open] {
+    z-index: 51;
+    pointer-events: none;
+  }
+
+  .header[data-sidebar-open] > :not(.navFold) {
+    visibility: hidden;
+  }
+
+  .header[data-sidebar-open] .navFold {
+    transform: translateX(var(--dsw-aeven-sidebar-width));
+    pointer-events: auto;
+  }
+}
+
+@media screen and (max-width: 1024px) and (prefers-reduced-motion: reduce) {
+  .navFold {
+    transition: none;
+  }
 }
 
 /* A right sidebar drag rewrites that overlap at pointer cadence (the frame
@@ -847,4 +881,30 @@
 :global([data-fullscreen]) .root .viewChrome,
 :global([data-fullscreen]) .root .viewChromeTop {
   z-index: 0;
+}
+
+/* The archived Session's read-only bar, in the composer card's box and bottom pad (InputBar's .root). */
+.archivedFrame {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 0 var(--avn-composer-side-clearance) var(--avn-composer-side-clearance);
+}
+
+.archivedBar {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  max-width: var(--avn-composer-card-max-width);
+  min-height: 54px;
+  margin: 0 auto;
+  padding: 10px 12px 10px 16px;
+  border-radius: var(--dsw-aeven-radius-surface);
+  background: var(--dsw-specific-input-major);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 14px;
+  line-height: 20px;
 }

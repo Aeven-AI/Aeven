@@ -18,6 +18,14 @@ export type AutomationSchedule = (
   | { readonly kind: 'daily'; readonly time: string; readonly timeZone: string }
   | { readonly kind: 'weekly'; readonly time: string; readonly weekdays: readonly Weekday[]; readonly timeZone: string }
 ) & { readonly until?: string | undefined }
+/** One scoped approval the owner gave in a run conversation; later runs of the same automation reuse it. */
+export interface AutomationGrant {
+  /** Tool whose operation the owner approved. */
+  readonly toolName: string
+  /** The requester's account-and-operation scope the approval covers. */
+  readonly scope: string
+  readonly grantedAt: string
+}
 /** User-approved task and execution settings. */
 export interface AutomationDefinition {
   readonly id: AutomationId
@@ -27,10 +35,11 @@ export interface AutomationDefinition {
   readonly prompt: string
   readonly schedule: AutomationSchedule
   readonly status: 'active' | 'paused'
-  readonly cwd: string
   readonly agentPreset: string
   readonly model: ModelSelection
   readonly permission: 'read-only' | 'workspace-write'
+  /** Approvals answered without asking again in every later run. */
+  readonly grants: readonly AutomationGrant[]
   readonly executionTarget: { readonly kind: 'local'; readonly runnerId: AutomationRunnerId }
   readonly lastAdmittedAt: string | null
   readonly createdAt: string
@@ -50,7 +59,7 @@ export interface AutomationRun {
   readonly error: string | null
   readonly admittedBy: AutomationRunnerId
   readonly retryOfRunId: AutomationRunId | null
-  readonly resolution: { readonly kind: 'confirmed' | 'retried'; readonly at: string; readonly retryRunId: AutomationRunId | null } | null
+  readonly resolution: { readonly kind: 'retried'; readonly at: string; readonly retryRunId: AutomationRunId | null } | null
 }
 /** Editable task values; execution ownership is resolved by the service. */
 export interface AutomationInput {

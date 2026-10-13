@@ -18,12 +18,13 @@ function isBlockGap(node: RootContent): boolean {
   return node.type === 'text' && node.value.trim() === '' && /[\r\n]/.test(node.value)
 }
 
-/** One image a block shows, and the element that carries it. */
-interface BlockImage {
-  /** What the grid takes: the `<img>`, or the `<a>` written around it. */
-  readonly node: Element
-  /** The image itself, which is what the row counts. */
-  readonly image: Element
+/**
+ * The content of a paragraph that is not whitespace.
+ * @param node - A paragraph or link.
+ * @returns Its children without blank text nodes.
+ */
+export function meaningfulChildren(node: Element): ElementContent[] {
+  return node.children.filter(child => !(child.type === 'text' && child.value.trim() === ''))
 }
 
 /**
@@ -34,123 +35,110 @@ interface BlockImage {
  * point of writing one that way, so the link travels with it.
  *
  * @param node - Any child of a paragraph.
- * @returns The image and its carrier, or undefined for anything else.
+ * @returns What the grid takes — the `<img>`, or the `<a>` written around it —
+ * or undefined for anything else.
  */
-function inlineImage(node: ElementContent): BlockImage | undefined {
+function inlineImage(node: ElementContent): Element | undefined {
   if (node.type !== 'element') {
     return undefined
   }
 
   if (node.tagName === 'img') {
-    return { node, image: node }
+    return node
   }
 
   if (node.tagName !== 'a') {
     return undefined
   }
 
-  const content = node.children.filter(child => !(child.type === 'text' && child.value.trim() === ''))
-  const [only] = content
+  const [only, ...rest] = meaningfulChildren(node)
 
-  if (content.length !== 1 || only === undefined || only.type !== 'element' || only.tagName !== 'img') {
-    return undefined
-  }
-
-  return { node, image: only }
+  return rest.length === 0 && only?.type === 'element' && only.tagName === 'img' ? node : undefined
 }
 
 /**
- * Every image a block shows, or none for a block that holds anything else.
+ * Every item one paragraph shows, or none for a block that holds anything else.
  *
- * One paragraph may hold a whole row — a model writing several images on
+ * One paragraph may hold a whole row — a model writing several items on
  * consecutive lines produces exactly that, since a single line break is a soft
  * break rather than a new block. Prose anywhere in the paragraph ends the run.
  *
  * @param node - Any node in the tree.
- * @returns The block's images in order, or an empty list.
+ * @param item - What one inline child shows, or undefined when it is not an item.
+ * @returns The block's items in order, or an empty list.
  */
-function blockImages(node: RootContent): readonly BlockImage[] {
+export function paragraphItems(node: RootContent, item: (child: ElementContent) => Element | undefined): readonly Element[] {
   if (node.type !== 'element' || node.tagName !== 'p') {
     return []
   }
 
-  const content = node.children.filter(child => !(child.type === 'text' && child.value.trim() === ''))
-  if (content.length === 0) {
-    return []
-  }
-
-  const images: BlockImage[] = []
+  const content = meaningfulChildren(node)
+  const items: Element[] = []
 
   for (const child of content) {
-    const image = inlineImage(child)
+    const found = item(child)
 
-    if (image === undefined) {
+    if (found === undefined) {
       return []
     }
 
-    images.push(image)
+    items.push(found)
   }
 
-  return images
+  return items
+}
+
+/** How one kind of run is recognised and wrapped. */
+export interface RunGrouping {
+  /** The items a block holds, or an empty list when it is not part of a run. */
+  readonly items: (node: RootContent) => readonly Element[]
+  /** The container a run becomes. */
+  readonly wrap: (items: readonly Element[]) => Element
+  /** The fewest items a run needs before it is wrapped; a shorter run keeps the blocks it was written as. */
+  readonly minimum: number
 }
 
 /**
- * The row a run of images becomes.
- * @param images - The run, in document order.
- * @returns The container the host lays out, carrying how many images it holds.
- */
-function grid(images: readonly BlockImage[]): Element {
-  return {
-    type: 'element',
-    tagName: 'div',
-    properties: { className: [GRID_CLASS], 'data-count': String(images.length) },
-    children: images.map(image => image.node),
-  }
-}
-
-/**
- * Replace every run of two or more adjacent images with one container.
- *
- * A lone image is left as the block it was written as: one picture reads
- * better at the full width of the transcript than as a single tile.
+ * Replace every qualifying run of adjacent item blocks with one container.
  *
  * @param children - The children of one container, in document order.
- * @returns The same children, with each image run wrapped.
+ * @param grouping - Which blocks form a run and what the run becomes.
+ * @returns The same children, with each qualifying run wrapped.
  */
-function groupRuns(children: readonly RootContent[]): RootContent[] {
+function groupRuns(children: readonly RootContent[], grouping: RunGrouping): RootContent[] {
   const grouped: RootContent[] = []
-  let images: BlockImage[] = []
-  /** Gaps after the run's last image, which precede whatever follows when the run closes. */
+  let items: Element[] = []
+  /** The run as written — its blocks and the gaps between them — for a run too short to wrap. */
+  let written: RootContent[] = []
+  /** Gaps after the run's last block, which precede whatever follows when the run closes. */
   let trailing: RootContent[] = []
-  /** Gaps between the run's own blocks, dropped from a row and restored to a lone image. */
-  let inside: RootContent[] = []
 
   const close = (): void => {
-    if (images.length > 1) {
-      grouped.push(grid(images))
+    if (items.length >= grouping.minimum) {
+      grouped.push(grouping.wrap(items))
     } else {
-      grouped.push(...images.map(image => image.node), ...inside)
+      grouped.push(...written)
     }
 
     grouped.push(...trailing)
-    images = []
-    inside = []
+    items = []
+    written = []
     trailing = []
   }
 
   for (const child of children) {
-    const block = blockImages(child)
+    const block = grouping.items(child)
 
     if (block.length > 0) {
-      if (images.length === 0) {
+      if (items.length === 0) {
         grouped.push(...trailing)
-        trailing = []
       } else {
-        inside.push(...trailing)
-        trailing = []
+        written.push(...trailing)
       }
 
-      images.push(...block)
+      trailing = []
+      written.push(child)
+      items.push(...block)
       continue
     }
 
@@ -169,23 +157,13 @@ function groupRuns(children: readonly RootContent[]): RootContent[] {
 }
 
 /**
- * Group each run of images written on consecutive blocks into one container.
- *
- * A model writing a set of photographs emits one image per paragraph, which
- * paints as a stack of full-width pictures. The reader wants the set, so the
- * run becomes one container and the host lays its images out as tiles. Only the
- * structure is added here; how a tile looks stays with the host, which owns
- * every other rule for a rendered image.
- *
- * The container is renderer chrome rather than author markup, so this runs
- * after sanitization: the class and count it carries would otherwise be dropped
- * by the schema.
- *
- * @returns The rehype transform that wraps each run.
+ * Apply one run grouping to a tree, in every container but a paragraph.
+ * @param tree - The document.
+ * @param grouping - Which blocks form a run and what the run becomes.
  */
-export function rehypeImageGroup(): (tree: Root) => void {
+export function groupTree(tree: Root, grouping: RunGrouping): void {
   const groupContainer = (node: Root | Element): void => {
-    const children = groupRuns(node.children)
+    const children = groupRuns(node.children, grouping)
 
     node.children = node.type === 'root'
       ? children
@@ -201,5 +179,37 @@ export function rehypeImageGroup(): (tree: Root) => void {
     }
   }
 
-  return (tree: Root) => { groupContainer(tree) }
+  groupContainer(tree)
+}
+
+/**
+ * Group each run of images written on consecutive blocks into one container.
+ *
+ * A model writing a set of photographs emits one image per paragraph, which
+ * paints as a stack of full-width pictures. The reader wants the set, so a run
+ * of two or more becomes one `div.markdown-image-grid` carrying `data-count`,
+ * and the host lays its images out as tiles. A lone image keeps the paragraph it
+ * was written in: one picture reads better at the full width of the transcript
+ * than as a single tile. Only the structure is added here; how a tile looks
+ * stays with the host, which owns every other rule for a rendered image.
+ *
+ * The container is renderer chrome rather than author markup, so this runs
+ * after sanitization: the class and count it carries would otherwise be dropped
+ * by the schema.
+ *
+ * @returns The rehype transform that wraps each run.
+ */
+export function rehypeImageGroup(): (tree: Root) => void {
+  const grouping: RunGrouping = {
+    items: node => paragraphItems(node, inlineImage),
+    wrap: images => ({
+      type: 'element',
+      tagName: 'div',
+      properties: { className: [GRID_CLASS], 'data-count': String(images.length) },
+      children: [...images],
+    }),
+    minimum: 2,
+  }
+
+  return (tree: Root) => { groupTree(tree, grouping) }
 }

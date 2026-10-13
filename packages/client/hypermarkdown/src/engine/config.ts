@@ -3,6 +3,7 @@ import {
   ICON_COPY,
   ICON_MAXIMIZE,
   ICON_MINIMIZE,
+  ICON_PLAY,
   ICON_RESET_VIEW,
   ICON_RUN,
   ICON_ZOOM_IN,
@@ -45,6 +46,11 @@ export interface Translations {
   previewUnavailableTitle: string
   previewUnavailableBody: string
   dismiss: string
+
+  /** Accessible name of a video's play button; `{title}` is replaced with the title the link gave the video. */
+  playVideo: string
+  /** The same button for a video whose link carries no title. */
+  playVideoUntitled: string
 }
 
 /**
@@ -78,6 +84,9 @@ export const defaultTranslations: Translations = {
   previewUnavailableTitle: 'Code unavailable',
   previewUnavailableBody: 'The code preview is unavailable',
   dismiss: 'Ok',
+
+  playVideo: 'Play {title}',
+  playVideoUntitled: 'Play video',
 }
 
 /**
@@ -95,6 +104,8 @@ export interface IconMap {
   resetView: string
   /** The disclosure arrow on a reasoning block. */
   chevron: string
+  /** The button over a video's poster that loads its player. */
+  play: string
 }
 
 /**
@@ -111,6 +122,7 @@ export const defaultIcons: IconMap = {
   zoomOut: ICON_ZOOM_OUT,
   resetView: ICON_RESET_VIEW,
   chevron: ICON_CHEVRON,
+  play: ICON_PLAY,
 }
 
 /** Which toolbar buttons a block offers. `false` hides the toolbar entirely. */

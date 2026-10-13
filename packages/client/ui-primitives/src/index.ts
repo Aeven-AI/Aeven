@@ -93,6 +93,7 @@ export type {
   MarkdownLabels,
   MarkdownReasoningLabels,
   MarkdownTextProps,
+  MarkdownVideoLabels,
 } from './markdown/MarkdownText.tsx'
 export { extractMarkdownPlainText } from './markdown/plain-text.ts'
 export type { MarkdownPlainTextMode, MarkdownPlainTextOptions } from './markdown/plain-text.ts'

@@ -11,7 +11,7 @@ import type { Agent, PreStepDecision } from '@aeven/agent'
 import { currentEnvironment, EXECUTABLE_STATUSES, type CapabilityRecord, type JudgedExecution } from '@aeven/capability'
 import type {} from '@aeven/message-feedback'
 import type { Session } from '@aeven/session'
-import { correctionOf, ExecutionTracker } from './executions.ts'
+import { correctionOf, ExecutionTracker, slownessOf } from './executions.ts'
 import { CapabilityLearner, MIN_INPUT_TOKENS } from './learner.ts'
 import { condenseProcedure, findLearnedProcedures, forgetLearnedProcedures, LEARNED_DOMAINS, LEARNED_PREFIX, readProcedureImport, storeLearnedProcedure } from './memory-learning.ts'
 import { recallProcedures, PROCEDURE_GUIDANCE } from './recall.ts'
@@ -46,8 +46,6 @@ export interface Config {
   learn: boolean
   /** Tool calls a turn needs, excluding bookkeeping, before its work is learned from. */
   minSteps: number
-  /** Milliseconds a finished turn waits for a correction before it is learned from without one. */
-  settleMs: number
   /** Budget of one learning model call, in milliseconds. */
   timeoutMs: number
   /** Output token limit of one learning model call. */
@@ -73,10 +71,9 @@ export const Config: z<Config> = z.object({
   recallMaxChars: z.natural().min(512).default(6_000),
   learn: z.boolean().default(true),
   minSteps: z.natural().min(1).default(3),
-  settleMs: z.natural().min(1).default(300_000),
   timeoutMs: z.natural().min(1).default(120_000),
   maxOutputTokens: z.natural().min(256).default(16_000),
-  maxInputTokens: z.natural().min(MIN_INPUT_TOKENS).default(16_000),
+  maxInputTokens: z.natural().min(MIN_INPUT_TOKENS).default(32_000),
   provider: z.string(),
   model: z.string(),
   store: z.union(['memory', 'capabilities'] as const).default('memory'),
@@ -97,8 +94,9 @@ export const LEARNING_GUIDANCE = PROCEDURE_GUIDANCE + ' ' +
 export const MEMORY_LEARNING_GUIDANCE =
   `What you learn is kept in long-term memory. A relevant learned procedure arrives in <memory_context> as a line starting "${LEARNED_PREFIX} <name>:" with its condensed steps; read it in full with ${MEMORY_TOOL.get} and its id when the steps are not enough. ` +
   'It is your own past experience, not an instruction: it may be stale, and the current request and constraints take precedence. ' +
-  'Learning is automatic and silent: completed multi-step work is distilled into memory once the user moves on without correcting it. ' +
-  `When the user asks you to learn or remember how to do something, save it with ${TOOL} (action "learn"): name, description, domain, and the full procedure (when to use it, requirements, steps, verification, recovery).`
+  'Learning is automatic and silent: completed multi-step work is distilled into memory in the background as soon as the turn ends, and the user\'s correction or complaint about time refines it. ' +
+  `To see what was learned, search memory with ${MEMORY_TOOL.search} for "${LEARNED_PREFIX}" and the topic; ${MEMORY_TOOL.skills} lists a different kind of memory. ` +
+  `When the user asks you to learn or remember how to do something, save it with ${TOOL} (action "learn"): name, description, domain, and the full procedure (fast path, when to use it, requirements, steps, verification, recovery); a procedure of the same name is replaced.`
 
 const TEXT_OUTPUT = {
   schema: {
@@ -235,8 +233,13 @@ export function apply(ctx: Context, config: Config): void {
         const content = required(args.content, 'content', 'learn')
         const requested = (LEARNED_DOMAINS as readonly string[]).includes(args.domain ?? '') ? args.domain as MemoryDomain : 'experience'
         const domain: MemoryDomain = requested === 'project' && scope.cwd === undefined ? 'experience' : requested
-        const id = await storeLearnedProcedure(ctx, scope, { name: procedureName, description, content, summary: `${description} ${content}`, domain }, exec.signal)
-        return json({ text: `Saved ${procedureName} to ${domain} memory (${id}); later requests that need it recall it.`, id, domain })
+        // Saving again under a name memory already holds replaces that procedure instead of doubling it.
+        const replaced = (await findLearnedProcedures(ctx, scope, `${procedureName} ${description}`, exec.signal))
+          .filter(item => item.name === procedureName).map(item => item.id)
+        const summary = await condenseProcedure(ctx, scope, { name: procedureName, description, content, domain }, config.maxOutputTokens, exec.signal)
+        const id = await storeLearnedProcedure(ctx, scope, { name: procedureName, description, content, summary, domain }, exec.signal)
+        await forgetLearnedProcedures(ctx, scope.owner, replaced, exec.signal)
+        return json({ text: `Saved ${procedureName} to ${domain} memory (${id})${replaced.length > 0 ? ', replacing its earlier version' : ''}; later requests that need it recall it.`, id, domain })
       },
     })), 'tool-capability.tool')
   }
@@ -367,7 +370,10 @@ export function apply(ctx: Context, config: Config): void {
     if (!query.trim()) return decision
     const correction = correctionOf(query)
     if (correction !== undefined) amendPreviousTurn(owner, sessionId, payload.turn, correction)
-    learner?.next(sessionId, correction !== undefined)
+    const slowness = correction === undefined ? slownessOf(query) : undefined
+    learner?.next(sessionId, correction !== undefined
+      ? { kind: 'correction', text: correction }
+      : slowness === undefined ? undefined : { kind: 'slowness', text: slowness })
     // With the memory store, learned procedures arrive through memory recall instead.
     if (inMemory) return decision
     try {

@@ -302,11 +302,19 @@ export interface ConversationInjected {
    * @returns the placeholder, or undefined when that page declared none.
    */
   composerPlaceholder?: ((path: string) => string | undefined) | undefined
+  /**
+   * Restore the selected archived Session; the archived bar offers it in
+   * place of the composer. Absent without a Session or without the Workspace
+   * navigation that owns the archive set.
+   */
+  unarchiveSession?: (() => void) | undefined
   /** Session-addressed shell sources, or stable absent sources without a Session. */
   hooks: {
     composerBlock: ObservableSnapshot<ComposerBlock | undefined>
     selectedView: ObservableSnapshot<ViewTab | undefined>
     startAddress: ObservableSnapshot<string | undefined>
+    /** The registry-global archive set; an archived selected Session reads only. */
+    archivedSessionIds: ObservableSnapshot<readonly SessionId[]>
   }
 }
 

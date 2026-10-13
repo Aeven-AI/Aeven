@@ -3,6 +3,8 @@ import type { ComponentProps } from 'react'
 import MarkdownLink from './link.tsx'
 import MermaidDiagram from './mermaid/index.tsx'
 import MarkdownImage from './image.tsx'
+import MarkdownVideo from './video.tsx'
+import { VIDEO_TAG } from './rehype/video-embed.ts'
 import MarkdownCode from './code/index.tsx'
 import MarkdownTable from './table/index.tsx'
 
@@ -60,6 +62,17 @@ export function createComponents(renderer: RendererHost) {
     ) {
       return (
         <MarkdownImage
+          {...props}
+          renderer={renderer}
+          scrollDown={renderer.options.scrollDown}
+        />
+      )
+    },
+    [VIDEO_TAG]: function MarkdownVideoTag(
+      props: ComponentProps<typeof MarkdownVideo>,
+    ) {
+      return (
+        <MarkdownVideo
           {...props}
           renderer={renderer}
           scrollDown={renderer.options.scrollDown}

@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-12-photographs-in-a-reply.md
-2026-10-12-photographs-in-a-reply.md: 20e5b0ede3356218223c2d968657b1a28dc3cc77
-2026-10-12-photographs-in-a-reply.zh.md: 4e55685625a2cefbfc37e8d9d44b2ea8799a2e70
+2026-10-12-photographs-in-a-reply.md: 2376dfb91fb4265b28646e11ca5540b014c315d4
+2026-10-12-photographs-in-a-reply.zh.md: 5c19bb75b297ad3af9dceefaffc30a2dfafc1209

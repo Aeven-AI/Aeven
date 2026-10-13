@@ -27,7 +27,7 @@ function workspace(
 ): WorkspaceView {
   return {
     workspaceId: wid(id),
-    isDefault: false,
+    isDefault: false, isBuiltIn: false,
     kind: 'folder',
     path: `/w/${id}`,
     title: id,
@@ -44,7 +44,7 @@ function workspace(
 function chats(sessionIds: readonly SessionId[] = []): WorkspaceView {
   return {
     workspaceId: wid('chats'),
-    isDefault: true,
+    isDefault: true, isBuiltIn: true,
     kind: 'virtual',
     path: null,
     title: 'Chats',
@@ -265,6 +265,10 @@ class FakeWorkspaces implements IWorkspaces {
   archiveSession(sessionId: SessionId): Promise<void> {
     this.archiveCalls.push(sessionId)
     return this.onArchive(sessionId)
+  }
+
+  unarchiveSession(): Promise<void> {
+    return Promise.resolve()
   }
 }
 

@@ -170,7 +170,8 @@
 .frame[data-switching] .detailsCol,
 .frame[data-switching] .rightbarCol,
 .frame[data-switching] .handle,
-.frame[data-switching] .coverLayer {
+.frame[data-switching] .coverLayer,
+.frame[data-switching] .overlayBlocker {
   transition: none;
 }
 
@@ -323,12 +324,103 @@
   pointer-events: auto;
 }
 
+/* The scrim under the right-hand overlays below the med breakpoint, the left
+   sidebar's `.contentBlocker` mirrored: it dims and blurs the conversation the
+   open right sidebar covers, and a tap on it closes that sidebar. Above the
+   breakpoint the right sidebar is a column beside the conversation, so the
+   scrim is never shown there. */
+.overlayBlocker {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  opacity: 0;
+  background-color: rgb(0 0 0 / 20%);
+  /* Unprefixed only: the CSS pipeline adds the -webkit- form per its targets. */
+  backdrop-filter: blur(0);
+  pointer-events: none;
+  transition:
+    opacity var(--dsw-aeven-rightbar-transition-duration) var(--dsw-aeven-rightbar-transition-timing),
+    backdrop-filter var(--dsw-aeven-rightbar-transition-duration) var(--dsw-aeven-rightbar-transition-timing);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlayBlocker {
+    transition: none;
+  }
+}
+
 /* Below Aeven's med breakpoint the sidebar overlays rather than sizes a
    column, so there is no column edge to grab; Aeven offers no resize there
-   either. The details handle goes with it: the panel owns the whole width. */
+   either. The details handle goes with it: the panel owns the whole width.
+
+   The details and right sidebar columns leave the row the same way and lay
+   over the conversation from the frame's right edge, so opening either one
+   leaves the conversation its full width instead of squeezing it to whatever
+   the panel leaves over. The right sidebar's column keeps zero width there:
+   its panel is anchored to the column's right edge and grows leftwards over
+   the conversation, so the column itself has nothing to size. With the column
+   out of the row, the conversation runs under the corner dock again, so its
+   header reserves the dock's full width. */
 @media screen and (max-width: 1024px) {
   .handle {
     display: none;
+  }
+
+  .centerCol {
+    --avn-shell-corner-overlap: 0px;
+  }
+
+  .detailsCol,
+  .rightbarCol {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 50;
+  }
+
+  .rightbarCol {
+    width: 0;
+    transition: none;
+  }
+
+  .overlayBlocker {
+    display: block;
+  }
+
+  .frame:not([data-rightbar-collapsed]) .overlayBlocker {
+    opacity: 1;
+    backdrop-filter: blur(2px);
+    pointer-events: auto;
+  }
+
+  /* The open left sidebar overlays everything right of it: the corner's
+     controls drop under its scrim with the conversation, as Aeven's account
+     button does, and so do the right-hand overlays, which otherwise share the
+     sidebar's layer and, later in the frame, would paint over it. */
+  .frame:not([data-sidebar-collapsed]) :is(.detailsCol, .rightbarCol, .overlayBlocker, .cornerDock) {
+    z-index: 49;
+  }
+}
+
+/* Aeven's small breakpoint: a phone-width frame has no room for a panel beside
+   any of the conversation, so an open details or right sidebar panel takes the
+   whole frame. The right sidebar's widths are restated on its column, which
+   every layer of its panel reads them through (ui-sidebar-right
+   SidebarRightRoot.module.css); the frame's own values stay the reader's
+   stored width for when the window widens again. */
+@media screen and (max-width: 640px) {
+  .frame:not([data-details-collapsed]) .detailsCol {
+    width: 100%;
+  }
+
+  .rightbarCol {
+    --avn-frame-rightbar-open-width: 100vw;
+  }
+
+  .frame:not([data-rightbar-collapsed]) .rightbarCol {
+    --avn-frame-rightbar-width: 100vw;
   }
 }
 

@@ -14,6 +14,7 @@ import type { SessionId } from '@aeven/session/types'
 import { randomUUID } from '@aeven/util-crypto'
 import { createSnapshotStore, type ObservableSnapshot } from '@aeven/client-store'
 import { sessionPathOf, type SessionUrlNavigation } from './session-url.ts'
+import { isManagedWorkspace } from './tree.ts'
 
 type InitialNavigation = 'waiting' | 'connecting' | 'done'
 
@@ -87,7 +88,7 @@ export interface UiWorkspace {
    *
    * The claim carries the page's own copy, so the address and what the shared
    * shell says about it are registered together and cannot disagree.
-   * @param path - absolute single-segment path.
+   * @param path - absolute path, such as `/imagine` or `/automations/runs`.
    * @param copy - copy this page contributes to the shell; absent claims none.
    * @returns disposer releasing the claim.
    */
@@ -126,6 +127,13 @@ export interface UiWorkspace {
    * @param sessionId - Session to archive.
    */
   archiveSession(sessionId: SessionId): Promise<void>
+  /**
+   * Restore an archived Session to its recorded Workspace position.
+   * @param sessionId - Session to unarchive.
+   */
+  unarchiveSession(sessionId: SessionId): Promise<void>
+  /** The registry-global archive set in Host order. */
+  readonly archivedSessionIds: ObservableSnapshot<readonly SessionId[]>
   /**
    * Workspaces a Session can move into: every listed Workspace that does not
    * already account for it, in list order. The source is stable per Session.
@@ -191,6 +199,10 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   private readonly connecting = new Map<WorkspaceId | SessionId, Promise<SessionId>>()
   /** The archived current Session a new chat is being opened in place of, so the reconciler starts one only. */
   private replacingArchived: SessionId | undefined
+  /** The archived Session the reader selected to read; it stays selected rather than being replaced. */
+  private viewingArchived: SessionId | undefined
+  /** The selection the last ready reconcile pass saw, to tell selecting an archived Session from archiving the selected one. */
+  private seenCurrent: SessionId | undefined
   /** The orphaned current Session a new chat is being opened in place of, so the reconciler starts one only. */
   private replacingOrphan: SessionId | undefined
   /** Sessions this client created, until the lists catch up with them; they are arriving, not orphaned. */
@@ -293,7 +305,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
    *
    * One policy for both the link's target and the click that creates it: an
    * explicit Workspace wins, then the current Session's, then the most
-   * recently touched. They must agree, or the address a reader opened would
+   * recently touched; a managed Workspace is never inferred. They must agree, or the address a reader opened would
    * name a chat in a different Workspace than the one where it is created.
    * @param workspaceId - explicit target, when the caller has one.
    * @returns the Workspace id, or undefined when nothing can host a chat yet.
@@ -302,9 +314,12 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     const workspace = this.workspaces.list.getSnapshot()
     const sessions = this.sessions.list.getSnapshot()
     const current = sessions.current
-    const currentWorkspaceId = current === undefined
+    const currentWorkspace = current === undefined
       ? undefined
-      : workspace.items.find(item => item.sessionIds.includes(current))?.workspaceId
+      : workspace.items.find(item => item.sessionIds.includes(current))
+    const currentWorkspaceId = currentWorkspace === undefined || isManagedWorkspace(currentWorkspace)
+      ? undefined
+      : currentWorkspace.workspaceId
     const recent = workspace.phase === 'ready' && sessions.phase === 'ready'
       ? recentWorkspace(workspace.items, sessions.byId)
       : undefined
@@ -458,6 +473,15 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     await this.workspaces.archiveSession(sessionId)
   }
 
+  async unarchiveSession(sessionId: SessionId): Promise<void> {
+    await this.workspaces.unarchiveSession(sessionId)
+  }
+
+  readonly archivedSessionIds: ObservableSnapshot<readonly SessionId[]> = {
+    getSnapshot: () => this.workspaces.list.getSnapshot().archivedSessionIds,
+    subscribe: listener => this.workspaces.list.subscribe(listener),
+  }
+
   private readonly moveTargetSources = new Map<SessionId, ObservableSnapshot<readonly SessionMoveTarget[]>>()
 
   moveTargets(sessionId: SessionId): ObservableSnapshot<readonly SessionMoveTarget[]> {
@@ -593,16 +617,6 @@ class UiWorkspaceService extends Service implements UiWorkspace {
 
       if (!urlInitialized) {
         const requested = this.sessionUrl.read()
-        if (requested !== undefined && workspace.archivedSessionIds.includes(requested)) {
-          // An archived chat is not reopened from its address: the current selection, or the New Session the
-          // archive already started in its place, keeps the page and takes over the address.
-          urlInitialized = true
-          if (sessions.current !== undefined && sessions.current !== requested) {
-            this.markInitialNav('done')
-            this.sessionUrl.replace(sessions.current)
-          }
-          return
-        }
         if (requested !== undefined && sessions.byId[requested] !== undefined) {
           urlInitialized = true
           this.markInitialNav('done')
@@ -763,16 +777,27 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   }
 
   /**
-   * Replace an archived current selection with a new chat, as the New Session
-   * action does: an empty selection has no composer to continue from.
-   * @returns true while the current selection is archived.
+   * Replace a current selection that was archived while selected with a new
+   * chat, as the New Session action does. An archived Session the reader
+   * selects stays open to read; the conversation offers to unarchive it.
+   * @returns true while a selection archived in place is being replaced.
    */
   private clearArchivedCurrent(): boolean {
     const current = this.sessions.list.getSnapshot().current
-    if (current === undefined
-      || !this.workspaces.list.getSnapshot().archivedSessionIds.includes(current)) {
+    const workspace = this.workspaces.list.getSnapshot()
+    // Before the archive set arrives, archived and live selections look alike.
+    if (workspace.phase !== 'ready') return false
+    const previous = this.seenCurrent
+    this.seenCurrent = current
+    if (current === undefined || !workspace.archivedSessionIds.includes(current)) {
       // The selection moved on; an archived Session selected again is replaced again.
       this.replacingArchived = undefined
+      this.viewingArchived = undefined
+      return false
+    }
+    if (current === this.viewingArchived) return false
+    if (current !== previous) {
+      this.viewingArchived = current
       return false
     }
     if (this.replacingArchived !== current) {
@@ -784,7 +809,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
 
 }
 
-/** Stable tie-breaking follows Host Workspace order. */
+/** Most recently touched Workspace that accepts New Sessions; stable tie-breaking follows Host Workspace order. */
 function recentWorkspace(
   workspaces: readonly WorkspaceView[],
   sessions: SessionListState['byId'],
@@ -792,6 +817,7 @@ function recentWorkspace(
   let selected: WorkspaceId | undefined
   let selectedTime = Number.NEGATIVE_INFINITY
   for (const workspace of workspaces) {
+    if (isManagedWorkspace(workspace)) continue
     let latest = Number.NEGATIVE_INFINITY
     for (const sessionId of workspace.sessionIds) {
       const session = sessions[sessionId]

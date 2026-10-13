@@ -336,7 +336,8 @@
   position: relative;
 }
 
-.markdown :global(.markdown-image-grid .image-loader) {
+.markdown :global(.markdown-image-grid .image-loader),
+.markdown :global(.markdown-video .image-loader) {
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -346,12 +347,14 @@
   transition: opacity 240ms ease;
 }
 
-.markdown :global(.markdown-image-grid [data-loaded]) .image-loader {
+.markdown :global(.markdown-image-grid [data-loaded]) .image-loader,
+.markdown :global(.markdown-video[data-loaded] .image-loader) {
   opacity: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .markdown :global(.markdown-image-grid .image-loader) {
+  .markdown :global(.markdown-image-grid .image-loader),
+  .markdown :global(.markdown-video .image-loader) {
     transition: none;
   }
 }
@@ -364,6 +367,27 @@
   max-width: 66.666%;
   margin-right: auto;
   margin-left: auto;
+}
+
+/* A run of videos tiles the way a row of images does: a lone video spans the
+   column, two share it in halves, three take thirds, and four or more wrap two
+   to a row. Every tile is 3:2 and carries the transcript's 30px corner. */
+.markdown :global(.markdown-video-grid) {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 16px 0;
+}
+
+.markdown :global(.markdown-video-grid[data-count='1']) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.markdown :global(.markdown-video-grid[data-count='3']) {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.markdown :global(.markdown-video) {
+  border-radius: 30px;
+  background: none;
 }
 
 /* Inline file mention: the same link language this sheet gives anchors (and

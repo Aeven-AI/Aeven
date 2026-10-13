@@ -162,7 +162,7 @@ describe('workspace browser rows', () => {
       return { href: `/c/new-${minted}`, sessionId: sid(`session-new-${minted}`) }
     }
     const group: GroupNode = {
-      key: 'project', workspaceId: wid('project'), isDefault: false, cwd: '/projects/project', createdAt: 0, label: 'Project',
+      key: 'project', workspaceId: wid('project'), isBuiltIn: false, managed: false, cwd: '/projects/project', createdAt: 0, label: 'Project',
       sessionCount: 1, expanded: true, containsCurrent: true, sessions: [],
     }
     render(
@@ -197,7 +197,7 @@ describe('workspace browser rows', () => {
   it('leaves every non-plain press on a Workspace row\'s New Session link to the browser', () => {
     const onCreate = vi.fn()
     const group: GroupNode = {
-      key: 'project', workspaceId: wid('project'), isDefault: false, cwd: '/projects/project', createdAt: 0, label: 'Project',
+      key: 'project', workspaceId: wid('project'), isBuiltIn: false, managed: false, cwd: '/projects/project', createdAt: 0, label: 'Project',
       sessionCount: 0, expanded: false, containsCurrent: false, sessions: [],
     }
     render(
@@ -468,7 +468,7 @@ describe('workspace browser rows', () => {
     const onDelete = vi.fn()
     const onToggle = vi.fn()
     const group: GroupNode = {
-      key: 'project', workspaceId: wid('project'), isDefault: false, cwd: '/projects/project', createdAt: 0, label: 'Project',
+      key: 'project', workspaceId: wid('project'), isBuiltIn: false, managed: false, cwd: '/projects/project', createdAt: 0, label: 'Project',
       sessionCount: 0, expanded: false, containsCurrent: false, sessions: [],
     }
     render(<ProjectRowItem
@@ -498,7 +498,7 @@ describe('workspace browser rows', () => {
 
   it('ungrouped bucket renders no workspace menu and no create control', () => {
     const group: GroupNode = {
-      key: '', workspaceId: undefined, isDefault: false, cwd: undefined, createdAt: undefined, label: 'Ungrouped',
+      key: '', workspaceId: undefined, isBuiltIn: false, managed: false, cwd: undefined, createdAt: undefined, label: 'Ungrouped',
       sessionCount: 0, expanded: false, containsCurrent: false, sessions: [],
     }
     const newSessionHref = vi.fn(() => ({ href: '/c/new-1', sessionId: sid('session-new-1') }))

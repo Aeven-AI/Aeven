@@ -59,6 +59,8 @@ await project.setTitle('Renamed')
 ctx.workspaceRegistry.list() // Chats first, then the project
 ```
 
+A plugin can declare its own built-in workspace with `ctx.workspaceRegistry.builtIn(key, title)`. Like Chats it has no directory, every account sees it, and it refuses every move, rename, and delete; the key binds to the same registration across restarts, and a new one lands directly below Chats. `@aeven/automations` declares the Automations workspace this way.
+
 ### Grouping sessions under a project
 
 A session joins the project of the directory it runs in: create a session in a project's directory and it appears under that project, newest first. A session can only belong to one project. A session whose directory cannot be validated — no recorded directory, or a moved or deleted folder — cannot join and stays ungrouped.

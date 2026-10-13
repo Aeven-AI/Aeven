@@ -301,6 +301,13 @@ export function AppFrame({
         <CenterColumn>
           {surface === undefined ? renderSlot('conversation', { sidebarCollapsed }) : renderSlot('surface', {}, { entryKey: surface })}
         </CenterColumn>
+        {/* Shown only below the med breakpoint, where the right sidebar lays
+            over the conversation instead of beside it (AppFrame.module.css). */}
+        <div
+          className={css.overlayBlocker}
+          aria-hidden="true"
+          onClick={() => { if (rightbarShown && rightbarSession !== undefined) actions.toggleRightbar(rightbarSession, window.innerWidth) }}
+        />
         <DetailsColumn>
           <SessionProvider>{renderSlot('details', {})}</SessionProvider>
         </DetailsColumn>

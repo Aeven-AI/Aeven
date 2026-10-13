@@ -6,8 +6,8 @@ import type { ChatViewSlotProps } from './contract/slots.ts'
 /**
  * Build the complete Markdown chrome copy for one locale revision.
  * @param t - Chat locale seat.
- * @returns Labels for code fences, footnotes, and the reasoning block the
- * engine draws for a step's thinking.
+ * @returns Labels for code fences, footnotes, images, videos, and the
+ * reasoning block the engine draws for a step's thinking.
  */
 export function markdownLabels(t: ChatViewSlotProps['t']): MarkdownLabels {
   return {
@@ -25,6 +25,11 @@ export function markdownLabels(t: ChatViewSlotProps['t']): MarkdownLabels {
       infoName: t('markdown.imageInfoName'),
       unknown: t('markdown.imageInfoUnknown'),
       megabytes: value => t('markdown.imageMegabytes', { value }),
+    },
+    // `{title}` is left for the engine, which fills in the title the link gave.
+    video: {
+      play: t('markdown.playVideo', { title: '{title}' }),
+      playUntitled: t('markdown.playVideoUntitled'),
     },
     // The engine replaces the placeholder itself, with a duration it measured,
     // so the template travels with its own `{seconds}` and neither language has

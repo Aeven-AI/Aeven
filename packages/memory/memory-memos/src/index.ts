@@ -44,6 +44,11 @@ export interface Config {
   classifyTimeoutMs: number
   /** Number of trace candidates MemOS ranks for turn-start recall before Aeven orders them. */
   candidateTraces: number
+  /**
+   * Longest request or reply text one stored memory keeps; longer text keeps its beginning and end. A learned
+   * procedure is stored as one request text, so this bounds the procedure `memory_get` can read back.
+   */
+  maxTextChars: number
 }
 
 export const Config: z<Config> = z.object({
@@ -55,6 +60,7 @@ export const Config: z<Config> = z.object({
   classifyDomains: z.boolean().default(true),
   classifyTimeoutMs: z.natural().min(1000).default(15_000),
   candidateTraces: z.natural().min(1).default(20),
+  maxTextChars: z.natural().min(200).max(64_000).default(16_000),
 })
 
 /** MemOS core configuration with the Host bridge selected when `config.yaml` leaves the LLM provider empty. */
@@ -106,6 +112,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     algorithm: {
       ...configured.algorithm,
       retrieval: { ...configured.algorithm.retrieval, tier2TopK: config.candidateTraces },
+      capture: { ...configured.algorithm.capture, maxTextChars: config.maxTextChars },
     },
   }
   const routes = new LlmRouteContext()

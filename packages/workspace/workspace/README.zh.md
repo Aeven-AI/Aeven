@@ -59,6 +59,8 @@ await project.setTitle('Renamed')
 ctx.workspaceRegistry.list() // Chats 在最前，之后是该项目
 ```
 
+插件可以通过 `ctx.workspaceRegistry.builtIn(key, title)` 声明自己的内置 workspace。它与 Chats 一样没有目录，所有账户都能看到，并拒绝任何移动、重命名与删除；该键在重启后绑定到同一条注册记录，新建的内置 workspace 落在 Chats 正下方。`@aeven/automations` 以这种方式声明 Automations workspace。
+
 ### 将会话归入项目
 
 会话加入它运行目录所在的项目：在项目目录中创建会话，它就会出现在该项目下，新到旧排列。一个会话只能属于一个项目。目录无法校验的会话——没有记录目录，或目录被移动、删除——无法加入，保持 Ungrouped。

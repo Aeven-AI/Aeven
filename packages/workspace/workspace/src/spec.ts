@@ -82,14 +82,17 @@ const workspacePendingMutation = z.discriminatedUnion('operation', [
  * one workspace a reader always has, so a first run never opens on a state that
  * demands a folder before it accepts a message. It is optional because every
  * registry written before the field existed simply has no built-in workspace,
- * and the absence is what a seeding pass fills. Defaulted or optional fields
- * parse unchanged from earlier records.
+ * and the absence is what a seeding pass fills. `builtInWorkspaceIds` binds
+ * each plugin-declared built-in registration to its declaring key, so the same
+ * registration returns across restarts. Defaulted or optional fields parse
+ * unchanged from earlier records.
  */
 export const workspaceDomainState = z.object({
   initialized: z.boolean(),
   workspaceIds: z.array(workspaceId),
   archivedSessionIds: z.array(z.string().transform(value => brandString<SessionId>(value))).default([]),
   defaultWorkspaceId: workspaceId.optional(),
+  builtInWorkspaceIds: z.record(z.string(), workspaceId).optional(),
   pendingMutation: workspacePendingMutation.optional(),
 })
 

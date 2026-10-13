@@ -48,6 +48,8 @@ export const zh = {
   'markdown.imageInfoName': '文件名：',
   'markdown.imageInfoUnknown': '未知',
   'markdown.imageMegabytes': '{value} MB',
+  'markdown.playVideo': '播放 {title}',
+  'markdown.playVideoUntitled': '播放视频',
   'markdown.truncatedCharacters': '… 已截断，共 {total} 字符',
   'number.thousand': '{value}K',
   'number.million': '{value}M',

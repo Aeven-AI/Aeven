@@ -5,7 +5,7 @@
  * cluster's, and the view preferences they write arrive through the shared
  * viewing store; search runs in the header's own popup (SearchDialog.tsx).
  */
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import clsx from 'clsx'
 import {
   Button, IconLucideListChevronsDownUp, IconLucideListChevronsUpDown, Modal,
@@ -14,9 +14,10 @@ import type { SessionListState } from '@aeven/api-session-controller/client'
 import type { WorkspaceId, WorkspaceView } from '@aeven/api-workspace-controller/client'
 import type { SessionId } from '@aeven/session/types'
 import type { WorkspaceBrowserProps } from '../contract/slots.ts'
-import type { SessionNode, SessionOrderBy } from '../tree.ts'
+import type { GroupNode, SessionNode, SessionOrderBy } from '../tree.ts'
 import {
-  deriveFlat, deriveGroups, orderGroupsByRecency, owningGroupKey, UNGROUPED_KEY,
+  ARCHIVED_KEY, deriveArchived, deriveFlat, deriveGroups, managedSessionIds, orderGroupsByRecency, owningGroupKey,
+  UNGROUPED_KEY,
 } from '../tree.ts'
 import { ProjectRowItem, SessionNodeItem } from './Rows.tsx'
 import { FLAT_SESSION_ORDER_KEY } from '../stores.ts'
@@ -79,11 +80,7 @@ function reconciledSessionOrder(sessionIds: readonly SessionId[], stored: readon
     ordered.push(id)
     included.add(key)
   }
-  for (const id of sessionIds) {
-    if (included.has(id)) continue
-    ordered.push(id)
-  }
-  return ordered
+  return [...sessionIds.filter(id => !included.has(id)), ...ordered]
 }
 
 /** Newest update first with stable Session identity as the tie-break. */
@@ -177,6 +174,10 @@ type SessionTreeProps = Pick<
   setSessionOrder: (accountKey: string, order: string[]) => void
   /** Registry-global archive set (hidden rows). */
   archivedSessionIds: readonly SessionNode['id'][]
+  /** Leave out managed Workspace groups such as Automations. */
+  hideManaged: boolean
+  /** The trailing Archived section, or null while the view option hides it. */
+  archivedSection: ReactNode
   /** Open the browser-owned rename dialog for a real Workspace group. */
   onRenameRequest: (workspaceId: WorkspaceId, currentTitle: string) => void
   /** Open the browser-owned delete-confirmation dialog for a real Workspace group. */
@@ -196,7 +197,7 @@ type SessionTreeProps = Pick<
 /** The scrolling session tree; unmounting drops the sessions subscription and expand-all state. */
 function SessionTree({
   useSessions, useSessionPendingInteraction, startSession, newSessionHref, open, forkSession, workspaces,
-  archivedSessionIds,
+  archivedSessionIds, hideManaged, archivedSection,
   workspaceReady,
   onRenameRequest, onDeleteRequest, onSessionRename, onSessionArchive,
   insertWorkspaceBefore, insertSessionBefore, orderBy,
@@ -207,7 +208,7 @@ function SessionTree({
   const list = useSessions(s => s)
   const pendingInteractions = useSessionPendingInteraction(s => s)
   const current = list.current
-  const revealGroup = revealSessionId === undefined || !workspaceReady
+  const revealGroup = revealSessionId === undefined || !workspaceReady || archivedSessionIds.includes(revealSessionId)
     ? undefined
     : owningGroupKey(workspaces, revealSessionId)
   const [expandedSessionGroups, setExpandedSessionGroups] = useState<string[]>([])
@@ -219,7 +220,8 @@ function SessionTree({
   const previousOrderBy = useRef(orderBy)
   const nativeDragActive = drag !== null || workspaceDrag !== null
   useNativeDragAcceptance(nativeDragActive)
-  const currentGroup = current === undefined || !workspaceReady
+  // An archived selection shows in the Archived section, so its Workspace group does not unfold for it.
+  const currentGroup = current === undefined || !workspaceReady || archivedSessionIds.includes(current)
     ? undefined
     : owningGroupKey(workspaces, current)
   useEffect(() => {
@@ -282,11 +284,12 @@ function SessionTree({
   const groups = useMemo(
     () => deriveGroups(list, groupOrder, archivedSessionIds, pendingInteractions, {
       expandedGroups,
+      hideManaged,
       ...(sessionOrderByAccount[UNGROUPED_KEY] === undefined
         ? {}
         : { ungroupedOrder: sessionOrderByAccount[UNGROUPED_KEY] }),
     }),
-    [list, groupOrder, archivedSessionIds, pendingInteractions, expandedGroups, sessionOrderByAccount],
+    [list, groupOrder, archivedSessionIds, pendingInteractions, expandedGroups, hideManaged, sessionOrderByAccount],
   )
   useEffect(() => {
     if (revealGroup === undefined || groupExpansion[revealGroup] === true) return
@@ -384,7 +387,7 @@ function SessionTree({
         role="tree"
         aria-label={t('section.sessions')}
       >
-        {groups.length === 0 && (
+        {groups.length === 0 && archivedSection === null && (
           <div className={css.empty}>{t('empty.none')}</div>
         )}
         {groups.map((group) => {
@@ -394,7 +397,7 @@ function SessionTree({
           const workspaceMarker = workspaceId !== undefined && workspaceDrag?.over?.id === workspaceId
             ? workspaceDrag.over.half
             : null
-          const workspaceDragProps = workspaceId === undefined ? undefined : {
+          const workspaceDragProps = workspaceId === undefined || orderBy !== 'manual' ? undefined : {
             start: () => {
               workspaceDropCommitted.current = false
               setWorkspaceDrag({ workspaceId, over: null })
@@ -463,11 +466,11 @@ function SessionTree({
                   startSession(group.workspaceId)
                 }}
                 newSessionHref={newSessionHref}
-                drag={group.isDefault ? undefined : workspaceDragProps}
-                // The built-in workspace offers no actions: it cannot be renamed,
+                drag={group.isBuiltIn ? undefined : workspaceDragProps}
+                // A built-in workspace offers no actions: it cannot be renamed,
                 // deleted, or moved, so a menu would present only choices that
                 // fail. Its row is part of the product, not a reader-owned entry.
-                actions={group.workspaceId === undefined || group.isDefault
+                actions={group.workspaceId === undefined || group.isBuiltIn
                   ? undefined
                   : {
                     rename: () => {
@@ -521,7 +524,7 @@ function SessionTree({
                     onReveal={node.id === revealSessionId && group.key === revealGroup
                       ? () => { onSessionRevealed(node.id) }
                       : undefined}
-                    drag={dragProps}
+                    drag={orderBy === 'manual' ? dragProps : undefined}
                     t={t}
                   />
                 )
@@ -544,8 +547,109 @@ function SessionTree({
             </div>
           )
         })}
+        {archivedSection}
       </div>
       <span className={css.fade} />
+    </div>
+  )
+}
+
+/**
+ * The trailing Archived section: one folder row over every archived Session,
+ * newest update first or newest archive first according to the view mode.
+ * Rows open read-only and offer Unarchive in their menu;
+ * they are not draggable because the section keeps no order of its own.
+ */
+function ArchivedSection({
+  useSessions, useSessionPendingInteraction, archivedSessionIds, hidden, expanded, onToggle,
+  open, onSessionRename, forkSession, onSessionUnarchive, revealSessionId, onSessionRevealed, orderBy, t,
+}: Pick<
+  SessionTreeProps,
+  | 'useSessions' | 'useSessionPendingInteraction' | 'archivedSessionIds' | 'open' | 'onSessionRename' | 'forkSession'
+  | 'revealSessionId' | 'onSessionRevealed' | 'orderBy' | 't'
+> & {
+  /** Sessions a view option leaves out, such as managed Workspace members. */
+  hidden: ReadonlySet<SessionId>
+  /** Persisted fold state of the section. */
+  expanded: boolean
+  onToggle: () => void
+  onSessionUnarchive: (sessionId: SessionId) => void
+}) {
+  const list = useSessions(s => s)
+  const pendingInteractions = useSessionPendingInteraction(s => s)
+  const rows = useMemo(
+    () => {
+      const archived = deriveArchived(list, archivedSessionIds, pendingInteractions, hidden)
+      if (orderBy === 'updated') return archived
+      const byId = new Map(archived.map(row => [row.id, row]))
+      return [...archivedSessionIds].reverse().flatMap(id => {
+        const row = byId.get(id)
+        return row === undefined ? [] : [row]
+      })
+    },
+    [list, archivedSessionIds, pendingInteractions, hidden, orderBy],
+  )
+  const [showAll, setShowAll] = useState(false)
+  const collapsed = collapsedSessionRows(rows)
+  const group: GroupNode = {
+    key: ARCHIVED_KEY,
+    workspaceId: undefined,
+    isBuiltIn: true,
+    managed: true,
+    cwd: undefined,
+    createdAt: undefined,
+    label: '',
+    sessionCount: rows.length,
+    expanded,
+    containsCurrent: list.current !== undefined && rows.some(row => row.id === list.current),
+    sessions: expanded ? rows : [],
+  }
+  return (
+    <div className={css.groupSection}>
+      <ProjectRowItem
+        group={group}
+        t={t}
+        onToggle={() => {
+          if (expanded) setShowAll(false)
+          onToggle()
+        }}
+        onCreate={() => {}}
+        newSessionHref={() => ({ href: '', sessionId: '' as SessionId })}
+      />
+      {expanded && rows.length === 0 && (
+        <div className={css.empty}>{t('empty.noneArchived')}</div>
+      )}
+      {expanded && (showAll ? rows : collapsed.rows).map(node => (
+        <SessionNodeItem
+          key={node.id}
+          node={node}
+          currentId={list.current}
+          onOpen={open}
+          onRename={onSessionRename}
+          onFork={forkSession}
+          onArchive={() => {}}
+          onUnarchive={onSessionUnarchive}
+          onReveal={node.id === revealSessionId
+            ? () => { onSessionRevealed(node.id) }
+            : undefined}
+          t={t}
+        />
+      ))}
+      {expanded && collapsed.hiddenCount > 0 && (
+        <button
+          type="button"
+          className={css.sessionOverflowButton}
+          aria-expanded={showAll}
+          onClick={() => { setShowAll(v => !v) }}
+        >
+          {showAll
+            ? <IconLucideListChevronsDownUp className={css.sessionOverflowIcon} />
+            : <IconLucideListChevronsUpDown className={css.sessionOverflowIcon} />}
+          <span className={css.sessionOverflowLabel}>
+            {showAll ? t('sessions.collapse') : t('sessions.expand')}
+          </span>
+        </button>
+      )}
     </div>
   )
 }
@@ -553,7 +657,7 @@ function SessionTree({
 /** The flat "In one list" body: every session is one draggable top-level row. */
 function FlatList({
   useSessions, useSessionPendingInteraction, open, forkSession, onSessionRename, onSessionArchive,
-  archivedSessionIds,
+  archivedSessionIds, hidden, archivedSection,
   orderBy, sessionOrderByAccount, sessionUpdatedAtByAccount, syncSessionOrderAccount, setSessionOrder,
   revealSessionId, onSessionRevealed, t,
 }: Pick<
@@ -572,13 +676,17 @@ function FlatList({
   | 'setSessionOrder'
   | 'revealSessionId'
   | 'onSessionRevealed'
+  | 'archivedSection'
   | 't'
->) {
+> & {
+  /** Sessions a view option leaves out, such as managed Workspace members. */
+  hidden: ReadonlySet<SessionId>
+}) {
   const list = useSessions(s => s)
   const pendingInteractions = useSessionPendingInteraction(s => s)
   const baseRows = useMemo(
-    () => deriveFlat(list, archivedSessionIds, pendingInteractions),
-    [list, archivedSessionIds, pendingInteractions],
+    () => deriveFlat(list, archivedSessionIds, pendingInteractions, hidden),
+    [list, archivedSessionIds, pendingInteractions, hidden],
   )
   const sessionIds = useMemo(() => baseRows.map(row => row.id), [baseRows])
   const previousOrderBy = useRef(orderBy)
@@ -630,7 +738,7 @@ function FlatList({
   return (
     <div className={clsx(css.treeBody, css.wide)}>
       <div className={clsx(css.list, 'no-scrollbar', css.flatList)} role="tree" aria-label={t('section.sessions')}>
-        {rows.length === 0 && (
+        {rows.length === 0 && archivedSection === null && (
           <div className={css.empty}>{t('empty.none')}</div>
         )}
         {rows.map((node) => {
@@ -647,7 +755,7 @@ function FlatList({
               onReveal={node.id === revealSessionId
                 ? () => { onSessionRevealed(node.id) }
                 : undefined}
-              drag={{
+              drag={orderBy !== 'manual' ? undefined : {
                 start: () => {
                   dropCommitted.current = false
                   setDrag({ accountKey: FLAT_SESSION_ORDER_KEY, sessionId: node.id, over: null })
@@ -670,6 +778,7 @@ function FlatList({
             />
           )
         })}
+        {archivedSection}
       </div>
       <span className={css.fade} />
     </div>
@@ -699,6 +808,7 @@ export function WorkspaceBrowser({
   deleteWorkspace,
   insertWorkspaceBefore,
   archiveSession,
+  unarchiveSession,
   insertSessionBefore,
   t,
 }: WorkspaceBrowserProps) {
@@ -708,6 +818,8 @@ export function WorkspaceBrowser({
   const archivedSessionIds = useWorkspaces(state => state.archivedSessionIds)
   const groupBy = useStore(s => s.groupBy)
   const orderBy = useStore(s => s.orderBy)
+  const showAutomations = useStore(s => s.showAutomations)
+  const showArchived = useStore(s => s.showArchived)
   const groupExpansion = useStore(s => s.groupExpansion)
   const sessionOrderByAccount = useStore(s => s.sessionOrderByAccount)
   const sessionUpdatedAtByAccount = useStore(s => s.sessionUpdatedAtByAccount)
@@ -742,6 +854,7 @@ export function WorkspaceBrowser({
     actions.retainAccountKeys([
       UNGROUPED_KEY,
       FLAT_SESSION_ORDER_KEY,
+      ARCHIVED_KEY,
       ...workspaces.map(workspace => workspace.workspaceId as string),
     ])
   }, [actions.retainAccountKeys, workspacePhase, workspaces])
@@ -843,6 +956,37 @@ export function WorkspaceBrowser({
     })
   }
 
+  // Unarchive restores the row to its Workspace when the archive-set echo lands.
+  const onSessionUnarchive = (sessionId: SessionId) => {
+    unarchiveSession(sessionId).catch((reason: unknown) => {
+      console.warn('session unarchive rejected:', reason)
+    })
+  }
+  const hidden = useMemo(
+    () => (showAutomations ? new Set<SessionId>() : managedSessionIds(workspaces)),
+    [showAutomations, workspaces],
+  )
+  const archivedSection = showArchived
+    ? (
+      <ArchivedSection
+        useSessions={useSessions}
+        useSessionPendingInteraction={useSessionPendingInteraction}
+        archivedSessionIds={archivedSessionIds}
+        orderBy={orderBy}
+        hidden={hidden}
+        expanded={groupExpansion[ARCHIVED_KEY] === true}
+        onToggle={() => { actions.setGroupExpanded(ARCHIVED_KEY, groupExpansion[ARCHIVED_KEY] !== true) }}
+        open={open}
+        onSessionRename={onSessionRename}
+        forkSession={forkSession}
+        onSessionUnarchive={onSessionUnarchive}
+        revealSessionId={revealSessionId}
+        onSessionRevealed={acknowledgeSessionReveal}
+        t={t}
+      />
+    )
+    : null
+
   // Delete dialog is separate from the row so a successful removal can
   // unmount that row without tearing down the in-flight confirmation state.
   const [deleteTarget, setDeleteTarget] = useState<{ workspaceId: WorkspaceId; title: string } | null>(null)
@@ -890,6 +1034,8 @@ export function WorkspaceBrowser({
               open={open} forkSession={forkSession}
               onSessionRename={onSessionRename} onSessionArchive={onSessionArchive}
               archivedSessionIds={archivedSessionIds}
+              hidden={hidden}
+              archivedSection={archivedSection}
               orderBy={orderBy}
               sessionOrderByAccount={sessionOrderByAccount}
               sessionUpdatedAtByAccount={sessionUpdatedAtByAccount}
@@ -916,6 +1062,8 @@ export function WorkspaceBrowser({
               syncSessionOrderAccount={actions.syncSessionOrderAccount}
               setSessionOrder={actions.setSessionOrder}
               archivedSessionIds={archivedSessionIds}
+              hideManaged={!showAutomations}
+              archivedSection={archivedSection}
               startSession={startSession}
               newSessionHref={newSessionHref}
               open={open}

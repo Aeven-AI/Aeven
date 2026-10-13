@@ -10,6 +10,7 @@ import {
   ipcMain,
   Menu,
   protocol,
+  session,
   shell,
   type IpcMainInvokeEvent,
 } from 'electron'
@@ -28,6 +29,7 @@ import { DESKTOP_IPC, type DesktopMenuCommand, type DesktopUpdateState } from '.
 import { formatDesktopMessage, resolveDesktopLocale } from './locale.ts'
 import { claimDesktopSingleInstance } from './single-instance.ts'
 import { DesktopUpdateCoordinator } from './update-coordinator.ts'
+import { sendVideoEmbedReferrer } from './video-embeds.ts'
 
 const SCHEME = 'avn-app'
 let focusPrimaryWindow = (): void => {}
@@ -346,6 +348,8 @@ async function main(): Promise<void> {
       await active?.stop()
     },
   )
+
+  sendVideoEmbedReferrer(session.defaultSession)
 
   protocol.handle(SCHEME, (request) => {
     const url = new URL(request.url)

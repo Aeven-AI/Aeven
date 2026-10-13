@@ -92,3 +92,13 @@
 .code[data-error] {
   color: var(--dsw-alias-state-error-primary);
 }
+
+/* Below the med breakpoint this panel lays over the conversation at the
+   frame's right edge (ui-layout AppFrame.module.css), under the frame's corner
+   dock, so its header stops short of the dock's seats, the width the frame
+   states for them, to keep the close control reachable. */
+@media screen and (max-width: 1024px) {
+  .header {
+    padding-right: var(--avn-shell-corner-seats, 12px);
+  }
+}

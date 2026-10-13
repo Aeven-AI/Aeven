@@ -84,6 +84,77 @@ function fenceStartCovering(mdBuffer: string, index: number): number {
 }
 
 /**
+ * One line that shows a picture or a video on its own: an image, an image
+ * wrapped in a link, or a YouTube or Vimeo link or bare address. The renderer
+ * groups consecutive paragraphs of these into one row.
+ */
+const MEDIA_LINE = /^[ \t]*(?:!\[[^\]\n]*\]\([^)\n]*\)|\[!\[[^\]\n]*\]\([^)\n]*\)\]\([^)\n]*\)|\[[^\]\n]*\]\([^)\n]*(?:youtube\.com|youtu\.be|vimeo\.com)[^)\n]*\)|<?https?:\/\/[^\s>]*(?:youtube\.com|youtu\.be|vimeo\.com)[^\s>]*>?)[ \t]*$/i
+
+/**
+ * Whether a paragraph holds nothing but media lines.
+ * @param paragraph - text between two blank lines.
+ * @returns true when every non-blank line is a {@link MEDIA_LINE}.
+ */
+function isMediaParagraph(paragraph: string): boolean {
+  const lines = paragraph.split('\n').filter(line => line.trim() !== '')
+  return lines.length > 0 && lines.every(line => MEDIA_LINE.test(line))
+}
+
+/**
+ * Where the run of media paragraphs that ends at a blank line begins.
+ * @param mdBuffer - the buffer being examined.
+ * @param closeIndex - offset of the blank line that would close the block.
+ * @returns offset of the run's first paragraph, or undefined when the
+ *   paragraph before the blank line is not media.
+ */
+function mediaRunStart(mdBuffer: string, closeIndex: number): number | undefined {
+  let end = closeIndex
+  let runStart: number | undefined
+
+  while (end > 0) {
+    const previous = mdBuffer.lastIndexOf('\n\n', end - 1)
+    const start = previous === -1 ? 0 : previous + 2
+
+    if (start >= end || !isMediaParagraph(mdBuffer.substring(start, end))) {
+      break
+    }
+
+    runStart = start
+
+    if (previous === -1) {
+      break
+    }
+
+    end = previous
+  }
+
+  return runStart
+}
+
+/**
+ * Whether what follows a blank line may still continue a media run: nothing
+ * yet, a line still arriving that could become a media line, or a finished
+ * media line.
+ * @param rest - the buffer after the blank line.
+ * @returns false once the next paragraph is known to be something else.
+ */
+function mediaMayFollow(rest: string): boolean {
+  const next = rest.replace(/^\s+/, '')
+  const lineEnd = next.indexOf('\n')
+
+  if (lineEnd !== -1) {
+    return MEDIA_LINE.test(next.substring(0, lineEnd))
+  }
+
+  return next === ''
+    || next.startsWith('!')
+    || next.startsWith('[')
+    || next.startsWith('<')
+    || next.startsWith('http')
+    || 'https://'.startsWith(next)
+}
+
+/**
  * Cut one block out of the streaming buffer.
  *
  * The block ends at the first blank line, rule, closing fence or closing
@@ -398,6 +469,22 @@ export function findBlockBoundary(
           mdClose: '',
           mdNext: '',
         }
+      }
+
+      // A run of image or video lines must land in one block, or the row the
+      // renderer builds from it splits where the stream happened to pause. The
+      // run stays open until the paragraph after it shows it has ended.
+      const runStart = mediaRunStart(mdBuffer, closeIndex)
+
+      if (runStart !== undefined && mediaMayFollow(mdBuffer.substring(closeEndIndex))) {
+        return runStart === 0
+          ? { close: false, md: mdBuffer, mdClose: '', mdNext: '' }
+          : {
+              close: true,
+              md: mdBuffer.substring(0, runStart),
+              mdNext: mdBuffer.substring(runStart),
+              mdClose: closeTag,
+            }
       }
 
       return {

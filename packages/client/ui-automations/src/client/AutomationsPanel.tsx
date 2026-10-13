@@ -1,14 +1,51 @@
 /** Composer-first automation management at the registered /automations address. */
 import { useEffect, useState } from 'react'
 import {
-  Button, IconChevronDownOutline14, IconEditOutline16, IconLucideClock, IconLucidePause, IconLucidePlay, IconTrashOutline16, Tooltip,
+  Button, IconChevronDownOutline14, IconEditOutline16, IconLucideCheck, IconLucideClock, IconLucideMinus, IconLucidePause, IconLucidePlay,
+  IconLucideRotateCcw, IconLucideX, IconTrashOutline16, Modal, Spinner, Tooltip,
 } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import type {} from '@aeven/client-ui-conversation/client'
 import type { SidebarNavOwnerProps } from '@aeven/client-ui-sidebar/client'
 import type { ConnectionGenerationState } from '@aeven/client-connection/client'
-import { AUTOMATION_TEMPLATES } from './templates.ts'
+import { IconPlug, IconSparkles } from './icons.tsx'
+import { SERVICE_NEEDS, TEMPLATE_CATEGORIES, templateTrigger, type AutomationTemplate, type ServiceNeed } from './templates.ts'
 import css from './AutomationsPanel.module.css'
+
+/** Last management projection, so switching between the two view addresses shows it instead of a loading state. */
+let lastList: AutomationList | null = null
+
+/** Locale key of each service group's Connect action. */
+const CONNECT_LABELS = { mail: 'connectMail', calendar: 'connectCalendar', github: 'connectGithub' } as const satisfies Record<ServiceNeed, string>
+
+/** The page's own confirmation, in place of the browser's, for every action that
+ * removes records or repeats work that may already have changed something. */
+type PendingAction =
+  | { kind: 'clear' }
+  | { kind: 'delete'; id: string }
+  | { kind: 'remove-run'; id: string }
+  | { kind: 'retry'; id: string }
+
+/** Connector providers the signed-in account has connected and the deployment can sign in to. */
+export interface ServiceState {
+  connected: ReadonlySet<string>
+  configured: ReadonlySet<string>
+}
+
+/** Neutral status glyph for a run; outcomes never use alarm colour.
+ * @param status - run status.
+ * @returns the glyph shown in the run's leading tile.
+ */
+function statusIcon(status: Run['status']) {
+  switch (status) {
+    case 'queued': return <IconLucideClock />
+    case 'running': return <Spinner />
+    case 'succeeded': return <IconLucideCheck />
+    case 'failed': return <IconLucideX />
+    case 'skipped':
+    case 'cancelled': return <IconLucideMinus />
+  }
+}
 
 /** Account-owned automation projection, including authoritative recurrence and latest outcome. */
 export interface Task {
@@ -21,17 +58,15 @@ export interface Task {
   nextRunAt: string | null
   lastRun: Run | null
 }
-/** Durable execution details; finishing a turn is distinct from confirming its result. */
+/** Durable execution record; its conversation holds the actual result. */
 export interface Run {
   id: string
   definition: Pick<Task, 'id' | 'name' | 'prompt'>
   scheduledFor: string
   status: 'queued' | 'running' | 'succeeded' | 'failed' | 'skipped' | 'cancelled'
   sessionId: string | null
-  summary: string | null
   error: string | null
-  retryOfRunId: string | null
-  resolution: { kind: 'confirmed' | 'retried'; at: string; retryRunId: string | null } | null
+  resolution: { kind: 'retried'; at: string; retryRunId: string | null } | null
 }
 /** Host-advertised time triggers and the owned management projection. */
 export interface AutomationList {
@@ -44,6 +79,16 @@ export interface AutomationPanelInjected {
   list: () => Promise<AutomationList>
   call: (operation: string, payload: unknown) => Promise<unknown>
   hooks: { generation: ConnectionGenerationState }
+  /** Open a run's conversation in place. */
+  openRun: (sessionId: string) => void
+  /** View this registration's address shows: `/automations` or `/automations/runs`. */
+  view: 'automations' | 'runs'
+  /** Navigate to the address of a view. */
+  showView: (view: 'automations' | 'runs') => void
+  /** Connector state, or null when this composition has no account integrations. */
+  services: () => Promise<ServiceState | null>
+  /** Open Settings at one connector's page, or at the connector list. */
+  openConnector: (provider?: string) => void
 }
 /** Sidebar navigation callbacks. */
 export interface AutomationRowInjected {
@@ -73,26 +118,49 @@ export function AutomationRow({ rowClassName, iconClassName, labelClassName, ope
  * @param props - session input actions, locale, and authenticated management operations.
  * @returns the automation page and capability-gated starter catalogue.
  */
-export function AutomationsPanel({ t, inputActions, list, call, useGeneration }: PropsRuntime<'conversation.start'> & PropsLocale<'automations'> & InjectFace<AutomationPanelInjected>) {
+export function AutomationsPanel({ t, inputActions, list, call, openRun, view, showView, services, openConnector, useGeneration }: PropsRuntime<'conversation.start'> & PropsLocale<'automations'> & InjectFace<AutomationPanelInjected>) {
   const connected = useGeneration(generation => generation !== undefined)
-  const [data, setData] = useState<AutomationList | null>(null)
-  const [tab, setTab] = useState<'automations' | 'runs'>('automations')
+  const [data, setData] = useState<AutomationList | null>(lastList)
+  const tab = view
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [expanded, setExpanded] = useState<string | null>(null)
+  const [pending, setPending] = useState<PendingAction | null>(null)
   const [refresh, setRefresh] = useState(0)
   useEffect(() => {
     if (!connected) return
     let alive = true
     const load = (): void => {
       void list()
-        .then((value) => { if (alive) { setData(value); setError('') } })
+        .then((value) => { lastList = value; if (alive) { setData(value); setError('') } })
         .catch((reason: unknown) => { if (alive) setError(reason instanceof Error ? reason.message : t('error')) })
     }
     load()
     const timer = setInterval(load, 5000)
     return () => { alive = false; clearInterval(timer) }
   }, [connected, list, refresh, t])
+  const [serviceState, setServiceState] = useState<ServiceState | null>(null)
+  /** Service groups a shown starter needs and the account has not connected. */
+  const missing = (needs: readonly ServiceNeed[]): ServiceNeed[] => serviceState === null
+    ? []
+    : needs.filter(need => !SERVICE_NEEDS[need].some(provider => serviceState.connected.has(provider)))
+  const anyMissing = TEMPLATE_CATEGORIES.some(category => category.templates.some(template => missing(template.needs).length > 0))
+  useEffect(() => {
+    if (!connected) return
+    let alive = true
+    const load = (): void => {
+      void services()
+        .then((value) => { if (alive) setServiceState(value) })
+        // A failed read keeps the last known state; the page stays usable without Connect actions.
+        .catch((): void => undefined)
+    }
+    load()
+    // Connecting happens in Settings or in a provider's consent window, so re-read on return
+    // and, while a starter still lacks an account, at a slow interval.
+    window.addEventListener('focus', load)
+    const timer = anyMissing ? setInterval(load, 15000) : undefined
+    return () => { alive = false; window.removeEventListener('focus', load); clearInterval(timer) }
+  }, [connected, services, anyMissing])
   const act = (operation: string, id?: string, patch?: object): void => {
     setBusy(true); setError('')
     void call(operation, id === undefined ? {} : patch === undefined ? { id } : { id, patch })
@@ -102,55 +170,123 @@ export function AutomationsPanel({ t, inputActions, list, call, useGeneration }:
   }
   const date = (at: string): string => new Date(at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
   const draft = (text: string): void => { inputActions.setDraft(text) }
+  /** The page's own confirmation copy, in place of the browser's, for the pending action. */
+  const confirmation = (action: PendingAction): { title: string; description: string; confirm: string } => {
+    switch (action.kind) {
+      case 'clear': return { title: t('clearRuns'), description: t('clearConfirm'), confirm: t('clearRuns') }
+      case 'delete': return { title: t('deleteTitle'), description: t('confirmation'), confirm: t('remove') }
+      case 'remove-run': return { title: t('removeRun'), description: t('removeRunConfirm'), confirm: t('remove') }
+      case 'retry': return { title: t('retry'), description: t('retryWarning'), confirm: t('retry') }
+    }
+  }
+  const confirmed = (action: PendingAction): void => {
+    setPending(null)
+    switch (action.kind) {
+      case 'clear': act('clear'); return
+      case 'delete': act('delete', action.id); return
+      case 'remove-run': act('remove-run', action.id); return
+      case 'retry': act('retry', action.id); return
+    }
+  }
+  const pendingCopy = pending === null ? null : confirmation(pending)
   const unavailable = !connected || data === null || busy
-  const outcome = (run: Run): string => run.resolution?.kind === 'confirmed' ? t('confirmed') : t(run.status)
-  // An unresolved failure is the one last result the card carries into its ink.
-  const attention = (run: Run | null): boolean => run !== null && run.status === 'failed' && run.resolution === null
-  const result = (run: Run) => (
-    <div className={css.result}>
-      <p className={css.meta}>{date(run.scheduledFor)} · {outcome(run)}</p>
-      {run.summary && <p className={css.summary}>{run.summary}</p>}
-      {run.error && <p className={css.alert}>{run.error}</p>}
-      {run.retryOfRunId !== null && <p className={css.note}>{t('linkedRetry')}</p>}
-      <div className={css.resultActions}>
-        {run.sessionId !== null && (
-          <a href={`/c/${encodeURIComponent(run.sessionId.replace(/^session-/, ''))}`}>{t('conversation')}</a>
-        )}
-        {run.status !== 'queued' && run.status !== 'running' && run.resolution === null && (
-          <>
-            <Button
-              variant="ghost" size="sm" className={css.action} disabled={unavailable}
-              onClick={() => { if (window.confirm(t('confirmResult'))) act('confirm', run.id) }}
+  // One equal-height row per run. The row opens the run's conversation, which holds its result and any
+  // error; the trailing slot carries the run's status mark, or the retry action that replaces it. The
+  // Runs overview gives each finished run its own removal, immediately left of that mark.
+  const runRows = (runs: readonly Run[], options: { named: boolean; removable: boolean }) => (
+    <ul className={options.named ? css.runCards : css.runList}>
+      {runs.map((run) => {
+        const retryable = run.resolution === null && (run.status === 'failed' || run.status === 'cancelled' || run.status === 'skipped')
+        const finished = run.status !== 'queued' && run.status !== 'running'
+        const sessionId = run.sessionId
+        return (
+          <li className={css.run} key={run.id}>
+            <button
+              type="button"
+              className={css.runOpen}
+              disabled={sessionId === null}
+              title={run.error ?? undefined}
+              onClick={() => { if (sessionId !== null) openRun(sessionId) }}
             >
-              {t('confirmResultAction')}
-            </Button>
-            {run.status !== 'succeeded' && (
-              <Button
-                variant="ghost" size="sm" className={css.action} disabled={unavailable}
-                onClick={() => { if (window.confirm(t('retryWarning'))) act('retry', run.id) }}
-              >
-                {t('retry')}
-              </Button>
+              <span className={css.runText}>
+                <span className={css.runTitle}>{options.named ? run.definition.name : date(run.scheduledFor)}</span>
+                <span className={css.runSubtitle}>{options.named ? `${t(run.status)} · ${date(run.scheduledFor)}` : t(run.status)}</span>
+              </span>
+            </button>
+            {options.removable && finished && (
+              <Tooltip label={t('removeRun')} side="top" anchor="icon">
+                <span className={css.tip}>
+                  <Button
+                    variant="ghost" size="sm" className={css.runRemove} icon={<IconTrashOutline16 />} aria-label={t('removeRun')}
+                    disabled={unavailable} onClick={() => { setPending({ kind: 'remove-run', id: run.id }) }}
+                  />
+                </span>
+              </Tooltip>
             )}
-          </>
-        )}
-      </div>
-    </div>
+            {retryable ? (
+              <Tooltip label={t('retry')} side="top" anchor="icon">
+                <span className={css.tip}>
+                  <Button
+                    variant="ghost" size="sm" className={css.runAction} icon={<IconLucideRotateCcw />} aria-label={t('retry')}
+                    disabled={unavailable} onClick={() => { setPending({ kind: 'retry', id: run.id }) }}
+                  />
+                </span>
+              </Tooltip>
+            ) : (
+              <span className={css.runIcon}>{statusIcon(run.status)}</span>
+            )}
+          </li>
+        )
+      })}
+    </ul>
   )
+  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone
+  /** Local schedule line, e.g. "Weekdays at 7:30 AM"; 2023-01-01 is a Sunday, so day 0 names Sunday. */
+  const schedule = (template: AutomationTemplate): string => {
+    const [hour = 0, minute = 0] = template.time.split(':').map(Number)
+    const time = new Date(2023, 0, 1, hour, minute).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+    if (template.days === 'daily') return t('scheduleDaily', { time })
+    if (template.days === 'weekdays') return t('scheduleWeekdays', { time })
+    return t('scheduleWeekly', { time, day: new Date(2023, 0, 1 + template.days).toLocaleDateString(undefined, { weekday: 'long' }) })
+  }
+  // The whole tile drafts the starter; its Connect action sits above that hit area.
+  const templateCard = (template: AutomationTemplate) => {
+    const [need] = missing(template.needs)
+    const target = need === undefined ? undefined : SERVICE_NEEDS[need].find(provider => serviceState?.configured.has(provider) === true)
+    return (
+      <div className={css.template} key={template.id}>
+        <button
+          type="button" className={css.templateOpen} disabled={unavailable}
+          onClick={() => { draft(t(template.draft, { zone, time: template.time })) }}
+        >
+          <span className={css.templateIcon}><template.icon /></span>
+          <span className={css.templateTitle}>{t(template.title)}</span>
+          <span className={css.templateDescription}>{t(template.description)}</span>
+        </button>
+        <span className={css.templateMeta}>
+          <span className={css.templateSchedule}><IconLucideClock />{schedule(template)}</span>
+          {need !== undefined && (
+            <Button variant="primary" size="sm" className={css.templateConnect} icon={<IconPlug />} onClick={() => { openConnector(target) }}>
+              {t(CONNECT_LABELS[need])}
+            </Button>
+          )}
+        </span>
+      </div>
+    )
+  }
   return (
     <section className={css.root} aria-label={t('title')}>
       <div className={css.content}>
         <div className={css.bar}>
           <nav className={css.tabs} aria-label={t('title')}>
-            <button className={css.tab} aria-pressed={tab === 'automations'} onClick={() => { setTab('automations') }}>{t('title')}</button>
-            <button className={css.tab} aria-pressed={tab === 'runs'} onClick={() => { setTab('runs') }}>{t('history')}</button>
+            <button className={css.tab} aria-pressed={tab === 'automations'} onClick={() => { showView('automations') }}>{t('title')}</button>
+            <button className={css.tab} aria-pressed={tab === 'runs'} onClick={() => { showView('runs') }}>{t('history')}</button>
           </nav>
           <Button variant="primary" className={css.headerAction} disabled={unavailable} onClick={() => { draft(t('newDraft')) }}>{t('create')}</Button>
         </div>
         {error && <p role="alert" className={css.alert}>{error}</p>}
-        {data === null ? <p className={css.hint}>{t(connected ? 'loading' : 'offlineDetail')}</p> : tab === 'automations' ? (
+        {data === null ? <div className={css.empty}><p className={css.state}>{t(connected ? 'loading' : 'offlineDetail')}</p></div> : tab === 'automations' ? (
           <>
-            <h2 className={css.sectionTitle}>{t('routines')}</h2>
             {data.definitions.length === 0 && (
               <div className={css.empty}>
                 <IconLucideClock className={css.emptyIcon} />
@@ -161,37 +297,40 @@ export function AutomationsPanel({ t, inputActions, list, call, useGeneration }:
             <div className={css.list}>
               {data.definitions.map(task => (
                 <article className={css.card} key={task.id}>
-                  <div className={css.heading}>
-                    <button
-                      className={css.taskName}
-                      aria-expanded={expanded === task.id}
-                      onClick={() => { setExpanded(expanded === task.id ? null : task.id) }}
-                    >
+                  <button
+                    className={css.toggle}
+                    aria-expanded={expanded === task.id}
+                    onClick={() => { setExpanded(expanded === task.id ? null : task.id) }}
+                  >
+                    <span className={css.title}>
                       {task.name}
                       <IconChevronDownOutline14 className={css.chevron} />
-                    </button>
-                    <span className={css.status} data-tone={task.status}>{t(task.status)}</span>
-                  </div>
-                  <dl className={css.facts}>
-                    <div className={css.fact}>
-                      <dt className={css.factLabel}>{t('next')}</dt>
-                      <dd className={css.factValue}>
-                        {task.status === 'paused' ? t('paused') : task.nextRunAt === null ? t('noNext') : date(task.nextRunAt)}
-                      </dd>
-                    </div>
-                    <div className={css.fact}>
-                      <dt className={css.factLabel}>{t('last')}</dt>
-                      <dd className={css.factValue} data-tone={attention(task.lastRun) ? 'attention' : undefined}>
-                        {task.lastRun === null ? t('noRuns') : `${outcome(task.lastRun)} · ${date(task.lastRun.scheduledFor)}`}
-                      </dd>
-                    </div>
-                  </dl>
+                    </span>
+                    <span className={css.facts}>
+                      <span className={css.fact}>
+                        <span className={css.factLabel}>{t('next')}</span>
+                        <span className={css.factValue}>
+                          {task.status === 'paused' ? t('paused') : task.nextRunAt === null ? t('noNext') : date(task.nextRunAt)}
+                        </span>
+                      </span>
+                      <span className={css.fact}>
+                        <span className={css.factLabel}>{t('last')}</span>
+                        <span className={css.factValue}>
+                          {task.lastRun === null ? t('noRuns') : `${t(task.lastRun.status)} · ${date(task.lastRun.scheduledFor)}`}
+                        </span>
+                      </span>
+                    </span>
+                  </button>
                   {expanded === task.id && (
                     <div className={css.details}>
                       <p className={css.prompt}>{task.prompt}</p>
-                      <p className={css.note}>{task.schedule.timeZone}</p>
-                      {task.lastRun !== null && result(task.lastRun)}
                     </div>
+                  )}
+                  {expanded === task.id && data.runs.some(run => run.definition.id === task.id) && (
+                    <>
+                      <h3 className={css.detailTitle}>{t('recentRuns')}</h3>
+                      {runRows(data.runs.filter(run => run.definition.id === task.id), { named: false, removable: false })}
+                    </>
                   )}
                   <div className={css.cardActions}>
                     <Button
@@ -224,55 +363,55 @@ export function AutomationsPanel({ t, inputActions, list, call, useGeneration }:
                         <Button
                           variant="ghost" size="sm" className={`${css.action} ${css.iconAction}`} icon={<IconTrashOutline16 />}
                           aria-label={t('remove')} disabled={unavailable}
-                          onClick={() => { if (window.confirm(t('confirmation'))) act('delete', task.id) }}
+                          onClick={() => { setPending({ kind: 'delete', id: task.id }) }}
                         />
                       </span>
                     </Tooltip>
+                    <span className={css.status} data-tone={task.status}>{t(task.status)}</span>
                   </div>
                 </article>
               ))}
             </div>
             <h2 className={css.sectionTitle}>{t('recommended')}</h2>
-            <div className={css.templates}>
-              {AUTOMATION_TEMPLATES.filter(template => data.capabilities.triggers.includes(template.trigger)).map(template => (
-                <button
-                  className={css.template}
-                  key={template.id}
-                  disabled={unavailable}
-                  onClick={() => { draft(t(template.draft, { zone: Intl.DateTimeFormat().resolvedOptions().timeZone })) }}
-                >
-                  <span className={css.templateIcon}><template.icon /></span>
-                  <span className={css.templateTitle}>{t(template.title)}</span>
-                  <span className={css.templateDescription}>{t(template.description)}</span>
-                </button>
-              ))}
-            </div>
+            <button type="button" className={css.forYou} disabled={unavailable} onClick={() => { draft(t('forYouDraft')) }}>
+              <span className={css.templateIcon}><IconSparkles /></span>
+              <span className={css.templateText}>
+                <span className={css.templateTitle}>{t('forYouTitle')}</span>
+                <span className={css.templateDescription}>{t('forYouDescription')}</span>
+              </span>
+            </button>
+            {TEMPLATE_CATEGORIES.map((category) => {
+              const shown = category.templates.filter(template => data.capabilities.triggers.includes(templateTrigger(template.days)))
+              if (shown.length === 0) return null
+              return (
+                <section className={css.category} key={category.title} aria-label={t(category.title)}>
+                  <h3 className={css.categoryTitle}>{t(category.title)}</h3>
+                  <div className={css.templates}>
+                    {shown.map(template => templateCard(template))}
+                  </div>
+                </section>
+              )
+            })}
+            {anyMissing && (
+              <div className={css.connect}>
+                <span className={css.connectIcon}><IconPlug /></span>
+                <span className={css.templateText}>
+                  <span className={css.templateTitle}>{t('connectTitle')}</span>
+                  <span className={css.templateDescription}>{t('connectDetail')}</span>
+                </span>
+                <Button variant="primary" size="sm" className={css.connectAction} onClick={() => { openConnector() }}>{t('connectAction')}</Button>
+              </div>
+            )}
           </>
         ) : (
           <>
-            <h2 className={css.sectionTitle}>{t('history')}</h2>
             {data.runs.length === 0 && <div className={css.empty}><p className={css.emptyText}>{t('noRuns')}</p></div>}
-            <div className={css.list}>
-              {data.runs.map(run => (
-                <details className={css.card} key={run.id}>
-                  <summary className={css.runSummary}>
-                    <span className={css.runSummaryRow}>
-                      <span className={css.runName}>{run.definition.name}</span>
-                      <span className={css.runMeta}>
-                        {outcome(run)} · {date(run.scheduledFor)}
-                        <IconChevronDownOutline14 className={css.chevron} />
-                      </span>
-                    </span>
-                  </summary>
-                  {result(run)}
-                </details>
-              ))}
-            </div>
+            {data.runs.length > 0 && runRows(data.runs, { named: true, removable: true })}
             {data.runs.length > 0 && (
               <div className={css.clearRow}>
                 <Button
-                  variant="ghost" size="sm" icon={<IconTrashOutline16 />} disabled={unavailable}
-                  onClick={() => { if (window.confirm(t('clearConfirm'))) act('clear') }}
+                  variant="primary" size="sm" icon={<IconTrashOutline16 />} disabled={unavailable}
+                  onClick={() => { setPending({ kind: 'clear' }) }}
                 >
                   {t('clearRuns')}
                 </Button>
@@ -281,6 +420,18 @@ export function AutomationsPanel({ t, inputActions, list, call, useGeneration }:
           </>
         )}
       </div>
+      {pending !== null && pendingCopy !== null && (
+        <Modal
+          open onClose={() => { setPending(null) }} closeLabel={t('close')}
+          title={pendingCopy.title} description={pendingCopy.description}
+          footer={(
+            <>
+              <Button variant="ghost" onClick={() => { setPending(null) }}>{t('cancel')}</Button>
+              <Button variant="primary" disabled={unavailable} onClick={() => { confirmed(pending) }}>{pendingCopy.confirm}</Button>
+            </>
+          )}
+        />
+      )}
     </section>
   )
 }

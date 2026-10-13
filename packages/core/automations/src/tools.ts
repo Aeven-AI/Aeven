@@ -34,7 +34,7 @@ export function registerAutomationTools(service: Automations, agent: Agent, iden
   const asOwner = <T>(work: () => T): T => identity.runAs(agent.session.header.owner === undefined ? undefined : { id: agent.session.header.owner }, work)
   const tools: ToolDefinition[] = [
     {
-      name: 'automation_create', description: 'Create a built-in automation after human confirmation. Translate the user’s request into a self-contained task and explicit local schedule. Ask only for missing requirements. Future runs start fresh conversations with this account’s capabilities. External actions needing approval cannot run unattended.',
+      name: 'automation_create', description: 'Create a built-in automation after human confirmation. Translate the user’s request into a self-contained task and explicit local schedule. Ask only for missing requirements. Future runs start fresh conversations with this account’s capabilities. An external action that needs approval asks the user in the run conversation; once the user approves it there, later runs perform it without asking.',
       parameters: { type: 'object', properties: taskFields, required: ['name', 'prompt', 'schedule', 'permission'], additionalProperties: false },
       output: { schema: { type: 'object', additionalProperties: true }, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },
       execute: async (args, exec) => { exec.signal.throwIfAborted(); return asOwner(() => service.create(inputSchema.parse(args), agent)) },
@@ -67,13 +67,6 @@ export function registerAutomationTools(service: Automations, agent: Agent, iden
       output: { schema: { type: 'object', additionalProperties: true }, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },
       execute: async (args, exec) => { exec.signal.throwIfAborted(); return asOwner(() => service.retry(runIdSchema.parse(args).id)) },
       presentCall: args => ({ card: 'generic', title: 'Retry automation run', kind: 'other', rawInput: args }),
-    },
-    {
-      name: 'automation_confirm_result', description: 'Record the human’s confirmation that they inspected a run and its intended work was completed. Never use the model’s own claim as human confirmation. Refused while the same automation has active work.',
-      parameters: { type: 'object', properties: { id: { type: 'string', description: 'Run ID whose result the human verified.' } }, required: ['id'], additionalProperties: false },
-      output: { schema: { type: 'object', additionalProperties: true }, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },
-      execute: async (args, exec) => { exec.signal.throwIfAborted(); return asOwner(() => service.confirm(runIdSchema.parse(args).id)) },
-      presentCall: args => ({ card: 'generic', title: 'Confirm automation result', kind: 'other', rawInput: args }),
     },
   ]
   const disposers = tools.map(tool => agent.ctx.tools.register(tool))
