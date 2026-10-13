@@ -3,7 +3,6 @@ import {
   desktopElectronBuilderArguments,
   parseDesktopPackageInvocation,
   resolveDesktopPackageTarget,
-  withoutDesktopUploadCredentials,
   withoutWindowsSigningEnvironment,
 } from '../scripts/package-target.ts'
 
@@ -70,31 +69,16 @@ describe('desktop package target', () => {
     expect(desktopElectronBuilderArguments(target, true)).toContain('--dir')
   })
 
-  it('keeps Windows signing fields out of build and seed preparation subprocesses', () => {
+  it('keeps Windows signing credentials out of build and seed preparation subprocesses', () => {
     expect(withoutWindowsSigningEnvironment({
-      AVN_DESKTOP_WINDOWS_CER_FILE: 'C:\\release\\server.cer',
-      AVN_DESKTOP_WINDOWS_TOKEN_PIN: 'token-secret',
-      AVN_DESKTOP_WINDOWS_KEY_CONTAINER: 'container',
-      AVN_DESKTOP_WINDOWS_SIGNTOOL: 'C:\\tools\\signtool.exe',
-      AVN_DESKTOP_AUTO_UPDATE_ENV: 'production',
-    })).toEqual({ AVN_DESKTOP_AUTO_UPDATE_ENV: 'production' })
-  })
-
-  it('keeps COS credentials out of every packaging subprocess', () => {
-    expect(withoutDesktopUploadCredentials({
-      DOWNLOAD_TEST_ORIGIN: 'https://desktop-updates.example.com',
-      DOWNLOAD_TEST_COS_BUCKET: 'test-download-bucket',
-      DOWNLOAD_TEST_COS_SECRET_ID: 'test-id',
-      DOWNLOAD_TEST_COS_SECRET_KEY: 'test-key',
-      DOWNLOAD_PROD_COS_BUCKET: 'production-download-bucket',
-      DOWNLOAD_PROD_COS_SECRET_ID: 'production-id',
-      DOWNLOAD_PROD_COS_SECRET_KEY: 'production-key',
-      AVN_DESKTOP_AUTO_UPDATE_ENV: 'production',
-    })).toEqual({
-      DOWNLOAD_TEST_ORIGIN: 'https://desktop-updates.example.com',
-      DOWNLOAD_TEST_COS_BUCKET: 'test-download-bucket',
-      DOWNLOAD_PROD_COS_BUCKET: 'production-download-bucket',
-      AVN_DESKTOP_AUTO_UPDATE_ENV: 'production',
-    })
+      AZURE_TENANT_ID: 'tenant',
+      AZURE_CLIENT_ID: 'client',
+      AZURE_CLIENT_SECRET: 'secret',
+      AZURE_TRUSTED_SIGNING_ENDPOINT: 'https://weu.codesigning.azure.net/',
+      AZURE_TRUSTED_SIGNING_ACCOUNT_NAME: 'account',
+      AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME: 'profile',
+      AZURE_TRUSTED_SIGNING_PUBLISHER_NAME: 'Aeven',
+      AVN_DESKTOP_APP_ID: 'com.example.desktop',
+    })).toEqual({ AVN_DESKTOP_APP_ID: 'com.example.desktop' })
   })
 })

@@ -6,13 +6,12 @@ import {
 } from './desktop-release-environment.mjs'
 import { notarizeMacOSDiskImageArtifact } from './notarize-macos-disk-images.mjs'
 import { verifyMacOSSignatureAfterSign } from './verify-macos-signature.mjs'
-import {
-  createWindowsTokenSigner,
-  installWindowsNsisBootstrapSigner,
-} from './windows-sign.mjs'
-import { resolveDesktopAutoUpdateConfig } from './desktop-auto-update-environment.mjs'
-import { desktopTargetBuildPaths } from './desktop-build-paths.mjs'
+import { resolveWindowsAzureSigning } from './windows-azure-signing.mjs'
+import { desktopTargetBuildPaths, resolveDesktopBuildTarget } from './desktop-build-paths.mjs'
 import { MACOS_USAGE_DESCRIPTIONS } from './macos-usage-descriptions.mjs'
+
+/** GitHub repository whose Releases carry the installers and the update feed. */
+export const DESKTOP_RELEASE_REPOSITORY = { owner: 'Aeven-AI', repo: 'Aeven' }
 
 /**
  * Create electron-builder configuration from one release environment.
@@ -28,27 +27,17 @@ export function createElectronBuilderConfig(
 ) {
   const appId = resolveDesktopAppId(env)
   const targetPlatform = env.AVN_DESKTOP_TARGET_PLATFORM
-  const resolvedPlatform = targetPlatform ?? hostPlatform
-  const resolvedArch = env.AVN_DESKTOP_TARGET_ARCH ?? hostArch
   const packagesMacOS = targetPlatform === 'darwin' || (targetPlatform === undefined && hostPlatform === 'darwin')
   const packagesWindows = targetPlatform === 'win32'
   const unsigned = env[DESKTOP_UNSIGNED_ENV] === '1'
   const macOSRelease = packagesMacOS && !unsigned
   const macOSSigning = macOSRelease ? resolveMacOSSigningEnvironment(env) : undefined
   if (macOSRelease) resolveMacOSNotarizationEnvironment(env)
-  const windowsSigner = packagesWindows && !unsigned
-    ? createWindowsTokenSigner({
-        certificateFile: env.AVN_DESKTOP_WINDOWS_CER_FILE,
-        signTool: env.AVN_DESKTOP_WINDOWS_SIGNTOOL,
-        tokenPin: env.AVN_DESKTOP_WINDOWS_TOKEN_PIN,
-        keyContainer: env.AVN_DESKTOP_WINDOWS_KEY_CONTAINER,
-      })
-    : undefined
-  if (windowsSigner !== undefined) {
-    installWindowsNsisBootstrapSigner({ sign: windowsSigner })
-  }
-  const update = resolveDesktopAutoUpdateConfig(env, resolvedPlatform, resolvedArch)
-  const buildPaths = desktopTargetBuildPaths(update.target)
+  // A signed Windows build signs every executable through Azure Trusted Signing;
+  // electron-builder reads the service principal from AZURE_TENANT_ID,
+  // AZURE_CLIENT_ID and AZURE_CLIENT_SECRET.
+  const azureSignOptions = packagesWindows && !unsigned ? resolveWindowsAzureSigning(env) : undefined
+  const buildPaths = desktopTargetBuildPaths(resolveDesktopBuildTarget(env, hostPlatform, hostArch))
   return {
     appId,
     productName: 'Aeven',
@@ -108,10 +97,7 @@ export function createElectronBuilderConfig(
     win: {
       icon: 'resources/icon-windows.ico',
       forceCodeSigning: !unsigned,
-      signtoolOptions: {
-        sign: windowsSigner,
-        signingHashAlgorithms: ['sha256'],
-      },
+      ...azureSignOptions === undefined ? {} : { azureSignOptions },
       target: ['nsis'],
     },
     linux: {
@@ -134,7 +120,9 @@ export function createElectronBuilderConfig(
       allowToChangeInstallationDirectory: true,
       differentialPackage: true,
     },
-    publish: [{ provider: 'generic', url: update.publicUrl }],
+    // Installers and the update feed are GitHub Release assets; the installed
+    // application's updater reads the newest release of this repository.
+    publish: [{ provider: 'github', ...DESKTOP_RELEASE_REPOSITORY }],
   }
 }
 
