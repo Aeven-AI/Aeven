@@ -21,6 +21,7 @@ Aeven 处于开发者预览阶段，功能和数据格式可能发生变化。�
 - [连接你的数字世界](#connect-your-world)
 - [运行](#run)
 - [开放设计](#open-by-design)
+- [参与贡献](#contributing)
 - [社区与支持](#community-and-support)
 - [许可证](#license)
 
@@ -139,17 +140,23 @@ pnpm avn web
 - [插件开发](docs/user/develop/basic/index.zh.md) — 学习构建 Cordis 插件。
 - [扩展实操手册](docs/cookbook/extension-cookbook.zh.md) — 找到某项能力的扩展点。
 - [TypeScript SDK](packages/sdk/client/README.zh.md) 与 [Python SDK](docs/user/guide/python-sdk.zh.md) — 将 agent 会话集成到应用中。
-- [参与贡献](CONTRIBUTING.zh.md) — 为 Aeven 作贡献；编码 agent 请遵循 [AGENTS.md](AGENTS.md)。
+- [开发指南](docs/development.zh.md) — 开展源码开发；编码 agent 请遵循 [AGENTS.md](AGENTS.md)。
 
 Cordis 的设计参见论文 [_A Programming Paradigm for Spatiotemporal Composability_](https://arxiv.org/abs/2608.25512)。
+
+<a id="contributing"></a>
+
+## 参与贡献
+
+Aeven 处于开发早期，目前不接受外部 pull request。在为本仓库开展贡献工作前，请先阅读 [CONTRIBUTING.md](CONTRIBUTING.zh.md)。
+
+你可以通过 [GitHub Discussions](https://github.com/Aeven-AI/Harness/discussions) 报告可复现的 bug、分享反馈和真实使用场景，或在本仓库之外构建技能、插件和集成。帮助用户用 Aeven 完成实际工作的指南和示例也很受欢迎。请为插件仓库添加 [`avn-plugin`](https://github.com/topics/avn-plugin) 话题，方便其他人发现它们。
 
 <a id="community-and-support"></a>
 
 ## 社区与支持
 
-- 通过 [GitHub Discussions](https://github.com/Aeven-AI/Harness/discussions) 提交反馈或 bug 报告。
-- 为你的插件仓库添加 [`avn-plugin`](https://github.com/topics/avn-plugin) 话题，便于被发现。
-- 加入 <a href="https://discord.gg/Ycq5dCaS4">Aeven Discord 社区</a>。
+欢迎在 [GitHub Discussions](https://github.com/Aeven-AI/Harness/discussions) 或 [Aeven Discord 社区](https://discord.gg/Ycq5dCaS4)提问，并分享你正在构建的项目。
 
 <a id="license"></a>
 

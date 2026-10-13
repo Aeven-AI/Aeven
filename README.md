@@ -21,6 +21,7 @@ Aeven is in developer preview. Features and data formats can change. Read the [s
 - [Connect your world](#connect-your-world)
 - [Run](#run)
 - [Open by design](#open-by-design)
+- [Contributing](#contributing)
 - [Community and support](#community-and-support)
 - [License](#license)
 
@@ -127,15 +128,19 @@ For example, you can add a tool, intercept a model request, supply context, chan
 - [Plugin development](docs/user/develop/basic/index.md) — learn to build a Cordis plugin.
 - [Extension cookbook](docs/cookbook/extension-cookbook.md) — find the extension point for a capability.
 - [TypeScript SDK](packages/sdk/client/README.md) and [Python SDK](docs/user/guide/python-sdk.md) — integrate agent sessions into an application.
-- [Contributing](CONTRIBUTING.md) — contribute to Aeven; coding agents follow [AGENTS.md](AGENTS.md).
+- [Development guide](docs/development.md) — work on the source; coding agents follow [AGENTS.md](AGENTS.md).
 
 Cordis's design is described in [_A Programming Paradigm for Spatiotemporal Composability_](https://arxiv.org/abs/2608.25512).
 
+## Contributing
+
+Aeven is early in development, and we are not accepting external pull requests yet. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before starting work intended for this repository.
+
+You can help by reporting reproducible bugs, sharing feedback and real use cases in [GitHub Discussions](https://github.com/Aeven-AI/Harness/discussions), or building skills, plugins, and integrations outside this repository. Guides and examples that help people get useful work done with Aeven are welcome too. Add the [`avn-plugin`](https://github.com/topics/avn-plugin) topic to plugin repositories so others can find them.
+
 ## Community and support
 
-- Submit feedback or bug reports through [GitHub Discussions](https://github.com/Aeven-AI/Harness/discussions).
-- Add the [`avn-plugin`](https://github.com/topics/avn-plugin) topic to your plugin repository for discoverability.
-- Join <a href="https://discord.gg/Ycq5dCaS4">Aeven Discord community</a>.
+Ask questions and share what you are building in [GitHub Discussions](https://github.com/Aeven-AI/Harness/discussions) or the [Aeven Discord community](https://discord.gg/Ycq5dCaS4).
 
 ## License
 
