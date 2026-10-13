@@ -9,6 +9,7 @@ import {
   resolveDesktopAutoUpdateConfig,
 } from './desktop-auto-update-environment.mjs'
 import { desktopTargetBuildPaths } from './desktop-build-paths.mjs'
+import { desktopPackageProblems } from './desktop-package-preflight.ts'
 import { loadDesktopPackagingEnvironment } from './desktop-environment-file.ts'
 import { DESKTOP_UNSIGNED_ENV } from './desktop-release-environment.mjs'
 import { pnpmInvocation } from '../../../scripts/pnpm-invocation.ts'
@@ -150,8 +151,11 @@ export function resolveDesktopPackageTarget(
     throw new Error(`desktop package: unsupported target ${JSON.stringify(name)}; expected ${Object.keys(TARGETS).join(', ')}`)
   }
   const target = TARGETS[name]
-  if (target.platform === 'win32' && (hostPlatform !== 'win32' || hostArch !== target.arch)) {
-    throw new Error(`desktop package: ${name} requires a Windows ${target.arch} build host running ${target.arch} Node.js`)
+  // Windows on ARM runs x64 programs under emulation, so it builds the x64 target too: the target's Node.js runs
+  // the seed install, and its install scripts fetch or compile x64 binaries. An x64 host cannot run arm64 code.
+  const windowsHostRunsTarget = hostArch === target.arch || (hostArch === 'arm64' && target.arch === 'x64')
+  if (target.platform === 'win32' && (hostPlatform !== 'win32' || !windowsHostRunsTarget)) {
+    throw new Error(`desktop package: ${name} requires a Windows ${target.arch} build host running ${target.arch} Node.js${target.arch === 'x64' ? ', or Windows on ARM' : ''}`)
   }
   if (target.platform === 'linux' && (hostPlatform !== 'linux' || hostArch !== target.arch)) {
     throw new Error(`desktop package: ${name} requires a Linux ${target.arch} build host; use the ${name} Docker package command elsewhere`)
@@ -169,6 +173,8 @@ interface DesktopPackageInvocation {
   readonly target: DesktopPackageTarget
   readonly directory: boolean
   readonly prepareOnly: boolean
+  /** Run the configuration and tool checks every build starts with, then stop. */
+  readonly check: boolean
   /** Skip code signing, notarization, and the upload completion record. */
   readonly unsigned: boolean
 }
@@ -197,6 +203,7 @@ export function parseDesktopPackageInvocation(
     options: {
       dir: { type: 'boolean', default: false },
       'prepare-only': { type: 'boolean', default: false },
+      check: { type: 'boolean', default: false },
       unsigned: { type: 'boolean', default: false },
     },
   })
@@ -206,6 +213,7 @@ export function parseDesktopPackageInvocation(
     target: resolveDesktopPackageTarget(name, hostPlatform, hostArch),
     directory: values.dir,
     prepareOnly: values['prepare-only'],
+    check: values.check,
     unsigned: values.unsigned,
   }
 }
@@ -276,10 +284,6 @@ async function main(): Promise<void> {
   const { target } = invocation
   const buildPaths = desktopTargetBuildPaths(target.name)
   const releaseRecordPath = join(buildPaths.artifacts, desktopBuildRecordFilename(target.name))
-  if (!invocation.prepareOnly) {
-    rmSync(releaseRecordPath, { force: true })
-    rmSync(`${releaseRecordPath}.tmp`, { force: true })
-  }
   const buildEnv = withoutWindowsSigningEnvironment(withoutDesktopUploadCredentials(process.env))
   const targetEnv: NodeJS.ProcessEnv = {
     ...buildEnv,
@@ -291,6 +295,21 @@ async function main(): Promise<void> {
   const electronBuilderEnv = { ...targetEnv }
   for (const name of WINDOWS_SIGNING_ENV_NAMES) {
     if (process.env[name] !== undefined) electronBuilderEnv[name] = process.env[name]
+  }
+  // A preparation-only run never reaches electron-builder, so it needs no signing configuration.
+  const problems = desktopPackageProblems(
+    invocation.prepareOnly ? { ...electronBuilderEnv, [DESKTOP_UNSIGNED_ENV]: '1' } : electronBuilderEnv,
+  )
+  if (problems.length > 0) {
+    throw new Error(`desktop package: ${target.name} cannot start:\n${problems.map(problem => `  - ${problem}`).join('\n')}`)
+  }
+  if (invocation.check) {
+    console.log(`desktop package: ${target.name}${invocation.unsigned ? ' (unsigned)' : ''} checks passed`)
+    return
+  }
+  if (!invocation.prepareOnly) {
+    rmSync(releaseRecordPath, { force: true })
+    rmSync(`${releaseRecordPath}.tmp`, { force: true })
   }
   await runPnpm(['run', 'build:official'], buildEnv, REPOSITORY_ROOT)
   await runPnpm(['run', 'release:pack', '--family', 'avn', '--out', buildPaths.packedAvn], buildEnv, REPOSITORY_ROOT)

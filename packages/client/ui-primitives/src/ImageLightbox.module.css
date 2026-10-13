@@ -169,7 +169,7 @@
    their gutter — the line the app's first header control takes
    (`--dsw-aeven-window-controls-gutter`). A browser page has no lights and keeps
    the plain inset above. */
-:global(html[data-avn-desktop]) .infoCorner {
+:global(html[data-avn-traffic-lights]) .infoCorner {
   left: calc(
     var(--dsw-aeven-window-controls-gutter) + var(--dsw-aeven-page-inset)
   );

@@ -8,9 +8,10 @@
  * Run: `pnpm run build:native [--target <platform>-<arch>]` (Go 1.21+ on PATH; the default target is the host).
  */
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync } from 'node:fs'
+import { mkdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { parseArgs } from 'node:util'
+import { goCommand } from '../../../scripts/build-tools.ts'
 
 const ROOT = resolve(import.meta.dirname, '..')
 const TARGETS = ['darwin-arm64', 'darwin-x64', 'linux-arm64', 'linux-x64', 'win32-arm64', 'win32-x64'] as const
@@ -21,17 +22,6 @@ const UPSTREAM = 'ee039b67234a5216bda4e9a88c4e2fe1a2beae6f'
 function goTarget(target: Target): { GOOS: string; GOARCH: string } {
   const [platform, arch] = target.split('-') as [string, string]
   return { GOOS: platform === 'win32' ? 'windows' : platform, GOARCH: arch === 'x64' ? 'amd64' : arch }
-}
-
-/**
- * Go on PATH, else (Windows) the standard install, so a shell started before Go joined PATH
- * (an editor's integrated terminal) still builds.
- */
-function goCommand(): string {
-  if (process.platform !== 'win32' || spawnSync('go', ['version'], { stdio: 'ignore' }).error === undefined) return 'go'
-  const installed = join(process.env['ProgramFiles'] ?? 'C:\\Program Files', 'Go', 'bin', 'go.exe')
-  if (!existsSync(installed)) throw new Error(`build: go is not on PATH and was not found at ${installed}`)
-  return installed
 }
 
 function main(): void {

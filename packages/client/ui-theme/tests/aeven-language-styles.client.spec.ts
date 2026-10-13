@@ -102,7 +102,7 @@ describe('Aeven visual language', () => {
     const leading = token('--dsw-aeven-window-controls-gutter') + token('--dsw-aeven-page-inset')
     expect(Number.isFinite(leading)).toBe(true)
     expect(authCss).toMatch(
-      new RegExp(`html\\[data-avn-desktop\\][^{]*\\.auth-header \\{\\s*padding-left: ${leading}px`),
+      new RegExp(`html\\[data-avn-traffic-lights\\][^{]*\\.auth-header \\{\\s*padding-left: ${leading}px`),
     )
   })
 })

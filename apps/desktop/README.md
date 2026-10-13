@@ -100,7 +100,7 @@ pnpm run package:desktop:win:arm64
 pnpm run package:desktop:win:x64
 ```
 
-The macOS arm64 command requires Apple Silicon; Intel Macs are not a Desktop target because onnxruntime-node, which MemOS embeddings require, publishes no Intel macOS binary. Each Windows command requires a Windows host whose Node.js process has the target architecture: arm64 Node.js for `win:arm64` and x64 Node.js for `win:x64`. The Linux arm64 and x64 commands require a Linux host with the same architecture.
+The macOS arm64 command requires Apple Silicon; Intel Macs are not a Desktop target because onnxruntime-node, which MemOS embeddings require, publishes no Intel macOS binary. Each Windows command requires a Windows host whose Node.js process has the target architecture: arm64 Node.js for `win:arm64` and x64 Node.js for `win:x64`. Windows on ARM also builds `win:x64`, running the x64 Node.js runtime and Whisper worker under emulation; it needs Visual Studio's x64 build tools (`MSVC … x64/x86 build tools`) alongside the ARM64 ones. The Linux arm64 and x64 commands require a Linux host with the same architecture.
 
 Each target owns its packed package inputs, prepared runtime, package set, seed, pnpm preparation state, unpacked application, update metadata, and final artifacts under `apps/desktop/.desktop-build/targets/<target>/`. The Node.js archive cache remains shared under `.desktop-build/downloads` because every archive name includes its version, platform, and architecture and is verified before extraction. A target build never consumes another target's mutable preparation state.
 
@@ -178,6 +178,14 @@ pnpm run package:desktop:win:x64:unsigned
 ```
 
 An unsigned build skips seed signing, application and installer signing, macOS notarization, the DMG notarization hook, and the target completion record, so `upload:*` rejects it. On macOS, electron-builder ad-hoc signs the application without hardened runtime because Apple Silicon does not launch code that has no signature; Gatekeeper blocks a downloaded copy until the tester removes its quarantine attribute. Windows SmartScreen warns before an unsigned installer runs. Each target still requires its own host platform, `AVN_DESKTOP_APP_ID`, and the selected update origin.
+
+Unsigned artifacts carry an `-unsigned` suffix, such as `aeven-<version>-win-arm64-unsigned.exe`, so they cannot be mistaken for release installers in the shared artifacts directory.
+
+Every package command first checks that the desktop and avn versions match, builds the electron-builder configuration for the target (application ID, signing and notarization settings, Windows certificate, SignTool and token fields, update origin), and runs `tar`, `npm`, Go and CMake, reporting every problem before any build step starts. A preparation-only run skips the signing settings. Add `--check` to stop after these checks:
+
+```sh
+pnpm run package:desktop:win:arm64:unsigned --check
+```
 
 To inspect or troubleshoot the prepared host-target resources without invoking electron-builder, stop the same pipeline after preparation:
 

@@ -168,7 +168,7 @@
   --avn-nav-window-controls: 0px;
 }
 
-:global(html[data-avn-desktop]) :global([data-sidebar-collapsed]) .header {
+:global(html[data-avn-traffic-lights]) :global([data-sidebar-collapsed]) .header {
   --avn-nav-window-controls: var(--dsw-aeven-window-controls-gutter);
 }
 

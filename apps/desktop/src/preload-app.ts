@@ -50,9 +50,12 @@ const api: AvnDesktopAppApi = {
 
 contextBridge.exposeInMainWorld('avnDesktop', api)
 
-// The window hides its title bar and insets the traffic lights over the page,
-// so the shell marks the document and the layout reserves that corner. Only
-// this carrier sets it: the same client served over HTTP has no lights to clear.
+// The window hides its title bar, so the shell marks the document and the page
+// draws its own drag band. On macOS the window also insets the traffic lights
+// over the page, and a second flag has the layout reserve that corner; other
+// platforms leave no controls there. Only this carrier sets either: the same
+// client served over HTTP has no title bar to replace.
 window.addEventListener('DOMContentLoaded', () => {
   document.documentElement.dataset['avnDesktop'] = ''
+  if (process.platform === 'darwin') document.documentElement.dataset['avnTrafficLights'] = ''
 })

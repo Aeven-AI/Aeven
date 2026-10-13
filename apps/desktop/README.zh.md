@@ -100,7 +100,7 @@ pnpm run package:desktop:win:arm64
 pnpm run package:desktop:win:x64
 ```
 
-macOS arm64 命令要求 Apple Silicon；Intel Mac 不是 Desktop 构建目标，因为 MemOS embedding 所需的 onnxruntime-node 不发布 Intel macOS 二进制文件。每个 Windows 命令都要求 Windows 宿主上的 Node.js 进程与目标架构一致：`win:arm64` 使用 arm64 Node.js，`win:x64` 使用 x64 Node.js。Linux arm64 与 x64 命令要求架构相同的 Linux 宿主。
+macOS arm64 命令要求 Apple Silicon；Intel Mac 不是 Desktop 构建目标，因为 MemOS embedding 所需的 onnxruntime-node 不发布 Intel macOS 二进制文件。每个 Windows 命令都要求 Windows 宿主上的 Node.js 进程与目标架构一致：`win:arm64` 使用 arm64 Node.js，`win:x64` 使用 x64 Node.js。Windows on ARM 也可以构建 `win:x64`，在模拟下运行 x64 Node.js 运行时与 Whisper worker；除 ARM64 工具外还需要 Visual Studio 的 x64 构建工具（`MSVC … x64/x86 build tools`）。Linux arm64 与 x64 命令要求架构相同的 Linux 宿主。
 
 每个目标都在 `apps/desktop/.desktop-build/targets/<target>/` 下持有自己的打包输入、已准备运行时、包集合、seed、pnpm 准备状态、未打包应用、更新元数据和最终产物。Node.js 归档缓存继续由 `.desktop-build/downloads` 共享，因为每个归档文件名都包含版本、平台和架构，并且在解包前经过验证。目标构建绝不读取其他目标的可变准备状态。
 
@@ -178,6 +178,14 @@ pnpm run package:desktop:win:x64:unsigned
 ```
 
 未签名构建会跳过 seed 签名、应用与安装包签名、macOS 公证、DMG 公证钩子与目标完成记录，因此 `upload:*` 会拒绝它。在 macOS 上，由于 Apple Silicon 不会启动没有签名的代码，electron-builder 会以不启用 hardened runtime 的方式对应用进行 ad-hoc 签名；测试者移除下载副本的隔离属性之前，Gatekeeper 会拦截它。Windows SmartScreen 会在未签名安装包运行前发出警告。每个目标仍要求在其对应的宿主平台上构建，并要求 `AVN_DESKTOP_APP_ID` 与所选更新 origin。
+
+未签名产物带有 `-unsigned` 后缀，例如 `aeven-<version>-win-arm64-unsigned.exe`，因此在共享的产物目录中不会被误认为发布安装包。
+
+每条打包命令都会先检查 desktop 与 avn 版本一致，为目标生成 electron-builder 配置（应用 ID、签名与公证设置、Windows 证书、SignTool 与令牌字段、更新 origin），并运行 `tar`、`npm`、Go 与 CMake，在任何构建步骤开始前报告全部问题。仅准备的运行会跳过签名设置。加上 `--check` 可在检查后停止：
+
+```sh
+pnpm run package:desktop:win:arm64:unsigned --check
+```
 
 需要检查或诊断为宿主目标准备的资源而不调用 electron-builder 时，可以让同一流水线在准备完成后停止：
 

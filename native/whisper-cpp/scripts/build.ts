@@ -17,6 +17,7 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSyn
 import { join, resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 import { x as extractTar } from 'tar'
+import { cmakeCommand } from '../../../scripts/build-tools.ts'
 
 const ROOT = resolve(import.meta.dirname, '..')
 const CACHE = join(ROOT, '.cache')
@@ -26,26 +27,6 @@ type Target = typeof TARGETS[number]
 const MACOS_DEPLOYMENT_TARGET = '12.0'
 
 interface Source { readonly version: string; readonly url: string; readonly sha256: string }
-
-/**
- * CMake on PATH, else (Windows) the standalone install or the copy Visual Studio bundles, so a shell
- * started before CMake joined PATH (an editor's integrated terminal) still builds.
- */
-function cmakeCommand(): string {
-  if (process.platform !== 'win32' || spawnSync('cmake', ['--version'], { stdio: 'ignore' }).error === undefined) return 'cmake'
-  const programFiles = process.env['ProgramFiles'] ?? 'C:\\Program Files'
-  const programFilesX86 = process.env['ProgramFiles(x86)'] ?? 'C:\\Program Files (x86)'
-  const vswhere = spawnSync(join(programFilesX86, 'Microsoft Visual Studio', 'Installer', 'vswhere.exe'),
-    ['-all', '-products', '*', '-property', 'installationPath'], { encoding: 'utf8' })
-  const studios = vswhere.error === undefined ? vswhere.stdout.split(/\r?\n/).filter(line => line.trim() !== '') : []
-  const candidates = [
-    join(programFiles, 'CMake', 'bin', 'cmake.exe'),
-    ...studios.map(studio => join(studio.trim(), 'Common7', 'IDE', 'CommonExtensions', 'Microsoft', 'CMake', 'CMake', 'bin', 'cmake.exe')),
-  ]
-  const found = candidates.find(path => existsSync(path))
-  if (found === undefined) throw new Error(`build: cmake is not on PATH and was not found at ${candidates.join(', ')}`)
-  return found
-}
 
 function run(command: string, args: readonly string[]): void {
   const result = spawnSync(command, args, { stdio: 'inherit' })
@@ -84,7 +65,9 @@ function hostTarget(): Target {
 function assertBuildable(target: Target): void {
   const host = hostTarget()
   const macosPair = host.startsWith('darwin-') && target.startsWith('darwin-')
-  if (target !== host && !macosPair) {
+  // Visual Studio on ARM64 ships the x64 cross compiler, and the x64 worker runs there under emulation.
+  const windowsX64OnArm = host === 'win32-arm64' && target === 'win32-x64'
+  if (target !== host && !macosPair && !windowsX64OnArm) {
     throw new Error(`build: ${target} builds on its own native runner; this host is ${host}`)
   }
 }
@@ -104,6 +87,8 @@ export function cmakeOptions(target: Target): string[] {
   if (target.endsWith('-x64')) options.push('-DGGML_AVX=ON', '-DGGML_AVX2=ON', '-DGGML_FMA=ON', '-DGGML_F16C=ON')
   if (target.startsWith('linux-')) options.push('-DCMAKE_EXE_LINKER_FLAGS=-static-libstdc++ -static-libgcc')
   if (target.startsWith('win32-')) options.push('-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded')
+  // The Visual Studio generator defaults to the host architecture, so an ARM64 host must name x64.
+  if (target === 'win32-x64') options.push('-A', 'x64')
   // ggml's ARM CPU backend rejects MSVC's cl.exe; the Visual Studio ClangCL toolset compiles it.
   // Without an explicit ARM arch ggml compiles for ARMv8.0 and its quantized matmuls fall back
   // to plain NEON. Every CPU Windows 11 on ARM supports (Snapdragon 7c/8c/8cx/X, Apple Silicon

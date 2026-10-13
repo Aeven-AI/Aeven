@@ -115,7 +115,7 @@
    inset past their gutter, where the collapsed conversation header puts its fold
    control (ui-conversation ConversationRoot.module.css), so the search stands on
    the same line whether the column is folded or open. */
-:global(html[data-avn-desktop]) .header {
+:global(html[data-avn-traffic-lights]) .header {
   padding-left: calc(
     var(--dsw-aeven-window-controls-gutter) + var(--avn-sidebar-inline-padding)
   );

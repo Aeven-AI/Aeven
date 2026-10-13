@@ -72,7 +72,9 @@ async function prepareNode(platform: RuntimePlatform, arch: RuntimeArch): Promis
   await pipeline(createReadStream(source), createWriteStream(destination, { flags: 'wx' }))
   if (platform !== 'win') await chmod(destination, 0o755)
   const hostPlatform = process.platform === 'win32' ? 'win' : process.platform
-  const hostCanExecute = platform === hostPlatform && arch === process.arch
+  // Windows on ARM runs the x64 build under emulation.
+  const hostCanExecute = platform === hostPlatform
+    && (arch === process.arch || (platform === 'win' && process.arch === 'arm64' && arch === 'x64'))
   if (hostCanExecute) {
     const result = spawnSync(destination, ['--version'], { encoding: 'utf8' })
     if (result.error !== undefined || result.status !== 0 || result.stdout.trim() !== `v${NODE_VERSION}`) {

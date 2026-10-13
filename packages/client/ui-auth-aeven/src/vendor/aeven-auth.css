@@ -5375,7 +5375,7 @@ body .mermaid-render-sandbox {
    their leading control on. 108px is `--dsw-aeven-window-controls-gutter` plus
    `--dsw-aeven-page-inset`, restated because these screens render before the
    token sheet loads; ui-theme's aeven-language-styles spec holds the two equal. */
-html[data-avn-desktop]
+html[data-avn-traffic-lights]
   #app-root
   .view-container
   .authenticate.view

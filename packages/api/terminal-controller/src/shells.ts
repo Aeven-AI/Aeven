@@ -28,7 +28,7 @@ export async function resolveShell(
  * @returns executable paths or PATH names.
  */
 function defaultCandidates(): string[] {
-  if (process.platform === 'win32') return ['pwsh.exe', 'powershell.exe', 'cmd.exe']
+  if (process.platform === 'win32') return ['cmd.exe', 'powershell.exe', 'pwsh.exe']
   const login = process.env.SHELL
   return [...login === undefined || login === '' ? [] : [login], '/bin/zsh', '/bin/bash', '/bin/sh']
 }
@@ -53,8 +53,11 @@ async function installed(
 }
 
 function profile(path: string): TerminalShell {
-  const name = path.slice(Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\')) + 1)
-  const kind = name.toLowerCase().replace(/\.exe$/u, '')
+  const file = path.slice(Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\')) + 1)
+  // A shell is labelled by its name; the `.exe` suffix is a Windows filename
+  // detail, not part of what a person chooses between.
+  const name = file.replace(/\.exe$/iu, '')
+  const kind = name.toLowerCase()
   return { path, name, args: kind === 'cmd' ? [] : kind === 'pwsh' || kind === 'powershell' ? ['-NoLogo'] : ['-i'] }
 }
 
