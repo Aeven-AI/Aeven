@@ -27,6 +27,26 @@ const MACOS_DEPLOYMENT_TARGET = '12.0'
 
 interface Source { readonly version: string; readonly url: string; readonly sha256: string }
 
+/**
+ * CMake on PATH, else (Windows) the standalone install or the copy Visual Studio bundles, so a shell
+ * started before CMake joined PATH (an editor's integrated terminal) still builds.
+ */
+function cmakeCommand(): string {
+  if (process.platform !== 'win32' || spawnSync('cmake', ['--version'], { stdio: 'ignore' }).error === undefined) return 'cmake'
+  const programFiles = process.env['ProgramFiles'] ?? 'C:\\Program Files'
+  const programFilesX86 = process.env['ProgramFiles(x86)'] ?? 'C:\\Program Files (x86)'
+  const vswhere = spawnSync(join(programFilesX86, 'Microsoft Visual Studio', 'Installer', 'vswhere.exe'),
+    ['-all', '-products', '*', '-property', 'installationPath'], { encoding: 'utf8' })
+  const studios = vswhere.error === undefined ? vswhere.stdout.split(/\r?\n/).filter(line => line.trim() !== '') : []
+  const candidates = [
+    join(programFiles, 'CMake', 'bin', 'cmake.exe'),
+    ...studios.map(studio => join(studio.trim(), 'Common7', 'IDE', 'CommonExtensions', 'Microsoft', 'CMake', 'CMake', 'bin', 'cmake.exe')),
+  ]
+  const found = candidates.find(path => existsSync(path))
+  if (found === undefined) throw new Error(`build: cmake is not on PATH and was not found at ${candidates.join(', ')}`)
+  return found
+}
+
 function run(command: string, args: readonly string[]): void {
   const result = spawnSync(command, args, { stdio: 'inherit' })
   if (result.error !== undefined || result.status !== 0) {
@@ -97,8 +117,9 @@ async function main(): Promise<void> {
   const source = JSON.parse(readFileSync(join(ROOT, 'source.json'), 'utf8')) as Source
   const tree = await sourceTree(source)
   const buildDir = join(CACHE, `build-${target}`)
-  run('cmake', ['-S', ROOT, '-B', buildDir, `-DWHISPER_SOURCE_DIR=${tree}`, ...cmakeOptions(target)])
-  run('cmake', ['--build', buildDir, '--config', 'Release', '--target', 'avn-whisper-worker', '--parallel'])
+  const cmake = cmakeCommand()
+  run(cmake, ['-S', ROOT, '-B', buildDir, `-DWHISPER_SOURCE_DIR=${tree}`, ...cmakeOptions(target)])
+  run(cmake, ['--build', buildDir, '--config', 'Release', '--target', 'avn-whisper-worker', '--parallel'])
   const windows = target.startsWith('win32-')
   const name = windows ? 'avn-whisper-worker.exe' : 'avn-whisper-worker'
   const built = [join(buildDir, name), join(buildDir, 'Release', name)].find(path => existsSync(path))
