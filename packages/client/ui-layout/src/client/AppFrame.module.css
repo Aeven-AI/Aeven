@@ -324,11 +324,40 @@
   pointer-events: auto;
 }
 
-/* The scrim under the right-hand overlays below the med breakpoint, the left
-   sidebar's `.contentBlocker` mirrored: it dims and blurs the conversation the
-   open right sidebar covers, and a tap on it closes that sidebar. Above the
-   breakpoint the right sidebar is a column beside the conversation, so the
-   scrim is never shown there. */
+/* The right sidebar overlays the conversation instead of sitting beside it
+   whenever the frame marks `data-rightbar-overlay`: below the med breakpoint,
+   and on a wider frame whose conversation would otherwise drop under its
+   floor (CENTER_MIN, columns.ts). Opening it then leaves the conversation its
+   full width instead of squeezing it to whatever the panel leaves over.
+
+   The column keeps zero width there: its panel is anchored to the column's
+   right edge and grows leftwards over the conversation, so the column itself
+   has nothing to size. With the column out of the row, the conversation runs
+   under the corner dock again, so its header reserves the dock's full width,
+   and the details column's edge no longer stands past the right sidebar. */
+.frame[data-rightbar-overlay] .centerCol {
+  --avn-shell-corner-overlap: 0px;
+}
+
+.frame[data-rightbar-overlay] .rightbarCol {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  width: 0;
+  transition: none;
+}
+
+.frame[data-rightbar-overlay] .handle[data-side='details'] {
+  right: var(--avn-frame-details-width, 0px);
+}
+
+/* The scrim under the overlaid right sidebar, the left sidebar's
+   `.contentBlocker` mirrored: it dims and blurs the conversation the open
+   panel covers, and a tap on it closes the panel. On a wide frame it starts at
+   the left sidebar's edge, leaving that column usable; below the med
+   breakpoint the left sidebar overlays too, so the scrim spans the frame. */
 .overlayBlocker {
   display: none;
   position: absolute;
@@ -341,7 +370,22 @@
   pointer-events: none;
   transition:
     opacity var(--dsw-aeven-rightbar-transition-duration) var(--dsw-aeven-rightbar-transition-timing),
-    backdrop-filter var(--dsw-aeven-rightbar-transition-duration) var(--dsw-aeven-rightbar-transition-timing);
+    backdrop-filter var(--dsw-aeven-rightbar-transition-duration) var(--dsw-aeven-rightbar-transition-timing),
+    left var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing);
+}
+
+.frame[data-rightbar-overlay] .overlayBlocker {
+  display: block;
+}
+
+.frame[data-rightbar-overlay]:not([data-rightbar-collapsed]) .overlayBlocker {
+  opacity: 1;
+  backdrop-filter: blur(2px);
+  pointer-events: auto;
+}
+
+.frame[data-rightbar-overlay]:not([data-sidebar-collapsed]) .overlayBlocker {
+  left: var(--dsw-aeven-sidebar-width);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -354,25 +398,14 @@
    column, so there is no column edge to grab; Aeven offers no resize there
    either. The details handle goes with it: the panel owns the whole width.
 
-   The details and right sidebar columns leave the row the same way and lay
-   over the conversation from the frame's right edge, so opening either one
-   leaves the conversation its full width instead of squeezing it to whatever
-   the panel leaves over. The right sidebar's column keeps zero width there:
-   its panel is anchored to the column's right edge and grows leftwards over
-   the conversation, so the column itself has nothing to size. With the column
-   out of the row, the conversation runs under the corner dock again, so its
-   header reserves the dock's full width. */
+   The details column leaves the row the same way as the right sidebar and
+   lays over the conversation from the frame's right edge. */
 @media screen and (max-width: 1024px) {
   .handle {
     display: none;
   }
 
-  .centerCol {
-    --avn-shell-corner-overlap: 0px;
-  }
-
-  .detailsCol,
-  .rightbarCol {
+  .detailsCol {
     position: absolute;
     top: 0;
     right: 0;
@@ -380,19 +413,8 @@
     z-index: 50;
   }
 
-  .rightbarCol {
-    width: 0;
-    transition: none;
-  }
-
-  .overlayBlocker {
-    display: block;
-  }
-
-  .frame:not([data-rightbar-collapsed]) .overlayBlocker {
-    opacity: 1;
-    backdrop-filter: blur(2px);
-    pointer-events: auto;
+  .frame[data-rightbar-overlay]:not([data-sidebar-collapsed]) .overlayBlocker {
+    left: 0;
   }
 
   /* The open left sidebar overlays everything right of it: the corner's

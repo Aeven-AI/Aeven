@@ -614,15 +614,20 @@ export class LocalCredentialProvider extends CredentialProvider {
       if (this.closed) return
       this.queueRefresh()
     })
-    watcher.on('error', (error) => {
+    const reportWatcherError = (error: unknown): void => {
+      if (this.closed) return
       this.ctx.logger.warn('credentials-local: watcher error on %s', this.spec.filename)
       this.ctx.logger.warn(error)
-    })
+    }
+    watcher.on('error', reportWatcherError)
     yield async () => {
       // Quiesce: stop accepting events, close the watcher, then wait out any
       // queued or in-flight operation so nothing publishes after disposal.
       this.closed = true
-      await watcher.close()
+      // Chokidar removes listeners before outstanding write-settle polls finish.
+      const closing = watcher.close()
+      watcher.on('error', reportWatcherError)
+      await closing
       await this.operations
     }
     /* jscpd:ignore-end */

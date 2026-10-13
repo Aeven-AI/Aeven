@@ -13,7 +13,7 @@ import { access, stat } from 'node:fs/promises'
 import { delimiter, extname, isAbsolute, resolve } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import * as nodePty from 'node-pty'
-import type { IPtyForkOptions } from 'node-pty'
+import type { IPtyForkOptions, IWindowsPtyForkOptions } from 'node-pty'
 import { SubprocessRuntime } from '@aeven/subprocess'
 import type {
   SubprocessHandle,
@@ -164,7 +164,8 @@ export class LocalSubprocessRuntime extends SubprocessRuntime {
       throw new Error('subprocess-local: terminal argv must contain a program')
     }
     spec.signal?.throwIfAborted()
-    const options: IPtyForkOptions = {
+    const options: IPtyForkOptions | IWindowsPtyForkOptions = {
+      ...(process.platform === 'win32' ? { useConptyDll: true } : {}),
       name: 'dumb',
       rows: spec.rows,
       cols: spec.cols,

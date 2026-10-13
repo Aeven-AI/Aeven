@@ -95,6 +95,8 @@ export function timeoutOf(x: AbortSignal | { reason?: unknown }, code?: string):
 - **bash**：`resolve()` 将请求钳位为显式规格。前台 `run()` 创建 deadline 并将其信号传给进程执行，后者既有的 abort 监听器执行进程组 kill。执行器将首个 abort 分类为超时或取消。后台启动保持无超时，仅转发上游取消。
 - **LLM（大语言模型）适配器**：`avn-llm-deepseek` 和 `avn-llm-pi-ai` 用 `idleWatchdog` 包装实际的传输迭代。配置的五分钟间隔只覆盖尚未结算的提供方 demand，不包括下游消费方在分片之间花费的时间。DeepSeek 直连适配器还会在其 SSE（Server-Sent Events）解析器观察到注释时，对该项尚未结算的 demand 调用 `pulse()`；该注释既不会作为 `StreamChunk` 产出，也不会写入会话日志。pi-ai SDK 不会向其适配器暴露注释活动，因此该路径只能在 SDK 产出值时重新启动定时器。稳定信号在整个调用期间传给 `fetch` 或 SDK，因此超时会关闭底层请求并映射为 `TIMEOUT`，而更早的调用方中止映射为 `ABORTED`。
 
+空闲期限也会在传输忽略取消时拒绝尚未完成的读取。拒绝监听器由单次读取持有；模型适配器请求迭代器清理，但不等待排在已放弃读取之后的清理操作。
+
 ## 后果
 
 - `runBash` 的结果不再独立锁存 `timedOut` 和 `aborted`；超时与用户中止在进程关闭前竞争时，现在报告单一的首个 abort 原因，而非两者同时为 true。统一的 SIGTERM→宽限期→SIGKILL 终止路径不变，Service Definition 类型 `ShellRunResult` 保留两个布尔值（现在互斥），因此 `avn-tool-bash` 的结果渲染不受影响。

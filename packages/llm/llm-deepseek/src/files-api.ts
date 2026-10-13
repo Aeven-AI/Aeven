@@ -87,6 +87,19 @@ function invalidResponse(operation: string): LlmError {
   return new LlmError(`DeepSeek Files API returned an invalid ${operation} response.`, 'INVALID_RESPONSE')
 }
 
+/** Decode successful Files JSON with operation context; body transport and abort failures retain their identity. */
+async function responseJson(response: Response, operation: string): Promise<unknown> {
+  try {
+    return await response.json()
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
+    throw new LlmError(`DeepSeek Files API returned invalid JSON for ${operation} (HTTP ${response.status}).`, 'INVALID_RESPONSE', {
+      status: response.status,
+      cause: error,
+    })
+  }
+}
+
 function parseFileObject(value: unknown, operation: string): DeepSeekFileObject {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) throw invalidResponse(operation)
   const wire = value as WireFileObject
@@ -194,7 +207,7 @@ export class DeepSeekFilesClient {
     form.set('expires_after[seconds]', String(input.expiresAfterSeconds))
     form.set('file', new Blob([Uint8Array.from(input.data).buffer], { type: input.mediaType }), input.filename)
     const response = await this.request('/files', { method: 'POST', body: form }, input.signal)
-    const file = parseFileObject(await response.json(), 'upload')
+    const file = parseFileObject(await responseJson(response, 'upload'), 'upload')
     if (file.expiresAt === undefined) throw invalidResponse('upload')
     return { ...file, expiresAt: file.expiresAt }
   }
@@ -215,7 +228,7 @@ export class DeepSeekFilesClient {
     if (options.limit !== undefined) query.set('limit', String(options.limit))
     if (options.order !== undefined) query.set('order', options.order)
     const response = await this.request(`/files?${query.toString()}`, { method: 'GET' }, options.signal)
-    const value = await response.json() as unknown
+    const value = await responseJson(response, 'list')
     if (value === null || typeof value !== 'object' || Array.isArray(value)) throw invalidResponse('list')
     const wire = value as { object?: unknown; data?: unknown; first_id?: unknown; last_id?: unknown; has_more?: unknown }
     if (wire.object !== 'list' || !Array.isArray(wire.data) || typeof wire.has_more !== 'boolean'
@@ -239,7 +252,7 @@ export class DeepSeekFilesClient {
    */
   async retrieve(fileId: DeepSeekFileIdType, signal?: AbortSignal): Promise<DeepSeekFileObject> {
     const response = await this.request(`/files/${encodeURIComponent(fileId)}`, { method: 'GET' }, signal)
-    return parseFileObject(await response.json(), 'retrieve')
+    return parseFileObject(await responseJson(response, 'retrieve'), 'retrieve')
   }
 
   /**
@@ -249,7 +262,7 @@ export class DeepSeekFilesClient {
    */
   async delete(fileId: DeepSeekFileIdType, signal?: AbortSignal): Promise<void> {
     const response = await this.request(`/files/${encodeURIComponent(fileId)}`, { method: 'DELETE' }, signal)
-    const value = await response.json() as unknown
+    const value = await responseJson(response, 'delete')
     if (value === null || typeof value !== 'object' || Array.isArray(value)) throw invalidResponse('delete')
     const wire = value as { id?: unknown; object?: unknown; deleted?: unknown }
     if (wire.id !== fileId || wire.object !== 'file' || wire.deleted !== true) throw invalidResponse('delete')

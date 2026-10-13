@@ -517,11 +517,8 @@ export class DeepSeekAdapter extends LlmAdapter {
     } finally {
       consumer.abort('DeepSeek stream consumer stopped')
       if (!exhausted && iterator.return !== undefined) {
-        try {
-          await iterator.return()
-        } catch (_abortedTransportTeardown) {
-          // The consumer controller already owns termination; a return-time abort cannot add a second outcome.
-        }
+        // Cancellation owns transport teardown; return can queue behind an abandoned read.
+        void iterator.return().catch(() => {})
       }
     }
   }

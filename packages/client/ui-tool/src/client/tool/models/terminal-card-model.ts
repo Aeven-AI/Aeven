@@ -4,7 +4,7 @@ import type { TranslateNS } from '@aeven/client-ui-slots'
 import { resolveWorkspacePath } from '@aeven/util-workspace-path'
 import { hasSpillNotice } from '@aeven/spill-policy/notice'
 import type { ToolCallBlock } from './tool-call-model.ts'
-import { parsedToolCall, singleResultText, validEscalationFields } from './raw-tool-call.ts'
+import { parsedToolCall, singleResultText } from './raw-tool-call.ts'
 
 /**
  * Build the TerminalBlock display copy from the conversation locale seat —
@@ -189,7 +189,6 @@ function shellCall(name: string, args: Record<string, unknown>): ShellCall | nul
   if (timeoutMs !== undefined && (typeof timeoutMs !== 'number' || !Number.isFinite(timeoutMs) || timeoutMs <= 0)) return null
   if (workdir !== undefined && typeof workdir !== 'string') return null
   if (background !== undefined && typeof background !== 'boolean') return null
-  if (!validEscalationFields(args)) return null
   if (description === undefined) {
     // Standard avn-tool-bash and avn-tool-pwsh schemas require `description`;
     // persistent shell providers omit it. Their parameter roots stay open, so

@@ -1,7 +1,7 @@
 /** Automation page, starter instructions, and result-resolution copy. */
 export const en = {
   title: 'Automations',
-  create: 'New automation', composerPlaceholder: 'Describe a new automation',
+  create: 'New', composerPlaceholder: 'Describe a new automation',
   newDraft: 'Help me create an automation. Ask what I want done and when, then show me the task, schedule, and permissions for confirmation before creating it.',
   offlineDetail: 'Reconnect to manage automations. Saved schedules have not been removed.',
   recommended: 'Templates', empty: 'Start your first automation', emptyDetail: 'Pick an idea below, or describe a routine in the composer.',
@@ -65,7 +65,7 @@ export const en = {
 export type AutomationKey = keyof typeof en
 /** Chinese copy for all automation page and composer instructions. */
 export const zh: Record<AutomationKey, string> = {
-  title: '自动任务', create: '新建自动任务', composerPlaceholder: '描述一个新自动化',
+  title: '自动任务', create: '新建', composerPlaceholder: '描述一个新自动化',
   newDraft: '帮我创建自动任务。询问我希望完成什么以及何时执行，然后展示任务、计划和权限，得到确认后再创建。',
   offlineDetail: '重新连接后可管理自动任务。已保存的计划没有被删除。',
   recommended: '模板', empty: '创建第一个自动任务', emptyDetail: '从下方选择一个想法，或在输入框描述一项日常工作。',

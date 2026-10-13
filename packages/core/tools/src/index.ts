@@ -13,7 +13,7 @@ import { HarnessError } from '@aeven/llm'
 import type { Agent } from '@aeven/agent'
 import type { UserMessage } from '@aeven/session'
 import { assertNever, deepFreeze, snapshotJsonValue, type JsonValue } from '@aeven/util-values'
-import type { ToolProviderResult } from '@aeven/system-prompt'
+import type { PromptSection, ToolProviderResult } from '@aeven/system-prompt'
 import type { CodeRunPauses, CodeRuntime } from '@aeven/code-runtime'
 // Type-only: makes `ctx.get('approval')` resolve to the ApprovalService
 // augmentation. The seam stays optional at runtime — see `serviceAsk`.
@@ -865,9 +865,10 @@ export class ToolRuntime extends Service {
    * dropped from the rendered prompt.
    * @returns the section registration.
    */
-  private sdkSection(): { name: string; order: number; text: (context: { scope?: ScopeKey }) => string } {
+  private sdkSection(): PromptSection {
     return {
       name: 'tools:sdk',
+      interpolate: false,
       order: this.ctx.systemPrompt.getSectionOrder('TOOLS_SDK'),
       // Regenerate from the calling scope's visible tools in stable order.
       text: (context) => {

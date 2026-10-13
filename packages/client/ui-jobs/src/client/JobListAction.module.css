@@ -61,12 +61,8 @@
 /* ModelSelect .menu, opening below the header trigger instead of above the
    composer one. */
 .menu {
-  position: absolute;
-  left: 0;
-  /* The viewport fit shifts it back inside the window. */
-  translate: var(--activity-shift, 0px) 0;
-  top: calc(100% + 8px);
-  z-index: 20;
+  position: fixed;
+  z-index: 100;
   display: flex;
   flex-direction: column;
   /* One steady width (ModelSelect's 420px ceiling), so unfolding a job

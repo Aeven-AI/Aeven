@@ -143,6 +143,10 @@ export class SessionManager {
    *  must be recovered by value or every SessionListItem memo misses on every refresh. */
   private entryCache = new Map<SessionId, SessionListEntry>()
   private itemsCache: readonly SessionListEntry[] = []
+  /** Last published catalog record; reused while every catalog keeps its identity. */
+  private subagentsRecord: Readonly<Record<SessionId, SubagentCatalogSnapshot>> = {}
+  /** Last published jobs record; reused while every job list keeps its identity. */
+  private jobsRecord: Readonly<Record<SessionId, readonly JobView[]>> = {}
   private readonly notifier = new Notifier(() => {
     this.listSnapshotCache = this.buildListSnapshot()
   })
@@ -342,9 +346,10 @@ export class SessionManager {
     let store = this.projectionStores.get(sessionId)
     if (store === undefined) {
       store = new ProjectionValueStore()
-      // List rows project off store keys (title); any-key changes re-enter
-      // the manager's own batched rebuild channel.
-      store.subscribeAny(() => { this.notifier.markDirty() })
+      // List rows project off store values; any-key changes re-enter the
+      // manager's rebuild channel at most once per frame, because running
+      // Sessions (subagents included) push projection frames per committed event.
+      store.subscribeAny(() => { this.notifier.markFrameDirty() })
       this.projectionStores.set(sessionId, store)
     }
     return store
@@ -687,8 +692,8 @@ export class SessionManager {
       return
     }
     if (frame.type === 'projection') {
+      // The store's any-key channel schedules the list rebuild.
       this.projectionStore(frame.sessionId).apply(frame.key, frame.value, SessionSeq(frame.seq))
-      this.notifier.markDirty()
       return
     }
     if (frame.type === 'jobs') {
@@ -956,11 +961,14 @@ export class SessionManager {
       this.entryCache.set(entry.sessionId, entry)
       return entry
     })
+    const listed = new Set(items.map(entry => entry.sessionId))
     for (const id of this.entryCache.keys()) {
-      if (!items.some(e => e.sessionId === id)) this.entryCache.delete(id)
+      if (!listed.has(id)) this.entryCache.delete(id)
     }
     const sameOrder = items.length === this.itemsCache.length && items.every((e, i) => e === this.itemsCache[i])
     if (!sameOrder) this.itemsCache = items
+    this.subagentsRecord = sameRecord(this.subagentsRecord, this.catalogs)
+    this.jobsRecord = sameRecord(this.jobsRecord, this.jobsBySession)
     const selected = this.selected
     const current = selected !== undefined
       && (items.some(item => item.sessionId === selected) || this.addresses.has(selected))
@@ -972,11 +980,28 @@ export class SessionManager {
       state: this.listState,
       phase: this.listPhase,
       error: this.listError,
-      subagentsByParent: Object.fromEntries(this.catalogs),
-      jobsBySession: Object.fromEntries(this.jobsBySession),
+      subagentsByParent: this.subagentsRecord,
+      jobsBySession: this.jobsRecord,
       currentAddress: current === undefined ? undefined : this.addresses.get(current),
     }
   }
+}
+
+/**
+ * Reuse a published record while it still mirrors the map entry for entry.
+ * @param previous - record published by the last rebuild.
+ * @param source - current map.
+ * @returns `previous` when every key maps to the same value, else a fresh record.
+ */
+function sameRecord<V>(
+  previous: Readonly<Record<SessionId, V>>,
+  source: ReadonlyMap<SessionId, V>,
+): Readonly<Record<SessionId, V>> {
+  const keys = Object.keys(previous)
+  if (keys.length === source.size && keys.every(key => source.get(key as SessionId) === previous[key as SessionId])) {
+    return previous
+  }
+  return Object.fromEntries(source) as Record<SessionId, V>
 }
 
 /** Apply one list mutation without deriving display order. */

@@ -244,6 +244,11 @@ export class FileSettingsProvider extends SettingsProvider {
         },
       })
       : undefined
+    const reportWatcherError = (error: unknown): void => {
+      if (this.closed) return
+      this.ctx.logger.warn('settings-file: watcher error on %s', this.spec.filename)
+      this.ctx.logger.warn(error)
+    }
     if (watcher !== undefined) {
       watcher.on('all', () => {
         if (this.closed) return
@@ -256,15 +261,17 @@ export class FileSettingsProvider extends SettingsProvider {
         if (this.closed) return
         this.queueRefresh()
       })
-      watcher.on('error', (error) => {
-        this.ctx.logger.warn('settings-file: watcher error on %s', this.spec.filename)
-        this.ctx.logger.warn(error)
-      })
+      watcher.on('error', reportWatcherError)
     }
     yield async () => {
       // Quiesce every operation chain, even when no watcher is configured.
       this.closed = true
-      await watcher?.close()
+      if (watcher !== undefined) {
+        // Chokidar removes listeners before outstanding write-settle polls finish.
+        const closing = watcher.close()
+        watcher.on('error', reportWatcherError)
+        await closing
+      }
       await this.operations
     }
   }

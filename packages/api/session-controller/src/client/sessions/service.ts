@@ -30,6 +30,7 @@ import type { SessionFace } from '../contract/session.ts'
 import type { AgentContext, ISessions } from '../contract/sessions.ts'
 import { createScope, scopeOf as scopeTagOf } from '../scope.ts'
 import { SessionManager } from './manager.ts'
+import type { SessionListEntry } from './lineage.ts'
 import type { SessionRemotes } from './remotes.ts'
 import type { SessionListPhase, SessionSearchResultItem, SubagentCatalogSnapshot } from './manager.ts'
 import type { Session } from './session.ts'
@@ -192,6 +193,42 @@ function increasedForkTitle(title: string): string {
   return `${title} (1)`
 }
 
+/**
+ * Keep the published summary when a rebuilt one carries the same fields.
+ * @param previous - summary published for the same id, if any.
+ * @param next - rebuilt summary.
+ * @returns `previous` when every field matches by `Object.is`, else `next`.
+ */
+function sameSummary(previous: SessionSummary | undefined, next: SessionSummary): SessionSummary {
+  if (previous === undefined) return next
+  const keys = Object.keys(next) as (keyof SessionSummary)[]
+  if (keys.length !== Object.keys(previous).length) return next
+  return keys.every(key => Object.is(previous[key], next[key])) ? previous : next
+}
+
+/**
+ * Keep the published array when the rebuilt one holds the same elements in order.
+ * @param previous - published array.
+ * @param next - rebuilt array.
+ * @returns `previous` when element-wise equal, else `next`.
+ */
+function sameArray<T>(previous: readonly T[], next: T[]): T[] {
+  if (previous.length !== next.length || !previous.every((value, index) => value === next[index])) return next
+  return previous as T[]
+}
+
+/**
+ * Keep the published record when the rebuilt one maps the same keys to the same values.
+ * @param previous - published record.
+ * @param next - rebuilt record.
+ * @returns `previous` when entry-wise equal, else `next`.
+ */
+function sameValues<K extends string, V>(previous: Record<K, V>, next: Record<K, V>): Record<K, V> {
+  const keys = Object.keys(next) as K[]
+  if (keys.length !== Object.keys(previous).length) return next
+  return keys.every(key => previous[key] === next[key]) ? previous : next
+}
+
 interface ScopeRecord {
   fiber: Fiber
   ctx: AgentContext
@@ -222,6 +259,8 @@ export class ClientSessions implements ISessions {
    * resurfaces when its session returns.
    */
   private readonly selection: SnapshotStore<SessionSelection>
+  /** Summaries keyed by the manager's identity-stable list entries, so unchanged rows keep their reference. */
+  private readonly summaryCache = new WeakMap<SessionListEntry, SessionSummary>()
 
   private readonly scopes = new Map<SessionId, ScopeRecord>()
   /** In-flight scope drops remain here after records leave `scopes`, so root disposal can await quiescence. */
@@ -607,11 +646,17 @@ export class ClientSessions implements ISessions {
     const {
       items, current, phase, subagentsByParent, jobsBySession, currentAddress,
     } = this.manager.getListSnapshot()
+    const previous = this.list.getSnapshot()
     const ids: SessionId[] = []
     const byId: Record<SessionId, SessionSummary> = {}
     for (const entry of items) {
       ids.push(entry.sessionId)
-      byId[entry.sessionId] = {
+      const cached = this.summaryCache.get(entry)
+      if (cached !== undefined) {
+        byId[entry.sessionId] = cached
+        continue
+      }
+      const summary: SessionSummary = {
         id: entry.sessionId,
         createdAt: entry.createdAt,
         displayTitle: displayTitleOf(entry.title, entry.sessionId),
@@ -627,6 +672,8 @@ export class ClientSessions implements ISessions {
         ...(entry.parentSessionId !== undefined ? { parentId: entry.parentSessionId } : {}),
         ...(entry.origin !== undefined ? { origin: entry.origin } : {}),
       }
+      this.summaryCache.set(entry, summary)
+      byId[entry.sessionId] = summary
     }
     if (current !== undefined && currentAddress !== undefined) {
       const seen = new Set<SessionId>()
@@ -640,7 +687,7 @@ export class ClientSessions implements ISessions {
         const displayTitle = child.label ?? childId
         const summary = byId[childId]
         if (summary === undefined) {
-          byId[childId] = {
+          byId[childId] = sameSummary(previous.byId[childId], {
             id: childId,
             createdAt: 0,
             displayTitle,
@@ -649,9 +696,9 @@ export class ClientSessions implements ISessions {
             running: child.activity === 'running',
             blank: false,
             updatedAt: 0,
-          }
+          })
         } else if (summary.displayTitle !== displayTitle) {
-          byId[childId] = { ...summary, displayTitle }
+          byId[childId] = sameSummary(previous.byId[childId], { ...summary, displayTitle })
         }
         const parent = byId[address.parentSessionId]
         if (parent !== undefined && parent.origin !== 'subagent') break
@@ -673,7 +720,19 @@ export class ClientSessions implements ISessions {
         ...(currentAddress === undefined ? {} : { subagentAddress: currentAddress }),
       })
     }
-    this.list.set({ ids, byId, current, phase, subagentsByParent, jobsBySession, currentAddress })
+    const nextIds = sameArray(previous.ids, ids)
+    const nextById = sameValues(previous.byId, byId)
+    // Unchanged list state publishes nothing: whole-state readers (the
+    // Workspace browser) re-derive on every write.
+    if (
+      nextIds !== previous.ids || nextById !== previous.byId || current !== previous.current
+      || phase !== previous.phase || subagentsByParent !== previous.subagentsByParent
+      || jobsBySession !== previous.jobsBySession || currentAddress !== previous.currentAddress
+    ) {
+      this.list.set({
+        ids: nextIds, byId: nextById, current, phase, subagentsByParent, jobsBySession, currentAddress,
+      })
+    }
     this.pruneScopes()
   }
 

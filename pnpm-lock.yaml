@@ -7264,6 +7264,9 @@ importers:
       '@aeven/llm':
         specifier: workspace:^
         version: link:../../llm/llm
+      '@aeven/output-retention':
+        specifier: workspace:^
+        version: link:../../util/output-retention
       '@aeven/sandbox':
         specifier: workspace:^
         version: link:../../sandbox/sandbox
@@ -10300,6 +10303,9 @@ importers:
 
   packages/shell/tool-bash-persistent:
     dependencies:
+      '@aeven/output-retention':
+        specifier: workspace:^
+        version: link:../../util/output-retention
       '@deepseek-ai/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
@@ -10416,6 +10422,9 @@ importers:
 
   packages/shell/tool-pwsh-persistent:
     dependencies:
+      '@aeven/output-retention':
+        specifier: workspace:^
+        version: link:../../util/output-retention
       '@deepseek-ai/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery

@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { Agent } from '@aeven/agent'
+import { truncateWithoutSplittingSurrogatePair } from '@aeven/output-retention'
 import type { TerminalReadResult, TerminalSessionId } from '@aeven/terminal'
 import { deadline, timeoutOf } from '@aeven/timeout'
 import { defineTool } from '@aeven/tools'
@@ -55,7 +56,7 @@ function maybeTruncate(content: string, maxOutputChars: number, incomplete = fal
   if (content.length <= maxOutputChars && !incomplete) return content
   return content.length <= maxOutputChars
     ? content + TRUNCATED_MESSAGE
-    : content.slice(0, maxOutputChars) + TRUNCATED_MESSAGE
+    : truncateWithoutSplittingSurrogatePair(content, maxOutputChars) + TRUNCATED_MESSAGE
 }
 
 function markers(): CommandMarkers {
@@ -299,7 +300,14 @@ async function executeCommand(
   upstream: AbortSignal,
 ): Promise<string> {
   using commandDeadline = deadline(upstream, config.timeoutMs, TIMEOUT_CODE)
-  const id = await shells.get(owner, commandDeadline.signal)
+  let id: TerminalSessionId
+  try {
+    id = await shells.get(owner, commandDeadline.signal)
+  } catch (error: unknown) {
+    // Initialization owns rollback; only this caller's cancellation becomes ABORTED.
+    if (upstream.aborted && error === upstream.reason) return ''
+    throw error
+  }
   const marker = markers()
   const wrapped = wrapCommand(command, marker)
   let first = true
@@ -351,7 +359,8 @@ async function executeCommand(
     }
     if (commandDeadline.signal.aborted) {
       await shells.reset(owner, 'persistent bash command aborted')
-      commandDeadline.signal.throwIfAborted()
+      // ToolRuntime publishes ABORTED after this cancelled invocation settles.
+      return ''
     }
     if (latest.text.includes(marker.end)) {
       const complete = commandOutput(retainedScrollback(ctx, owner, id, latest), marker)
@@ -417,7 +426,7 @@ function registerPersistentBash(ctx: Context, config: ResolvedConfig): void {
       const owner = exec.agent
       if (owner === undefined) throw new Error('bash requires an owning agent session')
       return serialized(owner, async () => {
-        exec.signal.throwIfAborted()
+        if (exec.signal.aborted) return ''
         return executeCommand(ctx, shells, owner, args.command, config, exec.signal)
       })
     },

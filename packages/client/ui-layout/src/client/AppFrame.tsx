@@ -16,7 +16,7 @@ import type {
   HostObservable, InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore,
 } from '@aeven/client-ui-slots'
 import {
-  clampRightbar, clampWidth, DETAILS_MAX, DETAILS_MIN, SIDEBAR_AUTO_COLLAPSE,
+  CENTER_MIN, clampRightbar, clampWidth, DETAILS_MAX, DETAILS_MIN, SIDEBAR_AUTO_COLLAPSE,
   SIDEBAR_DEFAULT, SIDEBAR_MAX, SIDEBAR_MIN,
 } from './columns.ts'
 import { DocumentTitle } from './DocumentTitle.tsx'
@@ -162,6 +162,7 @@ export function AppFrame({
   })
   const documentTitle = onSurface ? undefined : sessionTitle
   const [narrow, setNarrow] = useState(() => matchNarrow()?.matches ?? false)
+  const [viewport, setViewport] = useState(() => typeof window === 'undefined' ? 0 : window.innerWidth)
   const frameRef = useRef<HTMLDivElement | null>(null)
   const lastSession = useRef(currentSession)
   useLayoutEffect(() => {
@@ -172,11 +173,10 @@ export function AppFrame({
     lastSession.current = currentSession
   }, [actions, currentSession])
 
-  // The breakpoint is the only viewport fact the shell needs, and it changes
-  // when it is crossed rather than while a column animates. A media query says
-  // that directly; measuring the frame instead reported every intermediate
-  // width of every slide, which is what the Aeven client avoids by keeping the
-  // whole responsive rule set in CSS.
+  // The breakpoint changes when it is crossed rather than while a column
+  // animates. A media query says that directly; measuring the frame instead
+  // reported every intermediate width of every slide, which is what the Aeven
+  // client avoids by keeping the whole responsive rule set in CSS.
   useEffect(() => {
     const query = matchNarrow()
     if (query === undefined) return
@@ -184,6 +184,25 @@ export function AppFrame({
     read()
     query.addEventListener('change', read)
     return () => { query.removeEventListener('change', read) }
+  }, [])
+
+  // The frame spans the window, so the window's width is the frame's; reading
+  // the window rather than the frame keeps column slides out of it. It feeds
+  // the right sidebar's clamp and the overlay decision below; a resize is
+  // coalesced to one read per animation frame.
+  useEffect(() => {
+    let frame: number | null = null
+    const onResize = (): void => {
+      frame ??= requestAnimationFrame(() => {
+        frame = null
+        setViewport(window.innerWidth)
+      })
+    }
+    window.addEventListener('resize', onResize)
+    return () => {
+      window.removeEventListener('resize', onResize)
+      if (frame !== null) cancelAnimationFrame(frame)
+    }
   }, [])
 
   // Narrow viewports auto-collapse the sidebar; the store mirror keeps
@@ -212,8 +231,13 @@ export function AppFrame({
   const rightbarShown = !onSurface && rightbarSession !== undefined && panels.rightbar[rightbarSession]?.shown === true
   // The width the column opens at, published even while it is collapsed, so
   // its content keeps that layout through the slide instead of re-wrapping.
-  const rightbarOpenWidth = clampRightbar(panels.rightbarWidth, typeof window === 'undefined' ? 0 : window.innerWidth)
+  const rightbarOpenWidth = clampRightbar(panels.rightbarWidth, viewport)
   const rightbarWidth = rightbarShown ? rightbarOpenWidth : 0
+  // The right sidebar overlays the conversation rather than taking a column
+  // beside it wherever a column would leave the conversation under its floor;
+  // below the breakpoint every right-hand panel overlays. Decided from the open
+  // width, not the shown one, so a closing panel keeps its mode for the slide.
+  const rightbarOverlay = narrow || viewport - sidebarWidth - detailsWidth - rightbarOpenWidth < CENTER_MIN
   const rightbarRef = useRef(rightbarWidth)
   rightbarRef.current = rightbarWidth
 
@@ -278,6 +302,7 @@ export function AppFrame({
       data-sidebar-collapsed={sidebarCollapsed || undefined}
       data-details-collapsed={detailsWidth === 0 || undefined}
       data-rightbar-collapsed={rightbarWidth === 0 || undefined}
+      data-rightbar-overlay={rightbarOverlay || undefined}
       data-dragging={dragging || undefined}
       data-switching={switching || undefined}
       data-fullscreen={panels.fullscreen || undefined}
@@ -301,12 +326,12 @@ export function AppFrame({
         <CenterColumn>
           {surface === undefined ? renderSlot('conversation', { sidebarCollapsed }) : renderSlot('surface', {}, { entryKey: surface })}
         </CenterColumn>
-        {/* Shown only below the med breakpoint, where the right sidebar lays
-            over the conversation instead of beside it (AppFrame.module.css). */}
+        {/* Shown only while the right sidebar lays over the conversation
+            instead of beside it (AppFrame.module.css). */}
         <div
           className={css.overlayBlocker}
           aria-hidden="true"
-          onClick={() => { if (rightbarShown && rightbarSession !== undefined) actions.toggleRightbar(rightbarSession, window.innerWidth) }}
+          onClick={() => { if (rightbarShown && rightbarSession !== undefined) actions.toggleRightbar(rightbarSession, viewport) }}
         />
         <DetailsColumn>
           <SessionProvider>{renderSlot('details', {})}</SessionProvider>

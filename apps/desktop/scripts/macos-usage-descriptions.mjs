@@ -7,6 +7,7 @@
 
 /** Info.plist keys the Desktop shell adds on macOS. */
 export const MACOS_USAGE_DESCRIPTIONS = Object.freeze({
+  NSMicrophoneUsageDescription: 'Aeven uses your microphone when you dictate a message.',
   NSLocationWhenInUseUsageDescription: 'Aeven uses your location when you ask about things near you.',
   NSLocationUsageDescription: 'Aeven uses your location when you ask about things near you.',
 })

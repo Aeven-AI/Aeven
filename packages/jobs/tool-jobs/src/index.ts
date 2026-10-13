@@ -216,6 +216,14 @@ export function apply(ctx: Context, config: Config): void {
     })
   }
 
+  // Outstanding `job_output` waits per agent. Human input for that agent ends
+  // them early: the model must read it now, not after a build finishes.
+  const humanWaits = new WeakMap<Agent, Set<AbortController>>()
+  ctx.on('agent/inbox/inserted', ({ agent, message }) => {
+    if (message.source.kind !== 'user') return
+    for (const release of humanWaits.get(agent) ?? []) release.abort()
+  })
+
   const outputLimits = new WeakMap<ToolExecution, number>()
   ctx.on('tools/pre-execute', (exec, next) => {
     const maxBytes = visibleOutputLimit(ctx, exec)
@@ -314,7 +322,7 @@ export function apply(ctx: Context, config: Config): void {
     // this tool owns its deadline instead of using ToolDefinition.timeoutMs.
     parameters: {
       job_id: { type: 'string', required: true, description: 'Job id returned by the tool that started the background work.' },
-      wait: { type: 'boolean', description: 'Block until the job finishes or the timeout expires; a timed-out wait leaves the job running. Defaults to false.' },
+      wait: { type: 'boolean', description: 'Block until the job finishes, the timeout expires, or the user sends a message; an unfinished wait leaves the job running. Defaults to false.' },
       timeout_ms: { type: 'number', description: 'Max wait in milliseconds with wait: true. Defaults to and is capped by configuration.' },
     },
     finalizeContent: finalizeJobContent,
@@ -341,7 +349,20 @@ export function apply(ctx: Context, config: Config): void {
         // notice listener above skips it: this result carries the terminal
         // state. A timed-out or aborted wait has left the registry's waiter
         // set before any later settlement, which then notifies as usual.
-        await jobs.wait(id, Math.min(args.timeout_ms ?? waitDefault, waitCap), exec.agent?.id, exec.signal)
+        const timeoutMs = Math.min(args.timeout_ms ?? waitDefault, waitCap)
+        const agent = exec.agent
+        const release = new AbortController()
+        const waits = agent === undefined ? undefined : humanWaits.get(agent) ?? new Set()
+        if (agent !== undefined && waits !== undefined) humanWaits.set(agent, waits)
+        waits?.add(release)
+        try {
+          await jobs.wait(id, timeoutMs, agent?.id, AbortSignal.any([exec.signal, release.signal]))
+        } catch (error) {
+          // Released by human input: report the still-running job like a timed-out wait.
+          if (!release.signal.aborted || exec.signal.aborted) throw error
+        } finally {
+          waits?.delete(release)
+        }
       }
       return readBody(jobs.read(id, exec.agent?.id))
     },

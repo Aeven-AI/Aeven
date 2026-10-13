@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import type { JobsSnapshot, JobView, ObservedJob } from '@aeven/api-job-controller/client'
 import type { SessionId } from '@aeven/session/types'
 import {
-  Button, CopyIconButton, IconChevronDownOutline14, IconStopFill16, Modal, Spinner, StateDot, useDismissOnOutsidePointer,
+  Button, CopyIconButton, IconChevronDownOutline14, IconStopFill16, Modal, Spinner, StateDot, useAnchoredPosition, useDismissOnOutsidePointer,
   type StateDotState,
 } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, TranslateNS } from '@aeven/client-ui-slots'
@@ -474,7 +475,8 @@ export function JobListAction({ sessionId, useJobs, watchRows, observe, killJob,
 
   // The body-portaled confirmation sits outside the root; while it shows, a
   // press in it must not close the list behind it.
-  useDismissOnOutsidePointer(rootRef, open && confirmJob === undefined, setOpen)
+  useDismissOnOutsidePointer(rootRef, open && confirmJob === undefined, setOpen, menuRef)
+  const menuPosition = useAnchoredPosition({ open, anchorRef: rootRef, panelRef: menuRef, gap: 8, margin: VIEWPORT_MARGIN })
 
   // The roster follows the mounted session: one stream while this control
   // lives, released with it.
@@ -488,28 +490,6 @@ export function JobListAction({ sessionId, useJobs, watchRows, observe, killJob,
     const timer = setInterval(() => { setNow(Date.now()) }, liveRows.length > 0 ? 1_000 : 30_000)
     return () => { clearInterval(timer) }
   }, [open, liveRows.length])
-
-  // Fit the open popover to the viewport: measure where the stylesheet
-  // anchors it (start or end of the trigger), then shift it back inside the
-  // window if it crosses an edge.
-  useLayoutEffect(() => {
-    if (!open) return
-    const fit = (): void => {
-      const menu = menuRef.current
-      /* v8 ignore next -- the ref is attached while the open popover renders. */
-      if (menu === null) return
-      menu.style.setProperty('--activity-shift', '0px')
-      const rect = menu.getBoundingClientRect()
-      // Unlaid-out nodes (and jsdom) measure 0: keep the pure CSS anchor.
-      if (rect.width === 0) return
-      const overLeft = VIEWPORT_MARGIN - rect.left
-      const overRight = rect.right - (window.innerWidth - VIEWPORT_MARGIN)
-      menu.style.setProperty('--activity-shift', `${overLeft > 0 ? overLeft : overRight > 0 ? -overRight : 0}px`)
-    }
-    fit()
-    window.addEventListener('resize', fit)
-    return () => { window.removeEventListener('resize', fit) }
-  }, [open])
 
   // Observation follows visibility: the stream opens when a row that still has
   // output expands and closes when it collapses, unmounts, or the popover
@@ -600,6 +580,20 @@ export function JobListAction({ sessionId, useJobs, watchRows, observe, killJob,
   }
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
+    if (event.key === 'Tab' && open && confirmJob === undefined) {
+      const trigger = triggerRef.current
+      const menu = menuRef.current
+      if (trigger === null || menu === null) return
+      const focusable = [...menu.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])')]
+      if (event.target === trigger && !event.shiftKey) {
+        event.preventDefault()
+        focusable[0]?.focus()
+      } else if (event.shiftKey ? event.target === focusable[0] : event.target === focusable.at(-1)) {
+        if (event.shiftKey) event.preventDefault()
+        trigger.focus()
+      }
+      return
+    }
     // The dialog handles its own Escape; its React events bubble here.
     if (event.key !== 'Escape' || !open || confirmJob !== undefined) return
     event.preventDefault()
@@ -653,8 +647,8 @@ export function JobListAction({ sessionId, useJobs, watchRows, observe, killJob,
         </span>
       </button>
       {open
-        ? (
-          <ul ref={menuRef} className={css.menu} aria-label={t('list.aria')}>
+        ? createPortal(
+          <ul ref={menuRef} className={css.menu} style={menuPosition ?? { visibility: 'hidden', left: 0, top: 0 }} aria-label={t('list.aria')}>
             {liveRows.map(item)}
             {settledRows.length > 0
               ? (
@@ -675,7 +669,8 @@ export function JobListAction({ sessionId, useJobs, watchRows, observe, killJob,
               )
               : null}
             {settledExpanded ? settledRows.map(item) : null}
-          </ul>
+          </ul>,
+          document.body,
         )
         : null}
       <Modal

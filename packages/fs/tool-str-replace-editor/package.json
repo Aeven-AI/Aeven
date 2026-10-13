@@ -27,6 +27,7 @@
   "license": "MIT",
   "peerDependencies": {
     "@aeven/fs": "workspace:^",
+    "@aeven/output-retention": "workspace:^",
     "@aeven/sandbox": "workspace:^",
     "@aeven/sandbox-policy": "workspace:^",
     "@aeven/tools": "workspace:^",
@@ -42,6 +43,7 @@
     "@aeven/fs-observation-policy": "workspace:^",
     "@aeven/fs-sandbox": "workspace:^",
     "@aeven/llm": "workspace:^",
+    "@aeven/output-retention": "workspace:^",
     "@aeven/sandbox": "workspace:^",
     "@aeven/sandbox-policy": "workspace:^",
     "@aeven/session": "workspace:^",

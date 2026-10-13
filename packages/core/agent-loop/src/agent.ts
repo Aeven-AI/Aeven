@@ -28,7 +28,7 @@ import { deepFreeze } from '@aeven/util-values'
 import type { Scope } from '@aeven/scope'
 import { createScope } from '@aeven/scope'
 import type { EpochHeader, RequestContext, Session, SessionId, SessionSeq, TurnEndReason, UserMessage } from '@aeven/session'
-import { canonicalHeader, headerEquals } from '@aeven/session'
+import { canonicalHeader, headerEquals, interruptedTurnClosers } from '@aeven/session'
 import { joinContextSections, renderContextSections, renderPrompt } from '@aeven/system-prompt'
 import type { PromptAssembly } from '@aeven/system-prompt'
 import type {} from '@aeven/session-projection'
@@ -297,6 +297,19 @@ export class ReactLoopAgent implements Agent {
           // max-tokens stays sticky: a later completed step must not
           // downgrade the turn outcome.
           if (turnEnds === null || turnEnds.kind !== 'max-tokens') turnEnds = stepEnd
+        } catch (error: unknown) {
+          try {
+            for (const event of interruptedTurnClosers(this.session.snapshotEvents())) {
+              if (event.type !== 'tool/result') continue
+              this.session.append('tool/result', event.data, {
+                surfaceOp: 'append',
+                ...event.sourceEventSeqs === undefined ? {} : { sourceEventSeqs: event.sourceEventSeqs },
+              })
+            }
+          } catch (recoveryError: unknown) {
+            throw new AggregateError([error, recoveryError], 'Step failed and its pending tool results could not be recorded', { cause: error })
+          }
+          throw error
         } finally {
           this.session.append('step/end', { turn, step })
         }

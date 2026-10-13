@@ -44,6 +44,7 @@ function world(overrides: Partial<Win32FolderDialog> = {}, coInit = 0): FakeWorl
     coUninitialize: uninitialize,
     createFolderDialog: createDialog,
     currentThreadId: vi.fn(() => 4242),
+    pressAltForForeground: vi.fn(),
   }
   return { bindings, dpi, createDialog, uninitialize, dialog: dialog as FakeWorld['dialog'] }
 }

@@ -284,7 +284,7 @@ async function toPiContextWithImages(
     const results = message.content.filter((block): block is Extract<ContentBlock, { type: 'tool-result' }> => (
       block.type === 'tool-result'
     ))
-    if (content.length > 0 || results.length === 0) {
+    if (content.length > 0) {
       messages.push({ role: 'user', content, timestamp: 0 })
     }
     for (const result of results) {

@@ -445,16 +445,22 @@
    page inset, the same box the width's use sites resolve `100%` in, so a strip
    lands exactly at the content edge. At the widest drag the content fills the
    frame and the strips sit in the 24px padding outside it, level with the
-   header bar's leading fold and options controls; the strips, and the rule each
-   one carries, therefore start below that bar and leave its controls clear. The
-   wheel over a strip is handed to the transcript's scroller (see WidthHandle). */
+   header bar's leading fold and options controls; the strips themselves start
+   below that bar and leave its controls clear, while the rule each one carries
+   reaches up through the bar to the column's top (see the indicator below). The
+   wheel over a strip is handed to the transcript's scroller (see WidthHandle).
+
+   The frame's layer sits below the header bar (30) so the bar's fold, options,
+   agent, and process controls paint over the rule where it crosses them, and
+   above the transcript chrome a strip must beat for its grab (TurnRail 9,
+   CodeBlock banners 6). */
 .widthHandles {
   position: absolute;
   top: 0;
   right: var(--avn-composer-side-clearance);
   bottom: 0;
   left: var(--avn-composer-side-clearance);
-  z-index: 31;
+  z-index: 29;
   pointer-events: none;
 }
 
@@ -476,12 +482,13 @@
 }
 
 /* The indicator: a 1px rule centred in the strip, black at 10% opacity in
-   both themes, stopping at the strip's own top so it stays out of the header
-   bar. */
+   both themes, reaching up past the strip's own top through the header bar —
+   behind the bar's controls, which the bar's layer paints over — so it spans
+   the column's full height. */
 .widthHandle::after {
   content: "";
   position: absolute;
-  top: 0;
+  top: calc(0px - var(--avn-session-header-height));
   bottom: 0;
   left: calc(50% - 0.5px);
   width: 1px;
