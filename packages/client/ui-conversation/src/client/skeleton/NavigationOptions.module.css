@@ -1,0 +1,42 @@
+/* The band's options control: the fold control's own 30px circle, so the two
+   lead the bar as a pair. It paints its own fill for the fold control's
+   reason — the transcript scrolls under the bar, and the glyph has to stay
+   legible over whatever is passing beneath. */
+.optionsButton {
+  position: relative;
+  z-index: 11;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 15px;
+  background: var(--dsw-static-neutral-00);
+  color: var(--dsw-static-neutral-1000);
+  cursor: pointer;
+  transition: background var(--ds-transition-duration-fast) var(--ds-ease-in-out);
+}
+
+/* No hover tint, matching the fold control beside it: the pointer cursor and
+   the tooltip are the hover affordance, and keyboard focus keeps a visible
+   ring in the label tone, which contrasts with this button's black fill in
+   either theme. */
+.optionsButton:focus-visible {
+  outline: 2px solid var(--dsw-alias-label-primary);
+  outline-offset: 2px;
+}
+
+/* A view row's mark, drawn in the menu's 16px icon slot. */
+.rowIcon {
+  width: 16px;
+  height: 16px;
+}
+
+/* The glyph a Session row's options button carries: lucide
+   `ellipsis-vertical` at the sidebar's own 18px grapheme. */
+.optionsIcon {
+  width: 18px;
+  height: 18px;
+}

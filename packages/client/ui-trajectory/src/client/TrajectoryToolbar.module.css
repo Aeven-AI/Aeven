@@ -1,0 +1,207 @@
+/* The toolbar row sits on the page canvas at the chat's content width, so its
+   controls read like the conversation band's chips: transparent until hovered,
+   white when pressed, the search field a white pill like the composer card. */
+.root {
+  position: relative;
+  z-index: 4;
+  flex: none;
+  box-sizing: border-box;
+  width: var(--avn-chat-content-width);
+  max-width: 100%;
+  height: var(--avn-trajectory-toolbar-height, 52px);
+  margin: 0 auto;
+}
+
+.inner {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  gap: 8px;
+}
+
+.actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+}
+
+.toggle,
+.action {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  box-sizing: border-box;
+  height: 32px;
+  padding: 0 12px 0 10px;
+  gap: 6px;
+  border: 0;
+  border-radius: 16px;
+  color: var(--dsw-alias-label-primary);
+  background: transparent;
+  cursor: pointer;
+  font: var(--dsw-font-xs-14);
+  transition:
+    background-color 120ms var(--ds-ease-in-out),
+    color 120ms var(--ds-ease-in-out);
+}
+
+.toggle:hover,
+.action:hover {
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.toggle[aria-pressed='true'],
+.action[aria-pressed='true'] {
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.toggle:focus-visible,
+.action:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 1px;
+}
+
+.toggleIcon {
+  flex: none;
+}
+
+/* Lucide glyphs carry their own optical padding on the 24-unit canvas. */
+.actionIcon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+
+.control {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  height: 32px;
+  padding: 0 12px;
+  gap: 6px;
+  border: 0;
+  border-radius: 16px;
+  color: var(--dsw-alias-label-secondary);
+  background: transparent;
+  cursor: pointer;
+  font: var(--dsw-font-xs-14);
+}
+
+.control[hidden] {
+  display: none;
+}
+
+.control:hover:not(:disabled),
+.control[aria-checked='true'] {
+  color: var(--dsw-alias-label-primary);
+}
+
+.control:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 1px;
+}
+
+.control:disabled {
+  color: var(--dsw-alias-label-dimmed);
+  cursor: not-allowed;
+}
+
+.controlTrack {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: 20px;
+  height: 10px;
+  border-radius: 5px;
+  background: var(--dsw-alias-border-l2);
+  transition: background-color 120ms var(--ds-ease-in-out);
+}
+
+.controlThumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dsw-alias-bg-layer-1);
+  transition: transform 120ms var(--ds-ease-in-out);
+}
+
+.controlTrack[data-on='true'] {
+  background: var(--dsw-alias-state-business-primary);
+}
+
+.controlTrack[data-on='true'] .controlThumb {
+  transform: translateX(10px);
+}
+
+.search {
+  display: flex;
+  flex: 0 1 240px;
+  align-items: center;
+  min-width: 96px;
+  box-sizing: border-box;
+  height: 32px;
+  /* All four sides: the base stylesheet gives every label a bottom margin. */
+  margin: 0 0 0 auto;
+  padding: 0 12px;
+  gap: 8px;
+  border-radius: 16px;
+  color: var(--dsw-alias-label-caption);
+  background: var(--dsw-alias-bg-layer-1);
+  cursor: text;
+}
+
+.search:focus-within {
+  color: var(--dsw-alias-label-primary);
+}
+
+.searchIcon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+
+.searchInput {
+  min-width: 0;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  color: var(--dsw-alias-label-primary);
+  background: transparent;
+  font: var(--dsw-font-xs-14);
+}
+
+.searchInput::placeholder {
+  color: var(--dsw-alias-label-caption);
+}
+
+.searchInput::-webkit-search-cancel-button {
+  width: 12px;
+  height: 12px;
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .toggle,
+  .action {
+    padding: 0 10px;
+  }
+
+  .toggleLabel {
+    display: none;
+  }
+
+  .search {
+    flex-basis: 160px;
+  }
+}

@@ -1,0 +1,351 @@
+/* The browser pane: t3code's chrome row over the guest that fills the rest.
+   The row takes the sidebar's toolbar metrics (ui-sidebar-files
+   FilesPane.module.css): 30px round controls with 18px lucide glyphs, and a
+   30px pill for the address field. */
+
+.root {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  /* Anchors the pointer layer to the pane, so the agent pointer draws over the
+     pane's own chrome and the guest alike rather than over the window. */
+  position: relative;
+}
+
+/* The agent pointer's drawing region: the pane's box, drawn from the page's own
+   top layer rather than from inside the pane. The three-dot menu is portaled to
+   that layer at 1100, and a popup's backdrop blur smears whatever is painted
+   below it — a pointer inside the pane subtree is behind the menu no matter what
+   z-index it carries, because the menu's layer is a sibling of the whole pane.
+   Fixed placement (inline left/top/width/height) keeps the pane's coordinates,
+   and 1300 keeps the pointer above every surface, as a real cursor is. */
+.cursorLayer {
+  position: fixed;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1300;
+}
+
+.chrome {
+  position: relative;
+  flex: none;
+}
+
+/* The 18px leading inset puts the back glyph on the tab bar's 24px line: a 30px
+   control centres its 18px glyph 6px in. The 24px trailing inset and 8px gap
+   stand the menu and capture controls under the frame's account and sidebar
+   toggle controls, which are 30px wide at the same spacing. */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 24px 0 18px;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--dsw-alias-border-secondary);
+}
+
+.group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.control {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 15px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+.control svg {
+  width: 18px;
+  height: 18px;
+}
+
+.control:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.control:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.address {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  min-width: 0;
+  height: 30px;
+  border-radius: 15px;
+  background: var(--dsw-alias-interactive-bg-hover);
+  transition: background-color 150ms ease;
+}
+
+.address:hover,
+.address:focus-within {
+  background: var(--dsw-alias-interactive-bg-active);
+}
+
+.addressInput {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  padding: 0 12px;
+  border: none;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 14px;
+  text-overflow: ellipsis;
+}
+
+.addressInput::placeholder {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.addressInput:focus {
+  outline: none;
+}
+
+/* The open-in-Chrome control appears over the address's end on hover, and
+   the text makes room for it rather than running under it: a 24px control 3px
+   in, with a 14px glyph. */
+.addressAddon {
+  position: absolute;
+  inset: 0 3px 0 auto;
+  display: flex;
+  align-items: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease-out;
+}
+
+.addressAddon .control {
+  width: 24px;
+  height: 24px;
+  border-radius: 12px;
+}
+
+.addressAddon .control svg {
+  width: 14px;
+  height: 14px;
+}
+
+.address:hover .addressAddon {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.address:hover .addressInput {
+  padding-right: 30px;
+}
+
+/* t3code's `preview-loading-progress`: a bar that eases towards the end while a
+   load runs and fades once it stops. */
+.progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  border-radius: 0 999px 999px 0;
+  background: var(--dsw-alias-brand-primary);
+  opacity: 0;
+  pointer-events: none;
+  transform: scaleX(1);
+  transform-origin: left;
+  transition:
+    transform 150ms ease-out,
+    opacity 150ms ease-out 220ms;
+}
+
+.progress[data-loading="true"] {
+  opacity: 1;
+  animation: progress 5.3s cubic-bezier(0.1, 0.5, 0.2, 1) forwards;
+}
+
+@keyframes progress {
+  from {
+    transform: scaleX(0.04);
+  }
+
+  to {
+    transform: scaleX(0.9);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin,
+  .progress,
+  .progress[data-loading="true"] {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* The guest fills what the toolbar leaves: a visited page scrolls inside its
+   own frame. */
+.stage {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.guest {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: none;
+  background: #fff;
+}
+
+/* Menu: the appearance rows' check column, held empty on unchecked rows so
+   the labels stay aligned. Menu rows carry 16px glyphs. */
+.menuGlyph {
+  display: inline-flex;
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.menuGlyph svg,
+.zoomStep svg,
+.zoomReset svg {
+  width: 16px;
+  height: 16px;
+}
+
+.zoomRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+.zoomControls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.zoomStep,
+.zoomReset {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.zoomStep {
+  border: 1px solid var(--dsw-alias-border-secondary);
+}
+
+.zoomStep:hover,
+.zoomReset:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.zoomValue {
+  min-width: 48px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  font-variant-numeric: normal;
+  text-align: center;
+}
+
+/* The completion list is the popup card ui-primitives draws for a menu
+   (ui-primitives Menu.module.css `.list` and `.item`): the card declarations
+   are that rule's, with the anchor taken from the address field instead of the
+   trigger. Keep the two in step — a completion must read as the same object as
+   the three-dot menu it shares the row with. */
+.suggestions {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  /* The card is as tall as the rows it holds — the field caps that count at
+     `SUGGESTION_LIMIT`, so nothing overflows and no scrollbar can be drawn over
+     the page. */
+  overflow: hidden;
+  margin: 0;
+  padding: 8px;
+  list-style: none;
+  border: 0;
+  border-radius: var(--dsw-aeven-radius-surface);
+  /* Opaque, unlike the menu card it copies: a completion hangs over the live
+     page, where the 70% tint and its 4px blur sample the guest and read as
+     smeared page content through the rows. */
+  background: var(--dsw-alias-bg-layer-1);
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
+  box-shadow:
+    inset 1px 1px 0 0 var(--dsw-specific-popup-highlight),
+    inset 0 0 1px 1px var(--dsw-specific-popup-highlight),
+    var(--dsw-elevation-prominent);
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 100;
+}
+
+/* Menu.module.css `.item`, with the highlight parked by the field's selection:
+   the pointer moves that selection onto the row it is over (onHover), so no
+   second tint competes with the row Enter would take. */
+.suggestion {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: var(--dsw-aeven-control-size);
+  padding: 8px;
+  border: none;
+  border-radius: var(--dsw-aeven-radius-control);
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--dsw-alias-label-primary);
+  text-align: left;
+}
+
+.suggestionSelected {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+/* Truncation sits on the text, so a long completion keeps the row's height. */
+.suggestionText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* What the reader has not typed yet: the engine's remainder, dimmed. */
+.suggestionTail {
+  color: var(--dsw-alias-label-tertiary);
+}

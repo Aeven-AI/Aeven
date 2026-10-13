@@ -1,0 +1,81 @@
+.root {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  height: calc(34.5px + var(--avn-content-font-delta, 0px));
+  padding: 0 0 8px;
+  border: none;
+  /* Same rule as the Markdown host sheet's hr, so the turn divider and a
+     reply's horizontal rules read as one line style. */
+  border-bottom: 2px solid #fff;
+  background: none;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+  text-align: left;
+}
+
+.root:disabled,
+.root[data-turn-pending] {
+  cursor: default;
+}
+
+.root:not([data-open]),
+.root[data-turn-pending] {
+  margin-bottom: 8px;
+}
+
+.chevron {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-left: auto;
+  color: var(--dsw-alias-label-primary);
+  opacity: 0;
+  transition: opacity 100ms ease, transform 100ms ease;
+}
+
+.root:hover .chevron,
+.root[data-open] .chevron {
+  opacity: 1;
+}
+
+.root[data-open] .chevron {
+  transform: rotate(180deg);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.label {
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--avn-content-font-size, 16px);
+  line-height: calc(28px + var(--avn-content-font-delta, 0px));
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The row that will hold the trace, standing in while the model's first
+   streamed row is still on its way. It takes the work-row gap the trace row
+   takes once it lands in the Answer Step's flow item, so the row keeps one
+   place and does not jump as the first token arrives. The fallback repeats the
+   chat column's value for a render outside that column. */
+.awaiting {
+  display: block;
+  margin-top: var(--avn-chat-work-row-gap, 8px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root,
+  .chevron {
+    transition: none;
+  }
+}

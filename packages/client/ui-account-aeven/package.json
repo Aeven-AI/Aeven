@@ -1,0 +1,67 @@
+{
+  "name": "@aeven/client-ui-account-aeven",
+  "description": "The signed-in Aeven reader's avatar and account menu in the Web Session header",
+  "version": "0.1.2-alpha.5",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "types": "./lib/types/client/index.d.ts",
+      "default": "./lib/client.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "avn": {
+    "client": {
+      "inject": [
+        "@aeven/client-locale",
+        "@aeven/client-ui-layout"
+      ],
+      "platform": "web"
+    }
+  },
+  "scripts": {
+    "bundle": "tsdown",
+    "watch": "tsdown --watch"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/client/ui-account-aeven"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/client-locale": "workspace:^",
+    "@aeven/client-store": "workspace:^",
+    "@aeven/client-ui-auth-aeven": "workspace:^",
+    "@aeven/client-ui-layout": "workspace:^",
+    "@aeven/client-ui-primitives": "workspace:^",
+    "@aeven/client-ui-renderer": "workspace:^",
+    "@aeven/client-ui-session": "workspace:^",
+    "@aeven/client-ui-settings": "workspace:^",
+    "@aeven/client-ui-slots": "workspace:^",
+    "@testing-library/react": "^16.1.0",
+    "@types/react": "~18.3.1",
+    "@types/react-dom": "~18.3.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/client.js",
+    "lib/types/**/*.d.ts"
+  ]
+}

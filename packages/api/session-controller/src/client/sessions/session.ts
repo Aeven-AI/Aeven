@@ -1,0 +1,1050 @@
+// Sessions remain resident after creation so their open Remote sources keep running off-screen.
+
+import type { Context } from '@deepseek-ai/cordis'
+import { randomUUID } from '@aeven/util-crypto'
+import type { AttachmentIdType, ImageAttachmentRef } from '@aeven/attachment'
+import type { SubagentAddress } from '@aeven/subagent/client'
+import type { MessageId } from '@aeven/llm/brand'
+import { SessionLogOffset, SessionSeq, type SessionId } from '@aeven/session/types'
+import { SessionEventStream } from '../transport.ts'
+import type { SessionJournalChange } from '../transport.ts'
+import type {
+  PromptContentPart,
+  QueueAction,
+  SessionAddress,
+  SessionControlFrame,
+  SessionProjectionBaseline,
+  SessionQueuedItem,
+  SessionRequestId,
+} from '../../types.ts'
+import type {
+  BeginSubmissionInput, PendingSubmissionRetirement, SessionFace, SubmissionHandle,
+} from '../contract/session.ts'
+import type {
+  OpenState, PendingSubmission, PromptError, SessionSnapshot,
+} from '../contract/snapshot.ts'
+import { MutableSessionEventSource } from '../contract/events.ts'
+import type {
+  SessionEventLikeEntry, SessionLiveEventEntry,
+} from '../contract/events.ts'
+import { Notifier } from './notifier.ts'
+import { isRemoteFailure } from '@aeven/api-gateway/client'
+import type { RemoteFailure, RemoteResult } from '@aeven/typert-protocol'
+import type { SessionRemotes } from './remotes.ts'
+import { ProjectionValueStore } from './projection-store.ts'
+import type { ProjectionsBaseline } from './projection-store.ts'
+import { resolvedClientTimeZone } from '../time-zone.ts'
+import { SessionQueueMirror } from './queue-mirror.ts'
+
+function clientDisplayName(): string | undefined {
+  return (globalThis as { __AVN_AEVEN_READER__?: { readonly displayName?: string } })
+    .__AVN_AEVEN_READER__?.displayName
+}
+
+function projectionsBaseline(value: SessionProjectionBaseline): ProjectionsBaseline {
+  return {
+    ...value,
+    asOfSeq: value.asOfSeq === -1 ? -1 : SessionSeq(value.asOfSeq),
+  }
+}
+
+/** Messages requested for the opening window, which first paint waits on. */
+export const PAGE_MESSAGES = 50
+
+/**
+ * Messages requested per page while the reader scrolls back through history.
+ *
+ * Three times the opening window. What a reader feels is how often the scroll
+ * runs out of content, not how long one commit takes: paging is serialized, so
+ * a 50-message page makes the whole history 13 stops instead of 4. The larger
+ * commit costs more main-thread time per page, but it lands while loaded
+ * content is still on screen, where a stop at an empty head does not.
+ * First paint keeps the smaller {@link PAGE_MESSAGES}.
+ */
+export const SCROLL_PAGE_MESSAGES = 150
+
+/** Messages requested per page while a turn jump loops backwards (fewer, larger round trips). */
+export const JUMP_PAGE_MESSAGES = 200
+
+/** Manager-owned observers of a Session object's local state edges. */
+export interface SessionOptions {
+  /** Catalog-discovered address selecting non-activating subagent transport. */
+  address?: SubagentAddress
+  /** Whether the exact direct parent Agent was live at the latest catalog read; absent before that read. */
+  parentAvailable?: boolean
+  /**
+   * First ACCEPTED prompt on a blank session (fires at most once, on the
+   * prompt RPC's success response): the manager mirrors the blank→false flip
+   * into its list row so the session surfaces without waiting for a host
+   * frame. Acceptance is the flip point because it proves the user message
+   * is in the host log; a rejected first prompt keeps the session blank
+   * (hidden, still reusable by connectWorkspace).
+   */
+  onEngaged?(session: Session): void
+  /**
+   * Manager-owned projection value store to adopt (frames route through the
+   * manager and values outlive instantiation); omitted, the Session owns a
+   * private store (bare object-layer construction).
+   */
+  projections?: ProjectionValueStore
+}
+
+/**
+ * Owns a session's event window, lifecycle state, and observable
+ * snapshot. React bindings remain outside this data layer. Features see only
+ * the {@link SessionFace} slice (ISession verbs + the snapshot source); the
+ * remaining public members are Session Controller internals.
+ */
+export class Session implements SessionFace {
+  // ---- Window and derived state (all private; the snapshot is the only read API) ----
+  private baseSeq = SessionLogOffset(0)
+  private hasMore = false
+  /**
+   * Newer history remains outside the window's end: the window was installed
+   * around an older seq by a jump and no longer reaches the live tail. Live
+   * events are counted in {@link pendingLiveCount} instead of appended.
+   */
+  private hasNewer = false
+  /** Live events observed while detached, surfaced as the return-to-live count. */
+  private pendingLiveCount = 0
+  private openState: OpenState = 'cold'
+  private openError: RemoteFailure | null = null
+  private openPromise: Promise<void> | null = null
+  /** Bumped by stream replacement to invalidate an in-flight doOpen. Stale
+   *  passes drop all writes once the generation moves on. */
+  private openGeneration = 0
+  private loadingOlder = false
+  /** Shared low-water target of the running jump pass; null when no jump is paging. */
+  private jumpTargetSeq: SessionSeq | null = null
+  /** The running jump pass's completion, shared by retargeting callers. */
+  private jumpPromise: Promise<void> | null = null
+  /** Authoritative stream-only inbox snapshot; pending work never hits history. */
+  private readonly queueMirror = new SessionQueueMirror()
+  private running = false
+  private address: SubagentAddress | undefined
+  private parentAvailable: boolean | undefined
+  /**
+   * Sticky send marker, private input of the composerPhase derivation: set
+   * synchronously before prompt()'s first await, never reset — the blank →
+   * engaging edge of the phase machine (see ComposerPhase).
+   */
+  private promptAttempted = false
+  /** A first accepted prompt stays in the engaging phase until its turn is observable. */
+  private firstPromptPendingTurn = false
+  /** Empty-log mirror (see ConversationSnapshot.blank); unknown bare sessions begin conservatively blank. */
+  private blankBit = true
+  private removed = false
+  private promptError: PromptError | null = null
+  private lastAgentError: string | null = null
+  /** Local submission echoes, insertion-ordered (see SessionSnapshot.pendingSubmissions). */
+  private pendingSubmissions: readonly PendingSubmission[] = []
+  /** Per-echo settlement state; `retiring` latches the first observation so a
+   *  queue frame and its durable event cannot both retire one echo. `admitted`
+   *  holds a transcript echo's image references once the Host accepted or
+   *  queued its prompt, and stays null before that. */
+  private readonly submissionSettlements = new Map<SessionRequestId, {
+    readonly onRetire?: ((retirement: PendingSubmissionRetirement) => void) | undefined
+    retiring: boolean
+    admitted: readonly ImageAttachmentRef[] | null
+  }>()
+  /** Owns the addressed page/follow lifecycle while this Session is open. */
+  private events: SessionEventStream | undefined
+
+  /**
+   * Per-session projection value store (push model; see the session-projection
+   * subsystem page, docs/subsystems/session-projection.md): finished whole
+   * values computed on the Host, seeded by the tail page's
+   * projections block and updated by Session Controller control frames under the
+   * one higher-seq-wins rule. Keys are read via `projections.faceOf(key)`
+   * (the useProjection resolution face); the conversation snapshot never
+   * carries projection values, and no client-side domain folding exists.
+   * Manager-owned when constructed through SessionManager (frames route and
+   * the store outlives instantiation, the title-snapshot precedent); a bare
+   * construction gets a private store.
+   */
+  readonly projections: ProjectionValueStore
+
+  /** Contiguous history and live tail consumed by Conversation assembly. */
+  readonly eventSource = new MutableSessionEventSource()
+  private snapshotCache: SessionSnapshot
+  private readonly notifier: Notifier
+  /**
+   * Agent-scoped cordis context, bound once by ClientSessions when it
+   * mints the scope (the client mirror of the host Agent's loopCtx). The
+   * Session dispatches its own scoped events through it; undefined means
+   * unbound (bare object-layer construction) or already pruned — both skip
+   * dispatch-dependent behavior rather than fail.
+   */
+  private actx: Context | undefined
+
+  /**
+   * @param sessionId - Host session identity (client sessions are always Host-born).
+   * @param remote - generated Remote namespaces this session calls.
+   * @param options - optional manager-owned state observers.
+   */
+  constructor(
+    readonly sessionId: SessionId,
+    private readonly remote: SessionRemotes,
+    private readonly options: SessionOptions = {},
+  ) {
+    this.projections = options.projections ?? new ProjectionValueStore()
+    this.address = options.address
+    this.parentAvailable = options.parentAvailable
+    this.notifier = new Notifier(() => {
+      this.snapshotCache = this.buildSnapshot()
+    })
+    this.snapshotCache = this.buildSnapshot()
+  }
+
+  /**
+   * Bind the Agent-scoped context minted by ClientSessions (single write;
+   * a second bind is a wiring error and throws). Direction stays one-way at
+   * this binding boundary: consumers still reach the Session via `sessions.sessionOf`,
+   * while the Session holds its own dispatch point (host Agent.loopCtx
+   * mirror).
+   * @param actx - the agent's scoped context.
+   */
+  bindScope(actx: Context): void {
+    if (this.actx !== undefined) throw new Error(`session ${this.sessionId} already has a bound scope`)
+    this.actx = actx
+  }
+
+  /** Release the bound scope at prune time (a later rebind accompanies a freshly minted scope). */
+  unbindScope(): void {
+    this.actx = undefined
+  }
+
+  // ---- Operations ----
+
+  /**
+   * Register one local submission echo (see the ISession declaration).
+   * Notifies synchronously (`notifyNow`): the caller is the submit gesture, its
+   * editor clears the draft on the same task, and a microtask-batched
+   * notification would let a paint land between the clear and the echo's React
+   * commit. Notified in-tick, both ride one commit, so the message is on screen
+   * in the frame the composer empties.
+   * @param input - echo content and the optional settlement callback.
+   * @returns the minted identity for {@link prompt} plus the pre-prompt abandon path.
+   */
+  beginSubmission(input: BeginSubmissionInput): SubmissionHandle {
+    const requestId = randomUUID() as SessionRequestId
+    this.pendingSubmissions = [...this.pendingSubmissions, {
+      requestId,
+      placement: this.running
+        ? input.mode === 'steer' ? 'steering' : 'queued'
+        : 'transcript',
+      time: Date.now(),
+      text: input.text,
+      images: input.images,
+      files: input.files,
+    }]
+    this.submissionSettlements.set(requestId, { onRetire: input.onRetire, retiring: false, admitted: null })
+    // The blank → engaging edge flips here, ahead of prompt(): the composer
+    // docks and the echo renders on the click's own frame.
+    this.promptAttempted = true
+    this.notifier.notifyNow()
+    return { requestId, abandon: () => { this.retireFailedSubmission(requestId) } }
+  }
+
+  /**
+   * Send (queue/steer passed through 1:1); failures land in the snapshot's promptError.
+   * @param content - text plus browser-owned temporary image uploads.
+   * @param mode - queue appends after the current turn; steer interrupts it.
+   * @param signal - optional caller cancellation for the complete admission round-trip.
+   * @param requestId - identity from {@link beginSubmission}; a failed identified prompt retires its echo.
+   * @returns the prompt result (also mirrored into promptError on failure).
+   */
+  async prompt(
+    content: PromptContentPart[],
+    mode: 'queue' | 'steer',
+    signal?: AbortSignal,
+    requestId?: SessionRequestId,
+  ): Promise<RemoteResult<{ accepted: true }>> {
+    this.promptError = null
+    this.lastAgentError = null
+    // Synchronous, before the first await: the blank → engaging edge must be
+    // visible on the session area's very first frame when a caller sends
+    // ahead of navigation (first-send flow).
+    this.promptAttempted = true
+    if (this.blankBit) this.firstPromptPendingTurn = true
+    // Sending is a move to the live end: the reader's own message lands there,
+    // and a window still anchored back in history would withhold it along with
+    // the turn it starts. Reattaching here is what puts the prompt on screen.
+    if (this.hasNewer) void this.returnToLive()
+    this.notifier.markDirty()
+    let result: RemoteResult<{ accepted: true }>
+    if (this.address === undefined) {
+      const clientTimeZone = resolvedClientTimeZone()
+      const displayName = clientDisplayName()
+      result = await this.remote.session.prompt({
+        requestId: requestId ?? randomUUID() as SessionRequestId,
+        sessionId: this.sessionId,
+        mode,
+        content,
+        clientTimeZone,
+        ...displayName === undefined ? {} : { clientDisplayName: displayName },
+      }, signal)
+    } else {
+      const routed = await this.remote.subagents.prompt({
+        requestId: randomUUID() as SessionRequestId,
+        parentSessionId: this.address.parentSessionId,
+        childSessionId: this.address.childSessionId,
+        mode: 'continuable',
+        content,
+        clientTimeZone: resolvedClientTimeZone(),
+      }, signal)
+      result = routed.ok ? { ok: true, value: { accepted: true } } : routed
+    }
+    if (!result.ok) {
+      if (requestId !== undefined) this.retireFailedSubmission(requestId)
+      this.promptError = { op: 'send', error: result.error }
+      this.notifier.markDirty()
+      return result
+    }
+    if (requestId !== undefined) this.admitTranscriptEcho(requestId, [])
+    // Blank flips on ACCEPTANCE, not attempt: an accepted prompt starts the
+    // conversation's first turn on the host (the host criterion — a logged
+    // turn/start — is fact, not optimism; standalone command and projection
+    // events never flip it), while a rejected first prompt must keep the
+    // session blank — the client-side blank mirror only ever lowers, so
+    // flipping early on a failure would surface the session forever and
+    // strip its connectWorkspace reuse eligibility against the host's
+    // authority.
+    if (this.blankBit) {
+      this.blankBit = false
+      this.options.onEngaged?.(this)
+      this.notifier.markDirty()
+    }
+    return result
+  }
+
+  /**
+   * Resolve one image referenced by this session into browser-consumable bytes.
+   * @param attachmentId - opaque id found in the folded session log.
+   * @returns the authenticated reference and decoded bytes.
+   */
+  async readAttachment(
+    attachmentId: AttachmentIdType,
+  ): Promise<RemoteResult<{ attachment: ImageAttachmentRef; data: Uint8Array }>> {
+    const result = await this.remote.session.attachment({
+      sessionId: this.sessionId,
+      attachmentId,
+    })
+    if (!result.ok) return result
+    const binary = atob(result.value.data)
+    const data = Uint8Array.from(binary, char => char.charCodeAt(0))
+    return { ok: true, value: { attachment: result.value.attachment, data } }
+  }
+
+  /** Apply one operation to a still-pending queue occurrence. */
+  async updateQueue(itemId: MessageId, action: QueueAction): Promise<RemoteResult<{ accepted: true }>> {
+    return this.remote.session.updateQueue({ sessionId: this.sessionId, itemId, action })
+  }
+
+  /**
+   * Replace one user prompt's text and discard it and everything after;
+   * failures land in promptError. Like a send, it moves the window to the live end.
+   * @param messageSeq - event seq of the user-authored `user/message`.
+   * @param text - replacement text; the prompt's attachments are kept.
+   * @returns the edit result.
+   */
+  async edit(messageSeq: SessionSeq, text: string): Promise<RemoteResult<{ accepted: true }>> {
+    this.promptError = null
+    this.lastAgentError = null
+    if (this.hasNewer) void this.returnToLive()
+    this.notifier.markDirty()
+    const requestId = randomUUID() as SessionRequestId
+    const displayName = clientDisplayName()
+    const result = await this.remote.session.edit({
+      requestId,
+      sessionId: this.sessionId,
+      messageSeq,
+      text,
+      ...displayName === undefined ? {} : { clientDisplayName: displayName },
+      clientTimeZone: resolvedClientTimeZone(),
+    })
+    if (!result.ok) {
+      this.promptError = { op: 'send', error: result.error }
+      this.notifier.markDirty()
+      return result
+    }
+    // The rewind already hid the original prompt; a transcript echo shows the
+    // edited text until the new turn logs it. Registered only after acceptance,
+    // so the echo never renders beside the prompt it replaces.
+    this.pendingSubmissions = [...this.pendingSubmissions, {
+      requestId,
+      placement: 'transcript',
+      time: Date.now(),
+      text,
+      images: [],
+      files: [],
+    }]
+    this.submissionSettlements.set(requestId, { retiring: false, admitted: null })
+    this.admitTranscriptEcho(requestId, [])
+    this.notifier.notifyNow()
+    return { ok: true, value: { accepted: true } }
+  }
+
+  /**
+   * Stop the active turn while the Host preserves pending inbox work; failures
+   * land in promptError (same error-strip display slot). A subagent address
+   * routes through `subagents.interruptByParent`, whose durable parent-address
+   * authority works without a live parent Agent.
+   * @returns the cancel result.
+   */
+  async cancel(): Promise<RemoteResult<{ accepted: true }>> {
+    const address = this.address
+    const result = address !== undefined
+      ? await this.remote.subagents.interruptByParent(
+        address.childSessionId,
+        address.parentSessionId,
+        'continuable',
+      )
+      : await this.remote.session.cancel({ sessionId: this.sessionId })
+    if (!result.ok) {
+      this.promptError = { op: 'stop', error: result.error }
+      this.notifier.markDirty()
+    }
+    return result
+  }
+
+  /**
+   * Rename: contract session.rename 1:1. On success settle the 'title'
+   * projection cell from the response's `{title, seq}` under the store's
+   * higher-seq-wins rule (the push frame arriving later is a no-op replay),
+   * so the list row and any useProjection('title') reader update without
+   * waiting for the control-stream projection update.
+   * @param title - raw title text (the host normalizes acceptance).
+   * @returns the rename result (normalized accepted title + title event seq).
+   */
+  async rename(title: string): Promise<RemoteResult<{ title: string; seq: SessionSeq }>> {
+    const result = await this.remote.session.rename({ sessionId: this.sessionId, title })
+    if (!result.ok) return result
+    const seq = SessionSeq(result.value.seq)
+    this.projections.apply('title', result.value.title, seq)
+    return { ok: true, value: { title: result.value.title, seq } }
+  }
+
+  /**
+   * Execute one slash-command line against this session's agent — pure
+   * admission semantics (the host executor durably logs the lifecycle;
+   * outcomes render as flow nodes, never as a response echo).
+   * @param line - the full command line, leading slash included.
+   * @returns the admission result.
+   */
+  async command(line: string): Promise<RemoteResult<{ matched: boolean }>> {
+    const result = await this.remote.commands.execute(this.sessionId, line, [])
+    if (!result.ok) return result
+    return { ok: true, value: { matched: result.value !== undefined } }
+  }
+
+  /** First open: pull the tail page (idempotent — in-flight/already-open returns the existing promise). */
+  open(): Promise<void> {
+    if (this.openState === 'open') return Promise.resolve()
+    if (this.openPromise !== null) return this.openPromise
+    const promise = this.doOpen(this.openGeneration).finally(() => {
+      // Identity-guarded: a superseded open must not null out the promise resync just started.
+      if (this.openPromise === promise) this.openPromise = null
+    })
+    this.openPromise = promise
+    return promise
+  }
+
+  /** Page up: pull one earlier page with the window's first seq as beforeSeq and prepend. */
+  async loadOlder(): Promise<void> {
+    if (this.openState !== 'open' || !this.hasMore || this.loadingOlder) return
+    const events = this.events
+    if (events === undefined) return
+    this.loadingOlder = true
+    this.notifier.markDirty()
+    try {
+      await events.prepend({ beforeSeq: this.baseSeq, maxMessages: SCROLL_PAGE_MESSAGES })
+    } catch (error) {
+      if (!isRemoteFailure(error)) {
+        console.error('[session-controller] loadOlder failed:', error)
+      }
+    } finally {
+      this.loadingOlder = false
+      this.notifier.markDirty()
+    }
+  }
+
+  /**
+   * Page down: pull the page after a detached window's end and append it.
+   *
+   * Attached windows end at the live tail, where the follow stream already
+   * supplies new events, so this is a no-op for them.
+   * @returns completion; failures land in snapshot.loadingOlder.
+   */
+  async loadNewer(): Promise<void> {
+    if (this.openState !== 'open' || !this.hasNewer || this.loadingOlder) return
+    const events = this.events
+    if (events === undefined) return
+    const end = events.detachedEnd()
+    if (end === undefined) return
+    this.loadingOlder = true
+    this.notifier.markDirty()
+    try {
+      // A forward read: `afterSeq` is the exclusive lower bound, so the page
+      // begins at the event following the window's end. A `beforeSeq` bound
+      // cannot serve this — the host reads those backwards from the bound, so
+      // the page would land entirely before the window it must extend.
+      await events.appendPage({
+        afterSeq: end,
+        maxMessages: SCROLL_PAGE_MESSAGES,
+      })
+    } catch (error) {
+      if (!isRemoteFailure(error)) {
+        console.error('[session-controller] loadNewer failed:', error)
+      }
+    } finally {
+      this.loadingOlder = false
+      this.notifier.markDirty()
+    }
+  }
+
+  /**
+   * Jump loader: install one window anchored on seq (see ISession.loadThrough).
+   *
+   * One round trip regardless of distance. The Host holds the whole log and
+   * `beforeSeq` indexes it directly, so a window around an old seq costs what
+   * a tail page costs; walking backwards page by page would instead scale with
+   * the distance travelled and accumulate the whole intervening history.
+   *
+   * The installed window ends at the target's page boundary, so it is detached
+   * from the live tail whenever older events remain after it: `hasNewer` then
+   * gates live appends and {@link returnToLive} reattaches.
+   *
+   * A request arriving while a read is in flight joins that pass at the lower
+   * of the two targets. The pass serves the deeper target with one more
+   * anchored read rather than by walking to it — the anchored read costs the
+   * same at any distance, so a rail clicked twice in quick succession still
+   * lands the second, deeper destination.
+   */
+  loadThrough(seq: SessionSeq): Promise<void> {
+    if (this.openState !== 'open') return Promise.resolve()
+    // Already covered by the standing window, with nothing newer withheld.
+    if (this.baseSeq <= seq && !this.hasNewer) return Promise.resolve()
+    if (this.jumpPromise !== null) {
+      this.jumpTargetSeq = SessionSeq(Math.min(this.jumpTargetSeq ?? seq, seq))
+      return this.jumpPromise
+    }
+    if (this.loadingOlder) return Promise.resolve()
+    this.jumpTargetSeq = seq
+    this.loadingOlder = true
+    this.notifier.markDirty()
+    // Stale-pass guard (the doOpen pattern): a resync mid-jump replaces the
+    // stream generation; this pass then drops its result instead of installing
+    // a window built for the previous one.
+    const generation = this.openGeneration
+    this.jumpPromise = (async () => {
+      try {
+        let target = seq
+        for (;;) {
+          await this.installAnchoredWindow(target, generation)
+          if (generation !== this.openGeneration) return
+          // A retarget strictly below the served target needs its own read; a
+          // target the installed window's head already covers, or no retarget
+          // at all, ends the pass. Each iteration serves a lower target, so the
+          // loop is bounded by the retargets a reader can issue.
+          const retarget = this.jumpTargetSeq
+          if (retarget === null || retarget >= target || this.baseSeq <= retarget) return
+          target = retarget
+        }
+      } catch (error) {
+        if (!isRemoteFailure(error)) {
+          console.error('[session-controller] loadThrough failed:', error)
+        }
+      } finally {
+        this.jumpTargetSeq = null
+        this.jumpPromise = null
+        this.loadingOlder = false
+        this.notifier.markDirty()
+      }
+    })()
+    return this.jumpPromise
+  }
+
+  /**
+   * Read and install one window anchored on `seq`.
+   *
+   * `beforeSeq` sits half a page past the target so the target lands with
+   * reading room below it rather than on the window's last row. The journal
+   * publishes the result as an `anchor` change, which carries whether newer
+   * history remains outside it.
+   */
+  private async installAnchoredWindow(seq: SessionSeq, generation: number): Promise<void> {
+    const events = this.events
+    if (events === undefined) return
+    await events.anchor({
+      beforeSeq: SessionLogOffset(seq + Math.floor(JUMP_PAGE_MESSAGES / 2)),
+      maxMessages: JUMP_PAGE_MESSAGES,
+    })
+    if (generation !== this.openGeneration) return
+    if (this.hasMore) {
+      await events.prepend({ beforeSeq: this.baseSeq, maxMessages: SCROLL_PAGE_MESSAGES })
+    }
+    if (generation !== this.openGeneration) return
+    const end = events.detachedEnd()
+    if (end !== undefined) {
+      await events.appendPage({ afterSeq: end, maxMessages: SCROLL_PAGE_MESSAGES })
+    }
+  }
+
+  /**
+   * Reattach the window to the live tail after a jump detached it.
+   *
+   * Reopening the journal is what reattaches: the stream's own opening
+   * snapshot is the authoritative tail window, so this cannot race the live
+   * feed the way a forward page followed by a subscribe would.
+   * @returns completion once the tail window is installed.
+   */
+  async returnToLive(): Promise<void> {
+    if (this.openState !== 'open' || !this.hasNewer) return
+    this.pendingLiveCount = 0
+    await this.resync()
+  }
+
+  /** Rebuild an opened history source after address replacement.
+   *  Invalidates any in-flight open first; queue state belongs to the independently
+   *  reconnecting control stream and remains untouched. */
+  async resync(): Promise<void> {
+    if (this.openState === 'cold') return // never opened: no window to rebuild (doOpen flips to 'loading' synchronously, so cold implies no in-flight open)
+    this.openGeneration++
+    const events = this.events
+    this.events = undefined
+    await events?.dispose()
+    this.openPromise = null
+    this.openState = 'cold'
+    this.openError = null
+    this.baseSeq = SessionLogOffset(0)
+    // The rebuilt window comes from the stream's own opening snapshot, which
+    // is always the live tail: any detachment a jump left behind is gone with
+    // the stream that carried it.
+    this.hasNewer = false
+    this.pendingLiveCount = 0
+    this.notifier.markDirty()
+    await this.open()
+  }
+
+  // ---- Subscription API (useSyncExternalStore direct wiring) ----
+
+  /**
+   * uSES subscription entry.
+   * @param listener - change callback.
+   * @returns the unsubscribe function.
+   */
+  subscribe(listener: () => void): () => void {
+    return this.notifier.subscribe(listener)
+  }
+
+  /**
+   * Cached Session snapshot (rebuilt lazily when dirty with no listeners).
+   * @returns the cached reference (stable until the next flush).
+   */
+  getSnapshot(): SessionSnapshot {
+    this.notifier.ensureFresh()
+    return this.snapshotCache
+  }
+
+  // ---- Manager-only entry points (@internal; never called by the UI) ----
+
+  /**
+   * Replace every transient control value for this Session from one stream baseline.
+   * @param queue - complete pending queue for this Session.
+   */
+  replaceControl(queue: readonly SessionQueuedItem[]): void {
+    this.queueMirror.replace(queue)
+    this.observeSubmissionQueue(queue)
+    this.notifier.markDirty()
+  }
+
+  /**
+   * Apply one Session-addressed live control update.
+   * @param frame - queue replacement addressed to this Session.
+   */
+  handleControlFrame(frame: Extract<SessionControlFrame, { type: 'queue' }>): void {
+    this.queueMirror.applyFrame(frame.items, frame.claimed ?? [])
+    this.observeSubmissionQueue(frame.items)
+    this.notifier.markDirty()
+  }
+
+  /**
+   * Running-bit relay from the host stream (list entry and snapshot stay consistent).
+   * @param running - the new running state.
+   */
+  handleRunning(running: boolean): void {
+    // Turn-start conversion: a blank session never runs, so the first
+    // running:true proves another side's first message landed.
+    if (running && this.blankBit) {
+      this.blankBit = false
+      this.notifier.markDirty()
+    }
+    if (running) this.firstPromptPendingTurn = false
+    if (this.running === running) return
+    this.running = running
+    this.notifier.markDirty()
+  }
+
+  /**
+   * Install or clear the catalog-discovered transport address. A changed
+   * address rebuilds an already-open window through its new history route.
+   * @param address - direct parent/child address, or undefined for ordinary transport.
+   * @param parentAvailable - latest exact-parent availability hint, or undefined before a catalog read.
+   */
+  configureSubagent(address: SubagentAddress | undefined, parentAvailable?: boolean): void {
+    const same = this.address?.parentSessionId === address?.parentSessionId
+      && this.address?.childSessionId === address?.childSessionId
+      && this.address?.mode === address?.mode
+    this.address = address
+    this.parentAvailable = parentAvailable
+    if (!same && this.openState !== 'cold') void this.resync()
+    else this.notifier.markDirty()
+  }
+
+  /**
+   * Update only the parent availability hint from a catalog refresh.
+   * @param available - whether the exact direct parent is live.
+   */
+  handleSubagentParentAvailable(available: boolean): void {
+    if (this.parentAvailable === available) return
+    this.parentAvailable = available
+    this.notifier.markDirty()
+  }
+
+  /**
+   * Blank-bit relay from the authoritative summary source (`session.list` and
+   * `api-session/added`). Monotone: once any signal (local first send,
+   * running flip, an earlier summary) cleared it, a stale true never
+   * re-blanks.
+   * @param blank - the summary's derived empty-log bit.
+   */
+  handleBlank(blank: boolean): void {
+    if (blank === this.blankBit) return
+    if (blank && (this.promptAttempted || this.running)) return
+    this.blankBit = blank
+    this.notifier.markDirty()
+  }
+
+  /** `api-session/removed` relay: flag the snapshot while retaining the resident instance. */
+  handleRemoved(): void {
+    this.removed = true
+    this.notifier.markDirty()
+  }
+
+  /**
+   * `api-session/error` relay: the outlet for live failures with no turn position.
+   * @param message - the stringified error.
+   */
+  handleAgentError(message: string): void {
+    this.lastAgentError = message
+    this.notifier.markDirty()
+  }
+
+  /**
+   * Stop the Session's live Remote source.
+   * @returns when the Remote iterator has completed teardown.
+   */
+  async dispose(): Promise<void> {
+    // Unsettled echoes retire as failed so their owners can restore or
+    // release browser resources; echoes already scheduled as observed keep
+    // that settlement.
+    for (const requestId of [...this.submissionSettlements.keys()]) {
+      this.retireFailedSubmission(requestId)
+    }
+    this.openGeneration++
+    const events = this.events
+    this.events = undefined
+    await events?.dispose()
+  }
+
+  // ---- Private ----
+
+  /** @param generation - openGeneration at launch; stale passes cannot publish after replacement. */
+  private async doOpen(generation: number): Promise<void> {
+    this.openState = 'loading'
+    this.openError = null
+    this.notifier.markDirty()
+    const events = new SessionEventStream(this.remote, this.sessionAddress(), {
+      publish: (change) => {
+        if (generation !== this.openGeneration || this.events !== events) return
+        this.acceptEventChange(change)
+      },
+      failed: (error) => {
+        this.failEventStream(events, generation, error)
+      },
+    })
+    this.events = events
+    try {
+      await events.open({ maxMessages: PAGE_MESSAGES })
+      if (generation !== this.openGeneration || this.events !== events) return
+      this.openState = 'open'
+    } catch (error) {
+      if (generation !== this.openGeneration || this.events !== events) return
+      if (!isRemoteFailure(error)) throw error
+      this.events = undefined
+      this.openState = 'error'
+      this.openError = error
+    } finally {
+      if (generation === this.openGeneration) this.notifier.markDirty()
+    }
+  }
+
+  /** Apply one contiguous journal update already reconciled by the Remote stream. */
+  private acceptEventChange(change: SessionJournalChange): void {
+    switch (change.type) {
+      case 'replace':
+        this.installWindow(
+          change.entries,
+          change.hasMore,
+          change.page.projections === undefined ? undefined : projectionsBaseline(change.page.projections),
+        )
+        return
+      case 'prepend':
+        this.prependWindow(change.entries, change.hasMore)
+        return
+      case 'anchor':
+        // A jump's window: projections keep the baseline the opening snapshot
+        // seeded, since an anchored page carries none of its own.
+        this.installWindow(change.entries, change.hasMore, undefined, change.hasNewer)
+        return
+      case 'extend':
+        this.extendWindow(change.entries, change.hasNewer)
+        return
+      case 'append':
+        if (this.appendLive(change.entry)) this.notifier.markDirty()
+    }
+  }
+
+  /**
+   * Replace the complete contiguous window and apply page-owned projection metadata.
+   * @param hasNewer - newer history remains outside the window's end (an
+   *   anchored jump window); omitted, the window reaches the live tail.
+   */
+  private installWindow(
+    entries: readonly SessionEventLikeEntry[],
+    hasMore: boolean,
+    projections?: ProjectionsBaseline,
+    hasNewer = false,
+  ): void {
+    this.baseSeq = SessionLogOffset(entries[0]?.event.seq ?? 0)
+    this.hasMore = hasMore
+    this.hasNewer = hasNewer
+    if (!hasNewer) this.pendingLiveCount = 0
+    if (entries.some(entry => entry.event.type === 'turn/start')) this.firstPromptPendingTurn = false
+    if (projections !== undefined) this.projections.seed(projections)
+    this.eventSource.replace(entries, { hasOlder: hasMore, hasNewer })
+    for (const entry of entries) this.observeSubmissionEvent(entry.event)
+    this.notifier.markDirty()
+  }
+
+  /**
+   * Prepend one stream-validated history page.
+   *
+   * The window advances only once the page is accepted: a subscriber that
+   * throws mid-publication leaves `baseSeq` and `hasMore` describing the
+   * window that is actually assembled, so the next pull retries this page
+   * instead of reporting history complete at a page that never landed.
+   */
+  private prependWindow(entries: readonly SessionEventLikeEntry[], hasMore: boolean): void {
+    this.eventSource.prepend(entries, hasMore)
+    this.baseSeq = entries[0] === undefined ? this.baseSeq : SessionLogOffset(entries[0].event.seq)
+    this.hasMore = hasMore
+  }
+
+  /**
+   * Append one forward page to a detached window.
+   *
+   * A page that reaches the live tail reattaches the window: live events are
+   * appended again from here, so the withheld count is cleared with it.
+   */
+  private extendWindow(entries: readonly SessionEventLikeEntry[], hasNewer: boolean): void {
+    this.eventSource.appendPage(entries, hasNewer)
+    this.hasNewer = hasNewer
+    if (!hasNewer) this.pendingLiveCount = 0
+    this.notifier.markDirty()
+  }
+
+  /** Append one stream-validated live event. */
+  private appendLive(entry: SessionLiveEventEntry): boolean {
+    const event = entry.event
+    const awaitingFirstTurn = this.firstPromptPendingTurn
+    if (event.type === 'turn/start') this.firstPromptPendingTurn = false
+    const queueChanged = this.queueMirror.acceptDurable(event)
+    // A detached window does not adjoin the live tail, so appending here would
+    // splice this event onto history it does not follow. The queue mirror and
+    // submission bookkeeping above are window-independent and still run; the
+    // event itself reaches the reader when returnToLive() reinstalls the tail.
+    if (this.hasNewer) {
+      this.pendingLiveCount += 1
+      return true
+    }
+    this.eventSource.append(entry)
+    // After the feed append: the conversation assembly's animation frame is
+    // registered by the feed subscribers above, so the echo-retirement frame
+    // scheduled here always runs after the durable node became renderable.
+    this.observeSubmissionEvent(event)
+    return queueChanged || awaitingFirstTurn !== this.firstPromptPendingTurn
+  }
+
+  /**
+   * Retire the matching echo when a durable browser-prompt `user/message`
+   * becomes visible, and retire admitted transcript echoes whose prompt left
+   * the Host queue when a turn ends without logging it (an aborted pre-step).
+   */
+  private observeSubmissionEvent(event: { readonly type: string; readonly data?: unknown }): void {
+    if (this.submissionSettlements.size === 0) return
+    if (event.type === 'turn/end') {
+      this.retireUnloggedTranscriptEchoes()
+      return
+    }
+    if (event.type !== 'user/message') return
+    // Structural read: window entries may be compact history records, so the
+    // fields are narrowed rather than trusted (same posture as Conversation
+    // assembly matchers).
+    const data = event.data as { readonly source?: unknown; readonly content?: unknown } | undefined
+    const source = data?.source as { readonly kind?: unknown; readonly rpcId?: unknown } | undefined
+    if (source?.kind !== 'user' || typeof source.rpcId !== 'string') return
+    this.scheduleObservedRetirement(source.rpcId as SessionRequestId, imageRefsIn(data?.content))
+  }
+
+  /**
+   * Retire echoes whose prompts landed in the host inbox instead of the log
+   * (running-turn submissions). Transcript and steering echoes stay up instead: the Host
+   * claims its prompt out of the inbox before the pre-step waterfall runs, and
+   * logs the `user/message` only after it, so the echo is the only rendering
+   * of the message in between.
+   */
+  private observeSubmissionQueue(items: readonly SessionQueuedItem[]): void {
+    if (this.submissionSettlements.size === 0) return
+    for (const item of items) {
+      if (item.rpcId === undefined) continue
+      const attachments = imageRefsIn(item.message.content)
+      if (this.isVisibleEcho(item.rpcId)) this.admitTranscriptEcho(item.rpcId, attachments)
+      else this.scheduleObservedRetirement(item.rpcId, attachments)
+    }
+  }
+
+  private isVisibleEcho(requestId: SessionRequestId): boolean {
+    return this.pendingSubmissions.some(echo => echo.requestId === requestId
+      && (echo.placement === 'transcript' || echo.placement === 'steering'))
+  }
+
+  /** Record Host admission of a transcript echo; queue-carried attachment references replace the empty acceptance record. */
+  private admitTranscriptEcho(requestId: SessionRequestId, attachments: readonly ImageAttachmentRef[]): void {
+    const settlement = this.submissionSettlements.get(requestId)
+    if (settlement === undefined || !this.isVisibleEcho(requestId)) return
+    if (settlement.admitted === null || attachments.length > 0) settlement.admitted = attachments
+  }
+
+  /** Retire admitted transcript echoes that no longer wait in the Host queue. */
+  private retireUnloggedTranscriptEchoes(): void {
+    const queued = new Set(this.queueMirror.snapshot().flatMap(item => item.rpcId === undefined ? [] : [item.rpcId]))
+    for (const [requestId, settlement] of this.submissionSettlements) {
+      if (settlement.admitted !== null && !queued.has(requestId)) {
+        this.scheduleObservedRetirement(requestId, settlement.admitted)
+      }
+    }
+  }
+
+  /**
+   * Latch one observed settlement and remove the echo an animation frame
+   * later. The delay keeps the echo in the snapshot until the frame in which
+   * the durable node (whose assembly frame was registered first) is
+   * renderable; the render-time rpcId dedupe hides the one-frame overlap.
+   */
+  private scheduleObservedRetirement(
+    requestId: SessionRequestId,
+    attachments: readonly ImageAttachmentRef[],
+  ): void {
+    const settlement = this.submissionSettlements.get(requestId)
+    if (settlement === undefined || settlement.retiring) return
+    settlement.retiring = true
+    scheduleFrame(() => { this.finishSubmission(requestId, { reason: 'observed', attachments }) })
+  }
+
+  /** Remove one unsettled echo immediately (prompt rejection, abort, or disposal). */
+  private retireFailedSubmission(requestId: SessionRequestId): void {
+    const settlement = this.submissionSettlements.get(requestId)
+    if (settlement === undefined || settlement.retiring) return
+    settlement.retiring = true
+    this.finishSubmission(requestId, { reason: 'failed' })
+  }
+
+  /** Single removal point: drop the echo, publish, then notify the owner. */
+  private finishSubmission(requestId: SessionRequestId, retirement: PendingSubmissionRetirement): void {
+    const settlement = this.submissionSettlements.get(requestId)
+    /* v8 ignore next -- retiring latches before every schedule, so one settlement never finishes twice. */
+    if (settlement === undefined) return
+    this.submissionSettlements.delete(requestId)
+    this.pendingSubmissions = this.pendingSubmissions.filter(echo => echo.requestId !== requestId)
+    this.notifier.markDirty()
+    settlement.onRetire?.(retirement)
+  }
+
+  /** Publish a terminal background failure only while this stream still owns the Session. */
+  private failEventStream(events: SessionEventStream, generation: number, error: unknown): void {
+    if (generation !== this.openGeneration || this.events !== events) return
+    if (!isRemoteFailure(error)) throw error
+    this.openGeneration++
+    this.events = undefined
+    this.openPromise = null
+    this.openState = 'error'
+    this.openError = error
+    void events.dispose()
+    this.notifier.markDirty()
+  }
+
+  private buildSnapshot(): SessionSnapshot {
+    return {
+      sessionId: this.sessionId,
+      queue: this.queueMirror.snapshot(),
+      pendingSubmissions: this.pendingSubmissions,
+      running: this.running,
+      subagent: this.address === undefined
+        ? null
+        : {
+          address: this.address,
+          ...(this.parentAvailable === undefined ? {} : { parentAvailable: this.parentAvailable }),
+        },
+      removed: this.removed,
+      openState: this.openState,
+      openError: this.openError,
+      hasMore: this.hasMore,
+      detached: this.hasNewer,
+      pendingLive: this.pendingLiveCount,
+      loadingOlder: this.loadingOlder,
+      promptError: this.promptError,
+      blank: this.blankBit,
+      lastAgentError: this.lastAgentError,
+      promptAttempted: this.promptAttempted,
+      awaitingFirstTurn: this.firstPromptPendingTurn,
+    }
+  }
+
+  private sessionAddress(): SessionAddress {
+    return this.address === undefined
+      ? { kind: 'session', sessionId: this.sessionId }
+      : { kind: 'subagent', ...this.address }
+  }
+}
+
+/** Run one callback on the next animation frame, or a macrotask where no frame clock exists. */
+function scheduleFrame(fn: () => void): void {
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => { fn() })
+  else setTimeout(fn, 0)
+}
+
+/** Image attachment references in one structurally-read content block list, in block order. */
+function imageRefsIn(content: unknown): readonly ImageAttachmentRef[] {
+  if (!Array.isArray(content)) return []
+  const refs: ImageAttachmentRef[] = []
+  for (const block of content) {
+    if (typeof block !== 'object' || block === null) continue
+    const candidate = block as { readonly type?: unknown; readonly attachment?: unknown }
+    if (candidate.type === 'image' && typeof candidate.attachment === 'object' && candidate.attachment !== null) {
+      refs.push(candidate.attachment as ImageAttachmentRef)
+    }
+  }
+  return refs
+}

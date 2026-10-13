@@ -1,0 +1,58 @@
+- tree "Sessions":
+  - treeitem "{{workspace}}" [expanded]:
+    - img
+    - text: {{workspace}}
+  - treeitem "Review aeven/aeven#314 Session actions for Review aeven/aeven#314" [selected]:
+    - text: Review aeven/aeven#314
+    - button "Session actions for Review aeven/aeven#314":
+      - img
+
+---
+
+- banner:
+  - navigation "Session hierarchy":
+    - button "Review aeven/aeven#314" [disabled]
+  - tablist:
+    - tab "Chat" [selected]
+    - tab "Trajectory"
+  - img
+  - text: Standard mode
+  - button "Session log":
+    - text: Session log
+    - img
+- button "System prompt":
+  - img
+  - img
+  - text: System prompt
+- button "Thought for a while" [expanded]:
+  - text: Thought for a while
+  - img
+- button "Context injection webhook github webhook handled by review-pr-when-ready":
+  - img
+  - img
+  - text: Context injection webhook github webhook handled by review-pr-when-ready
+- button "Context injection @aeven/system-prompt":
+  - img
+  - img
+  - text: Context injection @aeven/system-prompt
+- paragraph: "Review complete: no actionable findings."
+- button "Copy":
+  - img
+- button "Good response":
+  - img
+- button "Bad response":
+  - img
+- button "Branch into a new conversation":
+  - img
+- button "Ran for {{duration}}":
+  - img
+  - text: Ran for {{duration}}
+- text: {{clock}}
+- textbox "Message or run a task... / commands, @ files or sessions"
+- button "Commands"
+- 'button "Access mode, current: Read Only"': Read Only
+- button "Select model, current github-webhook-review-test/reply":
+  - text: github-webhook-review-test/reply
+  - img
+- button "Send message" [disabled]
+- text: 1 turns · 1 steps LLM {{duration}}

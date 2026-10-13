@@ -1,0 +1,21 @@
+# The SDK application over avn-base. Stdout belongs exclusively to JSON-RPC.
+
+- id: system-prompt
+  config:
+    persona: >-
+      You are a coding agent powered by the {{model}} model. Your working directory is {{cwd}}.
+
+- id: session-title-llm
+  disabled: true
+
+- insert:
+    - id: sdk-app-startup
+      name: '@aeven/sdk-app'
+      config:
+        profile: sdk
+
+    - id: sdk-jsonrpc-server
+      name: '@aeven/sdk-jsonrpc-server'
+      inject: [sdkAppStartup, loader]
+      config:
+        maxTokensAsSuccess: !!js "process.env.AVN_MAX_TOKENS_AS_SUCCESS === undefined ? true : JSON.parse(process.env.AVN_MAX_TOKENS_AS_SUCCESS)"

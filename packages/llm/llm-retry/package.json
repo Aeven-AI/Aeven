@@ -1,0 +1,71 @@
+{
+  "name": "@aeven/llm-retry",
+  "description": "Provider-routed LLM request retry policy for the Aeven",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/llm/llm-retry"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./invariant": {
+      "types": "./lib/types/invariant.d.ts",
+      "default": "./lib/invariant.js"
+    },
+    "./types": {
+      "types": "./lib/types/types.d.ts",
+      "default": "./lib/types/types.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/invariant.js",
+    "lib/types/**/*.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "@aeven/brand": "workspace:^",
+    "@aeven/agent": "workspace:^",
+    "@aeven/invariants": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/timeout": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/session-projection": "workspace:^"
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "workspace:^",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@aeven/brand": "workspace:^",
+    "@deepseek-ai/cordis-plugin-include": "workspace:^",
+    "@deepseek-ai/cordis-plugin-loader": "workspace:^",
+    "@aeven/agent": "workspace:^",
+    "@aeven/agent-loop": "workspace:^",
+    "@aeven/agent-loop-testkit": "workspace:^",
+    "@aeven/invariants": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/llm-deepseek": "workspace:^",
+    "@aeven/llm-mock-server": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/session-persistence-jsonl": "workspace:^",
+    "@aeven/system-prompt": "workspace:^",
+    "@aeven/timeout": "workspace:^",
+    "@aeven/tools": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/session-projection": "workspace:^"
+  }
+}

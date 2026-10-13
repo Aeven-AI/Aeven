@@ -1,0 +1,136 @@
+/**
+ * Frozen contract of the client command surface. Types only. The
+ * CommandUiRuntime (`ctx.commandUi`) implements this face; business packages
+ * consume `register` alone.
+ */
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
+import type { ClientSessionContext } from '@aeven/client-ui-input-trigger/client'
+import type { SessionId } from '@aeven/session/types'
+import type { TokenSpan } from '@aeven/client-ui-input-trigger/client'
+import type { PopupAnchorPlacement } from './popup.ts'
+
+/** Copy for an option that must be acknowledged before onSelect can run. */
+export interface SelectConfirmation {
+  readonly title: string
+  readonly description: string
+  readonly acknowledgeLabel: string
+  readonly cancelLabel: string
+  readonly confirmLabel: string
+}
+
+/** One option row of a popupSelect shell. */
+export interface SelectOption {
+  readonly id: string
+  readonly label: string
+  readonly detail?: string
+  /**
+   * Text the shell's search matches but never renders. A row whose detail line
+   * is already spoken for (the provider name, say) puts its catalog blurb here:
+   * the blurb stays findable without a sentence crowding the row.
+   */
+  readonly keywords?: string
+  readonly active?: boolean
+  /** Optional in-page risk gate owned by the shared popup shell. */
+  readonly confirmation?: SelectConfirmation
+}
+
+/**
+ * Business registration for the popupSelect command kind. Data is
+ * self-served: options/onSelect use the business package's own protocol.
+ * The shell component is owned by ui-commands; business never sees it. Both
+ * callbacks receive the ClientSessionContext captured at popup open.
+ */
+export type CommandUiSpec = {
+  readonly kind: 'popupSelect'
+  options(session: ClientSessionContext, signal: AbortSignal): Promise<readonly SelectOption[]>
+  onSelect(option: SelectOption, session: ClientSessionContext): void | Promise<void>
+}
+
+/**
+ * One client-owned command contribution: a slash-menu entry whose behavior
+ * lives entirely on the client (no host descriptor). Merged with the host
+ * catalog by name — a collision with a host command fails loud at candidate
+ * synthesis, never shadows.
+ */
+export interface CommandContribution {
+  /** Command name without the leading slash (unique across contributions). */
+  readonly name: string
+  /** Menu row description. */
+  readonly description: string
+  /** Capability filter, called with a fresh projection per candidate pass. */
+  available(session: ClientSessionContext): boolean
+  /** The command's UI behavior (this phase: popupSelect only). */
+  readonly ui: CommandUiSpec
+}
+
+/**
+ * A UI decoration hung on one HOST command: what its BARE invocation does on
+ * this client. Not a second command — the host command keeps its catalog
+ * row, its argument claim (space / argued enter), and its lifecycle logging;
+ * the decoration replaces only the bare menu-pick/enter with a popup whose
+ * onSelect typically submits a completed line back through command.execute.
+ * A decoration never manufactures a row: a name with no host catalog entry
+ * in the session's directory simply never reaches the decoration.
+ */
+export interface CommandDecoration {
+  /** The HOST command name this decorates (without the leading slash). */
+  readonly name: string
+  /** Capability filter, called with a fresh projection per bare invocation. */
+  available(session: ClientSessionContext): boolean
+  /** The bare-invocation UI (this phase: popupSelect only). */
+  readonly ui: CommandUiSpec
+}
+
+/** The `ctx.commandUi` service face visible to business packages. */
+export interface CommandUiContract {
+  /**
+   * Invoke a visible command from a composer control, preserving the current
+   * draft. A contribution or decorated host command opens its picker instead of
+   * running the bare line; `anchor` names the control that asked, which is what
+   * lets the card sit beside that control rather than on the composer's edge.
+   */
+  invokeFromButton(
+    sessionId: SessionId,
+    name: string,
+    span: TokenSpan,
+    anchor?: Element | null,
+    placement?: PopupAnchorPlacement,
+  ): Promise<boolean>
+  /**
+   * Register one client command contribution; effect disposer. Duplicate
+   * names throw at registration.
+   */
+  register(contribution: CommandContribution): () => void
+  /**
+   * Hang a bare-invocation decoration on one host command; effect disposer.
+   * Duplicate names throw at registration.
+   */
+  decorate(decoration: CommandDecoration): () => void
+  /**
+   * Open one session's popupSelect shell from a client control rather than a
+   * draft token — the tokenless sibling of the `/name` paths. It drives the
+   * same controller, shell, and spec, so a contribution may render its own
+   * trigger (a composer seat) without a second picker implementation; a
+   * settled selection closes the shell and does not touch the draft.
+   * @param sessionId - the session whose shell opens.
+   * @param command - command name the shell serves (its log/error label).
+   * @param spec - the popupSelect spec to open; typically the same object the
+   * contribution registered, which is what keeps both entries identical.
+   * @param anchor - the control that opened it, when a control did: the card
+   * lines its trailing edge up with that element, so a picker opened from a
+   * composer seat sits under the seat rather than under the composer card. The
+   * token paths pass nothing and keep the card on the composer's own edge.
+   * @param placement - where the card sits against that control: its trailing
+   * edge lined up (default), or beside it.
+   * @returns whether the session resolved a scope and the shell opened.
+   */
+  openSelect(
+    sessionId: SessionId,
+    command: string,
+    spec: CommandUiSpec,
+    anchor?: Element | null,
+    placement?: PopupAnchorPlacement,
+  ): boolean
+  /** Resolve the per-session popup controller for one session scope (wiring/overlay layer). */
+  popupFor(actx: ClientContext): unknown
+}

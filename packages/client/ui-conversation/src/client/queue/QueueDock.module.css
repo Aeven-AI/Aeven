@@ -1,0 +1,143 @@
+/* A section of the composer stack's dock surface, which owns the fill,
+   width, and corners. 16px leads line up with the InputBar draft; the rows'
+   9px trail puts the last 28px action's 14px icon 16px from the edge, under
+   the header chevron and the Todo chevron. */
+
+.dock {
+  font-size: 16px;
+  line-height: 24px;
+}
+
+/* Section padding matches Todo and Goal: 16px on every side. */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 16px;
+  box-sizing: border-box;
+  border: none;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.header:focus-visible {
+  outline: 2px solid var(--dsw-alias-label-tertiary);
+  outline-offset: -2px;
+}
+
+.header:disabled {
+  cursor: default;
+}
+
+.lead,
+.chevron {
+  display: grid;
+  flex: none;
+  place-items: center;
+  color: var(--dsw-alias-label-primary);
+}
+
+.count {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.list {
+  max-height: 180px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The 9px trail puts the last 28px action's 14px icon 16px from the edge,
+   under the header chevron. */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 9px 16px 16px;
+}
+
+/* The header already opens the section above the first row. */
+.header + .list .row:first-child {
+  padding-top: 0;
+}
+
+.thumbs {
+  display: flex;
+  flex: none;
+  gap: 4px;
+}
+
+.thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+.preview,
+.editor {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.preview {
+  overflow: hidden;
+  color: #000;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Inline edit: the preview text becomes editable in place, no field chrome. */
+.editor {
+  padding: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  color: var(--dsw-alias-label-primary);
+  caret-color: var(--dsw-alias-state-business-primary);
+}
+
+/* The 28px buttons overhang the 24px line by 2px each way. */
+.actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  margin: -2px 0;
+}
+
+.action {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+}
+
+.action:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.action:focus-visible {
+  outline: 2px solid var(--dsw-alias-label-tertiary);
+  outline-offset: -2px;
+}
+
+.action:disabled {
+  cursor: default;
+  opacity: 0.4;
+}

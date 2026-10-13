@@ -1,0 +1,917 @@
+.root {
+  position: relative; /* positioning context for the width handles and the cover */
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--dsw-alias-bg-base);
+
+  /* Shared Aeven width axis for transcript, dock cards, takeover cards, and
+     composer. The term is this element's own percentage basis — the AppFrame
+     center column, since the conversation slot wrapper is `display: contents`
+     — never a JS-published value: writing one per animation frame invalidated
+     an inherited custom property on an ancestor of the whole transcript.
+
+     A percentage, NOT `100cqi`. Making the center column an inline-size
+     container costs a style recalculation over every descendant on each frame
+     the sidebar slides. Blink has a fast path and shows ~9ms either way;
+     Gecko and WebKit do not, and paid it in full: WebKit p95 129ms and
+     Firefox 62ms per toggle at ~1600 rows, against 30ms and 20ms once the
+     container is gone. Percentage resolution is work layout already does.
+
+     This property must therefore stay UNREGISTERED — an `@property` with
+     `syntax: '<length>'` rejects a percentage at computed-value time and falls
+     back to its initial value, collapsing the transcript to zero width.
+
+     The baseline caps at the theme-owned reading width. Every use site sits
+     inside the page inset's padding (see the dragged branch below), so `100%`
+     there already leaves one page inset per side and this term subtracts none
+     of its own. */
+  --avn-chat-content-width: min(var(--dsw-aeven-chat-width), 100%);
+  --avn-composer-card-max-width: var(--avn-chat-content-width);
+  --avn-composer-side-clearance: var(--dsw-aeven-page-inset);
+  /* Session header height; slot-owned chrome under it offsets by this. */
+  --avn-session-header-height: 56px;
+  /* The navigation band's leading control — the 30px fold circle — plus the gap
+     the Session header's own controls keep after it, which is the cluster's own
+     gap: the options control leads that cluster, so the circle and the control
+     beside it read as one pair. Stated here, where the clearance is applied, the
+     way the frame states the corner dock's seats; the control's own box is the
+     30px circle above. */
+  --avn-nav-leading-box: calc(30px + 8px);
+  /* The seat's resting height before it has been measured: an empty draft plus
+     the stats line the dock renders under it. The transcript's hold no longer
+     needs a seat height — the scroller is a flex column and the transcript grows
+     into what is left — but `.viewChrome` does: that layer sits OUTSIDE the
+     scroller and must stop at the seat's top edge, which the column cannot tell
+     it. It prefers `--avn-composer-seat-height`, the measured value
+     ConversationRoot publishes from a ResizeObserver on the seat, and falls back
+     to this constant on the first paint. */
+  --avn-composer-seat-min-height: 174px;
+  /* One hand-over of the composer from the hero's middle to the settled floor. */
+  --avn-composer-settle-duration: 320ms;
+  --avn-composer-settle-easing: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* A dragged preference replaces the baseline term, clamped in CSS against the
+   live column so a stored width narrower than the column survives a resize
+   without JS rewriting it. Every use site of the width (the transcript list,
+   the composer card, the takeovers) and the width handles' frame sits inside
+   the page inset, so `100%` there is already the column less 24px per side:
+   that is the widest a drag reaches, and CONTENT_EDGE_BUDGET (48px) is the
+   same bound in pixels. The 640px floor matches the layout centre-column
+   minimum.
+   The attribute, not the variable's presence, selects this branch: it changes
+   only when the reader commits a drag. */
+.root[data-chat-user-width] {
+  --avn-chat-content-width: clamp(
+    640px,
+    var(--avn-chat-user-width),
+    max(640px, 100%)
+  );
+}
+
+/* Aeven `.navigation`: a 56px bar the transcript scrolls underneath. Sticky
+   inside the scroller, so it is laid out in the same content box as the
+   transcript and the composer and the three share one axis whatever the
+   scrollbar takes — the alignment this structure exists for.
+
+   It occupies flow rather than overlaying, so the transcript needs no
+   compensating top inset. z-index 30 sits below the sidebar (50), which is how
+   the sidebar column paints over this bar as it slides. `margin-bottom` pulls
+   the content up under the bar by its own height, keeping Aeven's scroll-under
+   look without taking the box out of flow (an out-of-flow box would leave the
+   scroller's content box, which is what the misalignment came from). */
+.header {
+  display: flex;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  height: var(--avn-session-header-height);
+  margin-bottom: calc(-1 * var(--avn-session-header-height));
+  align-items: center;
+  justify-content: flex-end;
+  box-sizing: border-box;
+  padding: 0 var(--dsw-aeven-page-inset);
+  background: transparent;
+  border: none;
+  /* The right side eases on the curve of the column that moves it: the corner
+     clearance grows as the right sidebar takes the dock's overlap over. The
+     left inset is a constant — the fold control is seated in this bar — so it
+     has no curve of its own. */
+  transition:
+    padding-right var(--dsw-aeven-rightbar-transition-duration)
+      var(--dsw-aeven-rightbar-transition-timing);
+  /* Fixed band: it takes no share of the column and never shrinks. */
+  flex: none;
+}
+
+/* The band's leading seat, holding the left column's fold control at the bar's
+   own left inset. `margin-right: auto` is what keeps it there in a row whose
+   other occupants are right-aligned; unoccupied, the box is empty and costs
+   nothing. */
+.navFold {
+  display: flex;
+  flex: none;
+  align-items: center;
+  margin-right: auto;
+}
+
+/* The fold control: a 30px circle, the account avatar's own box, so the two sit
+   level across the bar. It paints its own fill rather than leaving the bar
+   transparent behind it: the transcript scrolls under the bar, and the glyph
+   has to stay legible over whatever is passing beneath.
+
+   Fill and glyph are the two static extremes, so the control reads the same
+   over the light and dark canvases rather than following the layer and label
+   aliases the rest of the bar uses.
+
+   Above the fade scrim, which is absolutely positioned in this header and
+   would otherwise paint over a control that takes part in the static flow. */
+.foldButton {
+  position: relative;
+  z-index: 11;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 15px;
+  background: var(--dsw-static-neutral-00);
+  color: var(--dsw-static-neutral-1000);
+  cursor: pointer;
+  transition: background var(--ds-transition-duration-fast) var(--ds-ease-in-out);
+}
+
+/* No hover tint: the pointer cursor and the tooltip are the hover affordance.
+   Keyboard focus keeps a visible mark as a ring in the label tone, which
+   contrasts with this button's black fill in either theme; repainting the fill
+   in the accent tint would take the white glyph down with it. */
+.foldButton:focus-visible {
+  outline: 2px solid var(--dsw-alias-label-primary);
+  outline-offset: 2px;
+}
+
+/* The fold glyph: the sidebar's three-line mark at its own 18px grapheme. */
+.foldIcon {
+  width: 18px;
+  height: 18px;
+}
+
+/* The desktop shell hides its title bar and insets the window controls over the
+   page's top-left (desktop main.ts `trafficLightPosition`). While the sidebar is
+   collapsed this column starts at the frame's own left edge and the fold control
+   is the first thing in it, so the control — and the Session actions that follow
+   it — clear the lights; once the column is open it has moved past them. */
+.header {
+  --avn-nav-window-controls: 0px;
+}
+
+:global(html[data-avn-traffic-lights]) :global([data-sidebar-collapsed]) .header {
+  --avn-nav-window-controls: var(--dsw-aeven-window-controls-gutter);
+}
+
+.navFold {
+  margin-left: var(--avn-nav-window-controls);
+}
+
+/* Below the med breakpoint the left sidebar overlays this column instead of
+   pushing it (ui-sidebar SidebarRoot.module.css), which would bury the fold
+   control under the open panel. The control travels with the panel instead:
+   it slides by the panel's open width on the panel's own curve, landing at the
+   panel's edge plus the bar's inset, where the wide layout seats it. The bar
+   rises above the sidebar's layer (50) to carry it, and every other occupant
+   of the bar hides while it does, since they belong to the conversation the
+   panel's scrim covers and would otherwise paint over the panel's own row. */
+@media screen and (max-width: 1024px) {
+  .navFold {
+    transition: transform var(--dsw-aeven-sidebar-transition-duration)
+      var(--dsw-aeven-sidebar-transition-timing);
+  }
+
+  .header[data-sidebar-open] {
+    z-index: 51;
+    pointer-events: none;
+  }
+
+  .header[data-sidebar-open] > :not(.navFold) {
+    visibility: hidden;
+  }
+
+  .header[data-sidebar-open] .navFold {
+    transform: translateX(var(--dsw-aeven-sidebar-width));
+    pointer-events: auto;
+  }
+}
+
+@media screen and (max-width: 1024px) and (prefers-reduced-motion: reduce) {
+  .navFold {
+    transition: none;
+  }
+}
+
+/* A right sidebar drag rewrites that overlap at pointer cadence (the frame
+   marks the gesture on itself), so the bar follows it directly rather than
+   trailing the handle the reader is holding. */
+:global([data-dragging]) .header {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header {
+    transition: none;
+  }
+}
+
+/* Aeven `.navigation-background` / `.navigation-fade`. */
+.navBackground {
+  display: block;
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 0;
+  height: 56px;
+  pointer-events: none;
+}
+
+.navFade {
+  display: block;
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 56px;
+  background: linear-gradient(
+    180deg,
+    var(--dsw-alias-bg-base) 0px,
+    rgb(from var(--dsw-alias-bg-base) r g b / 0) 56px
+  );
+}
+
+.titleRow {
+  /* Laid over the bar inside its page insets (the header is sticky, so it is
+     this row's containing block), which puts the row's origin where the fold
+     control stands. It passes pointer events through, so the corner utilities
+     under it stay reachable. */
+  position: absolute;
+  top: 0;
+  right: var(--dsw-aeven-page-inset);
+  left: var(--dsw-aeven-page-inset);
+  z-index: 11;
+  display: flex;
+  align-items: center;
+  height: var(--avn-session-header-height);
+  pointer-events: none;
+}
+
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.crumbSeg {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.crumbSep {
+  /* figma: "/" separators are 14px caption gray (75:7903), one tint lighter than crumb text. */
+  color: var(--dsw-alias-label-caption);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.crumb {
+  max-width: 220px;
+  overflow: hidden;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-tertiary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.crumbSubagent {
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.crumb:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.crumbCurrent {
+  font-weight: 400;
+  color: var(--dsw-alias-label-primary);
+  cursor: default;
+}
+
+/* The Session's actions (lineage, agents, jobs) lead the bar right after the
+   fold control, at the bar's own inset rather than on the transcript's axis:
+   they belong to the window chrome, so a width-handle drag or a window resize
+   does not move them. */
+.headerActions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  padding-left: calc(var(--avn-nav-window-controls) + var(--avn-nav-leading-box));
+}
+
+/* Without a fold control on the bar — an assembly mounted without the layout
+   frame that owns the column — the actions take the leading edge themselves. */
+.header:not([data-nav-fold]) .headerActions {
+  padding-left: 0;
+}
+
+.headerActions > * {
+  pointer-events: auto;
+}
+
+/* Reserves the frame's corner dock in the bar's own flow. The dock holds the
+   account avatar and the right sidebar's toggle, and is laid out against the
+   frame rather than in this column, so without a box here the bar's crumbs and
+   tabs run underneath it.
+
+   The reservation is the dock's seats mirrored, not a measured width: each
+   seat states its own size, so a seat added to the corner widens this the same
+   way it widens the dock. The right sidebar takes the overlap over as it
+   opens — once that column is wider than the dock, the dock is entirely over
+   the sidebar and this reserves nothing. */
+.navigationUtilities {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--avn-shell-corner-gap, 8px);
+  margin-left: 8px;
+  width: max(
+    0px,
+    calc(var(--avn-shell-corner-seats) - var(--avn-shell-corner-overlap, 0px))
+  );
+  /* Eases with the column that takes it over, on that column's own curve. */
+  transition: width var(--dsw-aeven-rightbar-transition-duration)
+    var(--dsw-aeven-rightbar-transition-timing);
+}
+
+/* A drag rewrites the overlap at pointer cadence, so the reservation follows
+   it directly rather than trailing the handle the reader is holding. */
+:global([data-dragging]) .navigationUtilities,
+:global([data-switching]) .navigationUtilities {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .navigationUtilities {
+    transition: none;
+  }
+}
+
+/* Tabs sit in the 56px overlay row with the title, matching Aeven's single
+   navigation strip rather than a second header band. */
+.tabs {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 36px;
+  height: 56px;
+  margin: 0;
+  padding: 0 0 0 16px;
+}
+
+.tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 56px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  line-height: 16px;
+  font-weight: 400;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: pointer;
+}
+
+.tab::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 1px;
+  left: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: transparent;
+}
+
+/* Selected tab is blue, not ink: brand-primary resolves to neutral black in
+   this token sheet, so the selected state rides the business blue — the
+   nearest semantic token that stays blue in both themes. */
+.tabActive {
+  color: var(--dsw-alias-state-business-primary);
+}
+
+.tabActive::after {
+  background: var(--dsw-alias-state-business-primary);
+}
+
+.viewArea {
+  display: flex;
+  /* Grow into the space the header and the seat leave, and never shrink: a
+     shrunk area would squash the transcript instead of scrolling it. */
+  flex: 1 0 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Width handles: 24px col-resize strips on the content column's outer edges.
+   Their frame is absolute in `.root` (NOT the scroller: an absolute strip there
+   would extend the scrollable range and ride the rubber-band) and inset by the
+   page inset, the same box the width's use sites resolve `100%` in, so a strip
+   lands exactly at the content edge. At the widest drag the content fills the
+   frame and the strips sit in the 24px padding outside it, level with the
+   header bar's leading fold and options controls; the strips themselves start
+   below that bar and leave its controls clear, while the rule each one carries
+   reaches up through the bar to the column's top (see the indicator below). The
+   wheel over a strip is handed to the transcript's scroller (see WidthHandle).
+
+   The frame's layer sits below the header bar (30) so the bar's fold, options,
+   agent, and process controls paint over the rule where it crosses them, and
+   above the transcript chrome a strip must beat for its grab (TurnRail 9,
+   CodeBlock banners 6). */
+.widthHandles {
+  position: absolute;
+  top: 0;
+  right: var(--avn-composer-side-clearance);
+  bottom: 0;
+  left: var(--avn-composer-side-clearance);
+  z-index: 29;
+  pointer-events: none;
+}
+
+.widthHandle {
+  position: absolute;
+  top: var(--avn-session-header-height);
+  bottom: 0;
+  width: var(--dsw-aeven-page-inset);
+  cursor: col-resize;
+  pointer-events: auto;
+}
+
+.widthHandle[data-side="left"] {
+  right: calc(50% + var(--avn-chat-content-width) / 2);
+}
+
+.widthHandle[data-side="right"] {
+  left: calc(50% + var(--avn-chat-content-width) / 2);
+}
+
+/* The indicator: a 1px rule centred in the strip, black at 10% opacity in
+   both themes, reaching up past the strip's own top through the header bar —
+   behind the bar's controls, which the bar's layer paints over — so it spans
+   the column's full height. */
+.widthHandle::after {
+  content: "";
+  position: absolute;
+  top: calc(0px - var(--avn-session-header-height));
+  bottom: 0;
+  left: calc(50% - 0.5px);
+  width: 1px;
+  background: rgb(0 0 0 / 0.1);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.widthHandle:hover::after,
+.widthHandle[data-dragging]::after {
+  opacity: 1;
+}
+
+/* Composer context stack (Figma 9:937): the dock surface, then the input card. */
+.composerStack {
+  /* Horizontal geometry (card width, clearance) rides the shared
+     .root variables above so takeover siblings match the stack. */
+  --avn-composer-stack-gap: var(--dsw-aeven-space-compact);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--avn-composer-stack-gap);
+}
+
+/* Same horizontal box as InputBar's root: the stack's full width, with the
+   page inset as padding. `--avn-composer-card-max-width` carries a percentage
+   that resolves against the box it is used on, and the composer card's
+   containing block is this padded content box. */
+.dockFrame {
+  box-sizing: border-box;
+  flex: none;
+  width: 100%;
+  min-width: 0;
+  padding-inline: var(--avn-composer-side-clearance);
+}
+
+/* Entries render nothing while their state is empty; the frame goes with
+   them, so an empty dock does not keep the stack gap. */
+.dockFrame:not(:has(> .dockStack > [data-slot] > *)) {
+  display: none;
+}
+
+/* One surface for every `conversation.input.dock` entry (todos, goal, queue):
+   the InputBar card's width, fill, and top radius, running a radius-deep strip
+   on under the card, whose later positioned box and shadow paint over it. Each
+   entry is a section with 16px sides so its content lines up with the draft
+   and the control row. */
+.dockStack {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--avn-composer-card-max-width);
+  margin: 0 auto calc(0px - var(--avn-composer-stack-gap) - var(--dsw-aeven-radius-surface));
+  padding-bottom: var(--dsw-aeven-radius-surface);
+  border-radius: var(--dsw-aeven-radius-surface) var(--dsw-aeven-radius-surface) 0 0;
+  background: var(--dsw-specific-input-major);
+  /* Elevated surface in dark, same as the InputBar card; section lists scroll
+     inside it (see ui-theme styles/scrollbar.css for the rebinding contract). */
+  --avn-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --avn-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
+/* Common seat for the composer chain (fallback + elected overlay siblings). */
+.composerSeat {
+  /* Containing block for `.viewChromeTop`; the active phase makes it sticky. */
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  /* One cap for every scrolling text region a composer seat can hold: the
+     InputBar draft (figma Input 75:8208 max 14 lines × 24px line) and the
+     takeover panels' bodies top out at the same height, so electing a
+     takeover never grows the footer past the card it replaces. Declared on
+     the seat because it is the chain's only shared ancestor — fallback and
+     elected overlay are siblings — and custom properties inherit down to
+     whichever entry is mounted. */
+  --avn-composer-text-max-height: 336px;
+}
+
+/* Positioning context for view-owned floating controls, spanning the band the
+   reader sees. Absolute against `.root`, NOT a child box of the scroller: a
+   layer inside the scroller is placed by its own position in the flow and
+   scrolls away with it, and it would extend the scrollable range. `.root` is
+   the one box that stays still and already spans the column.
+
+   It ends where the composer begins, so a control that must clear the input
+   card only has to sit at this layer's floor. Inert itself; each portaled
+   control opts back into pointer input. */
+.viewChrome {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: var(--avn-composer-seat-height, var(--avn-composer-seat-min-height));
+  left: 0;
+  z-index: 8;
+  /* Carries the transcript's own side inset on both edges. The scroller
+     reserves no gutter, so this box's axis is the transcript's axis. */
+  padding-left: var(--avn-composer-side-clearance);
+  padding-right: var(--avn-composer-side-clearance);
+  pointer-events: none;
+}
+
+/* Seat-level chrome: a zero-height line resting on the seat's top edge, so a
+   control here clears the composer, its dock surface, and a growing draft by
+   its own offset without measuring any of them.
+
+   A child of the seat, absolute against it: the seat is positioned in every
+   phase, so `bottom: 100%` is its top edge wherever the seat's height lands.
+   Zero height above the seat's own box, so it never extends the scrollable
+   range. A control that must paint OVER the seat belongs here; one that
+   belongs under it goes in `.viewChrome`.
+
+   Inert; each portaled control opts back into pointer input. */
+.viewChromeTop {
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  left: 0;
+  z-index: 8;
+  height: 0;
+  padding-left: var(--avn-composer-side-clearance);
+  padding-right: var(--avn-composer-side-clearance);
+  pointer-events: none;
+}
+
+/* Fills ConversationRoot's column: `.root` is the relative ancestor and the
+   full page height of the center column. Absolute fill follows sidebar and
+   details motion through ordinary layout, so the plate is the conversation
+   root's width rather than the inner window.
+
+   Stacked BELOW the composer seat (7): the seat stays mounted across a Session
+   switch, so a cover painted over it made the resident input card blink out and
+   back and read as a remount. The cover spans the full column height and passes
+   behind the input.
+
+   The scroller holds the transcript AND the seat, so it takes no z-index of its
+   own: a level there would cap the seat and paint this plate over the input
+   card. Nothing else caps the transcript's stack either, so this level decides
+   the cover against the transcript's in-flow rows, which take none, while the
+   header (30), the seat, and the chrome layers (8) stay above it — and any
+   positioned layer inside the transcript, a CodeBlock sticky banner (6) or the
+   usage panel (1100), paints above the plate while the body is mounted under it.
+   `.scrollArea` capped that group at 5 and went with the one-scroller box tree
+   ([decision](../../../../../../.agents/notes/implemented/bug-fix/2026-09-09-content-cover-behind-composer.md)). */
+/* Fills the frame's cover layer, which states the box (ui-layout
+   AppFrame.module.css): every column right of the sidebar, and the chrome laid
+   over them. The layer carries the stacking order, so this needs none. */
+.contentLoader {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 1;
+}
+
+.contentLoaderHide {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 400ms linear;
+}
+
+/* Size, rotation and reduced-motion come from the shared Spinner primitive;
+   this only lifts it above the overlay's background plate. */
+.contentLoaderSpinner {
+  position: relative;
+  z-index: 1;
+  color: var(--dsw-alias-label-primary);
+}
+
+.contentLoaderBackground {
+  position: absolute;
+  inset: 0;
+  background-color: var(--dsw-alias-bg-base);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .contentLoaderHide {
+    transition: none;
+  }
+}
+
+/* The column's one scroller. It draws no bar of its own: the element also
+   carries ui-theme's `no-scrollbar`, so the wheel and the keyboard still move
+   the flow while nothing reserves a gutter or paints a thumb over the
+   transcript's edge. */
+.scrollBody {
+  height: 100%;
+  overflow-y: auto;
+  /* A column, so the composer's seat lands on the scroller's floor by layout
+     instead of by a subtracted height budget: the transcript grows into what the
+     header and the seat leave, at any seat height. A seat-tall constant cannot
+     track that — the empty hero's seat carries a workspace chip the first message
+     removes, and the difference left the card floating above its 24px inset. */
+  display: flex;
+  flex-direction: column;
+}
+
+/* The empty replacement for the Session body, while that slot is dropped so the
+   overlay can present: it takes the same growth as the transcript, so the sticky
+   composer still rests at the reader's floor and a fresh session does not start
+   out scrolled. */
+.transcriptHold {
+  flex: 1 0 auto;
+  pointer-events: none;
+}
+
+/* A start page grows like the transcript it stands in for, so the composer
+   seat stays on the floor below it and its content scrolls under the seat. */
+.startPage {
+  flex: 1 0 auto;
+  min-width: 0;
+}
+
+.root[data-phase="active"] .composerSeat {
+  /* Stuck to the scroller's floor, in the same content box as the transcript
+     and the header: that shared box is what puts all three on one axis without
+     reserving a gutter. Wheel over the footer moves the flow for free, since
+     the footer is part of the scrolling surface.
+
+     Above markdown CodeBlock sticky banners (z-index 6) so the footer never
+     paints under a sticking code header while scrolling. */
+  position: sticky;
+  bottom: 0;
+  z-index: 7;
+  /* Aeven `.chat-input-container`: the seat itself is opaque canvas. The
+     transcript's hand-off rides the 50px band ABOVE the seat instead, so a
+     growing draft never stretches the fade. */
+  background: var(--dsw-alias-bg-base);
+  /* The hero-to-settled move: ConversationRoot plays the difference between the
+     seat's two positions back as a transform, and this carries it back to zero.
+     The property list is the transform alone — transitioning the seat's own
+     offset would fight the sticky placement. */
+  transition: transform var(--avn-composer-settle-duration) var(--avn-composer-settle-easing);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root[data-phase="active"] .composerSeat {
+    transition: none;
+  }
+}
+
+/* Aeven `.chat-fade-content`: one 55px band starting 50px above the seat, so
+   the transcript dims as it slides under the composer. A negative z-index puts
+   the band under the card. It still paints over the seat's own opaque
+   background, so the band stays visible where it overlaps.
+   The 0px stop is bg-base at zero alpha, not Aeven's hardcoded
+   rgb(242, 242, 242), so both themes fade from their own base. */
+.root[data-phase="active"] .composerSeat::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: -50px;
+  right: 0;
+  left: 0;
+  height: 55px;
+  background: linear-gradient(
+    180deg,
+    transparent 0px,
+    var(--dsw-alias-bg-base) 50px
+  );
+  pointer-events: none;
+}
+
+/* Views may opt into a composer overlay while ConversationRoot retains
+   ownership of the seat geometry. The view owns its own scrollers (the
+   trajectory ledger scrolls inside the view), so this box never scrolls here:
+   the view area takes the full height and the seat floats over its floor
+   instead of shortening it. */
+/* A flex column, so the view area below can take the remaining height: this box
+   is an ordinary block in the Chat branch, where the three children simply
+   stack, and a `flex` child there would have no parent to size it. */
+.root[data-composer-overlay] .scrollBody {
+  display: flex;
+  flex-direction: column;
+  overflow-y: hidden;
+}
+
+/* The slot wrapper is a flex item too, or the view area inside it sizes to its
+   content and overflows the column. */
+.root[data-composer-overlay]
+  .scrollBody
+  > :global([data-slot="conversation.session"]) {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.root[data-composer-overlay]
+  .scrollBody
+  > :global([data-slot="conversation.session"])
+  > .viewArea {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Floating over the view's own floor rather than docking below it. Absolute
+   against `.root`, since the scroller does not scroll in this branch and the
+   seat must clear the view's full-bleed content. */
+.root[data-composer-overlay] .composerSeat {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 7;
+}
+
+/* Hero phase: the composer stack centres in the column. The scroller becomes a
+   centring box for it, and the resident blank Session stays mounted above.
+   Flex centring rather than a transform, which would make this box the
+   containing block for position:fixed descendants (pickers/modals). */
+.root[data-phase="hero"] .scrollBody {
+  display: flex;
+  flex-direction: column;
+}
+
+/* The header keeps its own 56px band at the top. It drops the active branch's
+   negative margin, which exists so a transcript scrolls under the bar: the hero
+   has no transcript, and keeping it pulled the hero title up through the title
+   row. */
+.root[data-phase="hero"] .header {
+  margin-bottom: 0;
+}
+
+/* The stack centres in whatever the header leaves. Auto margins share the free
+   space equally, which centres it against the band below the bar rather than
+   against the whole column — `justify-content` would centre the header with it
+   and put the title row mid-column.
+
+   The seat then carries the hero's optical lift as a relative offset: the
+   name-over-composer group reads as centred 66px above that middle, and a
+   relative offset leaves both facts the settled phase depends on intact — the
+   seat's measured box (published as `--avn-composer-seat-height`) keeps its real
+   height, and `getBoundingClientRect` reports the lifted edge, so the hand-over
+   to the settled floor starts from where the card was seen. */
+.root[data-phase="hero"] .composerSeat {
+  position: relative;
+  z-index: 7;
+  flex: none;
+  margin-top: auto;
+  margin-bottom: auto;
+  top: -66px;
+}
+
+.composerHero {
+  align-self: center;
+  /* The hero chrome carries its own spacing under the greeting, so the stack
+     separates nothing: the card sits directly under the hero text. Stated
+     rather than dropped, because `.composerStack`'s own gap would otherwise
+     take over. */
+  gap: 0;
+  /* Card cap + both clearances: the hero input card lands at exactly the same
+     width as the docked composer at every viewport. */
+  width: min(
+    calc(
+      var(--avn-composer-card-max-width) + 2 *
+        var(--avn-composer-side-clearance)
+    ),
+    100%
+  );
+  z-index: 1;
+}
+
+.heroWorkspaceRow {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  margin-top: 4px;
+  /* figma drew px 8; nudged +12 so the chip's folder glyph lines up closer to
+     the card's inner controls below. */
+  padding-left: 20px;
+}
+
+/* The hero has no transcript to hold the column open, so the Session area must
+   not stretch the centred stack off centre. */
+.root[data-phase="hero"] .viewArea {
+  flex: none;
+}
+
+/* Settling (session replaying, hero/docked unknown): keep the composer seat
+   mounted but invisible so no wrong layout flashes before the phase lands. */
+.root[data-phase="settling"] .composerSeat {
+  visibility: hidden;
+}
+
+/* A transcript block holding the viewport covers the column from inside the
+   scroller, below every sticky layer around it, so each one drops out of the
+   stacking order while the flag is on the frame.
+
+   Last in the file on purpose: the phase rules above set the seat's z-index at
+   the same specificity, and order is what settles a tie. A chrome layer added
+   later yields here too. */
+:global([data-fullscreen]) .root .header,
+:global([data-fullscreen]) .root .composerSeat,
+:global([data-fullscreen]) .root .viewChrome,
+:global([data-fullscreen]) .root .viewChromeTop {
+  z-index: 0;
+}
+
+/* The archived Session's read-only bar, in the composer card's box and bottom pad (InputBar's .root). */
+.archivedFrame {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 0 var(--avn-composer-side-clearance) var(--avn-composer-side-clearance);
+}
+
+.archivedBar {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  max-width: var(--avn-composer-card-max-width);
+  min-height: 54px;
+  margin: 0 auto;
+  padding: 10px 12px 10px 16px;
+  border-radius: var(--dsw-aeven-radius-surface);
+  background: var(--dsw-specific-input-major);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 14px;
+  line-height: 20px;
+}

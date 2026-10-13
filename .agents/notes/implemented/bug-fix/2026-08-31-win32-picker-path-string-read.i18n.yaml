@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-31-win32-picker-path-string-read.md
+2026-08-31-win32-picker-path-string-read.md: dfff220ab58e9f60efb08b5b1811935d56eff2b8
+2026-08-31-win32-picker-path-string-read.zh.md: 0010dc4186203e351d68b50c750a5326a31f058c

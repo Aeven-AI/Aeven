@@ -1,0 +1,51 @@
+{
+  "name": "@aeven/memory-memos",
+  "description": "MemOS long-term memory provider running the MemOS local core in the Host process",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/memory/memory-memos"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@aeven/brand": "workspace:^",
+    "@aeven/home-paths": "workspace:^",
+    "@aeven/timeout": "workspace:^",
+    "@aeven/util-values": "workspace:^",
+    "@deepseek-ai/memos-local-plugin": "workspace:^",
+    "@deepseek-ai/schemastery": "workspace:^",
+    "better-sqlite3": "^12.10.0"
+  },
+  "peerDependencies": {
+    "@aeven/llm": "workspace:^",
+    "@aeven/memory": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "devDependencies": {
+    "@aeven/llm": "workspace:^",
+    "@aeven/memory": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^",
+    "@types/better-sqlite3": "^7.6.12"
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "name": "@aeven/client-ui-theme",
+  "description": "Theme plugin: Host bootstrap for the pre-plugin palette; DOM-free ThemeRuntime for light/dark/system state; --dsw-* token styles and Appearance settings section",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/client/ui-theme"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "types": "./lib/types/client/index.d.ts",
+      "default": "./lib/client.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "avn": {
+    "client": {
+      "inject": [
+        "@aeven/client-connection",
+        "@aeven/client-locale",
+        "@aeven/client-ui-renderer",
+        "@aeven/client-ui-settings",
+        "@aeven/api-remotes"
+      ],
+      "platform": "web",
+      "immediately": true
+    }
+  },
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/api-remotes": "workspace:^",
+    "@aeven/client-connection": "workspace:^",
+    "@aeven/client-locale": "workspace:^",
+    "@aeven/client-store": "workspace:^",
+    "@aeven/client-test-runtime": "workspace:^",
+    "@aeven/client-ui-primitives": "workspace:^",
+    "@aeven/client-ui-renderer": "workspace:^",
+    "@aeven/client-ui-settings": "workspace:^",
+    "@aeven/client-ui-slots": "workspace:^",
+    "@aeven/host-webserver": "workspace:^",
+    "@types/react": "~18.3.1",
+    "react": "^18.2.0",
+    "@aeven/settings": "workspace:^"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/client.js",
+    "lib/styles",
+    "lib/types/**/*.d.ts"
+  ],
+  "scripts": {
+    "bundle": "tsdown",
+    "watch": "tsdown --watch"
+  },
+  "dependencies": {
+    "clsx": "^2.0.0",
+    "@deepseek-ai/schemastery": "workspace:^"
+  }
+}

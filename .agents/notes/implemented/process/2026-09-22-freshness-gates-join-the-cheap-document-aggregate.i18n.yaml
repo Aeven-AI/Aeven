@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-09-22-freshness-gates-join-the-cheap-document-aggregate.md
+2026-09-22-freshness-gates-join-the-cheap-document-aggregate.md: df5a95f0e9f7d705ad04e459a75d592efd7c6791
+2026-09-22-freshness-gates-join-the-cheap-document-aggregate.zh.md: 09c9471787c88711de21cb1fbcddb27f59a3d4eb

@@ -1,0 +1,533 @@
+/* The takeover seats where the input card sits, centered on the InputBar
+   axis at the shared content width (input card - 32): sides = clearance +
+   16px so the relation also holds on narrow viewports. The bottom inset is
+   the InputBar's, and the frame takes the seat's resting height with the
+   card at its floor, so a short transcript holds the card exactly where the
+   resting composer card sits. */
+.frame {
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  min-height: var(--avn-composer-seat-min-height);
+  padding: 6px calc(var(--avn-composer-side-clearance) + 16px) var(--avn-composer-side-clearance);
+}
+
+/* Wears the composer card's surface — flat fill, surface radius, the same
+   box-shadow and no stroke — so the takeover reads as the composer in another
+   mode. The card keeps zero side padding and sections carry their own insets.
+   Every line of copy shares the composer draft's size and line height, which
+   follow the Settings font-size preference. */
+.card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: var(--avn-chat-content-width);
+  /* Composer seat sits in a fixed-height conversation column (overflow
+     hidden): cap the card against the viewport and scroll the option list
+     so header and footer actions stay reachable on long batches. */
+  max-height: min(60vh, 520px);
+  padding: 0 0 24px;
+  border: 0;
+  --dsw-elevation-stroke-color: transparent;
+  /* One fill for every option affordance — the hovered row, the selected row,
+     the number disc and the disabled Submit — so they read as one tone on the
+     card instead of three neighbouring greys. */
+  --avn-question-fill: var(--dsw-alias-interactive-bg-hover);
+  border-radius: var(--dsw-aeven-radius-surface);
+  background: var(--dsw-specific-input-major);
+  /* Flat like the composer card and the plan takeover: the lift stays a
+     transparent box-shadow. */
+  box-shadow: 0px 5px 15px rgba(0, 0, 0, 0);
+  color: var(--dsw-alias-label-primary);
+  font-size: var(--avn-content-font-size, 16px);
+  line-height: calc(
+    var(--dsw-aeven-reading-line-height) + var(--avn-content-font-delta, 0px)
+  );
+  overflow: hidden;
+}
+
+.card,
+.card * {
+  box-sizing: border-box;
+}
+
+/* Collapsed to the header strip: drop the height cap and the inner scroll
+   seat, and take the resting composer card's 124px height (InputBar .card
+   min-height) so collapsing reads as returning to the composer while the
+   question stays pending. A long title still grows the strip. */
+.cardMinimized {
+  justify-content: center;
+  min-height: 124px;
+  max-height: none;
+  padding-bottom: 0;
+}
+
+/* The header strip is the whole card when collapsed: it centers in the
+   composer height with equal insets above and below. */
+.cardMinimized .header {
+  align-items: center;
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+
+/* Header button group: minimize sits next to the close action, both on the
+   same 28px icon-button grid. */
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* Figma 1019:36938 header, user-tuned: heading block left, close right; the
+   pager sits in the footer to balance the card. */
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-shrink: 0;
+  padding: 20px 20px 0 24px;
+}
+
+.headingBlock {
+  min-width: 0;
+}
+
+.eyebrow {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.title {
+  margin: 0;
+  font-size: inherit;
+  line-height: inherit;
+  font-weight: 400;
+}
+
+/* Supporting detail can be a whole document (a procedure, a diff): it aligns
+   with the header text, reads at the card's size with body-size headings,
+   and scrolls within a capped height so the answer options stay in view. */
+.detail {
+  max-height: min(40vh, 320px);
+  margin: 8px 0 4px;
+  padding: 0 16px 0 24px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Headings read at the body size and stand out by weight alone. */
+.detail :global(:is(h1, h2, h3, h4, h5, h6)) {
+  margin: 12px 0 4px;
+  font-size: inherit;
+  line-height: inherit;
+  font-weight: 500;
+}
+
+.detail :global(:is(h1, h2, h3, h4, h5, h6)):first-child {
+  margin-top: 0;
+}
+
+.detail :global(:is(p, ul, ol, pre, blockquote, table)) {
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+
+.footerActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.progress {
+  padding: 0 4px;
+  color: var(--dsw-alias-label-secondary);
+  font-weight: 400;
+  white-space: nowrap;
+  /* Narrow the plain spaces around the slash without touching glyph tracking. */
+  word-spacing: -2px;
+}
+
+.iconButton {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: pointer;
+}
+
+.iconButton:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.iconButton:disabled {
+  color: var(--dsw-alias-label-dimmed);
+  cursor: default;
+}
+
+.body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 8px 0 0;
+  /* The 24px side inset holds the row highlights level with the header text
+     and the footer capsules. The rows carry no side padding of their own, so
+     a row's indicator sits on the title's 24px inset. */
+  padding: 4px 24px;
+}
+
+.option {
+  display: flex;
+  /* flex-start, not center: with a wrapped description the indicator must
+     stay on the FIRST line (centering drifts it down the taller copy block).
+     The row carries no padding at all, so the indicator's own line box is the
+     whole floor of a single-line row and the copy sits on the same lines. */
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  min-height: 30px;
+  /* Rows are the scroll content, never the slack absorber: a shrinkable row
+     collapses to min-height while its wrapped copy keeps the taller
+     intrinsic height, and centered content then paints outside the row box —
+     over the title and the next row. Overflow belongs to .options. */
+  flex-shrink: 0;
+  padding: 0;
+  /* The row's own box hugs its text, so a fill or fade covers the line alone;
+     the 6px above and below put the spacing back outside that box, leaving the
+     list's original pitch (row + 12px + the 2px gap) untouched. */
+  margin: 6px 0;
+  border: 0;
+  border-radius: var(--dsw-aeven-radius-control);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.option:hover:not(:disabled) {
+  background: var(--avn-question-fill);
+}
+
+/* Selection takes the same fill as hover: a chosen row keeps it at rest, a
+   pointed row shows it only while the pointer is over it. */
+.optionSelected,
+.optionSelected:hover:not(:disabled) {
+  background: var(--avn-question-fill);
+}
+
+.option:disabled {
+  cursor: default;
+}
+
+/* Multi-select rows take no hover fill: pointing at one fades the row itself
+   to half strength instead, which keeps the box the row's only mark and tells
+   a pointed row apart from a ticked one. The doubled class outranks the shared
+   hover fill above, so no fill paints here at all. */
+.optionMulti {
+  transition: opacity 120ms ease;
+}
+
+/* 1lh - 8px is the line box (the number disc's own width) plus the shared
+   10px gap, less the box's 18px: the label then starts where a single-select
+   row's label does, while the box stays tight on the row's leading inset. The
+   doubled class keeps this above the shared gap whatever the rule order. */
+.option.optionMulti {
+  column-gap: calc(1lh - 8px);
+}
+
+.option.optionMulti:hover:not(:disabled) {
+  background: transparent;
+  opacity: 0.5;
+}
+
+/* Leading indicator, one line box tall and square: single-select shows the
+   option number in a circle, multi-select swaps in a checkbox; the
+   custom-answer row follows — its checkbox mirrors the typed draft (styling
+   only, exclusivity holds). Height tracks the card's line height so the
+   indicator stays centered on the first text line at every font size. */
+.number {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 1lh;
+  height: 1lh;
+  border-radius: 999px;
+  background: var(--avn-question-fill);
+  color: var(--dsw-alias-label-secondary);
+  font-weight: 400;
+}
+
+/* Multi-select box: the ::before layer draws it and the check icon stacks over
+   it in the same grid cell. The seat is the box's own width, on the same
+   first-line height as .number. */
+.checkbox {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  /* The seat is the box's own 18px, so the box takes the row's leading inset
+     with nothing to shift and the check centres inside it; the height stays
+     the line box, which keeps the first-line alignment .option relies on. */
+  width: 18px;
+  height: 1lh;
+}
+
+.checkbox::before {
+  content: "";
+  grid-area: 1 / 1;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--dsw-alias-border-l4);
+  border-radius: 5px;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+.checkbox > svg {
+  grid-area: 1 / 1;
+}
+
+/* Checked: label-primary fill with a primary-foreground check — the pair
+   inverts with the theme (dark fill in light mode, light fill in dark mode). */
+.checkboxChecked {
+  color: var(--dsw-alias-label-primary-foreground);
+}
+
+.checkboxChecked::before {
+  border-color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-label-primary);
+}
+
+.optionCopy {
+  min-width: 0;
+  flex: 1;
+}
+
+.optionLine {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0 8px;
+}
+
+.optionLabel {
+  font-weight: 400;
+}
+
+/* Recommendation green on a 12% tint of itself; the pair reads on both
+   themes' card surfaces. */
+.badge {
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(0, 179, 164, 0.12);
+  color: #00b3a4;
+  font-weight: 400;
+}
+
+.description {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* Custom answer row: an option-shaped row whose copy is an inline text
+   input; focus or a typed draft lifts it to the hover fill. */
+.customRow {
+  display: flex;
+  /* Same first-line alignment as .option. */
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  min-height: 30px;
+  /* Same reason as .option: the custom row is scroll content, and shrinking
+     it pushes the inline input past the footer. */
+  flex-shrink: 0;
+  padding: 0;
+  /* Same 6px as .option: the row boxes keep one pitch with the fill outside
+     the text's own line. */
+  margin: 6px 0;
+  border-radius: var(--dsw-aeven-radius-control);
+  transition: background-color 120ms ease;
+}
+
+.customRow:hover,
+.customRow:focus-within,
+.customRowActive {
+  background: var(--avn-question-fill);
+}
+
+/* In a multi-select card the free-text row answers the pointer the way its
+   sibling rows do — it fades and carries no fill — while a row being typed in
+   keeps that fill as the mark of the draft being edited. The doubled class
+   outranks the shared hover fill above. */
+.customRowMulti {
+  transition: opacity 120ms ease;
+}
+
+/* Same gap as the multi-select rows above, so one card keeps one label
+   column. */
+.customRow.customRowMulti {
+  column-gap: calc(1lh - 8px);
+}
+
+.customRow.customRowMulti:hover:not(:focus-within) {
+  background: transparent;
+  opacity: 0.5;
+}
+
+/* Auto-growing free-text answer (see AnswerField): mirror and textarea share
+   one grid cell, the mirror sizes it, and the textarea stretches to it. The
+   two layers MUST keep identical type, padding and wrapping — a mismatch
+   makes the box the wrong height for the text the user is typing. */
+.field {
+  display: grid;
+  min-width: 0;
+  --avn-answer-field-padding: 0;
+}
+
+.field > * {
+  grid-area: 1 / 1;
+  min-width: 0;
+  padding: var(--avn-answer-field-padding);
+  font: inherit;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* The height ruler, never painted. Growth stops at 6 lines: the card body is
+   capped at 520px and still owes that budget to the title, the option rows and
+   the footer actions, so a long answer scrolls in the textarea instead of
+   pushing the choices it belongs to out of view.
+   content-box overrides the card-wide border-box so the cap counts TEXT lines
+   in both variants, and `lh` keeps the cap in lines under the font-size
+   preference. Width is unaffected — a stretched grid item's used width comes
+   from the track, not from this box-sizing. */
+.fieldMirror {
+  box-sizing: content-box;
+  max-height: 6lh;
+  overflow: hidden;
+  visibility: hidden;
+}
+
+.fieldInput {
+  resize: none;
+  /* The stack's only scrollport: past the mirror's cap the field stops growing
+     and this scrolls. */
+  overflow-y: auto;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  caret-color: var(--dsw-alias-state-business-primary);
+}
+
+.fieldInput::placeholder {
+  color: var(--dsw-alias-label-caption);
+}
+
+/* Inline variant: the custom row's copy column, borrowing the row's chrome. */
+.customInline {
+  flex: 1;
+}
+
+/* Optionless question: the free-form answer is the whole body and sits on
+   the card surface unframed, as the composer draft does. It takes the option
+   strip's 24px inset from .options alone, so the text lines up with the
+   title; two lines are reserved before the answer grows. */
+.customBlock {
+  min-height: 2lh;
+  flex-shrink: 0;
+}
+
+/* 24px side inset: the pager and the capsules sit level with the header text
+   and the option fills above them. */
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+  margin-top: 12px;
+  padding: 0 24px;
+}
+
+.feedback {
+  flex: 1;
+  color: var(--dsw-alias-state-error-primary);
+  text-align: right;
+}
+
+/* Footer capsules read at the card's size, not the Button primitive's 14px. */
+.action {
+  font-size: inherit;
+  line-height: inherit;
+}
+
+/* Disabled Submit keeps its own fill and full-opacity ink rather than taking
+   the primitive's dimmed primary capsule: the action is unavailable, not
+   faded, and its label stays legible on the card. The double class outranks
+   the primitive's own `.button:disabled` dimming. */
+.action.submit:disabled {
+  background: var(--avn-question-fill);
+  color: var(--dsw-alias-label-primary);
+  opacity: 1;
+}
+
+@media (max-width: 768px) {
+  /* The narrower 18px leading inset is the header's own, and it carries down
+     to the rows and the footer so the alignment above still holds. */
+  .header {
+    padding: 16px 16px 0 18px;
+  }
+
+  .detail {
+    padding: 0 12px 0 18px;
+  }
+
+  .options {
+    padding: 4px 18px;
+  }
+
+  .footer {
+    align-items: flex-end;
+    padding: 0 18px;
+  }
+
+  .footerActions {
+    flex-shrink: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .option,
+  .customRow,
+  .optionMulti,
+  .customRowMulti {
+    transition: none;
+  }
+}

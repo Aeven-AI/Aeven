@@ -1,0 +1,555 @@
+/* Account settings in the General/Appearance cell rhythm: hairline rows
+   (pad 16/0, 14/400 title over a 12/18 tertiary description, control on the
+   right), grouped under 16/500 titles. The plan grid reuses the Appearance
+   cube geometry; the recommended plan is the one filled call to action. */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  padding-top: 28px;
+}
+
+.groupTitle {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 4px;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+  color: var(--dsw-alias-label-primary);
+}
+
+/* The period beside a group title is metadata, not part of the title. */
+.groupAside {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 18px;
+  font-variant-numeric: normal;
+}
+
+/* Setting cell. */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 40px;
+  padding: 16px 0;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.group > .row:last-child,
+.group > .meterRow:last-child,
+.group > .payments:last-child {
+  border-bottom: none;
+}
+
+.wrapRow {
+  flex-wrap: wrap;
+}
+
+/* The amount picker takes its own full-width line: amounts at the start,
+   the Add button at the end. */
+.wrapRow > .actions {
+  flex: 1 1 100%;
+  justify-content: space-between;
+  margin-left: 0;
+}
+
+.rowText {
+  flex: 1 1 220px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.title,
+.name {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 22px;
+}
+
+.desc {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.pending,
+.success,
+.error {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pending {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.success {
+  color: var(--dsw-alias-state-success-primary);
+}
+
+.error {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+/* Identity: the only row that opens the page, so it carries no group title. */
+.identity {
+  margin-top: 8px;
+  padding-top: 8px;
+}
+
+.avatar {
+  display: flex;
+  flex: none;
+}
+
+.avatar :global(.avatar) {
+  width: 40px;
+  height: 40px;
+  border-radius: 20px;
+}
+
+.name,
+.identity .desc {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Allowance read-out: the plan name carries the row at the section's heading
+   scale, the period's end date and the percentage are metadata on the line
+   below it, and the bar spans the row underneath. */
+.meterRow {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 0;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+/* The copy keeps its own height here: `.rowText`'s 220px flex basis is the
+   text column's WIDTH in a row, and as a column item it would set the height
+   instead — leaving the bar stranded at the bottom of a 220px block. */
+.meterRow > .rowText {
+  flex: none;
+}
+
+.meterRow .title {
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.meterLine {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.meterLine .desc {
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.meter {
+  display: block;
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--dsw-alias-bg-module-platform);
+}
+
+.meter > span {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  /* Green while the allowance holds out, yellow as it is used up: the fill
+     mixes the two by the percentage the row published. */
+  background: color-mix(
+    in oklab,
+    var(--dsw-alias-state-warn-primary) var(--avn-usage-percent, 0%),
+    var(--dsw-alias-state-success-primary)
+  );
+  transition: width 0.3s;
+}
+
+.meterLabel {
+  flex: none;
+  font-size: 12px;
+  line-height: 18px;
+  text-align: right;
+  font-variant-numeric: normal;
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* Plans. */
+.plansBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 0;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.group > .plansBlock:last-child {
+  border-bottom: none;
+}
+
+/* The allowance nudge and the past-due notice sit on the page itself rather
+   than in a filled card, flush with the rows above them: the vertical padding
+   is the only spacing they take. */
+.nudge {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 0;
+  background: transparent;
+}
+
+.nudge[data-tone="error"] .title {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.plans {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+/* Appearance cube geometry (r20, 0.5px border-l4); the current plan takes the
+   selected-cube fill, the recommended plan a full-strength outline. */
+.plan {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 18px 20px 20px;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: var(--dsw-aeven-radius-content);
+  background: transparent;
+}
+
+.plan[data-current="true"] {
+  background: var(--dsw-alias-bg-module-platform);
+  border-color: var(--dsw-static-neutral-bluish-400);
+}
+
+.plan[data-recommended="true"] {
+  border: 1px solid var(--dsw-alias-label-primary);
+  padding: 17.5px 19.5px 19.5px;
+}
+
+.planHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 22px;
+}
+
+.planName {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 22px;
+  white-space: nowrap;
+}
+
+.badge {
+  flex: none;
+  padding: 0 8px;
+  border-radius: 10px;
+  background: var(--dsw-alias-button-primary-fill);
+  color: var(--dsw-alias-label-primary-foreground);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 18px;
+}
+
+.price {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.priceAmount {
+  font-size: 26px;
+  font-weight: 500;
+  line-height: 32px;
+  letter-spacing: -0.02em;
+  font-variant-numeric: normal;
+}
+
+.pricePer {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.features {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.features li {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.check {
+  flex: none;
+  margin-top: 2px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.planAction {
+  width: 100%;
+}
+
+.plan[data-current="true"] .planAction:disabled {
+  opacity: 1;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: default;
+}
+
+.notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 4px 4px 16px;
+  border-radius: var(--dsw-aeven-radius-compact);
+  background: var(--dsw-alias-bg-module-platform);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.notice > span:only-child {
+  padding: 8px 0;
+}
+
+/* A plan change waiting for confirmation: the consequence, then its two answers. */
+.confirm {
+  flex-wrap: wrap;
+  padding: 12px 12px 12px 16px;
+}
+
+.confirm > span:first-child {
+  flex: 1 1 260px;
+}
+
+.confirmActions {
+  display: inline-flex;
+  flex: none;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* Credits. */
+.balance {
+  flex: none;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 28px;
+  letter-spacing: -0.01em;
+  font-variant-numeric: normal;
+}
+
+/* Segmented amount picker: the selector-pill track (module fill, control
+   height) holding raised segments. */
+.segmented {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: var(--dsw-aeven-control-size);
+  padding: 4px;
+  border-radius: var(--dsw-aeven-radius-control);
+  background: var(--dsw-alias-bg-module-platform);
+}
+
+.segment,
+.customSegment {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  min-width: 52px;
+  padding: 0 12px;
+  border: none;
+  border-radius: var(--dsw-aeven-radius-compact);
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  font-variant-numeric: normal;
+  cursor: pointer;
+  transition:
+    background 0.16s,
+    color 0.16s;
+}
+
+.segment:hover {
+  color: var(--dsw-alias-label-primary);
+}
+
+/* The chosen amount is a fill and nothing else: the raised edge it used to
+   carry read as a second control inside the track. */
+.segment[aria-checked="true"],
+.customSegment {
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* The amount the reader types is a preset's pill too, so it keeps the preset
+   geometry and lets its digits set the width. It is a `label`, and the
+   vendored auth stylesheet gives every label an 8px bottom margin, which
+   inside the track lifted this pill half of that above its neighbours. */
+.customSegment {
+  gap: 2px;
+  margin: 0;
+  cursor: text;
+}
+
+.customSegment[data-invalid="true"] {
+  box-shadow: 0 0 0 1px var(--dsw-alias-state-error-primary);
+}
+
+.customSegment input {
+  flex: none;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: center;
+  outline: none;
+  -moz-appearance: textfield;
+}
+
+.customSegment input::-webkit-outer-spin-button,
+.customSegment input::-webkit-inner-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+.addButton {
+  min-width: 96px;
+  font-weight: 400;
+}
+
+/* Usage. */
+.figure {
+  flex: none;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 22px;
+  font-variant-numeric: normal;
+}
+
+/* The payment-history control is the group's one action, not a form control:
+   it wears the black capsule while every dropdown around it stays light. */
+.selector {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 12px;
+  height: var(--dsw-aeven-control-size);
+  padding: 0 14px;
+  border: none;
+  border-radius: var(--dsw-aeven-radius-control);
+  background: var(--dsw-alias-button-primary-fill);
+  color: var(--dsw-alias-label-primary-foreground);
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  cursor: pointer;
+}
+
+.selector:hover {
+  background: var(--dsw-alias-button-primary-hover);
+}
+
+.chevron {
+  flex: none;
+  transition: transform 0.16s;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+.payments {
+  display: flex;
+  flex-direction: column;
+  padding: 0 0 12px;
+}
+
+.payment {
+  display: grid;
+  grid-template-columns: 72px 1fr auto;
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 0;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.payment + .payment {
+  border-top: 0.5px solid var(--dsw-alias-border-l1);
+}
+
+.figureSmall {
+  font-variant-numeric: normal;
+}
+
+.segment:focus-visible,
+.selector:focus-visible,
+.customSegment:focus-within {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+}
+
+@media (max-width: 480px) {
+  .plans {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

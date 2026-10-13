@@ -1,0 +1,138 @@
+{
+  "name": "@aeven/subagent",
+  "description": "Abstract subagent seam (ctx.subagents): named-provider registry for delegating to child agents",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/subagent/subagent"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./internal": {
+      "types": "./lib/types/internal.d.ts",
+      "default": "./lib/types/internal.js"
+    },
+    "./invariant": {
+      "types": "./lib/types/invariant.d.ts",
+      "default": "./lib/invariant.js"
+    },
+    "./client": {
+      "types": "./lib/types/client.d.ts",
+      "default": "./lib/types/client.js"
+    },
+    "./typert": {
+      "types": "./lib/typert.host.d.ts",
+      "default": "./lib/typert.host.js"
+    },
+    "./remote": {
+      "types": "./lib/typert.remote-client.d.ts",
+      "default": "./lib/typert.remote-client.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/invariant.js",
+    "lib/types/**/*.js",
+    "lib/types/**/*.d.ts",
+    "lib/typert.host.js",
+    "lib/typert.host.d.ts",
+    "lib/typert.remote-client.js",
+    "lib/typert.remote-client.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@aeven/brand": "workspace:^",
+    "@aeven/util-values": "workspace:^",
+    "zod": "^4.4.3"
+  },
+  "peerDependencies": {
+    "@aeven/agent": "workspace:^",
+    "@aeven/agent-presets": "workspace:^",
+    "@aeven/attachment": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
+    "@aeven/invariants": "workspace:^",
+    "@aeven/jobs": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/sandbox": "workspace:^",
+    "@aeven/sandbox-policy": "workspace:^",
+    "@aeven/scope": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/session-persistence": "workspace:^",
+    "@aeven/session-projection": "workspace:^",
+    "@aeven/session-projection-cache": "workspace:^",
+    "@aeven/session-query": "workspace:^",
+    "@aeven/system-prompt": "workspace:^",
+    "@aeven/tools": "workspace:^",
+    "@aeven/typert-protocol": "workspace:^",
+    "@aeven/user-approval": "workspace:^",
+    "@aeven/util-time": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "peerDependenciesMeta": {
+    "@aeven/agent-presets": {
+      "optional": true
+    },
+    "@aeven/sandbox": {
+      "optional": true
+    },
+    "@aeven/sandbox-policy": {
+      "optional": true
+    },
+    "@aeven/session-persistence": {
+      "optional": true
+    },
+    "@aeven/session-projection": {
+      "optional": true
+    },
+    "@aeven/session-projection-cache": {
+      "optional": true
+    },
+    "@aeven/session-query": {
+      "optional": true
+    },
+    "@aeven/jobs": {
+      "optional": true
+    },
+    "@aeven/user-approval": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@aeven/agent": "workspace:^",
+    "@aeven/agent-presets": "workspace:^",
+    "@aeven/attachment": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
+    "@aeven/invariants": "workspace:^",
+    "@aeven/jobs": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/sandbox": "workspace:^",
+    "@aeven/sandbox-policy": "workspace:^",
+    "@aeven/scope": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/session-persistence": "workspace:^",
+    "@aeven/session-projection": "workspace:^",
+    "@aeven/session-projection-cache": "workspace:^",
+    "@aeven/session-query": "workspace:^",
+    "@aeven/storage": "workspace:^",
+    "@aeven/storage-domain": "workspace:^",
+    "@aeven/storage-json": "workspace:^",
+    "@aeven/system-prompt": "workspace:^",
+    "@aeven/tools": "workspace:^",
+    "@aeven/typert-protocol": "workspace:^",
+    "@aeven/user-approval": "workspace:^",
+    "@aeven/util-time": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  }
+}

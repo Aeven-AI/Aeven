@@ -1,0 +1,23 @@
+# Keyless replay counterpart to pty.cordis.yml.
+- id: llm-deepseek
+  name: '@aeven/llm-deepseek'
+  disabled: true
+
+- insert:
+    - id: pty
+      name: '@aeven/terminal'
+    - id: pty-snapshot-backend
+      name: './pty-snapshot-backend.mjs'
+    - id: tool-terminal
+      name: '@aeven/tool-terminal'
+      config:
+        maxResultBytes: 64
+    - id: llm-replay
+      name: '@aeven/llm-replay'
+      config:
+        providers:
+          - id: deepseek-official
+            name: DeepSeek
+            models:
+              - id: deepseek-v4-flash
+              - id: deepseek-v4-pro

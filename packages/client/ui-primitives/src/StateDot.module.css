@@ -1,0 +1,60 @@
+/* Solid states: same-color halo via a 0.10-opacity outer layer (::before)
+ * with a 6/10-scale solid core. Layer color rides currentColor set per state. */
+.dot {
+  position: relative;
+  display: inline-block;
+  flex: none;
+}
+
+.dot::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.1;
+}
+
+.dot::after {
+  content: '';
+  position: absolute;
+  inset: 20%;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.dot[data-state='warning'] {
+  color: var(--dsw-alias-state-warn-primary);
+}
+
+.dot[data-state='error'] {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+/* Ready: the lucide mark fills the seat, so it takes the size prop the solid
+   states take their diameter from, and carries the success ink itself. */
+.done {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  color: var(--dsw-alias-state-success-primary);
+}
+
+.done > svg {
+  width: 100%;
+  height: 100%;
+}
+
+.ongoing {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.ongoing > .ongoingSpinner,
+.ongoing > .ongoingSpinner svg {
+  width: 100%;
+  height: 100%;
+}

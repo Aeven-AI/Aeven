@@ -1,0 +1,31 @@
+- banner:
+  - navigation "Session hierarchy":
+    - button "Ask a research subagent to"
+    - text: /
+    - 'button "Switch subagent: event-sourcing researcher"': event-sourcing researcher
+  - tablist:
+    - tab "Chat" [selected]
+    - tab "Trajectory"
+  - img
+  - text: Standard mode
+  - button "Session log":
+    - text: Session log
+    - img
+- button "System prompt":
+  - img
+  - img
+  - text: System prompt
+- text: "Explain event sourcing in one sentence.Your parent agent id is \"session-{{uuid}}\". Before you finish, send your result to that agent with send_message({ agent_id: \"session-{{uuid}}\", message: \"<self-contained result>\" }). The parent shares your workspace but does not automatically receive your transcript, tool output, or reasoning. Send earlier messages as well when a finding changes what the parent should do next; sending a message does not end your turn. {{clock}}"
+- button "Copy":
+  - img
+- button "Context injection @aeven/system-prompt":
+  - img
+  - img
+  - text: Context injection @aeven/system-prompt
+- paragraph: partial
+- status: Deep diving...
+- textbox "Parent session offline; sending is unavailable but you can still stop the run" [disabled]
+- button "Commands" [disabled]
+- 'button "Access mode, current: Custom" [disabled]': Custom
+- button "Stop generating"
+- button "Send message" [disabled]

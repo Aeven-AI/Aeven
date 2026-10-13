@@ -1,0 +1,73 @@
+{
+  "name": "@aeven/client-hypermarkdown",
+  "description": "Streaming-native Markdown renderer for the avn web client: caches settled code lines, table rows and list items so growing model output never re-parses finished work",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/client/hypermarkdown"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/**/*.css",
+    "lib/types/**/*.d.ts"
+  ],
+  "sideEffects": [
+    "*.css"
+  ],
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@types/hast": "^3.0.4",
+    "@types/mdast": "^4.0.4",
+    "@types/unist": "^3.0.3",
+    "hast-util-to-jsx-runtime": "^2.3.6",
+    "katex": "^0.16.47",
+    "mermaid": "^11.16.1",
+    "micromark-extension-math": "^3.1.0",
+    "micromark-factory-space": "^2.0.1",
+    "micromark-util-character": "^2.1.1",
+    "micromark-util-symbol": "^2.0.1",
+    "micromark-util-types": "^2.0.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "rehype-highlight": "^7.0.2",
+    "rehype-katex": "^7.0.1",
+    "rehype-raw": "^7.0.0",
+    "rehype-react": "^8.0.0",
+    "rehype-sanitize": "^6.0.0",
+    "remark-cjk-friendly": "^2.3.1",
+    "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0",
+    "remark-parse": "^11.0.0",
+    "remark-rehype": "^11.1.2",
+    "tippy.js": "^6.3.7",
+    "unified": "^11.0.5",
+    "unist-util-visit": "^5.0.0",
+    "unist-util-visit-parents": "^6.0.2",
+    "vfile": "^6.0.3"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@types/react": "~18.3.1",
+    "@types/react-dom": "~18.3.0",
+    "jsdom": "^29.1.1",
+    "@aeven/util-crypto": "workspace:^"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^"
+  }
+}

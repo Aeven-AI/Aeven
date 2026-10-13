@@ -1,0 +1,60 @@
+{
+  "name": "@aeven/agent",
+  "description": "Agent interface, registry, initiator scope, and event vocabulary for the Aeven",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/core/agent"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./invariant": {
+      "types": "./lib/types/invariant.d.ts",
+      "default": "./lib/invariant.js"
+    },
+    "./types": {
+      "types": "./lib/types/types.d.ts",
+      "default": "./lib/types/types.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/invariant.js",
+    "lib/types/**/*.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "@aeven/invariants": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/scope": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/system-prompt": "workspace:^",
+    "@aeven/typert-protocol": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/session-projection": "workspace:^"
+  },
+  "devDependencies": {
+    "@aeven/invariants": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/scope": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/system-prompt": "workspace:^",
+    "@aeven/typert-protocol": "workspace:^",
+    "@aeven/typert-registry": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/session-projection": "workspace:^"
+  }
+}

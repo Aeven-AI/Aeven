@@ -1,0 +1,48 @@
+{
+  "name": "@aeven/experimental-webworker-packer",
+  "description": "Build-time packer for the browser runtime's base VFS image and ordered data-overlay archives",
+  "version": "0.1.2-alpha.5",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/experimental/webworker-packer"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "bin": {
+    "avn-pack-vfs-image": "./bin.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/bin.js",
+    "bin.js",
+    "lib/repository-*.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@deepseek-ai/cordis-plugin-include": "workspace:^",
+    "@aeven/experimental-webworker-runtime": "workspace:^",
+    "@aeven/home-paths": "workspace:^",
+    "js-yaml": "^4.2.0",
+    "picomatch": "^4.0.4"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@types/js-yaml": "^4.0.9",
+    "@types/picomatch": "^3.0.2"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^"
+  }
+}

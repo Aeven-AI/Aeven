@@ -1,0 +1,26 @@
+{
+  "name": "@aeven/whisper-cpp-linux-arm64",
+  "version": "0.1.0",
+  "description": "Prebuilt whisper.cpp speech worker for linux-arm64, resolved as a file path by @aeven/speech-to-text-whisper and never imported",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "native/whisper-cpp/packages/linux-arm64"
+  },
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "files": [
+    "bin/avn-whisper-worker"
+  ],
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "prepack": "node ../../scripts/verify-worker-binary.mjs"
+  }
+}

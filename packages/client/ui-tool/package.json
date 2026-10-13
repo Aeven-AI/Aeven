@@ -1,0 +1,83 @@
+{
+  "name": "@aeven/client-ui-tool",
+  "description": "Client Tool call-tree renderer and keyed per-tool presentation slot",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/client/ui-tool"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "types": "./lib/types/client/index.d.ts",
+      "default": "./lib/client.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "avn": {
+    "client": {
+      "inject": [
+        "@aeven/api-workspace-controller",
+        "@aeven/client-connection",
+        "@aeven/client-locale",
+        "@aeven/client-ui-conversation"
+      ],
+      "platform": "web"
+    }
+  },
+  "scripts": {
+    "bundle": "tsdown",
+    "watch": "tsdown --watch"
+  },
+  "license": "Apache-2.0",
+  "dependencies": {
+    "clsx": "^2.0.0"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "devDependencies": {
+    "@aeven/spill-policy": "workspace:^",
+    "@aeven/agent": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/system-prompt": "workspace:^",
+    "@aeven/tools": "workspace:^",
+    "@aeven/spill": "workspace:^",
+    "@aeven/code-runtime-worker-thread": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/api-remotes": "workspace:^",
+    "@aeven/api-workspace-controller": "workspace:^",
+    "@aeven/attachment": "workspace:^",
+    "@aeven/client-connection": "workspace:^",
+    "@aeven/client-locale": "workspace:^",
+    "@aeven/client-test-runtime": "workspace:^",
+    "@aeven/client-ui-chat": "workspace:^",
+    "@aeven/client-ui-conversation": "workspace:^",
+    "@aeven/client-ui-primitives": "workspace:^",
+    "@aeven/client-ui-renderer": "workspace:^",
+    "@aeven/client-ui-session": "workspace:^",
+    "@aeven/client-ui-slots": "workspace:^",
+    "@aeven/util-workspace-path": "workspace:^",
+    "@testing-library/react": "^16.1.0",
+    "@types/react": "~18.3.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/client.js",
+    "lib/types/**/*.d.ts"
+  ]
+}

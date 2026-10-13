@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/simplification/2026-09-24-remove-the-title-row-utilities-and-their-packages.md
+2026-09-24-remove-the-title-row-utilities-and-their-packages.md: b6a6bbbce169d8ec1dfd12012e8eedd8b5746354
+2026-09-24-remove-the-title-row-utilities-and-their-packages.zh.md: 81e37dbb70551e6af8c36563414fb6523b9ffb38

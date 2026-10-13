@@ -1,0 +1,31 @@
+- banner:
+  - navigation "Session hierarchy":
+    - button "Reply with a one-sentence description" [disabled]
+  - tablist:
+    - tab "Chat" [selected]
+    - tab "Trajectory"
+  - img
+  - text: Standard mode
+  - button "Session log":
+    - text: Session log
+    - img
+- button "System prompt":
+  - img
+  - img
+  - text: System prompt
+- text: Reply with a one-sentence description of event sourcing, then stop. {{clock}}
+- button "Copy":
+  - img
+- button "Context injection @aeven/system-prompt":
+  - img
+  - img
+  - text: Context injection @aeven/system-prompt
+- paragraph: partial
+- status: Deep diving...
+- textbox "Message or run a task... / commands, @ files or sessions"
+- button "Commands"
+- 'button "Access mode, current: Workspace Write"': Workspace Write
+- button "Select model, current DeepSeek-V4-Flash":
+  - text: DeepSeek-V4-Flash
+  - img
+- button "Stop generating"

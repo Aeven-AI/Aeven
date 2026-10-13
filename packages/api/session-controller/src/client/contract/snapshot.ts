@@ -1,0 +1,107 @@
+/** Session-owned observable state excluding Conversation target data. */
+import type { ContentBlock } from '@aeven/llm/types'
+import type { MessageId } from '@aeven/llm/brand'
+import type { SessionId } from '@aeven/session/types'
+import type { SubagentAddress } from '@aeven/subagent/client'
+import type { RemoteFailure } from '@aeven/typert-protocol'
+import type { SessionRequestId } from '../../types.ts'
+
+/** One transient inbox occurrence from the authoritative queue snapshot. */
+export interface QueuedMessage {
+  readonly id: MessageId
+  readonly messageId: MessageId
+  readonly placement: 'queued' | 'steering' | 'context'
+  /** Prompt-RPC identity of a browser-submitted occurrence; correlates the local submission echo. */
+  readonly rpcId?: SessionRequestId
+  readonly content: readonly ContentBlock[]
+  readonly preview: string
+  readonly text: string | null
+  /** Set once the Host claimed the message into a turn; the row stays until its durable message lands and no longer accepts queue edits. */
+  readonly claimed?: true
+}
+
+/** One image displayed by a local submission echo before durable admission. */
+export interface PendingSubmissionImage {
+  /** Browser-owned preview URL; its lifecycle belongs to the submitter, never this snapshot. */
+  readonly previewUrl: string
+  /** Browser file name, when the file had one. */
+  readonly name?: string
+  /** Intrinsic pixel width, when the submitter has probed it. */
+  readonly width?: number
+  /** Intrinsic pixel height, when the submitter has probed it. */
+  readonly height?: number
+}
+
+/** One file displayed by a local submission echo before durable admission. */
+export interface PendingSubmissionFile {
+  /** Browser file name. */
+  readonly name: string
+  /** Browser-declared media type; empty when the browser declared none. */
+  readonly mediaType: string
+}
+
+/** Client surface selected when a local submission begins. */
+export type PendingSubmissionPlacement = 'transcript' | 'queued' | 'steering'
+
+/**
+ * One local prompt-submission echo: inserted synchronously when a submission
+ * begins, so the conversation can show the message before serialization,
+ * transport, and durable admission complete. Client-memory only — reload and
+ * reconnect rebuild the conversation from durable events alone.
+ */
+export interface PendingSubmission {
+  /** The prompt RPC identity; the durable `user/message` source echoes it as `rpcId`. */
+  readonly requestId: SessionRequestId
+  /** Expected surface until the Host reports the admitted queue or durable occurrence. */
+  readonly placement: PendingSubmissionPlacement
+  /** Client wall-clock ms when the submission began. */
+  readonly time: number
+  /** Prompt text exactly as it will be sent (one text block). */
+  readonly text: string
+  /** Ordered image previews matching the prompt's image parts. */
+  readonly images: readonly PendingSubmissionImage[]
+  /** Ordered files matching the prompt's file parts. */
+  readonly files: readonly PendingSubmissionFile[]
+}
+
+/** History-open lifecycle of a Session event window. */
+export type OpenState = 'cold' | 'loading' | 'open' | 'error'
+
+/** Send/stop failure surfaced by Session consumers. */
+export interface PromptError {
+  readonly op: 'send' | 'stop'
+  readonly error: RemoteFailure
+}
+
+/** Immutable Session lifecycle and control snapshot. */
+export interface SessionSnapshot {
+  readonly sessionId: SessionId
+  readonly queue: readonly QueuedMessage[]
+  /** Local prompt-submission echoes still awaiting retirement (see ISession.beginSubmission). */
+  readonly pendingSubmissions: readonly PendingSubmission[]
+  readonly running: boolean
+  readonly subagent: {
+    readonly address: SubagentAddress
+    /** Absent until the direct-parent catalog resolves. */
+    readonly parentAvailable?: boolean
+  } | null
+  readonly removed: boolean
+  readonly openState: OpenState
+  readonly openError: RemoteFailure | null
+  readonly hasMore: boolean
+  /**
+   * The window was anchored back in history by a jump and no longer reaches
+   * the live tail, so live events are withheld from it.
+   */
+  readonly detached: boolean
+  /** Live events observed while {@link detached}; 0 while attached. */
+  readonly pendingLive: number
+  readonly loadingOlder: boolean
+  readonly promptError: PromptError | null
+  readonly blank: boolean
+  readonly lastAgentError: string | null
+  /** A prompt call has begun on this Client Session object. */
+  readonly promptAttempted: boolean
+  /** The first accepted prompt has not reached a durable `turn/start` event. */
+  readonly awaitingFirstTurn: boolean
+}

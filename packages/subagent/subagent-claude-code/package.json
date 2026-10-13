@@ -1,0 +1,70 @@
+{
+  "name": "@aeven/subagent-claude-code",
+  "description": "One-shot Claude Code subagent provider over the official Agent SDK",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/subagent/subagent-claude-code"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "cordis.patch.yml",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "avn": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/subagent": "workspace:^",
+    "@aeven/subprocess": "workspace:^",
+    "@aeven/timeout": "workspace:^"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "0.3.241",
+    "@anthropic-ai/sdk": "0.115.0",
+    "@aeven/brand": "workspace:^",
+    "@deepseek-ai/schemastery": "workspace:^",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/agent": "workspace:^",
+    "@aeven/app-boot": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/loader-smoke": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/session-checkpoint-policy": "workspace:^",
+    "@aeven/session-persistence-jsonl": "workspace:^",
+    "@aeven/session-projection": "workspace:^",
+    "@aeven/subagent": "workspace:^",
+    "@aeven/subagent-codex": "workspace:^",
+    "@aeven/subprocess": "workspace:^",
+    "@aeven/subprocess-local": "workspace:^",
+    "@aeven/timeout": "workspace:^",
+    "@aeven/tool-jobs": "workspace:^",
+    "@aeven/tool-subagent": "workspace:^",
+    "@aeven/tools": "workspace:^"
+  }
+}

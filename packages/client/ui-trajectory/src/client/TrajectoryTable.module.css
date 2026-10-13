@@ -1,0 +1,1881 @@
+/* The view's box inside the page inset; the content column is carved out of
+   it by padding. Every percentage below — the chat width included, which is
+   a percentage expression — resolves against this box's width, the same
+   basis the composer card uses. */
+.split {
+  --avn-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --avn-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+  /* Canvas on either side of the content column. */
+  --trajectory-gutter: calc((100% - var(--avn-chat-content-width)) / 2);
+  --trajectory-details-gap: 12px;
+  /* Overridden inline once the reader drags the card's edge. */
+  --trajectory-details-width: clamp(
+    320px,
+    calc(var(--avn-chat-content-width) * 0.42),
+    480px
+  );
+
+  position: relative;
+  display: flex;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+}
+
+/* Full-bleed: the negative margin takes the page inset back, so the wheel
+   scrolls the rows anywhere across the column. */
+.tablePane {
+  --trajectory-pane-gutter: calc(var(--trajectory-gutter) + var(--avn-composer-side-clearance));
+
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  box-sizing: border-box;
+  margin: 0 calc(0px - var(--avn-composer-side-clearance));
+  padding: 8px var(--trajectory-pane-gutter) var(--avn-trajectory-bottom-clearance, 24px);
+  container: trajectory-table / inline-size;
+}
+
+/* The open details card takes the column's right side; the rows keep the rest. */
+.split[data-details-open] .tablePane {
+  padding-right: calc(
+    var(--trajectory-pane-gutter) + var(--trajectory-details-width) + var(--trajectory-details-gap)
+  );
+}
+
+.historyLoading {
+  position: sticky;
+  z-index: 5;
+  top: 0;
+  height: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.historyLoadingBar {
+  display: flex;
+  width: max-content;
+  height: 32px;
+  margin: 8px auto 0;
+  padding: 0 14px 0 10px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-sizing: border-box;
+  border-radius: 16px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-caption);
+  font: var(--dsw-font-xs-14);
+}
+
+.historyLoadingSpinner {
+  /* Paging is a wait like any other: the shared mark geometry and colour. */
+  width: var(--dsw-aeven-loading-mark-size, 18px);
+  height: var(--dsw-aeven-loading-mark-size, 18px);
+  box-sizing: border-box;
+  border: 2px solid var(--dsw-alias-border-l2);
+  border-top-color: var(
+    --dsw-aeven-loading-mark-color,
+    var(--dsw-alias-label-primary)
+  );
+  border-radius: 50%;
+  animation: history-loading-spin 700ms linear infinite;
+}
+
+.table tbody .historyLoadRow td {
+  height: 40px;
+  padding: 0;
+}
+
+/* The pagination control does not create a trajectory turn boundary. */
+.table tbody .historyLoadRow + tr[data-turn-start="true"] td::before {
+  content: none;
+}
+
+.historyLoadButton {
+  display: flex;
+  width: max-content;
+  height: 32px;
+  margin: 0 auto;
+  padding: 0 14px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  color: var(--dsw-alias-label-caption);
+  cursor: pointer;
+  font: var(--dsw-font-xs-14);
+}
+
+.historyLoadButton:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.historyLoadButton:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 1px;
+}
+
+.historyLoadButton:disabled {
+  cursor: default;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.table:not([data-scroll-ready="true"]) {
+  visibility: hidden;
+}
+
+@keyframes history-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .historyLoadingSpinner {
+    animation: none;
+  }
+}
+
+.table {
+  /* The active turn is marked by its black label chip; its rail stays
+     invisible unless the turn failed. */
+  --trajectory-turn-accent: transparent;
+  --trajectory-row-radius: var(--dsw-aeven-radius-tight);
+
+  width: 100%;
+  min-width: 0;
+  border-spacing: 0;
+  table-layout: fixed;
+  color: var(--dsw-alias-label-primary);
+  font: var(--dsw-font-xs-14);
+}
+
+.eventColumn {
+  width: 122px;
+}
+
+.contentColumn {
+  width: auto;
+}
+
+.table th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  box-sizing: border-box;
+  height: 42px;
+  padding: 0 12px;
+  overflow: hidden;
+  color: var(--dsw-alias-label-tertiary);
+  background: var(--dsw-alias-bg-base);
+  font: var(--dsw-font-xs-14);
+  font-weight: 400;
+  text-align: left;
+  text-overflow: ellipsis;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.eventHeader {
+  padding-right: 4px !important;
+  text-align: right !important;
+}
+
+.table td {
+  box-sizing: border-box;
+  height: 40px;
+  padding: 0 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: background-color 120ms var(--ds-ease-in-out);
+}
+
+/* Row fills live on the cells so each row reads as one rounded strip. */
+.table tbody tr > td:first-child {
+  border-radius: var(--trajectory-row-radius) 0 0 var(--trajectory-row-radius);
+}
+
+.table tbody tr > td:last-child {
+  border-radius: 0 var(--trajectory-row-radius) var(--trajectory-row-radius) 0;
+}
+
+.table tbody .virtualSpacer {
+  pointer-events: none;
+}
+
+.table tbody .virtualSpacer td {
+  height: var(--trajectory-virtual-spacer-height);
+  padding: 0;
+  border: 0;
+}
+
+.table
+  tbody
+  tr:not([data-collapsed-summary]):not([data-virtual-spacer]):not(
+    [data-history-load]
+  ) {
+  cursor: default;
+  outline: none;
+  transition: opacity 120ms var(--ds-ease-in-out);
+}
+
+.table tbody tr[data-timeline-focus="outside"] {
+  opacity: 0.24;
+}
+
+.table
+  tbody
+  tr:not([data-collapsed-summary]):not([data-virtual-spacer]):not(
+    [data-history-load]
+  ):not([data-selected="true"]):not([data-request-only="true"]):hover
+  > td {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.table tbody tr[data-request-only="true"] td {
+  height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.table tbody tr[data-terminal-request-boundary="true"] td {
+  /* Retain the lower half of the 16px boundary marker at the table's end. */
+  height: 9px;
+}
+
+.table tbody tr[data-request-only="true"] .turnRail {
+  top: -15px;
+  bottom: 0;
+}
+
+.table tbody tr:focus-visible > td {
+  box-shadow:
+    inset 0 2px 0 var(--dsw-alias-state-business-primary),
+    inset 0 -2px 0 var(--dsw-alias-state-business-primary);
+}
+
+.table tbody tr:focus-visible > td:first-child {
+  box-shadow:
+    inset 2px 2px 0 var(--dsw-alias-state-business-primary),
+    inset 0 -2px 0 var(--dsw-alias-state-business-primary);
+}
+
+.table tbody tr:focus-visible > td:last-child {
+  box-shadow:
+    inset -2px 2px 0 var(--dsw-alias-state-business-primary),
+    inset 0 -2px 0 var(--dsw-alias-state-business-primary);
+}
+
+/* The selected row is white, the fill of the details card it opens. */
+.table tbody tr[data-selected="true"] > td {
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.requestBoundaryControl {
+  --request-boundary-base-left: 12px;
+
+  position: absolute;
+  z-index: 6;
+  top: -8px;
+  left: calc(
+    var(--request-boundary-base-left) + var(--request-boundary-offset, 0px)
+  );
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.requestBoundaryControl::before {
+  position: absolute;
+  top: 5.5px;
+  left: 5.5px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--dsw-alias-label-caption);
+  box-shadow:
+    0 0 0 2px var(--dsw-alias-bg-base),
+    0 0 0 3px transparent;
+  content: "";
+  transition:
+    background 120ms var(--ds-ease-in-out),
+    box-shadow 120ms var(--ds-ease-in-out);
+}
+
+.requestBoundaryControl::after {
+  position: absolute;
+  top: -3px;
+  left: 18px;
+  width: max-content;
+  padding: 2px 8px;
+  border-radius: 8px;
+  color: var(--dsw-alias-label-caption);
+  background: var(--dsw-alias-bg-layer-1);
+  box-shadow: var(--dsw-elevation-panel);
+  content: attr(data-label);
+  font: var(--dsw-font-xxs-12);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-2px);
+  transition:
+    opacity 120ms var(--ds-ease-in-out),
+    transform 120ms var(--ds-ease-in-out);
+  user-select: none;
+  white-space: nowrap;
+}
+
+.requestBoundaryControl:hover::before,
+.requestBoundaryControl:focus-visible::before {
+  background: var(--dsw-alias-label-primary);
+}
+
+.requestBoundaryControlActive::before,
+.requestBoundaryControlActive:hover::before,
+.requestBoundaryControlActive:focus-visible::before {
+  background: var(--dsw-alias-bg-layer-1);
+  box-shadow: 0 0 0 1.5px var(--dsw-alias-label-primary);
+}
+
+.requestBoundaryControl[data-request-status="error"]::before,
+.requestBoundaryControl[data-request-status="error"]:hover::before,
+.requestBoundaryControl[data-request-status="error"]:focus-visible::before {
+  background: var(--dsw-alias-state-error-primary);
+}
+
+.requestBoundaryControl:hover::after,
+.requestBoundaryControl:focus-visible::after {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.requestBoundaryControl:focus-visible {
+  outline: none;
+}
+
+.event {
+  position: relative;
+}
+
+.turnRail,
+.selectionRail {
+  position: absolute;
+  left: 0;
+  background: var(--dsw-alias-label-primary);
+  pointer-events: none;
+}
+
+.turnRail {
+  z-index: 4;
+  top: -1px;
+  bottom: -1px;
+  width: 2px;
+  background: var(--trajectory-turn-accent);
+}
+
+.table tbody tr[data-turn-end="true"] .turnRail {
+  bottom: 0;
+}
+
+.selectionRail {
+  z-index: 5;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+}
+
+.table tbody tr[data-error="true"] .turnRail {
+  background: var(--dsw-blend-error-surface);
+}
+
+.table tbody tr[data-error="true"] .selectionRail {
+  background: var(--dsw-alias-state-error-primary);
+}
+
+/* A selected row is marked by its white fill; the rail remains only to flag
+   a failed record. */
+.table tbody tr:not([data-error="true"]) .selectionRail {
+  display: none;
+}
+
+.table tbody tr[data-turn-start="true"] td {
+  position: relative;
+  overflow: visible;
+}
+
+.table tbody tr[data-turn-start="true"]:not(:first-child) td::before {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: var(--dsw-alias-border-l2);
+  content: "";
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.event {
+  overflow: visible !important;
+  padding-right: 4px !important;
+  padding-left: 36px !important;
+}
+
+.turnLabel {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  left: 0;
+  display: inline-grid;
+  flex: none;
+  align-items: center;
+  box-sizing: border-box;
+  width: max-content;
+  padding: 0 6px;
+  border-radius: 0 0 6px;
+  color: var(--dsw-alias-label-caption);
+  background: var(--dsw-alias-bg-base);
+  font: var(--dsw-font-xxs-12);
+  font-variant-numeric: normal;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.turnLabelFull,
+.turnLabelCompact {
+  grid-area: 1 / 1;
+  max-width: 64px;
+  overflow: hidden;
+  opacity: 1;
+  white-space: nowrap;
+}
+
+.turnLabelCompact {
+  max-width: 0;
+  opacity: 0;
+}
+
+.turnLabelActive {
+  color: var(--dsw-alias-bg-layer-1);
+  background: var(--dsw-alias-label-primary);
+}
+
+.eventInner {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-width: 0;
+  height: 100%;
+}
+
+.kindSlot {
+  display: flex;
+  flex: none;
+  align-items: flex-end;
+  justify-content: flex-end;
+  width: 76px;
+}
+
+.kindSlot :global([role="tooltip"]) {
+  border: 0;
+  background: var(--dsw-alias-bg-layer-1);
+  box-shadow: var(--dsw-elevation-panel);
+  color: var(--dsw-alias-label-primary);
+}
+
+.content {
+  padding-left: 4px !important;
+  color: var(--dsw-alias-label-primary);
+}
+
+/* Kinds read as quiet captions, like the chat's process-row labels; colour is
+   kept for the user's own turns and for errors. */
+.kindTag {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  box-sizing: border-box;
+  height: 22px;
+  padding: 0;
+  font: var(--dsw-font-xs-14);
+  color: var(--dsw-alias-label-caption);
+  user-select: none;
+}
+
+.kindTagIcon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 0;
+  height: 13px;
+  overflow: hidden;
+  opacity: 0;
+  transform: scale(0.8);
+}
+
+.kindTagLabel {
+  display: inline-block;
+  max-width: 72px;
+  overflow: hidden;
+  opacity: 1;
+  white-space: nowrap;
+}
+
+.table .kindSlot .message {
+  justify-content: center;
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .eventColumn {
+    width: 50px;
+  }
+
+  .event {
+    padding-right: 3px !important;
+    padding-left: 28px !important;
+  }
+
+  .requestBoundaryControl {
+    --request-boundary-base-left: 6px;
+  }
+
+  .kindSlot {
+    width: 19px;
+  }
+
+  .kindTag,
+  .table .kindSlot .message {
+    justify-content: center;
+    width: 19px;
+    padding-right: 0;
+    padding-left: 0;
+  }
+
+  .kindTagIcon {
+    width: 13px;
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .kindTagLabel {
+    max-width: 0;
+    opacity: 0;
+  }
+
+  .turnLabelFull {
+    max-width: 0;
+    opacity: 0;
+  }
+
+  .turnLabelCompact {
+    max-width: 64px;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .eventColumn,
+  .event,
+  .requestBoundaryControl,
+  .kindSlot,
+  .kindTag,
+  .kindTagIcon,
+  .kindTagLabel,
+  .turnLabelFull,
+  .turnLabelCompact {
+    transition-duration: 180ms;
+    transition-timing-function: var(--ds-ease-in-out);
+  }
+
+  .eventColumn,
+  .kindSlot {
+    transition-property: width;
+  }
+
+  .event {
+    transition-property: padding-right, padding-left;
+  }
+
+  .requestBoundaryControl {
+    transition-property: left;
+  }
+
+  .kindTag {
+    transition-property: padding-right, padding-left;
+  }
+
+  .kindTagIcon {
+    transition-property: width, opacity, transform;
+  }
+
+  .kindTagLabel,
+  .turnLabelFull,
+  .turnLabelCompact {
+    transition-property: max-width, opacity;
+  }
+}
+
+.user {
+  color: var(--dsw-alias-label-primary);
+}
+
+.systemNeutral,
+.contextGreen,
+.compacted {
+  color: var(--dsw-alias-label-caption);
+}
+
+.compactedSummary {
+  margin-top: 12px;
+  padding: 0 0 14px;
+  font: var(--dsw-font-xs-14);
+}
+
+.promptDiffSections {
+  display: flex;
+  max-height: 100%;
+  flex-direction: column;
+  padding: 10px 14px 14px;
+  gap: 14px;
+  overflow: auto;
+}
+
+.promptDiffSection {
+  min-width: 0;
+}
+
+.promptDiffTitle {
+  margin: 0 0 6px;
+  color: var(--dsw-alias-label-primary);
+  font: var(--dsw-font-xs-14);
+  font-weight: 500;
+  user-select: none;
+}
+
+.promptDiff {
+  margin: 0;
+  overflow: auto;
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-layer-1);
+  font: 400 13px/20px var(--ds-font-family-code);
+  white-space: pre;
+}
+
+.promptDiff span {
+  display: block;
+  min-width: max-content;
+  padding: 0 6px;
+}
+
+.promptDiffLinemeta {
+  color: var(--dsw-alias-label-caption);
+  background: var(--dsw-alias-bg-module-platform);
+  user-select: none;
+}
+
+.promptDiffLinecontext {
+  color: var(--dsw-alias-label-caption);
+}
+
+.promptDiffLineadded {
+  color: var(--dsw-blend-success-label-strong);
+  background: var(--dsw-alias-state-success-tertiary);
+}
+
+.promptDiffLineremoved {
+  color: var(--dsw-alias-state-error-primary);
+  background: var(--dsw-blend-error-surface-soft);
+}
+
+.assistantVioletBright {
+  color: var(--dsw-alias-label-caption);
+}
+
+.toolAmber,
+.subtoolAmber {
+  color: var(--dsw-alias-label-caption);
+}
+
+.contentText {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toolCallOnly {
+  color: var(--dsw-alias-label-caption);
+}
+
+.table tbody tr[data-collapsed-summary="turn"] td,
+.table tbody tr[data-collapsed-summary="assistant"] td {
+  height: 32px;
+}
+
+.table tbody tr[data-collapsed-summary] {
+  cursor: pointer;
+  outline: none;
+  transition: background-color 120ms var(--ds-ease-in-out);
+}
+
+.table tbody tr[data-collapsed-summary]:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.table tbody tr[data-collapsed-summary]:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--dsw-alias-state-business-primary);
+}
+
+.collapsedTurnContent {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  color: var(--dsw-alias-label-caption);
+  font: var(--dsw-font-xs-14);
+}
+
+.collapsedTurnEllipsis {
+  flex: none;
+  margin-right: 6px;
+  color: var(--dsw-alias-label-caption);
+  user-select: none;
+}
+
+.collapsedTurnText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resultPreview {
+  display: grid;
+  grid-template-columns:
+    clamp(
+      180px,
+      var(--trajectory-tool-request-width, calc(36cqw - 56px)),
+      480px
+    )
+    minmax(0, 1fr);
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+}
+
+.resultRequest,
+.inlineResultText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toolCallNameTypeface {
+  color: var(--dsw-alias-label-primary);
+  font: var(--dsw-font-xs-14);
+}
+
+.toolCallPayload {
+  margin-left: 8px;
+  color: var(--dsw-alias-label-caption);
+  font: var(--dsw-font-xs-14);
+}
+
+.table tbody tr[data-kind="subtool"] .content {
+  padding-left: 26px;
+}
+
+.inlineResult {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  color: var(--dsw-alias-label-caption);
+}
+
+.noOutputText {
+  color: var(--dsw-alias-label-caption);
+}
+
+.arrow {
+  flex: none;
+  margin-right: 8px;
+  color: var(--dsw-alias-label-caption);
+}
+
+.error {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.overview dd.error {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.details .errorPayload {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.details .errorPayload .resultBlockText {
+  color: inherit;
+}
+
+.details .jsonPayload.errorPayload,
+.details .jsonPreview.errorPayload {
+  --json-tree-property: var(--dsw-alias-state-error-primary);
+  --json-tree-string: var(--dsw-alias-state-error-primary);
+  --json-tree-number: var(--dsw-alias-state-error-primary);
+  --json-tree-keyword: var(--dsw-alias-state-error-primary);
+  --json-tree-punctuation: var(--dsw-alias-state-error-primary);
+  --json-tree-icon: var(--dsw-alias-state-error-primary);
+}
+
+/* A white card in the content column's right side, from the ledger's top to
+   just above the composer card. z-index 8 lifts it over the composer seat's
+   fade (7) so its floor stays crisp; it never overlaps the input card itself.
+   Code blocks inside take the canvas grey so they read on the white fill. */
+.details {
+  --dsw-alias-markdown-code-block: var(--dsw-alias-bg-base);
+  /* The card's one inset: header, tabs, and every section's clip edge. */
+  --trajectory-details-inset: 16px;
+
+  position: absolute;
+  z-index: 8;
+  top: 8px;
+  right: var(--trajectory-gutter);
+  bottom: calc(var(--avn-trajectory-composer-clearance, 174px) + 12px);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: var(--trajectory-details-width);
+  max-width: calc(100% - 2 * var(--trajectory-gutter) - 240px);
+  min-width: 0;
+  min-height: 0;
+  border-radius: var(--dsw-aeven-radius-surface);
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+/* Sits in the gap left of the card; a 1px rule shows on hover and drag,
+   like the content column's own width handles. */
+.detailsResizeHandle {
+  position: absolute;
+  z-index: 6;
+  top: 0;
+  bottom: 0;
+  left: calc(0px - var(--trajectory-details-gap));
+  width: var(--trajectory-details-gap);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+}
+
+.detailsResizeHandle::after {
+  content: "";
+  position: absolute;
+  top: 24px;
+  bottom: 24px;
+  left: calc(50% - 0.5px);
+  width: 1px;
+  background: rgb(0 0 0 / 0.1);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.detailsResizeHandle:hover::after,
+.detailsResizeHandle:active::after,
+.detailsResizeHandle:focus-visible::after {
+  opacity: 1;
+}
+
+.detailsResizeHandle:focus-visible {
+  outline: none;
+}
+
+.detailsHeader {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+  /* The 30px close circle centred with the inset above and to its right. */
+  height: calc(30px + 2 * var(--trajectory-details-inset));
+  padding: 0 var(--trajectory-details-inset);
+}
+
+.detailsTitle {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+  color: var(--dsw-alias-label-primary);
+  font: var(--dsw-font-xs-14);
+}
+
+.detailsTitle .kindTag {
+  height: auto;
+  color: var(--dsw-alias-label-primary);
+  font: var(--dsw-font-xs-14);
+  font-weight: 500;
+}
+
+.requestDetailsDot {
+  flex: none;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--dsw-alias-label-secondary);
+}
+
+.requestDetailsName {
+  flex: none;
+  font: var(--dsw-font-xs-14);
+  font-weight: 500;
+}
+
+.detailsLocation {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dsw-alias-label-caption);
+  font: var(--dsw-font-xs-14);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Solid black circle with a white glyph, the account button's treatment, at
+   the tabs' 30px height; its edge sits on the card's inset line. */
+.close {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: var(--dsw-alias-bg-layer-1);
+  background: var(--dsw-alias-label-primary);
+  cursor: pointer;
+}
+
+.closeIcon {
+  width: 16px;
+  height: 16px;
+}
+
+/* Segmented pills on the card: the active tab takes the canvas grey. Inset
+   by margin, not padding, so tabs scrolled sideways clip at the inset line. */
+.detailTabs {
+  display: flex;
+  flex: none;
+  box-sizing: border-box;
+  min-width: 0;
+  margin: 0 var(--trajectory-details-inset) 12px;
+  padding: 0;
+  border-radius: 15px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  gap: 4px;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  white-space: nowrap;
+}
+
+.detailTabs::-webkit-scrollbar {
+  display: none;
+}
+
+.detailTab {
+  position: relative;
+  flex: none;
+  height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 15px;
+  color: var(--dsw-alias-label-caption);
+  background: transparent;
+  cursor: pointer;
+  font: var(--dsw-font-xs-14);
+  transition:
+    background-color 120ms var(--ds-ease-in-out),
+    color 120ms var(--ds-ease-in-out);
+}
+
+.detailTab:hover {
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.detailTabActive,
+.detailTabActive:hover {
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-base);
+}
+
+.detailTab:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: -2px;
+}
+
+.close:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+}
+
+/* Scrollers clip to their own radius, so content stays inside the card's
+   rounded floor. */
+.detailBody {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  margin: 0 var(--trajectory-details-inset);
+  padding: 0 0 var(--trajectory-details-inset);
+}
+
+.detailBodySummary {
+  display: flex;
+  box-sizing: border-box;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.detailBodySummary > .overview {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.detailBodySummary > .compactedSummary {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.summaryScrollRegion {
+  --avn-scrollbar-thumb: transparent;
+  --avn-scrollbar-thumb-hover: transparent;
+}
+
+.summaryScrollRegion:hover,
+.summaryScrollRegion:focus-within {
+  --avn-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --avn-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
+.compactedSummary .markdownPayload {
+  padding-right: 18px;
+}
+
+.overview {
+  margin: 0;
+  padding: 8px 0;
+  font: var(--dsw-font-xs-14);
+}
+
+.overviewParentLinks {
+  display: flex;
+  gap: 14px;
+}
+
+.overviewHierarchyNavLink {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+  font: inherit;
+  gap: 1px;
+  opacity: 1;
+}
+
+.overviewHierarchyNavLink:hover {
+  color: var(--dsw-alias-label-primary);
+}
+
+.overviewHierarchyJumpIconTight {
+  flex: none;
+  color: var(--dsw-alias-label-caption);
+}
+
+.overviewHierarchyNavLink:hover .overviewHierarchyJumpIconTight,
+.overviewHierarchyNavLink:focus-visible .overviewHierarchyJumpIconTight {
+  color: var(--dsw-alias-label-primary);
+}
+
+.overviewHierarchyNavLink:focus-visible {
+  color: var(--dsw-alias-label-primary);
+  outline: 1px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+}
+
+.overview > div {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  min-height: 26px;
+  padding: 0 14px;
+  align-items: center;
+}
+
+.overview > .requestTokenDetail dt {
+  padding-left: 12px;
+}
+
+.usagePanel {
+  padding: 4px 0 10px;
+}
+
+.usageGroup + .usageGroup {
+  margin-top: 8px;
+}
+
+.usageHeading {
+  margin: 0;
+  padding: 4px 14px 1px;
+  color: var(--dsw-alias-label-primary);
+  font: var(--dsw-font-xs-14);
+  font-weight: 500;
+  user-select: none;
+}
+
+.usageGroup .overview {
+  padding: 0;
+}
+
+.overview dt {
+  color: var(--dsw-alias-label-caption);
+  font-weight: 400;
+}
+
+.overview dd {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timestampToggle {
+  all: unset;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  user-select: text;
+}
+
+.timestampToggle:focus-visible {
+  outline: 1px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+}
+
+.overviewSections {
+  display: flex;
+  flex: 1;
+  min-height: min-content;
+  flex-direction: column;
+  overflow: hidden;
+  border-top: 0;
+}
+
+.overviewSection {
+  display: flex;
+  flex: 1 1 0;
+  max-height: max-content;
+  min-height: 28px;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.overviewSection + .overviewSection {
+  padding-top: 12px;
+}
+
+.overviewHeading {
+  display: flex;
+  flex: none;
+  align-items: flex-end;
+  box-sizing: border-box;
+  width: 100%;
+  height: 28px;
+  margin: 0;
+  padding: 0 0 4px 14px;
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-layer-1);
+  font: var(--dsw-font-xs-14);
+  font-weight: 500;
+  user-select: none;
+}
+
+.overviewTitle {
+  display: inline-flex;
+  flex: none;
+  width: max-content;
+  height: auto;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  gap: 3px;
+  line-height: 1;
+  user-select: none;
+}
+
+.overviewTitleIcon {
+  flex: none;
+  color: var(--dsw-alias-label-caption);
+}
+
+.overviewTitle:hover .overviewTitleIcon {
+  color: var(--dsw-alias-label-primary);
+}
+
+.overviewTitle:focus-visible {
+  outline: 1px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+}
+
+.overviewTitle:focus-visible .overviewTitleIcon {
+  color: var(--dsw-alias-state-business-primary);
+}
+
+.overviewPreview {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.overviewPreview > :last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.overviewPreview .jsonPreview > :first-child,
+.overviewPreview .schemaTree > :first-child {
+  padding-bottom: 0;
+}
+
+.overviewPreview .schemaTree {
+  margin-bottom: 0;
+}
+
+.overviewPreview .overview {
+  padding: 2px 0 0;
+}
+
+.overviewPreview .overview > div {
+  min-height: 22px;
+}
+
+.markdownPreview,
+.markdownPayload {
+  color: var(--dsw-alias-label-primary);
+}
+
+.markdownPreview > div,
+.markdownPayload > div {
+  gap: 8px;
+  font: var(--dsw-font-xs-14);
+}
+
+.markdownPreview > div h1,
+.markdownPayload > div h1 {
+  font: 500 16px/22px var(--dsw-font-family);
+}
+
+.markdownPreview > div h2,
+.markdownPayload > div h2 {
+  font: 500 15px/22px var(--dsw-font-family);
+}
+
+.markdownPreview > div :where(h3, h4, h5, h6),
+.markdownPayload > div :where(h3, h4, h5, h6) {
+  font: 500 14px/20px var(--dsw-font-family);
+}
+
+.markdownPreview > div :not(pre) > code,
+.markdownPayload > div :not(pre) > code {
+  font: 400 13px/20px var(--ds-font-family-code);
+}
+
+.markdownPreview > div table,
+.markdownPayload > div table {
+  font: var(--dsw-font-xs-14);
+}
+
+.markdownPreview > div > :first-child {
+  margin-top: 0;
+}
+
+.markdownPreview > div > :last-child {
+  margin-bottom: 0;
+}
+
+.markdownPreview > div :where(h1, h2, h3) {
+  margin: 12px 0 6px;
+}
+
+.markdownPreview > div :where(h4, h5, h6) {
+  margin: 10px 0 5px;
+}
+
+.markdownPreview > div :where(p, ul, ol) {
+  margin: 8px 0;
+}
+
+.markdownPreview > div li:not(:first-child) {
+  margin-top: 3px;
+}
+
+.markdownPreview > div blockquote {
+  margin-top: 8px;
+}
+
+.markdownPreview > div hr {
+  margin: 14px 0;
+}
+
+.markdownPreview > div > :global(.md-code-block) {
+  margin: 10px 0;
+}
+
+.assistantContent .markdownPayload,
+.assistantContent .payload {
+  min-height: 0;
+}
+
+.thinkingQuote {
+  margin: 6px 14px 0 12px;
+  padding-left: 6px;
+  border-left: 2px solid var(--dsw-alias-markdown-citation);
+  color: var(--dsw-alias-label-caption);
+  background: transparent;
+}
+
+.thinkingQuoteOnlyPreview {
+  margin-bottom: 8px;
+}
+
+.detailBody > .assistantContentRendered .thinkingQuote {
+  margin-top: 14px;
+}
+
+.thinkingToggle {
+  display: flex;
+  align-items: center;
+  width: max-content;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  color: var(--dsw-alias-label-caption);
+  background: transparent;
+  cursor: pointer;
+  font: var(--dsw-font-xs-14);
+  gap: 2px;
+  user-select: none;
+}
+
+.thinkingChevron {
+  flex: none;
+  transition: transform 120ms var(--ds-ease-in-out);
+}
+
+.thinkingToggle[aria-expanded="true"] .thinkingChevron {
+  transform: rotate(90deg);
+}
+
+.thinkingToggle:hover {
+  color: var(--dsw-alias-label-primary);
+}
+
+.thinkingToggle:focus-visible {
+  outline: 1px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+}
+
+.thinkingQuote .markdownPreview,
+.thinkingQuote .markdownPayload,
+.thinkingQuote .payload {
+  min-height: 0;
+  padding: 2px 0;
+  color: var(--dsw-alias-label-caption);
+  background: transparent;
+}
+
+.assistantOutput {
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.markdownPreview {
+  padding: 6px 14px 8px;
+}
+
+.markdownPayload {
+  min-height: 100%;
+  padding: 14px;
+}
+
+.jsonPayload {
+  min-height: 100%;
+}
+
+.jsonPreview {
+  min-height: 0;
+}
+
+.schema {
+  min-height: 100%;
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.schemaPreview {
+  min-height: 0;
+}
+
+.schemaIntro {
+  padding: 12px 14px 6px;
+}
+
+.schemaPreview .schemaIntro {
+  padding-top: 6px;
+}
+
+.schemaName {
+  margin: 0;
+  color: var(--dsw-alias-label-primary);
+  font: var(--dsw-font-xs-14);
+}
+
+.schemaDescription {
+  margin: 2px 0 0;
+  color: var(--dsw-alias-label-caption);
+  font: var(--dsw-font-xs-14);
+  white-space: pre-wrap;
+}
+
+.schemaParameters {
+  min-width: 0;
+}
+
+.schemaParametersTitle {
+  margin: 0;
+  padding: 4px 14px 2px;
+  color: var(--dsw-alias-label-caption);
+  font: var(--dsw-font-xs-14);
+  user-select: none;
+}
+
+.schemaTree {
+  margin: 0 6px 8px 0;
+}
+
+.payload {
+  box-sizing: border-box;
+  min-height: 100%;
+  margin: 0;
+  padding: 14px;
+  border-radius: var(--dsw-aeven-radius-tight);
+  overflow-wrap: anywhere;
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-markdown-code-block);
+  font: 400 13px/20px var(--ds-font-family-code);
+  tab-size: 2;
+  white-space: pre-wrap;
+}
+
+.payloadPreview {
+  min-height: 0;
+  padding: 6px 14px 8px;
+}
+
+.sourceBlocks {
+  box-sizing: border-box;
+  min-height: 100%;
+  padding: 12px 14px;
+}
+
+.sourceBlock + .sourceBlock {
+  margin-top: 14px;
+}
+
+.sourceBlockHeader,
+.sourceBlockJumpTarget {
+  display: flex;
+  align-items: center;
+  width: max-content;
+  margin-bottom: 3px;
+  gap: 3px;
+  user-select: none;
+}
+
+.sourceBlockJumpTarget {
+  all: unset;
+  display: flex;
+  align-items: center;
+  width: max-content;
+  margin-bottom: 3px;
+  gap: 3px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.sourceBlockLabel {
+  color: var(--dsw-alias-label-caption);
+  font: var(--dsw-font-xs-14);
+}
+
+.sourceBlockJumpIcon {
+  flex: none;
+  color: var(--dsw-alias-label-caption);
+}
+
+.sourceBlockJumpTarget:hover .sourceBlockJumpIcon {
+  color: var(--dsw-alias-label-primary);
+}
+
+.sourceBlockJumpTarget:focus-visible {
+  outline: none;
+}
+
+.sourceBlockJumpTarget:focus-visible .sourceBlockJumpIcon {
+  color: var(--dsw-alias-state-business-primary);
+}
+
+.sourceBlockContent {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--dsw-alias-label-primary);
+  background: transparent;
+  font: 400 13px/20px var(--ds-font-family-code);
+  tab-size: 2;
+  white-space: pre-wrap;
+}
+
+.messageImages {
+  display: flex;
+  flex-direction: column;
+  margin: 8px 14px 14px;
+  gap: 8px;
+}
+
+.messageImagesPreview {
+  margin: 6px 14px 8px;
+  gap: 6px;
+}
+
+.assistantToolCalls {
+  box-sizing: border-box;
+  max-width: 100%;
+  margin: 2px 14px 12px;
+  padding: 0;
+  color: var(--dsw-alias-label-caption);
+  font: var(--dsw-font-xs-14);
+  list-style: none;
+}
+
+.assistantToolCallsPreview {
+  margin-top: 2px;
+  margin-bottom: 8px;
+}
+
+.assistantToolCalls li {
+  min-width: 0;
+}
+
+.assistantToolCallButton {
+  all: unset;
+  display: flex;
+  box-sizing: border-box;
+  width: calc(100% + 4px);
+  min-width: 0;
+  height: 28px;
+  align-items: center;
+  margin-left: -4px;
+  padding: 0 4px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.assistantToolCallButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.assistantToolCallButton:focus-visible {
+  background: var(--dsw-alias-interactive-bg-hover);
+  outline: 1px solid var(--dsw-alias-state-business-primary);
+  outline-offset: -1px;
+}
+
+.assistantToolCallIcon {
+  flex: none;
+  margin-right: 5px;
+  color: var(--dsw-alias-label-caption);
+}
+
+.assistantToolCallButton:hover .assistantToolCallIcon,
+.assistantToolCallButton:focus-visible .assistantToolCallIcon {
+  color: var(--dsw-alias-label-primary);
+}
+
+.assistantToolCallText {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.assistantToolCallName {
+  flex: none;
+  margin-right: 8px;
+  color: var(--dsw-alias-label-primary);
+  font-weight: 400;
+}
+
+.assistantToolCallArgs {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dsw-alias-label-caption);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.systemPrompt {
+  box-sizing: border-box;
+}
+
+.toolCatalog {
+  min-height: 100%;
+  padding: 8px 0 16px;
+}
+
+.toolCatalogItem {
+  border-bottom: 0;
+}
+
+.toolCatalogSummary {
+  display: grid;
+  grid-template-columns: 12px 12px max-content minmax(0, 1fr);
+  align-items: center;
+  box-sizing: border-box;
+  min-height: 30px;
+  padding: 4px 12px;
+  gap: 5px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.toolCatalogSummary::-webkit-details-marker {
+  display: none;
+}
+
+.toolCatalogSummary {
+  border-radius: var(--dsw-aeven-radius-tight);
+}
+
+.toolCatalogSummary:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.toolCatalogSummary:focus-visible {
+  background: var(--dsw-alias-interactive-bg-hover);
+  outline: 1px solid var(--dsw-alias-state-business-primary);
+  outline-offset: -1px;
+}
+
+.toolCatalogChevron,
+.toolCatalogIcon {
+  color: var(--dsw-alias-label-caption);
+}
+
+.toolCatalogChevron {
+  transition: transform 100ms var(--ds-ease-in-out);
+}
+
+.toolCatalogItem[open] .toolCatalogChevron {
+  transform: rotate(90deg);
+}
+
+.toolCatalogName {
+  color: var(--dsw-alias-label-primary);
+  font: var(--dsw-font-xs-14);
+}
+
+.toolCatalogDescription {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dsw-alias-label-caption);
+  font: var(--dsw-font-xs-14);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toolCatalogDefinition {
+  padding: 0 0 8px 29px;
+}
+
+.toolCatalogFullDescription {
+  margin: 0;
+  padding: 7px 14px 4px 0;
+  color: var(--dsw-alias-label-caption);
+  font: var(--dsw-font-xs-14);
+  white-space: pre-wrap;
+}
+
+.toolCatalogTree {
+  margin-left: -14px;
+  margin-right: 6px;
+}
+
+.resultBlocks {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding: 14px;
+  gap: 10px;
+}
+
+.resultBlocksPreview {
+  min-height: 0;
+  padding: 6px 14px 8px;
+  gap: 6px;
+}
+
+.resultBlockText {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--dsw-alias-label-primary);
+  background: transparent;
+  font: 400 13px/20px var(--ds-font-family-code);
+  tab-size: 2;
+  white-space: pre-wrap;
+}
+
+.overviewPreview .noPayload {
+  padding: 6px 14px 8px;
+}
+
+.noPayload {
+  margin: 0;
+  padding: 18px 14px;
+  color: var(--dsw-alias-label-caption);
+  font: var(--dsw-font-xs-14);
+}
+
+/* Narrow columns: the card floats over the rows instead of taking a side. */
+@media (max-width: 768px) {
+  .split[data-details-open] .tablePane {
+    padding-right: var(--trajectory-pane-gutter);
+  }
+
+  .details {
+    width: min(calc(100% - 2 * var(--trajectory-gutter)), 420px);
+    max-width: none;
+    box-shadow: var(--dsw-elevation-panel);
+  }
+
+  .detailsResizeHandle {
+    display: none;
+  }
+}
+
+/* Inside the card every section starts on the body's inset line: the body
+   carries the 16px, so a section's own side padding would double it and push
+   wide content (JSON, long results) past the card's right inset. */
+.details :is(
+  .overview > div,
+  .overviewHeading,
+  .usageHeading,
+  .markdownPreview,
+  .markdownPayload,
+  .schemaIntro,
+  .schemaParametersTitle,
+  .sourceBlocks,
+  .resultBlocks,
+  .resultBlocksPreview,
+  .promptDiffSections,
+  .noPayload,
+  .overviewPreview .noPayload
+) {
+  padding-right: 0;
+  padding-left: 0;
+}
+
+.details :is(.thinkingQuote, .messageImages, .messageImagesPreview, .assistantToolCalls) {
+  margin-right: 0;
+  margin-left: 0;
+}
+
+.details .overview > .requestTokenDetail dt {
+  padding-left: 12px;
+}
+
+.details .toolCatalogSummary {
+  margin: 0 -8px;
+  padding: 4px 8px;
+}
+
+.details .toolCatalogDefinition {
+  padding-left: 21px;
+}
+
+.details :is(.schemaTree, .toolCatalogTree) {
+  margin-right: 0;
+  margin-left: 0;
+}
+
+/* JSON reads in the card's three text tones instead of syntax colours;
+   failures keep the error colour set above. */
+.details :is(.jsonPayload, .jsonPreview, .schemaTree, .toolCatalogTree):not(.errorPayload) {
+  --json-tree-property: var(--dsw-alias-label-caption);
+  --json-tree-string: var(--dsw-alias-label-primary);
+  --json-tree-number: var(--dsw-alias-label-primary);
+  --json-tree-keyword: var(--dsw-alias-label-primary);
+  --json-tree-punctuation: var(--dsw-alias-label-caption);
+  --json-tree-icon: var(--dsw-alias-label-caption);
+
+  font: 400 13px/20px var(--ds-font-family-code);
+}
+
+/* A raw-text preview is a grey code box; it keeps its own inner padding. */
+.details .payloadPreview {
+  padding: 8px 12px;
+}
+
+/* The tree's own side padding would set JSON off the card's inset line. */
+.details :is(.jsonPayload, .jsonPreview, .schemaTree, .toolCatalogTree) > :first-child {
+  padding-right: 0;
+  padding-left: 0;
+}

@@ -1,0 +1,67 @@
+/* Fixed-height host for the trajectory ledger, laid out on the conversation's
+   own axis: the toolbar, the timeline, and the ledger's rows share the chat's
+   content column (`--avn-chat-content-width`, which the width handles resize),
+   on the page canvas rather than a card. The ledger itself is full-bleed so
+   the wheel scrolls it anywhere in the column and its rows pass under the
+   floating composer the way the chat transcript does. */
+.root {
+  /* Composer clearance the ledger's floor and the details card share. */
+  --avn-trajectory-composer-clearance: var(
+    --avn-composer-seat-height,
+    var(--avn-composer-seat-min-height, 174px)
+  );
+
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100%;
+  min-height: 0;
+  width: 100%;
+  box-sizing: border-box;
+  /* The width contract (ConversationRoot `data-chat-user-width`): every use
+     site of `--avn-chat-content-width` resolves `100%` inside the page inset,
+     the same box as the composer card, or the two columns part ways as soon
+     as the clamp's `100%` term binds. */
+  padding: var(--avn-session-header-height, 56px) var(--avn-composer-side-clearance) 0;
+  font: var(--dsw-font-xs-14);
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-base);
+}
+
+.root :global(*) {
+  scrollbar-width: none;
+}
+
+.root :global(*::-webkit-scrollbar) {
+  display: none;
+}
+
+/* No stacking context of its own: the details card has to rise above the
+   composer seat's fade (ConversationRoot, z-index 7), while the ledger's own
+   layers (z-index 6 and below) stay under the seat. No clipping either: the
+   rows' scroller reaches back out over the page inset (TrajectoryTable). */
+.ledger {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+
+  --avn-trajectory-bottom-clearance: calc(
+    var(--avn-trajectory-composer-clearance) + 24px
+  );
+}
+
+/* Rows leaving the ledger's top edge dim into the canvas under the timeline,
+   the counterpart of the composer seat's fade at the floor. */
+.ledger::before {
+  content: "";
+  position: absolute;
+  z-index: 7;
+  top: 0;
+  right: calc(0px - var(--avn-composer-side-clearance));
+  left: calc(0px - var(--avn-composer-side-clearance));
+  height: 16px;
+  background: linear-gradient(180deg, var(--dsw-alias-bg-base), transparent);
+  pointer-events: none;
+}

@@ -1,0 +1,87 @@
+---
+description: "Browser Chat target that renders Session conversation nodes, details, historical images, actions, localization, and scroll state."
+kind: "package-reference"
+---
+# @aeven/client-ui-chat
+
+English | [中文](README.zh.md)
+
+## Summary
+
+The browser Chat target for Conversation assembly. It registers Chat event definitions and snapshot construction, supplies `useChat`, renders transcript nodes and details, and owns Chat-specific stores, actions, localization, and scroll restoration; historical image URLs resolve through the Conversation-owned per-session cache (`ctx.uiConversation.imageUrl`). Its Assistant and Turn Tail definitions fold packed historical Assistant runs without expanding their members. Steering classification retains only next-step Inbox IDs through persistent splice state; next-turn splices create no Chat Context. Local submission echoes (`SessionSnapshot.pendingSubmissions`) retain the surface selected when the submit begins: transcript echoes render at the flow tail, steering echoes render with the pending-steering marker, and queued echoes stay out of Chat. Transcript and steering echoes are hidden when a durable user or steering node carries their prompt `rpcId`; queued echoes are hidden when a queue occurrence carries it.
+
+
+Approval detail resolves the correlated root or nested tool call. Shell calls display their command; MCP calls display destinations, message text, and remaining arguments as plain text. Draft references display the supplied draft identifier rather than fetching its contents.
+The transcript consumes ui-theme's Aeven width, spacing, typography, and radius variables; Chat keeps its existing node renderers, actions, and icons.
+
+Transcript and steering echoes remain in the flow while the Host claims their inbox items. Their inbox rows are hidden until durable admission. Transcript echoes and admitted user nodes share a React row keyed by the prompt rpcId; the bubble and loaded image tiles remain mounted during admission and timer updates. Steering echoes hand off to steering nodes, and queued echoes hand off to queue rows.
+
+## Table of Contents
+
+- [System prompt row](#system-prompt-row)
+- [Turn token usage](#turn-token-usage)
+- [Turn Process Folding](#turn-process-folding)
+- [Scroll ownership](#scroll-ownership)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
+
+-----
+
+<a id="system-prompt-row"></a>
+## System prompt row
+
+Chat shows a collapsed `System prompt` row for each non-empty initial or resumed request, explicit message-series start, or real system-field change. It does not repeat the row for same-series config-only or tool-only changes, tool steps, or retries. The row appears before that request's user messages, matching the provider envelope, and expands to the exact model-visible text with its original line breaks. A partial history window renders a non-initial header conservatively until the preceding page arrives; a header without a system prompt creates no row.
+
+-----
+
+<a id="turn-token-usage"></a>
+## Turn token usage
+
+A completed Turn shows an expandable usage row only when the loaded window includes `turn/start` and every started model attempt reports safe, exact usage. The row omits unavailable optional buckets. Incomplete or contradictory accounting hides the complete disclosure instead of presenting a partial total.
+
+-----
+
+<a id="turn-process-folding"></a>
+## Turn Process Folding
+
+Settings → General exposes a persisted `Normal` / `Compact` conversation-display preference in the `ui-chat` namespace; `Compact` is the default. Normal leaves process rows visible and renders no Turn-process control. In Compact mode, the System prompt remains independently visible before the opening User throughout the Turn. Context injection, reasoning, Tool rows, and Retry rows collapse by default while a Turn is open; Assistant reply text remains visible. The process control can expand or collapse the group during generation, and manual expansion persists through completion. At `turn/end`, its latest Step becomes the final-answer boundary only when it contains non-blank text, an image, or an unknown visible block—and no Tool-call block; preceding Context injection, reasoning, earlier Assistant material, Tool rows, and Retry rows use the group’s selected expansion state. The control reports Turn-wide durable counts for non-subagent Tool calls, reply-bearing Assistant messages before the final answer, and subagent delegation calls; zero-valued segments are omitted, the Tool and subagent figures are mutually exclusive, and neither System prompt nor Context injection contributes a count. When all three counts are zero, the process still folds and the control reads `Thought for a while`. A full-width divider below the summary separates it from the answer or expanded process rows. User and steering messages, System prompt, error, max-token, and turn-tail rows stay outside, and a closed Turn with no final answer keeps all process evidence visible. A newly available process control is inserted without changing the relative order of existing rows: opening human input precedes the control and process rows from their first projection, while System prompt remains above that input. While older history remains to load, process controls stay absent and no members are hidden; once history is complete, every eligible closed Turn uses the collapsed default immediately. Stable Chat Node Seats keep every renderer mounted, hidden members add no flow spacing, and a closed control sits 8px above its answer only when no independent input intervenes. Completion collapse does not depend on tail-follow position, so a reader above the tail may see the transcript reflow. An automatic collapse that would hide keyboard focus keeps the group open and leaves focus in place; a manual close focuses the process control before hiding its members. The session-scoped store records manual expansion during generation for the whole Turn; expansion first selected after completion belongs to that answer-Step generation, and a different answer generation starts collapsed ([folding decision](../../../.agents/notes/implemented/feature/2026-08-14-web-turn-process-folding.md), [ordering decision](../../../.agents/notes/implemented/bug-fix/2026-08-26-stable-turn-process-order.md)).
+
+-----
+
+<a id="scroll-ownership"></a>
+## Scroll ownership
+
+History pages in as the reader approaches it: reaching within four scrollport heights of the window head (1,500px minimum) pulls the next older page, and a window too short to scroll fills itself so history stays reachable without a gesture. A pull that returns no history against a window still claiming more latches automatic paging off and offers `Load earlier` as the retry, because `loadOlder` reports failure by swallowing it. The head boundary is a zero-height sticky overlay carrying the Trajectory history spinner, so its appearance and disappearance change no transcript geometry. Chat restores semantic anchors across history prepend and same-Session view remounts. Selecting a different Session starts its Chat view at the live tail; content-search navigation instead lands on the indexed event ([Session activation policy](../../../.agents/notes/implemented/bug-fix/2026-09-08-session-activation-chat-tail.md)). The post-commit tail correction on Session activation runs only if the reader has not moved away from the bottom, so an immediate upward scroll is preserved. While the reader is pinned to the floor, `ResizeObserver` follows new content and composer height to keep the live tail visible. Once the reader moves away, flow-height changes preserve the anchored row. Follow ownership, restoration anchors, and persistence are sampled at a lower frequency with a final `scrollend` update.
+
+-----
+
+Generated-image calls remain visible independently of the Turn process disclosure. Imagine publishes the Turn’s call-id, attachment-id and recorded-path indexes; tool nodes retain image ownership. Chat suppresses assistant image blocks and authored image sources that repeat these generated attachments, while preserving other authored images. Nested image calls remain visible without exposing their ordinary parent or sibling rows.
+
+<a id="model-experience"></a>
+## Model Experience
+
+None, as this package renders logged conversation state in the browser and registers nothing model-facing.
+
+#### KV Cache effect
+
+None; Chat presentation does not assemble or mutate provider requests.
+
+## Known Limitations and Deferred Work
+
+<a id="known-limitations-and-deferred-work"></a>
+
+- **The transcript reflects the loaded Session window** — older transcript nodes become available as Session Controller loads preceding event pages. Turn navigation reaches wider than the window: the rail merges the loaded Turns with the host `turnOutline` projection, so every started Turn gets a mark — a loaded mark scrolls to its row, an unloaded one pages history through the Turn's `turn/start` seq before landing on it — and a long session is sampled rather than given one mark per Turn. Without that projection the rail renders no marks at all.
+
+
+<a id="dev-note"></a>
+### Dev Note
+
+<details>
+<summary>Working context for maintainers — click to expand</summary>
+
+None.
+
+</details>
+
+**Runtime invariant:** No companion is published. Conversation and Slot registration enforce Chat target consistency.

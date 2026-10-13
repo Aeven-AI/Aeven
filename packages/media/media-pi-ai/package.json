@@ -1,0 +1,44 @@
+{
+  "name": "@aeven/media-pi-ai",
+  "description": "pi-ai image provider for the Aeven media seam — registers pi-ai's images registry as a ctx.media image backend, owning credential resolution, request translation, and failure mapping",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/media/media-pi-ai"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/credentials": "workspace:^",
+    "@aeven/media": "workspace:^"
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "workspace:^",
+    "@earendil-works/pi-ai": "^0.84.2"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/credentials": "workspace:^",
+    "@aeven/media": "workspace:^",
+    "@aeven/http-proxy": "workspace:^"
+  }
+}

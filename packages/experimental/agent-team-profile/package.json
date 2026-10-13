@@ -1,0 +1,46 @@
+{
+  "name": "@aeven/experimental-agent-team-profile",
+  "description": "Private profile bundle enabling Agent Teams over avn-base",
+  "version": "0.1.2-alpha.5",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/experimental/agent-team-profile"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "cordis.patch.yml",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "avn": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "dependencies": {
+    "@aeven/experimental-agent-team": "workspace:^",
+    "@aeven/experimental-tool-agent-team": "workspace:^"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis-plugin-include": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^",
+    "js-yaml": "^4.2.0"
+  }
+}

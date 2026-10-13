@@ -1,0 +1,123 @@
+packages:
+  - vendor/*
+  - packages/*/*
+  # The Landlock launcher is developed with its harness consumers but keeps
+  # its native build and publication scripts under native/landlock-run.
+  - native/landlock-run
+  - native/landlock-run/packages/*
+  # The whisper.cpp speech worker keeps its pinned source and native build under native/whisper-cpp.
+  - native/whisper-cpp
+  - native/whisper-cpp/packages/*
+  # The WhatsApp connector daemon keeps its vendored Go source and cross-compiled build under native/whatsapp-mcp.
+  - native/whatsapp-mcp
+  - native/whatsapp-mcp/packages/*
+  # The Telegram connector daemon keeps its pinned upstream source and the Aeven daemon entry under native/telegram-mcp.
+  - native/telegram-mcp
+  # The Discord connector server keeps the Aeven-owned curated MCP surface under native/discord-mcp.
+  - native/discord-mcp
+  # Product assemblies over the package tier; apps/cli owns the `avn` bin.
+  - apps/*
+  - website
+  # Deploy root of the single-exe build: a pure dependency manifest whose
+  # closure is what the exe bundles and what the Python runtime distributes.
+  - python/sdk-runtime
+
+# Vendored framework packages keep their upstream semver ranges, while local
+# builds must resolve those matching names to this workspace's pinned sources.
+linkWorkspacePackages: true
+
+overrides:
+  '@deepseek-ai/cosmokit': 'link:vendor/cosmokit'
+  '@deepseek-ai/schemastery': 'link:vendor/schemastery'
+
+peerDependencyRules:
+  allowedVersions:
+    typescript: '>=5 <7'
+
+# pnpm 10+ blocks any dependency shipping an install/build script until it is
+# explicitly reviewed here (strictDepBuilds defaults to true: an unlisted script
+# is a hard install error). Every such package MUST be listed; we deny by
+# default and only allow scripts we need. esbuild (native binary) and lefthook
+# (git hooks) genuinely need theirs.
+allowBuilds:
+  # Downloads Google’s platform-specific Workspace CLI used by account connectors.
+  '@googleworkspace/cli': true
+  esbuild: true
+  lefthook: true
+  # Cross-platform boundary for the persistent PTY backend, including ConPTY on Windows.
+  node-pty: true
+  # Pulled in by @earendil-works/pi-ai (optional LLM API backend). pnpm lists
+  # them only because they ship lifecycle scripts, but those are no-ops we don't
+  # need, so we deny them — install still succeeds.
+  '@google/genai': false
+  protobufjs: false
+  node-addon-require-builtin: false
+  # OCR for scanned PDF attachments; its postinstall only prints a funding banner.
+  tesseract.js: false
+  # JSONL durability calls MoveFileExW with write-through publication on Windows.
+  koffi: true
+  # The Python runtime deploy includes the reviewed workspace postinstall that
+  # restores the executable bit on node-pty's macOS spawn helper.
+  '@aeven/subprocess-local@file:packages/subprocess/subprocess-local': true
+  # electron-builder pulls in the optional Squirrel.Windows helper, whose
+  # install script only selects its bundled 7-Zip executable. Desktop ships
+  # Windows through NSIS, so that mutation is not part of our build.
+  electron-winstaller: false
+  # Store-index rewriting only needs msgpackr's portable JavaScript codec.
+  msgpackr-extract: false
+  # MemOS memory (@deepseek-ai/memos-local-plugin): SQLite storage and the image
+  # decoder Transformers.js imports need their native builds. onnxruntime-node
+  # ships its CPU runtime, and its install script only downloads CUDA providers
+  # on Linux x64, which MemOS's CPU embedder never loads.
+  better-sqlite3: true
+  onnxruntime-node: false
+  sharp: true
+  # Optional OS keychain token cache for the Microsoft 365 connector
+  # (@softeria/ms-365-mcp-server); matches the desktop runtime workspace.
+  keytar: true
+
+# Release-age screening is off: a dependency may be installed the moment it is
+# published. This is deliberate, and it gives up the delay that would otherwise
+# let a compromised or yanked release be caught before it reaches an install
+# here. It is set because the per-package exemptions below do not apply to the
+# lockfile verification pass in pnpm 11.7.0 — both `name@version` and bare-name
+# forms are ignored there — so excluding a single fresh release is not possible
+# and the only working control is this one, which is repo-wide.
+#
+# Raising it again is a one-line change; the exemption list is kept for that day
+# and for the resolution passes that do read it.
+minimumReleaseAge: 0
+
+minimumReleaseAgeExclude:
+  # Fresh pi-ai releases carry the model catalog updates that are the whole
+  # point of bumping it; waiting out the release age would defeat that.
+  - '@earendil-works/pi-ai@0.84.2'
+  - node-addon-native-custom-loader@0.1.4
+  - node-addon-require-builtin-darwin-arm64@0.1.4
+  - node-addon-require-builtin-darwin-x64@0.1.4
+  - node-addon-require-builtin-linux-arm64-gnu@0.1.4
+  - node-addon-require-builtin-linux-x64-gnu@0.1.4
+  - node-addon-require-builtin-win32-arm64-msvc@0.1.4
+  - node-addon-require-builtin-win32-ia32-msvc@0.1.4
+  - node-addon-require-builtin-win32-x64-msvc@0.1.4
+  - node-addon-require-builtin@0.1.4
+  # The active pnpm supply-chain policy blocks this reviewed runtime closure
+  # until its release-age window expires unless every exact package is exempt.
+  - '@anthropic-ai/claude-agent-sdk-darwin-arm64@0.3.241'
+  - '@anthropic-ai/claude-agent-sdk-darwin-x64@0.3.241'
+  - '@anthropic-ai/claude-agent-sdk-linux-arm64-musl@0.3.241'
+  - '@anthropic-ai/claude-agent-sdk-linux-arm64@0.3.241'
+  - '@anthropic-ai/claude-agent-sdk-linux-x64-musl@0.3.241'
+  - '@anthropic-ai/claude-agent-sdk-linux-x64@0.3.241'
+  - '@anthropic-ai/claude-agent-sdk-win32-arm64@0.3.241'
+  - '@anthropic-ai/claude-agent-sdk-win32-x64@0.3.241'
+  - '@anthropic-ai/claude-agent-sdk@0.3.241'
+  # All platform aliases resolve to the @openai/codex package name, so their
+  # reviewed exact versions must share one version-union policy entry.
+  - '@openai/codex@0.149.1||0.149.1-darwin-arm64||0.149.1-darwin-x64||0.149.1-linux-arm64||0.149.1-linux-x64||0.149.1-win32-arm64||0.149.1-win32-x64'
+
+patchedDependencies:
+  # Windows on ARM falls back to the x64 gws build; upstream publishes none for arm64.
+  '@googleworkspace/cli@0.22.5': patches/@googleworkspace__cli@0.22.5.patch
+  app-builder-lib@26.17.0: patches/app-builder-lib@26.17.0.patch
+  node-pty@1.2.0-beta.15: patches/node-pty@1.2.0-beta.15.patch

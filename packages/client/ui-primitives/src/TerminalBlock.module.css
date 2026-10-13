@@ -1,0 +1,169 @@
+.block {
+  --dsl-terminal-radius: var(--dsw-aeven-radius-surface);
+  --dsl-terminal-line-height: 22px;
+  /* Rebindable by consumers (CodeBlock's --dsl-code-block-content-font
+     pattern): a surface wanting the smaller code size rebinds this together
+     with --dsl-terminal-line-height on its own container. */
+  --dsl-terminal-font: var(--dsw-font-markdown-code-block);
+  /* The card's own left inset, the table card's 16px: the run-state dot sits
+     inline in the first command line rather than in a gutter of its own. */
+  --dsl-terminal-gutter: 16px;
+
+  position: relative;
+  margin: 16px 0;
+  /* The gutter is the card's OWN padding, not a margin: every consumer rewrites
+     `margin` wholesale (each render site sets its own indent), which silently
+     cancelled the reservation and let the dot fall outside the card into a
+     container that clips it. Owning the reservation here keeps the invariant
+     with the component that depends on it. */
+  padding-left: var(--dsl-terminal-gutter);
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-markdown-code-block);
+  border-radius: var(--dsl-terminal-radius);
+  /* Clip the banner to the card's own radius: when a consumer adds a border,
+     the banner's equal corner radius no longer nests inside it and leaves a
+     notch at the corner. Nothing inside renders out of the box. */
+  overflow: hidden;
+}
+
+/* The card header (BlockHeader), pulled back across the card's gutter padding
+   so it spans the full surface like a table's header. */
+.titleBar {
+  margin-left: calc(-1 * var(--dsl-terminal-gutter));
+}
+
+/* The command lines under the header. */
+.header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  /* Pulled back across the card's gutter padding so the banner spans the FULL
+     surface, then re-inset by the same amount so the prompt text and the dot
+     keep their positions. The banner shares the card's own surface (no banner
+     token): the l2 divider below is the section boundary. */
+  margin-left: calc(-1 * var(--dsl-terminal-gutter));
+  padding: 0 16px 12px var(--dsl-terminal-gutter);
+  /* A long multi-line command scrolls inside the banner (same cap as the
+     IN/OUT card's sections) instead of pushing the output off screen. */
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+
+/* Full-width l2 hairline between the command banner and the body — the same
+   divider the IN/OUT card draws between its sections. A card with no body yet
+   (running, nothing printed) is banner-only, so it draws none. */
+.block[data-body] .header {
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+/* One row per command line; the prompt column takes the banner's width. */
+.prompt {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+  font: var(--dsl-terminal-font);
+}
+
+.promptLine {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  line-height: var(--dsl-terminal-line-height);
+}
+
+/* The first command line's leading slot: 16px wide, one line tall, the dot
+   centred in it, so the dot lines up with the command text instead of
+   depending on the code font's baseline. */
+.runState {
+  flex: none;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: var(--dsl-terminal-line-height);
+}
+
+/* The dot is aria-hidden; this is its text label for assistive technology. */
+.runStateLabel {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.cwd {
+  flex: none;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* `pre`, not `nowrap`: the prompt row renders the command verbatim, and
+   `nowrap` collapses the repeated spaces, tabs, and alignment of an indented
+   continuation. Both hold the single row and the ellipsis. */
+.command {
+  min-width: 0;
+  color: var(--dsw-alias-label-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: var(--dsl-terminal-command-whitespace, pre);
+  overflow-wrap: anywhere;
+}
+
+/* The failed-exit pill in the header, before the copy control. */
+.status {
+  flex: none;
+  color: var(--dsw-alias-state-error-primary);
+}
+
+/* Vertical scrolling lives on the OUTPUT, not the card root, so the header
+   and the command banner stay pinned while the output scrolls. Unset, the
+   max-height is none and the auto overflow never engages. */
+.output {
+  max-height: var(--dsl-terminal-output-max-height, none);
+  /* The insets hold the output clear of the card's right and bottom edges, so
+     neither the horizontal run of a long line nor the height cap's last row
+     reaches the border. They are margins, not padding: a scroll container
+     renders its overflow across its own padding box, which let the text run
+     into both edges. The card's own width and outer height do not change —
+     block width absorbs the margin, and the height caps below subtract it. */
+  margin: 0 16px 16px 0;
+  padding-top: 12px;
+  font: var(--dsl-terminal-font);
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+/* No wrapping, no word-break: alignment is the payload of terminal output. */
+.line {
+  min-height: var(--dsl-terminal-line-height);
+  white-space: var(--dsl-terminal-line-whitespace, pre);
+  overflow-wrap: anywhere;
+}
+
+.expand {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background-color: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.expand:hover {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.empty {
+  padding: 12px 16px 16px 0;
+  font: var(--dsl-terminal-font);
+  color: var(--dsw-alias-label-tertiary);
+}

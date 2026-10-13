@@ -1,0 +1,55 @@
+{
+  "name": "@aeven/spill-policy",
+  "description": "Tool-result spill policy for the Aeven — replaces oversized plain-text tool results with a retained preview plus a spill-file path (no service API)",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/spill/spill-policy"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./notice": {
+      "types": "./lib/types/notice.d.ts",
+      "default": "./lib/types/notice.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "@aeven/llm": "workspace:^",
+    "@aeven/output-retention": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/spill": "workspace:^",
+    "@aeven/tools": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "workspace:^"
+  },
+  "devDependencies": {
+    "@aeven/agent": "workspace:^",
+    "@aeven/code-runtime-worker-thread": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/output-retention": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/spill": "workspace:^",
+    "@aeven/tools": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  }
+}

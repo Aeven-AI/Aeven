@@ -1,0 +1,58 @@
+- banner:
+  - navigation "Session hierarchy":
+    - button "Math rendering" [disabled]
+  - tablist:
+    - tab "Chat" [selected]
+    - tab "Trajectory"
+  - button "Session log":
+    - text: Session log
+    - img
+- text: Render this mathematical proof. {{clock}}
+- button "Copy":
+  - img
+- heading "Math rendering" [level=2]
+- paragraph:
+  - text: Inline dollar
+  - math: θ
+  - text: and backslash
+  - math: 1 5
+  - text: .
+- math: π 4 < θ < π 2
+- math: θ ∈ ( π 4 , π 2 ) . (1)
+- text: Table
+- button "Copy":
+  - img
+- button "Full screen":
+  - img
+- table:
+  - rowgroup:
+    - row "Symbol Value":
+      - columnheader "Symbol"
+      - columnheader "Value"
+  - rowgroup:
+    - row:
+      - cell:
+        - math: θ
+      - cell:
+        - math: 1 5
+- paragraph: MATH_RENDERING_DONE
+- button "Copy":
+  - img
+- button "Good response":
+  - img
+- button "Bad response":
+  - img
+- button "Branch into a new conversation":
+  - img
+- button "Ran for {{duration}}":
+  - img
+  - text: Ran for {{duration}}
+- text: {{clock}}
+- textbox "Message or run a task... / commands, @ files or sessions"
+- button "Commands"
+- 'button "Access mode, current: Workspace Write"': Workspace Write
+- button "Select model, current DeepSeek-V4-Flash":
+  - text: DeepSeek-V4-Flash
+  - img
+- button "Send message" [disabled]
+- text: 1 turns · 1 steps LLM {{duration}}

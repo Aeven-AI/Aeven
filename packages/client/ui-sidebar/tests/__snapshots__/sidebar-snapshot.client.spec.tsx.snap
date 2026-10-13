@@ -1,0 +1,421 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`sidebar shell snapshots > keeps the expanded contents mounted behind the closed sidebar, in place 1`] = `
+<div
+  data-slot="sidebar"
+  style="display: contents;"
+>
+  <div
+    class="root"
+  >
+    <div
+      class="content"
+    >
+      <button
+        aria-label="Chat"
+        class="brand"
+        type="button"
+      >
+        <span
+          aria-hidden="true"
+          class="brandIdentity"
+        >
+          <span
+            class="brandMark"
+          >
+            <div
+              data-slot="sidebar.brand.mark"
+              style="display: contents;"
+            >
+              <svg
+                aria-hidden="true"
+                data-content="a2c38529"
+                fill="none"
+                height="20.780923994038748"
+                viewBox="0 0 671 581"
+                width="24"
+              />
+            </div>
+          </span>
+          <span
+            class="brandName"
+          >
+            <div
+              data-slot="sidebar.brand.name"
+              style="display: contents;"
+            />
+          </span>
+        </span>
+      </button>
+      <button
+        aria-label="Open sidebar"
+        class="toggle"
+        type="button"
+      >
+        <svg
+          aria-hidden="true"
+          data-content="4c0322ad"
+          fill="none"
+          height="18"
+          viewBox="0 0 24 24"
+          width="18"
+          xmlns="http://www.w3.org/2000/svg"
+        />
+        <svg
+          aria-hidden="true"
+          class="toggleEnd"
+          data-content="8e094c0c"
+          fill="none"
+          height="14"
+          viewBox="0 0 24 24"
+          width="14"
+          xmlns="http://www.w3.org/2000/svg"
+        />
+      </button>
+      <div
+        class="sideContent"
+      >
+        <div
+          class="sideContentInner"
+        >
+          <a
+            aria-label="Chat"
+            class="newSession"
+            href="/c/snapshot-1"
+          >
+            <svg
+              data-content="c0ce4dcc"
+              fill="none"
+              height="14"
+              viewBox="0 0 16 16"
+              width="14"
+              xmlns="http://www.w3.org/2000/svg"
+            />
+            <span
+              class="newSessionLabel"
+            >
+              Chat
+            </span>
+          </a>
+          <div
+            class="regionArea"
+          >
+            <div
+              data-slot="sidebar.workspaces"
+              style="display: contents;"
+            />
+          </div>
+          <div
+            class="footArea"
+          >
+            <div
+              class="footerActions"
+            >
+              <div
+                data-slot="sidebar.footer.action"
+                style="display: contents;"
+              />
+            </div>
+            <div
+              class="settingsArea"
+            >
+              <div
+                data-slot="sidebar.settings"
+                style="display: contents;"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        aria-hidden="true"
+        class="panel"
+      />
+    </div>
+    <div
+      class="contentBlocker"
+      role="presentation"
+    />
+  </div>
+</div>
+`;
+
+exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsule, empty holes) 1`] = `
+<div
+  data-slot="sidebar"
+  style="display: contents;"
+>
+  <div
+    class="root visible"
+  >
+    <div
+      class="content"
+    >
+      <button
+        aria-label="Chat"
+        class="brand"
+        type="button"
+      >
+        <span
+          aria-hidden="true"
+          class="brandIdentity"
+        >
+          <span
+            class="brandMark"
+          >
+            <div
+              data-slot="sidebar.brand.mark"
+              style="display: contents;"
+            >
+              <svg
+                aria-hidden="true"
+                data-content="a2c38529"
+                fill="none"
+                height="20.780923994038748"
+                viewBox="0 0 671 581"
+                width="24"
+              />
+            </div>
+          </span>
+          <span
+            class="brandName"
+          >
+            <div
+              data-slot="sidebar.brand.name"
+              style="display: contents;"
+            />
+          </span>
+        </span>
+      </button>
+      <button
+        aria-label="Close sidebar"
+        class="toggle"
+        type="button"
+      >
+        <svg
+          aria-hidden="true"
+          data-content="4c0322ad"
+          fill="none"
+          height="18"
+          viewBox="0 0 24 24"
+          width="18"
+          xmlns="http://www.w3.org/2000/svg"
+        />
+        <svg
+          aria-hidden="true"
+          class="toggleEnd"
+          data-content="8e094c0c"
+          fill="none"
+          height="14"
+          viewBox="0 0 24 24"
+          width="14"
+          xmlns="http://www.w3.org/2000/svg"
+        />
+      </button>
+      <div
+        class="sideContent"
+      >
+        <div
+          class="sideContentInner"
+        >
+          <a
+            aria-label="Chat"
+            class="newSession"
+            href="/c/snapshot-1"
+          >
+            <svg
+              data-content="c0ce4dcc"
+              fill="none"
+              height="14"
+              viewBox="0 0 16 16"
+              width="14"
+              xmlns="http://www.w3.org/2000/svg"
+            />
+            <span
+              class="newSessionLabel"
+            >
+              Chat
+            </span>
+          </a>
+          <div
+            class="regionArea"
+          >
+            <div
+              data-slot="sidebar.workspaces"
+              style="display: contents;"
+            />
+          </div>
+          <div
+            class="footArea"
+          >
+            <div
+              class="footerActions"
+            >
+              <div
+                data-slot="sidebar.footer.action"
+                style="display: contents;"
+              />
+            </div>
+            <div
+              class="settingsArea"
+            >
+              <div
+                data-slot="sidebar.settings"
+                style="display: contents;"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        aria-hidden="true"
+        class="panel"
+      />
+    </div>
+    <div
+      class="contentBlocker"
+      role="presentation"
+    />
+  </div>
+</div>
+`;
+
+exports[`sidebar shell snapshots > renders the expanded column in the default locale (zh, no setLocale) 1`] = `
+<div
+  data-slot="sidebar"
+  style="display: contents;"
+>
+  <div
+    class="root visible"
+  >
+    <div
+      class="content"
+    >
+      <button
+        aria-label="对话"
+        class="brand"
+        type="button"
+      >
+        <span
+          aria-hidden="true"
+          class="brandIdentity"
+        >
+          <span
+            class="brandMark"
+          >
+            <div
+              data-slot="sidebar.brand.mark"
+              style="display: contents;"
+            >
+              <svg
+                aria-hidden="true"
+                data-content="a2c38529"
+                fill="none"
+                height="20.780923994038748"
+                viewBox="0 0 671 581"
+                width="24"
+              />
+            </div>
+          </span>
+          <span
+            class="brandName"
+          >
+            <div
+              data-slot="sidebar.brand.name"
+              style="display: contents;"
+            />
+          </span>
+        </span>
+      </button>
+      <button
+        aria-label="关闭侧边栏"
+        class="toggle"
+        type="button"
+      >
+        <svg
+          aria-hidden="true"
+          data-content="4c0322ad"
+          fill="none"
+          height="18"
+          viewBox="0 0 24 24"
+          width="18"
+          xmlns="http://www.w3.org/2000/svg"
+        />
+        <svg
+          aria-hidden="true"
+          class="toggleEnd"
+          data-content="8e094c0c"
+          fill="none"
+          height="14"
+          viewBox="0 0 24 24"
+          width="14"
+          xmlns="http://www.w3.org/2000/svg"
+        />
+      </button>
+      <div
+        class="sideContent"
+      >
+        <div
+          class="sideContentInner"
+        >
+          <a
+            aria-label="对话"
+            class="newSession"
+            href="/c/snapshot-1"
+          >
+            <svg
+              data-content="c0ce4dcc"
+              fill="none"
+              height="14"
+              viewBox="0 0 16 16"
+              width="14"
+              xmlns="http://www.w3.org/2000/svg"
+            />
+            <span
+              class="newSessionLabel"
+            >
+              对话
+            </span>
+          </a>
+          <div
+            class="regionArea"
+          >
+            <div
+              data-slot="sidebar.workspaces"
+              style="display: contents;"
+            />
+          </div>
+          <div
+            class="footArea"
+          >
+            <div
+              class="footerActions"
+            >
+              <div
+                data-slot="sidebar.footer.action"
+                style="display: contents;"
+              />
+            </div>
+            <div
+              class="settingsArea"
+            >
+              <div
+                data-slot="sidebar.settings"
+                style="display: contents;"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        aria-hidden="true"
+        class="panel"
+      />
+    </div>
+    <div
+      class="contentBlocker"
+      role="presentation"
+    />
+  </div>
+</div>
+`;

@@ -1,0 +1,254 @@
+/* The generated clip's playback chrome, riding the clip's lower edge. Every
+   control wears the Gallery's round face — a flat white surface with a black
+   glyph — and the readout keeps the same pair on a squarer chip. The bar clears
+   itself while a playing clip is left alone, and comes back on any pointer
+   movement, on focus, and whenever the clip is held. Its save card is the
+   composer's own popup material, not this bar's white chrome. */
+.controls {
+  display: flex;
+  position: absolute;
+  z-index: 3;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  align-items: center;
+  gap: 8px;
+  opacity: 1;
+  transition: opacity 160ms ease-out;
+}
+
+.controls[data-idle='true'] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .controls {
+    transition: none;
+  }
+}
+
+/* The bar's own bed. White chrome over moving footage has no fixed contrast —
+   a bright frame of the clip swallows the discs' edges and the rails — so the
+   bar carries a soft dark gradient that reaches the frame's own edges. */
+.controls::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: -12px -12px -12px;
+  background: linear-gradient(to top, var(--dsw-alias-bg-mask-2), transparent);
+}
+
+/* The play control is the bar's primary disc — the prompt trigger's flat face,
+   one size up; the rest keep the trigger's own 30px. Their glyphs are the
+   product's own black on that white, in either theme. */
+.play,
+.control {
+  display: flex;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  outline: none;
+  appearance: none;
+  background-color: var(--dsw-alias-bg-layer-1);
+  color: #000000;
+  cursor: pointer;
+}
+
+.play {
+  width: 36px;
+  height: 36px;
+}
+
+.play svg {
+  display: flex;
+  width: 18px;
+  height: 18px;
+}
+
+.control svg {
+  display: flex;
+  width: 14px;
+  height: 14px;
+}
+
+.play:focus-visible,
+.control:focus-visible {
+  box-shadow: 0 0 0 2px var(--dsw-alias-label-primary);
+}
+
+/* Elapsed and total time: the same contrast pair as the discs, so the readout
+   reads over any frame of the clip. */
+.time {
+  flex: none;
+  padding: 0 8px;
+  border-radius: 999px;
+  background-color: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+  font-size: 12px;
+  line-height: 22px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* One track shape for both axes: the played length of the clip and the clip's
+   own volume are the same rail, the same fill, and the same handle. The
+   scrubber takes the bar's free width; the level keeps a fixed one. */
+.seekBox,
+.volumeBox {
+  display: flex;
+  position: relative;
+  min-width: 0;
+  height: 22px;
+  align-items: center;
+}
+
+.seekBox {
+  flex: 1 1 auto;
+}
+
+.volumeBox {
+  flex: none;
+  width: 56px;
+}
+
+.trackRail,
+.trackFill {
+  position: absolute;
+  left: 0;
+  height: 4px;
+  border-radius: 999px;
+  background-color: var(--dsw-alias-bg-layer-1);
+  pointer-events: none;
+}
+
+.trackRail {
+  right: 0;
+  opacity: 0.35;
+}
+
+.trackFill {
+  width: var(--track-progress, 0%);
+}
+
+.slider {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 22px;
+  margin: 0;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.slider:focus-visible {
+  border-radius: 999px;
+  outline: none;
+  box-shadow: 0 0 0 2px var(--dsw-alias-label-primary);
+}
+
+.slider::-webkit-slider-runnable-track {
+  height: 4px;
+  background: transparent;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: -4px;
+  border: none;
+  border-radius: 50%;
+  background-color: var(--dsw-alias-bg-layer-1);
+}
+
+.slider::-moz-range-track {
+  height: 4px;
+  background: transparent;
+}
+
+.slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: none;
+  border-radius: 50%;
+  background-color: var(--dsw-alias-bg-layer-1);
+}
+
+/* The save card, recipe for recipe the composer's own popup: the model
+   chooser's and Options' card (surface radius, translucent menu fill, 4px blur,
+   prominent elevation) over their cell — a 40px row, 8px padding, 8px gap,
+   control radius, name in primary ink. It is fixed in the viewport because the
+   clip's frame clips every child, and it layers with the app's other portaled
+   popups. */
+.saveCard {
+  position: fixed;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  width: max-content;
+  min-width: 232px;
+  max-width: min(360px, calc(100vw - 32px));
+  padding: 8px;
+  border: 0;
+  border-radius: var(--dsw-aeven-radius-surface);
+  background: var(--dsw-tint-menu);
+  backdrop-filter: blur(4px);
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
+  box-shadow:
+    inset 1px 1px 0 0 var(--dsw-specific-popup-highlight),
+    inset 0 0 1px 1px var(--dsw-specific-popup-highlight),
+    var(--dsw-elevation-prominent);
+  color: var(--dsw-alias-label-primary);
+}
+
+.saveRow {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: var(--dsw-aeven-control-size);
+  padding: 8px;
+  border: none;
+  border-radius: var(--dsw-aeven-radius-control);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  line-height: 22px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.saveRow:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.saveRowIcon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.saveRowGlyph {
+  width: 16px;
+  height: 16px;
+}
+
+.saveRowLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

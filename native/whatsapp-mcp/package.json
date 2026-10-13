@@ -1,0 +1,15 @@
+{
+  "name": "@aeven/whatsapp-mcp-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "Private WhatsApp MCP daemon: vendored Sealjay/mcp-whatsapp Go source, cross-compiled build, and per-platform packages",
+  "scripts": {
+    "build:native": "tsx scripts/build.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.0",
+    "tsx": "^4.22.4"
+  }
+}

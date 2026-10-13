@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-17-naming-the-reader.md
+2026-09-17-naming-the-reader.md: 1eee5fe7bddc09f2f95f98b7500537325745ebd9
+2026-09-17-naming-the-reader.zh.md: 23ff728f511b8bd67185f88422f3b3849ca542fc

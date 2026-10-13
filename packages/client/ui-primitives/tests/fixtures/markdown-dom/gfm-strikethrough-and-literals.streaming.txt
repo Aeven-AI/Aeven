@@ -1,0 +1,12 @@
+<div class="hypermarkdown _markdown_404681">
+  <p>
+    #text "Mixed "
+    <del>
+      #text "gone"
+    #text " text with "
+    <a href="http://www.example.com" rel="noreferrer" target="_blank">
+      #text "www.example.com"
+    #text " literal and "
+    <a href="mailto:user@example.com" rel="noreferrer" target="_blank">
+      #text "user@example.com"
+    #text " email."

@@ -1,0 +1,44 @@
+# Replay-only patch layered after `cordis.yml`: replace the network adapter
+# with recorded JSONL, pin the recorded top-level model, and keep persistence
+# raw for fixture harvesting.
+
+- id: llm-deepseek
+  name: '@aeven/llm-deepseek'
+  disabled: true
+
+- id: acp
+  name: '@aeven/acp'
+  config:
+    provider: deepseek-official
+    model: deepseek-v4-flash
+
+- id: session-persistence-jsonl
+  name: '@aeven/session-persistence-jsonl'
+  config:
+    root: !!js process.env.AVN_SNAPSHOT_SESSIONS_ROOT ?? avnHomePath('sessions')
+    compression: none
+
+- id: sandbox
+  name: '@aeven/sandbox-local'
+  config:
+    runnerCommand:
+      - bash
+      - -c
+      - while [ "$1" != "--" ]; do shift; done; shift; exec "$@"
+      - passthrough-runner
+    runnerFailureSignatures:
+      - 'passthrough-runner: profile rejected'
+
+- insert:
+    - id: llm-replay
+      name: '@aeven/llm-replay'
+      config:
+        providers:
+          - id: deepseek-official
+            name: DeepSeek
+            models:
+              - id: deepseek-v4-flash
+              - id: deepseek-v4-pro
+
+    - id: subagent-settlement-marker
+      name: './subagent-settlement-marker.ts'

@@ -1,0 +1,16 @@
+# Loader overlay for the real-host smoke (`avn web --patch`): run the shipped
+# Web graph without an authenticated-user authority.
+#
+# This smoke operates no Aeven API, and the shipped rows require one. An
+# authority registered here fences every API route behind a credential the
+# smoke cannot obtain, and replaces the launch token with the sign-in screen —
+# so `avn web` prints a bare origin and serves the index to anyone instead of
+# printing `/?token=…` and exchanging it for a session cookie, which is the
+# admission this smoke drives. Disabling the authority also disables the
+# account menu that shows its reader, exactly as the web-app patch pairs them.
+#
+# Mirrors the same pair in apps/web/tests/scaffold.ts.
+- id: identity-user-aeven
+  disabled: true
+- id: ui-account-aeven
+  disabled: true

@@ -1,0 +1,47 @@
+{
+  "name": "@aeven/tool-elevation",
+  "description": "The model-facing `elevated` tool: runs one command as administrator through the harness approval and the operating system consent prompt",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/sandbox/tool-elevation"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@aeven/timeout": "workspace:^",
+    "@deepseek-ai/schemastery": "workspace:^"
+  },
+  "peerDependencies": {
+    "@aeven/llm": "workspace:^",
+    "@aeven/subprocess": "workspace:^",
+    "@aeven/tools": "workspace:^",
+    "@aeven/user-approval": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "devDependencies": {
+    "@aeven/llm": "workspace:^",
+    "@aeven/subprocess": "workspace:^",
+    "@aeven/tools": "workspace:^",
+    "@aeven/user-approval": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  }
+}

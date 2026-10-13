@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-22-in-band-gateway-failures-are-retryable.md
+2026-09-22-in-band-gateway-failures-are-retryable.md: 4783ded4c98866654c2bb18fbcf018212754c873
+2026-09-22-in-band-gateway-failures-are-retryable.zh.md: 27ce0b0d1b1d46d62c746a65490e54760d0cc45e

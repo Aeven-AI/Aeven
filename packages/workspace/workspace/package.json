@@ -1,0 +1,61 @@
+{
+  "name": "@aeven/workspace",
+  "description": "Workspace entity registry (ctx.workspaceRegistry): durable workspace records with validated session attachment over the domain data form for the Aeven",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/workspace/workspace"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./invariant": {
+      "types": "./lib/types/invariant.d.ts",
+      "default": "./lib/invariant.js"
+    },
+    "./types": {
+      "types": "./lib/types/types.d.ts",
+      "default": "./lib/types/types.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/invariant.js",
+    "lib/types/**/*.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/invariants": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/session-persistence": "workspace:^",
+    "@aeven/storage": "workspace:^",
+    "@aeven/storage-domain": "workspace:^",
+    "@aeven/typert-protocol": "workspace:^"
+  },
+  "dependencies": {
+    "@aeven/brand": "workspace:^",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/invariants": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/session-persistence": "workspace:^",
+    "@aeven/storage": "workspace:^",
+    "@aeven/storage-domain": "workspace:^",
+    "@aeven/typert-protocol": "workspace:^"
+  }
+}

@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-07-discord-connector-guilds.md
+2026-10-07-discord-connector-guilds.md: 3e36a5e3365e8dbf8cd3703cd1153f4897dfd13b
+2026-10-07-discord-connector-guilds.zh.md: e71d27d67685efe0e39c5421e9bb57603f0148ed

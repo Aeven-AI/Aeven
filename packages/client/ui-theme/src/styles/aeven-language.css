@@ -1,0 +1,269 @@
+/* Aeven product language. Semantic colors continue to flow through the
+   existing --dsw aliases so dark mode and third-party theme overrides retain
+   one ownership path. */
+/* Responsive scale, mirroring the Aeven client's `_config.scss` steps:
+ *
+ *   1284px  aeven-max
+ *   1024px  aeven-med        sidebar leaves flow and overlays
+ *    768px  aeven-medm
+ *    640px  aeven-small
+ *    480px  aeven-small-mini
+ *
+ * A custom property cannot appear in a `@media` condition in any engine, so a
+ * sheet writes the literal rather than a token. `verify-css-baseline` rejects
+ * any other width, which is what keeps the scale central without a
+ * preprocessor to substitute it. */
+
+body {
+  --dsw-aeven-chat-width: 1024px;
+  --dsw-aeven-page-inset: 24px;
+  /* The macOS window controls' gutter: their own leading inset (24px, which
+     `trafficLightPosition` sets in apps/desktop main.ts) plus the 60px the
+     three buttons paint over. Measured on the rendered window, where their
+     leading edges read 23px apart. It is a page constant, not a function of
+     `--dsw-aeven-page-inset`: the lights do not move when the page narrows.
+     A desktop band laying a control on that line starts one page inset past
+     this. */
+  --dsw-aeven-window-controls-gutter: 84px;
+  --dsw-aeven-sidebar-width: 300px;
+  --dsw-aeven-sidebar-row-inset: 24px;
+  --dsw-aeven-sidebar-bottom-inset: 40px;
+  --dsw-aeven-sidebar-toggle-width: 68px;
+  --dsw-aeven-sidebar-panel-radius: 30px;
+  --dsw-aeven-sidebar-transition-duration: 400ms;
+  --dsw-aeven-sidebar-transition-timing: cubic-bezier(0.23, 1, 0.32, 1);
+  /* The right sidebar travels on its own pair. The shared curve above is
+     easeOutQuint, which spends 74% of its travel in its first quarter: over
+     the left sidebar's fixed 300px that reads as a brisk slide, but the right
+     column opens to a frame fraction (45% on first open, up to 70%), and the
+     same curve over ~540px finishes visibly before the duration ends. This
+     curve holds a near-constant rate through the middle of the travel, so the
+     wider column stays legible for the whole slide. */
+  --dsw-aeven-rightbar-transition-duration: 460ms;
+  --dsw-aeven-rightbar-transition-timing: cubic-bezier(0.32, 0.72, 0, 1);
+  --dsw-aeven-control-size: 40px;
+  --dsw-aeven-radius-surface: 30px;
+  --dsw-aeven-radius-content: 20px;
+  --dsw-aeven-radius-control: 20px;
+  --dsw-aeven-radius-compact: 16px;
+  --dsw-aeven-radius-tight: 10px;
+  --dsw-aeven-space-content: 24px;
+  --dsw-aeven-space-compact: 12px;
+  --dsw-aeven-space-message: 32px;
+  --dsw-aeven-reading-line-height: 28px;
+
+  /* One loading mark for every wait in the product — inline spinners, the
+     boot preloader, diagram covers, paging rings. Surfaces consume these
+     rather than restating a size, so the mark cannot drift apart again.
+     The colour is the primary label alias: ink in light, inverting in dark. */
+  --dsw-aeven-loading-mark-size: 18px;
+  --dsw-aeven-loading-mark-color: var(--dsw-alias-label-primary);
+
+  --dsw-alias-bg-base: rgb(242, 242, 242);
+  --dsw-alias-bg-layer-1: rgb(255, 255, 255);
+  --dsw-alias-bg-layer-2: rgb(255, 255, 255);
+  --dsw-alias-bg-layer-3: rgb(255, 255, 255);
+  --dsw-alias-bg-module-platform: rgb(242, 242, 242);
+  --dsw-alias-bg-multi-select: rgb(242, 242, 242);
+  --dsw-alias-bg-overlay: rgb(235, 235, 235);
+  --dsw-alias-border-l1: rgba(0, 0, 0, 0.04);
+  --dsw-alias-border-l2: rgba(0, 0, 0, 0.1);
+  --dsw-alias-border-l3: rgba(0, 0, 0, 0.14);
+  --dsw-alias-border-l4: rgba(0, 0, 0, 0.2);
+  --dsw-alias-brand-primary: #000000;
+  --dsw-alias-brand-primary-invert: #000000;
+  --dsw-alias-brand-text: rgb(90, 90, 90);
+  --dsw-alias-button-elevated-fill: rgb(255, 255, 255);
+  --dsw-alias-button-floating-fill: rgb(255, 255, 255);
+  --dsw-alias-button-floating-hover: rgb(235, 235, 235);
+  --dsw-alias-button-primary-dimmed: rgb(205, 205, 205);
+  --dsw-alias-button-primary-fill: #000000;
+  --dsw-alias-button-primary-hover: rgb(50, 50, 50);
+  --dsw-alias-interactive-bg-active: rgba(0, 0, 0, 0.1);
+  --dsw-alias-interactive-bg-hover-accent: rgba(0, 0, 0, 0.12);
+  --dsw-alias-interactive-bg-hover-solid: rgb(235, 235, 235);
+  --dsw-alias-interactive-bg-hover: rgba(0, 0, 0, 0.05);
+  --dsw-alias-label-caption: rgb(150, 150, 150);
+  --dsw-alias-label-dimmed: rgb(205, 205, 205);
+  --dsw-alias-label-primary-bluish: #000000;
+  --dsw-alias-label-primary-dimmed: rgb(80, 80, 80);
+  --dsw-alias-label-primary-foreground: rgb(255, 255, 255);
+  --dsw-alias-label-primary: #000000;
+  --dsw-alias-label-secondary: rgb(80, 80, 80);
+  --dsw-alias-label-tertiary: rgb(90, 90, 90);
+  --dsw-alias-markdown-code-block-banner: rgb(255, 255, 255);
+  --dsw-alias-markdown-code-block: rgb(255, 255, 255);
+  --dsw-alias-markdown-inline-code: #e6e6e6;
+  --dsw-alias-markdown-placeholder: rgb(242, 242, 242);
+  --dsw-alias-markdown-tag: rgb(235, 235, 235);
+  --dsw-alias-state-business-primary: #000000;
+  --dsw-alias-state-business-tertiary: rgb(235, 235, 235);
+
+  /* Translucent tints. Stated per theme because a percentage of a token is not
+     a value the floor can compute: `color-mix()` needs Safari 16.2. */
+  --dsw-tint-menu: rgba(255, 255, 255, 0.7);
+  --dsw-tint-surface-fade: rgba(242, 242, 242, 0.6);
+  --dsw-tint-layer-1-58: rgba(255, 255, 255, 0.58);
+  --dsw-tint-layer-1-75: rgba(255, 255, 255, 0.75);
+  --dsw-tint-business-08: rgba(0, 0, 0, 0.08);
+  --dsw-tint-business-10: rgba(0, 0, 0, 0.1);
+  --dsw-tint-business-12: rgba(0, 0, 0, 0.12);
+  --dsw-tint-business-18: rgba(0, 0, 0, 0.18);
+  --dsw-tint-business-80: rgba(0, 0, 0, 0.8);
+  --dsw-tint-business-tertiary-84: rgba(235, 235, 235, 0.84);
+  --dsw-tint-success-10: rgba(34, 197, 94, 0.1);
+  --dsw-tint-warning-12: rgba(180, 83, 9, 0.12);
+  --dsw-tint-error-08: rgba(236, 19, 19, 0.08);
+  --dsw-tint-error-10: rgba(236, 19, 19, 0.1);
+  --dsw-tint-error-45: rgba(236, 19, 19, 0.45);
+  --dsw-tint-business-primary-80: rgba(0, 0, 0, 0.8);
+
+  /* Blends: two opaque colours mixed at a fixed ratio, stated per theme. */
+  --dsw-blend-success-label: rgb(49, 160, 90);
+  --dsw-blend-success-label-strong: rgb(27, 145, 70);
+  --dsw-blend-brand-error: rgb(136, 107, 174);
+  --dsw-blend-brand-error-surface: rgb(239, 233, 242);
+  --dsw-blend-warn-label: rgb(171, 117, 60);
+  --dsw-blend-warn-surface: rgb(254, 249, 241);
+  --dsw-blend-blue-accent: rgb(212, 228, 253);
+  --dsw-blend-blue-label: rgb(73, 112, 176);
+  --dsw-blend-brand-surface: rgb(221, 230, 251);
+  --dsw-blend-error-surface: rgb(251, 203, 203);
+  --dsw-blend-error-surface-soft: rgb(253, 227, 227);
+  --dsw-blend-decoding-ttft: rgb(191, 175, 211);
+  --dsw-specific-bubble-highlight: rgb(235, 235, 235);
+  --dsw-specific-bubble: rgb(255, 255, 255);
+  --dsw-specific-input-major: rgb(255, 255, 255);
+  --dsw-specific-login-input: rgb(242, 242, 242);
+  --dsw-specific-menu: rgb(255, 255, 255);
+  /* Inner rim of a popup card: Aeven's avatar menu draws its edge as two white
+     inset lines, which is the highlight a translucent card needs where a
+     neutral stroke would read as a shadow. */
+  --dsw-specific-popup-highlight: rgba(255, 255, 255, 0.8);
+  --dsw-specific-selector: rgb(242, 242, 242);
+  --dsw-specific-sidebar-fill: rgb(255, 255, 255);
+  --dsw-specific-sidebar-nav-item-active-accent: transparent;
+  --dsw-specific-sidebar-nav-item-active: transparent;
+  --dsw-specific-sidebar-nav-item-hover: transparent;
+  --dsw-specific-tip: rgb(235, 235, 235);
+
+  --dsw-font-markdown-h1: 600 calc(34px + var(--avn-content-font-delta)) /
+    calc(40px + var(--avn-content-font-delta)) var(--dsw-font-family);
+  --dsw-font-markdown-h2: 600 calc(26px + var(--avn-content-font-delta)) /
+    calc(32px + var(--avn-content-font-delta)) var(--dsw-font-family);
+  --dsw-font-markdown-h3: 600 calc(20px + var(--avn-content-font-delta)) /
+    calc(26px + var(--avn-content-font-delta)) var(--dsw-font-family);
+  --dsw-font-markdown-h4: 600 var(--avn-content-font-size, 16px) /
+    calc(22px + var(--avn-content-font-delta)) var(--dsw-font-family);
+  --dsw-font-markdown-h5: 600 calc(12px + var(--avn-content-font-delta)) /
+    calc(20px + var(--avn-content-font-delta)) var(--dsw-font-family);
+  --dsw-font-markdown-h6: 600 calc(11px + var(--avn-content-font-delta)) /
+    calc(18px + var(--avn-content-font-delta)) var(--dsw-font-family);
+  --dsw-font-markdown-base: 400 var(--avn-content-font-size, 16px) /
+    calc(28px + var(--avn-content-font-delta)) var(--dsw-font-family);
+  --dsw-font-markdown-base-strong: 600 var(--avn-content-font-size, 16px) /
+    calc(28px + var(--avn-content-font-delta)) var(--dsw-font-family);
+  --dsw-font-markdown-base-italic: italic 400
+    var(--avn-content-font-size, 16px) /
+    calc(28px + var(--avn-content-font-delta)) var(--dsw-font-family);
+  --dsw-font-markdown-base-strong-italic: italic 600
+    var(--avn-content-font-size, 16px) /
+    calc(28px + var(--avn-content-font-delta)) var(--dsw-font-family);
+  --dsw-font-base-16: 400 16px/30px var(--dsw-font-family);
+  --dsw-font-base-strong-16: 600 16px/30px var(--dsw-font-family);
+  --dsw-font-s-14: 400 14px/22px var(--dsw-font-family);
+  --dsw-font-s-strong-14: 600 14px/22px var(--dsw-font-family);
+  /* Code/tool output reads at the secondary content size (14px at the default
+     16px setting), one step below conversation prose — mono, not 11px. */
+  --dsw-font-markdown-code-block: 400
+    var(--avn-content-font-size-secondary, 14px) /
+    calc(22px + var(--avn-content-font-delta-secondary, 0px))
+    var(--ds-font-family-code);
+  --dsw-font-markdown-code-block-small: 400
+    var(--avn-content-font-size-secondary, 14px) /
+    calc(22px + var(--avn-content-font-delta-secondary, 0px))
+    var(--ds-font-family-code);
+}
+
+/* Message text is the product's black ink in the light theme: inside the
+   transcript the three muted label steps resolve to rgb(0, 0, 0), so message
+   prose, tool rows, timings, and notes read at one colour. Scoped to the
+   transcript because the surrounding chrome keeps its steps, and light-only
+   because the block below owns the dark palette. */
+body:not([data-ds-dark-theme]) [data-chat-flow] {
+  --dsw-alias-label-secondary: rgb(0, 0, 0);
+  --dsw-alias-label-tertiary: rgb(0, 0, 0);
+  --dsw-alias-label-caption: rgb(0, 0, 0);
+}
+
+@media (max-width: 640px) {
+  body {
+    --dsw-aeven-page-inset: 16px;
+    --dsw-aeven-sidebar-row-inset: 16px;
+    --dsw-aeven-sidebar-bottom-inset: 16px;
+    /* Aeven rail button: 16px inset + 20px glyph + 16px inset at ≤640. */
+    --dsw-aeven-sidebar-toggle-width: 52px;
+  }
+}
+
+body[data-ds-dark-theme] {
+  --dsw-alias-bg-base: #111111;
+  --dsw-alias-bg-layer-1: #1a1a1a;
+  --dsw-alias-bg-layer-2: #1e1e1e;
+  --dsw-alias-bg-layer-3: rgb(36, 36, 36);
+  --dsw-alias-bg-module-platform: rgb(18, 18, 18);
+  --dsw-alias-bg-multi-select: #1a1a1a;
+  --dsw-alias-label-primary: rgb(245, 245, 245);
+  --dsw-alias-label-primary-dimmed: rgb(205, 205, 205);
+  --dsw-alias-label-secondary: rgb(190, 190, 190);
+  --dsw-alias-label-tertiary: rgb(165, 165, 165);
+  --dsw-alias-brand-primary: rgb(245, 245, 245);
+  --dsw-alias-brand-primary-invert: rgb(245, 245, 245);
+  --dsw-alias-button-primary-fill: rgb(245, 245, 245);
+  --dsw-alias-button-primary-hover: rgb(220, 220, 220);
+  --dsw-alias-label-primary-foreground: #000000;
+  --dsw-alias-state-business-primary: rgb(245, 245, 245);
+  --dsw-alias-state-business-tertiary: rgb(44, 44, 44);
+
+  --dsw-tint-menu: rgba(36, 36, 36, 0.7);
+  --dsw-tint-surface-fade: rgba(0, 0, 0, 0.6);
+  --dsw-tint-layer-1-58: rgba(26, 26, 26, 0.58);
+  --dsw-tint-layer-1-75: rgba(26, 26, 26, 0.75);
+  --dsw-tint-business-08: rgba(245, 245, 245, 0.08);
+  --dsw-tint-business-10: rgba(245, 245, 245, 0.1);
+  --dsw-tint-business-12: rgba(245, 245, 245, 0.12);
+  --dsw-tint-business-18: rgba(245, 245, 245, 0.18);
+  --dsw-tint-business-80: rgba(245, 245, 245, 0.8);
+  --dsw-tint-business-tertiary-84: rgba(44, 44, 44, 0.84);
+  --dsw-tint-success-10: rgba(34, 197, 94, 0.1);
+  --dsw-tint-warning-12: rgba(180, 83, 9, 0.12);
+  --dsw-tint-error-08: rgba(242, 90, 90, 0.08);
+  --dsw-tint-error-10: rgba(242, 90, 90, 0.1);
+  --dsw-tint-error-45: rgba(242, 90, 90, 0.45);
+  --dsw-tint-business-primary-80: rgba(245, 245, 245, 0.8);
+
+  --dsw-blend-success-label: rgb(84, 195, 125);
+  --dsw-blend-success-label-strong: rgb(93, 210, 136);
+  --dsw-blend-brand-error: rgb(148, 116, 188);
+  --dsw-blend-brand-error-surface: rgb(44, 38, 47);
+  --dsw-blend-warn-label: rgb(200, 146, 88);
+  --dsw-blend-warn-surface: rgb(33, 31, 28);
+  --dsw-blend-blue-accent: rgb(32, 47, 73);
+  --dsw-blend-blue-label: rgb(107, 146, 210);
+  --dsw-blend-brand-surface: rgb(35, 44, 65);
+  --dsw-blend-error-surface: rgb(72, 39, 39);
+  --dsw-blend-error-surface-soft: rgb(50, 32, 32);
+  --dsw-blend-decoding-ttft: rgb(94, 76, 115);
+  --dsw-specific-bubble: #1a1a1a;
+  --dsw-specific-input-major: #1a1a1a;
+  --dsw-specific-menu: rgb(36, 36, 36);
+  /* The same rim on the dark palette, at the alpha its hairlines use. */
+  --dsw-specific-popup-highlight: rgba(255, 255, 255, 0.08);
+  --dsw-specific-selector: rgb(36, 36, 36);
+  --dsw-specific-sidebar-fill: #1a1a1a;
+  --dsw-specific-sidebar-nav-item-active-accent: transparent;
+  --dsw-specific-sidebar-nav-item-active: transparent;
+  --dsw-alias-markdown-code-block-banner: rgb(36, 36, 36);
+  --dsw-alias-markdown-code-block: #1a1a1a;
+  --dsw-alias-markdown-inline-code: rgb(44, 44, 44);
+}

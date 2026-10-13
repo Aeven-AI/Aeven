@@ -1,0 +1,69 @@
+{
+  "extends": "../../../tsconfig.base.client.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types"
+  },
+  "include": [
+    "src"
+  ],
+  "references": [
+    {
+      "path": "../../../vendor/cordis"
+    },
+    {
+      "path": "../ui-slots"
+    },
+    {
+      "path": "../ui-primitives"
+    },
+    {
+      "path": "../ui-renderer"
+    },
+    {
+      "path": "../ui-session"
+    },
+    {
+      "path": "../ui-sidebar-right"
+    },
+    {
+      "path": "../locale"
+    },
+    {
+      "path": "../ui-sidebar-select"
+    },
+    {
+      "path": "../../api/remotes/tsconfig.client.json"
+    },
+    {
+      "path": "../../api/session-controller/tsconfig.client.json"
+    },
+    {
+      "path": "../../web/tool-browser"
+    },
+    {
+      "path": "../../typert/protocol"
+    },
+    {
+      "path": "../../experimental/browser-overlay"
+    },
+    {
+      "path": "../../web/browser-chromium"
+    },
+    {
+      "path": "../../../vendor/schemastery"
+    },
+    {
+      "path": "../store"
+    },
+    {
+      "path": "../ui-settings"
+    },
+    {
+      "path": "../../settings/settings"
+    },
+    {
+      "path": "../../util/brand"
+    }
+  ]
+}

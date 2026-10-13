@@ -1,0 +1,276 @@
+/* The surface column fills the right sidebar's body: a pill strip on top, the
+   shown pane below. It lays out against the body's own width, which the shell
+   animates, so nothing here states a width of its own. */
+
+.root {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Full screen: the column covers the frame in place. It stays a descendant of
+   the right sidebar, which sits above the left one, and below the frame's
+   corner controls, which the strip's right padding still clears. Hidden while
+   the column is collapsed, since the corner toggle is then the way back. */
+.root[data-fullscreen] {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  padding-top: 8px;
+  background: var(--dsw-specific-sidebar-fill);
+}
+
+:global([data-rightbar-collapsed]) .root[data-fullscreen] {
+  visibility: hidden;
+}
+
+/* The strip shares its row with the frame's corner controls (full screen,
+   the column toggle and the account), so it stops short of them. The row is
+   40px under the column's 8px top inset, which centres a 30px pill on the
+   corner's 56px band, level with those controls. */
+.tabbar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 148px 0 24px;
+  box-sizing: border-box;
+}
+
+.strip {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.strip::-webkit-scrollbar {
+  display: none;
+}
+
+.fadeRight {
+  mask-image: linear-gradient(to left, transparent, black 24px);
+}
+
+/* One pill: glyph (a close button on hover) and title, on the same box, glyph
+   gap and type the launcher row that opened it takes — box height, 8px glyph
+   gap, and the inherited font — so a kind's pill and its launcher button hold
+   one glyph line and one label line, and switching between them moves nothing.
+   A pill states no fill of its own in any state — the strip is flat content,
+   and the title alone distinguishes the shown entry: full strength, against
+   half for the rest. */
+.pill {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  max-width: 180px;
+  height: var(--dsw-aeven-control-size);
+  padding: 0;
+  box-sizing: border-box;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* An unselected pill states its title at half strength and keeps its glyph at
+   full, so every surface's mark reads at one weight along the strip. The shown
+   one takes no weight of its own: strength against half already marks it, and a
+   heavier title would not match the launcher button's own. */
+.pillTitle {
+  opacity: 0.5;
+}
+
+.pill[data-active] .pillTitle {
+  opacity: 1;
+}
+
+/* The glyph's seat; on hover it becomes the close button. The seat states no
+   fill of its own, so the cross takes the pill's ink and nothing else. */
+.pillClose {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.pillGlyph,
+.pillX {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The strip's marks carry the column toggle's own metric: an 18px box on the
+   lucide family's 1.75 stroke. The launcher's plus is its own metric, smaller
+   than the pills it adds. */
+.pillGlyph svg,
+.pillX svg {
+  width: 18px;
+  height: 18px;
+}
+
+.add svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* The launcher's kind rows carry the strip's own 18px mark; the add menu's
+   rows are the compact metric, as its own plus is. */
+.launcherGlyph svg {
+  width: 18px;
+  height: 18px;
+}
+
+.menuGlyph svg {
+  width: 16px;
+  height: 16px;
+}
+
+.pillX {
+  display: none;
+}
+
+.pill:hover .pillGlyph {
+  display: none;
+}
+
+.pill:hover .pillX {
+  display: flex;
+}
+
+.pillTitle {
+  min-width: 0;
+  overflow: hidden;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  /* The launcher row's own alignment: a title too long for the pill loses its
+     end to the ellipsis, not its start. */
+  text-align: start;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* The launcher beside the strip: a bare glyph in the primary label's ink, so
+   the one action that adds a surface does not outweigh the surfaces it adds.
+   Its 30px box is kept for the hit area, and no state paints it. */
+.add {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+}
+
+.menuGlyph {
+  display: flex;
+  align-items: center;
+}
+
+/* The shown pane fills everything under the strip; hidden panes stay mounted. */
+.body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.pane {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.pane[hidden] {
+  display: none;
+}
+
+.unavailable {
+  padding: 16px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 14px;
+}
+
+/* The empty column: one row per kind, starting at the top of the panel on the
+   corner band's row — the line the account sits on, which the strip shares when
+   there are surfaces — instead of centred in the column. The rows stack with no
+   gap, so they take the same 40px pitch as the left sidebar's own rows: the
+   first three land on the band, the New Session row and the Imagine row. */
+.launcher {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: stretch;
+  outline: none;
+}
+
+/* One kind row: a white button with the black ink of the static extremes, so
+   the row reads the same over the light and dark panel fills rather than
+   following the primary-button pair. Row height, inset and 8px glyph gap are the
+   left sidebar row's own metrics, read from the same theme tokens, so a kind's
+   18px glyph and its label stand on that column's lines — and no state paints
+   the row. */
+.launcherRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--dsw-aeven-control-size);
+  padding: 0 var(--dsw-aeven-sidebar-row-inset);
+  border: none;
+  border-radius: 20px;
+  background: var(--dsw-static-neutral-00);
+  color: var(--dsw-static-neutral-1000);
+  font: inherit;
+  font-size: 14px;
+  text-align: start;
+  cursor: pointer;
+}
+
+/* A kind with no implementation behind it keeps its place in the list: same
+   fill, with its label and glyph at half strength. */
+.launcherRow:disabled .launcherGlyph,
+.launcherRow:disabled .launcherLabel {
+  opacity: 0.5;
+}
+
+.launcherRow:disabled {
+  cursor: default;
+}
+
+.launcherGlyph {
+  display: flex;
+  flex: none;
+  align-items: center;
+}
+
+.launcherLabel {
+  flex: 1 1 auto;
+}

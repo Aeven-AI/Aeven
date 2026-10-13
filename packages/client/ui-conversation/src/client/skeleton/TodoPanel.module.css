@@ -1,0 +1,104 @@
+/* A section of the composer stack's dock surface, which owns the fill,
+   width, and corners; 16px sides line up with the InputBar draft. */
+.root {
+  box-sizing: border-box;
+  padding: 16px;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 400;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lead {
+  display: grid;
+  flex: none;
+  place-items: center;
+  color: var(--dsw-alias-label-primary);
+}
+
+.title {
+  flex: none;
+  color: #000;
+}
+
+.progress {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: #000;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chevron {
+  display: grid;
+  flex: none;
+  place-items: center;
+  color: var(--dsw-alias-label-primary);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: #000;
+}
+
+.glyph {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+}
+
+.glyphCompleted {
+  color: var(--dsw-alias-state-success-primary);
+}
+
+.glyphPending {
+  color: var(--dsw-alias-label-caption);
+}
+
+.glyphProgress {
+  --avn-spinner-size: 14px;
+  --avn-spinner-color: var(--dsw-alias-state-business-primary);
+}
+
+/* Figma strip is single-line; long items ellipsize with no inline expand. */
+.content {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -1,0 +1,63 @@
+{
+  "name": "@aeven/client-connection",
+  "description": "Authenticated RPC transport, generation lifecycle, and browser fixture",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/client/connection"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "types": "./lib/types/client/index.d.ts",
+      "default": "./lib/client.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "avn": {
+    "client": {
+      "inject": [],
+      "platform": "web",
+      "immediately": true
+    }
+  },
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@aeven/credentials": "workspace:^",
+    "@deepseek-ai/schemastery": "workspace:^",
+    "zod": "^4.4.3"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/client.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/attachment": "workspace:^",
+    "@aeven/brand": "workspace:^",
+    "@aeven/commands": "workspace:^",
+    "@aeven/host-directory-picker": "workspace:^",
+    "@aeven/host-webserver": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/settings": "workspace:^",
+    "@aeven/tool-todo": "workspace:^",
+    "@aeven/util-values": "workspace:^"
+  }
+}

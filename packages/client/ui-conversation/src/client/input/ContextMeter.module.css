@@ -1,0 +1,157 @@
+/* Context occupancy inside the composer Options popup: the ring glyph its row
+   leads with, the two actions its card offers, and the breakdown card the
+   details action opens. The popup owns the card chrome; the reading owns its
+   own type — 14px at a single 400 weight, in the label tones the rest of the
+   composer uses. */
+
+.action {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: var(--dsw-aeven-control-size);
+  padding: 8px;
+  border: none;
+  border-radius: var(--dsw-aeven-radius-control);
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--dsw-alias-label-primary);
+  text-align: left;
+}
+
+.action:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.actionLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actionChevron {
+  display: inline-flex;
+  flex: none;
+  color: var(--dsw-alias-label-caption);
+}
+
+.track {
+  fill: none;
+  stroke: var(--dsw-alias-border-l3);
+  stroke-width: 2;
+}
+
+.fill {
+  fill: none;
+  stroke: var(--dsw-alias-label-primary);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+/* The breakdown's own width; the card around it sets the padding. */
+.panel {
+  width: 264px;
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: 400;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.figures {
+  margin-left: auto;
+  font-variant-numeric: normal;
+  color: var(--dsw-alias-label-primary);
+}
+
+.percent {
+  color: var(--dsw-alias-label-primary);
+}
+
+.headline {
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* The headline brackets the reading, so the side a locale leaves empty must
+   drop out of the flex row rather than spend a gap. */
+.headline:empty {
+  display: none;
+}
+
+.bar {
+  display: flex;
+  gap: 2px;
+  margin: 16px 0 18px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--dsw-alias-interactive-bg-hover);
+  overflow: hidden;
+}
+
+.segment {
+  flex: none;
+  min-width: 2px;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--meter-tint, var(--dsw-alias-label-tertiary));
+}
+
+.swatch {
+  display: inline-block;
+  margin-right: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--meter-tint);
+  vertical-align: baseline;
+}
+
+/* One neutral scale for the three shares: the composition reads as one grey
+   family, so only the order of the parts carries meaning. */
+.colorSystem {
+  --meter-tint: var(--dsw-static-neutral-300);
+}
+
+.colorTools {
+  --meter-tint: var(--dsw-static-neutral-400);
+}
+
+.colorMessages {
+  --meter-tint: var(--dsw-static-neutral-500);
+}
+
+.rows {
+  margin: 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 6px 0;
+}
+
+/* A description list's terms are bold by the engine's own element rule, which
+   outranks the panel's inherited weight: the reading is one weight throughout. */
+.row dt {
+  font-weight: 400;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.row dd {
+  margin: 0;
+  font-weight: 400;
+  font-variant-numeric: normal;
+  color: var(--dsw-alias-label-primary);
+}

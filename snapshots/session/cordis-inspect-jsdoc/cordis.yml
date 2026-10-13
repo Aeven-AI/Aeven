@@ -1,0 +1,37 @@
+# Add PTC mode and Cordis tools to the base spawn/workflow stack, exercising
+# all four boundaries in one ACP snapshot.
+- id: agent-default-model
+  name: '@aeven/agent-default-model'
+  config:
+    provider: deepseek-official
+    model: deepseek-v4-pro
+
+- id: session-persistence-jsonl
+  name: '@aeven/session-persistence-jsonl'
+  config:
+    root: !!js avnHomePath('sessions')
+    compression: !!js 'process.env.AVN_SNAPSHOT === undefined ? ''zstd'' : ''none'''
+
+- id: agent-instructions
+  name: '@aeven/agent-instructions'
+  config:
+    maxBytes: 65536
+
+- id: tools
+  name: '@aeven/tools'
+  config:
+    mode: both
+
+- id: system-prompt
+  name: '@aeven/system-prompt'
+  config:
+    persona: |
+      You are a coding assistant powered by the {{model}} model. Your working directory is {{cwd}}.
+
+      Verify your work by running the code or tests. Keep answers brief and factual.
+
+- insert:
+    - id: cordis-host-runner
+      name: '@aeven/cordis-host-runner'
+    - id: tool-cordis
+      name: '@aeven/tool-cordis'

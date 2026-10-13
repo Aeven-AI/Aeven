@@ -1,0 +1,296 @@
+/* The generated-image lane: one frame per image, tiled across the conversation
+   column. A frame is the only thing that decides geometry — the image is
+   rendered into it by the shared fill layout, edge to edge — and it is rounded
+   and clipped so the image inherits the corner. */
+.root {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.frames {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+}
+
+/* One image fills the column when it is landscape. A lone portrait takes two
+   thirds of it, centred, so a tall image never runs the full message width. */
+.frames[data-frames='1'] .frame {
+  flex: 0 0 100%;
+  width: 100%;
+}
+
+.frames[data-frames='1'] .frame[data-orientation='portrait'] {
+  flex: 0 0 auto;
+  width: 66.666%;
+}
+
+/* Three images share the column in equal thirds. */
+.frames[data-frames='3'] .frame {
+  flex: 1 1 calc(33.333% - 8px);
+}
+
+/* Two images share the column in halves, which is also what the fourth image
+   wraps into: two rows of two. */
+.frame {
+  flex: 1 1 calc(50% - 6px);
+  aspect-ratio: 3 / 2;
+  min-width: 0;
+  position: relative;
+  overflow: hidden;
+  border-radius: 30px;
+  background: #ffffff;
+}
+
+/* Every image is shown in one of two tile shapes: 3:2 landscape, 2:3 portrait. */
+.frame[data-orientation='portrait'] {
+  aspect-ratio: 2 / 3;
+}
+
+/* Whatever the frame renders — the filled image or the not-yet-available note —
+   takes the whole box. */
+.frame > * {
+  width: 100%;
+  height: 100%;
+}
+
+/* The loader layer: the app's own loading mark on a white sheet, over the box
+   the image will fill. It fades away once that image is loaded. */
+.loader {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* The prompt trigger: the Gallery's own round control (white face, dark glyph)
+   in the image's lower-left corner. It rides above the loading sheet, so the
+   prompt stays reachable while the image is still generating. It carries no
+   hover state and no shadow of its own: the tooltip names it, and the flat disc
+   sits on the image without an edge around it. */
+.promptTrigger {
+  display: flex;
+  position: absolute;
+  z-index: 3;
+  left: 12px;
+  bottom: 12px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  outline: none;
+  appearance: none;
+  background-color: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+}
+
+.promptTrigger:focus-visible {
+  box-shadow: 0 0 0 2px var(--dsw-alias-label-primary);
+}
+
+.promptTrigger svg {
+  display: flex;
+  width: 16px;
+  height: 16px;
+}
+
+/* The alert trigger a failed generation carries: the prompt control's own disc
+ * — white face, the product's black glyph — in the frame's upper-left corner.
+ * It rides above the loading sheet exactly as the prompt control does, and the
+ * failure's own message lives behind it rather than in the frame. */
+.errorTrigger {
+  top: 12px;
+  bottom: auto;
+}
+
+/* The prompt dialog: the connectors skill popup's card — a sheet centred under
+   the modal mask, its title row over one scrolling body. The attribute
+   selector outranks the primitive's own card width, padding and gap, which a
+   bare class cannot: both are one class deep and stylesheet order decides. */
+.promptDialog[role='dialog'] {
+  width: min(720px, 100%);
+  max-height: min(640px, calc(100dvh - 48px));
+  padding: 0;
+  gap: 0;
+}
+
+.promptHeader {
+  display: flex;
+  flex: none;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: var(--dsw-aeven-page-inset) var(--dsw-aeven-page-inset) 0;
+}
+
+.promptTitle {
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+  color: var(--dsw-alias-label-primary);
+}
+
+/* The header's trailing controls: the prompt's one-click copy, then close. */
+.promptActions {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+}
+
+/* The inverted disc close control that card carries. */
+.promptClose {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--dsw-alias-label-primary);
+  color: var(--dsw-alias-bg-layer-2);
+  cursor: pointer;
+}
+
+/* The connectors skill sheet's body treatment: one scrolling body under the
+   card's title row, its scrollbar hidden and both ends faded. Each fade band is
+   the body's own padding, so the transparent end covers no text — a prompt
+   shorter than the card keeps its first and last line fully opaque. */
+.promptBody {
+  flex: 1;
+  min-height: 0;
+  padding: var(--dsw-aeven-page-inset);
+  overflow-y: auto;
+  mask-image: linear-gradient(to bottom, transparent 0, #000 var(--dsw-aeven-page-inset), #000 calc(100% - var(--dsw-aeven-page-inset)), transparent 100%);
+}
+
+.promptText {
+  margin: 0;
+  font-size: var(--avn-content-font-size, 16px);
+  line-height: 26px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--dsw-alias-label-primary);
+}
+
+/* The prompt trigger moves to the upper-left corner of a video frame, clear of
+   the player's controls along its bottom edge. */
+.frame[data-generated-video-frame] .promptTrigger {
+  top: 12px;
+  bottom: auto;
+}
+
+/* A portrait clip takes under half the column, so a 9:16 frame stays within a
+   screen's height. */
+.frames[data-frames='1'] .frame[data-generated-video-frame][data-orientation='portrait'] {
+  width: 45%;
+}
+
+/* A failed video frame has no player along its bottom edge, and the alert
+   trigger owns its upper-left corner: the prompt trigger returns to the
+   gallery's own lower-left position. */
+.frame[data-generated-video-frame][data-failed] .promptTrigger {
+  top: auto;
+  bottom: 12px;
+}
+
+/* Headline cards: a square thumbnail with the headline and its source beside
+   it, one result per card, the way a news list reads. */
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+  padding: 10px 0;
+}
+
+.cardThumb {
+  flex: 0 0 auto;
+  width: 120px;
+  height: 120px;
+  min-width: 120px;
+  min-height: 120px;
+  overflow: hidden;
+  border-radius: 30px;
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cardTitle {
+  margin: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  font-size: var(--avn-content-font-size, 16px);
+  line-height: 30px;
+  font-weight: 600;
+  color: var(--dsw-alias-label-primary);
+}
+
+.cardSource {
+  margin: 0;
+  font-size: 12px;
+  line-height: 30px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* The opening of the story itself, under its headline and above the source. */
+.cardSummary {
+  margin: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  font-size: var(--avn-content-font-size, 16px);
+  line-height: 30px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* The card is the link to the story: the headline, its opening text and the
+   host all open the article, with no chrome of their own. */
+.cardBody {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.cardBody:hover .cardTitle {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

@@ -1,0 +1,28 @@
+# Overlay for the todo staleness nudge: the ordinary headless composition plus a
+# real task provider, so a background Bash job settles and the nudge's settlement
+# branch (`has not been updated since the background work you started settled`) is
+# recorded alongside its cadence branch.
+
+- id: session-persistence-jsonl
+  name: '@aeven/session-persistence-jsonl'
+  config:
+    root: !!js avnHomePath('sessions')
+    compression: !!js 'process.env.AVN_SNAPSHOT === undefined ? ''zstd'' : ''none'''
+
+- id: agent-instructions
+  name: '@aeven/agent-instructions'
+  config:
+    maxBytes: 65536
+
+- id: system-prompt
+  name: '@aeven/system-prompt'
+  config:
+    persona: |
+      You are a coding assistant powered by the {{model}} model. Your working directory is {{cwd}}. Your bash tool runs under a file sandbox — a `[sandbox: file access denied …]` result is policy, not a command bug.
+
+      Verify your work by running the code or tests. Keep answers brief and factual.
+
+- id: jobs
+  name: '@aeven/jobs-local'
+  config:
+    maxConcurrentJobsPerOwner: 1

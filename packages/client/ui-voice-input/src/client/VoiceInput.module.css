@@ -1,0 +1,142 @@
+/* Dictation controls, after the Aeven web client's `.loader-icon-button.transparent` mic and `.recorder` pill.
+   The pill takes the primary button fill and paints its icons and waveform in the fill's foreground. */
+
+.mic {
+  display: flex;
+  position: relative;
+  overflow: hidden;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--dsw-aeven-control-size);
+  height: var(--dsw-aeven-control-size);
+  padding: 0;
+  border: none;
+  border-radius: var(--dsw-aeven-radius-control);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+}
+
+.mic:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.micIcon {
+  display: flex;
+  width: 20px;
+  height: 20px;
+}
+
+.micLoader {
+  display: none;
+  width: 16px;
+  height: 16px;
+}
+
+.mic[data-loading] .micIcon {
+  display: none;
+}
+
+.mic[data-loading] .micLoader {
+  display: block;
+  animation: 900ms linear infinite spin;
+}
+
+.micIcon svg,
+.micLoader svg,
+.icon svg,
+.loader svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  stroke-width: 2;
+}
+
+.recorder {
+  display: flex;
+  position: relative;
+  overflow: hidden;
+  flex: 1;
+  min-width: 0;
+  height: var(--dsw-aeven-control-size);
+  padding-left: 20px;
+  border-radius: var(--dsw-aeven-radius-control);
+  background: var(--dsw-alias-button-primary-fill);
+  color: var(--dsw-alias-label-primary-foreground);
+}
+
+/* The canvas reads these two colors; see Waveform. */
+.canvas {
+  display: flex;
+  flex-grow: 1;
+  min-width: 0;
+  background: var(--dsw-alias-button-primary-fill);
+  color: var(--dsw-alias-label-primary-foreground);
+}
+
+.canvas canvas {
+  display: block;
+}
+
+.buttons {
+  display: flex;
+  padding-left: 16px;
+}
+
+.cancel {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--dsw-alias-label-primary-foreground);
+  cursor: pointer;
+}
+
+.icon {
+  display: flex;
+  width: 18px;
+  height: 18px;
+}
+
+.save {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 40px;
+  padding: 0 0 0 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 18px;
+  background: var(--dsw-alias-label-primary-foreground);
+  color: var(--dsw-alias-button-primary-fill);
+}
+
+.loader {
+  display: flex;
+  width: 16px;
+  height: 16px;
+  animation: 900ms linear infinite spin;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

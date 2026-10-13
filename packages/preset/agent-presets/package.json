@@ -1,0 +1,95 @@
+{
+  "name": "@aeven/agent-presets",
+  "description": "Per-session agent composition from preset cordis.yml files for the Aeven",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/preset/agent-presets"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./invariant": {
+      "types": "./lib/types/invariant.d.ts",
+      "default": "./lib/invariant.js"
+    },
+    "./types": {
+      "types": "./lib/types/types.d.ts",
+      "default": "./lib/types/types.js"
+    },
+    "./typert": {
+      "types": "./lib/typert.host.d.ts",
+      "default": "./lib/typert.host.js"
+    },
+    "./remote": {
+      "types": "./lib/typert.remote-client.d.ts",
+      "default": "./lib/typert.remote-client.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/invariant.js",
+    "presets",
+    "lib/types/**/*.js",
+    "lib/types/**/*.d.ts",
+    "lib/typert.host.js",
+    "lib/typert.host.d.ts",
+    "lib/typert.remote-client.js",
+    "lib/typert.remote-client.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "@deepseek-ai/cordis-plugin-include": "workspace:^",
+    "@deepseek-ai/cordis-plugin-loader": "workspace:^",
+    "@aeven/agent": "workspace:^",
+    "@aeven/atomic-write": "workspace:^",
+    "@aeven/invariants": "workspace:^",
+    "@aeven/home-paths": "workspace:^",
+    "@aeven/scope": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/session-projection": "workspace:^",
+    "@aeven/settings": "workspace:^",
+    "@aeven/system-prompt": "workspace:^",
+    "@aeven/tools": "workspace:^",
+    "@aeven/typert-protocol": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0",
+    "@deepseek-ai/schemastery": "workspace:^",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis-plugin-group": "workspace:^",
+    "@deepseek-ai/cordis-plugin-include": "workspace:^",
+    "@deepseek-ai/cordis-plugin-loader": "workspace:^",
+    "@aeven/agent": "workspace:^",
+    "@aeven/agent-loop": "workspace:^",
+    "@aeven/atomic-write": "workspace:^",
+    "@aeven/invariants": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/home-paths": "workspace:^",
+    "@aeven/scope": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/session-projection": "workspace:^",
+    "@aeven/settings": "workspace:^",
+    "@aeven/settings-file": "workspace:^",
+    "@aeven/skill": "workspace:^",
+    "@aeven/skill-filesystem": "workspace:^",
+    "@aeven/system-prompt": "workspace:^",
+    "@aeven/tools": "workspace:^",
+    "@aeven/typert-protocol": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  }
+}

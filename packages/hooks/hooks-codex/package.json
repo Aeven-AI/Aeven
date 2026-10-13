@@ -1,0 +1,58 @@
+{
+  "name": "@aeven/hooks-codex",
+  "description": "Bridge plugin: run a Codex hooks.json hook config on the Aeven interception seams",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/hooks/hooks-codex"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@deepseek-ai/schemastery": "workspace:^"
+  },
+  "peerDependencies": {
+    "@aeven/agent": "workspace:^",
+    "@aeven/hook-protocol": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/session-persistence": "workspace:^",
+    "@aeven/tools": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/session-projection": "workspace:^"
+  },
+  "devDependencies": {
+    "@aeven/agent": "workspace:^",
+    "@aeven/agent-loop": "workspace:^",
+    "@aeven/agent-loop-testkit": "workspace:^",
+    "@aeven/shell": "workspace:^",
+    "@aeven/bash-local": "workspace:^",
+    "@aeven/subprocess-local": "workspace:^",
+    "@aeven/hook-protocol": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/session-persistence": "workspace:^",
+    "@aeven/session-persistence-jsonl": "workspace:^",
+    "@aeven/tools": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/session-projection": "workspace:^"
+  }
+}

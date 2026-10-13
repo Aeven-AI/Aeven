@@ -1,0 +1,263 @@
+.root {
+  position: relative;
+  display: inline-flex;
+}
+
+/* Dropdown card: Aeven's own popup surface — the translucent, blurred card its
+   avatar menu draws — with prominent elevation. */
+.list,
+.submenu {
+  /* min-widths below are the design's outer card widths — include the pad. */
+  box-sizing: border-box;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 0;
+  border-radius: var(--dsw-aeven-radius-surface);
+  /* Aeven's avatar popup fills at 70% over a 4px blur, so the page stays
+     faintly visible through the card; the menu token keeps that fill
+     theme-aware where Aeven's sheet states white. */
+  background: var(--dsw-tint-menu);
+  backdrop-filter: blur(4px);
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
+  box-shadow:
+    inset 1px 1px 0 0 var(--dsw-specific-popup-highlight),
+    inset 0 0 1px 1px var(--dsw-specific-popup-highlight),
+    var(--dsw-elevation-prominent);
+  /* Elevated surface: the scrollbar thumb takes the l2 elevation tokens. The
+     declaration sits on the card rather than on `.scrollable .viewport`
+     because the elevation is a property of this surface, and the custom
+     properties inherit down to whichever descendant actually scrolls (see
+     ui-theme styles/scrollbar.css for the rebinding contract). */
+  --avn-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --avn-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
+/* Primary card is 218 wide in the design across both hosts. */
+.list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 100;
+  min-width: 218px;
+  max-width: 360px;
+}
+
+/* Portal mode: fixed in the viewport, coordinates supplied inline from the
+ * anchor rect (side/align resolved in JS, the in-place offset rules above
+ * don't apply). Portaled lists must layer above modal overlays (z 1000) —
+ * an anchor inside a dialog still expects its menu on top. */
+.portal {
+  position: fixed;
+  top: auto;
+  left: auto;
+  z-index: 1100;
+}
+
+/* Open above the anchor (empty-state workspace chip: figma 122:9481). */
+.sideTop {
+  top: auto;
+  bottom: calc(100% + 4px);
+}
+
+.alignEnd {
+  left: auto;
+  right: 0;
+}
+
+/* Viewport fit: the card stops 12px short of the viewport's top/bottom edges
+ * (24 = 2 × the portal MARGIN in Menu.tsx) and taller content scrolls inside
+ * .viewport, so a pinned .footer stays visible. Menus with submenu rows skip
+ * this class — the overflow clip would crop the side card, so they rely on
+ * staying short. */
+.scrollable {
+  max-height: calc(100vh - 24px);
+}
+
+.viewport {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.scrollable .viewport {
+  overflow-y: auto;
+}
+
+/* Pinned rows below the scroll region; l2 hairline (l1 is near-invisible on
+ * the menu surface) mirrors the .separator spacing. */
+.footer {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.itemWrap {
+  position: relative;
+}
+
+/* Menu cell (figma .Menu_cell): min-h 40, r10, pad 8, 14/22 primary,
+ * gap 8 between leading icon / label / trailing check. The cell pads 8 on
+ * every side (the design's 10 inline inset narrowed to match the block one,
+ * so a row's hit area is even and its text lines up with the card's own pad). */
+.item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: var(--dsw-aeven-control-size);
+  padding: 8px;
+  border: none;
+  border-radius: var(--dsw-aeven-radius-control);
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--dsw-alias-label-primary);
+  text-align: left;
+}
+
+.item:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.denseList .item {
+  min-height: 34px;
+  padding-block: 5px;
+}
+
+.denseList .label {
+  padding-block: 4px;
+}
+
+.list.compactList,
+.submenu.compactList {
+  min-width: 164px;
+  padding: 2px;
+  border-radius: 7px;
+}
+
+.compactList .item {
+  min-height: 26px;
+  gap: 6px;
+  padding: 3px 7px;
+  border-radius: 5px;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.compactList .itemIcon {
+  width: 14px;
+  height: 14px;
+}
+
+.compactList .separator {
+  margin: 2px;
+}
+
+.compactList .label {
+  padding: 4px 7px;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.item:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.itemIcon {
+  display: inline-flex;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.itemLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item:has(.itemDescription) .itemLabel {
+  flex: none;
+  max-width: 40%;
+}
+
+.itemDescription {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.check {
+  flex: none;
+  color: var(--dsw-alias-label-primary);
+}
+
+/* Selected cell keeps the plain fill (marker is the trailing check); the
+ * class remains as a hook for owner-side emphasis. */
+.selected {
+  background: transparent;
+}
+
+/* Destructive row: error text/icon, danger hover fill. */
+.danger {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.danger .itemIcon {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.danger:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover-danger);
+}
+
+/* Heading row: non-interactive small grey text, padding aligned with items. */
+.label {
+  padding: 8px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* Separator cell (figma 122:9481): py 4 / px 2 around the hairline. The hairline
+ * takes l2, not l1: l1 is near-invisible on the menu surface, so its divider
+ * reads as stray spacing between the rows it separates. */
+.separator {
+  height: 0.5px;
+  margin: 4px 2px;
+  background: var(--dsw-alias-border-l2);
+}
+
+/* Nested card beside the parent's row (figma 419:16920).
+ * Portaled to the page and placed from the row's rect in JS, not nested in the
+ * row: an element with `backdrop-filter` is a backdrop root, so a nested card
+ * samples the parent card instead of the page and shows whatever hangs past the
+ * parent unblurred. No offsets live here; the pointer grace covers the gap. */
+.submenu {
+  position: fixed;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  left: auto;
+  /* Above modal overlays, like `.portal`: a row can live inside a dialog. */
+  z-index: 1100;
+  min-width: 163px;
+}

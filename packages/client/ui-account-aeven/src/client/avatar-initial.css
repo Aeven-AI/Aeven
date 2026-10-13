@@ -1,0 +1,12 @@
+/* The vendored avatar sheet (vendor/aeven-account.css) centres the letter on
+   the line box it sits in, which leaves a capital sitting high: its ink centre
+   is (ascent − capHeight/2) below the box top where the seat centres at
+   (ascent + descent)/2 — half a pixel in Google Sans Flex. Global class names
+   and the doubled `.initial` are what reach that sheet's markup and outrank it
+   wherever it lands in the cascade. Padding moves the centred line box down by
+   half its value, so 0.025em centres the cap at any disc size (measured at
+   40px: ink centre −0.5px at 0, 0.0px from 0.02em to 0.04em, +0.5px at
+   0.05em); it scales with the 45cqh font size, so a 30px disc keeps the centre. */
+.avatar .image-container .initial.initial {
+  padding-top: 0.025em;
+}

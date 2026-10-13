@@ -1,0 +1,106 @@
+// @vitest-environment jsdom
+import { cleanup, render } from '@testing-library/react'
+import { afterEach, describe, expect, it } from 'vitest'
+import * as primitives from '@aeven/client-ui-primitives'
+import {
+  IconAlarmClockOutline16, IconApiOutline14, IconArchiveOutline20, IconFolderClose16,
+  IconGoalOutline16, IconSendOutline16,
+} from '@aeven/client-ui-primitives'
+
+afterEach(cleanup)
+
+// Icon components all share the IconProps signature; the barrel also exports
+// non-icon atoms (different props shapes), so filter by prefix BEFORE typing.
+const icons = Object.fromEntries(
+  Object.entries(primitives).filter(([name]) => name.startsWith('Icon')),
+) as Record<string, (p: primitives.IconProps) => React.JSX.Element>
+const iconNames = Object.keys(icons)
+
+describe('ic_ds_ icon set', () => {
+  it('exports the complete icon set (88 drawn glyphs plus fifty-five CSS-sized ones)', () => {
+    expect(iconNames.length).toBe(143)
+  })
+
+  it.each(iconNames)('%s renders an svg with currentColor fills and no hardcoded palette', (name) => {
+    const Icon = icons[name]!
+    const { container } = render(<Icon />)
+    const svg = container.querySelector('svg')
+    expect(svg).not.toBeNull()
+    const markup = container.innerHTML
+    expect(markup).not.toMatch(/#[0-9a-fA-F]{3,8}"/)
+    expect(markup).toContain('currentColor')
+  })
+
+  it.each([
+    'IconLucideSearch', 'IconLucideSettings', 'IconLucideSettings2', 'IconLucideFolder',
+    'IconLucideFolderOpen', 'IconLucideFolderPlus',
+    'IconLucidePanelLeft', 'IconLucideImages', 'IconLucideMessageCircle',
+    'IconLucideMessageCirclePlus', 'IconLucideMessageCircleCheck', 'IconLucideMessageCircleQuestionMark', 'IconLucideEllipsis',
+    'IconLucideChevronRight', 'IconLucideEllipsisVertical', 'IconLucideArrowLeft', 'IconLucideArrowRight',
+    'IconLucideCamera', 'IconLucideMinus', 'IconLucideRotateCcw',
+    'IconLucidePlay', 'IconLucidePause', 'IconLucideVolume2', 'IconLucideVolumeX', 'IconLucideDownload',
+  ])(
+    '%s leaves sizing to CSS: viewBox only, no width or height attribute',
+    (name) => {
+      const Icon = icons[name]!
+      const { container } = render(<Icon className="x" />)
+      const svg = container.querySelector('svg')!
+      // Stock lucide canvas: the CSS size is the box, the artwork keeps its padding.
+      expect(svg.getAttribute('viewBox')).toBe('0 0 24 24')
+      expect(svg.getAttribute('stroke-width')).toBe('1.75')
+      expect(svg.getAttribute('width')).toBeNull()
+      expect(svg.getAttribute('height')).toBeNull()
+      expect(svg.classList.contains('x')).toBe(true)
+    },
+  )
+
+  it('size and className props land on the root svg', () => {
+    const { container } = render(<IconSendOutline16 size={20} className="x" />)
+    const svg = container.querySelector('svg')!
+    expect(svg.getAttribute('width')).toBe('20')
+    expect(svg.getAttribute('height')).toBe('20')
+    expect(svg.classList.contains('x')).toBe(true)
+  })
+
+  it('each glyph defaults to its own drawn size, not one set-wide default', () => {
+    const api = render(<IconApiOutline14 />)
+    expect(api.container.querySelector('svg')!.getAttribute('width')).toBe('14')
+    const folder = render(<IconFolderClose16 />)
+    expect(folder.container.querySelector('svg')!.getAttribute('width')).toBe('16')
+    const archive = render(<IconArchiveOutline20 />)
+    expect(archive.container.querySelector('svg')!.getAttribute('width')).toBe('20')
+    const alarm = render(<IconAlarmClockOutline16 />)
+    expect(alarm.container.querySelector('svg')!.getAttribute('width')).toBe('16')
+  })
+
+  it('renders reusable goal glyphs without document-global ids', () => {
+    const { container } = render(<><IconGoalOutline16 /><IconGoalOutline16 /></>)
+    expect(container.querySelector('[id]')).toBeNull()
+    expect(container.querySelector('[clip-path]')).toBeNull()
+  })
+})
+
+describe('AevenMark', () => {
+  it('renders the monogram in currentColor at the artwork ratio', () => {
+    const { container } = render(<primitives.AevenMark />)
+    const svg = container.querySelector('svg')!
+    expect(svg.getAttribute('width')).toBe('24')
+    expect(Number(svg.getAttribute('height'))).toBeCloseTo(20.78, 1)
+    expect(svg.getAttribute('viewBox')).toBe('0 0 671 581')
+    expect(container.querySelectorAll('path')).toHaveLength(8)
+    expect(container.innerHTML).toContain('currentColor')
+  })
+})
+
+describe('BrandWordmark', () => {
+  it('can render the name artwork with or without its leading mark', () => {
+    const view = render(<primitives.BrandWordmark />)
+    const svg = view.container.querySelector('svg')!
+    expect(svg.getAttribute('width')).toBe('182')
+    expect(svg.getAttribute('viewBox')).toBe('0 0 182 24')
+
+    view.rerender(<primitives.BrandWordmark includeMark={false} />)
+    expect(svg.getAttribute('width')).toBe('156')
+    expect(svg.getAttribute('viewBox')).toBe('26 0 156 24')
+  })
+})

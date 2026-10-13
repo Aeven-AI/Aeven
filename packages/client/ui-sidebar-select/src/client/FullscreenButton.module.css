@@ -1,0 +1,38 @@
+/* Geometry follows the right sidebar's own corner toggle, so the two sit as a
+   pair in the corner row: the same 30px box and the token's height. */
+.toggle {
+  position: relative;
+  z-index: 11;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 30px;
+  height: var(--dsw-aeven-control-size);
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity var(--dsw-aeven-rightbar-transition-duration) var(--dsw-aeven-rightbar-transition-timing),
+    visibility 0s linear 0s;
+}
+
+/* Faded out with the collapsing column; hidden once the fade ends. */
+.toggle[data-hidden] {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity var(--dsw-aeven-rightbar-transition-duration) var(--dsw-aeven-rightbar-transition-timing),
+    visibility 0s linear var(--dsw-aeven-rightbar-transition-duration);
+}
+
+/* Smaller than the panel glyph beside it: the diagonal arrows reach the
+   corners of their box and read larger than a framed glyph of equal size. */
+.icon {
+  width: 15px;
+  height: 15px;
+}

@@ -1,0 +1,251 @@
+.root {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding: 0;
+}
+
+.root.rail {
+  padding-right: 0;
+}
+
+/* List seat: always mounted so the shell foot never moves. */
+.listArea {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  /* The list remains the scroll clip. This seat stays visible so the
+     absolutely positioned first-boundary marker can occupy the header gap. */
+  overflow: visible;
+}
+
+.rail .listArea {
+  margin-left: 0;
+  margin-right: 0;
+  padding-left: 0;
+}
+
+/* Relative for the bottom fade overlay. */
+.treeBody {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* Bottom fade: compact overlay pinned to the visible bottom,
+   transparent -> sidebar fill so it tracks the theme. */
+.fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 24px;
+  background: linear-gradient(to bottom, transparent, var(--dsw-specific-sidebar-fill));
+  pointer-events: none;
+}
+
+/* Wide-only content fades back in on expand remount (mirrors the shell). */
+.wide {
+  animation: wide-in 200ms var(--ds-ease-in-out);
+}
+
+@keyframes wide-in {
+  from { opacity: 0; }
+}
+
+/* List: the only scrolling region, and the column's width, so a row's trailing
+   icons sit on the moving edge. Horizontal overflow stays hidden so a nowrap
+   label cannot widen it. Its bar never renders: the markup carries ui-theme's
+   `no-scrollbar` opt-out (styles/scrollbar.css), so the region scrolls without
+   a bar and without the band one would reserve. */
+.list {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin: 0;
+  padding-left: 0;
+  padding-right: 0;
+  /* Clears the compact bottom fade overlay: at scroll end the last row sits
+     above the gradient instead of under it. */
+  padding-bottom: 16px;
+}
+
+.flatList > * + *,
+.groupSection > * + * {
+  margin-top: 0;
+}
+
+/* One workspace section: header row + a compact expanded session run. */
+.groupSection {
+  position: relative;
+}
+
+.groupSection + .groupSection {
+  margin-top: 0;
+}
+
+.listTopDropIndicator,
+.workspaceDropBefore::before,
+.workspaceDropAfter::after {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  right: 0;
+  height: 12px;
+  background:
+    linear-gradient(
+      55deg,
+      transparent calc(50% - 1px),
+      var(--dsw-alias-state-business-primary) calc(50% - 1px) calc(50% + 1px),
+      transparent calc(50% + 1px)
+    ) 0 0 / 5px 7px no-repeat,
+    linear-gradient(
+      125deg,
+      transparent calc(50% - 1px),
+      var(--dsw-alias-state-business-primary) calc(50% - 1px) calc(50% + 1px),
+      transparent calc(50% + 1px)
+    ) 0 5px / 5px 7px no-repeat,
+    linear-gradient(
+      var(--dsw-alias-state-business-primary) 0 0
+    ) 4px 5px / calc(100% - 4px) 2px no-repeat;
+  pointer-events: none;
+}
+
+/* The first insertion boundary keeps the same -8px coordinate as every
+   Workspace boundary, but lives outside the scrolling clip. */
+.listTopDropIndicator {
+  top: -8px;
+  left: 0;
+  right: 0;
+}
+
+.listTopDropActive > .workspaceDropBefore:first-child::before {
+  display: none;
+}
+
+.workspaceDropBefore::before {
+  top: -8px;
+}
+
+.workspaceDropAfter::after {
+  bottom: -8px;
+}
+
+/* The group's overflow control: a Session row's own line — the 40px control
+   height, the sidebar's leading inset, an 18px glyph cell and the 8px gap that
+   lands its label on the Session titles' x — carrying an icon in place of the
+   status dot. */
+.sessionOverflowButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  width: 100%;
+  height: var(--dsw-aeven-control-size);
+  border: none;
+  border-radius: 0;
+  padding: 0 var(--avn-sidebar-inline-padding);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-primary);
+  /* One line. The label ellipsizes as the column narrows. */
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* Held back until the pointer is on the control. */
+.sessionOverflowIcon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  opacity: 0.1;
+}
+
+.sessionOverflowButton:hover .sessionOverflowIcon {
+  opacity: 1;
+}
+
+.sessionOverflowLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.groupSection > .sessionOverflowButton {
+  margin-top: 0;
+}
+
+/* Hover holds the row's own ink, as the Session rows do. */
+.sessionOverflowButton:hover {
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+}
+
+.empty {
+  padding: 16px 12px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 14px;
+}
+
+/* Rename dialog form (same figma dialog family as the create modals). */
+.renameInput {
+  box-sizing: border-box;
+  width: 100%;
+  height: 44px;
+  padding: 7px 14px;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: 22px;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 22px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.renameInput:disabled {
+  color: var(--dsw-alias-label-dimmed);
+}
+
+.renameError {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.deleteAction:not(:disabled) {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.deleteStatus {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wide {
+    animation: none;
+  }
+}

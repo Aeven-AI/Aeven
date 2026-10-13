@@ -1,0 +1,2724 @@
+/*
+ * Toolbar tooltip skin.
+ *
+ * Tippy renders its popper beside the application root, not inside the
+ * `.hypermarkdown` wrapper, so these rules have to stay unscoped. Tippy's own
+ * base stylesheet is deliberately not inlined here: tippy.js is an optional
+ * peer, and a host that renders a toolbar loads its stylesheet from the
+ * package it installed, the same way it loads KaTeX's:
+ *
+ *   import "tippy.js/dist/tippy.css";
+ *
+ * Without it the toolbars still work — the tips just lose their positioning
+ * and sizing — and a host that never renders one ships none of it.
+ */
+.tippy-button {
+  outline: none !important;
+}
+
+[data-tippy-root] {
+  z-index: 99999;
+}
+
+.tippy-box {
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 400;
+  font-family: inherit;
+  line-height: 1.4;
+  color: #fff;
+  background-color: #000000;
+  white-space: normal;
+  outline: none;
+
+  .tippy-content {
+    position: relative;
+    padding: 10px 14px;
+    z-index: 1;
+    font-weight: 400;
+  }
+
+  .tippy-arrow {
+    width: 16px;
+    height: 16px;
+    color: #000000;
+  }
+}
+
+/* The vendored Aeven account sheet (ui-account-aeven/src/vendor/aeven-account.css)
+   reaches the page as an inline sheet after this one, where it states its own
+   `.tippy-box` radius — which then wins on order alone. Doubling the class keeps
+   this skin authoritative without editing a vendored copy that the upstream
+   sync would overwrite. */
+.tippy-box.tippy-box {
+  border-radius: 10px;
+}
+
+.tippy-box[data-placement^="top"] > .tippy-arrow:before {
+  bottom: -4px;
+}
+
+.tippy-box[data-placement^="bottom"] > .tippy-arrow:before {
+  top: -4px;
+}
+
+.tippy-box[data-placement^="left"] > .tippy-arrow:before {
+  right: -4px;
+}
+
+.tippy-box[data-placement^="right"] > .tippy-arrow:before {
+  left: -4px;
+}
+
+/*
+ * HyperMarkdown's default stylesheet.
+ *
+ * Everything is scoped under `.hypermarkdown`, the class the component puts on
+ * its wrapper, so these rules never reach the rest of a page. Colours, fonts
+ * and sizing come from custom properties: override any of them on
+ * `.hypermarkdown` (or anywhere above it) rather than fighting the selectors.
+ */
+
+.hypermarkdown {
+  --hm-font: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --hm-font-mono:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
+    monospace;
+
+  --hm-color: #000000;
+  --hm-background: rgb(242, 242, 242);
+  --hm-link-color: rgb(160, 160, 160);
+  --hm-link-color-inverted: #fff;
+  --hm-button-color: #000000;
+  --hm-toolbar-color: rgb(80, 80, 80);
+  --hm-code-color: rgb(105, 105, 105);
+  --hm-line-number-color: rgb(205, 205, 205);
+  --hm-table-color: rgb(80, 80, 80);
+  --hm-table-header-color: rgb(242, 242, 242);
+
+  --hm-radius: 30px;
+  --hm-max-width: 1024px;
+  --hm-header-offset: 56px;
+
+  --hm-size-small: 12px;
+  --hm-code-size: 14px;
+  --hm-code-size-mobile: 14px;
+  --hm-code-leading: 24px;
+  --hm-table-leading: 30px;
+  --hm-code-tracking: -0.5px;
+  --hm-title-tracking: -0.2px;
+
+  --hm-ease: cubic-bezier(0.23, 1, 0.32, 1);
+  --hm-ease-linear: linear;
+
+  --hm-math-color: rgb(102, 102, 102);
+  --hm-math-size: 20.5px;
+
+  --hm-leading: 30px;
+  --hm-tracking: 0.2px;
+  --hm-size: 16px;
+
+  /*
+   * Set here rather than inherited. The content used to sit inside an app that
+   * had already established these on <body>; a package cannot assume that, and
+   * without them the same markdown renders at a different rhythm.
+   */
+  font-family: var(--hm-font);
+  font-size: var(--hm-size);
+  line-height: var(--hm-leading);
+  letter-spacing: var(--hm-tracking);
+  color: var(--hm-color);
+
+  /*
+   * Grayscale antialiasing, to match the weight text is drawn at elsewhere.
+   * Without it the same font at the same size looks heavier here than in the
+   * surrounding page, which reads as a different typeface.
+   */
+  font-smooth: grayscale;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  word-wrap: break-word;
+
+  /*
+   * Resets for the handful of elements whose user-agent defaults fight the
+   * layout: paragraph margins are set per-block below, and <pre>/<code> would
+   * otherwise drop to the browser's 13px monospace.
+   */
+  /*
+   * The element resets. The content used to sit inside an app whose reboot had
+   * already normalised these; a package has to bring its own, or the same
+   * markdown picks up whatever the host's stylesheet happens to say.
+   */
+  p,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    margin-block-start: 0;
+  }
+
+  blockquote,
+  figure {
+    margin: 0 0 1rem;
+  }
+
+  dl,
+  ol,
+  ul,
+  pre {
+    margin-top: 0;
+  }
+
+  ol ol,
+  ol ul,
+  ul ol,
+  ul ul {
+    margin-bottom: 0;
+  }
+
+  dt {
+    font-weight: bold;
+  }
+
+  dd {
+    margin-bottom: 0.5rem;
+    margin-left: 0;
+  }
+
+  code,
+  kbd,
+  pre,
+  samp {
+    font-family: monospace, monospace;
+    font-size: 1em;
+  }
+
+  pre {
+    overflow: auto;
+    -ms-overflow-style: scrollbar;
+  }
+
+  hr {
+    box-sizing: content-box;
+    height: 0;
+    overflow: visible;
+  }
+
+  a {
+    text-decoration: none;
+    background-color: transparent;
+  }
+
+  img {
+    vertical-align: middle;
+    border-style: none;
+  }
+
+  table {
+    border-collapse: collapse;
+  }
+
+  th {
+    text-align: inherit;
+  }
+
+  caption {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+    color: rgb(134, 142, 150);
+    text-align: left;
+    caption-side: bottom;
+  }
+
+  strong {
+    font-weight: bolder;
+  }
+
+  small {
+    font-size: 80%;
+  }
+
+  sub,
+  sup {
+    position: relative;
+    font-size: 75%;
+    line-height: 0;
+    vertical-align: baseline;
+  }
+
+  sub {
+    bottom: -0.25em;
+  }
+
+  sup {
+    top: -0.5em;
+  }
+
+  summary {
+    display: list-item;
+  }
+
+  /*
+   * The toolbar buttons are <button>, and a bare one arrives with the user
+   * agent's grey background, its own font and its own padding. Without this
+   * the copy and fullscreen controls come out looking like form buttons.
+   */
+  button {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+
+    font: inherit;
+
+    cursor: pointer;
+  }
+
+  button:focus {
+    outline: none;
+  }
+
+  button:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+  }
+
+  /*
+   * KaTeX's own stylesheet sizes formulas relative to their surroundings and
+   * inherits the text colour. Both are wrong beside body copy at this size, so
+   * maths gets a fixed size of its own and a slightly receded colour. KaTeX's
+   * stylesheet is still the host's to load — this only adjusts it.
+   */
+  .katex {
+    font-size: var(--hm-math-size);
+    line-height: 1.2;
+    color: var(--hm-math-color);
+    text-indent: 0;
+  }
+
+  /*
+   * A wide formula scrolls rather than forcing the whole message wider, and
+   * does it without a visible scrollbar cutting across the maths.
+   */
+  .katex-display {
+    margin: 1em 0;
+    overflow-x: auto;
+    overflow-y: clip;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .katex-display::-webkit-scrollbar {
+    display: none;
+  }
+
+  word-wrap: break-word;
+
+  p {
+    margin-block-end: 1em;
+    white-space: pre-wrap;
+  }
+
+  h1 {
+    font-family: var(--hm-font);
+    letter-spacing: var(--hm-title-tracking);
+    font-weight: 600 !important;
+
+    font-size: 36px;
+    line-height: 36px;
+
+    margin-top: 36px;
+    margin-bottom: 16px;
+
+    margin-left: -0.06em;
+    margin-right: -0.06em;
+  }
+
+  h1:first-child {
+    margin-top: 0px;
+  }
+
+  h2 {
+    font-family: var(--hm-font);
+    letter-spacing: var(--hm-title-tracking);
+    font-weight: 600 !important;
+
+    font-size: 28px;
+    line-height: 28px;
+
+    margin-top: 28px;
+    margin-bottom: 16px;
+
+    margin-left: -0.04em;
+    margin-right: -0.04em;
+  }
+
+  h2:first-child {
+    margin-top: 0px;
+  }
+
+  h3 {
+    font-family: var(--hm-font);
+    letter-spacing: var(--hm-title-tracking);
+    font-weight: 600 !important;
+
+    font-size: 22px;
+    line-height: 22px;
+
+    margin-top: 22px;
+    margin-bottom: 16px;
+
+    margin-left: -0.03em;
+    margin-right: -0.03em;
+  }
+
+  h3:first-child {
+    margin-top: 0px;
+  }
+
+  h4 {
+    font-family: var(--hm-font);
+    letter-spacing: var(--hm-title-tracking);
+    font-weight: 600 !important;
+
+    font-size: 16px;
+    line-height: 16px;
+
+    margin-top: 16px;
+    margin-bottom: 8px;
+  }
+
+  h4:first-child {
+    margin-top: 0px;
+  }
+
+  a {
+    color: var(--hm-link-color);
+    text-decoration: none;
+  }
+
+  a:hover {
+    color: var(--hm-color);
+  }
+
+  b,
+  strong {
+    font-weight: 500;
+  }
+
+  hr {
+    box-sizing: content-box;
+    overflow: visible;
+
+    border: none;
+    border-top: 2px solid #fff;
+
+    width: 100%;
+    height: 0px;
+
+    margin-top: 56px;
+    margin-bottom: 56px;
+  }
+
+  /* Footnote references and definitions are hash targets; a jump stops below the host's sticky header. */
+  [id^="user-content-fn"] {
+    scroll-margin-top: var(--hm-header-offset);
+  }
+
+  sup {
+    a[data-footnote-ref] {
+      display: inline-flex;
+
+      min-width: 16px;
+      height: 16px;
+
+      padding: 4px;
+
+      margin-left: 4px;
+      margin-right: 0px;
+
+      border-radius: 8px;
+
+      font-size: 8px;
+
+      color: var(--hm-link-color-inverted);
+      background-color: var(--hm-button-color);
+
+      align-items: center;
+      justify-content: center;
+    }
+
+    a[data-footnote-ref]:hover {
+      color: var(--hm-link-color);
+    }
+  }
+
+  dl,
+  ul,
+  ol {
+    margin-top: 0px;
+    margin-bottom: 1em;
+  }
+
+  ol,
+  ul,
+  dl {
+    list-style: none;
+    counter-reset: item;
+    padding-left: 0;
+  }
+
+  ul li,
+  ol li,
+  dl li {
+    position: relative;
+    padding-left: calc(var(--max-digits, 2) * 1ch);
+    margin-bottom: 0px;
+
+    p {
+      margin-block-end: 0px;
+    }
+  }
+
+  /*
+   * Direct children only. A descendant selector would let `ol li::before` match
+   * items of a `ul` nested inside an ordered list — both are ancestors, the
+   * specificity ties, and this later rule wins on source order, so a bullet
+   * would render as a number.
+   */
+  ul > li::before {
+    content: "•";
+    position: absolute;
+    left: 0;
+    text-align: left;
+  }
+
+  ol > li::before {
+    content: counter(item) ".";
+    counter-increment: item;
+    position: absolute;
+    left: 0;
+    text-align: left;
+  }
+
+  dl > dt::before {
+    content: attr(data-term) ": ";
+    position: absolute;
+    left: 0;
+    text-align: left;
+  }
+
+  /*
+   * The marker is CSS, not a text node, so the word-fade pass has nothing to
+   * wrap and it would otherwise land at full opacity beside words still
+   * fading in. The animation pass marks the item; the marker fades on the
+   * same curve and duration as the words it belongs to.
+   */
+  ul li[data-animate-marker="true"]::before,
+  ol li[data-animate-marker="true"]::before,
+  dl dt[data-animate-marker="true"]::before {
+    /* will-change: opacity; */
+    opacity: 0;
+
+    animation: hm-word-fade-in 1s var(--hm-ease-linear) forwards;
+  }
+
+  blockquote {
+    position: relative;
+    padding-left: 24px;
+
+    p {
+      font-family: var(--hm-font);
+      font-size: 16px;
+      font-weight: 400;
+      letter-spacing: 0px;
+    }
+
+    h1 {
+      font-family: var(--hm-font);
+      letter-spacing: var(--hm-title-tracking);
+      font-weight: 600 !important;
+
+      font-size: 36px;
+      line-height: 36px;
+
+      margin-top: 36px;
+      margin-bottom: 16px;
+    }
+
+    h2 {
+      font-family: var(--hm-font);
+      letter-spacing: var(--hm-title-tracking);
+      font-weight: 600 !important;
+
+      font-size: 28px;
+      line-height: 28px;
+
+      margin-top: 28px;
+      margin-bottom: 10px;
+
+      @media screen and (max-width: 640px) {
+        font-size: 28px;
+        line-height: 28px;
+
+        margin-top: 28px;
+
+        margin-bottom: 16px;
+      }
+    }
+
+    h3 {
+      font-family: var(--hm-font);
+      letter-spacing: var(--hm-title-tracking);
+      font-weight: 600 !important;
+
+      font-size: 22px;
+      line-height: 22px;
+
+      margin-top: 22px;
+      margin-bottom: 16px;
+    }
+
+    h4 {
+      font-family: var(--hm-font);
+      letter-spacing: var(--hm-title-tracking);
+      font-weight: 600 !important;
+
+      font-size: 16px;
+      line-height: 16px;
+
+      margin-top: 16px;
+      margin-bottom: 8px;
+    }
+  }
+
+  blockquote::before {
+    content: "";
+    position: absolute;
+    left: 0px;
+    top: 0;
+    height: 100%;
+    width: 2px;
+    background-color: #fff;
+  }
+
+  img {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--hm-radius);
+  }
+
+  /* A video in a reply: a 3:2 tile showing the poster under a play button,
+     then the provider's player in its place at the same size. A run's
+     geometry — how tiles share the column — stays with the host. */
+  .markdown-video-grid {
+    display: grid;
+    gap: 12px;
+    width: 100%;
+    margin: 16px 0;
+  }
+
+  .markdown-video {
+    position: relative;
+    min-width: 0;
+    aspect-ratio: 3 / 2;
+    overflow: hidden;
+    border-radius: var(--hm-radius);
+    background: rgba(0, 0, 0, 0.05);
+  }
+
+  .markdown-video-poster,
+  .markdown-video-player {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+
+  .markdown-video-poster {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    cursor: pointer;
+    background: transparent;
+  }
+
+  .markdown-video-still {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+    object-fit: cover;
+  }
+
+  .markdown-video-play {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.6);
+    transition: background-color 160ms var(--hm-ease), transform 160ms var(--hm-ease);
+
+    svg {
+      width: 28px;
+      height: 28px;
+      margin-left: 3px;
+    }
+  }
+
+  .markdown-video-poster:hover .markdown-video-play,
+  .markdown-video-poster:focus-visible .markdown-video-play {
+    background: rgba(0, 0, 0, 0.85);
+    transform: scale(1.06);
+  }
+
+  .markdown-video-poster:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: -4px;
+    border-radius: var(--hm-radius);
+  }
+
+  code:not(pre code) {
+    font-size: var(--hm-size-small);
+    font-weight: 400;
+
+    letter-spacing: -0.1px;
+
+    padding: 1px 6px;
+
+    border-radius: 16px;
+
+    font-family: var(--hm-font-mono);
+
+    color: rgb(100, 100, 100);
+    background-color: #f2f2f2;
+  }
+
+  a[data-animate-word="true"],
+  span[data-animate-word="true"] {
+    /* will-change: opacity; */
+    opacity: 0;
+
+    animation: hm-word-fade-in 1s var(--hm-ease-linear) forwards;
+  }
+
+  span.math-pending {
+    display: inline-block;
+    vertical-align: middle;
+
+    width: 8px;
+    height: 8px;
+
+    border-radius: 50%;
+
+    background-color: rgb(235, 235, 235);
+
+    animation: hm-math-pending-pulse 1.2s var(--hm-ease-linear) infinite;
+  }
+
+  .table-wrapper {
+    display: flex;
+    position: relative;
+
+    margin-top: 0px;
+    margin-bottom: 16px;
+
+    width: 100%;
+    max-width: var(--hm-max-width);
+
+    flex-direction: column;
+
+    .table-container {
+      display: flex;
+      position: relative;
+
+      flex-grow: 1;
+
+      flex-direction: column;
+
+      .table-header {
+        display: flex;
+        position: sticky;
+
+        z-index: 5;
+
+        width: 100%;
+        height: 50px;
+
+        top: -16px;
+
+        user-select: none;
+        pointer-events: none;
+
+        .table-header-content {
+          display: flex;
+          position: relative;
+
+          z-index: 5;
+
+          width: 100%;
+          height: 100%;
+
+          padding-left: 8px;
+          padding-right: 8px;
+
+          align-items: center;
+
+          .table-title-container {
+            display: flex;
+            position: relative;
+
+            height: 30px;
+
+            min-width: 100px;
+            padding-left: 8px;
+            padding-right: 8px;
+
+            border-radius: 15px;
+
+            align-items: center;
+            flex-shrink: 0;
+
+            backdrop-filter: blur(0px);
+            -webkit-backdrop-filter: blur(0px);
+
+            background-color: rgba(255, 255, 255, 0);
+
+            transition:
+              background-color 0.4s var(--hm-ease),
+              backdrop-filter 0.4s var(--hm-ease),
+              -webkit-backdrop-filter 0.4s var(--hm-ease);
+
+            .table-title {
+              display: flex;
+              position: relative;
+
+              opacity: 1;
+
+              align-items: center;
+
+              color: var(--hm-toolbar-color);
+              font-size: var(--hm-size-small);
+              font-weight: 400;
+
+              line-height: 16px;
+
+              text-transform: capitalize;
+            }
+          }
+
+          .table-spacer {
+            display: flex;
+            position: relative;
+
+            width: 100%;
+            flex-grow: 1;
+          }
+
+          .table-button {
+            display: flex;
+            position: relative;
+
+            appearance: none;
+            pointer-events: all;
+
+            height: 30px;
+
+            padding-left: 8px;
+            padding-right: 8px;
+
+            align-items: center;
+
+            .button-content {
+              display: flex;
+              position: relative;
+
+              opacity: 1;
+
+              align-items: center;
+
+              .button-icon {
+                display: flex;
+                width: 14px;
+                height: 14px;
+
+                align-items: center;
+                justify-content: center;
+
+                svg {
+                  width: 100%;
+                  height: 100%;
+                  color: var(--hm-toolbar-color);
+                }
+              }
+            }
+          }
+
+          .table-button-container {
+            display: flex;
+            position: relative;
+
+            height: 30px;
+            border-radius: 15px;
+
+            backdrop-filter: blur(0px);
+            -webkit-backdrop-filter: blur(0px);
+
+            background-color: rgba(255, 255, 255, 0);
+
+            transition:
+              background-color 0.4s var(--hm-ease),
+              backdrop-filter 0.4s var(--hm-ease),
+              -webkit-backdrop-filter 0.4s var(--hm-ease);
+
+            .table-icon-button {
+              display: flex;
+              position: relative;
+
+              appearance: none;
+              pointer-events: all;
+
+              height: 30px;
+
+              padding-left: 8px;
+              padding-right: 8px;
+
+              align-items: center;
+
+              .button-content {
+                display: flex;
+                position: relative;
+
+                opacity: 1;
+
+                align-items: center;
+
+                .button-icon {
+                  display: flex;
+                  width: 14px;
+                  height: 14px;
+
+                  align-items: center;
+                  justify-content: center;
+
+                  svg {
+                    width: 100%;
+                    height: 100%;
+                    color: var(--hm-toolbar-color);
+                  }
+                }
+              }
+            }
+
+            .table-icon-button.first {
+              padding-left: 8px;
+            }
+
+            .table-icon-button.last {
+              padding-right: 8px;
+            }
+          }
+        }
+
+        .table-header-background {
+          display: none;
+          position: absolute;
+
+          width: 100%;
+          height: 50px;
+
+          top: 0px;
+          left: 0px;
+
+          .table-header-fade {
+            display: block;
+            position: absolute;
+
+            top: 0px;
+            left: 0px;
+
+            width: 100%;
+            height: 50px;
+
+            background: linear-gradient(
+              180deg,
+              rgba(255, 255, 255, 1) 0px,
+              rgba(255, 255, 255, 0) 50px
+            );
+          }
+
+          .table-header-blur {
+            display: block;
+            position: absolute;
+
+            top: 0px;
+            left: 0px;
+
+            width: 100%;
+            height: var(--hm-header-offset);
+
+            backdrop-filter: blur(1px);
+            -webkit-backdrop-filter: blur(1px);
+
+            mask-image: linear-gradient(to bottom, #000 10px, transparent 50px);
+
+            -webkit-mask-image: linear-gradient(
+              to bottom,
+              #000 10px,
+              transparent 50px
+            );
+          }
+        }
+      }
+
+      .table-header.scroll {
+        .table-header-content {
+          .table-title-container {
+            backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
+
+            background-color: rgba(255, 255, 255, 0.4);
+          }
+
+          .table-button-container {
+            backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
+
+            background-color: rgba(255, 255, 255, 0.4);
+          }
+        }
+      }
+
+      .table-content {
+        display: flex;
+        position: relative;
+
+        background-color: #fff;
+
+        margin: 0;
+
+        padding-left: 16px;
+        padding-right: 16px;
+
+        padding-top: 50px;
+        padding-bottom: 30px;
+
+        margin-block-end: 0px;
+        margin-block-start: -50px;
+
+        border-radius: var(--hm-radius);
+
+        .table-scroll {
+          display: flex;
+          position: relative;
+
+          width: 100%;
+
+          overflow-x: auto;
+        }
+
+        table {
+          flex-shrink: 0;
+          width: max-content;
+          min-width: 100%;
+          color: var(--hm-table-color);
+          font-size: var(--hm-code-size);
+          line-height: var(--hm-table-leading);
+
+          border-spacing: 6px;
+
+          @media screen and (max-width: 640px) {
+            font-size: var(--hm-code-size-mobile);
+          }
+
+          b,
+          strong {
+            font-weight: 500;
+          }
+
+          th,
+          td {
+            box-sizing: content-box;
+            max-width: 32ch;
+            vertical-align: top;
+            white-space: normal;
+            overflow-wrap: break-word;
+          }
+
+          th {
+            font-weight: 500;
+
+            border-top: 1px solid var(--hm-table-header-color);
+            border-bottom: 1px solid var(--hm-table-header-color);
+          }
+
+          td + td {
+            padding-left: 36px;
+          }
+
+          th + th {
+            padding-left: 36px;
+          }
+
+          tr td {
+            padding-top: 6px;
+            padding-bottom: 6px;
+          }
+
+          tr th {
+            padding-top: 6px;
+            padding-bottom: 6px;
+          }
+        }
+
+        table[data-headless="true"] {
+          thead {
+            th {
+              height: 1px;
+              padding: 0;
+              font-size: 0;
+              line-height: 0;
+
+              border-top: none;
+              border-bottom: 1px solid var(--hm-table-header-color);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .table-wrapper.fullscreen {
+    display: flex;
+    position: fixed;
+
+    /* The base wrapper caps at the reading width; a fixed overlay pinned to
+       all four insets must not inherit that cap, or it paints a 1024px column
+       instead of covering the viewport. */
+    max-width: none;
+
+    overflow-y: auto;
+
+    z-index: 200;
+
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+
+    margin: 0px;
+    padding: 0px;
+
+    flex-direction: column;
+
+    background-color: var(--hm-background);
+
+    @media screen and (max-width: 640px) {
+      padding-left: 0px;
+      padding-right: 0px;
+
+      padding-top: 0px;
+      padding-bottom: 0px;
+    }
+
+    .table-container {
+      .table-header {
+        top: 0px;
+        border: none;
+
+        .table-header-content {
+          border-radius: 0px;
+
+          padding-left: 16px;
+          padding-right: 16px;
+
+          @media screen and (max-width: 640px) {
+            padding-left: 8px;
+            padding-right: 8px;
+          }
+
+          .table-title-container {
+            backdrop-filter: blur(0px);
+            -webkit-backdrop-filter: blur(0px);
+
+            background-color: rgba(255, 255, 255, 0);
+          }
+
+          .table-button-container {
+            backdrop-filter: blur(0px);
+            -webkit-backdrop-filter: blur(0px);
+
+            background-color: rgba(255, 255, 255, 0);
+          }
+        }
+
+        .table-header-background {
+          display: flex;
+        }
+      }
+
+      .table-header.scroll {
+        .table-header-content {
+          .table-title-container {
+            backdrop-filter: blur(0px);
+            -webkit-backdrop-filter: blur(0px);
+
+            background-color: rgba(255, 255, 255, 0);
+          }
+
+          .table-button-container {
+            backdrop-filter: blur(0px);
+            -webkit-backdrop-filter: blur(0px);
+
+            background-color: rgba(255, 255, 255, 0);
+          }
+        }
+      }
+
+      .table-content {
+        flex-grow: 1;
+
+        padding-left: 24px;
+        padding-right: 24px;
+        padding-bottom: 24px;
+
+        border-radius: 0px;
+
+        @media screen and (max-width: 640px) {
+          padding-left: 16px;
+          padding-right: 16px;
+        }
+
+        .table-scroll {
+          height: fit-content;
+        }
+      }
+    }
+  }
+
+  .mermaid-wrapper {
+    display: flex;
+    position: relative;
+
+    margin-top: 0px;
+    margin-bottom: 16px;
+
+    width: 100%;
+    max-width: var(--hm-max-width);
+
+    flex-direction: column;
+
+    /*
+     * Offscreen diagrams skip paint. The intrinsic size matches the reserved
+     * box (diagram height plus header and padding) so the transcript does not
+     * jump when a wrapper leaves the skipped set.
+     */
+    content-visibility: auto;
+    contain-intrinsic-size: auto calc(var(--hm-diagram-height, 500px) + 80px);
+
+    .mermaid-container {
+      display: flex;
+      position: relative;
+
+      flex-grow: 1;
+
+      flex-direction: column;
+
+      .mermaid-header {
+        display: flex;
+        position: sticky;
+
+        z-index: 5;
+
+        width: 100%;
+        height: 50px;
+
+        top: -16px;
+
+        user-select: none;
+        pointer-events: none;
+
+        .mermaid-header-content {
+          display: flex;
+          position: relative;
+
+          z-index: 5;
+
+          width: 100%;
+          height: 100%;
+
+          padding-left: 8px;
+          padding-right: 8px;
+
+          align-items: center;
+
+          .mermaid-title-container {
+            display: flex;
+            position: relative;
+
+            height: 30px;
+
+            min-width: 100px;
+
+            padding-left: 8px;
+            padding-right: 8px;
+
+            border-radius: 15px;
+
+            align-items: center;
+            flex-shrink: 0;
+
+            backdrop-filter: blur(0px);
+            -webkit-backdrop-filter: blur(0px);
+
+            background-color: rgba(255, 255, 255, 0);
+
+            transition:
+              background-color 0.4s var(--hm-ease),
+              backdrop-filter 0.4s var(--hm-ease),
+              -webkit-backdrop-filter 0.4s var(--hm-ease);
+
+            .mermaid-title {
+              display: flex;
+              position: relative;
+
+              opacity: 1;
+
+              align-items: center;
+
+              white-space: nowrap;
+
+              color: var(--hm-toolbar-color);
+              font-size: var(--hm-size-small);
+              font-weight: 400;
+
+              line-height: 16px;
+            }
+          }
+
+          .mermaid-spacer {
+            display: flex;
+            position: relative;
+
+            width: 100%;
+            flex-grow: 1;
+          }
+
+          .mermaid-button {
+            display: flex;
+            position: relative;
+
+            appearance: none;
+            pointer-events: all;
+
+            height: 30px;
+
+            padding-left: 8px;
+            padding-right: 8px;
+
+            align-items: center;
+
+            .button-content {
+              display: flex;
+              position: relative;
+
+              opacity: 1;
+
+              align-items: center;
+
+              .button-icon {
+                display: flex;
+                width: 14px;
+                height: 14px;
+
+                align-items: center;
+                justify-content: center;
+
+                svg {
+                  width: 100%;
+                  height: 100%;
+                  color: var(--hm-toolbar-color);
+                }
+              }
+            }
+          }
+
+          .mermaid-button-container {
+            display: flex;
+            position: relative;
+
+            height: 30px;
+            border-radius: 15px;
+
+            backdrop-filter: blur(0px);
+            -webkit-backdrop-filter: blur(0px);
+
+            background-color: rgba(255, 255, 255, 0);
+
+            transition:
+              background-color 0.4s var(--hm-ease),
+              backdrop-filter 0.4s var(--hm-ease),
+              -webkit-backdrop-filter 0.4s var(--hm-ease);
+
+            .mermaid-icon-button {
+              display: flex;
+              position: relative;
+
+              appearance: none;
+              pointer-events: all;
+
+              height: 30px;
+
+              padding-left: 8px;
+              padding-right: 8px;
+
+              align-items: center;
+
+              .button-content {
+                display: flex;
+                position: relative;
+
+                opacity: 1;
+
+                align-items: center;
+
+                .button-icon {
+                  display: flex;
+                  width: 14px;
+                  height: 14px;
+
+                  align-items: center;
+                  justify-content: center;
+
+                  svg {
+                    width: 100%;
+                    height: 100%;
+                    color: var(--hm-toolbar-color);
+                  }
+                }
+              }
+            }
+
+            .mermaid-icon-button.first {
+              padding-left: 8px;
+            }
+
+            .mermaid-icon-button.last {
+              padding-right: 8px;
+            }
+          }
+        }
+
+        .mermaid-header-background {
+          display: none;
+          position: absolute;
+
+          width: 100%;
+          height: 50px;
+
+          top: 0px;
+          left: 0px;
+
+          .mermaid-header-fade {
+            display: block;
+            position: absolute;
+
+            top: 0px;
+            left: 0px;
+
+            width: 100%;
+            height: 50px;
+
+            background: linear-gradient(
+              180deg,
+              rgba(255, 255, 255, 1) 0px,
+              rgba(255, 255, 255, 0) 50px
+            );
+          }
+
+          .mermaid-header-blur {
+            display: block;
+            position: absolute;
+
+            top: 0px;
+            left: 0px;
+
+            width: 100%;
+            height: var(--hm-header-offset);
+
+            backdrop-filter: blur(1px);
+            -webkit-backdrop-filter: blur(1px);
+
+            mask-image: linear-gradient(to bottom, #000 10px, transparent 50px);
+
+            -webkit-mask-image: linear-gradient(
+              to bottom,
+              #000 10px,
+              transparent 50px
+            );
+          }
+        }
+      }
+
+      .mermaid-header.scroll {
+        .mermaid-header-content {
+          .mermaid-title-container {
+            backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
+
+            background-color: rgba(255, 255, 255, 0.4);
+          }
+
+          .mermaid-button-container {
+            backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
+
+            background-color: rgba(255, 255, 255, 0.4);
+          }
+        }
+      }
+
+      .mermaid-content {
+        display: flex;
+        position: relative;
+
+        background-color: #fff;
+
+        margin: 0;
+
+        padding-left: 16px;
+        padding-right: 16px;
+
+        padding-top: 50px;
+        padding-bottom: 30px;
+
+        margin-block-end: 0px;
+        margin-block-start: -50px;
+
+        border-radius: var(--hm-radius);
+
+        .mermaid-scroll {
+          display: flex;
+          position: relative;
+
+          width: 100%;
+
+          overflow-x: auto;
+
+          .mermaid-pan-zoom {
+            display: flex;
+            position: relative;
+
+            width: 100%;
+            min-width: 100%;
+
+            overflow: hidden;
+            contain: paint;
+
+            border-top: 1px solid var(--hm-background);
+
+            .mermaid-pan-zoom-controls {
+              display: flex;
+              position: absolute;
+
+              z-index: 4;
+
+              left: 8px;
+              bottom: 8px;
+
+              padding: 4px;
+
+              flex-direction: column;
+
+              border: 1px solid var(--hm-background);
+              border-radius: 9px;
+
+              background-color: rgba(255, 255, 255, 0.82);
+              backdrop-filter: blur(4px);
+              -webkit-backdrop-filter: blur(4px);
+
+              .mermaid-pan-zoom-button {
+                display: flex;
+                position: relative;
+
+                width: 28px;
+                height: 28px;
+
+                border-radius: 5px;
+
+                align-items: center;
+                justify-content: center;
+
+                color: var(--hm-toolbar-color);
+
+                transition:
+                  color 0.15s var(--hm-ease),
+                  background-color 0.15s var(--hm-ease),
+                  opacity 0.15s var(--hm-ease);
+
+                .button-icon {
+                  display: flex;
+
+                  width: 15px;
+                  height: 15px;
+
+                  align-items: center;
+                  justify-content: center;
+
+                  svg {
+                    width: 100%;
+                    height: 100%;
+                  }
+                }
+              }
+
+              .mermaid-pan-zoom-button:hover {
+                color: var(--hm-button-color);
+                background-color: var(--hm-background);
+              }
+
+              .mermaid-pan-zoom-button:disabled {
+                opacity: 0.35;
+                cursor: not-allowed;
+              }
+
+              .mermaid-pan-zoom-button:disabled:hover {
+                color: var(--hm-toolbar-color);
+                background-color: transparent;
+              }
+            }
+
+            /*
+             * The soft border. A mask rather than a painted overlay: it fades
+             * to transparent, so it sits over whatever the host puts behind a
+             * diagram — a panel, a page, nothing — without being told the
+             * colour, which a gradient in `--hm-background` would need and
+             * would get wrong the moment a host changed it.
+             *
+             * Two gradients intersected fade all four edges. Rounded corners
+             * need nothing extra: the arc is clipped by the container and
+             * falls inside the faded band, so the corners soften instead of
+             * meeting the mask at a seam.
+             */
+            .mermaid-pan-zoom-viewport {
+              display: flex;
+              position: relative;
+
+              width: 100%;
+              min-width: 0;
+
+              --hm-diagram-fade: 10px;
+            }
+
+            .mermaid-pan-zoom-content {
+              display: flex;
+              position: relative;
+
+              width: 100%;
+
+              transform-origin: center center;
+
+              justify-content: center;
+
+              transition: transform 0.15s ease-out;
+            }
+          }
+
+          .mermaid-pan-zoom[data-pan-zoom="true"] {
+            .mermaid-pan-zoom-content {
+              cursor: grab;
+              touch-action: none;
+            }
+          }
+
+          .mermaid-pan-zoom[data-pan-zoom="true"]:hover,
+          .mermaid-pan-zoom[data-pan-zoom="true"]:focus-within,
+          .mermaid-pan-zoom.panning {
+            .mermaid-pan-zoom-content {
+              will-change: transform;
+            }
+          }
+
+          .mermaid-pan-zoom.panning {
+            .mermaid-pan-zoom-content {
+              cursor: grabbing;
+              user-select: none;
+              transition: none;
+            }
+          }
+
+          .mermaid-svg {
+            display: flex;
+            position: relative;
+
+            width: 100%;
+
+            justify-content: center;
+
+            /*
+             * The engine emits `width="100%"` with a viewBox and a max-width of
+             * the diagram's natural size, so the drawing scales to whatever box
+             * it is given. Holding the box to a fixed height is what keeps the
+             * page still: the space is reserved before the SVG exists, and a
+             * diagram larger than the box scales down inside it rather than
+             * growing the page. Pan-zoom and fullscreen are how a reader gets a
+             * shrunken diagram back to full size.
+             *
+             * 500px fits the majority of diagram kinds at natural scale; the
+             * wide ones (a gantt chart is nearly 10:1) are bounded by the
+             * column width regardless of the height given here. Override
+             * `--hm-diagram-height` to trade reading size against page length.
+             */
+            height: var(--hm-diagram-height, 500px);
+            align-items: center;
+
+            > svg {
+              max-height: 100%;
+            }
+          }
+        }
+
+        table {
+          flex-shrink: 0;
+          width: max-content;
+          min-width: 100%;
+          color: var(--hm-table-color);
+          font-size: var(--hm-code-size);
+          line-height: var(--hm-table-leading);
+
+          border-spacing: 6px;
+
+          @media screen and (max-width: 640px) {
+            font-size: var(--hm-code-size-mobile);
+          }
+
+          b,
+          strong {
+            font-weight: 500;
+          }
+
+          th,
+          td {
+            box-sizing: content-box;
+            max-width: 32ch;
+            vertical-align: top;
+            white-space: normal;
+            overflow-wrap: break-word;
+          }
+
+          th {
+            font-weight: 500;
+
+            border-top: 1px solid var(--hm-table-header-color);
+            border-bottom: 1px solid var(--hm-table-header-color);
+          }
+
+          td + td {
+            padding-left: 36px;
+          }
+
+          th + th {
+            padding-left: 36px;
+          }
+
+          tr td {
+            padding-top: 6px;
+            padding-bottom: 6px;
+          }
+
+          tr th {
+            padding-top: 6px;
+            padding-bottom: 6px;
+          }
+        }
+
+        table[data-headless="true"] {
+          thead {
+            th {
+              height: 1px;
+              padding: 0;
+              font-size: 0;
+              line-height: 0;
+
+              border-top: none;
+              border-bottom: 1px solid var(--hm-table-header-color);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /*
+   * Covers the reserved box while the engine draws, carrying the same rotating
+   * mark the rest of the product loads with. It is painted opaque so a diagram
+   * does not appear in pieces as the engine fills it in, and it fades rather
+   * than cutting once the drawing is there.
+   *
+   * Shown by default, and hidden once a drawing or a failure replaces it. A
+   * cover that waited for a class would leave the reserved box bare for the
+   * frames between the box being painted and the component committing that
+   * class, which a reader scrolling quickly sees as an empty white square.
+   *
+   * The cover is always mounted: an element removed at the moment it stops
+   * being needed cannot transition, so the opacity does the hiding and
+   * `visibility` takes it out of the layer once the fade has run.
+   */
+  .mermaid-loader {
+    display: flex;
+    position: absolute;
+
+    /*
+     * The content box reclaims 50px upward so the header floats over the
+     * drawing, which means the scroll box this cover fills starts behind the
+     * header. Covering that band too would paint over the separator; the top
+     * inset keeps the cover under it.
+     */
+    inset: 50px 0 0 0;
+    z-index: 4;
+
+    align-items: center;
+    justify-content: center;
+
+    /* Square, so the fill meets the separator instead of curving away. */
+    border-radius: 0;
+    background-color: var(--hm-diagram-loader-background, #fff);
+
+    opacity: 1;
+    visibility: visible;
+    pointer-events: none;
+  }
+
+  /*
+   * The drawing has arrived: fade the cover off it. `visibility` follows the
+   * fade so the cover leaves the layer only once it is invisible.
+   */
+  .mermaid-wrapper.drawn {
+    .mermaid-loader {
+      opacity: 0;
+      visibility: hidden;
+
+      transition:
+        opacity 240ms ease-out,
+        visibility 0s linear 240ms;
+    }
+  }
+
+  .mermaid-loader-mark,
+  .mermaid-loader-mark svg {
+    display: block;
+
+    /* A diagram placeholder is a wait like any other, so it draws the shared
+       product loading mark instead of a diagram-local size and tint. */
+    width: var(
+      --hm-diagram-loader-size,
+      var(--dsw-aeven-loading-mark-size, 18px)
+    );
+    height: var(
+      --hm-diagram-loader-size,
+      var(--dsw-aeven-loading-mark-size, 18px)
+    );
+  }
+
+  .mermaid-loader-mark {
+    color: var(
+      --hm-diagram-loader-color,
+      var(--dsw-aeven-loading-mark-color, var(--dsw-alias-label-primary))
+    );
+
+    animation: none;
+  }
+
+  .mermaid-wrapper[data-visible]:not(.drawn):not(.failed) .mermaid-loader-mark {
+    animation: hm-diagram-spin 900ms linear infinite;
+  }
+
+  /*
+   * A mark under a hidden cover has nothing to say. A transcript holds every
+   * diagram it has ever shown, so leaving them all spinning would animate
+   * hundreds of marks no one is looking at.
+   */
+  .mermaid-wrapper.drawn,
+  .mermaid-wrapper.failed {
+    .mermaid-loader-mark {
+      animation: none;
+    }
+  }
+
+  /*
+   * A failed diagram drops its cover at once. The fade is there to hand over
+   * to a drawing that has arrived; with nothing behind it, fading would only
+   * delay showing the reader that the space is empty.
+   */
+  .mermaid-wrapper.failed {
+    .mermaid-loader {
+      opacity: 0;
+      visibility: hidden;
+
+      transition: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mermaid-wrapper[data-visible] .mermaid-loader-mark {
+      animation: none;
+    }
+  }
+
+  /*
+   * Dual-gradient masks are a compositor tax on every diagram box. Hold them
+   * until a drawing is there — a placeholder has nothing to fade — so a long
+   * transcript does not composite a mask per reserved box.
+   */
+  .mermaid-wrapper.drawn .mermaid-pan-zoom-viewport {
+    mask-image:
+      linear-gradient(
+        to right,
+        transparent,
+        #000 var(--hm-diagram-fade),
+        #000 calc(100% - var(--hm-diagram-fade)),
+        transparent
+      ),
+      linear-gradient(
+        to bottom,
+        transparent,
+        #000 var(--hm-diagram-fade),
+        #000 calc(100% - var(--hm-diagram-fade)),
+        transparent
+      );
+    mask-repeat: no-repeat;
+    mask-composite: intersect;
+
+    -webkit-mask-image:
+      linear-gradient(
+        to right,
+        transparent,
+        #000 var(--hm-diagram-fade),
+        #000 calc(100% - var(--hm-diagram-fade)),
+        transparent
+      ),
+      linear-gradient(
+        to bottom,
+        transparent,
+        #000 var(--hm-diagram-fade),
+        #000 calc(100% - var(--hm-diagram-fade)),
+        transparent
+      );
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-composite: source-in;
+  }
+
+  .mermaid-wrapper.fullscreen {
+    display: flex;
+    position: fixed;
+
+    /* The base wrapper caps at the reading width; a fixed overlay pinned to
+       all four insets must not inherit that cap, or it paints a 1024px column
+       instead of covering the viewport. */
+    max-width: none;
+
+    overflow-y: auto;
+
+    z-index: 200;
+
+    content-visibility: visible;
+    contain-intrinsic-size: none;
+
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+
+    margin: 0px;
+    padding: 0px;
+
+    flex-direction: column;
+
+    background-color: var(--hm-background);
+
+    @media screen and (max-width: 640px) {
+      padding-left: 0px;
+      padding-right: 0px;
+
+      padding-top: 0px;
+      padding-bottom: 0px;
+    }
+
+    .mermaid-container {
+      height: 100%;
+      min-height: 0;
+
+      .mermaid-header {
+        top: 0px;
+        border: none;
+
+        .mermaid-header-content {
+          border-radius: 0px;
+
+          padding-left: 16px;
+          padding-right: 16px;
+
+          @media screen and (max-width: 640px) {
+            padding-left: 8px;
+            padding-right: 8px;
+          }
+
+          .mermaid-title-container {
+            backdrop-filter: blur(0px);
+            -webkit-backdrop-filter: blur(0px);
+
+            background-color: rgba(255, 255, 255, 0);
+          }
+
+          .mermaid-button-container {
+            backdrop-filter: blur(0px);
+            -webkit-backdrop-filter: blur(0px);
+
+            background-color: rgba(255, 255, 255, 0);
+          }
+        }
+
+        .mermaid-header-background {
+          display: flex;
+        }
+      }
+
+      .mermaid-header.scroll {
+        .mermaid-header-content {
+          .mermaid-title-container {
+            backdrop-filter: blur(0px);
+            -webkit-backdrop-filter: blur(0px);
+
+            background-color: rgba(255, 255, 255, 0);
+          }
+
+          .mermaid-button-container {
+            backdrop-filter: blur(0px);
+            -webkit-backdrop-filter: blur(0px);
+
+            background-color: rgba(255, 255, 255, 0);
+          }
+        }
+      }
+
+      .mermaid-content {
+        flex-grow: 1;
+        min-height: 0;
+
+        overflow: hidden;
+
+        padding-left: 24px;
+        padding-right: 24px;
+        padding-bottom: 24px;
+
+        border-radius: 0px;
+
+        @media screen and (max-width: 640px) {
+          padding-left: 16px;
+          padding-right: 16px;
+        }
+
+        .mermaid-scroll {
+          height: 100%;
+          min-height: 0;
+
+          overflow: hidden;
+
+          flex-grow: 1;
+
+          .mermaid-pan-zoom,
+          .mermaid-pan-zoom-content,
+          .mermaid-svg {
+            height: 100%;
+          }
+
+          .mermaid-pan-zoom-content,
+          .mermaid-svg {
+            align-items: center;
+          }
+
+          .mermaid-svg > svg {
+            max-height: 100%;
+          }
+        }
+      }
+    }
+  }
+
+  .codeblock-wrapper {
+    display: flex;
+    position: relative;
+
+    margin-top: 0px;
+    margin-bottom: 16px;
+
+    width: 100%;
+    max-width: var(--hm-max-width);
+
+    flex-direction: column;
+
+    .code-container {
+      display: flex;
+      position: relative;
+
+      flex-grow: 1;
+
+      flex-direction: column;
+
+      .codeblock-header {
+        display: flex;
+        position: sticky;
+
+        z-index: 5;
+
+        width: 100%;
+        height: 50px;
+
+        top: -16px;
+
+        user-select: none;
+        pointer-events: none;
+
+        .codeblock-header-content {
+          display: flex;
+          position: relative;
+
+          z-index: 5;
+
+          width: 100%;
+          height: 100%;
+
+          padding-left: 8px;
+          padding-right: 8px;
+
+          align-items: center;
+
+          .codeblock-title-container {
+            display: flex;
+            position: relative;
+
+            height: 30px;
+
+            min-width: 100px;
+            padding-left: 8px;
+            padding-right: 8px;
+
+            border-radius: 15px;
+
+            align-items: center;
+            flex-shrink: 0;
+
+            backdrop-filter: blur(0px);
+            -webkit-backdrop-filter: blur(0px);
+
+            background-color: rgba(255, 255, 255, 0);
+
+            transition:
+              background-color 0.4s var(--hm-ease),
+              backdrop-filter 0.4s var(--hm-ease),
+              -webkit-backdrop-filter 0.4s var(--hm-ease);
+
+            .codeblock-title {
+              display: flex;
+              position: relative;
+
+              align-items: center;
+
+              color: var(--hm-toolbar-color);
+              font-size: var(--hm-size-small);
+              font-weight: 400;
+
+              line-height: 16px;
+
+              text-transform: capitalize;
+            }
+          }
+
+          .codeblock-spacer {
+            display: flex;
+            position: relative;
+
+            width: 100%;
+            flex-grow: 1;
+          }
+
+          .codeblock-button-container {
+            display: flex;
+            position: relative;
+
+            height: 30px;
+            border-radius: 15px;
+
+            backdrop-filter: blur(0px);
+            -webkit-backdrop-filter: blur(0px);
+
+            background-color: rgba(255, 255, 255, 0);
+
+            transition:
+              background-color 0.4s var(--hm-ease),
+              backdrop-filter 0.4s var(--hm-ease),
+              -webkit-backdrop-filter 0.4s var(--hm-ease);
+
+            .codeblock-icon-button {
+              display: flex;
+              position: relative;
+
+              appearance: none;
+              pointer-events: all;
+
+              height: 30px;
+
+              padding-left: 8px;
+              padding-right: 8px;
+
+              align-items: center;
+
+              .button-content {
+                display: flex;
+                position: relative;
+
+                opacity: 1;
+
+                align-items: center;
+
+                .button-icon {
+                  display: flex;
+                  width: 14px;
+                  height: 14px;
+
+                  align-items: center;
+                  justify-content: center;
+
+                  svg {
+                    width: 100%;
+                    height: 100%;
+                    color: var(--hm-toolbar-color);
+                  }
+                }
+
+                .button-icon.play {
+                  width: 17px;
+                  height: 17px;
+                }
+              }
+            }
+
+            .codeblock-icon-button.first {
+              padding-left: 8px;
+            }
+
+            .codeblock-icon-button.last {
+              padding-right: 8px;
+            }
+          }
+        }
+
+        .codeblock-header-background {
+          display: none;
+          position: absolute;
+
+          width: 100%;
+          height: 50px;
+
+          top: 0px;
+          left: 0px;
+
+          .codeblock-header-fade {
+            display: block;
+            position: absolute;
+
+            top: 0px;
+            left: 0px;
+
+            width: 100%;
+            height: 50px;
+
+            background: linear-gradient(
+              180deg,
+              rgba(255, 255, 255, 1) 0px,
+              rgba(255, 255, 255, 0) 50px
+            );
+          }
+
+          .codeblock-header-blur {
+            display: block;
+            position: absolute;
+
+            top: 0px;
+            left: 0px;
+
+            width: 100%;
+            height: var(--hm-header-offset);
+
+            backdrop-filter: blur(1px);
+            -webkit-backdrop-filter: blur(1px);
+
+            mask-image: linear-gradient(to bottom, #000 10px, transparent 50px);
+
+            -webkit-mask-image: linear-gradient(
+              to bottom,
+              #000 10px,
+              transparent 50px
+            );
+          }
+        }
+      }
+
+      .codeblock-header.scroll {
+        .codeblock-header-content {
+          .codeblock-title-container {
+            backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
+
+            background-color: rgba(255, 255, 255, 0.4);
+          }
+
+          .codeblock-button-container {
+            backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
+
+            background-color: rgba(255, 255, 255, 0.4);
+          }
+        }
+      }
+
+      .codeblock-pre-code-content {
+        display: flex;
+        position: relative;
+
+        flex-direction: column;
+
+        pre {
+          display: grid;
+          grid-template-columns: auto 1fr;
+
+          position: relative;
+
+          background-color: #fff;
+          margin: 0;
+
+          overflow-x: hidden;
+
+          padding-left: 16px;
+          padding-right: 16px;
+          padding-top: 50px;
+          padding-bottom: 30px;
+
+          margin-block-end: 0px;
+          margin-block-start: -50px;
+
+          border-radius: var(--hm-radius);
+
+          .line-numbers {
+            display: flex;
+            position: relative;
+
+            user-select: none;
+            pointer-events: none;
+
+            border-top: 1px solid var(--hm-table-header-color);
+
+            padding-top: 8px;
+            padding-right: 16px;
+
+            font-size: var(--hm-code-size);
+            font-weight: 400;
+            letter-spacing: var(--hm-code-tracking);
+
+            color: var(--hm-line-number-color);
+
+            line-height: var(--hm-code-leading);
+            font-family: var(--hm-font-mono);
+
+            flex-direction: column;
+
+            @media screen and (max-width: 640px) {
+              display: none;
+              font-size: var(--hm-code-size-mobile);
+            }
+
+            .line-number {
+              user-select: none;
+              pointer-events: none;
+            }
+          }
+
+          .code-content {
+            display: block;
+            overflow-x: scroll;
+
+            padding-top: 8px;
+
+            border-top: 1px solid var(--hm-table-header-color);
+
+            code {
+              display: block;
+
+              cursor: text;
+
+              padding-left: 0px;
+              padding-right: 0px;
+
+              padding-top: 0px;
+              padding-bottom: 0px;
+
+              border-radius: 0px;
+
+              font-size: var(--hm-code-size);
+              font-weight: 400;
+              letter-spacing: var(--hm-code-tracking);
+
+              color: var(--hm-code-color);
+
+              line-height: var(--hm-code-leading);
+              font-family: var(--hm-font-mono);
+
+              background-color: #fff;
+
+              @media screen and (max-width: 640px) {
+                font-size: var(--hm-code-size-mobile);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .codeblock-wrapper.stream-active {
+    .code-container {
+      .codeblock-header {
+        .codeblock-header-content {
+          .codeblock-title-container {
+            opacity: 0.3;
+          }
+
+          /*
+           * Only preview is held back. Copy and fullscreen work on a block
+           * that is still being written — copying what has arrived, or
+           * expanding it to watch the rest — so dimming them said otherwise.
+           * Preview needs the finished document, and stays receded until the
+           * fence closes.
+           */
+          .codeblock-button-container .codeblock-icon-button.preview {
+            opacity: 0.3;
+          }
+        }
+      }
+    }
+  }
+
+  .codeblock-wrapper.fullscreen {
+    display: flex;
+    position: fixed;
+
+    /* The base wrapper caps at the reading width; a fixed overlay pinned to
+       all four insets must not inherit that cap, or it paints a 1024px column
+       instead of covering the viewport. */
+    max-width: none;
+
+    z-index: 200;
+
+    flex-direction: column;
+
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+
+    margin: 0px;
+    padding: 0px;
+
+    overflow-y: auto;
+
+    background-color: var(--hm-background);
+
+    @media screen and (max-width: 640px) {
+      padding: 0px;
+    }
+
+    .code-container {
+      .codeblock-header {
+        top: 0px;
+        border: none;
+
+        .codeblock-header-content {
+          border-radius: 0px;
+
+          padding-left: 16px;
+          padding-right: 16px;
+
+          @media screen and (max-width: 640px) {
+            padding-left: 8px;
+            padding-right: 8px;
+          }
+
+          .codeblock-title-container {
+            backdrop-filter: blur(0px);
+            -webkit-backdrop-filter: blur(0px);
+
+            background-color: rgba(255, 255, 255, 0);
+          }
+
+          .codeblock-button-container {
+            backdrop-filter: blur(0px);
+            -webkit-backdrop-filter: blur(0px);
+
+            background-color: rgba(255, 255, 255, 0);
+          }
+        }
+
+        .codeblock-header-background {
+          display: flex;
+        }
+      }
+
+      .codeblock-header.scroll {
+        .codeblock-header-content {
+          .codeblock-title-container {
+            backdrop-filter: blur(0px);
+            -webkit-backdrop-filter: blur(0px);
+
+            background-color: rgba(255, 255, 255, 0);
+          }
+
+          .codeblock-button-container {
+            backdrop-filter: blur(0px);
+            -webkit-backdrop-filter: blur(0px);
+
+            background-color: rgba(255, 255, 255, 0);
+          }
+        }
+      }
+
+      .codeblock-pre-code-content {
+        flex-grow: 1;
+        pre {
+          flex-grow: 1;
+          border-radius: 0px;
+
+          padding-left: 24px;
+          padding-right: 24px;
+          padding-bottom: 24px;
+
+          @media screen and (max-width: 640px) {
+            padding-left: 16px;
+            padding-right: 16px;
+          }
+        }
+      }
+    }
+  }
+
+  /* A model's reasoning, kept apart from its answer. */
+  .reasoning-wrapper {
+    margin-top: 16px;
+    margin-bottom: 16px;
+
+    .reasoning-container {
+      border-radius: 12px;
+      border: 1px solid var(--hm-table-header-color);
+      overflow: hidden;
+    }
+
+    .reasoning-header {
+      display: flex;
+      width: 100%;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+
+      margin: 0;
+      padding: 10px 14px;
+
+      background: none;
+      border: none;
+      cursor: pointer;
+
+      font-family: var(--hm-font);
+      font-size: var(--hm-size-small);
+      color: var(--hm-toolbar-color);
+      text-align: left;
+    }
+
+    .reasoning-title {
+      letter-spacing: var(--hm-title-tracking);
+    }
+
+    .reasoning-chevron {
+      display: flex;
+      align-items: center;
+
+      svg {
+        width: 16px;
+        height: 16px;
+        transition: transform 200ms var(--hm-ease);
+      }
+    }
+
+    .reasoning-content {
+      padding: 0 14px 10px;
+      color: var(--hm-code-color);
+      font-size: var(--hm-size-small);
+
+      > *:first-child {
+        margin-top: 0;
+      }
+
+      > *:last-child {
+        margin-bottom: 0;
+      }
+    }
+  }
+
+  .reasoning-wrapper.collapsed {
+    .reasoning-content {
+      display: none;
+    }
+
+    .reasoning-chevron svg {
+      transform: rotate(-90deg);
+    }
+  }
+
+  .reasoning-wrapper.stream-active {
+    .reasoning-title {
+      opacity: 0.75;
+    }
+  }
+
+  /*
+   * The syntax theme. Bundled rather than left to the host: a code plugin is
+   * opt-in, but if you have added one you want its output coloured, and
+   * highlight.js ships no theme of its own that matches the rest of this.
+   */
+  .hljs {
+    color: var(--hm-code-color);
+  }
+
+  .hljs-comment,
+  .hljs-quote {
+    color: rgb(170, 170, 170);
+    font-style: italic;
+  }
+
+  .hljs-keyword,
+  .hljs-selector-tag,
+  .hljs-literal,
+  .hljs-section,
+  .hljs-title {
+    color: rgb(170, 100, 130);
+    font-weight: 400;
+  }
+
+  .hljs-string,
+  .hljs-symbol,
+  .hljs-bullet {
+    color: rgb(170, 170, 170);
+  }
+
+  .hljs-addition {
+    color: rgb(130, 160, 130);
+  }
+
+  .hljs-number,
+  .hljs-variable,
+  .hljs-template-variable,
+  .hljs-attribute {
+    color: rgb(170, 170, 170);
+  }
+
+  .hljs-meta {
+    color: var(--hm-code-color);
+  }
+
+  .hljs-doctag {
+    font-weight: 400;
+  }
+
+  .hljs-type,
+  .hljs-class .hljs-title {
+    color: rgb(170, 100, 130);
+    font-weight: 400;
+  }
+
+  .hljs-tag,
+  .hljs-name,
+  .hljs-selector-id,
+  .hljs-selector-class {
+    color: rgb(130, 130, 130);
+    font-weight: 400;
+  }
+
+  .hljs-subst {
+    color: rgb(130, 130, 130);
+  }
+
+  .hljs-built_in,
+  .hljs-builtin-name {
+    color: rgb(170, 170, 170);
+  }
+
+  .hljs-deletion {
+    color: rgb(185, 130, 130);
+  }
+
+  .hljs-formula {
+    background: rgb(150, 150, 150);
+    font-style: italic;
+  }
+
+  .hljs-emphasis {
+    font-style: italic;
+  }
+
+  .hljs-strong {
+    font-weight: 400;
+  }
+}
+
+/*
+ * Keyframes cannot be nested inside a selector, so these sit outside the
+ * `.hypermarkdown` block. The names are prefixed because they share a global
+ * namespace with whatever else the page defines.
+ */
+@keyframes hm-word-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/** The loading mark shown over a diagram's reserved box while it is drawn. */
+@keyframes hm-diagram-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes hm-math-pending-pulse {
+  0% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.35;
+  }
+}

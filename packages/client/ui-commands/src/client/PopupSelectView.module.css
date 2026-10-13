@@ -1,0 +1,141 @@
+/* Official popupSelect shell card: menu-surface tokens (same family as
+ * ui-primitives Menu.module.css — figma MenuDropdown r12 / hairline /
+ * elevation-prominent), anchored by the conversation.input.overlay slot. */
+
+.card {
+  /* The overlay anchor is a zero-height strip on the composer card's top
+     edge; entries float themselves above it (same rule as MenuView). */
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  z-index: 100;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  min-width: min(220px, 100%);
+  /* Never wider than the composer card (the overlay anchor's width): long
+     rows truncate instead of pushing the card past the composer's edge. */
+  max-width: 100%;
+  /* Height cap: the 320px design maximum, clamped at runtime to the space
+   * above the composer (inline max-height set in PopupSelectView.tsx). */
+  max-height: 320px;
+  overflow: hidden;
+  /* Elevated surface: the l2 elevation thumb is the surface's declaration
+     (see ui-theme styles/scrollbar.css for the rebinding contract). The viewport
+     hides its bar, so this only takes effect if that hiding is ever reverted. */
+  --avn-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --avn-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+  border: 0;
+  /* Aeven's popup surface, same as ui-primitives' Menu card and the avatar
+     menu: the 30px surface radius over a translucent, blurred fill. */
+  border-radius: var(--dsw-aeven-radius-surface);
+  background: var(--dsw-tint-menu);
+  backdrop-filter: blur(4px);
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
+  box-shadow:
+    inset 1px 1px 0 0 var(--dsw-specific-popup-highlight),
+    inset 0 0 1px 1px var(--dsw-specific-popup-highlight),
+    var(--dsw-elevation-prominent);
+  outline: none;
+}
+
+/* The list runs to hundreds of rows (the model catalog routinely does) and the
+ * card is a transient surface over the composer, so its bar is decoration this
+ * shell does not want: the `no-scrollbar` class it carries in the markup drops
+ * the bar and the gutter it would reserve (ui-theme styles/scrollbar.css owns
+ * that utility). Scrolling itself is untouched — the wheel, trackpad, and the
+ * shell's Arrow keys all still move the list. */
+.viewport {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* The same control cell as ui-primitives' Menu item, so a row of the model
+   list and a row of the Full access selector are the same button: 40px
+   minimum, 8px padding, the control radius, 14/22. */
+.row {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--dsw-aeven-control-size);
+  padding: 8px;
+  border-radius: var(--dsw-aeven-radius-control);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--dsw-alias-label-primary);
+}
+
+/* The value the picker is on, and the rollover treatment: one look, so moving
+ * the pointer off that row cannot leave the picker looking unset. */
+.rowSelected,
+.rowActive {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.label {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.detail {
+  font-size: 12px;
+  color: var(--dsw-alias-label-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status {
+  padding: 8px;
+  font-size: 14px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* The field is a row of this card like any other: the same 8px inset and the
+   same 40px control height, so its text lines up with the row labels below it
+   instead of sitting 2px further in. Only the gap under it separates the two. */
+.search {
+  box-sizing: border-box;
+  margin: 0 0 4px;
+  min-height: var(--dsw-aeven-control-size);
+  padding: 8px;
+  border: 0.5px solid var(--dsw-alias-border-inverted);
+  border-radius: var(--dsw-aeven-radius-control);
+  background: transparent;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--dsw-alias-label-primary);
+  outline: none;
+}
+
+.error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  font-size: 12px;
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.errorText {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.retry {
+  padding: 2px 8px;
+  border: 0.5px solid var(--dsw-alias-border-inverted);
+  border-radius: var(--dsw-aeven-radius-control);
+  background: transparent;
+  font-size: 12px;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+}

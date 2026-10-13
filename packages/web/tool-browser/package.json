@@ -1,0 +1,62 @@
+{
+  "name": "@aeven/tool-browser",
+  "description": "Model-facing browser_* tools that read and drive the browser beside a session",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/web/tool-browser"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./types": {
+      "types": "./lib/types/types.d.ts",
+      "default": "./lib/types/types.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "@aeven/agent": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/mcp-client": "workspace:^",
+    "@aeven/scope": "workspace:^",
+    "@aeven/timeout": "workspace:^",
+    "@aeven/tools": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/user-approval": "workspace:^",
+    "@aeven/sandbox-policy": "workspace:^",
+    "@aeven/attachment": "workspace:^"
+  },
+  "devDependencies": {
+    "@aeven/agent": "workspace:^",
+    "@aeven/browser-chromium": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/mcp-client": "workspace:^",
+    "@aeven/scope": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/system-prompt": "workspace:^",
+    "@aeven/timeout": "workspace:^",
+    "@aeven/tools": "workspace:^",
+    "@aeven/util-values": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/user-approval": "workspace:^",
+    "@aeven/sandbox-policy": "workspace:^",
+    "@aeven/attachment": "workspace:^"
+  }
+}

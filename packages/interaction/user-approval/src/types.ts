@@ -1,0 +1,122 @@
+/**
+ * Wire-safe approval identifiers and outcome vocabulary, free of
+ * cordis/service imports so browser type chains can
+ * consume them without loading this package's Context augmentation.
+ * @module @aeven/user-approval/types
+ */
+
+import type { Branded } from '@aeven/brand'
+import type { Scoped } from '@aeven/scope'
+import type { Agent } from '@aeven/agent/types'
+import type { ToolCallId } from '@aeven/llm/brand'
+
+/**
+ * Pairs one `approval/asked` audit event with its `approval/decided`.
+ * Service-issued (one fresh id per {@link ApprovalService.request} call).
+ */
+export type ApprovalRequestId = Branded<'ApprovalRequestId'>
+
+/**
+ * Brand a string as an {@link ApprovalRequestId}.
+ * @param id - the raw id string to brand.
+ * @returns the same string carrying the brand.
+ */
+export function ApprovalRequestId(id: string): ApprovalRequestId {
+  return id as ApprovalRequestId
+}
+
+/**
+ * Closed approval outcomes: a one-shot grant, explicit rejection, withdrawn
+ * request, or unavailable answerer. Callers fail closed on `unavailable`.
+ */
+export type ApprovalOutcome = 'allowed-once' | 'rejected' | 'cancelled' | 'unavailable'
+
+/** Interactive answer; session grants require the requester to offer that scope. */
+export type ApprovalAnswer = ApprovalOutcome | 'allowed-session'
+
+/**
+ * What an offered session grant covers, declared by the requester so the
+ * prompt can explain the grant before consent:
+ *
+ * - `'action'` — the same action on the same subject, repeated.
+ * - `'account'` — any operation of that kind on that account, including other
+ *   recipients and content.
+ * - `'sandbox'` — the same sandbox escalation, for the rest of the session's
+ *   calls that need it.
+ * - `'privilege'` — the same host-privilege elevation, for the rest of the
+ *   session's calls that need it. Held apart from `'sandbox'` so a grant for
+ *   wider file access never authorizes an elevated run.
+ */
+export type SessionGrantCoverage = 'action' | 'account' | 'sandbox' | 'privilege'
+
+declare module '@aeven/session/types' {
+  interface SessionEventMap {
+    /**
+     * An approval question was put to the answerer chain — log-only audit
+     * (like `hook/*`; NOT a surface event, carries no `surfaceOp`). `id` pairs
+     * it with the `approval/decided` that always follows; `toolName` is the
+     * tool the question is about, `callId` the exact tool call when the asker
+     * had one, `reason` the asker's human-readable explanation (e.g. a hook's
+     * permission-decision reason).
+     */
+    'approval/asked': {
+      id: ApprovalRequestId
+      toolName: string
+      callId?: ToolCallId
+      reason?: string
+      /** Account-and-operation identifier offered for a session grant. */
+      allowSession?: string
+      /** What the offered grant covers; absent means the requester's own action. */
+      allowSessionCoverage?: SessionGrantCoverage
+    }
+    /**
+     * The outcome of a prior `approval/asked` (same `id`) — log-only audit.
+     * Exactly one per ask, appended when the outcome is known: a decision, a
+     * cancellation, or the fail-closed `'unavailable'`.
+     */
+    'approval/decided': {
+      id: ApprovalRequestId
+      outcome: ApprovalOutcome
+      /** Account-specific tool permission confined to the original session. */
+      sessionGrant?: { sessionId: import('@aeven/session/types').SessionId; toolName: string; scope: string }
+    }
+  }
+}
+
+/** Client-safe payload declared for the approval answerer waterfall. */
+export interface ApprovalRequestEvent {
+  /** Agent identity projected to the corresponding Client Context in transit. */
+  readonly agent: Agent
+  /** Tool whose operation requires a decision. */
+  readonly toolName: string
+  /** Exact tool call being decided, when available. */
+  readonly callId?: ToolCallId
+  /** Human-readable reason supplied by the asker. */
+  readonly reason?: string
+  /** Account-and-operation identifier; absent when only one-shot approval is offered. */
+  readonly allowSession?: string
+  /**
+   * What the offered grant covers, so the prompt explains the grant in the
+   * requester's own terms; absent means the same action on the same subject.
+   */
+  readonly allowSessionCoverage?: SessionGrantCoverage
+  /** Cancellation lifetime of the pending request. */
+  readonly signal?: AbortSignal
+}
+
+declare module '@deepseek-ai/cordis' {
+  interface Events {
+    /**
+     * Ask composed answerers for one decision. Return an outcome to claim the
+     * request or call `next()` to delegate. Scope-filtered dispatch
+     * (`@aeven/scope`): agent-scoped listeners receive only that agent.
+     * @param req - pending approval request.
+     * @mode waterfall
+     */
+    'approval/request'(
+      this: Scoped<Agent>,
+      req: ApprovalRequestEvent,
+      next: () => Promise<ApprovalAnswer>,
+    ): Promise<ApprovalAnswer>
+  }
+}

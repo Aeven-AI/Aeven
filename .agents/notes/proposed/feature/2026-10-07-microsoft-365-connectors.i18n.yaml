@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/proposed/feature/2026-10-07-microsoft-365-connectors.md
+2026-10-07-microsoft-365-connectors.md: 2f2300ba7b6f8a0e06a8c959ebe2f2e012d408e2
+2026-10-07-microsoft-365-connectors.zh.md: 1acc4455dc29cd0f134bd40248410c88878b5358

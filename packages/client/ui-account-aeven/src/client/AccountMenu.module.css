@@ -1,0 +1,22 @@
+.mount {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* The trigger is a button so it keeps native activation and focus; Aeven's is
+   a focusable span, and its stylesheet leaves both bare. */
+.trigger {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+}
+
+.popover {
+  position: absolute;
+  top: 100%;
+  right: 0;
+}

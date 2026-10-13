@@ -1,0 +1,518 @@
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+import type { CodexFetch } from '../src/codex-http.ts'
+import {
+  applyCodexFastStreamOptions,
+  CODEX_OAUTH_FAST_ROUTE,
+  CODEX_ROUTING_HINT_HEADER,
+  type CodexFastStreamOptions,
+  type CodexOnPayload,
+  type CodexStreamModel,
+  codexModelsUrl,
+  codexRoutingHint,
+  composeCodexFastOnPayload,
+  createCodexModelCapabilities,
+  parseCodexModelCapabilities,
+  withCodexFastRouting,
+} from '../src/codex-model-capabilities.ts'
+
+function jwtWithAccount(accountId: string): string {
+  const header = Buffer.from(JSON.stringify({ alg: 'none' })).toString('base64url')
+  const payload = Buffer.from(
+    JSON.stringify({ 'https://api.openai.com/auth': { chatgpt_account_id: accountId } }),
+  ).toString('base64url')
+  return `${header}.${payload}.sig`
+}
+
+function jsonResponse(status: number, body: unknown): Response {
+  return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
+}
+
+function mockFetch(impl: CodexFetch): Mock<CodexFetch> {
+  return vi.fn(impl)
+}
+
+beforeEach(() => {
+  vi.stubGlobal('fetch', () => {
+    throw new Error('unexpected real network')
+  })
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
+
+describe('parseCodexModelCapabilities', () => {
+  it('offers only models Codex lists in its picker, with their name, modalities, and order', () => {
+    expect(parseCodexModelCapabilities({
+      models: [
+        { slug: 'gpt-next', display_name: 'GPT Next', visibility: 'list', priority: 2, input_modalities: ['text', 'image'] },
+        { slug: 'gpt-hidden', visibility: 'hide' },
+        { slug: 'gpt-internal', visibility: 'none' },
+        { slug: 'gpt-text', visibility: 'list', priority: 1, input_modalities: ['text'] },
+      ],
+    })).toEqual([
+      { id: 'gpt-next', serviceTiers: [], name: 'GPT Next', listed: true, priority: 2, imageInput: true },
+      { id: 'gpt-hidden', serviceTiers: [], listed: false },
+      { id: 'gpt-internal', serviceTiers: [], listed: false },
+      { id: 'gpt-text', serviceTiers: [], listed: true, priority: 1, imageInput: false },
+    ])
+  })
+
+  it('reads service_tiers and ignores unknown items', () => {
+    expect(
+      parseCodexModelCapabilities({
+        models: [
+          { slug: 'gpt-5.4', service_tiers: [{ id: 'standard' }, { id: 'priority' }] },
+          { id: 'gpt-5.3-codex', service_tiers: ['flex'] },
+          { slug: '', service_tiers: [{ id: 'priority' }] },
+          'nope',
+        ],
+      }),
+    ).toEqual([
+      { id: 'gpt-5.4', serviceTiers: ['standard', 'priority'], listed: true },
+      { id: 'gpt-5.3-codex', serviceTiers: ['flex'], listed: true },
+    ])
+  })
+
+  it('does not invent a hardcoded catalog', () => {
+    expect(parseCodexModelCapabilities(undefined)).toEqual([])
+    expect(parseCodexModelCapabilities({ models: {} })).toEqual([])
+  })
+
+  it('keeps a model without tiers and ignores unusable tier entries', () => {
+    expect(
+      parseCodexModelCapabilities({
+        models: [
+          { slug: 'no-tiers' },
+          { slug: 'mixed', service_tiers: ['priority', 'priority', 42, null, '', { id: '' }] },
+        ],
+      }),
+    ).toEqual([
+      { id: 'no-tiers', serviceTiers: [], listed: true },
+      { id: 'mixed', serviceTiers: ['priority'], listed: true },
+    ])
+  })
+})
+
+describe('createCodexModelCapabilities', () => {
+  it('fetches live models with client_version and caches tiers', async () => {
+    const fetchImpl = mockFetch(async () =>
+      jsonResponse(200, {
+        models: [{ slug: 'gpt-5.4', service_tiers: [{ id: 'priority' }, { id: 'standard' }] }],
+      }),
+    )
+    const caps = createCodexModelCapabilities({
+      auth: {
+        resolve: async () => ({ accessToken: jwtWithAccount('acct-models') }),
+        invalidate: async () => {},
+      },
+      fetchImpl,
+      clientVersion: '9.9.9',
+      sleep: async () => {},
+      now: () => 1,
+      ttlMs: 60_000,
+    })
+    expect(caps.isPriorityEligible('gpt-5.4')).toBe(false)
+    await caps.refresh()
+    expect(fetchImpl.mock.calls[0]?.[0]).toBe(codexModelsUrl('9.9.9'))
+    expect(caps.isPriorityEligible('gpt-5.4')).toBe(true)
+    expect(caps.isPriorityEligible('unknown-model')).toBe(false)
+    expect(caps.serviceTiers('gpt-5.4')).toEqual(['priority', 'standard'])
+    await caps.refresh()
+    expect(fetchImpl).toHaveBeenCalledOnce()
+  })
+
+  it('clears account-scoped eligibility and forces a fresh catalog read', async () => {
+    const fetchImpl = mockFetch(async () =>
+      jsonResponse(200, {
+        models: [{ slug: 'gpt-5.4', service_tiers: [{ id: 'priority' }] }],
+      }),
+    )
+    const caps = createCodexModelCapabilities({
+      auth: {
+        resolve: async () => ({ accessToken: jwtWithAccount('acct-models') }),
+        invalidate: async () => {},
+      },
+      fetchImpl,
+      sleep: async () => {},
+    })
+    await caps.refresh()
+    expect(caps.isPriorityEligible('gpt-5.4')).toBe(true)
+    caps.clear()
+    expect(caps.getCached()).toBeUndefined()
+    expect(caps.isPriorityEligible('gpt-5.4')).toBe(false)
+    await caps.refresh()
+    expect(fetchImpl).toHaveBeenCalledTimes(2)
+  })
+
+  it('leaves eligibility empty when the live catalog fails', async () => {
+    const fetchImpl = mockFetch(async () => jsonResponse(500, { error: 'down' }))
+    const caps = createCodexModelCapabilities({
+      auth: {
+        resolve: async () => ({ accessToken: jwtWithAccount('acct-models') }),
+        invalidate: async () => {},
+      },
+      fetchImpl,
+      sleep: async () => {},
+    })
+    await expect(caps.refresh()).resolves.toEqual([])
+    expect(caps.getCached()).toBeUndefined()
+    expect(caps.isPriorityEligible('gpt-5.4')).toBe(false)
+  })
+
+  it('treats a stale TTL as unknown rather than the last catalog', async () => {
+    const fetchImpl = mockFetch(async () =>
+      jsonResponse(200, {
+        models: [{ slug: 'gpt-5.4', service_tiers: [{ id: 'priority' }] }],
+      }),
+    )
+    let now = 1_000
+    const caps = createCodexModelCapabilities({
+      auth: {
+        resolve: async () => ({ accessToken: jwtWithAccount('acct-models') }),
+        invalidate: async () => {},
+      },
+      fetchImpl,
+      sleep: async () => {},
+      now: () => now,
+      ttlMs: 1_000,
+    })
+    await caps.refresh()
+    expect(caps.isPriorityEligible('gpt-5.4')).toBe(true)
+    now = 3_000
+    expect(caps.getCached()).toBeUndefined()
+    expect(caps.isPriorityEligible('gpt-5.4')).toBe(false)
+    expect(caps.isTierEligible('gpt-5.4', 'priority')).toBe(false)
+    expect(caps.serviceTiers('gpt-5.4')).toEqual([])
+  })
+
+  it('shares one in-flight catalog load between concurrent refreshes', async () => {
+    let resolveFirst: ((response: Response) => void) | undefined
+    const fetchImpl = mockFetch(async () => {
+      if (resolveFirst === undefined) {
+        return await new Promise<Response>((resolve) => {
+          resolveFirst = resolve
+        })
+      }
+      return jsonResponse(200, { models: [{ slug: 'gpt-5.4', service_tiers: [{ id: 'priority' }] }] })
+    })
+    const caps = createCodexModelCapabilities({
+      auth: {
+        resolve: async () => ({ accessToken: jwtWithAccount('acct-models') }),
+        invalidate: async () => {},
+      },
+      fetchImpl,
+      sleep: async () => {},
+      now: () => 1,
+      ttlMs: 60_000,
+    })
+    const first = caps.refresh()
+    await vi.waitFor(() => {
+      expect(resolveFirst).toBeDefined()
+    })
+    const second = caps.refresh()
+    resolveFirst?.(jsonResponse(200, { models: [{ slug: 'gpt-5.4', service_tiers: [{ id: 'priority' }] }] }))
+    const [a, b] = await Promise.all([first, second])
+    expect(a).toEqual([{ id: 'gpt-5.4', serviceTiers: ['priority'], listed: true }])
+    expect(b).toEqual(a)
+    expect(fetchImpl).toHaveBeenCalledOnce()
+  })
+
+  it('keeps a superseded in-flight load from repopulating a cleared cache', async () => {
+    let resolveFirst: ((response: Response) => void) | undefined
+    let resolveSecond: ((response: Response) => void) | undefined
+    const fetchImpl = mockFetch(async () => {
+      if (resolveFirst === undefined) {
+        return await new Promise<Response>((resolve) => {
+          resolveFirst = resolve
+        })
+      }
+      return await new Promise<Response>((resolve) => {
+        resolveSecond = resolve
+      })
+    })
+    const caps = createCodexModelCapabilities({
+      auth: {
+        resolve: async () => ({ accessToken: jwtWithAccount('acct-models') }),
+        invalidate: async () => {},
+      },
+      fetchImpl,
+      sleep: async () => {},
+      now: () => 1,
+      ttlMs: 60_000,
+    })
+    const first = caps.refresh()
+    await vi.waitFor(() => {
+      expect(resolveFirst).toBeDefined()
+    })
+    caps.clear()
+    const second = caps.refresh()
+    await vi.waitFor(() => {
+      expect(resolveSecond).toBeDefined()
+    })
+    resolveFirst?.(jsonResponse(200, { models: [{ slug: 'stale', service_tiers: [{ id: 'priority' }] }] }))
+    await expect(first).resolves.toEqual([{ id: 'stale', serviceTiers: ['priority'], listed: true }])
+    expect(caps.getCached()).toBeUndefined()
+    expect(caps.isPriorityEligible('stale')).toBe(false)
+    resolveSecond?.(jsonResponse(200, { models: [{ slug: 'fresh', service_tiers: [{ id: 'priority' }] }] }))
+    await expect(second).resolves.toEqual([{ id: 'fresh', serviceTiers: ['priority'], listed: true }])
+    expect(caps.isPriorityEligible('fresh')).toBe(true)
+    expect(fetchImpl).toHaveBeenCalledTimes(2)
+  })
+
+  it('defaults to the global fetch and the built-in retry wait when unset', async () => {
+    const fetchImpl = mockFetch(async () =>
+      jsonResponse(200, { models: [{ slug: 'gpt-5.4', service_tiers: [{ id: 'priority' }] }] }),
+    )
+    vi.stubGlobal('fetch', fetchImpl)
+    const caps = createCodexModelCapabilities({
+      auth: {
+        resolve: async () => ({ accessToken: jwtWithAccount('acct-models') }),
+        invalidate: async () => {},
+      },
+      clientVersion: '9.9.9',
+      now: () => 1,
+      ttlMs: 60_000,
+    })
+    await expect(caps.refresh()).resolves.toEqual([{ id: 'gpt-5.4', serviceTiers: ['priority'], listed: true }])
+    expect(fetchImpl).toHaveBeenCalledOnce()
+    expect(fetchImpl.mock.calls[0]?.[0]).toBe(codexModelsUrl('9.9.9'))
+    expect(caps.isPriorityEligible('gpt-5.4')).toBe(true)
+  })
+
+  it('forwards the configured originator, user agent and abort signal', async () => {
+    const fetchImpl = mockFetch(async () => jsonResponse(200, { models: [] }))
+    const caps = createCodexModelCapabilities({
+      auth: {
+        resolve: async () => ({ accessToken: jwtWithAccount('acct-models') }),
+        invalidate: async () => {},
+      },
+      fetchImpl,
+      originator: 'avn-models-test',
+      userAgent: 'avn-models-test',
+      sleep: async () => {},
+    })
+    const controller = new AbortController()
+    await caps.refresh(controller.signal)
+    const headers = new Headers(fetchImpl.mock.calls[0]?.[1]?.headers)
+    expect(headers.get('originator')).toBe('avn-models-test')
+    expect(headers.get('user-agent')).toBe('avn-models-test')
+    expect(fetchImpl.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal)
+  })
+})
+
+describe('composeCodexFastOnPayload', () => {
+  it('injects service_tier only for eligible models and preserves an existing tier', async () => {
+    const composed = composeCodexFastOnPayload(async payload => ({ ...(payload as object), marked: true }), {
+      isEligible: id => id === 'gpt-5.4',
+      serviceTier: 'priority',
+    })
+    await expect(composed({ model: 'gpt-5.4', input: [] }, { id: 'gpt-5.4' })).resolves.toEqual({
+      model: 'gpt-5.4',
+      input: [],
+      marked: true,
+      service_tier: 'priority',
+    })
+    await expect(composed({ model: 'gpt-5.3-codex' }, { id: 'gpt-5.3-codex' })).resolves.toEqual({
+      model: 'gpt-5.3-codex',
+      marked: true,
+    })
+    await expect(composed({ model: 'gpt-5.4', service_tier: 'flex' }, { id: 'gpt-5.4' })).resolves.toEqual({
+      model: 'gpt-5.4',
+      marked: true,
+      service_tier: 'flex',
+    })
+  })
+
+  it('is fail-closed when isEligible returns false', async () => {
+    const composed = composeCodexFastOnPayload(payload => payload, { isEligible: () => false })
+    await expect(composed({ model: 'gpt-5.4' }, { id: 'gpt-5.4' })).resolves.toEqual({ model: 'gpt-5.4' })
+  })
+
+  it('falls back to the payload model when the stream model carries no usable id', async () => {
+    const composed = composeCodexFastOnPayload(undefined, { isEligible: id => id === 'gpt-5.4' })
+    await expect(composed({ model: 'gpt-5.4' }, 'not-a-model')).resolves.toEqual({
+      model: 'gpt-5.4',
+      service_tier: 'priority',
+    })
+    await expect(composed({ model: 'gpt-5.4' }, { id: '' })).resolves.toEqual({
+      model: 'gpt-5.4',
+      service_tier: 'priority',
+    })
+    await expect(composed({ model: 'gpt-5.3-codex' }, { id: '' })).resolves.toEqual({ model: 'gpt-5.3-codex' })
+  })
+
+  it('passes a non-record inner payload through untouched', async () => {
+    const replaced = composeCodexFastOnPayload(() => 'plain text', { isEligible: () => true })
+    await expect(replaced({ model: 'gpt-5.4' }, { id: 'gpt-5.4' })).resolves.toBe('plain text')
+    const passthrough = composeCodexFastOnPayload(() => undefined, { isEligible: () => true })
+    await expect(passthrough({ model: 'gpt-5.4' }, { id: 'gpt-5.4' })).resolves.toEqual({
+      model: 'gpt-5.4',
+      service_tier: 'priority',
+    })
+  })
+})
+
+describe('withCodexFastRouting', () => {
+  it('preserves a normal unwrapped provider and does not mutate it', () => {
+    const stream = vi.fn((_model: CodexStreamModel, _context: unknown, _options?: CodexFastStreamOptions) => 'stream')
+    const streamSimple = vi.fn(
+      (_model: CodexStreamModel, _context: unknown, _options?: CodexFastStreamOptions) => 'simple',
+    )
+    const base = {
+      id: 'openai-codex',
+      headers: { originator: 'pi' } as Record<string, string | null>,
+      stream,
+      streamSimple,
+    }
+    const wrapped = withCodexFastRouting(base, {
+      isEligible: () => true,
+      profileProviderId: CODEX_OAUTH_FAST_ROUTE,
+      nativeProviderId: 'openai-codex',
+    })
+    expect(base.id).toBe('openai-codex')
+    expect(base.headers?.[CODEX_ROUTING_HINT_HEADER]).toBeUndefined()
+    expect(wrapped.headers?.[CODEX_ROUTING_HINT_HEADER]).toBeUndefined()
+    expect(wrapped.id).toBe(CODEX_OAUTH_FAST_ROUTE)
+    expect(CODEX_OAUTH_FAST_ROUTE).toBe('codex-oauth-fast')
+    base.streamSimple({ id: 'gpt-5.4' }, {}, { onPayload: (payload: unknown) => payload })
+    expect(streamSimple).toHaveBeenCalledOnce()
+    const rawOptions = streamSimple.mock.calls[0]?.[2]
+    expect(rawOptions?.headers?.[CODEX_ROUTING_HINT_HEADER]).toBeUndefined()
+  })
+
+  it('restores native model.provider for the base wire call while using a distinct profile id', () => {
+    const seen: Array<{ model: CodexStreamModel; options?: CodexFastStreamOptions }> = []
+    const wrapped = withCodexFastRouting(
+      {
+        id: 'openai-codex',
+        headers: { originator: 'pi' },
+        stream: (model: CodexStreamModel, _context: unknown, options?: CodexFastStreamOptions) => {
+          seen.push({ model, ...(options === undefined ? {} : { options }) })
+          return 'stream'
+        },
+        streamSimple: (model: CodexStreamModel, _context: unknown, options?: CodexFastStreamOptions) => {
+          seen.push({ model, ...(options === undefined ? {} : { options }) })
+          return 'simple'
+        },
+      },
+      {
+        isEligible: () => true,
+        profileProviderId: CODEX_OAUTH_FAST_ROUTE,
+        nativeProviderId: 'openai-codex',
+      },
+    )
+    expect(wrapped.id).toBe('codex-oauth-fast')
+    wrapped.stream({ id: 'gpt-5.4', provider: 'codex-oauth-fast' }, {}, { temperature: 0 })
+    expect(seen[0]?.model).toEqual({ id: 'gpt-5.4', provider: 'openai-codex' })
+  })
+
+  it('injects the exact per-model header and service_tier body through streamSimple when eligible', async () => {
+    const seen: CodexFastStreamOptions[] = []
+    const wrapped = withCodexFastRouting(
+      {
+        id: 'openai-codex',
+        stream: (_model: CodexStreamModel, _context: unknown, options?: CodexFastStreamOptions) => {
+          seen.push(options ?? {})
+          return 'stream'
+        },
+        streamSimple: (_model: CodexStreamModel, _context: unknown, options?: CodexFastStreamOptions) => {
+          seen.push(options ?? {})
+          return 'simple'
+        },
+      },
+      { isEligible: id => id === 'gpt-5.4' },
+    )
+    // Typed as the seam's options rather than the literal, so the generic
+    // carries `headers` — the field this case is asserting on.
+    const applied = applyCodexFastStreamOptions<CodexFastStreamOptions>(
+      { temperature: 0 },
+      { isEligible: () => true },
+      'gpt-5.4',
+    )
+    expect(applied.headers?.[CODEX_ROUTING_HINT_HEADER]).toBe(codexRoutingHint('gpt-5.4'))
+    expect(applied.headers?.[CODEX_ROUTING_HINT_HEADER]).toBe('model=gpt-5.4;tier=priority')
+    expect(applied.temperature).toBe(0)
+    wrapped.streamSimple({ id: 'gpt-5.4', provider: 'openai-codex' }, {}, { onPayload: payload => payload })
+    const recorded = seen[0]
+    expect(recorded?.headers?.[CODEX_ROUTING_HINT_HEADER]).toBe('model=gpt-5.4;tier=priority')
+    await expect(recorded?.onPayload?.({ model: 'gpt-5.4' }, { id: 'gpt-5.4' })).resolves.toMatchObject({
+      service_tier: 'priority',
+    })
+  })
+
+  it('does not inject header or body when the model is not eligible', async () => {
+    const seen: CodexFastStreamOptions[] = []
+    const wrapped = withCodexFastRouting(
+      {
+        id: 'openai-codex',
+        stream: () => 'stream',
+        streamSimple: (_model: CodexStreamModel, _context: unknown, options?: CodexFastStreamOptions) => {
+          seen.push(options ?? {})
+          return 'simple'
+        },
+      },
+      { isEligible: () => false },
+    )
+    wrapped.streamSimple({ id: 'gpt-5.3-codex' }, {}, { onPayload: payload => payload })
+    expect(seen[0]?.headers?.[CODEX_ROUTING_HINT_HEADER]).toBeUndefined()
+    expect(await seen[0]?.onPayload?.({ model: 'gpt-5.3-codex' }, { id: 'gpt-5.3-codex' })).toEqual({
+      model: 'gpt-5.3-codex',
+    })
+  })
+
+  it('chains an inner onPayload and existing headers without dropping them', async () => {
+    const inner: CodexOnPayload = async payload => ({ ...(payload as object), marked: true })
+    const applied = applyCodexFastStreamOptions(
+      { onPayload: inner, headers: { originator: 'pi' } },
+      { isEligible: () => true },
+      'gpt-5.4',
+    )
+    expect(applied.headers).toEqual({
+      originator: 'pi',
+      [CODEX_ROUTING_HINT_HEADER]: 'model=gpt-5.4;tier=priority',
+    })
+    await expect(applied.onPayload?.({ model: 'gpt-5.4', input: [] }, { id: 'gpt-5.4' })).resolves.toEqual({
+      model: 'gpt-5.4',
+      input: [],
+      marked: true,
+      service_tier: 'priority',
+    })
+  })
+
+  it('does not inject when eligibility comes from a stale catalog', async () => {
+    const fetchImpl = mockFetch(async () =>
+      jsonResponse(200, {
+        models: [{ slug: 'gpt-5.4', service_tiers: [{ id: 'priority' }] }],
+      }),
+    )
+    let now = 1
+    const caps = createCodexModelCapabilities({
+      auth: {
+        resolve: async () => ({ accessToken: jwtWithAccount('acct-models') }),
+        invalidate: async () => {},
+      },
+      fetchImpl,
+      sleep: async () => {},
+      now: () => now,
+      ttlMs: 10,
+    })
+    await caps.refresh()
+    now = 100
+    const seen: CodexFastStreamOptions[] = []
+    const wrapped = withCodexFastRouting(
+      {
+        id: 'openai-codex',
+        stream: () => 'stream',
+        streamSimple: (_model: CodexStreamModel, _context: unknown, options?: CodexFastStreamOptions) => {
+          seen.push(options ?? {})
+          return 'simple'
+        },
+      },
+      { isEligible: id => caps.isPriorityEligible(id) },
+    )
+    wrapped.streamSimple({ id: 'gpt-5.4' }, {})
+    expect(seen[0]?.headers?.[CODEX_ROUTING_HINT_HEADER]).toBeUndefined()
+    expect(seen[0]?.onPayload).toBeUndefined()
+  })
+})

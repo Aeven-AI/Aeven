@@ -1,0 +1,62 @@
+{
+  "name": "@aeven/client-ui-primitives",
+  "description": "Pure React atoms for the avn web UI: controls, icons, markdown, and JSON inspectors (zero cordis)",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/client/ui-primitives"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@types/mdast": "^4.0.4",
+    "anser": "^2.3.5",
+    "clsx": "^2.0.0",
+    "highlight.js": "^11.11.2",
+    "katex": "^0.16.47",
+    "mdast-util-from-markdown": "^2.0.3",
+    "mdast-util-gfm": "^3.1.0",
+    "mermaid": "^11.16.1",
+    "micromark-core-commonmark": "^2.0.3",
+    "micromark-extension-gfm": "^3.0.0",
+    "micromark-util-character": "^2.1.1",
+    "micromark-util-classify-character": "^2.0.1",
+    "micromark-util-symbol": "^2.0.1",
+    "micromark-util-types": "^2.0.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "rehype-highlight": "^7.0.2",
+    "rehype-katex": "^7.0.1",
+    "remark-cjk-friendly": "^2.3.1",
+    "remark-math": "^6.0.0",
+    "tippy.js": "^6.3.7"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/client-hypermarkdown": "workspace:^",
+    "@types/react": "~18.3.1",
+    "@types/react-dom": "~18.3.0"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/**/*.css",
+    "lib/types/**/*.d.ts"
+  ],
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^"
+  }
+}

@@ -1,0 +1,89 @@
+// Entry compiling the Aeven account-menu stylesheet for AVN.
+//
+// Imports Aeven's own partials from clients/client/src, then restates the
+// profile block Aeven nests under `.navigation` — its tippy content renders
+// inline in the header, so those rules reach the menu there, while AVN mounts
+// the menu under `.aeven-account`. Positioning AVN owns, because it carries no
+// tippy, lives in AccountMenu.module.css.
+//
+// Compile from the Aeven client checkout:
+//   npx sass --no-source-map --load-path=src \
+//     <this file> packages/client/ui-account-aeven/src/vendor/aeven-account.css
+
+@import "sass-styles/config";
+@import "sass-styles/mixins";
+
+@import "app/com/avatar/Avatar";
+@import "react/tippy/Tippy";
+
+// From _App.scss, which the avatar's image loader animates with.
+@keyframes loader-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+// Verbatim from _Navigation.scss, lifted out of `.navigation .content
+// .navigation-main`.
+.aeven-account {
+  .menu-container {
+    display: flex;
+    position: relative;
+
+    width: 100%;
+
+    padding-top: 6px;
+    padding-bottom: 6px;
+
+    flex-direction: column;
+
+    .profile-overview {
+      display: flex;
+      position: relative;
+
+      outline: none;
+      appearance: none;
+
+      width: 100%;
+
+      padding-bottom: 16px;
+
+      color: $fontColor;
+
+      padding-left: $paddingSmall;
+      padding-right: $paddingSmall;
+
+      flex-direction: column;
+
+      align-items: center;
+      justify-content: flex-start;
+
+      .avatar {
+        width: 50px;
+        height: 50px;
+
+        border-radius: 25px;
+      }
+
+      .profile-info {
+        display: flex;
+        position: relative;
+
+        width: 100%;
+        padding-top: 8px;
+
+        flex-direction: column;
+
+        align-items: center;
+        justify-content: flex-start;
+      }
+    }
+
+    .profile-overview:hover {
+      color: $fontColorLink;
+    }
+  }
+}

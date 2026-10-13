@@ -1,0 +1,44 @@
+{
+  "name": "@aeven/subprocess-e2b",
+  "description": "E2B subprocess implementation for Aeven",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/e2b/subprocess-e2b"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "@aeven/e2b": "workspace:^",
+    "@aeven/subprocess": "workspace:^",
+    "@aeven/timeout": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "workspace:^"
+  },
+  "devDependencies": {
+    "@aeven/e2b": "workspace:^",
+    "@aeven/subprocess": "workspace:^",
+    "@aeven/timeout": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  }
+}

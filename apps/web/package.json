@@ -1,0 +1,60 @@
+{
+  "name": "@aeven/web-frontend",
+  "description": "Web application entry: vite build over the @aeven/client-web shell library; dist/ served by apps/cli's avn web",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "apps/web"
+  },
+  "type": "module",
+  "exports": {
+    "./dist/*": "./dist/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.map",
+    "!dist/preview.html",
+    "!dist/preview"
+  ],
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite",
+    "watch": "vite build --watch --no-emptyOutDir",
+    "build:preview": "pnpm --filter @aeven/experimental-webworker-runtime exec tsdown && pnpm --filter @aeven/experimental-webworker-packer exec tsdown && vite build && avn-pack-vfs-image --out dist/preview/vfs-image.tar.gz",
+    "serve:preview": "http-server dist -a 0.0.0.0 -p 4173 -c-1"
+  },
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@aeven/client-modules": "workspace:^",
+    "@aeven/client-store": "workspace:^",
+    "@aeven/client-ui-primitives": "workspace:^",
+    "@aeven/client-ui-slots": "workspace:^",
+    "@aeven/client-web": "workspace:^",
+    "@aeven/cmdline": "workspace:^",
+    "@aeven/experimental-webworker-packer": "workspace:^",
+    "@aeven/experimental-webworker-runtime": "workspace:^",
+    "@aeven/pwsh-local": "workspace:^",
+    "@deepseek-ai/cordis-plugin-group": "workspace:^",
+    "@types/node": "^22.0.0",
+    "@types/react": "~18.3.1",
+    "@types/react-dom": "~18.3.0",
+    "@types/ws": "8.18.1",
+    "@vitejs/plugin-react": "^4.0.0",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
+    "fflate": "^0.8.2",
+    "http-server": "^14.1.1",
+    "playwright": "^1.62.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "typescript": "^6.0.3",
+    "vite": "^6.0.0",
+    "vitest": "^4.1.8",
+    "ws": "8.21.2"
+  }
+}

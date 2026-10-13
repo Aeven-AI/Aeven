@@ -1,0 +1,17 @@
+<div class="hypermarkdown _markdown_404681">
+  <p>
+    <span class="markdown-image-container">
+      <span class="markdown-image">
+        <span class="image-error">
+        <span class="image-loader">
+        <img alt="https image" class="image" decoding="async" loading="lazy" referrerpolicy="no-referrer" src="https://example.com/secure.png" title="img title">
+  <p>
+    #text "http image"
+  <p>
+    #text "relative dropped and inline bad scheme end."
+  <p>
+    <span class="markdown-image-container">
+      <span class="markdown-image">
+        <span class="image-error">
+        <span class="image-loader">
+        <img alt="" class="image" decoding="async" loading="lazy" referrerpolicy="no-referrer" src="https://example.com/empty-alt.png">

@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/simplification/2026-08-03-omit-invariants-from-shipped-config.md
+2026-08-03-omit-invariants-from-shipped-config.md: cc54c851c8174a16a5836de0f3040ba5906c52c5
+2026-08-03-omit-invariants-from-shipped-config.zh.md: 356cd0b6e55b4cf4a8caa91f1e8c2f7fdddb80a1

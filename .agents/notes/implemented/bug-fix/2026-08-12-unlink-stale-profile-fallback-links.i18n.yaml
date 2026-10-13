@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-12-unlink-stale-profile-fallback-links.md
+2026-08-12-unlink-stale-profile-fallback-links.md: 83ed0b5e274384ad99e02d58b0f8896908d8716e
+2026-08-12-unlink-stale-profile-fallback-links.zh.md: 5dae0934cb36fb08c86aaabe557a5660e3a7e3e4

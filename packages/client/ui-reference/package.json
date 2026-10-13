@@ -1,0 +1,68 @@
+{
+  "name": "@aeven/client-ui-reference",
+  "description": "Unified Web @file and @session reference source",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/client/ui-reference"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "types": "./lib/types/client/index.d.ts",
+      "default": "./lib/client.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "avn": {
+    "client": {
+      "inject": [
+        "@aeven/api-remotes",
+        "@aeven/api-session-controller",
+        "@aeven/client-connection",
+        "@aeven/client-locale",
+        "@aeven/client-ui-input-trigger"
+      ],
+      "platform": "web"
+    }
+  },
+  "scripts": {
+    "bundle": "tsdown",
+    "watch": "tsdown --watch"
+  },
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "devDependencies": {
+    "@aeven/api-remotes": "workspace:^",
+    "@aeven/api-session-controller": "workspace:^",
+    "@aeven/client-connection": "workspace:^",
+    "@aeven/client-locale": "workspace:^",
+    "@aeven/client-test-runtime": "workspace:^",
+    "@aeven/client-ui-input-trigger": "workspace:^",
+    "@aeven/client-ui-primitives": "workspace:^",
+    "@aeven/client-ui-slots": "workspace:^",
+    "@aeven/file-reference": "workspace:^",
+    "@aeven/session-reference": "workspace:^",
+    "@aeven/typert-protocol": "workspace:^",
+    "@aeven/util-workspace-path": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/client.js",
+    "lib/types/**/*.d.ts"
+  ]
+}

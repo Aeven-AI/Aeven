@@ -1,0 +1,1000 @@
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { AttachmentId } from '@aeven/attachment'
+import type { RetryPolicyConfig } from '@aeven/llm'
+import type { AuthContext } from '@earendil-works/pi-ai'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  type CodingOAuthAdapterOptions,
+  createCodingOAuthAdapter,
+  createGrokBuildAdapter,
+  preferredGrokBuildModel,
+} from '../src/adapter.ts'
+import {
+  CODEX_ROUTING_HINT_HEADER,
+  type CodexFastStreamOptions,
+  type CodexStreamModel,
+  codexRoutingHint,
+} from '../src/codex-model-capabilities.ts'
+import {
+  CODEX_OAUTH_FAST_ROUTE,
+  CODEX_OAUTH_ROUTE,
+  CODEX_PI_PROVIDER,
+  CODING_OAUTH_OPTIONAL_ROUTES,
+  CODING_OAUTH_ROUTES,
+  DEFAULT_GROK_BUILD_MODEL,
+  GROK_BUILD_MODELS_CACHE_FILENAME,
+  GROK_BUILD_ROUTE,
+  XAI_PI_PROVIDER,
+} from '../src/ids.ts'
+import { OAUTH_PROVIDER_DEFINITIONS } from '../src/oauth-providers.ts'
+import { OAuthProviderSession } from '../src/oauth-session.ts'
+import {
+  GROK_BUILD_BASE_URL,
+  grokBuildBaselineModels,
+  grokBuildFingerprintHeaders,
+  grokBuildProvider,
+  grokBuildReasoningMap,
+} from '../src/provider.ts'
+import { GrokBuildSession } from '../src/session.ts'
+import { GrokBuildCredentialStore, OAuthCredentialFileStore } from '../src/store.ts'
+
+const authCtx: AuthContext = {
+  env: async () => undefined,
+  fileExists: async () => false,
+}
+
+let sessionHome: string
+let previousAvnHome: string | undefined
+
+beforeEach(async () => {
+  sessionHome = await mkdtemp(join(tmpdir(), 'avn-grok-build-catalog-'))
+  previousAvnHome = process.env['AVN_HOME']
+  // Every session's credential and model-cache file resolves below AVN_HOME.
+  process.env['AVN_HOME'] = sessionHome
+})
+
+afterEach(async () => {
+  if (previousAvnHome === undefined) delete process.env['AVN_HOME']
+  else process.env['AVN_HOME'] = previousAvnHome
+  await rm(sessionHome, { recursive: true, force: true })
+})
+
+function modelsCacheFile(): string {
+  return join(sessionHome, GROK_BUILD_MODELS_CACHE_FILENAME)
+}
+
+function cachedSession(notify?: () => void, isSelected?: (modelId: string) => boolean): GrokBuildSession {
+  return new GrokBuildSession(new GrokBuildCredentialStore(join(sessionHome, 'auth.json')), notify, isSelected)
+}
+
+async function signIn(session: GrokBuildSession, access = 'grok-access'): Promise<void> {
+  await session.store.modify(XAI_PI_PROVIDER, async () => ({
+    type: 'oauth',
+    access,
+    refresh: 'grok-refresh',
+    expires: Date.now() + 3_600_000,
+  }))
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
+
+describe('grokBuildReasoningMap', () => {
+  it('nulls every reasoning level the model does not offer', () => {
+    expect(grokBuildReasoningMap([])).toEqual({
+      off: null,
+      minimal: null,
+      low: null,
+      medium: null,
+      high: null,
+      xhigh: null,
+      max: null,
+    })
+    // grok-4.5 offers low/medium/high only; xhigh must stay explicitly unsupported.
+    expect(grokBuildReasoningMap(['low', 'medium', 'high'])).toMatchObject({
+      low: 'low',
+      medium: 'medium',
+      high: 'high',
+      xhigh: null,
+    })
+    expect(grokBuildReasoningMap(['xhigh'])).toMatchObject({ low: null, medium: null, high: null, xhigh: 'xhigh' })
+  })
+})
+
+describe('grokBuildProvider auth', () => {
+  it('hands the OAuth access token to the apiKey slot and refuses a blank one', async () => {
+    const auth = grokBuildProvider([]).auth.apiKey!
+    const signal = new AbortController().signal
+    await expect(
+      auth.resolve({ ctx: authCtx, credential: { type: 'api_key', key: 'grok-access' }, signal }),
+    ).resolves.toEqual({ auth: { apiKey: 'grok-access' }, source: 'OAuth' })
+    await expect(
+      auth.resolve({ ctx: authCtx, credential: { type: 'api_key', key: '' }, signal }),
+    ).resolves.toBeUndefined()
+    await expect(auth.resolve({ ctx: authCtx, signal })).resolves.toBeUndefined()
+  })
+})
+
+describe('preferredGrokBuildModel', () => {
+  it('prefers grok-4.6 from the baseline catalog', () => {
+    expect(preferredGrokBuildModel()).toBe(DEFAULT_GROK_BUILD_MODEL)
+    expect(preferredGrokBuildModel([{ id: 'grok-4.6' }, { id: 'grok-4.5' }])).toBe('grok-4.6')
+  })
+
+  it('falls back to the default model for an empty catalog', () => {
+    expect(preferredGrokBuildModel([])).toBe(DEFAULT_GROK_BUILD_MODEL)
+  })
+})
+
+describe('grokBuildBaselineModels', () => {
+  it('ships responses-API descriptors on the grok-build route', () => {
+    const models = grokBuildBaselineModels()
+    expect(models.length).toBeGreaterThan(0)
+    for (const model of models) {
+      expect(model.provider).toBe(GROK_BUILD_ROUTE)
+      expect(model.api).toBe('openai-responses')
+      expect(model.baseUrl).toBe(GROK_BUILD_BASE_URL)
+    }
+    const grok45 = models.find(model => model.id === 'grok-4.5')
+    const grok46 = models.find(model => model.id === 'grok-4.6')
+    expect(grok45?.reasoning).toBe(true)
+    expect(grok45?.input).toEqual(['text', 'image'])
+    expect(grok45?.thinkingLevelMap?.off).toBeNull()
+    expect(grok45?.thinkingLevelMap?.xhigh).toBeNull()
+    expect(grok46?.input).toEqual(['text', 'image'])
+    expect(grok46?.thinkingLevelMap?.xhigh).toBe('xhigh')
+  })
+})
+
+describe('grokBuildFingerprintHeaders', () => {
+  it('carries the CLI fingerprint required by risk control', () => {
+    const headers = grokBuildFingerprintHeaders()
+    expect(headers['X-XAI-Token-Auth']).toBe('xai-grok-cli')
+    expect(headers['x-grok-client-identifier']).toBe('grok-shell')
+    expect(headers['x-grok-client-version']).toMatch(/^\d+\.\d+\.\d+$/)
+    expect(headers['User-Agent']).toContain('grok-shell/')
+  })
+})
+
+describe('GrokBuildSession.provider', () => {
+  it('registers models under the harness route so the picker can find them', async () => {
+    const { createModels } = await import('@earendil-works/pi-ai')
+    const dir = await mkdtemp(join(tmpdir(), 'avn-grok-build-session-'))
+    const session = new GrokBuildSession(new GrokBuildCredentialStore(join(dir, 'auth.json')))
+    const provider = session.provider()
+    expect(provider.id).toBe(GROK_BUILD_ROUTE)
+    const models = createModels()
+    models.setProvider(provider)
+    const listed = models.getModels(GROK_BUILD_ROUTE)
+    expect(listed.length).toBeGreaterThan(0)
+    expect(listed.every(model => model.provider === GROK_BUILD_ROUTE)).toBe(true)
+  })
+
+  it('notifies model discovery after login even when the live catalog fails', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'avn-grok-build-notify-'))
+    const store = new GrokBuildCredentialStore(join(dir, 'auth.json'))
+    await store.modify(XAI_PI_PROVIDER, async () => ({
+      type: 'oauth',
+      access: 'grok-access',
+      refresh: 'grok-refresh',
+      expires: Date.now() + 3_600_000,
+    }))
+    const notify = vi.fn()
+    const session = new GrokBuildSession(store, notify)
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('unavailable', { status: 503 })),
+    )
+    await session.refreshLiveCatalog()
+    expect(notify).toHaveBeenCalledOnce()
+    expect(session.catalogSource).toBe('fallback')
+  })
+
+  it('contains token-refresh failures and exposes only a redacted catalog diagnostic', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'avn-grok-build-refresh-failure-'))
+    const notify = vi.fn()
+    const session = new GrokBuildSession(new GrokBuildCredentialStore(join(dir, 'auth.json')), notify)
+    vi.spyOn(session.models, 'getAuth').mockRejectedValue(new Error('Bearer EXAMPLE_ACCESS_TOKEN'))
+    await expect(session.refreshLiveCatalog()).resolves.toBeUndefined()
+    expect(session.catalogSource).toBe('fallback')
+    expect(session.catalogError).toContain('[redacted]')
+    expect(session.catalogError).not.toContain('EXAMPLE_ACCESS_TOKEN')
+    expect(notify).toHaveBeenCalledOnce()
+  })
+})
+
+describe('GrokBuildSession cached catalog', () => {
+  it('restores the cached live listing and serves only the selected models', async () => {
+    await writeFile(
+      modelsCacheFile(),
+      `${JSON.stringify({
+        version: 3,
+        ids: ['grok-4.6', 'grok-4.7'],
+        models: [{ id: 'grok-4.7', name: 'Grok 4.7', contextWindow: 500_000, reasoning: true }],
+        fetchedAt: 1,
+      })}\n`,
+      { mode: 0o600 },
+    )
+    const session = cachedSession(undefined, modelId => modelId !== 'grok-4.6')
+    await session.loadCachedCatalog()
+    expect(session.catalogSource).toBe('cache')
+    expect(session.catalogError).toBeUndefined()
+    expect(session.availableModels().map(model => model.id)).toEqual(['grok-4.6', 'grok-4.7'])
+    expect(session.availableModels()[1]).toMatchObject({ name: 'Grok 4.7', contextWindow: 500_000 })
+    expect(session.visibleModels().map(model => model.id)).toEqual(['grok-4.7'])
+    expect(session.provider().getModels().map(model => model.id)).toEqual(['grok-4.7'])
+  })
+
+  it('ignores a cache document it cannot understand', async () => {
+    const bodies = [
+      '{not-json',
+      '5',
+      'null',
+      '[]',
+      '{"version":9}',
+      '{"version":2,"ids":["grok-4.6"]}',
+      '{"version":3,"ids":[]}',
+      '{"version":3,"ids":"nope"}',
+    ]
+    for (const body of bodies) {
+      await writeFile(modelsCacheFile(), body, { mode: 0o600 })
+      const session = cachedSession()
+      await session.loadCachedCatalog()
+      expect(session.catalogSource).toBe('fallback')
+      expect(session.availableModels().length).toBeGreaterThan(0)
+    }
+  })
+
+  it('treats an absent cache as empty and surfaces an unreadable one', async () => {
+    const session = cachedSession()
+    await session.loadCachedCatalog()
+    expect(session.catalogSource).toBe('fallback')
+
+    await mkdir(modelsCacheFile())
+    await expect(session.loadCachedCatalog()).rejects.toThrow()
+  })
+
+  it('keeps Imagine media models out of the chat listing', async () => {
+    const session = cachedSession()
+    await signIn(session)
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({ data: [{ id: 'grok-4.7' }, { id: 'grok-imagine-image-quality' }] }), { status: 200 })),
+    )
+    await session.refreshLiveCatalog()
+    expect(session.availableModels().map(model => model.id)).toEqual(['grok-4.7'])
+  })
+
+  it('persists the live ids and the selected models after a refresh', async () => {
+    const session = cachedSession()
+    await signIn(session)
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({ data: [{ id: 'grok-4.7' }] }), { status: 200 })),
+    )
+    await session.refreshLiveCatalog()
+    expect(session.catalogSource).toBe('live')
+    expect(session.catalogError).toBeUndefined()
+    expect(session.availableModels().map(model => model.id)).toEqual(['grok-4.7'])
+
+    const onDisk = JSON.parse(await readFile(modelsCacheFile(), 'utf8')) as Record<string, unknown>
+    expect(onDisk).toMatchObject({ version: 3, ids: ['grok-4.7'], models: [{ id: 'grok-4.7' }] })
+  })
+
+  it('skips the live listing when the stored credential yields no token', async () => {
+    const session = cachedSession()
+    const fetchSpy = vi.fn()
+    vi.stubGlobal('fetch', fetchSpy)
+    await session.refreshLiveCatalog()
+    expect(fetchSpy).not.toHaveBeenCalled()
+    expect(session.catalogSource).toBe('fallback')
+
+    vi.spyOn(session.models, 'getAuth').mockResolvedValue({ auth: { apiKey: '' } })
+    await session.refreshLiveCatalog()
+    expect(fetchSpy).not.toHaveBeenCalled()
+    expect(session.catalogError).toBeUndefined()
+  })
+
+  it('keeps the cached catalog when a later live listing fails', async () => {
+    await writeFile(
+      modelsCacheFile(),
+      `${JSON.stringify({ version: 3, ids: ['grok-4.6'], fetchedAt: 1 })}\n`,
+      { mode: 0o600 },
+    )
+    const session = cachedSession()
+    await session.loadCachedCatalog()
+    expect(session.catalogSource).toBe('cache')
+
+    await signIn(session)
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('down', { status: 503 })),
+    )
+    await session.refreshLiveCatalog()
+    expect(session.catalogSource).toBe('cache')
+    expect(session.catalogError).toMatch(/503/u)
+    expect(session.availableModels().map(model => model.id)).toEqual(['grok-4.6'])
+  })
+
+  it('notifies discovery when the selection changes', () => {
+    const notify = vi.fn()
+    cachedSession(notify).notifySelectionChange()
+    expect(notify).toHaveBeenCalledOnce()
+  })
+
+  it('resolves and invalidates the stored access token', async () => {
+    const session = cachedSession()
+    await expect(session.resolveAccessToken()).resolves.toBeUndefined()
+    await expect(session.invalidateAccessToken()).resolves.toBeUndefined()
+
+    await signIn(session)
+    await expect(session.resolveAccessToken()).resolves.toBe('grok-access')
+    const before = Date.now()
+    await session.invalidateAccessToken()
+    const credential = await session.store.read(XAI_PI_PROVIDER)
+    expect(credential?.type === 'oauth' && credential.expires).toBeLessThanOrEqual(before)
+    expect(credential?.type === 'oauth' && credential.access).toBe('grok-access')
+  })
+
+  it('ignores a stored credential that is not an OAuth one', async () => {
+    const session = cachedSession()
+    await signIn(session)
+    vi.spyOn(session.models, 'getAuth').mockResolvedValue({ auth: { apiKey: 'access' } })
+    vi.spyOn(session.store, 'read').mockResolvedValue({ type: 'api_key', key: 'access' })
+    await expect(session.resolveAccessToken()).resolves.toBeUndefined()
+  })
+
+  it('notifies discovery on a credential change without a logout', () => {
+    const notify = vi.fn()
+    cachedSession(notify).notifyCredentialChange()
+    expect(notify).toHaveBeenCalledOnce()
+  })
+
+  it('logout clears the credential and the cache and notifies discovery', async () => {
+    await writeFile(
+      modelsCacheFile(),
+      `${JSON.stringify({ version: 3, ids: ['grok-4.6'], fetchedAt: 1 })}\n`,
+      { mode: 0o600 },
+    )
+    const notify = vi.fn()
+    const session = cachedSession(notify)
+    await signIn(session)
+    await session.loadCachedCatalog()
+    expect(session.availableModels().map(model => model.id)).toEqual(['grok-4.6'])
+
+    await session.logout()
+    expect(notify).toHaveBeenCalledOnce()
+    await expect(session.store.read(XAI_PI_PROVIDER)).resolves.toBeUndefined()
+    expect(session.catalogSource).toBe('fallback')
+    expect(session.availableModels().map(model => model.id)).toContain(DEFAULT_GROK_BUILD_MODEL)
+    await expect(readFile(modelsCacheFile(), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+})
+
+describe('createCodingOAuthAdapter model discovery', () => {
+  it('injects the owner-scoped OAuth stores and image policy into every pi-ai profile', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'avn-coding-oauth-auth-injection-'))
+    const grok = new GrokBuildSession(new GrokBuildCredentialStore(join(dir, 'grok.json')))
+    const subscriptions = OAUTH_PROVIDER_DEFINITIONS.map(
+      definition =>
+        new OAuthProviderSession(definition, { store: new OAuthCredentialFileStore(
+          definition.nativeProviderId,
+          join(dir, `${definition.slug}.json`),
+          definition.route,
+        ), cacheFile: join(dir, `${definition.slug}-models.json`) }),
+    )
+    const adapter = createCodingOAuthAdapter(grok, subscriptions, () => undefined)
+    const inner = (
+      adapter as unknown as { inner: { config: { profiles(): ReadonlyMap<string, unknown>; auth: unknown } } }
+    ).inner
+    const profiles = inner.config.profiles()
+    for (const profile of profiles.values()) {
+      expect(profile).toMatchObject({
+        maxRequestImageBytes: 20 * 1024 * 1024,
+        requestImagePixelBudget: 2048 * 2048,
+        requestImageMaxBytes: 1024 * 1024,
+      })
+    }
+    const auth = inner.config.auth as {
+      credentials: {
+        read(providerId: string): Promise<unknown>
+        modify(providerId: string, fn: (current: unknown) => Promise<unknown>): Promise<unknown>
+      }
+      authContext: { env(name: string): Promise<string | undefined>; fileExists(path: string): Promise<boolean> }
+    }
+    await auth.credentials.modify(XAI_PI_PROVIDER, async () => ({
+      type: 'oauth',
+      access: 'grok-access',
+      refresh: 'grok-refresh',
+      expires: Date.now() + 3_600_000,
+    }))
+    expect(await grok.store.read(XAI_PI_PROVIDER)).toMatchObject({ access: 'grok-access' })
+    expect(await auth.credentials.read(XAI_PI_PROVIDER)).toMatchObject({ access: 'grok-access' })
+    await expect(auth.credentials.modify('unknown-provider', async () => undefined)).rejects.toThrow(
+      /refusing credential write/u,
+    )
+    expect(await auth.authContext.env('XAI_API_KEY')).toBeUndefined()
+    expect(await auth.authContext.fileExists('~/.xai/auth.json')).toBe(false)
+
+    const grokOnly = createGrokBuildAdapter(grok, () => undefined) as unknown as {
+      config: { profiles(): ReadonlyMap<string, unknown> }
+    }
+    expect(grokOnly.config.profiles().get(GROK_BUILD_ROUTE)).toMatchObject({
+      maxRequestImageBytes: 20 * 1024 * 1024,
+      requestImagePixelBudget: 2048 * 2048,
+      requestImageMaxBytes: 1024 * 1024,
+    })
+  })
+
+  it('lists only authenticated OAuth routes and marks provider names', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'avn-coding-oauth-adapter-'))
+    const grokStore = new GrokBuildCredentialStore(join(dir, 'grok.json'))
+    const grok = new GrokBuildSession(grokStore)
+    const subscriptions = OAUTH_PROVIDER_DEFINITIONS.map(
+      definition =>
+        new OAuthProviderSession(definition, { store: new OAuthCredentialFileStore(
+          definition.nativeProviderId,
+          join(dir, `${definition.slug}.json`),
+          definition.route,
+        ), cacheFile: join(dir, `${definition.slug}-models.json`) }),
+    )
+    const adapter = createCodingOAuthAdapter(grok, subscriptions, () => undefined)
+
+    for (const route of [GROK_BUILD_ROUTE, CODEX_OAUTH_ROUTE]) {
+      expect(await adapter.listModels(route)).toEqual([])
+      expect(adapter.providerInfo(route).name).toMatch(/\(OAuth\)$/u)
+    }
+
+    const codex = subscriptions.find(session => session.definition.route === CODEX_OAUTH_ROUTE)!
+    await codex.store.modify(codex.definition.nativeProviderId, async () => ({
+      type: 'oauth',
+      access: 'codex-access',
+      refresh: 'codex-refresh',
+      expires: Date.now() + 3_600_000,
+    }))
+    const listedCodex = await adapter.listModels(CODEX_OAUTH_ROUTE)
+    expect(listedCodex.length).toBeGreaterThan(0)
+    expect(await adapter.resolveModel(CODEX_OAUTH_ROUTE, listedCodex[0]!.id)).toMatchObject({
+      provider: CODEX_OAUTH_ROUTE,
+      id: listedCodex[0]!.id,
+    })
+
+    await grokStore.modify(XAI_PI_PROVIDER, async () => ({
+      type: 'oauth',
+      access: 'grok-access',
+      refresh: 'grok-refresh',
+      expires: Date.now() + 3_600_000,
+    }))
+    expect((await adapter.listModels(GROK_BUILD_ROUTE)).length).toBeGreaterThan(0)
+  })
+
+  it('exposes a retry policy that retries AUTH and transient failures on every route', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'avn-coding-oauth-retry-'))
+    const grok = new GrokBuildSession(new GrokBuildCredentialStore(join(dir, 'grok.json')))
+    const subscriptions = OAUTH_PROVIDER_DEFINITIONS.map(
+      definition =>
+        new OAuthProviderSession(definition, { store: new OAuthCredentialFileStore(
+          definition.nativeProviderId,
+          join(dir, `${definition.slug}.json`),
+          definition.route,
+        ), cacheFile: join(dir, `${definition.slug}-models.json`) }),
+    )
+    const adapter = createCodingOAuthAdapter(grok, subscriptions, () => undefined)
+    for (const route of [GROK_BUILD_ROUTE, CODEX_OAUTH_ROUTE]) {
+      const policy = adapter.providerRetryPolicy(route)
+      expect(policy?.mode).toBe('normal')
+      expect(policy).toMatchObject({
+        maxRetries: 5,
+        initialDelayMs: 5_000,
+        maxDelayMs: 80_000,
+        jitterRatio: 0.1,
+      })
+      const codes = policy?.mode === 'normal' ? policy.retryableCodes : []
+      for (const code of ['AUTH', 'RATE_LIMIT', 'SERVER', 'TIMEOUT', 'TRANSPORT', 'EMPTY_RESPONSE']) {
+        expect(codes).toContain(code)
+      }
+      // Quota exhaustion must fail fast with the real message, not retry.
+      expect(codes).not.toContain('QUOTA')
+      expect(codes).not.toContain('MISSING_CREDENTIAL')
+    }
+  })
+
+  it('honours a retryPolicy override for every route', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'avn-coding-oauth-retry-override-'))
+    const grok = new GrokBuildSession(new GrokBuildCredentialStore(join(dir, 'grok.json')))
+    const subscriptions = OAUTH_PROVIDER_DEFINITIONS.map(
+      definition =>
+        new OAuthProviderSession(definition, { store: new OAuthCredentialFileStore(
+          definition.nativeProviderId,
+          join(dir, `${definition.slug}.json`),
+          definition.route,
+        ), cacheFile: join(dir, `${definition.slug}-models.json`) }),
+    )
+    const adapter = createCodingOAuthAdapter(grok, subscriptions, () => undefined, {
+      mode: 'normal',
+      maxRetries: 5,
+      retryableCodes: ['RATE_LIMIT', 'SERVER', 'TIMEOUT', 'TRANSPORT'],
+      backoff: { initialDelayMs: 250, maxDelayMs: 5_000, jitterRatio: 0 },
+    })
+    const policy = adapter.providerRetryPolicy(CODEX_OAUTH_ROUTE)
+    expect(policy).toMatchObject({ mode: 'normal', maxRetries: 5, initialDelayMs: 250, maxDelayMs: 5_000 })
+    expect(policy?.mode === 'normal' && policy.retryableCodes).not.toContain('AUTH')
+  })
+
+  it('omits Fast from default routes and existing call signatures', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'avn-coding-oauth-fast-default-'))
+    const grok = new GrokBuildSession(new GrokBuildCredentialStore(join(dir, 'grok.json')))
+    const subscriptions = OAUTH_PROVIDER_DEFINITIONS.map(
+      definition =>
+        new OAuthProviderSession(definition, { store: new OAuthCredentialFileStore(
+          definition.nativeProviderId,
+          join(dir, `${definition.slug}.json`),
+          definition.route,
+        ), cacheFile: join(dir, `${definition.slug}-models.json`) }),
+    )
+    const adapter = createCodingOAuthAdapter(grok, subscriptions, () => undefined)
+    expect(CODING_OAUTH_ROUTES).not.toContain(CODEX_OAUTH_FAST_ROUTE)
+    expect(CODING_OAUTH_OPTIONAL_ROUTES).toEqual([CODEX_OAUTH_FAST_ROUTE])
+    expect(() => adapter.providerInfo(CODEX_OAUTH_FAST_ROUTE)).toThrow(/does not own provider/)
+  })
+
+  it('lists only priority-eligible Codex models on the opt-in Fast route', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'avn-coding-oauth-fast-list-'))
+    const grok = new GrokBuildSession(new GrokBuildCredentialStore(join(dir, 'grok.json')))
+    const subscriptions = OAUTH_PROVIDER_DEFINITIONS.map(
+      definition =>
+        new OAuthProviderSession(definition, { store: new OAuthCredentialFileStore(
+          definition.nativeProviderId,
+          join(dir, `${definition.slug}.json`),
+          definition.route,
+        ), cacheFile: join(dir, `${definition.slug}-models.json`) }),
+    )
+    const codex = subscriptions.find(session => session.definition.route === CODEX_OAUTH_ROUTE)!
+    const catalog = codex.availableModels()
+    expect(catalog.length).toBeGreaterThan(1)
+    const eligible = catalog[0]!
+    const ineligible = catalog[1]!
+    await codex.store.modify(codex.definition.nativeProviderId, async () => ({
+      type: 'oauth',
+      access: 'codex-access',
+      refresh: 'codex-refresh',
+      expires: Date.now() + 3_600_000,
+    }))
+    const adapter = createCodingOAuthAdapter(grok, subscriptions, () => undefined, {
+      codexFast: { isEligible: id => id === eligible.id },
+    })
+    expect(adapter.providerInfo(CODEX_OAUTH_FAST_ROUTE).name).toBe('OpenAI Codex Fast requested (OAuth)')
+    const fastListed = await adapter.listModels(CODEX_OAUTH_FAST_ROUTE)
+    expect(fastListed.map(model => model.id)).toEqual([eligible.id])
+    expect(fastListed.every(model => model.provider === CODEX_OAUTH_FAST_ROUTE)).toBe(true)
+    const normalListed = await adapter.listModels(CODEX_OAUTH_ROUTE)
+    expect(normalListed.map(model => model.id)).toContain(ineligible.id)
+    expect(normalListed.every(model => model.provider === CODEX_OAUTH_ROUTE)).toBe(true)
+    expect(eligible.provider).toBe(CODEX_PI_PROVIDER)
+  })
+
+  it('injects Fast routing only on the Fast profile while keeping native wire identity', async () => {
+    const attachmentPolicies: Array<{ maxPixels?: number; maxBytes?: number }> = []
+    const attachments = {
+      readImageRequest: async (_ref: unknown, policy: { maxPixels?: number; maxBytes?: number }) => {
+        attachmentPolicies.push(policy)
+        return { type: 'image', data: new Uint8Array([137, 80, 78, 71]), mediaType: 'image/png' }
+      },
+    }
+    const dir = await mkdtemp(join(tmpdir(), 'avn-coding-oauth-fast-stream-'))
+    const grok = new GrokBuildSession(new GrokBuildCredentialStore(join(dir, 'grok.json')))
+    const subscriptions = OAUTH_PROVIDER_DEFINITIONS.map(
+      definition =>
+        new OAuthProviderSession(definition, { store: new OAuthCredentialFileStore(
+          definition.nativeProviderId,
+          join(dir, `${definition.slug}.json`),
+          definition.route,
+        ), cacheFile: join(dir, `${definition.slug}-models.json`) }),
+    )
+    const codex = subscriptions.find(session => session.definition.route === CODEX_OAUTH_ROUTE)!
+    const template = codex.availableModels()[0]!
+    const eligibleId = 'gpt-fast-eligible'
+    const ineligibleId = 'gpt-fast-ineligible'
+    const seen: Array<{ model: CodexStreamModel; context?: unknown; options?: CodexFastStreamOptions }> = []
+    const real = codex.provider()
+    vi.spyOn(codex, 'provider').mockImplementation(() => {
+      const models = [
+        { ...template, id: eligibleId, provider: CODEX_PI_PROVIDER, input: ['text', 'image'] },
+        { ...template, id: ineligibleId, provider: CODEX_PI_PROVIDER, input: ['text', 'image'] },
+      ]
+      return {
+        ...real,
+        id: CODEX_PI_PROVIDER,
+        getModels: () => models,
+        stream: (model: CodexStreamModel, context: unknown, options?: CodexFastStreamOptions) => {
+          seen.push({ model, context, ...(options === undefined ? {} : { options }) })
+          throw new Error('fixture-stop')
+        },
+        streamSimple: (model: CodexStreamModel, context: unknown, options?: CodexFastStreamOptions) => {
+          seen.push({ model, context, ...(options === undefined ? {} : { options }) })
+          throw new Error('fixture-stop')
+        },
+      } as unknown as typeof real
+    })
+    await codex.store.modify(codex.definition.nativeProviderId, async () => ({
+      type: 'oauth',
+      access: 'codex-access',
+      refresh: 'codex-refresh',
+      expires: Date.now() + 3_600_000,
+    }))
+    const adapter = createCodingOAuthAdapter(grok, subscriptions, () => attachments as never, undefined, {
+      codexFast: { isEligible: id => id === eligibleId },
+    })
+    const replayDegrade = vi.fn();
+    (
+      adapter as unknown as { inner: { config: { onReplayDegrade?: typeof replayDegrade } } }
+    ).inner.config.onReplayDegrade = replayDegrade
+    expect(await adapter.listModels(CODEX_OAUTH_FAST_ROUTE)).toEqual([
+      expect.objectContaining({ id: eligibleId, provider: CODEX_OAUTH_FAST_ROUTE }),
+    ])
+
+    const consume = async (provider: string, model: string): Promise<void> => {
+      for await (const _chunk of adapter.stream({
+        provider,
+        model,
+        messages: [
+          {
+            id: 'user-image',
+            role: 'user',
+            content: [
+              {
+                type: 'image',
+                attachment: {
+                  attachmentId: AttachmentId('attachment-policy'),
+                  mediaType: 'image/png',
+                  bytes: 4,
+                  width: 1,
+                  height: 1,
+                },
+              },
+            ],
+          },
+        ],
+      } as never)) {
+        // Drain; the fixture stream throws after recording options.
+      }
+    }
+    await consume(CODEX_OAUTH_ROUTE, eligibleId)
+    const normal = seen[0]
+    expect(normal?.model).toMatchObject({ id: eligibleId, provider: CODEX_PI_PROVIDER })
+    expect(normal?.options?.headers?.[CODEX_ROUTING_HINT_HEADER]).toBeUndefined()
+    expect(await normal?.options?.onPayload?.({ model: eligibleId }, { id: eligibleId })).toBeUndefined()
+
+    seen.length = 0
+    await consume(CODEX_OAUTH_FAST_ROUTE, eligibleId)
+    const fast = seen[0]
+    expect(fast?.model).toMatchObject({ id: eligibleId, provider: CODEX_PI_PROVIDER })
+    expect(fast?.options?.headers?.[CODEX_ROUTING_HINT_HEADER]).toBe(codexRoutingHint(eligibleId))
+    await expect(fast?.options?.onPayload?.({ model: eligibleId }, { id: eligibleId })).resolves.toMatchObject({
+      service_tier: 'priority',
+    })
+    expect(attachmentPolicies).toEqual([
+      { maxPixels: 2048 * 2048, maxBytes: 1024 * 1024 },
+      { maxPixels: 2048 * 2048, maxBytes: 1024 * 1024 },
+    ])
+    const replayState = {
+      response: {
+        kind: 'pi-ai',
+        version: 2,
+        api: template.api,
+        provider: CODEX_PI_PROVIDER,
+        model: eligibleId,
+        stopReason: 'stop',
+      },
+      blocks: [{ type: 'text' }],
+    }
+    const replaySnapshot = structuredClone(replayState)
+    for await (const _chunk of adapter.stream({
+      provider: CODEX_OAUTH_ROUTE,
+      model: eligibleId,
+      messages: [
+        {
+          id: 'assistant-replay',
+          role: 'assistant',
+          content: [{ type: 'text', text: 'done' }],
+          source: { kind: 'model', provider: CODEX_OAUTH_ROUTE, model: eligibleId, replayState },
+        },
+      ],
+    } as never)) {
+    }
+    expect(replayDegrade).not.toHaveBeenCalled()
+    for await (const _chunk of adapter.stream({
+      provider: CODEX_OAUTH_ROUTE,
+      model: eligibleId,
+      messages: [
+        {
+          id: 'bad-replay',
+          role: 'assistant',
+          content: [{ type: 'text', text: 'bad' }],
+          source: {
+            kind: 'model',
+            provider: CODEX_OAUTH_ROUTE,
+            model: eligibleId,
+            replayState: { ...replayState, response: { ...replayState.response, provider: 'mismatch' } },
+          },
+        },
+      ],
+    } as never)) {
+    }
+    expect(replayDegrade).toHaveBeenCalledOnce()
+    replayDegrade.mockClear()
+    expect(JSON.stringify(seen.at(-1)?.context)).not.toContain('foreign-sentinel')
+    const foreignReplay = { response: { provider: 'foreign-sentinel' } }
+    for await (const _chunk of adapter.stream({
+      provider: CODEX_OAUTH_ROUTE,
+      model: eligibleId,
+      messages: [
+        {
+          id: 'foreign',
+          role: 'assistant',
+          content: [{ type: 'text', text: 'foreign' }],
+          source: { kind: 'model', provider: 'foreign-route', model: 'foreign', replayState: foreignReplay },
+        },
+      ],
+    } as never)) {
+    }
+    expect(replayDegrade).not.toHaveBeenCalled()
+    expect(replayState).toEqual(replaySnapshot)
+    for await (const _chunk of adapter.stream({
+      provider: CODEX_OAUTH_FAST_ROUTE,
+      model: eligibleId,
+      messages: [
+        {
+          id: 'assistant-fast-replay',
+          role: 'assistant',
+          content: [{ type: 'text', text: 'done' }],
+          source: {
+            kind: 'model',
+            provider: CODEX_OAUTH_FAST_ROUTE,
+            model: eligibleId,
+            replayState,
+          },
+        },
+      ],
+    } as never)) {
+    }
+    expect(replayDegrade).not.toHaveBeenCalled()
+  })
+
+  it('maps a failed token refresh to MISSING_CREDENTIAL instead of a bare 401', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'avn-coding-oauth-dead-refresh-'))
+    const grok = new GrokBuildSession(new GrokBuildCredentialStore(join(dir, 'grok.json')))
+    const subscriptions = OAUTH_PROVIDER_DEFINITIONS.map(
+      definition =>
+        new OAuthProviderSession(definition, { store: new OAuthCredentialFileStore(
+          definition.nativeProviderId,
+          join(dir, `${definition.slug}.json`),
+          definition.route,
+        ), cacheFile: join(dir, `${definition.slug}-models.json`) }),
+    )
+    const codex = subscriptions.find(session => session.definition.route === CODEX_OAUTH_ROUTE)!
+    vi.spyOn(codex.models, 'getAuth').mockRejectedValue(
+      new Error('OAuth refresh failed for openai-codex: Bearer EXAMPLE_ACCESS_TOKEN access_token=EXAMPLE_REFRESH_TOKEN'),
+    )
+    const adapter = createCodingOAuthAdapter(grok, subscriptions, () => undefined)
+    const consume = async (): Promise<void> => {
+      for await (const _chunk of adapter.stream({
+        provider: CODEX_OAUTH_ROUTE,
+        model: 'gpt-5.4',
+        messages: [],
+      })) {
+        // Drain; the stream must reject before yielding anything.
+      }
+    }
+    await expect(consume()).rejects.toThrow(/sign in/i)
+    await consume().then(
+      () => expect.unreachable('stream must reject'),
+      (error: unknown) => {
+        expect((error as { code?: string }).code).toBe('MISSING_CREDENTIAL')
+        expect((error as Error).message).toContain('[redacted]')
+        expect((error as Error).message).not.toContain('EXAMPLE_ACCESS_TOKEN')
+        expect((error as Error).message).not.toContain('EXAMPLE_REFRESH_TOKEN')
+        expect((error as { cause?: unknown }).cause).toBeUndefined()
+      },
+    )
+  })
+})
+
+interface AdapterConfigProbe {
+  /** The profile argument is not part of what these tests pin; the implementation ignores it. */
+  resolveApiKey(provider: string, profile: unknown): Promise<string | undefined>
+  profiles(): ReadonlyMap<string, { piProvider: { getModels(): Array<{ id: string; provider?: string }> } }>
+  auth: {
+    credentials: {
+      list(options?: unknown): Promise<readonly { providerId: string; type: string }[]>
+      delete(providerId: string, options?: unknown): Promise<void>
+    }
+  }
+}
+
+function configOf(adapter: unknown): AdapterConfigProbe {
+  return (adapter as { inner: { config: AdapterConfigProbe } }).inner.config
+}
+
+function policiesOf(adapter: unknown): ReadonlyMap<string, { onAuthFailure?: () => Promise<void> }> {
+  return (adapter as { policies: ReadonlyMap<string, { onAuthFailure?: () => Promise<void> }> }).policies
+}
+
+const SIGNED_IN_CREDENTIAL = {
+  type: 'oauth' as const,
+  access: 'access',
+  refresh: 'refresh',
+  expires: Date.now() + 3_600_000,
+}
+
+describe('createCodingOAuthAdapter credential routing', () => {
+  /**
+   * Two real call forms: a positional `RetryPolicyConfig` (optionally beside an
+   * options object) and the four-argument options-only form.
+   */
+  interface FixtureArgs {
+    retryPolicy?: RetryPolicyConfig
+    adapterOptions?: CodingOAuthAdapterOptions
+  }
+
+  async function build(args: FixtureArgs = {}): Promise<{
+    adapter: ReturnType<typeof createCodingOAuthAdapter>
+    grok: GrokBuildSession
+    subscriptions: OAuthProviderSession[]
+  }> {
+    const dir = await mkdtemp(join(tmpdir(), 'avn-coding-oauth-credentials-'))
+    const grok = new GrokBuildSession(new GrokBuildCredentialStore(join(dir, 'grok.json')))
+    const subscriptions = OAUTH_PROVIDER_DEFINITIONS.map(
+      definition =>
+        new OAuthProviderSession(definition, { store: new OAuthCredentialFileStore(
+          definition.nativeProviderId,
+          join(dir, `${definition.slug}.json`),
+          definition.route,
+        ), cacheFile: join(dir, `${definition.slug}-models.json`) }),
+    )
+    const resolveAttachments = (): undefined => undefined
+    const { retryPolicy, adapterOptions } = args
+    const adapter =
+      retryPolicy !== undefined && adapterOptions !== undefined
+        ? createCodingOAuthAdapter(grok, subscriptions, resolveAttachments, retryPolicy, adapterOptions)
+        : retryPolicy !== undefined
+          ? createCodingOAuthAdapter(grok, subscriptions, resolveAttachments, retryPolicy)
+          : adapterOptions !== undefined
+            ? createCodingOAuthAdapter(grok, subscriptions, resolveAttachments, adapterOptions)
+            : createCodingOAuthAdapter(grok, subscriptions, resolveAttachments)
+    return { adapter, grok, subscriptions }
+  }
+
+  it('resolves each route access token and reports a missing sign-in per route', async () => {
+    const { adapter, grok, subscriptions } = await build()
+    const config = configOf(adapter)
+    const codex = subscriptions.find(session => session.definition.route === CODEX_OAUTH_ROUTE)!
+
+    await expect(config.resolveApiKey(GROK_BUILD_ROUTE, undefined)).rejects.toMatchObject({
+      code: 'MISSING_CREDENTIAL',
+    })
+    await expect(config.resolveApiKey(CODEX_PI_PROVIDER, undefined)).rejects.toMatchObject({
+      code: 'MISSING_CREDENTIAL',
+    })
+    await expect(config.resolveApiKey('kimi-coding', undefined)).rejects.toMatchObject({ code: 'NO_ADAPTER' })
+
+    await grok.store.modify(XAI_PI_PROVIDER, async () => SIGNED_IN_CREDENTIAL)
+    await codex.store.modify(CODEX_PI_PROVIDER, async () => SIGNED_IN_CREDENTIAL)
+    await expect(config.resolveApiKey(GROK_BUILD_ROUTE, undefined)).resolves.toBe('access')
+    await expect(config.resolveApiKey(CODEX_PI_PROVIDER, undefined)).resolves.toBe('access')
+    // Fast shares the Codex session's credential.
+    await expect(config.resolveApiKey(CODEX_OAUTH_FAST_ROUTE, undefined)).resolves.toBe('access')
+  })
+
+  it('treats an empty resolved token as a missing sign-in', async () => {
+    const { adapter, subscriptions } = await build()
+    const codex = subscriptions.find(session => session.definition.route === CODEX_OAUTH_ROUTE)!
+    vi.spyOn(codex, 'resolveAccessToken').mockResolvedValue('')
+    await expect(configOf(adapter).resolveApiKey(CODEX_PI_PROVIDER, undefined)).rejects.toMatchObject({
+      code: 'MISSING_CREDENTIAL',
+    })
+  })
+
+  it('keeps the Grok-only adapter resolving its own route token', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'avn-grok-build-adapter-token-'))
+    const grok = new GrokBuildSession(new GrokBuildCredentialStore(join(dir, 'grok.json')))
+    const adapter = createGrokBuildAdapter(grok, () => undefined)
+    const config = (adapter as unknown as { config: AdapterConfigProbe }).config
+
+    await expect(config.resolveApiKey(GROK_BUILD_ROUTE, undefined)).rejects.toMatchObject({
+      code: 'MISSING_CREDENTIAL',
+    })
+    await grok.store.modify(XAI_PI_PROVIDER, async () => SIGNED_IN_CREDENTIAL)
+    await expect(config.resolveApiKey(GROK_BUILD_ROUTE, undefined)).resolves.toBe('access')
+  })
+
+  it('lists and deletes the credentials of every owned store only', async () => {
+    const { adapter, subscriptions } = await build()
+    const codex = subscriptions.find(session => session.definition.route === CODEX_OAUTH_ROUTE)!
+    await codex.store.modify(CODEX_PI_PROVIDER, async () => SIGNED_IN_CREDENTIAL)
+
+    await expect(configOf(adapter).auth.credentials.list()).resolves.toEqual([
+      { providerId: CODEX_PI_PROVIDER, type: 'oauth' },
+    ])
+    await expect(configOf(adapter).auth.credentials.delete('kimi-code-oauth')).rejects.toThrow(
+      /refusing credential deletion for unknown OAuth provider/u,
+    )
+    await configOf(adapter).auth.credentials.delete(CODEX_PI_PROVIDER)
+    await expect(codex.store.read(CODEX_PI_PROVIDER)).resolves.toBeUndefined()
+  })
+
+  it('invalidates the stored token of every route on an upstream AUTH failure', async () => {
+    const { adapter, grok, subscriptions } = await build({ adapterOptions: { codexFast: { isEligible: () => true } } })
+    const codex = subscriptions.find(session => session.definition.route === CODEX_OAUTH_ROUTE)!
+    await grok.store.modify(XAI_PI_PROVIDER, async () => SIGNED_IN_CREDENTIAL)
+    await codex.store.modify(CODEX_PI_PROVIDER, async () => SIGNED_IN_CREDENTIAL)
+
+    const policies = policiesOf(adapter)
+    const before = Date.now()
+    await policies.get(GROK_BUILD_ROUTE)?.onAuthFailure?.()
+    await policies.get(CODEX_OAUTH_ROUTE)?.onAuthFailure?.()
+    await policies.get(CODEX_OAUTH_FAST_ROUTE)?.onAuthFailure?.()
+
+    const grokCredential = await grok.store.read(XAI_PI_PROVIDER)
+    expect(grokCredential?.type === 'oauth' && grokCredential.expires).toBeLessThanOrEqual(before)
+    const codexCredential = await codex.store.read(CODEX_PI_PROVIDER)
+    expect(codexCredential?.type === 'oauth' && codexCredential.expires).toBeLessThanOrEqual(before)
+  })
+
+  it('accepts a retry policy beside the options argument', async () => {
+    const { adapter } = await build({
+      retryPolicy: {
+        mode: 'normal',
+        maxRetries: 1,
+        retryableCodes: ['SERVER'],
+        backoff: { initialDelayMs: 250, maxDelayMs: 1_000, jitterRatio: 0 },
+      },
+      adapterOptions: { codexFast: { isEligible: () => true } },
+    })
+    expect(adapter.providerRetryPolicy(CODEX_OAUTH_ROUTE)).toMatchObject({ mode: 'normal', maxRetries: 1 })
+    expect(adapter.providerInfo(CODEX_OAUTH_FAST_ROUTE).name).toBe('OpenAI Codex Fast requested (OAuth)')
+  })
+
+  it('accepts a retry policy or a Fast option packed into one options argument', async () => {
+    const retryOnly = await build({
+      adapterOptions: {
+        retryPolicy: {
+          mode: 'normal',
+          maxRetries: 2,
+          retryableCodes: ['SERVER'],
+          backoff: { initialDelayMs: 250, maxDelayMs: 1_000, jitterRatio: 0 },
+        },
+      },
+    })
+    expect(retryOnly.adapter.providerRetryPolicy(CODEX_OAUTH_ROUTE)).toMatchObject({ maxRetries: 2 })
+
+    const fastOnly = await build({ adapterOptions: { codexFast: { isEligible: () => true } } })
+    expect(fastOnly.adapter.providerInfo(CODEX_OAUTH_FAST_ROUTE).name).toBe('OpenAI Codex Fast requested (OAuth)')
+  })
+
+  it('advertises the Fast profile id across the whole wrapped catalog', async () => {
+    const { adapter, subscriptions } = await build({ adapterOptions: { codexFast: { isEligible: () => true } } })
+    const codex = subscriptions.find(session => session.definition.route === CODEX_OAUTH_ROUTE)!
+    const template = codex.availableModels()[0]!
+    const real = codex.provider()
+    vi.spyOn(codex, 'provider').mockImplementation(
+      () =>
+        ({
+          ...real,
+          id: CODEX_PI_PROVIDER,
+          getModels: () => [
+            { ...template, id: 'already-fast', provider: CODEX_OAUTH_FAST_ROUTE },
+            { ...template, id: 'still-native', provider: CODEX_PI_PROVIDER },
+          ],
+        }),
+    )
+    const fastProfile = configOf(adapter).profiles().get(CODEX_OAUTH_FAST_ROUTE)
+    expect(fastProfile?.piProvider.getModels().map(model => model.provider)).toEqual([
+      CODEX_OAUTH_FAST_ROUTE,
+      CODEX_OAUTH_FAST_ROUTE,
+    ])
+  })
+})

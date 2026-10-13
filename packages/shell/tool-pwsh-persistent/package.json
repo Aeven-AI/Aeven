@@ -1,0 +1,57 @@
+{
+  "name": "@aeven/tool-pwsh-persistent",
+  "description": "Model-facing owner-scoped persistent PowerShell tool backed by the Harness PTY service",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/shell/tool-pwsh-persistent"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "@aeven/agent": "workspace:^",
+    "@aeven/terminal": "workspace:^",
+    "@aeven/timeout": "workspace:^",
+    "@aeven/tools": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "workspace:^",
+    "@aeven/output-retention": "workspace:^"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis-plugin-include": "workspace:^",
+    "@deepseek-ai/cordis-plugin-loader": "workspace:^",
+    "@aeven/agent": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/terminal": "workspace:^",
+    "@aeven/terminal-bash": "workspace:^",
+    "@aeven/pwsh-local": "workspace:^",
+    "@aeven/sandbox": "workspace:^",
+    "@aeven/sandbox-policy": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/session-projection": "workspace:^",
+    "@aeven/subprocess-local": "workspace:^",
+    "@aeven/system-prompt": "workspace:^",
+    "@aeven/timeout": "workspace:^",
+    "@aeven/tools": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  }
+}

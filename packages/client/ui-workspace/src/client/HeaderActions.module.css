@@ -1,0 +1,40 @@
+/* Header control cluster. The shell owns the row and its width; everything
+   here is the occupant's own geometry. */
+
+.cluster {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  height: 100%;
+  min-width: 0;
+}
+
+/* 28px round control riding the 18px lucide glyph. The glyph keeps the row's
+   own ink in every state: these controls carry no hover tint of their own. */
+.action {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  color: var(--dsw-alias-label-primary);
+}
+
+.action svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* The row's leading control puts its glyph on the box's leading edge, the line
+   the rows below inset their own leading glyphs to; the trailing controls keep
+   theirs on the trailing edge for the same reason. */
+.leading {
+  justify-content: flex-start;
+}

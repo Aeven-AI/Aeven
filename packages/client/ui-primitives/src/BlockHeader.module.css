@@ -1,0 +1,51 @@
+/* The Markdown engine's table header, restated for tool cards: a 50px band,
+   the title 16px from the card edge in the 12px toolbar type, and 14px icons
+   in 30px buttons ending 8px from the edge. */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  box-sizing: border-box;
+  height: 50px;
+  padding: 0 8px 0 16px;
+}
+
+.title {
+  flex: none;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.iconButton {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 15px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.iconButton:hover {
+  color: var(--dsw-alias-label-primary);
+}
+
+.iconButton:focus-visible {
+  outline: 1px solid var(--dsw-alias-state-business-primary);
+  outline-offset: -2px;
+}
+
+.icon {
+  width: 14px;
+  height: 14px;
+}

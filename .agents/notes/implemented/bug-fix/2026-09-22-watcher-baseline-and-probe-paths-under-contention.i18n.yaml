@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-22-watcher-baseline-and-probe-paths-under-contention.md
+2026-09-22-watcher-baseline-and-probe-paths-under-contention.md: effd92789bb096a811cb15dc1df5339e69926cd8
+2026-09-22-watcher-baseline-and-probe-paths-under-contention.zh.md: 02d232a34a40fa5ad152cd22e1edd46968bb1085

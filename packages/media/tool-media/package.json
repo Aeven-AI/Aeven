@@ -1,0 +1,54 @@
+{
+  "name": "@aeven/tool-media",
+  "description": "Model-facing generate_image tool over the Aeven generated-media seam",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/media/tool-media"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@deepseek-ai/schemastery": "workspace:^"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/attachment": "workspace:^",
+    "@aeven/commands": "workspace:^",
+    "@aeven/fs": "workspace:^",
+    "@aeven/media": "workspace:^",
+    "@aeven/settings": "workspace:^",
+    "@aeven/tools": "workspace:^",
+    "@aeven/user-questions": "workspace:^"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/attachment": "workspace:^",
+    "@aeven/commands": "workspace:^",
+    "@aeven/fs": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/media": "workspace:^",
+    "@aeven/settings": "workspace:^",
+    "@aeven/system-prompt": "workspace:^",
+    "@aeven/tools": "workspace:^",
+    "@aeven/user-questions": "workspace:^"
+  }
+}

@@ -1,0 +1,95 @@
+{
+  "name": "@aeven/api-workspace-controller",
+  "description": "Workspace Remote commands and reconnect-safe state transport",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/api/workspace-controller"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./types": {
+      "types": "./lib/types/types.d.ts",
+      "default": "./lib/types/types.js"
+    },
+    "./client": {
+      "types": "./lib/types/client/index.d.ts",
+      "default": "./lib/client.js"
+    },
+    "./typert": {
+      "types": "./lib/typert.host.d.ts",
+      "default": "./lib/typert.host.js"
+    },
+    "./remote": {
+      "types": "./lib/typert.remote-client.d.ts",
+      "default": "./lib/typert.remote-client.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "avn": {
+    "client": {
+      "external": [
+        "@aeven/api-gateway/client"
+      ],
+      "inject": [
+        "@aeven/api-gateway",
+        "@aeven/client-connection"
+      ],
+      "platform": "web"
+    }
+  },
+  "scripts": {
+    "bundle": "tsdown",
+    "watch": "tsdown --watch"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/client.js",
+    "lib/types/**/*.js",
+    "lib/types/**/*.d.ts",
+    "lib/typert.host.js",
+    "lib/typert.host.d.ts",
+    "lib/typert.remote-client.js",
+    "lib/typert.remote-client.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@aeven/deque": "workspace:^",
+    "zod": "^4.4.3"
+  },
+  "peerDependencies": {
+    "@aeven/api-gateway": "workspace:^",
+    "@aeven/client-connection": "workspace:^",
+    "@aeven/host-directory-picker": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/storage-domain": "workspace:^",
+    "@aeven/typert-protocol": "workspace:^",
+    "@aeven/workspace": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "devDependencies": {
+    "@aeven/api-gateway": "workspace:^",
+    "@aeven/client-connection": "workspace:^",
+    "@aeven/client-store": "workspace:^",
+    "@aeven/host-directory-picker": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/storage": "workspace:^",
+    "@aeven/storage-domain": "workspace:^",
+    "@aeven/typert-protocol": "workspace:^",
+    "@aeven/workspace": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  }
+}

@@ -1,0 +1,543 @@
+/* Memory settings: the Plugins underline tabs, then quiet cards.
+   One type size for the whole section — 14/22 — so a foldout cannot
+   introduce a second scale. The section header keeps its own 16/24. */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 22px;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
+  margin-top: 2px;
+}
+
+.tab {
+  position: relative;
+  border: 0;
+  padding: 7px 1px 9px;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  font: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  cursor: pointer;
+}
+
+.tab:hover,
+.tab[data-active="true"] {
+  color: var(--dsw-alias-label-primary);
+}
+
+.tab[data-active="true"]::after,
+.tab:focus-visible::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--dsw-alias-label-primary);
+  content: "";
+}
+
+/* The ring is the quiet one the sibling settings section draws
+   (ui-settings-models' ModelsSection): the brand inks are near-black here, so an
+   outline in either one reads as a black box around the control. */
+.tab:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--dsw-alias-border-l3);
+  border-radius: 6px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding-top: 2px;
+}
+
+.search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.search > svg {
+  position: absolute;
+  left: 10px;
+  pointer-events: none;
+}
+
+.search input,
+.field input,
+.field textarea,
+.composerArea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  outline: none;
+}
+
+.search input {
+  height: 36px;
+  padding: 0 12px 0 32px;
+}
+
+.field input,
+.field textarea,
+.composerArea {
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.search input:focus-visible,
+.field input:focus-visible,
+.field textarea:focus-visible,
+.composerArea:focus-visible {
+  border-color: var(--dsw-alias-state-business-primary);
+  box-shadow: 0 0 0 2px var(--dsw-tint-business-18);
+}
+
+.status,
+.failure,
+.note {
+  margin: 0;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.body > .note:first-child {
+  margin-top: 12px;
+}
+
+.foldButton .chevron {
+  margin-top: 0;
+}
+
+.run {
+  flex-wrap: wrap;
+}
+
+.run .subtitle {
+  flex-basis: 100%;
+  white-space: normal;
+}
+
+.status,
+.note {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.failure {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.groupLabel {
+  margin: 6px 2px 0;
+  color: var(--dsw-alias-label-tertiary);
+  font: inherit;
+}
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  list-style: none;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: 16px;
+  background: var(--dsw-alias-bg-layer-3);
+  transition:
+    border-color 0.16s,
+    background 0.16s;
+}
+
+.card:hover,
+.factRow:hover {
+  border-color: var(--dsw-alias-label-dimmed);
+}
+
+/* An open card reads as the one being worked on, the way a Plugins card does. */
+.cardOpen {
+  background: var(--dsw-alias-bg-layer-2);
+  border-color: var(--dsw-alias-label-dimmed);
+}
+
+.header,
+.foldButton,
+.textButton {
+  appearance: none;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  text-align: left;
+}
+
+.header:focus-visible,
+.foldButton:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--dsw-alias-border-l3);
+}
+
+.textButton:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--dsw-alias-border-l3);
+}
+
+.headText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.title,
+.subtitle {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.title {
+  font-weight: 500;
+}
+
+.cardOpen .title,
+.cardOpen .subtitle {
+  white-space: normal;
+}
+
+.subtitle {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.chevron {
+  flex: none;
+  margin-top: 4px;
+  color: var(--dsw-alias-label-tertiary);
+  transition: transform 0.16s;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+.body {
+  margin: 0 16px;
+  padding-bottom: 8px;
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.said,
+.facts {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 12px 0 4px;
+}
+
+.facts {
+  gap: 12px;
+}
+
+.said span,
+.fact dt {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.fact {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+}
+
+.fact dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.fold {
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.foldButton {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 0;
+  text-align: left;
+}
+
+.foldBody {
+  padding: 0 0 12px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.prose {
+  --avn-content-font-size: 14px;
+  --avn-content-font-delta: -6px;
+}
+
+.runs {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.run {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 12px 0 0;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 0 4px;
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.footerStart {
+  margin-right: auto;
+}
+
+/* A text button's hover fill overhangs the card's text inset, so an edge label lines up with the text above it. */
+/* Three weights, shared by every tab: a text link inside a fold, the shared outline capsule for an
+   action the open card offers, and the filled capsule for committing. */
+.textButton {
+  border-radius: 8px;
+  padding: 3px 6px;
+  color: var(--dsw-alias-label-secondary);
+  transition:
+    background 0.16s,
+    color 0.16s;
+}
+
+.textButton:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.textButton:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Shown only while the provider reports records past the loaded pages. */
+.more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 4px 0 8px;
+}
+
+/* Standing facts: one lead sentence, a meter for the budget the block spends on every request,
+   then one row per statement. The statement is primary text; its confirmed time and its actions
+   sit on the quiet line beneath it, so a screen reader and a hover both reach them. */
+
+.factsLead {
+  margin: 0;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.budget {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 2px 0 4px;
+}
+
+/* The allowance bar is the Account page's meter (ui-account-aeven
+   AccountSection.module.css:167): same 8px track, same green-to-yellow fill. */
+.budgetTrack {
+  display: block;
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--dsw-alias-bg-module-platform);
+}
+
+.budgetFill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: color-mix(
+    in oklab,
+    var(--dsw-alias-state-warn-primary) var(--avn-usage-percent, 0%),
+    var(--dsw-alias-state-success-primary)
+  );
+  transition: width 0.3s;
+}
+
+.budgetText {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--dsw-alias-label-tertiary);
+  font-variant-numeric: normal;
+}
+
+/* A statement row is a foldout card in its collapsed form: the same card chrome
+   and the same 14px 16px header inset as `.card`, so a statement and a memory
+   read as one family. Its text and its confirmed line sit at the header's own 4px
+   step, the way a card's title sits over its subtitle. */
+.factRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: 16px;
+  background: var(--dsw-alias-bg-layer-3);
+  padding: 14px 16px;
+  transition: border-color 0.16s;
+}
+
+.factText {
+  margin: 0;
+  color: var(--dsw-alias-label-primary);
+  font-weight: 500;
+}
+
+.factMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* The compact capsules sit on the confirmed line. */
+.factActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* The composer is the foldout's edit body standing on its own: the card chrome,
+   the label over the textarea, and the actions on a right-aligned line — the same
+   field and footer a memory's edit mode draws inside its card. */
+.composer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: 16px;
+  background: var(--dsw-alias-bg-layer-3);
+  padding: 14px 16px;
+  transition: border-color 0.16s;
+}
+
+.composerLabel {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.composerFooter {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.composerHint {
+  margin-right: auto;
+  color: var(--dsw-alias-label-dimmed);
+  font-variant-numeric: normal;
+}
+
+.factsEmpty {
+  margin: 2px 0;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.emptyExample {
+  display: block;
+  margin-top: 2px;
+  color: var(--dsw-alias-label-dimmed);
+}
+
+/* The removal confirmation: the dialog quotes what goes, and its confirm is the
+   shared capsule filled in the error color. */
+.dialog {
+  width: min(440px, 100%);
+}
+
+.dialogSubject {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-module-platform);
+  color: var(--dsw-alias-label-secondary);
+  overflow-wrap: anywhere;
+}
+
+.dangerFill,
+.dangerFill:hover:not(:disabled) {
+  background: var(--dsw-alias-state-error-primary);
+  color: #fff;
+}
+
+.dangerFill:hover:not(:disabled) {
+  opacity: 0.88;
+}

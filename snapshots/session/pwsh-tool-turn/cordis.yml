@@ -1,0 +1,77 @@
+# Minimal live counterpart for the pwsh-tool-turn snapshot composition.
+- id: llm-deepseek
+  name: '@aeven/llm-deepseek'
+  config:
+    models:
+      - id: deepseek-v4-pro
+
+- id: subprocess
+  name: '@aeven/subprocess-local'
+
+- id: bash-sandbox
+  name: '@aeven/bash-sandbox'
+  disabled: true
+
+- id: pwsh-sandbox
+  name: '@aeven/pwsh-sandbox'
+  disabled: false
+
+- id: shell-env
+  name: '@aeven/shell-env'
+
+- id: agent-default-model
+  name: '@aeven/agent-default-model'
+  config:
+    provider: deepseek-official
+    model: deepseek-v4-pro
+
+- id: session-persistence-jsonl
+  name: '@aeven/session-persistence-jsonl'
+  config:
+    root: !!js avnHomePath('sessions')
+    compression: !!js 'process.env.AVN_SNAPSHOT === undefined ? ''zstd'' : ''none'''
+
+- id: agent-instructions
+  name: '@aeven/agent-instructions'
+  disabled: true
+
+- id: system-prompt
+  name: '@aeven/system-prompt'
+  config:
+    persona: You are a concise snapshot agent working in {{cwd}}.
+
+- id: goal
+  name: '@aeven/goal'
+  disabled: true
+
+- id: goal-round-driver
+  name: '@aeven/goal-round-driver'
+  disabled: true
+
+- id: command-goal
+  name: '@aeven/command-goal'
+  disabled: true
+
+- id: tool-goal
+  name: '@aeven/tool-goal'
+  disabled: true
+
+- id: skill
+  name: '@aeven/skill'
+  disabled: true
+
+- id: skill-filesystem
+  name: '@aeven/skill-filesystem'
+  disabled: true
+
+- id: tool-skill
+  name: '@aeven/tool-skill'
+  disabled: true
+
+- id: tool-bash
+  name: '@aeven/tool-bash'
+  disabled: true
+
+- id: tool-pwsh
+  name: '@aeven/tool-pwsh'
+  disabled: false

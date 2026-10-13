@@ -1,0 +1,111 @@
+body {
+  --avn-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l1);
+  --avn-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l1);
+}
+
+/* The standard properties are declared unconditionally, and every engine that
+   implements them takes this path. They are also the only path that can hand a
+   scrolling box its width back: a `::-webkit-scrollbar` skin is what forces the
+   bar into a gutter, so an engine carrying both would keep the narrower box
+   whatever the standard properties say. Measured on the running app in chromium
+   151 (macOS 26.5) on one scroller that first stated the pseudo-element width
+   and then these two properties instead: `offsetWidth - clientWidth` goes 8 → 0,
+   the thumb paints over the content edge instead of beside it, and
+   `scrollbar-gutter: stable` reserves nothing for the overlay bar that replaces
+   it. ConversationRoot's composer seat and view chrome used to buy those 8px
+   back with `--avn-scrollbar-width`; they now give back nothing and centre on
+   the box itself
+   ([decision](../../../../../.agents/notes/implemented/bug-fix/2026-09-13-overlay-scrollbars-return-the-gutter.md)).
+
+   Declared on every element rather than inherited from `body`. Inheriting
+   would pass down the COLOUR already substituted at `body`, so a descendant
+   rebinding --avn-scrollbar-thumb could not change it; re-declaring makes
+   each element substitute the variable as it sees it, which is what gives
+   an elevated surface a working rebind. `scrollbar-width` is not an
+   inherited property at all, so it needs the per-element declaration
+   regardless.
+
+   `thin` rather than the initial `auto`: it keeps the bar near the 8px band the
+   pseudo-element path draws, and where an engine still reserves a gutter for it
+   (chromium and Firefox on Windows and Linux) it is the narrower of the two
+   reservations. No hover counterpart exists on this path: the standard pair
+   would state one thumb colour, which the iOS/Safari 14.5 baseline cannot
+   parse, and the engine derives its own hover treatment anyway — so the
+   hover tokens render only through the pseudo-element path below.
+
+   The selector is `body *` rather than `body, body *`: the root element draws
+   no scrollbar, and `scrollbar-width` is not inherited, so a declaration there
+   would be one no element reads. */
+body * {
+}
+
+/* Opt-out utility for a scrolling element that must draw no bar and reserve no
+   gutter: `.no-scrollbar` goes on the scrolling element itself. A global class
+   rather than a module one, so a surface opts out by name instead of restating
+   the paths. It is NOT the rebind route
+   (`--avn-scrollbar-thumb: transparent`, which the trajectory panel's summary
+   region uses to keep its thumb out of the way until hover or focus-within):
+   that rebind keeps the bar's layout width reserved where the engine reserves
+   one, and the empty strip is exactly what this utility removes.
+
+   The vendored Aeven sheet (ui-auth-aeven/src/vendor/aeven-auth.css) states the
+   same class for its own consumers and happens to load app-wide; this sheet
+   states it too so the behavior is owned here and survives that import graph,
+   and the two spellings must stay equal.
+
+   Ungated, unlike the skin below, because the class has to work on engines that
+   never parse `scrollbar-width` — its pseudo-element half is outside the gate
+   for the same reason. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+/* The fallback path: engines that implement the pseudo-elements but not the
+   standard properties — WebKit before Safari 26.2, chromium before 121 — own no
+   other skin, so they keep the themed one.
+
+   The gate names the property whose absence selects this path rather than
+   `selector(::-webkit-scrollbar)`: the reach of the skin is then a stated fact
+   instead of a consequence of the suppression below. A non-`auto`
+   `scrollbar-width` or `scrollbar-color` makes chromium and Safari discard every
+   `::-webkit-scrollbar*` rule for that element, `::-webkit-scrollbar-thumb:hover`
+   included, which is why the two paths cannot be merged into one unscoped
+   block: the engines that implement the hover pseudo-element are exactly the
+   ones the standard properties silence, and Firefox has no hover
+   pseudo-element to fall back on. */
+@supports not (scrollbar-width: thin) {
+  /* Track stays transparent so the thumb reads against whatever surface scrolls
+     under it; only the thumb carries a token colour. */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border-radius: 4px;
+    background: var(--avn-scrollbar-thumb);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--avn-scrollbar-thumb-hover);
+  }
+
+  /* Both scrollbars meeting in a corner: no separate token, so the corner
+     matches the transparent track rather than the UA's opaque default. */
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+}
+
+/* `.no-scrollbar`'s pseudo-element half, deliberately outside the gate. It is
+   the half that reaches the engines incapable of the standard path, and on an
+   engine that honors `scrollbar-width` the `none` above discards it — a
+   non-`auto` value silences the pseudo-element for that element — so neither
+   path needs this rule gated away from it. */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

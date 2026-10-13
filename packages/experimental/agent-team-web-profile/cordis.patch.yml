@@ -1,0 +1,6 @@
+# Private Agent Teams Web layer. Apply after avn-web-app and the host-side
+# avn-agent-team-profile so the browser mounts only when the Team service is present.
+
+- insert:
+    - id: ui-agent-team
+      name: '@aeven/experimental-client-ui-agent-team'

@@ -1,0 +1,55 @@
+{
+  "name": "@aeven/token-meter",
+  "description": "Replay-aware token measurement service (ctx.tokenMeter) for the Aeven",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/llm/token-meter"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "types": "./lib/types/client.d.ts",
+      "default": "./lib/types/client.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/compaction": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/llm-retry": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/session-projection": "workspace:^"
+  },
+  "dependencies": {
+    "@aeven/util-values": "workspace:^",
+    "@deepseek-ai/schemastery": "workspace:^",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/compaction": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/llm-retry": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/session-projection": "workspace:^"
+  }
+}

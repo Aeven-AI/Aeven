@@ -1,0 +1,26 @@
+{
+  "name": "@aeven/discord-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "Aeven's Discord connector server: one stdio MCP process per connected guild, over the deployment's own Discord application bot",
+  "files": [
+    "dist",
+    "source/README.md",
+    "source/LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsx scripts/build.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.0",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3"
+  }
+}

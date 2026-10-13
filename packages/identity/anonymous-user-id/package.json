@@ -1,0 +1,39 @@
+{
+  "name": "@aeven/anonymous-user-id",
+  "description": "Shared anonymous user identity for Aeven telemetry and feedback correlation",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/identity/anonymous-user-id"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "@aeven/brand": "workspace:^",
+    "@aeven/home-paths": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "devDependencies": {
+    "@aeven/brand": "workspace:^",
+    "@aeven/home-paths": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  }
+}

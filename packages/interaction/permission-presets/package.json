@@ -1,0 +1,71 @@
+{
+  "name": "@aeven/permission-presets",
+  "description": "User-facing permission presets (ctx.permissionPresets) for the Aeven: one product-level Permissions select bundling the sandbox-mode and approval-policy knobs, written through to their own session events",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/interaction/permission-presets"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./invariant": {
+      "types": "./lib/types/invariant.d.ts",
+      "default": "./lib/invariant.js"
+    },
+    "./types": {
+      "types": "./lib/types/types.d.ts",
+      "default": "./lib/types/types.js"
+    },
+    "./client": {
+      "types": "./lib/types/client.d.ts",
+      "default": "./lib/types/client.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/invariant.js",
+    "lib/types/**/*.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "@aeven/shell": "workspace:^",
+    "@aeven/commands": "workspace:^",
+    "@aeven/invariants": "workspace:^",
+    "@aeven/sandbox": "workspace:^",
+    "@aeven/sandbox-policy": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/session-projection": "workspace:^",
+    "@aeven/settings": "workspace:^",
+    "@aeven/user-approval": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "workspace:^",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@aeven/shell": "workspace:^",
+    "@aeven/commands": "workspace:^",
+    "@aeven/invariants": "workspace:^",
+    "@aeven/sandbox": "workspace:^",
+    "@aeven/sandbox-policy": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/session-projection": "workspace:^",
+    "@aeven/settings": "workspace:^",
+    "@aeven/user-approval": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  }
+}

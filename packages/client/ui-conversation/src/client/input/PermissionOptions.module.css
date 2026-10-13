@@ -1,0 +1,58 @@
+/* The permission mode rows inside the composer Options popup: the menu cell
+   metrics (40px row, 8px padding, 8px gap, control radius), drawn for the pane
+   card the Options popup opens. */
+
+.item {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: var(--dsw-aeven-control-size);
+  padding: 8px;
+  border: none;
+  border-radius: var(--dsw-aeven-radius-control);
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--dsw-alias-label-primary);
+  text-align: left;
+}
+
+.item:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.item:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.itemIcon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.itemLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Selected row keeps the plain fill (marker is the trailing check). */
+.selected {
+  background: transparent;
+}
+
+.check {
+  flex: none;
+  color: var(--dsw-alias-label-primary);
+}

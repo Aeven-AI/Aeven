@@ -1,0 +1,494 @@
+/* The session header's activity menus: a white pill whose popup copies the
+   composer's model selector (ui-model-selection ModelSelect.module.css:
+   .menu, .cell), so the list is the same material as the composer's access
+   and model popups. */
+.root {
+  position: relative;
+  display: inline-flex;
+}
+
+/* The trigger reads over whatever scrolls under the transparent header, so it
+   carries an opaque surface rather than a hover fill only. */
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 10px 0 12px;
+  border: 0;
+  border-radius: 15px;
+  /* The composer card's plain white: opaque over the transcript scrolling
+     under the transparent header, with no shadow of its own. */
+  background: var(--dsw-specific-input-major);
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.trigger:hover,
+.trigger[aria-expanded="true"] {
+  color: var(--dsw-alias-label-primary);
+}
+
+.trigger:focus-visible {
+  outline: 1px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+}
+
+.triggerSpinner {
+  --avn-spinner-size: 14px;
+  flex: none;
+}
+
+.count {
+  min-width: 0;
+}
+
+.triggerChevron {
+  display: inline-flex;
+  flex: none;
+  transition: transform 150ms ease;
+}
+
+.triggerChevronOpen {
+  transform: rotate(180deg);
+}
+
+/* ModelSelect .menu, opening below the header trigger instead of above the
+   composer one. */
+.menu {
+  position: absolute;
+  left: 0;
+  /* The viewport fit shifts it back inside the window. */
+  translate: var(--activity-shift, 0px) 0;
+  top: calc(100% + 8px);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  /* One steady width (ModelSelect's 420px ceiling), so unfolding a job
+     reveals its details in place instead of resizing the card. */
+  width: min(420px, calc(100vw - 32px));
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
+  margin: 0;
+  list-style: none;
+  padding: 8px;
+  gap: 0;
+  border: 0;
+  border-radius: var(--dsw-aeven-radius-surface);
+  background: var(--dsw-tint-menu);
+  backdrop-filter: blur(4px);
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
+  box-shadow:
+    inset 1px 1px 0 0 var(--dsw-specific-popup-highlight),
+    inset 0 0 1px 1px var(--dsw-specific-popup-highlight),
+    var(--dsw-elevation-prominent);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* A heading after rows opens a new group: extra air instead of a rule. */
+.item + .sectionHeader {
+  margin-top: 6px;
+}
+
+/* Section heading: the Menu primitive's .label row. */
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 14px;
+  line-height: 22px;
+  list-style: none;
+}
+
+.sectionToggle,
+.sectionAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.sectionToggle:hover,
+.sectionAction:hover {
+  color: var(--dsw-alias-label-primary);
+}
+
+.sectionChevron {
+  transform: rotate(-90deg);
+  transition: transform 120ms ease;
+}
+
+.sectionChevronOpen {
+  transform: rotate(0deg);
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+}
+
+/* The cell and its stop control share one hover fill, as a single cell. An
+   opened job's group carries the fill itself, so only closed rows take it. */
+.rowLine {
+  display: flex;
+  align-items: flex-start;
+  border-radius: var(--dsw-aeven-radius-control);
+}
+
+.item:not(.itemOpen) > .rowLine:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+/* ModelSelect .cell. */
+.row {
+  box-sizing: border-box;
+  display: flex;
+  flex: 1;
+  gap: 8px;
+  min-width: 0;
+  /* Top-aligned so an opened row can wrap its full name: 9px + one 22px line
+     + 9px keeps a closed row at the 40px control height. */
+  align-items: flex-start;
+  min-height: var(--dsw-aeven-control-size);
+  padding: 9px 8px;
+  border: none;
+  border-radius: var(--dsw-aeven-radius-control);
+  outline: none;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  cursor: pointer;
+  text-align: left;
+}
+
+/* Keyboard focus draws the composer's focus ring (ModelSelect .trigger); a
+   pointer click never matches :focus-visible, so nothing stays behind. */
+.row:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--dsw-alias-border-l3);
+}
+
+/* A row with a trailing control hands it its end padding; the control's 8px
+   icon inset then repeats the 8px gap between the time and the chevron. */
+.rowWithTrailing {
+  padding-right: 0;
+}
+
+.rowStatic {
+  cursor: default;
+}
+
+.rowSpinner {
+  --avn-spinner-size: 16px;
+  flex: 0 0 auto;
+  margin-top: 3px;
+}
+
+.rowDot {
+  flex: 0 0 auto;
+  margin: 6px 3px 0;
+}
+
+/* Stopped on purpose: a quiet grey dot instead of the warning tone. */
+.rowDot.rowDotNeutral[data-state] {
+  color: var(--dsw-alias-label-dimmed);
+}
+
+/* ModelSelect .cellLabel, ellipsized: the item's name. The opened row
+   carries the full name. */
+.label {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* How a settled item ended, right after its name. */
+.status {
+  flex: 0 0 auto;
+  color: var(--dsw-alias-label-tertiary);
+  white-space: nowrap;
+}
+
+.spacer {
+  flex: 1 1 auto;
+}
+
+/* ModelSelect .cellValue: the run time or the time since it ended. */
+.meta {
+  flex: 0 0 auto;
+  color: var(--dsw-alias-label-tertiary);
+  font-variant-numeric: normal;
+  white-space: nowrap;
+}
+
+/* ModelSelect .cellChevron. */
+.chevron {
+  display: inline-flex;
+  flex: 0 0 auto;
+  margin-top: 4px;
+  color: var(--dsw-alias-label-tertiary);
+  transition: transform 120ms ease;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+/* Centred on the stop icon's column (28px button, 6px end margin): the row's
+   8px pad plus 5px puts the 14px glyph's centre 20px from the edge. */
+.chevronEnd {
+  margin-right: 5px;
+}
+
+/* A round icon at a row's end (a stop). The 28px button insets its 12px icon
+   by 8px, the row's gap. */
+.rowButton {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  margin: 6px 6px 0 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: pointer;
+}
+
+.rowButton:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover-danger);
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.rowButton:disabled {
+  color: var(--dsw-alias-label-dimmed);
+  cursor: default;
+}
+
+.rowButtonFailed {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+/* An opened item: its row and details read as one light group at the rows'
+   radius, set apart from its neighbours by a little air. */
+.itemOpen {
+  margin: 0 0 8px;
+  border-radius: var(--dsw-aeven-radius-control);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+/* Nothing follows the last group to be set apart from, and the menu's own
+   padding already closes the list below it. */
+.itemOpen:last-child {
+  margin-bottom: 0;
+}
+
+/* The details, on a 4px grid and flush with the row's 8px inner edge, under
+   the opened row that titles them: the facts, then the cards. */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 8px 8px;
+}
+
+/* The opened row's full name, as the details' title. */
+.label.labelOpen {
+  font-weight: 400;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* Two columns: tertiary labels, primary values. */
+.facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 16px;
+  row-gap: 4px;
+  margin: 0;
+}
+
+.fact {
+  display: contents;
+}
+
+/* Scoped past the app's global definition-list styles (bold dt). */
+.facts .fact dt {
+  margin: 0;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 22px;
+}
+
+.facts .fact dd {
+  margin: 0;
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  line-height: 22px;
+  font-variant-numeric: normal;
+  overflow-wrap: anywhere;
+}
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* White cards whose header opens them (output, command), at the rows'
+   control radius. */
+.card {
+  overflow: hidden;
+  border-radius: var(--dsw-aeven-radius-control);
+  background: var(--dsw-alias-markdown-code-block);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding-right: 4px;
+}
+
+.cardToggle {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
+  padding: 0 12px;
+  border: none;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cardToggle:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--dsw-alias-border-l3);
+  border-radius: var(--dsw-aeven-radius-control);
+}
+
+.cardToggle > svg {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.code {
+  box-sizing: border-box;
+  max-height: 220px;
+  margin: 0;
+  padding: 0 12px 12px;
+  overflow-y: auto;
+  color: var(--dsw-alias-label-primary);
+  font: var(--dsw-font-markdown-code-block-small);
+  line-height: 18px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.codeCompact {
+  max-height: 180px;
+}
+
+.codeNote {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.note {
+  padding: 0 12px 12px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .triggerChevron,
+  .sectionChevron,
+  .chevron {
+    transition: none;
+  }
+}
+
+.noteError {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+/* The item the reader is viewing now. */
+.labelCurrent {
+  font-weight: 400;
+}
+
+/* A card that acts instead of opening ("Open conversation"). */
+.link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border: none;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.link:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--dsw-alias-border-l3);
+}
+
+.linkTitle {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.linkDetail {
+  flex: 0 0 auto;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.linkChevron {
+  flex: 0 0 auto;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* The way back to a parent conversation, in the trigger's material. */
+.back {
+  gap: 6px;
+  padding: 0 12px 0 8px;
+}
+
+.backChevron {
+  flex: none;
+}

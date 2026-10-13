@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-21-shared-route-vocabulary-llm-aeven-deepseek.md
+2026-09-21-shared-route-vocabulary-llm-aeven-deepseek.md: 1aa92d56cee0bb8d3103ba96cc527d3a877f0bda
+2026-09-21-shared-route-vocabulary-llm-aeven-deepseek.zh.md: 4210f8da6368e5c2513e088b95f2baefa7874d06

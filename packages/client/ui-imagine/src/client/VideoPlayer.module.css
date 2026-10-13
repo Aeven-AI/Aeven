@@ -1,0 +1,17 @@
+/* The generated clip's player: the clip fills its frame, and the playback
+   chrome rides over its lower edge. */
+.player {
+  position: relative;
+  display: block;
+}
+
+/* A generated clip fills its frame; the frame already has the clip's shape, so
+   nothing is cropped. The black behind it is the clip's own letterbox in either
+   theme, not a surface color. */
+.video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000000;
+}

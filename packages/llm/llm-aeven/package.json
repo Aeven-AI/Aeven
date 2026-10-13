@@ -1,0 +1,56 @@
+{
+  "name": "@aeven/llm-aeven",
+  "description": "Aeven cloud inference adapter for the Aeven LLM seam",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/llm/llm-aeven"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "@aeven/agent": "workspace:^",
+    "@aeven/anonymous-user-id": "workspace:^",
+    "@aeven/attachment": "workspace:^",
+    "@aeven/credentials": "workspace:^",
+    "@aeven/fs": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/llm-deepseek": "workspace:^",
+    "@aeven/settings": "workspace:^",
+    "@aeven/timeout": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "workspace:^"
+  },
+  "devDependencies": {
+    "@aeven/agent": "workspace:^",
+    "@aeven/anonymous-user-id": "workspace:^",
+    "@aeven/credentials": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/llm-deepseek": "workspace:^",
+    "@aeven/settings": "workspace:^",
+    "@aeven/timeout": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  }
+}

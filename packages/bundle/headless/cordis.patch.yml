@@ -1,0 +1,33 @@
+# The avn-headless bundle patch: one-shot task mode directly over avn-base.
+# It mounts no Host, HTTP server, Web runtime, or browser plugin. An ordinary
+# provider plugin injects `cmdlineArgs`, parses the task positional
+# (`avn --profile headless "<task>"`) and this app's --help, then the direct
+# driver creates an Agent through the core registry and prints its durable result.
+
+- id: system-prompt
+  config:
+    persona: >-
+      You are a coding agent powered by the {{model}} model. Your working directory is {{cwd}}.
+
+- id: tools
+  config:
+    # Keep the same temporary process-wide PTC mode opt-in as the Web surface.
+    mode: !!js process.env.AVN_TOOLS_MODE
+
+- insert:
+    # PTC mode is a core execution capability, not a Web component.
+    - id: code-runtime
+      name: '@aeven/code-runtime-worker-thread'
+
+    - id: headless-startup
+      name: '@aeven/headless/startup'
+
+    # Reads its task from the ordinary headlessStartup provider.
+    - id: headless-runner
+      name: '@aeven/headless'
+      inject: [headlessStartup]
+      config:
+        task: !!js ctx.headlessStartup.task
+        # A run belongs to an account only when the operator names one; per-user
+        # memory and learned capabilities need an owner.
+        owner: !!js process.env.AVN_OWNER

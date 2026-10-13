@@ -1,0 +1,48 @@
+{
+  "name": "@aeven/tool-image-search",
+  "description": "Model-facing find_images tool that shows real photographs of a subject from Wikimedia Commons with their sources",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/web/tool-image-search"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@deepseek-ai/schemastery": "workspace:^",
+    "entities": "^8.0.0"
+  },
+  "peerDependencies": {
+    "@aeven/attachment": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/tools": "workspace:^",
+    "@aeven/web": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "devDependencies": {
+    "@aeven/attachment": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/tools": "workspace:^",
+    "@aeven/util-values": "workspace:^",
+    "@aeven/web": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  }
+}

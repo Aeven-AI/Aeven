@@ -1,0 +1,14 @@
+/* Trigger glyph: a CSS-sized lucide cog at the sidebar's 18px grapheme. */
+.triggerIcon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+
+/* Trigger row label (the shell's button provides layout/colors; the label
+ * only guards against overflow during the sidebar collapse crossfade). */
+
+.triggerLabel {
+  overflow: hidden;
+  white-space: nowrap;
+}

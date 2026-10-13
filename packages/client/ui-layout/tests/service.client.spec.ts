@@ -1,0 +1,70 @@
+import { describe, expect, it, vi } from 'vitest'
+import { LayoutController } from '@aeven/client-ui-layout/src/client/service.ts'
+import type { PanelActions } from '@aeven/client-ui-layout/src/client/service.ts'
+import type { ISurfaces } from '@aeven/client-ui-layout/src/client/surfaces.ts'
+
+const surfaces = {} as ISurfaces
+
+function fakePanels(): PanelActions {
+  return {
+    setSidebar: vi.fn(),
+    setDetails: vi.fn(),
+    toggleSidebar: vi.fn(),
+    setNarrow: vi.fn(),
+    openDetails: vi.fn(),
+    closeDetails: vi.fn(),
+    setFullscreen: vi.fn(),
+    setRightbar: vi.fn(),
+    toggleRightbar: vi.fn(),
+    openRightbar: vi.fn(),
+  }
+}
+
+describe('LayoutController', () => {
+  it('forwards the three panel actions to the attached set', () => {
+    const service = new LayoutController(surfaces)
+    const panels = fakePanels()
+    service.attachPanels(panels)
+
+    service.toggleSidebar()
+    service.openDetails()
+    service.closeDetails()
+
+    expect(panels.toggleSidebar).toHaveBeenCalledTimes(1)
+    expect(panels.openDetails).toHaveBeenCalledTimes(1)
+    expect(panels.closeDetails).toHaveBeenCalledTimes(1)
+    expect(panels.setSidebar).not.toHaveBeenCalled()
+    expect(panels.setDetails).not.toHaveBeenCalled()
+  })
+
+  it('fails loud before the root entry wired its actions', () => {
+    const service = new LayoutController(surfaces)
+    expect(() => { service.toggleSidebar() }).toThrow(/panel actions not wired/)
+    expect(() => { service.openDetails() }).toThrow(/panel actions not wired/)
+    expect(() => { service.closeDetails() }).toThrow(/panel actions not wired/)
+  })
+
+  it('re-attach overwrites the stale action set (entry re-register)', () => {
+    const service = new LayoutController(surfaces)
+    const stale = fakePanels()
+    const fresh = fakePanels()
+    service.attachPanels(stale)
+    service.attachPanels(fresh)
+
+    service.toggleSidebar()
+
+    expect(stale.toggleSidebar).not.toHaveBeenCalled()
+    expect(fresh.toggleSidebar).toHaveBeenCalledTimes(1)
+  })
+
+  it('names the session and the frame width on a right sidebar toggle', () => {
+    const service = new LayoutController(surfaces)
+    const panels = fakePanels()
+    service.attachPanels(panels)
+
+    service.toggleRightbar('s1')
+
+    expect(panels.toggleRightbar).toHaveBeenCalledWith('s1', expect.any(Number))
+  })
+
+})

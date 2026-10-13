@@ -1,0 +1,80 @@
+# Live-recording patch shared by the ordinary headless snapshot composition.
+# The shipped profile owns application startup; this patch fixes only the
+# deterministic test composition and raw persistence needed for recording.
+
+- id: llm-deepseek
+  name: '@aeven/llm-deepseek'
+  config:
+    thinking: enabled
+    reasoningEffort: max
+    models:
+      - id: deepseek-v4-flash
+      - id: deepseek-v4-pro
+      - id: deepseek-v4-flash-vision-exp
+        inputModalities: [text, image]
+
+- id: sandbox-policy
+  name: '@aeven/sandbox-policy'
+  config:
+    mode: !!js "process.env.AVN_PERMISSION_MODE ?? (process.env.AVN_SNAPSHOT === undefined ? 'workspace-write' : 'danger-full-access')"
+    workspaceRoot: !!js process.cwd()
+
+- id: approval
+  name: '@aeven/user-approval'
+  config:
+    policy: !!js "(process.env.AVN_PERMISSION_MODE ?? (process.env.AVN_SNAPSHOT === undefined ? 'workspace-write' : 'danger-full-access')) === 'danger-full-access' ? 'never' : 'ask'"
+
+- id: session-persistence-jsonl
+  name: '@aeven/session-persistence-jsonl'
+  config:
+    root: !!js avnHomePath('sessions')
+    compression: none
+
+- id: session-title-llm
+  disabled: true
+
+- id: system-prompt
+  name: '@aeven/system-prompt'
+  config:
+    persona: |
+      You are a coding assistant powered by the {{model}} model. Your working directory is {{cwd}}. Your bash tool runs under a file sandbox — a `[sandbox: file access denied …]` result is policy, not a command bug.
+
+      Verify your work by running the code or tests. Keep answers brief and factual.
+
+- id: agent-instructions
+  name: '@aeven/agent-instructions'
+  config:
+    maxBytes: 65536
+
+- id: tool-subagent
+  name: '@aeven/tool-subagent'
+  config:
+    provider: spawn
+    toolName: subagent
+    backgroundMode: continuable
+    maxDepth: 1
+
+- id: tool-subagent-fork
+  name: '@aeven/tool-subagent'
+  config:
+    provider: fork
+    toolName: subagent_fork
+    backgroundMode: one-shot
+    enableRunInBackground: false
+    maxDepth: 1
+
+- id: fs-sandbox
+  name: '@aeven/fs-sandbox'
+  config:
+    cwd: !!js process.cwd()
+
+- insert:
+    - id: hooks-claude-code
+      name: '@aeven/hooks-claude-code'
+      config:
+        configPath: ./hooks.json
+
+    - id: hooks-codex
+      name: '@aeven/hooks-codex'
+      config:
+        configPath: ./codex-hooks.json

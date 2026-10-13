@@ -1,0 +1,673 @@
+/* Automation management in the product's surface language: flat white blocks at
+   the 30px surface radius with no stroke, 0.5px hairline separators inside a
+   card, 400/500 type weights, and 32/40px controls. The page holds the
+   composer's own horizontal box, so the column edges are the composer card's
+   edges at every width. */
+
+.root {
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 53px var(--avn-composer-side-clearance) 48px;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: var(--avn-composer-card-max-width);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* One 30px control row: the view switcher at the leading edge, the primary
+   action at the trailing one, both stopped on the same line. */
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.bar .headerAction {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 15px;
+  font-size: 14px;
+  line-height: 30px;
+}
+
+/* View switcher, sized to the row: 30px items that fill their own track, the
+   selected one the surface colour again. */
+.tabs {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  border-radius: 15px;
+  background: var(--dsw-alias-bg-module-platform);
+}
+
+.tab {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 15px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  font-size: 14px;
+  line-height: 30px;
+  cursor: pointer;
+}
+
+.tab:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.tab[aria-pressed='true'] {
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+}
+
+.sectionTitle {
+  margin: 32px 0 12px;
+  font-size: 16px;
+  line-height: normal;
+  font-weight: 500;
+  text-align: center;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card {
+  box-sizing: border-box;
+  padding: 16px;
+  border-radius: var(--dsw-aeven-radius-surface);
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+/* The card's whole summary — the name, the chevron, and the recurrence facts —
+   is one toggle, so the name states what opens and the facts state when. */
+.toggle {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.toggle:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+  border-radius: var(--dsw-aeven-radius-tight);
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+}
+
+.chevron {
+  flex: none;
+  color: var(--dsw-alias-label-caption);
+  transition: transform 160ms ease;
+}
+
+.toggle[aria-expanded='true'] .chevron {
+  transform: rotate(180deg);
+}
+
+.status {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-module-platform);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.cardActions .status {
+  margin-left: auto;
+}
+
+.status[data-tone='active'] {
+  background: var(--dsw-tint-success-10);
+  color: var(--dsw-blend-success-label-strong);
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 40px;
+}
+
+.fact {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* The pair states its own weight: neither label nor value is a definition
+   term a user agent would bold. */
+.factLabel {
+  display: block;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 400;
+  color: var(--dsw-alias-label-caption);
+}
+
+.factValue {
+  display: block;
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: 400;
+}
+
+
+.cardActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+/* One 30px row of primary ink. The actions carry no hover state: the tooltip
+   names each glyph, and the labelled action states itself. */
+.cardActions button {
+  height: 30px;
+}
+
+.cardActions .action {
+  color: var(--dsw-alias-label-primary);
+}
+
+.cardActions .action:hover:not(:disabled) {
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+}
+
+.cardActions .runNow:hover:not(:disabled) {
+  background: var(--dsw-alias-button-primary-fill);
+}
+
+.cardActions .iconAction {
+  width: 30px;
+  padding: 0;
+}
+
+.cardActions svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* The bubble anchors to the glyph, so a wrapped control still places it on the
+   mark rather than on the wrapper. */
+.tip {
+  display: inline-flex;
+}
+
+.clearRow {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+/* The page's one destructive control, at the panel's 30px height: black fill and
+   inverted ink, held under the pointer and under pressure so the action never
+   looks like the row's ordinary hover reactions. */
+.clearRow button {
+  height: 30px;
+}
+
+.clearRow button:hover:not(:disabled),
+.clearRow button:active:not(:disabled) {
+  background: var(--dsw-alias-button-primary-fill);
+  color: var(--dsw-alias-label-primary-foreground);
+}
+
+.empty {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 44px 24px;
+  border-radius: var(--dsw-aeven-radius-surface);
+  background: var(--dsw-alias-bg-layer-1);
+  text-align: center;
+}
+
+/* The empty state's mark and body copy carry primary ink, so the block reads as
+   the page's own black rather than as dimmed placeholder text. */
+.emptyIcon {
+  width: 28px;
+  height: 28px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.emptyTitle {
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+}
+
+.emptyText {
+  margin: 0;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--dsw-alias-label-primary);
+}
+
+/* A personal suggestion leads the catalogue: one full-width tile on the raised layer. */
+.forYou,
+.connect {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-bottom: 12px;
+  padding: 16px;
+  border: 0;
+  border-radius: var(--dsw-aeven-radius-surface);
+  background: var(--dsw-alias-bg-layer-1);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.forYou {
+  cursor: pointer;
+}
+
+.forYou:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.forYou:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+}
+
+.connect {
+  margin: 32px 0 0;
+}
+
+.connectIcon {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--dsw-aeven-radius-control);
+  background: var(--dsw-alias-button-primary-fill);
+  color: var(--dsw-alias-label-primary-foreground);
+}
+
+.connectIcon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.connect .connectAction {
+  flex: none;
+}
+
+.category {
+  margin-top: 24px;
+}
+
+.categoryTitle {
+  margin: 0 0 12px;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+}
+
+.templates {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+/* One starter card. The open button's ::after covers the whole card, so the
+   schedule line drafts too; the Connect action is raised above that area. */
+.template {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--dsw-aeven-radius-surface);
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.templateOpen {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.templateOpen::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.templateOpen:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.templateOpen:focus-visible {
+  outline: none;
+}
+
+.templateOpen:focus-visible::after {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+}
+
+/* The starter's mark: the product's own black tile, glyph inverted, fixed. */
+.templateIcon {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--dsw-aeven-radius-control);
+  background: var(--dsw-alias-button-primary-fill);
+  color: var(--dsw-alias-label-primary-foreground);
+}
+
+.templateIcon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.templateText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.templateTitle {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+}
+
+.templateDescription {
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* Schedule and Connect sit under the text column, aligned past the 30px mark. */
+.templateMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.templateSchedule {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.templateSchedule svg {
+  width: 14px;
+  height: 14px;
+}
+
+.templateMeta .templateConnect {
+  position: relative;
+  z-index: 1;
+}
+
+.details {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.prompt {
+  margin: 0;
+  font-size: 14px;
+  line-height: 22px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+
+
+.alert {
+  margin: 16px 0 0;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* Loading and offline read as the page's own state, at body size in the
+   empty-state block, never as a caption. */
+.state {
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* The foldout's run list title reads as a section heading in body ink. */
+.detailTitle {
+  margin: 24px 0 12px;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+  color: var(--dsw-alias-label-primary);
+}
+
+/* Every run is one fixed-height row: a title and a subtitle on one line each,
+   then one trailing 30px circle — the status, or the retry action that
+   replaces it. Rows never grow with their content; an error stays in the run's
+   conversation and the row's title. */
+.runList,
+.runCards {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.runList {
+  gap: 4px;
+}
+
+.runCards {
+  gap: 8px;
+}
+
+.run {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 52px;
+}
+
+/* On the Runs view each run is its own white card on the page. */
+.runCards .run {
+  height: 64px;
+  padding: 0 16px;
+  border-radius: var(--dsw-aeven-radius-content);
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.runOpen {
+  box-sizing: border-box;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.runOpen:disabled {
+  cursor: default;
+}
+
+.runOpen:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+  border-radius: var(--dsw-aeven-radius-tight);
+}
+
+.runText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.runTitle,
+.runSubtitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.runTitle {
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 500;
+  color: var(--dsw-alias-label-primary);
+}
+
+.runSubtitle {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* The status and the retry action share one 30px black circle with a white glyph. */
+.runIcon,
+.run .runAction {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--dsw-alias-button-primary-fill);
+  color: var(--dsw-alias-label-primary-foreground);
+  --avn-spinner-color: var(--dsw-alias-label-primary-foreground);
+}
+
+/* Single-run removal sits immediately left of the trailing mark, in secondary ink
+   so the row's status keeps the emphasis. */
+.run .runRemove {
+  box-sizing: border-box;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 50%;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.run .runAction:hover:not(:disabled) {
+  background: var(--dsw-alias-button-primary-fill);
+  color: var(--dsw-alias-label-primary-foreground);
+}
+
+.runIcon svg,
+.run .runAction svg {
+  width: 16px;
+  height: 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron {
+    transition: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .templates {
+    grid-template-columns: 1fr;
+  }
+
+  .bar .headerAction {
+    flex: 1;
+  }
+}

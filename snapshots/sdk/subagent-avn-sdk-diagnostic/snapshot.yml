@@ -1,0 +1,8 @@
+version: 1
+scenario: subagent-avn-sdk-diagnostic
+profile: sdk
+composition: sdk-avn-sdk-diagnostic
+recording: live
+header:
+  class: sdk-avn-sdk-diagnostic
+  pin: true

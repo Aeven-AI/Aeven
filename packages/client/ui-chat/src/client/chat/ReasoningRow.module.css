@@ -1,0 +1,147 @@
+/* Think row: one line at the conversation body size (the Aeven flow-row
+   scale), icon · title · separator · summary, with no border. The expanded
+   body reads through the compact Markdown variant under the title. */
+
+.root {
+  margin-bottom: 4px;
+  display: flex;
+  flex-direction: column;
+}
+
+.root:not([data-expanded]) {
+  contain: size layout;
+  height: calc(24px + var(--avn-content-font-delta, 0px));
+}
+
+.row {
+  position: relative;
+  overflow: hidden;
+}
+
+/* The uncapped body scrolls with the conversation; keep its collapse toggle
+   reachable while the reader scrolls through a long trace. */
+.root[data-expanded] [data-open] [data-disclosure-row] {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--dsw-alias-bg-base);
+}
+
+.root[data-state='running'] .row::after {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: 300px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--dsw-tint-surface-fade) 55%,
+    transparent 100%
+  );
+  animation: avn-reasoning-row-sweep 2.6s ease-out infinite;
+  pointer-events: none;
+}
+
+@keyframes avn-reasoning-row-sweep {
+  0% { left: -300px; }
+  90%, 100% { left: 100%; }
+}
+
+.leading {
+  flex-shrink: 0;
+}
+
+.chevron {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.title {
+  font-weight: 400;
+  transition: color 100ms ease;
+}
+
+.separator {
+  flex: none;
+  width: 2px;
+  height: 2px;
+  margin: 0 8px;
+  border-radius: 1px;
+  background: var(--dsw-alias-label-caption);
+}
+
+.summary {
+  min-width: 0;
+  overflow: hidden;
+  flex: 1 1 auto;
+  color: var(--dsw-alias-label-caption);
+  font-size: var(--avn-content-font-size, 16px);
+  line-height: calc(28px + var(--avn-content-font-delta, 0px));
+  white-space: nowrap;
+  transition: color 100ms ease;
+}
+
+.summaryText {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* While streaming, the line follows its newest words: once it outgrows the
+   row it is end-aligned and its start fades out under a mask, so words that
+   are still fading in stay in view. */
+.summary[data-streaming] {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.summary[data-streaming] .summaryText {
+  flex: 0 0 auto;
+  width: max-content;
+  min-width: 100%;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.summary[data-streaming][data-overflowing] {
+  mask-image: linear-gradient(to right, transparent, black 48px);
+}
+
+/* One fade per word, on the Markdown engine's curve and duration. */
+.word {
+  opacity: 0;
+  animation: avn-reasoning-word-fade-in 1s linear forwards;
+}
+
+@keyframes avn-reasoning-word-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.row:hover .leading,
+.row:hover .chevron,
+.row:hover .title,
+.row:hover .summary {
+  color: var(--dsw-alias-label-primary);
+}
+
+.root:not([data-preview]) .separator,
+.root:not([data-preview]) .summary {
+  display: none;
+}
+
+.thinkBody {
+  padding: 4px 0;
+  min-width: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root[data-state='running'] .row::after {
+    animation: none;
+  }
+
+  .word {
+    opacity: 1;
+    animation: none;
+  }
+}

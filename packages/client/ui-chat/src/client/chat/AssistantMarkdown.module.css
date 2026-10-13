@@ -1,0 +1,81 @@
+/* Assistant flow body: full-width narration (figma 16/28 scaled 0.875 → 14/24
+   with the markdown token ladder), block gap 16. The Settings font-size
+   preference rides the body-published axis: size follows
+   --avn-content-font-size and the line height keeps the 10px leading via the
+   shared px delta. IconActions sit below the body with an explicit 16px top
+   margin (figma 43:32997) — separate from the body's internal gap so the
+   footer spacing stays fixed when the body is a single block. */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--avn-content-font-size, 14px);
+  line-height: calc(var(--dsw-aeven-reading-line-height) + var(--avn-content-font-delta, 0px));
+  color: var(--dsw-alias-label-primary);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dsw-aeven-space-content);
+}
+
+/* A live step's prose run fades in on the commit that first carries its text,
+   so the answer arrives instead of popping in. Only a streaming run takes the
+   class: a step mounted from history is already settled and must not animate
+   while the reader pages through it. */
+.enter {
+  animation: answer-enter 200ms ease-out both;
+}
+
+@keyframes answer-enter {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .enter {
+    animation: none;
+  }
+}
+
+/* No rule for the renderer's many-column `md-table-wide` hook, deliberately.
+   HyperMarkdown ships the hook as a styling opt-in with no geometry of its
+   own, and its `.table-scroll { width: 100%; overflow-x: auto }` already
+   holds the scroll viewport to the message column. Taking the opt-in to
+   widen that viewport paints table cells outside the column every other
+   block occupies; widening it leftwards additionally scrolls its own lead
+   padding away, landing cells in the sidebar gutter. The table still reaches
+   its full width by scrolling inside the column. */
+
+/* hidden="until-found" keeps a zero-height reasoning box in flex layout.
+   Cancel the one gap that box would otherwise leave before the visible reply;
+   visible Assistant blocks retain the ordinary 16px rhythm. */
+.body > [data-turn-process-inline][hidden] {
+  margin-bottom: -16px;
+}
+
+/* Interrupted-turn terminal marker: quiet inline tag, no animation. Fixed
+   size like the small/code token variants — 11px is dense secondary text
+   that would fall to an illegible 9px at the 12px floor. */
+.stopped {
+  align-self: flex-start;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  line-height: 18px;
+}
+
+/* Finalized footer offset (figma 43:32997); chrome lives in MessageIconActions. */
+.actions {
+  margin-top: 16px;
+  /* Optical align with 28px icon hit targets that pad 6px past the glyph. */
+  margin-left: -6px;
+}

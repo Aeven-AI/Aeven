@@ -1,0 +1,3662 @@
+{
+ "_note": "Value of each catalogued skill against the harness native surface, and the bar the catalog ships on. The sync vendors only skills whose value reaches minValue; the remaining judgements stay here so widening the set is one edit.",
+ "minValue": 4,
+ "skills": {
+  "agent-management": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "agent-messaging": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "docs-search": {
+   "verdict": "native",
+   "value": 1
+  },
+  "graph-query": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "memory-search": {
+   "verdict": "native",
+   "value": 1
+  },
+  "planning": {
+   "verdict": "native",
+   "value": 1
+  },
+  "agent-evaluation": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "agent-manager-skill": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "agent-memory-mcp": {
+   "verdict": "native",
+   "value": 1
+  },
+  "agent-memory-systems": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "agent-tool-builder": {
+   "verdict": "partial",
+   "value": 4
+  },
+  "agents-autogpt": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "agents-crewai": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "agents-langchain": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "agents-llamaindex": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "ai-agents-architect": {
+   "verdict": "native",
+   "value": 1
+  },
+  "ai-release-hunter": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "ai-research-dispatching-parallel-agents": {
+   "verdict": "native",
+   "value": 1
+  },
+  "ai-research-subagent-driven-development": {
+   "verdict": "native",
+   "value": 1
+  },
+  "autonomous-agent-patterns": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "autonomous-agents": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "behavioral-modes": {
+   "verdict": "native",
+   "value": 1
+  },
+  "claude-code-guide": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "computer-use-agents": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "context-window-management": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "context7-auto-research": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "conversation-memory": {
+   "verdict": "native",
+   "value": 1
+  },
+  "crewai": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "data-engineer": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "data-processing-nemo-curator": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "data-processing-ray-data": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "data-scientist": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "datadog-cli": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "deep-research": {
+   "verdict": "native",
+   "value": 1
+  },
+  "deep-research-notebooklm": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "distributed-training-accelerate": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "distributed-training-deepspeed": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "distributed-training-megatron-core": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "distributed-training-pytorch-fsdp": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "distributed-training-pytorch-lightning": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "distributed-training-ray-train": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "emerging-techniques-knowledge-distillation": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "emerging-techniques-long-context": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "emerging-techniques-model-merging": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "emerging-techniques-model-pruning": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "emerging-techniques-moe-training": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "emerging-techniques-speculative-decoding": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "evaluation-bigcode-evaluation-harness": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "evaluation-lm-evaluation-harness": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "evaluation-nemo-evaluator": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "fine-tuning-axolotl": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "fine-tuning-llama-factory": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "fine-tuning-peft": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "fine-tuning-unsloth": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "gemini": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "gemini-api-agent-platform": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "gepetto": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "inference-serving-llama-cpp": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "inference-serving-sglang": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "inference-serving-tensorrt-llm": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "inference-serving-vllm": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "infrastructure-lambda-labs": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "infrastructure-modal": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "infrastructure-skypilot": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "jira": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "langfuse": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "langgraph": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "llm-app-patterns": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "llm-evaluation": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "llm-ops": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "loki-mode": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "mechanistic-interpretability-nnsight": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "mechanistic-interpretability-pyvene": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "mechanistic-interpretability-saelens": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "mechanistic-interpretability-transformer-lens": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "ml-engineer": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "ml-paper-writing": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "mlops-mlflow": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "mlops-tensorboard": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "mlops-weights-and-biases": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "model-architecture-litgpt": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "model-architecture-mamba": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "model-architecture-nanogpt": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "model-architecture-rwkv": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "model-architecture-torchtitan": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "multimodal-audiocraft": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "multimodal-blip-2": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "multimodal-clip": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "multimodal-llava": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "multimodal-segment-anything": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "multimodal-stable-diffusion": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "multimodal-whisper": {
+   "verdict": "native",
+   "value": 1
+  },
+  "observability-langsmith": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "observability-phoenix": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "openai-docs": {
+   "verdict": "native",
+   "value": 1
+  },
+  "optimization-awq": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "optimization-bitsandbytes": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "optimization-flash-attention": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "optimization-gguf": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "optimization-gptq": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "optimization-hqq": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "parallel-agents": {
+   "verdict": "native",
+   "value": 1
+  },
+  "perplexity": {
+   "verdict": "native",
+   "value": 1
+  },
+  "post-training-grpo-rl-training": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "post-training-miles": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "post-training-openrlhf": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "post-training-simpo": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "post-training-slime": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "post-training-torchforge": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "post-training-trl-fine-tuning": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "post-training-verl": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "prompt-caching": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "prompt-engineer": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "prompt-engineering": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "prompt-engineering-dspy": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "prompt-engineering-guidance": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "prompt-engineering-instructor": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "prompt-engineering-outlines": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "prompt-engineering-patterns": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "prompt-library": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "pydantic-ai": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "qa-test-planner": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "rag-chroma": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "rag-engineer": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "rag-faiss": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "rag-implementation": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "rag-pinecone": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "rag-qdrant": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "rag-sentence-transformers": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "research-engineer": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "safety-alignment-constitutional-ai": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "safety-alignment-llamaguard": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "safety-alignment-nemo-guardrails": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "tokenization-huggingface-tokenizers": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "tokenization-sentencepiece": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "voice-agents": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "voice-ai-development": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "google-analytics": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "ab-test-setup": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "agile-product-owner": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "ai-product": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "ai-wrapper-product": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "analytics-tracking": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "app-builder": {
+   "verdict": "native",
+   "value": 1
+  },
+  "app-store-optimization": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "brand-guidelines-anthropic": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "brand-guidelines-community": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "business-marketing-templates": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "business-marketing-x-twitter-scraper": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "ceo-advisor": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "competitive-ads-extractor": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "competitor-alternatives": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "content-creator": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "content-research-writer": {
+   "verdict": "native",
+   "value": 1
+  },
+  "copy-editing": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "copywriting": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "cto-advisor": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "email-sequence": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "email-systems": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "form-cro": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "free-tool-strategy": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "launch-strategy": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "lead-research-assistant": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "marketing-demand-acquisition": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "marketing-ideas": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "marketing-psychology": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "marketing-strategy-pmm": {
+   "verdict": "partial",
+   "value": 4
+  },
+  "micro-saas-launcher": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "onboarding-cro": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "page-cro": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "paid-ads": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "paywall-upgrade-cro": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "popup-cro": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "pricing-strategy": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "product-decision-agent": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "product-manager-toolkit": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "product-strategist": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "programmatic-seo": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "referral-program": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "schema-markup": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "seo-audit": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "seo-fundamentals": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "seo-optimizer": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "seoagent": {
+   "verdict": "partial",
+   "value": 4
+  },
+  "signup-flow-cro": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "social-content": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "viral-generator-builder": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "academic-cv-builder": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "career-changer-translator": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "cover-letter-generator": {
+   "verdict": "native",
+   "value": 1
+  },
+  "creative-portfolio-resume": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "executive-resume-writer": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "interview-prep-generator": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "job-description-analyzer": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "linkedin-profile-optimizer": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "offer-comparison-analyzer": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "portfolio-case-study-writer": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "reference-list-builder": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "resume-ats-optimizer": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "resume-bullet-writer": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "resume-formatter": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "resume-quantifier": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "resume-section-builder": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "resume-tailor": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "resume-version-manager": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "salary-negotiation-prep": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "tech-resume-optimizer": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "workorai": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "2d-games": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "3d-games": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "3d-web-experience": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "accessibility-auditor": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "algorithmic-art": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "c4-architecture": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "canvas-design": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "claude-d3js-skill": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "creative-design-slack-gif-creator": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "develop-web-game": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "diagrammer": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "draw-io": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "excalidraw": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "executing-marketing-campaigns": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "figma": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "figma-implement-design": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "frontend-design": {
+   "verdict": "partial",
+   "value": 4
+  },
+  "game-art": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "game-audio": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "game-design": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "game-development": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "imagegen": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "interactive-portfolio": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "luma-imagegen": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "marp-slide": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "meme-factory": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "mermaid-diagrams": {
+   "verdict": "native",
+   "value": 1
+  },
+  "mobile-design": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "mobile-games": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "multiplayer": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "patentfig": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "pc-games": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "premium-web-design": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "remotion-best-practices": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "scroll-experience": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "tailwind-patterns": {
+   "verdict": "partial",
+   "value": 4
+  },
+  "theme-factory": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "ui-design-system": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "ui-ux-pro-max": {
+   "verdict": "partial",
+   "value": 4
+  },
+  "ux-researcher-designer": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "vr-ar": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "web-design-guidelines": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "web-games": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "curviate": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "curviate-engage": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "curviate-inbox": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "curviate-jobs": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "curviate-network": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "curviate-premium": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "curviate-profile": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "curviate-quickstart": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "curviate-search": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "alloydb-basics": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "bigquery-basics": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "cloud-sql-basics": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "database-architect": {
+   "verdict": "native",
+   "value": 1
+  },
+  "database-migration": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "database-optimizer": {
+   "verdict": "native",
+   "value": 1
+  },
+  "neon-instagres": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "postgres-schema-design": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "postgresql": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "postgresql-optimization": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "sql-pro": {
+   "verdict": "native",
+   "value": 1
+  },
+  "supabase-postgres-best-practices": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "using-neon": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "design-to-code": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "accessibility": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "agent-development": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "agent-md-refactor": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "agirails-agent-payments": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "algolia-search": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "android-cicd": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "angular": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "api-design-principles": {
+   "verdict": "native",
+   "value": 1
+  },
+  "api-documentation-generator": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "api-integration-specialist": {
+   "verdict": "partial",
+   "value": 4
+  },
+  "api-patterns": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "architecture": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "architecture-decision-records": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "architecture-patterns": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "artifacts-builder": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "async-python-patterns": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "avalonia-layout-zafiro": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "avalonia-viewmodels-zafiro": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "avalonia-zafiro-development": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "aws-serverless": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "azure-functions": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "backend-architect": {
+   "verdict": "native",
+   "value": 1
+  },
+  "backend-dev-guidelines": {
+   "verdict": "partial",
+   "value": 4
+  },
+  "bash-linux": {
+   "verdict": "native",
+   "value": 1
+  },
+  "bash-pro": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "best-practices": {
+   "verdict": "native",
+   "value": 1
+  },
+  "bleu": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "brightdata-local-search": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "bullmq-specialist": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "bun-development": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "c-pro": {
+   "verdict": "native",
+   "value": 1
+  },
+  "cc-skill-backend-patterns": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "cc-skill-clickhouse-io": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "cc-skill-coding-standards": {
+   "verdict": "native",
+   "value": 1
+  },
+  "cc-skill-continuous-learning": {
+   "verdict": "native",
+   "value": 1
+  },
+  "cc-skill-frontend-patterns": {
+   "verdict": "native",
+   "value": 1
+  },
+  "cc-skill-project-guidelines-example": {
+   "verdict": "native",
+   "value": 1
+  },
+  "cc-skill-security-review": {
+   "verdict": "partial",
+   "value": 4
+  },
+  "cc-skill-strategic-compact": {
+   "verdict": "native",
+   "value": 1
+  },
+  "changelog-generator": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "claude-api": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "claude-opus-4-5-migration": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "clean-code": {
+   "verdict": "native",
+   "value": 1
+  },
+  "clerk-auth": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "cloud-architect": {
+   "verdict": "native",
+   "value": 1
+  },
+  "cloud-devops": {
+   "verdict": "native",
+   "value": 1
+  },
+  "cloud-run-basics": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "cloudflare-deploy": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "cocoindex": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "code-review-checklist": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "code-reviewer": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "codex": {
+   "verdict": "native",
+   "value": 1
+  },
+  "codex-review": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "command-creator": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "command-development": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "context-architecture": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "convex": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "core-components": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "core-web-vitals": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "cpp-pro": {
+   "verdict": "native",
+   "value": 1
+  },
+  "create-plan": {
+   "verdict": "native",
+   "value": 1
+  },
+  "csharp-pro": {
+   "verdict": "native",
+   "value": 1
+  },
+  "database-design": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "database-schema-designer": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "dependency-updater": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "deployment-procedures": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "design-system-starter": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "developer-growth-analysis": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "development-brainstorming": {
+   "verdict": "native",
+   "value": 1
+  },
+  "development-dispatching-parallel-agents": {
+   "verdict": "native",
+   "value": 1
+  },
+  "development-executing-plans": {
+   "verdict": "native",
+   "value": 1
+  },
+  "development-github-workflow-automation": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "development-react-best-practices": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "development-skill-creator": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "development-subagent-driven-development": {
+   "verdict": "native",
+   "value": 1
+  },
+  "development-telegram-bot-builder": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "development-using-superpowers": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "development-web-artifacts-builder": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "development-webapp-testing": {
+   "verdict": "native",
+   "value": 1
+  },
+  "development-writing-plans": {
+   "verdict": "native",
+   "value": 1
+  },
+  "development-writing-skills": {
+   "verdict": "native",
+   "value": 1
+  },
+  "devops-iac-engineer": {
+   "verdict": "native",
+   "value": 1
+  },
+  "django-pro": {
+   "verdict": "native",
+   "value": 1
+  },
+  "docker-expert": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "domain-driven-design": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "dotnet-backend": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "e2e-testing-patterns": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "elixir-pro": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "environment-setup-guide": {
+   "verdict": "native",
+   "value": 1
+  },
+  "error-resolver": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "eval-genius": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "event-sourcing-architect": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "fastapi-pro": {
+   "verdict": "native",
+   "value": 1
+  },
+  "fastmcp-server": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "feature-design-assistant": {
+   "verdict": "native",
+   "value": 1
+  },
+  "finishing-a-development-branch": {
+   "verdict": "native",
+   "value": 1
+  },
+  "firebase": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "firebase-basics": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "flutter-expert": {
+   "verdict": "native",
+   "value": 1
+  },
+  "frontend-dev-guidelines": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "gcp-cloud-run": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "gh-address-comments": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "gh-fix-ci": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "git-commit-helper": {
+   "verdict": "native",
+   "value": 1
+  },
+  "git-pushing": {
+   "verdict": "native",
+   "value": 1
+  },
+  "github-actions-creator": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "gke-basics": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "golang-pro": {
+   "verdict": "native",
+   "value": 1
+  },
+  "google-cloud-networking-observability": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "google-cloud-onboarding": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "google-cloud-waf-cost-optimization": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "google-cloud-waf-reliability": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "grafana-dashboards": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "graphql": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "graphql-architect": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "haskell-pro": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "helm-chart-scaffolding": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "heygen-best-practices": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "hook-development": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "hubspot-integration": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "i18n-localization": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "incident-responder": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "internet-court": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "it-operations": {
+   "verdict": "native",
+   "value": 1
+  },
+  "java-pro": {
+   "verdict": "native",
+   "value": 1
+  },
+  "javascript-mastery": {
+   "verdict": "native",
+   "value": 1
+  },
+  "javascript-pro": {
+   "verdict": "native",
+   "value": 1
+  },
+  "javascript-testing-patterns": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "jupyter-notebook": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "k6-load-testing": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "kotlin-coroutines-expert": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "kubernetes-architect": {
+   "verdict": "native",
+   "value": 1
+  },
+  "laravel-expert": {
+   "verdict": "native",
+   "value": 1
+  },
+  "lint-and-validate": {
+   "verdict": "native",
+   "value": 1
+  },
+  "linux-shell-scripting": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "manifest": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "mcp-builder": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "mcp-integration": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "mermaid-diagram-specialist": {
+   "verdict": "native",
+   "value": 1
+  },
+  "microservices-patterns": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "monorepo-architect": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "moodle-external-api-development": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "move-code-quality": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "mui": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "neon-postgres": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "nestjs-expert": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "netlify-deploy": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "nextjs-best-practices": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "nextjs-supabase-auth": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "nodejs-backend-patterns": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "nodejs-best-practices": {
+   "verdict": "native",
+   "value": 1
+  },
+  "nosql-expert": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "observability-engineer": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "openapi-to-typescript": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "performance": {
+   "verdict": "native",
+   "value": 1
+  },
+  "performance-profiling": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "php-pro": {
+   "verdict": "native",
+   "value": 1
+  },
+  "plaid-fintech": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "playwright": {
+   "verdict": "native",
+   "value": 1
+  },
+  "playwright-e2e-builder": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "playwright-java": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "plugin-forge": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "plugin-settings": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "plugin-structure": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "postgres-best-practices": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "powershell-windows": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "prisma-expert": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "production-code-audit": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "prometheus-configuration": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "pudu-task-telemetry": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "python-patterns": {
+   "verdict": "native",
+   "value": 1
+  },
+  "python-pro": {
+   "verdict": "native",
+   "value": 1
+  },
+  "python-testing-patterns": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "react-dev": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "react-patterns": {
+   "verdict": "native",
+   "value": 1
+  },
+  "react-ui-patterns": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "react-useeffect": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "receiving-code-review": {
+   "verdict": "native",
+   "value": 1
+  },
+  "render-deploy": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "requesting-code-review": {
+   "verdict": "native",
+   "value": 1
+  },
+  "ruby-pro": {
+   "verdict": "native",
+   "value": 1
+  },
+  "rust-cli-builder": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "rust-pro": {
+   "verdict": "native",
+   "value": 1
+  },
+  "saas-multi-tenant": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "salesforce-development": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "scala-pro": {
+   "verdict": "native",
+   "value": 1
+  },
+  "screenshot-feature-extractor": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "security-compliance": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "senior-architect": {
+   "verdict": "native",
+   "value": 2
+  },
+  "senior-backend": {
+   "verdict": "native",
+   "value": 1
+  },
+  "senior-computer-vision": {
+   "verdict": "native",
+   "value": 1
+  },
+  "senior-data-engineer": {
+   "verdict": "native",
+   "value": 1
+  },
+  "senior-data-scientist": {
+   "verdict": "native",
+   "value": 1
+  },
+  "senior-devops": {
+   "verdict": "native",
+   "value": 1
+  },
+  "senior-frontend": {
+   "verdict": "native",
+   "value": 1
+  },
+  "senior-fullstack": {
+   "verdict": "native",
+   "value": 1
+  },
+  "senior-ml-engineer": {
+   "verdict": "native",
+   "value": 1
+  },
+  "senior-prompt-engineer": {
+   "verdict": "native",
+   "value": 2
+  },
+  "senior-qa": {
+   "verdict": "native",
+   "value": 1
+  },
+  "senior-secops": {
+   "verdict": "native",
+   "value": 1
+  },
+  "senior-security": {
+   "verdict": "native",
+   "value": 2
+  },
+  "seo": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "server-management": {
+   "verdict": "native",
+   "value": 1
+  },
+  "skill-creation-guide": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "skill-development": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "skill-installer": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "software-architecture": {
+   "verdict": "native",
+   "value": 1
+  },
+  "stripe-integration": {
+   "verdict": "net-new",
+   "value": 5
+  },
+  "swarmvault": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "swift-concurrency-expert": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "systematic-debugging": {
+   "verdict": "partial",
+   "value": 4
+  },
+  "task-execution-engine": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "tdd-orchestrator": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "tdd-workflow": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "terraform-specialist": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "test-detect": {
+   "verdict": "native",
+   "value": 1
+  },
+  "test-driven-development": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "test-fixing": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "testing-patterns": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "typescript-expert": {
+   "verdict": "native",
+   "value": 1
+  },
+  "typescript-pro": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "using-git-worktrees": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "vercel-deploy": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "vercel-deployment": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "verification-before-completion": {
+   "verdict": "partial",
+   "value": 4
+  },
+  "web-quality-audit": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "web-to-markdown": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "workspace-orchestration": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "worktree-guide": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "zapier-workflows": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "doc": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "document-processing-docx": {
+   "verdict": "net-new",
+   "value": 5
+  },
+  "document-processing-pdf": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "document-processing-pptx": {
+   "verdict": "net-new",
+   "value": 5
+  },
+  "document-processing-xlsx": {
+   "verdict": "net-new",
+   "value": 5
+  },
+  "documentation-templates": {
+   "verdict": "native",
+   "value": 1
+  },
+  "docx-official": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "json-canvas": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "obsidian-bases": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "obsidian-markdown": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "pdf-anthropic": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "pdf-fill-studio": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "pdf-official": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "pdf-processing": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "pdf-processing-pro": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "pptx-official": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "spreadsheet": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "xlsx-official": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "doordash-allergy-shield": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "doordash-group-orders": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "doordash-order-ledger": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "doordash-order-playbooks": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "doordash-spend-guard": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "backend-to-frontend-handoff-docs": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "brand-guidelines": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "capa-officer": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "daily-meeting-update": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "data-privacy-compliance": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "difficult-workplace-conversations": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "discord-bot-architect": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "email-composer": {
+   "verdict": "native",
+   "value": 1
+  },
+  "enterprise-communication-slack-gif-creator": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "enterprise-communication-telegram-bot-builder": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "excel-analysis": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "fda-consultant-specialist": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "feedback-mastery": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "frontend-to-backend-requirements": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "gdpr-dsgvo-expert": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "information-security-manager-iso27001": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "internal-comms": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "internal-comms-anthropic": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "internal-comms-community": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "isms-audit-expert": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "mdr-745-specialist": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "professional-communication": {
+   "verdict": "native",
+   "value": 1
+  },
+  "qms-audit-expert": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "quality-documentation-manager": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "quality-manager-qmr": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "quality-manager-qms-iso13485": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "regulatory-affairs-head": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "risk-management-specialist": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "session-handoff": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "slack-bot-builder": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "telegram-mini-app": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "twilio-communications": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "writing-clearly-and-concisely": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "commit-smart": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "git-context-controller": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "star-history-chart": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "gmod-addon-maker": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "marketing-x-twitter-scraper": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "image-enhancer": {
+   "verdict": "native",
+   "value": 2
+  },
+  "screenshot": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "speech": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "transcribe": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "video-downloader": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "open-banking-io": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "abc-xyz-segmentation": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "forecast-accuracy-review": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "otif-analysis": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "root-cause-pareto": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "safety-stock-review": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "weekly-ops-report": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "pb-api-rules": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "pb-collections": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "pb-deploy": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "pb-hooks": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "pb-migrations": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "pb-sdk": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "academy-guide": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "address-github-comments": {
+   "verdict": "native",
+   "value": 1
+  },
+  "avoid-ai-writing": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "claude-code-sessions": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "code-review-excellence": {
+   "verdict": "native",
+   "value": 1
+  },
+  "code-simplifier": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "commit-work": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "concise-planning": {
+   "verdict": "native",
+   "value": 1
+  },
+  "crafting-effective-readmes": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "deadline-prep": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "debugger": {
+   "verdict": "native",
+   "value": 1
+  },
+  "debugging-strategies": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "devil": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "discernment-nudge": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "doc-chaser-lite": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "doc-coauthoring": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "file-organizer": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "game-changing-features": {
+   "verdict": "native",
+   "value": 1
+  },
+  "humanizer": {
+   "verdict": "partial",
+   "value": 4
+  },
+  "invoice-organizer": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "kaizen": {
+   "verdict": "native",
+   "value": 1
+  },
+  "linear": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "mac-storage-cleaner": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "meeting-insights-analyzer": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "naming-analyzer": {
+   "verdict": "native",
+   "value": 1
+  },
+  "notebooklm": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "notion-knowledge-capture": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "notion-meeting-intelligence": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "notion-research-documentation": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "notion-spec-to-implementation": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "notion-template-business": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "nowait": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "obsidian-clipper-template-creator": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "performance-optimizer": {
+   "verdict": "native",
+   "value": 1
+  },
+  "personal-tool-builder": {
+   "verdict": "native",
+   "value": 1
+  },
+  "plan-writing": {
+   "verdict": "native",
+   "value": 1
+  },
+  "productivity-brainstorming": {
+   "verdict": "native",
+   "value": 1
+  },
+  "productivity-executing-plans": {
+   "verdict": "native",
+   "value": 1
+  },
+  "productivity-planning-with-files": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "productivity-skill-creator": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "productivity-writing-plans": {
+   "verdict": "native",
+   "value": 1
+  },
+  "productivity-writing-skills": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "raffle-winner-picker": {
+   "verdict": "native",
+   "value": 1
+  },
+  "reducing-entropy": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "requirements-clarity": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "ship-learn-next": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "skill-developer": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "skill-judge": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "think-tank": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "writing-rules": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "database": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "deploy": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "deployment": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "domain": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "environment": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "metrics": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "new": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "projects": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "railway-docs": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "railway-templates": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "service": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "status": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "adaptyv": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "aeon": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "alphafold-database": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "anndata": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "arboreto": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "astropy": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "benchling-integration": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "biomni": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "biopython": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "biorxiv-database": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "bioservices": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "brenda-database": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "cellxgene-census": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "chembl-database": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "cirq": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "citation-management": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "clinical-decision-support": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "clinical-reports": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "clinicaltrials-database": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "clinpgx-database": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "clinvar-database": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "cobrapy": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "cosmic-database": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "dask": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "datacommons-client": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "datamol": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "deepchem": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "deeptools": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "denario": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "diffdock": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "dnanexus-integration": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "drugbank-database": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "ena-database": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "ensembl-database": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "esm": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "etetoolkit": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "exploratory-data-analysis": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "fda-database": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "flowio": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "fluidsim": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "gene-database": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "generate-image": {
+   "verdict": "native",
+   "value": 1
+  },
+  "geniml": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "geo-database": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "geopandas": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "get-available-resources": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "gget": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "gtars": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "gwas-database": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "histolab": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "hmdb-database": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "hypogenic": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "hypothesis-generation": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "kegg-database": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "labarchive-integration": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "lamindb": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "latchbio-integration": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "latex-posters": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "literature-review": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "market-research-reports": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "markitdown": {
+   "verdict": "partial",
+   "value": 4
+  },
+  "matchms": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "matplotlib": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "medchem": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "metabolomics-workbench-database": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "modal": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "molfeat": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "networkx": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "neurokit2": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "neuropixels-analysis": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "omero-integration": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "openalex-database": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "opentargets-database": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "opentrons-integration": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "paper-2-web": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "pathml": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "pdb-database": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "peer-review": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "pennylane": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "perplexity-search": {
+   "verdict": "native",
+   "value": 1
+  },
+  "plotly": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "polars": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "pptx-posters": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "protocolsio-integration": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "pubchem-database": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "pubmed-database": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "pufferlib": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "pydeseq2": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "pydicom": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "pyhealth": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "pylabrobot": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "pymatgen": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "pymc": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "pymoo": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "pyopenms": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "pysam": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "pytdc": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "pytorch-lightning": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "qiskit": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "qutip": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "rdkit": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "reactome-database": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "research-grants": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "research-lookup": {
+   "verdict": "native",
+   "value": 1
+  },
+  "scanpy": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "scholar-evaluation": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "scientific-brainstorming": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "scientific-critical-thinking": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "scientific-docx": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "scientific-pdf": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "scientific-pptx": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "scientific-schematics": {
+   "verdict": "partial",
+   "value": 4
+  },
+  "scientific-slides": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "scientific-visualization": {
+   "verdict": "partial",
+   "value": 4
+  },
+  "scientific-writing": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "scientific-xlsx": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "scikit-bio": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "scikit-learn": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "scikit-survival": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "scvi-tools": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "seaborn": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "shap": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "simpy": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "stable-baselines3": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "statistical-analysis": {
+   "verdict": "partial",
+   "value": 4
+  },
+  "statsmodels": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "string-database": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "sympy": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "torch-geometric": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "torchdrug": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "transformers": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "treatment-plans": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "umap-learn": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "uniprot-database": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "uspto-database": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "vaex": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "venue-templates": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "zarr-python": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "zinc-database": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "active-directory-attacks": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "api-fuzzing-bug-bounty": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "api-security-best-practices": {
+   "verdict": "partial",
+   "value": 4
+  },
+  "api-security-testing": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "aws-penetration-testing": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "broken-authentication": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "burp-suite-testing": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "cloud-penetration-testing": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "cra-vulnerability-obligations": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "ethical-hacking-methodology": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "file-path-traversal": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "file-uploads": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "google-cloud-auth": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "google-cloud-waf-security": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "html-injection-testing": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "idor-testing": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "incident-reporting-navigator": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "linux-privilege-escalation": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "metasploit-framework": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "pentest-checklist": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "pentest-commands": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "privilege-escalation-methods": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "red-team-tactics": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "red-team-tools": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "regulatory-threat-model": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "sast-configuration": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "scanning-tools": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "secrets-management": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "security-audit": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "security-best-practices": {
+   "verdict": "partial",
+   "value": 4
+  },
+  "security-ownership-map": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "security-threat-model": {
+   "verdict": "partial",
+   "value": 4
+  },
+  "security-webapp-testing": {
+   "verdict": "native",
+   "value": 1
+  },
+  "shodan-reconnaissance": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "smtp-penetration-testing": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "sql-injection-testing": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "sqlmap-database-pentesting": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "ssh-penetration-testing": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "supply-chain-guard": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "threat-modeling-expert": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "top-web-vulnerabilities": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "vulnerability-scanner": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "web-security-testing": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "windows-privilege-escalation": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "wireshark-analysis": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "wordpress-penetration-testing": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "xss-html-injection": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "code-review": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "commit": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "create-pr": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "deslop": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "find-bugs": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "iterate-pr": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "footballbin-predictions": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "browser-automation": {
+   "verdict": "native",
+   "value": 1
+  },
+  "browser-extension-builder": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "busybox-on-windows": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "cf-crawl": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "domain-name-brainstormer": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "geo-fundamentals": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "network-101": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "playwright-skill": {
+   "verdict": "native",
+   "value": 1
+  },
+  "skill-share": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "template-skill": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "utilities-using-superpowers": {
+   "verdict": "native",
+   "value": 1
+  },
+  "utilities-web-artifacts-builder": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "manim": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "motion-canvas": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "remotion": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "sora": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "bright-data-best-practices": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "bright-data-mcp": {
+   "verdict": "native",
+   "value": 1
+  },
+  "data-feeds": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "design-mirror": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "pricewin-travel-search": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "scrape": {
+   "verdict": "native",
+   "value": 1
+  },
+  "search": {
+   "verdict": "native",
+   "value": 1
+  },
+  "astro": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "blockrun": {
+   "verdict": "native",
+   "value": 1
+  },
+  "building-blog": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "chrome-extension-developer": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "drizzle-orm-expert": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "electron-development": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "exa-search": {
+   "verdict": "native",
+   "value": 1
+  },
+  "expo-deployment": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "fastapi-endpoint": {
+   "verdict": "partial",
+   "value": 4
+  },
+  "firecrawl-scraper": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "hono": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "nextjs-app-router-patterns": {
+   "verdict": "partial",
+   "value": 4
+  },
+  "progressive-web-app": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "react-component-performance": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "react-native-architecture": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "react-state-management": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "roier-seo": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "segment-cdp": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "shadcn": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "shopify-apps": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "shopify-development": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "sveltekit": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "tailwind-design-system": {
+   "verdict": "partial",
+   "value": 4
+  },
+  "tanstack-query-expert": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "tavily-web": {
+   "verdict": "native",
+   "value": 1
+  },
+  "upstash-qstash": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "web-development-react-best-practices": {
+   "verdict": "partial",
+   "value": 5
+  },
+  "web-performance-optimization": {
+   "verdict": "partial",
+   "value": 4
+  },
+  "zod-validation-expert": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "zustand-store-ts": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "dependabot-review": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "github-actions-templates": {
+   "verdict": "partial",
+   "value": 4
+  },
+  "github-automation": {
+   "verdict": "native",
+   "value": 1
+  },
+  "gitops-workflow": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "inngest": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "jira-automation": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "linear-automation": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "n8n-code-javascript": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "n8n-code-python": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "n8n-expression-syntax": {
+   "verdict": "partial",
+   "value": 2
+  },
+  "n8n-mcp-tools-expert": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "n8n-node-configuration": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "n8n-validation-expert": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "rote": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "slack-automation": {
+   "verdict": "native",
+   "value": 1
+  },
+  "trigger-dev": {
+   "verdict": "net-new",
+   "value": 2
+  },
+  "workflow-automation": {
+   "verdict": "partial",
+   "value": 3
+  },
+  "workflow-automation-github-workflow-automation": {
+   "verdict": "low-value",
+   "value": 1
+  },
+  "workflow-automation-n8n-n8n-workflow-patterns": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "workflow-automation-n8n-workflow-patterns": {
+   "verdict": "net-new",
+   "value": 3
+  },
+  "workflow-automation-planning-with-files": {
+   "verdict": "native",
+   "value": 1
+  },
+  "yeet": {
+   "verdict": "native",
+   "value": 1
+  },
+  "zapier-make-patterns": {
+   "verdict": "partial",
+   "value": 2
+  }
+ }
+}

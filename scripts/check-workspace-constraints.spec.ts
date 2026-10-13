@@ -1,0 +1,90 @@
+/** Experimental-package publication and dependency constraints. */
+
+import { describe, expect, it } from 'vitest'
+import {
+  checkExperimentalDependencyIsolation,
+  checkExperimentalManifest,
+  expectedAvnPackageFiles,
+  type WorkspaceManifest,
+} from './check-workspace-constraints.ts'
+
+const experimental: WorkspaceManifest = {
+  dir: 'packages/experimental/prototype',
+  manifest: { name: '@aeven/experimental-prototype', private: true },
+}
+
+describe('experimental workspace constraints', () => {
+  it('requires the experimental package-name prefix', () => {
+    expect(checkExperimentalManifest({
+      ...experimental,
+      manifest: { ...experimental.manifest, name: '@aeven/prototype' },
+    })).toEqual([
+      '@aeven/prototype: experimental package name must start with "@aeven/experimental-"',
+    ])
+  })
+
+  it('requires private manifests without publication metadata', () => {
+    expect(checkExperimentalManifest(experimental)).toEqual([])
+    expect(checkExperimentalManifest({
+      ...experimental,
+      manifest: { ...experimental.manifest, private: false, publishConfig: { access: 'public' } },
+    })).toEqual([
+      '@aeven/experimental-prototype: experimental package must set "private": true',
+      '@aeven/experimental-prototype: experimental package must omit publishConfig',
+    ])
+  })
+
+  it.each(['dependencies', 'optionalDependencies', 'peerDependencies'] as const)(
+    'rejects release %s on an experimental package',
+    (section) => {
+      expect(checkExperimentalDependencyIsolation([experimental, {
+        dir: 'packages/core/consumer',
+        manifest: {
+          name: '@aeven/consumer',
+          [section]: { '@aeven/experimental-prototype': 'workspace:^' },
+        },
+      }])).toEqual([
+        `@aeven/consumer: ${section}.@aeven/experimental-prototype must not reference an experimental package`,
+      ])
+    },
+  )
+
+  it('allows development and experimental consumers but rejects the Python release runtime', () => {
+    const manifests: WorkspaceManifest[] = [experimental, {
+      dir: 'packages/core/test-only',
+      manifest: {
+        name: '@aeven/test-only',
+        devDependencies: { '@aeven/experimental-prototype': 'workspace:^' },
+      },
+    }, {
+      dir: 'packages/experimental/consumer',
+      manifest: {
+        name: '@aeven/experimental-consumer',
+        dependencies: { '@aeven/experimental-prototype': 'workspace:^' },
+      },
+    }, {
+      dir: 'python/sdk-runtime',
+      manifest: {
+        name: '@aeven/python-runtime',
+        dependencies: { '@aeven/experimental-prototype': 'workspace:^' },
+      },
+    }]
+
+    expect(checkExperimentalDependencyIsolation(manifests)).toEqual([
+      '@aeven/python-runtime: dependencies.@aeven/experimental-prototype must not reference an experimental package',
+    ])
+  })
+})
+
+describe('package payload constraints', () => {
+  it('includes a declared profile patch without a package-name allowlist', () => {
+    expect(expectedAvnPackageFiles({
+      name: '@aeven/private-profile',
+      avn: { bundle: { patch: './cordis.patch.yml' } },
+    })).toEqual([
+      'lib/index.js',
+      'cordis.patch.yml',
+      'lib/types/**/*.d.ts',
+    ])
+  })
+})

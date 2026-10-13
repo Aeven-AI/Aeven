@@ -1,0 +1,68 @@
+# TypeScript SDK snapshot patch for foreground and background AVN SDK failures.
+
+- id: skill-filesystem
+  name: '@aeven/skill-filesystem'
+  config:
+    includeDefaultRoots: false
+
+- id: llm-deepseek
+  name: '@aeven/llm-deepseek'
+  config:
+    thinking: enabled
+    reasoningEffort: max
+
+- id: session-persistence-jsonl
+  name: '@aeven/session-persistence-jsonl'
+  config:
+    root: !!js avnHomePath('sessions')
+    compression: !!js "process.env.AVN_SNAPSHOT === undefined ? 'zstd' : 'none'"
+
+- id: session-log-deepseek
+  name: '@aeven/session-log-deepseek'
+  config:
+    enabled: true
+
+- insert:
+    - id: subagent-avn-sdk-diagnostic
+      name: '@aeven/subagent-avn-sdk'
+      config:
+        providerName: avn-sdk-diagnostic
+        profile: sdk
+        patches:
+          - !!js process.env.AVN_TEST_CHILD_PATCH
+        avnHome: !!js avnHomePath('children/foreground')
+        provider: mock
+        model: mock-echo
+        env:
+          AVN_TELEMETRY_DISABLED: '1'
+          AVN_TEST_CHILD_FAILURE: '1'
+    - id: tool-subagent-avn-sdk-diagnostic
+      name: '@aeven/tool-subagent'
+      config:
+        provider: avn-sdk-diagnostic
+        toolName: subagent_avn_sdk
+        backgroundMode: one-shot
+        maxDepth: provider-managed
+    - id: subagent-avn-sdk-diagnostic-background
+      name: '@aeven/subagent-avn-sdk'
+      config:
+        providerName: avn-sdk-diagnostic-background
+        profile: sdk
+        patches:
+          - !!js process.env.AVN_TEST_CHILD_PATCH
+        avnHome: !!js avnHomePath('children/background')
+        provider: mock
+        model: mock-echo
+        env:
+          AVN_TELEMETRY_DISABLED: '1'
+          AVN_TEST_CHILD_FAILURE: '1'
+          FAKE_INIT_GO: .aeven-sdk-background-release
+    - id: tool-subagent-avn-sdk-diagnostic-background
+      name: '@aeven/tool-subagent'
+      config:
+        provider: avn-sdk-diagnostic-background
+        toolName: subagent_avn_sdk_background
+        backgroundMode: one-shot
+        maxDepth: provider-managed
+    - id: release-avn-sdk-background-on-job-output
+      name: '../../../apps/cli/tests/profiles/sdk/fixtures/subagent-avn-sdk-release-on-job-output.ts'

@@ -1,0 +1,43 @@
+{
+  "name": "@aeven/media-openrouter",
+  "description": "OpenRouter video provider for the Aeven media seam — submit, poll, and content retrieval pinned to the OpenRouter origin, with its documented job states mapped onto the seam's union",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/media/media-openrouter"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/credentials": "workspace:^",
+    "@aeven/media": "workspace:^"
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "workspace:^"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/credentials": "workspace:^",
+    "@aeven/media": "workspace:^",
+    "@aeven/http-proxy": "workspace:^"
+  }
+}

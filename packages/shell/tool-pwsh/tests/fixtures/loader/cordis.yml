@@ -1,0 +1,27 @@
+# Minimal tool-pwsh composition: real app boot path, real pwsh executor, real
+# foreground + background tool calls; driven by the package's loader.spec.ts.
+- id: system-prompt
+  name: '@aeven/system-prompt'
+
+- id: tools
+  name: '@aeven/tools'
+
+- id: subprocess
+  name: '@aeven/subprocess-local'
+
+- id: bash
+  name: '@aeven/pwsh-local'
+  config:
+    graceMs: 200
+
+- id: shell-env
+  name: '@aeven/shell-env'
+
+- id: tasks
+  name: '@aeven/jobs-local'
+
+- id: tool-jobs
+  name: '@aeven/tool-jobs'
+
+- id: tool-pwsh
+  name: '@aeven/tool-pwsh'

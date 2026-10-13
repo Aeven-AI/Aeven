@@ -1,0 +1,129 @@
+/* Turn-tail produced-files card, drawn on the answer's table-block metrics
+   (HyperMarkdown `.table-wrapper`): the conversation column's width, a 30px
+   radius, a 50px header whose 12px title sits 16px in with 30px icon controls
+   8px from the edge, and 14px/30px cells between hairline column-header rules. */
+
+.root {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0 16px 30px;
+  border-radius: 30px;
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  height: 50px;
+  margin: 0 -8px;
+}
+
+.title {
+  padding: 0 8px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+}
+
+.iconButton {
+  display: flex;
+  align-items: center;
+  height: 30px;
+  margin: 0 0 0 auto;
+  padding: 0 8px;
+  border: none;
+  border-radius: 15px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.iconButton > svg {
+  width: 14px;
+  height: 14px;
+}
+
+.iconButton:hover {
+  color: var(--dsw-alias-label-primary);
+}
+
+.table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 30px;
+}
+
+.table th,
+.table td {
+  padding: 6px 1px;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.table th {
+  border-top: 1px solid var(--dsw-alias-bg-base);
+  border-bottom: 1px solid var(--dsw-alias-bg-base);
+  font-weight: 500;
+}
+
+.table th:first-child {
+  width: 40%;
+}
+
+.table :is(th, td) + :is(th, td) {
+  padding-left: 36px;
+}
+
+.file {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: top;
+  gap: 8px;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.file > svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+.name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file:hover {
+  color: var(--dsw-alias-label-primary);
+}
+
+.file:hover .name {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.file:focus-visible,
+.iconButton:focus-visible {
+  outline: none;
+  border-radius: 6px;
+  box-shadow: 0 0 0 2px var(--dsw-alias-border-l3);
+}
+
+/* Overflow count: the table never silently drops files it did not show. */
+.more {
+  color: var(--dsw-alias-label-tertiary);
+}

@@ -1,0 +1,203 @@
+/* The rail rides the conversation scroller rather than a chrome layer beside
+   it: a sticky, zero-height box stays put while the transcript scrolls under
+   it, and contributes no scrollHeight of its own — a control in the flow would
+   otherwise extend the scrollable range by its own height. The header above it
+   in the same scroller uses the same mechanism. */
+.slot {
+  position: sticky;
+  top: 50%;
+  /* Above the composer seat (7) and the fade band it paints above itself: a
+     tall draft grows the seat upward, and the rail must stay whole over it.
+     Above the conversation width handles (8) too: a column that reaches into
+     the rail's band puts its right handle there, and inside the rail's own
+     band the rail takes the pointer. */
+  z-index: 9;
+  float: right;
+  /* The gap between the transcript column and the scroller's edge. `100%` is
+     `.scroll`'s content box, the same basis `.column` resolves the shared
+     width against, so this tracks a dragged width and a resize without JS.
+     The slot is a query container over that gap alone: containing only the
+     rail keeps the recalculation off the transcript. */
+  width: calc(
+    var(--avn-composer-side-clearance, 0px)
+    + max(0px, (100% - var(--avn-chat-content-width, 100%)) / 2)
+  );
+  height: 0;
+  container: avn-turn-rail / inline-size;
+  /* Right-aligned; a rail wider than the gap overflows into the column, not
+     past the scroller's edge. */
+  display: flex;
+  justify-content: flex-end;
+  /* Out through the transcript's side inset to the scroller's own edge, so the
+     pointer column reaches the window edge and the ticks' 24px is measured
+     from it. */
+  margin-right: calc(-1 * var(--avn-composer-side-clearance, 0px));
+  pointer-events: none;
+}
+
+/* The ladder's own box, centred on the sticky line. Its width is a pointer
+   column rather than the tick width: a 1px line is not a mouse target, so the
+   rail takes the pointer from 24px left of the longest line all the way to the
+   scroller's edge, including the empty 24px gutter right of the ticks. */
+.rail {
+  --avn-turn-edge: 24px;
+  position: relative;
+  flex: none;
+  width: calc(var(--avn-turn-edge) + 12px + 24px);
+  height: var(--avn-turn-band);
+  transform: translateY(-50%);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+/* A tick is a keyboard destination that paints one line — never a mouse target
+   of its own, since the rail owns pointer input for the whole column. The box
+   spans the full pointer band so focus rings wrap the line's own row. */
+.tick {
+  position: absolute;
+  right: 0;
+  left: 0;
+  height: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: none;
+  transform: translateY(-50%);
+  /* The hover magnifier moves ticks as the pointer moves; a short ease keeps
+     the lens smooth without trailing the pointer. */
+  transition: top 80ms ease-out;
+}
+
+.tick::before {
+  position: absolute;
+  top: 50%;
+  right: var(--avn-turn-edge);
+  width: 6px;
+  height: 1px;
+  /* Tick colours are variables so a state rebinds one name rather than
+     restating the whole background declaration. */
+  --turn-tick-rest: #000000;
+  --turn-tick-active: #000000;
+  background: var(--turn-tick-rest);
+  content: '';
+  transform: translateY(-50%);
+  transition: width 140ms ease, background-color 140ms ease;
+}
+
+/* Dimming belongs to the RESTING line only. On the shared pseudo-element it
+   would also dim a selected or previewed Turn that is not resident yet, which
+   is how a selected line could render below full strength. Same length as a
+   loaded tick: the ladder reads as one scale of the whole session, and the
+   dimming alone carries "not resident yet". */
+.tickUnloaded::before {
+  /* 35% of the resting colour, stated as the composite rather than through
+     color-mix(): the client's iOS/Safari 14.5 floor drops a value-level
+     function it cannot parse, which would leave the unloaded tick painting at
+     full strength. */
+  --turn-tick-rest: rgba(0, 0, 0, 0.35);
+}
+
+/* The selected Turn and the mark the pointer (or focus) is on paint the same
+   line: same colour, same length. A previewed mark is not a second selection —
+   it carries no `aria-current` — so the two states differ by which mark claims
+   selection, not by how loud the line is. */
+.tickActive::before,
+.tickPreview::before {
+  width: 12px;
+  background: var(--turn-tick-active);
+  opacity: 1;
+}
+
+.tick:focus-visible::before {
+  width: 12px;
+  background: var(--dsw-alias-state-business-primary, #000000);
+}
+
+.tick:focus-visible {
+  outline: 1px solid var(--dsw-alias-state-business-primary, #000000);
+  outline-offset: 2px;
+}
+
+/* Anchored to the hovered tick and opening away from the rail, which sits in
+   the scroller's end gutter. */
+.preview {
+  position: absolute;
+  /* 12px left of the widest line: the column's 24px left slack less 12px. */
+  right: calc(100% - 12px);
+  box-sizing: border-box;
+  /* `vw`, not `cqw`: the nearest container is the slot's gap. */
+  width: min(300px, calc(100vw - 120px));
+  overflow: hidden;
+  padding: 16px;
+  border: 0;
+  /* The Aeven menu surface: a translucent white plate with a 4px backdrop blur
+     and the two inset highlights. The radius is the balloon's own — the menu's
+     30px rounds a two-line card into a lozenge. */
+  border-radius: 20px;
+  backdrop-filter: blur(4px);
+  background-color: rgb(255 255 255 / 70%);
+  box-shadow:
+    inset 1px 1px 0 0 rgb(255 255 255 / 80%),
+    inset 0 0 1px 1px rgb(255 255 255 / 80%),
+    0 2px 20px rgb(0 0 0 / 10%);
+  color: var(--dsw-alias-label-primary, #000000);
+  pointer-events: none;
+  transform: translateY(-50%);
+  animation: avn-turn-preview-enter 120ms ease-out;
+  transition: top 140ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.previewPrompt,
+.previewResponse {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+}
+
+/* A fixed 14px over a fixed 20px line, NOT the content axis: the balloon is a
+   fixed-size card, so following the reader's content size would make it
+   disagree with its own geometry. Both lines take the same 20px line so the
+   card keeps one rhythm. */
+.previewPrompt {
+  font: var(--dsw-font-s-14);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  -webkit-line-clamp: 1;
+}
+
+/* Body weight (400), same as the prompt: the answer is the same size and
+   told apart by colour. */
+.previewResponse {
+  margin-top: 4px;
+  color: var(--dsw-alias-label-caption, rgb(0 0 0 / 60%));
+  font: var(--dsw-font-s-14);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  -webkit-line-clamp: 3;
+}
+
+@keyframes avn-turn-preview-enter {
+  from { opacity: 0; transform: translateY(-50%) translateX(4px); }
+  to { opacity: 1; transform: translateY(-50%) translateX(0); }
+}
+
+/* The ticks need their 24px edge plus 16px clear of the column; a narrower gap
+   would draw them over the transcript. Tracks `--avn-turn-edge`, which a
+   container condition cannot read. */
+@container avn-turn-rail (width < 40px) {
+  .rail {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tick,
+  .tick::before,
+  .preview {
+    transition: none;
+    animation: none;
+  }
+}

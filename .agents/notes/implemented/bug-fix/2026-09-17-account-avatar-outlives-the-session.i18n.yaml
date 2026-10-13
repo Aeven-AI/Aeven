@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-17-account-avatar-outlives-the-session.md
+2026-09-17-account-avatar-outlives-the-session.md: e0d024053651dc57463e06385986935f1ab5174c
+2026-09-17-account-avatar-outlives-the-session.zh.md: 70fa5213c8b56d498530850c969a26d2d4ab014d

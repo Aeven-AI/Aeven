@@ -1,0 +1,4 @@
+# Built workers: produced by scripts/build.ts, packed into each platform package tarball, never source.
+packages/*/bin/
+# Downloaded whisper.cpp source archive, its extracted tree, and CMake build directories.
+.cache/

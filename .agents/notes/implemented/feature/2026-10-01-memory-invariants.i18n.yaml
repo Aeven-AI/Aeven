@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-01-memory-invariants.md
+2026-10-01-memory-invariants.md: d4fe7c3d654b798238d42224ac101bb4c1aa0cc4
+2026-10-01-memory-invariants.zh.md: 85b4b139c06bc6814c90fe093b3219c9da3c3c92

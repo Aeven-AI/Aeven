@@ -1,0 +1,33 @@
+/* The Aeven loading mark: one glyph rotating at a steady rate. Every surface
+   shares one drawing at one size, so the default IS the product standard; a
+   caller overrides `--avn-spinner-size` only to opt out deliberately. */
+.spinner,
+.spinner svg {
+  display: block;
+  width: var(--avn-spinner-size, var(--dsw-aeven-loading-mark-size, 18px));
+  height: var(--avn-spinner-size, var(--dsw-aeven-loading-mark-size, 18px));
+}
+
+.spinner {
+  /* The wrapper is the rotating box, so the mark must sit on the wrapper's
+     centre: a surface that resizes the glyph from outside (`… svg {width:14px}`)
+     otherwise pulls it off the rotation axis and the mark orbits instead of
+     spinning. */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* The loading mark is chrome, not content: it reads as primary ink, which
+     inverts with the theme. */
+  color: var(--avn-spinner-color, var(--dsw-alias-label-primary, #000000));
+  animation: 900ms linear 0s infinite normal none running avn-spinner-spin;
+}
+
+@keyframes avn-spinner-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}

@@ -1,0 +1,253 @@
+/* Image gallery: the Aeven web client's Gallery (clients/client _Gallery.scss
+   and the tippy "info" theme) — the image fills the viewport over the page
+   surface, with round controls pinned to the corners and sides. */
+
+.gallery {
+  --avn-lightbox-bg: rgb(242, 242, 242);
+  --avn-lightbox-button-bg: rgb(255, 255, 255);
+  --avn-lightbox-button-fg: rgb(10, 10, 10);
+  --avn-lightbox-info-bg: rgba(255, 255, 255, 0.7);
+  --avn-lightbox-info-ring: rgba(255, 255, 255, 0.8);
+  --avn-lightbox-info-fg: rgb(0, 0, 0);
+
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  overflow: hidden;
+  background-color: var(--avn-lightbox-bg);
+  animation: avn-lightbox-in 200ms linear both;
+}
+
+:global(body[data-ds-dark-theme]) .gallery {
+  --avn-lightbox-bg: rgb(24, 24, 26);
+  --avn-lightbox-button-bg: rgb(44, 44, 46);
+  --avn-lightbox-button-fg: rgb(242, 242, 242);
+  --avn-lightbox-info-bg: rgba(44, 44, 46, 0.7);
+  --avn-lightbox-info-ring: rgba(255, 255, 255, 0.12);
+  --avn-lightbox-info-fg: rgb(242, 242, 242);
+}
+
+.gallery[data-closing] {
+  animation: avn-lightbox-out 200ms linear both;
+}
+
+@keyframes avn-lightbox-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes avn-lightbox-out {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+/* The stage claims touch gestures: without it the browser treats a two-finger
+   pinch here as page zoom and scales the whole layout, which is what the
+   gallery's own image zoom replaces. */
+.stack {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  touch-action: none;
+}
+
+.imageBox {
+  display: flex;
+  position: absolute;
+  inset: 0;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s linear;
+}
+
+.imageBox[data-selected] {
+  z-index: 1;
+  opacity: 1;
+}
+
+/* The image is contained by the stage, not capped at its own pixels: a picture
+   smaller than the window is scaled up until one of its sides reaches the
+   stage, so the gallery always shows it as large as the window allows. */
+.image {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  opacity: 0;
+  transition: opacity 0.4s linear;
+}
+
+.image[data-loaded] {
+  opacity: 1;
+}
+
+/* A magnified image is dragged, so the pointer says so; the grab turns solid
+   while the drag is in hand. */
+.image[data-zoomed] {
+  cursor: grab;
+}
+
+.image[data-zoomed]:active {
+  cursor: grabbing;
+}
+
+/* Magnification is written straight onto the element, so it tracks the fingers
+   with no transition. Only the discrete moves — a double-click and a return to
+   fit — carry this attribute and ease into place. */
+.image[data-settling] {
+  transition:
+    opacity 0.4s linear,
+    transform 180ms ease-out;
+}
+
+.button {
+  display: flex;
+  position: relative;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  outline: none;
+  appearance: none;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--avn-lightbox-button-bg);
+  color: var(--avn-lightbox-button-fg);
+  cursor: pointer;
+}
+
+.button:focus-visible {
+  box-shadow: 0 0 0 2px var(--avn-lightbox-button-fg);
+}
+
+.button svg {
+  display: flex;
+  width: 16px;
+  height: 16px;
+}
+
+.side {
+  position: absolute;
+  z-index: 20;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.prev {
+  left: 24px;
+}
+
+.next {
+  right: 24px;
+}
+
+.infoCorner {
+  display: flex;
+  position: absolute;
+  z-index: 20;
+  top: 13px;
+  left: 24px;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* The desktop window paints the macOS traffic lights over the page's own
+   top-left, where this control would sit. The band starts one page inset past
+   their gutter — the line the app's first header control takes
+   (`--dsw-aeven-window-controls-gutter`). A browser page has no lights and keeps
+   the plain inset above. */
+:global(html[data-avn-traffic-lights]) .infoCorner {
+  left: calc(
+    var(--dsw-aeven-window-controls-gutter) + var(--dsw-aeven-page-inset)
+  );
+}
+
+.actions {
+  display: flex;
+  position: absolute;
+  z-index: 20;
+  top: 13px;
+  right: 24px;
+  gap: 8px;
+}
+
+/* The info popover: frosted card under the info button (tippy "info" theme). */
+.info {
+  display: flex;
+  box-sizing: border-box;
+  min-width: 250px;
+  max-width: 350px;
+  margin-top: 5px;
+  padding: 10px 16px;
+  flex-direction: column;
+  border-radius: 20px;
+  background-color: var(--avn-lightbox-info-bg);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  box-shadow:
+    inset 1px 1px 0 0 var(--avn-lightbox-info-ring),
+    inset 0 0 1px 1px var(--avn-lightbox-info-ring),
+    0 2px 20px rgba(0, 0, 0, 0.1);
+  color: var(--avn-lightbox-info-fg);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: normal;
+}
+
+.infoItem {
+  display: flex;
+  width: 100%;
+  padding: 6px 0;
+  flex-direction: column;
+}
+
+.infoCaption {
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.infoValue {
+  font-size: 0.875rem;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+@media screen and (max-width: 640px) {
+  .prev,
+  .infoCorner {
+    left: 16px;
+  }
+
+  .next,
+  .actions {
+    right: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gallery,
+  .gallery[data-closing] {
+    animation-duration: 1ms;
+  }
+
+  .imageBox,
+  .image,
+  .image[data-settling] {
+    transition: none;
+  }
+}

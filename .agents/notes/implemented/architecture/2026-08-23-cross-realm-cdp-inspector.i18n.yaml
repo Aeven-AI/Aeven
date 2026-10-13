@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-08-23-cross-realm-cdp-inspector.md
+2026-08-23-cross-realm-cdp-inspector.md: 4bdb511c620c046181cda91519c8550ae035fe68
+2026-08-23-cross-realm-cdp-inspector.zh.md: 85599239aacf2256b17bde39a53dbd4ab7205dc8

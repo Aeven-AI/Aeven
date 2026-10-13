@@ -1,0 +1,164 @@
+{
+  "name": "@aeven/api-session-controller",
+  "description": "Session Remote commands, cold reads, and live control transport",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/api/session-controller"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./types": {
+      "types": "./lib/types/types.d.ts",
+      "default": "./lib/types/types.js"
+    },
+    "./remote-events": {
+      "types": "./lib/types/remote-events.d.ts",
+      "default": "./lib/types/remote-events.js"
+    },
+    "./client": {
+      "types": "./lib/types/client/index.d.ts",
+      "default": "./lib/client.js"
+    },
+    "./typert": {
+      "types": "./lib/typert.host.d.ts",
+      "default": "./lib/typert.host.js"
+    },
+    "./remote": {
+      "types": "./lib/typert.remote-client.d.ts",
+      "default": "./lib/typert.remote-client.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "avn": {
+    "client": {
+      "external": [
+        "@aeven/api-gateway/client"
+      ],
+      "inject": [
+        "@aeven/api-gateway"
+      ],
+      "platform": "web"
+    }
+  },
+  "scripts": {
+    "bundle": "tsdown",
+    "watch": "tsdown --watch"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/client.js",
+    "lib/types/**/*.js",
+    "lib/types/**/*.d.ts",
+    "lib/typert.host.js",
+    "lib/typert.host.d.ts",
+    "lib/typert.remote-client.js",
+    "lib/typert.remote-client.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@aeven/brand": "workspace:^",
+    "@aeven/deque": "workspace:^",
+    "@deepseek-ai/schemastery": "workspace:^",
+    "mime-types": "^3.0.2",
+    "zod": "^4.4.3"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/agent": "workspace:^",
+    "@aeven/agent-default-model": "workspace:^",
+    "@aeven/agent-presets": "workspace:^",
+    "@aeven/api-gateway": "workspace:^",
+    "@aeven/attachment": "workspace:^",
+    "@aeven/client-connection": "workspace:^",
+    "@aeven/document-extract": "workspace:^",
+    "@aeven/file-reference": "workspace:^",
+    "@aeven/fs": "workspace:^",
+    "@aeven/jobs": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/native-command": "workspace:^",
+    "@aeven/scope": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/session-persistence": "workspace:^",
+    "@aeven/session-projection": "workspace:^",
+    "@aeven/session-projection-cache": "workspace:^",
+    "@aeven/session-query": "workspace:^",
+    "@aeven/session-title": "workspace:^",
+    "@aeven/skill": "workspace:^",
+    "@aeven/subagent": "workspace:^",
+    "@aeven/typert-protocol": "workspace:^",
+    "@aeven/typert-registry": "workspace:^",
+    "@aeven/util-time": "workspace:^",
+    "@aeven/util-workspace-path": "workspace:^",
+    "@aeven/workspace": "workspace:^",
+    "@aeven/identity-user": "workspace:^"
+  },
+  "peerDependenciesMeta": {
+    "@aeven/jobs": {
+      "optional": true
+    },
+    "@aeven/session-persistence": {
+      "optional": true
+    },
+    "@aeven/session-projection-cache": {
+      "optional": true
+    },
+    "@aeven/fs": {
+      "optional": true
+    },
+    "@aeven/document-extract": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/agent": "workspace:^",
+    "@aeven/agent-default-model": "workspace:^",
+    "@aeven/agent-presets": "workspace:^",
+    "@aeven/api-gateway": "workspace:^",
+    "@aeven/attachment": "workspace:^",
+    "@aeven/client-connection": "workspace:^",
+    "@aeven/client-store": "workspace:^",
+    "@aeven/commands": "workspace:^",
+    "@aeven/document-extract": "workspace:^",
+    "@aeven/file-reference": "workspace:^",
+    "@aeven/fs": "workspace:^",
+    "@aeven/jobs": "workspace:^",
+    "@aeven/jobs-local": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/native-command": "workspace:^",
+    "@aeven/permission-presets": "workspace:^",
+    "@aeven/scope": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/session-persistence": "workspace:^",
+    "@aeven/session-projection": "workspace:^",
+    "@aeven/session-projection-cache": "workspace:^",
+    "@aeven/session-query": "workspace:^",
+    "@aeven/session-title": "workspace:^",
+    "@aeven/skill": "workspace:^",
+    "@aeven/storage": "workspace:^",
+    "@aeven/storage-domain": "workspace:^",
+    "@aeven/storage-json": "workspace:^",
+    "@aeven/subagent": "workspace:^",
+    "@aeven/system-prompt": "workspace:^",
+    "@aeven/typert-protocol": "workspace:^",
+    "@aeven/typert-registry": "workspace:^",
+    "@aeven/util-crypto": "workspace:^",
+    "@aeven/util-time": "workspace:^",
+    "@aeven/util-workspace-path": "workspace:^",
+    "@aeven/workspace": "workspace:^",
+    "@types/mime-types": "^3.0.1",
+    "@aeven/identity-user": "workspace:^"
+  }
+}

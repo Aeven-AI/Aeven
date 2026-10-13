@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-10-slash-catalog-follows-preset-switch.md
+2026-08-10-slash-catalog-follows-preset-switch.md: ae51ab000bad07a090af114590608fb7d848bb59
+2026-08-10-slash-catalog-follows-preset-switch.zh.md: f7465fa59f81962df1f12d28d93490be1d70078e

@@ -1,0 +1,301 @@
+/* Tool summary row (figma 122:9479): 24px single line at the default size —
+   [16 leading] gap6 [title 13/24] gap8 [2x2 dot] gap8 [summary FILL truncate].
+   The Settings font-size preference rides the body-published axis: the shared
+   DisclosureRow chrome scales the row height and leading glyph by the body px
+   delta; the title and the summary texts here read the secondary tier
+   (--avn-content-font-size-secondary: one step under the body — setting −1 at
+   ≤14, setting −2 above), matching think text. */
+
+.root {
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  position: relative; /* sweep-glare overlay anchor */
+  overflow: hidden;
+}
+
+/* Running sweep (deepsuite ShimmerText pattern): a fixed-width glare band —
+   theme background at 60% — glides over the row content from off-left to
+   off-right, washing glyphs and icon toward the background as it passes.
+   ease-out with a 10% end hold gives each pass a beat before the next. */
+.root[data-state='running'] .row::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 300px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--dsw-tint-surface-fade) 55%,
+    transparent 100%
+  );
+  animation: avn-tool-row-sweep 2.6s ease-out infinite;
+  pointer-events: none;
+}
+
+@keyframes avn-tool-row-sweep {
+  0% { left: -300px; }
+  90%, 100% { left: 100%; }
+}
+
+.leading {
+  flex-shrink: 0;
+}
+
+
+/* Cordis lifecycle tools retain their generic row mechanics while carrying a
+   shared product accent and tool-owned action title. */
+.root[data-tool^='cordis_'] .leading,
+.root[data-tool^='cordis_'] .title {
+  color: var(--dsw-alias-state-business-primary);
+}
+
+.root[data-tool^='cordis_'] .title {
+  font-weight: 400;
+}
+
+.root[data-tool^='cordis_'] .sep {
+  background: var(--dsw-alias-state-business-primary);
+}
+
+.chevron {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.title {
+  font-weight: 400;
+  transition: color 100ms ease;
+}
+
+.sep {
+  flex: none;
+  width: 2px;
+  height: 2px;
+  border-radius: 1px;
+  margin: 0 8px;
+  background: var(--dsw-alias-label-caption);
+}
+
+.summary {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--avn-content-font-size, 16px);
+  line-height: calc(28px + var(--avn-content-font-delta, 0px));
+  color: var(--dsw-alias-label-caption);
+  transition: color 100ms ease;
+}
+
+/* Trailing summary fragment kept out of .summary's ellipsis, for a count whose
+   whole value is that it survives a narrow row (the todo row's parallel-active
+   `+n`). Repeats .summary's type because it sits beside that text, and its
+   `nowrap` too: `flex: none` stops the box shrinking but not the text wrapping,
+   which would break the one-line row in the narrow case the slot exists for. */
+.summarySuffix {
+  flex: none;
+  margin-left: 4px;
+  white-space: nowrap;
+  font-size: var(--avn-content-font-size, 16px);
+  line-height: calc(28px + var(--avn-content-font-delta, 0px));
+  color: var(--dsw-alias-label-caption);
+  transition: color 100ms ease;
+}
+
+/* Hovering a row lifts its title and summary to the primary label colour,
+   the cue that the whole row is the disclosure target. A notice summary
+   keeps its secondary tone. */
+.row:hover .leading,
+.row:hover .chevron,
+.row:hover .title,
+.row:hover .summary:not(.noticeSummary),
+.row:hover .summarySuffix,
+.row:hover .fileLink {
+  color: var(--dsw-alias-label-primary);
+}
+
+/* Diff-row +/- totals: the code font, matching the diff body the numbers
+   summarize; a wider gap keeps the digits from reading as part of the path.
+   Two px under the secondary tier (still riding the axis): mono digits read
+   optically larger than the sans path at the same size. Caption, one step
+   dimmer than the suffix's tertiary, so the digits stay behind the path. The
+   half-pixel nudge closes the baseline gap the size difference leaves under
+   the row's box-centering (a transform, so flex layout is untouched). */
+.diffStat {
+  margin-left: 10px;
+  font-family: var(--ds-font-family-code);
+  font-size: calc(var(--avn-content-font-size-secondary, 14px) - 2px);
+  color: var(--dsw-alias-label-caption);
+  transform: translateY(0.5px);
+}
+
+/* File-tool path: same type as .summary, carrying the step's own caption ink
+   with no underline. Shrink-to-fit (flex 0): the click target ends where the
+   path text ends — the row's empty remainder stays the expand/collapse
+   toggle. */
+.fileLink {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+  font-size: var(--avn-content-font-size, 16px);
+  line-height: calc(28px + var(--avn-content-font-delta, 0px));
+  color: var(--dsw-alias-label-caption);
+  cursor: pointer;
+  transition: color 100ms ease;
+}
+
+.fileLink:hover {
+  color: var(--dsw-alias-label-primary);
+}
+
+/* Notice row's collapsed summary: the same failure line in secondary label
+   color. The failure stays readable and expandable; it just stops shouting,
+   because the remedy is a step the session takes itself. The expanded output
+   keeps its error styling, so the detail still reads as a failure. */
+.noticeSummary {
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* Expanded body wrapper (sibling of .row: clicks never toggle). */
+.bodyWrap {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Expanded-body scroll wrapper for the run_code CodeBlock; the IN/OUT card
+   and the terminal card scroll INSIDE their own surface instead, so the
+   scrollbar sits within the rounded card. */
+.bodyScroll {
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+/* Expanded input/output card (figma 1249:35657): the chat table card's white
+   surface and the TerminalBlock/CodeBlock radius. The card itself is a plain
+   column — the padding and the IN/OUT gutter-label grid live on each section
+   so the divider spans the full card width and each section scrolls alone. */
+.ioCard {
+  display: flex;
+  flex-direction: column;
+  margin: 4px 0;
+  border-radius: var(--dsw-aeven-radius-surface);
+  overflow: hidden;
+  /* The chat table card's surface: plain white, no border. */
+  background: var(--dsw-specific-input-major);
+  font: var(--dsw-font-markdown-code-block-small);
+}
+
+/* One card section (IN or OUT): the gutter-label grid, capped and scrolling
+   independently so a long input never buries a short output (and vice versa). */
+.ioSection {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: 14px;
+  align-items: baseline;
+  padding: 12px 16px;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+/* Caption (not tertiary): one step dimmer than the payload text so the
+   gutter labels read as labels, not as part of the content. Sticky against
+   the section's own scroll so the label stays readable while its payload
+   scrolls underneath (top 0 = the section's padding edge inside the
+   scrollport; start-aligned because sticky needs a block-start anchor). */
+.ioLabel {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  color: var(--dsw-alias-label-caption);
+}
+
+/* l2 hairline between the IN and OUT sections, spanning the full card width
+   (it sits between the padded sections, not inside their grid). */
+.ioDivider {
+  flex: none;
+  height: 0.5px;
+  background: var(--dsw-alias-border-l2);
+}
+
+.ioText {
+  min-width: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* The block-shaped expanded bodies: the code variant's run_code program
+   through CodeBlock (highlight.js TypeScript), a terminal card's command
+   output through TerminalBlock, a diff card through DiffBlock, a read card's
+   line-numbered window through ReadBlock, a search card's grouped matches or
+   path list through SearchBlock, and a web card's citation/source list through
+   WebBlock. All are drawn by the shared primitive, so only the row's
+   indentation is this file's concern — the margin also replaces each
+   primitive's own standalone vertical spacing with the flow's row rhythm. */
+.codeBody,
+.terminalBody,
+.diffBody,
+.readBody,
+.searchBody,
+.webBody {
+  margin: 4px 0;
+}
+
+/* The recovery footer for a capped search: the result text (its `Full … stored
+   at …` locator) below the card in the muted tone, since the card holds only the
+   retained rows. Same column indent as the card body. */
+.searchRecovery {
+  margin: 4px 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: var(--dsw-font-xs-14);
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* In-row code renders at the smaller code size (12/18) via each primitive's
+   rebindable content-font seam; standalone markdown code blocks keep 13/22. */
+.codeBody {
+  --dsl-code-block-content-font: var(--dsw-font-markdown-code-block-small);
+}
+
+/* The terminal card scrolls its OUTPUT inside its own surface: the banner
+   stays pinned and the scrollbar never rides over it. 208px = the 260px card cap
+   minus the ~36px banner and the primitive's 16px bottom inset below the scroll box. */
+.terminalBody {
+  --dsl-terminal-font: var(--dsw-font-markdown-code-block-small);
+  --dsl-terminal-line-height: 18px;
+  --dsl-terminal-output-max-height: 208px;
+  /* The chat table card's surface: plain white, no border. */
+  background: var(--dsw-specific-input-major);
+}
+
+/* Visually hidden run-state label for assistive technology: the StateDot and
+   the running sweep are aria-hidden / colour-only, so the text carries the
+   running/failed/interrupted state to a screen reader. */
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Generated images sit below the row, outside the disclosure: the artifact is
+   the result, so it stays visible whether or not the row is expanded. */
+.images {
+  margin-top: 6px;
+}

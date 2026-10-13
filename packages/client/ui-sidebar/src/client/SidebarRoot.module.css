@@ -1,0 +1,407 @@
+/* Sidebar column. Above 1024px the in-flow column animates between its open
+   and closed widths on the same curve as its content, so the conversation edge
+   travels with the panel instead of jumping ahead of it. Below 1024px the
+   sidebar overlays the conversation. */
+
+/* Yields while a full-screen surface is up (the frame carries the flag), so
+   the column does not paint over a transcript block that has taken the
+   viewport. */
+:global([data-fullscreen]) .root {
+  z-index: 0;
+}
+
+.root {
+  display: flex;
+  position: relative;
+  z-index: 50;
+  width: 0;
+  height: 100%;
+  flex-shrink: 0;
+  flex-direction: column;
+  box-sizing: border-box;
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  /* The sidebar is elevated above the conversation surface, so any scroll
+     region nested in it that does draw a bar takes the l2 pair. The session
+     list holds no bar at all (ui-theme's `no-scrollbar`). */
+  --avn-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --avn-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+  --avn-sidebar-inline-padding: var(--dsw-aeven-sidebar-row-inset);
+  --avn-sidebar-open-width: 0px;
+  /* The column travels with its own content: Aeven animates `.sidebar` width
+     on the same curve as everything inside it, so the conversation edge stays
+     attached to the panel for the whole slide. */
+  transition: width var(--dsw-aeven-sidebar-transition-duration)
+    var(--dsw-aeven-sidebar-transition-timing);
+}
+
+.root.visible {
+  width: var(--dsw-aeven-sidebar-width);
+  --avn-sidebar-open-width: var(--dsw-aeven-sidebar-width);
+}
+
+/* Aeven `.content`: absolute so it survives the column reaching zero width. */
+.content {
+  position: absolute;
+  z-index: 5;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  width: var(--avn-sidebar-open-width);
+  height: 100%;
+  padding-top: 8px;
+  box-sizing: border-box;
+  transition: width var(--dsw-aeven-sidebar-transition-duration)
+    var(--dsw-aeven-sidebar-transition-timing);
+}
+
+/* Aeven `.side-content-background`: the panel is its own layer so its width
+   can animate while the button above it stays opaque. It paints an opaque fill
+   — the working surface behind the column never shows through — and casts no
+   shadow: that fill alone separates the panel from the conversation.
+   Last in the DOM and below the z-indexed button and content, as Aeven has it.
+   The 2px bottom overhang hides the panel's edge against the viewport floor. */
+.panel {
+  position: absolute;
+  top: 0;
+  bottom: -2px;
+  left: 0;
+  width: var(--avn-sidebar-open-width);
+  opacity: 0;
+  border-top-right-radius: var(--dsw-aeven-sidebar-panel-radius);
+  background: var(--dsw-specific-sidebar-fill);
+  filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0));
+  pointer-events: none;
+  transition:
+    width var(--dsw-aeven-sidebar-transition-duration)
+      var(--dsw-aeven-sidebar-transition-timing),
+    opacity var(--dsw-aeven-sidebar-transition-duration)
+      var(--dsw-aeven-sidebar-transition-timing);
+}
+
+.visible .panel {
+  opacity: 1;
+}
+
+/* Header row: the browsing region's search at the leading edge and the rest of
+   its controls at the trailing one, both clipped by the collapsing column
+   exactly as the body below them is. The fold control is not part of this row —
+   it lives in the conversation's navigation band, which is laid out in the
+   centre column (ui-conversation ConversationRoot.module.css), so it stays
+   reachable while this column is collapsed. */
+.header {
+  position: relative;
+  z-index: 5;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 100%;
+  height: var(--dsw-aeven-control-size);
+  /* The row's own insets, which put the leading control's glyph on the same
+     line the rows below inset to. */
+  padding: 0 var(--avn-sidebar-inline-padding);
+  box-sizing: border-box;
+  /* The row itself is inert: only its controls take pointer input. Collapsed it
+     is zero wide, and a padded row still occupies its padding as a hit target —
+     a 48px invisible strip over the conversation's band, where the fold control
+     stands. Re-enabled on the seats' contents below. */
+  pointer-events: none;
+}
+
+/* The desktop shell insets its window controls over the page's top-left, on this
+   row's line (desktop main.ts `trafficLightPosition`). The row starts one page
+   inset past their gutter, where the collapsed conversation header puts its fold
+   control (ui-conversation ConversationRoot.module.css), so the search stands on
+   the same line whether the column is folded or open. */
+:global(html[data-avn-traffic-lights]) .header {
+  padding-left: calc(
+    var(--dsw-aeven-window-controls-gutter) + var(--avn-sidebar-inline-padding)
+  );
+}
+
+.headerLeading > *,
+.headerActions > * {
+  pointer-events: auto;
+}
+
+/* The leading seat grows into whatever the trailing cluster leaves, which is
+   what lets the search field open across the row. Unoccupied it costs nothing:
+   the cluster keeps the trailing edge either way. */
+.headerLeading {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* The cluster keeps its own width at the row's trailing edge while there is room
+   and shrinks with the collapsing column, so its controls are clipped away with
+   the panel instead of overflowing the zero-wide row — where a stray icon would
+   stand over the conversation's band, answering the hover and the clicks meant
+   for the fold control there. */
+.headerActions {
+  flex: 0 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+  opacity: 0;
+  transition: opacity var(--dsw-aeven-sidebar-transition-duration) linear;
+}
+
+.visible .headerActions {
+  opacity: 1;
+}
+
+/* Aeven `.side-content`: the scrolling body. Its opacity rides a linear curve
+   while every other property takes the eased one — Aeven's own pairing, which
+   keeps the fade perceptually even against the accelerating slide. */
+.sideContent {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  width: var(--avn-sidebar-open-width);
+  height: 100%;
+  opacity: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  transition:
+    width var(--dsw-aeven-sidebar-transition-duration)
+      var(--dsw-aeven-sidebar-transition-timing),
+    opacity var(--dsw-aeven-sidebar-transition-duration) linear;
+}
+
+.visible .sideContent {
+  opacity: 1;
+}
+
+/* Panel dragging is the only time width changes must follow pointer cadence. */
+:global([data-dragging]) .root,
+:global([data-dragging]) .content,
+:global([data-dragging]) .panel,
+:global([data-dragging]) .sideContent {
+  transition: none;
+}
+
+/* Tracks the column, as the header row does. A fixed open width would leave
+   each row's trailing icons at the open edge while the panel moved out from
+   under them. Labels stay on one line (nowrap below) and ellipsize. */
+.sideContentInner {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Brand group (figma I133:7632): the full wordmark rides the text ink
+   (figma flows: the main-screen instance is black; blue is brand
+   emphasis only). A button only in behavior (New Session shortcut): the
+   pointer cursor is the sole affordance — no hover chrome on the mark. */
+.brand {
+  display: none;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  overflow: hidden;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* Mark and name are independent slots; the shell owns their shared baseline,
+   spacing, and height so either occupant can vary in width. */
+.brandIdentity {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 24px;
+  min-width: 0;
+}
+
+.brandMark {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.brandName {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 24px;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 24px;
+  letter-spacing: 0.04em;
+}
+
+/* New Session uses Aeven's full-width sidebar row and is absent when closed. */
+.newSession {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  height: var(--dsw-aeven-control-size);
+  padding: 0 var(--avn-sidebar-inline-padding);
+  margin: 0;
+  box-sizing: border-box;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: var(--dsw-aeven-control-size);
+  cursor: pointer;
+  overflow: hidden;
+  /* The column width is what moves. Nowrap keeps the label on one line; the
+     hidden overflow clips it instead of letting the row hold the open width. */
+  min-width: 0;
+  white-space: nowrap;
+  /* A UA sheet underlines a link and does not underline a button. The control
+     is now an anchor so the browser can open it in a new window, and this is
+     the one declaration that keeps its rendering identical to the button's. */
+  text-decoration: none;
+}
+
+.newSession:hover {
+  color: var(--dsw-alias-label-primary);
+}
+
+/* The row's leading glyph: an 18px lucide grapheme, matching the header
+   controls' own. */
+.newSessionIcon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+
+/* The Imagine row: the New Session row's geometry without its affordances —
+   nothing to activate until the destination exists. */
+.newSessionLabel {
+  max-width: 200px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* The controls and the browsing region are separated by a spacer of its own
+   rather than by a margin on either neighbour: the gap then belongs to no row,
+   and a row's own height or hover chrome cannot move it. */
+.spacer {
+  flex: none;
+  width: 100%;
+  height: 16px;
+}
+
+/* Region seat stays full-width so every browser row owns the same inset. */
+.regionArea {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Footer seats: additive actions stack above Settings. Each occupant owns its
+   button geometry and hover chrome. */
+.footArea {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  width: 100%;
+}
+
+.settingsArea,
+.footerActions {
+  flex: none;
+  min-width: 0;
+  width: 100%;
+}
+
+.footerActions {
+  display: flex;
+}
+
+/* Reduced motion: the state change still lands, it just lands at once. */
+@media (prefers-reduced-motion: reduce) {
+  .root,
+  .content,
+  .panel,
+  .headerActions,
+  .sideContent {
+    transition: none;
+  }
+}
+
+/* Aeven `.content-blocker`: present at every width so the breakpoint alone
+   decides whether it shows, dimming and blurring the conversation it covers.
+   Sits below `.content` (z-index 5) so the panel stays sharp above it. */
+.contentBlocker {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  background-color: rgb(0 0 0 / 20%);
+  /* Unprefixed only: the CSS pipeline adds the -webkit- form per its targets. */
+  backdrop-filter: blur(0);
+  transition:
+    opacity var(--dsw-aeven-sidebar-transition-duration)
+      var(--dsw-aeven-sidebar-transition-timing),
+    backdrop-filter var(--dsw-aeven-sidebar-transition-duration)
+      var(--dsw-aeven-sidebar-transition-timing);
+}
+
+/* Below the breakpoint the column leaves flow and overlays the conversation.
+   `.visible` widens the box to the whole frame so the blocker covers
+   everything. */
+@media screen and (max-width: 1024px) {
+  /* Overlay mode sizes no column, so its width carries nothing worth
+     animating — and the blocker, at `width: 100%` of this box, would ride that
+     animation and wipe in from the left instead of fading. Aeven drops the
+     transition in every one of its narrow blocks for the same reason. Opacity
+     and the blur stay the only things that travel. */
+  .root {
+    position: absolute;
+    transition: none;
+  }
+
+  .root.visible {
+    width: 100%;
+  }
+
+  .contentBlocker {
+    display: block;
+  }
+
+  .visible .contentBlocker {
+    opacity: 1;
+    backdrop-filter: blur(2px);
+  }
+}

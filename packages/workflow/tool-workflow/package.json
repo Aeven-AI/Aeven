@@ -1,0 +1,65 @@
+{
+  "name": "@aeven/tool-workflow",
+  "description": "Model-facing workflow tool: run a JavaScript orchestration script over ctx.workflowEngine",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/workflow/tool-workflow"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./invariant": {
+      "types": "./lib/types/invariant.d.ts",
+      "default": "./lib/invariant.js"
+    },
+    "./types": {
+      "types": "./lib/types/types.d.ts",
+      "default": "./lib/types/types.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/invariant.js",
+    "lib/types/**/*.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "@aeven/agent": "workspace:^",
+    "@aeven/invariants": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/system-prompt": "workspace:^",
+    "@aeven/tools": "workspace:^",
+    "@aeven/workflow": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "workspace:^"
+  },
+  "devDependencies": {
+    "@aeven/agent": "workspace:^",
+    "@aeven/invariants": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/subagent": "workspace:^",
+    "@aeven/system-prompt": "workspace:^",
+    "@aeven/tools": "workspace:^",
+    "@aeven/workflow": "workspace:^",
+    "@aeven/workflow-worker-thread": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/session-projection": "workspace:^"
+  }
+}

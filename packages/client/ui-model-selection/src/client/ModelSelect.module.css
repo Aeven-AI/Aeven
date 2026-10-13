@@ -1,0 +1,185 @@
+.root {
+  position: relative;
+  min-width: 0;
+}
+
+/* The model seat's disc: the same 40px transparent control the Options disc
+   wears, so the composer's icon controls stand as one family. Its accessible
+   name carries the model and effort the card's first row states and its
+   tooltip names the seat; the card above it is the affordance. */
+.trigger {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--dsw-aeven-control-size);
+  height: var(--dsw-aeven-control-size);
+  padding: 0;
+  border: none;
+  border-radius: var(--dsw-aeven-radius-control);
+  outline: none;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+}
+
+.trigger svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+  stroke-width: 2;
+}
+
+.trigger:focus-visible {
+  box-shadow: 0 0 0 2px var(--dsw-alias-border-l3);
+}
+
+.trigger:disabled {
+  color: var(--dsw-alias-label-dimmed);
+  cursor: default;
+}
+
+/* The chooser card. Each row is a cell (label + current value + a right
+ * chevron) whose list opens in the shared popupSelect shell, so this card
+ * carries none of the row/search chrome the shell owns. Surface tokens match
+ * the Menu primitive card (ui-primitives Menu.module.css) so every dropdown
+ * reads as the same material. */
+.menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  width: max-content;
+  min-width: min(240px, calc(100vw - 32px));
+  max-width: min(420px, calc(100vw - 32px));
+  /* The card padding of the popup family (ui-primitives' Menu card): a row's
+     8px cell then sits 16px from the card's edge, as it does there. */
+  padding: 8px;
+  gap: 0;
+  border: 0;
+  /* The same popup surface as the list this chooser opens (Aeven's avatar
+     menu): surface radius, translucent fill, 4px blur. */
+  border-radius: var(--dsw-aeven-radius-surface);
+  background: var(--dsw-tint-menu);
+  backdrop-filter: blur(4px);
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
+  box-shadow:
+    inset 1px 1px 0 0 var(--dsw-specific-popup-highlight),
+    inset 0 0 1px 1px var(--dsw-specific-popup-highlight),
+    var(--dsw-elevation-prominent);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* Two-level root cells (figma 496:26454 .Menu_cell), drawn with the same
+   control cell the Full access selector's rows use: 40px row, 8px padding,
+   8px gap, control radius; 14/22 label in primary, value in the tertiary
+   tone, right chevron drilling into the sub-list. */
+.cell {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+  min-width: 100%;
+  height: var(--dsw-aeven-control-size);
+  padding: 8px;
+  border: none;
+  border-radius: var(--dsw-aeven-radius-control);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  line-height: 22px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.cell:hover,
+.cell:focus-visible {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.cellLabel {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.cellValue {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.cellChevron {
+  flex: 0 0 auto;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* The drilled effort pane: the levels of the current model, with the one in
+   force carrying the trailing check (figma 496:26454's list rows). A handful of
+   rows, so the card stays the width of the chooser above it and no search
+   input sits between them. */
+.option {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+  min-width: 100%;
+  min-height: var(--dsw-aeven-control-size);
+  padding: 8px;
+  border: none;
+  border-radius: var(--dsw-aeven-radius-control);
+  outline: none;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.option:hover:not(:disabled),
+.option:focus-visible {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+/* Selection marker is the trailing check, not a fill — matches the Menu
+ * primitive's selected treatment. */
+.selected {
+  background: transparent;
+}
+
+.option:disabled {
+  color: var(--dsw-alias-label-dimmed);
+  cursor: default;
+}
+
+.optionCopy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.optionName {
+  overflow: hidden;
+  color: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.check {
+  display: grid;
+  place-items: center;
+  flex: 0 0 18px;
+  color: var(--dsw-alias-label-primary);
+}

@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-07-30-cordis-config-source-plane-resolution-gate.md
+2026-07-30-cordis-config-source-plane-resolution-gate.md: d7891b9f79d586b1747f24a1df32a12ea611d5a7
+2026-07-30-cordis-config-source-plane-resolution-gate.zh.md: 24056e075a520842f887cde26c6a9cf73299dede

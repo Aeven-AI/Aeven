@@ -1,0 +1,490 @@
+/** Target-neutral Conversation slot declarations and composed component props. */
+import type { ReactNode, RefObject } from 'react'
+import type { FileAttachmentRef, ImageAttachmentRef } from '@aeven/attachment'
+import type { SessionSnapshot } from '@aeven/api-session-controller/client'
+import type { WorkspaceSnapshot } from '@aeven/api-workspace-controller/client'
+import type {
+  MaybeSnapshotSelectorHook, ObservableSnapshot, SnapshotSelectorHook,
+} from '@aeven/client-store'
+import type {
+  InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore,
+} from '@aeven/client-ui-slots'
+import type { SessionPendingInteraction } from '@aeven/client-ui-session/client'
+import type {} from '@aeven/client-ui-layout/client'
+import type { SessionId } from '@aeven/session/types'
+import type { WorkspaceId } from '@aeven/workspace/types'
+import type { ComposerBlock } from './composer-blocks.ts'
+import type {
+  ComposerKeyboard, DraftAttachmentId, EditSelection, InputActions, InputNotice, InputState,
+} from './input.ts'
+import type { createConversationStore } from '../stores.ts'
+import type { ComposerSubmitGesture, InputSubmitMode } from './composer-submission.ts'
+import type { ConversationSnapshot } from './snapshot.ts'
+import type { ViewTab } from './views.ts'
+
+/** Browser-owned image that has not crossed the durable Host boundary. */
+export interface ComposerImageAttachment {
+  kind: 'image'
+  id: DraftAttachmentId
+  file: File
+  previewUrl: string
+  /** Intrinsic pixel width, filled asynchronously by the intake header probe. */
+  width?: number
+  /** Intrinsic pixel height, filled asynchronously by the intake header probe. */
+  height?: number
+}
+
+/** Upload state of one draft file. */
+export type ComposerFileStatus = 'uploading' | 'ready' | 'error'
+
+/**
+ * Browser-owned file uploaded to the Host as soon as it is added; the prompt
+ * cites the staged upload by id once the upload is ready.
+ */
+export interface ComposerFileAttachment {
+  kind: 'file'
+  id: DraftAttachmentId
+  file: File
+  status: ComposerFileStatus
+  /** Upload progress from 0 to 100. */
+  progress: number
+  /** Staged-upload id returned by the Host, present once ready. */
+  uploadId?: string
+  /** Host or transport failure text, present on error. */
+  error?: string
+}
+
+/** One draft attachment in input order. */
+export type ComposerAttachment = ComposerImageAttachment | ComposerFileAttachment
+
+/** Input state handed to the optional attachment presentation plugin. */
+export interface ComposerAttachmentsOwnerProps {
+  /** Browser-owned draft images and files in input order. */
+  attachments: readonly ComposerAttachment[]
+  /** Whether a document-level file drop may add attachments now. */
+  canAcceptDrop: boolean
+  /** Add one dropped batch through the composer's validation path. */
+  onAddFiles: (files: readonly File[]) => void
+  /** Remove one draft attachment through the Conversation service. */
+  onRemoveAttachment: (id: DraftAttachmentId) => void
+  /** Display-ready limits for the drop invitation. */
+  dropLimits?: { readonly count: number; readonly size: string } | undefined
+}
+
+/**
+ * One image inside a message record: a durable admitted reference, or the
+ * local preview of a submission echo whose admission is still in flight.
+ */
+export type MessageImageSource =
+  | { readonly attachment: ImageAttachmentRef }
+  | {
+    readonly preview: {
+      /** Browser-owned preview URL (lifecycle stays with the submitter). */
+      readonly url: string
+      readonly name?: string
+      /** Intrinsic pixel width, when the intake probe has resolved it. */
+      readonly width?: number
+      /** Intrinsic pixel height, when the intake probe has resolved it. */
+      readonly height?: number
+    }
+  }
+
+/**
+ * One file inside a message record: a durable admitted reference, or the name
+ * and type a submission echo shows while its admission is in flight.
+ */
+export type MessageFileSource =
+  | { readonly attachment: FileAttachmentRef }
+  | { readonly preview: { readonly name: string; readonly mediaType: string } }
+
+/** Durable image loader with an optional synchronous cache read. */
+export type MessageImageLoader = ((attachment: ImageAttachmentRef) => Promise<string>) & {
+  peek?: (attachment: ImageAttachmentRef) => string | undefined
+}
+
+/** Message attachment group handed to the optional attachment presentation plugin. */
+export interface MessageImagesOwnerProps {
+  /** Durable references or submission-echo previews in source order. */
+  images: readonly MessageImageSource[]
+  /** Durable references or submission-echo files in source order; absent when the record cites none. Only the `tray` layout renders them. */
+  files?: readonly MessageFileSource[] | undefined
+  /** Session-authorized image URL loader for the durable arm. */
+  loadImage: MessageImageLoader
+  /** Session-authorized URL of one stored file original. */
+  fileUrl?: ((file: FileAttachmentRef) => string) | undefined
+  /** Horizontal placement inside the owning record. */
+  align: 'start' | 'end'
+  /**
+   * `gallery` sizes images by count (assistant, tool, and trajectory records);
+   * `tray` renders images and files as one tile grid, the sent-message
+   * counterpart of the composer tray; `fill` renders each image edge to edge in
+   * the box the owner laid out, for an owner that owns its own geometry.
+   */
+  layout: 'gallery' | 'tray' | 'fill'
+  /**
+   * Every image the record's Turn puts on screen, in log order, when the
+   * composition can resolve it: the opened preview navigates this whole list.
+   * Absent leaves the preview on the record's own `images`.
+   */
+  turnImages?: readonly MessageImageSource[] | undefined
+}
+
+/**
+ * One attachment group as its owning record asks for it. `turn` names the Turn
+ * the record belongs to, so the composition can attach that Turn's
+ * `turnImages`; the presentation package never reads Turn coordinates itself.
+ */
+export interface RenderMessageImagesRequest extends Omit<MessageImagesOwnerProps, 'loadImage' | 'fileUrl' | 'turnImages'> {
+  /** Turn the record belongs to; absent on a record without Turn coordinates. */
+  turn?: number | undefined
+}
+
+/** Slot-backed renderer used by Conversation targets without importing an attachment implementation. */
+export type RenderMessageImages = (owner: RenderMessageImagesRequest) => ReactNode
+
+/** Selector hook over the current Session's assembled Conversation. */
+export type UseConversation = SnapshotSelectorHook<ConversationSnapshot>
+/** Selector hook over the registered Conversation View roster. */
+export type UseConversationViews = SnapshotSelectorHook<readonly ViewTab[]>
+
+declare module '@aeven/client-ui-slots' {
+  interface SlotMap {
+    /** Strict per-Session Conversation body. */
+    'conversation.session': { kind: 'single'; scope: 'session' }
+    /** Strict per-Session title, actions, and View navigation. */
+    'conversation.session.header': { kind: 'single'; scope: 'session' }
+    /** Optional replacement for one Session breadcrumb title. */
+    'conversation.session.header.lineage': {
+      kind: 'single'
+      scope: 'session'
+      owner: ConversationHeaderLineageOwnerProps
+    }
+    /** Title-adjacent Session actions in ascending order. */
+    'conversation.session.header.actions': {
+      kind: 'list'
+      scope: 'session'
+      owner: ConversationHeaderActionOwnerProps
+    }
+    /**
+     * Right-aligned utilities in the resident navigation band, ascending.
+     *
+     * The band belongs to the column rather than to a Session, so this seat is
+     * rendered in the no-Session hero and beside a live Session alike — which
+     * is what an app-level control such as the signed-in reader's avatar
+     * needs. An entry here is given no Session at all: the root scope supplies
+     * no `sessionId` and no Session hooks, so it draws from its own inject
+     * face and the page the shell states. An entry that does need the current
+     * Session belongs in `conversation.session.header.actions` instead, which
+     * exists while one is open.
+     */
+    'conversation.navigation.utilities': { kind: 'list'; scope: 'root' }
+    /** Registered Conversation target Views, rendered one at a time. */
+    'conversation.view': { kind: 'list'; scope: 'session'; owner: ConvViewOwnerProps }
+    /** Selector-routed replacements for the resident composer. */
+    'conversation.composer': { kind: 'chain'; scope: 'session-maybe'; owner: ComposerChainProps }
+    /** Workspace picker shown by the blank-session Hero. */
+    'conversation.hero.workspace': { kind: 'single'; scope: 'root'; owner: EmptyWorkspaceOwnerProps }
+    /** Agent-preset control staged for a New Session. */
+    'conversation.hero.agentPreset': { kind: 'single'; scope: 'root'; owner: HeroAgentPresetOwnerProps }
+    /**
+     * The start page shown in place of a blank Session's Hero while
+     * a registered start address is selected, such as Imagine's gallery; the
+     * composer sits on the column's floor below it.
+     */
+    'conversation.start': { kind: 'keyed'; scope: 'session' }
+    /** Full-width entries above the composer card. */
+    'conversation.input.dock': { kind: 'list'; scope: 'session'; owner: InputZone }
+    /** Floating entries rendered inside the resident composer card. */
+    'conversation.input.overlay': { kind: 'list'; scope: 'session' }
+    /** Ambient entries below the composer card. */
+    'conversation.composer.dock': { kind: 'list'; scope: 'session' }
+    /** Compact controls at the left of the composer tool row. */
+    'conversation.input.left': { kind: 'list'; scope: 'session' }
+    /** Compact controls before the composer submit action. */
+    'conversation.input.right': { kind: 'list'; scope: 'session' }
+    /** Resident composer body, including the no-Session inert state. */
+    'conversation.composer.bar': { kind: 'single'; scope: 'session-maybe'; owner: ComposerBarOwnerProps }
+    /** Optional draft-attachment tray and drop target. */
+    'conversation.input.attachments': {
+      kind: 'single'
+      scope: 'session-maybe'
+      owner: ComposerAttachmentsOwnerProps
+    }
+    /** Plan control inside the composer tool row. */
+    'conversation.input.plan': { kind: 'single'; scope: 'session'; owner: InputControlOwnerProps }
+    /** Model selector inside the composer tool row. */
+    'conversation.input.model': { kind: 'single'; scope: 'session'; owner: InputControlOwnerProps }
+    /** One composer activity, such as dictation, placed before Stop and Send; while active it occupies the whole control row. */
+    'conversation.input.activity': { kind: 'single'; scope: 'session'; owner: InputActivityOwnerProps }
+  }
+
+  interface GlobalStandardProps {
+    /** Workspace selector supplied by the independently loaded Workspace UI. */
+    useWorkspaces: SnapshotSelectorHook<WorkspaceSnapshot>
+  }
+
+  interface SessionStandardProps {
+    /** Selector hook over target-neutral Conversation assembly. */
+    useConversation: UseConversation
+    /** Selector hook over the Session input machine. */
+    useInput: SnapshotSelectorHook<InputState>
+    /** Stable public input actions for this Session. */
+    inputActions: InputActions
+  }
+
+  interface SessionMaybeStandardProps {
+    /** Selector hook whose values are absent without a current Session. */
+    useConversation: MaybeSnapshotSelectorHook<ConversationSnapshot>
+    /** Input values are absent without a current Session. */
+    useInput: MaybeSnapshotSelectorHook<InputState>
+    /** Input actions are absent without a current Session. */
+    inputActions: InputActions | undefined
+  }
+}
+
+/** Owner share of the Hero agent-preset control. */
+export interface HeroAgentPresetOwnerProps {
+  /** Marker field: the occupant owns its roster and staged selection. */
+  children?: never
+}
+
+/** Header actions derive their state from standard Session props. */
+export interface ConversationHeaderActionOwnerProps {
+  /** Marker field: entries receive no owner-specific values. */
+  children?: never
+}
+
+/** Plain breadcrumb data handed to the optional lineage renderer. */
+export interface ConversationHeaderLineageOwnerProps {
+  /** Session represented by this breadcrumb title. */
+  lineageSessionId: SessionId
+  /** Display title available to a combined title/control renderer. */
+  displayTitle: string
+  /** Navigate to an ancestor title when present. */
+  openTitle?: () => void
+}
+
+/** Point-in-time owner values for composer extension entries. */
+export interface InputZone {
+  readonly session: SessionSnapshot
+  readonly input: InputState
+}
+
+/** Conversation View entries obtain their data from registered standard hooks. */
+export interface ConvViewOwnerProps {
+  /** Marker field: entries receive no owner-specific values. */
+  children?: never
+}
+
+/** Base props of one target-owned Conversation View entry. */
+export type ConvViewProps = PropsRuntime<'conversation.view'>
+
+/** Business callbacks injected into the resident Conversation shell. */
+export interface ConversationInjected {
+  /** Connect and open a blank Session in the selected Workspace. */
+  selectWorkspace: (workspaceId: WorkspaceId) => Promise<void>
+  /**
+   * Fold or unfold the left navigation column, for the band's leading control.
+   *
+   * Optional: the column and its toggle belong to the layout frame, and this
+   * band draws that control only while the frame's layout service is there to
+   * act on. A shell that mounts this assembly without one keeps the band and
+   * loses the control, rather than showing a button that does nothing.
+   */
+  toggleSidebar?: (() => void) | undefined
+  /**
+   * Composer placeholder the open start page declares for its own composer,
+   * such as Imagine's gallery or the automation page.
+   *
+   * Optional: a shell mounted without the Workspace navigation that owns the
+   * start addresses has no page to ask, and the shared prompt stands.
+   * @param path - the open start address.
+   * @returns the placeholder, or undefined when that page declared none.
+   */
+  composerPlaceholder?: ((path: string) => string | undefined) | undefined
+  /**
+   * Restore the selected archived Session; the archived bar offers it in
+   * place of the composer. Absent without a Session or without the Workspace
+   * navigation that owns the archive set.
+   */
+  unarchiveSession?: (() => void) | undefined
+  /** Session-addressed shell sources, or stable absent sources without a Session. */
+  hooks: {
+    composerBlock: ObservableSnapshot<ComposerBlock | undefined>
+    selectedView: ObservableSnapshot<ViewTab | undefined>
+    startAddress: ObservableSnapshot<string | undefined>
+    /** The registry-global archive set; an archived selected Session reads only. */
+    archivedSessionIds: ObservableSnapshot<readonly SessionId[]>
+  }
+}
+
+/** Business callbacks injected into the strict Session body. */
+export interface ConversationSessionInjected {
+  /** Package-owned View roster source bound only for the Conversation body. */
+  readonly hooks: { readonly conversationViews: ObservableSnapshot<readonly ViewTab[]> }
+  /** Bind input draft persistence to the Session-owned store instance. */
+  bindDraftMirror: (write: (text: string) => void) => () => void
+}
+
+/** Business callbacks injected into the strict Session header. */
+export interface ConversationSessionHeaderInjected {
+  /** Package-owned View roster source bound only for the Conversation header. */
+  readonly hooks: {
+    readonly conversationViews: ObservableSnapshot<readonly ViewTab[]>
+    /** The View the Session is showing, or undefined before one is activated. */
+    readonly selectedView: ObservableSnapshot<ViewTab | undefined>
+    /** Workspaces this Session can move into, in list order. */
+    readonly moveTargets: ObservableSnapshot<readonly SessionMoveTarget[]>
+  }
+  /** Select a Session through the Session Controller. */
+  open: (sessionId: SessionId) => void
+  /** Fork this Session at its last completed turn and open the child. */
+  forkSession: () => void
+  /** Download this Session's complete history as a ZIP archive. */
+  exportSession: () => Promise<void>
+  /**
+   * Move this Session into another Workspace and open the Session that
+   * replaces it; absent in an assembly without a Workspace surface.
+   */
+  moveSession: ((workspaceId: WorkspaceId) => void) | undefined
+  /** Select and activate one registered Conversation View. */
+  selectView: (view: string) => void
+}
+
+/** One Workspace the header offers as a move destination. */
+export interface SessionMoveTarget {
+  readonly workspaceId: WorkspaceId
+  readonly title: string
+}
+
+/** Owner share of the resident composer bar. */
+export interface ComposerBarOwnerProps {
+  /** Hero uses centered placement; composer uses the active bottom placement. */
+  variant: 'hero' | 'composer'
+  /** A feature-owned reason that makes message input inert while leaving model selection live. */
+  blocked?: { readonly reason: string }
+  /** Lock all message actions while preserving the resident composer surface. */
+  disabled?: boolean
+  /** Whether the shared Workspace picker is expanded. */
+  workspacePickerOpen?: boolean
+  /** Open the Workspace picker from the inert composer surface. */
+  onRequestWorkspace?: () => void
+  placeholder?: string
+  /** Optional content rendered above the composer surface. */
+  accessory?: ReactNode
+}
+
+/** Package-private operations injected into the resident composer bar. */
+export interface ComposerBarInjected {
+  keyboard: ComposerKeyboard | undefined
+  addImages: ((files: readonly File[]) => string | null) | undefined
+  /** Register draft files and start their uploads; returns a refusal text or null. */
+  addFiles: ((files: readonly File[]) => string | null) | undefined
+  removeImage: ((id: DraftAttachmentId) => void) | undefined
+  draftImages: ((ids: readonly DraftAttachmentId[]) => readonly ComposerAttachment[]) | undefined
+  /** Observe draft attachment state changes such as upload progress. */
+  subscribeDrafts: ((listener: () => void) => () => void) | undefined
+  resolveSubmitMode: (
+    running: boolean,
+    gesture: ComposerSubmitGesture,
+    steeringAvailable: boolean,
+  ) => InputSubmitMode
+  toggleCommandMenu: ((selection: EditSelection) => void) | undefined
+  invokeCommand: ((name: string, selection: EditSelection, anchor?: Element | null) => Promise<boolean>) | undefined
+  stop: (() => void) | undefined
+  command: ((line: string) => Promise<boolean>) | undefined
+  hooks: {
+    notices: ObservableSnapshot<InputNotice | null>
+    lexicon: ObservableSnapshot<ReadonlyMap<'/' | '@', readonly string[]>>
+    menuLauncher: ObservableSnapshot<string | null>
+  }
+}
+
+
+/** Owner share of the named plan and model controls. */
+export interface InputControlOwnerProps {
+  /** Whether the composer currently refuses interaction. */
+  locked: boolean
+}
+
+/** Owner share of the composer activity occupant. */
+export interface InputActivityOwnerProps extends InputControlOwnerProps {
+  /**
+   * Claim or release the whole control row; the bar hides its other controls while claimed.
+   * The occupant releases the row before it unmounts.
+   * @param active - whether the activity occupies the row.
+   */
+  onActiveChange: (active: boolean) => void
+}
+
+/** Full props of the resident composer bar. */
+export type ComposerBarProps =
+  PropsRuntime<'conversation.composer.bar'>
+  & PropsRenderSlots<
+    | 'conversation.input.attachments' | 'conversation.input.overlay'
+    | 'conversation.input.left' | 'conversation.input.plan'
+    | 'conversation.input.right' | 'conversation.input.model'
+    | 'conversation.input.activity' | 'conversation.composer.dock'
+  >
+  & InjectFace<ComposerBarInjected>
+  & PropsLocale<'conversation'>
+
+/** Owner values used to elect a composer takeover. */
+export interface ComposerChainProps {
+  /** Current Session identity used by temporary business-owned entries. */
+  sessionId: SessionId | undefined
+  /** Current Session lifecycle state, absent without a selected Session. */
+  session: SessionSnapshot | undefined
+  /** Effective business-owned interaction awaiting the user in this Session. */
+  pendingInteraction: SessionPendingInteraction | undefined
+}
+
+/** Full props of the resident optional-Session Conversation shell. */
+export type ConversationSlotProps =
+  PropsRuntime<'conversation'>
+  & PropsRenderSlots<
+    | 'conversation.session' | 'conversation.session.header'
+    | 'conversation.composer' | 'conversation.composer.bar'
+    | 'conversation.input.dock'
+    | 'conversation.hero.workspace'
+    | 'conversation.hero.agentPreset'
+    | 'conversation.start'
+    | 'conversation.navigation.utilities'
+  >
+  & InjectFace<ConversationInjected>
+  & PropsLocale<'conversation'>
+
+/** Shared target-neutral Conversation store handle. */
+export type ConversationStore = ReturnType<typeof createConversationStore>
+
+/** Full props of the strict Session body. */
+export type ConversationSessionSlotProps =
+  PropsRuntime<'conversation.session'>
+  & PropsRenderSlots<'conversation.view'>
+  & PropsStore<ConversationStore>
+  & InjectFace<ConversationSessionInjected>
+
+/** Full props of the strict Session header. */
+export type ConversationSessionHeaderSlotProps =
+  PropsRuntime<'conversation.session.header'>
+  & PropsRenderSlots<
+    'conversation.session.header.lineage'
+    | 'conversation.session.header.actions'
+  >
+  & PropsStore<ConversationStore>
+  & InjectFace<ConversationSessionHeaderInjected>
+  & PropsLocale<'conversation'>
+
+/** Full props of the draft-image attachment renderer. */
+export type ComposerAttachmentsProps =
+  PropsRuntime<'conversation.input.attachments'> & PropsLocale<'conversation'>
+
+/** Owner share common to blank-session Workspace pickers. */
+export interface EmptyWorkspaceOwnerProps {
+  open: boolean
+  anchorRef?: RefObject<HTMLElement>
+  /** Currently selected Workspace, when available. */
+  selectedId?: WorkspaceId | undefined
+  onPick: (workspaceId: WorkspaceId) => void
+  onClose: () => void
+}

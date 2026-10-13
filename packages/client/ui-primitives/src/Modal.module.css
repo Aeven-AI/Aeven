@@ -1,0 +1,103 @@
+/* Full-viewport layer (figma Mask + Dialog 451:18655): mask + centered card. */
+.root {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+/* User/spec mask: rgba(0,0,0,0.24) + blur(2px) via --dsw-alias-bg-mask-1 /
+   --dsw-mask-blur (light); dark theme raises mask opacity. */
+.mask {
+  position: absolute;
+  inset: 0;
+  background: var(--dsw-alias-bg-mask-1);
+  backdrop-filter: var(--dsw-mask-blur);
+}
+
+/* Dialog card: Aeven primary radius, prominent elevation, layer-2 fill. */
+.dialog {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: min(380px, 100%);
+  padding: 0 0 24px;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--dsw-aeven-radius-surface);
+  background: var(--dsw-alias-bg-layer-2);
+  box-shadow: var(--dsw-elevation-prominent);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+/* Header row (figma Title row): pad l24/t22/r24/b12, SPACE_BETWEEN —
+ * title left, close button right, both on the card's 24px page inset. */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 22px 24px 12px;
+}
+
+.title {
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+  color: var(--dsw-alias-label-primary);
+}
+
+/* The card's close control: 28x28 r28 with a 14px glyph, the header row's last
+   item, its box on the header's 24px right inset. The disc is black with a
+   white glyph on either theme's card, so it carries no hover state. */
+.close {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 28px;
+  background: var(--dsw-static-neutral-1000);
+  color: var(--dsw-static-neutral-00);
+  cursor: pointer;
+}
+
+/* Description and body share the 332px content column (24px side pads). */
+.description {
+  margin: 0;
+  padding: 0 24px;
+  font-size: 14px;
+  line-height: 28px;
+  font-weight: 400;
+  color: var(--dsw-alias-label-primary);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin-top: 20px;
+  padding: 0 24px;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 0 24px;
+}

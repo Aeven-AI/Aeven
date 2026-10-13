@@ -1,0 +1,488 @@
+/* Aeven reading rhythm applied to the existing safe Markdown renderer. Cite
+   pills, header anchors, and thinking-small variants have no matching DOM. */
+
+.markdown {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font: var(--dsw-font-markdown-base);
+  color: var(--dsw-alias-label-primary);
+}
+
+.markdown strong {
+  font-weight: 500;
+}
+
+.markdown h1 {
+  font: var(--dsw-font-markdown-h1);
+  margin: 64px 0 24px;
+}
+
+.markdown h2 {
+  font: var(--dsw-font-markdown-h2);
+  margin: 56px 0 20px;
+}
+
+.markdown h3 {
+  font: var(--dsw-font-markdown-h3);
+  margin: 40px 0 16px;
+}
+
+.markdown h4 {
+  font: var(--dsw-font-markdown-h4);
+  margin: 32px 0 12px;
+}
+
+.markdown h5 {
+  font: var(--dsw-font-markdown-h5);
+  margin: 28px 0 12px;
+}
+
+.markdown h6 {
+  font: var(--dsw-font-markdown-h6);
+  margin: 28px 0 12px;
+}
+
+.markdown :where(h1, h2, h3, h4, h5, h6) strong {
+  font-weight: inherit;
+}
+
+.markdown p {
+  margin: 24px 0;
+}
+
+/* Tighten h4–h6 against a following list (design: 8px gap). */
+.markdown :where(h4, h5, h6) + :where(ul, ol) {
+  margin-top: 8px;
+}
+
+.markdown a {
+  /* deepsuite markdown.css uses brand-text (blue in newDesign); this sheet
+     keeps design-platform brand-text as near-black, so links use the blue
+     business-primary alias instead. */
+  color: var(--dsw-alias-label-tertiary);
+  transition: box-shadow var(--ds-transition-duration) var(--ds-ease-in-out);
+  position: relative;
+  text-decoration: none;
+  /* Transparent hit-area padding; literal zero-alpha only (no painted color). */
+  border-left: 3px solid rgb(255 255 255 / 0);
+  border-right: 3px solid rgb(255 255 255 / 0);
+  border-top: 2px solid rgb(255 255 255 / 0);
+  border-bottom: 2px solid rgb(255 255 255 / 0);
+  margin-left: -3px;
+  margin-right: -3px;
+}
+
+.markdown a:hover,
+.markdown a:focus {
+  outline: none;
+  color: var(--dsw-alias-label-primary);
+  text-decoration: underline currentColor;
+}
+
+.markdown a:focus-visible {
+  box-shadow: 0 0 0 2px var(--dsw-alias-state-business-primary);
+}
+
+.markdown :where(ul, ol) {
+  margin: 24px 0;
+  padding-left: 18px;
+}
+
+.markdown li:not(:first-child) {
+  margin-top: 12px;
+}
+
+.markdown li > :where(ul, ol) {
+  margin-top: 4px;
+}
+
+.markdown li::marker {
+  line-height: 24px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* Nested ol under ul/ol: markers inside (models sometimes emit this shape). */
+.markdown :where(ul, ol) ol {
+  list-style-position: inside;
+  padding-left: 0;
+}
+
+.markdown :where(ul, ol) ol li p {
+  display: inline;
+}
+
+.markdown li > p {
+  margin: 8px 0;
+}
+
+.markdown li > *:first-child {
+  margin-top: 0;
+}
+
+/* Keep list-nested code-block vertical margins (design: +4px vs other last children). */
+.markdown li > *:last-child:not(:global(.md-code-block)) {
+  margin-bottom: 0;
+}
+
+/* The rule is drawn by a 2px border rather than a 0.5px background block: a
+   filled box would sit on top of the border instead of replacing it. This
+   selector outranks hypermarkdown's `.hypermarkdown hr`, so the mark's
+   geometry has to live here or it has no effect. */
+.markdown hr {
+  box-sizing: content-box;
+  display: block;
+  overflow: visible;
+  border: none;
+  border-top: 2px solid #fff;
+  width: 100%;
+  height: 0;
+  margin: 56px 0;
+}
+
+.markdown blockquote {
+  border-left: 2px solid var(--dsw-alias-label-caption);
+  margin: 16px 0 0;
+  padding-left: 14px;
+}
+
+.markdown pre {
+  margin: 24px 0;
+  font-family: var(--ds-font-family-code);
+  overflow: auto;
+}
+
+.markdown :not(pre) > code {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  font: var(--dsw-font-markdown-code);
+  font-family: var(--ds-font-family-code);
+  font-size: 0.875em !important;
+  color: #737373;
+  background-color: var(--dsw-alias-markdown-inline-code);
+  border-radius: 16px;
+  padding: 2px 8px;
+}
+
+/* The engine draws inline code itself — `.hypermarkdown code:not(pre code)`
+   carries its own `#f2f2f2` and outranks the rule above by one class — so the
+   app's fill reaches prose through a doubled class. A table cell is excluded:
+   its code sits on the surface the cell's own borders are drawn against and
+   keeps the engine's fill. */
+.markdown.markdown :not(pre) > code:not(:global(.table-wrapper) code) {
+  background-color: var(--dsw-alias-markdown-inline-code);
+}
+
+.markdown :where(h1, h2, h3, h4, h5, h6) code {
+  font: inherit;
+  font-family: var(--ds-font-family-code);
+}
+
+.markdown :global(.katex-display) {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* HyperMarkdown ships `--hm-math-size: 20.5px`, which its own `.katex` rule
+   uses in place of KaTeX's 1.21em. 20px is the size this app renders math at.
+   The engine puts its `.hypermarkdown` class on the SAME element this class
+   lands on (`rootClassName()` concatenates the two), so the package default
+   and this override are a specificity contest rather than an inheritance one:
+   the doubled class outranks the single `.hypermarkdown` whatever order the
+   two sheets end up in. */
+.markdown.markdown {
+  --hm-max-width: 100%;
+  --hm-math-size: 20px;
+  --hm-tracking: normal;
+}
+
+/* A reasoning block is part of a reply, not a toolbar, so it reads at the
+   conversation's own type size and colour rather than the engine's small
+   default. Everything here is scoped to the engine's reasoning subtree: the
+   rest of the engine's chrome keeps its own tokens, and only the block the
+   reader is meant to read as prose is brought onto the app's scale. */
+.markdown.markdown :global(.reasoning-wrapper) {
+  margin: 4px 0;
+}
+
+.markdown.markdown :global(.reasoning-container) {
+  border-color: var(--dsw-alias-border-l2);
+}
+
+.markdown.markdown :global(.reasoning-header) {
+  font-family: var(--dsw-font-family);
+  font-size: var(--avn-content-font-size, 16px);
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.markdown.markdown :global(.reasoning-content) {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: var(--avn-content-font-size, 16px);
+  line-height: calc(28px + var(--avn-content-font-delta, 0px));
+}
+
+/* Diagrams follow the product typeface. Mermaid bakes its stock Trebuchet
+   stack into the generated SVG — both a `<style>` element inside the document
+   and inline `style` attributes on the nodes — and a style attribute outranks
+   ordinary author rules, so only an important declaration reaches the text.
+   `svg *` covers `text`/`tspan` and the `foreignObject` HTML labels together. */
+.markdown :global(.mermaid-container svg),
+.markdown :global(.mermaid-container svg *) {
+  font-family: var(--dsw-font-family) !important;
+}
+
+.markdown input[type="checkbox"] {
+  margin: 0 8px 0 0;
+}
+
+/* Table presentation — the scroll viewport, cell padding, borders and the
+   fill/scroll split — belongs to the HyperMarkdown engine, which renders and
+   styles its own `.table-wrapper` subtree. This sheet styles only what it
+   renders itself. */
+
+.markdown > *:first-child,
+.markdown p:first-child {
+  margin-top: 0 !important;
+}
+
+.markdown > *:last-child,
+.markdown p:last-child {
+  margin-bottom: 0 !important;
+}
+
+.imageAlt {
+  color: var(--dsw-alias-label-tertiary);
+  font-style: italic;
+}
+
+.image {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  margin: 0;
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-base);
+  object-fit: contain;
+}
+
+/* The engine's own image element (loader and error states around it) takes
+   the same presentation; an openable image shows the enlarge cursor. Corner
+   radius stays with the engine's own `img` rule, which owns it for every host. */
+.markdown :global(img.image) {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  background: var(--dsw-alias-bg-base);
+  object-fit: contain;
+}
+
+.markdown :global(img.image[data-openable]) {
+  cursor: zoom-in;
+}
+
+.markdown :global(.markdown-image-alt) {
+  color: var(--dsw-alias-label-tertiary);
+  font-style: italic;
+}
+
+/* A run of images the engine grouped: the generated-image lane's own geometry,
+   so a reply's photographs tile exactly the way generated ones do. Two share
+   the column in halves, three take equal thirds, and four or more wrap two to a
+   row. Every tile in a row is one size — one aspect ratio for the lot, whatever
+   shape each photograph is — so the row reads as a single band instead of a
+   ragged line, and the image covers the tile it lands in. */
+.markdown :global(.markdown-image-grid) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+  margin: 16px 0;
+}
+
+.markdown :global(.markdown-image-grid[data-count='3']) {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.markdown :global(.markdown-image-grid > *) {
+  aspect-ratio: 4 / 3;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 30px;
+}
+
+.markdown :global(.markdown-image-grid .markdown-image-container),
+.markdown :global(.markdown-image-grid .markdown-image) {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.markdown :global(.markdown-image-grid img.image) {
+  width: 100%;
+  height: 100%;
+  border-radius: 30px;
+  object-fit: cover;
+}
+
+/* A tile shows the app's loading surface until its bytes arrive, then fades it
+   off the image — the same beat a generating image holds while it is produced.
+   The placeholder takes no pointer events, so the tile is a control the moment
+   the image is. */
+.markdown :global(.markdown-image-grid .markdown-image) {
+  position: relative;
+}
+
+.markdown :global(.markdown-image-grid .image-loader),
+.markdown :global(.markdown-video .image-loader) {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: var(--dsw-alias-interactive-bg-hover);
+  opacity: 1;
+  transition: opacity 240ms ease;
+}
+
+.markdown :global(.markdown-image-grid [data-loaded]) .image-loader,
+.markdown :global(.markdown-video[data-loaded] .image-loader) {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .markdown :global(.markdown-image-grid .image-loader),
+  .markdown :global(.markdown-video .image-loader) {
+    transition: none;
+  }
+}
+
+/* A lone image keeps its own shape rather than a tile's, so it is never cropped:
+   a landscape one spans the column and a portrait one takes two thirds of it,
+   centred — the share the generated-image lane gives it. Only a paragraph's own
+   image is matched: a row's images have left their paragraph for the grid. */
+.markdown :global(p > .markdown-image-container[data-orientation='portrait'] img.image) {
+  max-width: 66.666%;
+  margin-right: auto;
+  margin-left: auto;
+}
+
+/* A run of videos tiles the way a row of images does: a lone video spans the
+   column, two share it in halves, three take thirds, and four or more wrap two
+   to a row. Every tile is 3:2 and carries the transcript's 30px corner. */
+.markdown :global(.markdown-video-grid) {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 16px 0;
+}
+
+.markdown :global(.markdown-video-grid[data-count='1']) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.markdown :global(.markdown-video-grid[data-count='3']) {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.markdown :global(.markdown-video) {
+  border-radius: 30px;
+  background: none;
+}
+
+/* Inline file mention: the same link language this sheet gives anchors (and
+   thereby URL-promoted inline code) — link-blue at rest, underline only on
+   hover/focus. An underline at rest reads badly inside the code chip, where
+   it collides with monospace descenders and the pill background. */
+.fileMention {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: var(--dsw-alias-state-business-primary);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.fileMention:hover,
+.fileMention:focus {
+  outline: none;
+  text-decoration: underline var(--dsw-alias-state-business-primary);
+  text-underline-offset: 3px;
+}
+
+/* Compact variant: reasoning bodies and flow-row details read in the tertiary
+   label colour at the conversation's body size, with block rhythm tightened
+   so an expanded trace stays visually subordinate to the reply. Every rule
+   doubles the class so it outranks the reading-rhythm rules above. */
+.markdown.compact {
+  max-width: 100%;
+  font-size: var(--avn-content-font-size, 16px);
+  line-height: calc(28px + var(--avn-content-font-delta, 0px));
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.markdown.compact :is(h1, h2, h3, h4, h5, h6) {
+  margin: 8px 0 4px;
+  font: inherit;
+  font-weight: 500;
+  color: inherit;
+}
+
+.markdown.compact :is(p, ul, ol, blockquote, pre) {
+  margin: 4px 0;
+}
+
+.markdown.compact li:not(:first-child) {
+  margin-top: 2px;
+}
+
+.markdown.compact li > p {
+  margin: 4px 0;
+}
+
+.markdown.compact li::marker {
+  line-height: inherit;
+  color: inherit;
+}
+
+.markdown.compact blockquote {
+  padding-left: 8px;
+}
+
+.markdown.compact hr {
+  margin: 8px 0;
+}
+
+.markdown.compact a,
+.markdown.compact .fileMention {
+  font-weight: inherit;
+  color: inherit;
+  text-decoration: underline dotted;
+}
+
+.markdown.compact a:hover,
+.markdown.compact a:focus,
+.markdown.compact .fileMention:hover,
+.markdown.compact .fileMention:focus {
+  text-decoration-color: currentColor;
+}
+
+.markdown.compact :not(pre) > code {
+  display: inline;
+  font: inherit;
+  font-family: var(--ds-font-family-code);
+  font-size: 0.875em !important;
+  border-radius: 4px;
+  padding: 0 3px;
+  box-decoration-break: clone;
+}
+
+.markdown.compact > *:first-child {
+  margin-top: 0;
+}
+
+.markdown.compact > *:last-child {
+  margin-bottom: 0;
+}

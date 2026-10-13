@@ -1,0 +1,43 @@
+{
+  "name": "@aeven/web-search-perplexity",
+  "description": "Perplexity-backed search provider for the Aeven web capability seam (ctx.web)",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/web/web-search-perplexity"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "@aeven/launch-environment": "workspace:^",
+    "@aeven/web": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "workspace:^"
+  },
+  "devDependencies": {
+    "@aeven/launch-environment": "workspace:^",
+    "@aeven/web": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/http-proxy": "workspace:^"
+  }
+}

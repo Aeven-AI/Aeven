@@ -1,0 +1,17 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": { "rootDir": "src", "outDir": "lib/types" },
+  "include": ["src"],
+  "references": [
+    { "path": "../../../vendor/cosmokit" },
+    { "path": "../../../vendor/cordis" },
+    { "path": "../../../vendor/schemastery" },
+    { "path": "../media" },
+    { "path": "../../attachment/attachment" },
+    { "path": "../../fs/fs" },
+    { "path": "../../core/tools" },
+    { "path": "../../interaction/user-questions" },
+    { "path": "../../settings/settings" },
+    { "path": "../../interaction/commands" }
+  ]
+}

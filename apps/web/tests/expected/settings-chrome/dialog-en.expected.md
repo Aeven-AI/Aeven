@@ -1,0 +1,34 @@
+- dialog "Settings":
+  - navigation:
+    - text: Settings
+    - button "General":
+      - img
+      - text: General
+    - button "Appearance":
+      - img
+      - text: Appearance
+    - button "Models":
+      - img
+      - text: Models
+    - button "Plugins":
+      - img
+      - text: Plugins
+    - button "Agent presets":
+      - img
+      - text: Agent presets
+  - button "Open configuration file"
+  - button "Close":
+    - img
+    - text: Close
+  - text: Permission Choose the default permission mode for new sessions
+  - button "Workspace Write":
+    - text: Workspace Write
+    - img
+  - text: Language
+  - button "English":
+    - text: English
+    - img
+  - text: Enter behavior while busy Busy only; Cmd/Ctrl+Enter uses the other behavior
+  - button "Queue":
+    - text: Queue
+    - img

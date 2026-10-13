@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-07-27-compiler-independent-typert-model.md
+2026-07-27-compiler-independent-typert-model.md: 27fdcfb6005d2e0993f9bbe12a6e8c08be3887c9
+2026-07-27-compiler-independent-typert-model.zh.md: 535aee87e06d90480bbd73ddb50cda58c1c59ac2

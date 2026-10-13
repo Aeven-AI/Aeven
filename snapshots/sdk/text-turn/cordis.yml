@@ -1,0 +1,34 @@
+# TypeScript SDK snapshot-record patch over `avn --profile sdk`.
+
+# The fixture corpus must not depend on the developer's personal skill roots.
+# Ordinary product launches retain the sdk profile's default skill discovery.
+- id: skill-filesystem
+  name: '@aeven/skill-filesystem'
+  config:
+    includeDefaultRoots: false
+
+- id: llm-deepseek
+  name: '@aeven/llm-deepseek'
+  config:
+    thinking: enabled
+    reasoningEffort: max
+
+- id: session-persistence-jsonl
+  name: '@aeven/session-persistence-jsonl'
+  config:
+    root: !!js avnHomePath('sessions')
+    compression: !!js "process.env.AVN_SNAPSHOT === undefined ? 'zstd' : 'none'"
+
+- id: tool-subagent
+  name: '@aeven/tool-subagent'
+  config:
+    provider: spawn
+    toolName: subagent
+    backgroundMode: one-shot
+    enableRunInBackground: false
+    maxDepth: 1
+
+- id: session-log-deepseek
+  name: '@aeven/session-log-deepseek'
+  config:
+    enabled: true

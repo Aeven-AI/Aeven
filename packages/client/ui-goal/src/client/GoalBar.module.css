@@ -1,0 +1,93 @@
+/* GoalBar: a section of the composer stack's dock surface, which owns the
+   fill, width, and corners. The 16px lead lines up with the InputBar draft;
+   the 9px trail puts the last 28px action's 14px icon 16px from the edge,
+   under the Todo chevron. */
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  /* Todo's section padding; the 9px trail is the only difference. */
+  padding: 16px 9px 16px 16px;
+  box-sizing: border-box;
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.goalGlyph {
+  display: grid;
+  flex: none;
+  place-items: center;
+  color: var(--dsw-alias-label-primary);
+}
+
+.objective,
+.error {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.objective {
+  color: #000;
+}
+
+.error {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+/* Inline edit: the objective text becomes editable in place, no field chrome. */
+.objectiveInput {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  color: var(--dsw-alias-label-primary);
+  caret-color: var(--dsw-alias-state-business-primary);
+}
+
+.objectiveInput::placeholder {
+  color: var(--dsw-alias-label-caption);
+}
+
+/* The 28px buttons overhang the 24px line by 2px each way, so the row keeps
+   the Todo header's height. */
+.actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  margin: -2px 0;
+}
+
+.iconBtn {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+}
+
+.iconBtn:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.iconBtn:focus-visible {
+  outline: 2px solid var(--dsw-alias-label-tertiary);
+  outline-offset: -2px;
+}
+
+.iconBtn:disabled {
+  cursor: default;
+  opacity: 0.4;
+}

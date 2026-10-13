@@ -1,0 +1,68 @@
+{
+  "name": "@aeven/llm-deepseek",
+  "description": "DeepSeek chat-completions adapter for the Aeven LLM seam",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/llm/llm-deepseek"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/anonymous-user-id": "workspace:^",
+    "@aeven/atomic-write": "workspace:^",
+    "@aeven/attachment": "workspace:^",
+    "@aeven/credentials": "workspace:^",
+    "@aeven/deepseek-llm-api-extensions": "workspace:^",
+    "@aeven/fs": "workspace:^",
+    "@aeven/home-paths": "workspace:^",
+    "@aeven/launch-environment": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/settings": "workspace:^",
+    "@aeven/timeout": "workspace:^"
+  },
+  "dependencies": {
+    "@aeven/brand": "workspace:^",
+    "@aeven/util-values": "workspace:^",
+    "@deepseek-ai/schemastery": "workspace:^",
+    "eventsource-parser": "^3.1.0"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/agent": "workspace:^",
+    "@aeven/anonymous-user-id": "workspace:^",
+    "@aeven/atomic-write": "workspace:^",
+    "@aeven/attachment": "workspace:^",
+    "@aeven/credentials": "workspace:^",
+    "@aeven/deepseek-llm-api-extensions": "workspace:^",
+    "@aeven/fs": "workspace:^",
+    "@aeven/home-paths": "workspace:^",
+    "@aeven/launch-environment": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/plugin-package-inventory-deepseek": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/session-log-deepseek": "workspace:^",
+    "@aeven/settings": "workspace:^",
+    "@aeven/timeout": "workspace:^",
+    "@aeven/http-proxy": "workspace:^"
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "name": "@aeven/llm-pi-ai",
+  "description": "pi-ai-backed DeepSeek adapter for the Aeven LLM seam (design-verification twin of avn-llm-deepseek)",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/llm/llm-pi-ai"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/attachment": "workspace:^",
+    "@aeven/authorization": "workspace:^",
+    "@aeven/credentials": "workspace:^",
+    "@aeven/fs": "workspace:^",
+    "@aeven/launch-environment": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/settings": "workspace:^",
+    "@aeven/timeout": "workspace:^"
+  },
+  "dependencies": {
+    "@aeven/brand": "workspace:^",
+    "@aeven/util-values": "workspace:^",
+    "@deepseek-ai/schemastery": "workspace:^",
+    "@earendil-works/pi-ai": "^0.84.2"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/attachment": "workspace:^",
+    "@aeven/authorization": "workspace:^",
+    "@aeven/credentials": "workspace:^",
+    "@aeven/fs": "workspace:^",
+    "@aeven/launch-environment": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/llm-deepseek": "workspace:^",
+    "@aeven/settings": "workspace:^",
+    "@aeven/timeout": "workspace:^",
+    "@aeven/http-proxy": "workspace:^"
+  }
+}

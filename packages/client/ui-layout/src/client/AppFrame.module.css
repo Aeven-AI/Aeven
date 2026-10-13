@@ -1,0 +1,438 @@
+.frame {
+  position: relative; /* anchors the drag handles, which straddle column borders */
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+  background: var(--dsw-alias-bg-base);
+  /* The corner dock's geometry, stated once and read by both the dock and the
+     spacer the conversation header reserves for it, so the two cannot drift.
+     `seats` is the dock's content width — its occupants plus the gaps between
+     them — and a seat added to the corner is added here. Stating it beats
+     measuring the dock: a width published from JavaScript per layout is what
+     the column rules above exist to avoid. */
+  --avn-shell-corner-gap: 0px;
+  /* Every occupant is a 30px control, so the avatar needs no extra offset; the
+     column toggle's own right margin sets the row's spacing. */
+  --avn-shell-corner-avatar-offset: 0px;
+  --avn-shell-corner-seats: calc(
+    /* the right sidebar's full screen toggle and its column toggle */
+    var(--dsw-aeven-control-size)
+    + var(--dsw-aeven-control-size)
+    /* the column toggle's right margin, which sets its distance from the avatar */
+    + 8px
+    /* the account avatar */
+    + var(--avn-shell-corner-avatar-offset)
+    + 30px
+    /* the dock's own inset from the frame's edge */
+    + var(--dsw-aeven-page-inset)
+    + var(--dsw-aeven-page-inset)
+  );
+}
+
+/* Inline-size query container for the conversation's width axis. The column
+   width is the one input that axis needs, and reading it in CSS is what keeps
+   the sidebar's slide off the main thread: publishing it from JS meant writing
+   an inherited custom property on an ancestor of the whole transcript on every
+   animation frame, which invalidates style for every element under it. */
+.centerCol {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* The corner dock floats above the frame's right edge rather than taking part   in any column's layout, so this column states how much of its own right edge
+   the dock covers. The conversation header reserves that much, keeping its
+   crumbs, tabs and session controls clear of the dock instead of running under
+   it (ui-conversation ConversationRoot.module.css).
+
+   The right sidebar sits between this column and the frame's edge and takes
+   the overlap with it: once that column is wider than the dock, the dock is
+   entirely over the sidebar and this column reserves nothing.
+
+   The dock's width is not stated here. The conversation header reserves it in
+   its own flow, from a spacer that mirrors the dock's seats
+   (ui-conversation ConversationRoot.module.css), so adding a corner seat
+   widens the reservation without anything measuring the dock. This term is
+   only how much of that reservation the right sidebar has taken over. */
+.centerCol {
+  --avn-shell-corner-overlap: var(--avn-frame-rightbar-width, 0px);
+}
+
+
+/* The centre column is `flex: 1`; sidebar width changes resize it once without
+   a JavaScript column solver. */
+.detailsCol {
+  flex: none;
+  width: var(--avn-frame-details-width, 0px);
+  min-width: 0;
+  overflow: hidden;
+  border-left: none;
+  transition: width var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing);
+}
+
+/* Dragging writes a panel width at pointer cadence. */
+.frame[data-dragging] .detailsCol {
+  transition: none;
+}
+
+/* The details subtree stays mounted at zero width, so its border must not paint
+   a 1px seam. */
+.frame[data-details-collapsed] .detailsCol {
+  border-left: none;
+}
+
+/* The right sidebar column: same width mechanism as details, so a drag writes
+   one custom property on the frame and flex resizes the centre once. The
+   occupant's panel keeps its own rounded edge, so the column paints nothing.
+
+   It does not clip: collapsed it reaches zero width, and its occupant's
+   reopen control has to stand in the conversation's right margin to stay
+   reachable. */
+.rightbarCol {
+  flex: none;
+  width: var(--avn-frame-rightbar-width, 0px);
+  min-width: 0;
+  overflow: visible;
+  transition: width var(--dsw-aeven-rightbar-transition-duration) var(--dsw-aeven-rightbar-transition-timing);
+}
+
+.frame[data-dragging] .rightbarCol {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rightbarCol {
+    transition: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .detailsCol {
+    transition: none;
+  }
+}
+
+/* The details drag handle is a frame child (columns clip overflow): an 8px hit
+   strip centered on the column border, above column content, carrying a visible
+   12x32 pill at vertical center. */
+.handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: col-resize;
+  /* Above the side columns, which raise themselves over the conversation
+     (both sidebars sit at 50). A handle beneath its own column is painted
+     over by that column's content and cannot be grabbed at all. */
+  z-index: 51;
+  touch-action: none;
+  /* Rides the same curve as the columns so the pill stays on the moving
+     border during collapse/expand; paused while dragging (frame rule). */
+  transition:
+    left var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing),
+    right var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing);
+}
+
+/* The handle sits on its column's edge by reading that column's width, so it
+   never needs the frame's measured size. Details is the inner column, so its
+   edge stands past the right sidebar's width as well as its own. */
+.handle[data-side='details'] {
+  right: calc(var(--avn-frame-details-width, 0px) + var(--avn-frame-rightbar-width, 0px));
+  margin-right: -4px;
+}
+
+/* Both right-hand handles stand on an edge the right sidebar moves — the
+   rightbar's own, and the details edge, which is offset past it — so both
+   follow that column's curve rather than the shared one. A handle left on the
+   shared pair drifts off the border it marks for the whole slide. */
+.handle[data-side='rightbar'],
+.handle[data-side='details'] {
+  transition:
+    left var(--dsw-aeven-rightbar-transition-duration) var(--dsw-aeven-rightbar-transition-timing),
+    right var(--dsw-aeven-rightbar-transition-duration) var(--dsw-aeven-rightbar-transition-timing);
+}
+
+.handle[data-side='rightbar'] {
+  right: var(--avn-frame-rightbar-width, 0px);
+  margin-right: -4px;
+}
+
+.frame[data-dragging] .handle {
+  transition: none;
+}
+
+/* A Session switch redraws the side columns at the geometry that Session was
+   left at. That is a different layout, not a movement within one, so every
+   layer that eases a column takes it in one frame: eased, the panel would
+   slide between two readers' widths while the transcript reflows behind it. */
+.frame[data-switching] .detailsCol,
+.frame[data-switching] .rightbarCol,
+.frame[data-switching] .handle,
+.frame[data-switching] .coverLayer {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .handle {
+    transition: none;
+  }
+}
+
+.handle[data-side='details']::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px;
+  height: 32px;
+  border-radius: 10px;
+  box-sizing: border-box;
+  background: var(--dsw-alias-button-floating-fill);
+  border: 0.5px solid var(--dsw-alias-border-l2-darkmode-thin);
+  /* Hover affordance: the details pill hides until the pointer is over its
+     column, the strip itself, or a drag. */
+  opacity: 0;
+  transition:
+    opacity var(--ds-transition-duration-slow) var(--ds-ease-in-out),
+    background var(--ds-transition-duration-slow) var(--ds-ease-in-out);
+}
+
+.detailsCol:hover ~ .handle[data-side='details']::after,
+.handle[data-side='details']:hover::after,
+.handle[data-side='details'][data-dragging='true']::after {
+  opacity: 1;
+}
+
+.handle[data-side='details']:hover::after,
+.handle[data-side='details'][data-dragging='true']::after {
+  background: var(--dsw-alias-button-floating-hover);
+  border-color: var(--dsw-alias-border-l3);
+}
+
+/* The frame-wide cover a Session switch paints over everything it is about to
+   replace. It clears the left sidebar, whose column keeps its own geometry
+   through the switch, and spans every column right of it — conversation,
+   details, right sidebar — plus the chrome laid out over them, so the reader
+   sees one surface settle rather than a transcript blanking inside a frame
+   that stayed put.
+
+   Collapsed, the column has no width, so the cover spans from the frame's own
+   left edge. The conversation's fold control travels with that column, so it
+   is covered with everything else the Session switch replaces; the corner dock
+   outranks this layer, keeping the avatar and the panel toggles visible
+   throughout.
+
+   Occupants come from ui-conversation, which owns when a Session is covered;
+   this states only where the cover sits. */
+.coverLayer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  /* The sidebar's own open width, the token its panel is drawn from — not the
+     store's width preference, which the panel does not paint at. Reading the
+     preference here left the cover overlapping the panel by the difference. */
+  left: var(--dsw-aeven-sidebar-width);
+  z-index: 51;
+  pointer-events: none;
+  transition: left var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing);
+}
+
+/* Collapsed the column has no width: the cover starts where the conversation
+   column itself does. */
+.frame[data-sidebar-collapsed] .coverLayer {
+  left: 0;
+}
+
+.coverLayer > * {
+  pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coverLayer {
+    transition: none;
+  }
+}
+
+/* The frame's top-right corner, holding chrome that belongs to the window
+   rather than to a column: the account avatar and the right sidebar's toggle.
+   Positioned against the frame, so a column opening underneath moves nothing
+   here and there is no width to animate — the occupants are simply never in
+   the moving box.
+
+   Above both side columns (50) and the handles (51) so the right sidebar
+   cannot paint over it, and matched to the conversation header's own band:
+   the same 56px row, the same page inset, so a control here lands level with
+   the crumbs and tabs that scroll beneath it.
+
+   The row is `fit-content` and click-through, leaving the rest of the band to
+   the conversation's own header underneath. */
+.cornerDock {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 52;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--avn-shell-corner-gap);
+  height: 56px;
+  padding: 0 var(--dsw-aeven-page-inset);
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.cornerDock > * {
+  pointer-events: auto;
+}
+
+/* The account avatar, last in the row, at the controls' centre spacing. The
+   entries render inside the slot's `display: contents` wrapper. */
+.cornerDock > * > :last-child {
+  margin-left: var(--avn-shell-corner-avatar-offset);
+}
+
+/* A full-screen surface owns the viewport, so this band yields with the rest
+   of the frame's chrome (see the overlay layer's note below). */
+.frame[data-fullscreen] .cornerDock {
+  display: none;
+}
+
+/* Above the drag handles and both side columns: a toast or dialog belongs over
+   the whole frame, including a column edge. */
+.overlayLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 55;
+  pointer-events: none;
+}
+
+/* A full-screen surface covers the viewport from inside the transcript, which
+   is below every chrome layer in the frame's stacking order. Each layer drops
+   out of the order for as long as one is up, rather than the surface trying to
+   out-rank them from inside a nested context it cannot escape. A chrome layer
+   added later must yield here too. */
+.frame[data-fullscreen] .overlayLayer {
+  z-index: 0;
+}
+
+.overlayLayer > * {
+  pointer-events: auto;
+}
+
+/* The right sidebar overlays the conversation instead of sitting beside it
+   whenever the frame marks `data-rightbar-overlay`: below the med breakpoint,
+   and on a wider frame whose conversation would otherwise drop under its
+   floor (CENTER_MIN, columns.ts). Opening it then leaves the conversation its
+   full width instead of squeezing it to whatever the panel leaves over.
+
+   The column keeps zero width there: its panel is anchored to the column's
+   right edge and grows leftwards over the conversation, so the column itself
+   has nothing to size. With the column out of the row, the conversation runs
+   under the corner dock again, so its header reserves the dock's full width,
+   and the details column's edge no longer stands past the right sidebar. */
+.frame[data-rightbar-overlay] .centerCol {
+  --avn-shell-corner-overlap: 0px;
+}
+
+.frame[data-rightbar-overlay] .rightbarCol {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  width: 0;
+  transition: none;
+}
+
+.frame[data-rightbar-overlay] .handle[data-side='details'] {
+  right: var(--avn-frame-details-width, 0px);
+}
+
+/* Below Aeven's med breakpoint the sidebar overlays rather than sizes a
+   column, so there is no column edge to grab; Aeven offers no resize there
+   either. The details handle goes with it: the panel owns the whole width.
+
+   The details column leaves the row the same way as the right sidebar and
+   lays over the conversation from the frame's right edge. */
+@media screen and (max-width: 1024px) {
+  .handle {
+    display: none;
+  }
+
+  .detailsCol {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 50;
+  }
+
+  /* The open left sidebar overlays everything right of it: the corner's
+     controls drop under its scrim with the conversation, as Aeven's account
+     button does, and so do the right-hand overlays, which otherwise share the
+     sidebar's layer and, later in the frame, would paint over it. */
+  .frame:not([data-sidebar-collapsed]) :is(.detailsCol, .rightbarCol, .cornerDock) {
+    z-index: 49;
+  }
+}
+
+/* Aeven's small breakpoint: a phone-width frame has no room for a panel beside
+   any of the conversation, so an open details or right sidebar panel takes the
+   whole frame. The right sidebar's widths are restated on its column, which
+   every layer of its panel reads them through (ui-sidebar-right
+   SidebarRightRoot.module.css); the frame's own values stay the reader's
+   stored width for when the window widens again. */
+@media screen and (max-width: 640px) {
+  .frame:not([data-details-collapsed]) .detailsCol {
+    width: 100%;
+  }
+
+  .rightbarCol {
+    --avn-frame-rightbar-open-width: 100vw;
+  }
+
+  .frame:not([data-rightbar-collapsed]) .rightbarCol {
+    --avn-frame-rightbar-width: 100vw;
+  }
+}
+
+/* The macOS desktop shell hides its title bar, so the page supplies the band that
+   drags the window and answers a double-click with zoom: the full width of the
+   frame, one header row tall.
+
+   A drag rectangle is applied by the window rather than by hit testing, so the
+   band would take every click inside it. Each control that can sit in the band
+   therefore declares `no-drag` below, which the window subtracts from the band
+   because the control follows this pseudo-element in document order. The band
+   itself ignores the pointer, so a click that reaches the page through one of
+   those holes lands on the control under it. */
+:global(html[data-avn-traffic-lights]) .frame::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  /* The header band's own row: its top padding plus one control. */
+  height: calc(8px + var(--dsw-aeven-control-size));
+  z-index: 60;
+  pointer-events: none;
+  -webkit-app-region: drag;
+}
+
+/* The holes in the band: every element that takes a click, a key, or a drag
+   of its own, wherever it renders. Outside the band the declaration has no
+   effect. */
+:global(html[data-avn-traffic-lights]) :global(:is(
+  button, input, textarea, select, a[href], label, summary, iframe, webview,
+  [contenteditable]:not([contenteditable='false']),
+  [role='button'], [role='tab'], [role='link'], [role='menuitem'], [role='option'],
+  [role='switch'], [role='checkbox'], [role='radio'], [role='slider'], [role='combobox'],
+  [role='separator'][tabindex], [draggable='true']
+)),
+:global(html[data-avn-traffic-lights]) .handle {
+  -webkit-app-region: no-drag;
+}

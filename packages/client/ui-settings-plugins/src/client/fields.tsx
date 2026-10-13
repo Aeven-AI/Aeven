@@ -1,0 +1,183 @@
+/**
+ * Hand-written controls for the plugin configuration forms. Each renders one
+ * field's label, its staged text, whether saving would leave an override, and
+ * — when one stands — the reset that stages a clear back to the composition
+ * layer. Nothing here writes: a control reports what the user typed, and the
+ * card's save is the single point where a draft becomes a document mutation.
+ */
+
+import clsx from 'clsx'
+import type { ReactNode } from 'react'
+import css from './fields.module.css'
+
+/** What every field control needs regardless of its value type. */
+export interface FieldProps {
+  /** Stable id associating the label with its control. */
+  id: string
+  /** Visible label. */
+  label: string
+  /** One-line explanation rendered under the control. */
+  hint: string
+  /** Draft text this control renders. */
+  text: string
+  /** True when saving would leave a user-layer entry for this field. */
+  overridden: boolean
+  /** True when the draft is not a value this field accepts. */
+  invalid: boolean
+  /** Copy for the overridden badge. */
+  overriddenLabel: string
+  /** Copy for the reset control. */
+  resetLabel: string
+  /** Copy shown in place of the hint while the draft is invalid. */
+  invalidLabel: string
+  /** Disables every control (read-only document, or an unavailable namespace). */
+  disabled: boolean
+  /** Stage draft text. */
+  onEdit: (text: string) => void
+  /** Stage a clear so the field re-inherits the composition layer. */
+  onReset: () => void
+}
+
+/** The label row of a staged field: its properties minus the value itself. */
+type FieldHeadProps = Pick<
+  FieldProps,
+  'id' | 'label' | 'overridden' | 'overriddenLabel' | 'resetLabel' | 'disabled' | 'onReset'
+>
+
+/**
+ * The label row every staged field shares: the label, and — while the staged
+ * value would leave a user-layer entry — the override badge beside the reset
+ * that stages a clear back to the composition layer.
+ * @param props - the field's identity, copy, override state, and reset action.
+ * @returns the label row, followed by any control the field places in it.
+ */
+function FieldHead(props: FieldHeadProps & {
+  /** A control the field renders inside the row, after the badges. */
+  children?: ReactNode
+}) {
+  return (
+    <div className={css.head}>
+      <label className={css.label} htmlFor={props.id}>{props.label}</label>
+      {props.overridden
+        ? (
+          <span className={css.badges}>
+            <span className={css.badge}>{props.overriddenLabel}</span>
+            <button
+              type="button"
+              className={css.reset}
+              disabled={props.disabled}
+              onClick={props.onReset}
+            >
+              {props.resetLabel}
+            </button>
+          </span>
+        )
+        : null}
+      {props.children}
+    </div>
+  )
+}
+
+/**
+ * A staged value field. `numeric` only hints the keypad: which drafts a field
+ * accepts is decided by its spec, so the control never silently rewrites what
+ * the user typed.
+ * @param props - the field's copy, its staged text, and the edit actions.
+ * @returns the labelled control.
+ */
+export function ValueField(props: FieldProps & {
+  /** Hints a numeric keypad without narrowing what the control accepts. */
+  numeric?: boolean
+  /** Placeholder shown while the draft is empty. */
+  placeholder?: string
+}) {
+  return (
+    <div className={css.field}>
+      <FieldHead {...props} />
+      <input
+        id={props.id}
+        className={props.invalid ? css.inputInvalid : css.input}
+        type="text"
+        {...props.numeric === true ? { inputMode: 'numeric' as const } : {}}
+        {...props.invalid ? { 'aria-invalid': true } : {}}
+        value={props.text}
+        placeholder={props.placeholder ?? ''}
+        disabled={props.disabled}
+        onChange={(event) => { props.onEdit(event.target.value) }}
+      />
+      <p className={props.invalid ? css.invalid : css.hint}>
+        {props.invalid ? props.invalidLabel : props.hint}
+      </p>
+    </div>
+  )
+}
+
+/**
+ * A write-only credential control. The value never rides a response, so the
+ * control reports only whether one is configured and starts blank; a blank
+ * draft writes nothing, which keeps the stored key rather than clearing it.
+ * @param props - the field's copy, its staged text, and the configured state.
+ * @returns the labelled control.
+ */
+export function SecretField(props: Pick<FieldProps, 'id' | 'label' | 'hint' | 'text' | 'disabled' | 'onEdit'> & {
+  /** Whether the Host reports a configured credential for this reference. */
+  configured: boolean
+  /** Copy describing the configured state. */
+  stateLabel: string
+}) {
+  return (
+    <div className={css.field}>
+      <div className={css.head}>
+        <label className={css.label} htmlFor={props.id}>{props.label}</label>
+        <span className={css.badges}>
+          <span className={props.configured ? css.badge : css.badgeMuted}>{props.stateLabel}</span>
+        </span>
+      </div>
+      <input
+        id={props.id}
+        className={css.input}
+        type="password"
+        autoComplete="off"
+        value={props.text}
+        disabled={props.disabled}
+        onChange={(event) => { props.onEdit(event.target.value) }}
+      />
+      <p className={css.hint}>{props.hint}</p>
+    </div>
+  )
+}
+
+/**
+ * A staged boolean preference with the same override and reset treatment as
+ * scalar fields.
+ * @param props - the preference copy, state, and staging actions.
+ * @returns the labelled switch.
+ */
+export function ToggleField(props: Pick<
+  FieldProps,
+  'id' | 'label' | 'hint' | 'overridden' | 'overriddenLabel' | 'resetLabel' | 'disabled' | 'onReset'
+> & {
+  /** Current staged state. */
+  checked: boolean
+  /** Stage the opposite state. */
+  onToggle: () => void
+}) {
+  return (
+    <div className={css.field}>
+      <FieldHead {...props}>
+        <button
+          id={props.id}
+          type="button"
+          role="switch"
+          aria-checked={props.checked}
+          className={clsx(css.switch, props.checked && css.switchOn)}
+          disabled={props.disabled}
+          onClick={props.onToggle}
+        >
+          <span className={css.thumb} />
+        </button>
+      </FieldHead>
+      <p className={css.hint}>{props.hint}</p>
+    </div>
+  )
+}

@@ -1,0 +1,49 @@
+- region "Approve this plan and leave plan mode?":
+  - text: Plan review
+  - heading "Add --greeting flag to CLI" [level=1]:
+    - text: Add
+    - code: "--greeting"
+    - text: flag to CLI
+  - list:
+    - listitem:
+      - text: •
+      - strong: Locate the CLI entry point
+      - text: (e.g.,
+      - code: cli.py
+      - text: ","
+      - code: main.go
+      - text: ","
+      - code: index.js
+      - text: etc.) and find the argument parser definition (argparse, click, cobra, yargs, or similar).
+    - listitem:
+      - text: •
+      - strong: Register a new optional string argument
+      - text: named
+      - code: "--greeting"
+      - text: with a short alias (
+      - code: "-g"
+      - text: if available) and a sensible default value (e.g.,
+      - code: "\"Hello\""
+      - text: ).
+    - listitem:
+      - text: •
+      - strong: Thread the parsed value
+      - text: through the main handler function so it is passed where the greeting string is used (e.g., the welcome/response message).
+    - listitem:
+      - text: •
+      - strong: Update the help text
+      - text: so
+      - code: "--help"
+      - text: or
+      - code: "-h"
+      - text: shows the new flag with its description.
+    - listitem:
+      - text: •
+      - strong: No tests or config changes
+      - text: unless they already exist and directly validate the flag's presence.
+  - status
+  - button "Chat about it":
+    - img
+    - text: Chat about it
+  - button "Refuse"
+  - button "Approve"

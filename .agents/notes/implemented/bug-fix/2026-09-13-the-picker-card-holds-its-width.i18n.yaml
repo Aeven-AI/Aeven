@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-13-the-picker-card-holds-its-width.md
+2026-09-13-the-picker-card-holds-its-width.md: e6a70cba25d8500ce6af8b7cd861584fcd0e1572
+2026-09-13-the-picker-card-holds-its-width.zh.md: c525e981a0fc8bdd66bcb8e4a1ab15bd24142cdc

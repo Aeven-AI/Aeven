@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-07-22-tsconfig-solution-root-two-aggregates.md
+2026-07-22-tsconfig-solution-root-two-aggregates.md: 3914db92a018f4c7367a10ac20c08d677ac09fab
+2026-07-22-tsconfig-solution-root-two-aggregates.zh.md: 48c5a23bff7abced67e0515cb1ae93aa74de31b8

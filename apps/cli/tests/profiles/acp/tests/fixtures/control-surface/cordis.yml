@@ -1,0 +1,21 @@
+# Keyless generic ACP v1 control-surface patch over `avn --profile acp`.
+
+- id: llm-deepseek
+  name: '@aeven/llm-deepseek'
+  disabled: true
+
+- id: acp
+  name: '@aeven/acp'
+  config:
+    provider: control-fixture
+    model: alpha
+
+- id: session-persistence-jsonl
+  name: '@aeven/session-persistence-jsonl'
+  config:
+    root: !!js process.env.AVN_CONFORMANCE_PERSISTENCE_ROOT
+    compression: none
+
+- insert:
+    - id: control-surface-llm
+      name: './control-surface-llm.ts'

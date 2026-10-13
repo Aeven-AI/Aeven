@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-01-memory-summary-recall.md
+2026-10-01-memory-summary-recall.md: 5bbd66f36805d31c893f06a61a125b073a27bbd8
+2026-10-01-memory-summary-recall.zh.md: 84f277f92fefbea83c4bb66cefbec7787ab9e2da

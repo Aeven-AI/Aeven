@@ -1,0 +1,85 @@
+/* Syntax-highlight token palette for highlight.js (tool cards and markdown
+   fences). Light values on :root, dark overrides on the body attribute. */
+
+:root {
+  --hljs-keyword: #d6336c;
+  --hljs-string: #2f9e44;
+  --hljs-comment: #868e96;
+  --hljs-number: #1c7ed6;
+  --hljs-function: #6741d9;
+  --hljs-params: #e8590c;
+  --hljs-punctuation: #495057;
+  --hljs-link: #1971c2;
+}
+
+body[data-ds-dark-theme] {
+  --hljs-keyword: #faa2c1;
+  --hljs-string: #69db7c;
+  --hljs-comment: #adb5bd;
+  --hljs-number: #4dabf7;
+  --hljs-function: #b197fc;
+  --hljs-params: #ffa94d;
+  --hljs-punctuation: #ced4da;
+  --hljs-link: #74c0fc;
+}
+
+.hljs {
+  color: var(--dsw-alias-label-primary);
+  background: transparent;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-built_in,
+.hljs-type {
+  color: var(--hljs-keyword);
+}
+
+.hljs-string,
+.hljs-attr,
+.hljs-attribute,
+.hljs-template-variable {
+  color: var(--hljs-string);
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: var(--hljs-comment);
+}
+
+.hljs-number,
+.hljs-literal,
+.hljs-symbol,
+.hljs-bullet {
+  color: var(--hljs-number);
+}
+
+.hljs-title,
+.hljs-section,
+.hljs-name {
+  color: var(--hljs-function);
+}
+
+.hljs-params,
+.hljs-variable,
+.hljs-property {
+  color: var(--hljs-params);
+}
+
+.hljs-punctuation,
+.hljs-operator {
+  color: var(--hljs-punctuation);
+}
+
+.hljs-link,
+.hljs-regexp {
+  color: var(--hljs-link);
+}
+
+.hljs-strong {
+  font-weight: bold;
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}

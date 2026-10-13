@@ -1,0 +1,518 @@
+/** Registers the target-neutral Conversation assembly, shell, input, and docks. */
+import type { Context } from '@deepseek-ai/cordis'
+import type { ISessions } from '@aeven/api-session-controller/client'
+import { createSnapshotStore, type BoundActions, type ObservableSnapshot } from '@aeven/client-store'
+import { resolveSlotLabel } from '@aeven/client-ui-slots'
+import type { SessionId } from '@aeven/session/types'
+import type { WorkspaceId } from '@aeven/workspace/types'
+import type {} from '@aeven/api-remotes/client'
+// Type-only service and declaration merges used by this assembly.
+import type {} from '@aeven/client-locale/client'
+import type {} from '@aeven/client-ui-renderer/client'
+import type {} from '@aeven/client-ui-session/client'
+import type {} from '@aeven/client-ui-settings/client'
+import { UiConversation } from './conversation/assembly.ts'
+import type { ViewTab } from './contract/views.ts'
+import type {
+  ComposerBarInjected, ConversationInjected, ConversationSessionHeaderInjected,
+  ConversationSessionInjected, SessionMoveTarget,
+} from './contract/slots.ts'
+import type { InputNotice } from './contract/input.ts'
+import { createConversationStore, readConversationViewPreference } from './stores.ts'
+import { ConversationController, UnsupportedImageMediaTypeError } from './service.ts'
+import type { IConversation } from './service.ts'
+import { ComposerBlockRegistry } from './input/blocks.ts'
+import type { ComposerBlock } from './contract/composer-blocks.ts'
+import { InputHub } from './input/hub.ts'
+import { ComposerSubmissionPolicy } from './input/submission-policy.ts'
+import { EnterBehaviorRow } from './settings/EnterBehaviorRow.tsx'
+import type { EnterBehaviorRowInjected } from './settings/EnterBehaviorRow.tsx'
+import { ConversationRoot } from './skeleton/ConversationRoot.tsx'
+import { ConversationSession, ConversationSessionHeader } from './skeleton/ConversationSession.tsx'
+import { InputBar } from './input/InputBar.tsx'
+import { exportSessionLog } from './export-session.ts'
+import { todoDockEntry } from './skeleton/TodoPanel.tsx'
+import { resolveActiveView } from './view-selection.ts'
+import { en, NS, zh, type ConversationKey } from './locales.ts'
+import { CONVERSATION_SETTINGS_NAMESPACE, type ConversationSettings } from '../submission-settings.ts'
+
+declare module '@aeven/client-ui-slots' {
+  interface LocaleNamespaceMap {
+    /** Conversation shell, composer, queue, and dock copy. */
+    conversation: ConversationKey
+  }
+}
+
+/** Services required by the Conversation plugin. */
+export const inject = [
+  'slots', 'sessions', 'uiSession', 'uiWorkspace', 'locale', 'settingsScope', 'remote', 'remote.session',
+]
+
+// Stable no-session sources keep the renderer's observable-hook cache and
+// hook order unchanged across current-Session transitions.
+const ABSENT_NOTICES = {
+  getSnapshot: (): InputNotice | null => null,
+  subscribe: () => () => {},
+}
+const ABSENT_BLOCK = {
+  getSnapshot: (): ComposerBlock | undefined => undefined,
+  subscribe: () => () => {},
+}
+const ABSENT_SELECTED_VIEW = {
+  getSnapshot: (): ViewTab | undefined => undefined,
+  subscribe: () => () => {},
+}
+const EMPTY_LEXICON: ReadonlyMap<'/' | '@', readonly string[]> = new Map()
+const ABSENT_LEXICON = {
+  getSnapshot: () => EMPTY_LEXICON,
+  subscribe: () => () => {},
+}
+const ABSENT_MENU_LAUNCHER = {
+  getSnapshot: (): string | null => null,
+  subscribe: () => () => {},
+}
+const NO_ARCHIVED: readonly SessionId[] = []
+const ABSENT_ARCHIVED = {
+  getSnapshot: () => NO_ARCHIVED,
+  subscribe: () => () => {},
+}
+const NO_MOVE_TARGETS: readonly SessionMoveTarget[] = []
+const ABSENT_MOVE_TARGETS = {
+  getSnapshot: () => NO_MOVE_TARGETS,
+  subscribe: () => () => {},
+}
+
+interface WorkspaceNavigation {
+  readonly startAddress: ObservableSnapshot<string | undefined>
+  /**
+   * Composer placeholder a start page declared with its address. Optional: an
+   * assembly mounted over a Workspace UI that predates the claim keeps the
+   * shared prompt.
+   */
+  composerPlaceholder?: ((path: string) => string | undefined) | undefined
+  connectWorkspace(
+    workspaceId: Parameters<ConversationInjected['selectWorkspace']>[0],
+  ): Promise<SessionId>
+  /**
+   * Ask the browsing region to open its Session rename dialog. Optional: an
+   * assembly without that region keeps the band and loses the row.
+   */
+  requestSessionRename?: ((sessionId: SessionId, currentTitle: string) => void) | undefined
+  /**
+   * Archive one Session into the registry-global hidden set. Optional for the
+   * same reason as the rename request.
+   */
+  archiveSession?: ((sessionId: SessionId) => Promise<void>) | undefined
+  /** Restore an archived Session. Optional for the same reason as the rename request. */
+  unarchiveSession?: ((sessionId: SessionId) => Promise<void>) | undefined
+  /** The registry-global archive set. Optional for the same reason as the rename request. */
+  readonly archivedSessionIds?: ObservableSnapshot<readonly SessionId[]> | undefined
+  /** Workspaces a Session can move into. Optional for the same reason as the rename request. */
+  moveTargets?: ((sessionId: SessionId) => ObservableSnapshot<readonly SessionMoveTarget[]>) | undefined
+  /** Move a Session and open its replacement. Optional for the same reason as the rename request. */
+  moveSession?: ((sessionId: SessionId, workspaceId: WorkspaceId) => Promise<SessionId>) | undefined
+}
+
+/** Resolve the session-scoped Conversation action face, failing loud. */
+function scopedConversation(sessions: ISessions, id: SessionId): IConversation {
+  const scoped = sessions.scope(id)
+  if (scoped === undefined) throw new Error(`ui-conversation: session "${id}" resolved no scope`)
+  const conversation = scoped.get('conversation')
+  if (conversation === undefined) {
+    throw new Error('ui-conversation: conversation service unavailable through the session scope')
+  }
+  return conversation
+}
+
+/** Resolve package-internal attachment operations from the public service. */
+function concreteConversation(ctx: Context): ConversationController {
+  const conversation = ctx.get('conversation') as ConversationController | undefined
+  if (conversation === undefined) throw new Error('ui-conversation: conversation service unavailable')
+  return conversation
+}
+
+/**
+ * The navigation band's fold action, or undefined when no layout frame owns the
+ * column to fold. Resolved per render: the frame provides its layout service
+ * and renders this assembly in the same registration, so the control appears
+ * with the column it folds and never as a button with nothing behind it.
+ * @param ctx - the Conversation plugin's context.
+ * @returns the sidebar fold action, or undefined without a layout service.
+ */
+function foldAction(ctx: Context): (() => void) | undefined {
+  const layout = ctx.get('layout')
+  return layout === undefined ? undefined : () => { layout.toggleSidebar() }
+}
+
+/**
+ * Mount the Conversation core and target-neutral presentation.
+ * @param ctx - Client root context.
+ */
+export function apply(ctx: Context): void {
+  const sessions = ctx.sessions
+  const slots = ctx.slots
+  const workspaceNavigation = ctx.get('uiWorkspace') as unknown as WorkspaceNavigation
+  const uiConversation = new UiConversation(ctx, sessions)
+
+  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-conversation: dictionaries')
+  const t = ctx.locale.bind(NS)
+  const conversationStore = createConversationStore()
+  const submissionPolicy = new ComposerSubmissionPolicy(
+    ctx.settingsScope.bind<ConversationSettings>({ namespace: CONVERSATION_SETTINGS_NAMESPACE }),
+  )
+
+  ctx.slots.inject('settings.general.item', () => ctx.slots.register({
+    name: 'settings.general.item',
+    id: 'composer-enter',
+    order: 20,
+    locale: NS,
+    inject: (): EnterBehaviorRowInjected => ({
+      hooks: { busyEnter: submissionPolicy.busyEnter },
+      setBusyEnter: (behavior) => { submissionPolicy.setBusyEnter(behavior) },
+    }),
+  }, EnterBehaviorRow))
+
+  const viewTabs = (): ViewTab[] => {
+    const definitions = new Map(uiConversation.views.entries().map(definition => [definition.target, definition]))
+    const tabs: ViewTab[] = []
+    for (const entry of slots.entries('conversation.view')) {
+      /* v8 ignore next -- list registration validates id at load. */
+      if (entry.options.id === undefined) continue
+      tabs.push({
+        id: entry.options.id,
+        label: resolveSlotLabel(entry.options.label) ?? entry.options.id,
+        composerPlacement: definitions.get(entry.options.id)?.composerPlacement ?? 'docked',
+      })
+    }
+    return tabs
+  }
+  const activateView = (sessionId: SessionId, preferred: string | null): void => {
+    const active = resolveActiveView(viewTabs(), preferred)
+    if (active !== undefined) uiConversation.binding(sessionId).select(active)
+  }
+  const restoreView = (sessionId: SessionId): void => {
+    activateView(sessionId, readConversationViewPreference(sessionId))
+  }
+  const restoreCurrentView = (): void => {
+    const sessionId = sessions.list.getSnapshot().current
+    if (sessionId !== undefined && sessions.binding(sessionId) !== undefined) {
+      restoreView(sessionId)
+    }
+  }
+  const conversationViews = createSnapshotStore<readonly ViewTab[]>(viewTabs())
+  const refreshViews = (): void => {
+    const current = conversationViews.getSnapshot()
+    const next = viewTabs()
+    const unchanged = current.length === next.length
+      && current.every((tab, index) => {
+        const candidate = next.at(index)
+        return candidate !== undefined
+          && tab.id === candidate.id
+          && tab.label === candidate.label
+          && tab.composerPlacement === candidate.composerPlacement
+      })
+    if (!unchanged) conversationViews.set(next)
+    restoreCurrentView()
+  }
+  ctx.effect(() => {
+    let currentSessionId = sessions.list.getSnapshot().current
+    const disposeViews = slots.subscribe('conversation.view', refreshViews)
+    const disposeDefinitions = uiConversation.views.subscribe(refreshViews)
+    const disposeLocale = ctx.locale.subscribe(refreshViews)
+    const disposeCurrent = sessions.list.subscribe(() => {
+      const nextSessionId = sessions.list.getSnapshot().current
+      if (nextSessionId === currentSessionId) return
+      currentSessionId = nextSessionId
+      restoreCurrentView()
+    })
+    return () => {
+      disposeCurrent()
+      disposeLocale()
+      disposeDefinitions()
+      disposeViews()
+    }
+  }, 'ui-conversation: View selection')
+
+  const inputHub = new InputHub(ctx, t)
+  const composerBlocks = new ComposerBlockRegistry()
+
+  // Conversation assembly and input share the Session binding lifecycle. The
+  // source roster is installed before any consuming Slot entry.
+  ctx.uiSession.provide({
+    hooks: ['conversation', 'input'],
+    props: ['inputActions'],
+    resolve: (binding) => {
+      const shell = inputHub.shellFor(binding)
+      const conversation = uiConversation.binding(binding)
+      restoreView(binding.sessionId)
+      return {
+        hooks: {
+          conversation: conversation.snapshot,
+          input: shell.state,
+        },
+        props: { inputActions: shell.actions },
+      }
+    },
+  })
+
+  const registerConversationRoot = () => slots.register({
+    name: 'conversation',
+    locale: NS,
+    children: {
+      'conversation.session': { kind: 'single', scope: 'session' },
+      'conversation.session.header': { kind: 'single', scope: 'session' },
+      'conversation.composer': { kind: 'chain', scope: 'session-maybe' },
+      'conversation.composer.bar': { kind: 'single', scope: 'session-maybe' },
+      'conversation.input.dock': { kind: 'list', scope: 'session' },
+      'conversation.hero.workspace': { kind: 'single', scope: 'root' },
+      'conversation.hero.agentPreset': { kind: 'single', scope: 'root' },
+      'conversation.start': { kind: 'keyed', scope: 'session' },
+      // Resident navigation-band utilities. Declared here, by the resident
+      // root, because the band outlives any one Session: gating these on a
+      // Session is what left the signed-in reader's avatar missing on a
+      // fresh install, whose cold start has no Session to open.
+      'conversation.navigation.utilities': { kind: 'list', scope: 'root' },
+    },
+    inject: (sessionId: SessionId | undefined): ConversationInjected => ({
+      hooks: {
+        composerBlock: sessionId === undefined ? ABSENT_BLOCK : composerBlocks.storeFor(sessionId),
+        selectedView: sessionId === undefined ? ABSENT_SELECTED_VIEW : uiConversation.binding(sessionId).selectedView,
+        startAddress: workspaceNavigation.startAddress,
+        archivedSessionIds: workspaceNavigation.archivedSessionIds ?? ABSENT_ARCHIVED,
+      },
+      ...(sessionId === undefined || workspaceNavigation.unarchiveSession === undefined
+        ? {}
+        : {
+          unarchiveSession: () => {
+            workspaceNavigation.unarchiveSession?.(sessionId).catch((reason: unknown) => {
+              console.warn('session unarchive rejected:', reason)
+            })
+          },
+        }),
+      // The fold control is chrome for the frame's own column, so its action is
+      // read rather than declared as a hard dependency.
+      toggleSidebar: foldAction(ctx),
+      composerPlaceholder: (path) => workspaceNavigation.composerPlaceholder?.(path),
+      selectWorkspace: async (workspaceId) => {
+        const nextId = await workspaceNavigation.connectWorkspace(workspaceId)
+        if (sessionId !== undefined && nextId !== sessionId) {
+          const from = inputHub.shell(sessionId)
+          const draft = from.snapshot.draft
+          const imageIds = from.snapshot.imageIds
+          const next = inputHub.shell(nextId)
+          if (imageIds.length === 0 || next.addImages(imageIds)) {
+            if (draft !== '') {
+              next.setDraft(draft)
+              from.setDraft('')
+            }
+            if (imageIds.length > 0) {
+              for (const id of imageIds) from.removeImage(id)
+            }
+          }
+        }
+        sessions.open(nextId)
+      },
+    }),
+  }, ConversationRoot)
+
+  const registerConversationSession = () => slots.register({
+    name: 'conversation.session',
+    children: {
+      'conversation.view': { kind: 'list', scope: 'session' },
+    },
+    store: conversationStore,
+    inject: (sessionId: SessionId): ConversationSessionInjected => ({
+      hooks: { conversationViews },
+      bindDraftMirror: write => inputHub.shell(sessionId).bindMirror(write),
+    }),
+  }, ConversationSession)
+
+  const registerConversationHeader = () => slots.register({
+    name: 'conversation.session.header',
+    locale: NS,
+    children: {
+      'conversation.session.header.lineage': { kind: 'single', scope: 'session' },
+      'conversation.session.header.actions': { kind: 'list', scope: 'session' },
+    },
+    store: conversationStore,
+    inject: (sessionId: SessionId, actions: BoundActions<typeof conversationStore>): ConversationSessionHeaderInjected => ({
+      hooks: {
+        conversationViews,
+        selectedView: uiConversation.binding(sessionId).selectedView,
+        moveTargets: workspaceNavigation.moveTargets?.(sessionId) ?? ABSENT_MOVE_TARGETS,
+      },
+      open: (id) => { sessions.open(id) },
+      // The Session's lifecycle actions the header offers, as its row menu runs
+      // them: fork at the last completed turn and open the child, export the
+      // history as a ZIP archive.
+      forkSession: () => {
+        sessions.fork({ sessionId, increaseTitle: true })
+          .then((childId) => { sessions.open(childId) })
+          .catch(() => {
+            // Fork or child-rename failure keeps the current selection.
+          })
+      },
+      exportSession: () => exportSessionLog(ctx.remote.session, sessionId),
+      moveSession: workspaceNavigation.moveSession === undefined
+        ? undefined
+        : (workspaceId) => {
+          workspaceNavigation.moveSession?.(sessionId, workspaceId).catch(() => {
+            // Move failure keeps the current selection, as a failed fork does.
+          })
+        },
+      selectView: (view) => {
+        activateView(sessionId, view)
+        actions.setView(view)
+      },
+    }),
+  }, ConversationSessionHeader)
+
+  const registerComposerBar = () => slots.register({
+    name: 'conversation.composer.bar',
+    locale: NS,
+    children: {
+      'conversation.input.attachments': { kind: 'single', scope: 'session-maybe' },
+      'conversation.input.overlay': { kind: 'list', scope: 'session' },
+      'conversation.input.left': { kind: 'list', scope: 'session' },
+      'conversation.input.plan': { kind: 'single', scope: 'session' },
+      'conversation.input.right': { kind: 'list', scope: 'session' },
+      'conversation.input.model': { kind: 'single', scope: 'session' },
+      'conversation.input.activity': { kind: 'single', scope: 'session' },
+      'conversation.composer.dock': { kind: 'list', scope: 'session' },
+    },
+    inject: (sessionId: SessionId | undefined): ComposerBarInjected => {
+      if (sessionId === undefined) {
+        return {
+          keyboard: undefined,
+          addImages: undefined,
+          addFiles: undefined,
+          removeImage: undefined,
+          draftImages: undefined,
+          subscribeDrafts: undefined,
+          resolveSubmitMode: (running, gesture, steeringAvailable) =>
+            submissionPolicy.resolve(running, gesture, steeringAvailable),
+          toggleCommandMenu: undefined,
+          invokeCommand: undefined,
+          stop: undefined,
+          command: undefined,
+          hooks: {
+            notices: ABSENT_NOTICES,
+            lexicon: ABSENT_LEXICON,
+            menuLauncher: ABSENT_MENU_LAUNCHER,
+          },
+        }
+      }
+      const conversation = concreteConversation(ctx)
+      const shell = inputHub.shell(sessionId)
+      const inputTriggers = inputHub.inputTriggers(sessionId)
+      return {
+        keyboard: shell,
+        addImages: (files) => {
+          try {
+            const images = conversation.createDraftImages(files)
+            if (!shell.addImages(images.map(image => image.id))) {
+              conversation.releaseDraftImages(images)
+            }
+            return null
+          } catch (error: unknown) {
+            if (error instanceof UnsupportedImageMediaTypeError) return t('image.unsupportedType')
+            return error instanceof Error ? error.message : String(error)
+          }
+        },
+        addFiles: (files) => {
+          const drafts = conversation.createDraftFiles(files)
+          if (!shell.addImages(drafts.map(draft => draft.id))) {
+            conversation.releaseDraftImages(drafts)
+            return t('file.busy')
+          }
+          return null
+        },
+        removeImage: (id) => {
+          conversation.releaseDraftImage(id)
+          shell.removeImage(id)
+        },
+        draftImages: ids => conversation.draftImages(ids),
+        subscribeDrafts: listener => conversation.subscribeDrafts(listener),
+        resolveSubmitMode: (running, gesture, steeringAvailable) =>
+          submissionPolicy.resolve(running, gesture, steeringAvailable),
+        toggleCommandMenu: inputTriggers === undefined
+          ? undefined
+          : (selection) => {
+            shell.dismissPopup()
+            const snapshot = shell.snapshot
+            inputTriggers.toggleSource('command', {
+              trigger: '/',
+              query: '',
+              quoted: false,
+              position: snapshot.draft.slice(0, selection.start).trim() === '' ? 'leading' : 'inline',
+              span: { ...selection, draftRev: snapshot.draftRev },
+            })
+          },
+        invokeCommand: (name, selection, anchor) => {
+          // Property access throws unless commandUi is injected. This bar only
+          // calls it, so resolve the service from the store.
+          const commandUi = ctx.get('commandUi') as {
+            invokeFromButton(
+              id: SessionId,
+              command: string,
+              span: { start: number; end: number; draftRev: number },
+              anchor?: Element | null,
+              placement?: 'end' | 'beside',
+            ): Promise<boolean>
+          } | undefined
+          if (commandUi === undefined) return Promise.resolve(false)
+          const snapshot = shell.snapshot
+          return commandUi.invokeFromButton(
+            sessionId, name, { ...selection, draftRev: snapshot.draftRev }, anchor ?? null,
+            anchor === undefined ? 'end' : 'beside',
+          )
+        },
+        stop: () => {
+          scopedConversation(sessions, sessionId).cancel().catch(() => {
+            // Stop failure is published through Session promptError.
+          })
+        },
+        command: async (line) => {
+          const session = sessions.binding(sessionId)?.session
+          if (session === undefined) return false
+          const result = await session.command(line)
+          return result.ok && result.value.matched
+        },
+        hooks: {
+          notices: shell.notices,
+          lexicon: shell.lexicon,
+          menuLauncher: inputTriggers?.launcher ?? ABSENT_MENU_LAUNCHER,
+        },
+      }
+    },
+  }, InputBar)
+
+  // The service is provided before anything that can render asks for it: a
+  // class-plugin fiber would have provided it a microtask after `apply`
+  // returned. Constructing the controller here registers it through
+  // `ctx.reflect.provide` synchronously, in this plugin's own fiber.
+  new ConversationController(ctx, { input: inputHub, blocks: composerBlocks })
+
+  slots.inject('conversation', function* () {
+    yield registerConversationRoot()
+    yield registerConversationSession()
+    yield registerConversationHeader()
+  })
+
+  // The composer bar reads the root `conversation` service from its inject
+  // factory, which runs during React's render. A client reload swaps the fiber
+  // that provides that service while React stays mounted, so the registration
+  // is owned by a fiber that declares the dependency: cordis installs it only
+  // while the service exists and drops it with the service, and no render can
+  // run that inject face without it. (Its crash is permanent, not transient:
+  // the slot error boundary latches and a single-entry cell then goes dry.)
+  ctx.plugin({
+    name: 'conversation-composer-bar',
+    inject: ['conversation'],
+    apply(bar: Context): void {
+      bar.slots.inject('conversation', registerComposerBar)
+    },
+  })
+
+  ctx.plugin(todoDockEntry)
+}

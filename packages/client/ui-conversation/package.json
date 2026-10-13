@@ -1,0 +1,102 @@
+{
+  "name": "@aeven/client-ui-conversation",
+  "description": "Target-neutral Conversation assembly, shell, composer, queue, and view navigation",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/client/ui-conversation"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "types": "./lib/types/client/index.d.ts",
+      "default": "./lib/client.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "avn": {
+    "client": {
+      "inject": [
+        "@aeven/api-session-controller",
+        "@aeven/client-locale",
+        "@aeven/client-ui-layout",
+        "@aeven/client-ui-renderer",
+        "@aeven/client-ui-session",
+        "@aeven/client-ui-settings",
+        "@aeven/client-ui-workspace"
+      ],
+      "platform": "web"
+    }
+  },
+  "scripts": {
+    "bundle": "tsdown",
+    "watch": "tsdown --watch"
+  },
+  "license": "Apache-2.0",
+  "dependencies": {
+    "clsx": "^2.0.0",
+    "fflate": "^0.8.3",
+    "@deepseek-ai/schemastery": "workspace:^",
+    "@lexical/history": "^0.49.0",
+    "@lexical/plain-text": "^0.49.0",
+    "@lexical/text": "^0.49.0",
+    "@lexical/utils": "^0.49.0",
+    "lexical": "^0.49.0"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/api-remotes": "workspace:^",
+    "@aeven/api-session-controller": "workspace:^",
+    "@aeven/api-workspace-controller": "workspace:^",
+    "@aeven/attachment": "workspace:^",
+    "@aeven/brand": "workspace:^",
+    "@aeven/client-locale": "workspace:^",
+    "@aeven/client-store": "workspace:^",
+    "@aeven/client-test-runtime": "workspace:^",
+    "@aeven/client-ui-layout": "workspace:^",
+    "@aeven/client-ui-primitives": "workspace:^",
+    "@aeven/client-ui-renderer": "workspace:^",
+    "@aeven/client-ui-session": "workspace:^",
+    "@aeven/client-ui-settings": "workspace:^",
+    "@aeven/client-ui-workspace": "workspace:^",
+    "@aeven/client-ui-slots": "workspace:^",
+    "@aeven/commands": "workspace:^",
+    "@aeven/goal": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/llm-retry": "workspace:^",
+    "@aeven/permission-presets": "workspace:^",
+    "@aeven/plan-mode": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/token-meter": "workspace:^",
+    "@aeven/tool-todo": "workspace:^",
+    "@aeven/util-crypto": "workspace:^",
+    "@aeven/workspace": "workspace:^",
+    "@aeven/util-workspace-path": "workspace:^",
+    "@types/react": "~18.3.1",
+    "react": "^18.2.0",
+    "@lexical/headless": "^0.49.0",
+    "react-dom": "^18.2.0",
+    "@types/react-dom": "~18.3.0",
+    "zod": "^4.4.3",
+    "@aeven/settings": "workspace:^"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/client.js",
+    "lib/types/**/*.d.ts"
+  ]
+}

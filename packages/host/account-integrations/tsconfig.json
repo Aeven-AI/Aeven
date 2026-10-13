@@ -1,0 +1,64 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types"
+  },
+  "include": [
+    "src"
+  ],
+  "references": [
+    { "path": "../../skill/skill-catalog" },
+    {
+      "path": "../../../vendor/cordis"
+    },
+    {
+      "path": "../../../vendor/schemastery"
+    },
+    {
+      "path": "../../typert/protocol"
+    },
+    {
+      "path": "../../identity/user"
+    },
+    {
+      "path": "../../credentials/credentials"
+    },
+    {
+      "path": "../../storage/storage-domain"
+    },
+    {
+      "path": "../../skill/skill"
+    },
+    {
+      "path": "../../core/tools"
+    },
+    {
+      "path": "../../core/agent"
+    },
+    {
+      "path": "../../mcp/mcp-client"
+    },
+    {
+      "path": "../../util/home-paths"
+    },
+    {
+      "path": "../../util/brand"
+    },
+    {
+      "path": "../webserver"
+    },
+    {
+      "path": "../../core/scope"
+    },
+    {
+      "path": "../../preset/agent-presets"
+    },
+    {
+      "path": "../../workspace/workspace"
+    },
+    {
+      "path": "../../mail/mail"
+    }
+  ]
+}

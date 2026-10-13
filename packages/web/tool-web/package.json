@@ -1,0 +1,58 @@
+{
+  "name": "@aeven/tool-web",
+  "description": "Model-facing web tools (web_search, web_fetch) over the Aeven web capability seam (ctx.web)",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/web/tool-web"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/system-prompt": "workspace:^",
+    "@aeven/tools": "workspace:^",
+    "@aeven/web": "workspace:^"
+  },
+  "dependencies": {
+    "@aeven/util-values": "workspace:^",
+    "@deepseek-ai/schemastery": "workspace:^",
+    "@joplin/turndown-plugin-gfm": "^1.0.67",
+    "turndown": "^7.2.4"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/agent": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/spill-local": "workspace:^",
+    "@aeven/spill-policy": "workspace:^",
+    "@aeven/system-prompt": "workspace:^",
+    "@aeven/tool-call-timeout-policy": "workspace:^",
+    "@aeven/tools": "workspace:^",
+    "@aeven/web": "workspace:^",
+    "@aeven/web-fetch-http": "workspace:^",
+    "@aeven/web-search-exa": "workspace:^",
+    "@types/turndown": "^5.0.6",
+    "@aeven/scope": "workspace:^"
+  }
+}

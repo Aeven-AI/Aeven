@@ -1,0 +1,219 @@
+import React, {
+  memo,
+  useCallback,
+  useEffect,
+  useRef,
+  type RefObject,
+} from 'react'
+
+import * as runtime from '../runtime.ts'
+import type { Emitter } from '../runtime.ts'
+import { defaultUi } from '../config.ts'
+import type { UiConfig } from '../config.ts'
+import Tooltip, { type TooltipHandle } from '../tooltip.tsx'
+
+interface TableHeaderProps {
+  /** This renderer's own bus, so blocks report only to the renderer that made them. */
+  events?: Emitter | undefined
+  ui?: UiConfig | undefined
+  /** True while the table is still being streamed in. */
+  stream?: boolean | undefined
+  tableRef: RefObject<HTMLTableElement | null>
+  wrapperRef: RefObject<HTMLDivElement | null>
+  fullscreen: boolean
+  /** Tells the wrapper the header toggled fullscreen. */
+  onToggleFullScreen?: (fullscreen: boolean) => void
+}
+
+/**
+ * The toolbar pinned above a table: fullscreen and copy, plus the "scroll"
+ * class that flattens it once the table starts leaving the viewport.
+ */
+function TableHeaderComponent(props: TableHeaderProps) {
+  const { stream, tableRef, wrapperRef, fullscreen, onToggleFullScreen } =
+    props
+
+  const headerRef = useRef<HTMLDivElement | null>(null)
+  const tippyCopyRef = useRef<TooltipHandle | null>(null)
+
+  // The watch is registered once but reads the current fullscreen value, so
+  // it goes through a ref rather than the closed-over prop.
+  const fullscreenRef = useRef(fullscreen)
+  fullscreenRef.current = fullscreen
+  const stickyHeaderRef = useRef<runtime.StickyHeaderWatch | null>(null)
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  )
+
+  useEffect(() => {
+    const watch = runtime.watchStickyHeader(
+      () => wrapperRef.current,
+      () => headerRef.current,
+      () =>  fullscreenRef.current,
+    )
+    stickyHeaderRef.current = watch
+    return () => {
+      stickyHeaderRef.current = null
+      watch.stop()
+    }
+  }, [wrapperRef])
+
+  useEffect(() => {
+    stickyHeaderRef.current?.update()
+  }, [fullscreen])
+
+  useEffect(() => {
+    return () => {
+      clearTimeout(copyTimeoutRef.current)
+    }
+  }, [])
+
+  const copyContent = useCallback(
+    (event: React.MouseEvent) => {
+      event.preventDefault()
+      event.stopPropagation()
+
+      const table = tableRef.current
+
+      if (!table) {
+        return
+      }
+
+      // innerText, not textContent: it keeps the row and cell breaks the browser
+      // lays out, which is what makes the copy paste back as a table.
+      navigator.clipboard
+        .writeText(table.innerText)
+        .then(() => {
+          tippyCopyRef.current?.show()
+
+          clearTimeout(copyTimeoutRef.current)
+          copyTimeoutRef.current = setTimeout(() => {
+            tippyCopyRef.current?.hide()
+          }, 600)
+        })
+        .catch((err) => {
+          console.log(err)
+        })
+    },
+    [tableRef],
+  )
+
+  const toggleFullScreen = useCallback(
+    (event: React.MouseEvent) => {
+      let next
+
+      event.preventDefault()
+      event.stopPropagation()
+
+      next = ! fullscreen
+
+      onToggleFullScreen?.(next)
+      props.events?.dispatchObjectEvent('fullscreen:change', next)
+    },
+    [fullscreen, onToggleFullScreen],
+  )
+
+  const ui = props.ui ?? defaultUi
+  const { translations, icons } = ui
+  const controls = ui.controls.table
+
+  const copyLabel =
+    stream === true
+      ? translations.tablePartiallyCopied
+      : translations.tableCopied
+
+  // The one button reads as two states: the icon and its name change together,
+  // so the tooltip never says "Full screen" over a minimize icon.
+  const fullScreenLabel =
+
+    fullscreen ? translations.exitFullScreen : translations.fullScreen
+
+  return (
+    <div ref={headerRef} className="table-header">
+      <div className="table-header-content">
+        <span className="table-title-container">
+          <span className="table-title">{translations.table}</span>
+        </span>
+        <span className="table-spacer" />
+        <span className="table-button-container">
+          {!controls.copy ? null : (
+            <Tooltip
+              ref={tippyCopyRef}
+              arrow={false}
+              trigger={'manual'}
+              placement={'top'}
+              content={copyLabel}
+            >
+              <span className="tippy-button">
+                <Tooltip
+                  placement={'top'}
+                  content={translations.copy}
+                  touch={false}
+                  trigger={'mouseenter'}
+                >
+                  <button
+                    type="button"
+                    className="table-icon-button first"
+                    aria-label={translations.copy}
+                    onClick={copyContent}
+                  >
+                    <span className="button-content">
+                      <span
+                        className="button-icon"
+                        dangerouslySetInnerHTML={{ __html: icons.copy }}
+                      ></span>
+                    </span>
+                  </button>
+                </Tooltip>
+              </span>
+            </Tooltip>
+          )}
+          {!controls.fullscreen ? null : (
+            <Tooltip
+              placement={'top-end'}
+              touch={false}
+              trigger={'mouseenter'}
+              content={fullScreenLabel}
+            >
+              <button
+                type="button"
+                className="table-icon-button last"
+                aria-label={fullScreenLabel}
+                onClick={toggleFullScreen}
+              >
+                <span className="button-content">
+                  <span
+                    className="button-icon"
+                    dangerouslySetInnerHTML={{
+                      __html:
+
+                        fullscreen ? icons.minimize : icons.maximize,
+                    }}
+                  ></span>
+                </span>
+              </button>
+            </Tooltip>
+          )}
+        </span>
+      </div>
+      <div className="table-header-background">
+        <div className="table-header-fade" />
+        <div className="table-header-blur" />
+      </div>
+    </div>
+  )
+}
+
+const TableHeader = memo(
+  TableHeaderComponent,
+  (prev, next) =>
+    prev.stream === next.stream &&
+    prev.fullscreen === next.fullscreen &&
+    prev.tableRef === next.tableRef &&
+    prev.wrapperRef === next.wrapperRef &&
+    prev.onToggleFullScreen === next.onToggleFullScreen,
+)
+
+TableHeader.displayName = 'TableHeader'
+
+export default TableHeader

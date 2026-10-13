@@ -1,0 +1,63 @@
+/* NEW SESSION hero: the product's name and the reader's greeting. The caller
+   mounts its composer card below; only stack geometry and the hero text live
+   here. */
+
+.root {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-width: 0;
+  padding: 0 24px;
+}
+
+/* Cap matches the InputBar card. Glow may paint past the sides. */
+.stack {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  /* The composer is mounted outside this component, so the greeting's own
+     24px bottom pad is the whole distance between the hero text and the card. */
+  gap: 0;
+  width: 100%;
+  max-width: var(--avn-composer-card-max-width);
+  overflow: visible;
+}
+
+/* The product's name over the reader's greeting, as Aeven's New Session screen
+   draws them: an 80px name on a 98px line box, then the greeting on its own
+   16px line with 24px under it. The pair shares one column so nothing separates
+   them beyond their line boxes, exactly as the two spans do at the origin. */
+.text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+  color: var(--dsw-alias-label-primary);
+}
+
+.wordmark {
+  padding: 0 24px;
+  font-size: 80px;
+  line-height: 98px;
+  font-weight: 500;
+  letter-spacing: -1px;
+}
+
+.greeting {
+  padding: 0 24px 24px;
+  font-size: 16px;
+  line-height: 16px;
+}
+
+@media screen and (max-width: 640px) {
+  .wordmark {
+    padding: 0 16px;
+    font-size: 60px;
+    line-height: 80px;
+  }
+
+  .greeting {
+    padding: 0 16px 24px;
+  }
+}

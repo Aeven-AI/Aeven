@@ -1,0 +1,279 @@
+.root {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  /* Same opt-out as the resident scrollport: this box owns ChatView's scroll
+     ledger whenever no `[data-conversation-scroll]` host wraps the view, and a
+     browser anchoring adjustment there is indistinguishable from reader input
+     ([decision](../../../../../../.agents/notes/implemented/bug-fix/2026-09-12-transcript-scroll-anchoring-opt-out.md)). */
+  overflow-anchor: none;
+  /* Transcript and composer share the same Aeven inset and width axis. */
+  padding: 56px var(--avn-composer-side-clearance) 48px;
+}
+
+:global([data-conversation-scroll]) .root {
+  flex: 0 0 auto;
+  min-height: auto;
+  height: auto;
+}
+
+:global([data-conversation-scroll]) .scroll {
+  overflow: visible;
+  flex: 0 0 auto;
+  min-height: auto;
+}
+
+/* Message column: shared chat width (ConversationRoot --avn-chat-content-width),
+   centered on the same axis as the input box (which caps at chat + 16px); the
+   scroller itself stays full-bleed. */
+.column {
+  max-width: var(--avn-chat-content-width);
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  /* One-line work rows (tool calls, commands, reasoning-only steps) sit 8px
+     apart. The stand-in row a live Turn's process header holds takes the same
+     gap, because that reasoning row lands in the Answer Step's flow item and
+     keeps the box the stand-in occupied. */
+  --avn-chat-work-row-gap: 8px;
+}
+
+/* Block toolbars float just below this column's navigation band instead of
+   behind it. The band is sticky at the scroller's top edge (56px tall,
+   z-index 30) and the engine's toolbars stick at -16px, which parks them under
+   the band's opaque background; 40px is that 56px band less the engine's own
+   16px tuck, so a stuck toolbar hangs under the band the way the product client
+   draws it. The engine's own rules reach four class selectors, so each override
+   names the flow row above the renderer root to outrank them. */
+.column .flowItem :global(.hypermarkdown) :global(.codeblock-wrapper) :global(.codeblock-header),
+.column .flowItem :global(.hypermarkdown) :global(.table-wrapper) :global(.table-header),
+.column .flowItem :global(.hypermarkdown) :global(.mermaid-wrapper) :global(.mermaid-header) {
+  top: 40px;
+}
+
+/* `hidden="until-found"` retains a zero-height box so browser find can reveal
+   its subtree. Direct Chat Node Seats and auxiliary rows share one flow;
+   hidden and empty Seats do not contribute spacing. */
+.column > :not([hidden]):not(.flowItem:empty)
+  ~ :not([hidden]):not(.flowItem:empty) {
+  margin-top: var(--avn-chat-flow-gap, var(--dsw-aeven-space-message));
+}
+
+/* Settled-flow identity boundary. It is neutral until it becomes the natural
+   measurement/mount unit for a virtualizer without changing the column gap.
+
+   Nothing here is contained: a contained row becomes the containing block for
+   `position: fixed`, which traps the fullscreen state of the code blocks,
+   tables and diagrams the transcript renders — each covers its own row instead
+   of the viewport. */
+.flowItem {
+  min-width: 0;
+}
+
+/* Search navigation briefly marks the exact durable message after landing. */
+.flowItem[data-search-match] {
+  border-radius: var(--dsw-aeven-radius-content);
+  animation: search-match-highlight 2.4s ease-out both;
+}
+
+@keyframes search-match-highlight {
+  0%, 35% {
+    background: rgba(235, 235, 235, 0.84);
+    box-shadow: 0 0 0 2px var(--dsw-alias-state-business-primary);
+  }
+
+  100% {
+    background: transparent;
+    box-shadow: 0 0 0 2px transparent;
+  }
+}
+
+/* A closed process reads as one summary immediately followed by its answer.
+   Expanded process rows return to the ordinary 16px rhythm. */
+
+/* A turn's work reads as a tight list: one-line work rows (tool calls,
+   commands, reasoning-only steps) sit 8px apart, and prose between them keeps
+   a 12px step instead of the message gap. */
+.flowItem[data-turn-process-member] {
+  --avn-chat-flow-gap: 12px;
+}
+
+.flowItem[data-chat-work-row] {
+  --avn-chat-flow-gap: var(--avn-chat-work-row-gap);
+}
+
+.flowItem[data-chat-work-row]:not([data-chat-flow-kind='assistant-step']):not([hidden]):not(:empty) {
+  margin-bottom: 4px;
+}
+
+/* The answer step opens with its own Think row while the process is open. */
+.flowItem[data-turn-process-answer-step] {
+  --avn-chat-flow-gap: 8px;
+}
+
+.flowItem[data-turn-process-answer] {
+  --avn-chat-flow-gap: 16px;
+}
+
+/* A keyed renderer may intentionally decline its row after dispatch (the
+   completed-turn tail does this when it owns neither actions nor extensions).
+   An empty flex item must not consume the column gap. */
+.flowItem:empty {
+  display: none;
+}
+
+.callRow {
+  border-radius: var(--dsw-aeven-radius-content);
+}
+
+/* Selection still sets data-selected for details linkage; no outline —
+   tool rows match Think chrome (no selected ring). */
+
+.openError {
+  color: var(--dsw-alias-state-error-primary);
+  font-size: var(--avn-content-font-size-secondary, 14px);
+  line-height: calc(18px + var(--avn-content-font-delta-secondary, 0px));
+}
+
+/* Head boundary: a zero-height sticky slot, like the back-to-bottom control,
+   so paging progress overlays the topmost rows instead of occupying flow.
+   Nothing here changes scrollHeight, so appearing and disappearing cannot
+   move the rows a pending prepend is compensating. */
+.olderSlot {
+  position: absolute;
+  /* Below the host's Session header, which overlays the top of the chrome layer. */
+  top: var(--avn-session-header-height, 0px);
+  right: 0;
+  left: 0;
+  /* Above transcript CodeBlock banners (z-index 6), below back-to-bottom. */
+  z-index: 7;
+  height: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+/* The content loader's own mark, unadorned: paging history is the same kind of
+   wait, so it reads the same. No plate behind it — it sits over the transcript
+   head, where a filled pill would be a second object competing with the rows
+   underneath it. */
+.olderProgress {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 12px;
+  color: var(--dsw-alias-label-primary);
+}
+
+
+/* Floor sentinel: the back-to-bottom observer's target. Zero height and no
+   margin, so it contributes nothing to the flow the anchoring math measures.
+   `flex: none` keeps the column from stretching it. */
+.floorSentinel {
+  flex: none;
+  height: 0;
+}
+
+/* Running-turn mark: sticky to the scrollport's floor, so it stays at the
+   reading edge while the transcript above it scrolls. The page fill behind the
+   glyph keeps it legible over rows passing under it; reduced motion stills the
+   glyph, and its presence alone still marks the run. It sits on the
+   conversation's centre line and follows the last row at the work-row step
+   rather than the message gap. */
+.workingFloor {
+  --avn-chat-flow-gap: 12px;
+  position: sticky;
+  bottom: 8px;
+  z-index: 1;
+  flex: none;
+  align-self: center;
+  display: flex;
+  padding: 4px;
+  border-radius: 100px;
+  background: var(--dsw-alias-bg-base);
+}
+
+/* Back-to-bottom: zero-height slot in the host's non-scrolling chrome layer,
+   so the control neither extends scrollHeight nor rides the scrollport's
+/* Centred on the transcript's axis: the host layer carries the same symmetric
+   side inset as the scrollport, so `justify-content: center` lands the pill on
+   the content column's centre line.
+
+   The stacking win comes from the layer this portals into
+   (`[data-conversation-chrome-top]`, inside the composer seat), not from
+   a z-index here — a control in the scrollport-bounded layer cannot rise above
+   the seat's fade whatever number it carries.
+
+   That layer is a zero-height line on the seat's top edge, so the pill clears
+   the composer and its dock surface by its own 16px and follows a growing
+   draft without anything measuring it. */
+.toBottomSlot {
+  position: absolute;
+  right: 0;
+  bottom: 16px;
+  left: 0;
+  height: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+/* A flat white pill. No blur and no translucency, so nothing of the transcript
+   shows through it; no shadow, so it casts nothing onto the rows behind it. No
+   border either — the elevation tokens are avoided here because each one begins
+   with `--dsw-elevation-stroke` (`0 0 0 0.5px`), a hairline ring `border: 0`
+   cannot remove. The glyph keeps the label ink so it stays legible on the fill. */
+.toBottom {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  /* The slot's floor is the gap; the pill rises from it on its own. */
+  margin-top: -30px;
+  padding: 0;
+  border: 0;
+  border-radius: 100px;
+  color: var(--dsw-alias-label-primary);
+  background: #fff;
+  cursor: pointer;
+  /* Faded out is the resting state: the control is mounted for the whole
+     session so it can cross-fade, and only the class below reveals it. */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease-out;
+}
+
+/* Shown. The pointer target comes back with it, so the faded control never
+   swallows a click meant for the transcript underneath. */
+.toBottomVisible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toBottom {
+    transition: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .scroll {
+    padding-top: 32px;
+    padding-bottom: 32px;
+  }
+}
+
+/* Host open-path refusal: same dialog family as the workspace folder error. */
+.modalAction {
+  min-width: 72px;
+}

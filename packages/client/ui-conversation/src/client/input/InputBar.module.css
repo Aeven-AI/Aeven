@@ -1,0 +1,387 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Side and bottom pads ride the theme-owned page inset. The composer stack owns the
+     space above; the bottom gradient mask belongs to the chat scroller. */
+  padding: 0 var(--avn-composer-side-clearance) var(--avn-composer-side-clearance);
+}
+
+.fileInput {
+  display: none;
+}
+
+.hero {
+  /* No bottom pad in the centered hero, but the side clearance must survive:
+     the hero wrapper is full-width on narrow viewports, so this padding is
+     the only thing keeping the card off the edges there. */
+  padding: 0 var(--avn-composer-side-clearance);
+}
+
+.notice {
+  width: 100%;
+  max-width: var(--avn-composer-card-max-width);
+  margin-bottom: 6px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.card {
+  box-sizing: border-box;
+  position: relative; /* overlay anchor positioning context */
+  display: flex;
+  flex-direction: column;
+  /* Aeven composer spacing between the draft and B's control row. */
+  gap: 6px;
+  width: 100%;
+  max-width: var(--avn-composer-card-max-width);
+  min-height: 124px;
+  padding-top: 16px;
+  /* The Aeven composer is a flat surface; contrast comes from the canvas. */
+  border: 0;
+  --dsw-elevation-stroke-color: transparent;
+  border-radius: var(--dsw-aeven-radius-surface);
+  background: var(--dsw-specific-input-major);
+  /* The card is flat: the shadow below is transparent. Should the lift come
+     back, it stays a box-shadow rather than a drop-shadow filter — an element
+     with a filter forms a backdrop root, and every popup the composer anchors —
+     the model chooser and the popupSelect card — paints with backdrop-filter:
+     held inside that root, they could sample the composer alone and never the
+     conversation painted behind it, so the blur stopped at the card's own edge. */
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0%);
+  /* The draft text follows the Settings font-size preference (the textarea,
+     mirror, and backdrop all inherit from here, so the three layers stay in
+     step); the line height keeps the default 10px leading via the shared px
+     delta. */
+  font-size: var(--avn-content-font-size, 14px);
+  line-height: calc(
+    var(--dsw-aeven-reading-line-height) + var(--avn-content-font-delta, 0px)
+  );
+  /* The draft text's side inset, shared by the contenteditable's padding and
+     the placeholder overlay; the card's top padding is the text's only top inset. */
+  --avn-composer-text-side: 16px;
+  /* Elevated surface in dark, same as the menus. The draft scrollport hides
+     its bar, but the pair stays bound for any thumb drawn on this surface
+     (see ui-theme styles/scrollbar.css for the rebinding contract). */
+  --avn-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --avn-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
+/* No-workspace trigger state: the card is a pick-a-workspace target, but it
+   wears no stroke of its own. A dashed ring here read as an input artifact
+   around what is otherwise an empty composer (the archive → no-session state),
+   so the surface stays flat like any other resting composer. The full-capsule
+   click, its cursor, and the chip above remain the whole affordance. */
+.cardWorkspaceTrigger {
+  --dsw-elevation-stroke-color: transparent;
+  cursor: pointer;
+}
+
+/* Disabled toolbar controls neither receive nor swallow clicks in the trigger
+   state: pointer events fall through to the card's own click handler, making
+   the full capsule one pick target. */
+.cardWorkspaceTrigger :disabled {
+  pointer-events: none;
+}
+
+.accessory {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 0;
+}
+
+/* Floating overlay anchor (menu / popupSelect shell): entries position
+   themselves against the card (bottom: 100% + gap); closed entries render null. */
+.overlayAnchor {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 0;
+}
+
+/* The draft's scrollport, and the ONLY scrolling box in the composer. The
+   contenteditable grows with its content inside; the 14-line cap lives here
+   because this is the box the cap describes. The markup adds ui-theme's
+   `no-scrollbar`, so the wheel and keyboard scroll it without a visible bar. */
+.scroll {
+  flex: 1 1 auto;
+  min-height: 30px;
+  max-height: var(--avn-composer-text-max-height);
+  overflow-y: auto;
+}
+
+/* Auto-grow anchor: the contenteditable is in normal flow and sets the
+   draft's height; the placeholder rides it absolutely. */
+.grow {
+  position: relative;
+}
+
+/* Machine pending dot (adjudicating / submitting). */
+.pending {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dsw-alias-state-business-primary);
+  animation: input-pending 1s ease-in-out infinite alternate;
+}
+
+@keyframes input-pending {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* The contenteditable draft surface (grows with its content; .scroll caps
+   and scrolls it). */
+.input {
+  box-sizing: border-box;
+  padding: 0 var(--avn-composer-text-side);
+  font-family: var(--dsw-font-family);
+  font-size: inherit;
+  line-height: inherit;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  outline: none;
+  color: var(--dsw-alias-label-primary);
+  /* Business blue, not brand-primary: that token resolves to ink in this sheet. */
+  caret-color: var(--dsw-alias-state-business-primary);
+}
+
+/* Lexical paragraphs are <p> blocks: strip the UA margins so the surface
+   keeps the textarea's line rhythm. */
+.input p {
+  margin: 0;
+}
+
+/* Claim ghost hint as generated content after the last paragraph: the bar
+   sets --avn-composer-hint (a quoted string) while the claim's args are
+   blank; without the variable the declaration is invalid and nothing shows. */
+.input p:last-child::after {
+  content: var(--avn-composer-hint);
+  color: var(--dsw-alias-label-caption);
+}
+
+/* figma 34:10434: #ADB2B8 light / #81858C dark — the caption pair exactly. */
+.placeholder {
+  position: absolute;
+  inset: 0 var(--avn-composer-text-side) auto;
+  color: var(--dsw-alias-label-caption);
+  pointer-events: none;
+  user-select: none;
+}
+
+.inputDisabled {
+  color: var(--dsw-alias-label-tertiary);
+  cursor: not-allowed;
+}
+
+.input[aria-haspopup="menu"] {
+  cursor: pointer;
+}
+
+/* Hero (centered empty-state) keeps the 2-line floor (figma min-h 52 = ~2 × 24
+   line + 4pt); the docked composer collapses to the content height. */
+.hero .input {
+  min-height: 52px;
+}
+
+/* Toolbar: attach + Plan + Read-only on the left; model + send on the right
+   (figma Input_Bottom chrome). */
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  /* 2px moved from the bottom pad to the top: the whole control row sits 2px
+     lower in the card (it read too high against the textarea) while the card
+     height and the controls' own centering stay untouched. */
+  padding: 0 16px 16px;
+  min-width: 0;
+  /* The chips inside collapse to icon-only on a narrow viewport
+     (PermissionSelect's width query), which the floor can evaluate without a
+     container. */
+}
+
+.tools,
+.modes,
+.trailing {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+/* A claimed activity (dictation) replaces the control row: the tool group and
+   every trailing control except the activity itself are hidden, and the
+   activity stretches across the row. The activity stays at one tree position,
+   so claiming the row never remounts its occupant. */
+.activity {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.row[data-activity] .tools {
+  display: none;
+}
+
+.row[data-activity] .trailing {
+  flex: 1;
+  margin-left: 0;
+}
+
+/* Slot outlets are inline `display: contents` wrappers, so their rendered
+   children are hidden as well. */
+.row[data-activity] .trailing > :not(.activity),
+.row[data-activity] .trailing > :not(.activity) > * {
+  display: none;
+}
+
+.row[data-activity] .activity {
+  flex: 1;
+}
+
+/* The leading cluster spaces its controls 8px apart, the trailing cluster's own
+   gap (figma 75:8208 drew 16 between + and the mode chips and 4 between Plan /
+   Read-only; the chip gap widened to 12 so the pill chips read as separate
+   controls). */
+.tools {
+  gap: 8px;
+}
+
+.modes {
+  gap: 12px;
+}
+
+.trailing {
+  flex: none;
+  /* Wrap keeps the left mode chips and the right controls apart when the card
+     runs out of row width: the trailing group (model + send) moves to its own
+     line instead of the left group shrinking until its chip overlaps the
+     model trigger (external:107). The auto margin re-anchors it right on the
+     wrapped line; on a single line space-between already pins it right. */
+  margin-left: auto;
+  /* The same 8px the leading cluster spaces its controls with. */
+  gap: 8px;
+}
+
+/* Attach-menu glyphs: the icon box is the primitive's, the ink is the row's
+   own, so a menu glyph reads at the same weight as the label beside it. */
+.addIcon {
+  color: var(--dsw-alias-label-primary);
+}
+
+/* Attach circle, Aeven `.loader-icon-button.outline`: a transparent 40px disc
+   in a 1.5px ink ring, so it reads as the same control as the send circle at
+   the row's other end rather than as a filled chip. */
+.add {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--dsw-aeven-control-size);
+  height: var(--dsw-aeven-control-size);
+  border: 1.5px solid var(--dsw-alias-label-primary);
+  border-radius: var(--dsw-aeven-radius-control);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+}
+
+.add:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Plan / Read-only / model — native <select>, chip-like closed chrome
+   (figma ToggleButton: 13/20 medium secondary, 12px chevron). */
+.select {
+  max-width: 220px;
+  height: var(--dsw-aeven-control-size);
+  padding: 0 28px 0 14px;
+  border: none;
+  border-radius: var(--dsw-aeven-radius-control);
+  outline: none;
+  background-color: transparent;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%2381858C' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 4px center;
+  background-size: 12px 12px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+  white-space: nowrap;
+  cursor: pointer;
+  appearance: none;
+}
+
+.select:hover:not(:disabled) {
+  background-color: var(--dsw-alias-interactive-bg-hover);
+}
+
+.select:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Send: Aeven's resting state is `.chat-input-button.outline` — the same
+   transparent 40px circle in a 1.5px ink ring the attach control wears — and
+   it fills in below once the draft can actually be sent. */
+.primary {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--dsw-aeven-control-size);
+  height: var(--dsw-aeven-control-size);
+  border: 1.5px solid var(--dsw-alias-label-primary);
+  border-radius: var(--dsw-aeven-radius-control);
+  background: transparent;
+  /* Semantic label color keeps the arrow legible in both themes. */
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+  transition: background-color 100ms ease;
+  /* Opts out of the row's 2px downward shift (.row top pad): the send circle
+     keeps its original seat while the smaller chips sit lower. Transform, not
+     margin, so flex centering math is untouched. */
+  transform: none;
+}
+
+/* Aeven drops the `outline` class the moment the draft carries content: solid
+   ink disc, contrast glyph, no ring. The button is disabled exactly while the
+   draft cannot be sent, so `:enabled` is that same signal. The ring turns
+   transparent rather than going to `none` (Aeven's literal value) to keep the
+   40px box identical across the swap. */
+.primary:enabled {
+  border-color: transparent;
+  background: var(--dsw-alias-button-primary-fill);
+  color: var(--dsw-alias-label-primary-foreground);
+}
+
+.primary:hover:enabled {
+  background: var(--dsw-alias-button-primary-hover);
+}
+
+/* No opacity here: Aeven's empty-draft send is a full-strength outline, the
+   same weight as the attach circle beside it, not a dimmed control. */
+.primary:disabled {
+  cursor: default;
+}
+
+.retry {
+  margin-left: 8px;
+  padding: 1px 8px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}

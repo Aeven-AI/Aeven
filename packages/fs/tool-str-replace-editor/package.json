@@ -1,0 +1,55 @@
+{
+  "name": "@aeven/tool-str-replace-editor",
+  "description": "Model-facing view, create, literal replace, and line insert tool over the Aeven filesystem service",
+  "version": "0.1.2-alpha.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/fs/tool-str-replace-editor"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "@aeven/fs": "workspace:^",
+    "@aeven/output-retention": "workspace:^",
+    "@aeven/sandbox": "workspace:^",
+    "@aeven/sandbox-policy": "workspace:^",
+    "@aeven/tools": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "workspace:^"
+  },
+  "devDependencies": {
+    "@aeven/agent": "workspace:^",
+    "@aeven/fs": "workspace:^",
+    "@aeven/fs-local": "workspace:^",
+    "@aeven/fs-observation-policy": "workspace:^",
+    "@aeven/fs-sandbox": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/output-retention": "workspace:^",
+    "@aeven/sandbox": "workspace:^",
+    "@aeven/sandbox-policy": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/system-prompt": "workspace:^",
+    "@aeven/tools": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/session-projection": "workspace:^"
+  }
+}

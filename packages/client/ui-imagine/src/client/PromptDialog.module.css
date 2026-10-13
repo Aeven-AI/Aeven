@@ -1,0 +1,295 @@
+/* The starter-prompt popup: an example stage beside the copy, the choices, and
+   the exact message the composer receives. The stage shows a retouch's before
+   and after pair, or the single example of a prompt that generates from text. */
+
+/* Attributes on the role selector so the width beats the shared Modal recipe
+   whatever order the two sheets load in. */
+.dialog[role='dialog'] {
+  width: min(880px, 100%);
+  max-height: min(720px, calc(100dvh - 48px));
+  padding: 0;
+  gap: 0;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 44%) minmax(0, 56%);
+  min-height: 0;
+}
+
+/* A prompt that invents its scene shows one guide image, so its stage carries
+   the label itself rather than a pair of figures. */
+.layout[data-art='single'] {
+  grid-template-columns: minmax(0, 44%) minmax(0, 56%);
+}
+
+/* A prompt with no shipped example takes the whole card. */
+.layout[data-art='none'] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.stage {
+  position: relative;
+  min-height: 320px;
+  background: var(--dsw-alias-bg-layer-3);
+}
+
+.art {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* A retouch's original and result sit side by side: the pair is the prompt's
+   whole promise, so it needs no labels and no interaction to be read. */
+.stage[data-images='pair'] {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  min-height: 0;
+  padding: 20px 20px 0;
+  overflow-y: auto;
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.title {
+  margin: 0;
+  color: var(--dsw-alias-label-primary);
+  font-family: var(--dsw-font-family);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+}
+
+.close {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 28px;
+  background: var(--dsw-static-neutral-1000);
+  color: var(--dsw-static-neutral-00);
+  cursor: pointer;
+}
+
+.description {
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-family: var(--dsw-font-family);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.description[data-clamped='true'] {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.more {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--dsw-alias-brand-text);
+  font-family: var(--dsw-font-family);
+  font-size: 13px;
+  line-height: 18px;
+  cursor: pointer;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sectionLabel {
+  color: var(--dsw-alias-label-secondary);
+  font-family: var(--dsw-font-family);
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 500;
+}
+
+.ratioSize {
+  color: var(--dsw-alias-label-tertiary);
+  font-family: var(--dsw-font-family);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.ratios {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ratio {
+  height: 32px;
+  padding: 0 14px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-family: var(--dsw-font-family);
+  font-size: 13px;
+  line-height: 20px;
+  cursor: pointer;
+}
+
+.ratio:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.ratio[aria-pressed='true'] {
+  border-color: transparent;
+  background: var(--dsw-alias-button-primary-fill);
+  color: var(--dsw-alias-label-primary-foreground);
+}
+
+.photos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.thumb {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  overflow: hidden;
+  border-radius: 12px;
+}
+
+.thumbImage {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.thumbRemove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 20px;
+  background: var(--dsw-static-neutral-1000);
+  color: var(--dsw-static-neutral-00);
+  cursor: pointer;
+}
+
+.addTile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border: 1px dashed var(--dsw-alias-border-l3);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.addTile:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.fileInput {
+  display: none;
+}
+
+/* The prompt heading's own actions: the reroll of a scene a create prompt
+   invents, then the copy. */
+.promptActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.another {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--dsw-alias-brand-text);
+  font-family: var(--dsw-font-family);
+  font-size: 12px;
+  line-height: 18px;
+  cursor: pointer;
+}
+
+.another:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.promptText {
+  margin: 0;
+  max-height: 148px;
+  padding: 12px;
+  overflow-y: auto;
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-3);
+  color: var(--dsw-alias-label-primary);
+  font-family: var(--dsw-font-family);
+  font-size: 13px;
+  line-height: 20px;
+  white-space: pre-line;
+}
+
+.foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 20px;
+}
+
+.notice {
+  margin: 0 auto 0 0;
+  color: var(--dsw-alias-state-error-primary);
+  font-family: var(--dsw-font-family);
+  font-size: 13px;
+  line-height: 18px;
+}

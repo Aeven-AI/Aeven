@@ -1,0 +1,81 @@
+# Minimal keyless composition: real app, bash, and search tool; replayed model.
+- id: llm-deepseek
+  name: '@aeven/llm-deepseek'
+  disabled: true
+
+- insert:
+    - id: llm-replay
+      name: '@aeven/llm-replay'
+      config:
+        providers:
+          - id: deepseek-official
+            name: DeepSeek
+            models:
+              - id: deepseek-v4-pro
+
+- id: subprocess
+  name: '@aeven/subprocess-local'
+
+- id: agent-default-model
+  name: '@aeven/agent-default-model'
+  config:
+    provider: deepseek-official
+    model: deepseek-v4-pro
+
+- id: session-persistence-jsonl
+  name: '@aeven/session-persistence-jsonl'
+  config:
+    root: !!js avnHomePath('sessions')
+    compression: none
+
+- id: agent-instructions
+  name: '@aeven/agent-instructions'
+  disabled: true
+
+- id: system-prompt
+  name: '@aeven/system-prompt'
+  config:
+    persona: You are a concise snapshot agent working in {{cwd}}.
+
+- id: tool-jobs
+  name: '@aeven/tool-jobs'
+  disabled: true
+
+- id: goal
+  name: '@aeven/goal'
+  disabled: true
+
+- id: goal-round-driver
+  name: '@aeven/goal-round-driver'
+  disabled: true
+
+- id: command-goal
+  name: '@aeven/command-goal'
+  disabled: true
+
+- id: tool-goal
+  name: '@aeven/tool-goal'
+  disabled: true
+
+- id: skill
+  name: '@aeven/skill'
+  disabled: true
+
+- id: skill-filesystem
+  name: '@aeven/skill-filesystem'
+  disabled: true
+
+- id: tool-skill
+  name: '@aeven/tool-skill'
+  disabled: true
+
+- id: tool-fs-search
+  name: '@aeven/tool-fs-search'
+  config:
+    sampleOverCapGlobResults: true
+    globMaxResults: 4
+
+- id: spill-local
+  name: '@aeven/spill-local'
+  config:
+    root: !!js process.env.AVN_SNAPSHOT_SPILL_ROOT ?? './.spill'

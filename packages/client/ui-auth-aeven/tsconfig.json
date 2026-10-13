@@ -1,0 +1,23 @@
+{
+  "extends": "../../../tsconfig.base.client.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types",
+    "allowJs": true,
+    "checkJs": false
+  },
+  "include": [
+    "src"
+  ],
+  "references": [
+    {
+      "path": "../ui-primitives"
+    },
+    {
+      "path": "../ui-theme"
+    },
+    {
+      "path": "../../../vendor/cordis"
+    }
+  ]
+}

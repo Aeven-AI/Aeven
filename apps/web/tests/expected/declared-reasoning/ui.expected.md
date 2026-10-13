@@ -1,0 +1,7 @@
+- listbox "/model 匹配项":
+  - option "Default Acme Think" [selected]:
+    - text: Default Acme Think
+    - img
+  - option "Off Acme Think"
+  - option "High Acme Think"
+  - option "Max Acme Think"

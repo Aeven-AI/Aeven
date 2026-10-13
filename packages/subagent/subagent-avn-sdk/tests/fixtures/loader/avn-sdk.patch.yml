@@ -1,0 +1,57 @@
+# Test-only SDK provider patch over the shipped headless profile. The child
+# is a complete sdk profile; the parent omits `cwd` to exercise inheritance.
+- id: headless-startup
+  disabled: true
+
+- id: headless-runner
+  disabled: true
+
+- id: agent-loop
+  config:
+    agents:
+      - id: main
+        provider: mock
+        model: mock-delegate
+        cwd: !!js process.cwd()
+
+- id: session-persistence-jsonl
+  config:
+    root: './.sessions'
+    compression: none
+
+- id: tool-subagent
+  disabled: true
+
+- insert:
+    - id: mock-llm
+      name: './mock-delegating-llm.ts'
+
+    - id: subagent-model-selection-settings
+      name: '@aeven/tool-subagent/model-selection-settings'
+      config:
+        enabled: true
+        allowedModels:
+          - provider: mock
+            model: mock-routed
+
+    - id: test-tool-subagent
+      name: './scoped-tool-subagent.ts'
+      config:
+        provider: avn-sdk
+        toolName: subagent
+        agentOptions:
+          maxTokens: 777
+        maxDepth: 'provider-managed'
+
+    # providerName is omitted to exercise the shipped `avn-sdk` default.
+    - id: subagent-avn-sdk
+      name: '@aeven/subagent-avn-sdk'
+      config:
+        profile: sdk
+        patches: !!js JSON.parse(process.env.AVN_TEST_CHILD_PATCHES ?? '[]')
+        avnHome: !!js process.env.AVN_TEST_CHILD_HOME
+        provider: mock
+        model: mock-routed
+        env:
+          AVN_TELEMETRY_DISABLED: '1'
+          AVN_TEST_CHILD_FAILURE: !!js String(process.env.AVN_TEST_CHILD_FAILURE ?? '')

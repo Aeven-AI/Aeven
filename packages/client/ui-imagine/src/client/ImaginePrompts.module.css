@@ -1,0 +1,68 @@
+/* The composer's own horizontal box: the side clearance outside, the card's max-width inside, so the grid's edges
+   are the composer card's edges at every column width. The top clears the 56px navigation band. */
+.root {
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 72px var(--avn-composer-side-clearance) 24px;
+}
+
+/* Equal 4:5 cards, as many columns as fit at 130px or wider, 8px apart. */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px;
+  width: 100%;
+  max-width: var(--avn-composer-card-max-width);
+}
+
+.card {
+  position: relative;
+  display: block;
+  aspect-ratio: 4 / 5;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 16px;
+  background: var(--dsw-alias-interactive-bg-hover);
+  cursor: pointer;
+}
+
+.card:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 300ms ease;
+}
+
+.card:hover .image {
+  transform: scale(1.03);
+}
+
+/* A dark fade at the card's foot keeps the title legible on any image. */
+.shade {
+  position: absolute;
+  inset: 55% 0 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.5), transparent);
+  pointer-events: none;
+}
+
+.title {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  color: #fff;
+  font-family: var(--dsw-font-family);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 18px;
+  text-align: left;
+}

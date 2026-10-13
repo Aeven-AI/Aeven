@@ -1,0 +1,843 @@
+/** Workspace archive and directory UI capability. */
+
+import { Service, type Context } from '@deepseek-ai/cordis'
+import type { ClientRemote, DirectoryListing, RemoteFailure } from '@aeven/api-remotes/client'
+import type {
+  ISessions,
+  SessionFace,
+  SessionListState,
+} from '@aeven/api-session-controller/client'
+import type {
+  IWorkspaces, WorkspaceId, WorkspaceView,
+} from '@aeven/api-workspace-controller/client'
+import type { SessionId } from '@aeven/session/types'
+import { randomUUID } from '@aeven/util-crypto'
+import { createSnapshotStore, type ObservableSnapshot } from '@aeven/client-store'
+import { sessionPathOf, type SessionUrlNavigation } from './session-url.ts'
+import { isManagedWorkspace } from './tree.ts'
+
+type InitialNavigation = 'waiting' | 'connecting' | 'done'
+
+/** One Session rename the browsing region has been asked to open. */
+export interface SessionRenameRequest {
+  /** Session the dialog renames. */
+  readonly sessionId: SessionId
+  /** Title the dialog opens with. */
+  readonly currentTitle: string
+}
+
+/** One Workspace a Session can move into. */
+export interface SessionMoveTarget {
+  readonly workspaceId: WorkspaceId
+  readonly title: string
+}
+
+/**
+ * Copy one start-address claim contributes to the shell that shows its page.
+ *
+ * A start page's own plugin authors this copy in its dictionary and binds the
+ * namespace, so the shell never carries another feature's words.
+ */
+export interface StartAddressCopy {
+  /**
+   * Placeholder of the empty composer while this page is the open address.
+   * Read on every render, so it follows the active locale.
+   */
+  composerPlaceholder?: (() => string) | undefined
+}
+
+/** Workspace archive and directory operations consumed by Client UI domains. */
+export interface UiWorkspace {
+  /**
+   * Resolve the reusable or newly created blank Session for a Workspace.
+   *
+   * Reusable means a chat nobody has prompted yet that the Workspace accounts
+   * for and that sits in its directory; a Workspace with no directory of its
+   * own takes the account alone. Reuse is what returns unsent composer text.
+   * @param workspaceId - target Workspace.
+   * @param sessionId - preallocated id to create under; when present the
+   * Workspace's reusable blank is skipped, because the caller already
+   * published that id as the address it is about to open.
+   * @returns a Session already addressable through the Session Controller.
+   */
+  connectWorkspace(workspaceId: WorkspaceId, sessionId?: SessionId): Promise<SessionId>
+  /**
+   * Start a New Session flow and navigate to its Session.
+   * @param workspaceId - explicit target; absent inherits the current or most recent Workspace, and
+   * without any Workspace the chat is created outside one.
+   * @param sessionId - the id the New Session link named. The Host creates the
+   * Session under exactly this id, so the address that was opened and the
+   * Session that appears are the same chat.
+   */
+  startSession(workspaceId?: WorkspaceId, sessionId?: SessionId): void
+  /**
+   * Address for a New Session that does not exist yet, with the id it names.
+   *
+   * A link's target has to be known before there is a Session to name, because
+   * the browser — not this client — owns activation. The id is minted here,
+   * under the Host's `session-<uuid>` scheme, and the caller hands it back to
+   * {@link startSession}. Every call mints a fresh id, which is what re-arms
+   * the link once a chat has been started from it.
+   * @returns the absolute `/c/<uuid>` path, and the Session id it addresses.
+   */
+  newSessionHref(): { href: string; sessionId: SessionId }
+  /**
+   * Claim a start address, such as `/imagine`: a chat address that names no
+   * Session. A blank Session is shown under it, and the address moves to that
+   * Session's own `/c/<uuid>` once the Session is no longer blank.
+   *
+   * The claim carries the page's own copy, so the address and what the shared
+   * shell says about it are registered together and cannot disagree.
+   * @param path - absolute path, such as `/imagine` or `/automations/runs`.
+   * @param copy - copy this page contributes to the shell; absent claims none.
+   * @returns disposer releasing the claim.
+   */
+  registerStartAddress(path: string, copy?: StartAddressCopy): () => void
+  /**
+   * Move to a start address as a new history entry, and show a blank Session
+   * under it: the current one when it is still blank, else a New Session.
+   * @param path - a registered start address.
+   */
+  openStartAddress(path: string): void
+  /**
+   * Composer placeholder the page at one start address declares.
+   * @param path - a registered start address.
+   * @returns the placeholder in the active locale, or undefined when the claim declared none.
+   */
+  composerPlaceholder(path: string): string | undefined
+  /** The start address the address bar shows, or undefined on any other address. */
+  readonly startAddress: ObservableSnapshot<string | undefined>
+  /**
+   * Ask the browsing region to open its Session rename dialog.
+   *
+   * The dialog belongs to the region that lists Sessions: it holds the draft,
+   * the empty-title rule, and the rename call. A surface outside that region —
+   * the conversation band's options control — asks for it rather than growing
+   * a second dialog.
+   * @param sessionId - Session to rename.
+   * @param currentTitle - title the dialog opens with.
+   */
+  requestSessionRename(sessionId: SessionId, currentTitle: string): void
+  /** Rename request the browsing region has not opened yet, or null. */
+  readonly sessionRenameRequest: ObservableSnapshot<SessionRenameRequest | null>
+  /** Clear the pending rename request once its dialog is open. */
+  clearSessionRenameRequest(): void
+  /**
+   * Archive a Session and clear it when it is the current selection.
+   * @param sessionId - Session to archive.
+   */
+  archiveSession(sessionId: SessionId): Promise<void>
+  /**
+   * Restore an archived Session to its recorded Workspace position.
+   * @param sessionId - Session to unarchive.
+   */
+  unarchiveSession(sessionId: SessionId): Promise<void>
+  /** The registry-global archive set in Host order. */
+  readonly archivedSessionIds: ObservableSnapshot<readonly SessionId[]>
+  /**
+   * Workspaces a Session can move into: every listed Workspace that does not
+   * already account for it, in list order. The source is stable per Session.
+   * @param sessionId - Session that would move.
+   * @returns the observable target list.
+   */
+  moveTargets(sessionId: SessionId): ObservableSnapshot<readonly SessionMoveTarget[]>
+  /**
+   * Move a Session into another Workspace and open the Session that replaces it.
+   * @param sessionId - Session to move; the Host deletes it once the move lands.
+   * @param workspaceId - target Workspace.
+   * @returns the replacing Session.
+   */
+  moveSession(sessionId: SessionId, workspaceId: WorkspaceId): Promise<SessionId>
+  /**
+   * Open the Host-native directory picker.
+   * @returns the selected directory, or null when cancelled.
+   */
+  pickDirectory(): Promise<string | null>
+  /**
+   * List one Host directory level.
+   * @param path - directory path; absent selects the Host home.
+   * @param signal - cancellation for a superseded scan.
+   * @returns directory entries and breadcrumb ancestry.
+   */
+  listDirectory(path?: string, signal?: AbortSignal): Promise<DirectoryListing>
+  /**
+   * Create a child directory.
+   * @param path - existing parent directory.
+   * @param name - child directory name.
+   * @returns created absolute path.
+   */
+  createDirectory(path: string, name: string): Promise<string>
+  /**
+   * Wait until the first Workspace and Session lists have arrived and the
+   * selected Session's first history page has settled. Later navigation does
+   * not reset the wait. Resolves on plugin disposal so boot cannot hang
+   * behind teardown.
+   * @returns when that first shell payload is ready to reveal.
+   */
+  whenInitialDataReady(): Promise<void>
+}
+
+declare module '@deepseek-ai/cordis' {
+  interface Context {
+    /** Cross-Controller Workspace navigation and directory UI capability. */
+    uiWorkspace: UiWorkspace
+  }
+}
+
+/** Structured directory failure exposed to directory UI consumers. */
+export class DirectoryBrowseError extends Error {
+  override readonly name = 'DirectoryBrowseError'
+
+  /** @param rpcError - Host directory business failure. */
+  constructor(readonly rpcError: RemoteFailure) {
+    super(`directory browse failed: ${rpcError.code}: ${rpcError.message}`)
+  }
+}
+
+/** Implements Workspace archive and directory UI operations. */
+class UiWorkspaceService extends Service implements UiWorkspace {
+  private readonly connecting = new Map<WorkspaceId | SessionId, Promise<SessionId>>()
+  /** The archived current Session a new chat is being opened in place of, so the reconciler starts one only. */
+  private replacingArchived: SessionId | undefined
+  /** The archived Session the reader selected to read; it stays selected rather than being replaced. */
+  private viewingArchived: SessionId | undefined
+  /** The selection the last ready reconcile pass saw, to tell selecting an archived Session from archiving the selected one. */
+  private seenCurrent: SessionId | undefined
+  /** The orphaned current Session a new chat is being opened in place of, so the reconciler starts one only. */
+  private replacingOrphan: SessionId | undefined
+  /** Sessions this client created, until the lists catch up with them; they are arriving, not orphaned. */
+  private readonly created = new Set<SessionId>()
+  private initialNav: InitialNavigation = 'waiting'
+  private initialDataReady: Promise<void> | undefined
+  private initialDataCheck: (() => void) | undefined
+  private watchedSessionId: SessionId | undefined
+  private watchedSession: SessionFace | undefined
+  private sessionUnsub: (() => void) | undefined
+
+  /**
+   * @param ctx - Client root Context.
+   * @param directoryPicker - the directory-picking Remote namespace.
+   * @param workspaces - pure Workspace Controller.
+   * @param sessions - pure Session Controller.
+   * @param sessionUrl - address-bar projection for Session selection.
+   */
+  constructor(
+    ctx: Context,
+    private readonly directoryPicker: ClientRemote['directoryPicker'],
+    private readonly workspaces: IWorkspaces,
+    private readonly sessions: ISessions,
+    private readonly sessionUrl: SessionUrlNavigation,
+  ) {
+    super(ctx, 'uiWorkspace')
+    ctx.effect(() => this.watchNavigation(), 'ui-workspace: Workspace navigation policy')
+    ctx.effect(() => this.sessionUrl.subscribeAddress(() => { this.publishStart() }), 'ui-workspace: start address')
+  }
+
+  private currentStart: string | undefined
+  /** The blank Session the current start address opened; the only one shown under it. */
+  private startSessionId: SessionId | undefined
+  /** Copy each claimed start address contributes to the shell, by address. */
+  private readonly startCopy = new Map<string, StartAddressCopy>()
+  /** Whether the start address's blank Session is still being created. */
+  private startPending = false
+  private readonly startListeners = new Set<() => void>()
+
+  /** Pending rename request; the browsing region clears it when its dialog opens. */
+  readonly sessionRenameRequest = createSnapshotStore<SessionRenameRequest | null>(null)
+
+  requestSessionRename(sessionId: SessionId, currentTitle: string): void {
+    this.sessionRenameRequest.set({ sessionId, currentTitle })
+  }
+
+  clearSessionRenameRequest(): void {
+    this.sessionRenameRequest.set(null)
+  }
+
+  readonly startAddress: ObservableSnapshot<string | undefined> = {
+    getSnapshot: () => this.currentStart,
+    subscribe: (fn) => {
+      this.startListeners.add(fn)
+      return () => { this.startListeners.delete(fn) }
+    },
+  }
+
+  registerStartAddress(path: string, copy?: StartAddressCopy): () => void {
+    const release = this.sessionUrl.registerStart(path)
+    if (copy !== undefined) this.startCopy.set(path, copy)
+    this.publishStart()
+    if (this.currentStart === path && this.sessions.list.getSnapshot().phase === 'ready') this.showStart()
+    return () => {
+      this.startCopy.delete(path)
+      release()
+      this.publishStart()
+    }
+  }
+
+  composerPlaceholder(path: string): string | undefined {
+    return this.startCopy.get(path)?.composerPlaceholder?.()
+  }
+
+  openStartAddress(path: string): void {
+    this.sessionUrl.pushStart(path)
+    this.showStart()
+  }
+
+  /** Re-read the start address and notify its subscribers when it moved. */
+  private publishStart(): void {
+    const next = this.sessionUrl.readStart()
+    if (next === this.currentStart) return
+    this.currentStart = next
+    for (const fn of this.startListeners) fn()
+  }
+
+  /**
+   * Whether a Session is still blank. A Session the list does not carry yet was
+   * just created by a New Session flow, so it counts as blank.
+   * @param sessionId - the Session to check.
+   * @returns true while nobody has prompted it.
+   */
+  private isBlank(sessionId: SessionId): boolean {
+    return this.sessions.list.getSnapshot().byId[sessionId]?.blank !== false
+  }
+
+  /**
+   * Resolve which Workspace a New Session belongs to.
+   *
+   * One policy for both the link's target and the click that creates it: an
+   * explicit Workspace wins, then the current Session's, then the most
+   * recently touched; a managed Workspace is never inferred. They must agree, or the address a reader opened would
+   * name a chat in a different Workspace than the one where it is created.
+   * @param workspaceId - explicit target, when the caller has one.
+   * @returns the Workspace id, or undefined when nothing can host a chat yet.
+   */
+  private targetWorkspace(workspaceId?: WorkspaceId): WorkspaceId | undefined {
+    const workspace = this.workspaces.list.getSnapshot()
+    const sessions = this.sessions.list.getSnapshot()
+    const current = sessions.current
+    const currentWorkspace = current === undefined
+      ? undefined
+      : workspace.items.find(item => item.sessionIds.includes(current))
+    const currentWorkspaceId = currentWorkspace === undefined || isManagedWorkspace(currentWorkspace)
+      ? undefined
+      : currentWorkspace.workspaceId
+    const recent = workspace.phase === 'ready' && sessions.phase === 'ready'
+      ? recentWorkspace(workspace.items, sessions.byId)
+      : undefined
+    return workspaceId ?? currentWorkspaceId ?? recent ?? this.defaultWorkspaceId()
+  }
+
+  async connectWorkspace(workspaceId: WorkspaceId, sessionId?: SessionId): Promise<SessionId> {
+    const workspace = this.workspaces.list.getSnapshot().items
+      .find(item => item.workspaceId === workspaceId)
+    if (workspace === undefined) {
+      throw new Error(`uiWorkspace.connectWorkspace: unknown workspace ${workspaceId}`)
+    }
+    // A named id IS the identity, so the in-flight map keys on it. The
+    // workspace key would collide two different chats in one Workspace and
+    // hand the second caller the first one's Session.
+    const key = sessionId ?? workspaceId
+    const inflight = this.connecting.get(key)
+    if (inflight !== undefined) return inflight
+
+    if (sessionId === undefined) {
+      const archived = this.workspaces.list.getSnapshot().archivedSessionIds
+      const sessions = this.sessions.list.getSnapshot()
+      for (const id of sessions.ids) {
+        const summary = sessions.byId[id]
+        // A Workspace with no directory of its own — the built-in Chats, or a
+        // remote one — has no cwd for its chats to match, which is why the
+        // account alone decides there. A folder Workspace needs both, so a chat
+        // that only shares the directory it was started in is not adopted.
+        const inWorkspaceDirectory = workspace.path === null || summary?.cwd === workspace.path
+        if (summary !== undefined && summary.blank && inWorkspaceDirectory
+          && workspace.sessionIds.includes(summary.id)
+          && !archived.includes(summary.id)) return summary.id
+      }
+    }
+
+    const attempt = this.sessions.create({ workspaceId, ...(sessionId === undefined ? {} : { sessionId }) })
+      .then((id) => { this.created.add(id); return id })
+      .finally(() => { this.connecting.delete(key) })
+    this.connecting.set(key, attempt)
+    return attempt
+  }
+
+  startSession(workspaceId?: WorkspaceId, sessionId?: SessionId): void {
+    // A New Session started on a start address leaves it: the reused blank
+    // Session may be the very one the start address shows, so the claim is
+    // dropped and the address moved to the Session's own explicitly.
+    const leavingStart = this.sessionUrl.readStart() !== undefined
+    if (leavingStart) this.startSessionId = undefined
+    this.openNewSession(workspaceId, sessionId, false, leavingStart)
+  }
+
+  /**
+   * Create or reuse a blank Session and select it.
+   * @param workspaceId - explicit target Workspace.
+   * @param sessionId - the id a New Session link named.
+   * @param forStart - whether the Session is the one the current start address shows.
+   * @param leaveStart - move the address from a start address to the Session's own once it is open.
+   */
+  private openNewSession(
+    workspaceId: WorkspaceId | undefined,
+    sessionId: SessionId | undefined,
+    forStart: boolean,
+    leaveStart = false,
+  ): void {
+    const target = this.targetWorkspace(workspaceId)
+    this.startPending = forStart
+    // Without a Workspace to put it in, the chat is created without one:
+    // clearing the selection instead would leave a page with no composer.
+    const opening = target === undefined
+      ? this.createChat(sessionId)
+      : this.connectWorkspace(target, sessionId).catch((reason: unknown) => {
+        // The target can vanish between choosing it and creating in it: deleting a Workspace archives its
+        // Sessions first, and the archived current Session is replaced in the Workspace being deleted. A New
+        // Session then lands in the built-in Workspace instead of leaving the selection without one.
+        const fallback = this.defaultWorkspaceId()
+        if (fallback === undefined || fallback === target) throw reason
+        return this.connectWorkspace(fallback, sessionId)
+      })
+    void opening.then(
+      (opened) => {
+        if (forStart) {
+          this.startSessionId = opened
+          this.startPending = false
+        }
+        this.sessions.open(opened)
+        if (leaveStart) this.sessionUrl.push(opened)
+      },
+      (reason: unknown) => {
+        if (forStart) this.startPending = false
+        console.warn('new session failed:', reason)
+      },
+    )
+  }
+
+  /**
+   * Show a blank Session under the current start address: the current Session
+   * when it is still blank, else a New Session.
+   */
+  private showStart(): void {
+    const current = this.sessions.list.getSnapshot().current
+    if (current !== undefined && this.isBlank(current)) {
+      this.startSessionId = current
+      return
+    }
+    this.openNewSession(undefined, undefined, true)
+  }
+
+  /**
+   * Whether the address should stay on a start address for the current
+   * selection: only the blank Session the start address itself opened keeps
+   * it. Any other selection — a New Session link, a chat row — moves the
+   * address to that Session's own.
+   * @param current - the selected Session.
+   * @returns true while the start address keeps its address.
+   */
+  private keepsStart(current: SessionId | undefined): boolean {
+    if (this.sessionUrl.readStart() === undefined) return false
+    if (this.startPending) return true
+    return current !== undefined && current === this.startSessionId && this.isBlank(current)
+  }
+
+  /** The built-in Workspace every reader has, when the Host seeds one. */
+  private defaultWorkspaceId(): WorkspaceId | undefined {
+    return this.workspaces.list.getSnapshot().items.find(item => item.isDefault)?.workspaceId
+  }
+
+  /**
+   * Create a chat that belongs to no Workspace, sharing one in-flight creation.
+   * @param sessionId - the id to create under, when a link already names one.
+   * @returns the created Session id.
+   */
+  private createChat(sessionId?: SessionId): Promise<SessionId> {
+    const key = sessionId ?? ('' as SessionId)
+    const inflight = this.connecting.get(key)
+    if (inflight !== undefined) return inflight
+    const attempt = this.sessions.create(sessionId === undefined ? {} : { sessionId })
+      .then((id) => { this.created.add(id); return id })
+      .finally(() => { this.connecting.delete(key) })
+    this.connecting.set(key, attempt)
+    return attempt
+  }
+
+  newSessionHref(): { href: string; sessionId: SessionId } {
+    // Deliberately not remembered: a link nobody activates must not reserve an
+    // id, so every call names a chat that can still be created.
+    const sessionId = `session-${randomUUID()}` as SessionId
+    return { href: sessionPathOf(sessionId), sessionId }
+  }
+
+  async archiveSession(sessionId: SessionId): Promise<void> {
+    await this.workspaces.archiveSession(sessionId)
+  }
+
+  async unarchiveSession(sessionId: SessionId): Promise<void> {
+    await this.workspaces.unarchiveSession(sessionId)
+  }
+
+  readonly archivedSessionIds: ObservableSnapshot<readonly SessionId[]> = {
+    getSnapshot: () => this.workspaces.list.getSnapshot().archivedSessionIds,
+    subscribe: listener => this.workspaces.list.subscribe(listener),
+  }
+
+  private readonly moveTargetSources = new Map<SessionId, ObservableSnapshot<readonly SessionMoveTarget[]>>()
+
+  moveTargets(sessionId: SessionId): ObservableSnapshot<readonly SessionMoveTarget[]> {
+    const existing = this.moveTargetSources.get(sessionId)
+    if (existing !== undefined) return existing
+    let items: readonly WorkspaceView[] | undefined
+    let targets: readonly SessionMoveTarget[] = []
+    const source: ObservableSnapshot<readonly SessionMoveTarget[]> = {
+      getSnapshot: () => {
+        const next = this.workspaces.list.getSnapshot().items
+        if (next !== items) {
+          items = next
+          // A managed Workspace such as Automations holds only the Sessions its
+          // plugin creates: none moves in, and one of its own moves nowhere (it
+          // can still be archived). With a single Workspace besides those there
+          // is nowhere to go, and the move row stays hidden.
+          const destinations = next.filter(item => !isManagedWorkspace(item))
+          const inManaged = next.some(item => isManagedWorkspace(item) && item.sessionIds.includes(sessionId))
+          targets = inManaged || destinations.length < 2
+            ? []
+            : destinations
+              .filter(item => !item.sessionIds.includes(sessionId))
+              .map(item => ({ workspaceId: item.workspaceId, title: item.title }))
+        }
+        return targets
+      },
+      subscribe: listener => this.workspaces.list.subscribe(listener),
+    }
+    this.moveTargetSources.set(sessionId, source)
+    return source
+  }
+
+  async moveSession(sessionId: SessionId, workspaceId: WorkspaceId): Promise<SessionId> {
+    const movedId = await this.sessions.move({ sessionId, workspaceId })
+    this.moveTargetSources.delete(sessionId)
+    this.created.add(movedId)
+    this.sessions.open(movedId)
+    return movedId
+  }
+
+  async pickDirectory(): Promise<string | null> {
+    const result = await this.directoryPicker.pick()
+    if (!result.ok) throw new Error(`directory picker failed: ${result.error.message}`)
+    return result.value
+  }
+
+  async listDirectory(path?: string, signal?: AbortSignal): Promise<DirectoryListing> {
+    const result = await this.directoryPicker.list(path, signal)
+    if (!result.ok) throw new DirectoryBrowseError(result.error)
+    return result.value
+  }
+
+  async createDirectory(path: string, name: string): Promise<string> {
+    const result = await this.directoryPicker.createDirectory(path, name)
+    if (!result.ok) throw new DirectoryBrowseError(result.error)
+    return result.value
+  }
+
+  whenInitialDataReady(): Promise<void> {
+    if (this.initialDataReady !== undefined) return this.initialDataReady
+    this.initialDataReady = new Promise((resolve) => {
+      if (this.initialDataIsReady()) {
+        resolve()
+        return
+      }
+      let settled = false
+      // Placeholders: both are replaced with the real disposers before anything
+      // can settle this wait, so neither empty body is ever the one that runs.
+      /* v8 ignore next -- replaced before this wait can settle */
+      let unsubWorkspaces = (): void => {}
+      /* v8 ignore next -- replaced before this wait can settle */
+      let unsubSessions = (): void => {}
+      const finish = (): void => {
+        if (settled) return
+        settled = true
+        this.initialDataCheck = undefined
+        unsubWorkspaces()
+        unsubSessions()
+        this.detachSession()
+        resolve()
+      }
+      const check = (): void => {
+        this.attachSession(this.sessions.list.getSnapshot().current, check)
+        if (this.initialDataIsReady()) finish()
+      }
+      this.initialDataCheck = check
+      unsubWorkspaces = this.workspaces.list.subscribe(check)
+      unsubSessions = this.sessions.list.subscribe(check)
+      this.ctx.effect(() => () => { finish() }, 'ui-workspace: initial shell data wait')
+      check()
+    })
+    return this.initialDataReady
+  }
+
+  /** True when the first sidebar lists and selected history page can be revealed. */
+  private initialDataIsReady(): boolean {
+    const workspace = this.workspaces.list.getSnapshot()
+    const sessions = this.sessions.list.getSnapshot()
+    const workspaceArrived = workspace.phase === 'ready' || workspace.state === 'error'
+    if (!workspaceArrived || sessions.phase !== 'ready') return false
+    if (workspace.phase === 'ready' && this.initialNav !== 'done') return false
+    const current = sessions.current
+    if (current === undefined) return true
+    const openState = this.sessions.binding(current)?.session.getSnapshot().openState
+    return openState === 'open' || openState === 'error'
+  }
+
+  /** Follow the selected Session snapshot so a still-loading history can settle. */
+  private attachSession(current: SessionId | undefined, onChange: () => void): void {
+    const session = current === undefined ? undefined : this.sessions.binding(current)?.session
+    if (current === this.watchedSessionId && session === this.watchedSession) return
+    this.detachSession()
+    this.watchedSessionId = current
+    this.watchedSession = session
+    if (session === undefined) return
+    this.sessionUnsub = session.subscribe(onChange)
+  }
+
+  private detachSession(): void {
+    this.sessionUnsub?.()
+    this.sessionUnsub = undefined
+    this.watchedSessionId = undefined
+    this.watchedSession = undefined
+  }
+
+  private markInitialNav(next: InitialNavigation): void {
+    this.initialNav = next
+    this.initialDataCheck?.()
+  }
+
+  private watchNavigation(): () => void {
+    let urlInitialized = false
+    let disposed = false
+    const reconcile = (): void => {
+      if (disposed) return
+      if (this.clearArchivedCurrent()) return
+      const workspace = this.workspaces.list.getSnapshot()
+      const sessions = this.sessions.list.getSnapshot()
+      if (workspace.phase !== 'ready' || sessions.phase !== 'ready') return
+      if (this.replaceOrphanedCurrent()) return
+
+      if (!urlInitialized) {
+        const requested = this.sessionUrl.read()
+        if (requested !== undefined && sessions.byId[requested] !== undefined) {
+          urlInitialized = true
+          this.markInitialNav('done')
+          if (sessions.current !== requested) this.sessions.open(requested)
+          return
+        }
+        if (requested !== undefined && this.adoptRequestedSession(requested, () => { urlInitialized = true })) return
+        if (requested !== undefined) {
+          // The address named nothing this client can open. Dropping it settles
+          // this pass: the blank-view fallback below would otherwise rewrite the
+          // very same entry a second time before the pass ended.
+          this.sessionUrl.replace(undefined)
+          urlInitialized = true
+          return
+        }
+        if (sessions.current !== undefined) {
+          urlInitialized = true
+          this.markInitialNav('done')
+          // A start address keeps its own address over a blank Session, and
+          // opens a New Session when the restored one has been prompted.
+          if (this.sessionUrl.readStart() !== undefined) {
+            this.showStart()
+            return
+          }
+          this.sessionUrl.replace(sessions.current)
+          return
+        }
+      } else if (this.sessionUrl.read() !== sessions.current) {
+        // Under a start address a blank Session keeps the address; its first
+        // prompt moves the address to the Session's own.
+        if (!this.keepsStart(sessions.current)) this.sessionUrl.push(sessions.current)
+      }
+
+      if (this.initialNav !== 'waiting') return
+      /* v8 ignore next 4 -- guard only: every branch above that sets
+       * `urlInitialized` also marks navigation done, and a done navigation
+       * returns on the line before, so a selection is already settled here. */
+      if (sessions.current !== undefined) {
+        this.markInitialNav('done')
+        return
+      }
+      const target = recentWorkspace(workspace.items, sessions.byId)
+      // No Workspace yet: open a chat outside one rather than an empty page.
+      if (target === undefined) urlInitialized = true
+      this.markInitialNav('connecting')
+      void (target === undefined ? this.createChat() : this.connectWorkspace(target)).then(
+        (sessionId) => {
+          if (disposed) return
+          if (this.sessions.list.getSnapshot().current === undefined) {
+            this.sessions.open(sessionId)
+          }
+          this.markInitialNav('done')
+        },
+        (reason: unknown) => {
+          if (disposed) return
+          this.markInitialNav('waiting')
+          console.warn('initial workspace selection failed:', reason)
+        },
+      )
+    }
+    const navigateFromUrl = (): void => {
+      // Another surface's address selects no chat: Back into Imagine must
+      // not start a New Session.
+      if (disposed || !urlInitialized || !this.sessionUrl.ownsAddress()) return
+      const sessions = this.sessions.list.getSnapshot()
+      if (sessions.phase !== 'ready') return
+      const requested = this.sessionUrl.read()
+      if (requested === sessions.current) return
+      if (requested === undefined && this.sessionUrl.readStart() !== undefined) {
+        this.showStart()
+        return
+      }
+      // An address naming no chat opens one, as the New Session action does;
+      // an empty selection has no composer to continue from.
+      if (requested === undefined) {
+        this.startSession()
+        return
+      }
+      if (sessions.byId[requested] !== undefined) {
+        this.sessions.open(requested)
+        return
+      }
+      this.sessionUrl.replace(sessions.current)
+    }
+    const disposeWorkspaces = this.workspaces.list.subscribe(reconcile)
+    const disposeSessions = this.sessions.list.subscribe(reconcile)
+    const disposeUrl = this.sessionUrl.subscribe(navigateFromUrl)
+    reconcile()
+    return () => {
+      disposed = true
+      disposeUrl()
+      disposeSessions()
+      disposeWorkspaces()
+    }
+  }
+
+  /**
+   * Create the Session an address already names.
+   *
+   * The New Session link publishes its `/c/<uuid>` address before the chat
+   * exists, because the browser — not this client — decides when a link opens.
+   * Following that link in a new window therefore lands on an id no Session has
+   * yet, and this is where the promise is kept: the address that named the chat
+   * is the id the Host is asked to create, so a fresh window yields the same
+   * chat the link offered rather than an arbitrary recent one.
+   * @param requested - the Session id the address names.
+   * @param claim - marks the address as initialised. Called synchronously, so a
+   * reconcile triggered by the creation itself cannot adopt it a second time.
+   * @returns true when the address was claimed, so the caller keeps the URL.
+   */
+  private adoptRequestedSession(requested: SessionId, claim: () => void): boolean {
+    const workspace = this.targetWorkspace()
+    if (workspace === undefined) return false
+    claim()
+    this.markInitialNav('connecting')
+    void this.connectWorkspace(workspace, requested).then(
+      (opened) => {
+        this.sessions.open(opened)
+        this.markInitialNav('done')
+      },
+      (reason: unknown) => {
+        // The id could not be claimed, so it is not an address this client can
+        // honour; drop it rather than presenting a browser URL naming nothing.
+        this.markInitialNav('waiting')
+        console.warn('address-named session failed:', reason)
+      },
+    )
+    return true
+  }
+
+  /**
+   * Replace an unused current Session that no Workspace owns, such as the blank chat of a Workspace that was
+   * just deleted, with a blank chat in the built-in Workspace. A New Session always has a Workspace; without
+   * one the composer has nothing to send into. A Session with history keeps its selection.
+   * @returns true while the current selection is such an orphan.
+   */
+  private replaceOrphanedCurrent(): boolean {
+    const workspace = this.workspaces.list.getSnapshot()
+    const sessions = this.sessions.list.getSnapshot()
+    const current = sessions.current
+    if (current === undefined || workspace.items.some(item => item.sessionIds.includes(current))) {
+      if (current !== undefined) this.created.delete(current)
+      this.replacingOrphan = undefined
+      return false
+    }
+    const summary = sessions.byId[current]
+    const snapshot = this.sessions.binding(current)?.session.getSnapshot()
+    if ((summary?.blank ?? snapshot?.blank) !== true || snapshot?.promptAttempted === true) return false
+    // A Session this client just created, or one whose directory a Workspace still registers, is joining
+    // that Workspace; its membership arrives with a later list.
+    if (summary === undefined && this.created.has(current)) return false
+    if (summary !== undefined && workspace.items.some(item => item.path === (summary.cwd ?? null))) return false
+    if (this.replacingOrphan !== current) {
+      this.replacingOrphan = current
+      this.startSession(this.defaultWorkspaceId())
+    }
+    return true
+  }
+
+  /**
+   * Replace a current selection that was archived while selected with a new
+   * chat, as the New Session action does. An archived Session the reader
+   * selects stays open to read; the conversation offers to unarchive it.
+   * @returns true while a selection archived in place is being replaced.
+   */
+  private clearArchivedCurrent(): boolean {
+    const current = this.sessions.list.getSnapshot().current
+    const workspace = this.workspaces.list.getSnapshot()
+    // Before the archive set arrives, archived and live selections look alike.
+    if (workspace.phase !== 'ready') return false
+    const previous = this.seenCurrent
+    this.seenCurrent = current
+    if (current === undefined || !workspace.archivedSessionIds.includes(current)) {
+      // The selection moved on; an archived Session selected again is replaced again.
+      this.replacingArchived = undefined
+      this.viewingArchived = undefined
+      return false
+    }
+    if (current === this.viewingArchived) return false
+    if (current !== previous) {
+      this.viewingArchived = current
+      return false
+    }
+    if (this.replacingArchived !== current) {
+      this.replacingArchived = current
+      this.startSession()
+    }
+    return true
+  }
+
+}
+
+/** Most recently touched Workspace that accepts New Sessions; stable tie-breaking follows Host Workspace order. */
+function recentWorkspace(
+  workspaces: readonly WorkspaceView[],
+  sessions: SessionListState['byId'],
+): WorkspaceId | undefined {
+  let selected: WorkspaceId | undefined
+  let selectedTime = Number.NEGATIVE_INFINITY
+  for (const workspace of workspaces) {
+    if (isManagedWorkspace(workspace)) continue
+    let latest = Number.NEGATIVE_INFINITY
+    for (const sessionId of workspace.sessionIds) {
+      const session = sessions[sessionId]
+      if (session !== undefined) latest = Math.max(latest, session.updatedAt)
+    }
+    if (latest === Number.NEGATIVE_INFINITY) latest = Date.parse(workspace.createdAt)
+    if (selected === undefined || latest > selectedTime) {
+      selected = workspace.workspaceId
+      selectedTime = latest
+    }
+  }
+  return selected
+}
+
+export { UiWorkspaceService }

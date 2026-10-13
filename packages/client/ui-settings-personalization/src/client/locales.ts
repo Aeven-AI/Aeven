@@ -1,0 +1,66 @@
+/** Copy dictionaries for the Settings → Personalization section. */
+
+/** English dictionary and key source of truth. */
+export const en = {
+  nav: 'Personalization',
+  intro: 'How Aeven talks with you. Changes apply from your next message.',
+  voice: 'Voice',
+  'voice.automatic': 'Automatic',
+  'voice.automatic.description': 'Reads the moment: brief and exact for work, warm and personal for life, encouraging for training.',
+  'voice.automatic.sample': '“Fixed — the date was parsed in UTC. Want me to add a test?” · “Oh, that sounds like a really heavy week — I’m sorry. What’s weighing on you most?”',
+  'voice.warm': 'Warm',
+  'voice.warm.description': 'Really warm and friendly in every reply, work included.',
+  'voice.warm.sample': '“Nice catch! The date was parsed in UTC — I’ve fixed it, so you’re good to go.”',
+  'voice.direct': 'Straight to the point',
+  'voice.direct.description': 'Brief and plain in every reply, personal topics included.',
+  'voice.direct.sample': '“Fixed: the date was parsed in UTC.”',
+  'voice.playful': 'Playful',
+  'voice.playful.description': 'Light and casual, with room for humour.',
+  'voice.playful.sample': '“Found the gremlin: the date thought it lived in UTC. Sent it home.”',
+  callName: 'How should Aeven call you?',
+  callNamePlaceholder: 'Your name',
+  callNameHint: 'This is your account name, the one you chose when you signed up.',
+  notes: 'Anything Aeven should keep in mind about how you like answers?',
+  notesPlaceholder: 'For example: “Keep it casual outside work. Answer in Dutch when I write Dutch. No bullet lists for personal things.”',
+  notesCount: '{chars} / {max}',
+  save: 'Save',
+  saved: 'Saved. Aeven uses this from your next message.',
+  tooLong: 'That is too long. Shorten it and save again.',
+  loading: 'Loading…',
+  failed: 'Something went wrong. Try again.',
+  retry: 'Try again',
+}
+
+/** Key union shared by every dictionary in this namespace. */
+export type PersonalizationLocaleKey = keyof typeof en
+
+/** Chinese dictionary. */
+export const zh: Record<PersonalizationLocaleKey, string> = {
+  nav: '个性化',
+  intro: 'Aeven 与你交流的方式。修改从你的下一条消息开始生效。',
+  voice: '语气',
+  'voice.automatic': '自动',
+  'voice.automatic.description': '根据情境调整：工作时简洁准确，生活话题温暖亲切，训练时给予鼓励。',
+  'voice.automatic.sample': '“已修复——日期被按 UTC 解析了。要我加个测试吗？” · “哎，这周听起来真的很辛苦，抱抱你。最让你烦心的是什么？”',
+  'voice.warm': '温暖',
+  'voice.warm.description': '每次回复都非常温暖友好，工作话题也一样。',
+  'voice.warm.sample': '“发现得好！日期被按 UTC 解析了——我已经修好，可以继续了。”',
+  'voice.direct': '直截了当',
+  'voice.direct.description': '每次回复都简短直接，私人话题也一样。',
+  'voice.direct.sample': '“已修复：日期被按 UTC 解析。”',
+  'voice.playful': '轻松',
+  'voice.playful.description': '轻松随意，可以带点幽默。',
+  'voice.playful.sample': '“抓到捣蛋鬼了：这个日期以为自己住在 UTC，已经送它回家。”',
+  callName: 'Aeven 该怎么称呼你？',
+  callNamePlaceholder: '你的名字',
+  callNameHint: '这是你的账户名称，也就是你注册时选择的名字。',
+  notes: '关于你喜欢的回答方式，还有什么需要 Aeven 记住的？',
+  notesPlaceholder: '例如：“工作之外请轻松一点。我用中文写时就用中文回答。私人话题不要用列表。”',
+  notesCount: '{chars} / {max}',
+  save: '保存',
+  saved: '已保存。Aeven 会从你的下一条消息开始使用。',
+  tooLong: '内容太长，请缩短后再保存。',
+  loading: '加载中…',
+  failed: '出了点问题，请重试。',
+  retry: '重试',
+}

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800">
+	<!--
+	  The Æven mark. It paints with `currentColor` so an inlined copy — the
+	  preloader, a brand surface — inherits the text colour around it instead of
+	  carrying one of its own.
+
+	  The rule below therefore supplies only what a standalone favicon needs and
+	  an inlined copy cannot get: the light/dark flip. It is scoped to the mark
+	  group rather than `:root`, because a `:root` selector inside an inlined SVG
+	  matches the *host document* and would restyle the whole page.
+	-->
+	<style>
+		@media (prefers-color-scheme: dark) {
+			#aeven-mark { color: #fff; }
+		}
+	</style>
+	<g fill="none" fill-rule="evenodd">
+		<path fill="none" d="M0 0h800v800H0z" />
+		<g id="aeven-mark" fill="currentColor">
+			<path d="m290.301 110 305.5 529.142-43.301 25L247 135z" />
+			<path d="M205 639.141 510.5 110l43.302 25-305.5 529.141z" />
+			<path d="M232.901 640.059h335v50h-335z" />
+			<path d="m108.302 374.5 167.5 290.119-43.302 25L65 399.5zM568.302 110l167.5 290.119-43.302 25L525 135z" />
+			<path d="M525 664.618 692.5 374.5l43.301 25-167.5 290.118zM65 400.118 232.5 110l43.301 25-167.5 290.118z" />
+			<path d="M232.5 110h57.8v50h-57.8zM510.5 110h57.8v50h-57.8zM137.5 515.3l234-405.3 43.302 25-234 405.3z" />
+			<path d="m429.301 110 234 405.3-43.3 25L386 135z" />
+			<path d="M371.5 110h57.8v50h-57.8z" />
+		</g>
+	</g>
+</svg>
