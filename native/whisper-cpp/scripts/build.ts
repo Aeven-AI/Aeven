@@ -89,7 +89,7 @@ function assertBuildable(target: Target): void {
   }
 }
 
-/** Platform CMake options: static linking everywhere, Metal on macOS, an AVX2 baseline on x64. */
+/** Platform CMake options: static linking everywhere, Metal on macOS, an AVX2 baseline on x64, a dotprod baseline on Windows ARM64. */
 export function cmakeOptions(target: Target): string[] {
   const options = [
     '-DCMAKE_BUILD_TYPE=Release', '-DBUILD_SHARED_LIBS=OFF', '-DWHISPER_BUILD_TESTS=OFF',
@@ -105,7 +105,10 @@ export function cmakeOptions(target: Target): string[] {
   if (target.startsWith('linux-')) options.push('-DCMAKE_EXE_LINKER_FLAGS=-static-libstdc++ -static-libgcc')
   if (target.startsWith('win32-')) options.push('-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded')
   // ggml's ARM CPU backend rejects MSVC's cl.exe; the Visual Studio ClangCL toolset compiles it.
-  if (target === 'win32-arm64') options.push('-A', 'ARM64', '-T', 'ClangCL')
+  // Without an explicit ARM arch ggml compiles for ARMv8.0 and its quantized matmuls fall back
+  // to plain NEON. Every CPU Windows 11 on ARM supports (Snapdragon 7c/8c/8cx/X, Apple Silicon
+  // under virtualization) has the ARMv8.2 dot-product and half-precision extensions.
+  if (target === 'win32-arm64') options.push('-A', 'ARM64', '-T', 'ClangCL', '-DGGML_CPU_ARM_ARCH=armv8.2-a+dotprod+fp16')
   return options
 }
 

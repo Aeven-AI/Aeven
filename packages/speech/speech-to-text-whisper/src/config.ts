@@ -1,5 +1,6 @@
 /** Deployment configuration for the managed local Whisper recognizer. */
 import z from '@deepseek-ai/schemastery'
+import { availableParallelism } from 'node:os'
 import { MAX_TIMER_DELAY_MS } from '@aeven/timeout'
 
 /** Local runtime, inference, and retention settings. */
@@ -62,7 +63,8 @@ export const Config: z<Partial<Config>, Config> = z.object({
   modelOrigin: z.union([z.string().pattern(ORIGIN), z.const(undefined)]),
   modelOrigins: z.array(z.string().pattern(ORIGIN)).min(1).default(['https://huggingface.co', 'https://hf-mirror.com']),
   modelProbeTimeoutMs: z.natural().min(1).max(MAX_TIMER_DELAY_MS).default(3000),
-  threads: z.natural().min(1).max(256).default(4),
+  // Inference scales nearly linearly up to ~8 threads; leave one core for the host.
+  threads: z.natural().min(1).max(256).default(Math.max(1, Math.min(8, availableParallelism() - 1))),
   vadThreshold: z.number().min(0).max(1).default(0.5),
   vadMinSpeechMs: z.natural().max(600_000).default(250),
   vadMinSilenceMs: z.natural().max(600_000).default(100),
