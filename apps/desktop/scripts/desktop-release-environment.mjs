@@ -12,6 +12,21 @@ export const MACOS_TEAM_ID_ENV = 'AVN_DESKTOP_MACOS_TEAM_ID'
 /** Environment variable whose value `1` builds a target without code signing or notarization. */
 export const DESKTOP_UNSIGNED_ENV = 'AVN_DESKTOP_UNSIGNED'
 
+/**
+ * Deployment settings the shipped profile rows read from the Host environment: the Aeven account, web, and media
+ * services, the provider sign-in URLs, and the public Slack client id. A packaged application carries them because
+ * no `.env` reaches an installed copy; `AEVEN_API_URL` is required, since without it sign-in targets a local server.
+ */
+export const DESKTOP_DEPLOYMENT_ENV_NAMES = [
+  'AEVEN_API_URL',
+  'AEVEN_WEB_URL',
+  'AEVEN_MEDIA_URL',
+  'AEVEN_OAUTH_X_URL',
+  'AEVEN_OAUTH_APPLE_URL',
+  'AEVEN_OAUTH_GOOGLE_URL',
+  'SLACK_CLIENT_ID',
+]
+
 const APPLE_API_KEY_ENV = 'APPLE_API_KEY'
 const APPLE_API_KEY_ID_ENV = 'APPLE_API_KEY_ID'
 const APPLE_API_ISSUER_ENV = 'APPLE_API_ISSUER'
@@ -46,6 +61,19 @@ export function resolveDesktopAppId(env) {
     throw new Error(`desktop release environment: ${DESKTOP_APP_ID_ENV} must be a reverse-DNS identifier`)
   }
   return appId
+}
+
+/**
+ * Resolve the deployment settings a packaged application hands its Host.
+ * @param {NodeJS.ProcessEnv} env - Packaging environment.
+ * @returns {Record<string, string>} Every set deployment setting, `AEVEN_API_URL` always among them.
+ */
+export function resolveDesktopDeployment(env) {
+  requireEnvironmentValue(env, 'AEVEN_API_URL')
+  return Object.fromEntries(DESKTOP_DEPLOYMENT_ENV_NAMES.flatMap((name) => {
+    const value = env[name]?.trim()
+    return value === undefined || value === '' ? [] : [[name, value]]
+  }))
 }
 
 /**

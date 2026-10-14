@@ -13,6 +13,7 @@ import {
 
 const RELEASE_ENVIRONMENT = {
   AVN_DESKTOP_APP_ID: 'com.example.desktop',
+  AEVEN_API_URL: 'https://aeven.example/api',
   AVN_DESKTOP_TARGET_PLATFORM: 'darwin',
   AVN_DESKTOP_TARGET_ARCH: 'arm64',
   AVN_DESKTOP_MACOS_SIGNING_IDENTITY: 'Example Company (TEAMID1234)',
@@ -64,6 +65,7 @@ describe('desktop macOS release signature', () => {
     const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
     const config = createElectronBuilderConfig({
       AVN_DESKTOP_APP_ID: RELEASE_ENVIRONMENT.AVN_DESKTOP_APP_ID,
+      AEVEN_API_URL: RELEASE_ENVIRONMENT.AEVEN_API_URL,
       AVN_DESKTOP_TARGET_PLATFORM: 'darwin',
       AVN_DESKTOP_TARGET_ARCH: 'arm64',
       AVN_DESKTOP_UNSIGNED: '1',
@@ -79,6 +81,7 @@ describe('desktop macOS release signature', () => {
     const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
     const config = createElectronBuilderConfig({
       AVN_DESKTOP_APP_ID: RELEASE_ENVIRONMENT.AVN_DESKTOP_APP_ID,
+      AEVEN_API_URL: RELEASE_ENVIRONMENT.AEVEN_API_URL,
       AVN_DESKTOP_TARGET_PLATFORM: 'win32',
       AVN_DESKTOP_TARGET_ARCH: 'x64',
       AVN_DESKTOP_UNSIGNED: '1',
@@ -91,6 +94,7 @@ describe('desktop macOS release signature', () => {
     const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
     expect(() => createElectronBuilderConfig({
       AVN_DESKTOP_APP_ID: RELEASE_ENVIRONMENT.AVN_DESKTOP_APP_ID,
+      AEVEN_API_URL: RELEASE_ENVIRONMENT.AEVEN_API_URL,
       AVN_DESKTOP_TARGET_PLATFORM: 'win32',
     }, 'win32')).toThrow(/AZURE_TRUSTED_SIGNING_ENDPOINT/u)
   })
@@ -99,6 +103,7 @@ describe('desktop macOS release signature', () => {
     const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
     const config = createElectronBuilderConfig({
       AVN_DESKTOP_APP_ID: RELEASE_ENVIRONMENT.AVN_DESKTOP_APP_ID,
+      AEVEN_API_URL: RELEASE_ENVIRONMENT.AEVEN_API_URL,
       AVN_DESKTOP_TARGET_PLATFORM: 'win32',
       AVN_DESKTOP_TARGET_ARCH: 'x64',
       AZURE_TENANT_ID: 'tenant',

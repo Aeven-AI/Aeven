@@ -2,9 +2,10 @@
 
 import { existsSync, readFileSync } from 'node:fs'
 import { parseEnv } from 'node:util'
+import { DESKTOP_DEPLOYMENT_ENV_NAMES } from './desktop-release-environment.mjs'
 
 /** Packaging settings that the repository `.env` may supply and the Linux container forwards. */
-export const DESKTOP_PACKAGING_ENV_NAMES = ['AVN_DESKTOP_APP_ID'] as const
+export const DESKTOP_PACKAGING_ENV_NAMES = ['AVN_DESKTOP_APP_ID', ...DESKTOP_DEPLOYMENT_ENV_NAMES] as const
 
 /**
  * Copy Desktop packaging settings from an env file into an environment that does not already set them.
