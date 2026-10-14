@@ -163,12 +163,3 @@ Aeven 处于开发早期，目前不接受外部 pull request。在为本仓库�
 ## 许可证
 
 [Apache-2.0](LICENSE)。Aeven 所源自代码的署名见 [NOTICE](NOTICE)。依赖许可证见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
-
-## 开发备注
-
-<details>
-<summary>工作笔记</summary>
-
-无。
-
-</details>

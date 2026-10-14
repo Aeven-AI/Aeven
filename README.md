@@ -145,12 +145,3 @@ Ask questions and share what you are building in [GitHub Discussions](https://gi
 ## License
 
 [Apache-2.0](LICENSE). Attribution for the code Aeven derives from is in [NOTICE](NOTICE). Dependency licenses are disclosed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-
-## Dev Note
-
-<details>
-<summary>Working notes</summary>
-
-None.
-
-</details>
