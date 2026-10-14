@@ -52,7 +52,7 @@ Index startup inputs are two layers. `collectIndexInjections()` gathers a fresh 
 
 ### Behavior under failure
 
-A listen failure (for example EADDRINUSE) rejects plugin initialization with the bind diagnostic. An HTTP request whose handler throws is answered 400 — or the socket destroyed when headers are already out — and logged as a warning; it never exits the process. An upgrade-handler exception or upgraded-socket transport error logs a warning and destroys its socket.
+When another process holds `port`, `portInUse: 'fail'` (the default) rejects plugin initialization with an error naming the port, and `portInUse: 'os-assigned'` listens on an OS-assigned port, logs a warning, and reports it through `ctx.webServer.port`. Any other listen failure rejects plugin initialization with the bind diagnostic. An HTTP request whose handler throws is answered 400 — or the socket destroyed when headers are already out — and logged as a warning; it never exits the process. An upgrade-handler exception or upgraded-socket transport error logs a warning and destroys its socket.
 
 -----
 

@@ -374,14 +374,16 @@
     # ── layer 2: transport/service ──────────────────────────────────────────────
 
     # Plain route-registration carrier; host and port come from the app's
-    # webStartup provider, with these deployment fallbacks. The dist is served by
-    # the web-runtime row below through the fallback seat.
+    # webStartup provider, with these deployment fallbacks. A port named with
+    # --port must be free; the default port yields to another process. The dist
+    # is served by the web-runtime row below through the fallback seat.
     - id: webserver
       name: '@aeven/host-webserver'
       inject: [webStartup]
       config:
         host: !!js ctx.webStartup.host ?? '127.0.0.1'
         port: !!js ctx.webStartup.port ?? 3080
+        portInUse: !!js ctx.webStartup.port === undefined ? 'os-assigned' : 'fail'
         compression: gzip
         compressionLevel: 1
         compressionThresholdBytes: 1024

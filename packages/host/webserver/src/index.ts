@@ -64,6 +64,12 @@ export interface Config {
   host: '127.0.0.1' | '0.0.0.0'
   /** Listen port; zero requests an OS-assigned port. */
   port: number
+  /**
+   * What happens when another process already holds `port`: `fail` rejects
+   * activation, `os-assigned` listens on a port the OS picks and reports it
+   * through {@link WebServer.port}. @default 'fail'
+   */
+  portInUse?: 'fail' | 'os-assigned'
   /** Response compression for socket-backed HTTP requests. @default 'none' */
   compression?: 'none' | 'gzip'
   /** Gzip DEFLATE level from 0 through 9. @default 1 */
@@ -73,10 +79,12 @@ export interface Config {
 }
 
 const DEFAULT_COMPRESSION = 'none' as const
+const DEFAULT_PORT_IN_USE = 'fail' as const
 const DEFAULT_COMPRESSION_LEVEL = 1
 const DEFAULT_COMPRESSION_THRESHOLD_BYTES = 1024
 
 interface ResolvedConfig extends Config {
+  portInUse: 'fail' | 'os-assigned'
   compression: 'none' | 'gzip'
   compressionLevel: number
   compressionThresholdBytes: number
@@ -128,6 +136,7 @@ export class WebServer extends Service {
   static Config: z<Config> = z.object({
     host: z.union([z.const('127.0.0.1'), z.const('0.0.0.0')]).required(),
     port: z.natural().max(65535).required(),
+    portInUse: z.union([z.const('fail'), z.const('os-assigned')]).default(DEFAULT_PORT_IN_USE),
     compression: z.union([z.const('none'), z.const('gzip')]).default(DEFAULT_COMPRESSION),
     compressionLevel: z.number().step(1).min(0).max(9).default(DEFAULT_COMPRESSION_LEVEL),
     compressionThresholdBytes: z.natural().default(DEFAULT_COMPRESSION_THRESHOLD_BYTES),
@@ -292,15 +301,26 @@ export class WebServer extends Service {
       }
     })
 
-    await new Promise<void>((resolve, reject) => {
+    const listen = (port: number): Promise<void> => new Promise<void>((resolve, reject) => {
       this.server.once('error', reject)
-      this.server.listen(this.config.port, this.config.host, () => {
+      this.server.listen(port, this.config.host, () => {
         this.server.off('error', reject)
-        this.server.on('error', (err) => { this.ctx.logger.error(err) })
-        this.listenedPort = (this.server.address() as AddressInfo).port
         resolve()
       })
     })
+    try {
+      await listen(this.config.port)
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EADDRINUSE') throw error
+      const port = `${this.config.host}:${String(this.config.port)}`
+      if ((this.config as ResolvedConfig).portInUse === 'fail') {
+        throw new Error(`webserver: port ${port} is in use by another process`, { cause: error })
+      }
+      await listen(0)
+      this.ctx.logger.warn(`port ${port} is in use by another process; listening on port ${String((this.server.address() as AddressInfo).port)}`)
+    }
+    this.server.on('error', (err) => { this.ctx.logger.error(err) })
+    this.listenedPort = (this.server.address() as AddressInfo).port
 
     // Node does not include upgraded sockets in closeAllConnections(). The service
     // owns them with the other connections, so it tracks and destroys them explicitly.

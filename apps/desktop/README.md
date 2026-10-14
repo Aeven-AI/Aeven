@@ -2,9 +2,11 @@
 
 English | [中文](README.zh.md)
 
-The desktop application is an Electron shell around the shared avn Web UI. Web and Electron reuse one GUI Host per Aeven home through kernel-owned startup exclusion and an authenticated HTTP endpoint. Electron starts a bundled upstream Node.js Host when none exists; quitting Electron detaches the shell while the Host continues serving browser clients and running work. Explicit Host shutdown or process death releases ownership. A desktop-started Host defaults to loopback port 3080.
+The desktop application is an Electron shell around the shared avn Web UI. Web and Electron reuse one GUI Host per Aeven home through kernel-owned startup exclusion and an authenticated HTTP endpoint. Electron starts a bundled upstream Node.js Host when none exists. That Host stops when Electron quits or crashes unless another process holds a client lease on it; browser tabs hold none. Quitting while an agent turn runs asks for confirmation first. A Host started by `avn web` belongs to its terminal and keeps running. A desktop-started Host prefers loopback port 3080; when another process holds that port, it listens on an OS-assigned port and reuses that port on later launches, so browser storage tied to the origin, sign-in included, survives.
 
-An adopted Host owns its backend package graph. Desktop package updates require that Host to stop before validation and activation; adopting a running Host does not replace its packages. The first launcher determines the serving profile and capabilities. Both clients use the same Session and workspace state.
+An adopted Host owns its backend package graph. A packaged Desktop stops a desktop-started Host that serves another avn version and holds no client lease, then starts its own, so an update never renders an earlier backend; it adopts an `avn web` Host of any version. Desktop package updates require an adopted Host to stop before validation and activation; adopting a running Host does not replace its packages. The first launcher determines the serving profile and capabilities. Both clients use the same Session and workspace state.
+
+**Run in the background** in General Settings, off by default, keeps the application running with a menu bar or system tray icon after its last window closes; on macOS the Dock icon hides until a window opens. The running shell keeps its Host serving, so agent turns and automations continue until **Quit Aeven** from the icon or the application menu. The choice is stored in Electron's user-data directory.
 
 The [Desktop Host overlay](../desktop-host/config/desktop.cordis.patch.yml) supplies production service URLs for sign-in, inference, search, media, and account integrations; an installed app needs no `.env` file. The API defaults to `https://aeven.io/api`; web, media, and OAuth use `https://preview.aeven.io`. Explicit `AEVEN_API_URL`, `AEVEN_WEB_URL`, `AEVEN_MEDIA_URL`, and `AEVEN_OAUTH_{X,APPLE,GOOGLE}_URL` environment settings override those defaults. Desktop sign-in opens a separate window. See the [endpoint decision](../../.agents/notes/implemented/bug-fix/2026-10-14-desktop-production-service-endpoints.md).
 
@@ -108,7 +110,7 @@ Each target owns its packed package inputs, prepared runtime, package set, seed,
 
 ### Icons
 
-`resources/` holds the application icons and `installer/assets/` the NSIS sidebar; each raster is rendered from the SVG beside it at its own edge length. macOS uses `icon-macos.icns` for the application and the mounted DMG volume, Windows uses `icon-windows.ico` for the executable, installer, and uninstaller, and the Linux packages use `linux/icons/`, one PNG per icon-theme size from 16 to 512 px, while an unpackaged Linux run uses `icon-macos.png`. `installer-sidebar.bmp` fills the welcome and finish pages of the Windows installer and uninstaller. `tray-windows.ico` (16–64 px) and the macOS menu bar template `trayTemplate.png` (16 px, with `@2x`) are not packaged until the application shows a tray icon.
+`resources/` holds the application icons and `installer/assets/` the NSIS sidebar; each raster is rendered from the SVG beside it at its own edge length. macOS uses `icon-macos.icns` for the application and the mounted DMG volume, Windows uses `icon-windows.ico` for the executable, installer, and uninstaller, and the Linux packages use `linux/icons/`, one PNG per icon-theme size from 16 to 512 px, while an unpackaged Linux run uses `icon-macos.png`. `installer-sidebar.bmp` fills the welcome and finish pages of the Windows installer and uninstaller. The background-mode icon uses `tray-windows.ico` (16–64 px) on Windows, the menu bar template `trayTemplate.png` (16 px, with `@2x`) on macOS, and `linux/icons/24x24.png` on Linux.
 
 ### Linux packages
 
@@ -184,5 +186,7 @@ Electron-builder emits GitHub-provider channel metadata (`latest.yml`, or `alpha
 
 - The Web "Open In..." action is disabled in Desktop because its host plugin requires HTTP routes; Desktop does not provide a `webServer`.
 - Release signing, notarization, update hosting, and previous-version installed-artifact qualification require the production release environment.
+- On Windows, stopping a desktop-started Host from another release terminates the process without its teardown, because Windows delivers no termination signal a process can handle.
+- A shell that renders a Host another process launched quits without the running-work confirmation, because only the launching shell can ask its Host about running turns.
 - Desktop plugins with dependency lifecycle scripts are rejected unless their package appears in the desktop project's reviewed `allowBuilds` policy.
 - The desktop shell shares sessions, settings, credentials, workspaces, and storage under `$AVN_HOME` with CLI avn, while executable packages, plugin activation, lockfiles, and package-manager state remain separate.

@@ -8,6 +8,7 @@ import { createRequire } from 'node:module'
 import { closeSync, createReadStream, createWriteStream, existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { once } from 'node:events'
 import { readFile } from 'node:fs/promises'
+import { setTimeout as delay } from 'node:timers/promises'
 import { dirname, extname, join, normalize, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
@@ -19,9 +20,17 @@ import {
   loadProfileDirectory,
   loadOverlayPatches,
 } from '@aeven/app-boot'
-import { claimOrAttachHost, advertiseHostUrl, resolveAvnHome } from '@aeven/home-paths'
+import {
+  acquireHostClientLease,
+  advertiseHostUrl,
+  claimOrAttachHost,
+  countHostClientLeases,
+  resolveAvnHome,
+  withdrawHostUrl,
+} from '@aeven/home-paths'
 import { provideCmdline } from '@aeven/cmdline'
 import { AVN_LAUNCH_ENVIRONMENT_KEY } from '@aeven/launch-environment'
+import type {} from '@aeven/agent'
 import type {} from '@aeven/api-gateway'
 import type { ConnectionFetchHandler } from '@aeven/client-connection'
 import type {} from '@aeven/client-modules'
@@ -56,7 +65,19 @@ export interface DesktopHostFetchCommand {
 
 /** Commands accepted by the desktop child process. */
 export type DesktopHostCommand = {
+  /** Stop now, whatever client leases are held. */
   readonly type: 'shutdown'
+} | {
+  /** Report {@link DesktopHostActivity} in an `activity` event. */
+  readonly type: 'activity'
+}
+
+/** Work and clients that decide whether the shell's departure stops this Host. */
+export interface DesktopHostActivity {
+  /** Agents with a turn in progress. */
+  readonly runningAgents: number
+  /** Client leases other processes hold; any lease keeps this Host serving after the shell leaves. */
+  readonly clientLeases: number
 }
 
 /** Events emitted by the desktop child process. */
@@ -68,7 +89,9 @@ export type DesktopHostEvent = {
   readonly url: string
   readonly ownsHost: boolean
   readonly aevenSignIn?: DesktopAevenSignIn
-} | {
+} | ({
+  readonly type: 'activity'
+} & DesktopHostActivity) | {
   readonly type: 'fatal'
   readonly message: string
 }
@@ -85,6 +108,8 @@ export interface DesktopHostController {
   fetch(command: DesktopHostFetchCommand, body: ReadableStream<Uint8Array> | null): Promise<void>
   /** Abort one in-flight request. */
   cancel(streamId: number): void
+  /** Count agents with a turn in progress. */
+  runningAgents(): number
   /** Stop accepting messages and await complete host teardown. */
   dispose(): Promise<void>
 }
@@ -94,8 +119,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isDesktopHostCommand(message: unknown): message is DesktopHostCommand {
-  return typeof message === 'object' && message !== null && 'type' in message
-    && (message as Record<string, unknown>).type === 'shutdown'
+  if (!isRecord(message)) return false
+  return message.type === 'shutdown' || message.type === 'activity'
 }
 
 interface PackageManifest {
@@ -107,6 +132,12 @@ const DESKTOP_PATCH = fileURLToPath(new URL('../config/desktop.cordis.patch.yml'
 const ROOT_CONFIG = '# Electron desktop composition root; package transactions own this file.\n[]\n'
 const ROOT_CONFIG_FILENAME = 'desktop.cordis.yml'
 const DESKTOP_STREAM_PATH = '/.aeven/remote-stream'
+/** Home-relative record of the port the desktop Host last bound. */
+const DESKTOP_PORT_FILE = join('runtime', 'desktop-port.json')
+/** Interval between client lease checks after the launching shell has left. */
+const CLIENT_LEASE_POLL_MS = 2_000
+/** Longest teardown before the Host exits anyway; matches the shell's former SIGTERM-then-SIGKILL budget. */
+const TEARDOWN_DEADLINE_MS = 15_000
 
 /**
  * Page transport hooks. Streams send through the hook's `fetch` as resolved at
@@ -170,7 +201,42 @@ function isProjectPath(projectDir: string, target: string): boolean {
   return path === root || path.startsWith(root + sep)
 }
 
-function desktopPatches(projectDir: string, allowLinkedPackages: boolean): PatchOptions[] {
+/** Port binding carried between launches; a fallback port applies only while `configured` is unchanged. */
+interface DesktopPortRecord {
+  readonly configured: number
+  readonly bound: number
+}
+
+function isPort(value: unknown): value is number {
+  return Number.isInteger(value) && (value as number) > 0 && (value as number) <= 65535
+}
+
+function readPortRecord(path: string): DesktopPortRecord | undefined {
+  let text: string
+  try {
+    text = readFileSync(path, 'utf8')
+  } catch {
+    // Absent until the first boot binds; any unreadable record starts from the configured port.
+    return undefined
+  }
+  try {
+    const value: unknown = JSON.parse(text)
+    return isRecord(value) && isPort(value.configured) && isPort(value.bound)
+      ? { configured: value.configured, bound: value.bound }
+      : undefined
+  } catch {
+    // A corrupt record starts from the configured port and is rewritten after boot.
+    return undefined
+  }
+}
+
+interface DesktopPatches {
+  readonly layers: PatchOptions[]
+  /** Port the composed webserver row requests before any remembered fallback applies. */
+  readonly configuredPort: number
+}
+
+function desktopPatches(projectDir: string, allowLinkedPackages: boolean, portFile: string): DesktopPatches {
   const avnRoot = dirname(packageManifestPath(projectDir, '@aeven/cli'))
   const profile = loadProfileDirectory('avn desktop', projectDir, join(avnRoot, 'package.json'))
   for (const layer of profile.layers) {
@@ -184,6 +250,13 @@ function desktopPatches(projectDir: string, allowLinkedPackages: boolean): Patch
     loadOverlayPatches('avn desktop', DESKTOP_PATCH),
   ]
   const rows = new Map(composeEntries(layers).flatMap(row => typeof row.id === 'string' ? [[row.id, row] as const] : []))
+  const webserverConfig = (rows.get('webserver')?.config ?? {}) as Record<string, unknown>
+  if (!isPort(webserverConfig.port)) throw new Error('avn desktop: the composed webserver row must configure a literal nonzero port')
+  const configuredPort = webserverConfig.port
+  const remembered = readPortRecord(portFile)
+  if (remembered !== undefined && remembered.configured === configuredPort) {
+    layers.push([{ id: 'webserver', config: { ...webserverConfig, port: remembered.bound } }])
+  }
   const agentPresets = rows.get('agent-presets')
   if (agentPresets !== undefined) {
     layers.push([{
@@ -198,7 +271,7 @@ function desktopPatches(projectDir: string, allowLinkedPackages: boolean): Patch
     id: 'desktop-http-frontend', name: '@aeven/host-frontend-static',
     config: { distIndex: join(projectDir, 'node_modules', '@aeven', 'web-frontend', 'dist', 'index.html') },
   }] }])
-  return layers.flat()
+  return { layers: layers.flat(), configuredPort }
 }
 
 function avnVersion(projectDir: string): string {
@@ -330,6 +403,19 @@ function remoteStreamHandler(ctx: Context): ConnectionFetchHandler {
   }
 }
 
+/**
+ * Close one inherited Electron pipe descriptor. After the shell has left, the
+ * descriptor can already be closed, and teardown must still run to completion.
+ * @param fd - inherited pipe descriptor number.
+ */
+function closePipeDescriptor(fd: number): void {
+  try {
+    closeSync(fd)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'EBADF') throw error
+  }
+}
+
 interface NodeRequestInit extends RequestInit {
   readonly duplex?: 'half'
 }
@@ -338,13 +424,14 @@ interface NodeRequestInit extends RequestInit {
  * Boot one installed desktop npm project.
  * @param projectDir - active or staged Electron-owned desktop profile.
  * @param writeResponse - serialized response-pipe writer that applies byte backpressure.
- * @param options - development-only allowance for workspace-linked bundle packages.
+ * @param options - development-only allowance for workspace-linked bundle packages, and the file
+ * that carries the bound port to the next launch so browser storage tied to the origin survives a fallback.
  * @returns controller after every Host and client-manifest row is active.
  */
 export async function runDesktopHost(
   projectDir: string,
   writeResponse: (frame: Buffer) => Promise<void>,
-  options: { allowLinkedPackages?: boolean } = {},
+  options: { allowLinkedPackages?: boolean; portFile: string },
 ): Promise<DesktopHostController> {
   const absoluteProject = resolve(projectDir)
   mkdirSync(absoluteProject, { recursive: true })
@@ -353,10 +440,8 @@ export async function runDesktopHost(
   const environment = loadLayeredEnv('avn desktop')
   let current: Context | undefined
   try {
-    const ctx = await boot('avn desktop', rootConfig, structuredClone(desktopPatches(
-      absoluteProject,
-      options.allowLinkedPackages === true,
-    )), (hostCtx) => {
+    const patches = desktopPatches(absoluteProject, options.allowLinkedPackages === true, options.portFile)
+    const ctx = await boot('avn desktop', rootConfig, structuredClone(patches.layers), (hostCtx) => {
       current = hostCtx
       hostCtx.provide(AVN_LAUNCH_ENVIRONMENT_KEY, environment)
       provideCmdline(hostCtx, { args: [], exit: () => {} })
@@ -384,6 +469,7 @@ export async function runDesktopHost(
       throw new Error('avn desktop: composition did not provide webServer')
     }
     const subscriptionOrigin = `http://127.0.0.1:${String(webServer.port)}`
+    writeFileSync(options.portFile, `${JSON.stringify({ configured: patches.configuredPort, bound: webServer.port } satisfies DesktopPortRecord)}\n`)
     // Owned application requests cross into the loopback HTTP carrier.
     // Its owner policy receives the loopback origin, never an external page's.
     const dispatchSubscription = (request: Request): Promise<Response> => {
@@ -426,6 +512,9 @@ export async function runDesktopHost(
       aevenSignIn: aevenSignIn(ctx),
       cancel(streamId) {
         requests.get(streamId)?.abort()
+      },
+      runningAgents() {
+        return ctx.get('agents')?.list().filter(agent => agent.status === 'running').length ?? 0
       },
       async fetch(command, body) {
         if (disposing !== undefined) throw new Error('avn desktop: host is disposing')
@@ -514,7 +603,7 @@ async function main(): Promise<void> {
     }
   }
   const home = resolveAvnHome()
-  const startup = await claimOrAttachHost(home)
+  const startup = await claimOrAttachHost(home, { lifetime: 'leased', avnVersion: avnVersion(projectDir) })
   if (startup.kind === 'attach') {
     send({ type: 'ready', protocolVersion: DESKTOP_HOST_PROTOCOL_VERSION, avnVersion: avnVersion(projectDir), url: startup.url, ownsHost: false })
     requestPipe.destroy()
@@ -524,12 +613,18 @@ async function main(): Promise<void> {
   }
   let controller: DesktopHostController | undefined
   try {
-    controller = await runDesktopHost(projectDir, writeResponse, { allowLinkedPackages: option !== undefined })
+    controller = await runDesktopHost(projectDir, writeResponse, {
+      allowLinkedPackages: option !== undefined,
+      portFile: join(home, DESKTOP_PORT_FILE),
+    })
     await advertiseHostUrl(home, process.pid, controller.url)
   } catch (error: unknown) {
     await controller?.dispose()
     throw error
   }
+  // Held for the launching shell while its IPC channel is open, so another
+  // launcher sees this Host in use; released when the shell leaves.
+  let releaseShellLease: (() => Promise<void>) | undefined = await acquireHostClientLease(home)
   send({
     type: 'ready',
     protocolVersion: DESKTOP_HOST_PROTOCOL_VERSION,
@@ -554,6 +649,14 @@ async function main(): Promise<void> {
   const stop = (exitCode = 0): Promise<void> => {
     requestedExitCode = Math.max(requestedExitCode, exitCode)
     stopping ??= (async () => {
+      setTimeout(() => {
+        // A plugin that never finishes disposing would keep this unowned process serving.
+        process.stderr.write(`avn desktop: teardown did not finish within ${String(TEARDOWN_DEADLINE_MS)} ms; exiting\n`)
+        process.exit(1)
+      }, TEARDOWN_DEADLINE_MS).unref()
+      await withdrawHostUrl(home, process.pid)
+      await releaseShellLease?.()
+      releaseShellLease = undefined
       requestPipe.pause()
       requestPipe.removeAllListeners('data')
       const stopped = new Error('avn desktop: Host is stopping')
@@ -562,7 +665,7 @@ async function main(): Promise<void> {
       blockedRequests.clear()
       discardedRequestBodies.clear()
       requestPipe.destroy()
-      closeSync(DESKTOP_REQUEST_PIPE_FD)
+      closePipeDescriptor(DESKTOP_REQUEST_PIPE_FD)
       await controller.dispose()
       await startup.release()
       await Promise.allSettled([...runs])
@@ -571,7 +674,7 @@ async function main(): Promise<void> {
         await new Promise<void>((resolvePromise) => { responsePipe.end(resolvePromise) })
         responsePipe.destroy()
       }
-      closeSync(DESKTOP_RESPONSE_PIPE_FD)
+      closePipeDescriptor(DESKTOP_RESPONSE_PIPE_FD)
       if (process.connected) process.disconnect()
       process.exitCode = requestedExitCode
     })()
@@ -707,12 +810,41 @@ async function main(): Promise<void> {
       void stop(1)
       return
     }
-    void stop()
+    switch (message.type) {
+      case 'shutdown':
+        void stop()
+        return
+      case 'activity':
+        countHostClientLeases(home).then((held) => {
+          const clientLeases = held - (releaseShellLease === undefined ? 0 : 1)
+          send({ type: 'activity', runningAgents: controller.runningAgents(), clientLeases })
+        }, failTransport)
+        return
+      default:
+        message satisfies never
+    }
   })
+  // The launching shell's IPC channel is its lease: quitting or dying closes
+  // it. Browser tabs hold no lease, so the Host stops once no client lease
+  // remains and checks again at each poll while one does.
+  const stopWhenUnleased = async (): Promise<void> => {
+    while (stopping === undefined) {
+      if (await countHostClientLeases(home) === 0) {
+        await stop()
+        return
+      }
+      await delay(CLIENT_LEASE_POLL_MS)
+    }
+  }
   process.once('disconnect', () => {
-    // The shell is a client; its departure does not stop browser clients or work.
     requestPipe.destroy()
     responsePipe.destroy()
+    const releasing = releaseShellLease?.() ?? Promise.resolve()
+    releaseShellLease = undefined
+    releasing.then(stopWhenUnleased).catch((error: unknown) => {
+      process.stderr.write(`avn desktop: client lease check failed; stopping: ${error instanceof Error ? error.message : String(error)}\n`)
+      void stop(1)
+    })
   })
   process.once('SIGTERM', () => { void stop() })
   process.once('SIGINT', () => { void stop() })

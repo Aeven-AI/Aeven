@@ -31,7 +31,7 @@ kind: "package-reference"
 
 ### 「通用」分区
 
-「通用」分区承载由功能包注册进 `settings.general.item` 的行，另有一行归本包所有：「开发者模式」，以 `enabled` 字段存于本包注册的 `ui-developer` 设置命名空间。Agent 预设名单等开发者表面只在它开启时挂载；使用方从 `./client` 导入该命名空间的类型，并通过 `ctx.settingsScope` 绑定。功能插件拥有各自的行文案与行为。例如「语言」行位于 client-locale，「外观」分区位于 ui-theme。
+「通用」分区承载由功能包注册进 `settings.general.item` 的行，另有两行归本包所有。「后台运行」只出现在桌面应用中，由其 preload 桥保存该选项；浏览器版本没有该桥，也不显示此行。「开发者模式」以 `enabled` 字段存于本包注册的 `ui-developer` 设置命名空间。Agent 预设名单等开发者表面只在它开启时挂载；使用方从 `./client` 导入该命名空间的类型，并通过 `ctx.settingsScope` 绑定。功能插件拥有各自的行文案与行为。例如「语言」行位于 client-locale，「外观」分区位于 ui-theme。
 
 ### 打开配置文件
 
@@ -100,7 +100,7 @@ Models、Agent presets、Plugins 与 Subscriptions（`grok-build`）各有自己
 
 这些限制说明外壳自身提供什么、功能包必须提供什么；它们是当前包约束。
 
-- **「通用」分区只自带「开发者模式」一行**：其余每一行仅在其所属功能插件挂载时出现。
+- **「通用」分区只自带「后台运行」与「开发者模式」两行**：其余每一行仅在其所属功能插件挂载时出现。
 
 <a id="dev-note"></a>
 

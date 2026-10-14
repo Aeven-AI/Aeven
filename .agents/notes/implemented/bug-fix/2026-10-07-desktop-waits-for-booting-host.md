@@ -14,7 +14,7 @@ GUI launchers claim a kernel lock at `runtime/host.lock` before mounting statefu
 
 Electron and ordinary browsers use the same authenticated HTTP application. The Electron child defaults to loopback port 3080 and serves the matching frontend plus workspace-file routes. Electron's IPC admits its application origin, and adopted sign-in discovery uses Electron's cookie-aware session. The serving profile and plugin capabilities belong to the first launcher; another launch reports the existing endpoint without applying new flags or patches.
 
-Quitting Electron disconnects its shell from the detached upstream Node.js process; browser clients and running work continue. Explicit shutdown drains the application before releasing ownership. A failed teardown keeps the kernel claim until process exit. Desktop startup does not replace an adopted Host's package graph, and package validation or activation refuses an externally owned Host. The [per-session writer lock](2026-10-10-session-writer-ownership.md) remains necessary for independent non-GUI processes.
+[Desktop Host lifetime follows client leases](../architecture/2026-10-15-desktop-host-lifetime-follows-leases.md) supersedes this note's quit behavior: a desktop-started Host stops once its shell and every client lease are gone. Explicit shutdown drains the application before releasing ownership. A failed teardown keeps the kernel claim until process exit. Desktop startup does not replace an adopted Host's package graph, and package validation or activation refuses an externally owned Host. The [per-session writer lock](2026-10-10-session-writer-ownership.md) remains necessary for independent non-GUI processes.
 
 ## Alternatives considered
 
@@ -26,4 +26,4 @@ Quitting Electron disconnects its shell from the detached upstream Node.js proce
 
 ## Consequences
 
-Web-first, Electron-first, and simultaneous GUI launches select one serving Host. Non-GUI processes keep per-session exclusion. A detached desktop-started Host remains running until explicit process shutdown. Updating an externally owned backend requires stopping its Host first. Old running processes must restart to participate. Validation is limited to TypeScript and the repository build at the user's request; launch-order, crash, Windows-lock, and visible-client behavior remain unverified at runtime.
+Web-first, Electron-first, and simultaneous GUI launches select one serving Host. Non-GUI processes keep per-session exclusion. Updating an externally owned backend requires stopping its Host first. Old running processes must restart to participate. Validation is limited to TypeScript and the repository build at the user's request; launch-order, crash, Windows-lock, and visible-client behavior remain unverified at runtime.

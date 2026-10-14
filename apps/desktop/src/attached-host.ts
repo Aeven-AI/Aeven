@@ -7,7 +7,7 @@
  */
 
 import { setTimeout as delay } from 'node:timers/promises'
-import { isHostProcessAlive, liveHostLease, probeHostUrl, resolveAvnHome } from '@aeven/home-paths'
+import { countHostClientLeases, isHostProcessAlive, liveHostLease, probeHostUrl, resolveAvnHome } from '@aeven/home-paths'
 
 /** The backend this shell should render. */
 export type DesktopBackendPlan =
@@ -40,17 +40,32 @@ export interface DesktopBackendOptions {
   readonly waitMs?: number
   /** Interval between lease reads and probes while waiting; defaults to 250 ms. */
   readonly pollMs?: number
+  /**
+   * avn version this shell ships. When set, a Host that is not `foreground`,
+   * serves another version, and has no client lease is stopped and replaced
+   * instead of adopted. Omitted, every answering Host is adopted.
+   */
+  readonly avnVersion?: string
+  /** Stop request sent to an outdated Host; defaults to SIGTERM. */
+  readonly terminate?: (pid: number) => void
+  /** Client lease count for the home; defaults to counting the home's lease files. */
+  readonly clientLeases?: (home: string) => Promise<number>
 }
 
 /**
  * Choose the backend for this shell.
  *
  * A lease is trusted only while its owning process is alive, and adopted only
- * once its URL answers. A booting Host holds a lease without a URL, and a busy
- * one can miss a single probe, so both are retried until `waitMs` runs out. A
- * crashed Host leaves a stale record, and refusing to start over one would
- * strand the user with no window at all.
- * @param options - probe, self-pid, home, and wait overrides.
+ * once its URL answers. A booting or stopping Host holds a lease without a
+ * URL, and a busy one can miss a single probe, so both are retried until
+ * `waitMs` runs out. A crashed Host leaves a stale record, and refusing to
+ * start over one would strand the user with no window at all. A Host
+ * launched by an earlier desktop release would serve the wrong backend after
+ * an update, so with `avnVersion` set it is asked to stop and this shell
+ * starts its own once that process has exited. A Host that a shell or other
+ * client still leases is in use and is adopted instead. On Windows the stop
+ * request terminates the process without teardown.
+ * @param options - probe, self-pid, home, wait, version, and stop overrides.
  * @returns the plan to render.
  */
 export async function planDesktopBackend(
@@ -59,18 +74,34 @@ export async function planDesktopBackend(
   const home = options.home ?? resolveAvnHome()
   const ownPid = options.ownPid ?? process.pid
   const probe = options.probe ?? ((url: string) => probeHostUrl(url))
+  const terminate = options.terminate ?? ((pid: number) => { process.kill(pid, 'SIGTERM') })
+  const clientLeases = options.clientLeases ?? countHostClientLeases
   const deadline = Date.now() + (options.waitMs ?? 30_000)
   const pollMs = options.pollMs ?? 250
+  let replaced: { readonly pid: number; readonly reason: string } | undefined
   for (;;) {
     const lease = await liveHostLease(home).catch(() => undefined)
-    if (lease === undefined) return { kind: 'spawn', reason: 'the home advertises no Host' }
+    if (lease === undefined) return { kind: 'spawn', reason: replaced?.reason ?? 'the home advertises no Host' }
     if (lease.pid === ownPid) return { kind: 'spawn', reason: 'the lease belongs to this shell' }
-    if (lease.url !== undefined && await probe(lease.url).catch(() => false)) {
-      return { kind: 'attach', url: lease.url }
+    const stopping = lease.pid === replaced?.pid
+    if (!stopping && lease.url !== undefined && await probe(lease.url).catch(() => false)) {
+      if (options.avnVersion === undefined || lease.lifetime === 'foreground' || lease.avnVersion === options.avnVersion
+        || await clientLeases(home) > 0) {
+        return { kind: 'attach', url: lease.url }
+      }
+      terminate(lease.pid)
+      replaced = {
+        pid: lease.pid,
+        reason: `the Host serving avn ${lease.avnVersion ?? 'of an unrecorded version'} (pid ${String(lease.pid)}) was stopped for avn ${options.avnVersion}`,
+      }
     }
-    if (!isHostProcessAlive(lease.pid)) return { kind: 'spawn', reason: `leased Host pid ${String(lease.pid)} exited` }
+    if (!isHostProcessAlive(lease.pid)) {
+      return { kind: 'spawn', reason: lease.pid === replaced?.pid ? replaced.reason : `leased Host pid ${String(lease.pid)} exited` }
+    }
     if (Date.now() >= deadline) {
-      throw new Error(`the existing Aeven Host (pid ${String(lease.pid)}) did not become ready; stop that Host before starting another`)
+      throw new Error(lease.pid === replaced?.pid
+        ? `the outdated Aeven Host (pid ${String(lease.pid)}) did not stop; stop that Host before starting another`
+        : `the existing Aeven Host (pid ${String(lease.pid)}) did not become ready; stop that Host before starting another`)
     }
     await delay(pollMs)
   }

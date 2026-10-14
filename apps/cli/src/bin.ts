@@ -21,7 +21,8 @@ function readVersion(): string {
   return typeof manifest.version === 'string' ? manifest.version : '0.0.0'
 }
 
-const invocation = parseAvnArgs(process.argv.slice(2), readVersion())
+const version = readVersion()
+const invocation = parseAvnArgs(process.argv.slice(2), version)
 
 switch (invocation.mode) {
   case 'profile': {
@@ -31,6 +32,7 @@ switch (invocation.mode) {
       profile: invocation.profile,
       patchFiles: invocation.patches,
       args: invocation.args,
+      avnVersion: version,
     })
     break
   }

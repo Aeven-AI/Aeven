@@ -21,6 +21,7 @@ import { startBrowserSignIn } from './oauth-browser.ts'
 import { installContextMenu, registerContextMenuIpc } from './context-menu.ts'
 import { listenForPageLinks, openContentAddress } from './external-links.ts'
 import { hardenBrowserGuests, registerBrowserIpc } from './browser-guests.ts'
+import { acquireHostClientLease, resolveAvnHome } from '@aeven/home-paths'
 import { planDesktopBackend } from './attached-host.ts'
 import { resolveDesktopPaths } from './paths.ts'
 import { DesktopProjectManager, type DesktopProjectHooks } from './project-manager.ts'
@@ -30,6 +31,7 @@ import { DESKTOP_IPC, type DesktopCaptionAction, type DesktopMenuCommand, type D
 import { formatDesktopMessage, resolveDesktopLocale } from './locale.ts'
 import { claimDesktopSingleInstance } from './single-instance.ts'
 import { DesktopUpdateCoordinator } from './update-coordinator.ts'
+import { DesktopBackgroundMode } from './background-mode.ts'
 import { sendVideoEmbedReferrer } from './video-embeds.ts'
 
 const SCHEME = 'avn-app'
@@ -278,6 +280,12 @@ async function main(): Promise<void> {
   const hostInspectPort = developmentHostInspectPort(development !== undefined)
   const manager = new DesktopProjectManager(paths, resources)
   let host: DesktopHostProcess | undefined
+  // Held while this shell renders a Host another process launched, so that
+  // Host keeps serving if its own shell quits first.
+  let releaseClientLease: (() => Promise<void>) | undefined
+  const holdAttachedHost = async (): Promise<void> => {
+    releaseClientLease ??= await acquireHostClientLease(resolveAvnHome())
+  }
   let aevenSignIn: DesktopAevenSignIn | undefined
   let mainWindow: BrowserWindow | undefined
   let shellInstallerOwnsQuit = false
@@ -361,16 +369,19 @@ async function main(): Promise<void> {
   }
   installApplicationMenu()
 
-  const plan = await planDesktopBackend()
+  // A packaged shell replaces a desktop Host from another release; a
+  // development shell adopts whatever serves the home.
+  const plan = await planDesktopBackend(development === undefined ? { avnVersion: app.getVersion() } : {})
   if (development === undefined && plan.kind === 'spawn') manager.recover()
 
   const startHost = async (projectDir = activeProject): Promise<DesktopHostProcess> => {
     const next = new DesktopHostProcess(resources.node, projectDir, hostInspectPort)
     const ready = await next.start()
     if (!ready.ownsHost && projectDir !== activeProject) {
-      next.detach()
+      next.release()
       throw new Error('stop the existing Aeven Host before validating a desktop update')
     }
+    if (!ready.ownsHost) await holdAttachedHost()
     if (projectDir === activeProject) {
       aevenSignIn = ready.aevenSignIn ?? await adoptedHostSignIn(ready.url)
       attachedBackend = { url: ready.url, origin: new URL(ready.url).origin }
@@ -431,6 +442,7 @@ async function main(): Promise<void> {
   // advertised URL already owns this home, and two Hosts on one home overwrite
   // each other's domain state, so adopting it is both correct and cheaper.
   if (plan.kind === 'attach') {
+    await holdAttachedHost()
     attachedBackend = { url: plan.url, origin: new URL(plan.url).origin }
     console.log(`desktop: adopting the Host already serving this home at ${attachedBackend.origin}`)
     // No Host of ours reports the provider URLs, and without them the window's
@@ -451,8 +463,26 @@ async function main(): Promise<void> {
       const active = host
       host = undefined
       await active?.stop()
+      await releaseClientLease?.()
     },
   )
+
+  const background = new DesktopBackgroundMode(join(app.getPath('userData'), 'background-mode.json'), messages, {
+    open: () => { focusPrimaryWindow() },
+    quit: () => { app.quit() },
+  })
+  background.onChange((enabled) => {
+    for (const window of BrowserWindow.getAllWindows()) window.webContents.send(DESKTOP_IPC.backgroundModeState, enabled)
+  })
+  ipcMain.handle(DESKTOP_IPC.backgroundModeGet, (event) => {
+    assertDesktopSender(event, ['app'])
+    return background.enabled
+  })
+  ipcMain.handle(DESKTOP_IPC.backgroundModeSet, async (event, enabled: unknown) => {
+    assertDesktopSender(event, ['app'])
+    if (typeof enabled !== 'boolean') throw new Error('avn desktop: background mode must be a boolean')
+    await background.setEnabled(enabled)
+  })
 
   sendVideoEmbedReferrer(session.defaultSession)
 
@@ -642,6 +672,8 @@ async function main(): Promise<void> {
     return window
   }
   focusPrimaryWindow = () => {
+    // Background mode hides the Dock icon while no window is open.
+    if (process.platform === 'darwin') void app.dock?.show()
     const window = mainWindow
     if (window === undefined || window.isDestroyed()) {
       const replacement = createMainWindow()
@@ -665,16 +697,53 @@ async function main(): Promise<void> {
     if (BrowserWindow.getAllWindows().length === 0) focusPrimaryWindow()
   })
   app.on('window-all-closed', () => {
+    // In background mode the shell stays in the menu bar and keeps its Host lease.
+    if (background.enabled) {
+      if (process.platform === 'darwin') app.dock?.hide()
+      return
+    }
     if (process.platform !== 'darwin') app.quit()
   })
+  /**
+   * Whether quitting may stop running work: true when nothing would stop with
+   * the Host, or the user confirmed. Work keeps running when another process
+   * holds a client lease, and an unanswered query asks nothing.
+   */
+  const confirmQuit = async (active: DesktopHostProcess): Promise<boolean> => {
+    const activity = await active.activity()
+    if (activity === undefined || activity.runningAgents === 0 || activity.clientLeases > 0) return true
+    const window = mainWindow !== undefined && !mainWindow.isDestroyed() ? mainWindow : undefined
+    const options = {
+      type: 'warning' as const,
+      message: messages.quitWhileWorkingTitle,
+      detail: messages.quitWhileWorkingDetail,
+      buttons: [messages.quitAnyway, messages.cancel],
+      defaultId: 1,
+      cancelId: 1,
+    }
+    const result = window === undefined ? await dialog.showMessageBox(options) : await dialog.showMessageBox(window, options)
+    return result.response === 0
+  }
+  let quitting: Promise<void> | undefined
+  let quitConfirmed = false
   app.on('before-quit', (event) => {
-    if (shellInstallerOwnsQuit) return
-    if (host === undefined) return
+    if (shellInstallerOwnsQuit || quitConfirmed) return
+    if (host === undefined && releaseClientLease === undefined) return
     event.preventDefault()
-    const active = host
-    host = undefined
-    active.detach()
-    app.quit()
+    quitting ??= (async () => {
+      const active = host
+      if (active !== undefined && !await confirmQuit(active)) {
+        // Closing the last window quits on Windows and Linux; a cancelled quit reopens it.
+        focusPrimaryWindow()
+        return
+      }
+      // The Host stops itself once no client lease remains.
+      host = undefined
+      active?.release()
+      await releaseClientLease?.()
+      quitConfirmed = true
+      app.quit()
+    })().finally(() => { quitting = undefined })
   })
 }
 

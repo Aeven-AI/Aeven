@@ -7,7 +7,9 @@ kind: "package-library"
 
 [English](README.md) | 中文
 
-GUI 启动器在挂载有状态插件之前调用 `claimOrAttachHost`。`runtime/host.lock` 的内核锁在启动和服务期间保持所有权；原子写入且仅所有者可读写的 `runtime/host.json` 发布已认证的端点。竞争者复用该端点，或在就绪期限到达后拒绝启动；超时绝不允许启动另一个 Host。进程死亡会释放内核锁。只要 Host 仍可能运行，就不得删除持久锁文件。
+GUI 启动器在挂载有状态插件之前调用 `claimOrAttachHost`。`runtime/host.lock` 的内核锁在启动和服务期间保持所有权；原子写入且仅所有者可读写的 `runtime/host.json` 发布已认证的端点。竞争者复用该端点，或在就绪期限到达后拒绝启动；超时绝不允许启动另一个 Host。进程死亡会释放内核锁。只要 Host 仍可能运行，就不得删除持久锁文件。该记录写明 Host 的 `lifetime` 与 `avnVersion`：`leased` Host 属于启动它的桌面壳，`foreground` Host 属于运行它的终端。销毁之前，`withdrawHostUrl` 会移除 URL，使竞争者等待进程退出，而不是接入正在关闭的服务器。
+
+呈现其他进程所启动 `leased` Host 的进程会持有 `acquireHostClientLease`，使该 Host 在其启动桌面壳退出后继续提供服务。每个租约都是 `runtime/host-clients/` 下的一个内核文件锁，由返回的函数或进程死亡释放。`countHostClientLeases` 统计被持有的租约，并删除已退出持有者的文件；锁空闲但持有进程仍存活的文件按已持有计算，因为持有者先创建文件再加锁。
 
 ## 概述
 

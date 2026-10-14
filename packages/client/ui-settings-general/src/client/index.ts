@@ -11,6 +11,7 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // Type-only: pulls the ctx.remote merge and its fixed Host facts.
 import type {} from '@aeven/api-remotes/client'
 import type { ConnectionHandle } from '@aeven/client-connection/client'
+import { createSnapshotStore } from '@aeven/client-store'
 import { resolveSlotLabel } from '@aeven/client-ui-slots'
 // Type-only: the settings slot declarations plus the ctx.settingsScope Context
 // merge. Cross-plugin collaboration goes through the service, never a value
@@ -27,6 +28,7 @@ import { SettingsRoot } from './SettingsRoot.tsx'
 import { CloseLabel, HeaderContent, TriggerContent } from './chrome.tsx'
 import { GeneralSection } from './GeneralSection.tsx'
 import { DeveloperModeRow, type DeveloperModeRowInjected } from './DeveloperModeRow.tsx'
+import { BackgroundModeRow, type BackgroundModeRowInjected } from './BackgroundModeRow.tsx'
 import { DeveloperModePolicy } from './developer-mode.ts'
 import { BrowserSettingsAddressRoute } from './settings-url.ts'
 import { en, zh, type SettingsKey } from './locales.ts'
@@ -40,6 +42,8 @@ export type {
 } from './GeneralSection.tsx'
 export type { SettingsKey } from './locales.ts'
 export type { DeveloperModeRowInjected, DeveloperModeRowProps } from './DeveloperModeRow.tsx'
+export type { BackgroundModeRowInjected, BackgroundModeRowProps } from './BackgroundModeRow.tsx'
+export type { OnOffRowProps } from './OnOffRow.tsx'
 export type { DeveloperSettings, DeveloperSettingsNamespace } from '../developer-settings.ts'
 
 declare module '@aeven/client-ui-slots' {
@@ -66,6 +70,15 @@ export const inject = ['slots', 'locale', 'connection', 'remote', 'remote.settin
 interface DesktopShellCarrier {
   /** @param listener - called with each application-menu command. @returns disposer removing the listener. */
   onCommand?(listener: (command: string) => void): () => void
+  /** Whether the application keeps running in the menu bar after its last window closes. */
+  background?: {
+    /** @returns the stored choice. */
+    get(): Promise<boolean>
+    /** @param enabled - the new choice. @returns resolution after the shell stores it. */
+    set(enabled: boolean): Promise<void>
+    /** @param listener - called with each change from any window. @returns disposer removing the listener. */
+    onChange(listener: (enabled: boolean) => void): () => void
+  }
 }
 
 /**
@@ -198,6 +211,33 @@ export function apply(ctx: ClientContext): void {
   const developerMode = new DeveloperModePolicy(
     ctx.settingsScope.bind<DeveloperSettings>({ namespace: DEVELOPER_SETTINGS_NAMESPACE }),
   )
+  // Only the desktop shell can keep running without a window; the browser
+  // build has no carrier and shows no row.
+  const backgroundCarrier = carrier?.background
+  if (backgroundCarrier !== undefined) {
+    const backgroundMode = createSnapshotStore(false)
+    ctx.effect(
+      () => backgroundCarrier.onChange((enabled) => { backgroundMode.set(enabled) }),
+      'ui-settings-general: desktop background mode',
+    )
+    backgroundCarrier.get().then((enabled) => { backgroundMode.set(enabled) }, (error: unknown) => {
+      console.error('ui-settings-general: could not read the desktop background mode', error)
+    })
+    ctx.slots.inject('settings.general.item', () => ctx.slots.register({
+      name: 'settings.general.item',
+      id: 'background-mode',
+      order: 90,
+      locale: NS,
+      inject: (): BackgroundModeRowInjected => ({
+        hooks: { backgroundMode },
+        setBackgroundMode: (enabled) => {
+          backgroundCarrier.set(enabled).catch((error: unknown) => {
+            console.error('ui-settings-general: could not store the desktop background mode', error)
+          })
+        },
+      }),
+    }, BackgroundModeRow))
+  }
   ctx.slots.inject('settings.general.item', () => ctx.slots.register({
     name: 'settings.general.item',
     id: 'developer-mode',
