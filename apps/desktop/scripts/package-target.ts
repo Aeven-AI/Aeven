@@ -1,13 +1,14 @@
 /** Build one release target with matching Electron, Node.js, and seed architecture. */
 
 import { spawn } from 'node:child_process'
-import { mkdirSync, rmSync } from 'node:fs'
+import { mkdirSync, readdirSync, rmSync } from 'node:fs'
 import { parseArgs } from 'node:util'
 import { join, resolve } from 'node:path'
 import { desktopTargetBuildPaths } from './desktop-build-paths.mjs'
 import { desktopPackageProblems } from './desktop-package-preflight.ts'
 import { loadDesktopPackagingEnvironment } from './desktop-environment-file.ts'
-import { DESKTOP_UNSIGNED_ENV } from './desktop-release-environment.mjs'
+import { DESKTOP_UNSIGNED_ENV, resolveDesktopAppId, resolveMacOSSigningEnvironment } from './desktop-release-environment.mjs'
+import { signMacOSSeedCode, verifyMacOSSeedCode } from './verify-macos-signature.mjs'
 import { WINDOWS_SIGNING_ENV_NAMES } from './windows-azure-signing.mjs'
 import { pnpmInvocation } from '../../../scripts/pnpm-invocation.ts'
 
@@ -185,6 +186,29 @@ export function desktopElectronBuilderArguments(
   ]
 }
 
+/**
+ * Developer ID sign every executable in a native platform package's `bin` directory before it is packed.
+ * The seed carries these packages as tarballs, which seed-store signing never rewrites, and Apple's notary
+ * service rejects an executable inside them that lacks a Developer ID signature, a secure timestamp, or
+ * hardened runtime.
+ * @param packageDirectory - Native platform package directory, such as `native/whisper-cpp/packages/darwin-arm64`.
+ * @param environment - Packaging environment that names the application ID and the macOS release identity.
+ * @returns Resolves after every executable is signed and verified.
+ */
+export async function signMacOSPackageExecutables(
+  packageDirectory: string,
+  environment: NodeJS.ProcessEnv,
+): Promise<void> {
+  const appId = resolveDesktopAppId(environment)
+  const expected = resolveMacOSSigningEnvironment(environment)
+  const binDirectory = join(packageDirectory, 'bin')
+  for (const name of readdirSync(binDirectory)) {
+    const path = join(binDirectory, name)
+    await signMacOSSeedCode(path, `${appId}.${name}`, expected, undefined)
+    verifyMacOSSeedCode(path, expected)
+  }
+}
+
 function runPnpm(
   args: readonly string[],
   env: NodeJS.ProcessEnv = process.env,
@@ -266,12 +290,15 @@ async function main(): Promise<void> {
   rmSync(buildPaths.packedWhisper, { recursive: true, force: true })
   mkdirSync(buildPaths.packedWhisper, { recursive: true })
   await runPnpm(['--dir', 'native/whisper-cpp', 'run', 'build:native', '--target', whisperPlatform], buildEnv, REPOSITORY_ROOT)
+  const signsMacOS = target.platform === 'darwin' && !invocation.unsigned
+  if (signsMacOS) await signMacOSPackageExecutables(join(REPOSITORY_ROOT, 'native/whisper-cpp/packages', whisperPlatform), targetEnv)
   // npm, not pnpm: pnpm pack strips the executable bit, which would ship a worker no Host can spawn.
   await runNpm(['pack', `./native/whisper-cpp/packages/${whisperPlatform}`, '--pack-destination', buildPaths.packedWhisper], buildEnv)
   // The WhatsApp connector daemon is pure Go, so it cross-compiles for this target from any build host.
   rmSync(buildPaths.packedWhatsApp, { recursive: true, force: true })
   mkdirSync(buildPaths.packedWhatsApp, { recursive: true })
   await runPnpm(['--dir', 'native/whatsapp-mcp', 'run', 'build:native', '--target', whisperPlatform], buildEnv, REPOSITORY_ROOT)
+  if (signsMacOS) await signMacOSPackageExecutables(join(REPOSITORY_ROOT, 'native/whatsapp-mcp/packages', whisperPlatform), targetEnv)
   await runNpm(['pack', `./native/whatsapp-mcp/packages/${whisperPlatform}`, '--pack-destination', buildPaths.packedWhatsApp], buildEnv)
   // The Telegram connector daemon is plain JavaScript, so one build and one tarball serve every target.
   rmSync(buildPaths.packedTelegram, { recursive: true, force: true })
