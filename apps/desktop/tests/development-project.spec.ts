@@ -1,4 +1,6 @@
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { spawn } from 'node:child_process'
+import { once } from 'node:events'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -29,7 +31,7 @@ afterEach(() => {
 })
 
 describe('desktop development project', () => {
-  it('projects the built avn and Desktop Host applications with their dependency graph', () => {
+  it('refreshes the dependency graph while a Host owns the project working directory', async () => {
     const root = temporaryRoot()
     const cli = join(root, 'apps', 'cli')
     const host = join(root, 'apps', 'desktop-host')
@@ -66,6 +68,34 @@ describe('desktop development project', () => {
     }
     expect(manifest.dependencies['@aeven/cli']).toBe('1.2.3')
     expect(manifest.dependencies['@aeven/desktop-host']).toBe('1.2.3')
+
+    writeFileSync(join(project, 'stale-file'), '')
+    // Windows refuses removal of another process's working directory.
+    const child = spawn(process.execPath, ['-e', 'process.stdout.write("ready"); setInterval(() => {}, 1000)'], {
+      cwd: project,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    })
+    const exited = once(child, 'exit')
+    try {
+      await Promise.race([
+        once(child.stdout, 'data'),
+        exited.then(() => { throw new Error('Host fixture exited before readiness') }),
+      ])
+      prepareDevelopmentProject({
+        projectDir: project,
+        cliDir: cli,
+        hostDir: host,
+        dependencyDir: dependencies,
+        workspacePackageRoots: [],
+        release: release(),
+      })
+      expect(existsSync(join(project, 'stale-file'))).toBe(false)
+      expect(realpathSync(join(project, 'node_modules', '@aeven', 'desktop-host'))).toBe(realpathSync(host))
+      expect(existsSync(join(dependencies, 'plain-dependency', 'package.json'))).toBe(true)
+    } finally {
+      child.kill()
+      await exited
+    }
   })
 
   it('rejects a CLI package from another release', () => {
