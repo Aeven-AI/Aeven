@@ -2,8 +2,10 @@
 # installers and the update feeds as one GitHub Release.
 #
 # A `v<version>` tag that matches the root package.json version starts a run
-# that publishes. A manual run builds the same tree and keeps the installers as
-# workflow artifacts; with `publish` set it publishes under the version tag.
+# that builds every target and publishes. A manual run picks one target from
+# the `target` input — `all` builds every target as a tag does — and keeps the
+# installers as workflow artifacts; with `publish` set it publishes under the
+# version tag, which needs every target.
 # Each Windows and macOS target signs when all of its secrets exist, builds
 # unsigned when none exist, and fails when only some exist. Linux packages
 # carry no code signature, and the `unsigned` macOS variant always builds
@@ -25,6 +27,18 @@ on:
     tags: ['v*']
   workflow_dispatch:
     inputs:
+      target:
+        description: Release target to build (`all` builds every target)
+        type: choice
+        options:
+          - all
+          - win-x64
+          - win-arm64
+          - mac-arm64
+          - mac-arm64-unsigned
+          - linux-x64
+          - linux-arm64
+        default: all
       publish:
         description: Publish the GitHub Release and update feeds (unset keeps the installers as workflow artifacts)
         type: boolean
@@ -38,33 +52,52 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # The target list is the single source for both the manual selection and the
+  # tag-release run: a tag builds every entry, a manual run the requested one.
+  plan:
+    name: Select release targets
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Select release targets
+        id: select
+        env:
+          REQUESTED_TARGET: ${{ inputs.target || 'all' }}
+        run: |
+          targets='[
+            {"id":"win-x64","target":"win-x64","runner":"windows-latest","script":"win:x64"},
+            {"id":"win-arm64","target":"win-arm64","runner":"windows-11-arm","script":"win:arm64"},
+            {"id":"mac-arm64","target":"mac-arm64","runner":"macos-15","script":"mac:arm64"},
+            {"id":"mac-arm64-unsigned","target":"mac-arm64","variant":"unsigned","runner":"macos-15","script":"mac:arm64"},
+            {"id":"linux-x64","target":"linux-x64","runner":"ubuntu-24.04","script":"linux:x64"},
+            {"id":"linux-arm64","target":"linux-arm64","runner":"ubuntu-24.04-arm","script":"linux:arm64"}
+          ]'
+          matrix="$(printf '%s' "$targets" | jq -c --arg requested "$REQUESTED_TARGET" \
+            '{include: [.[] | select($requested == "all" or .id == $requested) | . + {variant: (.variant // "")}]}')"
+          if [ "$(printf '%s' "$matrix" | jq '.include | length')" -eq 0 ]; then
+            echo "::error::$REQUESTED_TARGET is not a release target; choose all or one of $(printf '%s' "$targets" | jq -r '[.[].id] | join(", ")')"
+            exit 1
+          fi
+          # A release carries every target's installers and update feeds, so a partial build cannot publish.
+          if [ "${{ inputs.publish }}" = true ] && [ "$REQUESTED_TARGET" != all ]; then
+            echo "::error::publishing needs every release target, but $REQUESTED_TARGET builds only one"
+            exit 1
+          fi
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "selected: $(printf '%s' "$matrix" | jq -r '[.include[].id] | join(", ")')"
+
   build:
     name: Build ${{ matrix.target }}${{ matrix.variant && format(' ({0})', matrix.variant) || '' }}
+    needs: plan
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 150
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - target: win-x64
-            runner: windows-latest
-            script: win:x64
-          - target: win-arm64
-            runner: windows-11-arm
-            script: win:arm64
-          - target: mac-arm64
-            runner: macos-15
-            script: mac:arm64
-          - target: mac-arm64
-            variant: unsigned
-            runner: macos-15
-            script: mac:arm64
-          - target: linux-x64
-            runner: ubuntu-24.04
-            script: linux:x64
-          - target: linux-arm64
-            runner: ubuntu-24.04-arm
-            script: linux:arm64
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     env:
       AVN_DESKTOP_APP_ID: ${{ vars.AVN_DESKTOP_APP_ID || 'com.aeven.desktop' }}
       # electron-builder's bundled fpm is x64-only, so deb packaging uses the
