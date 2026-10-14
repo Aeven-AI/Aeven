@@ -101,7 +101,10 @@ export class ConnectorBroker {
    * @param request - provider, the Host connector id for OAuth providers, and Discord's permission bitfield.
    * @returns the provider URL to open and the state to poll.
    */
-  async start(owner: string, request: { provider: ConnectorProvider; connectorId?: ConnectorId; permissions?: string }): Promise<z.infer<typeof startSchema>> {
+  async start(
+    owner: string,
+    request: { provider: ConnectorProvider; connectorId?: ConnectorId; permissions?: string },
+  ): Promise<z.infer<typeof startSchema>> {
     return startSchema.parse(await this.call(owner, 'POST', '/connectors/oauth/start', request))
   }
 

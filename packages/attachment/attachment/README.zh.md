@@ -116,6 +116,9 @@ kind: "package-reference"
 - **未发送的草稿不会保存**——输入区草稿在提交消息前一直留在浏览器中。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

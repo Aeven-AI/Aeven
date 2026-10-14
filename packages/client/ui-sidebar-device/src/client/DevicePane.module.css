@@ -390,7 +390,6 @@
   display: flex;
   flex: 1 1 auto;
   min-height: 0;
-  container-type: inline-size;
 }
 
 .screenHost {
@@ -442,15 +441,13 @@
   pointer-events: none;
 }
 
+/* The accessory box's rim and fill: a stroke and a wash of the business ink,
+   resolved per theme in the token sheet rather than mixed here, which would
+   need `color-mix()` and Safari 16.2. */
 .axBox {
   position: absolute;
-  border: 1px solid
-    color-mix(in srgb, var(--dsw-alias-state-business-primary) 80%, transparent);
-  background: color-mix(
-    in srgb,
-    var(--dsw-alias-state-business-primary) 10%,
-    transparent
-  );
+  border: 1px solid var(--dsw-tint-business-80);
+  background: var(--dsw-tint-business-10);
 }
 
 .axLabel {
@@ -514,16 +511,18 @@
   font-size: 14px;
 }
 
-@container (min-width: 620px) {
-  .drawer {
-    position: relative;
-    top: auto;
-    right: auto;
-    bottom: auto;
-    flex: none;
-    width: 300px;
-    margin: 0 24px 24px 0;
-  }
+/* Docked once the stage itself is wide enough for the screen and the drawer
+   side by side. The stage measures its own width (see DevicePane.tsx) and
+   states the outcome: a container query would need Safari 16.0, and the stage's
+   width is the pane's, not the viewport's, so no `@media` width can stand in. */
+.stage[data-drawer-docked] .drawer {
+  position: relative;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  flex: none;
+  width: 300px;
+  margin: 0 24px 24px 0;
 }
 
 .drawerHead {

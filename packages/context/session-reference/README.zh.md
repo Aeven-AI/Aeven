@@ -127,6 +127,9 @@ kind: "package-reference"
 - **没有实时链接**：引用是快照，不是 fork、恢复、订阅或源会话变更。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

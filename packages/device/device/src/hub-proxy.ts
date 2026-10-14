@@ -118,14 +118,14 @@ export function installHubProxy(ctx: Context, devices: HubProxySource): void {
 
   const proxyHttp = (req: IncomingMessage, res: ServerResponse): void => {
     const rejection = ctx.connection.requestRejection(req)
-    if (rejection !== undefined) return reject(res, rejection, 'Unauthorized')
+    if (rejection !== undefined) {  reject(res, rejection, 'Unauthorized'); return }
     /* v8 ignore next -- node:http always sets url on server requests */
     const target = upstreamTarget(req.url ?? '/', mount)
-    if (!ALLOWED_PATHS.some(pattern => pattern.test(target.hubPath))) return reject(res, 404, 'Not Found')
+    if (!ALLOWED_PATHS.some(pattern => pattern.test(target.hubPath))) {  reject(res, 404, 'Not Found'); return }
     const readOnly = req.method === 'GET' || req.method === 'HEAD'
-    if (!readOnly && !MUTABLE_PATHS.some(pattern => pattern.test(target.hubPath))) return reject(res, 405, 'Method Not Allowed')
+    if (!readOnly && !MUTABLE_PATHS.some(pattern => pattern.test(target.hubPath))) {  reject(res, 405, 'Method Not Allowed'); return }
     const origin = devices.hubOrigin(target.hostId)
-    if (origin === undefined) return reject(res, 503, 'Device hub is not running')
+    if (origin === undefined) {  reject(res, 503, 'Device hub is not running'); return }
     const upstream = httpRequest(`${origin}${target.path}`, {
       method: req.method, headers: forwardHeaders(req.headers, origin),
     }, (response) => {
@@ -151,11 +151,11 @@ export function installHubProxy(ctx: Context, devices: HubProxySource): void {
 
   const proxyUpgrade = (req: IncomingMessage, socket: Duplex, head: Buffer): void => {
     const rejection = ctx.connection.requestRejection(req)
-    if (rejection !== undefined) return rejectSocket(socket, rejection, 'Unauthorized')
+    if (rejection !== undefined) {  rejectSocket(socket, rejection, 'Unauthorized'); return }
     /* v8 ignore next -- node:http always sets url on server requests */
     const target = upstreamTarget(req.url ?? '/', mount)
     const origin = devices.hubOrigin(target.hostId)
-    if (origin === undefined) return rejectSocket(socket, 503, 'Service Unavailable')
+    if (origin === undefined) {  rejectSocket(socket, 503, 'Service Unavailable'); return }
     const headers = forwardHeaders(req.headers, origin)
     for (const key of WEBSOCKET_HEADERS) {
       const value = req.headers[key]

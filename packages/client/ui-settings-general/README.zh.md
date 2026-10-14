@@ -103,6 +103,9 @@ Models、Agent presets、Plugins 与 Subscriptions（`grok-build`）各有自己
 - **「通用」分区只自带「开发者模式」一行**：其余每一行仅在其所属功能插件挂载时出现。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

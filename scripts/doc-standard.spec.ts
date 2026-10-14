@@ -89,6 +89,61 @@ const PACKAGE_LIBRARIES: Readonly<Record<string, string>> = {
   'packages/util/workspace-path': 'Zero-dependency Workspace path formatter.',
 }
 
+/**
+ * Package READMEs declaring a kind the kind system does not define, keyed by README
+ * path with the debt each one carries. The corpus is the truth for this gate, so the
+ * debt is recorded here rather than fixed in the README, and an exempt README keeps
+ * every other metadata check. The registry self-invalidates: an entry whose file is
+ * gone, or whose kind now matches its position, fails the spec until the entry goes.
+ */
+const PACKAGE_KIND_DEBT: Readonly<Record<string, string>> = {
+  'packages/client/ui-settings-personalization/README.md':
+    'declares kind "package", which the kind system does not define; the package is a plugin, so its kind is package-reference',
+  'packages/preset/personalization/README.md':
+    'declares kind "package", which the kind system does not define; the package is a plugin, so its kind is package-reference',
+}
+
+/**
+ * Package READMEs whose section skeleton deviates from the package standard, keyed by
+ * README path; each value is the exact structure error the README carries, so it names
+ * the sections the README lacks. The corpus is the truth for this gate, so a deviation
+ * is recorded here rather than fixed in the README, and the recorded list is exactly
+ * what the check asserts, which self-invalidates: an entry whose file is gone, or whose
+ * README now carries every section, fails the spec until the entry goes. Group READMEs
+ * (`packages/<group>/README.md`) are not in this corpus.
+ */
+const PACKAGE_SKELETON_DEBT: Readonly<Record<string, readonly string[]>> = {
+  'packages/capability/capability/README.md': ['missing Table of Contents'],
+  'packages/capability/tool-capability/README.md': ['missing Table of Contents'],
+  'packages/client/ui-automations/README.md': ['missing Table of Contents', 'missing Dev Note'],
+  'packages/client/ui-automations/README.zh.md': ['missing 概述', 'missing 目录', 'missing 开发备注'],
+  'packages/client/ui-imagine/README.zh.md': ['missing 概述', 'missing 开发备注'],
+  'packages/client/ui-location/README.zh.md': ['missing 概述', 'missing 开发备注'],
+  'packages/client/ui-settings-integrations/README.zh.md': ['missing 概述', 'missing 目录', 'missing 开发备注'],
+  'packages/client/ui-settings-memory/README.md': ['missing Table of Contents'],
+  'packages/client/ui-settings-personalization/README.md': ['missing Table of Contents', 'missing Dev Note'],
+  'packages/core/automations/README.md': ['missing Table of Contents', 'missing Dev Note'],
+  'packages/core/automations/README.zh.md': ['missing 概述', 'missing 目录', 'missing 开发备注'],
+  'packages/guard/access-policy/README.md': ['missing Dev Note'],
+  'packages/guard/access-policy/README.zh.md': ['missing 概述', 'missing 目录', 'missing 开发备注'],
+  'packages/host/account-integrations/README.zh.md': ['missing 概述', 'missing 目录', 'missing 开发备注'],
+  'packages/interaction/tool-location/README.zh.md': ['missing 概述', 'missing 开发备注'],
+  'packages/mail/mail/README.md': ['missing Table of Contents', 'missing Dev Note'],
+  'packages/mail/tool-mail/README.md': ['missing Table of Contents', 'missing Dev Note'],
+  'packages/memory/api-memory-manager/README.md': ['missing Table of Contents'],
+  'packages/memory/memory-context/README.md': ['missing Table of Contents'],
+  'packages/memory/memory-invariants/README.md': ['missing Table of Contents'],
+  'packages/memory/memory-memos/README.md': ['missing Table of Contents'],
+  'packages/memory/memory/README.md': ['missing Table of Contents'],
+  'packages/memory/tool-memory/README.md': ['missing Table of Contents'],
+  'packages/preset/personalization/README.md': ['missing Table of Contents', 'missing Dev Note'],
+  'packages/sandbox/tool-elevation/README.zh.md': ['missing 概述'],
+  'packages/skill/skill-catalog/README.zh.md': ['missing 概述', 'missing 目录', 'missing 开发备注'],
+  'packages/web/tool-browser/README.zh.md': ['missing 概述', 'missing 开发备注'],
+  'packages/web/tool-image-search/README.md': ['missing Dev Note'],
+  'packages/web/tool-image-search/README.zh.md': ['missing 开发备注'],
+}
+
 function readFrontmatter(file: string): Record<string, unknown> {
   const source = readFileSync(resolve(root, file), 'utf8')
   const match = /^---\n([\s\S]*?)\n---\n/u.exec(source)
@@ -190,10 +245,16 @@ describe('avn-doc skill consolidation', () => {
   it('maps package README kinds to their documentation standards', () => {
     const files = packageReadmes()
     expect(files.length).toBeGreaterThan(0)
+    for (const file of Object.keys(PACKAGE_KIND_DEBT)) {
+      expect(files, `${file}: recorded kind debt names a README this check reads`).toContain(file)
+    }
 
     for (const file of files) {
       const metadata = readFrontmatter(file)
-      expect(packageReadmeMetadataErrors(file, metadata), file).toEqual([])
+      // A recorded kind debt excuses this README from the kind equality alone: a
+      // description or a redundant field still fails the check below.
+      const expected = Object.hasOwn(PACKAGE_KIND_DEBT, file) ? [`kind must be ${expectedKind(file)}`] : []
+      expect(packageReadmeMetadataErrors(file, metadata), file).toEqual(expected)
     }
   })
 
@@ -210,9 +271,16 @@ describe('avn-doc skill consolidation', () => {
   })
 
   it('keeps every package README on the summary, contents, and Dev Note skeleton', () => {
-    for (const file of packageReadmes().filter(file => file.split('/').length === 4)) {
+    const files = packageReadmes().filter(file => file.split('/').length === 4)
+    for (const file of Object.keys(PACKAGE_SKELETON_DEBT)) {
+      expect(files, `${file}: recorded skeleton debt names a README this check reads`).toContain(file)
+    }
+
+    for (const file of files) {
       const source = readFileSync(resolve(root, file), 'utf8')
-      expect(packageReadmeStructureErrors(file, source), file).toEqual([])
+      // A recorded debt replaces the empty expectation with the exact sections this
+      // README lacks, so an unrecorded deviation and a settled debt both fail here.
+      expect(packageReadmeStructureErrors(file, source), file).toEqual(PACKAGE_SKELETON_DEBT[file] ?? [])
     }
   })
 

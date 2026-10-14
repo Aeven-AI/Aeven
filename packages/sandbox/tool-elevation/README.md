@@ -55,7 +55,7 @@ The tool first asks `ctx.approval`. The ask offers a session grant scoped `privi
 
 #### What the model sees
 
-The tool entry in the generated [tool catalog](../../tool-catalog.md): its name, its description, and four parameters. The result is JSON with `exitCode` and `output`.
+The tool entry in the generated [tool catalog](../../../docs/tool-catalog.md#aeventool-elevation): its name, its description, and four parameters. The result is JSON with `exitCode` and `output`.
 
 ##### Verbatim parameter descriptions
 
@@ -80,9 +80,10 @@ Append-only: the entry is part of the request's tool list and is stable across t
 - **The job file is user-writable** — it lives in the user's temporary directory, so a compromised process running as the same user could swap it between consent and execution.
 - **One command per call** — repeated administrator work costs one consent pair per call unless the reader grants the session scope the approval ask offers.
 - **Not covered by automated tests** — the Windows prompt needs a human; the generated scripts were exercised by hand.
+- **No invariant companion** — No runtime invariant companion is published because the relation it owns, that nothing spawns before `ctx.approval` allows the run, is settled by the Windows user-account-control prompt and can be observed only on a Windows host with a person answering it.
 
 <a id="dev-note"></a>
-## Dev Note
+### Dev Note
 
 <details>
 <summary>Working context for maintainers — click to expand</summary>

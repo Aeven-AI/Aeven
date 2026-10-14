@@ -185,8 +185,10 @@
 
 /* A sent prompt under edit: the bubble becomes a text field as wide as the
    conversation column, starting at the bubble's height (inline min-height)
-   and growing with its lines up to a cap, past which it scrolls. */
-.userStack:has(> .messageEditorInput) {
+   and growing with its lines up to a cap, past which it scrolls. The stack
+   states that it holds that editor (see MessageItem.tsx); reading the editor's
+   own presence as a selector would need `:has()` and Safari 15.4. */
+.userStack[data-editor] {
   width: 100%;
   max-width: 100%;
 }

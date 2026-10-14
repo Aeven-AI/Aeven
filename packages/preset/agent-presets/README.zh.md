@@ -48,7 +48,7 @@ Google Drive、Docs、Drive Comments、Sheets 和 Slides 技能包复制自 [Ope
 ```yaml
 - name: '@aeven/agent-presets'
   config:
-    default: standard
+    default: aeven
     roots:
       - path: ~/company-presets
         trust: system
@@ -71,7 +71,7 @@ Google Drive、Docs、Drive Comments、Sheets 和 Slides 技能包复制自 [Ope
 
 ```yaml
 agent-presets:
-  default: minimal
+  default: aeven
 ```
 
 该值在会话创建时读取，因此更改默认值只影响此后创建的会话；运行中的会话仍停留在它们当初据以组装的 preset 上。清空用户字段即重新继承组装默认值。随附的 Web 组装默认使用 `aeven`：不带 Cordis 运行时工具集的完整 Agent（该工具集由 `cordis` preset 挂载）；其余随附 preset 仍保持安装，以便据其创建的会话继续恢复，Web GUI 只在开发者模式中提供它们。
@@ -164,13 +164,11 @@ agent-presets:
 <a id="model-experience"></a>
 ## 模型体验
 
-间接地，经由 preset 常驻组装安装的插件：这些插件拥有该 preset 向加入它的 agent 呈现的每个工具 schema、提示词段落与 skill。本包随包交付的 skill 会把它们的目录描述加入挂载它们的 preset 上的每个会话；正文只在会话请求时才加载。
-
-随包交付的 `aeven` preset 从首次请求起提供 `generate_image`，并使用所选图像模型进行生成和编辑。用户提供的图像提示词原样传递，上传的参考图像直接使用其规范化副本路径。只有用户明确请求对应提供方时才使用订阅专属图像工具；生成失败后直接报告，不自动重试或检查仓库。
+间接地，经由 preset 常驻组装所安装的插件：这些插件拥有该 preset 向其接入的 agent 呈现的每个工具 schema、提示词段落与 skill，而本包随包交付的 skill 只加入其目录描述，直到某个会话加载其正文。
 
 #### KV Cache 影响
 
-在一个 agent 的整个生命周期内保持前缀稳定：组装只装入一次，发生在 agent 发布之前、因而也在它的首个请求之前，且在 agent 运行期间不再重新读取。为新会话选择不同的 preset，只会为该会话建立不同的前缀，无法让任何已在运行的会话失去缓存复用。
+在一个 agent 的整个生命周期内保持前缀稳定：组装只装入一次，发生在 agent 发布之前、因而也在它的首个请求之前，且在 agent 运行期间不再重新读取；为新会话选择不同的 preset，只会为该会话建立不同的前缀。随包交付的 `aeven` preset 从首个请求起就提供 `generate_image`，并使用所选图像模型进行生成和编辑；用户提供的图像提示词原样传递，上传的引用图像直接使用其规范化副本路径。
 
 ## 已知限制与延期工作
 
@@ -189,6 +187,9 @@ agent-presets:
 - **根目录扫描不做监听**——每次读取都实际访问文件系统，这让名单保持新鲜，但每次 `list()` 会对每个根目录产生一次 `readdir`。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

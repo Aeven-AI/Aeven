@@ -32,15 +32,24 @@ This table connects model-visible tool names to the plugin package and service s
 | `@aeven/tool-lsp` | `lsp` | `ctx.tools`, `ctx.lsp`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | The lsp tool keeps provider selection and language-server subprocesses behind ctx.lsp, so its model-visible schema stays stable across providers. Requires a registered provider (e.g. `@aeven/lsp-stdio`) at runtime; without one, a query returns the structured `LSP_UNAVAILABLE` error rather than changing the schema. |
 | `@aeven/tool-ralph` | `ralph` | `ctx.tools`, `ctx.workflowEngine`, `ctx.subagents`, `ctx.systemPrompt`, `a calling Agent (exec.agent parents every fresh round)` | `tool/call`, `tool/result`, `workflow and child session events during execution` | - | A fixed foreground workflow starts one fresh structured child per round; the model selects only the immutable objective and an optional round cap. |
 | `@aeven/tool-skill` | `skill` | `ctx.tools`, `ctx.agents`, `ctx.skills` | `tool/call`, `tool/result`, `user/message replacement catalogs via agent.inject()` | - | - |
+| `@aeven/tool-search` | `tool_search` | `ctx.tools`, `ctx.systemPrompt`, `mcp/servers listeners (opportunistic)`, `ctx.codeRuntime (opportunistic, for run_code declarations)` | `tool/call`, `tool/result`, `one plugin user message when the deferred tool index changes` | - | Presented to the model only while at least one tool is deferred or a deferring MCP server is not serving. Keyword queries list tools without loading them; `select:` loads schemas into following requests, or returns SDK declarations when the request presents `run_code`; `restart:` reconnects an MCP server. |
 | `@aeven/tool-session-query` | `session_event_read`, `session_event_search`, `session_event_trace`, `session_search`, `session_trace` | `ctx.tools`, `ctx.systemPrompt`, `ctx.sessionQuery`, `a calling Agent for workspace authority` | `tool/call`, `tool/result` | - | The five read-only tools hide provider cursors and authorize every result from the immutable calling agent session. The package is opt-in; compositions that need enforced deadlines or bounded inline output also mount the generic timeout or spill policies. |
 | `@aeven/tool-subagent` | `list_subagent_models`, `subagent` | `ctx.tools`, `ctx.subagents`, `ctx.systemPrompt`, `ctx.llm for model discovery and selected-route validation` | `tool/call`, `tool/result`, `child session events through the chosen provider` | `subagent`, `subagent_fork` | The registered delegation name is the load-time `toolName` config (default `subagent`); the default schema above has model selection off, while the discovery schema is shown as the fixed companion available in an enabled Session. Web presets sample the Plugins preference for each new top-level Session and preserve that decision for its child Sessions; `subagent_fork` remains fixed-route. Each instance independently controls whether it reads model-selection settings and its background behavior through `modelSelectionSettings`, `backgroundMode`, and `enableRunInBackground`. |
 | `@aeven/tool-subagent-control` | `interrupt_agent`, `list_agents`, `send_message` | `ctx.tools`, `ctx.subagents`, `ctx.agents and ctx.sessionProjections (list_agents only)` | `tool/call`, `tool/result`, `child session events through ctx.subagents` | - | The globally named control tools over continuable background subagents: provider-bound `tool-subagent` instances register distinct delegation tools, while this package registers `send_message` and `interrupt_agent` once, plus `list_agents` from its separately loaded `/list-agents` plugin (whose catalog rows use the sessionProjections and live Agent registries). |
 | `@aeven/tool-jobs` | `job_kill`, `job_list`, `job_output` | `ctx.tools`, `ctx.jobs`, `ctx.systemPrompt` | `tool/call`, `tool/result`, `user/message via agent.inject() for background completion notices` | - | The kind-agnostic background-job controller: background bash commands, PTY sends, and subagents are read, listed, and killed through the same three tools. Loading the plugin attaches the controller that arms producers' `ctx.jobs.start()`. |
 | `@aeven/experimental-tool-agent-team` | `followup_task`, `interrupt_agent`, `list_agents`, `send_message`, `spawn_teammate`, `team_task_create`, `team_task_get`, `team_task_list`, `team_task_update`, `wait_agent` | `ctx.tools`, `ctx.systemPrompt`, `ctx.agentTeams`, `an exact live Team member Agent` | `tool/call`, `team/member`, `team/message/queued`, `team/message/delivered`, `team/task`, `tool/result` | - | All ten tools are scoped to implicit Team Leads and durable teammates. The shipped avn-base bundle keeps the package disabled; the documented Agent Teams profile patch enables it while disabling the legacy continuable-child control names. |
-| `@aeven/tool-media` | `generate_image` | `ctx.tools`, `ctx.media`, `ctx.attachments` | `tool/call`, `tool/result carrying one image block per stored image` | - | The catalog mounts the tool with no configured model, which is the shape that requires every call to name one. A deployment setting `model` gets the same schema; the default never reaches the description. Generated bytes are stored through `ctx.attachments`, so the result carries image blocks the conversation card renders without any registration here. |
+| `@aeven/tool-media` | `generate_image`, `generate_video` | `ctx.tools`, `ctx.media`, `ctx.attachments` | `tool/call`, `tool/result carrying one image block per stored image` | - | The catalog mounts the tool with no configured model, which is the shape that requires every call to name one. A deployment setting `model` gets the same schema; the default never reaches the description. Generated bytes are stored through `ctx.attachments`, so the result carries image blocks the conversation card renders without any registration here. |
 | `@aeven/tool-todo` | `todo_write` | `ctx.tools`, `owning Agent session` | `tool/call`, `todo/write`, `tool/result` | - | todo_write is session-owned state; UIs render the latest todo/write event as a checklist. `allowParallelInProgress` is required with no default, so the catalog states its choice: `true`, whose description invites several `in_progress` items. A deployment choosing `false` receives the same tool with a description asking for exactly one active task. |
 | `@aeven/tool-workflow` | `workflow` | `ctx.tools`, `ctx.workflowEngine`, `ctx.systemPrompt`, `a calling Agent (exec.agent parents the script children)` | `tool/call`, `tool/result` | - | - |
 | `@aeven/tool-web` | `web_fetch`, `web_search` | `ctx.tools`, `ctx.web`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | web_search and web_fetch keep provider selection behind ctx.web so model-visible schemas stay stable across backend swaps. |
+| `@aeven/tool-browser` | `preview_back`, `preview_click`, `preview_evaluate`, `preview_forward`, `preview_navigate`, `preview_press`, `preview_reload`, `preview_screenshot`, `preview_scroll`, `preview_sequence`, `preview_snapshot`, `preview_status`, `preview_type`, `preview_upload` | `ctx.tools`, `ctx.agents`, `a browser/automation listener (execution time)` | `tool/call`, `tool/result` | - | preview_* calls are answered by the Client holding the session's browser; each call is bounded by the tool timeout. |
+| `@aeven/tool-location` | `get_location` | `ctx.tools`, `ctx.agents`, `a location/request listener (execution time)` | `tool/call`, `tool/result` | - | get_location is answered by the Client showing the session, after the reader chooses; the call is bounded by the tool timeout. |
+| `@aeven/tool-capability` | `capability_manage` | `ctx.tools`, `ctx.systemPrompt`, `ctx.capabilities`, `ctx.llm`, `ctx.memory (default store)`, `an Agent whose session has an owner at execution time` | `tool/call`, `tool/result`, `capabilities/changed for the capabilities store`, `long-term memory for a learned procedure under the default store` | - | The registered actions depend on the load-time `store` config: the default `memory` stores a learned procedure as a long-term memory and registers only `learn` and `import`, while `capabilities` keeps it as a capability file and registers list, view, learn, update, write_file, report, retire, and restore. The learner and procedure recall run behind the same package and contribute no tool of their own. |
+| `@aeven/tool-device` | `device_close`, `device_list`, `device_open`, `device_screenshot` | `ctx.tools`, `ctx.devices (execution time)`, `ctx.attachments + ctx.llm on an image-capable route (device_screenshot)`, `a calling Agent for per-session device ownership` | `tool/call`, `tool/result`, `the session's device pane state`, `a durable image attachment for a screenshot` | - | All four tools register on every host; a deployment without `ctx.devices`, with device support turned off, or without agent access answers with its own fixed sentence instead of hiding the tool. Driving a device goes through the agent-device CLI that `device_open` returns, not through a tool per device operation. |
+| `@aeven/tool-elevation` | - | `ctx.tools`, `ctx.approval`, `ctx.subprocess`, `a Windows host` | `tool/call`, `tool/result` | `elevated` | A Windows-only tool: the user approves the run in Aeven and again in the operating-system consent prompt, and a refusal fails the call instead of running the command at the caller's own privilege. Compositions that mount the package off Windows offer the model nothing. |
+| `@aeven/tool-image-search` | `find_images` | `ctx.tools`, `ctx.attachments`, `ctx.llm`, `ctx.web (execution time)` | `tool/call`, `one durable image attachment per photograph or card`, `tool/result` | - | `find_images` reads Wikimedia Commons first and the web seam second, so a deployment without a web provider still answers and cites what Commons holds. Every photograph and news card becomes a durable image attachment the client shows in the transcript. |
+| `@aeven/tool-mail` | `mail_accounts`, `mail_read`, `mail_search`, `mail_send`, `mail_update` | `ctx.tools`, `ctx.mail`, `a session owner with at least one usable mail account`, `a calling Agent for account addressing and approval routing` | `tool/call`, `tool/result`, `mail folder and message changes through ctx.mail`, `a saved attachment file inside the workspace` | - | The tools register for an agent only while its session owner has at least one usable mail account, so a signed-out session or a mailbox-less owner sees none; sending and permanent deletion ask through ctx.approval, where a deny from another policy still wins. |
+| `@aeven/tool-memory` | `memory_environments`, `memory_get`, `memory_remember`, `memory_search`, `memory_skill`, `memory_skills`, `memory_timeline` | `ctx.tools`, `ctx.memory` | `tool/call`, `tool/result`, `a remembered fact on memory_remember` | - | Registered only while a memory provider is active, so a composition without one shows the model no memory tools at all; the seven tools read the provider and only `memory_remember` writes to it. |
 
 <a id="aeventool-ask-user"></a>
 
@@ -1298,6 +1307,37 @@ Load the full instructions for an available skill. Call this with the exact skil
 
 Source: [`packages/skill/tool-skill/src/index.ts`](../packages/skill/tool-skill/src/index.ts)
 
+<a id="aeventool-search"></a>
+
+## `@aeven/tool-search`
+
+### `tool_search`
+
+Find and load deferred tools. "select:a,b" loads exact tools named in the deferred tools index; keywords list matching tools with what they do and load nothing (prefix a keyword with + to require it in the tool name or namespace); "restart:&lt;server>" connects an MCP server the index lists as not serving.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "Either \"select:<name>[,<name>...]\", \"restart:<server>\", or search keywords."
+    },
+    "max_results": {
+      "type": "integer",
+      "description": "Keyword searches list at most this many tools."
+    }
+  },
+  "required": [
+    "query"
+  ]
+}
+```
+
+Source: [`packages/core/tool-search/src/index.ts`](../packages/core/tool-search/src/index.ts)
+
+Presented to the model only while at least one tool is deferred or a deferring MCP server is not serving. Keyword queries list tools without loading them; `select:` loads schemas into following requests, or returns SDK declarations when the request presents `run_code`; `restart:` reconnects an MCP server.
+
 <a id="aeventool-session-query"></a>
 
 ## `@aeven/tool-session-query`
@@ -1672,7 +1712,7 @@ The globally named control tools over continuable background subagents: provider
 
 ### `job_kill`
 
-Request cancellation of a running background job by job id. Returns immediately; the job settles as killed once its work actually stops.
+Request cancellation of a running background job.
 
 ```json
 {
@@ -1710,7 +1750,7 @@ Source: [`packages/jobs/tool-jobs/src/index.ts`](../packages/jobs/tool-jobs/src/
 
 ### `job_output`
 
-Read a background job. Stream jobs return only output since the previous read; final-output jobs return their result after settlement. Every response ends with `[status: ...]`. Reads are non-blocking unless `wait: true`, which waits up to the configured cap.
+Read a background job: output since the previous read for stream jobs, or the result of a finished final-output job.
 
 ```json
 {
@@ -1722,11 +1762,11 @@ Read a background job. Stream jobs return only output since the previous read; f
     },
     "wait": {
       "type": "boolean",
-      "description": "Block until the job reaches a terminal status or the timeout expires. A timed-out wait returns [status: running] and leaves the job alive."
+      "description": "Block until the job finishes, the timeout expires, or the user sends a message; an unfinished wait leaves the job running. Defaults to false."
     },
     "timeout_ms": {
       "type": "number",
-      "description": "Max wait in milliseconds (only meaningful with wait: true). Defaults to the configured wait timeout; capped by the configured maximum."
+      "description": "Max wait in milliseconds with wait: true. Defaults to and is capped by configuration."
     }
   },
   "required": [
@@ -2061,7 +2101,7 @@ All ten tools are scoped to implicit Team Leads and durable teammates. The shipp
 
 ### `generate_image`
 
-Generate an image from a text prompt and attach it to the conversation. Use when the user asks to create, draw, or generate a picture. Give a complete visual prompt covering subject, composition, style, and lighting. The image is attached directly to this conversation; do not call other tools to locate or verify it.
+Generate an image from a text prompt and attach it to the conversation. Use when the user asks to create, draw, edit, or generate a picture. When the user supplies a complete image prompt, pass it verbatim without rewriting, expanding, or inventing details. Otherwise compose a visual prompt from their request. To edit or draw from existing images, pass them as reference_images and refer to them by position in the prompt. Ask for no more images in one call than the chosen model's description allows; for more images, make another call. The image is displayed directly to the user. Do not repeat or embed it in your reply, write an image path, or call other tools to locate or verify it.
 
 ```json
 {
@@ -2069,35 +2109,114 @@ Generate an image from a text prompt and attach it to the conversation. Use when
   "properties": {
     "prompt": {
       "type": "string",
-      "description": "Complete description of the image to generate."
+      "description": "The user-supplied image prompt verbatim when provided; otherwise a visual description based on their request."
     },
     "model": {
       "type": "string",
-      "description": "Optional provider model id for this call only, verbatim, e.g. 'black-forest-labs/flux.2-pro'. Omit to use the configured default."
-    },
-    "provider": {
-      "type": "string",
-      "description": "Optional media provider id for this call only, e.g. 'openrouter' or 'deepinfra'. Omit to use the configured default."
+      "description": "Optional model id for this call only, verbatim, from the available models. Omit to use the selected default."
     },
     "n": {
       "type": "integer",
-      "description": "How many images to generate. Omit for the provider default."
-    },
-    "aspect_ratio": {
-      "type": "string",
-      "description": "Aspect ratio in W:H form, e.g. '16:9'."
-    },
-    "resolution": {
-      "type": "string",
-      "description": "Named resolution tier, e.g. '1K', '2K', '4K'."
+      "description": "How many images to generate, at most the count the chosen model's description states. Omit for one."
     },
     "size": {
       "type": "string",
-      "description": "Exact pixel size in WIDTHxHEIGHT form, e.g. '1024x1024'."
+      "description": "Pixel size in WIDTHxHEIGHT form, e.g. '1024x1024' or '2730x1536' for 16:9, or a named size the chosen model lists in its description, e.g. '2K'. Never a tier the model does not list. Omit for the model default."
+    },
+    "background": {
+      "type": "string",
+      "description": "Background to generate, for a model that offers the option. Omit to let the model decide.",
+      "enum": [
+        "transparent",
+        "opaque"
+      ]
+    },
+    "resolution": {
+      "type": "string",
+      "description": "A resolution tier the chosen model lists in its description, e.g. 2K. Use either resolution or size."
     },
     "seed": {
       "type": "integer",
-      "description": "Deterministic generation seed."
+      "description": "Provider seed, where the chosen model lists one; a fixed seed does not guarantee reproducible images."
+    },
+    "guidance_scale": {
+      "type": "number",
+      "description": "Prompt guidance strength, where the chosen model lists it; the Aeven models have none."
+    },
+    "output_format": {
+      "type": "string",
+      "description": "Output file format, where the chosen model lists it.",
+      "enum": [
+        "png",
+        "jpeg"
+      ]
+    },
+    "optimize_prompt_mode": {
+      "type": "string",
+      "description": "Prompt optimization, where the chosen model lists it: standard for quality, fast for lower latency.",
+      "enum": [
+        "standard",
+        "fast"
+      ]
+    },
+    "reference_images": {
+      "type": "array",
+      "description": "Paths of existing images to edit or draw from, in the order the prompt refers to them: workspace files, or the normalized copy path shown for a conversation image.",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "prompt"
+  ]
+}
+```
+
+Source: [`packages/media/tool-media/src/index.ts`](../packages/media/tool-media/src/index.ts)
+
+### `generate_video`
+
+Generate a video clip from a text prompt, optionally starting from an image, and attach it to the conversation. Use when the user asks to create, animate, or generate a video. Give a complete prompt covering subject, action, camera movement, style, and lighting. Generation takes minutes. To animate an existing image, pass it as the first of reference_images; a second image is the last frame. The video is displayed directly to the user with playback controls. Do not repeat or embed it in your reply, write a video path, or call other tools to locate or verify it.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "prompt": {
+      "type": "string",
+      "description": "Complete description of the video to generate."
+    },
+    "model": {
+      "type": "string",
+      "description": "Optional model id for this call only, verbatim, from the available models. Omit to use the selected default."
+    },
+    "duration": {
+      "type": "integer",
+      "description": "Clip length in seconds the chosen model lists — a range, or only fixed lengths such as 4, 6 or 8 — or -1 to let the model decide where it offers that. Omit for the model default."
+    },
+    "resolution": {
+      "type": "string",
+      "description": "An output resolution the chosen model lists, e.g. 720p. Omit for the model default."
+    },
+    "aspect_ratio": {
+      "type": "string",
+      "description": "An aspect ratio the chosen model lists, e.g. '16:9' or '9:16', or 'adaptive' to follow the first frame. Omit for the model default."
+    },
+    "seed": {
+      "type": "integer",
+      "description": "Provider seed, where the chosen model lists one; a fixed seed does not guarantee a reproducible clip."
+    },
+    "generate_audio": {
+      "type": "boolean",
+      "description": "Whether the clip carries audio synchronized with the visuals, where the chosen model offers it."
+    },
+    "reference_images": {
+      "type": "array",
+      "description": "Paths of at most two images: the first frame, then optionally the last frame. Workspace files, or the normalized copy path shown for a conversation image.",
+      "items": {
+        "type": "string"
+      }
     }
   },
   "required": [
@@ -2261,7 +2380,7 @@ Source: [`packages/workflow/tool-workflow/src/index.ts`](../packages/workflow/to
 
 ### `web_fetch`
 
-Fetch the content of a specific HTTP(S) URL and return it decoded to text.
+Fetch the content of a specific HTTP(S) URL and return it decoded to text. Runs no JavaScript, so a page that builds itself in a browser may return little or nothing.
 
 ```json
 {
@@ -2305,3 +2424,1139 @@ Search the web for current information. Use it before answering anything that ma
 Source: [`packages/web/tool-web/src/index.ts`](../packages/web/tool-web/src/index.ts)
 
 web_search and web_fetch keep provider selection behind ctx.web so model-visible schemas stay stable across backend swaps.
+
+<a id="aeventool-browser"></a>
+
+## `@aeven/tool-browser`
+
+### `preview_back`
+
+Go back one page in the collaborative browser tab, showing the pointer pressing the control.
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+Source: [`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_click`
+
+Click exactly one target in the collaborative browser tab. Prefer a selector from preview_snapshot; x and y must be supplied together.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "selector": {
+      "type": "string",
+      "description": "CSS selector such as button[type='submit'], from preview_snapshot's interactiveElements."
+    },
+    "token": {
+      "type": "string",
+      "description": "Element token from the latest preview_snapshot with mode ax. Valid until the next browser action; do not combine with selector or coordinates."
+    },
+    "x": {
+      "type": "number",
+      "description": "Viewport-relative X coordinate in CSS pixels. Must be paired with y."
+    },
+    "y": {
+      "type": "number",
+      "description": "Viewport-relative Y coordinate in CSS pixels. Must be paired with x."
+    }
+  }
+}
+```
+
+Source: [`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_evaluate`
+
+Evaluate JavaScript in the collaborative browser tab. Returns {value} with a serializable result up to 64 KB; the expression may mutate page state.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "expression": {
+      "type": "string",
+      "description": "JavaScript expression evaluated in the page's main frame, for example document.title or (() => ({href: location.href}))()."
+    }
+  },
+  "required": [
+    "expression"
+  ]
+}
+```
+
+Source: [`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_forward`
+
+Go forward one page in the collaborative browser tab, showing the pointer pressing the control.
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+Source: [`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_navigate`
+
+Navigate the collaborative browser tab. Pass {url:'https://t3.chat'} for a website or a local dev server URL.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "url": {
+      "type": "string",
+      "description": "Website URL. Use this for public pages and directly reachable URLs."
+    }
+  },
+  "required": [
+    "url"
+  ]
+}
+```
+
+Source: [`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_press`
+
+Press one keyboard key in the collaborative browser tab. Examples: {key:'Enter'}, {key:'Escape'}, or {key:'a',modifiers:['Meta']}.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "key": {
+      "type": "string",
+      "description": "Keyboard key name such as Enter, Escape, Tab, ArrowDown, Backspace, or a single character."
+    },
+    "modifiers": {
+      "type": "array",
+      "description": "Modifier keys held while pressing key.",
+      "items": {
+        "type": "string",
+        "enum": [
+          "Alt",
+          "Control",
+          "Meta",
+          "Shift"
+        ]
+      }
+    }
+  },
+  "required": [
+    "key"
+  ]
+}
+```
+
+Source: [`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_reload`
+
+Reload the page in the collaborative browser tab, showing the pointer pressing the control.
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+Source: [`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_screenshot`
+
+Capture the visible viewport of the collaborative browser as a JPEG image. Use it when page pixels are needed; inspect accessibility or DOM state for ordinary interaction.
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+Source: [`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_scroll`
+
+Scroll the collaborative browser tab. Positive deltaY scrolls down and positive deltaX scrolls right; a selector targets a container.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "deltaX": {
+      "type": "number",
+      "description": "Horizontal scroll delta in CSS pixels. Positive scrolls right. Defaults to 0."
+    },
+    "deltaY": {
+      "type": "number",
+      "description": "Vertical scroll delta in CSS pixels. Positive scrolls down. Defaults to 0."
+    },
+    "selector": {
+      "type": "string",
+      "description": "CSS selector such as button[type='submit'], from preview_snapshot's interactiveElements."
+    }
+  }
+}
+```
+
+Source: [`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_sequence`
+
+Execute 1 to 20 known actions in order in this browser, without model round trips. Stops at the first failure and reports its index. Use wait actions for page transitions, not fixed sleeps. Obtain selectors from the page first; include a final submit only when the user authorized that exact submission.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "actions": {
+      "type": "array",
+      "description": "1 to 20 ordered actions. wait defaults to visible and enabled, with a 5000ms deadline; timeoutMs must be 1 to 60000.",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "operation": {
+                "type": "string",
+                "const": "click"
+              },
+              "selector": {
+                "type": "string",
+                "description": "CSS selector such as button[type='submit'], from preview_snapshot's interactiveElements."
+              }
+            },
+            "required": [
+              "operation",
+              "selector"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "operation": {
+                "type": "string",
+                "const": "type"
+              },
+              "selector": {
+                "type": "string",
+                "description": "CSS selector such as button[type='submit'], from preview_snapshot's interactiveElements."
+              },
+              "text": {
+                "type": "string"
+              },
+              "clear": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "operation",
+              "text"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "operation": {
+                "type": "string",
+                "const": "press"
+              },
+              "key": {
+                "type": "string"
+              },
+              "modifiers": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "Alt",
+                    "Control",
+                    "Meta",
+                    "Shift"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "operation",
+              "key"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "operation": {
+                "type": "string",
+                "const": "upload"
+              },
+              "selector": {
+                "type": "string",
+                "description": "CSS selector such as button[type='submit'], from preview_snapshot's interactiveElements."
+              },
+              "paths": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "operation",
+              "paths"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "operation": {
+                "type": "string",
+                "const": "wait"
+              },
+              "selector": {
+                "type": "string",
+                "description": "CSS selector such as button[type='submit'], from preview_snapshot's interactiveElements."
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "visible",
+                  "hidden"
+                ]
+              },
+              "timeoutMs": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "operation",
+              "selector"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "required": [
+    "actions"
+  ]
+}
+```
+
+Source: [`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_snapshot`
+
+Inspect a page before interacting. mode dom returns visible text and CSS selectors. mode ax reads the browser accessibility tree, including shadow DOM, and returns indexed nodes with snapshot-scoped tokens. Refresh after every action; truncated means nodes were omitted.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "mode": {
+      "type": "string",
+      "description": "Observation mode. Defaults to dom.",
+      "enum": [
+        "dom",
+        "ax"
+      ]
+    }
+  }
+}
+```
+
+Source: [`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_status`
+
+Report every browser surface this session can drive: the page in the collaborative browser beside it, including its URL, title, and loading state, and the Chromium on this Host when the deployment mounts one. Call this first for browser work, including when a page refused a plain fetch.
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+Source: [`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_type`
+
+Insert literal text into one input in the collaborative browser tab. Types into selector, or into the currently focused element when omitted; set clear=true to replace existing text.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "text": {
+      "type": "string",
+      "description": "Literal text to insert."
+    },
+    "selector": {
+      "type": "string",
+      "description": "CSS selector such as button[type='submit'], from preview_snapshot's interactiveElements."
+    },
+    "token": {
+      "type": "string",
+      "description": "Element token from the latest preview_snapshot with mode ax. Valid until the next browser action; do not combine with selector or coordinates."
+    },
+    "clear": {
+      "type": "boolean",
+      "description": "Clear the existing input value before inserting text. Defaults to false."
+    }
+  },
+  "required": [
+    "text"
+  ]
+}
+```
+
+Source: [`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_upload`
+
+Attach local files in this browser. Prefer the file input selector; an Upload button selector opens and answers its chooser in the same action. Paths must be absolute paths on the Electron computer. Remote uploads require approval.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "selector": {
+      "type": "string",
+      "description": "CSS selector such as button[type='submit'], from preview_snapshot's interactiveElements."
+    },
+    "paths": {
+      "type": "array",
+      "description": "Absolute local file paths to attach.",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "paths"
+  ]
+}
+```
+
+Source: [`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+preview_* calls are answered by the Client holding the session's browser; each call is bounded by the tool timeout.
+
+<a id="aeventool-location"></a>
+
+## `@aeven/tool-location`
+
+### `get_location`
+
+Ask the user for their current location. They approve their device location or decline; an approved location returns latitude, longitude, and accuracyMeters. Call it only when the task needs where the user is, such as nearby places or local weather, and never to guess a location from other data.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "purpose": {
+      "type": "string",
+      "description": "Why the location is needed, in one short sentence the user reads before choosing, for example \"To find pharmacies near you\"."
+    }
+  },
+  "required": [
+    "purpose"
+  ]
+}
+```
+
+Source: [`packages/interaction/tool-location/src/index.ts`](../packages/interaction/tool-location/src/index.ts)
+
+get_location is answered by the Client showing the session, after the reader chooses; the call is bounded by the tool timeout.
+
+<a id="aeventool-capability"></a>
+
+## `@aeven/tool-capability`
+
+### `capability_manage`
+
+Save a procedure the user asked you to learn or remember into long-term memory, where later requests recall it. Action "learn" takes a kebab-case name, a one-line description, the domain, and the full Markdown procedure. Action "import" adds every procedure in a JSON file the user names (an array of name, description, content, domain) and runs in the background.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "action": {
+      "type": "string",
+      "enum": [
+        "learn",
+        "import"
+      ]
+    },
+    "file": {
+      "type": "string",
+      "description": "For import: absolute path of the JSON file the user named."
+    },
+    "name": {
+      "type": "string",
+      "description": "For learn: kebab-case procedure name, such as ableton-export-stems."
+    },
+    "description": {
+      "type": "string",
+      "description": "For learn: one line, what the procedure does and when to use it."
+    },
+    "domain": {
+      "type": "string",
+      "description": "\"world\" for how an application or tool works in any project, \"project\" for this workspace only, \"experience\" for other know-how. Default \"experience\".",
+      "enum": [
+        "world",
+        "experience",
+        "project"
+      ]
+    },
+    "content": {
+      "type": "string",
+      "description": "For learn: the full procedure in Markdown: when to use it, requirements, steps, verification, recovery."
+    }
+  },
+  "required": [
+    "action"
+  ]
+}
+```
+
+Source: [`packages/capability/tool-capability/src/index.ts`](../packages/capability/tool-capability/src/index.ts)
+
+The registered actions depend on the load-time `store` config: the default `memory` stores a learned procedure as a long-term memory and registers only `learn` and `import`, while `capabilities` keeps it as a capability file and registers list, view, learn, update, write_file, report, retire, and restore. The learner and procedure recall run behind the same package and contribute no tool of their own.
+
+<a id="aeventool-device"></a>
+
+## `@aeven/tool-device`
+
+### `device_close`
+
+Remove a device from the device pane beside this session. Pass shutdown=true to also power the simulator or emulator off.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "deviceId": {
+      "type": "string",
+      "description": "Device to close. Omit to close every device open in this session."
+    },
+    "hostId": {
+      "type": "string",
+      "description": "Device host from device_list. Defaults to this machine."
+    },
+    "shutdown": {
+      "type": "boolean",
+      "description": "Also power the simulator or emulator off. Defaults to false."
+    }
+  }
+}
+```
+
+Source: [`packages/device/tool-device/src/index.ts`](../packages/device/tool-device/src/index.ts)
+
+### `device_list`
+
+List iOS Simulators and Android Emulators on the device hosts, which platforms each host can run, and which devices are already open beside this session. Call this before device_open when you do not know a device id.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "hostId": {
+      "type": "string",
+      "description": "Limit to one device host. Defaults to all hosts."
+    }
+  }
+}
+```
+
+Source: [`packages/device/tool-device/src/index.ts`](../packages/device/tool-device/src/index.ts)
+
+### `device_open`
+
+Open a simulator or emulator for this session: boots it if needed, starts its live stream, and shows it in the user's device pane so they can watch. Returns the agent-device command pinned to the device; drive the device with it afterwards.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "deviceId": {
+      "type": "string",
+      "description": "Simulator udid or emulator serial from device_list. Omit to use the booted device for the platform, or the first one."
+    },
+    "platform": {
+      "type": "string",
+      "description": "Required when deviceId is omitted and both platforms are available.",
+      "enum": [
+        "ios",
+        "android"
+      ]
+    },
+    "hostId": {
+      "type": "string",
+      "description": "Device host from device_list. Defaults to this machine."
+    }
+  }
+}
+```
+
+Source: [`packages/device/tool-device/src/index.ts`](../packages/device/tool-device/src/index.ts)
+
+### `device_screenshot`
+
+Capture the current screen of a device open beside this session. Use it to see what the user sees; for taps and text use the agent-device command from device_open.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "deviceId": {
+      "type": "string",
+      "description": "Device from device_list. Omit to use the device most recently opened in this session."
+    },
+    "hostId": {
+      "type": "string",
+      "description": "Device host from device_list. Defaults to this machine."
+    }
+  }
+}
+```
+
+Source: [`packages/device/tool-device/src/index.ts`](../packages/device/tool-device/src/index.ts)
+
+All four tools register on every host; a deployment without `ctx.devices`, with device support turned off, or without agent access answers with its own fixed sentence instead of hiding the tool. Driving a device goes through the agent-device CLI that `device_open` returns, not through a tool per device operation.
+
+<a id="aeventool-elevation"></a>
+
+## `@aeven/tool-elevation`
+
+A Windows-only tool: the user approves the run in Aeven and again in the operating-system consent prompt, and a refusal fails the call instead of running the command at the caller's own privilege. Compositions that mount the package off Windows offer the model nothing.
+
+<a id="aeventool-image-search"></a>
+
+## `@aeven/tool-image-search`
+
+### `find_images`
+
+Find real photographs of a subject — a place, building, object, artwork, product, event, or person — and show them to the user as a row of images with their sources. Call it whenever a question is about how something actually looks, when the user asks for photos, or when a picture carries the answer better than prose. It searches Wikimedia Commons and the web. Never describe a photograph you have not shown. For news, pass the articles you chose as `urls` with layout `cards`: each becomes one card with its image, headline, opening text and source.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "What to photograph, in a few words, for example \"Crystal Palace Hyde Park 1851\" or \"Sagrada Familia interior\". With `urls`, what the stories are about, for example \"today's tech news\". Required without `urls`."
+    },
+    "urls": {
+      "type": "array",
+      "description": "With layout `cards`: the article pages to show, one card each, in the order you present the stories — at most 10. Give one article per story.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "count": {
+      "type": "number",
+      "description": "How many photographs to show, 1 to 6. Defaults to 3. Ignored with `urls`, which shows one card per article."
+    },
+    "layout": {
+      "type": "string",
+      "description": "How the reader sees them. `row` is a row of photographs, for pictures that carry the answer. `cards` is one thumbnail with its title and source beside it, for news items and headlines. Defaults to `row`.",
+      "enum": [
+        "row",
+        "cards"
+      ]
+    },
+    "language": {
+      "type": "string",
+      "description": "The language this conversation is using, so cards read in it. Translate nothing yourself: name the language here and the tool translates the headlines and openings with the session's own model."
+    },
+    "translations": {
+      "type": "array",
+      "description": "The items in the reader's own language, one entry per result in the same order, for a source published in another language. Call again with the same query and these to replace what the cards read.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "summary"
+        ]
+      }
+    }
+  }
+}
+```
+
+Source: [`packages/web/tool-image-search/src/index.ts`](../packages/web/tool-image-search/src/index.ts)
+
+`find_images` reads Wikimedia Commons first and the web seam second, so a deployment without a web provider still answers and cites what Commons holds. Every photograph and news card becomes a durable image attachment the client shows in the transcript.
+
+<a id="aeventool-mail"></a>
+
+## `@aeven/tool-mail`
+
+### `mail_accounts`
+
+List the user's connected email accounts with their protocol, whether they can send, their aliases, and their IMAP folders. Call it before naming an account or folder you have not seen.
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+Source: [`packages/mail/tool-mail/src/tools.ts`](../packages/mail/tool-mail/src/tools.ts)
+
+### `mail_read`
+
+Read one email: headers, plain-text body, and attachment list. Reading does not mark it read. Pass saveAttachments to write attachments into the workspace.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "account": {
+      "type": "string",
+      "description": "Account address."
+    },
+    "folder": {
+      "type": "string",
+      "description": "Folder path; defaults to INBOX."
+    },
+    "id": {
+      "type": "string",
+      "description": "Message id from mail_search."
+    },
+    "saveAttachments": {
+      "type": "array",
+      "description": "Attachment indexes to save.",
+      "items": {
+        "type": "integer"
+      }
+    },
+    "saveTo": {
+      "type": "string",
+      "description": "Workspace-relative folder for saved attachments; defaults to mail-attachments."
+    }
+  },
+  "required": [
+    "account",
+    "id"
+  ]
+}
+```
+
+Source: [`packages/mail/tool-mail/src/tools.ts`](../packages/mail/tool-mail/src/tools.ts)
+
+### `mail_search`
+
+Search email envelopes (date, sender, recipients, subject, flags), newest first. Omit account to search every connected account. Filters combine with AND. Returns message ids for mail_read and mail_update; bodies are not included.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "account": {
+      "type": "string",
+      "description": "Account address; omit to search all accounts."
+    },
+    "folder": {
+      "type": "string",
+      "description": "Folder path; defaults to INBOX."
+    },
+    "from": {
+      "type": "string",
+      "description": "Sender address or name contains this text."
+    },
+    "to": {
+      "type": "string",
+      "description": "Recipient address or name contains this text."
+    },
+    "subject": {
+      "type": "string",
+      "description": "Subject contains this text."
+    },
+    "text": {
+      "type": "string",
+      "description": "Headers or body contain this text (IMAP only)."
+    },
+    "since": {
+      "type": "string",
+      "description": "ISO date; received on or after."
+    },
+    "before": {
+      "type": "string",
+      "description": "ISO date; received before."
+    },
+    "unread": {
+      "type": "boolean",
+      "description": "true for unread only, false for read only (IMAP only)."
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum messages to return."
+    }
+  }
+}
+```
+
+Source: [`packages/mail/tool-mail/src/tools.ts`](../packages/mail/tool-mail/src/tools.ts)
+
+### `mail_send`
+
+Send a plain-text email from a connected account, or save it as a draft with draft: true. Sending always asks the user to approve first. To reply, pass replyTo with the original message's folder and id; the subject then defaults to "Re: …". The sender must be the account address or one of its aliases.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "account": {
+      "type": "string",
+      "description": "Account address to send from."
+    },
+    "from": {
+      "type": "string",
+      "description": "Sender address; defaults to the account address."
+    },
+    "to": {
+      "type": "array",
+      "description": "Recipient addresses.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "cc": {
+      "type": "array",
+      "description": "Cc addresses.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "bcc": {
+      "type": "array",
+      "description": "Bcc addresses.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "subject": {
+      "type": "string",
+      "description": "Subject; optional for a reply."
+    },
+    "text": {
+      "type": "string",
+      "description": "Plain-text body."
+    },
+    "replyTo": {
+      "type": "object",
+      "description": "The message being answered.",
+      "additionalProperties": false,
+      "properties": {
+        "folder": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "folder",
+        "id"
+      ]
+    },
+    "draft": {
+      "type": "boolean",
+      "description": "Save to Drafts instead of sending (IMAP only)."
+    }
+  },
+  "required": [
+    "account",
+    "to",
+    "text"
+  ]
+}
+```
+
+Source: [`packages/mail/tool-mail/src/tools.ts`](../packages/mail/tool-mail/src/tools.ts)
+
+### `mail_update`
+
+Change emails in one folder: mark read or unread, flag or unflag, move to a folder, archive, move to trash, or delete permanently. POP3 accounts support delete only. Permanent delete asks the user first.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "account": {
+      "type": "string",
+      "description": "Account address."
+    },
+    "folder": {
+      "type": "string",
+      "description": "Folder the messages are in."
+    },
+    "ids": {
+      "type": "array",
+      "description": "Message ids from mail_search.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "action": {
+      "type": "string",
+      "description": "The change to apply.",
+      "enum": [
+        "read",
+        "unread",
+        "flag",
+        "unflag",
+        "move",
+        "archive",
+        "trash",
+        "delete"
+      ]
+    },
+    "destination": {
+      "type": "string",
+      "description": "Target folder path; required for move."
+    }
+  },
+  "required": [
+    "account",
+    "folder",
+    "ids",
+    "action"
+  ]
+}
+```
+
+Source: [`packages/mail/tool-mail/src/tools.ts`](../packages/mail/tool-mail/src/tools.ts)
+
+The tools register for an agent only while its session owner has at least one usable mail account, so a signed-out session or a mailbox-less owner sees none; sending and permanent deletion ask through ctx.approval, where a deny from another policy still wins.
+
+<a id="aeventool-memory"></a>
+
+## `@aeven/tool-memory`
+
+### `memory_environments`
+
+List learned knowledge about working environments: repository structure, application behavior, constraints, and recurring patterns.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "Optional keyword filter."
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum environments (1-30)."
+    }
+  }
+}
+```
+
+Source: [`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-memory/src/index.ts)
+
+### `memory_get`
+
+Read one memory item found by a memory search: a past task trace, a learned policy, or an environment model.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Memory item id."
+    },
+    "kind": {
+      "type": "string",
+      "description": "Item kind; defaults to trace.",
+      "enum": [
+        "trace",
+        "policy",
+        "world-model"
+      ]
+    }
+  },
+  "required": [
+    "id"
+  ]
+}
+```
+
+Source: [`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-memory/src/index.ts)
+
+### `memory_remember`
+
+Store one fact the user explicitly asked you to remember, such as a preference, a name, or how they like a task done. Use only when the user asks you to remember something; ordinary conversation is remembered automatically.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "fact": {
+      "type": "string",
+      "description": "The fact to remember, stated concisely in the user's words."
+    },
+    "about": {
+      "type": "string",
+      "description": "user: a fact about the user that holds everywhere (the default). project: a fact that matters only in this project.",
+      "enum": [
+        "user",
+        "project"
+      ]
+    }
+  },
+  "required": [
+    "fact"
+  ]
+}
+```
+
+Source: [`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-memory/src/index.ts)
+
+### `memory_search`
+
+Search long-term memory of earlier work: past task traces, learned policies, environment knowledge, and reusable skills. Each direct-user turn already receives one automatic recall; use this to rephrase or broaden an insufficient recall, and before claiming earlier context is unavailable.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "A concise free-text memory query."
+    },
+    "maxResults": {
+      "type": "integer",
+      "description": "Maximum results per kind (1-50)."
+    },
+    "skills": {
+      "type": "integer",
+      "description": "Skill result limit (0-100)."
+    },
+    "traces": {
+      "type": "integer",
+      "description": "Trace and policy result limit (0-100)."
+    },
+    "worldModels": {
+      "type": "integer",
+      "description": "Environment-model result limit (0-100)."
+    },
+    "sessionOnly": {
+      "type": "boolean",
+      "description": "Restrict results to memory captured from this session."
+    }
+  },
+  "required": [
+    "query"
+  ]
+}
+```
+
+Source: [`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-memory/src/index.ts)
+
+### `memory_skill`
+
+Load one learned skill to apply it to the current task; loading records that the skill was used.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Skill id from a skill listing or memory search."
+    }
+  },
+  "required": [
+    "id"
+  ]
+}
+```
+
+Source: [`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-memory/src/index.ts)
+
+### `memory_skills`
+
+List reusable skills learned from successful earlier work.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "status": {
+      "type": "string",
+      "description": "Optional lifecycle filter.",
+      "enum": [
+        "candidate",
+        "active",
+        "archived"
+      ]
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum skills (1-50)."
+    }
+  }
+}
+```
+
+Source: [`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-memory/src/index.ts)
+
+### `memory_timeline`
+
+List the ordered traces of one past episode to reconstruct how an earlier task went.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "episodeId": {
+      "type": "string",
+      "description": "Episode id from a memory item."
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum traces (1-100)."
+    }
+  },
+  "required": [
+    "episodeId"
+  ]
+}
+```
+
+Source: [`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-memory/src/index.ts)
+
+Registered only while a memory provider is active, so a composition without one shows the model no memory tools at all; the seven tools read the provider and only `memory_remember` writes to it.

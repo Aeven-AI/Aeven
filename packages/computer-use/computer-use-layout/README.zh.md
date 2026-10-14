@@ -76,6 +76,9 @@ overlapping(deck[1]!)   // role pairs that coincide, which the caller judges
 - **没有任何东西回读演示文稿。** 布局由其自身几何来校验；确认渲染出的文件实际包含什么，需要格式层的读取器。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ## 开发备注
 
 `exactOptionalPropertyTypes` 在此发现了一处真实的松散之处：解析后的填色是 `string | undefined`，这会迫使每个布局为 `resolve()` 总会提供的值发明兜底。现在的类型表明，已解析的选项就是已解析的。

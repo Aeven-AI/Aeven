@@ -102,6 +102,9 @@ kind: "package-reference"
 - **`ui-onboarding` 是保留但无消费者的 settings 小节**：持久 namespace 及其 `welcomeNoticeVersion` 字段仍由 `ui-settings-general` 注册，使已退役的产品声明写下的文档仍有合法的归属。当前没有任何发布面读写它；未来若要消费，必须重新决定是否需要按版本门控的文案。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

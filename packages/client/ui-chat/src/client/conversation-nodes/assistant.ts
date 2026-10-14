@@ -1,12 +1,12 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { ChunkRowEvent } from '@aeven/api-session-controller/types'
 import type {
-  ConversationLocation, ConversationMatch, ConversationNodeContext, ConversationNodeDefinition,
+  AssistantBlock, AssistantMessageNode, ConversationLocation, ConversationMatch,
+  ConversationNodeContext, ConversationNodeDefinition,
 } from '@aeven/client-ui-conversation/client'
 import type {} from '@aeven/llm-retry/types'
 import { isAppendSurfaceEvent } from '@aeven/session/surface'
 import type { AssistantChatData } from '../contract/chat-nodes.ts'
-import type { AssistantBlock, AssistantMessageNode } from '../contract/snapshot.ts'
 import { CHAT_SYNTHETIC_SEQ_OFFSETS, chatNode } from './common.ts'
 import {
   emptyAssistantBlock, isTokenDelta, toAssistantBlock, toAssistantBlocks,

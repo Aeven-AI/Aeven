@@ -120,7 +120,8 @@ export function createHostLlmBridge(
       try {
         callDeadline.signal.throwIfAborted()
         const prepared = await prepareAuxiliaryCall(llm, input, route, callDeadline.signal, cache, capabilityTtlMs)
-        const request: GenerateOptions = { ...generateOptions(input, route, prepared.config, languageRule(language, input.messages)), signal: callDeadline.signal }
+        const generated = generateOptions(input, route, prepared.config, languageRule(language, input.messages))
+        const request: GenerateOptions = { ...generated, signal: callDeadline.signal }
         const assembler = new BlockAssembler()
         for await (const chunk of prepared.stream(request)) {
           callDeadline.signal.throwIfAborted()
@@ -143,7 +144,9 @@ export function createHostLlmBridge(
         }
       } catch (error) {
         const timeout = timeoutOf(callDeadline.signal, TIMEOUT_CODE)
-        if (timeout) throw new MemosError(ERROR_CODES.LLM_TIMEOUT, timeout.message, { aevenCode: timeout.code, timeoutMs: timeout.timeoutMs })
+        if (timeout) {
+          throw new MemosError(ERROR_CODES.LLM_TIMEOUT, timeout.message, { aevenCode: timeout.code, timeoutMs: timeout.timeoutMs })
+        }
         throw error
       } finally {
         callDeadline[Symbol.dispose]()

@@ -233,7 +233,9 @@ describe('FileMutationRow diff card', () => {
     toggleRow(view)
     expect(view.container.querySelector('[data-diff]')).not.toBeNull()
     expect(view.getByText('hello fixture')).toBeTruthy()
-    expect(view.getByText('复制')).toBeTruthy()
+    // The card's copy control is an icon button named in its tooltip, so the
+    // label is its accessible name rather than visible text.
+    expect(view.getByRole('button', { name: '复制' })).toBeTruthy()
   })
 
   it('the summary is a path link that opens the tool path through the host', () => {
@@ -340,9 +342,13 @@ describe('FileMutationRow diff card', () => {
       content: [{ type: 'text', text: 'old_string not found in notes/demo.txt' }],
       error: { name: 'ToolError', code: 'INVALID_REQUEST' },
     }))} />)
+    // No remedy in the message, so the row is an alarm: it keeps the error
+    // state and the failure line reads in the plain summary rather than the
+    // de-emphasized notice one.
     expect(view.container.querySelector('[data-notice]')).toBeNull()
-    expect(view.container.querySelector('[class*="_errorSummary_"]')).not.toBeNull()
+    expect(view.container.querySelector('[data-state="error"]')).not.toBeNull()
     expect(view.container.querySelector('[class*="_noticeSummary_"]')).toBeNull()
+    expect(view.getByText('old_string not found in notes/demo.txt')).toBeTruthy()
   })
 
   it('shows the stopped state when the call was interrupted', () => {

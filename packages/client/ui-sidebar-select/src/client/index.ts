@@ -62,7 +62,11 @@ export function apply(ctx: ClientContext): void {
       scoped.slots.register({
         name: 'sidebar.right.body',
         locale: NS,
-        inject: (): ContentSelectInjected => ({ registry, fullscreen, openRightbar: (sessionId) => { scoped.layout.openRightbar(sessionId) } }),
+        inject: (): ContentSelectInjected => ({
+          registry,
+          fullscreen,
+          openRightbar: (sessionId) => { scoped.layout.openRightbar(sessionId) },
+        }),
       }, ContentSelect))
   })
 

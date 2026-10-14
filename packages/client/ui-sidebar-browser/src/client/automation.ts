@@ -4,6 +4,16 @@ import { desktopBrowser, livePaneCursors, webContentsIdOf, type BrowserGuest, ty
 import { resolveAddress } from './url.ts'
 
 /**
+ * The id the shell echoes back to cancel one automation request. `crypto.randomUUID` is a
+ * secure-context-only API, so the bytes come from `getRandomValues`, which every context has.
+ * @returns a fresh opaque request id.
+ */
+function mintRequestId(): DesktopBrowserRequestId {
+  const bytes = globalThis.crypto.getRandomValues(new Uint8Array(16))
+  return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('') as DesktopBrowserRequestId
+}
+
+/**
  * What the agent learns about the page from `status` and after `navigate`.
  * @param guest - the session's guest.
  * @returns the page's address, title, and load state.
@@ -25,8 +35,9 @@ export async function automate(guest: BrowserGuest, request: Pick<BrowserAutomat
     case 'status':
       return status(guest)
     case 'navigate': {
-      const url = resolveAddress(String(request.input.url ?? ''))
-      if (url === undefined) throw new Error(`not a navigable address: ${String(request.input.url)}`)
+      const address = typeof request.input.url === 'string' ? request.input.url : ''
+      const url = resolveAddress(address)
+      if (url === undefined) throw new Error(`not a navigable address: ${address}`)
       // A navigation is the agent using the browser, so the address bar shows it.
       await livePaneCursors.get(guest)?.announceNavigation(url, request.signal)
       request.signal?.throwIfAborted()
@@ -66,7 +77,7 @@ export async function automate(guest: BrowserGuest, request: Pick<BrowserAutomat
       const id = webContentsIdOf(guest)
       if (id === undefined) throw new Error('the browser has not finished opening; try again in a moment')
       request.signal?.throwIfAborted()
-      const requestId = crypto.randomUUID() as DesktopBrowserRequestId
+      const requestId = mintRequestId()
       const cancel = (): void => { bridge.cancelAutomation(id, requestId) }
       request.signal?.addEventListener('abort', cancel, { once: true })
       try {

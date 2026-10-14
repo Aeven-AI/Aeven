@@ -60,6 +60,9 @@ kind: "package-reference"
 - 批量上限固定为 64 个引用，不是可按部署配置的字段。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

@@ -40,6 +40,9 @@ kind: "package-group"
 - [生成组合图](../../apps/cli/composition.md)——每个已发布 profile 使用的确切组合。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ## 开发备注
 
 无。

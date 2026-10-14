@@ -7,16 +7,13 @@
  */
 
 import { createRequire } from 'node:module'
-import { tmpdir } from 'node:os'
 import { dirname, join, sep } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { Worker } from 'node:worker_threads'
-import type { WorkerOptions } from 'node:worker_threads'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
+import { DocumentExtractionLimiter, runDocumentWorker } from '@aeven/document-extract/execution'
 import type {} from '@aeven/document-extract'
 import type { DocumentExtractInput, DocumentExtractProviderId, ExtractedDocument } from '@aeven/document-extract'
-import type { OcrWorkerInit, OcrWorkerReply } from './protocol.ts'
+import type { OcrWorkerInit } from './protocol.ts'
 
 /** Stable plugin name. */
 export const name = 'document-extract-ocr'
@@ -68,52 +65,6 @@ function pdfjsDirectory(name: 'wasm' | 'standard_fonts'): string {
   return `${join(dirname(manifest), name)}${sep}`
 }
 
-/** Counting semaphore bounding simultaneous workers. */
-class Limiter {
-  private active = 0
-  private readonly waiting: Array<() => void> = []
-
-  constructor(private readonly limit: number) {}
-
-  async run<T>(task: () => Promise<T>): Promise<T> {
-    if (this.active >= this.limit) await new Promise<void>((resolve) => { this.waiting.push(resolve) })
-    this.active += 1
-    try {
-      return await task()
-    } finally {
-      this.active -= 1
-      this.waiting.shift()?.()
-    }
-  }
-}
-
-/** Built worker bundle, or an unbuilt bootstrap installing tsx before the TypeScript entry. */
-function workerSpawn(init: OcrWorkerInit, maxHeapMb: number): { entry: string | URL; options: WorkerOptions } {
-  const env: NodeJS.ProcessEnv = {}
-  if (process.platform === 'win32') {
-    env.TMP = tmpdir()
-    env.TEMP = tmpdir()
-  }
-  const base: WorkerOptions = {
-    workerData: init,
-    transferList: [init.data.buffer as ArrayBuffer],
-    execArgv: [],
-    resourceLimits: { maxOldGenerationSizeMb: maxHeapMb },
-  }
-  if (!import.meta.url.endsWith('.ts')) {
-    return { entry: fileURLToPath(new URL('./worker.cjs', import.meta.url)), options: { ...base, env } }
-  }
-  if (process.env.TSX_TSCONFIG_PATH !== undefined) env.TSX_TSCONFIG_PATH = process.env.TSX_TSCONFIG_PATH
-  const bootstrap = [
-    `import { register as registerEsm } from ${JSON.stringify(import.meta.resolve('tsx/esm/api'))}`,
-    `import { register as registerCjs } from ${JSON.stringify(import.meta.resolve('tsx/cjs/api'))}`,
-    'registerCjs()',
-    'registerEsm()',
-    `await import(${JSON.stringify(new URL('./worker.ts', import.meta.url).href)})`,
-  ].join('\n')
-  return { entry: new URL(`data:text/javascript,${encodeURIComponent(bootstrap)}`), options: { ...base, env } }
-}
-
 function runWorker(
   input: DocumentExtractInput,
   config: Config,
@@ -131,36 +82,7 @@ function runWorker(
     scale: config.scale,
     recognizers: config.recognizers,
   }
-  const { entry, options } = workerSpawn(init, config.maxWorkerHeapMb)
-  return new Promise<ExtractedDocument>((resolve, reject) => {
-    const worker = new Worker(entry, options)
-    let settled = false
-    const finish = (outcome: () => void): void => {
-      if (settled) return
-      settled = true
-      clearTimeout(timer)
-      signal.removeEventListener('abort', onAbort)
-      void worker.terminate()
-      outcome()
-    }
-    const timer = setTimeout(() => {
-      finish(() => { reject(new Error(`OCR exceeded ${config.timeoutMs} ms`)) })
-    }, config.timeoutMs)
-    const onAbort = (): void => {
-      finish(() => { reject(signal.reason instanceof Error ? signal.reason : new Error('OCR cancelled')) })
-    }
-    signal.addEventListener('abort', onAbort, { once: true })
-    worker.once('message', (reply: OcrWorkerReply) => {
-      finish(() => {
-        if (reply.ok) resolve(reply.result)
-        else reject(new Error(reply.message))
-      })
-    })
-    worker.once('error', (error) => { finish(() => { reject(error) }) })
-    worker.once('exit', (code) => {
-      finish(() => { reject(new Error(`OCR worker exited with code ${code}`)) })
-    })
-  })
+  return runDocumentWorker(init, config, signal, import.meta.url, specifier => import.meta.resolve(specifier), 'OCR')
 }
 
 /**
@@ -170,7 +92,7 @@ function runWorker(
  */
 export function apply(ctx: Context, config: Config): void {
   const paths = { langPath: languageDirectory(), wasmPath: pdfjsDirectory('wasm'), fontPath: pdfjsDirectory('standard_fonts') }
-  const limiter = new Limiter(config.concurrency)
+  const limiter = new DocumentExtractionLimiter(config.concurrency)
   ctx.effect(() => ctx.documentExtract.register({
     info: {
       id: PROVIDER_ID,

@@ -65,7 +65,7 @@ export function apply(ctx: ClientContext): void {
       'ui-imagine: /video-model decoration')
   })
 
-  ctx.inject(['uiConversation'], imageCtx => { registerGeneratedImages(imageCtx) })
+  ctx.inject(['uiConversation'], (imageCtx) => { registerGeneratedImages(imageCtx) })
   ctx.slots.inject('tool.call.toolview', function* () {
     for (const key of IMAGE_TOOLS) {
       yield ctx.slots.register({ name: 'tool.call.toolview', key, locale: NS }, ImageToolView)

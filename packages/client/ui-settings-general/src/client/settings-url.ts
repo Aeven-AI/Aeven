@@ -108,6 +108,7 @@ export class BrowserSettingsAddressRoute implements SettingsAddressRoute {
       }
       return this.#address
     },
+    /* jscpd:ignore-start -- mirrors ui-layout's surfaces.ts popstate lifetime; each projection owns its own subscription. */
     subscribe: (listener) => {
       this.#listeners.add(listener)
       if (this.#popstate === undefined) {
@@ -121,6 +122,7 @@ export class BrowserSettingsAddressRoute implements SettingsAddressRoute {
         this.#popstate = undefined
       }
     },
+    /* jscpd:ignore-end */
   }
 
   show(section?: string, detail?: string): void {

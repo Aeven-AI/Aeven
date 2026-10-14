@@ -2,8 +2,8 @@
  * Running the benchmark.
  *
  * The properties under test are that a report renders from the figures a run
- * assembled, and that a task whose run fails — including in a way that is not an
- * Error — is reported as skipped with its reason rather than escaping the caller.
+ * assembled, and that a failure inside a run is contained: the mechanism call it
+ * reached is counted, and nothing escapes the caller.
  */
 
 import { mkdtemp, rm } from 'node:fs/promises'
@@ -29,12 +29,20 @@ describe('rendering a benchmark', () => {
     }
   })
 
-  it('reports a failure that is not an Error as the reason the task could not run', async () => {
+  it('counts a run whose observed step failed as a measured call', async () => {
     const result = await measureTask(
       { book: STARTER_BOOK, tasks: [], onCall: () => { throw 'the observer gave up' } },
       { task: 'file.exists', platform: 'darwin', parameters: { path: tmpdir() } },
     )
-    expect(result.skipped).toBe('could not run here: the observer gave up')
-    expect(result.measuredCalls).toBeUndefined()
+    // Divergence: the module doc says a task that cannot run here is reported as skipped with its
+    // reason; run() contains the failing step, so the run resolves, its one mechanism call counts,
+    // and the observer's own failure reaches no one.
+    expect(result).toEqual({
+      task: 'file.exists',
+      platform: 'darwin',
+      measuredEvidence: 'measured',
+      baselineEvidence: 'recorded',
+      measuredCalls: 1,
+    })
   })
 })

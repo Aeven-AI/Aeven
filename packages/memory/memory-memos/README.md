@@ -5,6 +5,8 @@ kind: "package-reference"
 
 # @aeven/memory-memos
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 `avn-memory-memos` registers MemOS as the `ctx.memory` provider. It runs the vendored MemOS core (`MemoryCore`, [`@deepseek-ai/memos-local-plugin`](../../../vendor/memos-local-plugin)) in the Host process: memory lives in a local SQLite database, embeddings run locally through Transformers.js, and MemOS's auxiliary summary and filtering calls go through the owning session's `ctx.llm` route, so no second API key is configured. Each account has its own MemOS core over its own database, opened on the account's first memory operation.
@@ -62,14 +64,66 @@ Captured outcome evidence is stored in the trace's `contextHints`, indexed with 
 
 ## Model Experience
 
-This provider adds no prompt text or tools of its own. Its recall context reaches the model only through `@aeven/memory-context`, and its read results only through `@aeven/tool-memory`.
+### Automatic recall text
+
+#### What the model sees
+
+For each trace a turn-start recall returns, the text that reaches the model is that trace's stored summary, which `@aeven/memory-context` frames into one line of its recalled block; a trace whose summary is missing falls back to the MemOS injected context with its `memos_*` follow-up hints rewritten to the `MEMORY_TOOL` names, and outcome evidence stored with the trace is appended to the summary. A trace tagged with a correction or superseded by a later memory is left out of automatic recall, and a project trace captured in another workspace is dropped before it is returned.
+
+#### Token effect
+
+The recalled line costs the summary it carries, under the budget of the caller — one line is bounded by `itemMaxChars` and the whole block by `contextMaxChars` in `@aeven/memory-context`. What this provider puts behind those lines is bounded where it is written: `maxTextChars` (`16000`) caps the request or reply text one memory keeps, and automatic recall ranks at most `candidateTraces` (`20`) candidates before Aeven orders them.
+
+#### KV Cache effect
+
+Append-only: this provider contributes no system-prompt section and no tool schema, so the recalled lines join the conversation after the user's message and an earlier request's reusable prefix is unchanged.
+
+### Explicit trace reads
+
+#### What the model sees
+
+A deliberate `memory_search` or `memory_get` returns the trace whole, in the order a reader needs it: the stored summary, then `User message: <the captured message the summary was distilled from>`, then `Tool record: <each tool's name, arguments, output, and error code>`, then `Assistant answer: <the captured reply>`, with the parts the trace does not hold left out. `@aeven/tool-memory` renders that text into the model's tool result.
+
+#### Token effect
+
+Bounded where the consumer bounds it: `@aeven/tool-memory` clips each body to its own `resultMaxChars`, and the detail this provider stores is capped by `maxTextChars` (`16000`) per request or reply text. An explicit search keeps the configured per-tier result limits unless the tool arguments override them.
+
+#### KV Cache effect
+
+Append-only: the read is one tool result in the conversation, and it changes no earlier request.
+
+### Auxiliary memory requests
+
+#### What the model sees
+
+MemOS's own summarize, filter, and classification calls run on the session's route through the host bridge and carry no session id, so they are not conversation turns and trigger no session checkpoint. Their system text is MemOS's prompt with this provider's closing language rule appended — `Write every natural-language value in English.` or `Write every natural-language value in Simplified Chinese (zh-CN).` — and the request that summarizes a captured turn's final reply is extended with `PROJECT: <the session's working directory, or none>`, with `PREVIOUS ASSISTANT: <the reply the user message answers>` when that turn was captured in this process, and with the domain and correction rules. A capture whose summarize request did not run through the bridge, or answered without a domain, gets one classification call instead, whose whole input is the frame below.
+
+##### Verbatim classification input frame
+
+```markdown
+PROJECT: <the session's working directory, or none>
+
+USER: <the turn's user text, at most 1500 characters>
+
+ASSISTANT: <the turn's assistant text, at most 1500 characters>
+
+SUMMARY: <the stored summary, at most 300 characters>
+```
+
+#### Token effect
+
+One auxiliary request per captured turn, plus one classification call per fallback, each outside the conversation's own requests and each bounded by its own limit: the classifier answers within `maxTokens` `40` and `classifyTimeoutMs` (`15000`), and reasoning is switched off for these calls when the route supports it.
+
+#### KV Cache effect
+
+None for the conversation: each call is a separate request with its own messages, so it neither reads nor extends the conversation's reusable prefix.
 
 ## Known Limitations and Deferred Work
 
 - **Shared-database split** — the first start after per-account memory moves each account's rows out of `home/data/memos.db` into its own database and renames the shared file to `memos.db.split`; the split goes away at the first tagged release.
 - **Capture provenance** — MemOS stores tool output in traces, so text a tool read can reappear in later recalls; recalled context is framed as untrusted data.
 
-## Dev Note
+### Dev Note
 
 <details>
 <summary>Working context for maintainers — click to expand</summary>

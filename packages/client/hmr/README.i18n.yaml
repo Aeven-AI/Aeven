@@ -3,4 +3,4 @@
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/hmr/README.md
 README.md: 65828a13f745cb84c1b5ddb074d3a56275d05572
-README.zh.md: 580806bd0b8148c830f1c1dd7ea4849ef28d1b80
+README.zh.md: c777c4b5cd04d601b9fcfb8e6b69847ed3c2764f

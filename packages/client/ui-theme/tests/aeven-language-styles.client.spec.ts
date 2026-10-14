@@ -4,6 +4,9 @@ import { basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { packageStylesheets, parseRules } from './stylesheet-scan.ts'
+import {
+  clientSheet, clientSheetCss, expectDebtStillOwed, recordedOffences, type SweepDebtRegistry,
+} from './stylesheet-debt.ts'
 
 const css = readFileSync(
   fileURLToPath(new URL('../src/styles/aeven-language.css', import.meta.url)),
@@ -37,11 +40,17 @@ const buttonCss = readFileSync(
   'utf8',
 )
 
-/** Sheets laying a control on the line of macOS's window controls. */
+/**
+ * Sheets laying a leading control on the line of macOS's window controls: the
+ * conversation's fold control while the left column is collapsed, the sidebar's
+ * own leading control once it is open, and the image lightbox's info control.
+ * The frame itself lays only the window's right-hand corner, so it consumes no
+ * leading gutter.
+ */
 const WINDOW_CONTROLS_CONSUMERS = [
   '../../ui-conversation/src/client/skeleton/ConversationRoot.module.css',
   '../../ui-sidebar/src/client/SidebarRoot.module.css',
-  '../../ui-layout/src/client/AppFrame.module.css',
+  '../../ui-primitives/src/ImageLightbox.module.css',
 ]
 
 const authCss = readFileSync(
@@ -133,24 +142,82 @@ const MARK_SIZE_OWNERS = [
   '../../../../apps/web/src/preloader.css',
 ]
 
-describe('the loading mark', () => {
-  it('is one size everywhere, so a wait looks the same on every surface', () => {
-    // Selector parts rather than whole rules: a sheet may size the mark and
-    // its inner `svg` in one comma-separated rule.
-    const sized = packageStylesheets().flatMap((file) => {
-      const base = basename(file)
-      const exempt = OWNS_ITS_OWN_MARK_SIZE.has(base)
-      return parseRules(readFileSync(file, 'utf8'))
-        .filter(rule => rule.selectors.some(selector => MARK_SELECTOR.test(selector)))
-        .flatMap(rule => rule.declarations
-          .filter(([property]) => LOADING_GEOMETRY.includes(property))
-          .filter(([, value]) => !value.includes('--dsw-aeven-loading-mark-size'))
-          .filter(([, value]) => !(exempt && value === MARK_SIZE))
-          .map(([property, value]) => `${base} ${property}: ${value}`))
-    })
+/** One size-setting declaration carried by a rule the mark selector matches. */
+interface MarkSize {
+  selector: string
+  property: string
+  value: string
+}
+
+/**
+ * The geometry declarations on every rule whose selector names a loading mark.
+ * Selector parts rather than whole rules: a sheet may size the mark and its
+ * inner `svg` in one comma-separated rule.
+ * @param cssText - stylesheet text.
+ * @returns the size-setting declarations, in source order.
+ */
+function markSizes(cssText: string): MarkSize[] {
+  return parseRules(cssText)
+    .filter(rule => rule.selectors.some(selector => MARK_SELECTOR.test(selector)))
+    .flatMap(rule => rule.selectors.flatMap(selector => rule.declarations
+      .filter(([property]) => LOADING_GEOMETRY.includes(property))
+      .map(([property, value]): MarkSize => ({ selector, property, value }))))
+}
+
+/**
+ * The size-setting declarations still off the one-size standard, as report
+ * lines: the shared token's own sheets, a sheet that owns its mark size, and a
+ * bare `100%` fill are all in line, and `exempt` holds the recorded debt.
+ * @param cssText - stylesheet text.
+ * @param exempt - selectors excused by {@link LOADING_MARK_SIZE_DEBT}.
+ * @param ownsItsOwnSize - the sheet paints before the token can load and states {@link MARK_SIZE} itself.
+ * @returns the declarations still off the standard.
+ */
+function markSizesOffStandard(cssText: string, exempt: ReadonlySet<string>, ownsItsOwnSize: boolean): string[] {
+  return markSizes(cssText)
+    .filter(size => !exempt.has(size.selector))
+    .filter(size => !size.value.includes('--dsw-aeven-loading-mark-size'))
+    .filter(size => !(ownsItsOwnSize && size.value === MARK_SIZE))
     // A bare `100%` fill is not a size of its own: it defers to a parent that
     // is itself checked here, which is how the vendor icon loaders size theirs.
-    expect(sized.filter(entry => !entry.endsWith(': 100%'))).toEqual([])
+    .filter(size => size.value !== '100%')
+    .map(size => `${size.selector} ${size.property}: ${size.value}`)
+}
+
+/**
+ * Sheets whose wait restates a size rather than consuming the product's one
+ * loading mark, keyed by sheet path under packages/client/ with the selectors
+ * that size it. aeven-language.css owns the token — "One loading mark for every
+ * wait in the product … Surfaces consume these rather than restating a size, so
+ * the mark cannot drift apart again" — and these sheets live in packages this
+ * one does not own, so the debt is recorded here rather than fixed there; every
+ * other rule in the same sheet, and every sheet with no entry, still fails the
+ * sweep.
+ */
+const LOADING_MARK_SIZE_DEBT: SweepDebtRegistry = {
+  // The upload tile draws its own 16px mark inside an 80px (60px above the
+  // sm breakpoint) seat instead of seating the shared Spinner.
+  'ui-attachment/src/UploadTray.module.css': {
+    offences: ['.spinnerBox', '.spinner'],
+    reason: 'tile draws its own 16px mark in an 80px/60px seat instead of the shared Spinner',
+  },
+  // The dictation loader draws the same glyph at its own 16px.
+  'ui-voice-input/src/client/VoiceInput.module.css': {
+    offences: ['.loader'],
+    reason: 'dictation loader draws the mark at 16px instead of the shared size',
+  },
+}
+
+describe('the loading mark', () => {
+  it('is one size everywhere, so a wait looks the same on every surface', () => {
+    const sized = packageStylesheets().flatMap(file => markSizesOffStandard(
+      readFileSync(file, 'utf8'),
+      recordedOffences(LOADING_MARK_SIZE_DEBT, clientSheet(file)),
+      OWNS_ITS_OWN_MARK_SIZE.has(basename(file)),
+    ))
+    expect(sized).toEqual([])
+    expectDebtStillOwed(LOADING_MARK_SIZE_DEBT, (sheet, selector) =>
+      markSizesOffStandard(clientSheetCss(sheet), new Set(), false).some(line => line.startsWith(`${selector} `)))
   })
 
   it('draws the one size the sheets that own it restate', () => {

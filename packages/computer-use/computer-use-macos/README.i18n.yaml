@@ -3,4 +3,4 @@
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/computer-use/computer-use-macos/README.md
 README.md: d34de84cab46f9e7d6d864048ead8ad921ac712c
-README.zh.md: dbf49ef1d0cbad3ec6378e41d0924647c3af9ffe
+README.zh.md: 8d63dbac25fd1907b2b3ab2fa9e4fa3bf65d11c6

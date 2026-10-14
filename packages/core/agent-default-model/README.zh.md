@@ -117,6 +117,9 @@ await ctx.agentDefaultModel.saveSelection({ provider, model, reasoningEffort: 'h
 - **没有设置提供方时无法保留**——未挂载设置提供方时，`saveSelection()` 无法为后续 agent 保留选择。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

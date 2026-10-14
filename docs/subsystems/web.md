@@ -146,6 +146,36 @@ The HTTP provider resolves each actual request, rejects non-public answers inclu
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
+<a id="ctxbrowserchromium--browserchromium"></a>
+
+### `ctx.browserChromium` — `BrowserChromium`
+
+Launches and addresses the Host's Chromium.
+
+```ts cordis-catalog
+/**
+ * Sample what this browser is without launching it.
+ * @param signal - caller cancellation.
+ * @returns the debugging endpoint, whether a browser answers on it now,
+ *   whether a launch can succeed, and the tool prefix that drives it.
+ */
+async status(signal: AbortSignal): Promise<BrowserChromiumStatus>
+
+/**
+ * Open the browser at an address: launch it, or bring the running one to the front.
+ * @param agent - the session asking; every session shares the one browser.
+ * @param url - the http(s) address to show, or empty for the browser's start page.
+ * @param signal - caller cancellation.
+ * @returns the debugging endpoint once the browser answers on it.
+ * @throws {Error} when the address is not http(s) or the browser does not come up.
+ */
+@Remote('open') async remoteExportOpen(agent: Agent, url: string, signal: AbortSignal): Promise<BrowserChromiumOpened>
+```
+
+Types: [Agent](core.md)
+
+Source: [`packages/web/browser-chromium/src/index.ts`](../../packages/web/browser-chromium/src/index.ts)
+
 <a id="ctxweb--webruntime"></a>
 
 ### `ctx.web` — `WebRuntime`
@@ -203,4 +233,30 @@ async fetch(request: WebFetchRequest, signal?: AbortSignal): Promise<WebFetchRes
 ```
 
 Source: [`packages/web/web/src/index.ts`](../../packages/web/web/src/index.ts)
+
+<a id="browser-events"></a>
+
+### `browser/*` events
+
+<a id="browserautomation--waterfall"></a>
+
+#### `browser/automation` — waterfall
+
+Perform one action in the browser beside a session. The client holding that session's browser returns the action's result; a listener without one calls `next()` to delegate. Scope-filtered dispatch (`@aeven/scope`): agent-scoped listeners receive only that agent.
+
+```ts cordis-catalog
+/**
+ * Perform one action in the browser beside a session. The client holding
+ * that session's browser returns the action's result; a listener without
+ * one calls `next()` to delegate. Scope-filtered dispatch (`@aeven/scope`):
+ * agent-scoped listeners receive only that agent.
+ * @param request - pending browser action.
+ * @mode waterfall
+ */
+'browser/automation'( this: Scoped<Agent>, request: BrowserAutomationRequestEvent, next: () => Promise<JsonValue>, ): Promise<JsonValue>
+```
+
+Types: [Agent](core.md) · [Scoped](scope.md)
+
+Source: [`packages/web/tool-browser/src/types.ts`](../../packages/web/tool-browser/src/types.ts)
 <!-- END GENERATED cordis-surface -->

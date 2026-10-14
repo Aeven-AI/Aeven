@@ -156,6 +156,9 @@ ctx.plugin(SessionInvariant)
 - **没有配套入口就没有检查**——注册表自身不携带产品检查；只挂载服务的组合观察不到任何行为。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

@@ -634,7 +634,8 @@ export class SessionManager {
     const source = this.summaries.find(s => s.sessionId === opts.sessionId)
     const result = await this.remote.session.move({ sessionId: opts.sessionId, workspaceId: opts.workspaceId })
     if (result.ok) {
-      const { cwd: _cwd, ...rest } = source ?? { sessionId: opts.sessionId, createdAt: Date.now(), updatedAt: Date.now(), running: false, blank: false }
+      const { cwd: _cwd, ...rest } = source
+        ?? { sessionId: opts.sessionId, createdAt: Date.now(), updatedAt: Date.now(), running: false, blank: false }
       this.recordMutation({ kind: 'upsert', summary: { ...rest, sessionId: result.value.sessionId, running: false } })
       this.handleSessionRemoved(opts.sessionId)
     }
@@ -1001,7 +1002,7 @@ function sameRecord<V>(
   if (keys.length === source.size && keys.every(key => source.get(key as SessionId) === previous[key as SessionId])) {
     return previous
   }
-  return Object.fromEntries(source) as Record<SessionId, V>
+  return Object.fromEntries(source)
 }
 
 /** Apply one list mutation without deriving display order. */

@@ -6,6 +6,12 @@
 
 | 页面 | 负责内容 |
 |---|---|
+| [capability.md](capability.zh.md) | 能力与学习执行 |
+| [device.md](device.zh.md) | 设备会话与主机就绪状态 |
+| [document.md](document.zh.md) | 文档提取提供方 |
+| [mail.md](mail.zh.md) | 邮件账户与消息 |
+| [memory.md](memory.zh.md) | 记忆检索与管理 |
+| [speech.md](speech.zh.md) | 语音转写提供方与选择 |
 | [core.md](core.zh.md) | `packages/core` 如何控制 agent loop（智能体循环）：逐包的循环说明、agent 创建与所有权（`AgentHandle`）、`Agent` 句柄的投递/取消/拦截约定，以及全仓通用类型模式（`…Map → 派生联合`、品牌化 id） |
 | [llm-streaming.md](llm-streaming.zh.md) | `packages/llm` 的对话类型——`Message`/`ContentBlock`、组装完成的模型请求、`StreamChunk` wire protocol 和适配器约定（adapter contract）、`BlockAssembler`，以及 `LlmAdapter` 提供方约定 |
 | [token-meter.md](token-meter.zh.md) | 不可变的标量与位置回放度量，附带已消费日志修订号 |

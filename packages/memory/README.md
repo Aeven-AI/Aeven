@@ -5,6 +5,8 @@ kind: "package-group"
 
 # memory/ — long-term memory capability family
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 The memory group gives agents memory that outlives a session. Each direct-user turn receives one bounded recall of relevant earlier work as a durable, source-labelled message; each completed turn is handed to the provider to learn from; the statements the user confirmed as always true lead every request of their owner as one bounded block; and the model can search and inspect memory with tools. Aeven owns the `ctx.memory` interface, the invariants document, and the model-visible text, and the MemOS provider runs the MemOS local core in the Host process behind it. The family is on in every composition, including a fresh install.
@@ -31,7 +33,7 @@ The `avn-web-app` bundle mounts the `memory` slot and a disabled `memory-memos` 
 
 ## Related documentation
 
-- [Long-term memory Agent Note](../../.agents/notes/implemented/feature/2026-09-28-long-term-memory-memos.md) — why Aeven owns the seam and how the MemOS DSH adapter was ported.
+- [Long-term memory Agent Note](../../.agents/notes/implemented/feature/2026-09-28-long-term-memory-memos.md) — why Aeven owns the seam and how the MemOS DeepSeek Harness adapter was ported.
 
 ## Dev Note
 

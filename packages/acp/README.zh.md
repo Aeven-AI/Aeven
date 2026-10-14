@@ -36,6 +36,9 @@ acp 组提供一个包：一台服务器，让程序与自动化可以通过标�
 - [在单个连接上多路复用并发 ACP 会话](../../.agents/notes/implemented/feature/2026-06-14-acp-multi-session.zh.md)——按会话隔离、归属与清理决策。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ## 开发备注
 
 无。

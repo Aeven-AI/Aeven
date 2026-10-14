@@ -480,11 +480,11 @@ export function findBlockBoundary(
         return runStart === 0
           ? { close: false, md: mdBuffer, mdClose: '', mdNext: '' }
           : {
-              close: true,
-              md: mdBuffer.substring(0, runStart),
-              mdNext: mdBuffer.substring(runStart),
-              mdClose: closeTag,
-            }
+            close: true,
+            md: mdBuffer.substring(0, runStart),
+            mdNext: mdBuffer.substring(runStart),
+            mdClose: closeTag,
+          }
       }
 
       return {

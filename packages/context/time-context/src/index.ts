@@ -207,6 +207,7 @@ export function apply(ctx: Context, config: Config): void {
       selectedTimeZone,
       browser,
     )
+    /* jscpd:ignore-start -- mirrors @aeven/tool-browser's page snapshot on the same session source form */
     return {
       ...decision,
       messages: [
@@ -217,5 +218,6 @@ export function apply(ctx: Context, config: Config): void {
         }),
       ],
     }
+    /* jscpd:ignore-end */
   }, { prepend: true })
 }

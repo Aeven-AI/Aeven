@@ -158,10 +158,13 @@ describe('ToggleButton', () => {
 describe('SidebarRightRoot', () => {
   it('draws the occupant seat whether or not the column is folded', () => {
     // The occupant's seat is drawn either way, so the panel is usable before
-    // any content plugin registers.
-    expect(mountShell({ collapsed: true }).renderSlot).toHaveBeenCalledWith('sidebar.right.body', {})
+    // any content plugin registers; the fold state rides the seat so the
+    // occupant can follow it.
+    expect(mountShell({ collapsed: true }).renderSlot)
+      .toHaveBeenCalledWith('sidebar.right.body', { collapsed: true })
     cleanup()
-    expect(mountShell({ collapsed: false }).renderSlot).toHaveBeenCalledWith('sidebar.right.body', {})
+    expect(mountShell({ collapsed: false }).renderSlot)
+      .toHaveBeenCalledWith('sidebar.right.body', { collapsed: false })
   })
 
   it('carries no control of its own', () => {

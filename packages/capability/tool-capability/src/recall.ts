@@ -35,7 +35,13 @@ Return only JSON: {"matches":[{"name":"exact supplied name","score":0.9}]}. Scor
  * @param signal - admitted step lifetime.
  * @returns bounded advisory context, or undefined when nothing qualifies.
  */
-export async function recallProcedures(ctx: Context, agent: Agent, query: string, config: Config, signal: AbortSignal): Promise<UserMessage | undefined> {
+export async function recallProcedures(
+  ctx: Context,
+  agent: Agent,
+  query: string,
+  config: Config,
+  signal: AbortSignal,
+): Promise<UserMessage | undefined> {
   const owner = agent.session.header.owner
   if (owner === undefined) return undefined
   const eligible = (await ctx.capabilities.list(owner)).filter(record => record.status !== 'candidate' && record.status !== 'retired')
@@ -46,7 +52,8 @@ export async function recallProcedures(ctx: Context, agent: Agent, query: string
   const previousRequest = previous?.type === 'user/message'
     ? previous.data.content.flatMap(block => block.type === 'text' ? [block.text] : []).join('\n') : ''
   const budget = config.maxInputTokens * 4 - SELECTOR.length
-  const request = { currentRequest: query.slice(0, Math.floor(budget / 4)), previousRequest: previousRequest.slice(0, Math.floor(budget / 4)) }
+  const cut = Math.floor(budget / 4)
+  const request = { currentRequest: query.slice(0, cut), previousRequest: previousRequest.slice(0, cut) }
   const candidates: { name: string; description: string; originatingRequest: string | undefined }[] = []
   for (const record of eligible) {
     const item = { name: record.name, description: record.description, originatingRequest: record.origin?.request }

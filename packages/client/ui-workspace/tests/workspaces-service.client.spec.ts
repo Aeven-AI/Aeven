@@ -352,15 +352,27 @@ describe('UiWorkspaceService', () => {
     expect(routed.sessions.open).toHaveBeenLastCalledWith(second.id)
     expect(routed.sessionUrl.pushes).toEqual([first.id])
     routed.sessionUrl.navigate(undefined)
-    expect(routed.sessions.clear).toHaveBeenCalledOnce()
+    // An address naming no chat starts a New Session, exactly as the New
+    // Session action does: the selection is replaced rather than cleared, so
+    // the page keeps a composer.
+    expect(routed.sessions.clear).not.toHaveBeenCalled()
+    await flush()
+    expect(routed.sessions.create).toHaveBeenCalledWith({ workspaceId: wid('one') })
+    await vi.waitFor(() => {
+      expect(routed.sessions.open).toHaveBeenLastCalledWith(sid('created-one'))
+    })
 
     routed.sessionUrl.navigate(sid('missing'))
-    expect(routed.sessionUrl.replacements).toEqual([undefined])
-    expect(routed.sessions.open).toHaveBeenCalledTimes(3)
+    // The unknown id leaves the address bar, and the Session it replaced stays
+    // selected.
+    expect(routed.sessionUrl.replacements).toEqual([sid('created-one')])
+    expect(routed.sessions.open.mock.calls.map(call => call[0])).toEqual([
+      second.id, first.id, second.id, sid('created-one'),
+    ])
 
     await routed.ctx.fiber.dispose()
     routed.sessionUrl.navigate(first.id)
-    expect(routed.sessions.open).toHaveBeenCalledTimes(3)
+    expect(routed.sessions.open).toHaveBeenCalledTimes(4)
   })
 
   it('leaves another surface\'s address alone and resumes on the chat\'s', () => {
@@ -572,7 +584,13 @@ describe('UiWorkspaceService', () => {
 
     const empty = bench()
     empty.uiWorkspace.startSession()
-    expect(empty.sessions.clear).toHaveBeenCalledOnce()
+    // With no Workspace to target, the New Session is created outside one:
+    // clearing the selection instead would leave a page with no composer.
+    await vi.waitFor(() => {
+      expect(empty.sessions.open).toHaveBeenLastCalledWith(sid('created-none'))
+    })
+    expect(empty.sessions.create).toHaveBeenCalledWith({})
+    expect(empty.sessions.clear).not.toHaveBeenCalled()
 
     const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     b.sessions.create.mockRejectedValueOnce(new Error('create failed'))
@@ -744,7 +762,7 @@ describe('UiWorkspaceService', () => {
     expect(failure.sessions.create).toHaveBeenCalledOnce()
   })
 
-  it('clears a current Session only after it enters the archive baseline', () => {
+  it('replaces a current Session once it enters the archive baseline', async () => {
     const current = summary('current')
     const idle = summary('idle')
     const b = bench({
@@ -752,20 +770,37 @@ describe('UiWorkspaceService', () => {
       workspaces: workspaceState([workspace('one', [current.id, idle.id])]),
     })
 
+    // Another Session entering the archive set is not what the reader is
+    // reading: the selection stays.
     b.workspaces.list.update(state => ({ ...state, archivedSessionIds: [idle.id] }))
-    expect(b.sessions.clear).not.toHaveBeenCalled()
+    expect(b.sessions.create).not.toHaveBeenCalled()
+
+    // The selected Session entering the set is replaced by a New Session in
+    // its own Workspace, exactly as the New Session action would replace it.
     b.workspaces.list.update(state => ({ ...state, archivedSessionIds: [current.id] }))
-    expect(b.sessions.clear).toHaveBeenCalledOnce()
+    await vi.waitFor(() => {
+      expect(b.sessions.open).toHaveBeenLastCalledWith(sid('created-one'))
+    })
+    expect(b.sessions.create).toHaveBeenCalledWith({ workspaceId: wid('one') })
+    expect(b.sessions.clear).not.toHaveBeenCalled()
 
+    // …and so is a Session the reader selected before it entered the set.
+    b.sessions.create.mockClear()
     b.sessions.open(idle.id)
-    b.workspaces.list.update(state => ({ ...state, archivedSessionIds: [idle.id] }))
-    expect(b.sessions.clear).toHaveBeenCalledTimes(2)
+    b.workspaces.list.update(state => ({ ...state, archivedSessionIds: [idle.id, current.id] }))
+    await vi.waitFor(() => {
+      expect(b.sessions.create).toHaveBeenCalledWith({ workspaceId: wid('one') })
+    })
 
-    const archived = bench({
+    // A Session that was already in the archive set when the shell read it
+    // stays open to read: the conversation offers to unarchive it rather than
+    // replacing the page under the reader.
+    const inherited = bench({
       sessions: sessionState([current], current.id),
       workspaces: workspaceState([workspace('one', [current.id])], [current.id]),
     })
-    expect(archived.sessions.clear).toHaveBeenCalledOnce()
+    expect(inherited.sessions.create).not.toHaveBeenCalled()
+    expect(inherited.sessionUrl.replacements).toEqual([current.id])
   })
 
   it('forwards archive commands and preserves failures', async () => {
@@ -823,12 +858,23 @@ describe('UiWorkspaceService.whenInitialDataReady', () => {
     }
   }
 
-  it('resolves immediately for a ready empty shell', async () => {
+  it('creates the shell\'s first chat, then settles once its history opens', async () => {
     const b = bench({
       sessions: sessionState(),
       workspaces: workspaceState(),
     })
-    await expect(b.uiWorkspace.whenInitialDataReady()).resolves.toBeUndefined()
+    // A ready shell with nothing to show opens a chat rather than an empty
+    // page, and readiness holds until that chat's history is there to read.
+    await vi.waitFor(() => {
+      expect(b.sessions.open).toHaveBeenLastCalledWith(sid('created-none'))
+    })
+    const wait = await pendingFlag(b.uiWorkspace.whenInitialDataReady())
+    expect(wait.settled).toBe(false)
+
+    b.sessions.face(sid('created-none')).setOpenState('open')
+    b.sessions.list.update(state => ({ ...state }))
+    await wait.ready
+    expect(wait.settled).toBe(true)
     await expect(b.uiWorkspace.whenInitialDataReady()).resolves.toBeUndefined()
   })
 

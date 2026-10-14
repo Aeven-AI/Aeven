@@ -146,6 +146,9 @@ kind: "package-reference"
 - **默认 64 MiB 上限是拒绝边界，不是可恢复存储**——外层落盘只能保存发生 `output-limit` 后返回的有界日志和诊断；在运行时上限之外被拒绝的字节永远不会到达落盘层。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

@@ -207,6 +207,6 @@ Connecting, disabling, or disconnecting a server changes the next step's tool ca
 - Direct-message search and history require `slackDirectMessages` at consent time and must be registered on the application; a workspace connected without them has to be connected again to gain them.
 - Imported resources materialized for skill loading remain on disk after the catalog entry is removed.
 
-## Dev Note
+### Dev Note
 
 No Claude application binaries or proprietary bundled document skills are redistributed.

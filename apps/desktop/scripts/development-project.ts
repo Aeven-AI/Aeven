@@ -22,7 +22,7 @@ interface PackageManifest {
 
 /** Inputs whose locations differ between the launcher and isolated tests. */
 export interface DevelopmentProjectOptions {
-  /** Directory replaced with the generated development project. */
+  /** Stable directory whose contents are refreshed for the development project. */
   readonly projectDir: string
   /** Current workspace's `apps/cli` package directory. */
   readonly cliDir: string
@@ -116,7 +116,7 @@ function linkWorkspacePackages(roots: readonly string[], destinationRoot: string
 }
 
 /**
- * Replace one disposable project with links to the current built workspace.
+ * Refresh a disposable project's contents without removing a running Host's working directory.
  * @param options - Project destination, CLI package, workspace package roots, and release identity.
  * @returns the absolute project directory supplied by the caller.
  */
@@ -142,7 +142,12 @@ export function prepareDevelopmentProject(options: DevelopmentProjectOptions): s
     throw new Error('desktop development: apps/desktop-host/lib/index.js is missing; run pnpm run build')
   }
 
-  removeOwnedPath(options.projectDir)
+  const projectStat = lstatSync(options.projectDir, { throwIfNoEntry: false })
+  if (projectStat?.isDirectory() && !projectStat.isSymbolicLink()) {
+    for (const entry of readdirSync(options.projectDir)) removeOwnedPath(join(options.projectDir, entry))
+  } else {
+    removeOwnedPath(options.projectDir)
+  }
   createDevelopmentProjectMetadata(options.projectDir, options.release)
   const destinationModules = join(options.projectDir, 'node_modules')
   mkdirSync(destinationModules, { recursive: true })

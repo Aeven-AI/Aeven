@@ -684,7 +684,7 @@ resolveAgent(sessionId: SessionId): Promise<ApiSessionAgentResult>
  * @param signal - optional caller cancellation for persistence reads.
  * @returns the current attached state or persisted header and event prefix.
  */
-inspect( sessionId: SessionId, signal?: AbortSignal, ): Promise<SessionInspection>
+async inspect( sessionId: SessionId, signal?: AbortSignal, ): Promise<SessionInspection>
 
 /**
  * Read all visible Session rows without resuming an Agent.
@@ -735,13 +735,24 @@ inspect( sessionId: SessionId, signal?: AbortSignal, ): Promise<SessionInspectio
 @Remote canOpenWorkspacePath(): boolean
 
 /**
- * Open one path prepared by a Session-aware caller on the Host desktop.
- * @param request - path after best-effort Session workspace resolution.
+ * Open one path prepared by a Session-aware caller on the Host desktop: in
+ * its default application, in one registered application, or revealed in
+ * the file manager.
+ * @param request - path after best-effort Session workspace resolution, and the requested handoff.
  * @param signal - caller lifetime; abort terminates the native command.
  * @returns confirmation after the native opener accepts the path.
  * @throws RemoteError when the request is invalid, cancelled, or the opener fails.
  */
 @Remote('openWorkspacePath') async openWorkspacePath( request: SessionOpenWorkspacePathRequest, signal: AbortSignal, ): Promise<SessionOpenWorkspacePathValue>
+
+/**
+ * Query the serving desktop's current handlers for one file.
+ * @param request - file path in Host filesystem syntax.
+ * @param signal - caller lifetime, propagated to the desktop query.
+ * @returns application names, icons, and default selection; empty when desktop opening is unavailable.
+ * @throws RemoteError when the path is invalid, the query is cancelled, or native discovery fails.
+ */
+@Remote('workspacePathApplications') async workspacePathApplications( request: { readonly path: string }, signal: AbortSignal, ): Promise<readonly SessionWorkspacePathApplication[]>
 
 /**
  * Rename one Session after explicitly resuming it.
@@ -758,12 +769,29 @@ inspect( sessionId: SessionId, signal?: AbortSignal, ): Promise<SessionInspectio
 @Remote('fork') fork(request: SessionForkRequest): Promise<SessionForkValue>
 
 /**
+ * Move one idle Session into another Workspace, replacing it with a new
+ * Session at the target directory and deleting the original.
+ * @param request - source Session and target Workspace.
+ * @returns the identity of the replacing Session.
+ */
+@Remote('move') move(request: SessionMoveRequest): Promise<SessionMoveValue>
+
+/**
  * Admit one prompt after explicitly resuming its Session.
  * @param request - Session identity, prompt content, source metadata, and delivery mode.
  * @param signal - caller cancellation before prompt admission begins.
  * @returns acknowledgement that the Agent accepted the prompt.
  */
 @Remote('prompt') prompt(request: SessionPromptRequest, signal: AbortSignal): Promise<SessionPromptValue>
+
+/**
+ * Replace one user prompt's text, discard it (with its turn when it opened
+ * one) and everything after, and run the edited prompt as the next turn.
+ * @param request - Session identity, edited message seq, replacement text, and source metadata.
+ * @param signal - caller cancellation before the edit begins.
+ * @returns the committed rewind position.
+ */
+@Remote('edit') edit(request: SessionEditRequest, signal: AbortSignal): Promise<SessionEditValue>
 
 /**
  * Read one image proven reachable from the addressed Session log.
@@ -915,6 +943,16 @@ announce(session: Session): void
  * @throws the first registered listener failure after every listener settles.
  */
 async flush(session: Session): Promise<boolean>
+
+/**
+ * Dispatch the awaited `session/settle` checkpoint for `session`, with the
+ * carrier captured at {@link enter}: listeners finish background work
+ * derived from the session. A one-shot driver awaits it before it exits.
+ * @param session - the session whose owner is about to end it.
+ * @returns after every listener has settled; a listener failure is logged
+ *   and contained, since settlement only finishes optional derived work.
+ */
+async settle(session: Session): Promise<void>
 
 /**
  * Look up a live session.
@@ -1143,6 +1181,30 @@ Awaited parallel durability checkpoint: every listener runs and the caller await
  * @mode parallel
  */
 'session/flush'(this: Scoped<Session>, session: Session): Promise<void> | void
+```
+
+Types: [Scoped](scope.zh.md)
+
+Source: [`packages/core/session/src/index.ts`](../../packages/core/session/src/index.ts)
+
+<a id="sessionsettle--parallel"></a>
+
+#### `session/settle` — parallel
+
+Awaited parallel settlement before a process ends its ownership of a session, such as a one-shot run about to exit: listeners finish background work derived from the session before their promise settles. Long-running hosts need not dispatch it. Scope-filtered dispatch (`@aeven/scope`) reuses the session's owner scope.
+
+```ts cordis-catalog
+/**
+ * Awaited parallel settlement before a process ends its ownership of a
+ * session, such as a one-shot run about to exit: listeners finish
+ * background work derived from the session before their promise settles.
+ * Long-running hosts need not dispatch it. Scope-filtered dispatch
+ * (`@aeven/scope`) reuses the session's owner scope.
+ * @param session - the session whose owner is about to end it.
+ * @avnScopeScan unsupported
+ * @mode parallel
+ */
+'session/settle'(this: Scoped<Session>, session: Session): Promise<void> | void
 ```
 
 Types: [Scoped](scope.zh.md)

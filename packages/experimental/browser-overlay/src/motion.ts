@@ -176,9 +176,11 @@ export function createArcPath(start: PathPoint, end: PathPoint, bounds: MotionBo
   const endLength = Math.max(48, Math.min(640, span * 0.15, span * 0.9))
   const first = handle(bounds, start, click, startLength)
   const last = handle(bounds, end, reverse, endLength)
+  const shortFirst = handle(bounds, start, click, startLength * 0.65)
+  const shortLast = handle(bounds, end, reverse, endLength * 0.65)
   const candidates: TravelPath[] = [
     { start, end, arc: false, segments: [{ control1: first, control2: last, end }] },
-    { start, end, arc: false, segments: [{ control1: handle(bounds, start, click, startLength * 0.65), control2: handle(bounds, end, reverse, endLength * 0.65), end }] },
+    { start, end, arc: false, segments: [{ control1: shortFirst, control2: shortLast, end }] },
   ]
   const normal = point(-direction.y, direction.x)
   const sign = normal.x * click.x + normal.y * click.y >= 0 ? 1 : -1
@@ -196,16 +198,24 @@ export function createArcPath(start: PathPoint, end: PathPoint, bounds: MotionBo
       }
     }
   }
-  let best = candidates[0]!, bestInside: TravelPath | undefined
-  let score = Infinity, insideScore = Infinity
-  for (const candidate of candidates.slice(0, 20)) {
+  const scored = candidates.slice(0, 20).map((candidate) => {
     const m = metrics(candidate, bounds)
     const detour = Math.max(0, m.length / Math.max(1, span) - 1)
-    const value = m.length + detour * 320 + m.energy * 140 + m.maxTurn * 180 + m.totalTurn * 18 + reversePenalty(candidate) * 90 + (candidate.arc ? 45 : 0)
-    if (value < score) { best = candidate; score = value }
-    if (m.staysInBounds && value < insideScore) { bestInside = candidate; insideScore = value }
-  }
-  return bestInside ?? best
+    const value = m.length + detour * 320 + m.energy * 140 + m.maxTurn * 180
+      + m.totalTurn * 18 + reversePenalty(candidate) * 90 + (candidate.arc ? 45 : 0)
+    return { candidate, staysInBounds: m.staysInBounds, value }
+  })
+  const lowest = (entries: typeof scored): TravelPath =>
+    entries.reduce((best, entry) => entry.value < best.value ? entry : best).candidate
+  const inside = scored.filter(entry => entry.staysInBounds)
+  return inside.length === 0 ? lowest(scored) : lowest(inside)
+}
+
+/** The segment at one index of a travel path, which always holds at least one segment. */
+function segmentAt(path: TravelPath, index: number): PathSegment {
+  const segment = path.segments[index]
+  if (segment === undefined) throw new Error('a travel path always holds at least one segment')
+  return segment
 }
 
 /**
@@ -217,20 +227,24 @@ export function createArcPath(start: PathPoint, end: PathPoint, bounds: MotionBo
 export function samplePath(path: TravelPath, t: number): PathPoint {
   const progress = clamp(t, 0, 1)
   const index = progress === 1 ? path.segments.length - 1 : Math.floor(progress * path.segments.length)
-  const segment = path.segments[index]!
-  const start = index === 0 ? path.start : path.segments[index - 1]!.end
+  const segment = segmentAt(path, index)
+  const start = index === 0 ? path.start : segmentAt(path, index - 1).end
   const local = progress === 1 ? 1 : progress * path.segments.length - index
   const u = 1 - local
   const at = cubic(start, segment, local)
-  const dx = 3 * u * u * (segment.control1.x - start.x) + 6 * u * local * (segment.control2.x - segment.control1.x) + 3 * local * local * (segment.end.x - segment.control2.x)
-  const dy = 3 * u * u * (segment.control1.y - start.y) + 6 * u * local * (segment.control2.y - segment.control1.y) + 3 * local * local * (segment.end.y - segment.control2.y)
+  const dx = 3 * u * u * (segment.control1.x - start.x) + 6 * u * local * (segment.control2.x - segment.control1.x)
+    + 3 * local * local * (segment.end.x - segment.control2.x)
+  const dy = 3 * u * u * (segment.control1.y - start.y) + 6 * u * local * (segment.control2.y - segment.control1.y)
+    + 3 * local * local * (segment.end.y - segment.control2.y)
   return { ...at, tangent: Math.hypot(dx, dy) < 0.001 ? -44 : Math.atan2(dy, dx) * 180 / Math.PI + 90 }
 }
 function pathResponse(path: TravelPath): number {
   const m = metrics(path)
   const detour = Math.max(0, m.length / Math.max(1, distance(path.start, path.end)) - 1)
-  const complexity = clamp(clamp(detour / 0.55, 0, 1) * 0.42 + clamp(m.totalTurn / (Math.PI * 1.4), 0, 1) * 0.38 + clamp(m.energy / 1.25, 0, 1) * 0.2, 0, 1)
-  return clamp((0.42 + clamp((m.length - 180) / 760, 0, 1) * 0.22 + complexity * 0.12 + reversePenalty(path) * 0.28 + (path.arc ? 0.04 : 0)) * 0.7 * (path.arc ? 0.9 : 1), 0.12, 2.2)
+  const complexity = clamp(clamp(detour / 0.55, 0, 1) * 0.42 + clamp(m.totalTurn / (Math.PI * 1.4), 0, 1) * 0.38
+    + clamp(m.energy / 1.25, 0, 1) * 0.2, 0, 1)
+  return clamp((0.42 + clamp((m.length - 180) / 760, 0, 1) * 0.22 + complexity * 0.12 + reversePenalty(path) * 0.28
+    + (path.arc ? 0.04 : 0)) * 0.7 * (path.arc ? 0.9 : 1), 0.12, 2.2)
 }
 
 /**
@@ -387,7 +401,8 @@ export class CursorMotion {
       const axis = distance < 0.001 ? 0 : Math.atan2(y - from.y, x - from.x) * 180 / Math.PI
       this.#scootAxisTarget = axis
       // Small overshoot whose direction depends on which way the move leans.
-      this.#scootRotationTarget = clamp(((x - from.x) * 0.75 - (y - from.y) * 0.62) / Math.hypot(x - from.x, y - from.y), -1, 1) * MAX_LEAN_DEG
+      this.#scootRotationTarget = clamp(((x - from.x) * 0.75 - (y - from.y) * 0.62)
+        / Math.hypot(x - from.x, y - from.y), -1, 1) * MAX_LEAN_DEG
       this.scootAxis.target = this.#scootAxisTarget
       this.scootRotation.target = this.#scootRotationTarget
       this.positionX.target = x

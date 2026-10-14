@@ -33,7 +33,10 @@ export interface Config {
   hostLlm: boolean
   /** How long one route's reasoning capability stays cached, in milliseconds. */
   capabilityTtlMs: number
-  /** Language of stored summaries and learned knowledge written through the Host bridge; `auto` detects English or Chinese from each request's text. */
+  /**
+   * Language of stored summaries and learned knowledge written through the Host bridge; `auto` detects
+   * English or Chinese from each request's text.
+   */
   language: MemoryLanguage
   /**
    * Classify each captured turn as person, project, or world memory and detect corrections on the session's route; needs `hostLlm`.
@@ -122,8 +125,8 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   splitSharedMemory({
     sharedDbFile: home.dbFile,
     accountDbFile: owner => accountHome(config.accounts, owner).dbFile,
-    info: message => logger.info(message),
-    warn: message => logger.warn(message),
+    info: (message) =>{  logger.info(message) },
+    warn: (message) =>{  logger.warn(message) },
   })
   const cores = new OwnerCores(async (owner) => {
     const accountRoot = accountHome(config.accounts, owner)
@@ -150,15 +153,15 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       worldModels: configured.algorithm.retrieval.tier3TopK,
     },
     ...bridge && judges ? { judges, classify: input => classifyTurnDomain(bridge, input, config.classifyTimeoutMs) } : {},
-    warn: message => logger.warn(message),
-    info: message => logger.debug(message),
+    warn: (message) =>{  logger.warn(message) },
+    info: (message) =>{  logger.debug(message) },
   })
 
   logger.info(`ready (accounts=${config.accounts}, hostLlm=${String(config.hostLlm)}, autoRecovery=${String(recovery)})`)
 
   ctx.effect(() => {
     const unregister = ctx.memory.register(memory)
-    const unwatch = bridge ? ctx.on('llm/adapters-updated', () => bridge.invalidateModelCapabilities()) : () => {}
+    const unwatch = bridge ? ctx.on('llm/adapters-updated', () =>{  bridge.invalidateModelCapabilities() }) : () => {}
     return async () => {
       unwatch()
       unregister()

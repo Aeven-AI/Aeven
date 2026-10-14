@@ -221,6 +221,9 @@ importers:
       '@aeven/pwsh-sandbox':
         specifier: workspace:^
         version: link:../../packages/shell/pwsh-sandbox
+      '@aeven/reply-language':
+        specifier: workspace:^
+        version: link:../../packages/context/reply-language
       '@aeven/schedule':
         specifier: workspace:^
         version: link:../../packages/schedule/schedule
@@ -967,9 +970,6 @@ importers:
       '@aeven/deque':
         specifier: workspace:^
         version: link:../../util/deque
-      '@aeven/session':
-        specifier: workspace:^
-        version: link:../../core/session
       '@aeven/util-values':
         specifier: workspace:^
         version: link:../../util/values
@@ -1046,6 +1046,9 @@ importers:
       '@aeven/scope':
         specifier: workspace:^
         version: link:../../core/scope
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
       '@aeven/session-reference':
         specifier: workspace:^
         version: link:../../context/session-reference
@@ -2657,6 +2660,9 @@ importers:
       '@aeven/client-locale':
         specifier: workspace:^
         version: link:../locale
+      '@aeven/client-store':
+        specifier: workspace:^
+        version: link:../store
       '@aeven/client-ui-conversation':
         specifier: workspace:^
         version: link:../ui-conversation
@@ -2735,14 +2741,13 @@ importers:
         version: 18.3.1(react@18.3.1)
 
   packages/client/ui-auth-aeven:
-    dependencies:
+    devDependencies:
       '@aeven/client-ui-primitives':
         specifier: workspace:^
         version: link:../ui-primitives
       '@aeven/client-ui-theme':
         specifier: workspace:^
         version: link:../ui-theme
-    devDependencies:
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -3366,6 +3371,9 @@ importers:
       '@aeven/client-ui-tool':
         specifier: workspace:^
         version: link:../ui-tool
+      '@aeven/client-ui-workspace':
+        specifier: workspace:^
+        version: link:../ui-workspace
       '@aeven/llm':
         specifier: workspace:^
         version: link:../../llm/llm
@@ -3538,6 +3546,9 @@ importers:
       '@aeven/client-locale':
         specifier: workspace:^
         version: link:../locale
+      '@aeven/client-store':
+        specifier: workspace:^
+        version: link:../store
       '@aeven/client-ui-conversation':
         specifier: workspace:^
         version: link:../ui-conversation
@@ -5673,6 +5684,31 @@ importers:
       '@aeven/tools':
         specifier: workspace:^
         version: link:../../core/tools
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/context/reply-language:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+      zod:
+        specifier: ^4.4.3
+        version: 4.6.5
+    devDependencies:
+      '@aeven/agent':
+        specifier: workspace:^
+        version: link:../../core/agent
+      '@aeven/llm':
+        specifier: workspace:^
+        version: link:../../llm/llm
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@aeven/session-projection':
+        specifier: workspace:^
+        version: link:../../session/session-projection
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -8493,9 +8529,30 @@ importers:
 
   packages/llm/subscription-auth:
     dependencies:
+      '@aeven/atomic-write':
+        specifier: workspace:^
+        version: link:../../util/atomic-write
+      '@aeven/home-paths':
+        specifier: workspace:^
+        version: link:../../util/home-paths
+      '@aeven/llm-pi-ai':
+        specifier: workspace:^
+        version: link:../llm-pi-ai
+      '@aeven/media':
+        specifier: workspace:^
+        version: link:../../media/media
+      '@aeven/tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+      '@aeven/util-crypto':
+        specifier: workspace:^
+        version: link:../../util/crypto
       '@deepseek-ai/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
+      '@earendil-works/pi-ai':
+        specifier: 0.84.2
+        version: 0.84.2(@modelcontextprotocol/sdk@1.32.0(zod@4.6.5))(ws@8.21.3)(zod@4.6.5)
       dsh-coding-oauth-core:
         specifier: 0.1.2
         version: 0.1.2(@deepseek-ai/dsh-llm@0.1.1-rc.2(@deepseek-ai/cordis@vendor+cordis)(@deepseek-ai/dsh-attachment@0.1.1-rc.2(@deepseek-ai/cordis@vendor+cordis)(@deepseek-ai/dsh-brand@0.1.1-rc.2(@deepseek-ai/cordis@vendor+cordis)(@deepseek-ai/dsh-invariants@0.1.1-rc.2(@deepseek-ai/cordis@vendor+cordis)))(@deepseek-ai/dsh-invariants@0.1.1-rc.2(@deepseek-ai/cordis@vendor+cordis)))(@deepseek-ai/dsh-brand@0.1.1-rc.2(@deepseek-ai/cordis@vendor+cordis)(@deepseek-ai/dsh-invariants@0.1.1-rc.2(@deepseek-ai/cordis@vendor+cordis)))(@deepseek-ai/dsh-invariants@0.1.1-rc.2(@deepseek-ai/cordis@vendor+cordis))(@deepseek-ai/dsh-timeout@0.1.1-rc.2(@deepseek-ai/cordis@vendor+cordis)(@deepseek-ai/dsh-invariants@0.1.1-rc.2(@deepseek-ai/cordis@vendor+cordis))))
@@ -8503,9 +8560,6 @@ importers:
         specifier: 7.29.0
         version: 7.29.0
     devDependencies:
-      '@aeven/atomic-write':
-        specifier: workspace:^
-        version: link:../../util/atomic-write
       '@aeven/attachment':
         specifier: workspace:^
         version: link:../../attachment/attachment
@@ -8530,9 +8584,6 @@ importers:
       '@aeven/credentials':
         specifier: workspace:^
         version: link:../../credentials/credentials
-      '@aeven/home-paths':
-        specifier: workspace:^
-        version: link:../../util/home-paths
       '@aeven/host-webserver':
         specifier: workspace:^
         version: link:../../host/webserver
@@ -8542,24 +8593,9 @@ importers:
       '@aeven/llm':
         specifier: workspace:^
         version: link:../llm
-      '@aeven/llm-pi-ai':
-        specifier: workspace:^
-        version: link:../llm-pi-ai
-      '@aeven/media':
-        specifier: workspace:^
-        version: link:../../media/media
-      '@aeven/tools':
-        specifier: workspace:^
-        version: link:../../core/tools
-      '@aeven/util-crypto':
-        specifier: workspace:^
-        version: link:../../util/crypto
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
-      '@earendil-works/pi-ai':
-        specifier: 0.84.2
-        version: 0.84.2(@modelcontextprotocol/sdk@1.32.0(zod@4.6.5))(ws@8.21.3)(zod@4.6.5)
       '@types/react':
         specifier: ~18.3.1
         version: 18.3.31
@@ -12598,6 +12634,9 @@ importers:
       '@aeven/brand':
         specifier: workspace:^
         version: link:../../packages/util/brand
+      '@aeven/capability':
+        specifier: workspace:^
+        version: link:../../packages/capability/capability
       '@aeven/cli':
         specifier: workspace:^
         version: link:../../apps/cli
@@ -12634,6 +12673,9 @@ importers:
       '@aeven/deepseek-llm-api-extensions':
         specifier: workspace:^
         version: link:../../packages/llm/deepseek-llm-api-extensions
+      '@aeven/device':
+        specifier: workspace:^
+        version: link:../../packages/device/device
       '@aeven/fs':
         specifier: workspace:^
         version: link:../../packages/fs/fs
@@ -12667,6 +12709,9 @@ importers:
       '@aeven/http-proxy':
         specifier: workspace:^
         version: link:../../packages/util/http-proxy
+      '@aeven/identity-user':
+        specifier: workspace:^
+        version: link:../../packages/identity/user
       '@aeven/invariants':
         specifier: workspace:^
         version: link:../../packages/runtime-diagnostics/invariants
@@ -12691,6 +12736,9 @@ importers:
       '@aeven/llm-retry':
         specifier: workspace:^
         version: link:../../packages/llm/llm-retry
+      '@aeven/mail':
+        specifier: workspace:^
+        version: link:../../packages/mail/mail
       '@aeven/mcp-client':
         specifier: workspace:^
         version: link:../../packages/mcp/mcp-client
@@ -12706,6 +12754,12 @@ importers:
       '@aeven/media-openrouter':
         specifier: workspace:^
         version: link:../../packages/media/media-openrouter
+      '@aeven/memory':
+        specifier: workspace:^
+        version: link:../../packages/memory/memory
+      '@aeven/memory-context':
+        specifier: workspace:^
+        version: link:../../packages/memory/memory-context
       '@aeven/output-retention':
         specifier: workspace:^
         version: link:../../packages/util/output-retention
@@ -12727,6 +12781,9 @@ importers:
       '@aeven/repeat-tool-reminder':
         specifier: workspace:^
         version: link:../../packages/guard/repeat-tool-reminder
+      '@aeven/reply-language':
+        specifier: workspace:^
+        version: link:../../packages/context/reply-language
       '@aeven/sandbox':
         specifier: workspace:^
         version: link:../../packages/sandbox/sandbox
@@ -12826,6 +12883,9 @@ importers:
       '@aeven/terminal-bash':
         specifier: workspace:^
         version: link:../../packages/terminal/terminal-bash
+      '@aeven/time-context':
+        specifier: workspace:^
+        version: link:../../packages/context/time-context
       '@aeven/timeout':
         specifier: workspace:^
         version: link:../../packages/util/timeout
@@ -12841,12 +12901,21 @@ importers:
       '@aeven/tool-bash-persistent':
         specifier: workspace:^
         version: link:../../packages/shell/tool-bash-persistent
+      '@aeven/tool-browser':
+        specifier: workspace:^
+        version: link:../../packages/web/tool-browser
       '@aeven/tool-call-timeout-policy':
         specifier: workspace:^
         version: link:../../packages/guard/timeout-policy
+      '@aeven/tool-capability':
+        specifier: workspace:^
+        version: link:../../packages/capability/tool-capability
       '@aeven/tool-cordis':
         specifier: workspace:^
         version: link:../../packages/extensions/tool-cordis
+      '@aeven/tool-device':
+        specifier: workspace:^
+        version: link:../../packages/device/tool-device
       '@aeven/tool-fs':
         specifier: workspace:^
         version: link:../../packages/fs/tool-fs
@@ -12856,12 +12925,24 @@ importers:
       '@aeven/tool-goal':
         specifier: workspace:^
         version: link:../../packages/goal/tool-goal
+      '@aeven/tool-image-search':
+        specifier: workspace:^
+        version: link:../../packages/web/tool-image-search
       '@aeven/tool-jobs':
         specifier: workspace:^
         version: link:../../packages/jobs/tool-jobs
+      '@aeven/tool-location':
+        specifier: workspace:^
+        version: link:../../packages/interaction/tool-location
+      '@aeven/tool-mail':
+        specifier: workspace:^
+        version: link:../../packages/mail/tool-mail
       '@aeven/tool-media':
         specifier: workspace:^
         version: link:../../packages/media/tool-media
+      '@aeven/tool-memory':
+        specifier: workspace:^
+        version: link:../../packages/memory/tool-memory
       '@aeven/tool-pwsh':
         specifier: workspace:^
         version: link:../../packages/shell/tool-pwsh
@@ -12871,6 +12952,9 @@ importers:
       '@aeven/tool-ralph':
         specifier: workspace:^
         version: link:../../packages/workflow/tool-ralph
+      '@aeven/tool-search':
+        specifier: workspace:^
+        version: link:../../packages/core/tool-search
       '@aeven/tool-skill':
         specifier: workspace:^
         version: link:../../packages/skill/tool-skill
@@ -16516,6 +16600,7 @@ packages:
     resolution: {integrity: sha512-C/0zV5IhgVdYhGJTwrY0v8dknxlhiKwtVJkMUaexu9/QvRmzlV4vfU3hZlUSgqc2BxQHntL1mCVbDq8j0FRFDw==}
     cpu: [arm64]
     os: [android]
+    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-darwin-arm64@0.8.7':
     resolution: {integrity: sha512-/u+REDMI4a0/lsJXTM4c53/w31OGZLOReZIyg62uhgLs0kc8NHsj/nOcxTdlQjq5gi0zhdkccD9LaLTXcdzPvw==}
@@ -16526,47 +16611,55 @@ packages:
     resolution: {integrity: sha512-sMMzFOwCo4WXR+/6zIBThOocSC50iIIZZdfiIDbaLvj0Ax/rWt/iavyfEAqajyvzydLyCqR/ZItdLWSRlu1umw==}
     cpu: [x64]
     os: [darwin]
+    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-freebsd-x64@0.8.7':
     resolution: {integrity: sha512-MpdpKXix9P+Y1rKgjvcNeNtGjXeL1CmttNhYINrWls8kRpm4xM/oBGTmn6w7to8lAlwj5jm8q03dQPl5mRv4Qw==}
     cpu: [x64]
     os: [freebsd]
+    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-linux-arm-gnu@0.8.7':
     resolution: {integrity: sha512-rr1srFLlPAmC1vtxfc9C1YLDe3iH09YjfSeeIidBqKhzx1MATjOAq4mjlRUOnhr/L27MotWIYOFKwVsd5JZFOg==}
     cpu: [arm]
     os: [linux]
     libc: [glibc]
+    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-linux-arm-musl@0.8.7':
     resolution: {integrity: sha512-eAufXh8qBRpiSO6ueaMDL+yyoXIGLhpUce72YbcACtZU2qhExwBIJyEtQf5kH2Ki0X2aqkSjSfog4OPtKXan3Q==}
     cpu: [arm]
     os: [linux]
     libc: [musl]
+    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-linux-arm64-gnu@0.8.7':
     resolution: {integrity: sha512-gw4w6wPoHObBrdIC4duVWLmJOvpdE25j5D7yrM5mACNlK4klRz/lv8hK+ssQk9EJHBgZjSaqZIJVFgqNYbfv7A==}
     cpu: [arm64]
     os: [linux]
     libc: [glibc]
+    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-linux-arm64-musl@0.8.7':
     resolution: {integrity: sha512-L68N6Y4XkqcIaKo3Ra88JEvBEH4AHff44A4INcrxeVWZ8CZtu2tCpfVxe3hR8qQQMcvBSQlDn24KpkCKEhVvfA==}
     cpu: [arm64]
     os: [linux]
     libc: [musl]
+    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-linux-x64-gnu@0.8.7':
     resolution: {integrity: sha512-dzyAbltJmf3Cqlb8HcFuYIf5Yn0fl1vTr3XJ9HiVNNvOlhqPSArOqtw9vI1p6/VTXTjrMLXlU+s+/kNHiIy/Cw==}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
+    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-linux-x64-musl@0.8.7':
     resolution: {integrity: sha512-Otw4MH3404q0Bbvl+YTdW9aoUV5vXmUw8260bWvt1XlaoIX/ceSgI4ygheRDMfBPoHt6FDayQaO9OLVUZAgkFA==}
     cpu: [x64]
     os: [linux]
     libc: [musl]
+    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-win32-arm64@0.8.7':
     resolution: {integrity: sha512-qo/jyrzryiBuKEsFiuWaBCBe3tRMynQ0qFWFgOEjcCMQeZfBm+wKiVEUEFXXLc7bh8YezguAWp0Mtnhq4ARNyA==}
@@ -16578,11 +16671,13 @@ packages:
     resolution: {integrity: sha512-D5lDsVDx6m00E6bWySlWdH72Ca4TPSaphDqB6QjU6MpuNLIJqoGoatYyq2rOmBE8Zv/kunot/o58KGL03P3eiA==}
     cpu: [x64]
     os: [win32]
+    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-parser/binding-android-arm64@0.8.7':
     resolution: {integrity: sha512-eGKYiUDX7Y0V7tDTmg+JTVnXnjMqfXXsorZ+EDf5kxwchQ3Or1HS14MzI2fw+jFhHR85fCWt+mtX33Yao73hIQ==}
     cpu: [arm64]
     os: [android]
+    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-darwin-arm64@0.8.7':
     resolution: {integrity: sha512-Re0RHelKLnjEURulY2/KxW+Ngb8zuNA4BRZuMwgGQNzVumT6u4U2N2hc01oeYVNVof0i7GrXE4UCNBgbpRRnjQ==}
@@ -16593,47 +16688,55 @@ packages:
     resolution: {integrity: sha512-Hn8DROtQkjlA1ACbPgj4a7eP9IuVOI504oiTwpkWPbpaDWD9KdmnVYCqW+1LfenNK/g7O9NhWGpXEdaCNX7lIA==}
     cpu: [x64]
     os: [darwin]
+    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-freebsd-x64@0.8.7':
     resolution: {integrity: sha512-bAP2OV8wRuzplX/jYxv9+vvqQT8JxyNphI8fLfXGL054Xs+4/J5u33cIm3y4rxY8rdoLmmdiJs2Tq7r7lrDRfA==}
     cpu: [x64]
     os: [freebsd]
+    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-linux-arm-gnu@0.8.7':
     resolution: {integrity: sha512-kTYwJQQgmZeAWdDIWabiReIZMpmfLueIj1tCmjStUtFGhR1Z0qwxonKVfUC4N7h/VhGGzLZ//7O1kgt1QKqgCg==}
     cpu: [arm]
     os: [linux]
     libc: [glibc]
+    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-linux-arm-musl@0.8.7':
     resolution: {integrity: sha512-uL4jE8HPT2BLlxAXyD10LqgPuXa9eDa0BKpCdSANmzIJghq/2eZo3/gQNtaxPZMupWoxjYzSad9IXrwu7aYPXQ==}
     cpu: [arm]
     os: [linux]
     libc: [musl]
+    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-linux-arm64-gnu@0.8.7':
     resolution: {integrity: sha512-3gVN4pWSKZmXiNX7cU164dR9MPvesCHnlH6nPfpK+yQsCuYphjKKplcb4SnZBrhiqmXbgb2HR0c2TS0IZUPhgA==}
     cpu: [arm64]
     os: [linux]
     libc: [glibc]
+    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-linux-arm64-musl@0.8.7':
     resolution: {integrity: sha512-S0mwfEjoLpxzXeZw802Wa4RaELsQiPtWqG6INcy8j4GtvNFtl4LCX3eGO1XLn9pyLAISLzTRyU3zUCBUPin8lg==}
     cpu: [arm64]
     os: [linux]
     libc: [musl]
+    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-linux-x64-gnu@0.8.7':
     resolution: {integrity: sha512-lnbWdPmerE5D1uH1G4IEZKnPzCrWCStRGrtgpSIe1RibAo5bZIjDbbbPYXmMHCEh4F+x/JaJpElh26a3r+BPbg==}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
+    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-linux-x64-musl@0.8.7':
     resolution: {integrity: sha512-769uwndMvMzUvATWbAcEvyLHKA+DzhHSCl/obBUrRdYfRo26yxui6S8y3z7uJ+Naup7UKrDxrpK7OnQkxkl9KQ==}
     cpu: [x64]
     os: [linux]
     libc: [musl]
+    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-win32-arm64@0.8.7':
     resolution: {integrity: sha512-mEB/9PlaAkisJ6KWGz0zvywXoU6+80dTlR2LwS7s/jcXXoU6fm2+sitBZXtqu3+Q4DcDgPxM45uWMCzPs0TSRw==}
@@ -16645,6 +16748,7 @@ packages:
     resolution: {integrity: sha512-8vNB2DP0ou61nGb8tc/qfi41gfyDXz1MHr2zqL3nR+cJ6CEbiuWV/l/a/vv151gCgiZLLAyGkQGENpozdg716w==}
     cpu: [x64]
     os: [win32]
+    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-toolchain/types@0.8.7':
     resolution: {integrity: sha512-2Z53dNxAJL6UvFoIrDZvYf3zlO8s4VJK4O2hhaB4mXVwwpX/7ajtss3cmfqKvamlNLWyt9FSWs4eoYdlbxpnHA==}

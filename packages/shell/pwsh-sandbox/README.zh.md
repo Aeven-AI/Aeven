@@ -143,6 +143,9 @@ kind: "package-reference"
 - **Windows read-only 不授予任何显式可写根目录，但仍为部分强制执行**——受限令牌必须保留 Everyone；DACL 向 Everyone 授予写访问的对象——包括以兼容方式打开的 NUL 设备——仍构成环境权限来源，而 PowerShell 的 `> $null` 重定向仍可工作，且不会打开 NUL。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

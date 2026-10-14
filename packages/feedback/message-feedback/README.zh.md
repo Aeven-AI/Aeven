@@ -54,6 +54,8 @@ kind: "package-reference"
 
 每次修改都必须基于服务为该项评分返回的 version：基于更旧 version 的修改会以 `version-conflict` 拒绝，且回复携带当前评分，调用方无需再次读取即可看到变化。删除一条已经不存在的评分会成功；对不同消息的并发修改互不冲突。省略 `note` 会清除已有备注。
 
+变更持久化后，服务会发出 `message-feedback/changed`，携带会话、消息与已存储项（删除后不含项），以便长期记忆等 Host 功能据此作出反应；与当前状态相同的空操作以及删除不存在的反馈都不会发出事件，观察者失败也绝不会使该次写入失败。
+
 ### 可以对什么评分
 
 评分绑定一条已完成的 assistant 消息：消息必须存在，并且是发送过的 assistant 消息。用户消息、空的 assistant 占位与已被替换的消息都不是有效目标，会以 `target-not-found` 拒绝。评分与备注一旦记录就与该消息绑定并跨重启保留；会话的 fork 从没有反馈开始。
@@ -148,6 +150,9 @@ kind: "package-reference"
 - **目录与行边界**——由于 persistence 没有按 id 读取元数据的操作，cold 请求会扫描完整的 Session snapshot 目录。`maxNoteBytes` 只限制单条备注，单个 Session 行的条目数和聚合保留字节尚无上限；按索引读取元数据和由部署决定的行边界，延后到具体消费方明确策略时处理。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

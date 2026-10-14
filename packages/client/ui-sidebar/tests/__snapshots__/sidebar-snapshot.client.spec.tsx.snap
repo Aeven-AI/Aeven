@@ -47,31 +47,26 @@ exports[`sidebar shell snapshots > keeps the expanded contents mounted behind th
           </span>
         </span>
       </button>
-      <button
-        aria-label="Open sidebar"
-        class="toggle"
-        type="button"
+      <div
+        class="header"
       >
-        <svg
-          aria-hidden="true"
-          data-content="4c0322ad"
-          fill="none"
-          height="18"
-          viewBox="0 0 24 24"
-          width="18"
-          xmlns="http://www.w3.org/2000/svg"
-        />
-        <svg
-          aria-hidden="true"
-          class="toggleEnd"
-          data-content="8e094c0c"
-          fill="none"
-          height="14"
-          viewBox="0 0 24 24"
-          width="14"
-          xmlns="http://www.w3.org/2000/svg"
-        />
-      </button>
+        <div
+          class="headerLeading"
+        >
+          <div
+            data-slot="sidebar.header.leading"
+            style="display: contents;"
+          />
+        </div>
+        <div
+          class="headerActions"
+        >
+          <div
+            data-slot="sidebar.header.action"
+            style="display: contents;"
+          />
+        </div>
+      </div>
       <div
         class="sideContent"
       >
@@ -84,11 +79,15 @@ exports[`sidebar shell snapshots > keeps the expanded contents mounted behind th
             href="/c/snapshot-1"
           >
             <svg
-              data-content="c0ce4dcc"
+              aria-hidden="true"
+              class="newSessionIcon"
+              data-content="f9600f30"
               fill="none"
-              height="14"
-              viewBox="0 0 16 16"
-              width="14"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.75"
+              viewBox="0 0 24 24"
               xmlns="http://www.w3.org/2000/svg"
             />
             <span
@@ -97,6 +96,14 @@ exports[`sidebar shell snapshots > keeps the expanded contents mounted behind th
               Chat
             </span>
           </a>
+          <div
+            data-slot="sidebar.nav"
+            style="display: contents;"
+          />
+          <div
+            aria-hidden="true"
+            class="spacer"
+          />
           <div
             class="regionArea"
           >
@@ -187,31 +194,26 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
           </span>
         </span>
       </button>
-      <button
-        aria-label="Close sidebar"
-        class="toggle"
-        type="button"
+      <div
+        class="header"
       >
-        <svg
-          aria-hidden="true"
-          data-content="4c0322ad"
-          fill="none"
-          height="18"
-          viewBox="0 0 24 24"
-          width="18"
-          xmlns="http://www.w3.org/2000/svg"
-        />
-        <svg
-          aria-hidden="true"
-          class="toggleEnd"
-          data-content="8e094c0c"
-          fill="none"
-          height="14"
-          viewBox="0 0 24 24"
-          width="14"
-          xmlns="http://www.w3.org/2000/svg"
-        />
-      </button>
+        <div
+          class="headerLeading"
+        >
+          <div
+            data-slot="sidebar.header.leading"
+            style="display: contents;"
+          />
+        </div>
+        <div
+          class="headerActions"
+        >
+          <div
+            data-slot="sidebar.header.action"
+            style="display: contents;"
+          />
+        </div>
+      </div>
       <div
         class="sideContent"
       >
@@ -224,11 +226,15 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
             href="/c/snapshot-1"
           >
             <svg
-              data-content="c0ce4dcc"
+              aria-hidden="true"
+              class="newSessionIcon"
+              data-content="f9600f30"
               fill="none"
-              height="14"
-              viewBox="0 0 16 16"
-              width="14"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.75"
+              viewBox="0 0 24 24"
               xmlns="http://www.w3.org/2000/svg"
             />
             <span
@@ -237,6 +243,14 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
               Chat
             </span>
           </a>
+          <div
+            data-slot="sidebar.nav"
+            style="display: contents;"
+          />
+          <div
+            aria-hidden="true"
+            class="spacer"
+          />
           <div
             class="regionArea"
           >
@@ -327,31 +341,26 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
           </span>
         </span>
       </button>
-      <button
-        aria-label="关闭侧边栏"
-        class="toggle"
-        type="button"
+      <div
+        class="header"
       >
-        <svg
-          aria-hidden="true"
-          data-content="4c0322ad"
-          fill="none"
-          height="18"
-          viewBox="0 0 24 24"
-          width="18"
-          xmlns="http://www.w3.org/2000/svg"
-        />
-        <svg
-          aria-hidden="true"
-          class="toggleEnd"
-          data-content="8e094c0c"
-          fill="none"
-          height="14"
-          viewBox="0 0 24 24"
-          width="14"
-          xmlns="http://www.w3.org/2000/svg"
-        />
-      </button>
+        <div
+          class="headerLeading"
+        >
+          <div
+            data-slot="sidebar.header.leading"
+            style="display: contents;"
+          />
+        </div>
+        <div
+          class="headerActions"
+        >
+          <div
+            data-slot="sidebar.header.action"
+            style="display: contents;"
+          />
+        </div>
+      </div>
       <div
         class="sideContent"
       >
@@ -364,11 +373,15 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
             href="/c/snapshot-1"
           >
             <svg
-              data-content="c0ce4dcc"
+              aria-hidden="true"
+              class="newSessionIcon"
+              data-content="f9600f30"
               fill="none"
-              height="14"
-              viewBox="0 0 16 16"
-              width="14"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.75"
+              viewBox="0 0 24 24"
               xmlns="http://www.w3.org/2000/svg"
             />
             <span
@@ -377,6 +390,14 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
               对话
             </span>
           </a>
+          <div
+            data-slot="sidebar.nav"
+            style="display: contents;"
+          />
+          <div
+            aria-hidden="true"
+            class="spacer"
+          />
           <div
             class="regionArea"
           >

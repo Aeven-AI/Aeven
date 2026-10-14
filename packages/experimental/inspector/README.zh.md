@@ -144,6 +144,9 @@ CDP target 通过 `Runtime.evaluate` 提供 Host 和已连接 Client realm 中�
 - **不自动重启 Worker**——Worker 意外退出会使当前 Inspector 实例失败；生命周期恢复留待后续改动。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

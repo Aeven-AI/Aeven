@@ -148,6 +148,9 @@ kind: "package-reference"
 - **schema 升级会重置共享索引**——更新 schema 版本的构建会原地重置该文件，仍在共享它的旧进程在重启前搜索失败；共享同一路径的进程还必须索引同一会话存储。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

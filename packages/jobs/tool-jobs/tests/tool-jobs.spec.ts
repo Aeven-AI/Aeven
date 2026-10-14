@@ -57,7 +57,7 @@ async function fakeAgent(ctx: Context, sessionId: string, delivery: FakeDelivery
     status: delivery.status ?? 'running',
     session: { id, header: { version: 0, id, createdAt: 0 } },
   } as unknown as Agent
-  agentRegistryDisposers.set(agent, await ctx.agents.register(agent))
+  agentRegistryDisposers.set(agent, ctx.agents.register(agent))
   agentScopeFibers.set(agent, scopeFiber)
   return agent
 }
@@ -65,7 +65,7 @@ async function fakeAgent(ctx: Context, sessionId: string, delivery: FakeDelivery
 async function detachAgent(agent: Agent): Promise<void> {
   const dispose = agentRegistryDisposers.get(agent)
   if (dispose === undefined) throw new Error(`missing registry disposer for agent "${agent.id}"`)
-  await dispose()
+  dispose()
 }
 
 /** Dispose the agent's own lifecycle scope, which is what drains its owned jobs. */
@@ -699,7 +699,7 @@ describe('completion notices across scoped mounts', () => {
       inject,
       session: { id: SessionId('sess-scoped'), header: { version: 0, id: SessionId('sess-scoped'), createdAt: 0 } },
     } as unknown as Agent
-    const dispose = await ctx.agents.register(owner)
+    const dispose = ctx.agents.register(owner)
 
     try {
       const p = producer({ owner: owner.id, label: 'pnpm test' })
@@ -709,7 +709,7 @@ describe('completion notices across scoped mounts', () => {
 
       expect(inject).toHaveBeenCalledTimes(1)
     } finally {
-      await dispose()
+      dispose()
     }
   })
 })

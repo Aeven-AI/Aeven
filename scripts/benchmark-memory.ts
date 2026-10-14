@@ -49,11 +49,13 @@
  * Writes `results.json` and `report.md` to the output directory and prints the report. Needs the `zstd` and
  * `sqlite3` CLIs.
  */
-import { execFileSync, spawn } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { benchmarkModelOptions, median, runBenchmarkPrompt, sessionLogLines } from './benchmark-shared.ts'
+import { toolResultFailed } from './benchmark-tool-results.ts'
 
 type Condition = 'recall-off' | 'recall-on'
 
@@ -160,8 +162,6 @@ function answerFile(ability: Ability, nonce: string): string {
 }
 
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
-const cliEntry = join(repositoryRoot, 'apps', 'cli', 'src', 'bin.ts')
-const tsxEsm = import.meta.resolve('tsx/esm')
 
 /** A fresh token per round; short, lowercase, and outside any language model's priors. */
 function token(prefix: string): string {
@@ -313,10 +313,7 @@ function parseOptions(argv: readonly string[]): Options {
     conditions: conditions as readonly Condition[],
     abilities: abilities as readonly Ability[],
     out: value('--out') ?? join(tmpdir(), `aeven-memory-benchmark-${new Date().toISOString().replace(/[:.]/g, '-')}`),
-    timeoutMs: Number(value('--timeout-min') ?? 10) * 60_000,
-    provider: value('--provider') ?? 'aeven-cloud',
-    model: value('--model') ?? 'Aeven-1.0-Flash',
-    effort: value('--effort') ?? 'high',
+    ...benchmarkModelOptions(value),
   }
 }
 
@@ -415,7 +412,7 @@ function promptTokensOf(usage: UsageRecord | undefined): number {
 }
 
 function metricsOf(logPath: string): RunMetrics {
-  const lines = execFileSync('zstd', ['-dc', logPath], { maxBuffer: 512 * 1024 * 1024 }).toString('utf8').split('\n').filter(Boolean)
+  const lines = sessionLogLines(logPath)
   let started: number | undefined
   let ended: number | undefined
   let toolCalls = 0
@@ -451,8 +448,7 @@ function metricsOf(logPath: string): RunMetrics {
         toolCalls++
         break
       case 'tool/result': {
-        const message = data['message'] as { content?: { isError?: boolean }[] } | undefined
-        if (data['error'] !== undefined || message?.content?.[0]?.isError === true) failedToolCalls++
+        if (toolResultFailed(data)) failedToolCalls++
         break
       }
       case 'assistant/message': {
@@ -533,7 +529,7 @@ function valuesOf(facts: Facts): string[] {
  * @returns the value read from disk, or `null` when the session produced it itself.
  */
 function readFromToolOutput(logPath: string, values: readonly string[], ownStore: readonly string[]): string | null {
-  const lines = execFileSync('zstd', ['-dc', logPath], { maxBuffer: 512 * 1024 * 1024 }).toString('utf8').split('\n').filter(Boolean)
+  const lines = sessionLogLines(logPath)
   // The rule is order-based: look at where a value first appears after the prompt. A tool result showing it means
   // the session read it from disk; a tool call, reasoning, or answer showing it means the session produced it,
   // which is what answering looks like. Prompt lines are skipped because a probe may quote the values it asks
@@ -569,19 +565,6 @@ function recalledByMemoryTool(callNames: ReadonlyMap<string, string>, line: stri
   return name !== undefined && name.startsWith('memory_')
 }
 
-function runOnce(prompt: string, workspace: string, env: NodeJS.ProcessEnv, timeoutMs: number): Promise<{ code: number | null; output: Buffer }> {
-  return new Promise((resolve) => {
-    const child = spawn(process.execPath, ['--import', tsxEsm, cliEntry, '--profile', 'headless', '--patch', env['AVN_BENCHMARK_PATCH'] ?? '', prompt], { cwd: workspace, env })
-    const output: Buffer[] = []
-    child.stdout.on('data', (chunk: Buffer) => output.push(chunk))
-    child.stderr.on('data', (chunk: Buffer) => output.push(chunk))
-    const timer = setTimeout(() => { child.kill('SIGKILL') }, timeoutMs)
-    child.on('close', (code) => {
-      clearTimeout(timer)
-      resolve({ code, output: Buffer.concat(output) })
-    })
-  })
-}
 
 /** The memory rows, mounted only for `recall-on`; the headless bundle composes no preset roster. */
 function patchFor(condition: Condition, home: string): string {
@@ -607,7 +590,7 @@ function patchFor(condition: Condition, home: string): string {
   ].join('\n')
 }
 
-function readAnswer(answers: string, ability: Ability, nonce: string, field: string): string | null | 'missing' {
+function readAnswer(answers: string, ability: Ability, nonce: string, field: string): string | null {
   const path = join(answers, answerFile(ability, nonce))
   if (!existsSync(path)) return 'missing'
   try {
@@ -620,7 +603,13 @@ function readAnswer(answers: string, ability: Ability, nonce: string, field: str
   }
 }
 
-function verdictFor(answers: string, probe: Probe, facts: Facts, nonce: string, leakSource: LeakSource): { verdict: Verdict; answered: string | null } {
+function verdictFor(
+  answers: string,
+  probe: Probe,
+  facts: Facts,
+  nonce: string,
+  leakSource: LeakSource,
+): { verdict: Verdict; answered: string | null } {
   const expected = probe.expected(facts)
   if (leakSource !== null) return { verdict: 'leaked', answered: null }
   const answered = readAnswer(answers, probe.ability, nonce, probe.field)
@@ -637,12 +626,6 @@ function clearAnswers(answers: string, facts: Facts): void {
   }
 }
 
-function median(values: readonly number[]): number {
-  if (values.length === 0) return Number.NaN
-  const sorted = [...values].sort((a, b) => a - b)
-  const middle = Math.floor(sorted.length / 2)
-  return sorted.length % 2 === 1 ? sorted[middle] ?? Number.NaN : ((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2
-}
 
 const seconds = (ms: number): string => Number.isFinite(ms) ? `${(ms / 1000).toFixed(0)}s` : '—'
 const kilo = (value: number): string => Number.isFinite(value) ? `${(value / 1000).toFixed(1)}K` : '—'
@@ -810,7 +793,7 @@ async function main(): Promise<void> {
       const teachings: { name: string; output: Buffer }[] = []
       for (const [name, prompt] of [['teach-1', teachPrompt(facts)], ['teach-2', updatePrompt(facts)]] as const) {
         const tracesBefore = traceCount(home)
-        const teach = await runOnce(prompt, workspace, env, options.timeoutMs)
+        const teach = await runBenchmarkPrompt(prompt, workspace, env, options.timeoutMs)
         const tracesAfter = condition === 'recall-on' ? await waitForCapture(home, tracesBefore, 30_000) : tracesBefore
         teachings.push({ name, output: teach.output })
         purgeTranscripts(home)
@@ -836,7 +819,7 @@ async function main(): Promise<void> {
         writeFileSync(probePatch, patchFor(condition, probeHome))
         const probeEnv: NodeJS.ProcessEnv = { ...env, AVN_HOME: probeHome, AVN_BENCHMARK_PATCH: probePatch }
         const probeStart = Date.now()
-        const run = await runOnce(probePrompt(probe, facts, nonces.get(probe.ability) ?? '', answers), workspace, probeEnv, options.timeoutMs)
+        const run = await runBenchmarkPrompt(probePrompt(probe, facts, nonces.get(probe.ability) ?? '', answers), workspace, probeEnv, options.timeoutMs)
         return { run, wallMs: Date.now() - probeStart, home: probeHome }
       }))
       const batchWallMs = Date.now() - batchStart
@@ -845,7 +828,7 @@ async function main(): Promise<void> {
       // prompt it opens with and never by a file name a stray `ls` could copy between sessions.
       const logs = new Map<string, string>()
       const byPrompt = new Map<string, string>()
-      for (const path of runs.flatMap(timed => timed === undefined ? [] : sessionLogs(timed.home))) {
+      for (const path of runs.flatMap(timed => sessionLogs(timed.home))) {
         const text = execFileSync('zstd', ['-dc', path], { maxBuffer: 512 * 1024 * 1024 }).toString('utf8')
         for (const line of text.split('\n')) {
           if (!line.startsWith('{"type":"user/message"')) continue

@@ -319,7 +319,7 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
       ready: appReady.service,
     })
   })
-    await advertiseServingHost(ctx)
+  await advertiseServingHost(ctx)
   } catch (error: unknown) {
     await app.current?.fiber.dispose()
     await disposeProxy()

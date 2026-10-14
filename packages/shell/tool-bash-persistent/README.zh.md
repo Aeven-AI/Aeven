@@ -149,6 +149,9 @@ kind: "package-reference"
 - **网络访问与包镜像等环境事实属于配置的 `description`**——而不是本包的默认描述。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

@@ -1,9 +1,8 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type {
-  ConversationMatch, ConversationNodeContext, ConversationNodeDefinition,
+  CompactionSummaryNode, ConversationMatch, ConversationNodeContext, ConversationNodeDefinition,
 } from '@aeven/client-ui-conversation/client'
 import type {} from '@aeven/compaction/types'
-import type { CompactionSummaryNode } from '../contract/snapshot.ts'
 import { chatNode } from './common.ts'
 import { compactSource, compactSummary, updateCompactionState } from './command.ts'
 

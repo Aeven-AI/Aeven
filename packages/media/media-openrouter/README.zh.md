@@ -84,6 +84,9 @@ kind: "package-reference"
 - **上游错误文本原样透出**——失败消息按 OpenRouter 所写的原样呈现，因此把 provider 文本视为不可信的部署应在消费方处做净化。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

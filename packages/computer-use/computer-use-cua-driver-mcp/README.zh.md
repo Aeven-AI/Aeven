@@ -118,6 +118,9 @@ pnpm run test:e2e packages/computer-use/computer-use-cua-driver-mcp/tests/instal
 - 启动时限及富结果限制遵循 [MCP 客户端的限制](../../mcp/mcp-client/README.zh.md#known-limitations-and-deferred-work)。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

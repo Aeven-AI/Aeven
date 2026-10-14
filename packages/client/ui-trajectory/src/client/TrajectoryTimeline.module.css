@@ -183,10 +183,12 @@
 }
 
 /* Model spans: time to first token in a light grey, decoding in the label
-   colour, so a lane reads as waiting then writing. */
+   colour, so a lane reads as waiting then writing. The waiting grey is the
+   caption ink at 45%, stated per theme rather than mixed here, which would
+   need `color-mix()` and Safari 16.2. */
 .span[data-timeline-span='message'] {
   --trajectory-assistant-decoding-color: var(--dsw-alias-label-primary);
-  --trajectory-assistant-ttft-color: color-mix(in srgb, var(--dsw-alias-label-caption) 45%, transparent);
+  --trajectory-assistant-ttft-color: var(--dsw-tint-caption-45);
 
   background: var(--trajectory-assistant-decoding-color);
   opacity: 1;

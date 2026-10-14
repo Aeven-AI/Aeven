@@ -211,7 +211,12 @@
   margin-left: auto;
 }
 
-.actions:has([data-settings-back]) { flex: 1; margin-left: 0; justify-content: flex-start; }
+/* A page inside the addressed section leads the header with its back control as
+   the row's first item, so the actions box takes the row's free width and starts
+   at its leading edge. The panel states that the page is open (see
+   SettingsRoot.tsx): reading the back control's presence as a selector would need
+   `:has()` and Safari 15.4. */
+.actions[data-page-open] { flex: 1; margin-left: 0; justify-content: flex-start; }
 
 /* Close button (figma .Icon_container 501:29982): 28x28, r28, 14px glyph, the
    header row's last item. Its box takes the header's 24px top and right

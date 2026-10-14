@@ -60,7 +60,7 @@ async function disposeAgentScope(agent: Agent): Promise<void> {
 /** Register a stub agent so the registry can resolve it as a live owner. */
 async function liveAgent(ctx: Context, rawId: string, presetScope?: ScopeKey): Promise<Agent> {
   const agent = stubAgent(ctx, rawId, presetScope)
-  await ctx.agents.register(agent)
+  ctx.agents.register(agent)
   return agent
 }
 
@@ -287,7 +287,7 @@ describe('LocalJobRegistry.start', () => {
   it('buckets by exact owner: a same-session replacement and the unowned bucket count separately', async () => {
     const ctx = await harness({ maxConcurrentJobsPerOwner: 1 })
     const oldOwner = stubAgent(ctx, 'shared-session')
-    const detachOld = await ctx.agents.register(oldOwner)
+    const detachOld = ctx.agents.register(oldOwner)
     const oldTask = producer({ owner: oldOwner })
     ctx.jobs.start(oldTask.spec)
 
@@ -296,9 +296,9 @@ describe('LocalJobRegistry.start', () => {
 
     // The session id resolves to whichever agent is live now; a replacement
     // instance starts with its own bucket even while the old job runs on.
-    await detachOld()
+    detachOld()
     const replacement = stubAgent(ctx, 'shared-session')
-    await ctx.agents.register(replacement)
+    ctx.agents.register(replacement)
     expect(() => ctx.jobs.start(producer({ owner: replacement }).spec)).not.toThrow()
 
     ctx.jobs.start(producer().spec)
@@ -736,7 +736,7 @@ describe('LocalJobRegistry owner isolation', () => {
     expect(ctx.jobs.list(ghost.id)).toEqual([])
 
     // A later valid registration must still attach cleanup for the live instance.
-    await ctx.agents.register(ghost)
+    ctx.agents.register(ghost)
     const cancels: (string | undefined)[] = []
     let settle!: (outcome: JobOutcome) => void
     const id = ctx.jobs.start({
@@ -757,10 +757,10 @@ describe('LocalJobRegistry owner isolation', () => {
   it('binds a session id to the agent that is live now, and reads stay keyed by that id', async () => {
     const ctx = await harness()
     const staleOwner = stubAgent(ctx, 'owner')
-    const unregisterStale = await ctx.agents.register(staleOwner)
-    await unregisterStale()
+    const unregisterStale = ctx.agents.register(staleOwner)
+    unregisterStale()
     const currentOwner = stubAgent(ctx, 'owner')
-    await ctx.agents.register(currentOwner)
+    ctx.agents.register(currentOwner)
 
     const current = producer({ owner: currentOwner })
     const id = ctx.jobs.start(current.spec)
@@ -845,7 +845,7 @@ describe('LocalJobRegistry owner cleanup', () => {
   it('does not let an old scope cleanup cancel a same-session replacement job', async () => {
     const ctx = await harness()
     const oldOwner = stubAgent(ctx, 'owner')
-    const detachOld = await ctx.agents.register(oldOwner)
+    const detachOld = ctx.agents.register(oldOwner)
     const cancels: string[] = []
 
     function start(label: string): JobId {
@@ -862,9 +862,9 @@ describe('LocalJobRegistry owner cleanup', () => {
     }
 
     start('old job')
-    await detachOld()
+    detachOld()
     const replacement = stubAgent(ctx, 'owner')
-    await ctx.agents.register(replacement)
+    ctx.agents.register(replacement)
     const replacementId = start('replacement job')
 
     await disposeAgentScope(oldOwner)

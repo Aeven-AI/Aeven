@@ -208,6 +208,7 @@ export class ClientRemoteEvents {
       try {
         outcome = await this.dispatchWaterfall(target, frame, signal)
       } catch (error) {
+        // oxlint-disable-next-line typescript/no-unnecessary-condition -- the dispatched waterfall can abort while it is awaited.
         if (signal.aborted) return
         outcome = { kind: 'rejected', error: projectRemoteEventRejection(error) }
       }

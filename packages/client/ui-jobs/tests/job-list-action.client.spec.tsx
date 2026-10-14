@@ -62,7 +62,7 @@ function observed(over: Partial<ObservedJob> = {}): ObservedJob {
  * compartment, and the seats' own controls.
  */
 function bench(initial: readonly JobView[] | undefined, observedViews: Readonly<Record<string, ObservedJob>> = {}) {
-  const state = { rows: {}, observed: observedViews } as { rows: JobsSnapshot['rows']; observed: JobsSnapshot['observed'] }
+  const state = { rows: {}, observed: observedViews }
   /** Point the next render at a different roster and observation state. */
   const set = (jobs: readonly JobView[] | undefined, nextObserved = observedViews): void => {
     state.rows = jobs === undefined ? {} : { [SESSION]: jobs }
@@ -615,27 +615,44 @@ describe('JobListAction popover fit', () => {
     })
   }
 
-  it('shifts the popover back inside the viewport and refits on resize', () => {
+  /** Give the portaled list a laid-out box, which jsdom reports as zero. */
+  function sizeList(width: number, height: number): void {
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(width)
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(height)
+  }
+
+  it('shifts the portaled list back inside the viewport and refits on resize', () => {
     const b = bench([job()])
     show(b)
+    sizeList(400, 200)
     place(2, 400)
     openList()
-    expect(list().style.getPropertyValue('--activity-shift')).toBe('10px')
+    // 2px from the left edge is inside the 12px margin, so the list is pulled
+    // in to it; the trigger's 80px bottom edge already leaves room below.
+    expect(list().style.getPropertyValue('left')).toBe('12px')
+    expect(list().style.getPropertyValue('top')).toBe('88px')
 
+    // 900px + 400px of list would run past the right edge, so the list is
+    // pulled back to the last position that clears the margin.
     place(900, 1_200)
     fireEvent(window, new Event('resize'))
-    expect(list().style.getPropertyValue('--activity-shift')).toBe('-188px')
+    expect(list().style.getPropertyValue('left')).toBe('612px')
 
     place(100, 400)
     fireEvent(window, new Event('resize'))
-    expect(list().style.getPropertyValue('--activity-shift')).toBe('0px')
+    expect(list().style.getPropertyValue('left')).toBe('100px')
   })
 
-  it('keeps the stylesheet anchor when the popover has no measured box', () => {
+  it('keeps the trigger anchor for a list with no measured box', () => {
     const b = bench([job()])
     show(b)
+    // jsdom reports a zero box for the list, so there is nothing to clamp
+    // against: the list hangs at the trigger rather than shifting on a width
+    // it does not have.
+    place(1_900, 2_000)
     openList()
-    expect(list().style.getPropertyValue('--activity-shift')).toBe('0px')
+    expect(list().style.getPropertyValue('left')).toBe('1900px')
+    expect(list().style.getPropertyValue('top')).toBe('88px')
   })
 })
 

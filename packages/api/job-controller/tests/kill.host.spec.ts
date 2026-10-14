@@ -32,7 +32,7 @@ async function registerAgent(ctx: Context, session: Session): Promise<Agent> {
     status: 'idle',
     ctx,
   } as Agent
-  await ctx.agents.register(agent)
+  ctx.agents.register(agent)
   return agent
 }
 

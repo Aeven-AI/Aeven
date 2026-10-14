@@ -309,9 +309,9 @@ describe('desktop project transactions', () => {
     archiveStore(firstSeed)
     writeIntegrity(firstSeed)
     await manager.applyRelease(firstSeed, '1.0.0', hooks())
-    // An installed plugin is the profile manifest entry, the installed package,
-    // and the profile bundle list; seeding all three stands in for the install
-    // itself, which no Desktop surface performs.
+    // An installed plugin is the profile manifest entry, the installed package
+    // with its bundle patch, and the profile bundle list; seeding all three
+    // stands in for the install itself, which no Desktop surface performs.
     const installed = JSON.parse(readFileSync(join(paths.profile, 'package.json'), 'utf8')) as {
       dependencies: Record<string, string>
       avn: { profile: { bundles: string[] } }
@@ -322,8 +322,9 @@ describe('desktop project transactions', () => {
     mkdirSync(join(paths.profile, 'node_modules', '@scope', 'plugin'), { recursive: true })
     writeFileSync(
       join(paths.profile, 'node_modules', '@scope', 'plugin', 'package.json'),
-      '{"name":"@scope/plugin","version":"2.0.0"}\n',
+      '{"name":"@scope/plugin","version":"2.0.0","avn":{"bundle":{"patch":"./bundle.yml"}}}\n',
     )
+    writeFileSync(join(paths.profile, 'node_modules', '@scope', 'plugin', 'bundle.yml'), '[]\n')
 
     const nextSeed = join(root, 'seed-2')
     createTestSeedMetadata(nextSeed, release('1.1.0'))

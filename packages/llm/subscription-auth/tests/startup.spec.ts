@@ -33,7 +33,7 @@ import {
 } from '../src/ids.ts'
 import { apply, inject, name, type Config as PluginConfig } from '../src/index.ts'
 import { MediaStore } from '../src/media-store.ts'
-import { grokBuildAuthPath, OAuthCredentialFileStore } from '../src/store.ts'
+import { GrokBuildCredentialStore, grokBuildAuthPath, OAuthCredentialFileStore } from '../src/store.ts'
 import { OAuthProviderSession } from '../src/oauth-session.ts'
 import { GrokBuildSession } from '../src/session.ts'
 
@@ -467,12 +467,16 @@ describe('plugin startup catalog initialization', () => {
     await new Promise<void>(resolve => setImmediate(resolve))
     expect(registerAdapter).toHaveBeenCalledOnce()
 
-    await new Promise<void>(resolve => setImmediate(resolve))
-    await new Promise<void>(resolve => setImmediate(resolve))
+    // The pass retries on its own schedule, so only its occurrence is pinned here; the
+    // containment is what the warnings below assert.
+    await vi.waitFor(() => {
+      expect(refresh).toHaveBeenCalled()
+    })
 
-    expect(refresh).toHaveBeenCalledOnce()
-    expect(warn).toHaveBeenCalledWith('one or more OAuth model caches could not be loaded; using in-memory fallbacks')
-    expect(warn).toHaveBeenCalledWith('background OAuth model catalog initialization failed; using static fallbacks')
+    expect(warn).toHaveBeenCalledWith(
+      'the model selection or a cached model listing could not be loaded; every model stays selected',
+    )
+    expect(warn).toHaveBeenCalledWith('a subscription model sync failed; the last listing stays in use')
   })
 })
 
@@ -1749,6 +1753,8 @@ describe('owner composition runtime seams', () => {
     const unhandled = vi.fn()
     process.on('unhandledRejection', unhandled)
     try {
+      // The startup pass syncs only a signed-in provider, so store the credential first.
+      await new GrokBuildCredentialStore().modify(XAI_PI_PROVIDER, async () => SIGNED_IN_GROK)
       const app = await bootSeams({
         refreshLiveCatalog: () =>
           new Promise((_resolve, reject) => {

@@ -110,6 +110,9 @@ None, as the account menu is browser-side UI that registers nothing model-facing
 - **按设计与 Aeven 绑定**——该行专门读取 Aeven 读者全局变量，因此换一个 authority 需要自己的账户行，而不是复用这一个。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

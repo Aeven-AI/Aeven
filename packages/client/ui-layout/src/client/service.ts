@@ -42,7 +42,10 @@ export interface ILayout {
    * @param sessionId - session whose panel toggles.
    */
   toggleRightbar(sessionId: string): void
-  /** Show one session's right sidebar without closing an already open panel. */
+  /**
+   * Show one session's right sidebar without closing an already open panel.
+   * @param sessionId - session whose panel opens.
+   */
   openRightbar(sessionId: string): void
 }
 

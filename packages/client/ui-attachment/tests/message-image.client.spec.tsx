@@ -67,7 +67,9 @@ describe('MessageImage', () => {
       peek: vi.fn(() => 'blob:seeded'),
     })
     const view = render(<MessageImage image={{ attachment }} load={load} variant="single" labels={labels}  onOpen={noopOpen} />)
-    expect(view.queryByText('图片加载中…')).toBeNull()
+    // The thumbnail is already on screen, so nothing waits: the loading mark
+    // is drawn behind the image rather than in place of it.
+    expect(view.getByAltText('history.png')).toBeTruthy()
     expect((view.getByAltText('history.png') as HTMLImageElement).src).toContain('blob:seeded')
     expect(load).toHaveBeenCalledWith(attachment)
   })
@@ -89,7 +91,10 @@ describe('MessageImage', () => {
     const load = vi.fn(() => new Promise<string>(() => {}))
     const view = render(<MessageImage image={{ attachment }} load={load} variant="single" labels={labels}  onOpen={noopOpen} />)
     const frame = view.getByRole('button', { name: 'history.png，点击查看原图' })
-    expect(view.getByText('图片加载中…')).toBeTruthy()
+    // Nothing to enlarge yet: the frame carries the shared loading mark and no
+    // thumbnail, and a click on it opens no preview.
+    expect(frame.querySelector('svg')).not.toBeNull()
+    expect(frame.querySelector('img')).toBeNull()
     fireEvent.click(frame)
     expect(view.queryByRole('dialog')).toBeNull()
   })
@@ -218,7 +223,7 @@ describe('ImageGallery', () => {
   it('navigates every image of the Turn, not only this record\'s group', async () => {
     const other = { ...attachment, attachmentId: AttachmentId(`sha256:${'b'.repeat(64)}`), name: 'other.png' }
     const load = vi.fn(async (reference: { readonly attachmentId: string }) =>
-      `blob:${String(reference.attachmentId).slice(-4)}`)
+      `blob:${reference.attachmentId.slice(-4)}`)
     const view = render(
       <ImageGallery
         images={[{ attachment }]}
@@ -307,7 +312,7 @@ describe('MessageImages tray', () => {
   it('opens the Turn preview from a sent-message tile and steps through the Turn', async () => {
     const other = { ...attachment, attachmentId: AttachmentId(`sha256:${'b'.repeat(64)}`), name: 'other.png' }
     const loadImage = vi.fn(async (reference: { readonly attachmentId: string }) =>
-      `blob:${String(reference.attachmentId).slice(-4)}`)
+      `blob:${reference.attachmentId.slice(-4)}`)
     const view = render(<MessageImages {...messageImagesOwnerProps({
       layout: 'tray',
       images: [{ attachment }],

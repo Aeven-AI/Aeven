@@ -631,7 +631,17 @@ class UiWorkspaceService extends Service implements UiWorkspace {
           if (sessions.current !== requested) this.sessions.open(requested)
           return
         }
-        if (requested !== undefined && this.adoptRequestedSession(requested, () => { urlInitialized = true })) return
+        if (requested !== undefined && this.adoptRequestedSession(
+          requested,
+          () => { urlInitialized = true },
+          () => {
+            // The address names a Session this account cannot claim, such as
+            // one owned by the account that signed in before. Dropping it lets
+            // the next pass open a chat the way an address naming nothing does.
+            this.sessionUrl.replace(undefined)
+            reconcile()
+          },
+        )) return
         if (requested !== undefined) {
           // The address named nothing this client can open. Dropping it settles
           // this pass: the blank-view fallback below would otherwise rewrite the
@@ -733,9 +743,10 @@ class UiWorkspaceService extends Service implements UiWorkspace {
    * @param requested - the Session id the address names.
    * @param claim - marks the address as initialised. Called synchronously, so a
    * reconcile triggered by the creation itself cannot adopt it a second time.
+   * @param failed - called once the Host refuses the id, after initial navigation returns to waiting.
    * @returns true when the address was claimed, so the caller keeps the URL.
    */
-  private adoptRequestedSession(requested: SessionId, claim: () => void): boolean {
+  private adoptRequestedSession(requested: SessionId, claim: () => void, failed: () => void): boolean {
     const workspace = this.targetWorkspace()
     if (workspace === undefined) return false
     claim()
@@ -750,6 +761,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
         // honour; drop it rather than presenting a browser URL naming nothing.
         this.markInitialNav('waiting')
         console.warn('address-named session failed:', reason)
+        failed()
       },
     )
     return true

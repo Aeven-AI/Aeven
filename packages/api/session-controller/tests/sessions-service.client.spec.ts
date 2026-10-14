@@ -93,6 +93,9 @@ describe('list store projection', () => {
     b.svc.handleControlFrame({
       type: 'projection', sessionId: sid('s1'), key: 'agentPreset', value: 'minimal', seq: 1,
     })
+    // The frame reaches the list through the store's any-key channel, which
+    // schedules the manager's rebuild: two microtask hops, not one.
+    await Promise.resolve()
     await Promise.resolve()
 
     expect(b.svc.list.getSnapshot().byId[sid('s1')]?.projectionValues?.agentPreset).toBe('minimal')

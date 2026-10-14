@@ -42,6 +42,9 @@ kind: "package-group"
 - [代码 dispatch-log spill 决策](../../.agents/notes/implemented/feature/2026-07-26-ptc-dispatch-log-spill.zh.md)——为何 `run_code` 子调用结果的持久副本同样设界。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ## 开发备注
 
 <details>

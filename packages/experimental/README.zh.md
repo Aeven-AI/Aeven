@@ -30,9 +30,9 @@ kind: "package-group"
 | [`browser-overlay`](browser-overlay/README.zh.md) | 在被操作的浏览器中绘制智能体指针与动作反馈 | — |
 | [`client-ui-agent-team`](client-ui-agent-team/README.zh.md) | Web Team roster、任务板与 teammate 导航 | — |
 | [`code-runtime-python`](code-runtime-python/README.zh.md) | 代码执行 seam 的 CPython 子进程后端 | `ctx.codeRuntime` |
-| [`computer-use-cua-driver-mcp`](computer-use-cua-driver-mcp/README.zh.md) | 通过已安装的 Cua Driver MCP 可执行程序进行实验性本地桌面控制 | `ctx.computerUse` |
+| [`computer-use-cua-driver-mcp`](../computer-use/computer-use-cua-driver-mcp/README.zh.md) | 通过已安装的 Cua Driver MCP 可执行程序进行实验性本地桌面控制 | `ctx.computerUse` |
 | [`inspector`](inspector/README.zh.md) | 用于 Host 调试、Client Runtime 检查、网络采集与 Cordis 树的跨 realm CDP hub | `ctx.inspector` |
-| [`subscription-auth`](subscription-auth/README.zh.md) | 编码订阅 OAuth 路由、额度上报与媒体生成 | 注册 LLM 路由与 scoped 工具 |
+| [`subscription-auth`](../llm/subscription-auth/README.zh.md) | 编码订阅 OAuth 路由、额度上报与媒体生成 | 注册 LLM 路由与 scoped 工具 |
 | [`tool-agent-team`](tool-agent-team/README.zh.md) | 让模型创建、发消息与协调 teammate 的十个工具 | 按作用域注册工具到 `ctx.tools` |
 | [`webworker-packer`](webworker-packer/README.zh.md) | 构建浏览器 worker 预览所消费的 gzip 压缩 VFS 镜像 | 库与 CLI，不使用 ctx key |
 | [`webworker-runtime`](webworker-runtime/README.zh.md) | 在专用浏览器 worker 中运行 harness 插件树 | 库与 worker 入口，不使用 ctx key |
@@ -49,6 +49,9 @@ kind: "package-group"
 -----
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ## 开发备注
 
 <details>

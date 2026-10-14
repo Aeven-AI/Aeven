@@ -159,13 +159,7 @@ export function Menu({ open, anchor, items, selectedId, selectedIds, onSelect, o
     // First run measures the hidden pre-render (same commit as `open`), so
     // end/top alignment and clamping use real dimensions before anything
     // paints — no visible jump from a zero-size first guess.
-    place()
-    window.addEventListener('scroll', place, true)
-    window.addEventListener('resize', place)
-    return () => {
-      window.removeEventListener('scroll', place, true)
-      window.removeEventListener('resize', place)
-    }
+    return observePlacement(place)
   }, [open, portal, align, side, getAnchorRect])
 
   // The submenu card is portaled to the page rather than nested in its row: an
@@ -191,13 +185,7 @@ export function Menu({ open, anchor, items, selectedId, selectedIds, onSelect, o
       if (ch > 0) y = Math.min(Math.max(y, MARGIN), window.innerHeight - ch - MARGIN)
       setSubmenuPos({ left: x, top: y })
     }
-    place()
-    window.addEventListener('scroll', place, true)
-    window.addEventListener('resize', place)
-    return () => {
-      window.removeEventListener('scroll', place, true)
-      window.removeEventListener('resize', place)
-    }
+    return observePlacement(place)
   }, [openSubmenuId])
 
   useEffect(() => {
@@ -268,6 +256,7 @@ export function Menu({ open, anchor, items, selectedId, selectedIds, onSelect, o
           type="button"
           role="menuitem"
           className={clsx(css.item, selected && css.selected, entry.danger === true && css.danger)}
+          data-has-description={entry.description === undefined ? undefined : ''}
           disabled={entry.disabled}
           aria-haspopup={hasSub ? 'menu' : undefined}
           aria-expanded={hasSub ? subOpen : undefined}
@@ -304,6 +293,7 @@ export function Menu({ open, anchor, items, selectedId, selectedIds, onSelect, o
                 type="button"
                 role="menuitem"
                 className={css.item}
+                data-has-description={sub.description === undefined ? undefined : ''}
                 disabled={sub.disabled}
                 onClick={() => { onSelect(sub.id) }}
               >
@@ -360,4 +350,15 @@ export function Menu({ open, anchor, items, selectedId, selectedIds, onSelect, o
       {portal ? (list !== false && createPortal(list, document.body)) : list}
     </span>
   )
+}
+
+/** Measure a floating menu and follow viewport changes until cleanup. */
+function observePlacement(place: () => void): () => void {
+  place()
+  window.addEventListener('scroll', place, true)
+  window.addEventListener('resize', place)
+  return () => {
+    window.removeEventListener('scroll', place, true)
+    window.removeEventListener('resize', place)
+  }
 }

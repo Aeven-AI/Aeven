@@ -91,11 +91,11 @@ kind: "package-reference"
 <a id="model-experience"></a>
 ## 模型体验
 
-无。本包渲染已记录的 call 与 result 切片并读取 host 清单，不添加 prompt 内容或会话事件。
+间接地，经由 cordis_run 与 cordis_stop 工具：它们触达本包定义卡片所驱动的同一批 host 动词，而任何模型可见效果由 runner 拥有。
 
 #### KV Cache 影响
 
-无：没有任何 prompt 输入源自这里。
+无；没有任何 prompt 输入源自这里。
 
 ## 已知限制与延期工作
 
@@ -108,6 +108,9 @@ kind: "package-reference"
 - **call head 掉出事件窗的卡片会丢掉标签**——define 卡片的 name 与 purpose 取自调用参数，因此会话长到把它们截断时，卡片只能以自己的 call id 自称。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

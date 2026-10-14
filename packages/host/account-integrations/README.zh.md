@@ -7,19 +7,19 @@ kind: "package-reference"
 
 [English](README.md) | 中文
 
-## Summary
+## 概述
 
 已登录用户可导入、查看、启用和移除自己的技能、连接远程 MCP 服务器、关联 WhatsApp 号码、登录 Telegram 账户、添加 Discord 服务器并连接 Slack 工作区。每项管理操作均从已认证请求确定所属账户。技能和连接器凭据在重启后保留；对话仅获得其所属账户的集成。
 
 连接器写入审批提供针对同一账户和工具操作的会话授权。Google Workspace 原始调用还将授权范围限定到服务及资源方法路径。每次审批请求前都会检查账户所有者、连接状态和启用状态。
 
-## Table of Contents
+## 目录
 
 - [Use this package](#use-this-package)
 - [Understand the implementation](#understand-the-implementation)
 - [Model Experience](#model-experience)
 - [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
-- [Dev Note](#dev-note)
+- [开发备注](#dev-note)
 
 ## Use this package
 
@@ -207,6 +207,7 @@ Node API 需要一个支持工作及个人账户并注册了 Web 回调的应用
 - 私信搜索与历史需要在授权时启用 `slackDirectMessages`，且必须注册在应用上；未启用时连接的工作区需要重新连接才能获得。
 - 为加载技能而写入磁盘的导入资源，在移除目录项后仍保留。
 
-## Dev Note
+<a id="dev-note"></a>
+### 开发备注
 
 不重新分发 Claude 应用二进制文件或其专有的文档技能包。

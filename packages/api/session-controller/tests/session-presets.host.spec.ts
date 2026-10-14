@@ -45,6 +45,13 @@ async function harness(presets?: readonly string[]) {
   const ctx = new Context()
   await ctx.plugin(SessionStore)
   await ctx.plugin(AgentRegistry)
+  // Creation reads the deployment's default Workspace before it falls back to
+  // `cwd`; this harness has no Workspace domain, so it supplies the service.
+  ctx.provide('workspaceRegistry', {
+    defaultWorkspaceId: undefined,
+    get: () => undefined,
+    list: () => [],
+  } as never)
   if (presets !== undefined) {
     ctx.provide('agentPresets', roster(presets) as never)
   }

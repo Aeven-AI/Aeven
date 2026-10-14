@@ -41,7 +41,7 @@ function routeFor(
       },
     },
     effect: (register: () => void) => { register() },
-  } as unknown as Context, read as never, readDirect as never)
+  } as unknown as Context, read, readDirect)
   if (route === undefined) throw new Error('Image route was not registered')
   return route
 }

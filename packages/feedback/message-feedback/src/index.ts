@@ -71,7 +71,6 @@ declare module '@deepseek-ai/cordis' {
      * Feedback for one assistant message was stored, replaced, or deleted. Emitted after the write is
      * durable; a matching no-op put and the delete of absent feedback emit nothing.
      * @param change - the session, message, and stored item after the change.
-     * @avnScopeScan unsupported
      * @mode emit
      */
     'message-feedback/changed'(change: MessageFeedbackChange): void

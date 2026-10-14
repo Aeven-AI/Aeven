@@ -167,6 +167,9 @@ When you have your final answer, you MUST report it by calling the `structured_o
 - **结构化捕获只接受 `defineTool` schema 子集**——不支持的 JSON Schema 构造会在子 agent 创建前失败；需要更广 schema 词汇的提供方必须采用不同的运行时。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

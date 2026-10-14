@@ -274,7 +274,14 @@ export function ContentSelect(props: ContentSelectComponentProps) {
               <div key={`${sessionId}:${surface.id}`} className={css.pane} hidden={!active} data-sidebar-right-pane={surface.kind}>
                 {Pane === undefined
                   ? <div className={css.unavailable}>{t('entry.unavailable')}</div>
-                  : <Pane sessionId={sessionId} surfaceId={surface.id} active={active} visible={active && !collapsed} setTab={setTabFor(surface.id)} closeSurface={() => { close([surface.id]) }} />}
+                  : <Pane
+                    sessionId={sessionId}
+                    surfaceId={surface.id}
+                    active={active}
+                    visible={active && !collapsed}
+                    setTab={setTabFor(surface.id)}
+                    closeSurface={() => { close([surface.id]) }}
+                  />}
               </div>
             )
           })}

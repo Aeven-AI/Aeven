@@ -40,6 +40,9 @@ hooks 组让 agent（智能体）运行可以使用你为 Claude Code 或 Codex 
 -----
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ## 开发备注
 
 <details>

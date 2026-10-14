@@ -142,6 +142,9 @@ Elapsed since the preceding step context: <duration-or-unavailable>.
 - **压缩之间的历史成本**：省略或设为 `0` 时，每次合格尝试都会保留一条读数；正数间隔可以降低但无法消除该成本，也可能使后续请求缺少新鲜的浏览器时区指导。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

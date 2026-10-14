@@ -80,7 +80,13 @@ export async function probeSmtp(server: MailServer, password: string, timing: Sm
  * @param signal - cancellation; aborting closes the connection.
  * @returns the Message-ID and the recipients the server accepted and rejected.
  */
-export async function sendSmtp(server: MailServer, password: string, timing: SmtpTiming, message: ComposedMessage, signal?: AbortSignal): Promise<{ messageId: string; accepted: string[]; rejected: string[] }> {
+export async function sendSmtp(
+  server: MailServer,
+  password: string,
+  timing: SmtpTiming,
+  message: ComposedMessage,
+  signal?: AbortSignal,
+): Promise<{ messageId: string; accepted: string[]; rejected: string[] }> {
   signal?.throwIfAborted()
   const transport = createTransport(transportOptions(server, password, timing))
   const onAbort = (): void => { transport.close() }
@@ -88,7 +94,7 @@ export async function sendSmtp(server: MailServer, password: string, timing: Smt
   try {
     const info = await transport.sendMail(mailOptions(message))
     const addresses = (list: unknown): string[] => Array.isArray(list)
-      ? list.map(entry => typeof entry === 'string' ? entry : String((entry as { address?: unknown }).address ?? ''))
+      ? list.map(entry => typeof entry === 'string' ? entry : recipientAddress(entry))
       : []
     return { messageId: info.messageId, accepted: addresses(info.accepted), rejected: addresses(info.rejected) }
   } catch (error) {
@@ -97,6 +103,16 @@ export async function sendSmtp(server: MailServer, password: string, timing: Smt
     signal?.removeEventListener('abort', onAbort)
     transport.close()
   }
+}
+
+/**
+ * The address of one nodemailer recipient entry, which is a plain address or an address object.
+ * @param entry - one element of the transport's `accepted` or `rejected` list.
+ * @returns the address, or an empty string when the entry carries none.
+ */
+function recipientAddress(entry: unknown): string {
+  const { address } = entry as { address?: unknown }
+  return typeof address === 'string' ? address : ''
 }
 
 /**

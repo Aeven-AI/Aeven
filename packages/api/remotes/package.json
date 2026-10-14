@@ -51,7 +51,6 @@
   ],
   "dependencies": {
     "@aeven/deque": "workspace:^",
-    "@aeven/session": "workspace:^",
     "@aeven/util-values": "workspace:^"
   },
   "peerDependencies": {
@@ -92,6 +91,7 @@
     "@aeven/user-questions": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
     "@aeven/host-account-integrations": "workspace:^",
-    "@aeven/skill": "workspace:^"
+    "@aeven/skill": "workspace:^",
+    "@aeven/session": "workspace:^"
   }
 }

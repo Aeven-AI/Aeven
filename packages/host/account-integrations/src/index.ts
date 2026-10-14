@@ -18,9 +18,11 @@ import type { Agent, PreStepDecision } from '@aeven/agent'
 import type {} from '@aeven/tools'
 import type {} from '@aeven/workspace'
 import type {} from '@aeven/agent-presets/types'
+// Type-only: resolves the `agentPresets` Context augmentation this view reads its scope key from.
+import type {} from '@aeven/agent-presets'
 import type {} from '@aeven/skill-catalog'
 import { isSkillName, type SkillCandidate } from '@aeven/skill'
-import { MailError, type MailAccount, type MailAccountId, type MailSecret } from '@aeven/mail'
+import type { MailAccount, MailAccountId, MailError, MailSecret } from '@aeven/mail'
 import * as mcp from '@aeven/mcp-client'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
@@ -144,10 +146,12 @@ const slackTokenSchema = z.object({
   accessToken: z.string().min(1), refreshToken: z.string().min(1).optional(), expiresAt: z.number().optional(), scopes: z.array(z.string()),
 })
 const emailRequestSchema = emailSettingsSchema.extend({
-  name: z.string().trim().min(1).max(100).optional(), receivePassword: z.string().min(1).max(1024), sendPassword: z.string().min(1).max(1024).optional(),
+  name: z.string().trim().min(1).max(100).optional(), receivePassword: z.string().min(1).max(1024),
+  sendPassword: z.string().min(1).max(1024).optional(),
 })
 const emailUpdateSchema = emailSettingsSchema.extend({
-  name: z.string().trim().min(1).max(100).optional(), receivePassword: z.string().min(1).max(1024).optional(), sendPassword: z.string().min(1).max(1024).optional(),
+  name: z.string().trim().min(1).max(100).optional(), receivePassword: z.string().min(1).max(1024).optional(),
+  sendPassword: z.string().min(1).max(1024).optional(),
 })
 const connectorSchema = z.object({
   owner: z.string(), id: z.string().transform(value => value as ConnectorId),
@@ -219,7 +223,10 @@ function telegramSettings(value: TelegramIdentityLike): TelegramConnectorSetting
   const userId = value.userId ?? value.id
   if (userId === undefined) throw new Error('Telegram account identity carries no user id')
   const { name, username, phone } = value
-  return { userId, ...name === undefined ? {} : { name }, ...username === undefined ? {} : { username }, ...phone === undefined ? {} : { phone } }
+  return {
+    userId, ...name === undefined ? {} : { name }, ...username === undefined ? {} : { username },
+    ...phone === undefined ? {} : { phone },
+  }
 }
 
 /**
@@ -263,7 +270,8 @@ function telegramPairingState(state: TelegramDaemonStatus['state']): TelegramPai
 /** Project one stored guild row onto the Discord settings Settings shows. */
 function discordSettings(value: NonNullable<z.infer<typeof connectorSchema>['discord']>): DiscordConnectorSettings {
   return {
-    applicationId: value.applicationId, botUserId: value.botUserId, guildId: value.guildId, guildName: value.guildName, linked: value.linked,
+    applicationId: value.applicationId, botUserId: value.botUserId, guildId: value.guildId,
+    guildName: value.guildName, linked: value.linked,
     ...value.icon === undefined ? {} : { icon: value.icon },
     ...value.installedById === undefined ? {} : { installedById: value.installedById },
     ...value.installedByName === undefined ? {} : { installedByName: value.installedByName },
@@ -568,13 +576,13 @@ export default class AccountIntegrations extends TypertRemoteService {
       this.invalidateSkills = control.invalidate
       return {
         name: 'account-integrations',
-        list: async options => options.owner === undefined ? [] : [...this.domain.table('skills').entries()]
+        list: options => Promise.resolve(options.owner === undefined ? [] : [...this.domain.table('skills').entries()]
           .filter(([, skill]) => skill.owner === options.owner && skill.enabled)
           .map(([key, skill]): SkillCandidate => ({
             name: skill.name, description: skill.description, source: 'account', provider: 'account-integrations',
             invocation: { modelInvocable: skill.modelInvocable, userInvocable: skill.userInvocable },
             rank: 350, locator: key,
-          })),
+          }))),
         get: async (candidate, options) => {
           const skill = this.domain.table('skills').get(String(candidate.locator))
           if (skill === undefined || skill.owner !== options.owner || !skill.enabled) return undefined
@@ -595,10 +603,10 @@ export default class AccountIntegrations extends TypertRemoteService {
     this.ctx.inject(['mail'], (ctx) => {
       ctx.effect(() => ctx.mail.registerSource({
         id: 'account-integrations',
-        list: async owner => [...this.domain.table('connectors').entries()].flatMap(([id, connector]): MailAccount[] =>
+        list: owner => Promise.resolve([...this.domain.table('connectors').entries()].flatMap(([id, connector]): MailAccount[] =>
           connector.owner === owner && connector.provider === 'email' && connector.enabled && connector.authFailed !== true && connector.email !== undefined
             ? [{ id: id as string as MailAccountId, owner, settings: emailSettings(connector.email) }]
-            : []),
+            : [])),
         secret: async (account) => {
           const record = await this.ctx.credentials.readRecord(connectorCredential(account.owner, account.id as string as ConnectorId))
           const secret = record?.kind === 'grant' ? emailSecretSchema.safeParse(record.payload) : undefined
@@ -643,9 +651,11 @@ export default class AccountIntegrations extends TypertRemoteService {
             if (!args.path.every(part => /^[A-Za-z][A-Za-z0-9]*$/.test(part))) {
               return { kind: 'deny', reason: 'Workspace API paths must contain resource and method names, without CLI options or file paths.' }
             }
+            const [, method] = args.path
             const formEdit = args.service === 'forms' && args.path.length === 2 && args.path[0] === 'forms'
-              && /^(create|batchUpdate)$/.test(args.path[1]!)
-            if (!formEdit && !/^(get|list|export|download)$/i.test(args.path.at(-1)!)) {
+              && method !== undefined && /^(create|batchUpdate)$/.test(method)
+            const last = args.path.at(-1)
+            if (!formEdit && (last === undefined || !/^(get|list|export|download)$/i.test(last))) {
               return { kind: 'ask', allowSession: `${exec.name}:${args.service}:${args.path.join('.')}`, allowSessionCoverage: 'account', reason: 'Approve this change to your connected Google account.' }
             }
           }
@@ -740,16 +750,22 @@ export default class AccountIntegrations extends TypertRemoteService {
       if (connected) this.connected.add(id)
       else this.connected.delete(id)
       return { id, name: item.name, provider: item.provider, enabled: item.enabled, connected,
-        ...item.endpoint !== undefined ? { endpoint: item.endpoint } : {}, ...item.email !== undefined ? { email: emailSettings(item.email) } : {},
+        ...item.endpoint !== undefined ? { endpoint: item.endpoint } : {},
+        ...item.email === undefined ? {} : { email: emailSettings(item.email) },
         ...item.microsoft !== undefined ? { microsoft: item.microsoft } : {},
-        ...item.whatsapp !== undefined ? { whatsapp: { phone: item.whatsapp.phone, ...item.whatsapp.profileName !== undefined ? { profileName: item.whatsapp.profileName } : {} } } : {},
+        ...item.whatsapp === undefined ? {} : {
+          whatsapp: {
+            phone: item.whatsapp.phone,
+            ...item.whatsapp.profileName === undefined ? {} : { profileName: item.whatsapp.profileName },
+          },
+        },
         ...item.telegram !== undefined ? { telegram: telegramSettings(item.telegram) } : {},
         ...item.discord === undefined ? {} : { discord: discordSettings(item.discord) },
         ...item.slack === undefined ? {} : { slack: slackSettings(item.slack) } }
     }))
     return {
       skills: skills.filter(skill => !connectorSkillNames.has(skill.name)), connectors: connections,
-      providers: await Promise.all(providers.map(async (provider): Promise<ConnectorProviderView> => ({
+      providers: providers.map((provider): ConnectorProviderView => ({
         provider, ...this.consentFailures.get(`${owner}\0${provider}`), configured: provider === 'mcp' || (provider === 'email' ? this.ctx.get('mail') !== undefined
           : provider === 'whatsapp' ? this.whatsappBinary !== undefined
             : provider === 'telegram' ? this.telegramEntry !== undefined && this.broker !== undefined
@@ -760,7 +776,7 @@ export default class AccountIntegrations extends TypertRemoteService {
           const skill = connectorOwned.get(name)
           return skill === undefined ? [] : [skill]
         }),
-      }))),
+      })),
     }
   }
 
@@ -769,6 +785,7 @@ export default class AccountIntegrations extends TypertRemoteService {
    * @returns the catalog listing, or undefined when the deployment mounts no catalog.
    */
   @Remote
+  // oxlint-disable-next-line typescript/require-await -- the Remote contract answers with a promise; this read has nothing to await.
   async catalog(): Promise<SkillCatalogView | undefined> {
     const catalog = this.ctx.get('skillCatalog')
     if (catalog === undefined) return undefined
@@ -784,9 +801,11 @@ export default class AccountIntegrations extends TypertRemoteService {
   /**
    * Read one catalogued skill's instructions, so Settings can show a skill before it is installed.
    * @param name - catalogued skill name.
-   * @returns the instruction body the skill installs with, or undefined when the deployment mounts no catalog or does not catalogue that name.
+   * @returns the instruction body the skill installs with, or undefined when the deployment mounts no catalog
+   * or does not catalogue that name.
    */
   @Remote
+  // oxlint-disable-next-line typescript/require-await -- the Remote contract answers with a promise; this read has nothing to await.
   async catalogSkillContent(name: string): Promise<string | undefined> {
     const catalog = this.ctx.get('skillCatalog')
     if (catalog === undefined) return undefined
@@ -866,7 +885,9 @@ export default class AccountIntegrations extends TypertRemoteService {
     const url = endpoint(input.endpoint ?? (input.provider === 'github' ? 'https://api.githubcopilot.com/mcp/' : ''))
     await this.verifyMcp(url, input.token)
     const id = randomUUID() as ConnectorId
-    await this.ctx.credentials.modifyRecord(connectorCredential(owner, id), async () => ({ kind: 'api-key', ...input.token === undefined ? {} : { key: input.token } }))
+    await this.ctx.credentials.modifyRecord(connectorCredential(owner, id), () => Promise.resolve({
+      kind: 'api-key', ...input.token === undefined ? {} : { key: input.token },
+    }))
     await this.domain.table('connectors').put(id, { owner, id, provider: input.provider, name: input.name, endpoint: url, enabled: true })
     this.connected.add(id)
     this.invalidateSkills()
@@ -892,7 +913,7 @@ export default class AccountIntegrations extends TypertRemoteService {
     const failure = await this.probeEmail(settings, secret)
     if (failure !== undefined) return failure
     const id = randomUUID() as ConnectorId
-    await this.ctx.credentials.modifyRecord(connectorCredential(owner, id), async () => ({ kind: 'grant', payload: secret }))
+    await this.ctx.credentials.modifyRecord(connectorCredential(owner, id), () => Promise.resolve({ kind: 'grant', payload: secret }))
     await this.domain.table('connectors').put(id, { owner, id, provider: 'email', name: name ?? settings.address, email: settings, enabled: true })
     this.connected.add(id)
     return { kind: 'connected', id }
@@ -924,7 +945,7 @@ export default class AccountIntegrations extends TypertRemoteService {
     const secret = { receivePassword: nextReceive, ...nextSend !== undefined ? { sendPassword: nextSend } : {} }
     const failure = await this.probeEmail(settings, secret)
     if (failure !== undefined) return failure
-    await this.ctx.credentials.modifyRecord(connectorCredential(owner, id), async () => ({ kind: 'grant', payload: secret }))
+    await this.ctx.credentials.modifyRecord(connectorCredential(owner, id), () => Promise.resolve({ kind: 'grant', payload: secret }))
     await this.domain.table('connectors').put(id, { owner, id, provider: 'email', name: name ?? settings.address, email: settings, enabled: saved.enabled })
     this.connected.add(id)
     return { kind: 'connected', id }
@@ -938,6 +959,7 @@ export default class AccountIntegrations extends TypertRemoteService {
       await mail.probe(settings, secret)
       return undefined
     } catch (error) {
+      const { MailError } = await import('@aeven/mail')
       if (!(error instanceof MailError)) return { kind: 'failed', reason: 'other' }
       const reasons: Partial<Record<MailError['code'], EmailConnectionFailure>> = {
         MAIL_AUTHENTICATION: 'authentication', MAIL_CONNECTION: 'connection', MAIL_TLS: 'tls', MAIL_INVALID: 'invalid', MAIL_UNSUPPORTED: 'invalid',
@@ -975,7 +997,8 @@ export default class AccountIntegrations extends TypertRemoteService {
         ? 'provider sign-in is not configured for this deployment'
         : 'provider sign-in could not start; try again')
     })
-    this.consents.set(started.state, { owner, id, provider, expiresAt: Math.min(Date.parse(started.expiresAt), Date.now() + this.config.consentLifetimeMs) })
+    const expiresAt = Math.min(Date.parse(started.expiresAt), Date.now() + this.config.consentLifetimeMs)
+    this.consents.set(started.state, { owner, id, provider, expiresAt })
     return { url: started.url }
   }
 
@@ -1092,6 +1115,7 @@ export default class AccountIntegrations extends TypertRemoteService {
    * @returns current QR code or outcome.
    */
   @Remote
+  // oxlint-disable-next-line typescript/require-await -- the Remote contract answers with a promise; this read has nothing to await.
   async whatsAppPairing(id: ConnectorId): Promise<WhatsAppPairingView> {
     const owner = this.owner()
     const pairing = this.pairings.get(id)
@@ -1223,13 +1247,17 @@ export default class AccountIntegrations extends TypertRemoteService {
   }
 
   /** Pass one sign-in step to the attempt's daemon and report what Telegram answered. */
-  private async submitTelegramStep(id: ConnectorId, step: (daemon: TelegramDaemon) => Promise<TelegramDaemonStatus>): Promise<TelegramPairingView> {
+  private async submitTelegramStep(
+    id: ConnectorId,
+    step: (daemon: TelegramDaemon) => Promise<TelegramDaemonStatus>,
+  ): Promise<TelegramPairingView> {
     const pairing = this.telegramPairings.get(id)
     if (pairing === undefined || pairing.owner !== this.owner() || pairing.done) return { id, state: 'expired' }
     const status = await step(pairing.daemon).catch(() => undefined)
     if (status === undefined) return pairing.view
     pairing.view = telegramView(id, status)
     await this.advanceTelegramPairing(id)
+    // oxlint-disable-next-line typescript/no-unnecessary-condition -- the attempt can end while its advance is awaited.
     if (pairing.done) this.telegramPairings.delete(id)
     return pairing.view
   }
@@ -1241,6 +1269,7 @@ export default class AccountIntegrations extends TypertRemoteService {
     pairing.busy = true
     try {
       const status = await pairing.daemon.status()
+      // oxlint-disable-next-line typescript/no-unnecessary-condition -- the attempt can end while its daemon status is awaited.
       if (pairing.done) return
       pairing.view = telegramView(id, status)
       if (status.state === 'code' || status.state === 'qr' || status.state === 'password') return
@@ -1318,11 +1347,13 @@ export default class AccountIntegrations extends TypertRemoteService {
   }
 
   /** Read the attempt's daemon once and save the number when the phone has scanned the code. */
-  private async advancePairing(id: ConnectorId): Promise<void> {    const pairing = this.pairings.get(id)
+  private async advancePairing(id: ConnectorId): Promise<void> {
+    const pairing = this.pairings.get(id)
     if (pairing === undefined || pairing.done || pairing.busy) return
     pairing.busy = true
     try {
       const status = await pairing.daemon.status()
+      // oxlint-disable-next-line typescript/no-unnecessary-condition -- the attempt can end while its daemon status is awaited.
       if (pairing.done) return
       switch (status.state) {
         case 'starting': return
@@ -1449,7 +1480,13 @@ export default class AccountIntegrations extends TypertRemoteService {
   }
 
   /** Track a daemon and restart it with backoff when it exits while its number stays enabled and linked. */
-  private superviseWhatsApp(id: ConnectorId, owner: string, daemon: WhatsAppDaemon, ready: Promise<void>, failures: number): SupervisedWhatsApp {
+  private superviseWhatsApp(
+    id: ConnectorId,
+    owner: string,
+    daemon: WhatsAppDaemon,
+    ready: Promise<void>,
+    failures: number,
+  ): SupervisedWhatsApp {
     const entry: SupervisedWhatsApp = { daemon, ready, alive: true, failures, startedAt: Date.now() }
     this.whatsapp.set(id, entry)
     void daemon.exited.then(() => {
@@ -1457,8 +1494,9 @@ export default class AccountIntegrations extends TypertRemoteService {
       if (daemon.stopped || this.whatsapp.get(id) !== entry) return
       const connector = this.domain.table('connectors').get(id)
       if (connector?.enabled !== true || connector.whatsapp?.linked !== true) { this.whatsapp.delete(id); return }
-      entry.failures = Date.now() - entry.startedAt >= this.config.whatsappMaxRestartDelayMs ? 0 : entry.failures + 1
-      const delay = Math.min(this.config.whatsappRestartDelayMs * 2 ** Math.max(0, entry.failures - 1), this.config.whatsappMaxRestartDelayMs)
+      const maxDelay = this.config.whatsappMaxRestartDelayMs
+      entry.failures = Date.now() - entry.startedAt >= maxDelay ? 0 : entry.failures + 1
+      const delay = Math.min(this.config.whatsappRestartDelayMs * 2 ** Math.max(0, entry.failures - 1), maxDelay)
       entry.restart = setTimeout(() => {
         this.runWhatsApp(id, owner).catch(() => {
           // Startup failures do not schedule another restart; the next conversation step or Settings action retries.
@@ -1477,8 +1515,11 @@ export default class AccountIntegrations extends TypertRemoteService {
   }
 
   private newWhatsAppDaemon(owner: string, id: ConnectorId): WhatsAppDaemon {
-    return new WhatsAppDaemon(this.whatsappBinary!, this.whatsappDirectory(owner, id), {
-      startupTimeoutMs: this.config.whatsappStartupTimeoutMs, requestTimeoutMs: this.config.timeoutMs, stopGraceMs: this.config.whatsappStopGraceMs,
+    const binary = this.whatsappBinary
+    if (binary === undefined) throw new Error('WhatsApp sign-in is not configured for this deployment')
+    return new WhatsAppDaemon(binary, this.whatsappDirectory(owner, id), {
+      startupTimeoutMs: this.config.whatsappStartupTimeoutMs, requestTimeoutMs: this.config.timeoutMs,
+      stopGraceMs: this.config.whatsappStopGraceMs,
     })
   }
 
@@ -1583,7 +1624,13 @@ export default class AccountIntegrations extends TypertRemoteService {
   }
 
   /** Track a daemon and restart it with backoff when it exits while its account stays enabled and signed in. */
-  private superviseTelegram(id: ConnectorId, owner: string, daemon: TelegramDaemon, ready: Promise<void>, failures: number): SupervisedTelegram {
+  private superviseTelegram(
+    id: ConnectorId,
+    owner: string,
+    daemon: TelegramDaemon,
+    ready: Promise<void>,
+    failures: number,
+  ): SupervisedTelegram {
     const entry: SupervisedTelegram = { daemon, ready, alive: true, failures, startedAt: Date.now() }
     this.telegram.set(id, entry)
     void daemon.exited.then(() => {
@@ -1591,8 +1638,9 @@ export default class AccountIntegrations extends TypertRemoteService {
       if (daemon.stopped || this.telegram.get(id) !== entry) return
       const connector = this.domain.table('connectors').get(id)
       if (connector?.enabled !== true || connector.telegram?.linked !== true) { this.telegram.delete(id); return }
-      entry.failures = Date.now() - entry.startedAt >= this.config.telegramMaxRestartDelayMs ? 0 : entry.failures + 1
-      const delay = Math.min(this.config.telegramRestartDelayMs * 2 ** Math.max(0, entry.failures - 1), this.config.telegramMaxRestartDelayMs)
+      const maxDelay = this.config.telegramMaxRestartDelayMs
+      entry.failures = Date.now() - entry.startedAt >= maxDelay ? 0 : entry.failures + 1
+      const delay = Math.min(this.config.telegramRestartDelayMs * 2 ** Math.max(0, entry.failures - 1), maxDelay)
       entry.restart = setTimeout(() => {
         this.runTelegram(id, owner).catch(() => {
           // Startup failures do not schedule another restart; the next conversation step or Settings action retries.
@@ -1613,8 +1661,11 @@ export default class AccountIntegrations extends TypertRemoteService {
   private async newTelegramDaemon(owner: string, id: ConnectorId): Promise<TelegramDaemon> {
     const credentials = await this.telegramCredentials(owner)
     if (credentials === undefined) throw new Error('Telegram application credentials are unavailable until the account owner signs in')
-    return new TelegramDaemon(this.telegramEntry!, this.telegramDirectory(owner, id), credentials, {
-      startupTimeoutMs: this.config.telegramStartupTimeoutMs, requestTimeoutMs: this.config.timeoutMs, stopGraceMs: this.config.telegramStopGraceMs,
+    const entry = this.telegramEntry
+    if (entry === undefined) throw new Error('Telegram sign-in is not configured for this deployment')
+    return new TelegramDaemon(entry, this.telegramDirectory(owner, id), credentials, {
+      startupTimeoutMs: this.config.telegramStartupTimeoutMs, requestTimeoutMs: this.config.timeoutMs,
+      stopGraceMs: this.config.telegramStopGraceMs,
     })
   }
 
@@ -1637,7 +1688,7 @@ export default class AccountIntegrations extends TypertRemoteService {
     if (owner === undefined || this.broker === undefined) return undefined
     const app = await this.broker.telegramApp(owner).catch(() => undefined)
     if (app === undefined) return undefined
-    await this.ctx.credentials.modifyRecord(telegramAppKey, async () => ({ kind: 'grant', payload: app }))
+    await this.ctx.credentials.modifyRecord(telegramAppKey, () => Promise.resolve({ kind: 'grant', payload: app }))
     return app
   }
 
@@ -1660,7 +1711,9 @@ export default class AccountIntegrations extends TypertRemoteService {
    */
   private async recordDiscordInstall(consent: PendingConsent, result: NonNullable<ConsentStatus['result']>): Promise<void> {
     if (result.guild === undefined || result.botUserId === undefined || result.applicationId === undefined) throw new Error('Discord reported no guild for this installation')
-    const guild: DiscordGuild = { id: result.guild.id, name: result.guild.name, ...result.guild.icon === undefined ? {} : { icon: result.guild.icon } }
+    const guild: DiscordGuild = {
+      id: result.guild.id, name: result.guild.name, ...result.guild.icon === undefined ? {} : { icon: result.guild.icon },
+    }
     const existing = this.discordGuilds(consent.owner).find(([, connector]) => connector.discord?.guildId === guild.id)
     if (existing === undefined && this.discordGuilds(consent.owner).length >= this.config.maxDiscordGuilds) {
       await this.broker?.removeDiscord(consent.owner, guild.id)
@@ -1727,7 +1780,10 @@ export default class AccountIntegrations extends TypertRemoteService {
     this.invalidateSkills()
   }
 
-  /** Remove the user's installation at the Aeven API, which takes the bot out of the guild once no user has it installed there, then delete the row. */
+  /**
+   * Remove the user's installation at the Aeven API, which takes the bot out of the guild once no user
+   * has it installed there, then delete the row.
+   */
   private async uninstallDiscord(id: ConnectorId): Promise<void> {
     const connector = this.domain.table('connectors').get(id)
     const guildId = connector?.discord?.guildId
@@ -1853,7 +1909,7 @@ export default class AccountIntegrations extends TypertRemoteService {
       await revokeSlackToken({ accessToken: token.accessToken, timeoutMs: this.config.timeoutMs }).catch(() => undefined)
       throw new Error('Slack did not accept this workspace; ask an administrator to approve the Aeven app, then connect it again')
     }
-    await this.ctx.credentials.modifyRecord(connectorCredential(owner, id), async () => ({ kind: 'grant', payload: token }))
+    await this.ctx.credentials.modifyRecord(connectorCredential(owner, id), () => Promise.resolve({ kind: 'grant', payload: token }))
     await this.domain.table('connectors').put(id, {
       owner, id, provider: 'slack', name: workspace.teamName, endpoint: SLACK_MCP_ENDPOINT, enabled: true,
       slack: {
@@ -1888,7 +1944,7 @@ export default class AccountIntegrations extends TypertRemoteService {
     try {
       const refreshed = await refreshSlackToken({ clientId, refreshToken: stored.refreshToken, timeoutMs: this.config.timeoutMs })
       const bundle: SlackToken = { ...refreshed, scopes: refreshed.scopes.length === 0 ? stored.scopes : refreshed.scopes }
-      await this.ctx.credentials.modifyRecord(connectorCredential(owner, connector.id), async () => ({ kind: 'grant', payload: bundle }))
+      await this.ctx.credentials.modifyRecord(connectorCredential(owner, connector.id), () => Promise.resolve({ kind: 'grant', payload: bundle }))
       return bundle.accessToken
     } catch (error) {
       if (!isSlackConsentFailure(error)) throw error
@@ -1954,12 +2010,13 @@ export default class AccountIntegrations extends TypertRemoteService {
     }
     // An OAuth grant lives on the Aeven API; the row keeps the granted scopes and whether it expired.
     if (connector.grant !== undefined) {
-      if (connector.grant.expired === true || this.broker === undefined) return false
+      const grant = connector.grant
+      if (grant.expired === true || this.broker === undefined) return false
       const google = googleService(connector.provider)
       const microsoft = microsoftService(connector.provider)
       if (microsoft !== undefined) return connector.microsoft !== undefined && connector.endpoint === microsoft.endpoint
-        && microsoft.scopes.every(scope => connector.grant!.scopes.some(granted => granted.replace('https://graph.microsoft.com/', '') === scope))
-      return google === undefined || (connector.endpoint === google.endpoint && connector.grant.scopes.includes(google.scopes[0]))
+        && microsoft.scopes.every(scope => grant.scopes.some(granted => granted.replace('https://graph.microsoft.com/', '') === scope))
+      return google === undefined || (connector.endpoint === google.endpoint && grant.scopes.includes(google.scopes[0]))
     }
     const record = await this.ctx.credentials.readRecord(connectorCredential(connector.owner, connector.id))
     if (connector.provider === 'email') {
@@ -2001,7 +2058,9 @@ export default class AccountIntegrations extends TypertRemoteService {
       return record.key ?? ''
     }
     const cached = this.issuedTokens.get(connector.id)
-    if (cached !== undefined && (cached.expiresAt === undefined || cached.expiresAt - TOKEN_MARGIN_MS > Date.now())) return cached.accessToken
+    const cachedIsFresh = cached !== undefined
+      && (cached.expiresAt === undefined || cached.expiresAt - TOKEN_MARGIN_MS > Date.now())
+    if (cachedIsFresh) return cached.accessToken
     if (this.broker === undefined) throw new Error('connector sign-in is not configured for this deployment')
     let issued: IssuedToken
     try {
@@ -2071,14 +2130,17 @@ export default class AccountIntegrations extends TypertRemoteService {
       await this.recordDiscordInstall(consent, result)
       return
     }
-    const broker = this.broker!
+    const broker = this.broker
+    if (broker === undefined) throw new Error('connector sign-in is not configured for this deployment')
     const google = googleService(consent.provider)
     const microsoft = microsoftService(consent.provider)
     const endpointUrl = google?.endpoint ?? microsoft?.endpoint ?? 'https://api.githubcopilot.com/mcp/'
+    let microsoftRow: z.infer<typeof connectorSchema>['microsoft']
     try {
       const issued = await broker.token(consent.owner, consent.id)
       if (microsoft !== undefined) {
         if (result.account === undefined || result.tenantId === undefined) throw new Error('Microsoft account metadata is missing')
+        microsoftRow = { ...result.account, tenantId: result.tenantId }
         await verifyMicrosoft(consent.provider, await microsoftConnection(consent.provider, issued.accessToken,
           avnHomePath('accounts', accountDirectory(consent.owner), 'connectors', consent.id), this.config.timeoutMs), result.account.id, this.config.timeoutMs)
       } else if (google === undefined) await this.verifyMcp(endpointUrl, issued.accessToken)
@@ -2096,7 +2158,7 @@ export default class AccountIntegrations extends TypertRemoteService {
     await this.domain.table('connectors').put(consent.id, {
       owner: consent.owner, id: consent.id, provider: consent.provider, name: result.account?.username ?? consent.provider,
       endpoint: endpointUrl, enabled: true, grant: { scopes: result.scopes ?? [] },
-      ...microsoft === undefined ? {} : { microsoft: { ...result.account!, tenantId: result.tenantId! } },
+      ...microsoftRow === undefined ? {} : { microsoft: microsoftRow },
     })
     this.consentFailures.delete(`${consent.owner}\0${consent.provider}`)
     this.connected.add(consent.id)
@@ -2120,11 +2182,17 @@ export default class AccountIntegrations extends TypertRemoteService {
     // Email rows have no MCP server; their tools come from the mail capability. WhatsApp and
     // Telegram rows get their endpoint and bearer token from their running daemon, and a Discord
     // row gets a stdio server of its own that serves that guild alone.
-    const connectors = [...this.domain.table('connectors').entries()].flatMap(([id, connector]) => connector.owner === owner && connector.enabled
-      && (connector.endpoint !== undefined || connector.provider === 'whatsapp' || connector.provider === 'telegram' || connector.provider === 'discord') && connector.provider !== 'email'
-      && (googleService(connector.provider) === undefined || connector.endpoint === googleService(connector.provider)!.endpoint)
-      && (microsoftService(connector.provider) === undefined || connector.endpoint === microsoftService(connector.provider)!.endpoint)
-      ? [[id, connector] as const] : [])
+    const connectors = [...this.domain.table('connectors').entries()].flatMap(([id, connector]) => {
+      const google = googleService(connector.provider)
+      const microsoft = microsoftService(connector.provider)
+      const mountable = connector.owner === owner && connector.enabled
+        && (connector.endpoint !== undefined || connector.provider === 'whatsapp'
+          || connector.provider === 'telegram' || connector.provider === 'discord')
+        && connector.provider !== 'email'
+        && (google === undefined || connector.endpoint === google.endpoint)
+        && (microsoft === undefined || connector.endpoint === microsoft.endpoint)
+      return mountable ? [[id, connector] as const] : []
+    })
     for (const [id, mount] of mounts) {
       if (!connectors.some(([active]) => active === id)) { await mount.fiber.dispose(); mounts.delete(id) }
     }
@@ -2152,8 +2220,15 @@ export default class AccountIntegrations extends TypertRemoteService {
       try {
         // A Discord child authenticates to the API's proxy as the owner; its environment changes when
         // the owner's session rotates, which restarts the child with the new session below.
-        token = daemon?.token ?? (connector.provider === 'discord' ? '' : await this.accessToken(owner, connector))
-        stdio = connector.provider === 'discord' ? this.discordServer(connector, await this.broker!.session(owner)) : undefined
+        if (connector.provider === 'discord') {
+          const broker = this.broker
+          if (broker === undefined) throw new Error('Discord sign-in is not configured for this deployment')
+          token = daemon?.token ?? ''
+          stdio = this.discordServer(connector, await broker.session(owner))
+        } else {
+          token = daemon?.token ?? await this.accessToken(owner, connector)
+          stdio = undefined
+        }
       } catch (error) {
         this.ctx.logger('account-integrations').warn(`connector ${id} is unavailable this step: ${error instanceof Error ? error.message : String(error)}`)
         await this.unmountConnector(id)

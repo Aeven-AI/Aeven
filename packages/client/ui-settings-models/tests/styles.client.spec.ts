@@ -11,6 +11,9 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 const css = readFileSync(fileURLToPath(new URL('../src/client/ModelsSection.module.css', import.meta.url)), 'utf8')
+// The row card itself is the shared ProviderRow primitive, so the outline that
+// keeps the nested editor's boundary is declared in that sheet.
+const rowCss = readFileSync(fileURLToPath(new URL('../../ui-primitives/src/ProviderRow.module.css', import.meta.url)), 'utf8')
 // The theme package maps `./styles/*` to `./src/styles/*`, so the declarations
 // stay on the source plane rather than needing a build.
 // Every theme sheet, not just the platform tokens: font and scrollbar
@@ -22,9 +25,9 @@ const tokens = readdirSync(fileURLToPath(new URL('../../ui-theme/src/styles/', i
   .join('\n')
 
 /** The declarations of one top-level rule, by selector. */
-function block(selector: string): string {
-  const match = new RegExp(`^\\${selector} \\{([^}]*)\\}`, 'm').exec(css)
-  if (match === null) throw new Error(`ModelsSection.module.css has no \`${selector}\` rule`)
+function block(selector: string, sheet = css, name = 'ModelsSection.module.css'): string {
+  const match = new RegExp(`^\\${selector} \\{([^}]*)\\}`, 'm').exec(sheet)
+  if (match === null) throw new Error(`${name} has no \`${selector}\` rule`)
   return match[1] ?? ''
 }
 
@@ -57,8 +60,9 @@ describe('ModelsSection theme styles', () => {
     // under the dark theme, so filling the row with either erases the nested
     // editor's boundary. The row is outlined; the fill is the editor's alone.
     expect(block('.editor')).toContain('background: var(--dsw-alias-bg-module-platform)')
-    expect(block('.rowCard')).toContain('border: 0.5px solid var(--dsw-alias-border-l4)')
-    expect(block('.rowCard')).not.toMatch(/\bbackground\s*:/)
+    const row = block('.row', rowCss, 'ProviderRow.module.css')
+    expect(row).toContain('border: 0.5px solid var(--dsw-alias-border-l4)')
+    expect(row).not.toMatch(/\bbackground\s*:/)
   })
 
   it('gives every dropdown the shared chevron instead of the OS arrow', () => {

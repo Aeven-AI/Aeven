@@ -38,7 +38,10 @@ export interface Config {
   recallTimeoutMs: number
   /** Maximum characters of one injected memory block, framing included. */
   contextMaxChars: number
-  /** Maximum characters of one memory line in the block; a longer memory keeps its opening fact, and its detail stays behind `memory_get`. */
+  /**
+   * Maximum characters of one memory line in the block; a longer memory keeps its opening fact, and its
+   * detail stays behind `memory_get`.
+   */
   itemMaxChars: number
   /** Maximum recalled items from each domain. */
   domainMaxItems: Record<MemoryDomain, number>
@@ -124,7 +127,12 @@ function withRecallNotice(decision: PreStepDecision, reason: string, summary: st
  * @param domainMaxItems - maximum number of lines from each domain.
  * @returns framed block, or empty when no memory fits.
  */
-export function renderMemoryContext(hits: readonly MemoryHit[], maxChars: number, itemMaxChars: number, domainMaxItems: Record<MemoryDomain, number>): string {
+export function renderMemoryContext(
+  hits: readonly MemoryHit[],
+  maxChars: number,
+  itemMaxChars: number,
+  domainMaxItems: Record<MemoryDomain, number>,
+): string {
   let remaining = maxChars - OPEN.length - CLOSE.length
   const sections: string[] = []
   for (const [domain, heading] of SECTIONS) {
@@ -194,7 +202,8 @@ export function rankMemoryHits(query: string, hits: readonly MemoryHit[], supers
     return cached
   }
   const asksForOutcome = /\b(?:verification|verified|outcome|result|correction|retry|failed|succeeded|worked)\b/iu.test(query)
-  const hasOutcome = (hit: MemoryHit): boolean => /^(?:Assistant reported verification|User correction|Goal marked complete|Model retries):/mu.test(summary(hit))
+  const outcomeSummary = /^(?:Assistant reported verification|User correction|Goal marked complete|Model retries):/mu
+  const hasOutcome = (hit: MemoryHit): boolean => outcomeSummary.test(summary(hit))
   /** Share of the shorter summary's words that both hold, in [0,1]. */
   const sharesSubject = (left: MemoryHit, right: MemoryHit): boolean => {
     const leftWords = words(summaryWords, summary(left), left)
@@ -249,7 +258,7 @@ export function apply(ctx: Context, config: Config): void {
     // Registered in the agent's own scope, so each session's block is the block of its owner. The text is a
     // provider rather than a string: it is evaluated at each assembly, and the store answers from cache unless
     // the owner's document changed.
-    fibers.set(agent, agent.ctx.inject(['systemPrompt'], scope => {
+    fibers.set(agent, agent.ctx.inject(['systemPrompt'], (scope) => {
       scope.systemPrompt.section({
         name: INVARIANTS_SECTION,
         order: INVARIANTS_ORDER,
@@ -269,8 +278,8 @@ export function apply(ctx: Context, config: Config): void {
     })
   }
   for (const agent of ctx.agents.list()) install(agent)
-  ctx.on('agent/created', ({ agent }) => install(agent))
-  ctx.on('agent/disposed', ({ agent }) => uninstall(agent))
+  ctx.on('agent/created', ({ agent }) =>{  install(agent) })
+  ctx.on('agent/disposed', ({ agent }) =>{  uninstall(agent) })
   ctx.effect(() => () => {
     for (const agent of [...fibers.keys()]) uninstall(agent)
   }, 'memory-context.invariants')

@@ -19,6 +19,9 @@ import { toolSessionEvents } from './tool-details-render.client.tsx'
 
 const SID = 's1' as SessionId
 
+/** The address-bar start-address source the Conversation inject reads. */
+const START_ADDRESS = { getSnapshot: () => undefined, subscribe: () => () => {} }
+
 /** jsdom has no ResizeObserver; the composer seat publishes its height through one. */
 class ResizeObserverStub {
   observe(): void {}
@@ -69,6 +72,7 @@ async function bench(nodes: ToolResultNode[]) {
   runtime.ctx.provide('layout', layout)
   runtime.ctx.provide('uiWorkspace', {
     connectWorkspace: vi.fn(async () => SID),
+    startAddress: START_ADDRESS,
   } as never)
   const locale = new LocaleRuntime(runtime.ctx)
   runtime.ctx.provide('locale', locale)
@@ -226,6 +230,7 @@ describe('registrant declaration injection', () => {
     runtime.ctx.provide('layout', { openDetails: vi.fn(), closeDetails: vi.fn() })
     runtime.ctx.provide('uiWorkspace', {
       connectWorkspace: vi.fn(async () => SID),
+      startAddress: START_ADDRESS,
     } as never)
     const locale = new LocaleRuntime(runtime.ctx)
     runtime.ctx.provide('locale', locale)

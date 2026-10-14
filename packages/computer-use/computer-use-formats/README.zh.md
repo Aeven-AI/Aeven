@@ -79,6 +79,9 @@ PDF 可以通过其自身字节来检查，因此 `document.convertToPdf` 断言
 - **`presentation.readText` 是只读的。** 从布局创建演示文稿属于布局层，而不是这里。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ## 开发备注
 
 `PlatformInvocation` 类型禁止顶层 `mechanism` 字段，这一点在此处得到了回报：新增十八条配方一次性产生十八个类型错误，每个都指向那个冗余字段，而不是十八处需要评审者自行发现的静默重复。

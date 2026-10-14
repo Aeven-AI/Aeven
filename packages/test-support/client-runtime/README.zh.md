@@ -140,6 +140,9 @@ expect(view.getByRole('alert')).toHaveTextContent('goal/not-found')
 - **Session、Conversation 与 Chat fixture 保持分离**——`sessionSnapshot` 只包含 Session Controller 状态，`conversationSnapshot` 包含 target-neutral Conversation 状态，`chatSnapshot` 包含 Chat target 状态。组装测试提供 Session event entry，而不是向 `SessionSnapshot` 添加 Conversation 或 Chat 字段。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

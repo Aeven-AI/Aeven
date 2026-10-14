@@ -107,7 +107,7 @@ The purpose is speed: the next request of this kind must finish in far fewer ste
 Name a procedure after the kind of task, not this instance (for example "aeven-client-ui-change", not "rename-clear-history-button"). When an existing procedure covers the same kind of task, even with a different instance, update it: return its exact name and the complete merged procedure, keeping what still holds, fixing what the work showed to be wrong, and folding this instance in as an example. Create a new one only for a different kind of task.`
 
 /** Sections every written procedure has. */
-const PROCEDURE_SECTIONS = `in Markdown with these sections: "Fast path" (the minimal numbered sequence of calls for this kind of task, and a short "Avoid" list of the time sinks), "When to use", "Requirements" (including the user's preferences), "Steps" (numbered, with the exact commands, paths, settings, menu items, and tool parameters that worked; replace values that vary between uses with named placeholders), "Verification" (observable success criteria, no heavier than the user asked for), and "Recovery" (known failures and their fixes, from the work). Do not include the dead ends except under "Avoid" or "Recovery".`
+const PROCEDURE_SECTIONS = 'in Markdown with these sections: "Fast path" (the minimal numbered sequence of calls for this kind of task, and a short "Avoid" list of the time sinks), "When to use", "Requirements" (including the user\'s preferences), "Steps" (numbered, with the exact commands, paths, settings, menu items, and tool parameters that worked; replace values that vary between uses with named placeholders), "Verification" (observable success criteria, no heavier than the user asked for), and "Recovery" (known failures and their fixes, from the work). Do not include the dead ends except under "Avoid" or "Recovery".'
 
 const SYSTEM = `You maintain the reusable procedures (capabilities) an assistant learned for one user. You receive one completed piece of work: the user's request, the tool calls that did it with their results and timing, and the final answer. Decide whether it contains a procedure worth reusing, and write it.
 
@@ -187,7 +187,9 @@ function seconds(ms: number): string {
  */
 function timingOf(work: CompletedWork, steps: readonly WorkStep[]): string {
   const total = work.endedAt - work.startedAt
-  const intervals = work.steps.flatMap(step => step.answeredAt === undefined ? [] : [[step.calledAt, step.answeredAt] as const]).sort((a, b) => a[0] - b[0])
+  const intervals = work.steps
+    .flatMap(step => step.answeredAt === undefined ? [] : [[step.calledAt, step.answeredAt] as const])
+    .sort((a, b) => a[0] - b[0])
   let tools = 0
   let reach = -Infinity
   for (const [start, end] of intervals) {
@@ -437,7 +439,8 @@ export class CapabilityLearner {
     if (existing?.status === 'retired') return undefined
     const draft = { name: decision.name, description: decision.description, content: decision.content }
     if (existing !== undefined) {
-      const updated = await this.ctx.capabilities.save(owner, draft, { status: existing.status, source: existing.source, sessionId: work.sessionId })
+      const options = { status: existing.status, source: existing.source, sessionId: work.sessionId }
+      const updated = await this.ctx.capabilities.save(owner, draft, options)
       this.logger.info(`updated capability ${updated.name} to revision ${updated.revision} from ${work.sessionId} turn ${work.turn}`)
       return { name: updated.name }
     }
@@ -481,7 +484,10 @@ export class CapabilityLearner {
     const learned = recent.learned
     if (learned?.id !== undefined && !known.some(item => item.id === learned.id)) {
       const detail = await this.ctx.memory.detail({ scope, kind: 'trace', id: learned.id, signal })
-      if (detail !== undefined) known.unshift({ id: learned.id, name: learned.name, summary: detail.title, body: detail.body } satisfies LearnedProcedure)
+      if (detail !== undefined) {
+        const learnedEntry = { id: learned.id, name: learned.name, summary: detail.title, body: detail.body } satisfies LearnedProcedure
+        known.unshift(learnedEntry)
+      }
     }
     const existing = known.slice(0, MAX_EXISTING).map(item => `- ${item.name}: ${item.summary}`).join('\n') || '(none)'
     const related = known.filter(item => item.body !== undefined).map(item => ({ name: item.name, description: item.summary, content: item.body ?? '' }))
@@ -501,11 +507,21 @@ export class CapabilityLearner {
       domain,
     }, signal)
     await forgetLearnedProcedures(this.ctx, owner, replaced, signal)
-    this.logger.info(`learned procedure ${decision.name} into ${domain} memory ${id} from ${work.sessionId} turn ${work.turn}${feedback === undefined ? '' : ` with the user's ${feedback.kind} feedback`}${replaced.length > 0 ? `, replacing ${replaced.join(', ')}` : ''}`)
+    const learnedNote = `learned procedure ${decision.name} into ${domain} memory ${id} from ${work.sessionId} turn ${work.turn}`
+    const feedbackNote = feedback === undefined ? '' : ` with the user's ${feedback.kind} feedback`
+    const replacedNote = replaced.length > 0 ? `, replacing ${replaced.join(', ')}` : ''
+    this.logger.info(`${learnedNote}${feedbackNote}${replacedNote}`)
     return { name: decision.name, id }
   }
 
-  private async distill(route: LearnerRoute, work: CompletedWork, feedback: LearnerFeedback | undefined, existing: string, related: readonly { name: string; description: string; content: string }[], system: string): Promise<Decision | undefined> {
+  private async distill(
+    route: LearnerRoute,
+    work: CompletedWork,
+    feedback: LearnerFeedback | undefined,
+    existing: string,
+    related: readonly { name: string; description: string; content: string }[],
+    system: string,
+  ): Promise<Decision | undefined> {
     const steps = work.steps.filter(step => !BOOKKEEPING.test(step.name))
     const { text, dropped } = boundTranscript({
       request: work.request,

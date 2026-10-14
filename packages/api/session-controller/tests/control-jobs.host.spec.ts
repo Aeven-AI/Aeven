@@ -142,7 +142,9 @@ describe('Session control jobs updates', () => {
     const frames = await collected
     expect(frames.map(frame => frame.sessionId)).toEqual([session.id, session.id, session.id])
     expect(frames.map(frame => frame.jobs[0]?.status)).toEqual(['running', 'stopping', 'killed'])
-    expect(frames[2]?.jobs[0]?.detail).toBe('signal: SIGTERM')
+    // A killed settlement's detail carries the producer's own detail followed
+    // by the reason the caller recorded on the kill.
+    expect(frames[2]?.jobs[0]?.detail).toBe('signal: SIGTERM; test')
     expect(frames[2]?.jobs[0]?.finishedAt).toBeTypeOf('number')
   })
 

@@ -82,6 +82,9 @@ kind: "package-reference"
 - **不能任意输入推理强度**——选择器仅提供确切模型由适配器公布的推理强度；适配器没有推理元数据时不显示 Effort 行。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

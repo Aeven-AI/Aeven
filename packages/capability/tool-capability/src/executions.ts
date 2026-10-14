@@ -92,6 +92,21 @@ function viewedProcedure(rawArguments: string): string | undefined {
   }
 }
 
+/** Openers with which a user corrects the previous answer, in English or Chinese. */
+const CORRECTION = new RegExp(
+  String.raw`^(?:that's (?:wrong|incorrect|not right)|that (?:was|is) (?:wrong|incorrect)`
+  + String.raw`|it (?:didn't|did not|doesn't|does not) work|don't (?:use|do|repeat) (?:that|the (?:same|previous|old))`
+  + String.raw`|stop (?:using|doing) (?:that|the (?:same|previous|old))|不对|不要再|别再)`,
+  'iu',
+)
+
+/** Phrases with which a user complains the previous turn was slow or did too much. */
+const SLOWNESS = new RegExp(
+  String.raw`(?:too (?:long|slow|many steps)|took (?:\w+ )?(?:too |so |way )?long`
+  + String.raw`|taking (?:forever|ages|so long)|so slow|way too long|\b\d+ minutes for\b|太慢|太久)`,
+  'iu',
+)
+
 /**
  * A direct-user message that corrects the previous answer. Mirrors the correction evidence of turn capture.
  * @param text - the user's message.
@@ -99,9 +114,7 @@ function viewedProcedure(rawArguments: string): string | undefined {
  */
 export function correctionOf(text: string): string | undefined {
   const trimmed = text.trim()
-  return /^(?:that's (?:wrong|incorrect|not right)|that (?:was|is) (?:wrong|incorrect)|it (?:didn't|did not|doesn't|does not) work|don't (?:use|do|repeat) (?:that|the (?:same|previous|old))|stop (?:using|doing) (?:that|the (?:same|previous|old))|不对|不要再|别再)/iu.test(trimmed)
-    ? trimmed
-    : undefined
+  return CORRECTION.test(trimmed) ? trimmed : undefined
 }
 
 /**
@@ -111,9 +124,7 @@ export function correctionOf(text: string): string | undefined {
  */
 export function slownessOf(text: string): string | undefined {
   const trimmed = text.trim()
-  return /(?:too (?:long|slow|many steps)|took (?:\w+ )?(?:too |so |way )?long|taking (?:forever|ages|so long)|so slow|way too long|\b\d+ minutes for\b|太慢|太久)/iu.test(trimmed)
-    ? trimmed
-    : undefined
+  return SLOWNESS.test(trimmed) ? trimmed : undefined
 }
 
 /** Turns of every live session this agent runs. */
@@ -179,7 +190,9 @@ export class ExecutionTracker {
       case 'tool/call': {
         if (!use) return undefined
         use.calls.set(event.data.callId, event.data.name)
-        use.steps.set(event.data.callId, { name: event.data.name, input: clipped(event.data.arguments), failed: false, calledAt: event.time })
+        use.steps.set(event.data.callId, {
+          name: event.data.name, input: clipped(event.data.arguments), failed: false, calledAt: event.time,
+        })
         if (event.data.name === 'capability_manage') {
           const name = viewedProcedure(event.data.arguments)
           if (name !== undefined) use.loading.set(event.data.callId, name)

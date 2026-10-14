@@ -3,10 +3,10 @@
 // turn wall time click-opens the Turn-time dialog. Both sit right of the
 // branch action in the tail's IconActions row, ahead of the plain clock text.
 
-import { useEffect, useRef, useState, type CSSProperties, type MutableRefObject } from 'react'
+import { useRef, useState, type CSSProperties, type MutableRefObject } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  IconClockOutline16, IconDatabaseOutline16, useAnchoredPosition, useDismissOnOutsidePointer,
+  IconClockOutline16, IconDatabaseOutline16, useAnchoredPosition, useDismissOnOutsidePointer, useDismissOnEscape,
 } from '@aeven/client-ui-primitives'
 import type { TurnTokenUsage } from '../contract/chat-nodes.ts'
 import type { ChatViewSlotProps } from '../contract/slots.ts'
@@ -79,14 +79,7 @@ function useStatDialog(): StatDialogSeat {
   // Outside pointerdown closes through the shared primitive; the portaled
   // panel counts as inside. Escape close stays local, one listener while open.
   useDismissOnOutsidePointer(rootRef, open, setOpen, panelRef)
-  useEffect(() => {
-    if (!open) return
-    const onKeyDown = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') setOpen(false)
-    }
-    document.addEventListener('keydown', onKeyDown)
-    return () => { document.removeEventListener('keydown', onKeyDown) }
-  }, [open])
+  useDismissOnEscape(open, setOpen)
 
   return { open, setOpen, rootRef, panelRef, pos }
 }

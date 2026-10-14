@@ -1000,23 +1000,25 @@ describe('web_fetch browser escalation', () => {
     return renderPrompt(await ctx.systemPrompt.assemble())
   }
 
-  it('escalates through both browsers only while both servers registered their tools', async () => {
+  it('prefers the attached Chrome over the headless tools when both are registered', async () => {
     const text = await fetchSection(['preview_status', 'mcp__playwright__browser_navigate', 'mcp__chrome_devtools__new_page'])
-    expect(text).toContain('escalate in order: the headless browser tools (mcp__playwright__*) open no window')
+    expect(text).toContain("use the Chrome attached to the user's browser (mcp__chrome_devtools__*)")
+    expect(text).toContain('Use headless browsing only when neither visible browser can serve the task.')
+    expect(text).not.toContain('mcp__playwright__')
   })
 
   it('names only the browser whose tools exist', async () => {
     const attached = await fetchSection(['preview_status', 'mcp__chrome_devtools__new_page'])
-    expect(attached).toContain("Read those pages in the Chrome attached to the user's browser (mcp__chrome_devtools__*)")
+    expect(attached).toContain("use the Chrome attached to the user's browser (mcp__chrome_devtools__*)")
     expect(attached).not.toContain('mcp__playwright__')
     const headless = await fetchSection(['preview_status', 'mcp__playwright__browser_navigate'])
-    expect(headless).toContain('Read those pages with the headless browser tools (mcp__playwright__*)')
+    expect(headless).toContain('Use the headless browser tools (mcp__playwright__*) only when the visible browser cannot serve the task')
     expect(headless).not.toContain('mcp__chrome_devtools__')
   })
 
   it('points to preview_status when neither browser server is serving', async () => {
     const text = await fetchSection(['preview_status'])
-    expect(text).toContain('Call preview_status to see which browser this session can read those pages in.')
+    expect(text).toContain('Call preview_status to see the available browser surfaces.')
     expect(text).not.toContain('mcp__')
   })
 })

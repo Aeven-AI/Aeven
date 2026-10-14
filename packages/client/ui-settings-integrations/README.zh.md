@@ -13,7 +13,7 @@ kind: "package-reference"
 
 Microsoft 连接行显示已验证的账户地址。需要管理员批准的授权显示专门提示及应用批准链接；普通授权失败或授权过期可重新登录。SharePoint 和 Teams 需要工作账户。
 
-## Table of Contents
+## 目录
 
 - [Use this package](#use-this-package)
 - [Understand the implementation](#understand-the-implementation)
@@ -38,11 +38,15 @@ Web bundle 包含这两个页面。打开设置，再选择技能或连接器。
 
 None, as 这些页面仅通过主机 Remote 管理集成。
 
+#### KV Cache effect
+
+None; no prompt input originates here.
+
 ## Known Limitations and Deferred Work
 
 - 在打开的链接中完成提供方授权，再返回 Aeven 显示已保存的连接。
 - 已保存的授权状态不会持续监测服务器可达性。
 
-## Dev Note
+### Dev Note
 
 主机包负责存储、凭据处理及对话工具 scope。

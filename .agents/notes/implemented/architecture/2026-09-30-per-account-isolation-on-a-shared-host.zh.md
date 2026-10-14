@@ -2,6 +2,8 @@
 
 Status: implemented
 
+[English](2026-09-30-per-account-isolation-on-a-shared-host.md) | 中文
+
 ## Problem
 
 一个 Host 服务同一 Aeven home 的所有客户端：`avn web` 上的浏览器，以及桌面外壳——后者会接管已在服务其 home 的 Host，而不是再启动第二个写入者。这些客户端可能登录不同的 Aeven 账户，而 Host 把属于个人的状态放在 Host 级的共享位置。调用方的 Aeven 访问令牌存放在每个凭据引用一个的内存槽中，因此最后发出请求的客户端决定了所有模型请求的 bearer，一个账户的轮次消耗了另一个账户的额度。会话记录了 `owner`，但列表、读取、流和命令都不检查它，因此每个已登录客户端都能列出、打开、跟随并驱动其他账户的会话，并看到它们的实时活动。工作区、会话控制流、转发的 Host 事件、后台任务、子代理、终端、设备、动态 Cordis 插件、会话引用以及 MemOS Viewer 也以同样方式跨账户暴露状态。

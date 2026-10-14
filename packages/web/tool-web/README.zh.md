@@ -254,6 +254,9 @@ schema 校验会在执行前拒绝缺失或非数组的 `queries` 字段以及�
 - **公开抓取不请求审批**——随产品交付的 `cordis`、`code` 与 `standard` preset 在所有 sandbox 和审批模式下公开 `web_fetch`。HTTP 提供方会阻止非公开目标，但模型仍可向公开 URL 发送数据。需要逐次确认的部署必须添加 `tools/pre-execute` 策略或禁用抓取。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

@@ -90,7 +90,7 @@ child.on("exit", code => { process.exitCode = code ?? 1; });
     await writeFile(launcher, `@echo off\r\n"${nodePath}" "${script}" %*\r\n`)
     return launcher
   }
-  const quote = (value: string) => `'${value.replaceAll("'", `'"'"'`)}'`
+  const quote = (value: string) => `'${value.replaceAll("'", '\'"\'"\'')}'`
   const launcher = join(dir, 'agent-device')
   await writeFile(launcher, `#!/bin/sh\nexec ${quote(nodePath)} ${quote(script)} "$@"\n`)
   await chmod(launcher, 0o755)

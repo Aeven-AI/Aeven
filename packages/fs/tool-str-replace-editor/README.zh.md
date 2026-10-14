@@ -137,6 +137,9 @@ kind: "package-reference"
 - **每个修改操作都会经过已挂载的策略与沙箱**——`fs/write-intent` 或 `fs/edit-intent` 解析当前会话的沙箱策略，并把强制执行委托给已挂载的文件系统与策略插件，因此未挂载它们的部署会得到无条件变更。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

@@ -31,6 +31,9 @@ class Entry {
   inflight: Promise<void> | undefined
   /** A refresh arrived during the current pull; its outcome is discarded and one follow-up pull runs. */
   stale = false
+
+  /** Whether a refresh arrived during the pull that is flying; the caller re-reads this after each await. */
+  isStale(): boolean { return this.stale }
 }
 
 /** The session-keyed directory cache. Plain class — the owning service wires events and RPC. */
@@ -119,7 +122,7 @@ export class CommandDirectory {
         do {
           entry.stale = false
           await this.pull(sessionId, entry)
-        } while (entry.stale)
+        } while (entry.isStale())
       } finally {
         entry.inflight = undefined
       }

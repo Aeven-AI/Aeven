@@ -38,11 +38,15 @@ The plugin contributes two settings.section entries with locale-owned English an
 
 None, as these pages only manage integrations through the host Remote.
 
+#### KV Cache effect
+
+None; no prompt input originates here.
+
 ## Known Limitations and Deferred Work
 
 - Complete provider consent in the opened link, then return to Aeven to display the saved connection.
 - Saved authorization status does not continuously monitor server reachability.
 
-## Dev Note
+### Dev Note
 
 The host package owns storage, credential handling, and conversation tool scoping.

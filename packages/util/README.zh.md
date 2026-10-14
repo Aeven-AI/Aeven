@@ -50,6 +50,9 @@ kind: "package-group"
 - [添加包实操手册](../../docs/cookbook/adding-a-package.zh.md)——新的共享原语如何落入本组。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ## 开发备注
 
 <details>

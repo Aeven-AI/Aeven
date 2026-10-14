@@ -91,6 +91,21 @@ function runResult(stdout: string, overrides?: Partial<ShellRunResult>): ShellRu
   }
 }
 
+/**
+ * A settled stream over one fixed text, as the executor's `observed` channels
+ * expose it: non-consuming reads that slice the text from the requested
+ * offset, so the job registry can re-read from any offset it tracked.
+ */
+function observedStream(text: string) {
+  return {
+    readFrom: (fromByte: number) => ({
+      text: text.slice(fromByte),
+      nextOffset: text.length,
+      lossy: false,
+    }),
+  }
+}
+
 /** A settled successful background handle; overrides script failure shapes. */
 function fakeProcess(delta = 'bg-ok\n'): ShellProcess {
   let consumed = false
@@ -99,6 +114,7 @@ function fakeProcess(delta = 'bg-ok\n'): ShellProcess {
     exitCode: 0,
     signal: null,
     done: Promise.resolve(),
+    observed: { stdout: observedStream(delta), stderr: observedStream('') },
     readOutput: () => {
       if (consumed) return { delta: '', lossy: false }
       consumed = true
@@ -117,6 +133,7 @@ function killableProcess(): ShellProcess {
     exitCode: null,
     signal: null,
     done,
+    observed: { stdout: observedStream(''), stderr: observedStream('') },
     readOutput: () => ({ delta: '', lossy: false }),
     kill: () => {
       if (proc.status !== 'running') return false

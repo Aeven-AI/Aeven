@@ -20,7 +20,7 @@ export type MessageImageEntrySource =
  * @returns the file name to show.
  */
 export function derivedFileName(attachment: { attachmentId: string; mediaType: string }): string {
-  const digest = String(attachment.attachmentId).replace(/^sha256:/, '').slice(0, 12)
+  const digest = attachment.attachmentId.replace(/^sha256:/, '').slice(0, 12)
   const extension = attachment.mediaType === 'image/jpeg' ? 'jpg' : (attachment.mediaType.split('/')[1] ?? 'img')
   return `${digest}.${extension}`
 }

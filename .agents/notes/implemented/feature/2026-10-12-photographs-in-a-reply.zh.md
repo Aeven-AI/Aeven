@@ -2,6 +2,8 @@
 
 Status: implemented
 
+[English](2026-10-12-photographs-in-a-reply.md) | 中文
+
 ## 问题
 
 关于某样东西实际长什么样的问题，此前只用散文回答。“Crystal palace. Did it ever exist?” 会给出不错的文字答案，却没有任何配图；而同样的问题在 chatgpt.com 上会得到一行带来源的照片。

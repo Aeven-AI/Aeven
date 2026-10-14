@@ -58,8 +58,6 @@
     "zod": "^4.4.3"
   },
   "peerDependencies": {
-    "@aeven/identity-user": "workspace:^",
-    "@aeven/session": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {

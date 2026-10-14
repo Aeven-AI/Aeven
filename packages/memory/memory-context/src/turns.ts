@@ -48,7 +48,10 @@ export function scopeOfSession(session: Session): MemoryScope | undefined {
     sessionId: session.id,
     ...session.header.cwd === undefined ? {} : { cwd: session.header.cwd },
     ...config === undefined ? {} : {
-      route: { provider: config.provider, model: config.model, ...config.reasoningEffort === undefined ? {} : { reasoningEffort: config.reasoningEffort } },
+      route: {
+        provider: config.provider, model: config.model,
+        ...config.reasoningEffort === undefined ? {} : { reasoningEffort: config.reasoningEffort },
+      },
     },
   }
 }
@@ -87,17 +90,31 @@ function pushUnique(target: string[], value: string): void {
   if (value && target[target.length - 1] !== value) target.push(value)
 }
 
+/** Openers of a direct-user message that corrects the previous answer, in English or Chinese. */
+const CORRECTION = new RegExp(
+  String.raw`^(?:that's (?:wrong|incorrect)|that (?:was|is) (?:wrong|incorrect)`
+  + String.raw`|don't (?:use|do|repeat) (?:that|the (?:same|previous|old))|stop (?:using|doing) (?:that|the (?:same|previous|old))`
+  + String.raw`|不对|不要再|别再)`,
+  'iu',
+)
+
+/** Wording of one sentence that reports the turn's own verification, in English or Chinese. */
+const VERIFICATION = new RegExp(
+  String.raw`\b(?:I|we)\s+(?:(?:(?:have|had)\s+)?(?:verified|tested|checked|confirmed)|did\s+(?:verify|test|check|confirm)`
+  + String.raw`|am\s+(?:verifying|testing|checking|confirming))\b|\bI['’]m\s+(?:verifying|testing|checking|confirming)\b`
+  + String.raw`|\b(?:tests?|checks?)\s+passed\b|(?:已验证|已测试|已检查|已确认)`,
+  'iu',
+)
+
 function correctionOf(text: string): string | undefined {
   const trimmed = text.trim()
-  return /^(?:that's (?:wrong|incorrect)|that (?:was|is) (?:wrong|incorrect)|don't (?:use|do|repeat) (?:that|the (?:same|previous|old))|stop (?:using|doing) (?:that|the (?:same|previous|old))|不对|不要再|别再)/iu.test(trimmed)
-    ? trimmed
-    : undefined
+  return CORRECTION.test(trimmed) ? trimmed : undefined
 }
 
 function verificationOf(text: string, tools: readonly ToolState[]): MemoryOutcomeEvidence['verification'] {
   const successful = tools.filter(tool => tool.endedAt !== undefined && tool.errorCode === undefined)
   if (successful.length === 0) return undefined
-  const sentence = text.split(/(?<=[.!?。！？])\s+/u).find(part => /\b(?:I|we)\s+(?:(?:(?:have|had)\s+)?(?:verified|tested|checked|confirmed)|did\s+(?:verify|test|check|confirm)|am\s+(?:verifying|testing|checking|confirming))\b|\bI['’]m\s+(?:verifying|testing|checking|confirming)\b|\b(?:tests?|checks?)\s+passed\b|(?:已验证|已测试|已检查|已确认)/iu.test(part))
+  const sentence = text.split(/(?<=[.!?。！？])\s+/u).find(part => VERIFICATION.test(part))
   return sentence === undefined ? undefined : { statement: sentence.slice(0, 500), toolCallIds: successful.map(tool => tool.callId) }
 }
 
@@ -195,7 +212,9 @@ export class TurnTracker {
       case 'tool/call': {
         const state = this.get(session.id, event.data.turn)
         if (!state || state.tools.some(tool => tool.callId === event.data.callId)) return undefined
-        state.tools.push({ callId: event.data.callId, name: event.data.name, input: parseArguments(event.data.arguments), startedAt: event.time })
+        state.tools.push({
+          callId: event.data.callId, name: event.data.name, input: parseArguments(event.data.arguments), startedAt: event.time,
+        })
         return undefined
       }
       case 'tool/result': {
@@ -261,6 +280,8 @@ export class TurnTracker {
           ...verification === undefined ? {} : { verification },
           ...state.completedGoal === undefined ? {} : { completedGoal: state.completedGoal },
         }
+        const observed = outcome.retryCodes.length > 0 || correction !== undefined || verification !== undefined
+        const hasOutcome = observed || state.completedGoal !== undefined
         return {
           scope: turnScope,
           turn: state.turn,
@@ -271,7 +292,7 @@ export class TurnTracker {
           startedAt: state.startedAt,
           endedAt: event.time,
           endReason: event.data.reason.kind,
-          ...(outcome.retryCodes.length > 0 || correction !== undefined || verification !== undefined || state.completedGoal !== undefined ? { outcome } : {}),
+          ...hasOutcome ? { outcome } : {},
         }
       }
       default:

@@ -83,9 +83,10 @@ The location is unavailable: <reason>. Ask the user where they are if the task n
 - **没有原生操作系统提供者** —— Web 客户端读取浏览器的 Geolocation API。Electron 的 Chromium 定位可能需要 Google API key，因此桌面应用可能报告位置不可用；在 Host 上应答 `location/request` 的 Core Location、Windows.Devices.Geolocation 或 GeoClue 提供者被推迟。
 - **没有保存的地点** —— 读者批准浏览器的位置权限；浏览器允许该网站之后，后续请求会不显示卡片、直接读取设备。
 - **坐标会到达模型** —— 目前没有能直接消费坐标的地点或地理编码工具，因此模型收到它用于搜索的坐标。
+- **无不变式伴生入口** —— 不发布运行时不变式伴生入口，因为该工具自身不持有状态：一次调用只派发作用域内的 `location/request` waterfall，而 `renderLocationAnswer` 是客户端插件给出的那一个答案的纯函数，没有第二个观察值可供比较。
 
-<a id="dev-note"></a>
-### Dev Note
+<a id="开发备注"></a>
+### 开发备注
 
 <details>
 <summary>维护者的工作上下文——点击展开</summary>

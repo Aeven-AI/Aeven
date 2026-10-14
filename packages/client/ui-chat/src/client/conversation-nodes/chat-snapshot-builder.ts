@@ -1,15 +1,15 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { notifySubscribers } from '@aeven/client-store'
 import type {
-  ConversationLocation, ConversationTimelineSnapshot, ConversationViewBuilder,
-  ConversationViewDefinition,
+  ConversationLocation, ConversationNode, ConversationTimelineSnapshot, ConversationViewBuilder,
+  ConversationViewDefinition, PartialAssistant, RunningToolCall,
 } from '@aeven/client-ui-conversation/client'
 import type { ChatConversationViewNode, ChatNode } from '../contract/chat-nodes.ts'
 import { isRunningTool } from '../contract/chat-nodes.ts'
-import { isVisibleChatNode } from '../contract/chat-visibility.ts'
+import { isVisibleChatNode } from './chat-visibility.ts'
 import type {
   ChatLocationNodeIndex, ChatNodeProcessSource, ChatNodeSource, ChatNodeStore, ChatSnapshot,
-  ChatTurnProcessPresentation, ConversationNode, LegacyConversationSlice, PartialAssistant, RunningToolCall,
+  ChatTurnProcessPresentation, LegacyConversationSlice,
 } from '../contract/snapshot.ts'
 import { TURN_PROCESS_INDEPENDENT_KINDS } from '../contract/turn-process.ts'
 import { sessionRecallLabels, skillInvocationName } from './event-projection.ts'

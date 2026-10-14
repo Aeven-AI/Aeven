@@ -6,6 +6,8 @@
    whatever order the two sheets load in. */
 .dialog[role='dialog'] {
   width: min(880px, 100%);
+  /* The vh line is the floor's height: `dvh` needs Safari 15.4. */
+  max-height: min(720px, calc(100vh - 48px));
   max-height: min(720px, calc(100dvh - 48px));
   padding: 0;
   gap: 0;

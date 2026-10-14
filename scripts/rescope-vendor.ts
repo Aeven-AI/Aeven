@@ -102,6 +102,9 @@ const GENERIC_SKIPS: readonly GenericSkip[] = [
   { file: 'docs/event-producer-consumer.zh.md', upstream: ['cordis'] },
   { file: 'docs/subsystems/extensions.md', upstream: ['cordis'] },
   { file: 'docs/subsystems/extensions.zh.md', upstream: ['cordis'] },
+  // The remote-events table maps `cordis/*` extension event ids, a wire vocabulary shared with
+  // remote-events.ts, so the scoped package name would describe the wrong thing.
+  { file: 'packages/api/remotes/src/index.ts', upstream: ['cordis'] },
   { file: 'packages/api/remotes/src/remote-events.ts', upstream: ['cordis'] },
   { file: 'packages/extensions/cordis-client-runner/src/client/index.ts', upstream: ['cordis'] },
   { file: 'packages/extensions/cordis-client-runner/src/client/runtime.ts', upstream: ['cordis'] },
@@ -343,8 +346,8 @@ const VENDORED_LIBRARY = /^@deepseek-ai\\/(cosmokit|schemastery)(\\/|$)/
   {
     id: 'notices-vendored-section',
     file: 'scripts/gen-third-party-notices.ts',
-    find: 'The Cordis framework and its foundation libraries are source-vendored into this repository rather than consumed from npm. All are MIT-licensed',
-    replace: 'The Cordis framework and its foundation libraries are source-vendored into this repository rather than consumed from npm, and republished under the \\`@deepseek-ai\\` scope. All are MIT-licensed',
+    find: 'The Cordis framework, its foundation libraries, and the MemOS local memory core are source-vendored into this repository rather than consumed from npm. All are MIT-licensed',
+    replace: 'The Cordis framework, its foundation libraries, and the MemOS local memory core are source-vendored into this repository rather than consumed from npm. All are republished under the \\`@deepseek-ai\\` scope.',
     expect: 1,
   },
   {

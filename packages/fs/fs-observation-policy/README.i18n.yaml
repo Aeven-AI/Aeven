@@ -3,4 +3,4 @@
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/fs/fs-observation-policy/README.md
 README.md: 20d9c1bfb1fcb078dfbc80776b707054b677a680
-README.zh.md: 3c1600bcadd20ec963cc17998d164ad066c3090c
+README.zh.md: 759f9cc16999f0f36e2337cdcb7a13375f2c3e14

@@ -223,10 +223,11 @@ describe('idleWatchdog', () => {
     expect(watchdog.signal).toBe(stableSignal)
 
     const secondNext = watchdog.next(iterator)
+    const secondReason = secondNext.catch((reason: unknown) => reason)
     await vi.advanceTimersByTimeAsync(100)
     expect(timeoutOf(stableSignal, 'LLM_STREAM_IDLE_TIMEOUT')).toMatchObject({ timeoutMs: 100 })
     second.reject(stableSignal.reason)
-    await expect(secondNext).rejects.toBe(stableSignal.reason)
+    await expect(secondReason).resolves.toBe(stableSignal.reason)
   })
 
   it('rearms outstanding demand on an out-of-band activity pulse', async () => {
@@ -238,6 +239,7 @@ describe('idleWatchdog', () => {
     expect(watchdog.signal.aborted).toBe(false)
 
     const next = watchdog.next({ next: () => pending.promise })
+    const nextReason = next.catch((reason: unknown) => reason)
     await vi.advanceTimersByTimeAsync(99)
     watchdog.pulse()
     await vi.advanceTimersByTimeAsync(99)
@@ -245,7 +247,7 @@ describe('idleWatchdog', () => {
     await vi.advanceTimersByTimeAsync(1)
     expect(timeoutOf(watchdog.signal, 'LLM_STREAM_IDLE_TIMEOUT')).toMatchObject({ timeoutMs: 100 })
     pending.reject(watchdog.signal.reason)
-    await expect(next).rejects.toBe(watchdog.signal.reason)
+    await expect(nextReason).resolves.toBe(watchdog.signal.reason)
 
     watchdog[Symbol.dispose]()
     watchdog.pulse()

@@ -62,9 +62,11 @@ describe('WorkspaceBrowser.module.css list', () => {
 
   it('keeps Aeven rows and workspace groups contiguous', () => {
     expect(declarations('.flatList > * + *')?.get('margin-top')).toBe('0')
-    expect(declarations(".searchTree > [role='treeitem'] + [role='treeitem']")?.get('margin-top')).toBe('0')
     expect(declarations('.groupSection > * + *')?.get('margin-top')).toBe('0')
     expect(declarations('.groupSection + .groupSection')?.get('margin-top')).toBe('0')
+    // The group's own overflow control is one of the group's rows, so it
+    // keeps the same contiguous rhythm.
+    expect(declarations('.groupSection > .sessionOverflowButton')?.get('margin-top')).toBe('0')
   })
 
   it('draws drag targets as a leading chevron joined to the insertion line', () => {
@@ -87,48 +89,54 @@ describe('WorkspaceBrowser.module.css list', () => {
     }
   })
 
-  it('keeps the compact fade, overflow control, search field, and row heights', () => {
+  it('keeps the compact fade, overflow control, and row heights', () => {
     expect(declarations('.fade')?.get('height')).toBe('24px')
     expect(declarations('.sessionOverflowButton')?.get('height')).toBe('var(--dsw-aeven-control-size)')
-    expect(declarations('.searchExpanded')?.get('height')).toBe('30px')
     expect(rowDeclarations('.projectRow')?.get('height')).toBe('var(--dsw-aeven-control-size)')
     expect(rowDeclarations('.sessionRow')?.get('height')).toBe('var(--dsw-aeven-control-size)')
-    expect(rowDeclarations('.flatSessionRowWithoutStatus .title')?.get('margin-left')).toBe('0')
+    expect(rowDeclarations('.sessionRow .title')?.get('padding')).toBe('0 32px 0 8px')
     expect(rowDeclarations('.searchResultRow')?.get('min-height')).toBe('48px')
     expect(rowDeclarations('.sessionRow.selected')?.get('background'))
       .toBe('transparent')
   })
 
-  it('pins both rail controls to the shared left anchor during the column slide', () => {
-    expect(declarations('.rail .sectionHeader')?.get('justify-content')).toBe('flex-start')
-    expect(declarations('.rail .iconButton')?.get('width')).toBe('36px')
-    expect(declarations('.rail .search')?.get('width')).toBe('36px')
+  it('keeps the rail seats flush with the shell during the column slide', () => {
+    // The shell owns the slide; the rail is the same column narrowed, so its
+    // seats drop the row inset instead of repositioning under it.
+    expect(declarations('.root.rail')?.get('padding-right')).toBe('0')
+    expect(declarations('.rail .listArea')?.get('margin-left')).toBe('0')
+    expect(declarations('.rail .listArea')?.get('margin-right')).toBe('0')
+    expect(declarations('.rail .listArea')?.get('padding-left')).toBe('0')
   })
 
   it('inks the resting mark of the selected Session row', () => {
     // Selection paints no row fill, so the leading circle is what says which
-    // Session the pane is showing; it must not stay at its resting 0.
-    expect(rowDeclarations('.idleMark')?.get('opacity')).toBe('0')
+    // Session the pane is showing; it must not stay at its faint resting ink.
+    expect(rowDeclarations('.idleMark')?.get('opacity')).toBe('0.1')
     expect(rowDeclarations('.sessionRow.selected .idleMark')?.get('opacity')).toBe('1')
   })
 
-  it('reveals a row\'s actions on hover or focus, never on selection', () => {
-    // The actions cell holds its room and only fades, so revealing it costs no
-    // re-measure. Blank New Session rows render no cell at all.
-    expect(rowDeclarations('.rowActions')?.get('opacity')).toBe('0')
-    expect(rowDeclarations('.rowActions')?.get('pointer-events')).toBe('none')
+  it('reveals a row\'s actions on hover, focus, or the selected Session', () => {
+    // The actions cell holds its room and only its own controls fade, so
+    // revealing it costs no re-measure. Blank New Session rows render no cell
+    // at all.
+    expect(rowDeclarations('.rowActions > *')?.get('opacity')).toBe('0')
+    expect(rowDeclarations('.rowActions > *')?.get('pointer-events')).toBe('none')
     for (const row of ['.projectRow', '.sessionRow']) {
       for (const state of [':hover', '.menuOpen']) {
-        const reveal = rowDeclarations(`${row}${state} .rowActions`)
+        const reveal = rowDeclarations(`${row}${state} .rowActions > *`)
         expect(reveal?.get('opacity')).toBe('1')
         expect(reveal?.get('pointer-events')).toBe('auto')
       }
     }
+    // A Session row pins its options while it is the selected one, so the chat
+    // on screen keeps them reachable once the pointer leaves the row.
+    const selectedReveal = rowDeclarations('.sessionRow.selected .rowActions > *')
+    expect(selectedReveal?.get('opacity')).toBe('1')
+    expect(selectedReveal?.get('pointer-events')).toBe('auto')
     // The focused action reveals its own cell: a keyboard reader must not land
     // on an invisible button.
-    expect(rowDeclarations('.rowActions:focus-within')?.get('opacity')).toBe('1')
-    expect(rowDeclarations('.rowActions:focus-within')?.get('pointer-events')).toBe('auto')
-    // Selection inks the row's leading circle; it does not pin its actions.
-    expect(rowDeclarations('.sessionRow.selected .rowActions')).toBeUndefined()
+    expect(rowDeclarations('.rowActions:focus-within > *')?.get('opacity')).toBe('1')
+    expect(rowDeclarations('.rowActions:focus-within > *')?.get('pointer-events')).toBe('auto')
   })
 })

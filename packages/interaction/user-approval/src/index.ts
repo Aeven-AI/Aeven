@@ -226,10 +226,12 @@ export class ApprovalService extends Service {
     })
     const answer = await this.decide(req, session)
     const outcome = answer === 'allowed-session' ? 'allowed-once' : answer
+    // `decide` answers 'allowed-session' only for a request that offered a scope.
+    const scope = req.allowSession
     session.append('approval/decided', {
       id, outcome,
-      ...(answer === 'allowed-session'
-        ? { sessionGrant: { sessionId: session.id, toolName: req.toolName, scope: req.allowSession! } }
+      ...(answer === 'allowed-session' && scope !== undefined
+        ? { sessionGrant: { sessionId: session.id, toolName: req.toolName, scope } }
         : {}),
     })
     return outcome

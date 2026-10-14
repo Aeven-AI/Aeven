@@ -137,6 +137,9 @@ const price = ctx.tokenMeter.estimateMessage(message)
 - **缺失遗留源 seq 时保守处理**——没有 `sourceEventSeqs` 的 assistant 消息无法区分提供方输出与监听器改写，因此 fold 不会声称已知空或精确分片流。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

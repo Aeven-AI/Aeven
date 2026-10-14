@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Mock } from 'vitest'
 import { BrowserOverlay, IDLE_HIDE_MS } from '../src/overlay.ts'
 import type { AttachOptions, Rect } from '../src/overlay.ts'
-import { CLASS_PREFIX, cls } from '../src/styles.ts'
+import { normalizeDegrees } from '../src/motion.ts'
+import { BASE_ROTATION_DEG, CLASS_PREFIX, cls } from '../src/styles.ts'
 
 /**
  * The overlay's own pointer/action surface, driven through its public API.
@@ -706,10 +707,18 @@ describe('BrowserOverlay animation frame loop', () => {
     const overlay = makeOverlay({ idleHideMs: 0 }).attach()
     const cursor = part('cursor')!
 
-    overlay.moveTo({ x: 300, y: 200 })
+    let now = performance.now()
+    // The pointer's first appearance snaps in rather than fading.
+    overlay.moveTo({ x: 10, y: 10 })
+    now += 16
+    frames.shift()!(now)
+    expect(cursor.style.opacity).toBe('1')
 
-    expect(frames).toHaveLength(1)
-    frames.shift()!(performance.now() + 16)
+    // A later appearance fades: hidden first, then sent somewhere else.
+    overlay.hide({ immediate: true })
+    overlay.moveTo({ x: 300, y: 200 })
+    now += 16
+    frames.shift()!(now)
 
     expect(cursor.style.transform).toContain('translate3d(')
     expect(cursor.style.transform).toContain('rotate(')
@@ -740,7 +749,10 @@ describe('BrowserOverlay animation frame loop', () => {
     expect(frames).toHaveLength(0)
     expect(ran).toBeGreaterThan(1)
     expect(cursor.style.opacity).toBe('1')
-    expect(cursor.style.transform).toBe('translate3d(288px, 188px, 0) rotate(0deg) scale(1, 1)')
+    // The sprite carries the artwork's own rotation, so the model settles on its
+    // negative base angle and the transform emits the normalized equivalent.
+    expect(cursor.style.transform)
+      .toBe(`translate3d(288px, 188px, 0) rotate(${String(normalizeDegrees(BASE_ROTATION_DEG))}deg) scale(1, 1)`)
   })
 
   it('drops the frame it was holding when the overlay is destroyed', () => {

@@ -24,4 +24,4 @@ Status: implemented
 
 ## Related
 
-第二类请求方范围——沙箱升权——在[沙箱升权的会话授权](../feature/2026-10-12-sandbox-escalation-session-grant.md)中复用这套授权机制。
+第二类请求方范围——沙箱升权——在[沙箱升权的会话授权](../feature/2026-10-12-sandbox-escalation-session-grant.zh.md)中复用这套授权机制。

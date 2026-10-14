@@ -88,6 +88,9 @@ pnpm avn plugin --profile web add ./packages/experimental/agent-team-web-profile
 - **仅限源码 checkout**——正式 CLI、Web、npm 与 Python 发布产物都不包含这个私有包。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

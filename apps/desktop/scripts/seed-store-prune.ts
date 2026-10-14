@@ -50,7 +50,11 @@ export interface SeedStorePruneResult {
  * source maps (the Host runs without `--enable-source-maps`), TypeScript declarations and sources (Node refuses
  * to strip types under `node_modules`), Windows debug symbols, and release-history Markdown.
  */
-const UNLOADED_FILE_PATTERN = /(?:\.map|\.d\.[cm]?ts|(?<!\.d)\.[cm]?tsx?|\.pdb)$|(?:^|\/)(?:readme|changelog|history|changes|contributing|code_of_conduct|security|upgrading)(?:\.[a-z0-9-]+)*\.md$/iu
+const UNLOADED_FILE_PATTERN = new RegExp(
+  String.raw`(?:\.map|\.d\.[cm]?ts|(?<!\.d)\.[cm]?tsx?|\.pdb)$`
+  + String.raw`|(?:^|\/)(?:readme|changelog|history|changes|contributing|code_of_conduct|security|upgrading)(?:\.[a-z0-9-]+)*\.md$`,
+  'iu',
+)
 
 /** Node-style prebuilt directory for one platform and architecture, as node-gyp-build and prebuildify lay it out. */
 const PREBUILD_DIRECTORY_PATTERN = /(?:^|\/)prebuilds\/([a-z0-9]+-[a-z0-9]+)\//u

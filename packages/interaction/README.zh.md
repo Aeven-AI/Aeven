@@ -47,6 +47,9 @@ kind: "package-group"
 - [ACP 组](../acp/README.zh.md)——仅自动化的传输，为其自有 agent 回答审批请求。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ## 开发备注
 
 <details>

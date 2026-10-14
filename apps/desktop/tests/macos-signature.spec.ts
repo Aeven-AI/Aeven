@@ -20,7 +20,6 @@ const RELEASE_ENVIRONMENT = {
   APPLE_API_KEY: '/private/credentials/AuthKey_TEST123456.p8',
   APPLE_API_KEY_ID: 'TEST123456',
   APPLE_API_ISSUER: '11111111-2222-3333-4444-555555555555',
-  DOWNLOAD_TEST_ORIGIN: 'https://desktop-updates.example.com',
 }
 
 function portablePath(value: string): string {
@@ -56,10 +55,7 @@ describe('desktop macOS release signature', () => {
         sign: true,
         writeUpdateInfo: false,
       },
-      publish: [{
-        provider: 'generic',
-        url: 'https://desktop-updates.example.com/_/harness/desktop/stable/mac-arm64/',
-      }],
+      publish: [{ provider: 'github', owner: 'Aeven-AI', repo: 'Aeven' }],
     })
     expect(typeof config.artifactBuildCompleted).toBe('function')
   })
@@ -71,7 +67,6 @@ describe('desktop macOS release signature', () => {
       AVN_DESKTOP_TARGET_PLATFORM: 'darwin',
       AVN_DESKTOP_TARGET_ARCH: 'arm64',
       AVN_DESKTOP_UNSIGNED: '1',
-      DOWNLOAD_TEST_ORIGIN: RELEASE_ENVIRONMENT.DOWNLOAD_TEST_ORIGIN,
     }, 'darwin', 'arm64')
     expect(config).toMatchObject({
       mac: { identity: '-', forceCodeSigning: false, hardenedRuntime: false, notarize: false },
@@ -80,16 +75,16 @@ describe('desktop macOS release signature', () => {
     expect(config.artifactBuildCompleted({ file: 'aeven.dmg' })).toBeUndefined()
   })
 
-  it('builds an unsigned Windows target without the EV token signer', async () => {
+  it('builds an unsigned Windows target without Azure signing', async () => {
     const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
     const config = createElectronBuilderConfig({
       AVN_DESKTOP_APP_ID: RELEASE_ENVIRONMENT.AVN_DESKTOP_APP_ID,
       AVN_DESKTOP_TARGET_PLATFORM: 'win32',
       AVN_DESKTOP_TARGET_ARCH: 'x64',
       AVN_DESKTOP_UNSIGNED: '1',
-      DOWNLOAD_TEST_ORIGIN: RELEASE_ENVIRONMENT.DOWNLOAD_TEST_ORIGIN,
     }, 'win32', 'x64')
     expect(config.win.forceCodeSigning).toBe(false)
+    expect(config.win.azureSignOptions).toBeUndefined()
   })
 
   it('validates Windows signing without requiring macOS identifiers for a Windows target', async () => {
@@ -97,7 +92,32 @@ describe('desktop macOS release signature', () => {
     expect(() => createElectronBuilderConfig({
       AVN_DESKTOP_APP_ID: RELEASE_ENVIRONMENT.AVN_DESKTOP_APP_ID,
       AVN_DESKTOP_TARGET_PLATFORM: 'win32',
-    }, 'win32')).toThrow(/AVN_DESKTOP_WINDOWS_CER_FILE/u)
+    }, 'win32')).toThrow(/AZURE_TRUSTED_SIGNING_ENDPOINT/u)
+  })
+
+  it('signs a Windows release through Azure Trusted Signing', async () => {
+    const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
+    const config = createElectronBuilderConfig({
+      AVN_DESKTOP_APP_ID: RELEASE_ENVIRONMENT.AVN_DESKTOP_APP_ID,
+      AVN_DESKTOP_TARGET_PLATFORM: 'win32',
+      AVN_DESKTOP_TARGET_ARCH: 'x64',
+      AZURE_TENANT_ID: 'tenant',
+      AZURE_CLIENT_ID: 'client',
+      AZURE_CLIENT_SECRET: 'secret',
+      AZURE_TRUSTED_SIGNING_ENDPOINT: 'https://weu.codesigning.azure.net/',
+      AZURE_TRUSTED_SIGNING_ACCOUNT_NAME: 'account',
+      AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME: 'profile',
+      AZURE_TRUSTED_SIGNING_PUBLISHER_NAME: 'Aeven',
+    }, 'win32', 'x64')
+    expect(config.win).toMatchObject({
+      forceCodeSigning: true,
+      azureSignOptions: {
+        endpoint: 'https://weu.codesigning.azure.net/',
+        codeSigningAccountName: 'account',
+        certificateProfileName: 'profile',
+        publisherName: 'Aeven',
+      },
+    })
   })
 
   it('accepts the configured authority and team', () => {

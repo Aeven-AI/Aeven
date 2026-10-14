@@ -27,7 +27,7 @@ import {
   RemoteStreamMuxClient,
 } from '../src/client/stream-client.ts'
 
-type FixtureApprovalOutcome = 'allowed' | 'unavailable'
+type FixtureApprovalOutcome = 'allowed' | 'unavailable' | 'claimed'
 const fixtureContextTag = Symbol('fixture-context-tag')
 type AgentWireId = TypertContextWire<TypertContextMap['agent']>
 const agentId = (value: string): AgentWireId => value as AgentWireId
@@ -1558,11 +1558,10 @@ describe('Client Typert API', () => {
       resolve,
     })
     carrier.emit(approvalFrame('event-missing-context', 'agent-missing', 'missing'))
-    carrier.emit(approvalFrame('event-no-listener', 'agent-found', 'delegate'))
 
-    await vi.waitFor(() => { expect(call).toHaveBeenCalledTimes(3) })
-    expect(resolve).toHaveBeenCalledTimes(2)
-    for (const eventId of ['event-no-adapter', 'event-missing-context', 'event-no-listener']) {
+    await vi.waitFor(() => { expect(call).toHaveBeenCalledTimes(2) })
+    expect(resolve).toHaveBeenCalledTimes(1)
+    for (const eventId of ['event-no-adapter', 'event-missing-context']) {
       expect(call).toHaveBeenCalledWith(
         '/api',
         '$events/result',
@@ -1570,6 +1569,37 @@ describe('Client Typert API', () => {
         expect.any(AbortSignal),
       )
     }
+    await client.dispose()
+  })
+
+  it('holds a waterfall for the listener a reloading page registers after it', async () => {
+    const { ctx, client, carrier, call } = await eventBench()
+    const target = ctx.extend()
+    ctx.typert.contexts.registerClient('agent', {
+      identity: candidate => candidate === target ? agentId('agent-slow') : undefined,
+      resolve: id => id === 'agent-slow' ? target : undefined,
+    })
+
+    carrier.emit(approvalFrame('event-late-listener', 'agent-slow', 'delegate'))
+    // The Host redelivers a pending waterfall before this page's plugins have
+    // registered their answerers, so the Client waits for the listener.
+    const answered = vi.fn(async (): Promise<FixtureApprovalOutcome> => 'claimed')
+    target.remote.$on('fixture/approval', answered)
+
+    await vi.waitFor(() => { expect(call).toHaveBeenCalledTimes(1) })
+    expect(answered).toHaveBeenCalledOnce()
+    expect(call).toHaveBeenCalledWith(
+      '/api',
+      '$events/result',
+      {
+        args: {
+          clientId: 'event-client-1',
+          eventId: 'event-late-listener',
+          outcome: { kind: 'result', value: 'claimed' },
+        },
+      },
+      expect.any(AbortSignal),
+    )
     await client.dispose()
   })
 
@@ -2356,7 +2386,9 @@ describe('Remote stream client carrier lifecycle', () => {
       const client = new RemoteStreamMuxClient()
       client.start()
       client.start()
-      expect(FakeWebSocket.sockets).toHaveLength(1)
+      // The bearer hook is read before every attempt, so the physical socket
+      // follows the first start on a later microtask.
+      await vi.waitFor(() => { expect(FakeWebSocket.sockets).toHaveLength(1) })
 
       const failed = FakeWebSocket.sockets[0]!
       failed.fail()
@@ -2390,6 +2422,7 @@ describe('Remote stream client carrier lifecycle', () => {
 
       const stopping = new RemoteStreamMuxClient()
       stopping.start()
+      await vi.waitFor(() => { expect(FakeWebSocket.sockets).toHaveLength(4) })
       const racing = FakeWebSocket.sockets[3]!
       racing.open()
       racing.drop()
@@ -2431,6 +2464,9 @@ describe('Remote stream client carrier lifecycle', () => {
       FakeWebSocket.autoOpen = false
       const client = new RemoteStreamMuxClient()
       client.start()
+      // The bearer hook is read before every attempt, so the physical socket
+      // follows start on a later microtask.
+      await vi.waitFor(() => { expect(FakeWebSocket.sockets).toHaveLength(1) })
       const candidate = FakeWebSocket.sockets[0]!
 
       client.reconnect()
@@ -2464,6 +2500,7 @@ describe('Remote stream client carrier lifecycle', () => {
       FakeWebSocket.autoOpen = false
       const client = new RemoteStreamMuxClient()
       client.start()
+      await vi.waitFor(() => { expect(FakeWebSocket.sockets).toHaveLength(1) })
       const first = FakeWebSocket.sockets[0]!
 
       client.reconnect()
@@ -2489,7 +2526,7 @@ describe('Remote stream client carrier lifecycle', () => {
         [Symbol.asyncIterator]()
       const firstPending = first.next()
       const secondPending = second.next()
-      expect(FakeWebSocket.sockets).toHaveLength(1)
+      await vi.waitFor(() => { expect(FakeWebSocket.sockets).toHaveLength(1) })
       const socket = FakeWebSocket.sockets[0]!
       expect(socket.url).toBe('ws://avn.internal/api/remote.mux')
 
@@ -2511,6 +2548,7 @@ describe('Remote stream client carrier lifecycle', () => {
       closedClient.start()
       const closed = closedClient.open('feed/follow', {}, new AbortController().signal)
         [Symbol.asyncIterator]().next()
+      await vi.waitFor(() => { expect(FakeWebSocket.sockets).toHaveLength(1) })
       FakeWebSocket.sockets[0]!.drop()
       await expect(closed).rejects.toThrow('Remote stream WebSocket closed before opening')
 
@@ -2540,7 +2578,10 @@ describe('Remote stream client carrier lifecycle', () => {
       abort.abort('cancelled while connecting')
       await expect(aborted).rejects.toBe('cancelled while connecting')
       await abortedClient.close()
-      expect(FakeWebSocket.sockets[3]?.url).toBe('ws://avn.internal/api/remote.mux')
+      // A disposed attempt is superseded before it reaches the wire, so the
+      // aborted one is the third physical socket.
+      await vi.waitFor(() => { expect(FakeWebSocket.sockets).toHaveLength(3) })
+      expect(FakeWebSocket.sockets[2]?.url).toBe('ws://avn.internal/api/remote.mux')
     })
   })
 

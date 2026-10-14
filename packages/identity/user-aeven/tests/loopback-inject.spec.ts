@@ -5,11 +5,11 @@ import type { IndexInjection } from '@aeven/host-webserver'
 import { apply, Config } from '../src/index.ts'
 
 /** Apply the plugin and read the row it injects for one request origin. */
-function injected(config: Parameters<typeof Config>[0], origin?: string): Record<string, unknown> {
+async function injected(config: Parameters<typeof Config>[0], origin?: string): Promise<Record<string, unknown>> {
   const ctx = new Context()
   const users = new IdentityUsers(ctx)
   ;(ctx as unknown as { identityUsers: IdentityUsers }).identityUsers = users
-  apply(ctx, Config(config))
+  await apply(ctx, Config(config))
   const table: IndexInjection[] = []
   ctx.emit('webserver/index-inject', table, origin)
   const row = table[0]
@@ -26,11 +26,11 @@ const LOOPBACK_CONFIG = {
 }
 
 describe('loopback spellings in the injected page config', () => {
-  it('states each deployment URL under the spelling the request arrived on', () => {
+  it('states each deployment URL under the spelling the request arrived on', async () => {
     // A reader who opened `localhost:3060` from a bookmark: the page and every
     // URL it addresses must be one origin, or the browser treats the API as a
     // different site than the page and the session cookie does not travel.
-    expect(injected(LOOPBACK_CONFIG, 'http://localhost:3060')).toEqual({
+    expect(await injected(LOOPBACK_CONFIG, 'http://localhost:3060')).toEqual({
       apiUrl: 'http://localhost:9000',
       webUrl: 'http://localhost:9020',
       mediaUrl: 'http://localhost:9040/media',
@@ -39,43 +39,53 @@ describe('loopback spellings in the injected page config', () => {
     })
   })
 
-  it('keeps the configured spelling when the page arrived on it', () => {
-    expect(injected(LOOPBACK_CONFIG, 'http://127.0.0.1:3060')).toMatchObject({
+  it('keeps the configured spelling when the page arrived on it', async () => {
+    expect(await injected(LOOPBACK_CONFIG, 'http://127.0.0.1:3060')).toMatchObject({
       apiUrl: 'http://127.0.0.1:9000',
       googleOAuthUrl: 'http://127.0.0.1:9000/oauth/google',
     })
   })
 
-  it('leaves a real deployment and a provider domain untouched', () => {
+  it('leaves a real deployment and a provider domain untouched', async () => {
     const deployment = {
       apiUrl: 'https://aeven.ai',
       googleOAuthUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
       oauthFlow: 'redirect' as const,
     }
 
-    expect(injected(deployment, 'http://127.0.0.1:3060')).toEqual(deployment)
-    expect(injected(deployment, 'https://aeven.ai')).toEqual(deployment)
+    expect(await injected(deployment, 'http://127.0.0.1:3060')).toEqual(deployment)
+    expect(await injected(deployment, 'https://aeven.ai')).toEqual(deployment)
   })
 
-  it('does not move a loopback URL onto a page served by a real host', () => {
-    expect(injected(LOOPBACK_CONFIG, 'https://staging.aeven.ai')).toMatchObject({
+  it('does not move a loopback URL onto a page served by a real host', async () => {
+    expect(await injected(LOOPBACK_CONFIG, 'https://staging.aeven.ai')).toMatchObject({
       apiUrl: 'http://127.0.0.1:9000',
     })
   })
 
-  it('states the configured values when the emission carries no request origin', () => {
-    expect(injected(LOOPBACK_CONFIG, undefined)).toMatchObject({
+  it('states the configured values when the emission carries no request origin', async () => {
+    expect(await injected(LOOPBACK_CONFIG, undefined)).toMatchObject({
       apiUrl: 'http://127.0.0.1:9000',
       webUrl: 'http://127.0.0.1:9020',
       mediaUrl: 'http://127.0.0.1:9040/media',
     })
   })
 
-  it('hands over a value it cannot parse as stated', () => {
+  it('hands over a value it cannot parse as stated', async () => {
     // Not a URL: the deployment stated something this cannot reason about, and
     // reconstructing it would be worse than passing it through.
-    expect(injected({ apiUrl: 'not-a-url' }, 'http://localhost:3060')).toMatchObject({
-      apiUrl: 'not-a-url',
+    expect(await injected({ webUrl: 'not-a-url' }, 'http://localhost:3060')).toMatchObject({
+      webUrl: 'not-a-url',
     })
+  })
+
+  it('fails the load when apiUrl cannot address the published key set', async () => {
+    // Unlike the page-config URLs above, `apiUrl` is also read by the key set,
+    // which needs an addressable URL. The load refuses it there rather than
+    // serving a page whose every token fails to verify.
+    const ctx = new Context()
+    const users = new IdentityUsers(ctx)
+    ;(ctx as unknown as { identityUsers: IdentityUsers }).identityUsers = users
+    await expect(apply(ctx, Config({ apiUrl: 'not-a-url' }))).rejects.toThrow('Invalid URL')
   })
 })

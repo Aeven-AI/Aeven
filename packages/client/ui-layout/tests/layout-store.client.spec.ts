@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 /**
  * createLayoutStore unit account: init shape, the action write set (clamp
- * inside actions), and the durable sidebar field (details and the narrow pair
- * stay per-page). Uses the test-sanctioned path: factory self-call +
+ * inside actions), and the durable fields (the sidebar width and the right
+ * sidebar pair; details and the narrow pair stay per-page). Uses the
+ * test-sanctioned path: factory self-call +
  * .create() gives the real engine instance (same create path as production).
  */
 import { beforeEach, describe, expect, it } from 'vitest'
@@ -22,7 +23,7 @@ describe('createLayoutStore', () => {
     const { store } = createLayoutStore().create()
     expect(store.getSnapshot()).toEqual({
       sidebar: SIDEBAR_DEFAULT, details: 0, narrow: false, narrowExpanded: false, fullscreen: false,
-      rightbar: {},
+      rightbar: {}, rightbarWidth: 0,
     })
   })
 
@@ -61,7 +62,7 @@ describe('createLayoutStore', () => {
     actions.toggleSidebar()
     expect(store.getSnapshot()).toEqual({
       sidebar: 400, details: 0, narrow: true, narrowExpanded: true, fullscreen: false,
-      rightbar: {},
+      rightbar: {}, rightbarWidth: 0,
     })
     actions.toggleSidebar()
     expect(store.getSnapshot().narrowExpanded).toBe(false)
@@ -92,14 +93,15 @@ describe('createLayoutStore', () => {
     expect(store.getSnapshot().details).toBe(0)
   })
 
-  it('persists the sidebar width alone; a reload restores it and nothing else', () => {
+  it('persists the sidebar width and the right sidebar fields; a reload restores only those', () => {
     const first = createLayoutStore().create()
     first.actions.setSidebar(400)
     first.actions.openDetails()
     first.actions.setDetails(500)
     first.actions.setNarrow(true)
     first.actions.toggleSidebar()
-    expect(JSON.parse(localStorage.getItem(PERSIST_KEY) ?? 'null')).toEqual({ sidebar: 400 })
+    expect(JSON.parse(localStorage.getItem(PERSIST_KEY) ?? 'null'))
+      .toEqual({ sidebar: 400, rightbar: {}, rightbarWidth: 0 })
 
     const second = createLayoutStore().create()
     expect(second.store.getSnapshot()).toEqual({
@@ -109,6 +111,7 @@ describe('createLayoutStore', () => {
       narrowExpanded: false,
       fullscreen: false,
       rightbar: {},
+      rightbarWidth: 0,
     })
   })
 

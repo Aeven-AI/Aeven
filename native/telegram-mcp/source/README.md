@@ -1,5 +1,7 @@
 # telegram-mcp
 
+English | [中文](README.zh.md)
+
 *[Русская версия](README.ru.md)*
 
 An MCP server on top of a personal Telegram account — MTProto via

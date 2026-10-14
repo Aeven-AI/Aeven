@@ -7,6 +7,7 @@
 {"type":"permission/preset","data":{"preset":"workspace-write"}}
 {"type":"sandbox/mode","data":{"mode":"workspace-write"}}
 {"type":"approval/policy","data":{"policy":"ask"}}
+{"type":"session/title","data":{"title":"Remember the workspace instruction.","messageSeqs":[1],"source":{"kind":"fallback"}}}
 {"type":"agent/inbox/spliced","data":{"target":"next-turn","start":0,"inserted":[{"content":[{"type":"text","text":"Acknowledge the current workspace instruction."}],"source":{"kind":"user"},"role":"user","id":"{{sessionId}}"}]}}
 {"type":"turn/start","data":{"turn":2}}
 {"type":"agent/inbox/spliced","data":{"target":"next-turn","start":0,"removedCount":1,"inserted":[]}}
@@ -14,7 +15,6 @@
 {"type":"user/message","data":{"content":[{"type":"text","text":"Acknowledge the current workspace instruction."}],"source":{"kind":"user"},"role":"user","id":"{{sessionId}}"},"surfaceOp":"append"}
 {"type":"user/message","data":{"content":[{"type":"text","text":"<system-reminder>\nUpdated instructions from: AGENTS.md\n\nThis file changed after it was loaded. Use the following content instead of the previously loaded instructions from this file.\n\nNew workspace instruction after offline edit.\n\n</system-reminder>"}],"source":{"kind":"agent-instructions","form":"instructions","changes":[{"action":"replace","scope":".\u0000AGENTS.md","path":"AGENTS.md","digest":"d8375b516f158718bd3463bc8eb7ed42c011b29f"}]},"role":"user","id":"{{sessionId}}"},"surfaceOp":"append"}
 {"type":"user/message","data":{"content":[{"type":"text","text":"Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\n\nCurrent AVN file policy: workspace-write. Any available operation enforced by the AVN file sandbox may modify files under the session workspace: \"{{cwd}}\". Some platform temporary areas may also be writable.\n\nApproval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed."}],"source":{"kind":"plugin","plugin":"@aeven/system-prompt","form":"snapshot","sections":[{"name":"sandbox:policy","text":"Current AVN file policy: workspace-write. Any available operation enforced by the AVN file sandbox may modify files under the session workspace: \"{{cwd}}\". Some platform temporary areas may also be writable."},{"name":"approval:policy","text":"Approval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed."}]},"role":"user","id":"{{sessionId}}"},"surfaceOp":"append"}
-{"type":"session/title","data":{"title":"Remember the workspace instruction.","messageSeqs":[1],"source":{"kind":"fallback"}}}
 {"type":"request/header","data":{"header":{"config":{"provider":"deepseek-official","model":"deepseek-v4-flash"},"system":"{{system}}","tools":"{{tools}}"},"reason":"initial"}}
 {"type":"request/context","data":{"provider":"deepseek-official","model":"deepseek-v4-flash"}}
 {"type":"assistant/chunk","data":{"turn":2,"step":1,"chunk":{"type":"block-start","index":0,"blockType":"text"}}}

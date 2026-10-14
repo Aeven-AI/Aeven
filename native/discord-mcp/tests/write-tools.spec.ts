@@ -4,7 +4,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { connectServer, json, resultText, stubFetch, TEST_ENV, TEST_GUILD, type FetchStub, type Session } from './harness.ts'
+import { connectServer, json, resultText, stubFetch, TEST_AUTHORIZATION, TEST_ENV, TEST_GUILD, type FetchStub, type Session } from './harness.ts'
 
 const CHANNEL = '100000000000000001'
 const MESSAGE = '200000000000000001'
@@ -136,7 +136,7 @@ describe('send_file', () => {
     expect(request?.url).toBe(`${TEST_ENV['DISCORD_API_BASE']}/channels/${CHANNEL}/messages`)
     // The multipart boundary is fetch's to set; the client must not claim a content type of its own.
     expect(request?.headers['content-type']).toBeUndefined()
-    expect(request?.headers['authorization']).toBe('Bot spec-bot-token')
+    expect(request?.headers['authorization']).toBe(TEST_AUTHORIZATION)
 
     const form = request?.body
     expect(form).toBeInstanceOf(FormData)

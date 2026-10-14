@@ -35,6 +35,7 @@ export interface AccountSectionInjected {
    * @param path - the route below `/api/cloud`.
    * @returns that answer, or undefined when the route has not settled yet.
    */
+  // oxlint-disable-next-line typescript/no-unnecessary-type-parameters -- a caller asserts the route's response type through T
   cached: <T>(path: string) => T | undefined
 }
 
@@ -346,13 +347,7 @@ function Plans({ t, cloud, subscription, plans, usage, refresh }: {
         if (next?.plan === target.id) setFlow({ phase: 'done', plan: target })
       })
     }
-    const onVisible = () => { if (document.visibilityState === 'visible') check() }
-    window.addEventListener('focus', check)
-    document.addEventListener('visibilitychange', onVisible)
-    return () => {
-      window.removeEventListener('focus', check)
-      document.removeEventListener('visibilitychange', onVisible)
-    }
+    return observeReturn(check)
   }, [flow, refresh])
 
   const act = (path: string, body?: unknown) => {
@@ -643,13 +638,7 @@ function Credits({ t, cloud, usage, options, refresh }: {
         if (next !== undefined && next > checkout.baseline) setCheckout({ phase: 'added' })
       })
     }
-    const onVisible = () => { if (document.visibilityState === 'visible') check() }
-    window.addEventListener('focus', check)
-    document.addEventListener('visibilitychange', onVisible)
-    return () => {
-      window.removeEventListener('focus', check)
-      document.removeEventListener('visibilitychange', onVisible)
-    }
+    return observeReturn(check)
   }, [checkout, refresh])
 
   const topUp = () => {
@@ -816,4 +805,15 @@ function Usage({ t, usage, wallet }: { readonly t: Translate; readonly usage: Cl
       )}
     </>
   )
+}
+
+/** Observe returns from an external checkout window. */
+function observeReturn(check: () => void): () => void {
+  const onVisible = () => { if (document.visibilityState === 'visible') check() }
+  window.addEventListener('focus', check)
+  document.addEventListener('visibilitychange', onVisible)
+  return () => {
+    window.removeEventListener('focus', check)
+    document.removeEventListener('visibilitychange', onVisible)
+  }
 }

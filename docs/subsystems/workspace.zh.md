@@ -259,6 +259,13 @@ Host service backing the generated `ctx.remote.workspace` namespace.
 @Remote('archiveSession') archiveSession(request: WorkspaceArchiveSessionRequest): Promise<WorkspaceArchiveValue>
 
 /**
+ * Restore one Session to Workspace grouping surfaces.
+ * @param request - Session identity to unarchive.
+ * @returns the complete resulting archive set.
+ */
+@Remote('unarchiveSession') unarchiveSession(request: WorkspaceUnarchiveSessionRequest): Promise<WorkspaceArchiveValue>
+
+/**
  * Stream a complete Workspace baseline followed by ordered increments.
  * @param signal - generation cancellation.
  * @returns baseline followed by ordered Workspace increments.
@@ -267,6 +274,46 @@ Host service backing the generated `ctx.remote.workspace` namespace.
 ```
 
 Source: [`packages/api/workspace-controller/src/index.ts`](../../packages/api/workspace-controller/src/index.ts)
+
+<a id="ctxworkspacefiles--workspacefiles"></a>
+
+### `ctx.workspaceFiles` — `WorkspaceFiles`
+
+Host Remote listings, previews and name searches over the composed filesystem.
+
+```ts cordis-catalog
+/**
+ * List the direct children of one directory inside the Session's workspace.
+ * @param agent - the Session asking; its header names the workspace root.
+ * @param path - workspace-relative or absolute path; empty for the root.
+ * @param signal - caller cancellation.
+ * @returns the root, the listed path and its children, bounded by the entry cap.
+ */
+@Remote async list(agent: Agent, path: string, signal: AbortSignal): Promise<WorkspaceDirectoryListing>
+
+/**
+ * Read the leading page of one UTF-8 text file.
+ * @param agent - the Session asking; relative paths resolve against its workspace root.
+ * @param path - workspace-relative or absolute path.
+ * @param signal - caller cancellation.
+ * @returns the file's absolute path, size, first page and whether that page reaches EOF.
+ */
+@Remote async read(agent: Agent, path: string, signal: AbortSignal): Promise<WorkspaceFileText>
+
+/**
+ * Find entries whose name contains `query` (case-insensitive), walking the
+ * workspace breadth-first and skipping the configured directory names.
+ * @param agent - the Session asking; its header names the workspace root.
+ * @param query - the name fragment to match.
+ * @param signal - caller cancellation.
+ * @returns the matches in walk order and whether a cap stopped the walk.
+ */
+@Remote async search(agent: Agent, query: string, signal: AbortSignal): Promise<WorkspaceSearchResult>
+```
+
+Types: [Agent](core.zh.md)
+
+Source: [`packages/api/workspace-files/src/index.ts`](../../packages/api/workspace-files/src/index.ts)
 
 <a id="ctxworkspaceregistry--workspaceregistry"></a>
 
@@ -280,17 +327,19 @@ Membership is re-derived rather than trusted because the durable record is not s
 /**
  * Create or reuse a workspace for an existing directory. The fully qualified
  * path is canonicalized through `fs.realpath`; a relative, nonexistent, or
- * non-directory path rejects. Repeated calls for the same canonical path
- * return the existing entity without changing its title.
+ * non-directory path rejects. Repeated calls for the same canonical path and
+ * owner return the existing entity without changing its title; another
+ * account registering the same directory gets a workspace of its own.
  * A newly created workspace lands directly below the built-in one, which
  * keeps the head of the order — and so the first screen — where the reader
  * left it instead of handing it to whichever registration was created last.
  * Different canonical paths may share a display title.
  * @param path - Existing directory to own, in a fully qualified path spelling.
  * @param title - Display title used only when a new record is created.
+ * @param owner - Account id of the signed-in user registering the directory; absent when nobody is signed in.
  * @returns the existing or newly durable workspace.
  */
-async create(path: string, title?: string): Promise<Workspace>
+async create(path: string, title?: string, owner?: string): Promise<Workspace>
 
 /**
  * Look up a workspace by id.
@@ -309,9 +358,12 @@ list(): Workspace[]
 
 /**
  * Delete one workspace registration while retaining its directory and every
- * session log. The durable order is updated before the table deletion; a
- * failed table write restores the prior order and keeps the entity
- * published. Unknown ids are an idempotent no-op for domain callers.
+ * session log. The workspace's sessions join the archive set in the same
+ * write that removes it from the durable order, so no session is left
+ * without a group. The order and archive write precedes the table deletion;
+ * a failed table write restores the prior order and archive set and keeps
+ * the entity published. Unknown ids are an idempotent no-op for domain
+ * callers.
  *
  * The built-in workspace refuses deletion. It is the one registration the
  * product guarantees a reader has, and removing it would restore the state
@@ -336,7 +388,7 @@ delete(id: WorkspaceId): Promise<boolean>
  * @param id - Workspace to move.
  * @param beforeId - Workspace anchor; omitted appends.
  * @returns the complete committed workspace order.
- * @throws {WorkspaceDefaultImmutableError} when the id names the built-in workspace.
+ * @throws {WorkspaceDefaultImmutableError} when the id names a built-in workspace.
  */
 insertBefore(id: WorkspaceId, beforeId?: WorkspaceId): Promise<readonly WorkspaceId[]>
 
@@ -350,13 +402,55 @@ insertBefore(id: WorkspaceId, beforeId?: WorkspaceId): Promise<readonly Workspac
 archiveSession(sessionId: SessionId): Promise<void>
 
 /**
+ * Unarchive one session durably by dropping it from the registry-global
+ * archive set; the accounting slot was never touched, so the session
+ * returns to its recorded position. Removing an id cannot introduce an
+ * unknown one, so no session-existence check runs. An id that is not
+ * archived resolves without writing.
+ * @param sessionId - The session to unarchive.
+ * @returns resolution after durability.
+ */
+unarchiveSession(sessionId: SessionId): Promise<void>
+
+/**
+ * Drop every registry fact about a deleted session: its workspace
+ * accounting, its archive entry, and its indexed header. The caller has
+ * already removed the session from live state and persistence, so nothing
+ * re-adopts it.
+ * @param sessionId - The deleted session.
+ * @returns resolution after durability.
+ */
+forgetSession(sessionId: SessionId): Promise<void>
+
+/**
  * Resolve by canonical directory path without creating or mutating a
  * workspace. A missing path rejects during `realpath`; an existing unowned
  * directory returns `undefined`.
  * @param path - Existing directory path in a fully qualified spelling.
- * @returns the workspace owning the canonical path, when one exists.
+ * @param owner - Account whose workspace to find; absent finds the one no account owns.
+ * @returns that account's workspace for the canonical path, when one exists.
  */
-async resolveByPath(path: string): Promise<Workspace | undefined>
+async resolveByPath(path: string, owner?: string): Promise<Workspace | undefined>
+
+/**
+ * Owner recorded in an indexed session header.
+ * @param sessionId - the session to read.
+ * @returns the account id, or `undefined` when the session records none or is not indexed.
+ */
+sessionOwner(sessionId: SessionId): string | undefined
+
+/**
+ * Seed or return one built-in workspace declared by a plugin under a stable
+ * key. The registration has no directory, every account reaches it, and it
+ * refuses delete, rename, and move like the default workspace. The key binds
+ * durably to the registration, so repeated calls and restarts return the
+ * same workspace without changing its title; a new one lands directly below
+ * the default workspace.
+ * @param key - stable key naming the declaring plugin's registration.
+ * @param title - display title used only when the registration is created.
+ * @returns the built-in workspace.
+ */
+builtIn(key: string, title: string): Promise<Workspace>
 ```
 
 Types: [SessionId](core.zh.md)

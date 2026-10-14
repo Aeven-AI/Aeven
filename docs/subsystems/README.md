@@ -6,6 +6,12 @@ One page per subsystem of the Aeven: what it is, the data structures it moves, a
 
 | Page | Owns |
 |---|---|
+| [capability.md](capability.md) | Capabilities and learned executions |
+| [device.md](device.md) | Device sessions and host readiness |
+| [document.md](document.md) | Document extraction providers |
+| [mail.md](mail.md) | Mail accounts and messages |
+| [memory.md](memory.md) | Memory retrieval and management |
+| [speech.md](speech.md) | Speech transcription providers and selection |
 | [core.md](core.md) | how `packages/core` controls the agent loop: the package-by-package loop description, agent creation and ownership (`AgentHandle`), the `Agent` handle's delivery/cancellation/interception contracts, and the repo-wide type patterns (`…Map → derived-union`, branded ids) |
 | [llm-streaming.md](llm-streaming.md) | the `packages/llm` conversation types — `Message`/`ContentBlock`, the assembled model request, the `StreamChunk` wire protocol and adapter contract, `BlockAssembler`, and the `LlmAdapter` provider contract |
 | [token-meter.md](token-meter.md) | immutable scalar and positional replay measurements with consumed-log revisions |

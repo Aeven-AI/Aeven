@@ -2,6 +2,8 @@
 
 Status: implemented
 
+English | [中文](2026-10-03-advisory-procedure-recall.zh.md)
+
 ## Problem
 
 Procedures distilled from previous work can carry outdated steps and task-specific assumptions. Publishing them as skills makes discovery a mandate to load and follow them, and mixes historical experience with authored workflows in `/`.

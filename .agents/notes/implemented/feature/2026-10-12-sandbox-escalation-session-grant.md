@@ -30,7 +30,7 @@ A person can let one widening repeat across a working session, and the prompt ex
 
 ## Related
 
-Extends the per-requester grant decision of [connector session approval](../../architecture/2026-10-07-connector-session-approval.md) to a second kind of requester scope.
+Extends the per-requester grant decision of [connector session approval](../architecture/2026-10-07-connector-session-approval.md) to a second kind of requester scope.
 
 ## Testing
 

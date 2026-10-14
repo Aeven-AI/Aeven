@@ -37,6 +37,7 @@ body {
    no scrollbar, and `scrollbar-width` is not inherited, so a declaration there
    would be one no element reads. */
 body * {
+  scrollbar-width: thin;
 }
 
 /* Opt-out utility for a scrolling element that must draw no bar and reserve no

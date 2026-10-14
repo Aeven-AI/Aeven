@@ -86,6 +86,9 @@ Client export 挂载来自 [`@aeven/experimental-agent-team/remote`](../agent-te
 - **没有 lifecycle 或 workspace control**——panel 不能 spawn、rename、delete 或 interrupt teammate，write scope 仍只是提示性 metadata。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

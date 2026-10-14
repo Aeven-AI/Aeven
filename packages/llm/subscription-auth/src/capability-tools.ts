@@ -7,7 +7,7 @@
 
 import type { ImageAttachmentRef } from '@aeven/attachment'
 import { LlmError } from '@aeven/llm'
-import type { ToolDefinition, ToolRunContext } from '@aeven/tools'
+import { defineTool, type ToolDefinition, type ToolRunContext } from '@aeven/tools'
 import { CAPABILITY_SETTINGS_BOUNDS, type CapabilitySettings } from './capability-settings.ts'
 import type { CodexAuthSession } from './codex-http.ts'
 import {
@@ -585,8 +585,7 @@ function codexImageSummary(
  * @param options - Operation options.
  * @returns The created capability tools.
  */
-export async function createCapabilityTools(options: CapabilityToolsOptions): Promise<readonly ToolDefinition[]> {
-  const { defineTool } = await import('@aeven/tools')
+export function createCapabilityTools(options: CapabilityToolsOptions): readonly ToolDefinition[] {
   const createController: CreateCodexImageController =
     options.createCodexController ??
 		((session, routePolicy) =>

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /** Section, setup-card, and hand-written editor behavior over a scripted wire face. */
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Schema from '@deepseek-ai/schemastery'
 import { bindSnapshotSelector, RemoteError } from '@aeven/client-test-runtime'
 import type {
@@ -24,7 +24,26 @@ import type { ModelsOperations } from '../src/client/operations.ts'
 import { en } from '../src/client/locales.ts'
 import { settingsSchema } from './settings-schema.client.ts'
 
-afterEach(cleanup)
+// jsdom has no scrollIntoView; the add card's provider picker calls it on the
+// option it makes active.
+const scrollIntoView = vi.fn()
+
+beforeEach(() => { Element.prototype.scrollIntoView = scrollIntoView })
+
+afterEach(() => {
+  cleanup()
+  scrollIntoView.mockClear()
+})
+
+/** The add card's open provider list, as its option labels. */
+function addOptions(): string[] {
+  return screen.getAllByRole('option').map(option => option.textContent ?? '')
+}
+
+/** Choose one provider in the add card's open provider list. */
+function chooseProvider(label: string): void {
+  fireEvent.click(screen.getByRole('option', { name: label }))
+}
 
 const t: ModelsSectionInjected['t'] = key => en[key]
 const OPENAI_TARGET = { provider: 'openai', displayName: 'openai' }
@@ -310,6 +329,9 @@ describe('ModelsSection', () => {
     const { renderSlot } = await mountSection()
     renderSlot.mockClear()
     fireEvent.click(screen.getByRole('button', { name: en.add }))
+    // The card opens on its picker: no draft exists until a provider is chosen.
+    expect(cardSeatCalls(renderSlot).some(([provider]) => provider === 'anthropic')).toBe(false)
+    chooseProvider('anthropic')
     expect(cardSeatCalls(renderSlot)).toContainEqual(['anthropic', false, false, 'llm-pi-ai'])
   })
 
@@ -324,6 +346,7 @@ describe('ModelsSection', () => {
     const { renderSlot } = await mountFace(scripted)
     renderSlot.mockClear()
     fireEvent.click(screen.getByRole('button', { name: en.add }))
+    chooseProvider('anthropic')
     // The dormant row names no reference yet; the seat still reports the
     // derived ANTHROPIC_API_KEY the editor itself displays as configured.
     expect(cardSeatCalls(renderSlot)).toContainEqual(['anthropic', false, true, 'llm-pi-ai'])
@@ -332,6 +355,7 @@ describe('ModelsSection', () => {
   it('skips the draft seat when a refresh drops the dormant row', async () => {
     const { renderSlot, face, controller } = await mountSection()
     fireEvent.click(screen.getByRole('button', { name: en.add }))
+    chooseProvider('anthropic')
     const directory = [
       { provider: 'deepseek-official', displayName: 'DeepSeek', settingsNs: 'llm-deepseek', settingsPath: [], active: true },
       { provider: 'openai', displayName: 'openai', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'openai'], active: true },
@@ -359,10 +383,15 @@ describe('ModelsSection', () => {
       renderSlot={() => null}
     />)
 
-    const missing = screen.getByRole('img', { name: en.credentialMissing })
-    expect(missing.getAttribute('title')).toBe(en.credentialMissing)
-    expect(missing.className).toContain('credentialDotMissing')
-    expect(missing.closest('li')?.textContent).toContain('openai')
+    const missing = screen.getAllByRole('img', { name: en.credentialMissing })
+    // Every row whose declared reference the Host confirmed missing is marked:
+    // the dedicated DeepSeek route and the adopted pi-ai profile.
+    expect(missing.map(dot => dot.closest('li')?.textContent)).toEqual([
+      expect.stringContaining('DeepSeek'),
+      expect.stringContaining('openai'),
+    ])
+    expect(missing[0]!.getAttribute('title')).toBe(en.credentialMissing)
+    expect(missing[0]!.className).toContain('dotMissing')
     expect(screen.queryByRole('img', { name: en.credentialConfigured })).toBeNull()
     expect(screen.getByText('zombie').closest('li')?.querySelector('[role="img"]')).toBeNull()
   })
@@ -876,9 +905,10 @@ describe('ModelsSection', () => {
   it('adds a dormant provider with a derived reference and stores its key', async () => {
     const { mutate, set } = await mountSection()
     fireEvent.click(screen.getByText(en.add))
-    const pick = await screen.findByLabelText<HTMLSelectElement>(en.provider)
-    expect([...pick.options].map(option => option.value)).toEqual(['anthropic', 'broken', 'plain'])
-    expect(pick.value).toBe('anthropic')
+    // The picker lists the dormant routes the card can write, in display order.
+    expect(addOptions()).toEqual(['anthropic', 'broken', 'plain'])
+    chooseProvider('anthropic')
+    expect(screen.getByRole('button', { name: en.chooseProvider }).textContent).toBe('anthropic')
     // A dormant profile has no endpoint anywhere: the pi-ai placeholder
     // falls back to the provider-default wording.
     fireEvent.click(screen.getByText(en.customized))
@@ -899,7 +929,7 @@ describe('ModelsSection', () => {
   it('keeps pi-ai provider-native authentication when no key is entered', async () => {
     const { mutate, set } = await mountSection()
     fireEvent.click(screen.getByText(en.add))
-    await screen.findByLabelText(en.provider)
+    chooseProvider('anthropic')
     fireEvent.click(screen.getByText(en.apply))
     await waitFor(() => { expect(mutate).toHaveBeenCalledOnce() })
     expect(mutate.mock.calls[0]).toEqual([
@@ -930,7 +960,7 @@ describe('ModelsSection', () => {
       .mockResolvedValueOnce(remoteOk(undefined))
     const { face, controller, mirror } = await mountSection({ mutate, set })
     fireEvent.click(screen.getByText(en.add))
-    await screen.findByLabelText(en.provider)
+    chooseProvider('anthropic')
     fireEvent.change(screen.getByLabelText<HTMLInputElement>(en.keyInput), { target: { value: 'sk-ant' } })
     fireEvent.click(screen.getByText(en.apply))
     await screen.findByText('credential store unavailable')
@@ -956,10 +986,12 @@ describe('ModelsSection', () => {
   it('switches the add card target and degrades unknown or broken targets loudly', async () => {
     await mountSection()
     fireEvent.click(screen.getByText(en.add))
-    const pick = await screen.findByLabelText<HTMLSelectElement>(en.provider)
-    fireEvent.change(pick, { target: { value: 'broken' } })
+    chooseProvider('broken')
     await screen.findByText(/unresolvable settings path/)
-    fireEvent.change(pick, { target: { value: 'plain' } })
+    // Switching the target reopens the picker from the trigger the choice
+    // renamed; the draft card itself stays.
+    fireEvent.click(screen.getByRole('button', { name: en.chooseProvider }))
+    chooseProvider('plain')
     await waitFor(() => {
       expect(screen.getAllByText(content => content.includes(en.advancedHint)).length).toBeGreaterThan(0)
     })
@@ -973,7 +1005,7 @@ describe('ModelsSection', () => {
       mutate: vi.fn(() => Promise.resolve(remoteFail('llm-pi-ai: unknown pi-ai provider "bogus"', 'settings/rejected'))),
     })
     fireEvent.click(screen.getByText(en.add))
-    await screen.findByLabelText(en.provider)
+    chooseProvider('anthropic')
     fireEvent.change(screen.getByLabelText<HTMLInputElement>(en.keyInput), { target: { value: 'sk-x' } })
     fireEvent.click(screen.getByText(en.apply))
     await screen.findByText(/unknown pi-ai provider/)
@@ -993,7 +1025,10 @@ describe('ModelsSection', () => {
       t={t}
       renderSlot={() => null}
     />)
+    fireEvent.click(screen.getByRole('button', { name: deepSeekCopy(en.editProvider) }))
     const key = await screen.findByLabelText<HTMLInputElement>(en.keyInput)
+    // A refused probe leaves the field's own hint in place; only a confirmed
+    // stored key replaces it with the configured wording.
     expect(key.placeholder).toBe(en.keyPlaceholder)
   })
 
@@ -1161,10 +1196,19 @@ describe('ModelsSection', () => {
   it('cancels the add card back to the add button', async () => {
     await mountSection()
     fireEvent.click(screen.getByText(en.add))
-    await screen.findByLabelText(en.provider)
+    // Before a provider is chosen the card is only its picker, so closing that
+    // list abandons the add.
+    const search = await screen.findByRole('combobox', { name: en.searchProviders })
+    fireEvent.keyDown(search, { key: 'Escape' })
+    await screen.findByText(en.add)
+    expect(screen.queryByRole('combobox', { name: en.searchProviders })).toBeNull()
+
+    fireEvent.click(screen.getByText(en.add))
+    chooseProvider('anthropic')
+    await screen.findByLabelText(en.keyInput)
     fireEvent.click(screen.getByText(en.cancel))
     await screen.findByText(en.add)
-    expect(screen.queryByLabelText(en.provider)).toBeNull()
+    expect(screen.queryByLabelText(en.keyInput)).toBeNull()
   })
 
   it('loads on first render of an idle controller', async () => {

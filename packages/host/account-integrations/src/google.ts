@@ -60,7 +60,7 @@ const googleConnectors = {
  * @param provider - account connector provider.
  * @returns the Google service configuration, or undefined for another provider.
  */
-export function googleService(provider: ConnectorProvider) {
+export function googleService(provider: ConnectorProvider): typeof googleConnectors[keyof typeof googleConnectors] | undefined {
   switch (provider) {
     case 'gmail': return googleConnectors.gmail
     case 'google-drive': return googleConnectors['google-drive']

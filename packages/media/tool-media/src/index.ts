@@ -162,12 +162,14 @@ const selectionFields = {
   maxReferenceImageBytes: z.number().step(1).min(1).default(DEFAULT_MAX_REFERENCE_IMAGE_BYTES),
 }
 
+/** Runtime schema for {@link VideoConfig}: the `media-video` settings document. */
 export const VideoConfig: z<VideoConfig> = z.object({
   ...selectionFields,
   pollIntervalMs: z.number().step(1).min(1).default(DEFAULT_VIDEO_POLL_INTERVAL_MS),
   maxWaitMs: z.number().step(1).min(1).default(DEFAULT_VIDEO_MAX_WAIT_MS),
 })
 
+/** Runtime schema for {@link ImageConfig}: the `media` settings document. */
 export const ImageConfig: z<ImageConfig> = z.object({
   ...selectionFields,
   listedProviders: z.array(z.string()).default([]),
@@ -639,7 +641,8 @@ function delay(ms: number, signal: AbortSignal | undefined): Promise<void> {
     signal?.throwIfAborted()
     const onAbort = (): void => {
       clearTimeout(timer)
-      reject(signal?.reason)
+      const reason: unknown = signal?.reason
+      reject(reason instanceof Error ? reason : new Error('The wait was cancelled.'))
     }
     const timer = setTimeout(() => {
       signal?.removeEventListener('abort', onAbort)
@@ -869,6 +872,14 @@ function installSelection<C extends ModelSelection>(ctx: Context, spec: Selectio
   return { current, pick: (args, exec) => pickModel(args, exec) }
 }
 
+/** The provenance every media tool result reports about the call that produced it. */
+const MEDIA_CALL_PROVENANCE = {
+  provider: { type: 'string', required: true },
+  model: { type: 'string', required: true },
+  label: { type: 'string', required: true },
+  costUsdMicros: { type: 'integer' },
+} as const
+
 /**
  * Register `generate_image`, and `generate_video` where `video` is configured,
  * on `ctx.tools`.
@@ -877,7 +888,7 @@ function installSelection<C extends ModelSelection>(ctx: Context, spec: Selectio
  */
 export function apply(ctx: Context, config: Config): void {
   const { video, ...imageConfig } = config
-  const images = installSelection<ImageConfig>(ctx, {
+  const imageSelection = installSelection<ImageConfig>(ctx, {
     kind: 'image',
     namespace: MEDIA_SETTINGS_NAMESPACE,
     schema: ImageConfig,
@@ -897,7 +908,6 @@ export function apply(ctx: Context, config: Config): void {
         }))
     },
   })
-  const pickModel = images.pick
 
   if (video !== undefined) registerVideoTool(ctx, video)
 
@@ -927,13 +937,11 @@ export function apply(ctx: Context, config: Config): void {
         type: 'object',
         additionalProperties: false,
         properties: {
-          provider: { type: 'string', required: true },
-          model: { type: 'string', required: true },
-          label: { type: 'string', required: true },
-          costUsdMicros: { type: 'integer' },
+          ...MEDIA_CALL_PROVENANCE,
           images: {
             type: 'array',
             required: true,
+            /* jscpd:ignore-start -- mirrors @aeven/tool-fs read_image's image-result fields */
             items: {
               type: 'object',
               additionalProperties: false,
@@ -957,6 +965,7 @@ export function apply(ctx: Context, config: Config): void {
                 },
               },
             },
+            /* jscpd:ignore-end */
           },
         },
       },
@@ -972,7 +981,7 @@ export function apply(ctx: Context, config: Config): void {
     async execute(args, exec) {
       // The picker runs before the provider call, so a generation the user did
       // not want never reaches an upstream and never spends a credit.
-      const chosen = await pickModel(args, exec)
+      const chosen = await imageSelection.pick(args, exec)
       const references = await readReferences(
         ctx.get('fs'),
         args.reference_images ?? [],
@@ -1041,10 +1050,7 @@ function registerVideoTool(ctx: Context, config: VideoConfig): void {
         type: 'object',
         additionalProperties: false,
         properties: {
-          provider: { type: 'string', required: true },
-          model: { type: 'string', required: true },
-          label: { type: 'string', required: true },
-          costUsdMicros: { type: 'integer' },
+          ...MEDIA_CALL_PROVENANCE,
           video: {
             type: 'object',
             required: true,

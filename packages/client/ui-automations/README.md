@@ -13,8 +13,13 @@ The sidebar opens `/automations`, including direct navigation and refresh. Creat
 
 ## Model Experience
 
-This package adds no tools or prompt sections. Starter selections fill a localized draft with the task, schedule, required sources, guardrails, and confirmation instructions, and ask the model to use what it already knows about the user before asking; the personal suggestion starter asks for three automations fitted to the user; they send nothing until the user submits. The owning [core service](../../core/automations/README.md) documents conversational management and execution effects.
+None, as this page registers no tool and no prompt section; a starter only fills a localized draft that sends nothing until the person submits it.
 
+#### KV Cache effect
+
+None; no prompt input originates here.
 ## Known Limitations and Deferred Work
 
-The screen manages local execution. It refreshes visible history every five seconds. Notifications, a view of saved approvals, and cloud placement are deferred. No invariant installer is needed because this surface owns no durable state.
+The screen manages local execution. It refreshes visible history every five seconds. Notifications, a view of saved approvals, and cloud placement are deferred.
+
+- **Invariant omission** — No invariant companion is published because this surface owns no durable state: every automation fact it shows comes from the `automation-control` RPC, and the page keeps only its view selection, the reader's own composer draft, and the five-second history refresh.

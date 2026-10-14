@@ -37,6 +37,9 @@ feedback 组收集用户对 harness 工作成果的意见：用户可以提交�
 - [匿名用户身份](../identity/README.zh.md)——嵌入反馈确认文本的按 harness home 共享 id。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ## 开发备注
 
 无。

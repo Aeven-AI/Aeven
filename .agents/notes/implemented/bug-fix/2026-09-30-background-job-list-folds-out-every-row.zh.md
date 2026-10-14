@@ -22,7 +22,7 @@ Status: implemented
 
 - `dotState` 的参数类型收敛为 `Exclude<JobView['status'], 'running'>`。标记的运行分支渲染加载动画，从不会向该映射索取 `'running'`，因此那条分支没有调用方。
 - 停止确认对话框的主按钮以它被渲染时所针对的那个任务调用 `confirmKill(job)`，而不再去读取 `confirmJob` 状态、绕过一道没有任何渲染能够到达的判断。
-- 对话框的 `className` 写成 `css.confirm as string`，即 [`DevicePane`](../../../../packages/client/ui-sidebar-device/src/client/DevicePane.tsx) 与 [`AgentPresetSection`](../../../../packages/client/ui-agent-preset/src/client/AgentPresetSection.tsx) 已用于 Modal 类名的写法：它所替换掉的 `?? ''` 回退分支无法到达，而逐文件覆盖率闸门会把它读作一条未覆盖分支。
+- 对话框的 `className` 写成 `css.confirm as string`，即 [`DevicePane`](../../../../packages/client/ui-sidebar-device/src/client/DevicePane.tsx) 与 ``AgentPresetSection`` 已用于 Modal 类名的写法：它所替换掉的 `?? ''` 回退分支无法到达，而逐文件覆盖率闸门会把它读作一条未覆盖分支。
 
 ## 考虑过的替代方案
 

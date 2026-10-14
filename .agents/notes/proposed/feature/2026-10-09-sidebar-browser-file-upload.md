@@ -2,6 +2,8 @@
 
 Status: proposed
 
+English | [中文](2026-10-09-sidebar-browser-file-upload.zh.md)
+
 ## Problem
 
 The browser beside a session cannot answer a file chooser. `automate()` implements `snapshot`, `click`, `type`, `press`, `scroll`, navigation, and `evaluate`, and nothing that fills an `input[type=file]`; nothing in the repository intercepts a file chooser. So a click on any "Upload from computer" control opens a native macOS open dialog that no tool can complete.

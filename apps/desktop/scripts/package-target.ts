@@ -1,34 +1,19 @@
 /** Build one release target with matching Electron, Node.js, and seed architecture. */
 
 import { spawn } from 'node:child_process'
-import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readdirSync, rmSync } from 'node:fs'
 import { parseArgs } from 'node:util'
 import { join, resolve } from 'node:path'
-import {
-  desktopBuildRecordFilename,
-  resolveDesktopAutoUpdateConfig,
-} from './desktop-auto-update-environment.mjs'
 import { desktopTargetBuildPaths } from './desktop-build-paths.mjs'
 import { desktopPackageProblems } from './desktop-package-preflight.ts'
 import { loadDesktopPackagingEnvironment } from './desktop-environment-file.ts'
-import { DESKTOP_UNSIGNED_ENV } from './desktop-release-environment.mjs'
+import { DESKTOP_UNSIGNED_ENV, resolveDesktopAppId, resolveMacOSSigningEnvironment } from './desktop-release-environment.mjs'
+import { signMacOSSeedCode, verifyMacOSSeedCode } from './verify-macos-signature.mjs'
+import { WINDOWS_SIGNING_ENV_NAMES } from './windows-azure-signing.mjs'
 import { pnpmInvocation } from '../../../scripts/pnpm-invocation.ts'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const REPOSITORY_ROOT = resolve(APP_ROOT, '..', '..')
-const WINDOWS_SIGNING_ENV_PREFIX = 'AVN_DESKTOP_WINDOWS_'
-const WINDOWS_SIGNING_ENV_NAMES = [
-  'AVN_DESKTOP_WINDOWS_CER_FILE',
-  'AVN_DESKTOP_WINDOWS_KEY_CONTAINER',
-  'AVN_DESKTOP_WINDOWS_SIGNTOOL',
-  'AVN_DESKTOP_WINDOWS_TOKEN_PIN',
-] as const
-const DESKTOP_UPLOAD_CREDENTIAL_ENV_NAMES = new Set([
-  'DOWNLOAD_TEST_COS_SECRET_ID',
-  'DOWNLOAD_TEST_COS_SECRET_KEY',
-  'DOWNLOAD_PROD_COS_SECRET_ID',
-  'DOWNLOAD_PROD_COS_SECRET_KEY',
-])
 
 /** Fixed platform and architecture identifiers exposed by package scripts. */
 export type DesktopPackageTargetName = 'mac-arm64' | 'win-arm64' | 'win-x64' | 'linux-arm64' | 'linux-x64'
@@ -81,58 +66,18 @@ const TARGETS: Record<DesktopPackageTargetName, DesktopPackageTarget> = {
 }
 
 /**
- * Remove Windows signing configuration from package preparation subprocesses.
+ * Remove the Windows signing credentials from package preparation subprocesses;
+ * only electron-builder, which signs, receives them.
  * @param environment - Packaging command environment.
  * @returns A copy without Windows signing fields.
  */
 export function withoutWindowsSigningEnvironment(environment: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return Object.fromEntries(Object.entries(environment)
-    .filter(([name]) => !name.startsWith(WINDOWS_SIGNING_ENV_PREFIX)))
-}
-
-/**
- * Remove upload-only COS credentials from every packaging subprocess.
- * @param environment - Packaging command environment.
- * @returns A copy without Desktop upload credentials.
- */
-export function withoutDesktopUploadCredentials(environment: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-  return Object.fromEntries(Object.entries(environment)
-    .filter(([name]) => !DESKTOP_UPLOAD_CREDENTIAL_ENV_NAMES.has(name)))
+    .filter(([name]) => !WINDOWS_SIGNING_ENV_NAMES.includes(name)))
 }
 
 function isTargetName(value: string): value is DesktopPackageTargetName {
   return Object.hasOwn(TARGETS, value)
-}
-
-function packageVersion(path: string, label: string): string {
-  const manifest = JSON.parse(readFileSync(path, 'utf8')) as { version?: unknown }
-  if (typeof manifest.version !== 'string' || manifest.version === '') {
-    throw new Error(`desktop package: ${label} has no version`)
-  }
-  return manifest.version
-}
-
-function writeReleaseRecord(
-  target: DesktopPackageTarget,
-  environment: NodeJS.ProcessEnv,
-  artifactsRoot: string,
-): void {
-  const desktopVersion = packageVersion(join(APP_ROOT, 'package.json'), 'desktop package')
-  const avnVersion = packageVersion(join(REPOSITORY_ROOT, 'package.json'), 'avn package')
-  if (desktopVersion !== avnVersion) {
-    throw new Error(`desktop package: desktop version ${desktopVersion} does not match avn version ${avnVersion}`)
-  }
-  const update = resolveDesktopAutoUpdateConfig(environment, target.platform, target.arch)
-  const recordPath = join(artifactsRoot, desktopBuildRecordFilename(target.name))
-  const temporaryPath = `${recordPath}.tmp`
-  writeFileSync(temporaryPath, `${JSON.stringify({
-    schemaVersion: 1,
-    target: target.name,
-    version: avnVersion,
-    environment: update.environment,
-    publicUrl: update.publicUrl,
-  }, null, 2)}\n`)
-  renameSync(temporaryPath, recordPath)
 }
 
 /**
@@ -175,7 +120,7 @@ interface DesktopPackageInvocation {
   readonly prepareOnly: boolean
   /** Run the configuration and tool checks every build starts with, then stop. */
   readonly check: boolean
-  /** Skip code signing, notarization, and the upload completion record. */
+  /** Skip code signing and notarization. */
   readonly unsigned: boolean
 }
 
@@ -241,6 +186,29 @@ export function desktopElectronBuilderArguments(
   ]
 }
 
+/**
+ * Developer ID sign every executable in a native platform package's `bin` directory before it is packed.
+ * The seed carries these packages as tarballs, which seed-store signing never rewrites, and Apple's notary
+ * service rejects an executable inside them that lacks a Developer ID signature, a secure timestamp, or
+ * hardened runtime.
+ * @param packageDirectory - Native platform package directory, such as `native/whisper-cpp/packages/darwin-arm64`.
+ * @param environment - Packaging environment that names the application ID and the macOS release identity.
+ * @returns Resolves after every executable is signed and verified.
+ */
+export async function signMacOSPackageExecutables(
+  packageDirectory: string,
+  environment: NodeJS.ProcessEnv,
+): Promise<void> {
+  const appId = resolveDesktopAppId(environment)
+  const expected = resolveMacOSSigningEnvironment(environment)
+  const binDirectory = join(packageDirectory, 'bin')
+  for (const name of readdirSync(binDirectory)) {
+    const path = join(binDirectory, name)
+    await signMacOSSeedCode(path, `${appId}.${name}`, expected, undefined)
+    verifyMacOSSeedCode(path, expected)
+  }
+}
+
 function runPnpm(
   args: readonly string[],
   env: NodeJS.ProcessEnv = process.env,
@@ -283,8 +251,7 @@ async function main(): Promise<void> {
   const invocation = parseDesktopPackageInvocation(process.argv.slice(2))
   const { target } = invocation
   const buildPaths = desktopTargetBuildPaths(target.name)
-  const releaseRecordPath = join(buildPaths.artifacts, desktopBuildRecordFilename(target.name))
-  const buildEnv = withoutWindowsSigningEnvironment(withoutDesktopUploadCredentials(process.env))
+  const buildEnv = withoutWindowsSigningEnvironment(process.env)
   const targetEnv: NodeJS.ProcessEnv = {
     ...buildEnv,
     AVN_DESKTOP_TARGET_PLATFORM: target.platform,
@@ -307,10 +274,6 @@ async function main(): Promise<void> {
     console.log(`desktop package: ${target.name}${invocation.unsigned ? ' (unsigned)' : ''} checks passed`)
     return
   }
-  if (!invocation.prepareOnly) {
-    rmSync(releaseRecordPath, { force: true })
-    rmSync(`${releaseRecordPath}.tmp`, { force: true })
-  }
   await runPnpm(['run', 'build:official'], buildEnv, REPOSITORY_ROOT)
   await runPnpm(['run', 'release:pack', '--family', 'avn', '--out', buildPaths.packedAvn], buildEnv, REPOSITORY_ROOT)
   await runPnpm([
@@ -327,12 +290,15 @@ async function main(): Promise<void> {
   rmSync(buildPaths.packedWhisper, { recursive: true, force: true })
   mkdirSync(buildPaths.packedWhisper, { recursive: true })
   await runPnpm(['--dir', 'native/whisper-cpp', 'run', 'build:native', '--target', whisperPlatform], buildEnv, REPOSITORY_ROOT)
+  const signsMacOS = target.platform === 'darwin' && !invocation.unsigned
+  if (signsMacOS) await signMacOSPackageExecutables(join(REPOSITORY_ROOT, 'native/whisper-cpp/packages', whisperPlatform), targetEnv)
   // npm, not pnpm: pnpm pack strips the executable bit, which would ship a worker no Host can spawn.
   await runNpm(['pack', `./native/whisper-cpp/packages/${whisperPlatform}`, '--pack-destination', buildPaths.packedWhisper], buildEnv)
   // The WhatsApp connector daemon is pure Go, so it cross-compiles for this target from any build host.
   rmSync(buildPaths.packedWhatsApp, { recursive: true, force: true })
   mkdirSync(buildPaths.packedWhatsApp, { recursive: true })
   await runPnpm(['--dir', 'native/whatsapp-mcp', 'run', 'build:native', '--target', whisperPlatform], buildEnv, REPOSITORY_ROOT)
+  if (signsMacOS) await signMacOSPackageExecutables(join(REPOSITORY_ROOT, 'native/whatsapp-mcp/packages', whisperPlatform), targetEnv)
   await runNpm(['pack', `./native/whatsapp-mcp/packages/${whisperPlatform}`, '--pack-destination', buildPaths.packedWhatsApp], buildEnv)
   // The Telegram connector daemon is plain JavaScript, so one build and one tarball serve every target.
   rmSync(buildPaths.packedTelegram, { recursive: true, force: true })
@@ -359,7 +325,6 @@ async function main(): Promise<void> {
   await runPnpm(['run', 'prepare:seed'], targetEnv)
   if (invocation.prepareOnly) return
   await runPnpm(desktopElectronBuilderArguments(target, invocation.directory), electronBuilderEnv)
-  if (!invocation.directory && !invocation.unsigned) writeReleaseRecord(target, electronBuilderEnv, buildPaths.artifacts)
 }
 
 if (process.argv[1] !== undefined && import.meta.filename === resolve(process.argv[1])) await main()

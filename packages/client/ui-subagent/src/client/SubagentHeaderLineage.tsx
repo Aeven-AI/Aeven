@@ -7,7 +7,7 @@ import type { SubagentAddress } from '@aeven/subagent/client'
 import type { SessionId } from '@aeven/session/types'
 import {
   ActivityDetails, ActivityItem, ActivityLink, ActivityMenu, ActivityMessage, ActivityNote, ActivityPill,
-  ActivitySection, type ActivityFact,
+  ActivitySection, formatDuration, type ActivityFact,
 } from '@aeven/client-ui-primitives'
 import type { PropsLocale, PropsRuntime, TranslateNS } from '@aeven/client-ui-slots'
 import { NS } from './locales.ts'
@@ -79,22 +79,6 @@ function activityDuration(
     ? now
     : timing.active.through
   return timing.settledMs + Math.max(0, end - timing.active.since)
-}
-
-/** Two-digit zero padding, so figures keep one width as they tick. */
-function pad(value: number): string {
-  return String(value).padStart(2, '0')
-}
-
-/** Active time in at most two adjacent units, the jobs list's format. */
-function formatDuration(ms: number, t: TranslateNS<typeof NS>): string {
-  const total = Math.floor(Math.max(0, ms) / 1_000)
-  const seconds = total % 60
-  const minutes = Math.floor(total / 60) % 60
-  const hours = Math.floor(total / 3_600)
-  if (hours > 0) return t('duration.hours', { hours: pad(hours), minutes: pad(minutes) })
-  if (minutes > 0) return t('duration.minutes', { minutes: pad(minutes), seconds: pad(seconds) })
-  return t('duration.seconds', { seconds: pad(seconds) })
 }
 
 /** An agent's everyday name: its delegation label, else its log title, else its id. */

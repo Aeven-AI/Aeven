@@ -68,7 +68,12 @@ function clip(text: string, max: number): string {
  * @param signal - cancellation.
  * @returns the procedures, one per name.
  */
-export async function findLearnedProcedures(ctx: Context, scope: MemoryScope, query: string, signal: AbortSignal): Promise<LearnedProcedure[]> {
+export async function findLearnedProcedures(
+  ctx: Context,
+  scope: MemoryScope,
+  query: string,
+  signal: AbortSignal,
+): Promise<LearnedProcedure[]> {
   const recall = await ctx.memory.recall({ scope, query, purpose: 'tool', timeoutMs: LOOKUP_TIMEOUT_MS, signal })
   const found: LearnedProcedure[] = []
   for (const hit of recall.hits) {
@@ -90,7 +95,12 @@ export async function findLearnedProcedures(ctx: Context, scope: MemoryScope, qu
  * @param signal - cancellation.
  * @returns the stored memory's id.
  */
-export async function storeLearnedProcedure(ctx: Context, scope: MemoryScope, draft: ProcedureDraft, signal: AbortSignal): Promise<MemoryItemId> {
+export async function storeLearnedProcedure(
+  ctx: Context,
+  scope: MemoryScope,
+  draft: ProcedureDraft,
+  signal: AbortSignal,
+): Promise<MemoryItemId> {
   const text = `${LEARNED_PREFIX} ${draft.name}: ${draft.description}\n\n${draft.content}`
   const id = await ctx.memory.remember({ scope, text, domain: draft.domain, signal })
   // The summary capture wrote is a one-line gist; the learned summary carries the steps recall should deliver.
@@ -105,12 +115,17 @@ export async function storeLearnedProcedure(ctx: Context, scope: MemoryScope, dr
  * @param ids - memories to forget.
  * @param signal - cancellation.
  */
-export async function forgetLearnedProcedures(ctx: Context, owner: string, ids: readonly MemoryItemId[], signal: AbortSignal): Promise<void> {
+export async function forgetLearnedProcedures(
+  ctx: Context,
+  owner: string,
+  ids: readonly MemoryItemId[],
+  signal: AbortSignal,
+): Promise<void> {
   for (const id of ids) await ctx.memory.forget({ owner, id, signal })
 }
 
 /** Prompt that condenses an imported or explicitly saved procedure into the summary memory recall shows. */
-const CONDENSE = `Condense one procedure into at most 800 characters that can be followed on its own: the trigger, then the fast path (the fewest steps, with their exact commands, files, settings, or tool names), then what to avoid and the user's preferences, then the check. Keep placeholders such as <name> as they are. Reply with the condensed text only.`
+const CONDENSE = 'Condense one procedure into at most 800 characters that can be followed on its own: the trigger, then the fast path (the fewest steps, with their exact commands, files, settings, or tool names), then what to avoid and the user\'s preferences, then the check. Keep placeholders such as <name> as they are. Reply with the condensed text only.'
 
 /** Reasoning effort asked of the condensing call. */
 const LOW_REASONING = 'low' as ReasoningEffortId
@@ -150,7 +165,13 @@ export async function readProcedureImport(path: string): Promise<ImportedProcedu
  * @param signal - cancellation.
  * @returns the condensed procedure, or the description and opening of the content when the model gives nothing.
  */
-export async function condenseProcedure(ctx: Context, scope: MemoryScope, procedure: ImportedProcedure, maxTokens: number, signal: AbortSignal): Promise<string> {
+export async function condenseProcedure(
+  ctx: Context,
+  scope: MemoryScope,
+  procedure: ImportedProcedure,
+  maxTokens: number,
+  signal: AbortSignal,
+): Promise<string> {
   const fallback = `${procedure.description} ${procedure.content}`
   const route = scope.route
   if (route === undefined) return fallback

@@ -96,6 +96,9 @@ Team 策略与 schema 由 [`@aeven/experimental-tool-agent-team`](../tool-agent-
 - **需要 base profile**——本 patch 依赖 `avn-base` 提供的配置行 id 与 Subagent provider；它不是独立 profile。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

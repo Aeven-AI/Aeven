@@ -2267,7 +2267,7 @@ describe('workspace context request injection', () => {
     }
   })
 
-  it('treats ctx.fs marker lookup failures as absent root markers', async () => {
+  it('surfaces an unavailable root-marker probe instead of reading it as absent', async () => {
     const root = await tempRepo()
     const home = await tempRepo()
     try {
@@ -2281,9 +2281,11 @@ describe('workspace context request injection', () => {
       await mountWorkspaceContextPlugin(ctx, { avnHome: home, maxBytes: 65536 })
       const agent = stubAgent(root)
 
-      await composeBaselinePrefix(ctx, agent)
-
-      expect(derivedText(agent)).toContain('repo rule')
+      // A failed probe says nothing about whether the marker exists, so the walk
+      // stops with the probe's own error rather than treating the marker as
+      // absent and loading instructions from an unrelated ancestor.
+      await expect(composeBaselinePrefix(ctx, agent)).rejects.toThrow(`stat failed: ${join(root, '.git')}`)
+      expectNoDerivedMessages(agent)
     } finally {
       await rm(root, { recursive: true, force: true })
       await rm(home, { recursive: true, force: true })

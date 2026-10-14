@@ -20,10 +20,12 @@ const t = ((key: PluginInventoryLocaleKey, params?: Record<string, string>): str
 function props(
   list: PluginInventorySettingsTabInjected['list'],
   presetName: PluginInventorySettingsTabInjected['presetName'] = preset => preset.name ?? preset.id,
+  cachedList: PluginInventorySettingsTabInjected['cachedList'] = () => undefined,
 ): PluginInventorySettingsTabProps {
   return {
     t,
     list,
+    cachedList,
     presetName,
   } as PluginInventorySettingsTabProps
 }

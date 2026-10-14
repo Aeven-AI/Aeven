@@ -1,4 +1,4 @@
-import { memo, useId, useMemo, useState, type CSSProperties, type MouseEvent, type PointerEvent } from 'react'
+import { memo, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent } from 'react'
 import type { ChatViewSlotProps } from '../contract/slots.ts'
 import type { TurnRailMark } from './turn-rail-marks.ts'
 import css from './TurnRail.module.css'
@@ -25,6 +25,36 @@ const MIN_PITCH_PX = 2
 const LENS_PITCH_PX = 8
 /** Largest magnification the lens applies, so a sparse ladder is never distorted. */
 const MAX_LENS_GAIN = 8
+/**
+ * Gap between the transcript column and the scroller's edge that keeps the rail
+ * off the column: its 24px edge plus 16px clear.
+ */
+const RAIL_MIN_GAP_PX = 40
+
+/**
+ * Track whether one element is narrower than `minWidth`, as state.
+ *
+ * The gap the rail lives in is this slot's own width: it follows the scroller
+ * and the shared column width, so no `@media` width can stand in for it, and a
+ * container query needs Safari 16.0. The slot reads its own box instead.
+ * @param ref - the measured element.
+ * @param minWidth - the threshold in CSS pixels.
+ * @returns whether the element has been observed below the threshold.
+ */
+function useNarrowerThan(ref: { readonly current: HTMLElement | null }, minWidth: number): boolean {
+  const [narrow, setNarrow] = useState(false)
+  useEffect(() => {
+    const element = ref.current
+    if (element === null || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0]
+      if (entry !== undefined) setNarrow(entry.contentRect.width < minWidth)
+    })
+    observer.observe(element)
+    return () => { observer.disconnect() }
+  }, [ref, minWidth])
+  return narrow
+}
 
 type RailStyle = CSSProperties & {
   readonly '--avn-turn-pitch': string
@@ -110,6 +140,8 @@ function TurnRailLadder({ marks, activeTurn, onNavigate, t }: TurnRailProps) {
   const previewId = useId()
   const pitch = pitchFor(marks.length)
   const offsets = useMemo(() => tickOffsets(marks.length, pitch, focus), [marks.length, pitch, focus])
+  const slotRef = useRef<HTMLDivElement | null>(null)
+  const crowded = useNarrowerThan(slotRef, RAIL_MIN_GAP_PX)
 
   // One mark is the whole session: there is nothing to navigate between.
   if (marks.length < 2) return null
@@ -122,7 +154,7 @@ function TurnRailLadder({ marks, activeTurn, onNavigate, t }: TurnRailProps) {
   const previewIndex = preview === undefined ? -1 : marks.indexOf(preview)
 
   return (
-    <div className={css.slot}>
+    <div ref={slotRef} className={css.slot} data-crowded={crowded ? '' : undefined}>
       <nav
         className={css.rail}
         style={style}

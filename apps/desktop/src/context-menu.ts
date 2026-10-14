@@ -48,7 +48,7 @@ export function contextMenuTemplate(
     { role: 'selectAll', enabled: params.editFlags.canSelectAll },
   ])
   if (params.linkURL !== '') {
-    groups.push([{ label: messages.copyLink, click: () => { clipboard.writeText(params.linkURL) } }])
+    groups.push([{ label: messages.copyLink, click: () => { void clipboard.writeText(params.linkURL) } }])
   }
   if (params.mediaType === 'image' && params.hasImageContents) {
     groups.push([{ label: messages.copyImage, click: () => { contents.copyImageAt(params.x, params.y) } }])

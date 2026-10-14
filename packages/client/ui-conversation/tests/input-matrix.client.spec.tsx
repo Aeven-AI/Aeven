@@ -37,7 +37,10 @@ const SCTX = {} as Context
 const SID = 's1' as SessionId
 
 /** Standard-props InputBar mount over a real shell (the composer-bar entry shape). */
-function mountBar(shell: SessionInputShell, over?: { running?: boolean; disabled?: boolean }) {
+function mountBar(
+  shell: SessionInputShell,
+  over?: { running?: boolean; disabled?: boolean; invokeCommand?: InputBarProps['invokeCommand'] },
+) {
   const session = createSnapshotStore<SessionSnapshot>({
     ...sessionSnapshot(SID),
     running: over?.running ?? false,
@@ -75,7 +78,7 @@ function mountBar(shell: SessionInputShell, over?: { running?: boolean; disabled
     })),
     resolveSubmitMode: () => 'queue',
     toggleCommandMenu: vi.fn(),
-    invokeCommand: undefined,
+    invokeCommand: over?.invokeCommand,
     useNotices: bindSnapshotSelector(shell.notices),
     useLexicon: bindSnapshotSelector(shell.lexicon),
     useMenuLauncher: bindSnapshotSelector(createSnapshotStore<string | null>(null)),
@@ -93,6 +96,7 @@ function bench(over?: {
   disabled?: boolean
   submit?: (args: string) => Promise<SubmitOutcome>
   serialize?: (ids: readonly DraftAttachmentId[]) => Promise<readonly SubmitImageAttachment[]>
+  invokeCommand?: InputBarProps['invokeCommand']
 }) {
   const sink = vi.fn(() => Promise.resolve<SubmitOutcome>({ kind: 'success' }))
   const serialize = vi.fn(over?.serialize ?? (() => Promise.resolve<readonly SubmitImageAttachment[]>([])))
@@ -312,9 +316,11 @@ describe('matrix row: submitting', () => {
 
 describe('matrix row: locked (session disabled)', () => {
   it('disables the textarea and chrome; the machine currency is untouched', () => {
-    const { view, textarea, shell } = bench({ disabled: true })
+    const { view, textarea, shell } = bench({ disabled: true, invokeCommand: () => Promise.resolve(true) })
     expect(textarea.getAttribute('aria-disabled')).toBe('true')
-    expect((view.getByLabelText('指令') as HTMLButtonElement).disabled).toBe(true)
+    // The command face is composed, so the tool row's attach menu is disabled by
+    // the lock rather than by the absent face.
+    expect((view.getByLabelText('添加文件或运行指令') as HTMLButtonElement).disabled).toBe(true)
     expect(shell.snapshot.phase).toBe('plain')
   })
 

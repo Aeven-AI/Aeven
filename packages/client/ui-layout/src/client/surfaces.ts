@@ -14,6 +14,7 @@ export interface SurfaceRoute {
   root: string
 }
 
+/* jscpd:ignore-start -- mirrors client-ui-workspace's SessionUrlWindow; each address projection declares the browser face it reads. */
 /** Browser members the router reads and writes. */
 export interface SurfaceWindow {
   readonly location: { readonly href: string }
@@ -24,6 +25,7 @@ export interface SurfaceWindow {
   addEventListener(type: 'popstate', listener: () => void): void
   removeEventListener(type: 'popstate', listener: () => void): void
 }
+/* jscpd:ignore-end */
 
 /** The outward surface-routing face (`ctx.layout.surfaces`). */
 export interface ISurfaces {
@@ -63,6 +65,7 @@ export class Surfaces implements ISurfaces {
 
   readonly current: HostObservable<string | undefined> = {
     getSnapshot: () => this.#match(),
+    /* jscpd:ignore-start -- mirrors ui-settings-general's settings-url.ts popstate lifetime; each projection owns its own subscription. */
     subscribe: (listener) => {
       this.#listeners.add(listener)
       if (this.#popstate === undefined) {
@@ -76,6 +79,7 @@ export class Surfaces implements ISurfaces {
         this.#popstate = undefined
       }
     },
+    /* jscpd:ignore-end */
   }
 
   /**

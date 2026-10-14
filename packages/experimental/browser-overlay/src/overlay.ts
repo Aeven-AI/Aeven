@@ -347,7 +347,8 @@ export class BrowserOverlay {
         resolve()
       }
       const abort = (): void => {
-        reject(signal?.reason)
+        const reason: unknown = signal?.reason
+        reject(reason instanceof Error ? reason : new Error('The pointer wait was cancelled.'))
         finish()
       }
       const timer = setTimeout(finish, 1500)
@@ -429,6 +430,7 @@ export class BrowserOverlay {
    * same thing twice, in a hue the page around it need not share, and read as
    * an artifact on a page that had not asked for it.
    * @param point - the point the wheel event targeted, in viewport coordinates.
+   * @param options - optional label carried with the pointer travel.
    */
   scroll(point: Point, options: { label?: string } = {}): void {
     if (this.#root === undefined) return

@@ -582,7 +582,7 @@ function ArchivedSection({
       const archived = deriveArchived(list, archivedSessionIds, pendingInteractions, hidden)
       if (orderBy === 'updated') return archived
       const byId = new Map(archived.map(row => [row.id, row]))
-      return [...archivedSessionIds].reverse().flatMap(id => {
+      return [...archivedSessionIds].reverse().flatMap((id) => {
         const row = byId.get(id)
         return row === undefined ? [] : [row]
       })
@@ -616,9 +616,6 @@ function ArchivedSection({
         onCreate={() => {}}
         newSessionHref={() => ({ href: '', sessionId: '' as SessionId })}
       />
-      {expanded && rows.length === 0 && (
-        <div className={css.empty}>{t('empty.noneArchived')}</div>
-      )}
       {expanded && (showAll ? rows : collapsed.rows).map(node => (
         <SessionNodeItem
           key={node.id}

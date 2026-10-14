@@ -5,6 +5,8 @@ kind: "package-reference"
 
 # @aeven/tool-memory
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 `avn-tool-memory` registers seven tools over `ctx.memory`: `memory_search` (bounded search across traces, policies, environment models, and skills), `memory_get` (one trace, policy, or world model), `memory_timeline` (an episode's ordered traces), `memory_environments`, `memory_skills`, `memory_skill` (loads a skill and records its use), and `memory_remember` (stores a fact the user explicitly asked to be remembered, about the user or about the current project). Search results carry each memory's domain. Tool names come from `MEMORY_TOOL` in `@aeven/memory`, the same names the provider's recall context points to.
@@ -37,7 +39,8 @@ Static schemas; results are append-only tool results.
 ## Known Limitations and Deferred Work
 
 - **No model-driven correction or deletion** — the model can add a fact with `memory_remember` but cannot edit or forget memory; `ctx.memory.edit` and `forget` serve product surfaces.
+- **No invariant companion** — No runtime invariant companion is published because the seven tools only read through `ctx.memory` and are registered while that provider is active, so every stored trace, policy, and skill belongs to `@aeven/memory` and a check here could only restate that provider's own state.
 
-## Dev Note
+### Dev Note
 
 None.

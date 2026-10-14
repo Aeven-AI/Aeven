@@ -36,12 +36,21 @@ export interface HubActionResult {
   readonly error?: string
 }
 
-/** serve-sim for iOS, serve-emu for Android, both vendored by the hub. */
+/**
+ * serve-sim for iOS, serve-emu for Android, both vendored by the hub.
+ * @param platform - target platform of the requested vendor binary.
+ * @returns the hub-relative prefix serving that platform's vendor binaries.
+ */
 export function vendorPrefix(platform: DevicePlatform): string {
   return platform === 'ios' ? '/vendor/serve-sim' : '/vendor/serve-emu'
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null
+
+/** The array value of one hub field, or an empty list when the field is absent or not an array. */
+function listOf(value: unknown): unknown[] {
+  return Array.isArray(value) ? value as unknown[] : []
+}
 
 function parseDevice(value: unknown): HubDevice | undefined {
   if (!isRecord(value)) return undefined
@@ -99,13 +108,9 @@ async function hubJson(url: string, operation: string, timeoutMs: number, body?:
 export async function hubListDevices(origin: string, timeoutMs: number): Promise<HubDeviceList> {
   const body = await hubJson(`${origin}/api/devices`, 'list', timeoutMs)
   if (!isRecord(body)) throw new RemoteError('device/operation-failed', 'Device list failed: the device hub returned no list.', { operation: 'list' })
-  const entries = [
-    ...Array.isArray(body.simulators) ? body.simulators : [],
-    ...Array.isArray(body.emulators) ? body.emulators : [],
-  ]
-  const errors = Array.isArray(body.errors)
-    ? body.errors.flatMap(error => isRecord(error) && typeof error.message === 'string' ? [error.message] : [])
-    : []
+  const entries: unknown[] = [...listOf(body.simulators), ...listOf(body.emulators)]
+  const errors = listOf(body.errors)
+    .flatMap(error => isRecord(error) && typeof error.message === 'string' ? [error.message] : [])
   return {
     devices: entries.flatMap(entry => parseDevice(entry) ?? []),
     detail: errors.length === 0 ? undefined : errors.join('\n'),
@@ -121,7 +126,13 @@ export async function hubListDevices(origin: string, timeoutMs: number): Promise
  * @param timeoutMs - request deadline.
  * @returns the hub's result, `ok: false` with its error when it refused.
  */
-export async function hubAction(origin: string, path: string, body: object, operation: string, timeoutMs: number): Promise<HubActionResult> {
+export async function hubAction(
+  origin: string,
+  path: string,
+  body: object,
+  operation: string,
+  timeoutMs: number,
+): Promise<HubActionResult> {
   const reply = await hubJson(`${origin}${path}`, operation, timeoutMs, body)
   if (!isRecord(reply)) return { ok: false, error: `The device hub returned no result for ${operation}.` }
   return {

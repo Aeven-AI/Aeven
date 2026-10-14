@@ -2,6 +2,8 @@
 
 Status: implemented
 
+English | [中文](2026-10-12-photographs-in-a-reply.zh.md)
+
 ## Problem
 
 A question about how something actually looks was answered only in prose. "Crystal palace. Did it ever exist?" produced a good text answer and no picture, while the same question on chatgpt.com produced a row of photographs with their sources.

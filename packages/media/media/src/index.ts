@@ -258,3 +258,16 @@ function resolveProvider<P extends { readonly id: string; available(): boolean }
 }
 
 export default MediaRuntime
+
+/**
+ * Reject image controls a provider does not implement.
+ * @param request - The image request.
+ * @param fields - Controls unsupported by the provider.
+ */
+export function rejectImageControls(request: MediaImageRequest, fields: readonly (keyof MediaImageRequest)[]): void {
+  for (const field of fields) {
+    if (request[field] !== undefined) {
+      throw new MediaError(`${field} is not supported by ${request.provider ?? request.model}`, 'MEDIA_INVALID_REQUEST')
+    }
+  }
+}

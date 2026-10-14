@@ -116,6 +116,9 @@ kind: "package-reference"
 - **缓存结论永不过期**——进程中途新增 `./typert` 导出的包需要重启后 loader 才会注册它。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

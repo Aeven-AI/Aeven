@@ -139,6 +139,9 @@ Host 装配以转发给消费端的 Cordis 事件扩展 `TypertRemoteEventSelect
 - **Remote 签名受限**——装饰器只接受具有字符串名称的公开、非静态实例方法，源码模式执行无法表示重载、解构、默认参数或剩余参数签名。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

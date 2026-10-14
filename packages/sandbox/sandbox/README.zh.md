@@ -171,6 +171,9 @@ sandbox mode "<mode>" is requested but no sandbox backend is usable on this host
 - **每个上下文只有一个提供方**——同时组合不同沙箱机制需要提供方级阶梯或独立 Cordis 上下文；调用方逐调用选择策略，而非后端标识。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

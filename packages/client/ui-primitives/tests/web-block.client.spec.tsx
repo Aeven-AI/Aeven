@@ -146,7 +146,10 @@ describe('WebBlock search card', () => {
     const view = render(<WebBlock kind="search" sources={sources(30)} truncated={false} />)
     expect(view.container.querySelectorAll('li[class^="_source_"]')).toHaveLength(30)
     expect(view.container.querySelector('[aria-expanded]')).toBeNull()
-    expect(view.container.querySelector('button')).toBeNull()
+    // The header's copy control is the card's only button; the list itself has
+    // no expander.
+    expect([...view.container.querySelectorAll('button')]
+      .map(button => button.getAttribute('aria-label'))).toEqual(['复制'])
     // Every direct child of the <ol> is a source <li> (no marker-less expander).
     const ol = view.container.querySelector('ol')!
     expect([...ol.children].every(child => child.tagName === 'LI')).toBe(true)

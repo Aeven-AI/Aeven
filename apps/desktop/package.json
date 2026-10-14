@@ -34,10 +34,7 @@
     "package:linux:arm64:docker": "tsx scripts/package-linux-container.ts linux-arm64",
     "package:linux:x64": "tsx scripts/package-target.ts linux-x64",
     "package:linux:x64:dir": "tsx scripts/package-target.ts linux-x64 --dir",
-    "package:linux:x64:docker": "tsx scripts/package-linux-container.ts linux-x64",
-    "upload:mac:arm64": "tsx scripts/upload-target.ts mac-arm64",
-    "upload:win:arm64": "tsx scripts/upload-target.ts win-arm64",
-    "upload:win:x64": "tsx scripts/upload-target.ts win-x64"
+    "package:linux:x64:docker": "tsx scripts/package-linux-container.ts linux-x64"
   },
   "dependencies": {
     "electron-updater": "^6.8.9",

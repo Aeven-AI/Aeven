@@ -50,6 +50,8 @@ flowchart LR
   cfg --> plugin_avn_base_llm_pi_ai
   plugin_avn_base_session_persistence_jsonl["session-persistence-jsonl<br/>@aeven/session-persistence-jsonl"]
   cfg --> plugin_avn_base_session_persistence_jsonl
+  plugin_avn_base_memory_invariants["memory-invariants<br/>@aeven/memory-invariants"]
+  cfg --> plugin_avn_base_memory_invariants
   plugin_avn_base_attachment_local["attachment-local<br/>@aeven/attachment-local"]
   cfg --> plugin_avn_base_attachment_local
   plugin_avn_base_session_query_sqlite["session-query-sqlite<br/>@aeven/session-query-sqlite"]
@@ -142,6 +144,8 @@ flowchart LR
   cfg --> plugin_avn_base_tool_workflow
   plugin_avn_base_timeout_policy["timeout-policy<br/>@aeven/tool-call-timeout-policy"]
   cfg --> plugin_avn_base_timeout_policy
+  plugin_avn_base_access_policy["access-policy<br/>@aeven/tool-call-access-policy"]
+  cfg --> plugin_avn_base_access_policy
   plugin_avn_base_spill_local["spill-local<br/>@aeven/spill-local"]
   cfg --> plugin_avn_base_spill_local
   plugin_avn_base_spill_policy["spill-policy<br/>@aeven/spill-policy"]
@@ -205,6 +209,7 @@ flowchart LR
 | `credentials` | `@aeven/credentials-local` |
 | `llm-pi-ai` | `@aeven/llm-pi-ai` |
 | `session-persistence-jsonl` | `@aeven/session-persistence-jsonl` |
+| `memory-invariants` | `@aeven/memory-invariants` |
 | `attachment-local` | `@aeven/attachment-local` |
 | `session-query-sqlite` | `@aeven/session-query-sqlite` |
 | `session-projection` | `@aeven/session-projection` |
@@ -251,6 +256,7 @@ flowchart LR
 | `workflow-worker-thread` | `@aeven/workflow-worker-thread` |
 | `tool-workflow` | `@aeven/tool-workflow` |
 | `timeout-policy` | `@aeven/tool-call-timeout-policy` |
+| `access-policy` | `@aeven/tool-call-access-policy` |
 | `spill-local` | `@aeven/spill-local` |
 | `spill-policy` | `@aeven/spill-policy` |
 | `session-checkpoint-policy` | `@aeven/session-checkpoint-policy` |

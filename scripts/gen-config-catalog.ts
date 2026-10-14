@@ -105,6 +105,17 @@ function loadFile(abs: string, rel: string, cache: Map<string, FileCtx>): FileCt
   if (cached) return cached
   const text = readFileSync(abs, 'utf8')
   const sf = ts.createSourceFile(abs, text, ts.ScriptTarget.Latest, true)
+  const ctx = { abs, rel, text, sf, imports: indexImports(sf) }
+  cache.set(abs, ctx)
+  return ctx
+}
+
+/**
+ * Index one source file's import declarations by local binding name.
+ * @param sf - the parsed source file.
+ * @returns local name → imported name (`default` for a default import) and module specifier.
+ */
+function indexImports(sf: ts.SourceFile): Map<string, { imported: string; specifier: string }> {
   const imports = new Map<string, { imported: string; specifier: string }>()
   for (const stmt of sf.statements) {
     if (!ts.isImportDeclaration(stmt) || !ts.isStringLiteral(stmt.moduleSpecifier)) continue
@@ -121,9 +132,7 @@ function loadFile(abs: string, rel: string, cache: Map<string, FileCtx>): FileCt
       imports.set(clause.namedBindings.name.text, { imported: '*', specifier })
     }
   }
-  const ctx = { abs, rel, text, sf, imports }
-  cache.set(abs, ctx)
-  return ctx
+  return imports
 }
 
 /** A type declaration a paste can contain. */
@@ -410,6 +419,29 @@ function unwrapExpr(expr: ts.Expression): ts.Expression {
 }
 
 /**
+ * Resolve a spread target to the object literal a local `const` declares: the
+ * shared-field form a schema uses instead of `z.intersect`. Exactly this one
+ * hop resolves; a call, an imported binding, a class member, or a non-object
+ * initializer answers null so the walker can report the spread it cannot see.
+ * @param ctx - the file being walked.
+ * @param expr - the spread target expression.
+ * @returns the local object literal, or null when the target names none.
+ */
+function localObjectLiteral(ctx: FileCtx, expr: ts.Expression): ts.ObjectLiteralExpression | null {
+  const target = unwrapExpr(expr)
+  if (!ts.isIdentifier(target)) return null
+  for (const stmt of ctx.sf.statements) {
+    if (!ts.isVariableStatement(stmt) || (stmt.declarationList.flags & ts.NodeFlags.Const) === 0) continue
+    for (const decl of stmt.declarationList.declarations) {
+      if (!ts.isIdentifier(decl.name) || decl.name.text !== target.text || decl.initializer === undefined) continue
+      const initializer = unwrapExpr(decl.initializer)
+      return ts.isObjectLiteralExpression(initializer) ? initializer : null
+    }
+  }
+  return null
+}
+
+/**
  * Statically walk a schemastery schema expression to its key paths plus the
  * packages whose schemas an intersect composes. A key path is the top-level
  * key or a nested path through object/array compositions (`agents[].id`).
@@ -427,6 +459,49 @@ function walkSchemaExpr(
 ): { keys: string[]; composes: string[] } {
   const keys: string[] = []
   const composes: string[] = []
+  /**
+   * Record one plain property of a walked object literal: its key path, then
+   * the nested paths under an object/array value.
+   * @param prop - the property assignment or shorthand to record.
+   * @param base - the enclosing key path, absent at the top level.
+   */
+  const addProperty = (prop: ts.PropertyAssignment | ts.ShorthandPropertyAssignment, base: string | undefined): void => {
+    const key = ts.isStringLiteral(prop.name) ? prop.name.text : prop.name.getText(ctx.sf)
+    const path = base === undefined ? key : `${base}.${key}`
+    keys.push(path)
+    if (ts.isPropertyAssignment(prop)) collectValuePaths(prop.initializer, path)
+  }
+  /**
+   * Record a spread of a local object literal — the repo's shared-field form of
+   * composition — or fail loud when the target is not statically resolvable.
+   * @param spread - the spread assignment to record.
+   * @param base - the enclosing key path, absent at the top level.
+   */
+  const addSpread = (spread: ts.SpreadAssignment, base: string | undefined): void => {
+    const target = localObjectLiteral(ctx, spread.expression)
+    if (target === null) {
+      violations.push(`${where}: schema object spread '${spread.getText(ctx.sf)}' is not a local object literal.`)
+      return
+    }
+    // One hop: the spread's own members must be plain keys, so a chain of spreads
+    // fails loud instead of thinning the walk.
+    for (const inner of target.properties) {
+      if (ts.isPropertyAssignment(inner) || ts.isShorthandPropertyAssignment(inner)) addProperty(inner, base)
+      else violations.push(`${where}: schema object property '${inner.getText(ctx.sf)}' is not a plain key.`)
+    }
+  }
+  /**
+   * Record every member of one walked object literal.
+   * @param literal - the object literal to walk.
+   * @param base - the enclosing key path, absent at the top level.
+   */
+  const addObjectMembers = (literal: ts.ObjectLiteralExpression, base: string | undefined): void => {
+    for (const prop of literal.properties) {
+      if (ts.isPropertyAssignment(prop) || ts.isShorthandPropertyAssignment(prop)) addProperty(prop, base)
+      else if (ts.isSpreadAssignment(prop)) addSpread(prop, base)
+      else violations.push(`${where}: schema object property '${prop.getText(ctx.sf)}' is not a plain key.`)
+    }
+  }
   // Nested paths under one object property's VALUE expression: recurse through
   // chained refinements toward the base call, descending into object/array.
   const collectValuePaths = (value: ts.Expression, base: string): void => {
@@ -434,12 +509,7 @@ function walkSchemaExpr(
     if (!ts.isCallExpression(call) || !ts.isPropertyAccessExpression(call.expression)) return
     const method = call.expression.name.text
     if (method === 'object' && call.arguments[0] && ts.isObjectLiteralExpression(call.arguments[0])) {
-      for (const prop of call.arguments[0].properties) {
-        if (!ts.isPropertyAssignment(prop)) continue
-        const key = ts.isStringLiteral(prop.name) ? prop.name.text : prop.name.getText(ctx.sf)
-        keys.push(`${base}.${key}`)
-        collectValuePaths(prop.initializer, `${base}.${key}`)
-      }
+      addObjectMembers(call.arguments[0], base)
       return
     }
     if (method === 'array' && call.arguments[0]) {
@@ -457,15 +527,7 @@ function walkSchemaExpr(
     }
     const method = call.expression.name.text
     if (method === 'object' && call.arguments[0] && ts.isObjectLiteralExpression(call.arguments[0])) {
-      for (const prop of call.arguments[0].properties) {
-        if (ts.isPropertyAssignment(prop) || ts.isShorthandPropertyAssignment(prop)) {
-          const key = ts.isStringLiteral(prop.name) ? prop.name.text : prop.name.getText(ctx.sf)
-          keys.push(key)
-          if (ts.isPropertyAssignment(prop)) collectValuePaths(prop.initializer, key)
-        } else {
-          violations.push(`${where}: schema object property '${prop.getText(ctx.sf)}' is not a plain key.`)
-        }
-      }
+      addObjectMembers(call.arguments[0], undefined)
       return
     }
     if (method === 'intersect' && call.arguments[0] && ts.isArrayLiteralExpression(call.arguments[0])) {
@@ -517,13 +579,39 @@ function findSchemaExpr(ctx: FileCtx, pluginClass: ts.ClassDeclaration | null): 
   return null
 }
 
+/**
+ * Walk the schema of an exported `Config` in source text, without touching disk.
+ * Exported so the walker's acceptance and refusal rules are provable on
+ * hand-built inputs; {@link collectConfigCatalog} runs the same rules over the
+ * workspace.
+ * @param source - TypeScript source declaring `export const Config`.
+ * @param where - diagnostic prefix, as a package entry path supplies it.
+ * @returns the walked key paths, the composed packages, and every violation.
+ */
+export function walkSchemaSource(
+  source: string,
+  where = 'fixture',
+): { keys: string[]; composes: string[]; violations: string[] } {
+  const sf = ts.createSourceFile('fixture.ts', source, ts.ScriptTarget.Latest, true)
+  const ctx: FileCtx = { abs: 'fixture.ts', rel: 'fixture.ts', text: source, sf, imports: indexImports(sf) }
+  const violations: string[] = []
+  const schemaExpr = findSchemaExpr(ctx, null)
+  if (schemaExpr === null) {
+    violations.push(`${where}: no exported Config declaration to walk.`)
+    return { keys: [], composes: [], violations }
+  }
+  const { keys, composes } = walkSchemaExpr(ctx, unwrapExpr(schemaExpr), where, violations)
+  return { keys, composes, violations }
+}
+
 /** Read an `inject` service-key list: `export const inject = […]` in the entry
  * file, else `static inject = […]` on the plugin class. */
 function findInject(ctx: FileCtx, pluginClass: ts.ClassDeclaration | null, violations: string[]): string[] {
   const fromArray = (expr: ts.Expression, where: string): string[] => {
     if (ts.isObjectLiteralExpression(expr)) {
       return expr.properties.flatMap((property) => {
-        if (ts.isPropertyAssignment(property) && (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name))) return [property.name.text]
+        const name = ts.isPropertyAssignment(property) ? property.name : undefined
+        if (name !== undefined && (ts.isIdentifier(name) || ts.isStringLiteral(name))) return [name.text]
         violations.push(`${where}: inject object contains an unsupported service declaration.`)
         return []
       })

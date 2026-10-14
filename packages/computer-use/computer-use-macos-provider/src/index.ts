@@ -262,7 +262,7 @@ export function apply(ctx: Context, config: Config = {}): void {
       async execute(args, exec) {
         if (args.steps.length === 0 || args.steps.length > 20) throw new Error('computer_use_run requires 1 to 20 steps')
         const session = new MacComputerUseProvider(config, exec.signal).session
-        const steps = args.steps.map(step => {
+        const steps = args.steps.map((step) => {
           switch (step.kind) {
             case 'execute': {
               const parameters: Record<string, string> = {}

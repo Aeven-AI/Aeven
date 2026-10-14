@@ -12,6 +12,7 @@
  * 18px icons. A glyph transcribed from the drawn set onto that same canvas
  * takes the same props rather than a third family of its own.
  */
+import type { ReactNode } from 'react'
 import type { IconProps, LucideGlyphProps } from './props.ts'
 
 export type { IconProps, LucideGlyphProps } from './props.ts'
@@ -1034,8 +1035,8 @@ export const IconArchiveOutline20 = ({ size = 20, className }: IconProps) => (
  * panel outline, no width/height).
  * ------------------------------------------------------------------------- */
 
-/** lucide `images`: stacked pictures (Imagine row). */
-export const IconLucideImages = ({ className }: LucideGlyphProps) => (
+/** Shared canvas and stroke styling for the Lucide glyph family. */
+const LucideSvg = ({ className, children }: LucideGlyphProps & { children: ReactNode }) => (
   <svg
     aria-hidden="true"
     className={className}
@@ -1047,84 +1048,51 @@ export const IconLucideImages = ({ className }: LucideGlyphProps) => (
     strokeLinejoin="round"
     xmlns="http://www.w3.org/2000/svg"
   >
+    {children}
+  </svg>
+)
+
+/** lucide `images`: stacked pictures (Imagine row). */
+export const IconLucideImages = ({ className }: LucideGlyphProps) => (
+  <LucideSvg className={className}>
     <path d="m22 11-1.296-1.296a2.4 2.4 0 0 0-3.408 0L11 16" />
     <path d="M4 8a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2" />
     <circle cx="13" cy="7" r="1" fill="currentColor" />
     <rect x="8" y="2" width="14" height="14" rx="2" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `message-circle-question-mark`: bubble with a question mark inside
  * (a Session waiting for an answer). */
 export const IconLucideMessageCircleQuestionMark = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719" />
     <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
     <path d="M12 17h.01" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `message-circle-check`: bubble with a check inside (a Session at rest). */
 export const IconLucideMessageCircleCheck = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719" />
     <path d="m16 9-5.5 5.5L8 12" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `message-circle`: speech bubble. */
 export const IconLucideMessageCircle = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `panel-left`: frame with a left rail (sidebar toggle). */
 export const IconLucidePanelLeft = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <rect width="18" height="18" x="3" y="3" rx="2" />
     <path d="M9 3v18" />
-  </svg>
+  </LucideSvg>
 )
 
 /** Panel-right glyph for the right sidebar toggle: the `ic_ds` panel outline —
@@ -1155,983 +1123,463 @@ export const IconPanelRightOutline = ({ className }: LucideGlyphProps) => (
  * horizontally about the 24-unit viewBox centre so its tail sits on the right.
  * The plus arms are symmetric and stay as drawn. */
 export const IconLucideMessageCirclePlus = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="M21.008 16.342a2 2 0 0 0-.094 1.167l1.065 3.29a1 1 0 0 1-1.236 1.168l-3.413-.998a2 2 0 0 0-1.099.092 10 10 0 1 1 4.777-4.719" />
     <path d="M8 12h8" />
     <path d="M12 8v8" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `search`: magnifier (sidebar search control). */
 export const IconLucideSearch = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="m21 21-4.34-4.34" />
     <circle cx="11" cy="11" r="8" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `settings-2`: two knurled rails (sidebar view options). */
 export const IconLucideSettings2 = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="M14 17H5" />
     <path d="M19 7h-9" />
     <circle cx="17" cy="17" r="3" />
     <circle cx="7" cy="7" r="3" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `database-check`: a database with a check (the composer's model seat). */
 export const IconLucideDatabaseCheck = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="m16 19 2 2 4-4" />
     <path d="M21 13.127V5" />
     <path d="M3 12A9 3 0 0 0 21 12" />
     <path d="M3 5V19A9 3 0 0 0 13.318 21.968" />
     <ellipse cx="12" cy="5" rx="9" ry="3" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `folder-plus`: folder with a plus (add workspace). */
 export const IconLucideFolderPlus = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="M12 10v6" />
     <path d="M9 13h6" />
     <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `folder`: closed folder (collapsed workspace group). */
 export const IconLucideFolder = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `folder-open`: open folder (expanded workspace group). */
 export const IconLucideFolderOpen = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `settings`: cog (settings trigger). */
 export const IconLucideSettings = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" />
     <circle cx="12" cy="12" r="3" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `ellipsis`: three dots (row actions). */
 export const IconLucideEllipsis = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <circle cx="12" cy="12" r="1" />
     <circle cx="19" cy="12" r="1" />
     <circle cx="5" cy="12" r="1" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `ellipsis-vertical`: a row's menu, standing on the row's own axis. */
 export const IconLucideEllipsisVertical = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <circle cx="12" cy="12" r="1" />
     <circle cx="12" cy="5" r="1" />
     <circle cx="12" cy="19" r="1" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `files`: stacked files. */
 export const IconLucideFiles = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="M15 2h-4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8" />
     <path d="M16.706 2.706A2.4 2.4 0 0 0 15 2v5a1 1 0 0 0 1 1h5a2.4 2.4 0 0 0-.706-1.706z" />
     <path d="M5 7a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h8a2 2 0 0 0 1.732-1" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `folder-search`: a folder with a magnifier at its corner (the file browser's entry). */
 export const IconLucideFolderSearch = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="M10.7 20H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H20a2 2 0 0 1 2 2v4.1" />
     <path d="m21 21-1.9-1.9" />
     <circle cx="17" cy="17" r="3" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `file`: a file of no more specific type. */
 export const IconLucideFile = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z" />
     <path d="M14 2v5a1 1 0 0 0 1 1h5" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `file-text`: a prose or plain-text file. */
 export const IconLucideFileText = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z" />
     <path d="M14 2v5a1 1 0 0 0 1 1h5" />
     <path d="M10 9H8" />
     <path d="M16 13H8" />
     <path d="M16 17H8" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `file-code`: a source-code file. */
 export const IconLucideFileCode = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z" />
     <path d="M14 2v5a1 1 0 0 0 1 1h5" />
     <path d="M10 12.5 8 15l2 2.5" />
     <path d="m14 12.5 2 2.5-2 2.5" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `file-braces`: a data file (JSON, YAML, TOML). */
 export const IconLucideFileBraces = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z" />
     <path d="M14 2v5a1 1 0 0 0 1 1h5" />
     <path d="M10 12a1 1 0 0 0-1 1v1a1 1 0 0 1-1 1 1 1 0 0 1 1 1v1a1 1 0 0 0 1 1" />
     <path d="M14 18a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1 1 1 0 0 1-1-1v-1a1 1 0 0 0-1-1" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `file-image`: an image file. */
 export const IconLucideFileImage = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z" />
     <path d="M14 2v5a1 1 0 0 0 1 1h5" />
     <circle cx="10" cy="12" r="2" />
     <path d="m20 17-1.296-1.296a2.41 2.41 0 0 0-3.408 0L9 22" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `file-archive`: an archive file. */
 export const IconLucideFileArchive = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="M13.659 22H18a2 2 0 0 0 2-2V8a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 14 2H6a2 2 0 0 0-2 2v11.5" />
     <path d="M14 2v5a1 1 0 0 0 1 1h5" />
     <path d="M8 12v-1" />
     <path d="M8 18v-2" />
     <path d="M8 7V6" />
     <circle cx="8" cy="20" r="2" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `refresh-cw`: reload. */
 export const IconLucideRefreshCw = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
     <path d="M21 3v5h-5" />
     <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
     <path d="M8 16H3v5" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `chevrons-down-up`: collapse all. */
 export const IconLucideChevronsDownUp = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="m7 20 5-5 5 5" />
     <path d="m7 4 5 5 5-5" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `x`: close. */
 export const IconLucideX = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="M18 6 6 18" />
     <path d="m6 6 12 12" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `mic`: dictate. */
 export const IconLucideMic = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="M12 19v3" />
     <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
     <rect x="9" y="2" width="6" height="13" rx="3" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `check`: confirm. */
 export const IconLucideCheck = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="M20 6 9 17l-5-5" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `circle-dot`: an open ring around a filled centre — the mark a ready
  *  state carries, where a bare solid dot reads as a status light on its own. */
 export const IconLucideCircleDot = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <circle cx="12" cy="12" r="1" />
     <circle cx="12" cy="12" r="10" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `clock`: an open ring with one hand upright and one to the right —
  *  the Automations row's mark for work that runs on a schedule. */
 export const IconLucideClock = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <circle cx="12" cy="12" r="10" />
     <polyline points="12 6 12 12 16 14" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `circle-alert`: an open ring around an exclamation — the mark a
  *  failed generation carries, where the bare glyph names the failure rather
  *  than warning about something else. */
 export const IconLucideCircleAlert = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <circle cx="12" cy="12" r="10" />
     <path d="M12 8v4" />
     <path d="M12 16h.01" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `plus`: add. */
 export const IconLucidePlus = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="M5 12h14" />
     <path d="M12 5v14" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `globe`: the browser surface. */
 export const IconLucideGlobe = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <circle cx="12" cy="12" r="10" />
     <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
     <path d="M2 12h20" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `square-terminal`: the terminal surface. */
 export const IconLucideSquareTerminal = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="m7 11 2-2-2-2" />
     <path d="M11 13h4" />
     <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `terminal`: the prompt a generated image was made from. */
 export const IconLucideTerminal = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="M12 19h8" />
     <path d="m4 17 6-6-6-6" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `smartphone`: the device surface. */
 export const IconLucideSmartphone = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <rect width="14" height="20" x="5" y="2" rx="2" ry="2" />
     <path d="M12 18h.01" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `copy`: copy. */
 export const IconLucideCopy = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
     <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `at-sign`: mention. */
 export const IconLucideAtSign = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <circle cx="12" cy="12" r="4" />
     <path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `list-tree`: show or hide the file tree. */
 export const IconLucideListTree = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="M8 5h13" />
     <path d="M13 12h8" />
     <path d="M13 19h8" />
     <path d="M3 10a2 2 0 0 0 2 2h3" />
     <path d="M3 5v12a2 2 0 0 0 2 2h3" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `chevron-down`: split-button menu opener. */
 export const IconLucideChevronDown = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="m6 9 6 6 6-6" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `chevron-right`: the trailing mark on a row's forward action. */
 export const IconLucideChevronRight = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="m9 18 6-6-6-6" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `square-arrow-out-up-right`: open outside the app. */
 export const IconLucideSquareArrowOutUpRight = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6" />
     <path d="m21 3-9 9" />
     <path d="M15 3h6v6" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `maximize-2`: enter full screen. */
 export const IconLucideMaximize2 = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="M15 3h6v6" />
     <path d="m21 3-7 7" />
     <path d="m3 21 7-7" />
     <path d="M9 21H3v-6" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `minimize-2`: exit full screen. */
 export const IconLucideMinimize2 = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="m14 10 7-7" />
     <path d="M20 10h-6V4" />
     <path d="m3 21 7-7" />
     <path d="M4 14h6v6" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `tablet-smartphone`: the device emulator. */
 export const IconLucideTabletSmartphone = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <rect width="10" height="14" x="3" y="8" rx="2" />
     <path d="M5 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2h-2.4" />
     <path d="M8 18h.01" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `list-chevrons-up-down`: a list whose trailing chevrons open away
  * from each other (Show all). */
 export const IconLucideListChevronsUpDown = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="M3 5h8" />
     <path d="M3 12h8" />
     <path d="M3 19h8" />
     <path d="m15 8 3-3 3 3" />
     <path d="m15 16 3 3 3-3" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `list-chevrons-down-up`: a list whose trailing chevrons close toward
  * each other (Show less). */
 export const IconLucideListChevronsDownUp = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="M3 5h8" />
     <path d="M3 12h8" />
     <path d="M3 19h8" />
     <path d="m15 5 3 3 3-3" />
     <path d="m15 19 3-3 3 3" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `arrow-left`: go back. */
 export const IconLucideArrowLeft = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="m12 19-7-7 7-7" />
     <path d="M19 12H5" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `arrow-right`: go forward. */
 export const IconLucideArrowRight = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="M5 12h14" />
     <path d="m12 5 7 7-7 7" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `camera`: capture a screenshot. */
 export const IconLucideCamera = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z" />
     <circle cx="12" cy="13" r="3" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `minus`: decrease. */
 export const IconLucideMinus = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="M5 12h14" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `rotate-ccw`: reset. */
 export const IconLucideRotateCcw = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
     <path d="M3 3v5h5" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `play`: start the clip. */
 export const IconLucidePlay = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `pause`: hold the clip. */
 export const IconLucidePause = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <rect x="14" y="3" width="5" height="18" rx="1" />
     <rect x="5" y="3" width="5" height="18" rx="1" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `volume-2`: the clip carries its own sound. */
 export const IconLucideVolume2 = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z" />
     <path d="M16 9a5 5 0 0 1 0 6" />
     <path d="M19.364 18.364a9 9 0 0 0 0-12.728" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `volume-x`: the clip is muted. */
 export const IconLucideVolumeX = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="M11 4.702a.7.7 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.7.7 0 0 0 11 19.298z" />
     <path d="m16.5 14.5 5-5" />
     <path d="m16.5 9.5 5 5" />
-  </svg>
+  </LucideSvg>
 )
 
 /** lucide `download`: save a produced file. */
 export const IconLucideDownload = ({ className }: LucideGlyphProps) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <LucideSvg className={className}>
     <path d="M12 15V3" />
     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
     <path d="m7 10 5 5 5-5" />
-  </svg>
+  </LucideSvg>
 )

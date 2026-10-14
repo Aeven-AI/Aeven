@@ -1,263 +1,222 @@
 // @vitest-environment jsdom
+/**
+ * Tooltip is this package's adapter over the Markdown engine's tippy.js
+ * tooltip: it decides the bubble's content, placement, trigger, anchor box and
+ * edge clamp, and forwards the anchor's own ref. tippy is stubbed so those
+ * decisions are observable without a live popper — placement flipping, width
+ * capping, the hover delay and the clamp geometry are tippy's and popper's
+ * behaviour, covered by the engine's own suite and by the assembled browser
+ * case, not here.
+ */
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+
+/** The stubbed tippy factory, recording every creation and the props it received. */
+const tippy = vi.hoisted(() => vi.fn((_reference: Element, _props: Record<string, unknown>) => ({
+  destroy: vi.fn(),
+  setProps: vi.fn(),
+  show: vi.fn(),
+  hide: vi.fn(),
+})))
+
+vi.mock('tippy.js', () => ({ default: tippy }))
+
 import { Tooltip } from '@aeven/client-ui-primitives'
 
-afterEach(cleanup)
+/** Let the engine's dynamic tippy import and its `.then` settle inside act(). */
+async function settle(): Promise<void> {
+  await act(async () => {
+    await Promise.resolve()
+    await Promise.resolve()
+  })
+}
+
+/** The props the engine handed the last created tooltip. */
+function created(): Record<string, unknown> {
+  const call = tippy.mock.calls.at(-1)
+  if (call === undefined) throw new Error('the engine never created a tooltip')
+  return call[1]
+}
+
+/** The last created tooltip instance. */
+function instance(): { hide: ReturnType<typeof vi.fn>; setProps: ReturnType<typeof vi.fn> } {
+  const result = tippy.mock.results.at(-1)?.value as { hide: ReturnType<typeof vi.fn>; setProps: ReturnType<typeof vi.fn> } | undefined
+  if (result === undefined) throw new Error('the engine never created a tooltip')
+  return result
+}
+
+/** The overflow padding the engine resolved for the last created tooltip. */
+function overflowPadding(): unknown {
+  const popper = created()['popperOptions'] as
+    | { modifiers?: { options?: { padding?: unknown } }[] }
+    | undefined
+  return popper?.modifiers?.[0]?.options?.padding
+}
+
+afterEach(() => {
+  document.body.style.removeProperty('--dsw-aeven-page-inset')
+  tippy.mockClear()
+  cleanup()
+})
 
 describe('Tooltip', () => {
-  it('resolves lazy labels only after the bubble becomes visible', () => {
-    vi.useFakeTimers()
-    try {
-      const label = vi.fn(() => 'Timing details')
-      render(
-        <Tooltip label={label}>
-          <button type="button">anchor</button>
-        </Tooltip>,
-      )
-      expect(label).not.toHaveBeenCalled()
-      fireEvent.mouseEnter(screen.getByText('anchor'))
-      act(() => { vi.advanceTimersByTime(499) })
-      expect(label).not.toHaveBeenCalled()
-      act(() => { vi.advanceTimersByTime(1) })
-      expect(screen.getByRole('tooltip').textContent).toBe('Timing details')
-      expect(label).toHaveBeenCalledOnce()
-    } finally {
-      vi.useRealTimers()
-    }
+  it('resolves a lazy label on render and hands it to the bubble as content', async () => {
+    const label = vi.fn(() => 'Timing details')
+    const view = render(
+      <Tooltip label={label}>
+        <button type="button">anchor</button>
+      </Tooltip>,
+    )
+    await settle()
+    expect(label).toHaveBeenCalled()
+    expect(created()['content']).toBe('Timing details')
+
+    // A label change reaches the live bubble without rebuilding it.
+    view.rerender(
+      <Tooltip label="Open sidebar">
+        <button type="button">anchor</button>
+      </Tooltip>,
+    )
+    await settle()
+    expect(instance().setProps).toHaveBeenCalledWith(expect.objectContaining({ content: 'Open sidebar' }))
   })
 
-  it('can delay pointer hover without delaying keyboard focus', () => {
-    vi.useFakeTimers()
-    try {
-      render(
-        <Tooltip label="Timing details">
-          <button type="button">anchor</button>
-        </Tooltip>,
-      )
-      const anchor = screen.getByText('anchor')
-      fireEvent.mouseEnter(anchor)
-      act(() => { vi.advanceTimersByTime(499) })
-      expect(screen.queryByRole('tooltip')).toBeNull()
-      fireEvent.mouseLeave(anchor)
-      act(() => { vi.advanceTimersByTime(1) })
-      expect(screen.queryByRole('tooltip')).toBeNull()
-      fireEvent.mouseEnter(anchor)
-      act(() => { vi.advanceTimersByTime(500) })
-      expect(screen.getByRole('tooltip').textContent).toBe('Timing details')
-      fireEvent.mouseLeave(anchor)
-      fireEvent.focus(anchor)
-      expect(screen.getByRole('tooltip').textContent).toBe('Timing details')
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
-  it('shows the bubble to the right on hover and hides it on leave', () => {
+  it('hangs the requested side on the bubble, right by default', async () => {
     render(
       <Tooltip label="Open sidebar">
         <button type="button">anchor</button>
       </Tooltip>,
     )
-    const anchor = screen.getByText('anchor')
-    fireEvent.mouseEnter(anchor)
-    const bubble = screen.getByRole('tooltip')
-    expect(bubble.textContent).toBe('Open sidebar')
-    expect(bubble.getAttribute('data-side')).toBe('right')
-    // jsdom rects are all-zero: right placement lands at the +10 gutter, then
-    // the zero-width measured rect clamps to the 12px edge margin (10 + 12).
-    expect(bubble.style.left).toBe('22px')
-    expect(bubble.style.top).toBe('0px')
-    fireEvent.mouseLeave(anchor)
-    expect(screen.queryByRole('tooltip')).toBeNull()
+    await settle()
+    expect(created()['placement']).toBe('right')
+
+    cleanup()
+    tippy.mockClear()
+    render(
+      <Tooltip label="Below" side="bottom-start">
+        <button type="button">anchor</button>
+      </Tooltip>,
+    )
+    await settle()
+    expect(created()['placement']).toBe('bottom-start')
   })
 
-  it('supports bottom placement and the focus/blur channel', () => {
+  it('measures the bubble against the whole anchor box by default', async () => {
     render(
-      <Tooltip label="Below" side="bottom">
+      <Tooltip label="Rail">
         <button type="button">anchor</button>
       </Tooltip>,
     )
     const anchor = screen.getByText('anchor')
-    fireEvent.focus(anchor)
-    const bubble = screen.getByRole('tooltip')
-    expect(bubble.getAttribute('data-side')).toBe('bottom')
-    // Zero-width jsdom rect at x=0 clamps to the 12px edge margin.
-    expect(bubble.style.left).toBe('12px')
-    expect(bubble.style.top).toBe('8px')
-    fireEvent.blur(anchor)
-    expect(screen.queryByRole('tooltip')).toBeNull()
+    const box = {
+      left: 10, right: 40, top: 5, bottom: 25, width: 30, height: 20, x: 10, y: 5, toJSON: () => ({}),
+    } as DOMRect
+    vi.spyOn(anchor, 'getBoundingClientRect').mockReturnValue(box)
+    await settle()
+    // No glyph box: an anchor's padding is part of its control.
+    const reference = created()['getReferenceClientRect'] as () => DOMRect
+    expect(reference()).toBe(box)
   })
 
-  // jsdom's default rects are all-zero, so the clamp tests stub the measured
-  // rect (anchor and bubble share the prototype stub) and derive expectations
-  // from it: pos.x = anchor center, then shifted by the measured overflow.
-  const rect = (left: number, right: number): DOMRect =>
-    ({ left, right, top: 0, bottom: 20, width: right - left, height: 20, x: left, y: 0, toJSON: () => ({}) })
-
-  it('caps the bubble width where the label would otherwise slab across the surface', () => {
+  it('places an icon-anchored bubble against the glyph, one pixel past its edge', async () => {
+    // The frame's icon-only chrome buttons opt in: the arrow sits on the
+    // glyph's centre rather than on the padded control's.
+    const rectOf = (left: number, top: number, width: number, height: number): DOMRect => ({
+      left, top, width, height, right: left + width, bottom: top + height, x: left, y: top, toJSON: () => ({}),
+    })
     render(
-      <Tooltip label="A description long enough to need a cap" side="bottom">
+      <Tooltip label="Rail" anchor="icon">
+        <button type="button"><svg data-testid="glyph" /></button>
+      </Tooltip>,
+    )
+    const glyph = screen.getByTestId('glyph')
+    const control = glyph.closest('button')!
+    vi.spyOn(glyph, 'getBoundingClientRect').mockReturnValue(rectOf(40, 4, 16, 16))
+    vi.spyOn(control, 'getBoundingClientRect').mockReturnValue(rectOf(36, 0, 24, 24))
+    await settle()
+
+    const placement = created()['getReferenceClientRect'] as () => DOMRect
+    const placed = placement()
+    // `right`: the bubble hangs one pixel past the glyph and keeps the
+    // control's own box on the other axis.
+    expect(placed.left).toBe(36)
+    expect(placed.right).toBe(57)
+    expect(placed.top).toBe(4)
+    expect(placed.height).toBe(16)
+  })
+
+  it('keeps an icon-anchored bubble 8px inside the page inset', async () => {
+    // The arrow needs 11px of bubble either side of the glyph, so a bubble
+    // clamped at the inset itself would hold it off the glyph's centre.
+    document.body.style.setProperty('--dsw-aeven-page-inset', '24px')
+    render(
+      <Tooltip label="Rail" anchor="icon">
         <button type="button">anchor</button>
       </Tooltip>,
     )
-    fireEvent.mouseEnter(screen.getByText('anchor'))
-
-    // The stylesheet's half-viewport cap stays the default; this one overrides it.
-    expect(screen.getByRole('tooltip').style.maxWidth).toBe('360px')
+    await settle()
+    expect(overflowPadding()).toBe(16)
   })
 
-  it('clamps a bubble overflowing the right viewport edge back inside', () => {
-    const spy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue(rect(900, 1100))
-    try {
-      render(
-        <Tooltip label="Wide" side="bottom">
-          <button type="button">anchor</button>
-        </Tooltip>,
-      )
-      fireEvent.mouseEnter(screen.getByText('anchor'))
-      // pos.x = 1000 (anchor center); measured right edge 1100 overflows the
-      // 1024 viewport's 12px safe margin (limit 1012) by 88, so the clamp
-      // shifts left to 912.
-      expect(screen.getByRole('tooltip').style.left).toBe('912px')
-    } finally {
-      spy.mockRestore()
-    }
+  it('clamps the bubble inside a host surface instead of the viewport', async () => {
+    const surface = document.createElement('div')
+    document.body.append(surface)
+    const boundary = vi.fn(() => surface)
+    render(
+      <Tooltip label="Rail" boundary={boundary}>
+        <button type="button">anchor</button>
+      </Tooltip>,
+    )
+    await settle()
+    expect(boundary).toHaveBeenCalledOnce()
+    const popper = created()['popperOptions'] as
+      | { modifiers: { options: { padding: unknown; boundary: unknown } }[] }
+      | undefined
+    // Flush with the host's own edges: the host's gutter replaces tippy's.
+    expect(popper?.modifiers[0]?.options.boundary).toBe(surface)
+    expect(popper?.modifiers[0]?.options.padding).toBe(0)
   })
 
-  it('reclamps after label and viewport width changes', () => {
-    const originalWidth = window.innerWidth
-    const spy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
-      if (this.getAttribute('role') !== 'tooltip') return rect(900, 1000)
-      return this.textContent === 'Wide' ? rect(900, 1100) : rect(850, 950)
-    })
-    try {
-      const view = render(
-        <Tooltip label="Wide" side="bottom">
-          <button type="button">anchor</button>
-        </Tooltip>,
-      )
-      fireEvent.mouseEnter(screen.getByText('anchor'))
-      expect(screen.getByRole('tooltip').style.left).toBe('862px')
+  it('suppresses the bubble while disabled without remounting the anchor', async () => {
+    const view = render(
+      <Tooltip label="Rail" disabled>
+        <button type="button">anchor</button>
+      </Tooltip>,
+    )
+    const anchor = screen.getByText('anchor')
+    await settle()
+    expect(created()['trigger']).toBe('manual')
 
-      view.rerender(
-        <Tooltip label="Short" side="bottom">
-          <button type="button">anchor</button>
-        </Tooltip>,
-      )
-      expect(screen.getByRole('tooltip').style.left).toBe('950px')
-
-      Object.defineProperty(window, 'innerWidth', { configurable: true, value: 900 })
-      fireEvent(window, new Event('resize'))
-      expect(screen.getByRole('tooltip').style.left).toBe('888px')
-    } finally {
-      Object.defineProperty(window, 'innerWidth', { configurable: true, value: originalWidth })
-      spy.mockRestore()
-    }
+    view.rerender(
+      <Tooltip label="Rail">
+        <button type="button">anchor</button>
+      </Tooltip>,
+    )
+    // Same DOM node: toggling disabled never remounted the anchor.
+    expect(screen.getByText('anchor')).toBe(anchor)
+    await settle()
+    expect(instance().setProps).toHaveBeenCalledWith(expect.objectContaining({ trigger: 'mouseenter' }))
   })
 
-  it('clamps a bubble past the left viewport edge back inside', () => {
-    const spy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue(rect(-20, 80))
-    try {
-      render(
-        <Tooltip label="Wide" side="bottom">
-          <button type="button">anchor</button>
-        </Tooltip>,
-      )
-      fireEvent.mouseEnter(screen.getByText('anchor'))
-      // pos.x = 30 (anchor center); measured left edge -20 underflows the
-      // 12px safe margin by 32, so the clamp shifts right to 62.
-      expect(screen.getByRole('tooltip').style.left).toBe('62px')
-    } finally {
-      spy.mockRestore()
-    }
+  it('drops an already-visible bubble when disabled flips mid-hover', async () => {
+    // e.g. clicking a rail control expands the sidebar: no mouseleave fires.
+    const view = render(
+      <Tooltip label="Rail">
+        <button type="button">anchor</button>
+      </Tooltip>,
+    )
+    await settle()
+    const bubble = instance()
+
+    view.rerender(
+      <Tooltip label="Rail" disabled>
+        <button type="button">anchor</button>
+      </Tooltip>,
+    )
+    expect(bubble.hide).toHaveBeenCalledOnce()
   })
 
-  /** Anchor and bubble rects, so a placement test measures real room rather than jsdom's all-zero boxes. */
-  const placed = (anchorTop: number, anchorBottom: number, bubbleHeight: number) =>
-    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
-      const [top, bottom] = this.getAttribute('role') === 'tooltip'
-        ? [0, bubbleHeight]
-        : [anchorTop, anchorBottom]
-      return {
-        left: 100, right: 200, top, bottom, width: 100, height: bottom - top, x: 100, y: top, toJSON: () => ({}),
-      }
-    })
-
-  it('supports top placement for anchors at the viewport bottom', () => {
-    const spy = placed(700, 720, 20)
-    try {
-      render(
-        <Tooltip label="Above" side="top">
-          <button type="button">anchor</button>
-        </Tooltip>,
-      )
-      fireEvent.mouseEnter(screen.getByText('anchor'))
-      const bubble = screen.getByRole('tooltip')
-      // There is room above, so the requested side stands: the bubble's own
-      // top sits at the anchor's top less the 8px gutter.
-      expect(bubble.getAttribute('data-side')).toBe('top')
-      expect(bubble.style.top).toBe('692px')
-      expect(bubble.style.left).toBe('150px')
-    } finally {
-      spy.mockRestore()
-    }
-  })
-
-  it('flips a bottom bubble above an anchor with no room below', () => {
-    // jsdom's viewport is 768 tall: a 300px bubble under an anchor ending at
-    // 700 would run off, and there is room for it above.
-    const spy = placed(600, 700, 300)
-    try {
-      render(
-        <Tooltip label="Tall" side="bottom">
-          <button type="button">anchor</button>
-        </Tooltip>,
-      )
-      fireEvent.mouseEnter(screen.getByText('anchor'))
-      const bubble = screen.getByRole('tooltip')
-      expect(bubble.getAttribute('data-side')).toBe('top')
-      expect(bubble.style.top).toBe('592px')
-    } finally {
-      spy.mockRestore()
-    }
-  })
-
-  it('flips a top bubble below an anchor with no room above', () => {
-    const spy = placed(10, 40, 100)
-    try {
-      render(
-        <Tooltip label="Tall" side="top">
-          <button type="button">anchor</button>
-        </Tooltip>,
-      )
-      fireEvent.mouseEnter(screen.getByText('anchor'))
-      const bubble = screen.getByRole('tooltip')
-      expect(bubble.getAttribute('data-side')).toBe('bottom')
-      expect(bubble.style.top).toBe('48px')
-    } finally {
-      spy.mockRestore()
-    }
-  })
-
-  it('keeps the requested side when neither side fits', () => {
-    // A bubble taller than the viewport has no home; oscillating between the
-    // two would be worse than honouring the request.
-    const spy = placed(300, 400, 900)
-    try {
-      render(
-        <Tooltip label="Huge" side="bottom">
-          <button type="button">anchor</button>
-        </Tooltip>,
-      )
-      fireEvent.mouseEnter(screen.getByText('anchor'))
-      expect(screen.getByRole('tooltip').getAttribute('data-side')).toBe('bottom')
-    } finally {
-      spy.mockRestore()
-    }
-  })
-
-  it('chains the anchor\'s own handlers ahead of the tooltip\'s', () => {
+  it("chains the anchor's own handlers ahead of the tooltip's", () => {
     const onMouseEnter = vi.fn()
     const onMouseLeave = vi.fn()
     const onFocus = vi.fn()
@@ -278,46 +237,6 @@ describe('Tooltip', () => {
     expect(onBlur).toHaveBeenCalledOnce()
   })
 
-  it('suppresses the bubble while disabled without remounting the anchor', () => {
-    const { rerender } = render(
-      <Tooltip label="Rail" disabled>
-        <button type="button">anchor</button>
-      </Tooltip>,
-    )
-    const anchor = screen.getByText('anchor')
-    fireEvent.mouseEnter(anchor)
-    expect(screen.queryByRole('tooltip')).toBeNull()
-    rerender(
-      <Tooltip label="Rail">
-        <button type="button">anchor</button>
-      </Tooltip>,
-    )
-    // Same DOM node: toggling disabled never remounted the anchor.
-    expect(screen.getByText('anchor')).toBe(anchor)
-    fireEvent.mouseEnter(anchor)
-    expect(screen.getByRole('tooltip')).toBeTruthy()
-  })
-
-  it('mouse leave hides the bubble immediately, even while the anchor stays focused', () => {
-    render(
-      <Tooltip label="Sticky">
-        <button type="button">anchor</button>
-      </Tooltip>,
-    )
-    const anchor = screen.getByText('anchor')
-    // Focused AND hovered: leaving with the mouse drops the bubble at once.
-    fireEvent.focus(anchor)
-    fireEvent.mouseEnter(anchor)
-    fireEvent.mouseLeave(anchor)
-    expect(screen.queryByRole('tooltip')).toBeNull()
-    // Re-entering shows it again; blurring while still hovered keeps it.
-    fireEvent.mouseEnter(anchor)
-    fireEvent.blur(anchor)
-    expect(screen.getByRole('tooltip')).toBeTruthy()
-    fireEvent.mouseLeave(anchor)
-    expect(screen.queryByRole('tooltip')).toBeNull()
-  })
-
   it('forwards the anchor element to the child ref (object and callback)', () => {
     const objectRef = { current: null as HTMLButtonElement | null }
     const callbackRef = vi.fn()
@@ -327,31 +246,11 @@ describe('Tooltip', () => {
       </Tooltip>,
     )
     expect(objectRef.current).toBe(screen.getByText('anchor'))
-    // Tooltip's own positioning still works through the merged ref.
-    fireEvent.mouseEnter(screen.getByText('anchor'))
-    expect(screen.getByRole('tooltip')).toBeTruthy()
     rerender(
       <Tooltip label="Add">
         <button type="button" ref={callbackRef}>anchor</button>
       </Tooltip>,
     )
     expect(callbackRef).toHaveBeenCalledWith(screen.getByText('anchor'))
-  })
-
-  it('drops an already-visible bubble when disabled flips mid-hover', () => {
-    const { rerender } = render(
-      <Tooltip label="Rail">
-        <button type="button">anchor</button>
-      </Tooltip>,
-    )
-    fireEvent.mouseEnter(screen.getByText('anchor'))
-    expect(screen.getByRole('tooltip')).toBeTruthy()
-    // e.g. clicking a rail control expands the sidebar: no mouseleave fires.
-    rerender(
-      <Tooltip label="Rail" disabled>
-        <button type="button">anchor</button>
-      </Tooltip>,
-    )
-    expect(screen.queryByRole('tooltip')).toBeNull()
   })
 })

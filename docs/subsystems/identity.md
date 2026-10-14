@@ -8,7 +8,7 @@ Source: [`packages/identity/user/src/types.ts`](../../packages/identity/user/src
 
 ## What an authority is given
 
-An authority receives headers and nothing else, because headers are what both AVN transports have in common. An HTTP request carries its credential in `authorization`; a WebSocket upgrade carries it in `cookie`, because a browser cannot set a header on the upgrade. Nothing is decoded for the authority — it reads whichever header it recognizes.
+An authority receives headers and nothing else, because headers are what both AVN transports have in common. An HTTP request carries its credential in `authorization`. A browser cannot set a header on a WebSocket upgrade, so the Remote stream Client offers its bearer as a subprotocol and the gateway presents it to the seam as `authorization`; an upgrade without one carries only `cookie`. Nothing is decoded for the authority — it reads whichever header it recognizes.
 
 `User` guarantees only `id`. That is what a subsystem keys work on and the only field an authority must be able to produce; `email`, `displayName`, and `avatarUrl` are presentation an authority may or may not hold, so a consumer that wants a display name handles its absence rather than assuming a profile was fetched.
 
@@ -65,6 +65,44 @@ registerResolver(resolver: UserResolver): () => void
  * @returns the authenticated user, or undefined when none recognized it.
  */
 resolve(request: IdentityRequest): User | undefined
+
+/**
+ * Run one admitted request's work with its caller as the acting user.
+ * @param request - the credential-bearing headers the request fence admitted.
+ * @param work - the request's dispatch; everything it awaits sees the same caller.
+ * @returns the work's result.
+ */
+runAsCaller<T>(request: IdentityRequest, work: () => T): T
+
+/**
+ * Run work with an already-identified user as the acting user, for a
+ * connection that authenticated once and dispatches later, such as a
+ * WebSocket whose credential was presented only at its upgrade.
+ * @param user - the user the connection authenticated, or undefined when it authenticated nobody.
+ * @param work - the dispatch; everything it awaits sees the same caller.
+ * @returns the work's result.
+ */
+runAs<T>(user: User | undefined, work: () => T): T
+
+/**
+ * The caller of the request whose dispatch is running, for subsystems that must attribute durable
+ * state to a person, such as the owner of a session it creates.
+ * @returns the acting user, or undefined outside an identified request.
+ */
+actingUser(): User | undefined
+
+/**
+ * Whether a caller may reach state that belongs to one account, such as a session.
+ *
+ * With no authority registered the harness authenticates nobody and every
+ * caller may. Otherwise only the owner may: one Host serves several signed-in
+ * accounts at once, and state that records no owner belongs to no signed-in
+ * user, so no caller reaches it.
+ * @param owner - account id the state belongs to, when recorded.
+ * @param caller - the caller, captured where its request was admitted; defaults to the acting user.
+ * @returns true when the caller may reach the state.
+ */
+mayAccess(owner: string | undefined, caller: User | undefined = this.actingUser()): boolean
 
 /**
  * The credential reference the resolver that recognizes this request named.

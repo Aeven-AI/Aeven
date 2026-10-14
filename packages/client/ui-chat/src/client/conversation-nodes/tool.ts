@@ -1,11 +1,11 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type {
-  ConversationMatch, ConversationNodeContext, ConversationNodeDefinition,
+  ConversationMatch, ConversationNodeContext, ConversationNodeDefinition, RunningToolCall,
+  ToolCallBlock, ToolResultNode,
 } from '@aeven/client-ui-conversation/client'
 import { isAppendSurfaceEvent } from '@aeven/session/surface'
 import type {} from '@aeven/tools/types'
 import type { ToolChatData } from '../contract/chat-nodes.ts'
-import type { RunningToolCall, ToolCallBlock, ToolResultNode } from '../contract/snapshot.ts'
 import { CHAT_SYNTHETIC_SEQ_OFFSETS, chatNode } from './common.ts'
 
 declare module '../contract/chat-nodes.ts' {

@@ -1,17 +1,19 @@
 // @vitest-environment jsdom
 /**
- * Host home reaches the browsing region through the assembled renderer, which
- * memoizes a root entry's inject result for the whole registration — so a home
+ * Host facts reach the browsing region through the assembled renderer, which
+ * memoizes a root entry's inject result for the whole registration — so facts
  * read once at first render would freeze there. This spec drives the real slot
  * renderer (not a direct `entry.inject()` call, which bypasses that memo) and
- * pins that a home learned after first render reaches the rendered rows.
+ * pins that the injected hook answers with the Home the Host reports now, once
+ * a Home arrives after the region has already rendered.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, fireEvent, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { act, cleanup } from '@testing-library/react'
 import type { WorkspaceId } from '@aeven/api-workspace-controller/client'
 import type { PropsRenderSlots } from '@aeven/client-ui-slots'
 import { SlotTestRuntime, TestRemote, usePinnedBrowserLanguages } from '@aeven/client-test-runtime'
 import { LocaleRuntime } from '@aeven/client-locale/client'
+import type { WorkspaceBrowserInjected } from '@aeven/client-ui-workspace/client'
 import { apply, inject } from '@aeven/client-ui-workspace/client'
 
 usePinnedBrowserLanguages('zh-CN')
@@ -50,42 +52,35 @@ async function bench() {
   return { runtime, remote }
 }
 
-/** Open the Workspace row's hover card, which is where the home abbreviation shows. */
-function openHoverCard(): void {
-  const row = screen.getByRole('treeitem').parentElement as HTMLElement
-  fireEvent.pointerEnter(row)
-  act(() => { vi.advanceTimersByTime(500) })
-}
-
-/** Close it again, so the next hover rebuilds the card from current props. */
-function closeHoverCard(): void {
-  const row = screen.getByRole('treeitem').parentElement as HTMLElement
-  fireEvent.pointerLeave(row)
-  act(() => { vi.advanceTimersByTime(500) })
-}
-
 describe('Host home in the assembled browsing region', () => {
-  it('abbreviates the path once a home learned after first render reaches the rows', async () => {
+  // Divergence: the row's hover card — the only surface that abbreviated a
+  // Workspace path against the Host's home — was removed from the product, so
+  // the injected hostInfo source is now the whole observable contract. No
+  // HoverCard consumer remains under packages/client/*/src; ui-workspace's
+  // README ("Hover cards") and its injected hooks.hostInfo (now without a
+  // reader) still describe the removed surface.
+  it('answers with a home learned after first render, through the injected hook', async () => {
     // First render precedes the ready frame: the shell mounts while the carrier
     // is still handshaking, so the Host reports no home yet.
     const { runtime, remote } = await bench()
     remote.$host = { home: undefined, isLoopback: true }
     runtime.renderRoot()
-    vi.useFakeTimers()
-    try {
-      openHoverCard()
-      expect(screen.getByText('/home/u/Documents/project')).toBeTruthy()
-      closeHoverCard()
+    const entry = runtime.slots.entries('sidebar.workspaces')[0]!
+    const browser = (entry.inject as () => WorkspaceBrowserInjected)()
+    const homes: Array<string | undefined> = []
+    const unsubscribe = browser.hooks.hostInfo.subscribe(() => {
+      homes.push(browser.hooks.hostInfo.getSnapshot().home)
+    })
+    expect(browser.hooks.hostInfo.getSnapshot().home).toBeUndefined()
 
-      // The ready frame lands: `$host.home` now answers, and the generation is
-      // announced through the reset every consumer already listens to.
-      remote.$host = { home: '/home/u', isLoopback: true }
-      act(() => { runtime.ctx.emit('connection/reset') })
-      openHoverCard()
-
-      expect(screen.getByText('~/Documents/project')).toBeTruthy()
-    } finally {
-      vi.useRealTimers()
-    }
+    // The ready frame lands: `$host.home` now answers, and the generation is
+    // announced through the reset every consumer already listens to. The face
+    // the renderer already holds reports the new value — nothing froze it at
+    // the first render.
+    remote.$host = { home: '/home/u', isLoopback: true }
+    act(() => { runtime.ctx.emit('connection/reset') })
+    expect(browser.hooks.hostInfo.getSnapshot().home).toBe('/home/u')
+    expect(homes).toEqual(['/home/u'])
+    unsubscribe()
   })
 })

@@ -1,0 +1,253 @@
+# Build the desktop application for every release target and publish the
+# installers and the update feeds as one GitHub Release.
+#
+# A `v<version>` tag that matches the root package.json version starts a run
+# that publishes. A manual run builds the same tree and keeps the installers as
+# workflow artifacts; with `publish` set it publishes under the version tag.
+# Each target signs when all of its secrets exist, builds unsigned when none
+# exist, and fails when only some exist:
+#   Windows - Azure Trusted Signing: AZURE_TENANT_ID, AZURE_CLIENT_ID,
+#             AZURE_CLIENT_SECRET, AZURE_TRUSTED_SIGNING_ENDPOINT,
+#             AZURE_TRUSTED_SIGNING_ACCOUNT_NAME,
+#             AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME,
+#             AZURE_TRUSTED_SIGNING_PUBLISHER_NAME
+#   macOS   - Developer ID and notarization: MACOS_CERTIFICATE_P12 (base64),
+#             MACOS_CERTIFICATE_PASSWORD, AVN_DESKTOP_MACOS_SIGNING_IDENTITY,
+#             AVN_DESKTOP_MACOS_TEAM_ID, APPLE_API_KEY_P8 (key file contents),
+#             APPLE_API_KEY_ID, APPLE_API_ISSUER
+# The application id comes from the AVN_DESKTOP_APP_ID repository variable.
+name: Release desktop
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the GitHub Release and update feeds (unset keeps the installers as workflow artifacts)
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-desktop-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: win-x64
+            runner: windows-latest
+            script: win:x64
+          - target: win-arm64
+            runner: windows-11-arm
+            script: win:arm64
+          - target: mac-arm64
+            runner: macos-15
+            script: mac:arm64
+    env:
+      AVN_DESKTOP_APP_ID: ${{ vars.AVN_DESKTOP_APP_ID || 'com.aeven.desktop' }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: native/whatsapp-mcp/source/go.mod
+          cache: false
+
+      - name: Check the tag matches the release version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match package.json version ${version}"
+            exit 1
+          fi
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Choose signed or unsigned
+        id: signing
+        env:
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TRUSTED_SIGNING_ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+          AZURE_TRUSTED_SIGNING_ACCOUNT_NAME: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT_NAME }}
+          AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME: ${{ secrets.AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME }}
+          AZURE_TRUSTED_SIGNING_PUBLISHER_NAME: ${{ secrets.AZURE_TRUSTED_SIGNING_PUBLISHER_NAME }}
+          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          AVN_DESKTOP_MACOS_SIGNING_IDENTITY: ${{ secrets.AVN_DESKTOP_MACOS_SIGNING_IDENTITY }}
+          AVN_DESKTOP_MACOS_TEAM_ID: ${{ secrets.AVN_DESKTOP_MACOS_TEAM_ID }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          case "${{ matrix.target }}" in
+            win-*) names="AZURE_TENANT_ID AZURE_CLIENT_ID AZURE_CLIENT_SECRET AZURE_TRUSTED_SIGNING_ENDPOINT AZURE_TRUSTED_SIGNING_ACCOUNT_NAME AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME AZURE_TRUSTED_SIGNING_PUBLISHER_NAME" ;;
+            mac-*) names="MACOS_CERTIFICATE_P12 MACOS_CERTIFICATE_PASSWORD AVN_DESKTOP_MACOS_SIGNING_IDENTITY AVN_DESKTOP_MACOS_TEAM_ID APPLE_API_KEY_P8 APPLE_API_KEY_ID APPLE_API_ISSUER" ;;
+          esac
+          present=""
+          missing=""
+          for name in $names; do
+            if [ -n "${!name}" ]; then present="$present $name"; else missing="$missing $name"; fi
+          done
+          if [ -n "$present" ] && [ -n "$missing" ]; then
+            echo "::error::${{ matrix.target }}: signing is partly configured; missing:${missing}"
+            exit 1
+          fi
+          if [ -z "$missing" ]; then signed=true; else signed=false; fi
+          echo "signed=${signed}" >> "$GITHUB_OUTPUT"
+          if [ "$signed" = true ]; then echo "${{ matrix.target }}: signing enabled"; else echo "${{ matrix.target }}: no signing secrets, building unsigned"; fi
+
+      # Seed preparation signs every embedded Mach-O with `codesign --sign`
+      # before electron-builder runs, so the Developer ID identity must already
+      # be in a keychain on the search list.
+      - name: Import the macOS signing identity
+        if: startsWith(matrix.target, 'mac-') && steps.signing.outputs.signed == 'true'
+        env:
+          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+        run: |
+          keychain="$RUNNER_TEMP/release.keychain-db"
+          password="$(openssl rand -hex 24)"
+          echo "$MACOS_CERTIFICATE_P12" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          security import "$RUNNER_TEMP/certificate.p12" -P "$MACOS_CERTIFICATE_PASSWORD" -f pkcs12 -T /usr/bin/codesign -k "$keychain"
+          security set-key-partition-list -S apple-tool:,apple: -k "$password" "$keychain" > /dev/null
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/certificate.p12"
+          key="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
+          printf '%s' "$APPLE_API_KEY_P8" > "$key"
+          echo "APPLE_API_KEY=$key" >> "$GITHUB_ENV"
+
+      - name: Package
+        env:
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TRUSTED_SIGNING_ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+          AZURE_TRUSTED_SIGNING_ACCOUNT_NAME: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT_NAME }}
+          AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME: ${{ secrets.AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME }}
+          AZURE_TRUSTED_SIGNING_PUBLISHER_NAME: ${{ secrets.AZURE_TRUSTED_SIGNING_PUBLISHER_NAME }}
+          AVN_DESKTOP_MACOS_SIGNING_IDENTITY: ${{ secrets.AVN_DESKTOP_MACOS_SIGNING_IDENTITY }}
+          AVN_DESKTOP_MACOS_TEAM_ID: ${{ secrets.AVN_DESKTOP_MACOS_TEAM_ID }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          if [ "${{ steps.signing.outputs.signed }}" = true ]; then
+            pnpm run package:desktop:${{ matrix.script }}
+          else
+            pnpm run package:desktop:${{ matrix.script }}:unsigned
+          fi
+
+      # Each target writes its own feed under the channel's name (latest.yml,
+      # alpha.yml, alpha-mac.yml, ...). The target goes into the name so the
+      # release job can merge the two Windows feeds into one.
+      - name: Collect release assets
+        run: |
+          artifacts="apps/desktop/.desktop-build/targets/${{ matrix.target }}/artifacts"
+          mkdir -p release-assets
+          shopt -s nullglob
+          for file in "$artifacts"/*.exe "$artifacts"/*.dmg "$artifacts"/*.zip "$artifacts"/*.blockmap; do
+            cp "$file" release-assets/
+          done
+          for feed in "$artifacts"/*.yml; do
+            name="$(basename "$feed" .yml)"
+            case "$name" in builder-debug|builder-effective-config) continue ;; esac
+            cp "$feed" "release-assets/${name}--${{ matrix.target }}.yml"
+          done
+          ls -la release-assets
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-${{ matrix.target }}
+          path: release-assets/*
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    if: github.event_name == 'push' || inputs.publish
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile --filter @aeven/desktop...
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: release-*
+          path: release-assets
+          merge-multiple: true
+
+      # Windows x64 and arm64 feeds merge into one file that lists both
+      # installers; the macOS feed only drops its target suffix.
+      - name: Assemble update feeds
+        run: |
+          shopt -s nullglob
+          for x64 in release-assets/*--win-x64.yml; do
+            name="$(basename "$x64" --win-x64.yml)"
+            arm64="release-assets/${name}--win-arm64.yml"
+            if [ -f "$arm64" ]; then
+              pnpm --dir apps/desktop exec tsx scripts/merge-update-manifests.ts "$PWD/$x64" "$PWD/$arm64" "$PWD/release-assets/${name}.yml"
+              rm "$x64" "$arm64"
+            else
+              mv "$x64" "release-assets/${name}.yml"
+            fi
+          done
+          for feed in release-assets/*--*.yml; do
+            name="$(basename "$feed" .yml)"
+            mv "$feed" "release-assets/${name%%--*}.yml"
+          done
+          ls -la release-assets
+
+      - name: Resolve the release
+        id: release
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          echo "tag=v${version}" >> "$GITHUB_OUTPUT"
+          case "$version" in *-*) echo "prerelease=true" >> "$GITHUB_OUTPUT" ;; *) echo "prerelease=false" >> "$GITHUB_OUTPUT" ;; esac
+
+      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
+        with:
+          tag_name: ${{ steps.release.outputs.tag }}
+          name: Aeven ${{ steps.release.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          prerelease: ${{ steps.release.outputs.prerelease == 'true' }}
+          generate_release_notes: true
+          files: release-assets/*
+          fail_on_unmatched_files: true

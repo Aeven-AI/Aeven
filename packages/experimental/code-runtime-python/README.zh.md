@@ -134,6 +134,9 @@ kind: "package-reference"
 - **截断标记文本与临时目录前缀保留改名前的短名**——标记 `[avn-code-runtime-python] log capture truncated at <N> bytes` 与 `avn-code-runtime-python-` 临时目录前缀被测试逐字节锚定，且独立于 npm 包名；promotion（去掉 `experimental-` 前缀）不会重命名它们。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

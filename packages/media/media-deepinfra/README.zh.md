@@ -102,6 +102,9 @@ DeepInfra 对正在渲染的任务报告 `queued`，且根本不发布任何运�
 - **Ark 专有开关不可用**——DeepInfra 不暴露 `watermark`、`sequential_image_generation` 或 `max_images`。`n` 执行独立生成，不会创建原生故事或变体集。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

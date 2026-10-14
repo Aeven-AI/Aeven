@@ -43,6 +43,9 @@ kind: "package-group"
 - [面向模型的会话查询工具](../../.agents/notes/implemented/feature/2026-07-24-model-facing-session-query-tools.zh.md)——工作区授权与无游标结果设计。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ## 开发备注
 
 无。

@@ -3,4 +3,4 @@
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/workflow/workflow/README.md
 README.md: 077ad580d61d8aa99597c1bdab55e9ec407b4f0a
-README.zh.md: 35ca3a725410210fc5597a11b3a3189ad4a57cea
+README.zh.md: 9e354391823d8cac80576c322f31714bac7487d5

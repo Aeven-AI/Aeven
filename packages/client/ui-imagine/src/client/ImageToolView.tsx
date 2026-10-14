@@ -54,7 +54,8 @@ export function ImagePromptControl({ prompt, t }: { prompt: string; t: PropsLoca
  * The frame orientation a call's own request names: a `WIDTHxHEIGHT` size or a
  * `W:H` aspect ratio, whichever the call carries.
  * @param args - the call's parsed tool arguments.
- * @returns the requested orientation — a square request frames landscape — or `undefined` for a request that names none: a resolution tier, `auto`, or no size.
+ * @returns the requested orientation — a square request frames landscape — or `undefined` for a request that names
+ * none: a resolution tier, `auto`, or no size.
  */
 function requestedOrientation(args: object): 'portrait' | 'landscape' | undefined {
   const row = args as { size?: unknown; aspectRatio?: unknown; aspect_ratio?: unknown }
@@ -120,7 +121,7 @@ export function ImageToolView({ block, renderImages, t }: ToolCallViewProps & Pr
             data-orientation={orientationOf(index)}
           >
             {images[index] !== undefined && renderImages !== undefined
-              ? renderImages({ images: [images[index]!], align: 'start', layout: 'fill' })
+              ? renderImages({ images: [images[index]], align: 'start', layout: 'fill' })
               : <span className={css.status}>{t('image.unavailable')}</span>}
             {prompt !== '' && <ImagePromptControl prompt={prompt} t={t} />}
             {!settled && (

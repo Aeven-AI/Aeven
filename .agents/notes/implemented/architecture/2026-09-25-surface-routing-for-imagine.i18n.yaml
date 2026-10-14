@@ -3,4 +3,4 @@
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-25-surface-routing-for-imagine.md
 2026-09-25-surface-routing-for-imagine.md: b31ff67051280dfad97c6eae4c55919008472b2d
-2026-09-25-surface-routing-for-imagine.zh.md: 098d60bda89af3b75ceb3b991109296ba1a842cc
+2026-09-25-surface-routing-for-imagine.zh.md: 523ff49c55dbfc6baa972e6b905d59b1cfcb5b21

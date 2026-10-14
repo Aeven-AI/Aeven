@@ -137,6 +137,9 @@ kind: "package-library"
 - **用户 patch 若整体替换某行的 `config`，会连同其中的表达式一起丢掉**——flag 胜过的是表达式旁写着的那个值，而不是用户用字面量替换掉表达式之后的结果；保留表达式才能保留 flag 的优先级。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

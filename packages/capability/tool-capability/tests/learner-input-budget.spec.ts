@@ -71,8 +71,8 @@ describe('learner input budget', () => {
   it('sends a transcript below the budget unchanged', async () => {
     const transcript = await learn(work(6), UNBOUNDED)
 
-    expect(transcript).toContain('1. step_1')
-    expect(transcript).toContain('6. step_6')
+    expect(transcript).toContain('1. [think 0s] step_1 {}')
+    expect(transcript).toContain('6. [think 0s] step_6 {}')
     expect(transcript).not.toContain('older tool calls omitted')
     expect(transcript).not.toContain('transcript cut to the learning input budget')
     expect(estimateDistillationTokens(transcript)).toBeLessThan(UNBOUNDED)
@@ -89,16 +89,24 @@ describe('learner input budget', () => {
   })
 
   it('drops the oldest tool calls from a transcript over the budget', async () => {
-    const full = await learn(work(6), UNBOUNDED)
-    const budget = estimateDistillationTokens(full) - 1
-
-    const transcript = await learn(work(6), budget)
+    const full = await learn(work(40), UNBOUNDED)
+    // The floor budget cannot hold forty shortest-clipped calls, so the oldest
+    // have to go, and the model must be told how many were left out.
+    const transcript = await learn(work(40), MIN_INPUT_TOKENS)
 
     expect(transcript).not.toBe(full)
-    expect(estimateDistillationTokens(transcript)).toBeLessThanOrEqual(budget)
-    expect(transcript).not.toContain('1. step_1')
-    expect(transcript).toContain('(1 older tool calls omitted to fit the learning input budget)')
-    expect(transcript).toContain('6. step_6')
+    expect(estimateDistillationTokens(transcript)).toBeLessThanOrEqual(MIN_INPUT_TOKENS)
+    const omitted = /\((\d+) older tool calls omitted to fit the learning input budget\)/.exec(transcript)
+    expect(omitted).not.toBeNull()
+    const dropped = Number(omitted?.[1])
+    expect(dropped).toBeGreaterThan(0)
+    // Every newer call survives, in order, under its own call number.
+    expect([...transcript.matchAll(/^(\d+)\. \[think [^\]]*\] (step_\d+)/gm)]
+      .map(match => [Number(match[1]), match[2]]))
+      .toEqual(Array.from(
+        { length: 40 - dropped },
+        (_unused, index) => [dropped + index + 1, `step_${dropped + index + 1}`],
+      ))
   })
 
   it('keeps the newest evidence when even the tool calls alone exceed the budget', async () => {

@@ -85,8 +85,11 @@ A block boundary is scanned rather than guessed, and everything before the last 
 ### Styling
 
 The engine draws its own chrome from `--hm-*` custom properties declared on `.hypermarkdown`. The stylesheet is plain CSS with native nesting and travels with the bundle: the build's static-linked preset emits it beside the JavaScript and keeps the relative import, so the shell's CSS pipeline owns class hashing and delivery.
+
 Table cells wrap at a maximum width of 32ch; tables wider than their container scroll horizontally. Inline code uses `--hm-size-small`, 1px by 6px padding, a 16px radius, and a `#f2f2f2` background.
+
 A run of two or more images written on consecutive blocks becomes one `div.markdown-image-grid` carrying `data-count`, and a lone image keeps the block it was written as. Grouping is structure only: the shape, radius and fit of a tile, and the row's own geometry, stay with the host, which already owns every rule for a rendered image. A loaded image carries `data-orientation` (`portrait` or `landscape`) so a host can shape each tile to its image.
+
 A paragraph that holds only YouTube or Vimeo links becomes a player per link, and each run of them is one `div.markdown-video-grid` carrying `data-count`, a lone video included. A video linked inside prose keeps its link, and the paragraph or list item that mentions it is followed by a player for it. While a reply streams, a run of image or video lines stays one open block until the paragraph after it arrives, so the run renders as one row. A player shows the video's poster under a play button and loads the provider's frame only when the reader presses it: YouTube from `youtube-nocookie.com`, Vimeo with `dnt=1`, with the frame address rebuilt from the video's id rather than taken from the link. Every tile is 3:2, poster and player alike; Vimeo's poster comes from its oEmbed lookup. Until its poster loads, a tile shows the same `.image-loader` surface an image does and carries `data-loaded` once it has. The engine draws the tile and its button, and the run's geometry stays with the host. The button's accessible name comes from the `playVideo` and `playVideoUntitled` translations, and its glyph from `icons.play`.
 
 </details>

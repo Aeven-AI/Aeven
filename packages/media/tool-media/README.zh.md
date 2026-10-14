@@ -99,6 +99,9 @@ kind: "package-reference"
 - **仅在 Provider 报告时给出费用**——只有 Provider 设置了 `costUsdMicros` 时结果才会说明扣费；否则不写任何价格，模型也没有其他来源。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

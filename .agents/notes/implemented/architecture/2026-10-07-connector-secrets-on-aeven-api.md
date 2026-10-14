@@ -23,7 +23,7 @@ The Aeven API (`servers/node`) holds every one of these secrets, and the Host re
 - **Discord.** The install consent goes through the same routes; the API confirms the bot joined and returns the guild. The connector process gets `DISCORD_API_BASE` pointing at the API's Discord proxy and `DISCORD_AUTHORIZATION: Bearer <owner session>`. The proxy forwards as the bot only when the path names the caller's guild, or a channel or invite Discord reports belongs to it. The bot leaves a guild only when no Aeven user still has it installed there.
 - **Telegram.** The application identifiers are served to signed-in Hosts and cached in the Host's credential provider, so linked accounts start at boot. Every MTProto client must present them, so they cannot be kept from a client running on the user's machine; they identify the application and grant no account.
 
-## Rejected alternatives
+## Alternatives considered
 
 - **Embedding the secrets in the Desktop build** — extractable from any installed copy.
 - **Verifying tokens by calling the API per request** — the identity seam resolves synchronously, and a public key gives the same guarantee with no request.

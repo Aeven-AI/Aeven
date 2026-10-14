@@ -46,18 +46,30 @@ function decodeSegment(segment: string): Buffer | undefined {
 /**
  * Parse a base64url JSON segment.
  * @param segment - the encoded segment.
- * @returns the parsed object, or undefined when the segment is not base64url JSON.
+ * @returns the parsed value, or undefined when the segment is not base64url JSON.
  */
-function decodeJson<T>(segment: string): T | undefined {
+function decodeJson(segment: string): unknown {
   const bytes = decodeSegment(segment)
   if (bytes === undefined) return undefined
   try {
-    return JSON.parse(bytes.toString('utf8')) as T
+    return JSON.parse(bytes.toString('utf8')) as unknown
   } catch {
     // A segment that is not JSON carries nothing this package can verify; the
     // parse is the only statement here, so nothing else can throw.
     return undefined
   }
+}
+
+/**
+ * Parse a base64url JSON object segment.
+ * @param segment - the encoded segment.
+ * @returns the parsed object, or undefined when the segment is not base64url JSON object.
+ */
+function decodeObject(segment: string): Record<string, unknown> | undefined {
+  const parsed = decodeJson(segment)
+  return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+    ? parsed as Record<string, unknown>
+    : undefined
 }
 
 /**
@@ -76,7 +88,7 @@ export function verifyToken(token: string, type: TokenType, keyFor: (kid: string
   if (parts.length !== 3) return REJECTED
   const [encodedHeader, encodedPayload, encodedSignature] = parts as [string, string, string]
 
-  const header = decodeJson<{ alg?: unknown; kid?: unknown }>(encodedHeader)
+  const header = decodeObject(encodedHeader)
   // Pinned, not read from the token: accepting the token's own `alg` is what
   // turns `none` and key-confusion into a signature bypass.
   if (header?.alg !== ALGORITHM || typeof header.kid !== 'string') return REJECTED
@@ -89,7 +101,7 @@ export function verifyToken(token: string, type: TokenType, keyFor: (kid: string
   const signed = Buffer.from(`${encodedHeader}.${encodedPayload}`)
   if (!verify('sha256', signed, { key, dsaEncoding: 'ieee-p1363' }, signature)) return REJECTED
 
-  const claims = decodeJson<Claims>(encodedPayload)
+  const claims: Claims | undefined = decodeObject(encodedPayload)
   if (claims === undefined || claims.typ !== type) return REJECTED
   // An unexpired signature still proves nothing once the deadline passed, and a
   // token without one never expires — neither is accepted.

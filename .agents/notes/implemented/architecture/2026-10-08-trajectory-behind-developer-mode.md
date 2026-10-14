@@ -2,6 +2,8 @@
 
 Status: implemented
 
+English | [中文](2026-10-08-trajectory-behind-developer-mode.zh.md)
+
 ## Problem
 
 Two client surfaces presented the trajectory ledger as everyday machinery. Every tool row carried a hover-revealed `Inspect` pill (generic rows, the bash sample, the skill row, and all three Cordis rows), and the Conversation View owner share carried a one-shot focus request (`viewRequest`/`openView`/`completeViewRequest`) whose only producer was that pill: it opened the ledger and scrolled the requested call into view. The pill was noise for anyone reading a transcript, and the ledger itself — request headers, raw tool schemas, token accounting per request — is a surface for people building Æven, not for the sessions they run.
@@ -28,4 +30,4 @@ Two client surfaces presented the trajectory ledger as everyday machinery. Every
 - Reading a specific call from the transcript is no longer one click: the reader switches to the ledger and finds the record there. In exchange, every tool row lost a control that competed with its content, and four packages lost a prop that only ever forwarded a scroll target.
 - `ui-trajectory` now depends on `@aeven/client-ui-settings-general` and `@aeven/client-ui-settings` for types, and injects `settingsScope`; a composition without a settings document mounts no ledger.
 - The client slot catalog (`cordis_inspect what:"client"`) regenerated with the trimmed owner shares, so a dynamic Plugin author reads the current contracts.
-- Removing the pill supersedes part of [web tool-row unified expand and trajectory Inspect](../../feature/2026-07-30-web-tool-row-unified-expand-and-inspect.md): that note keeps the unified expand interaction and now points here for the deleted Inspect half.
+- Removing the pill supersedes part of [web tool-row unified expand and trajectory Inspect](../feature/2026-07-30-web-tool-row-unified-expand-and-inspect.md): that note keeps the unified expand interaction and now points here for the deleted Inspect half.

@@ -23,7 +23,7 @@ Aeven API（`servers/node`）持有上述全部密钥，宿主只能通过以已
 - **Discord。** 安装授权走同一组路由；API 确认机器人已加入并返回服务器信息。连接器进程得到指向 API Discord 代理的 `DISCORD_API_BASE`，以及 `DISCORD_AUTHORIZATION: Bearer <所有者会话>`。只有当路径指向调用者的服务器，或 Discord 报告属于该服务器的频道或邀请时，代理才以机器人身份转发。只有在没有任何 Aeven 用户仍安装该机器人时，机器人才会退出该服务器。
 - **Telegram。** 应用标识提供给已登录的宿主，并缓存在宿主的凭据提供方中，使已关联的账户可在启动时运行。每个 MTProto 客户端都必须出示它们，因此无法对运行在用户机器上的客户端隐藏；它们只标识应用，不授予任何账户权限。
 
-## Rejected alternatives
+## Alternatives considered
 
 - **把密钥嵌入桌面版本**——任何已安装的副本都可提取。
 - **每次请求都调用 API 校验 token**——身份 seam 同步解析，而公钥无需请求即可提供同样的保证。

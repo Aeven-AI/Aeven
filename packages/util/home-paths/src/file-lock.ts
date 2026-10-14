@@ -18,7 +18,7 @@ export async function tryAcquireFileLock(path: string): Promise<(() => void) | u
     const lastError = kernel.func('__stdcall', 'GetLastError', 'uint', [])
     const handle: unknown = create(toNamespacedPath(path), 0xC0000000, 0, null, 4, 0x80, null)
     if (handle === null || koffi.address(handle) === 0xFFFFFFFFFFFFFFFFn || koffi.address(handle) === 0xFFFFFFFFn) {
-      const code: number = lastError()
+      const code: unknown = lastError()
       if (code === 32 || code === 33) return undefined
       throw new Error(`process lock failed for "${path}" (Win32 ${String(code)})`)
     }

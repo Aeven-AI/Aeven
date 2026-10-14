@@ -41,18 +41,18 @@ class FakeWindow implements SessionUrlWindow {
 }
 
 describe('BrowserSessionUrlNavigation', () => {
-  it('reads, pushes, and replaces encoded SPA Session paths', () => {
+  it('reads, pushes, and replaces Session paths naming a Host-minted id', () => {
     const browser = new FakeWindow()
     const navigation = new BrowserSessionUrlNavigation(() => browser)
-    const sessionId = SessionId('session-one / two')
+    const sessionId = SessionId('session-2f1c9b0e-4d5a-4a6f-9c3b-8e7d1a2b3c4d')
 
     expect(navigation.read()).toBeUndefined()
     navigation.push(sessionId)
-    // The `session-` the Host mints is dropped from the address; everything
-    // after it is still encoded, separators included.
+    // The `session-` the Host mints is dropped from the address; the rest of
+    // the id is the address. Existing query and hash are kept as they were.
     expect(browser.calls).toEqual([{
       method: 'push',
-      url: '/c/one%20%2F%20two?fixture#turn',
+      url: '/c/2f1c9b0e-4d5a-4a6f-9c3b-8e7d1a2b3c4d?fixture#turn',
     }])
     expect(navigation.read()).toBe(sessionId)
 
@@ -85,13 +85,17 @@ describe('BrowserSessionUrlNavigation', () => {
     let changes = 0
     const dispose = navigation.subscribe(() => { changes++ })
 
-    browser.navigate('/c/selected')
+    browser.navigate('/c/3a2b1c0d-5e6f-4a7b-8c9d-0e1f2a3b4c5d')
     // The address carries the id without its prefix, so reading restores it.
-    expect(navigation.read()).toBe(SessionId('session-selected'))
+    expect(navigation.read()).toBe(SessionId('session-3a2b1c0d-5e6f-4a7b-8c9d-0e1f2a3b4c5d'))
     expect(changes).toBe(1)
     // An address written before the prefix was dropped still names its session.
-    browser.navigate('/c/session-selected')
-    expect(navigation.read()).toBe(SessionId('session-selected'))
+    browser.navigate('/c/session-3a2b1c0d-5e6f-4a7b-8c9d-0e1f2a3b4c5d')
+    expect(navigation.read()).toBe(SessionId('session-3a2b1c0d-5e6f-4a7b-8c9d-0e1f2a3b4c5d'))
+    // An id that is not Host-minted names no Session: reading it would create
+    // one under whatever the address happened to say.
+    browser.navigate('/c/selected')
+    expect(navigation.read()).toBeUndefined()
     browser.navigate('/c/nested/path')
     expect(navigation.read()).toBeUndefined()
     browser.navigate('/c/%E0%A4%A')
@@ -99,6 +103,6 @@ describe('BrowserSessionUrlNavigation', () => {
 
     dispose()
     browser.navigate('/')
-    expect(changes).toBe(4)
+    expect(changes).toBe(5)
   })
 })

@@ -2,6 +2,14 @@
   "name": "@aeven/automations",
   "version": "0.1.2-alpha.5",
   "description": "Built-in durable local automations",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/core/automations"
+  },
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
@@ -20,8 +28,7 @@
   "files": [
     "lib/index.js",
     "lib/types/**/*.js",
-    "lib/types/**/*.d.ts",
-    "LICENSE"
+    "lib/types/**/*.d.ts"
   ],
   "dependencies": {
     "luxon": "^3.7.2",

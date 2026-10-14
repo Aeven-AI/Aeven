@@ -145,6 +145,7 @@ Results are append-only history. Native loading changes the next request's tool 
 - **Ranking is lexical** — keyword queries match name, title, and description words; a request phrased in words none of those contain lists nothing, and the model falls back to the index.
 - **Declarations leave history at compaction** — a tool declared for `run_code` must be selected again after compaction before the model can see its arguments; calling it without the declaration still works when the arguments are right.
 - **A tool's schema is checked against `maxRequestTools` only by count** — a provider limit on total schema bytes is not enforced here.
+- **No invariant companion** — No invariant companion is published because the deferred index, the rendered section, and the request tool list are all produced on this plugin's own assemble and pre-step path, while the loaded set is rebuilt from the session's raw `tool/call` and `tool/result` events rather than kept as a second authority. The index, load, resume, and disposal paths are asserted by the package's own specs.
 
 <a id="dev-note"></a>
 ### Dev Note

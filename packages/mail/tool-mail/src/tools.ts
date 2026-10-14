@@ -4,7 +4,7 @@ import { mkdir, realpath, writeFile } from 'node:fs/promises'
 import { basename, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool, type ToolDefinition, type ToolRunContext } from '@aeven/tools'
-import type { MailFolderView, MailUpdateAction } from '@aeven/mail'
+import type { MailUpdateAction } from '@aeven/mail'
 import { formatAccounts, formatMessage, formatSearch, formatSend } from './format.ts'
 
 /** Per-tool cooperative timeouts. */
@@ -72,7 +72,7 @@ export function mailTools(mail: Context['mail'], timing: MailToolTiming): ToolDe
         const accounts = await Promise.all(views.map(async (view) => {
           if (view.protocol === 'pop3') return { view }
           try {
-            return { view, folders: await mail.folders(owner, view.address, exec.signal) as MailFolderView[] }
+            return { view, folders: await mail.folders(owner, view.address, exec.signal) }
           } catch (error) {
             return { view, error: error instanceof Error ? error.message : String(error) }
           }

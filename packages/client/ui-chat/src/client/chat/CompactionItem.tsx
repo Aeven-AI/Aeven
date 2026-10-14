@@ -10,7 +10,7 @@ import {
 } from '@aeven/client-ui-primitives'
 import type { ChatViewSlotProps } from '../contract/slots.ts'
 import { markdownLabels } from '../markdown-labels.ts'
-import type { CompactionSummaryNode } from '../contract/snapshot.ts'
+import type { CompactionSummaryNode } from '@aeven/client-ui-conversation/client'
 import css from './MessageItem.module.css'
 
 interface CompactionItemProps {

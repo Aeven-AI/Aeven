@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-03-advisory-procedure-recall.md
-2026-10-03-advisory-procedure-recall.md: e07d36e567e02d6846ea7834c5c345226de8d032
-2026-10-03-advisory-procedure-recall.zh.md: bae5514fbdd8b3180c1bacb03f04bb1d3c6e9746
+2026-10-03-advisory-procedure-recall.md: e1f2d7ccd9c01fd7ddeb8ecf80eeb0451e9dc6f0
+2026-10-03-advisory-procedure-recall.zh.md: 072575ad59571c1b664a0ac38d05baf6266dd4f0

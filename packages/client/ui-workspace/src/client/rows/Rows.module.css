@@ -295,13 +295,16 @@
 }
 
 /* One reveal for both row kinds: a folder's menu and New Session button and a
-   Session's menu stay hidden until the pointer is on the row, selected or not.
-   An open row menu keeps its own anchor up, and the focused action reveals its
-   own cell so a keyboard reader never lands on an invisible button. A blank New
-   Session row renders no actions cell, so no reveal applies there. */
+   Session's menu appear while the pointer is on the row, and a Session's stays
+   up while that Session is the selected one, so the chat the reader is in keeps
+   its options reachable without re-hovering it. An open row menu keeps its own
+   anchor up, and the focused action reveals its own cell so a keyboard reader
+   never lands on an invisible button. A blank New Session row renders no
+   actions cell, so no reveal applies there. */
 .projectRow:hover .rowActions > *,
 .projectRow.menuOpen .rowActions > *,
 .sessionRow:hover .rowActions > *,
+.sessionRow.selected .rowActions > *,
 .sessionRow.menuOpen .rowActions > *,
 .rowActions:focus-within > * {
   opacity: 1;

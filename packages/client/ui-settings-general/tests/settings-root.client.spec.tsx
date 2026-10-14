@@ -189,28 +189,40 @@ describe('SettingsRoot', () => {
     expect(screen.queryByRole('button', { name: 'Disconnected, reconnect now' })).toBeNull()
 
     mounted.setConnectionState('disconnected')
+    // The toast states the outage in its own label; the reconnect action beside
+    // it carries the state in its accessible name.
+    const alert = screen.getByRole('alert')
+    expect(alert.textContent).toContain('Disconnected')
+    expect(alert.querySelector('svg')).toBeTruthy()
     const indicator = screen.getByRole('button', { name: 'Disconnected, reconnect now' })
-    expect(indicator.textContent).toContain('Disconnected')
+    expect(indicator.textContent).toBe('Reconnect now')
     expect(indicator.hasAttribute('title')).toBe(false)
-    expect(indicator.querySelector('svg')).toBeTruthy()
     fireEvent.click(indicator)
     expect(mounted.reconnect).toHaveBeenCalledOnce()
 
     mounted.setConnectionState('connecting')
+    expect(screen.getByRole('alert').textContent).toContain('Connecting...')
     expect(screen.getByRole('button', { name: 'Connecting, restart now' }).textContent)
-      .toContain('Connecting...')
+      .toBe('Reconnect now')
 
     mounted.setConnectionState('connected')
-    expect(screen.getByRole('status', { name: 'Connected' })).toBeTruthy()
+    // The confirmation toast carries its own dismiss control, so its role and
+    // its visible text are what say the state landed.
+    const recovered = () => screen.getByRole('status').textContent
+    expect(recovered()).toContain('Connected')
     act(() => { vi.advanceTimersByTime(1_999) })
-    expect(screen.getByRole('status', { name: 'Connected' })).toBeTruthy()
+    expect(recovered()).toContain('Connected')
     act(() => { vi.advanceTimersByTime(1) })
     expect(screen.queryByRole('status')).toBeNull()
   })
 
-  it('keeps the reconnect indicator out of the closed sidebar', () => {
+  it('keeps the reconnect toast out of the sidebar whatever its width', () => {
     mount({ wide: false, connectionState: 'disconnected' })
-    expect(screen.queryByRole('button', { name: 'Disconnected, reconnect now' })).toBeNull()
+    // The toast is portaled to the document body, so a collapsed sidebar — or
+    // any transformed ancestor — cannot clip it.
+    const alert = screen.getByRole('alert')
+    expect(alert.parentElement).toBe(document.body)
+    expect(screen.getByRole('button', { name: 'Disconnected, reconnect now' })).toBeTruthy()
   })
 })
 
@@ -238,7 +250,15 @@ describe('SettingsPanel chrome seats', () => {
     const { renderSlot } = mount()
     openPanel()
     expect(screen.getByText('Open configuration file')).toBeTruthy()
-    expect(renderSlot).toHaveBeenCalledWith('settings.action', {})
+    // The action seat reads the addressed section and hands it the page verb.
+    expect(renderSlot).toHaveBeenCalledWith('settings.action', {
+      section: 'general',
+      detail: undefined,
+      showDetail: expect.any(Function) as unknown,
+    })
+    const calls = renderSlot.mock.calls.map(call => call[0] as string)
+    expect(calls.indexOf('settings.action')).toBeGreaterThanOrEqual(0)
+    expect(calls.indexOf('settings.action')).toBeLessThan(calls.indexOf('settings.close'))
   })
 })
 
@@ -315,26 +335,28 @@ describe('SettingsPanel navigation', () => {
   it('gives every section a nav glyph, distinct for the ids the shell knows', () => {
     mount({
       rows: [
-        { id: 'general', order: 0, label: 'General' },
+        { id: 'account', order: 0, label: 'Account' },
         { id: 'appearance', order: 5, label: 'Appearance' },
         { id: 'models', order: 10, label: 'Models' },
-        { id: 'agent-presets', order: 20, label: 'Agent presets' },
+        { id: 'personalization', order: 15, label: 'Personalization' },
         { id: 'plugins', order: 30, label: 'Plugins' },
         { id: 'grok-build', order: 40, label: 'Subscriptions' },
         { id: 'memory', order: 45, label: 'Memory' },
-        { id: 'contributed', order: 50, label: 'Contributed' },
+        { id: 'general', order: 50, label: 'General' },
+        { id: 'contributed', order: 60, label: 'Contributed' },
       ],
     })
     openPanel()
     // Glyphs carry no id of their own, so the drawn paths are what tells them apart.
-    const glyphs = ['General', 'Appearance', 'Models', 'Agent presets', 'Plugins', 'Subscriptions', 'Memory', 'Contributed']
+    const glyphs = ['Account', 'Appearance', 'Models', 'Personalization', 'Plugins', 'Subscriptions', 'Memory', 'General', 'Contributed']
       .map(name => screen.getByRole('button', { name }).querySelector('svg')?.innerHTML)
 
     expect(glyphs.every(glyph => glyph !== undefined && glyph !== '')).toBe(true)
     // The ids the shell names get their own glyph; every other section —
-    // including one this package never heard of — shares the gear.
+    // General included, and one this package never heard of — shares the gear.
     expect(new Set(glyphs.slice(0, 7)).size).toBe(7)
-    expect(glyphs[7]).toBe(glyphs[0])
+    expect(glyphs[7]).toBe(glyphs[8])
+    expect(glyphs[8]).not.toBe(glyphs[0])
   })
 
   it('switches the rendered section on nav click', () => {
@@ -343,7 +365,10 @@ describe('SettingsPanel navigation', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Models' }))
     expect(screen.getByRole('button', { name: 'Models' }).getAttribute('aria-current')).toBe('true')
     expect(screen.getByTestId('section-models')).toBeTruthy()
-    expect(screen.queryByTestId('section-general')).toBeNull()
+    // A section the reader already opened stays mounted with the state it
+    // holds; only the addressed one is the active pane.
+    const panes = ['general', 'models'].map(id => screen.getByTestId(`section-${id}`))
+    expect(panes[0]!.parentElement!.className).not.toBe(panes[1]!.parentElement!.className)
   })
 
   it('mounts onboarding steps in order and transfers ownership only on completion', () => {

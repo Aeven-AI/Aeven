@@ -56,7 +56,7 @@ kind: "package-reference"
 // Host consumer code, after the composition above is loaded:
 const project = await ctx.workspaceRegistry.create('/path/to/dir', 'My Project')
 await project.setTitle('Renamed')
-ctx.workspaceRegistry.list() // Chats 在最前，之后是该项目
+ctx.workspaceRegistry.list() // Chats first, then the project
 ```
 
 插件可以通过 `ctx.workspaceRegistry.builtIn(key, title)` 声明自己的内置 workspace。它与 Chats 一样没有目录，所有账户都能看到，并拒绝任何移动、重命名与删除；该键在重启后绑定到同一条注册记录，新建的内置 workspace 落在 Chats 正下方。`@aeven/automations` 以这种方式声明 Automations workspace。
@@ -170,6 +170,9 @@ ctx.workspaceRegistry.list() // Chats 在最前，之后是该项目
 - **重新添加目录从空开始**——移除后再次添加同一目录会创建空会话列表的新项目；旧会话不会自动回来。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

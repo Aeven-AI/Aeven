@@ -62,6 +62,22 @@ const nonLinuxWebWorkerTests = process.platform === 'linux'
 
 const platformUnsupportedTests = [...windowsUnsupportedTests, ...nonLinuxWebWorkerTests]
 
+// Suites that need a host privilege the repository file sandbox withholds: a real PTY
+// (posix_openpt), the process table, nested sandbox-exec, or a temporary directory outside the
+// workspace. They fail with EPERM rather than a product defect, so the default run leaves them
+// out and AVN_HOST_PRIVILEGE_TESTS=1 includes them on a host that permits them.
+const hostPrivilegeTests = process.env.AVN_HOST_PRIVILEGE_TESTS === '1'
+  ? []
+  : [
+      'packages/api/terminal-controller/tests/tools.spec.ts',
+      'packages/fs/fs-sandbox/tests/fs-sandbox.spec.ts',
+      'packages/shell/tool-bash-persistent/tests/loader-composition.spec.ts',
+      'packages/subprocess/subprocess-local/tests/process-exit.spec.ts',
+      'packages/terminal/terminal-bash/tests/local.spec.ts',
+      'packages/terminal/tool-terminal/tests/loader-composition.spec.ts',
+      'scripts/session-fixture-layout.spec.ts',
+    ]
+
 const windowsUnsupportedCoveragePackages = process.platform === 'win32'
   ? [...windowsUnsupportedPackages, 'packages/subprocess/*']
   : []
@@ -162,7 +178,7 @@ export default defineConfig({
     setupFiles: ['./scripts/test-proxy-environment.ts', './scripts/test-invariants.ts'],
     // .tsx: client component specs (jsdom via per-file @vitest-environment pragma).
     include: testIncludes,
-    exclude: platformUnsupportedTests,
+    exclude: [...platformUnsupportedTests, ...hostPrivilegeTests],
     // One coverage invocation aggregates both projects. Every suite forks for
     // Node stability; process-bound suites stay separate for inventory control.
     projects: [
@@ -180,6 +196,7 @@ export default defineConfig({
           include: testIncludes,
           exclude: [
             ...platformUnsupportedTests,
+            ...hostPrivilegeTests,
             ...processBoundTests,
             ...coverageExemptExcludes,
           ],
@@ -196,6 +213,7 @@ export default defineConfig({
           include: processBoundTests,
           exclude: [
             ...platformUnsupportedTests,
+            ...hostPrivilegeTests,
             ...coverageExemptExcludes,
           ],
         },

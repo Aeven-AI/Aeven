@@ -119,19 +119,34 @@ function kebab(raw: string): string {
 }
 
 /**
+ * Read one path segment that the callers' own directory shape guarantees.
+ * @param segments - the path split on `/`.
+ * @param index - segment index; a negative value counts back from the end.
+ * @returns the segment at that index.
+ * @throws Error when the path has no segment there.
+ */
+function segmentAt(segments: readonly string[], index: number): string {
+  const segment = segments.at(index)
+  if (segment === undefined) throw new Error(`a skill path has no segment ${index}`)
+  return segment
+}
+
+/**
  * Read one `SKILL.md` frontmatter field.
  * @param markdown - the file contents.
  * @param field - the frontmatter key to read.
  * @returns the value, or undefined when the block declares none.
  */
 function frontmatterField(markdown: string, field: string): string | undefined {
-  const block = /^---\r?\n([\s\S]*?)\r?\n---/.exec(markdown)
-  const match = block?.[1] === undefined ? null : new RegExp(`^${field}:\\s*(.*)$`, 'm').exec(block[1])
+  const body = /^---\r?\n([\s\S]*?)\r?\n---/.exec(markdown)?.[1]
+  if (body === undefined) return undefined
+  const match = new RegExp(`^${field}:\\s*(.*)$`, 'm').exec(body)
+  const marker = match?.[0]
   const value = match?.[1]?.trim().replace(/^["']|["']$/g, '')
-  if (value === undefined || value === '') return undefined
+  if (marker === undefined || value === undefined || value === '') return undefined
   // A block scalar keeps its text on the lines below the marker; the marker alone is not the value.
   if (/^[|>][-+]?$/.test(value)) {
-    const following = block?.[1]?.slice(block[1].indexOf(match![0]) + match![0].length).split('\n') ?? []
+    const following = body.slice(body.indexOf(marker) + marker.length).split('\n')
     return following.map(line => line.trim()).find(line => line !== '')
   }
   return value
@@ -228,7 +243,11 @@ function makeDirectory(path: string): void {
 async function pool<T>(items: readonly T[], limit: number, task: (item: T) => Promise<void>): Promise<void> {
   let next = 0
   const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (next < items.length) await task(items[next++]!)
+    while (next < items.length) {
+      const item = items[next++]
+      if (item === undefined) break
+      await task(item)
+    }
   })
   await Promise.all(workers)
 }
@@ -254,7 +273,7 @@ async function main(): Promise<void> {
     .map(entry => entry.path.slice(0, -'/SKILL.md'.length))
   const claims = new Map<string, number>()
   const relativeOf = (root: string): string => root.slice(SKILLS_PREFIX.length)
-  const baseOf = (root: string): string => kebab(relativeOf(root).split('/').at(-1)!)
+  const baseOf = (root: string): string => kebab(segmentAt(relativeOf(root).split('/'), -1))
   for (const root of roots) claims.set(baseOf(root), (claims.get(baseOf(root)) ?? 0) + 1)
   // A basename two skills claim is prefixed with its category; when one category holds both, the
   // whole upstream path disambiguates them.
@@ -264,11 +283,17 @@ async function main(): Promise<void> {
     const base = baseOf(root)
     const segments = relativeOf(root).split('/')
     const candidates = (claims.get(base) ?? 0) > 1
-      ? [`${kebab(segments[0]!)}-${base}`, segments.map(kebab).join('-')]
+      ? [`${kebab(segmentAt(segments, 0))}-${base}`, segments.map(kebab).join('-')]
       : [base]
-    const name = candidates.find(candidate => !taken.has(candidate)) ?? candidates[candidates.length - 1]!
+    const name = candidates.find(candidate => !taken.has(candidate)) ?? segmentAt(candidates, -1)
     taken.add(name)
     names.set(root, name)
+  }
+  /** The name one root was assigned above; each root in `names` has one. */
+  const nameOf = (root: string): string => {
+    const name = names.get(root)
+    if (name === undefined) throw new Error(`no catalog name was assigned to ${root}`)
+    return name
   }
   console.log(`sync-skill-catalog: ${commit.slice(0, 12)}, ${roots.length} skills in ${blobs.length} files`)
 
@@ -282,7 +307,7 @@ async function main(): Promise<void> {
   // nested skills were downloaded into.
   // The catalog ships the reviewed set only: every other judged skill stays in curation.json, so
   // raising or lowering one number in that file is what widens or narrows what a release vendors.
-  const shipped = roots.filter(root => (curation.get(names.get(root)!)?.value ?? 0) >= minValue)
+  const shipped = roots.filter(root => (curation.get(nameOf(root))?.value ?? 0) >= minValue)
   console.log(`sync-skill-catalog: vendoring ${shipped.length} of ${roots.length} skills at value >= ${minValue}`)
   const staged = shipped.map((root, position) => ({ root, position, directory: join(scratch, String(position)), files: filesOf(root) }))
   try {
@@ -301,10 +326,10 @@ async function main(): Promise<void> {
 
     for (const skill of staged) {
       const relativeRoot = skill.root.slice(SKILLS_PREFIX.length)
-      const category = relativeRoot.split('/')[0]!
+      const category = segmentAt(relativeRoot.split('/'), 0)
       const definition = join(skill.directory, 'SKILL.md')
       const upstream = readFileSync(definition, 'utf8')
-      const name = names.get(skill.root)!
+      const name = nameOf(skill.root)
       writeFileSync(definition, renameFrontmatter(upstream, name))
       utimesSync(definition, FIXED_MTIME_SECONDS, FIXED_MTIME_SECONDS)
       const target = join(outDir, 'bundles', category, `${name}.zip`)
@@ -345,7 +370,9 @@ async function main(): Promise<void> {
   if (new Set(entries.map(entry => entry.name)).size !== entries.length) throw new Error('vendored skill names are not unique')
   const categories = [...new Set(entries.map(entry => entry.category))].sort()
     .map(name => ({ name, skills: entries.filter(entry => entry.category === name).length }))
-  const index: CatalogIndex = { upstream: { repo: UPSTREAM, commit, synced: new Date().toISOString().slice(0, 10) }, categories, skills: entries }
+  const index: CatalogIndex = {
+    upstream: { repo: UPSTREAM, commit, synced: new Date().toISOString().slice(0, 10) }, categories, skills: entries,
+  }
   mkdirSync(outDir, { recursive: true })
   writeFileSync(join(outDir, 'index.json'), `${JSON.stringify(index, null, 2)}\n`)
   writeFileSync(join(outDir, 'MANIFEST.md'), [

@@ -112,6 +112,9 @@ const memory = accountHomePath(owner, 'memory')   // <home>/accounts/<sha256 of 
 - **规范化只读不改**——`canonicalizeWatchPath` 执行 `realpath` 探测并传播除路径不存在以外的错误；调用方仍负责目录创建、权限，以及对结果路径应用信任策略。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

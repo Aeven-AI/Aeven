@@ -136,7 +136,7 @@ export function installLinkHandling(input: LinkHandling): () => void {
     })
   }
   input.document.addEventListener('contextmenu', onContextMenu, { capture: true })
-  const stopLinks = input.links.onOpen(url => { input.openInSystemBrowser(url) })
+  const stopLinks = input.links.onOpen((url) => { input.openInSystemBrowser(url) })
   return () => {
     input.document.removeEventListener('contextmenu', onContextMenu, { capture: true })
     stopLinks()

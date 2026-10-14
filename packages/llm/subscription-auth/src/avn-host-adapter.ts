@@ -1,5 +1,6 @@
 /** Narrow adapter around the AVN host API used by the standalone participant. */
 
+import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import type { Context } from '@deepseek-ai/cordis'
 import {
@@ -75,7 +76,13 @@ function asOwnerRequestPolicy(value: unknown): OwnerRequestPolicy | undefined {
 
 function avnVersion(): string | null {
   try {
-    const manifest = require('@aeven/cli/package.json') as { version?: unknown }
+    // The host application's manifest is read as data. Resolving its path keeps
+    // this participant independent of `@aeven/cli`: the CLI composes this
+    // plugin, so importing it would make a shipped plugin depend on the
+    // application that ships it, and every composition without the CLI reports
+    // an unknown version instead of failing to load.
+    const manifestPath = require.resolve('@aeven/cli/package.json')
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { version?: unknown }
     return typeof manifest.version === 'string' ? manifest.version : null
   } catch {
     return null

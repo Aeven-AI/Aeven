@@ -33,6 +33,9 @@ Webhook 系列接收通过身份验证的提供方事件，并运行受信任的
 提供方适配器负责验证身份并规范化交付。规则拥有任意条件和外部调用，随后返回 `null` 或一个 Session 请求。[Webhook 子系统参考](../../docs/subsystems/webhook.zh.md)拥有共享类型与时序保证。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ## 开发备注
 
 无。

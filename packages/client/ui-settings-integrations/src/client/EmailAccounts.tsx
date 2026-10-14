@@ -111,7 +111,9 @@ export function EmailAccounts(props: EmailAccountsProps) {
   const edit = (connection: Connection): void => {
     const email = connection.email
     if (email === undefined) return
-    const draft = (value: EmailServerSettings): ServerDraft => ({ host: value.host, port: String(value.port), security: value.security, username: value.username })
+    const draft = (value: EmailServerSettings): ServerDraft => ({
+      host: value.host, port: String(value.port), security: value.security, username: value.username,
+    })
     setEditing(connection.id); setOpen(true); setFailure(undefined)
     setAddress(email.address); setPassword(''); setSendPassword(''); setSeparateSendPassword(false)
     setName(connection.name === email.address ? '' : connection.name); setAliases(email.aliases.join(', '))
@@ -137,7 +139,12 @@ export function EmailAccounts(props: EmailAccountsProps) {
       reset()
     }).finally(() => { setTesting(false) })
   }
-  const serverFields = (label: string, draft: ServerDraft, update: (draft: ServerDraft) => void, securityChoices: readonly EmailSecurity[]) => <fieldset className={css.serverFields}>
+  const serverFields = (
+    label: string,
+    draft: ServerDraft,
+    update: (draft: ServerDraft) => void,
+    securityChoices: readonly EmailSecurity[],
+  ) => <fieldset className={css.serverFields}>
     <legend>{label}</legend>
     <label className={css.field}>{t('emailHost')}<input required value={draft.host} disabled={busy} onChange={(event) => { update({ ...draft, host: event.currentTarget.value }) }} /></label>
     <div className={css.fieldRow}>
@@ -183,12 +190,12 @@ export function EmailAccounts(props: EmailAccountsProps) {
       </select></label>
       <label className={css.check}><input type="checkbox" checked={sendEnabled} disabled={busy} onChange={(event) => { setSendEnabled(event.currentTarget.checked) }} />{t('emailSendEnabled')}</label>
       <div className={css.advancedBody}>
-          {serverFields(t('emailIncoming'), receive, setReceiveEdit, protocol === 'pop3' ? ['tls'] : ['tls', 'starttls'])}
-          {sendEnabled && serverFields(t('emailOutgoing'), send, setSendEdit, ['tls', 'starttls'])}
-          {sendEnabled && <label className={css.check}><input type="checkbox" checked={separateSendPassword} disabled={busy} onChange={(event) => { setSeparateSendPassword(event.currentTarget.checked) }} />{t('emailSeparateSendPassword')}</label>}
-          {sendEnabled && separateSendPassword && <label className={css.field}>{t('emailSendPassword')}<input type="password" autoComplete="off" placeholder={editing === undefined ? undefined : t('emailKeepPassword')} value={sendPassword} disabled={busy} onChange={(event) => { setSendPassword(event.currentTarget.value) }} /></label>}
-          <label className={css.field}>{t('emailAliases')}<input value={aliases} disabled={busy} onChange={(event) => { setAliases(event.currentTarget.value) }} /></label>
-          <label className={css.field}>{t('name')}<input value={name} placeholder={address} disabled={busy} onChange={(event) => { setName(event.currentTarget.value) }} /></label>
+        {serverFields(t('emailIncoming'), receive, setReceiveEdit, protocol === 'pop3' ? ['tls'] : ['tls', 'starttls'])}
+        {sendEnabled && serverFields(t('emailOutgoing'), send, setSendEdit, ['tls', 'starttls'])}
+        {sendEnabled && <label className={css.check}><input type="checkbox" checked={separateSendPassword} disabled={busy} onChange={(event) => { setSeparateSendPassword(event.currentTarget.checked) }} />{t('emailSeparateSendPassword')}</label>}
+        {sendEnabled && separateSendPassword && <label className={css.field}>{t('emailSendPassword')}<input type="password" autoComplete="off" placeholder={editing === undefined ? undefined : t('emailKeepPassword')} value={sendPassword} disabled={busy} onChange={(event) => { setSendPassword(event.currentTarget.value) }} /></label>}
+        <label className={css.field}>{t('emailAliases')}<input value={aliases} disabled={busy} onChange={(event) => { setAliases(event.currentTarget.value) }} /></label>
+        <label className={css.field}>{t('name')}<input value={name} placeholder={address} disabled={busy} onChange={(event) => { setName(event.currentTarget.value) }} /></label>
       </div>
       {testing && <p role="status" className={css.testing}><Spinner />{t('emailTesting')}</p>}
       {failure !== undefined && <p role="alert" className={css.error}>{failure}</p>}

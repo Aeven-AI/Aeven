@@ -22,7 +22,7 @@ import type { Invariant, InvariantId } from '../src/types.ts'
 
 const entry = (text: string, confirmedAt = 1): Invariant => ({ id: brandString<InvariantId>(text.slice(0, 4)), text, confirmedAt })
 const document = (entries: readonly Invariant[], version = INVARIANTS_VERSION): string => JSON.stringify({ version, entries })
-const must = <T,>(value: T | undefined): T => {
+const must = <T>(value: T | undefined): T => {
   if (value === undefined) throw new Error('the fixture is missing the value this assertion needs')
   return value
 }

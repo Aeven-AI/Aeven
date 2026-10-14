@@ -299,7 +299,16 @@ describe('observation reports a delta', () => {
 
   it('refuses readiness without an adapter, naming what is missing', async () => {
     const session = new ComputerUseSession({ book: [] })
-    await expect(session.run([{ kind: 'readiness' }])).rejects.toThrow(/cannot readiness without an adapter/)
+    // A missing adapter stops the batch as a failed step; only cancellation rejects the call.
+    await expect(session.run([{ kind: 'readiness' }])).resolves.toEqual({
+      results: [{
+        kind: 'failed',
+        error: 'the session cannot readiness without an adapter; construct it with one to observe the desktop',
+        step: { kind: 'readiness' },
+      }],
+      verified: false,
+      steps: 1,
+    })
   })
 
   it('exposes the router for inspection without executing', () => {

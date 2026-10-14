@@ -10,7 +10,7 @@ The Desktop release set included `mac-x64`, an Intel macOS build that Apple Sili
 
 ## Decision
 
-The Desktop target set is `mac-arm64`, `win-arm64`, `win-x64`, `linux-arm64`, and `linux-x64`. [`package-target.ts`](../../../../apps/desktop/scripts/package-target.ts), [`desktop-build-paths.mjs`](../../../../apps/desktop/scripts/desktop-build-paths.mjs), [`desktop-auto-update-environment.mjs`](../../../../apps/desktop/scripts/desktop-auto-update-environment.mjs), and [`desktop-upload-plan.ts`](../../../../apps/desktop/scripts/desktop-upload-plan.ts) no longer accept `mac-x64`; an Intel Mac build host without an explicit target fails as an unsupported host instead of selecting it. The `package:mac:x64*` and `upload:mac:x64` scripts, the Rosetta execution check in runtime preparation, and the Intel LibreOffice engine in the macOS JIT signing pattern are removed.
+The Desktop target set is `mac-arm64`, `win-arm64`, `win-x64`, `linux-arm64`, and `linux-x64`. [`package-target.ts`](../../../../apps/desktop/scripts/package-target.ts), [`desktop-build-paths.mjs`](../../../../apps/desktop/scripts/desktop-build-paths.mjs), ``desktop-auto-update-environment.mjs``, and ``desktop-upload-plan.ts`` no longer accept `mac-x64`; an Intel Mac build host without an explicit target fails as an unsupported host instead of selecting it. The `package:mac:x64*` and `upload:mac:x64` scripts, the Rosetta execution check in runtime preparation, and the Intel LibreOffice engine in the macOS JIT signing pattern are removed.
 
 The CLI keeps its Intel macOS platform packages, such as `@aeven/whisper-cpp-darwin-x64`: npm users choose their own installation, and this decision covers only the Desktop release set.
 

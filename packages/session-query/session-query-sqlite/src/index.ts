@@ -940,7 +940,7 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
       WHERE i0.term = ? AND i0.col = 'text'
       ORDER BY i0.doc, i0.offset
     `).all(tokens[0] as string) as unknown as Array<{ doc: number; token_offset: number }>
-    return rows.map(row => ({ doc: Number(row.doc), offset: Number(row.token_offset) }))
+    return rows.map(row => ({ doc: row.doc, offset: row.token_offset }))
   }
 
   /** Highlight one page of already-ranked documents. */
@@ -951,16 +951,16 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
     }
     remember('persisted', this._highlight(
       'persisted_docs',
-      rows.filter(row => row.source === 'persisted').map(row => Number(row.doc_rowid)),
+      rows.filter(row => row.source === 'persisted').map(row => row.doc_rowid),
       query,
     ))
     remember('live', this._highlight(
       'live_docs',
-      rows.filter(row => row.source === 'live').map(row => Number(row.doc_rowid)),
+      rows.filter(row => row.source === 'live').map(row => row.doc_rowid),
       query,
     ))
-    return rows.map(row => {
-      const markedText = marked.get(`${row.source}:${Number(row.doc_rowid)}`)
+    return rows.map((row) => {
+      const markedText = marked.get(`${row.source}:${row.doc_rowid}`)
       // Rank and highlight read the same rows in one serialized query.
       /* v8 ignore next -- a token hit is still present when its page is highlighted */
       if (markedText === undefined) return { ...row, marked_text: '' }
@@ -994,7 +994,7 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
         doc_rowid: number
         marked_text: string
       }>
-      for (const hit of hits) marked.set(Number(hit.doc_rowid), hit.marked_text)
+      for (const hit of hits) marked.set(hit.doc_rowid, hit.marked_text)
     }
     return marked
   }

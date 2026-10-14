@@ -19,9 +19,6 @@
   },
   "avn": {
     "client": {
-      "external": [
-        "@aeven/api-gateway/client"
-      ],
       "inject": [
         "@aeven/api-gateway",
         "@aeven/api-remotes",

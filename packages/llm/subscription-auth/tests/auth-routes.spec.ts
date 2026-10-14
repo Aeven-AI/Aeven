@@ -313,7 +313,7 @@ function namedModel(id: string): Model<Api> {
 
 interface GrokSessionFake {
   session: GrokBuildSession
-  calls: { logout: number; refresh: number; modified: Credential[] }
+  calls: { logout: number; notifyCredentialChange: number; modified: Credential[] }
   setCredential(credential: OAuthCredential | undefined): void
 }
 
@@ -333,7 +333,7 @@ interface GrokSessionOptions {
 /** A GrokBuildSession over an in-memory credential store, so no home dir is read. */
 function fakeGrokSession(options: GrokSessionOptions = {}): GrokSessionFake {
   let stored = options.credential
-  const calls: GrokSessionFake['calls'] = { logout: 0, refresh: 0, modified: [] }
+  const calls: GrokSessionFake['calls'] = { logout: 0, notifyCredentialChange: 0, modified: [] }
   const accountSummaries = (): AccountSummary[] =>
     stored === undefined ? [] : (options.accounts ?? [{ id: 'acct-1', expires: stored.expires }])
   const session = {
@@ -365,8 +365,9 @@ function fakeGrokSession(options: GrokSessionOptions = {}): GrokSessionFake {
     selectedModelIds: () => options.selectedIds,
     catalogSource: options.catalogSource ?? 'fallback',
     catalogError: options.catalogError,
-    refreshLiveCatalog: async () => {
-      calls.refresh += 1
+    refreshLiveCatalog: async () => undefined,
+    notifyCredentialChange: () => {
+      calls.notifyCredentialChange += 1
     },
     logout: async () => {
       calls.logout += 1
@@ -525,7 +526,7 @@ describe('GrokBuildWebAuth device sign-in', () => {
       url: 'https://auth.example/authorize',
     })
     await waitImmediate()
-    expect(calls.refresh).toBe(1)
+    expect(calls.notifyCredentialChange).toBe(1)
     await expect(auth.status()).resolves.toMatchObject({ status: 'signed-in', activeAccountId: 'acct-1' })
   })
 })
@@ -973,7 +974,7 @@ describe('Grok login route', () => {
       body: { method: 'pkce', url: 'https://auth.example/authorize' },
     })
     await waitImmediate()
-    expect(grok.calls.refresh).toBe(1)
+    expect(grok.calls.notifyCredentialChange).toBe(1)
   })
 
   it('rejects a malformed login body with 400 instead of a generic failure', async () => {
@@ -1027,7 +1028,7 @@ describe('Grok login-code route', () => {
     )
     await waitImmediate()
     expect(pasted).toBe('pasted-code')
-    expect(grok.calls.refresh).toBe(1)
+    expect(grok.calls.notifyCredentialChange).toBe(1)
   })
 
   it('answers 409 when no login is waiting for a code', async () => {

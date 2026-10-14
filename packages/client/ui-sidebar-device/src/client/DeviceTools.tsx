@@ -24,7 +24,7 @@ import { ChevronDown } from './icons.tsx'
 import type { DeviceClient } from './state.ts'
 import css from './DevicePane.module.css'
 
-const TEXT_SIZES: readonly DeviceTextSize[] = ['small', 'default', 'large', 'extra-large']
+const DEVICE_SIZES: readonly DeviceTextSize[] = ['small', 'default', 'large', 'extra-large']
 const COLOR_FILTERS: readonly DeviceColorFilter[] = ['none', 'grayscale', 'red-green', 'green-red', 'blue-yellow']
 const ORIENTATIONS: readonly DeviceOrientation[] = ['portrait', 'landscape_left', 'portrait_upside_down', 'landscape_right']
 const IOS_PERMISSIONS: readonly DevicePermission[] = [
@@ -134,7 +134,7 @@ export function DeviceTools(props: {
               onChange={(value) => { void act({ type: 'setAppearance', value }) }} />
           </Field>
           <Field label={t('tools.textSize')}>
-            <Choice label={t('tools.textSize')} value={settings?.textSize} options={options(TEXT_SIZES, 'tools.size')}
+            <Choice label={t('tools.textSize')} value={settings?.textSize} options={options(DEVICE_SIZES, 'tools.size')}
               placeholder={t('tools.unknown')} disabled={disabled} onChange={(value) => { void act({ type: 'setTextSize', value }) }} />
           </Field>
           {isIos
@@ -291,7 +291,11 @@ function PermissionsSection(props: {
   )
 }
 
-function EventLogSection(props: { readonly t: DeviceTranslate; readonly access: DeviceHubAccess; readonly device: DeviceSummary }): ReactNode {
+function EventLogSection(props: {
+  readonly t: DeviceTranslate
+  readonly access: DeviceHubAccess
+  readonly device: DeviceSummary
+}): ReactNode {
   const { t, access, device } = props
   const [open, setOpen] = useState(false)
   const [entries, setEntries] = useState<readonly DeviceEventLogEntry[]>([])

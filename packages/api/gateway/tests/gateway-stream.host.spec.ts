@@ -361,11 +361,23 @@ describe('Typert Remote streams', () => {
       })
     })
 
-    const closed = once(socket, 'close')
     sendOpen(socket, 'broken-error', 'feed/rejectWithNonJsonDetails', {})
-    const closeEvent = await closed
-    expect(closeEvent[0]).toBe(1011)
-    expect(String(closeEvent[1])).toBe('Remote stream failure could not be delivered')
+    // A failure whose details cannot be encoded degrades to a plain internal
+    // failure on that stream alone, so the socket stays open for the others.
+    await vi.waitFor(() => {
+      expect(frames.find(frame => frame.streamId === 'broken-error')).toEqual({
+        type: 'error',
+        streamId: 'broken-error',
+        error: { code: 'gateway/internal', message: 'Remote stream failed', details: {} },
+      })
+    })
+    expect(socket.readyState).toBe(WebSocket.OPEN)
+    expect(service.returns).toBe(1)
+    expect(service.signals[1]?.aborted).toBe(false)
+
+    const closed = once(socket, 'close')
+    socket.close()
+    await closed
     await vi.waitFor(() => { expect(service.returns).toBe(2) })
     expect(service.signals[1]?.aborted).toBe(true)
   })

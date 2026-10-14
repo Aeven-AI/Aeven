@@ -107,6 +107,9 @@ Imagine 拥有生成图片工具的原子视图。过程折叠时，图片调用
 - **工具文案复用 `ui-conversation` locale namespace**：工具标题、行 chrome 与无 Cordis 的 primitive label 使用该字典；presenter model 保留 locale key 或数据，而不是已渲染文案。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

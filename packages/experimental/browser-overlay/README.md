@@ -105,7 +105,7 @@ Injected at document start, a bundle runs before the parser creates a root eleme
 <a id="further-exploration"></a>
 ## Further Exploration
 
-- [Cua Driver MCP provider](../computer-use-cua-driver-mcp/README.md) — the provider whose browser actions this overlay accompanies. Its `browser_*` tools are what a caller would feed the overlay.
+- [Cua Driver MCP provider](../../computer-use/computer-use-cua-driver-mcp/README.md) — the provider whose browser actions this overlay accompanies. Its `browser_*` tools are what a caller would feed the overlay.
 - [Experimental packages](../README.md) — the group this package belongs to.
 
 -----

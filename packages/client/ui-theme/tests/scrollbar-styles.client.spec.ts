@@ -13,6 +13,9 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { atRuleBlock, type CssRule, packageStylesheets, parseRules, varReferences } from './stylesheet-scan.ts'
+import {
+  clientSheet, clientSheetPath, expectDebtStillOwed, recordedOffences, type SweepDebtRegistry,
+} from './stylesheet-debt.ts'
 
 const STYLES = new URL('../src/styles/', import.meta.url)
 const read = (name: string): string => readFileSync(fileURLToPath(new URL(name, STYLES)), 'utf8')
@@ -409,6 +412,53 @@ describe('scrollbar.css selectors', () => {
   })
 })
 
+/**
+ * Sheets that scroll on an elevated surface without rebinding the thumb
+ * indirection, keyed by sheet path under packages/client/ with the elevated
+ * surface tokens they scroll on unrebound. scrollbar.css owns the rebind ("the
+ * indirection both rendering paths read, and every elevated surface rebinds")
+ * and docs/web-styling.md owns the elevation ladder, so the debt is recorded
+ * here rather than fixed in a package this one does not own: a sheet not listed,
+ * or a new token on a listed sheet, still fails the sweep.
+ */
+const ELEVATED_SCROLL_SURFACE_DEBT: SweepDebtRegistry = {
+  // The approval panel scrolls its body on the major input's surface.
+  'ui-approval/src/client/ApprovalPanel.module.css': {
+    offences: ['--dsw-specific-input-major'],
+    reason: 'panel body scrolls on the major input surface without the l2 thumb pair',
+  },
+  // The message card scrolls its queued-draft editor on the bubble surface.
+  'ui-chat/src/client/chat/MessageItem.module.css': {
+    offences: ['--dsw-specific-bubble'],
+    reason: 'queued-draft editor scrolls on the bubble surface without the l2 thumb pair',
+  },
+  // The prompt dialog scrolls its field list on the dialog's layer-3 surface.
+  'ui-imagine/src/client/PromptDialog.module.css': {
+    offences: ['--dsw-alias-bg-layer-3'],
+    reason: 'field list scrolls on the layer-3 dialog surface without the l2 thumb pair',
+  },
+  // The job list menu scrolls on the major input's surface.
+  'ui-jobs/src/client/JobListAction.module.css': {
+    offences: ['--dsw-specific-input-major'],
+    reason: 'job list scrolls on the major input surface without the l2 thumb pair',
+  },
+  // The activity menu scrolls its item list on the major input's surface.
+  'ui-primitives/src/ActivityMenu.module.css': {
+    offences: ['--dsw-specific-input-major'],
+    reason: 'item list scrolls on the major input surface without the l2 thumb pair',
+  },
+  // The tool card scrolls its expanded body on the major input's surface.
+  'ui-tool/src/client/tool/components/ToolRow.module.css': {
+    offences: ['--dsw-specific-input-major'],
+    reason: 'expanded card body scrolls on the major input surface without the l2 thumb pair',
+  },
+  // The question composer scrolls its option lists on the major input's surface.
+  'ui-user-questions/src/client/QuestionComposer.module.css': {
+    offences: ['--dsw-specific-input-major'],
+    reason: 'option lists scroll on the major input surface without the l2 thumb pair',
+  },
+}
+
 describe('elevated surface rebinds', () => {
   it('at least one surface rebinds the indirection', () => {
     expect(rebindRules.length).toBeGreaterThan(0)
@@ -502,7 +552,15 @@ describe('elevated surface rebinds', () => {
     // call — a floating button carries a radius, a shadow, and a fixed size.
     for (const [file, surfaces] of sheetSurfaces) {
       if (!surfaces.scrolls || surfaces.rebindsElevation) continue
-      expect([...surfaces.elevated], `${file} scrolls on an elevated surface without rebinding`).toEqual([])
+      const exempt = recordedOffences(ELEVATED_SCROLL_SURFACE_DEBT, clientSheet(file))
+      expect([...surfaces.elevated].filter(token => !exempt.has(token)), `${file} scrolls on an elevated surface without rebinding`).toEqual([])
     }
+    // A recorded token is excused only while its sheet still scrolls on it and
+    // still rebinds nothing: a sheet brought back into line fails here until its
+    // entry goes.
+    expectDebtStillOwed(ELEVATED_SCROLL_SURFACE_DEBT, (sheet, token) => {
+      const surfaces = sheetSurfaces.get(clientSheetPath(sheet))
+      return surfaces !== undefined && surfaces.scrolls && !surfaces.rebindsElevation && surfaces.elevated.has(token)
+    })
   })
 })

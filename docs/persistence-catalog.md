@@ -90,7 +90,7 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
 }[T]
 ```
 
-Sources: [`packages/core/session/src/types.ts:382`](../packages/core/session/src/types.ts) · [`packages/core/session/src/types.ts:389`](../packages/core/session/src/types.ts) · [`packages/core/session/src/types.ts:418`](../packages/core/session/src/types.ts) · [`packages/core/session/src/types.ts:450`](../packages/core/session/src/types.ts)
+Sources: [`packages/core/session/src/types.ts:384`](../packages/core/session/src/types.ts) · [`packages/core/session/src/types.ts:391`](../packages/core/session/src/types.ts) · [`packages/core/session/src/types.ts:420`](../packages/core/session/src/types.ts) · [`packages/core/session/src/types.ts:452`](../packages/core/session/src/types.ts)
 
 ## Events
 
@@ -155,12 +155,16 @@ Source: [`packages/preset/agent-presets/src/session.ts:28`](../packages/preset/a
   toolName: string
   callId?: ToolCallId
   reason?: string
+  /** Account-and-operation identifier offered for a session grant. */
+  allowSession?: string
+  /** What the offered grant covers; absent means the requester's own action. */
+  allowSessionCoverage?: SessionGrantCoverage
 }
 ```
 
 Types: [ToolCallId](subsystems/core.md)
 
-Source: [`packages/interaction/user-approval/src/types.ts:44`](../packages/interaction/user-approval/src/types.ts)
+Source: [`packages/interaction/user-approval/src/types.ts:62`](../packages/interaction/user-approval/src/types.ts)
 
 <a id="approvaldecided--log-only"></a>
 
@@ -175,10 +179,12 @@ Source: [`packages/interaction/user-approval/src/types.ts:44`](../packages/inter
 'approval/decided': {
   id: ApprovalRequestId
   outcome: ApprovalOutcome
+  /** Account-specific tool permission confined to the original session. */
+  sessionGrant?: { sessionId: import('@aeven/session/types').SessionId; toolName: string; scope: string }
 }
 ```
 
-Source: [`packages/interaction/user-approval/src/types.ts:55`](../packages/interaction/user-approval/src/types.ts)
+Source: [`packages/interaction/user-approval/src/types.ts:77`](../packages/interaction/user-approval/src/types.ts)
 
 <a id="approvalpolicy--log-only"></a>
 
@@ -668,13 +674,15 @@ Source: [`packages/core/session/src/types.ts:370`](../packages/core/session/src/
  * Discards every event from `seq` up to this one: the model-visible surface
  * returns to its state before `seq`, so no discarded message reaches a later
  * request, and transcripts hide the discarded range. `seq` names an earlier
- * `turn/start`, and the event is appended between turns. Discarded events
- * stay in the log; an edited user message is the next turn's input.
+ * `turn/start` (the whole turn goes) or a `user/message` (the turn keeps the
+ * events before it, and transcripts keep the discarded `step/end` and
+ * `turn/end` that close it). The event is appended between turns. Discarded
+ * events stay in the log; an edited user message is the next turn's input.
  */
 'session/rewind': { seq: SessionSeq }
 ```
 
-Source: [`packages/core/session/src/types.ts:378`](../packages/core/session/src/types.ts)
+Source: [`packages/core/session/src/types.ts:380`](../packages/core/session/src/types.ts)
 
 <a id="sessiontitle--log-only"></a>
 

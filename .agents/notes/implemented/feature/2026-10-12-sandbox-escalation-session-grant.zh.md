@@ -30,7 +30,7 @@ Status: implemented
 
 ## Related
 
-将[连接器会话审批](../../architecture/2026-10-07-connector-session-approval.md)的按请求方限定授权决定扩展到第二类请求方范围。
+将[连接器会话审批](../architecture/2026-10-07-connector-session-approval.zh.md)的按请求方限定授权决定扩展到第二类请求方范围。
 
 ## Testing
 

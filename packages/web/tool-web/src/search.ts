@@ -336,12 +336,12 @@ export function applyWebSearchTool(
     text: ({ scope }) => ctx.tools.get('web_search', scope) === undefined
       ? ''
       : [
-          SEARCH_POLICY,
-          searchContract(maxQueries),
-          fetchEnabled && ctx.tools.get('web_fetch', scope) !== undefined
-            ? SEARCH_CLOSE_WITH_FETCH
-            : SEARCH_CLOSE_SEARCH_ONLY,
-        ].join(' '),
+        SEARCH_POLICY,
+        searchContract(maxQueries),
+        fetchEnabled && ctx.tools.get('web_fetch', scope) !== undefined
+          ? SEARCH_CLOSE_WITH_FETCH
+          : SEARCH_CLOSE_SEARCH_ONLY,
+      ].join(' '),
   })
 
   ctx.tools.register(defineTool({

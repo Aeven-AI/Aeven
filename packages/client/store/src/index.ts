@@ -319,3 +319,5 @@ export function defineStore<T, A extends ActionsDecl<T>>(
     },
   }
 }
+
+export { PendingResult, awaitPendingResult } from './pending-result.ts'

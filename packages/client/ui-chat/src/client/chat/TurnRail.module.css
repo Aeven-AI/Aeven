@@ -15,15 +15,12 @@
   float: right;
   /* The gap between the transcript column and the scroller's edge. `100%` is
      `.scroll`'s content box, the same basis `.column` resolves the shared
-     width against, so this tracks a dragged width and a resize without JS.
-     The slot is a query container over that gap alone: containing only the
-     rail keeps the recalculation off the transcript. */
+     width against, so this tracks a dragged width and a resize without JS. */
   width: calc(
     var(--avn-composer-side-clearance, 0px)
     + max(0px, (100% - var(--avn-chat-content-width, 100%)) / 2)
   );
   height: 0;
-  container: avn-turn-rail / inline-size;
   /* Right-aligned; a rail wider than the gap overflows into the column, not
      past the scroller's edge. */
   display: flex;
@@ -185,12 +182,12 @@
 }
 
 /* The ticks need their 24px edge plus 16px clear of the column; a narrower gap
-   would draw them over the transcript. Tracks `--avn-turn-edge`, which a
-   container condition cannot read. */
-@container avn-turn-rail (width < 40px) {
-  .rail {
-    display: none;
-  }
+   would draw them over the transcript. That gap is this slot's own width, which
+   the slot measures and states (see TurnRail.tsx): it tracks the scroller's
+   width and the shared column width rather than the viewport, so no `@media`
+   width stands in, and a container query needs Safari 16.0. */
+.slot[data-crowded] .rail {
+  display: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

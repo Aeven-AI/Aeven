@@ -63,7 +63,7 @@ GUI 插件修改会在把注册表包安装到共享 Desktop pnpm 存储后，�
 pnpm run dev:desktop
 ```
 
-开发时使用读者自己的 Aeven home，因此开发应用显示与 CLI 和 Web 相同的会话和工作区；若已有 `avn web` Host 服务该 home，外壳会接管它，而不会在其上启动第二个 Host。Host 在开始启动时即占用该 home 的租约，因此在其启动期间打开的外壳会最多等待 30 秒，直到被租约记录的 Host 公布其 URL 并响应；若外壳改为启动自己的 Host，会打印原因。一次性 npm 项目位于 `apps/desktop/.desktop-build/development/project`，Electron 浏览器数据则位于 `apps/desktop/.desktop-build/development/electron-user-data`。显式 `AVN_HOME` 可选择另一个 Aeven home。Renderer DevTools 默认自动打开，Main、Renderer 和 avn Host 调试端口依次为 9229、9222 和 9230。`AVN_DESKTOP_MAIN_INSPECT_PORT`、`AVN_DESKTOP_RENDERER_DEBUG_PORT` 与 `AVN_DESKTOP_HOST_INSPECT_PORT` 可以替换这些端口，`AVN_DESKTOP_OPEN_DEVTOOLS=0` 则保持 Renderer 调试窗口关闭。
+开发时使用读者自己的 Aeven home，因此开发应用显示与 CLI 和 Web 相同的会话和工作区；若已有 `avn web` Host 服务该 home，外壳会接管它，而不会在其上启动第二个 Host。Host 在开始启动时即占用该 home 的租约，因此在其启动期间打开的外壳会最多等待 30 秒，直到被租约记录的 Host 公布其 URL 并响应；若外壳改为启动自己的 Host，会打印原因。开发启动会刷新一次性 npm 项目的内容，同时保留项目目录，让仍在运行的 Host 继续使用其工作目录。一次性 npm 项目位于 `apps/desktop/.desktop-build/development/project`，Electron 浏览器数据则位于 `apps/desktop/.desktop-build/development/electron-user-data`。显式 `AVN_HOME` 可选择另一个 Aeven home。Renderer DevTools 默认自动打开，Main、Renderer 和 avn Host 调试端口依次为 9229、9222 和 9230。`AVN_DESKTOP_MAIN_INSPECT_PORT`、`AVN_DESKTOP_RENDERER_DEBUG_PORT` 与 `AVN_DESKTOP_HOST_INSPECT_PORT` 可以替换这些端口，`AVN_DESKTOP_OPEN_DEVTOOLS=0` 则保持 Renderer 调试窗口关闭。
 
 显式构建完成后，`start:desktop` 会重新生成一次性项目，并跳过构建直接启动已有产物：
 
@@ -117,50 +117,19 @@ pnpm run package:desktop:linux:arm64:docker
 pnpm run package:desktop:linux:x64:docker
 ```
 
-Docker 命令会为目标架构构建 `linux-builder.Dockerfile`，把 git 会提交的文件连同 `.git` 以流的形式送入容器，在容器中全新安装依赖后运行 Linux 打包命令，再把顶层产物复制到 `apps/desktop/.desktop-build/targets/<target>/artifacts`。它会转发 `AVN_DESKTOP_APP_ID`、`AVN_DESKTOP_AUTO_UPDATE_ENV` 与 `DOWNLOAD_TEST_ORIGIN`，并把 pnpm store 保存在 `avn-desktop-linux-pnpm-store` 卷中。目标架构与 Docker 宿主不同时会在模拟下运行。`.deb` 会安装 Chromium 沙箱辅助程序；Ubuntu 24.04 等限制非特权用户命名空间的发行版在缺少它时可能拒绝启动 AppImage。`upload:*` 不接受 Linux 目标。
+Docker 命令会为目标架构构建 `linux-builder.Dockerfile`，把 git 会提交的文件连同 `.git` 以流的形式送入容器，在容器中全新安装依赖后运行 Linux 打包命令，再把顶层产物复制到 `apps/desktop/.desktop-build/targets/<target>/artifacts`。它会转发 `AVN_DESKTOP_APP_ID`，并把 pnpm store 保存在 `avn-desktop-linux-pnpm-store` 卷中。目标架构与 Docker 宿主不同时会在模拟下运行。`.deb` 会安装 Chromium 沙箱辅助程序；Ubuntu 24.04 等限制非特权用户命名空间的发行版在缺少它时可能拒绝启动 AppImage。发布 workflow 不构建 Linux 目标。
 
-### 上传更新
+### 发布版本
 
-`AVN_DESKTOP_AUTO_UPDATE_ENV` 同时选择打包时写入的更新 URL 与后续 COS 上传目标，可取 `test` 或 `production`；未设置时使用 `test`。测试打包必须通过 `DOWNLOAD_TEST_ORIGIN` 提供 HTTPS origin，生产 origin 仍为 `https://download.deepseek.com`。上传还必须通过 `DOWNLOAD_TEST_COS_BUCKET` 或 `DOWNLOAD_PROD_COS_BUCKET` 提供所选环境的 COS bucket。shell 未设置 `AVN_DESKTOP_APP_ID`、`AVN_DESKTOP_AUTO_UPDATE_ENV` 与 `DOWNLOAD_TEST_ORIGIN` 时，每个 `package:desktop:*` 命令都会从仓库根目录的 `.env` 读取它们，且不会导入 `.env` 中的其他条目。目标路径为 `_/harness/desktop/stable/<target>/`，其中 `target` 为 `mac-arm64`、`win-arm64` 或 `win-x64`。
+发布版本是 `Aeven-AI/Aeven` 的 GitHub Release，由 `.github/workflows/release-desktop.yml` 构建并发布。推送与根目录 `package.json` 版本一致的标签（例如 `v0.1.2-alpha.5`），或手动启动该 workflow；手动运行只把安装包保留为 workflow artifact，除非设置了 `publish` 输入。它在 `windows-latest` 上构建 `win-x64`、在 `windows-11-arm` 上构建 `win-arm64`、在 `macos-15` 上构建 `mac-arm64`，然后把安装包、macOS ZIP、blockmap 与更新元数据作为同一个版本发布；带预发布标识的版本会以 prerelease 发布。两个 Windows 更新元数据会合并为一个同时列出两个安装包的文件（`scripts/merge-update-manifests.ts`），electron-updater 会选择文件名带有当前运行架构的安装包。
 
-更新目标与上传凭据都与所选环境对应：
+每个目标在全部对应 secret 存在时签名，全部缺失时以 `--unsigned` 构建，只存在一部分时失败。Windows 签名使用 Azure Trusted Signing（见下文）；macOS 签名需要 `MACOS_CERTIFICATE_P12`（base64 编码的 Developer ID Application 证书与私钥）、`MACOS_CERTIFICATE_PASSWORD`、`AVN_DESKTOP_MACOS_SIGNING_IDENTITY`、`AVN_DESKTOP_MACOS_TEAM_ID`，以及 App Store Connect API key：`APPLE_API_KEY_P8`（`.p8` 文件内容）、`APPLE_API_KEY_ID` 与 `APPLE_API_ISSUER`。仓库变量 `AVN_DESKTOP_APP_ID` 设置应用 ID，默认为 `com.aeven.desktop`。本地打包时，shell 未设置 `AVN_DESKTOP_APP_ID` 时会从仓库根目录 `.env` 读取它，这是唯一读取的打包设置。
 
-| 环境 | 公开 origin | COS bucket | COS 凭据 |
-|---|---|---|---|
-| `test` 或未设置 | `DOWNLOAD_TEST_ORIGIN` | `DOWNLOAD_TEST_COS_BUCKET` | `DOWNLOAD_TEST_COS_SECRET_ID`、`DOWNLOAD_TEST_COS_SECRET_KEY` |
-| `production` | `https://download.deepseek.com` | `DOWNLOAD_PROD_COS_BUCKET` | `DOWNLOAD_PROD_COS_SECRET_ID`、`DOWNLOAD_PROD_COS_SECRET_KEY` |
+macOS 配置使用必填发布环境，不会接受钥匙串中最先发现的证书。空值、格式错误的 Team ID、包含 electron-builder 不支持的 `Developer ID Application:` 前缀的签名身份，以及不完整的公证凭据都会被拒绝。macOS 打包要求已配置的身份及其私钥可用。打包会在打包 Whisper worker 与 WhatsApp 连接器的平台包之前，把该身份、安全时间戳与 hardened runtime 应用到它们的可执行文件，seed 准备则把它们应用到 pnpm 存储中的每个 Mach-O 文件；应用签名完成后，深度严格检查会拒绝其他叶证书 Authority 或 Team ID，验证通过才生成发布产物。Electron-builder 会在封装前公证应用并钉票，然后签署 DMG。DMG 的 artifact-completion 钩子随后会公证它并钉票，再要求其身份、票据与 Gatekeeper 验证全部通过；只有钩子成功，electron-builder 才能发布该文件。私钥可以来自登录钥匙串或 electron-builder 的标准 `CSC_LINK` 输入；环境中的 `CSC_NAME` 与证书发现顺序都不能选择发布所有者。公证凭据也可以使用 electron-builder 支持的完整 Apple ID 或钥匙串 profile 方式。手动执行 `pnpm --dir apps/desktop run verify:mac-signature -- <path-to-app>` 重复应用检查时，也必须提供两个 macOS 身份变量。
 
-同一目标必须在同一环境下完成打包与上传。例如，默认测试环境使用：
+### Windows 签名
 
-```sh
-export DOWNLOAD_TEST_ORIGIN='https://desktop-updates.example.com'
-pnpm run package:desktop:mac:arm64
-
-export DOWNLOAD_TEST_COS_BUCKET='<test COS bucket>'
-export DOWNLOAD_TEST_COS_SECRET_ID='<test COS SecretId>'
-export DOWNLOAD_TEST_COS_SECRET_KEY='<test COS SecretKey>'
-pnpm run upload:mac:arm64
-```
-
-生产发布需在打包前设置 `AVN_DESKTOP_AUTO_UPDATE_ENV=production`，再在执行 `upload:mac:arm64`、`upload:win:arm64` 或 `upload:win:x64` 前提供 `DOWNLOAD_PROD_COS_BUCKET` 与生产凭据对。打包不要求 COS bucket 或凭据。它会明确禁止 electron-builder 发布，从其子进程中删除全部四个 COS 凭据字段，并且只有在 electron-builder 以及全部签名或公证钩子成功后才写入目标完成记录。上传会先要求该记录与所选环境、目标、公开 URL 和当前 avn 版本一致，再要求根 avn 版本、Desktop 版本、频道元数据版本、产物名称、大小与 SHA-512 全部一致，之后才读取所选 COS 凭据对。它只上传该目标不可变且带版本的产物，最后以 `no-cache` 上传根据版本得出的频道元数据，并且不会删除历史对象。稳定版本使用 `latest-mac.yml` 或 `latest.yml`；`alpha` 等预发布版本则使用 `alpha-mac.yml` 或 `alpha.yml`，与 electron-builder 生成的文件名一致。
-
-macOS 配置使用必填发布环境，不会接受钥匙串中最先发现的证书。空值、格式错误的 Team ID、包含 electron-builder 不支持的 `Developer ID Application:` 前缀的签名身份，以及不完整的公证凭据都会被拒绝。macOS 打包要求已配置的身份及其私钥可用。Seed 准备会把该身份、安全时间戳与 hardened runtime 应用到每个内嵌 Mach-O 文件；应用签名完成后，深度严格检查会拒绝其他叶证书 Authority 或 Team ID，验证通过才生成发布产物。Electron-builder 会在封装前公证应用并钉票，然后签署 DMG。DMG 的 artifact-completion 钩子随后会公证它并钉票，再要求其身份、票据与 Gatekeeper 验证全部通过；只有钩子成功，electron-builder 才能发布该文件。私钥可以来自登录钥匙串或 electron-builder 的标准 `CSC_LINK` 输入；环境中的 `CSC_NAME` 与证书发现顺序都不能选择发布所有者。公证凭据也可以使用 electron-builder 支持的完整 Apple ID 或钥匙串 profile 方式。手动执行 `pnpm --dir apps/desktop run verify:mac-signature -- <path-to-app>` 重复应用检查时，也必须提供两个 macOS 身份变量。
-
-### Windows EV 签名
-
-Windows 发布打包要求 `AVN_DESKTOP_WINDOWS_CER_FILE` 标识公开的 GlobalSign EV 叶证书，要求 `AVN_DESKTOP_WINDOWS_SIGNTOOL` 标识与 SafeNet 兼容的 SignTool 可执行文件，要求 `AVN_DESKTOP_WINDOWS_KEY_CONTAINER` 标识匹配的私钥容器，并要求 `AVN_DESKTOP_WINDOWS_TOKEN_PIN` 包含 SafeNet Token Password。证书文件保留在源码仓库之外，匹配的私钥仍位于 USB Token。运行固定 Windows 目标前设置这四个输入：
-
-```powershell
-$env:AVN_DESKTOP_WINDOWS_CER_FILE = 'C:\path\to\server.cer'
-$env:AVN_DESKTOP_WINDOWS_SIGNTOOL = 'C:\path\to\the\validated\signtool.exe'
-$env:AVN_DESKTOP_WINDOWS_KEY_CONTAINER = '<SafeNet private-key container name>'
-$env:AVN_DESKTOP_WINDOWS_TOKEN_PIN = '<SafeNet Token Password>'
-pnpm run package:desktop:win:x64
-```
-
-打包前插入并解锁 Token。electron-builder 钩子把每个产物交给采用 CRLF 的 `scripts/windows-sign.cmd`；该 CMD 只调用一次已配置的 SignTool，并指定 `/f`、SafeNet `/kc "[{{PIN}}]=容器"`、`/csp "eToken Base Cryptographic Provider"`、SHA-256 文件摘要和 DigiCert SHA-256 RFC 3161 时间戳。钩子不会改用 electron-builder 内置的 SignTool，也不会重试失败的签名请求。未使用 `--unsigned` 时，若 SignTool、证书、容器、PIN、Token 或签名不可用，Windows 打包会失败，不会生成未签名产物。
-
-PIN 不能包含 `]`、引号或换行，因为这些字符用于分隔 SafeNet `/kc` 值或对应的 CMD 参数。CMD 会禁用延迟展开，因此包含 `!` 的 PIN 可以原样到达 SafeNet。打包流程不会把任何 `AVN_DESKTOP_WINDOWS_*` 字段传给构建与 seed 准备子进程；它只向 electron-builder 提供四个配置输入，在其他字段已经清理的环境中只向签名 CMD 提供经过校验的签名字段，在 SignTool 启动前清除这些字段，并遮盖 SignTool 诊断。SafeNet 仍要求 PIN 出现在 SignTool 进程命令行中。只能在连接了物理 Token 的受控 self-hosted Windows runner 上把它注入为临时 secret；绝不能提交该值、把它写进 `.env`，或持久保存为 Windows 用户或系统环境变量。
+签名的 Windows 构建会通过 Azure Trusted Signing，使用 electron-builder 的 `win.azureSignOptions` 签署可执行文件、安装包及卸载程序。它读取 `AZURE_TRUSTED_SIGNING_ENDPOINT`、`AZURE_TRUSTED_SIGNING_ACCOUNT_NAME`、`AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME` 与 `AZURE_TRUSTED_SIGNING_PUBLISHER_NAME`，Azure SDK 则通过 `AZURE_TENANT_ID`、`AZURE_CLIENT_ID` 与 `AZURE_CLIENT_SECRET` 认证服务主体。构建主机上不存放证书或令牌。打包会把这些字段从构建与 seed 准备子进程中移除，只交给 electron-builder；缺少它们时，签名的 Windows 构建会在预检时停止，`--unsigned` 则不签名构建。
 
 使用对应的 `:dir` 命令可以生成可直接运行的应用目录，而不是安装包，例如：
 
@@ -177,11 +146,11 @@ pnpm run package:desktop:win:arm64:unsigned
 pnpm run package:desktop:win:x64:unsigned
 ```
 
-未签名构建会跳过 seed 签名、应用与安装包签名、macOS 公证、DMG 公证钩子与目标完成记录，因此 `upload:*` 会拒绝它。在 macOS 上，由于 Apple Silicon 不会启动没有签名的代码，electron-builder 会以不启用 hardened runtime 的方式对应用进行 ad-hoc 签名；测试者移除下载副本的隔离属性之前，Gatekeeper 会拦截它。Windows SmartScreen 会在未签名安装包运行前发出警告。每个目标仍要求在其对应的宿主平台上构建，并要求 `AVN_DESKTOP_APP_ID` 与所选更新 origin。
+未签名构建会跳过 seed 签名、应用与安装包签名、macOS 公证、以及 DMG 公证钩子。在 macOS 上，由于 Apple Silicon 不会启动没有签名的代码，electron-builder 会以不启用 hardened runtime 的方式对应用进行 ad-hoc 签名；测试者移除下载副本的隔离属性之前，Gatekeeper 会拦截它。Windows SmartScreen 会在未签名安装包运行前发出警告。每个目标仍要求在其对应的宿主平台上构建，并要求 `AVN_DESKTOP_APP_ID`。
 
 未签名产物带有 `-unsigned` 后缀，例如 `aeven-<version>-win-arm64-unsigned.exe`，因此在共享的产物目录中不会被误认为发布安装包。
 
-每条打包命令都会先检查 desktop 与 avn 版本一致，为目标生成 electron-builder 配置（应用 ID、签名与公证设置、Windows 证书、SignTool 与令牌字段、更新 origin），并运行 `tar`、`npm`、Go 与 CMake，在任何构建步骤开始前报告全部问题。仅准备的运行会跳过签名设置。加上 `--check` 可在检查后停止：
+每条打包命令都会先检查 desktop 与 avn 版本一致，为目标生成 electron-builder 配置（应用 ID、macOS 签名与公证设置、Windows Azure Trusted Signing 字段），并运行 `tar`、`npm`、Go 与 CMake，在任何构建步骤开始前报告全部问题。仅准备的运行会跳过签名设置。加上 `--check` 可在检查后停止：
 
 ```sh
 pnpm run package:desktop:win:arm64:unsigned --check
@@ -203,7 +172,7 @@ pnpm run prepare:desktop
 
 打包应用会在主窗口打开十秒后检查目标专用的发布流；本地化的 **检查更新…** 菜单项会手动触发同一检查。发现可用版本时，应用打开一个原生确认弹窗。用户确认后，应用等待正在进行的检查完成，下载并验证已签名的 Desktop 发布、停止 avn 子进程，并把安装与重启交给 electron-updater。下次启动会先校准版本绑定的 seed，再重新打开产品窗口。
 
-Electron-builder 始终为 `AVN_DESKTOP_AUTO_UPDATE_ENV` 选择的部署生成 generic-provider 频道元数据。NSIS 差分包与 macOS ZIP 目标让 electron-updater 可以复用未变化的数据块；供手动安装的 DMG 经过公证，但不生成 blockmap，因为它不是 macOS updater 的载荷。Seed 与桌面壳仍属于同一个签名 Desktop 发布。macOS 签名与公证凭据使用 electron-builder 的标准环境变量；Windows EV 签名使用上文所述的公开证书、已验证 SignTool、SafeNet 容器和 runner PIN。必填 Desktop 发布环境选择构建所验证的应用身份与平台签名身份。
+Electron-builder 生成 GitHub provider 频道元数据（`latest.yml`，预发布版本则为 `alpha.yml` 等），打包后的更新器读取 `Aeven-AI/Aeven` 的最新 Release。NSIS 差分包与 macOS ZIP 目标让 electron-updater 可以复用未变化的数据块；供手动安装的 DMG 经过公证，但不生成 blockmap，因为它不是 macOS updater 的载荷。Seed 与桌面壳仍属于同一个 Desktop 发布，在配置了平台签名时签名。
 
 ## 底层开发覆盖项
 

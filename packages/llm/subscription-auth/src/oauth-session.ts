@@ -18,6 +18,7 @@ import type {
 } from '@earendil-works/pi-ai'
 import { createModels } from '@earendil-works/pi-ai'
 import type { OAuthProviderDefinition } from './oauth-providers.ts'
+import { parseModelsCache } from './models-cache.ts'
 import { OAuthCredentialFileStore, oauthCredentialPath } from './store.ts'
 
 
@@ -54,15 +55,8 @@ export interface OAuthProviderSessionOptions {
 const MODELS_CACHE_VERSION = 1
 
 function parseLiveModels(text: string): LiveSubscriptionModel[] | undefined {
-  let value: unknown
-  try {
-    value = JSON.parse(text)
-  } catch {
-    // A corrupt cache is replaced by the next sync; the shipped catalog serves until then.
-    return undefined
-  }
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined
-  const document = value as Record<string, unknown>
+  const document = parseModelsCache(text)
+  if (document === undefined) return undefined
   if (document['version'] !== MODELS_CACHE_VERSION || !Array.isArray(document['models'])) return undefined
   const models: LiveSubscriptionModel[] = []
   for (const row of document['models'] as unknown[]) {

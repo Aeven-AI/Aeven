@@ -9,6 +9,7 @@ import { apply as settingsApply, inject as settingsInject } from '@aeven/client-
 import { apply, inject } from '@aeven/client-ui-settings-general/client'
 import { CloseLabel, HeaderContent, TriggerContent } from '../src/client/chrome.tsx'
 import { GeneralSection } from '../src/client/GeneralSection.tsx'
+import { DeveloperModeRow } from '../src/client/DeveloperModeRow.tsx'
 
 // These specs assert the shipped Chinese copy. The lane has no jsdom `window`,
 // so browser-language detection never runs and a fresh LocaleRuntime opens on
@@ -91,7 +92,11 @@ describe('ui-settings-general apply', () => {
     // The nav label is a locale-following thunk; owners resolve at read time.
     expect(resolveSlotLabel(entry.options.label)).toBe('通用设置')
     expect(before.slots.spec('settings.general.item')).toEqual({ kind: 'list', scope: 'root' })
-    expect(before.slots.entries('settings.general.item')).toEqual([])
+    // The General section seats its own Developer-mode row last in the list.
+    const developerRow = before.slots.entries('settings.general.item')[0]!
+    expect(developerRow.component).toBe(DeveloperModeRow)
+    expect(developerRow.options).toMatchObject({ id: 'developer-mode', order: 100 })
+    expect(before.slots.entries('settings.general.item')).toHaveLength(1)
     // The onboarding hole stays declared for feature-owned steps; this plugin
     // no longer seats one.
     expect(before.slots.entries('settings.onboarding')).toEqual([])
@@ -164,7 +169,7 @@ describe('ui-settings-general apply', () => {
     for (const [name, component] of SEATS) {
       expect(b.slots.entries(name)[0]!.component).toBe(component)
     }
-    expect(b.slots.entries('settings.general.item')).toEqual([])
+    expect(b.slots.entries('settings.general.item')[0]!.component).toBe(DeveloperModeRow)
     expect(b.slots.spec('settings.general.item')).toEqual({ kind: 'list', scope: 'root' })
     // The recovered registrations still ride the locale path.
     b.locale.setLocale('en')

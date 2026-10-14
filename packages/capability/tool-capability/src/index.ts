@@ -16,9 +16,8 @@ import { CapabilityLearner, MIN_INPUT_TOKENS } from './learner.ts'
 import { condenseProcedure, findLearnedProcedures, forgetLearnedProcedures, LEARNED_DOMAINS, LEARNED_PREFIX, readProcedureImport, storeLearnedProcedure } from './memory-learning.ts'
 import { recallProcedures, PROCEDURE_GUIDANCE } from './recall.ts'
 import { MEMORY_TOOL, memoryScopeOf, type MemoryDomain } from '@aeven/memory'
-import { defineTool } from '@aeven/tools'
+import { defineTool, textOutput, textResult } from '@aeven/tools'
 import type {} from '@aeven/system-prompt'
-import type { JsonValue } from '@aeven/util-values'
 
 export const name = 'tool-capability'
 export const inject = {
@@ -98,24 +97,6 @@ export const MEMORY_LEARNING_GUIDANCE =
   `To see what was learned, search memory with ${MEMORY_TOOL.search} for "${LEARNED_PREFIX}" and the topic; ${MEMORY_TOOL.skills} lists a different kind of memory. ` +
   `When the user asks you to learn or remember how to do something, save it with ${TOOL} (action "learn"): name, description, domain, and the full procedure (fast path, when to use it, requirements, steps, verification, recovery); a procedure of the same name is replaced.`
 
-const TEXT_OUTPUT = {
-  schema: {
-    type: 'object' as const,
-    additionalProperties: true,
-    properties: { text: { type: 'string' as const, required: true } },
-  },
-  render: (_args: unknown, value: Record<string, unknown>) => [{
-    type: 'text' as const,
-    text: typeof value['text'] === 'string' ? value['text'] : JSON.stringify(value),
-  }],
-} as const
-
-type TextResult = { text: string } & Record<string, JsonValue>
-
-function json(value: { text: string } & Record<string, unknown>): TextResult {
-  return JSON.parse(JSON.stringify(value)) as TextResult
-}
-
 /** The prompt assembly scope of an agent's request is the agent itself. */
 function ownerOfScope(scope: unknown): string | undefined {
   if (scope === null || typeof scope !== 'object' || !('session' in scope)) return undefined
@@ -188,7 +169,7 @@ export function apply(ctx: Context, config: Config): void {
         domain: { type: 'string', enum: [...LEARNED_DOMAINS], description: '"world" for how an application or tool works in any project, "project" for this workspace only, "experience" for other know-how. Default "experience".' },
         content: { type: 'string', description: 'For learn: the full procedure in Markdown: when to use it, requirements, steps, verification, recovery.' },
       },
-      output: TEXT_OUTPUT,
+      output: textOutput(),
       async execute(args, exec) {
         const { agent } = ownerOf(exec.agent)
         const scope = memoryScopeOf(agent)
@@ -226,7 +207,7 @@ export function apply(ctx: Context, config: Config): void {
             await Promise.all(Array.from({ length: IMPORT_CONCURRENCY }, worker))
             logger.info(`procedure import finished: ${stored} of ${procedures.length} stored`)
           })()
-          return json({ text: `Importing ${procedures.length} procedures into memory in the background; each is condensed and stored in turn.`, count: procedures.length })
+          return textResult({ text: `Importing ${procedures.length} procedures into memory in the background; each is condensed and stored in turn.`, count: procedures.length })
         }
         const procedureName = required(args.name, 'name', 'learn').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
         const description = required(args.description, 'description', 'learn')
@@ -236,10 +217,12 @@ export function apply(ctx: Context, config: Config): void {
         // Saving again under a name memory already holds replaces that procedure instead of doubling it.
         const replaced = (await findLearnedProcedures(ctx, scope, `${procedureName} ${description}`, exec.signal))
           .filter(item => item.name === procedureName).map(item => item.id)
-        const summary = await condenseProcedure(ctx, scope, { name: procedureName, description, content, domain }, config.maxOutputTokens, exec.signal)
+        const summary = await condenseProcedure(
+          ctx, scope, { name: procedureName, description, content, domain }, config.maxOutputTokens, exec.signal,
+        )
         const id = await storeLearnedProcedure(ctx, scope, { name: procedureName, description, content, summary, domain }, exec.signal)
         await forgetLearnedProcedures(ctx, scope.owner, replaced, exec.signal)
-        return json({ text: `Saved ${procedureName} to ${domain} memory (${id})${replaced.length > 0 ? ', replacing its earlier version' : ''}; later requests that need it recall it.`, id, domain })
+        return textResult({ text: `Saved ${procedureName} to ${domain} memory (${id})${replaced.length > 0 ? ', replacing its earlier version' : ''}; later requests that need it recall it.`, id, domain })
       },
     })), 'tool-capability.tool')
   }
@@ -264,7 +247,7 @@ export function apply(ctx: Context, config: Config): void {
       validation: { type: 'string', enum: ['passed', 'failed', 'not-run'], description: 'For report: result of the capability\'s verification step.' },
       notes: { type: 'string', description: 'For report: what went wrong or differed from the procedure.' },
     },
-    output: TEXT_OUTPUT,
+    output: textOutput(),
     async execute(args, exec) {
       const { agent, owner } = ownerOf(exec.agent)
       const sessionId = agent.session.id
@@ -272,16 +255,18 @@ export function apply(ctx: Context, config: Config): void {
       switch (action) {
         case 'list': {
           const records = await ctx.capabilities.list(owner)
-          return json({
+          return textResult({
             text: records.length === 0 ? 'No capabilities learned yet.' : records.map(describeRecord).join('\n'),
-            capabilities: records.map(record => ({ name: record.name, status: record.status, revision: record.revision, description: record.description })),
+            capabilities: records.map(record => ({
+              name: record.name, status: record.status, revision: record.revision, description: record.description,
+            })),
           })
         }
         case 'view': {
           const capability = await ctx.capabilities.get(owner, required(args.name, 'name', action))
-          if (!capability) return json({ text: `No capability named ${args.name}.`, found: false })
+          if (!capability) return textResult({ text: `No capability named ${args.name}.`, found: false })
           const status = `Status: ${statusLabel(capability.status)}. ${evidenceSummary(capability, await ctx.capabilities.evidence(owner, capability.name))}`
-          return json({
+          return textResult({
             text: `${PROCEDURE_GUIDANCE}\n${status}\n${capability.description}\n\n${capability.content}${capability.files.length > 0 ? `\n\nSupporting files in ${capability.directory}: ${capability.files.join(', ')}` : ''}`,
             found: true,
             status: capability.status,
@@ -298,30 +283,30 @@ export function apply(ctx: Context, config: Config): void {
           }
           const existing = await ctx.capabilities.get(owner, draft.name)
           if (existing !== undefined) {
-            return json({ text: `A capability named ${draft.name} already exists (${statusLabel(existing.status)}); change it with action "update".`, status: 'exists' })
+            return textResult({ text: `A capability named ${draft.name} already exists (${statusLabel(existing.status)}); change it with action "update".`, status: 'exists' })
           }
           const saved = await ctx.capabilities.save(owner, draft, { status: 'candidate', source: 'agent', sessionId })
-          return json({ text: `Saved ${saved.name}. It is stored as a candidate, excluded from automatic recall until deliberately validated.`, status: saved.status })
+          return textResult({ text: `Saved ${saved.name}. It is stored as a candidate, excluded from automatic recall until deliberately validated.`, status: saved.status })
         }
         case 'update': {
           const capabilityName = required(args.name, 'name', action)
           const current = await ctx.capabilities.get(owner, capabilityName)
-          if (!current) return json({ text: `No capability named ${capabilityName}.`, found: false })
+          if (!current) return textResult({ text: `No capability named ${capabilityName}.`, found: false })
           const content = args.content?.trim()
           const edit = content ? undefined : { oldString: required(args.old_string, 'old_string or content', action), newString: args.new_string ?? '' }
           const updated = edit
             ? await ctx.capabilities.patch(owner, capabilityName, edit, sessionId)
             : await ctx.capabilities.save(owner, { name: capabilityName, description: args.description?.trim() || current.description, content: content ?? '' }, { status: current.status, source: current.source, sessionId })
-          return json({ text: `Updated ${capabilityName} to revision ${updated.revision}.`, revision: updated.revision })
+          return textResult({ text: `Updated ${capabilityName} to revision ${updated.revision}.`, revision: updated.revision })
         }
         case 'write_file': {
           const capabilityName = required(args.name, 'name', action)
           const path = required(args.file_path, 'file_path', action)
           const fileContent = args.file_content ?? ''
           const current = await ctx.capabilities.get(owner, capabilityName)
-          if (!current) return json({ text: `No capability named ${capabilityName}.`, found: false })
+          if (!current) return textResult({ text: `No capability named ${capabilityName}.`, found: false })
           const updated = await ctx.capabilities.writeFile(owner, capabilityName, path, fileContent, sessionId)
-          return json({ text: `Wrote ${path} to ${capabilityName} (revision ${updated.revision}).`, revision: updated.revision })
+          return textResult({ text: `Wrote ${path} to ${capabilityName} (revision ${updated.revision}).`, revision: updated.revision })
         }
         case 'report': {
           const capabilityName = required(args.name, 'name', action)
@@ -335,7 +320,7 @@ export function apply(ctx: Context, config: Config): void {
             validation: args.validation ?? 'not-run',
             ...notes ? { notes } : {},
           })
-          return json({
+          return textResult({
             text: accepted
               ? `Recorded: ${capabilityName} ${outcome}, verification ${args.validation ?? 'not-run'}.`
               : `${capabilityName} was not recalled or viewed in this turn; report only after actually using a procedure available in this turn.`,
@@ -346,10 +331,10 @@ export function apply(ctx: Context, config: Config): void {
         case 'restore': {
           const capabilityName = required(args.name, 'name', action)
           const current = await ctx.capabilities.get(owner, capabilityName)
-          if (!current) return json({ text: `No capability named ${capabilityName}.`, found: false })
+          if (!current) return textResult({ text: `No capability named ${capabilityName}.`, found: false })
           const retire = action === 'retire'
           const updated = await ctx.capabilities.setStatus(owner, capabilityName, retire ? 'retired' : 'learned', sessionId)
-          return json({ text: `${capabilityName} is now ${updated.status}.`, status: updated.status })
+          return textResult({ text: `${capabilityName} is now ${updated.status}.`, status: updated.status })
         }
         default:
           throw new Error(`unknown action: ${String(action)}`)
@@ -393,7 +378,7 @@ export function apply(ctx: Context, config: Config): void {
     const executions = previous === undefined || !Number.isFinite(previous) ? undefined : byTurn?.get(previous)
     for (const execution of executions ?? []) {
       void ctx.capabilities.amend(owner, execution.name, { kind: 'correction', executionId: execution.id, at: Date.now(), text: text.slice(0, 500) })
-        .catch((error: unknown) => logger.warn(`correction for ${execution.name} failed: ${error instanceof Error ? error.message : String(error)}`))
+        .catch((error: unknown) =>{  logger.warn(`correction for ${execution.name} failed: ${error instanceof Error ? error.message : String(error)}`) })
     }
   }
 
@@ -403,7 +388,8 @@ export function apply(ctx: Context, config: Config): void {
     if (outcome === undefined || owner === undefined) return
     if (outcome.work !== undefined && learner !== undefined) {
       const route = session.requestHeader()?.config
-      learner.offer(owner, route === undefined ? undefined : { provider: route.provider, model: route.model }, outcome.work, session.header.cwd)
+      const learnerRoute = route === undefined ? undefined : { provider: route.provider, model: route.model }
+      learner.offer(owner, learnerRoute, outcome.work, session.header.cwd)
     }
     if (outcome.used.length === 0) return
     void (async () => {
@@ -416,7 +402,7 @@ export function apply(ctx: Context, config: Config): void {
         byTurn.set(execution.turn, [...byTurn.get(execution.turn) ?? [], { name: capabilityName, id }])
         recorded.set(session.id, byTurn)
       }
-    })().catch((error: unknown) => logger.warn(`recording capability execution failed: ${error instanceof Error ? error.message : String(error)}`))
+    })().catch((error: unknown) =>{  logger.warn(`recording capability execution failed: ${error instanceof Error ? error.message : String(error)}`) })
   })
 
   ctx.on('message-feedback/changed', (change) => {
@@ -435,7 +421,7 @@ export function apply(ctx: Context, config: Config): void {
         at: Date.now(),
         rating: change.item.rating,
         ...change.item.note === undefined ? {} : { note: change.item.note },
-      }).catch((error: unknown) => logger.warn(`rating for ${execution.name} failed: ${error instanceof Error ? error.message : String(error)}`))
+      }).catch((error: unknown) =>{  logger.warn(`rating for ${execution.name} failed: ${error instanceof Error ? error.message : String(error)}`) })
     }
   })
 

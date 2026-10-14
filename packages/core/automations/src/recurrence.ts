@@ -81,12 +81,10 @@ export function latestDueOccurrence(schedule: AutomationSchedule, now: string): 
     ).toISO()
   }
   const lookbackDays = schedule.kind === 'daily' ? 2 : 8
-  const values = occurrencesBetween(
-    schedule,
-    DateTime.fromMillis(nowMs - lookbackDays * 86_400_000, { zone: 'utc' }).toISO()!,
-    DateTime.fromMillis(nowMs, { zone: 'utc' }).toISO()!,
-    16,
-  )
+  const after = DateTime.fromMillis(nowMs - lookbackDays * 86_400_000, { zone: 'utc' }).toISO()
+  const until = DateTime.fromMillis(nowMs, { zone: 'utc' }).toISO()
+  if (after === null || until === null) return null
+  const values = occurrencesBetween(schedule, after, until, 16)
   return values.at(-1) ?? null
 }
 
@@ -103,7 +101,9 @@ function occurrencesBetween(
 
   if (normalized.kind === 'once') {
     const at = parseInstant(normalized.at, 'once.at').toUTC()
-    return at > after && at <= until ? [at.toISO()!] : []
+    if (!(at > after && at <= until)) return []
+    const iso = at.toISO()
+    return iso === null ? [] : [iso]
   }
   if (normalized.kind === 'interval') {
     return intervalOccurrences(normalized.anchor, normalized.everyMinutes, after, until, limit)
@@ -121,7 +121,8 @@ function occurrencesBetween(
       const candidate = localCandidate(date, hour, minute, normalized.timeZone)
       if (candidate !== null) {
         const utc = candidate.toUTC()
-        if (utc > after && utc <= until) values.push(utc.toISO()!)
+        const iso = utc.toISO()
+        if (utc > after && utc <= until && iso !== null) values.push(iso)
       }
     }
     date = date.plus({ days: 1 })
@@ -145,7 +146,9 @@ function intervalOccurrences(
   let candidateMs = anchor.toMillis() + steps * stepMs
   const values: string[] = []
   while (candidateMs <= until.toMillis() && values.length < limit) {
-    values.push(DateTime.fromMillis(candidateMs, { zone: 'utc' }).toISO()!)
+    const iso = DateTime.fromMillis(candidateMs, { zone: 'utc' }).toISO()
+    if (iso === null) break
+    values.push(iso)
     candidateMs += stepMs
   }
   return values
@@ -162,7 +165,7 @@ function localCandidate(date: DateTime, hour: number, minute: number, zone: stri
 
 function parseInstant(value: string, field: string): DateTime {
   const parsed = DateTime.fromISO(value, { setZone: true })
-  if (!parsed.isValid || parsed.offsetNameShort === null || !/(?:Z|[+-]\d\d:\d\d)$/.test(value)) {
+  if (!parsed.isValid || !/(?:Z|[+-]\d\d:\d\d)$/.test(value)) {
     throw new Error(`${field} must be an ISO-8601 instant with an explicit offset`)
   }
   return parsed
@@ -176,7 +179,10 @@ function assertTimeZone(zone: string): void {
 
 function parseLocalTime(value: string): [number, number] {
   const [hour, minute] = value.split(':').map(Number)
-  return [hour!, minute!]
+  if (hour === undefined || minute === undefined) {
+    throw new Error(`'${value}' is not a 24-hour HH:mm time`)
+  }
+  return [hour, minute]
 }
 
 const farFutureIso = '9999-12-31T23:59:59.999Z'

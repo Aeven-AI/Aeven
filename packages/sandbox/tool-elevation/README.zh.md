@@ -58,7 +58,7 @@ kind: "package-reference"
 
 #### 模型看到什么
 
-生成的[工具目录](../../tool-catalog.md)中的工具条目：名称、描述与四个参数。结果是包含 `exitCode` 与 `output` 的 JSON。
+生成的[工具目录](../../../docs/tool-catalog.zh.md#aeventool-elevation)中的工具条目：名称、描述与四个参数。结果是包含 `exitCode` 与 `output` 的 JSON。
 
 ##### 逐字参数描述
 
@@ -84,9 +84,13 @@ timeoutMs: Deadline in milliseconds, at most 600000 (the default).
 - **作业文件对用户可写** —— 它位于用户临时目录中，因此以同一用户身份运行的受损进程可能在同意与执行之间替换它。
 - **每次调用一条命令** —— 重复的管理员工作每次调用都需要一对同意，除非读者授予审批请求所提供的会话作用域。
 - **没有自动化测试覆盖** —— Windows 提示需要人来操作；生成的脚本经过了手动验证。
+- **无 invariant 伴随模块**——不发布运行时 invariant 伴随模块，因为本包拥有的关系（在 `ctx.approval` 允许之前不启动任何进程）由 Windows 用户账户控制提示决定，只有在有人应答的 Windows 主机上才能观测。
 
 <a id="dev-note"></a>
-## 开发备注
+
+<a id="开发备注"></a>
+
+### 开发备注
 
 <details>
 <summary>面向维护者的工作上下文 —— 点击展开</summary>

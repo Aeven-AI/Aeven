@@ -68,6 +68,9 @@ kind: "package-reference"
 - **提供方选择** — 由配置选择提供方；模型不能在运行时切换已注册的驱动。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

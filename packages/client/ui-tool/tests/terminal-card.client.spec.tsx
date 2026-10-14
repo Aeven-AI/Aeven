@@ -365,7 +365,8 @@ describe('chat row terminal body', () => {
     const view = render(<GenericToolCard {...ownerProps(running())} />)
     toggleRow(view)
     expect(view.getByText('ls -la')).toBeTruthy()
-    expect(view.queryByText('复制')).toBeNull()
+    // A running command with nothing printed carries no copy control yet.
+    expect(view.queryByRole('button', { name: '复制' })).toBeNull()
     // The card states its own run state: a running command reads as running
     // even though it has no output yet to distinguish it from an empty settle.
     expect(runStateOf(view.container)).toBe('ongoing')
@@ -432,7 +433,9 @@ describe('BashRow terminal card', () => {
     expect(view.queryByText(/a\.ts/)).toBeNull()
     fireEvent.click(view.container.querySelector('[data-expandable]')!)
     expect(view.getByText('a.ts  b.ts', RAW)).toBeTruthy()
-    expect(view.getByText('复制')).toBeTruthy()
+    // The card's copy control is an icon button named in its tooltip, so the
+    // label is its accessible name rather than visible text.
+    expect(view.getByRole('button', { name: '复制' })).toBeTruthy()
     // Collapse back in place: the summary row returns, the card unmounts.
     fireEvent.click(view.container.querySelector('[data-expandable]')!)
     expect(view.queryByText(/a\.ts/)).toBeNull()
@@ -563,7 +566,10 @@ describe('DetailsPanel Output section', () => {
         useChat={bindSnapshotSelector({ getSnapshot: () => snapshot, subscribe: () => () => {} })}
         useTrajectory={useEmptyTrajectory}
         useInput={(() => { throw new Error('unused') })}
-        inputActions={{ setDraft: () => {}, appendText: () => true, addImages: () => true, addImageFiles: () => null, removeImage: () => {}, pruneImages: () => {}, submit: () => {} }}
+        inputActions={{
+          setDraft: () => {}, appendText: () => true, addImages: () => true, addImageFiles: () => null,
+          removeImage: () => {}, pruneImages: () => {}, submit: () => {},
+        }}
         useProjection={(() => undefined)}
         useStore={bindSnapshotSelector(chat)}
         actions={chat.actions}
@@ -750,7 +756,10 @@ describe('DetailsPanel Output section', () => {
         useChat={bindSnapshotSelector({ getSnapshot: () => snap, subscribe: () => () => {} })}
         useTrajectory={useEmptyTrajectory}
         useInput={(() => { throw new Error('unused') })}
-        inputActions={{ setDraft: () => {}, appendText: () => true, addImages: () => true, addImageFiles: () => null, removeImage: () => {}, pruneImages: () => {}, submit: () => {} }}
+        inputActions={{
+          setDraft: () => {}, appendText: () => true, addImages: () => true, addImageFiles: () => null,
+          removeImage: () => {}, pruneImages: () => {}, submit: () => {},
+        }}
         useProjection={(() => undefined)}
         useStore={bindSnapshotSelector(chat)}
         actions={chat.actions}

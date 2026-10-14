@@ -1,6 +1,6 @@
 // Latency/throughput folds for the settled turn footer.
 
-import type { AssistantMessageNode, ConversationNode } from './snapshot.ts'
+import type { AssistantMessageNode, ConversationNode } from '@aeven/client-ui-conversation/client'
 
 /** Latency and decode-throughput readings for one turn's footer. */
 export interface TurnMetrics {

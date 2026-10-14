@@ -12,7 +12,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 
-public static class DshFileAssociations {
+public static class AvnFileAssociations {
   [ComImport, Guid("973810ae-9599-4b88-9e4d-6ee98c9552da"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
   public interface IEnumHandlers {
     [PreserveSig] int Next(uint count, out IHandler handler, out uint fetched);
@@ -255,7 +255,7 @@ ${WINDOWS_ASSOCIATIONS}
 '@
 $path = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${encodedPath}'))
 $application = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${encodedApplication}'))
-${application === null ? 'ConvertTo-Json -InputObject @([DshFileAssociations]::List($path)) -Depth 4 -Compress' : '[DshFileAssociations]::Open($path, $application)'}
+${application === null ? 'ConvertTo-Json -InputObject @([AvnFileAssociations]::List($path)) -Depth 4 -Compress' : '[AvnFileAssociations]::Open($path, $application)'}
 `
   const result = await run('powershell.exe', [
     '-NoProfile', '-NonInteractive', '-STA', '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64'),

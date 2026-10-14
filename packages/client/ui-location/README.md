@@ -34,6 +34,7 @@ None; presenting a request and returning the reader's choice does not alter a mo
 - **Secure pages only** — browsers expose geolocation only over https or a loopback address, so a page opened on a LAN address over http reports the location unavailable.
 - **A blocked site stays blocked** — after the reader blocks the prompt, the card asks them to allow the site in the browser's settings; the page cannot re-open a prompt the browser has blocked.
 - **Electron needs a native provider** — Chromium geolocation in Electron may need a Google API key; until a Host provider answers `location/request`, the desktop card can report the location unavailable.
+- **Invariant omission** — No invariant companion is published because each request is answered once, inside the one window that shows the session: the position, the card, and the reader's choice exist only as that window's pending interaction, while the Host owner of the `location/request` waterfall keeps the ordering.
 
 <a id="dev-note"></a>
 ### Dev Note

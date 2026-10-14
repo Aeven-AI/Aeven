@@ -402,6 +402,7 @@ describe('WorkspaceController follow', () => {
         items: [{
           workspaceId: pinned,
           isDefault: true,
+          isBuiltIn: true,
           kind: 'virtual',
           path: null,
           title: DEFAULT_DEFAULT_WORKSPACE_TITLE,
@@ -425,6 +426,7 @@ describe('WorkspaceController follow', () => {
       workspace: {
         workspaceId: pinned,
         isDefault: true,
+        isBuiltIn: true,
         kind: 'virtual',
         path: null,
         title: DEFAULT_DEFAULT_WORKSPACE_TITLE,

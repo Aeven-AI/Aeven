@@ -164,6 +164,9 @@ kind: "package-reference"
 - **`thinking` 与 `reasoningEffort` 只转发、不强制** —— 网关接受这两个值；它如何处理属于其自身契约，而忽略某强度的模型会相应地报告用量。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

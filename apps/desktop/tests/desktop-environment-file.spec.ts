@@ -27,18 +27,15 @@ describe('desktop packaging environment file', () => {
       '',
     ].join('\n'))
     const environment: NodeJS.ProcessEnv = {}
-    expect(loadDesktopPackagingEnvironment(path, environment)).toEqual(['AVN_DESKTOP_APP_ID', 'DOWNLOAD_TEST_ORIGIN'])
-    expect(environment).toEqual({
-      AVN_DESKTOP_APP_ID: 'com.example.app',
-      DOWNLOAD_TEST_ORIGIN: 'https://updates.example.com',
-    })
+    expect(loadDesktopPackagingEnvironment(path, environment)).toEqual(['AVN_DESKTOP_APP_ID'])
+    expect(environment).toEqual({ AVN_DESKTOP_APP_ID: 'com.example.app' })
   })
 
   it('keeps a value the shell already set', async () => {
-    const path = await envFile('AVN_DESKTOP_APP_ID=com.example.file\nAVN_DESKTOP_AUTO_UPDATE_ENV=production\n')
+    const path = await envFile('AVN_DESKTOP_APP_ID=com.example.file\n')
     const environment: NodeJS.ProcessEnv = { AVN_DESKTOP_APP_ID: 'com.example.shell' }
-    expect(loadDesktopPackagingEnvironment(path, environment)).toEqual(['AVN_DESKTOP_AUTO_UPDATE_ENV'])
-    expect(environment).toEqual({ AVN_DESKTOP_APP_ID: 'com.example.shell', AVN_DESKTOP_AUTO_UPDATE_ENV: 'production' })
+    expect(loadDesktopPackagingEnvironment(path, environment)).toEqual([])
+    expect(environment).toEqual({ AVN_DESKTOP_APP_ID: 'com.example.shell' })
   })
 
   it('supplies nothing when the file is absent', () => {

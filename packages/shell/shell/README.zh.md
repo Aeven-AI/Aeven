@@ -130,6 +130,9 @@ seam 本身不是执行器：每个组合只挂载一个提供方，工具即可
 - **前台超时始终由执行器负责**——seam 上由调用方负责 deadline 的模式已由[工具调用超时策略笔记](../../../.agents/notes/implemented/architecture/2026-07-07-tool-call-timeout-policy.zh.md)明确延期。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

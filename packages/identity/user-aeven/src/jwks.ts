@@ -64,7 +64,7 @@ export class RemoteKeySet {
   }
 
   private async fetchKeys(): Promise<void> {
-    if (this.controller.signal.aborted) return
+    if (this.isDisposed()) return
     try {
       const signal = AbortSignal.any([this.controller.signal, AbortSignal.timeout(this.options.timeoutMs)])
       const response = await fetch(this.options.url, { headers: { Accept: 'application/json' }, signal, redirect: 'error' })
@@ -73,8 +73,14 @@ export class RemoteKeySet {
       if (keys.size === 0) throw new Error('the key set holds no ES256 key')
       this.keys = keys
     } catch (error) {
-      if (this.controller.signal.aborted) return
+      // A fetch that fails because the set was disposed says nothing about the API.
+      if (this.isDisposed()) return
       this.options.warn(`identity-user-aeven: could not load ${this.options.url}: ${error instanceof Error ? error.message : String(error)}`)
     }
+  }
+
+  /** Whether {@link dispose} has aborted the loader. */
+  private isDisposed(): boolean {
+    return this.controller.signal.aborted
   }
 }

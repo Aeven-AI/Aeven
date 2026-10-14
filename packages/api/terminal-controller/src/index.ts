@@ -293,7 +293,6 @@ export class TerminalController extends TypertRemoteService {
   }
 
   private registerTool(ctx: Context): void {
-    const controller = this
     ctx.on('tools/pre-execute', async (exec, next) => {
       const decision = await next()
       if (decision.kind !== 'allow' || exec.name !== 'sidebar_terminal' || exec.agent === undefined) return decision
@@ -327,38 +326,38 @@ export class TerminalController extends TypertRemoteService {
         schema: { type: 'string' },
         render: (_args, value) => [{ type: 'text', text: value }],
       },
-      async execute(args, exec) {
+      execute: async (args, exec) => {
         const agent = exec.agent
         if (agent === undefined) throw new Error('Sidebar terminal control requires a calling agent')
         exec.signal.throwIfAborted()
-        if (args.action === 'list') return JSON.stringify(controller.list(agent.id))
+        if (args.action === 'list') return JSON.stringify(this.list(agent.id))
         if (args.terminalId === undefined) throw new Error('terminalId is required for this action; call list for current ids')
         const id = args.terminalId as WebTerminalId
-        const terminal = controller.terminal(agent, id)
+        const terminal = this.terminal(agent, id)
         switch (args.action) {
           case 'read': {
             const count = args.count ?? 100
             if (count < 1) throw new Error('count must be a positive integer')
-            return JSON.stringify({ info: terminal.info, ...await terminal.read(count, controller.config.maxToolOutputBytes) })
+            return JSON.stringify({ info: terminal.info, ...await terminal.read(count, this.config.maxToolOutputBytes) })
           }
           case 'send': {
             if (args.text === undefined) throw new Error('text is required for send')
             const data = args.text + (args.submit === false ? '' : '\r')
-            if (Buffer.byteLength(data, 'utf8') > controller.config.maxInputBytes) throw new Error('Terminal input exceeds the configured limit')
+            if (Buffer.byteLength(data, 'utf8') > this.config.maxInputBytes) throw new Error('Terminal input exceeds the configured limit')
             await terminal.send(data)
             return JSON.stringify({ accepted: true, info: terminal.info })
           }
           case 'rename':
             if (args.title === undefined) throw new Error('title is required for rename')
-            controller.rename(agent, id, args.title)
+            this.rename(agent, id, args.title)
             return JSON.stringify(terminal.info)
           case 'resize':
             if (args.cols === undefined || args.rows === undefined) throw new Error('cols and rows are required for resize')
-            controller.dimensions(args.cols, args.rows)
+            this.dimensions(args.cols, args.rows)
             await terminal.setDimensions(args.cols, args.rows)
             return JSON.stringify(terminal.info)
           case 'close':
-            await controller.close(agent, id)
+            await this.close(agent, id)
             return JSON.stringify({ closed: id })
           default: return assertNever(args.action)
         }
@@ -378,7 +377,10 @@ export class TerminalController extends TypertRemoteService {
   private owner(agent: Agent): OwnedSession {
     let owner = this.owners.get(agent.id)
     if (owner === undefined) {
-      owner = { account: agent.session.header.owner, terminals: new Map(), pending: new Map(), allocations: new Map(), closedIds: new Set(), lifetime: new AbortController() }
+      owner = {
+        account: agent.session.header.owner, terminals: new Map(), pending: new Map(),
+        allocations: new Map(), closedIds: new Set(), lifetime: new AbortController(),
+      }
       this.owners.set(agent.id, owner)
       const owned = owner
       agent.ctx.effect(() => async () => { await this.disposeOwner(agent.id, owned) }, 'terminal-controller.owner')

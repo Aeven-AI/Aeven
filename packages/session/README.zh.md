@@ -72,6 +72,9 @@ session 组让 agent（智能体）的对话在实时 loop 之外持久可复用
 - [会话子系统](../../docs/subsystems/session.zh.md)——本组每个包持久化或派生的实时事件日志。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ## 开发备注
 
 无。

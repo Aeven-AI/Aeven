@@ -13,6 +13,7 @@ import { parseArgs } from 'node:util'
 import { releaseFamily, tarballName, type ReleaseFamily, type ReleaseMember } from './families.ts'
 import { isEntry, runConcurrent } from './process.ts'
 import { PUBLISH_ORDER_FILE, tarballFiles } from './tarball.ts'
+import { pnpmInvocation } from '../pnpm-invocation.ts'
 
 /** Where pack output lands when `--out` is omitted. */
 const DEFAULT_OUTPUT = 'dist/npm'
@@ -25,7 +26,10 @@ const DEFAULT_OUTPUT = 'dist/npm'
  * @returns The tarball filename.
  */
 async function packMember(family: ReleaseFamily, member: ReleaseMember, destination: string): Promise<string> {
-  await runConcurrent('pnpm', ['--dir', member.directory, 'pack', '--pack-destination', destination])
+  // The pnpm that runs this script, started without a shell: on Windows a bare `pnpm` is often a .cmd shim
+  // that spawn cannot start, as on GitHub's runners.
+  const pnpm = pnpmInvocation(['--dir', member.directory, 'pack', '--pack-destination', destination])
+  await runConcurrent(pnpm.command, pnpm.args)
 
   const filename = tarballName(member)
   const tarball = join(destination, filename)

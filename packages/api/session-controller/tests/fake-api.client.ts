@@ -148,7 +148,8 @@ export class FakeApiClient {
     () => Promise.resolve(ok({ attachment: { attachmentId: 'a' as never, mediaType: 'image/png', bytes: 1, width: 1, height: 1 }, data: 'AA==' }))
   onUpdateQueue: (payload: unknown) => Promise<RemoteResult<{ accepted: true }>> = () => Promise.resolve(ok({ accepted: true as const }))
   onCancel: (payload: unknown) => Promise<RemoteResult<{ accepted: true }>> = () => Promise.resolve(ok({ accepted: true as const }))
-  onEdit: (payload: unknown) => Promise<RemoteResult<{ accepted: true; rewindSeq: number }>> = () => Promise.resolve(ok({ accepted: true as const, rewindSeq: 0 }))
+  onEdit: (payload: unknown) => Promise<RemoteResult<{ accepted: true; rewindSeq: number }>> =
+    () => Promise.resolve(ok({ accepted: true as const, rewindSeq: 0 }))
   onOpenWorkspacePath: (payload: unknown) => Promise<RemoteResult<{ opened: true }>> =
     () => Promise.resolve(ok({ opened: true as const }))
 

@@ -275,10 +275,12 @@ describe('ToolRow', () => {
     expect(view.container.querySelector('[aria-expanded]')?.getAttribute('aria-expanded')).toBe('false')
   })
 
-  it('row click expands: chevron leading, summary kept inline, body in the scrolling card', () => {
+  it('row click expands: summary kept inline, body in the scrolling card, icon leading throughout', () => {
     const view = render(<ToolRow {...rowProps} />)
     fireEvent.click(view.getByRole('button'))
-    expect(view.queryByTestId('tool-icon')).toBeNull()
+    // The row keeps its leading glyph and moves the chevron to the trailing
+    // edge, so the row's identity never blinks out while it is open.
+    expect(view.queryByTestId('tool-icon')).not.toBeNull()
     expect(view.container.querySelector('svg')).not.toBeNull()
     expect(view.getByText('List files')).toBeTruthy()
     expect(view.getByText(/"a": 1/)).toBeTruthy()
@@ -310,15 +312,15 @@ describe('ToolRow', () => {
     expect(view.queryByText(/"a": 1/)).toBeNull()
   })
 
-  it('running keeps the icon (row sweep carries the signal); error swaps in a StateDot', () => {
+  it('running keeps the icon (row sweep carries the signal); error swaps in the failure mark', () => {
     const runningView = render(<ToolRow {...rowProps} state="running" />)
     expect(runningView.queryByTestId('tool-icon')).not.toBeNull()
     expect(runningView.container.querySelector('[data-state="running"]')).not.toBeNull()
     const errorView = render(<ToolRow {...rowProps} state="error" />)
     expect(errorView.container.querySelector('[data-testid="tool-icon"]')).toBeNull()
-    // The dot rides the idle slot, so an expandable error row keeps the
-    // icon→chevron hover preview instead of losing it with the icon.
-    expect(errorView.container.querySelector('[class*="chevronHover"]')).not.toBeNull()
+    // The failure mark is decorative, so the row carries the failure as text
+    // for assistive technology.
+    expect(errorView.getByText('失败')).toBeTruthy()
   })
 
   it('non-expandable rows render a passive leading slot and no row button', () => {

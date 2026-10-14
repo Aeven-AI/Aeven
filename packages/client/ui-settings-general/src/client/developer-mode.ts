@@ -9,6 +9,7 @@ export class DeveloperModePolicy {
   /** Reactive current preference; off before Host settings arrive. */
   readonly enabled: SnapshotStore<boolean> = createSnapshotStore(false)
 
+  /* jscpd:ignore-start -- mirrors TextAnimationPolicy in @aeven/client-ui-chat: one boolean preference per Host settings namespace. */
   /**
    * @param host - durable Developer mode scope.
    */
@@ -33,4 +34,5 @@ export class DeveloperModePolicy {
     if (section === undefined || this.enabled.getSnapshot() === section.enabled) return
     this.enabled.set(section.enabled)
   }
+/* jscpd:ignore-end */
 }

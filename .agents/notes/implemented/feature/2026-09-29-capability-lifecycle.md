@@ -2,6 +2,8 @@
 
 Status: implemented
 
+English | [中文](2026-09-29-capability-lifecycle.zh.md)
+
 ## Problem
 
 A confirmed capability is trusted instructions for every later session of its user. Procedures go stale: a tool changes, a machine differs, or the procedure was never right. Trust has to follow what happens when the capability runs, without a model-generated confidence number deciding anything.
@@ -15,6 +17,14 @@ A deterministic policy judges each execution and derives the status after every 
 - **Verdicts.** A correction, a negative rating, a failed report or verification, or a failed turn fails an execution. A positive rating verifies it, and so does a reported passed verification together with a successful tool call; a report alone is never verification.
 - **Statuses.** Only the user makes a capability executable or retires it. Among executable statuses, `trusted` needs `trustAfter` successes of the current revision with at least one verified and no failure last; `degraded` follows `degradeAfter` consecutive failures; `needs-validation` holds after a trusted procedure changes until a verified run of the new revision exists; otherwise `learned`.
 - **Model view.** Trusted and learned capabilities load unchanged. Degraded, needs-validation, and capabilities that never succeeded in the current environment load with a short evidence note asking the model to verify and report.
+
+## Alternatives considered
+
+**Let a model-generated confidence number set trust.** Rejected because a deterministic policy judges each execution and derives the status after every write, so trust follows recorded evidence and a model's number alone never promotes a capability.
+
+**Keep asking the user to save each learned procedure.** Rejected because it made the learning layer a feature the user maintains; learning is now automatic and silent, with the first successful execution making a candidate `learned` and `degradeAfter` failed executions retiring it.
+
+**Keep the memory manager as the MemOS Viewer.** Rejected because Settings → Memory is an Aeven surface whose Remote acts only for the caller of the running request, while the Viewer remains a development stopgap.
 
 ## Consequences
 

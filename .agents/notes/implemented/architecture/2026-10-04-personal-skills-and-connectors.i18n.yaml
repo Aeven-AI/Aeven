@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-04-personal-skills-and-connectors.md
-2026-10-04-personal-skills-and-connectors.md: e39f6f42de232e961e471baa97c0a8e14b94e310
-2026-10-04-personal-skills-and-connectors.zh.md: a7223081041441befa0166fbd2b9187a11dd7ec2
+2026-10-04-personal-skills-and-connectors.md: 43176e6ee278adcfb5cad65acf0ed0f6873611d7
+2026-10-04-personal-skills-and-connectors.zh.md: 94eb9fea8ac51bae26cbf513aebfb9a9dbc0fd23

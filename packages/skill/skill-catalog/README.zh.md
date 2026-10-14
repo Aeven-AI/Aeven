@@ -13,7 +13,7 @@ kind: "package-reference"
 
 宿主在运行时不获取任何内容：索引与包内文件都通过 `ctx.skillCatalog` 从磁盘读取。安装会把内置 zip 交给账户原有的导入路径，因此路径校验、大小上限、资源存储与目录失效行为与手动上传完全一致。
 
-## Table of Contents
+## 目录
 
 - [Use this package](#use-this-package)
 - [Understand the implementation](#understand-the-implementation)
@@ -69,14 +69,17 @@ None, as 此包只读取随发行版附带的目录，并把一个包交给账�
 
 - **是快照而非订阅源。** 上游变更需要在发行时重新生成目录；热度数字停留在内置时的取值。
 - **上游指令原样内置。** 其中一些提到 Claude Code 的界面，或部署可能并不具备的 Python、Node 工具，安装时不会改写。
-- **没有 invariant 伴随插件。** 该服务只读取一份不可变的文件集合，且没有第二套注册表，因此不存在可独立观测的关系。
+- **无 invariant 伴随模块**——不发布 invariant 伴随模块，因为该服务只读取一份不可变的文件集合，且没有第二套注册表，因此不存在可独立观测的关系。
 
 -----
 
 
-### Dev Note
+### 开发备注
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 
 <details>
 <summary>维护者上下文 — 点击展开</summary>

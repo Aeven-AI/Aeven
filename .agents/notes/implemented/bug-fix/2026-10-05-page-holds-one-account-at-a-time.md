@@ -2,6 +2,8 @@
 
 Status: implemented
 
+English | [中文](2026-10-05-page-holds-one-account-at-a-time.zh.md)
+
 ## Problem
 
 A reader with the Web GUI open in more than one tab saw their history vanish: the sidebar showed only a handful of Sessions, and the conversation already open reported `Failed to load history: session "session-…" not found (session/not-found)`. Signing out and signing in again in that tab restored everything, which is why the report arrived as "the state the UI was in was probably not signed in".

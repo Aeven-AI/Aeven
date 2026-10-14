@@ -163,6 +163,9 @@ spawn、初始化或新建会话失败会在发布前拒绝，通常先等待子
 - **权限提示自动应答**（`permission: allow | reject`）——不会把子 agent 的 `session/request_permission` 呈现给人。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

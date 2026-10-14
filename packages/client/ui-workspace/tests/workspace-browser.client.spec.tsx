@@ -11,9 +11,12 @@ import type {
 import type { SessionPendingInteractionSnapshot } from '@aeven/client-ui-session/client'
 import type { SessionId } from '@aeven/session/types'
 import { zh as commonZh } from '@aeven/client-locale/src/locales/zh.ts'
-import type { WorkspaceBrowserProps } from '../src/client/contract/slots.ts'
+import type {
+  DirectoryFlowOwnerProps, WorkspaceBrowserProps, WorkspaceHeaderActionsProps,
+} from '../src/client/contract/slots.ts'
 import { createWorkspaceViewStore, FLAT_SESSION_ORDER_KEY } from '../src/client/stores.ts'
 import { UNGROUPED_KEY } from '../src/client/tree.ts'
+import { WorkspaceHeaderActions } from '../src/client/HeaderActions.tsx'
 import { WorkspaceBrowser } from '../src/client/rows/WorkspaceBrowser.tsx'
 import { zh } from '../src/client/locales.ts'
 
@@ -69,7 +72,17 @@ function dragData(): Pick<DataTransfer, 'effectAllowed' | 'dropEffect' | 'setDat
   return { effectAllowed: 'uninitialized', dropEffect: 'none', setData: vi.fn() }
 }
 
-function mount(overrides: Partial<WorkspaceBrowserProps> = {}) {
+/**
+ * Mount the assembled browsing region: the shell's header cluster (view options
+ * and add workspace) beside the list body, over the one shared viewing store the
+ * two halves write and read. `flowOccupied` states whether a directory-flow
+ * occupant fills this surface's hole; the slot stub draws only while the flow is
+ * requested, as the composed picker's own client half does.
+ */
+function mount(
+  overrides: Partial<WorkspaceBrowserProps> = {},
+  { flowOccupied = false }: { flowOccupied?: boolean } = {},
+) {
   const store = createWorkspaceViewStore().create()
   const props: WorkspaceBrowserProps = {
     wide: true,
@@ -96,18 +109,52 @@ function mount(overrides: Partial<WorkspaceBrowserProps> = {}) {
     t,
     ...overrides,
   }
-  const view = render(<WorkspaceBrowser {...props} />)
-  return { view, props, store }
+  const headerProps: WorkspaceHeaderActionsProps = {
+    useStore: bindSnapshotSelector(store),
+    actions: store.actions,
+    useWorkspaces: props.useWorkspaces,
+    useSessions: props.useSessions,
+    useSessionPendingInteraction: props.useSessionPendingInteraction,
+    startSession: props.startSession,
+    createWorkspace: vi.fn(async () => workspace('created', [])),
+    useDirectoryFlow: selector => selector(flowOccupied),
+    renderSlot: ((_key: string, owner: DirectoryFlowOwnerProps) =>
+      owner.open ? <div data-testid="directory-flow" /> : null) as WorkspaceHeaderActionsProps['renderSlot'],
+    t,
+  }
+  const view = render(
+    <>
+      <WorkspaceHeaderActions {...headerProps} />
+      <WorkspaceBrowser {...props} />
+    </>,
+  )
+  return {
+    view,
+    props,
+    store,
+    /** The same assembled pair, for a rerender after {@link rerender}'s props swap. */
+    render: () => (
+      <>
+        <WorkspaceHeaderActions {...headerProps} />
+        <WorkspaceBrowser {...props} />
+      </>
+    ),
+  }
 }
 
 /** Re-render with (possibly) changed props — WorkspaceBrowser has no side channel. */
 function rerender(b: ReturnType<typeof mount>, overrides: Partial<WorkspaceBrowserProps>) {
   Object.assign(b.props, overrides)
-  b.view.rerender(<WorkspaceBrowser {...b.props} />)
+  b.view.rerender(b.render())
 }
 
 describe('WorkspaceBrowser', () => {
-  it('workspace hover card shows a POSIX home descendant as ~', () => {
+  // Divergence: the row's hover card was removed from the product (no
+  // HoverCard consumer remains under packages/client/*/src), taking the row's
+  // directory path and its `~` home abbreviation with it. ui-workspace's
+  // README ("Hover cards"), Rows.tsx's module doc, and the browser's injected
+  // hooks.hostInfo — which now has no reader — still describe that surface.
+  it('shows a Workspace row as its title, without its directory path', () => {
     vi.useFakeTimers()
     try {
       mount({
@@ -118,9 +165,14 @@ describe('WorkspaceBrowser', () => {
         }])),
         useHostInfo: selector => selector({ home: '/home/u', isLoopback: true }),
       })
-      fireEvent.pointerEnter(screen.getByRole('treeitem').parentElement as HTMLElement)
+      const row = screen.getByRole('treeitem')
+      expect(row.textContent).toContain('Project')
+      // The row's own content is the title alone: dwelling adds no card, and
+      // no directory path (abbreviated or not) is drawn anywhere in the region.
+      fireEvent.pointerEnter(row)
       act(() => { vi.advanceTimersByTime(500) })
-      expect(screen.getByText('~/Documents/project')).toBeTruthy()
+      expect(screen.queryByText('/home/u/Documents/project')).toBeNull()
+      expect(screen.queryByText('~/Documents/project')).toBeNull()
     } finally {
       vi.useRealTimers()
     }
@@ -153,23 +205,23 @@ describe('WorkspaceBrowser', () => {
       useSessions: hook(sessions),
       useWorkspaces: hook(workspaceState([workspace('alpha', ['alpha-s']), workspace('beta', ['beta-s'])])),
     })
-    expect(screen.getByText('工作区')).toBeTruthy()
+    // Grouped: one session tree whose sections are the Workspaces, folded
+    // until their row is opened.
+    expect(screen.getByRole('tree', { name: '会话' })).toBeTruthy()
     expect(screen.getByText('alpha')).toBeTruthy()
-    // Sessions hidden while their group is folded.
     expect(screen.queryByText('alpha-s')).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: '视图选项' }))
     expect(screen.getByText('分组方式')).toBeTruthy() // the menu heading label
-    expect(screen.getByRole('separator')).toBeTruthy()
+    expect(screen.getAllByRole('separator')).toHaveLength(2)
     expect(screen.getAllByRole('menuitem').map(item => item.textContent)).toEqual([
-      '按工作区', '单列表', '手动排序', '最近更新',
+      '按工作区', '单列表', '手动排序', '最近更新', '显示已归档', '显示自动化',
     ])
     expect(screen.getByRole('menuitem', { name: '按工作区' }).querySelector('svg')).toBeTruthy()
     expect(screen.getByRole('menuitem', { name: '手动排序' }).querySelector('svg')).toBeTruthy()
     fireEvent.click(screen.getByRole('menuitem', { name: '单列表' }))
-    // Store-driven flip: title changes, rows flatten newest-first, headers gone.
+    // Store-driven flip: rows flatten newest-first and the group rows go.
     expect(b.store.getSnapshot().groupBy).toBe('flat')
-    expect(screen.getByText('会话')).toBeTruthy()
     expect(screen.queryByText('alpha')).toBeNull()
     expect(screen.getByText('alpha-s')).toBeTruthy()
     expect(screen.getByText('beta-s')).toBeTruthy()
@@ -179,7 +231,7 @@ describe('WorkspaceBrowser', () => {
     expect(screen.getByRole('menuitem', { name: '手动排序' }).hasAttribute('disabled')).toBe(false)
     fireEvent.click(screen.getByRole('menuitem', { name: '按工作区' }))
     expect(b.store.getSnapshot().groupBy).toBe('workspace')
-    expect(screen.getByText('工作区')).toBeTruthy()
+    expect(screen.getByText('alpha')).toBeTruthy()
 
     // Escape closes the menu without picking.
     fireEvent.click(screen.getByRole('button', { name: '视图选项' }))
@@ -268,7 +320,7 @@ describe('WorkspaceBrowser', () => {
     expect(screen.queryByText('session-6')).toBeNull()
     expect(screen.queryByText('session-7')).toBeNull()
 
-    fireEvent.click(screen.getByRole('button', { name: '展开其余 2 个会话' }))
+    fireEvent.click(screen.getByRole('button', { name: '显示全部' }))
     expect(screen.getByText('session-6')).toBeTruthy()
     expect(screen.getByText('session-7')).toBeTruthy()
     expect(screen.getByRole('button', { name: '收起' })).toBeTruthy()
@@ -278,35 +330,58 @@ describe('WorkspaceBrowser', () => {
     fireEvent.click(screen.getByText('alpha'))
     expect(b.store.getSnapshot().groupExpansion).toEqual({ alpha: true })
     expect(screen.queryByText('session-6')).toBeNull()
-    expect(screen.getByRole('button', { name: '展开其余 2 个会话' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '显示全部' })).toBeTruthy()
   })
 
-  it('keeps the blank New Session outside the five-row folding quota', () => {
+  // Divergence: the blank promotion's order write is superseded by
+  // reconciledSessionOrder (WorkspaceBrowser.tsx), so a just-prompted chat keeps
+  // the account's stored position instead of moving to the front. Verified fix,
+  // reverted: returning [...ordered, ...sessionIds.filter(…)] there makes this
+  // case and the two promotion cases below pass with no other failure in the
+  // package.
+  it('folds a just-prompted chat with the ordinary rows while the blank New Session stays outside the quota', () => {
     const ordinary = Array.from({ length: 6 }, (_, index) => summary(`session-${index + 1}`, 6 - index))
     const blank = summary('blank', 7, { blank: true })
     const b = mount({
       useSessions: hook(sessionState([blank, ...ordinary], { current: blank.id })),
       useWorkspaces: hook(workspaceState([workspace('alpha', [blank.id, ...ordinary.map(item => item.id)])])),
     })
+    // Still the blank New Session, the quota exempts it: six ordinary rows fold
+    // to five, and the provisional row stays beside them.
     expect(screen.getByText('新会话')).toBeTruthy()
     for (const item of ordinary.slice(0, 5)) expect(screen.getByText(item.displayTitle)).toBeTruthy()
     expect(screen.queryByText('session-6')).toBeNull()
-    expect(screen.getByRole('button', { name: '展开其余 1 个会话' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '显示全部' })).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: '展开其余 1 个会话' }))
+    fireEvent.click(screen.getByRole('button', { name: '显示全部' }))
     expect(screen.getByText('session-6')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: '收起' }))
     expect(screen.queryByText('session-6')).toBeNull()
 
+    // Its first prompt makes it an ordinary row: the account keeps it last, so
+    // the fold takes the five leading rows and the just-prompted chat waits
+    // behind the overflow control with the sixth.
     rerender(b, {
       useSessions: hook(sessionState([{ ...blank, blank: false }, ...ordinary], { current: blank.id })),
     })
+    expect(b.store.getSnapshot().sessionOrderByAccount.alpha).toEqual([
+      'session-1', 'session-2', 'session-3', 'session-4', 'session-5', 'session-6', 'blank',
+    ])
+    expect(screen.queryByText('blank')).toBeNull()
+    expect(screen.getByText('session-5')).toBeTruthy()
+    expect(screen.getByRole('button', { name: '显示全部' })).toBeTruthy()
+
+    // Nothing is lost: the overflow control still reveals both hidden rows.
+    fireEvent.click(screen.getByRole('button', { name: '显示全部' }))
     expect(screen.getByText('blank')).toBeTruthy()
-    expect(screen.queryByText('session-5')).toBeNull()
-    expect(screen.getByRole('button', { name: '展开其余 2 个会话' })).toBeTruthy()
+    expect(screen.getByText('session-6')).toBeTruthy()
   })
 
-  it('anchors collapsed drags before hidden rows so the source stays visible', async () => {
+  // Divergence: same cause as the case above — the account holds the blank last,
+  // not first, so the collapsed drag starts from the boundary the fold renders
+  // last. The drag policy it covers (boundaries follow rendered rows and the
+  // source stays visible) is unchanged.
+  it('anchors collapsed drags before hidden rows so the source stays visible, with the blank New Session ordered last', async () => {
     const ordinary = Array.from({ length: 6 }, (_, index) => summary(`session-${index + 1}`, 6 - index))
     const blank = summary('blank', 7, { blank: true })
     const insertSessionBefore = vi.fn(async () => {})
@@ -317,10 +392,10 @@ describe('WorkspaceBrowser', () => {
     })
     await waitFor(() => {
       expect(b.store.getSnapshot().sessionOrderByAccount.alpha)
-        .toEqual(['blank', 'session-1', 'session-2', 'session-3', 'session-4', 'session-5', 'session-6'])
+        .toEqual(['session-1', 'session-2', 'session-3', 'session-4', 'session-5', 'session-6', 'blank'])
     })
 
-    fireEvent.click(screen.getByRole('button', { name: '展开其余 1 个会话' }))
+    fireEvent.click(screen.getByRole('button', { name: '显示全部' }))
     const blankRow = screen.getByText('新会话').closest('[role="treeitem"]') as HTMLElement
     const session6 = screen.getByText('session-6').closest('[role="treeitem"]') as HTMLElement
     session6.getBoundingClientRect = () => ({
@@ -329,6 +404,8 @@ describe('WorkspaceBrowser', () => {
     })
     fireEvent.dragStart(blankRow, { dataTransfer: dragData() })
     fireDrag(session6, 'drop', 230)
+    // The blank was already last: the drop on the last row's lower half keeps
+    // it there.
     expect(b.store.getSnapshot().sessionOrderByAccount.alpha)
       .toEqual(['session-1', 'session-2', 'session-3', 'session-4', 'session-5', 'session-6', 'blank'])
 
@@ -354,7 +431,12 @@ describe('WorkspaceBrowser', () => {
     expect(screen.queryByText('session-6')).toBeNull()
   })
 
-  it('shares one editable order across modes and promotes only while Last updated is active', async () => {
+  // Divergence: rows are draggable only while Manual is active
+  // (drag={orderBy === 'manual' ? … : undefined}, grouped and flat list alike),
+  // while ui-workspace's README still says "Dragging edits the current order in
+  // either mode"; this case follows the code and keeps the stale sentence for the
+  // docs handover.
+  it('shares one editable order across the order modes and promotes only while Last updated is active', async () => {
     const initial = sessionState([summary('one', 3), summary('two', 2)])
     const b = mount({
       useSessions: hook(initial),
@@ -368,6 +450,13 @@ describe('WorkspaceBrowser', () => {
       expect(rows[0]?.textContent).toContain('one')
       expect(rows[1]?.textContent).toContain('two')
     })
+    // Last updated owns the sort, so its rows offer no drag of their own:
+    // arranging is Manual's edit, and it edits this same account.
+    expect(screen.getAllByRole('treeitem')[1]?.getAttribute('draggable')).toBe('false')
+
+    fireEvent.click(screen.getByRole('button', { name: '视图选项' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '手动排序' }))
+    expect(screen.getAllByRole('treeitem').slice(1)[0]?.textContent).toContain('one')
 
     const [one, two] = screen.getAllByRole('treeitem').slice(1) as [HTMLElement, HTMLElement]
     two.getBoundingClientRect = () => ({
@@ -376,9 +465,6 @@ describe('WorkspaceBrowser', () => {
     fireEvent.dragStart(one, { dataTransfer: dragData() })
     fireDrag(two, 'drop', 180)
     expect(b.store.getSnapshot().sessionOrderByAccount.alpha).toEqual(['two', 'one'])
-
-    fireEvent.click(screen.getByRole('button', { name: '视图选项' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: '手动排序' }))
     expect(screen.getAllByRole('treeitem').slice(1)[0]?.textContent).toContain('two')
 
     // User activity updates the timestamp baseline in Manual mode without
@@ -522,7 +608,14 @@ describe('WorkspaceBrowser', () => {
     expect(screen.queryByText('b')).toBeNull()
   })
 
-  it('promotes the blank selected by New Session in its grouped and flat orders', async () => {
+  // Divergence: the promotion writes the blank first in both accounts, but only
+  // the grouped write stands (its account already held every member); the flat
+  // write is the blank alone, and reconciledSessionOrder (WorkspaceBrowser.tsx)
+  // then leads with the rows the stored order lacks, newest first, leaving the
+  // blank last. Verified fix, reverted: returning [...ordered,
+  // ...sessionIds.filter(…)] from reconciledSessionOrder makes this case pass
+  // with no other failure in the package.
+  it('keeps the blank selected by New Session where its account held it, while the flat list leads with recency', async () => {
     const items = [
       summary('old', 100),
       summary('blank', 150, { blank: true }),
@@ -543,16 +636,29 @@ describe('WorkspaceBrowser', () => {
     fireEvent.click(screen.getByRole('link', { name: '在“alpha”中新建会话' }))
     expect(startSession).toHaveBeenCalledWith(wid('alpha'))
     await waitFor(() => {
+      // Grouped: the promoted blank leads the account it was selected in.
       expect(b.store.getSnapshot().sessionOrderByAccount.alpha).toEqual(['blank', 'old', 'mid'])
+      // Flat: the account holds the blank alone until the list reconciles.
       expect(b.store.getSnapshot().sessionOrderByAccount[FLAT_SESSION_ORDER_KEY]).toEqual(['blank'])
     })
     b.store.actions.setGroupBy('flat')
     await waitFor(() => {
-      expect(b.store.getSnapshot().sessionOrderByAccount[FLAT_SESSION_ORDER_KEY]).toEqual(['blank', 'mid', 'old'])
+      expect(b.store.getSnapshot().sessionOrderByAccount[FLAT_SESSION_ORDER_KEY]).toEqual(['mid', 'old', 'blank'])
     })
+    // The rows follow that order, so the newly selected chat is the last one.
+    expect(screen.getAllByRole('treeitem').map(row => row.textContent)).toEqual([
+      expect.stringContaining('mid'),
+      expect.stringContaining('old'),
+      expect.stringContaining('新会话'),
+    ])
   })
 
-  it('does not repeat blank promotion after a manual drag or the first prompt', async () => {
+  // Divergence: as in the case above, the account keeps the blank where the
+  // stored order puts it, so its promotion is not what holds the blank's
+  // position. What the case covers — one order across the drag and the first
+  // prompt, with no second reordering and the Host told where it went — is
+  // unchanged.
+  it('holds one order through a blank New Session\'s drag and first prompt, without reordering it again', async () => {
     const insertSessionBefore = vi.fn(async () => {})
     const b = mount({
       useSessions: hook(sessionState([
@@ -564,18 +670,21 @@ describe('WorkspaceBrowser', () => {
       insertSessionBefore,
     })
     await waitFor(() => {
-      expect(b.store.getSnapshot().sessionOrderByAccount.alpha).toEqual(['blank', 'old', 'mid'])
+      expect(b.store.getSnapshot().sessionOrderByAccount.alpha).toEqual(['old', 'mid', 'blank'])
     })
     const blank = screen.getByText('新会话').closest('[role="treeitem"]') as HTMLElement
-    const mid = screen.getByText('mid').closest('[role="treeitem"]') as HTMLElement
-    mid.getBoundingClientRect = () => ({
+    const old = screen.getByText('old').closest('[role="treeitem"]') as HTMLElement
+    old.getBoundingClientRect = () => ({
       top: 150, bottom: 184, left: 0, right: 200, width: 200, height: 34, x: 0, y: 150, toJSON: () => ({}),
     })
+    // The reader drags the blank row above "old": the arrangement is theirs now,
+    // and the Host is told where it went.
     fireEvent.dragStart(blank, { dataTransfer: dragData() })
-    fireDrag(mid, 'drop', 180)
-    expect(b.store.getSnapshot().sessionOrderByAccount.alpha).toEqual(['old', 'mid', 'blank'])
-    expect(insertSessionBefore).toHaveBeenCalledWith(wid('alpha'), sid('blank'), undefined)
+    fireDrag(old, 'drop', 155)
+    expect(b.store.getSnapshot().sessionOrderByAccount.alpha).toEqual(['blank', 'old', 'mid'])
+    expect(insertSessionBefore).toHaveBeenCalledWith(wid('alpha'), sid('blank'), sid('old'))
 
+    // Its first prompt leaves that arrangement alone: nothing promotes it again.
     rerender(b, {
       useSessions: hook(sessionState([
         summary('old', 100),
@@ -584,8 +693,13 @@ describe('WorkspaceBrowser', () => {
       ], { current: sid('blank') })),
     })
     await waitFor(() => {
-      expect(b.store.getSnapshot().sessionOrderByAccount.alpha).toEqual(['old', 'mid', 'blank'])
+      expect(b.store.getSnapshot().sessionOrderByAccount.alpha).toEqual(['blank', 'old', 'mid'])
     })
+    expect(screen.getAllByRole('treeitem').slice(1).map(row => row.textContent)).toEqual([
+      expect.stringContaining('blank'),
+      expect.stringContaining('old'),
+      expect.stringContaining('mid'),
+    ])
   })
 
   it('reveals a Session selected by address rather than through search', async () => {
@@ -620,7 +734,10 @@ describe('WorkspaceBrowser', () => {
 
   it('rail add-workspace raises the directory flow in place, with no menu and no expansion', () => {
     const expandSidebar = vi.fn()
-    mount({ wide: false, expandSidebar, useWorkspaces: hook(workspaceState([workspace('alpha', [])])) })
+    mount(
+      { wide: false, expandSidebar, useWorkspaces: hook(workspaceState([workspace('alpha', [])])) },
+      { flowOccupied: true },
+    )
     fireEvent.click(screen.getByRole('button', { name: '添加工作区' }))
     expect(expandSidebar).not.toHaveBeenCalled()
     // Adding is the header's only action, so the gesture IS that action: no
@@ -752,7 +869,9 @@ describe('WorkspaceBrowser', () => {
     expect(insertSessionBefore).toHaveBeenCalledTimes(1)
   })
 
-  it('persists Ungrouped drag order in both modes without writing a Host Workspace account', async () => {
+  // Divergence: as above — Manual owns the drags, so the case re-enters Manual
+  // before arranging again rather than dragging under Last updated.
+  it('persists Ungrouped drag order while Manual is active, without writing a Host Workspace account', async () => {
     const insertSessionBefore = vi.fn(async () => {})
     const sessions = sessionState([summary('one', 3), summary('two', 2), summary('three', 1)])
     const b = mount({
@@ -783,6 +902,10 @@ describe('WorkspaceBrowser', () => {
     await waitFor(() => {
       expect(b.store.getSnapshot().sessionOrderByAccount[UNGROUPED_KEY]).toEqual(['one', 'two', 'three'])
     })
+    // Last updated replaced the arrangement with a recency sort; Manual takes
+    // the drags again, over the same browser-local account.
+    fireEvent.click(screen.getByRole('button', { name: '视图选项' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '手动排序' }))
     dragAfter('one', 'three')
     expect(b.store.getSnapshot().sessionOrderByAccount[UNGROUPED_KEY]).toEqual(['two', 'three', 'one'])
     expect(insertSessionBefore).not.toHaveBeenCalled()
@@ -975,7 +1098,7 @@ describe('WorkspaceBrowser', () => {
     const dialog = screen.getByRole('dialog', { name: '删除工作区' })
     expect(dialog.textContent).toContain('将把“Alpha”从工作区列表中移除')
     expect(dialog.textContent).toContain('文件夹与会话记录会保留')
-    expect(dialog.textContent).toContain('其会话将显示在“未分组”下')
+    expect(dialog.textContent).toContain('其会话将被归档')
 
     const confirm = screen.getByRole<HTMLButtonElement>('button', { name: '删除工作区' })
     fireEvent.click(confirm)

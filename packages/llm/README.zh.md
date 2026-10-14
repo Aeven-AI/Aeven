@@ -44,6 +44,9 @@ llm 组提供 harness 的模型调用能力：一个提供方无关的服务，�
 - [回放 token 计量服务](../../.agents/notes/implemented/architecture/2026-07-15-replay-token-meter-service.zh.md)——具备回放感知的计量背后的设计。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ## 开发备注
 
 无。

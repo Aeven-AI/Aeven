@@ -42,6 +42,9 @@ kind: "package-group"
 - [生成配置目录](../../docs/config-catalog.zh.md#aevencredentials-local)——本地存储的每个受支持字段。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ## 开发备注
 
 <details>

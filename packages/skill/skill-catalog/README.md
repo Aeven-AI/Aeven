@@ -67,7 +67,7 @@ Nothing here enters a model request, so provider cache reuse is unaffected until
 
 - **A snapshot, not a feed.** Upstream changes arrive by regenerating the catalog during a release, and the popularity numbers stay at their vendored values.
 - **Upstream instructions are vendored unchanged.** Some reference Claude Code surfaces, or Python and Node tooling a deployment may not have; nothing rewrites them at install.
-- **No invariant companion.** The service reads one immutable file set and holds no second registry, so there is no independent observation to check.
+- **No invariant companion** — No invariant companion is published because the service reads one immutable file set and holds no second registry, so there is no independent observation to check.
 
 -----
 

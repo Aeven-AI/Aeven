@@ -1,0 +1,148 @@
+/* Session search popup. Its chrome is the settings panel's (ui-settings-general
+   SettingsRoot.module.css): the same mask, surface, radius, elevation, page
+   insets and close control, so the two modals read as one family. */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mask {
+  position: absolute;
+  inset: 0;
+  background: var(--dsw-alias-bg-mask-1);
+  backdrop-filter: var(--dsw-mask-blur);
+}
+
+/* The settings panel's width and surface. One height whatever the result
+   count, so the panel does not resize under the pointer while results arrive;
+   whatever does not fit scrolls in `.results`. */
+.panel {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: 800px;
+  height: min(560px, calc(100vh - 2 * var(--dsw-aeven-page-inset)));
+  height: min(560px, calc(100dvh - 2 * var(--dsw-aeven-page-inset)));
+  max-width: calc(100vw - 2 * var(--dsw-aeven-page-inset));
+  border-radius: var(--dsw-aeven-radius-surface);
+  overflow: hidden;
+  background: var(--dsw-alias-bg-layer-2);
+  box-shadow: var(--dsw-elevation-prominent);
+}
+
+/* The settings header row: page-inset top and sides, the close control last.
+   It ends at the field, so the first row rests one page inset below the field
+   — the gap the results' own top fade band supplies. */
+.header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: var(--dsw-aeven-page-inset) var(--dsw-aeven-page-inset) 0;
+  box-sizing: border-box;
+}
+
+/* The field takes the settings title's type. */
+.input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 24px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.input::placeholder {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.clear {
+  flex: none;
+  height: 28px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 28px;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.clear:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+/* The settings close control: 28px circle, 14px glyph. */
+.close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 28px;
+  background: transparent;
+  cursor: pointer;
+  color: var(--dsw-alias-label-primary);
+}
+
+.close:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+/* Rows carry their own 8px padding, so the list sits 8px inside the page
+   inset and the row text lines up with the field above it. The region scrolls
+   under the settings panel's fade at each end: a one-page-inset band, which is
+   also its scroll padding, so no row sits inside a fade at rest. It carries
+   `no-scrollbar` (ui-theme) in the markup, so no bar draws on its right edge
+   and no width is reserved for one. The indirection pair is still stated: this
+   region scrolls inside the elevated panel, and the contract asks every such
+   region for the l2 elevation pair. */
+.results {
+  --avn-search-fade: var(--dsw-aeven-page-inset);
+  --avn-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --avn-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+  flex: 1;
+  min-height: 0;
+  padding: var(--avn-search-fade) calc(var(--dsw-aeven-page-inset) - 8px) var(--avn-search-fade);
+  overflow-y: auto;
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--avn-search-fade),
+    #000 calc(100% - var(--avn-search-fade)),
+    transparent 100%
+  );
+}
+
+.sectionLabel {
+  padding: 8px 8px 4px;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.status,
+.warning {
+  padding: 10px 8px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.warning {
+  color: var(--dsw-alias-label-secondary);
+}

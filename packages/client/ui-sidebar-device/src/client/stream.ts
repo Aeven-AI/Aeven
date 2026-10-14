@@ -1,5 +1,3 @@
-/* oxlint-disable unicorn/prefer-add-event-listener -- Each client owns its sockets and their handlers. */
-
 /**
  * Framework-free client for expo-device-hub's per-device streams, reached
  * through the Host's hub proxy, ported from t3code's device stream client.
@@ -22,14 +20,17 @@
 import type { DevicePlatform } from '@aeven/device/types'
 import { type DeviceHubAccess, withDeviceHubQuery } from './hub-access.ts'
 
+/** Stream state the viewer renders: connecting, streaming, or failed. */
 export type DeviceStreamStatus = 'connecting' | 'streaming' | 'error'
 
+/** Displayed device screen size in points, with the orientation it is shown in. */
 export interface DeviceScreenSize {
   readonly width: number
   readonly height: number
   readonly orientation: 'portrait' | 'portrait_upside_down' | 'landscape_left' | 'landscape_right'
 }
 
+/** Viewer callbacks for status, screen size, authorization loss, MJPEG fallback, and input connection. */
 export interface DeviceStreamEvents {
   readonly onStatus: (status: DeviceStreamStatus, detail?: string) => void
   readonly onScreen: (screen: DeviceScreenSize) => void
@@ -45,12 +46,14 @@ export interface DeviceStreamEvents {
   readonly onInputConnected: (connected: boolean, detail?: string) => void
 }
 
+/** Hub access plus the platform and device one stream client is built for. */
 export interface DeviceStreamTarget {
   readonly platform: DevicePlatform
   readonly deviceId: string
   readonly access: DeviceHubAccess
 }
 
+/** Hardware button a viewer can press on the streamed device. */
 export type DeviceHardwareButton = 'home' | 'back' | 'recents' | 'power' | 'appSwitcher'
 
 const RETRY_DELAY_MS = 1_000
@@ -85,14 +88,25 @@ function taggedJson(tag: number, payload: unknown): Uint8Array<ArrayBuffer> {
   return out
 }
 
-/** Build the WebCodecs `avc1.PPCCLL` string from an avcC record or an SPS NAL. */
+/**
+ * Build the WebCodecs `avc1.PPCCLL` string from an avcC record or an SPS NAL.
+ * @param bytes - avcC record or SPS NAL bytes.
+ * @returns the codec string, or the baseline default when the bytes carry no level.
+ */
 export function avcCodecString(bytes: Uint8Array): string {
-  if (bytes.length < 4) return 'avc1.42E01E'
+  const profile = bytes[1]
+  const compatibility = bytes[2]
+  const level = bytes[3]
+  if (profile === undefined || compatibility === undefined || level === undefined) return 'avc1.42E01E'
   const hex = (byte: number) => byte.toString(16).padStart(2, '0')
-  return `avc1.${hex(bytes[1]!)}${hex(bytes[2]!)}${hex(bytes[3]!)}`
+  return `avc1.${hex(profile)}${hex(compatibility)}${hex(level)}`
 }
 
-/** Split serve-emu's SEMU-framed message into metadata and the Annex-B payload. */
+/**
+ * Split serve-emu's SEMU-framed message into metadata and the Annex-B payload.
+ * @param raw - one WebSocket message from serve-emu.
+ * @returns the Annex-B payload with its keyframe flag and timestamp; both null when the message carried no SEMU header.
+ */
 export function parseSemuPacket(raw: ArrayBuffer): {
   readonly data: Uint8Array
   readonly isKey: boolean | null
@@ -122,7 +136,11 @@ const isVideoSessionMessage = (text: string) => {
   }
 }
 
-/** Walk an Annex-B access unit for its keyframe flag and SPS bytes. */
+/**
+ * Walk an Annex-B access unit for its keyframe flag and SPS bytes.
+ * @param buf - one access unit.
+ * @returns whether the unit opens a keyframe, and the SPS NAL when it carries one.
+ */
 export function scanAccessUnit(buf: Uint8Array): { isKey: boolean; sps: Uint8Array | null } {
   let isKey = false
   let sps: Uint8Array | null = null
@@ -134,7 +152,9 @@ export function scanAccessUnit(buf: Uint8Array): { isKey: boolean; sps: Uint8Arr
       if (buf[i + 2] === 1) codeLen = 3
       else if (i + 3 < len && buf[i + 2] === 0 && buf[i + 3] === 1) codeLen = 4
       if (codeLen) {
-        const nalType = buf[i + codeLen]! & 0x1f
+        const marker = buf[i + codeLen]
+        if (marker === undefined) break
+        const nalType = marker & 0x1f
         if (nalType === 7 && !sps) sps = buf.subarray(i + codeLen)
         if (nalType === 5) isKey = true
         i += codeLen + 1
@@ -146,6 +166,7 @@ export function scanAccessUnit(buf: Uint8Array): { isKey: boolean; sps: Uint8Arr
   return { isKey, sps }
 }
 
+/** One serve-sim stream envelope: avcC description, keyframe, delta, or JPEG seed. */
 export type AvccChunk = {
   readonly type: 'description' | 'keyframe' | 'delta' | 'seed'
   readonly payload: Uint8Array
@@ -163,6 +184,11 @@ export class AvccDemuxer {
   private buffer = new Uint8Array(64 * 1024)
   private length = 0
 
+  /**
+   * Append received bytes and return every envelope they completed.
+   * @param bytes - the next fragment of the AVCC stream.
+   * @returns the envelopes completed by this fragment, in wire order.
+   */
   push(bytes: Uint8Array): AvccChunk[] {
     if (this.length + bytes.length > this.buffer.length) {
       let capacity = this.buffer.length
@@ -181,7 +207,7 @@ export class AvccDemuxer {
       const frameLength = view.getUint32(0, false)
       if (this.length - offset - 4 < frameLength) break
       if (frameLength >= 1) {
-        const type = AVCC_TAGS[this.buffer[offset + 4]!]
+        const type = AVCC_TAGS[this.buffer[offset + 4] ?? 0]
         if (type) {
           chunks.push({ type, payload: this.buffer.slice(offset + 5, offset + 4 + frameLength) })
         }
@@ -195,11 +221,13 @@ export class AvccDemuxer {
     return chunks
   }
 
+  /** Drop the retained partial envelope, so the next push starts a new one. */
   reset(): void {
     this.length = 0
   }
 }
 
+/** Viewer-owned handles over one device stream: lifetime, MJPEG image, and device input. */
 export interface DeviceStreamClient {
   readonly start: () => void
   readonly stop: () => void
@@ -276,6 +304,14 @@ const IOS_ORIENTATIONS: ReadonlyArray<DeviceScreenSize['orientation']> = [
   'landscape_right',
 ]
 
+/**
+ * Build the stream client for one device; it owns the video and input transports
+ * and reports through the viewer's events.
+ * @param target - hub access, platform, and device to stream.
+ * @param canvas - the canvas the decoder renders into.
+ * @param events - viewer callbacks for status, screen, fallback, and input.
+ * @returns handles starting and stopping the stream and sending device input.
+ */
 export function createDeviceStreamClient(
   target: DeviceStreamTarget,
   canvas: HTMLCanvasElement,
@@ -329,7 +365,7 @@ export function createDeviceStreamClient(
     firstFrame = false
     if (frameTimer === null) {
       frameTimer = setTimeout(
-        () => fail('No video received from the device. Reconnect to try again.'),
+        () =>{  fail('No video received from the device. Reconnect to try again.') },
         FIRST_FRAME_TIMEOUT_MS,
       )
     }
@@ -406,7 +442,7 @@ export function createDeviceStreamClient(
       }
     }
     const context = canvas.getContext('2d')
-    if (!context) return fail('Could not display the device stream. Reconnect to try again.')
+    if (!context) {  fail('Could not display the device stream. Reconnect to try again.'); return }
     context.drawImage(source, 0, 0, width, height)
     frameReceived()
   }
@@ -433,7 +469,7 @@ export function createDeviceStreamClient(
 
   const makeDecoder = () => {
     const decoder = new VideoDecoder({
-      output: frame => {
+      output: (frame) => {
         try {
           if (videoDecoder === decoder) paint(frame, frame.displayWidth, frame.displayHeight)
         } finally {
@@ -528,7 +564,7 @@ export function createDeviceStreamClient(
         signal: videoController.signal,
       })
       if (!isCurrent()) return
-      if (response.status === 401 || response.status === 403) return handleUnauthorized()
+      if (response.status === 401 || response.status === 403) {  handleUnauthorized(); return }
       if (!response.ok || !response.body) throw new Error(`stream ${response.status}`)
       const reader = response.body.getReader()
       for (;;) {
@@ -551,7 +587,7 @@ export function createDeviceStreamClient(
           switch (chunk.type) {
             case 'seed':
               void createImageBitmap(new Blob([chunk.payload as BlobPart], { type: 'image/jpeg' }))
-                .then(bitmap => {
+                .then((bitmap) => {
                   try {
                     if (isCurrent()) paint(bitmap, bitmap.width, bitmap.height)
                   } finally {
@@ -603,13 +639,13 @@ export function createDeviceStreamClient(
   const primeIosHelper = async (session: number) => {
     const controller = new AbortController()
     primeController = controller
-    const timeout = setTimeout(() => controller.abort(), 2_000)
+    const timeout = setTimeout(() =>{  controller.abort() }, 2_000)
     try {
       const response = await fetch(httpUrl(`/helper/${device}/stream.mjpeg`), {
         signal: controller.signal,
       })
       if (stopped || generation !== session) return
-      if (response.status === 401 || response.status === 403) return handleUnauthorized()
+      if (response.status === 401 || response.status === 403) {  handleUnauthorized(); return }
       await response.body?.getReader().read()
     } catch {
       // A failed prime just means the socket may take a retry to come up.
@@ -622,10 +658,11 @@ export function createDeviceStreamClient(
 
   // iOS input socket; also carries the screen config the helper pushes.
   const connectIosInput = async () => {
-    if (stopped) return
     const session = generation
+    const stale = () => stopped || generation !== session
+    if (stale()) return
     await primeIosHelper(session)
-    if (stopped || generation !== session) return
+    if (stale()) return
     const ws = new WebSocket(wsUrl(`/helper/ws?device=${device}`))
     ws.binaryType = 'arraybuffer'
     socket = ws
@@ -634,7 +671,7 @@ export function createDeviceStreamClient(
       ws.send(taggedJson(IOS_MSG_HARDWARE_KEYBOARD, { enabled: false }))
       events.onInputConnected(true)
     }
-    ws.onmessage = event => {
+    ws.onmessage = (event) => {
       if (stopped || socket !== ws) return
       if (!(event.data instanceof ArrayBuffer)) return
       const bytes = new Uint8Array(event.data)
@@ -649,7 +686,7 @@ export function createDeviceStreamClient(
         // Ignore malformed config frames.
       }
     }
-    ws.onclose = event => {
+    ws.onclose = (event) => {
       if (socket !== ws) return
       socket = null
       if (stopped) return
@@ -657,10 +694,10 @@ export function createDeviceStreamClient(
         false,
         event.reason || (event.code === 1006 ? 'input socket refused' : `closed ${event.code}`),
       )
-      if (event.code === 1008 || event.code === 4401) return handleUnauthorized()
+      if (event.code === 1008 || event.code === 4401) {  handleUnauthorized(); return }
       scheduleRetry('input', () => void connectIosInput())
     }
-    ws.onerror = () => ws.close()
+    ws.onerror = () =>{  ws.close() }
   }
 
   // Android: one socket for video and input.
@@ -674,7 +711,7 @@ export function createDeviceStreamClient(
       connecting()
       events.onInputConnected(true)
     }
-    ws.onmessage = event => {
+    ws.onmessage = (event) => {
       if (stopped || socket !== ws) return
       if (typeof event.data === 'string') {
         // The encoder restarts at a new size when the device rotates; the
@@ -698,7 +735,7 @@ export function createDeviceStreamClient(
         configuring = true
         const epoch = decoderEpoch
         const isCurrent = () => !stopped && socket === ws
-        void configureDecoder({ codec: avcCodecString(scanned.sps) }, isCurrent).then(configured => {
+        void configureDecoder({ codec: avcCodecString(scanned.sps) }, isCurrent).then((configured) => {
           if (!isCurrent() || epoch !== decoderEpoch) return
           configuring = false
           awaitingKeyframe = true
@@ -712,18 +749,18 @@ export function createDeviceStreamClient(
       }
       decode(isKey, packet.data, packet.timestamp)
     }
-    ws.onclose = event => {
+    ws.onclose = (event) => {
       if (socket !== ws) return
       socket = null
       closeDecoder()
       if (stopped) return
       events.onInputConnected(false, event.reason || `closed ${event.code}`)
-      if (event.code === 1008 || event.code === 4401) return handleUnauthorized()
+      if (event.code === 1008 || event.code === 4401) {  handleUnauthorized(); return }
       configuring = false
       connecting(event.reason || undefined)
       scheduleRetry('input', connectAndroid)
     }
-    ws.onerror = () => ws.close()
+    ws.onerror = () =>{  ws.close() }
   }
 
   const start = () => {
@@ -805,14 +842,14 @@ export function createDeviceStreamClient(
         return
       }
       if (phase !== 'down') return
-      if (event.key === 'Escape') return send(JSON.stringify({ type: 'back' }))
+      if (event.key === 'Escape') {  send(JSON.stringify({ type: 'back' })); return }
       const keycode = ANDROID_KEYCODE_BY_KEY[event.key]
-      if (keycode !== undefined) return send(JSON.stringify({ type: 'key', keycode }))
+      if (keycode !== undefined) {  send(JSON.stringify({ type: 'key', keycode })); return }
       if (event.key.length === 1 && !event.metaKey && !event.ctrlKey) {
         send(JSON.stringify({ type: 'text', text: event.key }))
       }
     },
-    pressButton: button => {
+    pressButton: (button) => {
       if (platform === 'ios') {
         const name =
           button === 'home' ? 'home' : button === 'appSwitcher' ? 'app_switcher' : button === 'power' ? 'lock' : null
@@ -820,14 +857,12 @@ export function createDeviceStreamClient(
         return
       }
       const type = button === 'appSwitcher' ? 'recents' : button
-      if (type === 'home' || type === 'back' || type === 'recents' || type === 'power') {
-        send(JSON.stringify({ type }))
-      }
+      send(JSON.stringify({ type }))
     },
     rotate: () => {
       if (platform !== 'ios') return
       const current = screen?.orientation ?? 'portrait'
-      const next = IOS_ORIENTATIONS[(IOS_ORIENTATIONS.indexOf(current) + 1) % IOS_ORIENTATIONS.length]!
+      const next = IOS_ORIENTATIONS[(IOS_ORIENTATIONS.indexOf(current) + 1) % IOS_ORIENTATIONS.length] ?? current
       send(taggedJson(IOS_MSG_ORIENTATION, { orientation: next }))
     },
   }

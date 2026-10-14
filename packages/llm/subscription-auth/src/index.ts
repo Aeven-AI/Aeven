@@ -913,15 +913,13 @@ function applyOwned(ctx: Context, config: Config): void {
       )
     })
     const saveToWorkspace = createWorkspaceArtifactWriter(toolCtx, attachments, media)
-    const definitions = (
-      await createCapabilityTools({
-        current: () => runtime.current(),
-        auth: codexAuth,
-        attachments,
-        imagine: routedImagine,
-        ...optionalWorkspaceWriter(saveToWorkspace),
-      })
-    ).filter(definition => IMAGINE_TOOL_NAMES.has(definition.name))
+    const definitions = createCapabilityTools({
+      current: () => runtime.current(),
+      auth: codexAuth,
+      attachments,
+      imagine: routedImagine,
+      ...optionalWorkspaceWriter(saveToWorkspace),
+    }).filter(definition => IMAGINE_TOOL_NAMES.has(definition.name))
     const releaseRetention = runtime.subscribe((settings) => {
       return media
         .applyRetentionMs(settings.videoArtifactTtlMs)
@@ -995,22 +993,20 @@ function applyOwnedLlm(ctx: Context, config: Config, owner: OwnedLlmDependencies
       }),
     'avn-subscription-auth: Codex Fast route',
   )
-  ctx.inject(['tools', 'attachments'], async (toolCtx) => {
+  ctx.inject(['tools', 'attachments'], (toolCtx) => {
     const tools = toolCtx.get('tools') as CapabilityToolRegistry
     const attachments = toolCtx.get('attachments') as AttachmentStore
     // No media store here: this registration exposes only the Codex image
     // tools, and Codex produces no video artifact.
     const saveToWorkspace = createWorkspaceArtifactWriter(toolCtx, attachments)
-    const definitions = (
-      await createCapabilityTools({
-        current: () => owner.runtime.current(),
-        auth: owner.codexAuth,
-        attachments,
-        imagine: unavailableImagineClient(),
-        resolveCodexImageRoute,
-        ...optionalWorkspaceWriter(saveToWorkspace),
-      })
-    ).filter(definition => CODEX_TOOL_NAMES.has(definition.name))
+    const definitions = createCapabilityTools({
+      current: () => owner.runtime.current(),
+      auth: owner.codexAuth,
+      attachments,
+      imagine: unavailableImagineClient(),
+      resolveCodexImageRoute,
+      ...optionalWorkspaceWriter(saveToWorkspace),
+    }).filter(definition => CODEX_TOOL_NAMES.has(definition.name))
     toolCtx.effect(
       () => bindCapabilityTools(owner.runtime, tools, definitions, () => owner.mediaReadiness),
       'avn-subscription-auth: Codex image tools',

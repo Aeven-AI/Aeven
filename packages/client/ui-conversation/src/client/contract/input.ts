@@ -231,28 +231,8 @@ export interface SessionInputResolver {
  * useStore+actions convention. Command-style handles (arbitrate/space/
  * paste/…) stay InputBar-private and never ride this face.
  */
-export interface InputActions {
-  /** Replace the whole draft (persisted-draft seed and programmatic writes). */
-  setDraft(text: string): void
-  /**
-   * Append plain text at the end of the draft as one undoable edit, separated from existing text by a space.
-   * @param text - text to append, such as a dictation transcript.
-   * @returns whether the text was appended; busy admission phases refuse.
-   */
-  appendText(text: string): boolean
-  /** Append ordered browser-owned image ids; busy admission phases refuse. */
-  addImages(ids: readonly DraftAttachmentId[]): boolean
-  /**
-   * Register chosen files as this draft's images through the same intake the
-   * composer's own attach control uses.
-   * @param files - the chosen image files, in order.
-   * @returns the notice a caller surfaces, or null when the images joined the draft.
-   */
-  addImageFiles(files: readonly File[]): string | null
-  /** Remove one browser-owned image id; busy admission phases refuse. */
-  removeImage(id: DraftAttachmentId): void
-  /** Drop ids whose browser-owned objects no longer exist. */
-  pruneImages(ids: readonly DraftAttachmentId[]): void
+export interface InputActions extends Pick<SessionInput,
+  'setDraft' | 'appendText' | 'addImages' | 'addImageFiles' | 'removeImage' | 'pruneImages'> {
   /** Enter submission (adjudication / claim transaction / default sink inside). */
   submit(): void
 }

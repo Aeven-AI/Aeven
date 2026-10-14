@@ -58,7 +58,6 @@
     "@aeven/typert-protocol": "workspace:^"
   },
   "peerDependencies": {
-    "@aeven/session": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {

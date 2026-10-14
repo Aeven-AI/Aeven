@@ -1,5 +1,5 @@
+import type { AssistantBlock, PartialAssistant } from '@aeven/client-ui-conversation/client'
 import type { StreamChunk } from '@aeven/llm/types'
-import type { AssistantBlock, PartialAssistant } from '../contract/snapshot.ts'
 import { emptyAssistantBlock, toAssistantBlock } from './event-projection.ts'
 
 /**

@@ -62,7 +62,9 @@ export function Waveform({ analyser, className }: WaveformProps) {
       node.getByteTimeDomainData(data)
       let sum = 0
       for (let i = 0; i < node.fftSize; i++) {
-        const v = (data[i]! - 128) / 128
+        const sample = data[i]
+        if (sample === undefined) break
+        const v = (sample - 128) / 128
         sum += v * v
       }
       smoothed = smoothed * VOLUME_SMOOTHING + Math.sqrt(sum / node.fftSize) * (1 - VOLUME_SMOOTHING)
@@ -88,9 +90,8 @@ export function Waveform({ analyser, className }: WaveformProps) {
       }
       context.fillStyle = foreground
       const startX = width - BAR_WIDTH
-      for (let i = bars.length - 1; i >= 0; i--) {
-        const bar = bars[i]!
-        const x = startX - (bars.length - 1 - i) * pitch
+      for (const [order, bar] of bars.entries()) {
+        const x = startX - order * pitch
         if (x + BAR_WIDTH < 0) continue
         const age = ts - bar.bornAt
         if (age < GROWTH_MS) {

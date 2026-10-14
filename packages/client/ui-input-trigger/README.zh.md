@@ -78,6 +78,9 @@ kind: "package-reference"
 - **overlay 的 SlotMap 合并归属与槽位所有权分离**——唯一的 `conversation.input.overlay` 合并放在本包，而 ui-conversation 拥有其锚点、children 声明与生命周期，因为依赖方向是 ui-conversation → ui-input-trigger。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

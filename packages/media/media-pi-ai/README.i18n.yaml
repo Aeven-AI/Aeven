@@ -3,4 +3,4 @@
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/media/media-pi-ai/README.md
 README.md: 2662680941b806edfdcf54b706badc3b5a7ce2a1
-README.zh.md: 81f072b6e55083ca8345b7300c88cdbd0fa1748a
+README.zh.md: 4832d7bb10a906e820ae8eca74a4a39a235dc682

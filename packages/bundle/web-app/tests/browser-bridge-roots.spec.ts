@@ -73,8 +73,11 @@ describe('web-app bundle browser bridge', () => {
   it('resolves that root from HOME, and from USERPROFILE when HOME is unset', () => {
     const args = chromeDevtoolsArgs()
     const expression = (args[args.indexOf('--workspace') + 1] as { __jsExpr: string }).__jsExpr
-    const resolveWith = (env: Record<string, string | undefined>): string =>
-      new Script(`(${expression})`).runInNewContext({ process: { env } })
+    const resolveWith = (env: Record<string, string | undefined>): string => {
+      const resolved: unknown = new Script(`(${expression})`).runInNewContext({ process: { env } })
+      if (typeof resolved !== 'string') throw new TypeError('the workspace expression must resolve to a string')
+      return resolved
+    }
     expect(resolveWith({ HOME: '/Users/tester' })).toBe('/Users/tester')
     expect(resolveWith({ USERPROFILE: 'C:\\Users\\tester' })).toBe('C:\\Users\\tester')
   })

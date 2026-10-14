@@ -1,3 +1,4 @@
+import { awaitPendingResult } from '@aeven/client-store'
 /**
  * Browser location consumer over the scoped `location/request` Remote Event
  * waterfall. The browser's own permission prompt is the reader's one
@@ -63,22 +64,7 @@ async function answerLocation(
     if (read.kind === 'device' || read.kind === 'unavailable') return read
   }
   const pending = new PendingLocation(sessionId, request.purpose, request.signal)
-  const completed = Promise.withResolvers<void>()
-  const remove = registerPendingInteraction(pending, async () => {
-    pending.delegate()
-    await completed.promise
-  })
-  try {
-    try {
-      return await pending.result
-    } catch (error) {
-      if (pending.isDelegation(error)) return await next()
-      throw error
-    }
-  } finally {
-    remove()
-    completed.resolve()
-  }
+  return awaitPendingResult(pending, registerPendingInteraction, next)
 }
 
 /**

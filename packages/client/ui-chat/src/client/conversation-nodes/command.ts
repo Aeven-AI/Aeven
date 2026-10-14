@@ -1,13 +1,13 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type {
-  ConversationMatch, ConversationNodeContext, ConversationNodeDefinition,
+  CommandNode, CompactionSummaryNode, ConversationMatch, ConversationNodeContext,
+  ConversationNodeDefinition,
 } from '@aeven/client-ui-conversation/client'
 import type { CompactionCheckpointSource } from '@aeven/compaction/checkpoint'
 import type {} from '@aeven/compaction/types'
 import type {} from '@aeven/commands/types'
 import { isReplacementSurfaceEvent } from '@aeven/session/surface'
 import type { ManualCompactionChatData } from '../contract/chat-nodes.ts'
-import type { CommandNode, CompactionSummaryNode } from '../contract/snapshot.ts'
 import { chatNode } from './common.ts'
 
 declare module '../contract/chat-nodes.ts' {

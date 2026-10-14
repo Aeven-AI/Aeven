@@ -83,6 +83,7 @@ Prefix-stable while the visible tool set is unchanged; a result is appended.
 - **No native OS provider** — the Web client reads the browser's Geolocation API. Electron's Chromium geolocation may need a Google API key, so the desktop app can report the location as unavailable; a Core Location, Windows.Devices.Geolocation, or GeoClue provider answering `location/request` on the Host is deferred.
 - **No saved places** — the reader approves the browser's location permission; once the browser allows the site, later requests read the device without a card.
 - **Coordinates reach the model** — there is no places or geocoding tool that could consume them directly, so the model receives the coordinates it searches with.
+- **No invariant companion** — No runtime invariant companion is published because the tool holds no state of its own: one call dispatches the scoped `location/request` waterfall, and `renderLocationAnswer` is a pure function of the single answer a client plugin produced, so there is no second observation to compare.
 
 <a id="dev-note"></a>
 ### Dev Note

@@ -102,7 +102,7 @@ export function apply(ctx: ClientContext): void {
         paths,
         owner.openFile,
         path => t('produced.open', { name: path }),
-        showMenu === undefined ? undefined : path => { showMenu(path, owner.cwd) },
+        showMenu === undefined ? undefined : (path) => { showMenu(path, owner.cwd) },
       )
     },
   }

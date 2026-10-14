@@ -70,11 +70,12 @@ describe('ui-settings-plugin-inventory browser plugin', () => {
     b.list.mockResolvedValueOnce({ ok: false, error: { code: 'REMOTE_ERROR', message: 'unavailable' } })
     await expect(injected.list()).rejects.toThrow('pluginInventory.list failed: REMOTE_ERROR: unavailable')
 
-    // Shipped preset names resolve over the agent-preset dictionaries the
-    // real plugin registers; user-authored metadata stays untranslated.
-    b.locale.register('settings.agentPreset', 'zh', { presetStandardName: '标准模式' } as never)
-    expect(injected.presetName({ id: 'standard', trust: 'system', isDefault: true, rows: [] })).toBe('标准模式')
+    // Preset names are the metadata the Host published, verbatim: a preset
+    // that named itself shows that name, one that did not falls back to its id.
+    expect(injected.presetName({ id: 'standard', trust: 'system', name: '标准模式', isDefault: true, rows: [] }))
+      .toBe('标准模式')
     expect(injected.presetName({ id: 'mine', trust: 'user', name: '我自己的', isDefault: false, rows: [] })).toBe('我自己的')
+    expect(injected.presetName({ id: 'nameless', trust: 'user', isDefault: false, rows: [] })).toBe('nameless')
     await b.ctx.fiber.dispose()
   })
 

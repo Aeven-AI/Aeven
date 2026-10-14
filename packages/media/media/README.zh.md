@@ -86,6 +86,9 @@ seam 拥有选择、词汇与任务约定；provider 拥有协议与凭据。图
 - **仅在 provider 报告时提供费用**——图片结果或成功视频任务上的 `costUsdMicros` 在 provider 报告时携带调用方的扣费；不报告的 provider 让调用方看不到价格。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

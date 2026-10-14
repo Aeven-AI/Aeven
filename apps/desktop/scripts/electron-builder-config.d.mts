@@ -16,14 +16,23 @@ export interface DesktopElectronBuilderConfig {
   }
   readonly win: {
     readonly forceCodeSigning: boolean
+    readonly azureSignOptions?: {
+      readonly endpoint: string
+      readonly codeSigningAccountName: string
+      readonly certificateProfileName: string
+      readonly publisherName: string
+    }
   }
   readonly dmg: {
     readonly sign: boolean
     readonly writeUpdateInfo: boolean
   }
   readonly artifactBuildCompleted: (artifact: { readonly file: string }) => Promise<void> | undefined
-  readonly publish: readonly [{ readonly provider: 'generic', readonly url: string }]
+  readonly publish: readonly [{ readonly provider: 'github', readonly owner: string, readonly repo: string }]
 }
+
+/** GitHub repository whose Releases carry the installers and the update feed. */
+export const DESKTOP_RELEASE_REPOSITORY: { readonly owner: string, readonly repo: string }
 
 /**
  * Create electron-builder configuration from one release environment.

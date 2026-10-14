@@ -18,7 +18,13 @@ export interface ImapTiming {
 /** A special-use attribute this provider resolves to a folder path. */
 export type SpecialUse = '\\Drafts' | '\\Trash' | '\\Archive' | '\\All' | '\\Sent'
 
-/** Build an unconnected client that verifies certificates and never authenticates in plaintext. */
+/**
+ * Build an unconnected client that verifies certificates and never authenticates in plaintext.
+ * @param server - the receive binding the client connects to.
+ * @param password - the receive password used at login.
+ * @param timing - connection, greeting, and socket inactivity budgets.
+ * @returns the unconnected client, ready for {@link ImapPool} to log in.
+ */
 export function imapClient(server: MailServer, password: string, timing: ImapTiming): ImapFlow {
   return new ImapFlow({
     host: server.host,
@@ -90,7 +96,7 @@ export class ImapPool {
     const current = entry
     current.users++
     clearTimeout(current.timer)
-    const onAbort = (): void => { void current.client.then(client => { client.close() }, () => {}) }
+    const onAbort = (): void => { void current.client.then((client) => { client.close() }, () => {}) }
     signal?.addEventListener('abort', onAbort, { once: true })
     try {
       return await run(await current.client)
@@ -111,7 +117,7 @@ export class ImapPool {
   closeAll(): void {
     for (const [key, entry] of this.entries) {
       this.drop(key, entry)
-      void entry.client.then(client => { client.close() }, () => {})
+      void entry.client.then((client) => { client.close() }, () => {})
     }
   }
 
@@ -145,7 +151,11 @@ export async function probeImap(server: MailServer, password: string, timing: Im
   }
 }
 
-/** List every folder with its special-use attribute. */
+/**
+ * List every folder with its special-use attribute.
+ * @param client - the logged-in receive client.
+ * @returns each folder path with its special-use attribute where the server states one.
+ */
 export async function listFolders(client: ImapFlow): Promise<MailFolderView[]> {
   return (await client.list()).map(folder => ({
     path: folder.path,
@@ -153,7 +163,12 @@ export async function listFolders(client: ImapFlow): Promise<MailFolderView[]> {
   }))
 }
 
-/** Resolve a special-use folder path, or `undefined` when the server has none. */
+/**
+ * Resolve a special-use folder path, or `undefined` when the server has none.
+ * @param client - the logged-in receive client.
+ * @param use - the special-use attribute to resolve.
+ * @returns the folder path the server marks with that attribute, or `undefined`.
+ */
 export async function specialFolder(client: ImapFlow, use: SpecialUse): Promise<string | undefined> {
   return (await client.list()).find(folder => folder.specialUse === use)?.path
 }
@@ -198,7 +213,12 @@ export function uids(ids: readonly string[]): number[] {
  * @param limit - result cap.
  * @returns newest-first envelopes and whether more matched.
  */
-export async function searchImap(client: ImapFlow, account: string, request: MailSearchRequest, limit: number): Promise<{ messages: MailEnvelope[]; truncated: boolean }> {
+export async function searchImap(
+  client: ImapFlow,
+  account: string,
+  request: MailSearchRequest,
+  limit: number,
+): Promise<{ messages: MailEnvelope[]; truncated: boolean }> {
   const folder = request.folder ?? 'INBOX'
   const since = dateFilter(request.since, 'since')
   const before = dateFilter(request.before, 'before')
@@ -296,8 +316,8 @@ export async function updateImap(client: ImapFlow, request: MailUpdateRequest): 
       case 'trash':
         if (target === request.folder) {
           if (request.action === 'trash') await client.messageDelete(range, { uid: true })
-        } else {
-          await client.messageMove(range, target!, { uid: true })
+        } else if (target !== undefined) {
+          await client.messageMove(range, target, { uid: true })
         }
         break
       default: assertNever(request.action, 'mail update action')

@@ -263,4 +263,26 @@ Storage-domain sidecar service. It inspects persisted Session history and never 
 ```
 
 Source: [`packages/feedback/message-feedback/src/index.ts`](../../packages/feedback/message-feedback/src/index.ts)
+
+<a id="message-feedback-events"></a>
+
+### `message-feedback/*` events
+
+<a id="message-feedbackchanged--emit"></a>
+
+#### `message-feedback/changed` — emit
+
+Feedback for one assistant message was stored, replaced, or deleted. Emitted after the write is durable; a matching no-op put and the delete of absent feedback emit nothing.
+
+```ts cordis-catalog
+/**
+ * Feedback for one assistant message was stored, replaced, or deleted. Emitted after the write is
+ * durable; a matching no-op put and the delete of absent feedback emit nothing.
+ * @param change - the session, message, and stored item after the change.
+ * @mode emit
+ */
+'message-feedback/changed'(change: MessageFeedbackChange): void
+```
+
+Source: [`packages/feedback/message-feedback/src/index.ts`](../../packages/feedback/message-feedback/src/index.ts)
 <!-- END GENERATED cordis-surface -->

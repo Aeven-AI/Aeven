@@ -81,7 +81,7 @@ class TestCdpClient {
  * @param assertion - the observation to retry until it holds.
  * @returns nothing once the observation holds.
  */
-function waitForCdp(assertion: () => void): Promise<void> {
+function waitForCdp(assertion: () => void | Promise<void>): Promise<void> {
   return vi.waitFor(assertion, { timeout: 15_000 })
 }
 

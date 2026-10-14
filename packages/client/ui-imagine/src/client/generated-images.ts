@@ -64,7 +64,8 @@ function recordSources(value: unknown, sources: Set<string>): void {
   }
   if (Array.isArray(row.images)) {
     for (const image of row.images) {
-      if (typeof image === 'object' && image !== null && 'path' in image && typeof image.path === 'string') sources.add(image.path)
+      const entry = image as { path?: unknown }
+      if (typeof entry.path === 'string') sources.add(entry.path)
     }
   }
 }
@@ -94,7 +95,10 @@ const definition: ConversationNodeDefinition<ImageState> = {
   },
   buildLocationData: (context, scope, previous) => {
     if (scope !== 'turn') return null
-    const state = context.state ?? context.matches.reduce((current, match) => definition.update({ ...context, state: current }, match), empty())
+    const state = context.state ?? context.matches.reduce(
+      (current, match) => definition.update({ ...context, state: current }, match),
+      empty(),
+    )
     if (previous?.kind === 'turn' && previous.key === 'generated-images'
       && previous.value.callIds === state.callIds && previous.value.attachmentIds === state.attachmentIds
       && previous.value.sources === state.sources) return previous

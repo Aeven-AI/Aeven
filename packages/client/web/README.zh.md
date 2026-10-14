@@ -118,6 +118,9 @@ kind: "package-library"
 - **应用会等待完整名册**——只要一个 entry 失败，无框架启动页就会保留并逐项报告；不支持部分 UI 可用。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

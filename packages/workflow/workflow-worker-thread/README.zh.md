@@ -171,6 +171,9 @@ kind: "package-reference"
 - **跨 realm 错误在脚本内无法通过 `instanceof Error`**——工作流作者必须根据 `name` 与 `code` 等稳定字段分支。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

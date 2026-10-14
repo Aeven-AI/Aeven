@@ -13,7 +13,6 @@ import type { MessageSource } from '@aeven/llm'
 import { SessionLogOffset, SessionSeq } from '@aeven/session'
 import type { SessionEvent, SessionHeader, SessionId, UserMessage } from '@aeven/session'
 import { SessionQueryError, type SessionObservation } from '@aeven/session-query'
-import { SessionPersistenceBusyError } from '@aeven/session-persistence'
 import { SessionTitleInvalidError } from '@aeven/session-title'
 import { canonicalClientTimeZone } from '@aeven/util-time'
 import { RemoteError, remoteErrorOf } from '@aeven/typert-protocol'
@@ -158,7 +157,10 @@ export class SessionCommandController {
     const workspaceId = request.workspaceId ?? (request.cwd === undefined ? this.ctx.workspaceRegistry.defaultWorkspaceId : undefined)
     if (workspaceId !== undefined) {
       workspace = this.ctx.workspaceRegistry.get(workspaceId)
-      if (workspace === undefined) {
+      // Another account's Workspace answers as missing, as it does for a move:
+      // its directory and Session list are not the caller's to add to.
+      if (workspace === undefined
+        || !(workspace.isBuiltIn || (this.ctx.get('identityUsers')?.mayAccess(workspace.owner) ?? true))) {
         throw new RemoteError('workspace/not-found', `workspace "${workspaceId}" not found`, {
           workspaceId,
         })
@@ -183,7 +185,7 @@ export class SessionCommandController {
         request.agentPreset,
       )
     } catch (error) {
-      this.rejectCreation(sessionId, error)
+      return await this.rejectCreation(sessionId, error)
     }
     if (workspace !== undefined) {
       try {
@@ -281,23 +283,7 @@ export class SessionCommandController {
     } catch {
       throw new RemoteError('gateway/bad-request', 'atSeq must be a non-negative safe integer', {})
     }
-    let observed: SessionObservation
-    try {
-      observed = await this.ctx.sessionQuery.observeSession(request.sessionId)
-    } catch (error) {
-      if (error instanceof SessionQueryError
-        && error.code === 'SESSION_QUERY_SESSION_NOT_FOUND') {
-        throw new RemoteError('session/not-found', `session "${request.sessionId}" not found`, {
-          sessionId: request.sessionId,
-        })
-      }
-      throw new RemoteError(
-        'gateway/internal',
-        `fork source unavailable for session "${request.sessionId}": ${String(error)}`,
-        {},
-      )
-    }
-    using source = observed
+    using source = await this.observeSource(request, 'fork')
     if (!this.agents.callerMayAccess(source.header)) {
       throw new RemoteError('session/not-found', `session "${request.sessionId}" not found`, {
         sessionId: request.sessionId,
@@ -335,32 +321,13 @@ export class SessionCommandController {
       )
     }
     const childId = brandString<SessionId>(`session-${randomUUID()}`)
-    const composition = await this.agents.composeAgent(this.agents.presetForObservation(source))
-    try {
-      const { provider, model } = this.ctx.agentDefaultModel.currentSelection()
-      this.agents.own(await this.ctx.agents.create({
-        sessionId: childId,
-        seed: source.events.slice(0, cut),
-        inheritedEventCount: cut,
-        meta: {
-          ...(source.header.cwd === undefined ? {} : { cwd: source.header.cwd }),
-          parentSession: source.header.id,
-          isSeeded: true,
-          ...(source.header.owner === undefined ? {} : { owner: source.header.owner }),
-          ...(composition.agentPreset === undefined
-            ? {}
-            : { agentPreset: composition.agentPreset }),
-        },
-        agentOptions: { provider, model },
-        setup: composition.setup,
-      }))
-    } catch (error) {
-      throw new RemoteError(
-        'gateway/internal',
-        `failed to fork session "${request.sessionId}": ${String(error)}`,
-        {},
-      )
-    }
+    await this.createSeededSession(request, 'fork', source, {
+      sessionId: childId,
+      seed: source.events.slice(0, cut),
+      inheritedEventCount: cut,
+      cwd: source.header.cwd,
+      parentSession: source.header.id,
+    })
     if (workspace !== undefined) {
       try {
         await workspace.attachSession(childId)
@@ -401,7 +368,7 @@ export class SessionCommandController {
     }
     // A plugin-declared built-in Workspace such as Automations holds only the
     // Sessions its plugin creates: none moves in, and none of its own moves out.
-    const managed = (candidate: { readonly isBuiltIn: boolean, readonly isDefault: boolean }): boolean =>
+    const managed = (candidate: { readonly isBuiltIn: boolean; readonly isDefault: boolean }): boolean =>
       candidate.isBuiltIn && !candidate.isDefault
     if (managed(workspace)) {
       throw unavailable('managed-workspace', `workspace "${workspace.id}" holds only the sessions its plugin creates`)
@@ -416,22 +383,7 @@ export class SessionCommandController {
     if (this.ctx.agents.get(request.sessionId)?.status === 'running') {
       throw new RemoteError('session/agent-busy', 'move rejected', { reason: 'the session is running a turn' })
     }
-    let observed: SessionObservation
-    try {
-      observed = await this.ctx.sessionQuery.observeSession(request.sessionId)
-    } catch (error) {
-      if (error instanceof SessionQueryError
-        && error.code === 'SESSION_QUERY_SESSION_NOT_FOUND') {
-        throw new RemoteError('session/not-found', `session "${request.sessionId}" not found`, {
-          sessionId: request.sessionId,
-        })
-      }
-      throw new RemoteError(
-        'gateway/internal',
-        `move source unavailable for session "${request.sessionId}": ${String(error)}`,
-        {},
-      )
-    }
+    const observed = await this.observeSource(request, 'move')
     const movedId = brandString<SessionId>(`session-${randomUUID()}`)
     {
       using source = observed
@@ -443,34 +395,15 @@ export class SessionCommandController {
       if (hasApiSessionSubagentOwner(this.ctx, { header: source.header }, undefined)) {
         throw unavailable('subagent', `session "${request.sessionId}" belongs to a subagent`)
       }
-      const composition = await this.agents.composeAgent(this.agents.presetForObservation(source))
-      try {
-        const { provider, model } = this.ctx.agentDefaultModel.currentSelection()
-        // The whole log moves, and the source's own fork lineage moves with it:
-        // the new Session inherits what the source inherited, from the same parent.
-        this.agents.own(await this.ctx.agents.create({
-          sessionId: movedId,
-          seed: source.events,
-          inheritedEventCount: source.inheritedEventCount,
-          meta: {
-            ...(workspace.path === undefined ? {} : { cwd: workspace.path }),
-            ...(source.header.parentSession === undefined ? {} : { parentSession: source.header.parentSession }),
-            isSeeded: true,
-            ...(source.header.owner === undefined ? {} : { owner: source.header.owner }),
-            ...(composition.agentPreset === undefined
-              ? {}
-              : { agentPreset: composition.agentPreset }),
-          },
-          agentOptions: { provider, model },
-          setup: composition.setup,
-        }))
-      } catch (error) {
-        throw new RemoteError(
-          'gateway/internal',
-          `failed to move session "${request.sessionId}": ${String(error)}`,
-          {},
-        )
-      }
+      // The whole log moves, and the source's own fork lineage moves with it:
+      // the new Session inherits what the source inherited, from the same parent.
+      await this.createSeededSession(request, 'move', source, {
+        sessionId: movedId,
+        seed: source.events,
+        inheritedEventCount: source.inheritedEventCount,
+        cwd: workspace.path,
+        parentSession: source.header.parentSession,
+      })
     }
     try {
       await workspace.attachSession(movedId)
@@ -600,7 +533,7 @@ export class SessionCommandController {
         {},
       )
     }
-    const ref = referencedAttachment<ImageAttachmentRef>(source.events, 'image', String(request.attachmentId))
+    const ref = referencedAttachment(source.events, 'image', String(request.attachmentId))
     if (ref === undefined) {
       throw new RemoteError(
         'session/attachment-invalid',
@@ -630,7 +563,7 @@ export class SessionCommandController {
    */
   async referencedFile(sessionId: SessionId, attachmentId: string): Promise<StoredFileAttachment | undefined> {
     const source = await this.readSessionState(sessionId)
-    const ref = referencedAttachment<FileAttachmentRef>(source.events, 'file', attachmentId)
+    const ref = referencedAttachment(source.events, 'file', attachmentId)
     return ref === undefined ? undefined : this.ctx.attachments.readFile(ref)
   }
 
@@ -642,7 +575,7 @@ export class SessionCommandController {
    */
   async referencedImage(sessionId: SessionId, attachmentId: string): Promise<StoredImageAttachment | undefined> {
     const source = await this.readSessionState(sessionId)
-    const ref = referencedAttachment<ImageAttachmentRef>(source.events, 'image', attachmentId)
+    const ref = referencedAttachment(source.events, 'image', attachmentId)
     return ref === undefined ? undefined : this.ctx.attachments.readImage(ref)
   }
 
@@ -738,7 +671,8 @@ export class SessionCommandController {
     return found.agent
   }
 
-  private rejectCreation(sessionId: SessionId, error: unknown): never {
+  private async rejectCreation(sessionId: SessionId, error: unknown): Promise<never> {
+    const { SessionPersistenceBusyError } = await import('@aeven/session-persistence')
     if (remoteErrorOf(error) !== undefined) throw error
     if (error instanceof SessionPersistenceBusyError) {
       throw new RemoteError('session/agent-busy', error.message, { reason: error.message })
@@ -777,6 +711,75 @@ export class SessionCommandController {
     return state
   }
 
+  /**
+   * Observe the source Session a fork or move copies, mapping a missing Session
+   * and any other query failure to the Remote errors both commands report.
+   */
+  private async observeSource(
+    request: { readonly sessionId: SessionId },
+    operation: 'fork' | 'move',
+  ): Promise<SessionObservation> {
+    try {
+      return await this.ctx.sessionQuery.observeSession(request.sessionId)
+    } catch (error) {
+      if (error instanceof SessionQueryError
+        && error.code === 'SESSION_QUERY_SESSION_NOT_FOUND') {
+        throw new RemoteError('session/not-found', `session "${request.sessionId}" not found`, {
+          sessionId: request.sessionId,
+        })
+      }
+      throw new RemoteError(
+        'gateway/internal',
+        `${operation} source unavailable for session "${request.sessionId}": ${String(error)}`,
+        {},
+      )
+    }
+  }
+
+  /**
+   * Create the Session a fork or move produces from the source's log, naming
+   * `operation` in the Remote error a creation failure becomes.
+   */
+  private async createSeededSession(
+    request: { readonly sessionId: SessionId },
+    operation: 'fork' | 'move',
+    source: SessionObservation,
+    seeded: {
+      readonly sessionId: SessionId
+      readonly seed: readonly SessionEvent[]
+      readonly inheritedEventCount: ReturnType<typeof SessionLogOffset>
+      readonly cwd: string | undefined
+      readonly parentSession: SessionId | undefined
+    },
+  ): Promise<void> {
+    const composition = await this.agents.composeAgent(this.agents.presetForObservation(source))
+    try {
+      const { provider, model } = this.ctx.agentDefaultModel.currentSelection()
+      this.agents.own(await this.ctx.agents.create({
+        sessionId: seeded.sessionId,
+        seed: seeded.seed,
+        inheritedEventCount: seeded.inheritedEventCount,
+        meta: {
+          ...(seeded.cwd === undefined ? {} : { cwd: seeded.cwd }),
+          ...(seeded.parentSession === undefined ? {} : { parentSession: seeded.parentSession }),
+          isSeeded: true,
+          ...(source.header.owner === undefined ? {} : { owner: source.header.owner }),
+          ...(composition.agentPreset === undefined
+            ? {}
+            : { agentPreset: composition.agentPreset }),
+        },
+        agentOptions: { provider, model },
+        setup: composition.setup,
+      }))
+    } catch (error) {
+      throw new RemoteError(
+        'gateway/internal',
+        `failed to ${operation} session "${request.sessionId}": ${String(error)}`,
+        {},
+      )
+    }
+  }
+
   private async forkWorkspace(source: SessionHeader): Promise<Workspace | undefined> {
     const workspaces = this.ctx.workspaceRegistry.list()
     const direct = workspaces.find(workspace => workspace.sessionIds.includes(source.id))
@@ -791,6 +794,12 @@ export class SessionCommandController {
 }
 
 type AttachmentBlockType = 'image' | 'file'
+
+/** Logged reference carried by each content-block type that can cite an attachment. */
+type AttachmentRefByType = {
+  image: ImageAttachmentRef
+  file: FileAttachmentRef
+}
 
 function attachmentBlockIn<Ref extends { readonly attachmentId: unknown }>(
   content: unknown,
@@ -844,13 +853,13 @@ function attachmentInEvent<Ref extends { readonly attachmentId: unknown }>(
  * @param attachmentId - opaque attachment identifier.
  * @returns the logged reference, or undefined when the log never cites it.
  */
-function referencedAttachment<Ref extends { readonly attachmentId: unknown }>(
+function referencedAttachment<T extends AttachmentBlockType>(
   events: readonly SessionEvent[],
-  type: AttachmentBlockType,
+  type: T,
   attachmentId: string,
-): Ref | undefined {
+): AttachmentRefByType[T] | undefined {
   for (const event of events) {
-    const found = attachmentInEvent<Ref>(event, type, ref => String(ref.attachmentId) === attachmentId)
+    const found = attachmentInEvent<AttachmentRefByType[T]>(event, type, ref => String(ref.attachmentId) === attachmentId)
     if (found !== undefined) return found
   }
   return undefined

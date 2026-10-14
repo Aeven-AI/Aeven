@@ -48,7 +48,7 @@ kind: "package-reference"
 <a id="further-exploration"></a>
 ## 进一步探索
 
-[语音输入子系统](../../../docs/subsystems/voice-input.zh.md)
+[语音输入子系统](../../../docs/subsystems/speech.zh.md)
 
 -----
 
@@ -70,6 +70,9 @@ kind: "package-reference"
 -----
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

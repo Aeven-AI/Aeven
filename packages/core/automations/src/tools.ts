@@ -31,7 +31,8 @@ const runIdSchema = z.object({ id: z.string().min(1).transform(value => brandStr
  * @returns disposer for all management tools.
  */
 export function registerAutomationTools(service: Automations, agent: Agent, identity: IdentityUsers): () => void {
-  const asOwner = <T>(work: () => T): T => identity.runAs(agent.session.header.owner === undefined ? undefined : { id: agent.session.header.owner }, work)
+  const asOwner = <T>(work: () => T): T =>
+    identity.runAs(agent.session.header.owner === undefined ? undefined : { id: agent.session.header.owner }, work)
   const tools: ToolDefinition[] = [
     {
       name: 'automation_create', description: 'Create a built-in automation after human confirmation. Translate the user’s request into a self-contained task and explicit local schedule. Ask only for missing requirements. Future runs start fresh conversations with this account’s capabilities. An external action that needs approval asks the user in the run conversation; once the user approves it there, later runs perform it without asking.',
@@ -51,14 +52,21 @@ export function registerAutomationTools(service: Automations, agent: Agent, iden
       name: 'automation_update', description: 'Adjust a task, schedule, or file permissions after confirmation, or pause an automation immediately. Omitted fields remain unchanged.',
       parameters: { type: 'object', properties: { id: { type: 'string' }, ...taskFields, status: { type: 'string', enum: ['active', 'paused'] } }, required: ['id'], additionalProperties: false },
       output: { schema: { type: 'object', additionalProperties: true }, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },
-      execute: async (args, exec) => { exec.signal.throwIfAborted(); const { id, ...patch } = updateSchema.parse(args); return asOwner(() => service.update(id, patch)) },
+      execute: async (args, exec) => {
+        exec.signal.throwIfAborted()
+        const { id, ...patch } = updateSchema.parse(args)
+        return asOwner(() => service.update(id, patch))
+      },
       presentCall: args => ({ card: 'generic', title: 'Adjust automation', kind: 'other', rawInput: args }),
     },
     {
       name: 'automation_run_now', description: 'Run one existing automation now with its approved task and file permissions. Read its run history for the actual outcome.',
       parameters: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'], additionalProperties: false },
       output: { schema: { type: 'object', additionalProperties: true }, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },
-      execute: async (args, exec) => { exec.signal.throwIfAborted(); return asOwner(() => service.runNow(z.object({ id: idSchema }).strict().parse(args).id)) },
+      execute: async (args, exec) => {
+        exec.signal.throwIfAborted()
+        return asOwner(() => service.runNow(z.object({ id: idSchema }).strict().parse(args).id))
+      },
       presentCall: () => ({ card: 'generic', title: 'Run automation', kind: 'other' }),
     },
     {

@@ -13,12 +13,13 @@ flowchart LR
   pkg_client_connection["client-connection"]
   pkg_media["media"]
   svc_media["ctx.media<br/>Generated image and video"]
+  pkg_media_aeven["media-aeven"]
   pkg_media_deepinfra["media-deepinfra"]
   pkg_media_openrouter["media-openrouter"]
   pkg_media_pi_ai["media-pi-ai"]
   pkg_computer_use["computer-use"]
   svc_computerUse["ctx.computerUse<br/>Computer-use provider registry"]
-  pkg_experimental_computer_use_cua_driver_mcp["computer-use-cua-driver-mcp"]
+  pkg_computer_use_cua_driver_mcp["computer-use-cua-driver-mcp"]
   svc_computerUseProvider["ctx.computerUseProvider<br/>Loaded computer-use provider"]
   pkg_computer_use_macos_provider["computer-use-macos-provider"]
   pkg_attachment["attachment"]
@@ -231,23 +232,82 @@ flowchart LR
   pkg_cordis_host_runner["cordis-host-runner"]
   svc_dynamicCordisRunner["ctx.dynamicCordisRunner<br/>Dynamic Cordis package host runner"]
   svc_cordisInspect["ctx.cordisInspect<br/>Dynamic Cordis inspect registry"]
+  pkg_account_integrations["account-integrations"]
+  svc_accountIntegrations["ctx.accountIntegrations<br/>Connector account registry"]
+  pkg_ui_automations["ui-automations"]
+  pkg_ui_settings_integrations["ui-settings-integrations"]
+  pkg_automations["automations"]
+  svc_automations["ctx.automations<br/>Built-in local automation authority"]
+  pkg_browser_chromium["browser-chromium"]
+  svc_browserChromium["ctx.browserChromium<br/>Host Chromium launcher"]
+  pkg_capability["capability"]
+  svc_capabilities["ctx.capabilities<br/>Learned capability registry"]
+  pkg_api_memory_manager["api-memory-manager"]
+  pkg_tool_capability["tool-capability"]
+  pkg_device["device"]
+  svc_devices["ctx.devices<br/>Device sessions and control"]
+  pkg_device_local["device-local"]
+  pkg_tool_device["tool-device"]
+  pkg_document_extract["document-extract"]
+  svc_documentExtract["ctx.documentExtract<br/>Document extraction registry"]
+  pkg_document_extract_js["document-extract-js"]
+  pkg_document_extract_ocr["document-extract-ocr"]
+  pkg_document_extract_office["document-extract-office"]
+  pkg_session_controller["session-controller"]
+  pkg_job_controller["job-controller"]
+  svc_jobController["ctx.jobController<br/>Background-job Remote owner"]
+  pkg_ui_jobs["ui-jobs"]
+  pkg_mail["mail"]
+  svc_mail["ctx.mail<br/>Mail accounts and operations"]
+  pkg_tool_mail["tool-mail"]
+  pkg_memory["memory"]
+  svc_memory["ctx.memory<br/>Long-term memory"]
+  pkg_memory_memos["memory-memos"]
+  pkg_memory_context["memory-context"]
+  pkg_tool_memory["tool-memory"]
+  svc_memoryManagerController["ctx.memoryManagerController<br/>Memory manager Remote"]
+  pkg_ui_settings_memory["ui-settings-memory"]
+  pkg_personalization["personalization"]
+  svc_personalizationController["ctx.personalizationController<br/>Personalization store and prompt section"]
+  pkg_ui_settings_personalization["ui-settings-personalization"]
+  pkg_skill_catalog["skill-catalog"]
+  svc_skillCatalog["ctx.skillCatalog<br/>Vendored skill catalog"]
+  pkg_api_speech_to_text["api-speech-to-text"]
+  svc_speechController["ctx.speechController<br/>Speech Remote"]
+  pkg_ui_voice_input["ui-voice-input"]
+  pkg_speech_to_text["speech-to-text"]
+  svc_speechToText["ctx.speechToText<br/>Transcription provider registry"]
+  pkg_speech_to_text_whisper["speech-to-text-whisper"]
+  pkg_terminal_controller["terminal-controller"]
+  svc_terminalController["ctx.terminalController<br/>Terminal Remote"]
+  pkg_ui_sidebar_terminal["ui-sidebar-terminal"]
+  pkg_workspace_files["workspace-files"]
+  svc_workspaceFiles["ctx.workspaceFiles<br/>Workspace file Remote"]
+  pkg_ui_sidebar_files["ui-sidebar-files"]
+  pkg_account_integrations --> svc_accountIntegrations
+  pkg_account_integrations --> svc_mail
   pkg_agent --> svc_agents
   pkg_agent_default_model --> svc_agentDefaultModel
   pkg_agent_loop --> svc_agentLoop
   pkg_agent_presets --> svc_agentPresets
   pkg_api_gateway --> svc_typertGateway
+  pkg_api_memory_manager --> svc_memoryManagerController
   pkg_api_session_controller --> svc_sessionController
   pkg_api_session_controller --> svc_sessionFileReferences
   pkg_api_session_controller --> svc_sessionSkillCatalog
   pkg_api_settings_controller --> svc_credentialsController
   pkg_api_settings_controller --> svc_settingsController
+  pkg_api_speech_to_text --> svc_speechController
   pkg_api_workspace_controller --> svc_directoryPickerController
   pkg_api_workspace_controller --> svc_workspaceController
   pkg_attachment --> svc_attachments
   pkg_attachment_local --> svc_attachments
   pkg_authorization --> svc_authorization
+  pkg_automations --> svc_automations
   pkg_bash_local --> svc_shell
   pkg_bash_sandbox --> svc_shell
+  pkg_browser_chromium --> svc_browserChromium
+  pkg_capability --> svc_capabilities
   pkg_client_modules --> svc_clientModules
   pkg_code_runtime --> svc_codeRuntime
   pkg_code_runtime_worker_thread --> svc_codeRuntime
@@ -257,16 +317,22 @@ flowchart LR
   pkg_compaction_tool_result_pruner --> svc_toolResultPruner
   pkg_computer_use --> svc_computerUse
   pkg_computer_use --> svc_computerUseProvider
+  pkg_computer_use_cua_driver_mcp --> svc_computerUse
   pkg_computer_use_macos_provider --> svc_computerUseProvider
   pkg_cordis_host_runner --> svc_cordisInspect
   pkg_cordis_host_runner --> svc_dynamicCordisRunner
   pkg_credentials --> svc_credentials
   pkg_credentials_local --> svc_credentials
   pkg_deepseek_llm_api_extensions --> svc_deepseekLlmApiExtensions
+  pkg_device --> svc_devices
+  pkg_device_local --> svc_devices
+  pkg_document_extract --> svc_documentExtract
+  pkg_document_extract_js --> svc_documentExtract
+  pkg_document_extract_ocr --> svc_documentExtract
+  pkg_document_extract_office --> svc_documentExtract
   pkg_e2b --> svc_e2b
   pkg_experimental_agent_team --> svc_agentTeams
   pkg_experimental_code_runtime_python --> svc_codeRuntime
-  pkg_experimental_computer_use_cua_driver_mcp --> svc_computerUse
   pkg_file_reference --> svc_fileReferences
   pkg_file_reference_local --> svc_fileReferences
   pkg_fs --> svc_fs
@@ -282,6 +348,7 @@ flowchart LR
   pkg_identity_user_aeven --> svc_identityUsers
   pkg_inspector --> svc_inspector
   pkg_invariants --> svc_invariants
+  pkg_job_controller --> svc_jobController
   pkg_jobs --> svc_jobs
   pkg_jobs_local --> svc_jobs
   pkg_llm --> svc_llm
@@ -290,12 +357,17 @@ flowchart LR
   pkg_llm_replay --> svc_llm
   pkg_lsp --> svc_lsp
   pkg_lsp_stdio --> svc_lsp
+  pkg_mail --> svc_mail
   pkg_media --> svc_media
+  pkg_media_aeven --> svc_media
   pkg_media_deepinfra --> svc_media
   pkg_media_openrouter --> svc_media
   pkg_media_pi_ai --> svc_media
+  pkg_memory --> svc_memory
+  pkg_memory_memos --> svc_memory
   pkg_message_feedback --> svc_messageFeedback
   pkg_permission_presets --> svc_permissionPresets
+  pkg_personalization --> svc_personalizationController
   pkg_plan_mode --> svc_planMode
   pkg_plugin_package_inventory_deepseek --> svc_deepseekLlmApiExtensions
   pkg_pwsh_local --> svc_shell
@@ -322,7 +394,10 @@ flowchart LR
   pkg_shell_env --> svc_shellEnv
   pkg_skill --> svc_skills
   pkg_skill_badge --> svc_skills
+  pkg_skill_catalog --> svc_skillCatalog
   pkg_skill_filesystem --> svc_skills
+  pkg_speech_to_text --> svc_speechToText
+  pkg_speech_to_text_whisper --> svc_speechToText
   pkg_spill --> svc_spillStore
   pkg_spill_local --> svc_spillStore
   pkg_storage --> svc_storage
@@ -342,6 +417,7 @@ flowchart LR
   pkg_system_prompt --> svc_systemPrompt
   pkg_terminal --> svc_terminals
   pkg_terminal_bash --> svc_terminals
+  pkg_terminal_controller --> svc_terminalController
   pkg_token_meter --> svc_tokenMeter
   pkg_tool_subagent --> svc_subagentModelSelection
   pkg_tools --> svc_tools
@@ -357,6 +433,9 @@ flowchart LR
   pkg_workflow --> svc_workflowEngine
   pkg_workflow_worker_thread --> svc_workflowEngine
   pkg_workspace --> svc_workspaceRegistry
+  pkg_workspace_files --> svc_workspaceFiles
+  svc_accountIntegrations --> pkg_ui_automations
+  svc_accountIntegrations --> pkg_ui_settings_integrations
   svc_agentDefaultModel --> pkg_api_session_controller
   svc_agentDefaultModel --> pkg_headless
   svc_agentLoop --> pkg_base
@@ -374,6 +453,9 @@ flowchart LR
   svc_attachments --> pkg_llm_pi_ai
   svc_attachments --> pkg_tool_fs
   svc_authorization --> pkg_llm_pi_ai
+  svc_automations --> pkg_ui_automations
+  svc_capabilities --> pkg_api_memory_manager
+  svc_capabilities --> pkg_tool_capability
   svc_clientModules --> pkg_client_hmr
   svc_codeRuntime --> pkg_tools
   svc_compaction --> pkg_compaction_basic
@@ -382,7 +464,9 @@ flowchart LR
   svc_credentials --> pkg_llm_deepseek
   svc_credentials --> pkg_llm_pi_ai
   svc_deepseekLlmApiExtensions --> pkg_llm_deepseek
+  svc_devices --> pkg_tool_device
   svc_directoryPicker --> pkg_api_workspace_controller
+  svc_documentExtract --> pkg_session_controller
   svc_dynamicCordisRunner --> pkg_tool_cordis
   svc_e2b --> pkg_fs_e2b
   svc_e2b --> pkg_subprocess_e2b
@@ -393,6 +477,7 @@ flowchart LR
   svc_invariants --> pkg_agent_loop
   svc_invariants --> pkg_scope
   svc_invariants --> pkg_session
+  svc_jobController --> pkg_ui_jobs
   svc_jobs --> pkg_tool_bash
   svc_jobs --> pkg_tool_jobs
   svc_jobs --> pkg_tool_subagent
@@ -400,6 +485,14 @@ flowchart LR
   svc_llm --> pkg_agent_loop
   svc_llm --> pkg_compaction_basic
   svc_lsp --> pkg_tool_lsp
+  svc_mail --> pkg_tool_mail
+  svc_memory --> pkg_api_memory_manager
+  svc_memory --> pkg_memory_context
+  svc_memory --> pkg_memory_memos
+  svc_memory --> pkg_tool_capability
+  svc_memory --> pkg_tool_memory
+  svc_memoryManagerController --> pkg_ui_settings_memory
+  svc_personalizationController --> pkg_ui_settings_personalization
   svc_sandbox --> pkg_bash_sandbox
   svc_sandbox --> pkg_terminal_bash
   svc_sandboxPolicy --> pkg_bash_sandbox
@@ -438,7 +531,10 @@ flowchart LR
   svc_shell --> pkg_tool_pwsh
   svc_shellEnv --> pkg_tool_bash
   svc_shellEnv --> pkg_tool_pwsh
+  svc_skillCatalog --> pkg_account_integrations
   svc_skills --> pkg_tool_skill
+  svc_speechController --> pkg_ui_voice_input
+  svc_speechToText --> pkg_api_speech_to_text
   svc_spillStore --> pkg_spill_policy
   svc_storage --> pkg_storage_domain
   svc_storageDomain --> pkg_message_feedback
@@ -459,6 +555,7 @@ flowchart LR
   svc_systemPrompt --> pkg_tool_terminal
   svc_systemPrompt --> pkg_tool_web
   svc_systemPrompt --> pkg_tools
+  svc_terminalController --> pkg_ui_sidebar_terminal
   svc_terminals --> pkg_tool_terminal
   svc_tokenMeter --> pkg_compaction_basic
   svc_toolResultPruner --> pkg_compaction_basic
@@ -482,6 +579,7 @@ flowchart LR
   svc_webhookRuntime --> pkg_webhook_github
   svc_workflowEngine --> pkg_tool_ralph
   svc_workflowEngine --> pkg_tool_workflow
+  svc_workspaceFiles --> pkg_ui_sidebar_files
   svc_workspaceRegistry --> pkg_api_session_controller
   svc_workspaceRegistry --> pkg_api_workspace_controller
   svc_fs -. event gate .-> pkg_fs_observation_policy
@@ -490,7 +588,7 @@ flowchart LR
 | ctx key | Role | Owner | Implementations | Direct consumers | Companion plugins | Note |
 | --- | --- | --- | --- | --- | --- | --- |
 | `ctx.identityUsers` | `seam` | [`identity-user`](../packages/identity/user) | [`identity-user-aeven`](../packages/identity/user-aeven) | [`client-connection`](../packages/client/connection) | - | Authorities resolve a request's credential headers to a user synchronously; the request fence consults the seam before dispatch and answers 401 when nobody is recognized. |
-| `ctx.media` | `seam` | [`media`](../packages/media/media) | [`media-deepinfra`](../packages/media/media-deepinfra), [`media-openrouter`](../packages/media/media-openrouter), [`media-pi-ai`](../packages/media/media-pi-ai) | - | - | One service spans both media: images return bytes directly, while video is a job a caller starts, polls, and fetches. Consumers own every model-facing name and schema. |
+| `ctx.media` | `seam` | [`media`](../packages/media/media) | [`media-aeven`](../packages/media/media-aeven), [`media-deepinfra`](../packages/media/media-deepinfra), [`media-openrouter`](../packages/media/media-openrouter), [`media-pi-ai`](../packages/media/media-pi-ai) | - | - | One service spans both media: images return bytes directly, while video is a job a caller starts, polls, and fetches. Consumers own every model-facing name and schema. |
 | `ctx.computerUse` | `seam` | [`computer-use`](../packages/computer-use/computer-use) | [`computer-use-cua-driver-mcp`](../packages/computer-use/computer-use-cua-driver-mcp) | - | - | The registry holds one optional provider slot for the shared computer-use service; the Cua Driver MCP adapter reserves it and exposes the driver's own tools through the shared tool runtime, releasing the slot with them. |
 | `ctx.computerUseProvider` | `core` | [`computer-use`](../packages/computer-use/computer-use) | [`computer-use-macos-provider`](../packages/computer-use/computer-use-macos-provider) | - | - | The provider a platform adapter published, addressed as `ctx.computerUseProvider` by the surfaces that run its tasks. The slot on that seam is what keeps it single: the adapter claims the slot before publishing, so a second provider fails with the name of the one already registered. |
 | `ctx.attachments` | `seam` | [`attachment`](../packages/attachment/attachment) | [`attachment-local`](../packages/attachment/attachment-local) | [`api-session-controller`](../packages/api/session-controller), [`tool-fs`](../packages/fs/tool-fs), [`llm-pi-ai`](../packages/llm/llm-pi-ai), [`llm-deepseek`](../packages/llm/llm-deepseek) | - | The host commits accepted images before session events; provider adapters resolve authorized durable references into provider-native content. |
@@ -562,5 +660,21 @@ flowchart LR
 | `ctx.lsp` | `seam` | [`lsp`](../packages/lsp/lsp) | [`lsp-stdio`](../packages/lsp/lsp-stdio) | [`tool-lsp`](../packages/lsp/tool-lsp) | - | Provider registration and selection plus normalized query execution over exactly four operations; the seam offers no protocol escape hatch, so a backend translates into the normalized request and result. |
 | `ctx.dynamicCordisRunner` | `core` | [`cordis-host-runner`](../packages/extensions/cordis-host-runner) | - | [`tool-cordis`](../packages/extensions/tool-cordis) | - | Owns the in-memory definition registry, the vm sandbox for host halves, and the request-run round trip; browser pages reach the same service over the wire through its remote namespace. |
 | `ctx.cordisInspect` | `core` | [`cordis-host-runner`](../packages/extensions/cordis-host-runner) | - | [`tool-cordis`](../packages/extensions/tool-cordis) | - | Registers host inspect providers, mirrors the client provider manifest, and routes client queries through the dynamic Cordis transport. |
+| `ctx.accountIntegrations` | `seam` | `account-integrations` | - | `ui-automations`, `ui-settings-integrations` | - | One Host row owns each signed-in user's connector accounts, their OAuth and bot sessions, and the MCP servers those accounts expose; an agent mounts only its owner's connectors. |
+| `ctx.automations` | `core` | [`automations`](../packages/core/automations) | - | `ui-automations` | - | Durable admission, owner-scoped agents, and run history for scheduled prompts; a schedule never widens the tool access its run starts with. |
+| `ctx.browserChromium` | `core` | [`browser-chromium`](../packages/web/browser-chromium) | - | - | - | Launches the Chromium that the sidebar browser and the browser tools attach to, over a remote debugging port and one shared signed-in profile. |
+| `ctx.capabilities` | `core` | [`capability`](../packages/capability/capability) | - | [`api-memory-manager`](../packages/memory/api-memory-manager), [`tool-capability`](../packages/capability/tool-capability) | - | Stores one owner's learned procedures as agentskills-compatible directories and serves them to recall consumers; the registry contributes no skills of its own. |
+| `ctx.devices` | `seam` | [`device`](../packages/device/device) | [`device-local`](../packages/device/device-local) | [`tool-device`](../packages/device/tool-device) | - | Hosts register here and the service owns which session is looking at which device, so the model's device tools and every client watching that session share one state stream. |
+| `ctx.documentExtract` | `seam` | [`document-extract`](../packages/document/document-extract) | [`document-extract-js`](../packages/document/document-extract-js), [`document-extract-ocr`](../packages/document/document-extract-ocr), [`document-extract-office`](../packages/document/document-extract-office) | `session-controller` | - | Providers register the document formats they extract; the registry resolves a caller's request to one provider and reports the formats the composition can serve. |
+| `ctx.jobController` | `core` | `job-controller` | - | `ui-jobs` | - | Streams one session's job roster and one job's retained output to browsers over the generated `job` namespace and stops a job on a human's behalf; the model's consuming cursor never observes those streams. |
+| `ctx.mail` | `seam` | [`mail`](../packages/mail/mail) | `account-integrations` | [`tool-mail`](../packages/mail/tool-mail) | - | Account sources register owner-scoped accounts, and every operation resolves its named account for the given owner before a socket opens. |
+| `ctx.memory` | `seam` | [`memory`](../packages/memory/memory) | [`memory-memos`](../packages/memory/memory-memos) | [`api-memory-manager`](../packages/memory/api-memory-manager), [`memory-context`](../packages/memory/memory-context), [`memory-memos`](../packages/memory/memory-memos), [`tool-capability`](../packages/capability/tool-capability), [`tool-memory`](../packages/memory/tool-memory) | - | One registered provider serves recall, turn capture, and inspection to every memory consumer; the definition holds no storage of its own. |
+| `ctx.memoryManagerController` | `core` | [`api-memory-manager`](../packages/memory/api-memory-manager) | - | `ui-settings-memory` | - | Serves what Aeven has learned about the signed-in user, with view, correct, and forget, always for the caller of the running request. |
+| `ctx.personalizationController` | `core` | [`personalization`](../packages/preset/personalization) | - | `ui-settings-personalization` | - | One Host row owns each account's voice and notes, the Remote behind Settings → Personalization, and the system-prompt section that renders the session owner's preferences after the persona. |
+| `ctx.skillCatalog` | `core` | [`skill-catalog`](../packages/skill/skill-catalog) | - | `account-integrations` | - | Read-only local source of installable skills: the catalog lists what a reader may install and the installer reads one entry's files from the same tree. |
+| `ctx.speechController` | `core` | [`api-speech-to-text`](../packages/speech/api-speech-to-text) | - | `ui-voice-input` | - | Authenticated, cancellation-aware Client access to speech preparation and transcription; a speech call never activates or submits to an Agent. |
+| `ctx.speechToText` | `seam` | [`speech-to-text`](../packages/speech/speech-to-text) | [`speech-to-text-whisper`](../packages/speech/speech-to-text-whisper) | [`api-speech-to-text`](../packages/speech/api-speech-to-text) | - | Named providers register disposably and the registry resolves each request to one provider and one model. |
+| `ctx.terminalController` | `core` | `terminal-controller` | - | `ui-sidebar-terminal` | - | Typed Remote control of transient session-owned terminal processes, which run with the execution environment's system-user permissions. |
+| `ctx.workspaceFiles` | `core` | `workspace-files` | - | `ui-sidebar-files` | - | Serves listings, text previews, and a bounded name search over a session's workspace root for the sidebar file explorer; nothing here writes. |
 
 Maintenance mode: hybrid: services are discovered from Cordis declarations; interface/implementation/consumer roles are classified in `scripts/gen-doc-graphs.ts` with a completeness guard.

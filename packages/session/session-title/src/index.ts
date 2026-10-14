@@ -370,7 +370,7 @@ export class SessionTitleService extends Service {
       this.onMainRequest(options)
       return next()
     }, { global: true, prepend: true })
-    ctx.on('session/created', session => this.ensureExistingTitle(session))
+    ctx.on('session/created', (session) =>{  this.ensureExistingTitle(session) })
     ctx.on('session/disposed', (session) => {
       const state = this.work.get(session)
       if (state === undefined) return

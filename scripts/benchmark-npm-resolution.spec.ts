@@ -89,7 +89,10 @@ describe('npm resolution benchmark', () => {
     })
   })
 
-  it('runs npm against the local registry without requesting an archive', async () => {
+  // Each of these boots a local registry and drives real npm against it, with a
+  // 10s budget of its own; a suite-wide loaded host stretches the vitest default
+  // past that budget, so the test budget is declared above the work it covers.
+  it('runs npm against the local registry without requesting an archive', { timeout: 60_000 }, async () => {
     const index: RegistryIndex = new Map([[
       '@aeven/cli',
       new Map([['0.1.0', { name: '@aeven/cli', version: '0.1.0' }]]),
@@ -102,7 +105,7 @@ describe('npm resolution benchmark', () => {
     expect(result.unknownPackages).toEqual([])
   })
 
-  it('returns npm placement for two aliased package versions without requesting archives', async () => {
+  it('returns npm placement for two aliased package versions without requesting archives', { timeout: 60_000 }, async () => {
     const index: RegistryIndex = new Map([[
       '@aeven/cli',
       new Map([
@@ -124,7 +127,7 @@ describe('npm resolution benchmark', () => {
     })
   })
 
-  it('isolates peer resolution from inherited npm configuration', async () => {
+  it('isolates peer resolution from inherited npm configuration', { timeout: 60_000 }, async () => {
     const root = mkdtempSync(join(tmpdir(), 'avn-hostile-npm-config-'))
     roots.push(root)
     const userConfig = join(root, 'user.npmrc')

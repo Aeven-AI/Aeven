@@ -60,6 +60,9 @@ import { canonicalClientTimeZone } from '@aeven/util-time'
 - **只做校验**——不格式化、不做偏移运算、不推导 DST、不做时刻换算；需要这些的消费方直接用 `Intl`。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

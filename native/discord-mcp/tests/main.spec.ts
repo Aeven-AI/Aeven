@@ -2,24 +2,24 @@
 
 import { describe, expect, it } from 'vitest'
 import { createDiscordServer, readDiscordConfig } from '../aeven/main.ts'
-import { TEST_ENV } from './harness.ts'
+import { TEST_ENV, TEST_GUILD } from './harness.ts'
 
 describe('required variables', () => {
-  it('refuses to build a server without a bot token', () => {
-    expect(() => createDiscordServer({ DISCORD_GUILD_ID: '1490000000000000000' })).toThrow(/DISCORD_BOT_TOKEN is required/u)
+  it('refuses to build a server without an authorization value', () => {
+    expect(() => createDiscordServer({ DISCORD_GUILD_ID: TEST_GUILD })).toThrow(/DISCORD_AUTHORIZATION is required/u)
   })
 
-  it('refuses to build a server with an empty bot token', () => {
-    expect(() => createDiscordServer({ DISCORD_BOT_TOKEN: '', DISCORD_GUILD_ID: '1490000000000000000' }))
-      .toThrow(/DISCORD_BOT_TOKEN is required/u)
+  it('refuses to build a server with an empty authorization value', () => {
+    expect(() => createDiscordServer({ DISCORD_AUTHORIZATION: '', DISCORD_GUILD_ID: TEST_GUILD }))
+      .toThrow(/DISCORD_AUTHORIZATION is required/u)
   })
 
   it('refuses to build a server without a guild id', () => {
-    expect(() => createDiscordServer({ DISCORD_BOT_TOKEN: 'spec-bot-token' })).toThrow(/DISCORD_GUILD_ID is required/u)
+    expect(() => createDiscordServer({ DISCORD_AUTHORIZATION: 'Bearer spec-session' })).toThrow(/DISCORD_GUILD_ID is required/u)
   })
 
   it('refuses to build a server with an empty guild id', () => {
-    expect(() => createDiscordServer({ DISCORD_BOT_TOKEN: 'spec-bot-token', DISCORD_GUILD_ID: '' }))
+    expect(() => createDiscordServer({ DISCORD_AUTHORIZATION: 'Bearer spec-session', DISCORD_GUILD_ID: '' }))
       .toThrow(/DISCORD_GUILD_ID is required/u)
   })
 })
@@ -49,9 +49,9 @@ describe('bounded variables', () => {
 
 describe('defaults', () => {
   it('reads the documented defaults when only the two required values are set', () => {
-    expect(readDiscordConfig({ DISCORD_BOT_TOKEN: 'token', DISCORD_GUILD_ID: '1490000000000000000' })).toEqual({
-      botToken: 'token',
-      guildId: '1490000000000000000',
+    expect(readDiscordConfig({ DISCORD_AUTHORIZATION: 'Bearer spec-session', DISCORD_GUILD_ID: TEST_GUILD })).toEqual({
+      authorization: 'Bearer spec-session',
+      guildId: TEST_GUILD,
       guildName: undefined,
       adminTools: false,
       maxScanMessages: 500,
@@ -68,7 +68,7 @@ describe('defaults', () => {
     }
   })
 
-  it('never falls back to a default secret', () => {
-    expect(() => readDiscordConfig({ DISCORD_GUILD_ID: '1490000000000000000' })).toThrow(/DISCORD_BOT_TOKEN/u)
+  it('never falls back to a default authorization value', () => {
+    expect(() => readDiscordConfig({ DISCORD_GUILD_ID: TEST_GUILD })).toThrow(/DISCORD_AUTHORIZATION/u)
   })
 })

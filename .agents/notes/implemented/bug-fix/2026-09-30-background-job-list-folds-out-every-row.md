@@ -22,7 +22,7 @@ Three parts of the panel became unconditional with the row:
 
 - `dotState` takes `Exclude<JobView['status'], 'running'>`. The marker's running branch renders the loading mark and never asked the map for `'running'`, so that arm had no caller.
 - The stop dialog's confirm button calls `confirmKill(job)` with the job it was rendered for, instead of reading the `confirmJob` state behind a guard no render could reach.
-- The dialog's `className` reads `css.confirm as string`, the idiom [`DevicePane`](../../../../packages/client/ui-sidebar-device/src/client/DevicePane.tsx) and [`AgentPresetSection`](../../../../packages/client/ui-agent-preset/src/client/AgentPresetSection.tsx) already use for a Modal class: the `?? ''` fallback it replaces is unreachable while the per-file gate reads it as an uncovered branch.
+- The dialog's `className` reads `css.confirm as string`, the idiom [`DevicePane`](../../../../packages/client/ui-sidebar-device/src/client/DevicePane.tsx) and ``AgentPresetSection`` already use for a Modal class: the `?? ''` fallback it replaces is unreachable while the per-file gate reads it as an uncovered branch.
 
 ## Alternatives considered
 

@@ -38,6 +38,7 @@ agent（智能体）会完成该任务，把提供方的每个非空推理增量
 | 字段 | 默认值 | 含义 |
 |---|---|---|
 | `task` | 必填 | 单次运行的任务文本 |
+| `owner` | `$AVN_OWNER` | 该运行的会话所属的账户 id；没有账户时，按用户保存的记忆与习得能力保持关闭 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#aevenheadless)是每个受支持字段及其 JSDoc 的穷尽式真源。
 
@@ -61,7 +62,7 @@ runner 是核心 API 载体之上的直接驱动器：它通过注册表创建�
 
 ### 运行流程
 
-runner 等待整个应用结算（`ctx.get('loader')?.await()`），确保已组合的工具与适配器不会半挂载，读取共享的 [`agentDefaultModel`](../../core/agent-default-model/README.zh.md) 选择，用该 provider 与模型创建一个全新的持久化 Agent（智能体），并把任务作为普通用户消息提交。它把该 Agent 的非空推理增量流式写入 stderr、等待完全停稳，然后 flush Session，并把所属区间（从 `firstSeq` 起）折叠为最后一条非空 `assistant/message` 文本与最终 `turn/end` 原因。最后，它把最终文本写入 stdout 并请求退出。
+runner 等待整个应用结算（`ctx.get('loader')?.await()`），确保已组合的工具与适配器不会半挂载，读取共享的 [`agentDefaultModel`](../../core/agent-default-model/README.zh.md) 选择，用该 provider 与模型创建一个全新的持久化 Agent（智能体）（配置了账户时归该账户所有），并把任务作为普通用户消息提交。它把该 Agent 的非空推理增量流式写入 stderr、等待完全停稳，然后 flush Session、等待 `session/settle` 以便插件完成由该次运行派生的工作（例如从中学习），并把所属区间（从 `firstSeq` 起）折叠为最后一条非空 `assistant/message` 文本与最终 `turn/end` 原因。最后，它把最终文本写入 stdout 并请求退出。
 
 ### 叠加在 base 之上的 patch 表层
 
@@ -126,6 +127,9 @@ runner 不向请求前缀添加任何内容；它只是把一条用户消息驱�
 - **只打印推理和最终答案**——没有 assistant 消息的运行向 stdout 打印空行并以 1 退出；中间工具输出不会打印。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

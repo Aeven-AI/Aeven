@@ -5,7 +5,11 @@ import type { MessageImageLoader, MessageImageSource } from '@aeven/client-ui-co
 /** Resolution of one durable image URL. */
 export type Resolution = { readonly url: string } | { readonly failed: true }
 
-/** Identity of one durable image among the images one Turn shows. */
+/**
+ * Identity of one durable image among the images one Turn shows.
+ * @param attachment - the durable attachment reference.
+ * @returns the key its resolution is published under.
+ */
 export function imageKey(attachment: ImageAttachmentRef): string {
   return String(attachment.attachmentId)
 }

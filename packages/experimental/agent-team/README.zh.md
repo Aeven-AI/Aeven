@@ -200,6 +200,9 @@ Peer 消息追加在 target 可复用历史前缀之后。冷恢复会先复用�
 - **mailbox 不保证跨进程 exactly-once**——不支持多个 harness 进程并发操作同一 Team。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

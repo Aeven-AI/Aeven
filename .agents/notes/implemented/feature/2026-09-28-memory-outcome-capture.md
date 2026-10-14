@@ -2,6 +2,8 @@
 
 Status: implemented
 
+English | [中文](2026-09-28-memory-outcome-capture.zh.md)
+
 ## Problem
 
 A captured turn contains the conversation and tool results, but the memory provider cannot distinguish a recoverable model retry, a user correction, a reported verification, or a completed goal from ordinary prose. Treating a successful tool call or a retry as the task outcome would teach the wrong lesson.

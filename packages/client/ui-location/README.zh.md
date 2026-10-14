@@ -34,9 +34,13 @@ kind: "package-reference"
 - **仅限安全页面** —— 浏览器只在 https 或回环地址下提供定位，因此通过 http 在局域网地址上打开的页面会报告位置不可用。
 - **被阻止的网站保持阻止** —— 读者阻止提示后，卡片会请他们在浏览器设置中允许该网站；页面无法重新打开浏览器已阻止的提示。
 - **Electron 需要原生提供者** —— Electron 中的 Chromium 定位可能需要 Google API key；在 Host 提供者应答 `location/request` 之前，桌面卡片可能报告位置不可用。
+- **不变量省略** —— 不发布运行时不变量伴随模块，因为每个请求都在显示该会话的那一个窗口内被一次性应答：位置、卡片与读者的选择只作为该窗口的待处理交互存在，而 `location/request` waterfall 的顺序由 Host 端拥有者维持。
 
 <a id="dev-note"></a>
-### Dev Note
+
+<a id="开发备注"></a>
+
+### 开发备注
 
 <details>
 <summary>维护者的工作上下文——点击展开</summary>

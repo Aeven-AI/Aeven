@@ -34,6 +34,13 @@ const useDetachedChat: ChatNodeViewProps['useChat'] = bindSnapshotSelector({
   getSnapshot: () => ({ order: [], nodes: new Map() }),
 } as never)
 
+// The row reads the Session seat only for a local echo's pending submission; a
+// fixture row carries no echo, so the seat publishes an empty inbox.
+const useDetachedSession: ChatNodeViewProps['useSession'] = bindSnapshotSelector({
+  subscribe: () => () => {},
+  getSnapshot: () => ({ pendingSubmissions: [] }),
+} as never)
+
 interface MessageItemProps {
   readonly node: ConversationNode
   readonly t: ChatNodeViewProps['t']
@@ -62,7 +69,12 @@ function MessageItem({ node, t: translate, referenceLabels, skillNames }: Messag
         }
         : node,
   }
-  const props = { node: viewNode, t: translate, renderMessageImages, useChat: useDetachedChat } as ChatNodeViewProps
+  // The row's complete chrome — its clock and its action row — is what these
+  // cases describe, and production shows the clock in the Extended transcript.
+  const props = {
+    node: viewNode, t: translate, renderMessageImages, useChat: useDetachedChat,
+    useSession: useDetachedSession, extendedTranscript: true,
+  } as ChatNodeViewProps
   switch (node.kind) {
     case 'user':
     case 'steering':

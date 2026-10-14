@@ -2,6 +2,8 @@
 
 Status: proposed
 
+English | [中文](2026-09-28-long-term-memory-roadmap.zh.md)
+
 ## Problem
 
 Agents forget everything between sessions: who the user is, what worked in a repository or application, and which approaches failed. The payload that matters most is technical: the command, path, address, patch, or setting that made a tool work, and the outcome that proves it. PR1–5 shipped the `packages/memory/` family with MemOS as the provider, per-user scopes, domains, and outcome evidence ([implemented note](../../implemented/feature/2026-09-28-long-term-memory-memos.md)).
@@ -10,7 +12,7 @@ Testing the shipped steps exposed three gaps that shape the rest of the plan. Me
 
 The remaining steps must keep Aeven the owner of knowledge and learned procedures while MemOS stays a replaceable memory engine. The existing skill catalog already publishes summaries and loads full instructions on demand, so learned capabilities should join that path rather than create a second model-facing loader.
 
-## Decision
+## Proposal
 
 Build the rest in the order below. Each step is one PR, verified by `pnpm run typecheck`, `pnpm run build`, and a browser test against the running app; do not run unit tests for this sequence. Aeven owns the durable knowledge and capability records, the model-facing context, and promotion decisions. MemOS supplies memory candidates and learning signals; `ctx.skills` supplies the existing catalog and loader for executable instructions. Add a package only when a concrete service and consumer need it.
 
@@ -66,6 +68,33 @@ PR9 presents “About you,” “Spaces,” and “Learned capabilities” with 
 - A session has memory only when a signed-in request created it. Sessions opened by the CLI, the SDK, webhook ingress, ACP, or an external agent have no owner until step 11 decides otherwise.
 - Nothing user-facing or model-facing is MemOS-branded: tool names, prompts, recalled context, UI copy, titles, logos, and settings are Aeven's. Internal package names and the MIT license notice may name MemOS.
 - The MemOS Viewer on a loopback port is a stopgap until step 9.
+
+## Alternatives considered
+
+**A second, model-facing loader for learned capabilities.** Rejected: the existing skill catalog already publishes summaries and loads full instructions on demand, so learned capabilities join `ctx.skills` instead of creating a parallel path.
+
+**A second memory copy for identity and recent context.** Rejected: identity comes from the session owner and recent task context already comes from the session log, so neither needs its own store.
+
+**An empty `aeven-layer/` package or a placeholder capability section in PR6.** Rejected: a package appears only when a concrete service and consumer need it, and a placeholder would claim work that has no consumer yet.
+
+**Promoting a capability from a model confidence number, or straight from an automatic proposal.** Rejected: evidence from recorded executions decides trust, a model's confidence alone never promotes one, and an automatic proposal becomes invocable only after review.
+
+**Keeping a learned procedure only as its executable artifact.** Rejected: the executable representation is an adapter to the existing skill service, while the capability record Aeven owns stays the source record.
+
+## Acceptance criteria
+
+- Each step ships as one PR verified by `pnpm run typecheck`, `pnpm run build`, and a browser test against the running app; this sequence runs no unit tests.
+- Memory belongs to one signed-in account: nothing recalls, lists, or syncs memory across accounts, and a session has memory only when a signed-in request created it.
+- Nothing user-facing or model-facing is MemOS-branded, and every new model-visible item is reconstructable from the session log.
+- Recall is dependable before it is clever: explicit search returns the stored detail, and automatic recall presents the stored summary with the outcome labels that go with it.
+- A capability runs without a memory provider, and an application or environment change can require validation before reuse.
+
+## Risks
+
+- The recall budget and the filter cap are separate: MemOS takes the smaller of its own two-second cap and the remaining recall time, so `recallTimeoutMs` cannot buy the relevance filter more than two seconds.
+- Capture assigns one domain per turn, so a turn that mixes a technical fact with discussion of it lands in a single domain, and that classification is the only thing keeping conversation out of `world`.
+- Sessions created before per-user scoping keep no owner and are not migrated: 222 of the 230 sessions on disk when this note was written, including the first session that controlled Ableton Live end to end. Their content exists for memory only once it is stated again in an owned session.
+- MemOS stays a replaceable engine only while Aeven owns the durable knowledge and capability records, the model-facing context, and the promotion decisions; a step that hands any of them to the provider would give that up.
 
 ## Consequences
 

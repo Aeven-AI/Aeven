@@ -5,6 +5,17 @@ import type { Branded } from '@aeven/brand'
 /** Exact WebSocket route carrying every Typert Remote stream. */
 export const REMOTE_STREAM_MUX_PATH = '/api/remote.mux'
 
+/** WebSocket subprotocol the Host selects when a Client offers its bearer. */
+export const REMOTE_STREAM_SUBPROTOCOL = 'avn.remote'
+
+/**
+ * Prefix of the offered subprotocol that carries the Client's bearer token.
+ * A browser cannot set `Authorization` on a WebSocket, and the refresh cookie
+ * it would otherwise send is shared by every tab and port of the host, so it
+ * can name a different account than the page.
+ */
+export const REMOTE_STREAM_BEARER_PREFIX = 'avn.bearer.'
+
 /** Gateway-internal logical stream carrying application-selected Cordis events. */
 export const REMOTE_EVENT_STREAM_ENDPOINT = '$events'
 

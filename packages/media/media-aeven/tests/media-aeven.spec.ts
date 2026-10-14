@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Context, Service } from '@deepseek-ai/cordis'
 import { MediaRuntime } from '@aeven/media'
 import * as provider from '../src/index.ts'
-import { AEVEN_IMAGE_MODELS, DEFAULT_IMAGE_MODEL, gatewayError, requestBody, resolveConfig } from '../src/index.ts'
+import { AEVEN_IMAGE_MODELS, DEFAULT_IMAGE_MODEL, DEFAULT_MAX_VIDEO_BYTES, gatewayError, requestBody, resolveConfig } from '../src/index.ts'
 
 const PNG = Uint8Array.of(137, 80, 78, 71)
 
@@ -104,7 +104,9 @@ describe('resolveConfig', () => {
     expect(resolveConfig({})).toEqual({
       id: 'aeven',
       endpoint: 'http://localhost:9000/v1/images/generations',
+      videoEndpoint: 'http://localhost:9000/v1/videos',
       apiKeyEnv: 'AEVEN_TOKEN',
+      maxVideoBytes: DEFAULT_MAX_VIDEO_BYTES,
     })
   })
 
@@ -161,13 +163,21 @@ describe('requestBody', () => {
     )
   })
 
-  it.each([
-    ['aspectRatio', { aspectRatio: '16:9' }],
-    ['resolution', { resolution: '2K' }],
-    ['seed', { seed: 4 }],
-  ])('refuses %s, which the gateway has no field for', (field, extra) => {
-    expect(() => requestBody({ model: 'Aeven-1.0-Image-Pro', prompt: 'x', ...extra }))
-      .toThrow(`${field} is not supported by Aeven-1.0-Image-Pro`)
+  it('refuses aspectRatio, which the gateway has no field for', () => {
+    expect(() => requestBody({ model: 'Aeven-1.0-Image-Pro', prompt: 'x', aspectRatio: '16:9' }))
+      .toThrow('aspectRatio is not supported by Aeven-1.0-Image-Pro')
+  })
+
+  it('sends resolution as the gateway size field and forwards seed', () => {
+    expect(requestBody({ model: 'Aeven-1.0-Image-Pro', prompt: 'x', resolution: '2K', seed: 4 })).toEqual({
+      model: 'Aeven-1.0-Image-Pro',
+      prompt: 'x',
+      response_format: 'b64_json',
+      size: '2K',
+      seed: 4,
+    })
+    expect(() => requestBody({ model: 'Aeven-1.0-Image-Pro', prompt: 'x', size: '2K', resolution: '1K' }))
+      .toThrow('Pass either size or resolution, not both')
   })
 
   it.each([0, 5])('refuses n of %i', (n) => {

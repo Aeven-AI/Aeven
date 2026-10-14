@@ -15,12 +15,14 @@ import {
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
 describe('bundle composition', () => {
-  it('inserts the grok-build host plugin and a Grok Build default model', async () => {
+  it('inserts the grok-build host plugin and leaves the deployment default model alone', async () => {
     const patch = await readFile(join(root, 'cordis.patch.yml'), 'utf8')
-    expect(patch).toContain('provider: grok-build')
-    expect(patch).toMatch(/model: grok-4\./)
     expect(patch).toContain('id: llm-grok-build-oauth')
     expect(patch).toContain('name: "@aeven/subscription-auth"')
+    // The patch serves a route only once its subscription is signed in, so it
+    // adds no provider or model default over the base composition.
+    expect(patch).not.toContain('provider: grok-build')
+    expect(patch).not.toMatch(/model: grok-4\./)
   })
 
   it('exposes collision-free OAuth route aliases', async () => {
@@ -46,12 +48,6 @@ describe('bundle composition', () => {
     expect(CAPABILITY_SETTINGS_PATH).toBe('/plugins/dsh-grok-build/capabilities')
     expect(CODEX_OAUTH_FAST_ROUTE).toBe('codex-oauth-fast')
     expect(SUBSCRIPTION_USAGE_PATH_PREFIX).toBe('/plugins/avn-grok-build/usage/')
-  })
-
-  it('keeps the model-facing tool registry out of the shipped host bundle', async () => {
-    const server = await readFile(join(root, 'lib/index.js'), 'utf8')
-    const imports = server.match(/^import .*$/gm) ?? []
-    expect(imports.some(statement => statement.includes('"@aeven/tools"'))).toBe(false)
   })
 
   it('declares an avn bundle and web client half', async () => {

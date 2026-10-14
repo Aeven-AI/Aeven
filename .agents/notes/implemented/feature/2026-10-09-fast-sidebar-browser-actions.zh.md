@@ -2,7 +2,7 @@
 
 Status: implemented
 
-English | [中文](2026-10-09-fast-sidebar-browser-actions.zh.md)
+[English](2026-10-09-fast-sidebar-browser-actions.md) | 中文
 
 ## Problem
 
@@ -24,4 +24,4 @@ LinkedIn 周末发帖会话把多个模型步骤用于剪贴板粘贴、localhos
 
 ## Consequences
 
-按用户要求，实现仅通过 TypeScript 与构建验证。上传行为、取消、编辑器段落保留及指针运动仍需在 Electron 中进行现场验证；未新增自动测试或录制快照。本地操作只需一秒并不意味着一秒完成发帖：模型调度、输入处理、推理、页面就绪及用户审批仍是独立等待。[原始提案](../../proposed/feature/2026-10-09-sidebar-browser-file-upload.md) 中的独立点击后记住选择器流程尚未实现；代理改用原子上传操作。
+按用户要求，实现仅通过 TypeScript 与构建验证。上传行为、取消、编辑器段落保留及指针运动仍需在 Electron 中进行现场验证；未新增自动测试或录制快照。本地操作只需一秒并不意味着一秒完成发帖：模型调度、输入处理、推理、页面就绪及用户审批仍是独立等待。[原始提案](../../proposed/feature/2026-10-09-sidebar-browser-file-upload.zh.md) 中的独立点击后记住选择器流程尚未实现；代理改用原子上传操作。

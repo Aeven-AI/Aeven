@@ -34,27 +34,55 @@ describe('ApprovalCommand', () => {
   it('renders the running correlated Tool command', () => {
     render(<ApprovalCommand {...props([
       { kind: 'assistant-step', data: {} },
-      { kind: 'tool-call', data: { root: { callId: 'other', argsRaw: '{"command":"wrong"}' } } },
-      { kind: 'tool-call', data: { root: { callId: 'call-1', argsRaw: '{"command":"pnpm test"}' } } },
+      {
+        kind: 'tool-call',
+        data: { root: { callId: 'other', name: 'bash', argsRaw: '{"command":"wrong"}', subCalls: [] } },
+      },
+      {
+        kind: 'tool-call',
+        data: { root: { callId: 'call-1', name: 'bash', argsRaw: '{"command":"pnpm test"}', subCalls: [] } },
+      },
     ] as never)} />)
 
     expect(screen.getByText('pnpm test')).toBeTruthy()
+  })
+
+  it('finds a correlated call dispatched inside another Tool call', () => {
+    render(<ApprovalCommand {...props([
+      {
+        kind: 'tool-call',
+        data: {
+          root: {
+            callId: 'root',
+            name: 'bash',
+            argsRaw: '{"command":"wrong"}',
+            subCalls: [{ callId: 'call-1', name: 'bash', argsRaw: '{"command":"pnpm lint"}', subCalls: [] }],
+          },
+        },
+      },
+    ] as never)} />)
+
+    expect(screen.getByText('pnpm lint')).toBeTruthy()
   })
 
   it('omits absent, uncorrelated, and settled Tool calls', () => {
     const { container, rerender } = render(<ApprovalCommand {...props([
       { kind: 'assistant-step', data: {} },
       { kind: 'tool-call', data: { root: undefined } },
-      { kind: 'tool-call', data: { root: { callId: 'other', argsRaw: '{}' } } },
+      { kind: 'tool-call', data: { root: { callId: 'other', name: 'bash', argsRaw: '{}', subCalls: [] } } },
       {
         kind: 'tool-call',
-        data: { root: { kind: 'tool-result', callId: 'call-1', argsRaw: '{"command":"ignored"}' } },
+        data: {
+          root: {
+            kind: 'tool-result', callId: 'call-1', name: 'bash', argsRaw: '{"command":"ignored"}', subCalls: [],
+          },
+        },
       },
     ] as never)} />)
     expect(container.textContent).toBe('')
 
     rerender(<ApprovalCommand {...props([
-      { kind: 'tool-call', data: { root: { callId: 'call-1', argsRaw: '{}' } } },
+      { kind: 'tool-call', data: { root: { callId: 'call-1', name: 'bash', argsRaw: '{}', subCalls: [] } } },
     ] as never)} />)
     expect(container.textContent).toBe('')
   })

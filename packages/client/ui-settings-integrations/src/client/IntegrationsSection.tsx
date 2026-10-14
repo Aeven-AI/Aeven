@@ -1,18 +1,19 @@
 /** Personal skill import and connector account management. */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { AccountIntegrationsView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillCatalogView, SkillUploadFile, TelegramPairingView, WhatsAppPairingView } from '@aeven/api-remotes/client'
+import type { AccountIntegrationsView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillCatalogView, SkillUploadFile, WhatsAppPairingView } from '@aeven/api-remotes/client'
 import { LoadingBlock, SectionHeader, MarkdownText, Menu, Modal, IconCloseOutline16, IconChevronLeftOutline14, IconLucideSettings2 } from '@aeven/client-ui-primitives'
 import type { HostObservable, InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import css from './IntegrationsSection.module.css'
 import { connectorIcons } from './connector-icons.ts'
+import type { TelegramPairingOperations } from './connector-page.ts'
 import { DiscordAccounts } from './DiscordAccounts.tsx'
 import { EmailAccounts } from './EmailAccounts.tsx'
 import { TelegramAccounts } from './TelegramAccounts.tsx'
 import { WhatsAppAccounts } from './WhatsAppAccounts.tsx'
 
 /** Browser callbacks bound to the authenticated account Remote. */
-export interface IntegrationsSectionInjected {
+export interface IntegrationsSectionInjected extends TelegramPairingOperations {
   hooks: { changes: HostObservable<number> }
   page: 'skills' | 'connectors'
   list: () => Promise<AccountIntegrationsView>
@@ -50,12 +51,6 @@ export interface IntegrationsSectionInjected {
   startWhatsAppPairing: () => Promise<WhatsAppPairingView>
   whatsAppPairing: (id: ConnectorId) => Promise<WhatsAppPairingView>
   cancelWhatsAppPairing: (id: ConnectorId) => Promise<void>
-  startTelegramPairing: (phone: string) => Promise<TelegramPairingView>
-  startTelegramQrPairing: () => Promise<TelegramPairingView>
-  telegramPairing: (id: ConnectorId) => Promise<TelegramPairingView>
-  submitTelegramCode: (id: ConnectorId, code: string) => Promise<TelegramPairingView>
-  submitTelegramPassword: (id: ConnectorId, password: string) => Promise<TelegramPairingView>
-  cancelTelegramPairing: (id: ConnectorId) => Promise<void>
 }
 
 /** Settings slot props with locale and account operations. */
@@ -73,8 +68,9 @@ function upload(file: File): Promise<SkillUploadFile> {
     const reader = new FileReader()
     reader.onerror = () => { reject(new Error('skill file could not be read')) }
     reader.onload = () => {
-      const value = String(reader.result)
-      resolve({ path: file.name, base64: value.slice(value.indexOf(',') + 1) })
+      const result = reader.result
+      if (typeof result !== 'string') { reject(new Error('skill file could not be read')); return }
+      resolve({ path: file.name, base64: result.slice(result.indexOf(',') + 1) })
     }
     reader.readAsDataURL(file)
   })
@@ -161,11 +157,14 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
     return () => { active = false; window.removeEventListener('focus', refresh) }
   }, [list, changes, refreshes])
   useEffect(() => {
-    if (pendingProvider !== undefined && (snapshot?.connectors.some(connector => connector.provider === pendingProvider && connector.connected)
-      || snapshot?.providers.some(provider => provider.provider === pendingProvider && provider.authorizationFailure !== undefined))) {
-      setConsent(undefined)
-      setPendingProvider(undefined)
-    }
+    if (pendingProvider === undefined) return
+    const connectors = snapshot?.connectors ?? []
+    const providers = snapshot?.providers ?? []
+    const signedIn = connectors.some(connector => connector.provider === pendingProvider && connector.connected)
+    const failed = providers.some(provider => provider.provider === pendingProvider && provider.authorizationFailure !== undefined)
+    if (!signedIn && !failed) return
+    setConsent(undefined)
+    setPendingProvider(undefined)
   }, [snapshot, pendingProvider])
   // An account with nothing installed yet opens on the catalog, which is where a skill comes from.
   useEffect(() => {
@@ -181,7 +180,7 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
     if (page !== 'skills' || catalog !== undefined || !readingCatalog) return
     let active = true
     const read = props.catalog()
-    void read.then(value => { if (active) setCatalog(value ?? null) }, () => { if (active) setCatalog(null) })
+    void read.then((value) => { if (active) setCatalog(value ?? null) }, () => { if (active) setCatalog(null) })
     return () => { active = false }
   }, [page, readingCatalog, catalog, props])
   // A catalogued skill's page renders instructions the listing does not carry, so they are read on demand.
@@ -189,7 +188,7 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
     if (catalogSkill === undefined || preview?.name === catalogSkill.name) return
     let active = true
     const name = catalogSkill.name
-    void props.catalogSkillContent(name).then(text => { if (active) setPreview({ name, text: text ?? '' }) }, () => { if (active) setPreview({ name, text: '' }) })
+    void props.catalogSkillContent(name).then((text) => { if (active) setPreview({ name, text: text ?? '' }) }, () => { if (active) setPreview({ name, text: '' }) })
     return () => { active = false }
   }, [catalogSkill, preview, props])
   // A catalogued skill's page belongs to the catalog list, so Back returns there.
@@ -308,7 +307,7 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
   </div>
   const connectorIcon = (provider: ConnectorProvider, large = false) => <span className={`${css.connectorBadge} ${large ? css.connectorBadgeLarge : ''}`} aria-hidden="true">
     {connectorIcons[provider] === undefined
-      ? <span className={css.connectorMonogram}>MCP</span>
+      ? <span className={css.connectorMonogram}>{t('mcpMonogram')}</span>
       : <img className={`${css.connectorIcon} ${MONOCHROME_ICONS.has(provider) ? css.connectorIconInverted : ''}`} src={connectorIcons[provider]} alt="" />}
   </span>
   const toggle = (label: string, on: boolean, disabled: boolean, onChange: () => void) => <button type="button" role="switch" aria-label={label} aria-checked={on} title={t(on ? 'on' : 'off')} className={`${css.switch} ${on ? css.switchOn : ''}`} disabled={busy || disabled} onClick={(event) => { event.stopPropagation(); onChange() }}><span className={css.thumb} /></button>
@@ -324,7 +323,13 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
     // Email is available exactly when the deployment mounts the mail capability; WhatsApp and Telegram when this host
     // has their daemon; Discord when this deployment registered an Aeven Discord application.
     if (provider.provider === 'email' || provider.provider === 'whatsapp' || provider.provider === 'telegram' || provider.provider === 'discord') {
-      return { connections, live, on: live.some(connection => connection.enabled), expired: connections.length > 0 && live.length === 0, connectable: provider.configured }
+      return {
+        connections,
+        live,
+        on: live.some(connection => connection.enabled),
+        expired: connections.length > 0 && live.length === 0,
+        connectable: provider.configured,
+      }
     }
     const on = live.some(connection => connection.enabled)
     return { connections, live, on, expired: connections.length > 0 && live.length === 0, connectable }
@@ -343,8 +348,18 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
     // Email accounts, WhatsApp numbers, Telegram accounts, and Discord servers each hold their own sign-in,
     // so the provider switch pauses them instead of removing them.
     if (provider.provider === 'email' || provider.provider === 'whatsapp' || provider.provider === 'telegram' || provider.provider === 'discord') {
-      if (on) { void run(async () => { for (const connection of live) if (connection.enabled) await props.setConnectorEnabled(connection.id, false) }); return }
-      if (live.length > 0) { void run(async () => { for (const connection of live) await props.setConnectorEnabled(connection.id, true) }); return }
+      if (on) {
+        void run(async () => {
+          for (const connection of live) if (connection.enabled) await props.setConnectorEnabled(connection.id, false)
+        })
+        return
+      }
+      if (live.length > 0) {
+        void run(async () => {
+          for (const connection of live) await props.setConnectorEnabled(connection.id, true)
+        })
+        return
+      }
       openDetail(provider.provider)
       if (connectable) setAddRequested(true)
       return
@@ -426,7 +441,7 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
             {displayMenu}
           </div>
           {catalog === null && <p className={css.hint}>{t('catalogUnavailable')}</p>}
-          {catalog !== undefined && catalog !== null && (view === 'category' ? catalog.categories.map(category => {
+          {catalog !== undefined && catalog !== null && (view === 'category' ? catalog.categories.map((category) => {
             const rows = catalogRows(category.name)
             if (rows.length === 0) return null
             return <section key={category.name} className={css.category}>
@@ -595,7 +610,9 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
                   {providerDetail.authorizationFailure === 'admin-consent-required' && providerDetail.adminConsentUrl !== undefined && <a
                     className={css.textAction} href={providerDetail.adminConsentUrl} target="_blank" rel="noopener noreferrer"
                   >{t('adminConsentLink')}</a>}
-                  {stateOf(providerDetail).live.map(connection => <p key={connection.id} className={css.address}>{connection.microsoft?.username ?? connection.name}</p>)}
+                  {stateOf(providerDetail).live.map(connection => (
+                    <p key={connection.id} className={css.address}>{connection.microsoft?.username ?? connection.name}</p>
+                  ))}
                   <div className={css.actions}>
                     {providerDetail.provider === 'github' && stateOf(providerDetail).live.length === 0 && form === undefined && <button type="button" className={css.textAction} disabled={busy} onClick={() => { openForm('github') }}>{t('useToken')}</button>}
                   </div>
@@ -613,13 +630,14 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
             </button>
           </article>)}</div>
         </>}
-      {connectorSkill !== undefined && <Modal open headless onClose={() => { setConnectorSkillId(undefined) }} title={connectorSkill.name} className={`${css.section} ${css.compact} ${css.skillModal}`}>
+        {connectorSkill !== undefined && <Modal open headless onClose={() => { setConnectorSkillId(undefined) }} title={connectorSkill.name} className={`${css.section} ${css.compact} ${css.skillModal}`}>
           <header className={css.skillModalHeader}><h2>{connectorSkill.name}</h2><button type="button" className={css.skillModalClose} aria-label={t('close')} onClick={() => { setConnectorSkillId(undefined) }}><IconCloseOutline16 size={14} /></button></header>
           <div className={`${css.skillModalContent} ${css.skillContent} no-scrollbar`}><p className={css.detailDescription}>{connectorSkill.description}</p><MarkdownText key={connectorSkill.id} text={connectorSkill.content} animation={false} controls={{ table: false }} labels={{ code: { copyLabel: t('copy'), copiedLabel: t('copied') }, footnotes: t('footnotes') }} /></div>
         </Modal>}
       </article>}
       {consent !== undefined && <div ref={consentCard} className={css.card}><a href={consent} target="_blank" rel="noreferrer" onClick={(event) => {
-        const desktop = (window as Window & { avnDesktop?: { browser?: { openExternal: (url: string) => Promise<void> } } }).avnDesktop?.browser
+        const shell = window as Window & { avnDesktop?: { browser?: { openExternal: (url: string) => Promise<void> } } }
+        const desktop = shell.avnDesktop?.browser
         if (desktop !== undefined) { event.preventDefault(); void run(() => desktop.openExternal(consent)) }
       }}>{t('consent')}</a><p className={css.hint}>{t('consentHint')}</p></div>}
     </>)}

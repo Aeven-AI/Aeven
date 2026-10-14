@@ -4,7 +4,7 @@ import type { ISession } from '@aeven/api-session-controller/client'
 import { LocaleRuntime } from '@aeven/client-locale/client'
 import type { ObservableSnapshot } from '@aeven/client-store'
 import {
-  SlotTestRuntime, stubSettingsScope, usePinnedBrowserLanguages,
+  SlotTestRuntime, TestRemote, stubSettingsScope, usePinnedBrowserLanguages,
 } from '@aeven/client-test-runtime'
 import type { SessionBehaviorOverrides } from '@aeven/client-test-runtime'
 import {
@@ -33,6 +33,9 @@ function sessionFakeFor() {
 
 async function bench() {
   const runtime = await SlotTestRuntime.create()
+  // The plugin injects `remote.session` for Session export; the double parks it
+  // without a wire.
+  new TestRemote(runtime.ctx, { session: {} })
   runtime.ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
   const connectWorkspace = vi.fn(async () => ROOT)
   runtime.ctx.provide('uiWorkspace', { connectWorkspace } as never)

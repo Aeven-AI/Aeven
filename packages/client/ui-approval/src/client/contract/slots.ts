@@ -1,3 +1,4 @@
+import { PendingResult } from '@aeven/client-store'
 /** Approval composer and optional correlated-detail contracts. */
 import type { ToolCallId } from '@aeven/llm'
 import type { SessionId } from '@aeven/session/types'
@@ -81,9 +82,10 @@ export type ApprovalDecision = 'allowed-once' | 'allowed-session' | 'rejected'
 let nextApprovalKey = 0
 
 /** One answerable Client presentation of a pending Host waterfall. */
-export class PendingApproval {
+export class PendingApproval extends PendingResult<ApprovalDecision> {
   /** Domain discriminator used by Session pending-interaction consumers. */
-  readonly kind = 'approval' as const
+  // oxlint-disable-next-line typescript/prefer-as-const -- the Cordis inspector catalog reads the declared literal type
+  readonly kind: 'approval' = 'approval'
   /** Opaque render identity and one-shot remount axis. */
   readonly key: string
   /** Tool requesting the decision. */
@@ -96,43 +98,20 @@ export class PendingApproval {
   readonly allowSession: boolean
   /** What the offered grant covers; `'action'` when the requester declared none. */
   readonly sessionCoverage: ApprovalSessionCoverage
-  /** Result returned by the Remote Event listener to the Host waterfall. */
-  readonly result: Promise<ApprovalDecision>
-
-  readonly #resolve: (outcome: ApprovalDecision) => void
-  readonly #reject: (reason: unknown) => void
-  readonly #signal: AbortSignal | undefined
-  readonly #onAbort: (() => void) | undefined
-  readonly #delegated = Symbol('pending approval delegated')
-  #settled = false
-
   /**
    * @param sessionId - Agent/Session identity owning the scoped request.
    * @param request - Host approval request projected through the Remote Event.
    */
   constructor(readonly sessionId: SessionId, request: ApprovalPresentationRequest) {
     nextApprovalKey += 1
+    super(`pending approval approval:${String(nextApprovalKey)}`, request.signal, 'approval request was aborted')
     this.key = `approval:${String(nextApprovalKey)}`
     this.toolName = request.toolName
     this.callId = request.callId
     this.reason = request.reason
     this.allowSession = request.allowSession !== undefined
     this.sessionCoverage = request.allowSessionCoverage ?? 'action'
-    const completion = Promise.withResolvers<ApprovalDecision>()
-    this.result = completion.promise
-    this.#resolve = completion.resolve
-    this.#reject = completion.reject
-    this.#signal = request.signal
-    if (request.signal === undefined) {
-      this.#onAbort = undefined
-      return
-    }
-    const onAbort = (): void => {
-      this.abort(request.signal?.reason ?? new Error('approval request was aborted'))
-    }
-    this.#onAbort = onAbort
-    request.signal.addEventListener('abort', onAbort, { once: true })
-    if (request.signal.aborted) onAbort()
+
   }
 
   /**
@@ -141,42 +120,11 @@ export class PendingApproval {
    */
   answer(outcome: ApprovalDecision): Promise<void> {
     return settlePendingComposer(() => {
-      this.finish(() => { this.#resolve(outcome) })
+      this.resolve(outcome)
     }, 'pending approval settlement failed')
   }
 
-  /** Delegate an unanswered request to the next waterfall listener. */
-  delegate(): void {
-    if (this.#settled) return
-    this.finish(() => { this.#reject(this.#delegated) })
-  }
 
-  /**
-   * Test whether a rejection requests waterfall delegation.
-   * @param reason - rejection received from {@link PendingApproval.result}.
-   * @returns whether {@link PendingApproval.delegate} produced it.
-   */
-  isDelegation(reason: unknown): boolean {
-    return reason === this.#delegated
-  }
-
-  /**
-   * End an unanswered presentation when its transport, scope, or plugin lifetime ends.
-   * @param reason - rejection exposed to the waiting Remote Event listener.
-   */
-  abort(reason: unknown): void {
-    if (this.#settled) return
-    this.finish(() => { this.#reject(reason) })
-  }
-
-  private finish(settle: () => void): void {
-    if (this.#settled) throw new Error(`pending approval ${this.key} is already settled`)
-    this.#settled = true
-    if (this.#signal !== undefined && this.#onAbort !== undefined) {
-      this.#signal.removeEventListener('abort', this.#onAbort)
-    }
-    settle()
-  }
 }
 
 /** Full props of the approval composer takeover. */

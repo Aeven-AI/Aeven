@@ -128,6 +128,9 @@ E2B 的未找到、权限、中止及其他控制器故障会映射到现有 `Fs
 - **该 POC 面向 E2B 默认 Linux 镜像**：它依赖 GNU `realpath`／`base64`／`chmod`、同一文件系统内的 rename、流式读取与元数据扩展属性；自定义模板不在该 POC 范围内。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

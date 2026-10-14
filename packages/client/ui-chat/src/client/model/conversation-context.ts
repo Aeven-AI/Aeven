@@ -1,5 +1,4 @@
-import type { ConversationNode } from '../contract/snapshot.ts'
-import type { ConversationPromptSnapshot } from '@aeven/client-ui-conversation/client'
+import type { ConversationNode, ConversationPromptSnapshot } from '@aeven/client-ui-conversation/client'
 
 /** Operation that started a new append-only model context. */
 export type ConversationContextOriginKind = 'compaction' | 'rewind' | 'rewrite'
