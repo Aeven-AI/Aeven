@@ -101,14 +101,41 @@ export function createElectronBuilderConfig(
       target: ['nsis'],
     },
     linux: {
-      // Linux launchers draw icons unmasked on a padded grid, which the inset macOS tile matches.
-      icon: 'resources/icon-macos.png',
+      // Linux launchers draw icons unmasked on a padded grid, which the inset macOS tile matches. Each
+      // icon-theme size is rendered from resources/icon-macos.svg instead of downscaled from one bitmap.
+      icon: 'resources/linux/icons',
       category: 'Development',
       executableName: 'aeven',
+      // Electron sets the window's app_id and WM_CLASS from package.json `desktopName`; the installed
+      // `.desktop` file takes the same name, so docks and taskbars draw this entry's icon for the window.
+      syncDesktopName: true,
+      // The launcher Comment and the deb description; package.json `description` addresses maintainers.
+      synopsis: 'Model-independent AI operating layer',
+      description: 'Aeven is an open, model-independent AI operating layer for your digital life. It connects your files, apps, messages, browser, and tools so you can start with what you want to accomplish.',
       // The deb installs Chromium's setuid sandbox helper, which distributions that restrict
       // unprivileged user namespaces require before an AppImage can start.
       target: ['AppImage', 'deb'],
-      maintainer: 'Aeven',
+      maintainer: 'Aeven <hello@aeven.io>',
+    },
+    // electron-builder 26's default AppImage runtime loads the system libfuse2, which Ubuntu 22.04 and
+    // later no longer install by default; the static runtime also starts where only FUSE 3 exists.
+    toolsets: { appimage: '1.0.3' },
+    deb: {
+      // Electron's runtime libraries, ALSA included for microphone dictation. Debian 13 and Ubuntu 24.04
+      // renamed several for 64-bit time; the old name is the fallback on older releases.
+      depends: [
+        'libasound2t64 | libasound2',
+        'libatspi2.0-0t64 | libatspi2.0-0',
+        'libgbm1',
+        'libgtk-3-0t64 | libgtk-3-0',
+        'libnotify4',
+        'libnss3',
+        'libsecret-1-0',
+        'libuuid1',
+        'libxss1',
+        'libxtst6',
+        'xdg-utils',
+      ],
     },
     nsis: {
       installerIcon: 'resources/icon-windows.ico',

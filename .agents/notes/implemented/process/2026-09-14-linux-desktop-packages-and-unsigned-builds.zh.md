@@ -18,7 +18,7 @@ Linux 没有发布目标。[打包并更新 Electron 桌面应用](../architectu
 
 受支持的构建目标集合为 `mac-arm64`、`win-arm64`、`win-x64`、`linux-arm64` 与 `linux-x64`；[Windows arm64 桌面构建目标](2026-09-14-windows-arm64-desktop-target.zh.md)记录了 Windows arm64 的新增，[Desktop 移除 Intel Mac 构建目标](2026-10-02-desktop-drops-intel-mac-target.zh.md)记录了 `mac-x64` 的移除。每个目标都保留固定的平台与架构选择器，运行时准备、seed 准备与 electron-builder 必须就它们达成一致。
 
-Linux 打包不进行代码签名，并且直接分发而非通过更新频道。架构匹配的 Linux 主机可以构建它，任何 Docker 主机都可以通过容器命令构建它。`upload:*` 命令拒绝两个 Linux 目标，且 `DesktopUploadTargetName` 在类型层面将它们排除在上传计划之外。
+Linux 打包不进行代码签名，并且直接分发而非通过更新频道。架构匹配的 Linux 主机可以构建它，任何 Docker 主机都可以通过容器命令构建它，发布自动化则在 Ubuntu runner 上构建两个 Linux 目标。`upload:*` 命令拒绝两个 Linux 目标，且 `DesktopUploadTargetName` 在类型层面将它们排除在上传计划之外。
 
 macOS 与 Windows 可通过 `--unsigned` 标志以及对应的 `package:*:unsigned` 脚本进行未签名构建。它会跳过 seed 签名、应用与安装器签名、macOS 公证、DMG 产物钩子，以及上传所要求的完成记录。已签名打包保持不变，并且仍是唯一可以发布的路径。
 
@@ -26,7 +26,11 @@ Landlock 打包步骤读取 `native/landlock-run`，且 Desktop Host 覆盖层�
 
 ## Linux targets
 
-electron-builder 为 `--linux` 产出 AppImage 与 deb，两种架构都映射到它已有的 `--arm64` 与 `--x64` 选择器上。Linux 配置将可执行文件命名为 `aeven`，并声明 `Aeven` 为 deb 维护者。
+electron-builder 为 `--linux` 产出 AppImage 与 deb，两种架构都映射到它已有的 `--arm64` 与 `--x64` 选择器上。Linux 配置将可执行文件命名为 `aeven`，声明 `Aeven <hello@aeven.io>` 为 deb 维护者，并使用自身的 synopsis 与 description 写入启动器 `Comment` 与 deb 描述，而不是使用面向维护者的包清单 `description`。
+
+`resources/linux/icons` 为 16 至 512 px 的每个图标主题尺寸各存放一个 PNG，每个都由 `resources/icon-macos.svg` 渲染而来，而不是从单个位图缩放。`package.json` 中的 `desktopName` 配合 `linux.syncDesktopName`，让安装的 `.desktop` 文件取得 Electron 作为窗口 `app_id` 与 `WM_CLASS` 报告的名称，因此 dock 或任务栏能把运行中的窗口与带有图标的条目关联起来。两个目标都使用静态 AppImage runtime（`toolsets.appimage`）；当发行版不再提供 electron-builder 26 默认 runtime 所加载的系统 `libfuse2` 时，它仍能启动。
+
+deb 声明它所需的 Electron 运行时库（包含用于麦克风听写的 ALSA），并为 Debian 13 与 Ubuntu 24.04 因 64 位 time_t 而改名的每个库给出 `t64` 或旧名的可选依赖，使该包在更旧的发行版上同样可以安装。
 
 deb 之所以存在，是因为 Chromium 的 setuid 沙箱辅助程序正是让限制非特权用户命名空间的发行版能够启动 AppImage 的东西。处于该状态的发行版可以改为安装 deb。
 
@@ -54,6 +58,8 @@ seed 准备在同一个变量下跳过它的 Mach-O 签名流程。未签名构�
 
 未签名产物用于本地验证。Gatekeeper 会阻止下载得到的 macOS 副本，直到测试者移除其隔离属性，而 Windows SmartScreen 会在未签名安装器运行前发出警告。
 
+发布 workflow 在已签名目标之外额外带有一个始终未签名的 `mac-arm64` job。它只发布该构建的 DMG，绝不发布其更新元数据（那会替换已签名构建的元数据），因此在公证尚未完成时也有 DMG 可供下载。两个变体写入同一个目标目录，因此未签名构建的 `-unsigned` 产物名是把两者区分开的东西。
+
 ## Alternatives considered
 
 **要求凭据，并改为记录自签名证书。** 自签名身份仍然需要钥匙串条目、Team ID 以及在评审机器上的信任决策，而且它无法解释为什么 macOS 应用需要临时签名才能启动。`--unsigned` 标志陈述的是真实能力，即打包完全不需要任何身份。
@@ -70,9 +76,9 @@ seed 准备在同一个变量下跳过它的 Mach-O 签名流程。未签名构�
 
 开发者现在无需持有发布凭据就可以在任何平台上构建并启动已打包的应用，此前需要发布身份的打包路径也可以本地评审了。
 
-Linux 获得了发布目标，这意味着[打包笔记](../architecture/2026-08-25-electron-desktop-packaging-and-updates.zh.md)中的平台表、两份 Desktop README，以及代码与测试中的目标列表必须同步变更。现在新增一个目标会同时触及构建路径映射、自动更新映射、目标表、上传目标类型以及包脚本清单。
+Linux 获得了发布目标，这意味着[打包笔记](../architecture/2026-08-25-electron-desktop-packaging-and-updates.zh.md)中的平台表、两份 Desktop README，以及代码与测试中的目标列表必须同步变更。现在新增一个目标会同时触及构建路径映射、自动更新映射、目标表、上传目标类型以及包脚本清单。发布自动化在 runner 上构建 Linux，而不是通过容器，并为此在 runner 上安装 Ruby、fpm、fakeroot 与 CMake，因此容器命令仍是缺少 Linux 打包工具链的主机的本地路径。
 
-未签名模式是开发路径，而非发布路径。它被刻意排除在 `upload:*` 之外，未签名的 macOS 产物对任何接收者都会被 Gatekeeper 隔离。
+未签名模式是开发路径，而非发布路径。它被刻意排除在 `upload:*` 之外，也从不携带更新元数据，未签名的 macOS 产物对任何接收者都会被 Gatekeeper 隔离。发布 workflow 的未签名 macOS DMG 是唯一被发布的未签名产物：在公证尚未完成时作为可直接下载的过渡方案，由已签名构建的 DMG 取代，而不作为更新来宣传。
 
 Docker 路径会构建一个仓库 tar 流外加一个 store 卷；首次构建需要付出镜像与一次完整依赖安装的代价，跨架构构建还要在此基础上付出模拟的代价。
 
@@ -80,4 +86,4 @@ Docker 路径会构建一个仓库 tar 流外加一个 store 卷；首次构建�
 
 ## Testing
 
-`apps/desktop/tests/package-target.spec.ts` 覆盖 Linux 选择器、架构匹配主机要求、Docker 命令拒绝消息以及 `--unsigned` 解析。`apps/desktop/tests/desktop-build-paths.spec.ts` 与 `apps/desktop/tests/desktop-auto-update-environment.spec.ts` 覆盖 Linux 目标解析，并通过针对受支持集合之外平台的断言保留对不支持目标的拒绝。`apps/desktop/tests/macos-signature.spec.ts` 覆盖未签名 macOS 配置，包括临时签名身份与不再生效的产物钩子，以及不带 EV token 签名器的未签名 Windows 配置。`apps/desktop/tests/desktop-upload-plan.spec.ts` 覆盖针对收窄后上传目标类型的上传计划。
+`apps/desktop/tests/package-target.spec.ts` 覆盖 Linux 选择器、架构匹配主机要求、Docker 命令拒绝消息以及 `--unsigned` 解析。`apps/desktop/tests/linux-package-config.spec.ts` 覆盖 Linux 打包配置：AppImage 与 deb 目标、图标主题集合、桌面名称关联、静态 AppImage runtime、deb 依赖以及维护者与启动器文案。`apps/desktop/tests/desktop-build-paths.spec.ts` 与 `apps/desktop/tests/desktop-auto-update-environment.spec.ts` 覆盖 Linux 目标解析，并通过针对受支持集合之外平台的断言保留对不支持目标的拒绝。`apps/desktop/tests/macos-signature.spec.ts` 覆盖未签名 macOS 配置，包括临时签名身份与不再生效的产物钩子，以及不带 EV token 签名器的未签名 Windows 配置。`apps/desktop/tests/desktop-upload-plan.spec.ts` 覆盖针对收窄后上传目标类型的上传计划。

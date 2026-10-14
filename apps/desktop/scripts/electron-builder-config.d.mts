@@ -27,6 +27,21 @@ export interface DesktopElectronBuilderConfig {
     readonly sign: boolean
     readonly writeUpdateInfo: boolean
   }
+  readonly linux: {
+    readonly executableName: string
+    readonly icon: string
+    readonly target: readonly string[]
+    readonly syncDesktopName: boolean
+    readonly synopsis: string
+    readonly description: string
+    readonly maintainer: string
+  }
+  readonly toolsets: {
+    readonly appimage: string
+  }
+  readonly deb: {
+    readonly depends: readonly string[]
+  }
   readonly artifactBuildCompleted: (artifact: { readonly file: string }) => Promise<void> | undefined
   readonly publish: readonly [{ readonly provider: 'github', readonly owner: string, readonly repo: string }]
 }
