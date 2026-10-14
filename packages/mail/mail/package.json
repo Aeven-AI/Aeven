@@ -1,7 +1,7 @@
 {
   "name": "@aeven/mail",
   "description": "Mail capability seam (ctx.mail) for the Aeven: account-source registry plus IMAP, POP3, and SMTP providers",
-  "version": "0.1.2-alpha.5",
+  "version": "0.3.1-alpha",
   "publishConfig": {
     "access": "public"
   },

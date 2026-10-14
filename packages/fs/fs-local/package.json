@@ -1,7 +1,7 @@
 {
   "name": "@aeven/fs-local",
   "description": "Local-filesystem implementation of the Aeven filesystem seam (ctx.fs)",
-  "version": "0.1.2-alpha.5",
+  "version": "0.3.1-alpha",
   "publishConfig": {
     "access": "public"
   },

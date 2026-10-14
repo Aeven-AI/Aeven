@@ -1,7 +1,7 @@
 {
   "name": "@aeven/experimental-code-runtime-python",
   "description": "CPython subprocess implementation of the Aeven code-execution seam",
-  "version": "0.1.2-alpha.5",
+  "version": "0.3.1-alpha",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Aeven-AI/Harness.git",

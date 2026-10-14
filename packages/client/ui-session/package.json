@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-session",
   "description": "Session Controller adapter for React and session-scoped slots",
-  "version": "0.1.2-alpha.5",
+  "version": "0.3.1-alpha",
   "publishConfig": {
     "access": "public"
   },

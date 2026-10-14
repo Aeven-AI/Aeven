@@ -1,7 +1,7 @@
 {
   "name": "@aeven/speech-to-text",
   "description": "Speech recognition service with independently selectable providers",
-  "version": "0.1.2-alpha.5",
+  "version": "0.3.1-alpha",
   "publishConfig": {
     "access": "public"
   },

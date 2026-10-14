@@ -1,7 +1,7 @@
 {
   "name": "@aeven/api-job-controller",
   "description": "Job Remote observation stream and the reference-counted client job-output service",
-  "version": "0.1.2-alpha.5",
+  "version": "0.3.1-alpha",
   "publishConfig": {
     "access": "public"
   },

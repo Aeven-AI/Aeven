@@ -1,7 +1,7 @@
 {
   "name": "@aeven/spill",
   "description": "Abstract spill storage seam (ctx.spillStore) for the Aeven — save oversized tool text and return a retrieval locator",
-  "version": "0.1.2-alpha.5",
+  "version": "0.3.1-alpha",
   "publishConfig": {
     "access": "public"
   },

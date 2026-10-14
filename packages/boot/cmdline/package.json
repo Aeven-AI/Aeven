@@ -1,7 +1,7 @@
 {
   "name": "@aeven/cmdline",
   "description": "Immutable command-line handoff from a avn launcher to any app plugin that injects cmdlineArgs",
-  "version": "0.1.2-alpha.5",
+  "version": "0.3.1-alpha",
   "publishConfig": {
     "access": "public"
   },

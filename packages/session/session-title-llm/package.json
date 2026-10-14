@@ -1,7 +1,7 @@
 {
   "name": "@aeven/session-title-llm",
   "description": "Shared LLM generation policy for Aeven session-title providers",
-  "version": "0.1.2-alpha.5",
+  "version": "0.3.1-alpha",
   "publishConfig": {
     "access": "public"
   },

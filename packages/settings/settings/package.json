@@ -1,7 +1,7 @@
 {
   "name": "@aeven/settings",
   "description": "Abstract user-settings seam (ctx.settings) for the Aeven",
-  "version": "0.1.2-alpha.5",
+  "version": "0.3.1-alpha",
   "publishConfig": {
     "access": "public"
   },
