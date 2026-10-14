@@ -7,22 +7,22 @@ import {
 import type { ConversationSettings } from '../src/submission-settings.ts'
 
 describe('ComposerSubmissionPolicy', () => {
-  it('defaults to Queue and only applies the preference while running', () => {
+  it('defaults to Steer and only applies the preference while running', () => {
     const policy = new ComposerSubmissionPolicy()
     expect(policy.busyEnter.getSnapshot()).toBe(DEFAULT_BUSY_ENTER_BEHAVIOR)
     expect(policy.resolve(false, 'enter', true)).toBe('queue')
     expect(policy.resolve(false, 'accelerated', true)).toBe('queue')
-    expect(policy.resolve(true, 'enter', true)).toBe('queue')
-    expect(policy.resolve(true, 'accelerated', true)).toBe('steer')
+    expect(policy.resolve(true, 'enter', true)).toBe('steer')
+    expect(policy.resolve(true, 'accelerated', true)).toBe('queue')
     expect(policy.resolve(true, 'enter', false)).toBe('queue')
     expect(policy.resolve(true, 'accelerated', false)).toBe('queue')
 
     const changed = vi.fn()
     policy.busyEnter.subscribe(changed)
-    policy.setBusyEnter('steer')
+    policy.setBusyEnter('queue')
     expect(changed).toHaveBeenCalledTimes(1)
-    expect(policy.resolve(true, 'enter', true)).toBe('steer')
-    expect(policy.resolve(true, 'accelerated', true)).toBe('queue')
+    expect(policy.resolve(true, 'enter', true)).toBe('queue')
+    expect(policy.resolve(true, 'accelerated', true)).toBe('steer')
     expect(policy.resolve(false, 'enter', true)).toBe('queue')
     expect(policy.resolve(false, 'accelerated', true)).toBe('queue')
   })
@@ -40,9 +40,9 @@ describe('ComposerSubmissionPolicy', () => {
     }
     const policy = new ComposerSubmissionPolicy(scope)
     liveBehavior = () => policy.busyEnter.getSnapshot()
-    policy.setBusyEnter('steer')
-    expect(observed).toEqual(['busyEnter=steer:steer'])
-    expect(host.set).toHaveBeenCalledWith('busyEnter', 'steer')
+    policy.setBusyEnter('queue')
+    expect(observed).toEqual(['busyEnter=queue:queue'])
+    expect(host.set).toHaveBeenCalledWith('busyEnter', 'queue')
     expect(host.set).toHaveBeenCalledOnce()
   })
 

@@ -30,6 +30,7 @@ import type {
 import type { DraftAttachmentId } from '../src/client/contract/input.ts'
 import { InputBar } from '../src/client/input/InputBar.tsx'
 import type { InputBarProps } from '../src/client/input/InputBar.tsx'
+import { DEFAULT_BUSY_ENTER_BEHAVIOR } from '../src/submission-settings.ts'
 import { zh } from '../src/client/locales.ts'
 
 afterEach(cleanup)
@@ -187,7 +188,7 @@ function bench(over?: BenchOptions) {
     }),
     resolveSubmitMode: (running, gesture, steeringAvailable) => {
       if (!running || !steeringAvailable) return 'queue'
-      const preferred = over?.busyEnter ?? 'queue'
+      const preferred = over?.busyEnter ?? DEFAULT_BUSY_ENTER_BEHAVIOR
       return gesture === 'enter' ? preferred : preferred === 'queue' ? 'steer' : 'queue'
     },
     toggleCommandMenu: over?.toggleCommandMenu ?? vi.fn(),
@@ -595,18 +596,20 @@ describe('Enter semantics', () => {
     expect(sink).not.toHaveBeenCalled() // and not preventDefault'd: native newline
   })
 
-  it('Ctrl/Meta+Enter sends normally while idle and steers while running', () => {
+  it('Ctrl/Meta+Enter sends normally while idle and takes the other behavior while running', () => {
     const idle = bench({ draft: 'hello' })
     fireEvent.keyDown(idle.textarea, { key: 'Enter', metaKey: true })
     expect(idle.sink).toHaveBeenCalledWith('hello', [], 'queue', expect.any(AbortSignal))
 
-    const busyCtrl = bench({ running: true, draft: 'steer with ctrl' })
+    // Plain Enter steers the running turn by default, so the accelerated chord
+    // is what queues — the explicit choice the preference leaves available.
+    const busyCtrl = bench({ running: true, draft: 'queue with ctrl' })
     fireEvent.keyDown(busyCtrl.textarea, { key: 'Enter', ctrlKey: true })
-    expect(busyCtrl.sink).toHaveBeenCalledWith('steer with ctrl', [], 'steer', expect.any(AbortSignal))
+    expect(busyCtrl.sink).toHaveBeenCalledWith('queue with ctrl', [], 'queue', expect.any(AbortSignal))
 
-    const busyMeta = bench({ running: true, draft: 'steer with cmd' })
+    const busyMeta = bench({ running: true, draft: 'queue with cmd' })
     fireEvent.keyDown(busyMeta.textarea, { key: 'Enter', metaKey: true })
-    expect(busyMeta.sink).toHaveBeenCalledWith('steer with cmd', [], 'steer', expect.any(AbortSignal))
+    expect(busyMeta.sink).toHaveBeenCalledWith('queue with cmd', [], 'queue', expect.any(AbortSignal))
   })
 
   it('empty-draft Cmd/Ctrl+Enter steers the whole queue instead of submitting', () => {
@@ -667,10 +670,10 @@ describe('Enter semantics', () => {
     expect(steering.sink).not.toHaveBeenCalled()
   })
 
-  it('draft content outranks the queue: accelerated Enter steers the draft only', () => {
+  it('draft content outranks the queue: the steering gesture steers the draft only', () => {
     const steerQueue = vi.fn()
     const { textarea, sink } = bench({ running: true, queue: [row('q-1')], draft: '插话', steerQueue })
-    fireEvent.keyDown(textarea, { key: 'Enter', ctrlKey: true })
+    fireEvent.keyDown(textarea, { key: 'Enter' })
     expect(sink).toHaveBeenCalledWith('插话', [], 'steer', expect.any(AbortSignal))
     expect(steerQueue).not.toHaveBeenCalled()
   })
