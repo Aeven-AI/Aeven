@@ -149,7 +149,7 @@ const LINK_SAFETY = {
 /**
  * The URL an authored image loads from: a remote `https:` source as written,
  * and an absolute local path through this app's authenticated `/api/file`
- * route. Anything else shows the image's alt text.
+ * route on HTTP(S) and desktop `avn-app:` pages. Anything else shows the image's alt text.
  * @param src - the image source as the markdown author wrote it.
  * @returns the URL to load, or undefined when the source is not displayable.
  */
@@ -157,7 +157,7 @@ function resolveImage(src: string): string | undefined {
   if (src.startsWith('https://')) return src
   if (!src.startsWith('/') || src.startsWith('//')) return undefined
   const base = document.baseURI
-  if (!base.startsWith('http:') && !base.startsWith('https:')) return undefined
+  if (!base.startsWith('http:') && !base.startsWith('https:') && !base.startsWith('avn-app:')) return undefined
   return new URL(`api/file?path=${encodeURIComponent(safeDecode(src))}`, base).href
 }
 

@@ -137,10 +137,32 @@ export class HostConnectionService extends Service implements HostConnectionHand
    */
   requestRejection(request: ConnectionTrustRequest): ConnectionRequestRejection {
     if (!isTrustedApiRequest(request, this.trustedHosts)) return 403
-    if (this.enforcingIdentity() !== undefined) {
-      return this.ctx.get('identityUsers')?.resolve(request) === undefined ? 401 : undefined
+    if (this.enforcingIdentity() === undefined) {
+      return this.browserAuth.isAuthenticated(request) ? undefined : 401
     }
-    return this.browserAuth.isAuthenticated(request) ? undefined : 401
+    if (this.ctx.get('identityUsers')?.resolve(request) !== undefined) return undefined
+    return this.admitsAccountCookie(request) ? undefined : 401
+  }
+
+  /**
+   * Whether the Host account cookie may admit this request.
+   *
+   * The cookie exists for the reads a browser issues on its own and cannot
+   * attach a bearer to: images, video, and file downloads. It therefore admits
+   * `GET` and `HEAD` on a registered exact Fetch route — those are the byte
+   * routes — and nothing else. RPC channels, streams, and every other method
+   * keep requiring the page's own credential, so the cookie never becomes a
+   * second key to the tool-capable API.
+   * @param request - a request the trust fence already accepted.
+   * @returns true when a valid account cookie authenticates a browser-native read.
+   */
+  private admitsAccountCookie(request: ConnectionTrustRequest): boolean {
+    const { url, method } = request
+    if (url === undefined || method === undefined) return false
+    const upper = method.toUpperCase()
+    if (upper !== 'GET' && upper !== 'HEAD') return false
+    if (!this.fetchRoutes.has(new URL(url, 'http://avn.internal').pathname)) return false
+    return this.browserAuth.accountUserId(request) !== undefined
   }
 
   /**
@@ -191,6 +213,8 @@ export class HostConnectionService extends Service implements HostConnectionHand
 
   /**
    * Identify the caller behind a request that {@link requestRejection} admitted.
+   * An explicit identity credential takes precedence over the Host account
+   * cookie; an unrecognized Authorization header never falls through to it.
    *
    * Separate from the rejection because the two answer different questions and
    * have different callers: every request is fenced, while only a connection
@@ -200,7 +224,26 @@ export class HostConnectionService extends Service implements HostConnectionHand
    * authenticates nobody.
    */
   identify(request: ConnectionTrustRequest): User | undefined {
-    return this.ctx.get('identityUsers')?.resolve(request)
+    const user = this.ctx.get('identityUsers')?.resolve(request)
+    if (user !== undefined) return user
+    const authorization = request.headers instanceof Headers
+      ? request.headers.get('authorization')
+      : request.headers['authorization']
+    // An invalid explicit credential must not fall through to another account's cookie.
+    if (authorization != null || this.enforcingIdentity() === undefined) return undefined
+    const id = this.browserAuth.accountUserId(request)
+    return id === undefined ? undefined : { id }
+  }
+
+  /**
+   * Renew the Host account cookie for an admitted identity bearer request.
+   * @param request - request the trust and identity fence already admitted.
+   * @returns Set-Cookie value, or undefined when the request carries no admitted bearer.
+   */
+  accountCookie(request: ConnectionTrustRequest): string | undefined {
+    if (bearerOf(request) === undefined || this.enforcingIdentity() === undefined) return undefined
+    const user = this.ctx.get('identityUsers')?.resolve(request)
+    return user === undefined ? undefined : this.browserAuth.accountCookie(request, user.id)
   }
 
   /**
@@ -212,7 +255,7 @@ export class HostConnectionService extends Service implements HostConnectionHand
    */
   runAsCaller<T>(request: ConnectionTrustRequest, work: () => T): T {
     const identity = this.ctx.get('identityUsers')
-    return identity === undefined ? work() : identity.runAsCaller(request, work)
+    return identity === undefined ? work() : identity.runAs(this.identify(request), work)
   }
 
   /**

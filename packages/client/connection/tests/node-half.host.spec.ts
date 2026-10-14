@@ -4,6 +4,7 @@ import { createServer, request as httpRequest } from 'node:http'
 import { Readable } from 'node:stream'
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
+import { IdentityUsers } from '@aeven/identity-user'
 import type { AddressInfo } from 'node:net'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { AttachmentStore } from '@aeven/attachment'
@@ -66,7 +67,14 @@ function fakeResponse(): {
     writableEnded: false,
     writeHead(value: number, headers?: Record<string, string>) {
       state.status = value
-      if (headers !== undefined) state.headers = headers
+      if (headers !== undefined) state.headers = { ...state.headers, ...headers }
+      return this
+    },
+    setHeader(name: string, value: string) { state.headers = { ...state.headers, [name.toLowerCase()]: value }; return this },
+    appendHeader(name: string, value: string) {
+      const key = name.toLowerCase()
+      const existing = state.headers?.[key]
+      state.headers = { ...state.headers, [key]: existing === undefined ? value : `${existing}, ${value}` }
       return this
     },
     write(value: string | Uint8Array) { chunks.push(Buffer.from(value)); return true },
@@ -247,6 +255,70 @@ describe('connection node half', () => {
       cookie: browserCookie(connection, 'harness.example'),
     }))).toBeUndefined()
     await dispose()
+  })
+
+  it('mints account cookies on bearer handover and dispatches native reads as their account', async () => {
+    const { connection, ctx, routes, dispose } = await mounted()
+    const launchCookie = browserCookie(connection, '127.0.0.1:3080')
+    const identity = new IdentityUsers(ctx)
+    const removeResolver = identity.registerResolver({
+      id: 'test',
+      resolve: (request) => {
+        const authorization = request.headers instanceof Headers
+          ? request.headers.get('authorization') : request.headers['authorization']
+        return authorization === 'Bearer alice' ? { id: 'alice' }
+          : authorization === 'Bearer bob' ? { id: 'bob' } : undefined
+      },
+    })
+    const removeRoute = connection.fetch.register({
+      path: '/api/private-image', methods: ['GET'],
+      fetch: () => Promise.resolve(new Response(identity.mayAccess('alice') ? 'alice image' : 'not found', {
+        status: identity.mayAccess('alice') ? 200 : 404,
+      })),
+    })
+    try {
+      const route = routes.find(route => route.path === '/api')!
+      const host = '127.0.0.1:3080'
+      expect(connection.requestRejection(fakeRequest({ host, cookie: launchCookie }))).toBe(401)
+      const handover = Object.assign(fakeRequest({ host, authorization: 'Bearer alice' }, '/api/credential'), { method: 'HEAD' })
+      const first = fakeResponse()
+      await route.handler(handover, first.response)
+      expect(first.state.status).toBe(204)
+      const cookie = first.state.headers?.['set-cookie']?.split(';', 1)[0]
+      expect(cookie).toMatch(/^avn-account-/u)
+      const native = fakeRequest({ host, cookie: cookie! }, '/api/private-image')
+      expect(connection.identify(native)).toEqual({ id: 'alice' })
+      const image = fakeResponse()
+      await route.handler(native, image.response)
+      expect(image.state).toMatchObject({ status: 200, body: 'alice image' })
+      expect(image.state.headers?.['set-cookie']).toBeUndefined()
+      // The cookie admits a browser-native read of a registered byte route and
+      // nothing else: not another method, not an RPC path, and not a request
+      // stating no request line at all, such as a socket upgrade.
+      expect(connection.requestRejection(native)).toBeUndefined()
+      expect(connection.requestRejection(Object.assign(
+        fakeRequest({ host, cookie: cookie! }, '/api/private-image'), { method: 'HEAD' },
+      ))).toBeUndefined()
+      expect(connection.requestRejection(fakePost({ host, cookie: cookie! }, '/api/private-image', {}))).toBe(401)
+      expect(connection.requestRejection(fakeRequest({ host, cookie: cookie! }))).toBe(401)
+      expect(connection.requestRejection({ headers: { host, cookie: cookie! } })).toBe(401)
+      const bob = fakeResponse()
+      await route.handler(fakeRequest({ host, cookie: cookie!, authorization: 'Bearer bob' }, '/api/private-image'), bob.response)
+      expect(bob.state.status).toBe(404)
+      expect(bob.state.headers?.['set-cookie']).toMatch(/^avn-account-/u)
+      const bobCookie = bob.state.headers!['set-cookie']!.split(';', 1)[0]!
+      const bobImage = fakeResponse()
+      await route.handler(fakeRequest({ host, cookie: bobCookie }, '/api/private-image'), bobImage.response)
+      expect(bobImage.state.status).toBe(404)
+      expect(connection.requestRejection(fakeRequest({ host, cookie: cookie!, authorization: 'Bearer invalid' }))).toBe(401)
+      expect(connection.requestRejection(fakeRequest({ host: 'evil.example', cookie: cookie! }))).toBe(403)
+      expect(connection.accountCookie(native)).toBeUndefined()
+      expect(connection.accountCookie(fakeRequest({ host, authorization: 'Bearer invalid' }))).toBeUndefined()
+    } finally {
+      await removeRoute()
+      removeResolver()
+      await dispose()
+    }
   })
 
   it('defers to a mounted identity authority instead of the launch-token policy', async () => {

@@ -14,6 +14,16 @@ const DAY_MILLISECONDS = 24 * 60 * 60 * 1000
 const SECRET_BYTES = 32
 const TOKEN_QUERY = 'token'
 const COOKIE_PREFIX = 'avn-auth-'
+const ACCOUNT_COOKIE_PREFIX = 'avn-account-'
+/**
+ * Lifetime of an account cookie in milliseconds. The cookie exists for reads a
+ * browser cannot attach a bearer to, and ordinary API traffic re-mints it, so a
+ * short life costs nothing and bounds how long a signed-out account keeps
+ * reading resource bytes.
+ */
+const ACCOUNT_COOKIE_MAX_AGE_MILLISECONDS = 12 * 60 * 60 * 1000
+/** Prefix an account cookie is scoped to: every route it may admit lives there. */
+const ACCOUNT_COOKIE_PATH = '/api'
 const COOKIE_PAYLOAD_VERSION = 1
 const STORED_SECRET_VERSION = 1
 const BASE64URL_PATTERN = /^[A-Za-z0-9_-]*$/
@@ -29,6 +39,7 @@ interface BrowserCookiePayload {
   readonly authority: string
   readonly issuedAt: number
   readonly expiresAt: number
+  readonly userId?: string
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -103,8 +114,8 @@ function tokenMatches(actual: string, expected: string): boolean {
   return actualBytes.byteLength === expectedBytes.byteLength && timingSafeEqual(actualBytes, expectedBytes)
 }
 
-function cookieName(authority: string): string {
-  return COOKIE_PREFIX + encodeBase64Url(createHash('sha256').update(authority).digest())
+function cookieName(authority: string, prefix = COOKIE_PREFIX): string {
+  return prefix + encodeBase64Url(createHash('sha256').update(authority).digest())
 }
 
 /** Read the exact generated cookie without implementing general Cookie decoding. */
@@ -117,9 +128,12 @@ function cookieValue(headerValue: string, name: string): string | undefined {
   return undefined
 }
 
-/** Serialize the fixed browser-session attributes; generated names and values are cookie-safe base64url. */
-function sessionCookie(name: string, value: string, expiresAt: number, maxAgeSeconds: number): string {
-  return `${name}=${value}; Max-Age=${String(maxAgeSeconds)}; Path=/; Expires=${new Date(expiresAt).toUTCString()}; HttpOnly; SameSite=Strict`
+/**
+ * Serialize the fixed browser-session cookie attributes; generated names and values are cookie-safe base64url.
+ * @param path - cookie path; the launch cookie covers the application, an account cookie only its own routes.
+ */
+function sessionCookie(name: string, value: string, expiresAt: number, maxAgeSeconds: number, path = '/'): string {
+  return `${name}=${value}; Max-Age=${String(maxAgeSeconds)}; Path=${path}; Expires=${new Date(expiresAt).toUTCString()}; HttpOnly; SameSite=Strict`
 }
 
 function signature(secret: Buffer, body: string): Buffer {
@@ -154,7 +168,8 @@ function decodeCookie(value: string, secret: Buffer): BrowserCookiePayload | und
     || decoded.version !== COOKIE_PAYLOAD_VERSION
     || typeof decoded.authority !== 'string'
     || !Number.isSafeInteger(decoded.issuedAt)
-    || !Number.isSafeInteger(decoded.expiresAt)) return undefined
+    || !Number.isSafeInteger(decoded.expiresAt)
+    || (decoded.userId !== undefined && (typeof decoded.userId !== 'string' || decoded.userId.length === 0))) return undefined
   return decoded as unknown as BrowserCookiePayload
 }
 
@@ -178,7 +193,7 @@ async function initializeSecret(credentials: CredentialProvider): Promise<Buffer
 }
 
 /**
- * Process launch-token exchange and persistent signed-cookie verification.
+ * Process launch-token exchange and persistent browser-session and account cookies.
  * Connection loads the credential provider's signing secret during activation
  * and retains it for synchronous request authentication.
  */
@@ -287,18 +302,69 @@ export class BrowserAuth {
    * @returns true only for an unexpired cookie signed by this activation's loaded secret.
    */
   isAuthenticated(request: ConnectionTrustRequest): boolean {
+    const payload = this.verifiedCookie(request, COOKIE_PREFIX, this.maxAgeMilliseconds)
+    return payload !== undefined && payload.userId === undefined
+  }
+
+  /**
+   * Mint the Host's account cookie after an identity authority admitted a bearer.
+   * The cookie is scoped to the API prefix and outlives neither the account's
+   * next sign-in nor {@link ACCOUNT_COOKIE_MAX_AGE_MILLISECONDS}.
+   * @param request - admitted request carrying the Host authority.
+   * @param userId - account identified by the identity authority.
+   * @returns host-only Set-Cookie value, or undefined without a valid authority.
+   */
+  accountCookie(request: ConnectionTrustRequest, userId: string): string | undefined {
+    const authority = requestAuthority(request.headers)
+    if (authority === undefined) return undefined
+    const issuedAt = Date.now()
+    const expiresAt = issuedAt + ACCOUNT_COOKIE_MAX_AGE_MILLISECONDS
+    const value = encodeCookie({
+      version: COOKIE_PAYLOAD_VERSION, authority, userId, issuedAt, expiresAt,
+    }, this.secret)
+    return sessionCookie(
+      cookieName(authority, ACCOUNT_COOKIE_PREFIX),
+      value,
+      expiresAt,
+      Math.floor(ACCOUNT_COOKIE_MAX_AGE_MILLISECONDS / 1000),
+      ACCOUNT_COOKIE_PATH,
+    )
+  }
+
+  /**
+   * Verify the Host-issued account cookie for a browser-native resource request.
+   * @param request - request carrying Host and Cookie headers.
+   * @returns the signed account id, or undefined for an absent or invalid cookie.
+   */
+  accountUserId(request: ConnectionTrustRequest): string | undefined {
+    return this.verifiedCookie(request, ACCOUNT_COOKIE_PREFIX, ACCOUNT_COOKIE_MAX_AGE_MILLISECONDS)?.userId
+  }
+
+  /**
+   * Verify one signed cookie of a given kind.
+   * @param request - request carrying Host and Cookie headers.
+   * @param prefix - cookie-name prefix selecting the kind, which also fixes the payload's purpose.
+   * @param maxLifetimeMilliseconds - longest issue-to-expiry interval this kind may claim.
+   * @returns the signed payload, or undefined for anything unverifiable or outside the bound.
+   */
+  private verifiedCookie(
+    request: ConnectionTrustRequest,
+    prefix: string,
+    maxLifetimeMilliseconds: number,
+  ): BrowserCookiePayload | undefined {
     const authority = requestAuthority(request.headers)
     const rawCookie = header(request.headers, 'cookie')
-    if (authority === undefined || rawCookie === undefined) return false
-    const value = cookieValue(rawCookie, cookieName(authority))
-    if (value === undefined) return false
+    if (authority === undefined || rawCookie === undefined) return undefined
+    const value = cookieValue(rawCookie, cookieName(authority, prefix))
+    if (value === undefined) return undefined
     const payload = decodeCookie(value, this.secret)
-    if (payload === undefined || payload.authority !== authority) return false
+    if (payload === undefined || payload.authority !== authority) return undefined
     const now = Date.now()
-    return payload.issuedAt <= now
+    const live = payload.issuedAt <= now
       && payload.expiresAt > now
       && payload.expiresAt > payload.issuedAt
-      && payload.expiresAt - payload.issuedAt <= this.maxAgeMilliseconds
+      && payload.expiresAt - payload.issuedAt <= maxLifetimeMilliseconds
+    return live ? payload : undefined
   }
 
   private writeUnauthorized(req: ConnectionIndexRequest, res: ConnectionIndexResponse): void {

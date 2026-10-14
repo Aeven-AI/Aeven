@@ -311,6 +311,14 @@
   pointer-events: auto;
 }
 
+/* The chat the reader is in keeps its options on screen without the pointer on
+   the row. Keyed on the row's own selected flag as well as its class, so the
+   pin does not depend on how the row's class list is assembled. */
+.sessionRow[data-selected] .rowActions > * {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 /* An open row menu pins the hover affordances (figma: the row keeps its
    hover fill while its dropdown is up). */
 .projectRow.menuOpen,
