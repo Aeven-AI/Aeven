@@ -130,10 +130,14 @@ describe('WorkspaceBrowser.module.css list', () => {
       }
     }
     // A Session row pins its options while it is the selected one, so the chat
-    // on screen keeps them reachable once the pointer leaves the row.
-    const selectedReveal = rowDeclarations('.sessionRow.selected .rowActions > *')
-    expect(selectedReveal?.get('opacity')).toBe('1')
-    expect(selectedReveal?.get('pointer-events')).toBe('auto')
+    // on screen keeps them reachable once the pointer leaves the row. The row
+    // states that fact twice — its class and its own attribute — so the pin
+    // survives however the row's class list is assembled.
+    for (const selected of ['.sessionRow.selected', '.sessionRow[data-selected]']) {
+      const selectedReveal = rowDeclarations(`${selected} .rowActions > *`)
+      expect(selectedReveal?.get('opacity')).toBe('1')
+      expect(selectedReveal?.get('pointer-events')).toBe('auto')
+    }
     // The focused action reveals its own cell: a keyboard reader must not land
     // on an invisible button.
     expect(rowDeclarations('.rowActions:focus-within > *')?.get('opacity')).toBe('1')
