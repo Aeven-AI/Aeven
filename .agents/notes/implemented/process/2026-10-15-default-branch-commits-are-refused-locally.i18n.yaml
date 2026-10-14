@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-10-15-default-branch-commits-are-refused-locally.md
+2026-10-15-default-branch-commits-are-refused-locally.md: 2840d6d0e20e35c838a4e3de7f1af6d71de9ff54
+2026-10-15-default-branch-commits-are-refused-locally.zh.md: d5653864d642864f73a753bc9bdd6cdf90eb8bc5
