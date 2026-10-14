@@ -52,7 +52,7 @@ index 启动输入分两层。`collectIndexInjections()` 收集一张全新的�
 
 ### 失败时的行为
 
-监听失败（例如 EADDRINUSE）会以绑定诊断信息拒绝插件初始化。handler 抛错的 HTTP 请求会得到 400——若响应头已经发出则销毁 socket——并记录 warning；它绝不会退出进程。upgrade handler 抛错或升级 socket 出现传输错误时，会记录 warning 并销毁对应 socket。
+`port` 被其他进程占用时，`portInUse: 'fail'`（默认）会以指明该端口的错误拒绝插件初始化，`portInUse: 'os-assigned'` 则监听操作系统分配的端口、记录 warning，并通过 `ctx.webServer.port` 报告该端口。其他监听失败会以绑定诊断信息拒绝插件初始化。handler 抛错的 HTTP 请求会得到 400——若响应头已经发出则销毁 socket——并记录 warning；它绝不会退出进程。upgrade handler 抛错或升级 socket 出现传输错误时，会记录 warning 并销毁对应 socket。
 
 -----
 

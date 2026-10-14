@@ -28,6 +28,9 @@ export const DESKTOP_IPC = {
   captionMenuOpen: 'avn-desktop:caption-menu-open',
   captionWindowControl: 'avn-desktop:caption-window-control',
   captionButtonLabels: 'avn-desktop:caption-button-labels',
+  backgroundModeGet: 'avn-desktop:background-mode-get',
+  backgroundModeSet: 'avn-desktop:background-mode-set',
+  backgroundModeState: 'avn-desktop:background-mode-state',
 } as const
 
 /** Window operation a page-drawn Linux caption button asks for; `maximize` toggles. */
@@ -166,6 +169,7 @@ export interface AvnDesktopBrowserApi {
 /** Bridge the app renderer receives: the carrier marker, the browser operations, and menu commands. */
 export interface AvnDesktopAppApi {
   readonly protocolVersion: 1
+  readonly background: AvnDesktopBackgroundApi
   readonly browser: AvnDesktopBrowserApi
   readonly contextMenu: AvnDesktopContextMenuApi
   readonly links: AvnDesktopLinksApi
@@ -209,6 +213,27 @@ export interface AvnDesktopLinksApi {
    * @returns disposer removing the listener.
    */
   onOpen(listener: (url: string) => void): () => void
+}
+
+/**
+ * Background mode, which the app page's Settings presents: whether the
+ * application keeps running in the menu bar after its last window closes.
+ */
+export interface AvnDesktopBackgroundApi {
+  /** @returns whether background mode is on. */
+  get(): Promise<boolean>
+  /**
+   * Turn background mode on or off.
+   * @param enabled - the new value.
+   * @returns resolution after the choice is stored.
+   */
+  set(enabled: boolean): Promise<void>
+  /**
+   * Observe changes made from any window.
+   * @param listener - called with each new value.
+   * @returns disposer removing the listener.
+   */
+  onChange(listener: (enabled: boolean) => void): () => void
 }
 
 /** Desktop release update state rendered by desktop-owned UI. */

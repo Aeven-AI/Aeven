@@ -568,6 +568,9 @@ importers:
 
   apps/desktop-host:
     dependencies:
+      '@aeven/agent':
+        specifier: workspace:^
+        version: link:../../packages/core/agent
       '@aeven/api-gateway':
         specifier: workspace:^
         version: link:../../packages/api/gateway

@@ -78,7 +78,7 @@ describe('desktop host process', () => {
   it('carries raw request and response bytes and shuts the child down cleanly', async () => {
     const project = projectWithHost(`
 const bodies = new Map()
-process.send({ type: 'ready', protocolVersion: 5, url: 'http://127.0.0.1:3080/', ownsHost: true, avnVersion: process.env.NODE_OPTIONS ?? 'clean' })
+process.send({ type: 'ready', protocolVersion: 6, url: 'http://127.0.0.1:3080/', ownsHost: true, avnVersion: process.env.NODE_OPTIONS ?? 'clean' })
 function onRequestFrame(frame) {
   if (frame.type === 1) {
     const request = JSON.parse(frame.payload)
@@ -115,7 +115,7 @@ function answer(streamId) {
   it('streams a large binary response in bounded raw frames', async () => {
     const size = 2 * 1024 * 1024
     const project = projectWithHost(`
-process.send({ type: 'ready', protocolVersion: 5, url: 'http://127.0.0.1:3080/', ownsHost: true, avnVersion: 'large-response' })
+process.send({ type: 'ready', protocolVersion: 6, url: 'http://127.0.0.1:3080/', ownsHost: true, avnVersion: 'large-response' })
 function onRequestFrame(frame) {
   if (frame.type !== 1) return
   responseStart(frame.streamId)
@@ -138,7 +138,7 @@ function onRequestFrame(frame) {
 
   it('stops an unfinished upload when the Host completes its response early', async () => {
     const project = projectWithHost(`
-process.send({ type: 'ready', protocolVersion: 5, url: 'http://127.0.0.1:3080/', ownsHost: true, avnVersion: 'early-response' })
+process.send({ type: 'ready', protocolVersion: 6, url: 'http://127.0.0.1:3080/', ownsHost: true, avnVersion: 'early-response' })
 function onRequestFrame(frame) {
   if (frame.type !== 2) return
   responseStart(frame.streamId)
@@ -168,7 +168,7 @@ function onRequestFrame(frame) {
 
   it('ignores a response end that arrives after the renderer cancels its stream', async () => {
     const project = projectWithHost(`
-process.send({ type: 'ready', protocolVersion: 5, url: 'http://127.0.0.1:3080/', ownsHost: true, avnVersion: 'cancel-race' })
+process.send({ type: 'ready', protocolVersion: 6, url: 'http://127.0.0.1:3080/', ownsHost: true, avnVersion: 'cancel-race' })
 const urls = new Map()
 function onRequestFrame(frame) {
   if (frame.type === 1) {
@@ -198,7 +198,7 @@ function onRequestFrame(frame) {
 
   it('rejects invalid response framing and a clean exit before readiness', async () => {
     const invalid = new DesktopHostProcess(process.execPath, projectWithHost(`
-process.send({ type: 'ready', protocolVersion: 5, url: 'http://127.0.0.1:3080/', ownsHost: true, avnVersion: 'invalid-frame' })
+process.send({ type: 'ready', protocolVersion: 6, url: 'http://127.0.0.1:3080/', ownsHost: true, avnVersion: 'invalid-frame' })
 function onRequestFrame(frame) {
   if (frame.type === 1) responsePipe.write(Buffer.alloc(13))
 }

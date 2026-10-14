@@ -15,6 +15,7 @@ import {
   encodeDesktopRequestEnd,
   encodeDesktopRequestStart,
   type DesktopAevenSignIn,
+  type DesktopHostActivity,
   type DesktopHostCommand,
   type DesktopHostEvent,
   type DesktopHostResponseFrame,
@@ -45,6 +46,8 @@ function isDesktopHostEvent(message: unknown): message is DesktopHostEvent {
       return candidate.protocolVersion === DESKTOP_HOST_PROTOCOL_VERSION && typeof candidate.avnVersion === 'string'
         && typeof candidate.url === 'string' && URL.canParse(candidate.url) && typeof candidate.ownsHost === 'boolean'
         && (candidate.aevenSignIn === undefined || isAevenSignIn(candidate.aevenSignIn))
+    case 'activity':
+      return Number.isSafeInteger(candidate.runningAgents) && Number.isSafeInteger(candidate.clientLeases)
     case 'fatal':
       return typeof candidate.message === 'string'
     default:
@@ -56,17 +59,21 @@ function errorOf(reason: unknown, fallback: string): Error {
   return reason instanceof Error ? reason : new Error(fallback)
 }
 
-async function exitsWithin(exit: Promise<void>, milliseconds: number): Promise<boolean> {
+async function settlesWithin<T>(settlement: Promise<T>, milliseconds: number): Promise<T | undefined> {
   let timer: ReturnType<typeof setTimeout> | undefined
-  const timeout = new Promise<false>((resolve) => {
-    timer = setTimeout(() => { resolve(false) }, milliseconds)
+  const timeout = new Promise<undefined>((resolve) => {
+    timer = setTimeout(() => { resolve(undefined) }, milliseconds)
     timer.unref()
   })
   try {
-    return await Promise.race([exit.then(() => true), timeout])
+    return await Promise.race([settlement, timeout])
   } finally {
     if (timer !== undefined) clearTimeout(timer)
   }
+}
+
+async function exitsWithin(exit: Promise<void>, milliseconds: number): Promise<boolean> {
+  return await settlesWithin(exit.then(() => true), milliseconds) ?? false
 }
 
 /** Ready facts reported by one installed avn child. */
@@ -100,6 +107,7 @@ export class DesktopHostProcess {
   })
   private exitPromise: Promise<void> | undefined
   private stderr = ''
+  private readonly activityAnswers: ((activity: DesktopHostActivity) => void)[] = []
 
   /**
    * @param node - absolute bundled upstream Node.js executable.
@@ -218,8 +226,30 @@ export class DesktopHostProcess {
     })
   }
 
-  /** Detach the shell while the shared HTTP Host continues serving. */
-  detach(): void {
+  /**
+   * Ask the Host what would stop with it if this shell left.
+   * @returns the Host's report, or undefined when the Host is gone or does not answer within two seconds.
+   */
+  async activity(): Promise<DesktopHostActivity | undefined> {
+    const child = this.child
+    if (child === undefined || !child.connected) return undefined
+    let accept!: (activity: DesktopHostActivity) => void
+    const answer = new Promise<DesktopHostActivity>((resolve) => { accept = resolve })
+    this.activityAnswers.push(accept)
+    try {
+      this.send({ type: 'activity' })
+      return await settlesWithin(answer, 2_000)
+    } finally {
+      const waiting = this.activityAnswers.indexOf(accept)
+      if (waiting !== -1) this.activityAnswers.splice(waiting, 1)
+    }
+  }
+
+  /**
+   * Release this shell's lease without waiting: the Host stops on its own once
+   * no client lease remains, or keeps serving the processes that hold one.
+   */
+  release(): void {
     const child = this.child
     if (child === undefined) return
     if (child.connected) child.disconnect()
@@ -422,6 +452,9 @@ export class DesktopHostProcess {
       case 'ready':
         this.owner = message.ownsHost
         this.readyResolve(message)
+        return
+      case 'activity':
+        this.activityAnswers.shift()?.({ runningAgents: message.runningAgents, clientLeases: message.clientLeases })
         return
       case 'fatal':
         this.fail(new Error(message.message))

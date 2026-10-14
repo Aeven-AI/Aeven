@@ -2,9 +2,11 @@
 
 [English](README.md) | 中文
 
-桌面应用是共享 avn Web UI 的 Electron 壳。Web 与 Electron 通过内核控制的启动互斥及已认证 HTTP 端点，在每个 Aeven 主目录复用一个 GUI Host。没有现有 Host 时，Electron 使用内置的上游 Node.js 启动 Host；退出 Electron 只分离桌面壳，Host 继续为浏览器客户端与运行中的任务提供服务。显式关闭 Host 或进程死亡会释放所有权。桌面启动的 Host 默认使用回环端口 3080。
+桌面应用是共享 avn Web UI 的 Electron 壳。Web 与 Electron 通过内核控制的启动互斥及已认证 HTTP 端点，在每个 Aeven 主目录复用一个 GUI Host。没有现有 Host 时，Electron 使用内置的上游 Node.js 启动 Host。Electron 退出或崩溃时，该 Host 随之停止，除非另一个进程持有它的客户端租约；浏览器标签页不持有租约。有 Agent 轮次正在运行时退出，会先请求确认。由 `avn web` 启动的 Host 属于其终端，继续运行。桌面启动的 Host 优先使用回环端口 3080；该端口被其他进程占用时，它监听操作系统分配的端口，并在之后的启动中复用该端口，因此与来源绑定的浏览器存储（包括登录状态）得以保留。
 
-被接入的 Host 拥有其后端包依赖图。Desktop 包更新要求该 Host 在验证与激活之前停止；接入运行中的 Host 不会替换其包。第一个启动器决定提供服务的 profile 与能力。两个客户端使用同一份 Session 和工作区状态。
+被接入的 Host 拥有其后端包依赖图。打包后的 Desktop 会停止服务于其他 avn 版本且没有客户端租约的桌面启动 Host，并启动自己的 Host，因此更新后绝不会呈现旧后端；`avn web` 启动的 Host 则无论版本都会被接入。Desktop 包更新要求被接入的 Host 在验证与激活之前停止；接入运行中的 Host 不会替换其包。第一个启动器决定提供服务的 profile 与能力。两个客户端使用同一份 Session 和工作区状态。
+
+通用设置中的 **后台运行** 默认关闭；开启后，最后一个窗口关闭时应用会以菜单栏或系统托盘图标的形式继续运行，macOS 上的 Dock 图标会隐藏，直到再次打开窗口。运行中的桌面壳让其 Host 继续提供服务，因此 Agent 轮次与自动化会一直执行，直到从图标或应用菜单选择 **退出 Aeven**。该选项保存在 Electron 的用户数据目录中。
 
 [Desktop Host overlay](../desktop-host/config/desktop.cordis.patch.yml) 为登录、推理、搜索、媒体和账户集成提供生产服务 URL；安装后的应用不需要 `.env` 文件。API 默认为 `https://aeven.io/api`；Web、媒体和 OAuth 使用 `https://preview.aeven.io`。显式设置的 `AEVEN_API_URL`、`AEVEN_WEB_URL`、`AEVEN_MEDIA_URL` 和 `AEVEN_OAUTH_{X,APPLE,GOOGLE}_URL` 环境变量会覆盖这些默认值。Desktop 登录在独立窗口中打开。参见[端点决策](../../.agents/notes/implemented/bug-fix/2026-10-14-desktop-production-service-endpoints.zh.md)。
 
@@ -108,7 +110,7 @@ pnpm run package:desktop:win:x64
 
 ### 图标
 
-`resources/` 存放应用图标，`installer/assets/` 存放 NSIS 侧边栏图片；每个位图都按自身边长从同目录的 SVG 渲染。macOS 的应用与挂载后的 DMG 卷使用 `icon-macos.icns`，Windows 的可执行文件、安装程序与卸载程序使用 `icon-windows.ico`，Linux 包使用 `linux/icons/`，为 16 至 512 px 的每个图标主题尺寸各提供一个 PNG，未打包的 Linux 运行则使用 `icon-macos.png`。`installer-sidebar.bmp` 填充 Windows 安装程序与卸载程序的欢迎页和完成页。`tray-windows.ico`（16–64 px）与 macOS 菜单栏模板图 `trayTemplate.png`（16 px，附 `@2x`）在应用显示托盘图标之前不会被打包。
+`resources/` 存放应用图标，`installer/assets/` 存放 NSIS 侧边栏图片；每个位图都按自身边长从同目录的 SVG 渲染。macOS 的应用与挂载后的 DMG 卷使用 `icon-macos.icns`，Windows 的可执行文件、安装程序与卸载程序使用 `icon-windows.ico`，Linux 包使用 `linux/icons/`，为 16 至 512 px 的每个图标主题尺寸各提供一个 PNG，未打包的 Linux 运行则使用 `icon-macos.png`。`installer-sidebar.bmp` 填充 Windows 安装程序与卸载程序的欢迎页和完成页。后台运行图标在 Windows 上使用 `tray-windows.ico`（16–64 px），在 macOS 上使用菜单栏模板图 `trayTemplate.png`（16 px，附 `@2x`），在 Linux 上使用 `linux/icons/24x24.png`。
 
 ### Linux 软件包
 
@@ -184,5 +186,7 @@ Electron-builder 生成 GitHub provider 频道元数据（`latest.yml`，预发�
 
 - Desktop 禁用 Web 的「在本地应用中打开…」操作，因为其 Host 插件依赖 HTTP 路由，而 Desktop 不提供 `webServer`。
 - 发布签名、公证、更新托管和跨上一版本的已安装产物验证需要生产发布环境。
+- 在 Windows 上，停止来自其他发布版本的桌面启动 Host 会直接终止进程而不执行其销毁流程，因为 Windows 不会发送进程可以处理的终止信号。
+- 呈现其他进程所启动 Host 的桌面壳退出时不会请求运行中任务的确认，因为只有启动该 Host 的桌面壳能向它查询运行中的轮次。
 - 依赖包含 lifecycle script 的桌面插件，只有其包名进入桌面项目经过评审的 `allowBuilds` 策略后才能安装。
 - 桌面壳与 CLI avn 共享 `$AVN_HOME` 下的会话、设置、凭据、工作区和存储，但可执行包、插件激活、锁文件与包管理器状态彼此隔离。

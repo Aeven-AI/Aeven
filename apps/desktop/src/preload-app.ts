@@ -11,6 +11,15 @@ import {
 
 const api: AvnDesktopAppApi = {
   protocolVersion: 1,
+  background: {
+    get: () => ipcRenderer.invoke(DESKTOP_IPC.backgroundModeGet) as Promise<boolean>,
+    set: enabled => ipcRenderer.invoke(DESKTOP_IPC.backgroundModeSet, enabled) as Promise<void>,
+    onChange(listener) {
+      const handle = (_event: Electron.IpcRendererEvent, enabled: boolean): void => { listener(enabled) }
+      ipcRenderer.on(DESKTOP_IPC.backgroundModeState, handle)
+      return () => { ipcRenderer.off(DESKTOP_IPC.backgroundModeState, handle) }
+    },
+  },
   onCommand(listener) {
     const handle = (_event: Electron.IpcRendererEvent, command: DesktopMenuCommand): void => { listener(command) }
     ipcRenderer.on(DESKTOP_IPC.menuCommand, handle)

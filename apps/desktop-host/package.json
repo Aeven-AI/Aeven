@@ -13,6 +13,7 @@
   "dependencies": {
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/cordis-plugin-include": "workspace:^",
+    "@aeven/agent": "workspace:^",
     "@aeven/cli": "workspace:^",
     "@aeven/api-gateway": "workspace:^",
     "@aeven/app-boot": "workspace:^",

@@ -18,6 +18,22 @@ export const HOST_LEASE_FILE = 'runtime/host.json'
 /** On-disk lease shape version; a record with any other value is ignored. */
 export const HOST_LEASE_VERSION = 1
 
+/**
+ * What ends a serving Host. A `leased` Host belongs to the desktop shell that
+ * launched it and stops once that shell and every client lease are gone; a
+ * `foreground` Host belongs to the terminal that runs it and stops only on
+ * that process's own shutdown.
+ */
+export type HostLifetime = 'leased' | 'foreground'
+
+/** Facts a Host records about itself when it claims a home. */
+export interface HostOwner {
+  /** What ends this Host. */
+  readonly lifetime: HostLifetime
+  /** Installed avn version the Host serves. */
+  readonly avnVersion: string
+}
+
 /** One serving Host's advertisement. */
 export interface HostLease {
   /** Lease shape version. */
@@ -32,6 +48,10 @@ export interface HostLease {
    * application is ready for browser and Electron clients.
    */
   readonly url?: string
+  /** What ends this Host; absent in records written by builds without lifetimes, which behave as `leased`. */
+  readonly lifetime?: HostLifetime
+  /** Installed avn version the Host serves; absent in records written by builds that did not record it. */
+  readonly avnVersion?: string
 }
 
 /**
@@ -69,6 +89,8 @@ function isHostLease(value: unknown): value is HostLease {
     && record.pid > 0
     && typeof record.startedAt === 'string'
     && (record.url === undefined || typeof record.url === 'string')
+    && (record.lifetime === undefined || record.lifetime === 'leased' || record.lifetime === 'foreground')
+    && (record.avnVersion === undefined || typeof record.avnVersion === 'string')
 }
 
 /**
@@ -155,6 +177,23 @@ export async function advertiseHostUrl(home: string, pid: number, url: string): 
 }
 
 /**
+ * Remove this Host's URL from its advertisement before teardown, so a
+ * contender waits for the process to exit instead of attaching to a server
+ * that is closing. The ownership record stays until release.
+ * @param home - absolute Aeven home.
+ * @param pid - the claiming process id.
+ * @returns resolution after the attempt; failures stay silent, and a lease owned by another process is left untouched.
+ */
+export async function withdrawHostUrl(home: string, pid: number): Promise<void> {
+  const recorded = await readHostLease(home)
+  if (recorded === undefined || recorded.pid !== pid || recorded.url === undefined) return
+  const { url: _withdrawn, ...withdrawn } = recorded
+  // A failed write leaves the URL advertised; a contender's probe then fails
+  // and it waits for this process to exit.
+  await writeHostLease(home, withdrawn).catch(() => undefined)
+}
+
+/**
  * Ask an advertised URL whether the Host behind it is still answering. A lease
  * whose process is alive but whose server is gone is stale for attach
  * purposes, and refusing to start over it would strand the user.
@@ -182,11 +221,12 @@ export type HostStartup =
  * process is never displaced by a second Host. Legacy advertisements also
  * block startup until their owning process exits.
  * @param home - shared Aeven home.
+ * @param owner - lifetime and version recorded in the advertisement when this process wins.
  * @param waitMs - maximum wait for the incumbent's endpoint.
  * @param pollMs - interval between ownership and readiness checks.
  * @returns exclusive startup ownership or the serving Host's endpoint.
  */
-export async function claimOrAttachHost(home: string, waitMs = 30_000, pollMs = 250): Promise<HostStartup> {
+export async function claimOrAttachHost(home: string, owner: HostOwner, waitMs = 30_000, pollMs = 250): Promise<HostStartup> {
   const deadline = Date.now() + waitMs
   for (;;) {
     const releaseLock = await tryAcquireFileLock(join(home, 'runtime', 'host.lock'))
@@ -194,7 +234,13 @@ export async function claimOrAttachHost(home: string, waitMs = 30_000, pollMs = 
       try {
         const existing = await liveHostLease(home)
         if (existing === undefined || existing.pid === process.pid) {
-          await writeHostLease(home, { version: HOST_LEASE_VERSION, pid: process.pid, startedAt: new Date().toISOString() })
+          await writeHostLease(home, {
+            version: HOST_LEASE_VERSION,
+            pid: process.pid,
+            startedAt: new Date().toISOString(),
+            lifetime: owner.lifetime,
+            avnVersion: owner.avnVersion,
+          })
           let released = false
           return { kind: 'owner', release: async () => {
             if (released) return

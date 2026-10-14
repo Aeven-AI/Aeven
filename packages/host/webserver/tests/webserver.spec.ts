@@ -102,6 +102,7 @@ describe('real Loader composition', () => {
     expect(HttpServer.Config({ host: '127.0.0.1', port: 0 })).toEqual({
       host: '127.0.0.1',
       port: 0,
+      portInUse: 'fail',
       compression: 'none',
       compressionLevel: 1,
       compressionThresholdBytes: 1024,
@@ -374,7 +375,9 @@ describe('real Loader composition', () => {
         failure = error
       }
       second = context
-      expect(String(failure)).toMatch(/failed to apply loader entry.*EADDRINUSE/)
+      // The taken port is reported by name rather than as the raw `EADDRINUSE`,
+      // which the cause carries.
+      expect(String(failure)).toMatch(/failed to apply loader entry.*is in use by another process/)
     } finally {
       await second?.fiber.dispose()
       context = first

@@ -1,7 +1,7 @@
 /** Versioned control messages and framed byte transport for the Desktop Host child. */
 
 /** Protocol version implemented by the Electron shell and installed avn Host. */
-export const DESKTOP_HOST_PROTOCOL_VERSION = 5 as const
+export const DESKTOP_HOST_PROTOCOL_VERSION = 6 as const
 
 /** Same-origin path the renderer addresses for Aeven sign-in; Electron forwards it to the Aeven API. */
 export const DESKTOP_AEVEN_API_PATH = '/.aeven/api'
@@ -52,7 +52,19 @@ export interface DesktopHostRequestStart {
 
 /** Commands retained on Node IPC because they do not carry Fetch payload bytes. */
 export type DesktopHostCommand = {
+  /** Stop now, whatever client leases are held. */
   readonly type: 'shutdown'
+} | {
+  /** Report {@link DesktopHostActivity} in an `activity` event. */
+  readonly type: 'activity'
+}
+
+/** Work and clients that decide whether the shell's departure stops the Host. */
+export interface DesktopHostActivity {
+  /** Agents with a turn in progress. */
+  readonly runningAgents: number
+  /** Client leases other processes hold; any lease keeps the Host serving after the shell leaves. */
+  readonly clientLeases: number
 }
 
 /** Lifecycle events retained on Node IPC. */
@@ -63,7 +75,9 @@ export type DesktopHostEvent = {
   readonly url: string
   readonly ownsHost: boolean
   readonly aevenSignIn?: DesktopAevenSignIn
-} | {
+} | ({
+  readonly type: 'activity'
+} & DesktopHostActivity) | {
   readonly type: 'fatal'
   readonly message: string
 }

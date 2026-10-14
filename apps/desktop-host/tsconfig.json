@@ -8,6 +8,7 @@
   "references": [
     { "path": "../../vendor/cordis" },
     { "path": "../../vendor/include" },
+    { "path": "../../packages/core/agent" },
     { "path": "../../packages/api/gateway/tsconfig.host.json" },
     { "path": "../../packages/boot/app-boot" },
     { "path": "../../packages/boot/cmdline" },

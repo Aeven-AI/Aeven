@@ -29,7 +29,7 @@ import {
   watchUserPatches,
   type Profile,
 } from '@aeven/app-boot'
-import { advertiseHostUrl, claimOrAttachHost, resolveAvnHome } from '@aeven/home-paths'
+import { advertiseHostUrl, claimOrAttachHost, resolveAvnHome, withdrawHostUrl } from '@aeven/home-paths'
 import { installProxyFromEnvironment } from '@aeven/http-proxy'
 import type {} from '@aeven/host-webserver'
 import { AVN_LAUNCH_ENVIRONMENT_KEY, type LaunchEnvironmentSnapshot } from '@aeven/launch-environment'
@@ -184,6 +184,8 @@ export interface RunProfileOptions {
   patchFiles: readonly string[]
   /** The invocation's inner arguments, handed to the tree through `ctx.cmdlineArgs`. */
   args: readonly string[]
+  /** This avn's version, recorded in the GUI Host advertisement. */
+  avnVersion: string
 }
 
 /**
@@ -253,7 +255,8 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
   let releaseHost: (() => Promise<void>) | undefined
   const servesHttp = composeEntries([allPatches(composed)]).some(row => row.name === '@aeven/host-webserver' && row.disabled !== true)
   if (servesHttp && !options.args.some(arg => arg === '--help' || arg === '-h')) {
-    const startup = await claimOrAttachHost(resolveAvnHome())
+    // The terminal owns this process, so client leases never stop it.
+    const startup = await claimOrAttachHost(resolveAvnHome(), { lifetime: 'foreground', avnVersion: options.avnVersion })
     if (startup.kind === 'attach') {
       await disposeProxy()
       process.stdout.write(`${startup.url}\n`)
@@ -264,6 +267,7 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
   const app: { current?: Context } = {}
   const appReady = createAppReady()
   const shutdown = createProcessShutdown(async () => {
+    if (releaseHost !== undefined) await withdrawHostUrl(resolveAvnHome(), process.pid)
     await app.current?.fiber.dispose()
     await disposeProxy()
     await releaseHost?.()

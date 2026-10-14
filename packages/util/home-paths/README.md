@@ -7,7 +7,9 @@ kind: "package-library"
 
 English | [中文](README.zh.md)
 
-GUI launchers call `claimOrAttachHost` before mounting stateful plugins. A kernel lock at `runtime/host.lock` holds ownership through boot and serving; an atomic, owner-only `runtime/host.json` publishes the authenticated endpoint. Contenders reuse that endpoint or reject after the readiness deadline; a timeout never authorizes another Host. Process death releases the kernel lock. Persistent lock files must not be removed while Hosts can run.
+GUI launchers call `claimOrAttachHost` before mounting stateful plugins. A kernel lock at `runtime/host.lock` holds ownership through boot and serving; an atomic, owner-only `runtime/host.json` publishes the authenticated endpoint. Contenders reuse that endpoint or reject after the readiness deadline; a timeout never authorizes another Host. Process death releases the kernel lock. Persistent lock files must not be removed while Hosts can run. The record names the Host's `lifetime` and `avnVersion`: a `leased` Host belongs to the desktop shell that launched it, a `foreground` Host to the terminal that runs it. Before teardown, `withdrawHostUrl` removes the URL so contenders wait for the process to exit instead of attaching to a closing server.
+
+A process that renders another process's `leased` Host holds `acquireHostClientLease` so that Host keeps serving after its launching shell quits. Each lease is a kernel file lock under `runtime/host-clients/`, released by the returned function or by process death. `countHostClientLeases` counts held leases and removes the files of exited holders; a free lock whose holder process is alive counts as held, because the holder creates its file before locking it.
 
 ## Summary
 
