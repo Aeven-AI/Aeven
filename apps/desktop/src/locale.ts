@@ -2,6 +2,7 @@
 
 export const en = {
   startupFailed: 'Aeven could not start',
+  startupFailedDetail: 'Startup stopped with the error below. View → Toggle Developer Tools stays available; close this window to quit.',
   settingsMenu: 'Settings…',
   fileMenu: 'File',
   editMenu: 'Edit',
@@ -40,6 +41,7 @@ export type DesktopMessages = { readonly [Key in keyof typeof en]: string }
 
 export const zh = {
   startupFailed: 'Aeven 无法启动',
+  startupFailedDetail: '启动因以下错误而停止。仍可使用“视图 → 切换开发者工具”；关闭此窗口即可退出。',
   settingsMenu: '设置…',
   fileMenu: '文件',
   editMenu: '编辑',

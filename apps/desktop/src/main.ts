@@ -678,6 +678,28 @@ async function main(): Promise<void> {
   })
 }
 
+function escapeHtml(text: string): string {
+  return text.replace(/[&<>"]/gu, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[character] ?? character)
+}
+
+/**
+ * Show a failed start in a window instead of a dialog that quits: the application menu stays, so
+ * View → Toggle Developer Tools opens on this window, and the error text, which carries the
+ * backend's stderr, can be selected and copied. Closing the window quits with a failure status.
+ * @param title - Localized failure heading.
+ * @param explanation - Localized line telling the reader how to inspect and how to quit.
+ * @param detail - Error stack or message.
+ */
+function showStartupFailure(title: string, explanation: string, detail: string): void {
+  const page = `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>
+<style>:root{color-scheme:light dark}body{margin:0;padding:24px;font:14px/1.5 -apple-system,system-ui,sans-serif;background:Canvas;color:CanvasText}
+h1{font-size:18px;margin:0 0 8px}p{margin:0 0 16px;opacity:.75}pre{margin:0;padding:12px;border-radius:8px;background:color-mix(in srgb,CanvasText 7%,Canvas);white-space:pre-wrap;word-break:break-word;font:12px/1.5 ui-monospace,Menlo,monospace;user-select:text}</style>
+</head><body><h1>${escapeHtml(title)}</h1><p>${escapeHtml(explanation)}</p><pre>${escapeHtml(detail)}</pre></body></html>`
+  const window = new BrowserWindow({ width: 820, height: 560, title, webPreferences: { sandbox: true, contextIsolation: true } })
+  window.on('closed', () => { app.exit(1) })
+  void window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(page)}`)
+}
+
 const ownsDesktopInstance = claimDesktopSingleInstance(app, () => { focusPrimaryWindow() })
 
 if (ownsDesktopInstance) void app.whenReady().then(main).catch(async (error: unknown) => {
@@ -687,6 +709,6 @@ if (ownsDesktopInstance) void app.whenReady().then(main).catch(async (error: unk
   if (diagnosticFile !== undefined) {
     await writeFile(diagnosticFile, `${error instanceof Error ? error.stack ?? message : message}\n`).catch(() => undefined)
   }
-  dialog.showErrorBox(resolveDesktopLocale(app.getLocale()).messages.startupFailed, message)
-  app.exit(1)
+  const messages = resolveDesktopLocale(app.getLocale()).messages
+  showStartupFailure(messages.startupFailed, messages.startupFailedDetail, error instanceof Error ? error.stack ?? message : message)
 })
