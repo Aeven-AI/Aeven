@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { copyFileSync, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { MACOS_USAGE_DESCRIPTIONS } from './macos-usage-descriptions.mjs'
+import { MACOS_TEXT_INPUT_SETTINGS, MACOS_USAGE_DESCRIPTIONS } from './macos-usage-descriptions.mjs'
 
 /**
  * Workspace and runtime settings captured for Launch Services cold starts.
@@ -64,6 +64,7 @@ export function prepareDevelopmentApp(options: DevelopmentAppOptions): string {
     // Electron.app's own electron.icns stays in the copy; the Dock, Finder, and app switcher read this one.
     CFBundleIconFile: 'aeven.icns',
     ...MACOS_USAGE_DESCRIPTIONS,
+    ...MACOS_TEXT_INPUT_SETTINGS,
   }
   const identity = JSON.stringify({
     ...options, launcher, values,

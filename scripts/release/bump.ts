@@ -20,6 +20,7 @@ import { join, matchesGlob } from 'node:path'
 import { parseArgs } from 'node:util'
 import { releaseFamily, type ReleaseFamily, type ReleaseMember } from './families.ts'
 import { capture, isEntry } from './process.ts'
+import { pnpmInvocation } from '../pnpm-invocation.ts'
 
 /** Files npm publishes whether or not `files` lists them. */
 const ALWAYS_PUBLISHED = ['package.json', 'README*', 'LICENSE*', 'LICENCE*'] as const
@@ -392,7 +393,8 @@ function main(): void {
   const dryRun = values['dry-run']
   if (!dryRun) {
     for (const entry of planned) writeVersion(root, entry.manifestPath, entry.from, entry.to)
-    capture('pnpm', ['install', '--lockfile-only'])
+    const pnpm = pnpmInvocation(['install', '--lockfile-only'])
+    capture(pnpm.command, pnpm.args)
   }
 
   const summary = sharedVersion

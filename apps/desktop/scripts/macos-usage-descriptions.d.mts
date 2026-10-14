@@ -1,5 +1,11 @@
-/** Info.plist keys the Desktop shell adds on macOS. */
+/** Info.plist privacy usage descriptions the Desktop shell adds on macOS. */
 export declare const MACOS_USAGE_DESCRIPTIONS: Readonly<{
+  NSMicrophoneUsageDescription: string
   NSLocationWhenInUseUsageDescription: string
   NSLocationUsageDescription: string
+}>
+
+/** Info.plist text-input settings the Desktop shell adds on macOS. */
+export declare const MACOS_TEXT_INPUT_SETTINGS: Readonly<{
+  NSAutoFillRequiresTextContentTypeForOneTimeCodeOnMac: true
 }>
