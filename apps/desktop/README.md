@@ -6,6 +6,8 @@ The desktop application is an Electron shell around the shared avn Web UI. Web a
 
 An adopted Host owns its backend package graph. Desktop package updates require that Host to stop before validation and activation; adopting a running Host does not replace its packages. The first launcher determines the serving profile and capabilities. Both clients use the same Session and workspace state.
 
+The [Desktop Host overlay](../desktop-host/config/desktop.cordis.patch.yml) supplies production service URLs for sign-in, inference, search, media, and account integrations; an installed app needs no `.env` file. The API defaults to `https://aeven.io/api`; web, media, and OAuth use `https://preview.aeven.io`. Explicit `AEVEN_API_URL`, `AEVEN_WEB_URL`, `AEVEN_MEDIA_URL`, and `AEVEN_OAUTH_{X,APPLE,GOOGLE}_URL` environment settings override those defaults. Desktop sign-in opens a separate window. See the [endpoint decision](../../.agents/notes/implemented/bug-fix/2026-10-14-desktop-production-service-endpoints.md).
+
 ## Key technical decisions
 
 | Decision | Why | Direct consequence |
