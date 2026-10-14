@@ -1,6 +1,6 @@
 {
   "name": "@aeven/client-ui-automations",
-  "version": "0.1.2-alpha.5",
+  "version": "0.3.1-alpha",
   "description": "Built-in task-first automation management",
   "publishConfig": {
     "access": "public"

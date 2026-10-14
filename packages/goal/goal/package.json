@@ -1,7 +1,7 @@
 {
   "name": "@aeven/goal",
   "description": "Event-sourced same-session goal state and lifecycle service for the Aeven",
-  "version": "0.1.2-alpha.5",
+  "version": "0.3.1-alpha",
   "publishConfig": {
     "access": "public"
   },

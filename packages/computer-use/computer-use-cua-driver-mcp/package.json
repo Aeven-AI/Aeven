@@ -1,7 +1,7 @@
 {
   "name": "@aeven/computer-use-cua-driver-mcp",
   "description": "Computer use through an installed Cua Driver MCP executable",
-  "version": "0.1.2-alpha.5",
+  "version": "0.3.1-alpha",
   "publishConfig": {
     "access": "public"
   },

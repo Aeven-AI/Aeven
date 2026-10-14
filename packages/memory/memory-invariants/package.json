@@ -1,7 +1,7 @@
 {
   "name": "@aeven/memory-invariants",
   "description": "The user's confirmed invariants: the bounded document rendered into every request of its owner",
-  "version": "0.1.2-alpha.5",
+  "version": "0.3.1-alpha",
   "publishConfig": {
     "access": "public"
   },
