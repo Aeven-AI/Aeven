@@ -4,8 +4,10 @@
 # A `v<version>` tag that matches the root package.json version starts a run
 # that publishes. A manual run builds the same tree and keeps the installers as
 # workflow artifacts; with `publish` set it publishes under the version tag.
-# Each target signs when all of its secrets exist, builds unsigned when none
-# exist, and fails when only some exist:
+# Each Windows and macOS target signs when all of its secrets exist, builds
+# unsigned when none exist, and fails when only some exist. Linux packages
+# carry no code signature, and the `unsigned` macOS variant always builds
+# without one, so a DMG is available while notarization is pending:
 #   Windows - Azure Trusted Signing: AZURE_TENANT_ID, AZURE_CLIENT_ID,
 #             AZURE_CLIENT_SECRET, AZURE_TRUSTED_SIGNING_ENDPOINT,
 #             AZURE_TRUSTED_SIGNING_ACCOUNT_NAME,
@@ -37,7 +39,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build ${{ matrix.target }}
+    name: Build ${{ matrix.target }}${{ matrix.variant && format(' ({0})', matrix.variant) || '' }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 150
     strategy:
@@ -53,8 +55,21 @@ jobs:
           - target: mac-arm64
             runner: macos-15
             script: mac:arm64
+          - target: mac-arm64
+            variant: unsigned
+            runner: macos-15
+            script: mac:arm64
+          - target: linux-x64
+            runner: ubuntu-24.04
+            script: linux:x64
+          - target: linux-arm64
+            runner: ubuntu-24.04-arm
+            script: linux:arm64
     env:
       AVN_DESKTOP_APP_ID: ${{ vars.AVN_DESKTOP_APP_ID || 'com.aeven.desktop' }}
+      # electron-builder's bundled fpm is x64-only, so deb packaging uses the
+      # system fpm installed below, as linux-builder.Dockerfile does.
+      USE_SYSTEM_FPM: ${{ startsWith(matrix.target, 'linux-') && 'true' || '' }}
     defaults:
       run:
         shell: bash
@@ -82,6 +97,15 @@ jobs:
             exit 1
           fi
 
+      # The tools linux-builder.Dockerfile adds to its Node image: fpm and
+      # fakeroot package the deb, CMake builds the native speech worker.
+      - name: Install Linux packaging tools
+        if: startsWith(matrix.target, 'linux-')
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends ruby ruby-dev fakeroot cmake
+          sudo gem install --no-document fpm
+
       - run: pnpm install --frozen-lockfile
 
       - name: Choose signed or unsigned
@@ -102,7 +126,17 @@ jobs:
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
         run: |
+          if [ "${{ matrix.variant }}" = unsigned ]; then
+            echo "unsigned=true" >> "$GITHUB_OUTPUT"
+            echo "${{ matrix.target }}: unsigned variant"
+            exit 0
+          fi
           case "${{ matrix.target }}" in
+            linux-*)
+              echo "unsigned=false" >> "$GITHUB_OUTPUT"
+              echo "${{ matrix.target }}: Linux packages carry no code signature"
+              exit 0
+              ;;
             win-*) names="AZURE_TENANT_ID AZURE_CLIENT_ID AZURE_CLIENT_SECRET AZURE_TRUSTED_SIGNING_ENDPOINT AZURE_TRUSTED_SIGNING_ACCOUNT_NAME AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME AZURE_TRUSTED_SIGNING_PUBLISHER_NAME" ;;
             mac-*) names="MACOS_CERTIFICATE_P12 MACOS_CERTIFICATE_PASSWORD AVN_DESKTOP_MACOS_SIGNING_IDENTITY AVN_DESKTOP_MACOS_TEAM_ID APPLE_API_KEY_P8 APPLE_API_KEY_ID APPLE_API_ISSUER" ;;
           esac
@@ -115,15 +149,15 @@ jobs:
             echo "::error::${{ matrix.target }}: signing is partly configured; missing:${missing}"
             exit 1
           fi
-          if [ -z "$missing" ]; then signed=true; else signed=false; fi
-          echo "signed=${signed}" >> "$GITHUB_OUTPUT"
-          if [ "$signed" = true ]; then echo "${{ matrix.target }}: signing enabled"; else echo "${{ matrix.target }}: no signing secrets, building unsigned"; fi
+          if [ -z "$missing" ]; then unsigned=false; else unsigned=true; fi
+          echo "unsigned=${unsigned}" >> "$GITHUB_OUTPUT"
+          if [ "$unsigned" = false ]; then echo "${{ matrix.target }}: signing enabled"; else echo "${{ matrix.target }}: no signing secrets, building unsigned"; fi
 
       # Seed preparation signs every embedded Mach-O with `codesign --sign`
       # before electron-builder runs, so the Developer ID identity must already
       # be in a keychain on the search list.
       - name: Import the macOS signing identity
-        if: startsWith(matrix.target, 'mac-') && steps.signing.outputs.signed == 'true'
+        if: startsWith(matrix.target, 'mac-') && steps.signing.outputs.unsigned == 'false'
         env:
           MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
           MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
@@ -158,21 +192,28 @@ jobs:
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
         run: |
-          if [ "${{ steps.signing.outputs.signed }}" = true ]; then
-            pnpm run package:desktop:${{ matrix.script }}
-          else
+          if [ "${{ steps.signing.outputs.unsigned }}" = true ]; then
             pnpm run package:desktop:${{ matrix.script }}:unsigned
+          else
+            pnpm run package:desktop:${{ matrix.script }}
           fi
 
       # Each target writes its own feed under the channel's name (latest.yml,
-      # alpha.yml, alpha-mac.yml, ...). The target goes into the name so the
-      # release job can merge the two Windows feeds into one.
+      # alpha.yml, alpha-mac.yml, alpha-linux-arm64.yml, ...). The target goes
+      # into the name so the release job can merge the two Windows feeds into
+      # one. The unsigned macOS variant contributes its DMG only: its feed would
+      # replace the signed build's.
       - name: Collect release assets
         run: |
           artifacts="apps/desktop/.desktop-build/targets/${{ matrix.target }}/artifacts"
           mkdir -p release-assets
           shopt -s nullglob
-          for file in "$artifacts"/*.exe "$artifacts"/*.dmg "$artifacts"/*.zip "$artifacts"/*.blockmap; do
+          if [ "${{ matrix.variant }}" = unsigned ]; then
+            cp "$artifacts"/*.dmg release-assets/
+            ls -la release-assets
+            exit 0
+          fi
+          for file in "$artifacts"/*.exe "$artifacts"/*.dmg "$artifacts"/*.zip "$artifacts"/*.AppImage "$artifacts"/*.deb "$artifacts"/*.blockmap; do
             cp "$file" release-assets/
           done
           for feed in "$artifacts"/*.yml; do
@@ -184,7 +225,7 @@ jobs:
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: release-${{ matrix.target }}
+          name: release-${{ matrix.target }}${{ matrix.variant && format('-{0}', matrix.variant) || '' }}
           path: release-assets/*
           if-no-files-found: error
 
@@ -215,7 +256,7 @@ jobs:
           merge-multiple: true
 
       # Windows x64 and arm64 feeds merge into one file that lists both
-      # installers; the macOS feed only drops its target suffix.
+      # installers; the macOS and Linux feeds only drop their target suffix.
       - name: Assemble update feeds
         run: |
           shopt -s nullglob

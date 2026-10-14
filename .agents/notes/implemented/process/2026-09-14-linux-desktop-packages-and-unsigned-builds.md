@@ -18,7 +18,7 @@ Two defects independently prevented any package command from completing. The Lan
 
 The supported target set is `mac-arm64`, `win-arm64`, `win-x64`, `linux-arm64`, and `linux-x64`; [Windows arm64 desktop target](2026-09-14-windows-arm64-desktop-target.md) records the Windows arm64 addition, and [Desktop drops the Intel Mac target](2026-10-02-desktop-drops-intel-mac-target.md) records the removal of `mac-x64`. Each target keeps the fixed platform and architecture selectors that runtime preparation, seed preparation, and electron-builder must agree on.
 
-Linux packages without code signing and is distributed directly rather than through the update channel. A matching Linux host builds it, and any Docker host builds it through a container command. The `upload:*` commands reject both Linux targets, and `DesktopUploadTargetName` excludes them from the upload plan at the type level.
+Linux packages without code signing and is distributed directly rather than through the update channel. A matching Linux host builds it, any Docker host builds it through a container command, and release automation builds both Linux targets on Ubuntu runners. The `upload:*` commands reject both Linux targets, and `DesktopUploadTargetName` excludes them from the upload plan at the type level.
 
 An unsigned build is available for macOS and Windows through the `--unsigned` flag and the matching `package:*:unsigned` scripts. It skips seed signing, application and installer signing, macOS notarization, the DMG artifact hook, and the completion record that upload requires. Signed packaging is unchanged and remains the only path that can publish.
 
@@ -26,7 +26,11 @@ The Landlock packaging step reads `native/landlock-run`, and the Desktop Host ov
 
 ## Linux targets
 
-electron-builder emits an AppImage and a deb for `--linux`, and both architectures map onto its existing `--arm64` and `--x64` selectors. The Linux configuration names the executable `aeven` and declares `Aeven` as the deb maintainer.
+electron-builder emits an AppImage and a deb for `--linux`, and both architectures map onto its existing `--arm64` and `--x64` selectors. The Linux configuration names the executable `aeven`, declares `Aeven <hello@aeven.io>` as the deb maintainer, and writes the launcher `Comment` and the deb description from its own synopsis and description rather than from the maintainer-facing `description` in the package manifest.
+
+`resources/linux/icons` holds one PNG per icon-theme size from 16 to 512 px, each rendered from `resources/icon-macos.svg` instead of downscaled from one bitmap. `desktopName` in `package.json` with `linux.syncDesktopName` gives the installed `.desktop` file the name Electron reports as the window's `app_id` and `WM_CLASS`, so a dock or taskbar associates a running window with the entry that carries the icon. Both targets use the static AppImage runtime (`toolsets.appimage`), which starts where a distribution no longer ships the system `libfuse2` that electron-builder 26's default runtime loads.
+
+The deb declares the Electron runtime libraries it needs, ALSA for microphone dictation included, and gives every library that Debian 13 and Ubuntu 24.04 renamed for 64-bit time a `t64`-or-old-name alternative so the package also installs on an older release.
 
 The deb exists because Chromium's setuid sandbox helper is what lets a distribution that restricts unprivileged user namespaces start the AppImage. Distributions in that state can install the deb instead.
 
@@ -54,6 +58,8 @@ Seed preparation skips its Mach-O signing pass under the same variable. An unsig
 
 An unsigned artifact is for local verification. Gatekeeper blocks a downloaded macOS copy until the tester removes its quarantine attribute, and Windows SmartScreen warns before an unsigned installer runs.
 
+The release workflow carries one extra, always unsigned `mac-arm64` job beside the signed one. It publishes that build's DMG alone and never its update feed, which would replace the signed build's, so a DMG is downloadable while notarization is pending. Both variants write into the same target directory, so the unsigned build's `-unsigned` artifact name is what keeps the two apart.
+
 ## Alternatives considered
 
 **Require credentials and document a self-signed certificate instead.** A self-signed identity still needs a keychain entry, a Team ID, and a trust decision on the reviewing machine, and it would not explain why the macOS application needs an ad-hoc signature to start. The `--unsigned` flag states the actual capability, which is that packaging works with no identity at all.
@@ -70,9 +76,9 @@ An unsigned artifact is for local verification. Gatekeeper blocks a downloaded m
 
 A developer can now build and launch the packaged application on any platform without holding release credentials, and the packaged paths that previously required a release identity are reviewable locally.
 
-Linux gains a release target, which means the platform table in the [packaging note](../architecture/2026-08-25-electron-desktop-packaging-and-updates.md), both Desktop READMEs, and the target lists in code and tests move together. Adding a target now touches the build-path map, the auto-update map, the target table, the upload target type, and the package script manifests.
+Linux gains a release target, which means the platform table in the [packaging note](../architecture/2026-08-25-electron-desktop-packaging-and-updates.md), both Desktop READMEs, and the target lists in code and tests move together. Adding a target now touches the build-path map, the auto-update map, the target table, the upload target type, and the package script manifests. Release automation builds Linux on the runner rather than through the container, installing Ruby, fpm, fakeroot, and CMake there, so the container commands remain the local path for a host without the Linux packaging toolchain.
 
-The unsigned mode is a development path, not a release path. It is deliberately unavailable from `upload:*`, and an unsigned macOS artifact is quarantined by Gatekeeper for anyone who receives it.
+The unsigned mode is a development path, not a release path. It is deliberately unavailable from `upload:*`, it never carries an update feed, and an unsigned macOS artifact is quarantined by Gatekeeper for anyone who receives it. The release workflow's unsigned macOS DMG is the one published unsigned artifact: a directly downloadable stopgap while notarization is pending, replaced by the signed build's DMG rather than advertised as an update.
 
 The Docker path builds a repository tar stream plus a store volume; the first build pays for the image and a full dependency install, and a cross-architecture build pays for emulation on top of that.
 
@@ -80,4 +86,4 @@ Two defects are fixed in the same change because neither could be verified witho
 
 ## Testing
 
-`apps/desktop/tests/package-target.spec.ts` covers the Linux selectors, the matching-host requirement, the Docker-command rejection message, and `--unsigned` parsing. `apps/desktop/tests/desktop-build-paths.spec.ts` and `apps/desktop/tests/desktop-auto-update-environment.spec.ts` cover the Linux target resolution and keep the unsupported-target rejection by asserting it for a platform outside the supported set. `apps/desktop/tests/macos-signature.spec.ts` covers the unsigned macOS configuration, including the ad-hoc identity and the inert artifact hook, and the unsigned Windows configuration without the EV token signer. `apps/desktop/tests/desktop-upload-plan.spec.ts` covers the upload plan against the narrowed upload target type.
+`apps/desktop/tests/package-target.spec.ts` covers the Linux selectors, the matching-host requirement, the Docker-command rejection message, and `--unsigned` parsing. `apps/desktop/tests/linux-package-config.spec.ts` covers the Linux packaging configuration: the AppImage and deb targets, the icon-theme set, the desktop-name association, the static AppImage runtime, the deb dependencies, and the maintainer and launcher copy. `apps/desktop/tests/desktop-build-paths.spec.ts` and `apps/desktop/tests/desktop-auto-update-environment.spec.ts` cover the Linux target resolution and keep the unsupported-target rejection by asserting it for a platform outside the supported set. `apps/desktop/tests/macos-signature.spec.ts` covers the unsigned macOS configuration, including the ad-hoc identity and the inert artifact hook, and the unsigned Windows configuration without the EV token signer. `apps/desktop/tests/desktop-upload-plan.spec.ts` covers the upload plan against the narrowed upload target type.

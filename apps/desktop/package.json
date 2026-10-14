@@ -1,6 +1,7 @@
 {
   "name": "@aeven/desktop",
   "productName": "Aeven",
+  "desktopName": "aeven.desktop",
   "description": "Electron desktop shell for an isolated pnpm-installed avn runtime",
   "version": "0.1.2-alpha.5",
   "homepage": "https://github.com/Aeven-AI/Harness",

@@ -106,7 +106,7 @@ macOS arm64 命令要求 Apple Silicon；Intel Mac 不是 Desktop 构建目标�
 
 ### 图标
 
-`resources/` 存放应用图标，`installer/assets/` 存放 NSIS 侧边栏图片；每个位图都按自身边长从同目录的 SVG 渲染。macOS 的应用与挂载后的 DMG 卷使用 `icon-macos.icns`，Windows 的可执行文件、安装程序与卸载程序使用 `icon-windows.ico`，Linux 使用 `icon-macos.png`。`installer-sidebar.bmp` 填充 Windows 安装程序与卸载程序的欢迎页和完成页。`tray-windows.ico`（16–64 px）与 macOS 菜单栏模板图 `trayTemplate.png`（16 px，附 `@2x`）在应用显示托盘图标之前不会被打包。
+`resources/` 存放应用图标，`installer/assets/` 存放 NSIS 侧边栏图片；每个位图都按自身边长从同目录的 SVG 渲染。macOS 的应用与挂载后的 DMG 卷使用 `icon-macos.icns`，Windows 的可执行文件、安装程序与卸载程序使用 `icon-windows.ico`，Linux 包使用 `linux/icons/`，为 16 至 512 px 的每个图标主题尺寸各提供一个 PNG，未打包的 Linux 运行则使用 `icon-macos.png`。`installer-sidebar.bmp` 填充 Windows 安装程序与卸载程序的欢迎页和完成页。`tray-windows.ico`（16–64 px）与 macOS 菜单栏模板图 `trayTemplate.png`（16 px，附 `@2x`）在应用显示托盘图标之前不会被打包。
 
 ### Linux 软件包
 
@@ -117,13 +117,13 @@ pnpm run package:desktop:linux:arm64:docker
 pnpm run package:desktop:linux:x64:docker
 ```
 
-Docker 命令会为目标架构构建 `linux-builder.Dockerfile`，把 git 会提交的文件连同 `.git` 以流的形式送入容器，在容器中全新安装依赖后运行 Linux 打包命令，再把顶层产物复制到 `apps/desktop/.desktop-build/targets/<target>/artifacts`。它会转发 `AVN_DESKTOP_APP_ID`，并把 pnpm store 保存在 `avn-desktop-linux-pnpm-store` 卷中。目标架构与 Docker 宿主不同时会在模拟下运行。`.deb` 会安装 Chromium 沙箱辅助程序；Ubuntu 24.04 等限制非特权用户命名空间的发行版在缺少它时可能拒绝启动 AppImage。发布 workflow 不构建 Linux 目标。
+Docker 命令会为目标架构构建 `linux-builder.Dockerfile`，把 git 会提交的文件连同 `.git` 以流的形式送入容器，在容器中全新安装依赖后运行 Linux 打包命令，再把顶层产物复制到 `apps/desktop/.desktop-build/targets/<target>/artifacts`。它会转发 `AVN_DESKTOP_APP_ID`，并把 pnpm store 保存在 `avn-desktop-linux-pnpm-store` 卷中。目标架构与 Docker 宿主不同时会在模拟下运行。`.deb` 会安装 Chromium 沙箱辅助程序；Ubuntu 24.04 等限制非特权用户命名空间的发行版在缺少它时可能拒绝启动 AppImage。发布 workflow 在原生 runner 上构建两个 Linux 目标。
 
 ### 发布版本
 
-发布版本是 `Aeven-AI/Aeven` 的 GitHub Release，由 `.github/workflows/release-desktop.yml` 构建并发布。推送与根目录 `package.json` 版本一致的标签（例如 `v0.1.2-alpha.5`），或手动启动该 workflow；手动运行只把安装包保留为 workflow artifact，除非设置了 `publish` 输入。它在 `windows-latest` 上构建 `win-x64`、在 `windows-11-arm` 上构建 `win-arm64`、在 `macos-15` 上构建 `mac-arm64`，然后把安装包、macOS ZIP、blockmap 与更新元数据作为同一个版本发布；带预发布标识的版本会以 prerelease 发布。两个 Windows 更新元数据会合并为一个同时列出两个安装包的文件（`scripts/merge-update-manifests.ts`），electron-updater 会选择文件名带有当前运行架构的安装包。
+发布版本是 `Aeven-AI/Aeven` 的 GitHub Release，由 `.github/workflows/release-desktop.yml` 构建并发布。推送与根目录 `package.json` 版本一致的标签（例如 `v0.1.2-alpha.5`），或手动启动该 workflow；手动运行只把安装包保留为 workflow artifact，除非设置了 `publish` 输入。它在 `windows-latest` 上构建 `win-x64`、在 `windows-11-arm` 上构建 `win-arm64`、在 `macos-15` 上构建 `mac-arm64`、在 `ubuntu-24.04` 上构建 `linux-x64`、在 `ubuntu-24.04-arm` 上构建 `linux-arm64`，另外还有一个始终不签名的 `mac-arm64` 构建，在公证尚未完成时提供其 `-unsigned` DMG。随后把安装包、macOS ZIP、AppImage 与 deb 包、blockmap 与更新元数据作为同一个版本发布；带预发布标识的版本会以 prerelease 发布。两个 Windows 更新元数据会合并为一个同时列出两个安装包的文件（`scripts/merge-update-manifests.ts`），electron-updater 会选择文件名带有当前运行架构的安装包。
 
-每个目标在全部对应 secret 存在时签名，全部缺失时以 `--unsigned` 构建，只存在一部分时失败。Windows 签名使用 Azure Trusted Signing（见下文）；macOS 签名需要 `MACOS_CERTIFICATE_P12`（base64 编码的 Developer ID Application 证书与私钥）、`MACOS_CERTIFICATE_PASSWORD`、`AVN_DESKTOP_MACOS_SIGNING_IDENTITY`、`AVN_DESKTOP_MACOS_TEAM_ID`，以及 App Store Connect API key：`APPLE_API_KEY_P8`（`.p8` 文件内容）、`APPLE_API_KEY_ID` 与 `APPLE_API_ISSUER`。仓库变量 `AVN_DESKTOP_APP_ID` 设置应用 ID，默认为 `com.aeven.desktop`。本地打包时，shell 未设置 `AVN_DESKTOP_APP_ID` 时会从仓库根目录 `.env` 读取它，这是唯一读取的打包设置。
+每个 Windows 与 macOS 目标在全部对应 secret 存在时签名，全部缺失时以 `--unsigned` 构建，只存在一部分时失败；Linux 包不带代码签名。Windows 签名使用 Azure Trusted Signing（见下文）；macOS 签名需要 `MACOS_CERTIFICATE_P12`（base64 编码的 Developer ID Application 证书与私钥）、`MACOS_CERTIFICATE_PASSWORD`、`AVN_DESKTOP_MACOS_SIGNING_IDENTITY`、`AVN_DESKTOP_MACOS_TEAM_ID`，以及 App Store Connect API key：`APPLE_API_KEY_P8`（`.p8` 文件内容）、`APPLE_API_KEY_ID` 与 `APPLE_API_ISSUER`。仓库变量 `AVN_DESKTOP_APP_ID` 设置应用 ID，默认为 `com.aeven.desktop`。本地打包时，shell 未设置 `AVN_DESKTOP_APP_ID` 时会从仓库根目录 `.env` 读取它，这是唯一读取的打包设置。
 
 macOS 配置使用必填发布环境，不会接受钥匙串中最先发现的证书。空值、格式错误的 Team ID、包含 electron-builder 不支持的 `Developer ID Application:` 前缀的签名身份，以及不完整的公证凭据都会被拒绝。macOS 打包要求已配置的身份及其私钥可用。打包会在打包 Whisper worker 与 WhatsApp 连接器的平台包之前，把该身份、安全时间戳与 hardened runtime 应用到它们的可执行文件，seed 准备则把它们应用到 pnpm 存储中的每个 Mach-O 文件；应用签名完成后，深度严格检查会拒绝其他叶证书 Authority 或 Team ID，验证通过才生成发布产物。Electron-builder 会在封装前公证应用并钉票，然后签署 DMG。DMG 的 artifact-completion 钩子随后会公证它并钉票，再要求其身份、票据与 Gatekeeper 验证全部通过；只有钩子成功，electron-builder 才能发布该文件。私钥可以来自登录钥匙串或 electron-builder 的标准 `CSC_LINK` 输入；环境中的 `CSC_NAME` 与证书发现顺序都不能选择发布所有者。公证凭据也可以使用 electron-builder 支持的完整 Apple ID 或钥匙串 profile 方式。手动执行 `pnpm --dir apps/desktop run verify:mac-signature -- <path-to-app>` 重复应用检查时，也必须提供两个 macOS 身份变量。
 
