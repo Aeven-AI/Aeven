@@ -26,7 +26,7 @@ import { resolveDesktopPaths } from './paths.ts'
 import { DesktopProjectManager, type DesktopProjectHooks } from './project-manager.ts'
 import { DesktopHostProcess } from './host-process.ts'
 import { DESKTOP_AEVEN_API_PATH, type DesktopAevenSignIn } from './host-protocol.ts'
-import { DESKTOP_IPC, type DesktopMenuCommand, type DesktopUpdateState } from './ipc.ts'
+import { DESKTOP_IPC, type DesktopCaptionAction, type DesktopMenuCommand, type DesktopUpdateState } from './ipc.ts'
 import { formatDesktopMessage, resolveDesktopLocale } from './locale.ts'
 import { claimDesktopSingleInstance } from './single-instance.ts'
 import { DesktopUpdateCoordinator } from './update-coordinator.ts'
@@ -153,13 +153,20 @@ const TRAFFIC_LIGHT_INSET_X = 24
 const TRAFFIC_LIGHT_INSET_Y = SIDEBAR_ROW_PADDING + (CONTROL_SIZE - WINDOW_BUTTON_SIZE) / 2 - 1
 
 /**
- * Height of the Windows caption strip: Windows 11's own caption height. The
- * preload moves the page below it (`CAPTION_STRIP_HEIGHT` there).
+ * Height of the Windows and Linux caption strip: Windows 11's own caption
+ * height. The preload moves the page below it (`CAPTION_STRIP_HEIGHT` there).
  */
 const CAPTION_BUTTONS_HEIGHT = 32
 
 /** Caption glyph colours, matching the page's primary label in each scheme. */
 const CAPTION_SYMBOL_COLOR = { light: '#0f1115', dark: '#f9fafb' } as const
+
+/**
+ * Windows and Linux lay the page below a page-drawn strip (`installCaptionStrip`
+ * in the preload). Windows draws its own caption buttons over it; Linux has the
+ * preload draw them, since GTK would paint its theme's buttons.
+ */
+const CAPTION_STRIP_PLATFORM = process.platform === 'win32' || process.platform === 'linux'
 
 function createWindow(preload: string): BrowserWindow {
   const window = new BrowserWindow({
@@ -171,11 +178,13 @@ function createWindow(preload: string): BrowserWindow {
     show: false,
     // The page draws its own header, so the window contributes no title strip.
     // macOS insets the traffic lights over the page's top-left and keeps the
-    // application menu in the system menu bar. Windows draws its minimize,
-    // maximize and close buttons in a slim strip above the page, which the
-    // preload clears and makes the window's drag area; the menu's
-    // accelerators stay active without a visible menu bar. Linux keeps the
-    // standard frame, whose window manager decides the buttons.
+    // application menu in the system menu bar. Windows and Linux show a slim
+    // strip above the page, which the preload clears and makes the window's
+    // drag area; the menu's accelerators stay active without a native menu
+    // bar. Windows draws its minimize, maximize and close buttons over the
+    // strip. Linux gets no frame at all, so neither GTK's menu bar nor its
+    // theme's caption buttons sit outside the page's colours, and the preload
+    // draws the buttons.
     ...process.platform === 'darwin'
       ? { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: TRAFFIC_LIGHT_INSET_X, y: TRAFFIC_LIGHT_INSET_Y } }
       : process.platform === 'win32'
@@ -187,7 +196,9 @@ function createWindow(preload: string): BrowserWindow {
             height: CAPTION_BUTTONS_HEIGHT,
           },
         }
-        : {},
+        : process.platform === 'linux'
+          ? { frame: false }
+          : {},
     // Packaged builds take the icon from the executable or desktop entry; an unpackaged
     // Windows or Linux run would otherwise show Electron's. macOS development uses its bundle icon.
     ...!app.isPackaged && process.platform !== 'darwin'
@@ -417,7 +428,7 @@ async function main(): Promise<void> {
   // entries and opens each one's submenu under its label, so the strip carries
   // the same native menus, accelerators included, that a framed window shows.
   const captionMenuWindow = (event: IpcMainInvokeEvent): BrowserWindow => {
-    if (process.platform !== 'win32' || mainWindow === undefined || event.sender !== mainWindow.webContents
+    if (!CAPTION_STRIP_PLATFORM || mainWindow === undefined || event.sender !== mainWindow.webContents
       || event.senderFrame !== event.sender.mainFrame) {
       throw new Error('avn desktop: caption menu request from another frame')
     }
@@ -441,6 +452,25 @@ async function main(): Promise<void> {
     return new Promise<void>((resolvePopup) => {
       submenu.popup({ window, x: Math.round(x * zoom), y: Math.round(y * zoom), callback: () => { resolvePopup() } })
     })
+  })
+  // A frameless Linux window has only the strip's page-drawn buttons to
+  // minimize, maximize and close it; their names follow the shell's locale.
+  ipcMain.handle(DESKTOP_IPC.captionButtonLabels, (event): Record<DesktopCaptionAction, string> => {
+    if (process.platform !== 'linux' || mainWindow === undefined || event.sender !== mainWindow.webContents
+      || event.senderFrame !== event.sender.mainFrame) {
+      throw new Error('avn desktop: caption button request from another frame')
+    }
+    return { minimize: messages.minimizeWindow, maximize: messages.maximizeWindow, close: messages.closeWindow }
+  })
+  ipcMain.on(DESKTOP_IPC.captionWindowControl, (event, action: unknown) => {
+    if (process.platform !== 'linux' || mainWindow === undefined || event.sender !== mainWindow.webContents) return
+    if (event.senderFrame !== event.sender.mainFrame) return
+    switch (action) {
+      case 'minimize': mainWindow.minimize(); return
+      case 'maximize': if (mainWindow.isMaximized()) mainWindow.unmaximize(); else mainWindow.maximize(); return
+      case 'close': mainWindow.close(); return
+      default: return
+    }
   })
   // The app page says once that it takes the addresses its own content opens;
   // until then the shell hands them to the system browser, which is what a page

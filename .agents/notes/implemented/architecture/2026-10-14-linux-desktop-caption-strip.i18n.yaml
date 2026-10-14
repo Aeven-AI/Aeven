@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-14-linux-desktop-caption-strip.md
+2026-10-14-linux-desktop-caption-strip.md: e6031f7516f7822ff4560548c04af119aa01e64a
+2026-10-14-linux-desktop-caption-strip.zh.md: ed5343584ac557375f91d5535a60fb4ac4da11ee

@@ -1,7 +1,13 @@
 /** Desktop custom-protocol API carrier: the marker, the right sidebar browser operations, and menu commands. */
 
 import { contextBridge, ipcRenderer } from 'electron'
-import { DESKTOP_IPC, type AvnDesktopAppApi, type DesktopBrowserCursor, type DesktopMenuCommand } from './ipc.ts'
+import {
+  DESKTOP_IPC,
+  type AvnDesktopAppApi,
+  type DesktopBrowserCursor,
+  type DesktopCaptionAction,
+  type DesktopMenuCommand,
+} from './ipc.ts'
 
 const api: AvnDesktopAppApi = {
   protocolVersion: 1,
@@ -58,16 +64,17 @@ function pageScheme(): 'light' | 'dark' {
 }
 
 /**
- * Keep the Windows caption glyphs and the strip's menu bar legible as the page's scheme changes.
- * @param menuBar - the strip's menu bar, which takes the scheme as an attribute.
+ * Keep the caption glyphs, the strip, and its controls legible as the page's scheme changes.
+ * @param controls - the strip's shadow hosts, which take the scheme as an attribute.
  */
-function reportCaptionScheme(menuBar: HTMLElement): void {
+function reportCaptionScheme(controls: readonly HTMLElement[]): void {
   let reported: 'light' | 'dark' | undefined
   const report = (): void => {
     const scheme = pageScheme()
     if (scheme === reported) return
     reported = scheme
-    menuBar.dataset['scheme'] = scheme
+    for (const control of controls) control.dataset['scheme'] = scheme
+    document.documentElement.dataset['avnCaptionScheme'] = scheme
     ipcRenderer.send(DESKTOP_IPC.captionScheme, scheme)
   }
   new MutationObserver(report).observe(document.documentElement, { attributes: true })
@@ -75,14 +82,15 @@ function reportCaptionScheme(menuBar: HTMLElement): void {
   report()
 }
 
-/** Height of the Windows caption strip, matching the overlay (`CAPTION_BUTTONS_HEIGHT` in main.ts). */
+/** Height of the Windows and Linux caption strip, matching the overlay (`CAPTION_BUTTONS_HEIGHT` in main.ts). */
 const CAPTION_STRIP_HEIGHT = 32
 
 /**
  * Clear the strip Windows draws its caption buttons in and make it the
  * window's drag area. The body gives up the strip's height, so every screen,
- * sign-in included, lays out below it with nothing in the client knowing; the
- * strip shows the body's own background.
+ * sign-in included, lays out below it with nothing in the client knowing. The
+ * strip is #f2f2f2 in the light scheme and shows the body's own background in
+ * the dark one.
  */
 function installCaptionStrip(): void {
   const style = document.createElement('style')
@@ -99,6 +107,9 @@ function installCaptionStrip(): void {
       left: 0;
       height: ${String(CAPTION_STRIP_HEIGHT)}px;
       -webkit-app-region: drag;
+    }
+    html[data-avn-caption-buttons][data-avn-caption-scheme='light'] body::before {
+      background: #f2f2f2;
     }
   `
   document.head.append(style)
@@ -162,18 +173,77 @@ function installCaptionMenu(): HTMLElement {
   return host
 }
 
+/** Linux caption buttons in strip order, each with its 10px glyph. */
+const CAPTION_BUTTONS: ReadonlyArray<{ action: DesktopCaptionAction; glyph: string }> = [
+  { action: 'minimize', glyph: '<path d="M0 5.5h10"/>' },
+  { action: 'maximize', glyph: '<rect x="0.5" y="0.5" width="9" height="9"/>' },
+  { action: 'close', glyph: '<path d="M0.5 0.5l9 9M9.5 0.5l-9 9"/>' },
+]
+
+/**
+ * Put minimize, maximize and close buttons at the strip's right end of a
+ * frameless Linux window, flat on the strip's own background. Like the menu
+ * bar they live in a shadow root and never take focus.
+ * @returns the buttons' host element.
+ */
+function installCaptionButtons(): HTMLElement {
+  const host = document.createElement('div')
+  host.dataset['avnCaptionControls'] = ''
+  const shadow = host.attachShadow({ mode: 'open' })
+  const style = document.createElement('style')
+  style.textContent = `
+    :host {
+      position: fixed; top: 0; right: 0; z-index: 2147483647;
+      height: ${String(CAPTION_STRIP_HEIGHT)}px; display: flex;
+      -webkit-app-region: no-drag;
+      --glyph: #000000; --hover: rgba(0, 0, 0, 0.06); --press: rgba(0, 0, 0, 0.1);
+    }
+    :host([data-scheme='dark']) { --glyph: #f9fafb; --hover: rgba(255, 255, 255, 0.08); --press: rgba(255, 255, 255, 0.14); }
+    button {
+      width: 46px; height: 100%; padding: 0; border: 0; border-radius: 0;
+      display: grid; place-items: center;
+      background: transparent; color: var(--glyph); cursor: default;
+    }
+    button:hover { background: var(--hover); }
+    button:active { background: var(--press); }
+    svg { width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 1; }
+  `
+  shadow.append(style)
+  const buttons = new Map<DesktopCaptionAction, HTMLButtonElement>()
+  for (const { action, glyph } of CAPTION_BUTTONS) {
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.tabIndex = -1
+    button.innerHTML = `<svg viewBox="0 0 10 10" aria-hidden="true">${glyph}</svg>`
+    button.addEventListener('mousedown', (event) => { event.preventDefault() })
+    button.addEventListener('click', () => { ipcRenderer.send(DESKTOP_IPC.captionWindowControl, action) })
+    shadow.append(button)
+    buttons.set(action, button)
+  }
+  void (ipcRenderer.invoke(DESKTOP_IPC.captionButtonLabels) as Promise<Record<DesktopCaptionAction, string>>).then((labels) => {
+    for (const [action, button] of buttons) {
+      button.setAttribute('aria-label', labels[action])
+      button.title = labels[action]
+    }
+  })
+  document.body.append(host)
+  return host
+}
+
 // The shell marks the document as the desktop app. macOS hides the title bar
 // and insets the traffic lights over the page's top-left, which the layout
-// keeps clear and drags by its header band. Windows hides it too and draws its
-// caption buttons in a strip above the page. Linux keeps the standard frame.
+// keeps clear and drags by its header band. Windows and Linux hide it too and
+// show a strip above the page; Windows draws its caption buttons there, and on
+// Linux this preload draws them.
 // Only this carrier sets these: the same client served over HTTP has no window
 // to manage.
 window.addEventListener('DOMContentLoaded', () => {
   document.documentElement.dataset['avnDesktop'] = ''
   if (process.platform === 'darwin') document.documentElement.dataset['avnTrafficLights'] = ''
-  if (process.platform === 'win32') {
+  if (process.platform === 'win32' || process.platform === 'linux') {
     document.documentElement.dataset['avnCaptionButtons'] = ''
     installCaptionStrip()
-    reportCaptionScheme(installCaptionMenu())
+    const menuBar = installCaptionMenu()
+    reportCaptionScheme(process.platform === 'linux' ? [menuBar, installCaptionButtons()] : [menuBar])
   }
 })
