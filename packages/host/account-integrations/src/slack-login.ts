@@ -319,8 +319,11 @@ export async function startSlackLogin(options: SlackLoginOptions): Promise<Slack
   const listener = await listenForSlackCallback(options.port, state, controller.signal)
   const redirectUri = `http://127.0.0.1:${listener.port}${SLACK_CALLBACK_PATH}`
   const url = new URL(endpoints.authorize)
+  // `oauth/v2_user/authorize` issues a user token, so it reads the requested scopes from
+  // `scope`. Sending them in `user_scope`, as the bot-token `oauth/v2/authorize` expects,
+  // makes Slack refuse the consent with "Invalid permissions requested / No scopes requested".
   url.search = new URLSearchParams({
-    client_id: options.clientId, user_scope: options.scopes.join(','), redirect_uri: redirectUri,
+    client_id: options.clientId, scope: options.scopes.join(','), redirect_uri: redirectUri,
     state, code_challenge: challenge, code_challenge_method: 'S256',
   }).toString()
   const timer = setTimeout(() => {
