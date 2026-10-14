@@ -80,16 +80,22 @@ export type RpcMessage = ClientRequest | ServerResponse
 export interface ConnectionTrustRequest {
   /** Request headers supplied by either the Fetch or node:http representation. */
   readonly headers: Headers | Readonly<Record<string, string | readonly string[] | undefined>>
+  /**
+   * Request-target path with its query, as the carrier states it. Carriers that
+   * serve a whole prefix state it, which is what lets the fence admit a
+   * browser-native resource read by its exact route; a request without it is
+   * never admitted that way.
+   */
+  readonly url?: string | undefined
+  /** HTTP method, when the carrier states one. */
+  readonly method?: string | undefined
 }
 
 /** HTTP status returned before dispatch, or undefined when the request may proceed. */
 export type ConnectionRequestRejection = 401 | 403 | undefined
 
 /** Root/index request facts used by the browser-token exchange. */
-export interface ConnectionIndexRequest extends ConnectionTrustRequest {
-  readonly method?: string | undefined
-  readonly url?: string | undefined
-}
+export type ConnectionIndexRequest = ConnectionTrustRequest
 
 /** Root/index response operations owned by the browser-token exchange. */
 export interface ConnectionIndexResponse {
@@ -181,6 +187,8 @@ export interface HostConnectionHandle {
 
   /**
    * Identify the caller behind a request the fence already admitted.
+   * Identity credentials take precedence over the Host account cookie; an
+   * unrecognized Authorization header never falls through to that cookie.
    *
    * For a route that must remember whose connection it is holding. A route that
    * only has to decide whether to answer uses {@link requestRejection}.
@@ -189,6 +197,13 @@ export interface HostConnectionHandle {
    * authenticates nobody.
    */
   identify(request: ConnectionTrustRequest): User | undefined
+
+  /**
+   * Renew the Host account cookie for an admitted identity bearer request.
+   * @param request - request the trust and identity fence already admitted.
+   * @returns Set-Cookie value, or undefined when the request carries no admitted bearer.
+   */
+  accountCookie(request: ConnectionTrustRequest): string | undefined
 
   /**
    * Dispatch one admitted request with its caller as the acting user, so work it starts can

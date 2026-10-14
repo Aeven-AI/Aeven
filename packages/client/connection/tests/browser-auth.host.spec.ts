@@ -91,6 +91,58 @@ afterEach(() => {
 })
 
 describe('BrowserAuth', () => {
+  it('mints a persistent account cookie without accepting the launch cookie as an account', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-15T12:00:00Z'))
+    const store = new RecordCredentials()
+    const auth = await createAuth(store, 1)
+    const req = request('/api/credential')
+    const header = auth.accountCookie(req, 'alice')!
+    expect(header).toMatch(/^avn-account-.*; Max-Age=43200; Path=\/api; Expires=.*; HttpOnly; SameSite=Strict$/u)
+    expect(header).not.toMatch(/Secure|Domain=/u)
+    const cookie = header.split(';', 1)[0]!
+    expect(auth.accountUserId(request('/api/file', undefined, { cookie }))).toBe('alice')
+    expect((await createAuth(store, 1)).accountUserId(request('/api/file', undefined, { cookie }))).toBe('alice')
+    expect(auth.isAuthenticated(request('/', undefined, { cookie }))).toBe(false)
+    expect(auth.accountUserId(request('/api/file', undefined, { cookie: exchange(auth).cookie }))).toBeUndefined()
+    const launch = exchange(auth).cookie
+    const accountName = cookie.split('=')[0]!
+    const launchName = launch.split('=')[0]!
+    expect(auth.accountUserId(request('/api/file', undefined, { cookie: accountName + launch.slice(launch.indexOf('=')) }))).toBeUndefined()
+    expect(auth.isAuthenticated(request('/', undefined, { cookie: launchName + cookie.slice(cookie.indexOf('=')) }))).toBe(false)
+    vi.setSystemTime(new Date('2026-10-15T13:00:00Z'))
+    const renewed = auth.accountCookie(req, 'alice')!.split(';', 1)[0]!
+    expect(renewed).not.toBe(cookie)
+    vi.setSystemTime(new Date('2026-10-16T00:30:00Z'))
+    expect(auth.accountUserId(request('/api/file', undefined, { cookie }))).toBeUndefined()
+    expect(auth.accountUserId(request('/api/file', undefined, { cookie: renewed }))).toBe('alice')
+    expect(auth.accountCookie({ headers: {} }, 'alice')).toBeUndefined()
+  })
+
+  it('rejects expired, wrong-authority, forged and malformed account cookies', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-15T12:00:00Z'))
+    const store = new RecordCredentials()
+    const auth = await createAuth(store, 1)
+    const cookie = auth.accountCookie(request('/api/credential'), 'alice')!.split(';', 1)[0]!
+    const name = cookie.split('=')[0]!
+    expect(auth.accountUserId(request('/api/file', '127.0.0.1:3081', { cookie }))).toBeUndefined()
+    const payload = { version: 1, authority: '127.0.0.1:3080', userId: 'alice', issuedAt: Date.now(), expiresAt: Date.now() + 3600000 }
+    for (const value of [
+      cookie.slice(0, -1) + (cookie.endsWith('A') ? 'B' : 'A'),
+      signedCookie(store, name, { ...payload, authority: '127.0.0.1:3081' }),
+      signedCookie(store, name, { ...payload, userId: 42 }),
+      signedCookie(store, name, { ...payload, userId: '' }),
+      signedCookie(store, name, { ...payload, userId: undefined }),
+      signedCookie(store, name, { ...payload, issuedAt: Date.now() + 1 }),
+      // An account cookie may not claim more life than the kind is granted, even
+      // when its signature is genuine and its stated expiry is still ahead.
+      signedCookie(store, name, { ...payload, expiresAt: Date.now() + 43200001 }),
+    ]) expect(auth.accountUserId(request('/api/file', undefined, { cookie: value }))).toBeUndefined()
+    vi.advanceTimersByTime(43200000)
+    expect(auth.accountUserId(request('/api/file', undefined, { cookie }))).toBeUndefined()
+  })
+
   it('mints one process token and a persistent authority-bound cookie', async () => {
     const store = new RecordCredentials()
     const processOwner = {}
