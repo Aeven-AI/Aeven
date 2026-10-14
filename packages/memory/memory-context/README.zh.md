@@ -15,6 +15,14 @@ kind: "package-reference"
 
 召回是一次查找，而查找可能什么都返回不了，因此本包还把所有者已确认的不变量注册为该轮次最后一个系统提示词段落。这份文档、它的预算与它的文本属于 [`@aeven/memory-invariants`](../memory-invariants/README.zh.md)；本包在每次组装时从 `ctx.memoryInvariants` 读取该块，没有这一行的组合不贡献任何块。
 
+## 目录
+
+- [使用本包](#use-this-package)
+- [模型体验](#model-experience)
+- [已知限制与延期工作](#known-limitations-and-deferred-work)
+- [开发备注](#dev-note)
+
+<a id="use-this-package"></a>
 ## 使用本包
 
 按 agent 挂载它（`standard`、`cordis` 与 `ptc` preset 都包含它），放在 host 的 `memory` 槽位旁边。没有注册提供方时，它不添加任何提示词段落，也不做任何事。记忆按已登录用户区分：没有 `SessionHeader.owner` 的会话（不认证任何人的组合，或在已登录请求之外启动的会话）既不参与召回也不被捕获。
@@ -32,6 +40,7 @@ kind: "package-reference"
 
 来源类型为 `user` 的消息，以及来自内置 `automations` 服务的已批准任务通知，会触发召回并成为被捕获的任务文本。其他插件与工具消息两者都不做，因此召回无法召回自己。下游监听器返回的步骤前决策是权威的：被改写或被拒绝的输入才是召回与捕获所看到的内容。
 
+<a id="model-experience"></a>
 ## 模型体验
 
 ### 已确认的不变量
@@ -121,6 +130,7 @@ Memory: <reason>. This request runs without recalled memory.
 
 在用户消息之后仅追加；它不会使更早的缓存条目失效。
 
+<a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与延期工作
 
 - **召回在每个直接用户轮次都运行** —— 包括问候；在提供方自己的排序之前没有任何相关性闸门。
@@ -131,6 +141,7 @@ Memory: <reason>. This request runs without recalled memory.
 - **捕获跟随实时事件** —— 进程在 `turn/end` 之前死亡的轮次不会被捕获，恢复的会话也不会重新捕获更早的轮次。一次性驱动会在 `session/settle` 检查点排空本轮次排队的捕获；被直接杀死的进程仍会丢失它们。
 - **结果证据是保守的** —— 纠正提示覆盖明确的英文与中文短语；验证陈述记录的是助手在成功工具调用旁边报告的内容，而不是判定任务通过的独立判断。
 
+<a id="dev-note"></a>
 ### 开发备注
 
 **运行时不变量：** 不发布伴随模块。本包贡献的每个值都按轮次从提供方结果与已提交会话事件推导，它不拥有任何可能被第二个观察者读出不同结果的状态。

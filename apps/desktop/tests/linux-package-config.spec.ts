@@ -33,9 +33,9 @@ describe('desktop Linux package configuration', () => {
   })
 
   it('associates the installed desktop entry with the window Electron identifies itself as', () => {
-    const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
+    const manifest: unknown = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
     expect(linuxConfig().linux.syncDesktopName).toBe(true)
-    expect(manifest.desktopName).toBe('aeven.desktop')
+    expect(manifest).toHaveProperty('desktopName', 'aeven.desktop')
   })
 
   it('uses the static AppImage runtime instead of the system libfuse2', () => {

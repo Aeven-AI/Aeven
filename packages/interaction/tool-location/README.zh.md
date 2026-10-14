@@ -7,7 +7,7 @@ kind: "package-reference"
 
 [English](README.md) | 中文
 
-## 概要
+## 概述
 
 `@aeven/tool-location` 让模型询问读者身在何处。它注册一个工具 `get_location`，其调用会成为一个 `location/request` waterfall，由显示该会话的客户端应答。读者批准位置权限或拒绝；没有这一批准就不会读取任何内容，而且模型会在询问读者之前说明为什么需要位置。没有能够询问的客户端时，调用报告位置不可用。
 

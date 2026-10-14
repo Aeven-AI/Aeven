@@ -1,5 +1,35 @@
 # Electron and ordinary browsers share the authenticated loopback Host.
 
+- id: identity-user-aeven
+  config:
+    apiUrl: !!js process.env.AEVEN_API_URL ?? 'https://aeven.io/api'
+    xOAuthUrl: !!js process.env.AEVEN_OAUTH_X_URL ?? 'https://preview.aeven.io/oauth/x'
+    appleOAuthUrl: !!js process.env.AEVEN_OAUTH_APPLE_URL ?? 'https://preview.aeven.io/oauth/apple'
+    googleOAuthUrl: !!js process.env.AEVEN_OAUTH_GOOGLE_URL ?? 'https://preview.aeven.io/oauth/google'
+    oauthFlow: window
+    webUrl: !!js process.env.AEVEN_WEB_URL ?? 'https://preview.aeven.io'
+    mediaUrl: !!js process.env.AEVEN_MEDIA_URL ?? 'https://preview.aeven.io'
+
+- id: llm-aeven
+  config:
+    apiUrl: !!js process.env.AEVEN_API_URL ?? 'https://aeven.io/api'
+
+- id: web-search-deepseek
+  config:
+    apiKeyEnv: AEVEN_TOKEN
+    baseURL: !!js (process.env.AEVEN_API_URL ?? 'https://aeven.io/api') + '/v1'
+    model: Aeven-1.0-Flash
+
+- id: media-aeven
+  config:
+    apiUrl: !!js process.env.AEVEN_API_URL ?? 'https://aeven.io/api'
+
+- id: account-integrations
+  config:
+    apiUrl: !!js process.env.AEVEN_API_URL ?? 'https://aeven.io/api'
+    slackClientId: !!js process.env.SLACK_CLIENT_ID
+    slackCallbackPort: 12751
+
 - id: web-startup
   disabled: true
 

@@ -11,12 +11,21 @@ kind: "package-reference"
 
 `avn-memory` 提供 `ctx.memory`，即单一长期记忆提供方的槽位。消费方调用 `recall`、`capture`、`closeSession`，读取类操作（`detail`、`timeline`、`environments`、`skills`、`useSkill`），以及所有者的记忆操作（`list`、`remember`、`edit`、`forget`、`feedback`），完全不需要知道背后的实现。`list` 接受可选的 `domains` 过滤；它的分页、偏移与总数随后只统计这些领域中的记忆。`edit` 与 `forget` 只作用于该作用域所有者的记忆。每条记忆都有一个领域（`MemoryDomain`）：`person`、`world` 与 `experience` 记忆在该所有者的每个会话中都被召回，`project` 记忆只在捕获它的那个工作区的会话中被召回，提供方不返回其他工作区的项目记忆。记忆属于一个已登录用户：每个 `MemoryScope` 都携带来自 `SessionHeader.owner` 的所有者账户 id。它还导出 `memoryScopeOf(agent)`，由它推导该作用域与该会话的模型路由，并对没有所有者的会话返回 undefined，因此这样的会话没有记忆；此外还导出 `MEMORY_TOOL`，即提供方渲染的召回上下文可以引用的、面向模型的工具名。
 
+## 目录
+
+- [使用本包](#use-this-package)
+- [模型体验](#model-experience)
+- [已知限制与延期工作](#known-limitations-and-deferred-work)
+- [开发备注](#dev-note)
+
+<a id="use-this-package"></a>
 ## 使用本包
 
 在 host 面挂载它。提供方在 effect 内调用 `ctx.memory.register(provider)`；第二次注册会抛出。`ctx.memory.active` 报告是否已注册提供方，没有提供方时除 `closeSession` 之外的每个操作都会抛出 `MemoryUnavailableError`。`ctx.memory.whileActive(setup)` 让一项贡献（例如工具或提示词段落）恰好在提供方已注册期间保持注册。类型位于 [`src/types.ts`](src/types.ts)。
 
 `MemoryTurn.outcome` 可选地携带重试代码、一次明确的纠正、带成功工具调用 id 的已报告验证，以及已完成的目标。提供方可以存储或使用这些证据；一次已报告的验证并不等于独立确立的通过。
 
+<a id="model-experience"></a>
 ## 模型体验
 
 ### 记忆工具名
@@ -47,11 +56,13 @@ kind: "package-reference"
 
 这里没有；渲染这些命中的消费方把它们追加进自己的请求，因此本包从不触碰任何前缀。
 
+<a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与延期工作
 
 - **每个组合一个提供方** —— 多个记忆提供方之间没有路由。
 - **不变量省略** —— 不发布运行时不变量伴随模块，因为提供方槽位与它的 `whileActive` 贡献只在 `register` 及其返回的 disposer 内部变化，监听器只会驱动它所声称要校验的同一套注册；进入模型的内容由已注册的提供方决定，而该提供方自己的包覆盖了它的行为。
 
+<a id="dev-note"></a>
 ### 开发备注
 
 无。

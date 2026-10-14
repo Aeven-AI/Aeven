@@ -2,7 +2,7 @@
 
 English | [中文](jobs.zh.md)
 
-Types shared by long-running producers, `ctx.jobs`, and job controls. The [runtime Agent Note](../../.agents/notes/implemented/architecture/2026-06-20-generic-long-running-tool-runtime.md) owns the design; this page records the exact fields and variants from [`packages/jobs/jobs/src/types.ts`](../../packages/jobs/jobs/src/types.ts).
+Types shared by long-running producers, `ctx.jobs`, and job controls. The [runtime Agent Note](../../.agents/notes/implemented/architecture/2026-06-20-generic-long-running-tool-runtime.md) owns the design; this page records the exact fields and variants from [`types.ts`](../../packages/jobs/jobs/src/types.ts) and the client-safe projections in [`view.ts`](../../packages/jobs/jobs/src/view.ts).
 
 ## Ids and status
 
@@ -19,41 +19,56 @@ interface JobKindMap {
 }
 ```
 
-`JobStatus` is `'running' | 'stopping' | 'completed' | 'killed' | 'failed'`; producer-specific facts belong in `JobSnapshot.detail`.
+`JobStatus` is `'running' | 'stopping' | 'completed' | 'killed' | 'failed'`; producer-specific facts belong in `JobView.detail`.
 
 ## Producer contract
 
-`JobStart` declares identity and a starter. The runtime finishes preflight before calling `run()` and commits without a later failable step. Producers own execution resources; the runtime owns identity, access, and lifecycle state.
+`JobSpec` declares identity and a starter. The runtime finishes preflight before calling `run()` and commits without a later failable step. Producers own execution resources; the runtime owns identity, access, and lifecycle state.
 
 ```ts type-equiv
 /**
  * Producer declaration passed to {@link JobRegistry.start}. The runtime
  * preflights access and cleanup before invoking {@link run}; the producer owns
- * execution resources while the runtime owns identity and lifecycle state.
+ * execution resources while the runtime owns identity, lifecycle state, and
+ * the output ring.
  */
-interface JobStart {
+interface JobSpec {
   /** Producer kind — also the id prefix (`bash`, `subagent`, …). */
   kind: JobKind
   /** One-line model-facing label (the command; the delegation description). */
   label: string
   /**
+   * Everyday name shown in product UI (the model's short description of a
+   * command). Never model-facing; UI falls back to the kind when absent.
+   */
+  title?: string
+  /**
+   * Owning session. Access is fenced by it, and the owner's live Agent must be
+   * the one currently registered under that id: its disposal cancels and
+   * awaits the job. Omitting the owner creates an unowned job, open to any
+   * caller until service disposal.
+   */
+  owner?: SessionId
+  /**
    * Optional UTF-8 byte cap for each complete model-facing completion notice or
-   * output read, including controller status metadata.
+   * output read, including controller status metadata. Independent of ring
+   * retention: it bounds the consuming model surface, never observers.
    */
   outputLimitBytes?: number
   /**
-   * Owning live agent. Access is fenced by its session id, and agent disposal
-   * cancels and awaits the job. The instance must be the one currently
-   * registered under its agent id. Omitting the owner creates an unowned job,
-   * open to any caller until service disposal.
+   * Pull sources the registry pumps into the ring at its own cadence.
+   * Producers that narrate their own progress use {@link JobHandle.append}
+   * instead; a job may use both.
    */
-  owner?: Agent
+  output?: readonly JobOutputSource[]
   /**
    * Start the work after preflight and synchronously return its hooks. Called
-   * once; a throw leaves nothing registered, and the producer must clean up any
-   * partially started resources.
+   * once with the job's producer face; a throw leaves nothing registered (the
+   * spent ordinal is skipped), and the producer must clean up any partially
+   * started resources.
+   * @param job - the issued id plus the ring append and progress writers.
    */
-  run(): JobHooks
+  run(job: JobHandle): JobHooks
 }
 ```
 
@@ -74,12 +89,6 @@ interface JobHooks {
    * registry record without claiming that the work stopped.
    */
   done: Promise<JobOutcome>
-  /**
-   * Consume output produced since the previous call. The producer formats
-   * truncation and spill notices. Absence marks a final-output-only job; each
-   * job has one consuming cursor.
-   */
-  readOutput?(): string
 }
 ```
 
@@ -88,10 +97,18 @@ interface JobHooks {
 interface JobOutcome {
   /** How the job ended: finished (`completed`), cancelled (`killed`), or broke (`failed`). */
   status: 'completed' | 'killed' | 'failed'
-  /** Kind-specific detail rendered into status lines ('exit code: 3', 'max-tokens'). */
+  /**
+   * Terminal reason rendered into status lines (`exit code: 3`, `max-tokens`).
+   * When the job settles `killed` after a {@link JobRegistry.kill} with a
+   * reason, the registry appends that reason.
+   */
   detail?: string
-  /** Final output for jobs without `readOutput`; stream jobs leave it unset. */
-  output?: string
+  /**
+   * Return value for jobs whose result is a value rather than a stream (a
+   * workflow's rendered result, a subagent's report). The output ring carries
+   * the stream; this is handed out once by the model's next {@link JobRegistry.read}.
+   */
+  result?: string
 }
 ```
 
@@ -101,54 +118,61 @@ Snapshots are fresh read-only projections. `ownerSession` carries the shared `Se
 
 ```ts type-equiv
 /**
- * A read-only projection of one job, safe to hand to listeners and tools —
- * a fresh object per call, never live registry state.
+ * Read-only projection of one job — a fresh object per call, never live
+ * registry state. The model tools, the browser roster, and the observation
+ * stream all consume this one shape.
  */
-interface JobSnapshot {
+interface JobView {
   /** The registry-issued id (`<kind>-N`). */
-  id: JobId
-  /** The producer kind the job was registered with. */
-  kind: JobKind
+  readonly id: JobId
+  /**
+   * The producer kind the job was registered with: a Host-registered
+   * `JobKind`, carried as an open string because a browser bundle or a Remote
+   * codec sees only the `JobKindMap` merges its own program compiles.
+   */
+  readonly kind: string
   /** The producer-supplied one-line label. */
-  label: string
-  /** Producer-owned cap for complete model-facing notices and output reads. */
-  outputLimitBytes?: number
-  /**
-   * Owner session id used for authorization and correlation; absent for
-   * unowned jobs. Completion listeners receive the exact {@link Agent}
-   * separately through {@link JobDoneListener}.
-   */
-  ownerSession?: SessionId
+  readonly label: string
+  /** The producer-supplied everyday name for product UI; absent when the producer has none. */
+  readonly title?: string
+  /** Owning session; absent for an unowned job, which every caller can see. */
+  readonly owner?: SessionId
+  /** Producer-owned cap for complete model-facing notices and reads, in UTF-8 bytes. */
+  readonly outputLimitBytes?: number
   /** Current lifecycle state. */
-  status: JobStatus
-  /** Kind-specific status detail, present once the producer supplied one (usually terminal). */
-  detail?: string
+  readonly status: JobStatus
+  /** The producer's live progress line (`3/10`, the current phase); cleared at settlement. */
+  readonly progress?: string
+  /** Terminal reason (`exit code: 3`); a recorded kill reason is merged in. */
+  readonly detail?: string
   /** Epoch ms when the job was registered. */
-  startedAt: number
-  /** Epoch ms when the job settled; absent while `running`/`stopping`. */
-  finishedAt?: number
+  readonly startedAt: number
+  /** Epoch ms when the job settled; absent while live. */
+  readonly finishedAt?: number
   /**
-   * True when a kill, read, wait, or teardown cancel has reported or committed
-   * to report the terminal state. Completion reporters suppress redundant
-   * notices when set. Teardown claims it because the owner or service being
-   * destroyed leaves no reader: a reporter that opens a turn on notice would
-   * otherwise spend a model request per teardown layer.
+   * The output ring's absolute coordinates and the complete-stream files
+   * behind it. `total` is the offset the next chunk starts at (0 while
+   * nothing was written); `earliest` is the oldest retained byte, greater
+   * than zero exactly when retention dropped the head. `spillPaths` lists the
+   * spill files the job's pull sources currently keep, in source order and
+   * deduplicated, and is absent while no source keeps one: it outlives any
+   * chunk, so a reader below `earliest` can still name where the bytes went.
    */
-  reported: boolean
+  readonly output: { readonly total: number; readonly earliest: number; readonly spillPaths?: readonly string[] }
 }
 ```
 
 ```ts type-equiv
-/** Output and post-read state returned by {@link JobRegistry.read}. */
+/** Output and post-read state returned by the consuming {@link JobRegistry.read}. */
 interface JobRead {
-  /**
-   * Stream kinds: the consuming delta since the previous read. Final-output
-   * kinds: empty while live, the terminal {@link JobOutcome.output} (or
-   * empty) once settled — idempotent, never consumed.
-   */
-  text: string
+  /** Ring chunks appended since the model cursor, in offset order; every channel included. */
+  chunks: readonly JobChunk[]
+  /** True when the cursor fell below the oldest retained byte, so bytes are missing before `chunks`. */
+  lossy: boolean
+  /** The producer's {@link JobOutcome.result}, handed out by the first read after settlement only. */
+  result?: string
   /** The job's state at read time. */
-  snapshot: JobSnapshot
+  job: JobView
 }
 ```
 

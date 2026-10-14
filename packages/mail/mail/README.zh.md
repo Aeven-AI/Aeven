@@ -11,6 +11,15 @@ kind: "package-reference"
 
 `@aeven/mail` 注册 `ctx.mail`，为一个所有者的账户运行邮件操作：列出账户与文件夹、搜索信封、读取一封邮件、读取一个附件、更改邮件状态、发送或保存草稿，以及试探新账户设置。账户来自已注册的 `MailAccountSource`；每个操作在打开套接字之前，都会按给定所有者对来源解析所指定的账户地址，因此缺失、已禁用、已移除或属于他人的账户在这里就被拒绝，而不是靠工具可见性来拒绝。提供方使用受维护的库——`imapflow`、`node-pop3`、`nodemailer` 与 `mailparser`——除每个账户一条池化的 IMAP 连接之外不缓存任何东西。
 
+## 目录
+
+- [使用本包](#use-this-package)
+- [行为](#behavior)
+- [模型体验](#model-experience)
+- [已知限制与延期工作](#known-limitations-and-deferred-work)
+- [开发备注](#dev-note)
+
+<a id="use-this-package"></a>
 ## 使用本包
 
 在 host 组合中挂载该服务，并注册一个账户来源；`@aeven/host-account-integrations` 为 Email 连接器这样做。
@@ -30,6 +39,7 @@ kind: "package-reference"
 | `pop3ScanLimit` | `200` | 一次搜索读取其头部的最近 POP3 邮件数 |
 | `sendsPerHour` | `30` | 一个账户在滚动一小时内可发送的邮件数 |
 
+<a id="behavior"></a>
 ## 行为
 
 - **安全。** 绑定使用隐式 TLS 或强制的 STARTTLS；证书始终验证，且从不提供明文认证。POP3 只支持隐式 TLS。
@@ -39,6 +49,7 @@ kind: "package-reference"
 - **SMTP。** 发件人必须是账户地址或别名。回复会从原邮件设置 `In-Reply-To` 与 `References`，并把主题默认为 `Re: …`。超过 `sendsPerHour` 的发送被拒绝。
 - **试探。** `probe(settings, secret)` 在接收服务器上连接、认证并列出文件夹，然后在发送服务器上连接并认证；抛出的 `MailError.step` 指出失败的步骤。
 
+<a id="model-experience"></a>
 ## 模型体验
 
 ### 账户拒绝
@@ -83,6 +94,7 @@ kind: "package-reference"
 
 仅追加；每条结果都是可复用的请求前缀之后的工具结果。
 
+<a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与延期工作
 
 - 只支持密码与应用专用密码认证；Gmail 与 Outlook 的 XOAUTH2 已延期。
@@ -90,3 +102,8 @@ kind: "package-reference"
 - 没有服务器自动发现，也没有 IMAP IDLE 通知。
 - 发送速率窗口保存在内存中，插件重启时重置。
 - **不变量省略** —— 不发布运行时不变量伴随模块，因为本服务拥有的可变状态——来源注册表、按账户池化的 IMAP 连接与滚动发送窗口——只由读取它们的操作写入，因此监听器只会重复它所声称要校验的那次调用；本服务承诺的是与各邮件服务器之间的套接字对话，没有任何进程内观察能代替它。
+
+<a id="dev-note"></a>
+### 开发备注
+
+无。

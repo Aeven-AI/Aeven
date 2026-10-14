@@ -643,8 +643,13 @@ export class ClientModuleRegistry extends Service {
     // `webServer` is optional and undeclared here, so a present carrier is read through `ctx.get`;
     // the `ctx.webServer` property is reserved for a context that injects it.
     const webServer = ctx.get('webServer')
-    if (webServer === undefined) ctx.inject(['webServer'], webCtx => registerWebCarrier(webCtx, webCtx.webServer))
-    else registerWebCarrier(ctx, webServer)
+    if (webServer === undefined) {
+      ctx.inject(['webServer'], (webCtx) => {
+        registerWebCarrier(webCtx, webCtx.webServer)
+      })
+    } else {
+      registerWebCarrier(ctx, webServer)
+    }
     ctx.on('webserver/index-inject', (table) => {
       table.push(...bootInjections(this.composed))
     })

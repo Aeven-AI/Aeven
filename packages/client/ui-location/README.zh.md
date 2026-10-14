@@ -6,7 +6,7 @@ kind: "package-reference"
 
 [English](README.md) | 中文
 
-## 概要
+## 概述
 
 基于 Agent 作用域 `location/request` Remote Event waterfall 的浏览器位置许可，其中浏览器自己的许可提示就是读者唯一的一次批准。模型调用 `get_location` 且浏览器已允许该网站时，插件直接读取位置，不显示任何内容。否则它立即开始读取，从而打开浏览器提示，并用**允许 Aeven 获取你的精确位置？**、模型的用途和两个按钮接管 Conversation 输入区：**好**会再次读取，供关闭了提示或尚未回应提示的读者使用；**不**只拒绝本次请求。
 

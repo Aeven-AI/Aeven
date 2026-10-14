@@ -36,6 +36,11 @@ External packages that a workspace package resolves at runtime. The tier covers 
 | [`@anthropic-ai/claude-agent-sdk`](https://github.com/anthropics/claude-agent-sdk-typescript) | SEE LICENSE IN README.md |
 | [`@anthropic-ai/sdk`](https://github.com/anthropics/anthropic-sdk-typescript) | MIT |
 | [`@babel/code-frame`](https://github.com/babel/babel) | MIT |
+| [`@deepseek-ai/dsh-attachment`](https://github.com/deepseek-ai/deepseek-harness) | MIT |
+| [`@deepseek-ai/dsh-brand`](https://github.com/deepseek-ai/deepseek-harness) | MIT |
+| [`@deepseek-ai/dsh-invariants`](https://github.com/deepseek-ai/deepseek-harness) | MIT |
+| [`@deepseek-ai/dsh-llm`](https://github.com/deepseek-ai/deepseek-harness) | MIT |
+| [`@deepseek-ai/dsh-timeout`](https://github.com/deepseek-ai/deepseek-harness) | MIT |
 | [`@deepseek-ai/libreoffice-kit`](https://github.com/deepseek-harness/libreoffice-kit) | MPL-2.0 |
 | [`@earendil-works/pi-ai`](https://github.com/earendil-works/pi) | MIT |
 | [`@googleworkspace/cli`](https://github.com/googleworkspace/cli) | Apache-2.0 |

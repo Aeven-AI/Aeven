@@ -444,6 +444,9 @@ describe('plugin startup catalog initialization', () => {
     const refresh = vi
       .spyOn(GrokBuildSession.prototype, 'refreshLiveCatalog')
       .mockRejectedValue(new Error('refresh failed'))
+    // The live refresh runs only for a signed-in Grok account; stub one rather than read the host's store.
+    vi.spyOn(GrokBuildCredentialStore.prototype, 'read')
+      .mockImplementation(async providerId => providerId === XAI_PI_PROVIDER ? SIGNED_IN_GROK : undefined)
     const warn = vi.fn()
     const registration = Object.assign(vi.fn(), { replace: vi.fn() })
     const registerAdapter = vi.fn(() => registration)

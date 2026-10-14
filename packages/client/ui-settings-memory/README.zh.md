@@ -11,6 +11,14 @@ kind: "package-reference"
 
 `avn-client-ui-settings-memory` 在 Settings 中基于 `@aeven/api-memory-manager` 的 `memoryManager` Remote 注册 Memory 页面。它取代 MemOS Viewer，成为用户检视 Aeven 学到了什么的地方。
 
+## 目录
+
+- [使用本包](#use-this-package)
+- [模型体验](#model-experience)
+- [已知限制与延期工作](#known-limitations-and-deferred-work)
+- [开发备注](#dev-note)
+
+<a id="use-this-package"></a>
 ## 使用本包
 
 该页面使用与 Plugins 相同的下划线标签页：
@@ -23,6 +31,7 @@ kind: "package-reference"
 
 文案位于 `settings.memory` 字典中（英文与简体中文）。
 
+<a id="model-experience"></a>
 ## 模型体验
 
 无：该页面只通过 `memory` Remote 读写记忆设置，不注册任何提示词、工具或模型可见结果。
@@ -31,10 +40,12 @@ kind: "package-reference"
 
 无；这里不产生任何提示词输入。
 
+<a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与延期工作
 
 - 该页面在打开时以及自身变更之后重新加载；它不跟随运行中的会话所做的变更。
 
+<a id="dev-note"></a>
 ### 开发备注
 
 **运行时不变量：** 不发布伴随模块。该区块渲染 `memoryManager` Remote 返回的内容，除已加载的分页与打开的那一行之外不保留自己的运行时状态。

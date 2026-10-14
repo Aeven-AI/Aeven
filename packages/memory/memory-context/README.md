@@ -15,6 +15,13 @@ The block stays in history for the rest of the turn, so later requests carry it 
 
 Recall is a lookup, and a lookup can return nothing, so the package also registers the owner's confirmed invariants as the last system-prompt section of a turn. The document, its budget, and its text belong to [`@aeven/memory-invariants`](../memory-invariants/README.md); this package reads the block from `ctx.memoryInvariants` at each assembly, and a composition without that row contributes no block.
 
+## Table of Contents
+
+- [Use this package](#use-this-package)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
+
 ## Use this package
 
 Mount it per agent (the `standard`, `cordis`, and `ptc` presets include it) beside a host `memory` slot. While no provider is registered it adds no prompt section and does nothing. Memory is per signed-in user: a session without `SessionHeader.owner` (a composition that authenticates nobody, or a session started outside a signed-in request) is neither recalled for nor captured.

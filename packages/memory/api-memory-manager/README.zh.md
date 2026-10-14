@@ -11,6 +11,14 @@ kind: "package-reference"
 
 `avn-api-memory-manager` 在 Settings → Memory 背后提供 `memoryManager` Remote 命名空间。每次调用都为发起当前 `/api` 请求的调用方行事（`ctx.identityUsers.actingUser()`），没有已登录用户的请求会失败。它通过 `ctx.memory` 列出、编辑与遗忘调用方的记忆，通过 `ctx.capabilities` 列出、读取、编辑、退役、恢复与删除调用方的已学能力，并且是通过 `ctx.memoryInvariants` 写入调用方已确认不变量的唯一写入者。
 
+## 目录
+
+- [使用本包](#use-this-package)
+- [模型体验](#model-experience)
+- [已知限制与延期工作](#known-limitations-and-deferred-work)
+- [开发备注](#dev-note)
+
+<a id="use-this-package"></a>
 ## 使用本包
 
 `avn-web-app` bundle 在 `capability` 行之后挂载它。方法：
@@ -28,6 +36,7 @@ kind: "package-reference"
 
 配置：`timeoutMs`（默认 15000）约束每次记忆提供方调用；`maxPageSize`（默认 200）约束一个记忆分页。
 
+<a id="model-experience"></a>
 ## 模型体验
 
 ### 被提升的不变量
@@ -58,10 +67,12 @@ kind: "package-reference"
 
 没有直接影响：一次编辑不改变任何已组装的请求。后续轮次从它召回的内容是那一轮次历史中仅追加的文本。
 
+<a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与延期工作
 
 - 按工作区分组会为每次分页请求读取每个已列出的会话头。
 
+<a id="dev-note"></a>
 ### 开发备注
 
 **运行时不变量：** 不发布伴随模块。它服务的每次读取都来自同一次调用内的拥有者服务，因此该 Remote 不保留自己的状态，也没有关于它的第二种观察可以漂移。

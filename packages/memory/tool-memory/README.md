@@ -11,6 +11,13 @@ English | [中文](README.zh.md)
 
 `avn-tool-memory` registers seven tools over `ctx.memory`: `memory_search` (bounded search across traces, policies, environment models, and skills), `memory_get` (one trace, policy, or world model), `memory_timeline` (an episode's ordered traces), `memory_environments`, `memory_skills`, `memory_skill` (loads a skill and records its use), and `memory_remember` (stores a fact the user explicitly asked to be remembered, about the user or about the current project). Search results carry each memory's domain. Tool names come from `MEMORY_TOOL` in `@aeven/memory`, the same names the provider's recall context points to.
 
+## Table of Contents
+
+- [Use this package](#use-this-package)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
+
 ## Use this package
 
 Mount it per agent (the `standard`, `cordis`, and `ptc` presets include it) beside a host `memory` slot. The tools are registered only while a memory provider is registered, and read only the session owner's memory; in a session without an owner they fail with an error that memory needs a signed-in user.

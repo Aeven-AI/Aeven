@@ -16,6 +16,13 @@ English | [中文](README.zh.md)
 - **Evidence.** Only a turn that reports actually using a recalled or deliberately viewed procedure records an execution with its tools, retries, tokens, and the model's `report`; a correction in the next turn and a rating on the reply are attached afterwards. The registry's rules turn that evidence into status changes.
 - **Tool.** `capability_manage` offers `learn` (when the user asks), `view`, `list`, `update`, `write_file`, `report`, `retire`, and `restore`. None of them asks the user; deletion is left to Settings → Memory.
 
+## Table of Contents
+
+- [Use this package](#use-this-package)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
+
 ## Use this package
 
 Mount it per agent beside a host `capability` registry (the `standard`, `cordis`, and `ptc` presets include it).

@@ -64,7 +64,6 @@ overlapping(deck[1]!)   // role pairs that coincide, which the caller judges
 ## 延伸阅读
 
 - [`@aeven/computer-use-formats`](../computer-use-formats/README.zh.md) —— 把布局渲染为文件，工具要求就在那里。
-- [`computer-use-source-inventory.md`](../../../../workspace/project/computer-use-source-inventory.md) —— 为何该能力取自 Codex，而不是从某个仓库重新实现。
 
 <a id="known-limited-work"></a>
 ## 已知限制与后续工作

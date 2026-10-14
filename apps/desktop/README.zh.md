@@ -6,6 +6,8 @@
 
 被接入的 Host 拥有其后端包依赖图。Desktop 包更新要求该 Host 在验证与激活之前停止；接入运行中的 Host 不会替换其包。第一个启动器决定提供服务的 profile 与能力。两个客户端使用同一份 Session 和工作区状态。
 
+[Desktop Host overlay](../desktop-host/config/desktop.cordis.patch.yml) 为登录、推理、搜索、媒体和账户集成提供生产服务 URL；安装后的应用不需要 `.env` 文件。API 默认为 `https://aeven.io/api`；Web、媒体和 OAuth 使用 `https://preview.aeven.io`。显式设置的 `AEVEN_API_URL`、`AEVEN_WEB_URL`、`AEVEN_MEDIA_URL` 和 `AEVEN_OAUTH_{X,APPLE,GOOGLE}_URL` 环境变量会覆盖这些默认值。Desktop 登录在独立窗口中打开。参见[端点决策](../../.agents/notes/implemented/bug-fix/2026-10-14-desktop-production-service-endpoints.zh.md)。
+
 ## 关键技术决策
 
 | 决策 | 原因 | 直接结果 |
