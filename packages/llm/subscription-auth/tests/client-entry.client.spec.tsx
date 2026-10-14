@@ -120,7 +120,7 @@ describe('client plugin contract', () => {
     expect(Object.keys(mounted.registered[0]?.dictionaries['zh'] ?? {})).toContain('title')
   })
 
-  it('registers its section with the settings shell when slots are available', () => {
+  it('registers its section with the model-providers footer when slots are available', () => {
     const dispose = vi.fn()
     const register = vi.fn((_definition: unknown, _component: unknown) => dispose)
     const injectSlot = vi.fn()
@@ -137,7 +137,7 @@ describe('client plugin contract', () => {
     // The section is offered to the shell's slot rather than mounted directly.
     expect(injectSlot).toHaveBeenCalledTimes(1)
     const [slotName, registerSection] = injectSlot.mock.calls[0] as [string, () => void]
-    expect(slotName).toBe('settings.section')
+    expect(slotName).toBe('settings.models.footer')
     expect(register).not.toHaveBeenCalled()
 
     registerSection()
@@ -147,15 +147,13 @@ describe('client plugin contract', () => {
         name: string
         id: string
         order: number
-        label: () => string
         inject: () => unknown
       },
       unknown,
     ]
-    expect(definition.name).toBe('settings.section')
-    expect(definition.id).toBe('grok-build')
-    expect(definition.order).toBe(17)
-    expect(definition.label()).toBe(en.nav)
+    expect(definition.name).toBe('settings.models.footer')
+    expect(definition.id).toBe('subscriptions')
+    expect(definition.order).toBe(0)
     expect(definition.inject()).toEqual({ t })
     expect(component).toBe(GrokBuildSettings)
   })

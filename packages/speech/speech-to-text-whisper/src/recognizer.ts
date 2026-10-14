@@ -1,6 +1,6 @@
 /** One serial Whisper worker with request-owned cancellation and idle reclamation. */
 import { mkdir } from 'node:fs/promises'
-import type { Readable } from 'node:stream'
+import type { Readable, Writable } from 'node:stream'
 import type { Context } from '@deepseek-ai/cordis'
 import type { SubprocessHandle } from '@aeven/subprocess'
 import type { SpeechPreparationOptions, SpeechInput, SpeechPreparationState, SpeechPreparationStep, SpeechPreparationStepKind, Transcript } from '@aeven/speech-to-text/types'
@@ -20,6 +20,7 @@ const replySchema = z.union([
 interface Worker {
   readonly handle: SubprocessHandle
   readonly lines: LineReader
+  readonly stdin: Writable
   closed: boolean
 }
 
@@ -283,7 +284,7 @@ export class WhisperWorker {
       if (!handle.stdout || !handle.stdin) throw new Error('Speech worker stdio is unavailable')
       const lines = new LineReader(handle.stdout, config.maxResponseBytes, exited)
       readySchema.parse(JSON.parse(await lines.next(setup.signal)))
-      const worker: Worker = { handle, lines, closed: false }
+      const worker: Worker = { handle, lines, stdin: handle.stdin, closed: false }
       this.worker = worker
       this.publish({ phase: 'ready' })
       const closed = (): void => {
@@ -305,7 +306,7 @@ export class WhisperWorker {
     try {
       const worker = await this.start(signal)
       using call = deadline(signal, this.config.inferenceTimeoutMs, 'SPEECH_INFERENCE_TIMEOUT')
-      worker.handle.stdin!.write(encodeRequest(input.language, pcm))
+      worker.stdin.write(encodeRequest(input.language, pcm))
       const result = parseReply(await worker.lines.next(call.signal), audioSeconds)
       call.signal.throwIfAborted()
       return result
@@ -321,7 +322,7 @@ export class WhisperWorker {
     const worker = this.worker
     if (!worker) return
     worker.closed = true
-    worker.handle.stdin?.end()
+    worker.stdin.end()
     worker.handle.terminate()
     await worker.handle.waitForExit()
     this.worker = undefined

@@ -2,6 +2,8 @@
 
 Status: implemented
 
+[English](2026-10-13-videos-in-a-reply-and-news-cards-from-articles.md) | 中文
+
 ## 问题
 
 “演示一下标准的卧推怎么做”这类请求只能得到文字回答，最多附一个 YouTube 链接，读者必须离开对话才能观看。回复里没有任何东西能播放视频。

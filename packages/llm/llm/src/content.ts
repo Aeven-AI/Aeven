@@ -377,7 +377,7 @@ export async function projectFilesForRequest(
   const projected: Message[] = []
   for (const message of messages) {
     const content = await expandFiles(message.content, reader, signal)
-    projected.push(content === undefined ? message : { ...message, content } as Message)
+    projected.push(content === undefined ? message : { ...message, content })
   }
   return projected
 }

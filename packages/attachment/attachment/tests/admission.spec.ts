@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { AttachmentStore } from '@aeven/attachment'
-import { admitEncodedImages, admitPromptContent } from '@aeven/attachment'
-import type { ImageAttachmentRef, SaveImageAttachment } from '@aeven/attachment/types'
+import { AttachmentError, admitEncodedImages, admitPromptContent } from '@aeven/attachment'
+import type { FileAttachmentRef, ImageAttachmentRef, SaveImageAttachment } from '@aeven/attachment/types'
 
 const PNG = 'AAAA' // canonical base64, 3 bytes
 
@@ -16,6 +16,37 @@ function storeOf() {
       height: 1,
       ...input.name === undefined ? {} : { name: input.name },
     })))),
+    claimUploads: vi.fn(),
+  }
+  return { store: store as unknown as AttachmentStore, mocks: store }
+}
+
+/** One staged file upload as the store hands it out. */
+function uploadRef(attachmentId: string, bytes: number): FileAttachmentRef {
+  return {
+    attachmentId: attachmentId as FileAttachmentRef['attachmentId'],
+    mediaType: 'text/plain',
+    bytes,
+    name: `${attachmentId}.txt`,
+    extraction: {
+      textId: `${attachmentId}-text` as FileAttachmentRef['attachmentId'],
+      chars: 4,
+      method: 'native',
+      extractor: 'test',
+      truncated: false,
+    },
+  }
+}
+
+/** Store double over one staged-upload set, so file admission and its claim are observable. */
+function fileStoreOf(uploads: Readonly<Record<string, FileAttachmentRef>>) {
+  const base = storeOf()
+  const peekUploads = vi.fn((ids: readonly string[]) =>
+    ids.map(id => uploads[id] as FileAttachmentRef))
+  const store = {
+    ...base.mocks,
+    fileLimits: { maxFileBytes: 64, maxFilesPerMessage: 2, maxMessageFileBytes: 100, uploadTtlMs: 60_000 },
+    peekUploads,
   }
   return { store: store as unknown as AttachmentStore, mocks: store }
 }
@@ -74,7 +105,7 @@ describe('admitPromptContent', () => {
   })
 
   it('replaces image parts with admitted references in part order', async () => {
-    const { store } = storeOf()
+    const { store, mocks } = storeOf()
     await expect(admitPromptContent(store, [
       { type: 'image', mediaType: 'image/png', data: 'AQ==' },
       { type: 'text', text: 'between' },
@@ -84,5 +115,36 @@ describe('admitPromptContent', () => {
       { type: 'text', text: 'between' },
       { type: 'image', attachment: { attachmentId: 'att-2', mediaType: 'image/png', bytes: 1, width: 1, height: 1 } },
     ])
+    expect(mocks.claimUploads).toHaveBeenCalledWith([])
+  })
+
+  it('resolves staged uploads in prompt order and claims them once the prompt is admitted', async () => {
+    const { store, mocks } = fileStoreOf({ 'upl-1': uploadRef('file-1', 3), 'upl-2': uploadRef('file-2', 4) })
+
+    await expect(admitPromptContent(store, [
+      { type: 'file', uploadId: 'upl-2' },
+      { type: 'text', text: 'between' },
+      { type: 'file', uploadId: 'upl-1' },
+    ])).resolves.toEqual([
+      { type: 'file', attachment: uploadRef('file-2', 4) },
+      { type: 'text', text: 'between' },
+      { type: 'file', attachment: uploadRef('file-1', 3) },
+    ])
+    expect(mocks.peekUploads).toHaveBeenCalledWith(['upl-2', 'upl-1'])
+    expect(mocks.claimUploads).toHaveBeenCalledTimes(1)
+    expect(mocks.claimUploads).toHaveBeenCalledWith(['upl-2', 'upl-1'])
+  })
+
+  it('leaves staged uploads unclaimed when the image batch is refused', async () => {
+    const { store, mocks } = fileStoreOf({ 'upl-1': uploadRef('file-1', 3) })
+    mocks.saveImages.mockRejectedValueOnce(
+      new AttachmentError('Image batch exceeds the configured image-count limit.', 'TOO_MANY_IMAGES'),
+    )
+
+    await expect(admitPromptContent(store, [
+      { type: 'file', uploadId: 'upl-1' },
+      { type: 'image', mediaType: 'image/png', data: 'AQ==' },
+    ])).rejects.toMatchObject({ code: 'TOO_MANY_IMAGES' })
+    expect(mocks.claimUploads).not.toHaveBeenCalled()
   })
 })

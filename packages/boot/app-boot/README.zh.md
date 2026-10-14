@@ -139,6 +139,9 @@ profile 是同一套 avn 安装提供不同应用界面的方式：`web`、`head
 - **用户 patch 会替换匹配到的整个配置**——按 id 定位的 patch 不做深度合并，因此 profile 覆盖必须重述需要保留的组合包字段。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

@@ -136,6 +136,9 @@ kind: "package-reference"
 - **编码器输出带版本**——已安装的 Sharp/libvips 构建钉定规范化与请求字节；编码器或变换版本升级会让未来变体产生新地址，已有对象继续有效。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

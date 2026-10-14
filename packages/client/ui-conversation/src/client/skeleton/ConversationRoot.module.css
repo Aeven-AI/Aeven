@@ -526,8 +526,11 @@
 }
 
 /* Entries render nothing while their state is empty; the frame goes with
-   them, so an empty dock does not keep the stack gap. */
-.dockFrame:not(:has(> .dockStack > [data-slot] > *)) {
+   them, so an empty dock does not keep the stack gap. The frame carries that
+   state itself (see ConversationRoot.tsx): counting a slot's rendered children
+   is not a width, so no condition a `@media` or a container query could state
+   replaces the `:has()` this once was — and `:has()` needs Safari 15.4. */
+.dockFrame[data-empty] {
   display: none;
 }
 

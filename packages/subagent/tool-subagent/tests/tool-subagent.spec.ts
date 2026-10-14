@@ -882,7 +882,7 @@ describe('avn-tool-subagent background mode', () => {
     })
     expect(text(collected)).toBe('background answer\n[status: completed]')
 
-    // Final-output reads are idempotent (not consumed).
+    // The settled result is handed out to one read only, and the wait above took it.
     const again = await ctx.tools.execute({
       signal: testToolSignal,
       callId: ToolCallId('collect-2'),
@@ -890,7 +890,7 @@ describe('avn-tool-subagent background mode', () => {
       arguments: { job_id: 'subagent-1' },
       agent: parent,
     })
-    expect(text(again)).toBe('background answer\n[status: completed]')
+    expect(text(again)).toBe('(no new output)\n[status: completed]')
   })
 
   it('preserves provider diagnostics in one-shot background failure detail', async () => {
@@ -1081,7 +1081,7 @@ describe('avn-tool-subagent background mode', () => {
       arguments: { job_id: 'subagent-1', wait: true },
       agent: parent,
     })
-    expect(text(output)).toBe('(no new output)\n[status: killed]')
+    expect(text(output)).toBe('(no new output)\n[status: killed, no longer needed]')
   })
 
   it('reports startup rollback failure after cancellation as a failed job', async () => {
@@ -1166,9 +1166,9 @@ describe('avn-tool-subagent background mode', () => {
     expect(text(withoutReason)).toBe('requested cancellation of job subagent-2')
     expect(cancels).toEqual(['superseded', 'background subagent task killed'])
 
-    // The aborted children settle as killed tasks.
+    // The aborted children settle as killed tasks, and the registry appends the kill reason.
     const killed = await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('w1'), name: 'job_output', arguments: { job_id: 'subagent-1', wait: true }, agent: parent })
-    expect(text(killed)).toBe('(no new output)\n[status: killed]')
+    expect(text(killed)).toBe('(no new output)\n[status: killed, superseded]')
   })
 
 })

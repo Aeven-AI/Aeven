@@ -194,6 +194,10 @@ describe('list lifecycle', () => {
     expect(manager.getListSnapshot().items[0]?.title).toBeUndefined()
 
     frame({ type: 'projection', sessionId: S1, key: 'title', value: 'Durable', seq: 2 })
+    // A projection frame reaches the list through the store's any-key channel,
+    // which schedules the manager's rebuild: two microtask hops, not one.
+    await Promise.resolve()
+    await Promise.resolve()
     expect(manager.getListSnapshot().items[0]?.title).toBe('Durable')
 
     // A baseline at or past the row's seq keeps it (nothing phantom to drop).

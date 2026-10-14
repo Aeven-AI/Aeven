@@ -30,6 +30,7 @@ interface StoredInvariants {
 
 /** Heading of the block; the closing tag is not used because the block holds no nested markup. */
 export const INVARIANTS_OPEN = '<invariants>\n'
+/** Closing tag of the block. */
 export const INVARIANTS_CLOSE = '\n</invariants>'
 
 /**
@@ -99,7 +100,12 @@ export function renderInvariants(entries: readonly Invariant[], maxChars: number
   return lines.length === 0 ? '' : `${INVARIANTS_OPEN}${lines.join('\n')}${INVARIANTS_CLOSE}`
 }
 
-/** Where one owner's invariants are stored; the owner id is escaped because it names a file. */
+/**
+ * Where one owner's invariants are stored; the owner id is escaped because it names a file.
+ * @param root - the directory holding one document per owner.
+ * @param owner - the owner whose document is addressed.
+ * @returns the path of that owner's JSON document.
+ */
 export function invariantsPath(root: string, owner: string): string {
   return join(root, `${encodeURIComponent(owner)}.json`)
 }

@@ -122,7 +122,7 @@ Remote 调用使用 Connection 的 `/api` 路由。Client Remote 调用 `connect
 
 Connection 在 HTTP bridge 之前执行 `/api` 的统一信任检查，再在共享 FetchHandler 内分发。Typert Gateway 只认领存在严格描述符或活跃 SRC marker 的两段式 endpoint；功能自有的精确 Fetch 路由处理非 JSON 响应，其他请求返回 404。Connection 拥有传输、RPC id、响应 envelope 和请求取消，Gateway 只拥有 Remote 数据协议和业务分发。替换 Connection carrier 不要求改变 Remote 描述符或 Client 编程接口。
 
-Gateway 每次调用都从当前注册表解析描述符和实时服务，不缓存业务对象。它要求 `args` 的字段集合与描述符完全一致，先用 codec 校验 wire 值，再通过注册的 lookup 或 Context 提供方解析对象或接收者，最后调用 binding 指向的服务方法并校验返回值。缺少提供方、identity 未命中、binding 不一致、参数缺失或多余、schema 失败和方法不存在都会在进入业务代码前或离开业务代码后失败。
+Gateway 每次调用都从当前注册表解析描述符和实时服务，不缓存业务对象。它要求 `args` 的字段集合与描述符完全一致，先用 codec 校验 wire 值，再通过注册的 lookup 或 Context 提供方解析对象或接收者，最后调用 binding 指向的服务方法并校验返回值。只有当描述符把某个参数声明为可省略时，该字段才允许缺失；Client 调用方可以省略末尾的可选参数，省略即不发送该字段。缺少提供方、identity 未命中、binding 不一致、参数缺失或多余、schema 失败和方法不存在都会在进入业务代码前或离开业务代码后失败。
 
 lookup 提供方的 `register()` 同时提供稳定声明和默认 resolver；`configure()` 提供由 Host 组合拥有、可异步执行且受 effect 生命周期约束的 resolver。配置可以先于提供方挂载；没有提供方时调用仍以 `gateway/lookup-unavailable` 失败，配置卸载后则恢复提供方默认策略。Session Controller 负责 `agent` 与 `session` 的标准 resolver 语义：复用 live Agent，自动恢复普通冷会话，对并发恢复去重，并拒绝由 subagent routing 拥有的 identity；`session` lookup 返回该 Agent 的 Session。恢复失败与 ownership fence 抛出携带自有码的 `RemoteError`（`session/not-found` 或 `session/agent-busy`），Gateway 原样编码上 wire；只有未归类的 throw 才折成 `gateway/internal`。
 

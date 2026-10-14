@@ -90,7 +90,7 @@ export default class MailService extends Service {
   }
 
   /** Close pooled IMAP connections with the plugin. */
-  async [Service.init](): Promise<void> {
+  [Service.init](): void {
     this.ctx.effect(() => () => { this.pool.closeAll() }, 'mail: IMAP connections')
   }
 
@@ -150,20 +150,21 @@ export default class MailService extends Service {
     if (entries.length === 0) throw new MailError('No mail account is connected. Add one in Settings → Connectors → Email.', 'MAIL_ACCOUNT_NOT_FOUND')
     const failures: MailSearchResult['failures'] = []
     const messages: MailEnvelope[] = []
-    let truncated = false
-    await Promise.all(entries.map(async (entry) => {
+    const truncations = await Promise.all(entries.map(async (entry) => {
       try {
         const result = await this.searchOne(entry, request, limit, signal)
         messages.push(...result.messages)
-        truncated ||= result.truncated
+        return result.truncated
       } catch (error) {
         failures.push({ account: entry.account.settings.address, error: toMailError(error, 'receive').message })
+        return false
       }
     }))
     signal?.throwIfAborted()
-    if (failures.length === entries.length) throw new MailError(failures[0]!.error, 'MAIL_PROTOCOL')
+    const firstFailure = failures[0]
+    if (firstFailure !== undefined && failures.length === entries.length) throw new MailError(firstFailure.error, 'MAIL_PROTOCOL')
     messages.sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))
-    return { messages: messages.slice(0, limit), truncated: truncated || messages.length > limit, failures }
+    return { messages: messages.slice(0, limit), truncated: truncations.some(Boolean) || messages.length > limit, failures }
   }
 
   /**
@@ -265,7 +266,8 @@ export default class MailService extends Service {
   async probe(settings: MailAccountSettings, secret: MailSecret): Promise<void> {
     validateSettings(settings)
     if (settings.receive.protocol === 'imap') await probeImap(settings.receive, secret.receivePassword, this.config)
-    else await probePop3(settings.receive, secret.receivePassword, { timeoutMs: this.config.timeoutMs, scanLimit: this.config.pop3ScanLimit })
+    else await probePop3(settings.receive, secret.receivePassword,
+      { timeoutMs: this.config.timeoutMs, scanLimit: this.config.pop3ScanLimit })
     if (settings.send !== undefined) await probeSmtp(settings.send, secret.sendPassword ?? secret.receivePassword, this.config)
   }
 
@@ -280,8 +282,9 @@ export default class MailService extends Service {
     const entries = await this.entries(owner)
     const wanted = address.trim().toLowerCase()
     const matches = entries.filter(({ account }) => account.settings.address.toLowerCase() === wanted)
-    if (matches.length === 1) return matches[0]!
     if (matches.length > 1) throw new MailError(`More than one connected account uses ${address}.`, 'MAIL_ACCOUNT_AMBIGUOUS')
+    const [match] = matches
+    if (match !== undefined) return match
     const known = entries.map(({ account }) => account.settings.address)
     throw new MailError(known.length === 0
       ? 'No mail account is connected. Add one in Settings → Connectors → Email.'
@@ -322,7 +325,12 @@ export default class MailService extends Service {
       { timeoutMs: this.config.timeoutMs, scanLimit: this.config.pop3ScanLimit }, run, signal))
   }
 
-  private async searchOne(entry: Entry, request: MailSearchRequest, limit: number, signal?: AbortSignal): Promise<{ messages: MailEnvelope[]; truncated: boolean }> {
+  private async searchOne(
+    entry: Entry,
+    request: MailSearchRequest,
+    limit: number,
+    signal?: AbortSignal,
+  ): Promise<{ messages: MailEnvelope[]; truncated: boolean }> {
     const address = entry.account.settings.address
     return entry.account.settings.receive.protocol === 'imap'
       ? this.imap(entry, client => searchImap(client, address, request, limit), signal)
@@ -346,7 +354,6 @@ function validateSettings(settings: MailAccountSettings): void {
   for (const server of [settings.receive, ...settings.send === undefined ? [] : [settings.send]]) {
     if (!HOST.test(server.host)) throw new MailError(`${server.host} is not a host name.`, 'MAIL_INVALID')
     if (!Number.isInteger(server.port) || server.port < 1 || server.port > 65_535) throw new MailError(`${String(server.port)} is not a port.`, 'MAIL_INVALID')
-    if (server.security !== 'tls' && server.security !== 'starttls') throw new MailError('Security must be TLS or STARTTLS.', 'MAIL_INVALID')
     if (server.username === '') throw new MailError('A username is required.', 'MAIL_INVALID')
   }
   if (settings.receive.protocol === 'pop3' && settings.receive.security !== 'tls') {

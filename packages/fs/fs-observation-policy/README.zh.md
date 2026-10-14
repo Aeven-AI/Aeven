@@ -129,6 +129,9 @@ kind: "package-reference"
 - **授权依据是版本新鲜度，而非视图完整性**：任何窗口读取都会授权对未变文件执行全文件覆盖，这有意弱于完整视图规则（见[seam 拆分笔记](../../../.agents/notes/implemented/simplification/2026-06-26-fsspec-style-fs-seam.zh.md)）。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

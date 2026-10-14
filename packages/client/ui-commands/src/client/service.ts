@@ -209,6 +209,7 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
    * @param command - command name the shell serves (its log/error label).
    * @param spec - the popupSelect spec the control opens.
    * @param anchor - the control's element, so the card can line up with it.
+   * @param placement - which edge of the control the card anchors to.
    * @returns whether the session resolved a scope and the shell opened.
    */
   openSelect(
@@ -224,7 +225,15 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
     return true
   }
 
-  /** Run the same command decision as a slash-menu pick, without replacing draft text. */
+  /**
+   * Run the same command decision as a slash-menu pick, without replacing draft text.
+   * @param sessionId - the session whose command runs.
+   * @param name - command name the button carries.
+   * @param span - draft token span the decision reports against.
+   * @param anchor - the control's element, so any card can line up with it.
+   * @param placement - which edge of the control the card anchors to.
+   * @returns whether a contribution or decoration claimed the command and its shell opened.
+   */
   async invokeFromButton(
     sessionId: SessionId,
     name: string,

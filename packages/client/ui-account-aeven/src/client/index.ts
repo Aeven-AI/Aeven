@@ -128,6 +128,7 @@ export function apply(ctx: ClientContext): void {
     accountUrl,
     signOut: injected().signOut,
     cloud,
+    // oxlint-disable-next-line typescript/no-unnecessary-type-parameters -- implements the injected reader's caller-side assertion
     cached: <T>(path: string) => cache.peek<T>(path),
   }
   ctx.slots.inject('settings.section', () => ctx.slots.register({

@@ -46,6 +46,9 @@ Remote 调用沿 Client → Host 方向运行在应用共享的 Connection 之�
 - [Connection](../client/connection/README.zh.md)——每次 Remote 调用背后的 RPC 载体、`/api` 信任围栏与响应封装。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ## 开发备注
 
 <details>

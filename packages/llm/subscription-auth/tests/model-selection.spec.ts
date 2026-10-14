@@ -147,7 +147,9 @@ describe('subscription media providers', () => {
     const result = await provider.generateImage({ model: CODEX_IMAGE_MODEL, prompt: 'a cat' })
     expect(result.images).toHaveLength(1)
     expect(result.images[0]).toMatchObject({ kind: 'bytes', mediaType: 'image/png' })
-    expect(requestJson).toHaveBeenCalledWith(expect.objectContaining({ method: 'POST', body: expect.objectContaining({ prompt: 'a cat' }) }))
+    // vitest's asymmetric matcher carries no static type, so it is passed as an opaque value.
+    const postedBody: unknown = expect.objectContaining({ prompt: 'a cat' })
+    expect(requestJson).toHaveBeenCalledWith(expect.objectContaining({ method: 'POST', body: postedBody }))
   })
 
   it('routes reference images into the Imagine edit call and refuses unknown models', async () => {

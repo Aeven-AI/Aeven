@@ -13,6 +13,9 @@ import { HRESULT_CANCELLED, runFolderDialog } from '../src/win32-dialog-logic.ts
 
 const E_FAIL = 0x80004005 | 0
 const WM_CLOSE = 0x10
+/** `VK_MENU` and `KEYEVENTF_KEYUP` of the synthesized foreground press. */
+const VK_MENU = 0x12
+const KEYEVENTF_KEYUP = 0x2
 /** Four-byte defaults catch hardcoded x64 vtable offsets on every host. */
 const FAKE_POINTER_SIZE = 4
 
@@ -31,6 +34,8 @@ interface ComWorld {
   options: number[]
   dpiContexts: unknown[]
   freed: unknown[]
+  /** `keybd_event` calls as `[virtualKey, scanCode, flags, extraInfo]`. */
+  keyEvents: number[][]
   released: string[]
   posted: { hwnd: unknown; message: number }[]
   /** Buffer sizes handed to the fake `decode(..., 'str16')`. */
@@ -45,7 +50,7 @@ function comWorld(overrides: Partial<ComWorld> = {}): ComWorld {
     coInitHr: 0, coCreateHr: 0, showHr: 0, getResultHr: 0, getDisplayNameHr: 0,
     hasThreadDpi: true, supportedDpiContexts: [-4], enumThrows: false,
     path: 'C:\\选中\\directory',
-    titles: [], options: [], dpiContexts: [], freed: [], released: [], posted: [],
+    titles: [], options: [], dpiContexts: [], freed: [], keyEvents: [], released: [], posted: [],
     str16PointerSizes: [],
     registered: 0, unregistered: 0, uninitialized: 0,
     ...overrides,
@@ -130,6 +135,9 @@ function installFakeKoffi(world: ComWorld, options: {
               return 1
             }
             case 'PostMessageW': return (hwnd: unknown, message: number) => { world.posted.push({ hwnd, message }); return 1 }
+            case 'keybd_event': return (virtualKey: number, scanCode: number, flags: number, extraInfo: number) => {
+              world.keyEvents.push([virtualKey, scanCode, flags, extraInfo])
+            }
             default: throw new Error(`unexpected native import ${dll}/${name}`)
           }
         },
@@ -186,6 +194,11 @@ describe('loadWin32DialogBindings over the fake COM world', () => {
     expect(runFolderDialog(bindings, '选择工作区目录', showing)).toBe('C:\\选中\\directory')
     expect(world.dpiContexts).toEqual([-4])
     expect(world.titles).toEqual(['选择工作区目录'])
+    // The dialog is raised by a synthesized Alt press: down, then release.
+    expect(world.keyEvents).toEqual([
+      [VK_MENU, 0, 0, 0],
+      [VK_MENU, 0, KEYEVENTF_KEYUP, 0],
+    ])
     expect(world.options).toHaveLength(1)
     expect(showing).toHaveBeenCalledWith(31337)
     expect(world.freed).toHaveLength(1)
@@ -357,6 +370,7 @@ describe('the worker entry over a mocked process boundary', () => {
         coInitializeSta: () => 0,
         coUninitialize: () => undefined,
         currentThreadId: () => 11,
+        pressAltForForeground: () => undefined,
         createFolderDialog: () => ({
           setOptions: () => 0,
           setTitle: () => 0,

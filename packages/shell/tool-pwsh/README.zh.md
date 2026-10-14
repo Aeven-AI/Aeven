@@ -203,6 +203,9 @@ renderer 输出依数据而定的 stdout 尾部，再输出可选的 `[stderr]` 
 - **会话 cwd 身份未规范化**——workdir 基准就是会话头部 cwd 原样，不像 bash 工具那样以沙箱根规范化身份为准。在约束执行器下，策略的 workspace root 确实被规范化（由共享策略服务完成），因此当原始会话 cwd 与其规范形式不同时，workdir 与约束根可能分叉——这是推迟到共享 shell 工具基座抽取的对齐差距。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

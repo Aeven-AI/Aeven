@@ -131,6 +131,9 @@ kind: "package-reference"
 - **随附应用中只有 Web 命令适配器使用此命令**——无头、ACP 自动化和 JSON-RPC 适配器不消费 `ctx.commands`。如果组合中包含面向模型的 goal 工具，普通提示词仍能授权它们。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

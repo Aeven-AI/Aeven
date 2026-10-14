@@ -59,7 +59,10 @@ export class DeviceClient {
     for (const listener of this.listeners) listener()
   }
 
-  /** Whether the first snapshot has arrived. */
+  /**
+   * Whether the first snapshot has arrived.
+   * @returns true once the state stream delivered a snapshot.
+   */
   isLoaded(): boolean {
     return this.loaded
   }
@@ -106,7 +109,10 @@ export class DeviceClient {
     })
   }
 
-  /** Refresh every host's devices. */
+  /**
+   * Refresh every host's devices.
+   * @returns the command result carrying the refreshed service state.
+   */
   list(): Promise<DeviceCommandResult<DeviceServiceState>> {
     return settle(this.remote.device.list())
   }
@@ -114,6 +120,7 @@ export class DeviceClient {
   /**
    * Change the consent switches.
    * @param request - the switches to change.
+   * @returns the command result carrying the reconfigured service state.
    */
   configure(request: DeviceConfigureRequest): Promise<DeviceCommandResult<DeviceServiceState>> {
     return settle(this.remote.device.configure(request))
@@ -122,6 +129,7 @@ export class DeviceClient {
   /**
    * Retry a failed host.
    * @param hostId - the host.
+   * @returns the command result carrying the host's service state.
    */
   retryHost(hostId: DeviceHostId): Promise<DeviceCommandResult<DeviceServiceState>> {
     return settle(this.remote.device.retryHost(hostId))
@@ -131,6 +139,7 @@ export class DeviceClient {
    * Open a device for a session, booting it when needed.
    * @param sessionId - the session.
    * @param request - the device.
+   * @returns the command result carrying the opened, booted device session.
    */
   open(sessionId: SessionId, request: DeviceOpenRequest): Promise<DeviceCommandResult<DeviceSession>> {
     return settle(this.remote.device.open(sessionId, request))
@@ -140,6 +149,7 @@ export class DeviceClient {
    * Close a session's device, optionally powering it off.
    * @param sessionId - the session.
    * @param request - the device and whether to shut it down.
+   * @returns the command result; its value carries nothing.
    */
   close(sessionId: SessionId, request: DeviceCloseRequest): Promise<DeviceCommandResult<void>> {
     return settle(this.remote.device.close(sessionId, request))
@@ -149,6 +159,7 @@ export class DeviceClient {
    * Power a device off.
    * @param target - the device.
    * @param platform - its platform.
+   * @returns the command result; its value carries nothing.
    */
   shutdown(target: DeviceTarget, platform: DevicePlatform): Promise<DeviceCommandResult<void>> {
     return settle(this.remote.device.shutdown(target, platform))
@@ -157,6 +168,7 @@ export class DeviceClient {
   /**
    * Read a device's settings and foreground app.
    * @param target - the device.
+   * @returns the command result carrying the device's settings and foreground app.
    */
   detail(target: DeviceTarget): Promise<DeviceCommandResult<DeviceDetail>> {
     return settle(this.remote.device.detail(target))
@@ -165,6 +177,7 @@ export class DeviceClient {
   /**
    * Run one action and read the device back.
    * @param request - the device and action.
+   * @returns the command result carrying the device read back after the action.
    */
   action(request: DeviceActionRequest): Promise<DeviceCommandResult<DeviceDetail>> {
     return settle(this.remote.device.action(request))

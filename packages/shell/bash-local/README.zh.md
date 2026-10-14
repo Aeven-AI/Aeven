@@ -140,6 +140,9 @@ if (result.timedOut) console.log('timed out after', result.timeoutMs)
 - **后台 spawn 失败提示只交付一次**——subprocess 服务不会为从未真正运行的进程缓冲任何输出，因此执行器把 `spawn failed: …` 注入恰好一个 `readOutput()` 增量；丢弃了该增量的读取方无法再恢复它。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

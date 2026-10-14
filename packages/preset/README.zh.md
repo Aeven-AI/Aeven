@@ -9,7 +9,7 @@ kind: "package-group"
 
 ## 概述
 
-preset 组提供按会话的 agent（智能体）组装：agent preset 是一个目录，内含一份 `agent.cordis.yml`；从 preset 组装的会话会运行该 preset 的工具、提示词段落与 skill（技能），而其他会话各自保持自己的。`agent-presets` 拥有名单——对已配置根目录与 harness home 的发现、受防护的按 agent 挂载，以及只复制的创作方式——`persona` 则提供可组装的行，让 preset 不止能改变 agent 的工具、也能改变它的身份。两者合起来让一个进程可以同时运行多个组装方式不同的 agent。
+preset 组提供按会话的 agent（智能体）组装：agent preset 是一个目录，内含一份 `agent.cordis.yml`；从 preset 组装的会话会运行该 preset 的工具、提示词段落与 skill（技能），而其他会话各自保持自己的。`agent-presets` 拥有名单——对已配置根目录与 harness home 的发现、受防护的按 agent 挂载，以及只复制的创作方式——`persona` 则提供可组装的行，让 preset 不止能改变 agent 的工具、也能改变它的身份。两者合起来让一个进程可以同时运行多个组装方式不同的 agent。`personalization` 补充每位已登录用户对 Aeven 如何与自己交谈所提出的设定。
 
 ## 目录
 
@@ -26,6 +26,7 @@ preset 组提供按会话的 agent（智能体）组装：agent preset 是一个
 |---|---|---|
 | [`agent-presets`](agent-presets/README.zh.md) | preset 名单、对受信任根目录与用户根目录的发现、按 agent 组装、只复制的创作 | `ctx.agentPresets` |
 | [`persona`](persona/README.zh.md) | preset 挂载的可组装人设行，用于遮蔽或替换部署级人设 | — |
+| [`personalization`](personalization/README.zh.md) | 按账户的语气、名称与备注，渲染在 persona 之后，其 Remote 位于 Settings → Personalization | `ctx.personalizationController` |
 
 -----
 
@@ -43,6 +44,9 @@ preset 组提供按会话的 agent（智能体）组装：agent preset 是一个
 -----
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ## 开发备注
 
 <details>

@@ -1,46 +1,19 @@
 /** Telegram connector page: one row per signed-in account and the card that signs in another, by QR code or phone number. */
 
-import { useEffect, useRef, useState, type ReactNode } from 'react'
-import type { AccountIntegrationsView, ConnectorId, TelegramLoginFailure, TelegramPairingView } from '@aeven/api-remotes/client'
+import { useEffect, useRef, useState } from 'react'
+import type { ConnectorId, TelegramLoginFailure, TelegramPairingView } from '@aeven/api-remotes/client'
 import { IconTrashOutline16, Spinner } from '@aeven/client-ui-primitives'
-import type { PropsLocale } from '@aeven/client-ui-slots'
+import { ConnectorAccountRows } from './ConnectorAccountRows.tsx'
+import { formatPhone, type PairingAccountsProps, type TelegramPairingOperations } from './connector-page.ts'
 import { connectorIcons } from './connector-icons.ts'
 import type { IntegrationsLocaleKey } from './locales.ts'
 import css from './IntegrationsSection.module.css'
-
-type Connection = AccountIntegrationsView['connectors'][number]
-type Translate = PropsLocale<'settings.integrations'>['t']
 
 /** Interval between sign-in state reads while the card waits for a step or for Telegram. */
 const POLL_MS = 1500
 
 /** Props from the connector page. */
-export interface TelegramAccountsProps {
-  t: Translate
-  busy: boolean
-  connections: readonly Connection[]
-  /** The page's operation runner: shows progress, refreshes the list, and reports thrown failures. */
-  run: (operation: () => Promise<unknown>) => Promise<void>
-  /** The page's switch control. */
-  toggle: (label: string, on: boolean, disabled: boolean, onChange: () => void) => ReactNode
-  startTelegramPairing: (phone: string) => Promise<TelegramPairingView>
-  startTelegramQrPairing: () => Promise<TelegramPairingView>
-  telegramPairing: (id: ConnectorId) => Promise<TelegramPairingView>
-  submitTelegramCode: (id: ConnectorId, code: string) => Promise<TelegramPairingView>
-  submitTelegramPassword: (id: ConnectorId, password: string) => Promise<TelegramPairingView>
-  cancelTelegramPairing: (id: ConnectorId) => Promise<void>
-  setConnectorEnabled: (id: ConnectorId, enabled: boolean) => Promise<void>
-  disconnect: (id: ConnectorId) => Promise<void>
-  /** Re-read the connector list after an account was signed in. */
-  refresh: () => void
-  /** Open the card on first render, when the page was reached by turning the connector on. */
-  startWithPairing: boolean
-}
-
-/** International number in the `+<digits>` form Settings shows. */
-function formatPhone(phone: string): string {
-  return `+${phone}`
-}
+export interface TelegramAccountsProps extends PairingAccountsProps, TelegramPairingOperations {}
 
 /** Fixed copy for each reason Telegram refused a step, so Telegram's own error text never reaches the page. */
 const rejections = {
@@ -65,7 +38,7 @@ export function TelegramAccounts(props: TelegramAccountsProps) {
   const [password, setPassword] = useState('')
   const attemptId = useRef<ConnectorId>()
   const waiting = attempt?.state === 'starting' || attempt?.state === 'code' || attempt?.state === 'qr' || attempt?.state === 'password'
-  attemptId.current = waiting ? attempt?.id : undefined
+  attemptId.current = waiting ? attempt.id : undefined
   const { telegramPairing, cancelTelegramPairing, refresh } = props
 
   const begin = (operation: () => Promise<TelegramPairingView>): void => {
@@ -147,11 +120,13 @@ export function TelegramAccounts(props: TelegramAccountsProps) {
   const failure = attempt === undefined ? undefined : outcome[attempt.state]
 
   return <>
-    <div className={css.serverList}>{props.connections.map(connection => <div key={connection.id} className={css.serverRow}>
+    <ConnectorAccountRows connections={props.connections} row={connection => <>
       <span className={css.skillSummary}>
         <strong>{connection.name}</strong>
         {connection.telegram?.username !== undefined && <span className={css.address}>@{connection.telegram.username}</span>}
-        {connection.telegram?.phone !== undefined && connection.telegram.phone !== connection.name && <span className={css.address}>{formatPhone(connection.telegram.phone)}</span>}
+        {connection.telegram?.phone !== undefined && connection.telegram.phone !== connection.name && (
+          <span className={css.address}>{formatPhone(connection.telegram.phone)}</span>
+        )}
         {!connection.connected && <span className={css.attention}>{t('telegramRelink')}</span>}
         {confirming === connection.id && <span className={css.actions}>
           <span className={css.hint}>{t('telegramUnlinkConfirm')}</span>
@@ -166,7 +141,7 @@ export function TelegramAccounts(props: TelegramAccountsProps) {
       {props.toggle(connection.name, connection.enabled && connection.connected, !connection.connected, () => {
         void props.run(() => props.setConnectorEnabled(connection.id, !connection.enabled))
       })}
-    </div>)}</div>
+    </>} />
     {!open && <button type="button" className={css.secondaryAction} disabled={busy} onClick={openQr}>{t('telegramAdd')}</button>}
     {open && <div className={css.card}>
       {mode === 'phone' && attempt === undefined
@@ -207,7 +182,7 @@ export function TelegramAccounts(props: TelegramAccountsProps) {
       {attempt?.reason !== undefined && <p role="alert" className={css.error}>{t(rejections[attempt.reason])}</p>}
       {attempt?.state === 'connected' && <p role="status" className={css.testing}>{t('telegramConnected')}</p>}
       {failure !== undefined && <p role="alert" className={css.error}>{t(failure)}</p>}
-      {waiting && <p role="status" className={css.testing}><Spinner />{t(mode === 'qr' && (attempt?.state === 'starting' || attempt?.state === 'qr')
+      {waiting && <p role="status" className={css.testing}><Spinner />{t(mode === 'qr' && (attempt.state === 'starting' || attempt.state === 'qr')
         ? attempt.qr === undefined ? 'telegramQrPreparing' : 'telegramQrWaiting'
         : 'telegramWaiting')}</p>}
       <div className={css.actions}>

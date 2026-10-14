@@ -24,42 +24,50 @@ function view(props: Partial<AssistantMarkdownProps> & Pick<AssistantMarkdownPro
   )
 }
 
-describe('reasoning inside the Markdown engine', () => {
-  it('renders a reasoning block as the engine draws it, not as a host row', () => {
-    const rendered = view({ blocks: [{ kind: 'reasoning', text: 'Inspect the session' }] })
-    const wrapper = rendered.container.querySelector('.reasoning-wrapper')
+/** The one Think row a step renders for its reasoning. */
+function thinkRow(container: HTMLElement): HTMLElement {
+  const row = container.querySelector<HTMLElement>('[data-variant="think"]')
+  if (row === null) throw new Error('the step rendered no Think row')
+  return row
+}
 
-    expect(wrapper).not.toBeNull()
-    // The engine's own chrome carries the block: a header the reader toggles,
-    // the collapsed body, and the block's own timing.
-    expect(wrapper?.querySelector('.reasoning-header')).not.toBeNull()
-    expect(wrapper?.textContent).toContain('思考了')
+describe('reasoning as the step\'s own Think row', () => {
+  it('renders a reasoning block as a Think disclosure, not as engine markdown', () => {
+    const rendered = view({ blocks: [{ kind: 'reasoning', text: 'Inspect the session' }] })
+    const row = thinkRow(rendered.container)
+
+    // The row carries the disclosure chrome: the title the reader toggles, the
+    // collapsed trace, and no engine instance behind it.
+    expect(rendered.getByText('思考')).toBeTruthy()
+    expect(row.dataset.state).toBe('ok')
+    expect(row.textContent).toContain('Inspect the session')
+    expect(rendered.container.querySelectorAll('.hypermarkdown')).toHaveLength(0)
   })
 
   it('collapses a settled block and opens it on request', () => {
     const rendered = view({
       blocks: [{ kind: 'reasoning', text: 'Inspect the session\nCheck persistence' }],
     })
-    const wrapper = rendered.container.querySelector('.reasoning-wrapper') as HTMLElement
+    const row = thinkRow(rendered.container)
     const header = rendered.getByRole('button')
 
-    // A finished block starts closed: the answer is what the reader came for.
-    expect(wrapper.className).toContain('collapsed')
+    // A settled block starts closed: the answer is what the reader came for.
+    expect(row.hasAttribute('data-expanded')).toBe(false)
     expect(header.getAttribute('aria-expanded')).toBe('false')
 
     fireEvent.click(header)
+    expect(row.hasAttribute('data-expanded')).toBe(true)
     expect(header.getAttribute('aria-expanded')).toBe('true')
-    expect(rendered.container.querySelector('.reasoning-content')?.textContent)
-      .toContain('Check persistence')
+    expect(row.textContent).toContain('Check persistence')
   })
 
-  it('runs the block while the step streams and closes it when the step settles', () => {
+  it('runs the block while the step streams and settles it when the step settles', () => {
     const live = view({
       blocks: [{ kind: 'reasoning', text: 'Inspect the session' }],
       streaming: true,
     })
-    expect(live.container.querySelector('.reasoning-wrapper')?.className).toContain('stream-active')
-    expect(live.getByText('思考')).toBeTruthy()
+    expect(thinkRow(live.container).dataset.state).toBe('running')
+    expect(live.getByText('运行中')).toBeTruthy()
 
     live.rerender(
       <AssistantMarkdown
@@ -69,8 +77,8 @@ describe('reasoning inside the Markdown engine', () => {
         renderMessageImages={renderMessageImages}
       />,
     )
-    expect(live.container.querySelector('.reasoning-wrapper')?.className).not.toContain('stream-active')
-    expect(live.getByText(/思考了 \d+ 秒/)).toBeTruthy()
+    expect(thinkRow(live.container).dataset.state).toBe('ok')
+    expect(live.queryByText('运行中')).toBeNull()
   })
 
   it('renders reasoning markdown as markdown', () => {
@@ -79,7 +87,7 @@ describe('reasoning inside the Markdown engine', () => {
     })
     fireEvent.click(rendered.getByRole('button'))
 
-    expect(rendered.container.querySelectorAll('.reasoning-content li')).toHaveLength(2)
+    expect(rendered.container.querySelectorAll('li')).toHaveLength(2)
   })
 })
 
@@ -93,16 +101,15 @@ describe('a step as one engine source', () => {
       ],
     })
     const container = rendered.container
-    const reasoning = container.querySelector('.reasoning-wrapper')
+    const reasoning = thinkRow(container)
     const paragraphs = [...container.querySelectorAll('p')]
     const first = paragraphs.find(node => node.textContent === 'First answer.')
     const last = paragraphs.find(node => node.textContent === 'Last answer.')
 
-    expect(reasoning).not.toBeNull()
-    // 4 is DOCUMENT_POSITION_FOLLOWING: the reasoning block sits after the
+    // 4 is DOCUMENT_POSITION_FOLLOWING: the reasoning row sits after the
     // first paragraph and before the last one, in the order they were authored.
-    expect(first?.compareDocumentPosition(reasoning!)).toBe(4)
-    expect(reasoning?.compareDocumentPosition(last!)).toBe(4)
+    expect(first?.compareDocumentPosition(reasoning)).toBe(4)
+    expect(reasoning.compareDocumentPosition(last!)).toBe(4)
   })
 
   it('sends consecutive text blocks through one renderer', () => {

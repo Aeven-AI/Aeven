@@ -192,7 +192,7 @@ function ensureTemporarySchema(db: DatabaseSync): void {
   `)
   db.exec('CREATE INDEX IF NOT EXISTS temp.live_doc_meta_session ON live_doc_meta(session_id)')
   db.exec('CREATE VIRTUAL TABLE IF NOT EXISTS temp.live_docs_inst USING fts5vocab(live_docs, instance)')
-  db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS temp.query_probe USING fts5(text, tokenize = 'unicode61')`)
+  db.exec('CREATE VIRTUAL TABLE IF NOT EXISTS temp.query_probe USING fts5(text, tokenize = \'unicode61\')')
   db.exec('CREATE VIRTUAL TABLE IF NOT EXISTS temp.query_probe_inst USING fts5vocab(query_probe, instance)')
   // Instances of a phrase's second and later tokens, keyed for point lookups
   // from the first token's instances.

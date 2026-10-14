@@ -130,7 +130,12 @@ export function apply(ctx: Context, config: Config = {}): void {
       }
       // The agent is its own scope key, so the lookup resolves the layered
       // registry exactly as this agent's composition sees it.
-      const lookup = { cwd: exec.agent?.session.header.cwd, owner: exec.agent?.session.header.owner, signal: exec.signal, scope: exec.agent }
+      const lookup = {
+        cwd: exec.agent?.session.header.cwd,
+        owner: exec.agent?.session.header.owner,
+        signal: exec.signal,
+        scope: exec.agent,
+      }
       const summary = (await ctx.skills.list(lookup)).find(skill => skill.name === args.name)
       if (!summary) {
         throw new Error(`skill "${args.name}" is unknown or no longer available`)

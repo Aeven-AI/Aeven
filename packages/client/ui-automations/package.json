@@ -2,6 +2,14 @@
   "name": "@aeven/client-ui-automations",
   "version": "0.1.2-alpha.5",
   "description": "Built-in task-first automation management",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "directory": "packages/client/ui-automations"
+  },
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",

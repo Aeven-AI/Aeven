@@ -108,9 +108,13 @@
    under the settings panel's fade at each end: a one-page-inset band, which is
    also its scroll padding, so no row sits inside a fade at rest. It carries
    `no-scrollbar` (ui-theme) in the markup, so no bar draws on its right edge
-   and no width is reserved for one. */
+   and no width is reserved for one. The indirection pair is still stated: this
+   region scrolls inside the elevated panel, and the contract asks every such
+   region for the l2 elevation pair. */
 .results {
   --avn-search-fade: var(--dsw-aeven-page-inset);
+  --avn-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --avn-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
   flex: 1;
   min-height: 0;
   padding: var(--avn-search-fade) calc(var(--dsw-aeven-page-inset) - 8px) var(--avn-search-fade);

@@ -292,7 +292,7 @@ export function apply(ctx: Context): void {
       // The fold control is chrome for the frame's own column, so its action is
       // read rather than declared as a hard dependency.
       toggleSidebar: foldAction(ctx),
-      composerPlaceholder: (path) => workspaceNavigation.composerPlaceholder?.(path),
+      composerPlaceholder: path => workspaceNavigation.composerPlaceholder?.(path),
       selectWorkspace: async (workspaceId) => {
         const nextId = await workspaceNavigation.connectWorkspace(workspaceId)
         if (sessionId !== undefined && nextId !== sessionId) {

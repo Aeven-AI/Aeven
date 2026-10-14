@@ -89,6 +89,9 @@ Trajectory 要求会话壳把 composer 作为浮层置于全高记录表上方�
 - **底部让位是静态的**：`.ledger` 仅用 `--avn-composer-height` 的回退值来设定 `--avn-trajectory-bottom-clearance`。没有任何代码测量实时 composer，因此草稿比回退值更高或更矮时，账本末行会出现让位过多或不足，直到回退值被改写为止。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

@@ -126,6 +126,9 @@ binding-global 与 error-class 名称是语言可移植的：必须匹配标识�
 - **中间 binding 值没有字节上限**——实现仍受 structured-clone 成本与进程内存约束，而提供方或执行器可能已经应用自己的获取上限。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

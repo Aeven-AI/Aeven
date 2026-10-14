@@ -14,7 +14,6 @@ import { AttachmentError } from '@aeven/attachment'
 import type { AttachmentId, ImageAttachmentRef, ImageMediaType, StoredFileAttachment, StoredImageAttachment } from '@aeven/attachment'
 import { brandString } from '@aeven/brand'
 import type {} from '@aeven/client-connection'
-import { DocumentExtractError } from '@aeven/document-extract'
 import type { SessionId } from '@aeven/session'
 import { ApiSessionNotFound } from './agent.ts'
 import type { FileUploadFailure, FileUploadValue } from './types.ts'
@@ -61,6 +60,7 @@ async function upload(ctx: Context, request: Request): Promise<Response> {
     extracted = await ctx.documentExtract.extract({ data, name, mediaType }, request.signal)
   } catch (error) {
     if (request.signal.aborted) return failure(499, 'CANCELLED', 'Upload cancelled.')
+    const { DocumentExtractError } = await import('@aeven/document-extract')
     if (error instanceof DocumentExtractError && error.code === 'UNSUPPORTED_FORMAT') {
       return failure(415, 'UNSUPPORTED_FILE_TYPE', error.message)
     }
@@ -220,6 +220,12 @@ function dispositionName(name: string): string {
   return `filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`
 }
 
+function attachmentReadFailure(error: unknown): Response {
+  if (error instanceof ApiSessionNotFound) return failure(404, 'SESSION_NOT_FOUND', error.message)
+  if (error instanceof AttachmentError) return failure(error.code === 'ATTACHMENT_NOT_FOUND' ? 404 : 500, error.code, error.message)
+  throw error
+}
+
 async function read(
   request: Request,
   readReferenced: (sessionId: SessionId, attachmentId: string) => Promise<StoredFileAttachment | undefined>,
@@ -234,9 +240,7 @@ async function read(
   try {
     stored = await readReferenced(brandString<SessionId>(sessionId), attachmentId)
   } catch (error) {
-    if (error instanceof ApiSessionNotFound) return failure(404, 'SESSION_NOT_FOUND', error.message)
-    if (error instanceof AttachmentError) return failure(error.code === 'ATTACHMENT_NOT_FOUND' ? 404 : 500, error.code, error.message)
-    throw error
+    return attachmentReadFailure(error)
   }
   if (stored === undefined) return failure(404, 'ATTACHMENT_NOT_REFERENCED', 'File is not referenced by this session.')
   return storedOriginal({ mediaType: stored.ref.mediaType, name: stored.ref.name, data: stored.data }, request)
@@ -279,9 +283,7 @@ async function readImage(
       ? await readReferenced(brandString<SessionId>(sessionId ?? ''), attachmentId)
       : await readDirect(ref)
   } catch (error) {
-    if (error instanceof ApiSessionNotFound) return failure(404, 'SESSION_NOT_FOUND', error.message)
-    if (error instanceof AttachmentError) return failure(error.code === 'ATTACHMENT_NOT_FOUND' ? 404 : 500, error.code, error.message)
-    throw error
+    return attachmentReadFailure(error)
   }
   if (stored === undefined) return failure(404, 'ATTACHMENT_NOT_REFERENCED', 'Image is not referenced by this session.')
   const name = stored.ref.name ?? derivedImageName(String(stored.ref.attachmentId), stored.ref.mediaType)

@@ -10,7 +10,6 @@ describe('codingOAuthProxyUnreachableHint', () => {
     expect(manifest.version).toBe('0.1.2-alpha.5')
     expect(manifest.dependencies['dsh-coding-oauth-core']).toBe('0.1.2')
     expect(manifest.dependencies.undici).toBe('7.29.0')
-    expect(manifest.devDependencies.undici).toBe('7.29.0')
   })
   it('names CODING_OAUTH_PROXY while installed and restores the previous dispatcher', async () => {
     const previous = getGlobalDispatcher()

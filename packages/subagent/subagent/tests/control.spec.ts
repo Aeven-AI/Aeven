@@ -3,7 +3,7 @@
 // The durable listing, continuation, and interrupt primitives they wrap have
 // their own specs, so each case scripts them.
 
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { AttachmentError } from '@aeven/attachment'
 import type { MessageId } from '@aeven/llm'
@@ -14,6 +14,22 @@ import SubagentRuntime, {
   type SubagentPromptRequestId,
 } from '@aeven/subagent'
 import { queueSubagentPrompt, type HostPromptQueue } from '@aeven/subagent/internal'
+
+/**
+ * The durable listing, scripted at its module seam: the catalog Remote reads it
+ * through the reader-visibility predicate, which the public service method does
+ * not take, so a service spy no longer stands in for it.
+ */
+const listing = vi.hoisted(() => ({ listChildren: vi.fn() }))
+
+vi.mock('../src/list-children.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/list-children.ts')>()
+  return { ...actual, listChildren: listing.listChildren }
+})
+
+beforeEach(() => {
+  listing.listChildren.mockReset()
+})
 
 const PARENT = SessionId('parent')
 const CHILD = SessionId('child')
@@ -74,16 +90,15 @@ function emptyIdFailure(method: string, field: string) {
 describe('subagent catalog Remote', () => {
   it('rejects an empty parent id before listing', async () => {
     const { subagents } = await bench()
-    const listChildren = vi.spyOn(subagents, 'listChildren')
 
     await expect(subagents.remoteExportList(SessionId(''), signal))
       .rejects.toMatchObject(emptyIdFailure('subagent.list', 'parentSessionId'))
-    expect(listChildren).not.toHaveBeenCalled()
+    expect(listing.listChildren).not.toHaveBeenCalled()
   })
 
   it('samples row activity from the live Agent driver and reports parent availability', async () => {
     const { subagents } = await bench({ [PARENT]: { status: 'idle' }, [CHILD]: { status: 'running' } })
-    vi.spyOn(subagents, 'listChildren').mockResolvedValue([
+    listing.listChildren.mockResolvedValue([
       // The durable listing reports store presence; the browser row reports the driver.
       childRow(CHILD, 'inactive'),
       childRow(OTHER, 'running'),
@@ -102,7 +117,7 @@ describe('subagent catalog Remote', () => {
 
   it('reports every row inactive and the parent unavailable without an Agent registry', async () => {
     const { subagents } = await bench()
-    vi.spyOn(subagents, 'listChildren').mockResolvedValue([childRow(CHILD, 'running')])
+    listing.listChildren.mockResolvedValue([childRow(CHILD, 'running')])
 
     await expect(subagents.remoteExportList(PARENT, signal)).resolves.toEqual({
       entries: [childRow(CHILD, 'inactive')],
@@ -112,7 +127,7 @@ describe('subagent catalog Remote', () => {
 
   it('reports an unknown parent as unavailable while the registry serves other sessions', async () => {
     const { subagents } = await bench({ [CHILD]: { status: 'running' } })
-    vi.spyOn(subagents, 'listChildren').mockResolvedValue([])
+    listing.listChildren.mockResolvedValue([])
 
     await expect(subagents.remoteExportList(PARENT, signal))
       .resolves.toEqual({ entries: [], parentAvailable: false })
@@ -120,7 +135,7 @@ describe('subagent catalog Remote', () => {
 
   it('separates cancellation, the missing projections capability, and an unexplained read failure', async () => {
     const { subagents } = await bench()
-    const listChildren = vi.spyOn(subagents, 'listChildren')
+    const listChildren = listing.listChildren
 
     const aborted = new AbortController()
     aborted.abort()
@@ -169,7 +184,8 @@ describe('subagent prompt Remote', () => {
     const { ctx, subagents } = await bench({ [PARENT]: { status: 'idle' } })
     const saveImages = vi.fn(async (inputs: readonly { mediaType: string }[]) =>
       inputs.map((input, index) => ({ ...IMAGE_REF, attachmentId: `att-${index}`, mediaType: input.mediaType })))
-    ctx.provide('attachments', { saveImages } as never)
+    const claimUploads = vi.fn()
+    ctx.provide('attachments', { saveImages, claimUploads } as never)
     const delivery = promptDelivery(subagents).mockResolvedValue('m-content' as MessageId)
     const content = [
       { type: 'text' as const, text: 'before' },
@@ -184,6 +200,7 @@ describe('subagent prompt Remote', () => {
       { type: 'image', attachment: { ...IMAGE_REF, attachmentId: 'att-0', mediaType: 'image/png' } },
       { type: 'text', text: 'after' },
     ])
+    expect(claimUploads).toHaveBeenCalledWith([])
   })
 
   it('maps a refused image batch to subagent/attachment-invalid and delivers nothing', async () => {

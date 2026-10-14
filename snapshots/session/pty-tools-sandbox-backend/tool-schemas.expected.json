@@ -193,7 +193,7 @@
     },
     {
       "name": "job_kill",
-      "description": "Request cancellation of a running background job by job id. Returns immediately; the job settles as killed once its work actually stops.",
+      "description": "Request cancellation of a running background job.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -221,7 +221,7 @@
     },
     {
       "name": "job_output",
-      "description": "Read a background job. Stream jobs return only output since the previous read; final-output jobs return their result after settlement. Every response ends with `[status: ...]`. Reads are non-blocking unless `wait: true`, which waits up to the configured cap.",
+      "description": "Read a background job: output since the previous read for stream jobs, or the result of a finished final-output job.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -231,11 +231,11 @@
           },
           "wait": {
             "type": "boolean",
-            "description": "Block until the job reaches a terminal status or the timeout expires. A timed-out wait returns [status: running] and leaves the job alive."
+            "description": "Block until the job finishes, the timeout expires, or the user sends a message; an unfinished wait leaves the job running. Defaults to false."
           },
           "timeout_ms": {
             "type": "number",
-            "description": "Max wait in milliseconds (only meaningful with wait: true). Defaults to the configured wait timeout; capped by the configured maximum."
+            "description": "Max wait in milliseconds with wait: true. Defaults to and is capped by configuration."
           }
         },
         "required": [
@@ -703,7 +703,7 @@
     },
     {
       "name": "web_fetch",
-      "description": "Fetch the content of a specific HTTP(S) URL and return it decoded to text.",
+      "description": "Fetch the content of a specific HTTP(S) URL and return it decoded to text. Runs no JavaScript, so a page that builds itself in a browser may return little or nothing.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -719,7 +719,7 @@
     },
     {
       "name": "web_search",
-      "description": "Search the web for current information. Provide 1–4 queries in the required queries array. Returns an optional summary answer and a list of source URLs.",
+      "description": "Search the web for current information. Use it before answering anything that may have changed since your training data, and whenever you would otherwise guess. Provide 1–4 queries in the required queries array. Returns an optional summary answer and a list of source URLs.",
       "parameters": {
         "type": "object",
         "properties": {

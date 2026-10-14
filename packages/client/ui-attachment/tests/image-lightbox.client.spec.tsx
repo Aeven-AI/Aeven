@@ -27,6 +27,17 @@ const two = [
   { src: 'blob:second', alt: '第二张' },
 ]
 
+/**
+ * End the dialog's fade-out. React resolves its animation listener against the
+ * style properties the environment reports, and jsdom reports the prefixed
+ * `WebkitAnimation`, so the event the component's `onAnimationEnd` receives
+ * here is the prefixed one.
+ * @param dialog - the gallery dialog mid-fade.
+ */
+function finishFadeOut(dialog: HTMLElement): void {
+  fireEvent(dialog, new Event('webkitAnimationEnd', { bubbles: true }))
+}
+
 function selectedSrc(): string | null {
   return document.querySelector('[data-selected] img')?.getAttribute('src') ?? null
 }
@@ -46,9 +57,9 @@ describe('ImageLightbox', () => {
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(dialog.hasAttribute('data-closing')).toBe(true)
     expect(onClose).not.toHaveBeenCalled()
-    fireEvent.animationEnd(dialog)
+    finishFadeOut(dialog)
     fireEvent.click(close)
-    fireEvent.animationEnd(dialog)
+    finishFadeOut(dialog)
     expect(onClose).toHaveBeenCalledTimes(2)
     view.unmount()
     expect(document.activeElement).toBe(opener)
@@ -107,7 +118,7 @@ describe('ImageLightbox', () => {
       // A re-render while the read is still in flight must not start a second one.
       view.rerender(<ImageLightbox images={[...images]} index={0} labels={labels} onClose={vi.fn()} />)
       expect(fetchMock).toHaveBeenCalledTimes(1)
-      release?.(new Response(new Blob([new Uint8Array(512_000)], { type: 'image/webp' })))
+      release?.(new Response(new Uint8Array(512_000), { headers: { 'content-type': 'image/webp' } }))
       await waitFor(() => {
         expect(view.getByRole('status').textContent).toBe('图片类型：image/webp文件大小：0.51 MB文件名：chart.webp')
       })
@@ -126,6 +137,7 @@ describe('ImageLightbox', () => {
       fireEvent.click(view.getByRole('button', { name: '图片信息' }))
       await waitFor(() => { expect(blocked).toHaveBeenCalledTimes(1) })
       expect(view.getByRole('status').textContent).toBe('图片类型：未知文件大小：未知文件名：未知')
+      view.unmount()
     } finally {
       vi.unstubAllGlobals()
     }
@@ -136,17 +148,19 @@ describe('ImageLightbox', () => {
       const view = render(<ImageLightbox images={[{ src: 'http://localhost:3000/failed', alt: '图' }]} index={0} labels={labels} onClose={vi.fn()} />)
       fireEvent.click(view.getByRole('button', { name: '图片信息' }))
       await waitFor(() => { expect(view.getByRole('status').textContent).toContain('文件大小：未知') })
+      view.unmount()
     } finally {
       vi.unstubAllGlobals()
     }
 
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(new Blob([new Uint8Array(2048)]))))
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(new Uint8Array(2048))))
     try {
       const view = render(<ImageLightbox images={[{ src: 'http://localhost:3000/untyped', alt: '图' }]} index={0} labels={labels} onClose={vi.fn()} />)
       fireEvent.click(view.getByRole('button', { name: '图片信息' }))
       await waitFor(() => {
         expect(view.getByRole('status').textContent).toBe('图片类型：未知文件大小：0.00 MB文件名：untyped')
       })
+      view.unmount()
     } finally {
       vi.unstubAllGlobals()
     }
@@ -177,7 +191,7 @@ describe('ImageLightbox', () => {
       const view = render(<ImageLightbox images={[{ src: 'http://localhost:3000/late.png', alt: '图' }]} index={0} labels={labels} onClose={vi.fn()} />)
       fireEvent.click(view.getByRole('button', { name: '图片信息' }))
       view.unmount()
-      release?.(new Response(new Blob([new Uint8Array(8)], { type: 'image/png' })))
+      release?.(new Response(new Uint8Array(8), { headers: { 'content-type': 'image/png' } }))
       await waitFor(() => { expect(fetchMock).toHaveBeenCalledTimes(1) })
     } finally {
       vi.unstubAllGlobals()

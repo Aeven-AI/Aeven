@@ -70,7 +70,7 @@
 .connectorHeading { display: flex; align-items: center; gap: 16px; padding-top: 12px; }
 .connectorHeading h2 { flex: 1; min-width: 0; margin: 0; }
 .connectorDetail h3 { margin: 12px 0 0; }
-@media (max-width: 600px) { .section .connectorOpen { gap: 10px; } }
+@media (max-width: 640px) { .section .connectorOpen { gap: 10px; } }
 
 /* Skill and connector pages, including rendered instructions: no text above 16px and no weight above 500. */
 .section.compact { --avn-content-font-size: 16px; }
@@ -80,7 +80,9 @@
 .section.compact .instructions > :first-child :is(h1, h2, h3, h4, h5, h6):first-child { margin-top: 0; }
 .section.compact .instructions :is(p, li, td, th, blockquote) { font-size: min(1em, 16px); line-height: 26px; }
 
-.section.skillModal { width: min(800px, 100%); height: min(800px, calc(100dvh - 48px)); padding: 0; gap: 0; }
+/* The vh line is the floor's height: `dvh` needs Safari 15.4, and the modal
+   keeps a usable box there rather than none. */
+.section.skillModal { width: min(800px, 100%); height: min(800px, calc(100vh - 48px)); height: min(800px, calc(100dvh - 48px)); padding: 0; gap: 0; }
 .skillModalHeader { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 8px; padding: var(--dsw-aeven-page-inset) var(--dsw-aeven-page-inset) 0; box-sizing: border-box; }
 .skillModalHeader h2 { margin: 0; font-size: 16px; line-height: 24px; font-weight: 500 !important; color: var(--dsw-alias-label-primary); }
 .section .skillModalClose { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 28px; height: 28px; padding: 0; border: none; border-radius: 28px; background: #000; color: #fff; }

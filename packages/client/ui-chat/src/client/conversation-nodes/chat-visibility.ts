@@ -1,6 +1,6 @@
 /** Chat-only row visibility; durable events and trajectory inspection remain intact. */
-import type { ChatNode } from './chat-nodes.ts'
-import { skillInvocationName } from '../conversation-nodes/event-projection.ts'
+import type { ChatNode } from '../contract/chat-nodes.ts'
+import { skillInvocationName } from './event-projection.ts'
 
 /**
  * Exclude system prompts, permission commands and injected context from visible

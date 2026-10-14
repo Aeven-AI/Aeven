@@ -1,7 +1,7 @@
 import { createUserMessage } from '@aeven/llm'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, rm, cp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import LlmRuntime from '@aeven/llm'
@@ -623,6 +623,15 @@ describe('the session-persistence Agent Note: AgentLoop factory create/resume', 
     await a1.whenIdle()
     await ctx1.sessions.flush(a1.session)
 
+    // Lifecycle 1 ends the way a crashed Host ends: it never cancels its agent, so
+    // the pending inject stays in the log instead of being durably cleared, and the
+    // writer lock that Host still holds belongs to the artifact it left behind. The
+    // next Host opens its own copy of that artifact — resuming the session beside the
+    // live writer would be refused as busy.
+    const resumedRoot = await mkdtemp(join(tmpdir(), 'avn-resume-'))
+    dirs.push(resumedRoot)
+    await cp(root, resumedRoot, { recursive: true })
+
     // Lifecycle 2: resume; the injected context is still pending and becomes
     // model-visible when the next turn admits it.
     const adapter2 = new MockAdapter([textResponse('next')])
@@ -634,7 +643,7 @@ describe('the session-persistence Agent Note: AgentLoop factory create/resume', 
     await ctx2.plugin(ToolRuntime)
     await ctx2.plugin(AgentRegistry)
     await ctx2.plugin(AgentLoop, { agents: [] })
-    await ctx2.plugin(JsonlSessionPersistence, { root })
+    await ctx2.plugin(JsonlSessionPersistence, { root: resumedRoot })
     ctx2.llm.registerAdapter(['mock'], adapter2)
     const loaded = await ctx2.sessionPersistence.load(SessionId('inject-sess'))
     expect(loaded.events.some(event => event.type === 'agent/inbox/spliced')).toBe(true)

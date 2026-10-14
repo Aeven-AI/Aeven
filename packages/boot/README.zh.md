@@ -34,6 +34,9 @@ boot 组提供每个 avn app bin 启动所需的全部能力：`app-boot` 把 `c
 - [应用持有命令行决策](../../.agents/notes/implemented/architecture/2026-08-06-app-owned-command-line.zh.md)——为什么 flag 家族由应用持有而非启动器。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ## 开发备注
 
 无。

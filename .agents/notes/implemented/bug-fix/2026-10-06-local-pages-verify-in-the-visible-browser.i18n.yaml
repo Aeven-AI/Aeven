@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-10-06-local-pages-verify-in-the-visible-browser.md
-2026-10-06-local-pages-verify-in-the-visible-browser.md: d24d47db2ea75cc4f55a60c5d405517aba85caac
-2026-10-06-local-pages-verify-in-the-visible-browser.zh.md: dc379572a6c9e4e8e2526b0a81366896b0340088
+2026-10-06-local-pages-verify-in-the-visible-browser.md: 0b9460ea2ec3c63e9ebc3b70f7c792dbc33590c1
+2026-10-06-local-pages-verify-in-the-visible-browser.zh.md: 880a6261f53ab8ac4b4e5bdcd85e9b47d85cd55d

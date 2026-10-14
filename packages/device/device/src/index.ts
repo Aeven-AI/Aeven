@@ -192,7 +192,10 @@ export class DeviceService extends TypertRemoteService {
     }
   }
 
-  /** The current state snapshot. */
+  /**
+   * The current state snapshot.
+   * @returns the hosts, their states, the devices, the sessions holding an open device, and the published revision.
+   */
   snapshot(): DeviceServiceState {
     return this.state
   }
@@ -332,6 +335,7 @@ export class DeviceService extends TypertRemoteService {
     return await this.list()
   }
 
+  /* jscpd:ignore-start -- mirrors @aeven/api-job-controller's caller-session fence for its own requests */
   /**
    * Refuse a request that names a Session the caller does not own.
    * @param sessionId - the Session the device is opened for.
@@ -342,6 +346,7 @@ export class DeviceService extends TypertRemoteService {
       throw new RemoteError('session/not-found', `session "${sessionId}" not found`, { sessionId })
     }
   }
+  /* jscpd:ignore-end */
 
   /**
    * Open a device for a session, booting it unless the request says not to.
@@ -734,7 +739,10 @@ export class DeviceService extends TypertRemoteService {
     })
   }
 
-  private async resolveDevice(hostId: DeviceHostId | undefined, deviceId: DeviceId): Promise<{ ready: DeviceReadiness; device: DeviceSummary }> {
+  private async resolveDevice(
+    hostId: DeviceHostId | undefined,
+    deviceId: DeviceId,
+  ): Promise<{ ready: DeviceReadiness; device: DeviceSummary }> {
     const host = this.resolveHost(hostId)
     const ready = await this.readiness(host.id)
     const device = this.findDevice(this.state, host.id, deviceId) ?? this.findDevice(await this.refresh(ready), host.id, deviceId)

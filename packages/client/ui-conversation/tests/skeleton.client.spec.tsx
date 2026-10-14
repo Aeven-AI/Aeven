@@ -106,9 +106,29 @@ interface ReaderScope {
 
 const scope = globalThis as ReaderScope
 
+/** The frame-owned cover layer the content loader portals into (ui-layout owns it in the app). */
+let coverLayer: HTMLElement
+
+/**
+ * Mount the frame's cover layer, as the assembled frame does before the column renders.
+ * @returns the layer element.
+ */
+function mountCoverLayer(): HTMLElement {
+  const layer = document.createElement('div')
+  layer.setAttribute('data-shell-cover', '')
+  document.body.append(layer)
+  return layer
+}
+
+/** The cover layer's loader element, or null while no cover is shown. */
+function loaderNode(): HTMLElement | null {
+  return coverLayer.querySelector('[data-content-loader]')
+}
+
 afterEach(() => {
   cleanup()
   document.getElementById('avn-preloader')?.remove()
+  coverLayer.remove()
   delete scope.__AVN_AEVEN_READER__
   vi.unstubAllGlobals()
   resizeObservers.length = 0
@@ -117,6 +137,7 @@ beforeEach(() => {
   localStorage.clear()
   vi.stubGlobal('ResizeObserver', ResizeObserverStub)
   stubAnimationFrames()
+  coverLayer = mountCoverLayer()
 })
 
 const t: ConversationRootProps['t'] = makeTranslate(zh, commonZh)
@@ -489,10 +510,7 @@ describe('ConversationRoot resident composer', () => {
     expect(seat('conversation.input.plan')).toEqual({ locked: true })
   })
 
-  it('lets the inert posture win over a block', () => {
-    // A Session with no owning Workspace in a ready list is the settling
-    // posture, and it outranks a raised block: naming a model first would send
-    // the user somewhere they cannot act yet.
+  it('renders a raised block as the same inert surface, naming the blocker', () => {
     const b = mount(sessionSnapshotOf({ blank: true }), [], undefined, {
       summaryBlank: true,
       composerBlock: { reason: 'select a model first' },
@@ -501,10 +519,13 @@ describe('ConversationRoot resident composer', () => {
     expect(box.getAttribute('aria-disabled')).toBe('true')
     expect(box.getAttribute('contenteditable')).not.toBe('true')
     expect(box.getAttribute('aria-haspopup')).toBeNull()
-    expect(box.getAttribute('data-placeholder')).toBe('描述你想要构建的内容… / 调用指令 @ 文件或对话')
-    expect(box.getAttribute('data-placeholder')).not.toBe('select a model first')
+    // A block is the inert posture with the blocker's own reason in place of the
+    // ordinary guidance: it says what would clear it.
+    expect(box.getAttribute('data-placeholder')).toBe('select a model first')
+    // The model seat is the one control a block leaves live — choosing a model
+    // is how the block clears.
     const modelSeat = b.seatOwners.filter(call => call.key === 'conversation.input.model').at(-1)?.owner
-    expect(modelSeat).toEqual({ locked: true })
+    expect(modelSeat).toEqual({ locked: false })
   })
 
   it('keeps composer text in the machine, mirrors to the Conversation store, and submits through the sink', () => {
@@ -515,32 +536,18 @@ describe('ConversationRoot resident composer', () => {
     expect(b.store.store.getSnapshot().draft).toBe('ordinary revised')
     fireEvent.keyDown(box, { key: 'Enter' })
     expect(b.sink).toHaveBeenCalledWith('ordinary revised', [], 'queue', expect.any(AbortSignal))
-    expect((b.view.getByRole('button', { name: 'Child' }) as HTMLButtonElement).disabled).toBe(true)
-    expect(b.view.queryByText('Root')).toBeNull()
   })
 
-  it('shows hierarchy only for subagents and opens their ordinary owner', () => {
+  it('hands the lineage seat the current Session and its title', () => {
     const b = mount(sessionSnapshotOf(), undefined, undefined, { summaryOrigin: 'subagent' })
-    const root = b.view.getByRole('button', { name: 'Root' })
-    expect((b.view.getByRole('button', { name: 'Child' }) as HTMLButtonElement).disabled).toBe(true)
-    fireEvent.click(root)
-    expect(b.open).toHaveBeenCalledWith(sid('root'))
+    // The seat draws whatever chain the Session has and owns its own
+    // navigation, so the header hands it plain title data and no action.
+    expect(b.lineageOwners.at(-1)).toEqual({ lineageSessionId: SID, displayTitle: 'Child' })
   })
 
-  it('keeps intermediate subagent breadcrumbs at the compact title size', () => {
-    const b = mount(sessionSnapshotOf(), undefined, undefined, {
-      summaryOrigin: 'subagent',
-      nestedSubagent: true,
-    })
-    expect(b.view.getByRole('button', { name: 'Root' }).className).not.toContain('crumbSubagent')
-    expect(b.view.getByRole('button', { name: 'Parent' }).className).toContain('crumbSubagent')
-    expect(b.view.getByRole('button', { name: 'Child' }).className).toContain('crumbSubagent')
-    expect(b.lineageOwners.slice(-2).map(owner => owner.lineageSessionId)).toEqual([
-      sid('parent'),
-      SID,
-    ])
-    expect(b.lineageOwners.at(-2)?.openTitle).toEqual(expect.any(Function))
-    expect(b.lineageOwners.at(-1)?.openTitle).toBeUndefined()
+  it('titles the lineage seat with the Session id while the list has no row', () => {
+    const b = mount(sessionSnapshotOf(), undefined, undefined, { omitSummaryRow: true })
+    expect(b.lineageOwners.at(-1)).toEqual({ lineageSessionId: SID, displayTitle: SID })
   })
 
   it('active phase: one scroller holds the header, the transcript, and the composer seat', () => {
@@ -593,7 +600,7 @@ describe('ConversationRoot resident composer', () => {
     const header = b.view.container.querySelector('header')
     expect(host).not.toBeNull()
     expect(header?.getAttribute('aria-hidden')).toBeNull()
-    expect(b.view.getByRole('button', { name: 'Child' })).toBeTruthy()
+    expect(b.slotCalls).toContain('conversation.session.header.lineage')
     expect(b.slotCalls).toContain('conversation.session.header.actions')
     expect(b.view.getByText('Æven')).toBeTruthy()
     expect(b.view.getByText(/你在想些什么？/)).toBeTruthy()
@@ -613,7 +620,7 @@ describe('ConversationRoot resident composer', () => {
     // even though the Hero no longer offers a way to choose one.
     expect(box.getAttribute('aria-disabled')).not.toBe('true')
     expect(box.getAttribute('contenteditable')).toBe('true')
-    expect(box.getAttribute('data-placeholder')).toBe('描述你想要构建的内容… / 调用指令 @ 文件或对话')
+    expect(box.getAttribute('data-placeholder')).toBe('问我任何问题')
     expect(b.retargetWorkspace).not.toHaveBeenCalled()
   })
 
@@ -705,40 +712,40 @@ describe('ConversationRoot resident composer', () => {
   })
 
   it('covers the content column with a loader while history is opening', () => {
-    const b = mount(sessionSnapshotOf({ openState: 'loading' }))
-    const loader = b.view.container.querySelector('[data-content-loader]')
+    mount(sessionSnapshotOf({ openState: 'loading' }))
+    const loader = loaderNode()
     expect(loader).not.toBeNull()
     expect(loader?.getAttribute('aria-label')).toBe('正在载入内容')
     expect(loader?.getAttribute('data-hiding')).toBeNull()
   })
 
   it('shows the content loader immediately when a selected Session is still cold', () => {
-    const b = mount(sessionSnapshotOf({ openState: 'cold' }))
-    expect(b.view.container.querySelector('[data-content-loader]')).not.toBeNull()
+    mount(sessionSnapshotOf({ openState: 'cold' }))
+    expect(loaderNode()).not.toBeNull()
   })
 
   it('does not cover a summary-proven blank hero with the content loader', () => {
-    const b = mount(
+    mount(
       sessionSnapshotOf({ blank: true, openState: 'loading' }),
       undefined,
       undefined,
       { summaryBlank: true },
     )
-    expect(b.view.container.querySelector('[data-content-loader]')).toBeNull()
+    expect(loaderNode()).toBeNull()
   })
 
   it('fades the content loader away once history is open and painted', () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     try {
       const b = mount(sessionSnapshotOf({ openState: 'loading' }))
-      expect(b.view.container.querySelector('[data-content-loader]')).not.toBeNull()
+      expect(loaderNode()).not.toBeNull()
       act(() => { b.session.set(sessionSnapshotOf({ openState: 'open' })) })
-      expect(b.view.container.querySelector('[data-content-loader]')?.getAttribute('data-hiding')).toBeNull()
+      expect(loaderNode()?.getAttribute('data-hiding')).toBeNull()
       flushAnimationFrames(2)
-      const hiding = b.view.container.querySelector('[data-content-loader]')
+      const hiding = loaderNode()
       expect(hiding?.getAttribute('data-hiding')).toBe('true')
       act(() => { vi.advanceTimersByTime(400) })
-      expect(b.view.container.querySelector('[data-content-loader]')).toBeNull()
+      expect(loaderNode()).toBeNull()
     } finally {
       vi.useRealTimers()
     }
@@ -761,10 +768,10 @@ describe('ConversationRoot resident composer', () => {
   it('covers an already-open Session switch and remounts the body after the overlay is presented', () => {
     const b = mount(sessionSnapshotOf())
     flushAnimationFrames(2)
-    expect(b.view.container.querySelector('[data-content-loader]')?.getAttribute('data-hiding')).toBe('true')
+    expect(loaderNode()?.getAttribute('data-hiding')).toBe('true')
     expect(b.view.getByTestId('view-chat')).toBeTruthy()
     b.rerender({ sessionId: sid('s2') })
-    expect(b.view.container.querySelector('[data-content-loader]')?.getAttribute('data-hiding')).toBeNull()
+    expect(loaderNode()?.getAttribute('data-hiding')).toBeNull()
     expect(b.view.queryByTestId('view-chat')).toBeNull()
     const host = b.view.container.querySelector('[data-conversation-scroll]')
     const hold = host?.querySelector('[data-transcript-hold]')
@@ -777,27 +784,29 @@ describe('ConversationRoot resident composer', () => {
     flushAnimationFrames(1)
     expect(b.view.getByTestId('view-chat')).toBeTruthy()
     expect(host?.querySelector('[data-transcript-hold]')).toBeNull()
-    expect(b.view.container.querySelector('[data-content-loader]')?.getAttribute('data-hiding')).toBeNull()
+    expect(loaderNode()?.getAttribute('data-hiding')).toBeNull()
     flushAnimationFrames(2)
-    expect(b.view.container.querySelector('[data-content-loader]')?.getAttribute('data-hiding')).toBe('true')
+    expect(loaderNode()?.getAttribute('data-hiding')).toBe('true')
   })
 
-  it('keeps the content loader out of the session header and composer', () => {
+  it('keeps the content loader out of the session column, its header, and its composer', () => {
     const b = mount(sessionSnapshotOf({ openState: 'loading' }))
-    const loader = b.view.container.querySelector('[data-content-loader]')
+    const loader = loaderNode()
     const header = b.view.container.querySelector('header')
     const seat = b.view.container.querySelector('[data-composer-seat]')
     const host = b.view.container.querySelector('[data-conversation-scroll]')
-    const root = b.view.container.querySelector('[data-phase]')
     expect(loader).not.toBeNull()
     expect(header).not.toBeNull()
     expect(seat).not.toBeNull()
-    expect(root?.contains(loader)).toBe(true)
+    // The cover is the frame's own layer, laid over the column rather than
+    // rendered inside it (the column clips it and outranks it).
+    expect(loader?.parentElement).toBe(coverLayer)
+    expect(b.view.container.contains(loader)).toBe(false)
+    expect(host?.contains(loader)).toBe(false)
     expect(header?.contains(loader)).toBe(false)
     expect(seat?.contains(loader)).toBe(false)
     expect(loader?.contains(header)).toBe(false)
     expect(loader?.contains(seat)).toBe(false)
-    expect(host?.contains(loader)).toBe(false)
   })
 
   it('does not show the content loader while the page preloader is still on screen', () => {
@@ -806,7 +815,7 @@ describe('ConversationRoot resident composer', () => {
     el.className = 'hide animate'
     document.body.append(el)
     const b = mount(sessionSnapshotOf({ openState: 'loading' }))
-    expect(b.view.container.querySelector('[data-content-loader]')).toBeNull()
+    expect(loaderNode()).toBeNull()
     expect(b.view.getByTestId('view-chat')).toBeTruthy()
   })
 
@@ -814,14 +823,14 @@ describe('ConversationRoot resident composer', () => {
     const el = document.createElement('div')
     el.id = 'avn-preloader'
     document.body.append(el)
-    const b = mount(sessionSnapshotOf({ openState: 'loading' }))
-    expect(b.view.container.querySelector('[data-content-loader]')).toBeNull()
+    mount(sessionSnapshotOf({ openState: 'loading' }))
+    expect(loaderNode()).toBeNull()
     await act(async () => {
       el.classList.add('screen-hidden')
       await Promise.resolve()
     })
-    expect(b.view.container.querySelector('[data-content-loader]')).not.toBeNull()
-    expect(b.view.container.querySelector('[data-content-loader]')?.getAttribute('data-hiding')).toBeNull()
+    expect(loaderNode()).not.toBeNull()
+    expect(loaderNode()?.getAttribute('data-hiding')).toBeNull()
   })
 
   it('startup auto-selection: a summary-proven blank session opens straight into the hero', () => {
@@ -877,8 +886,13 @@ describe('ConversationRoot resident composer', () => {
 
     expect(b.view.getByTestId('view-chat')).toBeTruthy()
     expect(b.view.queryByTestId('view-new-view')).toBeNull()
-    expect(b.view.getByRole('tab', { name: 'Chat' }).getAttribute('aria-selected')).toBe('true')
-    expect(b.view.getByRole('tab', { name: 'New view' }).getAttribute('aria-selected')).toBe('false')
+    // The header's options foldout lists the Views the reader is not in: the
+    // inserted View is offered and the Chat fallback the reader is still on is
+    // not, which is how the header states the active View.
+    fireEvent.click(b.view.getByLabelText('选项'))
+    const rows = b.view.getAllByRole('menuitem').map(row => row.textContent)
+    expect(rows).toContain('查看New view')
+    expect(rows).not.toContain('查看Chat')
   })
 
   it('keeps the Hero composer usable while the workspace list has not settled', () => {
@@ -950,13 +964,14 @@ describe('ConversationRoot resident composer', () => {
     Element.prototype.releasePointerCapture = function () { captured.delete(this) }
     Element.prototype.hasPointerCapture = function () { return captured.has(this) }
     try {
-      // Base resolves from the Aeven reading cap: min(1600 − 48, 1024) = 1024.
-      // Dragging the right handle outward by 25px widens by 2×25 = 50 → 1074,
-      // inside both bounds (max = 1600 − 176 = 1424 keeps the handles on-column).
+      // The base is the rendered gap between the handles; jsdom measures every
+      // rect as zero, so the drag starts at the floor (640). Dragging the right
+      // handle outward by 25px widens by 2×25 = 50 → 690, inside the column's
+      // own bound (1600 − 48 = 1552).
       fireEvent.pointerDown(handle, { pointerId: 1, clientX: 800, clientY: 300 })
       fireEvent.pointerUp(handle, { pointerId: 1, clientX: 825, clientY: 300 })
-      expect(root.style.getPropertyValue('--avn-chat-user-width')).toBe('1074px')
-      expect(localStorage.getItem('avn.conversation.contentWidth')).toBe('1074')
+      expect(root.style.getPropertyValue('--avn-chat-user-width')).toBe('690px')
+      expect(localStorage.getItem('avn.conversation.contentWidth')).toBe('690')
       expect(root.getAttribute('data-chat-user-width')).toBe('')
       // Window shrinks: script publishes nothing. The preference rides the DOM
       // unchanged and CSS clamps what is displayed against the live column
@@ -964,18 +979,18 @@ describe('ConversationRoot resident composer', () => {
       // never rewrites the stored width.
       Object.defineProperty(root, 'offsetWidth', { value: 900, configurable: true })
       act(() => { fireResize(root) })
-      expect(root.style.getPropertyValue('--avn-chat-user-width')).toBe('1074px')
-      expect(localStorage.getItem('avn.conversation.contentWidth')).toBe('1074')
+      expect(root.style.getPropertyValue('--avn-chat-user-width')).toBe('690px')
+      expect(localStorage.getItem('avn.conversation.contentWidth')).toBe('690')
       // A press without travel (a real double-click delivers two such
       // press/release rounds) must not commit the clamped display value over
       // the stored preference.
       fireEvent.pointerDown(handle, { pointerId: 1, clientX: 800, clientY: 300 })
       fireEvent.pointerUp(handle, { pointerId: 1, clientX: 800, clientY: 300 })
-      expect(localStorage.getItem('avn.conversation.contentWidth')).toBe('1074')
-      expect(root.style.getPropertyValue('--avn-chat-user-width')).toBe('1074px')
+      expect(localStorage.getItem('avn.conversation.contentWidth')).toBe('690')
+      expect(root.style.getPropertyValue('--avn-chat-user-width')).toBe('690px')
       // No reset affordance on the handle: double-click leaves the preference alone.
       fireEvent.doubleClick(handle)
-      expect(localStorage.getItem('avn.conversation.contentWidth')).toBe('1074')
+      expect(localStorage.getItem('avn.conversation.contentWidth')).toBe('690')
     } finally {
       for (const [name, descriptor] of originals) {
         if (descriptor === undefined) Reflect.deleteProperty(Element.prototype, name)
@@ -984,8 +999,12 @@ describe('ConversationRoot resident composer', () => {
     }
   })
 
-  it('hero phase renders no width handles (no transcript to size)', () => {
+  it('sizes the Hero column with the same width handles as a settled chat', () => {
+    // The hero is a settled column: dragging one of its handles sizes the
+    // composer and the transcript the chat will grow into.
     const b = mount(sessionSnapshotOf({ blank: true }), undefined, undefined, { summaryBlank: true })
-    expect(b.view.container.querySelector('[data-width-handle]')).toBeNull()
+    expect(b.view.container.querySelector('[data-phase]')?.getAttribute('data-phase')).toBe('hero')
+    expect([...b.view.container.querySelectorAll('[data-width-handle]')]
+      .map(node => node.getAttribute('data-width-handle'))).toEqual(['left', 'right'])
   })
 })

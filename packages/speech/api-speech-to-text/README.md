@@ -48,7 +48,7 @@ Compose with the speech Service Definition and Typert. `maxAudioBytes` and `maxD
 <a id="further-exploration"></a>
 ## Further Exploration
 
-[Voice input subsystem](../../../docs/subsystems/voice-input.md)
+[Voice input subsystem](../../../docs/subsystems/speech.md)
 
 -----
 

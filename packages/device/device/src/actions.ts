@@ -373,7 +373,10 @@ async function readIos(ready: DeviceHostReady, udid: string): Promise<{ settings
   return { settings, foregroundApp: null }
 }
 
-async function readAndroid(ready: DeviceHostReady, serial: string): Promise<{ settings: DeviceSettings; foregroundApp: DeviceForegroundApp | null }> {
+async function readAndroid(
+  ready: DeviceHostReady,
+  serial: string,
+): Promise<{ settings: DeviceSettings; foregroundApp: DeviceForegroundApp | null }> {
   const shell = (args: readonly string[]) =>
     quiet(ready.run('adb', ['-s', serial, 'shell', ...args]).then(result => ok(args[0] ?? 'shell', result).trim()))
   const [night, fontScale, animator, wifi, focus] = await Promise.all([

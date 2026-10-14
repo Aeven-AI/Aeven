@@ -56,6 +56,9 @@ function mountShell({ collapsed = false, width = 300 }: { collapsed?: boolean; w
       ) => {
         if (key === 'sidebar.brand.mark') return brandMark
         if (key === 'sidebar.brand.name') return brandName
+        // The header row's two seats and the nav rows: the browsing region's
+        // own occupants, left empty here so the region seat is unambiguous.
+        if (key === 'sidebar.header.leading' || key === 'sidebar.header.action' || key === 'sidebar.nav') return null
         if (key === 'sidebar.settings') {
           settingsOwner = owner
           return <div data-testid="settings-seat" data-wide={owner.wide} />
@@ -121,7 +124,7 @@ function enterActivation(
 }
 
 describe('SidebarRoot shell', () => {
-  it('routes New Session (capsule + wordmark) and the column toggle', () => {
+  it('routes New Session (capsule + wordmark) and the blocker\'s own close', () => {
     const b = mountShell()
     expect(screen.getByTestId('custom-brand-mark')).toBeTruthy()
     expect(screen.getByTestId('custom-brand-name')).toBeTruthy()
@@ -138,15 +141,14 @@ describe('SidebarRoot shell', () => {
     expect(b.startSession).toHaveBeenLastCalledWith()
     // The link then names the fresh chat a browser-owned open would start.
     expect(screen.getByRole('link', { name: 'Chat' }).getAttribute('href')).toBe('/c/test-2')
-    fireEvent.click(screen.getByRole('button', { name: 'Close sidebar' }))
-    expect(b.toggleSidebar).toHaveBeenCalledOnce()
 
     // Below the med breakpoint the column overlays the conversation, and the
     // dimmed area it covers closes it — the same gesture as tapping outside.
+    // The fold control itself lives in the conversation's band, not here.
     const blocker = document.querySelector('[role="presentation"]')
     expect(blocker).not.toBeNull()
     fireEvent.click(blocker!)
-    expect(b.toggleSidebar).toHaveBeenCalledTimes(2)
+    expect(b.toggleSidebar).toHaveBeenCalledOnce()
   })
 
   it('renders the brand mark alone when no package fills the brand slots', () => {
@@ -193,10 +195,16 @@ describe('SidebarRoot shell', () => {
     expect(b.toggleSidebar).toHaveBeenCalledOnce()
   })
 
-  it('renders statically collapsed on a cold start (no crossfade classes)', () => {
+  it('renders collapsed on a cold start with its contents mounted and no fold control of its own', () => {
     const b = mountShell({ collapsed: true })
+    // The wide arrangement stays mounted while the column is folded: the seat
+    // is drawn with its usual wide flag, and the shell repositions nothing.
     expect(b.regionOwner().wide).toBe(true)
-    expect(screen.getByRole('button', { name: 'Open sidebar' })).toBeTruthy()
+    expect(screen.getByTestId('region')).toBeTruthy()
+    // The fold control lives in the conversation's navigation band
+    // (ui-conversation), so this column offers no way out of itself.
+    expect(screen.queryByRole('button', { name: 'Open sidebar' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Close sidebar' })).toBeNull()
   })
 })
 

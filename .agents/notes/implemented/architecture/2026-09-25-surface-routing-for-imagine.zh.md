@@ -14,7 +14,7 @@ Imagine 需要一个位于 `/i/<id>`、与对话 Session 相互分离的独立�
 
 **对话自行声明其地址空间，而不是询问路由。** `BrowserSessionUrlNavigation.ownsAddress()` 对 `/`、`/c` 与 `/c/…` 为 true。在其他任何地址上，投影不读取 Session，也不写入任何内容，`navigateFromUrl` 会忽略它，因此后退到 Imagine 不会开启新会话。Session 的协调本身在 Imagine 地址上照常运行：启动时仍会选中或创建一个对话 Session，而 `whenInitialDataReady` 与页面预加载层正是在等待它。
 
-**目前没有任何界面声明路径根。** Imagine 已是对话的启动地址，而非独立整页界面；`frontend-static` 的路由根列表列出 `/imagine`，使该地址提供应用（见[预设弹窗](../feature/2026-10-10-imagine-starter-prompt-popup.md)）。该路由仍是未来整页界面注册所依据的机制：`AppFrame` 在当前路径的归属界面之下，以 keyed 的 `surface` slot 取代 `conversation` 渲染，界面显示期间详情栏与右侧边栏保持关闭。
+**目前没有任何界面声明路径根。** Imagine 已是对话的启动地址，而非独立整页界面；`frontend-static` 的路由根列表列出 `/imagine`，使该地址提供应用（见[预设弹窗](../feature/2026-10-10-imagine-starter-prompt-popup.zh.md)）。该路由仍是未来整页界面注册所依据的机制：`AppFrame` 在当前路径的归属界面之下，以 keyed 的 `surface` slot 取代 `conversation` 渲染，界面显示期间详情栏与右侧边栏保持关闭。
 
 ## Alternatives considered
 

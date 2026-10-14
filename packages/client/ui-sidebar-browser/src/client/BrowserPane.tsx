@@ -124,7 +124,10 @@ export function BrowserPane({ sessionId, t, openInChrome, visible, search }: Bro
   const [typingUrl, setTypingUrl] = useState<string | undefined>()
   useEffect(() => { setTypingUrl(undefined) }, [state.url, state.loading])
   const [suggestions, setSuggestions] = useState<readonly string[]>([])
-  const engine = useSyncExternalStore(search.engine.subscribe, search.engine.getSnapshot)
+  const engine = useSyncExternalStore(
+    listener => search.engine.subscribe(listener),
+    () => search.engine.getSnapshot(),
+  )
   const [zoomFactor, setZoomFactor] = useState(1)
   const zoomRef = useRef(1)
   zoomRef.current = zoomFactor

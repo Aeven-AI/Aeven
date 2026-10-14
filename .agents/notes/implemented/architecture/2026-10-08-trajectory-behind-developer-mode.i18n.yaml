@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-08-trajectory-behind-developer-mode.md
-2026-10-08-trajectory-behind-developer-mode.md: fbd0075060d48b687fc773260db31bb3683394c5
-2026-10-08-trajectory-behind-developer-mode.zh.md: 3951706403bb0f820d353cde8bd6c6503bd7bcd3
+2026-10-08-trajectory-behind-developer-mode.md: 1593feac59704a2c119a50daa4c8aa01cb277bd6
+2026-10-08-trajectory-behind-developer-mode.zh.md: 052f9cad49165268abd9031a1a7f1991b7a6ff12

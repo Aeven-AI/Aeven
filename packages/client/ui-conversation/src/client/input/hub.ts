@@ -99,7 +99,7 @@ export class InputHub implements SessionInputResolver {
         // submit RPC, where session teardown may already have unloaded the
         // conversation service (the same tolerance as the scope disposer
         // above); leaked preview URLs then die with the document.
-        release: ids => { this.releaseDraftImages(ids) },
+        release: (ids) => { this.releaseDraftImages(ids) },
         unsupportedNotice: token => this.t('command.imagesUnsupported', {
           command: token.trim().replace(/^\//u, ''),
         }),
@@ -119,7 +119,7 @@ export class InputHub implements SessionInputResolver {
             throw error
           }
         },
-        release: ids => { this.releaseDraftImages(ids) },
+        release: (ids) => { this.releaseDraftImages(ids) },
         busyNotice: () => this.t('file.busy'),
       },
     })

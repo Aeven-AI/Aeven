@@ -3,4 +3,4 @@
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/computer-use/computer-use-router/README.md
 README.md: 565142563605a4a2d409a65c7ed2d1bf7fff230d
-README.zh.md: 35266b46358098c9c8470bc2e0b95d519719f84c
+README.zh.md: 6e14e7e79a35604b184d28dedca8b5f3f91ee7ad

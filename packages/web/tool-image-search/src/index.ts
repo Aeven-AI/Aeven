@@ -312,7 +312,10 @@ function finish(text: string, limit: number): string {
 }
 
 /** A paragraph that is page furniture — a photo credit, a follow prompt, a share bar — rather than the story. */
-const FURNITURE = /cookie|subscribe|newsletter|sign in|advertisement|all rights reserved|getty images|shutterstock|preferred source|google discover|add .{1,40} on google|follow us|share this|read more|photo:|image:|credit:/i
+const FURNITURE = new RegExp([
+  'cookie|subscribe|newsletter|sign in|advertisement|all rights reserved|getty images|shutterstock',
+  'preferred source|google discover|add .{1,40} on google|follow us|share this|read more|photo:|image:|credit:',
+].join('|'), 'i')
 
 /**
  * The headline a page announces.
@@ -491,7 +494,12 @@ function readUrls(value: unknown): readonly string[] {
  * @returns the bytes and the media type to store them under.
  * @throws {HarnessError} when the host does not answer or the image is too large.
  */
-async function download(url: string, fallbackType: BitmapType, maxBytes: number, signal: AbortSignal): Promise<{ data: Uint8Array; mediaType: BitmapType }> {
+async function download(
+  url: string,
+  fallbackType: BitmapType,
+  maxBytes: number,
+  signal: AbortSignal,
+): Promise<{ data: Uint8Array; mediaType: BitmapType }> {
   const response = await fetch(url, { signal, headers: { 'user-agent': USER_AGENT } })
 
   if (!response.ok) {
@@ -699,7 +707,7 @@ export function apply(ctx: Context, config: Config): void {
       layout: {
         type: 'string',
         enum: ['row', 'cards'],
-        description: "How the reader sees them. `row` is a row of photographs, for pictures that carry the answer. `cards` is one thumbnail with its title and source beside it, for news items and headlines. Defaults to `row`.",
+        description: 'How the reader sees them. `row` is a row of photographs, for pictures that carry the answer. `cards` is one thumbnail with its title and source beside it, for news items and headlines. Defaults to `row`.',
       },
       language: {
         type: 'string',
@@ -830,13 +838,17 @@ export function apply(ctx: Context, config: Config): void {
       const provider = exec.agent?.options.provider
       const model = exec.agent?.options.model
       const described = language !== '' && translations.length === 0 && provider !== undefined && model !== undefined && supplied.length > 0
-        ? await translateItems(ctx, { provider, model }, language, supplied, AbortSignal.any([exec.signal, AbortSignal.timeout(translationTimeoutMs)]))
+        ? await translateItems(ctx, { provider, model }, language, supplied,
+          AbortSignal.any([exec.signal, AbortSignal.timeout(translationTimeoutMs)]))
         : supplied
       const subjectText = query === '' ? 'the stories' : `"${query}"`
 
       // The schema describes the attachments as plain objects, which is what a
       // tool result carries; `render` reads them back as attachment references.
-      return { text: summary(cards ? subjectText : query, described, cards), items: items(described), images: stored as unknown as Record<string, JsonValue>[] }
+      return {
+        text: summary(cards ? subjectText : query, described, cards), items: items(described),
+        images: stored as unknown as Record<string, JsonValue>[],
+      }
     },
   }))
 }

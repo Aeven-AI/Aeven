@@ -11,10 +11,10 @@ import { basename, resolve } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import LlmRuntime from '@aeven/llm'
 import type { ToolSchema } from '@aeven/llm'
-import AgentRegistry from '@aeven/agent'
+import AgentRegistry, { agentEvents } from '@aeven/agent'
 import type { Agent } from '@aeven/agent'
 import { createScope } from '@aeven/scope'
-import SessionStore, { SessionId } from '@aeven/session'
+import SessionStore, { SessionId, type Session } from '@aeven/session'
 import SessionProjectionRegistry from '@aeven/session-projection'
 import SqliteSessionQueryEngine from '@aeven/session-query-sqlite'
 import GoalService from '@aeven/goal'
@@ -72,6 +72,14 @@ import * as ToolLocation from '@aeven/tool-location'
 import VmWorkflowEngine from '@aeven/workflow-worker-thread'
 import * as ToolRalph from '@aeven/tool-ralph'
 import * as ToolWorkflow from '@aeven/tool-workflow'
+import Capabilities from '@aeven/capability'
+import * as ToolCapability from '@aeven/tool-capability'
+import * as ToolDevice from '@aeven/tool-device'
+import * as ToolElevation from '@aeven/tool-elevation'
+import * as ToolImageSearch from '@aeven/tool-image-search'
+import Memory from '@aeven/memory'
+import * as ToolMemory from '@aeven/tool-memory'
+import * as ToolMail from '@aeven/tool-mail'
 import { githubSlug } from './verify-md-links.ts'
 
 /** Attachment seam marker that makes the attachments-conditional `read_image` schema harvestable. */
@@ -143,6 +151,23 @@ async function mountCatalogChildScope(
 }
 
 /**
+ * Register a catalog Agent in the injected service context without running its loop.
+ * @param ctx - catalog context.
+ * @param session - in-memory session for the Agent.
+ * @param inject - services required by the scoped tools.
+ * @returns the registered Agent.
+ */
+async function registerCatalogAgent(ctx: Context, session: Session, inject: string[]): Promise<Agent> {
+  let agent!: Agent
+  await ctx.plugin(Object.assign((inner: Context) => {
+    agent = { id: session.id, session, options: {}, status: 'idle' } as unknown as Agent
+    Object.assign(agent, { ctx: createScope(inner, agent).ctx })
+    inner.agents.register(agent)
+  }, { inject }))
+  return agent
+}
+
+/**
  * Tool package plus its hand-maintained boot recipe. The caller mounts the
  * prompt and registry; each recipe supplies only package-specific seams and
  * config, while `dir` participates in the completeness check.
@@ -164,6 +189,15 @@ export interface ToolPackage {
   writes: string[]
   /** Additional model-visible names shipped by example/app config. */
   shippedNames?: string[]
+  /**
+   * Host platforms the package registers tools on. Absent means every platform.
+   *
+   * A boot off these platforms registers nothing BY DESIGN (the plugin returns
+   * before registering), which is not the missing-seam failure
+   * {@link assertToolsHarvested} reports — so the harvest records the entry
+   * without schemas instead of failing.
+   */
+  platforms?: readonly NodeJS.Platform[]
   /** Plug the injected seams + the tool plugin onto a context that already
    * carries `systemPrompt` + `tools`. */
   mount: (ctx: Context) => Promise<void>
@@ -534,27 +568,21 @@ const TOOL_PACKAGES: ToolPackage[] = [
       await ctx.plugin(AgentRegistry)
       await ctx.plugin(SessionStore)
       const session = ctx.sessions.create(SessionId('tool-catalog-team-lead'))
-      let agent!: Agent
+      // The team service has to exist before the lead registers, so the membership reads the
+      // agent the registration then assigns.
+      const lead: { agent?: Agent } = {}
       const membership = {
-        get root() { return agent },
+        get root() { return lead.agent },
         id: session.id,
         role: 'lead' as const,
         name: 'lead',
       }
       ctx.provide('agentTeams', {
-        tryMembership: (candidate: Agent) => candidate === agent ? membership : undefined,
+        tryMembership: (candidate: Agent) => candidate === lead.agent ? membership : undefined,
         membership: () => membership,
       } as unknown as TeamService)
-      await ctx.plugin(Object.assign((inner: Context) => {
-        agent = {
-          id: session.id,
-          session,
-          options: {},
-          status: 'idle',
-        } as unknown as Agent
-        Object.assign(agent, { ctx: createScope(inner, agent).ctx })
-        inner.agents.register(agent)
-      }, { inject: ['tools', 'systemPrompt', 'agents', 'agentTeams'] }))
+      const agent = await registerCatalogAgent(ctx, session, ['tools', 'systemPrompt', 'agents', 'agentTeams'])
+      lead.agent = agent
       await ctx.plugin(ToolTeam)
       catalogChildScopes.set(ctx, agent)
     },
@@ -647,6 +675,131 @@ const TOOL_PACKAGES: ToolPackage[] = [
     note:
       'get_location is answered by the Client showing the session, after the reader chooses; the call is bounded by the tool timeout.',
   },
+  {
+    pkg: '@aeven/tool-capability',
+    dir: 'tool-capability',
+    source: 'packages/capability/tool-capability/src/index.ts',
+    requires: [
+      'ctx.tools',
+      'ctx.systemPrompt',
+      'ctx.capabilities',
+      'ctx.llm',
+      'ctx.memory (default store)',
+      'an Agent whose session has an owner at execution time',
+    ],
+    writes: [
+      'tool/call',
+      'tool/result',
+      'capabilities/changed for the capabilities store',
+      'long-term memory for a learned procedure under the default store',
+    ],
+    async mount(ctx) {
+      await ctx.plugin(LlmRuntime)
+      await ctx.plugin(Capabilities, Capabilities.Config({ root: resolve(root, '.tmp/tool-catalog/capabilities') }))
+      // Mounted without a provider: the slot has to exist for the consumer's fiber to
+      // activate, and the default `memory` store needs no provider to be registered.
+      await ctx.plugin(Memory)
+      await ctx.plugin(ToolCapability)
+    },
+    note:
+      'The registered actions depend on the load-time `store` config: the default `memory` stores a learned procedure as a long-term memory and registers only `learn` and `import`, while `capabilities` keeps it as a capability file and registers list, view, learn, update, write_file, report, retire, and restore. The learner and procedure recall run behind the same package and contribute no tool of their own.',
+  },
+  {
+    pkg: '@aeven/tool-device',
+    dir: 'tool-device',
+    source: 'packages/device/tool-device/src/index.ts',
+    requires: [
+      'ctx.tools',
+      'ctx.devices (execution time)',
+      'ctx.attachments + ctx.llm on an image-capable route (device_screenshot)',
+      'a calling Agent for per-session device ownership',
+    ],
+    writes: ['tool/call', 'tool/result', 'the session\'s device pane state', 'a durable image attachment for a screenshot'],
+    async mount(ctx) {
+      await ctx.plugin(ToolDevice)
+    },
+    note:
+      'All four tools register on every host; a deployment without `ctx.devices`, with device support turned off, or without agent access answers with its own fixed sentence instead of hiding the tool. Driving a device goes through the agent-device CLI that `device_open` returns, not through a tool per device operation.',
+  },
+  {
+    pkg: '@aeven/tool-elevation',
+    dir: 'tool-elevation',
+    source: 'packages/sandbox/tool-elevation/src/index.ts',
+    requires: ['ctx.tools', 'ctx.approval', 'ctx.subprocess', 'a Windows host'],
+    writes: ['tool/call', 'tool/result'],
+    // The tool is registered on Windows hosts only, so booting this package elsewhere
+    // registers nothing by design rather than through a missing seam.
+    platforms: ['win32'],
+    shippedNames: ['elevated'],
+    async mount(ctx) {
+      await ctx.plugin(ToolElevation)
+    },
+    note:
+      'A Windows-only tool: the user approves the run in Aeven and again in the operating-system consent prompt, and a refusal fails the call instead of running the command at the caller\'s own privilege. Compositions that mount the package off Windows offer the model nothing.',
+  },
+  {
+    pkg: '@aeven/tool-image-search',
+    dir: 'tool-image-search',
+    source: 'packages/web/tool-image-search/src/index.ts',
+    requires: ['ctx.tools', 'ctx.attachments', 'ctx.llm', 'ctx.web (execution time)'],
+    writes: ['tool/call', 'one durable image attachment per photograph or card', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(CatalogAttachmentStore)
+      await ctx.plugin(LlmRuntime)
+      await ctx.plugin(ToolImageSearch)
+    },
+    note:
+      '`find_images` reads Wikimedia Commons first and the web seam second, so a deployment without a web provider still answers and cites what Commons holds. Every photograph and news card becomes a durable image attachment the client shows in the transcript.',
+  },
+  {
+    pkg: '@aeven/tool-mail',
+    dir: 'tool-mail',
+    source: 'packages/mail/tool-mail/src/tools.ts',
+    requires: [
+      'ctx.tools',
+      'ctx.mail',
+      'a session owner with at least one usable mail account',
+      'a calling Agent for account addressing and approval routing',
+    ],
+    writes: ['tool/call', 'tool/result', 'mail folder and message changes through ctx.mail', 'a saved attachment file inside the workspace'],
+    async mount(ctx) {
+      await ctx.plugin(AgentRegistry)
+      await ctx.plugin(SessionStore)
+      const session = ctx.sessions.create(SessionId('tool-catalog-mail'), { meta: { owner: 'tool-catalog-owner' } })
+      const agent = await registerCatalogAgent(ctx, session, ['tools', 'systemPrompt', 'agents'])
+      ctx.provide('mail', {
+        accounts: () => Promise.resolve([{ address: 'tool-catalog@example.test' }]),
+      } as unknown as Context['mail'])
+      await ctx.plugin(ToolMail)
+      // The five tools register before a step, while the owner has accounts, so the
+      // harvest has to drive the step hook the loop drives.
+      await agentEvents(agent.ctx, agent).waterfall(
+        'agent/pre-step',
+        { messages: [], turn: 1, step: 1, signal: new AbortController().signal },
+        () => Promise.resolve({ kind: 'enter' as const, messages: [] }),
+      )
+    },
+    scope: ctx => catalogChildScopes.get(ctx) as Agent,
+    note:
+      'The tools register for an agent only while its session owner has at least one usable mail account, so a signed-out session or a mailbox-less owner sees none; sending and permanent deletion ask through ctx.approval, where a deny from another policy still wins.',
+  },
+  {
+    pkg: '@aeven/tool-memory',
+    dir: 'tool-memory',
+    source: 'packages/memory/tool-memory/src/index.ts',
+    requires: ['ctx.tools', 'ctx.memory'],
+    writes: ['tool/call', 'tool/result', 'a remembered fact on memory_remember'],
+    async mount(ctx) {
+      await ctx.plugin(Memory)
+      ctx.memory.register({
+        id: 'tool-catalog',
+        recall: () => Promise.reject(new Error('gen-tool-catalog: memory recall is unreachable during schema harvest')),
+      } as unknown as Parameters<Context['memory']['register']>[0])
+      await ctx.plugin(ToolMemory)
+    },
+    note:
+      'Registered only while a memory provider is active, so a composition without one shows the model no memory tools at all; the seven tools read the provider and only `memory_remember` writes to it.',
+  },
 ]
 
 /** One package's contribution to the catalog: its schemas plus attribution. */
@@ -724,12 +877,18 @@ export async function collectToolCatalog(packages: ToolPackage[] = TOOL_PACKAGES
     // plugins mounted still tears the context down (no leaked executor/provider
     // fiber) — the repo's "dispose must reach quiescence" rule.
     try {
-      await ctx.plugin(SessionProjectionRegistry)
-      await ctx.plugin(SystemPrompt)
-      await ctx.plugin(ToolRuntime, entry.toolsConfig ?? {})
-      await entry.mount(ctx)
-      const schemas = ctx.tools.schemas(entry.scope?.(ctx)).sort((a, b) => a.name.localeCompare(b.name))
-      assertToolsHarvested(entry, schemas.length)
+      // A package gated to other host platforms registers nothing here, so it is
+      // catalogued from the manifest alone (its note and shipped names) instead of
+      // being booted into the {@link assertToolsHarvested} failure it would report.
+      const gated = entry.platforms !== undefined && !entry.platforms.includes(process.platform)
+      if (!gated) {
+        await ctx.plugin(SessionProjectionRegistry)
+        await ctx.plugin(SystemPrompt)
+        await ctx.plugin(ToolRuntime, entry.toolsConfig ?? {})
+        await entry.mount(ctx)
+      }
+      const schemas = gated ? [] : ctx.tools.schemas(entry.scope?.(ctx)).sort((a, b) => a.name.localeCompare(b.name))
+      if (!gated) assertToolsHarvested(entry, schemas.length)
       catalog.push({
         pkg: entry.pkg,
         sources: Object.fromEntries(schemas.map(schema => [
@@ -761,10 +920,23 @@ function toolSource(entry: ToolPackage, toolName: string): string {
   return source
 }
 
+/**
+ * Escape prose so the committed page renders the author's text: a `<` outside an
+ * inline code span is parsed as an HTML tag, which the VitePress/Vue site build
+ * rejects. Code spans keep their bytes, because the Markdown renderer escapes
+ * their content itself.
+ */
+function escapeProseAngleBrackets(description: string): string {
+  return description
+    .split(/(`[^`]*`)/)
+    .map((part, index) => (index % 2 === 1 ? part : part.replaceAll('<', '&lt;')))
+    .join('')
+}
+
 /** Render one tool's entry: name, description, JSON-Schema parameters, source. */
 function renderTool(schema: ToolSchema, source: string): string[] {
   const out = [`### \`${schema.name}\``, '']
-  if (schema.description) out.push(schema.description, '')
+  if (schema.description) out.push(escapeProseAngleBrackets(schema.description), '')
   out.push('```json', JSON.stringify(schema.parameters, null, 2), '```', '')
   out.push(`Source: [\`${source}\`](../${source})`, '')
   return out

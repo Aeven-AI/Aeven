@@ -7,16 +7,13 @@
  * @module @aeven/document-extract-js
  */
 
-import { tmpdir } from 'node:os'
-import { fileURLToPath } from 'node:url'
-import { Worker } from 'node:worker_threads'
-import type { WorkerOptions } from 'node:worker_threads'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
+import { DocumentExtractionLimiter, runDocumentWorker } from '@aeven/document-extract/execution'
 import type {} from '@aeven/document-extract'
 import type { DocumentExtractInput, DocumentExtractProviderId, ExtractedDocument } from '@aeven/document-extract'
 import { JS_FORMATS } from './formats.ts'
-import type { ExtractWorkerInit, ExtractWorkerReply } from './protocol.ts'
+import type { ExtractWorkerInit } from './protocol.ts'
 
 export { htmlToText, rtfToText } from './extractors.ts'
 
@@ -47,92 +44,11 @@ export const PROVIDER_ID = 'js' as DocumentExtractProviderId
 /** Recorded with stored text; bump when a reader's output changes. */
 const EXTRACTOR_VERSION = '1'
 
-/** Counting semaphore bounding simultaneous workers. */
-class Limiter {
-  private active = 0
-  private readonly waiting: Array<() => void> = []
-
-  constructor(private readonly limit: number) {}
-
-  async run<T>(task: () => Promise<T>): Promise<T> {
-    if (this.active >= this.limit) await new Promise<void>((resolve) => { this.waiting.push(resolve) })
-    this.active += 1
-    try {
-      return await task()
-    } finally {
-      this.active -= 1
-      this.waiting.shift()?.()
-    }
-  }
-}
-
-/**
- * Resolve the built worker bundle, or an unbuilt bootstrap that installs tsx
- * inside the worker before importing the TypeScript entry. Both shapes start
- * with an empty `execArgv` and an environment holding only the temp path and,
- * unbuilt, the tsconfig pin.
- */
-function workerSpawn(init: ExtractWorkerInit, maxHeapMb: number): { entry: string | URL; options: WorkerOptions } {
-  const env: NodeJS.ProcessEnv = {}
-  if (process.platform === 'win32') {
-    env.TMP = tmpdir()
-    env.TEMP = tmpdir()
-  }
-  const base: WorkerOptions = {
-    workerData: init,
-    transferList: [init.data.buffer as ArrayBuffer],
-    execArgv: [],
-    resourceLimits: { maxOldGenerationSizeMb: maxHeapMb },
-  }
-  if (!import.meta.url.endsWith('.ts')) {
-    return { entry: fileURLToPath(new URL('./worker.cjs', import.meta.url)), options: { ...base, env } }
-  }
-  if (process.env.TSX_TSCONFIG_PATH !== undefined) env.TSX_TSCONFIG_PATH = process.env.TSX_TSCONFIG_PATH
-  const bootstrap = [
-    `import { register as registerEsm } from ${JSON.stringify(import.meta.resolve('tsx/esm/api'))}`,
-    `import { register as registerCjs } from ${JSON.stringify(import.meta.resolve('tsx/cjs/api'))}`,
-    'registerCjs()',
-    'registerEsm()',
-    `await import(${JSON.stringify(new URL('./worker.ts', import.meta.url).href)})`,
-  ].join('\n')
-  return { entry: new URL(`data:text/javascript,${encodeURIComponent(bootstrap)}`), options: { ...base, env } }
-}
-
-/** Run one extraction in a fresh worker that is terminated on timeout, cancellation, or completion. */
 function runWorker(input: DocumentExtractInput, config: Config, signal: AbortSignal): Promise<ExtractedDocument> {
   signal.throwIfAborted()
   // The worker takes ownership of a copy so the caller's buffer stays usable.
   const init: ExtractWorkerInit = { data: input.data.slice(), extension: input.extension }
-  const { entry, options } = workerSpawn(init, config.maxWorkerHeapMb)
-  return new Promise<ExtractedDocument>((resolve, reject) => {
-    const worker = new Worker(entry, options)
-    let settled = false
-    const finish = (outcome: () => void): void => {
-      if (settled) return
-      settled = true
-      clearTimeout(timer)
-      signal.removeEventListener('abort', onAbort)
-      void worker.terminate()
-      outcome()
-    }
-    const timer = setTimeout(() => {
-      finish(() => { reject(new Error(`document extraction exceeded ${config.timeoutMs} ms`)) })
-    }, config.timeoutMs)
-    const onAbort = (): void => {
-      finish(() => { reject(signal.reason instanceof Error ? signal.reason : new Error('document extraction cancelled')) })
-    }
-    signal.addEventListener('abort', onAbort, { once: true })
-    worker.once('message', (reply: ExtractWorkerReply) => {
-      finish(() => {
-        if (reply.ok) resolve(reply.result)
-        else reject(new Error(reply.message))
-      })
-    })
-    worker.once('error', (error) => { finish(() => { reject(error) }) })
-    worker.once('exit', (code) => {
-      finish(() => { reject(new Error(`document extraction worker exited with code ${code}`)) })
-    })
-  })
+  return runDocumentWorker(init, config, signal, import.meta.url, specifier => import.meta.resolve(specifier), 'document extraction')
 }
 
 /**
@@ -141,7 +57,7 @@ function runWorker(input: DocumentExtractInput, config: Config, signal: AbortSig
  * @param config - worker resource policy.
  */
 export function apply(ctx: Context, config: Config): void {
-  const limiter = new Limiter(config.concurrency)
+  const limiter = new DocumentExtractionLimiter(config.concurrency)
   ctx.effect(() => ctx.documentExtract.register({
     info: {
       id: PROVIDER_ID,

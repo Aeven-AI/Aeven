@@ -72,7 +72,7 @@ function emptyWorkspaces() {
 }
 
 describe('render branch tails', () => {
-  it('AssistantMarkdown closes reasoning that a later block already answered', () => {
+  it('AssistantMarkdown settles reasoning that a later block already answered', () => {
     const view = render(
       <AssistantMarkdown
         t={t}
@@ -81,14 +81,15 @@ describe('render branch tails', () => {
         renderMessageImages={renderMessageImages}
       />,
     )
-    // Reasoning at index 0 with a later block is not the tail: its thinking is
-    // over even though the step is still running, so its block is closed.
-    const wrapper = view.container.querySelector('.reasoning-wrapper')
-    expect(wrapper?.className).not.toContain('stream-active')
+    // Reasoning at index 0 with a later block is not the tail: its row is
+    // settled even though the step is still running.
+    const row = view.container.querySelector<HTMLElement>('[data-variant="think"]')
+    expect(row?.dataset.state).toBe('ok')
+    expect(row?.textContent).toContain('done thinking')
     expect(view.container.textContent).toContain('answer')
   })
 
-  it('AssistantMarkdown reasoning as the streaming tail renders an open block', () => {
+  it('AssistantMarkdown reasoning as the streaming tail renders a running row', () => {
     const view = render(
       <AssistantMarkdown
         t={t}
@@ -97,9 +98,9 @@ describe('render branch tails', () => {
         renderMessageImages={renderMessageImages}
       />,
     )
-    // The engine draws a running block open, with its running header.
-    const wrapper = view.container.querySelector('.reasoning-wrapper')
-    expect(wrapper?.className).toContain('stream-active')
+    // The tail trace is the one row still running, and the header names it.
+    const row = view.container.querySelector<HTMLElement>('[data-variant="think"]')
+    expect(row?.dataset.state).toBe('running')
     expect(view.getByText('思考')).toBeTruthy()
     expect(view.container.textContent).toContain('still thinking')
   })

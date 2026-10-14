@@ -93,18 +93,19 @@ describe('ui-settings apply', () => {
     declare(b.slots)
     await b.ctx.plugin({ inject: [...inject], apply }).await()
     const { sections } = injectedOf(b.slots).hooks
-    // This package registers the General section itself; every other section
-    // arrives from a feature registrant.
-    const GENERAL = { id: 'general', order: 0, label: 'general.nav' }
+    // This package registers the General section itself — last in nav order,
+    // after the sections the reader reaches first; every other section arrives
+    // from a feature registrant.
+    const GENERAL = { id: 'general', order: 20, label: 'general.nav' }
     expect(sections.getSnapshot()).toEqual([GENERAL])
-    b.slots.register({ name: 'settings.section', id: 'z', order: 20, label: 'Z' } as never, () => null)
+    b.slots.register({ name: 'settings.section', id: 'z', order: 30, label: 'Z' } as never, () => null)
     // No order and no label: both projection defaults apply.
     b.slots.register({ name: 'settings.section', id: 'a' } as never, () => null)
     const rows = sections.getSnapshot()
     expect(rows).toEqual([
-      GENERAL,
       { id: 'a', order: 0, label: '' },
-      { id: 'z', order: 20, label: 'Z' },
+      GENERAL,
+      { id: 'z', order: 30, label: 'Z' },
     ])
     // Snapshot identity is stable until the ledger moves (uSES contract).
     expect(sections.getSnapshot()).toBe(rows)

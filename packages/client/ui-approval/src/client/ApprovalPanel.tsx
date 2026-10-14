@@ -43,7 +43,8 @@ function ApprovalFlow({ pending, detail, t }: {
     outlook: 'Outlook', 'outlook-calendar': 'Outlook Calendar', onedrive: 'OneDrive',
     sharepoint: 'SharePoint', teams: 'Microsoft Teams',
   }
-  const provider = connector === null ? undefined : providers[connector[1]!] ?? connector[1]
+  const connectorId = connector?.[1]
+  const provider = connectorId === undefined ? undefined : providers[connectorId] ?? connectorId
   const operation = connector?.[3]
   const headline = provider === undefined || operation === undefined
     ? pending.reason ?? t('escalation', { toolName: pending.toolName })

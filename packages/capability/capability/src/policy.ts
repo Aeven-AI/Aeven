@@ -85,7 +85,11 @@ export function judge(entries: readonly CapabilityEvidenceEntry[]): JudgedExecut
  * @param policy - lifecycle thresholds.
  * @returns the supported status and, when it is trusted, the revision it was trusted at.
  */
-export function supportedStatus(record: CapabilityRecord, judged: readonly JudgedExecution[], policy: LifecyclePolicy): { status: CapabilityStatus; trustedRevision?: number } {
+export function supportedStatus(
+  record: CapabilityRecord,
+  judged: readonly JudgedExecution[],
+  policy: LifecyclePolicy,
+): { status: CapabilityStatus; trustedRevision?: number } {
   if (record.status === 'retired') return { status: record.status }
   const known = judged.filter(item => item.execution.revision === record.revision && item.verdict !== 'unknown')
   const recent = known.slice(-policy.degradeAfter)

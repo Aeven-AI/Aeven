@@ -38,39 +38,41 @@ describe('SidebarRoot.module.css', () => {
     expect(panel?.get('background')).toBe('var(--dsw-specific-sidebar-fill)')
     expect(panel?.get('opacity')).toBe('0')
     expect(declarations('.visible .panel')?.get('opacity')).toBe('1')
-    expect(panel?.get('backdrop-filter')).toBe('blur(4px)')
-    expect(panel?.get('box-shadow')).toBe('inset -1px 1px 0 0 rgb(255, 255, 255)')
+    // The opaque fill alone separates the panel from the conversation: the
+    // drop shadow it carries is fully transparent.
+    expect(panel?.get('filter')).toBe('drop-shadow(0 4px 16px rgba(0, 0, 0, 0))')
     expect(panel?.get('bottom')).toBe('-2px')
-    expect(declarations('.toggle')?.get('height')).toBe('var(--dsw-aeven-control-size)')
-    expect(declarations('.toggle')?.get('padding')).toBe('0 var(--avn-sidebar-inline-padding)')
+    // Rows take Aeven's control height and the shell's shared inline inset.
+    expect(declarations('.newSession')?.get('height')).toBe('var(--dsw-aeven-control-size)')
+    expect(declarations('.newSession')?.get('padding')).toBe('0 var(--avn-sidebar-inline-padding)')
     expect(declarations('.regionArea')?.get('margin')).toBe('0')
     expect(declarations('.regionArea')?.get('padding')).toBe('0')
   })
 
-  it('collapses to the Aeven hamburger without repositioning it', () => {
-    // The content column carries the whole collapse; the button keeps its
-    // static seat, so nothing switches to fixed positioning mid-slide.
+  it('collapses by clipping its seats in place, never repositioning them', () => {
+    // The content column carries the whole collapse, and the column itself
+    // travels with it, so nothing switches to fixed positioning mid-slide.
     expect(declarations('.content')?.get('position')).toBe('absolute')
     expect(declarations('.content')?.get('width')).toBe('var(--avn-sidebar-open-width)')
     expect(declarations('.root')?.get('--avn-sidebar-open-width')).toBe('0px')
     expect(declarations('.root')?.get('width')).toBe('0')
     expect(declarations('.root.visible')?.get('--avn-sidebar-open-width')).toBe('var(--dsw-aeven-sidebar-width)')
     expect(declarations('.root.visible')?.get('width')).toBe('var(--dsw-aeven-sidebar-width)')
-    expect(declarations('.toggle')?.get('position')).toBe('relative')
-    expect(declarations('.toggle')?.get('width')).toBe('var(--dsw-aeven-sidebar-toggle-width)')
-    expect(declarations('.visible .toggle')?.get('width')).toBe('var(--avn-sidebar-open-width)')
-    // Clipped, not unmounted: the chevron rides opacity so it crossfades.
-    expect(declarations('.toggle')?.get('overflow')).toBe('hidden')
-    expect(declarations('.toggleEnd')?.get('opacity')).toBe('0')
-    expect(declarations('.visible .toggleEnd')?.get('opacity')).toBe('1')
-    expect(declarations('.toggle > svg')?.get('flex')).toBe('none')
+    // Clipped, not unmounted or moved: the header row's seats shrink with the
+    // column, and the row itself stays inert so no strip of it stands over the
+    // conversation's own band while the column is folded away.
+    expect(declarations('.header')?.get('pointer-events')).toBe('none')
+    expect(declarations('.headerLeading')?.get('overflow')).toBe('hidden')
+    expect(declarations('.headerActions')?.get('overflow')).toBe('hidden')
+    expect(declarations('.headerLeading > *')?.get('pointer-events')).toBe('auto')
+    expect(declarations('.headerActions > *')?.get('pointer-events')).toBe('auto')
+    expect(declarations('.sideContent')?.get('overflow-y')).toBe('auto')
   })
 
   it('animates every collapsing box on Aeven\'s single duration and curve', () => {
     const eased = 'width var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing)'
     expect(declarations('.root')?.get('transition')).toBe(eased)
     expect(declarations('.content')?.get('transition')).toBe(eased)
-    expect(declarations('.toggle')?.get('transition')).toBe(eased)
     expect(declarations('.panel')?.get('transition')).toBe(
       `${eased}, opacity var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing)`,
     )
@@ -78,8 +80,9 @@ describe('SidebarRoot.module.css', () => {
     expect(declarations('.sideContent')?.get('transition')).toBe(
       `${eased}, opacity var(--dsw-aeven-sidebar-transition-duration) linear`,
     )
-    expect(declarations('.toggleEnd')?.get('transition'))
-      .toBe('opacity var(--dsw-aeven-sidebar-transition-duration) var(--dsw-aeven-sidebar-transition-timing)')
+    // The header's cluster fades with the body below it.
+    expect(declarations('.headerActions')?.get('transition'))
+      .toBe('opacity var(--dsw-aeven-sidebar-transition-duration) linear')
   })
 
   it('keeps the slotted brand row at the full artwork height', () => {

@@ -192,12 +192,12 @@ Requires: `typert`
 ```ts config-catalog
 /** Gateway transport configuration. */
 export interface Config {
-  /** WebSocket Ping interval from 1 through 2,147,483,647 milliseconds. @default 2000 */
+  /** WebSocket Ping interval from 1 through 2,147,483,647 milliseconds. @default 10000 */
   readonly websocketHeartbeatIntervalMs?: number
 }
 ```
 
-Source: [`packages/api/gateway/src/index.ts:127`](../packages/api/gateway/src/index.ts)
+Source: [`packages/api/gateway/src/index.ts:128`](../packages/api/gateway/src/index.ts)
 
 <a id="aevenapi-job-controller"></a>
 
@@ -249,7 +249,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/api/session-controller/src/index.ts:80`](../packages/api/session-controller/src/index.ts)
+Source: [`packages/api/session-controller/src/index.ts:82`](../packages/api/session-controller/src/index.ts)
 
 <a id="aevenapi-settings-controller"></a>
 
@@ -315,6 +315,8 @@ export interface Config {
   readonly maxBufferedBytes: number
   /** Maximum UTF-8 bytes in one input request. */
   readonly maxInputBytes: number
+  /** Maximum UTF-8 bytes of screen text returned by one model read. */
+  readonly maxToolOutputBytes: number
   /** Provider process-termination grace period in milliseconds. */
   readonly disposeGraceMs: number
   /** Continuous confirmed idle time without window holds before reclamation; zero disables reclamation. */
@@ -326,7 +328,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/api/terminal-controller/src/index.ts:27`](../packages/api/terminal-controller/src/index.ts)
+Source: [`packages/api/terminal-controller/src/index.ts:29`](../packages/api/terminal-controller/src/index.ts)
 
 <a id="aevenapi-workspace-files"></a>
 
@@ -396,6 +398,33 @@ export interface Config {
 ```
 
 Source: [`packages/attachment/attachment-local/src/index.ts:68`](../packages/attachment/attachment-local/src/index.ts)
+
+<a id="aevenautomations"></a>
+
+## `@aeven/automations`
+
+Requires: `storageDomain` · `agents` · `sessions` · `agentDefaultModel` · `agentPresets` · `permissionPresets` · `workspaceRegistry` · `identityUsers` · `connection` · `webServer` · `tools` · `sessionTitle`
+
+```ts config-catalog
+/** Deployment limits for unattended local agent work. */
+export interface Config {
+  /** Most runs of this host that may execute at once; a queued run starts when one of them finishes. */
+  readonly maxConcurrentRuns: number
+  /** Budget of one run in minutes, counted from its start; a run still active at the deadline is cancelled. */
+  readonly runTimeoutMinutes: number
+  /**
+   * Grace in minutes after a scheduled instant during which that occurrence may still start; a later one
+   * is admitted as skipped, and `0` skips any occurrence whose instant has passed.
+   */
+  readonly misfireGraceMinutes: number
+  /** Finished run records kept per owner; older ones are archived and removed, while queued and running records are never pruned. */
+  readonly historyLimit: number
+  /** Display title of the built-in workspace that holds every run conversation. */
+  readonly workspaceTitle: string
+}
+```
+
+Source: [`packages/core/automations/src/index.ts:32`](../packages/core/automations/src/index.ts)
 
 <a id="aevenbash-local"></a>
 
@@ -489,7 +518,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/capability/capability/src/index.ts:49`](../packages/capability/capability/src/index.ts)
+Source: [`packages/capability/capability/src/index.ts:48`](../packages/capability/capability/src/index.ts)
 
 <a id="aevenclient-connection"></a>
 
@@ -660,6 +689,30 @@ export interface ToolResultPruneConfig {
 
 Source: [`packages/compaction/compaction-tool-result-pruner/src/types.ts:5`](../packages/compaction/compaction-tool-result-pruner/src/types.ts)
 
+<a id="aevencomputer-use-cua-driver-mcp"></a>
+
+## `@aeven/computer-use-cua-driver-mcp`
+
+Requires: `computerUse` · `tools`
+
+```ts config-catalog
+/** Installed executable and MCP connection overrides. */
+export interface Config {
+  /** Executable path or PATH command; defaults to `cua-driver`. */
+  command: string
+  /** Arguments passed without a shell; defaults to `['mcp']`. */
+  args: string[]
+  /** Per-call timeout in milliseconds; omission uses the MCP client's default. */
+  toolCallTimeoutMs?: number
+  /** Reconnection overrides; defaults to the MCP client's policy. */
+  reconnect: McpClient.ReconnectConfig
+}
+```
+
+Depends on: [`McpClient`](../packages/mcp/mcp-client/src/index.ts)
+
+Source: [`packages/computer-use/computer-use-cua-driver-mcp/src/index.ts:22`](../packages/computer-use/computer-use-cua-driver-mcp/src/index.ts)
+
 <a id="aevencomputer-use-macos-provider"></a>
 
 ## `@aeven/computer-use-macos-provider`
@@ -694,7 +747,7 @@ export interface Config {
 
 Depends on: [`RecipeBook`](../packages/computer-use/computer-use-router/src/index.ts)
 
-Source: [`packages/computer-use/computer-use-macos-provider/src/index.ts:54`](../packages/computer-use/computer-use-macos-provider/src/index.ts)
+Source: [`packages/computer-use/computer-use-macos-provider/src/index.ts:49`](../packages/computer-use/computer-use-macos-provider/src/index.ts)
 
 <a id="aevencordis-host-runner"></a>
 
@@ -832,7 +885,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/document/document-extract-js/src/index.ts:29`](../packages/document/document-extract-js/src/index.ts)
+Source: [`packages/document/document-extract-js/src/index.ts:26`](../packages/document/document-extract-js/src/index.ts)
 
 <a id="aevendocument-extract-ocr"></a>
 
@@ -858,7 +911,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/document/document-extract-ocr/src/index.ts:27`](../packages/document/document-extract-ocr/src/index.ts)
+Source: [`packages/document/document-extract-ocr/src/index.ts:24`](../packages/document/document-extract-ocr/src/index.ts)
 
 <a id="aevendocument-extract-office"></a>
 
@@ -876,7 +929,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/document/document-extract-office/src/index.ts:26`](../packages/document/document-extract-office/src/index.ts)
+Source: [`packages/document/document-extract-office/src/index.ts:27`](../packages/document/document-extract-office/src/index.ts)
 
 <a id="aevene2b"></a>
 
@@ -986,30 +1039,6 @@ export interface Config {
 ```
 
 Source: [`packages/experimental/code-runtime-python/src/index.ts:47`](../packages/experimental/code-runtime-python/src/index.ts)
-
-<a id="aevencomputer-use-cua-driver-mcp"></a>
-
-## `@aeven/computer-use-cua-driver-mcp`
-
-Requires: `computerUse` · `tools`
-
-```ts config-catalog
-/** Installed executable and MCP connection overrides. */
-export interface Config {
-  /** Executable path or PATH command; defaults to `cua-driver`. */
-  command: string
-  /** Arguments passed without a shell; defaults to `['mcp']`. */
-  args: string[]
-  /** Per-call timeout in milliseconds; omission uses the MCP client's default. */
-  toolCallTimeoutMs?: number
-  /** Reconnection overrides; defaults to the MCP client's policy. */
-  reconnect: McpClient.ReconnectConfig
-}
-```
-
-Depends on: [`McpClient`](../packages/mcp/mcp-client/src/index.ts)
-
-Source: [`packages/computer-use/computer-use-cua-driver-mcp/src/index.ts:20`](../packages/computer-use/computer-use-cua-driver-mcp/src/index.ts)
 
 <a id="aevenexperimental-inspector"></a>
 
@@ -1341,7 +1370,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/host/account-integrations/src/index.ts:50`](../packages/host/account-integrations/src/index.ts)
+Source: [`packages/host/account-integrations/src/index.ts:53`](../packages/host/account-integrations/src/index.ts)
 
 <a id="aevenhost-directory-picker-browse"></a>
 
@@ -1572,13 +1601,10 @@ export interface Config {
   /** Maximum provider idle time while one stream read is outstanding. */
   streamIdleTimeoutMs?: number
   /**
-   * The image and Files knobs below are inert on this route: the gateway accepts
-   * images inline as `image_url` parts and has no files API to upload them to,
-   * so nothing here ever offloads, uploads, or expires. They are declared
-   * because {@link DeepSeekConnectionOptions} requires a complete set, and they
-   * are pinned to the adapter's own defaults so an upstream change is inherited
-   * rather than silently overridden here. Each is documented for what it does on
-   * the route that uses it, not for what it does on this one.
+   * The gateway accepts images inline as `image_url` parts and has no files
+   * API, so only the inline byte budget, the image-count cap, and their
+   * offload quanta act on this route; the Files knobs are declared because
+   * {@link DeepSeekConnectionOptions} requires a complete set.
    */
   /** High watermark for retained request-image bytes before oldest-first offload. */
   maxRequestFilesBytes?: number
@@ -1607,7 +1633,7 @@ export interface Config {
 
 Depends on: [`DeepSeekCatalogModel`](../packages/llm/llm-deepseek/src/index.ts) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts)
 
-Source: [`packages/llm/llm-aeven/src/index.ts:218`](../packages/llm/llm-aeven/src/index.ts)
+Source: [`packages/llm/llm-aeven/src/index.ts:225`](../packages/llm/llm-aeven/src/index.ts)
 
 <a id="aevenllm-deepseek"></a>
 
@@ -2269,7 +2295,7 @@ Source: [`packages/media/media/src/index.ts:58`](../packages/media/media/src/ind
 Requires: `media`
 
 ```ts config-catalog
-/** Config for the Aeven image provider. */
+/** Config for the Aeven media providers. */
 export interface Config {
   /** Registry key under `ctx.media`. Defaults to `aeven`. */
   id?: string
@@ -2277,10 +2303,12 @@ export interface Config {
   apiUrl?: string
   /** Credential reference holding the signed-in session; defaults to `AEVEN_TOKEN`. */
   apiKeyEnv?: string
+  /** Largest finished clip one download accepts, in bytes. */
+  maxVideoBytes?: number
 }
 ```
 
-Source: [`packages/media/media-aeven/src/index.ts:91`](../packages/media/media-aeven/src/index.ts)
+Source: [`packages/media/media-aeven/src/index.ts:159`](../packages/media/media-aeven/src/index.ts)
 
 <a id="aevenmedia-deepinfra"></a>
 
@@ -2355,7 +2383,7 @@ Requires: `agents` · `memory` · `systemPrompt`
 ```ts config-catalog
 /** Consumer configuration. */
 export interface Config {
-  /** Recall memory for every accepted direct-user turn. */
+  /** Recall memory for every accepted user or approved automation turn. */
   recall: boolean
   /** Hand completed turns to the memory provider. */
   capture: boolean
@@ -2363,7 +2391,10 @@ export interface Config {
   recallTimeoutMs: number
   /** Maximum characters of one injected memory block, framing included. */
   contextMaxChars: number
-  /** Maximum characters of one memory line in the block; a longer memory keeps its opening fact, and its detail stays behind `memory_get`. */
+  /**
+   * Maximum characters of one memory line in the block; a longer memory keeps its opening fact, and its
+   * detail stays behind `memory_get`.
+   */
   itemMaxChars: number
   /** Maximum recalled items from each domain. */
   domainMaxItems: Record<MemoryDomain, number>
@@ -2419,7 +2450,10 @@ export interface Config {
   hostLlm: boolean
   /** How long one route's reasoning capability stays cached, in milliseconds. */
   capabilityTtlMs: number
-  /** Language of stored summaries and learned knowledge written through the Host bridge; `auto` detects English or Chinese from each request's text. */
+  /**
+   * Language of stored summaries and learned knowledge written through the Host bridge; `auto` detects
+   * English or Chinese from each request's text.
+   */
   language: MemoryLanguage
   /**
    * Classify each captured turn as person, project, or world memory and detect corrections on the session's route; needs `hostLlm`.
@@ -2430,6 +2464,11 @@ export interface Config {
   classifyTimeoutMs: number
   /** Number of trace candidates MemOS ranks for turn-start recall before Aeven orders them. */
   candidateTraces: number
+  /**
+   * Longest request or reply text one stored memory keeps; longer text keeps its beginning and end. A learned
+   * procedure is stored as one request text, so this bounds the procedure `memory_get` can read back.
+   */
+  maxTextChars: number
 }
 
 /** Natural language MemOS writes stored memory in; `auto` follows the language of the captured user text. */
@@ -2661,6 +2700,22 @@ export interface Config {
 
 Source: [`packages/guard/repeat-tool-reminder/src/index.ts:28`](../packages/guard/repeat-tool-reminder/src/index.ts)
 
+<a id="aevenreply-language"></a>
+
+## `@aeven/reply-language`
+
+Requires: `agents` · `sessionProjections`
+
+```ts config-catalog
+/** Reminder rendering. Invalid values fail plugin load. */
+export interface Config {
+  /** Code points of the person's message quoted to identify its language. */
+  excerptLength: number
+}
+```
+
+Source: [`packages/context/reply-language/src/index.ts:43`](../packages/context/reply-language/src/index.ts)
+
 <a id="aevensandbox-local"></a>
 
 ## `@aeven/sandbox-local`
@@ -2815,7 +2870,7 @@ export interface Config {
 export type JsonlCompression = 'zstd' | 'none'
 ```
 
-Source: [`packages/session/session-persistence-jsonl/src/index.ts:111`](../packages/session/session-persistence-jsonl/src/index.ts)
+Source: [`packages/session/session-persistence-jsonl/src/index.ts:112`](../packages/session/session-persistence-jsonl/src/index.ts)
 
 <a id="aevensession-projection-cache"></a>
 
@@ -3064,6 +3119,20 @@ export interface Config {
 
 Source: [`packages/skill/skill/src/index.ts:285`](../packages/skill/skill/src/index.ts)
 
+<a id="aevenskill-catalog"></a>
+
+## `@aeven/skill-catalog`
+
+```ts config-catalog
+/** Catalog data location. */
+export interface Config {
+  /** Directory holding `index.json` and `bundles/`; defaults to this package's vendored catalog. */
+  catalogDir?: string
+}
+```
+
+Source: [`packages/skill/skill-catalog/src/index.ts:39`](../packages/skill/skill-catalog/src/index.ts)
+
 <a id="aevenskill-filesystem"></a>
 
 ## `@aeven/skill-filesystem`
@@ -3174,7 +3243,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/speech/speech-to-text-whisper/src/config.ts:6`](../packages/speech/speech-to-text-whisper/src/config.ts)
+Source: [`packages/speech/speech-to-text-whisper/src/config.ts:7`](../packages/speech/speech-to-text-whisper/src/config.ts)
 
 <a id="aevenspill-local"></a>
 
@@ -3651,7 +3720,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/core/system-prompt/src/index.ts:238`](../packages/core/system-prompt/src/index.ts)
+Source: [`packages/core/system-prompt/src/index.ts:242`](../packages/core/system-prompt/src/index.ts)
 
 <a id="aeventerminal-bash"></a>
 
@@ -3786,7 +3855,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/shell/tool-bash-persistent/src/index.ts:432`](../packages/shell/tool-bash-persistent/src/index.ts)
+Source: [`packages/shell/tool-bash-persistent/src/index.ts:441`](../packages/shell/tool-bash-persistent/src/index.ts)
 
 <a id="aeventool-browser"></a>
 
@@ -3804,7 +3873,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/web/tool-browser/src/index.ts:37`](../packages/web/tool-browser/src/index.ts)
+Source: [`packages/web/tool-browser/src/index.ts:40`](../packages/web/tool-browser/src/index.ts)
 
 <a id="aeventool-call-access-policy"></a>
 
@@ -3827,13 +3896,13 @@ export interface Config {
 
 Depends on: [`SandboxMode`](subsystems/sandbox.md)
 
-Source: [`packages/guard/access-policy/src/index.ts:54`](../packages/guard/access-policy/src/index.ts)
+Source: [`packages/guard/access-policy/src/index.ts:56`](../packages/guard/access-policy/src/index.ts)
 
 <a id="aeventool-capability"></a>
 
 ## `@aeven/tool-capability`
 
-Requires: `capabilities` · `tools` · `systemPrompt` · `llm`
+Requires: `capabilities` · `tools` · `systemPrompt` · `llm` · `memory`
 
 ```ts config-catalog
 /** Consumer configuration. */
@@ -3852,8 +3921,6 @@ export interface Config {
   learn: boolean
   /** Tool calls a turn needs, excluding bookkeeping, before its work is learned from. */
   minSteps: number
-  /** Milliseconds a finished turn waits for a correction before it is learned from without one. */
-  settleMs: number
   /** Budget of one learning model call, in milliseconds. */
   timeoutMs: number
   /** Output token limit of one learning model call. */
@@ -3864,10 +3931,33 @@ export interface Config {
   provider?: string
   /** Learning model on the explicit provider route; absent uses the session model. */
   model?: string
+  /**
+   * Where learned procedures are kept. `memory` (the default) stores each as a long-term memory that memory recall
+   * brings back; `capabilities` keeps them as capability files recalled as `<procedure_context>`.
+   */
+  store: 'memory' | 'capabilities'
 }
 ```
 
-Source: [`packages/capability/tool-capability/src/index.ts:25`](../packages/capability/tool-capability/src/index.ts)
+Source: [`packages/capability/tool-capability/src/index.ts:33`](../packages/capability/tool-capability/src/index.ts)
+
+<a id="aeventool-elevation"></a>
+
+## `@aeven/tool-elevation`
+
+Requires: `tools` · `approval` · `subprocess`
+
+```ts config-catalog
+/** Tool configuration. */
+export interface Config {
+  /** Default and maximum deadline for one elevated run, in ms. */
+  timeoutMs?: number
+  /** Retained tail of the captured output, in characters. */
+  maxOutputChars?: number
+}
+```
+
+Source: [`packages/sandbox/tool-elevation/src/index.ts:31`](../packages/sandbox/tool-elevation/src/index.ts)
 
 <a id="aeventool-fs"></a>
 
@@ -3941,6 +4031,26 @@ export interface Config {
 ```
 
 Source: [`packages/goal/tool-goal/src/index.ts:25`](../packages/goal/tool-goal/src/index.ts)
+
+<a id="aeventool-image-search"></a>
+
+## `@aeven/tool-image-search`
+
+Requires: `tools` · `attachments` · `llm`
+
+```ts config-catalog
+/** What one call may spend. */
+export interface Config {
+  /** Milliseconds one HTTP request may take. */
+  requestTimeoutMs?: number
+  /** Milliseconds the model call that translates the cards may take. */
+  translationTimeoutMs?: number
+  /** Largest image one call stores, in bytes. */
+  maxImageBytes?: number
+}
+```
+
+Source: [`packages/web/tool-image-search/src/index.ts:93`](../packages/web/tool-image-search/src/index.ts)
 
 <a id="aeventool-jobs"></a>
 
@@ -4041,8 +4151,36 @@ Source: [`packages/mail/tool-mail/src/index.ts:26`](../packages/mail/tool-mail/s
 Requires: `tools` · `media` · `attachments`
 
 ```ts config-catalog
-/** Config for the image tool. */
-export interface Config {
+/** Config for the media tools: the image tool's fields, and the video tool's under `video`. */
+export interface Config extends ImageConfig {
+  /** The video tool's config; omitted registers no video tool. */
+  video?: VideoConfig
+}
+
+/** Config for the image tool, which is also the `media` settings document. */
+export interface ImageConfig extends ModelSelection {
+  /**
+   * Media providers whose own image-model listing is offered after `choices`.
+   * The listing is read on every call, so a provider whose models change at
+   * runtime — such as a subscription whose image model the user switches on or
+   * off in Settings → Providers — is selectable exactly while it lists them.
+   */
+  listedProviders?: string[]
+}
+
+/**
+ * Config for the video tool, which is also the `media-video` settings
+ * document. `generate_video` and `/video-model` exist only where it is set.
+ */
+export interface VideoConfig extends ModelSelection {
+  /** Wait between two reads of a running job, in milliseconds. */
+  pollIntervalMs?: number
+  /** Longest one call waits for its job before failing, in milliseconds. */
+  maxWaitMs?: number
+}
+
+/** The model-selection fields the image and video settings documents share. */
+export interface ModelSelection {
   /**
    * Model id used when a call names none and no choice is made. Provider-specific
    * and verbatim, e.g. `Aeven-1.0-Image-Flash`. Omitted means every call must
@@ -4057,13 +4195,6 @@ export interface Config {
    * the model unrestricted.
    */
   choices?: ImageModelChoice[]
-  /**
-   * Media providers whose own image-model listing is offered after `choices`.
-   * The listing is read on every call, so a provider whose models change at
-   * runtime — such as a subscription whose image model the user switches on or
-   * off in Settings → Providers — is selectable exactly while it lists them.
-   */
-  listedProviders?: string[]
   /**
    * Ask which model to use until one has been chosen. The picker is skipped
    * regardless where no `userQuestions` UI can answer, or `choices` is empty.
@@ -4092,7 +4223,7 @@ export interface ImageModelChoice {
 }
 ```
 
-Source: [`packages/media/tool-media/src/index.ts:69`](../packages/media/tool-media/src/index.ts)
+Source: [`packages/media/tool-media/src/index.ts:134`](../packages/media/tool-media/src/index.ts)
 
 <a id="aeventool-memory"></a>
 
@@ -4110,7 +4241,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/memory/tool-memory/src/index.ts:19`](../packages/memory/tool-memory/src/index.ts)
+Source: [`packages/memory/tool-memory/src/index.ts:18`](../packages/memory/tool-memory/src/index.ts)
 
 <a id="aeventool-pwsh"></a>
 
@@ -4148,7 +4279,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/shell/tool-pwsh-persistent/src/index.ts:472`](../packages/shell/tool-pwsh-persistent/src/index.ts)
+Source: [`packages/shell/tool-pwsh-persistent/src/index.ts:457`](../packages/shell/tool-pwsh-persistent/src/index.ts)
 
 <a id="aeventool-ralph"></a>
 
@@ -4252,7 +4383,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/fs/tool-str-replace-editor/src/index.ts:505`](../packages/fs/tool-str-replace-editor/src/index.ts)
+Source: [`packages/fs/tool-str-replace-editor/src/index.ts:506`](../packages/fs/tool-str-replace-editor/src/index.ts)
 
 <a id="aeventool-subagent"></a>
 
@@ -4444,7 +4575,7 @@ export interface Config {
 export type ToolPresentationMode = 'native' | 'ptc' | 'both'
 ```
 
-Source: [`packages/core/tools/src/index.ts:648`](../packages/core/tools/src/index.ts)
+Source: [`packages/core/tools/src/index.ts:650`](../packages/core/tools/src/index.ts)
 
 <a id="aeventypert-loader"></a>
 
@@ -4491,7 +4622,7 @@ export interface Config {
 export type ApprovalPolicy = 'ask' | 'never'
 ```
 
-Source: [`packages/interaction/user-approval/src/index.ts:127`](../packages/interaction/user-approval/src/index.ts)
+Source: [`packages/interaction/user-approval/src/index.ts:129`](../packages/interaction/user-approval/src/index.ts)
 
 <a id="aevenweb"></a>
 
@@ -4732,6 +4863,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@aeven/client-ui-account-aeven` ([`packages/client/ui-account-aeven/src/index.ts`](../packages/client/ui-account-aeven/src/index.ts))
 - `@aeven/client-ui-approval` ([`packages/client/ui-approval/src/index.ts`](../packages/client/ui-approval/src/index.ts))
 - `@aeven/client-ui-attachment` ([`packages/client/ui-attachment/src/index.ts`](../packages/client/ui-attachment/src/index.ts))
+- `@aeven/client-ui-automations` ([`packages/client/ui-automations/src/index.ts`](../packages/client/ui-automations/src/index.ts))
 - `@aeven/client-ui-brand-official` ([`packages/client/ui-brand-official/src/index.ts`](../packages/client/ui-brand-official/src/index.ts))
 - `@aeven/client-ui-chat` ([`packages/client/ui-chat/src/index.ts`](../packages/client/ui-chat/src/index.ts))
 - `@aeven/client-ui-commands` ([`packages/client/ui-commands/src/index.ts`](../packages/client/ui-commands/src/index.ts))

@@ -459,11 +459,7 @@ function MemoryCard({ t, memory, now, open, onToggle, editMemory, forgetMemory, 
         aria-label={`${t(open ? 'collapse' : 'expand')}: ${fact}`}
         onClick={onToggle}
       >
-        <span className={css.headText}>
-          <span className={css.title}>{fact}</span>
-          <span className={css.subtitle}>{memory.summary.trim() === '' ? t('pending') : ago(memory.time, now, t)}</span>
-        </span>
-        <IconChevronDownOutline14 className={open ? `${css.chevron} ${css.chevronOpen}` : css.chevron} />
+        <CardHeading title={fact} subtitle={memory.summary.trim() === '' ? t('pending') : ago(memory.time, now, t)} open={open} />
       </button>
       {open && (
         <div className={css.body}>
@@ -522,7 +518,7 @@ function MemoryCard({ t, memory, now, open, onToggle, editMemory, forgetMemory, 
             {mode === 'edit' && (
               <Commit
                 t={t}
-                label="save"
+                labelKey="save"
                 busy={busy}
                 blocked={draft.trim() === ''}
                 onCancel={() => { setMode('view') }}
@@ -547,7 +543,9 @@ function MemoryCard({ t, memory, now, open, onToggle, editMemory, forgetMemory, 
   )
 }
 
-function Facts({ t, invariants, addInvariant, editInvariant, removeInvariant, reportLoading }: MemorySectionProps & { readonly reportLoading: (loading: boolean) => void }) {
+function Facts({ t, invariants, addInvariant, editInvariant, removeInvariant, reportLoading }: MemorySectionProps & {
+  readonly reportLoading: (loading: boolean) => void
+}) {
   const composerId = useId()
   const [state, setState] = useState<Load<ManagedInvariantsPage>>({ status: 'loading' })
   const [draft, setDraft] = useState('')
@@ -629,7 +627,7 @@ function Facts({ t, invariants, addInvariant, editInvariant, removeInvariant, re
                           <span className={css.factActions}>
                             <Commit
                               t={t}
-                              label="save"
+                              labelKey="save"
                               busy={busy}
                               blocked={row.text.trim() === ''}
                               onCancel={() => { setActive(undefined) }}
@@ -721,9 +719,9 @@ function Fold({ label, open, onToggle, children }: {
 }
 
 /** The open card's Cancel and its commit action. */
-function Commit({ t, label, busy, blocked = false, onCancel, onCommit }: {
+function Commit({ t, labelKey, busy, blocked = false, onCancel, onCommit }: {
   readonly t: Translate
-  readonly label: MemoryLocaleKey
+  readonly labelKey: MemoryLocaleKey
   readonly busy: boolean
   /** The draft cannot be committed as it stands. */
   readonly blocked?: boolean
@@ -733,7 +731,7 @@ function Commit({ t, label, busy, blocked = false, onCancel, onCommit }: {
   return (
     <>
       <Button variant="outline" disabled={busy} onClick={onCancel}>{t('cancel')}</Button>
-      <Button variant="primary" disabled={busy || blocked} onClick={onCommit}>{t(label)}</Button>
+      <Button variant="primary" disabled={busy || blocked} onClick={onCommit}>{t(labelKey)}</Button>
     </>
   )
 }
@@ -903,11 +901,7 @@ function CapabilityCard({
         aria-label={`${t(open ? 'collapse' : 'expand')}: ${item.name}`}
         onClick={onToggle}
       >
-        <span className={css.headText}>
-          <span className={css.title}>{item.name}</span>
-          <span className={css.subtitle}>{item.description}</span>
-        </span>
-        <IconChevronDownOutline14 className={open ? `${css.chevron} ${css.chevronOpen}` : css.chevron} />
+        <CardHeading title={item.name} subtitle={item.description} open={open} />
       </button>
       {open && (
         <div className={css.body}>
@@ -1010,7 +1004,7 @@ function CapabilityCard({
             {mode === 'edit' && (
               <Commit
                 t={t}
-                label="save"
+                labelKey="save"
                 busy={busy}
                 blocked={draft.description.trim() === '' || draft.content.trim() === ''}
                 onCancel={() => { setMode('view') }}
@@ -1043,4 +1037,14 @@ function DetailBody({ detail, t, children }: {
   if (detail === undefined || detail.status === 'loading') return <p className={css.note}><Spinner /> {t('loading')}</p>
   if (detail.status === 'error' || detail.value === undefined) return <p className={css.failure}>{t('error')}</p>
   return children
+}
+
+function CardHeading({ title, subtitle, open }: { title: string; subtitle: string; open: boolean }): ReactNode {
+  return <>
+    <span className={css.headText}>
+      <span className={css.title}>{title}</span>
+      <span className={css.subtitle}>{subtitle}</span>
+    </span>
+    <IconChevronDownOutline14 className={open ? `${css.chevron} ${css.chevronOpen}` : css.chevron} />
+  </>
 }

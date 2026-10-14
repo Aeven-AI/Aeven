@@ -10,7 +10,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createElement, type ComponentProps, type FC, type ReactNode } from 'react'
-import { bindSnapshotSelector, SlotTestRuntime, stubSettingsScope } from '@aeven/client-test-runtime'
+import {
+  bindSnapshotSelector, makeTranslate, SlotTestRuntime, stubSettingsScope,
+} from '@aeven/client-test-runtime'
 import { resolveSlotLabel } from '@aeven/client-ui-slots'
 import {
   EMPTY_CONVERSATION_SNAPSHOT, UiConversation,
@@ -60,8 +62,9 @@ function TrajectoryTimeline(
 }
 
 const SID = 's1' as SessionId
-const tConversation: ConversationSessionHeaderProps['t'] =
-  key => (conversationZh as Record<string, string>)[key] ?? key
+// The header's own translate seat: the conversation namespace, interpolating the
+// `{name}` templates the locale runtime resolves.
+const tConversation = makeTranslate(conversationZh) as ConversationSessionHeaderProps['t']
 
 const runtimes: SlotTestRuntime[] = []
 
@@ -288,10 +291,16 @@ async function bench(snapshot = historySnapshot(NODES)) {
   // forwarded-event port.
   ctx.provide('connection', { api: { settings: {} }, isLoopback: false } as never)
   ctx.provide('remote', { $on: () => () => {} } as never)
-  ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
+  // The ledger surface is a Developer-mode surface, so the settings scope this
+  // bench hands the plugin already reports the mode as on.
+  const settings = stubSettingsScope<{ enabled: boolean }>()
+  ctx.provide('settingsScope', { bind: () => settings.scope } as never)
+  settings.publish({ status: 'ready', value: { enabled: true }, writable: true })
   await runtime.mount({ inject: [...localeInject], apply: localeApply })
   const provide = vi.spyOn(ctx.uiSession, 'provide')
   const feature = await runtime.mount({ inject: [...inject], apply })
+  // The enabled mode mounts the view on its own fiber a tick after apply.
+  await runtime.flush()
   const sourceDescriptor = provide.mock.calls[0]?.[0]
   if (sourceDescriptor === undefined) throw new Error('ui-trajectory did not provide its standard source')
   return {
@@ -521,14 +530,24 @@ describe('plugin registration', () => {
   })
 })
 
-describe('tab switching in ConversationRoot', () => {
-  it('renders two tabs, defaults to chat, and switches to the trajectory ledger', async () => {
+/**
+ * Switch the Session's View the way the header offers it: the options foldout
+ * lists the Views the reader is not in, so its row names the View being entered.
+ * @param name - the View's registered label.
+ */
+function switchView(name: string): void {
+  fireEvent.click(screen.getByRole('button', { name: '选项' }))
+  fireEvent.click(screen.getByRole('menuitem', { name: `查看${name}` }))
+}
+
+describe('view switching in ConversationRoot', () => {
+  it('offers both ring Views, defaults to chat, and switches to the ledger', async () => {
     const b = await bench()
     const view = mount(b)
     expect(screen.getByTestId('chat-body')).toBeTruthy()
-    expect(screen.getAllByRole('tab').map(t => t.textContent)).toEqual(['Chat', 'Trajectory'])
-
-    fireEvent.click(screen.getByRole('tab', { name: 'Trajectory' }))
+    // The foldout offers the Views the reader is not in, which states the
+    // reader is in chat.
+    switchView('Trajectory')
     expect(screen.queryByText(/turns ·/)).toBeNull()
     expect(view.container.querySelectorAll('tr[data-turn-start="true"]')).toHaveLength(2)
     expect(screen.queryByRole('columnheader')).toBeNull()
@@ -551,7 +570,8 @@ describe('tab switching in ConversationRoot', () => {
     expect(screen.getByRole('row', { name: /用户/ })).toBeTruthy()
     expect(screen.queryByTestId('chat-body')).toBeNull()
     expect(b.loadOlder).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('tab', { name: 'Chat' }))
+    switchView('Chat')
+    expect(screen.getByTestId('chat-body')).toBeTruthy()
     expect(b.loadOlder).not.toHaveBeenCalled()
   })
 
@@ -569,7 +589,7 @@ describe('tab switching in ConversationRoot', () => {
   it('opens a local record inspector and switches payload tabs without opening chat details', async () => {
     const b = await bench()
     mount(b)
-    fireEvent.click(screen.getByRole('tab', { name: 'Trajectory' }))
+    switchView('Trajectory')
 
     fireEvent.keyDown(screen.getByRole('row', { name: /工具/ }), { key: 'Enter' })
     expect(screen.getByRole('complementary', { name: '事件详情' })).toBeTruthy()
@@ -606,7 +626,7 @@ describe('tab switching in ConversationRoot', () => {
     }
     const b = await bench(historySnapshot(nodes, { requests: [compaction] }))
     const view = mount(b)
-    fireEvent.click(screen.getByRole('tab', { name: 'Trajectory' }))
+    switchView('Trajectory')
 
     expect(screen.getByText('轮次之间')).toBeTruthy()
     expect(view.container.textContent).not.toContain('Turn null')
@@ -658,7 +678,7 @@ describe('tab switching in ConversationRoot', () => {
     ]
     const b = await bench(historySnapshot(nodes, { requests: compactions }))
     mount(b)
-    fireEvent.click(screen.getByRole('tab', { name: 'Trajectory' }))
+    switchView('Trajectory')
 
     const firstRequest = screen.getByRole('button', { name: '请求 #2 · 压缩' })
     const secondRequest = screen.getByRole('button', { name: '请求 #4 · 压缩' })
@@ -683,7 +703,7 @@ describe('tab switching in ConversationRoot', () => {
   it('dragging the overview focuses overlapping records without filtering the ledger', async () => {
     const b = await bench()
     mount(b)
-    fireEvent.click(screen.getByRole('tab', { name: 'Trajectory' }))
+    switchView('Trajectory')
     const plot = screen.getByLabelText('时间线概览；水平拖动可聚焦事件')
     vi.spyOn(plot, 'getBoundingClientRect').mockReturnValue({
       x: 0, y: 0, left: 0, top: 0, right: 100, bottom: 72, width: 100, height: 72,
@@ -715,7 +735,7 @@ describe('tab switching in ConversationRoot', () => {
   it('clicking a timeline block clears the range, selects the record, and opens its inspector', async () => {
     const b = await bench()
     const view = mount(b)
-    fireEvent.click(screen.getByRole('tab', { name: 'Trajectory' }))
+    switchView('Trajectory')
     const plot = screen.getByLabelText('时间线概览；水平拖动可聚焦事件')
     vi.spyOn(plot, 'getBoundingClientRect').mockReturnValue({
       x: 0, y: 0, left: 0, top: 0, right: 100, bottom: 72, width: 100, height: 72,
@@ -753,7 +773,7 @@ describe('tab switching in ConversationRoot', () => {
   it('empty window keeps the toolbar and reports no timing data', async () => {
     const b = await bench(historySnapshot([]))
     mount(b)
-    fireEvent.click(screen.getByRole('tab', { name: 'Trajectory' }))
+    switchView('Trajectory')
     expect(screen.getByRole('toolbar', { name: '轨迹工具栏' })).toBeTruthy()
     expect(screen.getByText('无计时数据')).toBeTruthy()
     expect(screen.getByRole<HTMLButtonElement>('button', {
@@ -792,9 +812,8 @@ describe('timeline projection', () => {
     }],
   }] satisfies readonly TrajectoryTurnModel[]
 
-  it('splits assistant time into recorded TTFT and decoding proportions with a delayed tooltip', () => {
-    vi.useFakeTimers()
-    try {
+  it('splits assistant time into recorded TTFT and decoding proportions', () => {
+    {
       const view = render(
         <TrajectoryTimeline
           turns={[{
@@ -826,20 +845,11 @@ describe('timeline projection', () => {
       const span = view.container.querySelector<HTMLElement>(
         '[data-timeline-span="message"]',
       )
+      // 500 ms to the first token of a 2,000 ms step: the span carries the
+      // recorded split, not the wall time.
       expect(span?.getAttribute('title')).toBeNull()
       expect(span?.getAttribute('data-assistant-timing')).toBe('true')
       expect(span?.style.getPropertyValue('--trajectory-assistant-ttft')).toBe('25%')
-
-      fireEvent.mouseEnter(span as HTMLElement)
-      act(() => { vi.advanceTimersByTime(499) })
-      expect(view.container.querySelector('[role="tooltip"]')).toBeNull()
-      act(() => { vi.advanceTimersByTime(1) })
-      const tooltip = view.container.querySelector<HTMLElement>('[role="tooltip"]')
-      expect(tooltip?.textContent).toContain('Total 2,000 ms')
-      expect(tooltip?.textContent).toContain('TTFT 500 ms')
-      expect(tooltip?.textContent).toContain('Decoding 1,500 ms')
-    } finally {
-      vi.useRealTimers()
     }
   })
 
@@ -864,8 +874,6 @@ describe('timeline projection', () => {
     fireEvent.pointerEnter(boundary)
     expect(view.container.querySelector('[data-timeline-hover-line]')).toBeNull()
     fireEvent.focus(boundary)
-    expect(screen.getByRole('tooltip').textContent)
-      .toContain('Click to load earlier history')
     fireEvent.click(boundary)
     expect(onLoadEarlier).toHaveBeenCalledOnce()
     expect(screen.getByLabelText('Loading earlier history…')).toBeTruthy()

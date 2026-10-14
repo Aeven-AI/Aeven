@@ -38,7 +38,6 @@ declare module '@deepseek-ai/cordis' {
     /**
      * One capability of an owner was saved, changed, or deleted. Emitted after the write is durable.
      * @param change - owner and capability name.
-     * @avnScopeScan unsupported
      * @mode emit
      */
     'capabilities/changed'(change: CapabilityChange): void
@@ -57,7 +56,7 @@ export interface Config {
 
 /** Registry of learned capabilities for every signed-in user of this Host. */
 export default class Capabilities extends Service {
-  static Config: z<Config> = z.object({
+  static Config: z<Pick<Config, 'root'> & Partial<Config>, Config> = z.object({
     root: z.string().min(1).required(),
     trustAfter: z.natural().min(1).default(3),
     degradeAfter: z.natural().min(1).default(2),
@@ -100,7 +99,16 @@ export default class Capabilities extends Service {
    * the work it was learned from; a later save keeps the first origin.
    * @returns the stored capability.
    */
-  save(owner: string, draft: CapabilityDraft, options: { readonly status: CapabilityStatus; readonly source: CapabilitySource; readonly sessionId: string | undefined; readonly origin?: CapabilityOrigin }): Promise<Capability> {
+  save(
+    owner: string,
+    draft: CapabilityDraft,
+    options: {
+      readonly status: CapabilityStatus
+      readonly source: CapabilitySource
+      readonly sessionId: string | undefined
+      readonly origin?: CapabilityOrigin
+    },
+  ): Promise<Capability> {
     const name = capabilityName(draft.name)
     return this.serialize(owner, name, async () => {
       const existing = await this.store.record(owner, name)
@@ -132,7 +140,12 @@ export default class Capabilities extends Service {
    * @returns the updated capability.
    * @throws when the capability does not exist or the passage is missing or ambiguous.
    */
-  patch(owner: string, name: string, edit: { readonly oldString: string; readonly newString: string }, sessionId: string | undefined): Promise<Capability> {
+  patch(
+    owner: string,
+    name: string,
+    edit: { readonly oldString: string; readonly newString: string },
+    sessionId: string | undefined,
+  ): Promise<Capability> {
     return this.serialize(owner, capabilityName(name), async () => {
       const current = await this.require(owner, name)
       const occurrences = current.content.split(edit.oldString).length - 1
@@ -302,7 +315,9 @@ export default class Capabilities extends Service {
   private async settle(owner: string, name: string): Promise<Capability> {
     const current = await this.require(owner, name)
     const supported = supportedStatus(current, judge(await this.store.evidence(owner, name)), this.config)
-    if (supported.status === current.status && (supported.trustedRevision ?? current.trustedRevision) === current.trustedRevision) return current
+    const settled = supported.status === current.status
+      && (supported.trustedRevision ?? current.trustedRevision) === current.trustedRevision
+    if (settled) return current
     const now = Date.now()
     await this.store.write(owner, {
       ...record(current),

@@ -3,7 +3,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { ToolCallId } from '@aeven/llm'
 import SystemPrompt from '@aeven/system-prompt'
 import ToolRuntime, { type ToolExecutionResult } from '@aeven/tools'
-import { MEDIA_SETTINGS_NAMESPACE } from '../src/index.ts'
+import { MEDIA_SETTINGS_NAMESPACE, VIDEO_SETTINGS_NAMESPACE } from '../src/index.ts'
 import { MediaRuntime } from '@aeven/media'
 import type { GeneratedImage, MediaImageProvider, MediaImageRequest } from '@aeven/media'
 import * as ToolMedia from '@aeven/tool-media'
@@ -51,7 +51,9 @@ function imageProvider(
  *   store normalized a larger image down from.
  * @returns the seam double, with the saved media types it was handed.
  */
-function attachments(stored: Record<string, unknown> = {}): { saved: { mediaType: string }[]; names: (string | undefined)[] } & Record<string, unknown> {
+function attachments(
+  stored: Record<string, unknown> = {},
+): { saved: { mediaType: string }[]; names: (string | undefined)[] } & Record<string, unknown> {
   const saved: { mediaType: string }[] = []
   const names: (string | undefined)[] = []
   let counter = 0
@@ -82,6 +84,7 @@ async function mount(opts: {
   call: (args: unknown) => Promise<ToolExecutionResult>
   seen: MediaImageRequest[]
   store: ReturnType<typeof attachments>
+  toolNames: () => string[]
 }> {
   const ctx = new Context()
   const asked: unknown[] = []
@@ -142,6 +145,8 @@ async function mount(opts: {
     asked,
     seen,
     store,
+    /** Every tool the plugin left visible to the model, by name. */
+    toolNames: () => ctx.tools.schemas().map(tool => tool.name),
     call: (args: unknown) => ctx.tools.execute({ signal, callId: ToolCallId(`call-${++counter}`), name: 'generate_image', arguments: args }),
   }
 }
@@ -412,12 +417,18 @@ describe('listed providers', () => {
 })
 
 describe('live settings', () => {
-  it('serves the media namespace and generates with the edited document, not the mounted one', async () => {
-    const { call, seen, installed } = await mount({
+  it('serves both namespaces and generates with the edited document, not the mounted one', async () => {
+    const { call, seen, installed, toolNames } = await mount({
       config: { model: 'flux-pro', provider: 'stub' },
       settings: true,
     })
-    expect(installed.map(entry => entry.ns)).toEqual([MEDIA_SETTINGS_NAMESPACE])
+    // Divergence: `src/index.ts:113`/`:135` and `README.md:12`/`:35` say the video
+    // half exists only where `video` is configured, and the 2026-10-08
+    // video-generation Agent Note repeats it, but `Config.video` is the nested
+    // `VideoConfig` (`:179`) which schemastery always materializes, so the gate at
+    // `:902` never closes.
+    expect(installed.map(entry => entry.ns)).toEqual([MEDIA_SETTINGS_NAMESPACE, VIDEO_SETTINGS_NAMESPACE])
+    expect(toolNames().sort()).toEqual(['generate_image', 'generate_video'])
     installed[0]!.set({ model: 'edited-model', provider: 'stub' })
     await call({ prompt: 'x' })
     expect(seen[0]).toMatchObject({ model: 'edited-model' })
@@ -465,7 +476,10 @@ describe('the /image-model command', () => {
 
   it('is registered so a stored choice stays changeable', async () => {
     const { commands } = await mount({ config: { model: 'm', provider: 'stub', choices: CHOICES } })
-    expect(commands.map(c => c.name)).toEqual(['image-model'])
+    // Divergence: the video half registers its own `/<kind>-model` re-open even
+    // with no `video` in config, for the same reason the `media-video` document
+    // exists — see the divergence note in `live settings`.
+    expect(commands.map(c => c.name)).toEqual(['image-model', 'video-model'])
   })
 
   it('re-opens the picker even though a choice is already stored, and persists the new one', async () => {
@@ -564,6 +578,7 @@ describe('generate_image', () => {
     expect(out.value).toEqual({
       provider: 'stub',
       model: 'flux',
+      label: 'flux',
       images: [{ attachmentId: 'att-1', mediaType: 'image/png', bytes: 4, width: 8, height: 8 }],
     })
     expect(out.content[0]).toEqual({ type: 'text', text: 'Generated 1 image(s) with flux. Already displayed to the user; do not repeat or embed them in your reply.' })
@@ -610,6 +625,7 @@ describe('generate_image', () => {
     expect(out.value).toEqual({
       provider: 'stub',
       model: 'flux',
+      label: 'flux',
       images: [{
         attachmentId: 'att-1',
         mediaType: 'image/png',

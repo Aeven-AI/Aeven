@@ -153,7 +153,7 @@ describe('real Loader composition', () => {
     // Root, index, and extensionless client routes render the authenticated
     // app shell through registered taps.
     const untap = server.tapIndex(html => html.replace('<head>', '<head><script>window.__T__=1</script>'))
-    for (const path of ['/', '/index.html', '/?fixture', '/c/session-1', '/i', '/i/image-1']) {
+    for (const path of ['/', '/index.html', '/?fixture', '/c/session-1', '/imagine']) {
       const got = await request(port, path, authenticated())
       expect(got.status).toBe(200)
       expect(got.type).toBe('text/html; charset=utf-8')

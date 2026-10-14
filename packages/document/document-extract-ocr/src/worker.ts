@@ -39,7 +39,11 @@ async function recognize(init: OcrWorkerInit): Promise<ExtractedDocument> {
       context.fillStyle = '#ffffff'
       context.fillRect(0, 0, width, height)
       // pdf.js draws through the Canvas 2D API, which @napi-rs/canvas implements.
-      await pdfPage.render({ canvas: canvas as unknown as HTMLCanvasElement, canvasContext: context as unknown as CanvasRenderingContext2D, viewport }).promise
+      await pdfPage.render({
+        canvas: canvas as unknown as HTMLCanvasElement,
+        canvasContext: context as unknown as CanvasRenderingContext2D,
+        viewport,
+      }).promise
       pdfPage.cleanup()
       const index = page - 1
       const image = canvas.toBuffer('image/png')

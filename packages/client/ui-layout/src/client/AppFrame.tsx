@@ -83,6 +83,7 @@ function DragHandle(props: { side: 'sidebar' | 'details' | 'rightbar'; onStart: 
   const callbacks = useRef({ onStart: props.onStart, onDrag: props.onDrag, onEnd: props.onEnd })
   callbacks.current = { onStart: props.onStart, onDrag: props.onDrag, onEnd: props.onEnd }
 
+  /* jscpd:ignore-start -- mirrors client-ui-conversation's ConversationRoot drag strip; each drag handle owns its own gesture state. */
   const onPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault()
     e.currentTarget.setPointerCapture(e.pointerId)
@@ -99,6 +100,7 @@ function DragHandle(props: { side: 'sidebar' | 'details' | 'rightbar'; onStart: 
       callbacks.current.onDrag(latest.current - origin.current)
     })
   }, [])
+  /* jscpd:ignore-end */
   const onPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (!e.currentTarget.hasPointerCapture(e.pointerId)) return
     e.currentTarget.releasePointerCapture(e.pointerId)

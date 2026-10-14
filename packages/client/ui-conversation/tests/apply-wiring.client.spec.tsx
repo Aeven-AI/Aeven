@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest'
 import {
-  SlotTestRuntime, stubSettingsScope, usePinnedBrowserLanguages,
+  SlotTestRuntime, TestRemote, stubSettingsScope, usePinnedBrowserLanguages,
 } from '@aeven/client-test-runtime'
 import { LocaleRuntime } from '@aeven/client-locale/client'
 import type { ObservableSnapshot } from '@aeven/client-store'
@@ -14,6 +14,9 @@ const SID = 'session-1' as SessionId
 
 async function bench(options: { declareConversation?: boolean } = {}) {
   const runtime = await SlotTestRuntime.create()
+  // The plugin injects `remote.session` for Session export; the double parks it
+  // without a wire.
+  new TestRemote(runtime.ctx, { session: {} })
   runtime.ctx.provide('uiWorkspace', { connectWorkspace: vi.fn(async () => SID) } as never)
   runtime.ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
   const locale = new LocaleRuntime(runtime.ctx)
@@ -80,9 +83,15 @@ describe('target-neutral Conversation apply wiring', () => {
     await b.runtime.sessions.add({ id: SID }, { current: false })
     expect(b.runtime.ctx.uiSession.adapter.resolve(SID)?.hooks.conversationViews).toBeUndefined()
     const header = b.runtime.slots.entries('conversation.session.header')[0]
-    const source = (header?.inject?.() as {
-      hooks: { conversationViews: ObservableSnapshot<readonly ViewTab[]> }
-    } | undefined)?.hooks.conversationViews
+    // The framework calls a scoped inject factory with its Session and the baked
+    // store actions; the header's faces read both.
+    const handle = header?.store as { create: () => { actions: unknown } }
+    const actions = handle.create().actions
+    const source = (header?.inject as unknown as (
+      sessionId: SessionId,
+      actions: unknown,
+    ) => { hooks: { conversationViews: ObservableSnapshot<readonly ViewTab[]> } } | undefined)(SID, actions)
+      ?.hooks.conversationViews
     expect(source).toBeDefined()
     expect(source?.getSnapshot()).toBe(source?.getSnapshot())
 

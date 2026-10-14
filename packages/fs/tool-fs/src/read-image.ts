@@ -59,6 +59,7 @@ export function sniffImageMediaType(data: Uint8Array): ImageMediaType | undefine
   return undefined
 }
 
+/* jscpd:ignore-start -- the image-result fields this tool declares; @aeven/tool-media declares the same fields for generated images */
 const IMAGE_VALUE_SCHEMA = {
   type: 'object',
   additionalProperties: false,
@@ -80,6 +81,7 @@ const IMAGE_VALUE_SCHEMA = {
     },
   },
 } as const
+/* jscpd:ignore-end */
 
 /** The structured outcome declared by the `read_image` output schema. */
 export interface ImageReadValue {

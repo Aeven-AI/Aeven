@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, unlinkSync, unwatchFile, utimesSync, watchFile, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, unlinkSync, unwatchFile, utimesSync, watchFile, writeFileSync } from 'node:fs'
 import { realpath } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -50,8 +50,11 @@ async function eventuallyObserved(
   test: () => boolean,
   stimulus: () => void,
   message: string,
+  budgetMs = 90_000,
 ): Promise<void> {
-  const deadline = Date.now() + 30_000
+  // The registration waits sit inside cases that allow 120 s, and a starved event queue under
+  // the full suite's fork fan-out is the condition these pollers exist for.
+  const deadline = Date.now() + budgetMs
   while (!test()) {
     if (Date.now() >= deadline) throw new Error(message)
     await new Promise(resolve => setTimeout(resolve, 250))
@@ -230,7 +233,10 @@ describe('HMR exact config paths', () => {
   })
 
   it('serializes refreshes and waits for them during disposal', { timeout: 120_000 }, async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'avn-hmr-config-'))
+    // HMR watches the canonical path, and Node shares one StatWatcher only between identical path
+    // strings: through macOS's `/var` -> `/private/var` link the witness below would poll on its own
+    // timer and could report an edit before the registration's poller has seen it.
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'avn-hmr-config-')))
     const filename = join(dir, 'plugins.yml')
     writeFileSync(filename, 'one')
     // Polling, like the alias case above: this test's delivery has to survive the
@@ -339,7 +345,13 @@ describe('HMR exact config paths', () => {
       // stats cannot distinguish from no write at all.
       await eventuallyObserved(
         () => observed !== undefined,
-        () => { writeFileSync(filename, `invalid${' '.repeat(stimulus += 1)}`) },
+        () => {
+          writeFileSync(filename, `invalid${' '.repeat(stimulus += 1)}`)
+          // The file did not exist at registration, so a poller learns of it only from a change to
+          // `dir`; rewriting the file alone leaves `dir` untouched if its creation landed before the
+          // directory poller's baseline. An entry written beside it makes the watcher rescan `dir`.
+          writeFileSync(join(dir, 'sibling'), `rescan ${stimulus}`)
+        },
         'HMR did not broadcast the refresh failure',
       )
       expect(observed!.filename).toBe(filename)

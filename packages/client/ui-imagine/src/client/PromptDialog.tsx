@@ -140,7 +140,7 @@ export function PromptDialog({ prompt, inputActions, t, onClose }: {
               </span>
             </div>
             <div className={css.ratios}>
-              {promptRatios(prompt).map((offered) => (
+              {promptRatios(prompt).map(offered => (
                 <button
                   key={offered.id}
                   type="button"
@@ -154,46 +154,46 @@ export function PromptDialog({ prompt, inputActions, t, onClose }: {
             </div>
           </section>
           {!varies && (
-          <section className={css.section}>
-            <div className={css.sectionHead}>
-              <span className={css.sectionLabel}>{t('dialog.photo.label')}</span>
-              {prompt.needsPhoto !== true && <span className={css.ratioSize}>{t('dialog.photo.optional')}</span>}
-            </div>
-            <div className={css.photos}>
-              <input
-                ref={fileInput}
-                type="file"
-                multiple
-                accept={ACCEPT}
-                className={css.fileInput}
-                onChange={(event) => {
-                  stage(Array.from(event.currentTarget.files ?? []))
-                  event.currentTarget.value = ''
-                }}
-              />
-              {photos.map(photo => (
-                <span key={photo.url} className={css.thumb}>
-                  <img className={css.thumbImage} src={photo.url} alt="" />
-                  <button
-                    type="button"
-                    className={css.thumbRemove}
-                    aria-label={t('dialog.photo.remove')}
-                    onClick={() => { unstage(photo.url) }}
-                  >
-                    <IconCloseOutline16 size={12} />
-                  </button>
-                </span>
-              ))}
-              <button
-                type="button"
-                className={css.addTile}
-                aria-label={t('dialog.photo.add')}
-                onClick={() => { fileInput.current?.click() }}
-              >
-                <IconPlusOutline20 />
-              </button>
-            </div>
-          </section>
+            <section className={css.section}>
+              <div className={css.sectionHead}>
+                <span className={css.sectionLabel}>{t('dialog.photo.label')}</span>
+                {prompt.needsPhoto !== true && <span className={css.ratioSize}>{t('dialog.photo.optional')}</span>}
+              </div>
+              <div className={css.photos}>
+                <input
+                  ref={fileInput}
+                  type="file"
+                  multiple
+                  accept={ACCEPT}
+                  className={css.fileInput}
+                  onChange={(event) => {
+                    stage(Array.from(event.currentTarget.files ?? []))
+                    event.currentTarget.value = ''
+                  }}
+                />
+                {photos.map(photo => (
+                  <span key={photo.url} className={css.thumb}>
+                    <img className={css.thumbImage} src={photo.url} alt="" />
+                    <button
+                      type="button"
+                      className={css.thumbRemove}
+                      aria-label={t('dialog.photo.remove')}
+                      onClick={() => { unstage(photo.url) }}
+                    >
+                      <IconCloseOutline16 size={12} />
+                    </button>
+                  </span>
+                ))}
+                <button
+                  type="button"
+                  className={css.addTile}
+                  aria-label={t('dialog.photo.add')}
+                  onClick={() => { fileInput.current?.click() }}
+                >
+                  <IconPlusOutline20 />
+                </button>
+              </div>
+            </section>
           )}
           <section className={css.section}>
             <div className={css.sectionHead}>

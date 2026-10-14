@@ -36,6 +36,35 @@ interface DeviceKey {
   readonly deviceId: string
 }
 
+/** Stage width at which the tools drawer docks beside the screen instead of floating over it. */
+const DRAWER_DOCK_MIN_WIDTH = 620
+
+/**
+ * Track whether one element is at least `minWidth` wide, as state.
+ *
+ * A container condition cannot read a `@media` width — this pane's width is the
+ * sidebar's, not the viewport's — so the element that owns the layout reads its
+ * own box and states the outcome for the sheet to select on. Reported width is
+ * the content box, which is what a size query measures.
+ * @param ref - the measured element.
+ * @param minWidth - the threshold in CSS pixels.
+ * @returns whether the element has been observed at or above the threshold.
+ */
+function useMinWidth(ref: { readonly current: HTMLElement | null }, minWidth: number): boolean {
+  const [wide, setWide] = useState(false)
+  useEffect(() => {
+    const element = ref.current
+    if (element === null || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0]
+      if (entry !== undefined) setWide(entry.contentRect.width >= minWidth)
+    })
+    observer.observe(element)
+    return () => { observer.disconnect() }
+  }, [ref, minWidth])
+  return wide
+}
+
 const sameDevice = (a: DeviceKey, b: { readonly hostId: string; readonly id: string }): boolean =>
   a.hostId === b.hostId && a.deviceId === b.id
 
@@ -84,13 +113,20 @@ export function DevicePane({ sessionId, surfaceId, active, setTab, closeSurface,
   const [handle, setHandle] = useState<DeviceStreamHandle | null>(null)
   const [toolsOpen, setToolsOpen] = useState(false)
   const [axOverlay, setAxOverlay] = useState(false)
+  // The stage owns the drawer's docked breakpoint; see DRAWER_DOCK_MIN_WIDTH.
+  const stageRef = useRef<HTMLDivElement | null>(null)
+  const drawerDocked = useMinWidth(stageRef, DRAWER_DOCK_MIN_WIDTH)
   // Until this pane's first listing settles, an empty device list means "not yet discovered", not "none".
   const [listed, setListed] = useState(false)
   const disabled = state.status === 'disabled'
 
   const sessions = useMemo(() => state.sessions.filter(session => session.sessionId === sessionId), [state.sessions, sessionId])
-  const activeSession = target === undefined ? undefined : sessions.find(session => session.hostId === target.hostId && session.deviceId === target.deviceId)
-  const activeDevice = activeSession === undefined ? undefined : state.devices.find(device => sameDevice({ hostId: activeSession.hostId, deviceId: activeSession.deviceId }, device))
+  const activeSession = target === undefined
+    ? undefined
+    : sessions.find(session => session.hostId === target.hostId && session.deviceId === target.deviceId)
+  const activeDevice = activeSession === undefined
+    ? undefined
+    : state.devices.find(device => sameDevice({ hostId: activeSession.hostId, deviceId: activeSession.deviceId }, device))
 
   // A device the model opens for this session takes over the pane.
   const newest = sessions.reduce<(typeof sessions)[number] | undefined>(
@@ -138,7 +174,11 @@ export function DevicePane({ sessionId, surfaceId, active, setTab, closeSurface,
     if (activeSession === undefined) return
     setError(undefined)
     setToolsOpen(false)
-    const result = await client.close(sessionId as SessionId, { hostId: activeSession.hostId, deviceId: activeSession.deviceId, shutdown: powerOff })
+    const result = await client.close(sessionId as SessionId, {
+      hostId: activeSession.hostId,
+      deviceId: activeSession.deviceId,
+      shutdown: powerOff,
+    })
     if (!result.ok) setError(result.message)
     else setTarget(undefined)
   }
@@ -189,7 +229,7 @@ export function DevicePane({ sessionId, surfaceId, active, setTab, closeSurface,
           )}
       </div>
 
-      <div className={css.stage}>
+      <div ref={stageRef} className={css.stage} data-drawer-docked={drawerDocked ? '' : undefined}>
         {activeDevice !== undefined && access !== undefined
           ? (
             <>

@@ -1,3 +1,4 @@
+import { awaitPendingResult } from '@aeven/client-store'
 /**
  * Web question plugin, browser half: QuestionComposer registered as a
  * selector-routed entry of the conversation-declared composer chain, plus the
@@ -61,22 +62,7 @@ async function answerQuestion(
   const sessionId = (ctx.sessions as ISessions).scopeOf(owner)
   if (sessionId === undefined) return next()
   const pending = new PendingQuestion(sessionId, request.questions, request.signal)
-  const completed = Promise.withResolvers<void>()
-  const remove = registerPendingInteraction(pending, async () => {
-    pending.delegate()
-    await completed.promise
-  })
-  try {
-    try {
-      return await pending.result
-    } catch (error) {
-      if (pending.isDelegation(error)) return await next()
-      throw error
-    }
-  } finally {
-    remove()
-    completed.resolve()
-  }
+  return awaitPendingResult(pending, registerPendingInteraction, next)
 }
 
 /**

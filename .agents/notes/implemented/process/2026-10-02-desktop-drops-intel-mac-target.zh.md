@@ -10,7 +10,7 @@ Desktop 发布集合曾包含 `mac-x64`，即由 Apple Silicon 宿主通过 Rose
 
 ## 决定
 
-Desktop 构建目标集合为 `mac-arm64`、`win-arm64`、`win-x64`、`linux-arm64` 与 `linux-x64`。[`package-target.ts`](../../../../apps/desktop/scripts/package-target.ts)、[`desktop-build-paths.mjs`](../../../../apps/desktop/scripts/desktop-build-paths.mjs)、[`desktop-auto-update-environment.mjs`](../../../../apps/desktop/scripts/desktop-auto-update-environment.mjs) 与 [`desktop-upload-plan.ts`](../../../../apps/desktop/scripts/desktop-upload-plan.ts) 不再接受 `mac-x64`；未显式指定目标的 Intel Mac 构建宿主会以不受支持的宿主失败，而不是选择该目标。`package:mac:x64*` 与 `upload:mac:x64` 脚本、运行时准备中的 Rosetta 执行检查，以及 macOS JIT 签名模式中的 Intel LibreOffice 引擎均已移除。
+Desktop 构建目标集合为 `mac-arm64`、`win-arm64`、`win-x64`、`linux-arm64` 与 `linux-x64`。[`package-target.ts`](../../../../apps/desktop/scripts/package-target.ts)、[`desktop-build-paths.mjs`](../../../../apps/desktop/scripts/desktop-build-paths.mjs)、``desktop-auto-update-environment.mjs`` 与 ``desktop-upload-plan.ts`` 不再接受 `mac-x64`；未显式指定目标的 Intel Mac 构建宿主会以不受支持的宿主失败，而不是选择该目标。`package:mac:x64*` 与 `upload:mac:x64` 脚本、运行时准备中的 Rosetta 执行检查，以及 macOS JIT 签名模式中的 Intel LibreOffice 引擎均已移除。
 
 CLI 保留其 Intel macOS 平台包，例如 `@aeven/whisper-cpp-darwin-x64`：npm 用户自行选择安装方式，本决定只涉及 Desktop 发布集合。
 

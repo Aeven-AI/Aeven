@@ -84,6 +84,9 @@ async function bench(nodes: ToolResultNode[]) {
   runtime.ctx.provide('layout', { openDetails: vi.fn(), closeDetails: vi.fn() })
   runtime.ctx.provide('uiWorkspace', {
     connectWorkspace: vi.fn(async () => SID),
+    // The Conversation inject reads the address bar's start address as a hook
+    // source; a double without it crashes the whole conversation slot.
+    startAddress: { getSnapshot: () => undefined, subscribe: () => () => {} },
   } as never)
   const locale = new LocaleRuntime(runtime.ctx)
   runtime.ctx.provide('locale', locale)

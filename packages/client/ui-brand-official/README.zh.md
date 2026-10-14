@@ -80,6 +80,9 @@ kind: "package-reference"
 - **浏览器标题独立**——`AVN_CLIENT_TITLE` 在构建时选择标题文本，而非通过 UI 槽位。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

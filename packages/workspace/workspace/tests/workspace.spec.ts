@@ -546,7 +546,13 @@ describe('WorkspaceRegistry create and lookup', () => {
     await expect(result.registry.delete(workspace.id)).resolves.toBe(false)
     expect(result.registry.get(workspace.id)).toBeUndefined()
     expect(result.registry.list()).toEqual([])
-    expect(storedState(result.pool)).toEqual({ initialized: true, workspaceIds: [], archivedSessionIds: [] })
+    // The sessions the registration still held are archived, so they do not
+    // reappear as unassigned; their directory and headers are untouched.
+    expect(storedState(result.pool)).toEqual({
+      initialized: true,
+      workspaceIds: [],
+      archivedSessionIds: ['kept-session'],
+    })
     expect(result.pool.media.get('workspace')!.tables.get('workspaces')!.has(workspace.id)).toBe(false)
     await expect(realpath(dir)).resolves.toBe(dir)
     expect(result.list).toHaveBeenCalledTimes(1)
@@ -1522,7 +1528,7 @@ describe('built-in workspace seeding', () => {
       pool,
       backend: selectiveFailureBackend(pool, { globalAt: 3, deleteAt: 1 }),
       config: { seedDefaultWorkspace: true },
-    })).rejects.toThrow(/default workspace .* order write and record rollback both failed/)
+    })).rejects.toThrow(/built-in workspace .* order write and record rollback both failed/)
   })
 
   it('reports both the seeding order failure and its marker rollback failure', async () => {
@@ -1531,7 +1537,7 @@ describe('built-in workspace seeding', () => {
       pool,
       backend: selectiveFailureBackend(pool, { globalAt: [3, 4] }),
       config: { seedDefaultWorkspace: true },
-    })).rejects.toThrow(/default workspace .* order write and pending-marker rollback both failed/)
+    })).rejects.toThrow(/built-in workspace .* order write and pending-marker rollback both failed/)
   })
 
   it('carries the built-in marker across every later write', async () => {

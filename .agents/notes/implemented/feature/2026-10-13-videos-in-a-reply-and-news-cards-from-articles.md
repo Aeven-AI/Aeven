@@ -2,6 +2,8 @@
 
 Status: implemented
 
+English | [中文](2026-10-13-videos-in-a-reply-and-news-cards-from-articles.zh.md)
+
 ## Problem
 
 A request such as "show me how a good bench press is done" was answered with prose, or at best with a YouTube link the reader had to leave the conversation to watch. Nothing in the reply could play a video.

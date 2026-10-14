@@ -2,6 +2,8 @@
 
 Status: implemented
 
+English | [中文](2026-10-06-personas-replace-agent-presets.zh.md)
+
 ## Problem
 
 The Web GUI offered five agent presets (`aeven`, `standard`, `ptc`, `minimal`, `cordis`) behind Developer mode, a hero chip, a header label and a Settings section. Even the developer of Aeven found the choice hard to explain, and it is meaningless to a person who is not a developer. The presets also mixed two different things: what a session can do (tools) and how it talks.
@@ -18,11 +20,15 @@ How Aeven talked was not designed anywhere. Every Web session opened with "You a
 - **The name has one home.** "How should Aeven call you?" is the Aeven account display name that the sign-up naming step (`ui-auth-aeven` `NameCheck`) sets through `/set-display-name`. The published reader gains `setDisplayName`, which stores the name and restates the reader, so the Settings field, the account menu, the greeting and the `<user_profile>` block of the next message all follow one value.
 - **Memory recall stays natural.** The memory guidance tells the model to use recalled facts naturally and never to quote their ids or storage unless asked.
 
-## Rejected
+## Alternatives considered
 
 - **A persona picker per conversation** (a composer seat and hero chip, as `agent-presets` had). People who are not developers do not pick personas; the persona reads the moment, and Settings holds the few standing preferences a person has.
 - **User-editable persona prompt text with `{{model}}` and `{{cwd}}` templating.** This asks people to write prompts. Plain-language voices with example replies and free-text notes cover the need.
 - **Storing the name in the personalization document.** It would duplicate the account name and drift from it.
+
+## Consequences
+
+Every Web session runs the shipped `aeven` composition with the harness-home user root off, so changing what a session can do means editing `presets/aeven/agent.cordis.yml`; the `standard`, `ptc`, `minimal` and `cordis` presets and `@aeven/client-ui-agent-preset` are gone, and PTC mode and the Cordis self-extension toolset remain rows in that file that ship disabled. Prompts no longer carry a deployment persona or harness identity: the persona opens with “You are Aeven”, and the model name is stated only when a person asks which model it is. The persona carries the register rules itself — warm and plain for personal matters, encouraging for coaching, precise while working — and the visual-work loop moved into the shipped `visual-work` skill. Voice and notes are model-visible through the system prompt, so every `request/header` records them, and the display name has one home in the Aeven account: the Settings field, the account menu, the greeting, and the `<user_profile>` block all follow one value.
 
 ## Deferred
 

@@ -23,3 +23,9 @@ The page's address decides, not the kind of task. A page served from this machin
 **A rule in the repository `AGENTS.md`.** It covers only this repository, while the harness guidance covers every workspace's dev server, and two copies of one rule drift.
 
 **Block local origins in Playwright (`--blocked-origins`).** It enforces the order, but it also removes the headless browser as the fallback for a local page when the visible browser is down or cannot start, and the headless browser is a resource the session keeps for exactly that case. A hook denying those navigations has the same cost.
+
+## Consequences
+
+- A page served from this machine is verified first in a browser the user can see — the pane beside the session, or the Host's Chromium — and the headless browser stays the fallback for the case where neither is available, with the model saying then that the check ran in a headless copy.
+- The rule reaches the model through four owners: the first-step browser context, the `preview_status` next step, `web_fetch`'s prompt section, and the `in-app-browser` skill.
+- The address decides rather than the task kind, so the rule covers every workspace's dev server instead of this repository alone, and a check the user cannot see is no longer evidence for a page the workspace serves.

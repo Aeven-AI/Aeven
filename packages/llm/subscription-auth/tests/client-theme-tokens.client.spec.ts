@@ -12,12 +12,12 @@ import {
 } from '../src/client/styles.ts'
 
 describe('Settings theme token contracts', () => {
-  it('primary CTAs match the Plugins tab pairing and hardcode no colour', () => {
-    expect(String(primaryButtonStyle.background)).toContain('--dsw-alias-label-primary')
-    expect(String(primaryButtonStyle.color)).toContain('--dsw-alias-bg-layer-3')
+  it('primary CTAs use the shared primary-fill pairing and hardcode no colour', () => {
+    expect(String(primaryButtonStyle.background)).toContain('--dsw-alias-button-primary-fill')
+    expect(String(primaryButtonStyle.color)).toContain('--dsw-alias-label-primary-foreground')
     expect(String(primaryButtonStyle.color)).not.toMatch(/#fff/i)
     expect(String(primaryButtonStyle.background)).not.toContain('--dsw-alias-brand-primary')
-    expect(String(secondaryButtonStyle.borderColor)).toContain('--dsw-alias-border-l2')
+    expect(String(secondaryButtonStyle.borderColor)).toContain('--dsw-alias-border-l3')
   })
 
   it('draws the card like the Plugins card, open and closed', () => {

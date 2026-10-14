@@ -5,6 +5,8 @@ kind: "package-reference"
 
 # @aeven/api-memory-manager
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 `avn-api-memory-manager` serves the `memoryManager` Remote namespace behind Settings → Memory. Every call acts for the caller of the running `/api` request (`ctx.identityUsers.actingUser()`), and a request without a signed-in user fails. It lists, edits, and forgets the caller's memories through `ctx.memory`, lists, reads, edits, retires, restores, and deletes the caller's learned capabilities through `ctx.capabilities`, and is the only writer of the caller's confirmed invariants, through `ctx.memoryInvariants`.
@@ -28,12 +30,38 @@ Config: `timeoutMs` (default 15000) bounds each memory provider call; `maxPageSi
 
 ## Model Experience
 
-None. The Remote is user-facing only; edits reach the model through later recall and the skill catalog.
+### Promoted invariants
+
+#### What the model sees
+
+The statements the caller confirmed as always true, one per line inside the `<invariants>` block that every request of that account carries. The frame, the guidance sentence, and the bound belong to [`@aeven/memory-invariants`](../memory-invariants/README.md#model-experience), whose document this Remote is the only writer of: `addInvariant` puts a statement into the owner's next request, `editInvariant` replaces its line where it stands, and `removeInvariant` takes the line away. A refusal (`empty`, `too-long`, `full`, `missing`) is answered to the management page and reaches no request at all.
+
+#### Token effect
+
+None of its own: the block already sits in every request of its owner, and a write changes what it holds. `invariants()` reports the cost the page states before a promotion — the characters the content spends, the row's `maxChars`, and the longest text one statement may hold — because the same characters are paid again on every request of that account.
+
+#### KV Cache effect
+
+None for a request this package assembles, because it assembles none. A write changes the invariants block, so the section that carries it differs from the owner's next request onward and reuse of a prefix that already included it ends there. The reads and page requests above change no request.
+
+### Edited memories and capabilities
+
+#### What the model sees
+
+Nothing at the moment of the call: the pages, the change results, and the refusal reasons are browser payloads, and this package registers no prompt section, tool schema, or session event. What a call changes reaches a model later, through the consumer that owns that rendering — a corrected or forgotten memory is what the next recall and `memory_search` return, and an edited, retired, restored, or deleted capability changes the description and procedure the capability consumer recalls or a `capability_manage` read shows, with a trusted capability's edited revision needing a verified run before it is trusted again. Changes made here carry no session in their provenance.
+
+#### Token effect
+
+None in the call. A later request pays for the recalled text under the consumer's own bound, and a memory line edited here keeps its place in that budget.
+
+#### KV Cache effect
+
+None directly: an edit changes no assembled request. What a later turn recalls from it is append-only text in that turn's history.
 
 ## Known Limitations and Deferred Work
 
 - Workspace grouping reads every listed session header per page request.
 
-## Dev Note
+### Dev Note
 
 **Runtime invariant:** No companion is published. Every read it serves comes from the owning service inside the same call, so the Remote keeps no state of its own and no second observation of it can diverge.

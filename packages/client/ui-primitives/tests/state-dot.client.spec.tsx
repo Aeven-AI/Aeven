@@ -14,17 +14,17 @@ describe('StateDot', () => {
     expect(dot.getAttribute('aria-hidden')).toBe('true')
   })
 
-  it('solid states are spans; ongoing is an svg pixel matrix', () => {
+  it('solid states are spans; ongoing seats the shared loading mark in one', () => {
     const { container, rerender } = render(<StateDot state="done" />)
     expect(container.firstElementChild?.tagName).toBe('SPAN')
     rerender(<StateDot state="ongoing" />)
-    const matrix = container.firstElementChild as SVGSVGElement
-    expect(matrix.tagName).toBe('svg')
-    const cells = matrix.querySelectorAll('rect')
-    expect(cells).toHaveLength(8)
-    // Chase phase: every cell carries its own negative animation delay.
-    const delays = [...cells].map(cell => (cell).style.animationDelay)
-    expect(new Set(delays).size).toBe(8)
+    const seat = container.firstElementChild as HTMLElement
+    expect(seat.tagName).toBe('SPAN')
+    // Every wait in the product draws the one Aeven loading mark, so the
+    // running state seats that glyph rather than a shape of its own.
+    const mark = seat.querySelector('svg')
+    expect(mark).not.toBeNull()
+    expect(mark?.getAttribute('viewBox')).toBe('0 0 24 24')
   })
 
   it('sizes via the size prop in both shapes', () => {
@@ -33,9 +33,11 @@ describe('StateDot', () => {
     expect(dot.style.width).toBe('12px')
     expect(dot.style.height).toBe('12px')
     rerender(<StateDot state="ongoing" size={12} />)
-    const ring = container.firstElementChild as SVGSVGElement
-    expect(ring.getAttribute('width')).toBe('12')
-    expect(ring.getAttribute('height')).toBe('12')
+    // The seat carries the size; the mark inside it fills the seat.
+    const seat = container.firstElementChild as HTMLElement
+    expect(seat.style.width).toBe('12px')
+    expect(seat.style.height).toBe('12px')
+    expect(seat.querySelector('svg')).not.toBeNull()
   })
 
   it('rejects unknown states at the type level', () => {

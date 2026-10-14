@@ -58,6 +58,7 @@
     "@aeven/plan-mode": "workspace:^",
     "@aeven/pwsh-local": "workspace:^",
     "@aeven/pwsh-sandbox": "workspace:^",
+    "@aeven/reply-language": "workspace:^",
     "@aeven/schedule": "workspace:^",
     "@aeven/sdk-app": "workspace:^",
     "@aeven/sdk-minimal": "workspace:^",

@@ -23,9 +23,9 @@ function destinations(): LinkDestinations & { readonly calls: string[] } {
   const calls: string[] = []
   return {
     calls,
-    openInSidebar: url => { calls.push(`sidebar:${url}`) },
-    openInSystemBrowser: url => { calls.push(`system:${url}`) },
-    copyLink: url => { calls.push(`copy:${url}`) },
+    openInSidebar: (url) => { calls.push(`sidebar:${url}`) },
+    openInSystemBrowser: (url) => { calls.push(`system:${url}`) },
+    copyLink: (url) => { calls.push(`copy:${url}`) },
   }
 }
 
@@ -112,7 +112,7 @@ describe('installed link handling', () => {
     // microtask later.
     await Promise.resolve()
     await Promise.resolve()
-    expect(target.calls).toEqual([`system:https://docs.test/page`])
+    expect(target.calls).toEqual(['system:https://docs.test/page'])
 
     // A destination the page did not ask for shows no menu and stays platform.
     const plain = new MouseEvent('contextmenu', { bubbles: true, cancelable: true })

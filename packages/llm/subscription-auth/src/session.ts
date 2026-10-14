@@ -18,6 +18,7 @@ import {
 } from './catalog.ts'
 import { GROK_BUILD_MODELS_CACHE_FILENAME, GROK_BUILD_ROUTE, XAI_PI_PROVIDER } from './ids.ts'
 import { grokBuildBaselineModels, grokBuildProvider } from './provider.ts'
+import { parseModelsCache } from './models-cache.ts'
 import { safeMessage } from './redact.ts'
 import { GrokBuildCredentialStore } from './store.ts'
 
@@ -49,14 +50,8 @@ function parseIdList(value: unknown): string[] {
 }
 
 function parseCache(text: string): ParsedCache | undefined {
-  let value: unknown
-  try {
-    value = JSON.parse(text)
-  } catch {
-    return undefined
-  }
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined
-  const document = value as Record<string, unknown>
+  const document = parseModelsCache(text)
+  if (document === undefined) return undefined
   if (document['version'] !== MODELS_CACHE_VERSION) return undefined
   const ids = parseIdList(document['ids'])
   if (ids.length === 0) return undefined
@@ -78,7 +73,7 @@ function cachedDescriptor(row: unknown): LiveModelDescriptor[] {
   if (typeof value['reasoning'] === 'boolean') descriptor.reasoning = value['reasoning']
   const map = value['thinkingLevelMap']
   if (typeof map === 'object' && map !== null && !Array.isArray(map)) {
-    descriptor.thinkingLevelMap = map as NonNullable<LiveModelDescriptor['thinkingLevelMap']>
+    descriptor.thinkingLevelMap = map
   }
   return [descriptor]
 }

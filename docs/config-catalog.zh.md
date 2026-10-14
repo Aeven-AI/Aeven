@@ -12,6 +12,7 @@
 `Requires:` 行列出插件通过 `inject` 注入的服务键：其 `cordis.yml` 树还必须加载这些服务的提供者。范围限定为 harness 层级（`packages/`）；配置树还可能加载的 vendored cordis 插件（`hmr`、控制台日志记录器等）固定为上游源代码（参见 [vendoring policy](../vendor/README.md)），未收录于此目录。
 
 <a id="aevenacp"></a>
+
 ## `@aeven/acp`
 
 需要：`agents` · `llm` · `sessionPersistence` · `sessions`
@@ -30,12 +31,12 @@ export interface AcpConfig {
 }
 ```
 
-
-依赖：`Stream`（`@agentclientprotocol/sdk`）
+依赖：`Stream` （`@agentclientprotocol/sdk`）
 
 来源：[`packages/acp/acp/src/index.ts:75`](../packages/acp/acp/src/index.ts)
 
 <a id="aevenagent-default-model"></a>
+
 ## `@aeven/agent-default-model`
 
 ```ts config-catalog
@@ -48,10 +49,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/core/agent-default-model/src/index.ts:41`](../packages/core/agent-default-model/src/index.ts)
 
 <a id="aevenagent-instructions"></a>
+
 ## `@aeven/agent-instructions`
 
 需要：`sessionProjections`
@@ -80,10 +81,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/context/agent-instructions/src/config.ts:18`](../packages/context/agent-instructions/src/config.ts)
 
 <a id="aevenagent-loop"></a>
+
 ## `@aeven/agent-loop`
 
 需要：`agents` · `sessions` · `llm` · `tools` · `systemPrompt` · `sessionProjections`
@@ -110,12 +111,12 @@ export interface Config {
 }
 ```
 
-
 依赖：[`AgentOptions`](subsystems/core.zh.md) · [`SessionId`](subsystems/core.zh.md)
 
 来源：[`packages/core/agent-loop/src/index.ts:330`](../packages/core/agent-loop/src/index.ts)
 
 <a id="aevenagent-presets"></a>
+
 ## `@aeven/agent-presets`
 
 需要：`loader` · `sessionProjections`
@@ -158,10 +159,10 @@ export interface PresetRoot {
 export type PresetTrust = 'system' | 'user'
 ```
 
-
 来源：[`packages/preset/agent-presets/src/preset.ts:52`](../packages/preset/agent-presets/src/preset.ts)
 
 <a id="aevenagent-tool-presentation"></a>
+
 ## `@aeven/agent-tool-presentation`
 
 需要：`tools`
@@ -180,12 +181,12 @@ export interface Config {
 }
 ```
 
-
 依赖：[`ToolPresentationMode`](subsystems/tools.zh.md)
 
 来源：[`packages/core/agent-tool-presentation/src/index.ts:38`](../packages/core/agent-tool-presentation/src/index.ts)
 
 <a id="aevenapi-gateway"></a>
+
 ## `@aeven/api-gateway`
 
 需要：`typert`
@@ -193,15 +194,51 @@ export interface Config {
 ```ts config-catalog
 /** Gateway transport configuration. */
 export interface Config {
-  /** WebSocket Ping interval from 1 through 2,147,483,647 milliseconds. @default 2000 */
+  /** WebSocket Ping interval from 1 through 2,147,483,647 milliseconds. @default 10000 */
   readonly websocketHeartbeatIntervalMs?: number
 }
 ```
 
+来源：[`packages/api/gateway/src/index.ts:128`](../packages/api/gateway/src/index.ts)
 
-来源：[`packages/api/gateway/src/index.ts:119`](../packages/api/gateway/src/index.ts)
+<a id="aevenapi-job-controller"></a>
+
+## `@aeven/api-job-controller`
+
+需要：`jobs` · `typert`
+
+```ts config-catalog
+/** Job Controller deployment policy. */
+export interface Config {
+  /** Coalescing window after a registry commit before the next rows or output read, in milliseconds (default 100). */
+  readonly observeFlushMs?: number
+  /** Soft byte budget per observation output frame (default 65536); one larger chunk ships whole. */
+  readonly observeMaxFrameBytes?: number
+}
+```
+
+来源：[`packages/api/job-controller/src/index.ts:40`](../packages/api/job-controller/src/index.ts)
+
+<a id="aevenapi-memory-manager"></a>
+
+## `@aeven/api-memory-manager`
+
+需要：`typert` · `memory` · `capabilities` · `identityUsers` · `sessionQuery`
+
+```ts config-catalog
+/** Service configuration. */
+export interface Config {
+  /** Budget of one memory provider read or write, in milliseconds. */
+  timeoutMs: number
+  /** Largest memory page one request may ask for. */
+  maxPageSize: number
+}
+```
+
+来源：[`packages/memory/api-memory-manager/src/index.ts:41`](../packages/memory/api-memory-manager/src/index.ts)
 
 <a id="aevenapi-session-controller"></a>
+
 ## `@aeven/api-session-controller`
 
 需要：`agentDefaultModel` · `agents` · `attachments` · `llm` · `sessions` · `sessionProjections` · `sessionQuery` · `typert` · `workspaceRegistry`
@@ -214,10 +251,10 @@ export interface Config {
 }
 ```
 
-
-来源：[`packages/api/session-controller/src/index.ts:69`](../packages/api/session-controller/src/index.ts)
+来源：[`packages/api/session-controller/src/index.ts:82`](../packages/api/session-controller/src/index.ts)
 
 <a id="aevenapi-settings-controller"></a>
+
 ## `@aeven/api-settings-controller`
 
 ```ts config-catalog
@@ -228,10 +265,101 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/api/settings-controller/src/index.ts:36`](../packages/api/settings-controller/src/index.ts)
 
+<a id="aevenapi-speech-to-text"></a>
+
+## `@aeven/api-speech-to-text`
+
+需要：`speechToText` · `typert`
+
+```ts config-catalog
+/** Limits applied before decoding or calling a provider. */
+export interface Config {
+  /** Maximum decoded WAV bytes per request. */
+  maxAudioBytes: number
+  /** Maximum PCM recording duration in seconds. */
+  maxDurationSeconds: number
+}
+```
+
+来源：[`packages/speech/api-speech-to-text/src/index.ts:20`](../packages/speech/api-speech-to-text/src/index.ts)
+
+<a id="aevenapi-terminal-controller"></a>
+
+## `@aeven/api-terminal-controller`
+
+需要：`subprocess` · `sandboxPolicy` · `typert`
+
+```ts config-catalog
+/** Deployment limits and an optional shell profile. */
+export interface Config {
+  /** Explicit shell profile; omission uses the execution environment's default shell. */
+  readonly shell?: {
+    /** Executable path or PATH name, verified by the subprocess provider. */
+    path: string
+    /** User-visible profile name. */
+    name: string
+    /** Arguments passed to the interactive shell. */
+    args: string[]
+  } | undefined
+  /** Executable names or paths checked for the new-terminal shell selector. */
+  readonly shellCandidates: string[]
+  /** Maximum retained terminals and pending allocations per Session. */
+  readonly maxTerminals: number
+  /** Maximum terminal width in columns. */
+  readonly maxCols: number
+  /** Maximum terminal height in rows. */
+  readonly maxRows: number
+  /** Screen history rows retained for reconnecting clients. */
+  readonly scrollback: number
+  /** Maximum queued UTF-8 frame bytes per output follower before disconnection. */
+  readonly maxBufferedBytes: number
+  /** Maximum UTF-8 bytes in one input request. */
+  readonly maxInputBytes: number
+  /** Maximum UTF-8 bytes of screen text returned by one model read. */
+  readonly maxToolOutputBytes: number
+  /** Provider process-termination grace period in milliseconds. */
+  readonly disposeGraceMs: number
+  /** Continuous confirmed idle time without window holds before reclamation; zero disables reclamation. */
+  readonly unattendedTimeoutMs: number
+  /** Interval between unattended shell and process observations. */
+  readonly activityPollIntervalMs: number
+  /** Delay before retrying failed owned terminal cleanup. */
+  readonly cleanupRetryMs: number
+}
+```
+
+来源：[`packages/api/terminal-controller/src/index.ts:29`](../packages/api/terminal-controller/src/index.ts)
+
+<a id="aevenapi-workspace-files"></a>
+
+## `@aeven/api-workspace-files`
+
+需要：`fs` · `sandboxPolicy` · `typert`
+
+```ts config-catalog
+/** Deployment caps on one listing, one preview page and one search. */
+export interface Config {
+  /** Cap on returned directory entries; the rest is dropped and reported cut. */
+  readonly maxEntries: number
+  /** Lines in one preview page; a longer file is reported not at EOF. */
+  readonly maxLines: number
+  /** Inclusive byte cap on one preview page; a page above it is refused. */
+  readonly maxBytes: number
+  /** Cap on the hits one search returns. */
+  readonly searchMaxHits: number
+  /** Cap on the directories one search lists before it stops. */
+  readonly searchMaxDirectories: number
+  /** Directory names a search never descends into. */
+  readonly searchSkip: string[]
+}
+```
+
+来源：[`packages/api/workspace-files/src/index.ts:40`](../packages/api/workspace-files/src/index.ts)
+
 <a id="aevenattachment-local"></a>
+
 ## `@aeven/attachment-local`
 
 ```ts config-catalog
@@ -260,13 +388,48 @@ export interface Config {
   normalizedImageMaxBytes?: number
   /** Maximum simultaneous normalization or request-image transformations in this service instance. */
   imageCompressionConcurrency?: number
+  /** Maximum original bytes of one uploaded file. Default: 50 MiB. */
+  maxFileBytes?: number
+  /** Maximum files in one prompt. Default: 10. */
+  maxFilesPerMessage?: number
+  /** Maximum aggregate original file bytes in one prompt. Default: 200 MiB. */
+  maxMessageFileBytes?: number
+  /** Lifetime of an unclaimed file upload in milliseconds. Default: one hour. */
+  uploadTtlMs?: number
 }
 ```
 
+来源：[`packages/attachment/attachment-local/src/index.ts:68`](../packages/attachment/attachment-local/src/index.ts)
 
-来源：[`packages/attachment/attachment-local/src/index.ts:55`](../packages/attachment/attachment-local/src/index.ts)
+<a id="aevenautomations"></a>
+
+## `@aeven/automations`
+
+需要：`storageDomain` · `agents` · `sessions` · `agentDefaultModel` · `agentPresets` · `permissionPresets` · `workspaceRegistry` · `identityUsers` · `connection` · `webServer` · `tools` · `sessionTitle`
+
+```ts config-catalog
+/** Deployment limits for unattended local agent work. */
+export interface Config {
+  /** Most runs of this host that may execute at once; a queued run starts when one of them finishes. */
+  readonly maxConcurrentRuns: number
+  /** Budget of one run in minutes, counted from its start; a run still active at the deadline is cancelled. */
+  readonly runTimeoutMinutes: number
+  /**
+   * Grace in minutes after a scheduled instant during which that occurrence may still start; a later one
+   * is admitted as skipped, and `0` skips any occurrence whose instant has passed.
+   */
+  readonly misfireGraceMinutes: number
+  /** Finished run records kept per owner; older ones are archived and removed, while queued and running records are never pruned. */
+  readonly historyLimit: number
+  /** Display title of the built-in workspace that holds every run conversation. */
+  readonly workspaceTitle: string
+}
+```
+
+来源：[`packages/core/automations/src/index.ts:32`](../packages/core/automations/src/index.ts)
 
 <a id="aevenbash-local"></a>
+
 ## `@aeven/bash-local`
 
 需要：`subprocess`
@@ -289,10 +452,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/shell/bash-local/src/index.ts:41`](../packages/shell/bash-local/src/index.ts)
 
 <a id="aevenbash-sandbox"></a>
+
 ## `@aeven/bash-sandbox`
 
 需要：`subprocess` · `sandbox` · `sandboxPolicy`
@@ -308,12 +471,59 @@ export interface Config {
 export type Config = LocalConfig
 ```
 
-
 依赖：[`LocalConfig`](#aevenbash-local)
 
 来源：[`packages/shell/bash-sandbox/src/index.ts:35`](../packages/shell/bash-sandbox/src/index.ts)
 
+<a id="aevenbrowser-chromium"></a>
+
+## `@aeven/browser-chromium`
+
+```ts config-catalog
+/** Where the browser runs and what it stores. */
+export interface Config {
+  /**
+   * Chromium or Chrome executable. A blank or omitted value uses
+   * `AVN_CHROME_PATH`, then a platform install. None found leaves the host up.
+   */
+  executablePath?: string
+  /** Remote debugging port; chrome-devtools-mcp's `--browserUrl` names the same one. */
+  port: number
+  /** Profile directory. Omit for `<AVN_HOME>/runtime/chrome-profile`. */
+  userDataDir?: string
+  /**
+   * MCP server whose tools drive this browser (chrome-devtools-mcp attached with
+   * `--browserUrl` to `port`); a call to one of them launches the browser first
+   * when it is not answering. Empty disables the launch-on-call.
+   */
+  mcpServerName: string
+  /** Launch during plugin start when an executable is found. A missing browser does not fail the host. */
+  launchOnStart: boolean
+}
+```
+
+来源：[`packages/web/browser-chromium/src/index.ts:59`](../packages/web/browser-chromium/src/index.ts)
+
+<a id="aevencapability"></a>
+
+## `@aeven/capability`
+
+```ts config-catalog
+/** Service configuration. */
+export interface Config {
+  /** Absolute directory holding one subdirectory per owner. */
+  root: string
+  /** Successful executions of the current revision needed to become trusted; at least one must be verified. */
+  trustAfter: number
+  /** Consecutive failed executions of the current revision that degrade a capability, or retire a candidate. */
+  degradeAfter: number
+}
+```
+
+来源：[`packages/capability/capability/src/index.ts:48`](../packages/capability/capability/src/index.ts)
+
 <a id="aevenclient-connection"></a>
+
 ## `@aeven/client-connection`
 
 需要：`credentials`
@@ -337,10 +547,10 @@ export interface ConnectionConfig {
 }
 ```
 
-
 来源：[`packages/client/connection/src/index.ts:70`](../packages/client/connection/src/index.ts)
 
 <a id="aevenclient-hmr"></a>
+
 ## `@aeven/client-hmr`
 
 需要：`clientModules` · `webServer`
@@ -353,10 +563,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/client/hmr/src/index.ts:31`](../packages/client/hmr/src/index.ts)
 
 <a id="aevenclient-modules"></a>
+
 ## `@aeven/client-modules`
 
 需要：`loader`
@@ -372,10 +582,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/client/modules/src/index.ts:320`](../packages/client/modules/src/index.ts)
 
 <a id="aevencode-runtime-worker-thread"></a>
+
 ## `@aeven/code-runtime-worker-thread`
 
 ```ts config-catalog
@@ -409,10 +619,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/code-runtime/code-runtime-worker-thread/src/index.ts:25`](../packages/code-runtime/code-runtime-worker-thread/src/index.ts)
 
 <a id="aevencompaction-basic"></a>
+
 ## `@aeven/compaction-basic`
 
 需要：`llm` · `tokenMeter` · `sessions`
@@ -459,10 +669,10 @@ export interface ModelCompactPolicyConfig extends CompactionPolicyConfig {
 }
 ```
 
-
 来源：[`packages/compaction/compaction-basic/src/types.ts:42`](../packages/compaction/compaction-basic/src/types.ts)
 
 <a id="aevencompaction-tool-result-pruner"></a>
+
 ## `@aeven/compaction-tool-result-pruner`
 
 需要：`tokenMeter`
@@ -479,8 +689,31 @@ export interface ToolResultPruneConfig {
 }
 ```
 
-
 来源：[`packages/compaction/compaction-tool-result-pruner/src/types.ts:5`](../packages/compaction/compaction-tool-result-pruner/src/types.ts)
+
+<a id="aevencomputer-use-cua-driver-mcp"></a>
+
+## `@aeven/computer-use-cua-driver-mcp`
+
+需要：`computerUse` · `tools`
+
+```ts config-catalog
+/** Installed executable and MCP connection overrides. */
+export interface Config {
+  /** Executable path or PATH command; defaults to `cua-driver`. */
+  command: string
+  /** Arguments passed without a shell; defaults to `['mcp']`. */
+  args: string[]
+  /** Per-call timeout in milliseconds; omission uses the MCP client's default. */
+  toolCallTimeoutMs?: number
+  /** Reconnection overrides; defaults to the MCP client's policy. */
+  reconnect: McpClient.ReconnectConfig
+}
+```
+
+依赖：[`McpClient`](../packages/mcp/mcp-client/src/index.ts)
+
+来源：[`packages/computer-use/computer-use-cua-driver-mcp/src/index.ts:22`](../packages/computer-use/computer-use-cua-driver-mcp/src/index.ts)
 
 <a id="aevencomputer-use-macos-provider"></a>
 
@@ -514,11 +747,12 @@ export interface Config {
 }
 ```
 
-Depends on: [`RecipeBook`](../packages/computer-use/computer-use-router/src/index.ts)
+依赖：[`RecipeBook`](../packages/computer-use/computer-use-router/src/index.ts)
 
-Source: [`packages/computer-use/computer-use-macos-provider/src/index.ts:54`](../packages/computer-use/computer-use-macos-provider/src/index.ts)
+来源：[`packages/computer-use/computer-use-macos-provider/src/index.ts:49`](../packages/computer-use/computer-use-macos-provider/src/index.ts)
 
 <a id="aevencordis-host-runner"></a>
+
 ## `@aeven/cordis-host-runner`
 
 需要：`tools`
@@ -531,10 +765,10 @@ export interface Config {
 }
 ```
 
-
-来源：[`packages/extensions/cordis-host-runner/src/index.ts:88`](../packages/extensions/cordis-host-runner/src/index.ts)
+来源：[`packages/extensions/cordis-host-runner/src/index.ts:90`](../packages/extensions/cordis-host-runner/src/index.ts)
 
 <a id="aevencredentials-local"></a>
+
 ## `@aeven/credentials-local`
 
 ```ts config-catalog
@@ -551,10 +785,156 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/credentials/credentials-local/src/index.ts:71`](../packages/credentials/credentials-local/src/index.ts)
 
+<a id="aevendevice"></a>
+
+## `@aeven/device`
+
+```ts config-catalog
+/** Deployment timeouts, the hub route mount, and the consent defaults. */
+export interface Config extends DeviceConsent {
+  /** Origin-relative path the hub proxy (hub-proxy.ts) serves the hub under. */
+  hubMount: string
+  /** Hub JSON request deadline, in ms. */
+  requestTimeoutMs: number
+  /** Simulator or emulator boot deadline, in ms. */
+  bootTimeoutMs: number
+  /** Screenshot deadline, in ms. */
+  screenshotTimeoutMs: number
+  /** Where agent-device endpoint files and the launcher live. Omit for `<AVN_HOME>/runtime/device`. */
+  stateDir?: string
+}
+
+/** The user's consent switches; defaults are the composed starting point. */
+export interface DeviceConsent {
+  /** Install and start the streaming hub on demand. */
+  enabled: boolean
+  /** Let the model start and drive devices. */
+  agentAccessEnabled: boolean
+  /** The setup flow was finished once. */
+  onboardingCompleted: boolean
+}
+```
+
+来源：[`packages/device/device/src/index.ts:58`](../packages/device/device/src/index.ts)
+
+<a id="aevendevice-local"></a>
+
+## `@aeven/device-local`
+
+需要：`devices`
+
+```ts config-catalog
+/** Pinned tools, install location, and process deadlines. */
+export interface Config {
+  /** expo-device-hub version to install and run. */
+  hubVersion: string
+  /** agent-device version to install and run; `device_open`'s instructions are written for it. */
+  agentVersion: string
+  /** Root of the pinned installs. Omit for `<AVN_HOME>/runtime/device-tools`. */
+  toolsDir?: string
+  /** Node executable the tools run with. */
+  nodePath: string
+  /** npm executable used to install the tools. */
+  npmPath: string
+  /** Deadline for one tool install, in ms. */
+  installTimeoutMs: number
+  /** Deadline for the hub to answer after spawning, in ms. */
+  hubReadyTimeoutMs: number
+  /** Deadline for the agent-device daemon to answer, in ms. */
+  agentReadyTimeoutMs: number
+  /** Hub uptime after which a crash restarts it without backoff, in ms. */
+  hubStableUptimeMs: number
+  /** Longest backoff before restarting a crashing hub, in ms. */
+  hubRestartMaxDelayMs: number
+  /** Default deadline for one device command, in ms. */
+  commandTimeoutMs: number
+}
+```
+
+来源：[`packages/device/device-local/src/index.ts:38`](../packages/device/device-local/src/index.ts)
+
+<a id="aevendocument-extract"></a>
+
+## `@aeven/document-extract`
+
+```ts config-catalog
+/** Deployment policy for extracted text. */
+export interface Config {
+  /** Maximum characters kept from one document; longer text is cut and marked truncated. */
+  maxTextChars: number
+}
+```
+
+来源：[`packages/document/document-extract/src/index.ts:46`](../packages/document/document-extract/src/index.ts)
+
+<a id="aevendocument-extract-js"></a>
+
+## `@aeven/document-extract-js`
+
+需要：`documentExtract`
+
+```ts config-catalog
+/** Worker resource policy. */
+export interface Config {
+  /** Wall-clock limit for one document before its worker is terminated. */
+  timeoutMs: number
+  /** Old-generation heap limit of one extraction worker, in MiB. */
+  maxWorkerHeapMb: number
+  /** Simultaneous extraction workers. */
+  concurrency: number
+}
+```
+
+来源：[`packages/document/document-extract-js/src/index.ts:26`](../packages/document/document-extract-js/src/index.ts)
+
+<a id="aevendocument-extract-ocr"></a>
+
+## `@aeven/document-extract-ocr`
+
+需要：`documentExtract`
+
+```ts config-catalog
+/** OCR policy. */
+export interface Config {
+  /** Pages recognized at most, from the first. */
+  maxPages: number
+  /** Render scale relative to 72 DPI; 2 renders at 144 DPI. */
+  scale: number
+  /** Wall-clock limit for one document before its worker is terminated. */
+  timeoutMs: number
+  /** Old-generation heap limit of one OCR worker, in MiB. */
+  maxWorkerHeapMb: number
+  /** Simultaneous OCR workers. */
+  concurrency: number
+  /** Tesseract recognizers one document's pages are spread across. */
+  recognizers: number
+}
+```
+
+来源：[`packages/document/document-extract-ocr/src/index.ts:24`](../packages/document/document-extract-ocr/src/index.ts)
+
+<a id="aevendocument-extract-office"></a>
+
+## `@aeven/document-extract-office`
+
+需要：`documentExtract`
+
+```ts config-catalog
+/** Office reader policy. */
+export interface Config {
+  /** Wall-clock limit of one conversion, measured from when it leaves the queue. */
+  timeoutMs: number
+  /** Simultaneous conversions; each runs its own engine process. */
+  concurrency: number
+}
+```
+
+来源：[`packages/document/document-extract-office/src/index.ts:27`](../packages/document/document-extract-office/src/index.ts)
+
 <a id="aevene2b"></a>
+
 ## `@aeven/e2b`
 
 ```ts config-catalog
@@ -569,10 +949,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/e2b/e2b/src/index.ts:45`](../packages/e2b/e2b/src/index.ts)
 
 <a id="aevenexperimental-agent-team"></a>
+
 ## `@aeven/experimental-agent-team`
 
 需要：`agents` · `sessions` · `sessionPersistence` · `sessionProjections` · `subagents`
@@ -593,10 +973,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/experimental/agent-team/src/types.ts:131`](../packages/experimental/agent-team/src/types.ts)
 
 <a id="aevenexperimental-code-runtime-python"></a>
+
 ## `@aeven/experimental-code-runtime-python`
 
 ```ts config-catalog
@@ -660,33 +1040,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/experimental/code-runtime-python/src/index.ts:47`](../packages/experimental/code-runtime-python/src/index.ts)
 
-<a id="aevencomputer-use-cua-driver-mcp"></a>
-## `@aeven/computer-use-cua-driver-mcp`
-
-需要：`computerUse` · `tools`
-
-```ts config-catalog
-/** Installed executable and MCP connection overrides. */
-export interface Config {
-  /** Executable path or PATH command; defaults to `cua-driver`. */
-  command: string
-  /** Arguments passed without a shell; defaults to `['mcp']`. */
-  args: string[]
-  /** Per-call timeout in milliseconds; omission uses the MCP client's default. */
-  toolCallTimeoutMs?: number
-  /** Reconnection overrides; defaults to the MCP client's policy. */
-  reconnect: McpClient.ReconnectConfig
-}
-```
-
-依赖：[`McpClient`](../packages/mcp/mcp-client/src/index.ts)
-
-来源：[`packages/computer-use/computer-use-cua-driver-mcp/src/index.ts:20`](../packages/computer-use/computer-use-cua-driver-mcp/src/index.ts)
-
 <a id="aevenexperimental-inspector"></a>
+
 ## `@aeven/experimental-inspector`
 
 需要：`webServer`
@@ -751,96 +1108,10 @@ export interface InspectorOptions {
 }
 ```
 
-
 来源：[`packages/experimental/inspector/src/index.ts:66`](../packages/experimental/inspector/src/index.ts)
 
-<a id="aevensubscription-auth"></a>
-## `@aeven/subscription-auth`
-
-需要：`webServer`
-
-```ts config-catalog
-/** Plugin configuration; every field is optional. */
-export interface Config {
-  /** HTTP(S) proxy URL for the audited coding-subscription host allowlist. */
-  proxy?: string
-  /**
-	 * Optional provider retry policy override for the four OAuth routes. When
-	 * omitted, the plugin retries transient failures (rate limit, server,
-	 * timeout, transport, empty response) plus AUTH — the latter is safe because
-	 * the stored credential is invalidated on every AUTH finish, so the retried
-	 * step refreshes before reuse. Quota exhaustion is never retried.
-	 */
-  retryPolicy?: RetryPolicyConfig
-  /** Secret-free composition/YAML defaults below live user settings. */
-  capabilities?: CapabilitySettingsPatch
-  /**
-	 * Which upstream Imagine calls authorize against. `auto` (the default) uses
-	 * `XAI_API_KEY` against the developer API when that credential is configured
-	 * and otherwise takes the Grok Build chat proxy with the subscription's OAuth
-	 * access token, which is the route the official Grok CLI takes and requires a
-	 * SuperGrok tier. `xai-api` and `grok-build` pin one route and fail loudly
-	 * when its credential is missing.
-	 */
-  imagineTransport?: 'auto' | 'xai-api' | 'grok-build'
-  /**
-   * Imagine API request timeout. The subscription route proxies generation
-   * through the Grok Build chat proxy, which is slower than the direct xAI API,
-   * so the ceiling is deployment-varying rather than fixed.
-   */
-  imagineApiTimeoutMs?: number
-  /** Owner-only request authorization for loopback, SSH tunnels, and trusted HTTPS proxies. */
-  ownerRequest?: {
-    /** Whether a loopback caller is the operator directly, or arrives over an SSH tunnel. */
-    loopbackAccessMode?: 'loopback' | 'ssh-tunnel'
-    /** Accept owner requests forwarded by a proxy that proves itself with the fields below. */
-    trustedProxy?: {
-      /** Peer addresses whose forwarded requests may be considered at all. */
-      peers?: string[]
-      /** Origins the forwarded request may declare. */
-      origins?: string[]
-      /** Shared secret the proxy sends to prove it speaks for the operator. */
-      ownerProof?: string
-      /** Token the proxy echoes on state-changing requests, defeating cross-site forgery. */
-      csrfToken?: string
-    }
-  }
-}
-
-/** Sparse overlay used for YAML/composition `base` and the user section. */
-export type CapabilitySettingsPatch = Partial<CapabilitySettings>
-
-/** Resolved, secret-free capability section. */
-export interface CapabilitySettings {
-  /** Publish Codex-backed web search, which spends the Codex subscription's quota. */
-  readonly codexSearch: boolean
-  /** Publish the Codex image generation tool. Fixed on; see {@link FIXED_CAPABILITIES}. */
-  readonly codexImages: boolean
-  /** Publish the Codex image edit tool. Fixed on; see {@link FIXED_CAPABILITIES}. */
-  readonly codexImageEdits: boolean
-  /** Allow non-Codex-route models to use the Codex image generate/edit tools. Fixed on. */
-  readonly codexImagesAnyModel: boolean
-  /** Publish the Codex Fast route when the live catalogue confirms priority eligibility. */
-  readonly codexFast: boolean
-  /** Publish the Grok Imagine image tool. Fixed on; see {@link FIXED_CAPABILITIES}. */
-  readonly grokImagineImage: boolean
-  /** Publish the Grok Imagine video tools. Fixed on; see {@link FIXED_CAPABILITIES}. */
-  readonly grokImagineVideo: boolean
-  /** Upper bound on results returned by Codex-backed search. */
-  readonly searchResults: number
-  /** Images one generate call may return. Pinned to the provider maximum. */
-  readonly imageCount: number
-  /** How long a generated video artifact is retained. Pinned to the provider maximum. */
-  readonly videoArtifactTtlMs: number
-}
-```
-
-
-Depends on: [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts)
-
-Source: [`packages/llm/subscription-auth/src/index.ts:252`](../packages/llm/subscription-auth/src/index.ts)
-
 <a id="aevenexperimental-tool-agent-team"></a>
+
 ## `@aeven/experimental-tool-agent-team`
 
 需要：`agents` · `agentTeams` · `tools` · `systemPrompt`
@@ -855,13 +1126,13 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/experimental/tool-agent-team/src/index.ts:17`](../packages/experimental/tool-agent-team/src/index.ts)
 
 <a id="aevenfile-reference-local"></a>
+
 ## `@aeven/file-reference-local`
 
-需要：`agents` · `sessionProjections`
+需要：`agents`
 
 ```ts config-catalog
 /** Local file-reference discovery configuration. */
@@ -875,10 +1146,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/context/file-reference-local/src/index.ts:34`](../packages/context/file-reference-local/src/index.ts)
 
 <a id="aevenfs-local"></a>
+
 ## `@aeven/fs-local`
 
 ```ts config-catalog
@@ -894,10 +1165,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/fs/fs-local/src/index.ts:41`](../packages/fs/fs-local/src/index.ts)
 
 <a id="aevenfs-sandbox"></a>
+
 ## `@aeven/fs-sandbox`
 
 需要：`sandboxPolicy`
@@ -912,12 +1183,12 @@ export interface Config {
 export type Config = LocalConfig
 ```
 
-
 依赖：[`LocalConfig`](#aevenfs-local)
 
 来源：[`packages/fs/fs-sandbox/src/index.ts:45`](../packages/fs/fs-sandbox/src/index.ts)
 
 <a id="aevengoal"></a>
+
 ## `@aeven/goal`
 
 需要：`agents` · `sessionProjections`
@@ -930,10 +1201,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/goal/goal/src/index.ts:172`](../packages/goal/goal/src/index.ts)
 
 <a id="aevenheadless"></a>
+
 ## `@aeven/headless`
 
 需要：`agentDefaultModel` · `agents` · `sessions`
@@ -943,13 +1214,18 @@ export interface Config {
 export interface Config {
   /** The prompt text for the single run. */
   task: string
+  /**
+   * Account id the run's session belongs to; absent leaves the session
+   * without an owner, so per-user memory and capabilities stay off.
+   */
+  owner?: string
 }
 ```
-
 
 来源：[`packages/bundle/headless/src/index.ts:34`](../packages/bundle/headless/src/index.ts)
 
 <a id="aevenhooks-claude-code"></a>
+
 ## `@aeven/hooks-claude-code`
 
 需要：`shell` · `sessionProjections`
@@ -984,10 +1260,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/hooks/hooks-claude-code/src/index.ts:46`](../packages/hooks/hooks-claude-code/src/index.ts)
 
 <a id="aevenhooks-codex"></a>
+
 ## `@aeven/hooks-codex`
 
 需要：`shell` · `sessionProjections`
@@ -1011,10 +1287,95 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/hooks/hooks-codex/src/index.ts:45`](../packages/hooks/hooks-codex/src/index.ts)
 
+<a id="aevenhost-account-integrations"></a>
+
+## `@aeven/host-account-integrations`
+
+需要：`typert` · `identityUsers` · `storageDomain` · `credentials` · `skills` · `agents` · `tools` · `workspaceRegistry`
+
+```ts config-catalog
+/** Deployment upload, network, and connector settings; no connector credential is configured here. */
+export interface Config {
+  /** Largest decoded skill bundle. */
+  maxSkillBytes: number
+  /** MCP discovery, tool, and OAuth request budget. */
+  timeoutMs: number
+  /** Maximum time between starting a consent and the provider returning to the Aeven API. */
+  consentLifetimeMs: number
+  /**
+   * Aeven API origin whose connector broker holds every provider credential: OAuth
+   * client secrets and refresh tokens, the Discord bot token, and the Telegram
+   * application identifiers. Absent leaves Google, GitHub, Discord, and Telegram unavailable.
+   */
+  apiUrl?: string
+  /** Credential reference holding each signed-in user's Aeven access token; the broker authenticates it. */
+  credentialRef: string
+  /** Email accounts one signed-in user may connect. */
+  maxEmailAccounts: number
+  /** WhatsApp numbers one signed-in user may link. */
+  maxWhatsAppAccounts: number
+  /** Telegram accounts one signed-in user may sign in. */
+  maxTelegramAccounts: number
+  /** Discord guilds one signed-in user may install the Aeven bot into. */
+  maxDiscordGuilds: number
+  /** Slack workspaces one signed-in user may connect. */
+  maxSlackWorkspaces: number
+  /**
+   * The deployment's Slack app client id, which is public because Slack's PKCE client is a public
+   * client. Absent leaves Slack unavailable, and no Slack secret exists for this Host to hold.
+   */
+  slackClientId?: string
+  /**
+   * Loopback callback port the Slack app registered as `http://127.0.0.1:<port>/callback`. Slack
+   * matches the registered redirect exactly, so this value and the application agree or the
+   * consent fails at the redirect.
+   */
+  slackCallbackPort: number
+  /** Whether a login also asks for direct-message search and history, which the app must register too. */
+  slackDirectMessages: boolean
+  /** Time a live Slack token is trusted before Slack is asked again. */
+  slackVerifyIntervalMs: number
+  /** WhatsApp daemon executable; defaults to the platform package installed for this host. */
+  whatsappBinaryPath?: string
+  /** Telegram daemon entry; defaults to the vendored package installed for this host. */
+  telegramEntryPath?: string
+  /** Discord connector server entry; defaults to the vendored package installed for this host. */
+  discordEntryPath?: string
+  /** Discord permissions the install link requests, as a base-10 bitfield string. */
+  discordPermissions?: string
+  /** Whether connected guilds also serve the administration and moderation tools. */
+  discordAdminTools: boolean
+  /** Time a verified guild membership is trusted before Discord is asked again. */
+  discordVerifyIntervalMs: number
+  /** Time allowed for a Telegram daemon to bind its loopback port. */
+  telegramStartupTimeoutMs: number
+  /** Time a stopping Telegram daemon gets to exit cleanly before it is killed. */
+  telegramStopGraceMs: number
+  /** Interval between sign-in state reads while a Telegram code or password is awaited. */
+  telegramPairingPollMs: number
+  /** First delay before restarting a Telegram daemon that exited unexpectedly; doubles per consecutive failure. */
+  telegramRestartDelayMs: number
+  /** Longest restart delay; a daemon that ran this long resets the failure count. */
+  telegramMaxRestartDelayMs: number
+  /** Time allowed for a WhatsApp daemon to bind its loopback port. */
+  whatsappStartupTimeoutMs: number
+  /** Time a stopping WhatsApp daemon gets to exit cleanly before it is killed. */
+  whatsappStopGraceMs: number
+  /** Interval between pairing-state reads while a QR code is shown. */
+  whatsappPairingPollMs: number
+  /** First delay before restarting a WhatsApp daemon that exited unexpectedly; doubles per consecutive failure. */
+  whatsappRestartDelayMs: number
+  /** Longest restart delay; a daemon that ran this long resets the failure count. */
+  whatsappMaxRestartDelayMs: number
+}
+```
+
+来源：[`packages/host/account-integrations/src/index.ts:53`](../packages/host/account-integrations/src/index.ts)
+
 <a id="aevenhost-directory-picker-browse"></a>
+
 ## `@aeven/host-directory-picker-browse`
 
 ```ts config-catalog
@@ -1025,10 +1386,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/host/directory-picker-browse/src/index.ts:181`](../packages/host/directory-picker-browse/src/index.ts)
 
 <a id="aevenhost-frontend-static"></a>
+
 ## `@aeven/host-frontend-static`
 
 需要：`webServer` · `connection`
@@ -1041,10 +1402,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/host/frontend-static/src/index.ts:32`](../packages/host/frontend-static/src/index.ts)
 
 <a id="aevenhost-webserver"></a>
+
 ## `@aeven/host-webserver`
 
 ```ts config-catalog
@@ -1063,10 +1424,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/host/webserver/src/index.ts:62`](../packages/host/webserver/src/index.ts)
 
 <a id="aevenhost-workspace-files"></a>
+
 ## `@aeven/host-workspace-files`
 
 需要：`webServer` · `connection` · `workspaceRegistry`
@@ -1079,10 +1440,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/host/workspace-files/src/index.ts:36`](../packages/host/workspace-files/src/index.ts)
 
 <a id="aevenidentity-user-aeven"></a>
+
 ## `@aeven/identity-user-aeven`
 
 需要：`identityUsers`
@@ -1092,10 +1453,13 @@ export interface Config {
 export interface Config {
   /** Registry key under the seam. Defaults to `aeven`. */
   id?: string
-  /** Environment variable holding the access-token secret; the API's `JWT_SECRET`. */
-  accessSecretEnv?: string
-  /** Environment variable holding the refresh-token secret; the API's `REFRESH_SECRET`. */
-  refreshSecretEnv?: string
+  /**
+   * Least time between two fetches of the API's key set. A token naming a key the
+   * Host does not hold starts a fetch, so a rotated key is picked up without a restart.
+   */
+  jwksRefreshIntervalMs?: number
+  /** Budget for one key set fetch. */
+  jwksTimeoutMs?: number
   /** Cookie carrying the refresh token for a request that presents no bearer. */
   refreshCookieName?: string
   /**
@@ -1161,10 +1525,10 @@ export interface Config {
 export type OAuthFlow = 'redirect' | 'window'
 ```
 
-
-来源：[`packages/identity/user-aeven/src/index.ts:64`](../packages/identity/user-aeven/src/index.ts)
+来源：[`packages/identity/user-aeven/src/index.ts:66`](../packages/identity/user-aeven/src/index.ts)
 
 <a id="aeveninvariants"></a>
+
 ## `@aeven/invariants`
 
 ```ts config-catalog
@@ -1179,10 +1543,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/runtime-diagnostics/invariants/src/index.ts:15`](../packages/runtime-diagnostics/invariants/src/index.ts)
 
 <a id="aevenjobs-local"></a>
+
 ## `@aeven/jobs-local`
 
 ```ts config-catalog
@@ -1193,11 +1557,20 @@ export interface Config {
    * omission defaults to 10.
    */
   maxConcurrentJobsPerOwner?: number
+  /** Live ring retention per job in UTF-8 bytes; omission defaults to 262144. */
+  retainBytes?: number
+  /**
+   * Ring retention kept after a job settles, in UTF-8 bytes; omission defaults to 16384.
+   * Settlement keeps every byte the model cursor has not consumed on top of
+   * this cap; the first terminal model read then trims to it.
+   */
+  settledRetainBytes?: number
+  /** Poll interval for a job's pull sources, in milliseconds; omission defaults to 150. */
+  pumpPollMs?: number
 }
 ```
 
-
-来源：[`packages/jobs/jobs-local/src/index.ts:31`](../packages/jobs/jobs-local/src/index.ts)
+来源：[`packages/jobs/jobs-local/src/index.ts:45`](../packages/jobs/jobs-local/src/index.ts)
 
 <a id="aevenllm-aeven"></a>
 
@@ -1230,13 +1603,10 @@ export interface Config {
   /** Maximum provider idle time while one stream read is outstanding. */
   streamIdleTimeoutMs?: number
   /**
-   * The image and Files knobs below are inert on this route: the gateway accepts
-   * images inline as `image_url` parts and has no files API to upload them to,
-   * so nothing here ever offloads, uploads, or expires. They are declared
-   * because {@link DeepSeekConnectionOptions} requires a complete set, and they
-   * are pinned to the adapter's own defaults so an upstream change is inherited
-   * rather than silently overridden here. Each is documented for what it does on
-   * the route that uses it, not for what it does on this one.
+   * The gateway accepts images inline as `image_url` parts and has no files
+   * API, so only the inline byte budget, the image-count cap, and their
+   * offload quanta act on this route; the Files knobs are declared because
+   * {@link DeepSeekConnectionOptions} requires a complete set.
    */
   /** High watermark for retained request-image bytes before oldest-first offload. */
   maxRequestFilesBytes?: number
@@ -1263,11 +1633,12 @@ export interface Config {
 }
 ```
 
-依赖： [`DeepSeekCatalogModel`](../packages/llm/llm-deepseek/src/index.ts) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts)
+依赖：[`DeepSeekCatalogModel`](../packages/llm/llm-deepseek/src/index.ts) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts)
 
-来源：[`packages/llm/llm-aeven/src/index.ts:178`](../packages/llm/llm-aeven/src/index.ts)
+来源：[`packages/llm/llm-aeven/src/index.ts:225`](../packages/llm/llm-aeven/src/index.ts)
 
 <a id="aevenllm-deepseek"></a>
+
 ## `@aeven/llm-deepseek`
 
 需要：`llm`
@@ -1282,6 +1653,12 @@ export interface Config {
  * reasoning effort resolves to `high`.
  */
 export interface Config {
+  /**
+   * Whether the `deepseek-official` route serves requests (default true).
+   * `false` keeps the route declared to configuration surfaces, which may
+   * enable it, while registering no route and advertising no model.
+   */
+  enabled?: boolean
   /** Credential reference (environment-variable name) resolved per request; defaults to `DEEPSEEK_API_KEY`. */
   apiKeyEnv?: string
   /** Endpoint base; falls back to $DEEPSEEK_BASE_URL from a trusted environment layer, then the public API. */
@@ -1343,12 +1720,12 @@ export interface DeepSeekCatalogModel {
 }
 ```
 
-
 依赖：[`ModelModality`](../packages/llm/llm/src/index.ts) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts)
 
-来源：[`packages/llm/llm-deepseek/src/index.ts:125`](../packages/llm/llm-deepseek/src/index.ts)
+来源：[`packages/llm/llm-deepseek/src/index.ts:124`](../packages/llm/llm-deepseek/src/index.ts)
 
 <a id="aevenllm-pi-ai"></a>
+
 ## `@aeven/llm-pi-ai`
 
 需要：`llm`
@@ -1650,12 +2027,12 @@ export type LiveCatalogFormat = 'openrouter' | 'openai-models'
 export type PiAiThinkingFormat = NonNullable<OpenAICompletionsCompat['thinkingFormat']>
 ```
 
+依赖：`Api` （`@earendil-works/pi-ai`） · `CacheRetention` （`@earendil-works/pi-ai`） · `Model` （`@earendil-works/pi-ai`） · `ModelThinkingLevel` （`@earendil-works/pi-ai`） · `OpenAICompletionsCompat` （`@earendil-works/pi-ai`） · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts) · `ThinkingBudgets` （`@earendil-works/pi-ai`） · `Transport` （`@earendil-works/pi-ai`）
 
-依赖：`Api`（`@earendil-works/pi-ai`）· `CacheRetention`（`@earendil-works/pi-ai`）· `Model`（`@earendil-works/pi-ai`）· `ModelThinkingLevel`（`@earendil-works/pi-ai`）· `OpenAICompletionsCompat`（`@earendil-works/pi-ai`）· [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts) · `ThinkingBudgets`（`@earendil-works/pi-ai`）· `Transport`（`@earendil-works/pi-ai`)
-
-来源：[`packages/llm/llm-pi-ai/src/config.ts:258`](../packages/llm/llm-pi-ai/src/config.ts)
+来源：[`packages/llm/llm-pi-ai/src/config.ts:259`](../packages/llm/llm-pi-ai/src/config.ts)
 
 <a id="aevenllm-replay"></a>
+
 ## `@aeven/llm-replay`
 
 需要：`llm`
@@ -1727,12 +2104,12 @@ export interface ReplayModelConfig {
 }
 ```
 
-
 依赖：[`ModelModality`](../packages/llm/llm/src/index.ts) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts)
 
 来源：[`packages/test-support/llm-replay/src/index.ts:924`](../packages/test-support/llm-replay/src/index.ts)
 
 <a id="aevenllm-retry"></a>
+
 ## `@aeven/llm-retry`
 
 需要：`agents` · `sessionProjections`
@@ -1742,10 +2119,10 @@ export interface ReplayModelConfig {
 export type Config = Readonly<Record<string, never>>
 ```
 
-
 来源：[`packages/llm/llm-retry/src/index.ts:25`](../packages/llm/llm-retry/src/index.ts)
 
 <a id="aevenlsp-stdio"></a>
+
 ## `@aeven/lsp-stdio`
 
 需要：`fs` · `lsp` · `subprocess`
@@ -1784,10 +2161,38 @@ export interface LspLocalServerConfig {
 }
 ```
 
-
 来源：[`packages/lsp/lsp-stdio/src/index.ts:82`](../packages/lsp/lsp-stdio/src/index.ts)
 
+<a id="aevenmail"></a>
+
+## `@aeven/mail`
+
+```ts config-catalog
+/** Deployment limits and timing for every mail account. */
+export interface Config {
+  /** TCP, TLS, and greeting budget in milliseconds. */
+  timeoutMs: number
+  /** Socket inactivity budget in milliseconds. */
+  socketTimeoutMs: number
+  /** How long an unused IMAP connection stays open. */
+  idleTimeoutMs: number
+  /** Upper bound on envelopes returned by one search. */
+  searchMaxResults: number
+  /** Upper bound on body characters returned by one read. */
+  bodyMaxChars: number
+  /** Largest message read or attachment saved, in bytes. */
+  messageMaxBytes: number
+  /** Newest POP3 messages whose headers one search reads. */
+  pop3ScanLimit: number
+  /** Messages one account may send per rolling hour. */
+  sendsPerHour: number
+}
+```
+
+来源：[`packages/mail/mail/src/index.ts:35`](../packages/mail/mail/src/index.ts)
+
 <a id="aevenmcp-client"></a>
+
 ## `@aeven/mcp-client`
 
 需要：`tools`
@@ -1806,6 +2211,8 @@ export interface StdioConfig {
    * unique across live mcp-client instances.
    */
   serverName: string
+  /** What the server's tools act on, for the model's tool index (`Chrome the user can see`); omission shows the server name. */
+  title?: string
   /** Executable used to start the server. */
   command: string
   /** Arguments passed directly, without shell interpolation. */
@@ -1814,6 +2221,8 @@ export interface StdioConfig {
   env: Record<string, string>
   /** Working directory for the child process. */
   cwd: string
+  /** Raw MCP tool names admitted to the registry; omission admits every discovered tool. */
+  allowedTools?: string[]
   /** Per-tool-call timeout in milliseconds. */
   toolCallTimeoutMs: number
   /** Fail plugin activation when the initial connection or tool synchronization fails. */
@@ -1832,6 +2241,8 @@ export interface StreamableHttpConfig {
    * unique across live mcp-client instances.
    */
   serverName: string
+  /** What the server's tools act on, for the model's tool index (`Chrome the user can see`); omission shows the server name. */
+  title?: string
   /** MCP endpoint URL. */
   url: string
   /** Additional headers attached to MCP requests. */
@@ -1857,10 +2268,10 @@ export interface ReconnectConfig {
 }
 ```
 
-
-来源：[`packages/mcp/mcp-client/src/index.ts:98`](../packages/mcp/mcp-client/src/index.ts)
+来源：[`packages/mcp/mcp-client/src/index.ts:107`](../packages/mcp/mcp-client/src/index.ts)
 
 <a id="aevenmedia"></a>
+
 ## `@aeven/media`
 
 ```ts config-catalog
@@ -1877,10 +2288,32 @@ export interface MediaRuntimeConfig {
 }
 ```
 
+来源：[`packages/media/media/src/index.ts:58`](../packages/media/media/src/index.ts)
 
-来源：[`packages/media/media/src/index.ts:57`](../packages/media/media/src/index.ts)
+<a id="aevenmedia-aeven"></a>
+
+## `@aeven/media-aeven`
+
+需要：`media`
+
+```ts config-catalog
+/** Config for the Aeven media providers. */
+export interface Config {
+  /** Registry key under `ctx.media`. Defaults to `aeven`. */
+  id?: string
+  /** Aeven API origin; `/v1` is appended. Defaults to the development gateway. */
+  apiUrl?: string
+  /** Credential reference holding the signed-in session; defaults to `AEVEN_TOKEN`. */
+  apiKeyEnv?: string
+  /** Largest finished clip one download accepts, in bytes. */
+  maxVideoBytes?: number
+}
+```
+
+来源：[`packages/media/media-aeven/src/index.ts:159`](../packages/media/media-aeven/src/index.ts)
 
 <a id="aevenmedia-deepinfra"></a>
+
 ## `@aeven/media-deepinfra`
 
 需要：`media`
@@ -1894,13 +2327,15 @@ export interface Config {
   apiKeyEnv?: string
   /** Ceiling on one retrieved clip, in bytes. */
   maxVideoBytes?: number
+  /** Ceiling on one downloaded native image, in bytes. */
+  maxImageBytes?: number
 }
 ```
 
-
-来源：[`packages/media/media-deepinfra/src/index.ts:51`](../packages/media/media-deepinfra/src/index.ts)
+来源：[`packages/media/media-deepinfra/src/index.ts:59`](../packages/media/media-deepinfra/src/index.ts)
 
 <a id="aevenmedia-openrouter"></a>
+
 ## `@aeven/media-openrouter`
 
 需要：`media`
@@ -1917,10 +2352,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/media/media-openrouter/src/index.ts:47`](../packages/media/media-openrouter/src/index.ts)
 
 <a id="aevenmedia-pi-ai"></a>
+
 ## `@aeven/media-pi-ai`
 
 需要：`media`
@@ -1939,10 +2374,113 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/media/media-pi-ai/src/index.ts:33`](../packages/media/media-pi-ai/src/index.ts)
 
+<a id="aevenmemory-context"></a>
+
+## `@aeven/memory-context`
+
+需要：`agents` · `memory` · `systemPrompt`
+
+```ts config-catalog
+/** Consumer configuration. */
+export interface Config {
+  /** Recall memory for every accepted user or approved automation turn. */
+  recall: boolean
+  /** Hand completed turns to the memory provider. */
+  capture: boolean
+  /** Hard budget for one turn-start recall, in milliseconds; the turn proceeds without memory when it elapses. */
+  recallTimeoutMs: number
+  /** Maximum characters of one injected memory block, framing included. */
+  contextMaxChars: number
+  /**
+   * Maximum characters of one memory line in the block; a longer memory keeps its opening fact, and its
+   * detail stays behind `memory_get`.
+   */
+  itemMaxChars: number
+  /** Maximum recalled items from each domain. */
+  domainMaxItems: Record<MemoryDomain, number>
+  /**
+   * Share of shared words at which two recalled memories are taken to describe one subject, so a later one
+   * supersedes an earlier one. `1` limits supersession to summaries with identical word sets.
+   */
+  supersedeOverlap: number
+  /** System-prompt section order of the memory guidance. */
+  promptOrder: number
+}
+```
+
+依赖：[`MemoryDomain`](../packages/memory/memory/src/index.ts)
+
+来源：[`packages/memory/memory-context/src/index.ts:32`](../packages/memory/memory-context/src/index.ts)
+
+<a id="aevenmemory-invariants"></a>
+
+## `@aeven/memory-invariants`
+
+```ts config-catalog
+/** Provider configuration. */
+export interface Config {
+  /** Absolute directory holding one document per owner. */
+  root: string
+  /**
+   * Bound on the rendered content of one owner's block, framing and item lines included. It is paid for on every
+   * request, so it stays bounded, and every write is refused rather than clipped when a statement would not fit.
+   * The shipped default holds roughly twenty statements: the block is stable while the user leaves it alone, so it
+   * sits in the cached prompt prefix, and it is the user's own floor rather than retrieved context.
+   */
+  maxChars: number
+}
+```
+
+来源：[`packages/memory/memory-invariants/src/index.ts:33`](../packages/memory/memory-invariants/src/index.ts)
+
+<a id="aevenmemory-memos"></a>
+
+## `@aeven/memory-memos`
+
+需要：`memory` · `llm`
+
+```ts config-catalog
+/** Provider configuration. */
+export interface Config {
+  /** Absolute MemOS runtime root holding the `config.yaml` every account's core uses; `MEMOS_HOME` overrides it. */
+  home: string
+  /** Absolute directory of per-account subtrees; each account's MemOS data lives in `<account>/memory`. */
+  accounts: string
+  /** Route MemOS auxiliary LLM calls through the owning session's `ctx.llm` route when `config.yaml` names no provider. */
+  hostLlm: boolean
+  /** How long one route's reasoning capability stays cached, in milliseconds. */
+  capabilityTtlMs: number
+  /**
+   * Language of stored summaries and learned knowledge written through the Host bridge; `auto` detects
+   * English or Chinese from each request's text.
+   */
+  language: MemoryLanguage
+  /**
+   * Classify each captured turn as person, project, or world memory and detect corrections on the session's route; needs `hostLlm`.
+   * The judgment rides on MemOS's summarize request for the turn's final reply, with one short classification call as the fallback.
+   */
+  classifyDomains: boolean
+  /** Bound on one fallback domain classification call, in milliseconds. */
+  classifyTimeoutMs: number
+  /** Number of trace candidates MemOS ranks for turn-start recall before Aeven orders them. */
+  candidateTraces: number
+  /**
+   * Longest request or reply text one stored memory keeps; longer text keeps its beginning and end. A learned
+   * procedure is stored as one request text, so this bounds the procedure `memory_get` can read back.
+   */
+  maxTextChars: number
+}
+
+/** Natural language MemOS writes stored memory in; `auto` follows the language of the captured user text. */
+export type MemoryLanguage = 'auto' | 'en' | 'zh'
+```
+
+来源：[`packages/memory/memory-memos/src/index.ts:27`](../packages/memory/memory-memos/src/index.ts)
+
 <a id="aevenmessage-feedback"></a>
+
 ## `@aeven/message-feedback`
 
 需要：`storageDomain` · `sessionPersistence` · `sessions`
@@ -1955,10 +2493,10 @@ export interface Config {
 }
 ```
 
-
-来源：[`packages/feedback/message-feedback/src/index.ts:50`](../packages/feedback/message-feedback/src/index.ts)
+来源：[`packages/feedback/message-feedback/src/index.ts:51`](../packages/feedback/message-feedback/src/index.ts)
 
 <a id="aevenpermission-presets"></a>
+
 ## `@aeven/permission-presets`
 
 需要：`shell` · `approval` · `sessions` · `sessionProjections`
@@ -1992,12 +2530,12 @@ export interface PresetSpec {
 }
 ```
 
-
 依赖：[`ApprovalPolicy`](subsystems/approval.zh.md) · [`SandboxMode`](subsystems/sandbox.zh.md)
 
 来源：[`packages/interaction/permission-presets/src/index.ts:143`](../packages/interaction/permission-presets/src/index.ts)
 
 <a id="aevenpersona"></a>
+
 ## `@aeven/persona`
 
 需要：`systemPrompt`
@@ -2018,10 +2556,33 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/preset/persona/src/index.ts:30`](../packages/preset/persona/src/index.ts)
 
+<a id="aevenpersonalization"></a>
+
+## `@aeven/personalization`
+
+需要：`typert` · `identityUsers` · `agents`
+
+```ts config-catalog
+/** Service configuration. */
+export interface Config {
+  /** Absolute directory holding one document per account. */
+  root: string
+  /**
+   * Longest notes text a person can store. The block is paid for on every request of its owner, so it stays
+   * bounded, and a longer text is refused rather than clipped.
+   */
+  maxNotesChars: number
+  /** Prompt-section order; directly after the persona, so the preferences read as an amendment to it. */
+  promptOrder: number
+}
+```
+
+来源：[`packages/preset/personalization/src/index.ts:35`](../packages/preset/personalization/src/index.ts)
+
 <a id="aevenplan-mode"></a>
+
 ## `@aeven/plan-mode`
 
 需要：`tools` · `systemPrompt` · `sessionProjections`
@@ -2034,10 +2595,10 @@ export interface PlanModeConfig {
 }
 ```
 
-
 来源：[`packages/plan/plan-mode/src/index.ts:63`](../packages/plan/plan-mode/src/index.ts)
 
 <a id="aevenplugin-package-inventory-deepseek"></a>
+
 ## `@aeven/plugin-package-inventory-deepseek`
 
 需要：`agents` · `deepseekLlmApiExtensions` · `loader`
@@ -2050,10 +2611,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/llm/plugin-package-inventory-deepseek/src/index.ts:31`](../packages/llm/plugin-package-inventory-deepseek/src/index.ts)
 
 <a id="aevenpwsh-local"></a>
+
 ## `@aeven/pwsh-local`
 
 需要：`subprocess`
@@ -2083,10 +2644,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/shell/pwsh-local/src/index.ts:58`](../packages/shell/pwsh-local/src/index.ts)
 
 <a id="aevenpwsh-sandbox"></a>
+
 ## `@aeven/pwsh-sandbox`
 
 需要：`subprocess` · `sandbox` · `sandboxPolicy`
@@ -2103,12 +2664,12 @@ export interface Config {
 export type Config = LocalConfig
 ```
 
-
 依赖：[`LocalConfig`](#aevenpwsh-local)
 
 来源：[`packages/shell/pwsh-sandbox/src/index.ts:40`](../packages/shell/pwsh-sandbox/src/index.ts)
 
 <a id="aevenrepeat-tool-reminder"></a>
+
 ## `@aeven/repeat-tool-reminder`
 
 ```ts config-catalog
@@ -2139,10 +2700,26 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/guard/repeat-tool-reminder/src/index.ts:28`](../packages/guard/repeat-tool-reminder/src/index.ts)
 
+<a id="aevenreply-language"></a>
+
+## `@aeven/reply-language`
+
+需要：`agents` · `sessionProjections`
+
+```ts config-catalog
+/** Reminder rendering. Invalid values fail plugin load. */
+export interface Config {
+  /** Code points of the person's message quoted to identify its language. */
+  excerptLength: number
+}
+```
+
+来源：[`packages/context/reply-language/src/index.ts:43`](../packages/context/reply-language/src/index.ts)
+
 <a id="aevensandbox-local"></a>
+
 ## `@aeven/sandbox-local`
 
 ```ts config-catalog
@@ -2171,10 +2748,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/sandbox/sandbox-local/src/index.ts:44`](../packages/sandbox/sandbox-local/src/index.ts)
 
 <a id="aevensandbox-policy"></a>
+
 ## `@aeven/sandbox-policy`
 
 需要：`sessionProjections`
@@ -2198,12 +2775,12 @@ export interface Config {
 }
 ```
 
-
 依赖：[`SandboxMode`](subsystems/sandbox.zh.md)
 
 来源：[`packages/sandbox/sandbox-policy/src/index.ts:70`](../packages/sandbox/sandbox-policy/src/index.ts)
 
 <a id="aevensdk-app"></a>
+
 ## `@aeven/sdk-app`
 
 需要：`cmdlineArgs`
@@ -2216,10 +2793,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/bundle/sdk-app/src/index.ts:23`](../packages/bundle/sdk-app/src/index.ts)
 
 <a id="aevensdk-jsonrpc-server"></a>
+
 ## `@aeven/sdk-jsonrpc-server`
 
 需要：`agents`
@@ -2238,12 +2815,12 @@ export interface JsonRpcConfig {
 }
 ```
 
-
-依赖：`Readable`（`node:stream`）· `Writable`（`node:stream`）
+依赖：`Readable` （`node:stream`） · `Writable` （`node:stream`）
 
 来源：[`packages/sdk/server/src/index.ts:25`](../packages/sdk/server/src/index.ts)
 
 <a id="aevensession-log-deepseek"></a>
+
 ## `@aeven/session-log-deepseek`
 
 需要：`deepseekLlmApiExtensions` · `sessions`
@@ -2256,32 +2833,13 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/session/session-log-deepseek/src/index.ts:36`](../packages/session/session-log-deepseek/src/index.ts)
 
-<a id="aevensession-log-export"></a>
-## `@aeven/session-log-export`
-
-需要：`commands` · `connection`
-
-```ts config-catalog
-/** Session-log archive policy. */
-export interface Config {
-  /** DEFLATE level for each ZIP entry. @default 6 */
-  readonly compressionLevel?: SessionLogCompressionLevel
-}
-
-/** Valid fflate DEFLATE levels accepted by session-log export. */
-export type SessionLogCompressionLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
-```
-
-
-来源：[`packages/session-query/session-log-export/src/index.ts:42`](../packages/session-query/session-log-export/src/index.ts)
-
 <a id="aevensession-persistence-jsonl"></a>
+
 ## `@aeven/session-persistence-jsonl`
 
-需要：`sessions` · `sessionProjections`
+需要：`sessions`
 
 ```ts config-catalog
 /** Plugin config: where the JSONL backend keeps its session logs, and the packed-row write switch. */
@@ -2314,10 +2872,10 @@ export interface Config {
 export type JsonlCompression = 'zstd' | 'none'
 ```
 
-
-来源：[`packages/session/session-persistence-jsonl/src/index.ts:111`](../packages/session/session-persistence-jsonl/src/index.ts)
+来源：[`packages/session/session-persistence-jsonl/src/index.ts:112`](../packages/session/session-persistence-jsonl/src/index.ts)
 
 <a id="aevensession-projection-cache"></a>
+
 ## `@aeven/session-projection-cache`
 
 需要：`storageDomain` · `sessionProjections` · `sessions`
@@ -2338,10 +2896,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/session/session-projection-cache/src/index.ts:55`](../packages/session/session-projection-cache/src/index.ts)
 
 <a id="aevensession-query-sqlite"></a>
+
 ## `@aeven/session-query-sqlite`
 
 需要：`sessions`
@@ -2363,8 +2921,21 @@ export interface Config extends SessionQueryConfig {
    * never imported or opened. Defaults to `startup`.
    */
   openAt?: OpenAt
+  /**
+   * Milliseconds after activation at which the service opens the index and
+   * reconciles it in the background, so the first search finds it current.
+   * Omitted: the first search opens and reconciles the index. Ignored while
+   * `openAt` is `never`.
+   */
+  warmAfter?: number
   /** SQLite journal mode. Defaults to `wal`. */
   journalMode?: JournalMode
+  /**
+   * Milliseconds a statement waits for another process's write lock before
+   * failing. Processes sharing one index file serialize their writes through
+   * this wait. Defaults to 5000.
+   */
+  busyTimeout?: number
   /** Page size when a request omits `limit`. At most `Number.MAX_SAFE_INTEGER - 1`; defaults to 20. */
   defaultLimit?: number
   /** Largest accepted page size. At most `Number.MAX_SAFE_INTEGER - 1`; defaults to 100. */
@@ -2382,12 +2953,12 @@ export type OpenAt = 'startup' | 'first-search' | 'never'
 export type JournalMode = 'wal' | 'delete' | 'truncate' | 'persist'
 ```
 
-
 依赖：[`SessionQueryConfig`](../packages/session-query/session-query/src/index.ts)
 
-来源：[`packages/session-query/session-query-sqlite/src/index.ts:111`](../packages/session-query/session-query-sqlite/src/index.ts)
+来源：[`packages/session-query/session-query-sqlite/src/index.ts:115`](../packages/session-query/session-query-sqlite/src/index.ts)
 
 <a id="aevensession-reference"></a>
+
 ## `@aeven/session-reference`
 
 需要：`sessionQuery`
@@ -2404,10 +2975,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/context/session-reference/src/config.ts:11`](../packages/context/session-reference/src/config.ts)
 
 <a id="aevensession-telemetry-otel"></a>
+
 ## `@aeven/session-telemetry-otel`
 
 需要：`sessions`
@@ -2448,15 +3019,15 @@ export enum SessionTelemetryMode {
 }
 ```
 
-
-依赖：`BatchLogRecordProcessorOptions`（`@opentelemetry/sdk-logs`）· `OTLPExporterNodeConfigBase`（`@opentelemetry/otlp-exporter-base`）
+依赖：`BatchLogRecordProcessorOptions` （`@opentelemetry/sdk-logs`） · `OTLPExporterNodeConfigBase` （`@opentelemetry/otlp-exporter-base`）
 
 来源：[`packages/session/session-telemetry-otel/src/index.ts:91`](../packages/session/session-telemetry-otel/src/index.ts)
 
 <a id="aevensession-title"></a>
+
 ## `@aeven/session-title`
 
-需要：`sessions`
+需要：`sessions` · `sessionProjections`
 
 ```ts config-catalog
 /** Required deterministic fallback and accepted-title limits. */
@@ -2470,10 +3041,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/session/session-title/src/index.ts:56`](../packages/session/session-title/src/index.ts)
 
 <a id="aevensession-title-all-prompts-llm"></a>
+
 ## `@aeven/session-title-all-prompts-llm`
 
 需要：`sessionTitle` · `llm` · `sessions`
@@ -2483,12 +3054,12 @@ export interface Config {
 export type Config = SessionTitleLlmConfig
 ```
 
-
 依赖：[`SessionTitleLlmConfig`](../packages/session/session-title-llm/src/index.ts)
 
 来源：[`packages/session/session-title-all-prompts-llm/src/index.ts:15`](../packages/session/session-title-all-prompts-llm/src/index.ts)
 
 <a id="aevensession-title-first-prompt-llm"></a>
+
 ## `@aeven/session-title-first-prompt-llm`
 
 需要：`sessionTitle` · `llm` · `sessions`
@@ -2498,12 +3069,12 @@ export type Config = SessionTitleLlmConfig
 export type Config = SessionTitleLlmConfig
 ```
 
-
 依赖：[`SessionTitleLlmConfig`](../packages/session/session-title-llm/src/index.ts)
 
 来源：[`packages/session/session-title-first-prompt-llm/src/index.ts:15`](../packages/session/session-title-first-prompt-llm/src/index.ts)
 
 <a id="aevensettings-file"></a>
+
 ## `@aeven/settings-file`
 
 ```ts config-catalog
@@ -2520,10 +3091,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/settings/settings-file/src/index.ts:22`](../packages/settings/settings-file/src/index.ts)
 
 <a id="aevenshell-env"></a>
+
 ## `@aeven/shell-env`
 
 ```ts config-catalog
@@ -2534,10 +3105,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/shell/shell-env/src/index.ts:29`](../packages/shell/shell-env/src/index.ts)
 
 <a id="aevenskill"></a>
+
 ## `@aeven/skill`
 
 ```ts config-catalog
@@ -2548,10 +3119,24 @@ export interface Config {
 }
 ```
 
+来源：[`packages/skill/skill/src/index.ts:285`](../packages/skill/skill/src/index.ts)
 
-来源：[`packages/skill/skill/src/index.ts:280`](../packages/skill/skill/src/index.ts)
+<a id="aevenskill-catalog"></a>
+
+## `@aeven/skill-catalog`
+
+```ts config-catalog
+/** Catalog data location. */
+export interface Config {
+  /** Directory holding `index.json` and `bundles/`; defaults to this package's vendored catalog. */
+  catalogDir?: string
+}
+```
+
+来源：[`packages/skill/skill-catalog/src/index.ts:39`](../packages/skill/skill-catalog/src/index.ts)
 
 <a id="aevenskill-filesystem"></a>
+
 ## `@aeven/skill-filesystem`
 
 需要：`skills`
@@ -2586,10 +3171,84 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/skill/skill-filesystem/src/index.ts:49`](../packages/skill/skill-filesystem/src/index.ts)
 
+<a id="aevenspeech-to-text"></a>
+
+## `@aeven/speech-to-text`
+
+```ts config-catalog
+/** Composition defaults for the recognition preferences; saved user preferences take precedence. */
+export interface Config {
+  /** Registered provider selected when the caller omits an id. */
+  defaultProvider: string
+  /** Provider language hint selected when the caller omits one. */
+  language: string
+}
+```
+
+来源：[`packages/speech/speech-to-text/src/index.ts:20`](../packages/speech/speech-to-text/src/index.ts)
+
+<a id="aevenspeech-to-text-whisper"></a>
+
+## `@aeven/speech-to-text-whisper`
+
+需要：`speechToText` · `subprocess`
+
+```ts config-catalog
+/** Local runtime, inference, and retention settings. */
+export interface Config {
+  /** Unique registration id; consumers select this exact id. */
+  providerId: string
+  /** Absolute directory for verified models. */
+  dataRoot: string
+  /** Existing Whisper ggml model file; omission downloads the verified model. */
+  modelPath?: string | undefined
+  /** Existing Silero VAD ggml file; omission downloads the verified model. */
+  vadModelPath?: string | undefined
+  /** Existing worker executable; omission resolves the platform package's prebuilt worker. */
+  workerPath?: string | undefined
+  /** Explicit Hugging Face-compatible origin; bypasses automatic selection and public fallback. */
+  modelOrigin?: string | undefined
+  /** Hugging Face-compatible origins compared before downloading each missing asset. */
+  modelOrigins: string[]
+  /** Deadline for concurrent HEAD probes, including redirects to the actual asset. */
+  modelProbeTimeoutMs: number
+  /** CPU thread count for inference outside the GPU. */
+  threads: number
+  /** Silero speech probability threshold. */
+  vadThreshold: number
+  /** Minimum speech duration retained by VAD. */
+  vadMinSpeechMs: number
+  /** Silence separating two speech segments. */
+  vadMinSilenceMs: number
+  /** Padding kept before and after each speech segment. */
+  vadSpeechPadMs: number
+  /** Maximum decoded WAV bytes accepted per recording. */
+  maxAudioBytes: number
+  /** Deadline for runtime preparation and cold model loading. */
+  prepareTimeoutMs: number
+  /** Deadline for one inference after the worker is ready. */
+  inferenceTimeoutMs: number
+  /** Idle period before stopping the worker; zero keeps it warm. */
+  idleTimeoutMs: number
+  /** Maximum accepted running and waiting transcriptions. */
+  maxPending: number
+  /** Managed process termination grace period. */
+  graceMs: number
+  /** Maximum retained worker diagnostic bytes. */
+  maxLogBytes: number
+  /** Maximum bytes of one worker response line. */
+  maxResponseBytes: number
+  /** Minimum interval between intermediate download progress notifications. */
+  progressIntervalMs: number
+}
+```
+
+来源：[`packages/speech/speech-to-text-whisper/src/config.ts:7`](../packages/speech/speech-to-text-whisper/src/config.ts)
+
 <a id="aevenspill-local"></a>
+
 ## `@aeven/spill-local`
 
 ```ts config-catalog
@@ -2615,13 +3274,13 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/spill/spill-local/src/index.ts:31`](../packages/spill/spill-local/src/index.ts)
 
 <a id="aevenspill-policy"></a>
+
 ## `@aeven/spill-policy`
 
-需要：`tools` · `sessionProjections`
+需要：`tools`
 
 ```ts config-catalog
 /** Plugin config. */
@@ -2635,10 +3294,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/spill/spill-policy/src/index.ts:61`](../packages/spill/spill-policy/src/index.ts)
 
 <a id="aevenstorage-domain"></a>
+
 ## `@aeven/storage-domain`
 
 需要：`storage`
@@ -2658,10 +3317,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/storage/storage-domain/src/index.ts:52`](../packages/storage/storage-domain/src/index.ts)
 
 <a id="aevenstorage-json"></a>
+
 ## `@aeven/storage-json`
 
 需要：`storage`
@@ -2679,10 +3338,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/storage/storage-json/src/index.ts:28`](../packages/storage/storage-json/src/index.ts)
 
 <a id="aevenstorage-sqlite"></a>
+
 ## `@aeven/storage-sqlite`
 
 需要：`storage`
@@ -2719,10 +3378,10 @@ export interface Config {
 export type JournalMode = 'wal' | 'delete' | 'truncate' | 'persist'
 ```
 
-
 来源：[`packages/storage/storage-sqlite/src/index.ts:24`](../packages/storage/storage-sqlite/src/index.ts)
 
 <a id="aevensubagent-acp"></a>
+
 ## `@aeven/subagent-acp`
 
 需要：`subagents` · `subprocess`
@@ -2772,10 +3431,10 @@ export interface Config {
 export type PermissionPolicy = 'allow' | 'reject'
 ```
 
-
 来源：[`packages/subagent/subagent-acp/src/index.ts:27`](../packages/subagent/subagent-acp/src/index.ts)
 
 <a id="aevensubagent-avn-sdk"></a>
+
 ## `@aeven/subagent-avn-sdk`
 
 需要：`subagents`
@@ -2828,10 +3487,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/subagent/subagent-avn-sdk/src/index.ts:34`](../packages/subagent/subagent-avn-sdk/src/index.ts)
 
 <a id="aevensubagent-claude-code"></a>
+
 ## `@aeven/subagent-claude-code`
 
 需要：`subagents` · `subprocess`
@@ -2863,10 +3522,10 @@ export interface Config {
 export type ClaudeCodePermissionMode = typeof CLAUDE_CODE_PERMISSION_MODES[number]
 ```
 
-
 来源：[`packages/subagent/subagent-claude-code/src/index.ts:38`](../packages/subagent/subagent-claude-code/src/index.ts)
 
 <a id="aevensubagent-codex"></a>
+
 ## `@aeven/subagent-codex`
 
 需要：`subagents` · `subprocess`
@@ -2896,10 +3555,10 @@ export type CodexPermissionMode =
   | 'dangerously-bypass-approvals-and-sandbox'
 ```
 
-
 来源：[`packages/subagent/subagent-codex/src/index.ts:36`](../packages/subagent/subagent-codex/src/index.ts)
 
 <a id="aevensubagent-fork-in-process"></a>
+
 ## `@aeven/subagent-fork-in-process`
 
 需要：`subagents`
@@ -2912,10 +3571,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/subagent/subagent-fork-in-process/src/index.ts:31`](../packages/subagent/subagent-fork-in-process/src/index.ts)
 
 <a id="aevensubagent-spawn-in-process"></a>
+
 ## `@aeven/subagent-spawn-in-process`
 
 需要：`subagents`
@@ -2928,10 +3587,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/subagent/subagent-spawn-in-process/src/index.ts:25`](../packages/subagent/subagent-spawn-in-process/src/index.ts)
 
 <a id="aevensubprocess-e2b"></a>
+
 ## `@aeven/subprocess-e2b`
 
 需要：`e2b`
@@ -2944,10 +3603,102 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/e2b/subprocess-e2b/src/index.ts:25`](../packages/e2b/subprocess-e2b/src/index.ts)
 
+<a id="aevensubscription-auth"></a>
+
+## `@aeven/subscription-auth`
+
+需要：`webServer`
+
+```ts config-catalog
+/** Plugin configuration; every field is optional. */
+export interface Config {
+  /** HTTP(S) proxy URL for the audited coding-subscription host allowlist. */
+  proxy?: string
+  /**
+	 * Optional provider retry policy override for the four OAuth routes. When
+	 * omitted, the plugin retries transient failures (rate limit, server,
+	 * timeout, transport, empty response) plus AUTH — the latter is safe because
+	 * the stored credential is invalidated on every AUTH finish, so the retried
+	 * step refreshes before reuse. Quota exhaustion is never retried.
+	 */
+  retryPolicy?: RetryPolicyConfig
+  /** Secret-free composition/YAML defaults below live user settings. */
+  capabilities?: CapabilitySettingsPatch
+  /**
+	 * Which upstream Imagine calls authorize against. `auto` (the default) uses
+	 * `XAI_API_KEY` against the developer API when that credential is configured
+	 * and otherwise takes the Grok Build chat proxy with the subscription's OAuth
+	 * access token, which is the route the official Grok CLI takes and requires a
+	 * SuperGrok tier. `xai-api` and `grok-build` pin one route and fail loudly
+	 * when its credential is missing.
+	 */
+  imagineTransport?: 'auto' | 'xai-api' | 'grok-build'
+  /**
+   * Imagine API request timeout. The subscription route proxies generation
+   * through the Grok Build chat proxy, which is slower than the direct xAI API,
+   * so the ceiling is deployment-varying rather than fixed.
+   */
+  imagineApiTimeoutMs?: number
+  /**
+   * Interval between automatic model-list syncs of the signed-in
+   * subscriptions, in milliseconds. A sync also runs at startup and after each
+   * sign-in; `0` limits it to those two moments.
+   */
+  modelSyncIntervalMs?: number
+  /** Owner-only request authorization for loopback, SSH tunnels, and trusted HTTPS proxies. */
+  ownerRequest?: {
+    /** Whether a loopback caller is the operator directly, or arrives over an SSH tunnel. */
+    loopbackAccessMode?: 'loopback' | 'ssh-tunnel'
+    /** Accept owner requests forwarded by a proxy that proves itself with the fields below. */
+    trustedProxy?: {
+      /** Peer addresses whose forwarded requests may be considered at all. */
+      peers?: string[]
+      /** Origins the forwarded request may declare. */
+      origins?: string[]
+      /** Shared secret the proxy sends to prove it speaks for the operator. */
+      ownerProof?: string
+      /** Token the proxy echoes on state-changing requests, defeating cross-site forgery. */
+      csrfToken?: string
+    }
+  }
+}
+
+/** Sparse overlay used for YAML/composition `base` and the user section. */
+export type CapabilitySettingsPatch = Partial<CapabilitySettings>
+
+/** Resolved, secret-free capability section. */
+export interface CapabilitySettings {
+  /** Publish Codex-backed web search, which spends the Codex subscription's quota. */
+  readonly codexSearch: boolean
+  /** Publish the Codex image generation tool. Fixed on; see {@link FIXED_CAPABILITIES}. */
+  readonly codexImages: boolean
+  /** Publish the Codex image edit tool. Fixed on; see {@link FIXED_CAPABILITIES}. */
+  readonly codexImageEdits: boolean
+  /** Allow non-Codex-route models to use the Codex image generate/edit tools. Fixed on. */
+  readonly codexImagesAnyModel: boolean
+  /** Publish the Codex Fast route when the live catalogue confirms priority eligibility. */
+  readonly codexFast: boolean
+  /** Publish the Grok Imagine image tool. Fixed on; see {@link FIXED_CAPABILITIES}. */
+  readonly grokImagineImage: boolean
+  /** Publish the Grok Imagine video tools. Fixed on; see {@link FIXED_CAPABILITIES}. */
+  readonly grokImagineVideo: boolean
+  /** Upper bound on results returned by Codex-backed search. */
+  readonly searchResults: number
+  /** Images one generate call may return. Pinned to the provider maximum. */
+  readonly imageCount: number
+  /** How long a generated video artifact is retained. Pinned to the provider maximum. */
+  readonly videoArtifactTtlMs: number
+}
+```
+
+依赖：[`RetryPolicyConfig`](../packages/llm/llm/src/index.ts)
+
+来源：[`packages/llm/subscription-auth/src/index.ts:254`](../packages/llm/subscription-auth/src/index.ts)
+
 <a id="aevensystem-prompt"></a>
+
 ## `@aeven/system-prompt`
 
 ```ts config-catalog
@@ -2971,10 +3722,10 @@ export interface Config {
 }
 ```
 
-
-来源：[`packages/core/system-prompt/src/index.ts:238`](../packages/core/system-prompt/src/index.ts)
+来源：[`packages/core/system-prompt/src/index.ts:242`](../packages/core/system-prompt/src/index.ts)
 
 <a id="aeventerminal-bash"></a>
+
 ## `@aeven/terminal-bash`
 
 需要：`terminals` · `sandboxPolicy` · `sessionProjections` · `subprocess`
@@ -3021,10 +3772,10 @@ export interface Config {
 export type ShellDialect = 'bash' | 'pwsh'
 ```
 
-
 来源：[`packages/terminal/terminal-bash/src/config.ts:10`](../packages/terminal/terminal-bash/src/config.ts)
 
 <a id="aeventime-context"></a>
+
 ## `@aeven/time-context`
 
 需要：`agents` · `sessionProjections`
@@ -3039,10 +3790,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/context/time-context/src/index.ts:49`](../packages/context/time-context/src/index.ts)
 
 <a id="aeventmux-context"></a>
+
 ## `@aeven/tmux-context`
 
 需要：`agents` · `sessionProjections`
@@ -3055,10 +3806,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/context/tmux-context/src/index.ts:36`](../packages/context/tmux-context/src/index.ts)
 
 <a id="aeventoken-meter"></a>
+
 ## `@aeven/token-meter`
 
 需要：`sessionProjections`
@@ -3068,10 +3819,10 @@ export interface Config {
 export type TokenMeterConfig = Record<string, never>
 ```
 
-
 来源：[`packages/llm/token-meter/src/types.ts:13`](../packages/llm/token-meter/src/types.ts)
 
 <a id="aeventool-bash"></a>
+
 ## `@aeven/tool-bash`
 
 需要：`tools` · `shell` · `systemPrompt` · `shellEnv`
@@ -3084,10 +3835,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/shell/tool-bash/src/index.ts:33`](../packages/shell/tool-bash/src/index.ts)
 
 <a id="aeventool-bash-persistent"></a>
+
 ## `@aeven/tool-bash-persistent`
 
 需要：`tools` · `terminals`
@@ -3106,10 +3857,112 @@ export interface Config {
 }
 ```
 
+来源：[`packages/shell/tool-bash-persistent/src/index.ts:441`](../packages/shell/tool-bash-persistent/src/index.ts)
 
-来源：[`packages/shell/tool-bash-persistent/src/index.ts:432`](../packages/shell/tool-bash-persistent/src/index.ts)
+<a id="aeventool-browser"></a>
+
+## `@aeven/tool-browser`
+
+需要：`tools` · `agents`
+
+```ts config-catalog
+/** How long the browser beside a session is given to answer. Invalid values fail plugin load. */
+export interface Config {
+  /** Milliseconds the first step of a turn waits for the open page before it proceeds without the browser context. */
+  statusTimeoutMs?: number
+  /** Milliseconds a `preview_*` call waits for the browser before it fails as timed out. */
+  actionTimeoutMs?: number
+}
+```
+
+来源：[`packages/web/tool-browser/src/index.ts:40`](../packages/web/tool-browser/src/index.ts)
+
+<a id="aeventool-call-access-policy"></a>
+
+## `@aeven/tool-call-access-policy`
+
+需要：`tools` · `sandboxPolicy`
+
+```ts config-catalog
+/**
+ * Plugin config, validated by the same-named schemastery schema plus the declared interface.
+ * Deployments narrow or extend `deny` from `cordis.yml`; an empty list disables the policy.
+ */
+export interface Config {
+  /** Access mode in which the listed tools are denied. */
+  mode: SandboxMode
+  /** Tool names denied while the session's access mode equals `mode`. */
+  deny: string[]
+}
+```
+
+依赖：[`SandboxMode`](subsystems/sandbox.zh.md)
+
+来源：[`packages/guard/access-policy/src/index.ts:56`](../packages/guard/access-policy/src/index.ts)
+
+<a id="aeventool-capability"></a>
+
+## `@aeven/tool-capability`
+
+需要：`capabilities` · `tools` · `systemPrompt` · `llm` · `memory`
+
+```ts config-catalog
+/** Consumer configuration. */
+export interface Config {
+  /** System-prompt section order of the capability guidance. */
+  promptOrder: number
+  /** Maximum learned procedures recalled for one request. */
+  maxRecalled: number
+  /** Foreground procedure selection budget, in milliseconds. */
+  recallTimeoutMs: number
+  /** Minimum intent relevance score, from zero to one, accepted for recall. */
+  recallMinScore: number
+  /** Maximum characters in the complete recalled context message. */
+  recallMaxChars: number
+  /** Whether completed work is learned from automatically. */
+  learn: boolean
+  /** Tool calls a turn needs, excluding bookkeeping, before its work is learned from. */
+  minSteps: number
+  /** Budget of one learning model call, in milliseconds. */
+  timeoutMs: number
+  /** Output token limit of one learning model call. */
+  maxOutputTokens: number
+  /** Input token budget of one learning model call; a longer transcript is cut down to its newest evidence. */
+  maxInputTokens: number
+  /** Explicit learning route, set together with `model`; absent uses each session's own route. */
+  provider?: string
+  /** Learning model on the explicit provider route; absent uses the session model. */
+  model?: string
+  /**
+   * Where learned procedures are kept. `memory` (the default) stores each as a long-term memory that memory recall
+   * brings back; `capabilities` keeps them as capability files recalled as `<procedure_context>`.
+   */
+  store: 'memory' | 'capabilities'
+}
+```
+
+来源：[`packages/capability/tool-capability/src/index.ts:33`](../packages/capability/tool-capability/src/index.ts)
+
+<a id="aeventool-elevation"></a>
+
+## `@aeven/tool-elevation`
+
+需要：`tools` · `approval` · `subprocess`
+
+```ts config-catalog
+/** Tool configuration. */
+export interface Config {
+  /** Default and maximum deadline for one elevated run, in ms. */
+  timeoutMs?: number
+  /** Retained tail of the captured output, in characters. */
+  maxOutputChars?: number
+}
+```
+
+来源：[`packages/sandbox/tool-elevation/src/index.ts:31`](../packages/sandbox/tool-elevation/src/index.ts)
 
 <a id="aeventool-fs"></a>
+
 ## `@aeven/tool-fs`
 
 需要：`tools` · `fs` · `systemPrompt`
@@ -3128,10 +3981,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/fs/tool-fs/src/index.ts:25`](../packages/fs/tool-fs/src/index.ts)
 
 <a id="aeventool-fs-search"></a>
+
 ## `@aeven/tool-fs-search`
 
 需要：`tools` · `systemPrompt` · `subprocess`
@@ -3163,10 +4016,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/fs/tool-fs-search/src/index.ts:73`](../packages/fs/tool-fs-search/src/index.ts)
 
 <a id="aeventool-goal"></a>
+
 ## `@aeven/tool-goal`
 
 需要：`agents` · `goals` · `tools` · `systemPrompt` · `sessionProjections`
@@ -3179,10 +4032,30 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/goal/tool-goal/src/index.ts:25`](../packages/goal/tool-goal/src/index.ts)
 
+<a id="aeventool-image-search"></a>
+
+## `@aeven/tool-image-search`
+
+需要：`tools` · `attachments` · `llm`
+
+```ts config-catalog
+/** What one call may spend. */
+export interface Config {
+  /** Milliseconds one HTTP request may take. */
+  requestTimeoutMs?: number
+  /** Milliseconds the model call that translates the cards may take. */
+  translationTimeoutMs?: number
+  /** Largest image one call stores, in bytes. */
+  maxImageBytes?: number
+}
+```
+
+来源：[`packages/web/tool-image-search/src/index.ts:93`](../packages/web/tool-image-search/src/index.ts)
+
 <a id="aeventool-jobs"></a>
+
 ## `@aeven/tool-jobs`
 
 需要：`tools` · `jobs` · `systemPrompt`
@@ -3198,25 +4071,45 @@ export interface Config {
   completionDelivery?: CompletionDelivery
   /**
    * Turns one owner may have opened by completion wakes before the next
-   * notice degrades to injection, reset by any user-authored input (default 3).
-   * Bounds the self-exciting chain where a woken turn starts the job whose
-   * completion wakes it again.
+   * notice degrades to injection, reset by any user-authored input. Absent by
+   * default: every idle completion wakes its owner. Set it to bound the
+   * self-exciting chain where a woken turn starts the job whose completion
+   * wakes it again, at the cost of notices past the cap waiting silently for
+   * the next user input.
    */
   maxConsecutiveWakes?: number
 }
 
 /**
- * How an unreported completion reaches an owner that is already idle: `wakeup`
+ * How an uncollected completion reaches an owner that is already idle: `wakeup`
  * opens a turn for it, `quiet` leaves it pending until something else wakes the
  * owner. A busy owner is injected either way.
  */
 export type CompletionDelivery = 'quiet' | 'wakeup'
 ```
 
+来源：[`packages/jobs/tool-jobs/src/index.ts:41`](../packages/jobs/tool-jobs/src/index.ts)
 
-来源：[`packages/jobs/tool-jobs/src/index.ts:31`](../packages/jobs/tool-jobs/src/index.ts)
+<a id="aeventool-location"></a>
+
+## `@aeven/tool-location`
+
+需要：`tools` · `agents`
+
+```ts config-catalog
+/** How precisely a shared location reaches the model, and how long the reader is given. Invalid values fail plugin load. */
+export interface Config {
+  /** `precise` passes the device reading through; `approximate` rounds it to about a kilometre. */
+  precision?: 'precise' | 'approximate'
+  /** Milliseconds the reader has to choose before the call fails as timed out. */
+  consentTimeoutMs?: number
+}
+```
+
+来源：[`packages/interaction/tool-location/src/index.ts:31`](../packages/interaction/tool-location/src/index.ts)
 
 <a id="aeventool-lsp"></a>
+
 ## `@aeven/tool-lsp`
 
 需要：`tools` · `lsp` · `systemPrompt`
@@ -3233,28 +4126,75 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/lsp/tool-lsp/src/index.ts:57`](../packages/lsp/tool-lsp/src/index.ts)
 
-<a id="aeventool-media"></a>
-## `@aeven/tool-media`
+<a id="aeventool-mail"></a>
 
-依赖：`tools` · `media` · `attachments`
+## `@aeven/tool-mail`
+
+需要：`tools` · `mail`
 
 ```ts config-catalog
-/** Config for the image tool. */
+/** Per-tool cooperative timeouts. */
 export interface Config {
+  /** Budget for account, search, read, and update calls, in milliseconds. */
+  timeoutMs: number
+  /** Budget for send calls, in milliseconds. */
+  sendTimeoutMs: number
+}
+```
+
+来源：[`packages/mail/tool-mail/src/index.ts:26`](../packages/mail/tool-mail/src/index.ts)
+
+<a id="aeventool-media"></a>
+
+## `@aeven/tool-media`
+
+需要：`tools` · `media` · `attachments`
+
+```ts config-catalog
+/** Config for the media tools: the image tool's fields, and the video tool's under `video`. */
+export interface Config extends ImageConfig {
+  /** The video tool's config; omitted registers no video tool. */
+  video?: VideoConfig
+}
+
+/** Config for the image tool, which is also the `media` settings document. */
+export interface ImageConfig extends ModelSelection {
+  /**
+   * Media providers whose own image-model listing is offered after `choices`.
+   * The listing is read on every call, so a provider whose models change at
+   * runtime — such as a subscription whose image model the user switches on or
+   * off in Settings → Providers — is selectable exactly while it lists them.
+   */
+  listedProviders?: string[]
+}
+
+/**
+ * Config for the video tool, which is also the `media-video` settings
+ * document. `generate_video` and `/video-model` exist only where it is set.
+ */
+export interface VideoConfig extends ModelSelection {
+  /** Wait between two reads of a running job, in milliseconds. */
+  pollIntervalMs?: number
+  /** Longest one call waits for its job before failing, in milliseconds. */
+  maxWaitMs?: number
+}
+
+/** The model-selection fields the image and video settings documents share. */
+export interface ModelSelection {
   /**
    * Model id used when a call names none and no choice is made. Provider-specific
-   * and verbatim, e.g. `black-forest-labs/flux.2-pro`. Omitted means every call
-   * must name a model or answer the picker.
+   * and verbatim, e.g. `Aeven-1.0-Image-Flash`. Omitted means every call must
+   * name a model or answer the picker.
    */
   model?: string
   /** Media provider id used when a call names none. Omitted defers to the seam's own selection. */
   provider?: string
   /**
-   * Models offered before each generation. An empty list disables the picker
-   * and generates with the resolved model directly.
+   * The selectable models, in menu order. When non-empty, a call naming a model
+   * outside this list is refused. An empty list disables the picker and leaves
+   * the model unrestricted.
    */
   choices?: ImageModelChoice[]
   /**
@@ -3268,9 +4208,11 @@ export interface Config {
    * deployment default from a choice, so the picker asks exactly once.
    */
   modelChosen?: boolean
+  /** Largest reference image file one call may read, in bytes. */
+  maxReferenceImageBytes?: number
 }
 
-/** One selectable image model offered before a generation runs. */
+/** One selectable image model. */
 export interface ImageModelChoice {
   /** Media provider id that serves this model. */
   provider: string
@@ -3278,15 +4220,33 @@ export interface ImageModelChoice {
   model: string
   /** Menu label; the `provider/model` pair when omitted. */
   label?: string
-  /** Optional one-line note the menu shows beside the label. */
+  /** Optional one-line note the menu and the tool description show beside the model. */
   description?: string
 }
 ```
 
+来源：[`packages/media/tool-media/src/index.ts:134`](../packages/media/tool-media/src/index.ts)
 
-来源：[`packages/media/tool-media/src/index.ts:62`](../packages/media/tool-media/src/index.ts)
+<a id="aeventool-memory"></a>
+
+## `@aeven/tool-memory`
+
+需要：`memory` · `tools`
+
+```ts config-catalog
+/** Consumer configuration. */
+export interface Config {
+  /** Maximum characters of each body or snippet a tool returns. */
+  resultMaxChars: number
+  /** Hard budget for one `memory_search`, in milliseconds. */
+  searchTimeoutMs: number
+}
+```
+
+来源：[`packages/memory/tool-memory/src/index.ts:18`](../packages/memory/tool-memory/src/index.ts)
 
 <a id="aeventool-pwsh"></a>
+
 ## `@aeven/tool-pwsh`
 
 需要：`tools` · `shell` · `systemPrompt` · `shellEnv`
@@ -3299,10 +4259,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/shell/tool-pwsh/src/index.ts:51`](../packages/shell/tool-pwsh/src/index.ts)
 
 <a id="aeventool-pwsh-persistent"></a>
+
 ## `@aeven/tool-pwsh-persistent`
 
 需要：`tools` · `terminals`
@@ -3321,10 +4281,10 @@ export interface Config {
 }
 ```
 
-
-来源：[`packages/shell/tool-pwsh-persistent/src/index.ts:472`](../packages/shell/tool-pwsh-persistent/src/index.ts)
+来源：[`packages/shell/tool-pwsh-persistent/src/index.ts:457`](../packages/shell/tool-pwsh-persistent/src/index.ts)
 
 <a id="aeventool-ralph"></a>
+
 ## `@aeven/tool-ralph`
 
 需要：`tools` · `workflowEngine` · `subagents` · `systemPrompt`
@@ -3343,10 +4303,40 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/workflow/tool-ralph/src/index.ts:21`](../packages/workflow/tool-ralph/src/index.ts)
 
+<a id="aeventool-search"></a>
+
+## `@aeven/tool-search`
+
+需要：`tools` · `systemPrompt`
+
+```ts config-catalog
+/** Which tools wait for `tool_search`, how they are grouped, and the request limits. */
+export interface Config {
+  /** Tool name patterns to defer; `*` matches any run of characters. */
+  defer?: string[]
+  /** Titles for deferred tools that are not MCP tools; the first matching group wins. */
+  groups?: ToolGroup[]
+  /** Tools one keyword search lists at most. */
+  maxResults?: number
+  /** Most tools one model request may declare; a `select:` that would exceed it is refused. */
+  maxRequestTools?: number
+}
+
+/** A titled group of deferred tools that are not MCP tools. */
+export interface ToolGroup {
+  /** What the group's tools do, shown in the index (`Image and video generation`). */
+  title: string
+  /** Tool name patterns in the group; `*` matches any run of characters. */
+  tools: string[]
+}
+```
+
+来源：[`packages/core/tool-search/src/index.ts:53`](../packages/core/tool-search/src/index.ts)
+
 <a id="aeventool-session-query"></a>
+
 ## `@aeven/tool-session-query`
 
 需要：`tools` · `systemPrompt` · `sessionQuery` · `sessionProjections`
@@ -3361,10 +4351,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/session-query/tool-session-query/src/index.ts:28`](../packages/session-query/tool-session-query/src/index.ts)
 
 <a id="aeventool-skill"></a>
+
 ## `@aeven/tool-skill`
 
 需要：`agents` · `tools` · `skills`
@@ -3377,10 +4367,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/skill/tool-skill/src/index.ts:61`](../packages/skill/tool-skill/src/index.ts)
 
 <a id="aeventool-str-replace-editor"></a>
+
 ## `@aeven/tool-str-replace-editor`
 
 需要：`tools` · `fs`
@@ -3395,10 +4385,10 @@ export interface Config {
 }
 ```
 
-
-来源：[`packages/fs/tool-str-replace-editor/src/index.ts:505`](../packages/fs/tool-str-replace-editor/src/index.ts)
+来源：[`packages/fs/tool-str-replace-editor/src/index.ts:506`](../packages/fs/tool-str-replace-editor/src/index.ts)
 
 <a id="aeventool-subagent"></a>
+
 ## `@aeven/tool-subagent`
 
 需要：`tools` · `subagents` · `systemPrompt` · `sessionProjections`
@@ -3463,12 +4453,12 @@ export interface Config {
 }
 ```
 
-
 依赖：[`AgentOptions`](subsystems/core.zh.md)
 
 来源：[`packages/subagent/tool-subagent/src/index.ts:47`](../packages/subagent/tool-subagent/src/index.ts)
 
 <a id="aeventool-terminal"></a>
+
 ## `@aeven/tool-terminal`
 
 需要：`terminals` · `tools` · `systemPrompt`
@@ -3483,13 +4473,13 @@ export interface Config {
 }
 ```
 
-
-来源：[`packages/terminal/tool-terminal/src/index.ts:35`](../packages/terminal/tool-terminal/src/index.ts)
+来源：[`packages/terminal/tool-terminal/src/index.ts:36`](../packages/terminal/tool-terminal/src/index.ts)
 
 <a id="aeventool-todo"></a>
+
 ## `@aeven/tool-todo`
 
-需要：`tools`
+需要：`tools` · `sessionProjections`
 
 ```ts config-catalog
 /** Model-facing todo tool configuration. */
@@ -3505,10 +4495,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/todo/tool-todo/src/index.ts:43`](../packages/todo/tool-todo/src/index.ts)
 
 <a id="aeventool-web"></a>
+
 ## `@aeven/tool-web`
 
 需要：`tools` · `web` · `systemPrompt`
@@ -3533,10 +4523,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/web/tool-web/src/index.ts:37`](../packages/web/tool-web/src/index.ts)
 
 <a id="aeventool-workflow"></a>
+
 ## `@aeven/tool-workflow`
 
 需要：`tools` · `workflowEngine` · `systemPrompt`
@@ -3551,10 +4541,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/workflow/tool-workflow/src/index.ts:32`](../packages/workflow/tool-workflow/src/index.ts)
 
 <a id="aeventools"></a>
+
 ## `@aeven/tools`
 
 需要：`systemPrompt`
@@ -3587,10 +4577,10 @@ export interface Config {
 export type ToolPresentationMode = 'native' | 'ptc' | 'both'
 ```
 
-
-来源：[`packages/core/tools/src/index.ts:647`](../packages/core/tools/src/index.ts)
+来源：[`packages/core/tools/src/index.ts:650`](../packages/core/tools/src/index.ts)
 
 <a id="aeventypert-loader"></a>
+
 ## `@aeven/typert-loader`
 
 需要：`typert` · `loader`
@@ -3603,10 +4593,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/typert/loader/src/index.ts:47`](../packages/typert/loader/src/index.ts)
 
 <a id="aevenuser-approval"></a>
+
 ## `@aeven/user-approval`
 
 ```ts config-catalog
@@ -3634,10 +4624,10 @@ export interface Config {
 export type ApprovalPolicy = 'ask' | 'never'
 ```
 
-
-来源：[`packages/interaction/user-approval/src/index.ts:127`](../packages/interaction/user-approval/src/index.ts)
+来源：[`packages/interaction/user-approval/src/index.ts:129`](../packages/interaction/user-approval/src/index.ts)
 
 <a id="aevenweb"></a>
+
 ## `@aeven/web`
 
 ```ts config-catalog
@@ -3655,10 +4645,10 @@ export interface WebRuntimeConfig {
 }
 ```
 
-
 来源：[`packages/web/web/src/index.ts:55`](../packages/web/web/src/index.ts)
 
 <a id="aevenweb-app"></a>
+
 ## `@aeven/web-app`
 
 需要：`webServer`
@@ -3677,15 +4667,23 @@ export interface Config {
    * orientation text would be false.
    */
   surfaceContext: boolean
+  /**
+   * Add the developer orientation to the surface context: the harness source
+   * checkout (`harness:source`), the client rebuild and reload rules, and the
+   * replacement-server rule. Only a deployment whose user develops Aeven from
+   * this checkout turns it on; for anyone else the text is false and off-topic.
+   * Ignored while {@link Config.surfaceContext} is off.
+   */
+  developerContext: boolean
   /** Explicit `--trusted-host` authorities from this invocation. */
   trustedHosts: string[]
 }
 ```
 
-
 来源：[`packages/bundle/web-app/src/index.ts:44`](../packages/bundle/web-app/src/index.ts)
 
 <a id="aevenweb-fetch-http"></a>
+
 ## `@aeven/web-fetch-http`
 
 需要：`web`
@@ -3706,10 +4704,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/web/web-fetch-http/src/index.ts:32`](../packages/web/web-fetch-http/src/index.ts)
 
 <a id="aevenweb-search-deepseek"></a>
+
 ## `@aeven/web-search-deepseek`
 
 需要：`web`
@@ -3734,10 +4732,10 @@ export interface Config {
 }
 ```
 
-
-来源：[`packages/web/web-search-deepseek/src/index.ts:46`](../packages/web/web-search-deepseek/src/index.ts)
+来源：[`packages/web/web-search-deepseek/src/index.ts:47`](../packages/web/web-search-deepseek/src/index.ts)
 
 <a id="aevenweb-search-exa"></a>
+
 ## `@aeven/web-search-exa`
 
 需要：`web`
@@ -3758,10 +4756,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/web/web-search-exa/src/index.ts:35`](../packages/web/web-search-exa/src/index.ts)
 
 <a id="aevenweb-search-perplexity"></a>
+
 ## `@aeven/web-search-perplexity`
 
 需要：`web`
@@ -3782,10 +4780,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/web/web-search-perplexity/src/index.ts:30`](../packages/web/web-search-perplexity/src/index.ts)
 
 <a id="aevenwebhook-github"></a>
+
 ## `@aeven/webhook-github`
 
 需要：`webServer` · `webhookRuntime` · `credentials`
@@ -3804,10 +4802,10 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/webhook/webhook-github/src/index.ts:17`](../packages/webhook/webhook-github/src/index.ts)
 
 <a id="aevenworkflow-worker-thread"></a>
+
 ## `@aeven/workflow-worker-thread`
 
 需要：`subagents`
@@ -3834,7 +4832,6 @@ export interface Config {
 }
 ```
 
-
 来源：[`packages/workflow/workflow-worker-thread/src/index.ts:32`](../packages/workflow/workflow-worker-thread/src/index.ts)
 
 <a id="aevenworkspace"></a>
@@ -3855,129 +4852,141 @@ export interface Config {
 
 来源：[`packages/workspace/workspace/src/index.ts:43`](../packages/workspace/workspace/src/index.ts)
 
-## 无配置的可加载插件
+## Loadable plugins with no config
 
-这些插件通过 `cordis.yml` 中不含 `config:` 块的条目加载；它们未声明任何配置接口。
+These load from a `cordis.yml` entry with no `config:` block; they declare no configuration API.
 
-- `@aeven/acp-app` — 需要 `cmdlineArgs`（[`packages/bundle/acp-app/src/index.ts`](../packages/bundle/acp-app/src/index.ts)）
-- `@aeven/agent`（[`packages/core/agent/src/index.ts`](../packages/core/agent/src/index.ts)）
-- `@aeven/api-remotes` — 需要 `typertGateway`（[`packages/api/remotes/src/index.ts`](../packages/api/remotes/src/index.ts)）
-- `@aeven/api-workspace-controller` — 需要 `typert` · `workspaceRegistry`（[`packages/api/workspace-controller/src/index.ts`](../packages/api/workspace-controller/src/index.ts)）
-- `@aeven/authorization` — 需要 `credentials`（[`packages/credentials/authorization/src/index.ts`](../packages/credentials/authorization/src/index.ts)）
-- `@aeven/client-locale`（[`packages/client/locale/src/index.ts`](../packages/client/locale/src/index.ts)）
+- `@aeven/acp-app` — requires `cmdlineArgs` ([`packages/bundle/acp-app/src/index.ts`](../packages/bundle/acp-app/src/index.ts))
+- `@aeven/agent` ([`packages/core/agent/src/index.ts`](../packages/core/agent/src/index.ts))
+- `@aeven/api-remotes` — requires `typertGateway` ([`packages/api/remotes/src/index.ts`](../packages/api/remotes/src/index.ts))
+- `@aeven/api-workspace-controller` — requires `typert` · `workspaceRegistry` ([`packages/api/workspace-controller/src/index.ts`](../packages/api/workspace-controller/src/index.ts))
+- `@aeven/authorization` — requires `credentials` ([`packages/credentials/authorization/src/index.ts`](../packages/credentials/authorization/src/index.ts))
+- `@aeven/client-locale` ([`packages/client/locale/src/index.ts`](../packages/client/locale/src/index.ts))
 - `@aeven/client-ui-account-aeven` ([`packages/client/ui-account-aeven/src/index.ts`](../packages/client/ui-account-aeven/src/index.ts))
-- `@aeven/client-ui-agent-preset`（[`packages/client/ui-agent-preset/src/index.ts`](../packages/client/ui-agent-preset/src/index.ts)）
-- `@aeven/client-ui-approval`（[`packages/client/ui-approval/src/index.ts`](../packages/client/ui-approval/src/index.ts)）
-- `@aeven/client-ui-attachment`（[`packages/client/ui-attachment/src/index.ts`](../packages/client/ui-attachment/src/index.ts)）
-- `@aeven/client-ui-brand-official`（[`packages/client/ui-brand-official/src/index.ts`](../packages/client/ui-brand-official/src/index.ts)）
-- `@aeven/client-ui-chat`（[`packages/client/ui-chat/src/index.ts`](../packages/client/ui-chat/src/index.ts)）
-- `@aeven/client-ui-commands`（[`packages/client/ui-commands/src/index.ts`](../packages/client/ui-commands/src/index.ts)）
-- `@aeven/client-ui-conversation`（[`packages/client/ui-conversation/src/index.ts`](../packages/client/ui-conversation/src/index.ts)）
-- `@aeven/client-ui-cordis`（[`packages/extensions/ui-cordis/src/index.ts`](../packages/extensions/ui-cordis/src/index.ts)）
-- `@aeven/client-ui-deliverables` — 需要 `systemPrompt`（[`packages/client/ui-deliverables/src/index.ts`](../packages/client/ui-deliverables/src/index.ts)）
-- `@aeven/client-ui-directory-picker-browse`（[`packages/client/ui-directory-picker-browse/src/index.ts`](../packages/client/ui-directory-picker-browse/src/index.ts)）
-- `@aeven/client-ui-directory-picker-native`（[`packages/client/ui-directory-picker-native/src/index.ts`](../packages/client/ui-directory-picker-native/src/index.ts)）
-- `@aeven/client-ui-goal`（[`packages/client/ui-goal/src/index.ts`](../packages/client/ui-goal/src/index.ts)）
-- `@aeven/client-ui-input-trigger`（[`packages/client/ui-input-trigger/src/index.ts`](../packages/client/ui-input-trigger/src/index.ts)）
-- `@aeven/client-ui-jobs`（[`packages/client/ui-jobs/src/index.ts`](../packages/client/ui-jobs/src/index.ts)）
-- `@aeven/client-ui-layout`（[`packages/client/ui-layout/src/index.ts`](../packages/client/ui-layout/src/index.ts)）
-- `@aeven/client-ui-message-feedback`（[`packages/client/ui-message-feedback/src/index.ts`](../packages/client/ui-message-feedback/src/index.ts)）
-- `@aeven/client-ui-model-selection`（[`packages/client/ui-model-selection/src/index.ts`](../packages/client/ui-model-selection/src/index.ts)）
-- `@aeven/client-ui-permission-presets`（[`packages/client/ui-permission-presets/src/index.ts`](../packages/client/ui-permission-presets/src/index.ts)）
-- `@aeven/client-ui-plan`（[`packages/client/ui-plan/src/index.ts`](../packages/client/ui-plan/src/index.ts)）
-- `@aeven/client-ui-reference`（[`packages/client/ui-reference/src/index.ts`](../packages/client/ui-reference/src/index.ts)）
-- `@aeven/client-ui-renderer`（[`packages/client/ui-renderer/src/index.ts`](../packages/client/ui-renderer/src/index.ts)）
-- `@aeven/client-ui-schedule`（[`packages/client/ui-schedule/src/index.ts`](../packages/client/ui-schedule/src/index.ts)）
-- `@aeven/client-ui-session`（[`packages/client/ui-session/src/index.ts`](../packages/client/ui-session/src/index.ts)）
-- `@aeven/client-ui-settings`（[`packages/client/ui-settings/src/index.ts`](../packages/client/ui-settings/src/index.ts)）
-- `@aeven/client-ui-settings-general`（[`packages/client/ui-settings-general/src/index.ts`](../packages/client/ui-settings-general/src/index.ts)）
-- `@aeven/client-ui-settings-models`（[`packages/client/ui-settings-models/src/index.ts`](../packages/client/ui-settings-models/src/index.ts)）
-- `@aeven/client-ui-settings-plugin-inventory`（[`packages/client/ui-settings-plugin-inventory/src/index.ts`](../packages/client/ui-settings-plugin-inventory/src/index.ts)）
-- `@aeven/client-ui-settings-plugins`（[`packages/client/ui-settings-plugins/src/index.ts`](../packages/client/ui-settings-plugins/src/index.ts)）
-- `@aeven/client-ui-sidebar`（[`packages/client/ui-sidebar/src/index.ts`](../packages/client/ui-sidebar/src/index.ts)）
-- `@aeven/client-ui-sidebar-right`（[`packages/client/ui-sidebar-right/src/index.ts`](../packages/client/ui-sidebar-right/src/index.ts)）
-- `@aeven/client-ui-skill`（[`packages/client/ui-skill/src/index.ts`](../packages/client/ui-skill/src/index.ts)）
-- `@aeven/client-ui-subagent`（[`packages/client/ui-subagent/src/index.ts`](../packages/client/ui-subagent/src/index.ts)）
-- `@aeven/client-ui-theme`（[`packages/client/ui-theme/src/index.ts`](../packages/client/ui-theme/src/index.ts)）
-- `@aeven/client-ui-tool`（[`packages/client/ui-tool/src/index.ts`](../packages/client/ui-tool/src/index.ts)）
-- `@aeven/client-ui-trajectory`（[`packages/client/ui-trajectory/src/index.ts`](../packages/client/ui-trajectory/src/index.ts)）
-- `@aeven/client-ui-user-questions`（[`packages/client/ui-user-questions/src/index.ts`](../packages/client/ui-user-questions/src/index.ts)）
-- `@aeven/client-ui-workflow-run`（[`packages/client/ui-workflow-run/src/index.ts`](../packages/client/ui-workflow-run/src/index.ts)）
-- `@aeven/client-ui-workspace`（[`packages/client/ui-workspace/src/index.ts`](../packages/client/ui-workspace/src/index.ts)）
-- `@aeven/command-compact` — 需要 `commands` · `compact`（[`packages/compaction/command-compact/src/index.ts`](../packages/compaction/command-compact/src/index.ts)）
-- `@aeven/command-feedback` — 需要 `commands`（[`packages/feedback/command-feedback/src/index.ts`](../packages/feedback/command-feedback/src/index.ts)）
-- `@aeven/command-goal` — 需要 `commands` · `goals`（[`packages/goal/command-goal/src/index.ts`](../packages/goal/command-goal/src/index.ts)）
-- `@aeven/commands`（[`packages/interaction/commands/src/index.ts`](../packages/interaction/commands/src/index.ts)）
-- `@aeven/computer-use`（[`packages/computer-use/computer-use/src/index.ts`](../packages/computer-use/computer-use/src/index.ts)）
-- `@aeven/cordis-client-runner`（[`packages/extensions/cordis-client-runner/src/index.ts`](../packages/extensions/cordis-client-runner/src/index.ts)）
-- `@aeven/deepseek-llm-api-extensions`（[`packages/llm/deepseek-llm-api-extensions/src/index.ts`](../packages/llm/deepseek-llm-api-extensions/src/index.ts)）
-- `@aeven/experimental-client-ui-agent-team`（[`packages/experimental/client-ui-agent-team/src/index.ts`](../packages/experimental/client-ui-agent-team/src/index.ts)）
-- `@aeven/fs-e2b` — 需要 `e2b`（[`packages/e2b/fs-e2b/src/index.ts`](../packages/e2b/fs-e2b/src/index.ts)）
-- `@aeven/fs-observation-policy`（[`packages/fs/fs-observation-policy/src/index.ts`](../packages/fs/fs-observation-policy/src/index.ts)）
-- `@aeven/goal-round-driver` — 需要 `agents` · `goals` · `sessions`（[`packages/goal/goal-round-driver/src/index.ts`](../packages/goal/goal-round-driver/src/index.ts)）
-- `@aeven/host-directory-picker-auto` — 需要 `webServer` · `loader`（[`packages/host/directory-picker-auto/src/index.ts`](../packages/host/directory-picker-auto/src/index.ts)）
-- `@aeven/host-directory-picker-native`（[`packages/host/directory-picker-native/src/index.ts`](../packages/host/directory-picker-native/src/index.ts)）
-- `@aeven/host-plugin-inventory` — 需要 `loader`（[`packages/host/plugin-inventory/src/index.ts`](../packages/host/plugin-inventory/src/index.ts)）
+- `@aeven/client-ui-approval` ([`packages/client/ui-approval/src/index.ts`](../packages/client/ui-approval/src/index.ts))
+- `@aeven/client-ui-attachment` ([`packages/client/ui-attachment/src/index.ts`](../packages/client/ui-attachment/src/index.ts))
+- `@aeven/client-ui-automations` ([`packages/client/ui-automations/src/index.ts`](../packages/client/ui-automations/src/index.ts))
+- `@aeven/client-ui-brand-official` ([`packages/client/ui-brand-official/src/index.ts`](../packages/client/ui-brand-official/src/index.ts))
+- `@aeven/client-ui-chat` ([`packages/client/ui-chat/src/index.ts`](../packages/client/ui-chat/src/index.ts))
+- `@aeven/client-ui-commands` ([`packages/client/ui-commands/src/index.ts`](../packages/client/ui-commands/src/index.ts))
+- `@aeven/client-ui-conversation` ([`packages/client/ui-conversation/src/index.ts`](../packages/client/ui-conversation/src/index.ts))
+- `@aeven/client-ui-cordis` ([`packages/extensions/ui-cordis/src/index.ts`](../packages/extensions/ui-cordis/src/index.ts))
+- `@aeven/client-ui-deliverables` — requires `systemPrompt` ([`packages/client/ui-deliverables/src/index.ts`](../packages/client/ui-deliverables/src/index.ts))
+- `@aeven/client-ui-directory-picker-browse` ([`packages/client/ui-directory-picker-browse/src/index.ts`](../packages/client/ui-directory-picker-browse/src/index.ts))
+- `@aeven/client-ui-directory-picker-native` ([`packages/client/ui-directory-picker-native/src/index.ts`](../packages/client/ui-directory-picker-native/src/index.ts))
+- `@aeven/client-ui-goal` ([`packages/client/ui-goal/src/index.ts`](../packages/client/ui-goal/src/index.ts))
+- `@aeven/client-ui-imagine` ([`packages/client/ui-imagine/src/index.ts`](../packages/client/ui-imagine/src/index.ts))
+- `@aeven/client-ui-input-trigger` ([`packages/client/ui-input-trigger/src/index.ts`](../packages/client/ui-input-trigger/src/index.ts))
+- `@aeven/client-ui-jobs` ([`packages/client/ui-jobs/src/index.ts`](../packages/client/ui-jobs/src/index.ts))
+- `@aeven/client-ui-layout` ([`packages/client/ui-layout/src/index.ts`](../packages/client/ui-layout/src/index.ts))
+- `@aeven/client-ui-location` ([`packages/client/ui-location/src/index.ts`](../packages/client/ui-location/src/index.ts))
+- `@aeven/client-ui-message-feedback` ([`packages/client/ui-message-feedback/src/index.ts`](../packages/client/ui-message-feedback/src/index.ts))
+- `@aeven/client-ui-model-selection` ([`packages/client/ui-model-selection/src/index.ts`](../packages/client/ui-model-selection/src/index.ts))
+- `@aeven/client-ui-permission-presets` ([`packages/client/ui-permission-presets/src/index.ts`](../packages/client/ui-permission-presets/src/index.ts))
+- `@aeven/client-ui-plan` ([`packages/client/ui-plan/src/index.ts`](../packages/client/ui-plan/src/index.ts))
+- `@aeven/client-ui-reference` ([`packages/client/ui-reference/src/index.ts`](../packages/client/ui-reference/src/index.ts))
+- `@aeven/client-ui-renderer` ([`packages/client/ui-renderer/src/index.ts`](../packages/client/ui-renderer/src/index.ts))
+- `@aeven/client-ui-session` ([`packages/client/ui-session/src/index.ts`](../packages/client/ui-session/src/index.ts))
+- `@aeven/client-ui-settings` ([`packages/client/ui-settings/src/index.ts`](../packages/client/ui-settings/src/index.ts))
+- `@aeven/client-ui-settings-general` ([`packages/client/ui-settings-general/src/index.ts`](../packages/client/ui-settings-general/src/index.ts))
+- `@aeven/client-ui-settings-integrations` ([`packages/client/ui-settings-integrations/src/index.ts`](../packages/client/ui-settings-integrations/src/index.ts))
+- `@aeven/client-ui-settings-memory` ([`packages/client/ui-settings-memory/src/index.ts`](../packages/client/ui-settings-memory/src/index.ts))
+- `@aeven/client-ui-settings-models` ([`packages/client/ui-settings-models/src/index.ts`](../packages/client/ui-settings-models/src/index.ts))
+- `@aeven/client-ui-settings-personalization` ([`packages/client/ui-settings-personalization/src/index.ts`](../packages/client/ui-settings-personalization/src/index.ts))
+- `@aeven/client-ui-settings-plugin-inventory` ([`packages/client/ui-settings-plugin-inventory/src/index.ts`](../packages/client/ui-settings-plugin-inventory/src/index.ts))
+- `@aeven/client-ui-settings-plugins` ([`packages/client/ui-settings-plugins/src/index.ts`](../packages/client/ui-settings-plugins/src/index.ts))
+- `@aeven/client-ui-sidebar` ([`packages/client/ui-sidebar/src/index.ts`](../packages/client/ui-sidebar/src/index.ts))
+- `@aeven/client-ui-sidebar-browser` ([`packages/client/ui-sidebar-browser/src/index.ts`](../packages/client/ui-sidebar-browser/src/index.ts))
+- `@aeven/client-ui-sidebar-device` ([`packages/client/ui-sidebar-device/src/index.ts`](../packages/client/ui-sidebar-device/src/index.ts))
+- `@aeven/client-ui-sidebar-files` ([`packages/client/ui-sidebar-files/src/index.ts`](../packages/client/ui-sidebar-files/src/index.ts))
+- `@aeven/client-ui-sidebar-right` ([`packages/client/ui-sidebar-right/src/index.ts`](../packages/client/ui-sidebar-right/src/index.ts))
+- `@aeven/client-ui-sidebar-select` ([`packages/client/ui-sidebar-select/src/index.ts`](../packages/client/ui-sidebar-select/src/index.ts))
+- `@aeven/client-ui-sidebar-terminal` ([`packages/client/ui-sidebar-terminal/src/index.ts`](../packages/client/ui-sidebar-terminal/src/index.ts))
+- `@aeven/client-ui-skill` ([`packages/client/ui-skill/src/index.ts`](../packages/client/ui-skill/src/index.ts))
+- `@aeven/client-ui-subagent` ([`packages/client/ui-subagent/src/index.ts`](../packages/client/ui-subagent/src/index.ts))
+- `@aeven/client-ui-theme` ([`packages/client/ui-theme/src/index.ts`](../packages/client/ui-theme/src/index.ts))
+- `@aeven/client-ui-tool` ([`packages/client/ui-tool/src/index.ts`](../packages/client/ui-tool/src/index.ts))
+- `@aeven/client-ui-trajectory` ([`packages/client/ui-trajectory/src/index.ts`](../packages/client/ui-trajectory/src/index.ts))
+- `@aeven/client-ui-user-questions` ([`packages/client/ui-user-questions/src/index.ts`](../packages/client/ui-user-questions/src/index.ts))
+- `@aeven/client-ui-voice-input` ([`packages/client/ui-voice-input/src/index.ts`](../packages/client/ui-voice-input/src/index.ts))
+- `@aeven/client-ui-workflow-run` ([`packages/client/ui-workflow-run/src/index.ts`](../packages/client/ui-workflow-run/src/index.ts))
+- `@aeven/client-ui-workspace` ([`packages/client/ui-workspace/src/index.ts`](../packages/client/ui-workspace/src/index.ts))
+- `@aeven/command-compact` — requires `commands` · `compaction` ([`packages/compaction/command-compact/src/index.ts`](../packages/compaction/command-compact/src/index.ts))
+- `@aeven/command-feedback` — requires `commands` ([`packages/feedback/command-feedback/src/index.ts`](../packages/feedback/command-feedback/src/index.ts))
+- `@aeven/command-goal` — requires `commands` · `goals` ([`packages/goal/command-goal/src/index.ts`](../packages/goal/command-goal/src/index.ts))
+- `@aeven/commands` ([`packages/interaction/commands/src/index.ts`](../packages/interaction/commands/src/index.ts))
+- `@aeven/computer-use` ([`packages/computer-use/computer-use/src/index.ts`](../packages/computer-use/computer-use/src/index.ts))
+- `@aeven/cordis-client-runner` ([`packages/extensions/cordis-client-runner/src/index.ts`](../packages/extensions/cordis-client-runner/src/index.ts))
+- `@aeven/deepseek-llm-api-extensions` ([`packages/llm/deepseek-llm-api-extensions/src/index.ts`](../packages/llm/deepseek-llm-api-extensions/src/index.ts))
+- `@aeven/experimental-client-ui-agent-team` ([`packages/experimental/client-ui-agent-team/src/index.ts`](../packages/experimental/client-ui-agent-team/src/index.ts))
+- `@aeven/fs-e2b` — requires `e2b` ([`packages/e2b/fs-e2b/src/index.ts`](../packages/e2b/fs-e2b/src/index.ts))
+- `@aeven/fs-observation-policy` ([`packages/fs/fs-observation-policy/src/index.ts`](../packages/fs/fs-observation-policy/src/index.ts))
+- `@aeven/goal-round-driver` — requires `agents` · `goals` · `sessions` ([`packages/goal/goal-round-driver/src/index.ts`](../packages/goal/goal-round-driver/src/index.ts))
+- `@aeven/host-directory-picker-auto` — requires `webServer` · `loader` ([`packages/host/directory-picker-auto/src/index.ts`](../packages/host/directory-picker-auto/src/index.ts))
+- `@aeven/host-directory-picker-native` ([`packages/host/directory-picker-native/src/index.ts`](../packages/host/directory-picker-native/src/index.ts))
+- `@aeven/host-plugin-inventory` — requires `loader` ([`packages/host/plugin-inventory/src/index.ts`](../packages/host/plugin-inventory/src/index.ts))
 - `@aeven/identity-user` ([`packages/identity/user/src/index.ts`](../packages/identity/user/src/index.ts))
-- `@aeven/llm`（[`packages/llm/llm/src/index.ts`](../packages/llm/llm/src/index.ts)）
-- `@aeven/lsp`（[`packages/lsp/lsp/src/index.ts`](../packages/lsp/lsp/src/index.ts)）
-- `@aeven/schedule` — 需要 `agents` · `sessions` · `tools` · `sessionPersistence`（[`packages/schedule/schedule/src/index.ts`](../packages/schedule/schedule/src/index.ts)）
-- `@aeven/session`（[`packages/core/session/src/index.ts`](../packages/core/session/src/index.ts)）
-- `@aeven/session-checkpoint-policy` — 需要 `llm` · `sessionPersistence` · `sessions` · `tools`（[`packages/session/session-checkpoint-policy/src/index.ts`](../packages/session/session-checkpoint-policy/src/index.ts)）
-- `@aeven/session-projection`（[`packages/session/session-projection/src/index.ts`](../packages/session/session-projection/src/index.ts)）
-- `@aeven/session-stats` — 需要 `sessionProjections`（[`packages/session/session-stats/src/index.ts`](../packages/session/session-stats/src/index.ts)）
-- `@aeven/session-turn-outline` — 需要 `sessionProjections`（[`packages/session/session-turn-outline/src/index.ts`](../packages/session/session-turn-outline/src/index.ts)）
-- `@aeven/skill-badge` — 需要 `skills`（[`packages/skill/skill-badge/src/index.ts`](../packages/skill/skill-badge/src/index.ts)）
-- `@aeven/storage`（[`packages/storage/storage/src/index.ts`](../packages/storage/storage/src/index.ts)）
-- `@aeven/subagent`（[`packages/subagent/subagent/src/index.ts`](../packages/subagent/subagent/src/index.ts)）
-- `@aeven/subprocess-local`（[`packages/subprocess/subprocess-local/src/index.ts`](../packages/subprocess/subprocess-local/src/index.ts)）
-- `@aeven/terminal`（[`packages/terminal/terminal/src/index.ts`](../packages/terminal/terminal/src/index.ts)）
-- `@aeven/tool-ask-user` — 需要 `tools` · `userInteraction`（[`packages/interaction/tool-ask-user/src/index.ts`](../packages/interaction/tool-ask-user/src/index.ts)）
-- `@aeven/tool-call-timeout-policy` — 需要 `tools`（[`packages/guard/timeout-policy/src/index.ts`](../packages/guard/timeout-policy/src/index.ts)）
-- `@aeven/tool-cordis` — 需要 `tools` · `systemPrompt` · `dynamicCordisRunner` · `cordisInspect`（[`packages/extensions/tool-cordis/src/index.ts`](../packages/extensions/tool-cordis/src/index.ts)）
-- `@aeven/tool-subagent-control` — 需要 `tools` · `subagents`（[`packages/subagent/tool-subagent-control/src/index.ts`](../packages/subagent/tool-subagent-control/src/index.ts)）
-- `@aeven/user-questions`（[`packages/interaction/user-questions/src/index.ts`](../packages/interaction/user-questions/src/index.ts)）
-- `@aeven/webhook` — 需要 `agents` · `agentDefaultModel` · `agentPresets` · `permissionPresets` · `sessionTitle` · `workspaceRegistry`（[`packages/webhook/webhook/src/index.ts`](../packages/webhook/webhook/src/index.ts)）
+- `@aeven/llm` ([`packages/llm/llm/src/index.ts`](../packages/llm/llm/src/index.ts))
+- `@aeven/lsp` ([`packages/lsp/lsp/src/index.ts`](../packages/lsp/lsp/src/index.ts))
+- `@aeven/memory` ([`packages/memory/memory/src/index.ts`](../packages/memory/memory/src/index.ts))
+- `@aeven/schedule` — requires `agents` · `sessions` · `tools` · `sessionPersistence` ([`packages/schedule/schedule/src/index.ts`](../packages/schedule/schedule/src/index.ts))
+- `@aeven/session` ([`packages/core/session/src/index.ts`](../packages/core/session/src/index.ts))
+- `@aeven/session-checkpoint-policy` — requires `llm` · `sessionPersistence` · `sessions` · `tools` ([`packages/session/session-checkpoint-policy/src/index.ts`](../packages/session/session-checkpoint-policy/src/index.ts))
+- `@aeven/session-projection` ([`packages/session/session-projection/src/index.ts`](../packages/session/session-projection/src/index.ts))
+- `@aeven/session-stats` — requires `sessionProjections` ([`packages/session/session-stats/src/index.ts`](../packages/session/session-stats/src/index.ts))
+- `@aeven/session-turn-outline` — requires `sessionProjections` ([`packages/session/session-turn-outline/src/index.ts`](../packages/session/session-turn-outline/src/index.ts))
+- `@aeven/skill-badge` — requires `skills` ([`packages/skill/skill-badge/src/index.ts`](../packages/skill/skill-badge/src/index.ts))
+- `@aeven/storage` ([`packages/storage/storage/src/index.ts`](../packages/storage/storage/src/index.ts))
+- `@aeven/subagent` ([`packages/subagent/subagent/src/index.ts`](../packages/subagent/subagent/src/index.ts))
+- `@aeven/subprocess-local` ([`packages/subprocess/subprocess-local/src/index.ts`](../packages/subprocess/subprocess-local/src/index.ts))
+- `@aeven/terminal` ([`packages/terminal/terminal/src/index.ts`](../packages/terminal/terminal/src/index.ts))
+- `@aeven/tool-ask-user` — requires `tools` · `userQuestions` ([`packages/interaction/tool-ask-user/src/index.ts`](../packages/interaction/tool-ask-user/src/index.ts))
+- `@aeven/tool-call-timeout-policy` — requires `tools` ([`packages/guard/timeout-policy/src/index.ts`](../packages/guard/timeout-policy/src/index.ts))
+- `@aeven/tool-cordis` — requires `tools` · `systemPrompt` · `dynamicCordisRunner` · `cordisInspect` ([`packages/extensions/tool-cordis/src/index.ts`](../packages/extensions/tool-cordis/src/index.ts))
+- `@aeven/tool-device` — requires `tools` ([`packages/device/tool-device/src/index.ts`](../packages/device/tool-device/src/index.ts))
+- `@aeven/tool-subagent-control` — requires `tools` · `subagents` ([`packages/subagent/tool-subagent-control/src/index.ts`](../packages/subagent/tool-subagent-control/src/index.ts))
+- `@aeven/user-questions` ([`packages/interaction/user-questions/src/index.ts`](../packages/interaction/user-questions/src/index.ts))
+- `@aeven/webhook` — requires `agents` · `agentDefaultModel` · `agentPresets` · `permissionPresets` · `sessionTitle` · `workspaceRegistry` ([`packages/webhook/webhook/src/index.ts`](../packages/webhook/webhook/src/index.ts))
 
-## Seam 包（不可直接加载）
+## Seam packages (not directly loadable)
 
-抽象服务类——部署时应改为加载具体的实现包（参见[能力 seam](../.agents/notes/implemented/architecture/2026-06-13-capability-seams.zh.md)）。
+Abstract service classes — a deployment loads a concrete implementation package instead ([capability seams](../.agents/notes/implemented/architecture/2026-06-13-capability-seams.zh.md)).
 
-- `@aeven/attachment` — 抽象 `AttachmentStore`（[`packages/attachment/attachment/src/index.ts`](../packages/attachment/attachment/src/index.ts)）
-- `@aeven/code-runtime` — 抽象 `CodeRuntime`（[`packages/code-runtime/code-runtime/src/index.ts`](../packages/code-runtime/code-runtime/src/index.ts)）
-- `@aeven/compaction` — 抽象 `CompactionEngine`（[`packages/compaction/compaction/src/index.ts`](../packages/compaction/compaction/src/index.ts)）
-- `@aeven/credentials` — 抽象 `Credentials`（[`packages/credentials/credentials/src/index.ts`](../packages/credentials/credentials/src/index.ts)）
-- `@aeven/file-reference` — 抽象 `FileReferenceService`（[`packages/context/file-reference/src/index.ts`](../packages/context/file-reference/src/index.ts)）
-- `@aeven/fs` — 抽象 `FileSystem`（[`packages/fs/fs/src/index.ts`](../packages/fs/fs/src/index.ts)）
-- `@aeven/host-directory-picker` — 抽象 `DirectoryPicker`（[`packages/host/directory-picker/src/index.ts`](../packages/host/directory-picker/src/index.ts)）
-- `@aeven/jobs` — 抽象 `JobRegistry`（[`packages/jobs/jobs/src/index.ts`](../packages/jobs/jobs/src/index.ts)）
-- `@aeven/sandbox` — 抽象 `SandboxProvider`（[`packages/sandbox/sandbox/src/index.ts`](../packages/sandbox/sandbox/src/index.ts)）
-- `@aeven/session-persistence` — 抽象 `SessionPersistence`（[`packages/session/session-persistence/src/index.ts`](../packages/session/session-persistence/src/index.ts)）
-- `@aeven/session-query` — 抽象 `SessionQueryEngine`（[`packages/session-query/session-query/src/index.ts`](../packages/session-query/session-query/src/index.ts)）
-- `@aeven/settings` — 抽象 `Settings`（[`packages/settings/settings/src/index.ts`](../packages/settings/settings/src/index.ts)）
-- `@aeven/shell` — 抽象 `ShellExecutor`（[`packages/shell/shell/src/index.ts`](../packages/shell/shell/src/index.ts)）
-- `@aeven/spill` — 抽象 `SpillStore`（[`packages/spill/spill/src/index.ts`](../packages/spill/spill/src/index.ts)）
-- `@aeven/subprocess` — 抽象 `SubprocessRuntime`（[`packages/subprocess/subprocess/src/index.ts`](../packages/subprocess/subprocess/src/index.ts)）
-- `@aeven/workflow` — 抽象 `WorkflowEngine`（[`packages/workflow/workflow/src/index.ts`](../packages/workflow/workflow/src/index.ts)）
+- `@aeven/attachment` — abstract `AttachmentStore` ([`packages/attachment/attachment/src/index.ts`](../packages/attachment/attachment/src/index.ts))
+- `@aeven/code-runtime` — abstract `CodeRuntime` ([`packages/code-runtime/code-runtime/src/index.ts`](../packages/code-runtime/code-runtime/src/index.ts))
+- `@aeven/compaction` — abstract `CompactionEngine` ([`packages/compaction/compaction/src/index.ts`](../packages/compaction/compaction/src/index.ts))
+- `@aeven/credentials` — abstract `CredentialProvider` ([`packages/credentials/credentials/src/index.ts`](../packages/credentials/credentials/src/index.ts))
+- `@aeven/file-reference` — abstract `FileReferenceService` ([`packages/context/file-reference/src/index.ts`](../packages/context/file-reference/src/index.ts))
+- `@aeven/fs` — abstract `FileSystem` ([`packages/fs/fs/src/index.ts`](../packages/fs/fs/src/index.ts))
+- `@aeven/host-directory-picker` — abstract `DirectoryPicker` ([`packages/host/directory-picker/src/index.ts`](../packages/host/directory-picker/src/index.ts))
+- `@aeven/jobs` — abstract `JobRegistry` ([`packages/jobs/jobs/src/index.ts`](../packages/jobs/jobs/src/index.ts))
+- `@aeven/sandbox` — abstract `SandboxProvider` ([`packages/sandbox/sandbox/src/index.ts`](../packages/sandbox/sandbox/src/index.ts))
+- `@aeven/session-persistence` — abstract `SessionPersistence` ([`packages/session/session-persistence/src/index.ts`](../packages/session/session-persistence/src/index.ts))
+- `@aeven/session-query` — abstract `SessionQueryEngine` ([`packages/session-query/session-query/src/index.ts`](../packages/session-query/session-query/src/index.ts))
+- `@aeven/settings` — abstract `SettingsProvider` ([`packages/settings/settings/src/index.ts`](../packages/settings/settings/src/index.ts))
+- `@aeven/shell` — abstract `ShellExecutor` ([`packages/shell/shell/src/index.ts`](../packages/shell/shell/src/index.ts))
+- `@aeven/spill` — abstract `SpillStore` ([`packages/spill/spill/src/index.ts`](../packages/spill/spill/src/index.ts))
+- `@aeven/subprocess` — abstract `SubprocessRuntime` ([`packages/subprocess/subprocess/src/index.ts`](../packages/subprocess/subprocess/src/index.ts))
+- `@aeven/workflow` — abstract `WorkflowEngine` ([`packages/workflow/workflow/src/index.ts`](../packages/workflow/workflow/src/index.ts))
 
-## 库包（无插件入口）
+## Library packages (no plugin entry)
 
-由其他包作为库导入；`cordis.yml` 无法加载它们。
+Imported as libraries by other packages; a `cordis.yml` cannot load them.
 
-- `@aeven/agent-loop-testkit`（[`packages/test-support/agent-loop-testkit/src/index.ts`](../packages/test-support/agent-loop-testkit/src/index.ts)）
-- `@aeven/anonymous-user-id`（[`packages/identity/anonymous-user-id/src/index.ts`](../packages/identity/anonymous-user-id/src/index.ts)）
-- `@aeven/app-boot`（[`packages/boot/app-boot/src/index.ts`](../packages/boot/app-boot/src/index.ts)）
-- `@aeven/atomic-write`（[`packages/util/atomic-write/src/index.ts`](../packages/util/atomic-write/src/index.ts)）
-- `@aeven/base`（[`packages/bundle/base/src/index.ts`](../packages/bundle/base/src/index.ts)）
-- `@aeven/brand`（[`packages/util/brand/src/index.ts`](../packages/util/brand/src/index.ts)）
-- `@aeven/client-hypermarkdown`（[`packages/client/hypermarkdown/src/index.ts`](../packages/client/hypermarkdown/src/index.ts)）
-- `@aeven/client-store`（[`packages/client/store/src/index.ts`](../packages/client/store/src/index.ts)）
-- `@aeven/client-test-runtime`（[`packages/test-support/client-runtime/src/index.ts`](../packages/test-support/client-runtime/src/index.ts)）
+- `@aeven/agent-loop-testkit` ([`packages/test-support/agent-loop-testkit/src/index.ts`](../packages/test-support/agent-loop-testkit/src/index.ts))
+- `@aeven/anonymous-user-id` ([`packages/identity/anonymous-user-id/src/index.ts`](../packages/identity/anonymous-user-id/src/index.ts))
+- `@aeven/app-boot` ([`packages/boot/app-boot/src/index.ts`](../packages/boot/app-boot/src/index.ts))
+- `@aeven/atomic-write` ([`packages/util/atomic-write/src/index.ts`](../packages/util/atomic-write/src/index.ts))
+- `@aeven/base` ([`packages/bundle/base/src/index.ts`](../packages/bundle/base/src/index.ts))
+- `@aeven/brand` ([`packages/util/brand/src/index.ts`](../packages/util/brand/src/index.ts))
+- `@aeven/client-hypermarkdown` ([`packages/client/hypermarkdown/src/index.ts`](../packages/client/hypermarkdown/src/index.ts))
+- `@aeven/client-store` ([`packages/client/store/src/index.ts`](../packages/client/store/src/index.ts))
+- `@aeven/client-test-runtime` ([`packages/test-support/client-runtime/src/index.ts`](../packages/test-support/client-runtime/src/index.ts))
 - `@aeven/client-ui-auth-aeven` ([`packages/client/ui-auth-aeven/src/index.ts`](../packages/client/ui-auth-aeven/src/index.ts))
-- `@aeven/client-ui-primitives`（[`packages/client/ui-primitives/src/index.ts`](../packages/client/ui-primitives/src/index.ts)）
-- `@aeven/client-ui-slots`（[`packages/client/ui-slots/src/index.ts`](../packages/client/ui-slots/src/index.ts)）
-- `@aeven/client-web`（[`packages/client/web/src/index.ts`](../packages/client/web/src/index.ts)）
-- `@aeven/cmdline`（[`packages/boot/cmdline/src/index.ts`](../packages/boot/cmdline/src/index.ts)）
+- `@aeven/client-ui-primitives` ([`packages/client/ui-primitives/src/index.ts`](../packages/client/ui-primitives/src/index.ts))
+- `@aeven/client-ui-slots` ([`packages/client/ui-slots/src/index.ts`](../packages/client/ui-slots/src/index.ts))
+- `@aeven/client-web` ([`packages/client/web/src/index.ts`](../packages/client/web/src/index.ts))
+- `@aeven/cmdline` ([`packages/boot/cmdline/src/index.ts`](../packages/boot/cmdline/src/index.ts))
 - `@aeven/computer-use-benchmark` ([`packages/computer-use/computer-use-benchmark/src/index.ts`](../packages/computer-use/computer-use-benchmark/src/index.ts))
 - `@aeven/computer-use-desktop` ([`packages/computer-use/computer-use-desktop/src/index.ts`](../packages/computer-use/computer-use-desktop/src/index.ts))
 - `@aeven/computer-use-executor` ([`packages/computer-use/computer-use-executor/src/index.ts`](../packages/computer-use/computer-use-executor/src/index.ts))
@@ -3990,35 +4999,35 @@ export interface Config {
 - `@aeven/computer-use-session` ([`packages/computer-use/computer-use-session/src/index.ts`](../packages/computer-use/computer-use-session/src/index.ts))
 - `@aeven/computer-use-tasks` ([`packages/computer-use/computer-use-tasks/src/index.ts`](../packages/computer-use/computer-use-tasks/src/index.ts))
 - `@aeven/computer-use-windows` ([`packages/computer-use/computer-use-windows/src/index.ts`](../packages/computer-use/computer-use-windows/src/index.ts))
-- `@aeven/deque`（[`packages/util/deque/src/index.ts`](../packages/util/deque/src/index.ts)）
-- `@aeven/experimental-agent-team-profile`（[`packages/experimental/agent-team-profile/src/index.ts`](../packages/experimental/agent-team-profile/src/index.ts)）
-- `@aeven/experimental-agent-team-web-profile`（[`packages/experimental/agent-team-web-profile/src/index.ts`](../packages/experimental/agent-team-web-profile/src/index.ts)）
-- `@aeven/experimental-browser-overlay`（[`packages/experimental/browser-overlay/src/index.ts`](../packages/experimental/browser-overlay/src/index.ts)）
-- `@aeven/experimental-webworker-packer`（[`packages/experimental/webworker-packer/src/index.ts`](../packages/experimental/webworker-packer/src/index.ts)）
-- `@aeven/experimental-webworker-runtime`（[`packages/experimental/webworker-runtime/src/index.ts`](../packages/experimental/webworker-runtime/src/index.ts)）
-- `@aeven/home-paths`（[`packages/util/home-paths/src/index.ts`](../packages/util/home-paths/src/index.ts)）
-- `@aeven/hook-protocol`（[`packages/hooks/hook-protocol/src/index.ts`](../packages/hooks/hook-protocol/src/index.ts)）
-- `@aeven/http-proxy`（[`packages/util/http-proxy/src/index.ts`](../packages/util/http-proxy/src/index.ts)）
-- `@aeven/launch-environment`（[`packages/util/launch-environment/src/index.ts`](../packages/util/launch-environment/src/index.ts)）
-- `@aeven/llm-mock-server`（[`packages/test-support/llm-mock-server/src/index.ts`](../packages/test-support/llm-mock-server/src/index.ts)）
-- `@aeven/loader-smoke`（[`packages/test-support/loader-smoke/src/index.ts`](../packages/test-support/loader-smoke/src/index.ts)）
-- `@aeven/native-command`（[`packages/util/native-command/src/index.ts`](../packages/util/native-command/src/index.ts)）
-- `@aeven/output-retention`（[`packages/util/output-retention/src/index.ts`](../packages/util/output-retention/src/index.ts)）
-- `@aeven/sandbox-windows-acl`（[`packages/sandbox/sandbox-windows-acl/src/index.ts`](../packages/sandbox/sandbox-windows-acl/src/index.ts)）
-- `@aeven/scope`（[`packages/core/scope/src/index.ts`](../packages/core/scope/src/index.ts)）
-- `@aeven/sdk-client`（[`packages/sdk/client/src/index.ts`](../packages/sdk/client/src/index.ts)）
-- `@aeven/sdk-minimal`（[`packages/bundle/sdk-minimal/src/index.ts`](../packages/bundle/sdk-minimal/src/index.ts)）
-- `@aeven/sdk-protocol`（[`packages/sdk/protocol/src/index.ts`](../packages/sdk/protocol/src/index.ts)）
-- `@aeven/session-snapshot`（[`packages/test-support/session-snapshot/src/index.ts`](../packages/test-support/session-snapshot/src/index.ts)）
-- `@aeven/session-telemetry`（[`packages/session/session-telemetry/src/index.ts`](../packages/session/session-telemetry/src/index.ts)）
-- `@aeven/session-title-llm`（[`packages/session/session-title-llm/src/index.ts`](../packages/session/session-title-llm/src/index.ts)）
-- `@aeven/subagent-in-process-driver`（[`packages/subagent/subagent-in-process-driver/src/index.ts`](../packages/subagent/subagent-in-process-driver/src/index.ts)）
-- `@aeven/timeout`（[`packages/util/timeout/src/index.ts`](../packages/util/timeout/src/index.ts)）
-- `@aeven/typert-generator`（[`packages/typert/generator/src/index.ts`](../packages/typert/generator/src/index.ts)）
-- `@aeven/typert-protocol`（[`packages/typert/protocol/src/index.ts`](../packages/typert/protocol/src/index.ts)）
-- `@aeven/typert-registry`（[`packages/typert/registry/src/index.ts`](../packages/typert/registry/src/index.ts)）
-- `@aeven/util-crypto`（[`packages/util/crypto/src/index.ts`](../packages/util/crypto/src/index.ts)）
-- `@aeven/util-time`（[`packages/util/time/src/index.ts`](../packages/util/time/src/index.ts)）
-- `@aeven/util-values`（[`packages/util/values/src/index.ts`](../packages/util/values/src/index.ts)）
-- `@aeven/util-workspace-path`（[`packages/util/workspace-path/src/index.ts`](../packages/util/workspace-path/src/index.ts)）
-- `@aeven/win32-process`（[`packages/subprocess/win32-process/src/index.ts`](../packages/subprocess/win32-process/src/index.ts)）
+- `@aeven/deque` ([`packages/util/deque/src/index.ts`](../packages/util/deque/src/index.ts))
+- `@aeven/experimental-agent-team-profile` ([`packages/experimental/agent-team-profile/src/index.ts`](../packages/experimental/agent-team-profile/src/index.ts))
+- `@aeven/experimental-agent-team-web-profile` ([`packages/experimental/agent-team-web-profile/src/index.ts`](../packages/experimental/agent-team-web-profile/src/index.ts))
+- `@aeven/experimental-browser-overlay` ([`packages/experimental/browser-overlay/src/index.ts`](../packages/experimental/browser-overlay/src/index.ts))
+- `@aeven/experimental-webworker-packer` ([`packages/experimental/webworker-packer/src/index.ts`](../packages/experimental/webworker-packer/src/index.ts))
+- `@aeven/experimental-webworker-runtime` ([`packages/experimental/webworker-runtime/src/index.ts`](../packages/experimental/webworker-runtime/src/index.ts))
+- `@aeven/home-paths` ([`packages/util/home-paths/src/index.ts`](../packages/util/home-paths/src/index.ts))
+- `@aeven/hook-protocol` ([`packages/hooks/hook-protocol/src/index.ts`](../packages/hooks/hook-protocol/src/index.ts))
+- `@aeven/http-proxy` ([`packages/util/http-proxy/src/index.ts`](../packages/util/http-proxy/src/index.ts))
+- `@aeven/launch-environment` ([`packages/util/launch-environment/src/index.ts`](../packages/util/launch-environment/src/index.ts))
+- `@aeven/llm-mock-server` ([`packages/test-support/llm-mock-server/src/index.ts`](../packages/test-support/llm-mock-server/src/index.ts))
+- `@aeven/loader-smoke` ([`packages/test-support/loader-smoke/src/index.ts`](../packages/test-support/loader-smoke/src/index.ts))
+- `@aeven/native-command` ([`packages/util/native-command/src/index.ts`](../packages/util/native-command/src/index.ts))
+- `@aeven/output-retention` ([`packages/util/output-retention/src/index.ts`](../packages/util/output-retention/src/index.ts))
+- `@aeven/sandbox-windows-acl` ([`packages/sandbox/sandbox-windows-acl/src/index.ts`](../packages/sandbox/sandbox-windows-acl/src/index.ts))
+- `@aeven/scope` ([`packages/core/scope/src/index.ts`](../packages/core/scope/src/index.ts))
+- `@aeven/sdk-client` ([`packages/sdk/client/src/index.ts`](../packages/sdk/client/src/index.ts))
+- `@aeven/sdk-minimal` ([`packages/bundle/sdk-minimal/src/index.ts`](../packages/bundle/sdk-minimal/src/index.ts))
+- `@aeven/sdk-protocol` ([`packages/sdk/protocol/src/index.ts`](../packages/sdk/protocol/src/index.ts))
+- `@aeven/session-snapshot` ([`packages/test-support/session-snapshot/src/index.ts`](../packages/test-support/session-snapshot/src/index.ts))
+- `@aeven/session-telemetry` ([`packages/session/session-telemetry/src/index.ts`](../packages/session/session-telemetry/src/index.ts))
+- `@aeven/session-title-llm` ([`packages/session/session-title-llm/src/index.ts`](../packages/session/session-title-llm/src/index.ts))
+- `@aeven/subagent-in-process-driver` ([`packages/subagent/subagent-in-process-driver/src/index.ts`](../packages/subagent/subagent-in-process-driver/src/index.ts))
+- `@aeven/timeout` ([`packages/util/timeout/src/index.ts`](../packages/util/timeout/src/index.ts))
+- `@aeven/typert-generator` ([`packages/typert/generator/src/index.ts`](../packages/typert/generator/src/index.ts))
+- `@aeven/typert-protocol` ([`packages/typert/protocol/src/index.ts`](../packages/typert/protocol/src/index.ts))
+- `@aeven/typert-registry` ([`packages/typert/registry/src/index.ts`](../packages/typert/registry/src/index.ts))
+- `@aeven/util-crypto` ([`packages/util/crypto/src/index.ts`](../packages/util/crypto/src/index.ts))
+- `@aeven/util-time` ([`packages/util/time/src/index.ts`](../packages/util/time/src/index.ts))
+- `@aeven/util-values` ([`packages/util/values/src/index.ts`](../packages/util/values/src/index.ts))
+- `@aeven/util-workspace-path` ([`packages/util/workspace-path/src/index.ts`](../packages/util/workspace-path/src/index.ts))
+- `@aeven/win32-process` ([`packages/subprocess/win32-process/src/index.ts`](../packages/subprocess/win32-process/src/index.ts))

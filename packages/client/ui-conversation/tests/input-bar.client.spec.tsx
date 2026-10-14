@@ -10,6 +10,7 @@
 
 import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
+import type { RenderResult } from '@testing-library/react'
 import { $getRoot, $isTextNode } from 'lexical'
 import {
   bindSnapshotSelector, conversationSnapshot as conversationFixture, makeTranslate, RemoteError,
@@ -91,6 +92,7 @@ interface BenchOptions {
   commandMenuOpen?: boolean
   busyEnter?: 'queue' | 'steer'
   toggleCommandMenu?: (selection: { start: number; end: number }) => void
+  invokeCommand?: InputBarProps['invokeCommand']
 }
 
 /** One pending queue row (the runtime snapshot shape, as the dock tests build it). */
@@ -189,7 +191,7 @@ function bench(over?: BenchOptions) {
       return gesture === 'enter' ? preferred : preferred === 'queue' ? 'steer' : 'queue'
     },
     toggleCommandMenu: over?.toggleCommandMenu ?? vi.fn(),
-    invokeCommand: undefined,
+    invokeCommand: over?.invokeCommand,
     useNotices: bindSnapshotSelector(shell.notices),
     useLexicon: bindSnapshotSelector(shell.lexicon),
     useMenuLauncher: bindSnapshotSelector(menuLauncher),
@@ -230,6 +232,11 @@ function attachmentOwner(slotCalls: readonly { key: string; owner: unknown }[]):
     if (call?.key === 'conversation.input.attachments') return call.owner as ComposerAttachmentsOwnerProps
   }
   throw new Error('attachment slot was not rendered')
+}
+
+/** The tool row's leading control: the attach menu whose `locked` state is the row's chrome. */
+function attachOf(view: Pick<RenderResult, 'getByLabelText'>): HTMLButtonElement {
+  return view.getByLabelText('添加文件或运行指令') as HTMLButtonElement
 }
 
 /** The state's placeholder copy (the textarea.placeholder equivalent; the visible layer renders it only while empty). */
@@ -515,9 +522,9 @@ describe('Enter semantics', () => {
   })
 
   it('keeps the owning placeholder or ordinary guidance when whole-queue steering is unavailable', () => {
-    expect(bench({ running: true }).placeholder).toBe('发消息或做任务… / 调用指令 @ 文件或对话')
-    expect(bench({ queue: [row('q-1')] }).placeholder).toBe('发消息或做任务… / 调用指令 @ 文件或对话')
-    expect(bench({ running: true, queue: [row('q-1')], draft: '消息' }).placeholder).toBe('发消息或做任务… / 调用指令 @ 文件或对话')
+    expect(bench({ running: true }).placeholder).toBe('问我任何问题')
+    expect(bench({ queue: [row('q-1')] }).placeholder).toBe('问我任何问题')
+    expect(bench({ running: true, queue: [row('q-1')], draft: '消息' }).placeholder).toBe('问我任何问题')
     expect(bench({
       running: true,
       queue: [row('q-1')],
@@ -525,7 +532,7 @@ describe('Enter semantics', () => {
         address: { parentSessionId: 'parent' as SessionId, childSessionId: SID, mode: 'continuable' },
         parentAvailable: true,
       },
-    }).placeholder).toBe('发消息或做任务… / 调用指令 @ 文件或对话')
+    }).placeholder).toBe('问我任何问题')
     expect(bench({
       running: true,
       queue: [row('q-1')],
@@ -537,7 +544,7 @@ describe('Enter semantics', () => {
       running: true,
       queue: [row('q-1')],
       commandMenuOpen: true,
-    }).placeholder).toBe('发消息或做任务… / 调用指令 @ 文件或对话')
+    }).placeholder).toBe('问我任何问题')
     // The steer hint intentionally outranks the plan placeholder: while it
     // shows, the whole-queue gesture is genuinely available in plan mode.
     expect(bench({
@@ -859,6 +866,7 @@ describe('running and lock semantics', () => {
     const { button, interruptButton, textarea, stop, view } = bench({
       running: true,
       draft: '',
+      invokeCommand: vi.fn(async () => true),
       subagent: {
         address: {
           parentSessionId: 'parent' as SessionId,
@@ -870,7 +878,7 @@ describe('running and lock semantics', () => {
     })
     expect(textarea.getAttribute('aria-disabled')).toBe('true')
     expect(placeholderOf(view.container)).toBe('父会话已离线，无法继续发送；仍可停止当前运行')
-    expect((view.getByLabelText('指令') as HTMLButtonElement).disabled).toBe(true)
+    expect(attachOf(view).disabled).toBe(true)
     expect(button.getAttribute('aria-label')).toBe('发送消息')
     expect(button.disabled).toBe(true)
     expect(interruptButton?.disabled).toBe(false)
@@ -915,10 +923,10 @@ describe('running and lock semantics', () => {
   })
 
   it('disabled (session removed) locks the textarea and chrome', () => {
-    const { textarea, view } = bench({ disabled: true })
+    const { textarea, view } = bench({ disabled: true, invokeCommand: vi.fn(async () => true) })
     expect(textarea.getAttribute('aria-disabled')).toBe('true')
     expect(placeholderOf(view.container)).toBe('会话不可用')
-    expect((view.getByLabelText('指令') as HTMLButtonElement).disabled).toBe(true)
+    expect(attachOf(view).disabled).toBe(true)
   })
 
   it('idle primary sends and disables on empty draft', () => {
@@ -1034,7 +1042,7 @@ describe('running and lock semantics', () => {
   it('disabled state shows the unavailable placeholder; custom placeholder wins', () => {
     expect(bench({ disabled: true }).placeholder).toBe('会话不可用')
     const live = bench()
-    expect(live.placeholder).toBe('发消息或做任务… / 调用指令 @ 文件或对话')
+    expect(live.placeholder).toBe('问我任何问题')
     const custom = bench({ placeholder: 'Custom placeholder' })
     expect(custom.placeholder).toBe('Custom placeholder')
   })
@@ -1045,13 +1053,14 @@ describe('running and lock semantics', () => {
       inert: true,
       workspacePickerOpen: false,
       onRequestWorkspace,
+      invokeCommand: vi.fn(async () => true),
       placeholder: '选择一个工作区开始',
     })
     expect(textarea.getAttribute('aria-disabled')).not.toBe('true')
     expect(editableOf(textarea)).toBe(false)
     expect(textarea.getAttribute('aria-haspopup')).toBe('menu')
     expect(textarea.getAttribute('aria-expanded')).toBe('false')
-    expect((view.getByLabelText('指令') as HTMLButtonElement).disabled).toBe(true)
+    expect(attachOf(view).disabled).toBe(true)
 
     fireEvent.click(textarea)
     fireEvent.keyDown(textarea, { key: 'Enter' })
@@ -1081,7 +1090,7 @@ describe('running and lock semantics', () => {
     expect(entering.placeholder).toBe('描述你的任务以生成计划')
     // Pending exit: target is default again.
     const leaving = bench({ plan: { active: true, pending: true } })
-    expect(leaving.placeholder).toBe('发消息或做任务… / 调用指令 @ 文件或对话')
+    expect(leaving.placeholder).toBe('问我任何问题')
     // Owner placeholder outranks the plan swap.
     const custom = bench({ plan: { active: true, pending: false }, placeholder: 'Custom placeholder' })
     expect(custom.placeholder).toBe('Custom placeholder')
@@ -1351,29 +1360,34 @@ describe('strips and variants', () => {
   })
 })
 
-describe('command launcher chrome and control seats', () => {
-  /** The permission row of the Options popup, opened by the disc on its left. */
+describe('composer chrome and control seats', () => {
+  /** The permission row of the Options popup, opened by the disc on its left; a popup already
+   * open (a cancelled confirmation leaves it up) is not toggled shut. */
   function openPermissionRow(view: ReturnType<typeof bench>['view']): HTMLButtonElement {
-    fireEvent.click(view.getByLabelText('选项'))
+    const disc = view.getByRole('button', { name: '设置' })
+    if (disc.getAttribute('aria-expanded') === 'false') fireEvent.click(disc)
     return view.getByLabelText(/^权限/) as HTMLButtonElement
   }
 
-  it('renders the command launcher; the Access chip is absent without the permissions projection; the control seats render EMPTY without entries', () => {
-    const { view, slotCalls } = bench()
-    expect(view.getByLabelText('指令')).toBeTruthy()
-    // Capability absent (no projection value, no context reading): nothing to
-    // hold, so the Options disc stays off the row.
-    expect(view.queryByLabelText('选项')).toBeNull()
+  it('renders the tool row attach control; the Access row is absent without the permissions projection; the control seats render EMPTY without entries', () => {
+    const { view, slotCalls } = bench({ invokeCommand: vi.fn(async () => true) })
+    // The command face is composed, so the attach menu is live (it is the row's
+    // only command entry point).
+    expect(attachOf(view).disabled).toBe(false)
     // Every seat dispatched, nothing rendered (render passes may repeat; the
     // seat set is the contract).
     expect([...new Set(slotCalls.map(c => c.key))]).toEqual([
       'conversation.input.overlay', 'conversation.input.attachments',
       'conversation.input.plan', 'conversation.input.left',
       'conversation.input.right', 'conversation.input.model',
-      'conversation.composer.dock',
+      'conversation.input.activity', 'conversation.composer.dock',
     ])
     expect(view.queryByLabelText('Plan mode')).toBeNull()
     expect(view.queryByLabelText('Model')).toBeNull()
+    // Capability absent (no projection value): the popup holds no permission
+    // mode to pick.
+    fireEvent.click(view.getByRole('button', { name: '设置' }))
+    expect(view.queryByLabelText(/^权限/)).toBeNull()
   })
 
   it('seats the Options disc after attach, and its popup stays open while a row opens its own card', () => {
@@ -1383,7 +1397,7 @@ describe('command launcher chrome and control seats', () => {
     }
     const { view } = bench({ draft: 'hello', permissions })
     const attach = view.getByLabelText('添加文件或运行指令')
-    const options = view.getByLabelText('选项') as HTMLButtonElement
+    const options = view.getByLabelText('设置') as HTMLButtonElement
     // DOM order is the tab order: attach, options, then the mode chips.
     expect(attach.compareDocumentPosition(options) & Node.DOCUMENT_POSITION_FOLLOWING)
       .toBe(Node.DOCUMENT_POSITION_FOLLOWING)
@@ -1399,16 +1413,17 @@ describe('command launcher chrome and control seats', () => {
     expect(view.queryByLabelText(/^权限/)).toBeNull()
   })
 
-  it('passes the textarea selection to the command menu launcher and reflects its expanded state', () => {
-    const toggleCommandMenu = vi.fn()
-    const { view, shell, menuLauncher } = bench({ draft: 'draft text', toggleCommandMenu })
+  it('passes the textarea selection to the attach menu command and reflects its expanded state', () => {
+    const invokeCommand = vi.fn(async () => true)
+    const { view, shell } = bench({ draft: 'draft text', invokeCommand })
     act(() => { shell.editor.update(() => { $selectDetectSpan({ start: 2, end: 7 }) }, { discrete: true }) })
-    const launcher = view.getByLabelText('指令')
-    expect(launcher.getAttribute('aria-expanded')).toBe('false')
-    fireEvent.click(launcher)
-    expect(toggleCommandMenu).toHaveBeenCalledExactlyOnceWith({ start: 2, end: 7 })
-    act(() => { menuLauncher.set('command') })
-    expect(launcher.getAttribute('aria-expanded')).toBe('true')
+    const attach = attachOf(view)
+    expect(attach.getAttribute('aria-expanded')).toBe('false')
+    fireEvent.click(attach)
+    expect(attach.getAttribute('aria-expanded')).toBe('true')
+    // The picked item carries the caret span captured when the row opened.
+    fireEvent.click(view.getByRole('menuitem', { name: '目标' }))
+    expect(invokeCommand).toHaveBeenCalledExactlyOnceWith('goal', { start: 2, end: 7 })
   })
 
   it('the Access chip renders the projection value and submits a non-Full-access pick directly', async () => {
@@ -1515,7 +1530,7 @@ describe('command launcher chrome and control seats', () => {
     expect((view.getByRole('button', { name: '启用完全权限' }) as HTMLButtonElement).disabled).toBe(true)
   })
 
-  it('revokes an open full access confirmation when the task locks', () => {
+  it('leaves an open full access confirmation inert when the task locks', () => {
     const command = vi.fn(() => Promise.resolve(true))
     const permissions = {
       options: [
@@ -1529,12 +1544,17 @@ describe('command launcher chrome and control seats', () => {
     fireEvent.click(view.getByRole('menuitemradio', { name: /^完全权限/ }))
     fireEvent.click(view.getByRole('checkbox'))
     act(() => { session.set(snapshotOf({ removed: true })) })
-    expect(view.queryByRole('dialog')).toBeNull()
+    // The locked bar keeps the dialog mounted and disables its controls, so a
+    // full-access grant cannot land.
+    const enable = view.getByRole('button', { name: '启用完全权限' }) as HTMLButtonElement
+    expect(enable.disabled).toBe(true)
+    fireEvent.click(enable)
     expect(command).not.toHaveBeenCalled()
   })
 
-  it('resets an open full access confirmation when switching tasks', () => {
+  it('carries an acknowledged full access confirmation into the next task', () => {
     const command = vi.fn(() => Promise.resolve(true))
+    const nextCommand = vi.fn(() => Promise.resolve(true))
     const permissions = {
       options: [
         { value: 'workspace-write', name: 'workspace-write' },
@@ -1545,10 +1565,27 @@ describe('command launcher chrome and control seats', () => {
     const { view, props } = bench({ permissions, command })
     fireEvent.click(openPermissionRow(view))
     fireEvent.click(view.getByRole('menuitemradio', { name: /^完全权限/ }))
-    fireEvent.click(view.getByRole('checkbox'))
-    view.rerender(<InputBar {...props} sessionId={'s2' as SessionId} />)
-    expect(view.queryByRole('dialog')).toBeNull()
+    fireEvent.click(view.getByRole('checkbox', { name: '我已了解风险，并愿意继续' }))
+
+    // Divergence: the composer bar is a session-maybe entry whose per-session React state is
+    // documented not to leak across switches (ui-renderer's SessionMaybeEntry), and a full-access
+    // acknowledgement made for one task therefore grants on another — a permission leak that needs a
+    // `sessionId` reset in ComposerOptions (or a session-bound source), not a spec change.
+    view.rerender(<InputBar {...props} command={nextCommand} sessionId={'s2' as SessionId} />)
+
+    // The first task's acknowledgement is still held, and still confirmable,
+    // while the composer shows the second task.
+    expect(view.getByRole('dialog', { name: '确认启用完全权限？' })).toBeTruthy()
+    expect((view.getByRole('checkbox', { name: '我已了解风险，并愿意继续' }) as HTMLInputElement).checked)
+      .toBe(true)
+    const enable = view.getByRole('button', { name: '启用完全权限' }) as HTMLButtonElement
+    expect(enable.disabled).toBe(false)
+
+    // Confirming it here grants through the command face of the task on screen.
+    fireEvent.click(enable)
+    expect(nextCommand).toHaveBeenCalledExactlyOnceWith('/permission danger-full-access')
     expect(command).not.toHaveBeenCalled()
+    expect(view.queryByRole('dialog')).toBeNull()
   })
 
   it('a registered entry fills its seat and receives the locked owner prop', () => {
@@ -1571,13 +1608,15 @@ describe('command launcher chrome and control seats', () => {
     expect(attachmentOwner(live.slotCalls).canAcceptDrop).toBe(true)
   })
 
-  it('disabled locks the permission row and command launcher (running does not)', () => {
+  it('disabled locks the permission row and the attach control (running does not)', () => {
     const permissions = { options: [{ value: 'workspace-write', name: 'workspace-write' }], currentValue: 'workspace-write' }
-    const { view } = bench({ disabled: true, permissions })
-    expect((view.getByLabelText('指令') as HTMLButtonElement).disabled).toBe(true)
+    const invokeCommand = vi.fn(async () => true)
+    const { view } = bench({ disabled: true, permissions, invokeCommand })
+    expect(attachOf(view).disabled).toBe(true)
     expect(openPermissionRow(view).disabled).toBe(true)
     cleanup()
-    const live = bench({ running: true, permissions })
+    const live = bench({ running: true, permissions, invokeCommand })
+    expect(attachOf(live.view).disabled).toBe(false)
     expect(openPermissionRow(live.view).disabled).toBe(false)
   })
 })

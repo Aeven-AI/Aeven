@@ -35,7 +35,7 @@ export async function registerAgent(ctx: Context, rawId: string): Promise<Agent 
     whenIdle: () => Promise.resolve(),
     disposeScope: () => scopeFiber.dispose(),
   }
-  await ctx.agents.register(agent)
+  ctx.agents.register(agent)
   return agent
 }
 

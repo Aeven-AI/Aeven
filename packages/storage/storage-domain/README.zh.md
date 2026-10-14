@@ -156,6 +156,9 @@ domain.table('workspaces').update(id, (r) => ({ ...r, path: newPath }))
 - **没有数据迁移**——已存版本与 spec 不同的领域会在打开时拒绝（`version-mismatch`）；修改 schema 需要手工迁移已存数据。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

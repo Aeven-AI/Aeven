@@ -5,7 +5,7 @@ import type { ChatSettings } from '../src/chat-settings.ts'
 import { TranscriptViewPolicy } from '../src/client/transcript-view.ts'
 
 describe('TranscriptViewPolicy', () => {
-  it('defaults to Compact and publishes explicit choices before persistence settles', () => {
+  it('defaults to Normal and publishes explicit choices before persistence settles', () => {
     const host = stubSettingsScope<ChatSettings>()
     const observed: string[] = []
     let current = (): string => 'unconstructed'
@@ -19,11 +19,11 @@ describe('TranscriptViewPolicy', () => {
     const policy = new TranscriptViewPolicy(scope)
     current = () => policy.mode.getSnapshot()
 
-    expect(policy.mode.getSnapshot()).toBe('compact')
-    policy.setMode('normal')
     expect(policy.mode.getSnapshot()).toBe('normal')
-    expect(observed).toEqual(['transcriptView=normal:normal'])
-    expect(host.set).toHaveBeenCalledWith('transcriptView', 'normal')
+    policy.setMode('extended')
+    expect(policy.mode.getSnapshot()).toBe('extended')
+    expect(observed).toEqual(['transcriptView=extended:extended'])
+    expect(host.set).toHaveBeenCalledWith('transcriptView', 'extended')
   })
 
   it('adopts Host state and ignores identical writes', () => {

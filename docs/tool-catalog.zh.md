@@ -36,15 +36,24 @@
 | `@aeven/tool-lsp` | `lsp` | `ctx.tools`、`ctx.lsp`、`ctx.systemPrompt` | `tool/call`、`tool/result` | - | lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，因此其模型可见 schema 在更换提供方时保持稳定。运行时要求已注册提供方，例如 `@aeven/lsp-stdio`；如果没有提供方，查询会返回结构化 `LSP_UNAVAILABLE` 错误，而不会改变 schema。 |
 | `@aeven/tool-ralph` | `ralph` | `ctx.tools`、`ctx.workflowEngine`、`ctx.subagents`、`ctx.systemPrompt`、`a calling Agent (exec.agent parents every fresh round)` | `tool/call`、`tool/result`、`workflow and child session events during execution` | - | 固定的前台工作流会在每个 Round 启动一个全新的结构化子级；模型只能选择不可变目标和可选的 Round 上限。 |
 | `@aeven/tool-skill` | `skill` | `ctx.tools`、`ctx.agents`、`ctx.skills` | `tool/call`、`tool/result`、`user/message replacement catalogs via agent.inject()` | - | - |
+| `@aeven/tool-search` | `tool_search` | `ctx.tools`、`ctx.systemPrompt`、`mcp/servers listeners (opportunistic)`、`ctx.codeRuntime (opportunistic, for run_code declarations)` | `tool/call`、`tool/result`、`one plugin user message when the deferred tool index changes` | - | 只有在至少有一个工具被延迟、或至少一台执行延迟的 MCP 服务器未在服务时才呈现给模型。关键词查询只列出工具而不加载它们；`select:` 把 schema 加载到后续请求中，或在该请求呈现 `run_code` 时返回 SDK 声明；`restart:` 重新连接一台 MCP 服务器。 |
 | `@aeven/tool-session-query` | `session_event_read`、`session_event_search`、`session_event_trace`、`session_search`、`session_trace` | `ctx.tools`、`ctx.systemPrompt`、`ctx.sessionQuery`、`a calling Agent for workspace authority` | `tool/call`、`tool/result` | - | 这 5 个只读工具会隐藏提供方游标，并根据不可变的调用 agent 会话为每个结果授权。该包需要选择启用；需要强制截止时间或限制行内输出的组合还会挂载通用超时或 spill 策略。 |
 | `@aeven/tool-subagent` | `list_subagent_models`、`subagent` | `ctx.tools`、`ctx.subagents`、`ctx.systemPrompt`、`用于模型发现和所选路由校验的 ctx.llm` | `tool/call`、`tool/result`、`child session events through the chosen provider` | `subagent`、`subagent_fork` | 注册的委派工具名称取决于加载时 `toolName` 配置（默认为 `subagent`）；上述默认 schema 关闭模型选择，而发现 schema 则展示为已启用 Session 中可用的固定配套工具。Web preset 会在每个新顶层 Session 创建时读取插件页偏好，并为其子 Session 保留该决定；`subagent_fork` 始终使用固定路由。每个实例通过 `modelSelectionSettings`、`backgroundMode` 与 `enableRunInBackground` 独立控制是否读取模型选择设置及其后台行为。 |
 | `@aeven/tool-subagent-control` | `interrupt_agent`、`list_agents`、`send_message` | `ctx.tools`、`ctx.subagents`、`ctx.agents and ctx.sessionProjections (list_agents only)` | `tool/call`、`tool/result`、`child session events through ctx.subagents` | - | 这些是控制可继续后台 subagent 的全局命名工具：绑定提供方的 `tool-subagent` 实例注册不同的委派工具；本包注册一次 `send_message` 和 `interrupt_agent`，另由 `list_agents` 通过单独加载的 `/list-agents` 插件提供，其目录行使用 sessionProjections 和实时 Agent 注册表。 |
 | `@aeven/tool-jobs` | `job_kill`、`job_list`、`job_output` | `ctx.tools`、`ctx.jobs`、`ctx.systemPrompt` | `tool/call`、`tool/result`、`user/message via agent.inject() for background completion notices` | - | 与任务种类无关的后台任务控制器：后台 bash 命令、PTY 发送和 subagent 都通过相同的 3 个工具读取、列出和终止。加载该插件会挂接控制器，从而启用生产方的 `ctx.jobs.start()`。 |
 | `@aeven/experimental-tool-agent-team` | `followup_task`、`interrupt_agent`、`list_agents`、`send_message`、`spawn_teammate`、`team_task_create`、`team_task_get`、`team_task_list`、`team_task_update`、`wait_agent` | `ctx.tools`、`ctx.systemPrompt`、`ctx.agentTeams`、`an exact live Team member Agent` | `tool/call`、`team/member`、`team/message/queued`、`team/message/delivered`、`team/task`、`tool/result` | - | 这 10 个工具限定于隐式 Team Lead 与持久 teammate 作用域。随产品发布的 avn-base bundle 默认禁用该包；文档中的 Agent Teams profile patch 会启用它，并禁用旧 continuable child 的同名控制工具。 |
-| `@aeven/tool-media` | `generate_image` | `ctx.tools`、`ctx.media`、`ctx.attachments` | `tool/call`、`tool/result carrying one image block per stored image` | - | 本目录以未配置模型的形态挂载该工具，这种形态要求每次调用自行指明模型。设置了 `model` 的部署得到的是同一份 Schema；默认值不会进入描述。生成的字节经 `ctx.attachments` 存储，因此结果携带的图像块无需在此注册任何东西即可被会话卡片渲染。 |
+| `@aeven/tool-media` | `generate_image`、`generate_video` | `ctx.tools`、`ctx.media`、`ctx.attachments` | `tool/call`、`tool/result carrying one image block per stored image` | - | 本目录以未配置模型的形态挂载该工具，这种形态要求每次调用自行指明模型。设置了 `model` 的部署得到的是同一份 Schema；默认值不会进入描述。生成的字节经 `ctx.attachments` 存储，因此结果携带的图像块无需在此注册任何东西即可被会话卡片渲染。 |
 | `@aeven/tool-todo` | `todo_write` | `ctx.tools`、`owning Agent session` | `tool/call`、`todo/write`、`tool/result` | - | todo_write 是会话所有的状态；UI 将最新的 todo/write 事件渲染为检查清单。`allowParallelInProgress` 是没有默认值的必填项，因此本目录明确选择 `true`，对应描述允许同时存在多个 `in_progress` 项。选择 `false` 的部署会获得同一工具，但描述会要求只能有 1 个活动任务。 |
 | `@aeven/tool-workflow` | `workflow` | `ctx.tools`、`ctx.workflowEngine`、`ctx.systemPrompt`、`a calling Agent (exec.agent parents the script children)` | `tool/call`、`tool/result` | - | - |
 | `@aeven/tool-web` | `web_fetch`、`web_search` | `ctx.tools`、`ctx.web`、`ctx.systemPrompt` | `tool/call`、`tool/result` | - | web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可见 schema 在更换后端时保持稳定。 |
+| `@aeven/tool-browser` | `preview_back`、`preview_click`、`preview_evaluate`、`preview_forward`、`preview_navigate`、`preview_press`、`preview_reload`、`preview_screenshot`、`preview_scroll`、`preview_sequence`、`preview_snapshot`、`preview_status`、`preview_type`、`preview_upload` | `ctx.tools`、`ctx.agents`、`a browser/automation listener (execution time)` | `tool/call`、`tool/result` | - | preview_* 调用由持有该会话浏览器的客户端应答；每次调用都受工具超时上限约束。 |
+| `@aeven/tool-location` | `get_location` | `ctx.tools`、`ctx.agents`、`a location/request listener (execution time)` | `tool/call`、`tool/result` | - | get_location 由显示该会话的客户端在读者做出选择后应答；该调用受工具超时上限约束。 |
+| `@aeven/tool-capability` | `capability_manage` | `ctx.tools`、`ctx.systemPrompt`、`ctx.capabilities`、`ctx.llm`、`ctx.memory (default store)`、`an Agent whose session has an owner at execution time` | `tool/call`、`tool/result`、`capabilities/changed for the capabilities store`、`long-term memory for a learned procedure under the default store` | - | 注册的 action 取决于加载时的 `store` 配置：默认的 `memory` 会把学到的流程保存为长期记忆，且只注册 `learn` 与 `import`；`capabilities` 则把它保存为能力文件，并注册 list、view、learn、update、write_file、report、retire 与 restore。学习器与流程回忆都运行在同一包内，本身不贡献任何工具。 |
+| `@aeven/tool-device` | `device_close`、`device_list`、`device_open`、`device_screenshot` | `ctx.tools`、`ctx.devices (execution time)`、`ctx.attachments + ctx.llm on an image-capable route (device_screenshot)`、`a calling Agent for per-session device ownership` | `tool/call`、`tool/result`、`the session's device pane state`、`a durable image attachment for a screenshot` | - | 这 4 个工具在每个 Host 上都会注册；缺少 `ctx.devices`、关闭设备支持或没有 agent 访问权限的部署会返回各自的固定语句，而不是隐藏该工具。驱动设备要通过 `device_open` 返回的 agent-device CLI，而不是为每种设备操作提供一个工具。 |
+| `@aeven/tool-elevation` | - | `ctx.tools`、`ctx.approval`、`ctx.subprocess`、`a Windows host` | `tool/call`、`tool/result` | `elevated` | 仅限 Windows 的工具：用户在 Aeven 中批准这次运行，并在操作系统的授权提示中再次批准；拒绝会使调用失败，而不会以调用方自身的权限运行该命令。在非 Windows 上挂载本包的组合不会向模型提供任何内容。 |
+| `@aeven/tool-image-search` | `find_images` | `ctx.tools`、`ctx.attachments`、`ctx.llm`、`ctx.web (execution time)` | `tool/call`、`one durable image attachment per photograph or card`、`tool/result` | - | `find_images` 先读 Wikimedia Commons，再读 Web seam，因此没有 Web 提供方的部署仍能作答，并引用 Commons 所持有的照片。每张照片和每张新闻卡片都会成为持久图像附件，由客户端在 transcript（文本记录）中展示。 |
+| `@aeven/tool-mail` | `mail_accounts`、`mail_read`、`mail_search`、`mail_send`、`mail_update` | `ctx.tools`、`ctx.mail`、`a session owner with at least one usable mail account`、`a calling Agent for account addressing and approval routing` | `tool/call`、`tool/result`、`mail folder and message changes through ctx.mail`、`a saved attachment file inside the workspace` | - | 只有当某个 agent 的会话所有者至少有一个可用邮箱账户时，这些工具才会为该 agent 注册，因此未登录的会话或没有邮箱的所有者看不到任何邮件工具；发送与永久删除通过 ctx.approval 询问，其他策略给出的拒绝仍然优先。 |
+| `@aeven/tool-memory` | `memory_environments`、`memory_get`、`memory_remember`、`memory_search`、`memory_skill`、`memory_skills`、`memory_timeline` | `ctx.tools`、`ctx.memory` | `tool/call`、`tool/result`、`a remembered fact on memory_remember` | - | 只有在记忆提供方处于活动状态时才会注册，因此没有提供方的组合根本不会向模型展示任何记忆工具；这 7 个工具都读取提供方，且只有 `memory_remember` 会写入。 |
 
 <a id="aeventool-ask-user"></a>
 
@@ -116,6 +125,7 @@
 }
 ```
 
+
 来源：[`packages/interaction/tool-ask-user/src/index.ts`](../packages/interaction/tool-ask-user/src/index.ts)
 
 ask_user_question 会暂停工具调用，直到当前 UI 提供方返回人类答案。
@@ -148,6 +158,7 @@ ask_user_question 会暂停工具调用，直到当前 UI 提供方返回人类�
 }
 ```
 
+
 来源：[`packages/core/tools/src/ptc.ts`](../packages/core/tools/src/ptc.ts)
 
 在 `mode: ptc`／`mode: both` 下，它由工具注册表所有，作为可过滤能力层之外的保留传输机制（参见 PTC mode Agent Note）。在 `ptc` 下，它是注册表对协议格式的唯一贡献；其他可见能力在使用已加载运行时语言生成的 SDK 章节中声明。程序通过 binding 调用这些能力，调用按照原生并发约定调度：启动顺序和策略遵循提交顺序，并发安全的函数体最多重叠执行 `maxParallelSubCalls` 个。调用会重新进入完整且受守卫保护的工具流水线，并将每个嵌套执行关联到此外层结果。
@@ -174,6 +185,7 @@ ask_user_question 会暂停工具调用，直到当前 UI 提供方返回人类�
   ]
 }
 ```
+
 
 来源：[`packages/plan/plan-mode/src/index.ts`](../packages/plan/plan-mode/src/index.ts)
 
@@ -219,6 +231,7 @@ ask_user_question 会暂停工具调用，直到当前 UI 提供方返回人类�
 }
 ```
 
+
 来源：[`packages/shell/tool-bash/src/index.ts`](../packages/shell/tool-bash/src/index.ts)
 
 bash 工具是 bash 执行器 seam 面向模型的消费方。使用 `run_in_background` 的运行会注册到通用 `ctx.jobs` 运行时，并通过 `job_*` 工具（来自 `@aeven/tool-jobs`）收集／停止；禁用 `enableRunInBackground` 配置（默认为 true）后，该参数会被完全移除。
@@ -262,6 +275,7 @@ bash 工具是 bash 执行器 seam 面向模型的消费方。使用 `run_in_bac
   ]
 }
 ```
+
 
 来源：[`packages/shell/tool-pwsh/src/index.ts`](../packages/shell/tool-pwsh/src/index.ts)
 
@@ -351,6 +365,7 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
 }
 ```
 
+
 来源：[`packages/extensions/tool-cordis/src/index.ts`](../packages/extensions/tool-cordis/src/index.ts)
 
 ### `cordis_inspect_list`
@@ -363,6 +378,7 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
   "properties": {}
 }
 ```
+
 
 来源：[`packages/extensions/tool-cordis/src/index.ts`](../packages/extensions/tool-cordis/src/index.ts)
 
@@ -402,6 +418,7 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
 }
 ```
 
+
 来源：[`packages/extensions/tool-cordis/src/index.ts`](../packages/extensions/tool-cordis/src/index.ts)
 
 ### `cordis_inspect_self`
@@ -423,6 +440,7 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
   }
 }
 ```
+
 
 来源：[`packages/extensions/tool-cordis/src/index.ts`](../packages/extensions/tool-cordis/src/index.ts)
 
@@ -459,6 +477,7 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
 }
 ```
 
+
 来源：[`packages/extensions/tool-cordis/src/index.ts`](../packages/extensions/tool-cordis/src/index.ts)
 
 ### `cordis_stop`
@@ -480,6 +499,7 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
 }
 ```
 
+
 来源：[`packages/extensions/tool-cordis/src/index.ts`](../packages/extensions/tool-cordis/src/index.ts)
 
 ### `cordis_undefine`
@@ -500,6 +520,7 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
   ]
 }
 ```
+
 
 来源：[`packages/extensions/tool-cordis/src/index.ts`](../packages/extensions/tool-cordis/src/index.ts)
 
@@ -528,6 +549,7 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
 }
 ```
 
+
 来源：[`packages/shell/tool-bash-persistent/src/index.ts`](../packages/shell/tool-bash-persistent/src/index.ts)
 
 一个按所有者隔离的持久 bash 工具；部署组合提供 PTY 后端，并可覆盖面向模型的环境描述。
@@ -554,6 +576,7 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
   ]
 }
 ```
+
 
 来源：[`packages/shell/tool-pwsh-persistent/src/index.ts`](../packages/shell/tool-pwsh-persistent/src/index.ts)
 
@@ -663,6 +686,7 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
 }
 ```
 
+
 来源：[`packages/fs/tool-str-replace-editor/src/index.ts`](../packages/fs/tool-str-replace-editor/src/index.ts)
 
 基于文件系统 seam 的独立查看／创建／唯一字面量替换／按行插入工具；可与任何 shell 或终端接口组合。
@@ -704,6 +728,7 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
 }
 ```
 
+
 来源：[`packages/fs/tool-fs/src/index.ts`](../packages/fs/tool-fs/src/index.ts)
 
 ### `read`
@@ -733,6 +758,7 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
 }
 ```
 
+
 来源：[`packages/fs/tool-fs/src/index.ts`](../packages/fs/tool-fs/src/index.ts)
 
 ### `read_image`
@@ -753,6 +779,7 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
   ]
 }
 ```
+
 
 来源：[`packages/fs/tool-fs/src/index.ts`](../packages/fs/tool-fs/src/index.ts)
 
@@ -779,6 +806,7 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
   ]
 }
 ```
+
 
 来源：[`packages/fs/tool-fs/src/index.ts`](../packages/fs/tool-fs/src/index.ts)
 
@@ -811,6 +839,7 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
 }
 ```
 
+
 来源：[`packages/fs/tool-fs-search/src/index.ts`](../packages/fs/tool-fs-search/src/index.ts)
 
 ### `grep`
@@ -840,6 +869,7 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
 }
 ```
 
+
 来源：[`packages/fs/tool-fs-search/src/index.ts`](../packages/fs/tool-fs-search/src/index.ts)
 
 glob 和 grep 是无条件可用的发现工具，通过 ctx.subprocess spawn 随包提供的 ripgrep 二进制文件（`@vscode/ripgrep`），并作为普通前台调用运行，绝不作为后台任务；无需在宿主机安装 `rg`，也不经过 shell 层。本目录使用 `sampleOverCapGlobResults: true`；部署必须显式选择该行为。结果超过上限时，会通过可选的 ctx.spillStore 后端保存完整的格式化列表；在共置部署中，如果后端公开本地路径，返回的定位信息可供后续读取／搜索。
@@ -867,6 +897,7 @@ glob 和 grep 是无条件可用的发现工具，通过 ctx.subprocess spawn �
 }
 ```
 
+
 来源：[`packages/terminal/tool-terminal/src/index.ts`](../packages/terminal/tool-terminal/src/index.ts)
 
 ### `terminal_list`
@@ -879,6 +910,7 @@ glob 和 grep 是无条件可用的发现工具，通过 ctx.subprocess spawn �
   "properties": {}
 }
 ```
+
 
 来源：[`packages/terminal/tool-terminal/src/index.ts`](../packages/terminal/tool-terminal/src/index.ts)
 
@@ -909,6 +941,7 @@ glob 和 grep 是无条件可用的发现工具，通过 ctx.subprocess spawn �
 }
 ```
 
+
 来源：[`packages/terminal/tool-terminal/src/index.ts`](../packages/terminal/tool-terminal/src/index.ts)
 
 ### `terminal_read`
@@ -937,6 +970,7 @@ glob 和 grep 是无条件可用的发现工具，通过 ctx.subprocess spawn �
   ]
 }
 ```
+
 
 来源：[`packages/terminal/tool-terminal/src/index.ts`](../packages/terminal/tool-terminal/src/index.ts)
 
@@ -972,6 +1006,7 @@ glob 和 grep 是无条件可用的发现工具，通过 ctx.subprocess spawn �
 }
 ```
 
+
 来源：[`packages/terminal/tool-terminal/src/index.ts`](../packages/terminal/tool-terminal/src/index.ts)
 
 ### `terminal_signal`
@@ -1005,6 +1040,7 @@ glob 和 grep 是无条件可用的发现工具，通过 ctx.subprocess spawn �
 }
 ```
 
+
 来源：[`packages/terminal/tool-terminal/src/index.ts`](../packages/terminal/tool-terminal/src/index.ts)
 
 这 6 个终端工具需要选择启用，用于补充一次性 bash／文件系统工具。`terminal_send(run_in_background: true)` 会注册到 `ctx.jobs`；schema 不包含 TUI、具名按键序列、BEL、调整尺寸、自动启动和跨 agent 共享。
@@ -1036,6 +1072,7 @@ glob 和 grep 是无条件可用的发现工具，通过 ctx.subprocess spawn �
 }
 ```
 
+
 来源：[`packages/goal/tool-goal/src/index.ts`](../packages/goal/tool-goal/src/index.ts)
 
 ### `get_goal`
@@ -1048,6 +1085,7 @@ glob 和 grep 是无条件可用的发现工具，通过 ctx.subprocess spawn �
   "properties": {}
 }
 ```
+
 
 来源：[`packages/goal/tool-goal/src/index.ts`](../packages/goal/tool-goal/src/index.ts)
 
@@ -1098,6 +1136,7 @@ glob 和 grep 是无条件可用的发现工具，通过 ctx.subprocess spawn �
   ]
 }
 ```
+
 
 来源：[`packages/goal/tool-goal/src/index.ts`](../packages/goal/tool-goal/src/index.ts)
 
@@ -1162,6 +1201,7 @@ create、edit、pause 和 resume 要求直接来自人类的根权限；complete
 }
 ```
 
+
 来源：[`packages/schedule/schedule/src/tools.ts`](../packages/schedule/schedule/src/tools.ts)
 
 ### `schedule_delete`
@@ -1183,6 +1223,7 @@ create、edit、pause 和 resume 要求直接来自人类的根权限；complete
 }
 ```
 
+
 来源：[`packages/schedule/schedule/src/tools.ts`](../packages/schedule/schedule/src/tools.ts)
 
 ### `schedule_list`
@@ -1195,6 +1236,7 @@ create、edit、pause 和 resume 要求直接来自人类的根权限；complete
   "properties": {}
 }
 ```
+
 
 来源：[`packages/schedule/schedule/src/tools.ts`](../packages/schedule/schedule/src/tools.ts)
 
@@ -1244,6 +1286,7 @@ create、edit、pause 和 resume 要求直接来自人类的根权限；complete
 }
 ```
 
+
 来源：[`packages/lsp/tool-lsp/src/index.ts`](../packages/lsp/tool-lsp/src/index.ts)
 
 lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，因此其模型可见 schema 在更换提供方时保持稳定。运行时要求已注册提供方，例如 `@aeven/lsp-stdio`；如果没有提供方，查询会返回结构化 `LSP_UNAVAILABLE` 错误，而不会改变 schema。
@@ -1275,6 +1318,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
+
 来源：[`packages/workflow/tool-ralph/src/index.ts`](../packages/workflow/tool-ralph/src/index.ts)
 
 固定的前台工作流会在每个 Round 启动一个全新的结构化子级；模型只能选择不可变目标和可选的 Round 上限。
@@ -1302,7 +1346,40 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
+
 来源：[`packages/skill/tool-skill/src/index.ts`](../packages/skill/tool-skill/src/index.ts)
+
+<a id="aeventool-search"></a>
+
+## `@aeven/tool-search`
+
+### `tool_search`
+
+查找并加载延迟工具。"select:a,b" 加载延迟工具索引中列出的确切工具；关键词会列出匹配的工具及其用途，但不加载任何内容（在关键词前加 + 可要求它出现在工具名或 namespace 中）；"restart:&lt;server>" 连接索引中列为未在服务的 MCP 服务器。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "Either \"select:<name>[,<name>...]\", \"restart:<server>\", or search keywords."
+    },
+    "max_results": {
+      "type": "integer",
+      "description": "Keyword searches list at most this many tools."
+    }
+  },
+  "required": [
+    "query"
+  ]
+}
+```
+
+
+来源：[`packages/core/tool-search/src/index.ts`](../packages/core/tool-search/src/index.ts)
+
+只有在至少有一个工具被延迟、或至少一台执行延迟的 MCP 服务器未在服务时，本工具才呈现给模型。关键词查询只列出工具而不加载它们；`select:` 会把 schema 加载到后续请求中，或在该请求呈现 `run_code` 时返回 SDK 声明；`restart:` 会重新连接一台 MCP 服务器。
 
 <a id="aeventool-session-query"></a>
 
@@ -1338,6 +1415,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
   ]
 }
 ```
+
 
 来源：[`packages/session-query/tool-session-query/src/index.ts`](../packages/session-query/tool-session-query/src/index.ts)
 
@@ -1399,6 +1477,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
+
 来源：[`packages/session-query/tool-session-query/src/index.ts`](../packages/session-query/tool-session-query/src/index.ts)
 
 ### `session_event_trace`
@@ -1423,6 +1502,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
   ]
 }
 ```
+
 
 来源：[`packages/session-query/tool-session-query/src/index.ts`](../packages/session-query/tool-session-query/src/index.ts)
 
@@ -1517,6 +1597,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
+
 来源：[`packages/session-query/tool-session-query/src/index.ts`](../packages/session-query/tool-session-query/src/index.ts)
 
 ### `session_trace`
@@ -1534,6 +1615,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
   }
 }
 ```
+
 
 来源：[`packages/session-query/tool-session-query/src/index.ts`](../packages/session-query/tool-session-query/src/index.ts)
 
@@ -1562,6 +1644,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
   }
 }
 ```
+
 
 来源：[`packages/subagent/tool-subagent/src/list-models.ts`](../packages/subagent/tool-subagent/src/list-models.ts)
 
@@ -1593,6 +1676,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
+
 来源：[`packages/subagent/tool-subagent/src/index.ts`](../packages/subagent/tool-subagent/src/index.ts)
 
 注册的委派工具名称取决于加载时 `toolName` 配置（默认为 `subagent`）；上述默认 schema 关闭模型选择，而发现 schema 则展示为已启用 Session 中可用的固定配套工具。Web preset 会在每个新顶层 Session 创建时读取插件页偏好，并为其子 Session 保留该决定；`subagent_fork` 始终使用固定路由。每个实例通过 `modelSelectionSettings`、`backgroundMode` 与 `enableRunInBackground` 独立控制是否读取模型选择设置及其后台行为。
@@ -1620,6 +1704,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
+
 来源：[`packages/subagent/tool-subagent-control/src/index.ts`](../packages/subagent/tool-subagent-control/src/index.ts)
 
 ### `list_agents`
@@ -1641,6 +1726,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
   }
 }
 ```
+
 
 来源：[`packages/subagent/tool-subagent-control/src/list-agents.ts`](../packages/subagent/tool-subagent-control/src/list-agents.ts)
 
@@ -1667,6 +1753,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
   ]
 }
 ```
+
 
 来源：[`packages/subagent/tool-subagent-control/src/index.ts`](../packages/subagent/tool-subagent-control/src/index.ts)
 
@@ -1699,6 +1786,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
+
 来源：[`packages/jobs/tool-jobs/src/index.ts`](../packages/jobs/tool-jobs/src/index.ts)
 
 ### `job_list`
@@ -1711,6 +1799,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
   "properties": {}
 }
 ```
+
 
 来源：[`packages/jobs/tool-jobs/src/index.ts`](../packages/jobs/tool-jobs/src/index.ts)
 
@@ -1728,11 +1817,11 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
     },
     "wait": {
       "type": "boolean",
-      "description": "Block until the job reaches a terminal status or the timeout expires. A timed-out wait returns [status: running] and leaves the job alive."
+      "description": "Block until the job finishes, the timeout expires, or the user sends a message; an unfinished wait leaves the job running. Defaults to false."
     },
     "timeout_ms": {
       "type": "number",
-      "description": "Max wait in milliseconds (only meaningful with wait: true). Defaults to the configured wait timeout; capped by the configured maximum."
+      "description": "Max wait in milliseconds with wait: true. Defaults to and is capped by configuration."
     }
   },
   "required": [
@@ -1740,6 +1829,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
   ]
 }
 ```
+
 
 来源：[`packages/jobs/tool-jobs/src/index.ts`](../packages/jobs/tool-jobs/src/index.ts)
 
@@ -1773,6 +1863,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
+
 来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
 
 ### `interrupt_agent`
@@ -1794,6 +1885,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
+
 来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
 
 ### `list_agents`
@@ -1806,6 +1898,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
   "properties": {}
 }
 ```
+
 
 来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
 
@@ -1832,6 +1925,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
   ]
 }
 ```
+
 
 来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
 
@@ -1871,6 +1965,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
   ]
 }
 ```
+
 
 来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
 
@@ -1912,6 +2007,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
+
 来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
 
 ### `team_task_get`
@@ -1932,6 +2028,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
   ]
 }
 ```
+
 
 来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
 
@@ -1971,6 +2068,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
   }
 }
 ```
+
 
 来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
 
@@ -2039,6 +2137,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
+
 来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
 
 ### `wait_agent`
@@ -2056,6 +2155,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
   }
 }
 ```
+
 
 来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
 
@@ -2076,35 +2176,62 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
   "properties": {
     "prompt": {
       "type": "string",
-      "description": "Complete description of the image to generate."
+      "description": "The user-supplied image prompt verbatim when provided; otherwise a visual description based on their request."
     },
     "model": {
       "type": "string",
-      "description": "Optional provider model id for this call only, verbatim, e.g. 'black-forest-labs/flux.2-pro'. Omit to use the configured default."
-    },
-    "provider": {
-      "type": "string",
-      "description": "Optional media provider id for this call only, e.g. 'openrouter' or 'deepinfra'. Omit to use the configured default."
+      "description": "Optional model id for this call only, verbatim, from the available models. Omit to use the selected default."
     },
     "n": {
       "type": "integer",
-      "description": "How many images to generate. Omit for the provider default."
-    },
-    "aspect_ratio": {
-      "type": "string",
-      "description": "Aspect ratio in W:H form, e.g. '16:9'."
-    },
-    "resolution": {
-      "type": "string",
-      "description": "Named resolution tier, e.g. '1K', '2K', '4K'."
+      "description": "How many images to generate, at most the count the chosen model's description states. Omit for one."
     },
     "size": {
       "type": "string",
-      "description": "Exact pixel size in WIDTHxHEIGHT form, e.g. '1024x1024'."
+      "description": "Pixel size in WIDTHxHEIGHT form, e.g. '1024x1024' or '2730x1536' for 16:9, or a named size the chosen model lists in its description, e.g. '2K'. Never a tier the model does not list. Omit for the model default."
+    },
+    "background": {
+      "type": "string",
+      "description": "Background to generate, for a model that offers the option. Omit to let the model decide.",
+      "enum": [
+        "transparent",
+        "opaque"
+      ]
+    },
+    "resolution": {
+      "type": "string",
+      "description": "A resolution tier the chosen model lists in its description, e.g. 2K. Use either resolution or size."
     },
     "seed": {
       "type": "integer",
-      "description": "Deterministic generation seed."
+      "description": "Provider seed, where the chosen model lists one; a fixed seed does not guarantee reproducible images."
+    },
+    "guidance_scale": {
+      "type": "number",
+      "description": "Prompt guidance strength, where the chosen model lists it; the Aeven models have none."
+    },
+    "output_format": {
+      "type": "string",
+      "description": "Output file format, where the chosen model lists it.",
+      "enum": [
+        "png",
+        "jpeg"
+      ]
+    },
+    "optimize_prompt_mode": {
+      "type": "string",
+      "description": "Prompt optimization, where the chosen model lists it: standard for quality, fast for lower latency.",
+      "enum": [
+        "standard",
+        "fast"
+      ]
+    },
+    "reference_images": {
+      "type": "array",
+      "description": "Paths of existing images to edit or draw from, in the order the prompt refers to them: workspace files, or the normalized copy path shown for a conversation image.",
+      "items": {
+        "type": "string"
+      }
     }
   },
   "required": [
@@ -2113,9 +2240,63 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-Source: [`packages/media/tool-media/src/index.ts`](../packages/media/tool-media/src/index.ts)
 
-The catalog mounts the tool with no configured model, which is the shape that requires every call to name one. A deployment setting `model` gets the same schema; the default never reaches the description. Generated bytes are stored through `ctx.attachments`, so the result carries image blocks the conversation card renders without any registration here.
+来源：[`packages/media/tool-media/src/index.ts`](../packages/media/tool-media/src/index.ts)
+
+### `generate_video`
+
+从文本提示词生成视频片段，可选以一张图像为起点，并附加到会话中。当用户要求创建、动画化或生成视频时使用。请给出涵盖主体、动作、镜头运动、风格与光照的完整提示词。生成需要数分钟。要动画化已有图像时，把它作为 reference_images 的第一张传入；第二张图像是尾帧。视频会连同播放控件直接展示给用户。不要在你的回复中重复或嵌入它、写出视频路径，或调用其他工具去定位或校验它。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "prompt": {
+      "type": "string",
+      "description": "Complete description of the video to generate."
+    },
+    "model": {
+      "type": "string",
+      "description": "Optional model id for this call only, verbatim, from the available models. Omit to use the selected default."
+    },
+    "duration": {
+      "type": "integer",
+      "description": "Clip length in seconds the chosen model lists — a range, or only fixed lengths such as 4, 6 or 8 — or -1 to let the model decide where it offers that. Omit for the model default."
+    },
+    "resolution": {
+      "type": "string",
+      "description": "An output resolution the chosen model lists, e.g. 720p. Omit for the model default."
+    },
+    "aspect_ratio": {
+      "type": "string",
+      "description": "An aspect ratio the chosen model lists, e.g. '16:9' or '9:16', or 'adaptive' to follow the first frame. Omit for the model default."
+    },
+    "seed": {
+      "type": "integer",
+      "description": "Provider seed, where the chosen model lists one; a fixed seed does not guarantee a reproducible clip."
+    },
+    "generate_audio": {
+      "type": "boolean",
+      "description": "Whether the clip carries audio synchronized with the visuals, where the chosen model offers it."
+    },
+    "reference_images": {
+      "type": "array",
+      "description": "Paths of at most two images: the first frame, then optionally the last frame. Workspace files, or the normalized copy path shown for a conversation image.",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "prompt"
+  ]
+}
+```
+
+
+来源：[`packages/media/tool-media/src/index.ts`](../packages/media/tool-media/src/index.ts)
+
+本目录以未配置模型的形态挂载该工具，这种形态要求每次调用自行指明模型。设置了 `model` 的部署得到的是同一份 Schema；默认值不会进入描述。生成的字节经 `ctx.attachments` 存储，因此结果携带的图像块无需在此注册任何东西即可被会话卡片渲染。
 
 <a id="aeventool-todo"></a>
 
@@ -2162,6 +2343,7 @@ The catalog mounts the tool with no configured model, which is the shape that re
   ]
 }
 ```
+
 
 来源：[`packages/todo/tool-todo/src/index.ts`](../packages/todo/tool-todo/src/index.ts)
 
@@ -2261,6 +2443,7 @@ todo_write 是会话所有的状态；UI 将最新的 todo/write 事件渲染为
 }
 ```
 
+
 来源：[`packages/workflow/tool-workflow/src/index.ts`](../packages/workflow/tool-workflow/src/index.ts)
 
 <a id="aeventool-web"></a>
@@ -2286,6 +2469,7 @@ todo_write 是会话所有的状态；UI 将最新的 todo/write 事件渲染为
 }
 ```
 
+
 来源：[`packages/web/tool-web/src/index.ts`](../packages/web/tool-web/src/index.ts)
 
 ### `web_search`
@@ -2310,6 +2494,1176 @@ todo_write 是会话所有的状态；UI 将最新的 todo/write 事件渲染为
 }
 ```
 
+
 来源：[`packages/web/tool-web/src/index.ts`](../packages/web/tool-web/src/index.ts)
 
 web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可见 schema 在更换后端时保持稳定。
+
+<a id="aeventool-browser"></a>
+
+## `@aeven/tool-browser`
+
+### `preview_back`
+
+在协作浏览器标签页中后退一页，并显示按下该控件的指针。
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+
+来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_click`
+
+在协作浏览器标签页中点击恰好一个目标。优先使用 preview_snapshot 返回的选择器；x 与 y 必须同时提供。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "selector": {
+      "type": "string",
+      "description": "CSS selector such as button[type='submit'], from preview_snapshot's interactiveElements."
+    },
+    "token": {
+      "type": "string",
+      "description": "Element token from the latest preview_snapshot with mode ax. Valid until the next browser action; do not combine with selector or coordinates."
+    },
+    "x": {
+      "type": "number",
+      "description": "Viewport-relative X coordinate in CSS pixels. Must be paired with y."
+    },
+    "y": {
+      "type": "number",
+      "description": "Viewport-relative Y coordinate in CSS pixels. Must be paired with x."
+    }
+  }
+}
+```
+
+
+来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_evaluate`
+
+在协作浏览器标签页中求值 JavaScript。返回 {value}，其中为可序列化的结果，最大 64 KB；表达式可能会改变页面状态。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "expression": {
+      "type": "string",
+      "description": "JavaScript expression evaluated in the page's main frame, for example document.title or (() => ({href: location.href}))()."
+    }
+  },
+  "required": [
+    "expression"
+  ]
+}
+```
+
+
+来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_forward`
+
+在协作浏览器标签页中前进一页，并显示按下该控件的指针。
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+
+来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_navigate`
+
+在协作浏览器标签页中导航。传入 {url:'https://t3.chat'} 访问网站，或传入本地开发服务器 URL 访问本地开发服务器。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "url": {
+      "type": "string",
+      "description": "Website URL. Use this for public pages and directly reachable URLs."
+    }
+  },
+  "required": [
+    "url"
+  ]
+}
+```
+
+
+来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_press`
+
+在协作浏览器标签页中按下单个按键。例如 {key:'Enter'}、{key:'Escape'}，或 {key:'a',modifiers:['Meta']}。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "key": {
+      "type": "string",
+      "description": "Keyboard key name such as Enter, Escape, Tab, ArrowDown, Backspace, or a single character."
+    },
+    "modifiers": {
+      "type": "array",
+      "description": "Modifier keys held while pressing key.",
+      "items": {
+        "type": "string",
+        "enum": [
+          "Alt",
+          "Control",
+          "Meta",
+          "Shift"
+        ]
+      }
+    }
+  },
+  "required": [
+    "key"
+  ]
+}
+```
+
+
+来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_reload`
+
+重新加载协作浏览器标签页中的页面，并显示按下该控件的指针。
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+
+来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_screenshot`
+
+把协作浏览器的可见视口捕获为 JPEG 图片。需要页面像素时使用它；普通交互请改为查看无障碍树或 DOM 状态。
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+
+来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_scroll`
+
+滚动协作浏览器标签页。deltaY 为正时向下滚动，deltaX 为正时向右滚动；传入选择器可指定某个容器。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "deltaX": {
+      "type": "number",
+      "description": "Horizontal scroll delta in CSS pixels. Positive scrolls right. Defaults to 0."
+    },
+    "deltaY": {
+      "type": "number",
+      "description": "Vertical scroll delta in CSS pixels. Positive scrolls down. Defaults to 0."
+    },
+    "selector": {
+      "type": "string",
+      "description": "CSS selector such as button[type='submit'], from preview_snapshot's interactiveElements."
+    }
+  }
+}
+```
+
+
+来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_sequence`
+
+在本浏览器中按顺序执行 1 到 20 个已知操作，无需模型往返。遇到第一个失败即停止并报告其索引。页面跳转请使用 wait 操作，而不是固定 sleep。先从页面取得选择器；只有当用户明确授权那次确切提交时，才包含最后的提交操作。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "actions": {
+      "type": "array",
+      "description": "1 to 20 ordered actions. wait defaults to visible and enabled, with a 5000ms deadline; timeoutMs must be 1 to 60000.",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "operation": {
+                "type": "string",
+                "const": "click"
+              },
+              "selector": {
+                "type": "string",
+                "description": "CSS selector such as button[type='submit'], from preview_snapshot's interactiveElements."
+              }
+            },
+            "required": [
+              "operation",
+              "selector"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "operation": {
+                "type": "string",
+                "const": "type"
+              },
+              "selector": {
+                "type": "string",
+                "description": "CSS selector such as button[type='submit'], from preview_snapshot's interactiveElements."
+              },
+              "text": {
+                "type": "string"
+              },
+              "clear": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "operation",
+              "text"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "operation": {
+                "type": "string",
+                "const": "press"
+              },
+              "key": {
+                "type": "string"
+              },
+              "modifiers": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "Alt",
+                    "Control",
+                    "Meta",
+                    "Shift"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "operation",
+              "key"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "operation": {
+                "type": "string",
+                "const": "upload"
+              },
+              "selector": {
+                "type": "string",
+                "description": "CSS selector such as button[type='submit'], from preview_snapshot's interactiveElements."
+              },
+              "paths": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "operation",
+              "paths"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "operation": {
+                "type": "string",
+                "const": "wait"
+              },
+              "selector": {
+                "type": "string",
+                "description": "CSS selector such as button[type='submit'], from preview_snapshot's interactiveElements."
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "visible",
+                  "hidden"
+                ]
+              },
+              "timeoutMs": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "operation",
+              "selector"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "required": [
+    "actions"
+  ]
+}
+```
+
+
+来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_snapshot`
+
+交互前先检查页面。mode dom 返回可见文本与 CSS 选择器。mode ax 读取浏览器无障碍树（含 shadow DOM），并返回带索引的节点和 snapshot 作用域的 token。每次操作后都要重新获取；出现 truncated 表示节点已被省略。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "mode": {
+      "type": "string",
+      "description": "Observation mode. Defaults to dom.",
+      "enum": [
+        "dom",
+        "ax"
+      ]
+    }
+  }
+}
+```
+
+
+来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_status`
+
+报告本会话可以驱动的每一个浏览器界面：其旁的协作浏览器中的页面（含 URL、标题与加载状态），以及部署挂载时本 Host 上的 Chromium。开始浏览器工作前先调用它，也包括页面拒绝普通抓取时。
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+
+来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_type`
+
+向协作浏览器标签页中的一个输入框插入字面文本。传入选择器时输入到该选择器，省略时输入到当前获得焦点的元素；设置 clear=true 可替换已有文本。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "text": {
+      "type": "string",
+      "description": "Literal text to insert."
+    },
+    "selector": {
+      "type": "string",
+      "description": "CSS selector such as button[type='submit'], from preview_snapshot's interactiveElements."
+    },
+    "token": {
+      "type": "string",
+      "description": "Element token from the latest preview_snapshot with mode ax. Valid until the next browser action; do not combine with selector or coordinates."
+    },
+    "clear": {
+      "type": "boolean",
+      "description": "Clear the existing input value before inserting text. Defaults to false."
+    }
+  },
+  "required": [
+    "text"
+  ]
+}
+```
+
+
+来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_upload`
+
+在此浏览器中附加本地文件。优先使用文件输入选择器；Upload 按钮选择器会在同一次操作中打开其文件选择器并完成应答。路径必须是 Electron 计算机上的绝对路径。远程上传需要审批。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "selector": {
+      "type": "string",
+      "description": "CSS selector such as button[type='submit'], from preview_snapshot's interactiveElements."
+    },
+    "paths": {
+      "type": "array",
+      "description": "Absolute local file paths to attach.",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "paths"
+  ]
+}
+```
+
+
+来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+preview_* 调用由持有该会话浏览器的客户端应答；每次调用都受工具超时上限约束。
+
+<a id="aeventool-location"></a>
+
+## `@aeven/tool-location`
+
+### `get_location`
+
+询问用户当前所在的位置。用户会批准其设备位置或拒绝；获批的位置返回 latitude、longitude 与 accuracyMeters。仅当任务需要知道用户身在何处（例如附近地点或本地天气）时才调用，绝不要根据其他数据推测位置。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "purpose": {
+      "type": "string",
+      "description": "Why the location is needed, in one short sentence the user reads before choosing, for example \"To find pharmacies near you\"."
+    }
+  },
+  "required": [
+    "purpose"
+  ]
+}
+```
+
+
+来源：[`packages/interaction/tool-location/src/index.ts`](../packages/interaction/tool-location/src/index.ts)
+
+get_location 由显示该会话的客户端在读者做出选择后应答；该调用受工具超时上限约束。
+
+<a id="aeventool-capability"></a>
+
+## `@aeven/tool-capability`
+
+### `capability_manage`
+
+把用户要求你学习或记住的流程保存到长期记忆中，之后的请求会回忆它。action 为 "learn" 时需要 kebab-case 名称、一行描述、domain 以及完整的 Markdown 流程。action 为 "import" 时会加入用户指定的 JSON 文件中的每条流程（由 name、description、content、domain 组成的数组），并在后台运行。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "action": {
+      "type": "string",
+      "enum": [
+        "learn",
+        "import"
+      ]
+    },
+    "file": {
+      "type": "string",
+      "description": "For import: absolute path of the JSON file the user named."
+    },
+    "name": {
+      "type": "string",
+      "description": "For learn: kebab-case procedure name, such as ableton-export-stems."
+    },
+    "description": {
+      "type": "string",
+      "description": "For learn: one line, what the procedure does and when to use it."
+    },
+    "domain": {
+      "type": "string",
+      "description": "\"world\" for how an application or tool works in any project, \"project\" for this workspace only, \"experience\" for other know-how. Default \"experience\".",
+      "enum": [
+        "world",
+        "experience",
+        "project"
+      ]
+    },
+    "content": {
+      "type": "string",
+      "description": "For learn: the full procedure in Markdown: when to use it, requirements, steps, verification, recovery."
+    }
+  },
+  "required": [
+    "action"
+  ]
+}
+```
+
+
+来源：[`packages/capability/tool-capability/src/index.ts`](../packages/capability/tool-capability/src/index.ts)
+
+注册的 action 取决于加载时的 `store` 配置：默认的 `memory` 会把学到的流程保存为长期记忆，且只注册 `learn` 与 `import`；`capabilities` 则把它保存为能力文件，并注册 list、view、learn、update、write_file、report、retire 与 restore。学习器与流程回忆都运行在同一包内，本身不贡献任何工具。
+
+<a id="aeventool-device"></a>
+
+## `@aeven/tool-device`
+
+### `device_close`
+
+从本会话旁的设备面板中移除一个设备。传入 shutdown=true 可同时关闭该模拟器或仿真器。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "deviceId": {
+      "type": "string",
+      "description": "Device to close. Omit to close every device open in this session."
+    },
+    "hostId": {
+      "type": "string",
+      "description": "Device host from device_list. Defaults to this machine."
+    },
+    "shutdown": {
+      "type": "boolean",
+      "description": "Also power the simulator or emulator off. Defaults to false."
+    }
+  }
+}
+```
+
+
+来源：[`packages/device/tool-device/src/index.ts`](../packages/device/tool-device/src/index.ts)
+
+### `device_list`
+
+列出设备 Host 上的 iOS 模拟器与 Android 仿真器、每个 Host 可以运行哪些平台，以及本会话旁已经打开的设备。当你不确定设备 id 时，在调用 device_open 之前先调用它。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "hostId": {
+      "type": "string",
+      "description": "Limit to one device host. Defaults to all hosts."
+    }
+  }
+}
+```
+
+
+来源：[`packages/device/tool-device/src/index.ts`](../packages/device/tool-device/src/index.ts)
+
+### `device_open`
+
+为本会话打开一个模拟器或仿真器：需要时先启动它，开启其实时串流，并在用户的设备面板中展示，以便用户观看。返回固定到该设备的 agent-device 命令；之后用它驱动设备。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "deviceId": {
+      "type": "string",
+      "description": "Simulator udid or emulator serial from device_list. Omit to use the booted device for the platform, or the first one."
+    },
+    "platform": {
+      "type": "string",
+      "description": "Required when deviceId is omitted and both platforms are available.",
+      "enum": [
+        "ios",
+        "android"
+      ]
+    },
+    "hostId": {
+      "type": "string",
+      "description": "Device host from device_list. Defaults to this machine."
+    }
+  }
+}
+```
+
+
+来源：[`packages/device/tool-device/src/index.ts`](../packages/device/tool-device/src/index.ts)
+
+### `device_screenshot`
+
+捕获本会话旁已打开设备的当前画面。用它查看用户所看到的内容；点击与文本输入请使用 device_open 返回的 agent-device 命令。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "deviceId": {
+      "type": "string",
+      "description": "Device from device_list. Omit to use the device most recently opened in this session."
+    },
+    "hostId": {
+      "type": "string",
+      "description": "Device host from device_list. Defaults to this machine."
+    }
+  }
+}
+```
+
+
+来源：[`packages/device/tool-device/src/index.ts`](../packages/device/tool-device/src/index.ts)
+
+这 4 个工具在每个 Host 上都会注册；缺少 `ctx.devices`、关闭设备支持或没有 agent 访问权限的部署会返回各自的固定语句，而不是隐藏该工具。驱动设备要通过 `device_open` 返回的 agent-device CLI，而不是为每种设备操作提供一个工具。
+
+<a id="aeventool-elevation"></a>
+
+## `@aeven/tool-elevation`
+
+仅限 Windows 的工具：用户在 Aeven 中批准这次运行，并在操作系统的授权提示中再次批准；拒绝会使调用失败，而不会以调用方自身的权限运行该命令。在非 Windows 上挂载本包的组合不会向模型提供任何内容。
+
+<a id="aeventool-image-search"></a>
+
+## `@aeven/tool-image-search`
+
+### `find_images`
+
+查找某个主题的真实照片——地点、建筑、物件、艺术品、产品、事件或人物——并以一行图片连同其来源展示给用户。当问题涉及某事物的实际外观、用户索要照片，或图片比文字更能给出答案时调用。它搜索 Wikimedia Commons 与 Web。绝不要描述你尚未展示的照片。新闻场景下，把你选定的文章作为 `urls` 传入并使用 layout `cards`：每篇文章会成为一张卡片，含其图片、标题、开头文字与来源。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "What to photograph, in a few words, for example \"Crystal Palace Hyde Park 1851\" or \"Sagrada Familia interior\". With `urls`, what the stories are about, for example \"today's tech news\". Required without `urls`."
+    },
+    "urls": {
+      "type": "array",
+      "description": "With layout `cards`: the article pages to show, one card each, in the order you present the stories — at most 10. Give one article per story.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "count": {
+      "type": "number",
+      "description": "How many photographs to show, 1 to 6. Defaults to 3. Ignored with `urls`, which shows one card per article."
+    },
+    "layout": {
+      "type": "string",
+      "description": "How the reader sees them. `row` is a row of photographs, for pictures that carry the answer. `cards` is one thumbnail with its title and source beside it, for news items and headlines. Defaults to `row`.",
+      "enum": [
+        "row",
+        "cards"
+      ]
+    },
+    "language": {
+      "type": "string",
+      "description": "The language this conversation is using, so cards read in it. Translate nothing yourself: name the language here and the tool translates the headlines and openings with the session's own model."
+    },
+    "translations": {
+      "type": "array",
+      "description": "The items in the reader's own language, one entry per result in the same order, for a source published in another language. Call again with the same query and these to replace what the cards read.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "summary"
+        ]
+      }
+    }
+  }
+}
+```
+
+
+来源：[`packages/web/tool-image-search/src/index.ts`](../packages/web/tool-image-search/src/index.ts)
+
+`find_images` 先读 Wikimedia Commons，再读 Web seam，因此没有 Web 提供方的部署仍能作答，并引用 Commons 所持有的照片。每张照片和每张新闻卡片都会成为持久图像附件，由客户端在 transcript（文本记录）中展示。
+
+<a id="aeventool-mail"></a>
+
+## `@aeven/tool-mail`
+
+### `mail_accounts`
+
+列出用户已连接的邮箱账户，含其协议、能否发信、别名以及 IMAP 文件夹。在指定你尚未见过的账户或文件夹之前先调用它。
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+
+来源：[`packages/mail/tool-mail/src/tools.ts`](../packages/mail/tool-mail/src/tools.ts)
+
+### `mail_read`
+
+读取一封邮件：头部、纯文本正文与附件列表。读取不会把它标记为已读。传入 saveAttachments 可把附件写入工作区。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "account": {
+      "type": "string",
+      "description": "Account address."
+    },
+    "folder": {
+      "type": "string",
+      "description": "Folder path; defaults to INBOX."
+    },
+    "id": {
+      "type": "string",
+      "description": "Message id from mail_search."
+    },
+    "saveAttachments": {
+      "type": "array",
+      "description": "Attachment indexes to save.",
+      "items": {
+        "type": "integer"
+      }
+    },
+    "saveTo": {
+      "type": "string",
+      "description": "Workspace-relative folder for saved attachments; defaults to mail-attachments."
+    }
+  },
+  "required": [
+    "account",
+    "id"
+  ]
+}
+```
+
+
+来源：[`packages/mail/tool-mail/src/tools.ts`](../packages/mail/tool-mail/src/tools.ts)
+
+### `mail_search`
+
+搜索邮件信封（日期、发件人、收件人、主题、标志），最新的在前。省略 account 则搜索所有已连接的账户。多个过滤条件以 AND 组合。返回供 mail_read 与 mail_update 使用的 message id；不包含正文。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "account": {
+      "type": "string",
+      "description": "Account address; omit to search all accounts."
+    },
+    "folder": {
+      "type": "string",
+      "description": "Folder path; defaults to INBOX."
+    },
+    "from": {
+      "type": "string",
+      "description": "Sender address or name contains this text."
+    },
+    "to": {
+      "type": "string",
+      "description": "Recipient address or name contains this text."
+    },
+    "subject": {
+      "type": "string",
+      "description": "Subject contains this text."
+    },
+    "text": {
+      "type": "string",
+      "description": "Headers or body contain this text (IMAP only)."
+    },
+    "since": {
+      "type": "string",
+      "description": "ISO date; received on or after."
+    },
+    "before": {
+      "type": "string",
+      "description": "ISO date; received before."
+    },
+    "unread": {
+      "type": "boolean",
+      "description": "true for unread only, false for read only (IMAP only)."
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum messages to return."
+    }
+  }
+}
+```
+
+
+来源：[`packages/mail/tool-mail/src/tools.ts`](../packages/mail/tool-mail/src/tools.ts)
+
+### `mail_send`
+
+从已连接的账户发送纯文本邮件，或以 draft: true 保存为草稿。发送前总会先请用户批准。回复时传入 replyTo，并附上原邮件的文件夹与 id；主题随后默认为 "Re: …"。发件人必须是该账户地址或其别名之一。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "account": {
+      "type": "string",
+      "description": "Account address to send from."
+    },
+    "from": {
+      "type": "string",
+      "description": "Sender address; defaults to the account address."
+    },
+    "to": {
+      "type": "array",
+      "description": "Recipient addresses.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "cc": {
+      "type": "array",
+      "description": "Cc addresses.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "bcc": {
+      "type": "array",
+      "description": "Bcc addresses.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "subject": {
+      "type": "string",
+      "description": "Subject; optional for a reply."
+    },
+    "text": {
+      "type": "string",
+      "description": "Plain-text body."
+    },
+    "replyTo": {
+      "type": "object",
+      "description": "The message being answered.",
+      "additionalProperties": false,
+      "properties": {
+        "folder": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "folder",
+        "id"
+      ]
+    },
+    "draft": {
+      "type": "boolean",
+      "description": "Save to Drafts instead of sending (IMAP only)."
+    }
+  },
+  "required": [
+    "account",
+    "to",
+    "text"
+  ]
+}
+```
+
+
+来源：[`packages/mail/tool-mail/src/tools.ts`](../packages/mail/tool-mail/src/tools.ts)
+
+### `mail_update`
+
+在一个文件夹中变更邮件：标记为已读或未读、加旗标或去旗标、移动到文件夹、归档、移入回收站，或永久删除。POP3 账户只支持删除。永久删除会先询问用户。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "account": {
+      "type": "string",
+      "description": "Account address."
+    },
+    "folder": {
+      "type": "string",
+      "description": "Folder the messages are in."
+    },
+    "ids": {
+      "type": "array",
+      "description": "Message ids from mail_search.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "action": {
+      "type": "string",
+      "description": "The change to apply.",
+      "enum": [
+        "read",
+        "unread",
+        "flag",
+        "unflag",
+        "move",
+        "archive",
+        "trash",
+        "delete"
+      ]
+    },
+    "destination": {
+      "type": "string",
+      "description": "Target folder path; required for move."
+    }
+  },
+  "required": [
+    "account",
+    "folder",
+    "ids",
+    "action"
+  ]
+}
+```
+
+
+来源：[`packages/mail/tool-mail/src/tools.ts`](../packages/mail/tool-mail/src/tools.ts)
+
+只有当某个 agent 的会话所有者至少有一个可用邮箱账户时，这些工具才会为该 agent 注册，因此未登录的会话或没有邮箱的所有者看不到任何邮件工具；发送与永久删除通过 ctx.approval 询问，其他策略给出的拒绝仍然优先。
+
+<a id="aeventool-memory"></a>
+
+## `@aeven/tool-memory`
+
+### `memory_environments`
+
+列出关于工作环境的学习所得：仓库结构、应用行为、约束以及反复出现的模式。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "Optional keyword filter."
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum environments (1-30)."
+    }
+  }
+}
+```
+
+
+来源：[`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-memory/src/index.ts)
+
+### `memory_get`
+
+读取一条由记忆搜索找到的记忆项：一次过去的任务轨迹、一条学到的策略，或一个环境模型。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Memory item id."
+    },
+    "kind": {
+      "type": "string",
+      "description": "Item kind; defaults to trace.",
+      "enum": [
+        "trace",
+        "policy",
+        "world-model"
+      ]
+    }
+  },
+  "required": [
+    "id"
+  ]
+}
+```
+
+
+来源：[`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-memory/src/index.ts)
+
+### `memory_remember`
+
+存储一条用户明确要求你记住的事实，例如偏好、姓名，或他们希望某项工作如何完成。仅在用户要求你记住某事时使用；普通对话会被自动记住。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "fact": {
+      "type": "string",
+      "description": "The fact to remember, stated concisely in the user's words."
+    },
+    "about": {
+      "type": "string",
+      "description": "user: a fact about the user that holds everywhere (the default). project: a fact that matters only in this project.",
+      "enum": [
+        "user",
+        "project"
+      ]
+    }
+  },
+  "required": [
+    "fact"
+  ]
+}
+```
+
+
+来源：[`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-memory/src/index.ts)
+
+### `memory_search`
+
+搜索关于既往工作的长期记忆：过去的任务轨迹、学到的策略、环境知识与可复用的 skill（技能）。每个直接来自人类的轮次都已经获得一次自动回忆；当这次回忆不够充分时，用它换一种说法或扩大范围，并在声称先前的上下文不可用之前先调用它。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "A concise free-text memory query."
+    },
+    "maxResults": {
+      "type": "integer",
+      "description": "Maximum results per kind (1-50)."
+    },
+    "skills": {
+      "type": "integer",
+      "description": "Skill result limit (0-100)."
+    },
+    "traces": {
+      "type": "integer",
+      "description": "Trace and policy result limit (0-100)."
+    },
+    "worldModels": {
+      "type": "integer",
+      "description": "Environment-model result limit (0-100)."
+    },
+    "sessionOnly": {
+      "type": "boolean",
+      "description": "Restrict results to memory captured from this session."
+    }
+  },
+  "required": [
+    "query"
+  ]
+}
+```
+
+
+来源：[`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-memory/src/index.ts)
+
+### `memory_skill`
+
+加载一项学到的 skill 以应用于当前任务；加载会记录该 skill 已被使用。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Skill id from a skill listing or memory search."
+    }
+  },
+  "required": [
+    "id"
+  ]
+}
+```
+
+
+来源：[`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-memory/src/index.ts)
+
+### `memory_skills`
+
+列出从既往成功工作中学习到的可复用 skill。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "status": {
+      "type": "string",
+      "description": "Optional lifecycle filter.",
+      "enum": [
+        "candidate",
+        "active",
+        "archived"
+      ]
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum skills (1-50)."
+    }
+  }
+}
+```
+
+
+来源：[`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-memory/src/index.ts)
+
+### `memory_timeline`
+
+列出某次既往经历的按序轨迹，以重建早先任务的经过。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "episodeId": {
+      "type": "string",
+      "description": "Episode id from a memory item."
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum traces (1-100)."
+    }
+  },
+  "required": [
+    "episodeId"
+  ]
+}
+```
+
+
+来源：[`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-memory/src/index.ts)
+
+只有在记忆提供方处于活动状态时才会注册，因此没有提供方的组合根本不会向模型展示任何记忆工具；这 7 个工具都读取提供方，且只有 `memory_remember` 会写入。

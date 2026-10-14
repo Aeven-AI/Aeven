@@ -2,6 +2,8 @@
 
 Status: implemented
 
+English | [中文](2026-09-29-capability-learning.zh.md)
+
 ## Problem
 
 An agent that works out a multi-step procedure, often after errors or a correction, loses it when the session ends. Hermes shows that a plain written procedure (`SKILL.md` plus supporting files, created by the agent) already makes an agent better for its user over time. Two risks come with copying it directly: a skill body is loaded as trusted instructions, so a procedure the agent wrote from tool output becomes a persistent prompt-injection path; and a learning system can become so careful that nothing useful is kept.
@@ -17,6 +19,16 @@ Three rules govern capability learning:
 `@aeven/capability` stores capabilities per signed-in owner and publishes each owner's learned capabilities as the `learned-capabilities` skill provider. `SkillLookupOptions` gained `owner`, set by the skill tool, the model-facing catalog, and the Web skill catalog, and it is part of the registry's catalog cache key.
 
 `@aeven/tool-capability` gives the model `capability_manage`. `learn` saves a candidate and then asks the user through `ctx.userQuestions`; the tool asks, so the model cannot skip the confirmation. `ctx.approval` is not used because its `never` policy, the full-access preset, rejects every request instead of allowing it. Changing or deleting a learned capability also asks. A short system-prompt section, shown only in sessions with an owner, says when to learn: on request, or after a recurring procedure was worked out through errors, dead ends, or a correction. Unconfirmed drafts that match a request are recalled once per session as a labelled `<capability_drafts>` block.
+
+## Alternatives considered
+
+**Trust a procedure as soon as the agent writes it.** Rejected because a skill body is loaded as trusted instructions: a procedure distilled from tool output would become a persistent prompt-injection path, and only the user's confirmation makes a capability executable.
+
+**Let evidence decide whether a procedure is remembered.** Rejected because evidence decides how far a capability is trusted and never whether it is kept; anything the agent learns is durable at once as a candidate.
+
+**Run capabilities through the memory provider.** Rejected because execution must not depend on memory: the registry and the skill catalog are enough to run one, and the memory provider only helps find them.
+
+**Confirm a save through `ctx.approval`.** Rejected because its `never` policy, the full-access preset, rejects every request instead of allowing it; the learner asks through `ctx.userQuestions` instead, so the model cannot skip the question.
 
 ## Consequences
 

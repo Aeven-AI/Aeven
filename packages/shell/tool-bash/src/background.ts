@@ -5,7 +5,7 @@
  */
 
 import type { ShellProcess } from '@aeven/shell'
-import type { JobOutputSource } from '@aeven/jobs'
+import { processOutputSources, type JobOutputSource } from '@aeven/jobs'
 
 /**
  * Map a settled background process onto the generic task-outcome vocabulary:
@@ -27,11 +27,11 @@ export function processOutcome(proc: ShellProcess): { status: 'completed' | 'kil
   return { status: 'completed', detail: `exit code: ${proc.exitCode ?? 0}` }
 }
 
-/** Non-consuming process channels pumped by the job registry. */
+/**
+ * Non-consuming process channels pumped by the job registry.
+ * @param proc - reads the running bash handle, or undefined once it is gone.
+ * @returns the handle's observable output channels.
+ */
 export function processSources(proc: () => Pick<ShellProcess, 'observed'> | undefined): JobOutputSource[] {
-  return (['stdout', 'stderr'] as const).map(channel => ({
-    channel,
-    read: (fromByte: number) => proc()?.observed?.[channel].readFrom(fromByte)
-      ?? { text: '', nextOffset: fromByte, lossy: false },
-  }))
+  return processOutputSources((channel, fromByte) => proc()?.observed?.[channel].readFrom(fromByte))
 }

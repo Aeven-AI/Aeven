@@ -189,12 +189,15 @@
   display: block;
   height: 100%;
   border-radius: 4px;
-  /* Green while the allowance holds out, yellow as it is used up: the fill
-     mixes the two by the percentage the row published. */
-  background: color-mix(
-    in oklab,
-    var(--dsw-alias-state-warn-primary) var(--avn-usage-percent, 0%),
-    var(--dsw-alias-state-success-primary)
+  /* Green while the allowance holds out, yellow as it is used up: the warning
+     ink rides over the success ink at the percentage the row published. The
+     theme states the warning ink's channels so the row's own percentage is its
+     alpha — the same blend at the same ends, computable on the floor, where
+     `color-mix()` needs Safari 16.2. */
+  background-color: var(--dsw-alias-state-success-primary);
+  background-image: linear-gradient(
+    rgb(var(--dsw-tint-usage-warn-channels) / var(--avn-usage-percent, 0%)),
+    rgb(var(--dsw-tint-usage-warn-channels) / var(--avn-usage-percent, 0%))
   );
   transition: width 0.3s;
 }

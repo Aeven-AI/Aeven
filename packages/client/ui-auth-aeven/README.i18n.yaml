@@ -3,4 +3,4 @@
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-auth-aeven/README.md
 README.md: 83517ab469e0f4e76f2bdd8a1658ac94d80e864c
-README.zh.md: 625dd7393640da6ea67dbd9862c42729714b1104
+README.zh.md: 096ab954b8db4a3e214de3d714055d1118e71f29

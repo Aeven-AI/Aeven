@@ -50,6 +50,7 @@ None; the page sends no request.
 - **The aspect choice travels as message text** — the size line is honored as far as the model follows it; nothing pins the size on the generation itself, because the Aeven image providers take a `WIDTHxHEIGHT` size rather than an aspect ratio.
 - **A retouch prompt does not require a photo** — `Try it` stays live with nothing staged and the message asks for the photo, so a reader who sends it without one gets that question instead of an image.
 - **The picker's rows restate the host's choice list** — this plugin merges the settings choices with the listed providers' catalog because that catalog changes with a subscription's sign-in state; the host re-resolves the same two sources when the submitted line arrives and refuses anything outside them, so a row the host no longer offers surfaces as that command's error.
+- **Invariant omission** — No invariant companion is published because the page owns no relation that outlives it: the drawn scene, the staged photos, and the written draft live in the open popup or in ui-conversation's composer, and the pool walk is deliberate per-open randomness rather than a state to compare.
 
 <a id="dev-note"></a>
 ### Dev Note

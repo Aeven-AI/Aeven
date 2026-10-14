@@ -73,7 +73,9 @@ describe('GenericToolCard image gallery', () => {
     const renderImages = vi.fn(() => <div data-testid="gallery" />)
     render(<GenericToolCard {...owner} renderImages={renderImages} t={t} />)
     expect(screen.getByTestId('gallery')).toBeTruthy()
-    expect(renderImages).toHaveBeenCalledWith({ images: [{ attachment: ref('a1') }], align: 'start' })
+    expect(renderImages).toHaveBeenCalledWith({
+      images: [{ attachment: ref('a1') }], align: 'start', layout: 'gallery',
+    })
   })
 
   it('stays text-only when the composition mounts no attachment presentation', () => {

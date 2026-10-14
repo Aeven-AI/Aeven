@@ -49,9 +49,10 @@ export function parsePersonalSkill(uploads: readonly SkillUploadFile[], maxBytes
       for (const [path, value] of Object.entries(archive)) add(path, value)
     } else add(upload.path, data)
   }
-  const definitions = [...files.keys()].filter(path => path === 'SKILL.md' || path.endsWith('/SKILL.md'))
-  if (definitions.length !== 1) throw new Error('import one skill bundle containing exactly one SKILL.md')
-  const definition = definitions[0]!
+  const [definition, ...otherDefinitions] = [...files.keys()].filter(path => path === 'SKILL.md' || path.endsWith('/SKILL.md'))
+  if (definition === undefined || otherDefinitions.length > 0) {
+    throw new Error('import one skill bundle containing exactly one SKILL.md')
+  }
   const prefix = definition.slice(0, -'SKILL.md'.length)
   const resources = new Map<string, Uint8Array>()
   for (const [path, data] of files) {
@@ -60,8 +61,9 @@ export function parsePersonalSkill(uploads: readonly SkillUploadFile[], maxBytes
   }
   const markdown = new TextDecoder('utf-8', { fatal: true }).decode(files.get(definition))
   const match = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)([\s\S]*)$/.exec(markdown)
-  if (match === null) throw new Error('SKILL.md requires YAML frontmatter')
-  const metadata: unknown = load(match[1]!, { schema: JSON_SCHEMA })
+  const [, frontmatter, content] = match ?? []
+  if (frontmatter === undefined || content === undefined) throw new Error('SKILL.md requires YAML frontmatter')
+  const metadata: unknown = load(frontmatter, { schema: JSON_SCHEMA })
   if (typeof metadata !== 'object' || metadata === null || Array.isArray(metadata)) throw new Error('skill frontmatter must be an object')
   const fields = metadata as Record<string, unknown>
   if (typeof fields['name'] !== 'string' || !isSkillName(fields['name'])) throw new Error('skill name must be a lowercase hyphenated identifier')
@@ -70,7 +72,7 @@ export function parsePersonalSkill(uploads: readonly SkillUploadFile[], maxBytes
     if (fields[key] !== undefined && typeof fields[key] !== 'boolean') throw new Error(`${key} must be a boolean`)
   }
   return {
-    name: fields['name'], description: fields['description'], content: match[2]!, files: resources,
+    name: fields['name'], description: fields['description'], content, files: resources,
     modelInvocable: fields['disable-model-invocation'] !== true,
     userInvocable: fields['user-invocable'] !== false,
   }

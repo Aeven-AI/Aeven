@@ -12,7 +12,7 @@ Status: implemented
 
 MemOS 提供方在所有轨迹领域的 `turn-start` 召回中使用已存储的轨迹摘要。摘要中已有的结果标签仍然可见。显式搜索对所有领域都返回展开的轨迹，包括摘要所提炼的原始消息（[细节](../bug-fix/2026-10-01-recall-returns-the-captured-message.zh.md)），轨迹读取保留存储的细节。缺少摘要时保留候选片段；非轨迹候选保持现有表示。不引入新的摘要生成器、存储格式、限制或工具约束。
 
-这部分取代了[记忆路线图](../../proposed/feature/2026-09-28-long-term-memory-roadmap.md)中的自动工件投递，其其他决策仍然有效。[提供方基础](2026-09-28-long-term-memory-memos.md)保留其独立范围。召回块每轮投递一次：在每个后续请求前再次附加该块的做法被否决，且没有测量对两者进行比较。
+这部分取代了[记忆路线图](../../proposed/feature/2026-09-28-long-term-memory-roadmap.zh.md)中的自动工件投递，其其他决策仍然有效。[提供方基础](2026-09-28-long-term-memory-memos.zh.md)保留其独立范围。召回块每轮投递一次：在每个后续请求前再次附加该块的做法被否决，且没有测量对两者进行比较。
 
 ## Alternatives considered
 

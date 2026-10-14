@@ -165,7 +165,7 @@ describe('TrajectoryTable', () => {
 
   it('shows assistant timing facts after keyboard selection', () => {
     render(<TrajectoryTable turns={TURNS} {...FOLD_PROPS} />)
-    fireEvent.keyDown(screen.getByRole('row', { name: /ASSISTANT/ }), { key: 'Enter' })
+    fireEvent.keyDown(screen.getByRole('row', { name: /Assistant/ }), { key: 'Enter' })
     fireEvent.click(screen.getByRole('button', { name: 'Request Timing' }))
 
     expect(screen.getByText('500 ms')).toBeTruthy()
@@ -189,14 +189,14 @@ describe('TrajectoryTable', () => {
     }]
 
     render(<TrajectoryTable turns={turns} {...FOLD_PROPS} />)
-    fireEvent.click(screen.getByRole('row', { name: /TOOL/ }))
+    fireEvent.click(screen.getByRole('row', { name: /Tool/ }))
 
     expect(screen.getByText('1,500 ms', { selector: 'dd' })).toBeTruthy()
   })
 
   it('breaks output tokens into labeled reasoning and content rows', () => {
     render(<TrajectoryTable turns={TURNS} {...FOLD_PROPS} />)
-    fireEvent.click(screen.getByRole('row', { name: /ASSISTANT/ }))
+    fireEvent.click(screen.getByRole('row', { name: /Assistant/ }))
 
     expect(screen.getByText('Tokens')).toBeTruthy()
     expect(screen.getByText('20 tok')).toBeTruthy()
@@ -208,7 +208,7 @@ describe('TrajectoryTable', () => {
 
   it('marks Summary scroll regions for interaction-only scrollbar thumbs', () => {
     render(<TrajectoryTable turns={TURNS} {...FOLD_PROPS} />)
-    fireEvent.click(screen.getByRole('row', { name: /ASSISTANT/ }))
+    fireEvent.click(screen.getByRole('row', { name: /Assistant/ }))
 
     const panel = screen.getByRole('tabpanel')
     expect(panel.querySelectorAll('[data-summary-scroll-region]').length).toBeGreaterThan(1)
@@ -234,7 +234,7 @@ describe('TrajectoryTable', () => {
     }]
     render(<TrajectoryTable turns={turns} {...FOLD_PROPS} />)
 
-    fireEvent.click(screen.getByRole('row', { name: /ASSISTANT/ }))
+    fireEvent.click(screen.getByRole('row', { name: /Assistant/ }))
     const toggle = screen.getByRole('button', { name: 'Thinking' })
     expect(toggle.getAttribute('aria-expanded')).toBe('false')
     expect(screen.queryByText(thinking)).toBeNull()
@@ -282,7 +282,7 @@ describe('TrajectoryTable', () => {
         onClearSelection={onClearSelection}
       />,
     )
-    const row = screen.getByRole('row', { name: /ASSISTANT/ })
+    const row = screen.getByRole('row', { name: /Assistant/ })
     fireEvent.click(row)
 
     expect(row.getAttribute('aria-selected')).toBe('true')
@@ -453,7 +453,7 @@ describe('TrajectoryTable', () => {
     />)
 
     const request = screen.getByRole('button', { name: 'Request #1' })
-    expect(request.closest('tr')?.getAttribute('aria-label')).toContain('ASSISTANT')
+    expect(request.closest('tr')?.getAttribute('aria-label')).toContain('Assistant')
   })
 
   it('follows appended records only while the ledger is already at the bottom', () => {
@@ -576,7 +576,7 @@ describe('TrajectoryTable', () => {
     expect(loadRow?.getAttribute('aria-rowindex')).toBe('1')
     expect(screen.getByRole('status').textContent).toBe('')
     expect(table.getAttribute('aria-rowcount')).toBe('4')
-    expect((await screen.findByRole('row', { name: /ASSISTANT/ })).getAttribute('aria-rowindex'))
+    expect((await screen.findByRole('row', { name: /Assistant/ })).getAttribute('aria-rowindex'))
       .toBe('2')
 
     fireEvent.click(loadButton)
@@ -769,7 +769,10 @@ describe('TrajectoryTable', () => {
       />,
     )
     const tablePane = screen.getByRole('table').parentElement as HTMLElement
-    tablePane.scrollTop = 5_000
+    // 101 collapsed turns, each a 32px summary row plus a 40px content row: the
+    // whole ledger estimates at 7272px, so a reader at 8000 has scrolled past
+    // every row and the tail must still be in the window.
+    tablePane.scrollTop = 8_000
     fireEvent.scroll(tablePane)
 
     await waitFor(() => {
@@ -782,9 +785,9 @@ describe('TrajectoryTable', () => {
     expect(view.container.querySelector('tr[data-kind="tool"][data-running="true"]')).toBeTruthy()
     expect(view.container.querySelector('tr[data-kind="tool"][data-error="true"]')).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('row', { name: /TOOL, bash \{"command":"pwd"\}/ }))
+    fireEvent.click(screen.getByRole('row', { name: /Tool, bash \{"command":"pwd"\}/ }))
     expect(screen.getByText('Pending')).toBeTruthy()
-    fireEvent.click(screen.getByRole('row', { name: /TOOL, bash \{"command":"false"\}/ }))
+    fireEvent.click(screen.getByRole('row', { name: /Tool, bash \{"command":"false"\}/ }))
     expect(screen.getByText('Failed')).toBeTruthy()
     expect(screen.getByText('Failed').className).toContain('error')
     fireEvent.click(screen.getByRole('tab', { name: 'Result' }))
@@ -885,23 +888,22 @@ describe('TrajectoryTable', () => {
     expect(screen.getByText('API key is invalid')).toBeTruthy()
   })
 
-  it('shows the custom role tooltip only from the responsive icon', () => {
+  it('names the role tag by its label seat and keeps the tip on the icon seat', () => {
     const view = render(<TrajectoryTable turns={TURNS} {...FOLD_PROPS} />)
     const toolTag = view.container.querySelector<HTMLElement>('[data-role-kind="tool"]')
     const toolIcon = toolTag?.querySelector<HTMLElement>('[data-role-icon="wrench"]')
 
     expect(toolTag).not.toBeNull()
+    // The tag names itself nowhere natively: the shared Tooltip adapter owns the
+    // bubble (ui-primitives' own suite and the browser lane carry its
+    // placement), so what this package states is which seat carries it.
     expect(toolTag?.getAttribute('title')).toBeNull()
-    expect(toolIcon).toBeTruthy()
-
-    fireEvent.mouseEnter(toolTag as HTMLElement)
-    expect(screen.queryByRole('tooltip')).toBeNull()
-    fireEvent.mouseEnter(toolIcon as HTMLElement)
-    const tooltip = screen.getByRole('tooltip')
-    expect(tooltip.textContent).toBe('TOOL')
-    expect(tooltip.getAttribute('data-side')).toBe('right')
-    fireEvent.mouseLeave(toolIcon as HTMLElement)
-    expect(screen.queryByRole('tooltip')).toBeNull()
+    expect(toolTag?.textContent).toBe('Tool')
+    // The icon is the tip's anchor: it is the one seat the responsive layout
+    // leaves in the tag, and it stays out of the accessibility tree so the row
+    // keeps a single name.
+    expect(toolIcon).not.toBeNull()
+    expect(toolIcon?.getAttribute('aria-hidden')).toBe('true')
   })
 
   it('uses information and compression glyphs for injected and compacted context', () => {
@@ -953,7 +955,7 @@ describe('TrajectoryTable', () => {
     }]
 
     render(<TrajectoryTable turns={turns} {...FOLD_PROPS} />)
-    fireEvent.click(screen.getByRole('row', { name: /TOOL/ }))
+    fireEvent.click(screen.getByRole('row', { name: /Tool/ }))
     fireEvent.click(screen.getByRole('tab', { name: 'Result' }))
 
     expect(screen.getByRole('tree', { name: 'Result JSON' })).toBeTruthy()
@@ -989,7 +991,7 @@ describe('TrajectoryTable', () => {
     }]
 
     render(<TrajectoryTable turns={turns} {...FOLD_PROPS} />)
-    fireEvent.click(screen.getByRole('row', { name: /USER/ }))
+    fireEvent.click(screen.getByRole('row', { name: /User/ }))
 
     const preview = screen.getAllByTestId('record-images')
     expect(preview.length).toBeGreaterThan(0)
@@ -1029,7 +1031,7 @@ describe('TrajectoryTable', () => {
     }]
 
     render(<TrajectoryTable turns={turns} {...FOLD_PROPS} />)
-    fireEvent.click(screen.getByRole('row', { name: /TOOL/ }))
+    fireEvent.click(screen.getByRole('row', { name: /Tool/ }))
     fireEvent.click(screen.getByRole('tab', { name: 'Result' }))
 
     const gallery = screen.getAllByTestId('record-images').at(-1)
@@ -1066,7 +1068,7 @@ describe('TrajectoryTable', () => {
     }]
 
     render(<TrajectoryTable turns={turns} {...FOLD_PROPS} />)
-    fireEvent.click(screen.getByRole('row', { name: /TOOL/ }))
+    fireEvent.click(screen.getByRole('row', { name: /Tool/ }))
     fireEvent.click(screen.getByRole('tab', { name: 'Result' }))
 
     expect(screen.getByText('ToolError: RENDER_TRUNCATED')).toBeTruthy()
@@ -1083,7 +1085,7 @@ describe('TrajectoryTable', () => {
       />,
     )
     expect(screen.queryByRole('columnheader')).toBeNull()
-    expect(screen.getByRole('row', { name: /ASSISTANT/ })).toBeTruthy()
+    expect(screen.getByRole('row', { name: /Assistant/ })).toBeTruthy()
     expect(screen.getByRole('row', { name: /Collapsed turn summary/ })).toBeTruthy()
   })
 

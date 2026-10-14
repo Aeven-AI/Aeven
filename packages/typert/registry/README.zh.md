@@ -121,6 +121,9 @@ Remote 调用通过 `ctx.typert.lookups` 与 `ctx.typert.contexts` 解析 Host �
 - **JSON Schema 投影不缓存**——`toJSONSchema()` 每次调用都返回全新文档；需要重复投影的消费方自行负责缓存。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

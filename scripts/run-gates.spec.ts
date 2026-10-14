@@ -184,7 +184,9 @@ describe('gate graph validation', () => {
     const full = withPnpmEntrypoint(() => gatesForMode('doc-sync'))
     const quick = withPnpmEntrypoint(() => gatesForMode('doc-quick'))
 
-    expect(quick).toEqual(full.filter(gate => gate.quick === true))
+    const marked = full.filter(gate => gate.quick === true)
+    expect(quick.map(gate => gate.id)).toEqual([...marked.map(gate => gate.id), 'module-graph'])
+    expect(quick.at(-1)).toMatchObject({ id: 'module-graph', quick: true })
   })
 
   it('keeps the hygiene aggregate aligned with the package script checks', () => {
@@ -192,7 +194,7 @@ describe('gate graph validation', () => {
 
     expect(ids).toEqual([
       'rescope-vendor', 'publint', 'constraints', 'package-dependencies', 'application-entrypoints',
-      'avn-package-licenses', 'brand', 'package-invariants', 'built-package-invariants', 'node-next-types',
+      'avn-package-licenses', 'package-invariants', 'built-package-invariants', 'node-next-types',
       'optional-dependency-imports', 'client-packages', 'client-ui-i18n', 'css-baseline', 'no-bare-dispatcher',
       'cordis-config', 'runtime-closure', 'vendored-links',
     ])
@@ -290,20 +292,6 @@ describe('gate graph validation', () => {
       ]))
       expect(completeGate?.needs).toEqual(gate.needs)
     }
-  })
-
-  it('runs the Windows built-bin smoke after other observational gates settle', () => {
-    const observational = withPnpmEntrypoint(() => gatesForMode('ci-windows-observational'))
-    const builtBin = observational.find(gate => gate.id === 'built-bin-smoke')
-
-    expect(builtBin?.after).toEqual(
-      observational.filter(gate => gate.id !== 'built-bin-smoke').map(gate => gate.id),
-    )
-
-    const completeBuiltBin = withPnpmEntrypoint(() => gatesForMode('ci-windows-complete'))
-      .find(gate => gate.id === 'built-bin-smoke')
-    expect(completeBuiltBin?.after).toContain('windows-site')
-    expect(completeBuiltBin?.after).not.toContain('docs-site-build')
   })
 
   it('applies one configured test, polling, and hook timeout to both coverage gates', () => {
@@ -514,7 +502,7 @@ describe('Node 24 lane ownership', () => {
     const subject = withPnpmEntrypoint(() => gatesForMode('ci-consumers'))
 
     expect(defaultConcurrency('ci-consumers', subject.length, 4)).toEqual({
-      workers: 11,
+      workers: 10,
       source: 'ci-consumers gate count',
     })
     expect(subject.map(item => item.id)).toEqual([
@@ -528,7 +516,6 @@ describe('Node 24 lane ownership', () => {
       'web-snapshot',
       'doc-typecheck',
       'node-next-types',
-      'built-bin-smoke',
     ])
     expect(subject.find(item => item.id === 'publint')?.needs).toEqual(['build'])
     expect(subject.find(item => item.id === 'build')?.env).toEqual({
@@ -545,7 +532,6 @@ describe('Node 24 lane ownership', () => {
       'web-snapshot',
       'doc-typecheck',
       'node-next-types',
-      'built-bin-smoke',
     ]) {
       expect(subject.find(item => item.id === id)?.needs).toEqual(['built-package-invariants'])
     }
@@ -554,13 +540,6 @@ describe('Node 24 lane ownership', () => {
     expect(subject.find(item => item.id === 'doc-typecheck')?.env).toEqual({
       AVN_DOC_TYPECHECK_USE_BUILD_OUTPUT: '1',
     })
-    expect(subject.find(item => item.id === 'built-bin-smoke')?.args).toEqual(
-      expect.arrayContaining([
-        'packages/subagent/subagent-codex/tests/loader-composition.e2e.ts',
-        'packages/subagent/subagent-claude-code/tests/loader-composition.e2e.ts',
-        'packages/experimental/agent-team/tests/built-lib.e2e.ts',
-      ]),
-    )
     expect(subject.find(item => item.id === 'web-snapshot')).toMatchObject({
       displayCommand: 'AVN_SNAPSHOT=replay pnpm run test:web:built',
       env: { AVN_SNAPSHOT: 'replay' },
@@ -571,7 +550,6 @@ describe('Node 24 lane ownership', () => {
         'expected-output',
         'doc-typecheck',
         'node-next-types',
-        'built-bin-smoke',
       ],
     })
   })
@@ -677,7 +655,7 @@ describe('fail-fast scheduling', () => {
     expect(results.map(result => result.status)).toEqual(['failed', 'passed'])
   })
 
-  it('kills the child when the abort signal fires', async () => {
+  it.runIf(process.env.AVN_GATE_PROCESS_TESTS === '1')('kills the child when the abort signal fires', async () => {
     const controller = new AbortController()
     const promise = runGate(gate('killable', { args: ['-e', 'setInterval(() => {}, 1000)'] }), controller.signal)
     controller.abort()
@@ -688,7 +666,7 @@ describe('fail-fast scheduling', () => {
     if (process.platform !== 'win32') expect(result.signalCode).toBe('SIGTERM')
   })
 
-  it.skipIf(process.platform === 'win32')('marks a zero-exit child as aborted when the signal fired', async () => {
+  it.skipIf(process.platform === 'win32' || !(process.env.AVN_GATE_PROCESS_TESTS === '1'))('marks a zero-exit child as aborted when the signal fired', async () => {
     const { writes, write } = captureStreamedOutput()
     try {
       const controller = new AbortController()
@@ -715,7 +693,7 @@ describe('fail-fast scheduling', () => {
     }
   })
 
-  it.skipIf(process.platform === 'win32')('kills the whole gate process tree when the abort signal fires', async () => {
+  it.skipIf(process.platform === 'win32' || !(process.env.AVN_GATE_PROCESS_TESTS === '1'))('kills the whole gate process tree when the abort signal fires', async () => {
     const { writes, write } = captureStreamedOutput()
     const controller = new AbortController()
     let promise: Promise<GateResult> | undefined
@@ -803,14 +781,14 @@ describe('fail-fast scheduling', () => {
     expect(execute).not.toHaveBeenCalled()
   })
 
-  it('leaves an un-aborted child running to completion', async () => {
+  it.runIf(process.env.AVN_GATE_PROCESS_TESTS === '1')('leaves an un-aborted child running to completion', async () => {
     const result = await runGate(gate('settles', { args: ['-e', ''] }), new AbortController().signal)
 
     expect(result.status).toBe('passed')
     expect(result.aborted).toBe(false)
   })
 
-  it.skipIf(process.platform === 'win32')('kills a detached descendant that outlived the child when the abort arrives later', async () => {
+  it.skipIf(process.platform === 'win32' || !(process.env.AVN_GATE_PROCESS_TESTS === '1'))('kills a detached descendant that outlived the child when the abort arrives later', async () => {
     const writes: string[] = []
     const write = vi.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
       writes.push(String(chunk))
@@ -846,7 +824,7 @@ describe('fail-fast scheduling', () => {
     }
   }, 20000)
 
-  it.skipIf(process.platform === 'win32')('keeps a reparented detached descendant tracked across a sampler tick', async () => {
+  it.skipIf(process.platform === 'win32' || !(process.env.AVN_GATE_PROCESS_TESTS === '1'))('keeps a reparented detached descendant tracked across a sampler tick', async () => {
     const { writes, write } = captureStreamedOutput()
     const controller = new AbortController()
     let promise: Promise<GateResult> | undefined

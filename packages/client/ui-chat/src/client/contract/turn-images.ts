@@ -2,9 +2,6 @@ import type { ContentBlock } from '@aeven/llm/types'
 import type { MessageImageSource } from '@aeven/client-ui-conversation/client'
 import type { ChatNode } from './chat-nodes.ts'
 import { isSettledTool } from './chat-nodes.ts'
-import type {} from '../conversation-nodes/assistant.ts'
-import type {} from '../conversation-nodes/message.ts'
-import type {} from '../conversation-nodes/tool.ts'
 
 /** Identity of one image source, for the per-Turn dedupe key. */
 function sourceKey(source: MessageImageSource): string {

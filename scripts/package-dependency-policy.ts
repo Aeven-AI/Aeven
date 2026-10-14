@@ -41,15 +41,31 @@ const DUPLICATE_SAFE_PACKAGES: readonly string[] = [
  * Runtime exports whose values remain valid when npm installs another package copy.
  */
 const SAFE_HOST_DEPENDENCY_EXPORTS = {
+  '@aeven/atomic-write': ['withFileLock', 'writeFileAtomic'],
   '@aeven/credentials': ['credentialKey'],
   '@aeven/deque': ['Deque'],
-  '@aeven/llm': ['callConfigEquals'],
+  '@aeven/home-paths': ['resolveAvnHome'],
+  '@aeven/llm': [
+    'LlmAdapter',
+    'RetryPolicySchema',
+    'assertUsableApiKey',
+    'callConfigEquals',
+    'resolveImageAttachmentAccess',
+    'resolveRetryPolicy',
+  ],
+  '@aeven/llm-pi-ai': ['PiAiAdapter'],
+  '@aeven/media': ['MediaError', 'rejectImageControls'],
+  '@aeven/tools': ['defineTool'],
   '@aeven/timeout': ['MAX_TIMER_DELAY_MS'],
   '@deepseek-ai/schemastery': ['default'],
 } as const satisfies HostDependencyExports
 
 /** Runtime exports that require every consumer to resolve the provider's shared peer instance. */
 const PEER_REQUIRED_HOST_EXPORTS = {
+  // The failure taxonomy crosses package boundaries: the Agent loop and other
+  // adapters narrow a provider failure with `error instanceof LlmError`, so a
+  // second installed copy would read a real provider failure as an unknown one.
+  '@aeven/llm': ['LlmError'],
   '@aeven/scope': ['carrierKeyOf', 'scopeOf', 'scopeTarget'],
 } as const satisfies HostDependencyExports
 

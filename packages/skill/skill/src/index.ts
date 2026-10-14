@@ -441,6 +441,7 @@ export class SkillRegistry extends Service {
    * @returns disposer removing the policy and invalidating catalog observations.
    */
   registerInvocationPolicy(policy: (name: string, options: SkillViewOptions) => boolean): () => void {
+    // oxlint-disable-next-line typescript/no-misused-promises -- synchronous disposer; pinned public signature
     return this.ctx.effect(() => {
       this.invocationPolicies.add(policy)
       this.invalidateCache()

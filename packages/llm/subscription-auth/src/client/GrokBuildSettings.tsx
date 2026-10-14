@@ -241,7 +241,9 @@ export function GrokBuildSettings({ t }: GrokBuildSettingsProps) {
                 onCancelLogin={() => { void statusAction(slug, LOGIN_CANCEL_PATH) }}
                 onSelectModels={(selected) => { void selectModels(slug, selected) }}
                 onOpenAuthUrl={(event, url) => {
-                  const desktop = (window as Window & { avnDesktop?: { browser?: { openExternal: (url: string) => Promise<void> } } }).avnDesktop?.browser
+                  const desktop = (window as Window & {
+                    avnDesktop?: { browser?: { openExternal: (url: string) => Promise<void> } }
+                  }).avnDesktop?.browser
                   if (desktop === undefined) return
                   event.preventDefault()
                   void desktop.openExternal(url).catch((error: unknown) => {

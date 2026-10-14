@@ -1,0 +1,6 @@
+# A configured root claiming the id the shipped root already supplies, so a
+# roster test can prove the shipped one wins.
+- id: shadow
+  name: ../../plugins/contribute.js
+  config:
+    tool: shadow

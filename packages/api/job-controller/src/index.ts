@@ -116,17 +116,7 @@ export class JobController extends TypertRemoteService {
   @Remote('kill')
   kill(request: JobKillRequest): JobKillValue {
     this.requireCallerSession(request.sessionId)
-    const jobs = this.ctx.jobs
-    try {
-      jobs.get(request.jobId, request.sessionId)
-    } catch (error) {
-      // `unknown job` and `belongs to another session` both mean this session's
-      // list no longer carries a killable row; the client renders one story.
-      throw new RemoteError('job/not-found', String(error), {
-        sessionId: request.sessionId,
-        jobId: request.jobId,
-      })
-    }
+    const jobs = this.requireJob(request)
     // Same synchronous span as the lookup, so nothing can remove the job in
     // between — and a producer-cancel throw propagates per the registry
     // contract (job state unchanged) instead of masquerading as job-not-found.
@@ -146,19 +136,28 @@ export class JobController extends TypertRemoteService {
   @Remote('dismiss')
   dismiss(request: JobDismissRequest): JobDismissValue {
     this.requireCallerSession(request.sessionId)
+    const jobs = this.requireJob(request)
+    jobs.remove(request.jobId, request.sessionId)
+    return { outcome: 'dismissed' }
+  }
+
+  /** Resolve a job through its requesting session's visibility fence. */
+  private requireJob(request: JobKillRequest | JobDismissRequest): Context['jobs'] {
     const jobs = this.ctx.jobs
     try {
       jobs.get(request.jobId, request.sessionId)
     } catch (error) {
+      // `unknown job` and `belongs to another session` both mean this session's
+      // list no longer carries a killable row; the client renders one story.
       throw new RemoteError('job/not-found', String(error), {
         sessionId: request.sessionId,
         jobId: request.jobId,
       })
     }
-    jobs.remove(request.jobId, request.sessionId)
-    return { outcome: 'dismissed' }
+    return jobs
   }
 
+  /* jscpd:ignore-start -- mirrors @aeven/device's caller-session fence for its own requests */
   /**
    * Refuse a request that names a Session the caller does not own; it reads as absent.
    * @param sessionId - the Session the request acts as.
@@ -169,6 +168,7 @@ export class JobController extends TypertRemoteService {
       throw new RemoteError('session/not-found', `session "${sessionId}" not found`, { sessionId })
     }
   }
+  /* jscpd:ignore-end */
 }
 
 export default JobController

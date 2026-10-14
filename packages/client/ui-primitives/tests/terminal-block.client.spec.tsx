@@ -89,11 +89,14 @@ describe('TerminalBlock prompt label', () => {
 })
 
 describe('TerminalBlock states', () => {
-  it('running shows the command line only: no output, no placeholder, no copy', () => {
+  it('running shows the command line and whatever it has printed, with no copy yet', () => {
     const view = render(<TerminalBlock command="sleep 5" running output="partial" />)
     expect(view.getByText('sleep 5')).toBeTruthy()
-    expect(view.queryByText('partial')).toBeNull()
+    // Live output streams under the banner as it would in a terminal.
+    expect(view.getByText('partial')).toBeTruthy()
     expect(view.queryByText('无输出')).toBeNull()
+    // A running command carries a copy control only when the caller supplied
+    // the payload; there is no expand control for one line.
     expect(view.queryByRole('button')).toBeNull()
     expect(view.container.firstElementChild?.getAttribute('data-running')).toBe('')
   })

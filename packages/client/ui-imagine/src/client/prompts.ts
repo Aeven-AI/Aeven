@@ -27,7 +27,7 @@ export interface ImagineRatio {
 }
 
 /** The ratios the popup offers, in display order. */
-export const IMAGINE_RATIOS: readonly ImagineRatio[] = [
+export const IMAGINE_RATIOS: readonly [ImagineRatio, ...ImagineRatio[]] = [
   { id: 'auto' },
   // 2K-class sizes: the largest tier either Aeven image model renders, scaled
   // up from Instagram's own export sizes so the downscale keeps the detail.
@@ -133,7 +133,7 @@ export function promptRatios(prompt: ImaginePrompt): readonly ImagineRatio[] {
  */
 export function promptDefaultRatio(prompt: ImaginePrompt): ImagineRatio {
   const offered = promptRatios(prompt)
-  return offered.find(ratio => ratio.id === prompt.ratio) ?? offered[0] ?? IMAGINE_RATIOS[0]!
+  return offered.find(ratio => ratio.id === prompt.ratio) ?? offered[0] ?? IMAGINE_RATIOS[0]
 }
 
 /**
@@ -164,7 +164,7 @@ export function promptDraft(
 ): string {
   const body = promptVaries(prompt) ? composeOriginal(variation ?? variationAt(0, 0), t) : t(`prompt.${prompt.id}.text`)
   const parts = [body]
-  if (promptVaries(prompt) !== true && prompt.needsPhoto === true) parts.push(t('dialog.photoClause'))
+  if (!promptVaries(prompt) && prompt.needsPhoto === true) parts.push(t('dialog.photoClause'))
   if (ratio.size !== undefined) parts.push(t('dialog.sizeLine', { size: ratio.size }))
   return parts.join('\n\n')
 }

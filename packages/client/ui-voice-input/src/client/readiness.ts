@@ -1,6 +1,5 @@
 /** One reconnecting Host readiness mirror shared by every voice UI occurrence. */
 import type { Context } from '@deepseek-ai/cordis'
-import { RemoteStreamCarrierError } from '@aeven/api-gateway/client'
 import { createSnapshotStore, type SnapshotStore } from '@aeven/client-store'
 import type { SpeechCatalog } from '@aeven/api-speech-to-text/types'
 import type {} from '@aeven/api-remotes/client'
@@ -26,7 +25,13 @@ export function observeReadiness(ctx: Context): { state: SnapshotStore<SpeechRea
   }
   const stream = ctx.remote.$stream<SpeechCatalog>({
     name: 'Speech readiness', open: signal => ctx.remote.speech.follow(signal),
-    ended: () => new RemoteStreamCarrierError('Speech readiness stream ended'), carrierFailed: fail,
+    // A silent end is terminal: the socket failures `$stream` retries reach
+    // `carrierFailed` on their own, and nothing reopens a stream the Host ended
+    // without a terminal result.
+    ended: accepted => new Error(accepted
+      ? 'Speech readiness stream ended without a terminal result'
+      : 'Speech readiness stream ended before its opening catalog'),
+    carrierFailed: fail,
   })
   const observing = (async () => {
     try {

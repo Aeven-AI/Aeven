@@ -174,6 +174,9 @@ spawn 返回 id 与有界启动输出。发送与读取返回有界终端文本�
 - **后台模式要求任务接口面**——`run_in_background` 同时需要 `@aeven/jobs` 及其面向模型的控制器（`@aeven/tool-jobs`）；缺少时会拒绝该参数。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

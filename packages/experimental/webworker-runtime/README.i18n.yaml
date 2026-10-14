@@ -3,4 +3,4 @@
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/experimental/webworker-runtime/README.md
 README.md: 4907b371b45796666f1d17991dbc69e2c753f6e0
-README.zh.md: 748e1a85c56e646d86d7e300587c0076d47c7a16
+README.zh.md: 3e7041841358d48a9d9b7299ebdef3f218829d8e

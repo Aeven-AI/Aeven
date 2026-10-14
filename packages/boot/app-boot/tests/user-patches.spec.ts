@@ -460,7 +460,7 @@ describe('boot with user patches', () => {
         ctx,
         filename,
         userPatches => [...basePatches, ...userPatches],
-        () => writeFileSync(filename, '- id: noop\n  config:\n    value: live\n'),
+        () =>{  writeFileSync(filename, '- id: noop\n  config:\n    value: live\n') },
       )
       // Nothing was delivered for that write, so readiness itself has to mean the
       // layer on disk when the promise resolves is the layer that is applied.
@@ -485,7 +485,7 @@ describe('boot with user patches', () => {
         ctx,
         filename,
         userPatches => [...basePatches, ...userPatches],
-        () => writeFileSync(filename, 'invalid: [unclosed\n'),
+        () =>{  writeFileSync(filename, 'invalid: [unclosed\n') },
       )
       expect(failures).toHaveLength(1)
       expect(failures[0]).toMatchObject({ filename })

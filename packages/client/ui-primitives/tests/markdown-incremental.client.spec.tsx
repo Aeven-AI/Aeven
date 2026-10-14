@@ -117,9 +117,13 @@ describe('MarkdownText streaming reconciliation', () => {
 
   it('keeps the final animated words mounted after their fade', () => {
     const doc = 'The final words fade in.'
-    const live = render(<MarkdownText text="The final words" streaming />)
-
-    live.rerender(<MarkdownText text={doc} />)
+    // The fade belongs to the stream: words written while the reply is still
+    // arriving animate, and the settled projection finalizes them in place.
+    const live = render(<MarkdownText text="" streaming />)
+    for (let cut = 4; cut < doc.length; cut += 4) {
+      live.rerender(<MarkdownText text={doc.slice(0, cut)} streaming />)
+    }
+    live.rerender(<MarkdownText text={doc} streaming />)
     const animatedWords = live.container.querySelectorAll('[data-animate-word="true"]')
     const animatedWord = animatedWords.item(animatedWords.length - 1)
     expect(animatedWord).not.toBeNull()
@@ -128,6 +132,7 @@ describe('MarkdownText streaming reconciliation', () => {
     fireEvent.animationEnd(animatedWord)
     live.rerender(<MarkdownText text={doc} />)
     expect(live.container.contains(animatedWord)).toBe(true)
+    expect(live.container.textContent).toBe(doc)
   })
 
   it('finalizes a terminal replacement in the streaming renderer', () => {
@@ -136,7 +141,9 @@ describe('MarkdownText streaming reconciliation', () => {
 
     live.rerender(<MarkdownText text={doc} />)
     expect(live.container.textContent).toContain(doc)
-    expect(live.container.querySelector('[data-animate-word="true"]')).not.toBeNull()
+    // The reader already saw these words, so the rebuild lands finalized: a
+    // second fade would flash the whole reply.
+    expect(live.container.querySelector('[data-animate-word="true"]')).toBeNull()
 
     const finalized = live.container.innerHTML
     live.rerender(<MarkdownText text={doc} />)

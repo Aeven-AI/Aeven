@@ -98,6 +98,9 @@ const seq = brandNumber<SessionSeq>(7)
 -----
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ## 开发备注
 
 <details>

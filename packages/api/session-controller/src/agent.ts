@@ -1,7 +1,6 @@
 /** Agent activation, composition, and model-selection policy owned by API Session. */
 
 import { mkdir } from 'node:fs/promises'
-import { SessionPersistenceBusyError } from '@aeven/session-persistence'
 import type { Context } from '@deepseek-ai/cordis'
 import { installModelSelection } from '@aeven/agent'
 import type {
@@ -250,6 +249,7 @@ export class ApiSessionAgentController {
     try {
       return { agent: await resume }
     } catch (error: unknown) {
+      const { SessionPersistenceBusyError } = await import('@aeven/session-persistence')
       if (error instanceof SessionPersistenceBusyError) {
         return { error: new RemoteError('session/agent-busy', error.message, { reason: error.message }) }
       }

@@ -11,7 +11,7 @@ kind: "package-reference"
 
 `read-only` 会话仍然存在通往副作用的路径。文件系统沙箱会拒绝所有经由 fs 能力写入的操作，因此 `write` 与 `edit` 会失败——但点击实时页面、向其输入、运行终端命令或启停设备的工具根本不会到达该层。`avn-tool-call-access-policy` 关闭这些路径：它注册一个单调的 `tools.guard()` 检查，在会话解析出的访问模式等于被禁止的模式时拒绝所列工具。拒绝信息会指明工具、模式以及授权方式，因此模型会去询问而不是重试。它随 `avn` 基础 bundle 默认启用，被禁止的模式为 `read-only`。
 
-## Table of Contents
+## 目录
 
 - [Use this package](#use-this-package)
 - [Understand the implementation](#understand-the-implementation)
@@ -82,9 +82,9 @@ kind: "package-reference"
 <a id="further-exploration"></a>
 ## Further Exploration
 
-- [Tools 子系统参考](../../../docs/subsystems/tools.md) — 本插件注册所依赖的 guard 与 pre-execute 接缝。
-- [文件系统沙箱](../../fs/fs-sandbox/README.md) — 不区分路径来源而拒绝变更的那一层。
-- [guard 组地图](../README.md) — 同组守卫包与循环卫生系列。
+- [Tools 子系统参考](../../../docs/subsystems/tools.zh.md) — 本插件注册所依赖的 guard 与 pre-execute 接缝。
+- [文件系统沙箱](../../fs/fs-sandbox/README.zh.md) — 不区分路径来源而拒绝变更的那一层。
+- [guard 组地图](../README.zh.md) — 同组守卫包与循环卫生系列。
 
 -----
 

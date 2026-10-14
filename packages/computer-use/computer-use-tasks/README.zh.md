@@ -106,6 +106,9 @@ for (const [app, tasks] of groupByApp(normalizeIntents(intents))) {
 - **工具目录是能力，而不是任务。** 它们说明某个操作存在以及它的名称；它们不说明有用户提出过该需求，也不携带终态检查。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ## 开发备注
 
 导入器在首次运行时发现了一个数据源之间真实的不一致：OSWorld 把评测器的 `func` 写成**字符串**，MacAgentBench 则写成**数组**。一个同时容忍两者的适配器把它们读作同样的东西，并由一个测试固定下来。

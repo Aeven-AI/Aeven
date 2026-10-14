@@ -3,4 +3,4 @@
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/media/media-openrouter/README.md
 README.md: fc33f5dd4a9fca0b9a83213def59c808b917c145
-README.zh.md: 2440ee3e4388a7648ffad98d1fa1089d797a4766
+README.zh.md: bf2fc35dde2138632009333fbf3baf04786df3ad

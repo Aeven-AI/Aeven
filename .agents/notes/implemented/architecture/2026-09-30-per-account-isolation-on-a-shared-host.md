@@ -2,6 +2,8 @@
 
 Status: implemented
 
+English | [中文](2026-09-30-per-account-isolation-on-a-shared-host.zh.md)
+
 ## Problem
 
 One Host serves every client of one Aeven home: the browser on `avn web` and the desktop shell, which adopts a Host already serving its home instead of starting a second writer. Those clients may be signed in to different Aeven accounts, and the Host kept per-person state in Host-wide slots. The caller's Aeven access token lived in one in-memory slot per credential reference, so whichever client spoke last supplied the bearer for every model request, and one account's turns ran on another account's credit. Sessions recorded an `owner`, but no listing, read, stream, or command checked it, so every signed-in client listed, opened, followed, and drove every other account's Sessions and saw their live activity. Workspaces, the Session control stream, forwarded Host events, background jobs, subagents, terminals, devices, dynamic Cordis plugins, Session references, and the MemOS Viewer exposed the same state across accounts.

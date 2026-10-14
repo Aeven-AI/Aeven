@@ -582,7 +582,7 @@ function ArchivedSection({
       const archived = deriveArchived(list, archivedSessionIds, pendingInteractions, hidden)
       if (orderBy === 'updated') return archived
       const byId = new Map(archived.map(row => [row.id, row]))
-      return [...archivedSessionIds].reverse().flatMap(id => {
+      return [...archivedSessionIds].reverse().flatMap((id) => {
         const row = byId.get(id)
         return row === undefined ? [] : [row]
       })

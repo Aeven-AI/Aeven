@@ -5,7 +5,11 @@ import type {} from '@aeven/api-remotes/client'
 import type { SessionHistoryRecord, SessionWireHeader } from '@aeven/api-session-controller/types'
 import type { SessionId } from '@aeven/session/types'
 
-/** Read the durable history through the cursor captured when the export begins. */
+/**
+ * Read the durable history through the cursor captured when the export begins.
+ * @param remote - the session Remote the export pages through.
+ * @param sessionId - session whose complete history is read.
+ */
 export async function exportSessionLog(remote: Context['remote']['session'], sessionId: SessionId): Promise<void> {
   const signal = new AbortController().signal
   const address = { kind: 'session' as const, sessionId }
@@ -23,7 +27,10 @@ export async function exportSessionLog(remote: Context['remote']['session'], ses
   let beforeSeq: number | undefined
   if (cursor >= 0) {
     while (true) {
-      const result = await remote.page({ address, throughSeq: cursor, maxMessages: 200, ...beforeSeq === undefined ? {} : { beforeSeq } }, signal)
+      const result = await remote.page(
+        { address, throughSeq: cursor, maxMessages: 200, ...(beforeSeq === undefined ? {} : { beforeSeq }) },
+        signal,
+      )
       if (!result.ok) throw result.error
       const page = result.value
       pages.unshift(page.records)

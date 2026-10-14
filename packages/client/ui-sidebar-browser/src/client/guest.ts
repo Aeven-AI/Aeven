@@ -72,10 +72,20 @@ export interface DesktopBrowserBridge {
    */
   suggest: (url: string) => Promise<string>
   /** Perform one agent action on a guest over its CDP debugger. */
-  automate: (webContentsId: number, operation: string, input: Record<string, unknown>, requestId?: DesktopBrowserRequestId, timeoutMs?: number) => Promise<unknown>
+  automate: (
+    webContentsId: number,
+    operation: string,
+    input: Record<string, unknown>,
+    requestId?: DesktopBrowserRequestId,
+    timeoutMs?: number,
+  ) => Promise<unknown>
   /** Cancel the owned browser request. */
   cancelAutomation: (webContentsId: number, requestId: DesktopBrowserRequestId) => void
-  /** Acknowledge a cursor step after arrival or when the pane is invisible. @param webContentsId - guest id. @param sequence - announced step. */
+  /**
+   * Acknowledge a cursor step after arrival or when the pane is invisible.
+   * @param webContentsId - guest id.
+   * @param sequence - announced step.
+   */
   cursorArrived(webContentsId: number, sequence: number): void
   /** Observe pointer steps before native input; returns a disposer. */
   onCursor: (listener: (cursor: BrowserCursor) => void) => () => void

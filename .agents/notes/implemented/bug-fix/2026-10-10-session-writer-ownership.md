@@ -2,6 +2,8 @@
 
 Status: implemented
 
+English | [中文](2026-10-10-session-writer-ownership.zh.md)
+
 ## Problem
 
 Web and Electron Hosts can share an account and persistence root while holding independent copies of one Session. Process-local sequence counters and preparation reservations cannot stop a second Host from treating the first Host's open turn as interrupted, appending recovery events, and resuming the same log. Both executions then append overlapping sequences.

@@ -6,7 +6,7 @@
  */
 
 import type { ShellProcess } from '@aeven/shell'
-import type { JobOutputSource } from '@aeven/jobs'
+import { processOutputSources, type JobOutputSource } from '@aeven/jobs'
 
 /* jscpd:ignore-start -- deliberate twin of avn-tool-bash/background.ts (Agent Note). */
 
@@ -31,11 +31,11 @@ export function processOutcome(proc: ShellProcess): { status: 'completed' | 'kil
 }
 /* jscpd:ignore-end */
 
-/** Non-consuming process channels pumped by the job registry. */
+/**
+ * Non-consuming process channels pumped by the job registry.
+ * @param proc - reads the running pwsh handle, or undefined once it is gone.
+ * @returns the handle's observable output channels.
+ */
 export function processSources(proc: () => Pick<ShellProcess, 'observed'> | undefined): JobOutputSource[] {
-  return (['stdout', 'stderr'] as const).map(channel => ({
-    channel,
-    read: (fromByte: number) => proc()?.observed?.[channel].readFrom(fromByte)
-      ?? { text: '', nextOffset: fromByte, lossy: false },
-  }))
+  return processOutputSources((channel, fromByte) => proc()?.observed?.[channel].readFrom(fromByte))
 }

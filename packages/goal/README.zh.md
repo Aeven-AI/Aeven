@@ -43,6 +43,9 @@ goal 组为 agent 会话提供一个持久的完成目标，在重启、resume�
 -----
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ## 开发备注
 
 <details>

@@ -3,4 +3,4 @@
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/media/media-aeven/README.md
 README.md: 9e3a3956031372fc913a7c9f8c0eedf2f37a1108
-README.zh.md: f0eb8cfb388e47dfbb1c9172958b7dd257fa4ebb
+README.zh.md: 3b9ebcf44d59aff7acd1cd48d88a2d0499ec3fc9

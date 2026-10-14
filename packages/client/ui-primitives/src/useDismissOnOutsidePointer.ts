@@ -32,3 +32,19 @@ export function useDismissOnOutsidePointer(
     return () => { document.removeEventListener('pointerdown', closeOutside) }
   }, [root, open, setOpen, portal])
 }
+
+/**
+ * Close a showing surface when Escape is pressed.
+ * @param open - whether the surface is showing.
+ * @param setOpen - setter receiving false on Escape.
+ */
+export function useDismissOnEscape(open: boolean, setOpen: (open: boolean) => void): void {
+  useEffect(() => {
+    if (!open) return
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => { document.removeEventListener('keydown', onKeyDown) }
+  }, [open, setOpen])
+}

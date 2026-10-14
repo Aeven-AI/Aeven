@@ -236,7 +236,9 @@ describe('image generation through the shipped preset composition', () => {
       arguments: { prompt: 'a wide valley', resolution: '2K' },
     })
     expect(out.isError).not.toBe(true)
-    const [image] = (out.value as { images: { width: number; height: number; originalDimensions?: { width: number; height: number } }[] }).images
+    const [image] = (out.value as {
+      images: { width: number; height: number; originalDimensions?: { width: number; height: number } }[]
+    }).images
     expect(image?.originalDimensions).toEqual({ width: 4096, height: 1755 })
     expect(image!.width).toBeLessThan(4096)
     expect(image!.width * image!.height).toBeLessThanOrEqual(2048 * 2048)

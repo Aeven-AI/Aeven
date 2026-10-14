@@ -99,7 +99,10 @@ function reservePort(): Promise<number> {
     server.once('error', reject)
     server.listen(0, '127.0.0.1', () => {
       const address = server.address()
-      server.close(() => { typeof address === 'object' && address !== null ? resolve(address.port) : reject(new Error('no port')) })
+      server.close(() => {
+        if (typeof address === 'object' && address !== null) resolve(address.port)
+        else reject(new Error('no port'))
+      })
     })
   })
 }
@@ -140,7 +143,13 @@ export class LocalDeviceHost implements DeviceHost {
    * @param sdk - the Android SDK found at startup.
    * @param javaHome - the Java runtime for the SDK's command-line tools, when found.
    */
-  constructor(private readonly ctx: Context, private readonly config: Config, stateDir: string, private readonly sdk: AndroidSdk, javaHome: string | undefined) {
+  constructor(
+    private readonly ctx: Context,
+    private readonly config: Config,
+    stateDir: string,
+    private readonly sdk: AndroidSdk,
+    javaHome: string | undefined,
+  ) {
     this.toolsDir = config.toolsDir ?? avnHomePath('runtime', 'device-tools')
     this.agentStateDir = join(stateDir, 'agent-device')
     this.hubSpec = { name: 'expo-device-hub', version: config.hubVersion, entry: ['dist', 'server', 'cli.mjs'] }
@@ -315,8 +324,8 @@ export class LocalDeviceHost implements DeviceHost {
         if (line.trim() !== '') this.ctx.logger.debug('device hub: %s', line.trim())
       }
     }
-    child.stdout?.on('data', log)
-    child.stderr?.on('data', log)
+    child.stdout.on('data', log)
+    child.stderr.on('data', log)
     const exited = new Promise<void>((resolve) => { child.once('exit', () => { resolve() }) })
     child.once('error', (error) => { this.ctx.logger.warn('device hub failed to start: %s', error.message) })
     const hub: HubProcess = { child, origin, startedAt: Date.now() }

@@ -73,7 +73,7 @@ Codex 是一个基于其凭据文件的 `OAuthProviderSession`，Grok 是一个 
 
 - [`packages/media`](../../media/README.zh.md) — 这些 provider 注册进入的 seam。
 - [`packages/llm`](../../llm/README.zh.md) — adapter 在其上发布路由的 LLM capability。
-- [Experimental subtree rules](../AGENTS.md) — experimental 状态放宽了什么、没有放宽什么。
+- [Experimental subtree rules](../../AGENTS.md) — experimental 状态放宽了什么、没有放宽什么。
 
 -----
 
@@ -107,7 +107,7 @@ Codex 是一个基于其凭据文件的 `OAuthProviderSession`，Grok 是一个 
 - **这个包横跨多个产品角色。** OAuth 会话、一个 LLM adapter、媒体工具与一个客户端 UI 都在同一个包里。预期它会在从 `experimental/` 提升之前按这些角色拆分。
 - **凭据文件是唯一的持久状态。** 它们保存着 refresh token；移除某个供应商的最后一个账户会删除它的文档——这是一次完整登出，同时丢弃 refresh token，只能通过重新在浏览器中登录来恢复。
 
-<a id="dev-note"></a>
+<a id="开发备注"></a>
 ### 开发备注
 
 <details>

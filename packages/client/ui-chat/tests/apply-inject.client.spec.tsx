@@ -252,9 +252,19 @@ describe('Chat inject API', () => {
     expect(injected.chatScroll.read()).toBeNull()
 
     const loaded = await injected.loadImage(ATTACHMENT)
-    expect(loaded).toEqual(expect.any(String))
-    expect(b.session.readAttachment).toHaveBeenCalledWith(ATTACHMENT.attachmentId)
-    expect(injected.loadImage.peek?.(ATTACHMENT)).toBe(loaded)
+    // A browser reads the stored object from its own durable URL, so no bytes
+    // travel back through the Session binding. ui-conversation's image cache
+    // owns that URL per Session and reference, so a second ask — another
+    // Conversation target, another row — shares the first one.
+    expect(loaded).toContain('/api/attachment-image')
+    expect(loaded).toContain('id=image-1')
+    expect(b.session.readAttachment).not.toHaveBeenCalled()
+    expect(await injected.loadImage(ATTACHMENT)).toBe(loaded)
+    // The browser branch is not covered by `peek` today: ui-conversation's
+    // HistoricalImageCache records a URL on its entry only on the byte-read
+    // branch, so `peek` reports nothing for a reference whose displayable URL
+    // is already known on this one. That gap is owned by ui-conversation and
+    // reported with this cluster, so no assertion here pins it either way.
     await b.runtime.dispose()
   })
 

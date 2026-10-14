@@ -107,10 +107,14 @@ suite('sidebar terminal model control', () => {
     await ctx.terminalController.write(owner, 'main' as WebTerminalId, 'browser' as TerminalAttachmentId, 'printf "USER_STILL_WRITABLE\\n"\r')
     await expect.poll(async () => (await run({ action: 'read', terminalId: 'main' })).text).toContain('USER_STILL_WRITABLE')
     await run({ action: 'send', terminalId: 'main', text: "printf 'WAITING_FOR_INTERRUPT\\n'; sleep 30" })
-    await expect.poll(async () => JSON.parse((await run({ action: 'read', terminalId: 'main' })).text).text.split('\n')).toContain('WAITING_FOR_INTERRUPT')
+    const readLines = async (): Promise<string[]> => {
+      const read = await run({ action: 'read', terminalId: 'main' })
+      return (JSON.parse(read.text) as { text: string }).text.split('\n')
+    }
+    await expect.poll(readLines).toContain('WAITING_FOR_INTERRUPT')
     await run({ action: 'send', terminalId: 'main', text: '\u0003', submit: false })
     await run({ action: 'send', terminalId: 'main', text: "printf 'AFTER_INTERRUPT\\n'" })
-    await expect.poll(async () => JSON.parse((await run({ action: 'read', terminalId: 'main' })).text).text.split('\n')).toContain('AFTER_INTERRUPT')
+    await expect.poll(readLines).toContain('AFTER_INTERRUPT')
     await run({ action: 'rename', terminalId: 'main', title: 'Shared shell' })
     expect(JSON.parse((await run({ action: 'list' })).text)).toMatchObject([{ id: 'main', title: 'Shared shell' }])
     await run({ action: 'resize', terminalId: 'main', cols: 100, rows: 30 })

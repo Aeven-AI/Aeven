@@ -52,7 +52,7 @@ describe('conversation composer seat styles', () => {
     // has no band to give back either.
     const body = declarationsFrom('.scrollBody')
     expect(body.some(part => part.startsWith('scrollbar-gutter:'))).toBe(false)
-    expect(body).toContain('overflow-y: scroll')
+    expect(body).toContain('overflow-y: auto')
     expect(declarationsFrom(ACTIVE_SEAT).some(part => part.startsWith('padding-right:'))).toBe(false)
   })
 
@@ -67,35 +67,18 @@ describe('conversation composer seat styles', () => {
 })
 
 describe('conversation content cover styles', () => {
-  /** The numeric `z-index` of a rule, as an integer. */
-  function stackLevel(selector: string): number {
-    const declaration = declarationsFrom(selector).find(part => part.startsWith('z-index:'))
-    if (declaration === undefined) throw new Error(`no \`z-index\` on \`${selector}\``)
-    return Number(declaration.slice('z-index:'.length).trim())
-  }
-
-  it('keeps the cover behind the composer seat', () => {
-    // The seat stays mounted across a Session switch, so a cover that outranks
-    // it paints the resident input card out and back in and the switch reads
-    // as a remount.
-    expect(stackLevel('.contentLoader')).toBeLessThan(stackLevel(ACTIVE_SEAT))
-  })
-
-  it('clears the transcript from one level, with nothing else in the scroller taking one', () => {
-    // The scroller holds the seat as well as the transcript, so it cannot be a
-    // stacking context of its own: a level there caps the resident seat and
-    // paints the cover over the input card, which is the remount the seat's own
-    // rule exists to prevent. Nothing else the scroller holds takes a level
-    // either, so the cover's single number decides it against the transcript's
-    // rows, while the two layers that must stay visible — the header and the
-    // chrome layers — keep higher ones.
+  it('takes no stacking level inside the column: the frame layer owns the order', () => {
+    // The cover renders into the frame-owned layer, a sibling of this column
+    // (see the skeleton specs), so it decides nothing here and cannot paint the
+    // resident seat — which stays mounted across a Session switch — out and
+    // back in. Nothing inside the one scroller takes a level either: a level on
+    // the scroller would cap every child it holds, the seat among them.
+    expect(takesLevel('.contentLoader')).toBe(false)
     expect(takesLevel('.scrollBody')).toBe(false)
     expect(takesLevel('.transcriptHold')).toBe(false)
-    expect(stackLevel('.contentLoader')).toBeLessThan(stackLevel('.header'))
-    expect(stackLevel('.contentLoader')).toBeLessThan(stackLevel('.viewChrome'))
   })
 
-  it('fills the conversation column instead of the inner window', () => {
+  it('fills the cover layer instead of the inner window', () => {
     // Absolute fill against `.root` is ConversationRoot's width and the full
     // page height of that column; a viewport-fixed layer would also cover the
     // sidebar. The seat stacks above the cover, so the input stays usable.

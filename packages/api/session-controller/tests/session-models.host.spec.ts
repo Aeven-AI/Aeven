@@ -721,7 +721,11 @@ describe('Web session model selection', () => {
     const savedRef = {
       attachmentId: 'saved-image', mediaType: 'image/png' as const, bytes: 1, width: 1, height: 1,
     }
+    // Admission claims staged uploads on every non-text prompt, so the double
+    // carries the store method even though this test stages none.
+    const claimUploads = vi.fn()
     ctx.provide('attachments', {
+      claimUploads,
       saveImages: () => {
         if (saveMode === 'error') return Promise.reject(new Error('image store offline'))
         if (saveMode === 'remote') {
@@ -769,6 +773,8 @@ describe('Web session model selection', () => {
     saveMode = 'success'
     expectValue(await remote.prompt(promptRequest({ sessionId, mode: 'queue', content: [image] })))
     expect(followup).toHaveBeenCalledOnce()
+    // No staged upload accompanied the admitted image.
+    expect(claimUploads).toHaveBeenCalledWith([])
 
     ;(agent.inbox.nextTurn as UserMessage[]).push({
       id: 'pending-image', role: 'user', source: { kind: 'user' },

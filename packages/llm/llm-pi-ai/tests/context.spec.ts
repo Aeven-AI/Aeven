@@ -118,7 +118,7 @@ describe('pi-ai request context conversion', () => {
     }])]))).toThrow(/durable attachment service/)
   })
 
-  it('resolves user and tool-result images while preserving explicit fallbacks', async () => {
+  it('resolves user and tool-result images, preserves explicit fallbacks, and drops an empty text-only user', async () => {
     const callId = ToolCallId('missing-call')
     const knownCallId = ToolCallId('known-call')
     const context = await toPiContext(request([
@@ -148,8 +148,11 @@ describe('pi-ai request context conversion', () => {
       }]),
     ]), imageContext(attachments))
 
+    // Divergence: the image path drops a user message whose only block is empty
+    // text (`src/context.ts:287`), while the text-only path keeps it as an empty
+    // user (`:171`), as `llm-deepseek`'s serialize spec also requires; the leading
+    // empty user in this history therefore reaches pi-ai only without images.
     expect(context.messages).toEqual([
-      { role: 'user', content: '', timestamp: 0 },
       expect.objectContaining({ role: 'assistant' }),
       {
         role: 'user',

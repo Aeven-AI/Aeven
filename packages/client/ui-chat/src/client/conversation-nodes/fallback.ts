@@ -1,7 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
-import type { ConversationNodeDefinition } from '@aeven/client-ui-conversation/client'
+import type { ConversationNodeDefinition, UnknownSurfaceNode } from '@aeven/client-ui-conversation/client'
 import { isAppendSurfaceEvent } from '@aeven/session/surface'
-import type { UnknownSurfaceNode } from '../contract/snapshot.ts'
 import { chatNode } from './common.ts'
 
 declare module '../contract/chat-nodes.ts' {

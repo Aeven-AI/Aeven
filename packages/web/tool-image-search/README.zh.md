@@ -62,13 +62,89 @@ kind: "package-reference"
 <a id="model-experience"></a>
 ## 模型体验
 
-模型看到的工具是 `find_images`，参数为 `query`、`count`（1 到 6，默认 3）、`layout`（`row` 或 `cards`）、`urls`（配合 `cards`，最多 10 个文章页面，每个一张卡片）、`language` 与 `translations`。调用需要 `query` 或 `urls` 之一。它的说明写明了何时该用它——真实存在且被拍摄过的主题、用户索要照片、或图片比文字更能给出答案——它绝不能描述自己尚未展示的照片，以及新闻应把选定的文章作为 `urls` 并使用 `cards`。
+### `find_images` 工具 schema
 
-对于一行照片，结果文本指示模型不要再把这些图片写成 markdown，因为它们已经展示给用户，并列出每个文件的页面与许可，便于回复引用。对于卡片，它告诉模型这些新闻已经展示、每张都链接到原文，不要再以链接或标题列表重复。第二个文本块以 JSON 携带条目，供客户端的卡片视图使用；图片块随后。
+#### 模型看到什么
+
+本包在生成的[工具目录](../../../docs/tool-catalog.zh.md#aeventool-image-search)中注册的唯一条目：名称 `find_images`、写明何时该用它以及绝不能描述尚未展示的照片的说明，以及六个参数——`query`、`urls`、`count`、`layout`、`language` 与 `translations`（每个结果位置一项，含 `title` 与 `summary`）。结果由两个文本块，以及按展示顺序排列的、作为 image 块的已存图片组成。
+
+#### Token 影响
+
+固定：在组合了本包的会话中，每个请求都有一个工具定义，与任何调用无关。结果额外带来的只有它自己的文本——一行照片至多 `count` 行，卡片则每篇具名文章一行。
 
 #### KV Cache 影响
 
-无；该工具只贡献一个工具定义，本身不产生请求期文本。
+在可见工具集不变时保持前缀稳定；添加或移除本包、或更改工具名都会重建该列表。结果追加在用户消息之后。
+
+### 结果文本
+
+#### 模型看到什么
+
+一次调用的第一个文本块说明展示了多少内容，告诉模型这些图片已经展示、不要再把它们写成 markdown，并把每个条目列成一行编号行，给出标题、来源页与许可；一行照片与卡片的措辞不同；什么都没找到时，则以下方最后一个块中的一句作答。第二个文本块以 JSON 携带同样的条目，供客户端的卡片视图使用；图片块紧随其后。
+
+##### 逐字：一行照片的结果
+
+```markdown
+Found <N> photograph(s) for "<query>".
+They are already displayed to the user as one row of images. Do not write them again as markdown images or links.
+Cite each one where you use it:
+1. <title> — <source> (<license>)
+```
+
+##### 逐字：卡片的结果
+
+```markdown
+Made <N> card(s) for <query or the stories>.
+They are already displayed to the user, one card per story with its image, headline, opening text and source, each linking to its article. Do not list these stories again as links or headlines; write only what the cards do not say.
+The cards, in order:
+1. <title> — <source> (<license>)
+```
+
+##### 逐字：一行照片未找到结果
+
+```markdown
+No photographs of "<query>" could be found. Answer without images, and say where you looked.
+```
+
+##### 逐字：卡片未找到结果
+
+```markdown
+No cards could be made for <query>: none of the pages could be read or published an image. Present the stories in prose instead.
+```
+
+#### Token 影响
+
+只有结果自身的文本：上述框架是固定的，每个条目的编号行在照片模式下受 `count` 限制（默认 `3`，最多 `6`），在卡片模式下受具名文章数限制（最多 `10`）。JSON 块重复同样的条目。图片的开销属于模型路由自身的图像计费，与本包无关。
+
+#### KV Cache 影响
+
+仅追加：结果接在用户消息之后，不改变更早的请求。
+
+### 翻译调用
+
+#### 模型看到什么
+
+当一次调用指定了 `language`、未提供 `translations`，并且至少存下一张图片时，本包会在会话自身的路由上、在会话之外发出一个辅助请求：其系统文本固定，唯一的 user 消息以 JSON 携带语言与各条目的标题和开头文字。
+
+##### 逐字：翻译系统文本
+
+```markdown
+You translate news items for a reader who reads one language. Reply with JSON only, no prose and no code fence: {"items":[{"title":"...","summary":"..."}]}, in the same order and count as the input. Translate every item into the named language, keeping names, numbers, product names and quotations intact. An item already in that language comes back unchanged, character for character.
+```
+
+##### 逐字：user 消息框架
+
+```markdown
+{"language":"<the conversation's language>","items":[{"title":"<headline>","summary":"<opening text>"}]}
+```
+
+#### Token 影响
+
+每次翻译调用一个辅助请求，独立于会话自身的请求：输入是各条目的标题与开头文字，输出受 `maxTokens` `1600` 限制，并在配置的 `translationTimeoutMs`（`30000`）内运行，该值也会加到工具自身的期限上。失败或超时则保留原文。
+
+#### KV Cache 影响
+
+对会话无影响：该请求在会话路由上只发送一次，带有自己固定的系统文本，因此既不读取也不延长会话可复用的前缀。
 
 ## 已知限制与后续工作
 
@@ -78,3 +154,4 @@ kind: "package-reference"
 - **开头文字靠抓取。** 卡片文字用模式规则从页面段落中读取，而不是用正文提取（readability）解析器，因此少见的页面仍可能以规则未覆盖的杂项开头。
 - **横竖由读者的浏览器判定。** 工具存储文件本身；客户端依据加载后的图片决定每个图块的形状，因此本包不参与一行图片的排布。
 - **暂无测试套件。** 该包是在真实会话中跑通的；其 spec，包括 wire 边界解析以及体积与超时边界，仍待补写。
+- **无 invariant 伴随模块**——不发布运行时 invariant 伴随模块，因为它的每一项观测都来自 Commons 响应、web 搜索或抓取到的页面，而存储的图片属于 `ctx.attachments`，因此本包不拥有任何两个观测者可能产生分歧的关系。

@@ -81,6 +81,9 @@ await executor.executeOrThrow({
 - **自身没有超时。** 挂起的脚本需要由运行器来设定边界。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ## 开发备注
 
 端到端路径在提交之前已被真实运行：配方 → 路由器 → 执行器 → 本处理程序 → 校验，产出了一个 92,896 字节的 Pages 文档，随后由 Pages 回读为恰好 `The Cartographer of Small Hours`，31 个字符，两个期望都从磁盘得到满足。

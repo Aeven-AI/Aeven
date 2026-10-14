@@ -37,6 +37,7 @@ import * as computerUseMacosProvider from '@aeven/computer-use-macos-provider'
 插件上声明了 `inject: ['computerUse']`，因此该行会等待注册表，而不是在它先被挂载时失败。正在从 MCP 包装层分阶段迁移的部署可以设置 `register: false`，这样会为就绪状态报告与会话发布提供程序，同时把槽位留给另一个提供程序来驱动。
 
 <a id="understand-the-implementation"></a>
+
 `computer_use_run` 接受 1 到 20 个 `execute`、`observe` 或 `readiness` 步骤。执行步骤指定配方任务、可选的应用 bundle id 和字符串参数；结果包含逐期望校验结果和 `verified`。每次调用拥有一个新会话，并将取消信号传给宿主命令。执行步骤需要写入权限和明确批准；观察和就绪检查不请求执行批准。Web bundle 通过 `register: false` 将语义批次与 Cua Driver 并列挂载；驱动保留独占注册及其无障碍和视觉工具。批量工具不会降级调用那些工具。
 
 ## 理解实现
@@ -72,6 +73,9 @@ import * as computerUseMacosProvider from '@aeven/computer-use-macos-provider'
 - **自动化授权按目标应用授予。** 就绪状态报告只探测部署方指定的 bundle id，因为发往某个应用的第一个 Apple 事件会弹出授权对话框。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ## 开发备注
 
 提交前已实际运行 Keynote 路径：创建文档、新增第二张幻灯片、把文本写入布局占位符、保存到 Keynote 自身的容器、通过该应用读回文本，然后重新打开已保存的文件并从磁盘再次读取。非 ASCII 文本——长破折号、带重音字符与中文——原样往返，这正是排除早前语法错误之编码猜想所依据的证据。

@@ -56,7 +56,9 @@ export function apply(ctx: Context): void {
       const result = await integrations.list()
       if (!result.ok) return null
       return {
-        connected: new Set(result.value.connectors.filter(connector => connector.connected && connector.enabled).map(connector => connector.provider)),
+        connected: new Set(
+          result.value.connectors.filter(connector => connector.connected && connector.enabled).map(connector => connector.provider),
+        ),
         configured: new Set(result.value.providers.filter(provider => provider.configured).map(provider => provider.provider)),
       }
     },

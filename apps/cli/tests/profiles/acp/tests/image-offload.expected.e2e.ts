@@ -135,7 +135,8 @@ it('pins native DeepSeek Files offload and inline fallback in assembled requests
       )
       return ` Normalized copy (read-only; may be resized or re-encoded): ${JSON.stringify(attachmentPath)} (1x1px, image/png).`
         + ' Source dimensions, format, and byte size may differ.'
-        + ' Copy to a writable path ending in .png before editing.'
+        + ' For generate_image, pass this path directly as reference_images.'
+        + ' Copy to a writable path ending in .png only before modifying the file itself.'
     }
     const normalizedAccess = accessText(result.cwd)
     const offloadedImage = `[image omitted to fit request image limits; ${attachmentId}.${normalizedAccess}]`

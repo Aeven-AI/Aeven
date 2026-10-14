@@ -5,6 +5,8 @@ kind: "package-reference"
 
 # @aeven/memory-invariants
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 `avn-memory-invariants` owns the document of statements the user confirmed as always true: one JSON file per account under `$AVN_HOME/memory/invariants/`, read as one bounded block that leads every request of that account. It publishes `ctx.memoryInvariants` for its consumers — `@aeven/memory-context`, which renders the block in each session's system prompt, and `@aeven/api-memory-manager`, which is the Settings → Memory surface that writes it.
@@ -73,7 +75,7 @@ Prefix-stable while the document does not change, because the block is part of t
 - **No reordering** — the block renders newest first, so a statement's position follows when it was last confirmed rather than how much it matters.
 - **One writer per document** — the file is replaced whole, so two writers to one owner's document would race.
 
-## Dev Note
+### Dev Note
 
 <details>
 <summary>Working context for maintainers — click to expand</summary>

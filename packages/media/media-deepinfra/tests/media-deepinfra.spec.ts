@@ -94,20 +94,30 @@ describe('images', () => {
     respond = () => json({ data: [{ b64_json: Buffer.from(PNG).toString('base64') }] })
     const runtime = await media()
     await runtime.generateImage({
-      model: 'ByteDance/Seedream-4',
+      model: 'black-forest-labs/FLUX-1.1-pro',
       prompt: 'a fox',
       size: '1024x1024',
       background: 'transparent',
       references: [{ mediaType: 'image/png', data: Uint8Array.of(1, 2, 3) }],
     })
     expect(calls[0]?.body).toEqual({
-      model: 'ByteDance/Seedream-4',
+      model: 'black-forest-labs/FLUX-1.1-pro',
       prompt: 'a fox',
       response_format: 'b64_json',
       size: '1024x1024',
       background: 'transparent',
       image: 'data:image/png;base64,AQID',
     })
+  })
+
+  it('refuses a switch its Seedream native model does not offer instead of dropping it', async () => {
+    const runtime = await media()
+    await expect(runtime.generateImage({ model: 'ByteDance/Seedream-4', prompt: 'x', background: 'transparent' }))
+      .rejects.toMatchObject({
+        code: 'MEDIA_INVALID_REQUEST',
+        message: 'background is not supported by ByteDance/Seedream-4',
+      })
+    expect(calls).toHaveLength(0)
   })
 
   it('refuses a resolution tier and more than one reference image instead of dropping them', async () => {

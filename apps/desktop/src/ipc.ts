@@ -126,7 +126,10 @@ export interface AvnDesktopBrowserApi {
    * @param timeoutMs - execution deadline in milliseconds.
    * @returns the action's JSON result.
    */
-  automate(webContentsId: number, operation: string, input: Record<string, unknown>, requestId?: DesktopBrowserRequestId, timeoutMs?: number): Promise<unknown>
+  automate(
+    webContentsId: number, operation: string, input: Record<string, unknown>,
+    requestId?: DesktopBrowserRequestId, timeoutMs?: number,
+  ): Promise<unknown>
   /** Cancel the owned browser request. @param webContentsId - guest id. @param requestId - pending request id. */
   cancelAutomation(webContentsId: number, requestId: DesktopBrowserRequestId): void
   /**
@@ -135,7 +138,10 @@ export interface AvnDesktopBrowserApi {
    * @returns the response body, for the renderer to parse.
    */
   suggest(url: string): Promise<string>
-  /** Acknowledge a cursor step after arrival or when the pane is invisible. @param webContentsId - guest id. @param sequence - announced step. */
+  /**
+   * Acknowledge a cursor step after arrival or when the pane is invisible.
+   * @param webContentsId - guest id. @param sequence - announced step.
+   */
   cursorArrived(webContentsId: number, sequence: number): void
   /** Observe pointer steps before native input. @param listener - action observer. @returns observer disposer. */
   onCursor(listener: (cursor: DesktopBrowserCursor) => void): () => void

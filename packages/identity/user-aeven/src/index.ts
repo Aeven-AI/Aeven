@@ -214,10 +214,10 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     url: new URL('/.well-known/jwks.json', config.apiUrl).href,
     minRefreshIntervalMs: jwksRefreshIntervalMs,
     timeoutMs: jwksTimeoutMs,
-    warn: message => ctx.logger('identity-user-aeven').warn(message),
+    warn: (message) =>{  ctx.logger('identity-user-aeven').warn(message) },
   })
   if (keySet !== undefined) {
-    ctx.effect(() => () => keySet.dispose(), 'identity-user-aeven: key set')
+    ctx.effect(() => () =>{  keySet.dispose() }, 'identity-user-aeven: key set')
   }
 
   /**

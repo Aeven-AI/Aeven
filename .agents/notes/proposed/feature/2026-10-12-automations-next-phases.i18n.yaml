@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/proposed/feature/2026-10-12-automations-next-phases.md
-2026-10-12-automations-next-phases.md: 6274d3509c193939af2393c124d0f06b239024c5
-2026-10-12-automations-next-phases.zh.md: 13c937a260426670612a989e130f0220b8573a16
+2026-10-12-automations-next-phases.md: e226fa9df9736aca3997016ab60a288aebb01664
+2026-10-12-automations-next-phases.zh.md: 50371e23db065368326ad7c04aef67e12bcc11d7

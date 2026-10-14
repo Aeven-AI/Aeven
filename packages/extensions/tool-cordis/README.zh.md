@@ -184,6 +184,9 @@ Dynamic Cordis plugins temporarily extend the current AVN process. A Plugin uses
 - **vm 与审批边界属于 runner**——见它的[已知限制](../cordis-host-runner/README.zh.md#known-limitations-and-deferred-work)；async 的 host 半主体可逃出 `vmTimeoutMs`。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

@@ -220,6 +220,9 @@ reminders_json: <JSON.stringify(reminders)>
 - **加载顺序边界**——插件不会扫描或接管加载时已经 live 的 agent。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

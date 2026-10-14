@@ -353,130 +353,130 @@ export async function runDesktopHost(
   const environment = loadLayeredEnv('avn desktop')
   let current: Context | undefined
   try {
-  const ctx = await boot('avn desktop', rootConfig, structuredClone(desktopPatches(
-    absoluteProject,
-    options.allowLinkedPackages === true,
-  )), (hostCtx) => {
-    current = hostCtx
-    hostCtx.provide(AVN_LAUNCH_ENVIRONMENT_KEY, environment)
-    provideCmdline(hostCtx, { args: [], exit: () => {} })
-  })
-  current = ctx
-  const connection = ctx.get('connection')
-  const clientModules = ctx.get('clientModules')
-  const gateway = ctx.get('typertGateway')
-  if (connection === undefined || clientModules === undefined || gateway === undefined) {
-    await ctx.fiber.dispose()
-    throw new Error('avn desktop: composition did not provide connection, typertGateway, and clientModules')
-  }
-  const api = connection.createSharedFetchHandler('/api')
-  // API and stream requests carry the renderer's Aeven credential and caller
-  // identity, including ownership checks on Session history and browser events.
-  const dispatchApi = (request: Request): Promise<Response> => {
-    connection.publishCallerCredential(request)
-    return connection.runAsCaller(request, () => api.fetch(request))
-  }
-  const assets = assetHandler(ctx, absoluteProject)
-  const streams = remoteStreamHandler(ctx)
-  const webServer = ctx.get('webServer')
-  if (webServer === undefined) {
-    await ctx.fiber.dispose()
-    throw new Error('avn desktop: composition did not provide webServer')
-  }
-  const subscriptionOrigin = `http://127.0.0.1:${String(webServer.port)}`
-  // Owned application requests cross into the loopback HTTP carrier.
-  // Its owner policy receives the loopback origin, never an external page's.
-  const dispatchSubscription = (request: Request): Promise<Response> => {
-    const url = new URL(request.url)
-    const origin = request.headers.get('origin')
-    if (url.protocol !== 'avn-app:' || url.hostname !== 'app'
+    const ctx = await boot('avn desktop', rootConfig, structuredClone(desktopPatches(
+      absoluteProject,
+      options.allowLinkedPackages === true,
+    )), (hostCtx) => {
+      current = hostCtx
+      hostCtx.provide(AVN_LAUNCH_ENVIRONMENT_KEY, environment)
+      provideCmdline(hostCtx, { args: [], exit: () => {} })
+    })
+    current = ctx
+    const connection = ctx.get('connection')
+    const clientModules = ctx.get('clientModules')
+    const gateway = ctx.get('typertGateway')
+    if (connection === undefined || clientModules === undefined || gateway === undefined) {
+      await ctx.fiber.dispose()
+      throw new Error('avn desktop: composition did not provide connection, typertGateway, and clientModules')
+    }
+    const api = connection.createSharedFetchHandler('/api')
+    // API and stream requests carry the renderer's Aeven credential and caller
+    // identity, including ownership checks on Session history and browser events.
+    const dispatchApi = (request: Request): Promise<Response> => {
+      connection.publishCallerCredential(request)
+      return connection.runAsCaller(request, () => api.fetch(request))
+    }
+    const assets = assetHandler(ctx, absoluteProject)
+    const streams = remoteStreamHandler(ctx)
+    const webServer = ctx.get('webServer')
+    if (webServer === undefined) {
+      await ctx.fiber.dispose()
+      throw new Error('avn desktop: composition did not provide webServer')
+    }
+    const subscriptionOrigin = `http://127.0.0.1:${String(webServer.port)}`
+    // Owned application requests cross into the loopback HTTP carrier.
+    // Its owner policy receives the loopback origin, never an external page's.
+    const dispatchSubscription = (request: Request): Promise<Response> => {
+      const url = new URL(request.url)
+      const origin = request.headers.get('origin')
+      if (url.protocol !== 'avn-app:' || url.hostname !== 'app'
       || (origin !== null && origin !== 'avn-app://app')
       || request.headers.get('sec-fetch-site') === 'cross-site') {
-      return Promise.resolve(new Response(null, { status: 403 }))
+        return Promise.resolve(new Response(null, { status: 403 }))
+      }
+      const headers = new Headers(request.headers)
+      headers.delete('host')
+      headers.set('origin', subscriptionOrigin)
+      headers.set('sec-fetch-site', 'same-origin')
+      return fetch(new URL(url.pathname + url.search, subscriptionOrigin), {
+        method: request.method,
+        headers,
+        body: request.body,
+        duplex: 'half',
+        signal: request.signal,
+        redirect: 'manual',
+      } as NodeRequestInit)
     }
-    const headers = new Headers(request.headers)
-    headers.delete('host')
-    headers.set('origin', subscriptionOrigin)
-    headers.set('sec-fetch-site', 'same-origin')
-    return fetch(new URL(url.pathname + url.search, subscriptionOrigin), {
-      method: request.method,
-      headers,
-      body: request.body,
-      duplex: 'half',
-      signal: request.signal,
-      redirect: 'manual',
-    } as NodeRequestInit)
-  }
-  const requests = new Map<number, AbortController>()
-  let disposing: Promise<void> | undefined
+    const requests = new Map<number, AbortController>()
+    let disposing: Promise<void> | undefined
 
-  const dispose = async (): Promise<void> => {
-    disposing ??= (async () => {
-      for (const controller of requests.values()) controller.abort()
-      requests.clear()
-      await current?.fiber.dispose()
-      current = undefined
-    })()
-    await disposing
-  }
+    const dispose = async (): Promise<void> => {
+      disposing ??= (async () => {
+        for (const controller of requests.values()) controller.abort()
+        requests.clear()
+        await current?.fiber.dispose()
+        current = undefined
+      })()
+      await disposing
+    }
 
-  return {
-    avnVersion: avnVersion(absoluteProject),
-    url: connection.authenticatedUrl(subscriptionOrigin),
-    aevenSignIn: aevenSignIn(ctx),
-    cancel(streamId) {
-      requests.get(streamId)?.abort()
-    },
-    async fetch(command, body) {
-      if (disposing !== undefined) throw new Error('avn desktop: host is disposing')
-      const controller = new AbortController()
-      requests.set(command.streamId, controller)
-      try {
-        const url = new URL(command.request.url)
-        const init: NodeRequestInit = {
-          method: command.request.method,
-          headers: new Headers(command.request.headers.map(([name, value]) => [name, value] as [string, string])),
-          ...(body === null ? {} : { body, duplex: 'half' }),
-          signal: controller.signal,
-        }
-        const request = new Request(url, init)
-        const response = url.pathname === DESKTOP_STREAM_PATH
-          ? await connection.runAsCaller(request, () => streams.fetch(request))
-          : url.pathname.startsWith('/api/')
-            ? await dispatchApi(request)
-            : url.pathname.startsWith('/plugins/avn-grok-build/') || url.pathname.startsWith('/automation-control/')
-              ? await dispatchSubscription(request)
-              : await assets.fetch(request)
-        await writeResponse(encodeDesktopResponseStart(command.streamId, {
-          status: response.status,
-          headers: [...response.headers.entries()],
-          hasBody: response.body !== null,
-        }))
-        if (response.body !== null) {
-          for await (const chunk of response.body) {
-            const bytes = Buffer.from(chunk)
-            for (let offset = 0; offset < bytes.byteLength; offset += DESKTOP_PIPE_CHUNK_BYTES) {
-              await writeResponse(encodeDesktopResponseData(
-                command.streamId,
-                bytes.subarray(offset, offset + DESKTOP_PIPE_CHUNK_BYTES),
-              ))
+    return {
+      avnVersion: avnVersion(absoluteProject),
+      url: connection.authenticatedUrl(subscriptionOrigin),
+      aevenSignIn: aevenSignIn(ctx),
+      cancel(streamId) {
+        requests.get(streamId)?.abort()
+      },
+      async fetch(command, body) {
+        if (disposing !== undefined) throw new Error('avn desktop: host is disposing')
+        const controller = new AbortController()
+        requests.set(command.streamId, controller)
+        try {
+          const url = new URL(command.request.url)
+          const init: NodeRequestInit = {
+            method: command.request.method,
+            headers: new Headers(command.request.headers.map(([name, value]) => [name, value] as [string, string])),
+            ...(body === null ? {} : { body, duplex: 'half' }),
+            signal: controller.signal,
+          }
+          const request = new Request(url, init)
+          const response = url.pathname === DESKTOP_STREAM_PATH
+            ? await connection.runAsCaller(request, () => streams.fetch(request))
+            : url.pathname.startsWith('/api/')
+              ? await dispatchApi(request)
+              : url.pathname.startsWith('/plugins/avn-grok-build/') || url.pathname.startsWith('/automation-control/')
+                ? await dispatchSubscription(request)
+                : await assets.fetch(request)
+          await writeResponse(encodeDesktopResponseStart(command.streamId, {
+            status: response.status,
+            headers: [...response.headers.entries()],
+            hasBody: response.body !== null,
+          }))
+          if (response.body !== null) {
+            for await (const chunk of response.body) {
+              const bytes = Buffer.from(chunk)
+              for (let offset = 0; offset < bytes.byteLength; offset += DESKTOP_PIPE_CHUNK_BYTES) {
+                await writeResponse(encodeDesktopResponseData(
+                  command.streamId,
+                  bytes.subarray(offset, offset + DESKTOP_PIPE_CHUNK_BYTES),
+                ))
+              }
             }
           }
+          await writeResponse(encodeDesktopResponseEnd(command.streamId))
+        } catch (error) {
+          if (!controller.signal.aborted) {
+            await writeResponse(encodeDesktopResponseError(
+              command.streamId,
+              error instanceof Error ? error.message : String(error),
+            ))
+          }
+        } finally {
+          requests.delete(command.streamId)
         }
-        await writeResponse(encodeDesktopResponseEnd(command.streamId))
-      } catch (error) {
-        if (!controller.signal.aborted) {
-          await writeResponse(encodeDesktopResponseError(
-            command.streamId,
-            error instanceof Error ? error.message : String(error),
-          ))
-        }
-      } finally {
-        requests.delete(command.streamId)
-      }
-    },
-    dispose,
-  }
+      },
+      dispose,
+    }
   } catch (error: unknown) {
     await current?.fiber.dispose()
     throw error
@@ -519,7 +519,7 @@ async function main(): Promise<void> {
     send({ type: 'ready', protocolVersion: DESKTOP_HOST_PROTOCOL_VERSION, avnVersion: avnVersion(projectDir), url: startup.url, ownsHost: false })
     requestPipe.destroy()
     responsePipe.destroy()
-    process.disconnect?.()
+    process.disconnect()
     return
   }
   let controller: DesktopHostController | undefined

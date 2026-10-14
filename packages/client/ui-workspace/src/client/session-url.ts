@@ -78,6 +78,7 @@ export interface SessionUrlNavigation {
   subscribeAddress(listener: () => void): () => void
 }
 
+/* jscpd:ignore-start -- mirrors client-ui-layout's SurfaceWindow; each address projection declares the browser face it reads. */
 /** Browser members required by the URL projection. */
 export interface SessionUrlWindow {
   readonly location: { readonly href: string }
@@ -88,6 +89,7 @@ export interface SessionUrlWindow {
   addEventListener(type: 'popstate', listener: () => void): void
   removeEventListener(type: 'popstate', listener: () => void): void
 }
+/* jscpd:ignore-end */
 
 /**
  * Browser implementation using `/c/:id` SPA paths.

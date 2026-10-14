@@ -105,6 +105,9 @@ const { stdout, stderr } = await runNativeCommand('osascript', ['-e', script], s
 - **不做输出限量**——两路流在内存中无界缓冲；当前每个调用方只运行输出为一个路径或一行错误的小型原生工具。把它指向输出量可观的命令之前，先接入 `avn-output-retention` 限量。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

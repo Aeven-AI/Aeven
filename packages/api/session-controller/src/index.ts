@@ -169,7 +169,7 @@ export class SessionController extends TypertRemoteService {
       if (decision.kind === 'reject' || signal.aborted || step !== 1) return decision
       const source = decision.messages.findLast(message =>
         message.source.kind === 'user' && 'clientDisplayName' in message.source)?.source
-      if (source === undefined || !('clientDisplayName' in source) || source.clientDisplayName === undefined) return decision
+      if (source === undefined || !('clientDisplayName' in source)) return decision
       const text = `<user_profile>
 The user's account display name is ${JSON.stringify(source.clientDisplayName)}.
 </user_profile>`

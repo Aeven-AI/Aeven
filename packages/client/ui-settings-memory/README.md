@@ -5,6 +5,8 @@ kind: "package-reference"
 
 # @aeven/client-ui-settings-memory
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 `avn-client-ui-settings-memory` registers the Memory page in Settings over the `memoryManager` Remote from `@aeven/api-memory-manager`. It replaces the MemOS Viewer as the user's place to review what Aeven learned.
@@ -23,12 +25,16 @@ Copy lives in the `settings.memory` dictionaries (English and Simplified Chinese
 
 ## Model Experience
 
-None.
+None, as the page only reads and writes memory settings through the `memory` Remote and registers no prompt, tool, or model-visible result.
+
+#### KV Cache effect
+
+None; no prompt input originates here.
 
 ## Known Limitations and Deferred Work
 
 - The page reloads on open and after its own changes; it does not follow changes made by a running session.
 
-## Dev Note
+### Dev Note
 
 **Runtime invariant:** No companion is published. The section renders what the `memoryManager` Remote returns and holds no runtime state of its own beyond the loaded page and the open row.

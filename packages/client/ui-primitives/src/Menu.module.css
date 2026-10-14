@@ -188,7 +188,10 @@
   white-space: nowrap;
 }
 
-.item:has(.itemDescription) .itemLabel {
+/* The row states that it carries a description, so the label can yield to it: a
+   selector reading the description's presence would need `:has()` and Safari
+   15.4. */
+.item[data-has-description] .itemLabel {
   flex: none;
   max-width: 40%;
 }

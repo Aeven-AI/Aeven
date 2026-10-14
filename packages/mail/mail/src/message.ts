@@ -9,14 +9,22 @@ export interface ParseLimits {
   bodyMaxChars: number
 }
 
-/** Render one parsed address header as display text. */
+/**
+ * Render one parsed address header as display text.
+ * @param value - the parsed header, absent when the message carried none.
+ * @returns the addresses joined for display, or `undefined` when none were present.
+ */
 export function addressText(value: AddressObject | AddressObject[] | undefined): string | undefined {
   if (value === undefined) return undefined
   const text = (Array.isArray(value) ? value : [value]).map(entry => entry.text).filter(entry => entry !== '').join(', ')
   return text === '' ? undefined : text
 }
 
-/** Parse a raw message without converting cid: images to data URIs or adding link markup. */
+/**
+ * Parse a raw message without converting cid: images to data URIs or adding link markup.
+ * @param source - the raw RFC 5322 message.
+ * @returns the parsed message, with its attachments left in place.
+ */
 export async function parseSource(source: Buffer | string): Promise<ParsedMail> {
   return mailparser.simpleParser(source, { skipImageLinks: true, skipTextToHtml: true, skipTextLinks: true })
 }
@@ -75,7 +83,11 @@ export interface ReplyContext {
   replyTo?: string
 }
 
-/** Read the threading headers a reply needs. */
+/**
+ * Read the threading headers a reply needs.
+ * @param parsed - the parsed MIME message being answered.
+ * @returns its message id, references chain, subject, and reply address.
+ */
 export function replyContext(parsed: ParsedMail): ReplyContext {
   const references = parsed.references === undefined ? [] : Array.isArray(parsed.references) ? parsed.references : [parsed.references]
   return {
@@ -86,7 +98,12 @@ export function replyContext(parsed: ParsedMail): ReplyContext {
   }
 }
 
-/** Spread helper that omits an absent string field. */
+/**
+ * Spread helper that omits an absent string field.
+ * @param key - the field name.
+ * @param value - the field value, or `undefined` to omit the field.
+ * @returns a one-field object, or an empty object when the value is absent.
+ */
 export function optional<K extends string>(key: K, value: string | undefined): Partial<Record<K, string>> {
   return value === undefined ? {} : { [key]: value } as Record<K, string>
 }

@@ -46,6 +46,9 @@ subagent 组是委派能力家族：它让 agent（智能体）把任务交给�
 - [合并后的 subagent 控制服务](../../.agents/notes/implemented/simplification/2026-07-26-merge-subagent-control-service.zh.md)——后续消息、中断与列举面。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ## 开发备注
 
 无。

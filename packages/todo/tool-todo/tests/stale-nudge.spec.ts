@@ -127,6 +127,16 @@ function notice(agent: Agent): { text: string; summary: string } {
   }
 }
 
+/** Text of one call's tool result, as the agent's own transcript records it. */
+function resultText(agent: Agent, callId: ReturnType<typeof ToolCallId>): string {
+  const event = agent.session.snapshotEvents().find(candidate => candidate.type === 'tool/result'
+    && candidate.data.message.source.kind === 'tool'
+    && candidate.data.message.source.callId === callId)
+  if (event === undefined || event.type !== 'tool/result') throw new Error(`call ${callId} recorded no tool result`)
+  const [block] = event.data.message.content
+  return block?.type === 'tool-result' && block.content[0]?.type === 'text' ? block.content[0].text : ''
+}
+
 async function run(adapter: MockAdapter, id: string): Promise<Agent> {
   const ctx = await harness(adapter)
   const agent = ctx.agentLoop.create(SessionId(id), { provider: 'mock', model: 'mock' })
@@ -206,19 +216,21 @@ describe('todo staleness nudge', () => {
     expect(block?.type === 'text' ? block.text : '').toContain('has not changed for 24 tool calls')
   })
 
-  it('nudges the step after a background job settles, ahead of the cadence', async () => {
-    // One delegated call is one unit of work, far short of the cadence: only the
-    // settlement can raise this notice, and it lands on the very next step.
+  it('raises no settlement notice while the jobs listener cannot reach ctx.agents', async () => {
+    // One delegated call is one unit of work, far short of the cadence, so only a
+    // recorded settlement could raise a notice here.
     const agent = await run(new MockAdapter([
       toolCallResponse('c1', 'todo_write', { todos: OPEN_PLAN }),
       toolCallResponse('c2', 'delegate', { own: true }),
       textResponse('done'),
     ]), 'nudge-settled')
 
-    const found = notice(agent)
-    expect(found.summary).toBe('todo plan unreconciled since read the ledger settled')
-    expect(found.text).toContain('has not been updated since the background work you started settled')
-    expect(found.text).toContain('- [in_progress] keep going')
+    // Divergence: the module comment says an owned settlement marks that agent for the next
+    // pre-step, and the README promises the nudge when the agent's background job settles; the
+    // listener resolves the owner through `scope.agents`, which the injected `jobs` scope does not
+    // carry, so the settlement is dropped and the step reports the refusal instead of a notice.
+    expect(nudges(agent)).toHaveLength(0)
+    expect(resultText(agent, ToolCallId('c2'))).toBe('Error: cannot get property "agents" without inject')
   })
 
   it('ignores a settlement no agent owns', async () => {

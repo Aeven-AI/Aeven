@@ -125,6 +125,9 @@ await withFileLock('/home/u/.aeven/settings.yaml', async () => {
 - **遗留锁需要操作者恢复**——持锁进程退出时可能留下同级锁文件；后续写入方超时也不会删除它。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

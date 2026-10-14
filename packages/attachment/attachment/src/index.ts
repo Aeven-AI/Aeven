@@ -177,9 +177,8 @@ export abstract class AttachmentStore extends Service {
    * @returns the verified bytes and reference.
    */
   readFile(ref: FileAttachmentRef, signal?: AbortSignal): Promise<StoredFileAttachment> {
-    signal?.throwIfAborted()
     void ref
-    return Promise.reject(new AttachmentError('The mounted attachment provider stores no files.', 'FILES_UNSUPPORTED'))
+    return this.filesUnsupported(signal)
   }
 
   /**
@@ -189,8 +188,17 @@ export abstract class AttachmentStore extends Service {
    * @returns the stored text.
    */
   readFileText(ref: FileAttachmentRef, signal?: AbortSignal): Promise<string> {
-    signal?.throwIfAborted()
     void ref
+    return this.filesUnsupported(signal)
+  }
+
+  /**
+   * Reject a file read on a backend that stores no files.
+   * @param signal - optional cancellation; its reason is thrown before the rejection.
+   * @returns a rejection carrying the unsupported-files error.
+   */
+  private filesUnsupported(signal?: AbortSignal): Promise<never> {
+    signal?.throwIfAborted()
     return Promise.reject(new AttachmentError('The mounted attachment provider stores no files.', 'FILES_UNSUPPORTED'))
   }
 

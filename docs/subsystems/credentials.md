@@ -61,6 +61,173 @@ interface CredentialInfo {
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
+<a id="ctxaccountintegrations--accountintegrations"></a>
+
+### `ctx.accountIntegrations` — `AccountIntegrations`
+
+Signed-in users manage their own integrations; each agent mounts only its owner's connectors.
+
+```ts cordis-catalog
+/**
+ * Read the caller's integrations without exposing credentials.
+ * @returns the account's own skills, personal connections, and deployment sign-in availability.
+ */
+@Remote async list(): Promise<AccountIntegrationsView>
+
+/**
+ * Read the vendored skill catalog this deployment ships.
+ * @returns the catalog listing, or undefined when the deployment mounts no catalog.
+ */
+@Remote // oxlint-disable-next-line typescript/require-await -- the Remote contract answers with a promise; this read has nothing to await. async catalog(): Promise<SkillCatalogView | undefined>
+
+/**
+ * Read one catalogued skill's instructions, so Settings can show a skill before it is installed.
+ * @param name - catalogued skill name.
+ * @returns the instruction body the skill installs with, or undefined when the deployment mounts no catalog
+ * or does not catalogue that name.
+ */
+@Remote // oxlint-disable-next-line typescript/require-await -- the Remote contract answers with a promise; this read has nothing to await. async catalogSkillContent(name: string): Promise<string | undefined>
+
+/**
+ * Install one catalogued skill into the account's library.
+ * @param name - catalogued skill name.
+ * @throws Error when the deployment mounts no catalog, or the name is not catalogued.
+ */
+@Remote async installCatalogSkill(name: string): Promise<void>
+
+/**
+ * Install or replace one personal bundle after validating every resource path.
+ * @param files - uploaded SKILL.md and resources, or one ZIP/.skill file.
+ */
+@Remote async importSkill(files: SkillUploadFile[]): Promise<void>
+
+/**
+ * Change account invocation availability for a skill across its installed sources.
+ * @param name - skill name visible in the account library.
+ * @param enabled - invocation availability.
+ */
+@Remote async setSkillEnabled(name: string, enabled: boolean): Promise<void>
+
+/**
+ * Remove one caller-owned skill from discovery.
+ * @param name - personal skill name.
+ */
+@Remote async removeSkill(name: string): Promise<void>
+
+/**
+ * Verify a custom remote MCP server and store its optional bearer credential privately.
+ * @param request - endpoint, name, and write-only access token.
+ * @returns the new connector identity.
+ */
+@Remote async connect(request: ConnectorCreateRequest): Promise<ConnectorId>
+
+/**
+ * Verify an IMAP or POP3 mailbox and its optional SMTP server, then store the account with its passwords kept privately.
+ * @param request - server settings and write-only passwords.
+ * @returns the new connector identity, or the reason and verification step that failed.
+ */
+@Remote async connectEmail(request: EmailConnectionRequest): Promise<EmailConnectionResult>
+
+/**
+ * Change an email account's settings, re-verifying the servers before saving; an absent password keeps the stored one.
+ * @param id - caller-owned email connector.
+ * @param request - server settings and optional replacement passwords.
+ * @returns the connector identity, or the reason and verification step that failed.
+ */
+@Remote async updateEmail(id: ConnectorId, request: EmailConnectionUpdate): Promise<EmailConnectionResult>
+
+/**
+ * Start a provider consent flow bound to the authenticated caller.
+ *
+ * The Aeven API starts the consent and receives the provider's redirect; the next {@link list}
+ * after it completes stores the connector. For `discord` this is the bot installation: the user
+ * picks the server to add the Aeven application to, and one connector row is stored for that guild.
+ * @param provider - registered provider to connect.
+ * @returns the provider consent URL.
+ */
+@Remote async authorize(provider: ConnectorProvider): Promise<ConnectorAuthorization>
+
+/**
+ * Enable or disable one personal connector; disabled calls are immediately denied.
+ * @param id - caller-owned connector.
+ * @param enabled - availability for subsequent conversation steps.
+ */
+@Remote async setConnectorEnabled(id: ConnectorId, enabled: boolean): Promise<void>
+
+/**
+ * Disconnect a personal connector and delete its stored credential.
+ * @param id - caller-owned connector.
+ */
+@Remote async disconnect(id: ConnectorId): Promise<void>
+
+/**
+ * Start linking a WhatsApp number: launch a daemon on a fresh data directory and wait for its QR code.
+ * A caller's earlier unfinished attempt is cancelled; the number is saved only after the phone scans the code.
+ * @returns the attempt, or the reason it could not start.
+ */
+@Remote async startWhatsAppPairing(): Promise<WhatsAppPairingView>
+
+/**
+ * Read a linking attempt; a terminal state is returned once and the attempt is then forgotten.
+ * @param id - attempt identity from startWhatsAppPairing.
+ * @returns current QR code or outcome.
+ */
+@Remote // oxlint-disable-next-line typescript/require-await -- the Remote contract answers with a promise; this read has nothing to await. async whatsAppPairing(id: ConnectorId): Promise<WhatsAppPairingView>
+
+/**
+ * Abandon a linking attempt and delete its data directory.
+ * @param id - attempt identity from startWhatsAppPairing.
+ */
+@Remote async cancelWhatsAppPairing(id: ConnectorId): Promise<void>
+
+/**
+ * Start signing in a Telegram account: launch a daemon on a fresh data directory and send the login code.
+ * A caller's earlier unfinished attempt is cancelled; the account is saved only after Telegram authorizes it.
+ * @param phone - international number, with or without a leading `+`.
+ * @returns the attempt, or the reason it could not start.
+ */
+@Remote async startTelegramPairing(phone: string): Promise<TelegramPairingView>
+
+/**
+ * Start signing in a Telegram account by QR code: launch a daemon on a fresh data directory and show the
+ * login code the Telegram app scans. A caller's earlier unfinished attempt is cancelled; the account is saved
+ * only after Telegram authorizes it.
+ * @returns the attempt, `qr` with the code to scan, or the reason it could not start.
+ */
+@Remote async startTelegramQrPairing(): Promise<TelegramPairingView>
+
+/**
+ * Read a sign-in attempt; a terminal state is returned once and the attempt is then forgotten.
+ * @param id - attempt identity from startTelegramPairing.
+ * @returns current step, or outcome.
+ */
+@Remote async telegramPairing(id: ConnectorId): Promise<TelegramPairingView>
+
+/**
+ * Submit the code Telegram sent to the account.
+ * @param id - attempt identity from startTelegramPairing.
+ * @param code - digits from the Telegram message.
+ * @returns the attempt after Telegram answered.
+ */
+@Remote async submitTelegramCode(id: ConnectorId, code: string): Promise<TelegramPairingView>
+
+/**
+ * Submit the account's 2FA password when Telegram asked for it.
+ * @param id - attempt identity from startTelegramPairing.
+ * @param password - the account password; it is passed straight to the daemon and never stored.
+ * @returns the attempt after Telegram answered.
+ */
+@Remote async submitTelegramPassword(id: ConnectorId, password: string): Promise<TelegramPairingView>
+
+/**
+ * Abandon a sign-in attempt and delete its data directory.
+ * @param id - attempt identity from startTelegramPairing.
+ */
+@Remote async cancelTelegramPairing(id: ConnectorId): Promise<void>
+```
+
+Source: [`packages/host/account-integrations/src/index.ts`](../../packages/host/account-integrations/src/index.ts)
+
 <a id="ctxauthorization--authorizationservice"></a>
 
 ### `ctx.authorization` — `AuthorizationService`
@@ -138,18 +305,23 @@ A CredentialKey answers "what credential does this plugin hold for this id". Not
  * consumers re-resolve at each operation and must not cache across
  * operations — that per-operation read is what makes a changed credential
  * reach the next operation without a restart.
+ *
+ * A session credential ({@link setSession}) belongs to one signed-in user and
+ * resolves only for that user; a call that names no user never sees one.
  * @param ref - the reference to resolve.
+ * @param user - the signed-in user the value is presented for, when there is one.
  * @returns the value and its source, or `undefined` while unconfigured.
  */
-abstract resolve(ref: CredentialRef): Promise<ResolvedCredential | undefined>
+abstract resolve(ref: CredentialRef, user?: string): Promise<ResolvedCredential | undefined>
 
 /**
  * Describe one reference for configuration surfaces without exposing the
  * value.
  * @param ref - the reference to describe.
+ * @param user - the signed-in user asking, whose session credential counts; absent counts none.
  * @returns configured state, supplying source, and writability.
  */
-abstract describe(ref: CredentialRef): Promise<CredentialInfo>
+abstract describe(ref: CredentialRef, user?: string): Promise<CredentialInfo>
 
 /**
  * Durably store one value in the provider-managed writable source. Rejects
@@ -170,8 +342,12 @@ abstract set(ref: CredentialRef, value: string): Promise<void>
 abstract unset(ref: CredentialRef): Promise<void>
 
 /**
- * Publish a credential that belongs to a live session rather than to this
- * machine, for as long as the process runs.
+ * Publish a credential that belongs to one signed-in user's live session
+ * rather than to this machine, for as long as the process runs.
+ *
+ * Keyed by user: one Host serves several signed-in clients at once, and a
+ * value published for one user never resolves for another or for a call
+ * that names no user.
  *
  * Optional, because it is a capability only a provider with an in-memory
  * layer can offer; a provider that implements it makes the value resolve
@@ -179,9 +355,10 @@ abstract unset(ref: CredentialRef): Promise<void>
  * A caller that needs it must handle absence, which is what makes the
  * capability additive rather than a widening of every provider's contract.
  * @param ref - the reference the value answers.
+ * @param user - the signed-in user whose session the value belongs to.
  * @param value - the credential, or `undefined` to withdraw it.
  */
-setSession?(ref: CredentialRef, value: string | undefined): void
+setSession?(ref: CredentialRef, user: string, value: string | undefined): void
 
 /**
  * Read one stored record. The value is returned as its owner wrote it; a

@@ -115,6 +115,9 @@ None, as the seam only identifies the caller for host-side consumers and registe
 - **authority 之间没有排序**——优先级只由挂载顺序决定。若某部署的多个 authority 对同一凭据存在分歧，那是 seam 不予裁决的组合问题。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

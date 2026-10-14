@@ -80,6 +80,18 @@ async function freshRoot(): Promise<string> {
   return dir
 }
 
+/**
+ * Mount one Host backend over this test's root. Each mount holds a kernel
+ * writer lock per session for its life, so a case that needs a second Host over
+ * the same log disposes the first one before mounting it.
+ */
+async function mountHost(): Promise<Context> {
+  const host = new Context()
+  await host.plugin(SessionStore)
+  await host.plugin(JsonlSessionPersistence, { root, compression: 'none' })
+  return host
+}
+
 function rawLogPath(root: string, cwd: string | undefined, id: SessionId): string {
   return logPath(root, cwd, id, 'none')
 }
@@ -1633,10 +1645,14 @@ describe('JsonlSessionPersistence: edge cases', () => {
   })
 
   it('append() to a disk-only session adopts it and repairs a crash tail', async () => {
-    // Persist a session, then corrupt its tail, all through ONE backend.
+    // Persist a session, then corrupt its tail, all through ONE Host backend.
     const m = meta('disk-append', '/d')
-    await ctx.sessionPersistence.create(m)
-    await ctx.sessionPersistence.append(m.id, oneTurnLog())
+    const first = await mountHost()
+    await first.sessionPersistence.create(m)
+    await first.sessionPersistence.append(m.id, oneTurnLog())
+    // That Host exits, releasing the per-session writer it held; a live second
+    // Host over the same root would be refused as busy instead of adopting.
+    await first.fiber.dispose()
     await writeFile(rawLogPath(root, '/d', m.id), '\n{"partial crash', { flag: 'a' })
 
     // A FRESH backend with no in-memory state: append directly (no prior load)
@@ -1671,10 +1687,12 @@ describe('JsonlSessionPersistence: edge cases', () => {
 
 
   it('createCore rejects an id already on disk under a different project directory', async () => {
-    // Persist the id under cwd A.
+    // Persist the id under cwd A through a Host that then exits.
     const a = meta('dup-id', '/projA')
-    await ctx.sessionPersistence.create(a)
-    await ctx.sessionPersistence.append(a.id, oneTurnLog())
+    const first = await mountHost()
+    await first.sessionPersistence.create(a)
+    await first.sessionPersistence.append(a.id, oneTurnLog())
+    await first.fiber.dispose()
     // A fresh backend creating the SAME id under cwd B must still refuse: load
     // identifies by id across all projects, so a second log would make resume
     // nondeterministic. create scans every project, not just meta.cwd's.

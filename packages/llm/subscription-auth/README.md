@@ -73,7 +73,7 @@ Media generation reaches the model through this package's own Imagine and Codex 
 
 - [`packages/media`](../../media/README.md) — the seam these providers register into.
 - [`packages/llm`](../../llm/README.md) — the LLM capability the adapter publishes routes on.
-- [Experimental subtree rules](../AGENTS.md) — what experimental status does and does not relax.
+- [Experimental subtree rules](../../AGENTS.md) — what experimental status does and does not relax.
 
 -----
 

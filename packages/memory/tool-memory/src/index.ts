@@ -9,8 +9,7 @@ import z from '@deepseek-ai/schemastery'
 import { brandString } from '@aeven/brand'
 import type { Agent } from '@aeven/agent'
 import { MEMORY_TOOL, memoryScopeOf, type MemoryEpisodeId, type MemoryItemId, type MemoryRecallLimits, type MemoryScope } from '@aeven/memory'
-import { defineTool } from '@aeven/tools'
-import type { JsonValue } from '@aeven/util-values'
+import { defineTool, textOutput, textResult } from '@aeven/tools'
 
 export const name = 'tool-memory'
 export const inject = ['memory', 'tools']
@@ -27,25 +26,6 @@ export const Config: z<Config> = z.object({
   resultMaxChars: z.natural().min(128).default(1200),
   searchTimeoutMs: z.natural().min(100).default(3000),
 })
-
-const TEXT_OUTPUT = {
-  schema: {
-    type: 'object' as const,
-    additionalProperties: true,
-    properties: { text: { type: 'string' as const, required: true } },
-  },
-  render: (_args: unknown, value: Record<string, unknown>) => [{
-    type: 'text' as const,
-    text: typeof value['text'] === 'string' ? value['text'] : JSON.stringify(value),
-  }],
-} as const
-
-type TextResult = { text: string } & Record<string, JsonValue>
-
-/** Detach a result into lossless JSON, dropping absent optional fields. */
-function json(value: { text: string } & Record<string, unknown>): TextResult {
-  return JSON.parse(JSON.stringify(value)) as TextResult
-}
 
 function clip(value: string | undefined, maxChars: number): string {
   if (!value) return ''
@@ -99,7 +79,7 @@ export function apply(ctx: Context, config: Config): void {
       worldModels: { type: 'integer', description: 'Environment-model result limit (0-100).' },
       sessionOnly: { type: 'boolean', description: 'Restrict results to memory captured from this session.' },
     },
-    output: TEXT_OUTPUT,
+    output: textOutput(),
     isConcurrencySafe: () => true,
     async execute(args, exec) {
       const query = args.query.trim()
@@ -114,11 +94,13 @@ export function apply(ctx: Context, config: Config): void {
         timeoutMs: config.searchTimeoutMs,
         signal: exec.signal,
       })
-      const hits = recall.hits.map(hit => ({ kind: hit.kind, id: hit.id, domain: hit.domain, score: hit.score, snippet: clip(hit.snippet, cap) }))
+      const hits = recall.hits.map(hit => ({
+        kind: hit.kind, id: hit.id, domain: hit.domain, score: hit.score, snippet: clip(hit.snippet, cap),
+      }))
       const text = hits.length === 0
         ? recall.timedOut ? 'Memory search timed out; no results.' : 'No relevant memories found.'
         : `Found ${hits.length} memories:\n\n${hits.map((hit, i) => `${i + 1}. [${hit.kind}:${hit.id}] (${hit.domain}) ${hit.snippet} (score=${hit.score.toFixed(3)})`).join('\n')}`
-      return json({ text, hits, ...recall.timedOut ? { timedOut: true } : {} })
+      return textResult({ text, hits, ...recall.timedOut ? { timedOut: true } : {} })
     },
   }))
 
@@ -129,16 +111,16 @@ export function apply(ctx: Context, config: Config): void {
       id: { type: 'string', required: true, description: 'Memory item id.' },
       kind: { type: 'string', enum: ['trace', 'policy', 'world-model'], description: 'Item kind; defaults to trace.' },
     },
-    output: TEXT_OUTPUT,
+    output: textOutput(),
     isConcurrencySafe: () => true,
     async execute(args, exec) {
       const kind = args.kind ?? 'trace'
       const id = brandString<MemoryItemId>(args.id.trim())
       const item = await ctx.memory.detail({ scope: scopeOf(exec.agent), kind, id, signal: exec.signal })
-      if (!item) return json({ text: `No ${kind} memory found for id "${id}".`, found: false, kind, id })
+      if (!item) return textResult({ text: `No ${kind} memory found for id "${id}".`, found: false, kind, id })
       const body = clip(item.body, cap)
       const facts = Object.fromEntries(Object.entries(item.facts).map(([key, value]) => [key, typeof value === 'string' ? clip(value, cap) : value]))
-      return json({ text: `${item.title}\n\n${body}`.trim(), found: true, kind, id, body, facts })
+      return textResult({ text: `${item.title}\n\n${body}`.trim(), found: true, kind, id, body, facts })
     },
   }))
 
@@ -149,13 +131,14 @@ export function apply(ctx: Context, config: Config): void {
       episodeId: { type: 'string', required: true, description: 'Episode id from a memory item.' },
       limit: { type: 'integer', description: 'Maximum traces (1-100).' },
     },
-    output: TEXT_OUTPUT,
+    output: textOutput(),
     isConcurrencySafe: () => true,
     async execute(args, exec) {
       const episodeId = brandString<MemoryEpisodeId>(args.episodeId.trim())
-      const entries = await ctx.memory.timeline({ scope: scopeOf(exec.agent), episodeId, limit: bounded(args.limit, 20, 1, 100), signal: exec.signal })
+      const limit = bounded(args.limit, 20, 1, 100)
+      const entries = await ctx.memory.timeline({ scope: scopeOf(exec.agent), episodeId, limit, signal: exec.signal })
       const traces = entries.map(entry => ({ ...entry, userText: clip(entry.userText, cap), agentText: clip(entry.agentText, cap) }))
-      return json({
+      return textResult({
         text: traces.length === 0
           ? `No traces found for episode "${episodeId}".`
           : `Episode ${episodeId}:\n\n${traces.map((trace, i) => `${i + 1}. ${trace.userText || trace.agentText || trace.id}`).join('\n')}`,
@@ -172,7 +155,7 @@ export function apply(ctx: Context, config: Config): void {
       query: { type: 'string', description: 'Optional keyword filter.' },
       limit: { type: 'integer', description: 'Maximum environments (1-30).' },
     },
-    output: TEXT_OUTPUT,
+    output: textOutput(),
     isConcurrencySafe: () => true,
     async execute(args, exec) {
       const query = args.query?.trim()
@@ -183,7 +166,7 @@ export function apply(ctx: Context, config: Config): void {
         signal: exec.signal,
       })
       const environments = models.map(model => ({ ...model, body: clip(model.body, cap) }))
-      return json({
+      return textResult({
         text: environments.length === 0
           ? 'No learned environments found.'
           : environments.map((model, i) => `${i + 1}. [${model.id}] ${model.title}\n${model.body}`).join('\n\n'),
@@ -199,7 +182,7 @@ export function apply(ctx: Context, config: Config): void {
       status: { type: 'string', enum: ['candidate', 'active', 'archived'], description: 'Optional lifecycle filter.' },
       limit: { type: 'integer', description: 'Maximum skills (1-50).' },
     },
-    output: TEXT_OUTPUT,
+    output: textOutput(),
     isConcurrencySafe: () => true,
     async execute(args, exec) {
       const skills = await ctx.memory.skills({
@@ -209,7 +192,7 @@ export function apply(ctx: Context, config: Config): void {
         signal: exec.signal,
       })
       const items = skills.map(skill => ({ ...skill, guide: clip(skill.guide, cap) }))
-      return json({
+      return textResult({
         text: items.length === 0
           ? 'No skills found.'
           : items.map((skill, i) => `${i + 1}. [${skill.id}] ${skill.name} (${skill.status})\n${skill.guide}`).join('\n\n'),
@@ -224,13 +207,13 @@ export function apply(ctx: Context, config: Config): void {
     parameters: {
       id: { type: 'string', required: true, description: 'Skill id from a skill listing or memory search.' },
     },
-    output: TEXT_OUTPUT,
+    output: textOutput(),
     async execute(args, exec) {
       const id = brandString<MemoryItemId>(args.id.trim())
       const skill = await ctx.memory.useSkill({ scope: scopeOf(exec.agent), id, callId: exec.callId, signal: exec.signal })
-      if (!skill) return json({ text: `No skill found for id "${id}".`, found: false, id })
+      if (!skill) return textResult({ text: `No skill found for id "${id}".`, found: false, id })
       const guide = clip(skill.guide, cap)
-      return json({ text: `${skill.name}\n\n${guide}`.trim(), found: true, ...skill, guide })
+      return textResult({ text: `${skill.name}\n\n${guide}`.trim(), found: true, ...skill, guide })
     },
   }))
 
@@ -246,12 +229,12 @@ export function apply(ctx: Context, config: Config): void {
         description: 'user: a fact about the user that holds everywhere (the default). project: a fact that matters only in this project.',
       },
     },
-    output: TEXT_OUTPUT,
+    output: textOutput(),
     async execute(args, exec) {
       const fact = args.fact.trim()
       if (!fact) throw new Error('fact must be a non-empty string')
       const id = await ctx.memory.remember({ scope: scopeOf(exec.agent), text: fact, domain: args.about === 'project' ? 'project' : 'person', signal: exec.signal })
-      return json({ text: 'Remembered.', id })
+      return textResult({ text: 'Remembered.', id })
     },
   }))
 

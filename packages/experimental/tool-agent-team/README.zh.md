@@ -148,6 +148,9 @@ Team 插件 generation、配置、member role／name 与 schema 不变时，前�
 - **实验原型，无稳定性承诺**——本包为私有、不进入正式发布，孵化期间 schema 可自由变更。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

@@ -11,9 +11,12 @@ export const TEST_BASE = 'http://127.0.0.1:8765/v10'
 /** The guild every suite serves. */
 export const TEST_GUILD = '1490000000000000000'
 
+/** `Authorization` value every request carries, shaped as the connector sends the owner's session. */
+export const TEST_AUTHORIZATION = 'Bearer spec-session'
+
 /** Environment a suite starts from. */
 export const TEST_ENV: DiscordEnvironment = {
-  DISCORD_BOT_TOKEN: 'spec-bot-token',
+  DISCORD_AUTHORIZATION: TEST_AUTHORIZATION,
   DISCORD_GUILD_ID: TEST_GUILD,
   DISCORD_GUILD_NAME: 'Spec Server',
   DISCORD_API_BASE: TEST_BASE,

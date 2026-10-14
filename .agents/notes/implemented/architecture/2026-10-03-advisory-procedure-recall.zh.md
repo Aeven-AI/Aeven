@@ -2,6 +2,8 @@
 
 Status: implemented
 
+[English](2026-10-03-advisory-procedure-recall.md) | 中文
+
 ## Problem
 
 从以往工作提炼的过程可能包含过时步骤和特定任务的假设。将其发布为 skill 会让发现过程变成加载并遵循它的要求，并在 `/` 中混合历史经验与人工编写的工作流程。
@@ -12,7 +14,7 @@ Status: implemented
 
 展示与使用分别记录。召回上下文和主动 `view` 调用使过程可供报告；只有报告的实际使用才形成执行证据。candidate 必须经过主动验证或恢复才能自动召回。
 
-此决策替代[学习记录](../feature/2026-09-29-capability-learning.md)中的 skill 发布机制，以及[生命周期记录](../feature/2026-09-29-capability-lifecycle.md)中的 skill 加载归因。两者关于存储和证据的理由仍然适用。
+此决策替代[学习记录](../feature/2026-09-29-capability-learning.zh.md)中的 skill 发布机制，以及[生命周期记录](../feature/2026-09-29-capability-lifecycle.zh.md)中的 skill 加载归因。两者关于存储和证据的理由仍然适用。
 
 ## Alternatives considered
 

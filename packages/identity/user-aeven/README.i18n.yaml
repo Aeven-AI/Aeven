@@ -3,4 +3,4 @@
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/identity/user-aeven/README.md
 README.md: f8b00d7c91d9c6cd8368a7d7f0e72b7a88007745
-README.zh.md: 7d7def35eecd16f6ee976413347cc9cef905f4ce
+README.zh.md: 4a32801af635db99b58fe92075ae111c39f5e800

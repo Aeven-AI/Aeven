@@ -7,8 +7,7 @@
 import type { ReactNode } from 'react'
 import { JsonBlock } from '@aeven/client-ui-primitives'
 import type { ChatViewSlotProps } from '../contract/slots.ts'
-import type { ContextMessageNode } from '../contract/snapshot.ts'
-import type { KnownContextForm } from '@aeven/client-ui-conversation/client'
+import type { ContextMessageNode, KnownContextForm } from '@aeven/client-ui-conversation/client'
 import css from './ContextBody.module.css'
 
 /** Model-facing text stays bounded at the disclosure, not at the producer. */

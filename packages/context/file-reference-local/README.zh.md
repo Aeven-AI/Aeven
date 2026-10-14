@@ -129,6 +129,9 @@ Tokens prefixed with @ are workspace paths the user explicitly referenced, relat
 - **没有忽略文件语义**：`.gitignore` 和其他项目忽略文件不会影响发现；系统只排除已配置的目录基名。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

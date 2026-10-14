@@ -105,7 +105,7 @@ node packages/experimental/browser-overlay/demo/run.mjs
 <a id="further-exploration"></a>
 ## 延伸阅读
 
-- [Cua Driver MCP 提供方](../computer-use-cua-driver-mcp/README.zh.md) — 本覆盖层所配合的浏览器动作提供方；其 `browser_*` 工具就是调用方要喂给覆盖层的内容。
+- [Cua Driver MCP 提供方](../../computer-use/computer-use-cua-driver-mcp/README.zh.md) — 本覆盖层所配合的浏览器动作提供方；其 `browser_*` 工具就是调用方要喂给覆盖层的内容。
 - [实验性包](../README.zh.md) — 本包所属的分组。
 
 -----
@@ -123,6 +123,9 @@ node packages/experimental/browser-overlay/demo/run.mjs
 - **宿主负责输入。** Electron 侧栏提供指针动作和到达确认；其他使用方必须自行安排输入顺序。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

@@ -127,6 +127,8 @@
    bare class cannot: both are one class deep and stylesheet order decides. */
 .promptDialog[role='dialog'] {
   width: min(720px, 100%);
+  /* The vh line is the floor's height: `dvh` needs Safari 15.4. */
+  max-height: min(640px, calc(100vh - 48px));
   max-height: min(640px, calc(100dvh - 48px));
   padding: 0;
   gap: 0;

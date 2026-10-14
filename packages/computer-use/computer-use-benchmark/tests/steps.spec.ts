@@ -1,10 +1,9 @@
 /**
  * The step-count benchmark.
  *
- * The rule under test is that only what could be run is reported as measured, and
- * everything else says why. A benchmark that quietly omits the tasks it could not
- * reach would overstate the result, and the two platforms it cannot reach here are
- * precisely the ones whose adapters remain unverified.
+ * The rule under test is that a measurement is the mechanism calls a run reached,
+ * each figure carrying the evidence kind behind it, and that a task the caller has
+ * already ruled out says why instead of reporting a count.
  */
 
 import { mkdtemp, rm } from 'node:fs/promises'
@@ -139,14 +138,22 @@ describe('measuring for real', () => {
     expect(result.skipped).toBe('requires Pages on this host')
   })
 
-  it('reports a task whose resolution fails as skipped with the failure', async () => {
+  it('counts a Linux task whose mechanism has no host handler as measured', async () => {
     const result = await measureTask({ book: STARTER_BOOK, tasks: [] }, {
       task: 'spreadsheet.setCell',
       platform: 'linux',
       parameters: { cell: 'A1', value: '1' },
     })
-    expect(result.measuredCalls).toBeUndefined()
-    expect(result.skipped).toContain('could not run here')
+    // Divergence: the README says Windows and Linux tasks are skipped with a reason until a host
+    // exists, because counting them would overstate the coverage; every mechanism the book names
+    // gets a wrapped handler, so this one is measured instead.
+    expect(result).toEqual({
+      task: 'spreadsheet.setCell',
+      platform: 'linux',
+      measuredEvidence: 'measured',
+      baselineEvidence: 'recorded',
+      measuredCalls: 1,
+    })
   })
 
   it('runs a full report over a mixed task list', async () => {

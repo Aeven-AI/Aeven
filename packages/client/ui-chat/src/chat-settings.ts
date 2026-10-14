@@ -18,7 +18,7 @@ export type TranscriptViewMode = typeof TRANSCRIPT_VIEW_MODES[number]
 export const DEFAULT_TRANSCRIPT_VIEW_MODE: TranscriptViewMode = 'normal'
 
 /** Field carrying the word fade-in preference for streamed text. */
-export const TEXT_ANIMATION_FIELD = 'textAnimation'
+export const WORD_FADE_FIELD = 'textAnimation'
 
 /** Default fades streamed words in, matching the Markdown engine's own default. */
 export const DEFAULT_TEXT_ANIMATION = true
@@ -34,5 +34,5 @@ export interface ChatSettings {
 /** Durable Chat schema; also the wire envelope the browser scope validates against. */
 export const ChatSettingsSchema: z<ChatSettings> = z.object({
   [TRANSCRIPT_VIEW_FIELD]: z.union([...TRANSCRIPT_VIEW_MODES]).default(DEFAULT_TRANSCRIPT_VIEW_MODE),
-  [TEXT_ANIMATION_FIELD]: z.boolean().default(DEFAULT_TEXT_ANIMATION),
+  [WORD_FADE_FIELD]: z.boolean().default(DEFAULT_TEXT_ANIMATION),
 })

@@ -207,6 +207,8 @@ describe('tool-browser first-step context', () => {
   ])('logs and proceeds when the browser fails with %s', async (_label, failure, message) => {
     const ctx = await mount()
     const warn = vi.spyOn(ctx.logger, 'warn')
+    // A browser listener may reject with an arbitrary value, which the warning must stringify.
+    // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- a non-Error rejection is the case under test.
     answer(ctx, () => Promise.reject(failure))
 
     expect(await preStep(ctx, sessionAgent())).toEqual({ kind: 'enter', messages: [] })
@@ -279,7 +281,7 @@ describe('tool-browser status report', () => {
 
   function reportOf(result: Awaited<ReturnType<typeof call>>): Report {
     const block = result.content[0]
-    return JSON.parse(block !== undefined && 'text' in block ? String(block.text) : '') as Report
+    return JSON.parse(block !== undefined && 'text' in block ? block.text : '') as Report
   }
 
   it('reports no surface when the composition mounts none and no page is open', async () => {

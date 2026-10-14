@@ -2,16 +2,16 @@
   <p>
     #text "First use"
     <sup>
-      <a aria-describedby="footnote-label" data-footnote-ref="true" href="#user-content-fn-a" id="user-content-fnref-a" rel="noreferrer" target="_blank">
-        #text "1"
+      <a aria-describedby="footnote-label" data-footnote-ref="true" href="//#user-content-fn-a" id="user-content-fnref-a">
+        #text "a"
     #text " and reuse"
     <sup>
-      <a aria-describedby="footnote-label" data-footnote-ref="true" href="#user-content-fn-a" id="user-content-fnref-a-2" rel="noreferrer" target="_blank">
-        #text "1"
+      <a aria-describedby="footnote-label" data-footnote-ref="true" href="//#user-content-fn-a" id="user-content-fnref-a-2">
+        #text "a-2"
     #text " and another"
     <sup>
-      <a aria-describedby="footnote-label" data-footnote-ref="true" href="#user-content-fn-b" id="user-content-fnref-b" rel="noreferrer" target="_blank">
-        #text "2"
+      <a aria-describedby="footnote-label" data-footnote-ref="true" href="//#user-content-fn-b" id="user-content-fnref-b">
+        #text "b"
     #text "."
   <section class="footnotes" data-footnotes="true">
     <h2 class="sr-only" id="footnote-label">

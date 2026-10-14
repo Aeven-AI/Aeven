@@ -67,7 +67,7 @@ describe('Discord server rows', () => {
 
   it('falls back to a monogram for a guild without an icon', () => {
     const { discord, ...rest } = guild()
-    const { icon, ...withoutIcon } = discord!
+    const { icon: _icon, ...withoutIcon } = discord!
     mount([{ ...rest, discord: withoutIcon }])
     expect(screen.getByText('DC')).toBeDefined()
   })
@@ -75,7 +75,7 @@ describe('Discord server rows', () => {
   it('marks a guild the bot left, and disables its switch', () => {
     mount([guild({ connected: false, discord: { ...guild().discord!, linked: false } })])
     expect(screen.getByText('The Aeven bot is no longer in this server.')).toBeDefined()
-    expect((screen.getByRole('switch') as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getByRole<HTMLButtonElement>('switch').disabled).toBe(true)
   })
 
   it('asks before removing the server, and removes it only on confirmation', async () => {

@@ -105,6 +105,9 @@ kind: "package-reference"
 - **SPA pathname 路由是显式声明**——对话路径（`/c/:id`）、`/imagine`、`/automations` 及认证路径返回 SPA index。新增其他顶层路由需要匹配的服务器规则与真实组合覆盖，而不是对每次未命中做宽泛回退。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

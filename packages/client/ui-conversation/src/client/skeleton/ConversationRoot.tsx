@@ -27,6 +27,35 @@ const CONTENT_MIN = 640
  * clamp's `100%`, resolved inside that inset. */
 const CONTENT_EDGE_BUDGET = 48
 
+/**
+ * Whether the composer's dock slot has rendered no entry, as state.
+ *
+ * The dock's frame leaves the composer stack while every entry renders nothing,
+ * so an empty dock keeps one stack gap rather than two. That fact is a count of
+ * rendered children, not a width and not a condition a stylesheet can read, so
+ * the frame carries it for the sheet to select on (`.dockFrame[data-empty]`).
+ * @param frame - the dock frame element; null until a Session addresses a dock.
+ * @param present - whether the frame is rendered at all, which re-arms the observer.
+ * @returns whether the dock slot's anchor holds no element child.
+ */
+function useDockEmpty(frame: { readonly current: HTMLDivElement | null }, present: boolean): boolean {
+  const [empty, setEmpty] = useState(false)
+  useLayoutEffect(() => {
+    const element = frame.current
+    if (element === null || typeof MutationObserver === 'undefined') return
+    // One anchor per slot render site, and an entry that renders nothing leaves
+    // no element inside it.
+    const anchor = element.querySelector('[data-slot]')
+    if (anchor === null) return
+    const sync = (): void => { setEmpty(anchor.childElementCount === 0) }
+    sync()
+    const observer = new MutationObserver(sync)
+    observer.observe(anchor, { childList: true })
+    return () => { observer.disconnect() }
+  }, [frame, present])
+  return empty
+}
+
 /** Reads the persisted width preference; durable-storage boundary, so a
  * missing or corrupt value resolves to "no preference".
  * @returns the stored width in px, or null when unset or invalid. */
@@ -129,6 +158,7 @@ function WidthHandle(props: {
   const cancelFrame = () => {
     if (frame.current !== null) { cancelAnimationFrame(frame.current); frame.current = null }
   }
+  /* jscpd:ignore-start -- mirrors client-ui-layout's AppFrame DragHandle; each drag strip owns its own gesture state. */
   const onPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault()
     e.currentTarget.setPointerCapture(e.pointerId)
@@ -145,6 +175,7 @@ function WidthHandle(props: {
       callbacks.current.onDrag(outwardWidth())
     })
   }, [])
+  /* jscpd:ignore-end */
   const onPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (!e.currentTarget.hasPointerCapture(e.pointerId)) return
     e.currentTarget.releasePointerCapture(e.pointerId)
@@ -309,6 +340,9 @@ export function ConversationRoot({
     : composerPlaceholder?.(startAddress)
   const zone: InputZone | undefined =
     session === undefined || inputState === undefined ? undefined : { session, input: inputState }
+  // See useDockEmpty: the dock frame hides itself while its slot renders nothing.
+  const dockFrameRef = useRef<HTMLDivElement | null>(null)
+  const dockEmpty = useDockEmpty(dockFrameRef, zone !== undefined)
 
   // Inert is the settling posture, not a prompt to choose anything: the Hero no
   // longer carries a workspace row, so the only way to be inert is to have no
@@ -340,7 +374,7 @@ export function ConversationRoot({
     <div className={clsx(css.composerStack, centered && css.composerHero)}>
       {centered && <HeroShell t={t} />}
       {zone !== undefined && (
-        <div className={css.dockFrame}>
+        <div ref={dockFrameRef} className={css.dockFrame} data-empty={dockEmpty ? '' : undefined}>
           <div className={css.dockStack}>{renderSlot('conversation.input.dock', zone)}</div>
         </div>
       )}
@@ -467,7 +501,7 @@ export function ConversationRoot({
         <header
           className={css.header}
           data-nav-fold={toggleSidebar !== undefined || undefined}
-          data-sidebar-open={sidebarCollapsed === false || undefined}
+          data-sidebar-open={!sidebarCollapsed || undefined}
         >
           <div className={css.navBackground} aria-hidden="true">
             <div className={css.navFade} />
@@ -487,12 +521,12 @@ export function ConversationRoot({
         {/* This hold keeps the scrollport's growing item present while
             conversation.session is dropped so the overlay can present. */}
         {startPage
-          ? <div className={css.startPage} data-start-page="">{renderSlot('conversation.start', {}, { entryKey: startAddress! })}</div>
+          ? <div className={css.startPage} data-start-page="">{renderSlot('conversation.start', {}, { entryKey: startAddress })}</div>
           : mountedSessionId === undefined
-          ? (phase === 'active'
-            ? <div className={css.transcriptHold} data-transcript-hold="" aria-hidden="true" />
-            : null)
-          : renderSlot('conversation.session', {})}
+            ? (phase === 'active'
+              ? <div className={css.transcriptHold} data-transcript-hold="" aria-hidden="true" />
+              : null)
+            : renderSlot('conversation.session', {})}
         {composerSeat}
       </div>
       {/* The view chrome layer sits OUTSIDE the scroller, positioned against

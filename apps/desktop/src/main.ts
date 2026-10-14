@@ -180,13 +180,13 @@ function createWindow(preload: string): BrowserWindow {
       ? { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: TRAFFIC_LIGHT_INSET_X, y: TRAFFIC_LIGHT_INSET_Y } }
       : process.platform === 'win32'
         ? {
-            titleBarStyle: 'hidden' as const,
-            titleBarOverlay: {
-              color: '#00000000',
-              symbolColor: CAPTION_SYMBOL_COLOR[nativeTheme.shouldUseDarkColors ? 'dark' : 'light'],
-              height: CAPTION_BUTTONS_HEIGHT,
-            },
-          }
+          titleBarStyle: 'hidden' as const,
+          titleBarOverlay: {
+            color: '#00000000',
+            symbolColor: CAPTION_SYMBOL_COLOR[nativeTheme.shouldUseDarkColors ? 'dark' : 'light'],
+            height: CAPTION_BUTTONS_HEIGHT,
+          },
+        }
         : {},
     // Packaged builds take the icon from the executable or desktop entry; an unpackaged
     // Windows or Linux run would otherwise show Electron's. macOS development uses its bundle icon.
@@ -433,8 +433,9 @@ async function main(): Promise<void> {
       || typeof x !== 'number' || typeof y !== 'number' || !Number.isFinite(x) || !Number.isFinite(y)) {
       throw new Error('avn desktop: invalid caption menu request')
     }
-    const submenu = Menu.getApplicationMenu()?.items[index]?.submenu
-    if (submenu === undefined || submenu === null) return
+    // Electron's runtime stores null for an item with no submenu, while its typings declare only `Menu | undefined`.
+    const submenu = Menu.getApplicationMenu()?.items[index]?.submenu ?? null
+    if (submenu === null) return
     // The page measures in CSS pixels; the popup is placed in window pixels.
     const zoom = window.webContents.getZoomFactor()
     return new Promise<void>((resolvePopup) => {

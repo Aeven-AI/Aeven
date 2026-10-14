@@ -8,6 +8,7 @@
 import type { DevicePlatform } from '@aeven/device/types'
 import { type DeviceHubAccess, withDeviceHubQuery } from './hub-access.ts'
 
+/** One accessibility element of the device screen, framed in screen fractions. */
 export interface DeviceAxElement {
   readonly id: string
   readonly label: string
@@ -19,11 +20,13 @@ export interface DeviceAxElement {
   readonly height: number
 }
 
+/** The flattened accessibility tree of one device screen, with the hub's own error texts. */
 export interface DeviceAxTree {
   readonly elements: ReadonlyArray<DeviceAxElement>
   readonly errors: ReadonlyArray<string>
 }
 
+/** One entry of serve-sim's device event log. */
 export interface DeviceEventLogEntry {
   readonly id: number
   readonly timestamp: string
@@ -31,6 +34,7 @@ export interface DeviceEventLogEntry {
   readonly summary: string
 }
 
+/** The frontmost app serve-sim reports for an iOS device. */
 export interface DeviceForegroundInfo {
   readonly id: string
   readonly label?: string
@@ -97,12 +101,18 @@ const flattenIosAxTree = (roots: ReadonlyArray<unknown>): ReadonlyArray<DeviceAx
       })
     }
     const children = Array.isArray(node.children) ? node.children : []
-    children.forEach((child, index) => visit(child, `${path}.${index}`))
+    children.forEach((child, index) =>{  visit(child, `${path}.${index}`) })
   }
-  roots.forEach((root, index) => visit(root, String(index)))
+  roots.forEach((root, index) =>{  visit(root, String(index)) })
   return elements
 }
 
+/**
+ * Read one device's accessibility elements through its vendored hub helper.
+ * @param target - hub access, platform, and device the tree is read from.
+ * @param signal - cancellation for the hub request.
+ * @returns the flattened elements, or the hub's own error text when it refused.
+ */
 export async function fetchDeviceAxTree(target: Target, signal?: AbortSignal): Promise<DeviceAxTree> {
   if (target.platform === 'ios') {
     const payload = await fetchJson(hubUrl(target, `/helper/${encodeURIComponent(target.deviceId)}/ax`), signal)
@@ -136,9 +146,10 @@ export async function fetchDeviceAxTree(target: Target, signal?: AbortSignal): P
     if (width >= 0.95 && height >= 0.9) return []
     if (!label && node.clickable !== true) return []
     const className = typeof node.className === 'string' ? node.className : ''
+    const id = typeof node.id === 'string' || typeof node.id === 'number' ? String(node.id) : ''
     return [
       {
-        id: String(node.id ?? ''),
+        id,
         label,
         role: className.split('.').at(-1) ?? '',
         x: left / screenWidth,
@@ -153,23 +164,28 @@ export async function fetchDeviceAxTree(target: Target, signal?: AbortSignal): P
 
 const openEventSource = (url: string, onMessage: (data: unknown) => void): (() => void) => {
   const source = new EventSource(url)
-  source.addEventListener('message', event => {
+  source.addEventListener('message', (event) => {
     try {
       onMessage(JSON.parse(String(event.data)))
     } catch {
       // Keep-alive comments and malformed frames carry nothing to render.
     }
   })
-  return () => source.close()
+  return () =>{  source.close() }
 }
 
-/** iOS only: the frontmost app, pushed by serve-sim whenever it changes. */
+/**
+ * iOS only: the frontmost app, pushed by serve-sim whenever it changes.
+ * @param target - hub access, platform, and device the stream follows.
+ * @param onChange - receives the frontmost app, or null when none is running.
+ * @returns disposer closing the stream; a no-op on Android.
+ */
 export function subscribeDeviceForeground(
   target: Target,
   onChange: (app: DeviceForegroundInfo | null) => void,
 ): () => void {
   if (target.platform !== 'ios') return () => {}
-  return openEventSource(hubUrl(target, '/appstate', { device: target.deviceId }), data => {
+  return openEventSource(hubUrl(target, '/appstate', { device: target.deviceId }), (data) => {
     if (!isRecord(data)) return
     if (data.bundleId === null || data.bundleId === '') {
       onChange(null)
@@ -198,6 +214,9 @@ const toEventLogEntry = (raw: unknown): DeviceEventLogEntry | null => {
  * iOS only: serve-sim's event log, seeded with recent history and then pushed
  * live. Android's session recorder only tracks replayable gestures, which the
  * user already sees themselves, so it is not surfaced.
+ * @param target - hub access, platform, and device the log is read from.
+ * @param onEvents - receives a page of entries, with reset marking the seeded history.
+ * @returns disposer closing the stream; a no-op on Android.
  */
 export function subscribeDeviceEventLog(
   target: Target,
@@ -205,7 +224,7 @@ export function subscribeDeviceEventLog(
 ): () => void {
   if (target.platform !== 'ios') return () => {}
   return openEventSource(hubUrl(target, '/api/event-log/events', { device: target.deviceId, limit: '100' }),
-    data => {
+    (data) => {
       if (!isRecord(data)) return
       if (Array.isArray(data.events)) {
         onEvents(

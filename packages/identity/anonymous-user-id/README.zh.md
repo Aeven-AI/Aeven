@@ -125,6 +125,9 @@ const userId = getOrCreateAnonymousUserId() // stable for the process lifetime
 - **删除文件不会重置当前进程**——记忆化会让本次运行的 id 一直保留到下次启动。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

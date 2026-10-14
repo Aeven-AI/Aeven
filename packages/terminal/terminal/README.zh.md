@@ -137,6 +137,9 @@ kind: "package-reference"
 - **没有声明式自动启动**——会话只在 agent 工具调用期间创建。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

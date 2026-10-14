@@ -222,7 +222,7 @@ afterEach(() => {
 
 describe('createCapabilityTools', () => {
   it('returns the five named tools without registering anything', async () => {
-    const tools = await createCapabilityTools({
+    const tools = createCapabilityTools({
       current: () => DEFAULT_CAPABILITY_SETTINGS,
       auth: fakeAuth(),
       attachments: fakeAttachments(),
@@ -261,7 +261,7 @@ describe('createCapabilityTools', () => {
       grokImagineImage: false,
       grokImagineVideo: false,
     }
-    const tools = await createCapabilityTools({
+    const tools = createCapabilityTools({
       current: () => allOff,
       auth: fakeAuth(),
       attachments: fakeAttachments(),
@@ -301,7 +301,7 @@ describe('createCapabilityTools', () => {
   it('re-checks live flags after the tools already exist', async () => {
     let settings = enabledSettings()
     const generate = vi.fn()
-    const tools = await createCapabilityTools({
+    const tools = createCapabilityTools({
       current: () => settings,
       auth: fakeAuth(),
       attachments: fakeAttachments(),
@@ -332,7 +332,7 @@ describe('createCapabilityTools', () => {
       warnings: [],
     }))
     const imagineGenerate = vi.fn(async () => leakyImagineImage())
-    const tools = await createCapabilityTools({
+    const tools = createCapabilityTools({
       current: () => enabledSettings({ imageCount: 2 }),
       auth: fakeAuth(),
       attachments: fakeAttachments(),
@@ -352,7 +352,7 @@ describe('createCapabilityTools', () => {
 
   it('renders Codex and Imagine images from the canonical returned attachment refs', async () => {
     const generated = imageRef('generated')
-    const tools = await createCapabilityTools({
+    const tools = createCapabilityTools({
       current: () => enabledSettings(),
       auth: fakeAuth(),
       attachments: fakeAttachments(),
@@ -407,7 +407,7 @@ describe('createCapabilityTools', () => {
       sessions.push(session)
       return fakeCodexController({ edit })
     })
-    const tools = await createCapabilityTools({
+    const tools = createCapabilityTools({
       current: () => enabledSettings(),
       auth: fakeAuth(),
       attachments: fakeAttachments(),
@@ -446,7 +446,7 @@ describe('createCapabilityTools', () => {
       warnings: [],
     }))
     const sessions: CodexImageSessionContext[] = []
-    const tools = await createCapabilityTools({
+    const tools = createCapabilityTools({
       current: () => enabledSettings(),
       auth: fakeAuth(),
       attachments: fakeAttachments(),
@@ -463,7 +463,7 @@ describe('createCapabilityTools', () => {
   })
 
   it('returns opaque Imagine outputs without upstream URLs or tokens', async () => {
-    const tools = await createCapabilityTools({
+    const tools = createCapabilityTools({
       current: () => enabledSettings(),
       auth: fakeAuth(),
       attachments: fakeAttachments(),
@@ -520,7 +520,7 @@ describe('createCapabilityTools', () => {
       model: 'gpt-5.4',
       inputModalities: ['text', 'image'],
     }))
-    const tools = await createCapabilityTools({
+    const tools = createCapabilityTools({
       current: () => enabledSettings({ codexImages: false, grokImagineVideo: false }),
       auth: fakeAuth(),
       attachments: fakeAttachments(),
@@ -555,7 +555,7 @@ describe('createCapabilityTools', () => {
       references: [],
       warnings: [],
     }))
-    const tools = await createCapabilityTools({
+    const tools = createCapabilityTools({
       current: () => enabledSettings({ imageCount: 0 }),
       auth: fakeAuth(),
       attachments: fakeAttachments(),
@@ -569,7 +569,7 @@ describe('createCapabilityTools', () => {
     )
   })
 
-  it('forwards every optional Codex generate parameter and renders the saved paths', async () => {
+  it('forwards every optional Codex generate parameter and renders the generated image', async () => {
     const generate = vi.fn<CodexImageController['generate']>(async () => ({
       operation: 'generate',
       model: CODEX_IMAGE_MODEL,
@@ -577,7 +577,7 @@ describe('createCapabilityTools', () => {
       references: [],
       warnings: [],
     }))
-    const tools = await createCapabilityTools({
+    const tools = createCapabilityTools({
       current: () => enabledSettings(),
       auth: fakeAuth(),
       attachments: fakeAttachments(),
@@ -599,7 +599,9 @@ describe('createCapabilityTools', () => {
     expect(tool.output.render({ ...args }, value as never)).toEqual([
       {
         type: 'text',
-        text: `Generated 1 Codex image(s) with ${CODEX_IMAGE_MODEL}, saved to images/generated.png.`,
+        text:
+          `Generated 1 Codex image(s) with ${CODEX_IMAGE_MODEL}. ` +
+          'Already displayed to the user; do not repeat or embed them in your reply.',
       },
       { type: 'image', attachment: expect.objectContaining({ attachmentId: 'generated' }) as ImageAttachmentRef },
     ])
@@ -614,7 +616,7 @@ describe('createCapabilityTools', () => {
       warnings: [],
     }))
     const saveToWorkspace = vi.fn<SaveArtifactToWorkspace>(async () => 'images/edited.png')
-    const tools = await createCapabilityTools({
+    const tools = createCapabilityTools({
       current: () => enabledSettings(),
       auth: fakeAuth(),
       attachments: fakeAttachments(),
@@ -646,9 +648,12 @@ describe('createCapabilityTools', () => {
       }),
       expect.any(AbortSignal),
     )
+    expect(saved.workspacePaths).toEqual(['images/edited.png'])
     expect(tool.output.render({ ...args }, saved as never)[0]).toEqual({
       type: 'text',
-      text: `Edited 1 Codex image(s) with ${CODEX_IMAGE_MODEL}, saved to images/edited.png.`,
+      text:
+        `Edited 1 Codex image(s) with ${CODEX_IMAGE_MODEL}. ` +
+        'Already displayed to the user; do not repeat or embed them in your reply.',
     })
 
     saveToWorkspace.mockResolvedValue(undefined)
@@ -657,14 +662,19 @@ describe('createCapabilityTools', () => {
     }
     expect(unsaved.workspacePaths).toBeUndefined()
     expect(tool.output.render({ prompt: 'brighter', imageIds: ['owned'] }, unsaved as never)).toEqual([
-      { type: 'text', text: `Edited 1 Codex image(s) with ${CODEX_IMAGE_MODEL}.` },
+      {
+        type: 'text',
+        text:
+          `Edited 1 Codex image(s) with ${CODEX_IMAGE_MODEL}. ` +
+          'Already displayed to the user; do not repeat or embed them in your reply.',
+      },
       { type: 'image', attachment: expect.objectContaining({ attachmentId: 'edited' }) as ImageAttachmentRef },
     ])
   })
 
-  it('forwards the Imagine image options and renders the saved paths', async () => {
+  it('forwards the Imagine image options and renders the generated image', async () => {
     const generateImage = vi.fn(async () => leakyImagineImage())
-    const tools = await createCapabilityTools({
+    const tools = createCapabilityTools({
       current: () => enabledSettings(),
       auth: fakeAuth(),
       attachments: fakeAttachments(),
@@ -681,13 +691,13 @@ describe('createCapabilityTools', () => {
     expect(value.workspacePaths).toEqual(['images/img_local.png'])
     expect(tool.output.render({ ...args }, value as never)[0]).toEqual({
       type: 'text',
-      text: 'Generated 1 Imagine image(s), saved to images/img_local.png.',
+      text: 'Generated 1 Imagine image(s). Already displayed to the user; do not repeat or embed them in your reply.',
     })
   })
 
   it('forwards the Imagine video options and renders the started job', async () => {
     const startVideo = vi.fn(async () => leakyVideoStart())
-    const tools = await createCapabilityTools({
+    const tools = createCapabilityTools({
       current: () => enabledSettings(),
       auth: fakeAuth(),
       attachments: fakeAttachments(),
@@ -707,7 +717,7 @@ describe('createCapabilityTools', () => {
 
   it('returns a job with no artifact yet without touching the workspace', async () => {
     const saveToWorkspace = vi.fn(async () => 'videos/never.mp4')
-    const tools = await createCapabilityTools({
+    const tools = createCapabilityTools({
       current: () => enabledSettings(),
       auth: fakeAuth(),
       attachments: fakeAttachments(),
@@ -731,7 +741,7 @@ describe('createCapabilityTools', () => {
   })
 
   it('reports a failed job error without inventing an artifact', async () => {
-    const tools = await createCapabilityTools({
+    const tools = createCapabilityTools({
       current: () => enabledSettings(),
       auth: fakeAuth(),
       attachments: fakeAttachments(),
@@ -755,7 +765,7 @@ describe('createCapabilityTools', () => {
   })
 
   it('keeps the artifact name a completed job reported', async () => {
-    const tools = await createCapabilityTools({
+    const tools = createCapabilityTools({
       current: () => enabledSettings(),
       auth: fakeAuth(),
       attachments: fakeAttachments(),
@@ -783,7 +793,7 @@ describe('createCapabilityTools', () => {
   })
 
   it('passes Codex warnings through with their index, code, and message', async () => {
-    const tools = await createCapabilityTools({
+    const tools = createCapabilityTools({
       current: () => enabledSettings(),
       auth: fakeAuth(),
       attachments: fakeAttachments(),
@@ -810,7 +820,7 @@ describe('createCapabilityTools', () => {
 
   it('falls back to the result attachment when Imagine returns no images', async () => {
     const single = imagineRef('img_single')
-    const tools = await createCapabilityTools({
+    const tools = createCapabilityTools({
       current: () => enabledSettings(),
       auth: fakeAuth(),
       attachments: fakeAttachments(),
@@ -833,7 +843,10 @@ describe('createCapabilityTools', () => {
     expect(value.attachment.attachmentId).toBe(single.attachmentId)
     expect(value.path).toBe(`/plugins/avn-grok-build/imagine/images/${single.attachmentId}`)
     expect(tool.output.render({ prompt: 'orbit' }, value as never)).toEqual([
-      { type: 'text', text: 'Generated 0 Imagine image(s).' },
+      {
+        type: 'text',
+        text: 'Generated 0 Imagine image(s). Already displayed to the user; do not repeat or embed them in your reply.',
+      },
     ])
   })
 
@@ -845,7 +858,7 @@ describe('createCapabilityTools', () => {
       width: 1,
       height: 1,
     }
-    const tools = await createCapabilityTools({
+    const tools = createCapabilityTools({
       current: () => enabledSettings(),
       auth: fakeAuth(),
       attachments: fakeAttachments(),
@@ -870,7 +883,7 @@ describe('createCapabilityTools', () => {
   it('recomputes a plugin path that does not sit under the Imagine prefix', async () => {
     const escaped = imagineRef('img_escaped')
     const expected = `/plugins/avn-grok-build/imagine/images/${escaped.attachmentId}`
-    const tools = await createCapabilityTools({
+    const tools = createCapabilityTools({
       current: () => enabledSettings(),
       auth: fakeAuth(),
       attachments: fakeAttachments(),
@@ -948,7 +961,7 @@ describe('Codex image route resolution', () => {
     // The route gate only narrows under the explicit any-model opt-out; the
     // resolved settings pin it open, so this case states the narrow policy.
     const narrow = () => enabledSettings({ codexImagesAnyModel: false })
-    const tools = await createCapabilityTools({
+    const tools = createCapabilityTools({
       current: narrow,
       auth: fakeAuth(),
       attachments,
@@ -964,7 +977,7 @@ describe('Codex image route resolution', () => {
       if (provider === 'grok-build') return { inputModalities: ['text', 'image'] as const }
       throw new Error('UNKNOWN_MODEL')
     })
-    const gated = await createCapabilityTools({
+    const gated = createCapabilityTools({
       current: narrow,
       auth: fakeAuth(),
       attachments,
@@ -1008,7 +1021,7 @@ describe('Codex image route resolution', () => {
       references: [],
       warnings: [],
     }))
-    const tools = await createCapabilityTools({
+    const tools = createCapabilityTools({
       current: () => current,
       auth: fakeAuth(),
       attachments: fakeAttachments(),
@@ -1058,7 +1071,7 @@ describe('Codex image route resolution', () => {
       warnings: [],
     }))
     const resolveModelInfo = vi.fn(async () => ({ inputModalities: ['image'] as const }))
-    const tools = await createCapabilityTools({
+    const tools = createCapabilityTools({
       current: () => enabledSettings(),
       auth: fakeAuth(),
       attachments: fakeAttachments(),
@@ -1108,7 +1121,7 @@ describe('Codex image route resolution', () => {
 
   it('omits a route identity the resolver could not name', async () => {
     const sessions: CodexImageSessionContext[] = []
-    const tools = await createCapabilityTools({
+    const tools = createCapabilityTools({
       current: () => enabledSettings(),
       auth: fakeAuth(),
       attachments: fakeAttachments(),
@@ -1126,7 +1139,7 @@ describe('Codex image route resolution', () => {
   it('runs a Codex image call without a route when the resolver declines or fails', async () => {
     const sessions: CodexImageSessionContext[] = []
     let mode: 'decline' | 'throw' = 'decline'
-    const tools = await createCapabilityTools({
+    const tools = createCapabilityTools({
       current: () => enabledSettings(),
       auth: fakeAuth(),
       attachments: fakeAttachments(),
@@ -1168,7 +1181,7 @@ describe('Imagine tool signal threading', () => {
         return leakyVideoStatus()
       }),
     }
-    const tools = await createCapabilityTools({
+    const tools = createCapabilityTools({
       current: () => enabledSettings(),
       auth: fakeAuth(),
       attachments: fakeAttachments(),
@@ -1187,7 +1200,7 @@ describe('Imagine tool signal threading', () => {
 
   it('rejects video status before the client sees a non-conforming requestId', async () => {
     const imagineVideoStatus = vi.fn(async () => leakyVideoStatus())
-    const tools = await createCapabilityTools({
+    const tools = createCapabilityTools({
       current: () => enabledSettings(),
       auth: fakeAuth(),
       attachments: fakeAttachments(),
@@ -1203,7 +1216,7 @@ describe('Imagine tool signal threading', () => {
 describe('workspace copies', () => {
   it('reports the workspace paths written for generated images', async () => {
     const saveToWorkspace = vi.fn(async () => 'images/img_local.png')
-    const tools = await createCapabilityTools({
+    const tools = createCapabilityTools({
       current: () => enabledSettings(),
       auth: fakeAuth(),
       attachments: fakeAttachments(),
@@ -1222,7 +1235,7 @@ describe('workspace copies', () => {
 
   it('reports the workspace paths written for Codex generate and edit', async () => {
     const saveToWorkspace = vi.fn<SaveArtifactToWorkspace>(async () => 'images/generated.png')
-    const tools = await createCapabilityTools({
+    const tools = createCapabilityTools({
       current: () => enabledSettings(),
       auth: fakeAuth(),
       attachments: fakeAttachments(),
@@ -1253,7 +1266,7 @@ describe('workspace copies', () => {
 
   it('reports the workspace path written for a completed video', async () => {
     const saveToWorkspace = vi.fn(async () => 'videos/art_1.mp4')
-    const tools = await createCapabilityTools({
+    const tools = createCapabilityTools({
       current: () => enabledSettings(),
       auth: fakeAuth(),
       attachments: fakeAttachments(),
@@ -1268,7 +1281,7 @@ describe('workspace copies', () => {
   })
 
   it('keeps the generated media when the workspace copy fails or is unavailable', async () => {
-    const failing = await createCapabilityTools({
+    const failing = createCapabilityTools({
       current: () => enabledSettings(),
       auth: fakeAuth(),
       attachments: fakeAttachments(),
@@ -1284,7 +1297,7 @@ describe('workspace copies', () => {
     expect(result.workspacePaths).toBeUndefined()
     expect(result.path).toContain('/plugins/avn-grok-build/imagine/images/')
 
-    const unmounted = await createCapabilityTools({
+    const unmounted = createCapabilityTools({
       current: () => enabledSettings(),
       auth: fakeAuth(),
       attachments: fakeAttachments(),
@@ -1299,7 +1312,7 @@ describe('workspace copies', () => {
 
   it('records no workspace path when the deployment skips the copy', async () => {
     const saveToWorkspace = vi.fn(async () => undefined)
-    const tools = await createCapabilityTools({
+    const tools = createCapabilityTools({
       current: () => enabledSettings(),
       auth: fakeAuth(),
       attachments: fakeAttachments(),

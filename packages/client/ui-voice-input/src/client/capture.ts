@@ -181,6 +181,9 @@ export class Capture {
   /** The live analyser the waveform samples; absent before `start` and after release. */
   get analyser(): AnalyserNode | undefined { return this.analyserNode }
 
+  /** Whether `release` ran; every await in `start` re-reads it, since release interleaves there. */
+  private isReleased(): boolean { return this.released }
+
   /**
    * Acquire the microphone and start keeping speech frames.
    * @returns after capture runs; a release during the permission prompt stops the granted tracks.
@@ -203,7 +206,7 @@ export class Capture {
     this.context = context
     const url = URL.createObjectURL(new Blob([WORKLET_SOURCE], { type: 'text/javascript' }))
     try { await context.audioWorklet.addModule(url) } finally { URL.revokeObjectURL(url) }
-    if (this.released) return
+    if (this.isReleased()) return
     this.source = context.createMediaStreamSource(stream)
     this.node = new AudioWorkletNode(context, PROCESSOR, { numberOfInputs: 1, numberOfOutputs: 0, processorOptions: this.detection })
     this.node.port.onmessage = (event: MessageEvent<ArrayBuffer>) => {

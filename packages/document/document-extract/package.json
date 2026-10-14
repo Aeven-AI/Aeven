@@ -26,6 +26,10 @@
       "types": "./lib/types/formats.d.ts",
       "default": "./lib/types/formats.js"
     },
+    "./execution": {
+      "types": "./lib/types/execution.d.ts",
+      "default": "./lib/types/execution.js"
+    },
     "./src/*": "./src/*",
     "./package.json": "./package.json"
   },

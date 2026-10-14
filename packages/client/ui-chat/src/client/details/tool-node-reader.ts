@@ -1,5 +1,6 @@
 import type { ChatNode } from '../contract/chat-nodes.ts'
-import type { ChatNodeStore, ChatSnapshot, ToolCallBlock } from '../contract/snapshot.ts'
+import type { ToolCallBlock } from '@aeven/client-ui-conversation/client'
+import type { ChatNodeStore, ChatSnapshot } from '../contract/snapshot.ts'
 
 function toolNode(node: ReturnType<ChatNodeStore['get']>): ChatNode<'tool-call'> | undefined {
   return node?.kind === 'tool-call' ? node as ChatNode<'tool-call'> : undefined

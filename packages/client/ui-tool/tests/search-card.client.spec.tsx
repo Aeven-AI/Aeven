@@ -255,8 +255,9 @@ describe('SearchRow keyed card', () => {
     toggleRow(view)
     expect(searchRows(view.container)).toContain('12: const foo = 1')
     expect(searchKindOf(view.container)).toBe('matches')
-    // The card's copy control lives inside the expanded body.
-    expect(view.getByText('复制')).toBeTruthy()
+    // The card's copy control lives inside the expanded body, named in its
+    // tooltip rather than written as visible text.
+    expect(view.getByRole('button', { name: '复制' })).toBeTruthy()
   })
 
   it('expands to the glob path card', () => {

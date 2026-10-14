@@ -26,7 +26,13 @@ export const POP3_FOLDER = 'INBOX'
  * @param signal - cancellation; aborting ends the session without committing.
  * @returns the operation's result.
  */
-export async function withPop3<T>(server: MailServer, password: string, options: Pop3Options, run: (pop3: Pop3Command) => Promise<T>, signal?: AbortSignal): Promise<T> {
+export async function withPop3<T>(
+  server: MailServer,
+  password: string,
+  options: Pop3Options,
+  run: (pop3: Pop3Command) => Promise<T>,
+  signal?: AbortSignal,
+): Promise<T> {
   if (server.security !== 'tls') throw new MailError('POP3 accounts require implicit TLS (usually port 995).', 'MAIL_UNSUPPORTED')
   signal?.throwIfAborted()
   const pop3 = new Pop3Command({
@@ -91,7 +97,13 @@ async function uidlTable(pop3: Pop3Command): Promise<{ number: number; uid: stri
  * @param scanLimit - newest messages whose headers are read.
  * @returns newest-first envelopes and whether more matched or were left unscanned.
  */
-export async function searchPop3(pop3: Pop3Command, account: string, request: MailSearchRequest, limit: number, scanLimit: number): Promise<{ messages: MailEnvelope[]; truncated: boolean }> {
+export async function searchPop3(
+  pop3: Pop3Command,
+  account: string,
+  request: MailSearchRequest,
+  limit: number,
+  scanLimit: number,
+): Promise<{ messages: MailEnvelope[]; truncated: boolean }> {
   if (request.folder !== undefined && request.folder !== POP3_FOLDER) throw new MailError('POP3 accounts have only the INBOX folder.', 'MAIL_UNSUPPORTED')
   if (request.text !== undefined || request.unread !== undefined) {
     throw new MailError('POP3 accounts support from, to, subject, since, and before filters only.', 'MAIL_UNSUPPORTED')

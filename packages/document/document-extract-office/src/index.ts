@@ -14,6 +14,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { ENGINE_VERSION, createConverterFactory } from '@deepseek-ai/libreoffice-kit'
 import type { ConverterFactory } from '@deepseek-ai/libreoffice-kit'
+import { DocumentExtractionLimiter } from '@aeven/document-extract/execution'
 import type {} from '@aeven/document-extract'
 import type { DocumentExtractInput, DocumentExtractProviderId, ExtractedDocument } from '@aeven/document-extract'
 
@@ -55,25 +56,6 @@ const MEDIA_TYPES: readonly string[] = [
   'application/vnd.oasis.opendocument.presentation',
 ]
 
-/** Counting semaphore bounding simultaneous conversions. */
-class Limiter {
-  private active = 0
-  private readonly waiting: Array<() => void> = []
-
-  constructor(private readonly limit: number) {}
-
-  async run<T>(task: () => Promise<T>): Promise<T> {
-    if (this.active >= this.limit) await new Promise<void>((resolve) => { this.waiting.push(resolve) })
-    this.active += 1
-    try {
-      return await task()
-    } finally {
-      this.active -= 1
-      this.waiting.shift()?.()
-    }
-  }
-}
-
 /**
  * Convert one document in a private directory the engine alone writes to.
  * @param factory - engine shared by this plugin's conversions.
@@ -112,7 +94,7 @@ async function convert(
 export async function apply(ctx: Context, config: Config): Promise<void> {
   const factory = await createConverterFactory({ timeoutMs: config.timeoutMs })
   ctx.effect(() => () => factory.dispose(), 'document-extract-office: engine')
-  const limiter = new Limiter(config.concurrency)
+  const limiter = new DocumentExtractionLimiter(config.concurrency)
   const extract = async (input: DocumentExtractInput, signal: AbortSignal): Promise<ExtractedDocument> => {
     const converted = await limiter.run(() => convert(factory, input, signal))
     if (converted.kind === 'text') return { text: converted.text, method: 'office' }

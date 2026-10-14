@@ -11,7 +11,7 @@
 
 import { Context, Service } from '@deepseek-ai/cordis'
 import type { SessionId } from '@aeven/session'
-import type { JobEvents, JobId, JobOutputRead, JobRead, JobSpec, JobView } from './types.ts'
+import type { JobEvents, JobId, JobOutputRead, JobOutputSource, JobSourceRead, JobRead, JobSpec, JobView } from './types.ts'
 
 export { JobId } from './types.ts'
 export type {
@@ -191,3 +191,15 @@ export abstract class JobRegistry extends Service {
 }
 
 export default JobRegistry
+
+/**
+ * Adapt a process's non-consuming stdout and stderr readers to job sources.
+ * @param read - Reader for a channel, absent before process admission.
+ * @returns Both labeled sources; absent readers yield an empty delta.
+ */
+export function processOutputSources(read: (channel: 'stdout' | 'stderr', fromByte: number) => JobSourceRead | undefined): JobOutputSource[] {
+  return (['stdout', 'stderr'] as const).map(channel => ({
+    channel,
+    read: (fromByte: number) => read(channel, fromByte) ?? { text: '', nextOffset: fromByte, lossy: false },
+  }))
+}

@@ -21,7 +21,11 @@ type Pending = 'hub' | 'check' | 'agent' | 'complete' | null
  * @param platform - the platform.
  * @returns whether it is ready and why.
  */
-export function platformStatus(t: DeviceTranslate, state: DeviceServiceState, platform: DevicePlatform): { ready: boolean; message: string } {
+export function platformStatus(
+  t: DeviceTranslate,
+  state: DeviceServiceState,
+  platform: DevicePlatform,
+): { ready: boolean; message: string } {
   const name = platform === 'ios' ? 'iOS' : 'Android'
   const availability = state.hosts.flatMap(host => host.platforms).find(candidate => candidate.platform === platform)
   if (availability?.available !== true) return { ready: false, message: availability?.reason ?? t('setup.notDetected', { platform: name }) }
@@ -36,7 +40,12 @@ export function platformStatus(t: DeviceTranslate, state: DeviceServiceState, pl
  * @param props - the device state and client.
  * @returns the setup card.
  */
-export function DeviceSetup(props: { readonly t: DeviceTranslate; readonly client: DeviceClient; readonly state: DeviceServiceState; readonly onDismiss: () => void }): ReactNode {
+export function DeviceSetup(props: {
+  readonly t: DeviceTranslate
+  readonly client: DeviceClient
+  readonly state: DeviceServiceState
+  readonly onDismiss: () => void
+}): ReactNode {
   const { t, client, state } = props
   const [pending, setPending] = useState<Pending>(null)
   const [step, setStep] = useState(0)
@@ -99,7 +108,7 @@ export function DeviceSetup(props: { readonly t: DeviceTranslate; readonly clien
                 <div key={platform} className={css.platform} data-ready={status.ready || undefined}>
                   {status.ready ? <Check /> : <CircleAlert />}
                   <div>
-                    <p className={css.platformName}>{platform === 'ios' ? 'iOS' : 'Android'}</p>
+                    <p className={css.platformName}>{t(platform === 'ios' ? 'setup.platformIos' : 'setup.platformAndroid')}</p>
                     <p className={css.platformMessage}>{status.message}</p>
                   </div>
                 </div>

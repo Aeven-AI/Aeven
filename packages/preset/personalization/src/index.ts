@@ -66,6 +66,7 @@ export default class PersonalizationController extends TypertRemoteService {
     if (!isAbsolute(config.root)) throw new Error(`personalization root must be absolute: ${config.root}`)
     this.store = new PersonalizationStore(config.root, config.maxNotesChars)
 
+    /* jscpd:ignore-start -- mirrors @aeven/memory-context's per-agent prompt-section fibers for its own block */
     // Registered in each agent's own scope, so each session renders the preferences of its owner. The text is a
     // provider evaluated at every assembly; the store answers from cache unless the owner's document changed.
     const fibers = new Map<Agent, ReturnType<Context['inject']>>()
@@ -96,6 +97,7 @@ export default class PersonalizationController extends TypertRemoteService {
     ctx.effect(() => () => {
       for (const agent of [...fibers.keys()]) uninstall(agent)
     }, 'personalization.sections')
+    /* jscpd:ignore-end */
   }
 
   /**

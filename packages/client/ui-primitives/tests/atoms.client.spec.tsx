@@ -468,20 +468,30 @@ describe('ConnectionIndicator', () => {
     )
     expect(container.firstChild).toBeNull()
     rerender(<ConnectionIndicator state="disconnected" {...labels} />)
+    // The toast is the alert; the reconnect action and the dismiss control are
+    // its two buttons, so the outage text reads in the toast rather than in the
+    // action's own label.
+    const toast = screen.getByRole('alert')
+    expect(toast.textContent).toContain('Disconnected')
+    expect(toast.textContent).toContain('Reconnect')
+    expect(toast.querySelector('[title]')).toBeNull()
     const indicator = screen.getByRole('button', { name: 'Disconnected, reconnect now' })
-    expect(indicator.textContent).toContain('Disconnected')
-    expect(indicator.textContent).toContain('Reconnect')
+    expect(indicator.textContent).toBe('Reconnect')
     expect(indicator.hasAttribute('title')).toBe(false)
-    expect(indicator.querySelector('svg')).toBeTruthy()
+    // The state glyph sits in the toast's gutter, not in the action.
+    expect(toast.querySelector('svg')).toBeTruthy()
     fireEvent.click(indicator)
     expect(reconnect).toHaveBeenCalledOnce()
 
     rerender(<ConnectionIndicator state="connecting" {...labels} />)
-    expect(screen.getByRole('button', { name: 'Connecting, restart now' }).textContent)
-      .toContain('Connecting...')
+    // The attempt dots ride the status text, not the action.
+    expect(screen.getByRole('alert').textContent).toContain('Connecting...')
+    expect(screen.getByRole('button', { name: 'Connecting, restart now' }).textContent).toBe('Reconnect')
 
     rerender(<ConnectionIndicator state="recovered" {...labels} />)
-    expect(screen.queryByRole('button')).toBeNull()
-    expect(screen.getByRole('status', { name: 'Connected' })).toBeTruthy()
+    // A recovered toast offers no reconnect and keeps only its dismiss.
+    expect(screen.queryByRole('button', { name: 'Disconnected, reconnect now' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Close' })).toBeTruthy()
+    expect(screen.getByRole('status').textContent).toContain('Connected')
   })
 })

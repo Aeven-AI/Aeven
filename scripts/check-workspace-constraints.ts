@@ -162,6 +162,11 @@ const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
   '@aeven/experimental-code-runtime-python': ['py/**/*.py'],
   // The shipped preset compositions travel inside the roster package.
   '@aeven/agent-presets': ['presets'],
+  // The vendored skill catalog is the package's own read-only data payload:
+  // the service reads `<package>/catalog/` when no catalogDir is configured.
+  '@aeven/skill-catalog': ['catalog'],
+  // The pinned whisper.cpp asset lock is read through `<package>/runtime/assets.json`.
+  '@aeven/speech-to-text-whisper': ['runtime/assets.json'],
   // The Web Host mounts the default-off settings owner independently of each
   // Agent-scoped delegation-tool instance.
   '@aeven/tool-subagent': ['lib/model-selection-settings.js'],

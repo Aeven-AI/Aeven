@@ -79,6 +79,9 @@ const [written] = await adapter.verify([{ kind: 'nodeValueEquals', token: body.t
 - **数十个进程与很长的树可能较慢。** 节点上限约束了单次遍历，但尚无对连续快照的缓存或差分。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ## 开发备注
 
 校验器不在此实现：它位于 `@aeven/computer-use-desktop`，因为文件系统检查在每个平台上完全相同，三份副本必然产生偏离。

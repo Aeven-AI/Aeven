@@ -60,7 +60,8 @@
     "@aeven/session": "workspace:^",
     "@aeven/typert-protocol": "workspace:^",
     "@types/react": "~18.3.1",
-    "react": "^18.2.0"
+    "react": "^18.2.0",
+    "@aeven/client-store": "workspace:^"
   },
   "files": [
     "lib/index.js",

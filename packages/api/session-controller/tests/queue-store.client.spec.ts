@@ -56,6 +56,17 @@ function makeManager(): SessionManager {
   return new SessionManager(fakeRemote(api))
 }
 
+/** One durable user message at the given log position. */
+function durableMessage(message: UserMessage, seq: number): SessionEvent {
+  return {
+    seq: SessionSeq(seq),
+    time: 1_700_000_000_000,
+    type: 'user/message',
+    surfaceOp: 'append',
+    data: message,
+  }
+}
+
 describe('Session queue snapshot intake', () => {
   it('projects stable ids, flat previews, and complete text', () => {
     const session = makeSession()
@@ -148,9 +159,38 @@ describe('Session queue snapshot intake', () => {
     ])
   })
 
-  it('hands off exactly one current occurrence when live steering becomes durable', async () => {
+  it('hands off the live steering occurrence its durable log entry names', async () => {
     const { api, session } = makeBench()
     await session.open()
+    const first = createUserMessage({
+      content: text('first steering'),
+      source: { kind: 'user' },
+    })
+    const second = createUserMessage({
+      content: text('second steering'),
+      source: { kind: 'user' },
+    })
+    session.handleControlFrame(queueFrame([
+      { id: 's-first', body: '', placement: 'steering', message: first },
+      { id: 's-second', body: '', placement: 'steering', message: second },
+    ]))
+
+    await api.pushFollow(SID, { type: 'event', event: durableMessage(first, 0) as never })
+    await vi.waitFor(() => {
+      expect(session.getSnapshot().queue.map(item => item.id)).toEqual(['s-second'])
+    })
+
+    await api.pushFollow(SID, { type: 'event', event: durableMessage(second, 1) as never })
+    await vi.waitFor(() => {
+      expect(session.getSnapshot().queue).toEqual([])
+    })
+  })
+
+  it('hands off every row carrying the message a durable log entry names', async () => {
+    const { api, session } = makeBench()
+    await session.open()
+    // The mirror addresses occurrences by the message they carry, so two rows
+    // built from one message are one occurrence to it.
     const message = createUserMessage({
       content: text('same message'),
       source: { kind: 'user' },
@@ -159,25 +199,10 @@ describe('Session queue snapshot intake', () => {
       { id: 's-first', body: '', placement: 'steering', message },
       { id: 's-second', body: '', placement: 'steering', message },
     ]))
-    const durable = {
-      seq: SessionSeq(0),
-      time: 1_700_000_000_000,
-      type: 'user/message',
-      surfaceOp: 'append',
-      data: message,
-    } satisfies SessionEvent
 
-    await api.pushFollow(SID, { type: 'event', event: durable as never })
+    await api.pushFollow(SID, { type: 'event', event: durableMessage(message, 0) as never })
     await vi.waitFor(() => {
-      expect(session.getSnapshot().queue.map(item => item.id)).toEqual(['s-second'])
-    })
-
-    session.handleControlFrame(queueFrame([
-      { id: 's-later', body: '', placement: 'steering', message },
-    ]))
-    await api.pushFollow(SID, { type: 'event', event: durable as never })
-    await vi.waitFor(() => {
-      expect(session.getSnapshot().queue.map(item => item.id)).toEqual(['s-later'])
+      expect(session.getSnapshot().queue).toEqual([])
     })
   })
 

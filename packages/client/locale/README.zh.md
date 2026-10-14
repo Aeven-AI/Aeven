@@ -130,6 +130,9 @@ Host 通过 settings 服务为 loopback 页面持久化偏好。Client 会刻意
 - **语言包负责语言特有行为**——注册表提供选择、持久化、浏览器匹配、逐 key 回退和 `<html lang>`；它不增加复数规则或双向布局。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

@@ -5,6 +5,8 @@ kind: "package-reference"
 
 # @aeven/tool-capability
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 `avn-tool-capability` makes Aeven learn reusable procedures for the session's owner without asking anyone. With `store: memory` (the default) each learned procedure is one long-term memory: its full Markdown is the stored text and its summary is the procedure condensed, so the memory recall at the start of a turn already carries the steps, and `memory_get` reads the rest. A procedure the work improves replaces the older memory instead of piling up beside it. Nothing is written as a skill or a capability file. With `store: capabilities` the learner writes candidate capabilities instead, recalled as `<procedure_context>`, as described below.
@@ -65,7 +67,17 @@ Append-only after the user's message.
 
 ### Learning call
 
-The learner's model call is a separate request outside the session; the session model never sees it. Its request holds the turn's request, its timing, its tool calls with their timing and results, the answer, the user's correction or complaint when the work is learned from again, the existing procedure list, and the full procedures of up to two related capabilities (three related memories with the memory store). The learner bounds that request with `maxInputTokens`, estimated at four characters per token rather than the provider's own tokenizer: past the budget it first shortens every tool call's arguments and result, so the whole run stays visible, then drops the oldest tool calls and names how many it left out, and text still above the budget keeps its beginning and ends with a cut marker, so the newest evidence survives and no request is ever unbounded. What the call writes reaches a session only when the skill tool loads the capability, as a logged tool result.
+#### What the model sees
+
+The learner's model call is a separate request outside the session; the session model never sees it. Its system prompt is fixed text stating what to learn, the sections every written procedure has, and the JSON reply form; its user message is the assembled transcript, holding the turn's request, its timing, its tool calls with their thinking and running seconds and results, the answer, the user's correction or complaint when the work is learned from again, the existing procedure list, and the full procedures of up to two related capabilities (three related memories with the memory store). What the call writes reaches a session only when the skill tool loads the capability, as a logged tool result.
+
+#### Token effect
+
+One separate request per learned turn, outside the session's own requests. Its input is bounded by `maxInputTokens`, estimated at four characters per token rather than the provider's own tokenizer and counting the fixed prompt, and its output by `maxOutputTokens`. Past the input budget the learner first shortens every tool call's arguments and result, so the whole run stays visible, then drops the oldest tool calls and names how many it left out, and text still above the budget keeps its beginning and ends with a cut marker, so the newest evidence survives and no request is ever unbounded.
+
+#### KV Cache effect
+
+None for the session: the call is a request the session log does not carry, sent once with its own fixed prompt, so it neither reads nor extends the conversation's reusable prefix.
 
 ## Known Limitations and Deferred Work
 
@@ -75,7 +87,8 @@ The learner's model call is a separate request outside the session; the session 
 - **Instruction precedence is behavioral** — advisory framing does not prove that a model will always reject conflicting historical text; conflict regression tests are deferred.
 - **Corrections are recognized by phrasing** — a correction must open with a phrase such as "that's wrong" or "it didn't work" to count against the previous turn.
 - **One sample baseline** — the "first time" metrics come from the single turn a capability was learned from.
+- **Invariant omission** — No invariant companion is published because the learner owns no durable fact of its own: with `store: memory` a procedure is one memory the long-term memory service supersedes, with `store: capabilities` it is a capability file the registry owns, and an execution becomes evidence through `ctx.capabilities.recordExecution`, so the only learner-held relation is the in-process queue that distills one owner's work at a time.
 
-## Dev Note
+### Dev Note
 
 None.

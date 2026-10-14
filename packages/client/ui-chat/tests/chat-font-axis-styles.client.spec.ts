@@ -1,6 +1,6 @@
 /**
  * The chat flow's font-size-axis adoption as CSS text. jsdom has no layout,
- * so these read the declarations that make think text, compaction rows, the
+ * so these read the declarations that make think rows, compaction rows, the
  * turn-process summary, message clock, and the icon-action buttons follow the
  * Settings font-size preference through --avn-content-font-size /
  * --avn-content-font-delta.
@@ -12,18 +12,22 @@ import { describe, expect, it } from 'vitest'
 const read = (name: string): string =>
   readFileSync(fileURLToPath(new URL(`../src/client/chat/${name}`, import.meta.url)), 'utf8')
 
-/** The Markdown host sheet that styles the engine's reasoning block. */
-const readMarkdown = (): string =>
-  readFileSync(fileURLToPath(new URL(
-    '../../ui-primitives/src/markdown/MarkdownText.module.css',
-    import.meta.url,
-  )), 'utf8')
-
+/**
+ * Declarations of the first rule whose comma-separated selector list contains
+ * exactly this selector; a shared rule may group a drifted selector with the
+ * one it mirrors.
+ * @param source - CSS module source text.
+ * @param selector - one selector of the rule to read.
+ * @returns the rule's declarations, trimmed and without the trailing empty part.
+ */
 function declarationsFrom(source: string, selector: string): string[] {
   const declarationText = source.replace(/\/\*[\s\S]*?\*\//g, ' ')
-  const rule = new RegExp(`(?:^|[{}])\\s*${selector.replace(/[.[\]():*+^$\\]/g, '\\$&')}\\s*\\{([^{}]*)\\}`).exec(declarationText)
-  if (rule === null) throw new Error(`no \`${selector}\` rule`)
-  return (rule[1] ?? '').split(';').map(part => part.trim()).filter(Boolean)
+  for (const rule of declarationText.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const selectors = (rule[1] ?? '').split(',').map(part => part.trim())
+    if (!selectors.includes(selector)) continue
+    return (rule[2] ?? '').split(';').map(part => part.trim()).filter(Boolean)
+  }
+  throw new Error(`no \`${selector}\` rule`)
 }
 
 describe('chat flow font-size axis', () => {
@@ -34,18 +38,17 @@ describe('chat flow font-size axis', () => {
     ]))
   })
 
-  it('think text reads the conversation content size', () => {
-    // Reasoning renders inside the Markdown engine now, so the block's type
-    // scale is an override in the engine's host sheet rather than a rule in
-    // this package's own reasoning component.
-    const css = readMarkdown()
-    for (const selector of ['.markdown.markdown :global(.reasoning-header)', '.markdown.markdown :global(.reasoning-content)']) {
-      expect(declarationsFrom(css, selector)).toEqual(expect.arrayContaining([
-        'font-size: var(--avn-content-font-size, 16px)',
-      ]))
-    }
-    expect(declarationsFrom(css, '.markdown.markdown :global(.reasoning-content)')).toEqual(expect.arrayContaining([
+  it('think rows read the conversation content size', () => {
+    // Reasoning renders as this package's own Think row, so its summary line
+    // and its collapsed height are this package's rules rather than an
+    // override in the Markdown engine's host sheet.
+    const css = read('ReasoningRow.module.css')
+    expect(declarationsFrom(css, '.summary')).toEqual(expect.arrayContaining([
+      'font-size: var(--avn-content-font-size, 16px)',
       'line-height: calc(28px + var(--avn-content-font-delta, 0px))',
+    ]))
+    expect(declarationsFrom(css, '.root:not([data-expanded])')).toEqual(expect.arrayContaining([
+      'height: calc(24px + var(--avn-content-font-delta, 0px))',
     ]))
   })
 
@@ -63,11 +66,12 @@ describe('chat flow font-size axis', () => {
     }
   })
 
-  it('the message clock and action glyphs scale with the text they serve', () => {
+  it('the message clock reads the body tier while action glyphs keep one metric', () => {
     const actions = read('MessageIconActions.module.css')
     // Both clocks read the body tier, so each clock stamps its message at the
-    // size of the text it belongs to; the usage trigger beside them reads the
-    // same tier and stays in step.
+    // size of the text it belongs to. The action glyphs beside them do not
+    // scale: one fixed 16px metric keeps the row the same at every size, and
+    // the CSS edge overrides each svg's own width/height attributes.
     expect(declarationsFrom(actions, '.timeStart')).toEqual(expect.arrayContaining([
       'font-size: var(--avn-content-font-size, 16px)',
     ]))
@@ -75,8 +79,8 @@ describe('chat flow font-size axis', () => {
       'font-size: var(--avn-content-font-size, 16px)',
     ]))
     expect(declarationsFrom(actions, '.action svg')).toEqual(expect.arrayContaining([
-      'width: calc(15px + var(--avn-content-font-delta, 0px))',
-      'height: calc(15px + var(--avn-content-font-delta, 0px))',
+      'width: 16px',
+      'height: 16px',
     ]))
   })
 
@@ -114,8 +118,8 @@ describe('chat flow font-size axis', () => {
 
   it('the usage pill sizes its glyph and hit height like the sibling action buttons', () => {
     // The pill sits in the icon row right of the branch action; its data glyph
-    // and 28px hit height follow the same delta rule as `.action` so the row
-    // stays one height at every font size.
+    // is the row's fixed 18px metric and its 28px hit height follows the same
+    // delta rule as `.action`, so the row stays one height at every font size.
     const css = read('TurnUsagePanel.module.css')
     expect(declarationsFrom(css, '.trigger')).toEqual(expect.arrayContaining([
       'height: calc(28px + var(--avn-content-font-delta, 0px))',
@@ -123,8 +127,8 @@ describe('chat flow font-size axis', () => {
       'min-width: 0',
     ]))
     expect(declarationsFrom(css, '.trigger svg')).toEqual(expect.arrayContaining([
-      'width: calc(15px + var(--avn-content-font-delta, 0px))',
-      'height: calc(15px + var(--avn-content-font-delta, 0px))',
+      'width: 18px',
+      'height: 18px',
     ]))
     // A narrow column trims the pill label to an ellipsis instead of letting
     // it overflow or widen the chat column.

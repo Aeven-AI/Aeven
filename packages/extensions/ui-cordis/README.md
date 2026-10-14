@@ -91,11 +91,11 @@ Read these pages when the package-level contract is not enough. They move from t
 <a id="model-experience"></a>
 ## Model Experience
 
-None. This package renders logged call and result slices and reads the host inventory. It adds no prompt content or session event.
+Indirectly, through the cordis_run and cordis_stop tools, which reach the same host verbs this package's definition card drives, while the runner owns any model-visible effect.
 
 #### KV Cache effect
 
-None: no prompt input originates here.
+None; no prompt input originates here.
 
 ## Known Limitations and Deferred Work
 

@@ -2,21 +2,23 @@
 
 Status: implemented
 
+English | [中文](2026-09-28-long-term-memory-memos.zh.md)
+
 ## Problem
 
-Agents start every session with no memory of earlier work: user preferences, what worked in a repository or application, and which approaches failed. MemOS (`@memtensor/memos-local-plugin`) provides a local memory engine with layered traces, policies, world models, and skill crystallization, and ships an adapter for DeepSeek Harness. Aeven is a hard fork of DSH with rescoped `@aeven/*` packages, so that adapter's `@deepseek-ai/dsh-*` peer imports do not load here, and adopting it as-is would make MemOS's plugin the memory architecture.
+Agents start every session with no memory of earlier work: user preferences, what worked in a repository or application, and which approaches failed. MemOS (`@memtensor/memos-local-plugin`) provides a local memory engine with layered traces, policies, world models, and skill crystallization, and ships an adapter for DeepSeek Harness. Aeven is a hard fork of DeepSeek Harness with rescoped `@aeven/*` packages, so that adapter's `@deepseek-ai/dsh-*` peer imports do not load here, and adopting it as-is would make MemOS's plugin the memory architecture.
 
 ## Decision
 
 Aeven owns a complete capability seam in `packages/memory/`, and MemOS sits behind it as one provider:
 
 - `@aeven/memory` defines `ctx.memory` in provider-neutral terms (scope, recall, turn capture, item reads) plus the `MEMORY_TOOL` names.
-- `@aeven/memory-memos` ports the MemOS DSH adapter's MemOS half: bootstrap of the pinned `MemoryCore` (2.0.20), the per-session serial capture queue and MemOS session/episode lifecycle, the host-LLM bridge over `ctx.llm`, the hard recall deadline, and the loopback Viewer.
+- `@aeven/memory-memos` ports the MemOS DeepSeek Harness adapter's MemOS half: bootstrap of the pinned `MemoryCore` (2.0.20), the per-session serial capture queue and MemOS session/episode lifecycle, the host-LLM bridge over `ctx.llm`, the hard recall deadline, and the loopback Viewer.
 - `@aeven/memory-context` ports the adapter's host half: one recall per accepted direct-user turn at the first `agent/pre-step`, and turn assembly from committed session events handed to the provider at `turn/end`.
 - [Outcome capture](2026-09-28-memory-outcome-capture.md) records retries, corrections, reported verification, and goal completion beside those turns.
 - `@aeven/tool-memory` ports the six read tools under Aeven names.
 
-The DSH adapter's behavior was kept where it encodes tested decisions: recall reads the downstream pre-step decision, only `user`-sourced messages trigger recall or capture, a surface replacement of a tool result is not a second execution, recall has a hard deadline independent of provider cancellation, auxiliary LLM calls request reasoning `off` when the route supports it and carry no session id, and autonomous recovery stays off when the Host bridge is the only LLM route.
+The DeepSeek Harness adapter's behavior was kept where it encodes tested decisions: recall reads the downstream pre-step decision, only `user`-sourced messages trigger recall or capture, a surface replacement of a tool result is not a second execution, recall has a hard deadline independent of provider cancellation, auxiliary LLM calls request reasoning `off` when the route supports it and carry no session id, and autonomous recovery stays off when the Host bridge is the only LLM route.
 
 ### Model-visible text
 
@@ -37,6 +39,16 @@ Each memory is `person`, `project`, `world`, or `experience`. MemOS stamps captu
 ### Composition
 
 The web bundle mounts the `memory` slot on the host plane and the `memory-memos` provider disabled. The `standard`, `cordis`, and `ptc` presets mount `memory-context` and `tool-memory`. A preset mounts only when every row's injected services exist, so the slot is always present and the Consumers gate their prompt section and tools on `ctx.memory.whileActive`: enabling the provider row turns the feature on, and no memory tool or guidance appears without a provider.
+
+## Alternatives considered
+
+**Adopt the DeepSeek Harness adapter as-is.** Rejected: its `@deepseek-ai/dsh-*` peer imports do not load in a hard fork whose packages are rescoped to `@aeven/*`, and adopting it unchanged would make MemOS's plugin the memory architecture instead of one provider behind Aeven's own seam.
+
+**Let MemOS render the recalled context.** Rejected: `memory-context` renders the recalled hits itself, grouped by domain, which replaces MemOS's own rendered context and its instructions to treat memory as established knowledge.
+
+**Give ownerless sessions one shared memory pool.** Rejected: a session without an owner has no memory rather than a shared pool, which keeps later cloud sync per user.
+
+**Keep only the adapter's provider half.** Rejected: the adapter's host half carries the tested decisions this note keeps — recall reading the downstream pre-step decision, only `user`-sourced messages triggering recall or capture, the hard recall deadline independent of provider cancellation, and the auxiliary calls that request reasoning `off` and carry no session id.
 
 ## Consequences
 

@@ -160,6 +160,9 @@ CLI 公开 `--success-text`、`--partial-text`、`--reasoning-text`、`--chunk-s
 - **真实连接拒绝发生在监听器生命周期阶段**——CLI 延迟必须与客户端尝试重叠；请求级随机选择只能重置已接受的连接。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

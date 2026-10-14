@@ -67,7 +67,9 @@ export interface ImagineVariation {
 export function variationAt(roll: number, step: number): ImagineVariation {
   const at = (length: number): number => (Math.floor(roll * length) + step) % length
   return {
-    scene: IMAGINE_SCENES[at(IMAGINE_SCENES.length)]!,
-    look: IMAGINE_LOOKS[at(IMAGINE_LOOKS.length)]!,
+    /* v8 ignore next -- the wrap keeps the index inside a non-empty pool, so the fallback arm cannot run */
+    scene: IMAGINE_SCENES[at(IMAGINE_SCENES.length)] ?? IMAGINE_SCENES[0],
+    /* v8 ignore next -- the wrap keeps the index inside a non-empty pool, so the fallback arm cannot run */
+    look: IMAGINE_LOOKS[at(IMAGINE_LOOKS.length)] ?? IMAGINE_LOOKS[0],
   }
 }

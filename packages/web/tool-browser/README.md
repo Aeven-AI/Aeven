@@ -117,6 +117,7 @@ Prefix-stable while the visible tool set is unchanged.
 - **A Client that answers after `statusTimeoutMs` is ignored for that turn** — the model does not learn the open page until the next turn's first step.
 - **Without a connected Client, each new turn waits `statusTimeoutMs`** — the gateway cannot tell the plugin that no Client is connected, so the lookup waits out its deadline before the first step.
 - **A browser surface that no plugin reports stays invisible** — the report lists the page beside the session and the Host's Chromium, so any other automation backend the composition mounts is named to the model only once a plugin reports it.
+- **No invariant companion** — No runtime invariant companion is published because this package's own specs already exercise each relation it owns: the first-step lookup against a stub waterfall, the bounded waits under `statusTimeoutMs` and `actionTimeoutMs`, and the surface selection in the status report.
 
 <a id="dev-note"></a>
 ### Dev Note

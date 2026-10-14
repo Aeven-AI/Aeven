@@ -12,10 +12,17 @@ import { describe, expect, it } from 'vitest'
 const css = readFileSync(fileURLToPath(new URL('../src/DisclosureRow.module.css', import.meta.url)), 'utf8')
 const declarationText = css.replace(/\/\*[\s\S]*?\*\//g, ' ')
 
+/**
+ * The declarations of the rule whose selector list names `selector`, whether it
+ * heads the rule or shares it with a sibling selector.
+ * @param selector - one selector of the rule under test.
+ * @returns the rule's declarations, in source order.
+ */
 function declarations(selector: string): string[] {
-  const rule = new RegExp(`(?:^|\\})\\s*${selector.replace(/[.[\]():*+^$\\]/g, '\\$&')}\\s*\\{([^{}]*)\\}`).exec(declarationText)
-  if (rule === null) throw new Error(`DisclosureRow.module.css has no \`${selector}\` rule`)
-  return (rule[1] ?? '').split(';').map(part => part.trim()).filter(Boolean)
+  const rule = [...declarationText.matchAll(/([^{}]+)\{([^{}]*)\}/g)].find(([, selectors]) =>
+    (selectors ?? '').split(',').map(part => part.trim()).includes(selector))
+  if (rule === undefined) throw new Error(`DisclosureRow.module.css has no \`${selector}\` rule`)
+  return (rule[2] ?? '').split(';').map(part => part.trim()).filter(Boolean)
 }
 
 describe('DisclosureRow.module.css font-size axis', () => {
@@ -42,9 +49,13 @@ describe('DisclosureRow.module.css font-size axis', () => {
   it('scales leading glyphs via the svg edge but exempts StateDot', () => {
     // StateDot marks itself with data-state; the :not filter keeps the status
     // mark at its fixed figma size while text-furniture icons follow the text.
-    expect(declarations('.leading svg:not([data-state])')).toEqual(expect.arrayContaining([
-      'width: calc(14px + var(--avn-content-font-delta, 0px))',
-      'height: calc(14px + var(--avn-content-font-delta, 0px))',
-    ]))
+    // The glyph edge is claimed on the leading box's direct children — a bare
+    // registered icon and the idle wrapper that swaps for the hover chevron.
+    for (const selector of ['.leading > svg:not([data-state])', '.leading > .iconIdle svg:not([data-state])']) {
+      expect(declarations(selector), selector).toEqual(expect.arrayContaining([
+        'width: calc(14px + var(--avn-content-font-delta, 0px))',
+        'height: calc(14px + var(--avn-content-font-delta, 0px))',
+      ]))
+    }
   })
 })

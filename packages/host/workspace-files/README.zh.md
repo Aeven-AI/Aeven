@@ -108,6 +108,9 @@ Indirectly, through the [avn-web-app](../../bundle/web-app/README.zh.md) surface
 - **MIME 表覆盖的是生成产物** —— 图片、PDF 与常见文本类型。其余扩展名在相应资产类别落地之前，均以 `application/octet-stream` 下载。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

@@ -530,7 +530,7 @@ describe('producedFileMentions resolver', () => {
       ['out/index.html'],
       () => {},
       label,
-      path => { menus.push(path) },
+      (path) => { menus.push(path) },
     )
     resolver.resolve('index.html')?.menu?.()
     expect(menus).toEqual(['out/index.html'])

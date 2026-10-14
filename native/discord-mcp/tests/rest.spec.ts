@@ -1,8 +1,8 @@
-/** The REST client: bot-only authentication, rate-limit waits, retry limits, and fixed error text. */
+/** The REST client: connector-supplied authentication, rate-limit waits, retry limits, and fixed error text. */
 
 import { afterEach, describe, expect, it } from 'vitest'
 import { DiscordError, DiscordRest, isGuildUnreachable } from '../aeven/rest.ts'
-import { json, refusal, stubFetch, TEST_BASE, type FetchStub } from './harness.ts'
+import { json, refusal, stubFetch, TEST_AUTHORIZATION, TEST_BASE, type FetchStub } from './harness.ts'
 
 const strays: FetchStub[] = []
 
@@ -15,7 +15,7 @@ function stub(respond: Parameters<typeof stubFetch>[0]): FetchStub {
 
 /** The client under test. */
 function rest(timeoutMs = 5_000): DiscordRest {
-  return new DiscordRest({ botToken: 'spec-bot-token', baseUrl: TEST_BASE, timeoutMs })
+  return new DiscordRest({ authorization: TEST_AUTHORIZATION, baseUrl: TEST_BASE, timeoutMs })
 }
 
 afterEach(() => {
@@ -23,11 +23,11 @@ afterEach(() => {
 })
 
 describe('authentication', () => {
-  it('sends the bot token as `Bot <token>` and nothing else', async () => {
+  it('sends the connector\'s authorization value verbatim, as the only credential header', async () => {
     const installed = stub(() => json({ ok: true }))
     await rest().request('GET', '/ping')
-    expect(installed.requests[0]?.headers['authorization']).toBe('Bot spec-bot-token')
-    expect(JSON.stringify(installed.requests[0]?.headers)).not.toMatch(/user/i)
+    expect(installed.requests[0]?.headers['authorization']).toBe('Bearer spec-session')
+    expect(Object.keys(installed.requests[0]?.headers ?? {})).toEqual(['authorization'])
   })
 
   it('honours the configured API base', async () => {

@@ -9,7 +9,7 @@ import { extname, isAbsolute } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@aeven/client-connection'
 import type {} from '@aeven/attachment'
-import { FsError, type FileSystem } from '@aeven/fs'
+import type { FileSystem, FsError } from '@aeven/fs'
 import mime from 'mime-types'
 
 const BASE_HEADERS = {
@@ -64,6 +64,7 @@ async function serveFile(request: Request, fs: FileSystem, maxBytes: number): Pr
     headers['Content-Length'] = String(bytes.byteLength)
     return new Response(bytes.slice(), { headers })
   } catch (error: unknown) {
+    const { FsError } = await import('@aeven/fs')
     if (!(error instanceof FsError)) throw error
     const statuses: Partial<Record<FsError['code'], number>> = {
       FS_NOT_FOUND: 404,

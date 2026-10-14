@@ -81,6 +81,9 @@ kind: "package-reference"
 - **预设描述来自宿主**——本地化的内置标签旁边可能显示另一种语言编写的描述。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

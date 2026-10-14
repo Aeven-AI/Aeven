@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-22-media-store-sweep-reaped-live-temporaries.md
-2026-09-22-media-store-sweep-reaped-live-temporaries.md: a43d1c9db4050741a63c764bca8e425098698df0
-2026-09-22-media-store-sweep-reaped-live-temporaries.zh.md: 1fd3a43d8686372f45f16042dc0cbf4b268af65a
+2026-09-22-media-store-sweep-reaped-live-temporaries.md: 627e9c999b56220e8c19c595645944340b092256
+2026-09-22-media-store-sweep-reaped-live-temporaries.zh.md: d470cc876acf01c0e0bbd5277cda48e65d9c52f8

@@ -61,7 +61,7 @@ describe('TrajectoryCell', () => {
       />,
     )
     expect(screen.getByText('#6')).toBeTruthy()
-    expect(screen.getByText('TOOL')).toBeTruthy()
+    expect(screen.getByText('Tool')).toBeTruthy()
     expect(screen.getByText('bash · Read src/index.ts')).toBeTruthy()
     expect(screen.getByText('5,000 ms')).toBeTruthy()
   })
@@ -97,8 +97,8 @@ describe('TrajectoryCell', () => {
   })
 
   it.each([
-    ['user', 'USER'],
-    ['tool', 'TOOL'],
+    ['user', 'User'],
+    ['tool', 'Tool'],
   ] as const)('kind %s shows the %s tag and no metric columns', (kind: TrajectoryCellKind, label: string) => {
     const { container } = render(
       <TrajectoryCell index={1} kind={kind} text="summary" timeSeconds={kind === 'user' ? 0 : null} input={1} output={2} think={3} />,

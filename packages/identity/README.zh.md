@@ -34,6 +34,9 @@ identity 组为每个 harness home 提供一个匿名 id，该安装的遥测、
 - [avn-command-feedback](../feedback/command-feedback/README.zh.md)——在确认文本中点名该匿名安装的反馈命令。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ## 开发备注
 
 无。

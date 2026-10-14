@@ -21,8 +21,15 @@ Registry and cross-page router behind the two model-facing inspect tools.
 ```ts cordis-catalog
 /**
  * Register one Host provider.
+ *
+ * A registration whose manifest equals the live one under the same id joins
+ * it instead of conflicting: each generation of an agent-preset mount
+ * registers the same providers while earlier generations still serve their
+ * sessions. The newest registration answers queries; disposing it restores
+ * the one before it.
  * @param registration - manifest and local query handler.
  * @returns idempotent disposer.
+ * @throws when a provider with the same id but a different manifest is live.
  */
 register(registration: HostCordisInspectProviderRegistration): () => void
 
@@ -379,4 +386,29 @@ A pending Client activation request left the answerable state.
 ```
 
 Source: [`packages/extensions/cordis-host-runner/src/types.ts`](../../packages/extensions/cordis-host-runner/src/types.ts)
+
+<a id="mcp-events"></a>
+
+### `mcp/*` events
+
+<a id="mcpservers--waterfall"></a>
+
+#### `mcp/servers` — waterfall
+
+List the MCP servers one agent's tools can come from. Every mounted mcp-client instance appends its own report after `next()`.
+
+```ts cordis-catalog
+/**
+ * List the MCP servers one agent's tools can come from. Every mounted
+ * mcp-client instance appends its own report after `next()`.
+ * @param request.agent - the agent whose tool sources are listed.
+ * Scope-filtered dispatch (`@aeven/scope`): agent-scoped listeners receive only that agent.
+ * @mode waterfall
+ */
+'mcp/servers'(this: Scoped<Agent>, request: { agent: Agent }, next: () => Promise<McpServerReport[]>): Promise<McpServerReport[]>
+```
+
+Types: [Agent](core.zh.md) · [Scoped](scope.zh.md)
+
+Source: [`packages/mcp/mcp-client/src/types.ts`](../../packages/mcp/mcp-client/src/types.ts)
 <!-- END GENERATED cordis-surface -->

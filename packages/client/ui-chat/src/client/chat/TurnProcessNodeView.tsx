@@ -11,18 +11,23 @@ import css from './TurnProcessNodeView.module.css'
  * Turn-level process disclosure controller.
  *
  * While the turn runs, the header sits above its work with a live elapsed
- * clock. Once it closes, the header names how the turn ended: its elapsed time
+ * clock only for the latest Turn while the Session is running. An unclosed
+ * Turn without an active run shows as stopped. Once it closes, the header names
+ * how the turn ended: its elapsed time
  * for an ordinary end, and the stop or failure in place of the time for a
  * cancelled or failed turn.
  */
 export const TurnProcessNodeView = memo(function TurnProcessNodeView({
-  node, turnProcess, useSession, t,
+  node, turnProcess, useSession, useChat, t,
 }: ChatNodeViewProps<'turn-process'>) {
   if (turnProcess === undefined) throw new Error('turn-process node requires Turn process owner state')
   const turn = node.location.kind === 'turn' || node.location.kind === 'step'
     ? node.location.turn
     : undefined
-  const running = turn?.status === 'open'
+  const sessionRunning = useSession(state => state.running)
+  const latestTurn = useChat(state => state.timeline.turnOrder.at(-1))
+  const running = turn?.status === 'open' && sessionRunning && turn.turn === latestTurn
+  const interrupted = turn?.status === 'open' && !running
   // A running Turn's header that mounts while a transcript echo is still up
   // replaces the pending header row and continues its fade.
   const sentAt = useSession(state => running ? latestTranscriptSend(state.pendingSubmissions) : undefined)
@@ -49,7 +54,7 @@ export const TurnProcessNodeView = memo(function TurnProcessNodeView({
   const duration = elapsedMs === undefined ? undefined : formatRunDuration(elapsedMs, t)
   const label = running
     ? duration === undefined ? t('chat.deepDiving') : t('message.turnProcess.deepDivingFor', { duration })
-    : reason === 'aborted' ? t('message.stopped')
+    : interrupted || reason === 'aborted' ? t('message.stopped')
       : reason === 'error' ? t('message.turnProcess.failed')
         : duration === undefined ? t('message.turnProcess.worked')
           : t('message.turnProcess.took', { duration })

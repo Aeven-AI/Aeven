@@ -6,7 +6,7 @@
  * @module @aeven/subscription-auth/media-providers
  */
 
-import { MediaError } from '@aeven/media'
+import { MediaError, rejectImageControls } from '@aeven/media'
 import type {
   MediaImageModel,
   MediaImageProvider,
@@ -126,12 +126,7 @@ export function createGrokMediaProvider(
     available: () => selectedModels(GROK_MEDIA_PROVIDER_ID, models, gate).length > 0,
     listImageModels: () => Promise.resolve(selectedModels(GROK_MEDIA_PROVIDER_ID, models, gate)),
     async generateImage(request, signal): Promise<MediaImageResult> {
-      for (const [field, value] of [
-        ['guidanceScale', request.guidanceScale], ['outputFormat', request.outputFormat],
-        ['optimizePromptMode', request.optimizePromptMode],
-      ]) {
-        if (value !== undefined) throw new MediaError(`${String(field)} is not supported by ${request.provider ?? request.model}`, 'MEDIA_INVALID_REQUEST')
-      }
+      rejectImageControls(request, ['guidanceScale', 'outputFormat', 'optimizePromptMode'])
       requireModel(request, models, gate)
       const references = request.references ?? []
       if (references.length > IMAGINE_IMAGE_IDS_MAX) {
@@ -155,7 +150,7 @@ export function createGrokMediaProvider(
       } catch (error) {
         throw new MediaError(`Grok Imagine failed: ${safeMessage(error)}`, 'MEDIA_UPSTREAM', { cause: error })
       }
-      const images = await Promise.all(result.images.map(async image => {
+      const images = await Promise.all(result.images.map(async (image) => {
         const bytes = await stored.readImage(image.attachment, signal)
         return {
           kind: 'bytes' as const,
@@ -186,12 +181,7 @@ export function createCodexMediaProvider(http: CodexHttpClient, gate: Subscripti
     available: () => selectedModels(CODEX_MEDIA_PROVIDER_ID, models, gate).length > 0,
     listImageModels: () => Promise.resolve(selectedModels(CODEX_MEDIA_PROVIDER_ID, models, gate)),
     async generateImage(request, signal): Promise<MediaImageResult> {
-      for (const [field, value] of [
-        ['guidanceScale', request.guidanceScale], ['outputFormat', request.outputFormat],
-        ['optimizePromptMode', request.optimizePromptMode],
-      ]) {
-        if (value !== undefined) throw new MediaError(`${String(field)} is not supported by ${request.provider ?? request.model}`, 'MEDIA_INVALID_REQUEST')
-      }
+      rejectImageControls(request, ['guidanceScale', 'outputFormat', 'optimizePromptMode'])
       requireModel(request, models, gate)
       const references = request.references ?? []
       const body: Record<string, unknown> = {

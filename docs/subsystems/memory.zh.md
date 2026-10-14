@@ -1,0 +1,245 @@
+# 记忆
+
+[English](memory.md) | 中文
+
+服务声明见 [源代码](../../packages/memory/memory/src/index.ts)。
+
+<!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
+
+<a id="cordis-surface"></a>
+
+## Cordis API
+
+Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.zh.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
+
+<a id="ctxmemory--memory"></a>
+
+### `ctx.memory` — `Memory`
+
+Slot holding the one memory provider of a Host composition.
+
+```ts cordis-catalog
+/**
+ * Register the composition's memory provider; a second registration fails without replacing the first.
+ * @param provider - implementation owned by the contributing fiber.
+ * @returns idempotent disposer that empties the slot.
+ */
+register(provider: MemoryProvider): () => void
+
+/**
+ * Keep a contribution registered exactly while a provider is registered, so a composition
+ * without a provider shows the model no memory tools or guidance.
+ * @param setup - registers the contribution and returns its disposer; runs on each provider registration.
+ * @returns disposer that stops watching and disposes a live contribution.
+ */
+whileActive(setup: () => () => void): () => void
+
+/**
+ * Retrieve memory relevant to a query within the request's hard budget.
+ * @param request - query, scope, and foreground budget.
+ * @returns ranked hits visible to the scope.
+ */
+recall(request: MemoryRecallRequest): Promise<MemoryRecall>
+
+/**
+ * Hand one completed turn to the provider for background learning.
+ * @param turn - turn assembled from committed session events.
+ */
+capture(turn: MemoryTurn): void
+
+/**
+ * Release per-session provider state; resolves immediately while no provider is registered.
+ * @param sessionId - session that is no longer live.
+ * @returns after the provider released the session.
+ */
+async closeSession(sessionId: SessionId): Promise<void>
+
+/**
+ * Read one memory item.
+ * @param request - scope, item kind, and id.
+ * @returns the item, or undefined when the scope holds no such item.
+ */
+detail(request: Parameters<MemoryProvider['detail']>[0]): Promise<MemoryDetail | undefined>
+
+/**
+ * Read the ordered traces of one episode.
+ * @param request - scope, episode id, and maximum entry count.
+ * @returns entries in capture order.
+ */
+timeline(request: Parameters<MemoryProvider['timeline']>[0]): Promise<readonly MemoryTimelineEntry[]>
+
+/**
+ * List learned environment models.
+ * @param request - scope, optional keyword filter, and maximum count.
+ * @returns at most `limit` models.
+ */
+environments(request: Parameters<MemoryProvider['environments']>[0]): Promise<readonly MemoryEnvironment[]>
+
+/**
+ * List crystallized skills.
+ * @param request - scope, optional status filter, and maximum count.
+ * @returns at most `limit` skills.
+ */
+skills(request: Parameters<MemoryProvider['skills']>[0]): Promise<readonly MemorySkill[]>
+
+/**
+ * Load one skill and record its selection for the session's current task.
+ * @param request - scope, skill id, and the selecting tool call.
+ * @returns the skill, or undefined when the scope holds no such skill.
+ */
+useSkill(request: Parameters<MemoryProvider['useSkill']>[0]): Promise<MemorySkill | undefined>
+
+/**
+ * List the owner's memories, newest first.
+ * @param request - scope, optional text query, and page bounds.
+ * @returns one page and the total match count.
+ */
+list(request: Parameters<MemoryProvider['list']>[0]): Promise<MemoryPage>
+
+/**
+ * Store one fact the user explicitly asked to be remembered.
+ * @param request - scope and the fact in the user's words.
+ * @returns the stored memory's id.
+ */
+remember(request: Parameters<MemoryProvider['remember']>[0]): Promise<MemoryItemId>
+
+/**
+ * Replace the summary of one of the owner's memories.
+ * @param request - scope, memory id, and the corrected summary.
+ * @returns the updated memory, or undefined when the owner has no such memory.
+ */
+edit(request: Parameters<MemoryProvider['edit']>[0]): Promise<MemoryRecord | undefined>
+
+/**
+ * Delete one of the owner's memories.
+ * @param request - scope and memory id.
+ * @returns true when a memory of this owner was deleted.
+ */
+forget(request: Parameters<MemoryProvider['forget']>[0]): Promise<boolean>
+
+/**
+ * Record a human judgment about one captured turn.
+ * @param request - scope, turn number, polarity, and optional note.
+ * @returns true when the judgment was recorded.
+ */
+feedback(request: Parameters<MemoryProvider['feedback']>[0]): Promise<boolean>
+```
+
+Types: [SessionId](core.zh.md)
+
+Source: [`packages/memory/memory/src/index.ts`](../../packages/memory/memory/src/index.ts)
+
+<a id="ctxmemorymanagercontroller--memorymanagercontroller"></a>
+
+### `ctx.memoryManagerController` — `MemoryManagerController`
+
+The signed-in user's memories and learned capabilities.
+
+```ts cordis-catalog
+/**
+ * List the caller's memories, newest first.
+ * @param request - optional text and domain filters, and page bounds.
+ * @returns the page, or `available: false` when no memory provider runs.
+ */
+@Remote async memories(request: ManagedMemoryQuery): Promise<ManagedMemoryPage>
+
+/**
+ * Replace the summary of one of the caller's memories.
+ * @param id - memory id.
+ * @param summary - corrected summary.
+ * @returns the updated memory, or undefined when the caller has no such memory.
+ */
+@Remote async editMemory(id: MemoryItemId, summary: string): Promise<ManagedMemory | undefined>
+
+/**
+ * Delete one of the caller's memories.
+ * @param id - memory id.
+ * @returns true when a memory of the caller was deleted.
+ */
+@Remote forgetMemory(id: MemoryItemId): Promise<boolean>
+
+/**
+ * List the statements the caller confirmed as always true, with the budget they render under.
+ * @returns the document, or `available: false` when this Host serves none.
+ */
+@Remote invariants(): ManagedInvariantsPage
+
+/**
+ * Promote one statement into every request of the caller. Promoting a statement that already stands refreshes
+ * how current it is instead of spending the block twice.
+ * @param text - the statement the caller confirmed.
+ * @returns what changed, with the reason when the block has no room for the statement.
+ */
+@Remote addInvariant(text: string): ManagedInvariantChange
+
+/**
+ * Replace the text of one of the caller's standing facts, keeping its place in the block.
+ * @param id - identifier of the statement to replace.
+ * @param text - the replacement statement.
+ * @returns what changed, with the reason when the id or the text was refused.
+ */
+@Remote editInvariant(id: InvariantId, text: string): ManagedInvariantChange
+
+/**
+ * Drop one of the caller's standing facts, which frees its share of the block.
+ * @param id - identifier of the statement to drop.
+ * @returns what changed, with the reason when the caller has no such statement.
+ */
+@Remote removeInvariant(id: InvariantId): ManagedInvariantChange
+
+/**
+ * List the caller's learned capabilities with the run counts of their current revisions.
+ * @returns capabilities sorted by name.
+ */
+@Remote async capabilities(): Promise<ManagedCapability[]>
+
+/**
+ * Read one of the caller's capabilities with its procedure, history, and executions.
+ * @param name - capability name.
+ * @returns the capability, or undefined when the caller has none by that name.
+ */
+@Remote async capability(name: string): Promise<ManagedCapabilityDetail | undefined>
+
+/**
+ * Replace the description and procedure of one of the caller's capabilities. A trusted capability
+ * whose procedure changes must verify the new revision before it is trusted again.
+ * @param name - capability name.
+ * @param edit - new description and procedure.
+ * @returns the updated capability.
+ */
+@Remote async editCapability(name: string, edit: ManagedCapabilityEdit): Promise<ManagedCapabilityDetail>
+
+/**
+ * Retire one of the caller's capabilities, or put a retired or unconfirmed one in use; its evidence
+ * then decides between learned, trusted, needs-validation, and degraded.
+ * @param name - capability name.
+ * @param status - `retired` or `learned`.
+ * @returns the updated capability.
+ */
+@Remote async setCapabilityStatus(name: string, status: ManagedCapabilityStatusChange): Promise<ManagedCapabilityDetail>
+
+/**
+ * Delete one of the caller's capabilities with its files and history.
+ * @param name - capability name.
+ * @returns true when a capability was deleted.
+ */
+@Remote deleteCapability(name: string): Promise<boolean>
+
+/**
+ * List the revisions of one of the caller's capabilities that are still kept, oldest first.
+ * @param name - capability name.
+ * @returns one entry per kept revision, each with the procedure it held.
+ */
+@Remote capabilityVersions(name: string): Promise<CapabilityVersion[]>
+
+/**
+ * Restore one kept revision of a capability as its new revision.
+ * @param name - capability name.
+ * @param revision - revision whose procedure to restore.
+ * @returns the capability at its restored revision.
+ */
+@Remote async rollbackCapability(name: string, revision: number): Promise<ManagedCapabilityDetail>
+```
+
+Source: [`packages/memory/api-memory-manager/src/index.ts`](../../packages/memory/api-memory-manager/src/index.ts)
+<!-- END GENERATED cordis-surface -->

@@ -3,7 +3,8 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // Type-only: pulls the Remote event merge (ctx.remote, `browser/automation`).
 import type {} from '@aeven/api-remotes/client'
 import type { SessionId } from '@aeven/api-remotes/client'
-import type { ISessions } from '@aeven/api-session-controller/client'
+// Type-only: pulls the session controller's Context merge (ctx.sessions).
+import type {} from '@aeven/api-session-controller/client'
 // Type-only: pulls the locale plugin's Context merge (ctx.locale).
 import type {} from '@aeven/client-locale/client'
 // Type-only: pulls the SlotRegistry service merge (ctx.slots).
@@ -116,7 +117,7 @@ export function apply(ctx: ClientContext): void {
   if (menus !== undefined && links !== undefined && browser !== undefined) {
     ctx.inject(['sidebarContent', 'sessions'], (scoped) => {
       const openInSidebar = (url: string): void => {
-        const sessionId = (scoped.sessions as ISessions).list.getSnapshot().current
+        const sessionId = (scoped.sessions).list.getSnapshot().current
         if (sessionId === undefined) {
           openInSystemBrowser(url)
           return
@@ -132,7 +133,7 @@ export function apply(ctx: ClientContext): void {
         scoped.sidebarContent.requestOpen(sessionId, 'browser')
       }
       const openInSystemBrowser = (url: string): void => {
-        const sessionId = (scoped.sessions as ISessions).list.getSnapshot().current
+        const sessionId = (scoped.sessions).list.getSnapshot().current
         const driven = openChromium === null || sessionId === undefined
           ? Promise.resolve(false)
           : openChromium(sessionId, url)
@@ -193,7 +194,7 @@ export function apply(ctx: ClientContext): void {
       setPointerHold(sessionId, running)
     })
     scoped.remote.$on('browser/automation', function (request, next) {
-      const sessionId = (scoped.sessions as ISessions).scopeOf(this)
+      const sessionId = (scoped.sessions).scopeOf(this)
       const guest = sessionId === undefined ? undefined : liveGuests.get(sessionId)
       if (guest === undefined) return next()
       return automate(guest, request) as ReturnType<typeof next>

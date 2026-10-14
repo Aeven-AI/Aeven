@@ -91,10 +91,13 @@ afterEach(cleanup)
 describe('ModelSelect chooser', () => {
   it('shows the model name with the adapter-effective effort and opens the chooser on press', () => {
     const { load, openModel, selectEffort } = seat(state())
+    // The trigger is icon-only: the current model and effort are the card's
+    // own first row, so the aria name is where the seat states them.
     const trigger = screen.getByRole('button', {
       name: '选择模型，当前 DeepSeek-V4-Flash，推理等级 High',
     })
-    expect(trigger.textContent).toBe('DeepSeek-V4-FlashHigh')
+    expect(trigger.textContent).toBe('')
+    expect(trigger.querySelector('svg')).toBeTruthy()
 
     const rows = openChooser()
     expect(trigger.getAttribute('aria-expanded')).toBe('true')
@@ -112,15 +115,15 @@ describe('ModelSelect chooser', () => {
   it('opens the model list from the Model row, handing the shell its own trigger as the anchor', () => {
     const { openModel, selectEffort } = seat(state())
     const [modelRow] = openChooser()
-    const trigger = screen.getByRole('button', { name: /当前 DeepSeek-V4-Flash/ })
 
     fireEvent.click(modelRow!)
     expect(openModel).toHaveBeenCalledTimes(1)
-    // The card is anchored to the control that opened it, not to the composer.
-    expect(openModel.mock.calls[0]![0]).toBe(trigger)
+    // The list is anchored to the row that opened it, not to the composer.
+    expect(openModel.mock.calls[0]![0]).toBe(modelRow)
     expect(selectEffort).not.toHaveBeenCalled()
-    // Handing over closes the chooser; the list is the shared shell's.
-    expect(screen.queryByRole('menu')).toBeNull()
+    // The shell's list opens beside the card, so the seat's own card stays
+    // open around it.
+    expect(screen.queryByRole('menu')).toBeTruthy()
   })
 
   it('opens the effort pane in the seat and submits the picked level', async () => {
@@ -139,9 +142,11 @@ describe('ModelSelect chooser', () => {
 
     fireEvent.click(levels[2]!)
     expect(selectEffort).toHaveBeenCalledWith('max')
-    // The chooser closes on the accepted submit.
+    // An accepted pick returns the card to its rows — the same card, still
+    // open — where the Effort row states what is now in force.
     await act(async () => { await Promise.resolve() })
-    expect(screen.queryByRole('menu')).toBeNull()
+    expect(screen.queryAllByRole('menuitemradio')).toHaveLength(0)
+    expect(screen.getAllByRole('menuitem')).toHaveLength(2)
   })
 
   it('keeps the pane open with a notice when the host refuses the level', async () => {
@@ -246,9 +251,13 @@ describe('ModelSelect chooser', () => {
     seat(state({ current: { provider: 'deepseek-official', model: 'removed-model' } }))
 
     const trigger = screen.getByRole('button', { name: '选择模型，当前 deepseek-official/removed-model' })
-    expect(trigger.textContent).toContain('deepseek-official/removed-model')
+    // The icon-only trigger names the route through its accessible name; the
+    // durable id itself reads on the card's Model row.
+    const [modelRow] = openChooser()
+    expect(modelRow!.textContent).toBe('模型deepseek-official/removed-model')
     // No reasoning metadata for an unadvertised route: no effort vocabulary.
-    expect(openChooser().map(row => row.textContent)).toEqual(['模型deepseek-official/removed-model'])
+    expect(screen.getAllByRole('menuitem')).toHaveLength(1)
+    expect(trigger.getAttribute('aria-expanded')).toBe('true')
   })
 
   it('shows loading until the catalog and Session projection are both ready', async () => {
@@ -259,8 +268,10 @@ describe('ModelSelect chooser', () => {
       status: 'loading',
     }))
 
-    expect(screen.getByRole('button', { name: '正在加载模型…' }).textContent)
-      .toContain('正在加载模型…')
+    // The loading state is the trigger's accessible name and the card's Model
+    // row value until the catalog and the Session projection are both ready.
+    fireEvent.click(screen.getByRole('button', { name: '正在加载模型…' }))
+    expect(screen.getAllByRole('menuitem')[0]!.textContent).toBe('模型正在加载模型…')
     store.set(state())
     await waitFor(() => {
       expect(screen.getByRole('button', {

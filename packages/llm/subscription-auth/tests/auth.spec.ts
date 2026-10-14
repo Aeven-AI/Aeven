@@ -154,28 +154,28 @@ describe('grokBuildAuthStatus', () => {
 
 describe('session helpers', () => {
   function fakeSession(store: InstanceType<typeof GrokBuildCredentialStore>) {
-    const refreshLiveCatalog = vi.fn(async () => {})
-    return { session: { store, refreshLiveCatalog }, refreshLiveCatalog }
+    const notifyCredentialChange = vi.fn(() => {})
+    return { session: { store, notifyCredentialChange }, notifyCredentialChange }
   }
 
   it('refreshes the account catalog after a session login', async () => {
     const store = storeAt()
-    const { session, refreshLiveCatalog } = fakeSession(store)
+    const { session, notifyCredentialChange } = fakeSession(store)
 
     await loginGrokBuildSession(interaction, session as never)
 
     expect(login).toHaveBeenCalledWith(XAI_PI_PROVIDER, 'oauth', interaction)
     expect(modelsFor).toHaveBeenCalledWith({ credentials: store })
-    expect(refreshLiveCatalog).toHaveBeenCalledTimes(1)
+    expect(notifyCredentialChange).toHaveBeenCalledTimes(1)
   })
 
   it('refreshes the account catalog after a session import', async () => {
     const store = storeAt()
-    const { session, refreshLiveCatalog } = fakeSession(store)
+    const { session, notifyCredentialChange } = fakeSession(store)
 
     await importGrokBuildSession(session as never, await writeGrokFile())
 
     expect(await store.read(XAI_PI_PROVIDER)).toMatchObject({ access: 'access-from-grok' })
-    expect(refreshLiveCatalog).toHaveBeenCalledTimes(1)
+    expect(notifyCredentialChange).toHaveBeenCalledTimes(1)
   })
 })

@@ -45,7 +45,7 @@ describe('static shell preloader control', () => {
     const element = mountPreloader()
     hidePreloader(false)
     expect(element.classList.contains('screen-hidden')).toBe(true)
-    showPreloader(false)
+    void showPreloader(false)
     expect(element.classList.contains('hide')).toBe(false)
     expect(element.classList.contains('screen-hidden')).toBe(false)
     expect(element.querySelector('.spinner')?.classList.contains('active')).toBe(true)
@@ -55,7 +55,7 @@ describe('static shell preloader control', () => {
     const element = mountPreloader()
     hidePreloader()
     vi.advanceTimersByTime(0)
-    showPreloader(false)
+    void showPreloader(false)
     vi.advanceTimersByTime(FADE_WINDOW_MS)
     expect(element.classList.contains('screen-hidden')).toBe(false)
   })
@@ -63,7 +63,7 @@ describe('static shell preloader control', () => {
   it('is optional for documents that do not use the Web shell', () => {
     expect(() => {
       hidePreloader()
-      showPreloader()
+      void showPreloader()
     }).not.toThrow()
   })
 })

@@ -11,9 +11,12 @@ import { ErrorDetailControl } from './ErrorDetailControl.tsx'
 import { VideoPlayer } from './VideoPlayer.tsx'
 import css from './ImageToolView.module.css'
 
+/** The ratio a call that names none is framed at. */
+const DEFAULT_RATIO = 16 / 9
+
 /** Aspect ratios a call may name, as `width / height`; `adaptive` follows the first frame and is drawn landscape. */
 const RATIOS: Readonly<Record<string, number>> = {
-  '16:9': 16 / 9,
+  '16:9': DEFAULT_RATIO,
   '4:3': 4 / 3,
   '1:1': 1,
   '3:4': 3 / 4,
@@ -43,7 +46,7 @@ export function VideoToolView({ block, sessionId, t }: ToolCallViewProps & Props
   const settled = 'kind' in block
   const argsRaw = settled ? block.call?.argsRaw : block.argsRaw
   let prompt = ''
-  let requested = RATIOS['16:9']!
+  let requested = DEFAULT_RATIO
   try {
     const args: unknown = JSON.parse(argsRaw ?? '{}')
     if (typeof args === 'object' && args !== null) {

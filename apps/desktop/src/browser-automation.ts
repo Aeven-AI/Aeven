@@ -1,6 +1,10 @@
-/** Agent actions on the sidebar guest. Native guest input preserves the app composer's focus; visible cursor arrival precedes discrete input. */
+/**
+ * Agent actions on the sidebar guest. Native guest input preserves the app composer's focus;
+ * visible cursor arrival precedes discrete input.
+ */
 
 import type { WebContents } from 'electron'
+import { randomUUID } from 'node:crypto'
 import { basename, isAbsolute } from 'node:path'
 import { realpath, stat } from 'node:fs/promises'
 import { DESKTOP_IPC, type DesktopBrowserCursor } from './ipc.ts'
@@ -16,6 +20,14 @@ interface BrowserAxNode {
   name?: { value: string }
   value?: { value: string }
   properties?: Array<{ name: string; value: { value: unknown } }>
+}
+
+/** What the type page expression reports about the target it focused. */
+interface FocusOutcome {
+  ok?: true
+  notFound?: true
+  notEditable?: true
+  focusFailed?: true
 }
 
 /** Interactive elements a snapshot lists (t3code `MAX_INTERACTIVE_ELEMENTS`). */
@@ -144,7 +156,11 @@ const SNAPSHOT = `(() => {
  * @returns the target's centre, scrolled into view.
  * @throws {Error} when the selector matches nothing.
  */
-async function resolveClickPoint(guest: WebContents, input: BrowserAutomationInput, evaluate: (guest: WebContents, expression: string) => Promise<unknown>): Promise<{ x: number; y: number }> {
+async function resolveClickPoint(
+  guest: WebContents,
+  input: BrowserAutomationInput,
+  evaluate: (guest: WebContents, expression: string) => Promise<unknown>,
+): Promise<{ x: number; y: number }> {
   if (typeof input.selector !== 'string') return { x: Number(input.x), y: Number(input.y) }
   const point = await evaluate(guest, `(() => {
     const matches = document.querySelectorAll(${JSON.stringify(input.selector)});
@@ -174,7 +190,11 @@ async function resolveClickPoint(guest: WebContents, input: BrowserAutomationInp
  * @param target - page expression for the element, or `window`.
  * @returns viewport CSS coordinates, inside the viewport.
  */
-async function centreOf(guest: WebContents, target: string, evaluate: (guest: WebContents, expression: string) => Promise<unknown>): Promise<{ x: number; y: number }> {
+async function centreOf(
+  guest: WebContents,
+  target: string,
+  evaluate: (guest: WebContents, expression: string) => Promise<unknown>,
+): Promise<{ x: number; y: number }> {
   return await evaluate(guest, `(() => {
     const element = ${target};
     const clamp = (value, limit) => Math.min(Math.max(value, 0), limit);
@@ -194,7 +214,10 @@ async function centreOf(guest: WebContents, target: string, evaluate: (guest: We
  * @param evaluate - lifetime-bound page evaluator.
  * @returns viewport CSS coordinates, inside the viewport.
  */
-async function scrollOrigin(guest: WebContents, evaluate: (guest: WebContents, expression: string) => Promise<unknown>): Promise<{ x: number; y: number }> {
+async function scrollOrigin(
+  guest: WebContents,
+  evaluate: (guest: WebContents, expression: string) => Promise<unknown>,
+): Promise<{ x: number; y: number }> {
   const viewport = await evaluate(guest, '({ w: innerWidth, h: innerHeight })') as { w: number; h: number }
   const previous = pointerAt.get(guest)
   const x = previous === undefined ? viewport.w / 2 : Math.min(Math.max(previous.x, 0), viewport.w)
@@ -211,6 +234,8 @@ function focusExpression(input: BrowserAutomationInput): string {
   const target = typeof input.token === 'string' ? '__aevenTarget' : typeof input.selector === 'string'
     ? `document.querySelector(${JSON.stringify(input.selector)})`
     : 'document.activeElement'
+  const clear = input.clear === true
+  const text = typeof input.text === 'string' ? input.text : undefined
   return `(() => {
     const element = ${target};
     if (!element) return { notFound: true };
@@ -222,7 +247,7 @@ function focusExpression(input: BrowserAutomationInput): string {
     if (!editable || element.disabled || element.readOnly) return { notEditable: true };
     element.focus();
     if (element.getRootNode().activeElement !== element) return { focusFailed: true };
-    if (${String(input.clear === true)}) {
+    if (${String(clear)}) {
       if (textControl) {
         element.select();
       } else {
@@ -233,7 +258,7 @@ function focusExpression(input: BrowserAutomationInput): string {
         selection?.addRange(range);
       }
     }
-    if (${String(input.clear === true && String(input.text ?? '') === '')} && !document.execCommand("delete", false)) return { notEditable: true };
+    if (${String(clear && text === undefined)} && !document.execCommand("delete", false)) return { notEditable: true };
     return { ok: true };
   })()`
 }
@@ -277,12 +302,17 @@ function press(guest: WebContents, input: BrowserAutomationInput): void {
  * @returns the action's JSON result.
  * @throws {Error} when the operation is unknown or the page refuses the action.
  */
-export async function automate(guest: WebContents, operation: string, input: BrowserAutomationInput, signal: AbortSignal = new AbortController().signal): Promise<unknown> {
+export async function automate(
+  guest: WebContents,
+  operation: string,
+  input: BrowserAutomationInput,
+  signal: AbortSignal = new AbortController().signal,
+): Promise<unknown> {
   signal.throwIfAborted()
   if (!guest.debugger.isAttached()) guest.debugger.attach('1.3')
   const send = async (method: string, params?: object): Promise<unknown> => {
     signal.throwIfAborted()
-    const result = await guest.debugger.sendCommand(method, params)
+    const result: unknown = await guest.debugger.sendCommand(method, params)
     signal.throwIfAborted()
     return result
   }
@@ -342,6 +372,7 @@ export async function automate(guest: WebContents, operation: string, input: Bro
       }
       const abort = (): void => {
         if (!host.isDestroyed()) host.send(DESKTOP_IPC.browserCursor, { webContentsId: guest.id, sequence, action: 'cancel', x: 0, y: 0 } satisfies DesktopBrowserCursor)
+        // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- the aborting caller's own reason is propagated intact.
         reject(signal.reason)
         finish()
       }
@@ -374,18 +405,20 @@ export async function automate(guest: WebContents, operation: string, input: Bro
         if (!Array.isArray(requested) || requested.length === 0 || !requested.every(path => typeof path === 'string' && isAbsolute(path))) {
           throw new Error('upload requires absolute file paths on the computer running this browser')
         }
-        const files = await Promise.all(requested.map(async path => {
+        const files = await Promise.all(requested.map(async (path) => {
           const canonical = await realpath(String(path))
           if (!(await stat(canonical)).isFile()) throw new Error(`not a regular file: ${basename(canonical)}`)
           return canonical
         }))
         signal.throwIfAborted()
         if (typeof input.origin !== 'string' || new URL(guest.getURL()).origin !== input.origin) throw new Error('the page origin changed; request upload approval again')
-        const point = await centreOf(guest, `document.querySelector(${JSON.stringify(String(input.selector ?? 'input[type="file"]'))})`, evaluate)
+        const selector = typeof input.selector === 'string' ? input.selector : 'input[type=file]'
+        const point = await centreOf(guest, `document.querySelector(${JSON.stringify(selector)})`, evaluate)
         await moveTo(point)
         void show({ action: 'click', ...point, ...named(input) })
         let backendNodeId: number | undefined
-        let multiple = false
+        /** The chooser's own selection mode, recorded by the debugger handler that owns the frame. */
+        const chooserMode = { multiple: false }
         let chooserFrame: string | undefined
         let resolveChooser: (() => void) | undefined
         let rejectChooser: ((reason: unknown) => void) | undefined
@@ -396,14 +429,13 @@ export async function automate(guest: WebContents, operation: string, input: Bro
           if (method !== 'Page.fileChooserOpened' || typeof params !== 'object' || params === null || !('backendNodeId' in params) || typeof params.backendNodeId !== 'number') return
           backendNodeId = params.backendNodeId
           chooserFrame = 'frameId' in params && typeof params.frameId === 'string' ? params.frameId : undefined
-          multiple = 'mode' in params && params.mode === 'selectMultiple'
+          chooserMode.multiple = 'mode' in params && params.mode === 'selectMultiple'
           resolveChooser?.()
         }
         guest.debugger.on('message', opened)
         try {
           await send('Page.enable')
           const frames = await send('Page.getFrameTree') as { frameTree: { frame: { id: string } } }
-          const selector = typeof input.selector === 'string' ? input.selector : 'input[type=file]'
           const expression = `(() => {
             const nodes = document.querySelectorAll(${JSON.stringify(selector)});
             if (nodes.length > 1) throw new Error("the upload selector matches multiple elements; choose one file input");
@@ -434,7 +466,7 @@ export async function automate(guest: WebContents, operation: string, input: Bro
                 if (timer !== undefined) clearTimeout(timer)
               }
               if (chooserFrame !== frames.frameTree.frame.id) throw new Error('upload choosers in embedded frames are unsupported; use a main-page file input')
-              if (files.length > 1 && !multiple) throw new Error('the chooser does not accept multiple files')
+              if (files.length > 1 && !chooserMode.multiple) throw new Error('the chooser does not accept multiple files')
             }
             if (new URL(guest.getURL()).origin !== input.origin) throw new Error('the page origin changed before upload')
             await send('DOM.setFileInputFiles', { backendNodeId, files })
@@ -456,7 +488,7 @@ export async function automate(guest: WebContents, operation: string, input: Bro
         const deadline = Date.now() + timeoutMs
         for (;;) {
           const ready = await evaluate(guest, `(() => {
-            const nodes = document.querySelectorAll(${JSON.stringify(String(input.selector))});
+            const nodes = document.querySelectorAll(${JSON.stringify(input.selector)});
             if (nodes.length > 1) throw new Error("the wait selector matches multiple elements");
             const element = nodes[0];
             const visible = !!element && element.getClientRects().length > 0 && getComputedStyle(element).visibility !== "hidden";
@@ -464,7 +496,7 @@ export async function automate(guest: WebContents, operation: string, input: Bro
             return visible && !element.disabled;
           })()`)
           if (ready === true) return { ok: true }
-          if (Date.now() >= deadline) throw new Error(`timed out waiting for ${String(input.selector)}`)
+          if (Date.now() >= deadline) throw new Error(`timed out waiting for ${input.selector}`)
           await sleep(25)
           signal.throwIfAborted()
         }
@@ -475,7 +507,7 @@ export async function automate(guest: WebContents, operation: string, input: Bro
           if (typeof action !== 'object' || action === null || Array.isArray(action) || !('operation' in action)) throw new Error('sequence actions must name an operation')
           const values = action as BrowserAutomationInput
           if (!['click', 'type', 'press', 'upload', 'wait'].includes(String(values.operation))) throw new Error('sequence supports click, type, press, upload, and wait')
-          if ((values.operation === 'click' || values.operation === 'wait') && typeof values.selector !== 'string') throw new Error(`${String(values.operation)} requires a selector`)
+          if ((values.operation === 'click' || values.operation === 'wait') && typeof values.selector !== 'string') throw new Error(`${values.operation} requires a selector`)
           if (values.operation === 'type' && typeof values.text !== 'string') throw new Error('type requires text')
           if (values.operation === 'press' && typeof values.key !== 'string') throw new Error('press requires a key')
           if (values.operation === 'upload' && (!Array.isArray(values.paths) || values.paths.length === 0 || !values.paths.every(path => typeof path === 'string' && isAbsolute(path)))) throw new Error('upload requires absolute file paths')
@@ -498,19 +530,19 @@ export async function automate(guest: WebContents, operation: string, input: Bro
       }
       case 'snapshot': {
         accessibilityTargets.delete(guest)
-        if (input.mode !== 'ax') return evaluate(guest, SNAPSHOT)
+        if (input.mode !== 'ax') return await evaluate(guest, SNAPSHOT)
         const tree = await send('Page.getFrameTree') as { frameTree: { frame: { loaderId: string } } }
         await send('Accessibility.enable')
         const result = await send('Accessibility.getFullAXTree') as { nodes: BrowserAxNode[] }
-        const snapshotId = crypto.randomUUID()
+        const snapshotId = randomUUID()
         const targets = new Map<string, number>()
         const visible = result.nodes.filter(node => !node.ignored)
         const nodes = visible.slice(0, MAX_INTERACTIVE_ELEMENTS).map((node, index) => {
           const token = `${snapshotId}:${index}`
           if (node.backendDOMNodeId !== undefined) targets.set(token, node.backendDOMNodeId)
           const properties = new Map(node.properties?.map(property => [property.name, property.value.value]))
-          return { index, token, role: node.role?.value ?? 'unknown', title: node.name?.value?.slice(0, MAX_INTERACTIVE_ELEMENT_NAME_LENGTH),
-            value: node.value?.value?.slice(0, MAX_INTERACTIVE_ELEMENT_NAME_LENGTH), editable: properties.get('editable') !== undefined }
+          return { index, token, role: node.role?.value ?? 'unknown', title: node.name?.value.slice(0, MAX_INTERACTIVE_ELEMENT_NAME_LENGTH),
+            value: node.value?.value.slice(0, MAX_INTERACTIVE_ELEMENT_NAME_LENGTH), editable: properties.get('editable') !== undefined }
         })
         const after = await send('Page.getFrameTree') as { frameTree: { frame: { loaderId: string } } }
         if (after.frameTree.frame.loaderId !== tree.frameTree.frame.loaderId) throw new Error('the page navigated during observation; take a new snapshot')
@@ -522,7 +554,7 @@ export async function automate(guest: WebContents, operation: string, input: Bro
         await send('Emulation.setFocusEmulationEnabled', { enabled: true })
         const point = targetObjectId === undefined ? await resolveClickPoint(guest, input, evaluate) : await centreOf(guest, '__aevenTarget', evaluate)
         await moveTo(point)
-        show({ action: 'click', ...point, ...named(input) })
+        void show({ action: 'click', ...point, ...named(input) })
         await send('Input.dispatchMouseEvent', { type: 'mousePressed', ...point, button: 'left', clickCount: 1 })
         await send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...point, button: 'left', clickCount: 1 })
         return { ok: true }
@@ -531,13 +563,13 @@ export async function automate(guest: WebContents, operation: string, input: Bro
         const target = targetObjectId !== undefined ? '__aevenTarget' : typeof input.selector === 'string' ? `document.querySelector(${JSON.stringify(input.selector)})` : 'document.activeElement'
         const point = await centreOf(guest, target, evaluate)
         await moveTo(point)
-        show({ action: 'type', ...point, ...named(input) })
+        void show({ action: 'type', ...point, ...named(input) })
         await send('Emulation.setFocusEmulationEnabled', { enabled: true })
-        const result = await evaluate(guest, focusExpression(input)) as { ok?: true; notFound?: true; notEditable?: true; focusFailed?: true }
+        const result = await evaluate(guest, focusExpression(input)) as FocusOutcome
         if (result.notFound === true) throw new Error('no element matches the target; call preview_snapshot for current selectors')
         if (result.notEditable === true) throw new Error('the target is disabled, read-only, or not editable')
         if (result.focusFailed === true) throw new Error('the target could not take focus')
-        const text = String(input.text ?? '')
+        const text = typeof input.text === 'string' ? input.text : ''
         const focused = targetObjectId === undefined ? await send('Runtime.evaluate', { expression: target, returnByValue: false }) as { result?: { objectId?: string } } : { result: { objectId: targetObjectId } }
         const objectId = focused.result?.objectId
         if (objectId === undefined) throw new Error('the editor disappeared before text insertion')
@@ -575,7 +607,7 @@ export async function automate(guest: WebContents, operation: string, input: Bro
         // Every step of the gesture is announced as a scroll, so the pane knows the
         // pointer is placing itself rather than being left behind by a page that
         // moved: it re-aims a resting pointer, not one that is scrolling.
-        show({ action: 'scroll', ...point, ...named(input) })
+        void show({ action: 'scroll', ...point, ...named(input) })
         // The page scrolls itself, eased over the gesture, so the movement is the
         // page's own rather than the shell stepping it from outside.
         const result = await evaluate(guest, `(() => {
@@ -614,13 +646,15 @@ export async function automate(guest: WebContents, operation: string, input: Bro
         // The address field belongs to the pane's chrome row: the pane types the
         // address there, then loads it, exactly as the reader doing it by hand.
         leavePage()
-        await show({ action: 'control', control: 'navigate', url: String(input.url ?? ''), x: 0, y: 0 }, true)
+        const url = typeof input.url === 'string' ? input.url : ''
+        await show({ action: 'control', control: 'navigate', url, x: 0, y: 0 }, true)
         return { ok: true }
       }
       case 'control': {
         // Any pane chrome control by name, so a new button needs no new operation.
         leavePage()
-        await show({ action: 'control', control: String(input.control ?? ''), x: 0, y: 0 }, true)
+        const control = typeof input.control === 'string' ? input.control : ''
+        await show({ action: 'control', control, x: 0, y: 0 }, true)
         return { ok: true }
       }
       case 'evaluate': {

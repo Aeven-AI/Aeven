@@ -23,8 +23,68 @@ Host 使用现有的账户身份、智能体预设、模型选择、工作区、
 
 ## 模型体验
 
-根对话获得 `automation_create`、`automation_list`、`automation_update`、`automation_run_now` 和 `automation_retry`。工具模式形成稳定的模型请求前缀，规范 JSON 结果追加到普通工具历史。每次执行以保存的任务、计划执行身份及验证指令开始，并记录为 `automations` 插件通知。它不继承源对话历史或该对话的批准授权；只复用保存在该任务上的批准，`automation_list` 会随每个任务定义返回这些批准。每次执行使用已保存的提供者和模型选择。
+### 管理工具
+
+#### 模型看到什么
+
+账户的根对话获得五个工具定义 `automation_create`、`automation_list`、`automation_update`、`automation_run_now` 和 `automation_retry`；执行对话一个都不会获得。每个结果都是一个文本块，内容为服务返回值的 `JSON.stringify`。创建、调整和重试在运行前会请求用户批准，并使用固定的请求理由：`Confirm this automation’s task, schedule, and allowed file access before enabling unattended work.`，重试则使用 `Inspect the earlier run before retrying: external changes may already exist.`；仅包含 `id` 和 `status` 的暂停不会询问。模型在把请求转成任务时所读到的指引就是 `automation_create` 的描述：
+
+##### 创建描述
+
+```markdown
+Create a built-in automation after human confirmation. Translate the user’s request into a self-contained task and explicit local schedule. Ask only for missing requirements. Future runs start fresh conversations with this account’s capabilities. An external action that needs approval asks the user in the run conversation; once the user approves it there, later runs perform it without asking.
+```
+
+#### Token 影响
+
+该根对话的每个请求都带有这五个固定定义，与账户拥有多少自动任务无关。一次调用的参数及其 JSON 结果会留在上下文中直到压缩；`automation_list` 受每个账户 `historyLimit` 条已结束记录加上全部排队及运行中记录的限制。
+
+#### KV Cache 影响
+
+在账户根对话的工具集合及其顺序不变时前缀稳定；这些定义不随其管理的自动任务变化。调用结果为追加式。
+
+### 执行任务消息
+
+#### 模型看到什么
+
+每次执行都是一个全新对话，其第一条消息是来自 `automations` 插件的通知，携带已保存的任务以及自身的身份和验证指令。对话标题即任务名称，且执行只复用保存在该任务上的批准；它不继承源对话历史或该对话的批准授权：
+
+##### 执行通知
+
+```markdown
+Automation: <name>
+Run: <run id>
+Scheduled for: <ISO timestamp>
+
+<the approved task>
+
+Report completed work with evidence. Do not claim an external action succeeded without confirmation.
+```
+
+#### Token 影响
+
+该通知是执行对话的第一条用户消息，在此后每个步骤中都会随对话其余内容一起重新发送，直到压缩。每次执行还使用已保存的提供者和模型选择。
+
+#### KV Cache 影响
+
+追加式：通知位于该执行所用智能体预设组装出的前缀之后，并在对话保持打开期间不变。
+
+### 运行期拒绝
+
+#### 模型看到什么
+
+执行对话不能创建更多无人值守的工作，也不能提出交互式问题：调用任何 `automation_*` 工具或 `ask_user` 会被守卫拒绝，模型读到 `Error: Automations cannot create more unattended work or ask interactive questions.`。执行的权限预设和批准策略都是它自己的，二者都在创建执行对话时设定。
+
+#### Token 影响
+
+被拒绝的调用会把这一行错误加入上下文，每次调用一次，并保留到压缩。
+
+#### KV Cache 影响
+
+追加式；该拒绝作为工具结果出现在可复用的请求前缀之后。
 
 ## 已知限制和后续工作
 
-提供服务的 Host 必须运行，电脑必须保持唤醒。托管执行、操作系统启动管理、事件触发、混合交接、通知投递及持久批准续执行尚未实现。执行没有项目目录。没有请求方范围的批准会在每次执行时询问，已保存的批准暂时无法撤销。外部写入批准既未保存也未被回答的任务会拒绝执行；它们可准备文件，但无法绕过批准。版本 3 的存储域拒绝更早的数据。计划支持包含边界的结束时间；暂不支持每月、每年、自定义规则或限制时段的每小时计划。管理和调度读取相同的持久记录，因此服务没有独立的不变量安装器。
+提供服务的 Host 必须运行，电脑必须保持唤醒。托管执行、操作系统启动管理、事件触发、混合交接、通知投递及持久批准续执行尚未实现。执行没有项目目录。没有请求方范围的批准会在每次执行时询问，已保存的批准暂时无法撤销。外部写入批准既未保存也未被回答的任务会拒绝执行；它们可准备文件，但无法绕过批准。版本 3 的存储域拒绝更早的数据。计划支持包含边界的结束时间；暂不支持每月、每年、自定义规则或限制时段的每小时计划。
+
+- **无不变式伴生入口**——不发布不变式伴生入口，因为管理和调度读取相同的持久领域记录，服务不持有第二个可与之发散的观测。

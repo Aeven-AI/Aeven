@@ -262,6 +262,8 @@ export function gatesForMode(selected: Mode): Gate[] {
         pnpmScript('cordis-config', 'verify-cordis-config', { label: 'Cordis config' }),
         pnpmScript('client-domain-graph', 'verify-client-domain-graph', { label: 'client domain graph' }),
         pnpmScript('test', 'test'),
+        // The DSH -> Aeven rename gate runs on demand (`pnpm run verify-brand`); no automatic
+        // lane carries it.
         pnpmScript('issue-management', 'test:issue-management', { label: 'Issue management policy' }),
         pnpmScript('duplication', 'duplication'),
         snapshotGate(),
@@ -319,7 +321,6 @@ function ciSharedStaticGates(): Gate[] {
     pnpmScript('cordis-config', 'verify-cordis-config', { label: 'Cordis config' }),
     ...clientSurfaceGates(),
     pnpmScript('issue-management', 'test:issue-management', { label: 'Issue management policy' }),
-    pnpmScript('brand', 'verify-brand', { label: 'brand tokens' }),
   ]
 }
 
@@ -348,7 +349,6 @@ function ciPrimaryGates(): Gate[] {
       needs: ['build'],
     }),
     builtPackageInvariantsGate(['build']),
-    builtBinSmokeGate(),
   ]
 }
 
@@ -448,7 +448,6 @@ function ciArtifactGates(): Gate[] {
       needs: ['build'],
     }),
     builtPackageInvariantsGate(['build']),
-    builtBinSmokeGate(),
   ]
 }
 
@@ -465,7 +464,6 @@ function ciConsumerGates(): Gate[] {
     'expected-output',
     'doc-typecheck',
     'node-next-types',
-    'built-bin-smoke',
   ]
   return [
     ciBuildGate(),
@@ -490,7 +488,6 @@ function ciConsumerGates(): Gate[] {
       label: 'node-next types',
       needs: validatedBuild,
     }),
-    builtBinSmokeGate(validatedBuild),
   ]
 }
 
@@ -563,15 +560,7 @@ function ciWindowsObservationalGates(): Gate[] {
     }),
     builtPackageInvariantsGate(['build']),
   ]
-  return [
-    ...predecessors,
-    {
-      ...builtBinSmokeGate(),
-      // This smoke starts real application children with bounded startup
-      // deadlines. Let other Windows processes settle before measuring startup.
-      after: predecessors.map(gate => gate.id),
-    },
-  ]
+  return predecessors
 }
 
 function typertContractsGate(): Gate {
@@ -703,7 +692,6 @@ function hygieneLeafGates(options: { artifactNeeds?: string[] } = {}): Gate[] {
     pnpmScript('package-dependencies', 'verify-package-dependencies', { label: 'package dependencies' }),
     pnpmScript('application-entrypoints', 'verify-application-entrypoints', { label: 'application entrypoints' }),
     pnpmScript('avn-package-licenses', 'verify-avn-package-licenses', { label: 'AVN package licenses' }),
-    pnpmScript('brand', 'verify-brand', { label: 'brand tokens' }),
     pnpmScript('package-invariants', 'verify-package-invariants', { label: 'package invariants' }),
     builtPackageInvariantsGate(options.artifactNeeds),
     pnpmScript('node-next-types', 'verify-node-next-types', {
@@ -782,33 +770,6 @@ function docQuickLeafGates(): Gate[] {
     // aggregate run, after the change has already merged.
     pnpmScript('module-graph', 'verify-module-graph', { label: 'module graph', quick: true }),
   ]
-}
-
-function builtBinSmokeGate(needs: string[] = ['build']): Gate {
-  return pnpmExec('built-bin-smoke', [
-    'vitest',
-    'run',
-    '--config',
-    'vitest.e2e.config.ts',
-    'apps/cli/tests/profiles/headless/tests/keyless-smoke.e2e.ts',
-    'apps/cli/tests/built-bin.e2e.ts',
-    'packages/host/directory-picker-native/tests/built-worker.e2e.ts',
-    'packages/sdk/server/tests/built-scope-carrier.e2e.ts',
-    'packages/subagent/subagent-codex/tests/loader-composition.e2e.ts',
-    'packages/subagent/subagent-claude-code/tests/loader-composition.e2e.ts',
-    'packages/api/remotes/tests/built-lib.e2e.ts',
-    'packages/experimental/agent-team/tests/built-lib.e2e.ts',
-    // Built execution consumers: the only automated proof that package-name
-    // imports reach their lib/ entrypoints under plain Node. The e2e lane runs
-    // unbuilt, so these files self-skip there.
-    'packages/workflow/workflow-worker-thread/tests/built-worker.e2e.ts',
-    'packages/code-runtime/code-runtime-worker-thread/tests/built-lib.e2e.ts',
-    'packages/lsp/lsp-stdio/tests/built-lib.e2e.ts',
-  ], {
-    label: 'built-bin smoke',
-    needs,
-    env: { AVN_EXAMPLE_MODE: 'lib' },
-  })
 }
 
 /**

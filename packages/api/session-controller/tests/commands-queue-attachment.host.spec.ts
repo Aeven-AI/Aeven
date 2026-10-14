@@ -52,6 +52,7 @@ async function commandHarness(): Promise<{
     selectionFor: () => selection,
     serializeImageAdmission: <Value>(_agent: Agent, operation: () => Promise<Value>) => operation(),
     composeAgent: () => Promise.resolve({ setup: () => {} }),
+    callerMayAccess: () => true,
   } as unknown as ApiSessionAgentController
   return { ctx, controller: new SessionCommandController(ctx, agents, '/workspace'), agent, inbox, steer, cancel }
 }
@@ -190,7 +191,10 @@ async function persistedController(
   }) as never)
   installSessionReadTestServices(ctx)
   ctx.provide('attachments', { readImage } as never)
-  const agents = { resolveAgent: vi.fn() } as unknown as ApiSessionAgentController
+  const agents = {
+    resolveAgent: vi.fn(),
+    callerMayAccess: () => true,
+  } as unknown as ApiSessionAgentController
   return { ctx, controller: new SessionCommandController(ctx, agents, '/workspace'), sessionId }
 }
 

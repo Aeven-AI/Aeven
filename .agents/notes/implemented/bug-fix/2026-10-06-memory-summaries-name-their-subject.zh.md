@@ -2,13 +2,15 @@
 
 Status: implemented
 
+[English](2026-10-06-memory-summaries-name-their-subject.md) | 中文
+
 ## Problem
 
 自动召回注入每条 trace 的存储摘要，而 MemOS 摘要器按单次交流生成该摘要，其指令要求省略说话人，并保留“已确认的回答”。用户确认一份关于自己的列表（“you got all right, including ollie”）后，被存储为“User confirmed all correct, including Ollie; keep using that name.”。在“About the user”标题下、紧挨着一行关于用户儿子的记忆，模型把这个昵称归给了儿子。错误回答随后被捕获为 `person` 事实（“Son: …, nickname Ollie”），一次误读就此变成存储的记忆，之后的召回会把它当作佐证呈现。纠正（“no, I go by Ollie not my son”）不匹配任何 `correctionOf` 短语，因此错误的 trace 从未被取代。
 
 ## Decision
 
-摘要在 MemOS 写入它的地方修正，因为它同时是 MemOS 为 `vec_summary` 检索嵌入的文本，而 `updateTrace` 不会重新嵌入。[MemOS 补丁](../../../../patches/@memtensor__memos-local-plugin@2.0.20.patch)修改摘要器提示：每条事实写明所指对象；关于用户或其认识的人的事实只来自用户本人的话；助手回答的关于他们的问题，以问题本身作为摘要。
+摘要在 MemOS 写入它的地方修正，因为它同时是 MemOS 为 `vec_summary` 检索嵌入的文本，而 `updateTrace` 不会重新嵌入。`MemOS 补丁`修改摘要器提示：每条事实写明所指对象；关于用户或其认识的人的事实只来自用户本人的话；助手回答的关于他们的问题，以问题本身作为摘要。
 
 每个捕获的轮次只用一次模型调用来写摘要、归档领域并检测纠正。补丁把 MemOS 操作名转发给 Host bridge。`@aeven/memory-memos` 中的 `TurnJudgeContext` 用 AsyncLocalStorage 为每次轮次捕获建立作用域；当 bridge 收到该捕获中含 `ASSISTANT` 段的 `capture.summarize` 请求时，追加领域规则，并在前面加上会话的项目和上一条已捕获的回复。JSON 回答中的 `summary` 交给 MemOS，`domain` 与 `corrects` 交给 Aeven。只有在没有产生判定时才运行单独的分类调用：MemOS 使用非 host 提供方、摘要器回退，或回答未给出领域。
 

@@ -7,9 +7,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import clsx from 'clsx'
 import { IconLucideSearch, Tooltip } from '@aeven/client-ui-primitives'
-import type { WorkspaceHeaderSearchProps } from './contract/slots.ts'
+import type { WorkspaceHeaderSearchProps } from '../contract/slots.ts'
 import { SearchDialog } from './SearchDialog.tsx'
-import css from './HeaderActions.module.css'
+import css from '../HeaderActions.module.css'
 
 /**
  * Render the header's search control and, while open, its popup.

@@ -3,4 +3,4 @@
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/spill/README.md
 README.md: 9e8e7d479b972c47a23beee4ab1cdba805f66f5e
-README.zh.md: dcbdfeee286336ee13327409daf7b5c213cc7ee9
+README.zh.md: 9628c7e0b616190cd20f220d15ced252c8174a9f

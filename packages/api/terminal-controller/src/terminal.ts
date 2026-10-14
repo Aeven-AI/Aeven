@@ -128,7 +128,9 @@ export class BrowserTerminal {
       let bytes = 0
       let truncated = buffer.length > count
       for (let index = buffer.length - 1; index >= Math.max(0, buffer.length - count); index -= 1) {
-        const line = buffer.getLine(index)!.translateToString(true)
+        const bufferLine = buffer.getLine(index)
+        if (bufferLine === undefined) break
+        const line = bufferLine.translateToString(true)
         const size = Buffer.byteLength(line, 'utf8') + (lines.length === 0 ? 0 : 1)
         if (bytes + size > maxBytes) { truncated = true; break }
         lines.unshift(line)

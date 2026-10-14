@@ -1,9 +1,8 @@
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import { SettingsProvider, type SettingsNamespace } from '@aeven/settings'
-import {
-  CHAT_SETTINGS_NAMESPACE, DEFAULT_TRANSCRIPT_VIEW_MODE, apply,
-} from '../src/index.ts'
+import { CHAT_SETTINGS_NAMESPACE, DEFAULT_TRANSCRIPT_VIEW_MODE, apply } from '../src/index.ts'
+import { DEFAULT_TEXT_ANIMATION } from '../src/chat-settings.ts'
 
 class MemorySettings extends SettingsProvider {
   readonly writable = true
@@ -21,9 +20,14 @@ describe('ui-chat Host settings', () => {
     await fiber.await()
     const ns = CHAT_SETTINGS_NAMESPACE
 
-    expect(ctx.settings.get(ns)).toEqual({ transcriptView: DEFAULT_TRANSCRIPT_VIEW_MODE })
-    await ctx.settings.update(ns, { transcriptView: 'normal' })
-    expect(ctx.settings.get(ns)).toEqual({ transcriptView: 'normal' })
+    expect(ctx.settings.get(ns)).toEqual({
+      transcriptView: DEFAULT_TRANSCRIPT_VIEW_MODE,
+      textAnimation: DEFAULT_TEXT_ANIMATION,
+    })
+    await ctx.settings.update(ns, { transcriptView: 'extended' })
+    expect(ctx.settings.get(ns)).toEqual({ transcriptView: 'extended', textAnimation: DEFAULT_TEXT_ANIMATION })
+    await ctx.settings.update(ns, { textAnimation: false })
+    expect(ctx.settings.get(ns)).toEqual({ transcriptView: 'extended', textAnimation: false })
     await expect(ctx.settings.update(ns, { transcriptView: 'dense' })).rejects.toThrow()
 
     await fiber.dispose()

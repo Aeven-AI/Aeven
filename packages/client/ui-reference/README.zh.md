@@ -92,6 +92,9 @@ kind: "package-reference"
 - **会话搜索仍仅使用元数据**：发现流程通过 `ctx.sessionReferenceResolver` 筛选 session id、cwd 与以日志为依据的最新标题；不搜索消息主体或完整 transcript。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

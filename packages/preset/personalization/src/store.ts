@@ -68,7 +68,12 @@ export function renderPersonalization(preferences: Personalization): string {
   return lines.length === 0 ? '' : `${GUIDANCE}\n<personalization>\n${lines.join('\n')}\n</personalization>`
 }
 
-/** Where one person's preferences are stored; the owner id is escaped because it names a file. */
+/**
+ * Where one person's preferences are stored; the owner id is escaped because it names a file.
+ * @param root - the directory holding one document per person.
+ * @param owner - the person whose document is addressed.
+ * @returns the path of that person's JSON document.
+ */
 export function personalizationPath(root: string, owner: string): string {
   return join(root, `${encodeURIComponent(owner)}.json`)
 }
@@ -114,7 +119,7 @@ export class PersonalizationStore {
   update(owner: string, update: PersonalizationUpdate): PersonalizationChange {
     const current = this.state(owner).preferences
     if (update.voice !== undefined && !PERSONALIZATION_VOICES.includes(update.voice)) {
-      throw new Error(`unknown personalization voice: ${String(update.voice)}`)
+      throw new Error(`unknown personalization voice: ${update.voice}`)
     }
     const next: Personalization = {
       voice: update.voice ?? current.voice,

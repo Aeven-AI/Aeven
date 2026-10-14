@@ -94,12 +94,24 @@ describe('Subscriptions provider cards', () => {
 
   it('puts Sign in in the open card and uses the device code from another machine', async () => {
     const calls = stubHost(site(false, 'ssh-tunnel'))
+    // The click opens a tab for the challenge. happy-dom's own window exposes a
+    // read-only `opener`, so the tab this page severs and navigates is supplied.
+    const replaced: string[] = []
+    const tab = {
+      opener: window,
+      location: { replace: (url: string) => replaced.push(url) },
+      close: vi.fn(),
+    }
+    const open = vi.spyOn(window, 'open').mockReturnValue(tab as unknown as Window)
     render(<GrokBuildSettings t={t} />)
     fireEvent.click(await screen.findByRole('button', { name: `${en.expand}: ${en.grokTitle}` }))
     const signIn = within(card(en.grokTitle)).getByRole('button', { name: en.signIn })
     expect(screen.queryByText('Sign in with code')).toBeNull()
     await act(async () => { fireEvent.click(signIn) })
     expect(calls.find(call => call.path === LOGIN_PATH)?.body).toEqual({ provider: 'grok', method: 'device' })
+    expect(open).toHaveBeenCalledWith('about:blank', '_blank')
+    expect(tab.opener).toBeNull()
+    expect(replaced).toEqual(['https://auth.example/device'])
   })
 
   it('lists a signed-in subscription’s models with capability marks and writes the selection', async () => {

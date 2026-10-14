@@ -3,4 +3,4 @@
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/core/agent-loop/README.md
 README.md: 8cc0dc5844a572b7efb4d33d31e617d719e40025
-README.zh.md: 4184ced9c9cac28d6f876a1af5a8d64d19336916
+README.zh.md: 0238342f6261b5d60152afcc570298fbc595cada

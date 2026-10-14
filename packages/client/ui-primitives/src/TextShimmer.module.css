@@ -1,13 +1,29 @@
+/* The waiting text's sweep: the ink at half strength in one moving band, at
+   full strength either side of it. The band is the text's own colour, whatever
+   the caller set `color` to, so it rides a mask rather than a coloured stop —
+   a mask reads only its stops' alpha, and an alpha ramp is what states "the
+   same colour, faded", where `color-mix()` would need Safari 16.2. The solid
+   ink underneath is the clipped background. */
 .root[data-text-shimmer] {
-  background-image: linear-gradient(
+  background-color: currentColor;
+  -webkit-mask-image: linear-gradient(
     90deg,
-    currentColor calc(50% - var(--avn-text-shimmer-spread)),
-    color-mix(in oklab, currentColor 50%, transparent),
-    currentColor calc(50% + var(--avn-text-shimmer-spread))
+    rgb(0 0 0 / 100%) calc(50% - var(--avn-text-shimmer-spread)),
+    rgb(0 0 0 / 50%),
+    rgb(0 0 0 / 100%) calc(50% + var(--avn-text-shimmer-spread))
   );
-  background-position: 100% center;
-  background-repeat: no-repeat;
-  background-size: 250% 100%;
+  mask-image: linear-gradient(
+    90deg,
+    rgb(0 0 0 / 100%) calc(50% - var(--avn-text-shimmer-spread)),
+    rgb(0 0 0 / 50%),
+    rgb(0 0 0 / 100%) calc(50% + var(--avn-text-shimmer-spread))
+  );
+  -webkit-mask-position: 100% center;
+  mask-position: 100% center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 250% 100%;
+  mask-size: 250% 100%;
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -15,12 +31,19 @@
 }
 
 @keyframes avn-text-shimmer {
-  66.6667%, 100% { background-position: 0% center; }
+  66.6667%, 100% {
+    -webkit-mask-position: 0% center;
+    mask-position: 0% center;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .root[data-text-shimmer] {
-    background-image: none;
+    background-color: transparent;
+    -webkit-mask-image: none;
+    mask-image: none;
+    /* Real text fill again, not the clipped background: the same ink the
+       sweep paints, rasterized the way every other run of text is. */
     -webkit-text-fill-color: currentColor;
     animation: none;
   }

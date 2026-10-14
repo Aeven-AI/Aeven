@@ -17,16 +17,19 @@
  *   AEVEN_EMAIL=… AEVEN_PASSWORD=… pnpm run benchmark:learning -- --runs 4
  *   AEVEN_TOKEN=… AVN_OWNER=… pnpm run benchmark:learning
  *
- * Options: --task release|inventory (default release), --runs <n> (default 4), --conditions baseline,learning, --out <dir>, --timeout-min <n> (default 10),
- * --provider/--model/--effort (default aeven-cloud / Aeven-1.0-Flash / high).
+ * Options: --task release|inventory (default release), --runs <n> (default 4), --conditions baseline,learning,
+ * --out <dir>, --timeout-min <n> (default 10), --provider/--model/--effort (default aeven-cloud /
+ * Aeven-1.0-Flash / high).
  * Writes `results.json` and `report.md` to the output directory and prints the report. Needs the `zstd` CLI
  * to read session logs.
  */
-import { execFileSync, spawn } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { benchmarkModelOptions, median, runBenchmarkPrompt, sessionLogLines } from './benchmark-shared.ts'
+import { toolResultFailed } from './benchmark-tool-results.ts'
 
 type Condition = 'baseline' | 'learning'
 
@@ -93,8 +96,6 @@ interface RunResult {
 }
 
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
-const cliEntry = join(repositoryRoot, 'apps', 'cli', 'src', 'bin.ts')
-const tsxEsm = import.meta.resolve('tsx/esm')
 
 /** The inventory task: careful file accounting with hidden directories and look-alike names as traps. */
 const INVENTORY_PROMPT = [
@@ -124,10 +125,7 @@ function parseOptions(argv: readonly string[]): Options {
     task,
     conditions: conditions as Condition[],
     out: value('--out') ?? join(tmpdir(), `aeven-learning-benchmark-${new Date().toISOString().replace(/[:.]/g, '-')}`),
-    timeoutMs: Number(value('--timeout-min') ?? 10) * 60_000,
-    provider: value('--provider') ?? 'aeven-cloud',
-    model: value('--model') ?? 'Aeven-1.0-Flash',
-    effort: value('--effort') ?? 'high',
+    ...benchmarkModelOptions(value),
   }
 }
 
@@ -311,8 +309,12 @@ function releaseCheck(workspace: string, truth: ReleaseTruth): Check {
 }
 
 const TASKS: Readonly<Record<Options['task'], BenchmarkTask>> = {
-  release: { prompt: RELEASE_PROMPT, fixture: releaseFixture, check: (workspace, truth) => releaseCheck(workspace, truth as ReleaseTruth) },
-  inventory: { prompt: INVENTORY_PROMPT, fixture: inventoryFixture, check: (workspace, truth) => inventoryCheck(workspace, truth as InventoryTruth) },
+  release: {
+    prompt: RELEASE_PROMPT, fixture: releaseFixture, check: (workspace, truth) => releaseCheck(workspace, truth as ReleaseTruth),
+  },
+  inventory: {
+    prompt: INVENTORY_PROMPT, fixture: inventoryFixture, check: (workspace, truth) => inventoryCheck(workspace, truth as InventoryTruth),
+  },
 }
 
 /** Session logs under a home, newest last. */
@@ -331,7 +333,7 @@ function sessionLogs(home: string): string[] {
 
 function metricsOf(logPath: string): RunMetrics {
   // Session logs are appended as many zstd frames; the zstd CLI decodes all of them.
-  const lines = execFileSync('zstd', ['-dc', logPath], { maxBuffer: 512 * 1024 * 1024 }).toString('utf8').split('\n').filter(Boolean)
+  const lines = sessionLogLines(logPath)
   let started: number | undefined
   let ended: number | undefined
   let toolCalls = 0
@@ -364,8 +366,7 @@ function metricsOf(logPath: string): RunMetrics {
         break
       }
       case 'tool/result': {
-        const message = data['message'] as { content?: { isError?: boolean }[] } | undefined
-        if (data['error'] !== undefined || message?.content?.[0]?.isError === true) failedToolCalls++
+        if (toolResultFailed(data)) failedToolCalls++
         break
       }
       case 'assistant/message': {
@@ -396,19 +397,16 @@ function capabilitiesOf(home: string, owner: string): string[] {
   })
 }
 
-function runOnce(prompt: string, workspace: string, env: NodeJS.ProcessEnv, timeoutMs: number, logPrefix: string): Promise<number | null> {
-  return new Promise((resolve) => {
-    const child = spawn(process.execPath, ['--import', tsxEsm, cliEntry, '--profile', 'headless', '--patch', env['AVN_BENCHMARK_PATCH'] ?? '', prompt], { cwd: workspace, env })
-    const output: Buffer[] = []
-    child.stdout.on('data', (chunk: Buffer) => output.push(chunk))
-    child.stderr.on('data', (chunk: Buffer) => output.push(chunk))
-    const timer = setTimeout(() => { child.kill('SIGKILL') }, timeoutMs)
-    child.on('close', (code) => {
-      clearTimeout(timer)
-      writeFileSync(`${logPrefix}.log`, Buffer.concat(output))
-      resolve(code)
-    })
-  })
+async function runOnce(
+  prompt: string,
+  workspace: string,
+  env: NodeJS.ProcessEnv,
+  timeoutMs: number,
+  logPrefix: string,
+): Promise<number | null> {
+  const { code, output } = await runBenchmarkPrompt(prompt, workspace, env, timeoutMs)
+  writeFileSync(`${logPrefix}.log`, output)
+  return code
 }
 
 async function token(): Promise<{ token: string; owner: string }> {
@@ -431,12 +429,6 @@ async function token(): Promise<{ token: string; owner: string }> {
   return { token: value, owner }
 }
 
-function median(values: readonly number[]): number {
-  if (values.length === 0) return Number.NaN
-  const sorted = [...values].sort((a, b) => a - b)
-  const middle = Math.floor(sorted.length / 2)
-  return sorted.length % 2 === 1 ? sorted[middle] ?? Number.NaN : ((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2
-}
 
 function report(options: Options, results: readonly RunResult[]): string {
   const seconds = (ms: number): string => `${(ms / 1000).toFixed(0)}s`

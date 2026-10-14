@@ -836,6 +836,7 @@ function authorizeManagementPost(
  * @param subscriptionSessions - Subscription sessions value.
  * @param ownerRequestPolicy - Owner request policy value.
  * @param compatibility - Compatibility value.
+ * @param selection - model-selection views served to the subscription pickers.
  */
 export function registerCodingOAuthRoutes(
   ctx: Context,

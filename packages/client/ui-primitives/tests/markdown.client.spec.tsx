@@ -388,11 +388,12 @@ describe('MarkdownText', () => {
     const { container } = render(<MarkdownText text={markdown} />)
 
     expect(container.querySelector('script')).toBeNull()
-    // Relative LINK destinations stay allowed (see LINK_SAFETY); relative and
-    // http IMAGE destinations no longer are, because they resolve against this
-    // app's own origin, where a tool result has already displayed the file.
+    // Relative LINK destinations stay allowed (see LINK_SAFETY). An absolute
+    // local path is allowed too, through this app's authenticated file route;
+    // relative, `file:` and other-scheme IMAGE destinations are not, because
+    // they would either resolve against this app's own origin or hand the
+    // reader a broken <img>.
     const imageSources = [...container.querySelectorAll('img')].map(image => image.getAttribute('src'))
-    // A file this app serves is already shown by the tool that produced it.
     expect(imageSources).not.toContain('private.png')
     expect(imageSources).not.toContain('/workspace/private.png')
     expect(imageSources).not.toContain('file:///workspace/private.png')
@@ -400,7 +401,11 @@ describe('MarkdownText', () => {
     // The https-only image prefix also closes the old `mailto:` gap, which the
     // shared protocol list used to let through as a broken <img>.
     expect(imageSources).not.toContain('mailto:dev@example.com')
-    expect(imageSources).toEqual([])
+    // Exactly one destination survives: the absolute local path, resolved
+    // against the app's own file route.
+    expect(imageSources).toEqual([
+      `${location.origin}/api/file?path=${encodeURIComponent('/workspace/private.png')}`,
+    ])
     const neutralized = [...container.querySelectorAll('p')]
       .find(paragraph => paragraph.textContent === 'script relative')
     // The unsafe destination is dropped rather than the element: an anchor
@@ -422,9 +427,10 @@ describe('MarkdownText', () => {
     // scheme byte for byte — so a valid `HTTPS://` destination is dropped.
     expect(screen.getByText('upper').getAttribute('href')).toBeNull()
     // A refused image becomes its alt text rather than a broken placeholder, so
-    // the words the author wrote still reach the reader.
+    // the words the author wrote still reach the reader; the one destination
+    // that survives draws a real image instead.
     expect(screen.getByText('relative diagram')).toBeTruthy()
-    expect(screen.getByText('absolute diagram')).toBeTruthy()
+    expect(screen.getByAltText('absolute diagram')).toBeTruthy()
     expect(screen.getByText('mail diagram')).toBeTruthy()
     expect(screen.getByText('file diagram')).toBeTruthy()
     expect(screen.getByText('script diagram')).toBeTruthy()

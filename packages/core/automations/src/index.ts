@@ -30,9 +30,16 @@ declare module '@deepseek-ai/cordis' {
 }
 /** Deployment limits for unattended local agent work. */
 export interface Config {
+  /** Most runs of this host that may execute at once; a queued run starts when one of them finishes. */
   readonly maxConcurrentRuns: number
+  /** Budget of one run in minutes, counted from its start; a run still active at the deadline is cancelled. */
   readonly runTimeoutMinutes: number
+  /**
+   * Grace in minutes after a scheduled instant during which that occurrence may still start; a later one
+   * is admitted as skipped, and `0` skips any occurrence whose instant has passed.
+   */
   readonly misfireGraceMinutes: number
+  /** Finished run records kept per owner; older ones are archived and removed, while queued and running records are never pruned. */
   readonly historyLimit: number
   /** Display title of the built-in workspace that holds every run conversation. */
   readonly workspaceTitle: string
@@ -54,7 +61,7 @@ export class Automations extends Service<Config> {
 
   constructor(ctx: Context, private readonly config: Config) {
     super(ctx, 'automations')
-    this.ready = ctx.storageDomain.open(automationDomain).then(async domain => {
+    this.ready = ctx.storageDomain.open(automationDomain).then(async (domain) => {
       if (domain.table('runners').get('local') === undefined) await domain.table('runners').put('local', { id: brandString<AutomationRunnerId>(randomUUID()) })
       // Every run conversation belongs to the Automations workspace, including one a crash left unattached.
       const workspace = await this.workspace()
@@ -63,13 +70,13 @@ export class Automations extends Service<Config> {
         const holder = ctx.workspaceRegistry.list().find(candidate => candidate.sessionIds.includes(sessionId))
         if (holder?.path !== undefined) continue
         await holder?.detachSession(sessionId)
-        await workspace.attachSession(sessionId).catch(error => ctx.logger.warn(`automations: run conversation ${sessionId} stays outside the Automations workspace: ${String(error)}`))
+        await workspace.attachSession(sessionId).catch((error: unknown) => { ctx.logger.warn(`automations: run conversation ${sessionId} stays outside the Automations workspace: ${String(error)}`) })
       }
       // A conversation whose run record is gone is removed history, so it stays out of the sidebar.
       const recorded = new Set([...domain.table('runs').entries()].map(([, run]) => run.sessionId))
       for (const sessionId of workspace.sessionIds) {
         if (recorded.has(sessionId) || ctx.workspaceRegistry.archivedSessionIds.includes(sessionId)) continue
-        await ctx.workspaceRegistry.archiveSession(sessionId).catch(error => ctx.logger.warn(`automations: run conversation ${sessionId} was not archived: ${String(error)}`))
+        await ctx.workspaceRegistry.archiveSession(sessionId).catch((error: unknown) => { ctx.logger.warn(`automations: run conversation ${sessionId} was not archived: ${String(error)}`) })
       }
       for (const [id, run] of domain.table('runs').entries()) {
         if (run.status === 'queued' || run.status === 'running') await domain.table('runs').put(id, {
@@ -113,7 +120,7 @@ export class Automations extends Service<Config> {
       }
     }
     for (const agent of ctx.agents.roots()) installTools(agent)
-    ctx.on('agent/created', ({ agent }) => installTools(agent))
+    ctx.on('agent/created', ({ agent }) =>{  installTools(agent) })
     // An approval the owner gave once in a run conversation answers the same request in every later run.
     ctx.on('approval/request', async (req, next) => {
       const scope = req.allowSession
@@ -123,7 +130,7 @@ export class Automations extends Service<Config> {
     }, { prepend: true })
     ctx.on('session/event', (session, event) => {
       if (event.type !== 'approval/decided' || event.data.outcome !== 'allowed-once') return
-      this.rememberGrant(session, event.data.id).catch(error => ctx.logger.warn(`automations: an approval was not saved for later runs: ${String(error)}`))
+      this.rememberGrant(session, event.data.id).catch((error: unknown) => { ctx.logger.warn(`automations: an approval was not saved for later runs: ${String(error)}`) })
     })
     ctx.on('tools/pre-execute', async (exec, next) => {
       const decision = await next()
@@ -167,7 +174,7 @@ export class Automations extends Service<Config> {
   create(input: AutomationInput, agent?: Agent): Promise<AutomationDefinition> {
     const owner = agent?.session.header.owner ?? this.ctx.identityUsers.actingUser()?.id
     if (!this.ctx.identityUsers.mayAccess(owner)) return Promise.reject(new Error('Sign in to create an automation.'))
-    return this.transaction(async domain => {
+    return this.transaction(async (domain) => {
       const parsed = inputSchema.parse(input)
       const now = new Date().toISOString()
       if (nextOccurrence(parsed.schedule, now) === null) throw new Error('Choose a schedule with a future occurrence.')
@@ -190,12 +197,16 @@ export class Automations extends Service<Config> {
    * @returns durably revised definition.
    */
   update(id: AutomationId, patch: { [K in keyof AutomationInput]?: AutomationInput[K] | undefined } & { status?: 'active' | 'paused' | undefined }): Promise<AutomationDefinition> {
-    return this.transaction(async domain => {
+    return this.transaction(async (domain) => {
       const current = this.owned(domain, id)
-      const parsed = inputSchema.parse({ name: patch.name ?? current.name, prompt: patch.prompt ?? current.prompt, schedule: patch.schedule ?? current.schedule, permission: patch.permission ?? current.permission })
+      const parsed = inputSchema.parse({
+        name: patch.name ?? current.name, prompt: patch.prompt ?? current.prompt,
+        schedule: patch.schedule ?? current.schedule, permission: patch.permission ?? current.permission,
+      })
       const status = patch.status ?? current.status
-      if (status !== 'active' && status !== 'paused') throw new Error('Invalid automation status.')
-      const next: AutomationDefinition = { ...current, ...parsed, status, revision: current.revision + 1, updatedAt: new Date().toISOString() }
+      const next: AutomationDefinition = {
+        ...current, ...parsed, status, revision: current.revision + 1, updatedAt: new Date().toISOString(),
+      }
       await domain.table('definitions').put(id, next)
       this.arm(domain)
       return next
@@ -207,7 +218,7 @@ export class Automations extends Service<Config> {
    * @returns durable run admission.
    */
   runNow(id: AutomationId): Promise<AutomationRun> {
-    return this.transaction(async domain => {
+    return this.transaction(async (domain) => {
       const definition = this.owned(domain, id)
       const run = await this.admit(domain, definition, 'manual', new Date().toISOString())
       this.drain(domain)
@@ -220,7 +231,7 @@ export class Automations extends Service<Config> {
    * @returns resolution after durable deletion.
    */
   remove(id: AutomationId): Promise<void> {
-    return this.transaction(async domain => {
+    return this.transaction(async (domain) => {
       this.owned(domain, id)
       await domain.table('definitions').delete(id)
       this.arm(domain)
@@ -232,7 +243,7 @@ export class Automations extends Service<Config> {
    * @returns the number of run records removed.
    */
   clearRuns(): Promise<{ cleared: number }> {
-    return this.transaction(async domain => {
+    return this.transaction(async (domain) => {
       let cleared = 0
       for (const [id, run] of [...domain.table('runs').entries()]) {
         if (run.status === 'queued' || run.status === 'running') continue
@@ -251,7 +262,7 @@ export class Automations extends Service<Config> {
    * @returns resolution after durable deletion.
    */
   removeRun(id: AutomationRunId): Promise<void> {
-    return this.transaction(async domain => {
+    return this.transaction(async (domain) => {
       const run = this.ownedRun(domain, id)
       if (run.status === 'queued' || run.status === 'running') throw new Error('Wait for the run to finish.')
       await this.archiveRun(run)
@@ -270,7 +281,7 @@ export class Automations extends Service<Config> {
   private async archiveRun(run: AutomationRun): Promise<void> {
     const sessionId = run.sessionId
     if (sessionId === null) return
-    await this.ctx.workspaceRegistry.archiveSession(sessionId).catch(error => this.ctx.logger.warn(`automations: run conversation ${sessionId} was not archived: ${String(error)}`))
+    await this.ctx.workspaceRegistry.archiveSession(sessionId).catch((error: unknown) => { this.ctx.logger.warn(`automations: run conversation ${sessionId} was not archived: ${String(error)}`) })
   }
 
   /** Deliberately retry one unresolved failed run using its original approved task.
@@ -278,7 +289,7 @@ export class Automations extends Service<Config> {
    * @returns a new linked admission; no earlier conversation or grant is inherited.
    */
   retry(id: AutomationRunId): Promise<AutomationRun> {
-    return this.transaction(async domain => {
+    return this.transaction(async (domain) => {
       const original = this.ownedRun(domain, id)
       this.requireInactive(domain, original)
       if (original.status === 'succeeded' || original.resolution !== null) throw new Error('Choose an unresolved failed run.')
@@ -308,7 +319,7 @@ export class Automations extends Service<Config> {
     const scope = asked?.allowSession
     if (asked === undefined || scope === undefined) return Promise.resolve()
     const toolName = asked.toolName
-    return this.transaction(async domain => {
+    return this.transaction(async (domain) => {
       const definition = this.definitionOf(domain, session.id)
       if (definition === undefined || definition.grants.some(grant => grant.toolName === toolName && grant.scope === scope)) return
       await domain.table('definitions').put(definition.id, { ...definition, grants: [...definition.grants, { toolName, scope, grantedAt: new Date().toISOString() }] })
@@ -371,26 +382,27 @@ export class Automations extends Service<Config> {
   }
 
   private async dispatch(endpoint: string, payload: unknown): Promise<unknown> {
-    const input = payload as Record<string, unknown>
+    // A payload the caller omitted arrives nullish; an empty record leaves each endpoint to report its own input.
+    const input = (payload ?? {}) as Record<string, unknown>
     switch (endpoint) {
       case 'list': return this.list()
       case 'clear': return this.clearRuns()
       case 'create': return this.create(inputSchema.parse(payload))
       case 'update': {
-        if (typeof input?.id !== 'string' || input.patch === null || typeof input.patch !== 'object') throw new Error('Invalid automation update.')
+        if (typeof input.id !== 'string' || input.patch === null || typeof input.patch !== 'object') throw new Error('Invalid automation update.')
         return this.update(brandString<AutomationId>(input.id), patchSchema.parse(input.patch))
       }
       case 'retry': {
-        if (typeof input?.id !== 'string') throw new Error('Choose a run.')
+        if (typeof input.id !== 'string') throw new Error('Choose a run.')
         return this.retry(brandString<AutomationRunId>(input.id))
       }
       case 'remove-run': {
-        if (typeof input?.id !== 'string') throw new Error('Choose a run.')
+        if (typeof input.id !== 'string') throw new Error('Choose a run.')
         return this.removeRun(brandString<AutomationRunId>(input.id))
       }
       case 'run':
       case 'delete': {
-        if (typeof input?.id !== 'string') throw new Error('Choose an automation.')
+        if (typeof input.id !== 'string') throw new Error('Choose an automation.')
         const id = brandString<AutomationId>(input.id)
         if (endpoint === 'run') return this.runNow(id)
         await this.remove(id)
@@ -414,18 +426,19 @@ export class Automations extends Service<Config> {
     })
     if (due.length === 0) return
     this.timer = setTimeout(() => {
-      void this.transaction(async current => {
+      void this.transaction(async (current) => {
         const at = new Date().toISOString()
         for (const [, definition] of current.table('definitions').entries()) {
           if (definition.status !== 'active') continue
           const occurrence = latestDueOccurrence(definition.schedule, at)
-          if (occurrence === null || Date.parse(occurrence) <= Math.max(Date.parse(definition.updatedAt), definition.lastAdmittedAt === null ? -Infinity : Date.parse(definition.lastAdmittedAt))) continue
+          const lastAdmitted = definition.lastAdmittedAt === null ? -Infinity : Date.parse(definition.lastAdmittedAt)
+          if (occurrence === null || Date.parse(occurrence) <= Math.max(Date.parse(definition.updatedAt), lastAdmitted)) continue
           const id = this.occurrenceId(definition.id, occurrence)
           if (current.table('runs').get(id) === undefined) await this.admit(current, definition, 'schedule', occurrence)
         }
         this.drain(current)
         this.arm(current)
-      }).catch(error => { this.stopped = true; clearTimeout(this.timer); this.ctx.logger.error(error) })
+      }).catch((error: unknown) => { this.stopped = true; clearTimeout(this.timer); this.ctx.logger.error(error) })
     }, Math.min(2_147_483_647, Math.max(0, Math.min(...due) - Date.now())))
   }
 
@@ -458,7 +471,10 @@ export class Automations extends Service<Config> {
       if (run.status !== 'queued' || this.active.has(run.id)) continue
       const entry: { promise: Promise<void>; handle?: AgentHandle } = { promise: Promise.resolve() }
       this.active.set(run.id, entry)
-      entry.promise = this.ctx.identityUsers.runAs(run.definition.owner === undefined ? undefined : { id: run.definition.owner }, () => this.execute(domain, run, entry)).catch(error => { this.stopped = true; clearTimeout(this.timer); this.ctx.logger.error(error) }).finally(() => {
+      entry.promise = this.ctx.identityUsers.runAs(
+        run.definition.owner === undefined ? undefined : { id: run.definition.owner },
+        () => this.execute(domain, run, entry),
+      ).catch((error: unknown) => { this.stopped = true; clearTimeout(this.timer); this.ctx.logger.error(error) }).finally(() => {
         this.active.delete(run.id)
         this.drain(domain)
       })
@@ -485,7 +501,7 @@ export class Automations extends Service<Config> {
       const handle = await this.ctx.agents.withoutInitiator(() => this.ctx.agents.create({
         sessionId, meta: { agentPreset: preset.id, ...run.definition.owner === undefined ? {} : { owner: run.definition.owner } },
         agentOptions: { provider: run.definition.model.provider, model: run.definition.model.model },
-        setup: async agentCtx => {
+        setup: async (agentCtx) => {
           await this.ctx.agentPresets.mount(agentCtx, preset.id)
           installModelSelection(agentCtx, { current: run.definition.model, assembled: undefined })
           const agent = agentCtx.agent
@@ -510,8 +526,11 @@ export class Automations extends Service<Config> {
       const last = messages.at(-1)
       const summary = last?.type === 'assistant/message' ? last.data.message.content.filter(block => block.type === 'text').map(block => block.text).join('\n') : null
       const completed = end?.type === 'turn/end' && end.data.reason.kind === 'completed'
-      await domain.table('runs').put(run.id, { ...running, status: completed && !timedOut ? 'succeeded' : this.stopped ? 'cancelled' : 'failed',
-        finishedAt: new Date().toISOString(), summary, error: timedOut ? 'Execution timed out.' : completed ? null : 'Execution did not complete; inspect its conversation.' })
+      // oxlint-disable-next-line typescript/no-unnecessary-condition -- the run timeout is set while the turns above are awaited.
+      const status = completed && !timedOut ? 'succeeded' : this.stopped ? 'cancelled' : 'failed'
+      // oxlint-disable-next-line typescript/no-unnecessary-condition -- a Host stop can land during the awaits above.
+      const error = timedOut ? 'Execution timed out.' : completed ? null : 'Execution did not complete; inspect its conversation.'
+      await domain.table('runs').put(run.id, { ...running, status, finishedAt: new Date().toISOString(), summary, error })
     } catch (error) {
       await domain.table('runs').put(run.id, { ...running, status: 'failed', finishedAt: new Date().toISOString(), error: error instanceof Error ? error.message : String(error) })
     } finally {

@@ -405,7 +405,7 @@ export function videoSource(payload: unknown): { url: string } | GeneratedMedia 
   const result = typeof payload === 'object' && payload !== null ? (payload as { result?: unknown }).result : undefined
   const rows = typeof result === 'object' && result !== null ? (result as { data?: unknown }).data : undefined
   const first: unknown = Array.isArray(rows) ? rows[0] : undefined
-  const row = typeof first === 'object' && first !== null ? first as { url?: unknown, b64_json?: unknown, media_type?: unknown } : {}
+  const row = typeof first === 'object' && first !== null ? first as { url?: unknown; b64_json?: unknown; media_type?: unknown } : {}
   if (typeof row.b64_json === 'string' && row.b64_json.length > 0) {
     return {
       mediaType: row.media_type === 'video/webm' ? 'video/webm' : 'video/mp4',

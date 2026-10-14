@@ -14,6 +14,7 @@ export interface ReadCache {
    * @param key - caller-owned cache key.
    * @returns that value, or undefined when no read of the key has settled.
    */
+  // oxlint-disable-next-line typescript/no-unnecessary-type-parameters -- a reading plugin asserts the stored type for a key it owns
   peek<T>(key: string): T | undefined
   /**
    * Read a key through the cache. Callers that arrive while the key's read is
@@ -42,6 +43,7 @@ export function createReadCache(): ReadCache {
   const values = new Map<string, unknown>()
   const inflight = new Map<string, Promise<unknown>>()
   return {
+    // oxlint-disable-next-line typescript/no-unnecessary-type-parameters -- the interface's assertion, kept in the implementation
     peek<T>(key: string): T | undefined {
       return values.get(key) as T | undefined
     },

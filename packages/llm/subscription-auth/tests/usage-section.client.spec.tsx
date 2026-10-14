@@ -27,6 +27,21 @@ function t(key: GrokBuildSettingsKey, params?: Record<string, unknown>): string 
   )
 }
 
+/**
+ * What the viewer's own locale renders for a dollar amount. The panel formats
+ * through `Intl`, so the symbol and the separator belong to the machine, not
+ * to this spec: `$12.34` here is `US$12.34` where the default locale is not
+ * en-US. `whole` matches the panel rule that a whole balance drops its
+ * fraction.
+ */
+function money(amount: number, whole = false): string {
+  return new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency: 'USD',
+    ...(whole ? { minimumFractionDigits: 0 } : {}),
+  }).format(amount)
+}
+
 function show(
   usage: UsageView | undefined,
   options?: { loading?: boolean; error?: string; onRefresh?: () => void },
@@ -75,11 +90,11 @@ describe('usage panel', () => {
 
   it('formats a cent balance as money and a count as a bare number', () => {
     show({ entitlement: 'entitled', windows: [], credits: { kind: 'money', currency: 'USD', remaining: 1234 } })
-    expect(screen.getByText('$12.34')).toBeDefined()
+    expect(screen.getByText(money(12.34))).toBeDefined()
     cleanup()
 
     show({ entitlement: 'entitled', windows: [], credits: { kind: 'money', currency: 'USD', remaining: 500 } })
-    expect(screen.getByText('$5')).toBeDefined()
+    expect(screen.getByText(money(5, true))).toBeDefined()
     cleanup()
 
     show({ entitlement: 'entitled', windows: [], credits: { kind: 'count', remaining: 12 } })
@@ -206,7 +221,7 @@ describe('usage panel', () => {
     try {
       show({ entitlement: 'entitled', windows: [], credits: { kind: 'money', currency: 'USD', remaining: 1234 } })
 
-      expect(screen.getByText('$12.34')).toBeTruthy()
+      expect(screen.getByText(money(12.34))).toBeTruthy()
     } finally {
       resolvedOptions.mockRestore()
     }

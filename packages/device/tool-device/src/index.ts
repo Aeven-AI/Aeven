@@ -40,7 +40,7 @@ const text = { render: (_args: unknown, value: string) => [{ type: 'text' as con
  * @returns the instructions.
  */
 export function agentDeviceQuickStart(device: DeviceSummary, command: string, args: readonly string[]): string {
-  const quote = (value: string) => /^[\w./:-]+$/u.test(value) ? value : `'${value.replaceAll("'", `'"'"'`)}'`
+  const quote = (value: string) => /^[\w./:-]+$/u.test(value) ? value : `'${value.replaceAll("'", '\'"\'"\'')}'`
   const executable = quote(command)
   const target = args.map(quote).join(' ')
   return [
@@ -166,11 +166,12 @@ export function apply(ctx: Context): void {
         requireAccess(service)
         const sessionId = sessionOf(exec)
         const state = await service.list()
-        const target = pick(state.devices, args as { deviceId?: string; platform?: DevicePlatform; hostId?: string })
+        const target = pick(state.devices, args)
         // Consent and the agent daemon resolve before anything boots or a session is recorded.
         await service.agentTarget(sessionId, target)
         const session = await service.open(sessionId, { hostId: target.hostId, deviceId: target.id, platform: target.platform })
-        const device = service.snapshot().devices.find(candidate => candidate.hostId === session.hostId && candidate.id === session.deviceId) ?? target
+        const device = service.snapshot().devices
+          .find(candidate => candidate.hostId === session.hostId && candidate.id === session.deviceId) ?? target
         // A booted AVD has a new id (its emulator serial), so the flags are resolved for the opened device.
         const agent = await service.agentTarget(sessionId, device)
         return JSON.stringify({
@@ -226,7 +227,7 @@ export function apply(ctx: Context): void {
     }),
     defineTool({
       name: 'device_close',
-      description: "Remove a device from the device pane beside this session. Pass shutdown=true to also power the simulator or emulator off.",
+      description: 'Remove a device from the device pane beside this session. Pass shutdown=true to also power the simulator or emulator off.',
       parameters: {
         deviceId: { type: 'string', description: 'Device to close. Omit to close every device open in this session.' },
         hostId,

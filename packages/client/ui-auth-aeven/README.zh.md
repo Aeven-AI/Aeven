@@ -140,6 +140,9 @@ None, as the authentication surface is browser-side UI and transport wiring that
 - **同一时间只支持一个 Aeven 账号**——页面会话是模块级单例，与移植界面的预期一致。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

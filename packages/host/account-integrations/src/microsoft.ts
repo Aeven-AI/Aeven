@@ -231,7 +231,7 @@ const microsoftConnectors = {
  * @param provider - account connector provider.
  * @returns Microsoft configuration, or undefined for another provider.
  */
-export function microsoftService(provider: ConnectorProvider) {
+export function microsoftService(provider: ConnectorProvider): typeof microsoftConnectors[keyof typeof microsoftConnectors] | undefined {
   switch (provider) {
     case 'outlook': return microsoftConnectors.outlook
     case 'outlook-calendar': return microsoftConnectors['outlook-calendar']

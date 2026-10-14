@@ -30,4 +30,4 @@ Status: implemented
 - 从对话中直接阅读某个调用不再是一键操作：读者需切换到记录表并在其中找到该记录。作为交换，每个工具行少了一个与其内容竞争的控件，四个包少了一个只用于转发滚动目标的 prop。
 - `ui-trajectory` 现在为类型依赖 `@aeven/client-ui-settings-general` 与 `@aeven/client-ui-settings`，并注入 `settingsScope`；没有设置文档的组合不会挂载记录表。
 - 客户端 slot 目录（`cordis_inspect what:"client"`）已随精简后的 owner share 重新生成，因此动态 Plugin 作者读到的是当前约定。
-- 移除胶囊部分取代了[Web 工具行统一展开交互与 trajectory Inspect](../../feature/2026-07-30-web-tool-row-unified-expand-and-inspect.md)：该笔记保留统一展开交互，并在此指向上文以说明已删除的 Inspect 部分。
+- 移除胶囊部分取代了[Web 工具行统一展开交互与 trajectory Inspect](../feature/2026-07-30-web-tool-row-unified-expand-and-inspect.zh.md)：该笔记保留统一展开交互，并在此指向上文以说明已删除的 Inspect 部分。

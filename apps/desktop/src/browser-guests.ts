@@ -262,7 +262,9 @@ export function registerBrowserIpc(isAppSender: (event: IpcMainEvent | IpcMainIn
     const request = pending.get(`${String(event.sender.id)}:${requestId}`)
     if (request !== undefined && request.guest.id === webContentsId) request.controller.abort(new Error('browser action cancelled'))
   })
-  ipcMain.handle(DESKTOP_IPC.browserAutomate, async (event, webContentsId: unknown, operation: unknown, input: unknown, requestId: unknown, timeoutMs: unknown) => {
+  ipcMain.handle(DESKTOP_IPC.browserAutomate, async (
+    event, webContentsId: unknown, operation: unknown, input: unknown, requestId: unknown, timeoutMs: unknown,
+  ) => {
     assertApp(event)
     if (typeof operation !== 'string') throw new Error('avn desktop: browser operation must be a string')
     if (typeof input !== 'object' || input === null) throw new Error('avn desktop: browser input must be an object')

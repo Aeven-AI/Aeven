@@ -98,7 +98,7 @@ export const ChatNodeSeat = memo(function ChatNodeSeat({
     && !TURN_PROCESS_INDEPENDENT_KINDS.has(routedNode.kind)
     && routedNode.anchorSeq >= processSpec.processStartSeq
     && (processSpec.answerAnchorSeq === null || routedNode.anchorSeq < processSpec.answerAnchorSeq)
-    && !(processPresentation.turnClosed === false && routedNode.kind === 'assistant-step'
+    && !(!processPresentation.turnClosed && routedNode.kind === 'assistant-step'
       && hasAssistantReplyContent(routedNode.data.blocks))
   const processAnswer = routedNode !== undefined
     && processWindowReady

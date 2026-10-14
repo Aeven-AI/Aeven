@@ -799,6 +799,93 @@ roots(): Agent[]
 
 Source: [`packages/core/agent/src/index.ts`](../../packages/core/agent/src/index.ts)
 
+<a id="ctxautomations--automations"></a>
+
+### `ctx.automations` — `Automations`
+
+Built-in automation service; schedules never authorize additional tool access.
+
+```ts cordis-catalog
+/** Read the acting account's definitions, newest created first, and bounded execution history, newest scheduled first.
+ * History leaves out runs whose conversation is archived, so it lists what the sidebar's Automations
+ * workspace shows; unarchiving the conversation lists the run again. Each definition's `lastRun` is its
+ * latest retained run either way.
+ * @returns owned definitions and latest run records.
+ */
+async list(): Promise<{ definitions: (AutomationDefinition & { nextRunAt: string | null; lastRun: AutomationRun | null })[]; runs: AutomationRun[]; capabilities: { executionTarget: 'local'; triggers: readonly ['once', 'interval', 'daily', 'weekly'] } }>
+
+/** Save one confirmed task using the caller's execution context.
+ * @param input - editable task values.
+ * @param agent - creating conversation, when called by an agent tool.
+ * @returns durably stored definition.
+ */
+create(input: AutomationInput, agent?: Agent): Promise<AutomationDefinition>
+
+/** Revise or pause an owned automation without changing earlier run snapshots.
+ * @param id - owned definition identity.
+ * @param patch - replacement editable fields or status.
+ * @returns durably revised definition.
+ */
+update(id: AutomationId, patch: { [K in keyof AutomationInput]?: AutomationInput[K] | undefined } & { status?: 'active' | 'paused' | undefined }): Promise<AutomationDefinition>
+
+/** Admit a manual run; paused tasks can be run manually.
+ * @param id - owned automation identity.
+ * @returns durable run admission.
+ */
+runNow(id: AutomationId): Promise<AutomationRun>
+
+/** Remove an owned definition while retaining its run history.
+ * @param id - owned definition identity.
+ * @returns resolution after durable deletion.
+ */
+remove(id: AutomationId): Promise<void>
+
+/** Delete the acting account's finished run history and archive each removed run's conversation.
+ * A run that is queued or running is kept, so clearing never hides work in flight.
+ * @returns the number of run records removed.
+ */
+clearRuns(): Promise<{ cleared: number }>
+
+/** Remove one finished run from the acting account's history and archive its conversation.
+ * A queued or running run is refused, so removal never hides work in flight.
+ * @param id - owned run identity.
+ * @returns resolution after durable deletion.
+ */
+removeRun(id: AutomationRunId): Promise<void>
+
+/** Deliberately retry one unresolved failed run using its original approved task.
+ * @param id - owned failed, skipped, or cancelled run identity.
+ * @returns a new linked admission; no earlier conversation or grant is inherited.
+ */
+retry(id: AutomationRunId): Promise<AutomationRun>
+```
+
+Source: [`packages/core/automations/src/index.ts`](../../packages/core/automations/src/index.ts)
+
+<a id="ctxpersonalizationcontroller--personalizationcontroller"></a>
+
+### `ctx.personalizationController` — `PersonalizationController`
+
+The signed-in person's personalization, and the prompt section rendered from it.
+
+```ts cordis-catalog
+/**
+ * The caller's preferences and the bounds a change must fit.
+ * @returns the current preferences.
+ */
+@Remote get(): PersonalizationView
+
+/**
+ * Change some of the caller's preferences; an absent field keeps its value. The next request of each of the
+ * caller's sessions renders the result.
+ * @param update - the fields to change.
+ * @returns what changed, with the reason when the notes were over their bound.
+ */
+@Remote update(update: PersonalizationUpdate): PersonalizationChange
+```
+
+Source: [`packages/preset/personalization/src/index.ts`](../../packages/preset/personalization/src/index.ts)
+
 <a id="agent-events"></a>
 
 ### `agent/*` events

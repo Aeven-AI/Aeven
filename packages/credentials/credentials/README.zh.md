@@ -179,6 +179,9 @@ apiKeyEnv: DEEPSEEK_API_KEY
 - **记录的拥有者就是它的 scope，而没有任何环节核验该 scope 是否已挂载**——seam 存下被交予的内容，并报告它存了什么；识别孤儿是调用方在 `listRecords()` 与拥有该 scope 的注册表之间做的连接，seam 自身没有可供核对的注册表。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

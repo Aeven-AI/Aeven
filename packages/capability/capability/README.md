@@ -5,6 +5,8 @@ kind: "package-reference"
 
 # @aeven/capability
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 `avn-capability` provides `ctx.capabilities`, the registry of capabilities each signed-in user's agents learned. Every operation takes the owner's account id. A capability is a directory `<root>/<owner>/<name>/` holding an agentskills `SKILL.md` (frontmatter `name` and `description`, then the procedure), supporting files under `references/`, `scripts/`, `templates/`, `assets/`, or `examples/`, `capability.json` with status, revision, source, timestamps, file list, and provenance, `versions/<revision>.md` with every revision's procedure, and `executions.jsonl`, the append-only evidence log. The service contributes no skills; the capability consumer recalls eligible procedures directly as advisory context.
@@ -38,13 +40,17 @@ Every write keeps its revision's `SKILL.md` under `versions/<revision>.md`, so a
 
 ## Model Experience
 
-The registry adds no prompt text, tools, skills, or `/` suggestions. The capability consumer reads stored procedures for advisory recall and explicit inspection.
+None, as the registry adds no prompt text, tool, skill, or slash suggestion of its own; the capability consumer owns what recall and inspection put in front of the model.
 
+#### KV Cache effect
+
+None; no prompt input originates here.
 ## Known Limitations and Deferred Work
 
 - **Evidence is recorded where the capability ran** — the execution log is local to this Host and is not synced.
 - **Owner comes from the lookup** — sessions without `SessionHeader.owner` see no learned capabilities.
+- **Invariant omission** — No invariant companion is published because the registry keeps one home for every fact: `capabilities/changed` is emitted by the single serialized write path after the files are durable, and `list`, `get`, `versions`, `judge`, and `supportedStatus` all answer from that same directory, so a listener would re-execute the store instead of comparing an independently maintained relation.
 
-## Dev Note
+### Dev Note
 
 None.

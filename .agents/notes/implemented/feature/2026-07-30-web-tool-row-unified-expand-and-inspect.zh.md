@@ -16,7 +16,7 @@ Status: implemented
 - 展开卡片（figma 1249:35657）是 IN/OUT 分区列：每个分区是独立滚动区（max-height 150px），侧栏标签 sticky 固定，l2 分割线横贯整卡宽度。Think 的推理文本和 run_code 的 CodeBlock 保持非卡片体；上下文注入复用此行并以无标签的 `plainBody` 卡片展开。
 - `terminalFailed` 读取已结算 terminal 卡片的退出状态，让 BashRow 和 GenericToolCard 把失败命令显示为行的红色状态点——这是折叠行唯一的失败信号，因为调用本身结算为 `isError:false`。
 - TerminalBlock 的横幅并入同一阅读模型：与卡片共用同一表面（不再用 banner token），与正文之间是 l2 细线，命令列上限 150px 内部滚动，复制/状态控件 sticky 且顶对齐第一行提示符。
-- Inspect 胶囊与其驱动的 store 交接已不再提供：[记录表属于开发者界面](../../architecture/2026-10-08-trajectory-behind-developer-mode.md)删除了该入口、`ToolCallOwnerProps.inspect` 以及其背后的 Conversation View 焦点请求。就地检查输入输出如今由上述展开交互独自承担。
+- Inspect 胶囊与其驱动的 store 交接已不再提供：[记录表属于开发者界面](../architecture/2026-10-08-trajectory-behind-developer-mode.zh.md)删除了该入口、`ToolCallOwnerProps.inspect` 以及其背后的 Conversation View 焦点请求。就地检查输入输出如今由上述展开交互独自承担。
 - 滚动保留：每次非贴底滚动时，聊天视图把 `{ anchorKey, anchorTop, scrollTop }` 保存到 apply 作用域的按会话 Map，并以 `chatScroll` 暴露；同一 Session 内的视图重挂载会先用 `scrollTop` 到达近似窗口，再按稳定 node／call 锚点的矩形差值校正，因此宽度重排后仍把同一阅读行保持在原位。包括「回到底部」在内的每条贴底路径都会在切换 tab 前同步清除该项。普通的跨 Session 激活会依据 [Session 激活策略](../bug-fix/2026-09-08-session-activation-chat-tail.zh.md)丢弃目标项。Map 仍刻意不持久化——新页面加载保持打开即贴底的默认行为。
 
 ## 曾考虑的替代方案

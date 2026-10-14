@@ -174,6 +174,9 @@ The repeated calls are not making progress. Do not call this tool with these exa
 - **超过最高阈值后链不再提醒**——提醒只在精确达到所配置的次数时触发，超过后不会继续发送。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

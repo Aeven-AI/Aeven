@@ -1,40 +1,20 @@
 /** WhatsApp connector page: one row per linked number and the QR card that links another. */
 
-import { useEffect, useRef, useState, type ReactNode } from 'react'
-import type { AccountIntegrationsView, ConnectorId, WhatsAppPairingView } from '@aeven/api-remotes/client'
+import { useEffect, useRef, useState } from 'react'
+import type { ConnectorId, WhatsAppPairingView } from '@aeven/api-remotes/client'
 import { IconTrashOutline16, Spinner } from '@aeven/client-ui-primitives'
-import type { PropsLocale } from '@aeven/client-ui-slots'
+import { ConnectorAccountRows } from './ConnectorAccountRows.tsx'
+import { formatPhone, type PairingAccountsProps } from './connector-page.ts'
 import css from './IntegrationsSection.module.css'
-
-type Connection = AccountIntegrationsView['connectors'][number]
-type Translate = PropsLocale<'settings.integrations'>['t']
 
 /** Interval between pairing-state reads while the card is open. */
 const POLL_MS = 1500
 
 /** Props from the connector page. */
-export interface WhatsAppAccountsProps {
-  t: Translate
-  busy: boolean
-  connections: readonly Connection[]
-  /** The page's operation runner: shows progress, refreshes the list, and reports thrown failures. */
-  run: (operation: () => Promise<unknown>) => Promise<void>
-  /** The page's switch control. */
-  toggle: (label: string, on: boolean, disabled: boolean, onChange: () => void) => ReactNode
+export interface WhatsAppAccountsProps extends PairingAccountsProps {
   startWhatsAppPairing: () => Promise<WhatsAppPairingView>
   whatsAppPairing: (id: ConnectorId) => Promise<WhatsAppPairingView>
   cancelWhatsAppPairing: (id: ConnectorId) => Promise<void>
-  setConnectorEnabled: (id: ConnectorId, enabled: boolean) => Promise<void>
-  disconnect: (id: ConnectorId) => Promise<void>
-  /** Re-read the connector list after a number was linked. */
-  refresh: () => void
-  /** Start linking on first render, when the page was reached by turning the connector on. */
-  startWithPairing: boolean
-}
-
-/** International number in the `+<digits>` form WhatsApp shows. */
-function formatPhone(phone: string): string {
-  return `+${phone}`
 }
 
 /**
@@ -88,10 +68,12 @@ export function WhatsAppAccounts(props: WhatsAppAccountsProps) {
   const failure = pairing === undefined ? undefined : outcome[pairing.state]
 
   return <>
-    <div className={css.serverList}>{props.connections.map(connection => <div key={connection.id} className={css.serverRow}>
+    <ConnectorAccountRows connections={props.connections} row={connection => <>
       <span className={css.skillSummary}>
         <strong>{connection.name}</strong>
-        {connection.whatsapp !== undefined && connection.name !== formatPhone(connection.whatsapp.phone) && <span className={css.address}>{formatPhone(connection.whatsapp.phone)}</span>}
+        {connection.whatsapp !== undefined && connection.name !== formatPhone(connection.whatsapp.phone) && (
+          <span className={css.address}>{formatPhone(connection.whatsapp.phone)}</span>
+        )}
         {!connection.connected && <span className={css.attention}>{t('whatsappRelink')}</span>}
         {confirming === connection.id && <span className={css.actions}>
           <span className={css.hint}>{t('whatsappUnlinkConfirm')}</span>
@@ -106,7 +88,7 @@ export function WhatsAppAccounts(props: WhatsAppAccountsProps) {
       {props.toggle(connection.name, connection.enabled && connection.connected, !connection.connected, () => {
         void props.run(() => props.setConnectorEnabled(connection.id, !connection.enabled))
       })}
-    </div>)}</div>
+    </>} />
     {pairing === undefined && <button type="button" className={css.secondaryAction} disabled={busy} onClick={start}>{t('whatsappAdd')}</button>}
     {pairing !== undefined && <div className={css.card}>
       {pairing.state === 'connected'

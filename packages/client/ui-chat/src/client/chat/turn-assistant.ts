@@ -1,4 +1,4 @@
-import type { AssistantBlock } from '../contract/snapshot.ts'
+import type { AssistantBlock } from '@aeven/client-ui-conversation/client'
 
 /**
  * Collect visible prose from one Assistant lifecycle.

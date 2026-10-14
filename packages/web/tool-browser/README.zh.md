@@ -115,9 +115,10 @@ Correct an actionable error in this browser. If this browser needs authenticatio
 - **在 `statusTimeoutMs` 之后才应答的 Client 在该轮被忽略** —— 模型直到下一轮第一步才得知当前打开的页面。
 - **没有已连接的 Client 时，每个新轮次都要等待 `statusTimeoutMs`** —— 网关无法告知插件没有 Client 连接，因此查询会在第一步之前等满其截止时间。
 - **没有任何插件报告过的浏览器界面仍然不可见** —— 该报告只列出会话旁的页面与 Host 的 Chromium，因此组合挂载的其他自动化后端，只有在某个插件报告它之后才会被告知模型。
+- **无 invariant 伴随模块**——不发布运行时 invariant 伴随模块，因为本包自己的 spec 已经逐一验证了它拥有的关系：针对桩 waterfall 的第一步查询、`statusTimeoutMs` 与 `actionTimeoutMs` 之下的有界等待，以及状态报告中的界面选择。
 
-<a id="dev-note"></a>
-### Dev Note
+<a id="开发备注"></a>
+### 开发备注
 
 <details>
 <summary>维护者的工作上下文——点击展开</summary>

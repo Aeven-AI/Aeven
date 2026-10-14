@@ -72,6 +72,18 @@ function unlessAborted<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
 }
 
 /**
+ * Whether a turn's cancellation has already reached this point.
+ *
+ * A turn can cancel while its page lookup is in flight, so the signal is read
+ * where its answer is used rather than once when the step starts.
+ * @param signal - the turn's cancellation.
+ * @returns whether the turn was cancelled.
+ */
+function isCancelled(signal: AbortSignal): boolean {
+  return signal.aborted
+}
+
+/**
  * t3code's browser instructions (`CodexDeveloperInstructions.ts`
  * `T3_CODE_BROWSER_TOOL_INSTRUCTIONS`), sent only while a browser is open, as
  * t3code omits them when its tools are not attached.
@@ -292,13 +304,14 @@ export function apply(ctx: Context, config: Config): void {
   // `statusTimeoutMs`.
   ctx.on('agent/pre-step', async ({ agent, step, signal }, next): Promise<PreStepDecision> => {
     const decision = await next()
-    if (decision.kind === 'reject' || step !== 1 || signal.aborted) return decision
+    if (decision.kind === 'reject' || step !== 1 || isCancelled(signal)) return decision
     const lookup = await readSessionTab(agent, signal)
     switch (lookup.kind) {
       case 'page': {
         const page = asSessionTabPage(lookup.page)
         if (page === null) return decision
         const text = renderBrowserContext(page)
+        /* jscpd:ignore-start -- mirrors @aeven/time-context's time snapshot on the same session source form */
         return {
           ...decision,
           messages: [
@@ -309,13 +322,14 @@ export function apply(ctx: Context, config: Config): void {
             }),
           ],
         }
+        /* jscpd:ignore-end */
       }
       case 'unanswered':
         ctx.logger.debug(`browser status unanswered after ${statusTimeoutMs}ms; step ${step} proceeds without the browser context`)
         return decision
       case 'failed': {
         // A turn that cancelled its own lookup is not a pane failure.
-        if (!signal.aborted) {
+        if (!isCancelled(signal)) {
           const reason = lookup.error instanceof Error ? lookup.error.message : String(lookup.error)
           ctx.logger.warn(`browser status failed: ${reason}; step ${step} proceeds without the browser context`)
         }

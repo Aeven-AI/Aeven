@@ -1,4 +1,4 @@
-import { isVisibleChatNode } from '../contract/chat-visibility.ts'
+import { isVisibleChatNode } from './chat-visibility.ts'
 import type { ChatNode } from '../contract/chat-nodes.ts'
 import type {
   ChatLocationNodeIndex, ChatNodeStore, ChatTurnProcessPresentation,

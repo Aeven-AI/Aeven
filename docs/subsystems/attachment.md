@@ -192,6 +192,67 @@ imageHostPath(ref: ImageAttachmentRef): string | undefined
  * @returns request bytes and the cache/upload identity covering every transform input.
  */
 readImageRequest( ref: ImageAttachmentRef, policy: ImageRequestPolicy, signal?: AbortSignal, ): Promise<RequestImageAttachment>
+
+/**
+ * Durably commit one file and its extracted text.
+ * @param input - original bytes, display facts, and extraction output.
+ * @returns the durable reference covering both objects.
+ */
+saveFile(input: SaveFileAttachment): Promise<FileAttachmentRef>
+
+/**
+ * Read one file's original bytes and verify them against the reference.
+ * @param ref - durable reference from the session log.
+ * @param signal - optional cancellation.
+ * @returns the verified bytes and reference.
+ */
+readFile(ref: FileAttachmentRef, signal?: AbortSignal): Promise<StoredFileAttachment>
+
+/**
+ * Read one file's extracted text and verify it against the reference.
+ * @param ref - durable reference from the session log.
+ * @param signal - optional cancellation.
+ * @returns the stored text.
+ */
+readFileText(ref: FileAttachmentRef, signal?: AbortSignal): Promise<string>
+
+/**
+ * Locate the stored original in the harness host filesystem.
+ * @param ref - durable file reference.
+ * @returns an absolute host path, or undefined when this backend is not host-file-backed.
+ */
+fileHostPath(ref: FileAttachmentRef): string | undefined
+
+/**
+ * Stage one committed file for a later prompt. The returned id is an
+ * unguessable single-use capability: only the authenticated uploader
+ * receives it, and admission consumes it.
+ * @param ref - durable reference already committed through {@link saveFile}.
+ * @returns the staged-upload identifier.
+ */
+stageUpload(ref: FileAttachmentRef): UploadId
+
+/**
+ * Resolve staged uploads without consuming them.
+ * @param ids - staged-upload identifiers in prompt order.
+ * @returns durable references in the same order.
+ * @throws AttachmentError when any id is unknown or expired.
+ */
+peekUploads(ids: readonly string[]): readonly FileAttachmentRef[]
+
+/**
+ * Consume staged uploads after their owning prompt is admitted.
+ * @param ids - staged-upload identifiers.
+ */
+claimUploads(ids: readonly string[]): void
+
+/**
+ * Drop one staged upload the user removed before sending. The committed
+ * objects stay: they are content-addressed and may be shared.
+ * @param id - staged-upload identifier.
+ * @returns whether the id was staged.
+ */
+discardUpload(id: string): boolean
 ```
 
 Source: [`packages/attachment/attachment/src/index.ts`](../../packages/attachment/attachment/src/index.ts)

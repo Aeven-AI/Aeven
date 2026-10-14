@@ -24,13 +24,13 @@ async function main(): Promise<void> {
   if (project === undefined) {
     throw new Error('run-tsc: pass one project, for example `tsconfig.host.json`')
   }
-  process.exitCode = await withTransientProbeWindow(async () => {
+  process.exitCode = await withTransientProbeWindow(() => {
     const result = spawnSync(process.execPath, [...nodeFlags, tscBin, '-b', project], {
       cwd: repositoryRoot,
       stdio: 'inherit',
     })
     if (result.error !== undefined) throw result.error
-    return result.status ?? 1
+    return Promise.resolve(result.status ?? 1)
   })
 }
 

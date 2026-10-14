@@ -51,8 +51,9 @@ export class SessionPreparations<Source extends PreparedSource, CommitState> {
   }
 
   /**
+   * Whether an unpublished or committing reservation owns the writer for an identity.
    * @param id - session identity.
-   * @returns whether a committing or unpublished reservation owns the writer.
+   * @returns whether the entry's phase still reserves the writer.
    */
   hasReservation(id: SessionId): boolean {
     const phase = this.entries.get(id)?.phase

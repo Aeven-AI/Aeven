@@ -107,6 +107,9 @@ kind: "package-reference"
 - **fork 绝不自动重新生成标题**——fork 会保留继承的标题，绝不会自动运行此提供方，即使其预置的首消息来自父会话。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

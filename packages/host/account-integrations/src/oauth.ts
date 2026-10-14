@@ -1,7 +1,7 @@
 /** Account-bound connector credential addresses and pending consents. */
 
 import { createHash } from 'node:crypto'
-import { credentialKey } from '@aeven/credentials'
+import { credentialKey, type CredentialKey } from '@aeven/credentials'
 import type { ConnectorId, ConnectorProvider } from './types.ts'
 
 /**
@@ -10,7 +10,7 @@ import type { ConnectorId, ConnectorProvider } from './types.ts'
  * @param id - connector id.
  * @returns account-owned credential address.
  */
-export function connectorCredential(owner: string, id: ConnectorId) {
+export function connectorCredential(owner: string, id: ConnectorId): CredentialKey {
   const account = createHash('sha256').update(owner).digest('hex')
   return credentialKey('account-integrations', `u-${account}-${id}`)
 }

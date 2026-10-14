@@ -36,7 +36,7 @@ interface SkillProvider {
    * plugins register synchronously during `apply()`; remote initialization,
    * authentication, and discovery are awaited inside this method. Implementations
    * should settle promptly when `options.signal` aborts.
-   * @param options - lookup options; `cwd` selects workspace-sensitive skills and `signal` cancels work.
+   * @param options - lookup options; `cwd` selects workspace-sensitive skills, `owner` selects per-user skills, and `signal` cancels work.
    * @returns provider candidates as a complete-array shorthand, or an explicit
    *   observation when usable candidates came from incomplete discovery.
    */
@@ -44,7 +44,7 @@ interface SkillProvider {
   /**
    * Load a complete skill body for a previously listed candidate.
    * @param candidate - the winning candidate originally returned by this provider.
-   * @param options - lookup options; `cwd` selects workspace-sensitive skills and `signal` cancels work.
+   * @param options - lookup options; `cwd` selects workspace-sensitive skills, `owner` selects per-user skills, and `signal` cancels work.
    * @returns the full skill body, or `undefined` if it is no longer loadable.
    */
   readonly get: (candidate: SkillCandidate, options: SkillLookupOptions) => Promise<SkillDefinition | undefined>
@@ -265,6 +265,30 @@ Host service backing `ctx.remote.skills` without activating a cold Agent.
 
 Source: [`packages/api/session-controller/src/skill-catalog.ts`](../../packages/api/session-controller/src/skill-catalog.ts)
 
+<a id="ctxskillcatalog--skillcatalog"></a>
+
+### `ctx.skillCatalog` — `SkillCatalog`
+
+Vendored catalog reader.
+
+```ts cordis-catalog
+/**
+ * Read the vendored index.
+ * @returns every catalogued skill and the category counts, parsed once per process.
+ */
+list(): CatalogView
+
+/**
+ * Read one vendored bundle as it would arrive from an upload.
+ * @param name - catalogued skill name.
+ * @returns the bundle file name and its base64 body.
+ * @throws Error when no catalogued skill carries that name.
+ */
+bundle(name: string): { path: string; base64: string }
+```
+
+Source: [`packages/skill/skill-catalog/src/index.ts`](../../packages/skill/skill-catalog/src/index.ts)
+
 <a id="ctxskills--skillregistry"></a>
 
 ### `ctx.skills` — `SkillRegistry`
@@ -284,6 +308,13 @@ Layered registry of skill providers, the host+per-scope shape the tools registry
  *   composite effects may yield it directly to preserve teardown ordering.
  */
 registerProvider(create: (control: SkillProviderControl) => SkillProvider): () => void
+
+/**
+ * Restrict invocation without removing skills from management catalogs.
+ * @param policy - returns whether a named skill may be invoked in the requested view.
+ * @returns disposer removing the policy and invalidating catalog observations.
+ */
+registerInvocationPolicy(policy: (name: string, options: SkillViewOptions) => boolean): () => void
 
 /**
  * Register a borrowed readonly runtime skill into the calling context's

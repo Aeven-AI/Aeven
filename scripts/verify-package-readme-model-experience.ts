@@ -212,6 +212,21 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/web/web-fetch-http': { kind: 'indirect', reason: 'The provider backend delegates model rendering to avn-tool-web.' },
   'packages/web/web-search-exa': { kind: 'indirect', reason: 'The provider backend delegates model rendering to avn-tool-web.' },
   'packages/workflow/workflow': { kind: 'indirect', reason: 'The service delegates parent and child model rendering to its consumer and engine.' },
+  'packages/api/job-controller': { kind: 'none', reason: 'job observation is browser and Host control state; it registers no prompt, tool, or session event. The model\'s own view of the same work stays with [`avn-tool-jobs`](../../jobs/tool-jobs/README.md)' },
+  'packages/client/ui-settings-integrations': { kind: 'none', reason: 'these pages only manage integrations through the host Remote' },
+  'packages/client/ui-settings-memory': { kind: 'none', reason: 'the page only reads and writes memory settings through the `memory` Remote and registers no prompt, tool, or model-visible result' },
+  'packages/client/ui-sidebar-device': { kind: 'none', reason: 'the pane only renders the device state stream and sends `ctx.devices` commands through the Client Remote; the model\'s device tools and their results are owned by the tool package that calls the same service' },
+  'packages/client/ui-sidebar-files': { kind: 'none', reason: 'the explorer reads folders, file text, and search hits through the `workspaceFiles` Remote and renders them without contributing context; the model reads files with its own tools' },
+  'packages/client/ui-sidebar-select': { kind: 'none', reason: 'the open pill set, the full screen state, and the content registry are browser viewing state; this package registers no tool, prompt section, or model-visible result' },
+  'packages/client/ui-sidebar-terminal': { kind: 'none', reason: 'the pane only attaches an xterm view to a shell that lives on the Host behind `ctx.webTerminals`; what the model sees of a shell is owned by the bash tool, not by this plugin' },
+  'packages/client/ui-voice-input': { kind: 'indirect', reason: 'the conversation composer\'s draft: a transcript this plugin appends becomes the user message the model reads, so dictated words reach a request only once the user submits them' },
+  'packages/device/device-local': { kind: 'none', reason: 'the host only installs and starts the tools behind `ctx.devices`; the model\'s device tools and their results are owned by the tool package that calls that service' },
+  'packages/device/device': { kind: 'indirect', reason: 'avn-tool-device: the model\'s `device_*` calls invoke this service\'s device sessions and read the state it publishes, while that package owns the schemas, guidance, and results the model actually reads' },
+  'packages/speech/api-speech-to-text': { kind: 'none', reason: 'recordings and preparation remain outside model requests; ordinary user submission owns any later text' },
+  'packages/speech/speech-to-text': { kind: 'none', reason: 'recordings and preparation remain outside model requests; ordinary user submission owns any later text' },
+  'packages/capability/capability': { kind: 'none', reason: 'the registry adds no prompt text, tool, skill, or slash suggestion of its own; the capability consumer owns what recall and inspection put in front of the model' },
+  'packages/client/ui-automations': { kind: 'none', reason: 'this page registers no tool and no prompt section; a starter only fills a localized draft that sends nothing until the person submits it' },
+  'packages/client/ui-settings-personalization': { kind: 'none', reason: 'the page adds nothing to a model request; it reads and writes the personalization document the owning prompt section renders' },
 }
 
 interface Failure {

@@ -132,6 +132,9 @@ kind: "package-reference"
 - **guard 白名单是手抄的孪生**——浏览器 guard 复刻 host 侧沙箱门面；抽取共享规格留待后续。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

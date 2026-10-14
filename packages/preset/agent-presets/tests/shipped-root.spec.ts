@@ -23,6 +23,8 @@ import AgentPresets, { SHIPPED_PRESET_ROOT, type Config } from '@aeven/agent-pre
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), 'fixtures')
 const SYSTEM_ROOT = join(FIXTURES, 'system')
+/** A configured root claiming the shipped `aeven` id. */
+const SHADOW_ROOT = join(FIXTURES, 'shadow')
 
 let previousHome: string | undefined
 
@@ -44,7 +46,7 @@ async function roster(config: Partial<Config> = {}): Promise<Context> {
   ctx.loader.builtins.include = Include
   await ctx.plugin(SessionProjectionRegistry)
   await ctx.plugin(AgentPresets, {
-    default: 'standard',
+    default: 'aeven',
     roots: [],
     includeShippedRoot: true,
     includeUserRoot: true,
@@ -86,7 +88,7 @@ describe('the shipped preset root', () => {
     const ctx = await roster({ includeUserRoot: false })
 
     const listed = await ctx.agentPresets.list()
-    expect(listed.map(preset => preset.id).sort()).toEqual(['aeven', 'cordis', 'minimal', 'ptc', 'standard'])
+    expect(listed.map(preset => preset.id)).toEqual(['aeven'])
     expect(listed.every(preset => preset.trust === 'system')).toBe(true)
     // Not `broken === undefined`: health asks whether each row's package is
     // installed above the base, and the shipped rows name packages the
@@ -98,19 +100,19 @@ describe('the shipped preset root', () => {
   })
 
   it('prepends the shipped root before configured roots and the derived user root', async () => {
-    const ctx = await roster({ roots: [{ path: SYSTEM_ROOT, trust: 'user' }] })
+    const ctx = await roster({ roots: [{ path: SYSTEM_ROOT, trust: 'user' }, { path: SHADOW_ROOT, trust: 'user' }] })
 
     expect(ctx.agentPresets.roots.map(root => root.path)).toEqual([
       SHIPPED_PRESET_ROOT,
       SYSTEM_ROOT,
+      SHADOW_ROOT,
       expect.stringContaining('.agent-presets'),
     ])
     expect(ctx.agentPresets.roots[0]).toEqual({ path: SHIPPED_PRESET_ROOT, trust: 'system' })
     // Prepended, so a configured directory claiming a shipped id is shadowed:
-    // the fixture root also carries `minimal`, and the roster serves the
-    // shipped one.
-    const minimal = (await ctx.agentPresets.list()).find(preset => preset.id === 'minimal')
-    expect(minimal?.path.startsWith(SHIPPED_PRESET_ROOT)).toBe(true)
+    // the shadow root also carries `aeven`, and the roster serves the shipped one.
+    const aeven = (await ctx.agentPresets.list()).find(preset => preset.id === 'aeven')
+    expect(aeven?.path.startsWith(SHIPPED_PRESET_ROOT)).toBe(true)
   })
 
   it('mounts a roster without the shipped set when includeShippedRoot is false', async () => {
@@ -125,27 +127,26 @@ describe('the shipped preset root', () => {
     expect(minimal?.path.startsWith(SYSTEM_ROOT)).toBe(true)
   })
 
-  it('enables web_fetch in each tool-bearing Web app preset', async () => {
-    for (const id of ['cordis', 'ptc', 'standard']) {
-      const entries = await shippedEntries(id)
-      const toolWeb: unknown = entries.find((entry: unknown) =>
-        typeof entry === 'object' && entry !== null && 'id' in entry && entry.id === 'tool-web')
-      if (typeof toolWeb !== 'object' || toolWeb === null || !('config' in toolWeb)
-        || typeof toolWeb.config !== 'object' || toolWeb.config === null || !('fetch' in toolWeb.config)) {
-        throw new TypeError(`${id} preset must configure tool-web.fetch`)
-      }
-      expect(toolWeb.config.fetch, id).toBe(true)
+  it('enables web_fetch in the shipped composition', async () => {
+    const entries = await shippedEntries('aeven')
+    const toolWeb: unknown = entries.find((entry: unknown) =>
+      typeof entry === 'object' && entry !== null && 'id' in entry && entry.id === 'tool-web')
+    if (typeof toolWeb !== 'object' || toolWeb === null || !('config' in toolWeb)
+      || typeof toolWeb.config !== 'object' || toolWeb.config === null || !('fetch' in toolWeb.config)) {
+      throw new TypeError('aeven preset must configure tool-web.fetch')
     }
+    expect(toolWeb.config.fetch).toBe(true)
   })
 
-  it('omits the general workflow tool only from PTC while retaining Ralph infrastructure', async () => {
-    const ptc = await shippedEntries('ptc')
-    expect(findEntry(ptc, 'tool-workflow')?.disabled).toBe(true)
-    expect(findEntry(ptc, 'workflow-worker-thread')?.disabled).not.toBe(true)
-    expect(findEntry(ptc, 'tool-ralph')?.disabled).not.toBe(true)
+  it('ships the workflow rows enabled and the developer switches off', async () => {
+    const aeven = await shippedEntries('aeven')
+    expect(findEntry(aeven, 'tool-workflow')?.disabled).not.toBe(true)
+    expect(findEntry(aeven, 'workflow-worker-thread')?.disabled).not.toBe(true)
+    expect(findEntry(aeven, 'tool-ralph')?.disabled).not.toBe(true)
 
-    for (const id of ['standard', 'cordis']) {
-      expect(findEntry(await shippedEntries(id), 'tool-workflow')?.disabled, id).not.toBe(true)
-    }
+    // PTC mode and the Cordis self-extension toolset are turned on by editing
+    // this file, never from the GUI.
+    expect(findEntry(aeven, 'tool-presentation')?.disabled).toBe(true)
+    expect(findEntry(aeven, 'tool-cordis')?.disabled).toBe(true)
   })
 })

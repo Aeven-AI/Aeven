@@ -12,9 +12,9 @@ import clsx from 'clsx'
 import { IconCloseOutline16 } from '@aeven/client-ui-primitives'
 import type { SessionSearchResultItem } from '@aeven/api-session-controller/client'
 import type { SessionId, SessionSeq } from '@aeven/session/types'
-import type { WorkspaceHeaderSearchProps } from './contract/slots.ts'
-import { deriveRecentResults, deriveSearchResults } from './tree.ts'
-import { SearchResultItem } from './rows/Rows.tsx'
+import type { WorkspaceHeaderSearchProps } from '../contract/slots.ts'
+import { deriveRecentResults, deriveSearchResults } from '../tree.ts'
+import { SearchResultItem } from './Rows.tsx'
 import css from './SearchDialog.module.css'
 
 /** Pause between the latest keystroke and a Host content-search request. */

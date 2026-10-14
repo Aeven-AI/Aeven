@@ -3,8 +3,8 @@ import { createPortal } from 'react-dom'
 import type { JobsSnapshot, JobView, ObservedJob } from '@aeven/api-job-controller/client'
 import type { SessionId } from '@aeven/session/types'
 import {
-  Button, CopyIconButton, IconChevronDownOutline14, IconStopFill16, Modal, Spinner, StateDot, useAnchoredPosition, useDismissOnOutsidePointer,
-  type StateDotState,
+  Button, CopyIconButton, formatDuration, IconChevronDownOutline14, IconStopFill16, Modal, Spinner, StateDot,
+  useAnchoredPosition, useDismissOnOutsidePointer, type StateDotState,
 } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, TranslateNS } from '@aeven/client-ui-slots'
 import { NS } from './locales.ts'
@@ -158,22 +158,6 @@ function killKey(state: KillState): 'kill.stop' | 'kill.pending' | 'kill.failed'
     /* v8 ignore next -- closed kill-state union */
     default: return assertNever(state)
   }
-}
-
-/**
- * Elapsed time in at most two adjacent units. A job that outlives an hour is
- * already exceptional, so hours is the widest unit — beyond that the figure
- * stays in hours rather than growing a day/month vocabulary no producer
- * currently reaches.
- */
-function formatDuration(elapsedMs: number, t: TranslateNS<typeof NS>): string {
-  const total = Math.max(0, Math.floor(elapsedMs / 1_000))
-  const seconds = total % 60
-  const minutes = Math.floor(total / 60) % 60
-  const hours = Math.floor(total / 3_600)
-  if (hours > 0) return t('duration.hours', { hours: pad(hours), minutes: pad(minutes) })
-  if (minutes > 0) return t('duration.minutes', { minutes: pad(minutes), seconds: pad(seconds) })
-  return t('duration.seconds', { seconds: pad(seconds) })
 }
 
 /** Two-digit zero padding, so figures keep one width as they tick. */

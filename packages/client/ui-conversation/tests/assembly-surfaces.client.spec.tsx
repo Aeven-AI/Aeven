@@ -1,16 +1,18 @@
 // @vitest-environment jsdom
 /** Conversation assembly acceptance independent of Tool presentation. */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, fireEvent, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import { useState } from 'react'
 import { LocaleRuntime } from '@aeven/client-locale/client'
 import type { ISession } from '@aeven/api-session-controller/client'
 import type { PropsRenderSlots } from '@aeven/client-ui-slots'
 import {
-  RemoteError, SlotTestRuntime, usePinnedBrowserLanguages, stubSettingsScope,
+  RemoteError, SlotTestRuntime, TestRemote, usePinnedBrowserLanguages, stubSettingsScope,
 } from '@aeven/client-test-runtime'
 import { InputHub } from '../src/client/input/hub.ts'
-import { apply, inject, type EmptyWorkspaceOwnerProps } from '@aeven/client-ui-conversation/client'
+import {
+  apply, inject, type ConversationHeaderLineageOwnerProps, type EmptyWorkspaceOwnerProps,
+} from '@aeven/client-ui-conversation/client'
 import type { SessionId } from '@aeven/session/types'
 
 // jsdom implements no Range geometry (Lexical's scroll-into-view measures the
@@ -23,6 +25,9 @@ Range.prototype.getBoundingClientRect = () => ({
 usePinnedBrowserLanguages('zh-CN')
 
 const SID = 's1' as SessionId
+
+/** The frame's start-address source the workspace double has no navigation for. */
+const NO_START_ADDRESS = { getSnapshot: (): string | undefined => undefined, subscribe: () => () => {} }
 
 /** jsdom has no ResizeObserver; the composer seat publishes its height through one. */
 class ResizeObserverStub {
@@ -60,7 +65,13 @@ function WorkspaceProbe({ open }: EmptyWorkspaceOwnerProps) {
 
 async function bench(opts?: { blank?: boolean }) {
   const runtime = await SlotTestRuntime.create()
-  runtime.ctx.provide('uiWorkspace', { connectWorkspace: vi.fn(async () => SID) } as never)
+  // The plugin injects `remote.session` for Session export; the double parks it
+  // without a wire.
+  new TestRemote(runtime.ctx, { session: {} })
+  runtime.ctx.provide('uiWorkspace', {
+    connectWorkspace: vi.fn(async () => SID),
+    startAddress: NO_START_ADDRESS,
+  } as never)
   runtime.ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
   const locale = new LocaleRuntime(runtime.ctx)
   runtime.ctx.provide('locale', locale)
@@ -82,7 +93,13 @@ async function bench(opts?: { blank?: boolean }) {
 describe('resident composer', () => {
   it('renders the inert cold-start composer while no session exists at all', async () => {
     const runtime = await SlotTestRuntime.create()
-    runtime.ctx.provide('uiWorkspace', { connectWorkspace: vi.fn(async () => SID) } as never)
+    // The plugin injects `remote.session` for Session export; the double parks
+    // it without a wire.
+    new TestRemote(runtime.ctx, { session: {} })
+    runtime.ctx.provide('uiWorkspace', {
+      connectWorkspace: vi.fn(async () => SID),
+      startAddress: NO_START_ADDRESS,
+    } as never)
     runtime.ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
     const locale = new LocaleRuntime(runtime.ctx)
     runtime.ctx.provide('locale', locale)
@@ -99,8 +116,7 @@ describe('resident composer', () => {
     expect(textarea!.getAttribute('aria-disabled')).toBe('true')
     expect(textarea!.getAttribute('contenteditable')).not.toBe('true')
     expect(textarea!.getAttribute('aria-haspopup')).toBeNull()
-    expect(textarea!.getAttribute('data-placeholder'))
-      .toBe('描述你想要构建的内容… / 调用指令 @ 文件或对话')
+    expect(textarea!.getAttribute('data-placeholder')).toBe('问我任何问题')
     expect(view.queryByTestId('workspace-probe')).toBeNull()
     expect(view.queryByRole('button', { name: '选择工作区' })).toBeNull()
     fireEvent.click(textarea!)
@@ -112,7 +128,13 @@ describe('resident composer', () => {
 
   it('keeps the complete Hero tree mounted when the first Workspace session appears', async () => {
     const runtime = await SlotTestRuntime.create()
-    runtime.ctx.provide('uiWorkspace', { connectWorkspace: vi.fn(async () => SID) } as never)
+    // The plugin injects `remote.session` for Session export; the double parks
+    // it without a wire.
+    new TestRemote(runtime.ctx, { session: {} })
+    runtime.ctx.provide('uiWorkspace', {
+      connectWorkspace: vi.fn(async () => SID),
+      startAddress: NO_START_ADDRESS,
+    } as never)
     runtime.ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
     const locale = new LocaleRuntime(runtime.ctx)
     runtime.ctx.provide('locale', locale)
@@ -168,7 +190,13 @@ describe('resident composer', () => {
 describe('prompt rejection through the assembled composer', () => {
   it('renders the promptError alert strip and keeps the draft in the machine', async () => {
     const runtime = await SlotTestRuntime.create()
-    runtime.ctx.provide('uiWorkspace', { connectWorkspace: vi.fn(async () => SID) } as never)
+    // The plugin injects `remote.session` for Session export; the double parks
+    // it without a wire.
+    new TestRemote(runtime.ctx, { session: {} })
+    runtime.ctx.provide('uiWorkspace', {
+      connectWorkspace: vi.fn(async () => SID),
+      startAddress: NO_START_ADDRESS,
+    } as never)
     runtime.ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
     const locale = new LocaleRuntime(runtime.ctx)
     runtime.ctx.provide('locale', locale)
@@ -211,17 +239,27 @@ describe('prompt rejection through the assembled composer', () => {
 })
 
 describe('title projection across assembled surfaces', () => {
+  /**
+   * Stands in for the lineage renderer: it draws the title the header hands the
+   * seat, and the current Session's own title is the inert one.
+   * @param props - the seat's owner share.
+   * @returns one disabled title button.
+   */
+  function LineageProbe({ displayTitle }: ConversationHeaderLineageOwnerProps) {
+    return <button type="button" disabled>{displayTitle}</button>
+  }
+
   it('one summary update re-labels the current-session crumb', async () => {
     const runtime = await bench()
+    runtime.slots.register({ name: 'conversation.session.header.lineage' }, LineageProbe)
     const view = runtime.renderRoot()
-    const hierarchy = view.getByRole('navigation', { name: '会话层级' })
-    expect(within(hierarchy).getByRole('button', { name: 'S' }).hasAttribute('disabled')).toBe(true)
+    expect(view.getByRole('button', { name: 'S' }).hasAttribute('disabled')).toBe(true)
 
     await runtime.sessions.updateSummary(SID, { displayTitle: '修订标题', title: '修订标题' })
     await waitFor(() => {
-      expect(within(hierarchy).getByRole('button', { name: '修订标题' }).hasAttribute('disabled')).toBe(true)
+      expect(view.getByRole('button', { name: '修订标题' }).hasAttribute('disabled')).toBe(true)
     })
-    expect(within(hierarchy).queryByRole('button', { name: 'S' })).toBeNull()
+    expect(view.queryByRole('button', { name: 'S' })).toBeNull()
     await runtime.dispose()
   })
 })

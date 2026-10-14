@@ -104,13 +104,15 @@ function SettingsPanel({ rows, renderSlot, activeId, detail: addressedDetail, on
   const options = useRef<HTMLDivElement | null>(null)
   const optionsBody = useRef<HTMLDivElement | null>(null)
   useLayoutEffect(() => {
-    const scroller = options.current!
+    const scroller = options.current
+    if (scroller === null) return
     const sync = () => {
       scroller.style.setProperty('--avn-settings-scrollbar', `${scroller.offsetWidth - scroller.clientWidth}px`)
     }
     const observer = new ResizeObserver(sync)
     observer.observe(scroller)
-    observer.observe(optionsBody.current!)
+    const body = optionsBody.current
+    if (body !== null) observer.observe(body)
     return () => { observer.disconnect() }
   }, [])
 
@@ -137,7 +139,7 @@ function SettingsPanel({ rows, renderSlot, activeId, detail: addressedDetail, on
         </nav>
         <div className={css.content}>
           <div className={css.header}>
-            <div className={css.actions}>{renderSlot('settings.action', { section: active, detail, showDetail })}</div>
+            <div className={css.actions} data-page-open={detail === undefined ? undefined : ''}>{renderSlot('settings.action', { section: active, detail, showDetail })}</div>
             <button ref={closeButton} type="button" className={css.close} onClick={onClose}>
               <IconCloseOutline16 size={14} />
               <span className={css.hiddenLabel}>{renderSlot('settings.close', {})}</span>

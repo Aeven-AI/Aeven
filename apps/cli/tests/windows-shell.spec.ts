@@ -11,7 +11,7 @@
  */
 
 import { afterEach, describe, expect, it } from 'vitest'
-import { mkdtempSync, rmSync, readFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, readFileSync, readdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -104,56 +104,26 @@ describe('the shipped shell composition (real bundle layers)', () => {
 describe('shipped agent presets gate both shell tools by platform', () => {
   const presetRoot = SHIPPED_PRESET_ROOT
 
-  it.each(['standard', 'ptc', 'cordis'])('preset %s gates its shell tool rows by platform', (preset) => {
-    const entries: unknown = yaml.load(
-      readFileSync(join(presetRoot, preset, 'agent.cordis.yml'), 'utf8'),
-      { schema: entryListSchema },
-    )
-    if (!Array.isArray(entries)) throw new TypeError(`preset ${preset} must parse to an entry array`)
-    for (const [id, win32] of [['tool-bash', true], ['tool-pwsh', false]] as const) {
-      const row = entries.find((entry): entry is Record<string, unknown> => (
-        typeof entry === 'object' && entry !== null && (entry as Record<string, unknown>).id === id
-      ))
-      if (row === undefined) throw new TypeError(`preset ${preset} must mount ${id}`)
-      expect(row.disabled).toMatchObject({ __jsExpr: expect.any(String) as string })
-      // A platform-scoped context pins both outcomes on every host.
-      const expression = (row.disabled as { __jsExpr: string }).__jsExpr
-      expect(Boolean(evaluate({ process: { platform: 'win32' } }, expression)), `${id} on win32`).toBe(win32)
-      expect(Boolean(evaluate({ process: { platform: 'linux' } }, expression)), `${id} on linux`).toBe(!win32)
+  it('gates every shipped preset\'s shell tool rows by platform', () => {
+    const presets = readdirSync(presetRoot).sort()
+    expect(presets, 'the shipped preset roster').toEqual(['aeven'])
+    for (const preset of presets) {
+      const entries: unknown = yaml.load(
+        readFileSync(join(presetRoot, preset, 'agent.cordis.yml'), 'utf8'),
+        { schema: entryListSchema },
+      )
+      if (!Array.isArray(entries)) throw new TypeError(`preset ${preset} must parse to an entry array`)
+      for (const [id, win32] of [['tool-bash', true], ['tool-pwsh', false]] as const) {
+        const row = entries.find((entry): entry is Record<string, unknown> => (
+          typeof entry === 'object' && entry !== null && (entry as Record<string, unknown>).id === id
+        ))
+        if (row === undefined) throw new TypeError(`preset ${preset} must mount ${id}`)
+        expect(row.disabled).toMatchObject({ __jsExpr: expect.any(String) as string })
+        // A platform-scoped context pins both outcomes on every host.
+        const expression = (row.disabled as { __jsExpr: string }).__jsExpr
+        expect(Boolean(evaluate({ process: { platform: 'win32' } }, expression)), `${id} on win32`).toBe(win32)
+        expect(Boolean(evaluate({ process: { platform: 'linux' } }, expression)), `${id} on linux`).toBe(!win32)
+      }
     }
-  })
-
-  it('minimal mounts no shell tool row and gates its persistent shell stack by platform', () => {
-    const entries: unknown = yaml.load(
-      readFileSync(join(presetRoot, 'minimal', 'agent.cordis.yml'), 'utf8'),
-      { schema: entryListSchema },
-    )
-    if (!Array.isArray(entries)) throw new TypeError('minimal preset must parse to an entry array')
-    for (const id of ['tool-bash', 'tool-pwsh']) {
-      expect(entries.some(entry => (
-        typeof entry === 'object' && entry !== null && (entry as Record<string, unknown>).id === id
-      )), `${id} must be absent from minimal`).toBe(false)
-    }
-    const group = entries.find((entry): entry is Record<string, unknown> => (
-      typeof entry === 'object' && entry !== null && (entry as Record<string, unknown>).id === 'persistent-shell'
-    ))
-    if (group === undefined) throw new TypeError('minimal preset must mount persistent-shell')
-    const rows = group.config as unknown[]
-    if (!Array.isArray(rows)) throw new TypeError('persistent-shell must carry a row list')
-    const byId = new Map(rows
-      .filter((entry): entry is Record<string, unknown> => typeof entry === 'object' && entry !== null)
-      .map(entry => [entry.id, entry]))
-    // The bash stack (terminal-bash + persistent-bash) mounts on POSIX only; the
-    // pwsh twin (terminal-bash with shellDialect pwsh + persistent-pwsh) mounts on
-    // win32 only — exactly one persistent shell per host.
-    for (const id of ['terminal-bash', 'persistent-bash']) {
-      expect(disabledOn(byId.get(id)!, 'win32'), `${id} on win32`).toBe(true)
-      expect(disabledOn(byId.get(id)!, 'linux'), `${id} on linux`).toBe(false)
-    }
-    for (const id of ['terminal-pwsh', 'persistent-pwsh']) {
-      expect(disabledOn(byId.get(id)!, 'win32'), `${id} on win32`).toBe(false)
-      expect(disabledOn(byId.get(id)!, 'linux'), `${id} on linux`).toBe(true)
-    }
-    expect(byId.get('terminal-pwsh')?.config).toMatchObject({ shellDialect: 'pwsh' })
   })
 })

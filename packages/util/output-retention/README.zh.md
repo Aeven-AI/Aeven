@@ -155,6 +155,9 @@ const footer = formatRetentionNotice(
 - **文本保留面向字节**——`read` 分页等行窗口与字符窗口需要单独的渲染器；切割可能丢弃部分 UTF-8 边界字节，以保持返回文本有效。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

@@ -18,9 +18,15 @@ type ApprovalTransition =
   | { kind: 'asked'; id: ApprovalRequestId; toolName: string; allowSession: string | undefined }
   | { kind: 'decided'; id: ApprovalRequestId }
 
+/** One logged question still awaiting its decision. */
+interface PendingApproval {
+  toolName: string
+  allowSession: string | undefined
+}
+
 interface ApprovalTrace {
   openTurn: number | null
-  pending: Map<ApprovalRequestId, { toolName: string; allowSession: string | undefined }>
+  pending: Map<ApprovalRequestId, PendingApproval>
 }
 
 /** Validate one approval event against committed unmatched questions. */
@@ -56,7 +62,10 @@ function validateApprovalEvent(
 }
 
 /** Apply one accepted approval-pair transition. */
-function applyApprovalTransition(pending: Map<ApprovalRequestId, { toolName: string; allowSession: string | undefined }>, transition: ApprovalTransition): void {
+function applyApprovalTransition(
+  pending: Map<ApprovalRequestId, PendingApproval>,
+  transition: ApprovalTransition,
+): void {
   if (transition.kind === 'asked') pending.set(transition.id, { toolName: transition.toolName, allowSession: transition.allowSession })
   else pending.delete(transition.id)
 }

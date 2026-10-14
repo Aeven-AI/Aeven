@@ -10,7 +10,7 @@ export interface ImagineRowInjected {
   /** The start address the row links to. */
   href: string
   /** Open the start address in place. */
-  open(): void
+  open: () => void
 }
 
 /**

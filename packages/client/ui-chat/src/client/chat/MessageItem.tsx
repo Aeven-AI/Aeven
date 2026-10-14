@@ -1,18 +1,28 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode, Ref } from 'react'
 import type { PendingSubmission, SessionSnapshot } from '@aeven/api-session-controller/client'
-import type { MessageFileSource, MessageImageSource } from '@aeven/client-ui-conversation/client'
+import type {
+  MessageFileSource, MessageImageSource, ModelRetryNode, TurnErrorNode, UserMessageNode,
+} from '@aeven/client-ui-conversation/client'
 import { SessionSeq } from '@aeven/session/types'
 import {
   IconCheckOutline16, IconCloseOutline16, IconEditOutline16, IconSendOutline14, IconTrashOutline16,
   JsonBlock, projectUserText, StateDot, Tooltip, useTextAnimation,
 } from '@aeven/client-ui-primitives'
 import type { ChatNodeOwnerProps, ChatNodeViewProps, ChatViewInjected, ChatViewSlotProps } from '../contract/slots.ts'
-import type { ModelRetryNode, TurnErrorNode, UserMessageNode } from '../contract/snapshot.ts'
 import { CompactionItem } from './CompactionItem.tsx'
 import { ContextInjectionRow } from './ContextInjectionRow.tsx'
 import { EditIconActions, MessageIconActions } from './MessageIconActions.tsx'
 import css from './MessageItem.module.css'
+
+function previewImage(image: PendingSubmission['images'][number]): MessageImageSource {
+  return { preview: {
+    url: image.previewUrl,
+    ...(image.name === undefined ? {} : { name: image.name }),
+    ...(image.width === undefined ? {} : { width: image.width }),
+    ...(image.height === undefined ? {} : { height: image.height }),
+  } }
+}
 
 type UserImage = Extract<UserMessageNode['content'][number], { type: 'image' }>
 type UserFile = Extract<UserMessageNode['content'][number], { type: 'file' }>
@@ -192,7 +202,7 @@ export function arrivalFade(age: number | null): { className?: string | undefine
 function UserStyleBubble({
   content, renderMessageImages, actions, pending = false, echo = false, queued = false,
   arrivalAge = null, body, bubbleRef, referenceLabels = [], skillNames = [],
-  previewImages, previewFiles, turn, t,
+  previewImages, previewFiles, turn, editor = false, t,
 }: {
   content: readonly unknown[]
   /** Turn the message belongs to; the attachment preview navigates all of it. */
@@ -213,6 +223,8 @@ function UserStyleBubble({
   arrivalAge?: number | null
   /** Replaces the text bubble, as the inline editor of a queued message does. */
   body?: ReactNode
+  /** Whether `body` is the prompt's own inline editor, which widens the stack to the conversation column. */
+  editor?: boolean
   /** Exact session mention labels associated by the adjacent recall node. */
   referenceLabels?: readonly string[]
   /** Skill names the step's `skill-invocation` injections loaded for this message. */
@@ -242,7 +254,7 @@ function UserStyleBubble({
       data-submission-echo={echo || undefined}
       data-queued={queued || undefined}
     >
-      <div className={css.userStack} data-attachments={attachmentCount > 0 ? Math.min(attachmentCount, 5) : undefined}>
+      <div className={css.userStack} data-attachments={attachmentCount > 0 ? Math.min(attachmentCount, 5) : undefined} data-editor={editor ? '' : undefined}>
         {attachmentCount > 0
           ? <>
             {/* The attachment tray and the text share one card; an open editor sits below it. */}
@@ -319,14 +331,7 @@ export function PendingSubmissionBubble({ submission, extendedTranscript, render
     [submission.text],
   )
   const previewImages = useMemo<readonly MessageImageSource[]>(
-    () => submission.images.map(image => ({
-      preview: {
-        url: image.previewUrl,
-        ...(image.name === undefined ? {} : { name: image.name }),
-        ...(image.width === undefined ? {} : { width: image.width }),
-        ...(image.height === undefined ? {} : { height: image.height }),
-      },
-    })),
+    () => submission.images.map(previewImage),
     [submission.images],
   )
   const previewFiles = useMemo<readonly MessageFileSource[]>(
@@ -548,15 +553,14 @@ export const UserMessageNodeView = memo(function UserMessageNodeView({
   // Latched at mount: the echo retires a frame after this row appears, and
   // the fade must survive its disappearance.
   const arrivalAge = useArrivalAge(submission?.time ?? echo?.time)
-  const previewImages = useMemo<readonly MessageImageSource[] | undefined>(() => submission?.images.map(image => ({
-    preview: {
-      url: image.previewUrl,
-      ...(image.name === undefined ? {} : { name: image.name }),
-      ...(image.width === undefined ? {} : { width: image.width }),
-      ...(image.height === undefined ? {} : { height: image.height }),
-    },
-  })), [submission?.images])
-  const previewFiles = useMemo<readonly MessageFileSource[] | undefined>(() => submission?.files.map(file => ({ preview: file })), [submission?.files])
+  const previewImages = useMemo<readonly MessageImageSource[] | undefined>(
+    () => submission?.images.map(previewImage),
+    [submission?.images],
+  )
+  const previewFiles = useMemo<readonly MessageFileSource[] | undefined>(
+    () => submission?.files.map(file => ({ preview: file })),
+    [submission?.files],
+  )
   const bubbleRef = useRef<HTMLDivElement>(null)
   const [editing, setEditing] = useState<{ draft: string; minHeight: number | undefined } | null>(null)
   const [busy, setBusy] = useState(false)
@@ -587,6 +591,7 @@ export const UserMessageNodeView = memo(function UserMessageNodeView({
       bubbleRef={bubbleRef}
       {...data.referenceLabels === undefined ? {} : { referenceLabels: data.referenceLabels }}
       {...data.skillNames === undefined ? {} : { skillNames: data.skillNames }}
+      editor={editing !== null}
       body={editing === null ? undefined : (
         <MessageEditorInput
           value={editing.draft}

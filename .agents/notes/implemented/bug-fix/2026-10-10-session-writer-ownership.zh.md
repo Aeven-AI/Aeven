@@ -2,6 +2,8 @@
 
 Status: implemented
 
+[English](2026-10-10-session-writer-ownership.md) | 中文
+
 ## Problem
 
 Web 与 Electron Host 可以共享账号和持久化根目录，同时分别持有同一 Session 的独立副本。进程内的序列计数器和 preparation reservation 无法阻止第二个 Host 将第一个 Host 的未结束轮次视为中断，追加恢复事件并恢复执行同一日志。两个执行随后会追加重叠的序列号。

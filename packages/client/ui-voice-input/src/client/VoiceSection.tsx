@@ -19,7 +19,8 @@ export interface VoiceSectionInjected {
 export type VoiceSectionProps = PropsRuntime<'settings.section'> & PropsLocale<typeof NS> & InjectFace<VoiceSectionInjected>
 
 function ProviderCard({ provider, connected, prepare, t }: {
-  provider: SpeechProviderView; connected: boolean
+  provider: SpeechProviderView
+  connected: boolean
 } & Pick<VoiceSectionProps, 'prepare' | 't'>) {
   const state = provider.preparation
   const [busy, setBusy] = useState(false)
@@ -34,7 +35,7 @@ function ProviderCard({ provider, connected, prepare, t }: {
   const start = (): void => {
     setError('')
     setBusy(true)
-    void prepare(provider.id).catch((failure) => { setError(String(failure)) }).finally(() => { setBusy(false) })
+    void prepare(provider.id).catch((failure: unknown) => { setError(String(failure)) }).finally(() => { setBusy(false) })
   }
 
   const status = !connected ? t('reconnecting')

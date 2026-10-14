@@ -1,3 +1,4 @@
+import { resolve } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import AgentRegistry from '@aeven/agent'
 import SessionStore from '@aeven/session'
@@ -64,7 +65,7 @@ describe('session/openWorkspacePath', () => {
     expect(ctx.agents.list()).toEqual([])
   })
 
-  it('preserves relative and absolute Host-resolvable paths', async () => {
+  it('resolves relative and absolute Host-resolvable paths before opening', async () => {
     const ctx = await context()
     const openPath = vi.fn((_path: string, _signal: AbortSignal) => Promise.resolve())
     const remote = createSessionTestRemote(ctx, {
@@ -75,7 +76,10 @@ describe('session/openWorkspacePath', () => {
 
     await remote.openWorkspacePath({ path: '/tmp/result.html' })
     await remote.openWorkspacePath({ path: 'result.html' })
-    expect(openPath.mock.calls.map(call => call[0])).toEqual(['/tmp/result.html', 'result.html'])
+    // The Host opener receives an absolute path either way; the relative one
+    // resolves against the serving process's directory.
+    expect(openPath.mock.calls.map(call => call[0]))
+      .toEqual(['/tmp/result.html', resolve('result.html')])
   })
 
   it('rejects empty paths before opening anything', async () => {

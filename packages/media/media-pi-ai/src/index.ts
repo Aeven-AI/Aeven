@@ -9,7 +9,7 @@ import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { credentialRef } from '@aeven/credentials'
 import type {} from '@aeven/credentials'
-import { MediaError } from '@aeven/media'
+import { MediaError, rejectImageControls } from '@aeven/media'
 import type {} from '@aeven/media'
 import type {
   GeneratedImage,
@@ -120,12 +120,7 @@ export function apply(ctx: Context, config: Config): void {
     // resolved per call.
     available: () => process.env[apiKeyEnv] !== undefined || ctx.get('credentials') !== undefined,
     async generateImage(request: MediaImageRequest, signal?: AbortSignal): Promise<MediaImageResult> {
-      for (const [field, value] of [
-        ['guidanceScale', request.guidanceScale], ['outputFormat', request.outputFormat],
-        ['optimizePromptMode', request.optimizePromptMode],
-      ]) {
-        if (value !== undefined) throw new MediaError(`${String(field)} is not supported by ${request.provider ?? request.model}`, 'MEDIA_INVALID_REQUEST')
-      }
+      rejectImageControls(request, ['guidanceScale', 'outputFormat', 'optimizePromptMode'])
       // The route carries no count: it answers with what the model produced, so
       // a call asking for several cannot be honored and is refused instead of
       // returning fewer images than it asked for.

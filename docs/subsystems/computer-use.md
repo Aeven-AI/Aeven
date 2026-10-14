@@ -90,4 +90,30 @@ tasks(): string[]
 ```
 
 Source: [`packages/computer-use/computer-use-macos-provider/src/index.ts`](../../packages/computer-use/computer-use-macos-provider/src/index.ts)
+
+<a id="location-events"></a>
+
+### `location/*` events
+
+<a id="locationrequest--waterfall"></a>
+
+#### `location/request` — waterfall
+
+Ask the reader of a session for their location. The client showing that session asks the reader and returns their choice; a listener that cannot ask calls `next()` to delegate. Scope-filtered dispatch (`@aeven/scope`): agent-scoped listeners receive only that agent.
+
+```ts cordis-catalog
+/**
+ * Ask the reader of a session for their location. The client showing that
+ * session asks the reader and returns their choice; a listener that cannot
+ * ask calls `next()` to delegate. Scope-filtered dispatch (`@aeven/scope`):
+ * agent-scoped listeners receive only that agent.
+ * @param request - pending location request.
+ * @mode waterfall
+ */
+'location/request'( this: Scoped<Agent>, request: LocationRequestEvent, next: () => Promise<LocationAnswer>, ): Promise<LocationAnswer>
+```
+
+Types: [Agent](core.md) · [Scoped](scope.md)
+
+Source: [`packages/interaction/tool-location/src/types.ts`](../../packages/interaction/tool-location/src/types.ts)
 <!-- END GENERATED cordis-surface -->

@@ -2,7 +2,7 @@ import type { SessionEvent } from '@aeven/session/types'
 import type {} from '@aeven/tools/types'
 import type {
   ConversationNode, RunningToolCall, ToolCallBlock, ToolResultNode,
-} from '../contract/snapshot.ts'
+} from '@aeven/client-ui-conversation/client'
 
 interface ProjectedBlock {
   source: ToolCallBlock

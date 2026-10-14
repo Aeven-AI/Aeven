@@ -9,7 +9,7 @@ import clsx from 'clsx'
 import type { PermissionSelect as PermissionSelectValue } from '@aeven/permission-presets/client'
 import {
   IconChevronRightOutline14, IconLucideImages, IconLucideSettings2, IconLucidePlay,
-  RiskConfirmation, Tooltip, useDismissOnOutsidePointer,
+  RiskConfirmation, Tooltip, useDismissOnOutsidePointer, useDismissOnEscape,
 } from '@aeven/client-ui-primitives'
 import type { UseProjection } from '@aeven/api-session-controller/client'
 // Type-only: the `contextPressure` / `contextBreakdown` projection key merges.
@@ -106,14 +106,7 @@ export function ComposerOptions({
     if (!open) setPane(null)
     setDetails(false)
   }, [open])
-  useEffect(() => {
-    if (!open) return
-    const onKeyDown = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') setOpen(false)
-    }
-    document.addEventListener('keydown', onKeyDown)
-    return () => { document.removeEventListener('keydown', onKeyDown) }
-  }, [open])
+  useDismissOnEscape(open, setOpen)
 
   // A locked composer, a withdrawn projection, or a mode already on its way
   // through the command face leaves nothing to pick: the card closes rather

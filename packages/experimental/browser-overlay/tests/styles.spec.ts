@@ -78,20 +78,19 @@ describe('stylesheet', () => {
     expect(sprite).toContain(`height: ${CURSOR_SPRITE.height}px !important;`)
   })
 
-  it('centres the sprite in the cursor box and rests it unrotated', () => {
-    // The nudge is the half-difference of the two sizes, so the sprite's centre
-    // lands on the box centre.
-    expect(CURSOR_NUDGE).toEqual({
-      x: (CURSOR_BOX - CURSOR_SPRITE.width) / 2,
-      y: (CURSOR_BOX - CURSOR_SPRITE.height) / 2,
-    })
-    expect(BASE_ROTATION_DEG).toBe(0)
-    // Neither the sprite layer nor the sprite inside it declares a rotation: the
-    // artwork is authored in the orientation it should be seen in, and the motion
-    // model alone holds that angle, so rotating here as well would double it.
+  it('nudges the sprite to the reference origin and rests it through the compensating rotation', () => {
+    // Both numbers are the reference artwork's own: the sprite is placed at that
+    // origin rather than centred by the half-difference of the two sizes.
+    expect(CURSOR_NUDGE).toEqual({ x: 12, y: -2.5 })
+    expect(CURSOR_SPRITE).toEqual({ width: 23, height: 24 })
+    // The motion model rests at the base angle and the sprite rotates the other
+    // way by the same amount, so the drawn arrow rests in the orientation it
+    // should be seen in.
+    expect(BASE_ROTATION_DEG).toBe(-44)
     const spriteRules = styles.slice(styles.indexOf(`.${cls('cursor-sprite')}`), styles.indexOf(`.${cls('box')}`))
     expect(spriteRules).toContain(`transform: translate3d(${CURSOR_NUDGE.x}px, ${CURSOR_NUDGE.y}px, 0);`)
-    expect(spriteRules).not.toContain('rotate')
+    expect(spriteRules).toContain(`transform: rotate(${String(-BASE_ROTATION_DEG)}deg) scale(1);`)
+    expect(spriteRules).toContain('transform-origin: 0 0;')
   })
 
   it('glows through two drop shadows a host can re-tint', () => {

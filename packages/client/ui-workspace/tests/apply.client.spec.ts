@@ -169,7 +169,9 @@ describe('ui-workspace apply', () => {
 
   it('declares the two directory-flow holes and reports their occupancy per surface', async () => {
     const b = await bench()
-    declare(b.slots, 'sidebar.workspaces', 'conversation.hero.workspace')
+    // The header holes are the sidebar shell's; the bench owns their
+    // declaration because it mounts this plugin alone.
+    declare(b.slots, 'sidebar.header.action', 'sidebar.workspaces', 'conversation.hero.workspace')
     await b.ctx.plugin({ inject: [...inject], apply }).await()
     // Registration declared the child holes (declaration = render authorization).
     expect(b.slots.spec('sidebar.header.action.directoryFlow')).toMatchObject({ kind: 'single' })

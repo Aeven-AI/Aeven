@@ -114,6 +114,9 @@ bearer 按每次生成解析：先取凭据 seam 中属于发起生成的 Sessio
 - **费用以网关数字为准** — 图片结果或成功视频任务上的 `costUsdMicros` 是网关账本记录的客户扣费（`usage.cost_usd_micros`）；不报告它的网关会让该字段缺省。
 
 <a id="dev-note"></a>
+
+<a id="开发备注"></a>
+
 ### 开发备注
 
 <details>

@@ -158,6 +158,31 @@ function textMessage(id: string, text: string) {
   }
 }
 
+/**
+ * An injected context the Chat flow keeps visible: a user-invoked skill's
+ * content, which `isVisibleChatNode` admits as a row. Every other injected
+ * source is materialized without a place in the flow order.
+ */
+function skillMessage(id: string, text: string) {
+  return {
+    ...textMessage(id, text),
+    source: { kind: 'skill-invocation', name: 'demo-skill', form: 'instructions' },
+  }
+}
+
+/**
+ * Materialized Nodes of the named kinds in the anchor order the flow presents
+ * them — including the kinds the flow keeps out of its visible order.
+ * @param value - Chat snapshot to read.
+ * @param kinds - Node kinds to collect.
+ * @returns the collected Nodes, ordered by anchorSeq.
+ */
+function byKinds(value: ChatSnapshot, kinds: readonly string[]): ChatConversationViewNode[] {
+  return [...value.nodes.values()]
+    .filter(candidate => kinds.includes(candidate.kind))
+    .sort((left, right) => left.anchorSeq - right.anchorSeq)
+}
+
 function assistantMessage(id: string, text: string) {
   return {
     id,
@@ -361,10 +386,7 @@ describe('built-in conversation node Definitions', () => {
     const steering = textMessage('steer-1', 'change direction')
     const value = assembler([
       at(1, 'turn/start', { turn: 1 }),
-      at(2, 'user/message', {
-        ...textMessage('context-1', 'runtime context'),
-        source: { kind: 'plugin', plugin: 'context' },
-      }, { surfaceOp: 'append' }),
+      at(2, 'user/message', skillMessage('context-1', 'runtime context'), { surfaceOp: 'append' }),
       at(3, 'user/message', textMessage('user-1', 'question'), { surfaceOp: 'append' }),
       at(4, 'step/start', { turn: 1, step: 1 }),
     ])
@@ -527,10 +549,7 @@ describe('built-in conversation node Definitions', () => {
   it('keeps Process before pre-User Context as answer eligibility changes', () => {
     const value = assembler([
       at(1, 'turn/start', { turn: 1 }),
-      at(2, 'user/message', {
-        ...textMessage('context-1', 'runtime context'),
-        source: { kind: 'plugin', plugin: 'context' },
-      }, { surfaceOp: 'append' }),
+      at(2, 'user/message', skillMessage('context-1', 'runtime context'), { surfaceOp: 'append' }),
       at(3, 'step/start', { turn: 1, step: 1 }),
       at(4, 'assistant/chunk', {
         turn: 1, step: 1, chunk: { type: 'reasoning-delta', index: 0, text: 'thinking' },
@@ -1367,11 +1386,9 @@ describe('built-in conversation node Definitions', () => {
     ], false)
     windowed.flush()
     const restored = snapshot(windowed)
-    const restoredPrompts = restored.order.flatMap((key) => {
-      const candidate = restored.nodes.get(key)
-      return candidate?.kind === 'system-prompt' ? [candidate] : []
-    })
-    expect(restoredPrompts.map(prompt => prompt.data)).toEqual([
+    // System prompts are materialized without a place in the visible flow, so
+    // the restored series is read from the Nodes in anchor order.
+    expect(byKinds(restored, ['system-prompt']).map(prompt => prompt.data)).toEqual([
       { text: '# Original prompt' },
       { text: '# Resumed prompt' },
     ])
@@ -1393,12 +1410,13 @@ describe('built-in conversation node Definitions', () => {
     ])
 
     const current = snapshot(value)
-    expect(current.order.map(key => current.nodes.get(key)?.kind)).toEqual([
-      'system-prompt',
-      'user',
-      'context',
-    ])
-    expect(node(current, 'system-prompt')?.anchorSeq).toBe(1)
+    // The system field anchors at the head of the request's message series,
+    // before the messages the model received, and the messages keep the order
+    // they were logged in. System prompts and injected context stay out of the
+    // visible flow, which the open Turn's header follows.
+    expect(current.order.map(key => current.nodes.get(key)?.kind)).toEqual(['user', 'turn-process'])
+    expect(byKinds(current, ['system-prompt', 'user', 'context'])
+      .map(candidate => candidate.anchorSeq)).toEqual([1, 3, 4])
   })
 
   it('keeps the initial system prompt before the opening User as Turn process state changes', () => {
@@ -1406,10 +1424,7 @@ describe('built-in conversation node Definitions', () => {
       at(1, 'turn/start', { turn: 1 }),
       at(2, 'step/start', { turn: 1, step: 1 }),
       at(3, 'user/message', textMessage('direct-user', 'prompt'), { surfaceOp: 'append' }),
-      at(4, 'user/message', {
-        ...textMessage('runtime-context', 'runtime facts'),
-        source: { kind: 'plugin', plugin: 'context' },
-      }, { surfaceOp: 'append' }),
+      at(4, 'user/message', skillMessage('runtime-context', 'runtime facts'), { surfaceOp: 'append' }),
       at(5, 'request/header', {
         reason: 'initial',
         header: { config: { provider: 'fake', model: 'fake' }, system: '# System' },
@@ -1421,14 +1436,17 @@ describe('built-in conversation node Definitions', () => {
     }
     const promptKey = node(snapshot(value), 'system-prompt')?.key
 
-    expect(kinds()).toEqual(['system-prompt', 'user', 'context'])
+    // The prompt anchors before the opening User and never joins the visible
+    // flow, while the open Turn's header follows the input it stands under.
+    expect(kinds()).toEqual(['user', 'turn-process', 'context'])
+    expect(node(snapshot(value), 'system-prompt')?.anchorSeq).toBe(1)
 
     value.append(at(6, 'assistant/chunk', {
       turn: 1, step: 1, chunk: { type: 'reasoning-delta', index: 0, text: 'thinking' },
     }))
     value.flush()
     expect(kinds()).toEqual([
-      'system-prompt', 'user', 'turn-process', 'context', 'assistant-step',
+      'user', 'turn-process', 'context', 'assistant-step',
     ])
 
     value.append(at(7, 'step/end', { turn: 1, step: 1 }))
@@ -1441,9 +1459,12 @@ describe('built-in conversation node Definitions', () => {
     value.flush()
 
     expect(kinds()).toEqual([
-      'system-prompt', 'user', 'turn-process', 'context', 'assistant-step', 'assistant-step', 'turn-tail',
+      'user', 'turn-process', 'context', 'assistant-step', 'assistant-step', 'turn-tail',
     ])
+    // The prompt row keeps one identity outside the visible flow, and its
+    // anchor stays ahead of the opening User's.
     expect(node(snapshot(value), 'system-prompt')?.key).toBe(promptKey)
+    expect(node(snapshot(value), 'system-prompt')?.anchorSeq).toBe(1)
   })
 
   it('keeps an append-only later user turn in the existing system-prompt series', () => {
@@ -1463,10 +1484,9 @@ describe('built-in conversation node Definitions', () => {
     ])
 
     const current = snapshot(value)
-    const ordered = current.order.flatMap((key) => {
-      const candidate = current.nodes.get(key)
-      return candidate?.kind === 'system-prompt' || candidate?.kind === 'user' ? [candidate] : []
-    })
+    // The series is read from the materialized Nodes rather than the visible
+    // flow, which holds only the User rows.
+    const ordered = byKinds(current, ['system-prompt', 'user'])
     expect(ordered.map(candidate => candidate.kind)).toEqual(['system-prompt', 'user', 'user'])
   })
 
@@ -1488,9 +1508,11 @@ describe('built-in conversation node Definitions', () => {
       const prompt = node(before, 'system-prompt')
       const user = node(before, 'user')
       if (prompt === undefined || user === undefined) throw new Error('windowed prompt fixture is incomplete')
-      const stableOrder = [user.key, prompt.key]
       expect(prompt.anchorSeq).toBe(8)
-      expect(before.order.filter(key => stableOrder.includes(key))).toEqual(stableOrder)
+      // The prompt is materialized outside the visible flow, and the windowed
+      // page's own User precedes it.
+      expect(before.order).not.toContain(prompt.key)
+      expect(user.anchorSeq).toBeLessThan(prompt.anchorSeq)
 
       windowed.prepend([
         at(1, 'turn/start', { turn: 1 }),
@@ -1504,13 +1526,12 @@ describe('built-in conversation node Definitions', () => {
       windowed.flush()
 
       const restored = snapshot(windowed)
-      const prompts = restored.order.flatMap((key) => {
-        const candidate = restored.nodes.get(key)
-        return candidate?.kind === 'system-prompt' ? [candidate] : []
-      })
+      const prompts = byKinds(restored, ['system-prompt'])
       expect(prompts.map(candidate => candidate.anchorSeq)).toEqual([1, 8])
+      // The prepend adds the earlier series without moving the windowed page's
+      // own anchors.
       expect(restored.nodes.get(prompt.key)?.anchorSeq).toBe(8)
-      expect(restored.order.filter(key => stableOrder.includes(key))).toEqual(stableOrder)
+      expect(restored.nodes.get(user.key)?.anchorSeq).toBe(user.anchorSeq)
     }
   })
 
@@ -1543,15 +1564,12 @@ describe('built-in conversation node Definitions', () => {
     ])
 
     const current = snapshot(value)
-    const ordered = current.order.flatMap((key) => {
-      const candidate = current.nodes.get(key)
-      return candidate?.kind === 'system-prompt' || candidate?.kind === 'user' ? [candidate] : []
-    })
-    expect(ordered.map(candidate => candidate?.kind)).toEqual([
+    const ordered = byKinds(current, ['system-prompt', 'user'])
+    expect(ordered.map(candidate => candidate.kind)).toEqual([
       'system-prompt', 'user', 'system-prompt', 'system-prompt', 'user',
     ])
-    expect(ordered.filter(candidate => candidate?.kind === 'system-prompt')
-      .map(candidate => candidate?.anchorSeq)).toEqual([1, 6, 9])
+    expect(ordered.filter(candidate => candidate.kind === 'system-prompt')
+      .map(candidate => candidate.anchorSeq)).toEqual([1, 6, 9])
   })
 
   it('associates each direct message with its immediately following session recall', () => {

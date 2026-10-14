@@ -2,13 +2,15 @@
 
 Status: implemented
 
+English | [中文](2026-10-06-memory-summaries-name-their-subject.zh.md)
+
 ## Problem
 
 Automatic recall injects each trace's stored summary, and the MemOS summarizer wrote that summary from one exchange with the instruction to drop the speaker and to keep "an answer that was confirmed". A user who confirmed a list about themselves ("you got all right, including ollie") was stored as "User confirmed all correct, including Ollie; keep using that name." Under the heading "About the user", next to a line about the user's son, the model attributed the nickname to the son. The wrong answer was then captured as a `person` fact ("Son: …, nickname Ollie"), so one misreading became a stored memory that later recall would present as confirmation. The correction ("no, I go by Ollie not my son") matched none of the `correctionOf` phrases, so the wrong trace was never superseded.
 
 ## Decision
 
-The summary is fixed where MemOS writes it, because it is also what MemOS embeds for `vec_summary` retrieval and `updateTrace` does not re-embed. The [MemOS patch](../../../../patches/@memtensor__memos-local-plugin@2.0.20.patch) changes the summarizer prompt: each fact names whom it is about, a fact about the user or a person they know comes only from the user's words, and a question the assistant answered about them is summarized as the question.
+The summary is fixed where MemOS writes it, because it is also what MemOS embeds for `vec_summary` retrieval and `updateTrace` does not re-embed. The `MemOS patch` changes the summarizer prompt: each fact names whom it is about, a fact about the user or a person they know comes only from the user's words, and a question the assistant answered about them is summarized as the question.
 
 One model call per captured turn writes the summary, files the domain, and detects a correction. The patch forwards the MemOS operation name to the Host bridge. `TurnJudgeContext` in `@aeven/memory-memos` scopes each turn capture with AsyncLocalStorage; when the bridge receives that capture's `capture.summarize` request that carries an `ASSISTANT` section, it appends the domain rules and prefixes the session's project and the previous captured reply. The JSON answer carries `summary` for MemOS and `domain` and `corrects` for Aeven. The separate classification call runs only when no judgment was produced: a non-host MemOS provider, a summarizer fallback, or an answer without a domain.
 

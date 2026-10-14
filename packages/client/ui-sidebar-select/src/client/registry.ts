@@ -64,7 +64,7 @@ export class SidebarContentRegistry extends Service {
   private readonly pendingOpens = new Map<string, SidebarContentKind>()
   private readonly listeners = new Set<() => void>()
   /** Bumped on every add or removal, so a reader can compare snapshots. */
-  version = 0
+  version: number = 0
 
   /**
    * @param ctx - the registering plugin's context.
@@ -116,13 +116,21 @@ export class SidebarContentRegistry extends Service {
     return this.launchers.get(kind)
   }
 
-  /** Ask the column to show a kind for a session, including when that session mounts later. */
+  /**
+   * Ask the column to show a kind for a session, including when that session mounts later.
+   * @param sessionId - session whose column shows the kind.
+   * @param kind - the content kind to show.
+   */
   requestOpen(sessionId: string, kind: SidebarContentKind): void {
     this.pendingOpens.set(sessionId, kind)
     this.emit()
   }
 
-  /** Consume a pending open after the column has handled it. */
+  /**
+   * Consume a pending open after the column has handled it.
+   * @param sessionId - session whose pending open is consumed.
+   * @returns the requested kind, or undefined when none was pending.
+   */
   takeOpenRequest(sessionId: string): SidebarContentKind | undefined {
     const kind = this.pendingOpens.get(sessionId)
     this.pendingOpens.delete(sessionId)
@@ -160,7 +168,10 @@ export class SidebarContentRegistry extends Service {
     return this.entries.get(kind)
   }
 
-  /** The kinds a pane or a launcher currently answers. */
+  /**
+   * The kinds a pane or a launcher currently answers.
+   * @returns every kind with a registered provider or launcher.
+   */
   available(): ReadonlySet<SidebarContentKind> {
     return new Set([...this.entries.keys(), ...this.launchers.keys()])
   }

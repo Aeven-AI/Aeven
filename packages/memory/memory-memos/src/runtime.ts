@@ -143,6 +143,7 @@ export class MemosMemory implements MemoryProvider {
   private async search(request: MemoryRecallRequest, deadlineAt: number, turnStart: boolean): Promise<MemoryHit[]> {
     const { scope } = request
     const limits = turnStart ? request.limits : request.limits ?? this.options.toolLimits
+    const callOptions = { signal: request.signal, ...turnStart ? {} : { foreground: true } }
     const search = this.options.cores.get(scope.owner).then(core => this.withRoute(scope.route, () => core.searchMemory({
       agent: MEMOS_AGENT,
       namespace: this.namespaceOf(scope),
@@ -159,7 +160,7 @@ export class MemosMemory implements MemoryProvider {
       ...limits === undefined ? {} : {
         topK: { tier1: limits.skills, tier2: limits.traces, tier3: limits.worldModels },
       },
-    }, { signal: request.signal, ...turnStart ? {} : { foreground: true } })).then(result => this.visibleHits(core, scope, result.hits, turnStart)))
+    }, callOptions)).then(result => this.visibleHits(core, scope, result.hits, turnStart)))
     // A provider can be temporarily non-cancellable (for example while a local ONNX model loads),
     // so the deadline is enforced here as well as inside the core; it also bounds the account's first core open.
     return withDeadline(search, deadlineAt, request.signal, `Memory recall exceeded ${request.timeoutMs}ms`)
@@ -174,7 +175,12 @@ export class MemosMemory implements MemoryProvider {
    * Classify each hit's domain and drop project memory of other workspaces; MemOS retrieval does not
    * filter by workspace, so this is where project memory stays in its project.
    */
-  private async visibleHits(core: MemoryCore, scope: MemoryScope, hits: readonly RetrievalHitDTO[], turnStart: boolean): Promise<MemoryHit[]> {
+  private async visibleHits(
+    core: MemoryCore,
+    scope: MemoryScope,
+    hits: readonly RetrievalHitDTO[],
+    turnStart: boolean,
+  ): Promise<MemoryHit[]> {
     const workspace = this.workspaceOf(scope)
     const namespace = this.namespaceOf(scope)
     const classified = await Promise.all(hits.map(async (hit) => {

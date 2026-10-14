@@ -14,7 +14,7 @@ const traces: readonly FakeTrace[] = [
 ]
 
 async function recallOf(at: readonly FakeTrace[], purpose: 'tool' | 'turn-start') {
-  const recall = await memory(at).recall({ scope: SCOPE, query: 'release checksum salt', purpose, timeoutMs: 1000, signal } as never)
+  const recall = await memory(at).recall({ scope: SCOPE, query: 'release checksum salt', purpose, timeoutMs: 1000, signal })
   return recall.hits[0]?.snippet
 }
 
