@@ -111,7 +111,8 @@ describe('the provider joins the layers', () => {
     }
   })
 
-  it('builds an osascript runner that resolves rather than rejects on failure', async () => {
+  // osascript exists only on macOS.
+  it.skipIf(process.platform !== 'darwin')('builds an osascript runner that resolves rather than rejects on failure', async () => {
     const runner = createOsascriptRunner()
     // A script that fails: the runner must hand back a status, not throw, because
     // osascript reports application failures through its exit code.
@@ -120,7 +121,8 @@ describe('the provider joins the layers', () => {
     expect(typeof result.stderr).toBe('string')
   })
 
-  it('runs a real trivial script and captures stdout', async () => {
+  // osascript exists only on macOS.
+  it.skipIf(process.platform !== 'darwin')('runs a real trivial script and captures stdout', async () => {
     const runner = createOsascriptRunner()
     const result = await runner.run('JSON.stringify({ ok: true })')
     expect(result.code).toBe(0)
