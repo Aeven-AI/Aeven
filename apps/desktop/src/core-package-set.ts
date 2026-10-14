@@ -110,9 +110,24 @@ export function desktopCorePackageSpec(record: DesktopCorePackageRecord): string
   return `file:./${DESKTOP_PACKAGES_DIR}/${record.file}`
 }
 
-/** Return the exact pnpm override map that keeps every core package off registries. */
+/**
+ * Peer dependencies of published packages that a core package satisfies under another name, keyed by the peer
+ * name. The Desktop profile disables `autoInstallPeers`, so each alias becomes a root dependency on the core
+ * tarball, which the hoisted layout places where the dependent package resolves it.
+ */
+const DESKTOP_PEER_ALIASES: Readonly<Record<string, string>> = {
+  // dsh-coding-oauth-core, which @aeven/subscription-auth loads, imports the context-window error contract from it.
+  '@deepseek-ai/dsh-llm': '@aeven/llm',
+}
+
+/** Return the exact pnpm override map that keeps every core package and peer alias off registries. */
 export function desktopCorePackageOverrides(packageSet: DesktopCorePackageSet): Record<string, string> {
-  return Object.fromEntries(packageSet.packages.map(record => [record.name, desktopCorePackageSpec(record)]))
+  const overrides = Object.fromEntries(packageSet.packages.map(record => [record.name, desktopCorePackageSpec(record)]))
+  for (const [alias, target] of Object.entries(DESKTOP_PEER_ALIASES)) {
+    const spec = overrides[target]
+    if (spec !== undefined) overrides[alias] = spec
+  }
+  return overrides
 }
 
 /** Return the local direct dependency spec for the avn package. */

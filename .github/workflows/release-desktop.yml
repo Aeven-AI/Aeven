@@ -20,6 +20,9 @@
 #             AVN_DESKTOP_MACOS_TEAM_ID, APPLE_API_KEY_P8 (key file contents),
 #             APPLE_API_KEY_ID, APPLE_API_ISSUER
 # The application id comes from the AVN_DESKTOP_APP_ID repository variable.
+# The Aeven deployment the application signs in to comes from the AEVEN_API_URL,
+# AEVEN_WEB_URL, AEVEN_MEDIA_URL, AEVEN_OAUTH_X_URL, AEVEN_OAUTH_APPLE_URL,
+# AEVEN_OAUTH_GOOGLE_URL, and SLACK_CLIENT_ID repository variables.
 name: Release desktop
 
 on:
@@ -100,6 +103,13 @@ jobs:
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     env:
       AVN_DESKTOP_APP_ID: ${{ vars.AVN_DESKTOP_APP_ID || 'com.aeven.desktop' }}
+      AEVEN_API_URL: ${{ vars.AEVEN_API_URL || 'https://aeven.io/api' }}
+      AEVEN_WEB_URL: ${{ vars.AEVEN_WEB_URL }}
+      AEVEN_MEDIA_URL: ${{ vars.AEVEN_MEDIA_URL }}
+      AEVEN_OAUTH_X_URL: ${{ vars.AEVEN_OAUTH_X_URL }}
+      AEVEN_OAUTH_APPLE_URL: ${{ vars.AEVEN_OAUTH_APPLE_URL }}
+      AEVEN_OAUTH_GOOGLE_URL: ${{ vars.AEVEN_OAUTH_GOOGLE_URL }}
+      SLACK_CLIENT_ID: ${{ vars.SLACK_CLIENT_ID }}
       # electron-builder's bundled fpm is x64-only, so deb packaging uses the
       # system fpm installed below, as linux-builder.Dockerfile does.
       USE_SYSTEM_FPM: ${{ startsWith(matrix.target, 'linux-') && 'true' || '' }}

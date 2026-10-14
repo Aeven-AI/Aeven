@@ -75,7 +75,7 @@ Workspace development runs the current CLI and private Desktop Host packages und
 
 ## Package
 
-The normal packaging path is one complete command. It performs release preparation before creating the host platform's installers and update metadata. Every target requires a reverse-DNS `AVN_DESKTOP_APP_ID`. macOS targets additionally require the electron-builder certificate qualifier in `AVN_DESKTOP_MACOS_SIGNING_IDENTITY`, its 10-character Apple Team ID in `AVN_DESKTOP_MACOS_TEAM_ID`, and one complete notarytool credential strategy. The App Store Connect API-key strategy uses these variables:
+The normal packaging path is one complete command. It performs release preparation before creating the host platform's installers and update metadata. Every target requires a reverse-DNS `AVN_DESKTOP_APP_ID`. Every target also requires `AEVEN_API_URL`, and packaging records it with any set `AEVEN_WEB_URL`, `AEVEN_MEDIA_URL`, `AEVEN_OAUTH_X_URL`, `AEVEN_OAUTH_APPLE_URL`, `AEVEN_OAUTH_GOOGLE_URL`, and `SLACK_CLIENT_ID` as `aevenDeployment` in the application's `package.json`; an installed copy has no `.env`, so the shell passes these to its Host, and a value the launching environment sets wins. Locally, packaging reads them from the repository root `.env` like `AVN_DESKTOP_APP_ID`. macOS targets additionally require the electron-builder certificate qualifier in `AVN_DESKTOP_MACOS_SIGNING_IDENTITY`, its 10-character Apple Team ID in `AVN_DESKTOP_MACOS_TEAM_ID`, and one complete notarytool credential strategy. The App Store Connect API-key strategy uses these variables:
 
 ```sh
 export AVN_DESKTOP_APP_ID='<reverse-DNS application ID>'

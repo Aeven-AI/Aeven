@@ -96,6 +96,26 @@ interface RuntimeResources {
   readonly seed: string
 }
 
+/**
+ * Give the Host the deployment settings packaging recorded in this application's `package.json`
+ * (`aevenDeployment`): an installed copy has no `.env`, and the profile rows read the Aeven account, web, media,
+ * and sign-in URLs from the Host environment. A value the launching environment already sets wins.
+ */
+async function applyPackagedDeployment(): Promise<void> {
+  if (!app.isPackaged) return
+  const manifest: unknown = JSON.parse(await readFile(join(app.getAppPath(), 'package.json'), 'utf8'))
+  const deployment = typeof manifest === 'object' && manifest !== null && 'aevenDeployment' in manifest
+    ? manifest.aevenDeployment
+    : undefined
+  if (typeof deployment !== 'object' || deployment === null
+    || !Object.values(deployment).every(value => typeof value === 'string')) {
+    throw new Error('avn desktop: the application package carries no valid aevenDeployment settings')
+  }
+  for (const [name, value] of Object.entries(deployment as Record<string, string>)) {
+    process.env[name] ??= value
+  }
+}
+
 function runtimeResources(): RuntimeResources {
   const development = !app.isPackaged
   const node = (development ? process.env.AVN_DESKTOP_NODE_BINARY : undefined)
@@ -271,6 +291,7 @@ async function serveShellAsset(request: Request): Promise<Response> {
 }
 
 async function main(): Promise<void> {
+  await applyPackagedDeployment()
   const resources = runtimeResources()
   const paths = resolveDesktopPaths()
   const development = developmentProject()
