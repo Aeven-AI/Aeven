@@ -94,7 +94,10 @@ jobs:
     name: Build ${{ matrix.target }}${{ matrix.variant && format(' ({0})', matrix.variant) || '' }}
     needs: plan
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 150
+    # The macOS targets wait on Apple's notarization queue rather than on the
+    # runner, so they take GitHub's six-hour job ceiling; the other targets fit
+    # in a window that a stalled package step cannot hold all day.
+    timeout-minutes: ${{ startsWith(matrix.target, 'mac-') && 360 || 150 }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
