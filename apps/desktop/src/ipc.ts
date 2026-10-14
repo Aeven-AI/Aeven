@@ -26,7 +26,12 @@ export const DESKTOP_IPC = {
   captionScheme: 'avn-desktop:caption-scheme',
   captionMenuLabels: 'avn-desktop:caption-menu-labels',
   captionMenuOpen: 'avn-desktop:caption-menu-open',
+  captionWindowControl: 'avn-desktop:caption-window-control',
+  captionButtonLabels: 'avn-desktop:caption-button-labels',
 } as const
+
+/** Window operation a page-drawn Linux caption button asks for; `maximize` toggles. */
+export type DesktopCaptionAction = 'minimize' | 'maximize' | 'close'
 
 /** `prefers-color-scheme` a browser guest is shown with; `system` clears the override. */
 export type DesktopBrowserColorScheme = 'system' | 'light' | 'dark'
