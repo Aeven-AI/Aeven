@@ -1,10 +1,10 @@
 /**
  * Aeven authority for the authenticated-user seam.
  *
- * The Aeven client presents a different credential per transport, so this
- * resolver reads both: an HTTP RPC call carries the short-lived access token in
- * `Authorization: Bearer`, while a WebSocket upgrade carries only the
- * `refreshToken` cookie, because a browser cannot set a header on one. Both are
+ * The resolver reads two credentials. The short-lived access token arrives as
+ * `Authorization: Bearer` (the Remote stream gateway maps a WebSocket's bearer
+ * subprotocol to the same header) and, when presented, decides alone. The
+ * `refreshToken` cookie identifies only a request that presents no bearer. Both are
  * ES256 tokens verified against the public keys the Aeven API publishes at
  * `/.well-known/jwks.json`, mirroring the API's `authenticate` and
  * `authenticateSocketUpgrade`. This Host holds no secret that can sign a token.
@@ -73,7 +73,7 @@ export interface Config {
   jwksRefreshIntervalMs?: number
   /** Budget for one key set fetch. */
   jwksTimeoutMs?: number
-  /** Cookie carrying the refresh token on a WebSocket upgrade. */
+  /** Cookie carrying the refresh token for a request that presents no bearer. */
   refreshCookieName?: string
   /**
    * Origin of the Aeven API the browser signs in against, such as
@@ -242,19 +242,21 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     resolve(request: IdentityRequest): User | undefined {
       const nowSeconds = Math.floor(Date.now() / 1000)
 
-      // The bearer first: an HTTP call carries the access token, which is the
-      // shorter-lived of the two and the one the client keeps fresh.
+      // A presented bearer is the page's own session and decides alone. The
+      // refresh cookie is shared by every tab and port of the host, so falling
+      // back to it when the bearer fails would identify whichever account
+      // signed in last; the client renews a refused bearer and retries.
       const authorization = headerValue(request.headers, 'authorization')
       if (authorization !== undefined) {
         const [scheme, token] = authorization.split(' ')
         if (scheme?.toLowerCase() === 'bearer' && token !== undefined) {
           const userId = verifiedUserId(token, 'access', nowSeconds)
-          if (userId !== undefined) return { id: userId }
+          return userId === undefined ? undefined : { id: userId }
         }
       }
 
-      // Then the cookie: a WebSocket upgrade has no way to send a header, so
-      // the refresh token is the only credential it can present.
+      // Without a bearer, the cookie: a request the page sent with no session
+      // token of its own, such as a socket from a client without the bearer hook.
       const cookie = headerValue(request.headers, 'cookie')
       if (cookie !== undefined) {
         const token = cookieValue(cookie, refreshCookieName)

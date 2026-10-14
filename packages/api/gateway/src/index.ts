@@ -39,6 +39,7 @@ import type {
 import {
   RemoteStreamMuxServer,
   rejectRemoteStreamUpgrade,
+  remoteStreamTrustRequest,
 } from './stream-server.ts'
 import {
   REMOTE_EVENT_STREAM_ENDPOINT,
@@ -224,14 +225,15 @@ export class TypertGatewayService extends Service implements TypertGateway {
         const route: WebUpgradeRoute = {
           path: REMOTE_STREAM_MUX_PATH,
           handler: (req, socket, head) => {
-            const rejection = webCtx.connection.requestRejection(req)
+            const trust = remoteStreamTrustRequest(req)
+            const rejection = webCtx.connection.requestRejection(trust)
             if (rejection !== undefined) {
               rejectRemoteStreamUpgrade(socket, rejection)
               return
             }
             // Identified after the fence admitted it, so the connection knows
             // whose it is for as long as it lives.
-            mux.handleUpgrade(req, socket, head, webCtx.connection.identify(req))
+            mux.handleUpgrade(req, socket, head, webCtx.connection.identify(trust))
           },
         }
         const unregister = webCtx.webServer.registerUpgrade(route)

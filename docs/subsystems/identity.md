@@ -8,7 +8,7 @@ Source: [`packages/identity/user/src/types.ts`](../../packages/identity/user/src
 
 ## What an authority is given
 
-An authority receives headers and nothing else, because headers are what both AVN transports have in common. An HTTP request carries its credential in `authorization`; a WebSocket upgrade carries it in `cookie`, because a browser cannot set a header on the upgrade. Nothing is decoded for the authority — it reads whichever header it recognizes.
+An authority receives headers and nothing else, because headers are what both AVN transports have in common. An HTTP request carries its credential in `authorization`. A browser cannot set a header on a WebSocket upgrade, so the Remote stream Client offers its bearer as a subprotocol and the gateway presents it to the seam as `authorization`; an upgrade without one carries only `cookie`. Nothing is decoded for the authority — it reads whichever header it recognizes.
 
 `User` guarantees only `id`. That is what a subsystem keys work on and the only field an authority must be able to produce; `email`, `displayName`, and `avatarUrl` are presentation an authority may or may not hold, so a consumer that wants a display name handles its absence rather than assuming a profile was fetched.
 

@@ -70,7 +70,7 @@ AVN 在已经为每个 HTTP 请求和每次 WebSocket 升级运行的请求围�
 
 ### 请求词汇
 
-authority 只拿到 header，因为这是两种 AVN 传输的共同点——HTTP 在 `authorization` 中携带凭据，而 WebSocket 升级在 `cookie` 中携带，因为浏览器无法在升级上设置 header。这里不为 authority 解码任何内容；它读取自己认得的那个 header。
+authority 只拿到 header，因为这是两种 AVN 传输的共同点——HTTP 在 `authorization` 中携带凭据，而 Remote stream gateway 把 WebSocket 提供的 bearer 子协议作为同一 header 交出，因为浏览器无法在升级上设置 header；未提供 bearer 的升级只携带 `cookie`。这里不为 authority 解码任何内容；它读取自己认得的那个 header。
 
 ### 源码地图
 

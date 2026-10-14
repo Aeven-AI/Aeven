@@ -3,7 +3,9 @@ import { RemoteError } from '@aeven/typert-protocol'
 
 import {
   parseRemoteStreamServerMessage,
+  REMOTE_STREAM_BEARER_PREFIX,
   REMOTE_STREAM_MUX_PATH,
+  REMOTE_STREAM_SUBPROTOCOL,
   type RemoteStreamClientMessage,
   type RemoteStreamServerMessage,
 } from '../stream-protocol.ts'
@@ -40,6 +42,13 @@ export class RemoteStreamMuxClient {
   private readonly waiters = new Set<SocketWaiter>()
   private running = false
   private disposed = false
+
+  /**
+   * @param credential - the page's bearer, read again for every attempt so a
+   * reconnect presents the current token; absent when the page's transport
+   * installs none and the upgrade is admitted by its cookie or launch token.
+   */
+  constructor(private readonly credential?: () => Promise<string>) {}
 
   /** Ensure a physical attempt exists, following the current attempt once if needed. */
   start(): void {
@@ -139,8 +148,13 @@ export class RemoteStreamMuxClient {
     await this.keepAlive
   }
 
-  private connect(): Promise<WebSocket> {
-    const socket = new WebSocket(remoteStreamUrl())
+  private async connect(): Promise<WebSocket> {
+    const revision = this.revision
+    const protocols = await this.protocols()
+    if (this.disposed || !this.running || revision !== this.revision) {
+      throw new RemoteStreamCarrierError('api gateway: Remote stream attempt superseded')
+    }
+    const socket = new WebSocket(remoteStreamUrl(), protocols)
     const connecting = new Promise<WebSocket>((resolve, reject) => {
       let settled = false
       const rejectCandidate = (error: Error): void => {
@@ -187,7 +201,19 @@ export class RemoteStreamMuxClient {
       socket.addEventListener('message', received)
       socket.addEventListener('close', closed, { once: true })
     })
-    return connecting
+    return await connecting
+  }
+
+  /** Subprotocols offering the page's bearer, or none when the page has no credential hook. */
+  private async protocols(): Promise<string[]> {
+    if (this.credential === undefined) return []
+    let bearer: string
+    try {
+      bearer = await this.credential()
+    } catch (error) {
+      throw new RemoteStreamCarrierError('api gateway: no credential for the Remote stream WebSocket', { cause: error })
+    }
+    return [REMOTE_STREAM_SUBPROTOCOL, `${REMOTE_STREAM_BEARER_PREFIX}${bearer}`]
   }
 
   private waitForSocket(signal: AbortSignal): Promise<WebSocket> {

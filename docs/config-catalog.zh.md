@@ -1096,7 +1096,7 @@ export interface Config {
   accessSecretEnv?: string
   /** Environment variable holding the refresh-token secret; the API's `REFRESH_SECRET`. */
   refreshSecretEnv?: string
-  /** Cookie carrying the refresh token on a WebSocket upgrade. */
+  /** Cookie carrying the refresh token for a request that presents no bearer. */
   refreshCookieName?: string
   /**
    * Origin of the Aeven API the browser signs in against, such as

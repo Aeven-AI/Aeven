@@ -68,7 +68,7 @@ Aeven 无法抵达时，`restoreSession` 会用它所保留的最近一份 profi
 
 ### 两种凭据，两种传输
 
-refresh token 是此处无法读取的 httpOnly cookie；由 API 把它换成新的 access token。每次已认证调用都经过 `currentBearer`，当持有的 token 未过期且指向正确用户时直接返回它，否则刷新。由于浏览器无法在 WebSocket 升级上设置 header，socket 出示 cookie 而 HTTP 出示 bearer——通过 connection 插件本就读取的传输钩子安装，而不是让该插件了解 Aeven。
+refresh token 是此处无法读取的 httpOnly cookie；由 API 把它换成新的 access token。每次已认证调用都经过 `currentBearer`，当持有的 token 未过期且指向正确用户时直接返回它，否则刷新。HTTP 以 `Authorization` 出示 bearer。浏览器无法在 WebSocket 升级上设置 header，因此 Remote stream socket 通过 `socketCredential` 钩子提供同一个 bearer；页面不持有 bearer 时该钩子会拒绝，而不是让 socket 回退到可能已被其他标签页替换的 refresh cookie。两者都通过 connection 插件本就读取的传输钩子安装，而不是让该插件了解 Aeven。
 
 ### 串行化的刷新
 
@@ -78,7 +78,7 @@ API 每次交换都会轮换 refresh token，拒绝被替换的旧 token，并�
 
 `installAuthenticatedTransport` 还会在 access token 过期前不久续期，并在页面重新可见或网络恢复时再次续期；每次续期都会轮换有效期一年的 refresh token，因此打开的页面保持登录。Host 返回 401 时会续期 bearer 并重试该调用一次。当 API 以 400 或 401 拒绝续期，或另一个标签页的登出移除了已存储的 bearer 时，页面丢弃持有的 bearer，并通过 `onSessionEnded` 告知拥有该页面的那一方——也就是 boot kernel：它 dispose 客户端插件树并再次运行 gate，于是读者在**当前这份文档**里回到登录界面，而不是被送进新的一份。因再次 boot 而第二次安装传输时，会替换此前的 watcher 而不是叠加。传输失败或 5xx 不影响会话，稍后重试。
 
-Aeven 无法抵达期间，access token 会过期而没有续期能替换它，因此调用会在不带 `Authorization` header 的情况下发出，Host 仅凭 refresh cookie 完成认证。请求会继续成功，Aeven 恢复后的第一次续期就会恢复 bearer。
+Aeven 无法抵达期间，access token 会过期而没有续期能替换它，因此调用会在不带 `Authorization` header 的情况下发出，Host 仅凭 refresh cookie 完成认证。请求会继续成功，Aeven 恢复后的第一次续期就会恢复 bearer。在此期间重连的 Remote stream socket 会等待续期，因为单凭 cookie 无法证明它属于本页面的账号。
 
 ### 保留的 profile
 

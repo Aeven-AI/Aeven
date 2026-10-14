@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`avn-identity-user-aeven` makes an Aeven account the credential a AVN deployment authenticates against, so a reader signed in to Aeven is signed in here without a second login. It verifies both credentials the Aeven client presents — the access bearer on HTTP calls and the `refreshToken` cookie on a WebSocket upgrade — locally against the ES256 public keys the API publishes at `/.well-known/jwks.json`, so identifying a caller costs no request to Aeven and this Host holds nothing that can sign a token. Mounting it makes the request fence demand a session instead of the launch token, which is a decision a deployment operating an Aeven API makes deliberately. It also states the Aeven endpoints in the served page, which is what gives the browser its sign-in screens.
+`avn-identity-user-aeven` makes an Aeven account the credential a AVN deployment authenticates against, so a reader signed in to Aeven is signed in here without a second login. It verifies both credentials the Aeven client presents — the access bearer, on HTTP calls and as the Remote stream socket's subprotocol, and the `refreshToken` cookie — locally against the ES256 public keys the API publishes at `/.well-known/jwks.json`, so identifying a caller costs no request to Aeven and this Host holds nothing that can sign a token. Mounting it makes the request fence demand a session instead of the launch token, which is a decision a deployment operating an Aeven API makes deliberately. It also states the Aeven endpoints in the served page, which is what gives the browser its sign-in screens.
 
 ## Table of Contents
 
@@ -48,7 +48,7 @@ The row injects the seam and names the API whose keys it verifies against:
 | `id` | `aeven` | Registry key under the seam |
 | `jwksRefreshIntervalMs` | 60000 | Least time between two fetches of `<apiUrl>/.well-known/jwks.json` |
 | `jwksTimeoutMs` | 10000 | Budget for one key set fetch |
-| `refreshCookieName` | `refreshToken` | Cookie carrying the refresh token on a WebSocket upgrade |
+| `refreshCookieName` | `refreshToken` | Cookie carrying the refresh token for a request that presents no bearer |
 | `apiUrl` | none | Aeven API origin the browser signs in against; absent leaves the client with no authentication surface |
 | `webUrl` | none | Aeven web client origin the account menu links to |
 | `mediaUrl` | none | Origin serving uploaded media that profile-image paths are relative to |
@@ -66,7 +66,7 @@ The flow is required exactly when a provider URL is configured. A deployment tha
 
 ### Serve AVN from the same site as the API
 
-A WebSocket upgrade carries no header, so it authenticates by cookie alone, and a browser returns a cookie only to the site that set it. `localhost` and `127.0.0.1` reach the same machine but are different sites: serving AVN on one while the API answers on the other signs a reader in over HTTP and then refuses their socket. The browser configuration follows the page's own loopback host to keep both on one site whichever address was typed.
+The refresh cookie still decides any request that presents no bearer, and a browser returns a cookie only to the site that set it. `localhost` and `127.0.0.1` reach the same machine but are different sites: serving AVN on one while the API answers on the other signs a reader in over HTTP and then refuses every request that has only the cookie to present. The browser configuration follows the page's own loopback host to keep both on one site whichever address was typed.
 
 -----
 
@@ -80,7 +80,7 @@ This section covers how verification and injection are built; observable behavio
 
 ### Two credentials, one resolver
 
-The resolver reads the bearer first: an HTTP call carries the access token, the shorter-lived of the two and the one the client keeps fresh. It then falls back to the cookie, which is the only credential a WebSocket upgrade can present. Both are ES256 tokens under one key; the `typ` claim (`access` or `refresh`) keeps one from standing in for the other, mirroring the Aeven API's own `authenticate` and `authenticateSocketUpgrade`. The plugin becomes active only after the first key set fetch completes or fails within `jwksTimeoutMs`, so a Host that waits for its plugin tree admits no request before tokens can verify. If that fetch fails, or without an `apiUrl`, no token verifies until a later fetch succeeds.
+A presented bearer decides alone: a valid one names the caller and an invalid one names nobody, with no fallback to the cookie. The refresh cookie is shared by every tab and port of one host and names whichever account signed in last, so a fallback would let a page whose bearer lapsed act as another account; the client renews a refused bearer and retries instead. Only a request with no bearer at all is identified by the cookie. Both are ES256 tokens under one key; the `typ` claim (`access` or `refresh`) keeps one from standing in for the other, mirroring the Aeven API's own `authenticate` and `authenticateSocketUpgrade`. The plugin becomes active only after the first key set fetch completes or fails within `jwksTimeoutMs`, so a Host that waits for its plugin tree admits no request before tokens can verify. If that fetch fails, or without an `apiUrl`, no token verifies until a later fetch succeeds.
 
 ### Why verification is local
 
@@ -94,7 +94,7 @@ The Aeven origins are deployment facts, not build facts, so the Host states them
 
 | File | Role |
 |---|---|
-| [`src/index.ts`](src/index.ts) | Config, the resolver reading bearer then cookie, and the index-injection listener |
+| [`src/index.ts`](src/index.ts) | Config, the resolver (a presented bearer decides alone, otherwise the cookie), and the index-injection listener |
 | [`src/jwt.ts`](src/jwt.ts) | Signature and expiry verification producing the user id |
 
 </details>

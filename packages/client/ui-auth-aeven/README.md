@@ -68,7 +68,7 @@ The screens are carried over from the Aeven client as they stand, so the service
 
 ### Two credentials, two transports
 
-The refresh token is an httpOnly cookie nothing here can read; the API exchanges it for a fresh access token. Every authenticated call goes through `currentBearer`, which returns the held token when it is unexpired and names the right user, and otherwise refreshes. Because a browser cannot set a header on a WebSocket upgrade, the socket presents the cookie while HTTP presents the bearer — installed through the transport hook the connection plugin already reads, rather than teaching that plugin about Aeven.
+The refresh token is an httpOnly cookie nothing here can read; the API exchanges it for a fresh access token. Every authenticated call goes through `currentBearer`, which returns the held token when it is unexpired and names the right user, and otherwise refreshes. HTTP presents the bearer as `Authorization`. A browser cannot set a header on a WebSocket upgrade, so the Remote stream socket offers the same bearer through the `socketCredential` hook, which rejects while the page holds none rather than letting the socket fall back to a refresh cookie another tab may have replaced. Both are installed through the transport hook the connection plugin already reads, rather than teaching that plugin about Aeven.
 
 ### Serialized refresh
 
@@ -80,7 +80,7 @@ The API rotates the refresh token on every exchange, refuses the token it replac
 
 **One document holds one account.** `appBearers` and `userId` are shared by every tab of the origin, so a sign-in in another tab changes what this one would present. A stored id or an exchange grant naming another account than the page restored is never adopted: the page ends its own session and runs its gate again as the account the browser now holds, so the reader, the navigation and the Sessions on screen all move together. The account that replaced it keeps its bearer — only the tab that signed in signs out. Between sessions (`pageIsLeaving`) the transport presents nothing at all and answers the caller `401` without reaching the Host, because a request sent then would be authenticated by whichever account replaced this one's.
 
-While Aeven is unreachable the access token lapses and no renewal can replace it, so calls go out with no `Authorization` header and the Host authenticates them by the refresh cookie alone. Requests keep succeeding, and the first renewal after Aeven returns restores the bearer.
+While Aeven is unreachable the access token lapses and no renewal can replace it, so calls go out with no `Authorization` header and the Host authenticates them by the refresh cookie alone. Requests keep succeeding, and the first renewal after Aeven returns restores the bearer. A Remote stream socket that reconnects in that window waits for the renewal instead, because the cookie alone cannot prove it belongs to this page's account.
 
 ### The kept profile
 

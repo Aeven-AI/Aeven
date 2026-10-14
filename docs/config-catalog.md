@@ -1429,7 +1429,7 @@ export interface Config {
   jwksRefreshIntervalMs?: number
   /** Budget for one key set fetch. */
   jwksTimeoutMs?: number
-  /** Cookie carrying the refresh token on a WebSocket upgrade. */
+  /** Cookie carrying the refresh token for a request that presents no bearer. */
   refreshCookieName?: string
   /**
    * Origin of the Aeven API the browser signs in against, such as

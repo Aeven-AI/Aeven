@@ -99,6 +99,14 @@ export interface ClientTransportHooks {
    * transport can set this; served pages never carry the global at all.
    */
   ownsHost?: boolean
+  /**
+   * The bearer this page presents when it opens a Host WebSocket, which cannot
+   * carry an `Authorization` header. Installed by the authority that owns the
+   * page's session. It rejects while the page holds no credential, so the
+   * attempt fails and is retried instead of being identified by whichever
+   * refresh cookie the browser last stored for this host.
+   */
+  socketCredential?(): Promise<string>
 }
 
 /** Page global carrying {@link ClientTransportHooks}; absent in the served web app. */
@@ -118,6 +126,12 @@ export interface ConnectionHandle {
    * ({@link ClientTransportHooks.ownsHost}), or the context is not a browser.
    */
   readonly isLoopback: boolean
+  /**
+   * The bearer to present on a Host WebSocket upgrade
+   * ({@link ClientTransportHooks.socketCredential}); absent when the page's
+   * transport installs none.
+   */
+  readonly socketCredential?: () => Promise<string>
   /** Current Remote event generation and the Host facts carried by its opening frame. */
   readonly generation: ConnectionGenerationState
   /** Current recovery lifecycle for connection-specific consumers. */
@@ -224,8 +238,10 @@ export function apply(ctx: Context): void {
     publishGeneration(undefined)
     publishState(undefined)
   }
+  const socketCredential = transport?.socketCredential?.bind(transport)
   const handle: ConnectionHandle = {
     isLoopback: transport?.ownsHost === true || pageLocation === undefined || isLoopbackHostname(pageLocation.hostname),
+    ...socketCredential === undefined ? {} : { socketCredential },
     generation: {
       getSnapshot: () => generation,
       subscribe: (listener) => {

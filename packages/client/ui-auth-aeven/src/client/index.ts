@@ -121,6 +121,7 @@ export function requireSignIn(pathname: string): void {
 /** The transport seam the connection plugin reads before it builds its caller. */
 interface TransportHooks {
   fetch?: (input: URL, init: RequestInit) => Promise<Response>
+  socketCredential?: () => Promise<string>
 }
 
 /** The watcher the last install started, so a second install replaces rather than stacks it. */
@@ -129,9 +130,9 @@ let stopWatching: (() => void) | undefined
 /**
  * Attach the Aeven bearer to every AVN RPC call, and keep the session alive.
  *
- * AVN's own API is fenced by the same authority as Aeven's, and a browser
- * cannot set a header on a WebSocket upgrade — so the socket presents the
- * refresh cookie and HTTP presents this. Installed through the transport hook
+ * AVN's own API is fenced by the same authority as Aeven's. HTTP presents the
+ * bearer as `Authorization`; a browser cannot set a header on a WebSocket
+ * upgrade, so the Remote stream socket offers the same bearer as a subprotocol. Installed through the transport hook
  * the connection plugin already reads, rather than teaching that plugin about
  * Aeven.
  *
@@ -180,6 +181,17 @@ export function installAuthenticatedTransport(): () => void {
       }
       const renewed = await sessionBearer(bearer)
       return renewed === undefined ? response : sendWith(input, init, renewed)
+    },
+    // A WebSocket cannot carry the header, and the refresh cookie it would send
+    // instead belongs to whichever tab signed in last on this host — possibly
+    // another account. The socket presents this page's bearer, and opens no
+    // connection at all while the page holds none.
+    socketCredential: async (): Promise<string> => {
+      const bearer = pageIsLeaving() ? undefined : await sessionBearer()
+      if (bearer === undefined || pageIsLeaving()) {
+        throw new Error('ui-auth-aeven: this page holds no session to open a Host socket with')
+      }
+      return bearer
     },
   }
   // A page that boots again after an ended session installs the transport a

@@ -8,7 +8,7 @@
 
 ## authority 拿到什么
 
-authority 只收到 header，别无其他，因为 header 是两种 AVN 传输的共同点。HTTP 请求在 `authorization` 中携带凭据；WebSocket 升级在 `cookie` 中携带，因为浏览器无法在升级上设置 header。这里不为 authority 解码任何内容——它读取自己认得的那个 header。
+authority 只收到 header，别无其他，因为 header 是两种 AVN 传输的共同点。HTTP 请求在 `authorization` 中携带凭据。浏览器无法在 WebSocket 升级上设置 header，因此 Remote stream Client 把 bearer 作为子协议提供，gateway 再以 `authorization` 交给该 seam；不带 bearer 的升级只携带 `cookie`。这里不为 authority 解码任何内容——它读取自己认得的那个 header。
 
 `User` 只保证 `id`。那是子系统据以关联工作的字段，也是 authority 必须能产出的唯一字段；`email`、`displayName` 与 `avatarUrl` 是 authority 可能持有也可能不持有的展示信息，因此需要显示名的消费方应处理其缺失，而不是假定已经拉取过资料。
 

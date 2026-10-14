@@ -616,9 +616,6 @@ function ArchivedSection({
         onCreate={() => {}}
         newSessionHref={() => ({ href: '', sessionId: '' as SessionId })}
       />
-      {expanded && rows.length === 0 && (
-        <div className={css.empty}>{t('empty.noneArchived')}</div>
-      )}
       {expanded && (showAll ? rows : collapsed.rows).map(node => (
         <SessionNodeItem
           key={node.id}

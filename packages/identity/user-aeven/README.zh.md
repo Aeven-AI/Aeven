@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`avn-identity-user-aeven` 让 Aeven 账号成为 AVN 部署所认证的凭据，因此已登录 Aeven 的读者无需二次登录即可在此登录。它校验 Aeven 客户端出示的两种凭据——HTTP 调用上的 access bearer 与 WebSocket 升级上的 `refreshToken` cookie——用 API 在 `/.well-known/jwks.json` 公布的 ES256 公钥在本地完成，因此识别调用方无需向 Aeven 发出请求，且本 Host 不持有任何能签发 token 的内容。挂载它会让请求围栏改为要求会话而非启动 token，这是运营 Aeven API 的部署刻意做出的决定。它还在所服务的页面中声明 Aeven 端点，这正是浏览器获得登录界面的方式。
+`avn-identity-user-aeven` 让 Aeven 账号成为 AVN 部署所认证的凭据，因此已登录 Aeven 的读者无需二次登录即可在此登录。它校验 Aeven 客户端出示的两种凭据——HTTP 调用上以及 Remote stream socket 子协议中的 access bearer，与 `refreshToken` cookie——用 API 在 `/.well-known/jwks.json` 公布的 ES256 公钥在本地完成，因此识别调用方无需向 Aeven 发出请求，且本 Host 不持有任何能签发 token 的内容。挂载它会让请求围栏改为要求会话而非启动 token，这是运营 Aeven API 的部署刻意做出的决定。它还在所服务的页面中声明 Aeven 端点，这正是浏览器获得登录界面的方式。
 
 ## 目录
 
@@ -48,7 +48,7 @@ kind: "package-reference"
 | `id` | `aeven` | 该 seam 下的注册表键 |
 | `jwksRefreshIntervalMs` | 60000 | 两次获取 `<apiUrl>/.well-known/jwks.json` 之间的最短间隔 |
 | `jwksTimeoutMs` | 10000 | 单次获取密钥集的时限 |
-| `refreshCookieName` | `refreshToken` | WebSocket 升级上携带 refresh token 的 cookie |
+| `refreshCookieName` | `refreshToken` | 为不带 bearer 的请求携带 refresh token 的 cookie |
 | `apiUrl` | 无 | 浏览器据以登录的 Aeven API origin；缺失时客户端没有任何认证界面 |
 | `webUrl` | 无 | 账户菜单链接到的 Aeven web 客户端 origin |
 | `mediaUrl` | 无 | 提供已上传媒体的 origin，头像路径相对于它 |
@@ -66,7 +66,7 @@ kind: "package-reference"
 
 ### 让 AVN 与 API 处于同一站点
 
-WebSocket 升级不携带 header，因此只能凭 cookie 认证，而浏览器只把 cookie 送回设置它的那个站点。`localhost` 与 `127.0.0.1` 指向同一台机器，却是不同站点：把 AVN 放在其中一个而 API 在另一个上作答，会让读者通过 HTTP 登录成功，随后 socket 被拒绝。浏览器端配置会跟随页面自身的 loopback 主机，使无论键入哪个地址两者都处于同一站点。
+refresh cookie 仍决定任何不带 bearer 的请求，而浏览器只把 cookie 送回设置它的那个站点。`localhost` 与 `127.0.0.1` 指向同一台机器，却是不同站点：把 AVN 放在其中一个而 API 在另一个上作答，会让读者通过 HTTP 登录成功，随后每个只能出示 cookie 的请求都被拒绝。浏览器端配置会跟随页面自身的 loopback 主机，使无论键入哪个地址两者都处于同一站点。
 
 -----
 
@@ -80,7 +80,7 @@ WebSocket 升级不携带 header，因此只能凭 cookie 认证，而浏览器�
 
 ### 两种凭据，一个 resolver
 
-resolver 先读 bearer：HTTP 调用携带 access token，它是两者中存活更短、且由客户端保持新鲜的那个。随后回退到 cookie，那是 WebSocket 升级唯一能出示的凭据。两者都是同一密钥下的 ES256 token；`typ` claim（`access` 或 `refresh`）防止一种冒充另一种，对应 Aeven API 自身的 `authenticate` 与 `authenticateSocketUpgrade`。插件仅在首次获取密钥集完成或在 `jwksTimeoutMs` 内失败后才变为活动状态，因此等待其插件树的 Host 在 token 能够校验之前不会接纳任何请求。若该次获取失败或未配置 `apiUrl`，在后续获取成功之前任何 token 都不会校验通过。
+出示的 bearer 单独决定结果：有效则指明调用方，无效则谁也不指明，不回退到 cookie。refresh cookie 由同一主机的所有标签页和端口共享，指向最后登录的那个账号，回退会让 bearer 已失效的页面以另一个账号的身份行事；客户端会改为续期被拒的 bearer 并重试。只有完全不带 bearer 的请求才由 cookie 识别。两者都是同一密钥下的 ES256 token；`typ` claim（`access` 或 `refresh`）防止一种冒充另一种，对应 Aeven API 自身的 `authenticate` 与 `authenticateSocketUpgrade`。插件仅在首次获取密钥集完成或在 `jwksTimeoutMs` 内失败后才变为活动状态，因此等待其插件树的 Host 在 token 能够校验之前不会接纳任何请求。若该次获取失败或未配置 `apiUrl`，在后续获取成功之前任何 token 都不会校验通过。
 
 ### 为什么在本地校验
 
@@ -94,7 +94,7 @@ Aeven 的各 origin 是部署事实而非构建事实，因此由 Host 声明，
 
 | 文件 | 职责 |
 |---|---|
-| [`src/index.ts`](src/index.ts) | Config、先 bearer 后 cookie 的 resolver，以及 index 注入监听器 |
+| [`src/index.ts`](src/index.ts) | Config、resolver（出示的 bearer 单独决定，否则读 cookie），以及 index 注入监听器 |
 | [`src/jwt.ts`](src/jwt.ts) | 产出用户 id 的签名与过期校验 |
 
 </details>

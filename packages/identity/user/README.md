@@ -70,7 +70,7 @@ AVN consults the seam inside the request fence that already runs for every HTTP 
 
 ### The request vocabulary
 
-An authority is given headers only, because that is what both AVN transports have in common — HTTP carries the credential in `authorization`, and a WebSocket upgrade carries it in `cookie` because a browser cannot set a header on the upgrade. Nothing is decoded for the authority; it reads whichever header it recognizes.
+An authority is given headers only, because that is what both AVN transports have in common — HTTP carries the credential in `authorization`, and the Remote stream gateway presents a WebSocket's offered bearer subprotocol as the same header because a browser cannot set one on the upgrade; an upgrade that offers none carries only `cookie`. Nothing is decoded for the authority; it reads whichever header it recognizes.
 
 ### Source map
 

@@ -3,9 +3,12 @@
 import type { IncomingMessage } from 'node:http'
 import type { Duplex } from 'node:stream'
 import WebSocket, { WebSocketServer, type RawData } from 'ws'
+import type { ConnectionTrustRequest } from '@aeven/client-connection'
 import type { User } from '@aeven/identity-user'
 import {
   parseRemoteStreamClientMessage,
+  REMOTE_STREAM_BEARER_PREFIX,
+  REMOTE_STREAM_SUBPROTOCOL,
   type RemoteStreamFailure,
   type RemoteStreamServerMessage,
 } from './stream-protocol.ts'
@@ -42,7 +45,12 @@ export class RemoteStreamMuxServer {
     return this.users.get(websocket)
   }
 
-  private readonly server = new WebSocketServer({ noServer: true })
+  private readonly server = new WebSocketServer({
+    noServer: true,
+    // A Client that offers its bearer offers this protocol beside it, and a
+    // browser fails the handshake unless the Host selects one it offered.
+    handleProtocols: protocols => protocols.has(REMOTE_STREAM_SUBPROTOCOL) ? REMOTE_STREAM_SUBPROTOCOL : false,
+  })
   private readonly connections = new Set<Promise<void>>()
   private readonly missedHeartbeats = new WeakMap<WebSocket, number>()
   private heartbeatTimer: NodeJS.Timeout | undefined
@@ -246,6 +254,28 @@ function rawText(data: RawData): string {
   if (Array.isArray(data)) return Buffer.concat(data).toString('utf8')
   if (data instanceof ArrayBuffer) return Buffer.from(data).toString('utf8')
   return Buffer.from(data).toString('utf8')
+}
+
+/**
+ * The credentials a Remote stream upgrade presents for admission and identity.
+ *
+ * A Client that offers a bearer subprotocol is identified by that bearer
+ * alone: it stands in for `Authorization`, and the cookie is left out, so a
+ * refresh cookie another tab or port stored for this host cannot decide whose
+ * socket this is. An upgrade with no offered bearer presents its headers as sent.
+ * @param req - the WebSocket upgrade request.
+ * @returns the headers the connection fence and identity seam read.
+ */
+export function remoteStreamTrustRequest(req: IncomingMessage): ConnectionTrustRequest {
+  const offered = req.headers['sec-websocket-protocol']
+  if (offered === undefined) return req
+  const bearer = offered.split(',')
+    .map(protocol => protocol.trim())
+    .find(protocol => protocol.startsWith(REMOTE_STREAM_BEARER_PREFIX))
+    ?.slice(REMOTE_STREAM_BEARER_PREFIX.length)
+  if (bearer === undefined) return req
+  const { cookie: _cookie, ...headers } = req.headers
+  return { headers: { ...headers, authorization: `Bearer ${bearer}` } }
 }
 
 /**

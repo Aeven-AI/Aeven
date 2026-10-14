@@ -158,7 +158,10 @@ export class SessionCommandController {
     const workspaceId = request.workspaceId ?? (request.cwd === undefined ? this.ctx.workspaceRegistry.defaultWorkspaceId : undefined)
     if (workspaceId !== undefined) {
       workspace = this.ctx.workspaceRegistry.get(workspaceId)
-      if (workspace === undefined) {
+      // Another account's Workspace answers as missing, as it does for a move:
+      // its directory and Session list are not the caller's to add to.
+      if (workspace === undefined
+        || !(workspace.isBuiltIn || (this.ctx.get('identityUsers')?.mayAccess(workspace.owner) ?? true))) {
         throw new RemoteError('workspace/not-found', `workspace "${workspaceId}" not found`, {
           workspaceId,
         })
