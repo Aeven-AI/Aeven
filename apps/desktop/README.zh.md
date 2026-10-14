@@ -45,9 +45,9 @@ Electron 根据应用 locale 选择类型化的英文或中文桌面壳文案，
 启动过程把 seed 安装或校准为一个串行事务：
 
 1. 恢复中断的激活事务日志，验证完整 seed 清单与本地包集，并要求 seed 版本等于 Electron 应用版本。
-2. 如果活跃 profile 已包含该发布及匹配的 avn 与 Desktop Host 版本，则验证其中的本地包集并直接复用，不重新安装。
+2. 如果活跃 profile 的 `desktop-release.json` 与 `desktop-packages.json` 与 seed 中的文件逐字节相同，且已安装的 avn 与 Desktop Host 版本匹配，则验证其中的本地包集并直接复用，不重新安装。预发布构建会在重新构建与 Host 协议变更之间沿用同一版本号，因此由 tarball 摘要与协议号而非版本号单独决定。
 3. 否则验证每个归档条目，把全部存储分片解包到 Desktop 拥有的临时 staging 目录，将包文件与 SQLite 包索引记录合并进私有存储，再创建 staging profile，并通过内置 Node.js 与 pnpm 执行 `pnpm install --offline --frozen-lockfile --trust-lockfile`。Seed 记录替换匹配的索引键，插件专属记录继续保留。
-4. Electron 升级时，从旧活跃 profile 读取每个插件的名称和精确版本，再通过现有 Desktop pnpm 状态以 `--offline` 把这些版本加入 staging。首次安装不执行插件恢复。
+4. Electron 升级时，从旧活跃 profile 读取每个插件的名称和精确版本，再通过现有 Desktop pnpm 状态以 `--offline` 把这些版本加入 staging。只读取旧 profile 的 `package.json` bundle 列表与已安装插件清单，因此由较旧 Host 协议或工作区格式写入的 profile 仍可升级。首次安装不执行插件恢复。
 5. 停止活跃后端，启动并停止完整的 staging 后端执行健康检查，再在激活前重新启动活跃后端。这种串行方式避免两个桌面后端共享 `$AVN_HOME`；安装错误或插件不兼容会删除 staging，并保持活跃 profile 不变。
 6. 在每次目录移动前先持久化下一个激活阶段，把活跃 profile 移到 `$AVN_HOME/desktop/rollback/profile`，再把 staging 移到 `$AVN_HOME/profiles/desktop`。恢复过程同时检查日志与真实的 profile、rollback 和 staging 目录，因此在写入后、移动前的任一间隙中断后仍会恢复或保留一个完整 profile。
 
@@ -100,7 +100,7 @@ pnpm run package:desktop:win:arm64
 pnpm run package:desktop:win:x64
 ```
 
-macOS arm64 命令要求 Apple Silicon；Intel Mac 不是 Desktop 构建目标，因为 MemOS embedding 所需的 onnxruntime-node 不发布 Intel macOS 二进制文件。每个 Windows 命令都要求 Windows 宿主上的 Node.js 进程与目标架构一致：`win:arm64` 使用 arm64 Node.js，`win:x64` 使用 x64 Node.js。Windows on ARM 也可以构建 `win:x64`，在模拟下运行 x64 Node.js 运行时与 Whisper worker；除 ARM64 工具外还需要 Visual Studio 的 x64 构建工具（`MSVC … x64/x86 build tools`）。Linux arm64 与 x64 命令要求架构相同的 Linux 宿主。
+应用要求 macOS 14 或更高版本，即内置 onnxruntime-node 二进制文件的最低版本；Desktop Host 以 `--expose-internals` 启动 Node.js，因为 Cordis Loader 的回退依赖 node-addon-require-builtin 发布的 darwin-arm64 构建只能在 macOS 15 上加载。macOS arm64 命令要求 Apple Silicon；Intel Mac 不是 Desktop 构建目标，因为 MemOS embedding 所需的 onnxruntime-node 不发布 Intel macOS 二进制文件。每个 Windows 命令都要求 Windows 宿主上的 Node.js 进程与目标架构一致：`win:arm64` 使用 arm64 Node.js，`win:x64` 使用 x64 Node.js。Windows on ARM 也可以构建 `win:x64`，在模拟下运行 x64 Node.js 运行时与 Whisper worker；除 ARM64 工具外还需要 Visual Studio 的 x64 构建工具（`MSVC … x64/x86 build tools`）。Linux arm64 与 x64 命令要求架构相同的 Linux 宿主。
 
 每个目标都在 `apps/desktop/.desktop-build/targets/<target>/` 下持有自己的打包输入、已准备运行时、包集合、seed、pnpm 准备状态、未打包应用、更新元数据和最终产物。Node.js 归档缓存继续由 `.desktop-build/downloads` 共享，因为每个归档文件名都包含版本、平台和架构，并且在解包前经过验证。目标构建绝不读取其他目标的可变准备状态。
 

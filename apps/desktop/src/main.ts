@@ -277,8 +277,6 @@ async function main(): Promise<void> {
   const activeProject = development ?? paths.profile
   const hostInspectPort = developmentHostInspectPort(development !== undefined)
   const manager = new DesktopProjectManager(paths, resources)
-  const plan = await planDesktopBackend()
-  if (development === undefined && plan.kind === 'spawn') manager.recover()
   let host: DesktopHostProcess | undefined
   let aevenSignIn: DesktopAevenSignIn | undefined
   let mainWindow: BrowserWindow | undefined
@@ -297,6 +295,74 @@ async function main(): Promise<void> {
     }
     return state
   }
+
+  const startupFinished = Promise.withResolvers<void>()
+
+  /**
+   * Hand one menu command to the page and bring its window forward: the page
+   * owns both the Settings surface and the composer dictation acts on.
+   * @param command - the command the page listens for.
+   */
+  const sendMenuCommand = (command: DesktopMenuCommand): void => {
+    const window = mainWindow
+    if (window === undefined || window.isDestroyed()) return
+    window.webContents.send(DESKTOP_IPC.menuCommand, command)
+    if (window.isMinimized()) window.restore()
+    window.focus()
+  }
+  const openSettings = (): void => { sendMenuCommand(OPEN_SETTINGS_COMMAND) }
+  const startDictation = (): void => { sendMenuCommand(START_DICTATION_COMMAND) }
+
+  // The edit menu carries the clipboard and selection accelerators: macOS binds
+  // Cmd+C, Cmd+V and Cmd+A through these roles, so a window without it cannot
+  // copy or paste however the page is focused. The window menu is listed for
+  // the same reason.
+  const zoomApplicationWindow = (direction: DesktopMenuZoom): void => {
+    const window = mainWindow
+    if (window === undefined || window.isDestroyed()) return
+    const contents = window.webContents
+    const step = direction === 'in' ? DESKTOP_MENU_ZOOM_STEP : -DESKTOP_MENU_ZOOM_STEP
+    contents.setZoomLevel(direction === 'reset' ? 0 : contents.getZoomLevel() + step)
+  }
+
+  // Every action reads `mainWindow` when it runs: the menu is installed before the backend starts and
+  // before the first window exists, so a captured window would be undefined here.
+  const fullScreenLabel = (): string => mainWindow?.isFullScreen() === true
+    ? messages.exitFullScreenMenu
+    : messages.enterFullScreenMenu
+
+  const toggleFullScreen = (): void => {
+    const window = mainWindow
+    if (window === undefined || window.isDestroyed()) return
+    window.setFullScreen(!window.isFullScreen())
+  }
+
+  /** Retitle the full-screen item in place; rebuilding the menu mid-transition breaks full screen. */
+  const syncFullScreenLabel = (): void => {
+    const item = Menu.getApplicationMenu()?.getMenuItemById(FULL_SCREEN_ITEM_ID)
+    if (item === undefined || item === null) return
+    item.label = fullScreenLabel()
+  }
+
+  const installApplicationMenu = (): void => {
+    Menu.setApplicationMenu(Menu.buildFromTemplate(applicationMenuTemplate({
+      platform: process.platform,
+      applicationName: app.name,
+      messages,
+      actions: {
+        // The update installer must not quit the shell while startup installs or starts the backend.
+        checkForUpdates: () => { void startupFinished.promise.then(() => checkAndPrompt(true)) },
+        openSettings,
+        startDictation,
+        fullScreen: { label: fullScreenLabel(), click: toggleFullScreen },
+        zoom: zoomApplicationWindow,
+      },
+    })))
+  }
+  installApplicationMenu()
+
+  const plan = await planDesktopBackend()
+  if (development === undefined && plan.kind === 'spawn') manager.recover()
 
   const startHost = async (projectDir = activeProject): Promise<DesktopHostProcess> => {
     const next = new DesktopHostProcess(resources.node, projectDir, hostInspectPort)
@@ -523,67 +589,7 @@ async function main(): Promise<void> {
     }
   }
 
-  /**
-   * Hand one menu command to the page and bring its window forward: the page
-   * owns both the Settings surface and the composer dictation acts on.
-   * @param command - the command the page listens for.
-   */
-  const sendMenuCommand = (command: DesktopMenuCommand): void => {
-    const window = mainWindow
-    if (window === undefined || window.isDestroyed()) return
-    window.webContents.send(DESKTOP_IPC.menuCommand, command)
-    if (window.isMinimized()) window.restore()
-    window.focus()
-  }
-  const openSettings = (): void => { sendMenuCommand(OPEN_SETTINGS_COMMAND) }
-  const startDictation = (): void => { sendMenuCommand(START_DICTATION_COMMAND) }
-
-  // The edit menu carries the clipboard and selection accelerators: macOS binds
-  // Cmd+C, Cmd+V and Cmd+A through these roles, so a window without it cannot
-  // copy or paste however the page is focused. The window menu is listed for
-  // the same reason.
-  const zoomApplicationWindow = (direction: DesktopMenuZoom): void => {
-    const window = mainWindow
-    if (window === undefined || window.isDestroyed()) return
-    const contents = window.webContents
-    const step = direction === 'in' ? DESKTOP_MENU_ZOOM_STEP : -DESKTOP_MENU_ZOOM_STEP
-    contents.setZoomLevel(direction === 'reset' ? 0 : contents.getZoomLevel() + step)
-  }
-
-  // Every action reads `mainWindow` when it runs: the menu is installed before
-  // the first window exists, so a captured window would be undefined here.
-  const fullScreenLabel = (): string => mainWindow?.isFullScreen() === true
-    ? messages.exitFullScreenMenu
-    : messages.enterFullScreenMenu
-
-  const toggleFullScreen = (): void => {
-    const window = mainWindow
-    if (window === undefined || window.isDestroyed()) return
-    window.setFullScreen(!window.isFullScreen())
-  }
-
-  /** Retitle the full-screen item in place; rebuilding the menu mid-transition breaks full screen. */
-  const syncFullScreenLabel = (): void => {
-    const item = Menu.getApplicationMenu()?.getMenuItemById(FULL_SCREEN_ITEM_ID)
-    if (item === undefined || item === null) return
-    item.label = fullScreenLabel()
-  }
-
-  const installApplicationMenu = (): void => {
-    Menu.setApplicationMenu(Menu.buildFromTemplate(applicationMenuTemplate({
-      platform: process.platform,
-      applicationName: app.name,
-      messages,
-      actions: {
-        checkForUpdates: () => { void checkAndPrompt(true) },
-        openSettings,
-        startDictation,
-        fullScreen: { label: fullScreenLabel(), click: toggleFullScreen },
-        zoom: zoomApplicationWindow,
-      },
-    })))
-  }
-  installApplicationMenu()
+  startupFinished.resolve()
 
   /**
    * Sign in with a provider in the default browser, then bring the app back.

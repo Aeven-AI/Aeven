@@ -117,6 +117,9 @@ export class DesktopHostProcess {
     if (this.child !== undefined) return this.readyPromise
     const entry = join(this.projectDir, 'node_modules', '@aeven', 'desktop-host', 'lib', 'index.js')
     const child = spawn(this.node, [
+      // The Cordis Loader imports plugins through Node's internal ESM loader. The flag reaches it directly; the
+      // fallback, node-addon-require-builtin, ships a darwin-arm64 build that macOS 14 refuses to load.
+      '--expose-internals',
       ...(this.inspectPort === undefined ? [] : [`--inspect=127.0.0.1:${String(this.inspectPort)}`]),
       entry,
       this.projectDir,

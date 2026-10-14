@@ -32,7 +32,7 @@ import {
   verifyDesktopCorePackageSet,
 } from './core-package-set.ts'
 import type { DesktopPaths } from './paths.ts'
-import { parseDesktopRelease, type DesktopRelease } from './release.ts'
+import { parseDesktopRelease, parseInstalledDesktopReleaseVersion, type DesktopRelease } from './release.ts'
 import { extractPnpmStoreArchives, mergePnpmStore } from './seed-store.ts'
 
 /**
@@ -182,6 +182,20 @@ function releaseFile(projectDir: string): DesktopRelease {
   return parseDesktopRelease(readJson(join(projectDir, 'desktop-release.json')))
 }
 
+function installedReleaseVersion(projectDir: string): string {
+  return parseInstalledDesktopReleaseVersion(readJson(join(projectDir, 'desktop-release.json')))
+}
+
+/**
+ * Pre-release builds reuse one version across rebuilds and Host protocol changes, so the profile matches the seed
+ * only when it holds the seed's exact release record and the same package tarball digests.
+ */
+function profileMatchesSeed(projectDir: string, seedDir: string): boolean {
+  return ['desktop-release.json', DESKTOP_PACKAGE_SET_FILE].every(file => (
+    existsSync(join(projectDir, file)) && readFileSync(join(projectDir, file)).equals(readFileSync(join(seedDir, file)))
+  ))
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
@@ -270,7 +284,8 @@ export function verifySeedIntegrity(seedDir: string): void {
   }
 }
 
-function projectManifest(projectDir: string): DesktopProjectManifest {
+/** Read a profile manifest's fields; an upgrade reads an older profile's plugins through this alone. */
+function profileManifest(projectDir: string): DesktopProjectManifest {
   const path = join(projectDir, 'package.json')
   const value = readJson(path)
   const avn = isRecord(value) && isRecord(value.avn) ? value.avn : undefined
@@ -280,21 +295,25 @@ function projectManifest(projectDir: string): DesktopProjectManifest {
     || !Array.isArray(profile?.bundles) || !profile.bundles.every(bundle => typeof bundle === 'string')) {
     throw new Error(`desktop project: invalid desktop profile manifest ${path}`)
   }
-  const manifest = value as unknown as DesktopProjectManifest
-  const packageSet = readDesktopCorePackageSet(projectDir, releaseFile(projectDir).version)
+  return value as unknown as DesktopProjectManifest
+}
+
+/** Read a profile manifest whose core packages must resolve to this release's local tarballs. */
+function projectManifest(projectDir: string): DesktopProjectManifest {
+  const manifest = profileManifest(projectDir)
+  const packageSet = readDesktopCorePackageSet(projectDir, installedReleaseVersion(projectDir))
   const expectedOverrides = desktopCorePackageOverrides(packageSet)
   if (manifest.dependencies[AVN_PACKAGE] !== desktopAvnPackageSpec(packageSet)
     || Object.entries(expectedOverrides).some(([name, spec]) => manifest.dependencies[name] !== spec)
-    // A profile written before the seed carried dependency patches has none; an upgrade still reads its plugins.
-    || ![workspaceFile(expectedOverrides, DESKTOP_DEPENDENCY_PATCHES), workspaceFile(expectedOverrides)]
-      .includes(readFileSync(join(projectDir, 'pnpm-workspace.yaml'), 'utf8'))) {
+    || readFileSync(join(projectDir, 'pnpm-workspace.yaml'), 'utf8')
+      !== workspaceFile(expectedOverrides, DESKTOP_DEPENDENCY_PATCHES)) {
     throw new Error(`desktop project: core package mapping does not match ${DESKTOP_PACKAGE_SET_FILE}`)
   }
   return manifest
 }
 
 function profilePluginNames(projectDir: string): readonly string[] {
-  const bundles = projectManifest(projectDir).avn.profile.bundles
+  const bundles = profileManifest(projectDir).avn.profile.bundles
   if (!DESKTOP_PROFILE_BUNDLES.every((bundle, index) => bundles[index] === bundle)) {
     throw new Error('desktop project: profile must begin with the built-in desktop bundle list')
   }
@@ -403,7 +422,7 @@ export class DesktopProjectManager {
   /** Read the release version applied to the active desktop project. */
   releaseVersion(): string {
     if (!existsSync(this.paths.profile)) throw new Error('desktop project: active profile is not installed')
-    return releaseFile(this.paths.profile).version
+    return installedReleaseVersion(this.paths.profile)
   }
 
   /** Install or reconcile the active project to the Electron package's exact release. */
@@ -416,7 +435,7 @@ export class DesktopProjectManager {
       if (target.version !== electronVersion) {
         throw new Error(`desktop project: seed ${target.version} does not match Electron ${electronVersion}`)
       }
-      if (existsSync(this.paths.profile) && this.releaseVersion() === target.version
+      if (existsSync(this.paths.profile) && profileMatchesSeed(this.paths.profile, seedDir)
         && this.avnVersion() === target.version
         && this.installedPackageVersion(DESKTOP_HOST_PACKAGE) === target.version) {
         verifyDesktopCorePackageSet(this.paths.profile, target.version)

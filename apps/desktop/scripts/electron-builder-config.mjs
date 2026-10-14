@@ -63,6 +63,8 @@ export function createElectronBuilderConfig(
       // Each ICNS slot is rendered from resources/icon-macos.svg instead of downscaled from 1024 px.
       icon: 'resources/icon-macos.icns',
       category: 'public.app-category.developer-tools',
+      // The newest floor among the bundled binaries: onnxruntime-node's darwin-arm64 build requires macOS 14.
+      minimumSystemVersion: '14.0',
       // Apple Silicon refuses to launch code without a signature, so an unsigned build is
       // ad-hoc signed; hardened runtime would then reject the seed's unsigned native addons.
       identity: unsigned ? '-' : macOSSigning?.signingIdentity,

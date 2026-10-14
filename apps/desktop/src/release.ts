@@ -17,7 +17,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
 
-/** Validate release data read from an installed or packaged filesystem resource. */
+/**
+ * Read the release version an installed profile records, whatever Host protocol installed it.
+ * @param value - Parsed `desktop-release.json` of an installed profile.
+ * @returns The exact release version.
+ */
+export function parseInstalledDesktopReleaseVersion(value: unknown): string {
+  if (!isRecord(value) || value.schemaVersion !== 1 || typeof value.version !== 'string'
+    || valid(value.version) === null) {
+    throw new Error('avn desktop: invalid installed desktop release metadata')
+  }
+  return value.version
+}
+
+/** Validate release data read from a packaged seed. */
 export function parseDesktopRelease(value: unknown): DesktopRelease {
   if (!isRecord(value) || value.schemaVersion !== 1 || typeof value.version !== 'string'
     || valid(value.version) === null || value.hostProtocolVersion !== DESKTOP_HOST_PROTOCOL_VERSION
