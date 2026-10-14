@@ -11,6 +11,14 @@ English | [中文](README.zh.md)
 
 `avn-memory-memos` registers MemOS as the `ctx.memory` provider. It runs the vendored MemOS core (`MemoryCore`, [`@deepseek-ai/memos-local-plugin`](../../../vendor/memos-local-plugin)) in the Host process: memory lives in a local SQLite database, embeddings run locally through Transformers.js, and MemOS's auxiliary summary and filtering calls go through the owning session's `ctx.llm` route, so no second API key is configured. Each account has its own MemOS core over its own database, opened on the account's first memory operation.
 
+## Table of Contents
+
+- [Use this package](#use-this-package)
+- [Understand the implementation](#understand-the-implementation)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
+
 ## Use this package
 
 Mount it on the host plane beside `@aeven/memory`. The web bundle ships the row with `home: !!js avnHomePath('memory')` and `accounts: !!js avnHomePath('accounts')`.

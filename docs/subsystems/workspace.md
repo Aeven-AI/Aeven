@@ -46,6 +46,14 @@ interface Workspace {
   readonly isDefault: boolean
 
   /**
+   * Whether this registration is fixed product structure: the default
+   * workspace, or a pathless workspace a plugin declared through
+   * `WorkspaceRegistry.builtIn`. A built-in workspace refuses delete, rename,
+   * and move, and every account can reach it.
+   */
+  readonly isBuiltIn: boolean
+
+  /**
    * How this workspace binds to a filesystem location. Consumers that need a
    * directory must narrow on `'folder'` (see `isFolderWorkspace`) rather than
    * assume {@link path} is present.
@@ -63,6 +71,16 @@ interface Workspace {
 
   /** Display title. Defaults to the final path segment, or a filesystem root's own spelling; duplicates are allowed. */
   readonly title: string
+
+  /**
+   * Account id of the signed-in user who created this workspace, absent when
+   * nobody was signed in. A record written before workspaces carried an owner
+   * answers with the one account all its sessions belong to, and with none when
+   * they belong to several. One Host serves several accounts, and a workspace is
+   * reachable only by its owner; the built-in workspace is the product's own
+   * and is reachable by every account.
+   */
+  readonly owner: string | undefined
 
   /** ISO-8601 creation instant, stamped at create and never rewritten. */
   readonly createdAt: string

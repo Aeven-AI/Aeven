@@ -62,7 +62,6 @@ That distinction is the reason this layer is worth having: an operation sequence
 ## Further Exploration
 
 - [`@aeven/computer-use-formats`](../computer-use-formats/README.md) — rendering a layout to a file, which is where the tool requirements live.
-- [`computer-use-source-inventory.md`](../../../../workspace/project/computer-use-source-inventory.md) — why this capability is taken from Codex rather than reimplemented from a repo.
 
 <a id="known-limited-work"></a>
 ## Known Limitations and Deferred Work

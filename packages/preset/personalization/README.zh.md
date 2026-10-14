@@ -1,6 +1,6 @@
 ---
 description: "按账户个人化：每个已登录用户希望 Aeven 如何与自己交谈，供配置或排查它的用户与维护者阅读。"
-kind: "package"
+kind: "package-reference"
 ---
 
 # @aeven/personalization
@@ -11,6 +11,15 @@ kind: "package"
 
 `@aeven/personalization` 按已登录账户存储该人希望 Aeven 如何与自己交谈：一种语气（`automatic`、`warm`、`direct` 或 `playful`）以及用他们自己的话写下的备注。Aeven 称呼他们的名字不存放在这里：它是注册命名步骤所询问的账户显示名，并随每条消息以 `<user_profile>` 到达模型。它把这些偏好渲染进该人所拥有的每个会话的系统提示词，紧跟在 persona（人设）之后，并在 Settings → Personalization 背后提供 `personalization` Remote。保留全部默认值的人不给提示词贡献任何内容。
 
+## 目录
+
+- [配置](#configuration)
+- [行为](#behavior)
+- [模型体验](#model-experience)
+- [已知限制与延期工作](#known-limitations-and-deferred-work)
+- [开发备注](#dev-note)
+
+<a id="configuration"></a>
 ## 配置
 
 ```yaml
@@ -26,6 +35,7 @@ kind: "package"
 | `maxNotesChars` | `1500` | 一个人可以存储的备注文本上限 |
 | `promptOrder` | `10` | 提示词段落顺序；persona 位于 `0` |
 
+<a id="behavior"></a>
 ## 行为
 
 - **存储。** 在配置的 `root` 下每个账户一份 JSON 文档，以转义后的账户 id 命名。一次写入以一次重命名替换文档，因此并发的提示词组装读到的要么是之前的文档，要么是新文档，绝不会读到残缺的。本版本读不了的文档给出默认值。
@@ -34,6 +44,7 @@ kind: "package"
 - **界限。** 备注会被修剪，超过 `maxNotesChars` 的备注会带原因 `too-long` 被整体拒绝，而不是被裁剪。
 - **Remote。** `get()` 返回调用方的偏好与界限；`update(change)` 应用其中出现的字段。两者都为当前已登录用户行事，没有已登录用户时抛出。
 
+<a id="model-experience"></a>
 ## 模型体验
 
 ### `user:personalization` 系统提示词段落
@@ -68,7 +79,13 @@ Voice: Light and playful: humour and casual language are welcome, while the subs
 
 在该人不动这份文档期间前缀稳定：该段落位于系统提示词靠前位置，每个后续请求都原样复用它。一次经由 Settings 的编辑会在所有者的下一个请求中从该段落起替换它；该段落之前的前缀仍可复用。
 
+<a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与延期工作
 
 - 对话中提出的风格要求（“talk to me more casually”）落到长期记忆里，而不是这份文档中；Settings 目前不显示它们。
 - **不变量省略** —— 不发布运行时不变量伴随模块，因为存储、提示词段落与 Remote 都读取同一份按账户文档，而该段落由存储自己的读取渲染，检查只能重新读取这个包已经读过的文件；`identityUsers` 拥有会话属于哪个账户。
+
+<a id="dev-note"></a>
+### 开发备注
+
+无。

@@ -11,6 +11,14 @@ English | [中文](README.zh.md)
 
 `@aeven/tool-mail` gives the model five tools over `ctx.mail`: `mail_accounts`, `mail_search`, `mail_read`, `mail_update`, and `mail_send`. The tools register for an agent only while its session owner has at least one usable mail account, checked before every step, and every call names its account by address, so one tool set serves any number of mailboxes. Sending and permanent deletion always ask the user for approval; a deny from another policy still wins.
 
+## Table of Contents
+
+- [Use this package](#use-this-package)
+- [Tools](#tools)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
+
 ## Use this package
 
 Mount it per session where `ctx.mail` exists; the aeven agent preset does.
@@ -103,3 +111,7 @@ Append-only; each confirmation or approval outcome is a tool result after the re
 - Plain-text bodies only; HTML composition and attachments on outgoing mail are deferred.
 - Attachment saving writes through Node's filesystem inside the session workspace rather than through `ctx.fs`, which writes text only.
 - **No invariant companion** — No runtime invariant companion is published because the package keeps no state of its own: the tool set is recomputed from the session owner's accounts at each `agent/pre-step`, and the approval ask for a send or a permanent delete is returned from `tools/pre-execute`, so the only relation it holds is already the outcome of those hooks.
+
+### Dev Note
+
+None.

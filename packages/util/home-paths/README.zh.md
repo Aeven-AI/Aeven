@@ -44,6 +44,7 @@ const settings = avnHomePath('settings')     // join one child onto the resolved
 ```ts
 import { accountHomePath } from '@aeven/home-paths'
 
+const owner = 'example-account'
 const memory = accountHomePath(owner, 'memory')   // <home>/accounts/<sha256 of owner>/memory
 ```
 

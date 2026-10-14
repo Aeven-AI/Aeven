@@ -11,6 +11,13 @@ English | [中文](README.zh.md)
 
 `avn-api-memory-manager` serves the `memoryManager` Remote namespace behind Settings → Memory. Every call acts for the caller of the running `/api` request (`ctx.identityUsers.actingUser()`), and a request without a signed-in user fails. It lists, edits, and forgets the caller's memories through `ctx.memory`, lists, reads, edits, retires, restores, and deletes the caller's learned capabilities through `ctx.capabilities`, and is the only writer of the caller's confirmed invariants, through `ctx.memoryInvariants`.
 
+## Table of Contents
+
+- [Use this package](#use-this-package)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
+
 ## Use this package
 
 The `avn-web-app` bundle mounts it after the `capability` row. Methods:

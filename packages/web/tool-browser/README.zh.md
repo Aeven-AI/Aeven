@@ -7,7 +7,7 @@ kind: "package-reference"
 
 [English](README.md) | 中文
 
-## 概要
+## 概述
 
 `@aeven/tool-browser` 让模型读取并操作用户在会话旁看到的浏览器。它注册十四个 `preview_*` 工具，并在每轮的第一步把当前打开的页面作为一条记录在日志中的插件消息加入请求。插件本身不执行任何浏览器操作：每次调用都是一个 `browser/automation` waterfall，由持有该会话浏览器的 Client 应答；`preview_status` 例外，它同时报告 Host 运行的 Chromium。对该 waterfall 的每次等待都有上限，因此轮次永远不会等待一个没有任何已连接 Client 持有的浏览器。
 

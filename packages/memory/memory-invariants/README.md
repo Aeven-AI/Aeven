@@ -13,6 +13,13 @@ English | [中文](README.zh.md)
 
 Recall is a lookup, and a lookup can return nothing. This document is the floor beneath it: the statements that must never be missing are present without being retrieved. It is deliberately bounded, because its block is paid for on every request, and deliberately user-promoted — only the management surface writes it, so a memory the model invented cannot become a permanent part of every prompt. The block is context, not authority: it is advisory in the same way a recalled memory is, and it is never an enforcement point, so a rule that must bind an action belongs to a guard.
 
+## Table of Contents
+
+- [Use this package](#use-this-package)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
+
 ## Use this package
 
 Mount it on the host plane. The `avn-base` bundle ships the row, so every profile carries the block whether or not a memory provider is registered.

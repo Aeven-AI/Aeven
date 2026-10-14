@@ -184,6 +184,8 @@ interface ShellProcess {
   signal: NodeJS.Signals | null
   /** Resolves when the underlying process closes (never rejects — a spawn failure settles as `killed` with the error on stderr). */
   readonly done: Promise<void>
+  /** Non-consuming readers for live stdout and stderr, indexed by byte offset. */
+  readonly observed?: { readonly stdout: SubprocessOutputReader; readonly stderr: SubprocessOutputReader }
   /** Sandbox facts, stamped once a confined process settles. */
   sandbox?: ShellSandboxInfo
   /**

@@ -11,6 +11,14 @@ English | [中文](README.zh.md)
 
 `@aeven/mail` registers `ctx.mail`, which runs mail operations for one owner's accounts: list accounts and folders, search envelopes, read a message, read an attachment, change message state, send or save a draft, and probe new account settings. Accounts come from registered `MailAccountSource`s; every operation resolves the named account address against the sources for the given owner before a socket opens, so a missing, disabled, removed, or foreign account is refused here rather than by tool visibility. Providers use maintained libraries — `imapflow`, `node-pop3`, `nodemailer`, and `mailparser` — and nothing is cached beyond one pooled IMAP connection per account.
 
+## Table of Contents
+
+- [Use this package](#use-this-package)
+- [Behavior](#behavior)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
+
 ## Use this package
 
 Mount the service in the host composition and register an account source; `@aeven/host-account-integrations` does so for Email connectors.
@@ -90,3 +98,7 @@ Append-only; each result is a tool result after the reusable request prefix.
 - No server autodiscovery or IMAP IDLE notifications.
 - The send rate window is held in memory and resets when the plugin restarts.
 - **No invariant companion** — No runtime invariant companion is published because the mutable state this service owns — the source registry, the pooled IMAP connection per account, and the rolling send window — is written only by the operations that read it, so a listener would repeat the call it claims to verify; what the service promises is the socket conversation with each mail server, which no in-process observation replaces.
+
+### Dev Note
+
+None.

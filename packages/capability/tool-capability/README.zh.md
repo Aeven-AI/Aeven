@@ -16,6 +16,14 @@ kind: "package-reference"
 - **证据。** 只有报告自己确实使用了某条召回流程或被有意查看流程的轮次才记录一次执行，含其工具、重试、token 与模型的 `report`；下一轮次中的纠正与该回复上的评分稍后附上。注册表的规则把这些证据转化为状态变更。
 - **工具。** `capability_manage` 提供 `learn`（用户要求时）、`view`、`list`、`update`、`write_file`、`report`、`retire` 与 `restore`。它们都不询问用户；删除留给 Settings → Memory。
 
+## 目录
+
+- [使用本包](#use-this-package)
+- [模型体验](#model-experience)
+- [已知限制与延期工作](#known-limitations-and-deferred-work)
+- [开发备注](#dev-note)
+
+<a id="use-this-package"></a>
 ## 使用本包
 
 按 agent 挂载它，放在 host 的 `capability` 注册表旁边（`standard`、`cordis` 与 `ptc` preset 都包含它）。
@@ -35,6 +43,7 @@ kind: "package-reference"
 | `maxInputTokens` | `32000` | 一次学习模型调用的输入预算，按每 token 四个字符估算；更长的 transcript（文本记录）先被精简，再被截断 |
 | `provider`、`model` | — | 显式的学习路由；缺省时使用各会话自己的路由 |
 
+<a id="model-experience"></a>
 ## 模型体验
 
 ### 能力指引
@@ -79,6 +88,7 @@ kind: "package-reference"
 
 对会话无影响：该调用是会话日志不携带的请求，只发送一次并带自己的固定提示词，因此它既不读取也不延伸对话的可复用前缀。
 
+<a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与延期工作
 
 - **选择会带来延迟与成本** —— 召回使用模型相关性分数，而不是经校准的置信度估计。后台学习器中的相关能力查找仍使用关键词重叠。
@@ -89,6 +99,7 @@ kind: "package-reference"
 - **单样本基线** —— “首次”指标来自学到该项能力的那一个轮次。
 - **不变量省略** —— 不发布运行时不变量伴随模块，因为学习器不拥有自己的持久事实：使用 `store: memory` 时一套流程就是长期记忆服务会取代的一条记忆，使用 `store: capabilities` 时它是注册表拥有的能力文件，而一次执行通过 `ctx.capabilities.recordExecution` 成为证据，因此学习器持有的唯一关系就是进程内那个逐一提炼单一所有者工作的队列。
 
+<a id="dev-note"></a>
 ### 开发备注
 
 无。

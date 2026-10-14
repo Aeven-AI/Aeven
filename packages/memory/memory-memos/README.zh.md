@@ -12,6 +12,14 @@ kind: "package-reference"
 `avn-memory-memos` 把 MemOS 注册为 `ctx.memory` 提供方。它在 Host 进程中运行随附的 MemOS 核心（`MemoryCore`，[`@deepseek-ai/memos-local-plugin`](../../../vendor/memos-local-plugin)）：记忆存放在本地 SQLite 数据库，嵌入经 Transformers.js 在本地运行，而 MemOS 的辅助摘要与过滤调用走所属会话的 `ctx.llm` 路由，因此无需配置第二个 API key。每个账户在它自己的数据库之上有它自己的 MemOS 核心，在该账户第一次记忆操作时打开。
 
 <a id="use-this-package"></a>
+## 目录
+
+- [使用本包](#use-this-package)
+- [理解实现](#understand-the-implementation)
+- [模型体验](#model-experience)
+- [已知限制与延期工作](#known-limitations-and-deferred-work)
+- [开发备注](#dev-note)
+
 ## 使用本包
 
 在 host 面挂载它，放在 `@aeven/memory` 旁边。Web bundle 以 `home: !!js avnHomePath('memory')` 与 `accounts: !!js avnHomePath('accounts')` 随附该行。
@@ -44,6 +52,7 @@ MemOS 核心以 [`@deepseek-ai/memos-local-plugin`](../../../vendor/memos-local-
 
 运行时根目录存放可选的 MemOS `config.yaml`（共用的 MemOS 核心 schema）、`data/memos.db` 与 `skills/`。缺少 `config.yaml` 时使用 MemOS 默认值：轻量流水线与本地 `Xenova/all-MiniLM-L6-v2` 嵌入模型，后者在首次使用时下载。自动召回与显式 `memory_search` 走 MemOS 的轮次开始候选路径，以绕过它两秒的相关性 LLM 过滤；MemOS 轻量模式否则会在 `retrieval.llmFilterEnabled` 为 false 时也强制开启该过滤器。显式搜索保留配置的按层结果上限，除非它的工具参数覆盖它们。Aeven 把带纠正标签的轨迹排除在自动召回之外，因为那些轮次并未指明一条可持久保留的规则或它的指称对象；显式搜索仍可把它们作为历史取回。在 `config.yaml` 中设置 `algorithm.lightweightMemory.enabled: false` 会启用策略归纳、世界模型与 skill 结晶；在 Host LLM 桥下，启动与周期性恢复随后保持关闭，因为它们运行在任何会话路由之外。
 
+<a id="understand-the-implementation"></a>
 ## 理解实现
 
 | 文件 | 角色 |
@@ -63,6 +72,7 @@ MemOS 核心以 [`@deepseek-ai/memos-local-plugin`](../../../vendor/memos-local-
 
 被捕获的结果证据存放在轨迹的 `contextHints` 中，以 `outcome:` 标签建立索引，并追加到召回返回的轨迹摘要。验证被标注为助手的报告；目标完成被标注为一次已记录的目标变更。持久完成的目标还会为其轨迹带来正向隐式反馈。失败的工具调用留在轨迹中并喂给 MemOS 的工具结果路径；仅一次重试不算任务失败。显式的消息评分继续使用单独的 feedback 操作。
 
+<a id="model-experience"></a>
 ## 模型体验
 
 ### 自动召回文本
@@ -119,11 +129,13 @@ SUMMARY: <the stored summary, at most 300 characters>
 
 对对话无影响：每次调用都是带自己消息的独立请求，因此它既不读取也不延伸对话的可复用前缀。
 
+<a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与延期工作
 
 - **共用数据库拆分** —— 按账户记忆启用后的首次启动会把每个账户的行从 `home/data/memos.db` 移进它自己的数据库，并把共用文件改名为 `memos.db.split`；拆分在第一个带标签的发布时移除。
 - **捕获的出处** —— MemOS 把工具输出存进轨迹，因此工具读到的文本可能在后续召回中再次出现；召回的上下文被框定为不可信数据。
 
+<a id="dev-note"></a>
 ### 开发备注
 
 <details>

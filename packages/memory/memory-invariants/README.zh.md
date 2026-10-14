@@ -13,6 +13,14 @@ kind: "package-reference"
 
 召回是一次查找，而查找可能什么都返回不了。这份文档是查找之下的底线：那些绝不能缺失的陈述无需检索就已存在。它有意是有界的，因为它的块要在每个请求上付费；也有意只由用户提升，因为只有管理界面写入它，因此模型编造的一条记忆无法成为每个提示词中永久的一部分。该块是上下文，不是权威：它与被召回的的记忆一样只作建议，而且永远不是执行点，因此必须约束某个动作的规则属于 guard。
 
+## 目录
+
+- [使用本包](#use-this-package)
+- [模型体验](#model-experience)
+- [已知限制与延期工作](#known-limitations-and-deferred-work)
+- [开发备注](#dev-note)
+
+<a id="use-this-package"></a>
 ## 使用本包
 
 在 host 面挂载它。`avn-base` bundle 随附该行，因此无论是否注册了记忆提供方，每个 profile 都携带该块。
@@ -69,6 +77,7 @@ The user confirmed every statement inside `<invariants>` as always true for thei
 
 在文档不变期间前缀稳定，因为该块是系统提示词的一部分。经由管理界面的一次写入会在下一个请求中替换它，并使从该段落起的前缀复用失效。读取它每次提示词组装花费一次 `statSync`；只有当文档的大小或修改时间发生变化时才解析它。
 
+<a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与延期工作
 
 - **仅限所有者作用域** —— 一条陈述适用于其所有者的每个会话。工作区作用域的陈述需要在文档中有一个作用域字段，以及一个能指出工作区的界面，因此项目约定要么对所有项目提升，要么一个都不提升。
@@ -76,6 +85,7 @@ The user confirmed every statement inside `<invariants>` as always true for thei
 - **不能重排** —— 块按最新在前渲染，因此一条陈述的位置取决于它最后一次被确认的时间，而不是它有多重要。
 - **每份文档一个写入者** —— 文件被整体替换，因此两个写入者操作同一个所有者的文档会产生竞态。
 
+<a id="dev-note"></a>
 ### 开发备注
 
 <details>

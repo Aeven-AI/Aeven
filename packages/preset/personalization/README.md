@@ -1,6 +1,6 @@
 ---
 description: "Per-account personalization: how each signed-in person wants Aeven to talk with them, for users and maintainers configuring or debugging it."
-kind: "package"
+kind: "package-reference"
 ---
 
 # @aeven/personalization
@@ -10,6 +10,14 @@ English | [中文](README.zh.md)
 ## Summary
 
 `@aeven/personalization` stores, per signed-in account, how that person wants Aeven to talk with them: a voice (`automatic`, `warm`, `direct`, or `playful`) and notes in their own words. The name Aeven calls them is not stored here: it is the account display name the sign-up naming step asks for, and it reaches the model as `<user_profile>` with every message. It renders those preferences into the system prompt of every session the person owns, directly after the persona, and serves the `personalization` Remote behind Settings → Personalization. A person who keeps every default contributes nothing to the prompt.
+
+## Table of Contents
+
+- [Configuration](#configuration)
+- [Behavior](#behavior)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
 
 ## Configuration
 
@@ -72,3 +80,7 @@ Prefix-stable while the person leaves the document alone: the section sits early
 
 - Style requests made in conversation ("talk to me more casually") land in long-term memory, not in this document; Settings does not show them yet.
 - **No invariant companion** — No runtime invariant companion is published because the store, the prompt section, and the Remote all read the same per-account document and the section is rendered from the store's own read, so a check could only re-read the file this package already reads; `identityUsers` owns which account a session belongs to.
+
+### Dev Note
+
+None.

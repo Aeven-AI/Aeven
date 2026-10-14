@@ -44,6 +44,7 @@ An explicit configured path has the highest precedence, then `$AVN_HOME`, then t
 ```ts
 import { accountHomePath } from '@aeven/home-paths'
 
+const owner = 'example-account'
 const memory = accountHomePath(owner, 'memory')   // <home>/accounts/<sha256 of owner>/memory
 ```
 

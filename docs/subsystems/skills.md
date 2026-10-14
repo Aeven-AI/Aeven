@@ -198,6 +198,11 @@ Full definitions are not cached by the registry. Each `get()` calls the winning 
 interface SkillLookupOptions {
   /** Workspace selector for the current lookup. */
   readonly cwd?: string | undefined
+  /**
+   * Account id of the signed-in user the viewing session belongs to, for providers that publish
+   * per-user skills; absent for sessions without an owner.
+   */
+  readonly owner?: string | undefined
   /** Abort discovery or loading work for the current caller. */
   readonly signal?: AbortSignal | undefined
 }

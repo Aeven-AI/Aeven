@@ -25,7 +25,9 @@ Imagine 的起始页此前提供十三条灵感提示的网格，卡片直接把
 照片通过两个输入面新增的成员抵达草稿，即 `SessionInput` 与 `InputActions`：
 
 ```ts
-addImageFiles(files: readonly File[]): string | null
+interface ImageFileInput {
+  addImageFiles(files: readonly File[]): string | null
+}
 ```
 
 `SessionInputShell` 依据新增的 `SessionInputDeps.draftImages` 依赖实现它——`create`、`release` 与 `busyNotice`——由 hub 接到对话服务既有的 `createDraftImages`，把 `UnsupportedImageMediaTypeError` 映射为本地化的媒体类型拒绝，把被锁定的草稿映射为忙碌提示。被锁定草稿拒绝的图片会立即释放，其预览 URL 随之消亡。hub 中草稿图片的释放现在是一个私有 helper，由命令路径、disposer 与本入口共用。该成员是必填而非可选，因为 `InputActions` 只在一个 session 存在时才存在：生产环境没有缺失的情形，且每个测试假件现在都提供它。

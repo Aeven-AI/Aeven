@@ -11,6 +11,13 @@ kind: "package-reference"
 
 `avn-capability` 提供 `ctx.capabilities`，即每个已登录用户的 agent（智能体）所学能力的注册表。每个操作都接受所有者的账户 id。一项能力是一个目录 `<root>/<owner>/<name>/`，其中放着 agentskills 的 `SKILL.md`（frontmatter 的 `name` 与 `description`，随后是流程）、`references/`、`scripts/`、`templates/`、`assets/` 或 `examples/` 下的配套文件、含状态、修订、来源、时间戳、文件清单与出处的 `capability.json`、含每个修订流程的 `versions/<revision>.md`，以及仅追加的证据日志 `executions.jsonl`。本服务不贡献任何 skill（技能）；能力消费方直接把符合条件的流程作为建议上下文召回。
 
+## 目录
+
+- [使用本包](#use-this-package)
+- [模型体验](#model-experience)
+- [已知限制与延期工作](#known-limitations-and-deferred-work)
+
+<a id="use-this-package"></a>
 ## 使用本包
 
 在 host 面挂载它。Web bundle 以 `root: !!js avnHomePath('capabilities')` 挂载它。
@@ -38,6 +45,7 @@ kind: "package-reference"
 
 每次写入都把该修订的 `SKILL.md` 保留在 `versions/<revision>.md` 下，因此一个修订始终可归因于跟随其后的那些执行，更早的流程也可恢复。`versions(owner, name)` 按从旧到新读回它们，并带上每个修订当时携带的描述，`rollback(owner, name, revision, sessionId)` 把其中一份写成新修订，其出处记录 `action: 'rollback'` 与 `restored: <revision>`；被恢复的修订随后像任何其他修订一样对自己的证据负责，因此恢复不会继承信任。没有保留正文时，这两个读操作都返回空，而不是抛出。
 
+<a id="model-experience"></a>
 ## 模型体验
 
 无：注册表自己不添加任何提示词文本、工具、skill 或斜杠建议；召回与检视呈现给模型的内容由能力消费方拥有。
@@ -45,6 +53,8 @@ kind: "package-reference"
 #### KV Cache 影响
 
 无；这里不产生任何提示词输入。
+
+<a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与延期工作
 
 - **证据记录在能力运行之处** —— 执行日志属于本机 Host，不参与同步。

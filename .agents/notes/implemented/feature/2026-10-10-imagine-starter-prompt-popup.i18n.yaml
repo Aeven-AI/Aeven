@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-10-imagine-starter-prompt-popup.md
-2026-10-10-imagine-starter-prompt-popup.md: 2c388d46b6ce9bf180ca74b09614cfc28d771158
-2026-10-10-imagine-starter-prompt-popup.zh.md: a626350f83f80ab5dc491aa956da1eb9fbef7ee1
+2026-10-10-imagine-starter-prompt-popup.md: 3a4a67586f92a4bc0db010bc5f45ae0216e11bd8
+2026-10-10-imagine-starter-prompt-popup.zh.md: 9ffeb8caff88ddb71753b5be8766546c0452fad7

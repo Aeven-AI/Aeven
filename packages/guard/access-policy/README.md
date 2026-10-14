@@ -110,3 +110,7 @@ Append-only; a denial is new trailing content and does not invalidate earlier ca
 - **Only while the mode is set** — with `workspace-write` or `danger-full-access` the check admits everything; a session that never changed its mode has no protection beyond the filesystem policy.
 - **Only observable rules** — a preference with no trigger in structured state ("be concise", "do not over-engineer") cannot be expressed as a guard.
 - **A deny list, not an allow list** — a tool added by a plugin the list does not name is admitted; deployments that need the inverse enumerate their permitted tools in `deny`'s complement by listing everything else.
+
+### Dev Note
+
+None.

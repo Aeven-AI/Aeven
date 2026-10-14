@@ -25,7 +25,9 @@ The frame reaches the model as a `WIDTHxHEIGHT` size line appended to the messag
 Photos reach the draft through a new member on both input faces, `SessionInput` and `InputActions`:
 
 ```ts
-addImageFiles(files: readonly File[]): string | null
+interface ImageFileInput {
+  addImageFiles(files: readonly File[]): string | null
+}
 ```
 
 `SessionInputShell` implements it over a new `SessionInputDeps.draftImages` dependency — `create`, `release`, and `busyNotice` — which the hub wires to the conversation service's existing `createDraftImages`, mapping `UnsupportedImageMediaTypeError` to the localized media-type refusal and a locked draft to the busy notice. Images a locked draft refuses are released immediately, so their preview URLs die with them. The hub's draft-image release is now one private helper shared by the command path, the disposer, and this intake. The member is required rather than optional because `InputActions` exists only while a session does: there is no absent case in production, and every test fake now supplies it.

@@ -11,6 +11,12 @@ English | [中文](README.zh.md)
 
 `avn-capability` provides `ctx.capabilities`, the registry of capabilities each signed-in user's agents learned. Every operation takes the owner's account id. A capability is a directory `<root>/<owner>/<name>/` holding an agentskills `SKILL.md` (frontmatter `name` and `description`, then the procedure), supporting files under `references/`, `scripts/`, `templates/`, `assets/`, or `examples/`, `capability.json` with status, revision, source, timestamps, file list, and provenance, `versions/<revision>.md` with every revision's procedure, and `executions.jsonl`, the append-only evidence log. The service contributes no skills; the capability consumer recalls eligible procedures directly as advisory context.
 
+## Table of Contents
+
+- [Use this package](#use-this-package)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+
 ## Use this package
 
 Mount it on the host plane. The web bundle mounts it with `root: !!js avnHomePath('capabilities')`.
@@ -45,6 +51,7 @@ None, as the registry adds no prompt text, tool, skill, or slash suggestion of i
 #### KV Cache effect
 
 None; no prompt input originates here.
+
 ## Known Limitations and Deferred Work
 
 - **Evidence is recorded where the capability ran** — the execution log is local to this Host and is not synced.

@@ -11,6 +11,13 @@ English | [中文](README.zh.md)
 
 `avn-client-ui-settings-memory` registers the Memory page in Settings over the `memoryManager` Remote from `@aeven/api-memory-manager`. It replaces the MemOS Viewer as the user's place to review what Aeven learned.
 
+## Table of Contents
+
+- [Use this package](#use-this-package)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
+
 ## Use this package
 
 The page uses the same underline tabs as Plugins:
