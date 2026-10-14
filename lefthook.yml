@@ -4,6 +4,12 @@
 
 pre-commit:
   jobs:
+    # A checkout parked on the default branch is the usual way a commit lands
+    # there by accident, so fail before the commit exists instead of moving it
+    # off the branch by hand afterwards.
+    - name: default branch guard
+      run: scripts/verify-not-default-branch.sh commit
+
     - name: translation pairing (staged records)
       glob: '*.i18n.yaml'
       exclude:
@@ -64,5 +70,8 @@ pre-merge-commit:
 
 pre-push:
   jobs:
+    - name: default branch guard
+      run: scripts/verify-not-default-branch.sh push
+
     - name: typecheck
       run: pnpm run typecheck

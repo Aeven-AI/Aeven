@@ -130,6 +130,7 @@ Real-API tests and demos read `DEEPSEEK_API_KEY`, optional `DEEPSEEK_BASE_URL`, 
 - **Both SDKs project the loop.** Agent-loop, session-lifecycle, and `SessionEventMap` changes update the TypeScript and Python SDK expected outputs in the same PR; `pnpm run test` covers neither ([surfaces](docs/testing.md#when-a-snapshot-test-is-required)).
 - **Choose PR history deliberately.** Split independent changes and fix the introducing PR before propagation. Standalone/stack branches may merge-forward or rebase. Rewrites use `--force-with-lease`, abort on remote movement, never raw `--force`; preserve an in-progress merge-forward checkpoint before taking a newer base ([rationale](.agents/notes/implemented/process/2026-08-02-native-github-stacks-and-optional-rebases.md)).
 - **Labels:** one PR `kind/*`, all material `area/*`, and native Issue Type ([taxonomy](.agents/notes/implemented/process/2026-08-08-unified-github-label-taxonomy.md)).
+- **`main` takes changes only through a pull request.** Branch off `main`, commit on the branch, push, open the PR, merge it, then fast-forward local `main` and delete the branch; never commit or push on `main` itself, even locally. `scripts/verify-not-default-branch.sh` refuses both in the git hooks and the `main` ruleset refuses them on GitHub ([note](.agents/notes/implemented/process/2026-10-15-default-branch-commits-are-refused-locally.md)).
 - TODO markers: `FIXME`/`TODO`/`XXX` by urgency ([semantics](docs/development.md)).
 - Files end with exactly one trailing newline; `git diff --cached --check` (pre-commit) gates it.
 
