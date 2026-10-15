@@ -1,7 +1,7 @@
 {
   "name": "@aeven/device",
   "description": "iOS Simulator and Android Emulator seam: device hosts, per-session device sessions, the device pane's state stream, and the authenticated hub proxy",
-  "version": "0.3.2-alpha",
+  "version": "0.3.3-alpha",
   "publishConfig": {
     "access": "public"
   },

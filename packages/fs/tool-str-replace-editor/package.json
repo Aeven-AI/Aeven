@@ -1,7 +1,7 @@
 {
   "name": "@aeven/tool-str-replace-editor",
   "description": "Model-facing view, create, literal replace, and line insert tool over the Aeven filesystem service",
-  "version": "0.3.2-alpha",
+  "version": "0.3.3-alpha",
   "publishConfig": {
     "access": "public"
   },

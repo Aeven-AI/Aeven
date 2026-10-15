@@ -1,7 +1,7 @@
 {
   "name": "@aeven/experimental-tool-agent-team",
   "description": "Scoped model-facing Agent Teams tools over ctx.agentTeams",
-  "version": "0.3.2-alpha",
+  "version": "0.3.3-alpha",
   "private": true,
   "repository": {
     "type": "git",
