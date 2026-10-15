@@ -97,6 +97,20 @@ runtime-macos-arm64:
     - job: sdk-wheel
       artifacts: true
 
+runtime-macos-x64:
+  extends: .runtime-wheel
+  tags: [macos-x64]
+  variables:
+    PKG_TARGET: node24-macos-x64
+    PLATFORM: macos-x64
+  # Pipelines exist only for python-v* tags, and a job whose runner tag the fleet does not carry waits
+  # forever, stalling that pipeline. This job is added only while the variable asks for it.
+  rules:
+    - if: '$AVN_MACOS_X64_WHEEL == "1"'
+  needs:
+    - job: sdk-wheel
+      artifacts: true
+
 runtime-windows-x64:
   stage: build
   tags: [windows-x64]
@@ -147,6 +161,9 @@ publish-python:
       artifacts: true
     - job: runtime-macos-arm64
       artifacts: true
+    - job: runtime-macos-x64
+      artifacts: true
+      optional: true
     - job: runtime-windows-x64
       artifacts: true
   before_script:
@@ -157,11 +174,14 @@ publish-python:
     - test "$CI_COMMIT_TAG" = "python-v$AVN_VERSION" || { echo "Tag $CI_COMMIT_TAG does not match package.json version $AVN_VERSION"; exit 1; }
     - python -m pip install twine==6.2.0
   script:
-    - test "$(find release -name '*.whl' | wc -l | tr -d ' ')" = 5
+    # Five wheels carry the four provisioned platforms; the opt-in Intel macOS wheel makes six.
+    - expected=5; if [ "$AVN_MACOS_X64_WHEEL" = "1" ]; then expected=6; fi
+    - test "$(find release -name '*.whl' | wc -l | tr -d ' ')" = "$expected"
     - test -f "release/sdk/aeven_sdk-${AVN_WHEEL_VERSION}-py3-none-any.whl"
     - test -f "release/linux-x64/aeven_runtime_bin-${AVN_WHEEL_VERSION}-py3-none-manylinux_2_28_x86_64.whl"
     - test -f "release/linux-arm64/aeven_runtime_bin-${AVN_WHEEL_VERSION}-py3-none-manylinux_2_28_aarch64.whl"
     - test -f "release/macos-arm64/aeven_runtime_bin-${AVN_WHEEL_VERSION}-py3-none-macosx_14_0_arm64.whl"
+    - if [ "$AVN_MACOS_X64_WHEEL" = "1" ]; then test -f "release/macos-x64/aeven_runtime_bin-${AVN_WHEEL_VERSION}-py3-none-macosx_14_0_x86_64.whl"; fi
     - test -f "release/win-x64/aeven_runtime_bin-${AVN_WHEEL_VERSION}-py3-none-win_amd64.whl"
     - python -m twine check release/*/*.whl
     - export TWINE_USERNAME=gitlab-ci-token
