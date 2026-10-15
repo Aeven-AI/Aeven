@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-settings-integrations",
   "description": "Account-owned Skills and Connectors settings pages",
-  "version": "0.3.1-alpha",
+  "version": "0.3.1-alpha.1",
   "publishConfig": {
     "access": "public"
   },

@@ -1,7 +1,7 @@
 {
   "name": "@aeven/personalization",
   "description": "How each signed-in person wants Aeven to talk with them: voice, name and notes, rendered after the persona",
-  "version": "0.3.1-alpha",
+  "version": "0.3.1-alpha.1",
   "publishConfig": {
     "access": "public"
   },
