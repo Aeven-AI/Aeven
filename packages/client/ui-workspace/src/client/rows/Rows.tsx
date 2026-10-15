@@ -501,7 +501,6 @@ export function SessionNodeItem({
         css.sessionRow, selected && css.selected, menuOpen && css.menuOpen,
         drag?.marker === 'before' && css.dropBefore, drag?.marker === 'after' && css.dropAfter,
       )}
-      data-selected={selected ? '' : undefined}
       role="treeitem"
       aria-selected={selected}
       onClick={(event) => {

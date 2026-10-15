@@ -1,4 +1,4 @@
-/** Download and verify the upstream Node.js runtime and copy the pinned pnpm CLI. */
+/** Download and verify the upstream Node.js runtime with its bundled npm, and copy the pinned pnpm CLI. */
 
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
@@ -36,7 +36,31 @@ async function download(url: string, path: string): Promise<void> {
   writeFileSync(path, new Uint8Array(await response.arrayBuffer()), { mode: 0o600 })
 }
 
-async function prepareNode(platform: RuntimePlatform, arch: RuntimeArch): Promise<void> {
+/**
+ * Launchers beside the bundled `node` that run the archive's npm CLIs with it, so a Host spawn of a bare `npm` or
+ * `npx` resolves on a machine with no Node.js installed.
+ */
+function writeNpmLaunchers(platform: RuntimePlatform, nodeRoot: string): void {
+  for (const cli of ['npm', 'npx']) {
+    if (platform === 'win') {
+      writeFileSync(join(nodeRoot, `${cli}.cmd`), `@"%~dp0node.exe" "%~dp0..\\npm\\bin\\${cli}-cli.js" %*\r\n`)
+    } else {
+      const launcher = join(nodeRoot, cli)
+      writeFileSync(launcher, [
+        '#!/bin/sh',
+        'dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)',
+        `exec "$dir/node" "$dir/../npm/bin/${cli}-cli.js" "$@"`,
+        '',
+      ].join('\n'), { mode: 0o755 })
+    }
+  }
+}
+
+/**
+ * Download, verify, and install Node.js and its bundled npm into the runtime directory.
+ * @returns the bundled npm version.
+ */
+async function prepareNode(platform: RuntimePlatform, arch: RuntimeArch): Promise<string> {
   const extension = platform === 'win' ? 'zip' : 'tar.gz'
   const folder = `node-v${NODE_VERSION}-${platform}-${arch}`
   const archiveName = `${folder}.${extension}`
@@ -55,15 +79,27 @@ async function prepareNode(platform: RuntimePlatform, arch: RuntimeArch): Promis
   const extraction = BUILD_PATHS.nodeExtract
   rmSync(extraction, { recursive: true, force: true })
   mkdirSync(extraction, { recursive: true })
+  const npmEntry = platform === 'win' ? `${folder}/node_modules/npm/` : `${folder}/lib/node_modules/npm/`
   if (platform === 'win') {
-    // Only node.exe is shipped; extract-zip 2.0.1 stalls mid-archive on Node 26 and leaves this await unsettled.
+    // Only node.exe and npm are shipped; extract-zip 2.0.1 stalls mid-archive on Node 26 and leaves this await unsettled.
     const entry = `${folder}/node.exe`
-    const bytes = unzipSync(await readFile(archive), { filter: file => file.name === entry })[entry]
-    if (bytes === undefined) throw new Error(`desktop runtime: ${archiveName} has no ${entry}`)
-    mkdirSync(join(extraction, folder), { recursive: true })
-    writeFileSync(join(extraction, folder, 'node.exe'), bytes)
+    const files = unzipSync(await readFile(archive), {
+      filter: file => file.name === entry || (file.name.startsWith(npmEntry) && !file.name.endsWith('/')),
+    })
+    if (files[entry] === undefined) throw new Error(`desktop runtime: ${archiveName} has no ${entry}`)
+    for (const [name, bytes] of Object.entries(files)) {
+      const path = join(extraction, name)
+      mkdirSync(dirname(path), { recursive: true })
+      writeFileSync(path, bytes)
+    }
   } else await extract({ cwd: extraction, file: archive })
   const source = join(extraction, folder, platform === 'win' ? 'node.exe' : 'bin/node')
+  const npmSource = join(extraction, npmEntry)
+  const npmManifest = JSON.parse(readFileSync(join(npmSource, 'package.json'), 'utf8')) as { version?: unknown }
+  if (typeof npmManifest.version !== 'string') throw new Error(`desktop runtime: ${archiveName} carries no npm version`)
+  const npmDestination = join(RUNTIME_ROOT, 'npm')
+  rmSync(npmDestination, { recursive: true, force: true })
+  cpSync(npmSource, npmDestination, { recursive: true })
   const destinationRoot = join(RUNTIME_ROOT, 'node')
   const destination = join(destinationRoot, platform === 'win' ? 'node.exe' : 'node')
   rmSync(destinationRoot, { recursive: true, force: true })
@@ -71,6 +107,7 @@ async function prepareNode(platform: RuntimePlatform, arch: RuntimeArch): Promis
   // A fresh write prevents macOS from retaining invalid code-signature vnode state from a tar-extracted Mach-O clone.
   await pipeline(createReadStream(source), createWriteStream(destination, { flags: 'wx' }))
   if (platform !== 'win') await chmod(destination, 0o755)
+  writeNpmLaunchers(platform, destinationRoot)
   const hostPlatform = process.platform === 'win32' ? 'win' : process.platform
   // Windows on ARM runs the x64 build under emulation.
   const hostCanExecute = platform === hostPlatform
@@ -82,8 +119,18 @@ async function prepareNode(platform: RuntimePlatform, arch: RuntimeArch): Promis
       const outcome = detail === '' ? `exit ${String(result.status)}` : detail
       throw new Error(`desktop runtime: prepared Node.js ${NODE_VERSION} failed executable verification: ${outcome}`)
     }
+    // Windows cannot spawn the `.cmd` launcher without a shell, so it verifies the CLI the launcher runs.
+    const npx = platform === 'win'
+      ? spawnSync(destination, [join(npmDestination, 'bin', 'npx-cli.js'), '--version'], { encoding: 'utf8' })
+      : spawnSync(join(destinationRoot, 'npx'), ['--version'], { encoding: 'utf8' })
+    if (npx.error !== undefined || npx.status !== 0 || npx.stdout.trim() !== npmManifest.version) {
+      const detail = npx.error?.message ?? npx.signal ?? npx.stderr.trim()
+      const outcome = detail === '' ? `exit ${String(npx.status)}` : detail
+      throw new Error(`desktop runtime: bundled npx ${npmManifest.version} failed verification: ${outcome}`)
+    }
   }
   rmSync(extraction, { recursive: true, force: true })
+  return npmManifest.version
 }
 
 function preparePnpm(): string {
@@ -102,11 +149,12 @@ async function main(): Promise<void> {
   const { platform, arch } = target()
   mkdirSync(DOWNLOAD_ROOT, { recursive: true })
   mkdirSync(RUNTIME_ROOT, { recursive: true })
-  await prepareNode(platform, arch)
+  const npmVersion = await prepareNode(platform, arch)
   const pnpmVersion = preparePnpm()
   writeFileSync(join(RUNTIME_ROOT, 'versions.json'), `${JSON.stringify({
     schemaVersion: 1,
     node: NODE_VERSION,
+    npm: npmVersion,
     pnpm: pnpmVersion,
   }, undefined, 2)}\n`)
 }

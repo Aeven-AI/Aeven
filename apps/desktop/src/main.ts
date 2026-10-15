@@ -1,7 +1,7 @@
 /** Electron shell: desktop project ownership, custom protocol, windows, and lifecycle. */
 
 import { readFile, writeFile } from 'node:fs/promises'
-import { delimiter, extname, join, normalize, resolve, sep } from 'node:path'
+import { delimiter, dirname, extname, join, normalize, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   app,
@@ -397,6 +397,8 @@ async function main(): Promise<void> {
   const loginPath = await loginShellPath(process.env)
   if (loginPath === undefined) console.warn('desktop: the login shell did not report a PATH; the Host keeps the inherited one')
   else process.env.PATH = mergePath(loginPath, process.env.PATH, delimiter)
+  // Last, so an installed Node.js still wins: on a machine without one, the bundled `node`, `npm`, and `npx` resolve.
+  process.env.PATH = mergePath(process.env.PATH ?? '', dirname(resources.node), delimiter)
   const plan = await planDesktopBackend(development === undefined ? { avnVersion: app.getVersion() } : {})
   if (development === undefined && plan.kind === 'spawn') manager.recover()
 
