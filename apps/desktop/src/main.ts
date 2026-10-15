@@ -1,7 +1,7 @@
 /** Electron shell: desktop project ownership, custom protocol, windows, and lifecycle. */
 
 import { readFile, writeFile } from 'node:fs/promises'
-import { extname, join, normalize, resolve, sep } from 'node:path'
+import { delimiter, extname, join, normalize, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   app,
@@ -32,6 +32,7 @@ import { formatDesktopMessage, resolveDesktopLocale } from './locale.ts'
 import { claimDesktopSingleInstance } from './single-instance.ts'
 import { DesktopUpdateCoordinator } from './update-coordinator.ts'
 import { DesktopBackgroundMode } from './background-mode.ts'
+import { loginShellPath, mergePath } from './login-shell-path.ts'
 import { sendVideoEmbedReferrer } from './video-embeds.ts'
 
 const SCHEME = 'avn-app'
@@ -392,6 +393,10 @@ async function main(): Promise<void> {
 
   // A packaged shell replaces a desktop Host from another release; a
   // development shell adopts whatever serves the home.
+  // The Host and every process it starts inherit this PATH; a GUI launch alone carries the session's minimal one.
+  const loginPath = await loginShellPath(process.env)
+  if (loginPath === undefined) console.warn('desktop: the login shell did not report a PATH; the Host keeps the inherited one')
+  else process.env.PATH = mergePath(loginPath, process.env.PATH, delimiter)
   const plan = await planDesktopBackend(development === undefined ? { avnVersion: app.getVersion() } : {})
   if (development === undefined && plan.kind === 'spawn') manager.recover()
 
