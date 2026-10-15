@@ -196,6 +196,12 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
   const referrer = referrerRef.current
 
   useEffect(() => {
+    if (props.match?.params?.authType === 'mfa' && !api.hasPendingMfaChallenge()) {
+      routeService.navigateRoute('/sign-in')
+    }
+  }, [props.match?.params?.authType])
+
+  useEffect(() => {
     events.on('confetti:show', guid, () => {
       const jsConfetti = new JSConfetti()
       void jsConfetti.addConfetti({
@@ -1433,14 +1439,14 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
 
 
     if (authType === 'mfa') {
-      const finish = (): void => {
-        void api.getProfile().then(() => {
+      const finish = (): Promise<void> => {
+        return api.getProfile().then(() => {
           if (oauth.isProviderLanding()) window.close()
           else routeService.navigateRoute(referrer || '/')
         })
       }
       return <MfaForm standalone mode="login" t={t} request={api.mfa} onDone={finish}
-        onCancel={() => { routeService.navigateRoute('/sign-in/email') }} />
+        onCancel={() => { routeService.navigateRoute('/sign-in') }} />
     }
 
     if (authPath === 'sign-in' && authType === 'forgot') return authForgotComponent()
