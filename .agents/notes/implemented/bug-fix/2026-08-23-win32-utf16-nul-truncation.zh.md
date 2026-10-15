@@ -12,7 +12,7 @@ Status: implemented
 
 扫描只有在一个码元的两个字节都为零时才结束，仍按每次两个字节在同一个 32KiB `koffi.view` 缓冲区上推进。回归测试通过既有的假 koffi COM 世界驱动 `readUtf16`，路径包含「安卓开发」(U+5F00)，从而不依赖真实 Windows 主机验证终止规则。
 
-修复逐字采用 ericcaiwx-star fork 的 `fix/win32-utf16-nul-truncation` 分支上的社区补丁系列——[c8aac14703](https://github.com/ericcaiwx-star/aeven/commit/c8aac14703a517b8db1573f9ca4ed94dc58e276b) 是扫描修复，[e1d6265cb9](https://github.com/ericcaiwx-star/aeven/commit/e1d6265cb930a0a74cba03c40e73ed872a83575f) 是 fixture 清理——在 [discussion #580](https://github.com/Aeven-AI/Harness/discussions/580) 报告（更早在 [discussion #563](https://github.com/Aeven-AI/Harness/discussions/563) 报告）。两次 cherry-pick 均保留原作者 ericcaiwx-star；上游 fork 是补丁的记录来源。
+修复逐字采用 ericcaiwx-star fork 的 `fix/win32-utf16-nul-truncation` 分支上的社区补丁系列——[c8aac14703](https://github.com/ericcaiwx-star/aeven/commit/c8aac14703a517b8db1573f9ca4ed94dc58e276b) 是扫描修复，[e1d6265cb9](https://github.com/ericcaiwx-star/aeven/commit/e1d6265cb930a0a74cba03c40e73ed872a83575f) 是 fixture 清理——在 [discussion #580](https://github.com/Aeven-AI/Aeven/discussions/580) 报告（更早在 [discussion #563](https://github.com/Aeven-AI/Aeven/discussions/563) 报告）。两次 cherry-pick 均保留原作者 ericcaiwx-star；上游 fork 是补丁的记录来源。
 
 ## 考虑过的替代方案
 

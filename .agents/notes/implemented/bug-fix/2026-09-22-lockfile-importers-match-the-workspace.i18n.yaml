@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-22-lockfile-importers-match-the-workspace.md
-2026-09-22-lockfile-importers-match-the-workspace.md: a2c3168995898b90f7cea82e862f5c85351461c9
-2026-09-22-lockfile-importers-match-the-workspace.zh.md: 45808a77a606f06aa20b200b46c8329995f1dfce
+2026-09-22-lockfile-importers-match-the-workspace.md: e8c4a133ae91505264d5ac7c084f7ed72882f97b
+2026-09-22-lockfile-importers-match-the-workspace.zh.md: 5a46fa79ca03d6a684f277631f3f8414c62046f5

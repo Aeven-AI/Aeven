@@ -4,7 +4,7 @@
   "description": "Prebuilt WhatsApp MCP daemon for win32-arm64, resolved as a file path by @aeven/host-account-integrations and never imported",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "url": "git+https://github.com/Aeven-AI/Aeven.git",
     "directory": "native/whatsapp-mcp/packages/win32-arm64"
   },
   "os": [

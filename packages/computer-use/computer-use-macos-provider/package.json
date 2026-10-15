@@ -5,7 +5,7 @@
   "publishConfig": { "access": "public" },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "url": "git+https://github.com/Aeven-AI/Aeven.git",
     "directory": "packages/computer-use/computer-use-macos-provider"
   },
   "type": "module",

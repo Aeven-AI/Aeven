@@ -333,8 +333,8 @@ function fileLevelRules(wave) {
     // so it is unreachable by the run matcher. The fork's own repository
     // metadata points at the real fork remote (git remote -v); upstream
     // attribution stays in THIRD_PARTY_NOTICES.md, which is excluded.
-    { name: 'product-repo-url', from: /github\.com\/deepseek-ai\/deepseek-harness/g, to: 'github.com/Aeven-AI/Harness' },
-    { name: 'product-docs-url', from: /deepseek-harness\.github\.io\/deepseek-harness/g, to: 'aeven-ai.github.io/Harness' },
+    { name: 'product-repo-url', from: /github\.com\/deepseek-ai\/deepseek-harness/g, to: 'github.com/Aeven-AI/Aeven' },
+    { name: 'product-docs-url', from: /deepseek-harness\.github\.io\/deepseek-harness/g, to: 'docs.aeven.io' },
     { name: 'product-hyphen', from: /deepseek-harness/g, to: 'aeven' },
   ]
 }

@@ -720,7 +720,7 @@ describe('createFixtureApi', () => {
     const webSearch = results.find(event => event.data.turn === 70)
     expect(webSearch).toHaveProperty('data.meta.truncated', true)
     expect(webSearch).toHaveProperty('data.meta.sources', expect.arrayContaining([
-      expect.objectContaining({ url: 'https://github.com/Aeven-AI/Harness' }),
+      expect.objectContaining({ url: 'https://github.com/Aeven-AI/Aeven' }),
     ]))
     expect(results.find(event => event.data.turn === 71)).toMatchObject({
       data: { meta: { url: 'https://www.deepseek.com/blog/harness-architecture', statusCode: 200 } },

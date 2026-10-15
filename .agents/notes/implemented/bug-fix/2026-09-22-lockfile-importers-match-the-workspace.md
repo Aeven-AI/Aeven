@@ -6,7 +6,7 @@ English | [中文](2026-09-22-lockfile-importers-match-the-workspace.zh.md)
 
 ## Problem
 
-Merged `main` carried a `pnpm-lock.yaml` importer for `packages/experimental/browser-devtools`, a directory that existed only as an untracked stub in one shared checkout. `bc12e4bc42` (PR #58) committed the lockfile a partial `pnpm install` there had produced, and `363e6d83d7` (PR #61) removed the two lines again with a `pnpm install --lockfile-only` run in a checkout without that directory ([issue #59](https://github.com/Aeven-AI/Harness/issues/59)).
+Merged `main` carried a `pnpm-lock.yaml` importer for `packages/experimental/browser-devtools`, a directory that existed only as an untracked stub in one shared checkout. `bc12e4bc42` (PR #58) committed the lockfile a partial `pnpm install` there had produced, and `363e6d83d7` (PR #61) removed the two lines again with a `pnpm install --lockfile-only` run in a checkout without that directory ([issue #59](https://github.com/Aeven-AI/Aeven/issues/59)).
 
 Two measured install behaviours decide what a gate has to own:
 

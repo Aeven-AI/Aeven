@@ -324,7 +324,7 @@ export function parseTranslationMarkdown(content: string): Nodes {
   return fromMarkdown(content, { extensions: [gfm()], mdastExtensions: [gfmFromMarkdown()] })
 }
 
-const PUBLIC_REPOSITORY_BLOB_ROOT = 'https://github.com/Aeven-AI/Harness/blob/master/'
+const PUBLIC_REPOSITORY_BLOB_ROOT = 'https://github.com/Aeven-AI/Aeven/blob/master/'
 
 /** Return the accepted relative and public-repository links to one counterpart. */
 export function languageSwitcherTargets(counterpart: string): string[] {

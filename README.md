@@ -10,7 +10,7 @@ Aeven brings together the context to understand the task and the capabilities to
 
 **AI can do more. So can you.**
 
-[Get started](#run) · [Documentation](https://aeven-ai.github.io/Harness/) · [Desktop](apps/desktop/README.md) · [Developers](#open-by-design)
+[Get started](#run) · [Documentation](https://docs.aeven.io/) · [Desktop](apps/desktop/README.md) · [Developers](#open-by-design)
 
 Aeven is in developer preview. Features and data formats can change. Read the [safety notice](SAFETY.md) before giving it access to your files, accounts, or computer.
 
@@ -107,7 +107,7 @@ Tool calls and results appear in the conversation as the agent works. Operations
 Use a repository checkout to develop or customize Aeven. Install the Node.js version above and the pnpm version declared in [package.json](package.json).
 
 ```sh
-git clone https://github.com/Aeven-AI/Harness.git aeven
+git clone https://github.com/Aeven-AI/Aeven.git aeven
 cd aeven
 pnpm install
 pnpm run build
@@ -136,11 +136,11 @@ Cordis's design is described in [_A Programming Paradigm for Spatiotemporal Comp
 
 Aeven is early in development, and we are not accepting external pull requests yet. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before starting work intended for this repository.
 
-You can help by reporting reproducible bugs, sharing feedback and real use cases in [GitHub Discussions](https://github.com/Aeven-AI/Harness/discussions), or building skills, plugins, and integrations outside this repository. Guides and examples that help people get useful work done with Aeven are welcome too. Add the [`avn-plugin`](https://github.com/topics/avn-plugin) topic to plugin repositories so others can find them.
+You can help by reporting reproducible bugs, sharing feedback and real use cases in [GitHub Discussions](https://github.com/Aeven-AI/Aeven/discussions), or building skills, plugins, and integrations outside this repository. Guides and examples that help people get useful work done with Aeven are welcome too. Add the [`avn-plugin`](https://github.com/topics/avn-plugin) topic to plugin repositories so others can find them.
 
 ## Community and support
 
-Ask questions and share what you are building in [GitHub Discussions](https://github.com/Aeven-AI/Harness/discussions) or the [Aeven Discord community](https://discord.gg/Ycq5dCaS4).
+Ask questions and share what you are building in [GitHub Discussions](https://github.com/Aeven-AI/Aeven/discussions) or the [Aeven Discord community](https://discord.gg/Ycq5dCaS4).
 
 ## License
 

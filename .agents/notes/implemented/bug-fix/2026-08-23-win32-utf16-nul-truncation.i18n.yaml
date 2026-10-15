@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-23-win32-utf16-nul-truncation.md
-2026-08-23-win32-utf16-nul-truncation.md: 4280b083111a7265698bd2c90192bbfaf17eaa07
-2026-08-23-win32-utf16-nul-truncation.zh.md: 15f1fc5fdd13fd10fcf2c225b9c5200b12884d42
+2026-08-23-win32-utf16-nul-truncation.md: 7da8bd37f62931e945bb8e1a2f547f5e1f305a1e
+2026-08-23-win32-utf16-nul-truncation.zh.md: 3c9455c4e40f1c0bc59352415ef906e887cfee32

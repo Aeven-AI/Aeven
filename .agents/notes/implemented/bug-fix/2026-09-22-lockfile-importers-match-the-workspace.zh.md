@@ -6,7 +6,7 @@ Status: implemented
 
 ## Problem
 
-已合并的 `main` 上带着一个指向 `packages/experimental/browser-devtools` 的 `pnpm-lock.yaml` importer，而该目录只存在于某次共享检出中的未跟踪占位目录里。`bc12e4bc42`（PR #58）提交了那里一次不完整 `pnpm install` 产出的锁文件，`363e6d83d7`（PR #61）又用一个不含该目录的检出执行 `pnpm install --lockfile-only`，把那两行删掉（[issue #59](https://github.com/Aeven-AI/Harness/issues/59)）。
+已合并的 `main` 上带着一个指向 `packages/experimental/browser-devtools` 的 `pnpm-lock.yaml` importer，而该目录只存在于某次共享检出中的未跟踪占位目录里。`bc12e4bc42`（PR #58）提交了那里一次不完整 `pnpm install` 产出的锁文件，`363e6d83d7`（PR #61）又用一个不含该目录的检出执行 `pnpm install --lockfile-only`，把那两行删掉（[issue #59](https://github.com/Aeven-AI/Aeven/issues/59)）。
 
 两条实测到的安装行为决定了门禁必须接管什么：
 
