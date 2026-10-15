@@ -29,6 +29,9 @@ linkWorkspacePackages: true
 overrides:
   '@deepseek-ai/cosmokit': 'link:vendor/cosmokit'
   '@deepseek-ai/schemastery': 'link:vendor/schemastery'
+  # Transformers.js pins onnxruntime-node to a release that ships no darwin/x64 binding; MemOS embeddings
+  # need the newest release that still ships one, which is 1.23.2.
+  onnxruntime-node: '1.23.2'
 
 peerDependencyRules:
   allowedVersions:

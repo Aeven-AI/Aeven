@@ -1,6 +1,7 @@
 # Agent Note: Desktop 移除 Intel Mac 构建目标
 
 Status: implemented
+Archived: 2026-10-15
 
 [English](2026-10-02-desktop-drops-intel-mac-target.md) | 中文
 

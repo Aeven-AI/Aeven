@@ -111,10 +111,10 @@ export const SEED_STORE_PACKAGE_RULES: readonly SeedStorePackageRule[] = [
   },
   {
     name: 'onnxruntime-node',
-    version: '1.24.3',
+    version: '1.23.2',
     reason: 'The binding loads `bin/napi-v6/<platform>/<arch>/` for the running Host only; the package ships every platform\'s runtime.',
     remove: (target) => {
-      const all = { darwin: ['arm64'], linux: ['arm64', 'x64'], win32: ['arm64', 'x64'] } as const
+      const all = { darwin: ['arm64', 'x64'], linux: ['arm64', 'x64'], win32: ['arm64', 'x64'] } as const
       return Object.entries(all).flatMap(([platform, archs]) => archs
         .filter(arch => platform !== target.platform || arch !== target.arch)
         .map(arch => `bin/napi-v6/${platform}/${arch}/`))

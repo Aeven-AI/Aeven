@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-10-02-desktop-drops-intel-mac-target.md
-2026-10-02-desktop-drops-intel-mac-target.md: 530a644e1fa5a200cd90228716691287f46de874
-2026-10-02-desktop-drops-intel-mac-target.zh.md: c907a0e070c9af75204302728516e7dbe277c710
+2026-10-02-desktop-drops-intel-mac-target.md: 1bb8edcbc13dab33bbe9328dd4afa92ebdec3a24
+2026-10-02-desktop-drops-intel-mac-target.zh.md: 400b2764cb235204c25e837b7d140038d598aa56

@@ -39,6 +39,8 @@ on:
           - win-arm64
           - mac-arm64
           - mac-arm64-unsigned
+          - mac-x64
+          - mac-x64-unsigned
           - linux-x64
           - linux-arm64
         default: all
@@ -76,6 +78,8 @@ jobs:
             {"id":"win-arm64","target":"win-arm64","runner":"windows-11-arm","script":"win:arm64"},
             {"id":"mac-arm64","target":"mac-arm64","runner":"macos-15","script":"mac:arm64"},
             {"id":"mac-arm64-unsigned","target":"mac-arm64","variant":"unsigned","runner":"macos-15","script":"mac:arm64"},
+            {"id":"mac-x64","target":"mac-x64","runner":"macos-15-intel","script":"mac:x64"},
+            {"id":"mac-x64-unsigned","target":"mac-x64","variant":"unsigned","runner":"macos-15-intel","script":"mac:x64"},
             {"id":"linux-x64","target":"linux-x64","runner":"ubuntu-24.04","script":"linux:x64"},
             {"id":"linux-arm64","target":"linux-arm64","runner":"ubuntu-24.04-arm","script":"linux:arm64"}
           ]'
@@ -301,21 +305,30 @@ jobs:
           path: release-assets
           merge-multiple: true
 
-      # Windows x64 and arm64 feeds merge into one file that lists both
-      # installers; the macOS and Linux feeds only drop their target suffix.
+      # electron-builder names one arch-less feed per platform, so a platform
+      # built for two architectures must merge them: Windows x64+arm64 and macOS
+      # x64+arm64 each become one file listing both installers, and
+      # electron-updater picks the one whose name carries the running
+      # architecture. Linux keeps one feed per target, which only drops its
+      # suffix.
       - name: Assemble update feeds
         run: |
           shopt -s nullglob
-          for x64 in release-assets/*--win-x64.yml; do
-            name="$(basename "$x64" --win-x64.yml)"
-            arm64="release-assets/${name}--win-arm64.yml"
-            if [ -f "$arm64" ]; then
-              pnpm --dir apps/desktop exec tsx scripts/merge-update-manifests.ts "$PWD/$x64" "$PWD/$arm64" "$PWD/release-assets/${name}.yml"
-              rm "$x64" "$arm64"
-            else
-              mv "$x64" "release-assets/${name}.yml"
-            fi
-          done
+          merge_architecture_pair() {
+            local primary_suffix="$1" secondary_suffix="$2" feed name secondary
+            for feed in release-assets/*--"$primary_suffix".yml; do
+              name="$(basename "$feed" --"$primary_suffix".yml)"
+              secondary="release-assets/${name}--${secondary_suffix}.yml"
+              if [ -f "$secondary" ]; then
+                pnpm --dir apps/desktop exec tsx scripts/merge-update-manifests.ts "$PWD/$feed" "$PWD/$secondary" "$PWD/release-assets/${name}.yml"
+                rm "$feed" "$secondary"
+              else
+                mv "$feed" "release-assets/${name}.yml"
+              fi
+            done
+          }
+          merge_architecture_pair win-x64 win-arm64
+          merge_architecture_pair mac-x64 mac-arm64
           for feed in release-assets/*--*.yml; do
             name="$(basename "$feed" .yml)"
             mv "$feed" "release-assets/${name%%--*}.yml"

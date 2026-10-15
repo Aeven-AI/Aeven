@@ -205,6 +205,9 @@ describe('desktop package policy', () => {
       .toEqual(Object.keys(manifest('client/ui-primitives').dependencies ?? {}).sort())
     expect(DESKTOP_DEPENDENCY_OVERRIDES['@huggingface/transformers>sharp'])
       .toBe(manifest('attachment/attachment-local').dependencies?.sharp)
+    // Transformers.js pins onnxruntime-node to an exact release, so the override must name an exact release too;
+    // 1.23.2 is the newest one that ships the darwin/x64 binding Intel macOS builds load.
+    expect(DESKTOP_DEPENDENCY_OVERRIDES['@huggingface/transformers>onnxruntime-node']).toMatch(/^\d+\.\d+\.\d+$/u)
   })
 })
 

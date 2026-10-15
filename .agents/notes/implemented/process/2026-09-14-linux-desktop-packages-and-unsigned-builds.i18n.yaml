@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-09-14-linux-desktop-packages-and-unsigned-builds.md
-2026-09-14-linux-desktop-packages-and-unsigned-builds.md: 6c30c755878e17a1fca8e20a2a9d14562fcd2ee3
-2026-09-14-linux-desktop-packages-and-unsigned-builds.zh.md: e818ac82fb6254620beb29bd5ff04a2c0b34b6b6
+2026-09-14-linux-desktop-packages-and-unsigned-builds.md: a632a7d749fc4d791cc69317e6436887ecaa8968
+2026-09-14-linux-desktop-packages-and-unsigned-builds.zh.md: 4e56365112709300d99da13a95915936a03bc6b6
