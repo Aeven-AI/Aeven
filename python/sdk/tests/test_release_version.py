@@ -131,7 +131,7 @@ def test_stage_runtime_copies_platform_payload(
         for path in runtime_dir.glob("aeven-sdk-runtime-*")
     } == expected
     pyproject = (destination / "pyproject.toml").read_text()
-    assert 'license = "MIT"' in pyproject
+    assert 'license = "Apache-2.0"' in pyproject
     assert 'license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]' in pyproject
     assert 'avn = "aeven_runtime:main"' in pyproject
     assert (destination / "platforms.json").read_bytes() == (

@@ -8,7 +8,7 @@ version = "0.0.0.dev0"
 description = "Bundled avn CLI runtime for the Aeven Python SDK"
 readme = "README.md"
 requires-python = ">=3.10"
-license = "MIT"
+license = "Apache-2.0"
 authors = [{ name = "DeepSeek" }]
 
 [project.urls]
