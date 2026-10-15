@@ -1,7 +1,7 @@
 {
   "name": "@aeven/tools",
   "description": "Tool registry and execution pipeline for the Aeven",
-  "version": "0.3.1-alpha.1",
+  "version": "0.3.1-alpha.2",
   "publishConfig": {
     "access": "public"
   },
