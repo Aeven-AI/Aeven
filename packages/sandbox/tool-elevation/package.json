@@ -1,7 +1,7 @@
 {
   "name": "@aeven/tool-elevation",
   "description": "The model-facing `elevated` tool: runs one command as administrator through the harness approval and the operating system consent prompt",
-  "version": "0.3.1-alpha.1",
+  "version": "0.3.2-alpha",
   "publishConfig": {
     "access": "public"
   },
