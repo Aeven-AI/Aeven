@@ -1,6 +1,7 @@
 import {
   DESKTOP_UNSIGNED_ENV,
   resolveDesktopAppId,
+  resolveDesktopDeployment,
   resolveMacOSNotarizationEnvironment,
   resolveMacOSSigningEnvironment,
 } from './desktop-release-environment.mjs'
@@ -26,6 +27,7 @@ export function createElectronBuilderConfig(
   hostArch = process.arch,
 ) {
   const appId = resolveDesktopAppId(env)
+  const deployment = resolveDesktopDeployment(env)
   const targetPlatform = env.AVN_DESKTOP_TARGET_PLATFORM
   const packagesMacOS = targetPlatform === 'darwin' || (targetPlatform === undefined && hostPlatform === 'darwin')
   const packagesWindows = targetPlatform === 'win32'
@@ -46,6 +48,8 @@ export function createElectronBuilderConfig(
     artifactName: `aeven-\${version}-\${os}-\${arch}${unsigned ? '-unsigned' : ''}.\${ext}`,
     directories: { output: buildPaths.artifacts },
     asar: true,
+    // The shell hands these to its Host, whose profile rows read them; see DESKTOP_DEPLOYMENT_ENV_NAMES.
+    extraMetadata: { aevenDeployment: deployment },
     // Chromium's UI strings for the client's locales (`LOCALE_IDS` in @aeven/client-locale): macOS names
     // its bundles `en.lproj`/`zh_CN.lproj`, Windows and Linux `en-US.pak`/`zh-CN.pak`.
     electronLanguages: ['en-US', 'zh-CN', 'zh_CN'],

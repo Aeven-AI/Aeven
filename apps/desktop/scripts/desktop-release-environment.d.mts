@@ -10,6 +10,16 @@ export const MACOS_TEAM_ID_ENV: 'AVN_DESKTOP_MACOS_TEAM_ID'
 /** Environment variable whose value `1` builds a target without code signing or notarization. */
 export const DESKTOP_UNSIGNED_ENV: 'AVN_DESKTOP_UNSIGNED'
 
+/** Deployment settings the shipped profile rows read from the Host environment. */
+export const DESKTOP_DEPLOYMENT_ENV_NAMES: readonly string[]
+
+/**
+ * Resolve the deployment settings a packaged application hands its Host.
+ * @param env - Packaging environment.
+ * @returns Every set deployment setting, `AEVEN_API_URL` always among them.
+ */
+export function resolveDesktopDeployment(env: NodeJS.ProcessEnv): Record<string, string>
+
 /** Public identity expected on a macOS release. */
 export interface MacOSSigningEnvironment {
   readonly signingIdentity: string

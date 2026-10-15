@@ -4,6 +4,7 @@ import { createElectronBuilderConfig } from '../scripts/electron-builder-config.
 
 const LINUX_ENVIRONMENT = {
   AVN_DESKTOP_APP_ID: 'com.example.desktop',
+  AEVEN_API_URL: 'https://aeven.example/api',
   AVN_DESKTOP_TARGET_PLATFORM: 'linux',
   AVN_DESKTOP_TARGET_ARCH: 'x64',
 }

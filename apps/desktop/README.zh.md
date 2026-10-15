@@ -79,7 +79,7 @@ Workspace 开发使用调用命令的 Node.js 运行当前 CLI 与私有 Desktop
 
 ## 打包
 
-正常打包只需执行一条完整命令。该命令会先准备发布资源，再生成宿主平台的安装包与更新元数据。所有目标都要求通过 `AVN_DESKTOP_APP_ID` 提供反向域名形式的应用 ID。macOS 目标还要求通过 `AVN_DESKTOP_MACOS_SIGNING_IDENTITY` 提供 electron-builder 证书限定名，通过 `AVN_DESKTOP_MACOS_TEAM_ID` 提供对应的 10 字符 Apple Team ID，并提供一套完整的 notarytool 凭据方案。App Store Connect API Key 方式使用以下变量：
+正常打包只需执行一条完整命令。该命令会先准备发布资源，再生成宿主平台的安装包与更新元数据。所有目标都要求通过 `AVN_DESKTOP_APP_ID` 提供反向域名形式的应用 ID。所有目标还要求提供 `AEVEN_API_URL`；打包会把它连同已设置的 `AEVEN_WEB_URL`、`AEVEN_MEDIA_URL`、`AEVEN_OAUTH_X_URL`、`AEVEN_OAUTH_APPLE_URL`、`AEVEN_OAUTH_GOOGLE_URL` 与 `SLACK_CLIENT_ID` 作为 `aevenDeployment` 记录在应用的 `package.json` 中；已安装的副本没有 `.env`，因此外壳会把这些值传给它的 Host，启动环境已设置的值优先。在本地，打包与 `AVN_DESKTOP_APP_ID` 一样从仓库根目录的 `.env` 读取它们。macOS 目标还要求通过 `AVN_DESKTOP_MACOS_SIGNING_IDENTITY` 提供 electron-builder 证书限定名，通过 `AVN_DESKTOP_MACOS_TEAM_ID` 提供对应的 10 字符 Apple Team ID，并提供一套完整的 notarytool 凭据方案。App Store Connect API Key 方式使用以下变量：
 
 ```sh
 export AVN_DESKTOP_APP_ID='<reverse-DNS application ID>'
