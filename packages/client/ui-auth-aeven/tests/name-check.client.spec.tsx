@@ -209,19 +209,41 @@ describe('the naming step', () => {
 
   it('reports a name the API refuses, and stays on the step', async () => {
     const { NameCheck, session, t } = await load()
+    const events = await import('../src/client/auth/services/events.ts')
     const assign = stubNavigation('/')
     namedApi({ '/set-display-name': { status: 400, body: { error: 'invalid-display-name' } } })
+    const shown: unknown[] = []
+    events.on('show:modal', 'refused-name', (detail) => { shown.push(detail) })
     const { onNamed, field, submit } = mountStep(NameCheck, t)
 
     fireEvent.change(field, { target: { value: 'Ollie' } })
     fireEvent.click(submit)
 
-    // A refused name is not a refused credential: the reader stays signed in
-    // and the step says what happened.
-    await screen.findByText(t('name.saveFailed'))
+    // A refused name is not a refused credential: the reader stays signed in,
+    // and the refusal is raised the way this surface raises every other one.
+    await vi.waitFor(() => {
+      expect(shown).toEqual([{ header: t('modal.oops'), content: t('name.saveFailed'), buttonText: t('action.ok') }])
+    })
+    events.off('show:modal', 'refused-name')
     expect(onNamed).not.toHaveBeenCalled()
     expect(assign).not.toHaveBeenCalled()
     expect(session.displayNameSet).toBeUndefined()
+  })
+
+  it('boots the application when the status route answers nothing', async () => {
+    const { NameCheck, session, t } = await load()
+    // The deployed API serves no `/mfa` routes: the name is stored either way,
+    // so a status nobody can answer must not read as a refused name.
+    namedApi({ ...stored, '/mfa/status': { status: 404, body: {} } })
+    const { onNamed, field, submit } = mountStep(NameCheck, t)
+
+    fireEvent.change(field, { target: { value: 'Ollie' } })
+    fireEvent.click(submit)
+
+    await vi.waitFor(() => { expect(onNamed).toHaveBeenCalledTimes(1) })
+    expect(screen.queryByRole('heading', { name: t('mfa.title') })).toBeNull()
+    expect(session.displayName).toBe('Ollie')
+    expect(session.displayNameSet).toBe(true)
   })
 
   it('reports a refused credential to the page owner, which is what leaves the step', async () => {
