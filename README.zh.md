@@ -156,7 +156,7 @@ Aeven 处于开发早期，目前不接受外部 pull request。在为本仓库�
 
 ## 社区与支持
 
-欢迎在 [GitHub Discussions](https://github.com/Aeven-AI/Aeven/discussions) 或 [Aeven Discord 社区](https://discord.gg/Ycq5dCaS4)提问，并分享你正在构建的项目。
+欢迎在 [GitHub Discussions](https://github.com/Aeven-AI/Aeven/discussions) 或 [Aeven Discord 社区](https://discord.gg/6fmTDy6hYV)提问，并分享你正在构建的项目。
 
 <a id="license"></a>
 
