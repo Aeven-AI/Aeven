@@ -182,28 +182,20 @@ const WIDE_NEUTRAL_BORDER_DEBT: SweepDebtRegistry = {
   'ui-imagine/src/client/PromptDialog.module.css': { offences: ['.ratio'], reason: 'aspect-ratio picker outline is 1px' },
   // The settings navigation rail's divider is a 1px bottom border.
   'ui-settings-general/src/client/SettingsRoot.module.css': { offences: ['.navList'], reason: 'settings navigation divider is 1px' },
-  // The integrations card, its fields and controls, and its row dividers are 1px.
+  // The integrations card, its fields and controls are 1px.
   'ui-settings-integrations/src/client/IntegrationsSection.module.css': {
     offences: [
       '.card',
       '.field :is(input, select)',
       ".section button:where(:not([role='menuitem']))",
-      '.instructions',
       '.search',
-      '.connectorRow',
-      '.serverRow',
     ],
-    reason: 'integration card, fields, buttons, and row dividers are 1px',
+    reason: 'integration card, fields, and buttons are 1px',
   },
   // The model picker and its inputs are 1px.
   'ui-settings-models/src/client/ModelsSection.module.css': {
     offences: ['.pickerTrigger', '.pickerPopover', '.pickerSearch', '.input'],
     reason: 'model picker trigger, popover, search field, and input are 1px',
-  },
-  // The personalization radio outline is 1px.
-  'ui-settings-personalization/src/client/PersonalizationSection.module.css': {
-    offences: ['.radio'],
-    reason: 'personalization radio outline is 1px',
   },
   // The browser pane's row divider and zoom step outline are 1px.
   'ui-sidebar-browser/src/client/BrowserPane.module.css': {

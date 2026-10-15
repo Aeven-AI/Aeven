@@ -146,7 +146,6 @@ export function PersonalizationSection({ read, cachedView, update, accountName, 
               onClick={() => { if (!selected) commitVoice(voice) }}
             >
               <span className={css.voiceHead}>
-                <span className={css.radio} aria-hidden="true" />
                 <span className={css.voiceName}>{t(`voice.${voice}`)}</span>
               </span>
               <span className={css.voiceDescription}>{t(`voice.${voice}.description`)}</span>

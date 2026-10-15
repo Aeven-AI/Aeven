@@ -1,7 +1,10 @@
-/* Account settings in the General/Appearance cell rhythm: hairline rows
-   (pad 16/0, 14/400 title over a 12/18 tertiary description, control on the
-   right), grouped under 16/500 titles. The plan grid reuses the Appearance
-   cube geometry; the recommended plan is the one filled call to action. */
+/* Account settings in the three tones the product surface is built from:
+   `--dsw-alias-bg-module-platform` for a quiet surface, white for content
+   that sits on one, and the primary fill for the one call to action in a
+   group. A boundary is a change of tone, never a line: no cell, tile, card,
+   or control in this section draws a stroke. Type keeps the General/
+   Appearance cell rhythm — pad 16/0, 14/400 title over a 12/18 tertiary
+   description, control on the right, 16/500 group titles. */
 
 .section {
   display: flex;
@@ -45,13 +48,6 @@
   gap: 16px;
   min-height: 40px;
   padding: 16px 0;
-  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
-}
-
-.group > .row:last-child,
-.group > .meterRow:last-child,
-.group > .payments:last-child {
-  border-bottom: none;
 }
 
 .wrapRow {
@@ -118,6 +114,37 @@
   color: var(--dsw-alias-state-error-primary);
 }
 
+/* The quiet action: the module-fill control pill the sibling settings tabs
+   give their value selectors, so a secondary action never reads as an
+   outlined button. */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: var(--dsw-aeven-control-size);
+  padding: 0 16px;
+  border: none;
+  border-radius: var(--dsw-aeven-radius-control);
+  background: var(--dsw-alias-bg-module-platform);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.16s;
+}
+
+.pill:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover-solid);
+}
+
+.pill:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 /* Identity: the only row that opens the page, so it carries no group title. */
 .identity {
   margin-top: 8px;
@@ -150,7 +177,6 @@
   flex-direction: column;
   gap: 10px;
   padding: 16px 0;
-  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
 }
 
 /* The copy keeps its own height here: `.rowText`'s 220px flex basis is the
@@ -217,11 +243,6 @@
   flex-direction: column;
   gap: 12px;
   padding: 16px 0;
-  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
-}
-
-.group > .plansBlock:last-child {
-  border-bottom: none;
 }
 
 /* The allowance nudge and the past-due notice sit on the page itself rather
@@ -245,8 +266,8 @@
   gap: 8px;
 }
 
-/* Appearance cube geometry (r20, 0.5px border-l4); the current plan takes the
-   selected-cube fill, the recommended plan a full-strength outline. */
+/* Plan cube geometry (r20) carried by tone alone: a quiet module fill, and
+   the recommended plan a full-strength fill whose content inverts. */
 .plan {
   box-sizing: border-box;
   display: flex;
@@ -254,19 +275,13 @@
   gap: 12px;
   min-width: 0;
   padding: 18px 20px 20px;
-  border: 0.5px solid var(--dsw-alias-border-l4);
   border-radius: var(--dsw-aeven-radius-content);
-  background: transparent;
-}
-
-.plan[data-current="true"] {
   background: var(--dsw-alias-bg-module-platform);
-  border-color: var(--dsw-static-neutral-bluish-400);
 }
 
 .plan[data-recommended="true"] {
-  border: 1px solid var(--dsw-alias-label-primary);
-  padding: 17.5px 19.5px 19.5px;
+  background: var(--dsw-alias-button-primary-fill);
+  color: var(--dsw-alias-label-primary-foreground);
 }
 
 .planHead {
@@ -295,6 +310,13 @@
   line-height: 18px;
 }
 
+/* On the inverted tile the badge is the label itself, with no pill under it. */
+.plan[data-recommended="true"] .badge {
+  padding: 0;
+  background: transparent;
+  color: var(--dsw-alias-label-primary-foreground);
+}
+
 .price {
   display: flex;
   align-items: baseline;
@@ -313,6 +335,11 @@
   font-size: 12px;
   line-height: 18px;
   color: var(--dsw-alias-label-tertiary);
+}
+
+.plan[data-recommended="true"] .pricePer,
+.plan[data-recommended="true"] .features {
+  color: var(--dsw-alias-label-primary-foreground);
 }
 
 .features {
@@ -340,14 +367,25 @@
   color: var(--dsw-alias-label-tertiary);
 }
 
-.planAction {
-  width: 100%;
+.plan[data-recommended="true"] .check {
+  color: var(--dsw-alias-label-primary-foreground);
 }
 
-.plan[data-current="true"] .planAction:disabled {
+/* The action belongs to the tile, so it wears the tile's content tone: a
+   white pill on either fill, never a stroke around an empty one. */
+.planAction {
+  width: 100%;
+  height: 36px;
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.planAction:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover-solid);
+}
+
+.planAction:disabled {
   opacity: 1;
   color: var(--dsw-alias-label-tertiary);
-  cursor: default;
 }
 
 .notice {
@@ -393,8 +431,8 @@
   font-variant-numeric: normal;
 }
 
-/* Segmented amount picker: the selector-pill track (module fill, control
-   height) holding raised segments. */
+/* Segmented amount picker: the module-fill track (control height) holding
+   raised white segments. */
 .segmented {
   box-sizing: border-box;
   display: inline-flex;
@@ -452,7 +490,7 @@
 }
 
 .customSegment[data-invalid="true"] {
-  box-shadow: 0 0 0 1px var(--dsw-alias-state-error-primary);
+  color: var(--dsw-alias-state-error-primary);
 }
 
 .customSegment input {
@@ -523,7 +561,7 @@
 .payments {
   display: flex;
   flex-direction: column;
-  padding: 0 0 12px;
+  padding: 0 0 8px;
 }
 
 .payment {
@@ -531,13 +569,9 @@
   grid-template-columns: 72px 1fr auto;
   align-items: baseline;
   gap: 12px;
-  padding: 8px 0;
+  padding: 10px 0;
   font-size: 14px;
   line-height: 20px;
-}
-
-.payment + .payment {
-  border-top: 0.5px solid var(--dsw-alias-border-l1);
 }
 
 .figureSmall {
@@ -546,6 +580,7 @@
 
 .segment:focus-visible,
 .selector:focus-visible,
+.pill:focus-visible,
 .customSegment:focus-within {
   outline: 2px solid var(--dsw-alias-state-business-primary);
   outline-offset: 2px;
@@ -557,105 +592,71 @@
   }
 }
 
-.securityCard {
-  margin-top: 12px;
-  border: 0.5px solid var(--dsw-alias-border-l2);
-  border-radius: 20px;
-  overflow: hidden;
-}
-
-.securityRow {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 20px;
-}
-
-.securityIcon {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  background: var(--dsw-alias-bg-base);
-  color: var(--dsw-alias-label-secondary);
-}
-
-.securityControl {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-shrink: 0;
-}
-
-.securityStatus {
+/* Security: the protection switch cell, and the enrollment step it opens. */
+.status {
+  flex: none;
   color: var(--dsw-alias-label-tertiary);
   font-size: 12px;
   line-height: 18px;
 }
 
-.securitySwitch {
-  flex-shrink: 0;
-  width: 40px;
-  height: 24px;
-  padding: 3px;
-  border: 0;
-  border-radius: 999px;
+.switch {
+  flex: none;
+  width: 36px;
+  height: 20px;
+  padding: 2px;
+  border: none;
+  border-radius: 10px;
   background: var(--dsw-alias-border-l3);
   cursor: pointer;
   transition: background 150ms;
 }
 
-.securitySwitch span {
+.thumb {
   display: block;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: var(--dsw-alias-label-primary-foreground);
   transition: transform 150ms;
 }
 
-.securitySwitch[aria-checked='true'] {
-  background: var(--dsw-alias-label-primary);
+.switch[aria-checked="true"] {
+  background: var(--dsw-alias-brand-primary);
 }
 
-.securitySwitch[aria-checked='true'] span {
+.switch[aria-checked="true"] .thumb {
   transform: translateX(16px);
 }
 
-.securitySwitch:disabled {
-  opacity: .5;
+.switch:disabled {
+  opacity: 0.4;
   cursor: default;
 }
 
-.securitySwitch:focus-visible {
-  outline: 2px solid var(--dsw-alias-label-primary);
-  outline-offset: 3px;
+.switch:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
 }
 
+/* The enrollment step sits in the same column as the cells above it: the row
+   already named the feature, so the step continues the page instead of
+   opening a surface of its own. */
 .securityForm {
   display: flex;
-  padding: 24px 20px;
-  border-top: 0.5px solid var(--dsw-alias-border-l2);
-  background: var(--dsw-alias-bg-base);
-}
-
-.securityError {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 0 20px 20px;
+  padding: 4px 0 20px;
 }
 
 @media (max-width: 520px) {
-  .securityRow { flex-wrap: wrap; }
-  .securityIcon { display: none; }
-  .securityRow .rowText { flex-basis: 160px; }
-  .securityControl { margin-left: auto; }
+  .row {
+    flex-wrap: wrap;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .securitySwitch, .securitySwitch span { transition: none; }
+  .switch,
+  .thumb,
+  .meter > span {
+    transition: none;
+  }
 }

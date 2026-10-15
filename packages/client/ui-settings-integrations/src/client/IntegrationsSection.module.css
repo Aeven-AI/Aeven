@@ -25,7 +25,7 @@
 .section button:disabled { opacity: 0.5; cursor: default; }
 .section button:hover:enabled { background: var(--dsw-alias-interactive-bg-hover); }
 .section summary { cursor: pointer; }
-.instructions { overflow-wrap: anywhere; padding-top: 20px; border-top: 1px solid var(--dsw-alias-border-l2); }
+.instructions { overflow-wrap: anywhere; padding-top: 20px; }
 .address { overflow-wrap: anywhere; margin: 0; color: var(--dsw-alias-label-tertiary); }
 .upload { display: none; }
 
@@ -49,7 +49,7 @@
 
 .connectorList, .connectorDetail { display: flex; flex-direction: column; gap: 16px; }
 .connectorList { gap: 0; }
-.connectorRow { display: flex; align-items: flex-start; gap: 16px; padding-top: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--dsw-alias-border-l2); }
+.connectorRow { display: flex; align-items: flex-start; gap: 16px; padding-top: 8px; padding-bottom: 8px; }
 .connectorRow > .switch { margin-top: 16px; }
 .section .connectorOpen { display: flex; align-items: flex-start; gap: 16px; flex: 1; min-width: 0; padding: 16px 0; border: 0; border-radius: 0; text-align: left; white-space: normal; }
 /* The row shows no hover highlight, so the shared button hover is cancelled. */
@@ -65,7 +65,7 @@
 .section .textAction { padding: 0; border: 0; color: var(--dsw-alias-label-secondary); text-decoration: underline; text-underline-offset: 3px; }
 .section .textAction:hover:enabled { background: transparent; color: var(--dsw-alias-label-primary); }
 .serverList { display: flex; flex-direction: column; }
-.serverRow { display: flex; align-items: center; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--dsw-alias-border-l2); }
+.serverRow { display: flex; align-items: center; gap: 16px; padding: 14px 0; }
 .connectorDescription { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dsw-alias-label-secondary); font-size: 14px; line-height: 20px; }
 .connectorHeading { display: flex; align-items: center; gap: 16px; padding-top: 12px; }
 .connectorHeading h2 { flex: 1; min-width: 0; margin: 0; }

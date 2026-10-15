@@ -124,7 +124,6 @@
 .instructionsHeader {
   flex: none;
   padding: 8px 12px;
-  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
   background: var(--dsw-alias-markdown-code-block-banner);
   font-size: 11px;
   font-weight: 400;

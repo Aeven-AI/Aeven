@@ -1,20 +1,340 @@
-.screen { display: flex; box-sizing: border-box; flex: 1; min-height: 100%; width: 100%; padding: 32px 24px; overflow-y: auto; }
-.card { box-sizing: border-box; display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 410px; padding: 28px; margin: auto; color: var(--dsw-alias-label-primary, #232323); background: var(--dsw-alias-background-primary, #fff); border: 1px solid var(--dsw-alias-border-primary, #e5e5e5); border-radius: 24px; font-family: inherit; text-align: center; box-shadow: 0 12px 40px #00000006; }
-.card h2 { margin: 0; font-size: 23px; font-weight: 550; letter-spacing: -.6px; }
-.card p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--dsw-alias-label-secondary, #707070); }
-.emblem { display: grid; place-items: center; align-self: center; width: 52px; height: 52px; border-radius: 18px; background: var(--dsw-alias-background-secondary, #f4f4f4); font-size: 25px; }
-.qr { width: 208px; height: 208px; max-width: 100%; align-self: center; border-radius: 12px; background: #fff; }
-.manual { font-size: 12px; color: var(--dsw-alias-label-secondary, #707070); }
-.manual summary { cursor: pointer; }
-.manual code { display: block; padding: 12px; overflow-wrap: anywhere; user-select: all; }
-.field { display: flex; flex-direction: column; gap: 9px; font-size: 13px; text-align: left; }
-.field input { box-sizing: border-box; width: 100%; border: 1px solid var(--dsw-alias-border-primary, #ddd); border-radius: 12px; padding: 12px; background: transparent; color: inherit; font: inherit; font-size: 22px; letter-spacing: .2em; text-align: center; }
-.primary, .secondary { font: inherit; font-size: 14px; cursor: pointer; border-radius: 999px; padding: 12px 18px; border: 0; }
-.primary { background: var(--dsw-alias-label-primary, #232323); color: var(--dsw-alias-background-primary, #fff); font-weight: 550; }
-.secondary { background: transparent; color: var(--dsw-alias-label-secondary, #707070); }
-.card button:disabled { opacity: .45; cursor: default; }
-.card :focus-visible { outline: 2px solid var(--dsw-alias-label-primary, #232323); outline-offset: 3px; }
-.card .error { color: var(--dsw-alias-status-danger, #be3434); }
-.codes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 16px 8px; border-radius: 12px; background: var(--dsw-alias-background-secondary, #f4f4f4); font-size: 12px; }
-.saved { display: flex; align-items: center; gap: 8px; text-align: left; font-size: 13px; line-height: 1.5; }
-@media (max-width: 420px) { .card { padding: 20px; } .codes { font-size: 10px; } }
+/* Authenticator flow in two presentations. `card` is the floating card the
+   signup, sign-in and challenge screens show: centered copy, one column, the
+   call to action above the quiet answers. `cells` is the settings treatment:
+   the host section names the feature and owns the row, so the flow draws no
+   chrome of its own, states its step left-aligned, and keeps the enrollment
+   code beside the fields. Surfaces are flat fills — white content on the
+   page, `--dsw-alias-bg-module-platform` for the quiet controls — with no
+   strokes. */
+
+.screen {
+  display: flex;
+  box-sizing: border-box;
+  flex: 1;
+  min-height: 100%;
+  width: 100%;
+  padding: 32px 24px;
+}
+
+.card {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 410px;
+  padding: 28px;
+  margin: auto;
+  border-radius: 28px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+  font-family: inherit;
+  text-align: center;
+  box-shadow: 0 12px 40px rgb(0 0 0 / 6%);
+}
+
+.card h2 {
+  margin: 0;
+  font-size: 23px;
+  font-weight: 550;
+  letter-spacing: -0.6px;
+}
+
+.card p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.emblem {
+  display: grid;
+  place-items: center;
+  align-self: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 18px;
+  background: var(--dsw-alias-bg-module-platform);
+  font-size: 25px;
+}
+
+.qr {
+  width: 208px;
+  height: 208px;
+  max-width: 100%;
+  align-self: center;
+  border-radius: var(--dsw-aeven-radius-compact);
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.manual {
+  font-size: 12px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.manual summary {
+  cursor: pointer;
+}
+
+.manual code {
+  display: block;
+  padding: 12px;
+  border-radius: var(--dsw-aeven-radius-compact);
+  background: var(--dsw-alias-bg-module-platform);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin: 0;
+  font-size: 13px;
+  text-align: left;
+}
+
+.field input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: var(--dsw-aeven-radius-control);
+  background: var(--dsw-alias-bg-module-platform);
+  color: inherit;
+  font: inherit;
+  font-size: 22px;
+  letter-spacing: 0.2em;
+  text-align: center;
+}
+
+.field input:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+}
+
+.status {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card .actions {
+  flex-direction: column-reverse;
+  gap: 16px;
+}
+
+.card .actions > button {
+  width: 100%;
+}
+
+.primary,
+.secondary,
+.tertiary {
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  cursor: pointer;
+  border: none;
+  border-radius: 999px;
+  padding: 12px 18px;
+}
+
+.primary {
+  background: var(--dsw-alias-button-primary-fill);
+  color: var(--dsw-alias-label-primary-foreground);
+  font-weight: 550;
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--dsw-alias-button-primary-hover);
+}
+
+.secondary,
+.tertiary {
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.secondary:hover:not(:disabled),
+.tertiary:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* The choice of code format is a quiet answer, not a control: it carries no
+   pill geometry of its own. */
+.tertiary {
+  align-self: flex-start;
+  padding: 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.cells button:disabled,
+.card button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.card :focus-visible,
+.cells :focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 3px;
+}
+
+.error {
+  margin: 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.codes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 16px 8px;
+  border-radius: var(--dsw-aeven-radius-compact);
+  background: var(--dsw-alias-bg-module-platform);
+  font-size: 12px;
+}
+
+.saved {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  text-align: left;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Settings presentation. The host row above already names the feature and
+   carries its state, so the step states its instruction and its fields, with
+   the enrollment code beside them on one line. */
+.cells {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  color: var(--dsw-alias-label-primary);
+  font-family: inherit;
+}
+
+.cells h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 22px;
+  letter-spacing: normal;
+}
+
+.cells > p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cells .grid {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.qrBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cells .qrBlock {
+  flex: none;
+  width: 176px;
+}
+
+.cells .qr {
+  width: 176px;
+  height: 176px;
+  align-self: flex-start;
+}
+
+.cells .manual {
+  width: 100%;
+}
+
+.credentials {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.cells .credentials {
+  flex: 1 1 220px;
+}
+
+.cells .field {
+  max-width: 260px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.cells .field input {
+  height: var(--dsw-aeven-control-size);
+  padding: 0 14px;
+  border-radius: var(--dsw-aeven-radius-control);
+  font-size: 15px;
+  letter-spacing: 0.3em;
+}
+
+.cells .actions {
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.cells .primary,
+.cells .secondary {
+  height: var(--dsw-aeven-control-size);
+  padding: 0 20px;
+  border-radius: var(--dsw-aeven-radius-control);
+  font-weight: 400;
+}
+
+.cells .codes {
+  box-sizing: border-box;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
+  max-width: 420px;
+  padding: 16px;
+  font-size: 13px;
+  line-height: 22px;
+}
+
+@media (max-width: 420px) {
+  .card {
+    padding: 20px;
+  }
+
+  .codes {
+    font-size: 10px;
+  }
+}

@@ -708,7 +708,7 @@ function Fold({ label, open, onToggle, children }: {
   readonly children: ReactNode
 }) {
   return (
-    <div className={css.fold}>
+    <div>
       <button type="button" className={css.foldButton} aria-expanded={open} onClick={onToggle}>
         <span>{label}</span>
         <IconChevronDownOutline14 className={open ? `${css.chevron} ${css.chevronOpen}` : css.chevron} />

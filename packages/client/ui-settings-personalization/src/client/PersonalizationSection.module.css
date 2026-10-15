@@ -1,11 +1,12 @@
-/* Personalization settings: voice cards with an example reply, then the name
-   and notes fields. The 14/22 body scale and the field ring match Settings →
-   Memory; the section header keeps its own 16/24. */
+/* Personalization settings: the voice picker as a stack of filled options
+   whose tone carries the choice, then the name and notes fields. A boundary is
+   a fill, never a line: the selected voice is the black option, every field
+   sits on the module surface, and the one call to action is the black capsule. */
 
 .section {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
   width: 100%;
   color: var(--dsw-alias-label-primary);
   font-size: 14px;
@@ -20,37 +21,42 @@
 }
 
 .label {
-  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
 }
 
+/* One voice: its name, what it does, and an example of it. */
 .voice {
   display: flex;
   flex-direction: column;
   gap: 4px;
   width: 100%;
-  border: 0.5px solid var(--dsw-alias-border-l4);
-  border-radius: 16px;
-  background: var(--dsw-alias-bg-layer-3);
-  padding: 12px 16px;
+  padding: 14px 18px;
+  border: none;
+  border-radius: var(--dsw-aeven-radius-content);
+  background: var(--dsw-alias-bg-module-platform);
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: border-color 0.16s, box-shadow 0.16s;
+  transition: background 0.16s, color 0.16s;
 }
 
-.voice:hover {
-  border-color: var(--dsw-alias-border-l3);
+.voice:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover-solid);
 }
 
-.voice[data-active="true"] {
-  border-color: var(--dsw-alias-state-business-primary);
-  box-shadow: 0 0 0 1px var(--dsw-alias-state-business-primary);
+/* The chosen voice is the filled one; nothing is marked with a ring. */
+.voice[data-active="true"],
+.voice[data-active="true"]:hover:not(:disabled) {
+  background: var(--dsw-alias-button-primary-fill);
+  color: var(--dsw-alias-label-primary-foreground);
 }
 
 .voice:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--dsw-alias-border-l3);
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
 }
 
 .voice:disabled {
@@ -60,29 +66,15 @@
 .voiceHead {
   display: flex;
   align-items: center;
-  gap: 10px;
-}
-
-.radio {
-  flex: none;
-  box-sizing: border-box;
-  width: 16px;
-  height: 16px;
-  border: 1px solid var(--dsw-alias-border-l4);
-  border-radius: 50%;
-}
-
-.voice[data-active="true"] .radio {
-  border: 5px solid var(--dsw-alias-state-business-primary);
+  gap: 8px;
 }
 
 .voiceName {
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .voiceDescription,
 .voiceSample {
-  padding-left: 26px;
   color: var(--dsw-alias-label-secondary);
 }
 
@@ -91,13 +83,18 @@
   font-style: italic;
 }
 
+.voice[data-active="true"] .voiceDescription,
+.voice[data-active="true"] .voiceSample {
+  color: inherit;
+}
+
 .input {
   width: 100%;
   box-sizing: border-box;
-  border: 0.5px solid var(--dsw-alias-border-l4);
-  border-radius: 10px;
-  background: transparent;
-  padding: 8px 10px;
+  border: none;
+  border-radius: var(--dsw-aeven-radius-content);
+  background: var(--dsw-alias-bg-module-platform);
+  padding: 12px 18px;
   color: var(--dsw-alias-label-primary);
   font: inherit;
   outline: none;
@@ -105,8 +102,8 @@
 }
 
 .input:focus-visible {
-  border-color: var(--dsw-alias-state-business-primary);
-  box-shadow: 0 0 0 2px var(--dsw-tint-business-18);
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
 }
 
 .footer {

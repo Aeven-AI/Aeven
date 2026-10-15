@@ -13,7 +13,7 @@ kind: "package-library"
 
 控件、菜单、模态框、Markdown 与代码块使用 ui-theme 的 Aeven 几何和排版变量；本包的图标字形与品牌标记保持不变。
 
-`MfaForm` 渲染身份验证器设置、登录验证、关闭确认和恢复码展示。调用方提供本地化文案、API 操作和导航回调。表单将设置资料保存在组件状态中，并要求用户确认已保存恢复码后才能继续。
+`MfaForm` 以两种呈现渲染身份验证器设置、关闭确认和恢复码展示：`layout: "cells"` 把流程画成设置行，供已经写明功能并携带状态的宿主区段使用；默认的卡片形式是注册与命名界面显示的那个浮层表单。调用方提供本地化文案、API 操作和导航回调。表单将设置资料保存在组件状态中，并要求用户确认已保存恢复码后才能继续。登录挑战不由该表单渲染：认证界面把它作为自己的一步来渲染（[理由](../../../.agents/notes/implemented/architecture/2026-10-16-settings-surfaces-are-fills-and-the-challenge-is-an-auth-screen.zh.md)）。
 
 ## 目录
 
