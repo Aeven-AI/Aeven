@@ -2,6 +2,8 @@
 
 English | [中文](README.zh.md)
 
+![The Aeven app home screen: the Æven wordmark with the composer below it, ready for a task](.github/assets/aeven-home.png)
+
 ## You bring the idea. Aeven finds the way.
 
 Aeven is an open, model-independent AI operating layer for your digital life. It connects your files, apps, messages, browser, and tools so you can start with what you want to accomplish. Research a question, make a document, organize a project, build software, or carry a task from one application into another.
