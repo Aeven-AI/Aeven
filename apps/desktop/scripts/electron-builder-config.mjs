@@ -48,6 +48,8 @@ export function createElectronBuilderConfig(
     artifactName: `aeven-\${version}-\${os}-\${arch}${unsigned ? '-unsigned' : ''}.\${ext}`,
     directories: { output: buildPaths.artifacts },
     asar: true,
+    // The shell's file locks load koffi's per-platform `.node` binary, which the dynamic loader cannot read from an archive.
+    asarUnpack: ['node_modules/@koromix/**'],
     // The shell hands these to its Host, whose profile rows read them; see DESKTOP_DEPLOYMENT_ENV_NAMES.
     extraMetadata: { aevenDeployment: deployment },
     // Chromium's UI strings for the client's locales (`LOCALE_IDS` in @aeven/client-locale): macOS names
