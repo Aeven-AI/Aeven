@@ -1,7 +1,7 @@
 {
   "name": "@aeven/computer-use-tasks",
   "description": "Normalize public desktop task sets into a task-intent catalog",
-  "version": "0.3.2-alpha",
+  "version": "0.3.3-alpha",
   "publishConfig": {
     "access": "public"
   },

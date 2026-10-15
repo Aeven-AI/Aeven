@@ -1,7 +1,7 @@
 {
   "name": "@aeven/tool-web",
   "description": "Model-facing web tools (web_search, web_fetch) over the Aeven web capability seam (ctx.web)",
-  "version": "0.3.2-alpha",
+  "version": "0.3.3-alpha",
   "publishConfig": {
     "access": "public"
   },
