@@ -110,7 +110,7 @@ describe('ui-account-aeven browser half', () => {
     })
   })
 
-  it('gives the Account page the Aeven web client the deployment names', async () => {
+  it('keeps account management inside the app even when a web client is configured', async () => {
     const ctx = await baseContext()
     scope.__AVN_AEVEN_READER__ = {
       userId: 'u-4',
@@ -122,7 +122,7 @@ describe('ui-account-aeven browser half', () => {
     }
     await ctx.plugin({ inject: [...inject], apply }).await()
     declareSeats(ctx)
-    expect(sectionFace(ctx).accountUrl()).toBe('https://aeven.test/account/')
+    expect(sectionFace(ctx)).not.toHaveProperty('accountUrl')
   })
 
   it('leaves the Account page unlinked when the deployment names no web client', async () => {
@@ -130,7 +130,7 @@ describe('ui-account-aeven browser half', () => {
     scope.__AVN_AEVEN_READER__ = { userId: 'u-5', signOut: () => Promise.resolve(), setDisplayName: () => Promise.reject(new Error('unused')), mfa: () => Promise.resolve({ enabled: false }), cloud: () => Promise.reject(new Error('unused')) }
     await ctx.plugin({ inject: [...inject], apply }).await()
     declareSeats(ctx)
-    expect(sectionFace(ctx).accountUrl()).toBeUndefined()
+    expect(sectionFace(ctx)).not.toHaveProperty('accountUrl')
   })
 
   it('carries only the facts the deployment stated', async () => {

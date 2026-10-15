@@ -18,6 +18,9 @@ export const NS = 'auth.aeven'
 /** Simplified Chinese dictionary (the key-set source of truth). */
 export const zh = {
   'mfa.failure': '无法完成此请求，请重试。',
+  'mfa.used': '此验证码已使用，请等待身份验证器应用生成新的验证码。',
+  'mfa.restart': '重新开始',
+  'mfa.recoveryCode': '恢复码',
   'mfa.title': '保护你的账号',
   'mfa.intro': '使用身份验证器应用增强安全性。你也可以稍后在设置中启用。',
   'mfa.setup': '设置身份验证器',
@@ -124,6 +127,9 @@ export const zh = {
 /** English dictionary, key-identical to the Chinese source of truth. */
 export const en: Record<AuthAevenKey, string> = {
   'mfa.failure': 'We couldn’t complete this request. Please try again.',
+  'mfa.used': 'This code has already been used. Wait for a new code in your authenticator app.',
+  'mfa.restart': 'Start again',
+  'mfa.recoveryCode': 'Recovery code',
   'mfa.title': 'Protect your account',
   'mfa.intro': 'Add an extra layer of security with an authenticator app. You can also do this later in settings.',
   'mfa.setup': 'Set up authenticator',

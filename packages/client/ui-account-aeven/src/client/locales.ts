@@ -6,7 +6,15 @@ export const NS = 'account.aeven'
 /** Simplified Chinese dictionary (the key-set source of truth). */
 export const zh = {
   'mfa.failure': '无法完成此请求，请重试。',
+  'mfa.used': '此验证码已使用，请等待身份验证器应用生成新的验证码。',
+  'mfa.restart': '重新开始',
+  'mfa.recoveryCode': '恢复码',
   'security.heading': '安全',
+  'security.on': '已开启',
+  'security.off': '已关闭',
+  'security.loading': '正在检查…',
+  'security.unavailable': '不可用',
+  'security.failed': '无法检查双重验证状态，请重试。',
   'security.title': '双重验证',
   'security.info': '登录时需要身份验证器应用中的验证码。',
 
@@ -44,7 +52,6 @@ export const zh = {
   'section.loading': '正在加载…',
   'section.failed': '无法加载。',
   'section.retry': '重试',
-  'profile.manage': '管理账户',
   'profile.unnamed': 'Aeven 用户',
   'plan.heading': '方案',
   'plan.status': '{plan} 方案',
@@ -120,7 +127,15 @@ export const zh = {
 /** English dictionary, key-identical to the Chinese source of truth. */
 export const en: Record<AccountAevenKey, string> = {
   'mfa.failure': 'We couldn’t complete this request. Please try again.',
+  'mfa.used': 'This code has already been used. Wait for a new code in your authenticator app.',
+  'mfa.restart': 'Start again',
+  'mfa.recoveryCode': 'Recovery code',
   'security.heading': 'Security',
+  'security.on': 'On',
+  'security.off': 'Off',
+  'security.loading': 'Checking…',
+  'security.unavailable': 'Unavailable',
+  'security.failed': 'We couldn’t check your two-factor authentication status. Please try again.',
   'security.title': 'Two-factor authentication',
   'security.info': 'Require a code from your authenticator app when signing in.',
 
@@ -158,7 +173,6 @@ export const en: Record<AccountAevenKey, string> = {
   'section.loading': 'Loading…',
   'section.failed': 'Couldn’t load this.',
   'section.retry': 'Retry',
-  'profile.manage': 'Manage account',
   'profile.unnamed': 'Aeven user',
   'plan.heading': 'Plan',
   'plan.status': '{plan} plan',

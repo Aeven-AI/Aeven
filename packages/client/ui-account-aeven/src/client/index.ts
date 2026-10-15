@@ -65,14 +65,6 @@ function currentReader(): AccountReader | undefined {
   }
 }
 
-/**
- * The Aeven account page.
- * @returns the URL, or undefined when this deployment names no web client.
- */
-function accountUrl(): string | undefined {
-  return publishedReader()?.accountUrl
-}
-
 /** Register the dictionaries and the resident navigation-band account menu. */
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-account-aeven: dictionaries')
@@ -125,7 +117,6 @@ export function apply(ctx: ClientContext): void {
   }
   const section: AccountSectionInjected = {
     reader: currentReader,
-    accountUrl,
     signOut: injected().signOut,
     cloud,
     mfa: reader.mfa,

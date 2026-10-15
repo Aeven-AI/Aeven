@@ -23,8 +23,6 @@ export interface AccountSectionInjected {
   reader: () => AccountReader | undefined
   /** Authenticator enrollment and account protection operations. */
   mfa: AevenReader['mfa']
-  /** The Aeven account page, or undefined when no web client is configured. */
-  accountUrl: () => string | undefined
   /** End the Aeven session and return the reader to the sign-in screen. */
   signOut: () => void
   /**
@@ -281,10 +279,9 @@ function Loaded<T>({ t, load, retry, children }: {
   return <>{children(load.value)}</>
 }
 
-function Identity({ t, reader, accountUrl, signOut }: AccountSectionProps) {
+function Identity({ t, reader, signOut }: AccountSectionProps) {
   const person = reader()
   if (person === undefined) return null
-  const account = accountUrl()
   return (
     <div className={`${css.row} ${css.identity}`}>
       <span className={css.avatar}>
@@ -300,12 +297,6 @@ function Identity({ t, reader, accountUrl, signOut }: AccountSectionProps) {
         {person.email !== undefined && <span className={css.desc}>{person.email}</span>}
       </span>
       <span className={css.actions}>
-        {account !== undefined && (
-          <Button variant="ghost" onClick={() => { externalWindow().navigate(account) }}>
-            {t('profile.manage')}
-            <IconRightUpOutline16 size={14} />
-          </Button>
-        )}
         <Button variant="outline" onClick={signOut}>{t('logout')}</Button>
       </span>
     </div>
@@ -835,18 +826,44 @@ function Security({ mfa, t }: { readonly mfa: AevenReader['mfa']; readonly t: Tr
   useEffect(refresh, [refresh])
   const request = useCallback((action: 'setup' | 'enable' | 'disable' | 'login', code?: string) =>
     mfa(action, code).then((answer) => {
-      if (answer.enabled !== undefined) setEnabled(answer.enabled)
+      if (action === 'enable') setEnabled(true)
+      if (action === 'disable') setEnabled(false)
       return answer
     }), [mfa])
-  return <Group title={t('security.heading')}>
-    <div className={css.row}>
-      <span className={css.rowText}><span>{t('security.title')}</span><span className={css.securityDescription}>{t('security.info')}</span></span>
-      <button type="button" role="switch" aria-label={t('security.title')} aria-checked={enabled === true}
-        className={`${css.securitySwitch} ${enabled === true ? css.securitySwitchOn : ''}`}
-        disabled={enabled === undefined || mode !== undefined} onClick={() => { setMode(enabled ? 'disable' : 'setup') }}><span /></button>
-    </div>
-    {failed && <div role="alert" className={css.row}><span>{t('section.failed')}</span><Button onClick={refresh}>{t('section.retry')}</Button></div>}
-    {mode !== undefined && <div className={css.securityForm}><MfaForm key={mode} mode={mode} t={t} request={request}
-      onDone={() => { setMode(undefined); refresh() }} onCancel={() => { setMode(undefined); refresh() }} /></div>}
-  </Group>
+  const status = failed ? 'security.unavailable' : enabled === undefined ? 'security.loading' : enabled ? 'security.on' : 'security.off'
+  return (
+    <Group title={t('security.heading')}>
+      <div className={css.securityCard}>
+        <div className={css.securityRow}>
+          <span className={css.securityIcon} aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6z" />
+              <path d="m8.5 12 2.5 2.5 4.5-5" />
+            </svg>
+          </span>
+          <span className={css.rowText}>
+            <span className={css.title}>{t('security.title')}</span>
+            <span className={css.desc}>{t('security.info')}</span>
+          </span>
+          <span className={css.securityControl}>
+            <span className={css.securityStatus} role="status">{t(status)}</span>
+            <button
+              type="button" role="switch" aria-label={t('security.title')} aria-checked={enabled === true}
+              className={css.securitySwitch}
+              disabled={enabled === undefined || failed || mode !== undefined}
+              onClick={() => { setMode(enabled ? 'disable' : 'setup') }}
+            ><span /></button>
+          </span>
+        </div>
+        {failed && <div role="alert" className={css.securityError}>
+          <span className={css.desc}>{t('security.failed')}</span>
+          <Button variant="outline" onClick={refresh}>{t('section.retry')}</Button>
+        </div>}
+        {mode !== undefined && <div className={css.securityForm}>
+          <MfaForm key={mode} mode={mode} t={t} request={request}
+            onDone={() => { setMode(undefined) }} onCancel={() => { setMode(undefined) }} />
+        </div>}
+      </div>
+    </Group>
+  )
 }

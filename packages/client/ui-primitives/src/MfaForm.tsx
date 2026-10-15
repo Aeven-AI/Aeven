@@ -16,7 +16,7 @@ export interface MfaAnswer {
 export type MfaKey = 'mfa.title' | 'mfa.intro' | 'mfa.setup' | 'mfa.skip' | 'mfa.scan' | 'mfa.manual'
   | 'mfa.code' | 'mfa.confirm' | 'mfa.cancel' | 'mfa.login' | 'mfa.loginInfo' | 'mfa.disable'
   | 'mfa.disableInfo' | 'mfa.error' | 'mfa.expired' | 'mfa.limited' | 'mfa.recovery' | 'mfa.recoveryInfo'
-  | 'mfa.failure' | 'mfa.saved' | 'mfa.copy' | 'mfa.copied' | 'mfa.loading' | 'mfa.useRecovery' | 'mfa.useApp'
+  | 'mfa.used' | 'mfa.restart' | 'mfa.recoveryCode' | 'mfa.failure' | 'mfa.saved' | 'mfa.copy' | 'mfa.copied' | 'mfa.loading' | 'mfa.useRecovery' | 'mfa.useApp'
 
 /** The caller owns API credentials and navigation; no secret enters persistent browser storage. */
 export interface MfaFormProps {
@@ -25,7 +25,7 @@ export interface MfaFormProps {
   readonly mode: MfaMode
   readonly t: (key: MfaKey) => string
   readonly request: (action: 'setup' | 'enable' | 'disable' | 'login', code?: string) => Promise<MfaAnswer>
-  readonly onDone: () => void
+  readonly onDone: () => void | Promise<void>
   readonly onCancel: () => void
 }
 
@@ -44,6 +44,7 @@ export function MfaForm({ mode: initialMode, t, request, onDone, onCancel, stand
   const [error, setError] = useState<MfaKey>()
   const [copied, setCopied] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [verified, setVerified] = useState(false)
 
   useEffect(() => {
     if (mode !== 'setup') return
@@ -57,16 +58,20 @@ export function MfaForm({ mode: initialMode, t, request, onDone, onCancel, stand
 
   const submit = (event: React.FormEvent): void => {
     event.preventDefault()
+    if (busy) return
     setBusy(true)
     setError(undefined)
-    void request(mode === 'setup' ? 'enable' : mode === 'disable' ? 'disable' : 'login', code)
+    void (verified ? Promise.resolve<MfaAnswer>({}) : request(mode === 'setup' ? 'enable' : mode === 'disable' ? 'disable' : 'login', code))
       .then((value) => {
         if (value.recoveryCodes !== undefined) setCodes(value.recoveryCodes)
-        else onDone()
+        else {
+          setVerified(true)
+          return onDone()
+        }
       })
       .catch((failure: unknown) => {
         const name = failure instanceof Error ? failure.message : ''
-        setError(name === 'too-many-attempts' ? 'mfa.limited' : name === 'expired-code' ? 'mfa.expired' : name === 'invalid-code' ? 'mfa.error' : 'mfa.failure')
+        setError(name === 'too-many-attempts' ? 'mfa.limited' : name === 'expired-code' ? 'mfa.expired' : name === 'invalid-code' ? 'mfa.error' : name === 'code-already-used' ? 'mfa.used' : 'mfa.failure')
       })
       .finally(() => { setBusy(false) })
   }
@@ -80,7 +85,12 @@ export function MfaForm({ mode: initialMode, t, request, onDone, onCancel, stand
         void navigator.clipboard.writeText(codes.join('\n')).then(() => { setCopied(true) }).catch(() => { setCopied(false) })
       }}>{t(copied ? 'mfa.copied' : 'mfa.copy')}</button>
       <label className={css.saved}><input type="checkbox" checked={saved} onChange={(event) => { setSaved(event.target.checked) }} />{t('mfa.saved')}</label>
-      <button type="button" className={css.primary} disabled={!saved} onClick={onDone}>{t('mfa.confirm')}</button>
+      {error !== undefined && <p className={css.error} role="alert">{t(error)}</p>}
+      <button type="button" className={css.primary} disabled={!saved || busy} onClick={() => {
+        setBusy(true)
+        setError(undefined)
+        void Promise.resolve().then(onDone).catch(() => { setError('mfa.failure') }).finally(() => { setBusy(false) })
+      }}>{t('mfa.confirm')}</button>
     </section>
   ) : (
     <form className={css.card} onSubmit={submit}>
@@ -94,13 +104,13 @@ export function MfaForm({ mode: initialMode, t, request, onDone, onCancel, stand
         {mode === 'setup' && (setup === undefined
           ? <p role="status">{busy ? t('mfa.loading') : ''}</p>
           : <><img className={css.qr} src={setup.qrCode} alt={t('mfa.scan')} /><details className={css.manual}><summary>{t('mfa.manual')}</summary><code>{setup.secret}</code></details></>)}
-        <label className={css.field}>{t(recovery ? 'mfa.recovery' : 'mfa.code')}
-          <input autoFocus type="text" inputMode={recovery ? 'text' : 'numeric'} autoComplete="one-time-code" maxLength={recovery ? 19 : 6} pattern={recovery ? '[a-fA-F0-9 -]{16,19}' : '[0-9]{6}'} value={code} onChange={(event) => { setCode(event.target.value) }} required disabled={busy} />
+        <label className={css.field}>{t(recovery ? 'mfa.recoveryCode' : 'mfa.code')}
+          <input autoFocus type="text" inputMode={recovery ? 'text' : 'numeric'} autoComplete="one-time-code" maxLength={recovery ? 19 : 6} pattern={recovery ? '[a-fA-F0-9 -]{16,19}' : '[0-9]{6}'} value={code} onChange={(event) => { setCode(event.target.value) }} required disabled={busy || verified} />
         </label>
         {error !== undefined && <p className={css.error} role="alert">{t(error)}</p>}
-        <button type="submit" className={css.primary} disabled={busy || (mode === 'setup' && setup === undefined)}>{t(mode === 'disable' ? 'mfa.disable' : 'mfa.confirm')}</button>
-        {mode !== 'setup' && <button type="button" className={css.secondary} onClick={() => { setRecovery(!recovery); setCode('') }}>{t(recovery ? 'mfa.useApp' : 'mfa.useRecovery')}</button>}
-        <button type="button" className={css.secondary} disabled={busy} onClick={onCancel}>{t('mfa.cancel')}</button>
+        <button type="submit" className={css.primary} disabled={busy || error === 'mfa.expired' || error === 'mfa.limited' || (mode === 'setup' && setup === undefined)}>{t(mode === 'disable' ? 'mfa.disable' : 'mfa.confirm')}</button>
+        {mode !== 'setup' && !verified && <button type="button" className={css.secondary} onClick={() => { setRecovery(!recovery); setCode('') }}>{t(recovery ? 'mfa.useApp' : 'mfa.useRecovery')}</button>}
+        <button type="button" className={css.secondary} disabled={busy} onClick={onCancel}>{t(error === 'mfa.expired' || error === 'mfa.limited' ? 'mfa.restart' : 'mfa.cancel')}</button>
       </>}
     </form>
   )

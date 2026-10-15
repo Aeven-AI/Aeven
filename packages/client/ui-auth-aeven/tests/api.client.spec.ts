@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   AevenApiError, checkOauthToken, forgotPassword, getProfile, resendCode, resetPassword, setDisplayName,
-  signIn, signOut, signUp, verifyEmail,
+  signIn, signOut, signUp, verifyEmail, mfa, hasPendingMfaChallenge,
 } from '../src/client/auth/services/api.ts'
 import { session } from '../src/client/auth/services/session.ts'
 
@@ -55,6 +55,56 @@ describe('the Aeven API calls', () => {
     expect(session.userId).toBe('u-1')
     expect(session.userSignedIn).toBe(true)
     expect(window.localStorage.getItem('userId')).toBe('u-1')
+  })
+
+  it('adopts the session only after password MFA succeeds', async () => {
+    const api = scriptedApi({
+      '/login': { status: 202, body: { challenge: 'password-challenge' } },
+      '/mfa/login': { status: 200, body: grant },
+    })
+    await expect(signIn('a@b.c', 'secret')).rejects.toThrow('mfa-required')
+    expect(session.userSignedIn).toBe(false)
+    expect(hasPendingMfaChallenge()).toBe(true)
+    await mfa('login', '123456')
+    expect(api.calls.at(-1)).toMatchObject({
+      url: '/mfa/login', authorization: null,
+      body: JSON.stringify({ code: '123456', challenge: 'password-challenge' }),
+    })
+    expect(session.userSignedIn).toBe(true)
+    expect(hasPendingMfaChallenge()).toBe(false)
+  })
+
+  it('completes the same MFA exchange after an Apple or other social sign-in', async () => {
+    scriptedApi({
+      '/check-oauth-token': { status: 202, body: { challenge: 'social-challenge' } },
+      '/mfa/login': { status: 200, body: grant },
+    })
+    await expect(checkOauthToken('apple-session', 'apple-challenge')).rejects.toThrow('mfa-required')
+    expect(session.userSignedIn).toBe(false)
+    await mfa('login', '123456')
+    expect(session.userSignedIn).toBe(true)
+  })
+
+  it('discards an expired MFA challenge and refuses to send it again', async () => {
+    const api = scriptedApi({
+      '/login': { status: 202, body: { challenge: 'expired-challenge' } },
+      '/mfa/login': { status: 400, body: { error: 'expired-code' } },
+    })
+    await expect(signIn('a@b.c', 'secret')).rejects.toThrow('mfa-required')
+    await expect(mfa('login', '123456')).rejects.toThrow('expired-code')
+    expect(hasPendingMfaChallenge()).toBe(false)
+    await expect(mfa('login', '654321')).rejects.toThrow('expired-code')
+    expect(api.calls.filter(call => call.url === '/mfa/login')).toHaveLength(1)
+  })
+
+  it('rejects an MFA success response that did not establish a session', async () => {
+    scriptedApi({
+      '/login': { status: 202, body: { challenge: 'challenge' } },
+      '/mfa/login': { status: 200, body: { result: 'user-signed-in' } },
+    })
+    await expect(signIn('a@b.c', 'secret')).rejects.toThrow('mfa-required')
+    await expect(mfa('login', '123456')).rejects.toThrow('request-failed')
+    expect(session.userSignedIn).toBe(false)
   })
 
   it('reports the API error code, so a caller can tell a refusal from an outage', async () => {

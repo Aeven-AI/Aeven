@@ -1,0 +1,78 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Account security > keeps the switch off through enrollment and shows recovery codes after verification 1`] = `
+<section
+  class="_group_f08576"
+>
+  <h3
+    class="_groupTitle_f08576"
+  >
+    <span>
+      Security
+    </span>
+  </h3>
+  <div
+    class="_securityCard_f08576"
+  >
+    <div
+      class="_securityRow_f08576"
+    >
+      <span
+        aria-hidden="true"
+        class="_securityIcon_f08576"
+      >
+        <svg
+          fill="none"
+          height="22"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="1.5"
+          viewBox="0 0 24 24"
+          width="22"
+        >
+          <path
+            d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6z"
+          />
+          <path
+            d="m8.5 12 2.5 2.5 4.5-5"
+          />
+        </svg>
+      </span>
+      <span
+        class="_rowText_f08576"
+      >
+        <span
+          class="_title_f08576"
+        >
+          Two-factor authentication
+        </span>
+        <span
+          class="_desc_f08576"
+        >
+          Require a code from your authenticator app when signing in.
+        </span>
+      </span>
+      <span
+        class="_securityControl_f08576"
+      >
+        <span
+          class="_securityStatus_f08576"
+          role="status"
+        >
+          Off
+        </span>
+        <button
+          aria-checked="false"
+          aria-label="Two-factor authentication"
+          class="_securitySwitch_f08576"
+          role="switch"
+          type="button"
+        >
+          <span />
+        </button>
+      </span>
+    </div>
+  </div>
+</section>
+`;

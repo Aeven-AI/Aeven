@@ -202,6 +202,7 @@ export async function signOut(): Promise<void> {
     // The kept profile is what would restore this reader through an outage, so
     // a deliberate sign-out has to discard it too.
     forgetCachedProfile()
+    pendingMfaChallenge = undefined
     session.reset()
   }
 }
@@ -277,7 +278,16 @@ function acceptSignIn(answer: SessionGrant | { challenge: string }): void {
     pendingMfaChallenge = answer.challenge
     throw new AevenApiError('mfa-required', 202)
   }
+  pendingMfaChallenge = undefined
   adopt(answer)
+}
+
+/**
+ * Whether this document holds the challenge issued by its first sign-in factor.
+ * @returns false after reload, expiry, or completed sign-in.
+ */
+export function hasPendingMfaChallenge(): boolean {
+  return pendingMfaChallenge !== undefined
 }
 
 /**
@@ -288,14 +298,23 @@ function acceptSignIn(answer: SessionGrant | { challenge: string }): void {
  * @throws {AevenApiError} when the server rejects the credential or code.
  */
 export async function mfa(action: 'status' | 'setup' | 'enable' | 'disable' | 'login', code?: string): Promise<MfaAnswer> {
+  if (action === 'login' && pendingMfaChallenge === undefined) throw new AevenApiError('expired-code', 400)
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (action !== 'login') headers.Authorization = `Bearer ${await currentBearer()}`
   const answer = await request<MfaAnswer & Partial<SessionGrant>>(`/mfa/${action}`, {
     method: action === 'status' ? 'GET' : 'POST',
     credentials: 'include', headers,
     ...action === 'status' ? {} : { body: JSON.stringify({ code, challenge: pendingMfaChallenge }) },
+  }).catch((error: unknown) => {
+    if (action === 'login' && error instanceof AevenApiError && error.message === 'expired-code') {
+      pendingMfaChallenge = undefined
+    }
+    throw error
   })
-  if (action === 'login' && answer.userId !== undefined && answer.accessToken !== undefined) {
+  if (action === 'login') {
+    if (typeof answer.userId !== 'string' || typeof answer.accessToken !== 'string') {
+      throw new AevenApiError('request-failed', 502)
+    }
     adopt({ userId: answer.userId, accessToken: answer.accessToken })
     pendingMfaChallenge = undefined
   }
