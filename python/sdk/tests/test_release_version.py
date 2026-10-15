@@ -60,6 +60,10 @@ def test_pep440_version_spells_a_prerelease_the_python_way() -> None:
 def test_macos_wheel_tag_does_not_claim_unsupported_node_platforms() -> None:
     assert build_python_release.PLATFORMS["macos-arm64"][0] == "macosx_14_0_arm64"
     assert build_python_release.PLATFORMS["macos-arm64"][1] == "aeven-sdk-runtime-macos-arm64"
+    assert build_python_release.PLATFORMS["macos-x64"] == (
+        "macosx_14_0_x86_64",
+        "aeven-sdk-runtime-macos-x64",
+    )
 
 
 def test_windows_wheel_tag_and_payload_are_x64_only() -> None:
@@ -86,7 +90,7 @@ def test_stage_sdk_keeps_distribution_module_and_runtime_pin_distinct(tmp_path: 
     pyproject = (destination / "pyproject.toml").read_text()
     assert 'name = "aeven-sdk"' in pyproject
     assert 'version = "1.2.3"' in pyproject
-    assert 'license = "MIT"' in pyproject
+    assert 'license = "Apache-2.0"' in pyproject
     assert '"aeven-runtime-bin==1.2.3"' in pyproject
     assert 'license-files = ["LICENSE"]' in pyproject
     assert (destination / "LICENSE").read_bytes() == (ROOT / "LICENSE").read_bytes()
