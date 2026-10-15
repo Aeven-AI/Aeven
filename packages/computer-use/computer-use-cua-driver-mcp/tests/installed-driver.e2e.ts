@@ -40,7 +40,10 @@ it.skipIf(executable === undefined || executable === '')(
       expect(ctx.computerUse.providerName).toBe('cua-driver-mcp')
       const schemas = ctx.tools.schemas()
       expect(schemas.length).toBeGreaterThan(0)
-      expect(schemas.every(tool => tool.name.startsWith('mcp__cua-driver-mcp__'))).toBe(true)
+      // Discovered driver tools carry the MCP namespace; the provider registers its
+      // own setup tool beside them, so only the driver's tools are namespaced.
+      expect(schemas.filter(tool => tool.name !== 'computer_use_setup').every(tool => tool.name.startsWith('mcp__cua-driver-mcp__'))).toBe(true)
+      expect(schemas.some(tool => tool.name === 'computer_use_setup')).toBe(true)
       const permissions = ctx.tools.get('mcp__cua-driver-mcp__check_permissions')
       expect(permissions).toBeDefined()
       const result = await ctx.tools.execute({

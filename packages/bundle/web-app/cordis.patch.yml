@@ -341,15 +341,18 @@
     # off, because a failed provider start fails the tree.
     - id: computer-use
       name: '@aeven/computer-use'
-      disabled: !!js "process.platform !== 'darwin' && process.platform !== 'win32'"
+      disabled: !!js "process.platform !== 'darwin' && process.platform !== 'win32' && process.platform !== 'linux'"
 
     - id: computer-use-cua-driver
       name: '@aeven/computer-use-cua-driver-mcp'
-      disabled: !!js "process.platform !== 'darwin' && process.platform !== 'win32'"
+      disabled: !!js "process.platform !== 'darwin' && process.platform !== 'win32' && process.platform !== 'linux'"
       config:
         # Each platform's own install layout: the macOS installer puts the binary
-        # inside CuaDriver.app, and the Windows installer under LOCALAPPDATA.
-        command: !!js "process.env.AVN_CUA_DRIVER ?? (process.platform === 'win32' ? process.env.LOCALAPPDATA + '/Programs/Cua/cua-driver/bin/cua-driver.exe' : '/Applications/CuaDriver.app/Contents/MacOS/cua-driver')"
+        # inside CuaDriver.app, the Windows installer under LOCALAPPDATA, and a
+        # user-level Linux install in the home directory. Every arm is an absolute
+        # path, which is what keeps a missing driver on the install-guidance path
+        # instead of failing the row's activation.
+        command: !!js "process.env.AVN_CUA_DRIVER ?? (process.platform === 'win32' ? process.env.LOCALAPPDATA + '/Programs/Cua/cua-driver/bin/cua-driver.exe' : process.platform === 'linux' ? process.getBuiltinModule('node:os').homedir() + '/.local/bin/cua-driver' : '/Applications/CuaDriver.app/Contents/MacOS/cua-driver')"
         args: [mcp]
 
     - id: computer-use-semantic-batches

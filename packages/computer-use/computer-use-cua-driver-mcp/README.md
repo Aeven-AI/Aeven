@@ -46,13 +46,15 @@ Add these rows to a composition that already provides tools and system-prompt se
 | `toolCallTimeoutMs` | MCP client default | Per-call timeout override in milliseconds |
 | `reconnect` | MCP client policy | Optional reconnection overrides |
 
+Compositions pass an explicit `command` naming each platform's install location: the CuaDriver application bundle on macOS, `%LOCALAPPDATA%\Programs\Cua\cua-driver\bin\cua-driver.exe` on Windows, and `~/.local/bin/cua-driver` on Linux, the script location a user-level install writes. `AVN_CUA_DRIVER` overrides it. Every default is an absolute path, so an absent driver takes the install-guidance path below instead of failing the composition.
+
 The generated [configuration catalog](../../../docs/config-catalog.md#aevencomputer-use-cua-driver-mcp) lists accepted fields. The [MCP client](../../mcp/mcp-client/README.md) owns timeout and reconnection defaults.
 
 ### Activation and ownership
 
 The provider registers as `cua-driver-mcp` before connecting. A second computer-use provider fails activation, including another instance of this package. Failed initialization or initial tool discovery rejects this entry and releases its registration after cleanup. Later disconnects retain the registration while the MCP client reconnects or exhausts its attempt budget; unload the entry to release it.
 
-The model sees tools under the fixed `mcp__cua-driver-mcp__` namespace. Tool names, descriptions, input schemas, canonical results, and image admission follow the existing [MCP bridge](../../mcp/mcp-client/README.md). There is no additional Aeven action catalog or provider-selection tool. The provider adds one tool of its own, `computer_use_setup`: every call asks the person for approval, then starts the driver's `permissions grant` flow, which launches CuaDriver through LaunchServices so macOS attributes the Accessibility and Screen Recording requests to that app and opens the matching System Settings panes. The flow is not awaited; the model re-checks with `check_permissions` and `prompt: false`.
+The model sees tools under the fixed `mcp__cua-driver-mcp__` namespace. Tool names, descriptions, input schemas, canonical results, and image admission follow the existing [MCP bridge](../../mcp/mcp-client/README.md). There is no additional Aeven action catalog or provider-selection tool. The provider adds one tool of its own, `computer_use_setup`: every call asks the person for approval, then starts the driver's `permissions grant` flow. On macOS that flow launches CuaDriver through LaunchServices, so the system attributes the Accessibility and Screen Recording requests to that app and opens the matching System Settings panes. The flow is not awaited; the model re-checks with `check_permissions` and `prompt: false`.
 
 When `command` is an absolute path that does not exist, the provider neither reserves computer use nor starts the driver. It registers only `computer_use_setup`, whose description tells the model that computer use needs Cua Driver and whose result names the missing path and the upstream installation guide. The capability therefore stays discoverable through tool search on a machine without the driver; after installing it, the person restarts Aeven. A PATH command is not checked before spawning.
 

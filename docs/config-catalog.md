@@ -711,7 +711,7 @@ export interface Config {
 
 Depends on: [`McpClient`](../packages/mcp/mcp-client/src/index.ts)
 
-Source: [`packages/computer-use/computer-use-cua-driver-mcp/src/index.ts:22`](../packages/computer-use/computer-use-cua-driver-mcp/src/index.ts)
+Source: [`packages/computer-use/computer-use-cua-driver-mcp/src/index.ts:25`](../packages/computer-use/computer-use-cua-driver-mcp/src/index.ts)
 
 <a id="aevencomputer-use-macos-provider"></a>
 
@@ -748,6 +748,42 @@ export interface Config {
 Depends on: [`RecipeBook`](../packages/computer-use/computer-use-router/src/index.ts)
 
 Source: [`packages/computer-use/computer-use-macos-provider/src/index.ts:49`](../packages/computer-use/computer-use-macos-provider/src/index.ts)
+
+<a id="aevencomputer-use-windows-provider"></a>
+
+## `@aeven/computer-use-windows-provider`
+
+Requires: `computerUse`
+
+```ts config-catalog
+/** Configuration a composition may supply. */
+export interface Config {
+  /**
+   * PowerShell executable to invoke.
+   *
+   * Defaults to `powershell` on `PATH`, which the Windows adapter uses for the same
+   * reason: Windows PowerShell ships with the platform and carries the .NET UI
+   * Automation assemblies the adapter needs, and PowerShell 7 is only optionally
+   * present.
+   */
+  powershell?: string
+  /**
+   * Extra recipes merged over the starter book, so a deployment can add its own
+   * without this package knowing about them.
+   */
+  recipes?: RecipeBook
+  /**
+   * Whether to claim the exclusive slot. Present so a deployment can load this row
+   * for its readiness reporting while another provider drives, which is how the
+   * semantic batches mount beside the Cua Driver MCP provider.
+   */
+  register?: boolean
+}
+```
+
+Depends on: [`RecipeBook`](../packages/computer-use/computer-use-router/src/index.ts)
+
+Source: [`packages/computer-use/computer-use-windows-provider/src/index.ts:56`](../packages/computer-use/computer-use-windows-provider/src/index.ts)
 
 <a id="aevencordis-host-runner"></a>
 
@@ -1413,6 +1449,12 @@ export interface Config {
   host: '127.0.0.1' | '0.0.0.0'
   /** Listen port; zero requests an OS-assigned port. */
   port: number
+  /**
+   * What happens when another process already holds `port`: `fail` rejects
+   * activation, `os-assigned` listens on a port the OS picks and reports it
+   * through {@link WebServer.port}. @default 'fail'
+   */
+  portInUse?: 'fail' | 'os-assigned'
   /** Response compression for socket-backed HTTP requests. @default 'none' */
   compression?: 'none' | 'gzip'
   /** Gzip DEFLATE level from 0 through 9. @default 1 */
@@ -4997,6 +5039,7 @@ Imported as libraries by other packages; a `cordis.yml` cannot load them.
 - `@aeven/computer-use-session` ([`packages/computer-use/computer-use-session/src/index.ts`](../packages/computer-use/computer-use-session/src/index.ts))
 - `@aeven/computer-use-tasks` ([`packages/computer-use/computer-use-tasks/src/index.ts`](../packages/computer-use/computer-use-tasks/src/index.ts))
 - `@aeven/computer-use-windows` ([`packages/computer-use/computer-use-windows/src/index.ts`](../packages/computer-use/computer-use-windows/src/index.ts))
+- `@aeven/computer-use-windows-com` ([`packages/computer-use/computer-use-windows-com/src/index.ts`](../packages/computer-use/computer-use-windows-com/src/index.ts))
 - `@aeven/deque` ([`packages/util/deque/src/index.ts`](../packages/util/deque/src/index.ts))
 - `@aeven/experimental-agent-team-profile` ([`packages/experimental/agent-team-profile/src/index.ts`](../packages/experimental/agent-team-profile/src/index.ts))
 - `@aeven/experimental-agent-team-web-profile` ([`packages/experimental/agent-team-web-profile/src/index.ts`](../packages/experimental/agent-team-web-profile/src/index.ts))

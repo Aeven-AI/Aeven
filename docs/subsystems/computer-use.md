@@ -6,7 +6,7 @@ Computer use lets a model observe and operate the local desktop through a config
 
 ## Choose a provider
 
-Mount [`@aeven/computer-use`](../../packages/computer-use/computer-use/README.md) and one provider in the same composition. The Web and Electron desktop apps mount the Cua Driver MCP provider on macOS and Windows when a `cua-driver` executable is installed; other compositions activate it explicitly. macOS and Windows each add a first-party batch provider that drives the desktop itself and holds no registration.
+Mount [`@aeven/computer-use`](../../packages/computer-use/computer-use/README.md) and one provider in the same composition. The Web and Electron desktop apps mount the Cua Driver MCP provider on macOS, Windows, and Linux when a `cua-driver` executable is installed; other compositions activate it explicitly. macOS and Windows each add a first-party batch provider that drives the desktop itself and holds no registration.
 
 | Provider | Runtime |
 |---|---|
