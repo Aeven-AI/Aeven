@@ -6,7 +6,7 @@
 
 ## 选择提供方
 
-在同一组合中挂载 [`@aeven/computer-use`](../../packages/computer-use/computer-use/README.zh.md) 和一个提供方。Web 应用和 Electron 桌面应用在 macOS 与 Windows 上、已安装 `cua-driver` 可执行程序时挂载 Cua Driver MCP 提供方；其他组合需显式启用。macOS 与 Windows 各自还提供一个自行驱动桌面的第一方批量提供方，它不占用注册位。
+在同一组合中挂载 [`@aeven/computer-use`](../../packages/computer-use/computer-use/README.zh.md) 和一个提供方。Web 应用和 Electron 桌面应用在 macOS、Windows 与 Linux 上、已安装 `cua-driver` 可执行程序时挂载 Cua Driver MCP 提供方；其他组合需显式启用。macOS 与 Windows 各自还提供一个自行驱动桌面的第一方批量提供方，它不占用注册位。
 
 | 提供方 | 运行时 |
 |---|---|

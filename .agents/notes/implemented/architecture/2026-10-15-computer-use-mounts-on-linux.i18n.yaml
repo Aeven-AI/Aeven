@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-15-computer-use-mounts-on-linux.md
+2026-10-15-computer-use-mounts-on-linux.md: a209f684992b56e046877385ba2038c984c69ea9
+2026-10-15-computer-use-mounts-on-linux.zh.md: 212258fe6c0f4d8a50b32ac950473623bbc529e3
