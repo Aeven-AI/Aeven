@@ -54,6 +54,8 @@ kind: "package-reference"
 
 模型看到的工具使用固定的 `mcp__cua-driver-mcp__` 命名空间。工具名称、描述、输入模式、规范结果和图像准入遵循现有 [MCP 桥接器](../../mcp/mcp-client/README.zh.md)。本包不额外提供 Aeven 操作目录或提供者选择工具。提供方只添加一个自有工具 `computer_use_setup`：每次调用都先请求用户批准，然后启动驱动的 `permissions grant` 流程，该流程通过 LaunchServices 启动 CuaDriver，使 macOS 将辅助功能与屏幕录制请求归属于该应用，并打开对应的系统设置面板。工具不等待该流程结束；模型随后以 `prompt: false` 调用 `check_permissions` 重新检查。
 
+当 `command` 是不存在的绝对路径时，提供方既不预留计算机使用，也不启动驱动，只注册 `computer_use_setup`：其描述告诉模型计算机使用需要 Cua Driver，其结果给出缺失的路径和上游安装指南。因此在未安装驱动的机器上，该能力仍可通过工具搜索发现；用户安装后重启 Aeven 即可。PATH 命令在启动前不做检查。
+
 -----
 
 <a id="understand-the-implementation"></a>

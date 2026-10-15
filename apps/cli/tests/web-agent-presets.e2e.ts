@@ -97,6 +97,10 @@ async function bootWeb(
     { id: 'browser-chromium', disabled: true },
     { id: 'mcp-chrome-devtools', disabled: true },
     { id: 'mcp-playwright', disabled: true },
+    // Computer use mounts by whether this Mac has Cua Driver installed.
+    { id: 'computer-use', disabled: true },
+    { id: 'computer-use-cua-driver', disabled: true },
+    { id: 'computer-use-semantic-batches', disabled: true },
     { id: 'directory-picker', disabled: true },
     { insert: [
       { id: 'directory-picker-browse', name: '@aeven/host-directory-picker-browse' },
