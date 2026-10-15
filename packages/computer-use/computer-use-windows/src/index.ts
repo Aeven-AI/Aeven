@@ -558,3 +558,7 @@ Write-Json @{ ok = $true; clicked = @{ x = ${String(Math.round(point.x))}; y = $
     return { role: envelope.role ?? '', name: envelope.name ?? '' }
   }
 }
+
+// The adapter is constructed from outside this package, so its runner contract is
+// part of the public surface: a consumer supplies the runner.
+export type { WinCommandResult, WinCommandRunner } from './runner.ts'

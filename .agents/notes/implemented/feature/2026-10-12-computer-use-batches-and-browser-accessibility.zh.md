@@ -10,7 +10,7 @@ Status: implemented
 
 ## 决策
 
-macOS 提供程序通过操作级 `ComputerUseSession` 注册 `computer_use_run`。每个批次包含 1 到 20 个步骤，报告已完成结果，在首个失败或未通过校验的执行处停止，并将取消信号传给宿主命令。执行需要写入权限和批准。Web bundle 通过 `register: false` 将它与 Cua Driver 并列挂载；驱动保留独占注册及现有交互工具。此批次支持语义配方，不实现层级降级或重放回执。
+各平台提供程序都通过操作级 `ComputerUseSession` 注册 `computer_use_run`：macOS，以及自 [Windows 计算机使用通过第一方提供程序与 COM 处理器挂载](2026-10-15-windows-computer-use-provider-and-com-handler.zh.md)之后的 Windows。每个批次包含 1 到 20 个步骤，报告已完成结果，在首个失败或未通过校验的执行处停止，并将取消信号传给宿主命令。执行需要写入权限和批准。Web bundle 通过 `register: false` 将它与 Cua Driver 并列挂载；驱动保留独占注册及现有交互工具。此批次支持语义配方，不实现层级降级或重放回执。
 
 `preview_snapshot` 提供 Chromium 无障碍观察，采用桌面节点字段和快照级令牌。浏览器把令牌解析为后端 DOM 节点以进行点击和文本插入，包括 shadow root 内的编辑器。令牌不能与选择器或坐标组合。新的观察或浏览器操作会使令牌集失效；文档变化以及目标分离、隐藏或禁用会拒绝执行。框架定位仍属于独立工作。
 

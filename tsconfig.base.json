@@ -351,6 +351,8 @@
       "@aeven/computer-use-session": ["./packages/computer-use/computer-use-session/src"],
       "@aeven/computer-use-tasks": ["./packages/computer-use/computer-use-tasks/src"],
       "@aeven/computer-use-windows": ["./packages/computer-use/computer-use-windows/src"],
+      "@aeven/computer-use-windows-com": ["./packages/computer-use/computer-use-windows-com/src"],
+      "@aeven/computer-use-windows-provider": ["./packages/computer-use/computer-use-windows-provider/src"],
       "@aeven/cordis-client-runner": ["./packages/extensions/cordis-client-runner/src"],
       "@aeven/cordis-host-runner": ["./packages/extensions/cordis-host-runner/src"],
       "@aeven/credentials": ["./packages/credentials/credentials/src"],

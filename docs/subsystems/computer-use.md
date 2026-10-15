@@ -6,15 +6,17 @@ Computer use lets a model observe and operate the local desktop through a config
 
 ## Choose a provider
 
-Mount [`@aeven/computer-use`](../../packages/computer-use/computer-use/README.md) and one provider in the same composition. The Web and Electron desktop apps on macOS mount the Cua Driver MCP provider when a `cua-driver` executable is installed; other compositions activate it explicitly.
+Mount [`@aeven/computer-use`](../../packages/computer-use/computer-use/README.md) and one provider in the same composition. The Web and Electron desktop apps mount the Cua Driver MCP provider on macOS and Windows when a `cua-driver` executable is installed; other compositions activate it explicitly. macOS and Windows each add a first-party batch provider that drives the desktop itself and holds no registration.
 
 | Provider | Runtime |
 |---|---|
 | [Cua Driver MCP](../../packages/computer-use/computer-use-cua-driver-mcp/README.md) | An already installed `cua-driver` executable connected through MCP |
+| [macOS semantic batches](../../packages/computer-use/computer-use-macos-provider/README.md) | The macOS adapter, router, executor and Apple Events handler in one row |
+| [Windows semantic batches](../../packages/computer-use/computer-use-windows-provider/README.md) | The Windows adapter, router, executor and COM handler in one row |
 
 Each provider supplies its upstream tool catalog. The shared service registers only a name and rejects any second provider, including another instance with the same name. It has no common desktop-operation methods or model-controlled selector.
 
-The macOS Web and Electron compositions also mount [semantic batches](../../packages/computer-use/computer-use-macos-provider/README.md) with `register: false`. `computer_use_run` exposes `ComputerUseSession.run()` with per-expectation verification while the Cua Driver retains its registration and interaction tools. Batch calls do not implement accessibility or vision downgrade.
+The macOS Web and Electron compositions also mount [semantic batches](../../packages/computer-use/computer-use-macos-provider/README.md) with `register: false`, and Windows mounts the [Windows provider](../../packages/computer-use/computer-use-windows-provider/README.md). `computer_use_run` exposes `ComputerUseSession.run()` with per-expectation verification while the Cua Driver retains its registration and interaction tools. Batch calls do not implement accessibility or vision downgrade.
 
 ## Lifetime and desktop sharing
 
@@ -90,6 +92,44 @@ tasks(): string[]
 ```
 
 Source: [`packages/computer-use/computer-use-macos-provider/src/index.ts`](../../packages/computer-use/computer-use-macos-provider/src/index.ts)
+
+<a id="ctxwindowscomputeruseprovider--windowscomputeruseprovider"></a>
+
+### `ctx.windowsComputerUseProvider` — `WindowsComputerUseProvider`
+
+The Windows computer-use provider.
+
+Exposes the pieces a consumer needs rather than hiding them behind one method, because the useful questions differ: a settings surface wants `readiness()`, a router wants `routing`, and a tool wants `session`.
+
+```ts cordis-catalog
+/**
+ * The host's readiness: which capabilities are present, and which are missing.
+ * @returns the readiness report for this adapter.
+ */
+readiness(): Promise<ReadinessReport>
+
+/**
+ * Perform one task and establish whether it worked.
+ * @param request - the task, its application, and its parameters.
+ * @returns the outcome, with per-expectation results.
+ */
+execute(request: Parameters<TaskExecutor['execute']>[0]): Promise<ExecutionOutcome>
+
+/**
+ * Resolve a task without running it, for a caller that wants to show the plan.
+ * @param request - the task, platform, application and available rungs.
+ * @returns the resolved recipe.
+ */
+resolve(request: Parameters<TaskExecutor['routing']['resolve']>[0]): ResolvedRecipe
+
+/**
+ * The recipe book this provider serves, so a caller can list what is available.
+ * @returns the task names.
+ */
+tasks(): string[]
+```
+
+Source: [`packages/computer-use/computer-use-windows-provider/src/index.ts`](../../packages/computer-use/computer-use-windows-provider/src/index.ts)
 
 <a id="location-events"></a>
 

@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-12-computer-use-batches-and-browser-accessibility.md
-2026-10-12-computer-use-batches-and-browser-accessibility.md: 1c7f98f4fda69ae3014f11635c299a1872e281f4
-2026-10-12-computer-use-batches-and-browser-accessibility.zh.md: b407853f3b4a27c2cd45bfa0d24f3693e485a9c4
+2026-10-12-computer-use-batches-and-browser-accessibility.md: 1270af0d1104c48b1974d6873496943f09159484
+2026-10-12-computer-use-batches-and-browser-accessibility.zh.md: c03a5902b0064401070f0d4e086d2a9cda706db9
