@@ -2,6 +2,8 @@
 
 Status: implemented
 
+English | [中文](2026-10-15-authenticator-two-factor-authentication.zh.md)
+
 ## Problem
 
 An account password or social sign-in alone gives access to Aeven. Readers need optional authenticator protection during signup and a way to manage it from account settings.

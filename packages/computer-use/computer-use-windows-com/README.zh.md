@@ -7,7 +7,7 @@ kind: "package-reference"
 
 [English](README.md) | 中文
 
-## Summary
+## 概述
 
 Windows 上的 **semantic** 机制，注册到 [`@aeven/computer-use-executor`](../computer-use-executor/README.zh.md)。它通过 PowerShell 针对 Office 应用的自动化对象模型执行配方中的操作，并报告它观察到的结果。
 
@@ -15,13 +15,13 @@ Windows 上的 **semantic** 机制，注册到 [`@aeven/computer-use-executor`](
 
 有三件事它故意不做。它不把自己的输出当作结论——处理器只负责报告，由执行器通过独立可观察量重新读取来判定。它不会启动应用：配方书中的每个操作都是针对正在运行的实例编写的，因此处理器只做附加，在没有可附加的实例时按名称明确拒绝。它也不会尝试自己未实现的操作，因为一个配方指向没有任何实现的操作是应当暴露出来的缺陷。
 
-## Table of Contents
+## 目录
 
 - [Use this package](#use-this-package)
 - [Understand the implementation](#understand-the-implementation)
 - [Further Exploration](#further-exploration)
 - [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
-- [Dev Note](#dev-note)
+- [开发备注](#dev-note)
 
 -----
 
@@ -91,7 +91,7 @@ await executor.executeOrThrow({
 - **不读回已写入的值。** 处理器报告包装层自己的 JSON，由执行器的验证来判定；需要单元格内容的调用方应通过适配器或连接器去索取。
 
 <a id="dev-note"></a>
-## Dev Note
+## 开发备注
 
 宿主应用来自请求的 `app`，由路由器依据配方的 `apps` 条目填充，因此这三个自动化标识符是唯一被接受的值，第四个会按名称被拒绝，而不是被猜测。
 
