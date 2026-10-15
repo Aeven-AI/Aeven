@@ -3,6 +3,7 @@
 import { spawn, spawnSync } from 'node:child_process'
 import { resolve } from 'node:path'
 import { resolveMacOSSigningEnvironment } from './desktop-release-environment.mjs'
+import { validateMacOSTicket } from './macos-notarization.mjs'
 
 /**
  * Reject signature metadata that does not name the company release authority and team.
@@ -153,27 +154,14 @@ export function verifyMacOSSignature(appPath, expected) {
  * Verify the release identity, stapled ticket, and Gatekeeper acceptance of one disk image.
  * @param {string} diskImagePath - Path to the packaged `.dmg` file.
  * @param {{ signingIdentity: string, teamId: string }} expected - Public release identity.
- * @returns {void}
+ * @returns {Promise<void>} Resolves after Gatekeeper accepts the disk image.
  */
-export function verifyMacOSDiskImage(diskImagePath, expected) {
+export async function verifyMacOSDiskImage(diskImagePath, expected) {
   runCodeSign(['--verify', '--strict', '--verbose=2', diskImagePath])
   const details = runCodeSign(['--display', '--verbose=4', diskImagePath])
   assertMacOSSignatureDetails(details, expected)
-  runAppleCommand('/usr/bin/xcrun', ['stapler', 'validate', diskImagePath], 'stapler validate')
+  await validateMacOSTicket(diskImagePath)
   runAppleCommand('/usr/sbin/spctl', ['--assess', '--type', 'install', '--verbose=4', diskImagePath], 'spctl')
-}
-
-/**
- * Verify the macOS application produced by electron-builder's signing phase.
- * @param {{ electronPlatformName: string, appOutDir: string, packager: { appInfo: { productFilename: string } } }} context - electron-builder hook context.
- * @param {{ signingIdentity: string, teamId: string }} expected - Public release identity.
- * @returns {void}
- */
-export function verifyMacOSSignatureAfterSign(context, expected) {
-  if (context.electronPlatformName !== 'darwin') return
-  const appPath = resolve(context.appOutDir, `${context.packager.appInfo.productFilename}.app`)
-  verifyMacOSSignature(appPath, expected)
-  process.stdout.write(`desktop macOS signing: verified Developer ID Application: ${expected.signingIdentity} (${expected.teamId})\n`)
 }
 
 if (process.argv[1] !== undefined && import.meta.filename === resolve(process.argv[1])) {

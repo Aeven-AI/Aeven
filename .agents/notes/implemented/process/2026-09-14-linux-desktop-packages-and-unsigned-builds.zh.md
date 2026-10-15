@@ -52,7 +52,7 @@ deb 之所以存在，是因为 Chromium 的 setuid 沙箱辅助程序正是让�
 
 唯一输入是 `AVN_DESKTOP_UNSIGNED=1`。`parseDesktopPackageInvocation` 接受 `--unsigned`，打包脚本会从目标环境中删除任何继承来的值并设置自己的值，而 `createElectronBuilderConfig` 只读取它一次，据此推导各项签名决策。
 
-对于 macOS，配置将 `forceCodeSigning`、`hardenedRuntime`、`notarize` 以及 DMG 的 `sign` 标志设为 false，并将 `identity` 设为 `-`。在那里临时签名并非可选：Apple Silicon 拒绝启动完全不带签名的代码，而 hardened runtime 会拒绝 seed 中未签名的原生插件。after-sign 与产物钩子提前返回，因此不会解析发布身份或公证凭据。对于 Windows，配置清除 `forceCodeSigning` 且不安装 token 签名器，因此签名 CMD 从不运行。
+对于 macOS，配置将 `forceCodeSigning`、`hardenedRuntime` 以及 DMG 的 `sign` 标志设为 false，并将 `identity` 设为 `-`。在那里临时签名并非可选：Apple Silicon 拒绝启动完全不带签名的代码，而 hardened runtime 会拒绝 seed 中未签名的原生插件。after-sign 与产物钩子提前返回，因此不会解析发布身份或公证凭据；`notarize` 选项与签名发布一样保持 false。对于 Windows，配置清除 `forceCodeSigning` 且不安装 token 签名器，因此签名 CMD 从不运行。
 
 seed 准备在同一个变量下跳过它的 Mach-O 签名流程。未签名构建不写入完成记录，这正是让 `upload:*` 拒绝它、而不是发布一个没有任何身份背书的产物的原因。
 

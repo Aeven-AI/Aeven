@@ -1,6 +1,7 @@
+import type { MacOSAfterSignContext } from './notarize-macos-application.mjs'
+
 /** Electron-builder fields asserted by the Desktop release tests. */
-export interface DesktopElectronBuilderConfig {
-  readonly appId: string
+export interface DesktopElectronBuilderConfig {  readonly appId: string
   readonly directories: {
     readonly output: string
   }
@@ -43,6 +44,7 @@ export interface DesktopElectronBuilderConfig {
     readonly depends: readonly string[]
   }
   readonly artifactBuildCompleted: (artifact: { readonly file: string }) => Promise<void> | undefined
+  readonly afterSign: (context: MacOSAfterSignContext) => Promise<void> | undefined
   readonly publish: readonly [{ readonly provider: 'github', readonly owner: string, readonly repo: string }]
 }
 

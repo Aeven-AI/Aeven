@@ -116,7 +116,7 @@ describe('WorkspaceBrowser.module.css list', () => {
     expect(rowDeclarations('.sessionRow.selected .idleMark')?.get('opacity')).toBe('1')
   })
 
-  it('reveals a row\'s actions on hover, focus, or the selected Session', () => {
+  it('reveals a row\'s actions on hover, focus, or its own open menu, never on selection', () => {
     // The actions cell holds its room and only its own controls fade, so
     // revealing it costs no re-measure. Blank New Session rows render no cell
     // at all.
@@ -129,14 +129,11 @@ describe('WorkspaceBrowser.module.css list', () => {
         expect(reveal?.get('pointer-events')).toBe('auto')
       }
     }
-    // A Session row pins its options while it is the selected one, so the chat
-    // on screen keeps them reachable once the pointer leaves the row. The row
-    // states that fact twice — its class and its own attribute — so the pin
-    // survives however the row's class list is assembled.
+    // Selection is read from the row's leading mark, so the selected Session
+    // row's options stay hidden: no rule reveals the cell for a selected row,
+    // under either the row's class or its own selected attribute.
     for (const selected of ['.sessionRow.selected', '.sessionRow[data-selected]']) {
-      const selectedReveal = rowDeclarations(`${selected} .rowActions > *`)
-      expect(selectedReveal?.get('opacity')).toBe('1')
-      expect(selectedReveal?.get('pointer-events')).toBe('auto')
+      expect(rowDeclarations(`${selected} .rowActions > *`)).toBeUndefined()
     }
     // The focused action reveals its own cell: a keyboard reader must not land
     // on an invisible button.

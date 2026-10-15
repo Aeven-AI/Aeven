@@ -52,7 +52,7 @@ A `trap` copies whatever electron-builder finished before the container exits, s
 
 `AVN_DESKTOP_UNSIGNED=1` is the single input. `parseDesktopPackageInvocation` accepts `--unsigned`, the packaging script deletes any inherited value from the target environment and sets its own, and `createElectronBuilderConfig` reads it once to derive the signing decisions.
 
-For macOS the configuration sets `forceCodeSigning`, `hardenedRuntime`, `notarize`, and the DMG `sign` flag to false, and sets `identity` to `-`. Ad-hoc signing is not optional there: Apple Silicon refuses to launch code that carries no signature at all, while hardened runtime would reject the seed's unsigned native addons. The after-sign and artifact hooks return early, so no release identity or notary credential is resolved. For Windows the configuration clears `forceCodeSigning` and installs no token signer, so the signing CMD never runs.
+For macOS the configuration sets `forceCodeSigning`, `hardenedRuntime`, and the DMG `sign` flag to false, and sets `identity` to `-`. Ad-hoc signing is not optional there: Apple Silicon refuses to launch code that carries no signature at all, while hardened runtime would reject the seed's unsigned native addons. The after-sign and artifact hooks return early, so no release identity or notary credential is resolved, and the notarize option stays false as it does for a signed release. For Windows the configuration clears `forceCodeSigning` and installs no token signer, so the signing CMD never runs.
 
 Seed preparation skips its Mach-O signing pass under the same variable. An unsigned build writes no completion record, which is what makes `upload:*` refuse it rather than publish an artifact that no identity vouches for.
 
