@@ -7,19 +7,19 @@ kind: "package-reference"
 
 [English](README.md) | 中文
 
-## Summary
+## 概述
 
 Windows 计算机使用中面向组合的那一半。它把适配器、会话、配方路由器、执行器与 COM 处理器组装成一个对象，发布到上下文上，并通过 [`@aeven/computer-use`](../computer-use/README.zh.md) 占用独占的提供程序位。
 
 它存在的意义是：挂载 Windows 计算机使用只需组合中的一行，而不是一个部署必须按正确顺序自行接线的五个对象。顺序很重要：接缝会在提供程序发布**之前**被查询，因为第二个提供程序必须带着已注册者的名称被拒绝。该接缝返回的 `package` 让整个贡献可回退——卸载插件时会再次释放该位。
 
-## Table of Contents
+## 目录
 
 - [Use this package](#use-this-package)
 - [Understand the implementation](#understand-the-implementation)
 - [Further Exploration](#further-exploration)
 - [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
-- [Dev Note](#dev-note)
+- [开发备注](#dev-note)
 
 -----
 
@@ -78,7 +78,7 @@ macOS 提供程序发布的是 `ctx.computerUseProvider`；本提供程序发布
 - **本包中没有任何东西能在非 Windows 主机上运行。** PowerShell 与 UI Automation 就是其机制，因此批量工具会随该行一起注册，但任务在那里会失败；组合用 `process.platform !== 'win32'` 守卫该行。
 
 <a id="dev-note"></a>
-## Dev Note
+## 开发备注
 
 本提供程序是照着 macOS 那个写的，而不是从零开始，因为两者恰好只在三处不同：接入哪个机制处理器、批量步骤声明哪个平台，以及就绪报告——这里报告的是能力，而不是权限授予。
 

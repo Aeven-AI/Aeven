@@ -2,6 +2,8 @@
 
 Status: implemented
 
+[English](2026-10-15-authenticator-two-factor-authentication.md) | 中文
+
 ## Problem
 
 仅凭账号密码或社交登录即可访问 Aeven。用户需要在注册时选择身份验证器保护，并在账号设置中管理它。

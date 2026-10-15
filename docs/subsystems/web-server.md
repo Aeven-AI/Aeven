@@ -35,6 +35,12 @@ interface Config {
   host: '127.0.0.1' | '0.0.0.0'
   /** Listen port; zero requests an OS-assigned port. */
   port: number
+  /**
+   * What happens when another process already holds `port`: `fail` rejects
+   * activation, `os-assigned` listens on a port the OS picks and reports it
+   * through {@link WebServer.port}. @default 'fail'
+   */
+  portInUse?: 'fail' | 'os-assigned'
   /** Response compression for socket-backed HTTP requests. @default 'none' */
   compression?: 'none' | 'gzip'
   /** Gzip DEFLATE level from 0 through 9. @default 1 */
