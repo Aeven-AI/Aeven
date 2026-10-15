@@ -1,12 +1,26 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mountAuthScreen, type MountedAuthScreen } from '../src/client/auth/mount.tsx'
 import { session } from '../src/client/auth/services/session.ts'
 import { t } from '../src/client/locales.ts'
 
 let mounted: MountedAuthScreen | undefined
 let container: HTMLDivElement | undefined
+
+/**
+ * Install the opener a reader's own tab has.
+ *
+ * jsdom leaves `window.opener` undefined rather than null, and the sign-in
+ * screens read a window that was opened for them from `window.opener !== null`
+ * — so without this the challenge would take the landing path and close the
+ * test window the moment it finished.
+ */
+function withNoOpener(): void {
+  Object.defineProperty(window, 'opener', { value: null, configurable: true, writable: true })
+}
+
+beforeEach(withNoOpener)
 
 afterEach(() => {
   act(() => { mounted?.unmount() })
