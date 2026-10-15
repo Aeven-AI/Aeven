@@ -2,10 +2,12 @@
 # installers and the update feeds as one GitHub Release.
 #
 # A `v<version>` tag that matches the root package.json version starts a run
-# that builds every target and publishes. A manual run picks one target from
-# the `target` input — `all` builds every target as a tag does — and keeps the
-# installers as workflow artifacts; with `publish` set it publishes under the
-# version tag, which needs every target.
+# that builds every target and publishes. A manual run names the targets it
+# builds in the comma separated `targets` input — `all` builds every target, as
+# a tag does — and keeps the installers as workflow artifacts; with `publish`
+# set it publishes under the version tag, which needs every target.
+# The release targets are win-x64, win-arm64, mac-arm64, mac-arm64-unsigned,
+# mac-x64, mac-x64-unsigned, linux-x64, and linux-arm64.
 # Each Windows and macOS target signs when all of its secrets exist, builds
 # unsigned when none exist, and fails when only some exist. Linux packages
 # carry no code signature, and the `unsigned` macOS variant always builds
@@ -30,19 +32,9 @@ on:
     tags: ['v*']
   workflow_dispatch:
     inputs:
-      target:
-        description: Release target to build (`all` builds every target)
-        type: choice
-        options:
-          - all
-          - win-x64
-          - win-arm64
-          - mac-arm64
-          - mac-arm64-unsigned
-          - mac-x64
-          - mac-x64-unsigned
-          - linux-x64
-          - linux-arm64
+      targets:
+        description: Comma separated release targets — win-x64, win-arm64, mac-arm64, mac-arm64-unsigned, mac-x64, mac-x64-unsigned, linux-x64, linux-arm64 — or `all` for every target
+        type: string
         default: all
       publish:
         description: Publish the GitHub Release and update feeds (unset keeps the installers as workflow artifacts)
@@ -58,7 +50,7 @@ concurrency:
 
 jobs:
   # The target list is the single source for both the manual selection and the
-  # tag-release run: a tag builds every entry, a manual run the requested one.
+  # tag-release run: a tag builds every entry, a manual run the named ones.
   plan:
     name: Select release targets
     runs-on: ubuntu-latest
@@ -71,7 +63,7 @@ jobs:
       - name: Select release targets
         id: select
         env:
-          REQUESTED_TARGET: ${{ inputs.target || 'all' }}
+          REQUESTED_TARGETS: ${{ inputs.targets || 'all' }}
         run: |
           targets='[
             {"id":"win-x64","target":"win-x64","runner":"windows-latest","script":"win:x64"},
@@ -83,15 +75,29 @@ jobs:
             {"id":"linux-x64","target":"linux-x64","runner":"ubuntu-24.04","script":"linux:x64"},
             {"id":"linux-arm64","target":"linux-arm64","runner":"ubuntu-24.04-arm","script":"linux:arm64"}
           ]'
-          matrix="$(printf '%s' "$targets" | jq -c --arg requested "$REQUESTED_TARGET" \
-            '{include: [.[] | select($requested == "all" or .id == $requested) | . + {variant: (.variant // "")}]}')"
-          if [ "$(printf '%s' "$matrix" | jq '.include | length')" -eq 0 ]; then
-            echo "::error::$REQUESTED_TARGET is not a release target; choose all or one of $(printf '%s' "$targets" | jq -r '[.[].id] | join(", ")')"
+          known_ids="$(printf '%s' "$targets" | jq -r '[.[].id] | join(" ")')"
+          # `targets` is a comma separated list from a free-text input, so spacing and empty entries are the operator's, not errors.
+          requested="$(printf '%s' "$REQUESTED_TARGETS" | tr ',' ' ' | tr -s '[:space:]' ' ' | sed -e 's/^ //' -e 's/ $//')"
+          if [ "$requested" = all ]; then wanted="$known_ids"; else wanted="$requested"; fi
+          unknown=""
+          for id in $wanted; do
+            case " $known_ids " in *" $id "*) ;; *) unknown="$unknown $id" ;; esac
+          done
+          if [ -n "$unknown" ]; then
+            echo "::error::not a release target:$unknown; name a comma separated list of $known_ids, or all"
+            exit 1
+          fi
+          # The matrix keeps the target list's order and drops repeated ids, which selects each named target once.
+          matrix="$(printf '%s' "$targets" | jq -c --arg wanted "$wanted" \
+            '($wanted | split(" ")) as $ids | {include: [.[] | select(.id as $id | $ids | index($id)) | . + {variant: (.variant // "")}]}')"
+          selected="$(printf '%s' "$matrix" | jq '.include | length')"
+          if [ "$selected" -eq 0 ]; then
+            echo "::error::no release target named; name a comma separated list of $known_ids, or all"
             exit 1
           fi
           # A release carries every target's installers and update feeds, so a partial build cannot publish.
-          if [ "${{ inputs.publish }}" = true ] && [ "$REQUESTED_TARGET" != all ]; then
-            echo "::error::publishing needs every release target, but $REQUESTED_TARGET builds only one"
+          if [ "${{ inputs.publish }}" = true ] && [ "$selected" -ne "$(printf '%s' "$targets" | jq 'length')" ]; then
+            echo "::error::publishing needs every release target, but this run builds $(printf '%s' "$matrix" | jq -r '[.include[].id] | join(", ")')"
             exit 1
           fi
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
