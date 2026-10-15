@@ -53,7 +53,7 @@ function scriptedApi(answers: Record<string, { status: number; body: unknown }>)
  * @returns the recording.
  */
 const namedApi = (answers: Record<string, { status: number; body: unknown }>) =>
-  scriptedApi({ '/refresh-token': { status: 200, body: grant }, ...answers })
+  scriptedApi({ '/refresh-token': { status: 200, body: grant }, '/mfa/status': { status: 200, body: { enabled: false } }, ...answers })
 
 /** The `/set-display-name` grant the API sends back for a stored name. */
 const stored = {
@@ -108,8 +108,11 @@ describe('the naming step', () => {
     fireEvent.change(field, { target: { value: 'Ollie' } })
     fireEvent.click(submit)
 
-    await vi.waitFor(() => { expect(onNamed).toHaveBeenCalledTimes(1) })
-    expect(api.calls.at(-1)).toEqual({
+    await vi.waitFor(() => { expect(screen.getByRole('button', { name: t('mfa.skip') })).toBeDefined() })
+    expect(screen.getByRole('heading', { name: t('mfa.title') }).closest('form')?.textContent).toMatchSnapshot()
+    fireEvent.click(screen.getByRole('button', { name: t('mfa.skip') }))
+    expect(onNamed).toHaveBeenCalledTimes(1)
+    expect(api.calls.find(call => call.url === '/set-display-name')).toEqual({
       url: '/set-display-name', body: JSON.stringify({ displayName: 'Ollie' }),
     })
     expect(session.displayName).toBe('Ollie')
@@ -126,8 +129,10 @@ describe('the naming step', () => {
     fireEvent.change(field, { target: { value: '  \u200BOllie\uFEFF  ' } })
     fireEvent.click(submit)
 
-    await vi.waitFor(() => { expect(onNamed).toHaveBeenCalledTimes(1) })
-    expect(api.calls.at(-1)?.body).toBe(JSON.stringify({ displayName: 'Ollie' }))
+    await vi.waitFor(() => { expect(screen.getByRole('button', { name: t('mfa.skip') })).toBeDefined() })
+    fireEvent.click(screen.getByRole('button', { name: t('mfa.skip') }))
+    expect(onNamed).toHaveBeenCalledTimes(1)
+    expect(api.calls.find(call => call.url === '/set-display-name')?.body).toBe(JSON.stringify({ displayName: 'Ollie' }))
   })
 
   it('submits through the form, so the field can be entered', async () => {
@@ -138,7 +143,9 @@ describe('the naming step', () => {
     fireEvent.change(field, { target: { value: 'Ollie' } })
     fireEvent.submit(field.closest('form') as HTMLFormElement)
 
-    await vi.waitFor(() => { expect(onNamed).toHaveBeenCalledTimes(1) })
+    await vi.waitFor(() => { expect(screen.getByRole('button', { name: t('mfa.skip') })).toBeDefined() })
+    fireEvent.click(screen.getByRole('button', { name: t('mfa.skip') }))
+    expect(onNamed).toHaveBeenCalledTimes(1)
     expect(api.calls.filter(call => call.url === '/set-display-name')).toHaveLength(1)
   })
 
@@ -185,7 +192,9 @@ describe('the naming step', () => {
     fireEvent.change(field, { target: { value: 'Ollie' } })
     fireEvent.click(submit)
 
-    await vi.waitFor(() => { expect(onNamed).toHaveBeenCalledTimes(1) })
+    await vi.waitFor(() => { expect(screen.getByRole('button', { name: t('mfa.skip') })).toBeDefined() })
+    fireEvent.click(screen.getByRole('button', { name: t('mfa.skip') }))
+    expect(onNamed).toHaveBeenCalledTimes(1)
     expect(session.displayName).toBe('Ollie')
     expect(session.displayNameSet).toBe(true)
   })

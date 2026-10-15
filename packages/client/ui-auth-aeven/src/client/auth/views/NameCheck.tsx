@@ -15,6 +15,7 @@
 import { useCallback, useRef, useState } from 'react'
 import type React from 'react'
 
+import { MfaForm } from '@aeven/client-ui-primitives'
 import Input, { type InputHandle } from '../com/Input.tsx'
 import Button, { type ButtonHandle } from '../com/Button.tsx'
 
@@ -41,6 +42,7 @@ export function NameCheck({ onNamed }: NameCheckProps): React.JSX.Element {
   const submitButton = useRef<ButtonHandle>(null)
   const [anonymous, setAnonymous] = useState(false)
   const [failed, setFailed] = useState(false)
+  const [offerMfa, setOfferMfa] = useState(false)
 
   const submit = useCallback((): void => {
     const name = sanitizeString(nameInput.current?.value ?? '')
@@ -58,7 +60,10 @@ export function NameCheck({ onNamed }: NameCheckProps): React.JSX.Element {
     void api.setDisplayName(name)
       .then(() => {
         submitButton.current?.loadingStatus(false)
-        onNamed()
+        void api.mfa('status').then((value) => {
+          if (value.enabled === true) onNamed()
+          else setOfferMfa(true)
+        }).catch(() => { setFailed(true) })
       })
       .catch((error: unknown) => {
         submitButton.current?.loadingStatus(false)
@@ -71,6 +76,10 @@ export function NameCheck({ onNamed }: NameCheckProps): React.JSX.Element {
         setFailed(true)
       })
   }, [onNamed])
+
+  if (offerMfa) return <div className="init-check"><div className="content-container">
+    <MfaForm standalone mode="offer" t={t} request={api.mfa} onDone={onNamed} onCancel={onNamed} />
+  </div></div>
 
   return (
     <div className="init-check">

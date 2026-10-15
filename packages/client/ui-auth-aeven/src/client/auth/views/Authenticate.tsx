@@ -3,6 +3,8 @@ import type React from 'react'
 
 import JSConfetti from '../../../vendor/confetti/index.ts'
 
+import { MfaForm } from '@aeven/client-ui-primitives'
+
 import Input, { type InputHandle } from '../com/Input.tsx'
 import Button, { type ButtonHandle } from '../com/Button.tsx'
 
@@ -294,7 +296,9 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
       })
       .catch((responseError: unknown) => {
         const code = responseError instanceof api.AevenApiError ? responseError.message : undefined
-        if (code !== 'user-exists' && code !== 'social-id-exists') {
+        if (code === 'mfa-required') {
+          routeService.navigateRoute('/sign-in/mfa')
+        } else if (code !== 'user-exists' && code !== 'social-id-exists') {
           eventService.dispatchObjectEvent('show:modal', {
             type: 'alertModal',
             header: t('modal.oops'),
@@ -374,7 +378,9 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
 
         const code = errorCode(responseError)
 
-        if (code === 'too-many-attempts') {
+        if (code === 'mfa-required') {
+          routeService.navigateRoute('/sign-in/mfa')
+        } else if (code === 'too-many-attempts') {
           eventService.dispatchObjectEvent('show:modal', {
             type: 'alertModal',
             header: t('modal.blocked'),
@@ -1425,6 +1431,17 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
     const authPath = getAuthPath()
     const authType = getAuthType()
 
+
+    if (authType === 'mfa') {
+      const finish = (): void => {
+        void api.getProfile().then(() => {
+          if (oauth.isProviderLanding()) window.close()
+          else routeService.navigateRoute(referrer || '/')
+        })
+      }
+      return <MfaForm standalone mode="login" t={t} request={api.mfa} onDone={finish}
+        onCancel={() => { routeService.navigateRoute('/sign-in/email') }} />
+    }
 
     if (authPath === 'sign-in' && authType === 'forgot') return authForgotComponent()
     if (authPath === 'sign-in' && authType === 'reset') return authResetComponent()

@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
 
 `avn-client-ui-auth-aeven` gives the AVN web shell its Aeven authentication surface: it restores an existing Aeven session, presents the sign-in, sign-up, and OAuth-result screens when there is none, asks a reader Aeven holds no name for what to call them, and attaches the Aeven bearer to every AVN RPC call afterwards. The web boot kernel calls it directly, before any plugin runs, so a reader either arrives at an authenticated application or at a sign-in screen and never at a half-booted one. A session started in the Aeven client is understood here and the reverse, because both use the same storage keys and the same `appBearers` shape. Nothing in this package is model-facing.
 
+After choosing a name, new readers can optionally set up an authenticator app or continue without it. Accounts with two-factor authentication enabled complete an authenticator or recovery-code prompt after password or social sign-in. Pending sign-in challenges remain in memory and expire after five minutes.
+
 ## Table of Contents
 
 - [Use this package](#use-this-package)

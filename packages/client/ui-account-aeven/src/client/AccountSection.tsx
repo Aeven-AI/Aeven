@@ -4,6 +4,8 @@ import {
   Button, IconCheckOutline14, IconChevronDownOutline14, IconRightUpOutline16, LoadingBlock, SectionHeader, Spinner,
 } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
+import { MfaForm } from '@aeven/client-ui-primitives'
+import type { AevenReader } from '@aeven/client-ui-auth-aeven'
 import { Avatar } from './Avatar.tsx'
 import type { AccountReader } from './AccountMenu.tsx'
 import {
@@ -19,6 +21,8 @@ import '../vendor/aeven-account.css'
 export interface AccountSectionInjected {
   /** The signed-in reader, or undefined when nobody is. */
   reader: () => AccountReader | undefined
+  /** Authenticator enrollment and account protection operations. */
+  mfa: AevenReader['mfa']
   /** The Aeven account page, or undefined when no web client is configured. */
   accountUrl: () => string | undefined
   /** End the Aeven session and return the reader to the sign-in screen. */
@@ -197,6 +201,7 @@ export function AccountSection(props: AccountSectionProps) {
     <div className={css.section}>
       <SectionHeader title={t('section.nav')} description={t('section.intro')} />
       <Identity {...props} />
+      <Security mfa={props.mfa} t={t} />
 
       {!painted && <LoadingBlock label={t('section.loading')} />}
 
@@ -816,4 +821,32 @@ function observeReturn(check: () => void): () => void {
     window.removeEventListener('focus', check)
     document.removeEventListener('visibilitychange', onVisible)
   }
+}
+
+/** Account protection switch; enabling and disabling both require a verified code. */
+function Security({ mfa, t }: { readonly mfa: AevenReader['mfa']; readonly t: Translate }) {
+  const [enabled, setEnabled] = useState<boolean>()
+  const [mode, setMode] = useState<'setup' | 'disable'>()
+  const [failed, setFailed] = useState(false)
+  const refresh = useCallback(() => {
+    setFailed(false)
+    void mfa('status').then((value) => { setEnabled(value.enabled === true) }).catch(() => { setFailed(true) })
+  }, [mfa])
+  useEffect(refresh, [refresh])
+  const request = useCallback((action: 'setup' | 'enable' | 'disable' | 'login', code?: string) =>
+    mfa(action, code).then((answer) => {
+      if (answer.enabled !== undefined) setEnabled(answer.enabled)
+      return answer
+    }), [mfa])
+  return <Group title={t('security.heading')}>
+    <div className={css.row}>
+      <span className={css.rowText}><span>{t('security.title')}</span><span className={css.securityDescription}>{t('security.info')}</span></span>
+      <button type="button" role="switch" aria-label={t('security.title')} aria-checked={enabled === true}
+        className={`${css.securitySwitch} ${enabled === true ? css.securitySwitchOn : ''}`}
+        disabled={enabled === undefined || mode !== undefined} onClick={() => { setMode(enabled ? 'disable' : 'setup') }}><span /></button>
+    </div>
+    {failed && <div role="alert" className={css.row}><span>{t('section.failed')}</span><Button onClick={refresh}>{t('section.retry')}</Button></div>}
+    {mode !== undefined && <div className={css.securityForm}><MfaForm key={mode} mode={mode} t={t} request={request}
+      onDone={() => { setMode(undefined); refresh() }} onCancel={() => { setMode(undefined); refresh() }} /></div>}
+  </Group>
 }

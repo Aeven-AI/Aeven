@@ -556,3 +556,12 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.securityDescription { display: block; margin-top: 5px; color: var(--dsw-alias-label-tertiary); font-size: 12px; line-height: 1.5; }
+.securitySwitch { flex-shrink: 0; width: 36px; height: 22px; padding: 3px; border: 0; border-radius: 999px; background: var(--dsw-alias-fill-secondary, #ddd); cursor: pointer; transition: background .15s; }
+.securitySwitch span { display: block; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px #0002; transition: transform .15s; }
+.securitySwitchOn { background: var(--dsw-alias-label-primary); }
+.securitySwitchOn span { transform: translateX(14px); }
+.securitySwitch:disabled { opacity: .5; cursor: default; }
+.securitySwitch:focus-visible { outline: 2px solid var(--dsw-alias-label-primary); outline-offset: 3px; }
+.securityForm { padding: 20px 0; }

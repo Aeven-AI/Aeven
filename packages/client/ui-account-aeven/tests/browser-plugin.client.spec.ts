@@ -100,6 +100,7 @@ describe('ui-account-aeven browser half', () => {
       accountUrl: 'https://aeven.test/account/',
       signOut: () => Promise.resolve(),
       setDisplayName: () => Promise.reject(new Error('unused')),
+      mfa: () => Promise.resolve({ enabled: false }),
       cloud: () => Promise.reject(new Error('unused')),
     }
     expect(face.reader()).toEqual({
@@ -116,6 +117,7 @@ describe('ui-account-aeven browser half', () => {
       accountUrl: 'https://aeven.test/account/',
       signOut: () => Promise.resolve(),
       setDisplayName: () => Promise.reject(new Error('unused')),
+      mfa: () => Promise.resolve({ enabled: false }),
       cloud: () => Promise.reject(new Error('unused')),
     }
     await ctx.plugin({ inject: [...inject], apply }).await()
@@ -125,7 +127,7 @@ describe('ui-account-aeven browser half', () => {
 
   it('leaves the Account page unlinked when the deployment names no web client', async () => {
     const ctx = await baseContext()
-    scope.__AVN_AEVEN_READER__ = { userId: 'u-5', signOut: () => Promise.resolve(), setDisplayName: () => Promise.reject(new Error('unused')), cloud: () => Promise.reject(new Error('unused')) }
+    scope.__AVN_AEVEN_READER__ = { userId: 'u-5', signOut: () => Promise.resolve(), setDisplayName: () => Promise.reject(new Error('unused')), mfa: () => Promise.resolve({ enabled: false }), cloud: () => Promise.reject(new Error('unused')) }
     await ctx.plugin({ inject: [...inject], apply }).await()
     declareSeats(ctx)
     expect(sectionFace(ctx).accountUrl()).toBeUndefined()
@@ -135,7 +137,7 @@ describe('ui-account-aeven browser half', () => {
     const ctx = await baseContext()
     await ctx.plugin({ inject: [...inject], apply }).await()
     declareSeats(ctx)
-    scope.__AVN_AEVEN_READER__ = { userId: 'u-2', signOut: () => Promise.resolve(), setDisplayName: () => Promise.reject(new Error('unused')), cloud: () => Promise.reject(new Error('unused')) }
+    scope.__AVN_AEVEN_READER__ = { userId: 'u-2', signOut: () => Promise.resolve(), setDisplayName: () => Promise.reject(new Error('unused')), mfa: () => Promise.resolve({ enabled: false }), cloud: () => Promise.reject(new Error('unused')) }
     expect(injectedFace(ctx).reader()).toEqual({ userId: 'u-2' })
   })
 
@@ -160,7 +162,7 @@ describe('ui-account-aeven browser half', () => {
     injectedFace(ctx).signOut()
     expect(signOut).not.toHaveBeenCalled()
 
-    scope.__AVN_AEVEN_READER__ = { userId: 'u-3', signOut, setDisplayName: () => Promise.reject(new Error('unused')), cloud: () => Promise.reject(new Error('unused')) }
+    scope.__AVN_AEVEN_READER__ = { userId: 'u-3', signOut, setDisplayName: () => Promise.reject(new Error('unused')), mfa: () => Promise.resolve({ enabled: false }), cloud: () => Promise.reject(new Error('unused')) }
     injectedFace(ctx).signOut()
     await Promise.resolve()
     await Promise.resolve()

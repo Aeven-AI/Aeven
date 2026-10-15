@@ -215,7 +215,8 @@ export function apply(ctx: ClientContext): void {
   // build has no carrier and shows no row.
   const backgroundCarrier = carrier?.background
   if (backgroundCarrier !== undefined) {
-    const backgroundMode = createSnapshotStore(false)
+    // Seeded with the shell's default so the row never reports off before the carrier answers.
+    const backgroundMode = createSnapshotStore(true)
     ctx.effect(
       () => backgroundCarrier.onChange((enabled) => { backgroundMode.set(enabled) }),
       'ui-settings-general: desktop background mode',
