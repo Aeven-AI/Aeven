@@ -47,6 +47,34 @@ export const Config: z<Partial<Config>, Config> = z.object({
 })
 
 /**
+ * The driver's opt-in switch for its native-Wayland backend.
+ *
+ * A Wayland session needs it: without that backend the driver stays on the X11
+ * path, where a Wayland desktop reports no windows and desktop capture fails.
+ * An X11 session already works, so it gets no extra variable.
+ */
+export const WAYLAND_BACKEND_ENV = 'CUA_DRIVER_RS_ENABLE_WAYLAND'
+
+/**
+ * The extra environment the driver child needs for the session it will drive.
+ * Wayland is detected the way the desktop picker detects a display:
+ * `WAYLAND_DISPLAY`, or `XDG_SESSION_TYPE` naming Wayland.
+ * @param platform - the platform running the driver.
+ * @param env - that machine's environment.
+ * @returns extra variables for the MCP child, empty when the session needs none.
+ */
+export function driverEnv(
+  platform: NodeJS.Platform,
+  env: Record<string, string | undefined>,
+): Record<string, string> {
+  if (platform !== 'linux') return {}
+  const named = (value: string | undefined): boolean => value !== undefined && value !== ''
+  return named(env.WAYLAND_DISPLAY) || env.XDG_SESSION_TYPE === 'wayland'
+    ? { [WAYLAND_BACKEND_ENV]: '1' }
+    : {}
+}
+
+/**
  * Reserve computer use and activate the installed Cua Driver's MCP tools.
  * Initial connection or discovery failure rejects activation and rolls back.
  * Disposal retains the reservation until the MCP child has finished teardown.
@@ -64,6 +92,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   const connection = McpClient.Config({
     command: config.command,
     args: config.args,
+    env: driverEnv(process.platform, process.env),
     ...config.toolCallTimeoutMs === undefined ? {} : { toolCallTimeoutMs: config.toolCallTimeoutMs },
     reconnect: config.reconnect,
     transport: 'stdio',
@@ -86,7 +115,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
 const SETUP_TOOL = 'computer_use_setup'
 
 /** Upstream installation and permissions guide for the driver. */
-const INSTALL_GUIDE = 'https://github.com/trycua/cua/blob/cua-driver-rs-v0.28.0/libs/cua-driver/README.md'
+const INSTALL_GUIDE = 'https://github.com/trycua/cua/blob/cua-driver-rs-v0.35.4/libs/cua-driver/README.md'
 
 /**
  * Register the setup tool for a machine without the driver, so the capability
@@ -97,7 +126,7 @@ const INSTALL_GUIDE = 'https://github.com/trycua/cua/blob/cua-driver-rs-v0.28.0/
 function registerInstallTool(ctx: Context, command: string): void {
   ctx.effect(() => ctx.tools.register(defineTool({
     name: SETUP_TOOL,
-    description: 'Computer use (operating apps on this Mac by seeing the screen, clicking, and typing) is unavailable: it needs Cua Driver, which is not installed. Call this when the person asks you to operate an app on their Mac or asks about computer use, to learn how they can enable it.',
+    description: 'Computer use (operating apps on this computer by seeing the screen, clicking, and typing) is unavailable: it needs Cua Driver, which is not installed. Call this when the person asks you to operate an app on their computer or asks about computer use, to learn how they can enable it.',
     parameters: {},
     output: {
       schema: { type: 'string' },
@@ -105,7 +134,7 @@ function registerInstallTool(ctx: Context, command: string): void {
     },
     execute: async (_args, exec) => {
       exec.signal.throwIfAborted()
-      return `Computer use needs Cua Driver, which is not installed: ${command} does not exist. Tell the person to install it by following ${INSTALL_GUIDE}, then restart Aeven. After the restart this tool sets up the macOS permissions computer use needs.`
+      return `Computer use needs Cua Driver, which is not installed: ${command} does not exist. Tell the person to install it by following ${INSTALL_GUIDE}, then restart Aeven. After the restart this tool completes the setup computer use needs.`
     },
     presentCall: () => ({ card: 'generic', title: 'Set up computer use', kind: 'read' }),
   })), 'computer-use-cua-driver-mcp.install-tool')
