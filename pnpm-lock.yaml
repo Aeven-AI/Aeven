@@ -2150,6 +2150,9 @@ importers:
       '@aeven/computer-use-macos-provider':
         specifier: workspace:^
         version: link:../../computer-use/computer-use-macos-provider
+      '@aeven/computer-use-windows-provider':
+        specifier: workspace:^
+        version: link:../../computer-use/computer-use-windows-provider
       '@aeven/cordis-client-runner':
         specifier: workspace:^
         version: link:../../extensions/cordis-client-runner
@@ -5606,6 +5609,50 @@ importers:
       '@aeven/computer-use-desktop':
         specifier: workspace:^
         version: link:../computer-use-desktop
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/computer-use/computer-use-windows-com:
+    dependencies:
+      '@aeven/computer-use-executor':
+        specifier: workspace:^
+        version: link:../computer-use-executor
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/computer-use/computer-use-windows-provider:
+    dependencies:
+      '@aeven/computer-use':
+        specifier: workspace:^
+        version: link:../computer-use
+      '@aeven/computer-use-desktop':
+        specifier: workspace:^
+        version: link:../computer-use-desktop
+      '@aeven/computer-use-executor':
+        specifier: workspace:^
+        version: link:../computer-use-executor
+      '@aeven/computer-use-router':
+        specifier: workspace:^
+        version: link:../computer-use-router
+      '@aeven/computer-use-session':
+        specifier: workspace:^
+        version: link:../computer-use-session
+      '@aeven/computer-use-windows':
+        specifier: workspace:^
+        version: link:../computer-use-windows
+      '@aeven/computer-use-windows-com':
+        specifier: workspace:^
+        version: link:../computer-use-windows-com
+      '@aeven/sandbox-policy':
+        specifier: workspace:^
+        version: link:../../sandbox/sandbox-policy
+      '@aeven/tools':
+        specifier: workspace:^
+        version: link:../../core/tools
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: workspace:^

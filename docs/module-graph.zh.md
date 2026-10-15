@@ -232,6 +232,8 @@ flowchart TD
     pkg_computer_use_session["computer-use-session"]
     pkg_computer_use_tasks["computer-use-tasks"]
     pkg_computer_use_windows["computer-use-windows"]
+    pkg_computer_use_windows_com["computer-use-windows-com"]
+    pkg_computer_use_windows_provider["computer-use-windows-provider"]
   end
   subgraph group_context["packages/context"]
     pkg_agent_instructions["agent-instructions"]
@@ -1519,6 +1521,8 @@ flowchart TD
 | [`computer-use-session`](../packages/computer-use/computer-use-session) | `computer-use` | — |
 | [`computer-use-tasks`](../packages/computer-use/computer-use-tasks) | `computer-use` | — |
 | [`computer-use-windows`](../packages/computer-use/computer-use-windows) | `computer-use` | — |
+| [`computer-use-windows-com`](../packages/computer-use/computer-use-windows-com) | `computer-use` | — |
+| [`computer-use-windows-provider`](../packages/computer-use/computer-use-windows-provider) | `computer-use` | — |
 | [`document-extract`](../packages/document/document-extract) | `document` | — |
 | [`experimental-agent-team-profile`](../packages/experimental/agent-team-profile) | `experimental` | — |
 | [`experimental-agent-team-web-profile`](../packages/experimental/agent-team-web-profile) | `experimental` | — |

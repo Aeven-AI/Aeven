@@ -132,6 +132,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'The provider a platform adapter published, addressed as `ctx.computerUseProvider` by the surfaces that run its tasks. The slot on that seam is what keeps it single: the adapter claims the slot before publishing, so a second provider fails with the name of the one already registered.',
   },
   {
+    key: 'windowsComputerUseProvider',
+    pkg: 'computer-use',
+    title: 'Loaded Windows computer-use provider',
+    mode: 'core',
+    implementations: ['computer-use-windows-provider'],
+    note: 'The Windows provider, addressed as `ctx.windowsComputerUseProvider`. It carries its own name because Cordis declares a service by augmenting `Context`, and one property cannot hold two provider types in one program; the seam\'s slot, not the property name, is what keeps a host to one provider.',
+  },
+  {
     key: 'attachments',
     pkg: 'attachment',
     title: 'Durable binary attachment storage',

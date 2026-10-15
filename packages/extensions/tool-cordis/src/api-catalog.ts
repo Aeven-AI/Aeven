@@ -3963,6 +3963,52 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'windowsComputerUseProvider',
+    summary: 'The Windows computer-use provider.',
+    description: 'The Windows computer-use provider.\n\nExposes the pieces a consumer needs rather than hiding them behind one method, because the useful questions differ: a settings surface wants `readiness()`, a router wants `routing`, and a tool wants `session`.',
+    methods: [
+      {
+        signature: 'readonly adapter: DesktopAdapter',
+        description: 'The adapter every observation and verification goes through.',
+        parameters: [],
+      },
+      {
+        signature: 'readonly session: ComputerUseSession',
+        description: 'The session a consumer drives.',
+        parameters: [],
+      },
+      {
+        signature: 'readonly executor: TaskExecutor',
+        description: 'The executor, exposed so a caller can run a single task without a session.',
+        parameters: [],
+      },
+      {
+        signature: 'readiness(): Promise<ReadinessReport>',
+        description: 'The host\'s readiness: which capabilities are present, and which are missing.',
+        parameters: [],
+        returns: 'the readiness report for this adapter.',
+      },
+      {
+        signature: 'execute(request: Parameters<TaskExecutor[\'execute\']>[0]): Promise<ExecutionOutcome>',
+        description: 'Perform one task and establish whether it worked.',
+        parameters: [{ name: 'request', description: 'the task, its application, and its parameters.' }],
+        returns: 'the outcome, with per-expectation results.',
+      },
+      {
+        signature: 'resolve(request: Parameters<TaskExecutor[\'routing\'][\'resolve\']>[0]): ResolvedRecipe',
+        description: 'Resolve a task without running it, for a caller that wants to show the plan.',
+        parameters: [{ name: 'request', description: 'the task, platform, application and available rungs.' }],
+        returns: 'the resolved recipe.',
+      },
+      {
+        signature: 'tasks(): string[]',
+        description: 'The recipe book this provider serves, so a caller can list what is available.',
+        parameters: [],
+        returns: 'the task names.',
+      },
+    ],
+  },
+  {
     key: 'workflowEngine',
     summary: 'Workflow Service Definition contract.',
     description: 'Workflow Service Definition contract. Invalid requests throw before publication; a live run is holder-owned, its result never rejects, cancellation and disposal are bounded, and disposal waits for child cleanup within that bound. Lifecycle listener failures are contained, and `workflow/end` fires exactly once as the result settles.',

@@ -65,7 +65,7 @@ import * as computerUseMacosProvider from '@aeven/computer-use-macos-provider'
 <a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与待办工作
 
-- **仅在 macOS 上验证过。** Windows 与 Linux 适配器已存在并有单元测试，但尚无提供程序包挂载它们，两者也都没有在真实主机上运行过。
+- **只有 macOS 路径在真实主机上运行过。** [Windows 适配器](../computer-use-windows/README.zh.md)及其[提供方](../computer-use-windows-provider/README.zh.md)已存在并有单元测试，但它们承载的 COM 操作尚未在 Windows 主机上运行过，而 [Linux](../computer-use-linux/README.zh.md) 仍没有提供程序包。
 - **Keynote 是唯一覆盖的演示应用。** 在 macOS 上 `slide.setText` 解析到它，并已实际运行；其余每个 `slide.*` 与 `presentation.*` 任务仍指向 Windows PowerPoint 或 Linux LibreOffice，没有 macOS 行。
 - **可以创建演示文稿并设置文本，但不编写版面。** 写入布局占位符可行；新增文本项不可行，因为 Keynote 在幻灯片上拒绝该操作。
 - **保存受 Keynote 沙盒限制。** Keynote 只能写入其自身容器，因此演示文稿先保存在那里，随后再移出。要求它写入任意路径会弹出模态对话框并阻塞该应用。

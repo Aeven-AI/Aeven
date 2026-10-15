@@ -62,7 +62,7 @@ The provider owns no timers, no listeners and no processes of its own. Everythin
 <a id="known-limitations-and-deferred-work"></a>
 ## Known Limitations and Deferred Work
 
-- **Verified on macOS only.** The Windows and Linux adapters exist and are unit-tested, but no provider package mounts them yet and neither has been run on a real host.
+- **Only the macOS path has run on a real host.** The [Windows adapter](../computer-use-windows/README.md) and its [provider](../computer-use-windows-provider/README.md) exist and are unit-tested, but the COM operations they carry have not been run on a Windows host, and [Linux](../computer-use-linux/README.md) still has no provider package.
 - **Keynote is the only presentation application covered.** `slide.setText` resolves to it on macOS and was run live; every other `slide.*` and `presentation.*` task still targets Windows PowerPoint or Linux LibreOffice and has no macOS row.
 - **A deck can be created and text set, but layout is not authored.** Writing into a layout placeholder works; adding a new text item does not, because Keynote refuses it on a slide.
 - **Saving is constrained by Keynote's sandbox.** Keynote can only write inside its own container, so a deck is saved there and moved out afterwards. Asking it to write to an arbitrary path raises a modal that blocks the application.

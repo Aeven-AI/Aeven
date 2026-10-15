@@ -158,7 +158,8 @@
     "open": "^11.0.0",
     "@aeven/automations": "workspace:^",
     "@aeven/client-ui-automations": "workspace:^",
-    "@aeven/computer-use-macos-provider": "workspace:^"
+    "@aeven/computer-use-macos-provider": "workspace:^",
+    "@aeven/computer-use-windows-provider": "workspace:^"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis-plugin-loader": "workspace:^",

@@ -22,6 +22,8 @@ flowchart LR
   pkg_computer_use_cua_driver_mcp["computer-use-cua-driver-mcp"]
   svc_computerUseProvider["ctx.computerUseProvider<br/>Loaded computer-use provider"]
   pkg_computer_use_macos_provider["computer-use-macos-provider"]
+  svc_windowsComputerUseProvider["ctx.windowsComputerUseProvider<br/>Loaded Windows computer-use provider"]
+  pkg_computer_use_windows_provider["computer-use-windows-provider"]
   pkg_attachment["attachment"]
   svc_attachments["ctx.attachments<br/>Durable binary attachment storage"]
   pkg_attachment_local["attachment-local"]
@@ -317,8 +319,10 @@ flowchart LR
   pkg_compaction_tool_result_pruner --> svc_toolResultPruner
   pkg_computer_use --> svc_computerUse
   pkg_computer_use --> svc_computerUseProvider
+  pkg_computer_use --> svc_windowsComputerUseProvider
   pkg_computer_use_cua_driver_mcp --> svc_computerUse
   pkg_computer_use_macos_provider --> svc_computerUseProvider
+  pkg_computer_use_windows_provider --> svc_windowsComputerUseProvider
   pkg_cordis_host_runner --> svc_cordisInspect
   pkg_cordis_host_runner --> svc_dynamicCordisRunner
   pkg_credentials --> svc_credentials
@@ -591,6 +595,7 @@ flowchart LR
 | `ctx.media` | `seam` | [`media`](../packages/media/media) | [`media-aeven`](../packages/media/media-aeven), [`media-deepinfra`](../packages/media/media-deepinfra), [`media-openrouter`](../packages/media/media-openrouter), [`media-pi-ai`](../packages/media/media-pi-ai) | - | - | One service spans both media: images return bytes directly, while video is a job a caller starts, polls, and fetches. Consumers own every model-facing name and schema. |
 | `ctx.computerUse` | `seam` | [`computer-use`](../packages/computer-use/computer-use) | [`computer-use-cua-driver-mcp`](../packages/computer-use/computer-use-cua-driver-mcp) | - | - | The registry holds one optional provider slot for the shared computer-use service; the Cua Driver MCP adapter reserves it and exposes the driver's own tools through the shared tool runtime, releasing the slot with them. |
 | `ctx.computerUseProvider` | `core` | [`computer-use`](../packages/computer-use/computer-use) | [`computer-use-macos-provider`](../packages/computer-use/computer-use-macos-provider) | - | - | The provider a platform adapter published, addressed as `ctx.computerUseProvider` by the surfaces that run its tasks. The slot on that seam is what keeps it single: the adapter claims the slot before publishing, so a second provider fails with the name of the one already registered. |
+| `ctx.windowsComputerUseProvider` | `core` | [`computer-use`](../packages/computer-use/computer-use) | [`computer-use-windows-provider`](../packages/computer-use/computer-use-windows-provider) | - | - | The Windows provider, addressed as `ctx.windowsComputerUseProvider`. It carries its own name because Cordis declares a service by augmenting `Context`, and one property cannot hold two provider types in one program; the seam's slot, not the property name, is what keeps a host to one provider. |
 | `ctx.attachments` | `seam` | [`attachment`](../packages/attachment/attachment) | [`attachment-local`](../packages/attachment/attachment-local) | [`api-session-controller`](../packages/api/session-controller), [`tool-fs`](../packages/fs/tool-fs), [`llm-pi-ai`](../packages/llm/llm-pi-ai), [`llm-deepseek`](../packages/llm/llm-deepseek) | - | The host commits accepted images before session events; provider adapters resolve authorized durable references into provider-native content. |
 | `ctx.llm` | `seam` | [`llm`](../packages/llm/llm) | [`llm-deepseek`](../packages/llm/llm-deepseek), [`llm-pi-ai`](../packages/llm/llm-pi-ai), [`llm-replay`](../packages/test-support/llm-replay) | [`agent-loop`](../packages/core/agent-loop), [`compaction-basic`](../packages/compaction/compaction-basic) | - | Adapters register provider implementations; the loop and compaction call the provider-neutral stream service. |
 | `ctx.deepseekLlmApiExtensions` | `seam` | [`deepseek-llm-api-extensions`](../packages/llm/deepseek-llm-api-extensions) | [`session-log-deepseek`](../packages/session/session-log-deepseek), [`plugin-package-inventory-deepseek`](../packages/llm/plugin-package-inventory-deepseek) | [`llm-deepseek`](../packages/llm/llm-deepseek) | - | Plugins prepare independent top-level fields; the official adapter merges them and commits their delivery state after HTTP acceptance. |
