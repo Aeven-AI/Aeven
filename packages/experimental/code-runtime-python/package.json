@@ -4,7 +4,7 @@
   "version": "0.3.1-alpha.1",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "url": "git+https://github.com/Aeven-AI/Aeven.git",
     "directory": "packages/experimental/code-runtime-python"
   },
   "type": "module",

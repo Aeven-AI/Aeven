@@ -35,7 +35,7 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "url": "git+https://github.com/Aeven-AI/Aeven.git",
     "directory": "packages/client/ui-jobs"
   },
   "publishConfig": {

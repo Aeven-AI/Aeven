@@ -23,7 +23,7 @@ import {
   splitMarkdownUrlTarget,
 } from './markdown.ts'
 
-const REPOSITORY_URL = 'https://github.com/Aeven-AI/Harness'
+const REPOSITORY_URL = 'https://github.com/Aeven-AI/Aeven'
 const root = resolve(import.meta.dirname, '..')
 const generatedRoot = resolve(root, 'website/.generated')
 

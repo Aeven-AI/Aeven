@@ -4,7 +4,7 @@
   "description": "Prebuilt whisper.cpp speech worker for win32-arm64, resolved as a file path by @aeven/speech-to-text-whisper and never imported",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Aeven-AI/Harness.git",
+    "url": "git+https://github.com/Aeven-AI/Aeven.git",
     "directory": "native/whisper-cpp/packages/win32-arm64"
   },
   "os": [

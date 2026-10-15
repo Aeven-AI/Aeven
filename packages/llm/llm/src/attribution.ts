@@ -40,7 +40,7 @@ export interface AppIdentity {
 export const APP_IDENTITY: AppIdentity = {
   product: 'aeven',
   version,
-  url: 'https://github.com/Aeven-AI/Harness',
+  url: 'https://github.com/Aeven-AI/Aeven',
 }
 
 /**

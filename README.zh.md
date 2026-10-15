@@ -10,7 +10,7 @@ Aeven 汇集理解任务所需的上下文与执行任务所需的能力。它�
 
 **AI 能做得更多，你也可以。**
 
-[开始使用](#run) · [文档](https://aeven-ai.github.io/Harness/) · [桌面应用](apps/desktop/README.zh.md) · [开发者](#open-by-design)
+[开始使用](#run) · [文档](https://docs.aeven.io/) · [桌面应用](apps/desktop/README.zh.md) · [开发者](#open-by-design)
 
 Aeven 处于开发者预览阶段，功能和数据格式可能发生变化。授予它文件、账户或电脑访问权限前，请阅读[安全说明](SAFETY.zh.md)。
 
@@ -117,7 +117,7 @@ Agent 工作时，工具调用和结果会显示在对话中。当前权限策�
 使用仓库源码来开发或定制 Aeven。请安装上述 Node.js 版本及 [package.json](package.json) 声明的 pnpm 版本。
 
 ```sh
-git clone https://github.com/Aeven-AI/Harness.git aeven
+git clone https://github.com/Aeven-AI/Aeven.git aeven
 cd aeven
 pnpm install
 pnpm run build
@@ -150,13 +150,13 @@ Cordis 的设计参见论文 [_A Programming Paradigm for Spatiotemporal Composa
 
 Aeven 处于开发早期，目前不接受外部 pull request。在为本仓库开展贡献工作前，请先阅读 [CONTRIBUTING.md](CONTRIBUTING.zh.md)。
 
-你可以通过 [GitHub Discussions](https://github.com/Aeven-AI/Harness/discussions) 报告可复现的 bug、分享反馈和真实使用场景，或在本仓库之外构建技能、插件和集成。帮助用户用 Aeven 完成实际工作的指南和示例也很受欢迎。请为插件仓库添加 [`avn-plugin`](https://github.com/topics/avn-plugin) 话题，方便其他人发现它们。
+你可以通过 [GitHub Discussions](https://github.com/Aeven-AI/Aeven/discussions) 报告可复现的 bug、分享反馈和真实使用场景，或在本仓库之外构建技能、插件和集成。帮助用户用 Aeven 完成实际工作的指南和示例也很受欢迎。请为插件仓库添加 [`avn-plugin`](https://github.com/topics/avn-plugin) 话题，方便其他人发现它们。
 
 <a id="community-and-support"></a>
 
 ## 社区与支持
 
-欢迎在 [GitHub Discussions](https://github.com/Aeven-AI/Harness/discussions) 或 [Aeven Discord 社区](https://discord.gg/Ycq5dCaS4)提问，并分享你正在构建的项目。
+欢迎在 [GitHub Discussions](https://github.com/Aeven-AI/Aeven/discussions) 或 [Aeven Discord 社区](https://discord.gg/Ycq5dCaS4)提问，并分享你正在构建的项目。
 
 <a id="license"></a>
 

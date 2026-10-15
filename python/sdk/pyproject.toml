@@ -16,10 +16,10 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Aeven-AI/Harness"
-Documentation = "https://github.com/Aeven-AI/Harness/blob/master/docs/user/guide/python-sdk.md"
-Issues = "https://github.com/Aeven-AI/Harness/issues"
-Source = "https://github.com/Aeven-AI/Harness"
+Homepage = "https://github.com/Aeven-AI/Aeven"
+Documentation = "https://github.com/Aeven-AI/Aeven/blob/master/docs/user/guide/python-sdk.md"
+Issues = "https://github.com/Aeven-AI/Aeven/issues"
+Source = "https://github.com/Aeven-AI/Aeven"
 
 [dependency-groups]
 test = ["pytest>=8.0"]

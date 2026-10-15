@@ -32,7 +32,7 @@ OpenRouter 应用归属刻意未实现。`HTTP-Referer`、`X-OpenRouter-Title`�
 
 - `User-Agent` 的产品 token：`aeven`（与 Agent Note 之前的线路值及仓库/组织身份保持连续性）
 - 版本：通过 `createRequire` 从所属包的 manifest（元数据清单）读取，绝不手动复制常量
-- 应用 URL：`https://github.com/Aeven-AI/Harness`——仓库主页
+- 应用 URL：`https://github.com/Aeven-AI/Aeven`——仓库主页
 
 默认值是强制的且非空。白标部署通过向 `attributionHeaders(identity)` 传入自己的 `AppIdentity` 来覆盖——覆盖钩子就是函数参数，在有消费方需要之前不做部署配置管道——省略时回退到 harness 默认值而非抑制归属。没有逐请求 API 允许模型、用户提示词、会话 id、cwd、用户邮箱、API key 所有者或本地机器身份影响这些字段。
 

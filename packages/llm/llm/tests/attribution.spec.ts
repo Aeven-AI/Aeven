@@ -21,7 +21,7 @@ describe('APP_IDENTITY', () => {
     expect(APP_IDENTITY).toEqual({
       product: 'aeven',
       version: manifest.version,
-      url: 'https://github.com/Aeven-AI/Harness',
+      url: 'https://github.com/Aeven-AI/Aeven',
     })
   })
 })
@@ -29,7 +29,7 @@ describe('APP_IDENTITY', () => {
 describe('userAgent', () => {
   it('renders product/version with the +url comment', () => {
     expect(userAgent()).toBe(
-      `aeven/${manifest.version} (+https://github.com/Aeven-AI/Harness)`,
+      `aeven/${manifest.version} (+https://github.com/Aeven-AI/Aeven)`,
     )
   })
 

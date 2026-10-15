@@ -6,14 +6,14 @@ Add the official “powered by avn” badge without recreating or restyling it.
 
 - Local PNG: [`avn-badge.png`](avn-badge.png), 726×120 source image; render at 121×20
 - Shields.io image URL: `https://img.shields.io/badge/powered_by-avn-4D6BFE?style=flat-square&logo=deepseek&logoColor=white`
-- Project URL: `https://github.com/Aeven-AI/Harness`
+- Project URL: `https://github.com/Aeven-AI/Aeven`
 
 ## Markdown
 
 Use this linked badge in Markdown:
 
 ```markdown
-[![](https://img.shields.io/badge/powered_by-avn-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/Aeven-AI/Harness)
+[![](https://img.shields.io/badge/powered_by-avn-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/Aeven-AI/Aeven)
 ```
 
 If attribution should not be linked, use:

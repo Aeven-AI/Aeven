@@ -17,7 +17,7 @@ This tutorial installs the published Python SDK, runs the shipped standalone min
 ### Linux and macOS
 
 ```sh
-git clone https://github.com/Aeven-AI/Harness.git
+git clone https://github.com/Aeven-AI/Aeven.git
 cd aeven
 python -m venv .venv
 . .venv/bin/activate
@@ -27,7 +27,7 @@ python -m pip install aeven-sdk
 ### Windows PowerShell
 
 ```powershell
-git clone https://github.com/Aeven-AI/Harness.git
+git clone https://github.com/Aeven-AI/Aeven.git
 Set-Location aeven
 py -3.10 -m venv .venv
 .venv\Scripts\Activate.ps1

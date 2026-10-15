@@ -535,7 +535,7 @@ const WEB_SEARCH_META = {
   answer: 'Aeven is a plugin-based agent harness on vendored Cordis where **every capability is a plugin**.',
   sources: [
     {
-      url: 'https://github.com/Aeven-AI/Harness',
+      url: 'https://github.com/Aeven-AI/Aeven',
       title: 'Aeven — plugin-based agent harness',
       snippet: 'Everything is a plugin: session, tools, agent-loop, and LLM adapters all mount on the same Cordis context.',
       publishedAt: '2026-07-01',

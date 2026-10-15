@@ -48,7 +48,7 @@ const repositoryUrl = 'git+https://github.com/aeven/aeven.git'
  * {@link repositoryUrl}, which the Landlock packages keep because npm resolves
  * their trusted publishing against the repository that runs the workflow.
  */
-const publishedRepositoryUrl = 'git+https://github.com/Aeven-AI/Harness.git'
+const publishedRepositoryUrl = 'git+https://github.com/Aeven-AI/Aeven.git'
 /** Private packages that participate in workspace checks but not releases. */
 const experimentalPackageDirectory = /^packages\/experimental\/[^/]+$/
 /** npm namespace reserved for private experimental packages. */
