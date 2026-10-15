@@ -1,4 +1,7 @@
-/** Chat-owned approval preview from correlated shell or connector arguments. */
+/**
+ * Chat-owned approval preview from correlated call arguments: a shell command,
+ * or the destination, subject, and text of a call that sends a message.
+ */
 import type { PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import type {} from '@aeven/client-ui-approval/client'
 import type { ToolCallBlock } from '@aeven/client-ui-conversation/client'
@@ -34,8 +37,20 @@ function findCall(root: ToolCallBlock, callId: string): ToolCallBlock | undefine
   return undefined
 }
 
+const contentKeys = new Set(['text', 'message', 'body', 'content'])
+const destinationKeys = new Set(['to', 'recipient', 'recipient_id', 'chat_id', 'jid', 'phone', 'phone_number'])
+
+/** Keys that name a message's destination or the message itself. */
+function isMessageKey(key: string): boolean {
+  return contentKeys.has(key) || destinationKeys.has(key) || key === 'subject' || key === 'channel' || key === 'channel_id'
+}
+
 /**
- * Render the exact command or connector arguments of a correlated Chat call.
+ * Render the exact command, or the outbound message, of a correlated Chat call.
+ *
+ * A call that carries a destination or message text shows them whatever its
+ * name is, so the message a send would deliver is read before it is approved;
+ * connector calls show every argument they carry.
  * @param props - Approval identity, Chat selector, and localized detail labels.
  * @returns Plain-text action content with its destination and remaining arguments.
  */
@@ -51,33 +66,36 @@ export function ApprovalCommand({ callId, useChat, t }: PropsRuntime<'conversati
     return undefined
   })
   if (call === undefined || 'kind' in call) return null
-  if (!call.name.startsWith('mcp__')) {
+  const connector = call.name.startsWith('mcp__')
+  if (!connector) {
     const command = commandOf(call)
-    return command === undefined ? null : <code>{command}</code>
+    if (command !== undefined) return <code>{command}</code>
   }
   let args: unknown
   try {
     args = JSON.parse(call.argsRaw)
   } catch {
     // Incomplete streamed JSON remains visible for review as received.
-    return call.argsRaw
+    return connector ? call.argsRaw : null
   }
-  if (args === null || typeof args !== 'object' || Array.isArray(args)) return call.argsRaw
-  const contentKeys = new Set(['text', 'message', 'body', 'content'])
-  const destinationKeys = new Set(['to', 'recipient', 'recipient_id', 'chat_id', 'jid', 'phone', 'phone_number'])
-  const entries = Object.entries(args).sort(([left], [right]) => {
+  if (args === null || typeof args !== 'object' || Array.isArray(args)) return connector ? call.argsRaw : null
+  const entries = Object.entries(args)
+  if (!connector && !entries.some(([key]) => isMessageKey(key))) return null
+  const ordered = entries.sort(([left], [right]) => {
     const priority = (key: string): number =>
       destinationKeys.has(key) || key === 'channel' || key === 'channel_id' ? 0
         : key === 'subject' ? 1 : contentKeys.has(key) ? 2 : 3
     return priority(left) - priority(right)
   })
   return <>
-    {entries.map(([key, value]) => {
+    {ordered.map(([key, value]) => {
       const label = contentKeys.has(key) ? t('message')
         : destinationKeys.has(key) ? t('to')
           : key === 'channel' || key === 'channel_id' ? t('channel')
             : key === 'subject' ? t('subject') : key.replaceAll('_', ' ')
-      const text = typeof value === 'string' ? value : JSON.stringify(value, null, 2)
+      const text = typeof value === 'string' ? value
+        : Array.isArray(value) && value.every(item => typeof item === 'string') ? value.join(', ')
+          : JSON.stringify(value, null, 2)
       return <div key={key}><strong>{label}</strong>{'\n'}{text}{'\n\n'}</div>
     })}
   </>
