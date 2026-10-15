@@ -1,7 +1,7 @@
 {
   "name": "@aeven/llm-deepseek",
   "description": "DeepSeek chat-completions adapter for the Aeven LLM seam",
-  "version": "0.3.2-alpha",
+  "version": "0.3.3-alpha",
   "publishConfig": {
     "access": "public"
   },
