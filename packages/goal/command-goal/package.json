@@ -1,7 +1,7 @@
 {
   "name": "@aeven/command-goal",
   "description": "Human-facing slash command for persisted same-session goals",
-  "version": "0.3.1-alpha",
+  "version": "0.3.1-alpha.1",
   "publishConfig": {
     "access": "public"
   },

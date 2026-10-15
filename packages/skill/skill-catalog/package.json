@@ -1,7 +1,7 @@
 {
   "name": "@aeven/skill-catalog",
   "description": "Vendored skill catalog: browse, search and install the upstream aitmpl skills without network access",
-  "version": "0.3.1-alpha",
+  "version": "0.3.1-alpha.1",
   "publishConfig": {
     "access": "public"
   },

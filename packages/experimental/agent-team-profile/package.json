@@ -1,7 +1,7 @@
 {
   "name": "@aeven/experimental-agent-team-profile",
   "description": "Private profile bundle enabling Agent Teams over avn-base",
-  "version": "0.3.1-alpha",
+  "version": "0.3.1-alpha.1",
   "private": true,
   "repository": {
     "type": "git",
