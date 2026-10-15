@@ -140,7 +140,7 @@ You can help by reporting reproducible bugs, sharing feedback and real use cases
 
 ## Community and support
 
-Ask questions and share what you are building in [GitHub Discussions](https://github.com/Aeven-AI/Aeven/discussions) or the [Aeven Discord community](https://discord.gg/Ycq5dCaS4).
+Ask questions and share what you are building in [GitHub Discussions](https://github.com/Aeven-AI/Aeven/discussions) or the [Aeven Discord community](https://discord.gg/6fmTDy6hYV).
 
 ## License
 
