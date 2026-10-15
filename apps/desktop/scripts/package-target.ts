@@ -16,7 +16,7 @@ const APP_ROOT = resolve(import.meta.dirname, '..')
 const REPOSITORY_ROOT = resolve(APP_ROOT, '..', '..')
 
 /** Fixed platform and architecture identifiers exposed by package scripts. */
-export type DesktopPackageTargetName = 'mac-arm64' | 'win-arm64' | 'win-x64' | 'linux-arm64' | 'linux-x64'
+export type DesktopPackageTargetName = 'mac-arm64' | 'mac-x64' | 'win-arm64' | 'win-x64' | 'linux-arm64' | 'linux-x64'
 
 /** One supported release target and its electron-builder selectors. */
 export interface DesktopPackageTarget {
@@ -34,6 +34,13 @@ const TARGETS: Record<DesktopPackageTargetName, DesktopPackageTarget> = {
     arch: 'arm64',
     builderPlatform: '--mac',
     builderArch: '--arm64',
+  },
+  'mac-x64': {
+    name: 'mac-x64',
+    platform: 'darwin',
+    arch: 'x64',
+    builderPlatform: '--mac',
+    builderArch: '--x64',
   },
   'win-arm64': {
     name: 'win-arm64',
@@ -110,6 +117,11 @@ export function resolveDesktopPackageTarget(
   }
   if (name === 'mac-arm64' && hostArch !== 'arm64') {
     throw new Error('desktop package: mac-arm64 requires an Apple Silicon build host')
+  }
+  // An Intel Mac runs the x64 target's Node.js natively; Apple Silicon runs it under Rosetta, which executes the
+  // seed install and the prebuild fetches that materialize x64 binaries.
+  if (name === 'mac-x64' && hostArch !== 'x64' && hostArch !== 'arm64') {
+    throw new Error('desktop package: mac-x64 requires an Intel Mac or Apple Silicon with Rosetta')
   }
   return target
 }

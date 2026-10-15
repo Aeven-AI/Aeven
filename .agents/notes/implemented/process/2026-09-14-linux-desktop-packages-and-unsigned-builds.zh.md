@@ -16,7 +16,7 @@ Linux 没有发布目标。[打包并更新 Electron 桌面应用](../architectu
 
 ## Decision
 
-受支持的构建目标集合为 `mac-arm64`、`win-arm64`、`win-x64`、`linux-arm64` 与 `linux-x64`；[Windows arm64 桌面构建目标](2026-09-14-windows-arm64-desktop-target.zh.md)记录了 Windows arm64 的新增，[Desktop 移除 Intel Mac 构建目标](2026-10-02-desktop-drops-intel-mac-target.zh.md)记录了 `mac-x64` 的移除。每个目标都保留固定的平台与架构选择器，运行时准备、seed 准备与 electron-builder 必须就它们达成一致。
+受支持的构建目标集合为 `mac-arm64`、`mac-x64`、`win-arm64`、`win-x64`、`linux-arm64` 与 `linux-x64`；[Windows arm64 桌面构建目标](2026-09-14-windows-arm64-desktop-target.zh.md)记录了 Windows arm64 的新增，[Desktop 恢复 Intel Mac 构建目标](2026-10-15-desktop-restores-intel-mac-target.zh.md)记录了 `mac-x64` 的回归。每个目标都保留固定的平台与架构选择器，运行时准备、seed 准备与 electron-builder 必须就它们达成一致。
 
 Linux 打包不进行代码签名，并且直接分发而非通过更新频道。架构匹配的 Linux 主机可以构建它，任何 Docker 主机都可以通过容器命令构建它，发布自动化则在 Ubuntu runner 上构建两个 Linux 目标。`upload:*` 命令拒绝两个 Linux 目标，且 `DesktopUploadTargetName` 在类型层面将它们排除在上传计划之外。
 

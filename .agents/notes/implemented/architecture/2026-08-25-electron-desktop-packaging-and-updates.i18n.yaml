@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-08-25-electron-desktop-packaging-and-updates.md
-2026-08-25-electron-desktop-packaging-and-updates.md: 1f2cdef61972637f502eeb1a19bcb8b4ee92b68e
-2026-08-25-electron-desktop-packaging-and-updates.zh.md: 902a2a705d8fe989d3bf623b30531e94023bb301
+2026-08-25-electron-desktop-packaging-and-updates.md: 7ca001354eec71b938de465c4e88ed8ecff7e4ec
+2026-08-25-electron-desktop-packaging-and-updates.zh.md: cfaa11542dd711e3a45588e7cee33f807ae2dfbe

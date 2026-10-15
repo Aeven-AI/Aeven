@@ -22,9 +22,13 @@ describe('desktop package target', () => {
     })
   })
 
-  it('builds macOS only for Apple Silicon', () => {
-    expect(() => resolveDesktopPackageTarget('mac-x64', 'darwin', 'arm64')).toThrow(/unsupported target "mac-x64"/u)
-    expect(() => parseDesktopPackageInvocation([], 'darwin', 'x64')).toThrow(/unsupported build host darwin-x64/u)
+  it('builds both macOS architectures', () => {
+    expect(resolveDesktopPackageTarget('mac-x64', 'darwin', 'x64')).toMatchObject({
+      platform: 'darwin', arch: 'x64', builderPlatform: '--mac', builderArch: '--x64',
+    })
+    expect(resolveDesktopPackageTarget('mac-x64', 'darwin', 'arm64')).toMatchObject({ arch: 'x64' })
+    expect(parseDesktopPackageInvocation([], 'darwin', 'x64').target.name).toBe('mac-x64')
+    expect(parseDesktopPackageInvocation([], 'darwin', 'arm64').target.name).toBe('mac-arm64')
   })
 
   it('rejects unsupported targets and hosts before building', () => {

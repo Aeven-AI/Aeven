@@ -49,7 +49,7 @@ const MAX_CONCURRENT_CODE_SIGNERS = 4
 /** Grants `com.apple.security.cs.allow-jit` under the hardened runtime. */
 const JIT_ENTITLEMENTS = fileURLToPath(new URL('./jit-entitlements.plist', import.meta.url))
 /** The LibreOffice kit engine executable, which maps JIT memory under the hardened runtime. */
-const JIT_PACKAGE_PATTERN = /^@deepseek-ai\/libreoffice-kit-darwin-arm64@/u
+const JIT_PACKAGE_PATTERN = /^@deepseek-ai\/libreoffice-kit-darwin-(?:arm64|x64)@/u
 const JIT_FILE = 'bin/libreoffice-kit'
 
 interface FileReference {

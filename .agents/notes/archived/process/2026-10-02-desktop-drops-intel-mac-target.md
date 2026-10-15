@@ -1,6 +1,7 @@
 # Agent Note: Desktop drops the Intel Mac target
 
 Status: implemented
+Archived: 2026-10-15
 
 English | [中文](2026-10-02-desktop-drops-intel-mac-target.zh.md)
 

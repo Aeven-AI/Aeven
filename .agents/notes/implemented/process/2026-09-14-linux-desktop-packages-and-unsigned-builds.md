@@ -16,7 +16,7 @@ Two defects independently prevented any package command from completing. The Lan
 
 ## Decision
 
-The supported target set is `mac-arm64`, `win-arm64`, `win-x64`, `linux-arm64`, and `linux-x64`; [Windows arm64 desktop target](2026-09-14-windows-arm64-desktop-target.md) records the Windows arm64 addition, and [Desktop drops the Intel Mac target](2026-10-02-desktop-drops-intel-mac-target.md) records the removal of `mac-x64`. Each target keeps the fixed platform and architecture selectors that runtime preparation, seed preparation, and electron-builder must agree on.
+The supported target set is `mac-arm64`, `mac-x64`, `win-arm64`, `win-x64`, `linux-arm64`, and `linux-x64`; [Windows arm64 desktop target](2026-09-14-windows-arm64-desktop-target.md) records the Windows arm64 addition, and [Desktop restores the Intel Mac target](2026-10-15-desktop-restores-intel-mac-target.md) records the return of `mac-x64`. Each target keeps the fixed platform and architecture selectors that runtime preparation, seed preparation, and electron-builder must agree on.
 
 Linux packages without code signing and is distributed directly rather than through the update channel. A matching Linux host builds it, any Docker host builds it through a container command, and release automation builds both Linux targets on Ubuntu runners. The `upload:*` commands reject both Linux targets, and `DesktopUploadTargetName` excludes them from the upload plan at the type level.
 

@@ -132,6 +132,8 @@ const BROWSER_LIBRARY_DEPENDENCIES = [
  * attachment reader's `sharp` release instead of carrying a second libvips. The Microsoft 365 Graph bridge loads its
  * optional Azure Identity and Key Vault packages only when `MS365_MCP_KEYVAULT_URL` is set, which the account
  * connector never sets; removing them also removes the second MSAL Node release and the browser MSAL build.
+ * MemOS embeddings run through Transformers.js, which pins `onnxruntime-node` to a release that ships no Intel
+ * macOS binding; 1.23.2 is the newest release that ships one, so the graph substitutes it for the pinned release.
  */
 export const DESKTOP_DEPENDENCY_OVERRIDES: Readonly<Record<string, string>> = Object.fromEntries<string>([
   ...BROWSER_LIBRARY_DEPENDENCIES.map((name): [string, string] => [`@aeven/client-ui-primitives>${name}`, '-']),
@@ -140,6 +142,7 @@ export const DESKTOP_DEPENDENCY_OVERRIDES: Readonly<Record<string, string>> = Ob
   ...['@xterm/xterm', '@xterm/addon-fit']
     .map((name): [string, string] => [`@aeven/client-ui-sidebar-terminal>${name}`, '-']),
   ['@huggingface/transformers>sharp', '^0.35.3'],
+  ['@huggingface/transformers>onnxruntime-node', '1.23.2'],
   ...['@azure/identity', '@azure/keyvault-secrets']
     .map((name): [string, string] => [`@softeria/ms-365-mcp-server>${name}`, '-']),
 ])
