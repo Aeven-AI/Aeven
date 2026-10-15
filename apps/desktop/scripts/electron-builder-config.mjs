@@ -6,7 +6,7 @@ import {
   resolveMacOSSigningEnvironment,
 } from './desktop-release-environment.mjs'
 import { notarizeMacOSDiskImageArtifact } from './notarize-macos-disk-images.mjs'
-import { verifyMacOSSignatureAfterSign } from './verify-macos-signature.mjs'
+import { notarizeMacOSApplicationAfterSign } from './notarize-macos-application.mjs'
 import { resolveWindowsAzureSigning } from './windows-azure-signing.mjs'
 import { desktopTargetBuildPaths, resolveDesktopBuildTarget } from './desktop-build-paths.mjs'
 import { MACOS_TEXT_INPUT_SETTINGS, MACOS_USAGE_DESCRIPTIONS } from './macos-usage-descriptions.mjs'
@@ -82,7 +82,9 @@ export function createElectronBuilderConfig(
       // without the resource entitlements a signed build silently loses location,
       // the microphone, and the camera.
       entitlements: 'scripts/app-entitlements.plist',
-      notarize: !unsigned,
+      // electron-builder staples the ticket in one unretried call, which fails a release whenever
+      // Apple's ticket-delivery service drops the lookup; the after-sign hook owns this step instead.
+      notarize: false,
       target: ['dmg', 'zip'],
       extendInfo: { ...MACOS_USAGE_DESCRIPTIONS, ...MACOS_TEXT_INPUT_SETTINGS },
     },
@@ -93,8 +95,8 @@ export function createElectronBuilderConfig(
       writeUpdateInfo: false,
     },
     afterSign: context => {
-      if (context.electronPlatformName !== 'darwin' || unsigned) return
-      verifyMacOSSignatureAfterSign(context, macOSSigning ?? resolveMacOSSigningEnvironment(env))
+      if (unsigned) return
+      return notarizeMacOSApplicationAfterSign(context, env, macOSSigning ?? resolveMacOSSigningEnvironment(env))
     },
     artifactBuildCompleted: artifact => {
       if (!artifact.file.endsWith('.dmg') || unsigned) return

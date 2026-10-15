@@ -51,25 +51,4 @@ export function verifyMacOSSignature(appPath: string, expected: MacOSSigningEnvi
 export function verifyMacOSDiskImage(
   diskImagePath: string,
   expected: MacOSSigningEnvironment,
-): void
-
-/** Electron-builder fields required to locate a signed macOS application. */
-export interface MacOSAfterSignContext {
-  readonly electronPlatformName: string
-  readonly appOutDir: string
-  readonly packager: {
-    readonly appInfo: {
-      readonly productFilename: string
-    }
-  }
-}
-
-/**
- * Verify the macOS application produced by electron-builder's signing phase.
- * @param context - electron-builder hook context.
- * @param expected - Public release identity.
- */
-export function verifyMacOSSignatureAfterSign(
-  context: MacOSAfterSignContext,
-  expected: MacOSSigningEnvironment,
-): void
+): Promise<void>

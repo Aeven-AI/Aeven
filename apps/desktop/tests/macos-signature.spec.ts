@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { resolve as resolvePath } from 'node:path'
 import type { NotarizeOptions } from '@electron/notarize'
 import {
   resolveDesktopAppId,
@@ -6,6 +7,12 @@ import {
   resolveMacOSSigningEnvironment,
 } from '../scripts/desktop-release-environment.mjs'
 import { notarizeMacOSDiskImageArtifact } from '../scripts/notarize-macos-disk-images.mjs'
+import { notarizeMacOSApplicationAfterSign } from '../scripts/notarize-macos-application.mjs'
+import {
+  isTransientNotaryTicketFailure,
+  notarizeMacOSArtifact,
+  stapleMacOSArtifact,
+} from '../scripts/macos-notarization.mjs'
 import {
   assertMacOSSeedSignatureDetails,
   assertMacOSSignatureDetails,
@@ -22,6 +29,17 @@ const RELEASE_ENVIRONMENT = {
   APPLE_API_KEY_ID: 'TEST123456',
   APPLE_API_ISSUER: '11111111-2222-3333-4444-555555555555',
 }
+
+/** What Apple's ticket-delivery service reports when it drops a lookup, as the release logs carry it. */
+const DROPPED_TICKET_DELIVERY = [
+  'The staple and validate action failed! Error 68.',
+  'error is Error Domain=NSURLErrorDomain Code=-1005 "The network connection was lost."',
+  'NSErrorFailingURLKey=https://api.apple-cloudkit.com/database/1/com.apple.gk.ticket-delivery/production/public/records/lookup',
+  "CloudKit's response is inconsistent with expections: (null)",
+].join('\n')
+
+/** Type of the stapler command a retry test replaces. */
+type StaplerCommand = (action: 'staple' | 'validate', path: string) => Promise<string>
 
 function portablePath(value: string): string {
   return value.replaceAll('\\', '/')
@@ -50,7 +68,8 @@ describe('desktop macOS release signature', () => {
       mac: {
         identity: RELEASE_ENVIRONMENT.AVN_DESKTOP_MACOS_SIGNING_IDENTITY,
         forceCodeSigning: true,
-        notarize: true,
+        // electron-builder staples in one unretried call, so the after-sign hook notarizes the application.
+        notarize: false,
       },
       dmg: {
         sign: true,
@@ -58,7 +77,21 @@ describe('desktop macOS release signature', () => {
       },
       publish: [{ provider: 'github', owner: 'Aeven-AI', repo: 'Aeven' }],
     })
+    expect(typeof config.afterSign).toBe('function')
     expect(typeof config.artifactBuildCompleted).toBe('function')
+  })
+
+  it('leaves the application unqualified in an unsigned macOS build', async () => {
+    const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
+    const config = createElectronBuilderConfig({
+      ...RELEASE_ENVIRONMENT,
+      AVN_DESKTOP_UNSIGNED: '1',
+    }, 'darwin', 'arm64')
+    expect(config.afterSign({
+      electronPlatformName: 'darwin',
+      appOutDir: '/tmp/out',
+      packager: { appInfo: { productFilename: 'Aeven' } },
+    })).toBeUndefined()
   })
 
   it('ad-hoc signs an unsigned macOS build without release identity or notarization', async () => {
@@ -220,5 +253,96 @@ describe('desktop macOS release signature', () => {
     )
     expect(submitted).toEqual(['/tmp/release.dmg'])
     expect(verified).toEqual(['/tmp/release.dmg'])
+  })
+})
+
+describe('desktop macOS notary ticket delivery', () => {
+  const credentials = resolveMacOSNotarizationEnvironment(RELEASE_ENVIRONMENT)
+  const expected = resolveMacOSSigningEnvironment(RELEASE_ENVIRONMENT)
+
+  it('repeats only the ticket lookups Apple drops', () => {
+    expect(isTransientNotaryTicketFailure(new Error(DROPPED_TICKET_DELIVERY))).toBe(true)
+    expect(isTransientNotaryTicketFailure(new Error('desktop macOS signing: stapler validate exited with 68: Record not found'))).toBe(false)
+    expect(isTransientNotaryTicketFailure(new Error('Invalid: The signature of the binary is invalid'))).toBe(false)
+  })
+
+  it('staples an accepted submission again when Apple did not deliver the ticket', async () => {
+    const submit = vi.fn(async () => { throw new Error(DROPPED_TICKET_DELIVERY) })
+    const staple = vi.fn(async () => {})
+    await notarizeMacOSArtifact('/tmp/release.dmg', credentials, { submit, staple })
+    expect(submit).toHaveBeenCalledWith({ appPath: '/tmp/release.dmg', ...credentials })
+    expect(staple).toHaveBeenCalledWith('/tmp/release.dmg')
+  })
+
+  it('leaves a submission alone when its ticket arrived', async () => {
+    const submit = vi.fn(async () => {})
+    const staple = vi.fn(async () => {})
+    await notarizeMacOSArtifact('/tmp/release.dmg', credentials, { submit, staple })
+    expect(staple).not.toHaveBeenCalled()
+  })
+
+  it('fails the release when the notary submission itself failed', async () => {
+    const submit = vi.fn(async () => { throw new Error('Invalid: The signature of the binary is invalid') })
+    const staple = vi.fn(async () => {})
+    await expect(notarizeMacOSArtifact('/tmp/release.dmg', credentials, { submit, staple })).rejects.toThrow(/Invalid/u)
+    expect(staple).not.toHaveBeenCalled()
+  })
+
+  it('reports the submission and the repeated staple when both fail', async () => {
+    const submit = vi.fn(async () => { throw new Error(DROPPED_TICKET_DELIVERY) })
+    const staple = vi.fn(async () => { throw new Error('desktop macOS signing: stapler staple exited with 68') })
+    await expect(notarizeMacOSArtifact('/tmp/release.dmg', credentials, { submit, staple })).rejects.toBeInstanceOf(AggregateError)
+  })
+
+  it('repeats a stapler action that failed at ticket delivery', async () => {
+    const run = vi.fn<StaplerCommand>()
+      .mockRejectedValueOnce(new Error(DROPPED_TICKET_DELIVERY))
+      .mockResolvedValueOnce('stapled')
+    await expect(stapleMacOSArtifact('/tmp/release.dmg', { run, delayMs: 0 })).resolves.toBe('stapled')
+    expect(run).toHaveBeenCalledTimes(2)
+  })
+
+  it('stops repeating a ticket lookup once the attempt budget is spent', async () => {
+    const run = vi.fn<StaplerCommand>().mockRejectedValue(new Error(DROPPED_TICKET_DELIVERY))
+    await expect(stapleMacOSArtifact('/tmp/release.dmg', { run, attempts: 2, delayMs: 0 })).rejects.toThrow(/Error 68/u)
+    expect(run).toHaveBeenCalledTimes(2)
+  })
+
+  it('gives a dropped lookup three attempts by default', async () => {
+    const run = vi.fn<StaplerCommand>().mockRejectedValue(new Error(DROPPED_TICKET_DELIVERY))
+    await expect(stapleMacOSArtifact('/tmp/release.dmg', { run, delayMs: 0 })).rejects.toThrow(/Error 68/u)
+    expect(run).toHaveBeenCalledTimes(3)
+  })
+
+  it('does not repeat a stapler failure that is not a ticket lookup', async () => {
+    const run = vi.fn<StaplerCommand>().mockRejectedValue(new Error('desktop macOS signing: stapler validate exited with 68: Record not found'))
+    await expect(stapleMacOSArtifact('/tmp/release.dmg', { run, delayMs: 0 })).rejects.toThrow(/Record not found/u)
+    expect(run).toHaveBeenCalledTimes(1)
+  })
+
+  it('qualifies the application the after-sign hook names', async () => {
+    const order: string[] = []
+    const notarize = vi.fn(async (path: string) => { order.push(`notarize ${path}`) })
+    const validate = vi.fn(async (path: string) => { order.push(`validate ${path}`) })
+    const verify = vi.fn((path: string) => { order.push(`verify ${path}`) })
+    await notarizeMacOSApplicationAfterSign(
+      { electronPlatformName: 'darwin', appOutDir: '/tmp/out', packager: { appInfo: { productFilename: 'Aeven' } } },
+      RELEASE_ENVIRONMENT,
+      expected,
+      { notarize, validate, verify },
+    )
+    const appPath = resolvePath('/tmp/out', 'Aeven.app')
+    expect(order).toEqual([`notarize ${appPath}`, `validate ${appPath}`, `verify ${appPath}`])
+  })
+
+  it('leaves an application alone on a platform without Apple notarization', async () => {
+    const notarize = vi.fn(async () => {})
+    await notarizeMacOSApplicationAfterSign(
+      { electronPlatformName: 'linux', appOutDir: '/tmp/out', packager: { appInfo: { productFilename: 'Aeven' } } },
+      RELEASE_ENVIRONMENT,
+      expected,
+      { notarize },
+    )
+    expect(notarize).not.toHaveBeenCalled()
   })
 })
