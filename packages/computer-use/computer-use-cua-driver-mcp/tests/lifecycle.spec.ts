@@ -83,9 +83,10 @@ describe('installed Cua Driver ownership', () => {
       await closing
     }
     expect(ctx.computerUse.providerName).toBeUndefined()
-    const replacement = await ctx.plugin(Provider, { command: '/configured/driver', args: ['mcp', '--verbose'], toolCallTimeoutMs: 1234, reconnect: { enabled: false } })
+    // A real executable: an absolute command that does not exist registers only the install tool.
+    const replacement = await ctx.plugin(Provider, { command: process.execPath, args: ['mcp', '--verbose'], toolCallTimeoutMs: 1234, reconnect: { enabled: false } })
     expect(fake.configurations[1]).toMatchObject({
-      command: '/configured/driver', args: ['mcp', '--verbose'], toolCallTimeoutMs: 1234,
+      command: process.execPath, args: ['mcp', '--verbose'], toolCallTimeoutMs: 1234,
       reconnect: { enabled: false },
     })
     await replacement.dispose()

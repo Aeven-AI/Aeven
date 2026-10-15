@@ -5,7 +5,7 @@
  * @module
  */
 
-import { spawn, type ChildProcess } from 'node:child_process'
+import { execFile, spawn, type ChildProcess } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { isAbsolute } from 'node:path'
 import type { Context, Fiber } from '@deepseek-ai/cordis'
@@ -72,6 +72,49 @@ export function driverEnv(
   return named(env.WAYLAND_DISPLAY) || env.XDG_SESSION_TYPE === 'wayland'
     ? { [WAYLAND_BACKEND_ENV]: '1' }
     : {}
+}
+
+/** The GNOME Shell extension the driver's Wayland backend needs, as upstream ships it. */
+export const SHELL_HELPER_EXTENSION_ID = 'winrects@cua'
+
+/** The helper's D-Bus name; it answers only while the extension is loaded. */
+const SHELL_HELPER_BUS_NAME = 'org.cua.WinRects'
+
+/** Runs a local command, resolving to its stdout, or `undefined` when it fails. */
+export type HelperProbe = (command: string, args: string[]) => Promise<string | undefined>
+
+/** One bounded `gdbus` call, so a wedged shell cannot stall setup. */
+const probeWithGdbus: HelperProbe = (command, args) => new Promise((resolve) => {
+  execFile(command, args, { timeout: 5_000 }, (error, stdout) => {
+    resolve(error === null ? stdout : undefined)
+  })
+})
+
+/**
+ * Whether this session needs the GNOME Shell helper, and whether it answered.
+ *
+ * A Linux Wayland session needs it: the driver takes window geometry, desktop
+ * capture and verified activation from the helper and fails closed without it,
+ * because portal input is global to the compositor's focus. An X11 session, and
+ * every other platform, needs nothing.
+ * @param platform - the platform running the driver.
+ * @param env - that machine's environment.
+ * @param probe - command runner, injectable so the check is testable.
+ * @returns whether the helper is required here, and whether it answered.
+ */
+export async function shellHelperStatus(
+  platform: NodeJS.Platform,
+  env: Record<string, string | undefined>,
+  probe: HelperProbe = probeWithGdbus,
+): Promise<{ required: boolean; present: boolean }> {
+  const required = Object.keys(driverEnv(platform, env)).length > 0
+  if (!required) return { required, present: false }
+  const answer = await probe('gdbus', [
+    'call', '--session', '--dest', 'org.freedesktop.DBus',
+    '--object-path', '/org/freedesktop/DBus',
+    '--method', 'org.freedesktop.DBus.NameHasOwner', SHELL_HELPER_BUS_NAME,
+  ])
+  return { required, present: answer?.includes('true') === true }
 }
 
 /**
@@ -162,17 +205,19 @@ function registerSetupTool(ctx: Context, command: string): void {
     running?.kill()
     running = undefined
   }, 'computer-use-cua-driver-mcp.setup-process')
-  ctx.on('tools/pre-execute', async (exec, next) => {
-    const decision = await next()
-    if (decision.kind !== 'allow' || exec.name !== SETUP_TOOL) return decision
-    return {
-      kind: 'ask',
-      reason: 'Allow Aeven to set up computer use? macOS will ask you to let CuaDriver use Accessibility and Screen Recording, and opens System Settings where you switch it on.',
-    }
-  })
+  if (process.platform === 'darwin') {
+    ctx.on('tools/pre-execute', async (exec, next) => {
+      const decision = await next()
+      if (decision.kind !== 'allow' || exec.name !== SETUP_TOOL) return decision
+      return {
+        kind: 'ask',
+        reason: 'Allow Aeven to set up computer use? macOS will ask you to let CuaDriver use Accessibility and Screen Recording, and opens System Settings where you switch it on.',
+      }
+    })
+  }
   ctx.effect(() => ctx.tools.register(defineTool({
     name: SETUP_TOOL,
-    description: 'Ask macOS for the permissions computer use needs. Call it only when mcp__cua-driver-mcp__check_permissions with prompt false reports Accessibility or Screen Recording as missing, or a computer-use tool fails for a missing permission. The person approves first; macOS then shows its own dialogs and opens System Settings, where they switch on CuaDriver. Tell them what to switch on, wait for them to say they are done, then check again with prompt false.',
+    description: 'Set up computer use on this computer. Call it only when mcp__cua-driver-mcp__check_permissions with prompt false reports a missing permission, when a computer-use tool fails, or when the person asks how to enable computer use. On macOS it asks for the permissions computer use needs: the person approves first, macOS then shows its own dialogs and opens System Settings, where they switch on CuaDriver — tell them what to switch on, wait for them to say they are done, then check again with prompt false. On Linux it reports whether this session needs the GNOME Shell helper and whether it is loaded, because the driver refuses input on Wayland without it.',
     parameters: {},
     output: {
       schema: { type: 'string' },
@@ -180,6 +225,16 @@ function registerSetupTool(ctx: Context, command: string): void {
     },
     async execute(_args, exec) {
       exec.signal.throwIfAborted()
+      if (process.platform === 'linux') {
+        const helper = await shellHelperStatus(process.platform, process.env)
+        if (!helper.required) {
+          return 'This Linux session runs X11, where the driver needs no extra setup. Report what failed and retry that tool.'
+        }
+        if (helper.present) {
+          return `Computer use is set up on this Wayland session: the ${SHELL_HELPER_EXTENSION_ID} Shell helper is loaded, so the driver can see the desktop and act on it. Report what failed and retry that tool.`
+        }
+        return `Computer use needs the GNOME Shell helper on Wayland, and ${SHELL_HELPER_EXTENSION_ID} is not loaded, so the driver refuses to type into an unknown window. Tell the person to install that extension — it ships with the driver under libs/cua-driver/wayland-helper/${SHELL_HELPER_EXTENSION_ID} and belongs in the shell's extensions directory, enabled by default — then to log out and back in once so the shell loads it. If the driver itself is missing, follow ${INSTALL_GUIDE} first.`
+      }
       if (running !== undefined && running.exitCode === null) {
         return 'The macOS permission request is already open. Ask the person to finish it in System Settings.'
       }
