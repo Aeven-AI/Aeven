@@ -1,6 +1,5 @@
 /* The section header, then feature-contributed rows. The rows own their
- * chrome, separators, and 16px top padding, so the column adds no gap; the
- * rows column strips the trailing separator wherever it ends. */
+ * chrome and 16px top padding, so the column adds no gap. */
 
 .section {
   display: flex;
@@ -11,8 +10,4 @@
 .items {
   display: flex;
   flex-direction: column;
-}
-
-.items > :global([data-slot='settings.appearance.item']) > :last-child {
-  border-bottom: none;
 }

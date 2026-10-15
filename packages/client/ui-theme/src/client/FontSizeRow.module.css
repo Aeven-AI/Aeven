@@ -1,13 +1,11 @@
 /* Font-size row: title + stepper pill, same cell rhythm as the Language and
- * Enter-behavior rows (gap 8, pad 16/0, hairline separator; the section
- * column strips the separator on its last child). */
+ * Enter-behavior rows (gap 8, pad 16/0). */
 
 .row {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 16px 0;
-  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
 }
 
 .rowText {

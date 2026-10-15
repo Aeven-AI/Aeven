@@ -272,7 +272,7 @@ function Loaded<T>({ t, load, retry, children }: {
     return (
       <div className={css.row}>
         <span className={css.rowText}><span className={css.error}>{t('section.failed')}</span></span>
-        <Button variant="outline" onClick={retry}>{t('section.retry')}</Button>
+        <button type="button" className={css.pill} onClick={retry}>{t('section.retry')}</button>
       </div>
     )
   }
@@ -297,7 +297,7 @@ function Identity({ t, reader, signOut }: AccountSectionProps) {
         {person.email !== undefined && <span className={css.desc}>{person.email}</span>}
       </span>
       <span className={css.actions}>
-        <Button variant="outline" onClick={signOut}>{t('logout')}</Button>
+        <button type="button" className={css.pill} onClick={signOut}>{t('logout')}</button>
       </span>
     </div>
   )
@@ -437,10 +437,10 @@ function Plans({ t, cloud, subscription, plans, usage, refresh }: {
             <span className={css.title}>{t('plan.billing')}</span>
             <span className={css.desc}>{t('plan.billingNote')}</span>
           </span>
-          <Button variant="outline" onClick={openBilling}>
+          <button type="button" className={css.pill} onClick={openBilling}>
             {t('plan.manageBilling')}
             <IconRightUpOutline16 size={14} />
-          </Button>
+          </button>
         </div>
       )}
 
@@ -465,25 +465,29 @@ function Plans({ t, cloud, subscription, plans, usage, refresh }: {
             const higher = currentIndex < 0 || index > currentIndex
             const features = FEATURES[plan.id]
             const multiple = proPrice !== undefined && proPrice > 0 ? Math.round(priceOf(plan) / proPrice) : undefined
+            // Every plan answers with the tile's own quiet pill: the tone of
+            // the tile says which plan is being recommended, so no action
+            // needs a fill of its own.
+            const pill = `${css.pill} ${css.planAction}`
             let action: ReactNode
             if (isCurrent && subscription.managed && subscription.cancelAtPeriodEnd) {
-              action = <Button variant="primary" className={css.planAction} disabled={busy} onClick={() => { act('/subscription/resume') }}>{t('plan.resume')}</Button>
+              action = <button type="button" className={pill} disabled={busy} onClick={() => { act('/subscription/resume') }}>{t('plan.resume')}</button>
             } else if (isCurrent && subscription.pendingPlan !== null) {
-              action = <Button variant="outline" className={css.planAction} disabled={busy} onClick={() => { act('/subscription/change', { plan: plan.id }) }}>{t('plan.keep', { plan: planName(plan, t) })}</Button>
+              action = <button type="button" className={pill} disabled={busy} onClick={() => { act('/subscription/change', { plan: plan.id }) }}>{t('plan.keep', { plan: planName(plan, t) })}</button>
             } else if (isCurrent) {
-              action = <Button variant="outline" className={css.planAction} disabled>{t('plan.current')}</Button>
+              action = <button type="button" className={pill} disabled>{t('plan.current')}</button>
             } else if (plan.id === FREE_PLAN && !subscription.managed) {
               action = null
             } else {
               action = (
-                <Button
-                  variant={isRecommended ? 'primary' : higher ? 'outline' : 'ghost'}
-                  className={css.planAction}
+                <button
+                  type="button"
+                  className={pill}
                   disabled={busy || (plan.id === FREE_PLAN && subscription.cancelAtPeriodEnd)}
                   onClick={() => { choose(plan, index) }}
                 >
                   {isRecommended ? t('plan.upgradeTo', { plan: planName(plan, t) }) : t(higher ? 'plan.upgrade' : 'plan.downgrade')}
-                </Button>
+                </button>
               )
             }
             return (
@@ -831,39 +835,37 @@ function Security({ mfa, t }: { readonly mfa: AevenReader['mfa']; readonly t: Tr
       return answer
     }), [mfa])
   const status = failed ? 'security.unavailable' : enabled === undefined ? 'security.loading' : enabled ? 'security.on' : 'security.off'
+  // The switch states the feature; the enrollment it opens belongs to the same
+  // cell, so it draws no surface of its own below the row.
   return (
     <Group title={t('security.heading')}>
-      <div className={css.securityCard}>
-        <div className={css.securityRow}>
-          <span className={css.securityIcon} aria-hidden="true">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6z" />
-              <path d="m8.5 12 2.5 2.5 4.5-5" />
-            </svg>
-          </span>
-          <span className={css.rowText}>
-            <span className={css.title}>{t('security.title')}</span>
-            <span className={css.desc}>{t('security.info')}</span>
-          </span>
-          <span className={css.securityControl}>
-            <span className={css.securityStatus} role="status">{t(status)}</span>
-            <button
-              type="button" role="switch" aria-label={t('security.title')} aria-checked={enabled === true}
-              className={css.securitySwitch}
-              disabled={enabled === undefined || failed || mode !== undefined}
-              onClick={() => { setMode(enabled ? 'disable' : 'setup') }}
-            ><span /></button>
-          </span>
-        </div>
-        {failed && <div role="alert" className={css.securityError}>
-          <span className={css.desc}>{t('security.failed')}</span>
-          <Button variant="outline" onClick={refresh}>{t('section.retry')}</Button>
-        </div>}
-        {mode !== undefined && <div className={css.securityForm}>
-          <MfaForm key={mode} mode={mode} t={t} request={request}
-            onDone={() => { setMode(undefined) }} onCancel={() => { setMode(undefined) }} />
-        </div>}
+      <div className={css.row}>
+        <span className={css.rowText}>
+          <span className={css.title}>{t('security.title')}</span>
+          <span className={css.desc}>{t('security.info')}</span>
+        </span>
+        <span className={css.actions}>
+          <span className={css.status} role="status">{t(status)}</span>
+          <button
+            type="button" role="switch" aria-label={t('security.title')} aria-checked={enabled === true}
+            className={css.switch}
+            disabled={enabled === undefined || failed || mode !== undefined}
+            onClick={() => { setMode(enabled ? 'disable' : 'setup') }}
+          ><span className={css.thumb} /></button>
+        </span>
       </div>
+      {failed && (
+        <div role="alert" className={css.row}>
+          <span className={css.rowText}><span className={css.desc}>{t('security.failed')}</span></span>
+          <button type="button" className={css.pill} onClick={refresh}>{t('section.retry')}</button>
+        </div>
+      )}
+      {mode !== undefined && (
+        <div className={css.securityForm}>
+          <MfaForm key={mode} layout="cells" mode={mode} t={t} request={request}
+            onDone={() => { setMode(undefined) }} onCancel={() => { setMode(undefined) }} />
+        </div>
+      )}
     </Group>
   )
 }

@@ -1,12 +1,10 @@
-/* Language row (figma 'Setting-Cell': gap 8, pad 16/0, hairline separator;
- * the section column removes the separator on its last child). */
+/* Language row (figma 'Setting-Cell': gap 8, pad 16/0). */
 
 .row {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 16px 0;
-  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
 }
 
 .rowText {

@@ -12,47 +12,56 @@ function submit() {
   fireEvent.click(screen.getByRole('button', { name: 'mfa.confirm' }))
 }
 
-describe('authenticator sign-in', () => {
-  it('reports a profile failure after verification and completes again without spending another code', async () => {
-    const request = vi.fn<MfaFormProps['request']>().mockResolvedValue({})
-    const onDone = vi.fn<MfaFormProps['onDone']>().mockRejectedValueOnce(new Error('profile-failed')).mockResolvedValueOnce(undefined)
-    render(<MfaForm mode="login" t={t} request={request} onDone={onDone} onCancel={vi.fn()} />)
+describe('authenticator enrollment in settings', () => {
+  it('states the setup step instead of naming the feature its host row already names', async () => {
+    const request = vi.fn<MfaFormProps['request']>().mockResolvedValue({ secret: 'TESTSETUPKEY', qrCode: 'data:image/png;base64,AA==' })
+    render(<MfaForm layout="cells" mode="setup" t={t} request={request} onDone={vi.fn()} onCancel={vi.fn()} />)
+    await screen.findByAltText('mfa.scan')
+    expect(screen.getByText('mfa.scan')).toBeDefined()
+    expect(screen.getByText('TESTSETUPKEY')).toBeDefined()
+    expect(screen.queryByText('mfa.title')).toBeNull()
     submit()
-    await screen.findByRole('alert')
-    expect(screen.getByRole('alert').textContent).toBe('mfa.failure')
-    expect(screen.getByLabelText('mfa.code').hasAttribute('disabled')).toBe(true)
-    fireEvent.click(screen.getByRole('button', { name: 'mfa.confirm' }))
-    await waitFor(() => { expect(onDone).toHaveBeenCalledTimes(2) })
-    expect(request).toHaveBeenCalledTimes(1)
+    await waitFor(() => { expect(request).toHaveBeenCalledWith('enable', '123456') })
   })
 
-  it.each(['expired-code', 'too-many-attempts'])('offers a restart instead of submitting an unusable challenge after %s', async (error) => {
-    const request = vi.fn<MfaFormProps['request']>().mockRejectedValue(new Error(error))
-    const onCancel = vi.fn()
-    render(<MfaForm mode="login" t={t} request={request} onDone={vi.fn()} onCancel={onCancel} />)
-    submit()
-    await screen.findByRole('alert')
-    expect(screen.getByRole('button', { name: 'mfa.confirm' }).hasAttribute('disabled')).toBe(true)
-    fireEvent.click(screen.getByRole('button', { name: 'mfa.restart' }))
-    expect(onCancel).toHaveBeenCalledOnce()
-    expect(request).toHaveBeenCalledOnce()
-  })
-
-  it('explains a used authenticator code and permits the next code', async () => {
-    const request = vi.fn<MfaFormProps['request']>().mockRejectedValueOnce(new Error('code-already-used')).mockResolvedValueOnce({})
-    const onDone = vi.fn()
-    render(<MfaForm mode="login" t={t} request={request} onDone={onDone} onCancel={vi.fn()} />)
+  it('explains a used code and lets the reader answer the same step again', async () => {
+    const request = vi.fn<MfaFormProps['request']>()
+      .mockResolvedValueOnce({ secret: 'TESTSETUPKEY', qrCode: 'data:image/png;base64,AA==' })
+      .mockRejectedValueOnce(new Error('code-already-used'))
+      .mockResolvedValueOnce({})
+    render(<MfaForm layout="cells" mode="setup" t={t} request={request} onDone={vi.fn()} onCancel={vi.fn()} />)
+    await screen.findByAltText('mfa.scan')
     submit()
     await screen.findByRole('alert')
     expect(screen.getByRole('alert').textContent).toBe('mfa.used')
-    fireEvent.change(screen.getByLabelText('mfa.code'), { target: { value: '654321' } })
-    fireEvent.click(screen.getByRole('button', { name: 'mfa.confirm' }))
+    submit()
+    await waitFor(() => { expect(request).toHaveBeenLastCalledWith('enable', '123456') })
+  })
+
+  it('offers a restart rather than a submission the challenge can no longer answer', async () => {
+    const request = vi.fn<MfaFormProps['request']>()
+      .mockResolvedValueOnce({ secret: 'TESTSETUPKEY', qrCode: 'data:image/png;base64,AA==' })
+      .mockRejectedValueOnce(new Error('expired-code'))
+    render(<MfaForm layout="cells" mode="setup" t={t} request={request} onDone={vi.fn()} onCancel={vi.fn()} />)
+    await screen.findByAltText('mfa.scan')
+    submit()
+    await screen.findByRole('alert')
+    expect(screen.getByRole('alert').textContent).toBe('mfa.expired')
+    expect(screen.getByRole('button', { name: 'mfa.confirm' }).hasAttribute('disabled')).toBe(true)
+  })
+
+  it('turns protection off only through the same code step', async () => {
+    const request = vi.fn<MfaFormProps['request']>().mockResolvedValue({ enabled: false })
+    const onDone = vi.fn()
+    render(<MfaForm mode="disable" t={t} request={request} onDone={onDone} onCancel={vi.fn()} />)
+    fireEvent.change(screen.getByLabelText('mfa.code'), { target: { value: '123456' } })
+    fireEvent.click(screen.getByRole('button', { name: 'mfa.disable' }))
     await waitFor(() => { expect(onDone).toHaveBeenCalledOnce() })
-    expect(request).toHaveBeenLastCalledWith('login', '654321')
+    expect(request).toHaveBeenCalledWith('disable', '123456')
   })
 
   it('labels recovery-code entry independently of recovery-code disclosure', () => {
-    render(<MfaForm mode="login" t={t} request={vi.fn()} onDone={vi.fn()} onCancel={vi.fn()} />)
+    render(<MfaForm mode="disable" t={t} request={vi.fn()} onDone={vi.fn()} onCancel={vi.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: 'mfa.useRecovery' }))
     expect(screen.getByLabelText('mfa.recoveryCode')).toBeDefined()
   })

@@ -50,8 +50,11 @@ describe('password sign-in through the mounted MFA screen', () => {
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'reader@example.test' } })
     fireEvent.change(root.querySelector('input[type="password"]')!, { target: { value: 'Password123!' } })
     fireEvent.click(screen.getByRole('button', { name: t('action.signIn') }))
-    await screen.findByRole('heading', { name: t('mfa.login') })
-    fireEvent.change(screen.getByLabelText(t('mfa.code')), { target: { value: '123456' } })
+    await screen.findByText(t('mfa.login'))
+    const boxes = root.querySelectorAll<HTMLInputElement>('.input-numbers input')
+    for (const [index, digit] of [...'123456'].entries()) {
+      fireEvent.change(boxes[index]!, { target: { value: digit } })
+    }
     fireEvent.click(screen.getByRole('button', { name: t('mfa.confirm') }))
     await screen.findByText(t('mfa.failure'))
     expect(calls.filter(path => path === '/mfa/login')).toHaveLength(1)

@@ -1,9 +1,7 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type React from 'react'
 
 import JSConfetti from '../../../vendor/confetti/index.ts'
-
-import { MfaForm } from '@aeven/client-ui-primitives'
 
 import Input, { type InputHandle } from '../com/Input.tsx'
 import Button, { type ButtonHandle } from '../com/Button.tsx'
@@ -29,6 +27,16 @@ const ROUTE_CONFIG = {
 /** Lucide's `arrow-left`, the mark the header's back control carries. */
 const BACK_ICON =
   '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="auth-back-icon"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>'
+
+/**
+ * Lucide's `shield-check`, the mark the authenticator challenge's buttons
+ * carry in the seat the code step gives its mail icon.
+ */
+const MFA_ICON =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mail-icon mail"><path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg>'
+
+/** Element id of the challenge's recovery-code field, which its label points at. */
+const MFA_RECOVERY_INPUT_ID = 'mfa-recovery-code'
 
 /**
  * The Æven monogram, at the geometry the shell's preloader and the sidebar
@@ -136,6 +144,23 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
   const signUpEmailButton = useRef<ButtonHandle>(null)
   const signUpVerifyButton = useRef<ButtonHandle>(null)
   const signUpResendCodeButton = useRef<ButtonHandle>(null)
+
+  const mfaInput = useRef<InputHandle>(null)
+  const mfaRecoveryInput = useRef<HTMLInputElement>(null)
+  const mfaConfirmButton = useRef<ButtonHandle>(null)
+
+  // The authenticator challenge offers both code formats; the recovery code is
+  // the reader's way back in when the app is gone, so the step switches the
+  // field rather than sending them elsewhere.
+  const [mfaRecovery, setMfaRecovery] = useState(false)
+
+  // A code the server accepted is spent: a profile load that fails afterwards
+  // is retried on its own, never answered with a second challenge.
+  const mfaAccepted = useRef(false)
+
+  // The one failure the challenge reports in place of its instruction: a
+  // challenge already answered, whose profile read can simply be tried again.
+  const [mfaFailure, setMfaFailure] = useState<string>()
 
   const forgotSendButton = useRef<ButtonHandle>(null)
   const resetButton = useRef<ButtonHandle>(null)
@@ -1244,6 +1269,172 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
     )
   }
 
+  /**
+   * Complete the challenge: read the profile, then return the reader where
+   * they came from.
+   * @returns the settled navigation.
+   */
+  const finishMfa = (): Promise<void> => api.getProfile().then(() => {
+    if (oauth.isProviderLanding()) window.close()
+    else routeService.navigateRoute(referrer || '/')
+  })
+
+  /** Load the profile behind an accepted code, which is the only work left. */
+  const loadMfaProfile = (): void => {
+    mfaConfirmButton.current?.loadingStatus(true)
+    finishMfa().then(
+      () => { mfaConfirmButton.current?.loadingStatus(false) },
+      () => {
+        mfaConfirmButton.current?.loadingStatus(false)
+        setMfaFailure(t('mfa.failure'))
+      },
+    )
+  }
+
+  /** What has been typed into whichever code field the step is showing. */
+  const mfaEntry = (): string => ((mfaRecovery ? mfaRecoveryInput.current?.value : mfaInput.current?.value) ?? '').trim()
+
+  /** Empty the code field and put the caret back in it. */
+  const clearMfaEntry = (): void => {
+    if (mfaRecovery) {
+      if (mfaRecoveryInput.current !== null) mfaRecoveryInput.current.value = ''
+      mfaRecoveryInput.current?.focus()
+      return
+    }
+    mfaInput.current?.clear()
+    mfaInput.current?.focus()
+  }
+
+  /** Answer the challenge with one authenticator or recovery code. */
+  const submitMfa = (): void => {
+    if (mfaAccepted.current) {
+      loadMfaProfile()
+      return
+    }
+    const entered = mfaEntry()
+    const field = t(mfaRecovery ? 'mfa.recoveryCode' : 'mfa.code')
+    setMfaFailure(undefined)
+    if (entered === '') {
+      showModal(field, t('modal.codeMissing'))
+      return
+    }
+    mfaConfirmButton.current?.loadingStatus(true)
+    api.mfa('login', entered).then(() => {
+      mfaAccepted.current = true
+      return finishMfa()
+    }).then(
+      () => { mfaConfirmButton.current?.loadingStatus(false) },
+      (failure: unknown) => {
+        mfaConfirmButton.current?.loadingStatus(false)
+        // The refusal is reported the way this surface reports every other
+        // one. An accepted code is not offered again, so a failure past it is
+        // the profile load rather than the challenge.
+        if (mfaAccepted.current) {
+          setMfaFailure(t('mfa.failure'))
+          return
+        }
+        const refusal = errorCode(failure)
+        if (refusal === 'too-many-attempts') showModal(t('modal.blocked'), t('mfa.limited'))
+        else if (refusal === 'expired-code') showModal(t('modal.blocked'), t('mfa.expired'))
+        else if (refusal === 'code-already-used') showModal(field, t('mfa.used'))
+        else showModal(field, t('mfa.error'))
+        clearMfaEntry()
+      },
+    )
+  }
+
+  /** Switch the step between an authenticator code and a recovery code. */
+  const toggleMfaRecovery = (): void => {
+    setMfaRecovery(value => !value)
+  }
+
+  /*
+   * The authenticator challenge is a second factor that arrives after the
+   * password, so it takes the shape of the emailed-code step: the same sheet,
+   * title scale, code field, info line and button rows, with this step's own
+   * copy and operations.
+   */
+  const authMfaComponent = () => (
+    <div className="form-container">
+      <form className="form">
+        <span className="form-title">{t('mfa.login')}</span>
+        <div className="verification-container">
+          <div className="input-items">
+            <div className="input-item">
+              <span className="title-container">
+                <label className="title" htmlFor={mfaRecovery ? MFA_RECOVERY_INPUT_ID : 'n0'}>
+                  {t(mfaRecovery ? 'mfa.recoveryCode' : 'mfa.code')}
+                </label>
+              </span>
+              <div className="input-container">
+                {mfaRecovery
+                  ? <div className={'input-text large square'}>
+                    <input
+                      id={MFA_RECOVERY_INPUT_ID}
+                      ref={mfaRecoveryInput}
+                      type={'text'}
+                      placeholder={''}
+                      autoCapitalize={'none'}
+                      autoCorrect={'off'}
+                      spellCheck={false}
+                      autoComplete={'one-time-code'}
+                    />
+                  </div>
+                  : <Input
+                    ref={mfaInput}
+                    inputType={'inputNumbers'}
+                    type={'number'}
+                    cssClass={'input-numbers large'}
+                    placeholder={'•'}
+                    defaultValue={''}
+                    autoCapitalize={'none'}
+                    autoCorrect={'off'}
+                    spellCheck={false}
+                    inputMode={'numeric'}
+                    autoComplete={'one-time-code'}
+                    onChange={() => {}}
+                  />}
+              </div>
+            </div>
+          </div>
+          <div className="info-txt">
+            <span className="txt">{mfaFailure ?? t('mfa.loginInfo')}</span>
+          </div>
+          <div className="form-spacer" />
+          <div className="button-container">
+            <Button
+              ref={mfaConfirmButton}
+              type={'loaderButton'}
+              cssClass={'loader-button large center'}
+              label={t('mfa.confirm')}
+              loading={false}
+              icon={MFA_ICON}
+              onClick={(event) => {
+                event.preventDefault()
+                event.stopPropagation()
+                submitMfa()
+              }}
+            />
+
+            <Button
+              type={'loaderButton'}
+              cssClass={'loader-button large center light'}
+              label={t(mfaRecovery ? 'mfa.useApp' : 'mfa.useRecovery')}
+              loading={false}
+              icon={MFA_ICON}
+              onClick={(event) => {
+                event.preventDefault()
+                event.stopPropagation()
+                toggleMfaRecovery()
+              }}
+            />
+          </div>
+        </div>
+      </form>
+      {legalFooter()}
+    </div>
+  )
+
   const legalFooter = () => (
     <div className="form-footer">
       <span>{t('legal.prefix')} </span>
@@ -1439,14 +1630,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
 
 
     if (authType === 'mfa') {
-      const finish = (): Promise<void> => {
-        return api.getProfile().then(() => {
-          if (oauth.isProviderLanding()) window.close()
-          else routeService.navigateRoute(referrer || '/')
-        })
-      }
-      return <MfaForm standalone mode="login" t={t} request={api.mfa} onDone={finish}
-        onCancel={() => { routeService.navigateRoute('/sign-in') }} />
+      return authMfaComponent()
     }
 
     if (authPath === 'sign-in' && authType === 'forgot') return authForgotComponent()

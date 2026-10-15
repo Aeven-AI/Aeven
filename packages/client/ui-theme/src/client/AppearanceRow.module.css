@@ -1,12 +1,10 @@
-/* Theme cubes (figma 'Frame 2117131228': column gap 8, pad 16/0, hairline
- * separator; the section column strips it when last). */
+/* Theme cubes (figma 'Frame 2117131228': column gap 8, pad 16/0). */
 
 .group {
   display: flex;
   flex-direction: column;
   gap: 8px;
   padding: 16px 0;
-  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
 }
 
 .cubeRow {

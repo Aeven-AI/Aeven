@@ -13,7 +13,7 @@ English | [中文](README.zh.md)
 
 Controls, menus, modals, Markdown, and code blocks consume ui-theme's Aeven geometry and typography variables; this package's icon glyphs and brand marks remain unchanged.
 
-`MfaForm` renders authenticator enrollment, login verification, disable confirmation, and recovery-code disclosure. Its caller supplies localized labels, API operations, and navigation callbacks. The form keeps setup material in component state and requires confirmation that recovery codes are saved before continuing.
+`MfaForm` renders authenticator enrollment, disable confirmation, and recovery-code disclosure in two presentations: `layout: "cells"` draws the flow as settings rows for a host section that already names the feature and carries its state, and the default card is the floating form the signup and naming screens show. Its caller supplies localized labels, API operations, and navigation callbacks. The form keeps setup material in component state and requires confirmation that recovery codes are saved before continuing. The sign-in challenge is not this form: the authentication screens render it as their own step ([rationale](../../../.agents/notes/implemented/architecture/2026-10-16-settings-surfaces-are-fills-and-the-challenge-is-an-auth-screen.md)).
 
 ## Table of Contents
 

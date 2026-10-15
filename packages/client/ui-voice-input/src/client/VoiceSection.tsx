@@ -1,4 +1,4 @@
-/** Settings → Voice: explicit model preparation and one download status. */
+/** Settings → Voice: the dictation model, where it stands, and the one action that prepares it. */
 import { useState } from 'react'
 import { Button, SectionHeader, StateDot } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
@@ -43,28 +43,32 @@ function ProviderCard({ provider, connected, prepare, t }: {
       : ready ? t('modelReady')
         : preparing ? t('modelPreparing') : t('modelUnprepared')
   const dot = failed ? 'error' : ready ? 'done' : preparing ? 'ongoing' : undefined
-  return <div className={css.card} data-speech-provider={provider.id}>
-    <div className={css.row}>
-      <div className={css.rowText}>
-        <span className={css.title}>{t('model')}</span>
-        <span className={css.desc} role="status" title={state.phase === 'failed' ? state.message : undefined}>
-          {connected && dot !== undefined && <StateDot state={dot} />}{status}
-          {state.phase === 'failed' && state.message}{error}
-        </span>
-      </div>
-      {connected && (failed || state.phase === 'unprepared') && <Button variant="primary" disabled={busy} onClick={start}>
-        {t(state.phase === 'unprepared' ? 'prepare' : 'retryPrepare')}
-      </Button>}
+  // A refused preparation names what went wrong; the status line states the
+  // step it belongs to, so the two read as one sentence pair.
+  const detail = connected ? (state.phase === 'failed' ? state.message : error) : ''
+  return <div className={css.card} data-speech-provider={provider.id} data-ready={ready ? 'true' : undefined}>
+    <div className={css.head}>
+      <span className={css.name}>{provider.name}</span>
+      <span className={css.status} role="status">
+        {connected && dot !== undefined && <StateDot state={dot} />}{status}
+      </span>
     </div>
+    {detail !== '' && <p className={css.detail}>{detail}</p>}
     {preparing && <span className={css.meter} role="meter" aria-valuemin={0} aria-valuemax={100}
       aria-valuenow={percent} aria-label={t('downloadProgress')}>
       <span style={{ width: `${percent}%` }} />
     </span>}
+    {connected && (failed || state.phase === 'unprepared') && <div className={css.actions}>
+      <Button variant="primary" disabled={busy} onClick={start}>
+        {t(state.phase === 'unprepared' ? 'prepare' : 'retryPrepare')}
+      </Button>
+    </div>}
   </div>
 }
 
 /**
- * Render the voice section: one status and its download control per recognizer.
+ * Render the voice section: one recognizer per filled card, with the state it
+ * is in and the download that moves it on.
  * @param props - readiness mirror and preparation control.
  * @returns the section element tree.
  */
@@ -73,7 +77,7 @@ export function VoiceSection({ useSpeechReadiness, prepare, t }: VoiceSectionPro
   return <div className={css.section}>
     <SectionHeader title={t('title')} description={t('intro')} />
     {catalog === null
-      ? <p className={css.desc} role="status">{readiness.error ?? t('loading')}</p>
+      ? <p className={css.notice} role="status">{readiness.error ?? t('loading')}</p>
       : catalog.providers.map(provider => <ProviderCard key={provider.id} provider={provider} connected={readiness.connected}
         prepare={prepare} t={t} />)}
   </div>

@@ -270,7 +270,6 @@
 .body {
   margin: 0 16px;
   padding-bottom: 8px;
-  border-top: 0.5px solid var(--dsw-alias-border-l2);
 }
 
 .said,
@@ -300,10 +299,6 @@
 .fact dd {
   margin: 0;
   overflow-wrap: anywhere;
-}
-
-.fold {
-  border-top: 0.5px solid var(--dsw-alias-border-l2);
 }
 
 .foldButton {
@@ -355,7 +350,6 @@
   justify-content: flex-end;
   gap: 8px;
   padding: 12px 0 4px;
-  border-top: 0.5px solid var(--dsw-alias-border-l2);
 }
 
 .footerStart {

@@ -171,6 +171,12 @@
   flex: none;
 }
 
+/* Glyphs drawn on lucide's stock canvas carry no width of their own. */
+.navIcon svg {
+  width: 16px;
+  height: 16px;
+}
+
 .navLabel {
   flex: 1;
   min-width: 0;
