@@ -112,7 +112,7 @@ pnpm run package:desktop:win:x64
 
 ### 图标
 
-`resources/` 存放应用图标，`installer/assets/` 存放 NSIS 侧边栏图片；每个位图都按自身边长从同目录的 SVG 渲染。macOS 的应用与挂载后的 DMG 卷使用 `icon-macos.icns`，Windows 的可执行文件、安装程序与卸载程序使用 `icon-windows.ico`，Linux 包使用 `linux/icons/`，为 16 至 512 px 的每个图标主题尺寸各提供一个 PNG，未打包的 Linux 运行则使用 `icon-macos.png`。`installer-sidebar.bmp` 填充 Windows 安装程序与卸载程序的欢迎页和完成页。后台运行图标在 Windows 上使用 `tray-windows.ico`（16–64 px），在 macOS 上使用菜单栏模板图 `trayTemplate.png`（16 px，附 `@2x`），在 Linux 上使用 `linux/icons/24x24.png`。
+`resources/` 存放应用图标，`installer/assets/` 存放 NSIS 侧边栏图片；每个位图都按自身边长从同目录的 SVG 渲染。macOS 的应用与挂载后的 DMG 卷使用 `icon-macos.icns`，Windows 的可执行文件、安装程序与卸载程序使用 `icon-windows.ico`，Linux 包使用 `linux/icons/`，为 16 至 512 px 的每个图标主题尺寸各提供一个 PNG，未打包的 Linux 运行则使用 `icon-macos.png`。`installer-sidebar.bmp` 填充 Windows 安装程序与卸载程序的欢迎页和完成页。后台运行图标在 Windows 上使用 `tray-windows.ico`（16–64 px），在 macOS 上使用菜单栏模板图 `trayTemplate.png`（19 px，附 `@2x`），在 Linux 上使用 `linux/icons/24x24.png`。
 
 ### Linux 软件包
 

@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-15-desktop-host-lifetime-follows-leases.md
-2026-10-15-desktop-host-lifetime-follows-leases.md: c1962bd8ddea3ba778f24af0bd9090e7711a76ad
-2026-10-15-desktop-host-lifetime-follows-leases.zh.md: d16e06e71b577e5d324ffb599b2f8dbfd6d38d12
+2026-10-15-desktop-host-lifetime-follows-leases.md: 0c822c01564c41c55adff7690e30c111b1d3d59a
+2026-10-15-desktop-host-lifetime-follows-leases.zh.md: 77c62a82d138b25e7f64404b0ef199c78a862126

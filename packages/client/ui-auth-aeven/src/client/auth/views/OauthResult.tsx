@@ -80,7 +80,11 @@ export function OauthResult(props: OauthResultProps): React.JSX.Element | null {
           navigateRoute(href(referrer.current))
         }
         events.dispatchObjectEvent('hide:preloader', true)
-      } catch {
+      } catch (failure) {
+        if (failure instanceof api.AevenApiError && failure.message === 'mfa-required') {
+          navigateRoute('/sign-in/mfa')
+          return
+        }
         // Every failure here is the same to the reader: the provider did not
         // establish a session, whether the exchange or the profile read failed.
         settleFailure()

@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
 
 `avn-client-ui-account-aeven` puts the signed-in reader's avatar in the Web Client's resident navigation band and opens their account menu from it, so a reader can see who they are signed in as, reach their Aeven account page, open the app settings, and sign out. The band belongs to the conversation column rather than to a Session, so the avatar is there in the no-Session hero and beside a live Session alike: whether anyone is signed in is a fact about the app, and a fresh deployment opens on that hero. It shows whoever the Aeven authority already restored and asks Aeven for nothing of its own, so it costs no request of its own. With nobody signed in there is no reader to show and the seat stays empty. Enable it together with the Host authority; alone it renders nothing.
 
+Account → Security provides a two-factor authentication switch. Enabling it opens QR-code enrollment and requires an authenticator code before activation; recovery codes appear once. Disabling requires an authenticator or unused recovery code. The page calls these operations through the published reader’s authenticated `mfa` method.
+
 ## Table of Contents
 
 - [Use this package](#use-this-package)

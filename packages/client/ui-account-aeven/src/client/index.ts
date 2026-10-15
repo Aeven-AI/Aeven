@@ -128,6 +128,7 @@ export function apply(ctx: ClientContext): void {
     accountUrl,
     signOut: injected().signOut,
     cloud,
+    mfa: reader.mfa,
     // oxlint-disable-next-line typescript/no-unnecessary-type-parameters -- implements the injected reader's caller-side assertion
     cached: <T>(path: string) => cache.peek<T>(path),
   }

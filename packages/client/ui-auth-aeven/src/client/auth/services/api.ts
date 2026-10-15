@@ -13,6 +13,10 @@ import { AevenApiError } from './errors.ts'
 import { forgetCachedProfile, session, storage, type AevenProfile } from './session.ts'
 import { currentBearer, deleteBearerToken, setBearerToken, type SessionGrant } from './tokens.ts'
 
+import type { MfaAnswer } from '@aeven/client-ui-primitives'
+
+let pendingMfaChallenge: string | undefined
+
 export { AevenApiError } from './errors.ts'
 
 /**
@@ -56,9 +60,10 @@ function adopt(grant: SessionGrant): void {
  * Sign in with an email address and password.
  * @param email - the address.
  * @param password - the password.
+ * @throws {AevenApiError} `mfa-required` when an authenticator challenge must complete before sign-in.
  */
 export async function signIn(email: string, password: string): Promise<void> {
-  adopt(await request<SessionGrant>('/login', {
+  acceptSignIn(await request<SessionGrant | { challenge: string }>('/login', {
     method: 'POST',
     credentials: 'include',
     body: JSON.stringify({ email, password }),
@@ -70,13 +75,15 @@ export async function signIn(email: string, password: string): Promise<void> {
  * than a session, so nothing is adopted here.
  * @param email - the address.
  * @param password - the password.
+ * @throws {AevenApiError} `mfa-required` when an authenticator challenge must complete before sign-in.
  */
 export async function signUp(email: string, password: string): Promise<void> {
-  await request<unknown>('/register', {
+  const answer = await request<{ challenge?: string }>('/register', {
     method: 'POST',
     credentials: 'include',
     body: JSON.stringify({ email, password }),
   })
+  if (answer.challenge !== undefined) acceptSignIn({ challenge: answer.challenge })
 }
 
 /**
@@ -154,9 +161,10 @@ export async function resetPassword(email: string, code: string, password: strin
  * Complete a social sign-in from the values the provider redirected back with.
  * @param oAuthSession - the session identifier in the redirect.
  * @param oAuthChallenge - the challenge in the redirect.
+ * @throws {AevenApiError} `mfa-required` when the account requires an authenticator code.
  */
 export async function checkOauthToken(oAuthSession: string, oAuthChallenge: string): Promise<void> {
-  adopt(await request<SessionGrant>('/check-oauth-token', {
+  acceptSignIn(await request<SessionGrant | { challenge: string }>('/check-oauth-token', {
     method: 'POST',
     credentials: 'include',
     body: JSON.stringify({ session: oAuthSession, challenge: oAuthChallenge }),
@@ -261,4 +269,35 @@ export async function cloud<T>(path: string, init: RequestInit = {}): Promise<T>
     throw new AevenApiError(typeof code === 'string' ? code : 'request-failed', response.status)
   }
   return body as T
+}
+
+/** Accept an ordinary grant or retain a short-lived second-factor challenge in memory. */
+function acceptSignIn(answer: SessionGrant | { challenge: string }): void {
+  if ('challenge' in answer) {
+    pendingMfaChallenge = answer.challenge
+    throw new AevenApiError('mfa-required', 202)
+  }
+  adopt(answer)
+}
+
+/**
+ * Call an authenticator operation with the current bearer or pending sign-in challenge.
+ * @param action - enrollment, settings status, or second-factor completion.
+ * @param code - authenticator or recovery code, when required.
+ * @returns enrollment material, updated status, or a completed session.
+ * @throws {AevenApiError} when the server rejects the credential or code.
+ */
+export async function mfa(action: 'status' | 'setup' | 'enable' | 'disable' | 'login', code?: string): Promise<MfaAnswer> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (action !== 'login') headers.Authorization = `Bearer ${await currentBearer()}`
+  const answer = await request<MfaAnswer & Partial<SessionGrant>>(`/mfa/${action}`, {
+    method: action === 'status' ? 'GET' : 'POST',
+    credentials: 'include', headers,
+    ...action === 'status' ? {} : { body: JSON.stringify({ code, challenge: pendingMfaChallenge }) },
+  })
+  if (action === 'login' && answer.userId !== undefined && answer.accessToken !== undefined) {
+    adopt({ userId: answer.userId, accessToken: answer.accessToken })
+    pendingMfaChallenge = undefined
+  }
+  return answer
 }

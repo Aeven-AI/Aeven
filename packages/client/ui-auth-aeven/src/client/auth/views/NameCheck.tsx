@@ -15,10 +15,12 @@
 import { useCallback, useRef, useState } from 'react'
 import type React from 'react'
 
+import { MfaForm } from '@aeven/client-ui-primitives'
 import Input, { type InputHandle } from '../com/Input.tsx'
 import Button, { type ButtonHandle } from '../com/Button.tsx'
 
 import * as api from '../services/api.ts'
+import * as events from '../services/events.ts'
 import { isSessionRefusal } from '../services/errors.ts'
 import { session } from '../services/session.ts'
 import { sanitizeString } from '../services/utility.ts'
@@ -40,7 +42,7 @@ export function NameCheck({ onNamed }: NameCheckProps): React.JSX.Element {
   const nameInput = useRef<InputHandle>(null)
   const submitButton = useRef<ButtonHandle>(null)
   const [anonymous, setAnonymous] = useState(false)
-  const [failed, setFailed] = useState(false)
+  const [offerMfa, setOfferMfa] = useState(false)
 
   const submit = useCallback((): void => {
     const name = sanitizeString(nameInput.current?.value ?? '')
@@ -48,17 +50,23 @@ export function NameCheck({ onNamed }: NameCheckProps): React.JSX.Element {
       // The API refuses an empty name, so the screen refuses it first: asking
       // again costs a round trip and answers nothing the reader did not mean.
       setAnonymous(true)
-      setFailed(false)
       nameInput.current?.focus()
       return
     }
-    setFailed(false)
     setAnonymous(false)
     submitButton.current?.loadingStatus(true)
     void api.setDisplayName(name)
       .then(() => {
         submitButton.current?.loadingStatus(false)
-        onNamed()
+        // The name is stored, so the status call only decides whether to offer
+        // the extra protection. A status the API cannot answer — a deployment
+        // that does not serve the route, an outage — boots the application
+        // rather than reporting a stored name as refused, and the reader can
+        // still turn the protection on from settings.
+        void api.mfa('status').then((value) => {
+          if (value.enabled === true) onNamed()
+          else setOfferMfa(true)
+        }).catch(() => { onNamed() })
       })
       .catch((error: unknown) => {
         submitButton.current?.loadingStatus(false)
@@ -68,9 +76,19 @@ export function NameCheck({ onNamed }: NameCheckProps): React.JSX.Element {
           leaveForSignIn()
           return
         }
-        setFailed(true)
+        // A refused name is reported the way this surface reports every other
+        // refusal: the popup, rather than a line below the button.
+        events.dispatchObjectEvent('show:modal', {
+          header: t('modal.oops'),
+          content: t('name.saveFailed'),
+          buttonText: t('action.ok'),
+        })
       })
   }, [onNamed])
+
+  if (offerMfa) return <div className="init-check"><div className="content-container">
+    <MfaForm standalone mode="offer" t={t} request={api.mfa} onDone={onNamed} onCancel={onNamed} />
+  </div></div>
 
   return (
     <div className="init-check">
@@ -110,10 +128,6 @@ export function NameCheck({ onNamed }: NameCheckProps): React.JSX.Element {
                 onClick={() => { submit() }}
               />
             </div>
-            {/* The origin has no failed-save line: its button simply stops
-                loading. The stylesheet owns this line's look either way, so it
-                wears the copy class the prompt above it wears. */}
-            {failed && <span className="content-text">{t('name.saveFailed')}</span>}
           </form>
         </div>
       </div>

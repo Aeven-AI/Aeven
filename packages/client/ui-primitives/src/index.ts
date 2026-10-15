@@ -100,3 +100,6 @@ export type {
 export { extractMarkdownPlainText } from './markdown/plain-text.ts'
 export type { MarkdownPlainTextMode, MarkdownPlainTextOptions } from './markdown/plain-text.ts'
 export * from './icons/index.tsx'
+
+export { MfaForm } from './MfaForm.tsx'
+export type { MfaAnswer, MfaFormProps, MfaKey, MfaMode } from './MfaForm.tsx'

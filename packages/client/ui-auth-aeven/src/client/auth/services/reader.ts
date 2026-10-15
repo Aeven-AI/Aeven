@@ -9,7 +9,7 @@
  */
 
 import { mediaUrl, webUrl } from './config.ts'
-import { cloud, setDisplayName, signOut } from './api.ts'
+import { cloud, mfa, setDisplayName, signOut } from './api.ts'
 import { session } from './session.ts'
 
 /** What a plugin may know about the signed-in reader. */
@@ -34,6 +34,8 @@ export interface AevenReader {
    * @returns the name the API stored.
    */
   readonly setDisplayName: (displayName: string) => Promise<string>
+  /** Authenticator operations authenticated as this reader; secrets remain in server storage. */
+  readonly mfa: typeof mfa
   /**
    * Call one of Aeven's `/api/cloud` account routes as this reader.
    * @param path - the route below `/api/cloud`, starting with `/`.
@@ -77,6 +79,7 @@ export function publishReader(): void {
       return stored
     },
     cloud,
+    mfa,
   }
 }
 

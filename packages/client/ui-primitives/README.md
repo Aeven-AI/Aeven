@@ -13,6 +13,8 @@ English | [中文](README.zh.md)
 
 Controls, menus, modals, Markdown, and code blocks consume ui-theme's Aeven geometry and typography variables; this package's icon glyphs and brand marks remain unchanged.
 
+`MfaForm` renders authenticator enrollment, login verification, disable confirmation, and recovery-code disclosure. Its caller supplies localized labels, API operations, and navigation callbacks. The form keeps setup material in component state and requires confirmation that recovery codes are saved before continuing.
+
 ## Table of Contents
 
 - [Use this package](#use-this-package)

@@ -5994,10 +5994,12 @@ html[data-avn-traffic-lights]
    step inherited from `_home.scss` at the origin. There the step renders
    inside the home column's `.content-container`, and it is that rule's flex
    column and full height that give `.form-container` the box its centring
-   needs — without it the step sits at the top of the page. Two departures,
-   both recorded: the 68px greeting names the Google Sans Flex stack this app
-   ships instead of Libre Bodoni, which the vendored copy above drops, and the
-   step states for itself the `$backgroundColor` its home view supplied. */
+   needs — without it the step sits at the top of the page. Three departures,
+   all recorded: the 68px greeting names the Google Sans Flex stack this app
+   ships instead of Libre Bodoni, which the vendored copy above drops, the step
+   states for itself the `$backgroundColor` its home view supplied, and the
+   prompt is centred in its own box rather than left over from the flex item
+   that holds it. */
 #app-root .view-container .init-check {
   display: flex;
   position: absolute;
@@ -6060,6 +6062,9 @@ html[data-avn-traffic-lights]
   width: 100%;
   max-width: 400px;
   text-align: center;
+  /* The sentence is a flex item sized to its own text, so the column's
+     `text-align` cannot reach it; centring the item is what centres the line. */
+  justify-content: center;
 }
 #app-root .view-container .init-check .content-container .form-container .form {
   display: flex;

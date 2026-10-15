@@ -1,0 +1,20 @@
+.screen { display: flex; box-sizing: border-box; flex: 1; min-height: 100%; width: 100%; padding: 32px 24px; overflow-y: auto; }
+.card { box-sizing: border-box; display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 410px; padding: 28px; margin: auto; color: var(--dsw-alias-label-primary, #232323); background: var(--dsw-alias-background-primary, #fff); border: 1px solid var(--dsw-alias-border-primary, #e5e5e5); border-radius: 24px; font-family: inherit; text-align: center; box-shadow: 0 12px 40px #00000006; }
+.card h2 { margin: 0; font-size: 23px; font-weight: 550; letter-spacing: -.6px; }
+.card p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--dsw-alias-label-secondary, #707070); }
+.emblem { display: grid; place-items: center; align-self: center; width: 52px; height: 52px; border-radius: 18px; background: var(--dsw-alias-background-secondary, #f4f4f4); font-size: 25px; }
+.qr { width: 208px; height: 208px; max-width: 100%; align-self: center; border-radius: 12px; background: #fff; }
+.manual { font-size: 12px; color: var(--dsw-alias-label-secondary, #707070); }
+.manual summary { cursor: pointer; }
+.manual code { display: block; padding: 12px; overflow-wrap: anywhere; user-select: all; }
+.field { display: flex; flex-direction: column; gap: 9px; font-size: 13px; text-align: left; }
+.field input { box-sizing: border-box; width: 100%; border: 1px solid var(--dsw-alias-border-primary, #ddd); border-radius: 12px; padding: 12px; background: transparent; color: inherit; font: inherit; font-size: 22px; letter-spacing: .2em; text-align: center; }
+.primary, .secondary { font: inherit; font-size: 14px; cursor: pointer; border-radius: 999px; padding: 12px 18px; border: 0; }
+.primary { background: var(--dsw-alias-label-primary, #232323); color: var(--dsw-alias-background-primary, #fff); font-weight: 550; }
+.secondary { background: transparent; color: var(--dsw-alias-label-secondary, #707070); }
+.card button:disabled { opacity: .45; cursor: default; }
+.card :focus-visible { outline: 2px solid var(--dsw-alias-label-primary, #232323); outline-offset: 3px; }
+.card .error { color: var(--dsw-alias-status-danger, #be3434); }
+.codes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 16px 8px; border-radius: 12px; background: var(--dsw-alias-background-secondary, #f4f4f4); font-size: 12px; }
+.saved { display: flex; align-items: center; gap: 8px; text-align: left; font-size: 13px; line-height: 1.5; }
+@media (max-width: 420px) { .card { padding: 20px; } .codes { font-size: 10px; } }

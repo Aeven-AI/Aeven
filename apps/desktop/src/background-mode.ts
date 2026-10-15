@@ -2,7 +2,7 @@
  * Background mode: a menu bar (tray) icon that keeps the shell running after
  * its last window closes. The running shell keeps its Host lease, so agent
  * turns and automations continue until the user quits from the icon or the
- * application menu. Off by default; the choice is stored per installation.
+ * application menu. On by default; the choice is stored per installation.
  */
 
 import { readFileSync } from 'node:fs'
@@ -37,8 +37,8 @@ function readEnabled(file: string): boolean {
   try {
     text = readFileSync(file, 'utf8')
   } catch {
-    // Absent until the user first changes the setting; background mode starts off.
-    return false
+    // Absent until the user first changes the setting; background mode starts on.
+    return true
   }
   try {
     const value: unknown = JSON.parse(text)
