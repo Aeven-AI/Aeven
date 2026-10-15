@@ -1,7 +1,7 @@
 {
   "name": "@aeven/tool-fs",
   "description": "Model-facing filesystem tools (read, write, edit) over the Aeven filesystem seam (ctx.fs)",
-  "version": "0.3.1-alpha.1",
+  "version": "0.3.2-alpha",
   "publishConfig": {
     "access": "public"
   },

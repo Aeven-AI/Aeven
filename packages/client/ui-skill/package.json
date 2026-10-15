@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-skill",
   "description": "Web skill references and the dedicated skill tool row",
-  "version": "0.3.1-alpha.1",
+  "version": "0.3.2-alpha",
   "publishConfig": {
     "access": "public"
   },

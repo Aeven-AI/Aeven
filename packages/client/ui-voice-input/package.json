@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-voice-input",
   "description": "Composer dictation: speech-only microphone capture, waveform recorder, and the Settings voice section",
-  "version": "0.3.1-alpha.1",
+  "version": "0.3.2-alpha",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",

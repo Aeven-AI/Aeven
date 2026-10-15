@@ -1,7 +1,7 @@
 {
   "name": "@aeven/terminal-bash",
   "description": "Persistent shell PTY backend over the Aeven subprocess terminal primitive",
-  "version": "0.3.1-alpha.1",
+  "version": "0.3.2-alpha",
   "publishConfig": {
     "access": "public"
   },
