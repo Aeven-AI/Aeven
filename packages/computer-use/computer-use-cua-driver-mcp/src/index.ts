@@ -1,10 +1,13 @@
 /**
  * Exclusive computer use through an installed Cua Driver MCP executable.
  * The MCP client owns discovery, execution, image admission, and reconnection.
+ * An absolute `command` that does not exist registers only an install tool.
  * @module
  */
 
 import { spawn, type ChildProcess } from 'node:child_process'
+import { existsSync } from 'node:fs'
+import { isAbsolute } from 'node:path'
 import type { Context, Fiber } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { ComputerUseProviderName } from '@aeven/computer-use/brand'
@@ -47,11 +50,17 @@ export const Config: z<Partial<Config>, Config> = z.object({
  * Reserve computer use and activate the installed Cua Driver's MCP tools.
  * Initial connection or discovery failure rejects activation and rolls back.
  * Disposal retains the reservation until the MCP child has finished teardown.
+ * When `command` is an absolute path that does not exist, nothing is reserved
+ * or spawned; the model gets only the install guidance tool.
  * @param ctx - context providing computer use and the tool registry.
  * @param config - validated executable options and optional connection overrides.
  * @returns initial MCP tool-discovery completion.
  */
 export async function apply(ctx: Context, config: Config): Promise<void> {
+  if (isAbsolute(config.command) && !existsSync(config.command)) {
+    registerInstallTool(ctx, config.command)
+    return
+  }
   const connection = McpClient.Config({
     command: config.command,
     args: config.args,
@@ -73,8 +82,34 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   registerSetupTool(ctx, config.command)
 }
 
-/** Model-facing name of the permission setup tool. */
+/** Model-facing name of the setup tool: the permission grant flow, or install guidance without a driver. */
 const SETUP_TOOL = 'computer_use_setup'
+
+/** Upstream installation and permissions guide for the driver. */
+const INSTALL_GUIDE = 'https://github.com/trycua/cua/blob/cua-driver-rs-v0.28.0/libs/cua-driver/README.md'
+
+/**
+ * Register the setup tool for a machine without the driver, so the capability
+ * is discoverable and the model can tell the person how to enable it.
+ * @param ctx - provider context owning the tool.
+ * @param command - the absolute driver path that was not found.
+ */
+function registerInstallTool(ctx: Context, command: string): void {
+  ctx.effect(() => ctx.tools.register(defineTool({
+    name: SETUP_TOOL,
+    description: 'Computer use (operating apps on this Mac by seeing the screen, clicking, and typing) is unavailable: it needs Cua Driver, which is not installed. Call this when the person asks you to operate an app on their Mac or asks about computer use, to learn how they can enable it.',
+    parameters: {},
+    output: {
+      schema: { type: 'string' },
+      render: (_args, value) => [{ type: 'text', text: value }],
+    },
+    execute: async (_args, exec) => {
+      exec.signal.throwIfAborted()
+      return `Computer use needs Cua Driver, which is not installed: ${command} does not exist. Tell the person to install it by following ${INSTALL_GUIDE}, then restart Aeven. After the restart this tool sets up the macOS permissions computer use needs.`
+    },
+    presentCall: () => ({ card: 'generic', title: 'Set up computer use', kind: 'read' }),
+  })), 'computer-use-cua-driver-mcp.install-tool')
+}
 
 /**
  * The driver's own grant flow: it launches CuaDriver through LaunchServices so

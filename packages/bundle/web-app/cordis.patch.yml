@@ -334,23 +334,24 @@
 
     # Computer use on the Host's own Mac through an installed Cua Driver,
     # whose app holds the Accessibility and Screen Recording grants. The
-    # Electron app inherits these rows. A failed provider start fails the whole
-    # tree, so the rows stay off on a machine without the driver rather than
-    # refusing to boot there.
+    # Electron app inherits these rows. AVN_CUA_DRIVER overrides the driver
+    # path. Without the driver the provider registers only an install-guidance
+    # tool, so the capability stays discoverable; the semantic batches need a
+    # live driver and stay off, because a failed provider start fails the tree.
     - id: computer-use
       name: '@aeven/computer-use'
-      disabled: !!js "process.platform !== 'darwin' || !process.getBuiltinModule('node:fs').existsSync('/Applications/CuaDriver.app/Contents/MacOS/cua-driver')"
+      disabled: !!js "process.platform !== 'darwin'"
 
     - id: computer-use-cua-driver
       name: '@aeven/computer-use-cua-driver-mcp'
-      disabled: !!js "process.platform !== 'darwin' || !process.getBuiltinModule('node:fs').existsSync('/Applications/CuaDriver.app/Contents/MacOS/cua-driver')"
+      disabled: !!js "process.platform !== 'darwin'"
       config:
-        command: /Applications/CuaDriver.app/Contents/MacOS/cua-driver
+        command: !!js "process.env.AVN_CUA_DRIVER ?? '/Applications/CuaDriver.app/Contents/MacOS/cua-driver'"
         args: [mcp]
 
     - id: computer-use-semantic-batches
       name: '@aeven/computer-use-macos-provider'
-      disabled: !!js "process.platform !== 'darwin' || !process.getBuiltinModule('node:fs').existsSync('/Applications/CuaDriver.app/Contents/MacOS/cua-driver')"
+      disabled: !!js "process.platform !== 'darwin' || !process.getBuiltinModule('node:fs').existsSync(process.env.AVN_CUA_DRIVER ?? '/Applications/CuaDriver.app/Contents/MacOS/cua-driver')"
       config:
         register: false
 
