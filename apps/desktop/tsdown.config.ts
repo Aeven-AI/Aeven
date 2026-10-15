@@ -10,7 +10,8 @@ export default defineConfig([
     fixedExtension: false,
     dts: false,
     clean: false,
-    deps: { neverBundle: ['electron'] },
+    // koffi locates its native binary through its per-platform package, so it ships in node_modules.
+    deps: { neverBundle: ['electron', 'koffi'] },
   },
   // Sandboxed Electron preloads run as CommonJS even though the application
   // package is ESM, and can require only `electron`.
