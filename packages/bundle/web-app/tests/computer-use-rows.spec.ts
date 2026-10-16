@@ -106,9 +106,12 @@ describe('web-app computer-use rows', () => {
   it('mounts the macOS semantic batches only on macOS with a driver present', () => {
     // The batches drive an installed driver directly, so they follow the driver,
     // and outside macOS they are off before that probe runs.
-    expect(rowsFor('linux').get('computer-use-semantic-batches')?.disabled).toBe(true)
-    expect(rowsFor('win32').get('computer-use-semantic-batches')?.disabled).toBe(true)
-    expect(rowsFor('darwin').get('computer-use-semantic-batches')?.disabled).toBe(true)
+    // The driver path is named here, so a machine that happens to have CuaDriver
+    // installed cannot decide the case the test asserts.
+    const absent = join(tmpdir(), 'avn-cua-driver-absent', 'cua-driver')
+    expect(rowsFor('linux', { AVN_CUA_DRIVER: absent }).get('computer-use-semantic-batches')?.disabled).toBe(true)
+    expect(rowsFor('win32', { AVN_CUA_DRIVER: absent }).get('computer-use-semantic-batches')?.disabled).toBe(true)
+    expect(rowsFor('darwin', { AVN_CUA_DRIVER: absent }).get('computer-use-semantic-batches')?.disabled).toBe(true)
     expect(rowsFor('darwin', { AVN_CUA_DRIVER: stagedDriver() }).get('computer-use-semantic-batches')?.disabled)
       .toBe(false)
   })
