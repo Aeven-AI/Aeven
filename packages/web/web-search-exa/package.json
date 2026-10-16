@@ -1,7 +1,7 @@
 {
   "name": "@aeven/web-search-exa",
   "description": "Exa-backed search provider for the Aeven web capability seam (ctx.web)",
-  "version": "0.3.5-alpha",
+  "version": "0.3.6-alpha",
   "publishConfig": {
     "access": "public"
   },

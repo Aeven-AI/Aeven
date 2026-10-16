@@ -1,7 +1,7 @@
 {
   "name": "@aeven/e2b",
   "description": "Shared E2B sandbox lifecycle for Aeven provider adapters",
-  "version": "0.3.5-alpha",
+  "version": "0.3.6-alpha",
   "publishConfig": {
     "access": "public"
   },
