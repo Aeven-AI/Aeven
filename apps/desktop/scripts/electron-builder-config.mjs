@@ -152,6 +152,8 @@ export function createElectronBuilderConfig(
       ],
     },
     nsis: {
+      // Installs an arm64 build per machine under "Program Files" rather than "Program Files (x86)".
+      include: 'installer/installer.nsh',
       installerIcon: 'resources/icon-windows.ico',
       uninstallerIcon: 'resources/icon-windows.ico',
       // Welcome and finish pages of the assisted installer and uninstaller; makensis reads only 24-bit BMP.
