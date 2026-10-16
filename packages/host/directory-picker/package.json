@@ -1,7 +1,7 @@
 {
   "name": "@aeven/host-directory-picker",
   "description": "Abstract workspace-directory picking seam (ctx.directoryPicker) for the Aeven web GUI host",
-  "version": "0.3.4-alpha",
+  "version": "0.3.5-alpha",
   "publishConfig": {
     "access": "public"
   },

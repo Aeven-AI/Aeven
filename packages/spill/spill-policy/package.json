@@ -1,7 +1,7 @@
 {
   "name": "@aeven/spill-policy",
   "description": "Tool-result spill policy for the Aeven — replaces oversized plain-text tool results with a retained preview plus a spill-file path (no service API)",
-  "version": "0.3.4-alpha",
+  "version": "0.3.5-alpha",
   "publishConfig": {
     "access": "public"
   },

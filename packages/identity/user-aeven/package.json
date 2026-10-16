@@ -1,7 +1,7 @@
 {
   "name": "@aeven/identity-user-aeven",
   "description": "Aeven authority for the authenticated-user seam: verifies the Aeven access bearer and refresh cookie against the public keys the API publishes",
-  "version": "0.3.4-alpha",
+  "version": "0.3.5-alpha",
   "publishConfig": {
     "access": "public"
   },

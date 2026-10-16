@@ -1,7 +1,7 @@
 {
   "name": "@aeven/session-telemetry",
   "description": "SessionTelemetryBackend seam for the Aeven: session-event capture, projection, redaction, and handoff to a reporting backend",
-  "version": "0.3.4-alpha",
+  "version": "0.3.5-alpha",
   "publishConfig": {
     "access": "public"
   },
