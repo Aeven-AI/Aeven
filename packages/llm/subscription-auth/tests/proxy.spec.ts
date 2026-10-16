@@ -1,13 +1,17 @@
+import { readFile } from 'node:fs/promises'
 import { getGlobalDispatcher } from 'undici'
 import { describe, expect, it } from 'vitest'
 import manifest from '../package.json' with { type: 'json' }
 import { acquireCodingOAuthProxy, codingOAuthProxyUnreachableHint } from '../src/proxy.ts'
 
 describe('codingOAuthProxyUnreachableHint', () => {
-  it('uses the core-aligned Undici runtime pin', () => {
+  it('uses the core-aligned Undici runtime pin', async () => {
     // Workspace-versioned since the move into the harness; the pins that still
     // matter are the external ones the ABI gate and the proxy runtime share.
-    expect(manifest.version).toBe('0.1.2-alpha.5')
+    const workspace = JSON.parse(
+      await readFile(new URL('../../../../package.json', import.meta.url), 'utf8'),
+    ) as { version: string }
+    expect(manifest.version).toBe(workspace.version)
     expect(manifest.dependencies['dsh-coding-oauth-core']).toBe('0.1.2')
     expect(manifest.dependencies.undici).toBe('7.29.0')
   })

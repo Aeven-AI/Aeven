@@ -476,10 +476,14 @@ describe('plugin startup catalog initialization', () => {
       expect(refresh).toHaveBeenCalled()
     })
 
-    expect(warn).toHaveBeenCalledWith(
-      'the model selection or a cached model listing could not be loaded; every model stays selected',
-    )
-    expect(warn).toHaveBeenCalledWith('a subscription model sync failed; the last listing stays in use')
+    // Both containments are reported after the refresh this test waited for, on
+    // their own schedule, so the assertions wait for the logger as well.
+    await vi.waitFor(() => {
+      expect(warn).toHaveBeenCalledWith(
+        'the model selection or a cached model listing could not be loaded; every model stays selected',
+      )
+      expect(warn).toHaveBeenCalledWith('a subscription model sync failed; the last listing stays in use')
+    })
   })
 })
 

@@ -57,7 +57,11 @@ describe('bundle composition', () => {
       exports: Record<string, unknown>
     }
     expect(manifest.name).toBe('@aeven/subscription-auth')
-    expect((manifest as { version?: string }).version).toBe('0.1.2-alpha.5')
+    const workspace = JSON.parse(await readFile(join(root, '..', '..', '..', 'package.json'), 'utf8')) as {
+      version: string
+    }
+    // Every @aeven package ships the workspace version, so the manifest tracks it.
+    expect((manifest as { version?: string }).version).toBe(workspace.version)
     expect((manifest as { dependencies?: Record<string, string> }).dependencies?.['dsh-coding-oauth-core']).toBe(
       '0.1.2',
     )

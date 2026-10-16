@@ -10,6 +10,13 @@ describe('AVN compatibility contracts', () => {
       avn: { compatibility: { bom: Record<string, string> } }
     }
     expect(manifest.avn.compatibility.bom).toEqual(AVN_EXACT_BOM)
+    // The gate, the matrix, and the manifest name the release they ship in.
+    const workspace = JSON.parse(
+      await readFile(new URL('../../../../package.json', import.meta.url), 'utf8'),
+    ) as { version: string }
+    for (const [name, version] of Object.entries(manifest.avn.compatibility.bom)) {
+      if (name.startsWith('@aeven/')) expect(version).toBe(workspace.version)
+    }
     for (const version of Object.values(manifest.avn.compatibility.bom)) {
       expect(version).toMatch(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u)
     }
