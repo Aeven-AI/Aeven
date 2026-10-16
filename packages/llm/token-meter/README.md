@@ -77,6 +77,8 @@ This section explains the design behind the service; the observable behavior is 
 
 The service is built on one fold and one anchor. Each session gets an isolated replay state — consumed-event cursor, canonical request header, priced surface, step boundary, and measurement anchor — advanced by folding the durable log. Provider usage anchors a measurement only when its canonical envelope matches and its total is no lower than the full route-priced cost of the same call; otherwise the complete envelope and surface are estimated. The route-independent `heuristicTokens` field keeps replacement shadow-price projections deterministic. The fold is total and allocation-fresh: a malformed event throws before any mutation, so the same log fails identically on every retry.
 
+On `session/rewind`, measurement restores priced nodes from the canonical surface before the target event and discards the usage anchor. The current request header remains in force. Later replacements can price restored nodes, and a successful request establishes a new usage anchor.
+
 ### Source map
 
 | File | Role |
