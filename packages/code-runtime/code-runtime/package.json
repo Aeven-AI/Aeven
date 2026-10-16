@@ -1,7 +1,7 @@
 {
   "name": "@aeven/code-runtime",
   "description": "Abstract code-execution seam (ctx.codeRuntime) for the Aeven",
-  "version": "0.3.4-alpha",
+  "version": "0.3.5-alpha",
   "publishConfig": {
     "access": "public"
   },

@@ -1,7 +1,7 @@
 {
   "name": "@aeven/host-directory-picker-native",
   "description": "Native-OS-chooser backend of the directory-picker seam for the Aeven web GUI host",
-  "version": "0.3.4-alpha",
+  "version": "0.3.5-alpha",
   "publishConfig": {
     "access": "public"
   },

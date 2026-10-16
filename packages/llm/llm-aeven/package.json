@@ -1,7 +1,7 @@
 {
   "name": "@aeven/llm-aeven",
   "description": "Aeven cloud inference adapter for the Aeven LLM seam",
-  "version": "0.3.4-alpha",
+  "version": "0.3.5-alpha",
   "publishConfig": {
     "access": "public"
   },
