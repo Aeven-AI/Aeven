@@ -10,9 +10,6 @@ export const DESKTOP_IPC = {
   appMenuShow: 'avn-desktop:app-menu-show',
   linksOpen: 'avn-desktop:links-open',
   linksListen: 'avn-desktop:links-listen',
-  updatesCheck: 'avn-desktop:updates-check',
-  updatesInstall: 'avn-desktop:updates-install',
-  updatesState: 'avn-desktop:updates-state',
   browserOpenExternal: 'avn-desktop:browser-open-external',
   browserSetColorScheme: 'avn-desktop:browser-set-color-scheme',
   browserClearData: 'avn-desktop:browser-clear-data',
@@ -234,11 +231,4 @@ export interface AvnDesktopBackgroundApi {
    * @returns disposer removing the listener.
    */
   onChange(listener: (enabled: boolean) => void): () => void
-}
-
-/** Desktop release update state rendered by desktop-owned UI. */
-export interface DesktopUpdateState {
-  readonly phase: 'idle' | 'checking' | 'available' | 'installing' | 'ready' | 'error'
-  readonly version?: string
-  readonly message?: string
 }
