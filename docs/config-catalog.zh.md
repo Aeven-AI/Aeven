@@ -704,6 +704,14 @@ export interface Config {
   command: string
   /** Arguments passed without a shell; defaults to `['mcp']`. */
   args: string[]
+  /**
+   * Run the driver as an embedded child of the application hosting this process
+   * instead of as the standalone CuaDriver app. On macOS the driver then holds
+   * no permission identity of its own: Accessibility and Screen Recording are
+   * the host application's grants, and the setup tool requests them for it.
+   * Defaults to `false`.
+   */
+  embedded: boolean
   /** Per-call timeout in milliseconds; omission uses the MCP client's default. */
   toolCallTimeoutMs?: number
   /** Reconnection overrides; defaults to the MCP client's policy. */
