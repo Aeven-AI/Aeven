@@ -1,7 +1,7 @@
 {
   "name": "@aeven/tool-device",
   "description": "Model-facing device_* tools that list, open, screenshot, and close the simulators and emulators beside a session",
-  "version": "0.3.3-alpha",
+  "version": "0.3.4-alpha",
   "publishConfig": {
     "access": "public"
   },

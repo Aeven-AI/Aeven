@@ -1,7 +1,7 @@
 {
   "name": "@aeven/sdk-app",
   "description": "The avn SDK profile bundle: stdio JSON-RPC serving and process lifecycle over avn-base",
-  "version": "0.3.3-alpha",
+  "version": "0.3.4-alpha",
   "publishConfig": {
     "access": "public"
   },

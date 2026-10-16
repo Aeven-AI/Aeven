@@ -1,7 +1,7 @@
 {
   "name": "@aeven/tool-media",
   "description": "Model-facing generate_image tool over the Aeven generated-media seam",
-  "version": "0.3.3-alpha",
+  "version": "0.3.4-alpha",
   "publishConfig": {
     "access": "public"
   },

@@ -1,7 +1,7 @@
 {
   "name": "@aeven/document-extract-office",
   "description": "Office document reader backed by the bundled LibreOffice engine",
-  "version": "0.3.3-alpha",
+  "version": "0.3.4-alpha",
   "publishConfig": {
     "access": "public"
   },

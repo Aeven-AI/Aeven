@@ -1,7 +1,7 @@
 {
   "name": "@aeven/api-memory-manager",
   "description": "Signed-in user's view of what Aeven has learned: memories and learned capabilities, over a Remote",
-  "version": "0.3.3-alpha",
+  "version": "0.3.4-alpha",
   "publishConfig": {
     "access": "public"
   },
