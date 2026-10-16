@@ -1,0 +1,33 @@
+# Agent Note: Desktop updates install themselves
+
+Status: implemented
+
+English | [中文](2026-10-16-desktop-automatic-updates.zh.md)
+
+## Problem
+
+An installed Aeven never updated itself. `DesktopUpdateCoordinator` set `autoDownload = false` and `autoInstallOnAppQuit = false`, so a check could only report `available`; `main.ts` asked the reader once, ten seconds after launch and from the application menu, and the release downloaded and installed only after that dialog's affirmative button. A reader who dismissed it and kept the application running in background mode for days saw no second offer, and the update IPC surface that used to carry this state to a window (`updatesCheck`, `updatesInstall`, `updatesState`) had no consumer at all: the window it served is gone, so the shell's only surfaces were a menu item and one dialog.
+
+## Decision
+
+`DesktopUpdateCoordinator` sets `autoDownload = true` and `autoInstallOnAppQuit = true`. `checkForUpdates()` therefore starts the download for the release it finds and reports it as `downloadPromise`, which the coordinator awaits: a check resolves `available` while the release downloads and `ready` once it is on disk, and `install()` installs a downloaded release without downloading it again. On macOS Squirrel.Mac installs the downloaded ZIP when the application quits (`MacUpdater` calls `nativeUpdater.checkForUpdates()` for exactly this when `autoInstallOnAppQuit` is set), so **`ready` means install pending, and quitting installs it**; the shell's existing `before-quit` confirmation still decides when a quit with running work happens, so an install never races a turn.
+
+The shell checks shortly after launch and then every 30 minutes, and `update-prompt.ts` decides what the reader sees for each state: an automatic check stays silent until the release is downloaded, a check from **Check for Updates…** always answers — newest release, download in progress, failure — and a downloaded release is offered once per version through one native dialog, whose Restart Now button installs immediately and whose Later answer is not a refusal, because the release installs on quit regardless. The interval is 30 minutes rather than a faster poll because the check is an unauthenticated GitHub release request with a 60-per-hour budget for the whole machine, and because a slower check still installs the release on the next quit. The dead IPC surface is deleted.
+
+## Alternatives considered
+
+**t3code's arrangement: a four-minute poll with an in-app update surface.** `AUTO_UPDATE_POLL_INTERVAL` is `"4 minutes"` in `resources/t3code/apps/desktop/src/updates/DesktopUpdates.ts:53`, after a startup delay, and its state renders in the application's own chrome. Its cadence spends a quarter of the unauthenticated GitHub budget on one application, and the reader asked for a popup instead of interface, so neither part was taken.
+
+**Install silently without a dialog.** `autoInstallOnAppQuit` alone would update the application with no offer at all, and a restart the reader did not expect reads as a crash when it lands mid-task.
+
+**Keep prompt-before-download and only add the interval.** The dialog then appears while the release is still remote, and the reader who accepts waits for a 385 MB download before anything happens; downloading first is what makes Restart Now instant and Later meaningful.
+
+**Ask before downloading and install on quit afterwards.** This needs both switches off and a second decision after the download finishes, which is the arrangement the dialog above already provides with one fewer state.
+
+## Consequences
+
+An installed application now picks up a release without a click: it downloads while the reader works, is offered once, and installs on the next quit whether the offer was accepted or not. The dialog is the only surface, so a check nobody asked for cannot interrupt work, and the removed IPC channels leave no path for a page to command an update.
+
+The checks are unauthenticated GitHub requests, so a rate-limited or offline machine reports `error` only when the reader asked; an automatic check stays silent and the next interval tries again. On macOS only the signed build can update itself: `latest-mac.yml` names the two signed ZIPs, Squirrel.Mac validates the downloaded bundle's Developer ID signature against the running application, and the `mac-*-unsigned` targets publish a DMG with no ZIP, so an unsigned install can see a release but never install it. The Windows installers are unsigned today, which updates work with but SmartScreen questions on a manual install, and the Linux `.deb` never self-updates while the AppImage does. A desktop release stays one unit — the signed application with its matching avn seed, Node.js, and pnpm ([packaging and updates](../architecture/2026-08-25-electron-desktop-packaging-and-updates.md)) — so an update never splits the shell from the backend it serves. An update also swaps the avn seed, so the first launch after one pays the release install before its backend answers; the [start screen](2026-10-16-desktop-start-screen.md) is what makes that wait read as work. Every desktop release is published as a GitHub prerelease, which is why `releases/latest` returns 404 for this repository and why `gh release view` without a tag finds nothing; the updater reads the releases Atom feed, which lists prereleases.
+
+Verification: `apps/desktop/tests/update-coordinator.spec.ts` covers the background download, the download-free install, the switches, the disabled process, and a failed check; `apps/desktop/tests/update-prompt.spec.ts` covers every dialog decision. The release side was checked through GitHub: `v0.3.5-alpha` is published (not draft, prerelease) with `latest-mac.yml`, `latest.yml`, `latest-linux.yml`, and `latest-linux-arm64.yml`, the mac feed lists `aeven-0.3.5-alpha-mac-arm64.zip` and `aeven-0.3.5-alpha-mac-x64.zip`, no release carries an unsigned mac ZIP, and the installed application validates as a notarized Developer ID build with a stapled ticket. The packaged path itself was not exercised: seeing an install requires a published newer release and an installed build.

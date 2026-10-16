@@ -28,11 +28,12 @@ import { resolveDesktopPaths } from './paths.ts'
 import { DesktopProjectManager, type DesktopProjectHooks } from './project-manager.ts'
 import { DesktopHostProcess } from './host-process.ts'
 import { DESKTOP_AEVEN_API_PATH, type DesktopAevenSignIn } from './host-protocol.ts'
-import { DESKTOP_IPC, type DesktopCaptionAction, type DesktopMenuCommand, type DesktopUpdateState } from './ipc.ts'
+import { DESKTOP_IPC, type DesktopCaptionAction, type DesktopMenuCommand } from './ipc.ts'
 import { formatDesktopMessage, resolveDesktopLocale } from './locale.ts'
 import { claimDesktopSingleInstance } from './single-instance.ts'
-import { DesktopUpdateCoordinator } from './update-coordinator.ts'
 import { DesktopBackgroundMode } from './background-mode.ts'
+import { DesktopUpdateCoordinator, type DesktopUpdateState } from './update-coordinator.ts'
+import { desktopUpdatePrompt } from './update-prompt.ts'
 import { loginShellPath, mergePath } from './login-shell-path.ts'
 import { sendVideoEmbedReferrer } from './video-embeds.ts'
 import { START_PAGE_PATH, startPageDocument, startPageUrl } from './start-screen.ts'
@@ -207,6 +208,16 @@ const CAPTION_SYMBOL_COLOR = { light: '#0f1115', dark: '#f9fafb' } as const
  */
 const CAPTION_STRIP_PLATFORM = process.platform === 'win32' || process.platform === 'linux'
 
+/** Wait after launch before the first automatic update check. */
+const UPDATE_CHECK_STARTUP_DELAY_MS = 10_000
+
+/**
+ * Interval between automatic update checks. GitHub answers an unauthenticated
+ * release request 60 times an hour for the whole machine, and a downloaded
+ * release installs on quit, so a slower cadence costs nothing.
+ */
+const UPDATE_CHECK_INTERVAL_MS = 30 * 60 * 1000
+
 function createWindow(preload: string): BrowserWindow {
   const window = new BrowserWindow({
     width: 1280,
@@ -328,20 +339,15 @@ async function main(): Promise<void> {
   let aevenSignIn: DesktopAevenSignIn | undefined
   let mainWindow: BrowserWindow | undefined
   let shellInstallerOwnsQuit = false
-  let updateState: DesktopUpdateState = { phase: 'idle' }
   const locale = resolveDesktopLocale(app.getLocale())
   const messages = locale.messages
   // Every page gets the right-click menu, including the sidebar browser's guests.
   app.on('web-contents-created', (_event, contents) => { installContextMenu(contents, messages) })
   const appPreload = fileURLToPath(new URL('./preload-app.cjs', import.meta.url))
 
-  const publishUpdate = (state: DesktopUpdateState): DesktopUpdateState => {
-    updateState = state
-    for (const window of BrowserWindow.getAllWindows()) {
-      window.webContents.send(DESKTOP_IPC.updatesState, state)
-    }
-    return state
-  }
+  // The coordinator reports every state it reaches; the shell decides which
+  // dialog to show from the value `check` resolves, so it keeps no copy.
+  const publishUpdate = (state: DesktopUpdateState): DesktopUpdateState => state
 
   const startupFinished = Promise.withResolvers<void>()
 
@@ -622,14 +628,6 @@ async function main(): Promise<void> {
 
   sendVideoEmbedReferrer(session.defaultSession)
 
-  ipcMain.handle(DESKTOP_IPC.updatesCheck, async (event) => {
-    assertDesktopSender(event, ['shell'])
-    return updates.check()
-  })
-  ipcMain.handle(DESKTOP_IPC.updatesInstall, async (event) => {
-    assertDesktopSender(event, ['shell'])
-    await updates.install()
-  })
   // The app window may render an adopted Host's origin rather than this
   // shell's scheme, so the browser operations admit the window's own top frame
   // instead of a hostname.
@@ -703,45 +701,65 @@ async function main(): Promise<void> {
     listenForPageLinks(event.sender)
   })
 
+  /** Version already offered to the reader, so one release is offered once. */
+  let promptedVersion: string | undefined
+
+  /**
+   * Show what the last check found: an error the reader asked for, a report
+   * that this process runs the newest release, the download in progress, or the
+   * offer to restart. The shell's only update surface is this dialog.
+   * @param manual - whether the reader asked through the application menu.
+   */
   const checkAndPrompt = async (manual: boolean): Promise<void> => {
     const state = await updates.check()
-    if (state.phase === 'error') {
-      if (manual) {
+    switch (desktopUpdatePrompt(state, { manual, promptedVersion })) {
+      case 'error':
         await dialog.showMessageBox({
           type: 'error',
           title: messages.updateCheckFailedTitle,
           message: state.message ?? messages.unknownError,
         })
-      }
-      return
-    }
-    if (state.phase !== 'available') {
-      if (manual) {
+        return
+      case 'current':
         await dialog.showMessageBox({
           type: 'info',
           title: messages.updateCheckTitle,
-          message: state.message ?? messages.updateCurrent,
+          message: messages.updateCurrent,
         })
+        return
+      case 'downloading':
+        await dialog.showMessageBox({
+          type: 'info',
+          title: messages.updateTitle,
+          message: formatDesktopMessage(messages.updateDownloading, { version: state.version ?? '' }),
+          detail: messages.updateDownloadingDetail,
+        })
+        return
+      case 'ready': {
+        promptedVersion = state.version
+        const result = await dialog.showMessageBox({
+          type: 'info',
+          title: messages.updateTitle,
+          message: formatDesktopMessage(messages.updateReady, { version: state.version ?? '' }),
+          detail: messages.updateReadyDetail,
+          buttons: [messages.restartNow, messages.later],
+          defaultId: 0,
+          cancelId: 1,
+        })
+        // A later answer is not a refusal: the downloaded release installs on quit.
+        if (result.response !== 0) return
+        const installed = await updates.install()
+        if (installed.phase === 'error') {
+          await dialog.showMessageBox({
+            type: 'error',
+            title: messages.updateFailedTitle,
+            message: installed.message ?? messages.unknownError,
+          })
+        }
+        return
       }
-      return
-    }
-    const result = await dialog.showMessageBox({
-      type: 'info',
-      title: messages.updateTitle,
-      message: messages.updateAvailable,
-      detail: formatDesktopMessage(messages.updateDetail, { version: state.version ?? '' }),
-      buttons: [messages.installAndRestart, messages.later],
-      defaultId: 0,
-      cancelId: 1,
-    })
-    if (result.response !== 0) return
-    const installed = await updates.install()
-    if (installed.phase === 'error') {
-      await dialog.showMessageBox({
-        type: 'error',
-        title: messages.updateFailedTitle,
-        message: installed.message ?? messages.unknownError,
-      })
+      case 'silent':
+        return
     }
   }
 
@@ -755,8 +773,12 @@ async function main(): Promise<void> {
   if (development !== undefined && process.env.AVN_DESKTOP_OPEN_DEVTOOLS !== '0') {
     appWindow.webContents.openDevTools({ mode: 'detach' })
   }
-  publishUpdate(updateState)
-  setTimeout(() => { void checkAndPrompt(false) }, 10_000)
+  // One check shortly after launch, then one per interval: a background-mode
+  // application runs for days, and a release published meanwhile installs on
+  // the next quit. The interval stays well inside GitHub's unauthenticated
+  // request budget, which the whole machine shares.
+  setTimeout(() => { void checkAndPrompt(false) }, UPDATE_CHECK_STARTUP_DELAY_MS).unref()
+  setInterval(() => { void checkAndPrompt(false) }, UPDATE_CHECK_INTERVAL_MS).unref()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) focusPrimaryWindow()
