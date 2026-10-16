@@ -10,6 +10,7 @@ export interface DesktopTargetBuildPaths {
   readonly seed: string
   readonly seedPnpm: string
   readonly nodeExtract: string
+  readonly cuaDriverExtract: string
   readonly packedAvn: string
   readonly packedVendor: string
   readonly packedLandlock: string

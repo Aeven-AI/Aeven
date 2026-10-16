@@ -10,6 +10,8 @@ export const MACOS_USAGE_DESCRIPTIONS = Object.freeze({
   NSMicrophoneUsageDescription: 'Aeven uses your microphone when you dictate a message.',
   NSLocationWhenInUseUsageDescription: 'Aeven uses your location when you ask about things near you.',
   NSLocationUsageDescription: 'Aeven uses your location when you ask about things near you.',
+  NSScreenCaptureUsageDescription: 'Aeven sees your screen when you ask it to operate apps on your computer.',
+  NSAppleEventsUsageDescription: 'Aeven controls other apps when you ask it to operate them for you.',
 })
 
 /**

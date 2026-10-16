@@ -84,6 +84,8 @@ export function createElectronBuilderConfig(
       // without the resource entitlements a signed build silently loses location,
       // the microphone, and the camera.
       entitlements: 'scripts/app-entitlements.plist',
+      // Nested executables, including the bundled Cua Driver, which runs as Aeven's child and needs Apple Events.
+      entitlementsInherit: 'scripts/helper-entitlements.plist',
       // electron-builder staples the ticket in one unretried call, which fails a release whenever
       // Apple's ticket-delivery service drops the lookup; the after-sign hook owns this step instead.
       notarize: false,

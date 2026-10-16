@@ -1,9 +1,12 @@
-/** Download and verify the upstream Node.js runtime with its bundled npm, and copy the pinned pnpm CLI. */
+/**
+ * Download and verify the upstream Node.js runtime with its bundled npm and the Cua Driver computer-use executable,
+ * and copy the pinned pnpm CLI.
+ */
 
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import { cpSync, createReadStream, createWriteStream, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { chmod, readFile } from 'node:fs/promises'
+import { chmod, readdir, readFile, stat } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { pipeline } from 'node:stream/promises'
@@ -12,6 +15,8 @@ import { extract } from 'tar'
 import { resolveDesktopTargetBuildPaths } from './desktop-build-paths.mjs'
 
 const NODE_VERSION = '24.17.0'
+/** Upstream Cua Driver release shipped beside Node.js; its tag is `cua-driver-rs-v<version>`. */
+const CUA_DRIVER_VERSION = '0.35.4'
 const BUILD_PATHS = resolveDesktopTargetBuildPaths()
 const RUNTIME_ROOT = BUILD_PATHS.runtime
 const DOWNLOAD_ROOT = BUILD_PATHS.downloads
@@ -133,6 +138,73 @@ async function prepareNode(platform: RuntimePlatform, arch: RuntimeArch): Promis
   return npmManifest.version
 }
 
+/**
+ * The release archive carrying the bare driver executables for one target. Every macOS archive holds the same
+ * universal binary, so both macOS targets take the universal one.
+ */
+function cuaDriverArchive(platform: RuntimePlatform, arch: RuntimeArch): string {
+  const upstreamArch = arch === 'x64' ? 'x86_64' : 'arm64'
+  const asset = platform === 'darwin'
+    ? 'darwin-universal-binary.tar.gz'
+    : platform === 'linux' ? `linux-${upstreamArch}-binary.tar.gz` : `windows-${upstreamArch}-binary.zip`
+  return `cua-driver-rs-${CUA_DRIVER_VERSION}-${asset}`
+}
+
+/**
+ * Whether an archive entry belongs in the shipped driver directory: the driver, its cursor-theme tool, the
+ * Windows UI Automation helper, and the GNOME Shell extension a Linux Wayland session needs. The SDK library,
+ * Node addon, and C header serve embedding through the SDK, which Aeven does not use.
+ */
+function shipsCuaDriverEntry(name: string): boolean {
+  return /^(?:cua-driver|cua-cursor-theme|cua-driver-uia)(?:\.exe)?$/u.test(name) || name.startsWith('wayland-helper/')
+}
+
+/**
+ * Download, verify, and install the Cua Driver executables into `runtime/cua-driver`, where the shell points the
+ * Host's computer-use row at them.
+ */
+async function prepareCuaDriver(platform: RuntimePlatform, arch: RuntimeArch): Promise<void> {
+  const archiveName = cuaDriverArchive(platform, arch)
+  const releaseRoot = `https://github.com/trycua/cua/releases/download/cua-driver-rs-v${CUA_DRIVER_VERSION}`
+  const archive = join(DOWNLOAD_ROOT, archiveName)
+  const sums = join(DOWNLOAD_ROOT, `cua-driver-rs-${CUA_DRIVER_VERSION}-checksums.txt`)
+  if (!existsSync(archive)) await download(`${releaseRoot}/${archiveName}`, archive)
+  if (!existsSync(sums)) await download(`${releaseRoot}/checksums.txt`, sums)
+  const line = (await readFile(sums, 'utf8')).split(/\r?\n/u)
+    .find(candidate => candidate.endsWith(`  ${archiveName}`))
+  if (line === undefined) throw new Error(`desktop runtime: ${archiveName} is absent from the Cua Driver checksums`)
+  const expected = line.split(/\s+/u)[0]
+  const actual = createHash('sha256').update(await readFile(archive)).digest('hex')
+  if (actual !== expected) throw new Error(`desktop runtime: checksum mismatch for ${archiveName}`)
+
+  const extraction = BUILD_PATHS.cuaDriverExtract
+  rmSync(extraction, { recursive: true, force: true })
+  mkdirSync(extraction, { recursive: true })
+  if (platform === 'win') {
+    const files = unzipSync(await readFile(archive), {
+      filter: file => !file.name.endsWith('/') && shipsCuaDriverEntry(file.name),
+    })
+    for (const [name, bytes] of Object.entries(files)) writeFileSync(join(extraction, name), bytes)
+  } else {
+    await extract({ cwd: extraction, file: archive, filter: path => shipsCuaDriverEntry(path.replace(/^\.\//u, '')) })
+  }
+  const executable = platform === 'win' ? 'cua-driver.exe' : 'cua-driver'
+  if (!existsSync(join(extraction, executable))) throw new Error(`desktop runtime: ${archiveName} has no ${executable}`)
+
+  const destination = join(RUNTIME_ROOT, 'cua-driver')
+  rmSync(destination, { recursive: true, force: true })
+  for (const entry of await readdir(extraction, { recursive: true, withFileTypes: true })) {
+    if (!entry.isFile()) continue
+    const source = join(entry.parentPath, entry.name)
+    const target = join(destination, source.slice(extraction.length + 1))
+    mkdirSync(dirname(target), { recursive: true })
+    // A fresh write, as for Node.js above, so macOS validates the signature the packager applies.
+    await pipeline(createReadStream(source), createWriteStream(target, { flags: 'wx' }))
+    if (platform !== 'win') await chmod(target, (await stat(source)).mode & 0o777)
+  }
+  rmSync(extraction, { recursive: true, force: true })
+}
+
 function preparePnpm(): string {
   const require = createRequire(import.meta.url)
   const manifestPath = require.resolve('pnpm')
@@ -150,12 +222,14 @@ async function main(): Promise<void> {
   mkdirSync(DOWNLOAD_ROOT, { recursive: true })
   mkdirSync(RUNTIME_ROOT, { recursive: true })
   const npmVersion = await prepareNode(platform, arch)
+  await prepareCuaDriver(platform, arch)
   const pnpmVersion = preparePnpm()
   writeFileSync(join(RUNTIME_ROOT, 'versions.json'), `${JSON.stringify({
     schemaVersion: 1,
     node: NODE_VERSION,
     npm: npmVersion,
     pnpm: pnpmVersion,
+    cuaDriver: CUA_DRIVER_VERSION,
   }, undefined, 2)}\n`)
 }
 
