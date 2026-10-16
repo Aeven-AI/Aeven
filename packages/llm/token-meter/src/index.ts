@@ -16,7 +16,7 @@ import type {
   SessionLogOffset as SessionLogOffsetType,
   SessionSeq as SessionSeqType,
 } from '@aeven/session'
-import { canonicalHeader, headerEquals, isSurfaceEvent, SessionLogOffset, SessionSeq } from '@aeven/session'
+import { canonicalHeader, foldSurface, headerEquals, isSurfaceEvent, SessionLogOffset, SessionSeq } from '@aeven/session'
 // Type-only: activates the `ctx.sessionProjections` Context declaration.
 import type {} from '@aeven/session-projection'
 import type {
@@ -27,7 +27,7 @@ import type {
 import { contextBreakdownProjectionDefinition } from './breakdown-projection.ts'
 import { contextPressureProjectionDefinition, tokenUsageProjectionDefinition } from './usage-projection.ts'
 import { estimateContent, estimateHeader, estimateMessage, ROLE_OVERHEAD } from './estimate.ts'
-import { commitSurfaceTokens, planSurfaceTokens } from './surface-fold.ts'
+import { analyzeNode, commitSurfaceTokens, planSurfaceTokens } from './surface-fold.ts'
 import type { MeterSurfaceNode } from './surface-fold.ts'
 import { priceSurface } from './route-pricing.ts'
 
@@ -228,6 +228,18 @@ export class TokenMeter extends Service {
    * retry instead of half-applying.
    */
   private _foldEvent(session: Session, state: ReplayState, event: SessionEvent): void {
+    if (event.type === 'session/rewind') {
+      const prefix = session.snapshotEvents(SessionLogOffset(0), SessionLogOffset(event.data.seq))
+      const surface = foldSurface(prefix).nodes.map((seq) => {
+        // The canonical fold admits only existing message-producing events.
+        // oxlint-disable-next-line typescript/no-non-null-assertion
+        return analyzeNode(seq, session.deriveEventMessage(session.eventAt(seq)!))
+      })
+      state.surface = surface
+      state.anchor = undefined
+      return
+    }
+
     let nextHeader = state.header
     let nextStepStart = state.stepStart
     let nextAnchor = state.anchor

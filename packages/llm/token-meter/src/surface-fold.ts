@@ -60,8 +60,13 @@ function collectImages(blocks: readonly ContentBlock[], images: ImageAttachmentR
   return structuralTokens
 }
 
-/** Build one priced node from a surface event's derived message. */
-function analyzeNode(seq: SessionSeq, message: Message | null): MeterSurfaceNode {
+/**
+ * Build one priced node from a surface event's derived message.
+ * @param seq - durable event sequence.
+ * @param message - message derived from that event, or null for empty content.
+ * @returns the node's heuristic price and image occurrences.
+ */
+export function analyzeNode(seq: SessionSeq, message: Message | null): MeterSurfaceNode {
   if (message === null) return { seq, heuristicTokens: 0, imageFreeTokens: 0, images: [] }
   const heuristicTokens = estimateMessage(message)
   const images: ImageAttachmentRef[] = []

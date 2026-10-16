@@ -243,6 +243,43 @@ describe('TokenMeter pricing', () => {
 })
 
 describe('replay anchors and surface folds', () => {
+  it.each([false, true])('restores replaced nodes on rewind before pruning again (cold replay: %s)', (cold) => {
+    const service = meter()
+    const session = Session.create(SessionId(`rewind-${cold}`))
+    const original = session.append('user/message', createUserMessage({
+      content: [{ type: 'text', text: 'original history '.repeat(100) }],
+      source: { kind: 'user' },
+    }), { surfaceOp: 'append' })
+    appendSuccessfulCall(session, header('mock'), {
+      usage: { inputTokens: 90_000, outputTokens: 10, totalTokens: 90_010 },
+    })
+    const target = session.append('user/message', createUserMessage({
+      content: [{ type: 'text', text: 'discard this turn' }],
+      source: { kind: 'user' },
+    }), { surfaceOp: 'append' })
+    session.append('user/message', createUserMessage({
+      content: [{ type: 'text', text: 'summary' }],
+      source: { kind: 'user' },
+    }), { surfaceOp: { op: 'replace', start: original.seq, end: original.seq }, sourceEventSeqs: [original.seq] })
+    if (!cold) service.measure(session)
+    session.append('session/rewind', { seq: target.seq })
+
+    const restored = service.measure(session)
+    expect(restored.nodes.map(node => node.seq)).toEqual(session.surface.nodes)
+    expect(restored.nodes[0]?.seq).toBe(original.seq)
+    expect(restored.baseline.kind).toBe('estimated')
+    expect(restored.totalTokens).toBeLessThan(90_000)
+
+    session.append('user/message', createUserMessage({
+      content: [{ type: 'text', text: 'pruned history' }],
+      source: { kind: 'user' },
+    }), { surfaceOp: { op: 'replace', start: original.seq, end: original.seq }, sourceEventSeqs: [original.seq] })
+    const pruned = service.measure(session)
+    expect(pruned.nodes.map(node => node.seq)).toEqual(session.surface.nodes)
+    expect(pruned.totalTokens).toBeLessThan(restored.totalTokens)
+    expectSurfaceTotal(pruned)
+  })
+
   const USAGE: TokenUsage = {
     inputTokens: 20,
     cacheReadTokens: 3,

@@ -28,6 +28,8 @@ Provider usage is reused only when the measured canonical request envelope equal
 
 Usage sums the disjoint input, cache-read, cache-write, and output buckets. Reasoning is not added a second time. Every successful model call records an `assistant/message`, including content-less and max-token calls, with its exact earlier chunk seqs. An explicit empty `sourceEventSeqs` list means a known empty provider stream; an absent legacy list conservatively treats the durable assistant output as provider output.
 
+Rewind restores priced nodes by folding the canonical log prefix before the target event. It retains the current request header and clears the usage anchor because that anchor can describe discarded messages or replacements. This reconstruction runs only at rewind boundaries; ordinary appends and replacements retain the incremental fold.
+
 ### Compact-basic consumes, but does not own, measurement
 
 `avn-compaction-basic` requires `ctx.tokenMeter`; `CompactionEngine` gains no token methods or types. Configuration, the region transaction, and summarization stay in separate modules; the service registers automatic listeners itself, while `summarize()` remains its sole subclass hook. The singleton meter consistently prices pressure, retention, shadowed content, cited source events, and non-shrinking-summary rejection.
