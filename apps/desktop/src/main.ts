@@ -35,6 +35,7 @@ import { DesktopUpdateCoordinator } from './update-coordinator.ts'
 import { DesktopBackgroundMode } from './background-mode.ts'
 import { loginShellPath, mergePath } from './login-shell-path.ts'
 import { sendVideoEmbedReferrer } from './video-embeds.ts'
+import { START_PAGE_PATH, startPageDocument, startPageUrl } from './start-screen.ts'
 
 const SCHEME = 'avn-app'
 let focusPrimaryWindow = (): void => {}
@@ -407,6 +408,97 @@ async function main(): Promise<void> {
   }
   installApplicationMenu()
 
+  // Registered before the window below loads anything: the start screen is
+  // served from this scheme, and every application request after it goes
+  // through the same handler.
+  protocol.handle(SCHEME, (request) => {
+    const url = new URL(request.url)
+    if (url.hostname === 'shell') {
+      if (url.pathname !== START_PAGE_PATH) return serveShellAsset(request)
+      return Promise.resolve(new Response(startPageDocument(), {
+        headers: { 'content-type': MIME['.html'] ?? 'text/html; charset=utf-8' },
+      }))
+    }
+    if (url.hostname !== 'app') return Promise.resolve(new Response(null, { status: 404 }))
+    if (url.pathname.startsWith(`${DESKTOP_AEVEN_API_PATH}/`)) return forwardAevenApiRequest(request, aevenSignIn)
+    const active = host
+    if (active === undefined) return Promise.resolve(new Response('backend unavailable', { status: 503 }))
+    return active.fetch(request)
+  })
+
+  /**
+   * Sign in with a provider in the default browser, then bring the app back.
+   * Providers refuse embedded windows, so none is opened here.
+   */
+  const beginProviderSignIn = (window: BrowserWindow, url: string, land: (path: string) => void): void => {
+    void startBrowserSignIn({
+      providerUrl: url,
+      labels: { continuing: messages.signInContinuing, signedIn: messages.signInDone, failed: messages.signInFailed },
+      openExternal: target => shell.openExternal(target),
+      land: (path) => {
+        land(path)
+        if (window.isDestroyed()) return
+        if (window.isMinimized()) window.restore()
+        window.focus()
+        app.focus({ steal: true })
+      },
+    }).catch((error: unknown) => { console.error('avn desktop: provider sign-in could not start', error) })
+  }
+
+  const createMainWindow = (): BrowserWindow => {
+    const window = createWindow(appPreload)
+    mainWindow = window
+    claimsAppAddress = url => aevenSignIn?.oauthUrls.includes(url) === true
+    // Either way the page reaches a provider, the provider opens in the default
+    // browser and every other window stays denied. A page whose flow is a window
+    // waits for the session this shell exchanges; a page whose flow is a redirect
+    // gets the landing it expected loaded back into the window it came from.
+    // Every other address the page asks a window for is content the reader
+    // chose: the page opens it itself when it listens for addresses, and the
+    // system browser opens it otherwise.
+    window.webContents.setWindowOpenHandler(({ url }) => {
+      if (aevenSignIn?.oauthUrls.includes(url) === true) {
+        beginProviderSignIn(window, url, (path) => { void completeOAuthLanding(path, aevenSignIn) })
+      } else {
+        openContentAddress(window.webContents, url)
+      }
+      return { action: 'deny' }
+    })
+    window.webContents.on('will-navigate', (event, url) => {
+      if (aevenSignIn?.oauthUrls.includes(url) !== true) return
+      event.preventDefault()
+      beginProviderSignIn(window, url, (path) => { void window.loadURL(appPathUrl(path)) })
+    })
+    window.once('ready-to-show', () => { if (!window.isDestroyed()) window.show() })
+    // The View menu's full-screen item names the state the window is in.
+    window.on('enter-full-screen', syncFullScreenLabel)
+    window.on('leave-full-screen', syncFullScreenLabel)
+    window.on('closed', () => { if (mainWindow === window) mainWindow = undefined })
+    return window
+  }
+  focusPrimaryWindow = () => {
+    // Background mode hides the Dock icon while no window is open.
+    if (process.platform === 'darwin') void app.dock?.show()
+    const window = mainWindow
+    if (window === undefined || window.isDestroyed()) {
+      const replacement = createMainWindow()
+      void replacement.loadURL(appEntryUrl())
+      return
+    }
+    if (window.isMinimized()) window.restore()
+    window.show()
+    window.focus()
+  }
+
+  // The window is created, and the start screen is loaded into it, before any
+  // of the waits below: the deployment, the login shell, a package install, and
+  // a Host boot otherwise leave a launch showing nothing at all. A start screen
+  // that fails to load is not fatal — the application still opens when ready.
+  const startWindow = createMainWindow()
+  await startWindow.loadURL(startPageUrl()).catch((error: unknown) => {
+    console.error('avn desktop: the start screen did not load', error)
+  })
+
   // A packaged shell replaces a desktop Host from another release; a
   // development shell adopts whatever serves the home.
   // The Host and every process it starts inherit this PATH; a GUI launch alone carries the session's minimal one.
@@ -529,16 +621,6 @@ async function main(): Promise<void> {
   })
 
   sendVideoEmbedReferrer(session.defaultSession)
-
-  protocol.handle(SCHEME, (request) => {
-    const url = new URL(request.url)
-    if (url.hostname === 'shell') return serveShellAsset(request)
-    if (url.hostname !== 'app') return Promise.resolve(new Response(null, { status: 404 }))
-    if (url.pathname.startsWith(`${DESKTOP_AEVEN_API_PATH}/`)) return forwardAevenApiRequest(request, aevenSignIn)
-    const active = host
-    if (active === undefined) return Promise.resolve(new Response('backend unavailable', { status: 503 }))
-    return active.fetch(request)
-  })
 
   ipcMain.handle(DESKTOP_IPC.updatesCheck, async (event) => {
     assertDesktopSender(event, ['shell'])
@@ -665,74 +747,13 @@ async function main(): Promise<void> {
 
   startupFinished.resolve()
 
-  /**
-   * Sign in with a provider in the default browser, then bring the app back.
-   * Providers refuse embedded windows, so none is opened here.
-   */
-  const beginProviderSignIn = (window: BrowserWindow, url: string, land: (path: string) => void): void => {
-    void startBrowserSignIn({
-      providerUrl: url,
-      labels: { continuing: messages.signInContinuing, signedIn: messages.signInDone, failed: messages.signInFailed },
-      openExternal: target => shell.openExternal(target),
-      land: (path) => {
-        land(path)
-        if (window.isDestroyed()) return
-        if (window.isMinimized()) window.restore()
-        window.focus()
-        app.focus({ steal: true })
-      },
-    }).catch((error: unknown) => { console.error('avn desktop: provider sign-in could not start', error) })
-  }
-
-  const createMainWindow = (): BrowserWindow => {
-    const window = createWindow(appPreload)
-    mainWindow = window
-    claimsAppAddress = url => aevenSignIn?.oauthUrls.includes(url) === true
-    // Either way the page reaches a provider, the provider opens in the default
-    // browser and every other window stays denied. A page whose flow is a window
-    // waits for the session this shell exchanges; a page whose flow is a redirect
-    // gets the landing it expects loaded back into the window it came from.
-    // Every other address the page asks a window for is content the reader
-    // chose: the page opens it itself when it listens for addresses, and the
-    // system browser opens it otherwise.
-    window.webContents.setWindowOpenHandler(({ url }) => {
-      if (aevenSignIn?.oauthUrls.includes(url) === true) {
-        beginProviderSignIn(window, url, (path) => { void completeOAuthLanding(path, aevenSignIn) })
-      } else {
-        openContentAddress(window.webContents, url)
-      }
-      return { action: 'deny' }
-    })
-    window.webContents.on('will-navigate', (event, url) => {
-      if (aevenSignIn?.oauthUrls.includes(url) !== true) return
-      event.preventDefault()
-      beginProviderSignIn(window, url, (path) => { void window.loadURL(appPathUrl(path)) })
-    })
-    window.once('ready-to-show', () => { if (!window.isDestroyed()) window.show() })
-    // The View menu's full-screen item names the state the window is in.
-    window.on('enter-full-screen', syncFullScreenLabel)
-    window.on('leave-full-screen', syncFullScreenLabel)
-    window.on('closed', () => { if (mainWindow === window) mainWindow = undefined })
-    return window
-  }
-  focusPrimaryWindow = () => {
-    // Background mode hides the Dock icon while no window is open.
-    if (process.platform === 'darwin') void app.dock?.show()
-    const window = mainWindow
-    if (window === undefined || window.isDestroyed()) {
-      const replacement = createMainWindow()
-      void replacement.loadURL(appEntryUrl())
-      return
-    }
-    if (window.isMinimized()) window.restore()
-    window.show()
-    window.focus()
-  }
-
-  mainWindow = createMainWindow()
-  await mainWindow.loadURL(appEntryUrl())
+  // The backend is serving: replace the start screen in the window that already
+  // exists, so a launch reads as one screen rather than a window appearing only
+  // now. The client's own preloader takes over from here.
+  const appWindow = mainWindow !== undefined && !mainWindow.isDestroyed() ? mainWindow : createMainWindow()
+  await appWindow.loadURL(appEntryUrl())
   if (development !== undefined && process.env.AVN_DESKTOP_OPEN_DEVTOOLS !== '0') {
-    mainWindow.webContents.openDevTools({ mode: 'detach' })
+    appWindow.webContents.openDevTools({ mode: 'detach' })
   }
   publishUpdate(updateState)
   setTimeout(() => { void checkAndPrompt(false) }, 10_000)

@@ -20,6 +20,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import type { AddressInfo } from 'node:net'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { brandDocumentHead, escapeHtml, loadingFace, loadingFaceStyles } from './brand-page.ts'
 import { oauthResultPath } from './aeven-sign-in.ts'
 
 /** How long an unfinished sign-in keeps its port before the listener closes. */
@@ -43,26 +44,6 @@ let closeActive: (() => void) | undefined
 
 /** Font bytes, read once. `null` means the file was looked up and was not there. */
 let brandFont: Buffer | null | undefined
-
-const LOGO_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 671 581" aria-hidden="true">'
-  + '<g fill="currentColor" fill-rule="evenodd">'
-  + '<path d="m225.301 0 305.5 529.142-43.301 25L182 25z"/>'
-  + '<path d="M140 529.141 445.5 0l43.302 25-305.5 529.141z"/>'
-  + '<path d="M167.901 530.059h335v50h-335z"/>'
-  + '<path d="m43.302 264.5 167.5 290.119-43.302 25L0 289.5zM503.302 0l167.5 290.119-43.302 25L460 25z"/>'
-  + '<path d="M460 554.618 627.5 264.5l43.301 25-167.5 290.118zM0 290.118 167.5 0 210.8 25l-167.5 290.118z"/>'
-  + '<path d="M167.5 0h57.8v50h-57.8zM445.5 0h57.8v50h-57.8zM72.5 405.3 306.5 0l43.302 25-234 405.3z"/>'
-  + '<path d="m364.301 0 234 405.3-43.3 25L321 25z"/>'
-  + '<path d="M306.5 0h57.8v50h-57.8z"/>'
-  + '</g></svg>'
-
-const SPINNER_SVG = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'
-  + '<path d="M16 16L19 19M18 12H22M8 8L5 5M16 8L19 5M8 16L5 19M2 12H6M12 2V6M12 18V22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
-  + '</svg>'
-
-function escapeHtml(text: string): string {
-  return text.replace(/[&<>"']/gu, character => `&#${String(character.charCodeAt(0))};`)
-}
 
 /**
  * The face ships in `renderer/fonts`. Tests load this module from `src`, the
@@ -88,43 +69,31 @@ function brandFontBytes(): Buffer | null {
   return brandFont
 }
 
-/** Shared head for both pages. The redirect is appended after the body is parsed. */
-function documentHead(extra = ''): string {
-  return '<!doctype html><html><head><meta charset="utf-8">'
-    + '<meta name="viewport" content="width=device-width, initial-scale=1">'
-    + '<meta name="color-scheme" content="light"><title>Æven</title>'
-    + extra
-}
-
 /**
  * The moment before the provider loads. Same stack as the client preloader:
- * the mark at 50px, the spinner 4px under it. No sentence, because the tab leaves immediately.
- * The refresh sits after that markup so the first paint is this page, not a gray flash.
+ * the mark at 50px, the loading mark 4px under it. No sentence, because the tab
+ * leaves immediately. The refresh sits after that markup so the first paint is
+ * this page, not a gray flash.
  */
 function preloaderPage(label: string, redirect: string): string {
   const redirectMarkup = `<meta http-equiv="refresh" content="0; url=${escapeHtml(redirect)}">`
     + `<script>location.replace(${JSON.stringify(redirect)})</script>`
-  return documentHead()
+  return brandDocumentHead('light')
     + '<style>'
     + 'html,body{margin:0;height:100%;background:#fff}'
     + 'body{display:flex;align-items:center;justify-content:center}'
-    + 'main{display:flex;flex-direction:column;align-items:center}'
-    + '.logo{width:50px;height:50px;margin:0 0 4px;color:rgb(10,10,10)}'
-    + '.logo svg{display:block;width:50px;height:50px}'
-    + '.spinner{width:16px;height:16px;color:rgb(10,10,10);animation:loader-spin 900ms linear infinite}'
-    + '.spinner svg{display:block;width:16px;height:16px}'
-    + '@keyframes loader-spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}'
-    + '@media (prefers-reduced-motion:reduce){.spinner{animation:none}}'
+    + loadingFaceStyles()
+    + '.logo,.spinner{color:rgb(10,10,10)}'
     + '</style></head><body>'
-    + `<main aria-label="${escapeHtml(label)}">`
-    + `<div class="logo" aria-hidden="true">${LOGO_SVG}</div>`
-    + `<div class="spinner" aria-hidden="true">${SPINNER_SVG}</div>`
-    + `</main>${redirectMarkup}</body></html>`
+    + loadingFace(label)
+    + redirectMarkup
+    + '</body></html>'
 }
 
 /** Finished sign-in. The wordmark is the chat header's Æven: 80px, weight 600. */
 function donePage(body: string): string {
-  return documentHead(
+  return brandDocumentHead(
+    'light',
     `<link rel="preload" href="${BRAND_FONT_PATH}" as="font" type="font/woff2" crossorigin>`,
   ).replace('<html>', '<html class="fonts-pending">')
     + '<style>'
