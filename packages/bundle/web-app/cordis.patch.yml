@@ -281,17 +281,17 @@
       name: '@aeven/tool-elevation'
 
     # One visible Chrome on 9333 (not the desktop renderer's 9222), shared by
-    # the sidebar and chrome-devtools-mcp. Playwright starts its own browser
-    # on first use, so boot does not wait on that CDP attach; it runs headless
-    # so bulk reading opens no window, and keeps its own profile, which is what
-    # lets the headed Chrome hold the profile a signed-in page needs. A missing
-    # Chrome logs and leaves the host up. Both servers' tools stay behind
-    # tool_search.
+    # the sidebar and chrome-devtools-mcp. It starts when the sidebar opens it
+    # or a chrome_devtools tool first runs, never at boot, so a fresh install
+    # opens no browser window. Playwright starts its own browser on first use;
+    # it runs headless so bulk reading opens no window, and keeps its own
+    # profile, which is what lets the headed Chrome hold the profile a
+    # signed-in page needs. A missing Chrome logs and leaves the host up. Both
+    # servers' tools stay behind tool_search.
     - id: browser-chromium
       name: '@aeven/browser-chromium'
       config:
         port: 9333
-        launchOnStart: true
         mcpServerName: chrome_devtools
     - id: mcp-chrome-devtools
       name: '@aeven/mcp-client'
@@ -332,10 +332,12 @@
           - '--caps=devtools'
         failOnStartupError: false
 
-    # Computer use on the Host's own desktop through an installed Cua Driver, whose
-    # app holds the Accessibility and Screen Recording grants on macOS and whose
-    # Windows build needs an interactive session for the GUI tools instead. The
-    # Electron app inherits these rows. AVN_CUA_DRIVER overrides the driver path.
+    # Computer use on the Host's own desktop through Cua Driver. The installed
+    # Electron app ships the driver and sets AVN_CUA_DRIVER to it with
+    # AVN_CUA_DRIVER_EMBEDDED=1, so the driver runs as the app's child and macOS
+    # checks Aeven's own Accessibility and Screen Recording grants. Elsewhere the
+    # rows use a standalone install, whose CuaDriver app holds those grants on
+    # macOS; Windows GUI tools need an interactive session either way.
     # Without the driver the provider registers only an install-guidance tool, so the
     # capability stays discoverable; the semantic batches need a live driver and stay
     # off, because a failed provider start fails the tree.
@@ -354,6 +356,7 @@
         # instead of failing the row's activation.
         command: !!js "process.env.AVN_CUA_DRIVER ?? (process.platform === 'win32' ? process.env.LOCALAPPDATA + '/Programs/Cua/cua-driver/bin/cua-driver.exe' : process.platform === 'linux' ? process.getBuiltinModule('node:os').homedir() + '/.local/bin/cua-driver' : '/Applications/CuaDriver.app/Contents/MacOS/cua-driver')"
         args: [mcp]
+        embedded: !!js "process.env.AVN_CUA_DRIVER_EMBEDDED === '1'"
 
     - id: computer-use-semantic-batches
       name: '@aeven/computer-use-macos-provider'

@@ -25,7 +25,7 @@ Let the model operate the local desktop through an already installed Cua Driver.
 <a id="use-this-package"></a>
 ## Use this package
 
-Choose this provider when Cua Driver is already installed and configured on the same machine as Aeven. The [upstream installation and permissions guide](https://github.com/trycua/cua/blob/cua-driver-rs-v0.28.0/libs/cua-driver/README.md) owns platform setup.
+Choose this provider when Cua Driver is already installed and configured on the same machine as Aeven. The [upstream installation and permissions guide](https://github.com/trycua/cua/blob/cua-driver-rs-v0.35.4/libs/cua-driver/README.md) owns platform setup.
 
 ### Minimal configuration
 
@@ -43,10 +43,11 @@ Add these rows to a composition that already provides tools and system-prompt se
 |---|---|---|
 | `command` | `cua-driver` | Installed executable path or PATH command |
 | `args` | `[mcp]` | Arguments passed directly without a shell |
+| `embedded` | `false` | Run the driver as an embedded child of the hosting application, appending `--embedded --direct` |
 | `toolCallTimeoutMs` | MCP client default | Per-call timeout override in milliseconds |
 | `reconnect` | MCP client policy | Optional reconnection overrides |
 
-Compositions pass an explicit `command` naming each platform's install location: the CuaDriver application bundle on macOS, `%LOCALAPPDATA%\Programs\Cua\cua-driver\bin\cua-driver.exe` on Windows, and `~/.local/bin/cua-driver` on Linux, the script location a user-level install writes. `AVN_CUA_DRIVER` overrides it. Every default is an absolute path, so an absent driver takes the install-guidance path below instead of failing the composition.
+Compositions pass an explicit `command` naming each platform's install location: the CuaDriver application bundle on macOS, `%LOCALAPPDATA%\Programs\Cua\cua-driver\bin\cua-driver.exe` on Windows, and `~/.local/bin/cua-driver` on Linux, the script location a user-level install writes. `AVN_CUA_DRIVER` overrides it; the installed desktop application sets it to the driver it ships, with `AVN_CUA_DRIVER_EMBEDDED=1` selecting `embedded`. Every default is an absolute path, so an absent driver takes the install-guidance path below instead of failing the composition.
 
 The generated [configuration catalog](../../../docs/config-catalog.md#aevencomputer-use-cua-driver-mcp) lists accepted fields. The [MCP client](../../mcp/mcp-client/README.md) owns timeout and reconnection defaults.
 
@@ -54,7 +55,7 @@ The generated [configuration catalog](../../../docs/config-catalog.md#aevencompu
 
 The provider registers as `cua-driver-mcp` before connecting. A second computer-use provider fails activation, including another instance of this package. Failed initialization or initial tool discovery rejects this entry and releases its registration after cleanup. Later disconnects retain the registration while the MCP client reconnects or exhausts its attempt budget; unload the entry to release it.
 
-The model sees tools under the fixed `mcp__cua-driver-mcp__` namespace. Tool names, descriptions, input schemas, canonical results, and image admission follow the existing [MCP bridge](../../mcp/mcp-client/README.md). There is no additional Aeven action catalog or provider-selection tool. The provider adds one tool of its own, `computer_use_setup`: every call asks the person for approval, then starts the driver's `permissions grant` flow. On macOS that flow launches CuaDriver through LaunchServices, so the system attributes the Accessibility and Screen Recording requests to that app and opens the matching System Settings panes. The flow is not awaited; the model re-checks with `check_permissions` and `prompt: false`.
+The model sees tools under the fixed `mcp__cua-driver-mcp__` namespace. Tool names, descriptions, input schemas, canonical results, and image admission follow the existing [MCP bridge](../../mcp/mcp-client/README.md). There is no additional Aeven action catalog or provider-selection tool. The provider adds one tool of its own, `computer_use_setup`: every call asks the person for approval, then starts the driver's `permissions grant` flow. On macOS that flow launches CuaDriver through LaunchServices, so the system attributes the Accessibility and Screen Recording requests to that app and opens the matching System Settings panes. The flow is not awaited; the model re-checks with `check_permissions` and `prompt: false`. An `embedded` driver instead runs inside the hosting application's launch chain, so macOS checks that application's grants and the driver never prompts; on macOS `computer_use_setup` then requests Accessibility and Screen Recording for the hosting application through `osascript` and tells the person to switch it on and reopen it. An embedded driver has no agent-cursor overlay on macOS.
 
 When `command` is an absolute path that does not exist, the provider neither reserves computer use nor starts the driver. It registers only `computer_use_setup`, whose description tells the model that computer use needs Cua Driver and whose result names the missing path and the upstream installation guide. The capability therefore stays discoverable through tool search on a machine without the driver; after installing it, the person restarts Aeven. A PATH command is not checked before spawning.
 
@@ -89,7 +90,7 @@ pnpm run test:e2e packages/computer-use/computer-use-cua-driver-mcp/tests/instal
 
 - [Computer-use service](../../computer-use/computer-use/README.md) — exclusive named registration.
 - [MCP client](../../mcp/mcp-client/README.md) — protocol discovery, execution, and image behavior.
-- [Cua Driver](https://github.com/trycua/cua/blob/cua-driver-rs-v0.28.0/libs/cua-driver/README.md) — upstream executable and platform setup.
+- [Cua Driver](https://github.com/trycua/cua/blob/cua-driver-rs-v0.35.4/libs/cua-driver/README.md) — upstream executable and platform setup.
 
 -----
 

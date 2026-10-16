@@ -1,5 +1,5 @@
 /**
- * Exclusive computer use through an installed Cua Driver MCP executable.
+ * Exclusive computer use through an installed or host-shipped Cua Driver MCP executable.
  * The MCP client owns discovery, execution, image admission, and reconnection.
  * An absolute `command` that does not exist registers only an install tool.
  * @module
@@ -7,7 +7,7 @@
 
 import { execFile, spawn, type ChildProcess } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { isAbsolute } from 'node:path'
+import { dirname, isAbsolute, join } from 'node:path'
 import type { Context, Fiber } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { ComputerUseProviderName } from '@aeven/computer-use/brand'
@@ -27,6 +27,14 @@ export interface Config {
   command: string
   /** Arguments passed without a shell; defaults to `['mcp']`. */
   args: string[]
+  /**
+   * Run the driver as an embedded child of the application hosting this process
+   * instead of as the standalone CuaDriver app. On macOS the driver then holds
+   * no permission identity of its own: Accessibility and Screen Recording are
+   * the host application's grants, and the setup tool requests them for it.
+   * Defaults to `false`.
+   */
+  embedded: boolean
   /** Per-call timeout in milliseconds; omission uses the MCP client's default. */
   toolCallTimeoutMs?: number
   /** Reconnection overrides; defaults to the MCP client's policy. */
@@ -37,6 +45,7 @@ export interface Config {
 export const Config: z<Partial<Config>, Config> = z.object({
   command: z.string().pattern(/[^\s]/u).default('cua-driver'),
   args: z.array(String).default(['mcp']),
+  embedded: z.boolean().default(false),
   toolCallTimeoutMs: z.number().min(1),
   reconnect: z.object({
     enabled: z.boolean(),
@@ -56,6 +65,13 @@ export const Config: z<Partial<Config>, Config> = z.object({
 export const WAYLAND_BACKEND_ENV = 'CUA_DRIVER_RS_ENABLE_WAYLAND'
 
 /**
+ * The driver's embedded-mode switch; only the exact value `1` enables it. An
+ * embedded driver never disclaims its parent's permission identity, never
+ * relaunches itself through LaunchServices, and never raises a permission prompt.
+ */
+export const EMBEDDED_ENV = 'CUA_DRIVER_EMBEDDED'
+
+/**
  * The extra environment the driver child needs for the session it will drive.
  * Wayland is detected the way the desktop picker detects a display:
  * `WAYLAND_DISPLAY`, or `XDG_SESSION_TYPE` naming Wayland.
@@ -72,6 +88,18 @@ export function driverEnv(
   return named(env.WAYLAND_DISPLAY) || env.XDG_SESSION_TYPE === 'wayland'
     ? { [WAYLAND_BACKEND_ENV]: '1' }
     : {}
+}
+
+/**
+ * The MCP child's arguments. An embedded driver needs `--direct`: without it
+ * the driver requires a host-started daemon socket instead of owning the
+ * runtime in the child the host spawned. On macOS a direct runtime has no
+ * agent-cursor overlay.
+ * @param config - validated executable options.
+ * @returns arguments for the MCP child.
+ */
+export function driverArgs(config: Pick<Config, 'args' | 'embedded'>): string[] {
+  return config.embedded ? [...config.args, '--embedded', '--direct'] : config.args
 }
 
 /** The GNOME Shell extension the driver's Wayland backend needs, as upstream ships it. */
@@ -134,8 +162,11 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   }
   const connection = McpClient.Config({
     command: config.command,
-    args: config.args,
-    env: driverEnv(process.platform, process.env),
+    args: driverArgs(config),
+    env: {
+      ...driverEnv(process.platform, process.env),
+      ...config.embedded ? { [EMBEDDED_ENV]: '1' } : {},
+    },
     ...config.toolCallTimeoutMs === undefined ? {} : { toolCallTimeoutMs: config.toolCallTimeoutMs },
     reconnect: config.reconnect,
     transport: 'stdio',
@@ -151,7 +182,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     yield child.dispose
   }, 'computer-use-cua-driver-mcp.connection')
   await child.await()
-  registerSetupTool(ctx, config.command)
+  registerSetupTool(ctx, config)
 }
 
 /** Model-facing name of the setup tool: the permission grant flow, or install guidance without a driver. */
@@ -191,14 +222,85 @@ function registerInstallTool(ctx: Context, command: string): void {
 const GRANT_ARGS = ['permissions', 'grant']
 
 /**
- * Register the tool that starts the driver's permission grant flow. Every call
- * asks the person first, in any sandbox mode, because the flow raises system
- * dialogs on their screen; the driver reserves prompting to a trusted host
- * route, which this approved call is.
- * @param ctx - provider context owning the tool and any running grant flow.
- * @param command - the installed driver executable.
+ * JXA that requests Accessibility and Screen Recording for the application at
+ * the top of this process's launch chain, which is where an embedded driver's
+ * permission checks land. macOS shows its own dialog for each missing grant
+ * and lists the application in System Settings. Prints the two current grants
+ * as JSON.
  */
-function registerSetupTool(ctx: Context, command: string): void {
+const HOST_GRANT_SCRIPT = [
+  'ObjC.import("ApplicationServices")',
+  'ObjC.import("CoreGraphics")',
+  'ObjC.bindFunction("CGPreflightScreenCaptureAccess", ["bool", []])',
+  'ObjC.bindFunction("CGRequestScreenCaptureAccess", ["bool", []])',
+  'const accessibility = $.AXIsProcessTrustedWithOptions($({ AXTrustedCheckOptionPrompt: true }))',
+  'const screenRecording = $.CGPreflightScreenCaptureAccess() || $.CGRequestScreenCaptureAccess()',
+  'JSON.stringify({ accessibility, screenRecording })',
+].join('\n')
+
+/** Current macOS grants of the application hosting an embedded driver. */
+interface HostGrants {
+  accessibility: boolean
+  screenRecording: boolean
+}
+
+/**
+ * Request the host application's missing grants through `osascript`, which
+ * runs inside the host's launch chain, so macOS names the host application.
+ * @param signal - aborts the request with the tool call.
+ * @returns the grants after the request; a dialog the person has not answered counts as missing.
+ */
+function requestHostGrants(signal: AbortSignal): Promise<HostGrants> {
+  return new Promise((resolve, reject) => {
+    execFile('/usr/bin/osascript', ['-l', 'JavaScript', '-e', HOST_GRANT_SCRIPT], { signal, timeout: 30_000 }, (error, stdout) => {
+      if (error !== null) {
+        reject(error)
+        return
+      }
+      let grants: unknown
+      try {
+        grants = JSON.parse(stdout)
+      } catch {
+        // Output that is not JSON falls through to the shape check below.
+      }
+      if (typeof grants !== 'object' || grants === null
+        || !('accessibility' in grants) || typeof grants.accessibility !== 'boolean'
+        || !('screenRecording' in grants) || typeof grants.screenRecording !== 'boolean') {
+        reject(new Error(`osascript reported unexpected grants: ${stdout.trim()}`))
+        return
+      }
+      resolve({ accessibility: grants.accessibility, screenRecording: grants.screenRecording })
+    })
+  })
+}
+
+/**
+ * Model-facing result of a host grant request.
+ * @param grants - the host application's grants after the request.
+ * @returns what the model tells the person next.
+ */
+function hostGrantResult(grants: HostGrants): string {
+  if (grants.accessibility && grants.screenRecording) {
+    return 'Aeven has Accessibility and Screen Recording, so computer use is allowed. If a computer-use tool still reports a missing permission, the driver started before the grant: ask the person to quit and reopen Aeven, then retry.'
+  }
+  const missing = [
+    ...grants.accessibility ? [] : ['Accessibility'],
+    ...grants.screenRecording ? [] : ['Screen Recording'],
+  ].join(' and ')
+  return `macOS is asking for permission now. Tell the person to switch on Aeven under ${missing} in System Settings > Privacy & Security, then to quit and reopen Aeven when macOS asks, because the change applies after a restart. After the restart, check again with check_permissions and prompt false.`
+}
+
+/**
+ * Register the tool that completes the permissions computer use needs. Every
+ * call asks the person first on macOS, in any sandbox mode, because the
+ * request raises system dialogs on their screen. A standalone driver runs its
+ * own grant flow for CuaDriver; an embedded driver's grants belong to the host
+ * application, so the tool requests them for that application.
+ * @param ctx - provider context owning the tool and any running grant flow.
+ * @param config - the driver executable and whether it runs embedded.
+ */
+function registerSetupTool(ctx: Context, config: Config): void {
+  const grantee = config.embedded ? 'Aeven' : 'CuaDriver'
   let running: ChildProcess | undefined
   ctx.effect(() => () => {
     // A grant flow still waiting on the person ends with the provider.
@@ -211,13 +313,13 @@ function registerSetupTool(ctx: Context, command: string): void {
       if (decision.kind !== 'allow' || exec.name !== SETUP_TOOL) return decision
       return {
         kind: 'ask',
-        reason: 'Allow Aeven to set up computer use? macOS will ask you to let CuaDriver use Accessibility and Screen Recording, and opens System Settings where you switch it on.',
+        reason: `Allow Aeven to set up computer use? macOS will ask you to let ${grantee} use Accessibility and Screen Recording, and lists it in System Settings where you switch it on.`,
       }
     })
   }
   ctx.effect(() => ctx.tools.register(defineTool({
     name: SETUP_TOOL,
-    description: 'Set up computer use on this computer. Call it only when mcp__cua-driver-mcp__check_permissions with prompt false reports a missing permission, when a computer-use tool fails, or when the person asks how to enable computer use. On macOS it asks for the permissions computer use needs: the person approves first, macOS then shows its own dialogs and opens System Settings, where they switch on CuaDriver — tell them what to switch on, wait for them to say they are done, then check again with prompt false. On Linux it reports whether this session needs the GNOME Shell helper and whether it is loaded, because the driver refuses input on Wayland without it.',
+    description: `Set up computer use on this computer. Call it only when mcp__cua-driver-mcp__check_permissions with prompt false reports a missing permission, when a computer-use tool fails, or when the person asks how to enable computer use. On macOS it asks for the permissions computer use needs: the person approves first, macOS then shows its own dialogs and lists ${grantee} in System Settings, where they switch it on — tell them what to switch on, wait for them to say they are done, then check again with prompt false. On Linux it reports whether this session needs the GNOME Shell helper and whether it is loaded, because the driver refuses input on Wayland without it.`,
     parameters: {},
     output: {
       schema: { type: 'string' },
@@ -233,12 +335,21 @@ function registerSetupTool(ctx: Context, command: string): void {
         if (helper.present) {
           return `Computer use is set up on this Wayland session: the ${SHELL_HELPER_EXTENSION_ID} Shell helper is loaded, so the driver can see the desktop and act on it. Report what failed and retry that tool.`
         }
-        return `Computer use needs the GNOME Shell helper on Wayland, and ${SHELL_HELPER_EXTENSION_ID} is not loaded, so the driver refuses to type into an unknown window. Tell the person to install that extension — it ships with the driver under libs/cua-driver/wayland-helper/${SHELL_HELPER_EXTENSION_ID} and belongs in the shell's extensions directory, enabled by default — then to log out and back in once so the shell loads it. If the driver itself is missing, follow ${INSTALL_GUIDE} first.`
+        const install = config.embedded
+          ? `run ${join(dirname(config.command), 'wayland-helper', 'install.sh')}, which installs and enables it,`
+          : `install the extension from ${INSTALL_GUIDE},`
+        return `Computer use needs the GNOME Shell helper on Wayland, and ${SHELL_HELPER_EXTENSION_ID} is not loaded, so the driver refuses to type into an unknown window. Tell the person to ${install} then to log out and back in once so the shell loads it.`
+      }
+      if (config.embedded) {
+        if (process.platform !== 'darwin') {
+          return 'This system needs no permission setup for computer use. Report what failed and retry that tool.'
+        }
+        return hostGrantResult(await requestHostGrants(exec.signal))
       }
       if (running !== undefined && running.exitCode === null) {
         return 'The macOS permission request is already open. Ask the person to finish it in System Settings.'
       }
-      const grant = spawn(command, GRANT_ARGS, { stdio: 'ignore' })
+      const grant = spawn(config.command, GRANT_ARGS, { stdio: 'ignore' })
       await new Promise<void>((resolve, reject) => {
         grant.once('spawn', resolve)
         grant.once('error', reject)

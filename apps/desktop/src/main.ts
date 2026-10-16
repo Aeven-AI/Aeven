@@ -1,5 +1,6 @@
 /** Electron shell: desktop project ownership, custom protocol, windows, and lifecycle. */
 
+import { existsSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
 import { delimiter, dirname, extname, join, normalize, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -117,6 +118,20 @@ async function applyPackagedDeployment(): Promise<void> {
   for (const [name, value] of Object.entries(deployment as Record<string, string>)) {
     process.env[name] ??= value
   }
+}
+
+/**
+ * Point the Host's computer-use row at the Cua Driver packaging shipped in `runtime/cua-driver`, so computer use
+ * works without a separate driver install. `AVN_CUA_DRIVER_EMBEDDED` makes the macOS row run the driver as a child
+ * that inherits Aeven's own Accessibility and Screen Recording grants. A driver path the launching environment
+ * already sets wins.
+ */
+function applyBundledComputerUseDriver(): void {
+  if (!app.isPackaged || process.env.AVN_CUA_DRIVER !== undefined) return
+  const driver = join(process.resourcesPath, 'runtime', 'cua-driver', process.platform === 'win32' ? 'cua-driver.exe' : 'cua-driver')
+  if (!existsSync(driver)) return
+  process.env.AVN_CUA_DRIVER = driver
+  process.env.AVN_CUA_DRIVER_EMBEDDED = '1'
 }
 
 function runtimeResources(): RuntimeResources {
@@ -295,6 +310,7 @@ async function serveShellAsset(request: Request): Promise<Response> {
 
 async function main(): Promise<void> {
   await applyPackagedDeployment()
+  applyBundledComputerUseDriver()
   const resources = runtimeResources()
   const paths = resolveDesktopPaths()
   const development = developmentProject()
