@@ -1,7 +1,7 @@
 {
   "name": "@aeven/subprocess-e2b",
   "description": "E2B subprocess implementation for Aeven",
-  "version": "0.3.5-alpha",
+  "version": "0.3.6-alpha",
   "publishConfig": {
     "access": "public"
   },

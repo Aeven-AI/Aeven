@@ -1,7 +1,7 @@
 {
   "name": "@aeven/computer-use-macos-apple-events",
   "description": "Apple Events mechanism handler for macOS computer use",
-  "version": "0.3.5-alpha",
+  "version": "0.3.6-alpha",
   "publishConfig": {
     "access": "public"
   },

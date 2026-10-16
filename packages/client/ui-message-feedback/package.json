@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-message-feedback",
   "description": "Per-message feedback controls contributed to the assistant-message action strip, backed by the messageFeedback Host Remote",
-  "version": "0.3.5-alpha",
+  "version": "0.3.6-alpha",
   "publishConfig": {
     "access": "public"
   },
