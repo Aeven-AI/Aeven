@@ -8,6 +8,8 @@
 
 在启动或接入 Host 之前，Electron 会向用户的登录 shell（`$SHELL -ilc`，限时十秒）查询其 PATH，并把这些条目放在继承条目之前。从 Finder、Dock 或桌面启动器启动时，应用只带有会话的最小 PATH，因此 Host 找不到 `npm` 或用户安装的任何工具：通过 `npm exec` 启动的 `chrome-devtools-mcp` 与 Playwright 从未运行，shell 命令也缺少用户的工具。shell 失败或超时时，Host 保留继承的 PATH，桌面壳记录一条警告。
 
+在这些步骤之前，Electron 就已创建窗口，并从自己的 `avn-app://shell` 来源绘制启动画面；待 Host 就绪后，再把应用地址加载进同一个窗口，由客户端自己的预加载界面接续。启动画面在预加载界面的底色与墨色上绘制标记与加载标记，明暗两种配色皆然，且不含任何文案，因此交接时不会发生位移：无论后面还要等待多久，进程启动后数百毫秒内就会画出产品自己的画面。
+
 通用设置中的 **后台运行** 默认关闭；开启后，最后一个窗口关闭时应用会以菜单栏或系统托盘图标的形式继续运行，macOS 上的 Dock 图标会隐藏，直到再次打开窗口。运行中的桌面壳让其 Host 继续提供服务，因此 Agent 轮次与自动化会一直执行，直到从图标或应用菜单选择 **退出 Aeven**。该选项保存在 Electron 的用户数据目录中。
 
 [Desktop Host overlay](../desktop-host/config/desktop.cordis.patch.yml) 为登录、推理、搜索、媒体和账户集成提供生产服务 URL；安装后的应用不需要 `.env` 文件。API 默认为 `https://aeven.io/api`；Web、媒体和 OAuth 使用 `https://preview.aeven.io`。显式设置的 `AEVEN_API_URL`、`AEVEN_WEB_URL`、`AEVEN_MEDIA_URL` 和 `AEVEN_OAUTH_{X,APPLE,GOOGLE}_URL` 环境变量会覆盖这些默认值。Desktop 登录在独立窗口中打开。参见[端点决策](../../.agents/notes/implemented/bug-fix/2026-10-14-desktop-production-service-endpoints.zh.md)。
