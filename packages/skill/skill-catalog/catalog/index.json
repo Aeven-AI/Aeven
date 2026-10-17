@@ -6,9 +6,7 @@
   },
   "sources": [
     {
-      "repo": "aicodeking/leanrea",
-      "ref": "09ba4aa0217f82cd880f855a60b877f59f39b22b",
-      "path": "leanrea",
+      "path": "packages/skill/skill-catalog/authored/reverse-engineering",
       "category": "reverse-engineering"
     }
   ],
@@ -594,17 +592,17 @@
       "value": 4
     },
     {
-      "name": "leanrea",
-      "displayName": "leanrea",
+      "name": "reverse-engineering",
+      "displayName": "reverse-engineering",
       "category": "reverse-engineering",
-      "description": "Reverse engineer shipped software with plain local CLI tools, no MCP needed. Covers Electron/JS bundles, native Mach-O/ELF/PE, Go/Rust/.NET/Flutter/WASM binaries, APKs, SQLite, pcaps, firmware and websites. Use to explain how a feature works, extract versions/deps, compare builds, or rebuild a feature.",
+      "description": "Work out how shipped software behaves from the artifact itself — native binaries, Electron and web bundles, APKs, firmware, databases, packet captures — with the shell already at hand. Use to explain how a feature works, recover versions and dependencies, compare two builds, or rebuild a behavior from what shipped.",
       "keywords": [],
       "downloads": 0,
       "author": "",
-      "path": "aicodeking/leanrea/leanrea",
+      "path": "packages/skill/skill-catalog/authored/reverse-engineering",
       "files": 1,
-      "bytes": 4486,
-      "sha256": "2b1ebabc3629837e16ce96c0da593e9ea4e55563731f0b2db4ec3ec0ce3d5b30",
+      "bytes": 4174,
+      "sha256": "72d4b40842215b1f80bbc4696311b84d8edabded26c91af9d76e0845a7b9b3aa",
       "verdict": "net-new",
       "value": 5
     },

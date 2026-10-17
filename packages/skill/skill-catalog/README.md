@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-A release ships a skill catalog inside this package: the reviewed high-value subset of the upstream `davila7/claude-code-templates` collection, together with skills pinned from repositories that collection does not carry (today `aicodeking/leanrea`), each vendored at a fixed commit as an index plus one zip per skill. Settings browses it as one title-ordered list or grouped by category, searches it, and installs a chosen skill into the signed-in account's own library. Nothing in the catalog reaches a model until someone installs it.
+A release ships a skill catalog inside this package: the reviewed high-value subset of the upstream `davila7/claude-code-templates` collection, together with skills written in this repository for targets that collection does not cover (today `reverse-engineering`), as an index plus one zip per skill. Settings browses it as one title-ordered list or grouped by category, searches it, and installs a chosen skill into the signed-in account's own library. Nothing in the catalog reaches a model until someone installs it.
 
 The Host fetches nothing at runtime: the index and the bundles are files in this package, read through `ctx.skillCatalog`. An install hands the vendored zip to the account's ordinary import path, so path validation, the size ceiling, resource storage, and catalog invalidation behave exactly as a manual upload.
 
@@ -46,7 +46,7 @@ Installed names come from the upstream directory name, which is the kebab-case i
 
 `SkillCatalog.list()` parses `index.json` once per process. `SkillCatalog.bundle(name)` reads one zip and returns the file-and-base64 upload the account Remote already accepts. `catalogDir` points the service at another directory, which is how a derived catalog or a test fixture is served.
 
-`catalog/sources.json` names the skills the collection does not carry: each entry pins a repository, one commit, and the directory holding that skill's `SKILL.md`, and states the category Settings groups it under. The sync vendors those the same way and records every pin in `index.json` and `MANIFEST.md`, so an extra skill is upgraded by editing its commit and re-running.
+`catalog/sources.json` names the skills the collection does not carry: each entry names a directory in this repository holding that skill's `SKILL.md`, and states the category Settings groups it under. The sync packages each one the way it packages a vendored skill, records it in `index.json` and `MANIFEST.md`, and builds the bundle from the directory as it stands, so a skill written here reaches the next release by editing that directory and re-running the sync.
 
 </details>
 
@@ -67,7 +67,7 @@ Nothing here enters a model request, so provider cache reuse is unaffected until
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **A snapshot, not a feed.** Upstream changes arrive by regenerating the catalog during a release, and the popularity numbers stay at their vendored values. An extra-source skill moves only when its pinned commit in `catalog/sources.json` changes.
+- **A snapshot, not a feed.** Upstream changes arrive by regenerating the catalog during a release, and the popularity numbers stay at their vendored values. A skill written here moves only when its directory changes and the sync runs again.
 - **Upstream instructions are vendored unchanged.** Some reference Claude Code surfaces, or Python and Node tooling a deployment may not have; nothing rewrites them at install.
 - **No invariant companion** — No invariant companion is published because the service reads one immutable file set and holds no second registry, so there is no independent observation to check.
 
