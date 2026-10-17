@@ -73,21 +73,40 @@ export function AccountMenu({
   reader, openSettings, accountType, signOut, t,
 }: AccountMenuProps) {
   const person = reader()
+  const signedIn = person !== undefined
   const [open, setOpen] = useState(false)
   const [type, setType] = useState<AccountType | undefined>(undefined)
   const root = useRef<HTMLDivElement | null>(null)
   const trigger = useRef<HTMLButtonElement | null>(null)
   useDismissOnOutsidePointer(root, open, setOpen)
 
-  // Read the plan the first time the panel opens and keep it: the panel opens
-  // far more often than a plan changes, and a plan change is made from the
-  // account page this menu leads to.
-  useEffect(() => {
-    if (!open || type !== undefined) return
+  /**
+   * Read the plan and keep it.
+   * @returns a function that drops an answer arriving after unmount.
+   */
+  const read = useCallback((): (() => void) => {
     let live = true
     void accountType().then((answer) => { if (live) setType(answer) })
     return () => { live = false }
-  }, [open, type, accountType])
+  }, [accountType])
+
+  // Read the plan with the page rather than with the panel: the avatar is
+  // resident, so the read has landed by the time a reader opens the menu and
+  // the plan line is drawn with the panel instead of a moment after it. The
+  // panel opens far more often than a plan changes, and a plan changes from
+  // the account page this menu leads to.
+  useEffect(() => {
+    if (!signedIn || type !== undefined) return
+    return read()
+  }, [signedIn, type, read])
+
+  // An open without a plan means the read above is still settling or failed:
+  // ask again. A request already running is shared, so this costs nothing while
+  // the page's read is in flight.
+  useEffect(() => {
+    if (!open || type !== undefined) return
+    return read()
+  }, [open, type, read])
 
   const close = useCallback(() => {
     setOpen(false)

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AccountMenu, type AccountMenuProps } from '../src/client/AccountMenu.tsx'
 
@@ -100,6 +100,30 @@ describe('Aeven account menu', () => {
     fireEvent.click(screen.getByLabelText('trigger.aria'))
     await screen.findByText('Ollie')
     expect(screen.queryByText(/ plan$/u)).toBeNull()
+  })
+
+  it('reads the plan with the page, so an open names it at once', async () => {
+    const translate = (key: string, params?: Record<string, string>): string =>
+      key === 'plan.status' ? `${params?.plan ?? ''} plan` : key === 'plan.free' ? 'Free' : key
+    const accountType = vi.fn(() => Promise.resolve({ plan: 'free' }))
+    render(<AccountMenu {...props({ accountType, t: translate as AccountMenuProps['t'] })} />)
+    // Asked while the panel is still closed: the open below needs no request.
+    await waitFor(() => { expect(accountType).toHaveBeenCalledOnce() })
+    fireEvent.click(screen.getByLabelText('trigger.aria'))
+    expect(screen.getByText('Free plan')).toBeDefined()
+    expect(accountType).toHaveBeenCalledOnce()
+  })
+
+  it('asks again on an open that still has no plan', async () => {
+    const translate = (key: string, params?: Record<string, string>): string =>
+      key === 'plan.status' ? `${params?.plan ?? ''} plan` : key
+    const accountType = vi.fn()
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce({ plan: 'pro', name: 'Pro' }) as AccountMenuProps['accountType']
+    render(<AccountMenu {...props({ accountType, t: translate as AccountMenuProps['t'] })} />)
+    await waitFor(() => { expect(accountType).toHaveBeenCalledOnce() })
+    fireEvent.click(screen.getByLabelText('trigger.aria'))
+    expect(await screen.findByText('Pro plan')).toBeDefined()
   })
 
   it('leads to the account page from the picture and the name', () => {

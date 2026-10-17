@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`avn-client-ui-account-aeven` puts the signed-in reader's avatar in the Web Client's resident navigation band and opens their account menu from it, so a reader can see who they are signed in as and which plan they are on, reach their account page, and sign out. The band belongs to the conversation column rather than to a Session, so the avatar is there in the no-Session hero and beside a live Session alike: whether anyone is signed in is a fact about the app, and a fresh deployment opens on that hero. It shows whoever the Aeven authority already restored and asks Aeven for nothing of its own, so it costs no request of its own. With nobody signed in there is no reader to show and the seat stays empty. Enable it together with the Host authority; alone it renders nothing.
+`avn-client-ui-account-aeven` puts the signed-in reader's avatar in the Web Client's resident navigation band and opens their account menu from it, so a reader can see who they are signed in as and which plan they are on, reach their account page, and sign out. The band belongs to the conversation column rather than to a Session, so the avatar is there in the no-Session hero and beside a live Session alike: whether anyone is signed in is a fact about the app, and a fresh deployment opens on that hero. It shows whoever the Aeven authority already restored, and makes one call of its own: the plan the menu names, read from the account's subscription route as soon as the page draws a signed-in reader. With nobody signed in there is no reader to show and the seat stays empty. Enable it together with the Host authority; alone it renders nothing.
 
 Account settings also owns the reader's picture: a photo control opens the picker and stores the file the reader picks, a delete control appears beside it once there is a picture and clears it so the avatar returns to the initial, and the picture itself opens the picker as well. Both go through the published reader, which republishes itself, so whoever draws the reader next shows the stored picture rather than the one the page booted with.
 
@@ -48,7 +48,7 @@ The browser half injects `slots` and `locale`, so a composition that omits eithe
 
 ### What the menu offers
 
-The avatar shows the reader's uploaded picture, or, when they have set none, the first letter of their display name (or of their email address when they have no name) on a black disc. Opening it states the reader and the plan the account is on, read once from the account's subscription route and kept for later openings. The picture and the name form one row that closes the menu and emits `settings/open` with `account`, so the reader lands on their own page. Below it, Settings emits `settings/open` for the settings shell's landing page and sign out ends the session. Theme selection lives in the Appearance setting, which also offers following the system.
+The avatar shows the reader's uploaded picture, or, when they have set none, the first letter of their display name (or of their email address when they have no name) on a black disc. Opening it states the reader and the plan the account is on: the plan is read from the account's subscription route as soon as the page draws a signed-in reader, so the panel names it in the frame it opens rather than a moment after, and the answer is kept for later openings. An open that still has no plan asks again. The picture and the name form one row that closes the menu and emits `settings/open` with `account`, so the reader lands on their own page. Below it, Settings emits `settings/open` for the settings shell's landing page and sign out ends the session. Theme selection lives in the Appearance setting, which also offers following the system.
 
 -----
 
@@ -62,7 +62,7 @@ This section covers how the menu is wired; observable behavior is covered in [Us
 
 ### Reading the reader without importing the gate
 
-The authentication gate is statically linked into the boot kernel, which no plugin bundle can import. So the gate states the reader on the page as a global and this plugin reads it from there, the same way the Host states the Aeven endpoints. The plugin therefore holds no session logic and makes no Aeven call: signing out is a function the gate published alongside the reader.
+The authentication gate is statically linked into the boot kernel, which no plugin bundle can import. So the gate states the reader on the page as a global and this plugin reads it from there, the same way the Host states the Aeven endpoints. The plugin therefore holds no session logic: signing out is a function the gate published alongside the reader, and the one Aeven call the menu makes is the plan read, through that reader's authenticated `cloud` method.
 
 ### An empty host half
 
@@ -112,6 +112,7 @@ These are current constraints of the menu, not a task backlog.
 
 - **The account link needs a configured web client** — without `webUrl` the deployment cannot name an account page, so the menu offers none rather than guessing one.
 - **The reader is read once from the page** — the menu reflects the session the gate restored at boot. A profile edited in the Aeven client during the same page life is not picked up until the next document load.
+- **The plan is read once per page** — the menu holds the plan it read when the page drew the reader, so a plan changed from the account page or in another client appears there after the next document load. A failed read costs the line for that page until an open asks again.
 - **The resident avatar repaints on its next render** — the reader is stated on the page at boot and after each picture change, but it is not a subscription: the navigation-band avatar shows a new picture the next time it renders, which opening the menu or leaving settings does.
 - **One square picture** — the API re-encodes an upload to a square WebP at its configured size, so a non-square picture is cropped rather than letterboxed and an animated one keeps its first frame.
 - **Aeven-shaped by design** — the row reads the Aeven reader global specifically, so a different authority would need its own account row rather than reusing this one.
