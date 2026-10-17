@@ -6,6 +6,12 @@
 
 /* The trigger is a button so it keeps native activation and focus; Aeven's is
    a focusable span, and its stylesheet leaves both bare. */
+/* The popup's name reads as the label it is: the vendored stylesheet inherits the
+   profile row's hover grey into it, which washes out the reader's own name. */
+.mount :global(.profile-name) {
+  color: var(--dsw-alias-label-primary);
+}
+
 .trigger {
   display: flex;
   align-items: center;
