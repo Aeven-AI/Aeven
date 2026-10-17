@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-A release ships a skill catalog inside this package: the reviewed high-value subset of the upstream `davila7/claude-code-templates` collection, together with skills pinned from repositories that collection does not carry (today `aicodeking/leanrea`), each vendored at a fixed commit as an index plus one zip per skill. Settings browses it grouped by category, searches it, orders each category by upstream install count, and installs a chosen skill into the signed-in account's own library. Nothing in the catalog reaches a model until someone installs it.
+A release ships a skill catalog inside this package: the reviewed high-value subset of the upstream `davila7/claude-code-templates` collection, together with skills pinned from repositories that collection does not carry (today `aicodeking/leanrea`), each vendored at a fixed commit as an index plus one zip per skill. Settings browses it as one title-ordered list or grouped by category, searches it, and installs a chosen skill into the signed-in account's own library. Nothing in the catalog reaches a model until someone installs it.
 
 The Host fetches nothing at runtime: the index and the bundles are files in this package, read through `ctx.skillCatalog`. An install hands the vendored zip to the account's ordinary import path, so path validation, the size ceiling, resource storage, and catalog invalidation behave exactly as a manual upload.
 

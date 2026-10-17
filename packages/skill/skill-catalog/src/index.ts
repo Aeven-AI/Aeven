@@ -16,7 +16,7 @@ export interface CatalogSkill {
   readonly category: string
   readonly description: string
   readonly keywords: readonly string[]
-  /** Upstream install count when the catalog was vendored; the popularity ordering. */
+  /** Upstream install count when the catalog was vendored; Settings shows it beside the row. */
   readonly downloads: number
   readonly author: string
   /** Upstream path, shown as provenance. */
