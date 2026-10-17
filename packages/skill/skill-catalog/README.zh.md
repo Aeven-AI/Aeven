@@ -40,7 +40,7 @@ Web 应用 bundle 将此插件与 [`@aeven/host-account-integrations`](../../hos
 <details>
 <summary>实现细节 — 点击展开</summary>
 
-`scripts/sync-skill-catalog.ts` 在准备发行版时重新生成目录，从不在运行中的部署里执行。一次运行固定一个上游提交，下载评价值达到 `curation.json` 中 `minValue` 的技能，并写出 `catalog/index.json`、`catalog/bundles/<category>/<name>.zip` 与 `catalog/MANIFEST.md`。
+`scripts/sync-skill-catalog.ts` 在准备发行版时重新生成目录，从不在运行中的部署里执行。一次运行固定一个上游提交，下载评价值达到 `curation.json` 中 `minValue`、且名称不在其 `exclude` 列表中的技能，并写出 `catalog/index.json`、`catalog/bundles/<category>/<name>.zip` 与 `catalog/MANIFEST.md`。
 
 安装名取自上游目录名，也就是技能注册表要求的 kebab-case 标识；两个技能共用的基名会加上其分类前缀，同一分类内两个技能共用的名字则退回整条上游路径。每个内置 `SKILL.md` 的 frontmatter 都带有同一个名字，因此包与索引一致。嵌套在另一技能目录内的技能会作为独立条目打包，并从父技能的包中排除。
 

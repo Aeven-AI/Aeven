@@ -1,6 +1,12 @@
 {
  "_note": "Value of each catalogued skill against the harness native surface, and the bar the catalog ships on. The sync vendors only skills whose value reaches minValue; the remaining judgements stay here so widening the set is one edit.",
  "minValue": 4,
+ "exclude": [
+  "database",
+  "deploy",
+  "new",
+  "twilio-communications"
+ ],
  "skills": {
   "agent-management": {
    "verdict": "low-value",
@@ -3419,8 +3425,8 @@
    "value": 2
   },
   "remotion": {
-   "verdict": "net-new",
-   "value": 3
+   "verdict": "low-value",
+   "value": 2
   },
   "sora": {
    "verdict": "partial",
@@ -3697,10 +3703,6 @@
   "oil-motion": {
    "verdict": "partial",
    "value": 4
-  },
-  "remotion": {
-   "verdict": "low-value",
-   "value": 2
   },
   "review-animations": {
    "verdict": "net-new",

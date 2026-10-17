@@ -40,7 +40,7 @@ The Catalog view is the default half of the Skills page while an account has ins
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-`scripts/sync-skill-catalog.ts` regenerates the catalog while preparing a release, never inside a running deployment. One run pins an upstream commit, downloads every skill whose reviewed value reaches `curation.json`'s `minValue`, and writes `catalog/index.json`, `catalog/bundles/<category>/<name>.zip`, and `catalog/MANIFEST.md`.
+`scripts/sync-skill-catalog.ts` regenerates the catalog while preparing a release, never inside a running deployment. One run pins an upstream commit, downloads every skill whose reviewed value reaches `curation.json`'s `minValue` and whose name is not in its `exclude` list, and writes `catalog/index.json`, `catalog/bundles/<category>/<name>.zip`, and `catalog/MANIFEST.md`.
 
 Installed names come from the upstream directory name, which is the kebab-case identity the skill registry requires; a basename two skills share is prefixed with its category, and a name two skills of one category share falls back to the whole upstream path. Every vendored `SKILL.md` carries the same name in its frontmatter, so the bundle and the index agree. A skill directory nested inside another is vendored as its own entry and excluded from its parent's bundle.
 
