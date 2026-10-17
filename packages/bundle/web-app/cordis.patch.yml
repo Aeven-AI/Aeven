@@ -351,6 +351,7 @@
         args:
           - '-y'
           - 'rea-agents@latest'
+          - '--mcp'
         failOnStartupError: false
 
     # Computer use on the Host's own desktop through Cua Driver. The installed
