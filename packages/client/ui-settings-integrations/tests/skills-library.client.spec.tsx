@@ -7,7 +7,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import type { AccountIntegrationsView } from '@aeven/api-remotes/client'
+import type { AccountIntegrationsView, SkillCatalogView } from '@aeven/api-remotes/client'
 import type { IntegrationsLocaleKey } from '../src/client/locales.ts'
 import { IntegrationsSection } from '../src/client/IntegrationsSection.tsx'
 import type { IntegrationsSectionProps } from '../src/client/IntegrationsSection.tsx'
@@ -44,8 +44,16 @@ function connectorOwned(): AccountIntegrationsView['providers'][number] {
   }
 }
 
+/** One catalogued skill, with the install count the catalog carries for it. */
+function catalogued(name: string, displayName: string, downloads: number): SkillCatalogView['skills'][number] {
+  return {
+    name, displayName, category: 'reverse-engineering', description: `${displayName} description.`,
+    keywords: [], downloads, author: '', path: `packages/skill/skill-catalog/authored/${name}`, bytes: 100,
+  }
+}
+
 /** Mount the Skills page with stubbed account operations. */
-function mount(view: AccountIntegrationsView, detail?: string) {
+function mount(view: AccountIntegrationsView, detail?: string, catalog?: SkillCatalogView) {
   const setSkillEnabled = vi.fn().mockResolvedValue(undefined)
   const removeSkill = vi.fn().mockResolvedValue(undefined)
   const showDetail = vi.fn()
@@ -59,7 +67,7 @@ function mount(view: AccountIntegrationsView, detail?: string) {
     useChanges: (selector => selector(0)) as IntegrationsSectionProps['useChanges'],
     list: () => Promise.resolve(view),
     cachedList: () => undefined,
-    catalog: () => Promise.resolve(undefined),
+    catalog: () => Promise.resolve(catalog),
     catalogSkillContent: () => Promise.resolve(undefined),
     installCatalogSkill: vi.fn().mockResolvedValue(undefined),
     showDetail, importSkill: vi.fn().mockResolvedValue(undefined), setSkillEnabled, removeSkill,
@@ -101,5 +109,18 @@ describe('the skills library', () => {
     expect(screen.getByText('scripts/check.py')).toBeDefined()
     fireEvent.click(screen.getByRole('button', { name: 'Remove skill' }))
     await waitFor(() => { expect(page.removeSkill).toHaveBeenCalledWith('invoice-checker') })
+  })
+})
+
+describe('the skills catalog', () => {
+  it('lists every skill in title order rather than install order', async () => {
+    mount({ skills: [], connectors: [], providers: [] }, undefined, {
+      commit: 'abc123', synced: '2026-10-17',
+      categories: [{ name: 'reverse-engineering', skills: 2 }],
+      skills: [catalogued('zeta-skill', 'Zeta skill', 9000), catalogued('alpha-skill', 'Alpha skill', 2)],
+    })
+    await waitFor(() => { expect(screen.getByText('alpha-skill')).toBeDefined() })
+    const text = document.body.textContent ?? ''
+    expect(text.indexOf('alpha-skill')).toBeLessThan(text.indexOf('zeta-skill'))
   })
 })

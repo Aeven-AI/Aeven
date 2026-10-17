@@ -80,7 +80,7 @@ export interface CatalogSkillView {
   category: string
   description: string
   keywords: string[]
-  /** Upstream install count when the catalog was vendored; Settings sorts on it. */
+  /** Upstream install count when the catalog was vendored, shown beside the row. */
   downloads: number
   author: string
   path: string

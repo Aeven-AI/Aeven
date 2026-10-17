@@ -12,6 +12,15 @@ import { EmailAccounts } from './EmailAccounts.tsx'
 import { TelegramAccounts } from './TelegramAccounts.tsx'
 import { WhatsAppAccounts } from './WhatsAppAccounts.tsx'
 
+/**
+ * Title order for a skills list, by the name the row shows: the upstream title when a
+ * catalog entry carries one, the install name otherwise. Case and accents do not
+ * reorder a list a reader scans alphabetically.
+ */
+function byTitle(left: { name: string; displayName?: string }, right: { name: string; displayName?: string }): number {
+  return (left.displayName ?? left.name).localeCompare(right.displayName ?? right.name, undefined, { sensitivity: 'base' })
+}
+
 /** Browser callbacks bound to the authenticated account Remote. */
 export interface IntegrationsSectionInjected extends TelegramPairingOperations {
   hooks: { changes: HostObservable<number> }
@@ -111,8 +120,8 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
   /** The shipped catalog: undefined while unread, null when this deployment ships none. */
   const [catalog, setCatalog] = useState<SkillCatalogView | null>()
   const [catalogQuery, setCatalogQuery] = useState('')
-  /** How the catalog is laid out: one popularity-ordered list, or grouped by upstream category. */
-  const [view, setView] = useState<'popular' | 'category'>('popular')
+  /** How the catalog is laid out: one list of every skill, or grouped by upstream category. Both read in title order. */
+  const [view, setView] = useState<'all' | 'category'>('all')
   const [optionsOpen, setOptionsOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [signingIn, setSigningIn] = useState(false)
@@ -247,22 +256,24 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
 
   const providerDetail = snapshot?.providers.find(provider => provider.provider === selectedConnector)
   const connectorSkill = providerDetail?.skills.find(skill => skill.id === connectorSkillId)
-  const matchingSkills = snapshot?.skills.filter(skill => `${skill.name} ${skill.description}`.toLowerCase().includes(query.trim().toLowerCase())) ?? []
+  const matchingSkills = (snapshot?.skills ?? [])
+    .filter(skill => `${skill.name} ${skill.description}`.toLowerCase().includes(query.trim().toLowerCase()))
+    .sort(byTitle)
   /** Whether the catalog search field admits one skill. */
   const catalogMatches = (skill: SkillCatalogView['skills'][number]): boolean => {
     const needle = catalogQuery.trim().toLowerCase()
     return needle === '' || `${skill.name} ${skill.displayName} ${skill.description} ${skill.keywords.join(' ')}`.toLowerCase().includes(needle)
   }
-  /** Catalog rows of one category, ordered by upstream popularity and narrowed by the search field. */
+  /** Catalog rows of one category, in title order and narrowed by the search field. */
   const catalogRows = (category: string): SkillCatalogView['skills'] =>
     (catalog?.skills ?? [])
       .filter(skill => skill.category === category && catalogMatches(skill))
-      .sort((left, right) => right.downloads - left.downloads || left.name.localeCompare(right.name))
+      .sort(byTitle)
   const installedNames = new Set(snapshot?.skills.map(skill => skill.name) ?? [])
-  /** Every catalogued skill the search field admits, most popular first — the default display. */
-  const popularRows = (catalog?.skills ?? [])
+  /** Every catalogued skill the search field admits, in title order — the default display. */
+  const allRows = (catalog?.skills ?? [])
     .filter(catalogMatches)
-    .sort((left, right) => right.downloads - left.downloads || left.name.localeCompare(right.name))
+    .sort(byTitle)
   const catalogRow = (skill: SkillCatalogView['skills'][number]) => <article key={skill.name} className={css.connectorRow}>
     <button type="button" className={css.connectorOpen} onClick={() => { openDetail(skill.name) }}>
       <span className={css.skillSummary}>
@@ -283,8 +294,8 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
     align="end"
     onClose={() => { setOptionsOpen(false) }}
     selectedId={view}
-    onSelect={(id) => { setView(id === 'category' ? 'category' : 'popular'); setOptionsOpen(false) }}
-    items={[{ id: 'popular', label: t('optionPopular') }, { id: 'category', label: t('optionCategory') }]}
+    onSelect={(id) => { setView(id === 'category' ? 'category' : 'all'); setOptionsOpen(false) }}
+    items={[{ id: 'all', label: t('optionAll') }, { id: 'category', label: t('optionCategory') }]}
     anchor={<button
       type="button" className={css.iconAction} aria-label={t('displayOptions')} title={t('displayOptions')}
       aria-haspopup="menu" aria-expanded={optionsOpen} onClick={() => { setOptionsOpen(open => !open) }}
@@ -448,7 +459,7 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
               <h3 className={css.categoryHeader}>{category.name.replace(/-/g, ' ')}<span className={css.categoryCount}>{category.skills}</span></h3>
               <div className={css.connectorList}>{rows.map(catalogRow)}</div>
             </section>
-          }) : <div className={css.connectorList}>{popularRows.map(catalogRow)}</div>)}
+          }) : <div className={css.connectorList}>{allRows.map(catalogRow)}</div>)}
         </> : <>
           <div className={css.toolbar}>
             <input
