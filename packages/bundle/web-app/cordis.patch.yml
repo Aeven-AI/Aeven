@@ -332,6 +332,27 @@
           - '--caps=devtools'
         failOnStartupError: false
 
+    # Decompiler-backed binary analysis: pseudocode for one function, its callers
+    # and callees, and an evidence ledger that outlives the session that made it.
+    # It earns the mount the shell skill cannot cover — a stripped binary where
+    # resolving a call target needs a decompiler database — and costs one line in
+    # the tool index because every `mcp__rea__*` tool waits behind tool_search.
+    # Native depth needs Hopper, Ghidra or IDA on the host; the server starts
+    # without one and its file-target operations still work. A row here mounts it
+    # for every session, so a deployment that wants it on demand disables this row
+    # instead of deleting it.
+    - id: mcp-rea
+      name: '@aeven/mcp-client'
+      config:
+        transport: stdio
+        serverName: rea
+        title: Decompiler-backed binary analysis
+        command: !!js "process.platform === 'win32' ? 'npx.cmd' : 'npx'"
+        args:
+          - '-y'
+          - 'rea-agents@latest'
+        failOnStartupError: false
+
     # Computer use on the Host's own desktop through Cua Driver. The installed
     # Electron app ships the driver and sets AVN_CUA_DRIVER to it with
     # AVN_CUA_DRIVER_EMBEDDED=1, so the driver runs as the app's child and macOS
