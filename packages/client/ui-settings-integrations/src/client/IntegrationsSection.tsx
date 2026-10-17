@@ -122,6 +122,8 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
   const [catalogQuery, setCatalogQuery] = useState('')
   /** How the catalog is laid out: one list of every skill, or grouped by upstream category. Both read in title order. */
   const [view, setView] = useState<'all' | 'category'>('all')
+  /** Category opened from the index; undefined while the index itself shows. */
+  const [openCategory, setOpenCategory] = useState<string>()
   const [optionsOpen, setOptionsOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [signingIn, setSigningIn] = useState(false)
@@ -274,6 +276,11 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
   const allRows = (catalog?.skills ?? [])
     .filter(catalogMatches)
     .sort(byTitle)
+  /** Every category the catalog ships, with how many skills it holds, in name order. */
+  const catalogCategories = [...(catalog?.skills ?? [])
+    .reduce((counts, skill) => counts.set(skill.category, (counts.get(skill.category) ?? 0) + 1), new Map<string, number>())]
+    .map(([name, skills]) => ({ name, skills }))
+    .sort((left, right) => left.name.localeCompare(right.name))
   const catalogRow = (skill: SkillCatalogView['skills'][number]) => <article key={skill.name} className={css.connectorRow}>
     <button type="button" className={css.connectorOpen} onClick={() => { openDetail(skill.name) }}>
       <span className={css.skillSummary}>
@@ -294,7 +301,7 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
     align="end"
     onClose={() => { setOptionsOpen(false) }}
     selectedId={view}
-    onSelect={(id) => { setView(id === 'category' ? 'category' : 'all'); setOptionsOpen(false) }}
+    onSelect={(id) => { setView(id === 'category' ? 'category' : 'all'); setOpenCategory(undefined); setOptionsOpen(false) }}
     items={[{ id: 'all', label: t('optionAll') }, { id: 'category', label: t('optionCategory') }]}
     anchor={<button
       type="button" className={css.iconAction} aria-label={t('displayOptions')} title={t('displayOptions')}
@@ -452,14 +459,26 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
             {displayMenu}
           </div>
           {catalog === null && <p className={css.hint}>{t('catalogUnavailable')}</p>}
-          {catalog !== undefined && catalog !== null && (view === 'category' ? catalog.categories.map((category) => {
-            const rows = catalogRows(category.name)
-            if (rows.length === 0) return null
-            return <section key={category.name} className={css.category}>
-              <h3 className={css.categoryHeader}>{category.name.replace(/-/g, ' ')}<span className={css.categoryCount}>{category.skills}</span></h3>
-              <div className={css.connectorList}>{rows.map(catalogRow)}</div>
-            </section>
-          }) : <div className={css.connectorList}>{allRows.map(catalogRow)}</div>)}
+          {catalog !== undefined && catalog !== null && (view === 'category' && catalogQuery.trim() === ''
+            ? openCategory === undefined
+              ? <div className={css.connectorList}>{catalogCategories.map(category => <article
+                key={category.name} className={css.connectorRow}
+              >
+                <button type="button" className={css.connectorOpen} onClick={() => { setOpenCategory(category.name) }}>
+                  <span className={css.skillSummary}><strong>{category.name.replace(/-/g, ' ')}</strong></span>
+                </button>
+                <span className={css.meta}>{category.skills}</span>
+              </article>)}</div>
+              : <section className={css.category}>
+                <h3 className={css.categoryHeader}>
+                  <button type="button" className={css.categoryLink} onClick={() => { setOpenCategory(undefined) }} aria-label={t('allCategories')}>
+                    <IconChevronLeftOutline14 />
+                  </button>
+                  {openCategory.replace(/-/g, ' ')}<span className={css.categoryCount}>{catalogRows(openCategory).length}</span>
+                </h3>
+                <div className={css.connectorList}>{catalogRows(openCategory).map(catalogRow)}</div>
+              </section>
+            : <div className={css.connectorList}>{allRows.map(catalogRow)}</div>)}
         </> : <>
           <div className={css.toolbar}>
             <input
