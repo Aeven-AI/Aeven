@@ -1,9 +1,8 @@
-/* Voice settings: one filled card per recognizer, carrying its name at the
-   group-title scale, the state it is in, and the download that moves it on.
+/* Voice settings: one filled card per recognizer, carrying its name, the state
+   it is in, and the download that moves it on.
    A boundary is a fill, never a line: the card is the module surface, and the
    only control on it is the black capsule that starts the download.
-   No 14px line: a card has one title scale (16/24) and one metadata scale
-   (12/18). */
+   A card reads at one scale: name, state, and detail all sit at 14/22. */
 
 .section {
   display: flex;
@@ -32,9 +31,9 @@
 
 .name {
   min-width: 0;
-  font-size: 16px;
-  font-weight: 500;
-  line-height: 24px;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 22px;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
