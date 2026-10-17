@@ -421,7 +421,7 @@ async function main(): Promise<void> {
     const url = new URL(request.url)
     if (url.hostname === 'shell') {
       if (url.pathname !== START_PAGE_PATH) return serveShellAsset(request)
-      return Promise.resolve(new Response(startPageDocument(), {
+      return Promise.resolve(new Response(startPageDocument(process.platform), {
         headers: { 'content-type': MIME['.html'] ?? 'text/html; charset=utf-8' },
       }))
     }
