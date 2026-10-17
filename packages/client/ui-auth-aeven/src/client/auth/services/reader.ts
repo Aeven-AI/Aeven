@@ -9,7 +9,7 @@
  */
 
 import { mediaUrl, webUrl } from './config.ts'
-import { cloud, mfa, setDisplayName, signOut } from './api.ts'
+import { cloud, mfa, removeAvatar, setDisplayName, signOut, uploadAvatar } from './api.ts'
 import { session } from './session.ts'
 
 /** What a plugin may know about the signed-in reader. */
@@ -34,6 +34,18 @@ export interface AevenReader {
    * @returns the name the API stored.
    */
   readonly setDisplayName: (displayName: string) => Promise<string>
+  /**
+   * Replace the account's picture with the picture the reader picked, and
+   * restate the reader with it, so every surface that draws the reader follows.
+   * @param image - the file the reader picked.
+   * @returns the picture's absolute URL, absent when the account now has none.
+   */
+  readonly setImage: (image: Blob) => Promise<string | undefined>
+  /**
+   * Remove the account's picture, leaving the initial in its place.
+   * @returns nothing; the restated reader has no picture.
+   */
+  readonly removeImage: () => Promise<void>
   /** Authenticator operations authenticated as this reader; secrets remain in server storage. */
   readonly mfa: typeof mfa
   /**
@@ -63,14 +75,13 @@ export function publishReader(): void {
     delete scope.__AVN_AEVEN_READER__
     return
   }
-  const path = session.profile?.avatar?.url
-  const media = mediaUrl()
   const web = webUrl()
+  const imageUrl = imageUrlOf()
   scope.__AVN_AEVEN_READER__ = {
     userId: session.userId,
     ...session.displayName === undefined ? {} : { displayName: session.displayName },
     ...session.email === undefined ? {} : { email: session.email },
-    ...path === undefined || media === undefined ? {} : { imageUrl: `${media}${path}` },
+    ...imageUrl === undefined ? {} : { imageUrl },
     ...web === undefined ? {} : { accountUrl: `${web}/account/` },
     signOut,
     setDisplayName: async (displayName: string) => {
@@ -78,9 +89,28 @@ export function publishReader(): void {
       publishReader()
       return stored
     },
+    setImage: async (image: Blob) => {
+      await uploadAvatar(image)
+      publishReader()
+      return imageUrlOf()
+    },
+    removeImage: async () => {
+      await removeAvatar()
+      publishReader()
+    },
     cloud,
     mfa,
   }
+}
+
+/**
+ * The picture URL the account's stored path resolves to.
+ * @returns the absolute URL, absent when the account has no picture or the deployment names no media origin.
+ */
+function imageUrlOf(): string | undefined {
+  const path = session.profile?.avatar?.url
+  const media = mediaUrl()
+  return path === undefined || media === undefined ? undefined : `${media}${path}`
 }
 
 /**

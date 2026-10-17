@@ -145,6 +145,12 @@
   cursor: default;
 }
 
+/* The picker is opened from the button beside it, so it takes no room in the
+   row and never adds a second tab stop for the same action. */
+.fileInput {
+  display: none;
+}
+
 /* Identity: the only row that opens the page, so it carries no group title. */
 .identity {
   margin-top: 8px;
@@ -160,6 +166,60 @@
   width: 40px;
   height: 40px;
   border-radius: 20px;
+}
+
+/* The picture is the picker's other trigger: a reader who wants a different
+   picture expects to click it. The button keeps the avatar's own geometry and
+   adds only the pointer and the focus ring. */
+.avatarButton {
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 20px;
+  background: none;
+  cursor: pointer;
+}
+
+.avatarButton:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.avatarButton:focus-visible {
+  outline: 2px solid var(--dsw-alias-label-primary);
+  outline-offset: 2px;
+}
+
+/* The upload and removal controls are icons on the row's own control scale, so
+   they sit beside one another and beside sign out without reading as text. */
+.iconButton {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--dsw-aeven-control-size);
+  height: var(--dsw-aeven-control-size);
+  padding: 0;
+  border: none;
+  border-radius: var(--dsw-aeven-radius-control);
+  background: var(--dsw-alias-bg-module-platform);
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+  transition: background 0.16s;
+}
+
+.iconButton:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover-solid);
+}
+
+.iconButton:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.icon {
+  width: 16px;
+  height: 16px;
 }
 
 .name,

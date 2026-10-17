@@ -14,8 +14,9 @@ import type {} from '@aeven/client-ui-layout/client'
 import type {} from '@aeven/client-ui-renderer/client'
 import type {} from '@aeven/client-ui-session/client'
 import type {} from '@aeven/client-ui-settings/client'
-import { AccountMenu, type AccountMenuInjected, type AccountReader } from './AccountMenu.tsx'
+import { AccountMenu, type AccountMenuInjected, type AccountReader, type AccountType } from './AccountMenu.tsx'
 import { AccountSection, type AccountSectionInjected } from './AccountSection.tsx'
+import type { CloudSubscription } from './cloud.ts'
 import { en, NS, zh, type AccountAevenKey } from './locales.ts'
 
 export type { AccountMenuInjected, AccountMenuProps, AccountReader } from './AccountMenu.tsx'
@@ -69,9 +70,40 @@ function currentReader(): AccountReader | undefined {
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-account-aeven: dictionaries')
 
+  // One cache for both faces: the menu names the plan the account page reads,
+  // so a change made on one must not leave the other showing the old answer. A
+  // write can move any key (a top-up changes the wallet and the allowance), so
+  // a non-GET drops every one of them.
+  const cache = createReadCache()
+  const cloud = <T>(path: string, init?: RequestInit): Promise<T> => {
+    const current = publishedReader()
+    if (current === undefined) return Promise.reject(new Error('account: nobody is signed in'))
+    if (init !== undefined) {
+      cache.invalidate()
+      return current.cloud<T>(path, init)
+    }
+    return cache.read<T>(path, () => current.cloud<T>(path, init))
+  }
+
+  /**
+   * The plan the reader is on, as the account page reads it.
+   * @returns the plan id and its name, or undefined when it could not be read.
+   */
+  const accountType = async (): Promise<AccountType | undefined> => {
+    try {
+      const subscription = await cloud<CloudSubscription>('/subscription')
+      return { plan: subscription.plan, name: subscription.planName }
+    } catch {
+      // A menu that cannot read the plan draws no plan line: it has no way to
+      // act on the failure, and the account page is one click away.
+      return undefined
+    }
+  }
+
   const injected = (): AccountMenuInjected => ({
     reader: currentReader,
-    openSettings: () => { ctx.emit('settings/open') },
+    openSettings: (section) => { ctx.emit('settings/open', section) },
+    accountType,
     // A full load, not a route change: signing out invalidates the credential
     // every plugin was booted with, so the page starts again at the gate.
     signOut: () => {
@@ -103,23 +135,13 @@ export function apply(ctx: ClientContext): void {
   const reader = publishedReader()
   if (reader === undefined) return
   const t = ctx.locale.bind(NS)
-  // The account routes are this plugin's own reads, so their cache is too: a
-  // revisiting page paints the last answer and re-reads behind it. A write can
-  // move any of them (a top-up changes the wallet and the allowance), so a
-  // non-GET drops every key.
-  const cache = createReadCache()
-  const cloud = <T>(path: string, init?: RequestInit): Promise<T> => {
-    if (init !== undefined) {
-      cache.invalidate()
-      return reader.cloud<T>(path, init)
-    }
-    return cache.read<T>(path, () => reader.cloud<T>(path, init))
-  }
   const section: AccountSectionInjected = {
     reader: currentReader,
     signOut: injected().signOut,
     cloud,
     mfa: reader.mfa,
+    setImage: image => reader.setImage(image),
+    removeImage: () => reader.removeImage(),
     // oxlint-disable-next-line typescript/no-unnecessary-type-parameters -- implements the injected reader's caller-side assertion
     cached: <T>(path: string) => cache.peek<T>(path),
   }

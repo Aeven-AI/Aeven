@@ -10,7 +10,7 @@
 
 import { apiUrl } from './config.ts'
 import { AevenApiError } from './errors.ts'
-import { forgetCachedProfile, session, storage, type AevenProfile } from './session.ts'
+import { forgetCachedProfile, session, storage, type AevenProfile, type AevenProfileMedia } from './session.ts'
 import { currentBearer, deleteBearerToken, setBearerToken, type SessionGrant } from './tokens.ts'
 
 import type { MfaAnswer } from '@aeven/client-ui-primitives'
@@ -270,6 +270,69 @@ export async function cloud<T>(path: string, init: RequestInit = {}): Promise<T>
     throw new AevenApiError(typeof code === 'string' ? code : 'request-failed', response.status)
   }
   return body as T
+}
+
+/** What `/upload-avatar` and `/delete-avatar` answer with. */
+export interface AvatarAnswer {
+  /** The stored picture, absent once the account has none. */
+  readonly avatar?: { readonly url?: string } | null
+}
+
+/**
+ * Adopt the picture an avatar route answered with.
+ * @param answer - the route's body.
+ * @returns the profile media the account now has, or undefined when it has no picture.
+ */
+function adoptAvatar(answer: AvatarAnswer): AevenProfileMedia | undefined {
+  const media = answer.avatar === undefined || answer.avatar === null
+    ? undefined
+    : { avatar: answer.avatar }
+  session.adoptImage(media)
+  return media
+}
+
+/**
+ * Send the reader's multipart picture to an avatar route.
+ *
+ * The body is form data, which writes its own boundary, so no content type is
+ * stated here: the bearer is the only header the route reads.
+ * @param path - the avatar route.
+ * @param body - the multipart body, or nothing for a route that takes none.
+ * @returns the decoded answer.
+ * @throws {AevenApiError} when the API refuses the picture or the bearer.
+ */
+async function postAvatar(path: string, body?: FormData): Promise<AvatarAnswer> {
+  const bearer = await currentBearer()
+  return request<AvatarAnswer>(path, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { Authorization: `Bearer ${bearer}` },
+    ...body === undefined ? {} : { body },
+  })
+}
+
+/**
+ * Replace the reader's profile picture with the picture they picked.
+ *
+ * The account records the picture, so it is stored rather than drawn from this
+ * page: the account menu, the next load, and every other client show it too.
+ * @param image - the file the reader picked.
+ * @returns the profile media the account now has.
+ * @throws {AevenApiError} when the API refuses the picture or the bearer.
+ */
+export async function uploadAvatar(image: Blob): Promise<AevenProfileMedia | undefined> {
+  const form = new FormData()
+  form.append('file', image)
+  return adoptAvatar(await postAvatar('/upload-avatar', form))
+}
+
+/**
+ * Remove the reader's profile picture, leaving the initial in its place.
+ * @returns nothing; the account answers with no picture.
+ * @throws {AevenApiError} when the API refuses the bearer.
+ */
+export async function removeAvatar(): Promise<void> {
+  adoptAvatar(await postAvatar('/delete-avatar'))
 }
 
 /** Accept an ordinary grant or retain a short-lived second-factor challenge in memory. */

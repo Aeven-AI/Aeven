@@ -26,3 +26,23 @@
   top: 100%;
   right: 0;
 }
+
+/* The picture and the name lead to the account page, so the block is a button.
+   Aeven's stylesheet owns the row's layout; this strips what a button adds to it. */
+.profile {
+  margin: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+/* The plan line: metadata under the name, at the scale the account page uses
+   for the same fact. */
+.plan {
+  padding-top: 2px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 16px;
+}

@@ -44,7 +44,7 @@ else if (result.state === 'unnamed') mountNameScreen(container, location.pathnam
 else if (result.state === 'unauthenticated') { requireSignIn(location.pathname); mountAuthScreen(container, location.pathname) }
 ```
 
-`restoreSession` 回答 `authenticated`、`unnamed`、`unauthenticated` 或 `disabled`。`unnamed` 表示会话已恢复，但其 profile 中没有任何已选择的名字：命名界面占据页面，直到读者给出名字，由 API 记录在该账号上。`disabled` 表示所服务的页面中未配置 Aeven API，此时壳的启动与不存在任何 authority 时相同。成功会把读者声明在页面上，插件 bundle 随后据此读取。
+`restoreSession` 回答 `authenticated`、`unnamed`、`unauthenticated` 或 `disabled`。`unnamed` 表示会话已恢复，但其 profile 中没有任何已选择的名字：命名界面占据页面，直到读者给出名字，由 API 记录在该账号上。`disabled` 表示所服务的页面中未配置 Aeven API，此时壳的启动与不存在任何 authority 时相同。成功会把读者声明在页面上，插件 bundle 随后据此读取。该读者也携带账户自身的图片操作：`setImage` 以 multipart 把读者选择的文件发送到 `/upload-avatar`，并以存储后的图片重新声明读者；`removeImage` 通过 `/delete-avatar` 清除它，并重新声明一个没有图片的读者。两者都携带 bearer，且图片记录在账号上，因此下次加载与其它客户端都会绘制它。
 
 Aeven 无法抵达时，`restoreSession` 会用它所保留的最近一份 profile 回答 `authenticated`，而不是把读者登出。Host 用自己持有的签名密钥副本来校验有效期一年的 refresh cookie，因此在 Aeven 不可用期间仍能识别读者，应用也能继续抵达读者自行配置的模型与 OAuth 提供方。只有 Aeven 明确拒绝该凭据，或读者登出，才会结束会话。
 

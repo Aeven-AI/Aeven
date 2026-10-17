@@ -1,7 +1,8 @@
 /** The Account settings page: who is signed in, the plans, their credits, and this period's usage. */
-import { useCallback, useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useCallback, useEffect, useId, useRef, useState, type ChangeEvent, type CSSProperties, type ReactNode } from 'react'
 import {
-  Button, IconCheckOutline14, IconChevronDownOutline14, IconRightUpOutline16, LoadingBlock, SectionHeader, Spinner,
+  Button, IconCheckOutline14, IconChevronDownOutline14, IconLucideCamera, IconRightUpOutline16, IconTrashOutline16,
+  LoadingBlock, SectionHeader, Spinner,
 } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import { MfaForm } from '@aeven/client-ui-primitives'
@@ -25,6 +26,14 @@ export interface AccountSectionInjected {
   mfa: AevenReader['mfa']
   /** End the Aeven session and return the reader to the sign-in screen. */
   signOut: () => void
+  /**
+   * Store the picture the reader picked on their account.
+   * @param image - the file the reader picked.
+   * @returns the picture's absolute URL, absent when the account now has none.
+   */
+  setImage: (image: File) => Promise<string | undefined>
+  /** Remove the reader's picture, leaving the initial in its place. */
+  removeImage: () => Promise<void>
   /**
    * Call one of Aeven's `/api/cloud` account routes as the reader.
    * @param path - the route below `/api/cloud`.
@@ -279,24 +288,93 @@ function Loaded<T>({ t, load, retry, children }: {
   return <>{children(load.value)}</>
 }
 
-function Identity({ t, reader, signOut }: AccountSectionProps) {
+function Identity({ t, reader, signOut, setImage, removeImage }: AccountSectionProps) {
   const person = reader()
+  // The picture is the page's own working copy: the reader global is restated
+  // by the account call, but nothing here subscribes to it.
+  const [picture, setPicture] = useState(person?.imageUrl)
+  const [busy, setBusy] = useState<'save' | 'remove' | undefined>(undefined)
+  const [failed, setFailed] = useState(false)
+  const picker = useRef<HTMLInputElement | null>(null)
+
+  const chosen = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    // Clearing the input lets the same file be picked again after a refusal.
+    event.target.value = ''
+    if (file === undefined) return
+    setFailed(false)
+    setBusy('save')
+    void setImage(file)
+      .then((stored) => { setPicture(stored) })
+      .catch(() => { setFailed(true) })
+      .finally(() => { setBusy(undefined) })
+  }, [setImage])
+
+  const openPicker = useCallback(() => { picker.current?.click() }, [])
+
+  const removed = useCallback(() => {
+    setFailed(false)
+    setBusy('remove')
+    void removeImage()
+      .then(() => { setPicture(undefined) })
+      .catch(() => { setFailed(true) })
+      .finally(() => { setBusy(undefined) })
+  }, [removeImage])
+
   if (person === undefined) return null
+
   return (
     <div className={`${css.row} ${css.identity}`}>
-      <span className={css.avatar}>
+      <button
+        type="button"
+        className={`${css.avatar} ${css.avatarButton}`}
+        aria-label={t('avatar.choose')}
+        title={t('avatar.choose')}
+        disabled={busy !== undefined}
+        onClick={openPicker}
+      >
         <Avatar
           {...person.displayName === undefined ? {} : { name: person.displayName }}
           {...person.email === undefined ? {} : { email: person.email }}
-          {...person.imageUrl === undefined ? {} : { imageUrl: person.imageUrl }}
+          {...picture === undefined ? {} : { imageUrl: picture }}
           alt={t('avatar.alt')}
         />
-      </span>
+      </button>
       <span className={css.rowText}>
         <span className={css.name}>{person.displayName ?? t('profile.unnamed')}</span>
         {person.email !== undefined && <span className={css.desc}>{person.email}</span>}
+        {failed && <span className={css.error} role="alert">{t('avatar.failed')}</span>}
       </span>
       <span className={css.actions}>
+        <input
+          ref={picker}
+          className={css.fileInput}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          onChange={chosen}
+        />
+        <button
+          type="button"
+          className={css.iconButton}
+          aria-label={busy === 'save' ? t('avatar.uploading') : t('avatar.upload')}
+          title={t('avatar.upload')}
+          disabled={busy !== undefined}
+          onClick={openPicker}
+        >
+          {busy === 'save' ? <Spinner /> : <IconLucideCamera className={css.icon} />}
+        </button>
+        {picture !== undefined && (
+          <button
+            type="button"
+            className={css.iconButton}
+            aria-label={busy === 'remove' ? t('avatar.removing') : t('avatar.remove')}
+            title={t('avatar.remove')}
+            disabled={busy !== undefined}
+            onClick={removed}
+          >
+            {busy === 'remove' ? <Spinner /> : <IconTrashOutline16 />}
+          </button>
+        )}
         <button type="button" className={css.pill} onClick={signOut}>{t('logout')}</button>
       </span>
     </div>
