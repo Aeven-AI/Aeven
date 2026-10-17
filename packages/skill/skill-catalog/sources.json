@@ -4,6 +4,10 @@
   {
    "authored": "packages/skill/skill-catalog/authored/reverse-engineering",
    "category": "reverse-engineering"
+  },
+  {
+   "authored": "packages/skill/skill-catalog/authored/leanrea",
+   "category": "reverse-engineering"
   }
  ]
 }
