@@ -7,10 +7,10 @@
   align-items: center;
 }
 
+/* The mark keeps the product's one loading size; this only seats it and tints
+   it, so the update wait looks like every other wait. */
 .spinner {
   flex: none;
-  width: 16px;
-  height: 16px;
   color: var(--dsw-alias-text-secondary);
 }
 
