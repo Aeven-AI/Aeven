@@ -16,7 +16,7 @@ The node API owns the picture. `ImageService.saveAvatar` re-encodes the upload w
 
 `ImageService.removeAvatar` unlinks only a path this service writes. A stored value that is a provider's remote URL, a path that climbs out of the picture directory, or the directory entries `.` and `..` is ignored, so the value a profile carries can never turn a delete into an unlink elsewhere on disk.
 
-The account menu names the plan under the reader's name. It reads `/api/cloud/subscription` through the same cache the Account page uses, so a plan change made on either face cannot leave the other showing the old answer, and a refused or unreachable read draws no plan line rather than an error the menu cannot act on. The picture and the name form the menu's first row, which emits `settings/open` with `account`; the Settings row below it still opens the settings landing page.
+The account menu names the plan under the reader's name, read when the page draws a signed-in reader rather than when the panel opens ([the plan is read with the page](2026-10-17-account-plan-read-with-the-page.md)). It reads `/api/cloud/subscription` through the same cache the Account page uses, so a plan change made on either face cannot leave the other showing the old answer, and a refused or unreachable read draws no plan line rather than an error the menu cannot act on. The picture and the name form the menu's first row, which emits `settings/open` with `account`; the Settings row below it still opens the settings landing page.
 
 ## Alternatives considered
 
@@ -26,7 +26,7 @@ The account menu names the plan under the reader's name. It reads `/api/cloud/su
 
 **Let the menu read the plan through its own route call.** Rejected: two readers of one fact disagree after a change. The menu and the Account page share one read cache, and any write the page makes drops it.
 
-**Fetch the account type on mount rather than on first open.** Rejected: the avatar sits in the resident band for the whole page life and most readers never open the menu. Reading on first open keeps a signed-in page's requests unchanged for everyone who does not.
+**Fetch the account type on mount rather than on first open.** Rejected here: the avatar sits in the resident band for the whole page life and most readers never open the menu. Reading on first open keeps a signed-in page's requests unchanged for everyone who does not. The mount read was adopted afterwards, when a plan line arriving after the panel had painted proved the worse cost — [the plan is read with the page](2026-10-17-account-plan-read-with-the-page.md).
 
 **Keep the profile row inert and only add the plan line.** Rejected: the picture and the name are the reader, so they are the natural way into the page about them; sending readers to the settings landing page and asking them to pick Account again makes the shortest path the longest one.
 
