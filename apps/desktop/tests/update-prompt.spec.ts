@@ -13,6 +13,11 @@ describe('desktop update prompts', () => {
       .toBe('silent')
     expect(desktopUpdatePrompt({ phase: 'error', message: 'offline' }, { manual: false, promptedVersion: undefined }))
       .toBe('silent')
+    // The popup a reader opened follows its own download through onChange.
+    expect(desktopUpdatePrompt(
+      { phase: 'downloading', version: '1.1.0', percent: 40 },
+      { manual: true, promptedVersion: undefined },
+    )).toBe('silent')
   })
 
   it('answers a check the reader asked for, whatever it found', () => {

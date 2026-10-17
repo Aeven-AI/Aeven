@@ -1,6 +1,6 @@
 /** Electron shell: desktop project ownership, custom protocol, windows, and lifecycle. */
 
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
 import { delimiter, dirname, extname, join, normalize, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -29,14 +29,16 @@ import { DesktopProjectManager, type DesktopProjectHooks } from './project-manag
 import { DesktopHostProcess } from './host-process.ts'
 import { DESKTOP_AEVEN_API_PATH, type DesktopAevenSignIn } from './host-protocol.ts'
 import { DESKTOP_IPC, type DesktopCaptionAction, type DesktopMenuCommand } from './ipc.ts'
-import { formatDesktopMessage, resolveDesktopLocale } from './locale.ts'
+import { resolveDesktopLocale } from './locale.ts'
 import { claimDesktopSingleInstance } from './single-instance.ts'
 import { DesktopBackgroundMode } from './background-mode.ts'
-import { DesktopUpdateCoordinator, type DesktopUpdateState } from './update-coordinator.ts'
+import { DesktopUpdateCoordinator } from './update-coordinator.ts'
+import type { DesktopUpdateState } from './ipc.ts'
 import { desktopUpdatePrompt } from './update-prompt.ts'
 import { loginShellPath, mergePath } from './login-shell-path.ts'
 import { sendVideoEmbedReferrer } from './video-embeds.ts'
 import { START_PAGE_PATH, startPageDocument, startPageUrl } from './start-screen.ts'
+import { bundleIdentifier, clearUpdateResidue, updateCacheRoot, updaterCacheDir } from './update-residue.ts'
 
 const SCHEME = 'avn-app'
 let focusPrimaryWindow = (): void => {}
@@ -193,6 +195,44 @@ const TRAFFIC_LIGHT_INSET_X = 24
 const TRAFFIC_LIGHT_INSET_Y = SIDEBAR_ROW_PADDING + (CONTROL_SIZE - WINDOW_BUTTON_SIZE) / 2 - 1
 
 /**
+ * The cache directory Squirrel keeps this application's staged installs in.
+ * Squirrel names it after the bundle identifier the packaged application declares.
+ * @param resourcesPath - the packaged application's resources directory.
+ * @param cacheRoot - the platform's cache root.
+ * @returns Squirrel's directory, or undefined where Squirrel is not the installer.
+ */
+function shipItCacheDir(resourcesPath: string, cacheRoot: string): string | undefined {
+  if (process.platform !== 'darwin') return undefined
+  let plist: string
+  try {
+    plist = readFileSync(join(resourcesPath, '..', 'Info.plist'), 'utf8')
+  } catch {
+    // A bundle without an Info.plist beside its resources has no identifier to name the cache by.
+    return undefined
+  }
+  const identifier = bundleIdentifier(plist)
+  return identifier === undefined ? undefined : join(cacheRoot, `${identifier}.ShipIt`)
+}
+
+/**
+ * Clear the updater state a completed install left behind: the release it
+ * staged, that release's differential baseline, and Squirrel's record of a
+ * staged bundle it no longer has. Only a packaged application carries them.
+ */
+async function clearStaleUpdateResidue(): Promise<void> {
+  if (!app.isPackaged) return
+  const cacheRoot = updateCacheRoot(process.platform, process.env)
+  const cacheDir = updaterCacheDir(process.resourcesPath, cacheRoot)
+  if (cacheDir === undefined) return
+  const removed = await clearUpdateResidue({
+    cacheDir,
+    shipItDir: shipItCacheDir(process.resourcesPath, cacheRoot),
+    installedVersion: app.getVersion(),
+  })
+  if (removed.length > 0) console.info('avn desktop: cleared update residue', removed)
+}
+
+/**
  * Height of the Windows and Linux caption strip: Windows 11's own caption
  * height. The preload moves the page below it (`CAPTION_STRIP_HEIGHT` there).
  */
@@ -345,9 +385,28 @@ async function main(): Promise<void> {
   app.on('web-contents-created', (_event, contents) => { installContextMenu(contents, messages) })
   const appPreload = fileURLToPath(new URL('./preload-app.cjs', import.meta.url))
 
-  // The coordinator reports every state it reaches; the shell decides which
-  // dialog to show from the value `check` resolves, so it keeps no copy.
-  const publishUpdate = (state: DesktopUpdateState): DesktopUpdateState => state
+  /**
+   * Last state the coordinator published. The page's update popup reads it when
+   * it opens, and a page that starts listening receives it as its first state.
+   */
+  let updateState: DesktopUpdateState = { phase: 'idle' }
+  /**
+   * Whether the page takes update states. The shell holds them until it does,
+   * which is what a page that never subscribes — another build's client, a Host
+   * served elsewhere — expects: no update surface at all.
+   */
+  let updateListening = false
+  /** A surface the reader asked for before the page could show it. */
+  let updateSurfaceRequested = false
+
+  const publishUpdate = (state: DesktopUpdateState): DesktopUpdateState => {
+    updateState = state
+    const window = mainWindow
+    if (updateListening && window !== undefined && !window.isDestroyed()) {
+      window.webContents.send(DESKTOP_IPC.updatesState, state)
+    }
+    return state
+  }
 
   const startupFinished = Promise.withResolvers<void>()
 
@@ -362,6 +421,19 @@ async function main(): Promise<void> {
     window.webContents.send(DESKTOP_IPC.menuCommand, command)
     if (window.isMinimized()) window.restore()
     window.focus()
+  }
+  /**
+   * Open the page's update popup: the application menu and a downloaded release
+   * both surface through it. A page that has not subscribed yet keeps the
+   * request, and receives it once it does.
+   */
+  const showUpdateSurface = (): void => {
+    const window = mainWindow
+    if (!updateListening || window === undefined || window.isDestroyed()) {
+      updateSurfaceRequested = true
+      return
+    }
+    window.webContents.send(DESKTOP_IPC.menuCommand, 'show-update')
   }
   const openSettings = (): void => { sendMenuCommand(OPEN_SETTINGS_COMMAND) }
   const startDictation = (): void => { sendMenuCommand(START_DICTATION_COMMAND) }
@@ -404,7 +476,12 @@ async function main(): Promise<void> {
       messages,
       actions: {
         // The update installer must not quit the shell while startup installs or starts the backend.
-        checkForUpdates: () => { void startupFinished.promise.then(() => checkAndPrompt(true)) },
+        checkForUpdates: () => {
+          void startupFinished.promise.then(() => {
+            showUpdateSurface()
+            void checkAndPrompt(true)
+          })
+        },
         openSettings,
         startDictation,
         fullScreen: { label: fullScreenLabel(), click: toggleFullScreen },
@@ -598,6 +675,11 @@ async function main(): Promise<void> {
     host = await startHost()
   }
 
+  // The window is already painted, so this wait costs no paint. Failing to
+  // clear caches is not a reason to refuse the launch.
+  await clearStaleUpdateResidue().catch((error: unknown) => {
+    console.warn('avn desktop: could not clear update residue', error)
+  })
   const updates = new DesktopUpdateCoordinator(
     publishUpdate,
     async () => {
@@ -700,67 +782,51 @@ async function main(): Promise<void> {
     if (event.senderFrame !== event.sender.mainFrame) return
     listenForPageLinks(event.sender)
   })
+  // The page says once that it shows update state; the shell then sends what it
+  // last published and any surface the reader asked for while the page loaded.
+  ipcMain.on(DESKTOP_IPC.updatesListen, (event) => {
+    if (mainWindow === undefined || event.sender !== mainWindow.webContents) return
+    if (event.senderFrame !== event.sender.mainFrame) return
+    updateListening = true
+    event.sender.send(DESKTOP_IPC.updatesState, updateState)
+    if (!updateSurfaceRequested) return
+    updateSurfaceRequested = false
+    showUpdateSurface()
+  })
+  ipcMain.handle(DESKTOP_IPC.updatesGet, (event) => {
+    assertDesktopSender(event, ['app'])
+    return updateState
+  })
+  // A check the reader asked for answers through the popup it opened, so the
+  // popup is up while the check runs and follows it to the release it finds.
+  ipcMain.handle(DESKTOP_IPC.updatesCheck, async (event) => {
+    assertDesktopSender(event, ['app'])
+    showUpdateSurface()
+    return checkAndPrompt(true)
+  })
+  ipcMain.handle(DESKTOP_IPC.updatesInstall, async (event) => {
+    assertDesktopSender(event, ['app'])
+    // Installs and restarts; the page is gone before this settles.
+    await updates.install()
+  })
 
   /** Version already offered to the reader, so one release is offered once. */
   let promptedVersion: string | undefined
 
   /**
-   * Show what the last check found: an error the reader asked for, a report
-   * that this process runs the newest release, the download in progress, or the
-   * offer to restart. The shell's only update surface is this dialog.
+   * Check the release stream, then show the page's update popup when the reader
+   * asked or a release is ready to install. The popup carries the state, the
+   * download in progress and the restart question; an automatic check nobody
+   * asked about stays silent until there is something to install.
    * @param manual - whether the reader asked through the application menu.
+   * @returns the state the check reached.
    */
-  const checkAndPrompt = async (manual: boolean): Promise<void> => {
+  const checkAndPrompt = async (manual: boolean): Promise<DesktopUpdateState> => {
     const state = await updates.check()
-    switch (desktopUpdatePrompt(state, { manual, promptedVersion })) {
-      case 'error':
-        await dialog.showMessageBox({
-          type: 'error',
-          title: messages.updateCheckFailedTitle,
-          message: state.message ?? messages.unknownError,
-        })
-        return
-      case 'current':
-        await dialog.showMessageBox({
-          type: 'info',
-          title: messages.updateCheckTitle,
-          message: messages.updateCurrent,
-        })
-        return
-      case 'downloading':
-        await dialog.showMessageBox({
-          type: 'info',
-          title: messages.updateTitle,
-          message: formatDesktopMessage(messages.updateDownloading, { version: state.version ?? '' }),
-          detail: messages.updateDownloadingDetail,
-        })
-        return
-      case 'ready': {
-        promptedVersion = state.version
-        const result = await dialog.showMessageBox({
-          type: 'info',
-          title: messages.updateTitle,
-          message: formatDesktopMessage(messages.updateReady, { version: state.version ?? '' }),
-          detail: messages.updateReadyDetail,
-          buttons: [messages.restartNow, messages.later],
-          defaultId: 0,
-          cancelId: 1,
-        })
-        // A later answer is not a refusal: the downloaded release installs on quit.
-        if (result.response !== 0) return
-        const installed = await updates.install()
-        if (installed.phase === 'error') {
-          await dialog.showMessageBox({
-            type: 'error',
-            title: messages.updateFailedTitle,
-            message: installed.message ?? messages.unknownError,
-          })
-        }
-        return
-      }
-      case 'silent':
-        return
-    }
+    if (desktopUpdatePrompt(state, { manual, promptedVersion }) === 'silent') return state
+    if (state.phase === 'ready') promptedVersion = state.version
+    showUpdateSurface()
+    return state
   }
 
   startupFinished.resolve()

@@ -4957,6 +4957,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@aeven/client-ui-theme` ([`packages/client/ui-theme/src/index.ts`](../packages/client/ui-theme/src/index.ts))
 - `@aeven/client-ui-tool` ([`packages/client/ui-tool/src/index.ts`](../packages/client/ui-tool/src/index.ts))
 - `@aeven/client-ui-trajectory` ([`packages/client/ui-trajectory/src/index.ts`](../packages/client/ui-trajectory/src/index.ts))
+- `@aeven/client-ui-update` ([`packages/client/ui-update/src/index.ts`](../packages/client/ui-update/src/index.ts))
 - `@aeven/client-ui-user-questions` ([`packages/client/ui-user-questions/src/index.ts`](../packages/client/ui-user-questions/src/index.ts))
 - `@aeven/client-ui-voice-input` ([`packages/client/ui-voice-input/src/index.ts`](../packages/client/ui-voice-input/src/index.ts))
 - `@aeven/client-ui-workflow-run` ([`packages/client/ui-workflow-run/src/index.ts`](../packages/client/ui-workflow-run/src/index.ts))

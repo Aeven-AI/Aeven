@@ -4,22 +4,18 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { app } from 'electron'
 import electronUpdater, { type AppUpdater } from 'electron-updater'
+import { lt, valid } from 'semver'
+import type { DesktopUpdateState } from './ipc.ts'
 
 const { autoUpdater } = electronUpdater
-
-/** Desktop release update state, carried to whatever asks the shell to act. */
-export interface DesktopUpdateState {
-  readonly phase: 'idle' | 'checking' | 'available' | 'installing' | 'ready' | 'error'
-  readonly version?: string
-  readonly message?: string
-}
 
 /**
  * Checks, downloads, and installs one complete Desktop release.
  *
- * A found release downloads while the reader keeps working, and a downloaded
- * release installs when the application quits. The shell asks before it
- * restarts, so the install itself never interrupts a running turn.
+ * A found release downloads while the reader keeps working, and the downloaded
+ * release installs only when the reader asks for the restart: installing
+ * replaces the application and relaunches it, so the shell never decides that
+ * on the reader's behalf.
  */
 export class DesktopUpdateCoordinator {
   private availableVersion: string | undefined
@@ -43,11 +39,18 @@ export class DesktopUpdateCoordinator {
       app.isPackaged && existsSync(join(process.resourcesPath, 'app-update.yml'))
     ),
   ) {
-    // The download starts as soon as a check finds a release, and a downloaded
-    // release installs on quit; `checkForUpdates` starts that download itself
-    // and reports it as `downloadPromise`.
+    // A found release downloads at once, so the offer is about installing what
+    // is already on disk. Nothing installs on quit: a restart is the reader's
+    // decision, and the updater's quit handler would take it from them.
     this.updater.autoDownload = true
-    this.updater.autoInstallOnAppQuit = true
+    this.updater.autoInstallOnAppQuit = false
+    // The download belongs to the updater, so its progress arrives as events
+    // rather than from the promise a check awaits.
+    this.updater.on('download-progress', (progress) => {
+      const version = this.availableVersion
+      if (version === undefined) return
+      this.publish({ phase: 'downloading', version, percent: Math.round(progress.percent) })
+    })
   }
 
   /**
@@ -84,9 +87,11 @@ export class DesktopUpdateCoordinator {
       }
       const result = await this.updater.checkForUpdates()
       const version = result?.isUpdateAvailable === true ? result.updateInfo.version : undefined
-      this.availableVersion = version
-      if (version === undefined) return this.publish({ phase: 'idle' })
-      const available = this.publish({ phase: 'available', version })
+      // A release the running application already carries is not an update, so
+      // a staged artefact for this version is never offered again.
+      this.availableVersion = version !== undefined && this.isNewer(version) ? version : undefined
+      if (this.availableVersion === undefined) return this.publish({ phase: 'idle' })
+      const available = this.publish({ phase: 'available', version: this.availableVersion })
       const download = result?.downloadPromise
       if (download === undefined || download === null) return available
       this.downloadOperation = download
@@ -127,5 +132,17 @@ export class DesktopUpdateCoordinator {
         message: error instanceof Error ? error.message : String(error),
       })
     }
+  }
+
+  /**
+   * Whether a release is newer than the application this process runs.
+   * @param version - release version the update feed named.
+   * @returns false for a version at or below the running one; true when the
+   * updater exposes no running version to compare against.
+   */
+  private isNewer(version: string): boolean {
+    const running = this.updater.currentVersion
+    if (running === undefined || running === null) return true
+    return valid(version) !== null && lt(running, version)
   }
 }

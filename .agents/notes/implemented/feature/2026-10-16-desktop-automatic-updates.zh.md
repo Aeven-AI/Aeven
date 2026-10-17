@@ -26,7 +26,7 @@ Status: implemented
 
 ## 后果
 
-已安装的应用现在无需点击即可跟进发行版：在读者工作时下载，只询问一次，无论是否接受，都在下次退出时安装。对话框是唯一的呈现界面，因此未经请求的检查不会打断工作；被删除的 IPC 通道也不再留下任何让页面指挥更新的路径。
+已安装的应用现在无需点击即可跟进发行版：在读者工作时下载，只询问一次。呈现界面、退出时安装这一回答，以及承载该状态的 IPC 通道，已在 [更新弹窗说明](2026-10-17-desktop-update-popup.zh.md) 中改变：这些状态改由页面自身渲染，且退出时不再安装。
 
 检查是未认证的 GitHub 请求，因此被限流或离线时，只有读者主动询问才会看到 `error`；自动检查保持静默，下个周期再试。在 macOS 上只有签名构建能自我更新：`latest-mac.yml` 列出两个签名 ZIP，Squirrel.Mac 会校验下载包的 Developer ID 签名是否与正在运行的应用一致，而 `mac-*-unsigned` 目标只发布没有 ZIP 的 DMG，因此未签名安装可以看到新版本却永远装不上。Windows 安装包目前未签名，更新仍可进行，但手动安装时会被 SmartScreen 询问；Linux 的 `.deb` 永不自我更新，AppImage 则可以。一个桌面发行版始终是一个整体——签名的应用，以及与之匹配的 avn 种子、Node.js 与 pnpm（[打包与更新](../architecture/2026-08-25-electron-desktop-packaging-and-updates.zh.md)）——因此更新绝不会把桌面壳与它服务的后端拆开。更新还会替换 avn 种子，因此更新后的首次启动要先完成发行版安装才能让后端应答；[启动画面](2026-10-16-desktop-start-screen.zh.md)正是让那段等待读起来像在工作。每个桌面发行版都以 GitHub 预发行（prerelease）发布，这正是本仓库的 `releases/latest` 返回 404、以及不带 tag 的 `gh release view` 找不到任何发行版的原因；更新器读取的是发行版 Atom 源，其中包含预发行。
 

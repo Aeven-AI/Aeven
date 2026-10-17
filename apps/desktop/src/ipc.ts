@@ -2,7 +2,7 @@
 import type { Branded } from '@aeven/brand'
 
 /** One application-menu command the shell sends to the page it renders. */
-export type DesktopMenuCommand = 'open-settings' | 'start-dictation'
+export type DesktopMenuCommand = 'open-settings' | 'start-dictation' | 'show-update'
 
 /** IPC channel names kept private to the desktop application bundle. */
 export const DESKTOP_IPC = {
@@ -28,6 +28,11 @@ export const DESKTOP_IPC = {
   backgroundModeGet: 'avn-desktop:background-mode-get',
   backgroundModeSet: 'avn-desktop:background-mode-set',
   backgroundModeState: 'avn-desktop:background-mode-state',
+  updatesGet: 'avn-desktop:updates-get',
+  updatesCheck: 'avn-desktop:updates-check',
+  updatesInstall: 'avn-desktop:updates-install',
+  updatesState: 'avn-desktop:updates-state',
+  updatesListen: 'avn-desktop:updates-listen',
 } as const
 
 /** Window operation a page-drawn Linux caption button asks for; `maximize` toggles. */
@@ -170,6 +175,8 @@ export interface AvnDesktopAppApi {
   readonly browser: AvnDesktopBrowserApi
   readonly contextMenu: AvnDesktopContextMenuApi
   readonly links: AvnDesktopLinksApi
+  /** The Desktop release stream, which the application menu and the update popup both drive. */
+  readonly update: AvnDesktopUpdateApi
   /**
    * Observe the application menu's commands, which the shell issues on the page's behalf.
    * @param listener - called with each command the menu sends.
@@ -231,4 +238,53 @@ export interface AvnDesktopBackgroundApi {
    * @returns disposer removing the listener.
    */
   onChange(listener: (enabled: boolean) => void): () => void
+}
+
+/**
+ * One Desktop release update as the shell's own update popup shows it. The
+ * phases that name a release always carry its version, so the popup never
+ * renders a sentence about an unnamed one.
+ */
+export type DesktopUpdateState =
+  | { readonly phase: 'idle' }
+  | { readonly phase: 'checking' }
+  | {
+    readonly phase: 'available' | 'downloading' | 'ready' | 'installing'
+    readonly version: string
+    /** Download progress, 0 through 100, while `downloading`. */
+    readonly percent?: number
+  }
+  | {
+    readonly phase: 'error'
+    /** Release the failure was about, when one was known. */
+    readonly version?: string
+    /** Failure text. */
+    readonly message?: string
+  }
+
+/**
+ * The Desktop release stream, which the application menu's Check for Updates…
+ * and the update popup both drive. Installing restarts the application, so the
+ * shell installs only when the reader confirms it.
+ */
+export interface AvnDesktopUpdateApi {
+  /**
+   * Read the state the shell last published, without starting a check.
+   * @returns the current state.
+   */
+  get(): Promise<DesktopUpdateState>
+  /**
+   * Check the release stream. A found release downloads while the reader keeps
+   * working; the popup follows it through `onChange`.
+   * @returns the state the check lasted reached.
+   */
+  check(): Promise<DesktopUpdateState>
+  /** Install the downloaded release and restart the application. */
+  install(): Promise<void>
+  /**
+   * Observe every state the shell publishes.
+   * @param listener - called with each state.
+   * @returns disposer removing the listener.
+   */
+  onChange(listener: (state: DesktopUpdateState) => void): () => void
 }

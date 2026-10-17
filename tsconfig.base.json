@@ -219,6 +219,8 @@
       "@aeven/client-ui-voice-input": ["./packages/client/ui-voice-input/src"],
       "@aeven/client-ui-plan": ["./packages/client/ui-plan/src"],
       "@aeven/client-ui-user-questions": ["./packages/client/ui-user-questions/src"],
+      "@aeven/client-ui-update": ["./packages/client/ui-update/src"],
+      "@aeven/client-ui-update/client": ["./packages/client/ui-update/src/client/index.ts"],
       "@aeven/client-ui-trajectory": ["./packages/client/ui-trajectory/src"],
       "@aeven/client-ui-workspace": ["./packages/client/ui-workspace/src"],
       "@aeven/client-ui-theme": ["./packages/client/ui-theme/src"],
