@@ -142,6 +142,7 @@ export class DesktopUpdateCoordinator {
    */
   private isNewer(version: string): boolean {
     const running = this.updater.currentVersion
+    // oxlint-disable-next-line typescript/no-unnecessary-condition -- assigned at the updater's first check
     if (running === undefined || running === null) return true
     return valid(version) !== null && lt(running, version)
   }

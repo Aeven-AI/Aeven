@@ -66,7 +66,7 @@ describe('password sign-in through the mounted MFA screen', () => {
     fireEvent.click(screen.getByRole('button', { name: t('action.signIn') }))
     await screen.findByText(t('mfa.login'))
     const boxes = root.querySelectorAll<HTMLInputElement>('.input-numbers input')
-    for (const [index, digit] of [...'123456'].entries()) {
+    for (const [index, digit] of '123456'.split('').entries()) {
       fireEvent.change(boxes[index]!, { target: { value: digit } })
     }
     fireEvent.click(screen.getByRole('button', { name: t('mfa.confirm') }))

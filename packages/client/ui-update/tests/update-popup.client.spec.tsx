@@ -11,7 +11,10 @@ afterEach(cleanup)
 const t: UpdatePopupProps['t'] = (key, params) => {
   const template = (en as Record<string, string>)[key] ?? key
   if (params === undefined) return template
-  return template.replace(/\{(\w+)\}/gu, (_match, name: string) => String(params[name] ?? ''))
+  return template.replace(/\{(\w+)\}/gu, (_match, name: string) => {
+    const value = params[name]
+    return typeof value === 'string' || typeof value === 'number' ? String(value) : ''
+  })
 }
 
 /**
