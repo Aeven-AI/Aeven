@@ -14,11 +14,11 @@ The catalog offered a third-party instruction file for the same work. It reaches
 
 `packages/skill/skill-catalog/authored/reverse-engineering/SKILL.md` is the skill, and it ships through the catalog: Settings lists it under the `reverse-engineering` category, installs it into the signed-in account's library, and removes it again. [The catalog-source note](../process/2026-10-17-skill-catalog-extra-sources.md) owns how an authored directory becomes an installable bundle.
 
-The body routes by artifact — Mach-O, ELF/PE, Go, Rust, .NET, Electron, web bundles, Hermes and bytenode, APK, Flutter, WASM, SQLite, pcap and HAR, plists, firmware, websites, live processes — and gives one ready command or one batched recon block per route, with the rules that make the answer checkable: evidence marked seen or inferred, a copy to work on, probes batched into one shell call, and code read one function at a time. Every command is one the shell already runs, so nothing is registered, connected, or installed before the first target. Where static reading cannot answer, it sends the session to runtime observation, and to computer use for a screen or a native dialog.
+The skill is the surface a person meets and the server is the engine behind it: one installable instruction file, whose routes name a `rea` tool first and the shell command that stands in when the server is absent or a provider engine is missing. `packages/bundle/web-app/cordis.patch.yml` mounts that server through `@aeven/mcp-client` beside the two browser servers, so every `mcp__rea__*` tool waits behind `tool_search` and costs one line in the tool index; the body's first move is one `tool_search` for the server, and its shell column is what keeps a host without `npx` working.
 
-The file is written in this repository against Aeven's own surfaces and names no other project.
+The body routes by artifact — native binaries, Go, Rust, .NET, Electron and JavaScript trees, APKs, firmware, Hermes and bytenode, WASM and EVM bytecode, SQLite, packet and web captures, core dumps, browser pages — with one route only the server answers: pseudocode, callers and callees for a single function. The rules that make an answer checkable sit beside the routes: evidence marked seen or inferred and cited by file offset, symbol, or the tool's evidence id; a copy to work on; probes batched into one shell call; code read one function at a time; and each result's stated limitations read rather than assumed away. Where static reading cannot answer, the skill sends the session to runtime observation, and to computer use for a screen or a native dialog.
 
-Where a deployment mounts REA's decompiler server, its tools arrive as `mcp__rea__*` and the skill hands them the questions it cannot answer: pseudocode and callers for one function, an evidence record that outlives the session, and the formats the server parses directly. `packages/bundle/web-app/cordis.patch.yml` mounts it through `@aeven/mcp-client` beside the two browser servers, so every one of its tools waits behind `tool_search` and costs one line in the tool index.
+The file is written in this repository against Aeven's own surfaces; the one outside name it carries is the tool server it drives.
 
 ## Alternatives considered
 
@@ -36,7 +36,7 @@ Where a deployment mounts REA's decompiler server, its tools arrive as `mcp__rea
 
 The skill costs nothing until someone installs it and loads it: the catalog offers it to every account, and one install brings its description and instructions into the sessions of that account alone.
 
-The mounted server starts a Node child process per Host whether or not a session reads a binary; a host that cannot reach `npx` logs a startup failure, keeps its catalog entry, and leaves the skill's handoff paragraph with nothing to hand off to.
+The mounted server starts a Node child process per Host whether or not a session reads a binary; a host that cannot reach `npx` logs a startup failure, keeps its catalog entry, and the skill's shell column still answers every route except pseudocode and callers.
 
 Its commands are this repository's to keep current. Tool flags move — a `jadx` mode, an `otool` option, a `tshark` field name — and nothing upstream tells us when, so a stale row is corrected here and the sync carries the correction to Settings.
 

@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-17-authored-reverse-engineering-skill.md
-2026-10-17-authored-reverse-engineering-skill.md: e7ac77b618272647bd4a4b40a4dbd550f1ff8209
-2026-10-17-authored-reverse-engineering-skill.zh.md: 361a9b19d342b5def152b3d9fd7312c2990fe2f7
+2026-10-17-authored-reverse-engineering-skill.md: 6b1a70b9e4eb8c2e8c102fa3fc4044b14d874d6b
+2026-10-17-authored-reverse-engineering-skill.zh.md: af4519d6114a37eeb2a4a78f321eb2ff9cc283ba
