@@ -14,7 +14,7 @@ Two existing mechanisms stood in the way. First, the host durably promoted the a
 
 ### Flat rows and viewing state
 
-The group-by menu offers two modes, WorkSpace / In one list. WorkSpace mode renders peer session rows within each group in the manual order from `WorkspaceView.sessionIds`; In one list combines every session and sorts them strictly newest-first by `updatedAt`. Neither mode projects `parentId` into a list hierarchy; fork lineage remains session data only. [Web session fork actions](2026-07-27-web-session-fork-actions.md) define the complete fork behavior. The mode choice persists in the browser (`avn.workspace.view`) across reloads. [Workspace Sidebar Order and Folding](2026-08-11-workspace-sidebar-order-and-folding.md) later added a browser-local recent-update view without changing the Host account's manual-order authority.
+The group-by menu offers two modes, By workspace / By status. By workspace mode renders peer session rows within each group in the manual order from `WorkspaceView.sessionIds`; By status derives the Needs input / Working / Completed work buckets from each Session's live state, as [Session Status Grouping](2026-10-17-session-status-grouping.md) decides for the recency list this mode replaced. Neither mode projects `parentId` into a list hierarchy; fork lineage remains session data only. [Web session fork actions](2026-07-27-web-session-fork-actions.md) define the complete fork behavior. The mode choice persists in the browser (`avn.workspace.view.v6`) across reloads. [Workspace Sidebar Order and Folding](2026-08-11-workspace-sidebar-order-and-folding.md) later added a browser-local recent-update view without changing the Host account's manual-order authority.
 
 ### Row interactions
 
@@ -52,9 +52,9 @@ ui-sidebar shrinks to the column-geometry shell: brand row, fold state machine, 
 
 - Manual order is the sole authority over the Host workspace account: activity never mutates `WorkspaceView.sessionIds`. A later browser-local recent-update view may promote active rows without changing that account; its separate semantics are defined in [Workspace Sidebar Order and Folding](2026-08-11-workspace-sidebar-order-and-folding.md).
 - The two-fact shell/region contract funnels every future workspace-domain feature (Delete confirmation, cross-group moves, Ungrouped adoption) into the single ui-workspace package; ui-sidebar no longer evolves with session-list features.
-- Flat mode supports neither reordering nor a create-in-workspace entry point (switching back to grouped view is required) — an accepted scope reduction.
+- Status grouping supports neither reordering nor a create-in-workspace entry point (switching back to the By workspace presentation is required) — an accepted scope reduction.
 - Wiring session Delete and growing the wire status enum remain future iterations.
 
 ## Testing
 
-Package-level suites cover the derivations (deriveGroups/deriveFlat), peer session rows, both apply registrations and passthroughs, host entity move semantics, and the rename/insertSessionBefore RPC implementations with their fixture stubs; the `apps/web` keyless snapshots regress the assembled application and pin that a fork does not introduce session expansion controls.
+Package-level suites cover the derivations (deriveGroups/deriveStatusBuckets), peer session rows, both apply registrations and passthroughs, host entity move semantics, and the rename/insertSessionBefore RPC implementations with their fixture stubs; the `apps/web` keyless snapshots regress the assembled application and pin that a fork does not introduce session expansion controls.

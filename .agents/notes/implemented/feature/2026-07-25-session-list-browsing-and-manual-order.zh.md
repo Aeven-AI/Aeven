@@ -14,7 +14,7 @@ Status: implemented
 
 ### 平铺行与浏览态
 
-group-by 菜单提供 WorkSpace / In one list 两种模式。WorkSpace 模式按 `WorkspaceView.sessionIds` 的手动序在各组内展示同级 session 行；In one list 把所有 session 合并后严格按 `updatedAt` 新→旧排序。两种模式都不把 `parentId` 投影成列表层级，fork 谱系只保留为 session 数据；完整 fork 行为由 [Web session fork 操作](2026-07-27-web-session-fork-actions.zh.md)定义。模式选择持久化在浏览器（`avn.workspace.view`），刷新后仍保持。[Workspace 侧边栏顺序与折叠](2026-08-11-workspace-sidebar-order-and-folding.zh.md)随后加入浏览器本地的最近更新视图，而未改变 Host 记账的手动顺序权威。
+group-by 菜单提供 按工作区 / 按状态 两种模式。按工作区模式按 `WorkspaceView.sessionIds` 的手动序在各组内展示同级 session 行；按状态由每个 Session 的实时状态派生出需要输入 / 进行中 / 已完成的工作三个分组，具体由[会话状态分组](2026-10-17-session-status-grouping.zh.md)决定，取代了此前的更新时间列表。两种模式都不把 `parentId` 投影成列表层级，fork 谱系只保留为 session 数据；完整 fork 行为由 [Web session fork 操作](2026-07-27-web-session-fork-actions.zh.md)定义。模式选择持久化在浏览器（`avn.workspace.view.v6`），刷新后仍保持。[Workspace 侧边栏顺序与折叠](2026-08-11-workspace-sidebar-order-and-folding.zh.md)随后加入浏览器本地的最近更新视图，而未改变 Host 记账的手动顺序权威。
 
 ### 行交互
 
@@ -52,9 +52,9 @@ ui-sidebar 缩为列几何壳：品牌行、折叠状态机、New Session、Sett
 
 - 手动序是 Host workspace 账本的唯一顺序权威：活动绝不改动 `WorkspaceView.sessionIds`。后续加入的浏览器本地最近更新视图可以把活跃行提到最前，但不会改变该账本；其独立语义见 [Workspace 侧边栏顺序与折叠](2026-08-11-workspace-sidebar-order-and-folding.zh.md)。
 - 壳/区域两事实约定把 workspace 域的后续功能（Delete 确认、跨组移动、Ungrouped 收编）全部收进 ui-workspace 单包；ui-sidebar 不再随 session 列表功能演进。
-- 平铺模式不支持重排，也没有在指定 workspace 中创建 session 的入口（需切回分组视图），是拍板接受的范围收窄。
+- 状态分组不支持重排，也没有在指定 workspace 中创建 session 的入口（需切回按工作区呈现），是拍板接受的范围收窄。
 - session Delete 的功能接线与扩展 wire 状态枚举，留待后续迭代。
 
 ## 测试
 
-包级用例覆盖派生（deriveGroups/deriveFlat）、同级 session 行、两处 apply 注册与透传、host 实体移位语义、rename/insertSessionBefore 的 RPC 实现与 fixture（测试前置数据）桩；`apps/web` keyless 快照回归覆盖装配后的应用，并钉住 fork 后没有 session 展开控件。
+包级用例覆盖派生（deriveGroups/deriveStatusBuckets）、同级 session 行、两处 apply 注册与透传、host 实体移位语义、rename/insertSessionBefore 的 RPC 实现与 fixture（测试前置数据）桩；`apps/web` keyless 快照回归覆盖装配后的应用，并钉住 fork 后没有 session 展开控件。

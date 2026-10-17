@@ -1,7 +1,7 @@
 /**
- * Derives the workspace browser tree from Host Workspace order and membership.
- * Unassigned Sessions trail under Ungrouped; only the selected blank Session
- * remains visible.
+ * Derives the workspace browser tree from Host Workspace order and membership,
+ * and the status groups from what each Session is doing. Unassigned Sessions
+ * trail under Ungrouped; only the selected blank Session remains visible.
  */
 import {
   type SessionListState, type SessionSearchResultItem, type SessionSummary,
@@ -78,7 +78,13 @@ export interface SessionNode {
 /** Session order selected by the Workspace browser. */
 export type SessionOrderBy = 'manual' | 'updated'
 
-/** One workspace group section: header row facts + visible top-level session rows. */
+/**
+ * A section the browser derives rather than reads from the Workspace registry:
+ * the Ungrouped bucket, the Archived section, and the three status buckets.
+ */
+export type GroupBucket = 'ungrouped' | 'archived' | 'needs-input' | 'working' | 'completed'
+
+/** One group section: header row facts + visible top-level session rows. */
 export interface GroupNode {
   /** Group key: the workspace id or {@link UNGROUPED_KEY}. */
   key: string
@@ -98,9 +104,15 @@ export interface GroupNode {
    */
   managed: boolean
   cwd: string | undefined
-  /** Workspace creation time (epoch ms); absent only for the ungrouped bucket. */
+  /** Workspace creation time (epoch ms); absent for derived buckets. */
   createdAt: number | undefined
   label: string
+  /**
+   * Derived bucket identity; absent for a Workspace group, whose header reads
+   * that Workspace's title. The renderer resolves a bucket's localized label
+   * from this discriminant instead of from {@link GroupNode.label}.
+   */
+  bucket?: GroupBucket
   /** Total visible sessions in the group. */
   sessionCount: number
   expanded: boolean
@@ -161,6 +173,7 @@ interface Group {
   cwd: string | undefined
   createdAt: number | undefined
   label: string
+  bucket?: GroupBucket
   sessions: SessionSummary[]
 }
 
@@ -292,13 +305,7 @@ function indexRunningJobs(
 
 /** Build one group without projecting session lineage into presentation. */
 function buildGroup(
-  key: string,
-  workspaceId: WorkspaceId | undefined,
-  isBuiltIn: boolean,
-  managed: boolean,
-  cwd: string | undefined,
-  createdAt: number | undefined,
-  label: string,
+  shape: Omit<Group, 'sessions'>,
   members: readonly SessionSummary[],
   order: 'account' | 'recency',
 ): Group {
@@ -306,7 +313,7 @@ function buildGroup(
   // Real Workspace order comes from sessionIds. Ungrouped falls back to
   // recency until the browser supplies its persisted local order.
   if (order === 'recency') sessions.sort(byRecency)
-  return { key, workspaceId, isBuiltIn, managed, cwd, createdAt, label, sessions }
+  return { ...shape, sessions }
 }
 
 /** Apply a stored Ungrouped order and append newly loose Sessions by recency. */
@@ -353,31 +360,36 @@ function groupByWorkspace(
     }
     // A managed Workspace exists to hold its plugin's Sessions, so it shows only while it holds a visible one.
     if (isManagedWorkspace(workspace) && (hideManaged || members.length === 0)) continue
-    groups.push(buildGroup(
+    groups.push(buildGroup({
+      key: workspace.workspaceId,
+      workspaceId: workspace.workspaceId,
+      isBuiltIn: workspace.isBuiltIn,
+      managed: isManagedWorkspace(workspace),
       // The wire carries "no directory" as JSON `null`; the grouping vocabulary
       // speaks `undefined`, so absence is translated once, here.
-      workspace.workspaceId, workspace.workspaceId, workspace.isBuiltIn, isManagedWorkspace(workspace), workspace.path ?? undefined,
-      Date.parse(workspace.createdAt), workspace.title, members, 'account',
-    ))
+      cwd: workspace.path ?? undefined,
+      createdAt: Date.parse(workspace.createdAt),
+      label: workspace.title,
+    }, members, 'account'))
   }
   const stray = list.ids
     .map(id => list.byId[id])
     .filter((s): s is SessionSummary =>
       s !== undefined && !accounted.has(s.id) && sessionVisible(s, list.current, archived))
   if (stray.length > 0) {
-    groups.push(buildGroup(
-      UNGROUPED_KEY,
-      undefined,
+    groups.push(buildGroup({
+      key: UNGROUPED_KEY,
+      workspaceId: undefined,
       // The ungrouped bucket has no backing Workspace at all, so it is never
       // the built-in one; it already renders without row actions.
-      false,
-      false,
-      undefined,
-      undefined,
-      '',
-      ungroupedOrder === undefined ? stray : orderedUngrouped(stray, ungroupedOrder),
-      ungroupedOrder === undefined ? 'recency' : 'account',
-    ))
+      isBuiltIn: false,
+      managed: false,
+      cwd: undefined,
+      createdAt: undefined,
+      label: '',
+      bucket: 'ungrouped',
+    }, ungroupedOrder === undefined ? stray : orderedUngrouped(stray, ungroupedOrder),
+    ungroupedOrder === undefined ? 'recency' : 'account'))
   }
   return groups
 }
@@ -457,6 +469,7 @@ export function deriveGroups(
       cwd: g.cwd,
       createdAt: g.createdAt,
       label: g.label,
+      ...(g.bucket === undefined ? {} : { bucket: g.bucket }),
       sessionCount: g.sessions.length,
       expanded,
       containsCurrent: g.key === currentGroup,
@@ -469,33 +482,99 @@ export function deriveGroups(
 }
 
 /**
- * Derive the flat session list ("In one list" mode): every session — fork
- * children included — as a top-level row, strictly newest-first. No grouping,
- * no parent/child adjacency. Content search lives outside this derivation
- * (see {@link deriveSearchResults}).
+ * Fixed status bucket a Session belongs to, in the order the browser lists
+ * them. A Session waiting on the reader leads: it is blocked on an answer, so
+ * it is not working whatever else it still has in flight.
+ */
+export type SessionBucket = 'needs-input' | 'working' | 'completed'
+
+/** Group keys of the status buckets; distinct from every Workspace id and from Ungrouped. */
+export const STATUS_BUCKET_KEYS: Readonly<Record<SessionBucket, string>> = {
+  'needs-input': '__status_needs_input__',
+  working: '__status_working__',
+  completed: '__status_completed__',
+}
+
+/** Status bucket render order: blocked on the reader, in flight, at rest. */
+export const STATUS_BUCKETS: readonly SessionBucket[] = ['needs-input', 'working', 'completed']
+
+/**
+ * Classify one Session into its status bucket.
+ * @param facts - the live facts every session row already carries.
+ * @returns the bucket the Session belongs to right now.
+ */
+export function sessionBucket(
+  facts: Pick<SessionNode, 'pendingInteraction' | 'running' | 'runningSubagentCount' | 'runningJobCount'>,
+): SessionBucket {
+  if (facts.pendingInteraction !== undefined) return 'needs-input'
+  if (facts.running || facts.runningSubagentCount > 0 || facts.runningJobCount > 0) return 'working'
+  return 'completed'
+}
+
+/**
+ * Derive the three status buckets: every Session the browser shows, grouped by
+ * what it is doing now. Membership is a pure function of the live list
+ * projection, so a Session moves between buckets as its Agent starts, waits on
+ * the reader, or settles; no stored state records the move, and the buckets
+ * survive a reload without an event to replay.
+ *
+ * Each bucket lists its rows newest-first. A bucket reads as open until the
+ * reader folds it, because the buckets are the whole list rather than sections
+ * a reader opted into. The provisional New Session row waits in **Needs input**
+ * until its first prompt: it is a chat waiting on the reader, so it is visible
+ * in the view that is open rather than only in the Workspace view that minted
+ * it. Content search lives outside this derivation (see
+ * {@link deriveSearchResults}).
  * @param list - sessions list snapshot.
  * @param archivedSessionIds - registry-global archive set.
  * @param pendingInteractions - pending UI interactions by Session.
  * @param hidden - Sessions a view option leaves out, such as managed Workspace members.
- * @returns flat rows in render order.
+ * @param folds - explicit fold state by bucket key; an absent bucket is open.
+ * @returns one group per bucket, in {@link STATUS_BUCKETS} order.
  */
-export function deriveFlat(
+export function deriveStatusBuckets(
   list: SessionListState,
   archivedSessionIds: readonly SessionId[],
   pendingInteractions: SessionPendingInteractions,
-  hidden: ReadonlySet<SessionId> = new Set(),
-): SessionNode[] {
+  hidden: ReadonlySet<SessionId>,
+  folds: Readonly<Record<string, boolean>>,
+): GroupNode[] {
   const archived = new Set(archivedSessionIds)
   const descendants = indexSubagentDescendants(list.byId)
   const runningJobs = indexRunningJobs(list.jobsBySession)
-  const rows: SessionSummary[] = []
+  const members: Record<SessionBucket, SessionSummary[]> = { 'needs-input': [], working: [], completed: [] }
   for (const id of list.ids) {
-    const s = list.byId[id]
-    if (s === undefined || hidden.has(s.id) || !sessionVisible(s, list.current, archived)) continue
-    rows.push(s)
+    const summary = list.byId[id]
+    if (summary === undefined || hidden.has(summary.id)) continue
+    if (!sessionVisible(summary, list.current, archived)) continue
+    if (summary.blank) {
+      members['needs-input'].push(summary)
+      continue
+    }
+    const node = sessionNode(summary, descendants, runningJobs, pendingInteractions)
+    members[sessionBucket(node)].push(summary)
   }
-  rows.sort(byRecency)
-  return rows.map(session => sessionNode(session, descendants, runningJobs, pendingInteractions))
+  return STATUS_BUCKETS.map((bucket) => {
+    const key = STATUS_BUCKET_KEYS[bucket]
+    const rows = [...members[bucket]].sort(byRecency)
+    const expanded = folds[key] !== false
+    return {
+      key,
+      workspaceId: undefined,
+      // A status bucket has no backing Workspace: it is part of the product, so
+      // the renderer offers it no Workspace actions and no reorder drag.
+      isBuiltIn: true,
+      managed: true,
+      cwd: undefined,
+      createdAt: undefined,
+      label: '',
+      bucket,
+      sessionCount: rows.length,
+      expanded,
+      containsCurrent: list.current !== undefined && rows.some(row => row.id === list.current),
+      sessions: expanded ? rows.map(row => sessionNode(row, descendants, runningJobs, pendingInteractions)) : [],
+    }
+  })
 }
 
 /**

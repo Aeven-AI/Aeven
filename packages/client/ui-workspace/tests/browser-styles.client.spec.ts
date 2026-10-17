@@ -1,7 +1,7 @@
 /**
  * WorkspaceBrowser spacing contract, asserted against the CSS text on disk:
- * row fills use the shell's Aeven inset, the scrollbar stays stable, and flat,
- * grouped, and search views share the source menu's continuous row rhythm.
+ * row fills use the shell's Aeven inset, the scrollbar stays stable, and the
+ * grouped, status, and search views share the source menu's continuous row rhythm.
  */
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -61,7 +61,6 @@ describe('WorkspaceBrowser.module.css list', () => {
   })
 
   it('keeps Aeven rows and workspace groups contiguous', () => {
-    expect(declarations('.flatList > * + *')?.get('margin-top')).toBe('0')
     expect(declarations('.groupSection > * + *')?.get('margin-top')).toBe('0')
     expect(declarations('.groupSection + .groupSection')?.get('margin-top')).toBe('0')
     // The group's own overflow control is one of the group's rows, so it

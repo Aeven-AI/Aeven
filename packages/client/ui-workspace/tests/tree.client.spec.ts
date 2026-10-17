@@ -7,8 +7,8 @@ import type { SessionPendingInteractionBase } from '@aeven/client-ui-session/cli
 import type { ScheduleId, ScheduleRecord } from '@aeven/schedule/client'
 import type { SessionId, SessionSeq } from '@aeven/session/types'
 import {
-  deriveFlat, deriveGroups, deriveSearchResults, owningGroupKey, workspaceLabel,
-  UNGROUPED_KEY,
+  deriveGroups, deriveSearchResults, deriveStatusBuckets, owningGroupKey, sessionBucket,
+  STATUS_BUCKET_KEYS, workspaceLabel, UNGROUPED_KEY,
 } from '../src/client/tree.ts'
 import { createWorkspaceViewStore } from '../src/client/stores.ts'
 
@@ -41,6 +41,13 @@ const job = (id: string, status: SessionJobRow['status']): SessionJobRow => ({
 })
 const noArchive: readonly SessionId[] = []
 const noAttention: ReadonlyMap<SessionId, SessionPendingInteractionBase> = new Map()
+/** Every status bucket's rows in bucket order, under the reader's default open folds. */
+const statusRows = (
+  sessions: SessionListState,
+  archive: readonly SessionId[] = noArchive,
+  attention = noAttention,
+  hidden = new Set<SessionId>(),
+) => deriveStatusBuckets(sessions, archive, attention, hidden, {}).flatMap(bucket => bucket.sessions)
 const archived = (...ids: string[]): readonly SessionId[] => ids.map(sid)
 const schedule = (id: string, scheduledAt: string): ScheduleRecord => ({
   id: id as ScheduleId,
@@ -76,7 +83,7 @@ describe('deriveGroups', () => {
     expect(groups[0]!.cwd).toBeUndefined()
   })
 
-  it('projects pending-interaction state into grouped and flat rows', () => {
+  it('projects pending-interaction state into grouped and status rows', () => {
     const awaiting = { ...summary('awaiting', 10), running: true }
     const sessions = list(awaiting)
     const attention: ReadonlyMap<SessionId, SessionPendingInteractionBase> = new Map([[
@@ -87,7 +94,7 @@ describe('deriveGroups', () => {
       sessions, [workspace('project', ['awaiting'])], noArchive, attention, view(['project']),
     )
     expect(grouped[0]!.sessions[0]).toMatchObject({ pendingInteraction: 'plan-review', running: true })
-    expect(deriveFlat(sessions, noArchive, attention)[0])
+    expect(statusRows(sessions, noArchive, attention)[0])
       .toMatchObject({ pendingInteraction: 'plan-review', running: true })
   })
 
@@ -100,7 +107,7 @@ describe('deriveGroups', () => {
         { key: `${kind}:1`, kind, sessionId: awaiting.id },
       ]])
 
-      expect(deriveFlat(list(awaiting), noArchive, attention)[0]?.pendingInteraction).toBe(kind)
+      expect(statusRows(list(awaiting), noArchive, attention)[0]?.pendingInteraction).toBe(kind)
     },
   )
 
@@ -166,7 +173,7 @@ describe('deriveGroups', () => {
     const plainNode = groups[0]!.sessions.find(session => session.id === plain.id)!
     expect(doneNode.completed).toBe(true)
     expect(plainNode.completed).toBe(false)
-    expect(deriveFlat(sessions, noArchive, noAttention).find(node => node.id === done.id)!.completed).toBe(true)
+    expect(statusRows(sessions, noArchive, noAttention).find(node => node.id === done.id)!.completed).toBe(true)
     const search = deriveSearchResults(
       sessions, [workspace('first', ['done', 'plain'])], 'done', noArchive,
       noAttention, { items: [], hasMore: false }, 10,
@@ -174,7 +181,7 @@ describe('deriveGroups', () => {
     expect(search.items[0]?.completed).toBe(true)
   })
 
-  it('derives one active-Schedule fact for grouped, flat, and search rows', () => {
+  it('derives one active-Schedule fact for grouped, status, and search rows', () => {
     const absent = summary('absent', 4)
     const empty = { ...summary('empty', 3), projectionValues: { schedule: [] } }
     const future = {
@@ -197,7 +204,7 @@ describe('deriveGroups', () => {
     expect(deriveGroups(
       sessions, workspaces, noArchive, noAttention, view(['project']),
     )[0]!.sessions.map(node => [node.id, node.hasActiveSchedule])).toEqual(expected)
-    expect(deriveFlat(sessions, noArchive, noAttention)
+    expect(statusRows(sessions, noArchive, noAttention)
       .map(node => [node.id, node.hasActiveSchedule])).toEqual(expected)
     expect(deriveSearchResults(
       sessions, workspaces, 'project', noArchive, noAttention, { items: [], hasMore: false }, 10,
@@ -229,7 +236,7 @@ describe('deriveGroups', () => {
     expect(groups[0]!.sessionCount).toBe(2)
     expect(groups[0]!.sessions[0]).toMatchObject({ running: false, runningSubagentCount: 2 })
     expect(groups[0]!.sessions[1]).toMatchObject({ running: false, runningSubagentCount: 1 })
-    expect(deriveFlat(sessions, noArchive, noAttention).map(node => [node.id, node.runningSubagentCount])).toEqual([
+    expect(statusRows(sessions, noArchive, noAttention).map(node => [node.id, node.runningSubagentCount])).toEqual([
       [fork.id, 1], [parent.id, 2],
     ])
     expect(deriveSearchResults(
@@ -251,7 +258,7 @@ describe('deriveGroups', () => {
         [done.id as string]: [job('bash-3', 'completed'), job('bash-4', 'killed')],
       },
     }
-    const rows = deriveFlat(sessions, noArchive, noAttention)
+    const rows = statusRows(sessions, noArchive, noAttention)
 
     expect(rows.map(node => [node.id, node.runningJobCount]))
       .toEqual([[live.id, 2], [done.id, 0]])
@@ -336,50 +343,91 @@ describe('deriveGroups', () => {
   })
 })
 
-describe('deriveFlat', () => {
-  it('flattens every session — fork children included — newest-first with id tiebreak', () => {
-    const parent = summary('parent', 10)
-    const child = { ...summary('child', 30), parentId: parent.id }
-    const tieB = summary('tie-b', 20)
-    const tieA = summary('tie-a', 20)
-    const rows = deriveFlat(list(parent, child, tieB, tieA), noArchive, noAttention)
-    expect(rows.map(row => row.id)).toEqual([sid('child'), sid('tie-a'), sid('tie-b'), sid('parent')])
-  })
-
-  it('hides subagent-origin rows but keeps ordinary forks', () => {
-    const parent = summary('parent', 1)
-    const fork = { ...summary('fork', 2), parentId: parent.id }
-    const subagent = { ...summary('subagent', 3), parentId: parent.id, origin: 'subagent' as const }
-    const rows = deriveFlat(
-      { ...list(parent, fork, subagent), current: subagent.id },
-      noArchive,
-      noAttention,
-    )
-    expect(rows.map(row => row.id)).toEqual([fork.id, parent.id])
-  })
-
-  it('tolerates ids whose summary has not landed yet', () => {
-    const partial: SessionListState = { ...list(summary('present', 1)), ids: [sid('ghost'), sid('present')] }
-    expect(deriveFlat(partial, noArchive, noAttention).map(row => row.id)).toEqual([sid('present')])
-  })
-
-  it('shows only the current blank session and excludes blanks from search', () => {
-    const currentBlank = { ...summary('current-blank', 9), blank: true }
-    const staleBlank = { ...summary('stale-blank', 8), blank: true }
-    const sessions = {
-      ...list(summary('real', 1), currentBlank, staleBlank),
-      current: currentBlank.id,
+describe('status buckets', () => {
+  it('files every Session by what it is doing, newest first inside a bucket', () => {
+    const waiting = { ...summary('waiting', 50), running: true }
+    const working = { ...summary('working', 40), running: true }
+    const subagentChild = {
+      ...summary('subagent-child', 35), parentId: sid('parent'), origin: 'subagent' as const, running: true,
     }
-    const rows = deriveFlat(sessions, noArchive, noAttention)
-    expect(rows.map(row => row.id)).toEqual([currentBlank.id, sid('real')])
-    expect(rows.map(row => row.title)).toEqual(['', 'real'])
-    expect(rows.map(row => row.blank)).toEqual([true, false])
+    const parent = summary('parent', 30)
+    const jobWork = summary('job-work', 20)
+    const resting = summary('resting', 10)
+    const sessions: SessionListState = {
+      ...list(waiting, working, subagentChild, parent, jobWork, resting),
+      jobsBySession: { [jobWork.id]: [job('bash-1', 'running')] },
+    }
+    const attention: ReadonlyMap<SessionId, SessionPendingInteractionBase> = new Map([[
+      waiting.id,
+      { key: 'question:1', kind: 'question', sessionId: waiting.id },
+    ]])
+
+    const buckets = deriveStatusBuckets(sessions, noArchive, attention, new Set(), {})
+
+    // A Session waiting on the reader leads even while its Agent still runs;
+    // its own turns, running subagents, and live jobs are all work in flight;
+    // everything at rest trails.
+    expect(buckets.map(bucket => [bucket.bucket, bucket.sessions.map(node => node.id)])).toEqual([
+      ['needs-input', [waiting.id]],
+      ['working', [working.id, parent.id, jobWork.id]],
+      ['completed', [resting.id]],
+    ])
+    expect(buckets.map(bucket => bucket.key)).toEqual([
+      STATUS_BUCKET_KEYS['needs-input'], STATUS_BUCKET_KEYS.working, STATUS_BUCKET_KEYS.completed,
+    ])
+    expect(buckets.map(bucket => bucket.sessionCount)).toEqual([1, 3, 1])
+    // A bucket is a product section, not a Workspace: no backing Workspace
+    // means no Workspace header actions and no New Session control.
+    expect(buckets.every(bucket => bucket.workspaceId === undefined && bucket.isBuiltIn && bucket.managed))
+      .toBe(true)
   })
 
-  it('hides archived sessions in flat mode', () => {
-    const kept = summary('kept', 1)
-    const gone = summary('gone', 2)
-    expect(deriveFlat(list(kept, gone), archived('gone'), noAttention).map(row => row.id)).toEqual([kept.id])
+  it('files the provisional New Session in Needs input and leaves archived, hidden, and subagent rows out', () => {
+    const real = summary('real', 2)
+    const blank = { ...summary('blank', 9), blank: true }
+    const hidden = summary('hidden', 8)
+    const gone = summary('gone', 7)
+    const subagent = { ...summary('subagent', 6), origin: 'subagent' as const, running: true }
+    const rows = statusRows(
+      { ...list(real, blank, hidden, gone, subagent), current: blank.id },
+      archived('gone'),
+      noAttention,
+      new Set([hidden.id]),
+    )
+    // A blank New Session waits on the reader's first message, so it joins the
+    // sessions blocked on them instead of reporting work it has not done.
+    expect(rows.map(row => row.id)).toEqual([blank.id, real.id])
+  })
+
+  it('opens each bucket until the reader folds it, and reports the selected Session while folded', () => {
+    const current = summary('current', 2)
+    const older = summary('older', 1)
+    const sessions = { ...list(current, older), current: current.id }
+
+    const folded = deriveStatusBuckets(sessions, noArchive, noAttention, new Set(), {
+      [STATUS_BUCKET_KEYS.completed]: false,
+    })
+    const closed = folded.find(bucket => bucket.bucket === 'completed')!
+    expect(closed.expanded).toBe(false)
+    expect(closed.sessions).toEqual([])
+    expect(closed.containsCurrent).toBe(true)
+    expect(closed.sessionCount).toBe(2)
+
+    const open = deriveStatusBuckets(sessions, noArchive, noAttention, new Set(), {
+      [STATUS_BUCKET_KEYS.completed]: true,
+    })
+    expect(open.find(bucket => bucket.bucket === 'completed')!.sessions.map(row => row.id))
+      .toEqual([current.id, older.id])
+  })
+
+  it('classifies one Session from its live facts alone', () => {
+    expect(sessionBucket({
+      pendingInteraction: 'approval', running: true, runningSubagentCount: 2, runningJobCount: 1,
+    })).toBe('needs-input')
+    expect(sessionBucket({ running: true, runningSubagentCount: 0, runningJobCount: 0 })).toBe('working')
+    expect(sessionBucket({ running: false, runningSubagentCount: 1, runningJobCount: 0 })).toBe('working')
+    expect(sessionBucket({ running: false, runningSubagentCount: 0, runningJobCount: 1 })).toBe('working')
+    expect(sessionBucket({ running: false, runningSubagentCount: 0, runningJobCount: 0 })).toBe('completed')
   })
 })
 
@@ -542,12 +590,12 @@ describe('createWorkspaceViewStore', () => {
     const store = createWorkspaceViewStore().create()
     expect(store.getSnapshot().groupBy).toBe('workspace')
     expect(store.getSnapshot().orderBy).toBe('updated')
-    store.actions.setGroupBy('flat')
+    store.actions.setGroupBy('status')
     store.actions.setOrderBy('updated')
     store.actions.setGroupExpanded('alpha', true)
     store.actions.syncSessionOrderAccount('alpha', ['two', 'one'], { one: 1, two: 2 })
     store.actions.setSessionOrder('alpha', ['one', 'two'])
-    expect(store.getSnapshot().groupBy).toBe('flat')
+    expect(store.getSnapshot().groupBy).toBe('status')
     expect(store.getSnapshot()).toMatchObject({
       orderBy: 'updated',
       groupExpansion: { alpha: true },
