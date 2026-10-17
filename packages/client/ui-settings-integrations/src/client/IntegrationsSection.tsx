@@ -120,8 +120,8 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
   /** The shipped catalog: undefined while unread, null when this deployment ships none. */
   const [catalog, setCatalog] = useState<SkillCatalogView | null>()
   const [catalogQuery, setCatalogQuery] = useState('')
-  /** How the catalog is laid out: one list of every skill, or grouped by upstream category. Both read in title order. */
-  const [view, setView] = useState<'all' | 'category'>('all')
+  /** How the catalog is laid out: the category index, or one list of every skill. Both read in title order. */
+  const [view, setView] = useState<'all' | 'category'>('category')
   /** Category opened from the index; undefined while the index itself shows. */
   const [openCategory, setOpenCategory] = useState<string>()
   const [optionsOpen, setOptionsOpen] = useState(false)
@@ -302,7 +302,7 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
     onClose={() => { setOptionsOpen(false) }}
     selectedId={view}
     onSelect={(id) => { setView(id === 'category' ? 'category' : 'all'); setOpenCategory(undefined); setOptionsOpen(false) }}
-    items={[{ id: 'all', label: t('optionAll') }, { id: 'category', label: t('optionCategory') }]}
+    items={[{ id: 'category', label: t('optionCategory') }, { id: 'all', label: t('optionAll') }]}
     anchor={<button
       type="button" className={css.iconAction} aria-label={t('displayOptions')} title={t('displayOptions')}
       aria-haspopup="menu" aria-expanded={optionsOpen} onClick={() => { setOptionsOpen(open => !open) }}

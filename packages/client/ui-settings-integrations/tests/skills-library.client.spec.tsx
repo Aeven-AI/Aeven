@@ -115,16 +115,14 @@ describe('the skills library', () => {
 })
 
 describe('the skills catalog', () => {
-  it('groups the catalog by category with a count, and opens one category', async () => {
+  it('opens on the category index, and a category opens its skills', async () => {
     mount({ skills: [], connectors: [], providers: [] }, undefined, {
       commit: 'abc123', synced: '2026-10-17',
       categories: [{ name: 'reverse-engineering', skills: 2 }, { name: 'design', skills: 1 }],
       skills: [catalogued('leanrea', 'leanrea', 0), catalogued('reverse-engineering', 'reverse-engineering', 0), catalogued('motion-design', 'motion-design', 12, 'design')],
     })
-    await waitFor(() => { expect(screen.getByText('leanrea')).toBeDefined() })
-    fireEvent.click(screen.getByRole('button', { name: 'Display' }))
-    fireEvent.click(await screen.findByText('By category'))
-    await waitFor(() => { expect(screen.queryByText('leanrea')).toBeNull() })
+    await waitFor(() => { expect(screen.getByText('reverse engineering')).toBeDefined() })
+    expect(screen.queryByText('leanrea')).toBeNull()
     const group = screen.getByText('reverse engineering')
     expect(group.closest('article')?.textContent).toContain('2')
     fireEvent.click(group)
@@ -134,13 +132,15 @@ describe('the skills catalog', () => {
     await waitFor(() => { expect(screen.getByText('design')).toBeDefined() })
   })
 
-
   it('lists every skill in title order rather than install order', async () => {
     mount({ skills: [], connectors: [], providers: [] }, undefined, {
       commit: 'abc123', synced: '2026-10-17',
       categories: [{ name: 'reverse-engineering', skills: 2 }],
       skills: [catalogued('zeta-skill', 'Zeta skill', 9000), catalogued('alpha-skill', 'Alpha skill', 2)],
     })
+    const display = await screen.findByRole('button', { name: 'Display' })
+    fireEvent.click(display)
+    fireEvent.click(await screen.findByText('All'))
     await waitFor(() => { expect(screen.getByText('alpha-skill')).toBeDefined() })
     const text = document.body.textContent ?? ''
     expect(text.indexOf('alpha-skill')).toBeLessThan(text.indexOf('zeta-skill'))
