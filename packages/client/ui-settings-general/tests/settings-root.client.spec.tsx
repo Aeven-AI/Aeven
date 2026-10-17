@@ -340,6 +340,7 @@ describe('SettingsPanel navigation', () => {
         { id: 'models', order: 10, label: 'Models' },
         { id: 'personalization', order: 15, label: 'Personalization' },
         { id: 'plugins', order: 30, label: 'Plugins' },
+        { id: 'skills', order: 35, label: 'Skills' },
         { id: 'grok-build', order: 40, label: 'Subscriptions' },
         { id: 'memory', order: 45, label: 'Memory' },
         { id: 'general', order: 50, label: 'General' },
@@ -348,14 +349,14 @@ describe('SettingsPanel navigation', () => {
     })
     openPanel()
     // Glyphs carry no id of their own, so the drawn paths are what tells them apart.
-    const glyphs = ['Account', 'Appearance', 'Models', 'Personalization', 'Plugins', 'Subscriptions', 'Memory', 'General', 'Contributed']
+    const glyphs = ['Account', 'Appearance', 'Models', 'Personalization', 'Plugins', 'Skills', 'Subscriptions', 'Memory', 'General', 'Contributed']
       .map(name => screen.getByRole('button', { name }).querySelector('svg')?.innerHTML)
 
     expect(glyphs.every(glyph => glyph !== undefined && glyph !== '')).toBe(true)
     // The ids the shell names get their own glyph; every other section —
     // General included, and one this package never heard of — shares the gear.
-    expect(new Set(glyphs.slice(0, 7)).size).toBe(7)
-    expect(glyphs[7]).toBe(glyphs[8])
+    expect(new Set(glyphs.slice(0, 8)).size).toBe(8)
+    expect(glyphs[8]).toBe(glyphs[9])
     expect(glyphs[8]).not.toBe(glyphs[0])
   })
 

@@ -1596,3 +1596,23 @@ export const IconLucideWaypoints = ({ className }: LucideGlyphProps) => (
     <circle cx="4" cy="12" r="2" />
   </LucideSvg>
 )
+
+/** lucide `plug`: a plug on its cord (the Plugins settings section). */
+export const IconLucidePlug = ({ className }: LucideGlyphProps) => (
+  <LucideSvg className={className}>
+    <path d="M12 22v-5" />
+    <path d="M15 8V2" />
+    <path d="M17 8a1 1 0 0 1 1 1v4a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1z" />
+    <path d="M9 8V2" />
+  </LucideSvg>
+)
+
+/** lucide `scroll-text`: a scroll holding two text lines (the Skills settings section). */
+export const IconLucideScrollText = ({ className }: LucideGlyphProps) => (
+  <LucideSvg className={className}>
+    <path d="M15 12h-5" />
+    <path d="M15 8h-5" />
+    <path d="M19 17V5a2 2 0 0 0-2-2H4" />
+    <path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3" />
+  </LucideSvg>
+)
