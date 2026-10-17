@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-A release ships a skill catalog inside this package: the reviewed high-value subset of the upstream `davila7/claude-code-templates` collection, together with skills written in this repository for targets that collection does not cover (today `reverse-engineering`), as an index plus one zip per skill. Settings browses it as one title-ordered list or grouped by category, searches it, and installs a chosen skill into the signed-in account's own library. Nothing in the catalog reaches a model until someone installs it.
+A release ships a skill catalog inside this package: the reviewed high-value subset of the upstream `davila7/claude-code-templates` collection, together with skills written in this repository for targets that collection does not cover (today `reverse-engineering`) and a reviewed set other repositories publish in the same `SKILL.md` layout (today ten motion skills from `nexu-io/open-design`), as an index plus one zip per skill. Settings browses it as one title-ordered list or grouped by category, searches it, and installs a chosen skill into the signed-in account's own library. Nothing in the catalog reaches a model until someone installs it.
 
 The Host fetches nothing at runtime: the index and the bundles are files in this package, read through `ctx.skillCatalog`. An install hands the vendored zip to the account's ordinary import path, so path validation, the size ceiling, resource storage, and catalog invalidation behave exactly as a manual upload.
 
@@ -47,6 +47,8 @@ Installed names come from the upstream directory name, which is the kebab-case i
 `SkillCatalog.list()` parses `index.json` once per process. `SkillCatalog.bundle(name)` reads one zip and returns the file-and-base64 upload the account Remote already accepts. `catalogDir` points the service at another directory, which is how a derived catalog or a test fixture is served.
 
 `catalog/sources.json` names the skills the collection does not carry: each entry names a directory in this repository holding that skill's `SKILL.md`, and states the category Settings groups it under. The sync packages each one the way it packages a vendored skill, records it in `index.json` and `MANIFEST.md`, and builds the bundle from the directory as it stands, so a skill written here reaches the next release by editing that directory and re-running the sync.
+
+`catalog/vendored.json` covers the third origin: a skill another repository publishes in the same `SKILL.md` layout. Each entry names that repository, the skill directory inside it, its category, its credited author, and, for a skill whose own description is written in another language, the English summary the catalog row shows. The sync pins that repository's default-branch commit, bundles the directory the way it bundles a downloaded skill, records `<repo>/<path>` as the row's provenance, and adds the repository's `LICENSE` to the bundle when the skill carries none of its own. An entry ships under the same `curation.json` value bar as everything else, so widening or retiring a source stays one edit.
 
 </details>
 

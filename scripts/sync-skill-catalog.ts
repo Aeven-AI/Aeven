@@ -23,6 +23,13 @@
  * stated rather than derived from a path. A skill written here is packaged like any other, so it
  * installs and uninstalls from Settings.
  *
+ * `catalog/vendored.json` lists skills another repository publishes in the same `SKILL.md` layout.
+ * Each entry names that repository, the skill directory inside it, its category, and optionally an
+ * English description for a skill that describes itself in another language. The run pins that
+ * repository's default-branch commit and packages the directory the way it packages the primary
+ * collection, with `<repo>/<path>` recorded as provenance so a Settings row names where the skill
+ * came from. An entry ships under the same `curation.json` value bar as everything else.
+ *
  * Requires the `zip` command-line tool and network access.
  */
 
@@ -81,6 +88,20 @@ interface AuthoredSource {
   readonly authored: string
   /** Catalog category the skill is grouped under, which is also its bundle directory. */
   readonly category: string
+}
+
+/** One skill the catalog ships from another repository that publishes the same `SKILL.md` layout. */
+interface VendoredSource {
+  /** Repository in `owner/name` form. */
+  readonly repo: string
+  /** Directory holding the skill's `SKILL.md`, relative to the repository root. */
+  readonly path: string
+  /** Catalog category the skill is grouped under, which is also its bundle directory. */
+  readonly category: string
+  /** Author credited for the skill material. */
+  readonly author: string
+  /** Catalogue summary used instead of the skill's own when that text is written in another language. */
+  readonly description?: string
 }
 
 /** The catalog index the Host serves and `verify-skill-catalog` re-derives. */
@@ -322,6 +343,20 @@ async function main(): Promise<void> {
   const extras = existsSync(sourcesFile)
     ? (JSON.parse(readFileSync(sourcesFile, 'utf8')) as { skills?: readonly AuthoredSource[] }).skills ?? []
     : []
+  const vendoredFile = join(outDir, '..', 'vendored.json')
+  const vendored = existsSync(vendoredFile)
+    ? (JSON.parse(readFileSync(vendoredFile, 'utf8')) as { skills?: readonly VendoredSource[] }).skills ?? []
+    : []
+  /** The name one vendored entry installs under, which is the directory name it ships from. */
+  const vendoredName = (source: VendoredSource): string => kebab(segmentAt(source.path.split('/'), -1))
+  const shippedVendored = vendored.filter(source => (curation.get(vendoredName(source))?.value ?? 0) >= minValue)
+  // One tree per repository, fetched once: a repository contributes several reviewed skills.
+  const repositories = new Map<string, { commit: string; tree: readonly TreeEntry[] }>()
+  for (const repo of new Set(shippedVendored.map(source => source.repo))) {
+    const commit = (await json<{ sha: string }>(`https://api.github.com/repos/${repo}/commits/main`)).sha
+    const repoTree = await json<{ tree: readonly TreeEntry[] }>(`https://api.github.com/repos/${repo}/git/trees/${commit}?recursive=1`)
+    repositories.set(repo, { commit, tree: repoTree.tree })
+  }
   const blobs = tree.tree.filter(entry => entry.type === 'blob' && entry.path.startsWith(SKILLS_PREFIX))
   const roots = blobs.filter(entry => entry.path.endsWith('/SKILL.md'))
     .map(entry => entry.path.slice(0, -'/SKILL.md'.length))
@@ -428,6 +463,45 @@ async function main(): Promise<void> {
       })
       console.log(`sync-skill-catalog: ${name} authored at ${extra.authored}`)
     }
+
+    for (const source of shippedVendored) {
+      const name = vendoredName(source)
+      if (taken.has(name)) throw new Error(`vendored skill ${name} collides with a catalogued name`)
+      taken.add(name)
+      const repository = repositories.get(source.repo)
+      if (repository === undefined) throw new Error(`no tree was fetched for ${source.repo}`)
+      const files = repository.tree.filter(entry => entry.type === 'blob' && entry.path.startsWith(`${source.path}/`))
+      // A skill that carries no licence of its own is redistributed under its repository's, and the
+      // bundle must give each recipient that licence text.
+      const licence = !files.some(entry => entry.path === `${source.path}/LICENSE`)
+        && repository.tree.some(entry => entry.type === 'blob' && entry.path === 'LICENSE')
+      if (!files.some(entry => entry.path === `${source.path}/SKILL.md`)) throw new Error(`${source.repo}/${source.path} carries no SKILL.md`)
+      const directory = join(scratch, `vendored-${name}`)
+      await pool(files, DOWNLOAD_CONCURRENCY, async (entry) => {
+        const target = join(directory, relative(source.path, entry.path))
+        await stageFile({ repo: source.repo, ref: repository.commit, path: entry.path, target })
+      })
+      const members = files.map(entry => relative(source.path, entry.path))
+      if (licence) {
+        await stageFile({ repo: source.repo, ref: repository.commit, path: 'LICENSE', target: join(directory, 'LICENSE') })
+        members.push('LICENSE')
+      }
+      const definition = readFileSync(join(directory, 'SKILL.md'), 'utf8')
+      const bundled = bundle({ directory, members, outDir, category: source.category, name })
+      entries.push({
+        name,
+        displayName: frontmatterField(definition, 'name') ?? name,
+        category: source.category,
+        description: source.description ?? rebrand(frontmatterField(definition, 'description') ?? ''),
+        keywords: [],
+        downloads: 0,
+        author: source.author,
+        path: `${source.repo}/${source.path}`,
+        ...bundled,
+        ...curation.get(name) ?? {},
+      })
+      console.log(`sync-skill-catalog: ${name} vendored from ${source.repo}/${source.path}`)
+    }
   } finally {
     rmSync(scratch, { recursive: true, force: true })
   }
@@ -451,13 +525,16 @@ async function main(): Promise<void> {
   }
   mkdirSync(outDir, { recursive: true })
   writeFileSync(join(outDir, 'index.json'), `${JSON.stringify(index, null, 2)}\n`)
+  const vendoredRepositories = [...repositories]
+    .map(([repo, repository]) => `Vendored repository: ${repo} at ${repository.commit}`)
   writeFileSync(join(outDir, 'MANIFEST.md'), [
     '# Vendored skill catalog',
     '',
     `Upstream: ${UPSTREAM} at ${commit}`,
+    ...vendoredRepositories,
     ...index.sources.map(source => `Authored source: ${source.path} (${source.category})`),
     `Synced: ${index.upstream.synced}`,
-    `Skills: ${entries.length} in ${categories.length} categories (value >= ${minValue} of the reviewed catalog${extras.length === 0 ? '' : `, plus ${extras.length} authored here`})`,
+    `Skills: ${entries.length} in ${categories.length} categories (value >= ${minValue} of the reviewed catalog${extras.length === 0 ? '' : `, plus ${extras.length} authored here`}${shippedVendored.length === 0 ? '' : `, plus ${shippedVendored.length} vendored from other repositories`})`,
     `Reviewed but not vendored: ${curation.size - entries.length}`,
     'Rewritten: every reference to the other harness, its product, its model identifiers, and its',
     'skill directory reads as Aeven’s. The upstream repository name, and the Anthropic SDK, API key,',
