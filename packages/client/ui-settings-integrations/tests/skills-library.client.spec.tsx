@@ -23,6 +23,8 @@ const COPY: Partial<Record<IntegrationsLocaleKey, string>> = {
   import: 'Import skill', importHint: 'Choose a SKILL.md.',
   searchSkills: 'Search skills', personalSkill: 'Personal import', removeSkill: 'Remove skill',
   files: 'Bundle files', copy: 'Copy', copied: 'Copied', footnotes: 'References', noMatches: 'No skills match your search.',
+  catalogDownloads: 'installs', searchCatalog: 'Search the catalog', displayOptions: 'Display',
+  optionAll: 'All', optionCategory: 'By category', allCategories: 'All categories',
 }
 
 type Skill = AccountIntegrationsView['skills'][number]
@@ -45,9 +47,9 @@ function connectorOwned(): AccountIntegrationsView['providers'][number] {
 }
 
 /** One catalogued skill, with the install count the catalog carries for it. */
-function catalogued(name: string, displayName: string, downloads: number): SkillCatalogView['skills'][number] {
+function catalogued(name: string, displayName: string, downloads: number, category = 'reverse-engineering'): SkillCatalogView['skills'][number] {
   return {
-    name, displayName, category: 'reverse-engineering', description: `${displayName} description.`,
+    name, displayName, category, description: `${displayName} description.`,
     keywords: [], downloads, author: '', path: `packages/skill/skill-catalog/authored/${name}`, bytes: 100,
   }
 }
@@ -113,6 +115,26 @@ describe('the skills library', () => {
 })
 
 describe('the skills catalog', () => {
+  it('groups the catalog by category with a count, and opens one category', async () => {
+    mount({ skills: [], connectors: [], providers: [] }, undefined, {
+      commit: 'abc123', synced: '2026-10-17',
+      categories: [{ name: 'reverse-engineering', skills: 2 }, { name: 'design', skills: 1 }],
+      skills: [catalogued('leanrea', 'leanrea', 0), catalogued('reverse-engineering', 'reverse-engineering', 0), catalogued('motion-design', 'motion-design', 12, 'design')],
+    })
+    await waitFor(() => { expect(screen.getByText('leanrea')).toBeDefined() })
+    fireEvent.click(screen.getByRole('button', { name: 'Display' }))
+    fireEvent.click(await screen.findByText('By category'))
+    await waitFor(() => { expect(screen.queryByText('leanrea')).toBeNull() })
+    const group = screen.getByText('reverse engineering')
+    expect(group.closest('article')?.textContent).toContain('2')
+    fireEvent.click(group)
+    await waitFor(() => { expect(screen.getByText('leanrea')).toBeDefined() })
+    expect(screen.queryByText('motion-design')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'All categories' }))
+    await waitFor(() => { expect(screen.getByText('design')).toBeDefined() })
+  })
+
+
   it('lists every skill in title order rather than install order', async () => {
     mount({ skills: [], connectors: [], providers: [] }, undefined, {
       commit: 'abc123', synced: '2026-10-17',
