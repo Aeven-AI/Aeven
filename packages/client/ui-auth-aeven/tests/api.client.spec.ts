@@ -1,13 +1,21 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  AevenApiError, checkOauthToken, forgotPassword, getProfile, resendCode, resetPassword, setDisplayName,
-  signIn, signOut, signUp, verifyEmail, mfa, hasPendingMfaChallenge,
+  AevenApiError, checkOauthToken, forgotPassword, getProfile, removeAvatar, resendCode, resetPassword,
+  setDisplayName, signIn, signOut, signUp, uploadAvatar, verifyEmail, mfa, hasPendingMfaChallenge,
 } from '../src/client/auth/services/api.ts'
 import { session } from '../src/client/auth/services/session.ts'
 
 /** One recorded call against the Aeven API. */
-interface Call { url: string; method: string; credentials?: string; authorization: string | null; body?: string }
+interface Call {
+  url: string
+  method: string
+  credentials?: string
+  authorization: string | null
+  body?: string
+  /** Whether the body was form data, which carries no readable string form. */
+  multipart: boolean
+}
 
 /** A scripted Aeven API, recording how each request was credentialed. */
 function scriptedApi(answers: Record<string, { status: number; body: unknown }>) {
@@ -20,6 +28,7 @@ function scriptedApi(answers: Record<string, { status: number; body: unknown }>)
       method: init?.method ?? 'GET',
       ...init?.credentials === undefined ? {} : { credentials: init.credentials },
       authorization: new Headers(init?.headers).get('authorization'),
+      multipart: init?.body instanceof FormData,
       ...typeof init?.body === 'string' ? { body: init.body } : {},
     })
     const answer = answers[route] ?? { status: 404, body: {} }
@@ -163,6 +172,61 @@ describe('the Aeven API calls', () => {
     await expect(setDisplayName('')).rejects.toThrow('invalid-display-name')
     expect(api.calls.at(-1)?.url).toBe('/set-display-name')
     expect(session.displayNameSet).toBeUndefined()
+  })
+
+  it('stores the picture the reader picked, and adopts it for every surface after', async () => {
+    const api = scriptedApi({
+      '/login': { status: 200, body: grant },
+      '/upload-avatar': {
+        status: 200,
+        body: { result: 'avatar-set', avatar: { url: '/user-images/u-1-new.webp', contentType: 'image/webp' } },
+      },
+    })
+    await signIn('a@b.c', 'secret')
+
+    const stored = await uploadAvatar(new File([new Uint8Array([1, 2, 3])], 'me.png', { type: 'image/png' }))
+
+    expect(stored).toEqual({ avatar: { url: '/user-images/u-1-new.webp', contentType: 'image/webp' } })
+    // The picture route reads the bearer and takes form data, as the server's
+    // upload route expects; a JSON content type on a multipart body would break it.
+    const call = api.calls.at(-1)
+    expect(call).toMatchObject({ url: '/upload-avatar', method: 'POST', credentials: 'include', multipart: true })
+    expect(call?.authorization).toMatch(/^Bearer /u)
+    expect(session.profile).toEqual({ avatar: { url: '/user-images/u-1-new.webp', contentType: 'image/webp' } })
+  })
+
+  it('reports a refused picture distinctly, and leaves the account as it was', async () => {
+    const api = scriptedApi({
+      '/login': { status: 200, body: grant },
+      '/upload-avatar': { status: 415, body: { error: 'invalid-image-type' } },
+    })
+    await signIn('a@b.c', 'secret')
+
+    await expect(uploadAvatar(new File([new Uint8Array([1])], 'me.svg'))).rejects.toThrow('invalid-image-type')
+    expect(api.calls.at(-1)?.url).toBe('/upload-avatar')
+    expect(session.profile).toBeUndefined()
+  })
+
+  it('removes the picture and adopts an account that no longer has one', async () => {
+    const api = scriptedApi({
+      '/login': { status: 200, body: grant },
+      '/get-profile': {
+        status: 200,
+        body: { userId: 'u-1', profile: { avatar: { url: '/user-images/u-1.webp' } } },
+      },
+      '/delete-avatar': { status: 200, body: { result: 'avatar-removed' } },
+    })
+    await signIn('a@b.c', 'secret')
+    await getProfile()
+    expect(session.profile?.avatar?.url).toBe('/user-images/u-1.webp')
+
+    await removeAvatar()
+
+    expect(api.calls.at(-1)).toMatchObject({ url: '/delete-avatar', method: 'POST', credentials: 'include' })
+    expect(session.profile).toBeUndefined()
+    // The kept profile drops it too, so a load that cannot reach Aeven does not
+    // draw a picture the account no longer has.
+    expect(JSON.parse(window.localStorage.getItem('aevenProfile') ?? 'null')).toEqual({ userId: 'u-1' })
   })
 
   it('refreshes through the cookie when no token is held', async () => {

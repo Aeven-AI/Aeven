@@ -170,6 +170,23 @@ class Session {
     if (kept !== undefined) cacheProfile({ ...kept, displayName, displayNameSet: true })
   }
 
+  /**
+   * Adopt the picture the account now has, or its absence.
+   *
+   * The kept profile moves with it, so a load that cannot reach Aeven draws the
+   * picture the reader last saw rather than one the account no longer has.
+   * @param media - the profile media the account answered with.
+   */
+  adoptImage(media: AevenProfileMedia | undefined): void {
+    this.profile = media
+    const kept = cachedProfile()
+    if (kept === undefined) return
+    const next: { -readonly [Key in keyof AevenProfile]: AevenProfile[Key] } = { ...kept }
+    if (media === undefined) delete next.profile
+    else next.profile = media
+    cacheProfile(next)
+  }
+
   /** Forget the user, leaving the page signed out. */
   reset(): void {
     this.userId = null

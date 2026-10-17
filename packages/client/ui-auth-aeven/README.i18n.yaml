@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-auth-aeven/README.md
-README.md: f3a2fe9fd6fbc2fadbd4d23cc535b89e4766fb30
-README.zh.md: d6b21148f29e86e5fdb5c3e3ca1d8969ed7928d7
+README.md: 938a2138ebe4254ca0a91c8fefc31364a1a1d5f5
+README.zh.md: 6e1f3c76d90007bf478a472c42f3e3bd696715d8

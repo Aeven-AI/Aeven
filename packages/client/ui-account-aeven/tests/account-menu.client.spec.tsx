@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AccountMenu, type AccountMenuProps } from '../src/client/AccountMenu.tsx'
 
@@ -7,6 +7,7 @@ function props(overrides: Partial<AccountMenuProps> = {}): AccountMenuProps {
   return {
     reader: () => ({ userId: 'u-1', displayName: 'Ollie' }),
     openSettings: () => {},
+    accountType: () => Promise.resolve(undefined),
     signOut: () => {},
     t: (key: string) => key,
     ...overrides,
@@ -34,13 +35,92 @@ describe('Aeven account menu', () => {
     expect(screen.queryByText('Ollie')).toBeNull()
   })
 
-  it('offers the reader and no row beyond Settings and Log out', () => {
+  it('offers the reader above Settings and Log out, and nothing else', () => {
     render(<AccountMenu {...props()} />)
     fireEvent.click(screen.getByLabelText('trigger.aria'))
     const rows = screen.getAllByRole('menuitem').map(row => row.textContent)
-    expect(rows).toEqual(['settings', 'logout'])
-    expect(screen.getByText('Ollie')).toBeDefined()
+    // The profile row carries the avatar's initial as well as the name.
+    expect(rows).toEqual([expect.stringContaining('Ollie'), 'settings', 'logout'])
     expect(document.querySelectorAll('a')).toHaveLength(0)
+  })
+
+  it('names the plan the account is on, once it has read it', async () => {
+    const translate = (key: string, params?: Record<string, string>): string =>
+      key === 'plan.status' ? `${params?.plan ?? ''} plan` : key === 'plan.free' ? 'Free' : key
+    render(<AccountMenu {...props({
+      accountType: () => Promise.resolve({ plan: 'free' }),
+      t: translate as AccountMenuProps['t'],
+    })} />)
+    fireEvent.click(screen.getByLabelText('trigger.aria'))
+    expect(await screen.findByText('Free plan')).toBeDefined()
+  })
+
+  it('names a paid plan by the name the account route states', async () => {
+    const translate = (key: string, params?: Record<string, string>): string =>
+      key === 'plan.status' ? `${params?.plan ?? ''} plan` : key
+    render(<AccountMenu {...props({
+      accountType: () => Promise.resolve({ plan: 'pro', name: 'Pro' }),
+      t: translate as AccountMenuProps['t'],
+    })} />)
+    fireEvent.click(screen.getByLabelText('trigger.aria'))
+    expect(await screen.findByText('Pro plan')).toBeDefined()
+  })
+
+  it('names a reader who has only an account email, drawing the initial from it', () => {
+    render(<AccountMenu {...props({ reader: () => ({ userId: 'u-6', email: 'ollie@example.test' }) })} />)
+    fireEvent.click(screen.getByLabelText('trigger.aria'))
+    // The trigger and the panel both draw the avatar, so both carry the initial.
+    expect(screen.getAllByText('O')).toHaveLength(2)
+  })
+
+  it('names a reader who has only a display name', () => {
+    render(<AccountMenu {...props({ reader: () => ({ userId: 'u-7', displayName: 'Ollie' }) })} />)
+    fireEvent.click(screen.getByLabelText('trigger.aria'))
+    expect(screen.getByText('Ollie')).toBeDefined()
+  })
+
+  it('names a paid plan by its id when the route stated no name', async () => {
+    const translate = (key: string, params?: Record<string, string>): string =>
+      key === 'plan.status' ? `${params?.plan ?? ''} plan` : key
+    render(<AccountMenu {...props({
+      accountType: () => Promise.resolve({ plan: 'pro' }),
+      t: translate as AccountMenuProps['t'],
+    })} />)
+    fireEvent.click(screen.getByLabelText('trigger.aria'))
+    expect(await screen.findByText('pro plan')).toBeDefined()
+  })
+
+  it('draws no plan line when the account type cannot be read', async () => {
+    const translate = (key: string, params?: Record<string, string>): string =>
+      key === 'plan.status' ? `${params?.plan ?? ''} plan` : key
+    render(<AccountMenu {...props({
+      accountType: () => Promise.resolve(undefined),
+      t: translate as AccountMenuProps['t'],
+    })} />)
+    fireEvent.click(screen.getByLabelText('trigger.aria'))
+    await screen.findByText('Ollie')
+    expect(screen.queryByText(/ plan$/u)).toBeNull()
+  })
+
+  it('leads to the account page from the picture and the name', () => {
+    const openSettings = vi.fn()
+    render(<AccountMenu {...props({ openSettings })} />)
+    fireEvent.click(screen.getByLabelText('trigger.aria'))
+    fireEvent.click(screen.getByText('Ollie'))
+    expect(openSettings).toHaveBeenCalledWith('account')
+    expect(screen.queryByText('Ollie')).toBeNull()
+  })
+
+  it('leads to the account page from the picture too', () => {
+    const openSettings = vi.fn()
+    render(<AccountMenu {...props({
+      reader: () => ({ userId: 'u-1', displayName: 'Ollie', imageUrl: 'https://media.test/u.png' }),
+      openSettings,
+    })} />)
+    fireEvent.click(screen.getByLabelText('trigger.aria'))
+    const rows = screen.getAllByRole('menuitem')
+    fireEvent.click(within(rows[0] as HTMLElement).getByAltText('avatar.alt'))
+    expect(openSettings).toHaveBeenCalledWith('account')
   })
 
   it('signs out from its own row', () => {

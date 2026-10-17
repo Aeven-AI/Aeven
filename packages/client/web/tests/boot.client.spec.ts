@@ -195,6 +195,10 @@ describe('the boot gate waits the reader out', () => {
         named = true
         return Response.json({ result: 'display-name-set', displayName: 'Ollie', displayNameSet: true })
       }
+      // The screen offers the second factor only to an account without one, and
+      // that offer is a step of its own; this account already has it, so storing
+      // the name is what boots the application.
+      if (route === '/mfa/status') return Response.json({ enabled: true })
       // A fresh account reports the id the API derived a name from and no chosen
       // name of its own; the step is what gives it one.
       return named ? Response.json(NAMED_PROFILE) : Response.json({ userId: 'u-1', displayName: 'u-1' })
