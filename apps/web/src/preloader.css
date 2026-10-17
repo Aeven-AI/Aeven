@@ -22,6 +22,26 @@ body[data-ds-dark-theme] #root {
   background-color: #111111;
 }
 
+/* The macOS desktop window has no title bar, so the page owns the band that
+   drags it. It is drawn here, in the first-paint shell, rather than by a
+   component: the shell's preload marks the document as soon as the parser
+   creates the document element, and the band then exists on the first painted
+   frame. It clears this shell's own preloader, and the control size falls back
+   to the client theme's own value while no theme stylesheet has loaded. The
+   band takes no pointer events, so a control drawn inside it keeps its clicks;
+   the client's controls subtract themselves from it with `no-drag`. */
+html[data-avn-traffic-lights] body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: calc(8px + var(--dsw-aeven-control-size, 40px));
+  z-index: 2001;
+  pointer-events: none;
+  -webkit-app-region: drag;
+}
+
 #avn-preloader {
   --avn-preloader-bg: rgb(242, 242, 242);
   --avn-preloader-fg: #000000;

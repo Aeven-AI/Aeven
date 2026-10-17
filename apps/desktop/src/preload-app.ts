@@ -99,7 +99,8 @@ const CAPTION_STRIP_HEIGHT = 32
  * window's drag area. The body gives up the strip's height, so every screen,
  * sign-in included, lays out below it with nothing in the client knowing. The
  * strip is #f2f2f2 in the light scheme and shows the body's own background in
- * the dark one.
+ * the dark one. It is installed before the document has a `head`, so the style
+ * element goes where the parser has got to.
  */
 function installCaptionStrip(): void {
   const style = document.createElement('style')
@@ -121,7 +122,7 @@ function installCaptionStrip(): void {
       background: #f2f2f2;
     }
   `
-  document.head.append(style)
+  ;(document.head ?? document.documentElement).append(style)
 }
 
 /**
@@ -239,19 +240,47 @@ function installCaptionButtons(): HTMLElement {
   return host
 }
 
+/**
+ * Run `apply` once the parser has created the document element. A preload runs
+ * before that element exists, and the window's drag area is read from the
+ * document as soon as it paints, so the markers cannot wait for
+ * `DOMContentLoaded`.
+ * @param apply - receives the document's root element, once.
+ */
+function whenDocumentElement(apply: (root: HTMLElement) => void): void {
+  const root = document.documentElement
+  if (root !== null) {
+    apply(root)
+    return
+  }
+  const observer = new MutationObserver(() => {
+    const element = document.documentElement
+    if (element === null) return
+    observer.disconnect()
+    apply(element)
+  })
+  observer.observe(document, { childList: true })
+}
+
 // The shell marks the document as the desktop app. macOS hides the title bar
-// and insets the traffic lights over the page's top-left, which the layout
-// keeps clear and drags by its header band. Windows and Linux hide it too and
-// show a strip above the page; Windows draws its caption buttons there, and on
-// Linux this preload draws them.
+// and insets the traffic lights over the page's top-left, which the client's
+// first-paint shell covers with the band that drags the window (the start
+// screen draws its own). Windows and Linux hide it too and show a strip above
+// the page; Windows draws its caption buttons there, and on Linux this preload
+// draws them.
 // Only this carrier sets these: the same client served over HTTP has no window
 // to manage.
-window.addEventListener('DOMContentLoaded', () => {
-  document.documentElement.dataset['avnDesktop'] = ''
-  if (process.platform === 'darwin') document.documentElement.dataset['avnTrafficLights'] = ''
+whenDocumentElement((root) => {
+  root.dataset['avnDesktop'] = ''
+  if (process.platform === 'darwin') root.dataset['avnTrafficLights'] = ''
   if (process.platform === 'win32' || process.platform === 'linux') {
-    document.documentElement.dataset['avnCaptionButtons'] = ''
+    root.dataset['avnCaptionButtons'] = ''
     installCaptionStrip()
+  }
+})
+
+window.addEventListener('DOMContentLoaded', () => {
+  if (process.platform === 'win32' || process.platform === 'linux') {
     const menuBar = installCaptionMenu()
     reportCaptionScheme(process.platform === 'linux' ? [menuBar, installCaptionButtons()] : [menuBar])
   }
