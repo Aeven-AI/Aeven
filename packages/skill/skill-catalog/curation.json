@@ -3661,6 +3661,54 @@
   "zapier-make-patterns": {
    "verdict": "partial",
    "value": 2
+  },
+  "animate": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "chat-motion-overlay": {
+   "verdict": "partial",
+   "value": 4
+  },
+  "emilkowalski-motion": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "gsap-core": {
+   "verdict": "partial",
+   "value": 4
+  },
+  "huashu-art-motion": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "motion-design": {
+   "verdict": "net-new",
+   "value": 5
+  },
+  "motion-lab": {
+   "verdict": "net-new",
+   "value": 5
+  },
+  "oil-motion": {
+   "verdict": "partial",
+   "value": 4
+  },
+  "remotion": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "review-animations": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "threejs": {
+   "verdict": "low-value",
+   "value": 2
+  },
+  "ui-animation": {
+   "verdict": "net-new",
+   "value": 5
   }
  }
 }

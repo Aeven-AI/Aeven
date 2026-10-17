@@ -1,0 +1,68 @@
+{
+ "_note": "Skills the catalog ships from a repository other than the primary collection. Each entry names that repository, the directory holding the skill's SKILL.md, and the category Settings groups it under; `scripts/sync-skill-catalog.ts` pins the repository's default-branch commit, packages the directory like any other catalogue skill, and records `<repo>/<path>` as its provenance. An entry ships only when `curation.json` rates it at or above `minValue`, so the reviewed value judgement stays in one file.",
+ "skills": [
+  {
+   "repo": "nexu-io/open-design",
+   "path": "skills/animate",
+   "category": "animation-motion",
+   "author": "Emil Kowalski"
+  },
+  {
+   "repo": "nexu-io/open-design",
+   "path": "skills/chat-motion-overlay",
+   "category": "animation-motion",
+   "author": "Open Design contributors"
+  },
+  {
+   "repo": "nexu-io/open-design",
+   "path": "skills/emilkowalski-motion",
+   "category": "animation-motion",
+   "author": "Open Design contributors"
+  },
+  {
+   "repo": "nexu-io/open-design",
+   "path": "skills/gsap-core",
+   "category": "animation-motion",
+   "author": "GreenSock"
+  },
+  {
+   "repo": "nexu-io/open-design",
+   "path": "skills/huashu-art-motion",
+   "category": "animation-motion",
+   "author": "alchaincyf",
+   "description": "Illustrate and explain with generative art: 35 art-style recipes, 9 explainer grammars, storyboards, and deterministic Canvas drawing helpers, rendered on the host timeline with the host owning assets and export."
+  },
+  {
+   "repo": "nexu-io/open-design",
+   "path": "skills/motion-design",
+   "category": "animation-motion",
+   "author": "Open Design contributors"
+  },
+  {
+   "repo": "nexu-io/open-design",
+   "path": "skills/motion-lab",
+   "category": "animation-motion",
+   "author": "yangxu128",
+   "description": "Find, choose and adapt one motion effect for an existing page or component, from a library of 160 documented HTML, CSS and JavaScript cases with parameters and bilingual indexes covering basic, text, interaction and advanced motion."
+  },
+  {
+   "repo": "nexu-io/open-design",
+   "path": "skills/oil-motion",
+   "category": "animation-motion",
+   "author": "Lin Zhihuang",
+   "description": "Process video and image sequences, and compile scroll-, pointer-, drag- and state-driven web motion, with local media scripts and a runtime for the resulting interactive animation."
+  },
+  {
+   "repo": "nexu-io/open-design",
+   "path": "skills/review-animations",
+   "category": "animation-motion",
+   "author": "Matt Pocock"
+  },
+  {
+   "repo": "nexu-io/open-design",
+   "path": "skills/ui-animation",
+   "category": "animation-motion",
+   "author": "Matthew Blode"
+  }
+ ]
+}
