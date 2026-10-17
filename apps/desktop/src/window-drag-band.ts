@@ -42,6 +42,7 @@ export function installDragBand(doc: Document, options: DragBandOptions): HTMLEl
   // A band appended before the parser creates <body> stays a child of <html>;
   // fixed positioning paints it correctly either way, and the document body
   // takes it over once it exists.
+  // oxlint-disable-next-line typescript/no-unnecessary-condition -- a preload sees no <body> yet, though lib.dom types it as present
   const parent = doc.body ?? doc.documentElement
   if (band.parentElement !== parent) parent.append(band)
   return band

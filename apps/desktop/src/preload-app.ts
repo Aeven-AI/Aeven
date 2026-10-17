@@ -128,6 +128,9 @@ function installCaptionStrip(): void {
       background: #f2f2f2;
     }
   `
+  // The parser has no head yet, although lib.dom types `document.head` as
+  // present, so the style goes on whichever element exists at this point.
+  // oxlint-disable-next-line typescript/no-unnecessary-condition -- a preload runs before the parser creates the head
   ;(document.head ?? document.documentElement).append(style)
   installDragBand(document, { height: CAPTION_STRIP_HEIGHT })
 }
@@ -256,12 +259,14 @@ function installCaptionButtons(): HTMLElement {
  */
 function whenDocumentElement(apply: (root: HTMLElement) => void): void {
   const root = document.documentElement
+  // oxlint-disable-next-line typescript/no-unnecessary-condition -- a preload has no root element yet
   if (root !== null) {
     apply(root)
     return
   }
   const observer = new MutationObserver(() => {
     const element = document.documentElement
+    // oxlint-disable-next-line typescript/no-unnecessary-condition -- the same absent root element, observed while it appears
     if (element === null) return
     observer.disconnect()
     apply(element)

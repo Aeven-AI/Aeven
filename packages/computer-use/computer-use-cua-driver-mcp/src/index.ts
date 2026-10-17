@@ -206,9 +206,9 @@ function registerInstallTool(ctx: Context, command: string): void {
       schema: { type: 'string' },
       render: (_args, value) => [{ type: 'text', text: value }],
     },
-    execute: async (_args, exec) => {
+    execute: (_args, exec) => {
       exec.signal.throwIfAborted()
-      return `Computer use needs Cua Driver, which is not installed: ${command} does not exist. Tell the person to install it by following ${INSTALL_GUIDE}, then restart Aeven. After the restart this tool completes the setup computer use needs.`
+      return Promise.resolve(`Computer use needs Cua Driver, which is not installed: ${command} does not exist. Tell the person to install it by following ${INSTALL_GUIDE}, then restart Aeven. After the restart this tool completes the setup computer use needs.`)
     },
     presentCall: () => ({ card: 'generic', title: 'Set up computer use', kind: 'read' }),
   })), 'computer-use-cua-driver-mcp.install-tool')
@@ -254,6 +254,7 @@ function requestHostGrants(signal: AbortSignal): Promise<HostGrants> {
   return new Promise((resolve, reject) => {
     execFile('/usr/bin/osascript', ['-l', 'JavaScript', '-e', HOST_GRANT_SCRIPT], { signal, timeout: 30_000 }, (error, stdout) => {
       if (error !== null) {
+        // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- the callback's ExecFileException extends Error
         reject(error)
         return
       }
