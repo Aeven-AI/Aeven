@@ -18,6 +18,10 @@
    "verdict": "partial",
    "value": 2
   },
+  "leanrea": {
+   "verdict": "net-new",
+   "value": 5
+  },
   "memory-search": {
    "verdict": "native",
    "value": 1
