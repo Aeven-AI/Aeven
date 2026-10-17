@@ -40,20 +40,12 @@
       "skills": 4
     },
     {
-      "name": "enterprise-communication",
-      "skills": 1
-    },
-    {
       "name": "operations",
       "skills": 3
     },
     {
       "name": "productivity",
       "skills": 1
-    },
-    {
-      "name": "railway",
-      "skills": 3
     },
     {
       "name": "reverse-engineering",
@@ -603,21 +595,6 @@
       "value": 5
     },
     {
-      "name": "twilio-communications",
-      "displayName": "twilio-communications",
-      "category": "enterprise-communication",
-      "description": "Build communication features with Twilio: SMS messaging, voice calls, WhatsApp Business API, and user verification (2FA). Covers the full spectrum from simple notifications to complex IVR systems and multi-channel authentication. Critical focus on compliance, rate limits, and error handling. Use when: twilio, send SMS, text message, voice call, phone verification.",
-      "keywords": [],
-      "downloads": 114,
-      "author": "",
-      "path": "enterprise-communication/twilio-communications",
-      "files": 1,
-      "bytes": 3379,
-      "sha256": "d97a033e6eae56c99a0bd50490ed5c5fd75d118090de4a8cb0e2d71a62ea9334",
-      "verdict": "net-new",
-      "value": 4
-    },
-    {
       "name": "abc-xyz-segmentation",
       "displayName": "abc-xyz-segmentation",
       "category": "operations",
@@ -675,78 +652,6 @@
       "bytes": 10192,
       "sha256": "4eb20bdc776d4be2e7da303cea848f93a7c5e5c6d7b79a249b10691b83f126ec",
       "verdict": "partial",
-      "value": 4
-    },
-    {
-      "name": "database",
-      "displayName": "railway-database",
-      "category": "railway",
-      "description": "Add official Railway database services (Postgres, Redis, MySQL, MongoDB). Use when user wants to add a database, says \"add postgres\", \"add redis\", \"add database\", \"connect to database\", or \"wire up the database\". For other templates (Ghost, Strapi, n8n), use the railway-templates skill.",
-      "keywords": [
-        "Railway",
-        "Database",
-        "Postgres",
-        "Redis",
-        "MySQL",
-        "MongoDB",
-        "Infrastructure",
-        "Deployment",
-        "Template"
-      ],
-      "downloads": 685,
-      "author": "Railway",
-      "path": "railway/database",
-      "files": 1,
-      "bytes": 2956,
-      "sha256": "e064c0b4df474cff7bbcec9db6cb969f3652faf61f62f94067113714d94decb6",
-      "verdict": "net-new",
-      "value": 4
-    },
-    {
-      "name": "deploy",
-      "displayName": "railway-deploy",
-      "category": "railway",
-      "description": "Deploy code to Railway using \"railway up\". Use when user wants to push code, says \"railway up\", \"deploy\", \"ship\", or \"push\". For initial setup or creating services, use railway-new skill. For Docker images, use railway-environment skill.",
-      "keywords": [
-        "Railway",
-        "Deploy",
-        "CI/CD",
-        "Push",
-        "Ship",
-        "Infrastructure",
-        "Deployment"
-      ],
-      "downloads": 122,
-      "author": "Railway",
-      "path": "railway/deploy",
-      "files": 1,
-      "bytes": 1531,
-      "sha256": "386f24d8a6c4463db8adbf2964797f938e3bf4de7b80188c3e64b3c2ce3d5734",
-      "verdict": "net-new",
-      "value": 4
-    },
-    {
-      "name": "new",
-      "displayName": "railway-new",
-      "category": "railway",
-      "description": "Create Railway projects, services, and databases with proper configuration. Use when user says \"setup\", \"deploy to railway\", \"initialize\", \"create project\", \"create service\", or wants to deploy from GitHub. Handles initial setup AND adding services to existing projects. For databases, use railway-railway-database skill instead.",
-      "keywords": [
-        "Railway",
-        "Project",
-        "Service",
-        "Setup",
-        "Initialize",
-        "Deploy",
-        "Infrastructure",
-        "Scaffolding"
-      ],
-      "downloads": 43,
-      "author": "Railway",
-      "path": "railway/new",
-      "files": 5,
-      "bytes": 12844,
-      "sha256": "cb3332d694b417713c83d670dd7e9c07703f91897b205241f181d0a4bc747997",
-      "verdict": "net-new",
       "value": 4
     },
     {
