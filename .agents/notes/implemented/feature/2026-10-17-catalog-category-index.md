@@ -10,7 +10,7 @@ The catalog ships seventy-four skills. One alphabetical list makes a reader scan
 
 ## Decision
 
-The Display menu keeps two choices, `By category` and `All`, and the catalog opens on `By category`. `All` is the alphabetical list. `By category` renders an index: one row per category with its name and how many skills it holds, and opening a row shows that category's skills in title order with a back control that returns to the index. A search query overrides the grouping and lists the matching skills across every category, because a reader typing a name is not browsing a domain.
+The Display menu keeps two choices, `By category` and `All`, and the catalog opens on `By category`. `All` is the alphabetical list. `By category` renders an index: one row per category with its capitalized name and how many skills it holds. Opening a row is a page addressed `#!/settings/skills/category:<name>`, laid out like a skill's own page — the category name as its heading, the skill count beneath, and the Settings Back control returning to the index — and every skill row there opens its own page as usual. A search query overrides the grouping and lists the matching skills across every category, because a reader typing a name is not browsing a domain.
 
 Counts come from the skills the catalog carries, not from the index's own `categories` array, so a count cannot drift from the rows it describes.
 
