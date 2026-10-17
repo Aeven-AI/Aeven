@@ -168,7 +168,13 @@
 }
 
 .navIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex: none;
+  width: 16px;
+  height: 16px;
+  line-height: 0;
 }
 
 /* Glyphs drawn on lucide's stock canvas carry no width of their own. */
