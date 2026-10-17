@@ -21,6 +21,18 @@ function byTitle(left: { name: string; displayName?: string }, right: { name: st
   return (left.displayName ?? left.name).localeCompare(right.displayName ?? right.name, undefined, { sensitivity: 'base' })
 }
 
+/** Address prefix that marks a catalog category page, so Back returns to the index. */
+const CATEGORY_DETAIL_PREFIX = 'category:'
+
+/**
+ * Display name for a catalog category: every hyphen-separated word capitalized.
+ * @param name - catalog category directory name, such as `reverse-engineering`.
+ * @returns the label a reader sees, such as `Reverse Engineering`.
+ */
+function categoryLabel(name: string): string {
+  return name.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
+}
+
 /** Browser callbacks bound to the authenticated account Remote. */
 export interface IntegrationsSectionInjected extends TelegramPairingOperations {
   hooks: { changes: HostObservable<number> }
@@ -122,8 +134,10 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
   const [catalogQuery, setCatalogQuery] = useState('')
   /** How the catalog is laid out: the category index, or one list of every skill. Both read in title order. */
   const [view, setView] = useState<'all' | 'category'>('category')
-  /** Category opened from the index; undefined while the index itself shows. */
-  const [openCategory, setOpenCategory] = useState<string>()
+  /** Category carried by the page address, or undefined while the index itself shows. */
+  const selectedCategory = selectedSkillId?.startsWith(CATEGORY_DETAIL_PREFIX)
+    ? selectedSkillId.slice(CATEGORY_DETAIL_PREFIX.length)
+    : undefined
   const [optionsOpen, setOptionsOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [signingIn, setSigningIn] = useState(false)
@@ -184,7 +198,9 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
   // The open skill page belongs to the library when it is installed, and otherwise to the catalog,
   // whose own list also loads here: an address can open a catalogued skill that the library does not hold.
   const selectedSkill = snapshot?.skills.find(skill => skill.id === selectedSkillId)
-  const catalogSkill = selectedSkill !== undefined ? undefined : catalog?.skills.find(skill => skill.name === selectedSkillId)
+  const catalogSkill = selectedSkill !== undefined || selectedCategory !== undefined
+    ? undefined
+    : catalog?.skills.find(skill => skill.name === selectedSkillId)
   const readingCatalog = mode === 'catalog' || (selectedSkillId !== undefined && selectedSkill === undefined)
   const [preview, setPreview] = useState<{ name: string; text: string }>()
   useEffect(() => {
@@ -301,7 +317,7 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
     align="end"
     onClose={() => { setOptionsOpen(false) }}
     selectedId={view}
-    onSelect={(id) => { setView(id === 'category' ? 'category' : 'all'); setOpenCategory(undefined); setOptionsOpen(false) }}
+    onSelect={(id) => { setView(id === 'category' ? 'category' : 'all'); setOptionsOpen(false) }}
     items={[{ id: 'category', label: t('optionCategory') }, { id: 'all', label: t('optionAll') }]}
     anchor={<button
       type="button" className={css.iconAction} aria-label={t('displayOptions')} title={t('displayOptions')}
@@ -460,24 +476,14 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
           </div>
           {catalog === null && <p className={css.hint}>{t('catalogUnavailable')}</p>}
           {catalog !== undefined && catalog !== null && (view === 'category' && catalogQuery.trim() === ''
-            ? openCategory === undefined
-              ? <div className={css.connectorList}>{catalogCategories.map(category => <article
-                key={category.name} className={css.connectorRow}
-              >
-                <button type="button" className={css.connectorOpen} onClick={() => { setOpenCategory(category.name) }}>
-                  <span className={css.skillSummary}><strong>{category.name.replace(/-/g, ' ')}</strong></span>
-                </button>
-                <span className={css.meta}>{category.skills}</span>
-              </article>)}</div>
-              : <section className={css.category}>
-                <h3 className={css.categoryHeader}>
-                  <button type="button" className={css.categoryLink} onClick={() => { setOpenCategory(undefined) }} aria-label={t('allCategories')}>
-                    <IconChevronLeftOutline14 />
-                  </button>
-                  {openCategory.replace(/-/g, ' ')}<span className={css.categoryCount}>{catalogRows(openCategory).length}</span>
-                </h3>
-                <div className={css.connectorList}>{catalogRows(openCategory).map(catalogRow)}</div>
-              </section>
+            ? <div className={css.connectorList}>{catalogCategories.map(category => <article
+              key={category.name} className={css.connectorRow}
+            >
+              <button type="button" className={css.connectorOpen} onClick={() => { openDetail(`${CATEGORY_DETAIL_PREFIX}${category.name}`) }}>
+                <span className={css.skillSummary}><strong>{categoryLabel(category.name)}</strong></span>
+              </button>
+              <span className={css.meta}>{category.skills}</span>
+            </article>)}</div>
             : <div className={css.connectorList}>{allRows.map(catalogRow)}</div>)}
         </> : <>
           <div className={css.toolbar}>
@@ -502,46 +508,52 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
             {skillSwitch(skill)}
           </article>)}</div>
         </>}
-      </> : selectedSkill !== undefined
-        ? <article className={`${css.connectorDetail} ${css.skillContent}`}>
-          <div className={css.connectorHeading}><h2>{selectedSkill.name}</h2>{skillSwitch(selectedSkill)}</div>
-          <p className={css.detailDescription}>{selectedSkill.description}</p>
-          <p className={css.meta}>{t('personalSkill')}</p>
-          <div className={css.instructions}>
-            <MarkdownText
-              key={selectedSkill.id}
-              text={selectedSkill.content}
-              animation={false}
-              labels={{ code: { copyLabel: t('copy'), copiedLabel: t('copied') }, footnotes: t('footnotes') }}
-            />
-          </div>
-          {selectedSkill.files.length > 0 && <div>
-            <h3>{t('files')}</h3>
-            <ul className={css.fileList}>{selectedSkill.files.map(path => <li key={path}>{path}</li>)}</ul>
-          </div>}
-          <div className={css.detailActions}><button type="button" className={css.primaryAction} disabled={busy} onClick={() => {
-            void run(async () => { await props.removeSkill(selectedSkill.name); props.showDetail(undefined) })
-          }}>{t('removeSkill')}</button></div>
+      </> : selectedCategory !== undefined
+        ? <article className={css.connectorDetail}>
+          <div className={css.connectorHeading}><h2>{categoryLabel(selectedCategory)}</h2></div>
+          <p className={css.meta}>{catalogRows(selectedCategory).length} {t('skillsWord')}</p>
+          <div className={css.connectorList}>{catalogRows(selectedCategory).map(catalogRow)}</div>
         </article>
-        : catalogSkill !== undefined
+        : selectedSkill !== undefined
           ? <article className={`${css.connectorDetail} ${css.skillContent}`}>
-            <div className={css.connectorHeading}><h2>{catalogSkill.name}</h2>{catalogSwitch(catalogSkill)}</div>
-            <p className={css.detailDescription}>{catalogSkill.description}</p>
-            <p className={css.meta}>{catalogSkill.category.replace(/-/g, ' ')} · {t('catalogDownloads')} {catalogSkill.downloads.toLocaleString()}</p>
-            <p className={css.meta}>{t('source')} {catalogSkill.path}</p>
+            <div className={css.connectorHeading}><h2>{selectedSkill.name}</h2>{skillSwitch(selectedSkill)}</div>
+            <p className={css.detailDescription}>{selectedSkill.description}</p>
+            <p className={css.meta}>{t('personalSkill')}</p>
             <div className={css.instructions}>
-              {preview?.name === catalogSkill.name
-                ? <MarkdownText
-                  key={catalogSkill.name}
-                  text={preview.text}
-                  animation={false}
-                  controls={{ table: false }}
-                  labels={{ code: { copyLabel: t('copy'), copiedLabel: t('copied') }, footnotes: t('footnotes') }}
-                />
-                : <LoadingBlock label={t('loading')} />}
+              <MarkdownText
+                key={selectedSkill.id}
+                text={selectedSkill.content}
+                animation={false}
+                labels={{ code: { copyLabel: t('copy'), copiedLabel: t('copied') }, footnotes: t('footnotes') }}
+              />
             </div>
+            {selectedSkill.files.length > 0 && <div>
+              <h3>{t('files')}</h3>
+              <ul className={css.fileList}>{selectedSkill.files.map(path => <li key={path}>{path}</li>)}</ul>
+            </div>}
+            <div className={css.detailActions}><button type="button" className={css.primaryAction} disabled={busy} onClick={() => {
+              void run(async () => { await props.removeSkill(selectedSkill.name); props.showDetail(undefined) })
+            }}>{t('removeSkill')}</button></div>
           </article>
-          : snapshot !== undefined && <p className={css.hint}>{t('skillMissing')}</p>}
+          : catalogSkill !== undefined
+            ? <article className={`${css.connectorDetail} ${css.skillContent}`}>
+              <div className={css.connectorHeading}><h2>{catalogSkill.name}</h2>{catalogSwitch(catalogSkill)}</div>
+              <p className={css.detailDescription}>{catalogSkill.description}</p>
+              <p className={css.meta}>{categoryLabel(catalogSkill.category)} · {t('catalogDownloads')} {catalogSkill.downloads.toLocaleString()}</p>
+              <p className={css.meta}>{t('source')} {catalogSkill.path}</p>
+              <div className={css.instructions}>
+                {preview?.name === catalogSkill.name
+                  ? <MarkdownText
+                    key={catalogSkill.name}
+                    text={preview.text}
+                    animation={false}
+                    controls={{ table: false }}
+                    labels={{ code: { copyLabel: t('copy'), copiedLabel: t('copied') }, footnotes: t('footnotes') }}
+                  />
+                  : <LoadingBlock label={t('loading')} />}
+              </div>
+            </article>
+            : snapshot !== undefined && <p className={css.hint}>{t('skillMissing')}</p>}
     </> : <>
       {providerDetail === undefined ? <div className={css.connectorList}>{snapshot?.providers.map(provider => <article
         key={provider.provider}

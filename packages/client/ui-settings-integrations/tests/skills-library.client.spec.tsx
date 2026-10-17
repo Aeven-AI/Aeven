@@ -24,7 +24,7 @@ const COPY: Partial<Record<IntegrationsLocaleKey, string>> = {
   searchSkills: 'Search skills', personalSkill: 'Personal import', removeSkill: 'Remove skill',
   files: 'Bundle files', copy: 'Copy', copied: 'Copied', footnotes: 'References', noMatches: 'No skills match your search.',
   catalogDownloads: 'installs', searchCatalog: 'Search the catalog', displayOptions: 'Display',
-  optionAll: 'All', optionCategory: 'By category', allCategories: 'All categories',
+  optionAll: 'All', optionCategory: 'By category', allCategories: 'All categories', skillsWord: 'skills',
 }
 
 type Skill = AccountIntegrationsView['skills'][number]
@@ -114,22 +114,33 @@ describe('the skills library', () => {
   })
 })
 
+/** The account reads the catalog tests draw from: nothing installed, nothing connected. */
+const EMPTY_ACCOUNT: AccountIntegrationsView = { skills: [], connectors: [], providers: [] }
+
+/** Two categories, so index ordering and drilling in are both observable. */
+const CATALOG: SkillCatalogView = {
+  commit: 'abc123', synced: '2026-10-17',
+  categories: [{ name: 'reverse-engineering', skills: 2 }, { name: 'design', skills: 1 }],
+  skills: [catalogued('leanrea', 'leanrea', 0), catalogued('reverse-engineering', 'reverse-engineering', 0), catalogued('motion-design', 'motion-design', 12, 'design')],
+}
+
 describe('the skills catalog', () => {
-  it('opens on the category index, and a category opens its skills', async () => {
-    mount({ skills: [], connectors: [], providers: [] }, undefined, {
-      commit: 'abc123', synced: '2026-10-17',
-      categories: [{ name: 'reverse-engineering', skills: 2 }, { name: 'design', skills: 1 }],
-      skills: [catalogued('leanrea', 'leanrea', 0), catalogued('reverse-engineering', 'reverse-engineering', 0), catalogued('motion-design', 'motion-design', 12, 'design')],
-    })
-    await waitFor(() => { expect(screen.getByText('reverse engineering')).toBeDefined() })
+  it('opens on the category index with capitalized names and counts', async () => {
+    const page = mount(EMPTY_ACCOUNT, undefined, CATALOG)
+    await waitFor(() => { expect(screen.getByText('Reverse Engineering')).toBeDefined() })
+    expect(screen.getByText('Design')).toBeDefined()
     expect(screen.queryByText('leanrea')).toBeNull()
-    const group = screen.getByText('reverse engineering')
-    expect(group.closest('article')?.textContent).toContain('2')
-    fireEvent.click(group)
-    await waitFor(() => { expect(screen.getByText('leanrea')).toBeDefined() })
+    expect(screen.getByText('Reverse Engineering').closest('article')?.textContent).toContain('2')
+    fireEvent.click(screen.getByText('Reverse Engineering'))
+    await waitFor(() => { expect(page.showDetail).toHaveBeenCalledWith('category:reverse-engineering') })
+  })
+
+  it('renders a category page as a detail page with that category\'s skills', async () => {
+    mount(EMPTY_ACCOUNT, 'category:reverse-engineering', CATALOG)
+    await waitFor(() => { expect(screen.getByRole('heading', { name: 'Reverse Engineering' })).toBeDefined() })
+    expect(screen.getByText('2 skills')).toBeDefined()
+    expect(screen.getByText('leanrea')).toBeDefined()
     expect(screen.queryByText('motion-design')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'All categories' }))
-    await waitFor(() => { expect(screen.getByText('design')).toBeDefined() })
   })
 
   it('lists every skill in title order rather than install order', async () => {
