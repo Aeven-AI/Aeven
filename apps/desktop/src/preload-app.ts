@@ -1,6 +1,7 @@
 /** Desktop custom-protocol API carrier: the marker, the right sidebar browser operations, and menu commands. */
 
 import { contextBridge, ipcRenderer } from 'electron'
+import { DRAG_BAND_ATTRIBUTE, installDragBand } from './window-drag-band.ts'
 import {
   DESKTOP_IPC,
   type AvnDesktopAppApi,
@@ -123,20 +124,12 @@ function installCaptionStrip(): void {
       padding-top: ${String(CAPTION_STRIP_HEIGHT)}px;
       box-sizing: border-box;
     }
-    html[data-avn-caption-buttons] body::before {
-      content: '';
-      position: fixed;
-      top: 0;
-      right: 0;
-      left: 0;
-      height: ${String(CAPTION_STRIP_HEIGHT)}px;
-      -webkit-app-region: drag;
-    }
-    html[data-avn-caption-buttons][data-avn-caption-scheme='light'] body::before {
+    html[data-avn-caption-buttons][data-avn-caption-scheme='light'] [${DRAG_BAND_ATTRIBUTE}] {
       background: #f2f2f2;
     }
   `
   ;(document.head ?? document.documentElement).append(style)
+  installDragBand(document, { height: CAPTION_STRIP_HEIGHT })
 }
 
 /**
@@ -286,6 +279,9 @@ function whenDocumentElement(apply: (root: HTMLElement) => void): void {
 // to manage.
 whenDocumentElement((root) => {
   root.dataset['avnDesktop'] = ''
+  // macOS keeps the marker only: the app page and the boot cover each carry a
+  // real drag element of their own, so the band exists from the first painted
+  // frame without a second one stacked above their controls.
   if (process.platform === 'darwin') root.dataset['avnTrafficLights'] = ''
   if (process.platform === 'win32' || process.platform === 'linux') {
     root.dataset['avnCaptionButtons'] = ''

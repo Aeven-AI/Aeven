@@ -10,6 +10,8 @@ The desktop window draws no title bar (`titleBarStyle: 'hiddenInset'` on macOS, 
 
 ## Decision
 
+**Partly superseded by [The window drag band is an element](2026-10-17-window-drag-band-element.md).** The rectangle is now an element in each document that draws it, because Chromium reads `-webkit-app-region` from elements only, so the pseudo-element rules this note decided never dragged the window.
+
 The shell owns the band, and both documents that can hold the window draw it themselves:
 
 - `startPageDocument()` draws it for macOS, above its own cover, so the start screen is draggable on its first painted frame.
@@ -29,4 +31,4 @@ The macOS band is a document-level rule, so it sits above the client's modals (z
 
 ## Verification
 
-`apps/desktop/tests/start-screen.spec.ts` asserts that the macOS document carries the band and that the Windows and Linux documents do not. The new `apps/web/tests/preloader-shell.spec.ts` asserts the first-paint rule's gate, height fallback, drag declaration, preloader-clearing z-index, and pointer transparency. The band itself was not exercised in a running window here, which needs a macOS launch of the development or packaged shell.
+`apps/desktop/tests/start-screen.spec.ts` asserts that the macOS document carries the band and that the Windows and Linux documents do not. The `apps/web/tests/preloader-shell.spec.ts` this note added was deleted with the pseudo-element rule it guarded; [the band element note](2026-10-17-window-drag-band-element.md) owns its replacement. The band itself was not exercised in a running window here, which needs a macOS launch of the development or packaged shell.
