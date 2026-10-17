@@ -594,6 +594,12 @@
     - id: ui-jobs
       name: '@aeven/client-ui-jobs'
 
+    # Desktop updates: the shell's own popup over the release stream. The
+    # Electron preload (`window.avnDesktop.update`) is the only supplier; the
+    # same client served over HTTP registers nothing.
+    - id: ui-update
+      name: '@aeven/client-ui-update'
+
     # Dictation: the composer mic and recorder pill, and Settings → Voice. The
     # host half is the `speech-to-text` rows above; audio stays on this Host.
     - id: ui-voice-input

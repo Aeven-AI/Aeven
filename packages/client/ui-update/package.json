@@ -1,0 +1,66 @@
+{
+  "name": "@aeven/client-ui-update",
+  "description": "Desktop update popup: the release stream's state, its download progress, and the restart question",
+  "version": "0.3.6-alpha",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Aeven.git",
+    "directory": "packages/client/ui-update"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "types": "./lib/types/client/index.d.ts",
+      "default": "./lib/client.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "avn": {
+    "client": {
+      "inject": [
+        "@aeven/client-locale",
+        "@aeven/client-ui-primitives"
+      ],
+      "platform": "web"
+    }
+  },
+  "scripts": {
+    "bundle": "tsdown",
+    "watch": "tsdown --watch"
+  },
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "devDependencies": {
+    "@aeven/client-locale": "workspace:^",
+    "@aeven/client-store": "workspace:^",
+    "@aeven/client-test-runtime": "workspace:^",
+    "@aeven/client-ui-layout": "workspace:^",
+    "@aeven/client-ui-primitives": "workspace:^",
+    "@aeven/client-ui-renderer": "workspace:^",
+    "@aeven/client-ui-slots": "workspace:^",
+    "@aeven/util-values": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^",
+    "@testing-library/react": "^16.1.0",
+    "@types/react": "~18.3.1",
+    "@types/react-dom": "~18.3.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/client.js",
+    "lib/types/**/*.d.ts"
+  ]
+}

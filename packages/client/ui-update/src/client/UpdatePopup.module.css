@@ -1,0 +1,29 @@
+/* The update popup's body: one status line beside the loading mark, and the
+   restart detail under it. Modal owns the card, header, and footer. */
+
+.status {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.spinner {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--dsw-alias-text-secondary);
+}
+
+.message {
+  margin: 0;
+  color: var(--dsw-alias-text-primary);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.detail {
+  margin: 8px 0 0;
+  color: var(--dsw-alias-text-secondary);
+  font-size: 13px;
+  line-height: 18px;
+}

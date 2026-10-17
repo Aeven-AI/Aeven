@@ -7,6 +7,7 @@ import {
   type DesktopBrowserCursor,
   type DesktopCaptionAction,
   type DesktopMenuCommand,
+  type DesktopUpdateState,
 } from './ipc.ts'
 
 const api: AvnDesktopAppApi = {
@@ -24,6 +25,19 @@ const api: AvnDesktopAppApi = {
     const handle = (_event: Electron.IpcRendererEvent, command: DesktopMenuCommand): void => { listener(command) }
     ipcRenderer.on(DESKTOP_IPC.menuCommand, handle)
     return () => { ipcRenderer.off(DESKTOP_IPC.menuCommand, handle) }
+  },
+  update: {
+    get: () => ipcRenderer.invoke(DESKTOP_IPC.updatesGet) as Promise<DesktopUpdateState>,
+    check: () => ipcRenderer.invoke(DESKTOP_IPC.updatesCheck) as Promise<DesktopUpdateState>,
+    install: () => ipcRenderer.invoke(DESKTOP_IPC.updatesInstall) as Promise<void>,
+    onChange(listener) {
+      // Said once per page: until the shell knows a listener exists it holds the
+      // states it publishes, which is what a page that never subscribes expects.
+      ipcRenderer.send(DESKTOP_IPC.updatesListen)
+      const handle = (_event: Electron.IpcRendererEvent, state: DesktopUpdateState): void => { listener(state) }
+      ipcRenderer.on(DESKTOP_IPC.updatesState, handle)
+      return () => { ipcRenderer.off(DESKTOP_IPC.updatesState, handle) }
+    },
   },
   contextMenu: {
     show: items => ipcRenderer.invoke(DESKTOP_IPC.appMenuShow, items) as Promise<string | null>,

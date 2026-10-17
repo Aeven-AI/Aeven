@@ -99,6 +99,7 @@
     "@aeven/client-ui-subagent": "workspace:^",
     "@aeven/client-ui-theme": "workspace:^",
     "@aeven/client-ui-tool": "workspace:^",
+    "@aeven/client-ui-update": "workspace:^",
     "@aeven/client-ui-trajectory": "workspace:^",
     "@aeven/client-ui-user-questions": "workspace:^",
     "@aeven/client-ui-voice-input": "workspace:^",

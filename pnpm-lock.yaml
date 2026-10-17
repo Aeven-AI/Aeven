@@ -2124,6 +2124,9 @@ importers:
       '@aeven/client-ui-trajectory':
         specifier: workspace:^
         version: link:../../client/ui-trajectory
+      '@aeven/client-ui-update':
+        specifier: workspace:^
+        version: link:../../client/ui-update
       '@aeven/client-ui-user-questions':
         specifier: workspace:^
         version: link:../../client/ui-user-questions
@@ -4958,6 +4961,51 @@ importers:
         version: 18.3.31
       '@types/react-dom':
         specifier: ~18.3.0
+        version: 18.3.7(@types/react@18.3.31)
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.2.0
+        version: 18.3.1(react@18.3.1)
+
+  packages/client/ui-update:
+    devDependencies:
+      '@aeven/client-locale':
+        specifier: workspace:^
+        version: link:../locale
+      '@aeven/client-store':
+        specifier: workspace:^
+        version: link:../store
+      '@aeven/client-test-runtime':
+        specifier: workspace:^
+        version: link:../../test-support/client-runtime
+      '@aeven/client-ui-layout':
+        specifier: workspace:^
+        version: link:../ui-layout
+      '@aeven/client-ui-primitives':
+        specifier: workspace:^
+        version: link:../ui-primitives
+      '@aeven/client-ui-renderer':
+        specifier: workspace:^
+        version: link:../ui-renderer
+      '@aeven/client-ui-slots':
+        specifier: workspace:^
+        version: link:../ui-slots
+      '@aeven/util-values':
+        specifier: workspace:^
+        version: link:../../util/values
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@testing-library/react':
+        specifier: ^16.1.0
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@types/react':
+        specifier: ~18.3.1
+        version: 18.3.31
+      '@types/react-dom':
+        specifier: ~18.3.1
         version: 18.3.7(@types/react@18.3.31)
       react:
         specifier: ^18.2.0

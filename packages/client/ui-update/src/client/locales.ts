@@ -1,0 +1,43 @@
+/** `update` namespace dictionaries. */
+
+/** Dictionary namespace owned by this plugin. */
+export const NS = 'update'
+
+/** Simplified Chinese dictionary (the key-set source of truth). */
+export const zh = {
+  'title': 'Aeven 更新',
+  'close': '关闭',
+  'checking': '正在检查更新…',
+  'current': '当前已是最新版本。',
+  'downloading': '正在下载更新 {version}…',
+  'downloadingPercent': '正在下载更新 {version} — {percent}%',
+  'ready': '更新 {version} 已可安装。',
+  'readyDetail': '重启后即安装，并重新打开 Aeven。',
+  'restart': '重启并安装',
+  'later': '稍后',
+  'installing': '正在安装更新 {version}，Aeven 将重新启动。',
+  'failed': '无法检查更新。',
+  'failedWith': '无法检查更新：{message}',
+  'retry': '重试',
+} as const
+
+/** Dictionary key set. */
+export type UpdateKey = keyof typeof zh
+
+/** English dictionary, key-identical to the Chinese source of truth. */
+export const en: Record<UpdateKey, string> = {
+  'title': 'Aeven update',
+  'close': 'Close',
+  'checking': 'Checking for updates…',
+  'current': 'You already have the latest version.',
+  'downloading': 'Downloading update {version}…',
+  'downloadingPercent': 'Downloading update {version} — {percent}%',
+  'ready': 'Update {version} is ready to install.',
+  'readyDetail': 'Restarting installs it and reopens Aeven.',
+  'restart': 'Restart and install',
+  'later': 'Later',
+  'installing': 'Installing update {version}. Aeven restarts when it is done.',
+  'failed': 'The update could not be checked.',
+  'failedWith': 'The update could not be checked: {message}',
+  'retry': 'Try again',
+}
