@@ -18,6 +18,8 @@ The skill is the surface a person meets and the server is the engine behind it: 
 
 The body routes by artifact — native binaries, Go, Rust, .NET, Electron and JavaScript trees, APKs, firmware, Hermes and bytenode, WASM and EVM bytecode, SQLite, packet and web captures, core dumps, browser pages — with one route only the server answers: pseudocode, callers and callees for a single function. The rules that make an answer checkable sit beside the routes: evidence marked seen or inferred and cited by file offset, symbol, or the tool's evidence id; a copy to work on; probes batched into one shell call; code read one function at a time; and each result's stated limitations read rather than assumed away. Where static reading cannot answer, the skill sends the session to runtime observation, and to computer use for a screen or a native dialog.
 
+A second authored entry, `leanrea`, ships beside it: the shell-only fast path for a session where nothing is mounted, with the same rules and no server in the loop. The two are separate catalog entries because they answer the same question with different instruments; installing one does not install the other.
+
 The file is written in this repository against Aeven's own surfaces; the one outside name it carries is the tool server it drives.
 
 ## Alternatives considered
