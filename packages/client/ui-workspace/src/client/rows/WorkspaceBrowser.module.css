@@ -86,7 +86,6 @@
   padding-bottom: 16px;
 }
 
-.flatList > * + *,
 .groupSection > * + * {
   margin-top: 0;
 }

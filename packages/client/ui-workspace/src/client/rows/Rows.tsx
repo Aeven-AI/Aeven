@@ -24,7 +24,7 @@ import type { StateDotState } from '@aeven/client-ui-primitives'
 import type { SessionId } from '@aeven/session/types'
 import type { WorkspaceBrowserProps } from '../contract/slots.ts'
 import { sessionPathOf } from '../session-url.ts'
-import { ARCHIVED_KEY, type GroupNode, type SearchResultNode, type SessionNode } from '../tree.ts'
+import type { GroupNode, SearchResultNode, SessionNode } from '../tree.ts'
 import css from './Rows.module.css'
 
 /** The standard locale seat, prop-passed from the browser root. */
@@ -111,6 +111,26 @@ function rowHalf(e: { clientY: number; currentTarget: HTMLElement }): 'before' |
 }
 
 /**
+ * Header row label: a Workspace group reads that Workspace's title, while every
+ * derived bucket reads dictionary copy named by its discriminant.
+ * @param group - derived group node.
+ * @param t - the browser root's locale seat.
+ * @returns the row's visible label.
+ */
+function groupLabel(group: GroupNode, t: RowTranslate): string {
+  switch (group.bucket) {
+    case 'ungrouped': return t('group.ungrouped')
+    case 'archived': return t('group.archived')
+    case 'needs-input': return t('status.group.needsInput')
+    case 'working': return t('status.group.working')
+    case 'completed': return t('status.group.completed')
+    case undefined: return group.label
+    /* v8 ignore next -- closed GroupBucket union */
+    default: return assertNever(group.bucket)
+  }
+}
+
+/**
  * Project (workspace) header row: folder + title, where the folder itself is
  * the fold state (open while the group is expanded, closed while it is
  * folded); row hover reveals the options and create controls, and dwelling on a real
@@ -139,10 +159,7 @@ export function ProjectRowItem({ group, onToggle, newSessionHref, onCreate, acti
   t: RowTranslate
 }) {
   const row = group
-  // The ungrouped bucket and the Archived section have no workspace title: their labels are dictionary copy.
-  const label = row.key === ARCHIVED_KEY
-    ? t('group.archived')
-    : row.workspaceId === undefined ? t('group.ungrouped') : row.label
+  const label = groupLabel(row, t)
   const [menuOpen, setMenuOpen] = useState(false)
   /**
    * The chat a browser-owned open of this row's New Session link starts.

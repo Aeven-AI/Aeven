@@ -13,18 +13,23 @@ import {
 import type { WorkspaceId } from '@aeven/api-workspace-controller/client'
 import type { WorkspaceHeaderActionsProps } from './contract/slots.ts'
 import type { SessionOrderBy } from './tree.ts'
+import type { SessionGroupBy } from './stores.ts'
 import { WorkspacePickFlow } from './WorkspacePicker.tsx'
 import css from './HeaderActions.module.css'
 
-/** Grouping, ordering and section-visibility menu; own open state so it resets with the wide chrome. */
+/**
+ * Grouping, ordering and section-visibility menu; own open state so it resets
+ * with the wide chrome. Status grouping hides the order options: each bucket
+ * lists its Sessions by activity, so there is no hand order to choose there.
+ */
 function ViewOptionsMenu({
   groupBy, orderBy, showAutomations, showArchived, onGroupPick, onOrderPick, onShowAutomations, onShowArchived, t,
 }: {
-  groupBy: 'workspace' | 'flat'
+  groupBy: SessionGroupBy
   orderBy: SessionOrderBy
   showAutomations: boolean
   showArchived: boolean
-  onGroupPick: (mode: 'workspace' | 'flat') => void
+  onGroupPick: (mode: SessionGroupBy) => void
   onOrderPick: (mode: SessionOrderBy) => void
   onShowAutomations: (show: boolean) => void
   onShowArchived: (show: boolean) => void
@@ -37,24 +42,29 @@ function ViewOptionsMenu({
       onClose={() => { setOpen(false) }}
       items={[
         { type: 'label' as const, id: 'group-by', text: t('groupBy.label') },
+        { id: 'status', label: t('groupBy.status') },
         { id: 'workspace', label: t('groupBy.workspace') },
-        { id: 'flat', label: t('groupBy.flat') },
-        { type: 'separator' as const, id: 'order-by-separator' },
-        { type: 'label' as const, id: 'order-by', text: t('orderBy.label') },
-        { id: 'manual', label: t('orderBy.manual') },
-        { id: 'updated', label: t('orderBy.updated') },
+        ...(groupBy === 'workspace'
+          ? [
+            { type: 'separator' as const, id: 'order-by-separator' },
+            { type: 'label' as const, id: 'order-by', text: t('orderBy.label') },
+            { id: 'manual', label: t('orderBy.manual') },
+            { id: 'updated', label: t('orderBy.updated') },
+          ]
+          : []),
         { type: 'separator' as const, id: 'show-separator' },
         { type: 'label' as const, id: 'show', text: t('show.label') },
         { id: 'show-archived', label: t('show.archived') },
         { id: 'show-automations', label: t('show.automations') },
       ]}
       selectedIds={[
-        groupBy, orderBy,
+        groupBy,
+        ...(groupBy === 'workspace' ? [orderBy] : []),
         ...(showArchived ? ['show-archived'] : []),
         ...(showAutomations ? ['show-automations'] : []),
       ]}
       onSelect={(id) => {
-        if (id === 'workspace' || id === 'flat') onGroupPick(id)
+        if (id === 'workspace' || id === 'status') onGroupPick(id)
         else if (id === 'manual' || id === 'updated') onOrderPick(id)
         else if (id === 'show-automations') onShowAutomations(!showAutomations)
         else if (id === 'show-archived') onShowArchived(!showArchived)

@@ -1,5 +1,5 @@
 ---
-description: "avn Web 客户端的共享 Workspace 浏览器与选择器插件：分组或扁平的会话行、添加/重命名/重排序、搜索、fork、归档，以及目录流选取子 slot。"
+description: "avn Web 客户端的共享 Workspace 浏览器与选择器插件：按 Workspace 或按状态分组的会话行、添加/重命名/重排序、搜索、fork、归档，以及目录流选取子 slot。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`avn-client-ui-workspace` 是 avn Web 客户端的共享 Workspace 浏览器与选择器：用户在侧边栏浏览分组或扁平的 Session 行，在 Session Intent 主视觉区为新会话选择 Workspace，并可用添加、重命名、重排序、搜索、fork 与归档操作管理 Workspace 与 Session；两个界面共用同一套 Workspace 菜单与添加流程。待处理的用户交互以琥珀色警告点呈现，活动 Schedule projection 会在普通行与搜索结果中显示不可交互的闹钟，共享侧边栏投影还会隐藏 subagent 来源的会话。不同的规范化路径仍作为由 id 区分的独立 Workspace；添加文件夹走目录流子 slot，由组合的选择器包 client half 填充。
+`avn-client-ui-workspace` 是 avn Web 客户端的共享 Workspace 浏览器与选择器：用户在侧边栏浏览按 Workspace 或按状态分组的 Session 行，在 Session Intent 主视觉区为新会话选择 Workspace，并可用添加、重命名、重排序、搜索、fork 与归档操作管理 Workspace 与 Session；两个界面共用同一套 Workspace 菜单与添加流程。待处理的用户交互以琥珀色警告点呈现，活动 Schedule projection 会在普通行与搜索结果中显示不可交互的闹钟，共享侧边栏投影还会隐藏 subagent 来源的会话。不同的规范化路径仍作为由 id 区分的独立 Workspace；添加文件夹走目录流子 slot，由组合的选择器包 client half 填充。
 
 Workspace 与 Session 行遵循 Aeven 菜单的整行 40px 几何、响应式 24px/16px 内边距、直角、连续节奏，以及透明 hover 与选中状态，同时保留所有原有状态与操作图标。选择 Session 会导航到其 `/c/<id>` SPA 路径；地址栏、浏览器历史与 Session Controller 始终保持同步。
 
@@ -33,13 +33,15 @@ Workspace 与 Session 行遵循 Aeven 菜单的整行 40px 几何、响应式 24
 
 每个选中的 Session 都有一个 URL 安全的 `/c/<id>` 路径，Host 的 `session-` id 前缀在生成时去掉、解析时补回。普通选择会压入一条浏览器历史记录，初始 baseline 协调会替换启动记录，后退或前进则重新打开恢复路径所指的 Session。直接加载有效 Session 路径时，会在 Session 与 Workspace baseline 就绪后选中它。若 Session id 未知，现有最近 Workspace 回退运行前会先从地址栏移除它。每次选择都会展现其行，因此通过地址到达的 Session 会像搜索结果一样被展开并滚动到可见区域。对话只拥有 `/`、`/c` 与 `/c/…`：在其他界面的地址上（例如 Imagine 的 `/i/<id>`），它不读取 Session、不写入地址，后退或前进到该地址也不会开启新会话。
 
-### 重排序与视图选项
+### 分组、重排序与视图选项
 
-视图选项把分组方式和每个记账各自的一份浏览器持久化 Session 顺序放在一起：**手动排序**和**最近更新**在两种呈现方式下都可用。进入最近更新时会执行一次完整的时间排序，后续 user prompt 或 steer 会将对应 Session 置顶一次；进入手动排序则保留所有当前位置并停用后续置顶。两种模式下的拖拽都会编辑当前顺序；真实 Workspace 在手动模式下的拖拽还会更新 Host Session 记账，而 Ungrouped 和单列表的顺序始终只保存在浏览器本地。折叠分组的拖拽边界按渲染行确定，并把来源行放在中间隐藏行之前，因此拖拽不会隐藏来源行。分组顺序同样跟随该模式：最近更新会把内置的 **Chats** Workspace 放在最前，并按各自最新 Session 排序其余分组，因此刚添加的 Workspace 紧跟在 Chats 之下；手动排序则显示拖拽写入的既持久 Workspace 顺序。
+分组方式提供两种呈现。**按工作区**为每个 Workspace 列出一段，Ungrouped 排在最后；**按状态**跨所有 Workspace 列出**需要输入**、**进行中**、**已完成的工作**三个固定分组。状态归属由 Session 的实时状态派生，因此当 Agent 开始工作、等待用户或归于停顿时，行会自行移动到对应分组；正在等待用户处理的 Session 即使 Agent 仍在运行也排在前面。状态分组默认展开其行，每个分组按时间从新到旧排序，超过五行时折叠为**显示全部**；用户折叠的分组会保持折叠，选择操作不会将其重新展开；这些行不可拖拽，且在状态呈现下不显示排序选项，因为顺序由活动决定。临时的新会话空白行在发出第一条消息前停留在**需要输入**，因此在该视图中开始的新会话不会消失。
+
+在工作区呈现下，视图选项把分组方式与每个记账各自的一份浏览器持久化 Session 顺序放在一起：**手动排序**和**最近更新**在此生效。进入最近更新时会执行一次完整的时间排序，后续 user prompt 或 steer 会将对应 Session 置顶一次；进入手动排序则保留所有当前位置并停用后续置顶。两种排序模式下的拖拽都会编辑当前顺序；真实 Workspace 在手动模式下的拖拽还会更新 Host Session 记账，而 Ungrouped 的顺序始终只保存在浏览器本地。折叠分组的拖拽边界按渲染行确定，并把来源行放在中间隐藏行之前，因此拖拽不会隐藏来源行。分组顺序同样跟随该模式：最近更新会把内置的 **Chats** Workspace 放在最前，并按各自最新 Session 排序其余分组，因此刚添加的 Workspace 紧跟在 Chats 之下；手动排序则显示拖拽写入的既持久 Workspace 顺序。
 
 ### 搜索
 
-折叠搜索是视图和添加操作旁的一枚区头按钮：激活后输入框会扩展并占据区头。非空白查询会以单一扁平结果列表替代任一浏览模式——不区分大小写的标题和 Workspace 子串匹配项会立即显示，经 250 ms 防抖的 Host 请求则会加入经过排序的当前对话内容匹配项及其摘要片段。每次新查询都会中止前一个请求；内容搜索被关闭时会引导用户前往设置，其他失败则报告搜索无法完成，两种情况都会保留元数据匹配项。列表最多显示 20 条结果。选择结果会清空并收起搜索、在匹配事件处打开 Session，并在当前浏览模式中将其行滚动到可见区域；分组浏览还会按需展开所属 Workspace 和完整 Session 列表。
+折叠搜索是视图和添加操作旁的一枚区头按钮：激活后输入框会扩展并占据区头。非空白查询会以单一扁平结果列表替代任一浏览模式——不区分大小写的标题和 Workspace 子串匹配项会立即显示，经 250 ms 防抖的 Host 请求则会加入经过排序的当前对话内容匹配项及其摘要片段。每次新查询都会中止前一个请求；内容搜索被关闭时会引导用户前往设置，其他失败则报告搜索无法完成，两种情况都会保留元数据匹配项。列表最多显示 20 条结果。选择结果会清空并收起搜索、在匹配事件处打开 Session，并在当前浏览模式中将其行滚动到可见区域；工作区浏览还会按需展开所属 Workspace 和完整 Session 列表。
 
 ### 管理会话
 
@@ -51,7 +53,7 @@ Session 行渲染运行时的实时 `pendingInteraction` 分类：审批显示**
 
 ### 活动 Schedule 标识
 
-分组与平铺 Session 行以及搜索结果会在 `SessionSummary.projectionValues.schedule` 为非空数组时显示一枚轮廓闹钟。标识位于标题之后；普通行的更新时间仍位于标识之后，搜索结果则没有更新时间。它不是按钮，没有独立 pointer 行为或 Tab stop，点击所在区域仍会打开整行。本地化 tooltip 与同义读屏标签均为**有活动定时任务**。
+按工作区与按状态分组的 Session 行以及搜索结果会在 `SessionSummary.projectionValues.schedule` 为非空数组时显示一枚轮廓闹钟。标识位于标题之后；普通行的更新时间仍位于标识之后，搜索结果则没有更新时间。它不是按钮，没有独立 pointer 行为或 Tab stop，点击所在区域仍会打开整行。本地化 tooltip 与同义读屏标签均为**有活动定时任务**。
 
 对于 cold Session，该值有意采用尽力而为语义。身份匹配且可用的 projection-cache 行可以在不打开 Session 的情况下预热闹钟；cache 缺失或陈旧可能造成短暂漏显或残留。标识只表示当前列表值包含尚未 dispatch 或 delete 的 Schedule 记录，不表示 Schedule runtime 当前 live 或能够唤醒该 Session。
 
@@ -71,7 +73,7 @@ Session 行渲染运行时的实时 `pendingInteraction` 分类：审批显示**
 
 ### 视图状态
 
-Workspace 列表基线就绪后，浏览器持久化的展开状态与 Session 顺序记录只保留当前 Workspace id、Ungrouped 与单列表记账。真实 Workspace 从 `WorkspaceView.sessionIds` 初始化，Ungrouped 与跨 Workspace 单列表从最近更新时间顺序初始化。共享侧边栏投影会隐藏持久化 Session 摘要中带有 `origin: 'subagent'` 的行；每个可见普通行都会在经不间断的 subagent 谱系可达的任一后代运行时继承蓝色活动指示器。会话自身运行中的后台任务同样持有该进行中标记：任务会比启动它的轮次活得更久，因此 Agent 处于轮次之间的行会报告它仍在运行的任务，而不是读作空闲，只有任务结算后才把该位置交还给已完成提醒。同一份纯派生还会为分组、平铺与搜索节点读取列表 projection value 中的 Schedule key；本包只使用纯类型依赖 `@aeven/schedule/client`，不会导入 Schedule runtime。
+Workspace 列表基线就绪后，浏览器持久化的展开状态与 Session 顺序记录只保留当前 Workspace id、Ungrouped、已归档与三个状态分组。真实 Workspace 从 `WorkspaceView.sessionIds` 初始化，Ungrouped 则从最近更新时间顺序初始化。共享侧边栏投影会隐藏持久化 Session 摘要中带有 `origin: 'subagent'` 的行；每个可见普通行都会在经不间断的 subagent 谱系可达的任一后代运行时继承蓝色活动指示器。会话自身运行中的后台任务同样持有该进行中标记：任务会比启动它的轮次活得更久，因此 Agent 处于轮次之间的行会报告它仍在运行的任务，而不是读作空闲，只有任务结算后才把该位置交还给已完成提醒。同一份纯派生还会为工作区分组、状态分组与搜索节点读取列表 projection value 中的 Schedule key；本包只使用纯类型依赖 `@aeven/schedule/client`，不会导入 Schedule runtime。
 
 ### 悬浮卡片
 

@@ -8,14 +8,16 @@ import type {
 import type {
   WorkspaceId, WorkspaceSnapshot, WorkspaceView,
 } from '@aeven/api-workspace-controller/client'
-import type { SessionPendingInteractionSnapshot } from '@aeven/client-ui-session/client'
+import type {
+  SessionPendingInteractionBase, SessionPendingInteractionSnapshot,
+} from '@aeven/client-ui-session/client'
 import type { SessionId } from '@aeven/session/types'
 import { zh as commonZh } from '@aeven/client-locale/src/locales/zh.ts'
 import type {
   DirectoryFlowOwnerProps, WorkspaceBrowserProps, WorkspaceHeaderActionsProps,
 } from '../src/client/contract/slots.ts'
-import { createWorkspaceViewStore, FLAT_SESSION_ORDER_KEY } from '../src/client/stores.ts'
-import { UNGROUPED_KEY } from '../src/client/tree.ts'
+import { createWorkspaceViewStore } from '../src/client/stores.ts'
+import { STATUS_BUCKET_KEYS, UNGROUPED_KEY } from '../src/client/tree.ts'
 import { WorkspaceHeaderActions } from '../src/client/HeaderActions.tsx'
 import { WorkspaceBrowser } from '../src/client/rows/WorkspaceBrowser.tsx'
 import { zh } from '../src/client/locales.ts'
@@ -199,7 +201,7 @@ describe('WorkspaceBrowser', () => {
     })
   })
 
-  it('renders the grouped tree by default and switches to the flat list via Group by', () => {
+  it('renders the Workspace tree by default and switches to the status buckets via Group by', () => {
     const sessions = sessionState([summary('alpha-s', 2), summary('beta-s', 1)])
     const b = mount({
       useSessions: hook(sessions),
@@ -215,20 +217,25 @@ describe('WorkspaceBrowser', () => {
     expect(screen.getByText('分组方式')).toBeTruthy() // the menu heading label
     expect(screen.getAllByRole('separator')).toHaveLength(2)
     expect(screen.getAllByRole('menuitem').map(item => item.textContent)).toEqual([
-      '按工作区', '单列表', '手动排序', '最近更新', '显示已归档', '显示自动化',
+      '按状态', '按工作区', '手动排序', '最近更新', '显示已归档', '显示自动化',
     ])
     expect(screen.getByRole('menuitem', { name: '按工作区' }).querySelector('svg')).toBeTruthy()
     expect(screen.getByRole('menuitem', { name: '手动排序' }).querySelector('svg')).toBeTruthy()
-    fireEvent.click(screen.getByRole('menuitem', { name: '单列表' }))
-    // Store-driven flip: rows flatten newest-first and the group rows go.
-    expect(b.store.getSnapshot().groupBy).toBe('flat')
+    fireEvent.click(screen.getByRole('menuitem', { name: '按状态' }))
+    // Store-driven flip: the three status buckets replace the Workspace
+    // sections and open on their rows.
+    expect(b.store.getSnapshot().groupBy).toBe('status')
     expect(screen.queryByText('alpha')).toBeNull()
+    expect(screen.getByText('需要输入')).toBeTruthy()
+    expect(screen.getByText('进行中')).toBeTruthy()
+    expect(screen.getByText('已完成的工作')).toBeTruthy()
     expect(screen.getByText('alpha-s')).toBeTruthy()
     expect(screen.getByText('beta-s')).toBeTruthy()
 
-    // Back to workspace grouping through the same menu.
+    // Status buckets hold activity order, so the order options are absent.
     fireEvent.click(screen.getByRole('button', { name: '视图选项' }))
-    expect(screen.getByRole('menuitem', { name: '手动排序' }).hasAttribute('disabled')).toBe(false)
+    expect(screen.getAllByRole('separator')).toHaveLength(1)
+    expect(screen.queryByRole('menuitem', { name: '手动排序' })).toBeNull()
     fireEvent.click(screen.getByRole('menuitem', { name: '按工作区' }))
     expect(b.store.getSnapshot().groupBy).toBe('workspace')
     expect(screen.getByText('alpha')).toBeTruthy()
@@ -240,58 +247,102 @@ describe('WorkspaceBrowser', () => {
     expect(b.store.getSnapshot().groupBy).toBe('workspace')
   })
 
-  it('persists flat-list drag order locally and applies Last updated within that account', async () => {
-    const insertSessionBefore = vi.fn(async () => {})
-    const sessions = sessionState([summary('one', 3), summary('two', 2), summary('three', 1)])
-    const workspaces = workspaceState([
-      workspace('alpha', ['one']),
-      workspace('beta', ['two']),
-    ])
+  it('moves a Session between buckets as it works, waits on the reader, and settles', () => {
+    const working = summary('working-s', 3, { running: true })
+    const awaiting = summary('awaiting-s', 2)
+    const resting = summary('resting-s', 1)
+    const queued = summary('queued-s', 4)
+    // The browsing region reads only `kind`, which the base shape carries; the
+    // assembled snapshot's values are the contributing domains' own carriers.
+    const attention = new Map<SessionId, SessionPendingInteractionBase>([[
+      awaiting.id,
+      { key: 'question:1', kind: 'question', sessionId: awaiting.id },
+    ]]) as unknown as SessionPendingInteractionSnapshot
     const b = mount({
-      useSessions: hook(sessions),
-      useWorkspaces: hook(workspaces),
-      insertSessionBefore,
+      useSessions: hook(sessionState([working, awaiting, resting, queued])),
+      useSessionPendingInteraction: hook(attention),
     })
     fireEvent.click(screen.getByRole('button', { name: '视图选项' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: '单列表' }))
-    await waitFor(() => {
-      expect(b.store.getSnapshot().sessionOrderByAccount[FLAT_SESSION_ORDER_KEY])
-        .toEqual(['one', 'two', 'three'])
-    })
-
-    const one = screen.getByText('one').closest('[role="treeitem"]') as HTMLElement
-    const three = screen.getByText('three').closest('[role="treeitem"]') as HTMLElement
-    three.getBoundingClientRect = () => ({
-      top: 150, bottom: 184, left: 0, right: 200, width: 200, height: 34,
-      x: 0, y: 150, toJSON: () => ({}),
-    })
-    fireEvent.dragStart(one, { dataTransfer: dragData() })
-    fireDrag(three, 'drop', 180)
-    expect(b.store.getSnapshot().sessionOrderByAccount[FLAT_SESSION_ORDER_KEY])
-      .toEqual(['two', 'three', 'one'])
-    expect(insertSessionBefore).not.toHaveBeenCalled()
-
-    fireEvent.click(screen.getByRole('button', { name: '视图选项' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: '最近更新' }))
-    await waitFor(() => {
-      expect(b.store.getSnapshot().sessionOrderByAccount[FLAT_SESSION_ORDER_KEY])
-        .toEqual(['one', 'two', 'three'])
-    })
-
-    fireEvent.click(screen.getByRole('button', { name: '视图选项' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: '手动排序' }))
-    fireEvent.dragStart(one, { dataTransfer: dragData() })
-    fireDrag(three, 'drop', 180)
-    b.view.unmount()
-
-    const restored = mount({ useSessions: hook(sessions), useWorkspaces: hook(workspaces) })
-    expect(restored.store.getSnapshot().groupBy).toBe('flat')
-    expect(restored.store.getSnapshot().orderBy).toBe('manual')
+    fireEvent.click(screen.getByRole('menuitem', { name: '按状态' }))
+    // Folder rows and their sessions in render order: a Session waiting on the
+    // reader leads, in-flight work follows, everything at rest trails.
     expect(screen.getAllByRole('treeitem').map(row => row.textContent)).toEqual([
-      expect.stringContaining('two'),
-      expect.stringContaining('three'),
-      expect.stringContaining('one'),
+      expect.stringContaining('需要输入'), expect.stringContaining('awaiting-s'),
+      expect.stringContaining('进行中'), expect.stringContaining('working-s'),
+      expect.stringContaining('已完成的工作'), expect.stringContaining('queued-s'),
+      expect.stringContaining('resting-s'),
     ])
+
+    // The same Sessions keep their identity while their state changes: the
+    // answer arrives, one turn ends, and the queued Session starts working.
+    rerender(b, {
+      useSessions: hook(sessionState(
+        [{ ...working, running: false }, awaiting, resting, { ...queued, running: true }],
+      )),
+      useSessionPendingInteraction: hook(noPendingInteraction),
+    })
+    expect(screen.getAllByRole('treeitem').map(row => row.textContent)).toEqual([
+      expect.stringContaining('需要输入'),
+      expect.stringContaining('进行中'), expect.stringContaining('queued-s'),
+      expect.stringContaining('已完成的工作'), expect.stringContaining('working-s'),
+      expect.stringContaining('awaiting-s'), expect.stringContaining('resting-s'),
+    ])
+  })
+
+  it('opens every bucket by default and keeps the one the reader folds folded', () => {
+    const done = summary('done-s', 1)
+    const b = mount({ useSessions: hook(sessionState([done])) })
+    fireEvent.click(screen.getByRole('button', { name: '视图选项' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '按状态' }))
+    // A bucket opens on its rows until the reader folds it.
+    expect(screen.getByText('done-s')).toBeTruthy()
+    fireEvent.click(screen.getByText('已完成的工作'))
+    expect(screen.queryByText('done-s')).toBeNull()
+    expect(b.store.getSnapshot().groupExpansion[STATUS_BUCKET_KEYS.completed]).toBe(false)
+
+    // The fold holds: selecting a Session inside it does not reopen the bucket.
+    rerender(b, { useSessions: hook(sessionState([done], { current: done.id })) })
+    expect(b.store.getSnapshot().groupExpansion[STATUS_BUCKET_KEYS.completed]).toBe(false)
+    expect(screen.queryByText('done-s')).toBeNull()
+
+    // The reader's own click reopens it.
+    fireEvent.click(screen.getByText('已完成的工作'))
+    expect(screen.getByText('done-s')).toBeTruthy()
+    expect(b.store.getSnapshot().groupExpansion[STATUS_BUCKET_KEYS.completed]).toBe(true)
+  })
+
+  it('keeps the new chat in Needs input until its first prompt starts a turn', () => {
+    const blank = { ...summary('blank-s', 5), blank: true }
+    const b = mount({ useSessions: hook(sessionState([blank], { current: blank.id })) })
+    fireEvent.click(screen.getByRole('button', { name: '视图选项' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '按状态' }))
+    expect(screen.getAllByRole('treeitem').map(row => row.textContent)).toEqual([
+      expect.stringContaining('需要输入'),
+      expect.stringContaining('新会话'),
+      expect.stringContaining('进行中'),
+      expect.stringContaining('已完成的工作'),
+    ])
+
+    // The first prompt starts the turn: the same row moves to Working.
+    rerender(b, {
+      useSessions: hook(sessionState([{ ...blank, blank: false, running: true }], { current: blank.id })),
+    })
+    expect(screen.getAllByRole('treeitem').map(row => row.textContent)).toEqual([
+      expect.stringContaining('需要输入'),
+      expect.stringContaining('进行中'),
+      expect.stringContaining('blank-s'),
+      expect.stringContaining('已完成的工作'),
+    ])
+  })
+
+  it('expands a bucket’s overflow when the chosen Session sits past the collapsed limit', async () => {
+    const rows = Array.from({ length: 6 }, (_, index) => summary(`done-${index}`, 10 - index))
+    const b = mount({ useSessions: hook(sessionState(rows)) })
+    fireEvent.click(screen.getByRole('button', { name: '视图选项' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '按状态' }))
+    expect(screen.queryByText('done-5')).toBeNull()
+    rerender(b, { useSessions: hook(sessionState(rows, { current: sid('done-5') })) })
+    await waitFor(() => { expect(screen.getByText('done-5')).toBeTruthy() })
   })
 
   it('expands a group on click and opens a session row', () => {
@@ -432,10 +483,8 @@ describe('WorkspaceBrowser', () => {
   })
 
   // Divergence: rows are draggable only while Manual is active
-  // (drag={orderBy === 'manual' ? … : undefined}, grouped and flat list alike),
-  // while ui-workspace's README still says "Dragging edits the current order in
-  // either mode"; this case follows the code and keeps the stale sentence for the
-  // docs handover.
+  // (drag={orderBy === 'manual' ? … : undefined}); status rows are never
+  // draggable because their buckets hold activity order.
   it('shares one editable order across the order modes and promotes only while Last updated is active', async () => {
     const initial = sessionState([summary('one', 3), summary('two', 2)])
     const b = mount({
@@ -515,13 +564,23 @@ describe('WorkspaceBrowser', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: '归档会话' }))
     expect(archiveSession).toHaveBeenCalledWith(sid('gone-s'))
 
-    // The archive-set echo hides the row in grouped and flat modes.
+    // The archive-set echo hides the row in both browsing modes.
     rerender(b, { useWorkspaces: hook(workspaceState([workspace('alpha', ['kept-s', 'gone-s'])], [sid('gone-s')])) })
     expect(screen.queryByText('gone-s')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: '视图选项' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: '单列表' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '按状态' }))
     expect(screen.getByText('kept-s')).toBeTruthy()
     expect(screen.queryByText('gone-s')).toBeNull()
+  })
+
+  it('names the Archived section through its bucket, not a Workspace title', () => {
+    mount({
+      useSessions: hook(sessionState([summary('kept-s', 1), summary('gone-s', 2)])),
+      useWorkspaces: hook(workspaceState([workspace('alpha', ['kept-s', 'gone-s'])], [sid('gone-s')])),
+    })
+    fireEvent.click(screen.getByRole('button', { name: '视图选项' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '显示已归档' }))
+    expect(screen.getByText('已归档的对话')).toBeTruthy()
   })
 
   it('logs and keeps the tree when the archive call rejects', async () => {
@@ -608,14 +667,7 @@ describe('WorkspaceBrowser', () => {
     expect(screen.queryByText('b')).toBeNull()
   })
 
-  // Divergence: the promotion writes the blank first in both accounts, but only
-  // the grouped write stands (its account already held every member); the flat
-  // write is the blank alone, and reconciledSessionOrder (WorkspaceBrowser.tsx)
-  // then leads with the rows the stored order lacks, newest first, leaving the
-  // blank last. Verified fix, reverted: returning [...ordered,
-  // ...sessionIds.filter(…)] from reconciledSessionOrder makes this case pass
-  // with no other failure in the package.
-  it('keeps the blank selected by New Session where its account held it, while the flat list leads with recency', async () => {
+  it('keeps the blank selected by New Session at the head of its Workspace account', async () => {
     const items = [
       summary('old', 100),
       summary('blank', 150, { blank: true }),
@@ -636,20 +688,14 @@ describe('WorkspaceBrowser', () => {
     fireEvent.click(screen.getByRole('link', { name: '在“alpha”中新建会话' }))
     expect(startSession).toHaveBeenCalledWith(wid('alpha'))
     await waitFor(() => {
-      // Grouped: the promoted blank leads the account it was selected in.
+      // The promoted blank leads the account it was selected in.
       expect(b.store.getSnapshot().sessionOrderByAccount.alpha).toEqual(['blank', 'old', 'mid'])
-      // Flat: the account holds the blank alone until the list reconciles.
-      expect(b.store.getSnapshot().sessionOrderByAccount[FLAT_SESSION_ORDER_KEY]).toEqual(['blank'])
     })
-    b.store.actions.setGroupBy('flat')
-    await waitFor(() => {
-      expect(b.store.getSnapshot().sessionOrderByAccount[FLAT_SESSION_ORDER_KEY]).toEqual(['mid', 'old', 'blank'])
-    })
-    // The rows follow that order, so the newly selected chat is the last one.
     expect(screen.getAllByRole('treeitem').map(row => row.textContent)).toEqual([
-      expect.stringContaining('mid'),
-      expect.stringContaining('old'),
+      expect.stringContaining('alpha'),
       expect.stringContaining('新会话'),
+      expect.stringContaining('old'),
+      expect.stringContaining('mid'),
     ])
   })
 

@@ -7,11 +7,12 @@
  */
 import { defineStore, type EngineStoreHandle } from '@aeven/client-store'
 
-/** Browser-local order account for the hierarchy-free flat Session list. */
-export const FLAT_SESSION_ORDER_KEY = '__flat_session_order__'
-
-/** Session-list grouping mode: workspace sections or one flat recency list. */
-export type SessionGroupBy = 'workspace' | 'flat'
+/**
+ * Session-list grouping mode: workspace sections, or the three status buckets
+ * (Needs input, Working, Completed work) a Session moves between as its live
+ * state changes.
+ */
+export type SessionGroupBy = 'workspace' | 'status'
 /** Session order: user-arranged only, or user-arranged plus activity promotion. */
 export type SessionOrderBy = 'manual' | 'updated'
 
@@ -23,9 +24,13 @@ type WorkspaceViewState = {
   showAutomations: boolean
   /** Show the trailing Archived section listing every archived Session. */
   showArchived: boolean
-  /** Explicit zero-or-five-session state keyed by Workspace group identity. */
+  /**
+   * Explicit zero-or-five-session state keyed by group identity: a Workspace id,
+   * Ungrouped, Archived, or a status bucket. A status bucket reads as open until
+   * the reader folds it, so status grouping opens on its rows.
+   */
   groupExpansion: Record<string, boolean>
-  /** Shared editable order per Workspace group plus the browser-local flat-list account. */
+  /** Shared editable order per Workspace group. */
   sessionOrderByAccount: Record<string, string[]>
   /** Last observed update timestamps per order account for one-time promotion events. */
   sessionUpdatedAtByAccount: Record<string, Record<string, number>>
@@ -67,7 +72,7 @@ export function createWorkspaceViewStore(): EngineStoreHandle<WorkspaceViewState
       sessionUpdatedAtByAccount: {},
     }),
     persist: {
-      key: 'avn.workspace.view.v5',
+      key: 'avn.workspace.view.v6',
       fields: [
         'groupBy', 'orderBy', 'showAutomations', 'showArchived', 'groupExpansion', 'sessionOrderByAccount', 'sessionUpdatedAtByAccount',
       ],

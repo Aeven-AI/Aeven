@@ -1,7 +1,7 @@
 /**
  * The workspace/session browsing region filling the sidebar shell's
- * `sidebar.workspaces` hole: the grouped tree or flat list and the workspace
- * dialogs. The region's controls (view options, add workspace) are the header
+ * `sidebar.workspaces` hole: the Workspace tree, the status buckets, and the
+ * workspace dialogs. The region's controls (view options, add workspace) are the header
  * cluster's, and the view preferences they write arrive through the shared
  * viewing store; search runs in the header's own popup (SearchDialog.tsx).
  */
@@ -16,11 +16,10 @@ import type { SessionId } from '@aeven/session/types'
 import type { WorkspaceBrowserProps } from '../contract/slots.ts'
 import type { GroupNode, SessionNode, SessionOrderBy } from '../tree.ts'
 import {
-  ARCHIVED_KEY, deriveArchived, deriveFlat, deriveGroups, managedSessionIds, orderGroupsByRecency, owningGroupKey,
-  UNGROUPED_KEY,
+  ARCHIVED_KEY, deriveArchived, deriveGroups, deriveStatusBuckets, managedSessionIds, orderGroupsByRecency,
+  owningGroupKey, STATUS_BUCKET_KEYS, UNGROUPED_KEY,
 } from '../tree.ts'
 import { ProjectRowItem, SessionNodeItem } from './Rows.tsx'
-import { FLAT_SESSION_ORDER_KEY } from '../stores.ts'
 import css from './WorkspaceBrowser.module.css'
 
 /** Session rows visible per Workspace before the local overflow control. */
@@ -599,6 +598,7 @@ function ArchivedSection({
     cwd: undefined,
     createdAt: undefined,
     label: '',
+    bucket: 'archived',
     sessionCount: rows.length,
     expanded,
     containsCurrent: list.current !== undefined && rows.some(row => row.id === list.current),
@@ -651,128 +651,99 @@ function ArchivedSection({
   )
 }
 
-/** The flat "In one list" body: every session is one draggable top-level row. */
-function FlatList({
+/**
+ * The status body: Needs input, Working, and Completed work, each a folder over
+ * the Sessions doing that right now. Membership is derived, so a row moves to
+ * its bucket on its own when its Session starts, waits on the reader, or
+ * settles; the buckets keep no hand order of their own, so their rows are not
+ * draggable. A bucket reads as open until the reader folds it, and a fold holds
+ * whatever the selection does.
+ */
+function StatusList({
   useSessions, useSessionPendingInteraction, open, forkSession, onSessionRename, onSessionArchive,
-  archivedSessionIds, hidden, archivedSection,
-  orderBy, sessionOrderByAccount, sessionUpdatedAtByAccount, syncSessionOrderAccount, setSessionOrder,
+  archivedSessionIds, hidden, archivedSection, groupExpansion, setGroupExpanded,
   revealSessionId, onSessionRevealed, t,
 }: Pick<
   SessionTreeProps,
-  | 'useSessions'
-  | 'useSessionPendingInteraction'
-  | 'open'
-  | 'forkSession'
-  | 'onSessionRename'
-  | 'onSessionArchive'
-  | 'archivedSessionIds'
-  | 'orderBy'
-  | 'sessionOrderByAccount'
-  | 'sessionUpdatedAtByAccount'
-  | 'syncSessionOrderAccount'
-  | 'setSessionOrder'
-  | 'revealSessionId'
-  | 'onSessionRevealed'
-  | 'archivedSection'
-  | 't'
+  | 'useSessions' | 'useSessionPendingInteraction' | 'open' | 'forkSession' | 'onSessionRename'
+  | 'onSessionArchive' | 'archivedSessionIds' | 'revealSessionId' | 'onSessionRevealed' | 'archivedSection' | 't'
 > & {
   /** Sessions a view option leaves out, such as managed Workspace members. */
   hidden: ReadonlySet<SessionId>
+  /** Explicit fold state keyed by group identity, shared with the Workspace tree. */
+  groupExpansion: Readonly<Record<string, boolean>>
+  /** Persist one bucket's fold state. */
+  setGroupExpanded: (key: string, expanded: boolean) => void
 }) {
   const list = useSessions(s => s)
   const pendingInteractions = useSessionPendingInteraction(s => s)
-  const baseRows = useMemo(
-    () => deriveFlat(list, archivedSessionIds, pendingInteractions, hidden),
-    [list, archivedSessionIds, pendingInteractions, hidden],
+  const buckets = useMemo(
+    () => deriveStatusBuckets(list, archivedSessionIds, pendingInteractions, hidden, groupExpansion),
+    [list, archivedSessionIds, pendingInteractions, hidden, groupExpansion],
   )
-  const sessionIds = useMemo(() => baseRows.map(row => row.id), [baseRows])
-  const previousOrderBy = useRef(orderBy)
+  const [expandedBuckets, setExpandedBuckets] = useState<string[]>([])
   useEffect(() => {
-    if (list.phase !== 'ready') return
-    const previousOrder = sessionOrderByAccount[FLAT_SESSION_ORDER_KEY]
-    const previousUpdatedAt = sessionUpdatedAtByAccount[FLAT_SESSION_ORDER_KEY] ?? {}
-    const switchedToUpdated = previousOrderBy.current !== 'updated' && orderBy === 'updated'
-    previousOrderBy.current = orderBy
-    const next = nextSessionOrderAccount({
-      sessionIds,
-      previousOrder,
-      previousUpdatedAt,
-      list,
-      orderBy,
-      sortByRecency: orderBy === 'updated' && (previousOrder === undefined || switchedToUpdated),
-    })
-    if (next.changed) {
-      syncSessionOrderAccount(FLAT_SESSION_ORDER_KEY, next.order.map(id => id as string), next.updatedAt)
-    }
-  }, [list, orderBy, sessionOrderByAccount, sessionUpdatedAtByAccount, sessionIds, syncSessionOrderAccount])
-  const rows = useMemo(() => {
-    const byId = new Map(baseRows.map(row => [row.id, row]))
-    return reconciledSessionOrder(sessionIds, sessionOrderByAccount[FLAT_SESSION_ORDER_KEY])
-      .flatMap((id) => {
-        const row = byId.get(id)
-        return row === undefined ? [] : [row]
-      })
-  }, [baseRows, sessionOrderByAccount, sessionIds])
-  const [drag, setDrag] = useState<DragState | null>(null)
-  const dropCommitted = useRef(false)
-  useNativeDragAcceptance(drag !== null)
-  const commitDrag = (activeDrag: DragState, over: NonNullable<DragState['over']>): void => {
-    if (dropCommitted.current) return
-    dropCommitted.current = true
-    setDrag(null)
-    const targetIndex = rows.findIndex(row => row.id === over.id)
-    if (targetIndex === -1) return
-    const anchor = over.half === 'before' ? over.id : rows[targetIndex + 1]?.id
-    if (anchor === activeDrag.sessionId) return
-    const sourceIndex = rows.findIndex(row => row.id === activeDrag.sessionId)
-    const anchorIndex = anchor === undefined ? rows.length : rows.findIndex(row => row.id === anchor)
-    if (sourceIndex !== -1 && (anchorIndex === sourceIndex || anchorIndex === sourceIndex + 1)) return
-    const nextOrder = rows.map(row => row.id).filter(id => id !== activeDrag.sessionId)
-    const insertAt = anchor === undefined ? nextOrder.length : nextOrder.indexOf(anchor)
-    nextOrder.splice(insertAt === -1 ? nextOrder.length : insertAt, 0, activeDrag.sessionId)
-    setSessionOrder(FLAT_SESSION_ORDER_KEY, nextOrder.map(id => id as string))
-  }
+    if (revealSessionId === undefined) return
+    const bucket = buckets.find(candidate => candidate.sessions.some(row => row.id === revealSessionId))
+    if (bucket === undefined) return
+    if (collapsedSessionRows(bucket.sessions).rows.some(row => row.id === revealSessionId)) return
+    setExpandedBuckets(keys => keys.includes(bucket.key) ? keys : [...keys, bucket.key])
+  }, [buckets, revealSessionId])
+  const empty = buckets.every(bucket => bucket.sessionCount === 0)
   return (
     <div className={clsx(css.treeBody, css.wide)}>
-      <div className={clsx(css.list, 'no-scrollbar', css.flatList)} role="tree" aria-label={t('section.sessions')}>
-        {rows.length === 0 && archivedSection === null && (
+      <div className={clsx(css.list, 'no-scrollbar')} role="tree" aria-label={t('section.sessions')}>
+        {empty && archivedSection === null && (
           <div className={css.empty}>{t('empty.none')}</div>
         )}
-        {rows.map((node) => {
-          const active = drag !== null
+        {!empty && buckets.map((bucket) => {
+          const sessionsExpanded = expandedBuckets.includes(bucket.key)
+          const collapsed = collapsedSessionRows(bucket.sessions)
           return (
-            <SessionNodeItem
-              key={node.id}
-              node={node}
-              currentId={list.current}
-              onOpen={open}
-              onRename={onSessionRename}
-              onFork={forkSession}
-              onArchive={onSessionArchive}
-              onReveal={node.id === revealSessionId
-                ? () => { onSessionRevealed(node.id) }
-                : undefined}
-              drag={orderBy !== 'manual' ? undefined : {
-                start: () => {
-                  dropCommitted.current = false
-                  setDrag({ accountKey: FLAT_SESSION_ORDER_KEY, sessionId: node.id, over: null })
-                },
-                active,
-                marker: active && drag.over?.id === node.id ? drag.over.half : null,
-                hover: (half) => {
-                  setDrag(current => current === null ? current : { ...current, over: { id: node.id, half } })
-                },
-                drop: (half) => {
-                  if (drag !== null) commitDrag(drag, { id: node.id, half })
-                },
-                end: () => {
-                  if (drag?.over !== null && drag?.over !== undefined) commitDrag(drag, drag.over)
-                  else setDrag(null)
-                  dropCommitted.current = false
-                },
-              }}
-              t={t}
-            />
+            <div key={bucket.key} className={css.groupSection}>
+              <ProjectRowItem
+                group={bucket}
+                t={t}
+                onToggle={() => {
+                  if (bucket.expanded) setExpandedBuckets(keys => keys.filter(key => key !== bucket.key))
+                  setGroupExpanded(bucket.key, !bucket.expanded)
+                }}
+                // A status bucket is not a Workspace: it mints no chat, so the
+                // row renders no create control and never calls this.
+                onCreate={() => {}}
+                newSessionHref={() => ({ href: '', sessionId: '' as SessionId })}
+              />
+              {(sessionsExpanded ? bucket.sessions : collapsed.rows).map(node => (
+                <SessionNodeItem
+                  key={node.id}
+                  node={node}
+                  currentId={list.current}
+                  onOpen={open}
+                  onRename={onSessionRename}
+                  onFork={forkSession}
+                  onArchive={onSessionArchive}
+                  onReveal={node.id === revealSessionId
+                    ? () => { onSessionRevealed(node.id) }
+                    : undefined}
+                  t={t}
+                />
+              ))}
+              {collapsed.hiddenCount > 0 && (
+                <button
+                  type="button"
+                  className={css.sessionOverflowButton}
+                  aria-expanded={sessionsExpanded}
+                  onClick={() => { setExpandedBuckets(keys => toggled(keys, bucket.key)) }}
+                >
+                  {sessionsExpanded
+                    ? <IconLucideListChevronsDownUp className={css.sessionOverflowIcon} />
+                    : <IconLucideListChevronsUpDown className={css.sessionOverflowIcon} />}
+                  <span className={css.sessionOverflowLabel}>
+                    {sessionsExpanded ? t('sessions.collapse') : t('sessions.expand')}
+                  </span>
+                </button>
+              )}
+            </div>
           )
         })}
         {archivedSection}
@@ -838,20 +809,18 @@ export function WorkspaceBrowser({
     if (promoted !== undefined && promoted.sessionId === currentBlankSessionId
       && promoted.accountKey === currentBlankAccount) return
     promotedBlank.current = { sessionId: currentBlankSessionId, accountKey: currentBlankAccount }
-    for (const accountKey of new Set([currentBlankAccount, FLAT_SESSION_ORDER_KEY])) {
-      const previous = sessionOrderByAccount[accountKey] ?? []
-      actions.setSessionOrder(accountKey, [
-        currentBlankSessionId,
-        ...previous.filter(id => id !== currentBlankSessionId),
-      ])
-    }
+    const previous = sessionOrderByAccount[currentBlankAccount] ?? []
+    actions.setSessionOrder(currentBlankAccount, [
+      currentBlankSessionId,
+      ...previous.filter(id => id !== currentBlankSessionId),
+    ])
   }, [actions.setSessionOrder, currentBlankAccount, currentBlankSessionId, sessionOrderByAccount])
   useEffect(() => {
     if (workspacePhase !== 'ready') return
     actions.retainAccountKeys([
       UNGROUPED_KEY,
-      FLAT_SESSION_ORDER_KEY,
       ARCHIVED_KEY,
+      ...Object.values(STATUS_BUCKET_KEYS),
       ...workspaces.map(workspace => workspace.workspaceId as string),
     ])
   }, [actions.retainAccountKeys, workspacePhase, workspaces])
@@ -1024,20 +993,17 @@ export function WorkspaceBrowser({
       {/* Always-mounted seat keeps the region's flex slot while the list
           itself is wide-only. */}
       <div className={css.listArea}>
-        {wide && (groupBy === 'flat'
+        {wide && (groupBy === 'status'
           ? (
-            <FlatList
+            <StatusList
               useSessions={useSessions} useSessionPendingInteraction={useSessionPendingInteraction}
               open={open} forkSession={forkSession}
               onSessionRename={onSessionRename} onSessionArchive={onSessionArchive}
               archivedSessionIds={archivedSessionIds}
               hidden={hidden}
               archivedSection={archivedSection}
-              orderBy={orderBy}
-              sessionOrderByAccount={sessionOrderByAccount}
-              sessionUpdatedAtByAccount={sessionUpdatedAtByAccount}
-              syncSessionOrderAccount={actions.syncSessionOrderAccount}
-              setSessionOrder={actions.setSessionOrder}
+              groupExpansion={groupExpansion}
+              setGroupExpanded={actions.setGroupExpanded}
               revealSessionId={revealSessionId}
               onSessionRevealed={acknowledgeSessionReveal}
               t={t}
