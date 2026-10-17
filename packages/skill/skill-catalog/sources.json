@@ -1,0 +1,11 @@
+{
+ "_note": "Skills the catalog ships from a repository other than the upstream collection. Each entry pins one commit and one directory holding that skill's SKILL.md; `category` is the Settings group and the bundle directory. `scripts/sync-skill-catalog.ts` reads this file; nothing else does.",
+ "skills": [
+  {
+   "repo": "aicodeking/leanrea",
+   "ref": "09ba4aa0217f82cd880f855a60b877f59f39b22b",
+   "path": "leanrea",
+   "category": "reverse-engineering"
+  }
+ ]
+}
