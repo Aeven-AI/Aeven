@@ -18,11 +18,15 @@ The body routes by artifact — Mach-O, ELF/PE, Go, Rust, .NET, Electron, web bu
 
 The file is written in this repository against Aeven's own surfaces and names no other project.
 
+Where a deployment mounts REA's decompiler server, its tools arrive as `mcp__rea__*` and the skill hands them the questions it cannot answer: pseudocode and callers for one function, an evidence record that outlives the session, and the formats the server parses directly. `packages/bundle/web-app/cordis.patch.yml` mounts it through `@aeven/mcp-client` beside the two browser servers, so every one of its tools waits behind `tool_search` and costs one line in the tool index.
+
 ## Alternatives considered
 
 **Vendor the third-party skill file under an Aeven name.** MIT permits the copy and requires carrying its copyright notice, which the model-visible file would then owe its reader; its commands also assume a harness Aeven does not run. Writing the body here costs the work of authoring it and leaves one owner for the routing table.
 
-**Wrap a reverse-engineering MCP server.** A server owns its tool schemas and dispatch for work a shell command answers directly, and it spends tool definitions in every session's request whether or not a target exists. The value here is the routing table and the traps, which a Markdown body carries without a process.
+**Reimplement the decompiler bridges here.** Hopper, Ghidra, IDA, JEB and Kuna share no API, so a native analysis layer means five adapters and an evidence ledger to maintain against five vendors' releases. The server is MIT and maintained upstream, so this repository takes it as a dependency rather than building a worse copy.
+
+**Mount the server as the only path.** A session that never reads a binary would still wait on a child process, and every format a shell command answers would pay a round trip through an analysis server. Mounting it beside the skill keeps the cheap path free and the expensive one invisible until `tool_search` asks for it.
 
 **Ship it as a preset skill.** The `aeven` composition mounts `presets/aeven/skills/` into every session, so a preset skill is always on and Settings cannot turn it off. A person deciding whether a session carries reverse-engineering instructions is the choice this skill has to preserve.
 
@@ -31,6 +35,8 @@ The file is written in this repository against Aeven's own surfaces and names no
 ## Consequences
 
 The skill costs nothing until someone installs it and loads it: the catalog offers it to every account, and one install brings its description and instructions into the sessions of that account alone.
+
+The mounted server starts a Node child process per Host whether or not a session reads a binary; a host that cannot reach `npx` logs a startup failure, keeps its catalog entry, and leaves the skill's handoff paragraph with nothing to hand off to.
 
 Its commands are this repository's to keep current. Tool flags move — a `jadx` mode, an `otool` option, a `tshark` field name — and nothing upstream tells us when, so a stale row is corrected here and the sync carries the correction to Settings.
 

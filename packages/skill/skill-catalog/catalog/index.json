@@ -601,8 +601,8 @@
       "author": "",
       "path": "packages/skill/skill-catalog/authored/reverse-engineering",
       "files": 1,
-      "bytes": 4174,
-      "sha256": "72d4b40842215b1f80bbc4696311b84d8edabded26c91af9d76e0845a7b9b3aa",
+      "bytes": 4161,
+      "sha256": "7f51376fc5997f4ceaeb2f571f6dbaed1f88ce7a968e4922130c3fccaf62bfff",
       "verdict": "net-new",
       "value": 5
     },
