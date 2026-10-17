@@ -309,6 +309,8 @@ export function AppFrame({
       data-switching={switching || undefined}
       data-fullscreen={panels.fullscreen || undefined}
     >
+      {/* The drag strip stays below toolbar controls and their no-drag regions. */}
+      <div className={css.dragBand} aria-hidden="true" />
       <DocumentTitle
         productTitle={productTitle}
         {...documentTitle === undefined ? {} : { title: documentTitle }}

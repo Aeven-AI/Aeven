@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-10-17-window-drag-band-element.md
+2026-10-17-window-drag-band-element.md: 0bd068e2528a2e5c77c60722a17e6c591ddb792c
+2026-10-17-window-drag-band-element.zh.md: 37f3426e1936ff2fe0e3eac1cb49bc3a9971eaa1

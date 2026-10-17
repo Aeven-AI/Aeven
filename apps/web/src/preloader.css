@@ -22,23 +22,21 @@ body[data-ds-dark-theme] #root {
   background-color: #111111;
 }
 
+
 /* The macOS desktop window has no title bar, so the page owns the band that
-   drags it. It is drawn here, in the first-paint shell, rather than by a
-   component: the shell's preload marks the document as soon as the parser
-   creates the document element, and the band then exists on the first painted
-   frame. It clears this shell's own preloader, and the control size falls back
-   to the client theme's own value while no theme stylesheet has loaded. The
-   band takes no pointer events, so a control drawn inside it keeps its clicks;
-   the client's controls subtract themselves from it with `no-drag`. */
-html[data-avn-traffic-lights] body::before {
-  content: '';
+   drags it. It is a real element, because Chromium reads `-webkit-app-region`
+   from elements and ignores pseudo-elements. The boot cover sits above the
+   application, so the band sits above the cover. Hidden covers disable their
+   native drag region so they cannot intercept toolbar clicks. */
+html[data-avn-traffic-lights] .avn-drag-band {
   position: fixed;
   top: 0;
   right: 0;
   left: 0;
   height: calc(8px + var(--dsw-aeven-control-size, 40px));
-  z-index: 2001;
-  pointer-events: none;
+  /* Above this cover's own face, which is a sibling of equal rank. */
+  z-index: 2;
+  user-select: none;
   -webkit-app-region: drag;
 }
 
@@ -157,6 +155,14 @@ body[data-ds-dark-theme] #avn-preloader {
   width: 0;
   height: 0;
   visibility: hidden;
+}
+
+html[data-avn-traffic-lights] #avn-preloader {
+  -webkit-app-region: drag;
+}
+
+html[data-avn-traffic-lights] #avn-preloader.screen-hidden {
+  display: none;
 }
 
 @keyframes avn-preloader-spin {

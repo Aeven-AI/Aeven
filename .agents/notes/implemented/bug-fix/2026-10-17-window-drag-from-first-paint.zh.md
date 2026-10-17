@@ -10,6 +10,8 @@ Status: implemented
 
 ## 决策
 
+**[窗口拖动条是一个元素](2026-10-17-window-drag-band-element.zh.md) 部分取代本记录。** 该矩形现在由绘制它的每个文档以元素形式给出，因为 Chromium 只从元素读取 `-webkit-app-region`，本记录所决定的伪元素规则从未真正拖动窗口。
+
 该条带由 shell 拥有，两个可能承载窗口的文档各自绘制：
 
 - `startPageDocument()` 只为 macOS 绘制，位于自身底色之上，因此启动画面在首次绘制时即可拖动。
@@ -29,4 +31,4 @@ macOS 条带成为文档级规则，因此在拖动命中测试上位于客户�
 
 ## 验证
 
-`apps/desktop/tests/start-screen.spec.ts` 断言 macOS 文档带有该条带，而 Windows 与 Linux 文档不带。新增的 `apps/web/tests/preloader-shell.spec.ts` 断言首帧规则的门槛、高度回退、拖动声明、高于预加载界面的 z-index 以及指针透明。此处没有在运行中的窗口里实际验证该条带，那需要以 macOS 启动开发版或打包版 shell。
+`apps/desktop/tests/start-screen.spec.ts` 断言 macOS 文档带有该条带，而 Windows 与 Linux 文档不带。本记录新增的 `apps/web/tests/preloader-shell.spec.ts` 已随它所守护的伪元素规则一并删除；其替代者归 [条带元素记录](2026-10-17-window-drag-band-element.zh.md) 所有。此处没有在运行中的窗口里实际验证该条带，那需要以 macOS 启动开发版或打包版 shell。
