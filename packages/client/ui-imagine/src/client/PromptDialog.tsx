@@ -111,7 +111,10 @@ export function PromptDialog({ prompt, inputActions, t, onClose }: {
       headless
       onClose={onClose}
       title={t(`prompt.${prompt.id}.title`)}
-      className={clsx(css.dialog, prompt.image === undefined && prompt.clip === undefined && css.solo)}
+      className={clsx(
+        css.dialog,
+        prompt.image === undefined && prompt.clip === undefined ? css.solo : css.media,
+      )}
     >
       <div
         className={css.layout}
