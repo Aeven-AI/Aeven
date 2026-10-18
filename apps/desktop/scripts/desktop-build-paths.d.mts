@@ -16,6 +16,7 @@ export interface DesktopTargetBuildPaths {
   readonly packedLandlock: string
   readonly packedWhisper: string
   readonly packedWhatsApp: string
+  readonly packedFfmpeg: string
   readonly packedTelegram: string
   readonly packedDiscord: string
   readonly downloads: string

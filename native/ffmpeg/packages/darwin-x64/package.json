@@ -1,0 +1,26 @@
+{
+  "name": "@aeven/ffmpeg-darwin-x64",
+  "version": "0.1.0",
+  "description": "Bundled LGPL ffmpeg executable for darwin-x64, resolved as a file path by the Aeven Host and never imported",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Aeven.git",
+    "directory": "native/ffmpeg/packages/darwin-x64"
+  },
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "bin/ffmpeg"
+  ],
+  "license": "LGPL-2.1-or-later",
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "prepack": "node ../../scripts/verify-binary.mjs"
+  }
+}

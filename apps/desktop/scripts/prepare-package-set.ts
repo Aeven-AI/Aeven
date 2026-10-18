@@ -160,6 +160,7 @@ function main(): void {
     buildPaths.packedLandlock,
     buildPaths.packedWhisper,
     buildPaths.packedWhatsApp,
+    buildPaths.packedFfmpeg,
     buildPaths.packedTelegram,
     buildPaths.packedDiscord,
   ]

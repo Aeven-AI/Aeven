@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-18-desktop-bundles-ffmpeg.md
+2026-10-18-desktop-bundles-ffmpeg.md: 0d67afc83cef32db1524f37aece46418ee55f5dc
+2026-10-18-desktop-bundles-ffmpeg.zh.md: 9be2c6fa9500884fa3f8c352fae44671aa5ffbac

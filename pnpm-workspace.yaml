@@ -11,6 +11,9 @@ packages:
   # The WhatsApp connector daemon keeps its vendored Go source and cross-compiled build under native/whatsapp-mcp.
   - native/whatsapp-mcp
   - native/whatsapp-mcp/packages/*
+  # The bundled ffmpeg keeps its pinned release source and LGPL-only native build under native/ffmpeg.
+  - native/ffmpeg
+  - native/ffmpeg/packages/*
   # The Telegram connector daemon keeps its pinned upstream source and the Aeven daemon entry under native/telegram-mcp.
   - native/telegram-mcp
   # The Discord connector server keeps the Aeven-owned curated MCP surface under native/discord-mcp.

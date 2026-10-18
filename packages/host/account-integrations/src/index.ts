@@ -31,7 +31,7 @@ import { googleConnection, googleService, verifyGoogle } from './google.ts'
 import { microsoftConnection, microsoftService, verifyMicrosoft } from './microsoft.ts'
 import { publicToolName } from '@aeven/mcp-client'
 import { parsePersonalSkill } from './skills.ts'
-import { resolveWhatsAppBinary, WhatsAppDaemon } from './whatsapp.ts'
+import { resolveFfmpegBinary, resolveWhatsAppBinary, WhatsAppDaemon } from './whatsapp.ts'
 import { resolveTelegramEntry, TelegramDaemon, type TelegramCredentials, type TelegramDaemonStatus } from './telegram.ts'
 import { discordGuildIcon, resolveDiscordEntry, DISCORD_ADMIN_PERMISSIONS, DISCORD_CURATED_PERMISSIONS, type DiscordGuild } from './discord.ts'
 import { isSlackReadTool, slackConnectorId, SLACK_DIRECT_MESSAGE_SCOPES, SLACK_MCP_ENDPOINT, SLACK_WORKSPACE_SCOPES, type SlackWorkspace } from './slack.ts'
@@ -496,6 +496,7 @@ export default class AccountIntegrations extends TypertRemoteService {
   private readonly consents = new Map<string, PendingConsent>()
   private readonly consentFailures = new Map<string, { authorizationFailure: 'admin-consent-required' | 'failed'; adminConsentUrl?: string }>()
   private readonly whatsappBinary: string | undefined
+  private readonly ffmpegBinary: string | undefined
   private readonly telegramEntry: string | undefined
   private readonly discordEntry: string | undefined
   /** The Aeven API's connector broker; undefined without an `apiUrl`. */
@@ -524,6 +525,7 @@ export default class AccountIntegrations extends TypertRemoteService {
   constructor(ctx: Context, private readonly config: Config) {
     super(ctx, 'accountIntegrations')
     this.whatsappBinary = resolveWhatsAppBinary(config.whatsappBinaryPath)
+    this.ffmpegBinary = resolveFfmpegBinary()
     this.telegramEntry = resolveTelegramEntry(config.telegramEntryPath)
     this.discordEntry = resolveDiscordEntry(config.discordEntryPath)
     if (config.discordPermissions !== undefined && !/^\d+$/.test(config.discordPermissions)) {
@@ -1520,7 +1522,7 @@ export default class AccountIntegrations extends TypertRemoteService {
     return new WhatsAppDaemon(binary, this.whatsappDirectory(owner, id), {
       startupTimeoutMs: this.config.whatsappStartupTimeoutMs, requestTimeoutMs: this.config.timeoutMs,
       stopGraceMs: this.config.whatsappStopGraceMs,
-    })
+    }, this.ffmpegBinary)
   }
 
   /** Aeven-owned data directory of one number: the whatsmeow session and message cache in `store/`, sendable files in `media/`. */
