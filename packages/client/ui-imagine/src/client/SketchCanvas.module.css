@@ -1,0 +1,134 @@
+/* The Sketch sheet: a white page to draw on, the tools and inks around it, and
+   the one action that hands the drawing to the composer. */
+
+.dialog[role='dialog'] {
+  --sk-pad: 20px;
+  width: min(760px, 100%);
+  max-height: min(840px, calc(100vh - 48px));
+  max-height: min(840px, calc(100dvh - 48px));
+  padding: 0;
+  gap: 0;
+}
+
+.head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: var(--sk-pad) var(--sk-pad) 12px;
+}
+
+.title {
+  margin: 0;
+  color: var(--dsw-alias-label-primary);
+  font-family: var(--dsw-font-family);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 26px;
+}
+
+.tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tool {
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--dsw-alias-brand-text);
+  font-family: var(--dsw-font-family);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 22px;
+  cursor: pointer;
+}
+
+.tool:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.tool:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 32px;
+  background: var(--dsw-static-neutral-1000);
+  color: var(--dsw-static-neutral-00);
+  cursor: pointer;
+}
+
+/* The sheet itself: white paper, rounded, with plenty of room around it. */
+.sheet {
+  flex: 1;
+  min-height: 320px;
+  margin: 0 var(--sk-pad);
+  overflow: hidden;
+  border-radius: var(--dsw-aeven-radius-content);
+  background: var(--dsw-static-neutral-00);
+}
+
+.canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.foot {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 12px;
+  padding: 16px var(--sk-pad) var(--sk-pad);
+}
+
+.notice {
+  margin: 0;
+  color: var(--dsw-alias-state-error-primary);
+  font-family: var(--dsw-font-family);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.palette {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+/* One ink: a plain disc that grows a ring when it is the pen in hand. */
+.ink {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.ink[aria-pressed='true'] {
+  box-shadow: 0 0 0 2px var(--dsw-alias-bg-layer-2), 0 0 0 4px var(--dsw-alias-label-primary);
+}
+
+.done {
+  flex: none;
+  min-width: 112px;
+}

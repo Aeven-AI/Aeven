@@ -2,6 +2,8 @@
 
 Status: implemented
 
+Partially superseded by [The Imagine gallery is a template wall](2026-10-18-imagine-gallery-templates-and-preview-popup.md), which replaced this popup's presentation.
+
 English | [中文](2026-10-10-imagine-starter-prompt-popup.zh.md)
 
 ## Problem

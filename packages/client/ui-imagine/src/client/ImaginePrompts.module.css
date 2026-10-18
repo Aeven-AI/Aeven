@@ -8,13 +8,26 @@
   padding: 72px var(--avn-composer-side-clearance) 24px;
 }
 
-/* Equal 4:5 cards, as many columns as fit at 130px or wider, 8px apart. */
+/* Equal 4:5 cards, four to a row at most so each example stays big enough to
+   read; narrower windows drop to three, then two. */
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
   width: 100%;
   max-width: var(--avn-composer-card-max-width);
+}
+
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .card {
@@ -24,7 +37,7 @@
   padding: 0;
   overflow: hidden;
   border: 0;
-  border-radius: 16px;
+  border-radius: var(--dsw-aeven-radius-compact);
   background: var(--dsw-alias-interactive-bg-hover);
   cursor: pointer;
 }

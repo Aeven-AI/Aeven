@@ -432,11 +432,6 @@ const ELEVATED_SCROLL_SURFACE_DEBT: SweepDebtRegistry = {
     offences: ['--dsw-specific-bubble'],
     reason: 'queued-draft editor scrolls on the bubble surface without the l2 thumb pair',
   },
-  // The prompt dialog scrolls its field list on the dialog's layer-3 surface.
-  'ui-imagine/src/client/PromptDialog.module.css': {
-    offences: ['--dsw-alias-bg-layer-3'],
-    reason: 'field list scrolls on the layer-3 dialog surface without the l2 thumb pair',
-  },
   // The job list menu scrolls on the major input's surface.
   'ui-jobs/src/client/JobListAction.module.css': {
     offences: ['--dsw-specific-input-major'],

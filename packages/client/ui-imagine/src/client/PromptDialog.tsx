@@ -5,17 +5,19 @@
  *
  * Choosing never generates on its own: `Try it` writes the message into the
  * composer and stages the chosen photos as that draft's images, and the reader
- * sends it like any other message.
+ * sends it like any other message. The message itself is not shown here — the
+ * popup previews what the prompt makes and the two choices behind it.
+ *
+ * The example stage is the popup's full height on the left; the copy, the
+ * choices and the action share one right-hand column whose body alone scrolls.
  */
 import { useEffect, useRef, useState } from 'react'
 import clsx from 'clsx'
-import {
-  Button, CopyIconButton, IconCloseOutline16, IconPlusOutline20, IconRefreshOutline16, Modal,
-} from '@aeven/client-ui-primitives'
+import { Button, IconCloseOutline16, IconPlusOutline20, Modal } from '@aeven/client-ui-primitives'
 import type { InputActions } from '@aeven/client-ui-conversation/client'
 import type { TranslateNS } from '@aeven/client-ui-slots'
 import type {} from './locales.ts'
-import { promptDefaultRatio, promptDraft, promptImageUrl, promptRatios, promptVaries } from './prompts.ts'
+import { promptClipUrl, promptDefaultRatio, promptDraft, promptImageUrl, promptRatios, promptVaries } from './prompts.ts'
 import type { ImaginePrompt, ImagineRatio } from './prompts.ts'
 import { variationAt } from './scenes.ts'
 import css from './PromptDialog.module.css'
@@ -50,17 +52,16 @@ export function PromptDialog({ prompt, inputActions, t, onClose }: {
   const [photos, setPhotos] = useState<readonly StagedPhoto[]>([])
   const [expanded, setExpanded] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
-  // The scene and the grade are drawn once per open, then walked one step per
-  // reroll: the prompt preview always shows exactly what would be sent.
+  // The scene and the grade are drawn once per open, so the message this card
+  // writes is whole when the reader takes it.
   const [roll] = useState(() => Math.random())
-  const [step, setStep] = useState(0)
   const fileInput = useRef<HTMLInputElement>(null)
   const varies = promptVaries(prompt)
   // The before half belongs to a fixed prompt that ships a pair; the varied one
   // shows a single guide image.
   const before = varies ? undefined : prompt.before
   const description = t(`prompt.${prompt.id}.description`)
-  const draft = promptDraft(prompt, ratio, t, variationAt(roll, step))
+  const draft = promptDraft(prompt, ratio, t, variationAt(roll, 0))
 
   // Preview URLs are this popup's own: revoke every one still staged when it
   // closes, whatever it closes through.
@@ -105,120 +106,137 @@ export function PromptDialog({ prompt, inputActions, t, onClose }: {
   }
 
   return (
-    <Modal open headless onClose={onClose} title={t(`prompt.${prompt.id}.title`)} className={css.dialog as string}>
-      <div className={css.layout} data-art={prompt.image === undefined ? 'none' : before === undefined ? 'single' : 'pair'}>
-        {prompt.image !== undefined && (
-          // A retouch shows its original beside the result; every other prompt
-          // shows the one example it ships.
+    <Modal
+      open
+      headless
+      onClose={onClose}
+      title={t(`prompt.${prompt.id}.title`)}
+      className={clsx(css.dialog, prompt.image === undefined && prompt.clip === undefined && css.solo)}
+    >
+      <div
+        className={css.layout}
+        data-art={prompt.image === undefined && prompt.clip === undefined ? 'none' : before === undefined ? 'single' : 'pair'}
+      >
+        {(prompt.image !== undefined || prompt.clip !== undefined) && (
+          // A retouch shows the result at full size, with the original it
+          // started from pinned over it, so the change is read at a glance;
+          // every other prompt shows the one example it ships — a still, or the
+          // clip its own prompt produced.
           <div className={css.stage} data-images={before === undefined ? 'single' : 'pair'}>
-            {before !== undefined && <img className={css.art} src={promptImageUrl(before)} alt="" />}
-            <img className={css.art} src={promptImageUrl(prompt.image)} alt="" />
+            {prompt.clip !== undefined
+              ? (
+                <video
+                  className={clsx(css.art, css.clip)}
+                  src={promptClipUrl(prompt.clip)}
+                  autoPlay
+                  preload="auto"
+                  muted
+                  loop
+                  playsInline
+                  onCanPlay={(event) => { void event.currentTarget.play().catch(() => {}) }}
+                />
+              )
+              : prompt.image !== undefined && <img className={css.art} src={promptImageUrl(prompt.image)} alt="" />}
+            {before !== undefined && (
+              <figure className={css.inset}>
+                <img className={css.insetArt} src={promptImageUrl(before)} alt="" />
+                <span className={css.insetLabel}>{t('dialog.before')}</span>
+              </figure>
+            )}
+            {before !== undefined && <span className={css.artLabel}>{t('dialog.after')}</span>}
           </div>
         )}
         <div className={css.detail}>
           <div className={css.head}>
-            <h2 className={css.title}>{t(`prompt.${prompt.id}.title`)}</h2>
+            <div className={css.headText}>
+              <h2 className={css.title}>{t(`prompt.${prompt.id}.title`)}</h2>
+              <p className={css.description} data-clamped={!expanded && description.length > CLAMP_ABOVE}>
+                {description}
+              </p>
+              {description.length > CLAMP_ABOVE && (
+                <button type="button" className={css.more} onClick={() => { setExpanded(!expanded) }}>
+                  {expanded ? t('dialog.less') : t('dialog.more')}
+                </button>
+              )}
+            </div>
             <button type="button" className={css.close} aria-label={t('dialog.close')} onClick={onClose}>
               <IconCloseOutline16 size={14} />
             </button>
           </div>
-          <p className={css.description} data-clamped={!expanded && description.length > CLAMP_ABOVE}>
-            {description}
-          </p>
-          {description.length > CLAMP_ABOVE && (
-            <button type="button" className={css.more} onClick={() => { setExpanded(!expanded) }}>
-              {expanded ? t('dialog.less') : t('dialog.more')}
-            </button>
-          )}
-          <section className={css.section}>
-            <div className={css.sectionHead}>
-              <span className={css.sectionLabel}>{t('dialog.aspect.label')}</span>
-              <span className={css.ratioSize}>
-                {ratio.size === undefined
-                  ? t('dialog.aspect.autoSize')
-                  : t('dialog.aspect.size', { size: ratio.size })}
-              </span>
-            </div>
-            <div className={css.ratios}>
-              {promptRatios(prompt).map(offered => (
-                <button
-                  key={offered.id}
-                  type="button"
-                  className={css.ratio}
-                  aria-pressed={offered.id === ratio.id}
-                  onClick={() => { setRatio(offered) }}
-                >
-                  {t(`dialog.aspect.${offered.id}`)}
-                </button>
-              ))}
-            </div>
-          </section>
-          {!varies && (
+          <div className={`${css.body} no-scrollbar`}>
             <section className={css.section}>
               <div className={css.sectionHead}>
-                <span className={css.sectionLabel}>{t('dialog.photo.label')}</span>
-                {prompt.needsPhoto !== true && <span className={css.ratioSize}>{t('dialog.photo.optional')}</span>}
+                <span className={css.sectionLabel}>{t('dialog.aspect.label')}</span>
+                <span className={css.sectionMeta}>
+                  {ratio.size === undefined
+                    ? t('dialog.aspect.autoSize')
+                    : prompt.video === true
+                      ? t('dialog.videoFrame', { size: ratio.size })
+                      : t('dialog.aspect.size', { size: ratio.size })}
+                </span>
               </div>
-              <div className={css.photos}>
-                <input
-                  ref={fileInput}
-                  type="file"
-                  multiple
-                  accept={ACCEPT}
-                  className={css.fileInput}
-                  onChange={(event) => {
-                    stage(Array.from(event.currentTarget.files ?? []))
-                    event.currentTarget.value = ''
-                  }}
-                />
-                {photos.map(photo => (
-                  <span key={photo.url} className={css.thumb}>
-                    <img className={css.thumbImage} src={photo.url} alt="" />
-                    <button
-                      type="button"
-                      className={css.thumbRemove}
-                      aria-label={t('dialog.photo.remove')}
-                      onClick={() => { unstage(photo.url) }}
-                    >
-                      <IconCloseOutline16 size={12} />
-                    </button>
-                  </span>
+              <div className={css.ratios}>
+                {promptRatios(prompt).map(offered => (
+                  <button
+                    key={offered.id}
+                    type="button"
+                    className={css.ratio}
+                    aria-pressed={offered.id === ratio.id}
+                    onClick={() => { setRatio(offered) }}
+                  >
+                    {t(`dialog.aspect.${offered.id}`)}
+                  </button>
                 ))}
-                <button
-                  type="button"
-                  className={css.addTile}
-                  aria-label={t('dialog.photo.add')}
-                  onClick={() => { fileInput.current?.click() }}
-                >
-                  <IconPlusOutline20 />
-                </button>
               </div>
             </section>
-          )}
-          <section className={css.section}>
-            <div className={css.sectionHead}>
-              <span className={css.sectionLabel}>{t('dialog.prompt.label')}</span>
-              <span className={css.promptActions}>
-                {varies && (
+            {!varies && (
+              <section className={css.section}>
+                <div className={css.sectionHead}>
+                  <span className={css.sectionLabel}>{t('dialog.photo.label')}</span>
+                  {prompt.needsPhoto !== true && <span className={css.sectionMeta}>{t('dialog.photo.optional')}</span>}
+                </div>
+                <div className={css.photos}>
+                  <input
+                    ref={fileInput}
+                    type="file"
+                    multiple
+                    accept={ACCEPT}
+                    className={css.fileInput}
+                    onChange={(event) => {
+                      stage(Array.from(event.currentTarget.files ?? []))
+                      event.currentTarget.value = ''
+                    }}
+                  />
+                  {photos.map(photo => (
+                    <span key={photo.url} className={css.thumb}>
+                      <img className={css.thumbImage} src={photo.url} alt="" />
+                      <button
+                        type="button"
+                        className={css.thumbRemove}
+                        aria-label={t('dialog.photo.remove')}
+                        onClick={() => { unstage(photo.url) }}
+                      >
+                        <IconCloseOutline16 size={12} />
+                      </button>
+                    </span>
+                  ))}
                   <button
                     type="button"
-                    className={css.another}
-                    onClick={() => { setStep(step + 1) }}
+                    className={css.addTile}
+                    aria-label={t('dialog.photo.add')}
+                    onClick={() => { fileInput.current?.click() }}
                   >
-                    <IconRefreshOutline16 size={12} />
-                    {t('dialog.another')}
+                    <IconPlusOutline20 />
                   </button>
-                )}
-                <CopyIconButton text={draft} label={t('image.prompt.copy')} copiedLabel={t('image.prompt.copied')} />
-              </span>
-            </div>
-            <p className={clsx(css.promptText, 'no-scrollbar')} data-imagine-prompt="">{draft}</p>
-          </section>
+                </div>
+              </section>
+            )}
+          </div>
+          <div className={css.foot}>
+            {notice !== null && <p className={css.notice} role="alert">{notice}</p>}
+            <Button variant="primary" className={css.try} onClick={apply}>{t('dialog.try')}</Button>
+          </div>
         </div>
-      </div>
-      <div className={css.foot}>
-        {notice !== null && <p className={css.notice} role="alert">{notice}</p>}
-        <Button variant="primary" onClick={apply}>{t('dialog.try')}</Button>
       </div>
     </Modal>
   )
