@@ -50,8 +50,8 @@ export const VIDEO_SETTINGS_NAMESPACE = 'media-video'
 export const name = 'tool-media'
 /**
  * The tool registry, the media seam, and durable storage must all exist.
- * `userQuestions` is read optionally: where no UI can answer, the configured
- * choice stands rather than the call failing. `fs` is read optionally too: only
+ * `userQuestions` is optional for image model selection and required to confirm
+ * each video generation. `fs` is read optionally too: only
  * a call that passes reference images needs it.
  */
 export const inject = ['tools', 'media', 'attachments']
@@ -1029,7 +1029,7 @@ function registerVideoTool(ctx: Context, config: VideoConfig): void {
 
   ctx.tools.register(defineTool({
     name: 'generate_video',
-    description: 'Generate a video clip from a text prompt, optionally starting from an image, and attach it to the conversation. Use when the user asks to create, animate, or generate a video. Give a complete prompt covering subject, action, camera movement, style, and lighting. Generation takes minutes. To animate an existing image, pass it as the first of reference_images; a second image is the last frame. The video is displayed directly to the user with playback controls. Do not repeat or embed it in your reply, write a video path, or call other tools to locate or verify it.'
+    description: 'Generate a video clip from a text prompt, optionally starting from an image, and attach it to the conversation. Call only for an explicit current request to generate one video. Feedback, questions, image edits, and earlier requests do not authorize another render. Never retry a failed generation or change its model or settings without fresh user approval. Each call waits for separate user confirmation before spending money. Give a complete prompt covering subject, action, camera movement, style, and lighting. Generation takes minutes. To animate an existing image, pass it as the first of reference_images; a second image is the last frame. The video is displayed directly to the user with playback controls. Do not repeat or embed it in your reply, write a video path, or call other tools to locate or verify it.'
       + modelsText(config),
     parameters: {
       prompt: { type: 'string', required: true, description: 'Complete description of the video to generate.' },
@@ -1087,8 +1087,10 @@ function registerVideoTool(ctx: Context, config: VideoConfig): void {
       ],
     },
     async execute(args, exec) {
-      // The picker runs before the provider call, so a generation the user did
-      // not want never reaches an upstream and never spends a credit.
+      const questions = ctx.get('userQuestions')
+      if (questions === undefined) {
+        throw new MediaError('Video generation requires user confirmation, but no confirmation UI is available.', 'MEDIA_INVALID_REQUEST')
+      }
       const chosen = await selection.pick(args, exec)
       const references = await readReferences(
         ctx.get('fs'),
@@ -1097,6 +1099,26 @@ function registerVideoTool(ctx: Context, config: VideoConfig): void {
         chosen.maxReferenceImageBytes ?? DEFAULT_MAX_REFERENCE_IMAGE_BYTES,
       )
       const request = resolveVideoRequest(args, chosen, references)
+      const answer = await questions.ask({
+        questions: [{
+          id: 'video-generation',
+          header: 'Generate video',
+          question: 'Start one paid video generation?',
+          detail: [
+            `Model: ${modelLabel(chosen.choices, request.model)}`,
+            `Duration: ${request.duration === undefined ? 'model default' : `${String(request.duration)} seconds`}; resolution: ${request.resolution ?? 'model default'}; aspect ratio: ${request.aspectRatio ?? 'model default'}`,
+            args.prompt,
+          ].join('\n\n'),
+          options: [{ label: 'Cancel' }, { label: 'Generate video', description: 'Authorize this generation only.' }],
+        }],
+        ...exec.agent === undefined ? {} : { agent: exec.agent },
+        signal: exec.signal,
+      })
+      const confirmation = answer.answers.find(item => item.id === 'video-generation')
+      if (confirmation?.selected.length !== 1 || confirmation.selected[0] !== 'Generate video' || confirmation.custom !== undefined) {
+        throw new MediaError('Video generation was not confirmed. Do not retry without a new user request.', 'MEDIA_INVALID_REQUEST')
+      }
+      exec.signal.throwIfAborted()
       const started = await ctx.media.startVideo(request, exec.signal)
       const finished = await awaitVideo(
         job => ctx.media.videoStatus(job, exec.signal),

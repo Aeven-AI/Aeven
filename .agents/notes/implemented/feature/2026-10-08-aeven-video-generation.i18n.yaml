@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-08-aeven-video-generation.md
-2026-10-08-aeven-video-generation.md: 2a46fe026b090848cdcf03a5839b560589573968
-2026-10-08-aeven-video-generation.zh.md: 137824d282a8f78ac352317af9035d9751d22a7d
+2026-10-08-aeven-video-generation.md: 1f142bba42553a0fa320b43fa90ffcbdcd0947bf
+2026-10-08-aeven-video-generation.zh.md: 5376d31ffee8787209dbe9b3edf78c05543b111b

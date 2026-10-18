@@ -134,21 +134,22 @@ export const AEVEN_VIDEO_MODELS: readonly AevenVideoModel[] = [
   {
     id: 'Aeven-1.0-Video-Flash',
     label: 'Aeven Video Flash',
-    description: 'Fast tier: quick and economical video from a text prompt, a first-frame image, or a first- and a last-frame image. Duration 4, 6 or 8 seconds only (default 8; no -1, nothing longer); resolution 720p, 1080p (default) or 4K; aspect ratio 16:9 (default) or 9:16; synchronized audio on by default, generate_audio false makes it cheaper; seed 0 or more. Use it unless the clip must be longer than 8 seconds or need another aspect ratio.',
-    resolutions: ['720p', '1080p', '4K'],
+    description: 'Fast and economical tier; use it by default. Video from a text prompt or one starting image. Duration 8 seconds only (default; no -1 or other length); resolution 720p or 1080p (default); aspect ratio 16:9 (default) or 9:16; optional synchronized audio; seed 0 or more. No last-frame image or 4K.',
+    resolutions: ['720p', '1080p'],
     aspectRatios: ['16:9', '9:16'],
-    minDuration: 4,
+    minDuration: 8,
     maxDuration: 8,
-    durations: [4, 6, 8],
+    durations: [8],
   },
   {
     id: 'Aeven-1.0-Video-Pro',
     label: 'Aeven Video Pro',
-    description: 'Slower, pricier tier with better quality: for clips longer than 8 seconds or other aspect ratios, from a text prompt or a starting image. Duration 4–15 seconds (default 5) or -1 to let the model decide; resolution 480p, 720p (default) or 1080p; aspect ratio 16:9 (default), 4:3, 1:1, 3:4, 9:16, 21:9 or adaptive; optional synchronized audio; a first-frame image and optionally a last-frame image; seed.',
-    resolutions: ['480p', '720p', '1080p'],
-    aspectRatios: ['16:9', '4:3', '1:1', '3:4', '9:16', '21:9', 'adaptive'],
-    minDuration: 4,
-    maxDuration: 15,
+    description: 'Higher-quality Pro tier; choose it when quality matters more than speed and cost. Video from a text prompt or one starting image. Duration 8 seconds only (default; no -1 or other length); resolution 720p or 1080p (default); aspect ratio 16:9 (default) or 9:16; optional synchronized audio; seed 0 or more. No last-frame image or 4K.',
+    resolutions: ['720p', '1080p'],
+    aspectRatios: ['16:9', '9:16'],
+    minDuration: 8,
+    maxDuration: 8,
+    durations: [8],
   },
 ]
 
@@ -288,8 +289,8 @@ export function aevenVideoModel(id: string): AevenVideoModel | undefined {
  * Build the gateway request body that starts one video job, refusing what the
  * chosen model cannot honor before any request is made.
  *
- * Reference images travel as the clip's frames: the first is the first frame
- * and a second is the last frame. The gateway's `reference_images` field takes
+ * One reference image travels as the clip's first frame.
+ * The gateway's `reference_images` field takes
  * only HTTPS or `asset://` URLs, which local bytes do not have.
  * @param request - the seam request.
  * @returns the JSON body for `POST /v1/videos`.
@@ -325,8 +326,8 @@ export function videoRequestBody(request: MediaVideoRequest): Record<string, unk
     throw new MediaError(`${model.id} renders aspect ratios ${model.aspectRatios.join(', ')}`, 'MEDIA_INVALID_REQUEST')
   }
   const references = request.references ?? []
-  if (references.length > 2) {
-    throw new MediaError(`${model.id} takes at most a first-frame and a last-frame image`, 'MEDIA_INVALID_REQUEST')
+  if (references.length > 1) {
+    throw new MediaError(`${model.id} takes at most one starting image`, 'MEDIA_INVALID_REQUEST')
   }
   const frame = (index: number): string | undefined => {
     const reference = references[index]
@@ -335,7 +336,6 @@ export function videoRequestBody(request: MediaVideoRequest): Record<string, unk
       : `data:${reference.mediaType};base64,${Buffer.from(reference.data).toString('base64')}`
   }
   const first = frame(0)
-  const last = frame(1)
   return {
     model: model.id,
     prompt: request.prompt,
@@ -345,7 +345,6 @@ export function videoRequestBody(request: MediaVideoRequest): Record<string, unk
     ...request.seed === undefined ? {} : { seed: request.seed },
     ...request.generateAudio === undefined ? {} : { generate_audio: request.generateAudio },
     ...first === undefined ? {} : { first_frame_image: first },
-    ...last === undefined ? {} : { last_frame_image: last },
   }
 }
 

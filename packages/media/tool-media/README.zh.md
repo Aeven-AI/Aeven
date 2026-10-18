@@ -40,6 +40,8 @@ kind: "package-reference"
 
 `generate_video` 同样只需 `prompt`。`model` 为单次调用覆盖所选视频模型；`duration`、`resolution`、`aspect_ratio`、`seed` 与 `generate_audio` 转发至 Seam 的视频请求；`reference_images` 最多列出两张图像，按上述方式读取，Provider 将其用作首帧与尾帧。
 
+每次 `generate_video` 调用都必须在 provider 启动任务前取得独立的用户确认。问题展示所选模型、请求的时长、分辨率、宽高比和提示词。只有明确选择 `Generate video` 才授权该次调用；取消、自由文本及先前的模型选择均不构成授权。没有确认 UI 的调用在到达 provider 前失败。重试或再次渲染需要重新确认。
+
 -----
 
 <a id="understand-the-implementation"></a>

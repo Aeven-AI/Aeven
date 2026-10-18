@@ -1,0 +1,14 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Aeven video tiers > offers the same Veo options on both tiers and rejects Seedance-only requests 1`] = `
+[
+  {
+    "description": "Fast and economical tier; use it by default. Video from a text prompt or one starting image. Duration 8 seconds only (default; no -1 or other length); resolution 720p or 1080p (default); aspect ratio 16:9 (default) or 9:16; optional synchronized audio; seed 0 or more. No last-frame image or 4K.",
+    "id": "Aeven-1.0-Video-Flash",
+  },
+  {
+    "description": "Higher-quality Pro tier; choose it when quality matters more than speed and cost. Video from a text prompt or one starting image. Duration 8 seconds only (default; no -1 or other length); resolution 720p or 1080p (default); aspect ratio 16:9 (default) or 9:16; optional synchronized audio; seed 0 or more. No last-frame image or 4K.",
+    "id": "Aeven-1.0-Video-Pro",
+  },
+]
+`;

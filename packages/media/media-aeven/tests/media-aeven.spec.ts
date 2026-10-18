@@ -315,3 +315,20 @@ describe('generating', () => {
     expect(await ctx.media.listImageModels()).toEqual([])
   })
 })
+
+describe('Aeven video tiers', () => {
+  it('offers the same Veo options on both tiers and rejects Seedance-only requests', () => {
+    for (const model of provider.AEVEN_VIDEO_MODELS) {
+      const duration = 8
+      expect(provider.videoRequestBody({ model: model.id, prompt: 'A slow ocean wave', duration, resolution: '1080p', aspectRatio: '16:9' }))
+        .toMatchObject({ model: model.id, duration, resolution: '1080p', aspect_ratio: '16:9' })
+      for (const duration of [-1, 4, 5, 6, 15]) {
+        expect(() => provider.videoRequestBody({ model: model.id, prompt: 'x', duration })).toThrow('renders only 8 seconds')
+      }
+      expect(() => provider.videoRequestBody({ model: model.id, prompt: 'x', aspectRatio: '1:1' })).toThrow('renders aspect ratios 16:9, 9:16')
+      expect(() => provider.videoRequestBody({ model: model.id, prompt: 'x', references: [{ mediaType: 'image/png', data: PNG }, { mediaType: 'image/png', data: PNG }] })).toThrow('takes at most one starting image')
+      expect(() => provider.videoRequestBody({ model: model.id, prompt: 'x', resolution: '480p' })).toThrow('renders 720p, 1080p')
+    }
+    expect(provider.AEVEN_VIDEO_MODELS.map(model => ({ id: model.id, description: model.description }))).toMatchSnapshot()
+  })
+})
