@@ -18,6 +18,13 @@ import { variationAt } from './scenes.ts'
 import type { ImagineVariation } from './scenes.ts'
 import type {} from './locales.ts'
 
+/** The ratios a video starter offers, with the frame each asks for. */
+export const IMAGINE_VIDEO_RATIOS: readonly [ImagineRatio, ...ImagineRatio[]] = [
+  { id: 'wide', size: '16:9' },
+  { id: 'story', size: '9:16' },
+  { id: 'square', size: '1:1' },
+]
+
 /** One aspect ratio the popup offers. */
 export interface ImagineRatio {
   /** Ratio id, also its dictionary key suffix (`dialog.aspect.<id>`). */
@@ -44,10 +51,14 @@ export type ImagineRatioId = 'auto' | 'square' | 'portrait' | 'story' | 'wide'
 interface ImaginePromptBase {
   /** Example image file under `imagine-prompts/`, absent while no asset ships. */
   readonly image?: string
+  /** Example clip under `imagine-prompts/`, which plays in place of the still. */
+  readonly clip?: string
   /** Ratio the popup opens on; defaults to the first offered. */
   readonly ratio?: ImagineRatioId
   /** Ratios this prompt offers; defaults to every ratio. */
   readonly ratios?: readonly ImagineRatioId[]
+  /** Whether this prompt asks for a moving shot, which states a video size. */
+  readonly video?: true
 }
 
 /** A starter prompt that sends the text its dictionary holds. */
@@ -75,7 +86,10 @@ export type ImaginePromptId = ImaginePrompt['id']
 export type ImagineFixedPromptId =
   | 'aerial-view'
   | 'instagram-retouch'
-  | 'watercolor' | 'product' | 'anime' | 'stickers' | 'poster' | 'claymation'
+  | '80s-flashback' | 'caricature' | 'sketch' | 'stickers' | 'photo-booth' | 'y2k-digicam' | 'anime'
+  | 'makeup' | 'hair' | 'enhance' | 'night-flash'
+  | 'video-linen' | 'video-rain' | 'video-turn' | 'video-coast'
+  | 'watercolor' | 'product' | 'poster' | 'claymation'
   | 'neon' | 'pixel' | 'isometric' | 'oil' | 'blueprint' | 'logo'
 
 /** The starter prompts, in display order. */
@@ -99,18 +113,31 @@ export const IMAGINE_PROMPTS: readonly ImaginePrompt[] = [
     needsPhoto: true,
     ratio: 'portrait',
   },
-  { id: 'watercolor' },
-  { id: 'product' },
-  { id: 'anime' },
-  { id: 'stickers' },
-  { id: 'poster' },
-  { id: 'claymation' },
-  { id: 'neon' },
-  { id: 'pixel' },
-  { id: 'isometric' },
-  { id: 'oil' },
-  { id: 'blueprint' },
-  { id: 'logo' },
+  { id: '80s-flashback', image: '80s-flashback.jpg', needsPhoto: true, ratio: 'portrait' },
+  { id: 'caricature', image: 'caricature.jpg', needsPhoto: true, ratio: 'portrait' },
+  { id: 'sketch', image: 'sketch.jpg', ratio: 'portrait' },
+  { id: 'stickers', image: 'stickers.jpg', ratio: 'portrait' },
+  { id: 'photo-booth', image: 'photo-booth.jpg', ratio: 'portrait' },
+  { id: 'y2k-digicam', image: 'y2k-digicam.jpg', ratio: 'portrait' },
+  { id: 'anime', image: 'anime.jpg', ratio: 'portrait' },
+  { id: 'watercolor', image: 'watercolor.jpg', ratio: 'portrait' },
+  { id: 'product', image: 'product.jpg', ratio: 'portrait' },
+  { id: 'poster', image: 'poster.jpg', ratio: 'portrait' },
+  { id: 'claymation', image: 'claymation.jpg', ratio: 'portrait' },
+  { id: 'neon', image: 'neon.jpg', ratio: 'portrait' },
+  { id: 'pixel', image: 'pixel.jpg', ratio: 'portrait' },
+  { id: 'isometric', image: 'isometric.jpg', ratio: 'portrait' },
+  { id: 'oil', image: 'oil.jpg', ratio: 'portrait' },
+  { id: 'blueprint', image: 'blueprint.jpg', ratio: 'portrait' },
+  { id: 'logo', image: 'logo.jpg', ratio: 'portrait' },
+  { id: 'makeup', image: 'makeup.jpg', ratio: 'portrait' },
+  { id: 'hair', image: 'hair.jpg', needsPhoto: true, ratio: 'portrait' },
+  { id: 'enhance', image: 'enhance.jpg', needsPhoto: true, ratio: 'portrait' },
+  { id: 'night-flash', image: 'night-flash.jpg', ratio: 'portrait' },
+  { id: 'video-turn', clip: 'golden-turn.mp4', video: true, ratio: 'wide' },
+  { id: 'video-rain', clip: 'rain-bokeh.mp4', video: true, ratio: 'wide' },
+  { id: 'video-coast', clip: 'coastline.mp4', video: true, ratio: 'wide' },
+  { id: 'video-linen', clip: 'linen.mp4', video: true, ratio: 'wide' },
 ]
 
 /** The translator a starter prompt's own copy resolves through. */
@@ -122,6 +149,9 @@ type PromptTranslate = TranslateNS<'imagine'>
  * @returns the offered ratios, each resolving to a shipped ratio.
  */
 export function promptRatios(prompt: ImaginePrompt): readonly ImagineRatio[] {
+  // A video starter states a frame the video model takes, not a pixel size the
+  // image models take, so the two choices never mix.
+  if (prompt.video === true) return IMAGINE_VIDEO_RATIOS
   if (prompt.ratios === undefined) return IMAGINE_RATIOS
   return IMAGINE_RATIOS.filter(ratio => prompt.ratios?.includes(ratio.id) === true)
 }
@@ -165,7 +195,11 @@ export function promptDraft(
   const body = promptVaries(prompt) ? composeOriginal(variation ?? variationAt(0, 0), t) : t(`prompt.${prompt.id}.text`)
   const parts = [body]
   if (!promptVaries(prompt) && prompt.needsPhoto === true) parts.push(t('dialog.photoClause'))
-  if (ratio.size !== undefined) parts.push(t('dialog.sizeLine', { size: ratio.size }))
+  if (ratio.size !== undefined) {
+    parts.push(prompt.video === true
+      ? t('dialog.videoSizeLine', { size: ratio.size })
+      : t('dialog.sizeLine', { size: ratio.size }))
+  }
   return parts.join('\n\n')
 }
 
@@ -191,5 +225,14 @@ export function composeOriginal(variation: ImagineVariation, t: PromptTranslate)
  * @returns the image URL, resolved against the page.
  */
 export function promptImageUrl(file: string): string {
+  return new URL(`imagine-prompts/${file}`, document.baseURI).href
+}
+
+/**
+ * The URL of one shipped example clip.
+ * @param file - the file name under `imagine-prompts/`.
+ * @returns the clip URL, resolved against the page.
+ */
+export function promptClipUrl(file: string): string {
   return new URL(`imagine-prompts/${file}`, document.baseURI).href
 }

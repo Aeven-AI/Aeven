@@ -2,6 +2,8 @@
 
 Status: implemented
 
+本笔记的弹窗呈现已被[《Imagine 图库是一面模板墙》](2026-10-18-imagine-gallery-templates-and-preview-popup.zh.md)部分取代。
+
 [English](2026-10-10-imagine-starter-prompt-popup.md) | 中文
 
 ## Problem

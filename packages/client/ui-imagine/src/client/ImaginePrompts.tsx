@@ -7,9 +7,10 @@
 import { useState } from 'react'
 import type { PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import type {} from '@aeven/client-ui-conversation/client'
-import { IMAGINE_PROMPTS, promptImageUrl } from './prompts.ts'
+import { IMAGINE_PROMPTS, promptClipUrl, promptImageUrl } from './prompts.ts'
 import type { ImaginePromptId } from './prompts.ts'
 import { PromptDialog } from './PromptDialog.tsx'
+import { SketchCanvas } from './SketchCanvas.tsx'
 import type {} from './locales.ts'
 import css from './ImaginePrompts.module.css'
 
@@ -27,7 +28,7 @@ export function ImaginePrompts({ inputActions, t }: PropsRuntime<'conversation.s
   return (
     <section className={css.root} aria-label={t('prompts.label')}>
       <div className={css.grid}>
-        {IMAGINE_PROMPTS.map(({ id, image }) => (
+        {IMAGINE_PROMPTS.map(({ id, image, clip }) => (
           <button
             key={id}
             type="button"
@@ -35,29 +36,54 @@ export function ImaginePrompts({ inputActions, t }: PropsRuntime<'conversation.s
             data-prompt={id}
             onClick={() => { setOpen(id) }}
           >
-            {image !== undefined && !missing.includes(id) && (
-              <img
-                className={css.image}
-                src={promptImageUrl(image)}
-                alt=""
-                loading="lazy"
-                onError={() => { setMissing(current => current.includes(id) ? current : [...current, id]) }}
-              />
-            )}
+            {clip !== undefined
+              ? (
+                // A card whose example moves plays it in place, silently and on
+                // a loop, over its own still as the poster.
+                <video
+                  className={css.image}
+                  preload="auto"
+                  src={promptClipUrl(clip)}
+                  poster={image === undefined ? undefined : promptImageUrl(image)}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  aria-hidden="true"
+                  // A card inserted after load can miss the autoplay decision, so
+                  // it asks for playback once its own data is there.
+                  onCanPlay={(event) => { void event.currentTarget.play().catch(() => {}) }}
+                />
+              )
+              : image !== undefined && !missing.includes(id) && (
+                <img
+                  className={css.image}
+                  src={promptImageUrl(image)}
+                  alt=""
+                  loading="lazy"
+                  onError={() => { setMissing(current => current.includes(id) ? current : [...current, id]) }}
+                />
+              )}
             <span className={css.shade} aria-hidden="true" />
             <span className={css.title}>{t(`prompt.${id}.title`)}</span>
           </button>
         ))}
       </div>
-      {opened !== undefined && (
-        <PromptDialog
-          key={opened.id}
-          prompt={opened}
-          inputActions={inputActions}
-          t={t}
-          onClose={() => { setOpen(null) }}
-        />
-      )}
+      {opened !== undefined && (opened.id === 'sketch'
+        ? (
+          // The sketch starts as a drawing, not as a description: its card
+          // opens the sheet the reader draws on instead of the prompt popup.
+          <SketchCanvas inputActions={inputActions} t={t} onClose={() => { setOpen(null) }} />
+        )
+        : (
+          <PromptDialog
+            key={opened.id}
+            prompt={opened}
+            inputActions={inputActions}
+            t={t}
+            onClose={() => { setOpen(null) }}
+          />
+        ))}
     </section>
   )
 }

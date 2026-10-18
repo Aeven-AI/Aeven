@@ -179,7 +179,6 @@ const WIDE_NEUTRAL_BORDER_DEBT: SweepDebtRegistry = {
   // The chat bubble's queued-draft editor draws a 1px outline.
   'ui-chat/src/client/chat/MessageItem.module.css': { offences: ['.queuedEditor'], reason: 'queued-draft editor outline is 1px' },
   // The prompt dialog's aspect-ratio picker draws a 1px outline.
-  'ui-imagine/src/client/PromptDialog.module.css': { offences: ['.ratio'], reason: 'aspect-ratio picker outline is 1px' },
   // The settings navigation rail's divider is a 1px bottom border.
   'ui-settings-general/src/client/SettingsRoot.module.css': { offences: ['.navList'], reason: 'settings navigation divider is 1px' },
   // The integrations card, its fields and controls are 1px.

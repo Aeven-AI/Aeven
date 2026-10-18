@@ -2,7 +2,9 @@
 /**
  * Imagine's starter prompts: the grid, the popup a card opens, and the message
  * the composer receives from it. Choosing never generates on its own — the
- * popup writes the draft and stages the photos, and the reader sends.
+ * popup writes the draft and stages the photos, and the reader sends. The
+ * message itself is not shown in the popup, so these specs read it back off the
+ * composer face it was written to.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
@@ -71,40 +73,45 @@ function images(): readonly HTMLImageElement[] {
   return [...document.querySelectorAll('img')]
 }
 
-/** The prompt text the popup shows and would send. */
-function promptText(): string {
-  return document.querySelector('[data-imagine-prompt]')?.textContent ?? ''
+/**
+ * The message the popup wrote into the composer.
+ * @param actions - the composer face the popup applied through.
+ * @returns the draft text of the last write, empty before any.
+ */
+function draftOf(actions: ReturnType<typeof inputFace>): string {
+  return String(actions.setDraft.mock.calls[0]?.[0] ?? '')
 }
 
 describe('starter prompt popup', () => {
-  it('shows the before and after pair, the copy, and the message it would send', () => {
+  it('shows the result with the original it started from, and writes the message on Try it', () => {
     const actions = inputFace()
     render(<PromptDialog prompt={prompt('instagram-retouch')} inputActions={actions} t={t} onClose={vi.fn()} />)
     expect(screen.getByRole('dialog', { name: 'Instagram improve' })).toBeTruthy()
     const sources = images().map(image => image.getAttribute('src') ?? '')
     expect(sources.some(src => src.endsWith('instagram-retouch-before.jpg'))).toBe(true)
     expect(sources.some(src => src.endsWith('instagram-retouch.jpg'))).toBe(true)
+    // Both halves of the pair are named for what the reader is looking at.
+    expect(screen.getByText('Before')).toBeTruthy()
+    expect(screen.getByText('After')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Try it' }))
     // The default frame is the 4:5 portrait, and the message asks for the photo.
-    expect(promptText()).toContain('Generate one image at 1638x2048.')
-    expect(promptText()).toContain("If I haven't attached a photo yet")
+    expect(draftOf(actions)).toContain('Generate one image at 1638x2048.')
+    expect(draftOf(actions)).toContain("If I haven't attached a photo yet")
   })
 
-  it('rewrites the size line when another ratio is chosen', () => {
-    render(
-      <PromptDialog
-        prompt={prompt('instagram-retouch')}
-        inputActions={inputFace()}
-        t={t}
-        onClose={vi.fn()}
-      />,
-    )
-    expect(promptText()).toContain('1638x2048')
+  it('writes the size line of the ratio the reader chose', () => {
+    const actions = inputFace()
+    render(<PromptDialog prompt={prompt('instagram-retouch')} inputActions={actions} t={t} onClose={vi.fn()} />)
+    expect(screen.getByText('1638x2048 px')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: '1:1' }))
-    expect(promptText()).toContain('2048x2048')
-    expect(promptText()).not.toContain('1638x2048')
+    expect(screen.getByText('2048x2048 px')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Try it' }))
+    expect(draftOf(actions)).toContain('2048x2048')
+    expect(draftOf(actions)).not.toContain('1638x2048')
     fireEvent.click(screen.getByRole('button', { name: 'Auto' }))
-    expect(promptText()).not.toContain('Generate one image at')
     expect(screen.getByText('Matches your photo')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Try it' }))
+    expect(String(actions.setDraft.mock.calls[1]?.[0])).not.toContain('Generate one image at')
   })
 
   it('writes the message and stages the chosen photo, then closes', () => {
@@ -141,23 +148,25 @@ describe('starter prompt popup', () => {
     const close = vi.fn()
     render(<PromptDialog prompt={prompt('watercolor')} inputActions={actions} t={t} onClose={close} />)
     expect(screen.getByText('Optional')).toBeTruthy()
-    expect(promptText()).not.toContain("If I haven't attached a photo yet")
     fireEvent.click(screen.getByRole('button', { name: 'Try it' }))
     expect(actions.addImageFiles).not.toHaveBeenCalled()
-    expect(actions.setDraft).toHaveBeenCalledWith(expect.stringContaining('quiet harbor town'))
+    expect(draftOf(actions)).toContain('quiet harbor town')
+    expect(draftOf(actions)).not.toContain("If I haven't attached a photo yet")
     expect(close).toHaveBeenCalledTimes(1)
   })
 })
 
 describe('aerial view', () => {
   it("shows the reader's photo becoming the aerial frame, and sends the short command", () => {
-    render(<PromptDialog prompt={prompt('aerial-view')} inputActions={inputFace()} t={t} onClose={vi.fn()} />)
+    const actions = inputFace()
+    render(<PromptDialog prompt={prompt('aerial-view')} inputActions={actions} t={t} onClose={vi.fn()} />)
     expect(screen.getByRole('dialog', { name: 'Aerial view' })).toBeTruthy()
     const sources = images().map(image => image.getAttribute('src') ?? '')
     expect(sources.some(src => src.endsWith('aerial-view-before.jpg'))).toBe(true)
     expect(sources.some(src => src.endsWith('aerial-view.jpg'))).toBe(true)
     expect(screen.getByText('Your photo')).toBeTruthy()
-    const text = promptText()
+    fireEvent.click(screen.getByRole('button', { name: 'Try it' }))
+    const text = draftOf(actions)
     expect(text).toContain('as a real drone photograph from high above')
     expect(text).toContain('not a miniature or tilt-shift effect')
     expect(text).toContain("If I haven't attached a photo yet")
@@ -167,10 +176,12 @@ describe('aerial view', () => {
   })
 
   it("drops the size line when the reader keeps their photo's own frame", () => {
-    render(<PromptDialog prompt={prompt('aerial-view')} inputActions={inputFace()} t={t} onClose={vi.fn()} />)
+    const actions = inputFace()
+    render(<PromptDialog prompt={prompt('aerial-view')} inputActions={actions} t={t} onClose={vi.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: 'Auto' }))
-    expect(promptText()).not.toContain('Generate one image at')
-    expect(promptText()).toContain('as a real drone photograph from high above')
+    fireEvent.click(screen.getByRole('button', { name: 'Try it' }))
+    expect(draftOf(actions)).not.toContain('Generate one image at')
+    expect(draftOf(actions)).toContain('as a real drone photograph from high above')
   })
 
   it('stages the chosen photo and writes the draft', () => {
@@ -203,21 +214,23 @@ describe('instagram original', () => {
     expect(document.querySelector('input[type="file"]')).toBeNull()
   })
 
-  it('composes a scene into the fixed craft, and rerolls to another scene', () => {
-    render(
-      <PromptDialog prompt={prompt('instagram-original')} inputActions={inputFace()} t={t} onClose={vi.fn()} />,
-    )
-    const first = promptText()
-    expect(sceneOf(first)).toBeDefined()
-    expect(first).toContain(en['create.craft'])
-    expect(first).toContain('Generate one image at 1638x2048.')
-    expect(first).not.toContain("If I haven't attached a photo yet")
-    fireEvent.click(screen.getByRole('button', { name: 'Another idea' }))
-    const second = promptText()
-    expect(sceneOf(second)).not.toBe(sceneOf(first))
-    // The craft is the fixed half: only the scene and the grade move.
-    expect(second).toContain(en['create.craft'])
-    expect(EN_LOOK_LINES.some(line => second.includes(line))).toBe(true)
+  it('composes one scene and one grade into the fixed craft', () => {
+    // The scene is drawn once per open: pin the draw so the composed message is
+    // the same on every run.
+    const draw = vi.spyOn(Math, 'random').mockReturnValue(0)
+    try {
+      const actions = inputFace()
+      render(<PromptDialog prompt={prompt('instagram-original')} inputActions={actions} t={t} onClose={vi.fn()} />)
+      fireEvent.click(screen.getByRole('button', { name: 'Try it' }))
+      const draft = draftOf(actions)
+      expect(sceneOf(draft)).toBe(en[`create.scene.${IMAGINE_SCENES[0]}` as keyof typeof en])
+      expect(draft).toContain(en['create.craft'])
+      expect(draft).toContain('Generate one image at 1638x2048.')
+      expect(draft).not.toContain("If I haven't attached a photo yet")
+      expect(EN_LOOK_LINES.some(line => draft.includes(line))).toBe(true)
+    } finally {
+      draw.mockRestore()
+    }
   })
 
   it('writes the composed prompt and stages nothing', () => {
@@ -228,6 +241,32 @@ describe('instagram original', () => {
     expect(actions.addImageFiles).not.toHaveBeenCalled()
     expect(actions.setDraft).toHaveBeenCalledWith(expect.stringContaining(en['create.craft']))
     expect(close).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('video starters', () => {
+  it('asks for a moving shot in a video frame, not an image', () => {
+    const actions = inputFace()
+    render(<PromptDialog prompt={prompt('video-coast')} inputActions={actions} t={t} onClose={vi.fn()} />)
+    // The frame choices are the video model's, and they state no pixel tier.
+    expect(screen.getByText('16:9 · 1080p')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '9:16' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Try it' }))
+    const draft = draftOf(actions)
+    expect(draft).toContain('rise-and-reveal')
+    expect(draft).toContain('Generate one video, 9:16 at 1080p.')
+    expect(draft).not.toContain('Generate one image')
+  })
+})
+
+describe('video starter popup', () => {
+  it('plays its own clip beside the frame choices', () => {
+    render(<PromptDialog prompt={prompt('video-coast')} inputActions={inputFace()} t={t} onClose={vi.fn()} />)
+    const clip = document.querySelector('video')
+    expect(clip?.getAttribute('src') ?? '').toMatch(/coastline\.mp4$/)
+    expect(clip?.autoplay).toBe(true)
+    expect(clip?.muted).toBe(true)
+    expect(clip?.loop).toBe(true)
   })
 })
 
@@ -287,6 +326,15 @@ describe('starter prompt grid', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(actions.setDraft).not.toHaveBeenCalled()
+  })
+
+  it('plays a moving example in place of its still, silently and on a loop', () => {
+    mountGrid(inputFace())
+    const clip = document.querySelector('video')
+    expect(clip?.getAttribute('src') ?? '').toMatch(/golden-turn\.mp4$/)
+    expect(clip?.autoplay).toBe(true)
+    expect(clip?.muted).toBe(true)
+    expect(clip?.loop).toBe(true)
   })
 
   it('drops an example image that fails to load, keeping the card title-only', () => {
