@@ -1,7 +1,7 @@
 {
   "name": "@aeven/host-account-integrations",
   "description": "Signed-in account skill and connector management",
-  "version": "0.3.6-alpha",
+  "version": "0.3.7-alpha",
   "publishConfig": {
     "access": "public"
   },

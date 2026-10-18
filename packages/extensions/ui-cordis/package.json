@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-cordis",
   "description": "Cordis dynamic-plugin definition card: the keyed cordis_define tool row with its run/stop switch",
-  "version": "0.3.6-alpha",
+  "version": "0.3.7-alpha",
   "publishConfig": {
     "access": "public"
   },

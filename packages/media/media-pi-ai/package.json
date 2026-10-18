@@ -1,7 +1,7 @@
 {
   "name": "@aeven/media-pi-ai",
   "description": "pi-ai image provider for the Aeven media seam — registers pi-ai's images registry as a ctx.media image backend, owning credential resolution, request translation, and failure mapping",
-  "version": "0.3.6-alpha",
+  "version": "0.3.7-alpha",
   "publishConfig": {
     "access": "public"
   },

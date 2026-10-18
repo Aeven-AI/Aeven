@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-brand-official",
   "description": "Official Aeven brand occupants for the Web client's sidebar slots",
-  "version": "0.3.6-alpha",
+  "version": "0.3.7-alpha",
   "publishConfig": {
     "access": "public"
   },
