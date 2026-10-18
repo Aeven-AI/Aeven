@@ -116,26 +116,14 @@ describe('apply', () => {
     expect(entry?.options).toMatchObject({ key: 'skill' })
     expect(entry?.locale).toBe('skill')
     expect(entry?.component).toBe(SkillToolRow)
-    expect(presentation.dictionaries).toEqual([{
-      namespace: 'skill', dictionaries: {
-        zh: {
-          'row.title': 'Skill',
-          'row.running': '正在加载 skill',
-          'row.failed': 'skill 加载失败',
-          'row.stopped': 'skill 加载已中止',
-          'row.instructions': '说明',
-          'menu.userOnly': '仅用户',
-        },
-        en: {
-          'row.title': 'Skill',
-          'row.running': 'Loading skill',
-          'row.failed': 'Skill load failed',
-          'row.stopped': 'Skill load stopped',
-          'row.instructions': 'Instructions',
-          'menu.userOnly': 'user-only',
-        },
-      },
-    }])
+    // Every shipped locale rides one registration; the Spanish one is checked
+    // where it differs from English rather than by repeating all copy.
+    expect(presentation.dictionaries.map(entry => entry.namespace)).toEqual(['skill'])
+    const registered = presentation.dictionaries[0]?.dictionaries as Record<string, Record<string, string>>
+    expect(Object.keys(registered).sort()).toEqual(['en', 'es', 'zh'])
+    expect(registered.zh).toMatchObject({ 'row.title': 'Skill', 'row.running': '正在加载 skill', 'menu.userOnly': '仅用户' })
+    expect(registered.en).toMatchObject({ 'row.title': 'Skill', 'row.running': 'Loading skill', 'menu.userOnly': 'user-only' })
+    expect(registered.es).toMatchObject({ 'row.title': 'Habilidad', 'row.running': 'Cargando la habilidad', 'menu.userOnly': 'solo usuario' })
   })
 
   it('registers the "/" skill source; disposal frees the name (HMR safety)', async () => {

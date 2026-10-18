@@ -1,6 +1,6 @@
 /**
  * Gate for the invariant `FALLBACK_LOCALE` rests on: every shipped dictionary
- * declares the same keys in `zh` and `en`.
+ * declares the same keys in every shipped locale (`zh`, `en`, and `es`).
  *
  * The locale runtime resolves a key through the active locale, then through
  * the single fallback locale (`en`), then surfaces the key itself. With
@@ -83,6 +83,26 @@ function readEntries(dir: string): Dirent[] {
  */
 const TRANSIENT_PROBE = /^(oxlint-contract|staged-lint-probe)-[0-9a-f-]+\./
 
+/**
+ * Locales the browser client ships. A dictionary's export name carries one of
+ * these (`zh`, `settingsZh`, `accessEs`), and pairing verifies each against the
+ * `zh` key set.
+ */
+const SHIPPED_LOCALES = ['zh', 'en', 'es'] as const
+
+/** The locale id a dictionary name declares. */
+type ShippedLocale = typeof SHIPPED_LOCALES[number]
+
+/**
+ * Capitalised form of a locale id, as the suffix names use it (`accessZh`,
+ * `accessEs`).
+ * @param locale - lowercase locale id.
+ * @returns the same id capitalised.
+ */
+function otherCase(locale: ShippedLocale): string {
+  return locale.charAt(0).toUpperCase() + locale.slice(1)
+}
+
 function walk(dir: string, out: string[]): void {
   for (const entry of readEntries(dir)) {
     const full = resolve(dir, entry.name)
@@ -115,7 +135,7 @@ function dictionariesIn(file: string): Dictionary[] {
   // before parsing — the silent narrowing this gate exists to prevent. A bare
   // `\b(zh|en)\b` misses `zhSettings`/`accessZh`, because `\b` does not hold
   // between `h` and an uppercase letter.
-  if (!/\b(zh|en)\b|\b(zh|en)[A-Z]|(Zh|En)\b/.test(text)) return []
+  if (!/\b(zh|en|es)\b|\b(zh|en|es)[A-Z]|(Zh|En|Es)\b/.test(text)) return []
   const source = ts.createSourceFile(file, text, ts.ScriptTarget.ESNext, true)
   const found: Dictionary[] = []
   const rel = relative(file)
@@ -234,16 +254,17 @@ function unwrap(node: ts.Expression | undefined): ts.Expression | undefined {
 /**
  * The locale a dictionary name declares, and the namespace-ish remainder that
  * identifies which pair it belongs to. `zh`/`en`, `zhSettings`/`enSettings`,
- * and `settingsZh`/`settingsEn` are the shapes this repo uses. A name-prefix
+ * and `settingsZh`/`settingsEn` are the shapes this repo uses; the shipped
+ * Spanish dictionaries follow the same three shapes with `es`. A name-prefix
  * shape requires an uppercase ASCII letter at the third position (`[A-Z]`),
  * matching the admission of the cheap pre-filter, so `zh2Foo`/`zh_probe`
  * cannot be treated as dictionaries in one place and skipped in another.
  * @param name - export name or synthetic inline name.
  * @returns locale plus pair key, or undefined when the name names no locale.
  */
-function localeOf(name: string): { locale: 'zh' | 'en'; pair: string } | undefined {
-  for (const locale of ['zh', 'en'] as const) {
-    const other = locale === 'zh' ? 'Zh' : 'En'
+function localeOf(name: string): { locale: ShippedLocale; pair: string } | undefined {
+  for (const locale of SHIPPED_LOCALES) {
+    const other = otherCase(locale)
     if (name === locale) return { locale, pair: '' }
     // Synthetic names for inline shapes carry their own pair key after the
     // first ':' (the enclosing array's line, or the namespace expression).
@@ -257,7 +278,7 @@ function localeOf(name: string): { locale: 'zh' | 'en'; pair: string } | undefin
 }
 
 describe('shipped locale dictionaries', () => {
-  it('declares the same keys in zh and en, so the single fallback locale always resolves', () => {
+  it('declares the same keys in every shipped locale, so the fallback chain always resolves', () => {
     const files = sourceFiles()
     // Guard the discovery itself: an empty or narrowed sweep would pass every
     // assertion below while checking nothing.
@@ -273,9 +294,9 @@ describe('shipped locale dictionaries', () => {
       if (dicts.length > 0) perFile.set(relative(file), dicts)
     }
 
-    const groups = new Map<string, Map<'zh' | 'en', Dictionary>>()
-    const place = (key: string, locale: 'zh' | 'en', dict: Dictionary): void => {
-      const slot = groups.get(key) ?? new Map<'zh' | 'en', Dictionary>()
+    const groups = new Map<string, Map<ShippedLocale, Dictionary>>()
+    const place = (key: string, locale: ShippedLocale, dict: Dictionary): void => {
+      const slot = groups.get(key) ?? new Map<ShippedLocale, Dictionary>()
       if (slot.has(locale)) {
         throw new Error(`two ${locale} dictionaries claim pair ${key}: ${slot.get(locale)?.file} and ${dict.file}`)
       }
@@ -302,6 +323,7 @@ describe('shipped locale dictionaries', () => {
 
     const problems: string[] = []
     let comparedPairs = 0
+    let spanishPairs = 0
     for (const [key, slot] of [...groups].sort()) {
       const zh = slot.get('zh')
       const en = slot.get('en')
@@ -311,15 +333,24 @@ describe('shipped locale dictionaries', () => {
         continue
       }
       comparedPairs++
-      const zhOnly = zh.keys.filter(k => !en.keys.includes(k))
-      const enOnly = en.keys.filter(k => !zh.keys.includes(k))
-      if (zhOnly.length > 0) problems.push(`${zh.file} ${zh.name} has keys absent from ${en.name}: ${zhOnly.join(', ')}`)
-      if (enOnly.length > 0) problems.push(`${en.file} ${en.name} has keys absent from ${zh.name}: ${enOnly.join(', ')}`)
+      if (slot.has('es')) spanishPairs++
+      // zh is the key-set source of truth; every other locale in the pair is
+      // compared against it, so a locale added to a pair cannot drift.
+      for (const [locale, dict] of [...slot].sort()) {
+        if (locale === 'zh') continue
+        const only = dict.keys.filter(k => !zh.keys.includes(k))
+        const missing = zh.keys.filter(k => !dict.keys.includes(k))
+        if (only.length > 0) problems.push(`${dict.file} ${dict.name} has keys absent from ${zh.name}: ${only.join(', ')}`)
+        if (missing.length > 0) problems.push(`${zh.file} ${zh.name} has keys absent from ${dict.name}: ${missing.join(', ')}`)
+      }
     }
 
     // The shipped dictionary count only grows; a collapse means discovery or
     // pairing broke, which would hide real asymmetry.
     expect(comparedPairs).toBeGreaterThan(25)
+    // Spanish is a shipped GUI language: a sweep that stops finding its
+    // dictionaries has narrowed, and the parity above would pass vacuously.
+    expect(spanishPairs).toBeGreaterThan(35)
     expect(problems).toEqual([])
   })
 })

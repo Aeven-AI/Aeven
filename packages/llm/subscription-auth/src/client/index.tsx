@@ -12,7 +12,7 @@ import { createAvnClientAdapter } from './avnClientAdapter.ts'
 import type { GrokBuildSettingsInjected } from './GrokBuildSettings.tsx'
 import { GrokBuildSettings } from './GrokBuildSettings.tsx'
 import type { GrokBuildSettingsKey } from './locales.ts'
-import { en, zh } from './locales.ts'
+import { en, es, zh } from './locales.ts'
 
 declare module '@aeven/client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -142,7 +142,7 @@ export function apply(ctx: ClientContext): void {
   const avn = createAvnClientAdapter(ctx)
   avn.assertCompatible()
   const namespace = 'settings.grok-build'
-  avn.effect(() => avn.locale.register(namespace, { zh, en }), 'avn-subscription-auth: settings copy')
+  avn.effect(() => avn.locale.register(namespace, { zh, en, es }), 'avn-subscription-auth: settings copy')
   const t = avn.locale.bind(namespace) as GrokBuildSettingsInjected['t']
   avn.installSlots({
     mountFallback: () => mountIndependentEntry(t),

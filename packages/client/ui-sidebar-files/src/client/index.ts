@@ -9,7 +9,7 @@ import type {} from '@aeven/client-ui-sidebar-select/client'
 import type { SidebarContentPaneProps } from '@aeven/client-ui-sidebar-select/client'
 import { createElement } from 'react'
 import { FilesPane } from './FilesPane.tsx'
-import { en, zh, type SidebarFilesKey } from './locales.ts'
+import { en, es, zh, type SidebarFilesKey } from './locales.ts'
 
 export type { FilesPaneProps } from './FilesPane.tsx'
 export type { SidebarFilesKey } from './locales.ts'
@@ -33,7 +33,7 @@ export const inject = ['locale']
  * @param ctx - Client root context.
  */
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-sidebar-files: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, es }), 'ui-sidebar-files: dictionaries')
   const t = ctx.locale.bind(NS)
   ctx.inject(['sidebarContent', 'remote', 'remote.workspaceFiles', 'remote.session'], (scoped) => {
     const remote = scoped.remote

@@ -7,7 +7,7 @@ import type {} from '@aeven/client-ui-settings/client'
 import type {} from '@aeven/client-ui-renderer/client'
 import type { AccountIntegrationsView, RemoteResult } from '@aeven/api-remotes/client'
 import { DetailBack, IntegrationsSection, type IntegrationsSectionInjected } from './IntegrationsSection.tsx'
-import { en, zh, type IntegrationsLocaleKey } from './locales.ts'
+import { en, es, zh, type IntegrationsLocaleKey } from './locales.ts'
 
 export type { IntegrationsSectionInjected, IntegrationsSectionProps } from './IntegrationsSection.tsx'
 export type { IntegrationsLocaleKey } from './locales.ts'
@@ -35,7 +35,7 @@ async function value<T>(result: Promise<RemoteResult<T>>): Promise<T> {
  */
 export function apply(ctx: Context): void {
   const namespace = 'settings.integrations'
-  ctx.effect(() => ctx.locale.register(namespace, { en, zh }), 'ui-settings-integrations: dictionaries')
+  ctx.effect(() => ctx.locale.register(namespace, { en, zh, es }), 'ui-settings-integrations: dictionaries')
   const t = ctx.locale.bind(namespace)
   const remote = ctx.remote.accountIntegrations
   const changes = createSnapshotStore(0)

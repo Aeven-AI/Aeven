@@ -44,3 +44,24 @@ export const en = {
   'connection.reconnect': 'Disconnected, reconnect now',
   'connection.restart': 'Connecting, restart now',
 } satisfies Record<SettingsKey, string>
+
+/** Spanish dictionary, checked complete against the zh key set. */
+export const es = {
+  'trigger': 'Ajustes',
+  'title': 'Ajustes',
+  'close': 'Cerrar',
+  'general.nav': 'General',
+  'general.intro': 'Valores predeterminados para las sesiones nuevas y el idioma de la interfaz.',
+  'choice.on': 'Sí',
+  'choice.off': 'No',
+  'background.title': 'Ejecutar en segundo plano',
+  'background.description': 'Cuando cierres la ventana, Æven permanece en la barra de menús o en la bandeja del sistema y sigue trabajando en las tareas y automatizaciones en curso.',
+  'developer.title': 'Modo desarrollador',
+  'developer.description': 'Muestra los ajustes para construir Æven, como los preajustes de agentes.',
+  'connection.error': 'Desconectado',
+  'connection.retry': 'Reconectar ahora',
+  'connection.connecting': 'Conectando',
+  'connection.connected': 'Conectado',
+  'connection.reconnect': 'Desconectado, reconectar ahora',
+  'connection.restart': 'Conectando, reiniciar ahora',
+} satisfies Record<SettingsKey, string>

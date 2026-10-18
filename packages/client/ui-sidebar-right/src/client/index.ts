@@ -11,7 +11,7 @@ import type {} from '@aeven/client-ui-session/client'
 import type { ToggleButtonInjected } from './contract/slots.ts'
 import { SidebarRightRoot } from './SidebarRightRoot.tsx'
 import { ToggleButton } from './ToggleButton.tsx'
-import { en, zh, type SidebarRightKey } from './locales.ts'
+import { en, es, zh, type SidebarRightKey } from './locales.ts'
 
 export type {
   SidebarRightBodyOwnerProps, SidebarRightRootComponentProps,
@@ -37,7 +37,7 @@ export const inject = ['slots', 'layout', 'locale']
  * @param ctx - Client root context.
  */
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-sidebar-right: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, es }), 'ui-sidebar-right: dictionaries')
 
   ctx.effect(
     () => ctx.slots.register({

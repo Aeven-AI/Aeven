@@ -14,3 +14,9 @@ export const en = {
   'session.new': 'Chat',
   'session.new.label': 'Chat',
 } satisfies Record<SidebarKey, string>
+
+/** Spanish dictionary, checked complete against the zh key set. */
+export const es = {
+  'session.new': 'Chat',
+  'session.new.label': 'Chat',
+} satisfies Record<SidebarKey, string>

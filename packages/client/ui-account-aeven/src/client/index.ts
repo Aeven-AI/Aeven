@@ -17,7 +17,7 @@ import type {} from '@aeven/client-ui-settings/client'
 import { AccountMenu, type AccountMenuInjected, type AccountReader, type AccountType } from './AccountMenu.tsx'
 import { AccountSection, type AccountSectionInjected } from './AccountSection.tsx'
 import type { CloudSubscription } from './cloud.ts'
-import { en, NS, zh, type AccountAevenKey } from './locales.ts'
+import { en, es, NS, zh, type AccountAevenKey } from './locales.ts'
 
 export type { AccountMenuInjected, AccountMenuProps, AccountReader } from './AccountMenu.tsx'
 export type { AccountSectionInjected, AccountSectionProps } from './AccountSection.tsx'
@@ -68,7 +68,7 @@ function currentReader(): AccountReader | undefined {
 
 /** Register the dictionaries and the resident navigation-band account menu. */
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-account-aeven: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, es }), 'ui-account-aeven: dictionaries')
 
   // One cache for both faces: the menu names the plan the account page reads,
   // so a change made on one must not leave the other showing the old answer. A

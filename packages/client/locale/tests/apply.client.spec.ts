@@ -7,7 +7,7 @@ import { SlotRegistry } from '@aeven/client-ui-renderer/client'
 import { apply as settingsApply, inject as settingsInject } from '@aeven/client-ui-settings/client'
 import { TestRemote } from '@aeven/client-test-runtime'
 import {
-  apply, inject, SETTINGS_NS,
+  apply, COMMON_NS, inject, SETTINGS_NS,
 } from '@aeven/client-locale/client'
 import type { LanguageRowInjected, LocaleRuntime } from '@aeven/client-locale/client'
 import { LOCALE_SETTINGS_NAMESPACE, LocaleSettingsSchema } from '../src/locale-settings.ts'
@@ -109,7 +109,7 @@ describe('locale apply', () => {
     const { entry, instance, face } = faceOf(b.slots)
     // The inject-time re-sync sealed the init window: the mirror is current.
     expect(instance.getSnapshot().active).toBe('en')
-    expect(instance.getSnapshot().options.map(o => o.id)).toEqual(['zh', 'en'])
+    expect(instance.getSnapshot().options.map(o => o.id)).toEqual(['zh', 'en', 'es'])
     // Copy rides the standard locale seat: the entry declares the namespace.
     expect(entry.locale).toBe(SETTINGS_NS)
     expect(locale.bind(SETTINGS_NS)('language.title')).toBe('Language')
@@ -138,11 +138,25 @@ describe('locale apply', () => {
     expect(instance.getSnapshot().options).toEqual([
       { id: 'zh', label: '中文' },
       { id: 'en', label: 'English' },
+      { id: 'es', label: 'Español' },
       { id: 'ja', label: '日本語' },
     ])
 
     await languagePack.dispose()
-    expect(instance.getSnapshot().options.map(option => option.id)).toEqual(['zh', 'en'])
+    expect(instance.getSnapshot().options.map(option => option.id)).toEqual(['zh', 'en', 'es'])
+  })
+
+  it('serves Spanish copy for the shipped common and settings namespaces', async () => {
+    const b = await bench()
+    declareItems(b.slots)
+    await b.ctx.plugin({ inject: [...inject], apply }).await()
+    const locale = b.ctx.get('locale') as LocaleRuntime
+
+    locale.setLocale('es')
+
+    expect(locale.bind(SETTINGS_NS)('language.title')).toBe('Idioma')
+    expect(locale.bind(COMMON_NS)('cancel')).toBe('Cancelar')
+    expect(locale.bind(COMMON_NS)('markdown.playVideo', { title: 'Demo' })).toBe('Reproducir Demo')
   })
 
   it('loads and refreshes the explicit Host preference after nonblocking activation', async () => {

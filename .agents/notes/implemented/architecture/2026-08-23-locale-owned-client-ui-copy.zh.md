@@ -22,7 +22,7 @@ typed locale namespace 与双语字典对等性可以证明已注册字典完整
 
 ## Verification
 
-AST 检查自身的 Vitest spec 固定直接 JSX、模板分支、语义文案 prop、label 数据、格式化函数返回值、locale key 调用、结构属性和字典 owner。locale 字典对等性固定 `zh`/`en` key 一致。client 组件测试同时覆盖直接翻译席位与 locale prop 适配器；组装 web 回放和规定的真实服务器 GIF 在实际 trajectory 界面上展示发布的语言切换。
+AST 检查自身的 Vitest spec 固定直接 JSX、模板分支、语义文案 prop、label 数据、格式化函数返回值、locale key 调用、结构属性和字典 owner。locale 字典对等性把每个内置 locale 的 key 固定为 `zh` 键集。client 组件测试同时覆盖直接翻译席位与 locale prop 适配器；组装 web 回放和规定的真实服务器 GIF 在实际 trajectory 界面上展示发布的语言切换。
 
 ## Alternatives considered
 

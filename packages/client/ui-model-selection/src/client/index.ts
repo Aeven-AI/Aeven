@@ -37,7 +37,7 @@ import { effortSelectionOf } from './effort.ts'
 import { ModelDirectoryResolver } from './service.ts'
 import type { ModelSelectInjected } from './slots.ts'
 import { ModelSelect } from './ModelSelect.tsx'
-import { en, zh, type ModelKey } from './locales.ts'
+import { en, es, zh, type ModelKey } from './locales.ts'
 
 export { ModelDirectory } from './directory.ts'
 export type { ModelDirectoryState } from './directory.ts'
@@ -187,7 +187,7 @@ export const inject = ['commandUi', 'locale', 'sessions', 'slots', 'remote', 're
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-model-selection: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, es }), 'ui-model-selection: dictionaries')
 
   // Non-slot faces (the command description) read through the bound translate;
   // the seat component and the row builders read the live-bound `t` per call.

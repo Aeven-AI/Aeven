@@ -10,7 +10,7 @@ import type {} from '@aeven/client-ui-renderer/client'
 import type {} from '@aeven/client-ui-conversation/client'
 import type {} from '@aeven/client-ui-settings/client'
 import { Capture, DEFAULT_VOICE_DETECTION } from './capture.ts'
-import { en, NS, zh, type VoiceKey } from './locales.ts'
+import { en, es, NS, zh, type VoiceKey } from './locales.ts'
 import { observeReadiness } from './readiness.ts'
 import { VoiceInput, type VoiceInputInjected } from './VoiceInput.tsx'
 import { VoiceSection, type VoiceSectionInjected } from './VoiceSection.tsx'
@@ -72,7 +72,7 @@ function createDictationRequests(): { source: HostObservable<number>; request: (
  * @param ctx - client root context.
  */
 export function apply(ctx: Context): void {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-voice-input: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, es }), 'ui-voice-input: dictionaries')
   const readiness = observeReadiness(ctx)
   ctx.effect(() => readiness.dispose, 'ui-voice-input: readiness')
   const captures = new Set<Capture>()

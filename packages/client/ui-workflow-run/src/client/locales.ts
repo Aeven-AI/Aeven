@@ -49,3 +49,27 @@ export const en: Record<WorkflowRunKey, string> = {
 
 /** Union of this namespace's dictionary keys. */
 export type WorkflowRunKey = keyof typeof zh
+
+/**
+ * Spanish dictionary, checked complete against the zh key set.
+ */
+export const es = {
+  'run.title': '{name}',
+  'run.members.one': '{count} miembro',
+  'run.members.other': '{count} miembros',
+  'run.empty': 'Ningún miembro iniciado',
+  'phase.unassigned': 'Sin fase',
+  'phase.empty': 'Nombre de fase vacío',
+  'statusCount.running': 'En ejecución {count}',
+  'statusCount.completed': 'Completados {count}',
+  'statusCount.failed': 'Fallidos {count}',
+  'statusCount.cancelled': 'Cancelados {count}',
+  'statusCount.interrupted': 'Interrumpidos {count}',
+  'member.empty': 'Nombre de miembro vacío',
+  'member.open': 'Abrir {name}',
+  'status.running': 'En ejecución',
+  'status.completed': 'Completado',
+  'status.failed': 'Fallido',
+  'status.cancelled': 'Cancelado',
+  'status.interrupted': 'Interrumpido',
+} satisfies Record<WorkflowRunKey, string>

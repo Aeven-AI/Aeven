@@ -17,7 +17,7 @@ import type {} from '@aeven/client-locale/client'
 import { PendingLocation } from './contract/slots.ts'
 import { geolocationPermission, readDevicePosition } from './device-position.ts'
 import { LocationPanel } from './LocationPanel.tsx'
-import { en, zh } from './locales.ts'
+import { en, es, zh } from './locales.ts'
 
 export type { LocationComposerProps, PendingLocation } from './contract/slots.ts'
 export type { LocationKey } from './locales.ts'
@@ -72,7 +72,7 @@ async function answerLocation(
  * @param ctx - Client root context.
  */
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-location: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, es }), 'ui-location: dictionaries')
   const registerPendingInteraction = ctx.uiSession.registerPendingInteraction<PendingLocation>(
     () => 0,
   )

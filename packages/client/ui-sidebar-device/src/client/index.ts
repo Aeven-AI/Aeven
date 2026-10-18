@@ -9,7 +9,7 @@ import type {} from '@aeven/client-ui-sidebar-select/client'
 import type { SidebarContentPaneProps } from '@aeven/client-ui-sidebar-select/client'
 import { createElement } from 'react'
 import { DevicePane } from './DevicePane.tsx'
-import { en, zh } from './locales.ts'
+import { en, es, zh } from './locales.ts'
 import { DeviceClient } from './state.ts'
 
 export type { DevicePaneProps } from './DevicePane.tsx'
@@ -26,7 +26,7 @@ export const inject = ['locale']
  * @param ctx - Client root context.
  */
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-sidebar-device: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, es }), 'ui-sidebar-device: dictionaries')
   const t = ctx.locale.bind(NS)
   ctx.inject(['sidebarContent', 'remote', 'remote.device'], (scoped) => {
     // One device client per Remote: every pane shares its state subscription.

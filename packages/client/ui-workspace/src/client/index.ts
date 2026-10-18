@@ -37,7 +37,7 @@ import { WorkspaceHeaderActions } from './HeaderActions.tsx'
 import { WorkspaceHeaderSearch } from './rows/HeaderSearch.tsx'
 import { WorkspaceBrowser } from './rows/WorkspaceBrowser.tsx'
 import { WorkspacePicker } from './WorkspacePicker.tsx'
-import { en, zh, type WorkspaceKey } from './locales.ts'
+import { en, es, zh, type WorkspaceKey } from './locales.ts'
 
 export type { SessionMoveTarget, UiWorkspace } from './navigation.ts'
 export type {
@@ -88,7 +88,7 @@ export function apply(ctx: Context): void {
     ctx, ctx.remote.directoryPicker, workspaces, sessions,
     new BrowserSessionUrlNavigation(() => window))
   ctx.slots.provideRoot({ hooks: { workspaces: workspaces.list } })
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-workspace: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, es }), 'ui-workspace: dictionaries')
 
   const searchSessions: WorkspaceHeaderSearchInjected['searchSessions'] = async (query, signal) => {
     const result = await sessions.search(query, signal)

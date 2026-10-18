@@ -26,7 +26,7 @@ import type {} from '@aeven/api-session-controller/client'
 import { PendingQuestion } from './contract/slots.ts'
 import { createQuestionDraftStore } from './draft-store.ts'
 import { QuestionComposer } from './QuestionComposer.tsx'
-import { en, zh, type QuestionKey } from './locales.ts'
+import { en, es, zh, type QuestionKey } from './locales.ts'
 
 export type {
   PendingQuestion, PlanReview, QuestionAnswer, QuestionComposerProps, QuestionWait,
@@ -72,7 +72,7 @@ async function answerQuestion(
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-user-questions: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, es }), 'ui-user-questions: dictionaries')
   const questionDraftStore = createQuestionDraftStore()
   const registerPendingInteraction = ctx.uiSession.registerPendingInteraction<PendingQuestion>(
     pending => pending.kind === 'plan-review' ? 2 : 1,

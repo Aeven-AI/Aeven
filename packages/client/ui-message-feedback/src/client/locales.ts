@@ -41,3 +41,19 @@ export const en = {
   'error.load': 'Could not load feedback',
   'error.generic': 'Could not save feedback',
 } satisfies Record<MessageFeedbackKey, string>
+
+/** Spanish dictionary, checked complete against the zh key set. */
+export const es = {
+  'action.like': 'Buena respuesta',
+  'action.likeActive': 'Quitar la valoración',
+  'action.dislike': 'Mala respuesta',
+  'action.dislikeActive': 'Quitar la valoración',
+  'note.open': 'Añadir una nota',
+  'note.edit': 'Editar la nota',
+  'note.dialog': 'Comentarios',
+  'note.placeholder': '¿Qué estuvo bien o qué salió mal?',
+  'note.aria': 'Nota de comentarios',
+  'error.conflict': 'Estos comentarios cambiaron en otro lugar; se muestra el estado más reciente',
+  'error.load': 'No se pudieron cargar los comentarios',
+  'error.generic': 'No se pudieron guardar los comentarios',
+} satisfies Record<MessageFeedbackKey, string>

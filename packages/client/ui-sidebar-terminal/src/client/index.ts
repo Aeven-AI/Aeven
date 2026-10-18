@@ -12,7 +12,7 @@ import type {} from '@aeven/client-ui-theme/client'
 import type { SessionId } from '@aeven/session/types'
 import { createElement } from 'react'
 import { TerminalPane, type TerminalHolds, type ThemeSource } from './TerminalPane.tsx'
-import { en, zh } from './locales.ts'
+import { en, es, zh } from './locales.ts'
 
 export type { TerminalPaneProps } from './TerminalPane.tsx'
 
@@ -28,7 +28,7 @@ export const inject = ['locale', 'theme']
  * @param ctx - Client root context.
  */
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-sidebar-terminal: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, es }), 'ui-sidebar-terminal: dictionaries')
   const t = ctx.locale.bind(NS)
   const theme: ThemeSource = {
     getSnapshot: () => ctx.theme.getTheme(),

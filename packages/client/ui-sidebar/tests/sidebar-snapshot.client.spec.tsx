@@ -14,6 +14,7 @@ import { act, cleanup } from '@testing-library/react'
 import { SlotTestRuntime, usePinnedBrowserLanguages } from '@aeven/client-test-runtime'
 import { LocaleRuntime } from '@aeven/client-locale/client'
 import { en as commonEn } from '@aeven/client-locale/src/locales/en.ts'
+import { es as commonEs } from '@aeven/client-locale/src/locales/es.ts'
 import { zh as commonZh } from '@aeven/client-locale/src/locales/zh.ts'
 import { apply, inject } from '@aeven/client-ui-sidebar/client'
 
@@ -47,7 +48,7 @@ async function bench(options: { locale?: 'en' } = {}) {
     newSessionHref: () => ({ href: '/c/snapshot-1', sessionId: 'session-snapshot-1' }),
   } as never)
   const locale = new LocaleRuntime(runtime.ctx)
-  locale.register('common', { zh: commonZh, en: commonEn })
+  locale.register('common', { zh: commonZh, en: commonEn, es: commonEs })
   if (options.locale === 'en') locale.setLocale('en')
   runtime.ctx.provide('locale', locale)
   runtime.slots.installLocale(locale)
