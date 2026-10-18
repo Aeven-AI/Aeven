@@ -9,6 +9,8 @@
    whatever order the two sheets load in. */
 .dialog[role='dialog'] {
   --im-pad: 24px;
+  /* The reading column's width, so the stage's own edges are addressable. */
+  --im-column: 380px;
   --im-block: 24px;
   --im-inner: 10px;
   width: min(920px, 100%);
@@ -24,9 +26,19 @@
   width: min(560px, 100%);
 }
 
+/* With a stage, the product's own close disc floats over the example's
+   upper-right corner instead of standing in the title row: the picture owns
+   that edge, and the control rides on it. */
+.dialog.media .close {
+  position: absolute;
+  top: 16px;
+  right: calc(var(--im-column) + 16px);
+  z-index: 3;
+}
+
 .layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 380px;
+  grid-template-columns: minmax(0, 1fr) var(--im-column);
   width: 100%;
   min-height: 0;
 }
@@ -396,7 +408,9 @@
    full width as the first band, the column follows it, and the card keeps the
    window's height rather than the image's. */
 @media (max-width: 1024px) {
+  /* Stacked, the example spans the card, so the control sits on its corner. */
   .dialog[role='dialog'] {
+    --im-column: 0px;
     width: min(680px, 100%);
     height: auto;
     max-height: calc(100vh - 32px);
