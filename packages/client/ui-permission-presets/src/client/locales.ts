@@ -61,3 +61,31 @@ export const accessEn = {
   'confirm.cancel': 'Cancel',
   'confirm.enable': 'Enable Full access',
 } satisfies Record<PermissionAccessKey, string>
+
+/** Spanish dictionary, checked complete against the zh key set. */
+export const es = {
+  'title': 'Permisos',
+  'description': 'Elige el modo de permisos predeterminado para las sesiones nuevas',
+  'loading': 'Cargando',
+  'unavailable': 'No disponible',
+  'preset.readOnly': 'Solo lectura',
+  'preset.workspaceWrite': 'Pedir aprobación',
+  'preset.fullAccess': 'Acceso completo',
+  'confirm.title': '¿Activar el acceso completo?',
+  'confirm.description': 'El acceso completo elimina el límite del sandbox y detiene las solicitudes de aprobación: los agentes de las sesiones nuevas pueden modificar cualquier archivo y ejecutar cualquier comando, incluso fuera de tu espacio de trabajo. Usa «Pedir aprobación» en su lugar, a menos que confíes por completo en las próximas tareas.',
+  'confirm.acknowledge': 'Entiendo los riesgos y quiero continuar',
+  'confirm.cancel': 'Cancelar',
+  'confirm.enable': 'Activar el acceso completo',
+} satisfies Record<PermissionSettingsKey, string>
+
+/** Spanish dictionary for the current-session popup gate. */
+export const accessEs = {
+  'preset.readOnly': 'Solo lectura',
+  'preset.workspaceWrite': 'Pedir aprobación',
+  'preset.fullAccess': 'Acceso completo',
+  'confirm.title': '¿Activar el acceso completo?',
+  'confirm.description': 'El acceso completo elimina el límite del sandbox y detiene las solicitudes de aprobación: el agente puede modificar cualquier archivo y ejecutar cualquier comando, incluso fuera de tu espacio de trabajo. Usa «Pedir aprobación» en su lugar, a menos que confíes por completo en esta tarea.',
+  'confirm.acknowledge': 'Entiendo los riesgos y quiero continuar',
+  'confirm.cancel': 'Cancelar',
+  'confirm.enable': 'Activar el acceso completo',
+} satisfies Record<PermissionAccessKey, string>

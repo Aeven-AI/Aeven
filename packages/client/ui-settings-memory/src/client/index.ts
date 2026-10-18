@@ -7,7 +7,7 @@ import type {} from '@aeven/client-ui-renderer/client'
 import type {} from '@aeven/api-session-controller/client'
 import type { ManagedMemory, RemoteResult } from '@aeven/api-remotes/client'
 import { MemorySection, type MemorySectionInjected } from './MemorySection.tsx'
-import { en, zh, type MemoryLocaleKey } from './locales.ts'
+import { en, es, zh, type MemoryLocaleKey } from './locales.ts'
 
 export type { MemorySectionInjected, MemorySectionProps } from './MemorySection.tsx'
 export type { MemoryLocaleKey } from './locales.ts'
@@ -42,7 +42,7 @@ async function value<T>(result: Promise<RemoteResult<T>>): Promise<T> {
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-settings-memory: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, es }), 'ui-settings-memory: dictionaries')
 
   const t = ctx.locale.bind(NS)
   const remote = ctx.remote.memoryManager

@@ -12,7 +12,7 @@ import type {} from '@aeven/api-job-controller/client'
 import type {} from '@aeven/client-locale/client'
 import type {} from '@aeven/client-ui-renderer/client'
 import type {} from '@aeven/client-ui-session/client'
-import { en, NS, zh, type JobKey } from './locales.ts'
+import { en, es, NS, zh, type JobKey } from './locales.ts'
 
 declare module '@aeven/client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -31,7 +31,7 @@ export const inject = ['jobs', 'slots', 'locale']
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-jobs: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, es }), 'ui-jobs: dictionaries')
   ctx.slots.inject(
     'conversation.session.header.actions',
     () => ctx.slots.register({

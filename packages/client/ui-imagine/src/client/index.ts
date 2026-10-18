@@ -26,7 +26,7 @@ import type {} from '@aeven/client-ui-tool/client'
 import { imageModelDecoration, videoModelDecoration } from './image-model-picker.ts'
 import { ImaginePrompts } from './ImaginePrompts.tsx'
 import { ImagineRow, type ImagineRowInjected } from './ImagineRow.tsx'
-import { en, zh } from './locales.ts'
+import { en, es, zh } from './locales.ts'
 
 export type { ImagineKey } from './locales.ts'
 
@@ -51,7 +51,7 @@ export const inject = ['slots', 'locale']
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-imagine: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, es }), 'ui-imagine: dictionaries')
   const t = ctx.locale.bind(NS)
 
   // The picker waits on the surfaces it decorates rather than holding the page

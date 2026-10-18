@@ -22,3 +22,13 @@ export const en = {
   no: 'No',
   ok: 'OK',
 } satisfies Record<LocationKey, string>
+
+/** Spanish dictionary, checked complete against the zh key set. */
+export const es = {
+  title: '¿Permitir que Aeven conozca tu ubicación exacta?',
+  approvePrompt: 'Acepta la solicitud de ubicación de tu navegador.',
+  blocked: 'La ubicación está bloqueada para este sitio. Permítela en los ajustes del sitio de tu navegador y luego pulsa Aceptar.',
+  unavailable: 'Tu ubicación no está disponible: {reason}',
+  no: 'No',
+  ok: 'Aceptar',
+} satisfies Record<LocationKey, string>

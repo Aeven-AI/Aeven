@@ -10,7 +10,7 @@ import type {} from '@aeven/api-session-controller/client'
 import type {} from '@aeven/client-ui-settings/client'
 import type { ClientRemote } from '@aeven/api-remotes/client'
 import { AutomationRow, AutomationsPanel, type AutomationPanelInjected, type AutomationRowInjected } from './AutomationsPanel.tsx'
-import { en, zh, type AutomationKey } from './locales.ts'
+import { en, es, zh, type AutomationKey } from './locales.ts'
 
 declare module '@aeven/client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -27,7 +27,7 @@ export const inject = ['connection', 'slots', 'locale', 'uiWorkspace', 'sessions
  * @param ctx - browser composition context.
  */
 export function apply(ctx: Context): void {
-  ctx.effect(() => ctx.locale.register('automations', { en, zh }))
+  ctx.effect(() => ctx.locale.register('automations', { en, zh, es }))
   const t = ctx.locale.bind('automations')
   const connection = ctx.get('connection') as ConnectionHandle
   const workspace = ctx.get('uiWorkspace') as UiWorkspace

@@ -14,3 +14,9 @@ export const zh: Record<SidebarRightKey, string> = {
   'toggle.open': '打开侧边栏',
   'toggle.collapse': '关闭侧边栏',
 }
+
+/** Spanish dictionary, checked complete against the zh key set. */
+export const es = {
+  'toggle.open': 'Abrir la barra lateral',
+  'toggle.collapse': 'Cerrar la barra lateral',
+} satisfies Record<SidebarRightKey, string>

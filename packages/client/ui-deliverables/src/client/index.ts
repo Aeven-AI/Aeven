@@ -16,7 +16,7 @@ import type {} from '@aeven/client-ui-conversation/client'
 import type {} from '@aeven/client-ui-renderer/client'
 import { ProducedFiles } from './ProducedFiles.tsx'
 import { desktopFileMenus, fileMenuLabels, showFileMenu } from './file-menu.ts'
-import { en, NS, zh, type DeliverablesKey } from './locales.ts'
+import { en, es, NS, zh, type DeliverablesKey } from './locales.ts'
 import {
   deliverablesDefinition, producedFileMentions, selectProducedFiles,
 } from './turn-deliverables.ts'
@@ -66,7 +66,7 @@ export function apply(ctx: ClientContext): void {
     if (requestedWorkspacePathOpen) loadWorkspacePathOpen()
   })
   ctx.uiConversation.events.register(deliverablesDefinition)
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-deliverables: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, es }), 'ui-deliverables: dictionaries')
   const t = ctx.locale.bind(NS)
   // The desktop draws the file menu; the browser-served client leaves the
   // platform's own right-click menu alone, which is what its reader expects.

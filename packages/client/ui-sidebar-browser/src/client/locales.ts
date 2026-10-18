@@ -91,3 +91,43 @@ export const zh: Record<SidebarBrowserKey, string> = {
   'engine.google': 'Google',
   'engine.duckduckgo': 'DuckDuckGo',
 }
+
+/**
+ * Spanish dictionary, checked complete against the zh key set.
+ */
+export const es = {
+  'address.label': 'Dirección',
+  'address.suggestions': 'Sugerencias de búsqueda',
+  'address.search.google': 'Busca en Google o escribe una URL',
+  'address.search.duckduckgo': 'Busca en DuckDuckGo o escribe una URL',
+  'navigation': 'Navegación',
+  'back': 'Atrás',
+  'forward': 'Adelante',
+  'refresh': 'Actualizar',
+  'stop': 'Detener',
+  'loading': 'Cargando…',
+  'openInChrome': 'Abrir en Chrome',
+  'link.open': 'Abrir',
+  'link.openInSidebar': 'Abrir en la barra lateral',
+  'link.copy': 'Copiar enlace',
+  'capture': 'Copiar captura',
+  'capture.done': 'Captura copiada',
+  'capture.failed': 'Falló la captura',
+  'menu.label': 'Más',
+  'menu.hardReload': 'Recarga forzada',
+  'menu.devtools': 'Abrir DevTools',
+  'menu.appearance': 'Apariencia',
+  'menu.zoom': 'Zoom',
+  'menu.clearCookies': 'Borrar cookies',
+  'menu.clearCache': 'Borrar caché',
+  'scheme.system': 'Sistema',
+  'scheme.light': 'Claro',
+  'scheme.dark': 'Oscuro',
+  'zoom.in': 'Acercar',
+  'zoom.out': 'Alejar',
+  'zoom.reset': 'Restablecer zoom',
+  'browser.engine': 'Motor de búsqueda',
+  'browser.engine.description': 'Se usa cuando lo escrito en la barra de direcciones no es una dirección web.',
+  'engine.google': 'Google',
+  'engine.duckduckgo': 'DuckDuckGo',
+} satisfies Record<SidebarBrowserKey, string>

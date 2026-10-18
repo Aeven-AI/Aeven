@@ -54,3 +54,31 @@ export const zh: Record<SidebarSelectKey, string> = {
   'menu.closeRight': '关闭右侧',
   'menu.closeAll': '全部关闭',
 }
+
+/**
+ * Spanish dictionary, checked complete against the zh key set.
+ */
+export const es = {
+  'browser.title': 'Navegador',
+  'browser.description': 'Abre una página junto a esta sesión',
+  'terminal.title': 'Terminal',
+  'terminal.description': 'Ejecuta un shell en este espacio de trabajo',
+  'files.title': 'Archivos del espacio de trabajo',
+  'files.description': 'Explora los archivos en los que trabaja esta sesión',
+  'device.title': 'Simulador de dispositivos',
+  'device.description': 'Ejecuta un simulador de iOS o un emulador de Android',
+  'entry.unavailable': 'Aún no disponible',
+  'back.label': 'Elegir contenido',
+  'browser.tab': 'Navegador',
+  'terminal.tab': 'Terminal',
+  'files.tab': 'Archivos',
+  'device.tab': 'Emulador de dispositivos',
+  'tabs.add': 'Agregar panel',
+  'tabs.close': 'Cerrar {title}',
+  'fullscreen.enter': 'Pantalla completa',
+  'fullscreen.exit': 'Salir de pantalla completa',
+  'menu.close': 'Cerrar',
+  'menu.closeOthers': 'Cerrar los demás',
+  'menu.closeRight': 'Cerrar a la derecha',
+  'menu.closeAll': 'Cerrar todos',
+} satisfies Record<SidebarSelectKey, string>

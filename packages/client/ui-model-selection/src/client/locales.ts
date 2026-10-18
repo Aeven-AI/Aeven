@@ -51,3 +51,21 @@ export const en = {
   'error.action': 'Selection failed: {message}',
   'blocked.composer': 'This model is unavailable — select one to continue',
 } satisfies Record<ModelKey, string>
+
+/** Spanish dictionary, checked complete against the zh key set. */
+export const es = {
+  'command.description': 'Elige el modelo de esta conversación',
+  'option.loadError': 'No se pudo cargar el catálogo: {message}',
+  'trigger.fallback': 'Elegir modelo',
+  'trigger.loading': 'Cargando modelos…',
+  'trigger.selectAria': 'Elegir modelo',
+  'trigger.aria': 'Elegir modelo, actual {model}',
+  'trigger.ariaEffort': 'Elegir modelo, actual {model}, esfuerzo de razonamiento {effort}',
+  'trigger.tooltip': 'Modelo y esfuerzo',
+  'menu.aria': 'Modelo y esfuerzo de razonamiento',
+  'menu.model': 'Modelo',
+  'menu.effort': 'Esfuerzo',
+  'effort.providerDefault': 'Predeterminado',
+  'error.action': 'La selección falló: {message}',
+  'blocked.composer': 'Este modelo no está disponible: elige uno para continuar',
+} satisfies Record<ModelKey, string>

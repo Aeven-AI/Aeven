@@ -41,3 +41,23 @@ export const en: Record<UpdateKey, string> = {
   'failedWith': 'The update could not be checked: {message}',
   'retry': 'Try again',
 }
+
+/**
+ * Spanish dictionary, checked complete against the zh key set.
+ */
+export const es = {
+  'title': 'Actualización de Aeven',
+  'close': 'Cerrar',
+  'checking': 'Buscando actualizaciones…',
+  'current': 'Ya tienes la última versión.',
+  'downloading': 'Descargando la actualización {version}…',
+  'downloadingPercent': 'Descargando la actualización {version} — {percent}%',
+  'ready': 'La actualización {version} está lista para instalar.',
+  'readyDetail': 'Al reiniciar se instala y se vuelve a abrir Aeven.',
+  'restart': 'Reiniciar e instalar',
+  'later': 'Más tarde',
+  'installing': 'Instalando la actualización {version}. Aeven se reiniciará al terminar.',
+  'failed': 'No se pudo buscar la actualización.',
+  'failedWith': 'No se pudo buscar la actualización: {message}',
+  'retry': 'Reintentar',
+} satisfies Record<UpdateKey, string>

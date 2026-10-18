@@ -40,3 +40,36 @@ export const en = {
   invalidOutput: 'The terminal screen could not be received. Reconnect to recover it.',
   terminalLimit: 'The terminal limit has been reached. Close unused terminals and try again. Exited terminals also count toward the limit.',
 } satisfies Record<keyof typeof zh, string>
+
+/**
+ * Spanish dictionary, checked complete against the zh key set.
+ */
+export const es = {
+  'recoveryFailed': 'No se pudo recuperar la terminal: {message}',
+  'retryRecovery': 'Reintentar recuperación de la terminal',
+  'shell': 'Elegir shell',
+  'shellLoading': 'Cargando shells…',
+  'shellEmpty': 'No hay shells disponibles',
+  'description': 'Ejecuta comandos en el espacio de trabajo de la sesión',
+  'title': 'Terminal',
+  'new': 'Nueva terminal',
+  'loading': 'Leyendo el entorno de terminal…',
+  'creating': 'Iniciando…',
+  'connecting': 'Conectando…',
+  'disconnected': 'Conexión cerrada.',
+  'reconnect': 'Reconectar',
+  'readonly': 'Esta vista es de solo lectura.',
+  'control': 'Tomar control',
+  'closed': 'Terminal cerrada.',
+  'exited': 'El proceso terminó ({code})',
+  'failed': 'Error de terminal: {message}',
+  'rename': 'Nombre de la terminal',
+  'unavailable': 'No disponible',
+  'retry': 'Reintentar',
+  'cleanupFailed': 'No se pudo cerrar la terminal «{title}»: {message}',
+  'missingTerminal': 'Esta terminal ya no existe. Abre una nueva terminal.',
+  'inputFull': 'El búfer de entrada está lleno. Reconecta e inténtalo de nuevo.',
+  'attachmentEnded': 'La conexión de la terminal terminó. Reconecta para continuar.',
+  'invalidOutput': 'No se pudo recibir la pantalla de la terminal. Reconecta para recuperarla.',
+  'terminalLimit': 'Se alcanzó el límite de terminales. Cierra las terminales sin usar e inténtalo de nuevo. Las terminales ya terminadas también cuentan para el límite.',
+} satisfies Record<keyof typeof zh, string>

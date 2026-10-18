@@ -26,7 +26,7 @@ import type {
   DeveloperSettings, DeveloperSettingsNamespace,
 } from '@aeven/client-ui-settings-general/client'
 import { createTrajectoryDurationStore } from './duration-store.ts'
-import { en, NS, zh } from './locales.ts'
+import { en, es, NS, zh } from './locales.ts'
 import { registerTrajectoryAssistantDefinition } from './trajectory-assistant-definition.ts'
 import { registerTrajectoryCompactionDefinitions } from './trajectory-compaction-definition.ts'
 import { registerTrajectoryMessageDefinitions } from './trajectory-message-definitions.ts'
@@ -70,7 +70,7 @@ const VIEW_INJECT = ['slots', 'sessions', 'uiSession', 'uiConversation', 'locale
  * @param ctx - client root context.
  */
 export function apply(ctx: Context): void {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-trajectory: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, es }), 'ui-trajectory: dictionaries')
   const developer = ctx.settingsScope.bind<DeveloperSettings>({ namespace: DEVELOPER_SETTINGS_NAMESPACE })
   ctx.effect(() => {
     let view: Fiber | undefined

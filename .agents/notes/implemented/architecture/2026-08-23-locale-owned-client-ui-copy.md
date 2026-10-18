@@ -22,7 +22,7 @@ The product-authored error and design-literal exclusions, primitive defaults, an
 
 ## Verification
 
-The AST check's own Vitest spec pins direct JSX, template branches, semantic copy props, label data, formatter returns, locale-key calls, structural attributes, and dictionary owners. Locale dictionary parity pins identical `zh`/`en` keys. Client component suites exercise both direct translated seats and locale-prop adapters, and the assembled web replay plus the required real-server GIF demonstrate the shipped locale switch on the actual trajectory surface.
+The AST check's own Vitest spec pins direct JSX, template branches, semantic copy props, label data, formatter returns, locale-key calls, structural attributes, and dictionary owners. Locale dictionary parity pins every shipped locale's keys to the `zh` set. Client component suites exercise both direct translated seats and locale-prop adapters, and the assembled web replay plus the required real-server GIF demonstrate the shipped locale switch on the actual trajectory surface.
 
 ## Alternatives considered
 

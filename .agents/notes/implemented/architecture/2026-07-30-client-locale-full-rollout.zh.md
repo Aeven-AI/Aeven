@@ -14,7 +14,7 @@ typed locale 标准席位（`locale:` 注册声明 → 框架注入强类型 `t`
 
 **组件文案走标准 `t` 席位；深层子组件用 prop 下传**，类型写 `XxxProps['t']`。字典规范形态不变：`zh satisfies Record<string, string>` 为 key 源、`en satisfies Record<XxxKey, string>` 锁双语平衡。
 
-**内置 locale 集合封闭，语言目录可扩展。** 本包只提供 `zh` 与 `en`，类型化命名空间注册仍要求这对双语字典。外部 client 插件通过 `ctx.effect(() => ctx.locale.addLanguage({ id, label, fallback }))` 增加语言，并通过既有的单 locale 字典注册贡献不完整翻译；语言定义与字典可以按任意顺序注册。外部语言 id 是经过校验的 BCP 47 标签，同时用于偏好存储、字典查找、浏览器匹配和 `<html lang>`；该标签承载可互操作的语言语义而非不透明身份，因此 `LocaleId` 保持 string。内置 `zh` 定义继续使用内部 `zh-CN` 文档标签。每个新增语言都声明一个已注册的 fallback，fallback 自身的定义给出下一层 fallback，整条链必须终止于 `en`；未知目标和循环在注册时失败。每个 key 先在请求的命名空间中沿链查找，再在 `common` 中重复同一条链，最后显示 key 本身。Host 存储开放字符串偏好；不可用的已保存 id 会保持待采用，直至对应语言注册；定义移除后，正在使用的选择会回落到可用的浏览器匹配或 `en`。目录变更推进 `LocaleFace` revision，使语言设置行跟随注册和 dispose。
+**内置 locale 集合封闭，语言目录可扩展。** 本包提供 `zh`、`en` 与 `es`，类型化命名空间注册要求每个内置 locale 的字典，完整性因此仍是编译期属性（见[内置西班牙语 GUI locale](2026-10-19-shipped-spanish-locale.zh.md)）。外部 client 插件通过 `ctx.effect(() => ctx.locale.addLanguage({ id, label, fallback }))` 增加语言，并通过既有的单 locale 字典注册贡献不完整翻译；语言定义与字典可以按任意顺序注册。外部语言 id 是经过校验的 BCP 47 标签，同时用于偏好存储、字典查找、浏览器匹配和 `<html lang>`；该标签承载可互操作的语言语义而非不透明身份，因此 `LocaleId` 保持 string。内置 `zh` 定义继续使用内部 `zh-CN` 文档标签。每个新增语言都声明一个已注册的 fallback，fallback 自身的定义给出下一层 fallback，整条链必须终止于 `en`；未知目标和循环在注册时失败。每个 key 先在请求的命名空间中沿链查找，再在 `common` 中重复同一条链，最后显示 key 本身。Host 存储开放字符串偏好；不可用的已保存 id 会保持待采用，直至对应语言注册；定义移除后，正在使用的选择会回落到可用的浏览器匹配或 `en`。目录变更推进 `LocaleFace` revision，使语言设置行跟随注册和 dispose。
 
 **zero-Cordis 原子组件（ui-primitives）通过必填 prop 接收文案。** `HoverCard`、结构化工具块、JSON/Markdown 渲染器、`ConnectionIndicator` 和 modal chrome 均保持运行时独立；已本地化插件从自己的 `t` 席位传入完整的字典驱动 label 对象，对缓存敏感的对象按 `t` 身份 memo。移除带语言默认值以及完整 prop 清单由 [locale 归属文案决策](2026-08-23-locale-owned-client-ui-copy.zh.md)负责。
 

@@ -31,7 +31,7 @@ import { DeveloperModeRow, type DeveloperModeRowInjected } from './DeveloperMode
 import { BackgroundModeRow, type BackgroundModeRowInjected } from './BackgroundModeRow.tsx'
 import { DeveloperModePolicy } from './developer-mode.ts'
 import { BrowserSettingsAddressRoute } from './settings-url.ts'
-import { en, zh, type SettingsKey } from './locales.ts'
+import { en, es, zh, type SettingsKey } from './locales.ts'
 import { DEVELOPER_SETTINGS_NAMESPACE, type DeveloperSettings } from '../developer-settings.ts'
 
 export type {
@@ -87,7 +87,7 @@ interface DesktopShellCarrier {
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-settings-general: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, es }), 'ui-settings-general: dictionaries')
   // The panel's open state and active section are the address bar's, so a
   // `settings/open` request — from the account menu, a settings section, or the
   // Desktop shell's menu — is an address write and lands in history like any

@@ -25,7 +25,7 @@ import {
   desktopBrowser, desktopLinks, desktopMenus, isDesktopShell, liveGuests, setPointerHold, writeLastUrl,
 } from './guest.ts'
 import { installLinkHandling } from './links.ts'
-import { en, zh, type SidebarBrowserKey } from './locales.ts'
+import { en, es, zh, type SidebarBrowserKey } from './locales.ts'
 import { SearchEnginePreference } from './search-engine.ts'
 import { BROWSER_SETTINGS_NAMESPACE, type BrowserSettings } from '../browser-settings.ts'
 
@@ -54,7 +54,7 @@ export const inject = ['slots', 'locale', 'settingsScope']
  * @param ctx - Client root context.
  */
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-sidebar-browser: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, es }), 'ui-sidebar-browser: dictionaries')
 
   // The pane is not a slot occupant of its own: `sidebar.right.body` holds one
   // occupant, and the selection owns it. Registering here would race that.

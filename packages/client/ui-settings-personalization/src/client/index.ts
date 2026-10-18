@@ -8,7 +8,7 @@ import type {} from '@aeven/client-ui-renderer/client'
 import type { PersonalizationView, RemoteResult } from '@aeven/api-remotes/client'
 import type { AevenReader } from '@aeven/client-ui-auth-aeven'
 import { PersonalizationSection, type PersonalizationSectionInjected } from './PersonalizationSection.tsx'
-import { en, zh, type PersonalizationLocaleKey } from './locales.ts'
+import { en, es, zh, type PersonalizationLocaleKey } from './locales.ts'
 
 export type { PersonalizationSectionInjected, PersonalizationSectionProps } from './PersonalizationSection.tsx'
 export type { PersonalizationLocaleKey } from './locales.ts'
@@ -57,7 +57,7 @@ async function value<T>(result: Promise<RemoteResult<T>>): Promise<T> {
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-settings-personalization: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, es }), 'ui-settings-personalization: dictionaries')
 
   const t = ctx.locale.bind(NS)
   const remote = ctx.remote.personalization

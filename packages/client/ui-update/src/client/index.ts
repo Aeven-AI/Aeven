@@ -15,7 +15,7 @@ import type {} from '@aeven/client-ui-layout/client'
 import { UpdatePopup, type UpdatePopupInjected } from './UpdatePopup.tsx'
 import { createUpdateStore } from './update-store.ts'
 import { SHOW_UPDATE_COMMAND, desktopUpdateCarrier, type DesktopUpdateCarrier } from './update-carrier.ts'
-import { en, NS, zh, type UpdateKey } from './locales.ts'
+import { en, es, NS, zh, type UpdateKey } from './locales.ts'
 
 declare module '@aeven/client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -44,7 +44,7 @@ interface DesktopUpdateShell {
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-update: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, es }), 'ui-update: dictionaries')
   const scope = window as { avnDesktop?: DesktopUpdateShell }
   const carrier = desktopUpdateCarrier(scope)
   // The browser build has no shell: nothing checks, downloads, or restarts.

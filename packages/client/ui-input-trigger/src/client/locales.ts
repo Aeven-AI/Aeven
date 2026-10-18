@@ -32,3 +32,16 @@ export const en = {
   'crumbs.aria': 'Folder navigation',
   'suggestions.aria': 'Trigger suggestions',
 } satisfies Record<MenuKey, string>
+
+/** Spanish dictionary, checked complete against the zh key set. */
+export const es = {
+  'command': 'Comandos',
+  'skill': 'Habilidades',
+  'subagent': 'Subagentes',
+  'loading': 'Cargando…',
+  'drill.aria': 'Explorar carpeta',
+  'drill.hint': 'Explorar carpeta',
+  'drill.key': 'Tab',
+  'crumbs.aria': 'Navegación por carpetas',
+  'suggestions.aria': 'Sugerencias de activación',
+} satisfies Record<MenuKey, string>

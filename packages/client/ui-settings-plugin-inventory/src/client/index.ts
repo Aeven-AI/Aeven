@@ -7,7 +7,7 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@aeven/client-ui-settings/client'
 import type {} from '@aeven/client-ui-renderer/client'
 import { PluginInventorySettingsTab, type PluginInventorySettingsTabInjected } from './PluginInventorySettingsTab.tsx'
-import { en, zh, type PluginInventoryLocaleKey } from './locales.ts'
+import { en, es, zh, type PluginInventoryLocaleKey } from './locales.ts'
 
 export type { PluginInventorySettingsTabInjected, PluginInventorySettingsTabProps } from './PluginInventorySettingsTab.tsx'
 export type { PluginInventoryLocaleKey } from './locales.ts'
@@ -27,7 +27,7 @@ export const inject = ['slots', 'locale', 'remote', 'remote.pluginInventory']
 
 /** Contribute the lazy inventory tab to the Plugins settings section. */
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-settings-plugin-inventory: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, es }), 'ui-settings-plugin-inventory: dictionaries')
 
   const t = ctx.locale.bind(NS)
   // One cached inventory, owned here: reopening the tab paints the inventory it

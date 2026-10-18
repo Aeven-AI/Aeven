@@ -46,3 +46,25 @@ export const en = {
   message: 'Message',
   details: 'Action details',
 } satisfies Record<ApprovalKey, string>
+
+/** Spanish dictionary, checked complete against the zh key set. */
+export const es = {
+  waiting: 'Esperando aprobación',
+  'detail.aria': 'Detalles de la aprobación',
+  escalation: '{toolName} solicita más acceso del que permite el modo actual',
+  once: 'Permitir se aplica solo a esta llamada; tu modo de permisos no cambia.',
+  reject: 'Rechazar',
+  allowOnce: 'Permitir una vez',
+  allowSession: 'Permitir en esta sesión',
+  session: 'La aprobación de sesión permite que esta cuenta repita esta operación con otros destinatarios y contenido. Las demás operaciones seguirán preguntando.',
+  sessionAction: 'La aprobación de sesión repite esta acción en esta sesión sin preguntar. Tu modo de acceso no cambia.',
+  sessionSandbox: 'La aprobación de sesión permite que cualquier comando tome este acceso más amplio en esta sesión sin preguntar. Tu modo de acceso no cambia.',
+  sessionPrivilege: 'La aprobación de sesión permite que cualquier comando se ejecute como administrador en esta sesión sin preguntar. Tu modo de acceso no cambia.',
+  send: 'Enviar un mensaje por {provider}',
+  action: '{provider}: {operation}',
+  to: 'Para',
+  channel: 'Canal',
+  subject: 'Asunto',
+  message: 'Mensaje',
+  details: 'Detalles de la acción',
+} satisfies Record<ApprovalKey, string>

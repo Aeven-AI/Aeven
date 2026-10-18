@@ -26,3 +26,15 @@ export const en = {
   'action.edit': 'Edit goal',
   'action.clear': 'Clear goal',
 } satisfies Record<GoalKey, string>
+
+/** Spanish dictionary, checked complete against the zh key set. */
+export const es = {
+  'objective.aria': 'Objetivo de la meta',
+  'commandInput.aria': 'Entrada de comandos',
+  'action.save': 'Guardar la meta',
+  'action.cancel': 'Cancelar la edición',
+  'action.pause': 'Pausar la meta',
+  'action.resume': 'Reanudar la meta',
+  'action.edit': 'Editar la meta',
+  'action.clear': 'Borrar la meta',
+} satisfies Record<GoalKey, string>

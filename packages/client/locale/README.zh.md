@@ -1,5 +1,5 @@
 ---
-description: "面向用户与插件作者的 web GUI 本地化说明：zh/en 偏好、浏览器派生回退、类型化命名空间词典与框架翻译席位。"
+description: "面向用户与插件作者的 web GUI 本地化说明：zh/en/es 偏好、浏览器派生回退、类型化命名空间词典与框架翻译席位。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`avn-client-locale` 为 web GUI 提供本地化：用户在“设置 → 常规”中从已注册语言中选择，UI 文案会立即切换。本包内置 `zh` 与 `en`，外部 client 插件可以增加语言及其命名空间字典。在 loopback 页面上，该选择以 `locale.preference` 存储在 `$AVN_HOME/settings.yaml` 中；非 loopback 页面即使由 Connection 认证所有 API 方法，也只在进程内保留选择。全新浏览器会先临时使用 `navigator` 请求的第一个已注册语言，直到允许读取的 Host 偏好到达并实时替换。插件作者使用内置字典形式时会获得完整类型检查，并通过框架 `t` 席位翻译；经 slot 渲染的文案会随语言切换即时更新。
+`avn-client-locale` 为 web GUI 提供本地化：用户在“设置 → 常规”中从已注册语言中选择，UI 文案会立即切换。本包内置 `zh`、`en` 与 `es`，外部 client 插件可以增加语言及其命名空间字典。在 loopback 页面上，该选择以 `locale.preference` 存储在 `$AVN_HOME/settings.yaml` 中；非 loopback 页面即使由 Connection 认证所有 API 方法，也只在进程内保留选择。全新浏览器会先临时使用 `navigator` 请求的第一个已注册语言，直到允许读取的 Host 偏好到达并实时替换。插件作者使用内置字典形式时会获得完整类型检查，并通过框架 `t` 席位翻译；经 slot 渲染的文案会随语言切换即时更新。
 
 ## 目录
 
@@ -33,7 +33,7 @@ kind: "package-reference"
 
 ### 注册词典
 
-用已合并进 `LocaleNamespaceMap` 的命名空间调用 `ctx.locale.register(ns, { zh, en })`；编译器会对照该命名空间的类型化键并集检查每个键，并要求两个内置 locale 齐全。消费方通过 `ctx.locale.bind(ns)` 或框架注入的 `t` 席位翻译。UI 已挂载后再注册的词典无需重新挂载即可生效。
+用已合并进 `LocaleNamespaceMap` 的命名空间调用 `ctx.locale.register(ns, { zh, en, es })`；编译器会对照该命名空间的类型化键并集检查每个键，并要求所有内置 locale 齐全。消费方通过 `ctx.locale.bind(ns)` 或框架注入的 `t` 席位翻译。UI 已挂载后再注册的词典无需重新挂载即可生效。
 
 ### 注册语言包
 
@@ -92,7 +92,7 @@ Host 通过 settings 服务为 loopback 页面持久化偏好。Client 会刻意
 | [`src/client/index.ts`](src/client/index.ts) | `LocaleRuntime`、词典注册表、Language 行注册、`locale/change` 事件 |
 | [`src/index.ts`](src/index.ts) | node 半侧：注册 `locale` 设置命名空间 |
 | [`src/locale-settings.ts`](src/locale-settings.ts) | `locale.preference` 的持久 schema |
-| [`src/locales/`](src/locales/) | 已发布的 `zh`／`en` 词典 |
+| [`src/locales/`](src/locales/) | 已发布的 `zh`／`en`／`es` 词典 |
 
 </details>
 

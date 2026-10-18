@@ -55,3 +55,30 @@ export const en: Record<VoiceKey, string> = {
   unavailable: 'This browser cannot record audio. Use a browser with microphone support.',
   permission: 'Microphone access is disabled. Allow it in browser and system settings.',
 }
+
+/**
+ * Spanish dictionary, checked complete against the zh key set.
+ */
+export const es = {
+  'dictate': 'Dictar',
+  'cancelRecording': 'Cancelar grabación',
+  'transcribe': 'Transcribir grabación',
+  'cancelTranscription': 'Cancelar transcripción',
+  'transcribing': 'Transcripción en curso',
+  'failed': 'Falló el reconocimiento de voz: {message}',
+  'nav': 'Voz',
+  'title': 'Voz',
+  'intro': 'El dictado agrega lo que dices a tu mensaje.',
+  'model': 'Modelo de voz',
+  'modelUnprepared': 'Descárgalo para usar el dictado.',
+  'modelPreparing': 'Preparando el modelo de voz…',
+  'modelReady': 'Listo para usar',
+  'modelFailed': 'No se pudo descargar el modelo de voz. Inténtalo de nuevo.',
+  'prepare': 'Descargar',
+  'retryPrepare': 'Reintentar',
+  'downloadProgress': 'Progreso de la descarga',
+  'reconnecting': 'Conectando con Voz…',
+  'loading': 'Cargando Voz…',
+  'unavailable': 'Este navegador no puede grabar audio. Usa uno compatible con micrófono.',
+  'permission': 'El acceso al micrófono está desactivado. Actívalo en los ajustes del navegador y del sistema.',
+} satisfies Record<VoiceKey, string>

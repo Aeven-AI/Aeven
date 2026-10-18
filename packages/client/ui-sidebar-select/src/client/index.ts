@@ -12,7 +12,7 @@ import type { ContentSelectInjected, FullscreenButtonInjected } from './contract
 import { FullscreenButton } from './FullscreenButton.tsx'
 import { SurfaceFullscreen } from './fullscreen.ts'
 import { SidebarContentRegistry } from './registry.ts'
-import { en, zh, type SidebarSelectKey } from './locales.ts'
+import { en, es, zh, type SidebarSelectKey } from './locales.ts'
 
 export type {
   ContentSelectComponentProps, ContentSelectInjected, FullscreenButtonComponentProps, FullscreenButtonInjected,
@@ -48,7 +48,7 @@ export const inject = ['slots', 'locale', 'layout']
  */
 export function apply(ctx: ClientContext): void {
   ctx.plugin(SidebarContentRegistry)
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-sidebar-select: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, es }), 'ui-sidebar-select: dictionaries')
   const fullscreen = new SurfaceFullscreen()
 
   // The body is a single-occupant slot, so the selection waits for the shell to

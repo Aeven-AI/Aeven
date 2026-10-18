@@ -25,7 +25,7 @@ import { formatFileMention } from '@aeven/file-reference/grammar'
 import type { FileReferenceCandidate } from '@aeven/file-reference/types'
 import type { SessionReferenceMentionCandidate } from '@aeven/session-reference/types'
 import { abbreviateHomePath } from '@aeven/util-workspace-path'
-import { en, NS, zh, type ReferenceKey } from './locales.ts'
+import { en, es, NS, zh, type ReferenceKey } from './locales.ts'
 
 /** Required services: the trigger registry, the Remote namespaces, and the copy. */
 export const inject = [
@@ -38,7 +38,7 @@ export const inject = [
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-reference: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, es }), 'ui-reference: dictionaries')
   const t = ctx.locale.bind(NS)
   const sessions = ctx.get('sessions') as ISessions
   const source: InputTriggerSource = {
