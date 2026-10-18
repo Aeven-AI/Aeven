@@ -1,0 +1,4 @@
+# Built executables: produced by scripts/build.ts, packed into each platform package tarball, never source.
+packages/*/bin/
+# Downloaded ffmpeg release archive, its extracted tree, and per-target build directories.
+.cache/

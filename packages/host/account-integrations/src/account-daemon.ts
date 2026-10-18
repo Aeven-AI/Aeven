@@ -11,8 +11,25 @@ import { z } from 'zod'
  */
 const INHERITED_VARIABLES = ['PATH', 'Path', 'HOME', 'USERPROFILE', 'TMPDIR', 'TEMP', 'TMP', 'SystemRoot', 'SYSTEMROOT', 'windir', 'LANG']
 
-function inheritedEnvironment(): Record<string, string> {
-  return Object.fromEntries(INHERITED_VARIABLES.flatMap(name => process.env[name] === undefined ? [] : [[name, process.env[name]]]))
+/**
+ * Build the isolated daemon environment.
+ * @param pathDirectories - directories searched before the Host's own PATH entries, so a daemon reaches the
+ * executables the application ships instead of whichever copy the machine happens to have.
+ * @returns the inherited variables, with the executable search path extended when directories are given.
+ */
+function inheritedEnvironment(pathDirectories: readonly string[] = []): Record<string, string> {
+  const entries: [string, string][] = INHERITED_VARIABLES.flatMap((name): [string, string][] => {
+    const value = process.env[name]
+    return value === undefined ? [] : [[name, value]]
+  })
+  const environment: Record<string, string> = Object.fromEntries(entries)
+  if (pathDirectories.length === 0) return environment
+  const separator = process.platform === 'win32' ? ';' : ':'
+  const inheritedPath = process.env.PATH ?? process.env.Path ?? ''
+  const merged = [...pathDirectories, ...inheritedPath.split(separator).filter(entry => entry !== '')].join(separator)
+  environment.PATH = merged
+  if (process.platform === 'win32') environment.Path = merged
+  return environment
 }
 
 const listeningSchema = z.object({ listening: z.string().regex(/^127\.0\.0\.1:\d+$/) })
@@ -75,11 +92,13 @@ export class AccountDaemon {
    * @param command - daemon executable.
    * @param args - daemon startup arguments.
    * @param env - account-specific daemon variables, added to the isolated environment.
+   * @param pathDirectories - shipped-tool directories searched before the Host's own PATH entries.
    */
-  protected async launch(command: string, args: string[], env: Record<string, string>): Promise<void> {
+  protected async launch(command: string, args: string[], env: Record<string, string>,
+    pathDirectories: readonly string[] = []): Promise<void> {
     const child = spawn(command, args, {
       stdio: ['pipe', 'pipe', 'ignore'], windowsHide: true,
-      env: { ...inheritedEnvironment(), ...env },
+      env: { ...inheritedEnvironment(pathDirectories), ...env },
     })
     this.child = child
     child.once('exit', (code) => { this.markExited(code) })

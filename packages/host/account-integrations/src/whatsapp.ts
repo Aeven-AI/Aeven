@@ -22,6 +22,20 @@ export function resolveWhatsAppBinary(override: string | undefined): string | un
   }
 }
 
+/**
+ * Resolve the bundled ffmpeg executable from the platform package installed for this host.
+ * @returns absolute executable path, or undefined when this host has no platform package.
+ */
+export function resolveFfmpegBinary(): string | undefined {
+  try {
+    const manifest = createRequire(import.meta.url).resolve(`@aeven/ffmpeg-${process.platform}-${process.arch}/package.json`)
+    return join(dirname(manifest), 'bin', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg')
+  } catch {
+    // An absent optional platform package leaves voice notes to fail with the converter's own diagnostic.
+    return undefined
+  }
+}
+
 /** Daemon `/status` response; `qr_png` is a base64 PNG present only in the `qr` state. */
 const statusSchema = z.object({
   state: z.enum(['starting', 'qr', 'paired', 'expired', 'failed']),
@@ -43,8 +57,10 @@ export class WhatsAppDaemon extends AccountDaemon {
    * @param binary - daemon executable.
    * @param directory - Aeven-owned data directory holding `store/` and `media/`.
    * @param options - process and request budgets.
+   * @param ffmpeg - bundled converter the daemon finds on PATH for voice notes; omitted when this host has none.
    */
-  constructor(private readonly binary: string, directory: string, options: WhatsAppDaemonOptions) {
+  constructor(private readonly binary: string, directory: string, options: WhatsAppDaemonOptions,
+    private readonly ffmpeg?: string) {
     super('WhatsApp', directory, options)
   }
 
@@ -56,7 +72,7 @@ export class WhatsAppDaemon extends AccountDaemon {
     await mkdir(media, { recursive: true, mode: 0o700 })
     await this.launch(this.binary, ['-store', store, 'serve', '-addr', '127.0.0.1:0', '-exit-on-stdin-eof'], {
       WHATSAPP_MCP_TOKEN: this.token, WHATSAPP_MCP_MEDIA_ROOT: media,
-    })
+    }, this.ffmpeg === undefined ? [] : [dirname(this.ffmpeg)])
   }
 
   /**

@@ -58,6 +58,12 @@
   },
   "optionalDependencies": {
     "@aeven/discord-mcp": "workspace:^",
+    "@aeven/ffmpeg-darwin-arm64": "workspace:^",
+    "@aeven/ffmpeg-darwin-x64": "workspace:^",
+    "@aeven/ffmpeg-linux-arm64": "workspace:^",
+    "@aeven/ffmpeg-linux-x64": "workspace:^",
+    "@aeven/ffmpeg-win32-arm64": "workspace:^",
+    "@aeven/ffmpeg-win32-x64": "workspace:^",
     "@aeven/telegram-mcp": "workspace:^",
     "@aeven/whatsapp-mcp-darwin-arm64": "workspace:^",
     "@aeven/whatsapp-mcp-darwin-x64": "workspace:^",

@@ -172,6 +172,31 @@ jobs:
           sudo apt-get install --yes --no-install-recommends ruby ruby-dev fakeroot cmake
           sudo gem install --no-document fpm
 
+      # ffmpeg builds from its pinned release source on every target, with libopus compiled statically from its
+      # own pinned source. configure needs a POSIX shell, pkg-config, a zlib development package, and nasm for
+      # the x86_64 assembly kernels. Each Windows target installs only its own toolchain: fetching both doubled
+      # the download, and one slow mirror failed the whole transaction. pacman is retried for the same reason.
+      - name: Install ffmpeg build tools (macOS)
+        if: startsWith(matrix.target, 'mac-')
+        run: brew install pkg-config nasm
+
+      - name: Install ffmpeg build tools (Linux)
+        if: startsWith(matrix.target, 'linux-')
+        run: |
+          sudo apt-get install --yes --no-install-recommends zlib1g-dev pkg-config nasm libva-dev
+
+      - name: Install ffmpeg build tools (Windows x64)
+        if: matrix.target == 'win-x64'
+        shell: cmd
+        run: |
+          C:\msys64\usr\bin\bash.exe -lc "for attempt in 1 2 3; do pacman -S --noconfirm --needed --disable-download-timeout make nasm diffutils pkgconf mingw-w64-x86_64-gcc mingw-w64-x86_64-opus mingw-w64-x86_64-binutils mingw-w64-x86_64-zlib && exit 0; sleep 10; done; exit 1"
+
+      - name: Install ffmpeg build tools (Windows arm64)
+        if: matrix.target == 'win-arm64'
+        shell: cmd
+        run: |
+          C:\msys64\usr\bin\bash.exe -lc "for attempt in 1 2 3; do pacman -S --noconfirm --needed --disable-download-timeout make nasm diffutils pkgconf mingw-w64-clang-aarch64-clang mingw-w64-clang-aarch64-opus mingw-w64-clang-aarch64-binutils mingw-w64-clang-aarch64-zlib && exit 0; sleep 10; done; exit 1"
+
       - run: pnpm install --frozen-lockfile
 
       - name: Choose signed or unsigned

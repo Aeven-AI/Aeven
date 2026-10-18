@@ -312,6 +312,13 @@ async function main(): Promise<void> {
   await runPnpm(['--dir', 'native/whatsapp-mcp', 'run', 'build:native', '--target', whisperPlatform], buildEnv, REPOSITORY_ROOT)
   if (signsMacOS) await signMacOSPackageExecutables(join(REPOSITORY_ROOT, 'native/whatsapp-mcp/packages', whisperPlatform), targetEnv)
   await runNpm(['pack', `./native/whatsapp-mcp/packages/${whisperPlatform}`, '--pack-destination', buildPaths.packedWhatsApp], buildEnv)
+  // ffmpeg converts WhatsApp voice notes today and carries the media work that follows: posters, probes, and
+  // audio extraction. It builds per target from the pinned release source, so each package holds one executable.
+  rmSync(buildPaths.packedFfmpeg, { recursive: true, force: true })
+  mkdirSync(buildPaths.packedFfmpeg, { recursive: true })
+  await runPnpm(['--dir', 'native/ffmpeg', 'run', 'build:native', '--target', whisperPlatform], buildEnv, REPOSITORY_ROOT)
+  if (signsMacOS) await signMacOSPackageExecutables(join(REPOSITORY_ROOT, 'native/ffmpeg/packages', whisperPlatform), targetEnv)
+  await runNpm(['pack', `./native/ffmpeg/packages/${whisperPlatform}`, '--pack-destination', buildPaths.packedFfmpeg], buildEnv)
   // The Telegram connector daemon is plain JavaScript, so one build and one tarball serve every target.
   rmSync(buildPaths.packedTelegram, { recursive: true, force: true })
   mkdirSync(buildPaths.packedTelegram, { recursive: true })
