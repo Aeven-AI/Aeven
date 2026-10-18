@@ -1,7 +1,7 @@
 {
   "name": "@aeven/memory-context",
   "description": "Memory Consumer: bounded per-turn recall as durable context, and turn capture for the memory provider",
-  "version": "0.3.6-alpha",
+  "version": "0.3.7-alpha",
   "publishConfig": {
     "access": "public"
   },
