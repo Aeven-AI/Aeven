@@ -55,7 +55,8 @@
     "@thenavidm/google-workspace-mcp-cli": "0.2.2",
     "fflate": "0.8.3",
     "js-yaml": "^4.3.1",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "@aeven/subprocess": "workspace:^"
   },
   "optionalDependencies": {
     "@aeven/discord-mcp": "workspace:^",
