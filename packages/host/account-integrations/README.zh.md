@@ -25,6 +25,8 @@ kind: "package-reference"
 
 Web bundle 将此插件与[技能和连接器页面](../../client/ui-settings-integrations/README.zh.md)一起挂载。设置列出账户自己的技能：导入的包与已安装的技能。被发现的技能——代码仓库、部署默认预设，以及账户拥有的每个文件夹工作区——不会列出，因为它们始终可用，也没有账户级开关；连接器拥有的技能只出现在该连接器的详情中。列表与打开的对话无关，已禁用的技能仍然可见。每个列出的技能都有一个持久化的账户调用开关，移除它会删除已存储的包。偏好作用于该技能名称，同时限制模型和用户调用，不修改文件，也不扩大工作区访问权限。导入一个 SKILL.md、.skill 或 ZIP 包，其中必须恰好包含一个技能定义。资源路径必须位于该目录内；重复路径、格式错误的 frontmatter 和超出大小限制的包将被拒绝。导入使用现有技能提供方注册表及调用控制。
 
+账户启用已安装的 `reverse-engineering` 技能后，首次对话请求会在后台开始将 REA、Ghidra 和兼容的 JDK 下载到 `$AVN_HOME/runtimes/reverse-engineering`。任何请求都不会等待该下载：归档校验和与 Ghidra 就绪状态验证通过后，该 agent 的后续请求才会连接 REA 工具，期间每个请求都保持可用。安装失败只记录日志，并在 `retryDelayMs` 之后才重试，绝不会作为请求失败。后续请求复用安装；仅导入或启用技能不会下载。`reverseEngineering` 配置选择版本、安装预算与重试延迟。下载需要网络。Ghidra 之外的专用引擎仍需另行准备。
+
 自定义连接接受 Streamable HTTP MCP 地址和可选 bearer token；GitHub 还接受用于其官方远程地址的个人访问令牌。创建连接会先验证 MCP 发现，再保存。令牌仅可写入，并由凭据提供方按账户派生的键保存。即使对话仍持有旧工具目录，禁用或断开连接也会拒绝后续调用。
 
 Gmail、Google 云端硬盘和 Google 日历使用维护中的 Google Workspace MCP 桥接及各服务的 Google OAuth 权限。OAuth 应用、其权限范围和所有授权都保存在 `apiUrl` 指定的 Aeven API 上；宿主不持有任何客户端密钥或刷新令牌。授权在保存前验证 API 访问。Drive 包含文档、表格、幻灯片、表单及评论。为这些技能启用 Drive、Docs、Sheets、Slides 和 Forms API；评论使用 Drive API。Forms 复用现有 Drive 授权权限。表单创建和问题编辑遵循普通文档编辑的权限处理；其他原始 Google 写入仍须显式批准。发现的 MCP 工具决定可用操作；技能指令不会添加工具。

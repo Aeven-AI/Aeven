@@ -7830,6 +7830,9 @@ importers:
       '@aeven/scope':
         specifier: workspace:^
         version: link:../../core/scope
+      '@aeven/subprocess':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess
       '@deepseek-ai/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery

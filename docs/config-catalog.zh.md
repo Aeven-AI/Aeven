@@ -1360,6 +1360,8 @@ export interface Config {
 ```ts config-catalog
 /** Deployment upload, network, and connector settings; no connector credential is configured here. */
 export interface Config {
+  /** Private REA/Ghidra runtime installed when an enabled account skill is first invoked. */
+  reverseEngineering?: ReverseEngineeringConfig
   /** Largest decoded skill bundle. */
   maxSkillBytes: number
   /** MCP discovery, tool, and OAuth request budget. */
@@ -1431,6 +1433,24 @@ export interface Config {
   whatsappRestartDelayMs: number
   /** Longest restart delay; a daemon that ran this long resets the failure count. */
   whatsappMaxRestartDelayMs: number
+}
+
+/** Versions and process budgets for the deployment's private analysis runtime. */
+export interface ReverseEngineeringConfig {
+  /** `rea-agents` version installed into the private runtime. */
+  reaVersion: string
+  /** Ghidra release tag whose archive is downloaded from the project's GitHub releases. */
+  ghidraRelease: string
+  /** Adoptium JDK feature version the runtime is built against. */
+  javaVersion: number
+  /** Budget for the whole setup: both downloads, extraction, the npm install, and the doctor run. */
+  timeoutMs: number
+  /** Wait after a failed setup before a later request may start another one; zero retries on every request. */
+  retryDelayMs: number
+  /** Time a stopping REA child gets to exit cleanly before it is killed. */
+  stopGraceMs: number
+  /** Largest stdout or stderr the runtime captures from one child process. */
+  outputMaxBytes: number
 }
 ```
 

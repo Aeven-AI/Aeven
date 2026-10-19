@@ -31,6 +31,7 @@ import { googleConnection, googleService, verifyGoogle } from './google.ts'
 import { microsoftConnection, microsoftService, verifyMicrosoft } from './microsoft.ts'
 import { publicToolName } from '@aeven/mcp-client'
 import { parsePersonalSkill } from './skills.ts'
+import { ReverseEngineeringRuntime, type ReverseEngineeringConfig } from './reverse-engineering.ts'
 import { resolveFfmpegBinary, resolveWhatsAppBinary, WhatsAppDaemon } from './whatsapp.ts'
 import { resolveTelegramEntry, TelegramDaemon, type TelegramCredentials, type TelegramDaemonStatus } from './telegram.ts'
 import { discordGuildIcon, resolveDiscordEntry, DISCORD_ADMIN_PERMISSIONS, DISCORD_CURATED_PERMISSIONS, type DiscordGuild } from './discord.ts'
@@ -51,6 +52,8 @@ declare module '@deepseek-ai/cordis' {
 
 /** Deployment upload, network, and connector settings; no connector credential is configured here. */
 export interface Config {
+  /** Private REA/Ghidra runtime installed when an enabled account skill is first invoked. */
+  reverseEngineering?: ReverseEngineeringConfig
   /** Largest decoded skill bundle. */
   maxSkillBytes: number
   /** MCP discovery, tool, and OAuth request budget. */
@@ -455,9 +458,18 @@ function accountDirectory(owner: string): string {
 
 /** Signed-in users manage their own integrations; each agent mounts only its owner's connectors. */
 export default class AccountIntegrations extends TypertRemoteService {
-  static inject = ['typert', 'identityUsers', 'storageDomain', 'credentials', 'skills', 'agents', 'tools', 'workspaceRegistry']
+  static inject = ['typert', 'identityUsers', 'storageDomain', 'credentials', 'skills', 'agents', 'tools', 'workspaceRegistry', 'subprocess']
 
   static Config: Schema<Config> = Schema.object({
+    reverseEngineering: Schema.object({
+      reaVersion: Schema.string().pattern(/^\d+\.\d+\.\d+$/).default('6.7.0'),
+      ghidraRelease: Schema.string().pattern(/^Ghidra_\d+\.\d+\.\d+_build$/).default('Ghidra_12.1.4_build'),
+      javaVersion: Schema.natural().min(21).default(21),
+      timeoutMs: Schema.natural().min(1).default(900_000),
+      retryDelayMs: Schema.natural().min(0).default(600_000),
+      stopGraceMs: Schema.natural().min(1).default(5_000),
+      outputMaxBytes: Schema.natural().min(1).default(64 * 1024),
+    }),
     maxSkillBytes: Schema.natural().min(1).default(10 * 1024 * 1024),
     timeoutMs: Schema.natural().min(1).default(60_000),
     consentLifetimeMs: Schema.natural().min(1).default(600_000),
@@ -491,6 +503,7 @@ export default class AccountIntegrations extends TypertRemoteService {
   })
 
   private domain!: Domain<typeof domainSpec>
+  private reverseEngineering: ReverseEngineeringRuntime | undefined
   private invalidateSkills: () => void = () => {}
   private readonly connected = new Set<ConnectorId>()
   private readonly consents = new Map<string, PendingConsent>()
@@ -624,6 +637,13 @@ export default class AccountIntegrations extends TypertRemoteService {
     })
     this.ctx.on('agent/pre-step', async ({ agent }, next): Promise<PreStepDecision> => {
       await this.syncConnectors(agent)
+      const owner = agent.session.header.owner
+      const skill = owner === undefined ? undefined : this.domain.table('skills').get(`${accountDirectory(owner)}:reverse-engineering`)
+      if (skill?.enabled === true && this.config.reverseEngineering !== undefined) {
+        this.reverseEngineering ??= new ReverseEngineeringRuntime(this.ctx, this.config.reverseEngineering)
+        // Setup is a background download; a request never waits for it, and its failure never fails the request.
+        this.reverseEngineering.start(agent)
+      }
       return next()
     })
     this.ctx.on('tools/pre-execute', async (exec, next) => {

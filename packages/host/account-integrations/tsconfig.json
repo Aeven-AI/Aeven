@@ -8,7 +8,9 @@
     "src"
   ],
   "references": [
-    { "path": "../../skill/skill-catalog" },
+    {
+      "path": "../../skill/skill-catalog"
+    },
     {
       "path": "../../../vendor/cordis"
     },
@@ -62,6 +64,9 @@
     },
     {
       "path": "../../mail/mail"
+    },
+    {
+      "path": "../../subprocess/subprocess"
     }
   ]
 }
