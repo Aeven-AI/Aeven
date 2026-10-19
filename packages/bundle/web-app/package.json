@@ -50,6 +50,7 @@
     "@aeven/api-workspace-controller": "workspace:^",
     "@aeven/api-workspace-files": "workspace:^",
     "@aeven/app-boot": "workspace:^",
+    "@aeven/brand-page": "workspace:^",
     "@aeven/browser-chromium": "workspace:^",
     "@aeven/capability": "workspace:^",
     "@aeven/client-connection": "workspace:^",

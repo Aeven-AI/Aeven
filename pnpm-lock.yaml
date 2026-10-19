@@ -511,6 +511,9 @@ importers:
 
   apps/desktop:
     dependencies:
+      '@aeven/brand-page':
+        specifier: workspace:^
+        version: link:../../packages/util/brand-page
       electron-updater:
         specifier: ^6.8.9
         version: 6.8.9
@@ -1995,6 +1998,9 @@ importers:
       '@aeven/automations':
         specifier: workspace:^
         version: link:../../core/automations
+      '@aeven/brand-page':
+        specifier: workspace:^
+        version: link:../../util/brand-page
       '@aeven/browser-chromium':
         specifier: workspace:^
         version: link:../../web/browser-chromium
@@ -7815,6 +7821,9 @@ importers:
       '@aeven/brand':
         specifier: workspace:^
         version: link:../../util/brand
+      '@aeven/brand-page':
+        specifier: workspace:^
+        version: link:../../util/brand-page
       '@aeven/home-paths':
         specifier: workspace:^
         version: link:../../util/home-paths
@@ -8691,6 +8700,9 @@ importers:
       '@aeven/atomic-write':
         specifier: workspace:^
         version: link:../../util/atomic-write
+      '@aeven/brand-page':
+        specifier: workspace:^
+        version: link:../../util/brand-page
       '@aeven/home-paths':
         specifier: workspace:^
         version: link:../../util/home-paths
@@ -12140,6 +12152,12 @@ importers:
         version: link:../../../vendor/cordis
 
   packages/util/brand:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/util/brand-page:
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: workspace:^

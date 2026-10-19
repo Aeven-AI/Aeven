@@ -13,6 +13,9 @@
     },
     {
       "path": "../../packages/util/brand"
+    },
+    {
+      "path": "../../packages/util/brand-page"
     }
   ]
 }

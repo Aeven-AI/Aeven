@@ -26,6 +26,7 @@
 import { createServer } from 'node:http'
 import type { IncomingMessage, Server, ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
+import { brandPageHtml } from '@aeven/brand-page'
 
 /** The path a provider callback is returned to, matching the deployment's default. */
 export const OAUTH_RESULT_PATH = '/oauth-result'
@@ -147,25 +148,30 @@ export async function exchangeCallbackPair(options: {
  * navigation away from nothing names no origin and the callback falls back to
  * the deployment's configured client. Loading this page first makes the referer
  * this listener's own origin, which is also a loopback origin the deployment
- * already accepts.
+ * already accepts. It is the brand page in its waiting state, so the reader sees
+ * the Aeven cover and wordmark rather than a bare interim tab.
  * @param providerUrl - the deployment's provider route.
  * @returns an HTML document that negotiates the browser to the provider.
  */
 export function signInPage(providerUrl: string): string {
-  const target = JSON.stringify(providerUrl)
-  return `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>Signing in</title>
-<meta http-equiv="refresh" content="0; url=${providerUrl.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}">
-</head>
-<body>
-<p>Continuing to sign in…</p>
-<script>location.replace(${target})</script>
-</body>
-</html>
-`
+  return brandPageHtml({
+    state: 'waiting',
+    note: 'Continuing to sign in…',
+    title: 'Signing in — Æven',
+    redirect: providerUrl,
+  })
+}
+
+/**
+ * The page the reader's browser keeps once the callback has been received.
+ * @returns an HTML document that says the sign-in finished.
+ */
+export function signInDonePage(): string {
+  return brandPageHtml({
+    note: 'Signed in.',
+    hint: 'You can close this window.',
+    title: 'Signed in — Æven',
+  })
 }
 
 /**
@@ -221,8 +227,8 @@ export function startCallbackListener(options: {
     if (parsed !== undefined) {
       // Answered before the listener closes, so the reader's browser sees the
       // confirmation page rather than a dropped connection.
-      response.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' })
-      response.end('Signed in. You can close this window.')
+      response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
+      response.end(signInDonePage())
       close()
       settleCallback(parsed)
       return

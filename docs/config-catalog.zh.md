@@ -5048,6 +5048,7 @@ Imported as libraries by other packages; a `cordis.yml` cannot load them.
 - `@aeven/atomic-write` ([`packages/util/atomic-write/src/index.ts`](../packages/util/atomic-write/src/index.ts))
 - `@aeven/base` ([`packages/bundle/base/src/index.ts`](../packages/bundle/base/src/index.ts))
 - `@aeven/brand` ([`packages/util/brand/src/index.ts`](../packages/util/brand/src/index.ts))
+- `@aeven/brand-page` ([`packages/util/brand-page/src/index.ts`](../packages/util/brand-page/src/index.ts))
 - `@aeven/client-hypermarkdown` ([`packages/client/hypermarkdown/src/index.ts`](../packages/client/hypermarkdown/src/index.ts))
 - `@aeven/client-store` ([`packages/client/store/src/index.ts`](../packages/client/store/src/index.ts))
 - `@aeven/client-test-runtime` ([`packages/test-support/client-runtime/src/index.ts`](../packages/test-support/client-runtime/src/index.ts))
