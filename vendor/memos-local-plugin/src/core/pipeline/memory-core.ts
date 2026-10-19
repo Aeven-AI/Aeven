@@ -130,6 +130,8 @@ import type { UserFeedback } from "../reward/types.js";
 const FINAL_HUB_LLM_FILTER_TIMEOUT_MS = 3_000;
 const DEADLINE_FILTER_SAFE_CUTOFF_MS = 2_000;
 const IMPORT_WRITE_BATCH_SIZE = 500;
+/** Rows one repository page holds; `traces.list` clamps every call to it. */
+const TRACE_SCAN_PAGE = 500;
 
 type DedicatedLlmConfig = {
   provider?: string;
@@ -3808,6 +3810,8 @@ export function createMemoryCore(
   }
 
   async function countTraces(input?: {
+    domains?: readonly string[];
+    projectWorkspaceId?: string | null;
     sessionId?: SessionId;
     ownerAgentKind?: AgentKind;
     ownerProfileId?: string;
@@ -3827,6 +3831,8 @@ export function createMemoryCore(
             sessionId: input?.sessionId,
             ownerAgentKind: input?.ownerAgentKind,
             ownerProfileId: input?.ownerProfileId,
+            domains: input?.domains,
+            projectWorkspaceId: input?.projectWorkspaceId,
           },
           vis,
         );
@@ -3835,14 +3841,18 @@ export function createMemoryCore(
         sessionId: input?.sessionId,
         ownerAgentKind: input?.ownerAgentKind,
         ownerProfileId: input?.ownerProfileId,
+        domains: input?.domains,
+        projectWorkspaceId: input?.projectWorkspaceId,
       }, vis);
     }
     // q substring scan — mirror `listTraces`. Walk all matching
     // traces from the repo (no limit) and apply the same filter.
-    const rows = handle.repos.traces.list({
+    const rows = scanTraces({
       sessionId: input?.sessionId,
       ownerAgentKind: input?.ownerAgentKind,
       ownerProfileId: input?.ownerProfileId,
+      domains: input?.domains,
+      projectWorkspaceId: input?.projectWorkspaceId,
     }).filter(visible);
     const matched = rows.filter((r) => {
       return traceSearchHaystack(r).includes(needle);
@@ -3856,6 +3866,8 @@ export function createMemoryCore(
   async function listTraces(input?: {
     limit?: number;
     offset?: number;
+    domains?: readonly string[];
+    projectWorkspaceId?: string | null;
     sessionId?: SessionId;
     ownerAgentKind?: AgentKind;
     ownerProfileId?: string;
@@ -3878,6 +3890,8 @@ export function createMemoryCore(
             sessionId: input?.sessionId,
             ownerAgentKind: input?.ownerAgentKind,
             ownerProfileId: input?.ownerProfileId,
+            domains: input?.domains,
+            projectWorkspaceId: input?.projectWorkspaceId,
             limit,
             offset,
           },
@@ -3907,10 +3921,12 @@ export function createMemoryCore(
         return traceRowsToDTOs(visibleRows);
       }
       // Search + group: scan, filter, then paginate by distinct turn key.
-      const allRows = handle.repos.traces.list({
+      const allRows = scanTraces({
         sessionId: input?.sessionId,
         ownerAgentKind: input?.ownerAgentKind,
         ownerProfileId: input?.ownerProfileId,
+        domains: input?.domains,
+        projectWorkspaceId: input?.projectWorkspaceId,
       }).filter((r) => input?.includeAllNamespaces || visibleToCurrent(r));
       const matched = allRows.filter((r) => {
         return traceSearchHaystack(r).includes(needle);
@@ -3948,32 +3964,62 @@ export function createMemoryCore(
       return traceRowsToDTOs(traces);
     }
 
+    if (!needle && input?.includeAllNamespaces && limit <= 500) {
+      return traceRowsToDTOs(handle.repos.traces.list({
+        sessionId: input.sessionId,
+        ownerAgentKind: input.ownerAgentKind,
+        ownerProfileId: input.ownerProfileId,
+        domains: input.domains,
+        projectWorkspaceId: input.projectWorkspaceId,
+        limit,
+        offset,
+      }));
+    }
+
     if (!needle) {
-      const rows = handle.repos.traces.list({
+      const rows = scanTraces({
         sessionId: input?.sessionId,
         ownerAgentKind: input?.ownerAgentKind,
         ownerProfileId: input?.ownerProfileId,
-        limit: limit + offset + 500,
-        offset: 0,
-      }).filter((r) => input?.includeAllNamespaces || visibleToCurrent(r));
+        domains: input?.domains,
+        projectWorkspaceId: input?.projectWorkspaceId,
+      }, limit + offset + 500).filter((r) => input?.includeAllNamespaces || visibleToCurrent(r));
       return traceRowsToDTOs(rows.slice(offset, offset + limit));
     }
-    // Substring search: SQLite LIKE would need an index. For the
-    // viewer's interactive filter the current volumes (low thousands
-    // per install) are cheap enough to do a two-phase scan.
-    const batchSize = Math.min(2_000, (limit + offset) * 5);
-    const rows = handle.repos.traces.list({
+    // Substring search: SQLite LIKE would need an index. The current volumes
+    // (low thousands per install) are cheap enough to scan, and the scan covers
+    // every trace, as `countTraces` does, so a page agrees with its count.
+    const rows = scanTraces({
       sessionId: input?.sessionId,
       ownerAgentKind: input?.ownerAgentKind,
       ownerProfileId: input?.ownerProfileId,
-      limit: batchSize,
-      offset: 0,
+      domains: input?.domains,
+      projectWorkspaceId: input?.projectWorkspaceId,
     });
     const filtered = rows.filter((r) => {
       if (!input?.includeAllNamespaces && !visibleToCurrent(r)) return false;
       return traceSearchHaystack(r).includes(needle);
     });
     return traceRowsToDTOs(filtered.slice(offset, offset + limit));
+  }
+
+  /**
+   * Newest-first traces matching a filter, read in repository pages until
+   * `upTo` rows (the last page may pass it) or the end. The repository clamps
+   * one `list` call to 500 rows, so a scan meant to see every trace walks the
+   * pages itself.
+   */
+  function scanTraces(
+    filter: Omit<NonNullable<Parameters<typeof handle.repos.traces.list>[0]>, "limit" | "offset">,
+    upTo = Number.POSITIVE_INFINITY,
+  ): ReturnType<typeof handle.repos.traces.list> {
+    const rows: ReturnType<typeof handle.repos.traces.list> = [];
+    while (rows.length < upTo) {
+      const page = handle.repos.traces.list({ ...filter, limit: TRACE_SCAN_PAGE, offset: rows.length });
+      rows.push(...page);
+      if (page.length < TRACE_SCAN_PAGE) break;
+    }
+    return rows;
   }
 
   function matchesNamespaceFilter(

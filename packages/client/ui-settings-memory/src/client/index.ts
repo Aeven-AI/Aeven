@@ -1,4 +1,4 @@
-/** Settings → Memory: the signed-in user's memories and learned capabilities, over the memoryManager Remote. */
+/** Settings → Memory: the signed-in user's memories, standing facts, and learned procedures, over the memoryManager Remote. */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@aeven/client-locale/client'
@@ -54,11 +54,9 @@ export function apply(ctx: ClientContext): void {
     addInvariant: text => value(remote.addInvariant(text)),
     editInvariant: (id, text) => value(remote.editInvariant(id, text)),
     removeInvariant: id => value(remote.removeInvariant(id)),
-    capabilities: () => value(remote.capabilities()),
-    capability: name => value(remote.capability(name)),
-    editCapability: (name, edit) => value(remote.editCapability(name, edit)),
-    setCapabilityStatus: (name, status) => value(remote.setCapabilityStatus(name, status)),
-    deleteCapability: name => value(remote.deleteCapability(name)),
+    procedures: () => value(remote.procedures()),
+    procedure: id => value(remote.procedure(id)),
+    editProcedure: (id, summary) => value(remote.editProcedure(id, summary)),
     openConversation: (sessionId) => { ctx.sessions.open(sessionId as ManagedMemory['sessionId']) },
   }
 

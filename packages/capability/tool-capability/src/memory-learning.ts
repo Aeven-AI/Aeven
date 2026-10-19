@@ -7,36 +7,25 @@
 import { readFile } from 'node:fs/promises'
 import type { Context } from '@deepseek-ai/cordis'
 import { BlockAssembler, createUserMessage, type ReasoningEffortId } from '@aeven/llm'
-import type { MemoryDomain, MemoryItemId, MemoryScope } from '@aeven/memory'
-import type {} from '@aeven/memory'
+import { LEARNED_PROCEDURE_PREFIX, type MemoryDomain, type MemoryItemId, type MemoryScope } from '@aeven/memory'
 
-/** Opens the text and the summary of every learned-procedure memory, followed by its name and a colon. */
-export const LEARNED_PREFIX = 'Learned procedure'
-
-/** A learned-procedure summary: the prefix, the kebab-case name, and the condensed procedure. */
-const NAMED = /^Learned procedure ([a-z0-9][a-z0-9-]*):\s*/
+/** A recalled learned procedure: the prefix and its kebab-case name. */
+const NAMED = /^Learned procedure ([a-z0-9][a-z0-9-]*):/
 
 /** Longest summary written; memory recall shows up to 1,000 characters of one memory. */
 const SUMMARY_MAX = 950
 
-/** Learned procedures whose full text is read for a merge. */
-const MAX_FULL = 3
-
 /** Recall budget of the lookup that runs before a distillation, in milliseconds. */
 const LOOKUP_TIMEOUT_MS = 15_000
 
+/**
+ * Traces the lookup asks recall for. Recall ranks every memory of the owner, and the turn just captured and the
+ * session's earlier turns match the work most closely, so a small limit leaves no room for the procedures.
+ */
+const LOOKUP_TRACES = 30
+
 /** Domains a learned procedure is filed under. */
 export const LEARNED_DOMAINS = ['world', 'experience', 'project'] as const satisfies readonly MemoryDomain[]
-
-/** One learned procedure already in memory. */
-export interface LearnedProcedure {
-  readonly id: MemoryItemId
-  readonly name: string
-  /** The condensed procedure the memory is recalled with. */
-  readonly summary: string
-  /** The full procedure, read for the procedures a merge may replace. */
-  readonly body?: string
-}
 
 /** One procedure to store. */
 export interface ProcedureDraft {
@@ -61,30 +50,47 @@ function clip(text: string, max: number): string {
 }
 
 /**
- * Learned procedures memory recalls for a request, best first, with the full text of the first few.
+ * Names of the learned procedures memory recall ranks for a request, best first.
  * @param ctx - context with the memory service.
  * @param scope - the session's memory scope.
  * @param query - the request the procedures should serve.
  * @param signal - cancellation.
- * @returns the procedures, one per name.
+ * @returns distinct procedure names.
  */
-export async function findLearnedProcedures(
-  ctx: Context,
-  scope: MemoryScope,
-  query: string,
-  signal: AbortSignal,
-): Promise<LearnedProcedure[]> {
-  const recall = await ctx.memory.recall({ scope, query, purpose: 'tool', timeoutMs: LOOKUP_TIMEOUT_MS, signal })
-  const found: LearnedProcedure[] = []
+export async function recallLearnedNames(ctx: Context, scope: MemoryScope, query: string, signal: AbortSignal): Promise<string[]> {
+  const recall = await ctx.memory.recall({
+    scope,
+    query,
+    purpose: 'tool',
+    timeoutMs: LOOKUP_TIMEOUT_MS,
+    limits: { skills: 0, traces: LOOKUP_TRACES, worldModels: 0 },
+    signal,
+  })
+  const names: string[] = []
   for (const hit of recall.hits) {
     const named = hit.kind === 'trace' ? NAMED.exec(hit.snippet) : null
-    if (named === null || found.some(item => item.name === named[1])) continue
-    const name = named[1] ?? ''
-    const summary = hit.snippet.slice(named[0].length)
-    const detail = found.length < MAX_FULL ? await ctx.memory.detail({ scope, kind: 'trace', id: hit.id, signal }) : undefined
-    found.push({ id: hit.id, name, summary, ...detail === undefined ? {} : { body: detail.body } })
+    const name = named?.[1]
+    if (name !== undefined && !names.includes(name)) names.push(name)
   }
-  return found
+  return names
+}
+
+/**
+ * Ids of every learned procedure stored under a name, for a save that replaces them.
+ * @param ctx - context with the memory service.
+ * @param scope - the session's memory scope.
+ * @param names - procedure names.
+ * @param signal - cancellation.
+ * @returns the ids.
+ */
+export async function learnedIdsNamed(
+  ctx: Context,
+  scope: MemoryScope,
+  names: readonly string[],
+  signal: AbortSignal,
+): Promise<MemoryItemId[]> {
+  const procedures = await ctx.memory.procedures({ owner: scope.owner, ...scope.cwd === undefined ? {} : { cwd: scope.cwd }, signal })
+  return procedures.filter(procedure => names.includes(procedure.name)).map(procedure => procedure.id)
 }
 
 /**
@@ -101,10 +107,10 @@ export async function storeLearnedProcedure(
   draft: ProcedureDraft,
   signal: AbortSignal,
 ): Promise<MemoryItemId> {
-  const text = `${LEARNED_PREFIX} ${draft.name}: ${draft.description}\n\n${draft.content}`
+  const text = `${LEARNED_PROCEDURE_PREFIX} ${draft.name}: ${draft.description}\n\n${draft.content}`
   const id = await ctx.memory.remember({ scope, text, domain: draft.domain, signal })
   // The summary capture wrote is a one-line gist; the learned summary carries the steps recall should deliver.
-  await ctx.memory.edit({ owner: scope.owner, id, summary: clip(`${LEARNED_PREFIX} ${draft.name}: ${draft.summary}`, SUMMARY_MAX), signal })
+  await ctx.memory.edit({ owner: scope.owner, id, summary: clip(`${LEARNED_PROCEDURE_PREFIX} ${draft.name}: ${draft.summary}`, SUMMARY_MAX), signal })
   return id
 }
 

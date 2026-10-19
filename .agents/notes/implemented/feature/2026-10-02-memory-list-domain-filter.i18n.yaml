@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-02-memory-list-domain-filter.md
-2026-10-02-memory-list-domain-filter.md: 64f2137b93e72b6302cf05a88e0a8ea60823088c
-2026-10-02-memory-list-domain-filter.zh.md: 17aea9a8c90b6ed3177492740f2a9dfe2cefe5ce
+2026-10-02-memory-list-domain-filter.md: 8e3f6a6ada9508ef0b013f0d1fa57675486d0c56
+2026-10-02-memory-list-domain-filter.zh.md: 1407aed2951911a98aa7621fc30bc017ca74234e

@@ -12,9 +12,6 @@
       "path": "../../../vendor/cordis"
     },
     {
-      "path": "../../capability/capability"
-    },
-    {
       "path": "../../identity/user"
     },
     {

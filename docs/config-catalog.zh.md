@@ -3900,6 +3900,12 @@ export type TokenMeterConfig = Record<string, never>
 export interface Config {
   /** Expose `run_in_background` (default true); disabled calls are also rejected. */
   enableRunInBackground?: boolean
+  /**
+   * How long a foreground command may run before the tool hands it back as a
+   * background job (default 20000). Applies only when `run_in_background` is
+   * available and a job runtime is mounted; without one, foreground calls wait.
+   */
+  detachAfterMs?: number
 }
 ```
 
@@ -4006,6 +4012,11 @@ export interface Config {
    * brings back; `capabilities` keeps them as capability files recalled as `<procedure_context>`.
    */
   store: 'memory' | 'capabilities'
+  /**
+   * Memory store only: distinct learned procedures a session sees above which procedures of one kind of task are
+   * merged in the background, once per owner and workspace per process; zero never merges.
+   */
+  consolidateAbove: number
 }
 ```
 
@@ -4324,6 +4335,12 @@ export interface Config {
 export interface Config {
   /** Expose `run_in_background` (default true); disabled calls are also rejected. */
   enableRunInBackground?: boolean
+  /**
+   * How long a foreground command may run before the tool hands it back as a
+   * background job (default 20000). Applies only when `run_in_background` is
+   * available and a job runtime is mounted; without one, foreground calls wait.
+   */
+  detachAfterMs?: number
 }
 ```
 

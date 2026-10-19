@@ -13,6 +13,7 @@ const CONFIG: LearnerConfig = {
   maxOutputTokens: 4_000,
   maxInputTokens: UNBOUNDED,
   store: 'capabilities',
+  consolidateAbove: 0,
 }
 
 /** One tool call whose output is long enough that dropping it pays for the omission line. */

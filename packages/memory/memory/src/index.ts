@@ -8,6 +8,8 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import type { Agent } from '@aeven/agent'
 import type { SessionId } from '@aeven/session'
 import type {
+  LearnedProcedure,
+  LearnedProceduresRequest,
   MemoryDetail,
   MemoryEnvironment,
   MemoryItemId,
@@ -44,6 +46,39 @@ export const MEMORY_TOOL = {
   skill: 'memory_skill',
   remember: 'memory_remember',
 } as const
+
+/** Opens the text and the summary of every learned-procedure memory, followed by its name and a colon. */
+export const LEARNED_PROCEDURE_PREFIX = 'Learned procedure'
+
+/** A learned-procedure memory text: the prefix, the kebab-case name, the description line, and the procedure. */
+const LEARNED_TEXT = /^Learned procedure ([a-z0-9][a-z0-9-]*): ([^\n]*)(?:\n+([\s\S]*))?$/
+
+/** A learned-procedure summary: the prefix and the name, before the condensed procedure. */
+const LEARNED_SUMMARY = /^Learned procedure [a-z0-9][a-z0-9-]*:\s*/
+
+/** Records one page of a learned-procedure listing reads. */
+const PROCEDURE_PAGE = 200
+
+/**
+ * Read one memory as a learned procedure.
+ * @param record - a listed memory.
+ * @returns the procedure, or undefined when the memory's text is not a learned procedure.
+ */
+export function learnedProcedureOf(record: MemoryRecord): LearnedProcedure | undefined {
+  const match = LEARNED_TEXT.exec(record.userText)
+  if (match === null) return undefined
+  const content = (match[3] ?? '').trim()
+  return {
+    id: record.id,
+    name: match[1] ?? '',
+    description: (match[2] ?? '').trim(),
+    summary: record.summary.replace(LEARNED_SUMMARY, '').trim(),
+    content,
+    domain: record.domain,
+    time: record.time,
+    sessionId: record.sessionId,
+  }
+}
 
 /** Thrown when a memory operation runs while no provider is registered. */
 export class MemoryUnavailableError extends Error {
@@ -219,6 +254,31 @@ export default class Memory extends Service {
    */
   list(request: Parameters<MemoryProvider['list']>[0]): Promise<MemoryPage> {
     return this.current().list(request)
+  }
+
+  /**
+   * List every learned procedure of the owner, newest first. Copies stored under one name are all listed.
+   * @param request - owner, the workspace whose sessions may see them, and cancellation.
+   * @returns the procedures.
+   */
+  async procedures(request: LearnedProceduresRequest): Promise<LearnedProcedure[]> {
+    const procedures: LearnedProcedure[] = []
+    for (let offset = 0; ; offset += PROCEDURE_PAGE) {
+      const page = await this.list({
+        owner: request.owner,
+        query: LEARNED_PROCEDURE_PREFIX,
+        ...request.cwd === undefined ? {} : { cwd: request.cwd },
+        limit: PROCEDURE_PAGE,
+        offset,
+        signal: request.signal,
+      })
+      for (const record of page.records) {
+        const procedure = learnedProcedureOf(record)
+        if (procedure !== undefined) procedures.push(procedure)
+      }
+      if (page.records.length === 0 || offset + PROCEDURE_PAGE >= page.total) break
+    }
+    return procedures.sort((a, b) => b.time - a.time)
   }
 
   /**

@@ -26,8 +26,8 @@ kind: "package-reference"
 - **About you**、**Projects** 与 **Knowledge** 把记忆列为安静的卡片。卡片显示该事实以及它被记住的时间。打开它会显示当时说的话，以及一个含类型、时间与项目的 Details 折叠区。Edit、Forget 与 Show conversation 位于打开后的卡片中。Show conversation 在应用内选中该会话并关闭 Settings。
 - **Projects** 按记忆来自的那个会话的工作区文件夹分组卡片。
 - 每个记忆标签页只向提供方请求自己的领域（`person`；`project`；`world` 与 `experience`），一次一页。**Load more** 只在提供方报告的该标签页记忆多于已加载数量时出现，并在一个空页或报告的总数结束列表后消失。
+- **Capabilities** 列出 `memoryManager.procedures()` 返回的已学步骤，最新的在前，并带一个按名称与描述筛选的搜索框。卡片显示步骤的名称与描述；打开后显示它何时学到、它的领域与项目、Aeven 为它召回的内容，完整步骤藏在 Procedure 折叠区之后。Show conversation、Edit（召回的步骤）与 Forget 留在打开后的卡片中，Forget 会要求确认。
 - **Standing facts** 列出每条陈述，带 Edit 与 Remove；Remove 在删除前要求确认。
-- **Capabilities** 以同样方式列出已学能力：卡片上是名称与描述，Procedure、Runs 与 Learned from 藏在折叠区之后。Edit、退役、恢复与删除留在打开后的卡片中。
 
 文案位于 `settings.memory` 字典中（英文与简体中文）。
 

@@ -423,6 +423,10 @@ export interface MemoryCore {
    *                       applied to `summary ?? userText`
    */
   listTraces(input?: {
+    /** Domain tags, inferred from workspace when absent. */
+    domains?: readonly string[];
+    /** Workspace restriction for project traces only. */
+    projectWorkspaceId?: string | null;
     limit?: number;
     offset?: number;
     sessionId?: SessionId;
@@ -444,7 +448,7 @@ export interface MemoryCore {
     groupByTurn?: boolean;
   }): Promise<TraceDTO[]>;
   /** Total trace rows matching the same filter (no limit/offset). */
-  countTraces(input?: { sessionId?: SessionId; ownerAgentKind?: AgentKind; ownerProfileId?: string; q?: string; groupByTurn?: boolean; includeAllNamespaces?: boolean }): Promise<number>;
+  countTraces(input?: { domains?: readonly string[]; projectWorkspaceId?: string | null; sessionId?: SessionId; ownerAgentKind?: AgentKind; ownerProfileId?: string; q?: string; groupByTurn?: boolean; includeAllNamespaces?: boolean }): Promise<number>;
 
   /**
    * Paged listing of the rich api_logs table ({@link ApiLogDTO}).

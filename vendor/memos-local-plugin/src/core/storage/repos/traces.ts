@@ -92,6 +92,23 @@ const DEDUP_COLUMNS = [
   "tool_calls_json",
 ] as const;
 
+/** Domain filtering shares the capture tag precedence and untagged workspace inference. */
+function domainWhere(filter: TraceListFilter, fragments: string[], params: Record<string, unknown>): void {
+  if (filter.domains === undefined && filter.projectWorkspaceId === undefined) return;
+  const domain = `COALESCE((SELECT substr(value, 8) FROM json_each(tags_json)
+    WHERE value IN ('domain:person', 'domain:project', 'domain:world', 'domain:experience')
+    ORDER BY CAST(key AS INTEGER) LIMIT 1),
+    CASE WHEN COALESCE(owner_workspace_id, '') <> '' THEN 'project' ELSE 'experience' END)`;
+  if (filter.domains !== undefined) {
+    fragments.push(`${domain} IN (SELECT value FROM json_each(@domains))`);
+    params.domains = JSON.stringify(filter.domains);
+  }
+  if (filter.projectWorkspaceId !== undefined) {
+    fragments.push(`(${domain} <> 'project' OR owner_workspace_id = @project_workspace_id)`);
+    params.project_workspace_id = filter.projectWorkspaceId;
+  }
+}
+
 export function makeTracesRepo(db: StorageDb) {
   const insert = db.prepare(buildInsert({ table: "traces", columns: COLUMNS }));
   const upsert = db.prepare(
@@ -259,6 +276,7 @@ export function makeTracesRepo(db: StorageDb) {
         params.min_abs_value = filter.minAbsValue;
       }
       if (tr.sql) fragments.push(tr.sql);
+      domainWhere(filter, fragments, params);
       const where = joinWhere(fragments);
       const shouldUseUncappedEpisodeScan =
         Boolean(filter.episodeId) &&
@@ -389,6 +407,7 @@ export function makeTracesRepo(db: StorageDb) {
         Object.assign(params, visibility.params);
       }
       if (tr.sql) fragments.push(tr.sql);
+      domainWhere(filter, fragments, params);
       const where = joinWhere(fragments);
       const sql = `SELECT COUNT(*) AS n FROM traces ${where}`;
       const row = db.prepare<typeof params, { n: number }>(sql).get(params);
@@ -426,6 +445,7 @@ export function makeTracesRepo(db: StorageDb) {
         fragments.push(visibility.sql);
         Object.assign(params, visibility.params);
       }
+      domainWhere(filter, fragments, params);
       const where = joinWhere(fragments);
       const sql = `SELECT COUNT(*) AS n FROM (SELECT DISTINCT episode_id, turn_id FROM traces ${where})`;
       const row = db.prepare<typeof params, { n: number }>(sql).get(params);
@@ -463,6 +483,7 @@ export function makeTracesRepo(db: StorageDb) {
         fragments.push(visibility.sql);
         Object.assign(params, visibility.params);
       }
+      domainWhere(filter, fragments, params);
       const where = joinWhere(fragments);
       const limit = Math.max(1, Math.min(10_000, filter.limit ?? 50));
       const offset = Math.max(0, filter.offset ?? 0);
