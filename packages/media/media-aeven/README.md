@@ -66,13 +66,13 @@ A transparent background on Pro needs one reference image that has an alpha chan
 | Option | `Aeven-1.0-Video-Flash` (default) | `Aeven-1.0-Video-Pro` |
 |---|---|---|
 | Tier | Fast and economical | Slower, pricier, better quality |
-| `duration` | 4, 6 or 8 (default 8) | 4–15 (default 5) or `-1` (the model decides) |
-| `resolution` | `720p`, `1080p` (default) or `4K` | `480p`, `720p` (default) or `1080p` |
-| `aspectRatio` | `16:9` (default) or `9:16` | `16:9` (default), `4:3`, `1:1`, `3:4`, `9:16`, `21:9` or `adaptive` |
-| First and last frame | both | both |
-| `seed` | 0 to 4294967295 | −1 (random) to 4294967295 |
+| `duration` | 8 only (default) | 8 only (default) |
+| `resolution` | `720p` or `1080p` (default) | `720p` or `1080p` (default) |
+| `aspectRatio` | `16:9` (default) or `9:16` | `16:9` (default) or `9:16` |
+| Starting image | one; no last frame | one; no last frame |
+| `seed` | 0 to 4294967295 | 0 to 4294967295 |
 
-`videoRequestBody` refuses, before the job starts, a model Aeven does not serve, `size`, a `duration`, resolution or aspect ratio the model's column above does not list, and more than two reference images. The first reference image is sent as `first_frame_image` and a second as `last_frame_image`, both inline as `data:` URLs; `seed` and `generateAudio` map to `seed` and `generate_audio`. The job is started with `Prefer: respond-async`, so the gateway owns the render and a dropped connection neither loses nor re-bills it. Its `in_progress`, `completed` and `failed` states map to the seam's `running`, `succeeded` and `failed`. `fetchVideo` reads the completed job and takes the clip from its result: the bytes themselves when the result carries `b64_json` (the gateway downloads a Video Flash clip with its own key, because that upstream's link is not presigned), otherwise the HTTPS URL it names, downloaded without a credential. Either way it refuses anything over `maxVideoBytes`.
+`videoRequestBody` refuses, before the job starts, a model Aeven does not serve, `size`, a `duration`, resolution or aspect ratio the model's column above does not list, and more than one reference image. The starting image is sent as `first_frame_image`, inline as a `data:` URL; `seed` and `generateAudio` map to `seed` and `generate_audio`. The job is started with `Prefer: respond-async`, so the gateway owns the render and a dropped connection neither loses nor re-bills it. Its `in_progress`, `completed` and `failed` states map to the seam's `running`, `succeeded` and `failed`. `fetchVideo` reads the completed job and takes the clip from its result: the bytes themselves when the result carries `b64_json` (the gateway downloads a video clip with its own key, because that upstream's link is not presigned), otherwise the HTTPS URL it names, downloaded without a credential. Either way it refuses anything over `maxVideoBytes`.
 
 ### Signing in instead of holding a key
 
@@ -110,7 +110,7 @@ These limits define when the provider is a poor fit. They are current package co
 
 - **No invariant companion** — No runtime invariant companion is published because this package owns no relationship two independent observers could disagree about; its two registrations are disposed with the calling fiber and covered by the package's tests.
 - **The catalog is a mirror** — a model the gateway adds is not offered until this list ships it, and an option the gateway changes is refused early here until the list follows.
-- **Frames only for video references** — local images reach a clip only as its first and last frame; the gateway's `reference_images`, `reference_videos` and `reference_audios` take HTTPS or `asset://` URLs, which local files do not have.
+- **Frames only for video references** — one local image reaches a clip as its first frame; the gateway's `reference_images`, `reference_videos` and `reference_audios` take HTTPS or `asset://` URLs, which local files do not have.
 - **The charge is the gateway's figure** — `costUsdMicros` on an image result or a succeeded video job is the customer charge the gateway's ledger recorded (`usage.cost_usd_micros`); a gateway that does not report it leaves the field absent.
 
 <a id="dev-note"></a>

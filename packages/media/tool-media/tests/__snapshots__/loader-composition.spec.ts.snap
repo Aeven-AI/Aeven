@@ -1,0 +1,27 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`video generation authorization through the shipped composition > refuses a call when no confirmation UI is available 1`] = `"Generate a video clip from a text prompt, optionally starting from an image, and attach it to the conversation. Call only for an explicit current request to generate one video. Feedback, questions, image edits, and earlier requests do not authorize another render. Never retry a failed generation or change its model or settings without fresh user approval. Each call waits for separate user confirmation before spending money. Give a complete prompt covering subject, action, camera movement, style, and lighting. Generation takes minutes. To animate an existing image, pass it as the first of reference_images; a second image is the last frame. The video is displayed directly to the user with playback controls. Do not repeat or embed it in your reply, write a video path, or call other tools to locate or verify it. Available models: Aeven-1.0-Video-Flash (default) — Fast and economical tier; use it by default; video from a text prompt or one starting image; duration 8 seconds only (no -1, nothing other than 8); resolution 720p or 1080p (default); aspect_ratio 16:9 (default) or 9:16; synchronized audio on by default, generate_audio false makes it cheaper; seed 0 or more; no last-frame image and no 4K; Aeven-1.0-Video-Pro — Higher-quality Pro tier; choose it when quality matters more than speed and cost; video from a text prompt or one starting image; duration 8 seconds only (no -1, nothing other than 8); resolution 720p or 1080p (default); aspect_ratio 16:9 (default) or 9:16; synchronized audio on by default, generate_audio false makes it cheaper; seed 0 or more; no last-frame image and no 4K."`;
+
+exports[`video generation authorization through the shipped composition > waits for approval and asks again after an approved attempt fails 1`] = `
+[
+  {
+    "detail": "Model: Aeven Video Flash
+
+Duration: 8 seconds; resolution: 720p; aspect ratio: 16:9
+
+A fashion shoot",
+    "header": "Generate video",
+    "id": "video-generation",
+    "options": [
+      {
+        "label": "Cancel",
+      },
+      {
+        "description": "Authorize this generation only.",
+        "label": "Generate video",
+      },
+    ],
+    "question": "Start one paid video generation?",
+  },
+]
+`;

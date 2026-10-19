@@ -124,6 +124,11 @@ async function startGateway(image: string = PNG_1X1): Promise<{ url: string; bod
     request.on('end', () => {
       bodies.push(JSON.parse(raw))
       auth.push(request.headers.authorization)
+      if (request.url === '/v1/videos') {
+        response.writeHead(503, { 'content-type': 'application/json' })
+        response.end(JSON.stringify({ error: { message: 'Video generation is disabled in this test gateway.' } }))
+        return
+      }
       response.writeHead(200, { 'content-type': 'application/json' })
       response.end(JSON.stringify({ created: 0, data: [{ b64_json: image }] }))
     })
@@ -271,5 +276,78 @@ describe('image generation through the shipped preset composition', () => {
     expect(flashBackground.isError).toBe(true)
     // Neither refusal reached the gateway.
     expect(bodies).toHaveLength(1)
+  })
+})
+
+describe('video generation authorization through the shipped composition', () => {
+  const args = { prompt: 'A fashion shoot', model: 'Aeven-1.0-Video-Flash', duration: 8, resolution: '720p', aspect_ratio: '16:9' }
+
+  it('refuses a call when no confirmation UI is available', async () => {
+    const { url, bodies } = await startGateway()
+    const ctx = await loadComposition(url)
+    const out = await ctx.tools.execute({ signal: new AbortController().signal, callId: ToolCallId('unconfirmed'), name: 'generate_video', arguments: args })
+
+    expect(out.isError).toBe(true)
+    expect(out.content).toEqual([{ type: 'text', text: 'Error: Video generation requires user confirmation, but no confirmation UI is available.' }])
+    expect(bodies).toEqual([])
+    expect(ctx.tools.get('generate_video')?.description).toMatchSnapshot()
+  })
+
+  it.each([
+    { id: 'video-generation', selected: ['Cancel'] },
+    { id: 'video-generation', selected: [] },
+    { id: 'video-generation', selected: [], custom: 'Do you understand?' },
+    { id: 'video-generation', selected: ['Generate video'], custom: 'Only edit the image first' },
+    { id: 'video-generation', selected: ['Cancel', 'Generate video'] },
+    { id: 'video-model', selected: ['Generate video'] },
+  ])('refuses an answer that does not approve this generation: %j', async (answer) => {
+    const { url, bodies } = await startGateway()
+    const ctx = await loadComposition(url)
+    ctx.provide('userQuestions', { ask: async () => ({ answers: [answer] }) })
+    const out = await ctx.tools.execute({ signal: new AbortController().signal, callId: ToolCallId('declined'), name: 'generate_video', arguments: args })
+
+    expect(out.isError).toBe(true)
+    expect(bodies).toEqual([])
+  })
+
+  it('waits for approval and asks again after an approved attempt fails', async () => {
+    const { url, bodies } = await startGateway()
+    const ctx = await loadComposition(url)
+    const asked: unknown[] = []
+    let approve: ((answer: { answers: { id: string; selected: string[] }[] }) => void) | undefined
+    ctx.provide('userQuestions', {
+      ask: (request: { questions: unknown[] }) => {
+        asked.push(request.questions)
+        return asked.length === 1
+          ? new Promise((resolve) => { approve = resolve })
+          : Promise.resolve({ answers: [{ id: 'video-generation', selected: ['Cancel'] }] })
+      },
+    })
+    const first = ctx.tools.execute({ signal: new AbortController().signal, callId: ToolCallId('approved'), name: 'generate_video', arguments: args })
+    await vi.waitFor(() => { expect(approve).toBeDefined() })
+    expect(bodies).toEqual([])
+    expect(asked[0]).toMatchSnapshot()
+    approve!({ answers: [{ id: 'video-generation', selected: ['Generate video'] }] })
+    expect((await first).isError).toBe(true)
+    expect(bodies).toHaveLength(1)
+    const retry = await ctx.tools.execute({ signal: new AbortController().signal, callId: ToolCallId('retry'), name: 'generate_video', arguments: args })
+    expect(retry.isError).toBe(true)
+    expect(asked).toHaveLength(2)
+    expect(bodies).toHaveLength(1)
+  })
+
+  it('does not start a generation when the caller is cancelled while answering', async () => {
+    const { url, bodies } = await startGateway()
+    const ctx = await loadComposition(url)
+    const controller = new AbortController()
+    ctx.provide('userQuestions', {
+      ask: async () => {
+        controller.abort()
+        return { answers: [{ id: 'video-generation', selected: ['Generate video'] }] }
+      },
+    })
+    const out = await ctx.tools.execute({ signal: controller.signal, callId: ToolCallId('cancelled'), name: 'generate_video', arguments: args })
+    expect(out.isError).toBe(true)
+    expect(bodies).toEqual([])
   })
 })

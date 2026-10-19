@@ -2376,7 +2376,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/media/media-aeven/src/index.ts:159`](../packages/media/media-aeven/src/index.ts)
+Source: [`packages/media/media-aeven/src/index.ts:160`](../packages/media/media-aeven/src/index.ts)
 
 <a id="aevenmedia-deepinfra"></a>
 

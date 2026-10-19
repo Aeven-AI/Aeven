@@ -10,9 +10,11 @@ Aeven 网关在 `POST /v1/videos` 提供 `Aeven-1.0-Video-Pro`，但任何 Aeven
 
 ## 决定
 
-`media-aeven` 在图片 provider 旁注册一个视频 provider。它以 `Prefer: respond-async` 启动网关任务，读取 `GET /v1/videos/{id}`，并把 `in_progress`、`completed`、`failed` 映射为 seam 的 `running`、`succeeded`、`failed`。`fetchVideo` 下载已完成任务结果中给出的 HTTPS URL，受 `maxVideoBytes` 限制。本地参考图成为首帧与尾帧，因为网关的其他参考字段只接受 HTTPS 或 `asset://` URL。
+`media-aeven` 在图片 provider 旁注册一个视频 provider。它以 `Prefer: respond-async` 启动网关任务，读取 `GET /v1/videos/{id}`，并把 `in_progress`、`completed`、`failed` 映射为 seam 的 `running`、`succeeded`、`failed`。`fetchVideo` 读取内联视频字节或下载已完成任务结果中给出的 HTTPS URL，受 `maxVideoBytes` 限制。一张本地参考图成为首帧，因为网关的其他参考字段只接受 HTTPS 或 `asset://` URL。
 
-`tool-media` 在设置了 `video` 配置时发布 `generate_video`。一次调用启动任务、等待其完成，并用 `ctx.attachments.saveFile` 存储成片；结果以文件块引用它。模型把该块读作 `<attached_file>` 元素，而由于会话日志引用了它，`/api/attachment-file` 会把它提供给客户端。图片工具的模型选择改为由两种类型共用的 `installSelection`，因此 `/video-model`、其选择器与 `media-video` 设置文档的行为与 `/image-model` 和 `media` 相同。随附预设以 `confirmModel: false` 将 Video Pro 设为默认。
+`tool-media` 在设置了 `video` 配置时发布 `generate_video`。一次调用启动任务、等待其完成，并用 `ctx.attachments.saveFile` 存储成片；结果以文件块引用它。模型把该块读作 `<attached_file>` 元素，而由于会话日志引用了它，`/api/attachment-file` 会把它提供给客户端。图片工具的模型选择改为由两种类型共用的 `installSelection`，因此 `/video-model`、其选择器与 `media-video` 设置文档的行为与 `/image-model` 和 `media` 相同。随附预设以 `confirmModel: false` 将 Video Flash 设为默认。网关通过 DeepInfra 将 Flash 路由至 Veo 3.1 Fast，将 Pro 路由至 Veo 3.1；当 provider 不可用或限流时，回退至 OpenRouter 一次。两档均提供 8 秒、720p/1080p、16:9 或 9:16、音频及一张起始图片；Pro 以速度和成本换取画质。随附目录描述这些限制，因此模型不能为了请求 Seedance 专属的时长或宽高比而选择 Pro。
+
+每次 `generate_video` 执行都在调用 `ctx.media.startVideo` 前等待独立的 `userQuestions` 确认。只有当前问题的明确批准才授权一次调用。没有 UI、取消、自由文本或已存储的模型选择均不能授权渲染。问题展示所选模型、请求的设置及提示词。工具描述要求当前的生成请求，并禁止把反馈、排障或先前请求视为重试花费的许可。
 
 Imagine 为 `generate_video` 注册 `VideoToolView`。任务运行期间，调用显示与图片卡片相同的框及其加载标记，随后在同一框中显示由 `VideoPlayer` 自带控件承载的成片，不使用灯箱。控件属于产品自身而非浏览器：承载 lucide 字形的白色播放圆盘、已播与总时长读数、进度条、带独立音量滑杆的白色音量圆盘、由竖排省略号圆盘打开、卡片与单元格沿用作曲器弹层配方的保存弹层，以及白色全屏圆盘，因此控件与客户端其余部分一致，而不是浏览器的外观。所有外观均由成片自身的事件驱动，全屏取在播放器元素上，因此控件在全屏界面上仍然随成片；播放时指针离开一段时间后控件栏自动收起。`/api/attachment-file` 以 `206` 应答单个字节范围，使播放器可以拖动进度。
 
@@ -22,8 +24,10 @@ Imagine 为 `generate_video` 注册 `VideoToolView`。任务运行期间，调�
 
 ## 验证
 
-应用户要求，验证仅限 TypeScript 检查与构建：未运行测试套件，也未进行真实的生成调用。
+媒体 provider 测试固定两档目录，并验证不支持的时长、分辨率和宽高比会被拒绝。录制会话测试框架没有视频 provider fixture；目录快照与实际 UI 生成覆盖此路径。
 
 ## 考虑过的替代方案
+
+**仅依赖提示词授权。** 指令可以减少未经请求的调用，却无法阻止模型将反馈误读为花费许可。执行器要求每次调用取得人类回答，独立于模型选择器。
 
 像 Grok Imagine 视频工具那样分为启动工具与状态工具，会让模型自行轮询，转录中也没有一个可以显示成片的单一调用。像 `subscription-auth` 那样把成片存入带限时路由的私有媒体存储，会在附件存储之外增加第二个存储所有者，成片也不再由会话日志引用。要求网关同步应答，会把一次付费渲染绑定在一条 HTTP 连接上。

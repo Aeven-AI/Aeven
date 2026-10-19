@@ -40,6 +40,8 @@ A deployment mounting two image providers pins one, either here or as the seam's
 
 `generate_video` also requires only `prompt`. `model` overrides the selected video model for one call; `duration`, `resolution`, `aspect_ratio`, `seed` and `generate_audio` forward to the seam's video request; `reference_images` names at most two images, read as above, which the provider uses as the first and last frame.
 
+Each `generate_video` call requires a separate user confirmation before the provider starts a job. The question shows the selected model, requested duration, resolution, aspect ratio and prompt. Only its explicit `Generate video` option authorizes that one call; cancellation, free text and a prior model choice do not. Calls without a confirmation UI fail before reaching the provider. A retry or another render requires fresh confirmation.
+
 -----
 
 <a id="understand-the-implementation"></a>

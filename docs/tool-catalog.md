@@ -2177,7 +2177,7 @@ Source: [`packages/media/tool-media/src/index.ts`](../packages/media/tool-media/
 
 ### `generate_video`
 
-Generate a video clip from a text prompt, optionally starting from an image, and attach it to the conversation. Use when the user asks to create, animate, or generate a video. Give a complete prompt covering subject, action, camera movement, style, and lighting. Generation takes minutes. To animate an existing image, pass it as the first of reference_images; a second image is the last frame. The video is displayed directly to the user with playback controls. Do not repeat or embed it in your reply, write a video path, or call other tools to locate or verify it.
+Generate a video clip from a text prompt, optionally starting from an image, and attach it to the conversation. Call only for an explicit current request to generate one video. Feedback, questions, image edits, and earlier requests do not authorize another render. Never retry a failed generation or change its model or settings without fresh user approval. Each call waits for separate user confirmation before spending money. Give a complete prompt covering subject, action, camera movement, style, and lighting. Generation takes minutes. To animate an existing image, pass it as the first of reference_images; a second image is the last frame. The video is displayed directly to the user with playback controls. Do not repeat or embed it in your reply, write a video path, or call other tools to locate or verify it.
 
 ```json
 {

@@ -66,13 +66,13 @@ Pro 的透明背景需要恰好一张带 alpha 通道的参考图；该规则由
 | 选项 | `Aeven-1.0-Video-Flash`（默认） | `Aeven-1.0-Video-Pro` |
 |---|---|---|
 | 定位 | 快速、经济 | 更慢、更贵，画质更好 |
-| `duration` | 4、6 或 8（默认 8） | 4–15（默认 5）或 `-1`（由模型决定） |
-| `resolution` | `720p`、`1080p`（默认）或 `4K` | `480p`、`720p`（默认）或 `1080p` |
-| `aspectRatio` | `16:9`（默认）或 `9:16` | `16:9`（默认）、`4:3`、`1:1`、`3:4`、`9:16`、`21:9` 或 `adaptive` |
-| 首帧与尾帧 | 均支持 | 均支持 |
-| `seed` | 0 至 4294967295 | −1（随机）至 4294967295 |
+| `duration` | 仅 8（默认） | 仅 8（默认） |
+| `resolution` | `720p` 或 `1080p`（默认） | `720p` 或 `1080p`（默认） |
+| `aspectRatio` | `16:9`（默认）或 `9:16` | `16:9`（默认）或 `9:16` |
+| 起始图片 | 一张；不支持尾帧 | 一张；不支持尾帧 |
+| `seed` | 0 至 4294967295 | 0 至 4294967295 |
 
-`videoRequestBody` 在任务启动之前拒绝：Aeven 不提供的模型、`size`、上表中该模型一栏未列出的 `duration`、分辨率或宽高比，以及超过两张的参考图。第一张参考图作为 `first_frame_image` 发送，第二张作为 `last_frame_image` 发送，二者都以内联 `data:` URL 传递；`seed` 与 `generateAudio` 映射为 `seed` 与 `generate_audio`。任务以 `Prefer: respond-async` 启动，因此渲染由网关持有，连接中断既不会丢失也不会重复计费。其 `in_progress`、`completed`、`failed` 状态映射为 seam 的 `running`、`succeeded`、`failed`。`fetchVideo` 读取已完成的任务，并从其结果中取得视频：结果带有 `b64_json` 时直接使用这些字节（Video Flash 上游的链接未预签名，所以由网关用自己的密钥下载），否则下载其指明的 HTTPS URL，且不携带凭据。两种情况下，超过 `maxVideoBytes` 的一律拒绝。
+`videoRequestBody` 在任务启动之前拒绝：Aeven 不提供的模型、`size`、上表中该模型一栏未列出的 `duration`、分辨率或宽高比，以及超过一张的参考图。起始图片作为 `first_frame_image` 发送，以内联 `data:` URL 传递；`seed` 与 `generateAudio` 映射为 `seed` 与 `generate_audio`。任务以 `Prefer: respond-async` 启动，因此渲染由网关持有，连接中断既不会丢失也不会重复计费。其 `in_progress`、`completed`、`failed` 状态映射为 seam 的 `running`、`succeeded`、`failed`。`fetchVideo` 读取已完成的任务，并从其结果中取得视频：结果带有 `b64_json` 时直接使用这些字节（视频上游的链接未预签名，所以由网关用自己的密钥下载），否则下载其指明的 HTTPS URL，且不携带凭据。两种情况下，超过 `maxVideoBytes` 的一律拒绝。
 
 ### 以登录代替持有密钥
 
@@ -110,7 +110,7 @@ bearer 按每次生成解析：先取凭据 seam 中属于发起生成的 Sessio
 
 - **没有 invariant 配套** — 不发布运行时 invariant 配套，因为本包不拥有两个独立观察者可能产生分歧的关系；它的两个注册随调用 fiber 一同释放，并由本包测试覆盖。
 - **目录是一个镜像** — 网关新增的模型在本列表随包发布之前不会被提供；网关更改的选项在本列表跟进之前会在此被提前拒绝。
-- **视频参考仅限首尾帧** — 本地图片只能作为成片的首帧和尾帧；网关的 `reference_images`、`reference_videos`、`reference_audios` 只接受 HTTPS 或 `asset://` URL，而本地文件没有这样的地址。
+- **视频参考仅限首尾帧** — 一张本地图片可作为成片的首帧；网关的 `reference_images`、`reference_videos`、`reference_audios` 只接受 HTTPS 或 `asset://` URL，而本地文件没有这样的地址。
 - **费用以网关数字为准** — 图片结果或成功视频任务上的 `costUsdMicros` 是网关账本记录的客户扣费（`usage.cost_usd_micros`）；不报告它的网关会让该字段缺省。
 
 <a id="dev-note"></a>

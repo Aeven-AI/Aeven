@@ -382,11 +382,11 @@
         - provider: aeven
           model: Aeven-1.0-Video-Flash
           label: Aeven Video Flash
-          description: Fast tier; quick and economical video from a text prompt, a first-frame image, or a first- and a last-frame image; duration 4, 6 or 8 seconds only (default 8; no -1, nothing longer); resolution 720p, 1080p (default) or 4K; aspect_ratio 16:9 (default) or 9:16; synchronized audio on by default, generate_audio false makes it cheaper; seed 0 or more; use it unless the clip must be longer than 8 seconds or need another aspect ratio
+          description: Fast and economical tier; use it by default; video from a text prompt or one starting image; duration 8 seconds only (no -1, nothing other than 8); resolution 720p or 1080p (default); aspect_ratio 16:9 (default) or 9:16; synchronized audio on by default, generate_audio false makes it cheaper; seed 0 or more; no last-frame image and no 4K
         - provider: aeven
           model: Aeven-1.0-Video-Pro
           label: Aeven Video Pro
-          description: Slower, pricier tier with better quality; for clips longer than 8 seconds or other aspect ratios; video from a text prompt or a starting image; duration 4–15 seconds (default 5) or -1 to let the model decide; resolution 480p, 720p (default) or 1080p; aspect_ratio 16:9 (default), 4:3, 1:1, 3:4, 9:16, 21:9 or adaptive; generate_audio; a first-frame and optional last-frame image; seed
+          description: Higher-quality Pro tier; choose it when quality matters more than speed and cost; video from a text prompt or one starting image; duration 8 seconds only (no -1, nothing other than 8); resolution 720p or 1080p (default); aspect_ratio 16:9 (default) or 9:16; synchronized audio on by default, generate_audio false makes it cheaper; seed 0 or more; no last-frame image and no 4K
       # Generates with Video Flash until a person picks another model through
       # `/video-model`, rather than asking before the first generation.
       model: Aeven-1.0-Video-Flash
