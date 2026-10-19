@@ -12,6 +12,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { scopeChainOf, scopeOf } from '@aeven/scope'
 import { defineTool } from '@aeven/tools'
+import type { ToolDefinition } from '@aeven/tools'
 import type { Agent, AgentOptions } from '@aeven/agent'
 import { ReasoningEffortId } from '@aeven/llm'
 import type { ContentBlock } from '@aeven/llm'
@@ -42,6 +43,10 @@ import {
 
 export const name = 'tool-subagent'
 export const inject = ['tools', 'subagents', 'systemPrompt', 'sessionProjections']
+
+// Definition identity keeps shared guidance scoped to the actual visible tools,
+// including scoped overrides and independently loaded tool registries.
+const delegationTools = new Set<ToolDefinition>()
 
 /** Config: which registered provider this tool delegates to, plus child defaults. */
 export interface Config {
@@ -314,6 +319,8 @@ export function apply(ctx: Context, config: Config): void {
   const backgroundEnabled = config.enableRunInBackground !== false
   const continuable = (config.backgroundMode ?? 'one-shot') === 'continuable'
   const toolName = config.toolName ?? 'subagent'
+  // Only background continuable instances carry the shared delegation sentence.
+  const sharedGuidance = backgroundEnabled && continuable
 
   const modelSelectionCapable = config.modelSelectionSettings === true
   ctx.sessionProjections.register(subagentModelSelectionProjectionDefinition)
@@ -369,7 +376,7 @@ export function apply(ctx: Context, config: Config): void {
           + (subagentProvider.inheritsParentContext
             ? ' Changing the route can prevent provider-side reuse of the inherited conversation prefix.'
             : '')
-      const disposeTool = runtimeCtx.tools.register(defineTool({
+      const definition = defineTool({
         name: toolName,
         description: wording.description + (backgroundEnabled
           // The completion notice is the continuation service's own behavior, not
@@ -560,7 +567,18 @@ export function apply(ctx: Context, config: Config): void {
           })
           return settleForegroundRun(run)
         },
-      }))
+      })
+      const unregister = runtimeCtx.tools.register(definition)
+      const untrack = sharedGuidance
+        ? runtimeCtx.effect(() => {
+          delegationTools.add(definition)
+          return () => { delegationTools.delete(definition) }
+        })
+        : () => {}
+      const disposeTool = (): void => {
+        untrack()
+        unregister()
+      }
       mounted = { subagentProvider, disposeTool }
     }
 
@@ -585,16 +603,25 @@ export function apply(ctx: Context, config: Config): void {
       // A backend fiber may activate later; a misspelled provider remains visible in this log.
       runtimeCtx.logger.info(`subagent provider "${config.provider}" not registered yet; the "${config.toolName ?? 'subagent'}" tool will register when it appears`)
     }
-    if (backgroundEnabled && continuable) {
+    if (sharedGuidance) {
       // The section follows provider availability without its own manual
       // lifecycle: empty text is omitted from rendered prompts while the tool is
       // absent, and the registration itself stays owned by this plugin fiber.
+      // Every visible delegation tool shares one sentence, rendered by the
+      // alphabetically first of them.
       runtimeCtx.systemPrompt.section({
         name: `tool:${toolName}`,
         order: runtimeCtx.systemPrompt.getSectionOrder('TOOL_SUBAGENT'),
-        text: context => mounted === undefined || runtimeCtx.tools.get(toolName, context.scope) === undefined
-          ? ''
-          : `Use ${toolName} in the background by default. Start independent delegations together in one assistant message and continue useful work while they run. Set \`run_in_background: false\` only when your next action depends on that subagent's result. When a background run settles, the runtime sends you a notice containing its outcome and any final assistant message.`,
+        text: (context) => {
+          if (mounted === undefined) return ''
+          const visible = [...delegationTools]
+            .filter(tool => runtimeCtx.tools.get(tool.name, context.scope) === tool)
+            .map(tool => tool.name)
+            .sort()
+          if (visible[0] !== toolName) return ''
+          const names = visible.map(name => `\`${name}\``).join(' or ')
+          return `Start independent delegations with ${names} together in one assistant message and continue useful work while they run.`
+        },
       })
     }
   }

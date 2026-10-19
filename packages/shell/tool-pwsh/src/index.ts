@@ -115,19 +115,26 @@ function pwshDescription(
   escalationModes: readonly SandboxMode[],
 ): string {
   const background = !backgroundEnabled
-    ? 'Background execution is not available; long-running commands must finish within the timeout.'
+    ? 'Background execution is not available; long-running commands must finish within the timeout. '
     : detachAfterMs === undefined
-      ? 'Start long-running commands with `run_in_background: true`: the call returns a job id immediately; read its output with `job_output` and stop it with `job_kill`.'
-      : `Start anything whose duration you cannot bound in the background with \`run_in_background: true\` — installs, builds, test suites, servers, downloads — so \`job_output\` collects it while you keep working. A foreground command still running after ${detachAfterMs}ms is handed back as a background job instead of blocking the turn.`
+      ? ''
+      : `A foreground command still running after ${detachAfterMs}ms is handed back as a background job instead of blocking the turn. `
+  // The denial result carries the same-turn escalation hint, so the
+  // description states only what the model cannot learn from a result.
+  const sandbox = escalationModes.length === 0
+    ? 'Commands may run under a file sandbox; a blocked file operation is reported as `[sandbox: file access denied under <mode> mode]`, a policy denial: do not retry another way.'
+    : 'Commands run under a file sandbox; a blocked file operation is reported as `[sandbox: file access denied under <mode> mode]`, a policy denial: do not retry another way except through the escalation the denial offers. Attempting a command the sandbox may deny is safe: run it rather than assuming the denial.'
   const base = 'Execute a PowerShell command (`pwsh -Command`) and return its stdout/stderr. '
-    + 'Each call runs in a fresh pwsh process: no state (cwd, variables, functions) persists between calls — '
-    + 'pass `workdir` instead of using `cd`. Paths use native Windows form (`C:\\...`); read environment '
-    + 'variables with `$env:NAME`. Non-zero exits are reported as `[exit code: N]`. '
-    + 'Current harness environment facts are exposed through managed `$env:AVN_*` variables; inspect them when needed. '
-    + 'Commands may run under a file sandbox; a blocked file operation is reported as `[sandbox: file access denied under <mode> mode]` — a policy denial, not a bug in the command; do not retry another way. '
+    + 'Each call runs in a fresh pwsh process; pass `workdir` instead of using `cd`. Paths use native Windows form (`C:\\...`); read environment '
+    + 'variables with `$env:NAME`. '
+    + 'Managed `$env:AVN_*` variables expose current harness environment facts. '
     + 'Long output is truncated to its tail; the full output is saved to a file whose path is reported when available. '
     + 'On Windows a force-killed command settles as `[exit code: 1]` without a signal marker — treat it as an interruption, not a command failure. '
     + background
+    + 'Provide `description` before `command` in the arguments. '
+    + 'Before any delete or move, verify that the resolved absolute target path is the intended one; never run it against a computed path you have not checked. '
+    + 'Do not assign to automatic variables such as `$HOME`; variable names are case-insensitive, so `$home` is the same read-only variable. '
+    + sandbox
   if (escalationModes.length === 0) return base
   // The language-mode and named-pipe contracts below are Windows-restricted-token
   // behavior, but the gate is 'any confining executor is mounted'
@@ -144,18 +151,7 @@ function pwshDescription(
     + '`stdio: \'pipe\'`) fails with EPERM, while `stdio: \'inherit\'` and `stdio: \'ignore\'` spawns '
     + 'work and PowerShell\'s own pipelines are unaffected. That EPERM is the documented boundary: '
     + 'do not retry the command another way — escalate the exact command once or restructure it to '
-    + 'avoid capturing output. '
-    + 'Attempting a command the sandbox may deny is safe and expected: run it and read the '
-    + 'marker rather than assuming the denial. When a command is denied and a wider mode would let it '
-    + 'succeed, escalate immediately in the same turn — the one sanctioned exception to a denial: retry '
-    + 'the exact same command once with `sandbox_permissions` (the narrowest wider mode that suffices) '
-    + 'plus a one-sentence `justification`. Do not detour through chat to ask permission first — the '
-    + 'approval prompt raised by that retry is how the user consents. If the session states approval '
-    + 'prompts are disabled, there is no exception: a denial is final — do not set `sandbox_permissions`. '
-    + 'Never escalate speculatively: ground the request in a real denial — normally the one this command '
-    + 'just hit; escalating up front is fine only when this session already denied the same access. '
-    + 'A rejected escalation is final for that command — stop and explain, never work around '
-    + 'it — but it does not forbid attempting or escalating other commands later.'
+    + 'avoid capturing output.'
 }
 
 /**
@@ -283,11 +279,9 @@ export function apply(ctx: Context, config: Config = {}): void {
   ctx.systemPrompt.section({
     name: 'tool:pwsh',
     order: ctx.systemPrompt.getSectionOrder('TOOL_PWSH'),
-    text: 'Non-zero exits are reported as `[exit code: N]` markers; investigate failures before moving on. '
-      + 'Keep the turn responsive: run anything whose duration you cannot bound — installs, builds, test '
-      + 'suites, servers, downloads — with `run_in_background: true` and collect it with `job_output` while '
-      + 'you keep working. '
-      + 'On Windows a killed process settles as `[exit code: 1]` without a signal marker; treat a bare exit 1 after an interruption as a termination, not a command failure.',
+    text: 'Check the [exit code: N] marker on every pwsh result; investigate failures before moving on. '
+      + 'Run anything whose duration you cannot bound — installs, builds, test suites, servers, downloads — '
+      + 'with `run_in_background: true` and keep working.',
   })
 
   /**
@@ -325,7 +319,6 @@ export function apply(ctx: Context, config: Config = {}): void {
     description: pwshDescription(backgroundEnabled, backgroundEnabled ? detachAfterMs : undefined, escalationModes),
     /* jscpd:ignore-start -- deliberate mirror of avn-tool-bash's parameter surface (pwsh-tool-and-executor Agent Note). */
     parameters: {
-      command: { type: 'string', required: true, description: 'The PowerShell command to execute.' },
       description: {
         type: 'string',
         required: true,
@@ -333,6 +326,7 @@ export function apply(ctx: Context, config: Config = {}): void {
           + '5-10 words (shown in the UI). Examples: "ls" → "List files in current directory"; '
           + '"git status" → "Show working tree status"; "Get-Process" → "List running processes".',
       },
+      command: { type: 'string', required: true, description: 'The PowerShell command to execute.' },
       timeoutMs: { type: 'number', description: 'Timeout in milliseconds. The executor applies its configured default and cap, and kills the command on expiry.' },
       workdir: { type: 'string', description: 'Working directory for this command. Defaults to the session workspace; a relative path is resolved against it.' },
       ...backgroundEnabled ? {
@@ -346,7 +340,8 @@ export function apply(ctx: Context, config: Config = {}): void {
         },
         justification: {
           type: 'string' as const,
-          description: 'Required with sandbox_permissions: one sentence for the user explaining why this exact command needs the wider access.',
+          description: 'Required with sandbox_permissions: one sentence for the user explaining why this exact command needs the wider access. '
+            + 'Use the language of the user’s current request.',
         },
       } : {},
     },

@@ -1219,6 +1219,8 @@ describe('avn-tool-subagent continuable background mode', () => {
     expect(schema.description).toContain('steers the child\'s nearest step while it is running')
     expect(schema.description).not.toContain('send_message` starts a later turn')
     expect(schema.description).toContain('runs in the background by default')
+    // The completion notice is a promise of the continuable background path.
+    expect(schema.description).toContain('the runtime sends the parent a notice containing its outcome')
     expect(schema.description).not.toContain('never poll or wait on it')
     const properties = (schema.parameters as {
       properties: Record<string, { description?: string }>
@@ -1226,8 +1228,8 @@ describe('avn-tool-subagent continuable background mode', () => {
     expect(properties.run_in_background?.description).toContain('Defaults to true')
     const assembly = await ctx.systemPrompt.assemble(assembleContextFor(parent))
     const guidance = assembly.sections.find(section => section.name === 'tool:subagent')
-    expect(guidance?.text).toContain('Use subagent in the background by default')
-    expect(guidance?.text).toContain('runtime sends you a notice containing its outcome')
+    expect(guidance?.text).toContain('Start independent delegations with `subagent` together in one assistant message')
+    expect(guidance?.text).toContain('continue useful work while they run')
 
     const started = await callSubagent(
       ctx,

@@ -82,29 +82,24 @@ function bashDescription(
   escalationModes: readonly SandboxMode[],
 ): string {
   const background = !backgroundEnabled
-    ? 'Background execution is not available; long-running commands must finish within the timeout.'
+    ? 'Background execution is not available; long-running commands must finish within the timeout. '
     : detachAfterMs === undefined
-      ? 'Start long-running commands with `run_in_background: true`: the call returns a job id immediately; read its output with `job_output` and stop it with `job_kill`.'
-      : `Start anything whose duration you cannot bound in the background with \`run_in_background: true\` — installs, builds, test suites, servers, downloads — so \`job_output\` collects it while you keep working. A foreground command still running after ${detachAfterMs}ms is handed back as a background job instead of blocking the turn.`
-  const base = 'Execute a bash command (`bash -c`) and return its stdout/stderr. '
-    + 'Each call runs in a fresh shell: no state (cwd, variables, functions) persists between calls — '
-    + 'pass `workdir` instead of using `cd`. Non-zero exits are reported as `[exit code: N]`. '
-    + `Current harness environment facts are exposed through managed \`$${AVN_ENV_PREFIX}*\` variables; inspect them when needed. `
-    + 'Commands may run under a file sandbox; a blocked file operation is reported as `[sandbox: file access denied under <mode> mode]` — a policy denial, not a bug in the command; do not retry another way. '
+      ? ''
+      : `A foreground command still running after ${detachAfterMs}ms is handed back as a background job instead of blocking the turn. `
+  // The denial result carries the same-turn escalation hint, so the
+  // description states only what the model cannot learn from a result.
+  const sandbox = escalationModes.length === 0
+    ? 'Commands may run under a file sandbox; a blocked file operation is reported as `[sandbox: file access denied under <mode> mode]`, a policy denial: do not retry another way.'
+    : 'Commands run under a file sandbox; a blocked file operation is reported as `[sandbox: file access denied under <mode> mode]`, a policy denial: do not retry another way except through the escalation the denial offers. Attempting a command the sandbox may deny is safe: run it rather than assuming the denial.'
+  return 'Execute a bash command (`bash -c`) and return its stdout/stderr. '
+    + 'Each call runs in a fresh shell; pass `workdir` instead of using `cd`. '
+    + `Managed \`$${AVN_ENV_PREFIX}*\` variables expose current harness environment facts. `
     + 'Long output is truncated to its tail; the full output is saved to a file whose path is reported when available. '
     + background
-  if (escalationModes.length === 0) return base
-  return base + ' Attempting a command the sandbox may deny is safe and expected: run it and read the '
-    + 'marker rather than assuming the denial. When a command is denied and a wider mode would let it '
-    + 'succeed, escalate immediately in the same turn — the one sanctioned exception to a denial: retry '
-    + 'the exact same command once with `sandbox_permissions` (the narrowest wider mode that suffices) '
-    + 'plus a one-sentence `justification`. Do not detour through chat to ask permission first — the '
-    + 'approval prompt raised by that retry is how the user consents. If the session states approval '
-    + 'prompts are disabled, there is no exception: a denial is final — do not set `sandbox_permissions`. '
-    + 'Never escalate speculatively: ground the request in a real denial — normally the one this command '
-    + 'just hit; escalating up front is fine only when this session already denied the same access. '
-    + 'A rejected escalation is final for that command — stop and explain, never work around '
-    + 'it — but it does not forbid attempting or escalating other commands later.'
+    + 'Provide `description` before `command` in the arguments. '
+    + 'Before any delete or move, verify that the resolved absolute target path is the intended one; never run it against a computed path you have not checked. '
+    + 'An unset variable expands to an empty string, so guard variables in such paths with `${VAR:?}`. '
+    + sandbox
 }
 
 /**
@@ -277,16 +272,12 @@ export function apply(ctx: Context, config: Config = {}): void {
     name: 'tool:bash',
     order: ctx.systemPrompt.getSectionOrder('TOOL_BASH'),
     text: 'Check the [exit code: N] marker on every bash result; investigate failures before moving on. '
-      + 'Keep the turn responsive: run anything whose duration you cannot bound — installs, builds, test '
-      + 'suites, servers, downloads — with `run_in_background: true` and collect it with `job_output` while '
-      + 'you keep working. '
-      + 'Never spend a call waiting: a foreground `sleep` burns the step and returns nothing. '
-      + 'Wait on the condition instead — collect the job you started with `job_output`, let the program '
-      + 'retry for itself (`curl --retry`, `--retry-delay`), or check the condition in a bounded loop that '
-      + 'returns the moment it holds (`until nc -z localhost 3000; do sleep 0.5; done`) — and end the turn '
-      + 'when nothing useful is left, since a job that settles wakes you. '
-      + 'Where a clock is the real constraint (a rate limit, a debounce), the pause is the shortest that '
-      + 'constraint allows.',
+      + 'Run anything whose duration you cannot bound — installs, builds, test suites, servers, downloads — '
+      + 'with `run_in_background: true` and keep working. '
+      + 'Never wait with a foreground `sleep`: collect the job with `job_output`, let the program retry for '
+      + 'itself (`curl --retry`), or check the condition in a bounded loop that returns the moment it holds '
+      + '(`until nc -z localhost 3000; do sleep 0.5; done`). Pause only as long as a real clock constraint, '
+      + 'such as a rate limit, requires, and end the turn when nothing useful is left: a settled job wakes you.',
   })
 
   /**
@@ -323,7 +314,6 @@ export function apply(ctx: Context, config: Config = {}): void {
     name: 'bash',
     description: bashDescription(backgroundEnabled, backgroundEnabled ? detachAfterMs : undefined, escalationModes),
     parameters: {
-      command: { type: 'string', required: true, description: 'The bash command to execute.' },
       description: {
         type: 'string',
         required: true,
@@ -331,6 +321,7 @@ export function apply(ctx: Context, config: Config = {}): void {
           + '5-10 words (shown in the UI). Examples: "ls" → "List files in current directory"; '
           + '"git status" → "Show working tree status"; "npm install" → "Install package dependencies".',
       },
+      command: { type: 'string', required: true, description: 'The bash command to execute.' },
       timeoutMs: { type: 'number', description: 'Timeout in milliseconds. The executor applies its configured default and cap, and kills the command on expiry.' },
       workdir: { type: 'string', description: 'Working directory for this command. Defaults to the session workspace; a relative path is resolved against it.' },
       ...backgroundEnabled ? {
@@ -344,7 +335,8 @@ export function apply(ctx: Context, config: Config = {}): void {
         },
         justification: {
           type: 'string' as const,
-          description: 'Required with sandbox_permissions: one sentence for the user explaining why this exact command needs the wider access.',
+          description: 'Required with sandbox_permissions: one sentence for the user explaining why this exact command needs the wider access. '
+            + 'Use the language of the user’s current request.',
         },
       } : {},
     },

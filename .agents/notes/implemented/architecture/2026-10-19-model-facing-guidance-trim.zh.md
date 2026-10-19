@@ -1,0 +1,28 @@
+# Agent Note: 面向模型的说明只陈述结果无法教给模型的事
+
+Status: implemented
+
+[English](2026-10-19-model-facing-guidance-trim.md) | 中文
+
+## 问题
+
+每个工具描述与提示词区段都在重复自身结果已经说明的内容。bash 描述重述了沙箱拒绝标记、升级重试契约、退出码标记与 job 工具；`web_fetch` 重述了其内容属于不可信数据；`web_search` 公布了 `queries` 参数已经声明的数量上限；`todo_write` 重述了 schema 本身枚举的每个状态；文件搜索工具用散文描述采样规则，而结果自己就会报告这些事实。模型先读 schema、再读结果时，同一句话会遇到两次：一次作为指令，一次作为事实，而每份副本都是一处可能走样的地方。
+
+## 决策
+
+**工具描述陈述 schema 无法表达的契约，结果陈述发生了什么。** 结果携带的事实——拒绝标记与该拒绝所提供的升级、截断及其 spill 路径、退出码、采样头部、后台任务的再次取回——属于结果。schema 携带的事实——`queries` 上的数量上限、调用方必须给出的参数顺序——属于参数。留在描述里的是模型在调用之前必须做出的判断：什么时候把命令放到后台运行、拒绝之后何时可以升级、命令是否值得直接尝试。
+
+**提示词区段保留习惯，不保留机制。** bash 区段陈述退出码习惯与等待方式；web 区段陈述何时值得搜索、不可信数据提示，以及在搭档工具可见时的引用义务；委派那句说明只在可继续的后台子代理已注册时出现。区段中不再有任何重复 schema 字段或结果自身标记的内容。
+
+**升级契约只在能够据此行动的那条路径上陈述一次。** 组合允许批准时，描述给出同轮次重试与终结该命令的拒绝；没有批准通道时，它陈述单纯的拒绝，因为宣称一条无法被批准的重试只会招来一次白费的调用。
+
+## 后果
+
+- bash 与 pwsh 的描述不再提及 `job_output`/`job_kill`；后台交接说明位于 `run_in_background` 参数与运行时发送的完成通知中。
+- `web_search` 在 `queries` 参数上公布数量上限（`accepts 1–N items`），不再写入指引，因此改动 `searchMaxQueries` 不再移动提示词前缀。
+- `todo_write` 保留并行与串行的区分——那是调用要做的选择——并去掉 schema 已枚举的状态词汇。
+- 被拒绝的沙箱操作把升级提示写进标记，因此模型从它刚刚收到的结果里学到该走的路线。
+
+## 验证
+
+文本即契约之处，各包 spec 固定当前文本：`packages/shell/tool-bash/tests/tools.spec.ts` 与 `tool-pwsh/tests/tools.spec.ts` 固定子句常量与无升级变体，`packages/web/tool-web/tests/tool-web.spec.ts` 固定参数上限与指引的每种 scope 变体，`packages/fs/tool-fs-search/tests/tools.spec.ts` 固定区段原句与工具描述的采样规则，`packages/todo` 与 `packages/subagent/tool-subagent` 固定到达模型的策略措辞。`snapshots/` 下的录制系统提示词已用 `AVN_SNAPSHOT=refresh pnpm run test:snapshot` 刷新。
