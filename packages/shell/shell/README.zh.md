@@ -35,7 +35,12 @@ spec 可以携带 `detachAfterMs`：调用方自己的等待预算。它先到�
 
 ```text
 const result = await ctx.shell.run(ctx.shell.resolve({ command: 'ls -la' }))
-console.log(result.exitCode, result.stdout.text)
+if (isDetachedRun(result)) {
+  // The command outlived the spec's detachAfterMs and still runs.
+  registry.start({ /* … */ run: () => ({ cancel: () => void result.process.kill(), done: result.process.done }) })
+} else {
+  console.log(result.exitCode, result.stdout.text)
+}
 ```
 
 ### 后台进程
