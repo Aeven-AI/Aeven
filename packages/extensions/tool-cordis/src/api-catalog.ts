@@ -3032,7 +3032,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
   {
     key: 'shell',
     summary: 'Abstract bash execution service.',
-    description: 'Abstract bash execution service. Subclass, implement the abstract methods, and load the subclass as a plugin — it registers as `ctx.shell` (one implementation per context; loading a second throws, which is cordis\' standard duplicate-service behavior).\n\nImplementations must honor these semantics:\n\n- run rejects only for infrastructure failures. Nonzero exits, timeout kills, and abort kills resolve with a ShellRunResult.\n- start returns immediately; no timeout applies to background processes. `done` settles at process close and never rejects; spawn failures settle as `killed` with the error on stderr.\n- ShellProcess.readOutput is incremental: consecutive reads never repeat output. Lossy reads report truncation and available spill files.\n- A still-running background process is stopped and awaited when its owning composition tears down. With the subprocess seam that boundary is `ctx.subprocess` disposal, so a background process survives an executor-only reload.',
+    description: 'Abstract bash execution service. Subclass, implement the abstract methods, and load the subclass as a plugin — it registers as `ctx.shell` (one implementation per context; loading a second throws, which is cordis\' standard duplicate-service behavior).\n\nImplementations must honor these semantics:\n\n- run rejects only for infrastructure failures. Nonzero exits, timeout kills, and abort kills resolve with a ShellRunResult.\n- run always waits and ignores `detachAfterMs`; runDetachable honours it and hands back a ShellDetachedRun when the command outlives it. The command keeps running: the caller owns the handle, no timeout applies after the handoff, and output produced before it stays readable from byte 0. A timeout or abort that comes first still kills the command and settles normally.\n- start returns immediately; no timeout applies to background processes. `done` settles at process close and never rejects; spawn failures settle as `killed` with the error on stderr.\n- ShellProcess.readOutput is incremental: consecutive reads never repeat output. Lossy reads report truncation and available spill files.\n- A still-running background process is stopped and awaited when its owning composition tears down. With the subprocess seam that boundary is `ctx.subprocess` disposal, so a background process survives an executor-only reload.',
     methods: [
       {
         signature: 'abstract resolve(request: ShellExecRequest): ShellExecSpec',
@@ -3042,9 +3042,15 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'abstract run(spec: ShellExecSpec): Promise<ShellRunResult>',
-        description: 'Run a command in the foreground; resolves when it finishes.',
+        description: 'Run a command in the foreground and wait for it; resolves when it finishes. The spec\'s `detachAfterMs` is ignored — only runDetachable honours it.',
         parameters: [{ name: 'spec', description: 'a resolved spec from {@link resolve}, never a raw request.' }],
         returns: 'the outcome; nonzero exits, timeout kills, and abort kills resolve with a descriptive result rather than reject.',
+      },
+      {
+        signature: 'async runDetachable(spec: ShellExecSpec): Promise<ShellRunOutcome>',
+        description: 'Run a command in the foreground, honouring the spec\'s `detachAfterMs`: a command that outlives it resolves with a live handle the caller owns instead of settling. The default provider behaviour waits, exactly like run, so an executor that cannot hand work back needs no override.',
+        parameters: [{ name: 'spec', description: 'a resolved spec from {@link resolve}, never a raw request.' }],
+        returns: 'the settled result, or a {@link ShellDetachedRun} when the threshold elapsed first.',
       },
       {
         signature: 'abstract start(spec: ShellExecSpec): ShellProcess',
@@ -7709,12 +7715,16 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SetValueAction {\n    kind: \'setValue\';\n    target: ElementTarget;\n    value: string;\n}',
   },
   {
+    name: 'ShellDetachedRun',
+    declaration: 'export interface ShellDetachedRun {\n    detached: true;\n    process: ShellProcess;\n    detachAfterMs: number;\n}',
+  },
+  {
     name: 'ShellExecRequest',
-    declaration: 'export interface ShellExecRequest {\n    command: string;\n    workdir?: string | undefined;\n    timeoutMs?: number | undefined;\n    stdoutMaxBytes?: number | undefined;\n    signal?: AbortSignal | undefined;\n    stdin?: string | undefined;\n    env?: Record<string, string> | undefined;\n    avnEnv?: AvnEnvironment | undefined;\n    sandboxPolicy?: SandboxExecutionPolicy | undefined;\n}',
+    declaration: 'export interface ShellExecRequest {\n    command: string;\n    workdir?: string | undefined;\n    timeoutMs?: number | undefined;\n    stdoutMaxBytes?: number | undefined;\n    signal?: AbortSignal | undefined;\n    detachAfterMs?: number | undefined;\n    stdin?: string | undefined;\n    env?: Record<string, string> | undefined;\n    avnEnv?: AvnEnvironment | undefined;\n    sandboxPolicy?: SandboxExecutionPolicy | undefined;\n}',
   },
   {
     name: 'ShellExecSpec',
-    declaration: 'export interface ShellExecSpec {\n    command: string;\n    workdir: string;\n    timeoutMs: number;\n    stdoutMaxBytes: number;\n    signal?: AbortSignal | undefined;\n    stdin?: string | undefined;\n    env?: Record<string, string> | undefined;\n    avnEnv?: AvnEnvironment | undefined;\n    sandboxPolicy: SandboxExecutionPolicy | undefined;\n}',
+    declaration: 'export interface ShellExecSpec {\n    command: string;\n    workdir: string;\n    timeoutMs: number;\n    stdoutMaxBytes: number;\n    signal?: AbortSignal | undefined;\n    detachAfterMs?: number | undefined;\n    stdin?: string | undefined;\n    env?: Record<string, string> | undefined;\n    avnEnv?: AvnEnvironment | undefined;\n    sandboxPolicy: SandboxExecutionPolicy | undefined;\n}',
   },
   {
     name: 'ShellProcess',
@@ -7727,6 +7737,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ShellProcessStatus',
     declaration: 'export type ShellProcessStatus = \'running\' | \'completed\' | \'killed\';',
+  },
+  {
+    name: 'ShellRunOutcome',
+    declaration: 'export type ShellRunOutcome = ShellRunResult | ShellDetachedRun;',
   },
   {
     name: 'ShellRunResult',

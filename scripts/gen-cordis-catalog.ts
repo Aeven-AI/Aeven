@@ -393,6 +393,8 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   ShellExecSpec: 'shell.md',
   ShellProcess: 'shell.md',
   ShellRunResult: 'shell.md',
+  ShellRunOutcome: 'shell.md',
+  ShellDetachedRun: 'shell.md',
   AvnEnvironment: 'subprocess.md',
   SubprocessHandle: 'subprocess.md',
   SubprocessOutcome: 'subprocess.md',

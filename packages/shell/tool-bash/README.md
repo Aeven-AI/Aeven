@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`avn-tool-bash` gives the agent a `bash` tool that runs commands through the mounted shell executor and returns stdout, stderr, and exit markers. Each call runs in a fresh shell — no cwd, variables, or functions survive — and `run_in_background` turns long-running commands into background jobs the agent collects with `job_output` and stops with `job_kill`. Every call runs with the managed `AVN_*` environment from `avn-shell-env`, and under a sandboxing executor a denied command may be retried once with a wider `sandbox_permissions` mode plus a `justification` through user approval. Non-zero exits are reported, not failed, so the agent decides how to react. Mount it together with an executor provider such as `avn-bash-local` or `avn-bash-sandbox` and the `avn-shell-env` plugin.
+`avn-tool-bash` gives the agent a `bash` tool that runs commands through the mounted shell executor and returns stdout, stderr, and exit markers. Each call runs in a fresh shell — no cwd, variables, or functions survive — and `run_in_background` turns long-running commands into background jobs the agent collects with `job_output` and stops with `job_kill`. A foreground call that outlives `detachAfterMs` becomes such a job on its own, so no command holds the conversation. Every call runs with the managed `AVN_*` environment from `avn-shell-env`, and under a sandboxing executor a denied command may be retried once with a wider `sandbox_permissions` mode plus a `justification` through user approval. Non-zero exits are reported, not failed, so the agent decides how to react. Mount it together with an executor provider such as `avn-bash-local` or `avn-bash-sandbox` and the `avn-shell-env` plugin.
 
 ## Table of Contents
 
@@ -41,11 +41,12 @@ The common path is an executor provider, the environment registry, and this tool
 - name: '@aeven/tool-jobs'
 ```
 
-The single config field toggles background support.
+Two config fields cover background support.
 
 | Field | Default | Meaning |
 |---|---|---|
-| `enableRunInBackground` | `true` | Expose `run_in_background`; when `false`, forced background calls are rejected |
+| `enableRunInBackground` | `true` | Expose `run_in_background`; when `false`, forced background calls are rejected and foreground calls always wait |
+| `detachAfterMs` | `20000` | How long a foreground command may run before it is handed back as a background job |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#aeventool-bash) is the exhaustive source for every accepted field and its JSDoc; the generated [tool catalog](../../../docs/tool-catalog.md#aeventool-bash) carries the full argument schema.
 
@@ -56,6 +57,12 @@ The tool executes `bash -c <command>` and returns the combined output. Commands 
 ### Running long commands in the background
 
 Passing `run_in_background: true` returns a job id immediately and no timeout applies; the command keeps running while the agent works on something else. The agent reads its output with `job_output` (non-blocking unless `wait: true`), lists jobs with `job_list`, and stops it with `job_kill`; a finished job notifies the owning agent in-session. Background support needs the generic job runtime (`avn-jobs-local`) and its control tools (`avn-tool-jobs`) mounted.
+
+### Foreground calls that outlive the threshold
+
+When the job runtime is mounted, a foreground call also carries `detachAfterMs`. A command still running at that point is handed back the same way as an explicit background start: the tool returns `kind: 'background'` with `detached: true` and the elapsed threshold, registers the live process with `ctx.jobs`, and the model continues the turn instead of waiting. Nothing written before the handoff is lost — the executor never consumed the output it collected, so `job_output` reads it from the first byte.
+
+The executor's timeout keeps its meaning. Whichever comes first wins: an elapsed threshold hands the process over with no timeout applying afterward, while a `timeoutMs` (or a caller abort) that fires first still kills the command and reports `timedOut` as before. Without a job runtime the threshold is never requested and foreground behaviour is unchanged.
 
 ### Sandboxed execution and escalation
 
@@ -207,7 +214,8 @@ These limits define when the tool is a poor fit or needs special care. They are 
 
 - **Replay exit pills parse from result text** — output whose final line happens to be exactly `[exit code: N]` / `[killed by signal: …]` shows a wrong pill on session replay and loses that line from the card body, because the parse treats it as the marker it consumes; a display-only known residual.
 - **The `bash` tool opts out of `timeout-policy` budgets** — it keeps the executor-owned `BASH_TIMEOUT` path, per [the tool-call timeout-policy Agent Note](../../../.agents/notes/implemented/architecture/2026-07-07-tool-call-timeout-policy.md).
-- **Background processes have no executor timeout** — callers must use `job_kill`, or rely on owner/service disposal, when work no longer matters.
+- **Background processes have no executor timeout** — callers must use `job_kill`, or rely on owner/service disposal, when work no longer matters. A detached foreground process joins that class: releasing the tool-call deadline is what lets it keep running.
+- **The threshold is only honoured through `runDetachable`** — `ctx.shell.run` keeps its settled-result contract for every existing caller, so a caller that wants the handoff must ask for it by name; the two behaviours cannot be one method without widening `run` for everyone.
 
 <a id="dev-note"></a>
 ### Dev Note

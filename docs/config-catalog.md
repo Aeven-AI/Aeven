@@ -471,7 +471,7 @@ export type Config = LocalConfig
 
 Depends on: [`LocalConfig`](#aevenbash-local)
 
-Source: [`packages/shell/bash-sandbox/src/index.ts:35`](../packages/shell/bash-sandbox/src/index.ts)
+Source: [`packages/shell/bash-sandbox/src/index.ts:36`](../packages/shell/bash-sandbox/src/index.ts)
 
 <a id="aevenbrowser-chromium"></a>
 
@@ -2732,7 +2732,7 @@ export type Config = LocalConfig
 
 Depends on: [`LocalConfig`](#aevenpwsh-local)
 
-Source: [`packages/shell/pwsh-sandbox/src/index.ts:40`](../packages/shell/pwsh-sandbox/src/index.ts)
+Source: [`packages/shell/pwsh-sandbox/src/index.ts:41`](../packages/shell/pwsh-sandbox/src/index.ts)
 
 <a id="aevenrepeat-tool-reminder"></a>
 
@@ -3898,10 +3898,16 @@ Requires: `tools` · `shell` · `systemPrompt` · `shellEnv`
 export interface Config {
   /** Expose `run_in_background` (default true); disabled calls are also rejected. */
   enableRunInBackground?: boolean
+  /**
+   * How long a foreground command may run before the tool hands it back as a
+   * background job (default 20000). Applies only when `run_in_background` is
+   * available and a job runtime is mounted; without one, foreground calls wait.
+   */
+  detachAfterMs?: number
 }
 ```
 
-Source: [`packages/shell/tool-bash/src/index.ts:33`](../packages/shell/tool-bash/src/index.ts)
+Source: [`packages/shell/tool-bash/src/index.ts:36`](../packages/shell/tool-bash/src/index.ts)
 
 <a id="aeventool-bash-persistent"></a>
 
@@ -4322,10 +4328,16 @@ Requires: `tools` · `shell` · `systemPrompt` · `shellEnv`
 export interface Config {
   /** Expose `run_in_background` (default true); disabled calls are also rejected. */
   enableRunInBackground?: boolean
+  /**
+   * How long a foreground command may run before the tool hands it back as a
+   * background job (default 20000). Applies only when `run_in_background` is
+   * available and a job runtime is mounted; without one, foreground calls wait.
+   */
+  detachAfterMs?: number
 }
 ```
 
-Source: [`packages/shell/tool-pwsh/src/index.ts:51`](../packages/shell/tool-pwsh/src/index.ts)
+Source: [`packages/shell/tool-pwsh/src/index.ts:54`](../packages/shell/tool-pwsh/src/index.ts)
 
 <a id="aeventool-pwsh-persistent"></a>
 

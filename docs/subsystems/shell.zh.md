@@ -37,6 +37,16 @@ interface ShellExecRequest {
   /** Abort signal — implementations kill the command when it fires. */
   signal?: AbortSignal | undefined
   /**
+   * Milliseconds a foreground run may execute before the executor hands back a
+   * live {@link ShellProcess} instead of waiting for it. The threshold is a
+   * caller choice — the model-facing bash tool sets it from its own
+   * configuration — so implementations only own the handoff. Absent waits for
+   * the command. {@link ShellExecRequest.timeoutMs} keeps its own meaning:
+   * whichever comes first wins, and a timeout that fires first still kills the
+   * command.
+   */
+  detachAfterMs?: number | undefined
+  /**
    * Bytes to write to the command's stdin, then close it. Absent leaves stdin
    * closed/empty (the default for model-driven tool calls). Set by in-process
    * plugins (e.g. the hooks bridges, which write a hook command's JSON payload
@@ -82,6 +92,11 @@ interface ShellExecSpec {
   stdoutMaxBytes: number
   /** Abort signal — implementations kill the command when it fires. */
   signal?: AbortSignal | undefined
+  /**
+   * Carried through from {@link ShellExecRequest.detachAfterMs} by
+   * {@link ShellExecutor.resolve}; absent means the run always waits.
+   */
+  detachAfterMs?: number | undefined
   /** Bytes to write to stdin before closing it; absent means no stdin. */
   stdin?: string | undefined
   /**
@@ -137,6 +152,29 @@ interface ShellRunResult {
 ```
 
 每个流是一个 `CollectedOutput`：（可能被截断的）文本加恢复信息；截断时，`text` 是**尾部**，完整流溢出到一个私有文件。这些字段归[子进程 seam](subprocess.zh.md)所有，由 `avn-shell` 重导出。
+
+## 前台交接：`ShellDetachedRun`
+
+`runDetachable(spec)` 会遵循 `ShellExecSpec.detachAfterMs`；`run(spec)` 始终等待并忽略该字段。阈值先于命令结算即到时，promise 不再 resolve 为结果，而是带一个实时句柄 resolve，此后由调用方拥有它——注册到 `ctx.jobs`、直接 kill，或 await `done`。交接会释放执行器的 deadline，因此之后不再有超时或上游中止作用其上；交接前写下的输出从第 0 字节起仍可读。若超时或中止先到，命令照旧被杀掉并结算为 `ShellRunResult`。
+
+```ts type-equiv
+/**
+ * A foreground run that outlived its {@link ShellExecSpec.detachAfterMs}
+ * threshold. The command is still running: the caller owns the handle from here
+ * — collect it through a job, stop it with {@link ShellProcess.kill}, or await
+ * {@link ShellProcess.done}. No timeout applies after the handoff, exactly like
+ * a handle from {@link ShellExecutor.start}, and buffered output stays readable
+ * from byte 0 because the executor never consumed it.
+ */
+interface ShellDetachedRun {
+  /** Discriminant: the run did not settle and its handle is live. */
+  detached: true
+  /** Live process handle; also owns output that predates the handoff. */
+  process: ShellProcess
+  /** The threshold that elapsed, so callers can report why they stopped waiting. */
+  detachAfterMs: number
+}
+```
 
 ## 文件沙箱：`ShellSandboxInfo`
 
@@ -239,6 +277,7 @@ Abstract bash execution service. Subclass, implement the abstract methods, and l
 Implementations must honor these semantics:
 
 - run rejects only for infrastructure failures. Nonzero exits, timeout kills, and abort kills resolve with a ShellRunResult.
+- run always waits and ignores `detachAfterMs`; runDetachable honours it and hands back a ShellDetachedRun when the command outlives it. The command keeps running: the caller owns the handle, no timeout applies after the handoff, and output produced before it stays readable from byte 0. A timeout or abort that comes first still kills the command and settles normally.
 - start returns immediately; no timeout applies to background processes. `done` settles at process close and never rejects; spawn failures settle as `killed` with the error on stderr.
 - ShellProcess.readOutput is incremental: consecutive reads never repeat output. Lossy reads report truncation and available spill files.
 - A still-running background process is stopped and awaited when its owning composition tears down. With the subprocess seam that boundary is `ctx.subprocess` disposal, so a background process survives an executor-only reload.
@@ -253,12 +292,24 @@ Implementations must honor these semantics:
 abstract resolve(request: ShellExecRequest): ShellExecSpec
 
 /**
- * Run a command in the foreground; resolves when it finishes.
+ * Run a command in the foreground and wait for it; resolves when it finishes.
+ * The spec's `detachAfterMs` is ignored — only {@link runDetachable} honours it.
  * @param spec - a resolved spec from {@link resolve}, never a raw request.
  * @returns the outcome; nonzero exits, timeout kills, and abort kills
  *   resolve with a descriptive result rather than reject.
  */
 abstract run(spec: ShellExecSpec): Promise<ShellRunResult>
+
+/**
+ * Run a command in the foreground, honouring the spec's `detachAfterMs`: a
+ * command that outlives it resolves with a live handle the caller owns
+ * instead of settling. The default provider behaviour waits, exactly like
+ * {@link run}, so an executor that cannot hand work back needs no override.
+ * @param spec - a resolved spec from {@link resolve}, never a raw request.
+ * @returns the settled result, or a {@link ShellDetachedRun} when the
+ *   threshold elapsed first.
+ */
+async runDetachable(spec: ShellExecSpec): Promise<ShellRunOutcome>
 
 /**
  * Start a background process and return its handle immediately.

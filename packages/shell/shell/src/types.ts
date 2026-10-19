@@ -51,6 +51,16 @@ export interface ShellExecRequest {
   /** Abort signal — implementations kill the command when it fires. */
   signal?: AbortSignal | undefined
   /**
+   * Milliseconds a foreground run may execute before the executor hands back a
+   * live {@link ShellProcess} instead of waiting for it. The threshold is a
+   * caller choice — the model-facing bash tool sets it from its own
+   * configuration — so implementations only own the handoff. Absent waits for
+   * the command. {@link ShellExecRequest.timeoutMs} keeps its own meaning:
+   * whichever comes first wins, and a timeout that fires first still kills the
+   * command.
+   */
+  detachAfterMs?: number | undefined
+  /**
    * Bytes to write to the command's stdin, then close it. Absent leaves stdin
    * closed/empty (the default for model-driven tool calls). Set by in-process
    * plugins (e.g. the hooks bridges, which write a hook command's JSON payload
@@ -94,6 +104,11 @@ export interface ShellExecSpec {
   stdoutMaxBytes: number
   /** Abort signal — implementations kill the command when it fires. */
   signal?: AbortSignal | undefined
+  /**
+   * Carried through from {@link ShellExecRequest.detachAfterMs} by
+   * {@link ShellExecutor.resolve}; absent means the run always waits.
+   */
+  detachAfterMs?: number | undefined
   /** Bytes to write to stdin before closing it; absent means no stdin. */
   stdin?: string | undefined
   /**
@@ -136,6 +151,26 @@ export interface ShellRunResult {
   /** Sandbox execution facts, absent for an unsandboxed executor. */
   sandbox?: ShellSandboxInfo
 }
+
+/**
+ * A foreground run that outlived its {@link ShellExecSpec.detachAfterMs}
+ * threshold. The command is still running: the caller owns the handle from here
+ * — collect it through a job, stop it with {@link ShellProcess.kill}, or await
+ * {@link ShellProcess.done}. No timeout applies after the handoff, exactly like
+ * a handle from {@link ShellExecutor.start}, and buffered output stays readable
+ * from byte 0 because the executor never consumed it.
+ */
+export interface ShellDetachedRun {
+  /** Discriminant: the run did not settle and its handle is live. */
+  detached: true
+  /** Live process handle; also owns output that predates the handoff. */
+  process: ShellProcess
+  /** The threshold that elapsed, so callers can report why they stopped waiting. */
+  detachAfterMs: number
+}
+
+/** Every shape {@link ShellExecutor.run} can settle with. */
+export type ShellRunOutcome = ShellRunResult | ShellDetachedRun
 
 /** Lifecycle of a background process. */
 export type ShellProcessStatus = 'running' | 'completed' | 'killed'

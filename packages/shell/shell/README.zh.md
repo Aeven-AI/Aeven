@@ -31,6 +31,8 @@ kind: "package-reference"
 
 用已解析的 spec 调用 `run` 即可在前台执行命令。promise 在命令结束时 resolve：非零退出、执行器超时终止或调用方中止终止都是结果，绝不是 rejection。`run` 只在基础设施失败时 reject，例如工作目录不可用或缺少 shell。结果携带退出码或信号、是超时还是中止截断了运行，以及收集到的 stdout/stderr；流超出预算时还附带 spill 文件路径。
 
+spec 可以携带 `detachAfterMs`：调用方自己的等待预算。它先到点时，`run` 不再 settle 为结果，而是以 `ShellDetachedRun`（`{ detached: true, process, detachAfterMs }`）resolve，由调用方拥有这个实时句柄——注册到 `ctx.jobs` 或直接 kill。交接会释放执行器的 deadline，因此之后不再有超时或上游中止作用其上；由于执行器从未消费输出，交接前写下的内容从第一个字节即可读取。超时语义不变：两者先到者生效，超时或中止先到仍会杀掉命令并结算为 `ShellRunResult`。
+
 ```text
 const result = await ctx.shell.run(ctx.shell.resolve({ command: 'ls -la' }))
 console.log(result.exitCode, result.stdout.text)
@@ -81,7 +83,7 @@ seam 本身不是执行器：每个组合只挂载一个提供方，工具即可
 | 文件 | 职责 |
 |---|---|
 | [`src/index.ts`](src/index.ts) | 插件入口：抽象 `ShellExecutor` 服务与共享设置命名空间 |
-| [`src/types.ts`](src/types.ts) | 请求/spec 词汇、`ShellRunResult`、`ShellProcess` 与沙箱事实 |
+| [`src/types.ts`](src/types.ts) | 请求/spec 词汇、`ShellRunResult`、`ShellDetachedRun`、`ShellProcess` 与沙箱事实 |
 | [`src/render.ts`](src/render.ts) | `parseExitStatus`：shell 工具共享的退出状态标记约定 |
 | — | 不发布运行时不变式伴生入口；执行器与策略负责观察。 |
 

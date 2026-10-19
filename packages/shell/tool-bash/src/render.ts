@@ -8,6 +8,13 @@ import type { ShellProcessRead, ShellRunResult, ShellSandboxInfo, CollectedOutpu
 import type { SandboxMode } from '@aeven/sandbox'
 import { escalationHintMarker, sandboxDenialMarker } from '@aeven/sandbox'
 
+/**
+ * Model-facing prefix of every background acknowledgement. A command that
+ * started as a foreground call and outlived its threshold acknowledges through
+ * the same prefix, so the card and the result text share one marker.
+ */
+export const BACKGROUND_ACK = 'started background job '
+
 /** Append the truncation notice (with the full-output spill path) to a stream's text. */
 function streamText(output: CollectedOutput): string {
   if (!output.truncated) return output.text

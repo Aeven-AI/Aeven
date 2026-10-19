@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import { ShellExecutor } from '@aeven/shell'
+import { isDetachedRun, ShellExecutor } from '@aeven/shell'
 import type { ShellExecRequest, ShellExecSpec, ShellProcess, ShellProcessRead, ShellRunResult } from '@aeven/shell'
 
 /**
@@ -80,5 +80,16 @@ describe('ShellExecutor service seam', () => {
     await ctx.plugin(StubExecutor)
     class SecondExecutor extends StubExecutor {}
     await expect(ctx.plugin(SecondExecutor)).rejects.toThrow(/service "shell" has been registered/)
+  })
+})
+
+describe('isDetachedRun', () => {
+  it('narrows a handed-back handle and rejects a settled run', async () => {
+    const ctx = new Context()
+    await ctx.plugin(StubExecutor)
+    const spec = ctx.shell.resolve({ command: 'echo hi' })
+    const settled = await ctx.shell.run(spec)
+    expect(isDetachedRun(settled)).toBe(false)
+    expect(isDetachedRun({ detached: true, process: ctx.shell.start(spec), detachAfterMs: 250 })).toBe(true)
   })
 })

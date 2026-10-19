@@ -12,10 +12,10 @@
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { SHELL_SETTINGS_NAMESPACE, ShellExecutor } from '@aeven/shell'
-import type { ShellExecRequest, ShellExecSpec, ShellProcess, ShellProcessRead, ShellRunResult, CollectedOutput } from '@aeven/shell'
+import type { ShellExecRequest, ShellExecSpec, ShellProcess, ShellProcessRead, ShellRunOutcome, ShellRunResult, CollectedOutput } from '@aeven/shell'
 import type { SubprocessCollect, SubprocessHandle, SubprocessOutputReader, SubprocessSpawnSpec } from '@aeven/subprocess'
 import type {} from '@aeven/settings'
-import { clampTimeout, deadline, MAX_TIMER_DELAY_MS, timeoutOf } from '@aeven/timeout'
+import { clampTimeout, MAX_TIMER_DELAY_MS, releasableDeadline, timeoutOf } from '@aeven/timeout'
 
 /**
  * Model-friendly environment overrides: disable colors, pagers, and
@@ -70,6 +70,23 @@ function assertPositiveFinite(name: string, value: number): void {
   if (!Number.isFinite(value) || value <= 0) {
     throw new Error(`bash-local: ${name} must be a positive finite number`)
   }
+}
+
+/**
+ * Wait out a detach threshold alongside a process's quiescence promise.
+ * @param settled - the process's quiescence promise; a rejection also counts as settled.
+ * @param afterMs - the threshold, already validated as a positive finite number.
+ * @returns true when the threshold elapsed first, false when the process settled first.
+ */
+function outlivedThreshold(settled: Promise<unknown>, afterMs: number): Promise<boolean> {
+  return new Promise<boolean>((resolve) => {
+    const timer = setTimeout(() => { resolve(true) }, afterMs)
+    const settle = (): void => {
+      clearTimeout(timer)
+      resolve(false)
+    }
+    void settled.then(settle, settle)
+  })
 }
 
 /**
@@ -143,7 +160,9 @@ export class LocalBashExecutor extends ShellExecutor {
    * `config.cwd` (else `process.cwd()`), and `timeoutMs` from
    * `config.timeoutMs`, capped at `config.maxTimeoutMs`. The tool layer calls
    * this before {@link run}/{@link start}, so those methods receive explicit
-   * values and never re-default.
+   * values and never re-default. A caller's `detachAfterMs` is carried through
+   * verbatim — it has no config default here because the threshold belongs to
+   * whoever decides the caller should stop waiting.
    */
   resolve(request: ShellExecRequest): ShellExecSpec {
     const timeoutMs = clampTimeout(
@@ -154,12 +173,14 @@ export class LocalBashExecutor extends ShellExecutor {
     )
     const stdoutMaxBytes = request.stdoutMaxBytes ?? this.config.maxOutputBytes
     assertPositiveFinite('request.stdoutMaxBytes', stdoutMaxBytes)
+    if (request.detachAfterMs !== undefined) assertPositiveFinite('request.detachAfterMs', request.detachAfterMs)
     return {
       command: request.command,
       workdir: request.workdir ?? this.config.cwd ?? process.cwd(),
       timeoutMs,
       stdoutMaxBytes,
       ...request.signal ? { signal: request.signal } : {},
+      ...request.detachAfterMs !== undefined ? { detachAfterMs: request.detachAfterMs } : {},
       // Carry stdin/ordinary env/trusted avnEnv through verbatim — optional,
       // no config default. The subprocess service owns the scrub and merge order.
       ...request.stdin !== undefined ? { stdin: request.stdin } : {},
@@ -211,6 +232,11 @@ export class LocalBashExecutor extends ShellExecutor {
   }
 
   async run(spec: ShellExecSpec): Promise<ShellRunResult> {
+    // `run` waits; the threshold belongs to {@link runDetachable}.
+    return await this.runArgv({ ...spec, detachAfterMs: undefined }, ['bash', '-c', spec.command]) as ShellRunResult
+  }
+
+  override async runDetachable(spec: ShellExecSpec): Promise<ShellRunOutcome> {
     return this.runArgv(spec, ['bash', '-c', spec.command])
   }
 
@@ -220,24 +246,42 @@ export class LocalBashExecutor extends ShellExecutor {
    * after replacing the public command's shell argv at an execution boundary.
    * @param spec - resolved execution settings and caller-owned command metadata.
    * @param argv - exact executable and arguments to hand to `ctx.subprocess`.
-   * @returns the settled foreground result with collected output and cause facts.
+   * @returns the settled foreground result with collected output and cause
+   *   facts, or — when the command outlives `spec.detachAfterMs` — a live handle
+   *   the caller owns.
    */
-  protected async runArgv(spec: ShellExecSpec, argv: readonly string[]): Promise<ShellRunResult> {
-    // One deadline combines timeout and upstream cancellation; disposal clears its timer.
-    using d = deadline(spec.signal, spec.timeoutMs, 'BASH_TIMEOUT')
-    const handle = this.ctx.subprocess.spawn(this.spawnSpec(spec, argv, spec.stdoutMaxBytes, d.signal))
-    const outcome = await handle.done
-    const collected = LocalBashExecutor.collected(handle)
-    // Only this executor's timeout reason counts as timedOut; outer deadlines count as aborts.
-    const timedOut = timeoutOf(d.signal, 'BASH_TIMEOUT') !== undefined
-    const aborted = d.signal.aborted && !timedOut
-    return {
-      ...outcome,
-      timedOut,
-      aborted,
-      timeoutMs: spec.timeoutMs,
-      stdout: finalOutput(collected.stdout),
-      stderr: finalOutput(collected.stderr),
+  protected async runArgv(spec: ShellExecSpec, argv: readonly string[]): Promise<ShellRunOutcome> {
+    // One deadline combines timeout and upstream cancellation; disposal or a
+    // detach handoff clears its timer.
+    const d = releasableDeadline(spec.signal, spec.timeoutMs, 'BASH_TIMEOUT')
+    try {
+      const handle = this.ctx.subprocess.spawn(this.spawnSpec(spec, argv, spec.stdoutMaxBytes, d.signal))
+      if (spec.detachAfterMs !== undefined) {
+        const outlived = await outlivedThreshold(handle.done, spec.detachAfterMs)
+        // A timeout or abort that fired first already killed the command, so only a
+        // run the deadline still owns is handed over.
+        if (outlived && !d.signal.aborted) {
+          // The caller owns the process now: neither this executor's timeout nor the
+          // tool-call abort may kill work whose new owner decides when it stops.
+          d.release()
+          return { detached: true, process: this.adopt(handle, () => false), detachAfterMs: spec.detachAfterMs }
+        }
+      }
+      const outcome = await handle.done
+      const collected = LocalBashExecutor.collected(handle)
+      // Only this executor's timeout reason counts as timedOut; outer deadlines count as aborts.
+      const timedOut = timeoutOf(d.signal, 'BASH_TIMEOUT') !== undefined
+      const aborted = d.signal.aborted && !timedOut
+      return {
+        ...outcome,
+        timedOut,
+        aborted,
+        timeoutMs: spec.timeoutMs,
+        stdout: finalOutput(collected.stdout),
+        stderr: finalOutput(collected.stderr),
+      }
+    } finally {
+      d[Symbol.dispose]()
     }
   }
 
@@ -257,6 +301,19 @@ export class LocalBashExecutor extends ShellExecutor {
   protected startArgv(spec: ShellExecSpec, argv: readonly string[]): ShellProcess {
     // Background runs ignore timeoutMs; callers stop them through kill() or spec.signal.
     const running = this.ctx.subprocess.spawn(this.spawnSpec(spec, argv, this.config.maxOutputBytes, spec.signal))
+    return this.adopt(running, () => spec.signal?.aborted === true)
+  }
+
+  /**
+   * Wrap an already-spawned subprocess in the background handle shape shared by
+   * {@link start} and a detach handoff.
+   * @param running - the spawned subprocess handle.
+   * @param killedByUpstream - classifies a signal-free settlement as upstream
+   *   cancellation. A detached run answers `false`: the process moved to a new
+   *   owner, so a later tool-call abort must not relabel its exit as killed.
+   * @returns the live handle; spawn rejection settles it as killed.
+   */
+  private adopt(running: SubprocessHandle, killedByUpstream: () => boolean): ShellProcess {
     const collected = LocalBashExecutor.collected(running)
 
     // A spawn failure produces no process output, so the subprocess service has nothing
@@ -285,7 +342,7 @@ export class LocalBashExecutor extends ShellExecutor {
       done: running.done.then((outcome) => {
         // Any signal termination is killed, including a command signaling itself.
         if (proc.status === 'running') {
-          proc.status = spec.signal?.aborted === true || outcome.signal !== null ? 'killed' : 'completed'
+          proc.status = killedByUpstream() || outcome.signal !== null ? 'killed' : 'completed'
         }
         proc.exitCode = outcome.exitCode
         proc.signal = outcome.signal

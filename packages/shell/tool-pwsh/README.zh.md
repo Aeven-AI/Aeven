@@ -45,7 +45,8 @@ kind: "package-reference"
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
-| `enableRunInBackground` | `true` | 暴露 `run_in_background`；为 `false` 时拒绝强制后台调用 |
+| `enableRunInBackground` | `true` | 暴露 `run_in_background`；为 `false` 时拒绝强制后台调用，前台调用始终等待 |
+| `detachAfterMs` | `20000` | 前台命令在被交还为后台任务之前允许运行多久 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#aeventool-pwsh)是每个受支持字段及其 JSDoc 的穷尽式真源；生成的[工具目录](../../../docs/tool-catalog.zh.md#aeventool-pwsh)携带完整参数 schema。
 

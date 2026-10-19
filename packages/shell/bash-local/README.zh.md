@@ -52,7 +52,7 @@ kind: "package-reference"
 
 ### 运行命令
 
-用 `run` 运行命令并从结果读取输出。非零退出、超时或取消都会 resolve 为描述性结果——只有基础设施失败才 reject。每次调用的 `timeoutMs` 覆盖值受配置上限约束，`workdir` 未设置时则回退到配置的默认值；受信任的前台调用方还可以为单次调用提高 stdout 捕获预算，而 stderr 与后台运行仍使用 `maxOutputBytes`。环境默认面向模型：`NO_COLOR=1 TERM=dumb PAGER=cat GIT_PAGER=cat` 可防止分页器与 ANSI 颜色破坏输出，调用方显式提供的条目仍然优先。
+用 `run` 运行命令并从结果读取输出。非零退出、超时或取消都会 resolve 为描述性结果——只有基础设施失败才 reject。携带 `detachAfterMs` 的 spec 则把仍在运行的进程作为实时 `ShellProcess` 交还，并解除它的 deadline：此后由调用方拥有它，交接前写下的输出从第一个字节起仍可读，而执行器超时若先到仍然生效。每次调用的 `timeoutMs` 覆盖值受配置上限约束，`workdir` 未设置时则回退到配置的默认值；受信任的前台调用方还可以为单次调用提高 stdout 捕获预算，而 stderr 与后台运行仍使用 `maxOutputBytes`。环境默认面向模型：`NO_COLOR=1 TERM=dumb PAGER=cat GIT_PAGER=cat` 可防止分页器与 ANSI 颜色破坏输出，调用方显式提供的条目仍然优先。
 
 ```text
 const result = await ctx.shell.run(ctx.shell.resolve({ command: 'ls -la' }))
@@ -93,7 +93,7 @@ if (result.timedOut) console.log('timed out after', result.timeoutMs)
 
 ### 主要流程
 
-一次调用分三步：`resolve()` 从配置填充 `workdir`/`timeoutMs`/`stdoutMaxBytes`（并限制每次调用的覆盖值）；`run` 把按配置钳位的超时与调用方的中止信号融合为一个 deadline，再以显式字节上限与 `graceMs` 通过 `ctx.subprocess` spawn `['bash', '-c', command]`；结算的 subprocess 结果被分类——只有执行器自身的超时报告 `timedOut`，上游取消报告 `aborted`，自身因信号终止的命令两者皆不报告——并投影为带收集输出的 `ShellRunResult`。
+一次调用分三步：`resolve()` 从配置填充 `workdir`/`timeoutMs`/`stdoutMaxBytes`（并限制每次调用的覆盖值），并原样携带调用方的 `detachAfterMs`；`run` 把按配置钳位的超时与调用方的中止信号融合为可释放的 deadline，让它与交接阈值竞速，再以显式字节上限与 `graceMs` 通过 `ctx.subprocess` spawn `['bash', '-c', command]`；结算的 subprocess 结果被分类——只有执行器自身的超时报告 `timedOut`，上游取消报告 `aborted`，自身因信号终止的命令两者皆不报告——并投影为带收集输出的 `ShellRunResult`。
 
 ### 不变式与归属
 

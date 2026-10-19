@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`avn-tool-pwsh` gives the agent a `pwsh` tool that runs PowerShell commands through the mounted shell executor — the Windows counterpart of `avn-tool-bash`, mirroring it call-for-call. Each call runs in a fresh pwsh process, so no state survives; `run_in_background` turns long-running commands into background jobs. Commands are PowerShell-dialect: native `C:\...` paths and `$env:NAME` variables, with no dialect translation. Every call runs with the managed `AVN_*` environment, and under a sandboxing executor the tool teaches and enforces the Windows-specific language-mode and named-pipe contracts. Mount it with a PowerShell executor such as `avn-pwsh-local` and the `avn-shell-env` plugin.
+`avn-tool-pwsh` gives the agent a `pwsh` tool that runs PowerShell commands through the mounted shell executor — the Windows counterpart of `avn-tool-bash`, mirroring it call-for-call. Each call runs in a fresh pwsh process, so no state survives; `run_in_background` turns long-running commands into background jobs. Commands are PowerShell-dialect: native `C:\...` paths and `$env:NAME` variables, with no dialect translation. Every call runs with the managed `AVN_*` environment, and under a sandboxing executor the tool teaches and enforces the Windows-specific language-mode and named-pipe contracts. A foreground call that outlives `detachAfterMs` becomes a background job on its own, so no command holds the conversation. Mount it with a PowerShell executor such as `avn-pwsh-local` and the `avn-shell-env` plugin.
 
 ## Table of Contents
 
@@ -45,7 +45,8 @@ The single config field toggles background support.
 
 | Field | Default | Meaning |
 |---|---|---|
-| `enableRunInBackground` | `true` | Expose `run_in_background`; when `false`, forced background calls are rejected |
+| `enableRunInBackground` | `true` | Expose `run_in_background`; when `false`, forced background calls are rejected and foreground calls always wait |
+| `detachAfterMs` | `20000` | How long a foreground command may run before it is handed back as a background job |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#aeventool-pwsh) is the exhaustive source for every accepted field and its JSDoc; the generated [tool catalog](../../../docs/tool-catalog.md#aeventool-pwsh) carries the full argument schema.
 

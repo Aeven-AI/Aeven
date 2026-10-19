@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
+import { isDetachedRun } from '@aeven/shell'
 import type { ShellRunResult, CollectedOutput } from '@aeven/shell'
 import SessionProjectionRegistry from '@aeven/session-projection'
 import { SANDBOX_UNAVAILABLE, SandboxProvider, SandboxUnavailableError } from '@aeven/sandbox'
@@ -656,5 +657,26 @@ describe('background sandbox facts', () => {
     const task = bash.start(bash.resolve({ command: 'sleep 30' }))
     await ctx.fiber.dispose()
     expect(task.status).toBe('killed')
+  })
+})
+
+describe('detach handoff', () => {
+  it('hands back a confined process and stamps its facts at settlement', async () => {
+    const { bash } = await setup()
+    const result = await bash.runDetachable(bash.resolve({ command: 'sleep 60', detachAfterMs: 100 }))
+    if (!isDetachedRun(result)) throw new Error('expected a detached handle')
+    expect(result.process.status).toBe('running')
+    result.process.kill()
+    await result.process.done
+    expect(result.process.sandbox).toEqual({ mode: 'read-only', denied: false, enforcement: 'full' })
+  })
+
+  it('hands back an unconfined process without stamping facts', async () => {
+    const { bash } = await setup({ mode: 'danger-full-access' })
+    const result = await bash.runDetachable(bash.resolve({ command: 'sleep 60', detachAfterMs: 100 }))
+    if (!isDetachedRun(result)) throw new Error('expected a detached handle')
+    result.process.kill()
+    await result.process.done
+    expect(result.process.sandbox).toBeUndefined()
   })
 })
