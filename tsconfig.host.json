@@ -234,6 +234,7 @@
     { "path": "./packages/document/document-extract-js" },
     { "path": "./packages/document/document-extract-office" },
     { "path": "./packages/document/document-extract-ocr" },
+    { "path": "./packages/document/document-extract-video" },
     { "path": "./packages/memory/api-memory-manager" },
     { "path": "./packages/interaction/tool-ask-user" },
     { "path": "./packages/web/tool-browser" },

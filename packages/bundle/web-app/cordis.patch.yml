@@ -255,6 +255,11 @@
     - id: document-extract-ocr
       name: '@aeven/document-extract-ocr'
 
+    # Clips: recorded camera video and uploaded files, described by the host's
+    # own ffprobe where it answers.
+    - id: document-extract-video
+      name: '@aeven/document-extract-video'
+
     # Workspace listings, text previews and name search for the right
     # sidebar's file explorer.
     - id: api-workspace-files

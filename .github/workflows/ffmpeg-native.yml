@@ -1,0 +1,122 @@
+# Build only the bundled ffmpeg for the targets named, without the Desktop packaging work. A full release hop
+# takes about fifteen minutes per iteration, which is the wrong loop for a native build: this workflow installs
+# the same toolchains, runs the same `native/ffmpeg` script, and uploads the executable in a few minutes.
+name: ffmpeg native
+
+on:
+  workflow_dispatch:
+    inputs:
+      targets:
+        description: Comma separated targets — mac-arm64, mac-x64, win-x64, win-arm64, linux-x64, linux-arm64 — or `all`
+        type: string
+        default: win-x64,win-arm64
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    name: Select targets
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Select targets
+        id: select
+        env:
+          REQUESTED_TARGETS: ${{ inputs.targets || 'all' }}
+        run: |
+          targets='[
+            {"id":"mac-arm64","target":"darwin-arm64","runner":"macos-15"},
+            {"id":"mac-x64","target":"darwin-x64","runner":"macos-15-intel"},
+            {"id":"win-x64","target":"win32-x64","runner":"windows-latest"},
+            {"id":"win-arm64","target":"win32-arm64","runner":"windows-11-arm"},
+            {"id":"linux-x64","target":"linux-x64","runner":"ubuntu-24.04"},
+            {"id":"linux-arm64","target":"linux-arm64","runner":"ubuntu-24.04-arm"}
+          ]'
+          known_ids="$(printf '%s' "$targets" | jq -r '[.[].id] | join(" ")')"
+          requested="$(printf '%s' "$REQUESTED_TARGETS" | tr ',' ' ' | tr -s '[:space:]' ' ' | sed -e 's/^ //' -e 's/ $//')"
+          if [ "$requested" = all ]; then wanted="$known_ids"; else wanted="$requested"; fi
+          for id in $wanted; do
+            case " $known_ids " in *" $id "*) ;; *) echo "::error::not a target: $id"; exit 1 ;; esac
+          done
+          matrix="$(printf '%s' "$targets" | jq -c --arg wanted "$wanted" \
+            '($wanted | split(" ")) as $ids | {include: [.[] | select(.id as $id | $ids | index($id))]}')"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build ${{ matrix.target }}
+    needs: plan
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        if: ${{ !startsWith(matrix.target, 'darwin-x64') }}
+
+      - name: Install the pinned pnpm for the Intel macOS target
+        if: startsWith(matrix.target, 'darwin-x64')
+        run: |
+          npm install --global pnpm@11.7.0
+          pnpm --version
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      # The same toolchains the release workflow installs, kept in one place per platform.
+      - name: Install build tools (macOS)
+        if: startsWith(matrix.target, 'darwin-')
+        run: brew install pkg-config nasm
+
+      - name: Install build tools (Linux)
+        if: startsWith(matrix.target, 'linux-')
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends zlib1g-dev pkg-config nasm libva-dev
+
+      - name: Set up MSYS2 (Windows x64)
+        if: matrix.target == 'win32-x64'
+        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
+        with:
+          msystem: UCRT64
+          release: false
+          update: true
+          install: >-
+            make nasm diffutils pkgconf
+            mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-binutils
+            mingw-w64-ucrt-x86_64-opus mingw-w64-ucrt-x86_64-zlib
+
+      - name: Set up MSYS2 (Windows arm64)
+        if: matrix.target == 'win32-arm64'
+        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
+        with:
+          msystem: CLANGARM64
+          release: false
+          update: true
+          install: >-
+            make nasm diffutils pkgconf
+            mingw-w64-clang-aarch64-clang mingw-w64-clang-aarch64-binutils
+            mingw-w64-clang-aarch64-opus mingw-w64-clang-aarch64-zlib
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build ffmpeg
+        run: pnpm --dir native/ffmpeg run build:native --target ${{ matrix.target }}
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4
+        with:
+          name: ffmpeg-${{ matrix.target }}
+          path: native/ffmpeg/packages/${{ matrix.target }}/bin/*
+          if-no-files-found: error

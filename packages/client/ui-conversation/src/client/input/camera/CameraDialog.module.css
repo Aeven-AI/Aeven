@@ -1,0 +1,453 @@
+/* The camera popup: a full-bleed viewfinder across the card's top edge, its
+   controls over the frame or beneath it, and no header row — the close control
+   floats on the picture. Mask, card radius, elevation, and Escape come from the
+   Modal primitive, so this sheet carries only what the camera adds. */
+
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+/* The viewfinder is the card's own width and its top edge; the card's clipped
+   corners give it the top-only radius, and the controls below stay on the card
+   fill. */
+.stage {
+  position: relative;
+  width: 100%;
+  /* The viewfinder takes the frame it can: 16:9 across the widest the dialog
+     may grow, held below the viewport's own height on short screens. */
+  aspect-ratio: 16 / 9;
+  max-height: 72vh;
+  overflow: hidden;
+  border-radius: var(--dsw-aeven-radius-surface) var(--dsw-aeven-radius-surface) 0 0;
+  background: var(--dsw-static-neutral-1000);
+}
+
+.video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* A user-facing camera reads as a mirror, the way every phone preview does. */
+.video[data-mirrored] {
+  transform: scaleX(-1);
+}
+
+/* The review covers the still-live preview instead of unmounting it, so the
+   stream keeps delivering frames for the next recording. */
+.video[data-covered] {
+  visibility: hidden;
+}
+
+/* The review shows the capture itself — the still, or the recorded file under
+   the product's own playback chrome — against the frame. */
+.clipPlayer {
+  position: absolute;
+  inset: 0;
+}
+
+.clipPlayer > div {
+  height: 100%;
+}
+
+.clip {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  /* The review fills the frame exactly as the live preview did. */
+  object-fit: cover;
+  background: var(--dsw-static-neutral-1000);
+}
+
+/* A reviewed still is already mirrored from the preview; match what was seen. */
+.clip[data-mirrored] {
+  transform: scaleX(-1);
+}
+
+/* The close control floats on the picture: the same black disc family as the
+   controls below, at the viewfinder's trailing corner. */
+.close {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--dsw-static-neutral-1000);
+  color: var(--dsw-static-neutral-00);
+  cursor: pointer;
+}
+
+/* Every control here is drawn by its own glyph and fill, so the browser's thin
+   default ring never shows through: focus is the brand ring, and only for the
+   keyboard. */
+.close:focus,
+.modeButton:focus,
+.timer:focus,
+.flip:focus,
+.shutter:focus,
+.action:focus,
+.actionPrimary:focus {
+  outline: none;
+}
+
+.close:focus-visible,
+.modeButton:focus-visible,
+.timer:focus-visible,
+.flip:focus-visible,
+.shutter:focus-visible,
+.action:focus-visible,
+.actionPrimary:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline-offset: 2px;
+}
+
+/* The mode switch: one black capsule floating over the viewfinder, each mode a
+   glyph cell, the active one a white disc — the camera app's own grammar, in
+   the client's black and white. */
+.modeSwitch {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  display: flex;
+  height: 30px;
+  overflow: hidden;
+  border-radius: 15px;
+  background: var(--dsw-static-neutral-1000);
+  transform: translateX(-50%);
+}
+
+.modeButton {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 15px;
+  background: transparent;
+  color: var(--dsw-static-neutral-00);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.modeButton[data-active] {
+  background: var(--dsw-static-neutral-00);
+  color: var(--dsw-static-neutral-1000);
+}
+
+.modeButton:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.modeGlyph {
+  width: 16px;
+  height: 16px;
+}
+
+/* Recording pill: the same black capsule family as the close disc, sitting on
+   the same 24px inset so the two read as one top row. */
+.rec {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 15px;
+  background: var(--dsw-static-neutral-1000);
+  color: var(--dsw-static-neutral-00);
+  font-size: 12px;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.recDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dsw-alias-state-error-primary);
+  animation: camera-rec 1.2s ease-in-out infinite;
+}
+
+@keyframes camera-rec {
+  50% { opacity: 0.25; }
+}
+
+/* The countdown disc holds the frame's center: the number is the last thing
+   seen before the still is taken. */
+.countdown {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.countdownNumber {
+  display: grid;
+  place-items: center;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: var(--dsw-static-neutral-1000);
+  color: var(--dsw-static-neutral-00);
+  font-size: 40px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  animation: camera-count 1s ease-out;
+}
+
+@keyframes camera-count {
+  from {
+    transform: scale(1.18);
+    opacity: 0.35;
+  }
+
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Until the stream plays — the browser's permission bubble is still open — the
+   frame says so rather than sitting as an unexplained black panel. The block
+   centers in the space above the floating capsule. */
+.pending {
+  position: absolute;
+  inset: 0 0 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--dsw-static-neutral-00);
+}
+
+.pendingGlyph {
+  width: 30px;
+  height: 30px;
+  stroke-width: 1.5;
+  animation: camera-breathe 1.8s ease-in-out infinite;
+}
+
+.pendingText {
+  margin: 0;
+  color: inherit;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+/* The browser's own prompt is the action in this state, so the second line
+   names it instead of leaving the reader looking for a control here. */
+.pendingHint {
+  margin: -4px 0 0;
+  color: inherit;
+  font-size: 12px;
+  line-height: 18px;
+  opacity: 0.5;
+}
+
+@keyframes camera-breathe {
+  50% { opacity: 0.3; }
+}
+
+/* Refused camera: the sentence and its retry sit on the frame's own fill. */
+.failure {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+}
+
+.failureText {
+  margin: 0;
+  color: var(--dsw-static-neutral-00);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+/* Timer, shutter, and the switch-camera disc. The side controls are 30px black
+   discs carrying white glyphs, with no hover state of their own. The row keeps
+   the shutter's own height in every state, so reviewing a capture never resizes
+   the popup. */
+.controls {
+  display: grid;
+  grid-template-columns: 30px 1fr 30px;
+  align-items: center;
+  gap: 12px;
+  height: 56px;
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 16px 24px 0;
+  box-sizing: content-box;
+}
+
+.timer,
+.flip {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--dsw-static-neutral-1000);
+  color: var(--dsw-static-neutral-00);
+  cursor: pointer;
+}
+
+/* The countdown is on by default; off keeps the hairline disc so the toggle
+   still reads as a control rather than disappearing. */
+.timer[aria-pressed='false'] {
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  box-shadow: inset 0 0 0 0.5px var(--dsw-alias-border-l2);
+}
+
+.timer:disabled,
+.flip:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.timerGlyph,
+.flipIcon {
+  width: 15px;
+  height: 15px;
+}
+
+.flipSeat {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.shutter {
+  justify-self: center;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  /* The ring is the control's own inset stroke, the family the job and activity
+     controls use rather than a border on a filled disc. */
+  box-shadow: inset 0 0 0 2px var(--dsw-alias-border-l3);
+  cursor: pointer;
+}
+
+.shutter:hover:not(:disabled) .shutterCore {
+  opacity: 0.85;
+}
+
+.shutter:disabled {
+  cursor: default;
+  box-shadow: inset 0 0 0 2px var(--dsw-alias-border-l1);
+}
+
+.shutter:disabled .shutterCore {
+  background: var(--dsw-alias-button-primary-dimmed);
+}
+
+.shutterCore {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--dsw-alias-button-primary-fill);
+  transition: width 120ms ease, height 120ms ease, border-radius 120ms ease;
+}
+
+/* Recording: the disc becomes the stop square, on the state-error fill. */
+.shutter[data-recording] .shutterCore {
+  width: 22px;
+  height: 22px;
+  border-radius: var(--dsw-aeven-radius-compact);
+  background: var(--dsw-alias-state-error-primary);
+}
+
+/* A reviewed capture trades the capture controls for its own two actions,
+   splitting the row evenly: keeping the capture leads, taking another follows.
+   The retake face is the card's own fill so it reads as plain text beside the
+   filled primary, and carries no outline. */
+.action,
+.actionPrimary {
+  flex: 1 1 0;
+  height: 30px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 15px;
+  font-size: 13px;
+  line-height: 30px;
+  cursor: pointer;
+}
+
+.action {
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.actionPrimary {
+  background: var(--dsw-static-neutral-1000);
+  color: var(--dsw-static-neutral-00);
+}
+
+/* The reviewed clip's two actions are the controls row's whole content. */
+.controls[data-reviewing] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* Phone widths move every 24px inset to the page's 16px. */
+@media (max-width: 640px) {
+  .close {
+    top: 16px;
+    right: 16px;
+  }
+
+  .rec {
+    top: 16px;
+    left: 16px;
+  }
+
+  .modeSwitch {
+    bottom: 16px;
+  }
+
+  .controls {
+    padding: 16px 16px 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recDot,
+  .countdownNumber,
+  .pendingGlyph {
+    animation: none;
+  }
+
+  .modeButton,
+  .shutterCore {
+    transition: none;
+  }
+}

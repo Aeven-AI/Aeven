@@ -17,7 +17,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, KeyboardEvent, MouseEvent } from 'react'
 import clsx from 'clsx'
 import {
-  IconArrowUpOutline20, IconGoalOutline16, IconListPenOutline16, IconPaperPlaneOutline16,
+  IconArrowUpOutline20, IconGoalOutline16, IconListPenOutline16, IconLucideCamera, IconPaperPlaneOutline16,
   IconPaperclipOutline16, IconPlusOutline20, IconStopFill20, IconWarningOutline16, Menu, Toast, Tooltip,
 } from '@aeven/client-ui-primitives'
 import type { MenuEntry } from '@aeven/client-ui-primitives'
@@ -36,6 +36,7 @@ import { DecoratorPortals } from './editor/DecoratorPortals.tsx'
 import { registerComposerKeymap } from './editor/keymap.ts'
 import { attachmentErrorText, imageSizeText } from '../image-labels.ts'
 import { ComposerOptions } from './ComposerOptions.tsx'
+import { CameraDialog } from './camera/CameraDialog.tsx'
 import css from './InputBar.module.css'
 
 export type InputBarProps = ComposerBarProps
@@ -83,6 +84,7 @@ export const InputBar = memo(function InputBar({
   // A composer activity (dictation) claims the whole control row while it records or transcribes.
   const [activity, setActivity] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
+  const [cameraOpen, setCameraOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const addSelection = useRef<ReturnType<NonNullable<typeof keyboard>['caretSpan']> | null>(null)
   const [toast, setToast] = useState<{ seq: number; text: string } | null>(null)
@@ -399,6 +401,7 @@ export const InputBar = memo(function InputBar({
   // no row carries a trailing description — its label names the action.
   const addItems: MenuEntry[] = [
     { id: 'file', label: t('add.file'), icon: <IconPaperclipOutline16 className={css.addIcon} />, disabled: addImages === undefined && addFiles === undefined },
+    { id: 'camera', label: t('add.camera'), icon: <IconLucideCamera className={css.addIcon} />, disabled: addImages === undefined },
     { id: 'goal', label: t('add.goal'), icon: <IconGoalOutline16 className={css.addIcon} /> },
     { id: 'plan', label: t('add.plan'), icon: <IconListPenOutline16 className={css.addIcon} /> },
     { id: 'feedback', label: t('add.feedback'), icon: <IconPaperPlaneOutline16 className={css.addIcon} /> },
@@ -408,6 +411,11 @@ export const InputBar = memo(function InputBar({
     setAddOpen(false)
     if (id === 'file') {
       fileInputRef.current?.click()
+      return
+    }
+    // The camera fills the draft itself, so it needs no command claim and no caret.
+    if (id === 'camera') {
+      setCameraOpen(true)
       return
     }
     if (sessionId === undefined || invokeCommand === undefined || addSelection.current === null) return
@@ -674,6 +682,14 @@ export const InputBar = memo(function InputBar({
           </div>
         </div>
       </div>
+      <CameraDialog
+        open={cameraOpen}
+        onClose={() => { setCameraOpen(false) }}
+        onCapture={intakeImages}
+        onCaptureClip={(file) => { intakeOtherFiles([file]) }}
+        canRecordClip={addFiles !== undefined && fileIntake !== undefined}
+        t={t}
+      />
       {variant === 'composer' && input !== undefined && sessionId !== undefined
         ? renderSlot('conversation.composer.dock', {})
         : null}

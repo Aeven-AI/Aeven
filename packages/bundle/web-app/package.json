@@ -117,6 +117,7 @@
     "@aeven/document-extract-js": "workspace:^",
     "@aeven/document-extract-ocr": "workspace:^",
     "@aeven/document-extract-office": "workspace:^",
+    "@aeven/document-extract-video": "workspace:^",
     "@aeven/file-reference": "workspace:^",
     "@aeven/file-reference-local": "workspace:^",
     "@aeven/host-account-integrations": "workspace:^",

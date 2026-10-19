@@ -1429,6 +1429,18 @@ describe('composer chrome and control seats', () => {
     expect(invokeCommand).toHaveBeenCalledExactlyOnceWith('goal', { start: 2, end: 7 })
   })
 
+  it('offers the camera beside file, goal, plan, and feedback, and opens it on pick', async () => {
+    const { view } = bench({ invokeCommand: vi.fn(async () => true) })
+    fireEvent.click(attachOf(view))
+    const labels = view.getAllByRole('menuitem').map(item => item.textContent)
+    expect(labels).toEqual(['文件', '相机', '目标', '计划', '反馈'])
+    fireEvent.click(view.getByRole('menuitem', { name: '相机' }))
+    await act(async () => {})
+    // jsdom exposes no camera API, so the popup renders its own refusal; what
+    // this bench proves is the menu path opening it.
+    expect(view.getByRole('dialog', { name: '相机' })).toBeTruthy()
+  })
+
   it('the Access chip renders the projection value and submits a non-Full-access pick directly', async () => {
     const command = vi.fn(() => Promise.resolve(true))
     const permissions = {

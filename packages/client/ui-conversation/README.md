@@ -50,6 +50,8 @@ The resident composer survives no-Session and Session transitions. The no-Sessio
 
 Composer Options opens the image and video model pickers beside their rows, using the same selectors as `/image-model` and `/video-model`.
 
+The attach menu's Camera opens the device in a popup: an icon capsule over the viewfinder switches between a still and a clip, the shutter waits three seconds by default for a still (the timer disc beside it turns that count off, and a second press ends it), and a clip records the stream itself — sound included — into one WebM file that the reader replays before `Use` hands it to the file intake. Neither capture reaches the draft on its own: the popup stays open with `Retake` and `Use` for both. The stream belongs to the popup and stops with it, including when it flips to the other camera; a refused microphone costs the sound, not the camera.
+
 Default sends commit optimistically: Enter clears the draft, occurrence table, and undo history in the same transaction, keeps the composer in `plain`, and runs the send as a detached attempt, so typing and further sends continue during the flight. `sendSession` registers a Session submission echo (`session.beginSubmission`) with the delivery mode before serializing; Session derives the placement from that mode and its current running state, so idle sends use the transcript, busy Queue sends use QueueDock, and busy Steer sends use the pending-steering surface. It then yields one paint and encodes images through the browser's native `FileReader` data-URL path. Concurrent failures are restored together in submission order until the user edits the restored content; command submissions keep the frozen `submitting` phase. Detached attempts retain their image ids through admission and Session scope disposal. When an echo retires as observed, the durable image cache exposes its preview immediately, fetches the admitted attachment, replaces the preview with the canonical URL, and revokes each URL after its use ends. Direct subagent continuations skip local echoes because their transport does not preserve the browser request id.
 
 While a normal composer is running, its primary pointer action remains Stop when the draft is empty or input is unavailable. Actionable text or attachments switch the same seat to Queue Send; clearing or successfully submitting the draft restores Stop. The busy-Enter setting continues to select the Queue or Steer keyboard action. Continuable subagents keep separate Send and Stop actions ([decision](../../../.agents/notes/implemented/bug-fix/2026-08-20-running-draft-primary-send.md)).
@@ -116,6 +118,7 @@ None; Conversation assembly and browser input state do not alter provider-side p
 <a id="known-limitations-and-deferred-work"></a>
 
 - **Only registered targets can render** — the shell deliberately has no implicit fallback target beyond the registered `chat` preference.
+- **A clip arrives as facts, not as pictures** — `@aeven/document-extract-video` claims the video formats so the file intake accepts a recording, and stores one sentence with the clip's duration, frame size, codec, container and size. Nothing watches the frames or transcribes the sound, so the model knows a clip exists and what it is, not what it shows.
 
 
 <a id="dev-note"></a>
