@@ -20,6 +20,14 @@ The shared install no longer inherits the first caller's request signal. `prepar
 
 The readiness gate parses the doctor's JSON report and requires the requested provider inspection, `ghidra`, to be `available` with no failing provider check. The process exit status is ignored, because informational checks always set it and they are not this deployment's readiness. A setup failure now carries the child's stdout and stderr, and a doctor that prints no parseable report is quoted in the error instead of leaving an empty reason.
 
+## Enabling the skill installs the engine
+
+Enabling the skill is the commit point for its cost. `setSkillEnabled` and `importSkill` call `ReverseEngineeringRuntime.warm()`, which starts the one installation every agent shares, while `agent/pre-step` keeps mounting it per agent. The first request after activation therefore has `mcp__rea__*` instead of starting the download it then waits behind.
+
+Setup consults the host before it downloads anything. A `rea doctor --provider ghidra` run whose environment carries no `GHIDRA_INSTALL_DIR` or `JAVA_HOME` either certifies an engine the machine already has — the paths arrive in the report's `registrationEnvironment`, and one verified here costs twelve seconds — or the runtime fetches the Ghidra and JDK archives into `runtimes/reverse-engineering/archives/<sha256>`, where a later attempt reuses them instead of downloading 770 MB again.
+
+Ghidra's release archive carries a native decompiler under `os/linux_x86_64` only, which is why the doctor's `native_decompiler` check failed on every macOS attempt. Setup now builds the one the decompiler's own Makefile describes, `make ghidra_opt ARCH_TYPE="-arch arm64" OSDIR=mac_arm_64`, measured at 20 seconds on an Apple Silicon host, and probes for `make` and `bison` before the download rather than after it.
+
 ## Alternatives considered
 
 **Keep awaiting the install and only fix the doctor gate.** Rejected because the first request would still wait minutes for a download it may never use, and a genuine failure would still fail the turn.
@@ -28,9 +36,11 @@ The readiness gate parses the doctor's JSON report and requires the requested pr
 
 **Retry on every request after a failure.** Rejected because each retry repeats the full download the failed attempt deleted, which is what turned one broken setup into a two-minute cost per message.
 
+**Ship Ghidra and the JDK inside the desktop app.** Rejected: the app is already large and this skill is optional, so 770 MB of analysis engine must never become every user's download.
+
 ## Consequences
 
-- The first request after enabling the skill returns without REA tools; they appear on a later request of that agent. The skill's shell routes cover the work meanwhile.
+- Enabling the skill installs behind the settings page, so the first request after it already has the tools. A machine whose Ghidra and JDK certify downloads only the REA package.
 - A setup failure is visible only in the Host log, not in the conversation, so the transcript does not tell a person that the tools are unavailable or why.
-- On darwin/arm64 the official `Ghidra_12.1.4_build` archive ships native decompilers only under `os/linux_x86_64` and `os/win_x86_64`, so the doctor's `native_decompiler` check fails and setup cannot certify Ghidra until REA ships a macOS build. The runtime reports that through the same background log and retry path.
-- Enabling the skill downloads about 770 MB in the background. Disabling it does not cancel a download already running.
+- On darwin/arm64 the release archive ships no decompiler, so setup builds one from the sources the archive carries and therefore needs the Xcode command line tools; without them it fails with that reason rather than after the download.
+- Enabling the skill downloads about 770 MB where no certifying engine exists, and nothing at all where Ghidra is already installed. Disabling it does not cancel a download already running.

@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-10-19-reverse-engineering-first-request.md
-2026-10-19-reverse-engineering-first-request.md: e96190d189843013aa25b2c94c005bc98618c22f
-2026-10-19-reverse-engineering-first-request.zh.md: 122fbc7d48d2f1c8fdea642c3c467ac46298abac
+2026-10-19-reverse-engineering-first-request.md: b7d4f1169bf62139a7c64d0c340df6a71230045e
+2026-10-19-reverse-engineering-first-request.zh.md: 5c2b873514a76b5121e4c49cca23418b06f9711d

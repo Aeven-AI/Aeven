@@ -1,4 +1,4 @@
-/** First-use installation with fixture downloads and a real scoped MCP connection. */
+/** Setup route, archive reuse, decompiler build, and agent-scoped MCP connection for the private analysis runtime. */
 import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
@@ -32,8 +32,11 @@ function config(overrides: Partial<ReverseEngineeringConfig> = {}): ReverseEngin
     timeoutMs: 30_000, retryDelayMs: 600_000, stopGraceMs: 1_000, outputMaxBytes: 65_536, ...overrides }
 }
 
-async function fixture(options: { corrupt?: boolean; unhealthy?: boolean } = {}) {
-  const { corrupt = false, unhealthy = false } = options
+/** Decompiler directory Ghidra expects on the host running this spec. */
+const osDirectory = `${({ darwin: 'mac', linux: 'linux', win32: 'win' } as Record<string, string>)[process.platform]!}_${({ arm64: 'arm_64', x64: 'x86_64' } as Record<string, string>)[process.arch]!}`
+
+async function fixture(options: { corrupt?: boolean; unhealthy?: boolean; host?: boolean; build?: boolean; seedCache?: boolean } = {}) {
+  const { corrupt = false, unhealthy = false, host = false, build = false, seedCache = false } = options
   const directory = await mkdtemp(join(tmpdir(), 'avn-rea-install-'))
   disposers.push(() => rm(directory, { recursive: true, force: true }))
   vi.stubEnv('AVN_HOME', directory)
@@ -43,8 +46,29 @@ async function fixture(options: { corrupt?: boolean; unhealthy?: boolean } = {})
   const javaArchive = process.platform === 'win32'
     ? zipSync({ 'jdk/bin/java': new TextEncoder().encode('fixture JDK') })
     : (execFileSync('tar', ['-czf', join(directory, 'java.tar.gz'), '-C', directory, 'jdk']), await readFile(join(directory, 'java.tar.gz')))
-  const ghidraArchive = zipSync({ 'ghidra/Ghidra/application.properties': new TextEncoder().encode('fixture Ghidra') })
+  // A release archive without this platform's decompiler, as the official macOS zip is, unless the fixture ships one.
+  const ghidraArchive = zipSync({
+    'ghidra/Ghidra/application.properties': new TextEncoder().encode('fixture Ghidra'),
+    // The build needs its working directory to exist; the decompiler source is what Ghidra's archive carries.
+    'ghidra/Ghidra/Features/Decompiler/src/decompile/cpp/Makefile': new TextEncoder().encode('fixture Makefile'),
+    ...(build ? {} : { [`ghidra/Ghidra/Features/Decompiler/os/${osDirectory}/decompile`]: new TextEncoder().encode('fixture decompiler') }),
+  })
+  const hostRoot = join(directory, 'host-engine')
+  const hostGhidra = host ? join(hostRoot, 'ghidra') : null
+  const hostJava = host ? join(hostRoot, 'java') : null
+  if (host) {
+    await mkdir(join(hostGhidra!, 'Ghidra'), { recursive: true })
+    await writeFile(join(hostGhidra!, 'Ghidra', 'application.properties'), 'fixture host Ghidra')
+    await mkdir(join(hostJava!, 'bin'), { recursive: true })
+    await writeFile(join(hostJava!, 'bin', 'java'), 'fixture host JDK')
+  }
   const checksum = (data: Uint8Array) => createHash('sha256').update(data).digest('hex')
+  if (seedCache) {
+    const archives = join(directory, 'runtimes', 'reverse-engineering', 'archives')
+    await mkdir(archives, { recursive: true })
+    await writeFile(join(archives, `${checksum(ghidraArchive)}.zip`), ghidraArchive)
+    await writeFile(join(archives, `${checksum(javaArchive)}.tar.gz`), javaArchive)
+  }
   const downloads: string[] = []
   vi.stubGlobal('fetch', vi.fn(async (input: string | URL | Request) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
@@ -62,14 +86,21 @@ async function fixture(options: { corrupt?: boolean; unhealthy?: boolean } = {})
   const server = `
 import { existsSync } from 'node:fs';
 if (process.argv[2] === 'doctor') {
-  const ready = ${unhealthy ? 'false' : "existsSync(process.env.GHIDRA_INSTALL_DIR + '/Ghidra/application.properties') && existsSync(process.env.JAVA_HOME + '/bin/java')"};
+  // A doctor run without an engine in its environment probes the host and names what it found in the report.
+  const hostGhidra = ${JSON.stringify(hostGhidra)};
+  const hostJava = ${JSON.stringify(hostJava)};
+  const ghidra = process.env.GHIDRA_INSTALL_DIR ?? hostGhidra;
+  const javaHome = process.env.JAVA_HOME ?? hostJava;
+  const ready = ${unhealthy ? 'false' : "ghidra !== null && javaHome !== null && existsSync(ghidra + '/Ghidra/application.properties') && existsSync(javaHome + '/bin/java')"};
   // A real doctor exits non-zero for informational checks this integration never satisfies: optional engines,
   // client MCP registrations, and its own skill copy. The provider inspection is what readiness means.
   console.log(JSON.stringify({
-    providerInspections: [{ id: 'ghidra', available: ready, checks: [
-      { name: 'installation', ok: true, detail: null },
-      { name: 'native_decompiler', ok: ready, detail: ready ? null : 'Matching native decompiler was not found' },
-    ] }],
+    providerInspections: [{ id: 'ghidra', available: ready,
+      registrationEnvironment: { GHIDRA_INSTALL_DIR: ghidra, JAVA_HOME: javaHome },
+      checks: [
+        { name: 'installation', ok: true, detail: null },
+        { name: 'native_decompiler', ok: ready, detail: ready ? null : 'Matching native decompiler was not found' },
+      ] }],
     checks: [{ name: 'registration:codex', ok: false, detail: '/fixture/config.toml' }],
   }));
   process.exitCode = 1;
@@ -77,7 +108,7 @@ if (process.argv[2] === 'doctor') {
   const { McpServer } = await import(${JSON.stringify(serverModule)});
   const { StdioServerTransport } = await import(${JSON.stringify(transportModule)});
   const server = new McpServer({ name: 'fixture-rea', version: '6.7.0' });
-  server.registerTool('open_binary', { inputSchema: {} }, async () => ({ content: [{ type: 'text', text: process.env.GHIDRA_INSTALL_DIR }] }));
+  server.registerTool('open_binary', { inputSchema: {} }, async () => ({ content: [{ type: 'text', text: String(process.env.GHIDRA_INSTALL_DIR) }] }));
   await server.connect(new StdioServerTransport());
 }
 `
@@ -92,10 +123,18 @@ if (process.argv[2] === 'doctor') {
   await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(join(directory, 'cordis.yml')).href } })
   await ctx.loader.await()
   const spawn = ctx.subprocess.spawn.bind(ctx.subprocess)
+  const npmProgram = `const fs = require('node:fs'); fs.mkdirSync('node_modules/rea-agents/scripts', { recursive: true }); fs.writeFileSync('node_modules/rea-agents/package.json', '{"version":"6.7.0"}'); fs.writeFileSync('node_modules/rea-agents/scripts/rea.mjs', ${JSON.stringify(server)});`
+  const built: (readonly string[])[] = []
   const npm = vi.spyOn(ctx.subprocess, 'spawn').mockImplementation((spec) => {
-    if (spec.argv[0] !== 'npm' && spec.argv[0] !== 'npm.cmd') return spawn(spec)
-    const program = `const fs = require('node:fs'); fs.mkdirSync('node_modules/rea-agents/scripts', { recursive: true }); fs.writeFileSync('node_modules/rea-agents/package.json', '{"version":"6.7.0"}'); fs.writeFileSync('node_modules/rea-agents/scripts/rea.mjs', ${JSON.stringify(server)});`
-    return spawn({ ...spec, argv: [process.execPath, '-e', program] })
+    if (spec.argv[0] === 'npm' || spec.argv[0] === 'npm.cmd') return spawn({ ...spec, argv: [process.execPath, '-e', npmProgram] })
+    if (spec.argv[0] === 'make' || spec.argv[0] === 'bison') {
+      built.push(spec.argv)
+      const program = spec.argv.includes('ghidra_opt')
+        ? "require('node:fs').writeFileSync('ghidra_opt', 'fixture decompiler build')"
+        : 'console.log("fixture toolchain")'
+      return spawn({ ...spec, argv: [process.execPath, '-e', program] })
+    }
+    return spawn(spec)
   })
   const runtime = new ReverseEngineeringRuntime(ctx, config())
   function agent(): Agent {
@@ -104,7 +143,7 @@ if (process.argv[2] === 'doctor') {
     // This helper only borrows the Agent's disposal context and scope identity.
     return { ctx: agentCtx } as Agent
   }
-  return { directory, ctx, runtime, downloads, npm, agent }
+  return { directory, ctx, runtime, downloads, npm, built, agent }
 }
 
 describe('reverse-engineering first request', () => {
@@ -129,24 +168,69 @@ describe('reverse-engineering first request', () => {
     const fresh = new ReverseEngineeringRuntime(ctx, config())
     await fresh.prepare(agent())
     expect(downloads).toHaveLength(4)
-    expect(await readdir(join(directory, 'runtimes', 'reverse-engineering'))).toEqual(['6.7.0-Ghidra_12.1.4_build-jdk21-' + process.platform + '-' + process.arch])
+    expect((await readdir(join(directory, 'runtimes', 'reverse-engineering'))).sort())
+      .toEqual(['6.7.0-Ghidra_12.1.4_build-jdk21-' + process.platform + '-' + process.arch, 'archives'])
     await first.ctx.fiber.dispose()
     expect(ctx.get('tools')!.get('mcp__rea__open_binary', first)).toBeUndefined()
     expect(ctx.get('tools')!.get('mcp__rea__open_binary', second)).toBeDefined()
   })
 
-  it('rejects a corrupt download before extraction or MCP registration and removes staging files', async () => {
+  it('mounts a host Ghidra and JDK that certify, without downloading an engine', async () => {
+    const { ctx, runtime, downloads, directory, agent, built } = await fixture({ host: true })
+    const owner = agent()
+    await runtime.prepare(owner)
+    // The host already provides Ghidra and the JDK: nothing is fetched and nothing is built.
+    expect(downloads).toEqual([])
+    expect(built).toEqual([])
+    const tools = ctx.get('tools')!.get('mcp__rea__open_binary', owner)!
+    const result = await tools.execute?.({}, { signal: new AbortController().signal } as never) as { content: { text: string }[] }
+    expect(result.content[0]!.text).toBe(join(directory, 'host-engine', 'ghidra'))
+    const root = join(directory, 'runtimes', 'reverse-engineering', '6.7.0-Ghidra_12.1.4_build-jdk21-' + process.platform + '-' + process.arch)
+    expect(JSON.parse(await readFile(join(root, 'ready.json'), 'utf8'))).toEqual({
+      ghidra: join(directory, 'host-engine', 'ghidra'), javaHome: join(directory, 'host-engine', 'java'),
+    })
+  })
+
+  it('reuses archives a previous attempt already downloaded', async () => {
+    const { runtime, downloads, agent } = await fixture({ seedCache: true })
+    await runtime.prepare(agent())
+    expect(downloads.filter(url => url.startsWith('https://fixtures.test/'))).toEqual([])
+    expect(downloads).toHaveLength(2)
+  })
+
+  it.skipIf(process.platform !== 'darwin')('builds the decompiler the macOS archive omits', async () => {
+    const { runtime, built, directory, agent } = await fixture({ build: true })
+    await runtime.prepare(agent())
+    expect(built.find(argv => argv.includes('ghidra_opt'))).toEqual(['make', 'ghidra_opt', `ARCH_TYPE=-arch ${process.arch}`, `OSDIR=${osDirectory}`, '-j4'])
+    const root = join(directory, 'runtimes', 'reverse-engineering', '6.7.0-Ghidra_12.1.4_build-jdk21-' + process.platform + '-' + process.arch)
+    expect(await readFile(join(root, 'ghidra', 'Ghidra', 'Features', 'Decompiler', 'os', osDirectory, 'decompile'), 'utf8'))
+      .toBe('fixture decompiler build')
+  })
+
+  it('rejects a corrupt download before MCP registration and leaves no partial archive', async () => {
     const { ctx, runtime, directory, agent, npm } = await fixture({ corrupt: true })
     const owner = agent()
     await expect(runtime.prepare(owner)).rejects.toThrow('checksum mismatch')
-    expect(npm).not.toHaveBeenCalled()
+    expect(npm).toHaveBeenCalled()
     expect(ctx.get('tools')!.get('mcp__rea__open_binary', owner)).toBeUndefined()
-    expect(await readdir(join(directory, 'runtimes', 'reverse-engineering'))).toEqual([])
+    expect(await readdir(join(directory, 'runtimes', 'reverse-engineering'))).toEqual(['archives'])
+    expect(await readdir(join(directory, 'runtimes', 'reverse-engineering', 'archives'))).toEqual([])
   })
 
   it('reports the failing provider checks when the doctor cannot certify ghidra', async () => {
     const { runtime, agent } = await fixture({ unhealthy: true })
     await expect(runtime.prepare(agent())).rejects.toThrow('did not certify ghidra: native_decompiler: Matching native decompiler was not found')
+  })
+
+  it('installs when the skill is enabled, so the first request already has the tools', async () => {
+    const { ctx, runtime, downloads, agent } = await fixture()
+    // The activation path: no agent and no request, just the enabled skill.
+    runtime.warm()
+    await vi.waitFor(() => { expect(downloads).toHaveLength(4) })
+    const owner = agent()
+    await runtime.prepare(owner)
+    expect(ctx.get('tools')!.get('mcp__rea__open_binary', owner)).toBeDefined()
+    expect(downloads).toHaveLength(4)
   })
 
   it('never makes a request wait for or fail with setup, and retries only after the delay', async () => {
@@ -158,11 +242,11 @@ describe('reverse-engineering first request', () => {
     expect(() => { runtime.start(owner) }).not.toThrow()
     await vi.waitFor(() => { expect(warnings.some(line => line.includes('checksum mismatch'))).toBe(true) })
     expect(downloads).toHaveLength(3)
-    // The failure is remembered for retryDelayMs, so the next requests do not start another download.
+    // The failure is remembered for retryDelayMs, so neither a request nor an activation starts another download.
     runtime.start(owner)
-    runtime.start(owner)
+    runtime.warm()
     await new Promise((resolve) => { setTimeout(resolve, 50) })
     expect(downloads).toHaveLength(3)
-    expect(warnings.filter(line => line.includes('reverse-engineering setup failed'))).toHaveLength(1)
+    expect(warnings.filter(line => line.includes('reverse-engineering prepare failed'))).toHaveLength(1)
   })
 })
