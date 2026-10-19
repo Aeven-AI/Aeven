@@ -641,7 +641,8 @@ export default class AccountIntegrations extends TypertRemoteService {
       const skill = owner === undefined ? undefined : this.domain.table('skills').get(`${accountDirectory(owner)}:reverse-engineering`)
       if (skill?.enabled === true && this.config.reverseEngineering !== undefined) {
         this.reverseEngineering ??= new ReverseEngineeringRuntime(this.ctx, this.config.reverseEngineering)
-        // Setup is a background download; a request never waits for it, and its failure never fails the request.
+        // Enabling the skill already started the install; this call mounts it for the agent that needs it.
+        // A request never waits for the download, and a failed setup never fails the request.
         this.reverseEngineering.start(agent)
       }
       return next()
@@ -836,6 +837,20 @@ export default class AccountIntegrations extends TypertRemoteService {
   }
 
   /**
+   * Install the private analysis engine when the account makes the skill available.
+   *
+   * Enabling the skill is the commit point for its cost: the downloads and the decompiler build start there, behind
+   * the settings page, so the first request that needs the tools already has them.
+   * @param name - skill name whose availability changed.
+   * @param enabled - whether the account can now invoke it.
+   */
+  private prepareReverseEngineering(name: string, enabled: boolean): void {
+    if (name !== 'reverse-engineering' || !enabled || this.config.reverseEngineering === undefined) return
+    this.reverseEngineering ??= new ReverseEngineeringRuntime(this.ctx, this.config.reverseEngineering)
+    this.reverseEngineering.warm()
+  }
+
+  /**
    * Install one catalogued skill into the account's library.
    * @param name - catalogued skill name.
    * @throws Error when the deployment mounts no catalog, or the name is not catalogued.
@@ -861,6 +876,7 @@ export default class AccountIntegrations extends TypertRemoteService {
       resources: Object.fromEntries([...skill.files].map(([path, bytes]) => [path, Buffer.from(bytes).toString('base64')])), revision: randomUUID(),
     })
     this.invalidateSkills()
+    this.prepareReverseEngineering(skill.name, true)
   }
 
   /**
@@ -877,6 +893,7 @@ export default class AccountIntegrations extends TypertRemoteService {
       await this.domain.table('skills').update(key, skill => ({ ...skill, enabled }))
     }
     this.invalidateSkills()
+    this.prepareReverseEngineering(name, enabled)
   }
 
   /**

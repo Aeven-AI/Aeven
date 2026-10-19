@@ -20,6 +20,14 @@ Status: implemented
 
 就绪判定改为解析 doctor 的 JSON 报告，要求所请求的 provider 检查项 `ghidra` 为 `available` 且没有失败的 provider 检查。进程退出码被忽略，因为信息性检查总会把它置为非零，而它们并不代表这次部署的就绪状态。初始化失败现在会带上子进程的 stdout 与 stderr；若 doctor 没有打印可解析的报告，错误里会引用其输出，而不是留下空原因。
 
+## 启用技能即安装引擎
+
+启用技能是其代价的提交点。`setSkillEnabled` 与 `importSkill` 调用 `ReverseEngineeringRuntime.warm()`，启动所有 agent 共享的那一次安装，而 `agent/pre-step` 继续按 agent 挂载它。因此启用后的首个请求就拥有 `mcp__rea__*`，而不是启动它随后还要等待的下载。
+
+初始化在下载任何内容之前先询问宿主。环境里没有 `GHIDRA_INSTALL_DIR` 与 `JAVA_HOME` 的 `rea doctor --provider ghidra` 运行，要么认证机器上已有的引擎——路径出现在报告的 `registrationEnvironment` 中，在此机器上验证为十二秒——要么运行时把 Ghidra 与 JDK 归档取入 `runtimes/reverse-engineering/archives/<sha256>`，供后续尝试复用，而不是再下载 770 MB。
+
+Ghidra 的发布归档只在 `os/linux_x86_64` 下提供原生反编译器，这正是 doctor 的 `native_decompiler` 检查在每次 macOS 尝试中都失败的原因。初始化现在按反编译器自身 Makefile 所述来构建：`make ghidra_opt ARCH_TYPE="-arch arm64" OSDIR=mac_arm_64`，在 Apple Silicon 主机上实测 20 秒，并在下载之前而非之后探测 `make` 与 `bison`。
+
 ## 备选方案
 
 **继续等待安装，只修 doctor 判定。** 否决，因为首个请求仍会为一个可能永远用不上的下载等待数分钟，真正的失败仍会让回合失败。
@@ -28,9 +36,11 @@ Status: implemented
 
 **失败后每个请求都重试。** 否决，因为每次重试都要重复失败尝试删掉的全部下载，正是它把一次坏掉的初始化变成了每条消息两分钟的开销。
 
+**把 Ghidra 与 JDK 随桌面应用一起发布。** 否决：应用本已很大，而该技能是可选的，770 MB 的分析引擎绝不该成为每个用户的下载。
+
 ## 结果
 
-- 启用技能后的首个请求在返回时不带 REA 工具；它们会在该 agent 之后的某个请求出现，期间由技能的 shell 路由覆盖这些工作。
+- 启用技能会在设置页背后完成安装，因此其后的首个请求已经拥有工具。Ghidra 与 JDK 认证通过的机器只下载 REA 包。
 - 初始化失败只出现在宿主日志里，不出现在对话中，因此记录不会告诉使用者工具不可用及其原因。
-- 在 darwin/arm64 上，官方 `Ghidra_12.1.4_build` 归档只在 `os/linux_x86_64` 与 `os/win_x86_64` 下提供原生反编译器，因此 doctor 的 `native_decompiler` 检查失败，在 REA 提供 macOS 构建之前初始化无法认证 Ghidra。运行时通过同一条后台日志与重试路径报告这一点。
-- 启用技能会在后台下载约 770 MB。禁用技能不会取消已经在进行的下载。
+- 在 darwin/arm64 上，发布归档不含反编译器，因此初始化用归档自带的源码构建一个，这需要 Xcode 命令行工具；缺少时它以该原因失败，而不是在下载之后才失败。
+- 在没有可认证引擎的机器上，启用技能会下载约 770 MB；在已安装 Ghidra 的机器上则完全不下载。禁用技能不会取消已经在进行的下载。
