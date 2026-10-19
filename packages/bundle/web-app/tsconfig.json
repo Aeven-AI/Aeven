@@ -39,6 +39,9 @@
       "path": "../../util/launch-environment"
     },
     {
+      "path": "../../util/brand-page"
+    },
+    {
       "path": "../../core/system-prompt"
     },
     {

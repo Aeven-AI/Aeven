@@ -326,6 +326,7 @@
       "@aeven/bash-local": ["./packages/shell/bash-local/src"],
       "@aeven/bash-sandbox": ["./packages/shell/bash-sandbox/src"],
       "@aeven/brand": ["./packages/util/brand/src"],
+      "@aeven/brand-page": ["./packages/util/brand-page/src"],
       "@aeven/browser-chromium": ["./packages/web/browser-chromium/src"],
       "@aeven/cmdline": ["./packages/boot/cmdline/src"],
       "@aeven/code-runtime": ["./packages/code-runtime/code-runtime/src"],

@@ -1,5 +1,5 @@
 ---
-description: "共享工具家族的包映射：原子文件写入、品牌化 id、双端队列、JSON 值、harness 主目录路径、启动环境、原生命令、输出保留、时区与超时。"
+description: "共享工具的包地图：原子文件写入、品牌页、名义标识、双端队列、JSON 值、harness 主目录路径、启动环境、原生命令、输出保留、时区与超时。"
 kind: "package-group"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-group"
 
 ## 概述
 
-`util/` 组为能力包提供共享的机制原语，避免重复实现。它涵盖原子写入、品牌化 id、双端队列、无损 JSON 值、UUID、Aeven home 路径、启动环境、出站代理策略、原生命令、输出保留、时区规范化和超时处理。这里的每个根入口都是库：它不注册产品服务或事件，业务语义仍由消费它的能力负责。
+`util/` 组为能力包提供共享的机制原语，避免重复实现。它涵盖原子写入、品牌页、品牌化 id、双端队列、无损 JSON 值、UUID、Aeven home 路径、启动环境、出站代理策略、原生命令、输出保留、时区规范化和超时处理。这里的每个根入口都是库：它不注册产品服务或事件，业务语义仍由消费它的能力负责。
 
 ## 目录
 
@@ -27,6 +27,7 @@ kind: "package-group"
 | 包 | 职责 |
 |---|---|
 | [`brand/`](brand/README.zh.md) | 提供名义字符串类型及其无状态构造函数 |
+| [`brand-page/`](brand-page/README.zh.md) | 渲染浏览器往返后落到的 Æven 页面：字标、说明文字，以及等待中页面的封面 |
 | [`crypto/`](crypto/README.zh.md) | 基于跨运行时 `crypto.getRandomValues` 原语生成 RFC 9562 v4 UUID |
 | [`deque/`](deque/README.zh.md) | 提供摊销常数时间的队列操作和有界空闲存储 |
 | [`values/`](values/README.zh.md) | 校验、创建快照、比较和冻结无损 JSON 兼容值 |

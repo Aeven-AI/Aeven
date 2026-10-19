@@ -12,6 +12,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import type { Server } from 'node:http'
 import { createServer } from 'node:http'
 import type { OAuthCredential } from '@earendil-works/pi-ai'
+import { brandPageHtml } from '@aeven/brand-page'
 import { codingOAuthProxyUnreachableHint } from './proxy.ts'
 import { safeMessage } from './redact.ts'
 
@@ -329,15 +330,19 @@ export function buildAuthorizeUrl(
   return url.href
 }
 
-const LOOPBACK_OK_PAGE =
-  '<!doctype html><meta charset="utf-8"><title>Grok Build</title>' +
-	'<body style="font-family:system-ui;text-align:center;padding:4rem">' +
-	'<h2>Signed in</h2><p>You can close this window.</p></body>'
+/** The page the loopback keeps for a delivered code. */
+const LOOPBACK_OK_PAGE = brandPageHtml({
+  note: 'Signed in.',
+  hint: 'You can close this window.',
+  title: 'Signed in — Æven',
+})
 
-const LOOPBACK_ERROR_PAGE =
-  '<!doctype html><meta charset="utf-8"><title>Grok Build</title>' +
-	'<body style="font-family:system-ui;text-align:center;padding:4rem">' +
-	'<h2>Sign-in failed</h2><p>Close this window and try again.</p></body>'
+/** The page the loopback keeps when the consent carried no usable code. */
+const LOOPBACK_ERROR_PAGE = brandPageHtml({
+  note: 'Sign-in failed.',
+  hint: 'Close this window and try again.',
+  title: 'Sign-in failed — Æven',
+})
 
 /**
  * Origin of the xAI consent page. After Allow it delivers the code to the

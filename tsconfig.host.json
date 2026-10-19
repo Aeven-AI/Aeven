@@ -133,6 +133,7 @@
     { "path": "./vendor/logger-console" },
     { "path": "./vendor/memos-local-plugin" },
     { "path": "./packages/util/brand" },
+    { "path": "./packages/util/brand-page" },
     { "path": "./packages/util/http-proxy" },
     { "path": "./packages/util/launch-environment" },
     { "path": "./packages/util/native-command" },

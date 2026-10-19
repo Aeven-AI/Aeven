@@ -10,6 +10,7 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { createServer, type ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
+import { brandPageHtml } from '@aeven/brand-page'
 import { SLACK_AUTH_TEST_URL, SLACK_AUTHORIZE_URL, SLACK_CALLBACK_PATH, SLACK_REVOKE_URL, SLACK_TOKEN_URL, type SlackWorkspace } from './slack.ts'
 
 /** Why a Slack login did not complete. */
@@ -78,9 +79,16 @@ const APPROVAL_ERRORS = new Set(['app_not_admin_approved', 'no_approved_scopes_r
 /** Slack error codes that mean the consent itself is no longer usable. */
 const CONSENT_ERRORS = new Set(['invalid_code', 'bad_redirect_uri', 'invalid_client_id', 'invalid_refresh_token', 'oauth_authorization_url_mismatch'])
 
+/** What one landing page says: the tab line, the line under the wordmark, and the direction. */
+interface ResultPageCopy {
+  title: string
+  note: string
+  hint?: string
+}
+
 /** Page the reader's browser shows once Slack redirects back. The text is this Host's own. */
-function resultPage(message: string): string {
-  return `<!doctype html><meta charset="utf-8"><title>Aeven</title><p>${message}</p>`
+function resultPage(copy: ResultPageCopy): string {
+  return brandPageHtml({ ...copy, title: `${copy.title} — Æven` })
 }
 
 /** A URL-safe random value, the alphabet PKCE verifiers and state values use. */
@@ -242,34 +250,50 @@ async function listenForSlackCallback(port: number, state: string, signal: Abort
     settle = resolve
     fail = reject
   })
-  const answer = (response: ServerResponse, status: number, message: string): void => {
-    response.writeHead(status, { 'Content-Type': 'text/html; charset=utf-8' }).end(resultPage(message))
+  const answer = (response: ServerResponse, status: number, copy: ResultPageCopy): void => {
+    response.writeHead(status, { 'Content-Type': 'text/html; charset=utf-8' }).end(resultPage(copy))
   }
   server.on('request', (request, response) => {
     /* v8 ignore next -- an HTTP/1.1 request always carries a target */
     const url = new URL(request.url ?? '/', 'http://127.0.0.1')
     if (url.pathname !== SLACK_CALLBACK_PATH) {
-      answer(response, 404, 'This is not the address Aeven is waiting for.')
+      answer(response, 404, { title: 'Slack', note: 'This is not the address Aeven is waiting for.' })
       return
     }
     if (url.searchParams.get('state') !== state) {
-      answer(response, 400, 'This sign-in did not come from the window Aeven opened. Close it and start again.')
+      answer(response, 400, {
+        title: 'Connection not completed',
+        note: 'This sign-in did not come from the window Aeven opened.',
+        hint: 'Close it and start again from Aeven.',
+      })
       fail(new SlackLoginError('state', 'the Slack callback carried a mismatched state'))
       return
     }
     const error = url.searchParams.get('error')
     if (error !== null) {
-      answer(response, 200, 'Sign-in was not completed. You can close this window.')
+      answer(response, 200, {
+        title: 'Connection not completed',
+        note: 'Sign-in was not completed.',
+        hint: 'You can close this window and return to Aeven.',
+      })
       fail(new SlackLoginError(error === 'access_denied' ? 'denied' : 'exchange', error))
       return
     }
     const returned = url.searchParams.get('code')
     if (returned === null || returned === '') {
-      answer(response, 400, 'Slack returned no authorization code. Close this window and start again.')
+      answer(response, 400, {
+        title: 'Connection not completed',
+        note: 'Slack returned no authorization code.',
+        hint: 'Close this window and start again from Aeven.',
+      })
       fail(new SlackLoginError('response', 'the Slack callback carried no code'))
       return
     }
-    answer(response, 200, 'Slack is connected. You can close this window and return to Aeven.')
+    answer(response, 200, {
+      title: 'Slack connected',
+      note: 'Slack is connected.',
+      hint: 'You can close this window and return to Aeven.',
+    })
     settle(returned)
   })
   const abort = (): void => {

@@ -10,7 +10,7 @@ const labels = {
 }
 
 describe('browser sign-in pages', () => {
-  it('serves a white Aeven page, preloads the client font, and keeps the redirect on that page', async () => {
+  it('serves the brand page waiting, then reporting, with the face inlined and the redirect on the first paint', async () => {
     let opened = ''
     await startBrowserSignIn({
       providerUrl: 'https://accounts.google.com/o/oauth2/auth?client=1',
@@ -26,34 +26,25 @@ describe('browser sign-in pages', () => {
       const start = await fetch(opened)
       const html = await start.text()
       expect(start.status).toBe(200)
-      expect(html).toContain('background:#fff')
-      expect(html).not.toContain('#f2f2f2')
-      expect(html).toContain('loader-spin')
-      expect(html).toContain('width:50px;height:50px')
-      // The mark and the 18px loading mark are the ones the application's start
-      // screen draws, so the round trip opens on the product's own face.
+      expect(html).toContain('class="page-waiting fonts-loading"')
+      // The cover is the product's first face: the mark, and the 18px loading mark under it.
       expect(html).toContain('m225.301 0 305.5 529.142')
-      expect(html).toContain('width:18px;height:18px')
+      expect(html).toContain('cover__spinner')
       expect(html).toContain('Continuing to sign in')
-      expect(html).not.toContain('class="word')
+      // The wordmark and the sheet are the coming-soon page's.
+      expect(html).toContain('<h1>Æven</h1>')
+      expect(html).toContain('--bg: #f2f2f2')
       expect(html).toContain('https://accounts.google.com/o/oauth2/auth?client=1')
-
-      const fontUrl = new URL('/fonts/google-sans-flex-latin-wght-normal.woff2', opened)
-      const font = await fetch(fontUrl)
-      expect(font.status).toBe(200)
-      expect(font.headers.get('content-type')).toContain('font/woff2')
-      const bytes = Buffer.from(await font.arrayBuffer())
-      expect(bytes.subarray(0, 4).toString('ascii')).toBe('wOF2')
+      // Nothing is fetched: the face travels inside the document.
+      expect(html).toContain('src: url("data:font/woff2;base64,')
+      expect(html).not.toContain('/fonts/google-sans-flex')
 
       const done = await fetch(new URL('/oauth-result/sess-1/chal-1', opened))
       const doneHtml = await done.text()
       expect(done.status).toBe(200)
+      expect(doneHtml).toContain('class="page-result fonts-loading"')
       expect(doneHtml).toContain('You are signed in to Aeven')
-      expect(doneHtml).toContain('font-size:80px')
-      expect(doneHtml).toContain('background:#fff')
-      expect(doneHtml).toContain('rel="preload"')
-      expect(doneHtml).toContain('font-display:block')
-      expect(doneHtml).not.toContain('loader-spin')
+      expect(doneHtml).not.toContain('class="cover"')
       expect(doneHtml).not.toContain('http-equiv="refresh"')
     } finally {
       await fetch(new URL('/oauth-result/error', opened)).catch(() => undefined)
