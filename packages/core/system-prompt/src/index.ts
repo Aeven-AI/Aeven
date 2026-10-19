@@ -163,6 +163,7 @@ const CONTEXT_ORDERS = {
   APPROVAL_POLICY: 115,
   SUBAGENT_DELEGATION: 120,
   TODO_PLAN: 125,
+  WEB_URL: 210,
 } as const
 
 /** Name of a centrally allocated runtime-context position. */
@@ -527,6 +528,26 @@ export class SystemPrompt extends Service {
       layer => layer.variables.insert(name, provider),
       { label: 'systemPrompt.variable()' },
     )
+  }
+
+  /**
+   * Resolve the text one registered section carries in a scope without
+   * assembling the prompt. The nearest scope registering the name wins, as in
+   * assembly, and a provider is called with `context` exactly as assembly would
+   * call it. A reader uses this to show what a section says — for example a
+   * settings surface presenting the text a person's requests carry — so do not
+   * substitute it for assembly when the request itself is what the caller needs.
+   *
+   * The text is returned before variable interpolation, so `{{name}}` references
+   * stay literal.
+   * @param name - section name.
+   * @param context - per-read context; pass the scope the request will assemble for.
+   * @returns the resolved section text, or `undefined` when no layer registers that name.
+   */
+  sectionText(name: string, context: AssembleContext = {}): string | undefined {
+    const section = this.layers.merge(context.scope, layer => layer.sections).get(name)
+    if (section === undefined) return undefined
+    return typeof section.text === 'function' ? section.text(context) : section.text
   }
 
   /**

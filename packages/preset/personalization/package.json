@@ -1,6 +1,6 @@
 {
   "name": "@aeven/personalization",
-  "description": "How each signed-in person wants Aeven to talk with them: voice, name and notes, rendered after the persona",
+  "description": "How each signed-in person wants Aeven to talk with them: voice, notes and their own master prompt",
   "version": "0.3.8-alpha",
   "publishConfig": {
     "access": "public"
@@ -46,6 +46,7 @@
   "peerDependencies": {
     "@aeven/agent": "workspace:^",
     "@aeven/identity-user": "workspace:^",
+    "@aeven/scope": "workspace:^",
     "@aeven/system-prompt": "workspace:^",
     "@aeven/typert-protocol": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
@@ -53,6 +54,7 @@
   "devDependencies": {
     "@aeven/agent": "workspace:^",
     "@aeven/identity-user": "workspace:^",
+    "@aeven/scope": "workspace:^",
     "@aeven/system-prompt": "workspace:^",
     "@aeven/typert-protocol": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"

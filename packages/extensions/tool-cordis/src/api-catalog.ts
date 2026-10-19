@@ -2192,20 +2192,26 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
   },
   {
     key: 'personalizationController',
-    summary: 'The signed-in person\'s personalization, and the prompt section rendered from it.',
-    description: 'The signed-in person\'s personalization, and the prompt section rendered from it.',
+    summary: 'The signed-in person\'s personalization, and the prompt sections rendered from it.',
+    description: 'The signed-in person\'s personalization, and the prompt sections rendered from it.',
     methods: [
       {
         signature: '@Remote get(): PersonalizationView',
-        description: 'The caller\'s preferences and the bounds a change must fit.',
+        description: 'The caller\'s preferences, the master prompt their sessions read, and the bounds a change must fit.',
         parameters: [],
-        returns: 'the current preferences.',
+        returns: 'the current view.',
       },
       {
         signature: '@Remote update(update: PersonalizationUpdate): PersonalizationChange',
         description: 'Change some of the caller\'s preferences; an absent field keeps its value. The next request of each of the caller\'s sessions renders the result.',
         parameters: [{ name: 'update', description: 'the fields to change.' }],
-        returns: 'what changed, with the reason when the notes were over their bound.',
+        returns: 'what changed, with the reason when a text was over its bound.',
+      },
+      {
+        signature: '@Remote resetMasterPrompt(): PersonalizationChange',
+        description: 'Put the deployment\'s shipped master prompt back in charge for the caller.',
+        parameters: [],
+        returns: 'what changed, with the view as it stands afterwards.',
       },
     ],
   },
@@ -3478,6 +3484,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Register a prompt variable in the calling context\'s scope. Scoped values shadow globals; invalid or duplicate names throw. A provider may return `undefined`, but rendering a section that references that value then fails.',
         parameters: [{ name: 'name', description: 'the `[a-z][a-z0-9_]*` reference name.' }, { name: 'provider', description: 'evaluated for each assembly.' }],
         returns: 'the exact Cordis effect disposer.',
+      },
+      {
+        signature: 'sectionText(name: string, context: AssembleContext = {}): string | undefined',
+        description: 'Resolve the text one registered section carries in a scope without assembling the prompt. The nearest scope registering the name wins, as in assembly, and a provider is called with `context` exactly as assembly would call it. A reader uses this to show what a section says — for example a settings surface presenting the text a person\'s requests carry — so do not substitute it for assembly when the request itself is what the caller needs.\n\nThe text is returned before variable interpolation, so `{{name}}` references stay literal.',
+        parameters: [{ name: 'name', description: 'section name.' }, { name: 'context', description: 'per-read context; pass the scope the request will assemble for.' }],
+        returns: 'the resolved section text, or `undefined` when no layer registers that name.',
       },
       {
         signature: 'async assemble(context: AssembleContext = {}): Promise<PromptAssembly>',
@@ -6802,7 +6814,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'Personalization',
-    declaration: 'export interface Personalization {\n    readonly voice: PersonalizationVoice;\n    readonly notes: string;\n}',
+    declaration: 'export interface Personalization {\n    readonly voice: PersonalizationVoice;\n    readonly notes: string;\n    readonly masterPrompt: string;\n}',
   },
   {
     name: 'PersonalizationChange',
@@ -6810,15 +6822,19 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'PersonalizationReason',
-    declaration: 'export type PersonalizationReason = \'too-long\';',
+    declaration: 'export type PersonalizationReason = \'notes-too-long\' | \'master-prompt-too-long\';',
+  },
+  {
+    name: 'PersonalizationState',
+    declaration: 'export interface PersonalizationState extends Personalization {\n    readonly maxNotesChars: number;\n    readonly maxMasterPromptChars: number;\n}',
   },
   {
     name: 'PersonalizationUpdate',
-    declaration: 'export interface PersonalizationUpdate {\n    readonly voice?: PersonalizationVoice;\n    readonly notes?: string;\n}',
+    declaration: 'export interface PersonalizationUpdate {\n    readonly voice?: PersonalizationVoice;\n    readonly notes?: string;\n    readonly masterPrompt?: string;\n}',
   },
   {
     name: 'PersonalizationView',
-    declaration: 'export interface PersonalizationView extends Personalization {\n    readonly maxNotesChars: number;\n}',
+    declaration: 'export interface PersonalizationView extends PersonalizationState {\n    readonly effectiveMasterPrompt: string;\n    readonly customMasterPrompt: boolean;\n}',
   },
   {
     name: 'PersonalizationVoice',
@@ -8078,7 +8094,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SystemPrompt',
-    declaration: 'export class SystemPrompt extends Service {\n    static Config: z<Config>;\n    constructor(ctx: Context, config: Config);\n    section(section: PromptSection): () => void;\n    getSectionOrder(name: PromptSectionOrderName): number;\n    getContextOrder(name: PromptContextOrderName): number;\n    context(context: PromptContext): () => void;\n    suppressRuntimeContext(): () => void;\n    tools(provider: (context: AssembleContext) => ToolProviderResult): () => void;\n    variable(name: string, provider: (context: AssembleContext) => string | undefined): () => void;\n    async assemble(context: AssembleContext = {}): Promise<PromptAssembly>;\n}',
+    declaration: 'export class SystemPrompt extends Service {\n    static Config: z<Config>;\n    constructor(ctx: Context, config: Config);\n    section(section: PromptSection): () => void;\n    getSectionOrder(name: PromptSectionOrderName): number;\n    getContextOrder(name: PromptContextOrderName): number;\n    context(context: PromptContext): () => void;\n    suppressRuntimeContext(): () => void;\n    tools(provider: (context: AssembleContext) => ToolProviderResult): () => void;\n    variable(name: string, provider: (context: AssembleContext) => string | undefined): () => void;\n    sectionText(name: string, context: AssembleContext = {}): string | undefined;\n    async assemble(context: AssembleContext = {}): Promise<PromptAssembly>;\n}',
   },
   {
     name: 'TableKeyOf',

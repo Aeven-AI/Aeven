@@ -160,6 +160,22 @@ tools(provider: (context: AssembleContext) => ToolProviderResult): () => void
 variable(name: string, provider: (context: AssembleContext) => string | undefined): () => void
 
 /**
+ * Resolve the text one registered section carries in a scope without
+ * assembling the prompt. The nearest scope registering the name wins, as in
+ * assembly, and a provider is called with `context` exactly as assembly would
+ * call it. A reader uses this to show what a section says — for example a
+ * settings surface presenting the text a person's requests carry — so do not
+ * substitute it for assembly when the request itself is what the caller needs.
+ *
+ * The text is returned before variable interpolation, so `{{name}}` references
+ * stay literal.
+ * @param name - section name.
+ * @param context - per-read context; pass the scope the request will assemble for.
+ * @returns the resolved section text, or `undefined` when no layer registers that name.
+ */
+sectionText(name: string, context: AssembleContext = {}): string | undefined
+
+/**
  * Assemble global and scoped providers, detach tool parameters, apply
  * canonical ordering, then run the assembly waterfall. Scoped sections and
  * variables shadow globals. The returned waterfall value is authoritative

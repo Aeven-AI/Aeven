@@ -48,7 +48,7 @@ export interface Config {
   printUrl: boolean
   /**
    * Register the model-visible surface context (the `app:web-surface` prompt
-   * section and the `AVN_WEB_URL` bash variable). A one-shot non-interactive
+   * section, the `app:web-url` runtime context, and the `AVN_WEB_URL` bash variable). A one-shot non-interactive
    * layer can turn it off when its user is not in the GUI, so the
    * orientation text would be false.
    */
@@ -149,8 +149,12 @@ export function resolveLanTrust(bindHost: string, extra: readonly string[]): Web
   return { lanAddresses, trustedHosts: [...lanAddresses, ...extra] }
 }
 
-/** Model-visible orientation for sessions created through `avn web`; `developer` appends the rules for changing the GUI itself. */
-function webSurfacePrompt(webUrl: string, developer: boolean): string {
+/**
+ * Model-visible orientation for sessions created through `avn web`; `developer` appends the rules for changing the GUI
+ * itself. The text names no process-specific value: the URL reaches the model through the `app:web-url` runtime
+ * context, so a server that rebinds to another port does not rewrite a session's system prompt.
+ */
+function webSurfacePrompt(developer: boolean): string {
   // What the GUI renders is a fact about this surface, not a preference, and it
   // is stated here because a model that cannot see the renderer otherwise
   // assumes a plain-text transcript and refuses requests this surface serves.
@@ -165,7 +169,7 @@ function webSurfacePrompt(webUrl: string, developer: boolean): string {
     + 'for example `![Site plan](/path/to/site-plan.png)`, or with its `https://` URL. '
     + 'The GUI loads local paths itself, so do not construct a server URL for a file. '
     + 'Embed each image you want the user to see once, and never write that an image is shown above unless your reply embeds it. '
-  return `You are interacting with the user through the Aeven Web GUI at ${webUrl}. `
+  return 'You are interacting with the user through the Aeven Web GUI whose URL the runtime context names. '
     + 'When the user refers to "this page", "this GUI", or "this app" without naming another target, they mean this GUI. '
     + 'The browser provides no implicit DOM, route, or screenshot context. '
     + renderContract.trimEnd()
@@ -271,7 +275,12 @@ export function apply(ctx: Context, config: Config): void {
       promptCtx.systemPrompt.section({
         name: 'app:web-surface',
         order: promptCtx.systemPrompt.getSectionOrder('WEB_SURFACE'),
-        text: () => webSurfacePrompt(localWebUrl(promptCtx), config.developerContext),
+        text: webSurfacePrompt(config.developerContext),
+      })
+      promptCtx.systemPrompt.context({
+        name: 'app:web-url',
+        order: promptCtx.systemPrompt.getContextOrder('WEB_URL'),
+        text: () => `Aeven Web GUI URL: ${localWebUrl(promptCtx)}`,
       })
     })
     ctx.inject(['shellEnv'], (runtimeCtx) => {

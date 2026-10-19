@@ -3,7 +3,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { createScope, scopeOf } from '@aeven/scope'
 import type { Scope, ScopeKey } from '@aeven/scope'
 import SystemPrompt, { TOOL_ORDER_REST, renderContextSnapshot, renderPrompt } from '@aeven/system-prompt'
-import type { Config, PromptAssembly } from '@aeven/system-prompt'
+import type { AssembleContext, Config, PromptAssembly } from '@aeven/system-prompt'
 
 async function mount(config: Config = {}): Promise<Context> {
   const ctx = new Context()
@@ -201,6 +201,51 @@ describe('scoped tool providers and toolOrder × restriction', () => {
     const bad = await mount({ toolOrder: ['basj', TOOL_ORDER_REST] })
     bad.systemPrompt.tools(() => ({ schemas: [schema('read')], knownNames: ['read', 'bash'] }))
     await expect(bad.systemPrompt.assemble()).rejects.toThrow('toolOrder lists unregistered tool "basj"; known tools: bash, read')
+  })
+})
+
+describe('sectionText', () => {
+  it('resolves one registered section in a scope without assembling the prompt', async () => {
+    const ctx = await mount({ persona: 'Shipped persona.' })
+    const scope = await mintScope(ctx, 'child')
+    let calls = 0
+    scope.ctx.systemPrompt.section({
+      name: 'dynamic',
+      order: 0,
+      text: (context: AssembleContext) => `call ${++calls} for ${(context as { who?: string }).who ?? 'nobody'}`,
+    })
+
+    expect(ctx.systemPrompt.sectionText('dynamic', { scope: scopeKeyOf(scope), who: 'alice' } as AssembleContext))
+      .toBe('call 1 for alice')
+    // A reader resolves the text as a request would, so the provider runs per read.
+    expect(ctx.systemPrompt.sectionText('dynamic', { scope: scopeKeyOf(scope) })).toBe('call 2 for nobody')
+    expect(ctx.systemPrompt.sectionText('deployment:persona', { scope: scopeKeyOf(scope) })).toBe('Shipped persona.')
+    expect(ctx.systemPrompt.sectionText('absent', { scope: scopeKeyOf(scope) })).toBeUndefined()
+  })
+
+  it('reads the nearest scope that registers the name, as assembly does', async () => {
+    const ctx = await mount({ persona: 'Shipped persona.' })
+    const outer = await mintScope(ctx, 'outer')
+    const inner = await mintScope(outer.ctx, 'inner')
+    // A person's own master prompt shadows the shipped persona for that scope only.
+    inner.ctx.systemPrompt.section({
+      name: 'deployment:persona',
+      order: ctx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA'),
+      text: 'Mine.',
+    })
+
+    const assembly = await ctx.systemPrompt.assemble({ scope: scopeKeyOf(inner) })
+    expect(assembly.sections.map(section => section.text)).toContain('Mine.')
+    expect(ctx.systemPrompt.sectionText('deployment:persona', { scope: scopeKeyOf(inner) })).toBe('Mine.')
+    expect(ctx.systemPrompt.sectionText('deployment:persona', { scope: scopeKeyOf(outer) })).toBe('Shipped persona.')
+  })
+
+  it('returns section text before variable interpolation', async () => {
+    const ctx = await mount()
+    ctx.systemPrompt.variable('model', () => 'Aeven-1.0-Flash')
+    ctx.systemPrompt.section({ name: 'templated', order: 900, text: 'Model: {{model}}' })
+
+    expect(ctx.systemPrompt.sectionText('templated')).toBe('Model: {{model}}')
   })
 })
 

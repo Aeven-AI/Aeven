@@ -9479,6 +9479,9 @@ importers:
       '@aeven/identity-user':
         specifier: workspace:^
         version: link:../../identity/user
+      '@aeven/scope':
+        specifier: workspace:^
+        version: link:../../core/scope
       '@aeven/system-prompt':
         specifier: workspace:^
         version: link:../../core/system-prompt

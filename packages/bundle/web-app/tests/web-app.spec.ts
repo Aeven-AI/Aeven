@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { createLaunchEnvironmentSnapshot, AVN_LAUNCH_ENVIRONMENT_KEY } from '@aeven/launch-environment'
-import SystemPrompt from '@aeven/system-prompt'
+import SystemPrompt, { renderContextSnapshot } from '@aeven/system-prompt'
 import type { WebServer } from '@aeven/host-webserver'
 import { apply, Config, internals } from '../src/index.ts'
 
@@ -160,16 +160,20 @@ describe('web-app runtime glue', () => {
     const assembly = await ctx.systemPrompt.assemble()
     expect(assembly.sections.find(entry => entry.name === 'harness:source')?.text).toContain('Aeven implementation checkout')
     const section = assembly.sections.find(entry => entry.name === 'app:web-surface')
-    expect(section?.text).toContain('http://127.0.0.1:4567')
+    // The URL is not interpolated into the surface section; it reaches the
+    // model as its own runtime context.
+    expect(section?.text).not.toContain('http://127.0.0.1:4567')
+    expect(section?.text).toContain('whose URL the runtime context names')
     // The single update contract: the receiver is always on; no-refresh
     // reloads additionally need the rebuild watcher.
     expect(section?.text).toContain('pnpm run dev:web')
     // The whole section is model-visible text the Web e2e also pins, so the
     // shared fixture is verified here without an API key: a wording change
     // that skips the fixture fails in `pnpm run test`, not only in e2e.
-    expect(section?.text).toBe(
-      readFileSync(WEB_SURFACE_PROMPT, 'utf8').trimEnd().replaceAll('{{webUrl}}', 'http://127.0.0.1:4567'),
-    )
+    expect(section?.text).toBe(readFileSync(WEB_SURFACE_PROMPT, 'utf8').trimEnd())
+    const urlContext = assembly.contexts.find(entry => entry.name === 'app:web-url')
+    expect(urlContext?.text).toBe('Aeven Web GUI URL: http://127.0.0.1:4567')
+    expect(renderContextSnapshot(assembly)).toContain('Aeven Web GUI URL: http://127.0.0.1:4567')
     const webRuntime = contributions.find(contribution => contribution.name === 'web-runtime')
     expect(webRuntime?.resolve()).toEqual({ AVN_WEB_URL: 'http://127.0.0.1:4567' })
     await ctx.fiber.dispose()
