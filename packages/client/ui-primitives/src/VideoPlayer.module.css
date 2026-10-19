@@ -15,3 +15,15 @@
   object-fit: contain;
   background: #000000;
 }
+
+/* A viewer-facing recording is shown the way its preview was, so the picture
+   mirrors and the chrome beside it does not. */
+.video[data-mirrored] {
+  transform: scaleX(-1);
+}
+
+/* A capture fills the frame its preview filled, instead of letterboxing into
+   it when the stream is not the frame's own shape. */
+.video[data-fit='cover'] {
+  object-fit: cover;
+}

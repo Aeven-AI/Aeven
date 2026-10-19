@@ -260,6 +260,7 @@ flowchart TD
     pkg_document_extract_js["document-extract-js"]
     pkg_document_extract_ocr["document-extract-ocr"]
     pkg_document_extract_office["document-extract-office"]
+    pkg_document_extract_video["document-extract-video"]
   end
   subgraph group_e2b["packages/e2b"]
     pkg_e2b["e2b"]
@@ -463,6 +464,7 @@ flowchart TD
   pkg_document_extract_js --> pkg_document_extract
   pkg_document_extract_ocr --> pkg_document_extract
   pkg_document_extract_office --> pkg_document_extract
+  pkg_document_extract_video --> pkg_document_extract
   pkg_e2b --> pkg_http_proxy
   pkg_experimental_code_runtime_python --> pkg_code_runtime
   pkg_experimental_code_runtime_python --> pkg_timeout
@@ -1556,6 +1558,7 @@ flowchart TD
 | [`document-extract-js`](../packages/document/document-extract-js) | `document` | [`document-extract`](../packages/document/document-extract) |
 | [`document-extract-ocr`](../packages/document/document-extract-ocr) | `document` | [`document-extract`](../packages/document/document-extract) |
 | [`document-extract-office`](../packages/document/document-extract-office) | `document` | [`document-extract`](../packages/document/document-extract) |
+| [`document-extract-video`](../packages/document/document-extract-video) | `document` | [`document-extract`](../packages/document/document-extract) |
 | [`e2b`](../packages/e2b/e2b) | `e2b` | [`http-proxy`](../packages/util/http-proxy) |
 | [`experimental-code-runtime-python`](../packages/experimental/code-runtime-python) | `experimental` | [`code-runtime`](../packages/code-runtime/code-runtime), [`timeout`](../packages/util/timeout), [`util-values`](../packages/util/values) |
 | [`experimental-inspector`](../packages/experimental/inspector) | `experimental` | [`client-modules`](../packages/client/modules), [`host-webserver`](../packages/host/webserver) |

@@ -8,9 +8,9 @@
   display: flex;
   position: absolute;
   z-index: 3;
-  left: 12px;
-  right: 12px;
-  bottom: 12px;
+  left: 24px;
+  right: 24px;
+  bottom: 24px;
   align-items: center;
   gap: 8px;
   opacity: 1;
@@ -28,6 +28,19 @@
   }
 }
 
+/* Phone widths keep the same bar on the page's 16px inset. */
+@media (max-width: 640px) {
+  .controls {
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+  }
+
+  .controls::before {
+    inset: -16px -16px -16px;
+  }
+}
+
 /* The bar's own bed. White chrome over moving footage has no fixed contrast —
    a bright frame of the clip swallows the discs' edges and the rails — so the
    bar carries a soft dark gradient that reaches the frame's own edges. */
@@ -35,13 +48,14 @@
   content: '';
   position: absolute;
   z-index: -1;
-  inset: -12px -12px -12px;
+  inset: -24px -24px -24px;
   background: linear-gradient(to top, var(--dsw-alias-bg-mask-2), transparent);
 }
 
-/* The play control is the bar's primary disc — the prompt trigger's flat face,
-   one size up; the rest keep the trigger's own 30px. Their glyphs are the
-   product's own black on that white, in either theme. */
+/* Every disc in the bar — play, volume, save, full screen — is the composer's
+   own 30px trigger: one size across the chrome, matching the camera popup's
+   controls. Their glyphs are the product's own black on that white, in either
+   theme. */
 .play,
 .control {
   display: flex;
@@ -60,15 +74,10 @@
   cursor: pointer;
 }
 
-.play {
-  width: 36px;
-  height: 36px;
-}
-
 .play svg {
   display: flex;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
 }
 
 .control svg {

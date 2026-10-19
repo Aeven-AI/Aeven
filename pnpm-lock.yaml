@@ -2205,6 +2205,9 @@ importers:
       '@aeven/document-extract-office':
         specifier: workspace:^
         version: link:../../document/document-extract-office
+      '@aeven/document-extract-video':
+        specifier: workspace:^
+        version: link:../../document/document-extract-video
       '@aeven/file-reference':
         specifier: workspace:^
         version: link:../../context/file-reference
@@ -6523,6 +6526,18 @@ importers:
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
+
+  packages/document/document-extract-video:
+    devDependencies:
+      '@aeven/document-extract':
+        specifier: workspace:^
+        version: link:../document-extract
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      tsx:
+        specifier: ^4.19.2
+        version: 4.22.4
 
   packages/e2b/e2b:
     dependencies:

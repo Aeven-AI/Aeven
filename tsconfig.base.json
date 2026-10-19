@@ -364,6 +364,7 @@
       "@aeven/deque": ["./packages/util/deque/src"],
       "@aeven/device": ["./packages/device/device/src"],
       "@aeven/device-local": ["./packages/device/device-local/src"],
+      "@aeven/document-extract-video": ["./packages/document/document-extract-video/src"],
       "@aeven/e2b": ["./packages/e2b/e2b/src"],
       "@aeven/file-reference": ["./packages/context/file-reference/src"],
       "@aeven/file-reference-local": ["./packages/context/file-reference-local/src"],

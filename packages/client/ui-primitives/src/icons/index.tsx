@@ -1557,6 +1557,34 @@ export const IconLucidePause = ({ className }: LucideGlyphProps) => (
   </LucideSvg>
 )
 
+/** lucide `switch-camera`: turn the device to its other camera. */
+export const IconLucideSwitchCamera = ({ className }: LucideGlyphProps) => (
+  <LucideSvg className={className}>
+    <path d="M11 19H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5" />
+    <path d="M13 5h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-5" />
+    <circle cx="12" cy="12" r="3" />
+    <path d="m18 22-3-3 3-3" />
+    <path d="m6 2 3 3-3 3" />
+  </LucideSvg>
+)
+
+/** lucide `timer`: a delayed capture. */
+export const IconLucideTimer = ({ className }: LucideGlyphProps) => (
+  <LucideSvg className={className}>
+    <line x1="10" x2="14" y1="2" y2="2" />
+    <line x1="12" x2="15" y1="14" y2="11" />
+    <circle cx="12" cy="14" r="8" />
+  </LucideSvg>
+)
+
+/** lucide `video`: record a clip. */
+export const IconLucideVideo = ({ className }: LucideGlyphProps) => (
+  <LucideSvg className={className}>
+    <path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5" />
+    <rect x="2" y="6" width="14" height="12" rx="2" />
+  </LucideSvg>
+)
+
 /** lucide `volume-2`: the clip carries its own sound. */
 export const IconLucideVolume2 = ({ className }: LucideGlyphProps) => (
   <LucideSvg className={className}>

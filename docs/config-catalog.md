@@ -975,6 +975,24 @@ export interface Config {
 
 Source: [`packages/document/document-extract-office/src/index.ts:27`](../packages/document/document-extract-office/src/index.ts)
 
+<a id="aevendocument-extract-video"></a>
+
+## `@aeven/document-extract-video`
+
+Requires: `documentExtract`
+
+```ts config-catalog
+/** Probe policy for the host's own `ffprobe`. */
+export interface Config {
+  /** `ffprobe` executable, resolved through `PATH` unless it names a file. */
+  ffprobePath: string
+  /** Wall-clock limit for one probe before the reader falls back to file facts. */
+  probeTimeoutMs: number
+}
+```
+
+Source: [`packages/document/document-extract-video/src/index.ts:28`](../packages/document/document-extract-video/src/index.ts)
+
 <a id="aevene2b"></a>
 
 ## `@aeven/e2b`

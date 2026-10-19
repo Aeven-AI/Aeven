@@ -8,7 +8,7 @@ import type {} from '@aeven/client-ui-session/client'
 import type {} from './locales.ts'
 import { ImagePromptControl } from './ImageToolView.tsx'
 import { ErrorDetailControl } from './ErrorDetailControl.tsx'
-import { VideoPlayer } from './VideoPlayer.tsx'
+import { VideoPlayer } from '@aeven/client-ui-primitives'
 import css from './ImageToolView.module.css'
 
 /** The ratio a call that names none is framed at. */
@@ -89,7 +89,18 @@ export function VideoToolView({ block, sessionId, t }: ToolCallViewProps & Props
               src={src}
               label={t('video.label')}
               saveName={file === undefined ? 'video.mp4' : clipFileName(file)}
-              t={t}
+              labels={{
+                play: t('video.play'),
+                pause: t('video.pause'),
+                mute: t('video.mute'),
+                unmute: t('video.unmute'),
+                seek: t('video.seek'),
+                volume: t('video.volume'),
+                fullscreen: t('video.fullscreen'),
+                exitFullscreen: t('video.exitFullscreen'),
+                save: t('video.save'),
+                download: t('video.download'),
+              }}
               onRatio={(ratio) => { setLoaded(ratio) }}
             />
           ) : settled ? (

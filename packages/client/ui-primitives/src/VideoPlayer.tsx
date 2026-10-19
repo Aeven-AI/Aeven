@@ -1,25 +1,52 @@
-/** The generated clip's player: the clip in place, wearing the product's own playback chrome. @module */
+/** A clip played in place, wearing the product's own playback chrome. @module */
 import { useEffect, useState } from 'react'
-import type { PropsLocale } from '@aeven/client-ui-slots'
 import { VideoControls } from './VideoControls.tsx'
-import { toggleClip } from './playback.ts'
+import { toggleClip } from './video-playback.ts'
 import css from './VideoPlayer.module.css'
 
 /** How long a playing clip is left alone before its chrome clears, in ms. */
 const IDLE_MS = 2500
 
+/** The chrome's sentences, supplied by the owning feature's dictionary. */
+export interface VideoPlayerLabels {
+  /** Start playback. */
+  readonly play: string
+  /** Hold playback. */
+  readonly pause: string
+  /** Silence the clip. */
+  readonly mute: string
+  /** Restore the clip's sound. */
+  readonly unmute: string
+  /** Playback position, the scrubber's accessible name. */
+  readonly seek: string
+  /** Volume, the level slider's accessible name. */
+  readonly volume: string
+  /** Take the clip to the full-screen surface. */
+  readonly fullscreen: string
+  /** Leave the full-screen surface. */
+  readonly exitFullscreen: string
+  /** Open the save options. */
+  readonly save: string
+  /** Save the clip to the reader's downloads. */
+  readonly download: string
+}
+
 /** Props of one clip's player. */
 export interface VideoPlayerProps {
-  /** Same-origin URL of the stored clip. */
+  /** Same-origin URL of the clip. */
   src: string
   /** Accessible name of the video element. */
   label: string
   /** File name the clip is saved under. */
   saveName: string
-  /** The Imagine translator. */
-  t: PropsLocale<'imagine'>['t']
+  /** The owning feature's chrome sentences. */
+  labels: VideoPlayerLabels
   /** Reports the clip's own width-to-height ratio once its metadata loads. */
-  onRatio: (ratio: number) => void
+  onRatio?: (ratio: number) => void
+  /** Mirrors the picture only, leaving the chrome in its reading direction. */
+  mirrored?: boolean
+  /** How the picture meets its frame: the whole clip, or the frame filled. */
+  fit?: 'contain' | 'cover'
 }
 
 /**
@@ -28,7 +55,7 @@ export interface VideoPlayerProps {
  * @param props - clip URL, accessible name, save name, translator, and ratio report.
  * @returns the clip with its playback chrome over the lower edge.
  */
-export function VideoPlayer({ src, label, saveName, t, onRatio }: VideoPlayerProps) {
+export function VideoPlayer({ src, label, saveName, labels, onRatio, mirrored = false, fit = 'contain' }: VideoPlayerProps) {
   // The elements are state, not refs: the controls mount with both in hand, so
   // no gesture can run against a missing element.
   const [video, setVideo] = useState<HTMLVideoElement | null>(null)
@@ -63,6 +90,8 @@ export function VideoPlayer({ src, label, saveName, t, onRatio }: VideoPlayerPro
       <video
         ref={setVideo}
         className={css.video}
+        data-mirrored={mirrored ? '' : undefined}
+        data-fit={fit}
         src={src}
         playsInline
         preload="metadata"
@@ -72,7 +101,7 @@ export function VideoPlayer({ src, label, saveName, t, onRatio }: VideoPlayerPro
           const clip = event.currentTarget
           setDuration(clip.duration)
           const ratio = clip.videoWidth / clip.videoHeight
-          if (Number.isFinite(ratio) && ratio > 0) onRatio(ratio)
+          if (Number.isFinite(ratio) && ratio > 0) onRatio?.(ratio)
         }}
         onTimeUpdate={(event) => { setCurrent(event.currentTarget.currentTime) }}
         onPlay={() => { setPlaying(true) }}
@@ -92,7 +121,7 @@ export function VideoPlayer({ src, label, saveName, t, onRatio }: VideoPlayerPro
           duration={duration}
           saveName={saveName}
           onSeek={setCurrent}
-          t={t}
+          labels={labels}
         />
       )}
     </div>

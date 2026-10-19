@@ -1,12 +1,13 @@
-/** The generated clip's playback chrome: flat faces with dark glyphs over the clip's lower edge. @module */
+/** Clip playback chrome: flat faces with dark glyphs over the clip's lower edge. @module */
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import {
   IconLucideDownload, IconLucideEllipsisVertical, IconLucideMaximize2, IconLucideMinimize2,
-  IconLucidePause, IconLucidePlay, IconLucideVolume2, IconLucideVolumeX, Tooltip,
-} from '@aeven/client-ui-primitives'
-import type { PropsLocale } from '@aeven/client-ui-slots'
-import { saveClip, seekClip, toggleClip, toggleFullscreen } from './playback.ts'
+  IconLucidePause, IconLucidePlay, IconLucideVolume2, IconLucideVolumeX,
+} from './icons/index.tsx'
+import { Tooltip } from './Tooltip.tsx'
+import type { VideoPlayerLabels } from './VideoPlayer.tsx'
+import { saveClip, seekClip, toggleClip, toggleFullscreen } from './video-playback.ts'
 import css from './VideoControls.module.css'
 
 /** A run of seconds as `m:ss`; a clip whose metadata has not loaded shows none. */
@@ -33,8 +34,8 @@ export interface VideoControlsProps {
   saveName: string
   /** Reports a seek, so the readout and scrubber follow the same position. */
   onSeek: (seconds: number) => void
-  /** The Imagine translator. */
-  t: PropsLocale<'imagine'>['t']
+  /** The owning feature's chrome sentences. */
+  labels: VideoPlayerLabels
 }
 
 /**
@@ -46,7 +47,7 @@ export interface VideoControlsProps {
  * @returns the clip's playback chrome.
  */
 export function VideoControls({
-  video, player, playing, idle, current, duration, saveName, onSeek, t,
+  video, player, playing, idle, current, duration, saveName, onSeek, labels,
 }: VideoControlsProps) {
   const [muted, setMuted] = useState(video.muted)
   const [volume, setVolume] = useState(video.volume)
@@ -128,9 +129,9 @@ export function VideoControls({
     saveClip(video.currentSrc === '' ? video.src : video.currentSrc, saveName)
   }
 
-  const playLabel = playing ? t('video.pause') : t('video.play')
-  const muteLabel = silent ? t('video.unmute') : t('video.mute')
-  const fullscreenLabel = fullscreen ? t('video.exitFullscreen') : t('video.fullscreen')
+  const playLabel = playing ? labels.pause : labels.play
+  const muteLabel = silent ? labels.unmute : labels.mute
+  const fullscreenLabel = fullscreen ? labels.exitFullscreen : labels.fullscreen
   const total = Number.isFinite(duration) ? duration : 0
   const level = silent ? 0 : volume
   return (
@@ -162,7 +163,7 @@ export function VideoControls({
           max={total}
           step="any"
           value={current}
-          aria-label={t('video.seek')}
+          aria-label={labels.seek}
           onChange={(event) => {
             const seconds = Number(event.currentTarget.value)
             seekClip(video, seconds)
@@ -196,17 +197,17 @@ export function VideoControls({
           max={1}
           step={0.05}
           value={level}
-          aria-label={t('video.volume')}
+          aria-label={labels.volume}
           onChange={(event) => { setLevel(Number(event.currentTarget.value)) }}
         />
       </span>
-      <Tooltip label={t('video.save')} side="top">
+      <Tooltip label={labels.save} side="top">
         <button
           ref={saveRef}
           type="button"
           className={css.control}
           data-video-save=""
-          aria-label={t('video.save')}
+          aria-label={labels.save}
           aria-haspopup="menu"
           aria-expanded={saveOpen}
           onClick={() => { setSaveOpen(!saveOpen) }}
@@ -218,7 +219,7 @@ export function VideoControls({
         <div
           className={css.saveCard}
           ref={cardRef}
-          role="menu" aria-label={t('video.save')} style={saveCard}>
+          role="menu" aria-label={labels.save} style={saveCard}>
           <button
             type="button"
             role="menuitem"
@@ -229,7 +230,7 @@ export function VideoControls({
             <span className={css.saveRowIcon} aria-hidden>
               <IconLucideDownload className={css.saveRowGlyph} />
             </span>
-            <span className={css.saveRowLabel}>{t('video.download')}</span>
+            <span className={css.saveRowLabel}>{labels.download}</span>
           </button>
         </div>,
         document.body,

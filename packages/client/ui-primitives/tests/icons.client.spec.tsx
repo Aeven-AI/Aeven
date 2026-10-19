@@ -17,8 +17,8 @@ const icons = Object.fromEntries(
 const iconNames = Object.keys(icons)
 
 describe('ic_ds_ icon set', () => {
-  it('exports the complete icon set (87 drawn glyphs plus sixty-one CSS-sized ones)', () => {
-    expect(iconNames.length).toBe(148)
+  it('exports the complete icon set (87 drawn glyphs plus sixty-four CSS-sized ones)', () => {
+    expect(iconNames.length).toBe(151)
   })
 
   it.each(iconNames)('%s renders an svg with currentColor fills and no hardcoded palette', (name) => {
@@ -37,7 +37,7 @@ describe('ic_ds_ icon set', () => {
     'IconLucidePanelLeft', 'IconLucideImages', 'IconLucideMessageCircle',
     'IconLucideMessageCirclePlus', 'IconLucideMessageCircleCheck', 'IconLucideMessageCircleQuestionMark', 'IconLucideEllipsis',
     'IconLucideChevronRight', 'IconLucideEllipsisVertical', 'IconLucideArrowLeft', 'IconLucideArrowRight',
-    'IconLucideCamera', 'IconLucideMinus', 'IconLucideRotateCcw',
+    'IconLucideCamera', 'IconLucideMinus', 'IconLucideRotateCcw', 'IconLucideTimer', 'IconLucideVideo', 'IconLucideSwitchCamera',
     'IconLucidePlay', 'IconLucidePause', 'IconLucideVolume2', 'IconLucideVolumeX', 'IconLucideDownload',
     'IconLucidePlug', 'IconLucideScrollText',
   ])(

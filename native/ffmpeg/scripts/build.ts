@@ -188,6 +188,9 @@ function configureAndMake(target: Target, cwd: string, configure: string, args: 
   writeFileSync(script, [
     '#!/bin/sh',
     'set -e',
+    // MSYS2's login shell starts in $HOME, so the build directory is entered explicitly rather than inferred
+    // from the spawn's working directory.
+    `cd ${shellQuote(msysPath(cwd))}`,
     // MSYS2's `/usr/bin/pkg-config` is a wrapper that picks a toolchain from MSYSTEM; the runner export names the
     // image's own (UCRT64), so the variable takes the target's value instead of going unset.
     `export MSYSTEM=${target === 'win32-arm64' ? 'CLANGARM64' : 'MINGW64'}`,

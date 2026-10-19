@@ -1,4 +1,4 @@
-/** The generated clip's playback chrome: flat faces with black glyphs over the clip's lower edge. @module */
+/** Clip playback helpers: the gestures the player's chrome runs against the element. @module */
 
 /**
  * A refused playback or full-screen promise needs no recovery: a blocked

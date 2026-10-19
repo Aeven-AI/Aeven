@@ -14,6 +14,8 @@ interface ModalBaseProps {
   footer?: ReactNode
   className?: string
   contentClassName?: string
+  /** Card width override; absent keeps the dialog's own 380px measure. */
+  width?: string
 }
 
 type ModalProps = ModalBaseProps & (
@@ -31,12 +33,14 @@ type ModalProps = ModalBaseProps & (
  * @param props.children - body (inputs, etc.).
  * @param props.footer - action row (Cancel / Create).
  * @param props.contentClassName - optional class for a scrollable content region.
+ * @param props.width - optional CSS width for the card, for dialogs that carry a
+ * full-bleed surface instead of a form column.
  * @param props.headless - render children directly in the card (no default
  * header/close/body chrome); mask, card, Escape, and aria-label remain.
  * @returns null when closed; otherwise the overlay tree.
  */
 export function Modal({
-  open, onClose, title, closeLabel, description, children, footer, className, contentClassName, headless = false,
+  open, onClose, title, closeLabel, description, children, footer, className, contentClassName, width, headless = false,
 }: ModalProps) {
   useEffect(() => {
     if (!open) return
@@ -54,6 +58,7 @@ export function Modal({
       <div className={css.mask} aria-hidden="true" onClick={onClose} />
       <div
         className={clsx(css.dialog, className)}
+        style={width === undefined ? undefined : { width }}
         role="dialog"
         aria-modal="true"
         aria-label={title}
