@@ -123,7 +123,10 @@ function hasNasm(): boolean {
  * @returns absolute path of the MSYS2 root.
  */
 function msysRoot(): string {
-  return process.env.MSYS2_ROOT ?? 'C:\\msys64'
+  const configured = process.env.MSYS2_ROOT
+  // An unset or empty variable both mean the runner's default installation; the setup action's output is empty
+  // whenever its step was skipped for the other Windows target.
+  return configured === undefined || configured === '' ? 'C:\\msys64' : configured
 }
 
 /**
