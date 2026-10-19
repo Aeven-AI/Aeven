@@ -4,6 +4,7 @@ import {
   deadline,
   idleWatchdog,
   MAX_TIMER_DELAY_MS,
+  releasableDeadline,
   timeoutOf,
   TimeoutReason,
 } from '@aeven/timeout'
@@ -161,6 +162,64 @@ describe('deadline — timeoutMs <= 0 (no-timeout sentinel)', () => {
     const d = deadline(undefined, -5, 'BASH_TIMEOUT')
     expect(d.signal.aborted).toBe(false)
     d[Symbol.dispose]()
+  })
+})
+
+describe('releasableDeadline', () => {
+  afterEach(() => { vi.useRealTimers() })
+
+  it('keeps running work alive after release: the armed timer no longer aborts it', () => {
+    vi.useFakeTimers()
+    const d = releasableDeadline(undefined, 100, 'BASH_TIMEOUT')
+    d.release()
+    vi.advanceTimersByTime(1_000)
+    expect(d.signal.aborted).toBe(false)
+    expect(timeoutOf(d.signal)).toBeUndefined()
+  })
+
+  it('stops forwarding an upstream cancellation armed before release', () => {
+    const upstream = new AbortController()
+    const d = releasableDeadline(upstream.signal, 60_000, 'BASH_TIMEOUT')
+    d.release()
+    upstream.abort('tool call cancelled')
+    expect(d.signal.aborted).toBe(false)
+    d[Symbol.dispose]()
+  })
+
+  it('is idempotent and leaves an already-aborted signal classified once', () => {
+    vi.useFakeTimers()
+    const d = releasableDeadline(undefined, 100, 'BASH_TIMEOUT')
+    vi.advanceTimersByTime(100)
+    expect(timeoutOf(d.signal)?.code).toBe('BASH_TIMEOUT')
+    d.release()
+    d.release()
+    expect(timeoutOf(d.signal)?.code).toBe('BASH_TIMEOUT')
+  })
+
+  it('forwards a pre-aborted upstream reason before any release', () => {
+    const upstream = new AbortController()
+    const reason = new TimeoutReason('OUTER_TIMEOUT', 30)
+    upstream.abort(reason)
+    const d = releasableDeadline(upstream.signal, 60_000, 'BASH_TIMEOUT')
+    expect(d.signal.reason).toBe(reason)
+    expect(timeoutOf(d.signal, 'BASH_TIMEOUT')).toBeUndefined()
+    d.release()
+  })
+
+  it('rejects a delay Node would clamp when a timer is armed', () => {
+    expect(() => releasableDeadline(undefined, MAX_TIMER_DELAY_MS + 1, 'BASH_TIMEOUT'))
+      .toThrow(`no greater than ${MAX_TIMER_DELAY_MS}`)
+  })
+
+  it('arms no timer for the no-timeout sentinel', () => {
+    vi.useFakeTimers()
+    const upstream = new AbortController()
+    using d = releasableDeadline(upstream.signal, 0, 'BASH_TIMEOUT')
+    vi.advanceTimersByTime(1_000)
+    expect(d.signal.aborted).toBe(false)
+    d.release()
+    upstream.abort('kill')
+    expect(d.signal.aborted).toBe(false)
   })
 })
 

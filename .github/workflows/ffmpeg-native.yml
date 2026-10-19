@@ -88,18 +88,20 @@ jobs:
 
       - name: Set up MSYS2 (Windows x64)
         if: matrix.target == 'win32-x64'
+        id: msys2-x64
         uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
         with:
-          msystem: UCRT64
+          msystem: CLANG64
           release: false
           update: true
           install: >-
             make nasm diffutils pkgconf
-            mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-binutils
-            mingw-w64-ucrt-x86_64-opus mingw-w64-ucrt-x86_64-zlib
+            mingw-w64-clang-x86_64-clang mingw-w64-clang-x86_64-binutils
+            mingw-w64-clang-x86_64-opus mingw-w64-clang-x86_64-zlib
 
       - name: Set up MSYS2 (Windows arm64)
         if: matrix.target == 'win32-arm64'
+        id: msys2-arm64
         uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
         with:
           msystem: CLANGARM64
@@ -112,7 +114,14 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Select the MSYS2 environment (Windows)
+        if: startsWith(matrix.target, 'win32-')
+        run: echo "MSYSTEM=${{ matrix.target == 'win32-arm64' && 'CLANGARM64' || 'CLANG64' }}" >> "$GITHUB_ENV"
+
       - name: Build ffmpeg
+        env:
+          # The setup action may place MSYS2 outside C:\msys64; the build reads the location from here.
+          MSYS2_ROOT: ${{ matrix.target == 'win32-arm64' && steps.msys2-arm64.outputs.msys2-location || steps.msys2-x64.outputs.msys2-location }}
         run: pnpm --dir native/ffmpeg run build:native --target ${{ matrix.target }}
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4

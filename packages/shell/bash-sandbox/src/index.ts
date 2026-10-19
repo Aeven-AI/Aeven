@@ -9,7 +9,8 @@
  */
 
 import { Context } from '@deepseek-ai/cordis'
-import type { ShellExecRequest, ShellExecSpec, ShellProcess, ShellRunResult } from '@aeven/shell'
+import { isDetachedRun } from '@aeven/shell'
+import type { ShellExecRequest, ShellExecSpec, ShellProcess, ShellRunOutcome, ShellRunResult } from '@aeven/shell'
 import { SandboxUnavailableError } from '@aeven/sandbox'
 import type {
   ConfinedArgv,
@@ -86,14 +87,25 @@ export class SandboxBashExecutor extends LocalBashExecutor {
   }
 
   override async run(spec: ShellExecSpec): Promise<ShellRunResult> {
+    // `run` waits; the threshold belongs to `runDetachable`.
+    return await this.runOutcome({ ...spec, detachAfterMs: undefined }) as ShellRunResult
+  }
+
+  override async runDetachable(spec: ShellExecSpec): Promise<ShellRunOutcome> {
+    return this.runOutcome(spec)
+  }
+
+  /** Confine, run, and classify one spec; the caller decides whether a threshold applies. */
+  private async runOutcome(spec: ShellExecSpec): Promise<ShellRunOutcome> {
     const policy = spec.sandboxPolicy as SandboxExecutionPolicy
     const { mode } = policy
     if (mode === 'danger-full-access') {
-      const result = await super.run(spec)
+      const result = await super.runDetachable(spec)
+      if (isDetachedRun(result)) return result
       return { ...result, sandbox: { mode, denied: false } }
     }
     const confined = this.confine(spec.command, { ...policy, mode })
-    let result: ShellRunResult
+    let result: ShellRunOutcome
     try {
       result = await this.runArgv(spec, confined.argv)
     } catch (error) {
@@ -103,6 +115,12 @@ export class SandboxBashExecutor extends LocalBashExecutor {
         throw new SandboxUnavailableError(mode, String(error))
       }
       throw error
+    }
+    // A handed-back process has not settled, so its facts are classified where
+    // every background process's are: at settlement, from the same table.
+    if (isDetachedRun(result)) {
+      this.retainFacts(result.process, mode, confined, spec.workdir)
+      return result
     }
     // Runner failure outranks denial because the command did not run. Carry
     // the matched fatal line, not an informational line that preceded it.
@@ -131,16 +149,26 @@ export class SandboxBashExecutor extends LocalBashExecutor {
       }
       throw error
     }
-    const { enforcement, denialSignatures, runnerFailureRules } = confined
+    this.retainFacts(proc, mode, confined, spec.workdir)
+    return proc
+  }
+
+  /**
+   * Retain classification facts for one confined process until it settles.
+   * @param proc - the live handle the facts belong to.
+   * @param mode - the confined mode the command actually ran under.
+   * @param confined - the provider's argv and settlement-classification facts.
+   * @param workdir - the command's working directory, used to classify spawn failures.
+   */
+  private retainFacts(proc: ShellProcess, mode: ConfinedSandboxMode, confined: ConfinedArgv, workdir: string): void {
     this.processFacts.set(proc, {
       mode,
-      enforcement,
-      denialSignatures,
-      runnerFailureRules,
+      enforcement: confined.enforcement,
+      denialSignatures: confined.denialSignatures,
+      runnerFailureRules: confined.runnerFailureRules,
       runnerProgram: confined.argv[0],
-      workdir: spec.workdir,
+      workdir,
     })
-    return proc
   }
 
   /**

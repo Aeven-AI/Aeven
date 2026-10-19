@@ -26,16 +26,16 @@ import { defineTool, TOOL_ABORTED } from '@aeven/tools'
 import type { GenericCallView, TerminalCallView, ToolExecution, ToolResult, ToolResultView } from '@aeven/tools'
 import { HarnessError } from '@aeven/llm'
 import type { Agent } from '@aeven/agent'
-import type {} from '@aeven/jobs'
+import type { JobId, JobRegistry } from '@aeven/jobs'
 import type {} from '@aeven/shell-env'
 import type {} from '@aeven/user-approval'
 import type { SandboxExecutionPolicy, SandboxMode } from '@aeven/sandbox'
 import { ESCALATION_TARGETS, approveEscalation, validateEscalationArgs } from '@aeven/sandbox'
 import type { SandboxPolicyService } from '@aeven/sandbox-policy'
 import type { ShellProcess, ShellRunResult } from '@aeven/shell'
-import { parseExitStatus } from '@aeven/shell'
+import { isDetachedRun, parseExitStatus } from '@aeven/shell'
 import { processOutcome, processSources } from './background.ts'
-import { renderPwshResult } from './render.ts'
+import { BACKGROUND_ACK, renderPwshResult } from './render.ts'
 import type { RenderablePwshResult } from './render.ts'
 
 declare module '@aeven/jobs' {
@@ -47,15 +47,25 @@ declare module '@aeven/jobs' {
 export const name = 'tool-pwsh'
 export const inject = ['tools', 'shell', 'systemPrompt', 'shellEnv']
 
+/** Default foreground budget before a still-running command is handed to a background job. */
+const DEFAULT_DETACH_AFTER_MS = 20_000
+
 /** Configuration for the pwsh tool. */
 export interface Config {
   /** Expose `run_in_background` (default true); disabled calls are also rejected. */
   enableRunInBackground?: boolean
+  /**
+   * How long a foreground command may run before the tool hands it back as a
+   * background job (default 20000). Applies only when `run_in_background` is
+   * available and a job runtime is mounted; without one, foreground calls wait.
+   */
+  detachAfterMs?: number
 }
 
 /** Runtime configuration schema for the pwsh tool plugin. */
 export const Config: z<Config> = z.object({
   enableRunInBackground: z.boolean().default(true),
+  detachAfterMs: z.number().default(DEFAULT_DETACH_AFTER_MS),
 })
 
 /** Parsed tool args; execute validates value constraints absent from ParameterSchemaSpec. */
@@ -99,10 +109,16 @@ function validatePwshArgs(args: PwshToolArgs): void {
 }
 /* jscpd:ignore-end */
 
-function pwshDescription(backgroundEnabled: boolean, escalationModes: readonly SandboxMode[]): string {
-  const background = backgroundEnabled
-    ? 'Set `run_in_background: true` for long-running commands: the call returns a job id immediately; read its output with `job_output` and stop it with `job_kill`.'
-    : 'Background execution is not available; long-running commands must finish within the timeout.'
+function pwshDescription(
+  backgroundEnabled: boolean,
+  detachAfterMs: number | undefined,
+  escalationModes: readonly SandboxMode[],
+): string {
+  const background = !backgroundEnabled
+    ? 'Background execution is not available; long-running commands must finish within the timeout.'
+    : detachAfterMs === undefined
+      ? 'Start long-running commands with `run_in_background: true`: the call returns a job id immediately; read its output with `job_output` and stop it with `job_kill`.'
+      : `Start anything whose duration you cannot bound in the background with \`run_in_background: true\` — installs, builds, test suites, servers, downloads — so \`job_output\` collects it while you keep working. A foreground command still running after ${detachAfterMs}ms is handed back as a background job instead of blocking the turn.`
   const base = 'Execute a PowerShell command (`pwsh -Command`) and return its stdout/stderr. '
     + 'Each call runs in a fresh pwsh process: no state (cwd, variables, functions) persists between calls — '
     + 'pass `workdir` instead of using `cd`. Paths use native Windows form (`C:\\...`); read environment '
@@ -183,16 +199,40 @@ function canonicalPwshResult(result: ShellRunResult): PwshForegroundResult {
   }
 }
 
+/**
+ * Settle a run that stayed in the foreground: an aborted call is a harness
+ * abort rather than a command result.
+ * @param result - the settled foreground run.
+ * @returns the tool output for a completed or failed command.
+ * @throws A `TOOL_ABORTED` {@link HarnessError} when the caller cancelled the call.
+ */
+function finishForeground(result: ShellRunResult): PwshForegroundResult {
+  if (result.aborted) {
+    const error = new HarnessError('tool call aborted', TOOL_ABORTED)
+    error.name = 'AbortError'
+    throw error
+  }
+  return canonicalPwshResult(result)
+}
+
 /** Canonical background-handle properties shared by the pwsh output union. */
 const BACKGROUND_OUTPUT_PROPERTIES = {
   kind: { type: 'string', required: true, const: 'background' },
   jobId: { type: 'string', required: true },
+  /** Present when a foreground call outlived its threshold and kept running. */
+  detached: { type: 'boolean' },
+  /** The foreground threshold the command outlived, in milliseconds. */
+  detachAfterMs: { type: 'number' },
 } as const
 /* jscpd:ignore-end */
 
 /* jscpd:ignore-start -- deliberate mirror of avn-tool-bash's apply() preamble (pwsh-tool-and-executor Agent Note). */
 export function apply(ctx: Context, config: Config = {}): void {
   const backgroundEnabled = config.enableRunInBackground ?? true
+  const detachAfterMs = config.detachAfterMs ?? DEFAULT_DETACH_AFTER_MS
+  if (!Number.isFinite(detachAfterMs) || detachAfterMs <= 0) {
+    throw new Error('tool-pwsh: detachAfterMs must be a positive finite number')
+  }
   const defaultMode = ctx.shell.sandboxMode
   const escalationModes: readonly SandboxMode[] = defaultMode === undefined ? [] : ESCALATION_TARGETS
   const sandboxPolicy: SandboxPolicyService | undefined = defaultMode === undefined ? undefined : ctx.get('sandboxPolicy')
@@ -244,12 +284,45 @@ export function apply(ctx: Context, config: Config = {}): void {
     name: 'tool:pwsh',
     order: ctx.systemPrompt.getSectionOrder('TOOL_PWSH'),
     text: 'Non-zero exits are reported as `[exit code: N]` markers; investigate failures before moving on. '
+      + 'Keep the turn responsive: run anything whose duration you cannot bound — installs, builds, test '
+      + 'suites, servers, downloads — with `run_in_background: true` and collect it with `job_output` while '
+      + 'you keep working. '
       + 'On Windows a killed process settles as `[exit code: 1]` without a signal marker; treat a bare exit 1 after an interruption as a termination, not a command failure.',
   })
 
+  /**
+   * Register a pwsh job whose producer is `starter`. The registry runs the
+   * starter only after admitting the spec, so preflight finishes before any
+   * process exists; a detached foreground run hands its already-live handle
+   * through the same path.
+   */
+  const startJob = (
+    jobs: JobRegistry,
+    owner: Agent | undefined,
+    args: PwshToolArgs,
+    starter: () => ShellProcess,
+  ): JobId => {
+    let proc: ShellProcess | undefined
+    return jobs.start({
+      kind: 'pwsh',
+      label: args.command,
+      title: args.description,
+      ...owner !== undefined ? { owner: owner.id } : {},
+      output: processSources(() => proc),
+      run: () => {
+        const started = starter()
+        proc = started
+        return {
+          cancel: () => void started.kill(),
+          done: started.done.then(() => processOutcome(started)),
+        }
+      },
+    })
+  }
+
   ctx.tools.register(defineTool({
     name: 'pwsh',
-    description: pwshDescription(backgroundEnabled, escalationModes),
+    description: pwshDescription(backgroundEnabled, backgroundEnabled ? detachAfterMs : undefined, escalationModes),
     /* jscpd:ignore-start -- deliberate mirror of avn-tool-bash's parameter surface (pwsh-tool-and-executor Agent Note). */
     parameters: {
       command: { type: 'string', required: true, description: 'The PowerShell command to execute.' },
@@ -338,7 +411,9 @@ export function apply(ctx: Context, config: Config = {}): void {
       render: (_args, value) => [{
         type: 'text',
         text: value.kind === 'background'
-          ? `started background job ${value.jobId}`
+          ? value.detached === true
+            ? `${BACKGROUND_ACK}${value.jobId}: still running after ${value.detachAfterMs}ms in the foreground`
+            : `${BACKGROUND_ACK}${value.jobId}`
           : renderPwshResult(value as RenderablePwshResult, escalationModes),
       }],
     },
@@ -376,35 +451,24 @@ export function apply(ctx: Context, config: Config = {}): void {
           error.name = 'AbortError'
           throw error
         }
-        // Task preflight finishes before the starter can spawn a process.
-        let proc: ShellProcess | undefined
-        const id = jobs.start({
-          kind: 'pwsh',
-          label: args.command,
-          title: args.description,
-          ...exec.agent ? { owner: exec.agent.id } : {},
-          output: processSources(() => proc),
-          run: () => {
-            const started = ctx.shell.start(ctx.shell.resolve(request))
-            proc = started
-            return {
-              cancel: () => void started.kill(),
-              done: started.done.then(() => processOutcome(started)),
-            }
-          },
-        })
+        const id = startJob(jobs, exec.agent, args, () => ctx.shell.start(ctx.shell.resolve(request)))
         return { kind: 'background' as const, jobId: id }
       }
-      const result = await ctx.shell.run(ctx.shell.resolve({
-        ...request,
-        signal: exec.signal,
-      }))
-      if (result.aborted) {
-        const error = new HarnessError('tool call aborted', TOOL_ABORTED)
-        error.name = 'AbortError'
-        throw error
+      // A foreground command that outlives the threshold becomes a job instead of
+      // keeping the turn waiting, so no long command holds the conversation. The
+      // executor keeps its timeout: whichever fires first wins, and a timeout
+      // still kills the command rather than handing it back.
+      const jobs = backgroundEnabled ? ctx.get('jobs') : undefined
+      if (jobs === undefined) {
+        // Without a registry this call carries no threshold, so it simply waits.
+        return finishForeground(await ctx.shell.run(ctx.shell.resolve({ ...request, signal: exec.signal })))
       }
-      return canonicalPwshResult(result)
+      const result = await ctx.shell.runDetachable(ctx.shell.resolve({ ...request, detachAfterMs, signal: exec.signal }))
+      if (isDetachedRun(result)) {
+        const id = startJob(jobs, exec.agent, args, () => result.process)
+        return { kind: 'background' as const, jobId: id, detached: true, detachAfterMs: result.detachAfterMs }
+      }
+      return finishForeground(result)
     },
     /* jscpd:ignore-end */
     /* jscpd:ignore-start -- the background call card mirrors presentBashCall's by design (Agent Note). */
@@ -434,8 +498,9 @@ export function apply(ctx: Context, config: Config = {}): void {
       if (block === undefined || block.type !== 'text') return undefined
       const raw = block.text
       const isBackground = typeof args === 'object' && args !== null && (args as { run_in_background?: unknown }).run_in_background === true
-      // Background acknowledgements and errors have no terminal exit status.
-      if (isBackground || result.isError) {
+      // Background acknowledgements — including one handed back from a foreground
+      // call — and errors have no terminal exit status.
+      if (isBackground || raw.startsWith(BACKGROUND_ACK) || result.isError) {
         return { card: 'generic', content: [{ type: 'text', text: `\`\`\`console\n${raw.replace(/\n+$/, '')}\n\`\`\`` }] }
       }
       // The exit marker becomes the card's exit pill, so it leaves the output body.

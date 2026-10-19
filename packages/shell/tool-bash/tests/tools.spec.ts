@@ -45,7 +45,7 @@ async function setup() {
 }
 
 /** Full harness: the generic job runtime + its controller, then the bash tool. */
-async function setupWithTasks() {
+async function setupWithTasks(config: ToolBash.Config = {}) {
   const ctx = new Context()
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(ToolRuntime)
@@ -56,7 +56,7 @@ async function setupWithTasks() {
   ;(ctx.subprocess as LocalSubprocessRuntime).internals = { spillDir }
   await ctx.plugin(BashEnvPlugin)
   await ctx.plugin(LocalBashExecutor, { timeoutMs: 10_000, graceMs: 200 })
-  await ctx.plugin(ToolBash)
+  await ctx.plugin(ToolBash, config)
   return ctx
 }
 
@@ -1306,5 +1306,43 @@ describe('the model-facing bash tool builds its request from named args only (no
     expect('env' in request).toBe(false)
     expect('stdin' in request).toBe(false)
     expect('stdoutMaxBytes' in request).toBe(false)
+  })
+})
+
+describe('foreground detach threshold', () => {
+  it('hands a long foreground command back as a job readable through job_output', async () => {
+    const ctx = await setupWithTasks({ detachAfterMs: 100 })
+    const started = await call(ctx, 'bash', { command: 'echo early; sleep 60', description: 'long command' })
+    if (started.isError) throw new Error('expected a detach acknowledgement instead of an error')
+    expect(started.value).toMatchObject({ kind: 'background', jobId: 'bash-1', detached: true, detachAfterMs: 100 })
+    expect(text(started)).toBe('started background job bash-1: still running after 100ms in the foreground')
+
+    // Output written before the handoff stays readable through the job ring.
+    const read = await callUntilText(ctx, 'job_output', { job_id: 'bash-1' }, 'early')
+    expect(text(read)).toContain('early')
+    await call(ctx, 'job_kill', { job_id: 'bash-1' })
+    await call(ctx, 'job_output', { job_id: 'bash-1', wait: true })
+  })
+
+  it('keeps a command that settles before the threshold in the foreground', async () => {
+    const ctx = await setupWithTasks({ detachAfterMs: 5_000 })
+    const result = await call(ctx, 'bash', { command: 'echo hi', description: 'quick command' })
+    if (result.isError) throw new Error('expected a foreground result')
+    expect(result.value).toMatchObject({ kind: 'foreground', exitCode: 0 })
+    expect(text(result)).toContain('hi')
+  })
+
+  it('rejects a non-positive detach threshold when the plugin loads', async () => {
+    const ctx = await setup()
+    expect(() => { ToolBash.apply(ctx, { detachAfterMs: 0 }) }).toThrow(/detachAfterMs must be a positive finite number/)
+  })
+
+  it('a detached ack presents as a generic card with no exit pill', async () => {
+    const ctx = await setup()
+    const view = ctx.tools.get('bash')!.presentResult!(
+      { command: 'make', description: 'build' },
+      { content: [{ type: 'text', text: 'started background job bash-2: still running after 20000ms in the foreground' }], isError: false },
+    )
+    expect(view).toMatchObject({ card: 'generic' })
   })
 })

@@ -119,12 +119,29 @@ function hasNasm(): boolean {
 }
 
 /**
+ * MSYS2's installation root; the runner may hold it outside `C:\msys64`, and the setup action reports where.
+ * @returns absolute path of the MSYS2 root.
+ */
+function msysRoot(): string {
+  return process.env.MSYS2_ROOT ?? 'C:\\msys64'
+}
+
+/**
+ * The MSYS2 environment directory holding one target's toolchain and packages.
+ * @param target - Windows platform package being built.
+ * @returns absolute Windows path of the ucrt64 or clangarm64 environment.
+ */
+function msysEnvironment(target: Target): string {
+  return join(msysRoot(), target === 'win32-arm64' ? 'clangarm64' : 'clang64')
+}
+
+/**
  * MSYS2's bash, which is the POSIX shell `configure` needs on Windows.
  * @returns absolute path of `bash.exe`.
  * @throws When MSYS2 is absent, naming the packages this build needs from it.
  */
 function msysBash(): string {
-  const root = process.env.MSYS2_ROOT ?? 'C:\\msys64'
+  const root = msysRoot()
   const shell = join(root, 'usr', 'bin', 'bash.exe')
   if (!existsSync(shell)) {
     throw new Error(`build: Windows needs MSYS2 at ${root} (set MSYS2_ROOT) with gcc, make, nasm, and a zlib package`)
@@ -177,10 +194,10 @@ function configureAndMake(target: Target, cwd: string, configure: string, args: 
     run('make', [jobs, makeTarget], cwd, env)
     return
   }
-  // The mingw toolchain sits outside MSYS2's default PATH, and configure is a POSIX script only that bash can
-  // run. Both steps go into a script file: an inline command line would carry the Windows environment, whose
-  // values contain quotes and trailing backslashes that no single shell word survives.
-  const prefix = target === 'win32-arm64' ? '/clangarm64' : '/mingw64'
+  // The setup action may install MSYS2 outside C:\msys64, and its login profile only assembles PATH for the
+  // environment it was told about. Naming the target's own tree here keeps the compiler and pkg-config search
+  // path deterministic instead of dependent on what the shell happened to inherit.
+  const prefix = msysPath(msysEnvironment(target))
   const script = join(cwd, 'build.sh')
   const exports = Object.entries(env)
     .filter(([key]) => key !== 'PATH')
@@ -191,17 +208,16 @@ function configureAndMake(target: Target, cwd: string, configure: string, args: 
     // MSYS2's login shell starts in $HOME, so the build directory is entered explicitly rather than inferred
     // from the spawn's working directory.
     `cd ${shellQuote(msysPath(cwd))}`,
-    // MSYS2's `/usr/bin/pkg-config` is a wrapper that picks a toolchain from MSYSTEM; the runner export names the
-    // image's own (UCRT64), so the variable takes the target's value instead of going unset.
-    `export MSYSTEM=${target === 'win32-arm64' ? 'CLANGARM64' : 'MINGW64'}`,
+    `export MSYSTEM=${target === 'win32-arm64' ? 'CLANGARM64' : 'CLANG64'}`,
     `export PATH=${prefix}/bin:/usr/bin:/bin`,
     `export PKG_CONFIG_PATH=${prefix}/lib/pkgconfig:${prefix}/share/pkgconfig`,
     ...exports,
+    `command -v clang >/dev/null || { echo "build: no clang on PATH=$PATH"; exit 1; }`,
     // configure records every probe in ffbuild/config.log; on failure that log is the only evidence a botched
     // library detection leaves behind, since configure prints one summary line and exits.
     `pkg-config --exists opus && pkg-config --cflags --libs --static opus || echo "build: pkg-config cannot resolve opus"`,
     `${shellQuote(msysPath(configure))} ${args.map(argument => shellQuote(msysArgument(argument))).join(' ')} || { tail -n 120 ffbuild/config.log 2>/dev/null || true; exit 1; }`,
-    `make ${jobs} ${makeTarget}`,
+    `make ${jobs} ${makeTarget} || { echo '--- configure summary ---'; grep -aE '^(CONFIG_FFMPEG|CONFIG_PROGRAMS|HAVE_THREADS|HAVE_W32THREADS|HAVE_PTHREADS)=' config.mak 2>/dev/null; tail -n 80 ffbuild/config.log 2>/dev/null; exit 1; }`,
     '',
   ].join('\n'), { mode: 0o755 })
   run(msysBash(), ['-lc', shellQuote(msysPath(script))], cwd)
@@ -278,8 +294,11 @@ function configureArgs(target: Target, source: Source, opusPrefix: string): stri
   // explicitly, and let the environment's pkg-config find the toolchain's own static libopus. Addressable
   // prefixed tools are not needed, because no cross prefix is declared.
   if (platform === 'win32') {
+    // ffmpeg's program depends on `threads`; without w32threads or pthreads the program is dropped from the
+    // Makefile entirely, which is what "No rule to make target 'ffmpeg'" meant. The documented Windows recipe
+    // disables the w32 option, enables pthreads, and links it statically.
     args.push('--target-os=mingw32', `--arch=${arch === 'x64' ? 'x86_64' : 'aarch64'}`,
-      `--cc=${arch === 'x64' ? 'x86_64-w64-mingw32-gcc' : 'aarch64-w64-mingw32-cc'}`)
+      '--cc=clang', '--extra-libs=-static')
   } else {
     args.push(`--extra-cflags=-I${join(opusPrefix, 'include')}`, `--extra-ldflags=-L${join(opusPrefix, 'lib')}`)
   }
@@ -360,7 +379,7 @@ async function main(): Promise<void> {
   // MSYS2 ships a static libopus and its pkg-config metadata for each Windows toolchain, so only macOS and Linux
   // build the pinned copy.
   const opusPrefix = process.platform === 'win32'
-    ? target === 'win32-arm64' ? '/clangarm64' : '/mingw64'
+    ? msysEnvironment(target)
     : buildOpus(source.opus, await sourceTree('opus', source.opus, 'include/opus.h'), target)
   const destination = build(tree, target, source, opusPrefix)
   const megabytes = statSync(destination).size / (1024 * 1024)

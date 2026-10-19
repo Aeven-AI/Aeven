@@ -6,6 +6,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { LocalBashExecutor } from '@aeven/bash-local'
 import LocalSubprocessRuntime from '@aeven/subprocess-local'
 import { MAX_TIMER_DELAY_MS } from '@aeven/timeout'
+import { isDetachedRun } from '@aeven/shell'
 import type { ShellProcess } from '@aeven/shell'
 
 const spillDir = mkdtempSync(join(tmpdir(), 'avn-bash-exec-spec-'))
@@ -350,5 +351,62 @@ describe('process lifecycle ownership (the subprocess service, not the executor)
     await trapping.done
     expect(trapping.status).toBe('killed')
     expect(trapping.signal).toBe('SIGKILL')
+  })
+})
+
+describe('LocalBashExecutor.run — detach threshold', () => {
+  it('hands back a live handle once the command outlives detachAfterMs', async () => {
+    const { bash } = await setup({ timeoutMs: 60_000 })
+    const result = await bash.runDetachable(bash.resolve({ command: 'echo early; sleep 60', detachAfterMs: 150 }))
+    if (!isDetachedRun(result)) throw new Error('expected a detached handle')
+
+    expect(result.detachAfterMs).toBe(150)
+    expect(result.process.status).toBe('running')
+    // The handoff keeps everything the process already wrote: the foreground
+    // read never consumed the collectors.
+    expect(await readUntil(result.process, 'early')).toContain('early')
+
+    expect(result.process.kill()).toBe(true)
+    await result.process.done
+    expect(result.process.status).toBe('killed')
+  })
+
+  it('waits for a command that settles before the threshold', async () => {
+    const { bash } = await setup({ timeoutMs: 60_000 })
+    const result = await bash.runDetachable(bash.resolve({ command: 'echo hi', detachAfterMs: 5_000 }))
+    if (isDetachedRun(result)) throw new Error('a fast command must settle in the foreground')
+    expect(result.stdout.text).toBe('hi\n')
+    expect(result.timedOut).toBe(false)
+  })
+
+  it('settles an aborted call instead of detaching it', async () => {
+    const { bash } = await setup({ timeoutMs: 60_000 })
+    const controller = new AbortController()
+    const running = bash.runDetachable(bash.resolve({ command: 'sleep 60', detachAfterMs: 5_000, signal: controller.signal }))
+    // The abort lands after spawn, so the threshold could otherwise fire first.
+    controller.abort('stop')
+    const result = await running
+    if (isDetachedRun(result)) throw new Error('a cancelled call settles instead of detaching')
+    expect(result.aborted).toBe(true)
+  })
+
+  it('kills instead of detaching when the executor timeout fires during the wait', async () => {
+    const { bash } = await setup({ timeoutMs: 100, graceMs: 700 })
+    const result = await bash.runDetachable(bash.resolve({ command: 'trap \'\' TERM; sleep 60', detachAfterMs: 200 }))
+    if (isDetachedRun(result)) throw new Error('a timed-out call is killed, never handed over live')
+    expect(result.timedOut).toBe(true)
+    expect(result.signal).toBe('SIGKILL')
+  })
+
+  it('run() waits even when the spec carries a threshold', async () => {
+    const { bash } = await setup({ timeoutMs: 60_000 })
+    const result = await bash.run(bash.resolve({ command: 'echo waited', detachAfterMs: 1 }))
+    expect(result.stdout.text).toBe('waited\n')
+  })
+
+  it('rejects a non-positive detach threshold at resolve()', async () => {
+    const { bash } = await setup()
+    expect(() => bash.resolve({ command: 'true', detachAfterMs: 0 }))
+      .toThrow(/request\.detachAfterMs must be a positive finite number/)
   })
 })

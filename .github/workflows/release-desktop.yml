@@ -269,8 +269,14 @@ jobs:
           printf '%s' "$APPLE_API_KEY_P8" > "$key"
           echo "APPLE_API_KEY=$key" >> "$GITHUB_ENV"
 
+      - name: Select the MSYS2 environment (Windows)
+        if: startsWith(matrix.target, 'win-')
+        run: echo "MSYSTEM=${{ matrix.target == 'win-arm64' && 'CLANGARM64' || 'CLANG64' }}" >> "$GITHUB_ENV"
+
       - name: Package
         env:
+          # The setup action may place MSYS2 outside C:\msys64; the native ffmpeg build reads it from here.
+          MSYS2_ROOT: ${{ matrix.target == 'win-arm64' && steps.msys2-arm64.outputs.msys2-location || steps.msys2-x64.outputs.msys2-location }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}

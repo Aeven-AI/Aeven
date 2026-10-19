@@ -26,7 +26,7 @@ import { SessionId, SessionLogOffset, SessionSeq } from '@aeven/session'
 import ApprovalService from '@aeven/user-approval'
 import type { ApprovalOutcome } from '@aeven/user-approval'
 import { ShellExecutor } from '@aeven/shell'
-import type { ShellExecRequest, ShellExecSpec, ShellProcess, ShellRunResult } from '@aeven/shell'
+import type { ShellExecRequest, ShellExecSpec, ShellProcess, ShellRunOutcome, ShellRunResult } from '@aeven/shell'
 import SessionProjectionRegistry from '@aeven/session-projection'
 import { turnBoundaryProjectionDefinition } from '@aeven/agent-loop'
 import SandboxPolicyService from '@aeven/sandbox-policy'
@@ -49,6 +49,8 @@ class FakeBash extends ShellExecutor {
   startCalls = 0
   handler: (spec: ShellExecSpec) => ShellRunResult = () => runResult('')
   backgroundHandler: (spec: ShellExecSpec) => ShellProcess = () => fakeProcess('bg-ok\n')
+  /** When set, `run()` hands this handle back instead of settling (the detach outcome). */
+  detachHandler?: (spec: ShellExecSpec) => ShellProcess
 
   override resolve(request: ShellExecRequest): ShellExecSpec {
     this.requests.push(request)
@@ -58,6 +60,7 @@ class FakeBash extends ShellExecutor {
       timeoutMs: request.timeoutMs ?? 60_000,
       stdoutMaxBytes: request.stdoutMaxBytes ?? 64_000,
       ...request.signal ? { signal: request.signal } : {},
+      ...request.detachAfterMs !== undefined ? { detachAfterMs: request.detachAfterMs } : {},
       ...request.stdin !== undefined ? { stdin: request.stdin } : {},
       ...request.env !== undefined ? { env: request.env } : {},
       ...request.avnEnv !== undefined ? { avnEnv: request.avnEnv } : {},
@@ -67,6 +70,14 @@ class FakeBash extends ShellExecutor {
 
   override async run(spec: ShellExecSpec): Promise<ShellRunResult> {
     this.specs.push(spec)
+    return this.handler(spec)
+  }
+
+  override async runDetachable(spec: ShellExecSpec): Promise<ShellRunOutcome> {
+    this.specs.push(spec)
+    if (this.detachHandler !== undefined) {
+      return { detached: true, process: this.detachHandler(spec), detachAfterMs: spec.detachAfterMs ?? 0 }
+    }
     return this.handler(spec)
   }
 
@@ -1105,5 +1116,47 @@ describe('processOutcome', () => {
   it('defensively reads a null exit code as 0 (handle shapes from other executors)', () => {
     expect(processOutcome(settled({ exitCode: null })))
       .toEqual({ status: 'completed', detail: 'exit code: 0' })
+  })
+})
+
+describe('foreground detach threshold', () => {
+  it('hands a long foreground command back as a job readable through job_output', async () => {
+    const { ctx, bash } = await setupWithTasks({ detachAfterMs: 100 })
+    bash.detachHandler = () => fakeProcess('early\n')
+    const started = await call(ctx, 'pwsh', { command: 'Start-Sleep -Seconds 60', description: 'long command' })
+    if (started.isError) throw new Error('expected a detach acknowledgement instead of an error')
+    expect(started.value).toMatchObject({ kind: 'background', jobId: 'pwsh-1', detached: true, detachAfterMs: 100 })
+    expect(text(started)).toBe('started background job pwsh-1: still running after 100ms in the foreground')
+    // The configured threshold rode the resolved spec into the executor.
+    expect(bash.specs.at(-1)?.detachAfterMs).toBe(100)
+
+    const read = await call(ctx, 'job_output', { job_id: 'pwsh-1' })
+    expect(text(read)).toContain('early')
+  })
+
+  it('keeps a command that settles before the threshold in the foreground', async () => {
+    const { ctx, bash } = await setupWithTasks({ detachAfterMs: 5_000 })
+    bash.handler = () => runResult('quick\n')
+    const result = await call(ctx, 'pwsh', { command: 'Write-Output quick', description: 'quick command' })
+    if (result.isError) throw new Error('expected a foreground result')
+    expect(result.value).toMatchObject({ kind: 'foreground', exitCode: 0 })
+    expect(text(result)).toContain('quick')
+  })
+
+  it('rejects a non-positive detach threshold when the plugin loads', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SystemPrompt)
+    await ctx.plugin(ToolRuntime)
+    await ctx.plugin(FakeBash)
+    expect(() => { ToolPwsh.apply(ctx, { detachAfterMs: 0 }) }).toThrow(/detachAfterMs must be a positive finite number/)
+  })
+
+  it('a detached ack presents as a generic card with no exit pill', async () => {
+    const { ctx } = await setup()
+    const view = ctx.tools.get('pwsh')!.presentResult!(
+      { command: 'npm install', description: 'install' },
+      { content: [{ type: 'text', text: 'started background job pwsh-2: still running after 20000ms in the foreground' }], isError: false },
+    )
+    expect(view).toMatchObject({ card: 'generic' })
   })
 })

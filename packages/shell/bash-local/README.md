@@ -52,7 +52,7 @@ The generated [configuration catalog](../../../docs/config-catalog.md#aevenbash-
 
 ### Running commands
 
-Run a command with `run` and read its output from the result. A nonzero exit, a timeout, or a cancellation resolves with a descriptive result — only infrastructure failures reject. Per-call `timeoutMs` overrides are capped by the configuration, while `workdir` falls back to the configured default when unset; a trusted foreground caller can also raise the stdout capture budget for one call, while stderr and background runs keep `maxOutputBytes`. The environment is model-friendly by default: `NO_COLOR=1 TERM=dumb PAGER=cat GIT_PAGER=cat` keep pagers and ANSI colors from garbling output, and an explicit caller-provided entry still wins.
+Run a command with `run` and read its output from the result. A nonzero exit, a timeout, or a cancellation resolves with a descriptive result — only infrastructure failures reject. A spec carrying `detachAfterMs` hands the still-running process back as a live `ShellProcess` instead, released from its deadline: the caller owns it from then on, output written before the handoff stays readable from the first byte, and the executor's timeout still wins if it fires first. Per-call `timeoutMs` overrides are capped by the configuration, while `workdir` falls back to the configured default when unset; a trusted foreground caller can also raise the stdout capture budget for one call, while stderr and background runs keep `maxOutputBytes`. The environment is model-friendly by default: `NO_COLOR=1 TERM=dumb PAGER=cat GIT_PAGER=cat` keep pagers and ANSI colors from garbling output, and an explicit caller-provided entry still wins.
 
 ```text
 const result = await ctx.shell.run(ctx.shell.resolve({ command: 'ls -la' }))
@@ -93,7 +93,7 @@ The executor is a Service Provider for the `ctx.shell` seam built on the subproc
 
 ### Main flow
 
-A call runs through three steps: `resolve()` fills `workdir`/`timeoutMs`/`stdoutMaxBytes` from config (capping per-call overrides); `run` fuses the config-clamped timeout with the caller's abort signal into one deadline and spawns `['bash', '-c', command]` through `ctx.subprocess` with explicit byte caps and the `graceMs`; the settled subprocess outcome is classified — only the executor's own timeout reports `timedOut`, an upstream cancel reports `aborted`, a self-signaled command reports neither — and projected into a `ShellRunResult` with collected output.
+A call runs through three steps: `resolve()` fills `workdir`/`timeoutMs`/`stdoutMaxBytes` from config (capping per-call overrides) and carries a caller's `detachAfterMs` through; `run` fuses the config-clamped timeout with the caller's abort signal into a releasable deadline, races it against the detach threshold, and spawns `['bash', '-c', command]` through `ctx.subprocess` with explicit byte caps and the `graceMs`; the settled subprocess outcome is classified — only the executor's own timeout reports `timedOut`, an upstream cancel reports `aborted`, a self-signaled command reports neither — and projected into a `ShellRunResult` with collected output.
 
 ### Invariants and ownership
 

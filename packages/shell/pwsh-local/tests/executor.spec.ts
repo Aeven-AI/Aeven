@@ -20,6 +20,7 @@ import LocalSubprocessRuntime from '@aeven/subprocess-local'
 import SubprocessRuntime from '@aeven/subprocess'
 import type { SubprocessHandle, SubprocessOutputReader, SubprocessSpawnSpec } from '@aeven/subprocess'
 import { MAX_TIMER_DELAY_MS } from '@aeven/timeout'
+import { isDetachedRun } from '@aeven/shell'
 import type { ShellProcess } from '@aeven/shell'
 
 const spillDir = mkdtempSync(join(tmpdir(), 'avn-pwsh-exec-spec-'))
@@ -501,5 +502,44 @@ describe.skipIf(!hasPwsh)('process lifecycle ownership (the subprocess service, 
     // signals) also stamps completed. Both mean the process no longer
     // survives the service.
     expect(['killed', 'completed']).toContain(running.status)
+  })
+})
+
+describe.skipIf(!hasPwsh)('PwshLocalExecutor.run — detach threshold', () => {
+  it('hands back a live handle once the command outlives detachAfterMs', async () => {
+    const { bash } = await setup({ timeoutMs: 60_000 })
+    const result = await bash.runDetachable(bash.resolve({ command: 'Write-Output early; Start-Sleep -Seconds 60', detachAfterMs: 150 }))
+    if (!isDetachedRun(result)) throw new Error('expected a detached handle')
+
+    expect(result.detachAfterMs).toBe(150)
+    expect(result.process.status).toBe('running')
+    // The handoff keeps everything the process already wrote: the foreground
+    // read never consumed the collectors.
+    expect(await readUntil(result.process, 'early')).toContain('early')
+
+    expect(result.process.kill()).toBe(true)
+    await result.process.done
+    expect(result.process.status).toBe('killed')
+  })
+
+  it('waits for a command that settles before the threshold', async () => {
+    const { bash } = await setup({ timeoutMs: 60_000 })
+    const result = await bash.runDetachable(bash.resolve({ command: 'Write-Output hi', detachAfterMs: 5_000 }))
+    if (isDetachedRun(result)) throw new Error('a fast command must settle in the foreground')
+    expect(lf(result.stdout.text)).toBe('hi\n')
+    expect(result.timedOut).toBe(false)
+  })
+
+  it('kills instead of detaching when the executor timeout fires during the wait', async () => {
+    const { bash } = await setup({ timeoutMs: 100, graceMs: 700 })
+    const result = await bash.runDetachable(bash.resolve({ command: 'Start-Sleep -Seconds 60', detachAfterMs: 200 }))
+    if (isDetachedRun(result)) throw new Error('a timed-out call is killed, never handed over live')
+    expect(result.timedOut).toBe(true)
+  })
+
+  it('rejects a non-positive detach threshold at resolve()', async () => {
+    const { bash } = await setup()
+    expect(() => bash.resolve({ command: '$true', detachAfterMs: 0 }))
+      .toThrow(/request\.detachAfterMs must be a positive finite number/)
   })
 })

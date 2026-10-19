@@ -1,0 +1,12 @@
+{
+  "viewport": 390,
+  "lang": "es",
+  "navText": "Descargas | Crear cuenta | Iniciar sesión",
+  "navRect": {
+    "left": 35,
+    "right": 390
+  },
+  "logoRight": 46,
+  "overlapsLogo": true,
+  "overflowsRight": false
+}

@@ -58,8 +58,24 @@ export function clampTimeout(
 export interface Deadline {
   /** Aborts on upstream cancellation OR on timeout (the timeout carries a {@link TimeoutReason}). */
   readonly signal: AbortSignal
-  /** Clear the timer. Safe to call once; `using` calls it at scope exit. */
+  /** Clear the timer and stop forwarding upstream cancellation. Safe to call once; `using` calls it at scope exit. */
   [Symbol.dispose](): void
+}
+
+/**
+ * A {@link Deadline} whose ownership can be released before it fires.
+ * Releasing is how a capability hands still-running work to a new owner (the
+ * bash executor returning a background handle): neither the elapsed timer nor
+ * an upstream abort reaches {@link Deadline.signal} afterward, so the work keeps
+ * running until its new owner stops it.
+ */
+export interface ReleasableDeadline extends Deadline {
+  /**
+   * Stop the timer and stop forwarding upstream cancellation. The signal keeps
+   * whatever state it already reached; later upstream aborts do not reach it.
+   * Idempotent, and equivalent to {@link Deadline[Symbol.dispose]}.
+   */
+  release(): void
 }
 
 /** Rearmable timeout around one outstanding async-iterator demand. */
@@ -101,23 +117,50 @@ export function deadline(
   timeoutMs: number,
   code: string,
 ): Deadline {
-  if (timeoutMs <= 0) {
-    // No timeout (background work): forward only the upstream signal, or a never-aborting one
-    // when there is no upstream.
-    return { signal: upstream ?? new AbortController().signal, [Symbol.dispose]() {} }
-  }
+  const fused = releasableDeadline(upstream, timeoutMs, code)
+  return { signal: fused.signal, [Symbol.dispose]() { fused.release() } }
+}
 
-  assertTimerDelay(timeoutMs, 'deadline timeoutMs')
+/**
+ * Fuse upstream cancellation with an identifiable timeout whose ownership can be
+ * released later. The first source to abort decides the signal's reason, so
+ * `timeoutOf()` reads a {@link TimeoutReason} only when this deadline's own
+ * timeout won and an upstream cancellation otherwise; a released deadline is
+ * never aborted by either source.
+ *
+ * @param upstream The caller's cancellation signal, if any, forwarded until release.
+ * @param timeoutMs Deadline in milliseconds; `<= 0` means "no timeout" (arm no timer).
+ * @param code Capability-owned code stamped onto the timeout's {@link TimeoutReason}.
+ * @returns The fused {@link ReleasableDeadline}.
+ */
+export function releasableDeadline(
+  upstream: AbortSignal | undefined,
+  timeoutMs: number,
+  code: string,
+): ReleasableDeadline {
+  if (timeoutMs > 0) assertTimerDelay(timeoutMs, 'deadline timeoutMs')
 
-  const timer = new AbortController()
-  const id = setTimeout(() => { timer.abort(new TimeoutReason(code, timeoutMs)) }, timeoutMs)
-  return {
-    // AbortSignal.any adopts the reason of whichever source aborts FIRST, so a
-    // race resolves to a single cause: timeoutOf() reads TimeoutReason only
-    // when the timeout won, and upstream-wins leaves an ordinary abort reason.
-    signal: upstream !== undefined ? AbortSignal.any([upstream, timer.signal]) : timer.signal,
-    [Symbol.dispose]() { clearTimeout(id) },
+  const fused = new AbortController()
+  // Forwarding the reason by hand (rather than AbortSignal.any) is what makes
+  // release possible: AbortSignal.any cannot detach a source once fused.
+  const forward = (): void => { fused.abort((upstream as AbortSignal).reason) }
+  if (upstream?.aborted === true) {
+    forward()
+  } else {
+    upstream?.addEventListener('abort', forward, { once: true })
   }
+  const timer = timeoutMs > 0
+    ? setTimeout(() => { fused.abort(new TimeoutReason(code, timeoutMs)) }, timeoutMs)
+    : undefined
+
+  let released = false
+  const release = (): void => {
+    if (released) return
+    released = true
+    if (timer !== undefined) clearTimeout(timer)
+    upstream?.removeEventListener('abort', forward)
+  }
+  return { signal: fused.signal, release, [Symbol.dispose]: release }
 }
 
 /**

@@ -33,8 +33,15 @@ Call `run` with a resolved spec to execute a command in the foreground. The prom
 
 ```text
 const result = await ctx.shell.run(ctx.shell.resolve({ command: 'ls -la' }))
-console.log(result.exitCode, result.stdout.text)
+if (isDetachedRun(result)) {
+  // The command outlived the spec's detachAfterMs and still runs.
+  registry.start({ /* … */ run: () => ({ cancel: () => void result.process.kill(), done: result.process.done }) })
+} else {
+  console.log(result.exitCode, result.stdout.text)
+}
 ```
+
+A spec may carry `detachAfterMs`, the caller's own budget for waiting. When it elapses first, `run` resolves with a `ShellDetachedRun` — `{ detached: true, process, detachAfterMs }` — instead of a result, and the caller owns the live handle: register it with `ctx.jobs` or kill it. The handoff releases the executor's deadline, so no timeout or upstream abort applies afterward, and output written before it is readable from the first byte because the executor never consumed it. The timeout keeps its meaning: whichever of the two comes first wins, and a timeout or abort that fires first still kills the command and settles as a `ShellRunResult`.
 
 ### Background processes
 
@@ -81,7 +88,7 @@ The package is one role of a standard capability seam: the Service Definition th
 | File | Role |
 |---|---|
 | [`src/index.ts`](src/index.ts) | Plugin entry: abstract `ShellExecutor` service and the shared settings namespace |
-| [`src/types.ts`](src/types.ts) | Request/spec vocabulary, `ShellRunResult`, `ShellProcess`, and sandbox facts |
+| [`src/types.ts`](src/types.ts) | Request/spec vocabulary, `ShellRunResult`, `ShellDetachedRun`, `ShellProcess`, and sandbox facts |
 | [`src/render.ts`](src/render.ts) | `parseExitStatus`: the exit-status marker contract the shell tools share |
 | — | No runtime invariant companion is published; this stateless Service Definition owns request/result types, while executors and policy own observations. |
 

@@ -14,6 +14,13 @@ import type { ShellProcessRead, ShellSandboxInfo, CollectedOutput } from '@aeven
 import type { SandboxMode } from '@aeven/sandbox'
 import { escalationHintMarker, sandboxDenialMarker } from '@aeven/sandbox'
 
+/**
+ * Model-facing prefix of every background acknowledgement. A command that
+ * started as a foreground call and outlived its threshold acknowledges through
+ * the same prefix, so the card and the result text share one marker.
+ */
+export const BACKGROUND_ACK = 'started background job '
+
 /* jscpd:ignore-start -- deliberate twin of avn-tool-bash/render.ts (Agent Note). */
 
 /** Append the truncation notice (with the full-output spill path) to a stream's text. */

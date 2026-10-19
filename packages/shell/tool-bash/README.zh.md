@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`avn-tool-bash` 为 agent 提供 `bash` 工具，通过已挂载的 shell 执行器运行命令并返回 stdout、stderr 与退出标记。每次调用都运行在全新 shell 中——cwd、变量或函数都不会保留——而 `run_in_background` 把长时间运行的命令变成后台任务，agent 用 `job_output` 收集、用 `job_kill` 停止。每次调用都运行在来自 `avn-shell-env` 的受管 `AVN_*` 环境中；在沙箱执行器下，被拒绝的命令可以携带更宽的 `sandbox_permissions` 模式和一句 `justification`，经用户审批后在同一轮次内重试一次。非零退出只会被报告、不会失败，因此由 agent 决定如何应对。请与 `avn-bash-local` 或 `avn-bash-sandbox` 等执行器提供方以及 `avn-shell-env` 插件一起挂载。
+`avn-tool-bash` 为 agent 提供 `bash` 工具，通过已挂载的 shell 执行器运行命令并返回 stdout、stderr 与退出标记。每次调用都运行在全新 shell 中——cwd、变量或函数都不会保留——而 `run_in_background` 把长时间运行的命令变成后台任务，agent 用 `job_output` 收集、用 `job_kill` 停止；前台调用超过 `detachAfterMs` 后也会自行变成这样的任务，因此没有任何命令会占住对话。每次调用都运行在来自 `avn-shell-env` 的受管 `AVN_*` 环境中；在沙箱执行器下，被拒绝的命令可以携带更宽的 `sandbox_permissions` 模式和一句 `justification`，经用户审批后在同一轮次内重试一次。非零退出只会被报告、不会失败，因此由 agent 决定如何应对。请与 `avn-bash-local` 或 `avn-bash-sandbox` 等执行器提供方以及 `avn-shell-env` 插件一起挂载。
 
 ## 目录
 
@@ -41,11 +41,12 @@ kind: "package-reference"
 - name: '@aeven/tool-jobs'
 ```
 
-唯一的配置字段用于开关后台支持。
+两个配置字段覆盖后台支持。
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
-| `enableRunInBackground` | `true` | 暴露 `run_in_background`；为 `false` 时拒绝强制后台调用 |
+| `enableRunInBackground` | `true` | 暴露 `run_in_background`；为 `false` 时拒绝强制后台调用，前台调用始终等待 |
+| `detachAfterMs` | `20000` | 前台命令在被交还为后台任务之前允许运行多久 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#aeventool-bash)是每个受支持字段及其 JSDoc 的穷尽式真源；生成的[工具目录](../../../docs/tool-catalog.zh.md#aeventool-bash)携带完整参数 schema。
 
@@ -56,6 +57,12 @@ kind: "package-reference"
 ### 后台运行长时间命令
 
 传入 `run_in_background: true` 会立即返回 job id，不应用超时；命令继续运行，agent 同时处理其他事情。agent 用 `job_output` 读取输出（除非 `wait: true`，否则非阻塞）、用 `job_list` 列出任务、用 `job_kill` 停止任务；完成的任务会在会话内通知拥有它的 agent。后台支持需要挂载通用任务运行时（`avn-jobs-local`）及其控制工具（`avn-tool-jobs`）。
+
+### 超过阈值的前台调用
+
+挂载任务运行时后，前台调用同样携带 `detachAfterMs`。到点仍在运行的命令按与显式后台启动完全相同的方式交还：工具返回 `kind: 'background'`，带 `detached: true` 与已耗阈值，把实时进程注册到 `ctx.jobs`，模型继续本轮工作而不再等待。交接前的输出不会丢失——执行器从不消费它收集的内容，因此 `job_output` 从第一个字节就能读到。
+
+执行器超时的语义保持不变，先到者生效：阈值先到则交还进程且之后不再有超时；`timeoutMs`（或调用方 abort）先到则照旧杀掉命令并报告 `timedOut`。没有任务运行时就不会请求阈值，前台行为保持不变。
 
 ### 沙箱执行与升权
 
@@ -207,7 +214,8 @@ renderer 输出依数据而定的 stdout 尾部，再输出可选的 `[stderr]` 
 
 - **回放的退出 pill 从结果文本解析**——输出最后一行恰好是 `[exit code: N]` / `[killed by signal: …]` 时，会话回放会显示错误的 pill 并从卡片正文丢失该行，因为解析把它当作要消费的标记；这是仅影响显示的已知残留。
 - **`bash` 工具不参与 `timeout-policy` 预算**——它保留执行器自有的 `BASH_TIMEOUT` 路径，见[工具调用超时策略 Agent Note](../../../.agents/notes/implemented/architecture/2026-07-07-tool-call-timeout-policy.zh.md)。
-- **后台进程没有执行器超时**——工作不再需要时，调用方必须使用 `job_kill`，或依赖持有者／服务的释放。
+- **后台进程没有执行器超时**——工作不再需要时，调用方必须使用 `job_kill`，或依赖持有者／服务的释放。被交接的前台进程归入同一类：释放工具调用的 deadline 正是它能继续运行的原因。
+- **阈值只通过 `runDetachable` 生效**——`ctx.shell.run` 对所有既有调用方保持“已结算结果”的约定，因此想要交接的调用方必须按名称请求它；否则两种行为只能合为一个方法，并把 `run` 的类型对所有调用方放宽。
 
 <a id="dev-note"></a>
 
