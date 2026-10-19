@@ -185,17 +185,33 @@ jobs:
         run: |
           sudo apt-get install --yes --no-install-recommends zlib1g-dev pkg-config nasm libva-dev
 
-      - name: Install ffmpeg build tools (Windows x64)
+      # The same MSYS2 setup the ffmpeg-only workflow uses: the action installs and updates the environment, and
+      # its package set supplies the compiler, binutils, static libopus, pkgconf, nasm, make, and diffutils.
+      - name: Set up MSYS2 (Windows x64)
         if: matrix.target == 'win-x64'
-        shell: cmd
-        run: |
-          C:\msys64\usr\bin\bash.exe -lc "for attempt in 1 2 3; do pacman -S --noconfirm --needed --disable-download-timeout make nasm diffutils pkgconf mingw-w64-x86_64-gcc mingw-w64-x86_64-opus mingw-w64-x86_64-binutils mingw-w64-x86_64-zlib && exit 0; sleep 10; done; exit 1"
+        id: msys2-x64
+        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
+        with:
+          msystem: CLANG64
+          release: false
+          update: true
+          install: >-
+            make nasm diffutils pkgconf
+            mingw-w64-clang-x86_64-clang mingw-w64-clang-x86_64-binutils
+            mingw-w64-clang-x86_64-opus mingw-w64-clang-x86_64-zlib
 
-      - name: Install ffmpeg build tools (Windows arm64)
+      - name: Set up MSYS2 (Windows arm64)
         if: matrix.target == 'win-arm64'
-        shell: cmd
-        run: |
-          C:\msys64\usr\bin\bash.exe -lc "for attempt in 1 2 3; do pacman -S --noconfirm --needed --disable-download-timeout make nasm diffutils pkgconf mingw-w64-clang-aarch64-clang mingw-w64-clang-aarch64-opus mingw-w64-clang-aarch64-binutils mingw-w64-clang-aarch64-zlib && exit 0; sleep 10; done; exit 1"
+        id: msys2-arm64
+        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
+        with:
+          msystem: CLANGARM64
+          release: false
+          update: true
+          install: >-
+            make nasm diffutils pkgconf
+            mingw-w64-clang-aarch64-clang mingw-w64-clang-aarch64-binutils
+            mingw-w64-clang-aarch64-opus mingw-w64-clang-aarch64-zlib
 
       - run: pnpm install --frozen-lockfile
 
@@ -276,7 +292,7 @@ jobs:
       - name: Package
         env:
           # The setup action may place MSYS2 outside C:\msys64; the native ffmpeg build reads it from here.
-          MSYS2_ROOT: ${{ matrix.target == 'win-arm64' && steps.msys2-arm64.outputs.msys2-location || steps.msys2-x64.outputs.msys2-location }}
+          MSYS2_ROOT: ${{ (matrix.target == 'win-arm64' && steps.msys2-arm64.outputs.msys2-location || steps.msys2-x64.outputs.msys2-location) || 'C:\\msys64' }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
