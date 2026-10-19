@@ -27,7 +27,7 @@
      user bubble and rides the same Settings font-size axis (14/22 at the
      default); the `/goal` command chip, set in the code face by the shared
      projection, is what marks the line as a command. */
-  font-size: var(--avn-content-font-size, 14px);
-  line-height: calc(22px + var(--avn-content-font-delta, 0px));
+  font-size: 1rem;
+  line-height: 1.375rem;
   white-space: pre-wrap;
 }

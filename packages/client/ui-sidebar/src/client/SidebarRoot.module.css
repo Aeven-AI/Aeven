@@ -20,7 +20,7 @@
   flex-direction: column;
   box-sizing: border-box;
   color: var(--dsw-alias-label-primary);
-  font-size: 14px;
+  font-size: 0.875rem;
   /* The sidebar is elevated above the conversation surface, so any scroll
      region nested in it that does draw a bar takes the l2 pair. The session
      list holds no bar at all (ui-theme's `no-scrollbar`). */
@@ -246,9 +246,9 @@
   gap: 6px;
   min-width: 0;
   height: 24px;
-  font-size: 18px;
+  font-size: 1.125rem;
   font-weight: 500;
-  line-height: 24px;
+  line-height: 1.5rem;
   letter-spacing: 0.04em;
 }
 
@@ -268,7 +268,7 @@
   border-radius: 0;
   background: transparent;
   color: var(--dsw-alias-label-primary);
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 400;
   line-height: var(--dsw-aeven-control-size);
   cursor: pointer;

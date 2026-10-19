@@ -86,8 +86,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: var(--avn-content-font-size, 16px);
-  line-height: calc(28px + var(--avn-content-font-delta, 0px));
+  font-size: 1rem;
+  line-height: 1.75rem;
   color: var(--dsw-alias-label-caption);
   transition: color 100ms ease;
 }
@@ -101,8 +101,8 @@
   flex: none;
   margin-left: 4px;
   white-space: nowrap;
-  font-size: var(--avn-content-font-size, 16px);
-  line-height: calc(28px + var(--avn-content-font-delta, 0px));
+  font-size: 1rem;
+  line-height: 1.75rem;
   color: var(--dsw-alias-label-caption);
   transition: color 100ms ease;
 }
@@ -129,7 +129,7 @@
 .diffStat {
   margin-left: 10px;
   font-family: var(--ds-font-family-code);
-  font-size: calc(var(--avn-content-font-size-secondary, 14px) - 2px);
+  font-size: 0.75rem;
   color: var(--dsw-alias-label-caption);
   transform: translateY(0.5px);
 }
@@ -150,8 +150,8 @@
   background: none;
   font: inherit;
   text-align: left;
-  font-size: var(--avn-content-font-size, 16px);
-  line-height: calc(28px + var(--avn-content-font-delta, 0px));
+  font-size: 1rem;
+  line-height: 1.75rem;
   color: var(--dsw-alias-label-caption);
   cursor: pointer;
   transition: color 100ms ease;
@@ -276,7 +276,7 @@
    minus the ~36px banner and the primitive's 16px bottom inset below the scroll box. */
 .terminalBody {
   --dsl-terminal-font: var(--dsw-font-markdown-code-block-small);
-  --dsl-terminal-line-height: 18px;
+  --dsl-terminal-line-height: 1.125rem;
   --dsl-terminal-output-max-height: 208px;
   /* The chat table card's surface: plain white, no border. */
   background: var(--dsw-specific-input-major);

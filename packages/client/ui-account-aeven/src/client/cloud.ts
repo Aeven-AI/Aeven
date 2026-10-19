@@ -100,6 +100,35 @@ export interface CloudWallet {
   readonly transactions: readonly WalletTransaction[]
 }
 
+/**
+ * One line of `GET /api/cloud/payments`: money the reader paid.
+ *
+ * A `credit` line is purchased credit from the wallet; a `subscription` line is a plan
+ * invoice Stripe collected. Both are money in, which is why one list holds them.
+ */
+export type CloudPayment =
+  | {
+    readonly kind: 'credit'
+    readonly type: 'topup' | 'refund' | 'adjustment'
+    readonly amountUsdMicros: number
+    readonly currency: string
+    readonly createdAt: string
+  }
+  | {
+    readonly kind: 'subscription'
+    readonly type: null
+    readonly amountUsdMicros: number
+    readonly currency: string
+    readonly createdAt: string
+  }
+
+/** `GET /api/cloud/payments`. */
+export interface CloudPayments {
+  readonly currency: string
+  /** Newest first. */
+  readonly payments: readonly CloudPayment[]
+}
+
 /** One purchasable preset. */
 export interface TopUpPreset {
   readonly id: string

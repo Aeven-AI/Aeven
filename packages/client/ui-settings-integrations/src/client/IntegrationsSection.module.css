@@ -1,4 +1,4 @@
-.section { display: flex; flex-direction: column; gap: 14px; color: var(--dsw-alias-label-primary); font-size: 14px; line-height: 22px; }
+.section { display: flex; flex-direction: column; gap: 14px; color: var(--dsw-alias-label-primary); font-size: 0.875rem; line-height: 1.375rem; }
 .card { display: flex; flex-direction: column; gap: 12px; padding: 16px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 12px; }
 .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .actions > .hint { flex-basis: 100%; }
@@ -8,7 +8,7 @@
 .fieldRow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 12px; }
 .check { display: flex; align-items: center; gap: 8px; }
 .serverFields { display: flex; flex-direction: column; gap: 10px; min-width: 0; margin: 0; padding: 0; border: 0; }
-.serverFields legend { padding: 0; margin-bottom: 4px; color: var(--dsw-alias-label-primary); font-size: 16px; line-height: 24px; font-weight: 500; }
+.serverFields legend { padding: 0; margin-bottom: 4px; color: var(--dsw-alias-label-primary); font-size: 1rem; line-height: 1.5rem; font-weight: 500; }
 .section .iconAction { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 8px; color: var(--dsw-alias-label-secondary); }
 .section .iconAction:hover:enabled { color: var(--dsw-alias-label-primary); }
 .testing { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--dsw-alias-label-secondary); }
@@ -33,8 +33,8 @@
 .search { flex: 1; min-width: 0; box-sizing: border-box; height: 40px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 10px; padding: 0 12px; color: inherit; background: transparent; font: inherit; }
 .skillSummary { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .detailDescription { margin: 0; color: var(--dsw-alias-label-secondary); }
-.meta { margin: 0; color: var(--dsw-alias-label-tertiary); font-size: 12px; line-height: 18px; }
-.fileList { margin: 0; padding-left: 18px; color: var(--dsw-alias-label-secondary); font-size: 13px; overflow-wrap: anywhere; }
+.meta { margin: 0; color: var(--dsw-alias-label-tertiary); font-size: 0.75rem; line-height: 1.125rem; }
+.fileList { margin: 0; padding-left: 18px; color: var(--dsw-alias-label-secondary); font-size: 0.8125rem; overflow-wrap: anywhere; }
 .section .switch { box-sizing: border-box; position: relative; flex: 0 0 auto; width: 36px; height: 20px; padding: 2px; border: 0; border-radius: 10px; background: var(--dsw-alias-border-l3); }
 .section .switchOn, .section .switchOn:hover:enabled { background: var(--dsw-alias-brand-primary); }
 .switch:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
@@ -59,54 +59,54 @@
 .connectorIcon { width: 22px; height: 22px; object-fit: contain; }
 .connectorBadgeLarge .connectorIcon { width: 30px; height: 30px; }
 .connectorIconInverted { filter: invert(1); }
-.connectorMonogram { font-size: 10px; font-weight: 600; letter-spacing: 0.04em; color: #fff; }
-.connectorBadgeLarge .connectorMonogram { font-size: 13px; }
-.attention { color: var(--dsw-alias-label-secondary); font-size: 12px; }
+.connectorMonogram { font-size: 0.625rem; font-weight: 600; letter-spacing: 0.04em; color: #fff; }
+.connectorBadgeLarge .connectorMonogram { font-size: 0.8125rem; }
+.attention { color: var(--dsw-alias-label-secondary); font-size: 0.75rem; }
 .section .textAction { padding: 0; border: 0; color: var(--dsw-alias-label-secondary); text-decoration: underline; text-underline-offset: 3px; }
 .section .textAction:hover:enabled { background: transparent; color: var(--dsw-alias-label-primary); }
 .serverList { display: flex; flex-direction: column; }
 .serverRow { display: flex; align-items: center; gap: 16px; padding: 14px 0; }
-.connectorDescription { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dsw-alias-label-secondary); font-size: 14px; line-height: 20px; }
+.connectorDescription { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dsw-alias-label-secondary); font-size: 0.875rem; line-height: 1.25rem; }
 .connectorHeading { display: flex; align-items: center; gap: 16px; padding-top: 12px; }
 .connectorHeading h2 { flex: 1; min-width: 0; margin: 0; }
 .connectorDetail h3 { margin: 12px 0 0; }
 @media (max-width: 640px) { .section .connectorOpen { gap: 10px; } }
 
 /* Skill and connector pages, including rendered instructions: no text above 16px and no weight above 500. */
-.section.compact { --avn-content-font-size: 16px; }
-.section.compact :is(h1, h2, h3, h4, h5, h6) { margin-block: 0; font-size: 16px !important; line-height: 24px !important; font-weight: 500 !important; }
+.section.compact { --avn-content-font-size: 1rem; }
+.section.compact :is(h1, h2, h3, h4, h5, h6) { margin-block: 0; font-size: 1rem !important; line-height: 1.5rem !important; font-weight: 500 !important; }
 .section.compact :is(strong, b, th, dt, summary, [class*="heading"], [class*="Heading"]) { font-weight: 500 !important; }
 .section.compact .instructions :is(h1, h2, h3, h4, h5, h6) { margin: 24px 0 8px; }
 .section.compact .instructions > :first-child :is(h1, h2, h3, h4, h5, h6):first-child { margin-top: 0; }
-.section.compact .instructions :is(p, li, td, th, blockquote) { font-size: min(1em, 16px); line-height: 26px; }
+.section.compact .instructions :is(p, li, td, th, blockquote) { font-size: min(1em, 1rem); line-height: 1.625rem; }
 
 /* The vh line is the floor's height: `dvh` needs Safari 15.4, and the modal
    keeps a usable box there rather than none. */
 .section.skillModal { width: min(800px, 100%); height: min(800px, calc(100vh - 48px)); height: min(800px, calc(100dvh - 48px)); padding: 0; gap: 0; }
 .skillModalHeader { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 8px; padding: var(--dsw-aeven-page-inset) var(--dsw-aeven-page-inset) 0; box-sizing: border-box; }
-.skillModalHeader h2 { margin: 0; font-size: 16px; line-height: 24px; font-weight: 500 !important; color: var(--dsw-alias-label-primary); }
+.skillModalHeader h2 { margin: 0; font-size: 1rem; line-height: 1.5rem; font-weight: 500 !important; color: var(--dsw-alias-label-primary); }
 .section .skillModalClose { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 28px; height: 28px; padding: 0; border: none; border-radius: 28px; background: #000; color: #fff; }
 .section .skillModalClose:hover:enabled { background: #000; }
 .skillModalContent { flex: 1; min-height: 0; padding: var(--dsw-aeven-page-inset); overflow-y: auto; mask-image: linear-gradient(to bottom, transparent 0, #000 var(--dsw-aeven-page-inset), #000 calc(100% - var(--dsw-aeven-page-inset)), transparent 100%); }
 /* Skill content — a skill's page in the Skills tab and the connector tab's skill popup, both carrying this class — reads at the panel's own scale rather than the page's reading rhythm: the page's 16px base reduced by 14/16, with no weight above 500. These rules cover the description and the rendered Markdown, so each surface's own title keeps the page's size, and the engine's tokens carry the scale to its own code and formula chrome. */
 .section .skillContent .detailDescription { color: var(--dsw-alias-label-primary); }
-.section .skillContent :global(.hypermarkdown) { --hm-size: 14px; --hm-leading: 26px; --hm-code-size: 12px; --hm-code-leading: 21px; --hm-table-leading: 26px; --hm-math-size: 18px; font-size: 14px; line-height: 26px; }
+.section .skillContent :global(.hypermarkdown) { --hm-size: 0.875rem; --hm-leading: 1.625rem; --hm-code-size: 0.75rem; --hm-code-leading: 1.3125rem; --hm-table-leading: 1.625rem; --hm-math-size: 1.125rem; font-size: 0.875rem; line-height: 1.625rem; }
 /* A table reads at that same size rather than the engine's own step down from it, and it spans the content edge to edge: the engine's horizontal cell padding, and the 16px it insets its table block by, are overridden because its selectors nest deeper than any rule written here can. */
 .section .skillContent :global(.hypermarkdown) table { font-size: 1em !important; }
 .section .skillContent :global(.hypermarkdown) :is(th, td) { padding-inline: 0 !important; }
 .section .skillContent :global(.hypermarkdown) :global(.table-content) { padding-inline: 0 !important; }
-.section.compact .skillContent :global(.hypermarkdown) :is(h1, h2, h3, h4, h5, h6) { font-size: 14px !important; line-height: 21px !important; font-weight: 500 !important; }
-.section .skillContent :global(.hypermarkdown) li::marker { line-height: 21px; }
+.section.compact .skillContent :global(.hypermarkdown) :is(h1, h2, h3, h4, h5, h6) { font-size: 0.875rem !important; line-height: 1.3125rem !important; font-weight: 500 !important; }
+.section .skillContent :global(.hypermarkdown) li::marker { line-height: 1.3125rem; }
 
 .detailBack { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 28px; height: 28px; padding: 0; border: none; border-radius: 28px; background: #000; color: #fff; cursor: pointer; }
 
 .optionIcon { width: 16px; height: 16px; }
 .detailActions { display: flex; justify-content: flex-end; }
 .modeTabs { display: flex; align-items: flex-end; gap: 22px; border-bottom: 0.5px solid var(--dsw-alias-border-l2); margin-top: 2px; }
-.section .modeTab { position: relative; border: 0; border-radius: 0; padding: 7px 1px 9px; background: transparent; color: var(--dsw-alias-label-tertiary); font: inherit; font-size: 14px; line-height: 20px; cursor: pointer; }
+.section .modeTab { position: relative; border: 0; border-radius: 0; padding: 7px 1px 9px; background: transparent; color: var(--dsw-alias-label-tertiary); font: inherit; font-size: 0.875rem; line-height: 1.25rem; cursor: pointer; }
 .section .modeTab:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 2px; border-radius: 2px; color: var(--dsw-alias-label-primary); }
 .section .modeTab:hover:enabled, .section .modeTab[data-active='true'] { color: var(--dsw-alias-label-primary); background: transparent; }
 .section .modeTab[data-active='true']::after { position: absolute; right: 0; bottom: -1px; left: 0; height: 2px; border-radius: 2px 2px 0 0; background: var(--dsw-alias-label-primary); content: ''; }
 .category { display: flex; flex-direction: column; gap: 6px; }
-.categoryHeader { position: sticky; top: 0; z-index: 1; display: flex; align-items: baseline; gap: 8px; margin: 0; padding: 6px 0; color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 18px; font-weight: 500; text-transform: capitalize; background: transparent; }
+.categoryHeader { position: sticky; top: 0; z-index: 1; display: flex; align-items: baseline; gap: 8px; margin: 0; padding: 6px 0; color: var(--dsw-alias-label-secondary); font-size: 0.8125rem; line-height: 1.125rem; font-weight: 500; text-transform: capitalize; background: transparent; }
 .categoryCount { color: var(--dsw-alias-label-tertiary); font-weight: 400; }

@@ -16,8 +16,8 @@
   border-radius: var(--dsw-aeven-radius-control);
   background: transparent;
   cursor: pointer;
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
   color: var(--dsw-alias-label-primary);
   text-align: left;
 }
@@ -56,8 +56,8 @@
 /* The breakdown's own width; the card around it sets the padding. */
 .panel {
   width: 264px;
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
   font-weight: 400;
   color: var(--dsw-alias-label-secondary);
 }

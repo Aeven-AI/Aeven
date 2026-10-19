@@ -6,15 +6,15 @@
 
 ## 问题
 
-会话正文字号是固定的（markdown 阶梯按 0.875 重缩放后为 14px）。用户需要一个设置项：在 General → Appearance 下加一行「字号大小」，用步进器交互，范围 12–17，默认 14，同时调整转录正文与 composer 输入框的文字大小。
+会话正文字号是固定的（markdown 阶梯按 0.875 重缩放后为 14px）。用户需要一个设置项：在 General → Appearance 下加一行「字号大小」，用步进器交互，范围 12–17，默认 16，同时调整转录正文与 composer 输入框的文字大小。
 
 ## 决策
 
 **主题插件拥有该设置。**`ThemeSettingsSchema` 在既有 `ui-theme` namespace 的 `preference` 旁新增 `fontSize`（`z.number().step(1).min(12).max(17).default(14)`）——一个持久化 section、一个 settings scope、一条采纳路径。`ThemeRuntime` 在 `ThemeSnapshot` 中携带 `fontSize`，暴露 `setFontSize(px)`（校验整数与范围，越界抛教学式错误），并通过 `theme/change` 重新发布。同一插件把 FontSizeRow 注册进 `settings.general.item`，order 11，紧挨外观方块（order 10）之下。
 
-**呈现走既有快照管线。**服务绝不接触 DOM：ui-layout 的 `ThemePresenter` 依据每份快照在 `body` 上写 `--avn-content-font-size`（dispose 时收回），Host 引导脚本把持久化值嵌入 index 响应，让首帧就使用所选字号——与暗色属性同一条插件前路径，避免字号闪变。
+**呈现走既有快照管线。**服务绝不接触 DOM：ui-layout 的 `ThemePresenter` 依据每份快照把该字号写到 `html` 上作为文档字号——即整个客户端的排版基准，其下每个 `rem` 都随之缩放，见[根字号 Agent Note](../architecture/2026-10-19-root-font-size-type-scale.zh.md)——Host 引导脚本把持久化值嵌入 index 响应，让首帧就使用所选字号，与暗色属性同一条插件前路径，避免字号闪变。`ThemePresenter` 仍为客户端之外的界面在 `body` 上发布 `--avn-content-font-size`；客户端已无任何读取。
 
-**一个 CSS 增量变量平移阶梯，另派生一个低一档层级。**`gradient-shadow-text.css` 派生 `--avn-content-font-delta: calc(var(--avn-content-font-size, 14px) - 14px)`，把 markdown h1–h4 与 base 各变体（字号与行高）按同一像素增量平移，保持标题层级与各变体的行距。低一档文本——比正文低一档——读 `--avn-content-font-size-secondary: min(设置值 − 1px, max(13px, 设置值 − 2px))`：设置 ≤14 时为设置值 −1，>14 时为设置值 −2（12→11、13→12、14→13、15→13、16→14、17→15），其行高经 `--avn-content-font-delta-secondary`（低一档值 − 13px）随动。低一档覆盖：markdown 表格变体、共享 DisclosureRow 标题（工具调用、think、命令）、ToolRow/bash 行的 summary 与文件链接、think 正文、compaction/context/retry/错误行、StatsLine、chat 提示与打开失败条、workflow-run 面板的头部/计数/状态、回合状态时钟、引用摘要与笔记触发标签。small 与 code 变体保持固定——中断回合的 `.stopped` 标签（11px）同样固定：它们是密集次级文本，其默认值在字号下调时会低于可读下限。token 阶梯之外按正文档读取的消费方直接使用 `var(--avn-content-font-size, 14px)` 与 `calc(<默认行高> + var(--avn-content-font-delta, 0px))`：助手正文根节点、用户气泡（含行内引用字形）、composer 卡片（其 textarea/mirror/backdrop 三层按设计从卡片继承字体度量）、compaction/DisclosureRow 的行几何（行高、leading 盒、展开内容的 `22px + delta` 缩进）、消息时钟与图标操作（slot 注入的消息反馈操作经同一对变量同步缩放），以及回合状态行。流内图标经由各 leading 盒的 CSS 边长缩放（`svg` width/height 覆盖字形自身属性）；StateDot 通过其 `data-state` 属性豁免——它是状态标记，不是文字组件。回退值（正文 14px、低一档 13px）让变量缺席时（测试、独立挂载、采纳前的远程组合）所有表面逐像素不变。
+**阶梯以该基准的分数表达。**本记录最初引入的增量变量（`--avn-content-font-delta` 及其低一档的同类）已退役：markdown 阶梯、低一档层级，以及过去加增量的每一处行度量，现在都是 `rem` 值——正文 `1rem`、低一档 `0.875rem`、正文行距 `1.75rem`——于是比例在任何基准下都成立，而不只是在整数步长下。低一档文本——比正文低一档——读 `--avn-content-font-size-secondary: min(设置值 − 1px, max(13px, 设置值 − 2px))`：设置 ≤14 时为设置值 −1，>14 时为设置值 −2（12→11、13→12、14→13、15→13、16→14、17→15），其行高经 `--avn-content-font-delta-secondary`（低一档值 − 13px）随动。低一档覆盖：markdown 表格变体、共享 DisclosureRow 标题（工具调用、think、命令）、ToolRow/bash 行的 summary 与文件链接、think 正文、compaction/context/retry/错误行、StatsLine、chat 提示与打开失败条、workflow-run 面板的头部/计数/状态、回合状态时钟、引用摘要与笔记触发标签。small 与 code 变体保持固定——中断回合的 `.stopped` 标签（11px）同样固定：它们是密集次级文本，其默认值在字号下调时会低于可读下限。token 阶梯之外按正文档读取的消费方直接使用 `var(--avn-content-font-size, 14px)` 与 `calc(<默认行高> + var(--avn-content-font-delta, 0px))`：助手正文根节点、用户气泡（含行内引用字形）、composer 卡片（其 textarea/mirror/backdrop 三层按设计从卡片继承字体度量）、compaction/DisclosureRow 的行几何（行高、leading 盒、展开内容的 `22px + delta` 缩进）、消息时钟与图标操作（slot 注入的消息反馈操作经同一对变量同步缩放），以及回合状态行。流内图标经由各 leading 盒的 CSS 边长缩放（`svg` width/height 覆盖字形自身属性）；StateDot 通过其 `data-state` 属性豁免——它是状态标记，不是文字组件。回退值（正文 14px、低一档 13px）让变量缺席时（测试、独立挂载、采纳前的远程组合）所有表面逐像素不变。
 
 **步进器是药丸控件，不是菜单。**该行复用选择器药丸几何（h36 r18 模块填充），数值在药丸内居中，上下箭头列在 hover/focus-within 时显示并绝对定位在药丸右缘（显示时数值不移动），药丸后带 `px` 单位标签。标题下方的三级说明行标明作用范围——字号仅影响会话内容，不影响应用外框。到达边界时对应箭头禁用；显示跟随 store 镜像，绝不跟随点击回声——与外观行相同的 store/face 模式。
 

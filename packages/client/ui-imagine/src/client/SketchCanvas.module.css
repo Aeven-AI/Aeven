@@ -23,9 +23,9 @@
   margin: 0;
   color: var(--dsw-alias-label-primary);
   font-family: var(--dsw-font-family);
-  font-size: 18px;
+  font-size: 1.125rem;
   font-weight: 500;
-  line-height: 26px;
+  line-height: 1.625rem;
 }
 
 .tools {
@@ -42,9 +42,9 @@
   background: transparent;
   color: var(--dsw-alias-brand-text);
   font-family: var(--dsw-font-family);
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 500;
-  line-height: 22px;
+  line-height: 1.375rem;
   cursor: pointer;
 }
 
@@ -101,8 +101,8 @@
   margin: 0;
   color: var(--dsw-alias-state-error-primary);
   font-family: var(--dsw-font-family);
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
 }
 
 .palette {

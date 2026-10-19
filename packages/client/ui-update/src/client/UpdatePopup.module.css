@@ -17,13 +17,13 @@
 .message {
   margin: 0;
   color: var(--dsw-alias-text-primary);
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
 }
 
 .detail {
   margin: 8px 0 0;
   color: var(--dsw-alias-text-secondary);
-  font-size: 13px;
-  line-height: 18px;
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
 }

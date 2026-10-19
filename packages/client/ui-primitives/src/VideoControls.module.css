@@ -99,8 +99,8 @@
   border-radius: 999px;
   background-color: var(--dsw-alias-bg-layer-1);
   color: var(--dsw-alias-label-primary);
-  font-size: 12px;
-  line-height: 22px;
+  font-size: 0.75rem;
+  line-height: 1.375rem;
   font-variant-numeric: tabular-nums;
 }
 
@@ -229,8 +229,8 @@
   border-radius: var(--dsw-aeven-radius-control);
   background: transparent;
   color: var(--dsw-alias-label-primary);
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
   text-align: left;
   cursor: pointer;
 }

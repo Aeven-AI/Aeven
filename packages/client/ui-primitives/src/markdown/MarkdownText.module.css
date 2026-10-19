@@ -97,7 +97,7 @@
 }
 
 .markdown li::marker {
-  line-height: 24px;
+  line-height: 1.5rem;
   color: var(--dsw-alias-label-secondary);
 }
 
@@ -158,7 +158,7 @@
   font: var(--dsw-font-markdown-code);
   font-family: var(--ds-font-family-code);
   font-size: 0.875em !important;
-  color: #737373;
+  color: var(--dsw-alias-markdown-inline-code-text);
   background-color: var(--dsw-alias-markdown-inline-code);
   border-radius: 16px;
   padding: 2px 8px;
@@ -212,14 +212,14 @@
 
 .markdown.markdown :global(.reasoning-header) {
   font-family: var(--dsw-font-family);
-  font-size: var(--avn-content-font-size, 16px);
+  font-size: 1rem;
   color: var(--dsw-alias-label-tertiary);
 }
 
 .markdown.markdown :global(.reasoning-content) {
   color: var(--dsw-alias-label-tertiary);
-  font-size: var(--avn-content-font-size, 16px);
-  line-height: calc(28px + var(--avn-content-font-delta, 0px));
+  font-size: 1rem;
+  line-height: 1.75rem;
 }
 
 /* Diagrams follow the product typeface. Mermaid bakes its stock Trebuchet
@@ -418,8 +418,8 @@
    doubles the class so it outranks the reading-rhythm rules above. */
 .markdown.compact {
   max-width: 100%;
-  font-size: var(--avn-content-font-size, 16px);
-  line-height: calc(28px + var(--avn-content-font-delta, 0px));
+  font-size: 1rem;
+  line-height: 1.75rem;
   color: var(--dsw-alias-label-tertiary);
 }
 

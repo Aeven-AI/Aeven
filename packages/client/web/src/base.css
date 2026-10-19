@@ -38,7 +38,7 @@ body {
   font-smooth: grayscale;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  color: var(--dsw-alias-label-primary, #0f1115);
+  color: var(--dsw-alias-label-primary, #000);
   background: var(--dsw-alias-bg-base, #fff);
   /* Supporting browsers insert CJK/Latin spacing in inherited prose. */
   text-autospace: normal;
@@ -79,6 +79,6 @@ textarea {
   select,
   textarea,
   [contenteditable] {
-    font-size: max(16px, 1em) !important;
+    font-size: max(16px, 1em) !important; /* type-scale-allow: iOS focus-zoom floor is absolute */
   }
 }

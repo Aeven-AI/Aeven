@@ -52,8 +52,8 @@
 
 .title {
   margin: 0;
-  font-size: 16px;
-  line-height: 24px;
+  font-size: 1rem;
+  line-height: 1.5rem;
   font-weight: 500;
   color: var(--dsw-alias-label-primary);
 }
@@ -80,8 +80,8 @@
 .description {
   margin: 0;
   padding: 0 24px;
-  font-size: 14px;
-  line-height: 28px;
+  font-size: 0.875rem;
+  line-height: 1.75rem;
   font-weight: 400;
   color: var(--dsw-alias-label-primary);
 }

@@ -30,7 +30,7 @@
   overflow: hidden;
   color: var(--dsw-alias-label-primary);
   font-family: inherit;
-  font-size: 14px;
+  font-size: 0.875rem;
   line-height: var(--dsw-aeven-control-size);
 }
 
@@ -123,8 +123,8 @@
 /* Title row (figma 501:29959): 16/500 lh24, 12px side padding. */
 .navTitle {
   padding: 0 12px;
-  font-size: 16px;
-  line-height: 24px;
+  font-size: 1rem;
+  line-height: 1.5rem;
   font-weight: 500;
   color: var(--dsw-alias-label-primary);
 }
@@ -152,8 +152,8 @@
   background: transparent;
   cursor: pointer;
   font-family: inherit;
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
   font-weight: 400;
   color: var(--dsw-alias-label-primary);
   text-align: left;
@@ -287,6 +287,17 @@
     #000 calc(100% - var(--avn-settings-fade)),
     transparent 100%
   );
+}
+
+/* Text entry takes the caret, not a box: no Settings field frames itself when
+   focused. Buttons, switches, tabs, and cards keep their keyboard rings. */
+.options input:focus,
+.options input:focus-visible,
+.options textarea:focus,
+.options textarea:focus-visible,
+.options select:focus,
+.options select:focus-visible {
+  outline: none;
 }
 
 /* Visually-hidden text seat (close button accessible name from slot content). */

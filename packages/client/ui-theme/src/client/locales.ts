@@ -8,8 +8,7 @@ export const zh = {
   'appearance.dark': '深色',
   'appearance.system': '跟随系统',
   'fontSize.title': '字号大小',
-  'fontSize.description': '仅影响会话内容的字号',
-  'fontSize.unit': 'px',
+  'fontSize.description': '影响整个界面',
   'fontSize.increase': '增大字号',
   'fontSize.decrease': '减小字号',
 } satisfies Record<string, string>
@@ -25,8 +24,7 @@ export const en = {
   'appearance.dark': 'Dark',
   'appearance.system': 'System',
   'fontSize.title': 'Font size',
-  'fontSize.description': 'Only affects conversation content',
-  'fontSize.unit': 'px',
+  'fontSize.description': 'Affects the whole interface',
   'fontSize.increase': 'Increase font size',
   'fontSize.decrease': 'Decrease font size',
 } satisfies Record<ThemeKey, string>
@@ -39,8 +37,7 @@ export const es = {
   'appearance.dark': 'Oscuro',
   'appearance.system': 'Sistema',
   'fontSize.title': 'Tamaño de fuente',
-  'fontSize.description': 'Solo afecta al contenido de la conversación',
-  'fontSize.unit': 'px',
+  'fontSize.description': 'Afecta a toda la interfaz',
   'fontSize.increase': 'Aumentar el tamaño de fuente',
   'fontSize.decrease': 'Reducir el tamaño de fuente',
 } satisfies Record<ThemeKey, string>

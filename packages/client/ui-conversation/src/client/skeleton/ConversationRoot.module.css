@@ -285,8 +285,8 @@
 .crumbSep {
   /* figma: "/" separators are 14px caption gray (75:7903), one tint lighter than crumb text. */
   color: var(--dsw-alias-label-caption);
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
 }
 
 .crumb {
@@ -296,8 +296,8 @@
   border: none;
   border-radius: 12px;
   background: transparent;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   color: var(--dsw-alias-label-tertiary);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -305,8 +305,8 @@
 }
 
 .crumbSubagent {
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
 }
 
 .crumb:hover:not(:disabled) {
@@ -401,8 +401,8 @@
   padding: 0;
   border: none;
   background: transparent;
-  font-size: 14px;
-  line-height: 16px;
+  font-size: 0.875rem;
+  line-height: 1rem;
   font-weight: 400;
   color: var(--dsw-alias-label-tertiary);
   cursor: pointer;
@@ -915,6 +915,6 @@
   border-radius: var(--dsw-aeven-radius-surface);
   background: var(--dsw-specific-input-major);
   color: var(--dsw-alias-label-secondary);
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
 }

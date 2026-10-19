@@ -15,8 +15,8 @@
   min-height: 0;
   position: relative;
   color: var(--dsw-alias-label-primary);
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   background: var(--dsw-specific-sidebar-fill);
 }
 
@@ -55,7 +55,7 @@
   min-width: 0;
   overflow: hidden;
   color: var(--dsw-alias-label-tertiary);
-  font-size: 14px;
+  font-size: 0.875rem;
   text-overflow: ellipsis;
 }
 
@@ -126,8 +126,8 @@
     var(--device-glass-edge),
     0 8px 24px rgba(0, 0, 0, 0.1);
   color: var(--dsw-alias-label-secondary);
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   white-space: pre-line;
   overflow-wrap: anywhere;
   pointer-events: auto;
@@ -204,9 +204,9 @@
   padding: 0 24px;
   box-sizing: border-box;
   color: var(--dsw-alias-label-primary);
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: inherit;
-  line-height: 20px;
+  line-height: 1.25rem;
   white-space: nowrap;
 }
 
@@ -271,7 +271,7 @@
   min-width: 0;
   overflow: hidden;
   color: var(--dsw-alias-label-tertiary);
-  font-size: 14px;
+  font-size: 0.875rem;
   text-align: right;
   text-overflow: ellipsis;
 }
@@ -322,16 +322,16 @@
 .emptyText {
   max-width: 32ch;
   margin: 0;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
 }
 
 .hint {
   margin: 8px 0 0;
   padding: 0 24px;
   color: var(--dsw-alias-label-tertiary);
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
 }
 
 /* ── loading ─────────────────────────────────────────────────────────────── */
@@ -367,15 +367,15 @@
 .loadingName {
   margin: 0;
   color: var(--dsw-alias-label-primary);
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
 }
 
 .loadingMessage {
   margin: 0;
   color: var(--dsw-alias-label-tertiary);
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   overflow-wrap: anywhere;
 }
 
@@ -460,8 +460,8 @@
   border-radius: 3px;
   background: var(--dsw-alias-state-business-primary);
   color: #fff;
-  font-size: 9px;
-  line-height: 14px;
+  font-size: 0.5625rem;
+  line-height: 0.875rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -489,7 +489,7 @@
   background: var(--dsw-alias-bg-layer-1);
   box-shadow: var(--device-glass-edge);
   color: var(--dsw-alias-label-secondary);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 /* The drawer floats over the screen in a narrow column and docks beside it
@@ -508,7 +508,7 @@
   border-radius: 20px;
   background: var(--dsw-alias-bg-layer-1);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.16);
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 /* Docked once the stage itself is wide enough for the screen and the drawer
@@ -532,7 +532,7 @@
   gap: 8px;
   height: 40px;
   padding: 0 5px 0 16px;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .drawerHead .iconButton {
@@ -559,9 +559,9 @@
 .sectionTitle {
   margin: 0;
   color: var(--dsw-alias-label-tertiary);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: inherit;
-  line-height: 18px;
+  line-height: 1.125rem;
 }
 
 .sectionToggle {
@@ -597,7 +597,7 @@
 .fieldLabel {
   flex: none;
   color: var(--dsw-alias-label-secondary);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .fieldValue {
@@ -610,7 +610,7 @@
 .mono {
   overflow: hidden;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 12px;
+  font-size: 0.75rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -633,7 +633,7 @@
   background: var(--dsw-alias-bg-base);
   color: var(--dsw-alias-label-primary);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 12px;
+  font-size: 0.75rem;
   outline: none;
 }
 
@@ -669,7 +669,7 @@
   background: var(--dsw-alias-bg-base);
   color: var(--dsw-alias-label-primary);
   font: inherit;
-  font-size: 12px;
+  font-size: 0.75rem;
   cursor: pointer;
   transition: background-color 120ms ease;
 }
@@ -709,7 +709,7 @@
   background: transparent;
   color: var(--dsw-alias-label-secondary);
   font: inherit;
-  font-size: 12px;
+  font-size: 0.75rem;
   cursor: pointer;
 }
 
@@ -773,8 +773,8 @@
   overflow: auto;
   list-style: none;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 11px;
-  line-height: 18px;
+  font-size: 0.6875rem;
+  line-height: 1.125rem;
 }
 
 .eventLog li {
@@ -796,7 +796,7 @@
 .muted {
   margin: 0;
   color: var(--dsw-alias-label-tertiary);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .error {
@@ -805,7 +805,7 @@
   border-radius: 10px;
   background: var(--dsw-alias-bg-base);
   color: var(--dsw-alias-state-error-primary);
-  font-size: 12px;
+  font-size: 0.75rem;
   overflow-wrap: anywhere;
 }
 
@@ -835,15 +835,15 @@
 
 .setupTitle {
   margin: 0;
-  font-size: 16px;
+  font-size: 1rem;
   font-weight: 500;
-  line-height: 22px;
+  line-height: 1.375rem;
 }
 
 .setupDescription {
   margin: -10px 0 0;
   color: var(--dsw-alias-label-secondary);
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .setupSteps {
@@ -860,7 +860,7 @@
   flex-direction: column;
   gap: 6px;
   color: var(--dsw-alias-label-tertiary);
-  font-size: 11px;
+  font-size: 0.6875rem;
 }
 
 .setupStep::before {
@@ -882,12 +882,12 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .setupSectionTitle {
   margin: 0;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: inherit;
 }
 
@@ -901,7 +901,7 @@
 
 .setupSwitchRow p {
   margin: 0;
-  line-height: 20px;
+  line-height: 1.25rem;
 }
 
 .status {
@@ -913,7 +913,7 @@
   gap: 8px;
   margin: 0;
   color: var(--dsw-alias-label-secondary);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .status > svg {
@@ -952,8 +952,8 @@
 .platformMessage {
   margin: 0;
   color: var(--dsw-alias-label-secondary);
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 0.75rem;
+  line-height: 1rem;
 }
 
 .setupFooter {
@@ -965,6 +965,6 @@
 .setupError {
   margin: 0;
   color: var(--dsw-alias-state-error-primary);
-  font-size: 12px;
+  font-size: 0.75rem;
   overflow-wrap: anywhere;
 }

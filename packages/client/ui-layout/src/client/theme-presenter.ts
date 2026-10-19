@@ -51,6 +51,10 @@ export class ThemePresenter {
     const body = document.body
     if (scheme === 'dark') body.setAttribute(DARK_ATTRIBUTE, '')
     else body.removeAttribute(DARK_ATTRIBUTE)
+    // The root size is the typographic base of the whole client: every rem
+    // resolves against it, so this one write is what makes the interface follow
+    // the reader's choice.
+    document.documentElement.style.fontSize = `${snapshot.fontSize}px`
     body.style.setProperty(CONTENT_FONT_SIZE_VARIABLE, `${snapshot.fontSize}px`)
     body.style.setProperty(SECONDARY_FONT_SIZE_VARIABLE, `${snapshot.secondaryFontSize}px`)
     for (const name of this.appliedTokens) body.style.removeProperty(name)
@@ -66,6 +70,7 @@ export class ThemePresenter {
   /** Retract root color-scheme, the palette attribute, token variables, the font-size axis, and the owned metadata node. */
   dispose(): void {
     document.documentElement.style.removeProperty('color-scheme')
+    document.documentElement.style.removeProperty('font-size')
     const body = document.body
     body.removeAttribute(DARK_ATTRIBUTE)
     body.style.removeProperty(CONTENT_FONT_SIZE_VARIABLE)

@@ -20,6 +20,9 @@ import css from './terminal.module.css'
 import { TerminalTheme } from './terminal-theme.ts'
 import { observeTerminalCursor } from './terminal-cursor.ts'
 
+/** The terminal's glyph size as a fraction of the reader's base: 13px at 16px. */
+const TERMINAL_TYPE_RATIO = 13 / 16
+
 /** The live theme, read by the screen to recolour itself. */
 export interface ThemeSource {
   readonly getSnapshot: () => ThemeSnapshot
@@ -181,7 +184,10 @@ function TerminalScreen({ state, model, visible, label, theme }: {
     const xterm = new Terminal({
       minimumContrastRatio: 4.5,
       cursorBlink: true,
-      fontSize: 13,
+      // The emulator measures glyphs in whole pixels of its own, so its size is
+      // derived from the reader's base rather than stated against it: 13px at the
+      // 16px default, and the same fraction of any other base.
+      fontSize: Math.round(theme.fontSize * TERMINAL_TYPE_RATIO),
       fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
       scrollback: current.current.state.environment?.scrollback ?? 0,
     })

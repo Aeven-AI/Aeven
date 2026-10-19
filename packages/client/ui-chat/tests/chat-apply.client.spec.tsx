@@ -105,7 +105,7 @@ describe('Chat apply wiring', () => {
     expect(b.runtime.slots.entries('settings.general.item').map(row => row.options.id))
       .toEqual(['composer-enter'])
     expect(b.runtime.slots.entries('settings.appearance.item').map(row => row.options.id))
-      .toEqual(['transcript-view', 'text-animation'])
+      .toEqual(['text-animation', 'transcript-view'])
     expect(b.runtime.slots.entries('details')).toHaveLength(1)
     await b.runtime.dispose()
   })

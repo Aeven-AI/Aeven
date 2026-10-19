@@ -3,8 +3,8 @@
   --json-tree-string: #c41a16;
   --json-tree-number: #1c00cf;
   --json-tree-keyword: #1c00cf;
-  --json-tree-punctuation: #202124;
-  --json-tree-icon: #5f6368;
+  --json-tree-punctuation: rgb(80, 80, 80);
+  --json-tree-icon: rgb(150, 150, 150);
   --json-tree-hover: rgb(60 64 67 / 4%);
 
   min-width: 0;
@@ -12,7 +12,7 @@
   position: relative;
   color: var(--dsw-alias-label-primary);
   background: var(--dsw-alias-bg-layer-1);
-  font: 400 12px/16px var(--ds-font-family-code);
+  font: 400 0.75rem/1rem var(--ds-font-family-code);
   overscroll-behavior-x: contain;
   overscroll-behavior-y: auto;
 }

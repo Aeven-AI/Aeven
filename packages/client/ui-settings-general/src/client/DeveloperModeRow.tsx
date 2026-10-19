@@ -33,6 +33,7 @@ export function DeveloperModeRow({ useDeveloperMode, setDeveloperMode, t }: Deve
       description={t('developer.description')}
       enabled={enabled}
       onChange={setDeveloperMode}
+      divider
       t={t}
     />
   )

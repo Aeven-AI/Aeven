@@ -99,7 +99,7 @@ export function apply(ctx: Context): void {
   ctx.slots.inject('settings.appearance.item', () => ctx.slots.register({
     name: 'settings.appearance.item',
     id: 'transcript-view',
-    order: 12,
+    order: 13,
     locale: NS,
     inject: (): TranscriptViewRowInjected => ({
       hooks: { transcriptView: transcriptView.mode },
@@ -110,7 +110,7 @@ export function apply(ctx: Context): void {
   ctx.slots.inject('settings.appearance.item', () => ctx.slots.register({
     name: 'settings.appearance.item',
     id: 'text-animation',
-    order: 13,
+    order: 12,
     locale: NS,
     inject: (): TextAnimationRowInjected => ({
       hooks: { textAnimationSetting: textAnimation.enabled },

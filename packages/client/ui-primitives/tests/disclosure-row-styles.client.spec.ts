@@ -31,18 +31,18 @@ describe('DisclosureRow.module.css font-size axis', () => {
     // call or think step is content the reader follows, not chrome, so the
     // secondary tier left it a step smaller than the prose around it.
     expect(declarations('.title')).toEqual(expect.arrayContaining([
-      'font-size: var(--avn-content-font-size, 16px)',
-      'line-height: calc(28px + var(--avn-content-font-delta, 0px))',
+      'font-size: 1rem',
+      'line-height: 1.75rem',
     ]))
   })
 
   it('moves the row height and leading box by the same delta', () => {
     expect(declarations('.row')).toEqual(expect.arrayContaining([
-      'height: calc(24px + var(--avn-content-font-delta, 0px))',
+      'height: 1.5rem',
     ]))
     expect(declarations('.leading')).toEqual(expect.arrayContaining([
-      'width: calc(16px + var(--avn-content-font-delta, 0px))',
-      'height: calc(16px + var(--avn-content-font-delta, 0px))',
+      'width: 1rem',
+      'height: 1rem',
     ]))
   })
 
@@ -53,8 +53,8 @@ describe('DisclosureRow.module.css font-size axis', () => {
     // registered icon and the idle wrapper that swaps for the hover chevron.
     for (const selector of ['.leading > svg:not([data-state])', '.leading > .iconIdle svg:not([data-state])']) {
       expect(declarations(selector), selector).toEqual(expect.arrayContaining([
-        'width: calc(14px + var(--avn-content-font-delta, 0px))',
-        'height: calc(14px + var(--avn-content-font-delta, 0px))',
+        'width: 0.875rem',
+        'height: 0.875rem',
       ]))
     }
   })

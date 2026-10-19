@@ -23,8 +23,8 @@
   background: var(--dsw-tint-menu);
   backdrop-filter: blur(4px);
   color: var(--dsw-alias-label-primary);
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
   --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
   box-shadow:
     inset 1px 1px 0 0 var(--dsw-specific-popup-highlight),

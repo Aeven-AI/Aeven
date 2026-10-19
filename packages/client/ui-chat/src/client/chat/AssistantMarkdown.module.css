@@ -9,8 +9,8 @@
 .root {
   display: flex;
   flex-direction: column;
-  font-size: var(--avn-content-font-size, 14px);
-  line-height: calc(var(--dsw-aeven-reading-line-height) + var(--avn-content-font-delta, 0px));
+  font-size: 1rem;
+  line-height: var(--dsw-aeven-reading-line-height);
   color: var(--dsw-alias-label-primary);
 }
 
@@ -69,8 +69,8 @@
   border-radius: 6px;
   background: var(--dsw-alias-interactive-bg-hover);
   color: var(--dsw-alias-label-tertiary);
-  font-size: 11px;
-  line-height: 18px;
+  font-size: 0.6875rem;
+  line-height: 1.125rem;
 }
 
 /* Finalized footer offset (figma 43:32997); chrome lives in MessageIconActions. */

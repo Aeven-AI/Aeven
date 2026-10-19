@@ -9,8 +9,8 @@
   /* Todo's section padding; the 9px trail is the only difference. */
   padding: 16px 9px 16px 16px;
   box-sizing: border-box;
-  font-size: 16px;
-  line-height: 24px;
+  font-size: 1rem;
+  line-height: 1.5rem;
 }
 
 .goalGlyph {

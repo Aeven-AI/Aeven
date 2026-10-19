@@ -22,14 +22,14 @@
   align-items: center;
   gap: 4px;
   min-width: 0;
-  height: calc(28px + var(--avn-content-font-delta, 0px));
+  height: 1.75rem;
   padding: 6px 8px;
   border: none;
   border-radius: 28px;
   background: transparent;
-  font-size: var(--avn-content-font-size, 16px);
+  font-size: 1rem;
   font-variant-numeric: normal;
-  line-height: calc(28px + var(--avn-content-font-delta, 0px));
+  line-height: 1.75rem;
   white-space: nowrap;
   cursor: pointer;
 }
@@ -62,7 +62,7 @@
 @media (max-width: 480px) {
   .trigger {
     justify-content: center;
-    width: calc(28px + var(--avn-content-font-delta, 0px));
+    width: 1.75rem;
     padding: 6px;
   }
 
@@ -95,8 +95,8 @@
   background: var(--dsw-specific-menu);
   --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
   box-shadow: var(--dsw-elevation-prominent);
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
   color: var(--dsw-alias-label-secondary);
   cursor: default;
 }

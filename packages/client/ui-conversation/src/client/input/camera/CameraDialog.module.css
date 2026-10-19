@@ -170,8 +170,8 @@
   border-radius: 15px;
   background: var(--dsw-static-neutral-1000);
   color: var(--dsw-static-neutral-00);
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 0.75rem;
+  line-height: 1rem;
   font-variant-numeric: tabular-nums;
 }
 
@@ -204,7 +204,7 @@
   border-radius: 50%;
   background: var(--dsw-static-neutral-1000);
   color: var(--dsw-static-neutral-00);
-  font-size: 40px;
+  font-size: 2.5rem;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   animation: camera-count 1s ease-out;
@@ -246,8 +246,8 @@
 .pendingText {
   margin: 0;
   color: inherit;
-  font-size: 13px;
-  line-height: 20px;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
 }
 
 /* The browser's own prompt is the action in this state, so the second line
@@ -255,8 +255,8 @@
 .pendingHint {
   margin: -4px 0 0;
   color: inherit;
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
   opacity: 0.5;
 }
 
@@ -280,8 +280,8 @@
 .failureText {
   margin: 0;
   color: var(--dsw-static-neutral-00);
-  font-size: 13px;
-  line-height: 20px;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
 }
 
 /* Timer, shutter, and the switch-camera disc. The side controls are 30px black
@@ -395,8 +395,8 @@
   padding: 0 16px;
   border: none;
   border-radius: 15px;
-  font-size: 13px;
-  line-height: 30px;
+  font-size: 0.8125rem;
+  line-height: 1.875rem;
   cursor: pointer;
 }
 

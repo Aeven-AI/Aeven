@@ -8,7 +8,7 @@ This reference defines styling ownership and component rules for browser client 
 
 [`ui-theme`](../packages/client/ui-theme/README.md) owns the `--dsw-*` static scale, semantic aliases, typography, motion, gradients, shadows, scrollbar styles, and light/dark preference. [`ui-layout`](../packages/client/ui-layout/README.md) applies the resolved theme snapshot to the document. Feature packages consume semantic aliases and do not define another global theme.
 
-`aeven-language.css` is the visual baseline layer. It centralizes the 1024px reading width, 24px desktop and 16px mobile insets, 280px sidebar, 400ms sidebar motion, 40px controls, 30px surfaces, 20px content/control corners, Google Sans Flex typography, warm-neutral palette, and conversation spacing; component modules consume these variables while each component keeps its own layout and interaction rules. Product icons remain owned by their existing feature packages except the sidebar hamburger and double-chevron toggle, which follow the Aeven reference.
+`aeven-language.css` is the visual baseline layer. It centralizes the 1024px reading width, 24px desktop and 16px mobile insets, 280px sidebar, 400ms sidebar motion, 40px controls, 30px surfaces, 20px content/control corners, Google Sans Flex typography, the seven-step neutral ramp, and conversation spacing; component modules consume these variables while each component keeps its own layout and interaction rules. Product icons remain owned by their existing feature packages except the sidebar hamburger and double-chevron toggle, which follow the Aeven reference.
 
 Global style sheets belong in `ui-theme/src/styles/`. Component styles live beside their component as CSS Modules. A component may define a local custom property when its value is part of that component's layout or presentation contract; shared colors, typography, elevation, and motion belong to the theme package.
 
@@ -16,6 +16,7 @@ Global style sheets belong in `ui-theme/src/styles/`. Component styles live besi
 
 - Use CSS Modules and `clsx`; do not add a component library or Tailwind.
 - Use `--dsw-alias-*` semantic tokens in feature components. Do not copy static palette values or write literal colors there.
+- The light scheme is one seven-step neutral ramp — `--dsw-aeven-ink`, `-ink-muted`, `-ink-faint`, `-ink-disabled`, `-surface`, `-well`, and `-raised`. A new semantic alias resolves the light block to one of those steps; the theme spec fails on an opaque neutral that is none of them.
 - Keep theme selectors out of feature component CSS. Light/dark overrides belong to the theme owner.
 - Pair font sizes with line heights and use the theme typography variables when an existing role matches.
 - Keep source text, terminal output, and diff lines unwrapped when their component contract requires column preservation; use the shared scrollbar styles rather than component-specific scrollbar selectors.

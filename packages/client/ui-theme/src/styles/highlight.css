@@ -4,11 +4,11 @@
 :root {
   --hljs-keyword: #d6336c;
   --hljs-string: #2f9e44;
-  --hljs-comment: #868e96;
+  --hljs-comment: rgb(150, 150, 150);
   --hljs-number: #1c7ed6;
   --hljs-function: #6741d9;
   --hljs-params: #e8590c;
-  --hljs-punctuation: #495057;
+  --hljs-punctuation: rgb(80, 80, 80);
   --hljs-link: #1971c2;
 }
 

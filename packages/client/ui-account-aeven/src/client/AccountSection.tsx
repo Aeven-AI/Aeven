@@ -1,7 +1,7 @@
 /** The Account settings page: who is signed in, the plans, their credits, and this period's usage. */
 import { useCallback, useEffect, useId, useRef, useState, type ChangeEvent, type CSSProperties, type ReactNode } from 'react'
 import {
-  Button, IconCheckOutline14, IconChevronDownOutline14, IconLucideCamera, IconRightUpOutline16, IconTrashOutline16,
+  Button, IconCheckOutline14, IconLucideCamera, IconRightUpOutline16, IconTrashOutline16,
   LoadingBlock, SectionHeader, Spinner,
 } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
@@ -11,8 +11,9 @@ import { Avatar } from './Avatar.tsx'
 import type { AccountReader } from './AccountMenu.tsx'
 import {
   externalWindow, MICROS_PER_USD,
-  type BillingPortal, type CloudPlan, type CloudPlans, type CloudSubscription, type CloudUsage, type CloudWallet,
-  type SubscriptionCheckout, type TopUpCheckout, type TopUpOptions, type WalletTransaction,
+  type BillingPortal, type CloudPayment, type CloudPayments, type CloudPlan, type CloudPlans,
+  type CloudSubscription, type CloudUsage, type CloudWallet, type SubscriptionCheckout, type TopUpCheckout,
+  type TopUpOptions,
 } from './cloud.ts'
 import type { AccountAevenKey, NS } from './locales.ts'
 import css from './AccountSection.module.css'
@@ -24,6 +25,19 @@ export interface AccountSectionInjected {
   reader: () => AccountReader | undefined
   /** Authenticator enrollment and account protection operations. */
   mfa: AevenReader['mfa']
+  /**
+   * The two-factor status, kept from one visit to the next: the answer changes only
+   * when the reader changes it here, so re-reading it on every visit buys nothing
+   * and costs the page its first paint.
+   */
+  security: {
+    /** The status read last, or undefined when it has never been read. */
+    readonly cached: () => boolean | undefined
+    /** Read the status and keep the answer for the next visit. */
+    readonly read: () => Promise<boolean>
+    /** Record a status the reader just changed, so the next visit paints it. */
+    readonly record: (enabled: boolean) => void
+  }
   /** End the Aeven session and return the reader to the sign-in screen. */
   signOut: () => void
   /**
@@ -46,7 +60,6 @@ export interface AccountSectionInjected {
    * @param path - the route below `/api/cloud`.
    * @returns that answer, or undefined when the route has not settled yet.
    */
-  // oxlint-disable-next-line typescript/no-unnecessary-type-parameters -- a caller asserts the route's response type through T
   cached: <T>(path: string) => T | undefined
 }
 
@@ -80,8 +93,8 @@ const NUDGE_PERCENT = 80
 /** The allowance bar reads the percentage it fills from a row-local property. */
 type MeterStyle = CSSProperties & { readonly '--avn-usage-percent': string }
 
-/** Statement lines that are payments rather than per-request charges. */
-const PAYMENT_LABEL: Partial<Record<WalletTransaction['type'], AccountAevenKey>> = {
+/** What each purchased-credit line was. */
+const PAYMENT_LABEL: Readonly<Record<'topup' | 'refund' | 'adjustment', AccountAevenKey>> = {
   topup: 'activity.topup',
   refund: 'activity.refund',
   adjustment: 'activity.adjustment',
@@ -155,6 +168,41 @@ function useLoad<T>(
 }
 
 /**
+ * The two-factor status: the cached answer paints, and a visit without one reads it.
+ * @param security - the cached status face.
+ * @returns the outcome, a reload, and a recorder for a status the reader just changed.
+ */
+function useTwoFactor(security: AccountSectionInjected['security']): {
+  state: Load<boolean>
+  reload: () => void
+  record: (enabled: boolean) => void
+} {
+  const [state, setState] = useState<Load<boolean>>(() => {
+    const known = security.cached()
+    return known === undefined ? { status: 'loading' } : { status: 'ready', value: known }
+  })
+  const live = useRef(true)
+  const reload = useCallback(() => {
+    setState({ status: 'loading' })
+    void security.read().then(
+      (value) => { if (live.current) setState({ status: 'ready', value }) },
+      () => { if (live.current) setState({ status: 'error' }) },
+    )
+  }, [security])
+  useEffect(() => {
+    live.current = true
+    // A cached answer is the page's answer; only a visit without one reads again.
+    if (security.cached() === undefined) reload()
+    return () => { live.current = false }
+  }, [reload, security])
+  const record = useCallback((enabled: boolean) => {
+    security.record(enabled)
+    setState({ status: 'ready', value: enabled })
+  }, [security])
+  return { state, reload, record }
+}
+
+/**
  * Render the Account section.
  * @param props - composed slot props and the account face.
  * @returns the section element tree.
@@ -166,6 +214,8 @@ export function AccountSection(props: AccountSectionProps) {
   const options = useLoad<TopUpOptions>(cloud, cached, '/topup/options')
   const wallet = useLoad<CloudWallet>(cloud, cached, '/wallet')
   const plans = useLoad<CloudPlans>(cloud, cached, '/plans')
+  const payments = useLoad<CloudPayments>(cloud, cached, '/payments')
+  const twoFactor = useTwoFactor(props.security)
   const refreshPlan = useCallback(async () => {
     void usage.refresh()
     return subscription.refresh()
@@ -178,6 +228,7 @@ export function AccountSection(props: AccountSectionProps) {
       void subscription.refresh()
       void usage.refresh()
       void wallet.refresh()
+      void payments.refresh()
     }
     const onVisible = () => { if (document.visibilityState === 'visible') reread() }
     window.addEventListener('focus', reread)
@@ -186,11 +237,13 @@ export function AccountSection(props: AccountSectionProps) {
       window.removeEventListener('focus', reread)
       document.removeEventListener('visibilitychange', onVisible)
     }
-  }, [subscription.refresh, usage.refresh, wallet.refresh])
+  }, [subscription.refresh, usage.refresh, wallet.refresh, payments.refresh])
   const refreshBalance = useCallback(async () => {
     void wallet.refresh()
+    // The purchase that just settled is a payment as well as a balance change.
+    void payments.refresh()
     return (await usage.refresh())?.balance.purchasedUsdMicros
-  }, [usage.refresh, wallet.refresh])
+  }, [usage.refresh, wallet.refresh, payments.refresh])
 
   // The page appears in one step. The four routes settle independently, and
   // letting each group swap its loading row for its own content as that route
@@ -198,7 +251,8 @@ export function AccountSection(props: AccountSectionProps) {
   // pixels, and the usage group only exists once `/usage` has answered. The
   // latch lets a group be retried from its own error row without the rest of
   // the page collapsing back to the spinner.
-  const settled = [subscription, usage, options, wallet, plans].every(load => load.state.status !== 'loading')
+  const settled = [subscription, usage, options, wallet, plans, payments].every(load => load.state.status !== 'loading')
+    && twoFactor.state.status !== 'loading'
   const [painted, setPainted] = useState(false)
   useEffect(() => {
     if (settled) setPainted(true)
@@ -207,13 +261,15 @@ export function AccountSection(props: AccountSectionProps) {
   return (
     <div className={css.section}>
       <SectionHeader title={t('section.nav')} description={t('section.intro')} />
-      <Identity {...props} />
-      <Security mfa={props.mfa} t={t} />
 
+      {/* One loader for the section. Every read it shows settles before it is drawn,
+          so no row can appear above or below a part of the page still arriving. */}
       {!painted && <LoadingBlock label={t('section.loading')} />}
 
       {painted && <>
-        <Group title={t('plan.heading')}>
+        <Identity {...props} />
+        <Security mfa={props.mfa} t={t} status={twoFactor.state} reload={twoFactor.reload} record={twoFactor.record} />
+        <Group>
           <Loaded t={t} load={subscription.state} retry={subscription.reload}>
             {value => (
               <Plans
@@ -250,7 +306,7 @@ export function AccountSection(props: AccountSectionProps) {
               end: day(usage.state.value.billingPeriod.endsAt),
             })}
           >
-            <Usage t={t} usage={usage.state.value} wallet={wallet.state.status === 'ready' ? wallet.state.value : undefined} />
+            <Usage t={t} usage={usage.state.value} payments={payments.state} retryPayments={payments.reload} />
           </Group>
         )}
       </>}
@@ -258,13 +314,15 @@ export function AccountSection(props: AccountSectionProps) {
   )
 }
 
-function Group({ title, aside, children }: { readonly title: string; readonly aside?: string; readonly children: ReactNode }) {
+function Group({ title, aside, children }: { readonly title?: string; readonly aside?: string; readonly children: ReactNode }) {
   return (
     <section className={css.group}>
-      <h3 className={css.groupTitle}>
-        <span>{title}</span>
-        {aside !== undefined && <span className={css.groupAside}>{aside}</span>}
-      </h3>
+      {title !== undefined && (
+        <h3 className={css.groupTitle}>
+          <span>{title}</span>
+          {aside !== undefined && <span className={css.groupAside}>{aside}</span>}
+        </h3>
+      )}
       {children}
     </section>
   )
@@ -484,7 +542,7 @@ function Plans({ t, cloud, subscription, plans, usage, refresh }: {
     <>
       <div className={css.meterRow}>
         <span className={css.rowText}>
-          <span className={css.title}>{t('plan.status', { plan: subscription.planName })}</span>
+          <span className={`${css.title} ${css.headTitle}`}>{t('plan.status', { plan: subscription.planName })}</span>
           {/* The read-out shares the line that names the period end, so the
               number sits against the date it belongs to. */}
           <span className={css.meterLine}>
@@ -831,11 +889,18 @@ function Credits({ t, cloud, usage, options, refresh }: {
   )
 }
 
-function Usage({ t, usage, wallet }: { readonly t: Translate; readonly usage: CloudUsage; readonly wallet: CloudWallet | undefined }) {
-  const [open, setOpen] = useState(false)
-  const listId = useId()
+/** What one payment line was called, and whether its amount reads as money in. */
+function paymentLabel(line: CloudPayment): AccountAevenKey {
+  return line.kind === 'subscription' ? 'activity.subscription' : PAYMENT_LABEL[line.type]
+}
+
+function Usage({ t, usage, payments, retryPayments }: {
+  readonly t: Translate
+  readonly usage: CloudUsage
+  readonly payments: Load<CloudPayments>
+  readonly retryPayments: () => void
+}) {
   const figures = usage.usage
-  const payments = wallet?.transactions.filter(line => PAYMENT_LABEL[line.type] !== undefined) ?? []
   return (
     <>
       <div className={css.row}>
@@ -855,31 +920,33 @@ function Usage({ t, usage, wallet }: { readonly t: Translate; readonly usage: Cl
         </span>
         <span className={css.figure}>{count(figures.tokens)}</span>
       </div>
-      {wallet !== undefined && (
-        <div className={css.row}>
-          <span className={css.rowText}><span className={css.title}>{t('usage.payments')}</span></span>
-          <button type="button" className={css.selector} aria-expanded={open} aria-controls={listId} onClick={() => { setOpen(!open) }}>
-            {t(open ? 'usage.hide' : 'usage.show')}
-            <IconChevronDownOutline14 className={open ? `${css.chevron} ${css.chevronOpen}` : css.chevron} />
-          </button>
-        </div>
-      )}
-      {open && (
-        <div id={listId} className={css.payments}>
-          {payments.length === 0
-            ? <p className={css.desc}>{t('activity.empty')}</p>
-            : payments.map((line, index) => {
-              const label = PAYMENT_LABEL[line.type]
-              const delta = line.topUpDeltaUsdMicros !== 0 ? line.topUpDeltaUsdMicros : line.amountUsdMicros
-              return (
-                <div key={`${line.createdAt}-${index}`} className={css.payment}>
-                  <span className={css.desc}>{day(line.createdAt)}</span>
-                  <span>{label === undefined ? '' : t(label)}</span>
-                  <span className={css.figureSmall}>{`${delta > 0 ? '+' : ''}${money(delta, line.currency)}`}</span>
-                </div>
-              )
-            })}
-        </div>
+      {/* The heading arrives with its list: a payment read that is still in flight has
+          nothing to say yet, and an empty heading would claim it had. */}
+      {payments.status !== 'loading' && (
+        <>
+          <div className={css.row}>
+            <span className={css.rowText}>
+              <span className={`${css.title} ${css.headTitle}`}>{t('usage.payments')}</span>
+            </span>
+          </div>
+          <Loaded t={t} load={payments} retry={retryPayments}>
+            {answer => (
+              <div className={css.payments}>
+                {answer.payments.length === 0
+                  ? <p className={`${css.desc} ${css.empty}`}>{t('activity.empty')}</p>
+                  : answer.payments.map((line, index) => (
+                    <div key={`${line.createdAt}-${index}`} className={css.payment}>
+                      <span className={css.desc}>{day(line.createdAt)}</span>
+                      <span>{t(paymentLabel(line))}</span>
+                      <span className={css.figureSmall}>
+                        {`${line.kind === 'credit' && line.amountUsdMicros > 0 ? '+' : ''}${money(line.amountUsdMicros, line.currency)}`}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </Loaded>
+        </>
       )}
     </>
   )
@@ -896,34 +963,40 @@ function observeReturn(check: () => void): () => void {
   }
 }
 
-/** Account protection switch; enabling and disabling both require a verified code. */
-function Security({ mfa, t }: { readonly mfa: AevenReader['mfa']; readonly t: Translate }) {
-  const [enabled, setEnabled] = useState<boolean>()
+/**
+ * Account protection switch; enabling and disabling both require a verified code.
+ *
+ * The status is the section's, not this cell's: the page does not draw until every
+ * read it shows has answered, so the switch arrives already carrying an answer.
+ */
+function Security({ mfa, t, status, reload, record }: {
+  readonly mfa: AevenReader['mfa']
+  readonly t: Translate
+  readonly status: Load<boolean>
+  readonly reload: () => void
+  readonly record: (enabled: boolean) => void
+}) {
   const [mode, setMode] = useState<'setup' | 'disable'>()
-  const [failed, setFailed] = useState(false)
-  const refresh = useCallback(() => {
-    setFailed(false)
-    void mfa('status').then((value) => { setEnabled(value.enabled === true) }).catch(() => { setFailed(true) })
-  }, [mfa])
-  useEffect(refresh, [refresh])
+  const enabled = status.status === 'ready' ? status.value : undefined
+  const failed = status.status === 'error'
   const request = useCallback((action: 'setup' | 'enable' | 'disable' | 'login', code?: string) =>
     mfa(action, code).then((answer) => {
-      if (action === 'enable') setEnabled(true)
-      if (action === 'disable') setEnabled(false)
+      if (action === 'enable') record(true)
+      if (action === 'disable') record(false)
       return answer
-    }), [mfa])
-  const status = failed ? 'security.unavailable' : enabled === undefined ? 'security.loading' : enabled ? 'security.on' : 'security.off'
+    }), [mfa, record])
+  const label = failed ? 'security.unavailable' : enabled === true ? 'security.on' : 'security.off'
   // The switch states the feature; the enrollment it opens belongs to the same
   // cell, so it draws no surface of its own below the row.
   return (
     <Group title={t('security.heading')}>
-      <div className={css.row}>
+      <div className={`${css.row} ${css.securityRow}`}>
         <span className={css.rowText}>
           <span className={css.title}>{t('security.title')}</span>
           <span className={css.desc}>{t('security.info')}</span>
         </span>
         <span className={css.actions}>
-          <span className={css.status} role="status">{t(status)}</span>
+          <span className={css.status} role="status">{t(label)}</span>
           <button
             type="button" role="switch" aria-label={t('security.title')} aria-checked={enabled === true}
             className={css.switch}
@@ -935,7 +1008,7 @@ function Security({ mfa, t }: { readonly mfa: AevenReader['mfa']; readonly t: Tr
       {failed && (
         <div role="alert" className={css.row}>
           <span className={css.rowText}><span className={css.desc}>{t('security.failed')}</span></span>
-          <button type="button" className={css.pill} onClick={refresh}>{t('section.retry')}</button>
+          <button type="button" className={css.pill} onClick={reload}>{t('section.retry')}</button>
         </div>
       )}
       {mode !== undefined && (

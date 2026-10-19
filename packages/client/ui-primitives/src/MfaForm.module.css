@@ -35,14 +35,14 @@
 
 .card h2 {
   margin: 0;
-  font-size: 23px;
+  font-size: 1.4375rem;
   font-weight: 550;
   letter-spacing: -0.6px;
 }
 
 .card p {
   margin: 0;
-  font-size: 14px;
+  font-size: 0.875rem;
   line-height: 1.6;
   color: var(--dsw-alias-label-secondary);
 }
@@ -55,7 +55,7 @@
   height: 52px;
   border-radius: 18px;
   background: var(--dsw-alias-bg-module-platform);
-  font-size: 25px;
+  font-size: 1.5625rem;
 }
 
 .qr {
@@ -68,7 +68,7 @@
 }
 
 .manual {
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--dsw-alias-label-secondary);
 }
 
@@ -90,7 +90,7 @@
   flex-direction: column;
   gap: 9px;
   margin: 0;
-  font-size: 13px;
+  font-size: 0.8125rem;
   text-align: left;
 }
 
@@ -103,7 +103,7 @@
   background: var(--dsw-alias-bg-module-platform);
   color: inherit;
   font: inherit;
-  font-size: 22px;
+  font-size: 1.375rem;
   letter-spacing: 0.2em;
   text-align: center;
 }
@@ -115,7 +115,7 @@
 
 .status {
   margin: 0;
-  font-size: 14px;
+  font-size: 0.875rem;
   line-height: 1.6;
   color: var(--dsw-alias-label-secondary);
 }
@@ -139,8 +139,8 @@
 .secondary,
 .tertiary {
   font: inherit;
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
   cursor: pointer;
   border: none;
   border-radius: 999px;
@@ -174,8 +174,8 @@
 .tertiary {
   align-self: flex-start;
   padding: 0;
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
   color: var(--dsw-alias-label-tertiary);
 }
 
@@ -193,8 +193,8 @@
 
 .error {
   margin: 0;
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
   color: var(--dsw-alias-state-error-primary);
 }
 
@@ -205,7 +205,7 @@
   padding: 16px 8px;
   border-radius: var(--dsw-aeven-radius-compact);
   background: var(--dsw-alias-bg-module-platform);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .saved {
@@ -214,7 +214,7 @@
   gap: 8px;
   margin: 0;
   text-align: left;
-  font-size: 13px;
+  font-size: 0.8125rem;
   line-height: 1.5;
 }
 
@@ -233,16 +233,16 @@
 
 .cells h2 {
   margin: 0;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 400;
-  line-height: 22px;
+  line-height: 1.375rem;
   letter-spacing: normal;
 }
 
 .cells > p {
   margin: 0;
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
   color: var(--dsw-alias-label-secondary);
 }
 
@@ -293,8 +293,8 @@
 
 .cells .field {
   max-width: 260px;
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
   color: var(--dsw-alias-label-tertiary);
 }
 
@@ -302,7 +302,7 @@
   height: var(--dsw-aeven-control-size);
   padding: 0 14px;
   border-radius: var(--dsw-aeven-radius-control);
-  font-size: 15px;
+  font-size: 0.9375rem;
   letter-spacing: 0.3em;
 }
 
@@ -325,16 +325,16 @@
   width: 100%;
   max-width: 420px;
   padding: 16px;
-  font-size: 13px;
-  line-height: 22px;
+  font-size: 0.8125rem;
+  line-height: 1.375rem;
 }
 
-@media (max-width: 420px) {
+@media (max-width: 480px) {
   .card {
     padding: 20px;
   }
 
   .codes {
-    font-size: 10px;
+    font-size: 0.625rem;
   }
 }

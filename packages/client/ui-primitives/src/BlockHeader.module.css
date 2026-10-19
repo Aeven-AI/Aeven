@@ -13,9 +13,9 @@
 .title {
   flex: none;
   color: var(--dsw-alias-label-secondary);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 400;
-  line-height: 16px;
+  line-height: 1rem;
 }
 
 .spacer {

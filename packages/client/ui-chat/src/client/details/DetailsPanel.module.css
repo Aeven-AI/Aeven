@@ -24,8 +24,8 @@
 /* figma I54:42735;43:41479: 14/20 wt500. */
 .title {
   overflow: hidden;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   font-weight: 400;
   color: var(--dsw-alias-label-primary);
   text-overflow: ellipsis;
@@ -58,8 +58,8 @@
 
 .empty {
   padding: 8px 0;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   color: var(--dsw-alias-label-tertiary);
 }
 
@@ -69,8 +69,8 @@
 
 .sectionLabel {
   margin-bottom: 6px;
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
   font-weight: 400;
   color: var(--dsw-alias-label-secondary);
 }
@@ -82,8 +82,8 @@
   border-radius: 12px;
   background: var(--dsw-alias-markdown-code-block);
   font-family: var(--ds-font-family-code);
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
   color: var(--dsw-alias-label-primary);
   white-space: pre-wrap;
   word-break: break-word;

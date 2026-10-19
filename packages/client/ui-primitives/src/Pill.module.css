@@ -6,8 +6,8 @@
   padding: 0 8px;
   border: none;
   border-radius: 12px;
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
   color: var(--dsw-alias-label-secondary);
   background: var(--dsw-alias-bg-layer-2);
 }

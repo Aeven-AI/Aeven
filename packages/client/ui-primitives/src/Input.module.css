@@ -28,8 +28,8 @@
   border: none;
   outline: none;
   background: transparent;
-  font-size: 14px;
-  line-height: 28px;
+  font-size: 0.875rem;
+  line-height: 1.75rem;
   font-weight: 400;
   color: var(--dsw-alias-label-primary);
 }

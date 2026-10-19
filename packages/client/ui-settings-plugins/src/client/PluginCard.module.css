@@ -52,14 +52,14 @@
 }
 
 .name {
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 500;
   line-height: 1.4;
   color: var(--dsw-alias-label-primary);
 }
 
 .description {
-  font-size: 14px;
+  font-size: 0.875rem;
   line-height: 1.5;
   color: var(--dsw-alias-label-tertiary);
 }
@@ -84,7 +84,7 @@
 
 .readOnly {
   margin: 12px 0 0;
-  font-size: 12px;
+  font-size: 0.75rem;
   line-height: 1.5;
   color: var(--dsw-alias-label-tertiary);
 }
@@ -94,8 +94,8 @@
   flex: none;
   border-radius: 999px;
   padding: 1px 8px;
-  font-size: 11px;
-  line-height: 17px;
+  font-size: 0.6875rem;
+  line-height: 1.0625rem;
   font-weight: 400;
   white-space: nowrap;
   background: var(--dsw-alias-bg-module-platform);
@@ -115,7 +115,7 @@
   flex: 1;
   min-width: 0;
   margin: 0;
-  font-size: 12px;
+  font-size: 0.75rem;
   line-height: 1.5;
   color: var(--dsw-alias-label-error);
 }
@@ -127,7 +127,7 @@
   border-radius: 8px;
   padding: 5px 14px;
   font: inherit;
-  font-size: 14px;
+  font-size: 0.875rem;
   line-height: 1.5;
   cursor: pointer;
 }

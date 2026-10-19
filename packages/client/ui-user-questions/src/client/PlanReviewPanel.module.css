@@ -50,8 +50,8 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 12px 24px 4px;
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
 }
 
 .footer {
@@ -66,8 +66,8 @@
 .feedback {
   min-height: 16px;
   color: var(--dsw-alias-state-error-primary);
-  font-size: 11px;
-  line-height: 16px;
+  font-size: 0.6875rem;
+  line-height: 1rem;
 }
 
 .actions {

@@ -12,22 +12,22 @@
 
 .notice {
   margin: 0;
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
   color: var(--dsw-alias-state-warn-label);
 }
 
 .savedNotice {
   margin: 0;
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
   color: var(--dsw-alias-state-success-primary);
 }
 
 .empty {
   margin: 0;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   color: var(--dsw-alias-label-tertiary);
 }
 
@@ -52,8 +52,8 @@
   border: none;
   border-radius: var(--dsw-aeven-radius-control);
   font: inherit;
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
   cursor: pointer;
 }
 
@@ -120,15 +120,15 @@
 }
 
 .editorTitle {
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
   font-weight: 400;
   color: var(--dsw-alias-label-primary);
 }
 
 .editorRoute {
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
   color: var(--dsw-alias-label-tertiary);
 }
 
@@ -142,8 +142,8 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
   font-weight: 400;
   color: var(--dsw-alias-label-secondary);
 }
@@ -159,8 +159,8 @@
   background: transparent;
   color: var(--dsw-alias-label-tertiary);
   font: inherit;
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
   cursor: pointer;
 }
 
@@ -171,8 +171,8 @@
 
 .advancedHint {
   margin: 0;
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
   color: var(--dsw-alias-label-tertiary);
 }
 
@@ -230,10 +230,10 @@
   padding: 0 36px 0 12px;
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 10px;
-  background: var(--dsw-alias-bg-layer-1) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%2381858C' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 14px center / 12px 12px;
+  background: var(--dsw-alias-bg-layer-1) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%23969696' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 14px center / 12px 12px;
   color: var(--dsw-alias-label-primary);
   font: inherit;
-  font-size: 14px;
+  font-size: 0.875rem;
   text-align: left;
   cursor: pointer;
 }
@@ -271,7 +271,7 @@
   background: transparent;
   color: var(--dsw-alias-label-primary);
   font: inherit;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .pickerSearch:focus {
@@ -293,8 +293,8 @@
   gap: 12px;
   padding: 8px 10px;
   border-radius: 8px;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   cursor: pointer;
 }
 
@@ -308,13 +308,13 @@
 
 .pickerOptionId {
   color: var(--dsw-alias-label-tertiary);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .pickerEmpty {
   padding: 8px 10px;
   color: var(--dsw-alias-label-tertiary);
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .addCard {
@@ -349,8 +349,8 @@
   margin-left: -4px;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
   font-weight: 400;
   color: var(--dsw-alias-label-secondary);
   list-style: none;
@@ -405,8 +405,8 @@
 }
 
 .modelCatalogTitle {
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
   font-weight: 400;
   color: var(--dsw-alias-label-secondary);
 }
@@ -415,8 +415,8 @@
 .modelEmpty {
   margin: 0;
   color: var(--dsw-alias-label-tertiary);
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
 }
 
 /* Model list, shared with the pi-ai provider form: one bordered
@@ -498,8 +498,8 @@
 
 .modelFieldLabel {
   color: var(--dsw-alias-label-tertiary);
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
 }
 
 .modelEmpty {
@@ -522,8 +522,8 @@
   background: transparent;
   color: var(--dsw-alias-label-primary);
   font: inherit;
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
   cursor: pointer;
 }
 
@@ -539,8 +539,8 @@
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 10px;
   font: inherit;
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
   background: var(--dsw-alias-bg-layer-1);
   color: var(--dsw-alias-label-primary);
 }
@@ -550,11 +550,6 @@
 select.input {
   max-width: 240px;
   cursor: pointer;
-}
-
-.input:focus {
-  outline: none;
-  border-color: var(--dsw-alias-brand-primary);
 }
 
 .input::placeholder {
@@ -572,9 +567,9 @@ select.input {
 .selectInput {
   appearance: none;
   padding-right: 32px;
-  /* Data-URI SVGs cannot resolve CSS variables; #81858C is the caption gray
-     shared by both themes. */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%2381858C' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  /* Data-URI SVGs cannot resolve CSS variables; #969696 is the light caption
+     grey, restated here because the dark chevron cannot reuse it. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%23969696' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
   background-size: 12px 12px;
@@ -582,8 +577,8 @@ select.input {
 
 .error {
   margin: 0;
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
   color: var(--dsw-alias-state-error-primary);
 }
 
@@ -670,14 +665,14 @@ select.input {
 .candidateId {
   flex: 1 1 auto;
   font-family: var(--ds-font-family-code);
-  font-size: 14px;
+  font-size: 0.875rem;
   overflow-wrap: anywhere;
 }
 
 .candidateEmpty {
   margin: 24px 0;
   color: var(--dsw-alias-label-secondary);
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   text-align: center;
 }

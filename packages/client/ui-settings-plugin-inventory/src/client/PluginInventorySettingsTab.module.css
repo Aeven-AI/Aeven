@@ -15,8 +15,8 @@
 
 .status,
 .failure {
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   color: var(--dsw-alias-label-tertiary);
 }
 
@@ -67,16 +67,11 @@
   background: var(--dsw-alias-bg-layer-1);
   color: var(--dsw-alias-label-primary);
   font: inherit;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .search input::placeholder {
   color: var(--dsw-alias-label-tertiary);
-}
-
-.search input:focus-visible {
-  border-color: var(--dsw-alias-state-business-primary);
-  box-shadow: 0 0 0 2px var(--dsw-tint-business-18);
 }
 
 .catalogHeading {
@@ -87,14 +82,14 @@
 }
 
 .catalogHeading h3 {
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   font-weight: 500;
 }
 
 .catalogHeading span {
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
   color: var(--dsw-alias-label-tertiary);
   font-variant-numeric: normal;
 }
@@ -153,8 +148,8 @@
 .cardTitle {
   min-width: 0;
   overflow: hidden;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -205,8 +200,8 @@
   padding: 1px 6px;
   background: var(--dsw-alias-bg-layer-1);
   color: var(--dsw-alias-label-secondary);
-  font-size: 11px;
-  line-height: 16px;
+  font-size: 0.6875rem;
+  line-height: 1rem;
   white-space: nowrap;
 }
 
@@ -280,8 +275,8 @@
 }
 
 .groupTitle {
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
   font-weight: 400;
   color: var(--dsw-alias-label-primary);
 }
@@ -292,8 +287,8 @@
   gap: 4px 8px;
   margin: -6px 0 0 20px;
   color: var(--dsw-alias-label-tertiary);
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
   font-variant-numeric: normal;
 }
 
@@ -315,8 +310,8 @@
   background: var(--dsw-alias-bg-module-platform);
   color: var(--dsw-alias-label-primary);
   font: inherit;
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
   cursor: pointer;
 }
 
@@ -351,8 +346,8 @@
   padding: 8px 10px;
   background: var(--dsw-tint-error-08);
   color: var(--dsw-alias-state-error-primary);
-  font-size: 12.5px;
-  line-height: 18px;
+  font-size: 0.7813rem;
+  line-height: 1.125rem;
   overflow-wrap: anywhere;
   white-space: pre-line;
 }
@@ -364,8 +359,8 @@
   gap: 4px 8px;
   margin: 0;
   color: var(--dsw-alias-label-tertiary);
-  font-size: 12.5px;
-  line-height: 18px;
+  font-size: 0.7813rem;
+  line-height: 1.125rem;
 }
 
 .jumpLink {
@@ -374,7 +369,7 @@
   background: transparent;
   color: var(--dsw-alias-state-business-primary);
   font: inherit;
-  font-size: 12.5px;
+  font-size: 0.7813rem;
   cursor: pointer;
 }
 
@@ -409,8 +404,8 @@
   overflow-wrap: anywhere;
   color: var(--dsw-alias-label-primary);
   font-family: var(--ds-font-family-code);
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
 }
 
 .details {
@@ -426,8 +421,8 @@
 
 .details dt {
   color: var(--dsw-alias-label-tertiary);
-  font-size: 11px;
-  line-height: 17px;
+  font-size: 0.6875rem;
+  line-height: 1.0625rem;
 }
 
 .details dd {
@@ -435,8 +430,8 @@
   margin: 0;
   overflow-wrap: anywhere;
   color: var(--dsw-alias-label-secondary);
-  font-size: 12px;
-  line-height: 17px;
+  font-size: 0.75rem;
+  line-height: 1.0625rem;
 }
 
 .visuallyHidden {

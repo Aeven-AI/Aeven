@@ -5,7 +5,7 @@
 .gallery {
   --avn-lightbox-bg: rgb(242, 242, 242);
   --avn-lightbox-button-bg: rgb(255, 255, 255);
-  --avn-lightbox-button-fg: rgb(10, 10, 10);
+  --avn-lightbox-button-fg: #000;
   --avn-lightbox-info-bg: rgba(255, 255, 255, 0.7);
   --avn-lightbox-info-ring: rgba(255, 255, 255, 0.8);
   --avn-lightbox-info-fg: rgb(0, 0, 0);
@@ -202,7 +202,7 @@
     inset 0 0 1px 1px var(--avn-lightbox-info-ring),
     0 2px 20px rgba(0, 0, 0, 0.1);
   color: var(--avn-lightbox-info-fg);
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 500;
   line-height: normal;
 }
@@ -215,7 +215,7 @@
 }
 
 .infoCaption {
-  font-size: 11px;
+  font-size: 0.6875rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

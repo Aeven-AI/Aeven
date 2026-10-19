@@ -12,6 +12,8 @@ export type OnOffRowProps = PropsLocale<'settings'> & {
   readonly enabled: boolean
   /** @param enabled - the value the reader chose. */
   readonly onChange: (enabled: boolean) => void
+  /** Whether this row opens a trailing group, and so carries the rule above it. */
+  readonly divider?: boolean
 }
 
 /**
@@ -19,7 +21,7 @@ export type OnOffRowProps = PropsLocale<'settings'> & {
  * @param props - row copy, current value, and change handler.
  * @returns the preference row.
  */
-export function OnOffRow({ title, description, enabled, onChange, t }: OnOffRowProps) {
+export function OnOffRow({ title, description, enabled, onChange, divider, t }: OnOffRowProps) {
   const [open, setOpen] = useState(false)
   const closeMenu = () => { setOpen(false) }
   const selector = (
@@ -36,7 +38,7 @@ export function OnOffRow({ title, description, enabled, onChange, t }: OnOffRowP
   )
 
   return (
-    <div className={css.row}>
+    <div className={divider === true ? `${css.row} ${css.divider}` : css.row}>
       <div className={css.rowText}>
         <div className={css.title}>{title}</div>
         <div className={css.desc}>{description}</div>

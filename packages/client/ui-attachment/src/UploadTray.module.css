@@ -3,8 +3,8 @@
 
 .tray {
   --avn-upload-tile-bg: rgb(242, 242, 242);
-  --avn-upload-tile-fg: rgb(180, 180, 180);
-  --avn-upload-accent: rgb(10, 10, 10);
+  --avn-upload-tile-fg: rgb(150, 150, 150);
+  --avn-upload-accent: #000;
   --avn-upload-remove-bg: rgba(255, 255, 255, 0.8);
   --avn-upload-remove-ring: rgba(255, 255, 255, 0.8);
 
@@ -110,7 +110,7 @@ div.open {
   width: 100%;
   top: 38px;
   height: 40px;
-  line-height: 40px;
+  line-height: 2.5rem;
   padding-left: 14px;
   padding-right: 14px;
   letter-spacing: 0;
@@ -255,7 +255,7 @@ div.open {
   .label {
     top: 33px;
     height: 20px;
-    line-height: 20px;
+    line-height: 1.25rem;
     padding-left: 10px;
     padding-right: 10px;
   }
