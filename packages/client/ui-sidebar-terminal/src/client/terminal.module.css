@@ -108,7 +108,8 @@
    or Files surface. Row metrics are that launcher's own — 40px capsule, the
    sidebar row inset, an 8px glyph gap and the static-extreme ink over the
    panel fill — and the guide drops the pane's 8px top inset to keep the rows on
-   those lines. */
+   those lines. A row states no fill of its own, so the panel behind it shows
+   through and only its glyph and label separate one shell from the next. */
 .root[data-choosing] {
   padding-top: 0;
 }
@@ -129,8 +130,8 @@
   padding: 0 var(--dsw-aeven-sidebar-row-inset);
   border: none;
   border-radius: 20px;
-  background: var(--dsw-static-neutral-00);
-  color: var(--dsw-static-neutral-1000);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
   font: inherit;
   font-size: 0.875rem;
   text-align: start;

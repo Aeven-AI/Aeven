@@ -39,7 +39,7 @@ import { isSlackReadTool, slackConnectorId, SLACK_DIRECT_MESSAGE_SCOPES, SLACK_M
 import { isSlackConsentFailure, probeSlackToken, revokeSlackToken, refreshSlackToken, SlackLoginError, startSlackLogin, type SlackLogin, type SlackToken } from './slack-login.ts'
 import { connectorCredential, type PendingConsent } from './oauth.ts'
 import { BrokerError, ConnectorBroker, type ConsentStatus, type IssuedToken } from './broker.ts'
-import type { AccountIntegrationsView, CatalogSkillView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, ConnectorProviderView, DiscordConnectorSettings, EmailConnectionFailure, EmailConnectorSettings, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillCatalogView, SkillViewId, SkillUploadFile, SlackConnectorSettings, TelegramConnectorSettings, TelegramPairingView, WhatsAppPairingView } from './types.ts'
+import type { AccountIntegrationsView, CatalogSkillView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, ConnectorProviderView, DiscordConnectorSettings, PersonalSkillView, EmailConnectionFailure, EmailConnectorSettings, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillCatalogView, SkillSetup, SkillViewId, SkillUploadFile, SlackConnectorSettings, TelegramConnectorSettings, TelegramPairingView, WhatsAppPairingView } from './types.ts'
 
 export type * from './types.ts'
 
@@ -132,6 +132,7 @@ const skillSchema = z.object({
   modelInvocable: z.boolean(), userInvocable: z.boolean(),
   resources: z.record(z.string().refine(path => !path.startsWith('/') && !path.includes('\\') && !/^[A-Za-z]:/.test(path)
     && path.split('/').every(part => part !== '' && part !== '.' && part !== '..')), z.string()), revision: z.uuid(),
+  setup: z.object({ state: z.enum(['installing', 'ready', 'failed']), detail: z.string().optional() }).optional(),
 })
 const providers = ['github', 'gmail', 'google-drive', 'google-calendar', 'outlook', 'outlook-calendar', 'onedrive', 'sharepoint', 'teams', 'email', 'whatsapp', 'telegram', 'discord', 'slack', 'mcp'] as const satisfies readonly ConnectorProvider[]
 const emailServerSchema = z.object({
@@ -504,6 +505,8 @@ export default class AccountIntegrations extends TypertRemoteService {
 
   private domain!: Domain<typeof domainSpec>
   private reverseEngineering: ReverseEngineeringRuntime | undefined
+  /** Install progress the runtime last reported, merged onto the reverse-engineering entry of the view. */
+  private skillSetup: SkillSetup | undefined
   private invalidateSkills: () => void = () => {}
   private readonly connected = new Set<ConnectorId>()
   private readonly consents = new Map<string, PendingConsent>()
@@ -640,10 +643,9 @@ export default class AccountIntegrations extends TypertRemoteService {
       const owner = agent.session.header.owner
       const skill = owner === undefined ? undefined : this.domain.table('skills').get(`${accountDirectory(owner)}:reverse-engineering`)
       if (skill?.enabled === true && this.config.reverseEngineering !== undefined) {
-        this.reverseEngineering ??= new ReverseEngineeringRuntime(this.ctx, this.config.reverseEngineering)
         // Enabling the skill already started the install; this call mounts it for the agent that needs it.
         // A request never waits for the download, and a failed setup never fails the request.
-        this.reverseEngineering.start(agent)
+        this.reverseRuntime().start(agent)
       }
       return next()
     })
@@ -746,7 +748,7 @@ export default class AccountIntegrations extends TypertRemoteService {
     const connectors = [...this.domain.table('connectors').entries()].filter(([, item]) => item.owner === owner)
     const skills: AccountIntegrationsView['skills'] = [...this.domain.table('skills').entries()].filter(([, item]) => item.owner === owner)
       .map(([, item]) => ({ id: `${accountDirectory(owner)}:${item.name}` as SkillViewId, name: item.name, description: item.description, content: item.content, enabled: this.domain.table('skill_preferences').get(`${accountDirectory(owner)}:${item.name}`)?.enabled ?? item.enabled,
-        files: Object.keys(item.resources), source: 'account' }))
+        files: Object.keys(item.resources), source: 'account', ...(item.setup === undefined ? {} : { setup: item.setup }) }))
       .sort((a, b) => a.name.localeCompare(b.name))
     // Discovered skills are not the account's to switch off, so the library lists none of them.
     // A connector-owned skill documents the connector that decides its invocation instead.
@@ -787,7 +789,7 @@ export default class AccountIntegrations extends TypertRemoteService {
         ...item.slack === undefined ? {} : { slack: slackSettings(item.slack) } }
     }))
     return {
-      skills: skills.filter(skill => !connectorSkillNames.has(skill.name)), connectors: connections,
+      skills: skills.filter(skill => !connectorSkillNames.has(skill.name)).map(skill => this.withSetup(skill)), connectors: connections,
       providers: providers.map((provider): ConnectorProviderView => ({
         provider, ...this.consentFailures.get(`${owner}\0${provider}`), configured: provider === 'mcp' || (provider === 'email' ? this.ctx.get('mail') !== undefined
           : provider === 'whatsapp' ? this.whatsappBinary !== undefined
@@ -846,8 +848,41 @@ export default class AccountIntegrations extends TypertRemoteService {
    */
   private prepareReverseEngineering(name: string, enabled: boolean): void {
     if (name !== 'reverse-engineering' || !enabled || this.config.reverseEngineering === undefined) return
-    this.reverseEngineering ??= new ReverseEngineeringRuntime(this.ctx, this.config.reverseEngineering)
-    this.reverseEngineering.warm()
+    this.reverseRuntime().warm()
+  }
+
+  /**
+   * The one runtime every agent shares, which reports its progress onto the installed skill's row so Settings can
+   * show it beside that skill's switch.
+   * @returns the shared runtime.
+   * @throws Error when this deployment configures no analysis runtime.
+   */
+  private reverseRuntime(): ReverseEngineeringRuntime {
+    const config = this.config.reverseEngineering
+    if (config === undefined) throw new Error('reverse engineering is not configured')
+    this.reverseEngineering ??= new ReverseEngineeringRuntime(this.ctx, config, (setup) => {
+      this.skillSetup = setup
+      this.invalidateSkills()
+    })
+    return this.reverseEngineering
+  }
+
+  /**
+   * Retry the analysis runtime's install after a failure, which Settings offers from the failure dialog.
+   */
+  @Remote
+  async retryReverseEngineering(): Promise<void> {
+    this.reverseRuntime().retry()
+    await Promise.resolve()
+  }
+
+  /**
+   * Attach the analysis runtime's progress to the skill it prepares, whichever source lists that skill.
+   * @param skill - one entry of the account's skill library.
+   * @returns the entry, carrying `setup` while a runtime reports progress for it.
+   */
+  private withSetup(skill: PersonalSkillView): PersonalSkillView {
+    return skill.name === 'reverse-engineering' && this.skillSetup !== undefined ? { ...skill, setup: this.skillSetup } : skill
   }
 
   /**

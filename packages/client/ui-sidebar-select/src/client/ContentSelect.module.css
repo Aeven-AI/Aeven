@@ -232,12 +232,11 @@
   outline: none;
 }
 
-/* One kind row: a white button with the black ink of the static extremes, so
-   the row reads the same over the light and dark panel fills rather than
-   following the primary-button pair. Row height, inset and 8px glyph gap are the
-   left sidebar row's own metrics, read from the same theme tokens, so a kind's
-   18px glyph and its label stand on that column's lines — and no state paints
-   the row. */
+/* One kind row: a flat row in the panel's label tone, so its glyph and label
+   read against the panel fill in either scheme and no state paints the row.
+   Row height, inset and 8px glyph gap are the left sidebar row's own metrics,
+   read from the same theme tokens, so a kind's 18px glyph and its label stand
+   on that column's lines. */
 .launcherRow {
   display: flex;
   align-items: center;
@@ -246,8 +245,8 @@
   padding: 0 var(--dsw-aeven-sidebar-row-inset);
   border: none;
   border-radius: 20px;
-  background: var(--dsw-static-neutral-00);
-  color: var(--dsw-static-neutral-1000);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
   font: inherit;
   font-size: 0.875rem;
   text-align: start;

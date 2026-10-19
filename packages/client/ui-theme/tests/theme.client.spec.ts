@@ -62,8 +62,8 @@ describe('ThemeRuntime', () => {
 
   it('rejects out-of-range and fractional font sizes', () => {
     const { theme, events, host } = make()
-    for (const px of [11, 18, 14.5, Number.NaN]) {
-      expect(() => { theme.setFontSize(px) }).toThrow('outside 12..17')
+    for (const px of [11, 25, 14.5, Number.NaN]) {
+      expect(() => { theme.setFontSize(px) }).toThrow('outside 12..24')
     }
     expect(events).toHaveLength(0)
     expect(host.set).not.toHaveBeenCalled()

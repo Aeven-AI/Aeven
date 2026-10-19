@@ -95,6 +95,9 @@
   overflow: hidden;
   background: var(--dsw-alias-bg-layer-2);
   box-shadow: var(--dsw-elevation-prominent);
+  /* The panel separates by its shadow alone: the elevation's hairline stroke
+     reads as an outline around the dialog in both schemes. */
+  --dsw-elevation-stroke-color: transparent;
   /* Elevated surface: the scrollbar thumb takes the l2 elevation tokens.
      Declared on the panel rather than the scrolling `.options` child so the
      elevation choice sits with the surface; the custom properties inherit
@@ -105,6 +108,16 @@
   /* Center line of the close button (see `.close`): the header's 24px top
      padding plus half its 28px box. The nav title centres on the same line. */
   --avn-settings-close-center: calc(var(--dsw-aeven-page-inset) + 14px);
+}
+
+/* Dark: the settings surface carries no white primary button. Rebinding the pair
+   here reaches every section's filled action and the ink on it, so each one does
+   not restate the rule. Switches that paint their knob with the ink token keep
+   their own black in their own sheet. */
+:global(body[data-ds-dark-theme]) .panel {
+  --dsw-alias-button-primary-fill: #111111;
+  --dsw-alias-button-primary-hover: #222222;
+  --dsw-alias-label-primary-foreground: #ffffff;
 }
 
 /* Nav rail (figma .Setting-nav 501:29958): 188 wide, 12px sides, gap 18,
@@ -139,7 +152,7 @@
 /* Nav cell (figma .Setting-nav-cell 501:29962): 164x40, r12, pad
    (12,9,16,9), gap 8; label 14/400 lh22. The fills use the panel's
    interactive tokens rather than the sidebar nav tokens, which the Aeven theme
-   sets transparent; selected matches the settings selected-option fill. */
+   sets transparent; the selected cell keeps the hover fill. */
 .navCell {
   display: flex;
   align-items: center;
@@ -164,7 +177,7 @@
 }
 
 .navCell.active {
-  background: var(--dsw-specific-selector);
+  background: var(--dsw-alias-interactive-bg-hover);
 }
 
 .navIcon {
@@ -324,6 +337,8 @@
       "title header"
       "tabs tabs"
       "options options";
+    /* One top inset for the panel, following the page inset the rest of the panel uses. */
+    padding-top: var(--dsw-aeven-page-inset);
   }
 
   .nav,
@@ -343,22 +358,58 @@
 
   .header {
     grid-area: header;
+    padding: 0 var(--dsw-aeven-page-inset) 0 0;
+  }
+
+  .navTabs {
+    grid-area: tabs;
+    position: relative;
+    /* The gutter splits in half at each end: 16px inset paints 8px solid then 8px of fade,
+       24px paints 12px and 12px. */
+    --avn-nav-solid: calc(var(--dsw-aeven-page-inset) / 2);
+  }
+
+  .navTabs::before,
+  .navTabs::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 12px;
+    width: var(--dsw-aeven-page-inset);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .navTabs::before {
+    left: 0;
+    background: linear-gradient(to right, var(--dsw-alias-bg-layer-2) 0, var(--dsw-alias-bg-layer-2) var(--avn-nav-solid), transparent 100%);
+  }
+
+  .navTabs::after {
+    right: 0;
+    background: linear-gradient(to left, var(--dsw-alias-bg-layer-2) 0, var(--dsw-alias-bg-layer-2) var(--avn-nav-solid), transparent 100%);
   }
 
   .navList {
-    grid-area: tabs;
+    grid-area: auto;
     flex-direction: row;
-    padding: 12px var(--dsw-aeven-page-inset);
+    padding: 0 var(--dsw-aeven-page-inset) 12px;
     border-bottom: 1px solid var(--dsw-alias-border-l1);
     overflow-x: auto;
     scroll-padding-inline: var(--dsw-aeven-page-inset);
     scrollbar-width: none;
+    /* Cells land on the content inset after any scroll, so a tab label keeps the same left edge
+       as the heading instead of resting at an arbitrary offset. */
+    scroll-snap-type: x proximity;
+    /* Both ends fade through the wrapper's overlays; a mask on the scroller would ramp its own
+       padding and leave the cut text untouched. */
   }
 
   .navCell {
     flex: none;
     height: 36px;
     padding: 7px 14px 7px 10px;
+    scroll-snap-align: start;
   }
 
   .optionsFrame {

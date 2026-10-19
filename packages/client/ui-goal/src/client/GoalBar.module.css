@@ -30,7 +30,7 @@
 }
 
 .objective {
-  color: #000;
+  color: var(--dsw-alias-label-primary);
 }
 
 .error {

@@ -87,6 +87,13 @@
 
   --hm-color: #000000;
   --hm-background: rgb(242, 242, 242);
+  /* The fill under a fence, a table or a diagram: the engine's own card. */
+  --hm-surface: #fff;
+  /* A scrolling block's toolbar and a diagram's own controls float over that
+     card, so each fill is the card at a fraction rather than a colour of
+     its own. */
+  --hm-toolbar-backdrop: rgba(255, 255, 255, 0.4);
+  --hm-control-backdrop: rgba(255, 255, 255, 0.82);
   --hm-link-color: rgb(150, 150, 150);
   --hm-link-color-inverted: #fff;
   --hm-button-color: #000000;
@@ -703,8 +710,8 @@
 
     font-family: var(--hm-font-mono);
 
-    color: rgb(80, 80, 80);
-    background-color: rgb(242, 242, 242);
+    color: var(--hm-inline-code-color, rgb(80, 80, 80));
+    background-color: var(--hm-inline-code-background, rgb(242, 242, 242));
   }
 
   a[data-animate-word="true"],
@@ -795,7 +802,7 @@
             backdrop-filter: blur(0px);
             -webkit-backdrop-filter: blur(0px);
 
-            background-color: rgba(255, 255, 255, 0);
+            background-color: transparent;
 
             transition:
               background-color 0.4s var(--hm-ease),
@@ -877,7 +884,7 @@
             backdrop-filter: blur(0px);
             -webkit-backdrop-filter: blur(0px);
 
-            background-color: rgba(255, 255, 255, 0);
+            background-color: transparent;
 
             transition:
               background-color 0.4s var(--hm-ease),
@@ -955,8 +962,8 @@
 
             background: linear-gradient(
               180deg,
-              rgba(255, 255, 255, 1) 0px,
-              rgba(255, 255, 255, 0) 50px
+              var(--hm-surface) 0px,
+              transparent 50px
             );
           }
 
@@ -990,14 +997,14 @@
             backdrop-filter: blur(2px);
             -webkit-backdrop-filter: blur(2px);
 
-            background-color: rgba(255, 255, 255, 0.4);
+            background-color: var(--hm-toolbar-backdrop);
           }
 
           .table-button-container {
             backdrop-filter: blur(2px);
             -webkit-backdrop-filter: blur(2px);
 
-            background-color: rgba(255, 255, 255, 0.4);
+            background-color: var(--hm-toolbar-backdrop);
           }
         }
       }
@@ -1006,7 +1013,7 @@
         display: flex;
         position: relative;
 
-        background-color: #fff;
+        background-color: var(--hm-surface);
 
         margin: 0;
 
@@ -1154,14 +1161,14 @@
             backdrop-filter: blur(0px);
             -webkit-backdrop-filter: blur(0px);
 
-            background-color: rgba(255, 255, 255, 0);
+            background-color: transparent;
           }
 
           .table-button-container {
             backdrop-filter: blur(0px);
             -webkit-backdrop-filter: blur(0px);
 
-            background-color: rgba(255, 255, 255, 0);
+            background-color: transparent;
           }
         }
 
@@ -1176,14 +1183,14 @@
             backdrop-filter: blur(0px);
             -webkit-backdrop-filter: blur(0px);
 
-            background-color: rgba(255, 255, 255, 0);
+            background-color: transparent;
           }
 
           .table-button-container {
             backdrop-filter: blur(0px);
             -webkit-backdrop-filter: blur(0px);
 
-            background-color: rgba(255, 255, 255, 0);
+            background-color: transparent;
           }
         }
       }
@@ -1284,7 +1291,7 @@
             backdrop-filter: blur(0px);
             -webkit-backdrop-filter: blur(0px);
 
-            background-color: rgba(255, 255, 255, 0);
+            background-color: transparent;
 
             transition:
               background-color 0.4s var(--hm-ease),
@@ -1366,7 +1373,7 @@
             backdrop-filter: blur(0px);
             -webkit-backdrop-filter: blur(0px);
 
-            background-color: rgba(255, 255, 255, 0);
+            background-color: transparent;
 
             transition:
               background-color 0.4s var(--hm-ease),
@@ -1444,8 +1451,8 @@
 
             background: linear-gradient(
               180deg,
-              rgba(255, 255, 255, 1) 0px,
-              rgba(255, 255, 255, 0) 50px
+              var(--hm-surface) 0px,
+              transparent 50px
             );
           }
 
@@ -1479,14 +1486,14 @@
             backdrop-filter: blur(2px);
             -webkit-backdrop-filter: blur(2px);
 
-            background-color: rgba(255, 255, 255, 0.4);
+            background-color: var(--hm-toolbar-backdrop);
           }
 
           .mermaid-button-container {
             backdrop-filter: blur(2px);
             -webkit-backdrop-filter: blur(2px);
 
-            background-color: rgba(255, 255, 255, 0.4);
+            background-color: var(--hm-toolbar-backdrop);
           }
         }
       }
@@ -1495,7 +1502,7 @@
         display: flex;
         position: relative;
 
-        background-color: #fff;
+        background-color: var(--hm-surface);
 
         margin: 0;
 
@@ -1514,7 +1521,13 @@
           display: flex;
           position: relative;
 
-          width: 100%;
+          /* This box clips its overflow, so it carries the 10px the control
+             pill hangs past its left edge; the negative margin keeps the
+             diagram itself where it was. */
+          box-sizing: border-box;
+          width: calc(100% + 10px);
+          margin-left: -10px;
+          padding-left: 10px;
 
           overflow-x: auto;
 
@@ -1525,10 +1538,9 @@
             width: 100%;
             min-width: 100%;
 
-            overflow: hidden;
-            contain: paint;
-
-            border-top: 1px solid var(--hm-background);
+            /* The control pill hangs 8px past this box's left edge, so the
+               clipping lives on the viewport it covers instead of here. */
+            border-top: 1px solid var(--hm-table-header-color);
 
             .mermaid-pan-zoom-controls {
               display: flex;
@@ -1536,28 +1548,30 @@
 
               z-index: 4;
 
-              left: 8px;
+              left: -8px;
               bottom: 8px;
 
-              padding: 4px;
+              box-sizing: border-box;
+              width: 30px;
+              padding: 2px;
 
               flex-direction: column;
+              align-items: center;
 
-              border: 1px solid var(--hm-background);
-              border-radius: 9px;
+              border-radius: 15px;
 
-              background-color: rgba(255, 255, 255, 0.82);
-              backdrop-filter: blur(4px);
-              -webkit-backdrop-filter: blur(4px);
+              background-color: var(--hm-toolbar-backdrop);
+              backdrop-filter: blur(2px);
+              -webkit-backdrop-filter: blur(2px);
 
               .mermaid-pan-zoom-button {
                 display: flex;
                 position: relative;
 
-                width: 28px;
-                height: 28px;
+                width: 26px;
+                height: 26px;
 
-                border-radius: 5px;
+                border-radius: 13px;
 
                 align-items: center;
                 justify-content: center;
@@ -1587,7 +1601,7 @@
 
               .mermaid-pan-zoom-button:hover {
                 color: var(--hm-button-color);
-                background-color: var(--hm-background);
+                background-color: var(--hm-control-backdrop);
               }
 
               .mermaid-pan-zoom-button:disabled {
@@ -1619,6 +1633,8 @@
 
               width: 100%;
               min-width: 0;
+
+              overflow: hidden;
 
               --hm-diagram-fade: 10px;
             }
@@ -1980,14 +1996,14 @@
             backdrop-filter: blur(0px);
             -webkit-backdrop-filter: blur(0px);
 
-            background-color: rgba(255, 255, 255, 0);
+            background-color: transparent;
           }
 
           .mermaid-button-container {
             backdrop-filter: blur(0px);
             -webkit-backdrop-filter: blur(0px);
 
-            background-color: rgba(255, 255, 255, 0);
+            background-color: transparent;
           }
         }
 
@@ -2002,14 +2018,14 @@
             backdrop-filter: blur(0px);
             -webkit-backdrop-filter: blur(0px);
 
-            background-color: rgba(255, 255, 255, 0);
+            background-color: transparent;
           }
 
           .mermaid-button-container {
             backdrop-filter: blur(0px);
             -webkit-backdrop-filter: blur(0px);
 
-            background-color: rgba(255, 255, 255, 0);
+            background-color: transparent;
           }
         }
       }
@@ -2124,7 +2140,7 @@
             backdrop-filter: blur(0px);
             -webkit-backdrop-filter: blur(0px);
 
-            background-color: rgba(255, 255, 255, 0);
+            background-color: transparent;
 
             transition:
               background-color 0.4s var(--hm-ease),
@@ -2165,7 +2181,7 @@
             backdrop-filter: blur(0px);
             -webkit-backdrop-filter: blur(0px);
 
-            background-color: rgba(255, 255, 255, 0);
+            background-color: transparent;
 
             transition:
               background-color 0.4s var(--hm-ease),
@@ -2248,8 +2264,8 @@
 
             background: linear-gradient(
               180deg,
-              rgba(255, 255, 255, 1) 0px,
-              rgba(255, 255, 255, 0) 50px
+              var(--hm-surface) 0px,
+              transparent 50px
             );
           }
 
@@ -2283,14 +2299,14 @@
             backdrop-filter: blur(2px);
             -webkit-backdrop-filter: blur(2px);
 
-            background-color: rgba(255, 255, 255, 0.4);
+            background-color: var(--hm-toolbar-backdrop);
           }
 
           .codeblock-button-container {
             backdrop-filter: blur(2px);
             -webkit-backdrop-filter: blur(2px);
 
-            background-color: rgba(255, 255, 255, 0.4);
+            background-color: var(--hm-toolbar-backdrop);
           }
         }
       }
@@ -2307,7 +2323,7 @@
 
           position: relative;
 
-          background-color: #fff;
+          background-color: var(--hm-surface);
           margin: 0;
 
           overflow-x: hidden;
@@ -2386,7 +2402,7 @@
               line-height: var(--hm-code-leading);
               font-family: var(--hm-font-mono);
 
-              background-color: #fff;
+              background-color: var(--hm-surface);
 
               @media screen and (max-width: 640px) {
                 font-size: var(--hm-code-size-mobile);
@@ -2470,14 +2486,14 @@
             backdrop-filter: blur(0px);
             -webkit-backdrop-filter: blur(0px);
 
-            background-color: rgba(255, 255, 255, 0);
+            background-color: transparent;
           }
 
           .codeblock-button-container {
             backdrop-filter: blur(0px);
             -webkit-backdrop-filter: blur(0px);
 
-            background-color: rgba(255, 255, 255, 0);
+            background-color: transparent;
           }
         }
 
@@ -2492,14 +2508,14 @@
             backdrop-filter: blur(0px);
             -webkit-backdrop-filter: blur(0px);
 
-            background-color: rgba(255, 255, 255, 0);
+            background-color: transparent;
           }
 
           .codeblock-button-container {
             backdrop-filter: blur(0px);
             -webkit-backdrop-filter: blur(0px);
 
-            background-color: rgba(255, 255, 255, 0);
+            background-color: transparent;
           }
         }
       }
@@ -2721,4 +2737,18 @@
   100% {
     opacity: 0.35;
   }
+}
+
+/* A diagram's own drawing follows the dark scheme too: the nodes keep the
+   card's step and their labels stay on white ink. */
+body[data-ds-dark-theme] .hypermarkdown .mermaid-svg .node rect,
+body[data-ds-dark-theme] .hypermarkdown .mermaid-svg .node circle,
+body[data-ds-dark-theme] .hypermarkdown .mermaid-svg .node ellipse,
+body[data-ds-dark-theme] .hypermarkdown .mermaid-svg .node polygon,
+body[data-ds-dark-theme] .hypermarkdown .mermaid-svg .node path {
+  fill: #333333;
+}
+
+body[data-ds-dark-theme] .hypermarkdown .mermaid-svg text {
+  fill: #ffffff;
 }

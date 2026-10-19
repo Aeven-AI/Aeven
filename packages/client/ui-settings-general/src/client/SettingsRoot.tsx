@@ -98,7 +98,8 @@ function SettingsPanel({ rows, renderSlot, activeId, detail: addressedDetail, on
   // by id (onboarding's openSection) can start outside it.
   const navList = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
-    navList.current?.querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    // `inline: 'start'` rests the active tab on the content inset, so its label shares the heading's left edge.
+    navList.current?.querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'nearest', inline: 'start' })
   }, [active])
 
   // The section scrolls under `no-scrollbar`, so no bar draws and no engine
@@ -127,19 +128,21 @@ function SettingsPanel({ rows, renderSlot, activeId, detail: addressedDetail, on
       <div className={css.panel} role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <nav className={css.nav}>
           <div className={css.navTitle} id={titleId}>{renderSlot('settings.header', {})}</div>
-          <div ref={navList} className={css.navList}>
-            {rows.map(row => (
-              <button
-                key={row.id}
-                type="button"
-                className={clsx(css.navCell, row.id === active && css.active)}
-                aria-current={row.id === active ? 'true' : undefined}
-                onClick={() => { onSelect(row.id) }}
-              >
-                {navIcon(row.id)}
-                <span className={css.navLabel}>{row.label}</span>
-              </button>
-            ))}
+          <div className={css.navTabs}>
+            <div ref={navList} className={css.navList}>
+              {rows.map(row => (
+                <button
+                  key={row.id}
+                  type="button"
+                  className={clsx(css.navCell, row.id === active && css.active)}
+                  aria-current={row.id === active ? 'true' : undefined}
+                  onClick={() => { onSelect(row.id) }}
+                >
+                  {navIcon(row.id)}
+                  <span className={css.navLabel}>{row.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </nav>
         <div className={css.content}>

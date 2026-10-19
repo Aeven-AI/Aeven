@@ -14,6 +14,14 @@ export const THEME_PREFERENCE_FIELD = 'preference'
 /** Field carrying the conversation content font size. */
 export const FONT_SIZE_FIELD = 'fontSize'
 
+/**
+ * Body attribute carrying the durable preference the index bootstrap painted
+ * with. The theme service seeds its first snapshot from it, so the palette the
+ * client activates with is the one already on screen rather than the default
+ * it would otherwise hold until the Host settings answer.
+ */
+export const THEME_PREFERENCE_ATTRIBUTE = 'data-avn-theme-preference'
+
 /** Theme preference persisted by the product Appearance row. */
 export type ThemePreference = typeof THEME_PREFERENCES[number]
 
@@ -24,7 +32,7 @@ export const DEFAULT_PREFERENCE: ThemePreference = 'system'
 export const FONT_SIZE_MIN = 12
 
 /** Largest accepted content font size (px). */
-export const FONT_SIZE_MAX = 17
+export const FONT_SIZE_MAX = 24
 
 /** Content font size when the user-settings document has no override (px).
  *  16px matches the Aeven design-system body scale (16px/30px, 400). */

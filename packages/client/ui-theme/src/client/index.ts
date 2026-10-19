@@ -26,7 +26,7 @@ import { installThemeStyles } from './styles.ts'
 import { en, es, zh, type ThemeKey } from './locales.ts'
 import {
   DEFAULT_FONT_SIZE, DEFAULT_PREFERENCE, FONT_SIZE_FIELD, FONT_SIZE_MAX, FONT_SIZE_MIN,
-  isThemePreference, secondaryFontSize, THEME_PREFERENCE_FIELD, THEME_SETTINGS_NAMESPACE,
+  isThemePreference, secondaryFontSize, THEME_PREFERENCE_ATTRIBUTE, THEME_PREFERENCE_FIELD, THEME_SETTINGS_NAMESPACE,
   type ThemePreference, type ThemeSettings,
 } from '../theme-settings.ts'
 
@@ -167,7 +167,7 @@ export class ThemeRuntime {
   private readonly ctx: ClientContext
   private readonly host: SettingsScope<ThemeSettings>
   private themes: ThemeDefinition[] = [...BUILTIN_THEMES]
-  private preference: ThemePreference
+  private preference: ThemePreference = bootstrapPreference()
   private fontSize: number = bootstrapFontSize()
   private revision = 0
   private snapshot: ThemeSnapshot
@@ -184,7 +184,6 @@ export class ThemeRuntime {
   constructor(ctx: ClientContext, host: SettingsScope<ThemeSettings>) {
     this.ctx = ctx
     this.host = host
-    this.preference = DEFAULT_PREFERENCE
     // Non-browser runs (node e2e booting the client tree) have no matchMedia.
     this.media = typeof matchMedia === 'undefined' ? undefined : matchMedia('(prefers-color-scheme: dark)')
     this.snapshot = this.buildSnapshot()
@@ -382,6 +381,21 @@ function bootstrapFontSize(): number {
   return Number.isInteger(parsed) && parsed >= FONT_SIZE_MIN && parsed <= FONT_SIZE_MAX
     ? parsed
     : DEFAULT_FONT_SIZE
+}
+
+/**
+ * Read the preference the Host boot script wrote on `body` before any plugin
+ * ran, so the first snapshot resolves the palette already on screen instead of
+ * the schema default: ui-layout's presenter would otherwise repaint the loading
+ * page in the default scheme until the settings read lands.
+ * Non-browser runs and mounts without the boot script fall back to the schema
+ * default; the durable settings adoption still lands afterwards.
+ */
+function bootstrapPreference(): ThemePreference {
+  /* v8 ignore next -- needs a documentless run (node e2e booting the client tree), not constructible under jsdom */
+  if (typeof document === 'undefined') return DEFAULT_PREFERENCE
+  const raw = document.body.getAttribute(THEME_PREFERENCE_ATTRIBUTE)
+  return isThemePreference(raw) ? raw : DEFAULT_PREFERENCE
 }
 
 /**

@@ -48,3 +48,11 @@
   background: var(--dsw-alias-button-primary-fill);
   color: var(--dsw-alias-label-primary-foreground);
 }
+
+/* Dark: the chosen cube is the raised #333 tile with white ink, not the near
+   white primary fill, which read as a hole punched in the panel. */
+:global(body[data-ds-dark-theme]) .selected,
+:global(body[data-ds-dark-theme]) .selected:hover {
+  background: #333333;
+  color: #ffffff;
+}

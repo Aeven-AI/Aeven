@@ -36,14 +36,14 @@
 
 .title {
   flex: none;
-  color: #000;
+  color: var(--dsw-alias-label-primary);
 }
 
 .progress {
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
-  color: #000;
+  color: var(--dsw-alias-label-primary);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -71,7 +71,7 @@
   align-items: center;
   gap: 10px;
   min-width: 0;
-  color: #000;
+  color: var(--dsw-alias-label-primary);
 }
 
 .glyph {

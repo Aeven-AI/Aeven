@@ -133,7 +133,9 @@ export const cardListStyle: CSSProperties = {
 }
 
 /**
- * One provider card; an open card reads as the one being worked on.
+ * One provider card, carried on the settings panel's own surface so the card
+ * and the dialog are one tone; an open card reads as the one being worked on
+ * through its border alone.
  * @param open - whether the card is disclosed.
  * @returns the card's inline style.
  */
@@ -144,8 +146,8 @@ export function foldoutStyle(open: boolean): CSSProperties {
     borderStyle: 'solid',
     borderColor: open ? 'var(--dsw-alias-label-dimmed)' : 'var(--dsw-alias-border-l4)',
     borderRadius: 16,
-    background: open ? 'var(--dsw-alias-bg-layer-2)' : 'var(--dsw-alias-bg-layer-3)',
-    transition: 'border-color 0.16s, background 0.16s',
+    background: 'var(--dsw-alias-bg-layer-2)',
+    transition: 'border-color 0.16s',
   }
 }
 /** The card header: the whole row is the disclosure control. */

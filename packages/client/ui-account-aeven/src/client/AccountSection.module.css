@@ -162,15 +162,26 @@
   padding-top: 8px;
 }
 
+/* The disc is a box with no text of its own beside it, so it takes the row's
+   centre the way the other box controls do. Baseline alignment hangs it off
+   the name line, clear of the email that completes the block beside it. */
 .avatar {
   display: flex;
   flex: none;
+  align-self: center;
 }
 
 .avatar :global(.avatar) {
   width: 40px;
   height: 40px;
   border-radius: 20px;
+}
+
+/* The disc takes the section's deeper #111 fill, and draws no ring in either
+   scheme: the picture or the letter is the whole control. */
+.avatar :global(.avatar .image-container .image.image),
+.avatar :global(.avatar .image-container .initial.initial) {
+  background-color: #111111;
 }
 
 /* The picture is the picker's other trigger: a reader who wants a different
@@ -182,17 +193,13 @@
   border: none;
   border-radius: 20px;
   background: none;
+  outline: none;
   cursor: pointer;
 }
 
 .avatarButton:disabled {
   cursor: default;
   opacity: 0.6;
-}
-
-.avatarButton:focus-visible {
-  outline: 2px solid var(--dsw-alias-label-primary);
-  outline-offset: 2px;
 }
 
 /* The upload and removal controls are icons on the row's own control scale, so
@@ -464,6 +471,34 @@
   color: var(--dsw-alias-label-tertiary);
 }
 
+/* Dark: a plan already held says so on the #333 pill, whatever tile it sits on. */
+:global(body[data-ds-dark-theme]) .planAction:disabled {
+  background: #333333;
+}
+
+/* Dark: the highlighted plan is the raised #333 tile with white ink; its live
+   action pill is the #111 sheet's own black, so the upgrade reads as the one
+   button on the block. */
+:global(body[data-ds-dark-theme]) .plan[data-recommended="true"] {
+  background: #333333;
+  color: #ffffff;
+}
+
+:global(body[data-ds-dark-theme]) .plan[data-recommended="true"] .badge,
+:global(body[data-ds-dark-theme]) .plan[data-recommended="true"] .pricePer,
+:global(body[data-ds-dark-theme]) .plan[data-recommended="true"] .features,
+:global(body[data-ds-dark-theme]) .plan[data-recommended="true"] .check {
+  color: #ffffff;
+}
+
+:global(body[data-ds-dark-theme]) .plan[data-recommended="true"] .planAction {
+  background: #111111;
+}
+
+:global(body[data-ds-dark-theme]) .plan[data-recommended="true"] .planAction:disabled {
+  color: #ffffff;
+}
+
 .notice {
   display: flex;
   align-items: center;
@@ -555,6 +590,13 @@
   color: var(--dsw-alias-label-primary);
 }
 
+/* Dark: the amount in hand is the #111 pill with white digits. */
+:global(body[data-ds-dark-theme]) .segment[aria-checked="true"],
+:global(body[data-ds-dark-theme]) .customSegment {
+  background: #111111;
+  color: #ffffff;
+}
+
 /* The amount the reader types is a preset's pill too, so it keeps the preset
    geometry and lets its digits set the width. It is a `label`, and the
    vendored auth stylesheet gives every label an 8px bottom margin, which
@@ -591,6 +633,19 @@
 .addButton {
   min-width: 96px;
   font-weight: 400;
+}
+
+/* Dark: the Add $20 action is the #111 pill with white text, not the near-white
+   primary fill that read as a hole in the panel. The hover selector repeats the
+   fill so the shared primary hover cannot bring the white back. */
+:global(body[data-ds-dark-theme]) .addButton,
+:global(body[data-ds-dark-theme]) .addButton:hover:not(:disabled) {
+  background: #111111;
+  color: #ffffff;
+}
+
+:global(body[data-ds-dark-theme]) .addButton:disabled {
+  color: var(--dsw-alias-label-tertiary);
 }
 
 /* Usage. */
@@ -685,6 +740,11 @@
   border-radius: 50%;
   background: var(--dsw-alias-label-primary-foreground);
   transition: transform 150ms;
+}
+
+/* Dark: the knob stays black on the settings surface, whose ink token is white. */
+:global(body[data-ds-dark-theme]) .thumb {
+  background: #000000;
 }
 
 .switch[aria-checked="true"] {

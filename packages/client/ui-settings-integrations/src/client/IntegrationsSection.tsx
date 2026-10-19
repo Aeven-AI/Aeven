@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AccountIntegrationsView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillCatalogView, SkillUploadFile, WhatsAppPairingView } from '@aeven/api-remotes/client'
-import { LoadingBlock, SectionHeader, MarkdownText, Menu, Modal, IconCloseOutline16, IconChevronLeftOutline14, IconLucideSettings2 } from '@aeven/client-ui-primitives'
+import { Button, LoadingBlock, SectionHeader, MarkdownText, Menu, Modal, Spinner, IconWarningOutline16, IconChevronLeftOutline14, IconLucideSettings2 } from '@aeven/client-ui-primitives'
 import type { HostObservable, InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import css from './IntegrationsSection.module.css'
 import { connectorIcons } from './connector-icons.ts'
@@ -62,6 +62,8 @@ export interface IntegrationsSectionInjected extends TelegramPairingOperations {
   installCatalogSkill: (name: string) => Promise<void>
   importSkill: (files: SkillUploadFile[]) => Promise<void>
   setSkillEnabled: (name: string, enabled: boolean) => Promise<void>
+  /** Retry the tool install a skill's engine needs, after that install failed. */
+  retryReverseEngineering: () => Promise<void>
   removeSkill: (name: string) => Promise<void>
   connect: (request: ConnectorCreateRequest) => Promise<ConnectorId>
   connectEmail: (request: EmailConnectionRequest) => Promise<EmailConnectionResult>
@@ -115,6 +117,12 @@ function scrollContainer(node: HTMLElement | null): HTMLElement | undefined {
  * @param props - localized account operations and selected page.
  * @returns the Settings page.
  */
+/** A skill's name as a person reads it: `reverse-engineering` shows as "Reverse engineering". */
+function humanSkillName(name: string): string {
+  const spaced = name.replace(/[-_]+/g, ' ').trim()
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1)
+}
+
 export function IntegrationsSection(props: IntegrationsSectionProps) {
   const { page, t, list } = props
   const changes = props.useChanges(value => value)
@@ -147,6 +155,8 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
   const [url, setUrl] = useState('')
   const [token, setToken] = useState('')
   const [consent, setConsent] = useState<string>()
+  /** Reason the analysis runtime reported, shown once in a popup next to the switch that cannot move. */
+  const [setupFailure, setSetupFailure] = useState<string>()
   const [pendingProvider, setPendingProvider] = useState<ConnectorProvider>()
   /** Set when turning Email or WhatsApp on opened its page, so adding an account starts right away. */
   const [addRequested, setAddRequested] = useState(false)
@@ -300,14 +310,14 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
   const catalogRow = (skill: SkillCatalogView['skills'][number]) => <article key={skill.name} className={css.connectorRow}>
     <button type="button" className={css.connectorOpen} onClick={() => { openDetail(skill.name) }}>
       <span className={css.skillSummary}>
-        <strong>{skill.name}</strong>
+        <strong>{humanSkillName(skill.name)}</strong>
         <span className={css.connectorDescription}>{skill.description}</span>
         <span className={css.meta}>
           {skill.displayName === skill.name ? t('catalogDownloads') : `${skill.displayName} · ${t('catalogDownloads')}`} {skill.downloads.toLocaleString()}
         </span>
       </span>
     </button>
-    {catalogSwitch(skill)}
+    <span className={css.switchCell}>{setupSpinner(skill.name)}{setupWarning(skill.name)}{catalogSwitch(skill)}</span>
   </article>
   /** Display menu anchored to the toolbar button, matching the composer's own option popups:
    * the list leaves this scrolling pane, and its right edge rests on the trigger's. */
@@ -345,6 +355,16 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
       : <img className={`${css.connectorIcon} ${MONOCHROME_ICONS.has(provider) ? css.connectorIconInverted : ''}`} src={connectorIcons[provider]} alt="" />}
   </span>
   const toggle = (label: string, on: boolean, disabled: boolean, onChange: () => void) => <button type="button" role="switch" aria-label={label} aria-checked={on} title={t(on ? 'on' : 'off')} className={`${css.switch} ${on ? css.switchOn : ''}`} disabled={busy || disabled} onClick={(event) => { event.stopPropagation(); onChange() }}><span className={css.thumb} /></button>
+  /** Install progress the Host reports for a skill whose engine is prepared after it is enabled. */
+  const setupOf = (name: string) => snapshot?.skills.find(skill => skill.name === name)?.setup
+  /** The shared spinner while a skill's engine installs, left of its switch and with no label of its own. */
+  const setupSpinner = (name: string) => setupOf(name)?.state === 'installing' ? <Spinner /> : undefined
+  /** A failed attempt keeps its reason behind one warning glyph, so the row stays quiet but never hides it. */
+  const setupWarning = (name: string) => setupOf(name)?.state === 'failed'
+    ? <button type="button" className={css.setupWarning} aria-label={t('setupFailedTitle')} title={t('setupFailedTitle')} onClick={() => { setSetupFailure(setupOf(name)?.detail ?? '') }}>
+      <IconWarningOutline16 size={14} />
+    </button>
+    : undefined
   const skillSwitch = (skill: AccountIntegrationsView['skills'][number]) => toggle(skill.name, skill.enabled, false, () => {
     void run(() => props.setSkillEnabled(skill.name, !skill.enabled))
   })
@@ -443,6 +463,20 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
     <p className={css.hint}>{t('tokenHint')}</p>
     <div className={css.actions}><button type="submit" className={css.primaryAction} disabled={busy}>{t('connect')}</button><button type="button" className={css.secondaryAction} disabled={busy} onClick={() => { setToken(''); setForm(undefined) }}>{t('cancel')}</button></div>
   </form>
+  /** Search and its action, on the title row so the field's centre rides the heading's optical centre. */
+  const searchBar = page === 'skills' && selectedSkillId === undefined ? <div className={css.toolbar}>
+    <input
+      className={css.search}
+      type="search"
+      aria-label={t(mode === 'catalog' ? 'searchCatalog' : 'searchSkills')}
+      placeholder={t(mode === 'catalog' ? 'searchCatalog' : 'searchSkills')}
+      value={mode === 'catalog' ? catalogQuery : query}
+      onChange={(event) => { const next = event.currentTarget.value; if (mode === 'catalog') setCatalogQuery(next); else setQuery(next) }}
+    />
+    {mode === 'catalog'
+      ? displayMenu
+      : <button type="button" className={css.primaryAction} disabled={busy} title={t('importHint')} onClick={() => { fileInput.current?.click() }}>{t('import')}</button>}
+  </div> : undefined
   const catalogVisible = (page === 'skills' ? selectedSkillId : selectedConnector) === undefined
   // Nothing the list owns is drawn while the first read is in flight, so the
   // page shows the header and the spinner alone.
@@ -462,18 +496,8 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
       }} />
       {selectedSkillId === undefined ? <>
         {modeSwitch}
+        {searchBar}
         {mode === 'catalog' ? <>
-          <div className={css.toolbar}>
-            <input
-              className={css.search}
-              type="search"
-              aria-label={t('searchCatalog')}
-              placeholder={t('searchCatalog')}
-              value={catalogQuery}
-              onChange={(event) => { setCatalogQuery(event.currentTarget.value) }}
-            />
-            {displayMenu}
-          </div>
           {catalog === null && <p className={css.hint}>{t('catalogUnavailable')}</p>}
           {catalog !== undefined && catalog !== null && (view === 'category' && catalogQuery.trim() === ''
             ? <div className={css.connectorList}>{catalogCategories.map(category => <article
@@ -486,26 +510,15 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
             </article>)}</div>
             : <div className={css.connectorList}>{allRows.map(catalogRow)}</div>)}
         </> : <>
-          <div className={css.toolbar}>
-            <input
-              className={css.search}
-              type="search"
-              aria-label={t('searchSkills')}
-              placeholder={t('searchSkills')}
-              value={query}
-              onChange={(event) => { setQuery(event.currentTarget.value) }}
-            />
-            <button type="button" className={css.primaryAction} disabled={busy} title={t('importHint')} onClick={() => { fileInput.current?.click() }}>{t('import')}</button>
-          </div>
           {snapshot !== undefined && snapshot.skills.length > 0 && matchingSkills.length === 0 && <p className={css.hint}>{t('noMatches')}</p>}
           <div className={css.connectorList}>{matchingSkills.map(skill => <article key={skill.id} className={css.connectorRow}>
             <button type="button" className={css.connectorOpen} onClick={() => { openDetail(skill.id) }}>
               <span className={css.skillSummary}>
-                <strong>{skill.name}</strong>
+                <strong>{humanSkillName(skill.name)}</strong>
                 <span className={css.connectorDescription}>{skill.description}</span>
               </span>
             </button>
-            {skillSwitch(skill)}
+            <span className={css.switchCell}>{setupSpinner(skill.name)}{setupWarning(skill.name)}{skillSwitch(skill)}</span>
           </article>)}</div>
         </>}
       </> : selectedCategory !== undefined
@@ -516,7 +529,7 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
         </article>
         : selectedSkill !== undefined
           ? <article className={`${css.connectorDetail} ${css.skillContent}`}>
-            <div className={css.connectorHeading}><h2>{selectedSkill.name}</h2>{skillSwitch(selectedSkill)}</div>
+            <div className={css.connectorHeading}><h2>{humanSkillName(selectedSkill.name)}</h2>{skillSwitch(selectedSkill)}</div>
             <p className={css.detailDescription}>{selectedSkill.description}</p>
             <p className={css.meta}>{t('personalSkill')}</p>
             <div className={css.instructions}>
@@ -666,15 +679,40 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
           <div className={css.connectorList}>{providerDetail.skills.map(skill => <article key={skill.id} className={css.connectorRow}>
             <button type="button" className={css.connectorOpen} onClick={() => { setConnectorSkillId(skill.id) }} aria-haspopup="dialog">
               <span className={css.skillSummary}>
-                <strong>{skill.name}</strong>
+                <strong>{humanSkillName(skill.name)}</strong>
                 <span className={css.connectorDescription}>{skill.description}</span>
               </span>
             </button>
           </article>)}</div>
         </>}
-        {connectorSkill !== undefined && <Modal open headless onClose={() => { setConnectorSkillId(undefined) }} title={connectorSkill.name} className={`${css.section} ${css.compact} ${css.skillModal}`}>
-          <header className={css.skillModalHeader}><h2>{connectorSkill.name}</h2><button type="button" className={css.skillModalClose} aria-label={t('close')} onClick={() => { setConnectorSkillId(undefined) }}><IconCloseOutline16 size={14} /></button></header>
-          <div className={`${css.skillModalContent} ${css.skillContent} no-scrollbar`}><p className={css.detailDescription}>{connectorSkill.description}</p><MarkdownText key={connectorSkill.id} text={connectorSkill.content} animation={false} controls={{ table: false }} labels={{ code: { copyLabel: t('copy'), copiedLabel: t('copied') }, footnotes: t('footnotes') }} /></div>
+        <Modal
+          open={setupFailure !== undefined}
+          onClose={() => { setSetupFailure(undefined) }}
+          title={t('setupFailedTitle')}
+          closeLabel={t('close')}
+          className={css.setupFailureDialog ?? ''}
+          footer={(
+            <>
+              <Button variant="outline" onClick={() => { setSetupFailure(undefined) }}>{t('close')}</Button>
+              <Button variant="primary" disabled={busy} onClick={() => {
+                setSetupFailure(undefined)
+                void run(() => props.retryReverseEngineering())
+              }}>{t('retry')}</Button>
+            </>
+          )}
+        >
+          <p className={css.setupFailureText}>{setupFailure}</p>
+        </Modal>
+        {connectorSkill !== undefined && <Modal
+          open
+          onClose={() => { setConnectorSkillId(undefined) }}
+          title={humanSkillName(connectorSkill.name)}
+          closeLabel={t('close')}
+          className={`${css.section} ${css.compact} ${css.skillModal ?? ''}`}
+          contentClassName={`${css.skillModalContent ?? ''} ${css.skillContent ?? ''} no-scrollbar`}
+        >
+          <p className={css.detailDescription}>{connectorSkill.description}</p>
+          <MarkdownText key={connectorSkill.id} text={connectorSkill.content} animation={false} controls={{ table: false }} labels={{ code: { copyLabel: t('copy'), copiedLabel: t('copied') }, footnotes: t('footnotes') }} />
         </Modal>}
       </article>}
       {consent !== undefined && <div ref={consentCard} className={css.card}><a href={consent} target="_blank" rel="noreferrer" onClick={(event) => {

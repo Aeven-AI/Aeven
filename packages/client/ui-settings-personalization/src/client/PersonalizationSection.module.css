@@ -58,6 +58,14 @@
   color: var(--dsw-alias-label-primary-foreground);
 }
 
+/* Dark: the chosen voice is the raised #333 capsule with white ink, the pair the
+   Appearance cube uses, not the near white primary fill. */
+:global(body[data-ds-dark-theme]) .voice[data-active="true"],
+:global(body[data-ds-dark-theme]) .voice[data-active="true"]:hover:not(:disabled) {
+  background: #333333;
+  color: #ffffff;
+}
+
 .voice:focus-visible {
   outline: 2px solid var(--dsw-alias-state-business-primary);
   outline-offset: 2px;

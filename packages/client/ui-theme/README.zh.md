@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`avn-client-ui-theme` 让 Web GUI 用户在设置中选择 `light`、`dark` 或 `system`，并把会话正文字号设为 12 至 17 px。回环客户端把两个值存入 `ui-theme` 设置命名空间，本地提供方默认将其持久化到 `$AVN_HOME/settings.yaml`。插件通过 `prefers-color-scheme` 解析 `system` 并发布不可变的 `ThemeSnapshot`；ui-layout 把每份快照应用到 document。本包还提供 `--dsw-*` token 样式表，并注入同步引导，使所选调色板与字号在静态外壳预加载页绘制前生效。第三方主题可通过 `ctx.theme` 注册别名 token 覆盖。
+`avn-client-ui-theme` 让 Web GUI 用户在设置中选择 `light`、`dark` 或 `system`，并把会话正文字号设为 12 至 24 px。回环客户端把两个值存入 `ui-theme` 设置命名空间，本地提供方默认将其持久化到 `$AVN_HOME/settings.yaml`。插件通过 `prefers-color-scheme` 解析 `system` 并发布不可变的 `ThemeSnapshot`；ui-layout 把每份快照应用到 document。本包还提供 `--dsw-*` token 样式表，并注入同步引导，使所选调色板与字号在静态外壳预加载页绘制前生效。第三方主题可通过 `ctx.theme` 注册别名 token 覆盖。
 
 Aeven 基线集中位于 `aeven-language.css`：Google Sans Flex 字体角色、浅色别名共同解析到的七级中性色阶、1024px 会话宽度、响应式页面与侧栏内边距、280px 侧栏宽度、400ms 侧栏过渡、间距、控件尺寸和圆角都是供组件 CSS 使用的单一来源变量。
 
@@ -31,7 +31,7 @@ Aeven 基线集中位于 `aeven-language.css`：Google Sans Flex 字体角色、
 
 ### 外观与字号
 
-插件注册「外观」分区，其中包含偏好方块与字号步进器。对话显示与文字动画由 ui-chat 注册进同一分区。步进器接受 12 至 17 px 的整数，默认值为 14 px。它以相同增量调整会话标题与基础文本，包括用户气泡与 composer 草稿；流内行的标题、摘要与表格跟随比正文低一档的字号，小号文本和代码保持固定字号。每次通过的变更都经 Host settings API 写入。连续快速变更按操作顺序携带命名空间 revision 串行写入，最新写入被拒时重新加载持久值。非 loopback 页面把两个选择都保留在进程内。
+插件注册「外观」分区，其中包含偏好方块与字号步进器。对话显示与文字动画由 ui-chat 注册进同一分区。步进器接受 12 至 24 px 的整数，默认值为 14 px。它以相同增量调整会话标题与基础文本，包括用户气泡与 composer 草稿；流内行的标题、摘要与表格跟随比正文低一档的字号，小号文本和代码保持固定字号。每次通过的变更都经 Host settings API 写入。连续快速变更按操作顺序携带命名空间 revision 串行写入，最新写入被拒时重新加载持久值。非 loopback 页面把两个选择都保留在进程内。
 
 ### 注册主题
 

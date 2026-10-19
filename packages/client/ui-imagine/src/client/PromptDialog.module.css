@@ -17,6 +17,9 @@
   max-height: min(760px, calc(100dvh - 64px));
   padding: 0;
   gap: 0;
+  /* No rim on the card: the shared elevation draws its 0.5px hairline from the
+     stroke color, so a transparent one keeps the soft shadow alone. */
+  --dsw-elevation-stroke-color: transparent;
 }
 
 /* A prompt with no shipped example has no stage: the column is the card. */

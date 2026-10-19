@@ -89,6 +89,11 @@ Signed-in users manage their own integrations; each agent mounts only its owner'
 @Remote // oxlint-disable-next-line typescript/require-await -- the Remote contract answers with a promise; this read has nothing to await. async catalogSkillContent(name: string): Promise<string | undefined>
 
 /**
+ * Retry the analysis runtime's install after a failure, which Settings offers from the failure dialog.
+ */
+@Remote async retryReverseEngineering(): Promise<void>
+
+/**
  * Install one catalogued skill into the account's library.
  * @param name - catalogued skill name.
  * @throws Error when the deployment mounts no catalog, or the name is not catalogued.

@@ -133,7 +133,7 @@
   display: block;
   overflow: visible;
   border: none;
-  border-top: 2px solid #fff;
+  border-top: 2px solid var(--dsw-aeven-rule);
   width: 100%;
   height: 0;
   margin: 56px 0;
@@ -195,6 +195,41 @@
   --hm-max-width: 100%;
   --hm-math-size: 20px;
   --hm-tracking: normal;
+  /* The engine's palette is its light default; every colour it draws — prose,
+     fences, tables, math and links — reads from the theme's aliases instead, so
+     the same markup inverts with the scheme and a fence or table sits a step
+     above the transcript rather than glaring white under it. */
+  --hm-surface: var(--dsw-alias-markdown-code-block);
+  /* What floats over that card: a scrolled block's toolbar, and a diagram's
+     own control pill. The engine's own translucent white in the light scheme;
+     the dark block below restates both over the dark card. */
+  --hm-toolbar-backdrop: rgba(255, 255, 255, 0.4);
+  --hm-control-backdrop: rgba(255, 255, 255, 0.4);
+  /* A diagram's wait covers the drawing's own fill, so the cover is that fill
+     rather than the engine's white fallback. */
+  --hm-diagram-loader-background: var(--dsw-alias-markdown-code-block);
+  --hm-color: var(--dsw-alias-label-primary);
+  --hm-link-color: var(--dsw-alias-label-tertiary);
+  --hm-button-color: var(--dsw-alias-label-primary);
+  --hm-toolbar-color: var(--dsw-alias-label-secondary);
+  --hm-code-color: var(--dsw-alias-label-secondary);
+  /* Inline code keeps its own, quieter ink under prose; the engine's rule owns
+     the declaration, so the token reaches it as a variable. */
+  --hm-inline-code-color: var(--dsw-alias-markdown-inline-code-text);
+  --hm-inline-code-background: var(--dsw-alias-markdown-inline-code);
+  --hm-line-number-color: var(--dsw-alias-label-caption);
+  --hm-table-color: var(--dsw-alias-label-secondary);
+  --hm-table-header-color: #f2f2f2;
+  --hm-math-color: var(--dsw-alias-label-secondary);
+}
+
+/* The same two fills over the dark card, where a 40% white would read as a
+   grey smear. */
+body[data-ds-dark-theme] .markdown.markdown {
+  --hm-toolbar-backdrop: rgba(34, 34, 34, 0.4);
+  --hm-control-backdrop: rgba(34, 34, 34, 0.4);
+  --hm-table-header-color: #333333;
+  --hm-background: #333333;
 }
 
 /* A reasoning block is part of a reply, not a toolbar, so it reads at the

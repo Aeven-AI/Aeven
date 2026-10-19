@@ -227,11 +227,12 @@
   pointer-events: none;
 }
 
-/* A flat white pill. No blur and no translucency, so nothing of the transcript
-   shows through it; no shadow, so it casts nothing onto the rows behind it. No
-   border either — the elevation tokens are avoided here because each one begins
-   with `--dsw-elevation-stroke` (`0 0 0 0.5px`), a hairline ring `border: 0`
-   cannot remove. The glyph keeps the label ink so it stays legible on the fill. */
+/* A flat pill on the transcript's rule colour. No blur and no translucency, so
+   nothing of the transcript shows through it; no shadow, so it casts nothing
+   onto the rows behind it. No border either — the elevation tokens are avoided
+   here because each one begins with `--dsw-elevation-stroke` (`0 0 0 0.5px`), a
+   hairline ring `border: 0` cannot remove. The glyph keeps the label ink so it
+   stays legible on the fill. */
 .toBottom {
   display: flex;
   align-items: center;
@@ -244,7 +245,7 @@
   border: 0;
   border-radius: 100px;
   color: var(--dsw-alias-label-primary);
-  background: #fff;
+  background: var(--dsw-aeven-rule);
   cursor: pointer;
   /* Faded out is the resting state: the control is mounted for the whole
      session so it can cross-fade, and only the class below reveals it. */

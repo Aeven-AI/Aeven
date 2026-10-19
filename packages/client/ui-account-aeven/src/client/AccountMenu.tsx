@@ -239,7 +239,7 @@ export function AccountMenu({
             data-placement="bottom-end"
             role="menu"
           >
-            <div className="tippy-content" data-state="visible">
+            <div className="tippy-content no-scrollbar" data-state="visible">
               <div className="menu-container">
                 <button
                   type="button"

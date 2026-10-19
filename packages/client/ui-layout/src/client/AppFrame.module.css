@@ -190,7 +190,10 @@
   height: 32px;
   border-radius: 10px;
   box-sizing: border-box;
-  background: var(--dsw-alias-button-floating-fill);
+  /* The pill reads as one of the band's self-painted discs: #222 in the dark
+     scheme rather than the white floating fill, which stood out against the
+     conversation. */
+  background: var(--dsw-aeven-disc);
   border: 0.5px solid var(--dsw-alias-border-l2-darkmode-thin);
   /* Hover affordance: the details pill hides until the pointer is over its
      column, the strip itself, or a drag. */
@@ -208,7 +211,7 @@
 
 .handle[data-side='details']:hover::after,
 .handle[data-side='details'][data-dragging='true']::after {
-  background: var(--dsw-alias-button-floating-hover);
+  background: var(--dsw-alias-interactive-bg-hover-solid);
   border-color: var(--dsw-alias-border-l3);
 }
 

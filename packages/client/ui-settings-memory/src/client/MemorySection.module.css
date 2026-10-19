@@ -172,10 +172,7 @@
   list-style: none;
   border: 0.5px solid var(--dsw-alias-border-l4);
   border-radius: 16px;
-  background: var(--dsw-alias-bg-layer-3);
-  transition:
-    border-color 0.16s,
-    background 0.16s;
+  transition: border-color 0.16s;
 }
 
 .card:hover,
@@ -183,9 +180,9 @@
   border-color: var(--dsw-alias-label-dimmed);
 }
 
-/* An open card reads as the one being worked on, the way a Plugins card does. */
+/* An open card reads as the one being worked on: a provider card's outline with
+   its border brought forward, and no fill of its own. */
 .cardOpen {
-  background: var(--dsw-alias-bg-layer-2);
   border-color: var(--dsw-alias-label-dimmed);
 }
 
@@ -440,7 +437,6 @@
   gap: 4px;
   border: 0.5px solid var(--dsw-alias-border-l4);
   border-radius: 16px;
-  background: var(--dsw-alias-bg-layer-3);
   padding: 14px 16px;
   transition: border-color 0.16s;
 }

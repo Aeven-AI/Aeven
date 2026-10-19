@@ -13,18 +13,18 @@
   place-items: center;
   /* Narrower than the shared control square: only the glyph reads here, and a
      30px box sets this control's distance from the avatar beside it. The 30px
-     circle, its white fill and its black glyph match the left sidebar's fold
-     control, so the two column toggles read as one pair; the right margin is
-     what separates this toggle from the avatar, since the dock itself has no
-     gap. */
+     circle and its glyph match the left sidebar's fold control, so the two
+     column toggles read as one pair, on the band's own pair of disc tokens.
+     The right margin is what separates this toggle from the avatar, since the
+     dock itself has no gap. */
   width: 30px;
   height: 30px;
   margin-right: 8px;
   padding: 0;
   border: none;
   border-radius: 15px;
-  background: var(--dsw-static-neutral-00);
-  color: var(--dsw-static-neutral-1000);
+  background: var(--dsw-aeven-disc);
+  color: var(--dsw-aeven-disc-ink);
   cursor: pointer;
 }
 

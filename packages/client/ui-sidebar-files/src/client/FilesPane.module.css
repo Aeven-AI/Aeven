@@ -318,7 +318,7 @@
   padding: 0;
   border: none;
   background: transparent;
-  color: #000;
+  color: inherit;
   font: inherit;
   text-overflow: ellipsis;
   cursor: pointer;
@@ -348,13 +348,13 @@
   height: 18px;
 }
 
-/* Refresh, collapse, and the file bar's two controls are white discs with a
-   black glyph, including on hover and while pressed. */
+/* Refresh, collapse, and the file bar's two controls take the pane's label
+   tone over its own fill, including on hover and while pressed. */
 .iconButton.lightButton,
 .iconButton.lightButton:hover:not(:disabled),
 .iconButton.lightButton[aria-pressed="true"] {
-  background: var(--dsw-static-neutral-00);
-  color: var(--dsw-static-neutral-1000);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
 }
 
 .fileBody {

@@ -39,6 +39,8 @@
 .section .switchOn, .section .switchOn:hover:enabled { background: var(--dsw-alias-brand-primary); }
 .switch:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
 .thumb { display: block; width: 16px; height: 16px; border-radius: 50%; background: var(--dsw-alias-label-primary-foreground); transition: transform 120ms ease; }
+/* Dark: the knob stays black on the settings surface, whose ink token is white. */
+:global(body[data-ds-dark-theme]) .section .thumb { background: #000000; }
 .switchOn .thumb { transform: translateX(16px); }
 
 /* The shared capsule controls (the Button primitive's geometry): filled for the main action, outlined beside it. */
@@ -110,3 +112,11 @@
 .category { display: flex; flex-direction: column; gap: 6px; }
 .categoryHeader { position: sticky; top: 0; z-index: 1; display: flex; align-items: baseline; gap: 8px; margin: 0; padding: 6px 0; color: var(--dsw-alias-label-secondary); font-size: 0.8125rem; line-height: 1.125rem; font-weight: 500; text-transform: capitalize; background: transparent; }
 .categoryCount { color: var(--dsw-alias-label-tertiary); font-weight: 400; }
+
+.switchCell { display: inline-flex; align-items: center; gap: 8px; margin-top: 16px; }
+.switchCell > button + button { margin-left: 2px; }
+.setupWarning { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--dsw-alias-label-tertiary); }
+.setupWarning:hover { color: var(--dsw-alias-label-primary); }
+
+.setupFailureDialog { width: min(440px, 100%); }
+.setupFailureText { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 0.875rem; line-height: 1.375rem; }
