@@ -876,12 +876,12 @@ Source: [`packages/core/automations/src/index.ts`](../../packages/core/automatio
 
 ### `ctx.personalizationController` — `PersonalizationController`
 
-The signed-in person's personalization, and the prompt section rendered from it.
+The signed-in person's personalization, and the prompt sections rendered from it.
 
 ```ts cordis-catalog
 /**
- * The caller's preferences and the bounds a change must fit.
- * @returns the current preferences.
+ * The caller's preferences, the master prompt their sessions read, and the bounds a change must fit.
+ * @returns the current view.
  */
 @Remote get(): PersonalizationView
 
@@ -889,9 +889,15 @@ The signed-in person's personalization, and the prompt section rendered from it.
  * Change some of the caller's preferences; an absent field keeps its value. The next request of each of the
  * caller's sessions renders the result.
  * @param update - the fields to change.
- * @returns what changed, with the reason when the notes were over their bound.
+ * @returns what changed, with the reason when a text was over its bound.
  */
 @Remote update(update: PersonalizationUpdate): PersonalizationChange
+
+/**
+ * Put the deployment's shipped master prompt back in charge for the caller.
+ * @returns what changed, with the view as it stands afterwards.
+ */
+@Remote resetMasterPrompt(): PersonalizationChange
 ```
 
 Source: [`packages/preset/personalization/src/index.ts`](../../packages/preset/personalization/src/index.ts)

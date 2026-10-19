@@ -124,7 +124,7 @@ Read these pages when you want to go deeper into the shared core, the browser re
 
 #### What the model sees
 
-When `surfaceContext` is true, the `harness:source` section identifies the on-disk Aeven implementation without claiming it is the working directory, and the `app:web-surface` global section (first-party order −800) orients the model to the GUI: the canonical local URL, the "this page" referent, the update contract (the reload receiver is always on; no-refresh reloads additionally need the `pnpm run dev:web` watcher), and the instruction not to start replacement servers. `AVN_WEB_URL` additionally appears in the managed bash environment with its description, resolved per invocation from the live server. When it is false, neither section nor the variable is registered.
+When `surfaceContext` is true, the `harness:source` section identifies the on-disk Aeven implementation without claiming it is the working directory, and the `app:web-surface` global section (first-party order −800) orients the model to the GUI: the "this page" referent, how replies and images render, the update contract (the reload receiver is always on; no-refresh reloads additionally need the `pnpm run dev:web` watcher), and the instruction not to start replacement servers. `AVN_WEB_URL` additionally appears in the managed bash environment with its description, resolved per invocation from the live server. The canonical local URL reaches the model as the `app:web-url` runtime context (order 210) rather than in that section, so a server that rebinds to another port appends a new runtime-context snapshot instead of rewriting the cached system prompt. When it is false, neither section, context, nor variable is registered.
 
 #### Token effect
 

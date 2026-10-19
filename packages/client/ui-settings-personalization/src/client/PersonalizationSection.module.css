@@ -1,7 +1,7 @@
-/* Personalization settings: the voice picker as a stack of filled options
-   whose tone carries the choice, then the name and notes fields. A boundary is
-   a fill, never a line: the selected voice is the black option, every field
-   sits on the module surface, and the one call to action is the black capsule. */
+/* Personalization settings: one row of voice options whose fill carries the
+   choice, the reading of the chosen voice below it, then the two text fields.
+   A boundary is a fill, never a line: the chosen voice and the one call to
+   action are the dark capsules, and every field sits on the module surface. */
 
 .section {
   display: flex;
@@ -9,8 +9,8 @@
   gap: 24px;
   width: 100%;
   color: var(--dsw-alias-label-primary);
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
 }
 
 .group {
@@ -20,25 +20,30 @@
   min-width: 0;
 }
 
-.label {
-  font-size: 12px;
-  line-height: 18px;
+.heading {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.hint {
+  margin: 0;
   color: var(--dsw-alias-label-tertiary);
 }
 
-/* One voice: its name, what it does, and an example of it. */
-.voice {
+/* The voice options share one track, so the choice reads as a setting, not a menu. */
+.voices {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  width: 100%;
-  padding: 14px 18px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.voice {
+  padding: 8px 14px;
   border: none;
   border-radius: var(--dsw-aeven-radius-content);
   background: var(--dsw-alias-bg-module-platform);
   color: inherit;
   font: inherit;
-  text-align: left;
   cursor: pointer;
   transition: background 0.16s, color 0.16s;
 }
@@ -47,7 +52,6 @@
   background: var(--dsw-alias-interactive-bg-hover-solid);
 }
 
-/* The chosen voice is the filled one; nothing is marked with a ring. */
 .voice[data-active="true"],
 .voice[data-active="true"]:hover:not(:disabled) {
   background: var(--dsw-alias-button-primary-fill);
@@ -63,29 +67,10 @@
   cursor: default;
 }
 
-.voiceHead {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.voiceName {
-  font-weight: 500;
-}
-
-.voiceDescription,
-.voiceSample {
+/* What the chosen voice means. */
+.voiceDescription {
+  margin: 0;
   color: var(--dsw-alias-label-secondary);
-}
-
-.voiceSample {
-  color: var(--dsw-alias-label-tertiary);
-  font-style: italic;
-}
-
-.voice[data-active="true"] .voiceDescription,
-.voice[data-active="true"] .voiceSample {
-  color: inherit;
 }
 
 .input {
@@ -101,9 +86,60 @@
   resize: vertical;
 }
 
-.input:focus-visible {
-  outline: 2px solid var(--dsw-alias-state-business-primary);
-  outline-offset: 2px;
+/* The prompt is long and scrolls inside itself: the fades say so, and the
+   scrollbar stays out of the way. */
+.masterFrame {
+  position: relative;
+}
+
+.masterFrame::before,
+.masterFrame::after {
+  content: '';
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  height: 22px;
+  pointer-events: none;
+}
+
+.masterFrame::before {
+  top: 1px;
+  border-radius: var(--dsw-aeven-radius-content) var(--dsw-aeven-radius-content) 0 0;
+  background: linear-gradient(to bottom, var(--dsw-alias-bg-module-platform), transparent);
+}
+
+.masterFrame::after {
+  bottom: 1px;
+  border-radius: 0 0 var(--dsw-aeven-radius-content) var(--dsw-aeven-radius-content);
+  background: linear-gradient(to top, var(--dsw-alias-bg-module-platform), transparent);
+}
+
+.master {
+  padding-top: 14px;
+  padding-bottom: 14px;
+  white-space: pre-wrap;
+  scrollbar-width: none;
+}
+
+.master::-webkit-scrollbar {
+  display: none;
+}
+
+/* The heading row carries what the heading alone cannot: whether the text is the person's own. */
+.masterHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.badge {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--dsw-alias-bg-module-platform);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 0.6875rem;
+  font-weight: 400;
+  line-height: 1.125rem;
 }
 
 .footer {
@@ -111,6 +147,12 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 
 .count {
@@ -121,19 +163,11 @@
   color: var(--dsw-alias-state-error-primary);
 }
 
-.status,
 .note,
 .failure {
   margin: 0;
 }
 
-.status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.status,
 .note {
   color: var(--dsw-alias-label-tertiary);
 }
@@ -154,4 +188,10 @@
   font: inherit;
   text-decoration: underline;
   cursor: pointer;
+}
+
+.textButton:disabled {
+  color: var(--dsw-alias-label-tertiary);
+  text-decoration: none;
+  cursor: default;
 }

@@ -124,7 +124,7 @@ URL 行与浏览器交接都是就绪信号：监督方一观察到该行就发�
 
 #### 模型看到什么
 
-当 `surfaceContext` 为 true 时，`harness:source` 段落标明磁盘上的 Harness 实现，但不会声称它就是工作目录；全局段落 `app:web-surface`（first-party 顺序 −800）则向模型说明 GUI：规范的本地 URL、「this page」指代什么、更新约定（重载接收端始终开启；无刷新重载还需要 `pnpm run dev:web` watcher），以及不要启动替代服务器的指令。`AVN_WEB_URL` 还会连同描述出现在受管 bash 环境中，每次调用时从运行中的服务器解析。当它为 false 时，这两个段落和该变量都不会注册。
+当 `surfaceContext` 为 true 时，`harness:source` 段落标明磁盘上的 Harness 实现，但不会声称它就是工作目录；全局段落 `app:web-surface`（first-party 顺序 −800）则向模型说明 GUI：「this page」指代什么、回复与图片如何渲染、更新约定（重载接收端始终开启；无刷新重载还需要 `pnpm run dev:web` watcher），以及不要启动替代服务器的指令。`AVN_WEB_URL` 还会连同描述出现在受管 bash 环境中，每次调用时从运行中的服务器解析。规范的本地 URL 不在该段落中，而是作为 `app:web-url` 运行时上下文（顺序 210）提供给模型，因此服务器改绑到其他端口时只会追加一份新的运行时上下文快照，而不会改写已缓存的系统提示词。当它为 false 时，这些段落、上下文和该变量都不会注册。
 
 #### Token 影响
 

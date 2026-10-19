@@ -2628,7 +2628,7 @@ Source: [`packages/preset/persona/src/index.ts:30`](../packages/preset/persona/s
 
 ## `@aeven/personalization`
 
-Requires: `typert` · `identityUsers` · `agents`
+Requires: `typert` · `identityUsers` · `agents` · `systemPrompt`
 
 ```ts config-catalog
 /** Service configuration. */
@@ -2640,12 +2640,14 @@ export interface Config {
    * bounded, and a longer text is refused rather than clipped.
    */
   maxNotesChars: number
+  /** Longest master prompt a person can store; a longer text is refused rather than clipped. */
+  maxMasterPromptChars: number
   /** Prompt-section order; directly after the persona, so the preferences read as an amendment to it. */
   promptOrder: number
 }
 ```
 
-Source: [`packages/preset/personalization/src/index.ts:35`](../packages/preset/personalization/src/index.ts)
+Source: [`packages/preset/personalization/src/index.ts:41`](../packages/preset/personalization/src/index.ts)
 
 <a id="aevenplan-mode"></a>
 
@@ -3788,7 +3790,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/core/system-prompt/src/index.ts:242`](../packages/core/system-prompt/src/index.ts)
+Source: [`packages/core/system-prompt/src/index.ts:243`](../packages/core/system-prompt/src/index.ts)
 
 <a id="aeventerminal-bash"></a>
 
@@ -4745,7 +4747,7 @@ export interface Config {
   printUrl: boolean
   /**
    * Register the model-visible surface context (the `app:web-surface` prompt
-   * section and the `AVN_WEB_URL` bash variable). A one-shot non-interactive
+   * section, the `app:web-url` runtime context, and the `AVN_WEB_URL` bash variable). A one-shot non-interactive
    * layer can turn it off when its user is not in the GUI, so the
    * orientation text would be false.
    */

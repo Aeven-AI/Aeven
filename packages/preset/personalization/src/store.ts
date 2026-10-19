@@ -10,17 +10,17 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import type {
-  Personalization, PersonalizationChange, PersonalizationUpdate, PersonalizationView, PersonalizationVoice,
+  Personalization, PersonalizationReason, PersonalizationState, PersonalizationUpdate, PersonalizationVoice,
 } from './types.ts'
 
 /** Format version of the stored document; a document this version cannot read yields the defaults. */
-export const PERSONALIZATION_VERSION = 1
+export const PERSONALIZATION_VERSION = 2
 
 /** Every voice a person can choose. */
 export const PERSONALIZATION_VOICES: readonly PersonalizationVoice[] = ['automatic', 'warm', 'direct', 'playful']
 
-/** Preferences of a person who has set none: the persona reads the moment. */
-export const DEFAULT_PERSONALIZATION: Personalization = { voice: 'automatic', notes: '' }
+/** Preferences of a person who has set none: the persona reads the moment, and the shipped master prompt stands. */
+export const DEFAULT_PERSONALIZATION: Personalization = { voice: 'automatic', notes: '', masterPrompt: '' }
 
 /** What each fixed voice asks of the model; `automatic` adds nothing to the persona. */
 const VOICE_TEXT: Readonly<Record<Exclude<PersonalizationVoice, 'automatic'>, string>> = {
@@ -48,11 +48,12 @@ export function parsePersonalization(raw: string): Personalization {
     return DEFAULT_PERSONALIZATION
   }
   if (typeof parsed !== 'object' || parsed === null) return DEFAULT_PERSONALIZATION
-  const { version, voice, notes } = parsed as Record<string, unknown>
+  const { version, voice, notes, masterPrompt } = parsed as Record<string, unknown>
   if (version !== PERSONALIZATION_VERSION) return DEFAULT_PERSONALIZATION
   return {
     voice: PERSONALIZATION_VOICES.includes(voice as PersonalizationVoice) ? voice as PersonalizationVoice : 'automatic',
     notes: typeof notes === 'string' ? notes : '',
+    masterPrompt: typeof masterPrompt === 'string' ? masterPrompt : '',
   }
 }
 
@@ -78,6 +79,13 @@ export function personalizationPath(root: string, owner: string): string {
   return join(root, `${encodeURIComponent(owner)}.json`)
 }
 
+/** What one stored change did, before the controller composes the view a Settings surface reads. */
+export interface StoredChange {
+  readonly changed: boolean
+  readonly reason?: PersonalizationReason
+  readonly state: PersonalizationState
+}
+
 /** Reads, renders and changes per-person preferences, re-reading a document only when its file moved. */
 export class PersonalizationStore {
   // Size and modification time are compared as bigints: at millisecond granularity two writes of the same length
@@ -87,16 +95,21 @@ export class PersonalizationStore {
   /**
    * @param root - absolute directory holding the per-person documents.
    * @param maxNotesChars - longest notes text a change may store.
+   * @param maxMasterPromptChars - longest master prompt a change may store.
    */
-  constructor(private readonly root: string, private readonly maxNotesChars: number) {}
+  constructor(
+    private readonly root: string,
+    private readonly maxNotesChars: number,
+    private readonly maxMasterPromptChars: number,
+  ) {}
 
   /**
    * One person's preferences and the bounds a change must fit.
    * @param owner - the signed-in account id.
-   * @returns the current view.
+   * @returns the current state.
    */
-  read(owner: string): PersonalizationView {
-    return this.view(this.state(owner).preferences)
+  read(owner: string): PersonalizationState {
+    return this.stateOf(this.state(owner).preferences)
   }
 
   /**
@@ -109,14 +122,14 @@ export class PersonalizationStore {
   }
 
   /**
-   * Change some of one person's preferences. The notes are trimmed, and notes over their bound are refused
-   * whole rather than clipped.
+   * Change some of one person's preferences. Text is trimmed, and text over its bound is refused whole rather
+   * than clipped.
    * @param owner - the signed-in account id.
    * @param update - the fields to change.
    * @returns what changed, with the reason when the change was refused.
    * @throws when the update names a voice this store does not offer.
    */
-  update(owner: string, update: PersonalizationUpdate): PersonalizationChange {
+  update(owner: string, update: PersonalizationUpdate): StoredChange {
     const current = this.state(owner).preferences
     if (update.voice !== undefined && !PERSONALIZATION_VOICES.includes(update.voice)) {
       throw new Error(`unknown personalization voice: ${update.voice}`)
@@ -124,13 +137,38 @@ export class PersonalizationStore {
     const next: Personalization = {
       voice: update.voice ?? current.voice,
       notes: update.notes === undefined ? current.notes : update.notes.trim(),
+      masterPrompt: update.masterPrompt === undefined ? current.masterPrompt : update.masterPrompt.trim(),
     }
-    if (next.notes.length > this.maxNotesChars) {
-      return { changed: false, reason: 'too-long', view: this.view(current) }
+    const refusal = this.refusal(next)
+    if (refusal !== undefined) return { changed: false, reason: refusal, state: this.stateOf(current) }
+    if (next.voice === current.voice && next.notes === current.notes && next.masterPrompt === current.masterPrompt) {
+      return { changed: false, state: this.stateOf(current) }
     }
-    if (next.voice === current.voice && next.notes === current.notes) {
-      return { changed: false, view: this.view(current) }
-    }
+    return { changed: true, state: this.stateOf(this.persist(owner, next)) }
+  }
+
+  /**
+   * Put the shipped master prompt back in charge for one person.
+   * @param owner - the signed-in account id.
+   * @returns what changed; `changed` is false when the shipped prompt already stood.
+   */
+  resetMasterPrompt(owner: string): StoredChange {
+    const current = this.state(owner).preferences
+    if (current.masterPrompt === '') return { changed: false, state: this.stateOf(current) }
+    return { changed: true, state: this.stateOf(this.persist(owner, { ...current, masterPrompt: '' })) }
+  }
+
+  private refusal(preferences: Personalization): PersonalizationReason | undefined {
+    if (preferences.notes.length > this.maxNotesChars) return 'notes-too-long'
+    if (preferences.masterPrompt.length > this.maxMasterPromptChars) return 'master-prompt-too-long'
+    return undefined
+  }
+
+  private stateOf(preferences: Personalization): PersonalizationState {
+    return { ...preferences, maxNotesChars: this.maxNotesChars, maxMasterPromptChars: this.maxMasterPromptChars }
+  }
+
+  private persist(owner: string, next: Personalization): Personalization {
     const path = personalizationPath(this.root, owner)
     mkdirSync(dirname(path), { recursive: true })
     const temporary = `${path}.tmp`
@@ -140,11 +178,7 @@ export class PersonalizationStore {
     renameSync(temporary, path)
     const stat = statSync(path, { bigint: true })
     this.cache.set(owner, { size: stat.size, mtime: stat.mtimeNs, preferences: next, block: renderPersonalization(next) })
-    return { changed: true, view: this.view(next) }
-  }
-
-  private view(preferences: Personalization): PersonalizationView {
-    return { ...preferences, maxNotesChars: this.maxNotesChars }
+    return next
   }
 
   /** The person's preferences and block, re-read only when the document on disk moved. */

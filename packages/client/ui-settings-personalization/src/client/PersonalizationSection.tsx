@@ -1,4 +1,4 @@
-/** The Personalization settings page: a voice picked from example replies, the account name, and notes in the person's own words. */
+/** The Personalization settings page: the voice as one row of options, notes in the person's own words, and their own master prompt. */
 import { useCallback, useEffect, useId, useState } from 'react'
 import type { PersonalizationChange, PersonalizationUpdate, PersonalizationView, PersonalizationVoice } from '@aeven/api-remotes/client'
 import { Button, LoadingBlock, SectionHeader } from '@aeven/client-ui-primitives'
@@ -14,11 +14,8 @@ export interface PersonalizationSectionInjected {
    */
   cachedView: () => PersonalizationView | undefined
   update: (update: PersonalizationUpdate) => Promise<PersonalizationChange>
-  /**
-   * The account display name and how to change it, or undefined when nobody is signed in to an Aeven account.
-   * @returns the current name and its save operation.
-   */
-  accountName: () => { readonly name: string; readonly save: (name: string) => Promise<string> } | undefined
+  /** Put the shipped master prompt back in charge. */
+  resetMasterPrompt: () => Promise<PersonalizationChange>
 }
 
 /** Full component props assembled by the slot renderer. */
@@ -28,7 +25,7 @@ export type PersonalizationSectionProps =
   & InjectFace<PersonalizationSectionInjected>
 
 type Load = { readonly status: 'loading' } | { readonly status: 'error' } | { readonly status: 'ready'; readonly view: PersonalizationView }
-type Notice = 'saved' | 'tooLong' | 'failed'
+type Notice = 'saved' | 'reset' | 'notesTooLong' | 'masterTooLong' | 'failed'
 
 const VOICES: readonly PersonalizationVoice[] = ['automatic', 'warm', 'direct', 'playful']
 
@@ -37,25 +34,26 @@ const VOICES: readonly PersonalizationVoice[] = ['automatic', 'warm', 'direct', 
  * @param props - composed Settings slot props.
  * @returns the section.
  */
-export function PersonalizationSection({ read, cachedView, update, accountName, t }: PersonalizationSectionProps) {
+export function PersonalizationSection({ read, cachedView, update, resetMasterPrompt, t }: PersonalizationSectionProps) {
   // The page's own cache answers first, so a revisit paints the view it read
   // last and revalidates behind it instead of showing the spinner again.
   const [load, setLoad] = useState<Load>(() => {
     const view = cachedView()
     return view === undefined ? { status: 'loading' } : { status: 'ready', view }
   })
-  const [account] = useState(accountName)
-  const [savedName, setSavedName] = useState(account?.name ?? '')
-  const [callName, setCallName] = useState(account?.name ?? '')
   const [notes, setNotes] = useState('')
+  const [master, setMaster] = useState('')
   const [busy, setBusy] = useState(false)
-  const [notice, setNotice] = useState<Notice>()
-  const nameId = useId()
+  const [notesNotice, setNotesNotice] = useState<Notice>()
+  const [masterNotice, setMasterNotice] = useState<Notice>()
+  const voiceLabelId = useId()
   const notesId = useId()
+  const masterId = useId()
 
   const adopt = useCallback((view: PersonalizationView) => {
     setLoad({ status: 'ready', view })
     setNotes(view.notes)
+    setMaster(view.effectiveMasterPrompt)
   }, [])
 
   const refresh = useCallback(() => {
@@ -65,56 +63,77 @@ export function PersonalizationSection({ read, cachedView, update, accountName, 
 
   useEffect(() => { refresh() }, [refresh])
 
-  /** Apply a voice change at once; unsaved name and notes drafts stay as typed. */
+  /** Voice saves on the choice itself; the notes and master prompt drafts stay as typed. */
   const commitVoice = (voice: PersonalizationVoice) => {
     setBusy(true)
-    setNotice(undefined)
     update({ voice }).then((result) => {
       setLoad({ status: 'ready', view: result.view })
-      setNotice('saved')
-    }, () => { setNotice('failed') }).finally(() => { setBusy(false) })
+    }, () => { setNotesNotice('failed') }).finally(() => { setBusy(false) })
   }
 
-  /** Save the name to the account and the notes to this person's preferences, each only when it changed. */
-  const saveText = async (view: PersonalizationView) => {
+  /** Save the notes to this person's preferences only when they changed. */
+  const saveNotes = async () => {
     setBusy(true)
-    setNotice(undefined)
+    setNotesNotice(undefined)
     try {
-      const name = callName.trim()
-      if (account !== undefined && name !== '' && name !== savedName) {
-        const stored = await account.save(name)
-        setSavedName(stored)
-        setCallName(stored)
+      const result = await update({ notes })
+      setLoad({ status: 'ready', view: result.view })
+      if (result.reason === 'notes-too-long') {
+        setNotesNotice('notesTooLong')
+        return
       }
-      if (notes.trim() !== view.notes) {
-        const result = await update({ notes })
-        if (result.reason === 'too-long') {
-          setLoad({ status: 'ready', view: result.view })
-          setNotice('tooLong')
-          return
-        }
-        adopt(result.view)
-      }
-      setNotice('saved')
+      adopt(result.view)
+      setNotesNotice('saved')
     } catch {
-      setNotice('failed')
+      setNotesNotice('failed')
     } finally {
       setBusy(false)
     }
   }
 
+  /** Save this person's own master prompt, replacing the shipped one for their sessions. */
+  const saveMaster = async () => {
+    setBusy(true)
+    setMasterNotice(undefined)
+    try {
+      const result = await update({ masterPrompt: master })
+      setLoad({ status: 'ready', view: result.view })
+      if (result.reason === 'master-prompt-too-long') {
+        setMasterNotice('masterTooLong')
+        return
+      }
+      adopt(result.view)
+      setMasterNotice('saved')
+    } catch {
+      setMasterNotice('failed')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  /** Put the shipped master prompt back in charge and show it in the editor again. */
+  const resetMaster = async () => {
+    setBusy(true)
+    setMasterNotice(undefined)
+    try {
+      const result = await resetMasterPrompt()
+      adopt(result.view)
+      setMasterNotice('reset')
+    } catch {
+      setMasterNotice('failed')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const header = <SectionHeader title={t('nav')} description={t('intro')} />
   if (load.status === 'loading') {
-    return (
-      <div className={css.section}>
-        <SectionHeader title={t('nav')} description={t('intro')} />
-        <LoadingBlock label={t('loading')} />
-      </div>
-    )
+    return <div className={css.section}>{header}<LoadingBlock label={t('loading')} /></div>
   }
   if (load.status === 'error') {
     return (
       <div className={css.section}>
-        <SectionHeader title={t('nav')} description={t('intro')} />
+        {header}
         <p className={css.failure}>
           {t('failed')} <button type="button" className={css.textButton} onClick={refresh}>{t('retry')}</button>
         </p>
@@ -123,79 +142,112 @@ export function PersonalizationSection({ read, cachedView, update, accountName, 
   }
 
   const { view } = load
-  const nameDirty = account !== undefined && callName.trim() !== '' && callName.trim() !== savedName
-  const textDirty = nameDirty || notes.trim() !== view.notes
-  const overLimit = notes.trim().length > view.maxNotesChars
+  const notesDirty = notes.trim() !== view.notes
+  const notesOver = notes.trim().length > view.maxNotesChars
+  const masterDirty = master.trim() !== view.effectiveMasterPrompt
+  const masterOver = master.trim().length > view.maxMasterPromptChars
+  const selected = view.voice
   return (
     <div className={css.section}>
-      <SectionHeader title={t('nav')} description={t('intro')} />
-
-      <div className={css.group} role="radiogroup" aria-label={t('voice')}>
-        <div className={css.label}>{t('voice')}</div>
-        {VOICES.map((voice) => {
-          const selected = view.voice === voice
-          return (
-            <button
-              key={voice}
-              type="button"
-              role="radio"
-              aria-checked={selected}
-              className={css.voice}
-              data-active={selected ? 'true' : undefined}
-              disabled={busy}
-              onClick={() => { if (!selected) commitVoice(voice) }}
-            >
-              <span className={css.voiceHead}>
-                <span className={css.voiceName}>{t(`voice.${voice}`)}</span>
-              </span>
-              <span className={css.voiceDescription}>{t(`voice.${voice}.description`)}</span>
-              <span className={css.voiceSample}>{t(`voice.${voice}.sample`)}</span>
-            </button>
-          )
-        })}
-      </div>
-
-      {account !== undefined && (
-        <div className={css.group}>
-          <label className={css.label} htmlFor={nameId}>{t('callName')}</label>
-          <input
-            id={nameId}
-            className={css.input}
-            value={callName}
-            placeholder={t('callNamePlaceholder')}
-            onChange={(event) => { setCallName(event.target.value); setNotice(undefined) }}
-          />
-          <span className={css.count}>{t('callNameHint')}</span>
-        </div>
-      )}
+      {header}
 
       <div className={css.group}>
-        <label className={css.label} htmlFor={notesId}>{t('notes')}</label>
+        <div className={css.heading} id={voiceLabelId}>{t('voice')}</div>
+        <div className={css.voices} role="radiogroup" aria-labelledby={voiceLabelId}>
+          {VOICES.map((voice) => {
+            const active = selected === voice
+            return (
+              <button
+                key={voice}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                className={css.voice}
+                data-active={active ? 'true' : undefined}
+                disabled={busy}
+                onClick={() => { if (!active) commitVoice(voice) }}
+              >
+                {t(`voice.${voice}`)}
+              </button>
+            )
+          })}
+        </div>
+        <p className={css.voiceDescription}>{t(`voice.${selected}.description`)}</p>
+      </div>
+
+      <div className={css.group}>
+        <label className={css.heading} htmlFor={notesId}>{t('notes')}</label>
         <textarea
           id={notesId}
           className={css.input}
-          rows={4}
+          rows={3}
           value={notes}
           placeholder={t('notesPlaceholder')}
-          onChange={(event) => { setNotes(event.target.value); setNotice(undefined) }}
+          onChange={(event) => { setNotes(event.target.value); setNotesNotice(undefined) }}
         />
         <div className={css.footer}>
-          <span className={notes.trim().length > view.maxNotesChars ? css.countOver : css.count}>
-            {t('notesCount', { chars: String(notes.trim().length), max: String(view.maxNotesChars) })}
+          <span className={notesOver ? css.countOver : css.count}>
+            {t('count', { chars: String(notes.trim().length), max: String(view.maxNotesChars) })}
           </span>
           <Button
             variant="primary"
-            disabled={busy || !textDirty || overLimit}
-            onClick={() => { void saveText(view) }}
+            disabled={busy || !notesDirty || notesOver}
+            onClick={() => { void saveNotes() }}
           >
             {t('save')}
           </Button>
         </div>
+        {notesNotice !== undefined && (
+          <p className={notesNotice === 'failed' || notesNotice === 'notesTooLong' ? css.failure : css.note} role="status">
+            {t(notesNotice)}
+          </p>
+        )}
       </div>
 
-      {notice !== undefined && (
-        <p className={notice === 'saved' ? css.note : css.failure} role="status">{t(notice)}</p>
-      )}
+      <div className={css.group}>
+        <div className={css.masterHead}>
+          <label className={css.heading} htmlFor={masterId}>{t('master')}</label>
+          {view.customMasterPrompt && <span className={css.badge}>{t('masterChanged')}</span>}
+        </div>
+        <p className={css.hint}>{t('masterDescription')}</p>
+        <div className={css.masterFrame}>
+          <textarea
+            id={masterId}
+            className={`${css.input} ${css.master}`}
+            rows={6}
+            spellCheck={false}
+            value={master}
+            onChange={(event) => { setMaster(event.target.value); setMasterNotice(undefined) }}
+          />
+        </div>
+        <div className={css.footer}>
+          <span className={masterOver ? css.countOver : css.count}>
+            {t('count', { chars: String(master.trim().length), max: String(view.maxMasterPromptChars) })}
+          </span>
+          <span className={css.actions}>
+            <button
+              type="button"
+              className={css.textButton}
+              disabled={busy || !view.customMasterPrompt}
+              onClick={() => { void resetMaster() }}
+            >
+              {t('masterReset')}
+            </button>
+            <Button
+              variant="primary"
+              disabled={busy || !masterDirty || masterOver}
+              onClick={() => { void saveMaster() }}
+            >
+              {t('save')}
+            </Button>
+          </span>
+        </div>
+        {masterNotice !== undefined && (
+          <p className={masterNotice === 'failed' || masterNotice === 'masterTooLong' ? css.failure : css.note} role="status">
+            {t(masterNotice)}
+          </p>
+        )}
+      </div>
     </div>
   )
 }
