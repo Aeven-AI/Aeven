@@ -409,8 +409,13 @@ function main(): void {
   capture('git', ['add', 'pnpm-lock.yaml', ...planned.map(entry => entry.manifestPath)])
   capture('git', ['commit', '-m', `release(${family.id}): ${summary}`])
   console.log('release bump: committed. After this merges to master, tag it:')
+  // The Desktop release builds from `v<version>`, while the family tag drives the npm publish dispatch. Both are
+  // named, so the release tag is never mistaken for the publication one.
+  if (sharedVersion !== undefined) {
+    console.log(`  git tag v${sharedVersion} <merge commit> && git push origin v${sharedVersion}   # Desktop release`)
+  }
   for (const tag of [...new Set(planned.map(entry => entry.tag).filter(tag => tag !== undefined))]) {
-    console.log(`  git tag ${tag} <merge commit> && git push origin ${tag}`)
+    console.log(`  git tag ${tag} <merge commit> && git push origin ${tag}   # npm publish`)
   }
 }
 
