@@ -30,6 +30,30 @@ const testToolSignal = new AbortController().signal
 
 const spillDir = mkdtempSync(join(tmpdir(), 'avn-tool-bash-spec-'))
 
+/** The sandbox-denial fact both description variants state verbatim. */
+const DENIAL_CLAUSE = 'a blocked file operation is reported as `[sandbox: file access denied under <mode> mode]`, a policy denial: do not retry another way'
+
+/** Description clause for a composition with no sandboxing executor to escalate through. */
+const PLAIN_SANDBOX_CLAUSE = `Commands may run under a file sandbox; ${DENIAL_CLAUSE}.`
+
+/** Description clause for a composition whose denial offers a same-turn escalation. */
+const ESCALATION_SANDBOX_CLAUSE = `Commands run under a file sandbox; ${DENIAL_CLAUSE} except through the escalation the denial offers. Attempting a command the sandbox may deny is safe: run it rather than assuming the denial.`
+
+/** Description clause naming the foreground handoff to the job runtime. */
+const BACKGROUND_HANDOFF_CLAUSE = 'A foreground command still running after 20000ms is handed back as a background job instead of blocking the turn.'
+
+/** The `run_in_background` parameter description, where the model learns how to collect a job. */
+const BACKGROUND_PARAMETER_DESCRIPTION = 'Run in the background and return a job id immediately (collect with job_output, stop with job_kill). No timeout applies.'
+
+/** The `tool:bash` system-prompt section, verbatim. */
+const PROMPT_SECTION = 'Check the [exit code: N] marker on every bash result; investigate failures before moving on. '
+  + 'Run anything whose duration you cannot bound — installs, builds, test suites, servers, downloads — '
+  + 'with `run_in_background: true` and keep working. '
+  + 'Never wait with a foreground `sleep`: collect the job with `job_output`, let the program retry for '
+  + 'itself (`curl --retry`), or check the condition in a bounded loop that returns the moment it holds '
+  + '(`until nc -z localhost 3000; do sleep 0.5; done`). Pause only as long as a real clock constraint, '
+  + 'such as a rate limit, requires, and end the turn when nothing useful is left: a settled job wakes you.'
+
 /** Foreground-only harness: no job runtime (backgrounding fails loud here). */
 async function setup() {
   const ctx = new Context()
@@ -391,11 +415,19 @@ describe('bash tool', () => {
     const bashSchema = schemas[0]!
     expect(bashSchema.parameters).toMatchObject({
       type: 'object',
-      required: ['command', 'description'],
+      required: ['description', 'command'],
     })
     expect(Object.keys(bashSchema.parameters.properties as Record<string, unknown>))
       .toContain('run_in_background')
-    expect(bashSchema.description).toContain('job_output')
+    // Collecting a background job is taught by the parameter itself, so the
+    // top-level description need not name another tool.
+    const properties = bashSchema.parameters.properties as Record<string, { description?: string }>
+    expect(properties['run_in_background']?.description).toBe(BACKGROUND_PARAMETER_DESCRIPTION)
+    expect(bashSchema.description).toContain(BACKGROUND_HANDOFF_CLAUSE)
+    // No sandboxing executor is mounted here, so the description states the
+    // no-retry clause without the escalation exception.
+    expect(bashSchema.description).toContain(PLAIN_SANDBOX_CLAUSE)
+    expect(bashSchema.description).not.toContain('except through the escalation the denial offers')
   })
 
   it('contributes the exit-code habit as its prompt section (guidance the descriptions cannot carry)', async () => {
@@ -419,7 +451,7 @@ describe('bash tool', () => {
       'tool:bash',
       'test:after-bash',
     ])
-    expect(section?.text).toContain('[exit code: N]')
+    expect(section?.text).toBe(PROMPT_SECTION)
   })
 
   it('unregisters everything when the plugin fiber is disposed (HMR safety)', async () => {
@@ -583,7 +615,7 @@ describe('background execution through the job runtime', () => {
 
     const schema = ctx.tools.schemas().find(s => s.name === 'bash')!
     expect(Object.keys(schema.parameters.properties as Record<string, unknown>))
-      .toEqual(['command', 'description', 'timeoutMs', 'workdir'])
+      .toEqual(['description', 'command', 'timeoutMs', 'workdir'])
     expect(schema.description).toContain('Background execution is not available')
     expect(schema.description).not.toContain('run_in_background')
     // The registry-held definition agrees (schema and capability never disagree).
@@ -621,7 +653,7 @@ describe('sandbox escalation through the generic task producer', () => {
     const schema = ctx.tools.schemas().find(item => item.name === 'bash')!
     const properties = schema.parameters.properties as Record<string, { enum?: string[] }>
     expect(properties['sandbox_permissions']?.enum).toEqual(['workspace-write', 'danger-full-access'])
-    expect(schema.description).toContain('approval prompt')
+    expect(schema.description).toContain(ESCALATION_SANDBOX_CLAUSE)
 
     for (const args of [
       { command: 'true', description: 'd', sandbox_permissions: 'workspace-write' },

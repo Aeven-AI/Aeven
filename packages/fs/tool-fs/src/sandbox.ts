@@ -67,7 +67,7 @@ export class FsSandboxController {
       justification: {
         type: 'string',
         description: 'Required with sandbox_permissions: one sentence for the user explaining '
-          + 'why this exact file operation needs the wider access.',
+          + 'why this exact file operation needs the wider access. Use the language of the user’s current request.',
       },
     }
   }

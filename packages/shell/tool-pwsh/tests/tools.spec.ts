@@ -38,6 +38,26 @@ import { renderPwshProcessRead, renderPwshResult } from '../src/render.ts'
 
 const testToolSignal = new AbortController().signal
 
+/** The sandbox-denial fact both description variants state verbatim. */
+const DENIAL_CLAUSE = 'a blocked file operation is reported as `[sandbox: file access denied under <mode> mode]`, a policy denial: do not retry another way'
+
+/** Description clause for a composition with no sandboxing executor to escalate through. */
+const PLAIN_SANDBOX_CLAUSE = `Commands may run under a file sandbox; ${DENIAL_CLAUSE}.`
+
+/** Description clause for a composition whose denial offers a same-turn escalation. */
+const ESCALATION_SANDBOX_CLAUSE = `Commands run under a file sandbox; ${DENIAL_CLAUSE} except through the escalation the denial offers. Attempting a command the sandbox may deny is safe: run it rather than assuming the denial.`
+
+/** Description clause naming the foreground handoff to the job runtime. */
+const BACKGROUND_HANDOFF_CLAUSE = 'A foreground command still running after 20000ms is handed back as a background job instead of blocking the turn.'
+
+/** The `run_in_background` parameter description, where the model learns how to collect a job. */
+const BACKGROUND_PARAMETER_DESCRIPTION = 'Run in the background and return a job id immediately (collect with job_output, stop with job_kill). No timeout applies.'
+
+/** The `tool:pwsh` system-prompt section, verbatim. */
+const PROMPT_SECTION = 'Check the [exit code: N] marker on every pwsh result; investigate failures before moving on. '
+  + 'Run anything whose duration you cannot bound — installs, builds, test suites, servers, downloads — '
+  + 'with `run_in_background: true` and keep working.'
+
 /**
  * A scriptable fake executor: `resolve()` mirrors the real defaulting, `run()`
  * returns the armed foreground script, `start()` returns the armed background
@@ -376,10 +396,11 @@ describe('registration', () => {
       workdir: { type: 'string' },
       run_in_background: { type: 'boolean' },
     })
-    expect(schema?.parameters.required).toEqual(['command', 'description'])
+    expect(schema?.parameters.required).toEqual(['description', 'command'])
     const prompt = renderPrompt(await ctx.systemPrompt.assemble())
-    expect(prompt).toContain('Non-zero exits are reported as `[exit code: N]` markers')
-    expect(prompt).toContain('without a signal marker')
+    expect(prompt).toContain(PROMPT_SECTION)
+    // The Windows force-kill nuance is description prose rather than prompt prose.
+    expect(schema?.description).toContain('without a signal marker')
   })
 
   it('stays pending until ctx.shell exists (inject)', async () => {
@@ -621,7 +642,7 @@ describe('sandbox escalation through ctx.approval', () => {
     const schema = ctx.tools.schemas().find(item => item.name === 'pwsh')!
     const properties = schema.parameters.properties as Record<string, { enum?: string[] }>
     expect(properties['sandbox_permissions']?.enum).toEqual(['workspace-write', 'danger-full-access'])
-    expect(schema.description).toContain('approval prompt')
+    expect(schema.description).toContain(ESCALATION_SANDBOX_CLAUSE)
     expect(schema.description).toContain('ConstrainedLanguage')
     expect(schema.description).toContain('workspace-write stays in FullLanguage')
     expect(schema.description).toContain('In both confined modes, programs cannot open named pipes')
@@ -642,6 +663,9 @@ describe('sandbox escalation through ctx.approval', () => {
     expect(schema.description).not.toContain('ConstrainedLanguage')
     expect(schema.description).not.toContain('named pipes')
     expect(schema.description).not.toContain('sandbox_permissions')
+    // Without a confining executor the denial clause carries no escalation exception.
+    expect(schema.description).toContain(PLAIN_SANDBOX_CLAUSE)
+    expect(schema.description).not.toContain('except through the escalation the denial offers')
     expect(schema.parameters.properties).not.toHaveProperty('sandbox_permissions')
   })
 
@@ -851,7 +875,7 @@ describe('background execution through the job runtime', () => {
     const { ctx } = await setup({ enableRunInBackground: false })
     const schema = ctx.tools.schemas().find(s => s.name === 'pwsh')!
     expect(Object.keys(schema.parameters.properties as Record<string, unknown>))
-      .toEqual(['command', 'description', 'timeoutMs', 'workdir'])
+      .toEqual(['description', 'command', 'timeoutMs', 'workdir'])
     expect(schema.description).toContain('Background execution is not available')
     expect(schema.description).not.toContain('run_in_background')
 
@@ -874,7 +898,12 @@ describe('background execution through the job runtime', () => {
     ToolPwsh.apply(ctx, {})
     const schema = ctx.tools.schemas()[0]!
     expect(schema.parameters.properties).toHaveProperty('run_in_background')
-    expect(schema.description).toContain('job_output')
+    // The built-in default also selects the background-enabled description and
+    // the parameter description that teaches job collection.
+    const properties = schema.parameters.properties as Record<string, { description?: string }>
+    expect(properties['run_in_background']?.description).toBe(BACKGROUND_PARAMETER_DESCRIPTION)
+    expect(schema.description).toContain(BACKGROUND_HANDOFF_CLAUSE)
+    expect(schema.description).not.toContain('Background execution is not available')
   })
 })
 
