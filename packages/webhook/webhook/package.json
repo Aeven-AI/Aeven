@@ -1,7 +1,7 @@
 {
   "name": "@aeven/webhook",
   "description": "Fire-and-forget webhook rule runtime that creates Workspace-backed Aeven Sessions",
-  "version": "0.3.7-alpha",
+  "version": "0.3.8-alpha",
   "publishConfig": {
     "access": "public"
   },
