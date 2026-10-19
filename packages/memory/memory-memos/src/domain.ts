@@ -77,7 +77,7 @@ ${DOMAIN_RULES}`
 const JUDGE_RULES = `Also put these keys in the same JSON object:
 - "domain": one of the following.
 ${DOMAIN_RULES}
-- "corrects": true when the USER message corrects or contradicts something PREVIOUS ASSISTANT stated, otherwise false.
+- "corrects": true only when the USER message says that a fact PREVIOUS ASSISTANT stated is wrong, such as a name, value, location, date, or claim about the world; otherwise false. A complaint about how the assistant worked, its speed, or an unfinished or wrong change, and a repeated or new instruction, are not corrections of a fact: answer false.
 PREVIOUS ASSISTANT is the reply the USER message answers. When the USER refers to it ("yes", "that one", "not my son"), the summary states the referent itself.`
 
 /**

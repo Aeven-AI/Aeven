@@ -2557,6 +2557,12 @@ export interface Config {
    * procedure is stored as one request text, so this bounds the procedure `memory_get` can read back.
    */
   maxTextChars: number
+  /**
+   * Run MemOS's learning pipeline — reward scoring, policy induction, world models, skill crystallization, and
+   * feedback — on each closed episode; false keeps the lightweight capture-and-recall pipeline. Overrides
+   * `algorithm.lightweightMemory.enabled` in `config.yaml`. Each stage spends auxiliary calls on the owning session's route.
+   */
+  learning: boolean
 }
 
 /** Natural language MemOS writes stored memory in; `auto` follows the language of the captured user text. */

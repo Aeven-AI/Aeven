@@ -29,11 +29,21 @@ export interface WorkStep {
   readonly answeredAt?: number
 }
 
+/** A direct-user message that arrived after the turn's first tool call. */
+export interface WorkInstruction {
+  readonly text: string
+  /** When the message was committed, in epoch milliseconds. */
+  readonly at: number
+}
+
 /** The work of one completed turn that answered a direct-user request. */
 export interface CompletedWork {
   readonly sessionId: string
   readonly turn: number
+  /** Direct-user text committed before the turn's first tool call. */
   readonly request: string
+  /** Direct-user messages committed while the work ran, oldest first; absent when none arrived. */
+  readonly instructions?: readonly WorkInstruction[]
   readonly answer: string
   readonly steps: readonly WorkStep[]
   readonly startedAt: number
@@ -61,6 +71,7 @@ interface TurnUse {
   /** Every tool call of the turn in call order, by call id. */
   readonly steps: Map<string, { name: string; input: string; output?: string; failed: boolean; calledAt: number; answeredAt?: number }>
   readonly request: string[]
+  readonly instructions: WorkInstruction[]
   readonly answer: string[]
   /** Procedure view calls awaiting their result, by call id. */
   readonly loading: Map<string, string>
@@ -103,7 +114,8 @@ const CORRECTION = new RegExp(
 /** Phrases with which a user complains the previous turn was slow or did too much. */
 const SLOWNESS = new RegExp(
   String.raw`(?:too (?:long|slow|many steps)|took (?:\w+ )?(?:too |so |way )?long`
-  + String.raw`|taking (?:forever|ages|so long)|so slow|way too long|\b\d+ minutes for\b|太慢|太久)`,
+  + String.raw`|taking (?:forever|ages|so long)|takes? (?:for )?(?:ages|forever)|so slow|way too long|\b\d+ minutes for\b`
+  + String.raw`|how hard can (?:it|this|that) be|is (?:it|this|that) (?:\w+ ){0,2}hard\b|太慢|太久)`,
   'iu',
 )
 
@@ -169,6 +181,7 @@ export class ExecutionTracker {
           calls: new Map(),
           steps: new Map(),
           request: [],
+          instructions: [],
           answer: [],
           loading: new Map(),
           loaded: new Map(),
@@ -184,7 +197,8 @@ export class ExecutionTracker {
         }
         if (use && event.data.source.kind === 'user') {
           const text = textOf(event.data.content)
-          if (text) use.request.push(text)
+          if (text && use.steps.size === 0) use.request.push(text)
+          else if (text) use.instructions.push({ text, at: event.time })
         }
         return undefined
       case 'tool/call': {
@@ -243,6 +257,7 @@ export class ExecutionTracker {
           sessionId: session.id,
           turn: use.turn,
           request,
+          ...use.instructions.length === 0 ? {} : { instructions: [...use.instructions] },
           answer: use.answer.join('\n\n').trim(),
           steps: [...use.steps.values()].map(step => ({ ...step })),
           startedAt: use.startedAt,

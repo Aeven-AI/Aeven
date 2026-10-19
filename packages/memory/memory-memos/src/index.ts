@@ -52,6 +52,12 @@ export interface Config {
    * procedure is stored as one request text, so this bounds the procedure `memory_get` can read back.
    */
   maxTextChars: number
+  /**
+   * Run MemOS's learning pipeline — reward scoring, policy induction, world models, skill crystallization, and
+   * feedback — on each closed episode; false keeps the lightweight capture-and-recall pipeline. Overrides
+   * `algorithm.lightweightMemory.enabled` in `config.yaml`. Each stage spends auxiliary calls on the owning session's route.
+   */
+  learning: boolean
 }
 
 export const Config: z<Config> = z.object({
@@ -64,6 +70,7 @@ export const Config: z<Config> = z.object({
   classifyTimeoutMs: z.natural().min(1000).default(15_000),
   candidateTraces: z.natural().min(1).default(20),
   maxTextChars: z.natural().min(200).max(64_000).default(16_000),
+  learning: z.boolean().default(true),
 })
 
 /** MemOS core configuration with the Host bridge selected when `config.yaml` leaves the LLM provider empty. */
@@ -114,7 +121,8 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     ...configured,
     algorithm: {
       ...configured.algorithm,
-      retrieval: { ...configured.algorithm.retrieval, tier2TopK: config.candidateTraces },
+      lightweightMemory: { ...configured.algorithm.lightweightMemory, enabled: !config.learning },
+      retrieval:{ ...configured.algorithm.retrieval, tier2TopK: config.candidateTraces },
       capture: { ...configured.algorithm.capture, maxTextChars: config.maxTextChars },
     },
   }
