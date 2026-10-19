@@ -2,11 +2,11 @@
 
 .boot {
   --avn-boot-bg: #fff;
-  --avn-boot-label-primary: #0f1115;
-  --avn-boot-label-secondary: #61666b;
-  --avn-boot-label-tertiary: #81858c;
+  --avn-boot-label-primary: #000;
+  --avn-boot-label-secondary: rgb(80, 80, 80);
+  --avn-boot-label-tertiary: rgb(150, 150, 150);
   --avn-boot-border: rgb(0 0 0 / 10%);
-  --avn-boot-brand: #0f1115;
+  --avn-boot-brand: #000;
 
   height: 100%;
   display: grid;
@@ -31,16 +31,16 @@
 }
 
 .wordmark {
-  font-size: 16px;
-  line-height: 24px;
+  font-size: 1rem;
+  line-height: 1.5rem;
   font-weight: 500;
   letter-spacing: 0.08em;
   color: var(--dsw-alias-label-primary, var(--avn-boot-label-primary));
 }
 
 .hint {
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
   color: var(--dsw-alias-label-tertiary, var(--avn-boot-label-tertiary));
 }
 
@@ -87,8 +87,8 @@
 }
 
 .failedTitle {
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
   font-weight: 500;
   color: var(--dsw-alias-label-primary, var(--avn-boot-label-primary));
 }
@@ -106,8 +106,8 @@
     "PingFang SC",
     "Microsoft YaHei"
   );
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
   color: var(--dsw-alias-label-secondary, var(--avn-boot-label-secondary));
   white-space: pre-wrap;
 }

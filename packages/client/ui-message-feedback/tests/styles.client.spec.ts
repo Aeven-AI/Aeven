@@ -97,13 +97,13 @@ describe('MessageFeedbackActions theme styles', () => {
     // font size moves the row. Their glyphs stay one fixed 16px metric, the
     // same one every action glyph in that row is drawn at, so the row's
     // glyphs do not drift apart across sizes.
-    expect(block('.action')).toMatch(/width:\s*calc\(28px \+ var\(--avn-content-font-delta, 0px\)\)/)
-    expect(block('.action')).toMatch(/height:\s*calc\(28px \+ var\(--avn-content-font-delta, 0px\)\)/)
+    expect(block('.action')).toMatch(/width:\s*1\.75rem/)
+    expect(block('.action')).toMatch(/height:\s*1\.75rem/)
     expect(block('.action svg')).toMatch(/width:\s*16px/)
-    expect(block('.noteOpen')).toMatch(/line-height:\s*calc\(28px \+ var\(--avn-content-font-delta, 0px\)\)/)
+    expect(block('.noteOpen')).toMatch(/line-height:\s*1\.75rem/)
     // The glyph-only trigger is a flex box, so its 28px hit area has to be
     // stated: an icon-only one collapses onto its 16px glyph otherwise.
-    expect(block('.noteOpen')).toMatch(/height:\s*calc\(28px \+ var\(--avn-content-font-delta, 0px\)\)/)
+    expect(block('.noteOpen')).toMatch(/height:\s*1\.75rem/)
     expect(block('.noteOpen svg')).toMatch(/width:\s*16px/)
   })
 

@@ -94,7 +94,8 @@ describe('ui-permission browser plugin', () => {
     expect(c.name).toBe('permission')
     expect(c.ui.kind).toBe('popupSelect')
     const row = b.permissionRow()!
-    expect(row.options).toEqual({ id: 'permission', order: -20 })
+    // Language leads the section, then composer steering, then this mode.
+    expect(row.options).toEqual({ id: 'permission', order: 20 })
     const injected = row.inject?.() as PermissionRowInjected | undefined
     expect(injected?.hooks.permission).toBeDefined()
     expect(typeof injected?.load).toBe('function')

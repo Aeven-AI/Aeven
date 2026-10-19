@@ -22,7 +22,7 @@
 
 .tippy-box {
   border-radius: 10px;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 400;
   font-family: inherit;
   line-height: 1.4;
@@ -87,11 +87,11 @@
 
   --hm-color: #000000;
   --hm-background: rgb(242, 242, 242);
-  --hm-link-color: rgb(160, 160, 160);
+  --hm-link-color: rgb(150, 150, 150);
   --hm-link-color-inverted: #fff;
   --hm-button-color: #000000;
   --hm-toolbar-color: rgb(80, 80, 80);
-  --hm-code-color: rgb(105, 105, 105);
+  --hm-code-color: rgb(80, 80, 80);
   --hm-line-number-color: rgb(205, 205, 205);
   --hm-table-color: rgb(80, 80, 80);
   --hm-table-header-color: rgb(242, 242, 242);
@@ -100,23 +100,23 @@
   --hm-max-width: 1024px;
   --hm-header-offset: 56px;
 
-  --hm-size-small: 12px;
-  --hm-code-size: 14px;
-  --hm-code-size-mobile: 14px;
-  --hm-code-leading: 24px;
-  --hm-table-leading: 30px;
+  --hm-size-small: 0.75rem;
+  --hm-code-size: 0.875rem;
+  --hm-code-size-mobile: 0.875rem;
+  --hm-code-leading: 1.5rem;
+  --hm-table-leading: 1.875rem;
   --hm-code-tracking: -0.5px;
   --hm-title-tracking: -0.2px;
 
   --hm-ease: cubic-bezier(0.23, 1, 0.32, 1);
   --hm-ease-linear: linear;
 
-  --hm-math-color: rgb(102, 102, 102);
-  --hm-math-size: 20.5px;
+  --hm-math-color: rgb(80, 80, 80);
+  --hm-math-size: 1.2813rem;
 
-  --hm-leading: 30px;
+  --hm-leading: 1.875rem;
   --hm-tracking: 0.2px;
-  --hm-size: 16px;
+  --hm-size: 1rem;
 
   /*
    * Set here rather than inherited. The content used to sit inside an app that
@@ -329,8 +329,8 @@
     letter-spacing: var(--hm-title-tracking);
     font-weight: 600 !important;
 
-    font-size: 36px;
-    line-height: 36px;
+    font-size: 2.25rem;
+    line-height: 2.25rem;
 
     margin-top: 36px;
     margin-bottom: 16px;
@@ -348,8 +348,8 @@
     letter-spacing: var(--hm-title-tracking);
     font-weight: 600 !important;
 
-    font-size: 28px;
-    line-height: 28px;
+    font-size: 1.75rem;
+    line-height: 1.75rem;
 
     margin-top: 28px;
     margin-bottom: 16px;
@@ -367,8 +367,8 @@
     letter-spacing: var(--hm-title-tracking);
     font-weight: 600 !important;
 
-    font-size: 22px;
-    line-height: 22px;
+    font-size: 1.375rem;
+    line-height: 1.375rem;
 
     margin-top: 22px;
     margin-bottom: 16px;
@@ -386,8 +386,8 @@
     letter-spacing: var(--hm-title-tracking);
     font-weight: 600 !important;
 
-    font-size: 16px;
-    line-height: 16px;
+    font-size: 1rem;
+    line-height: 1rem;
 
     margin-top: 16px;
     margin-bottom: 8px;
@@ -444,7 +444,7 @@
 
       border-radius: 8px;
 
-      font-size: 8px;
+      font-size: 0.5rem;
 
       color: var(--hm-link-color-inverted);
       background-color: var(--hm-button-color);
@@ -534,7 +534,7 @@
 
     p {
       font-family: var(--hm-font);
-      font-size: 16px;
+      font-size: 1rem;
       font-weight: 400;
       letter-spacing: 0px;
     }
@@ -544,8 +544,8 @@
       letter-spacing: var(--hm-title-tracking);
       font-weight: 600 !important;
 
-      font-size: 36px;
-      line-height: 36px;
+      font-size: 2.25rem;
+      line-height: 2.25rem;
 
       margin-top: 36px;
       margin-bottom: 16px;
@@ -556,15 +556,15 @@
       letter-spacing: var(--hm-title-tracking);
       font-weight: 600 !important;
 
-      font-size: 28px;
-      line-height: 28px;
+      font-size: 1.75rem;
+      line-height: 1.75rem;
 
       margin-top: 28px;
       margin-bottom: 10px;
 
       @media screen and (max-width: 640px) {
-        font-size: 28px;
-        line-height: 28px;
+        font-size: 1.75rem;
+        line-height: 1.75rem;
 
         margin-top: 28px;
 
@@ -577,8 +577,8 @@
       letter-spacing: var(--hm-title-tracking);
       font-weight: 600 !important;
 
-      font-size: 22px;
-      line-height: 22px;
+      font-size: 1.375rem;
+      line-height: 1.375rem;
 
       margin-top: 22px;
       margin-bottom: 16px;
@@ -589,8 +589,8 @@
       letter-spacing: var(--hm-title-tracking);
       font-weight: 600 !important;
 
-      font-size: 16px;
-      line-height: 16px;
+      font-size: 1rem;
+      line-height: 1rem;
 
       margin-top: 16px;
       margin-bottom: 8px;
@@ -703,8 +703,8 @@
 
     font-family: var(--hm-font-mono);
 
-    color: rgb(100, 100, 100);
-    background-color: #f2f2f2;
+    color: rgb(80, 80, 80);
+    background-color: rgb(242, 242, 242);
   }
 
   a[data-animate-word="true"],
@@ -814,7 +814,7 @@
               font-size: var(--hm-size-small);
               font-weight: 400;
 
-              line-height: 16px;
+              line-height: 1rem;
 
               text-transform: capitalize;
             }
@@ -1305,7 +1305,7 @@
               font-size: var(--hm-size-small);
               font-weight: 400;
 
-              line-height: 16px;
+              line-height: 1rem;
             }
           }
 
@@ -2141,7 +2141,7 @@
               font-size: var(--hm-size-small);
               font-weight: 400;
 
-              line-height: 16px;
+              line-height: 1rem;
 
               text-transform: capitalize;
             }
@@ -2611,7 +2611,7 @@
 
   .hljs-comment,
   .hljs-quote {
-    color: rgb(170, 170, 170);
+    color: rgb(150, 150, 150);
     font-style: italic;
   }
 
@@ -2627,7 +2627,7 @@
   .hljs-string,
   .hljs-symbol,
   .hljs-bullet {
-    color: rgb(170, 170, 170);
+    color: rgb(150, 150, 150);
   }
 
   .hljs-addition {
@@ -2638,7 +2638,7 @@
   .hljs-variable,
   .hljs-template-variable,
   .hljs-attribute {
-    color: rgb(170, 170, 170);
+    color: rgb(150, 150, 150);
   }
 
   .hljs-meta {
@@ -2659,17 +2659,17 @@
   .hljs-name,
   .hljs-selector-id,
   .hljs-selector-class {
-    color: rgb(130, 130, 130);
+    color: rgb(150, 150, 150);
     font-weight: 400;
   }
 
   .hljs-subst {
-    color: rgb(130, 130, 130);
+    color: rgb(150, 150, 150);
   }
 
   .hljs-built_in,
   .hljs-builtin-name {
-    color: rgb(170, 170, 170);
+    color: rgb(150, 150, 150);
   }
 
   .hljs-deletion {

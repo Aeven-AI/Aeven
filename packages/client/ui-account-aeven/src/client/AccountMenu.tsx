@@ -7,12 +7,12 @@
  */
 
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { useDismissOnOutsidePointer } from '@aeven/client-ui-primitives'
+import { Menu, useDismissOnOutsidePointer } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 // Type-only: pulls the ui-layout SlotMap merge (the frame's corner seat).
 import type {} from '@aeven/client-ui-layout/client'
 import { Avatar } from './Avatar.tsx'
-import { LOGOUT_ICON, SETTINGS_ICON } from './icons.ts'
+import { LANGUAGE_ICON, LOGOUT_ICON, SETTINGS_ICON } from './icons.ts'
 import { NS } from './locales.ts'
 import css from './AccountMenu.module.css'
 import '../vendor/aeven-account.css'
@@ -37,6 +37,22 @@ export interface AccountType {
   readonly name?: string
 }
 
+/** One selectable language, as the menu's popover lists it. */
+export interface AccountLanguage {
+  /** Stable locale id the preference is stored under. */
+  readonly id: string
+  /** The language's own name; it is never translated. */
+  readonly label: string
+}
+
+/** The locale facts the Language row shows. */
+export interface AccountLocale {
+  /** Id of the language currently in use. */
+  readonly active: string
+  /** Every selectable language in display order. */
+  readonly locales: readonly AccountLanguage[]
+}
+
 /** Registration-side business face for the account menu. */
 export interface AccountMenuInjected {
   /** The signed-in reader, or undefined when nobody is. */
@@ -50,6 +66,18 @@ export interface AccountMenuInjected {
   accountType: () => Promise<AccountType | undefined>
   /** End the Aeven session and return the reader to the sign-in screen. */
   signOut: () => void
+  hooks: {
+    /** The locale catalog and active language, bound by the renderer as `useLocale`. */
+    locale: {
+      getSnapshot(): AccountLocale
+      subscribe(listener: () => void): () => void
+    }
+  }
+  /**
+   * Switch the active language.
+   * @param id - a selectable locale id.
+   */
+  setLocale: (id: string) => void
 }
 
 /** Full component props. */
@@ -70,15 +98,24 @@ const ACCOUNT_SECTION = 'account'
  * @returns the menu, or null when nobody is signed in.
  */
 export function AccountMenu({
-  reader, openSettings, accountType, signOut, t,
+  reader, openSettings, accountType, signOut, useLocale, setLocale, t,
 }: AccountMenuProps) {
   const person = reader()
   const signedIn = person !== undefined
   const [open, setOpen] = useState(false)
   const [type, setType] = useState<AccountType | undefined>(undefined)
+  const [languageOpen, setLanguageOpen] = useState(false)
+  const languages = useLocale(state => state.locales)
+  const activeLanguage = useLocale(state => state.active)
   const root = useRef<HTMLDivElement | null>(null)
   const trigger = useRef<HTMLButtonElement | null>(null)
-  useDismissOnOutsidePointer(root, open, setOpen)
+  // Where the last press landed. The language card is portaled out of this
+  // root, so that press is how the card's own close knows whether the reader
+  // left the menu entirely or only the card.
+  const pressTarget = useRef<EventTarget | null>(null)
+  // While the card is open it owns dismissal: Menu closes it on an outside
+  // press and `closeLanguage` below carries that press on to this menu.
+  useDismissOnOutsidePointer(root, open && !languageOpen, setOpen)
 
   /**
    * Read the plan and keep it.
@@ -121,6 +158,33 @@ export function AccountMenu({
     setOpen(false)
     openSettings()
   }, [openSettings])
+
+  // A language card left open behind a dismissed menu would still be showing
+  // when the reader opens the avatar again.
+  useEffect(() => {
+    if (!open) setLanguageOpen(false)
+  }, [open])
+
+  useEffect(() => {
+    const remember = (event: PointerEvent): void => { pressTarget.current = event.target }
+    document.addEventListener('pointerdown', remember, true)
+    return () => { document.removeEventListener('pointerdown', remember, true) }
+  }, [])
+
+  /**
+   * Close the card from its own dismissal, taking the menu with it when the
+   * press that closed it was outside the menu as well.
+   */
+  const closeLanguage = useCallback(() => {
+    setLanguageOpen(false)
+    const target = pressTarget.current
+    if (target instanceof Node && root.current?.contains(target) !== true) setOpen(false)
+  }, [])
+
+  const pickLanguage = useCallback((id: string) => {
+    setLanguageOpen(false)
+    setLocale(id)
+  }, [setLocale])
 
   // The picture and the name are the reader, so they lead to the page about
   // them rather than to the settings landing page.
@@ -190,6 +254,29 @@ export function AccountMenu({
                   <span className="icon" dangerouslySetInnerHTML={{ __html: SETTINGS_ICON }} />
                   <span className="txt">{t('settings')}</span>
                 </button>
+
+                <Menu
+                  open={languageOpen}
+                  onClose={closeLanguage}
+                  items={languages.map(language => ({ id: language.id, label: language.label }))}
+                  selectedId={activeLanguage}
+                  onSelect={pickLanguage}
+                  align="end"
+                  portal
+                  anchor={(
+                    <button
+                      type="button"
+                      className="menu-button"
+                      role="menuitem"
+                      aria-haspopup="menu"
+                      aria-expanded={languageOpen}
+                      onClick={() => { setLanguageOpen(current => !current) }}
+                    >
+                      <span className="icon" dangerouslySetInnerHTML={{ __html: LANGUAGE_ICON }} />
+                      <span className="txt">{t('language')}</span>
+                    </button>
+                  )}
+                />
 
                 <button type="button" className="menu-button" role="menuitem" onClick={signOut}>
                   <span className="icon" dangerouslySetInnerHTML={{ __html: LOGOUT_ICON }} />

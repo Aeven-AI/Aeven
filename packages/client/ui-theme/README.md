@@ -11,7 +11,7 @@ English | [中文](README.zh.md)
 
 `avn-client-ui-theme` lets Web GUI users choose `light`, `dark`, or `system` and set conversation content text from 12 to 17 px in Settings. A loopback client stores both values in the `ui-theme` settings namespace, which the local provider persists in `$AVN_HOME/settings.yaml` by default. The plugin resolves `system` through `prefers-color-scheme` and publishes immutable `ThemeSnapshot`s; ui-layout applies each snapshot to the document. The package also ships the `--dsw-*` token stylesheets and injects a synchronous bootstrap so the selected palette and font size apply before the static shell preloader paints. Third-party themes can register alias-token overrides through `ctx.theme`.
 
-The Aeven baseline is centralized in `aeven-language.css`: Google Sans Flex font roles, warm-neutral color aliases, 1024px chat width, responsive page and sidebar insets, 280px sidebar width, 400ms sidebar transition, spacing, control size, and corner radii are single-source variables consumed by component CSS.
+The Aeven baseline is centralized in `aeven-language.css`: Google Sans Flex font roles, the seven-step neutral ramp every light alias resolves through, 1024px chat width, responsive page and sidebar insets, 280px sidebar width, 400ms sidebar transition, spacing, control size, and corner radii are single-source variables consumed by component CSS.
 
 ## Table of Contents
 

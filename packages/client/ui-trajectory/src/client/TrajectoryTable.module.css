@@ -679,7 +679,7 @@
   overflow: auto;
   color: var(--dsw-alias-label-primary);
   background: var(--dsw-alias-bg-layer-1);
-  font: 400 13px/20px var(--ds-font-family-code);
+  font: 400 0.8125rem/1.25rem var(--ds-font-family-code);
   white-space: pre;
 }
 
@@ -1310,22 +1310,22 @@
 
 .markdownPreview > div h1,
 .markdownPayload > div h1 {
-  font: 500 16px/22px var(--dsw-font-family);
+  font: 500 1rem/1.375rem var(--dsw-font-family);
 }
 
 .markdownPreview > div h2,
 .markdownPayload > div h2 {
-  font: 500 15px/22px var(--dsw-font-family);
+  font: 500 0.9375rem/1.375rem var(--dsw-font-family);
 }
 
 .markdownPreview > div :where(h3, h4, h5, h6),
 .markdownPayload > div :where(h3, h4, h5, h6) {
-  font: 500 14px/20px var(--dsw-font-family);
+  font: 500 0.875rem/1.25rem var(--dsw-font-family);
 }
 
 .markdownPreview > div :not(pre) > code,
 .markdownPayload > div :not(pre) > code {
-  font: 400 13px/20px var(--ds-font-family-code);
+  font: 400 0.8125rem/1.25rem var(--ds-font-family-code);
 }
 
 .markdownPreview > div table,
@@ -1508,7 +1508,7 @@
   overflow-wrap: anywhere;
   color: var(--dsw-alias-label-primary);
   background: var(--dsw-alias-markdown-code-block);
-  font: 400 13px/20px var(--ds-font-family-code);
+  font: 400 0.8125rem/1.25rem var(--ds-font-family-code);
   tab-size: 2;
   white-space: pre-wrap;
 }
@@ -1576,7 +1576,7 @@
   overflow-wrap: anywhere;
   color: var(--dsw-alias-label-primary);
   background: transparent;
-  font: 400 13px/20px var(--ds-font-family-code);
+  font: 400 0.8125rem/1.25rem var(--ds-font-family-code);
   tab-size: 2;
   white-space: pre-wrap;
 }
@@ -1778,7 +1778,7 @@
   overflow-wrap: anywhere;
   color: var(--dsw-alias-label-primary);
   background: transparent;
-  font: 400 13px/20px var(--ds-font-family-code);
+  font: 400 0.8125rem/1.25rem var(--ds-font-family-code);
   tab-size: 2;
   white-space: pre-wrap;
 }
@@ -1866,7 +1866,7 @@
   --json-tree-punctuation: var(--dsw-alias-label-caption);
   --json-tree-icon: var(--dsw-alias-label-caption);
 
-  font: 400 13px/20px var(--ds-font-family-code);
+  font: 400 0.8125rem/1.25rem var(--ds-font-family-code);
 }
 
 /* A raw-text preview is a grey code box; it keeps its own inner padding. */

@@ -19,7 +19,7 @@
   flex-direction: column;
   box-sizing: border-box;
   color: var(--dsw-alias-label-primary);
-  font-size: 14px;
+  font-size: 0.875rem;
   /* Elevated above the conversation surface, so a scroll region nested in it
      takes the l2 pair, as the left sidebar's does. */
   --avn-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);

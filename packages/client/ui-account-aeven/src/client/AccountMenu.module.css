@@ -43,6 +43,6 @@
 .plan {
   padding-top: 2px;
   color: var(--dsw-alias-label-tertiary);
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 0.75rem;
+  line-height: 1rem;
 }

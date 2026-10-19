@@ -138,7 +138,9 @@ export function apply(ctx: ClientContext): void {
   ctx.slots.inject('settings.general.item', () => ctx.slots.register({
     name: 'settings.general.item',
     id: 'permission',
-    order: -20,
+    // After the language and composer steering rows: the section leads with the
+    // two settings a reader changes most often, then the mode new sessions start in.
+    order: 20,
     locale: 'settings.permission',
     inject: injected,
   }, PermissionRow))

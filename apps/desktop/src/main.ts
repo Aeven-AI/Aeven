@@ -239,7 +239,7 @@ async function clearStaleUpdateResidue(): Promise<void> {
 const CAPTION_BUTTONS_HEIGHT = 32
 
 /** Caption glyph colours, matching the page's primary label in each scheme. */
-const CAPTION_SYMBOL_COLOR = { light: '#0f1115', dark: '#f9fafb' } as const
+const CAPTION_SYMBOL_COLOR = { light: '#000', dark: '#f9fafb' } as const
 
 /**
  * Windows and Linux lay the page below a page-drawn strip (`installCaptionStrip`

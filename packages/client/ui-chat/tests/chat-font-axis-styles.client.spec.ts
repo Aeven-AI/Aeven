@@ -33,8 +33,8 @@ function declarationsFrom(source: string, selector: string): string[] {
 describe('chat flow font-size axis', () => {
   it('the turn-process summary reads the conversation content size', () => {
     expect(declarationsFrom(read('TurnProcessNodeView.module.css'), '.label')).toEqual(expect.arrayContaining([
-      'font-size: var(--avn-content-font-size, 16px)',
-      'line-height: calc(28px + var(--avn-content-font-delta, 0px))',
+      'font-size: 1rem',
+      'line-height: 1.75rem',
     ]))
   })
 
@@ -44,24 +44,24 @@ describe('chat flow font-size axis', () => {
     // override in the Markdown engine's host sheet.
     const css = read('ReasoningRow.module.css')
     expect(declarationsFrom(css, '.summary')).toEqual(expect.arrayContaining([
-      'font-size: var(--avn-content-font-size, 16px)',
-      'line-height: calc(28px + var(--avn-content-font-delta, 0px))',
+      'font-size: 1rem',
+      'line-height: 1.75rem',
     ]))
     expect(declarationsFrom(css, '.root:not([data-expanded])')).toEqual(expect.arrayContaining([
-      'height: calc(24px + var(--avn-content-font-delta, 0px))',
+      'height: 1.5rem',
     ]))
   })
 
   it('command and context summaries read the conversation content size', () => {
     expect(declarationsFrom(read('GenericCommandCard.module.css'), '.summary')).toEqual(expect.arrayContaining([
-      'font-size: var(--avn-content-font-size, 16px)',
-      'line-height: calc(28px + var(--avn-content-font-delta, 0px))',
+      'font-size: 1rem',
+      'line-height: 1.75rem',
     ]))
     const context = read('ContextInjectionRow.module.css')
     for (const selector of ['.source', '.summary']) {
       expect(declarationsFrom(context, selector)).toEqual(expect.arrayContaining([
-        'font-size: var(--avn-content-font-size, 16px)',
-        'line-height: calc(28px + var(--avn-content-font-delta, 0px))',
+        'font-size: 1rem',
+        'line-height: 1.75rem',
       ]))
     }
   })
@@ -73,10 +73,10 @@ describe('chat flow font-size axis', () => {
     // scale: one fixed 16px metric keeps the row the same at every size, and
     // the CSS edge overrides each svg's own width/height attributes.
     expect(declarationsFrom(actions, '.timeStart')).toEqual(expect.arrayContaining([
-      'font-size: var(--avn-content-font-size, 16px)',
+      'font-size: 1rem',
     ]))
     expect(declarationsFrom(actions, '.timeEnd')).toEqual(expect.arrayContaining([
-      'font-size: var(--avn-content-font-size, 16px)',
+      'font-size: 1rem',
     ]))
     expect(declarationsFrom(actions, '.action svg')).toEqual(expect.arrayContaining([
       'width: 16px',
@@ -88,20 +88,20 @@ describe('chat flow font-size axis', () => {
     const css = read('MessageItem.module.css')
     for (const selector of ['.compactionTitle', '.compactionSummary', '.compactionBody']) {
       expect(declarationsFrom(css, selector)).toEqual(expect.arrayContaining([
-        'font-size: var(--avn-content-font-size-secondary, 14px)',
-        'line-height: calc(24px + var(--avn-content-font-delta, 0px))',
+        'font-size: 0.875rem',
+        'line-height: 1.5rem',
       ]))
     }
     expect(declarationsFrom(css, '.compactionLeading svg')).toEqual(expect.arrayContaining([
-      'width: calc(14px + var(--avn-content-font-delta, 0px))',
-      'height: calc(14px + var(--avn-content-font-delta, 0px))',
+      'width: 0.875rem',
+      'height: 0.875rem',
     ]))
   })
 
   it('expanded bodies indent by 22px + delta so content stays under the shifted title start', () => {
     // The DisclosureRow title starts at leading (16 + delta) + gap 6; a fixed
     // 22px indent would misalign at every non-default size.
-    const indent = 'calc(22px + var(--avn-content-font-delta, 0px))'
+    const indent = '1.375rem'
     expect(declarationsFrom(read('MessageItem.module.css'), '.compactionBody'))
       .toEqual(expect.arrayContaining([`padding: 4px 0 4px ${indent}`]))
     expect(declarationsFrom(read('ContextInjectionRow.module.css'), '.body'))
@@ -111,8 +111,8 @@ describe('chat flow font-size axis', () => {
   it('the usage-details trigger reads the conversation content size', () => {
     const css = read('TurnUsagePanel.module.css')
     expect(declarationsFrom(css, '.trigger')).toEqual(expect.arrayContaining([
-      'font-size: var(--avn-content-font-size, 16px)',
-      'line-height: calc(28px + var(--avn-content-font-delta, 0px))',
+      'font-size: 1rem',
+      'line-height: 1.75rem',
     ]))
   })
 
@@ -122,7 +122,7 @@ describe('chat flow font-size axis', () => {
     // delta rule as `.action`, so the row stays one height at every font size.
     const css = read('TurnUsagePanel.module.css')
     expect(declarationsFrom(css, '.trigger')).toEqual(expect.arrayContaining([
-      'height: calc(28px + var(--avn-content-font-delta, 0px))',
+      'height: 1.75rem',
       'white-space: nowrap',
       'min-width: 0',
     ]))
@@ -147,7 +147,7 @@ describe('chat flow font-size axis', () => {
     const css = read('TurnUsagePanel.module.css')
     const narrow = /@media \(max-width: 480px\) \{([\s\S]*?)\n\}/.exec(css)?.[1] ?? ''
     expect(narrow).toMatch(/\.trigger \{[^}]*justify-content: center/)
-    expect(narrow).toMatch(/\.trigger \{[^}]*width: calc\(28px \+ var\(--avn-content-font-delta, 0px\)\)/)
+    expect(narrow).toMatch(/\.trigger \{[^}]*width: 1\.75rem/)
     expect(narrow).toMatch(/\.trigger \{[^}]*padding: 6px/)
     expect(narrow).toMatch(/\.trigger \.label \{[^}]*display: none/)
     expect(narrow).toMatch(/\.root \+ \.root \{[^}]*margin-left: 0/)
@@ -166,8 +166,8 @@ describe('chat flow font-size axis', () => {
     // 11px would fall to an illegible 9px at the 12px floor; the tag is
     // exempt from the axis the same way small/code tokens are.
     expect(declarationsFrom(read('AssistantMarkdown.module.css'), '.stopped')).toEqual(expect.arrayContaining([
-      'font-size: 11px',
-      'line-height: 18px',
+      'font-size: 0.6875rem',
+      'line-height: 1.125rem',
     ]))
   })
 })

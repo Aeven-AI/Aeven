@@ -118,6 +118,7 @@
     "verify-client-domain-graph": "tsx scripts/verify-client-domain-graph.ts",
     "verify-client-packages": "tsx scripts/verify-client-packages.ts",
     "verify-client-ui-i18n": "tsx scripts/verify-client-ui-i18n.ts",
+    "verify-client-type-scale": "tsx scripts/verify-client-type-scale.ts",
     "verify-config-source-ownership": "tsx scripts/verify-config-source-ownership.ts",
     "verify-cordis-config": "tsx scripts/verify-cordis-config.ts",
     "verify-css-baseline": "tsx scripts/verify-css-baseline.ts",

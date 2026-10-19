@@ -10,19 +10,27 @@ const picture = (): File => new File([new Uint8Array([1, 2, 3])], 'me.png', { ty
  * Render the account page. The plan, credit and usage reads are refused on
  * purpose: this suite is about the picture row, which draws above them.
  */
-function show(overrides: Partial<AccountSectionProps> = {}) {
+async function show(overrides: Partial<AccountSectionProps> = {}) {
   const props = {
     reader: () => ({ userId: 'reader-1', displayName: 'Ollie', email: 'ollie@example.test' }),
     signOut: vi.fn(),
     setImage: vi.fn(async () => 'https://media.test/user-images/reader-1-new.webp'),
     removeImage: vi.fn(async () => {}),
     mfa: vi.fn(async () => ({ enabled: false })),
+    security: {
+      cached: () => false,
+      read: async () => false,
+      record: () => {},
+    },
     cloud: () => Promise.reject(new Error('unavailable')),
     cached: () => undefined,
     t: (key: keyof typeof en) => en[key],
     ...overrides,
   }
-  return { ...render(<AccountSection {...props as unknown as AccountSectionProps} />), props }
+  const rendered = render(<AccountSection {...props as unknown as AccountSectionProps} />)
+  // The page paints in one step: its rows arrive together, once every read has settled.
+  await screen.findByRole('button', { name: en['avatar.upload'] })
+  return { ...rendered, props }
 }
 
 const picker = (): HTMLInputElement => {
@@ -41,8 +49,8 @@ const iconButton = (name: keyof typeof en): HTMLElement => {
 afterEach(cleanup)
 
 describe('the account picture', () => {
-  it('offers an upload and no removal while the account has no picture', () => {
-    show()
+  it('offers an upload and no removal while the account has no picture', async () => {
+    await show()
     expect(iconButton('avatar.upload')).toBeDefined()
     expect(screen.queryByRole('button', { name: en['avatar.remove'] })).toBeNull()
     // With no picture there is no image to draw, so the initial is the trigger.
@@ -50,8 +58,8 @@ describe('the account picture', () => {
     expect(screen.getByRole('button', { name: en['avatar.choose'] })).toBeDefined()
   })
 
-  it('opens the picker from the picture itself', () => {
-    const { container } = show({
+  it('opens the picker from the picture itself', async () => {
+    const { container } = await show({
       reader: () => ({ userId: 'reader-1', displayName: 'Ollie', imageUrl: 'https://media.test/old.webp' }),
     })
     const input = picker()
@@ -64,14 +72,14 @@ describe('the account picture', () => {
     expect(container.querySelectorAll('input[type="file"]')).toHaveLength(1)
   })
 
-  it('offers a removal while the account has one', () => {
-    show({ reader: () => ({ userId: 'reader-1', displayName: 'Ollie', imageUrl: 'https://media.test/old.webp' }) })
+  it('offers a removal while the account has one', async () => {
+    await show({ reader: () => ({ userId: 'reader-1', displayName: 'Ollie', imageUrl: 'https://media.test/old.webp' }) })
     expect(screen.getByAltText(en['avatar.alt'])).toBeDefined()
     expect(iconButton('avatar.remove')).toBeDefined()
   })
 
   it('stores the picture the reader picks and draws the stored one', async () => {
-    const { props } = show()
+    const { props } = await show()
     fireEvent.change(picker(), { target: { files: [picture()] } })
 
     await waitFor(() => { expect(screen.getByAltText(en['avatar.alt'])).toBeDefined() })
@@ -81,14 +89,14 @@ describe('the account picture', () => {
     expect(iconButton('avatar.remove')).toBeDefined()
   })
 
-  it('does nothing when the picker is dismissed with no file', () => {
-    const { props } = show()
+  it('does nothing when the picker is dismissed with no file', async () => {
+    const { props } = await show()
     fireEvent.change(picker(), { target: { files: [] } })
     expect(props.setImage).not.toHaveBeenCalled()
   })
 
   it('removes the picture and draws the initial again', async () => {
-    const { props } = show({ reader: () => ({ userId: 'reader-1', displayName: 'Ollie', imageUrl: 'https://media.test/old.webp' }) })
+    const { props } = await show({ reader: () => ({ userId: 'reader-1', displayName: 'Ollie', imageUrl: 'https://media.test/old.webp' }) })
     fireEvent.click(iconButton('avatar.remove'))
 
     await waitFor(() => { expect(screen.queryByAltText(en['avatar.alt'])).toBeNull() })
@@ -97,7 +105,7 @@ describe('the account picture', () => {
   })
 
   it('says so when the picture cannot be stored, and keeps the old one', async () => {
-    show({
+    await show({
       reader: () => ({ userId: 'reader-1', displayName: 'Ollie', imageUrl: 'https://media.test/old.webp' }),
       setImage: () => Promise.reject(new Error('invalid-image')),
     })
@@ -109,7 +117,7 @@ describe('the account picture', () => {
   })
 
   it('says so when the picture cannot be removed', async () => {
-    show({
+    await show({
       reader: () => ({ userId: 'reader-1', displayName: 'Ollie', imageUrl: 'https://media.test/old.webp' }),
       removeImage: () => Promise.reject(new Error('request-failed')),
     })
@@ -121,7 +129,7 @@ describe('the account picture', () => {
 
   it('shows the work in progress and holds both actions until it settles', async () => {
     let finish: (url: string | undefined) => void = () => {}
-    show({
+    await show({
       setImage: () => new Promise<string | undefined>((resolve) => { finish = resolve }),
     })
     fireEvent.change(picker(), { target: { files: [picture()] } })

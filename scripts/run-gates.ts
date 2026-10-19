@@ -305,6 +305,7 @@ function clientSurfaceGates(): Gate[] {
     }),
     pnpmScript('client-packages', 'verify-client-packages', { label: 'client packages' }),
     pnpmScript('client-ui-i18n', 'verify-client-ui-i18n', { label: 'client UI i18n' }),
+    pnpmScript('client-type-scale', 'verify-client-type-scale', { label: 'client type scale' }),
     pnpmScript('css-baseline', 'verify-css-baseline', { label: 'client CSS baseline' }),
     pnpmScript('no-bare-dispatcher', 'verify-no-bare-dispatcher', { label: 'proxy-aware dispatchers' }),
   ]

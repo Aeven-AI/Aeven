@@ -18,6 +18,10 @@ function bootThemeScript(preference: ThemePreference, fontSize: number): string 
   const dark = preference === 'dark' || systemDark
   document.documentElement.style.colorScheme = dark ? 'dark' : 'light'
   document.body.toggleAttribute('data-ds-dark-theme', dark)
+  // The root size is the whole client's typographic base: every rem below it is
+  // a fraction of this number, so changing it rescales the interface rather than
+  // only the conversation.
+  document.documentElement.style.fontSize = ${JSON.stringify(`${fontSize}px`)}
   document.body.style.setProperty('--avn-content-font-size', ${JSON.stringify(`${fontSize}px`)})
   document.body.style.setProperty('--avn-content-font-size-secondary', ${JSON.stringify(`${secondaryFontSize(fontSize)}px`)})
 })()`

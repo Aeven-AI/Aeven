@@ -9,7 +9,7 @@
   min-height: 0;
   padding-top: 8px;
   color: var(--dsw-alias-label-primary);
-  font-size: 14px;
+  font-size: 0.875rem;
   background: var(--dsw-specific-sidebar-fill);
 }
 /* Transparent until the shell's first screen has rendered, then faded in. The
@@ -132,7 +132,7 @@
   background: var(--dsw-static-neutral-00);
   color: var(--dsw-static-neutral-1000);
   font: inherit;
-  font-size: 14px;
+  font-size: 0.875rem;
   text-align: start;
   cursor: pointer;
 }
@@ -157,7 +157,7 @@
   margin: 0;
   padding: 0 var(--dsw-aeven-sidebar-row-inset);
   color: var(--dsw-alias-label-tertiary);
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 /* Cursor colors depend on its cell, so they must not update xterm's shared ANSI theme. */

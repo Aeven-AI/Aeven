@@ -111,6 +111,10 @@ export function apply(ctx: ClientContext): void {
       if (reader === undefined) return
       void reader.signOut().finally(() => { window.location.assign('/') })
     },
+    // The menu draws the languages the locale service publishes rather than a
+    // list of its own, so a language pack registered elsewhere appears here too.
+    hooks: { locale: ctx.locale },
+    setLocale: (id) => { ctx.locale.setLocale(id) },
   })
 
   // The frame's corner, not a Session header seat: whether a reader is signed
@@ -135,14 +139,25 @@ export function apply(ctx: ClientContext): void {
   const reader = publishedReader()
   if (reader === undefined) return
   const t = ctx.locale.bind(NS)
+  // The two-factor status changes only when the reader changes it, and that happens
+  // on this page, so the answer outlives the visit: a return to Account paints the
+  // switch from here instead of spending a round trip before it can draw.
+  let knownSecurity: boolean | undefined
   const section: AccountSectionInjected = {
     reader: currentReader,
     signOut: injected().signOut,
     cloud,
     mfa: reader.mfa,
+    security: {
+      cached: () => knownSecurity,
+      read: () => reader.mfa('status').then((answer) => {
+        knownSecurity = answer.enabled === true
+        return knownSecurity
+      }),
+      record: (enabled) => { knownSecurity = enabled },
+    },
     setImage: image => reader.setImage(image),
     removeImage: () => reader.removeImage(),
-    // oxlint-disable-next-line typescript/no-unnecessary-type-parameters -- implements the injected reader's caller-side assertion
     cached: <T>(path: string) => cache.peek<T>(path),
   }
   ctx.slots.inject('settings.section', () => ctx.slots.register({

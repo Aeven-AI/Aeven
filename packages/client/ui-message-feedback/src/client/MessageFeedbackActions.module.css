@@ -5,8 +5,8 @@
   /* Rides the Settings font-size axis like the host row's own actions
      (ui-chat MessageIconActions), so slot-injected buttons match their
      siblings at every size. */
-  width: calc(28px + var(--avn-content-font-delta, 0px));
-  height: calc(28px + var(--avn-content-font-delta, 0px));
+  width: 1.75rem;
+  height: 1.75rem;
   padding: 6px;
   border: none;
   border-radius: 28px;
@@ -49,14 +49,14 @@
   /* The row's own 28px hit area. An icon-only flex container would otherwise
      collapse to its 16px glyph, so the box is stated rather than inherited
      from the text line the labelled form draws. */
-  height: calc(28px + var(--avn-content-font-delta, 0px));
+  height: 1.75rem;
   padding: 0 6px;
   border: none;
   border-radius: 14px;
   background: transparent;
   color: var(--dsw-alias-label-primary);
-  font-size: var(--avn-content-font-size-secondary, 14px);
-  line-height: calc(28px + var(--avn-content-font-delta, 0px));
+  font-size: 0.875rem;
+  line-height: 1.75rem;
   white-space: nowrap;
   cursor: pointer;
 }
@@ -127,8 +127,8 @@
   background: transparent;
   color: var(--dsw-alias-label-primary);
   font: inherit;
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
   outline: none;
   resize: vertical;
 }
@@ -146,6 +146,6 @@
 .failure {
   padding-left: 4px;
   color: var(--dsw-alias-label-tertiary);
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
 }

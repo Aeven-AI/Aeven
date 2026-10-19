@@ -75,8 +75,8 @@ describe('Aeven visual language', () => {
     expect(css).toContain('--dsw-aeven-radius-control: 20px')
     expect(css).toContain('--dsw-aeven-loading-mark-size: 18px')
     expect(css).toContain('--dsw-aeven-loading-mark-color: var(--dsw-alias-label-primary)')
-    expect(css).toContain('--dsw-alias-bg-base: rgb(242, 242, 242)')
-    expect(css).toContain('--dsw-specific-bubble: rgb(255, 255, 255)')
+    expect(css).toContain('--dsw-alias-bg-base: var(--dsw-aeven-well)')
+    expect(css).toContain('--dsw-specific-bubble: var(--dsw-aeven-surface)')
   })
 
   it('narrows the shared page inset at the Aeven mobile breakpoint', () => {
@@ -236,5 +236,140 @@ describe('the loading mark', () => {
       expect(sized.length).toBeGreaterThan(0)
       expect(sized.every(([, value]) => value === MARK_SIZE)).toBe(true)
     }
+  })
+})
+
+/**
+ * The light scheme's whole neutral vocabulary: three ink steps, one disabled
+ * step, and three surfaces. `aeven-language.css` states them once and every
+ * alias picks one, so the scheme cannot drift back to a dozen near-identical
+ * greys. Alias values are held to this set; translucent tints and the state
+ * blends may tint them but cannot introduce another opaque neutral.
+ */
+const LIGHT_NEUTRAL_RAMP = [
+  ['--dsw-aeven-ink', '#000000'],
+  ['--dsw-aeven-ink-muted', 'rgb(80, 80, 80)'],
+  ['--dsw-aeven-ink-faint', 'rgb(150, 150, 150)'],
+  ['--dsw-aeven-ink-disabled', 'rgb(205, 205, 205)'],
+  ['--dsw-aeven-surface', 'rgb(255, 255, 255)'],
+  ['--dsw-aeven-well', 'rgb(242, 242, 242)'],
+  ['--dsw-aeven-raised', 'rgb(235, 235, 235)'],
+] as const
+
+/** Channel spread below which a colour reads as neutral rather than tinted. */
+const NEUTRAL_SPREAD = 14
+
+/** Custom-property families that carry the scheme's surfaces and ink. */
+const PALETTE_ALIAS = /^--dsw-(?:alias|specific)-/
+
+/** One `body` block of a theme sheet, in source order. */
+interface BodyRule {
+  /** Whether the block selects the dark palette. */
+  dark: boolean
+  /** The block's `--dsw-*` declarations, in source order. */
+  declarations: [property: string, value: string][]
+}
+
+/**
+ * Every `body` block a sheet declares, including those nested in a media query.
+ * @param css - stylesheet text.
+ * @returns the blocks in source order, tagged with the palette they select.
+ */
+function bodyRules(css: string): BodyRule[] {
+  const text = css.replace(/\/\*[\s\S]*?\*\//g, '')
+  return [...text.matchAll(/(?<![-\w.#])body([^{}]*)\{/g)].map((match) => {
+    const start = (match.index ?? 0) + match[0].length
+    let depth = 1
+    let end = start
+    for (; end < text.length && depth > 0; end += 1) {
+      if (text[end] === '{') depth += 1
+      else if (text[end] === '}') depth -= 1
+    }
+    const declarations = text.slice(start, end - 1).split(';')
+      .map(part => part.trim())
+      .filter(part => part.startsWith('--dsw-') && part.includes(':'))
+      .map((part): [string, string] => [
+        part.slice(0, part.indexOf(':')).trim(),
+        part.slice(part.indexOf(':') + 1).trim(),
+      ])
+    return { dark: (match[1] ?? '').trim() === '[data-ds-dark-theme]', declarations }
+  })
+}
+
+/**
+ * The light palette as the cascade resolves it: the sheets in mount order, light
+ * blocks only, later declarations winning.
+ * @returns every `--dsw-*` property the light scheme declares.
+ */
+function lightPalette(): Map<string, string> {
+  const palette = new Map<string, string>()
+  // Mount order, from `client/styles.ts`: the upstream platform palette first,
+  // then the Aeven layer that overrides it.
+  for (const sheet of ['design-platform.css', 'aeven-language.css']) {
+    for (const rule of bodyRules(readFileSync(fileURLToPath(new URL(`../src/styles/${sheet}`, import.meta.url)), 'utf8'))) {
+      if (rule.dark) continue
+      for (const [property, value] of rule.declarations) palette.set(property, value)
+    }
+  }
+  return palette
+}
+
+/**
+ * Resolve one custom property through its `var()` chain.
+ * @param palette - the declarations of one scheme.
+ * @param name - property to resolve.
+ * @returns the literal the chain ends at, or undefined when it leaves the palette.
+ */
+function resolveIn(palette: ReadonlyMap<string, string>, name: string): string | undefined {
+  let current = name
+  for (let hops = 0; hops < 8; hops += 1) {
+    const value = palette.get(current)
+    if (value === undefined) return undefined
+    const reference = /^var\(\s*(--[\w-]+)\s*\)$/.exec(value)
+    if (reference === null) return value
+    current = reference[1] ?? ''
+  }
+  return undefined
+}
+
+/**
+ * The channels of an opaque colour literal.
+ * @param value - declaration value.
+ * @returns `[r, g, b]`, or undefined for a translucent, named, or computed value.
+ */
+function opaqueChannels(value: string): [number, number, number] | undefined {
+  const text = value.trim().toLowerCase()
+  const rgb = /^rgb\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)\s*\)$/.exec(text)
+  if (rgb !== null) return [Number(rgb[1]), Number(rgb[2]), Number(rgb[3])]
+  const hex = /^#([0-9a-f]{6})$/.exec(text)
+  if (hex !== null) {
+    const digits = hex[1] ?? ''
+    return [0, 2, 4].map(offset => parseInt(digits.slice(offset, offset + 2), 16)) as [number, number, number]
+  }
+  return undefined
+}
+
+describe('the light scheme neutral ramp', () => {
+  const palette = lightPalette()
+  const ramp = new Set(LIGHT_NEUTRAL_RAMP.map(([, value]) => (opaqueChannels(value) ?? []).join(',')))
+
+  it('states each ramp step once, as its own literal', () => {
+    expect(ramp.size).toBe(LIGHT_NEUTRAL_RAMP.length)
+    for (const [name, value] of LIGHT_NEUTRAL_RAMP) {
+      expect(palette.get(name), `${name} states a ramp step`).toBe(value)
+    }
+  })
+
+  it('resolves every surface and ink alias to a ramp step, not a grey of its own', () => {
+    const stray: string[] = []
+    for (const [name, declared] of palette) {
+      if (!PALETTE_ALIAS.test(name)) continue
+      const resolved = resolveIn(palette, name) ?? declared
+      const channels = opaqueChannels(resolved)
+      if (channels === undefined) continue
+      if (Math.max(...channels) - Math.min(...channels) > NEUTRAL_SPREAD) continue
+      if (!ramp.has(channels.join(','))) stray.push(`${name}: ${resolved}`)
+    }
+    expect(stray).toEqual([])
   })
 })

@@ -18,7 +18,7 @@
   overflow: hidden;
   display: flex;
   align-items: center;
-  height: calc(24px + var(--avn-content-font-delta, 0px));
+  height: 1.5rem;
   min-width: 0;
 }
 
@@ -29,8 +29,8 @@
 .leading {
   position: relative;
   flex: none;
-  width: calc(16px + var(--avn-content-font-delta, 0px));
-  height: calc(16px + var(--avn-content-font-delta, 0px));
+  width: 1rem;
+  height: 1rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -47,8 +47,8 @@
    status-mark size. */
 .leading > svg:not([data-state]),
 .leading > .iconIdle svg:not([data-state]) {
-  width: calc(14px + var(--avn-content-font-delta, 0px));
-  height: calc(14px + var(--avn-content-font-delta, 0px));
+  width: 0.875rem;
+  height: 0.875rem;
 }
 
 button.leading {
@@ -79,8 +79,8 @@ button.leading {
 
 .title {
   flex: none;
-  font-size: var(--avn-content-font-size, 16px);
-  line-height: calc(28px + var(--avn-content-font-delta, 0px));
+  font-size: 1rem;
+  line-height: 1.75rem;
   color: var(--dsw-alias-label-caption);
 }
 
@@ -91,8 +91,8 @@ button.leading {
 .trailingChevron {
   position: absolute;
   right: 0;
-  width: calc(14px + var(--avn-content-font-delta, 0px));
-  height: calc(14px + var(--avn-content-font-delta, 0px));
+  width: 0.875rem;
+  height: 0.875rem;
   opacity: 0;
   transition: opacity 100ms ease;
 }

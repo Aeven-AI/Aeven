@@ -12,7 +12,7 @@ exports[`Account security > keeps the switch off through enrollment and shows re
     </span>
   </h3>
   <div
-    class="_row_f08576"
+    class="_row_f08576 _securityRow_f08576"
   >
     <span
       class="_rowText_f08576"

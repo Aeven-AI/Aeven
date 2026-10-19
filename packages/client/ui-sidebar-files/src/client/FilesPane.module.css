@@ -19,8 +19,8 @@
   min-width: 0;
   min-height: 0;
   color: var(--dsw-alias-label-primary);
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
 }
 
 .tree {
@@ -83,7 +83,7 @@
   background: transparent;
   color: inherit;
   font: inherit;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .searchInput::placeholder {
@@ -237,7 +237,7 @@
   min-width: 0;
   overflow: hidden;
   color: var(--dsw-alias-label-tertiary);
-  font-size: 12px;
+  font-size: 0.75rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -245,8 +245,8 @@
 .note {
   padding: 6px 10px 6px 0;
   color: var(--dsw-alias-label-tertiary);
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
 }
 
 /* An open file with the tree docked on its right. */
@@ -302,7 +302,7 @@
   min-width: 0;
   overflow: hidden;
   color: var(--dsw-alias-label-tertiary);
-  font-size: 14px;
+  font-size: 0.875rem;
   white-space: nowrap;
 }
 
@@ -396,8 +396,8 @@
   overflow: hidden;
   color: var(--dsw-alias-label-primary);
   font-family: var(--ds-font-family-code);
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

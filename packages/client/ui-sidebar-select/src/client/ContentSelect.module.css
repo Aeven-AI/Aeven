@@ -78,7 +78,7 @@
   background: transparent;
   color: var(--dsw-alias-label-primary);
   font: inherit;
-  font-size: 14px;
+  font-size: 0.875rem;
   cursor: pointer;
 }
 
@@ -216,7 +216,7 @@
 .unavailable {
   padding: 16px;
   color: var(--dsw-alias-label-tertiary);
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 /* The empty column: one row per kind, starting at the top of the panel on the
@@ -249,7 +249,7 @@
   background: var(--dsw-static-neutral-00);
   color: var(--dsw-static-neutral-1000);
   font: inherit;
-  font-size: 14px;
+  font-size: 0.875rem;
   text-align: start;
   cursor: pointer;
 }

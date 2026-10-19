@@ -64,7 +64,6 @@ export function FontSizeRow({ t, setFontSize, useStore }: FontSizeRowComponentPr
             </button>
           </span>
         </div>
-        <span className={css.unit}>{t('fontSize.unit')}</span>
       </div>
     </div>
   )

@@ -140,8 +140,8 @@
 
 .openError {
   color: var(--dsw-alias-state-error-primary);
-  font-size: var(--avn-content-font-size-secondary, 14px);
-  line-height: calc(18px + var(--avn-content-font-delta-secondary, 0px));
+  font-size: 0.875rem;
+  line-height: 1.125rem;
 }
 
 /* Head boundary: a zero-height sticky slot, like the back-to-bottom control,

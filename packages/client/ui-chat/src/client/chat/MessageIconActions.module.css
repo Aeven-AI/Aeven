@@ -8,7 +8,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  height: calc(28px + var(--avn-content-font-delta, 0px));
+  height: 1.75rem;
   color: var(--dsw-alias-label-primary);
 }
 
@@ -17,8 +17,8 @@
    text it stamps and the user row's clock matches the assistant tail's. */
 .timeStart {
   padding-right: 12px;
-  font-size: var(--avn-content-font-size, 16px);
-  line-height: calc(24px + var(--avn-content-font-delta, 0px));
+  font-size: 1rem;
+  line-height: 1.5rem;
   white-space: nowrap;
 }
 
@@ -26,8 +26,8 @@
    row's 4px flex gap spaces it, and it reads the body tier so it matches the
    pill labels beside it. */
 .timeEnd {
-  font-size: var(--avn-content-font-size, 16px);
-  line-height: calc(24px + var(--avn-content-font-delta, 0px));
+  font-size: 1rem;
+  line-height: 1.5rem;
   white-space: nowrap;
 }
 
@@ -35,8 +35,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: calc(28px + var(--avn-content-font-delta, 0px));
-  height: calc(28px + var(--avn-content-font-delta, 0px));
+  width: 1.75rem;
+  height: 1.75rem;
   padding: 6px;
   border: none;
   border-radius: 28px;

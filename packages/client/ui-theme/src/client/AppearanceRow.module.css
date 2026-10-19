@@ -26,12 +26,12 @@
   justify-content: center;
   gap: 4px;
   padding: 20px 32px;
-  border: 0.5px solid var(--dsw-alias-border-l4);
+  border: none;
   border-radius: 20px;
-  background: transparent;
+  background: var(--dsw-alias-bg-module-platform);
   font: inherit;
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
   color: var(--dsw-alias-label-primary);
   cursor: pointer;
 }
@@ -40,9 +40,11 @@
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
-/* Selected cube: #F5F6F7 fill + #ADB2B8 border (static token — the bluish-400
- * step has no alias-layer name). */
-.selected {
-  background: var(--dsw-alias-bg-module-platform);
-  border-color: var(--dsw-static-neutral-bluish-400);
+/* The chosen cube inverts: the primary fill, and the ink that is legible on it.
+   The pair flips with the theme, so the choice stays the strongest cube either
+   way rather than a black one in a dark panel. */
+.selected,
+.selected:hover {
+  background: var(--dsw-alias-button-primary-fill);
+  color: var(--dsw-alias-label-primary-foreground);
 }

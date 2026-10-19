@@ -229,7 +229,7 @@ table {
 caption {
   padding-top: 0.75rem;
   padding-bottom: 0.75rem;
-  color: #868e96;
+  color: rgb(150, 150, 150);
   text-align: left;
   caption-side: bottom;
 }
@@ -534,8 +534,8 @@ select:autofill:hover,
 select:autofill:focus,
 select:autofill:active {
   background: transparent !important;
-  color: #111 !important;
-  text-fill-color: #111 !important;
+  color: #000 !important;
+  text-fill-color: #000 !important;
   animation-name: autofill !important;
   animation-fill-mode: both !important;
   transition-delay: 9999s !important;
@@ -560,8 +560,8 @@ select:-webkit-autofill:hover,
 select:-webkit-autofill:focus,
 select:-webkit-autofill:active {
   background: transparent !important;
-  color: #111 !important;
-  -webkit-text-fill-color: #111 !important;
+  color: #000 !important;
+  -webkit-text-fill-color: #000 !important;
   -webkit-animation-name: autofill !important;
   -webkit-animation-fill-mode: both !important;
   -webkit-transition-delay: 9999s !important;
@@ -685,11 +685,11 @@ html {
   font-smooth: grayscale;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-size: 16px;
+  font-size: 1rem;
 }
 @media screen and (max-width: 640px) {
   html {
-    font-size: 16px;
+    font-size: 1rem;
   }
 }
 
@@ -700,12 +700,12 @@ body {
     "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   font-weight: 400;
   color: #000000;
-  line-height: 30px;
+  line-height: 1.875rem;
   letter-spacing: normal;
   background-color: rgb(242, 242, 242);
 }
 body a {
-  color: rgb(90, 90, 90);
+  color: rgb(80, 80, 80);
   text-decoration: none;
 }
 body a:hover {
@@ -730,8 +730,8 @@ body .content-block h1 {
     "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   letter-spacing: normal;
   font-weight: 600 !important;
-  font-size: 36px;
-  line-height: 42px;
+  font-size: 2.25rem;
+  line-height: 2.625rem;
   margin-top: 64px;
   margin-bottom: 24px;
 }
@@ -743,8 +743,8 @@ body .content-block h2 {
     "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   letter-spacing: normal;
   font-weight: 600 !important;
-  font-size: 28px;
-  line-height: 34px;
+  font-size: 1.75rem;
+  line-height: 2.125rem;
   margin-top: 56px;
   margin-bottom: 20px;
 }
@@ -756,8 +756,8 @@ body .content-block h3 {
     "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   letter-spacing: normal;
   font-weight: 600 !important;
-  font-size: 22px;
-  line-height: 28px;
+  font-size: 1.375rem;
+  line-height: 1.75rem;
   margin-top: 40px;
   margin-bottom: 16px;
 }
@@ -769,8 +769,8 @@ body .content-block h4 {
     "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   letter-spacing: normal;
   font-weight: 600 !important;
-  font-size: 16px;
-  line-height: 24px;
+  font-size: 1rem;
+  line-height: 1.5rem;
   margin-top: 32px;
   margin-bottom: 12px;
 }
@@ -782,8 +782,8 @@ body .content-block h5 {
     "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   letter-spacing: normal;
   font-weight: 600 !important;
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
   margin-top: 28px;
   margin-bottom: 12px;
 }
@@ -795,8 +795,8 @@ body .content-block h6 {
     "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   letter-spacing: normal;
   font-weight: 600 !important;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   margin-top: 28px;
   margin-bottom: 12px;
 }
@@ -804,7 +804,7 @@ body .content-block h6:first-child {
   margin-top: 0px;
 }
 body .content-block a {
-  color: rgb(90, 90, 90);
+  color: rgb(80, 80, 80);
   text-decoration: none;
 }
 body .content-block a:hover {
@@ -830,14 +830,14 @@ body .content-block sup a[data-footnote-ref] {
   margin-left: 4px;
   margin-right: 0px;
   border-radius: 8px;
-  font-size: 8px;
+  font-size: 0.5rem;
   color: #fff;
   background-color: #000000;
   align-items: center;
   justify-content: center;
 }
 body .content-block sup a[data-footnote-ref]:hover {
-  color: rgb(90, 90, 90);
+  color: rgb(80, 80, 80);
 }
 body .content-block dl,
 body .content-block ul,
@@ -897,7 +897,7 @@ body .content-block blockquote {
 body .content-block blockquote p {
   font-family:
     "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
-  font-size: 16px;
+  font-size: 1rem;
   font-weight: 400;
   letter-spacing: 0px;
 }
@@ -906,8 +906,8 @@ body .content-block blockquote h1 {
     "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   letter-spacing: normal;
   font-weight: 600 !important;
-  font-size: 36px;
-  line-height: 42px;
+  font-size: 2.25rem;
+  line-height: 2.625rem;
   margin-top: 64px;
   margin-bottom: 24px;
 }
@@ -916,15 +916,15 @@ body .content-block blockquote h2 {
     "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   letter-spacing: normal;
   font-weight: 600 !important;
-  font-size: 28px;
-  line-height: 34px;
+  font-size: 1.75rem;
+  line-height: 2.125rem;
   margin-top: 56px;
   margin-bottom: 20px;
 }
 @media screen and (max-width: 640px) {
   body .content-block blockquote h2 {
-    font-size: 28px;
-    line-height: 28px;
+    font-size: 1.75rem;
+    line-height: 1.75rem;
     margin-top: 28px;
     margin-bottom: 16px;
   }
@@ -934,8 +934,8 @@ body .content-block blockquote h3 {
     "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   letter-spacing: normal;
   font-weight: 600 !important;
-  font-size: 22px;
-  line-height: 28px;
+  font-size: 1.375rem;
+  line-height: 1.75rem;
   margin-top: 40px;
   margin-bottom: 16px;
 }
@@ -944,8 +944,8 @@ body .content-block blockquote h4 {
     "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   letter-spacing: normal;
   font-weight: 600 !important;
-  font-size: 16px;
-  line-height: 24px;
+  font-size: 1rem;
+  line-height: 1.5rem;
   margin-top: 32px;
   margin-bottom: 12px;
 }
@@ -954,8 +954,8 @@ body .content-block blockquote h5 {
     "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   letter-spacing: normal;
   font-weight: 600 !important;
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
   margin-top: 28px;
   margin-bottom: 12px;
 }
@@ -964,8 +964,8 @@ body .content-block blockquote h6 {
     "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
   letter-spacing: normal;
   font-weight: 600 !important;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   margin-top: 28px;
   margin-bottom: 12px;
 }
@@ -984,7 +984,7 @@ body .content-block img {
   height: auto;
 }
 body .content-block code {
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 400;
   letter-spacing: normal;
   padding-left: 6px;
@@ -1001,12 +1001,12 @@ body .content-block code {
     Consolas,
     Liberation Mono,
     monospace;
-  color: rgb(100, 100, 100);
+  color: rgb(80, 80, 80);
   background-color: rgb(235, 235, 235);
 }
 @media screen and (max-width: 640px) {
   body .content-block code {
-    font-size: 14px;
+    font-size: 0.875rem;
   }
 }
 body .content-block a[data-animate-word="true"],
@@ -1101,9 +1101,9 @@ body
   opacity: 1;
   align-items: center;
   color: rgb(80, 80, 80);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 400;
-  line-height: 16px;
+  line-height: 1rem;
   text-transform: capitalize;
 }
 body
@@ -1382,8 +1382,8 @@ body .content-block .table-wrapper .table-container .table-content table {
   width: max-content;
   min-width: 100%;
   color: rgb(80, 80, 80);
-  font-size: 14px;
-  line-height: 24px;
+  font-size: 0.875rem;
+  line-height: 1.5rem;
   /* Google Sans Flex carries a tabular set, so numeric columns align. */
   font-variant-numeric: normal;
   border-spacing: 6px;
@@ -1397,7 +1397,7 @@ body .content-block .table-wrapper .table-container .table-content table {
 }
 @media screen and (max-width: 640px) {
   body .content-block .table-wrapper .table-container .table-content table {
-    font-size: 14px;
+    font-size: 0.875rem;
   }
 }
 body .content-block .table-wrapper .table-container .table-content table b,
@@ -1411,7 +1411,7 @@ body
   font-weight: 500;
 }
 body .content-block .table-wrapper .table-container .table-content table code {
-  font-size: 12px;
+  font-size: 0.75rem;
   padding-left: 5px;
   padding-right: 5px;
   padding-top: 1px;
@@ -1682,9 +1682,9 @@ body
   align-items: center;
   white-space: nowrap;
   color: rgb(80, 80, 80);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 400;
-  line-height: 16px;
+  line-height: 1rem;
 }
 body
   .content-block
@@ -2229,8 +2229,8 @@ body .content-block .mermaid-wrapper .mermaid-container .mermaid-content table {
   width: max-content;
   min-width: 100%;
   color: rgb(80, 80, 80);
-  font-size: 14px;
-  line-height: 24px;
+  font-size: 0.875rem;
+  line-height: 1.5rem;
   /* Google Sans Flex carries a tabular set, so numeric columns align. */
   font-variant-numeric: normal;
   border-spacing: 6px;
@@ -2249,7 +2249,7 @@ body .content-block .mermaid-wrapper .mermaid-container .mermaid-content table {
     .mermaid-container
     .mermaid-content
     table {
-    font-size: 14px;
+    font-size: 0.875rem;
   }
 }
 body
@@ -2275,7 +2275,7 @@ body
   .mermaid-content
   table
   code {
-  font-size: 12px;
+  font-size: 0.75rem;
   padding-left: 5px;
   padding-right: 5px;
   padding-top: 1px;
@@ -2642,9 +2642,9 @@ body
   position: relative;
   align-items: center;
   color: rgb(80, 80, 80);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 400;
-  line-height: 16px;
+  line-height: 1rem;
   text-transform: capitalize;
 }
 body
@@ -2888,11 +2888,11 @@ body
   border-top: 1px solid rgb(242, 242, 242);
   padding-top: 8px;
   padding-right: 16px;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 400;
   letter-spacing: normal;
   color: rgb(205, 205, 205);
-  line-height: 24px;
+  line-height: 1.5rem;
   font-family:
     "Google Sans Code",
     ui-monospace,
@@ -2913,7 +2913,7 @@ body
     pre
     .line-numbers {
     display: none;
-    font-size: 14px;
+    font-size: 0.875rem;
   }
 }
 body
@@ -2954,11 +2954,11 @@ body
   padding-top: 0px;
   padding-bottom: 0px;
   border-radius: 0px;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 400;
   letter-spacing: normal;
-  color: rgb(105, 105, 105);
-  line-height: 24px;
+  color: rgb(80, 80, 80);
+  line-height: 1.5rem;
   font-family:
     "Google Sans Code",
     ui-monospace,
@@ -2979,7 +2979,7 @@ body
     pre
     .code-content
     code {
-    font-size: 14px;
+    font-size: 0.875rem;
   }
 }
 body
@@ -3163,7 +3163,7 @@ body .mermaid-render-sandbox {
 }
 .windows ::-webkit-scrollbar-thumb {
   border-radius: 3px;
-  background: #ddd;
+  background: rgb(235, 235, 235);
 }
 .windows ::-webkit-scrollbar-track {
   background: transparent;
@@ -3283,7 +3283,7 @@ body .mermaid-render-sandbox {
   box-sizing: border-box;
   width: 100%;
   height: 40px;
-  line-height: 40px;
+  line-height: 2.5rem;
   padding-left: 12px;
   padding-right: 12px;
   font-weight: 400;
@@ -3308,13 +3308,13 @@ body .mermaid-render-sandbox {
   padding-right: 7px;
 }
 .input-text input::placeholder {
-  color: rgba(50, 50, 50, 0.3);
+  color: rgba(80, 80, 80, 0.35);
 }
 .input-text input:-ms-input-placeholder {
-  color: rgba(50, 50, 50, 0.3);
+  color: rgba(80, 80, 80, 0.35);
 }
 .input-text input::-ms-input-placeholder {
-  color: rgba(50, 50, 50, 0.3);
+  color: rgba(80, 80, 80, 0.35);
 }
 
 .input-text.square {
@@ -3327,8 +3327,8 @@ body .mermaid-render-sandbox {
 }
 .input-text.large input {
   height: 50px;
-  line-height: 50px;
-  font-size: 16px;
+  line-height: 3.125rem;
+  font-size: 1rem;
   padding-left: 16px;
   padding-right: 16px;
 }
@@ -3440,11 +3440,11 @@ body .mermaid-render-sandbox {
   width: 100%;
   min-width: 0;
   height: 50px;
-  line-height: 50px;
+  line-height: 3.125rem;
   text-align: left;
   user-select: none;
   color: #000;
-  font-size: 18px;
+  font-size: 1.125rem;
   font-weight: 400;
   letter-spacing: normal;
   white-space: nowrap;
@@ -3454,13 +3454,13 @@ body .mermaid-render-sandbox {
 @media screen and (max-width: 768px) {
   .input-select .select-text .txt {
     height: 40px;
-    line-height: 40px;
+    line-height: 2.5rem;
   }
 }
 @media screen and (max-width: 640px) {
   .input-select .select-text .txt {
     height: 40px;
-    line-height: 40px;
+    line-height: 2.5rem;
   }
 }
 .input-select .select-text .Txt.light {
@@ -3523,18 +3523,18 @@ body .mermaid-render-sandbox {
 .input-select.outline .txt {
   color: #000;
   height: 46px;
-  line-height: 46px;
+  line-height: 2.875rem;
 }
 @media screen and (max-width: 768px) {
   .input-select.outline .txt {
     height: 40px;
-    line-height: 40px;
+    line-height: 2.5rem;
   }
 }
 @media screen and (max-width: 640px) {
   .input-select.outline .txt {
     height: 40px;
-    line-height: 40px;
+    line-height: 2.5rem;
   }
 }
 .input-select.outline .icon {
@@ -3543,13 +3543,13 @@ body .mermaid-render-sandbox {
 @media screen and (max-width: 768px) {
   .input-select.outline .icon {
     height: 40px;
-    line-height: 40px;
+    line-height: 2.5rem;
   }
 }
 @media screen and (max-width: 640px) {
   .input-select.outline .icon {
     height: 40px;
-    line-height: 40px;
+    line-height: 2.5rem;
   }
 }
 .input-select.outline .icon svg {
@@ -3558,7 +3558,7 @@ body .mermaid-render-sandbox {
 
 .input-select.outline.dark {
   border: 2px solid #fff;
-  background-color: #333;
+  background-color: #000;
 }
 .input-select.outline.dark .txt {
   color: #fff;
@@ -3580,7 +3580,7 @@ body .mermaid-render-sandbox {
   flex: 1 !important;
   min-width: 0 !important;
   height: 40px;
-  line-height: 40px;
+  line-height: 2.5rem;
   border-radius: 8px !important;
   font-weight: 400;
   white-space: nowrap;
@@ -3605,13 +3605,13 @@ body .mermaid-render-sandbox {
   padding-right: 7px;
 }
 .input-numbers input::placeholder {
-  color: rgba(50, 50, 50, 0.3);
+  color: rgba(80, 80, 80, 0.35);
 }
 .input-numbers input:-ms-input-placeholder {
-  color: rgba(50, 50, 50, 0.3);
+  color: rgba(80, 80, 80, 0.35);
 }
 .input-numbers input::-ms-input-placeholder {
-  color: rgba(50, 50, 50, 0.3);
+  color: rgba(80, 80, 80, 0.35);
 }
 
 .input-numbers.large {
@@ -3619,8 +3619,8 @@ body .mermaid-render-sandbox {
 }
 .input-numbers.large input {
   height: 50px;
-  line-height: 50px;
-  font-size: 16px;
+  line-height: 3.125rem;
+  font-size: 1rem;
 }
 @media screen and (max-width: 640px) {
   .input-numbers.large input {
@@ -3635,7 +3635,7 @@ body .mermaid-render-sandbox {
   flex-grow: 1;
   flex-shrink: 0;
   border-radius: 8px;
-  background-color: #333;
+  background-color: #000;
 }
 @media screen and (max-width: 768px) {
   .input-number-select {
@@ -3654,8 +3654,8 @@ body .mermaid-render-sandbox {
   box-sizing: border-box;
   width: 100%;
   height: 50px;
-  line-height: 50px;
-  font-size: 18px;
+  line-height: 3.125rem;
+  font-size: 1.125rem;
   font-weight: 400;
   white-space: nowrap;
   letter-spacing: normal;
@@ -3677,13 +3677,13 @@ body .mermaid-render-sandbox {
 @media screen and (max-width: 768px) {
   .input-number-select input {
     height: 40px;
-    line-height: 40px;
+    line-height: 2.5rem;
   }
 }
 @media screen and (max-width: 640px) {
   .input-number-select input {
     height: 40px;
-    line-height: 40px;
+    line-height: 2.5rem;
   }
 }
 .input-number-select .MinButton,
@@ -3764,13 +3764,13 @@ body .mermaid-render-sandbox {
   padding-right: 7px;
 }
 .input-number-select.light input::placeholder {
-  color: rgba(50, 50, 50, 0.3);
+  color: rgba(80, 80, 80, 0.35);
 }
 .input-number-select.light input:-ms-input-placeholder {
-  color: rgba(50, 50, 50, 0.3);
+  color: rgba(80, 80, 80, 0.35);
 }
 .input-number-select.light input::-ms-input-placeholder {
-  color: rgba(50, 50, 50, 0.3);
+  color: rgba(80, 80, 80, 0.35);
 }
 .input-number-select.light .MinButton .icon,
 .input-number-select.light .plus-button .icon {
@@ -3810,8 +3810,8 @@ body .mermaid-render-sandbox {
   box-sizing: border-box;
   width: 100%;
   height: 50px;
-  line-height: 50px;
-  font-size: 18px;
+  line-height: 3.125rem;
+  font-size: 1.125rem;
   font-weight: 400;
   white-space: nowrap;
   letter-spacing: normal;
@@ -3833,7 +3833,7 @@ body .mermaid-render-sandbox {
 @media screen and (max-width: 768px) {
   .input-text-date-range input {
     height: 40px;
-    line-height: 40px;
+    line-height: 2.5rem;
     padding-left: 16px;
     padding-right: 16px;
   }
@@ -3841,19 +3841,19 @@ body .mermaid-render-sandbox {
 @media screen and (max-width: 640px) {
   .input-text-date-range input {
     height: 40px;
-    line-height: 40px;
+    line-height: 2.5rem;
     padding-left: 16px;
     padding-right: 16px;
   }
 }
 .input-text-date-range input::placeholder {
-  color: rgba(50, 50, 50, 0.3);
+  color: rgba(80, 80, 80, 0.35);
 }
 .input-text-date-range input:-ms-input-placeholder {
-  color: rgba(50, 50, 50, 0.3);
+  color: rgba(80, 80, 80, 0.35);
 }
 .input-text-date-range input::-ms-input-placeholder {
-  color: rgba(50, 50, 50, 0.3);
+  color: rgba(80, 80, 80, 0.35);
 }
 
 .input-text-date-range.outline {
@@ -3862,14 +3862,14 @@ body .mermaid-render-sandbox {
 }
 .input-text-date-range.outline input {
   height: 46px;
-  line-height: 46px;
+  line-height: 2.875rem;
   padding-left: 23px;
   padding-right: 23px;
 }
 @media screen and (max-width: 768px) {
   .input-text-date-range.outline input {
     height: 40px;
-    line-height: 40px;
+    line-height: 2.5rem;
     padding-left: 14px;
     padding-right: 14px;
   }
@@ -3877,7 +3877,7 @@ body .mermaid-render-sandbox {
 @media screen and (max-width: 640px) {
   .input-text-date-range.outline input {
     height: 40px;
-    line-height: 40px;
+    line-height: 2.5rem;
     padding-left: 14px;
     padding-right: 14px;
   }
@@ -3924,7 +3924,7 @@ body .mermaid-render-sandbox {
   text-align: center;
   user-select: none;
   color: #000;
-  font-size: 18px;
+  font-size: 1.125rem;
   font-weight: 400;
   letter-spacing: normal;
   white-space: nowrap;
@@ -4073,7 +4073,7 @@ body .mermaid-render-sandbox {
   align-items: center;
   justify-content: flex-start;
   padding-right: 20px;
-  background-color: #333;
+  background-color: #000;
 }
 @media screen and (max-width: 768px) {
   .checkbox-button {
@@ -4151,9 +4151,9 @@ body .mermaid-render-sandbox {
   overflow: hidden;
   min-width: 0;
   height: 50px;
-  line-height: 50px;
+  line-height: 3.125rem;
   color: #fff;
-  font-size: 18px;
+  font-size: 1.125rem;
   font-weight: 400;
   letter-spacing: normal;
   white-space: nowrap;
@@ -4163,24 +4163,24 @@ body .mermaid-render-sandbox {
 @media screen and (max-width: 768px) {
   .checkbox-button .checkbox-label .checkbox-txt {
     height: 40px;
-    line-height: 40px;
+    line-height: 2.5rem;
   }
 }
 @media screen and (max-width: 640px) {
   .checkbox-button .checkbox-label .checkbox-txt {
     height: 40px;
-    line-height: 40px;
+    line-height: 2.5rem;
   }
 }
 .checkbox-button .checkbox-number-txt {
   display: flex;
   position: relative;
   height: 50px;
-  line-height: 50px;
+  line-height: 3.125rem;
   padding-left: 15px;
   color: #fff;
   opacity: 0.3;
-  font-size: 18px;
+  font-size: 1.125rem;
   font-weight: 400;
   letter-spacing: normal;
   white-space: nowrap;
@@ -4249,34 +4249,34 @@ body .mermaid-render-sandbox {
 }
 .checkbox-button.menu .checkbox-txt {
   height: 50px;
-  line-height: 50px;
+  line-height: 3.125rem;
 }
 @media screen and (max-width: 768px) {
   .checkbox-button.menu .checkbox-txt {
     height: 40px;
-    line-height: 40px;
+    line-height: 2.5rem;
   }
 }
 @media screen and (max-width: 640px) {
   .checkbox-button.menu .checkbox-txt {
     height: 40px;
-    line-height: 40px;
+    line-height: 2.5rem;
   }
 }
 .checkbox-button.menu .checkbox-number-txt {
   height: 50px;
-  line-height: 50px;
+  line-height: 3.125rem;
 }
 @media screen and (max-width: 768px) {
   .checkbox-button.menu .checkbox-number-txt {
     height: 40px;
-    line-height: 40px;
+    line-height: 2.5rem;
   }
 }
 @media screen and (max-width: 640px) {
   .checkbox-button.menu .checkbox-number-txt {
     height: 40px;
-    line-height: 40px;
+    line-height: 2.5rem;
   }
 }
 
@@ -4328,24 +4328,24 @@ body .mermaid-render-sandbox {
   appearance: none;
   padding-left: 16px;
   padding-right: 16px;
-  line-height: 28px;
+  line-height: 1.75rem;
   color: #000000;
   font-weight: 400;
-  font-size: 16px;
+  font-size: 1rem;
 }
 @media screen and (max-width: 640px) {
   .input-textarea-auto-grow textarea {
-    font-size: 16px;
+    font-size: 1rem;
   }
 }
 .input-textarea-auto-grow textarea::placeholder {
-  color: rgba(50, 50, 50, 0.3);
+  color: rgba(80, 80, 80, 0.35);
 }
 .input-textarea-auto-grow textarea:-ms-input-placeholder {
-  color: rgba(50, 50, 50, 0.3);
+  color: rgba(80, 80, 80, 0.35);
 }
 .input-textarea-auto-grow textarea::-ms-input-placeholder {
-  color: rgba(50, 50, 50, 0.3);
+  color: rgba(80, 80, 80, 0.35);
 }
 
 .input-textarea-auto-grow.center textarea {
@@ -4540,7 +4540,7 @@ body .mermaid-render-sandbox {
   text-align: center;
   user-select: none;
   height: 40px;
-  line-height: 40px;
+  line-height: 2.5rem;
   color: #fff;
   font-size: 0.875rem;
   font-weight: 400;
@@ -4594,15 +4594,15 @@ body .mermaid-render-sandbox {
   }
 }
 .loader-button.large .container .txt {
-  font-size: 16px;
+  font-size: 1rem;
   height: 48px;
-  line-height: 48px;
+  line-height: 3rem;
 }
 @media screen and (max-width: 640px) {
   .loader-button.large .container .txt {
-    font-size: 16px;
+    font-size: 1rem;
     height: 48px;
-    line-height: 48px;
+    line-height: 3rem;
   }
 }
 .loader-button.large .loader {
@@ -4676,7 +4676,7 @@ body .mermaid-render-sandbox {
   text-align: center;
   user-select: none;
   height: 40px;
-  line-height: 40px;
+  line-height: 2.5rem;
   color: #fff;
   font-size: 0.875rem;
   padding-left: 6px;
@@ -4736,9 +4736,9 @@ body .mermaid-render-sandbox {
   height: 50px;
 }
 .loader-button-icon.large .container .txt {
-  font-size: 16px;
+  font-size: 1rem;
   height: 50px;
-  line-height: 50px;
+  line-height: 3.125rem;
 }
 .loader-button-icon.large .icon {
   width: 18px;
@@ -4851,7 +4851,7 @@ body .mermaid-render-sandbox {
   position: relative;
   user-select: none;
   height: 40px;
-  line-height: 40px;
+  line-height: 2.5rem;
   text-align: left;
   font-weight: 400;
   letter-spacing: normal;
@@ -4919,7 +4919,7 @@ body .mermaid-render-sandbox {
   padding-left: 15px;
   padding-right: 15px;
   height: 30px;
-  line-height: 30px;
+  line-height: 1.875rem;
   border-radius: 15px;
   text-align: left;
   color: #fff;
@@ -5196,7 +5196,7 @@ body .mermaid-render-sandbox {
   position: relative;
   font-family:
     "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
-  font-size: 120px;
+  font-size: 7.5rem;
   line-height: normal;
   letter-spacing: 0px;
   color: #000000;
@@ -5214,8 +5214,8 @@ body .mermaid-render-sandbox {
   text-align: center;
   font-family:
     "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
-  font-size: 16px;
-  line-height: 16px;
+  font-size: 1rem;
+  line-height: 1rem;
   color: #000000;
   padding-top: 16px;
   padding-bottom: 24px;
@@ -5449,9 +5449,9 @@ html[data-avn-traffic-lights]
   position: relative;
   z-index: 10;
   padding-bottom: 24px;
-  font-size: 30px;
+  font-size: 1.875rem;
   font-weight: 500;
-  line-height: 30px;
+  line-height: 1.875rem;
   letter-spacing: normal;
   color: #000000;
   font-family:
@@ -5624,7 +5624,7 @@ html[data-avn-traffic-lights]
   position: relative;
   width: 100%;
   line-height: normal;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 #app-root
   .view-container
@@ -5740,7 +5740,7 @@ html[data-avn-traffic-lights]
   position: relative;
   width: 100%;
   line-height: normal;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 #app-root
   .view-container
@@ -5854,7 +5854,7 @@ html[data-avn-traffic-lights]
   position: relative;
   width: 100%;
   line-height: normal;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 #app-root
   .view-container
@@ -5881,9 +5881,9 @@ html[data-avn-traffic-lights]
   .verification-container
   .info-txt
   .txt {
-  font-size: 12px;
+  font-size: 0.75rem;
   text-align: center;
-  line-height: 20px;
+  line-height: 1.25rem;
   letter-spacing: normal;
 }
 #app-root
@@ -5931,7 +5931,7 @@ html[data-avn-traffic-lights]
   width: 100%;
   flex-grow: 1;
   max-width: 400px;
-  font-size: 16px;
+  font-size: 1rem;
   justify-content: center;
 }
 #app-root
@@ -5950,7 +5950,7 @@ html[data-avn-traffic-lights]
   padding-top: 24px;
   padding-bottom: 24px;
   text-align: center;
-  line-height: 24px;
+  line-height: 1.5rem;
   font-size: 0.875rem;
   background-color: rgb(242, 242, 242);
 }
@@ -6045,9 +6045,9 @@ html[data-avn-traffic-lights]
   padding-bottom: 16px;
   font-family:
     "Google Sans Flex", "Helvetica Neue", "Helvetica-Web", sans-serif;
-  font-size: 68px;
+  font-size: 4.25rem;
   font-weight: 500;
-  line-height: 68px;
+  line-height: 4.25rem;
   letter-spacing: 0px;
 }
 #app-root

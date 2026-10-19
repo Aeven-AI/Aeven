@@ -117,7 +117,7 @@
 .tippy-box {
   position: relative;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 0.875rem;
   color: #fff;
   font-family: "Google Sans Flex", sans-serif;
   line-height: 1.4;
@@ -215,7 +215,7 @@
   padding-top: 5px;
   color: #000;
   white-space: normal;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 400;
   font-family: "Google Sans Flex", sans-serif;
   background-color: transparent;
@@ -266,7 +266,7 @@
   padding-top: 5px;
   color: #000;
   white-space: normal;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 400;
   font-family: "Google Sans Flex", sans-serif;
   background-color: transparent;
@@ -317,7 +317,7 @@
   padding-top: 0px;
   color: #000;
   white-space: normal;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 400;
   font-family: "Google Sans Flex", sans-serif;
   background-color: transparent;
@@ -422,10 +422,10 @@
   display: block;
   position: relative;
   height: 50px;
-  line-height: 50px;
+  line-height: 3.125rem;
   text-align: left;
   color: rgba(0, 0, 0, 0.5);
-  font-size: 18px;
+  font-size: 1.125rem;
   font-weight: 400;
   font-family: "Google Sans Flex", sans-serif;
 }
@@ -436,7 +436,7 @@
     .optionButton
     .txt {
     height: 44px;
-    line-height: 44px;
+    line-height: 2.75rem;
   }
 }
 @media screen and (max-width: 640px) {
@@ -446,7 +446,7 @@
     .optionButton
     .txt {
     height: 44px;
-    line-height: 44px;
+    line-height: 2.75rem;
   }
 }
 .tippy-box[data-theme~="dropdown"]
@@ -491,7 +491,7 @@
   padding-top: 0px;
   color: #000;
   white-space: normal;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 400;
   font-family: "Google Sans Flex", sans-serif;
   background-color: transparent;
@@ -533,10 +533,10 @@
   display: block;
   position: relative;
   height: 50px;
-  line-height: 50px;
+  line-height: 3.125rem;
   text-align: left;
   color: #fff;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 400;
   font-family: "Google Sans Flex", sans-serif;
 }
@@ -624,5 +624,5 @@
   justify-content: flex-start;
 }
 .aeven-account .menu-container .profile-overview:hover {
-  color: rgb(90, 90, 90);
+  color: rgb(80, 80, 80);
 }

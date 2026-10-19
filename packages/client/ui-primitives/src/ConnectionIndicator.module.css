@@ -16,8 +16,8 @@
   background: var(--dsw-tint-menu);
   backdrop-filter: blur(4px);
   color: var(--dsw-alias-label-primary);
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
   white-space: nowrap;
   --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
   box-shadow:
@@ -59,7 +59,7 @@
   border: none;
   border-radius: 8px;
   font-family: inherit;
-  font-size: 13px;
+  font-size: 0.8125rem;
   cursor: pointer;
   transition: background-color 160ms ease-out, color 160ms ease-out;
 }

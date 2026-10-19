@@ -38,8 +38,8 @@
   align-items: flex-end;
   min-height: 28px;
   margin: 0;
-  font-size: 16px;
-  line-height: 24px;
+  font-size: 1rem;
+  line-height: 1.5rem;
   font-weight: 510;
   color: var(--dsw-alias-label-primary);
 }
@@ -107,8 +107,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   font-weight: 400;
   color: var(--dsw-alias-label-tertiary);
   cursor: pointer;
@@ -169,8 +169,8 @@
   border: none;
   outline: none;
   background: transparent;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   color: var(--dsw-alias-label-primary);
 }
 
@@ -258,8 +258,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   font-weight: 400;
   color: var(--dsw-alias-label-primary);
 }
@@ -276,8 +276,8 @@
    * visible. Reserve its widest localized footprint so wrapped text cannot
    * run underneath it on a narrow card. */
   padding-right: 120px;
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
 }
 
 .status {
@@ -330,8 +330,8 @@
   border: none;
   background: transparent;
   padding: 0;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   font-weight: 400;
   color: var(--dsw-alias-label-secondary);
   cursor: pointer;
@@ -375,16 +375,16 @@
 
 .createTitle {
   margin: 0;
-  font-size: 16px;
-  line-height: 24px;
+  font-size: 1rem;
+  line-height: 1.5rem;
   font-weight: 510;
   color: var(--dsw-alias-label-primary);
 }
 
 .createIn {
   margin: 0;
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
   color: var(--dsw-alias-label-primary);
 }
 
@@ -397,8 +397,8 @@
   border-radius: 22px;
   outline: none;
   background: transparent;
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
   color: var(--dsw-alias-label-primary);
 }
 

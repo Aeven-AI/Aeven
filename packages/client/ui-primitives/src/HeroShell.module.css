@@ -38,23 +38,23 @@
 
 .wordmark {
   padding: 0 24px;
-  font-size: 80px;
-  line-height: 98px;
+  font-size: 5rem;
+  line-height: 6.125rem;
   font-weight: 500;
   letter-spacing: -1px;
 }
 
 .greeting {
   padding: 0 24px 24px;
-  font-size: 16px;
-  line-height: 16px;
+  font-size: 1rem;
+  line-height: 1rem;
 }
 
 @media screen and (max-width: 640px) {
   .wordmark {
     padding: 0 16px;
-    font-size: 60px;
-    line-height: 80px;
+    font-size: 3.75rem;
+    line-height: 5rem;
   }
 
   .greeting {

@@ -158,9 +158,9 @@
    card keeps one rhythm. */
 .previewPrompt {
   font: var(--dsw-font-s-14);
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 400;
-  line-height: 20px;
+  line-height: 1.25rem;
   -webkit-line-clamp: 1;
 }
 
@@ -170,9 +170,9 @@
   margin-top: 4px;
   color: var(--dsw-alias-label-caption, rgb(0 0 0 / 60%));
   font: var(--dsw-font-s-14);
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 400;
-  line-height: 20px;
+  line-height: 1.25rem;
   -webkit-line-clamp: 3;
 }
 

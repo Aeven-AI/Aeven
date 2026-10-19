@@ -22,8 +22,8 @@
   border-radius: var(--dsw-aeven-radius-surface);
   background: var(--dsw-alias-markdown-code-block);
   font-family: var(--ds-font-family-code);
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
   color: var(--dsw-alias-label-primary);
   white-space: pre-wrap;
   word-break: break-word;
@@ -40,7 +40,7 @@
 
 .empty {
   padding: 8px 0;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   color: var(--dsw-alias-label-tertiary);
 }

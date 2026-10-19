@@ -9,7 +9,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  font-size: 14px;
+  font-size: 0.875rem;
   line-height: 1.5;
   color: var(--dsw-alias-label-primary);
 }
@@ -69,7 +69,7 @@
 .invalid,
 .conflict {
   margin: 0;
-  font-size: 12px;
+  font-size: 0.75rem;
   line-height: 1.5;
 }
 
@@ -95,7 +95,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--dsw-alias-label-error);
 }
 
@@ -121,7 +121,7 @@
 
 .models legend {
   padding: 0 4px;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--dsw-alias-label-secondary);
 }
 
@@ -138,7 +138,7 @@
 
 .providerName {
   padding: 0 6px;
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 400;
   color: var(--dsw-alias-label-tertiary);
 }
@@ -167,17 +167,17 @@
 }
 
 .modelName {
-  font-size: 14px;
+  font-size: 0.875rem;
   color: var(--dsw-alias-label-primary);
 }
 
 .route {
   margin-top: 2px;
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--dsw-alias-label-tertiary);
 }
 
 .unavailable {
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--dsw-alias-label-tertiary);
 }

@@ -2,8 +2,8 @@
   box-sizing: border-box;
   display: block;
   flex: none;
-  width: calc(14px + var(--avn-content-font-delta, 0px));
-  height: calc(14px + var(--avn-content-font-delta, 0px));
+  width: 0.875rem;
+  height: 0.875rem;
   border: 1.5px solid currentColor;
   border-radius: 50%;
 }

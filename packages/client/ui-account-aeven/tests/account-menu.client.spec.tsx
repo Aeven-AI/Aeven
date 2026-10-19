@@ -1,7 +1,25 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { AccountMenu, type AccountMenuProps } from '../src/client/AccountMenu.tsx'
+import {
+  AccountMenu, type AccountLocale, type AccountMenuProps,
+} from '../src/client/AccountMenu.tsx'
+
+/** The shipped catalog, as the locale service publishes it. */
+const LOCALE: AccountLocale = {
+  active: 'en',
+  locales: [
+    { id: 'zh', label: '中文' },
+    { id: 'en', label: 'English' },
+    { id: 'es', label: 'Español' },
+  ],
+}
+
+/** Stand-in for the renderer's binding of the locale source to `useLocale`. */
+function localeHook(locale: AccountLocale): AccountMenuProps['useLocale'] {
+  return ((selector?: (snapshot: AccountLocale) => unknown) =>
+    selector === undefined ? locale : selector(locale)) as AccountMenuProps['useLocale']
+}
 
 function props(overrides: Partial<AccountMenuProps> = {}): AccountMenuProps {
   return {
@@ -9,6 +27,8 @@ function props(overrides: Partial<AccountMenuProps> = {}): AccountMenuProps {
     openSettings: () => {},
     accountType: () => Promise.resolve(undefined),
     signOut: () => {},
+    useLocale: localeHook(LOCALE),
+    setLocale: () => {},
     t: (key: string) => key,
     ...overrides,
   } as AccountMenuProps
@@ -35,13 +55,48 @@ describe('Aeven account menu', () => {
     expect(screen.queryByText('Ollie')).toBeNull()
   })
 
-  it('offers the reader above Settings and Log out, and nothing else', () => {
+  it('offers the reader above Settings, Language and Log out, and nothing else', () => {
     render(<AccountMenu {...props()} />)
     fireEvent.click(screen.getByLabelText('trigger.aria'))
     const rows = screen.getAllByRole('menuitem').map(row => row.textContent)
     // The profile row carries the avatar's initial as well as the name.
-    expect(rows).toEqual([expect.stringContaining('Ollie'), 'settings', 'logout'])
+    expect(rows).toEqual([expect.stringContaining('Ollie'), 'settings', 'language', 'logout'])
     expect(document.querySelectorAll('a')).toHaveLength(0)
+  })
+
+  it('shows every language in a card below Settings, marking the active one', () => {
+    render(<AccountMenu {...props()} />)
+    fireEvent.click(screen.getByLabelText('trigger.aria'))
+    fireEvent.click(screen.getByText('language'))
+    const card = screen.getAllByRole('menu').at(-1) as HTMLElement
+    const rows = within(card).getAllByRole('menuitem').map(row => row.textContent)
+    expect(rows).toEqual(['中文', 'English', 'Español'])
+    // The selection is the trailing check: one row carries it, the active one.
+    expect(screen.getByText('English').closest('button')?.querySelector('svg')).not.toBeNull()
+    expect(screen.getByText('Español').closest('button')?.querySelector('svg')).toBeNull()
+  })
+
+  it('switches the language from the card and closes it', () => {
+    const setLocale = vi.fn()
+    render(<AccountMenu {...props({ setLocale })} />)
+    fireEvent.click(screen.getByLabelText('trigger.aria'))
+    fireEvent.click(screen.getByText('language'))
+    fireEvent.click(screen.getByText('Español'))
+    expect(setLocale).toHaveBeenCalledWith('es')
+    expect(screen.queryByText('Español')).toBeNull()
+    // The menu itself stays open: the new labels are the confirmation.
+    expect(screen.getByText('Ollie')).toBeDefined()
+  })
+
+  it('forgets an open language card when the menu closes', () => {
+    render(<AccountMenu {...props()} />)
+    fireEvent.click(screen.getByLabelText('trigger.aria'))
+    fireEvent.click(screen.getByText('language'))
+    expect(screen.getByText('Español')).toBeDefined()
+    fireEvent.pointerDown(document.body)
+    fireEvent.click(screen.getByLabelText('trigger.aria'))
+    expect(screen.getByText('language')).toBeDefined()
+    expect(screen.queryByText('Español')).toBeNull()
   })
 
   it('names the plan the account is on, once it has read it', async () => {
