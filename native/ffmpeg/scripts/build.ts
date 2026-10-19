@@ -183,7 +183,7 @@ function shellQuote(word: string): string {
  * @param cwd - build directory.
  * @param configure - absolute path of the tree's `configure` script.
  * @param args - configure arguments.
- * @param makeTarget - make goal, such as `ffmpeg` or `install`.
+ * @param makeTarget - make goal, including the target platform's executable suffix, or `install`.
  * @param env - extra environment for both steps.
  */
 function configureAndMake(target: Target, cwd: string, configure: string, args: readonly string[], makeTarget: string,
@@ -294,9 +294,6 @@ function configureArgs(target: Target, source: Source, opusPrefix: string): stri
   // explicitly, and let the environment's pkg-config find the toolchain's own static libopus. Addressable
   // prefixed tools are not needed, because no cross prefix is declared.
   if (platform === 'win32') {
-    // ffmpeg's program depends on `threads`; without w32threads or pthreads the program is dropped from the
-    // Makefile entirely, which is what "No rule to make target 'ffmpeg'" meant. The documented Windows recipe
-    // disables the w32 option, enables pthreads, and links it statically.
     args.push('--target-os=mingw32', `--arch=${arch === 'x64' ? 'x86_64' : 'aarch64'}`,
       '--cc=clang', '--extra-libs=-static')
   } else {
@@ -351,8 +348,8 @@ function build(tree: string, target: Target, source: Source, opusPrefix: string)
   const env: NodeJS.ProcessEnv = process.platform === 'win32'
     ? {}
     : { ...process.env, PKG_CONFIG_PATH: metadata }
-  configureAndMake(target, buildDir, join(tree, 'configure'), configureArgs(target, source, opusPrefix), 'ffmpeg', env)
   const name = target.startsWith('win32-') ? 'ffmpeg.exe' : 'ffmpeg'
+  configureAndMake(target, buildDir, join(tree, 'configure'), configureArgs(target, source, opusPrefix), name, env)
   const built = join(buildDir, name)
   if (!existsSync(built)) throw new Error(`build: ${target} produced no ${built}`)
   stripExecutable(built)
