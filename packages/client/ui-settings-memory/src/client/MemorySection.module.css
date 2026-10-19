@@ -8,8 +8,8 @@
   gap: 12px;
   width: 100%;
   color: var(--dsw-alias-label-primary);
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
 }
 
 .tabs {
@@ -27,8 +27,8 @@
   background: transparent;
   color: var(--dsw-alias-label-tertiary);
   font: inherit;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   cursor: pointer;
 }
 
@@ -104,14 +104,6 @@
 .composerArea {
   padding: 8px 10px;
   resize: vertical;
-}
-
-.search input:focus-visible,
-.field input:focus-visible,
-.field textarea:focus-visible,
-.composerArea:focus-visible {
-  border-color: var(--dsw-alias-state-business-primary);
-  box-shadow: 0 0 0 2px var(--dsw-tint-business-18);
 }
 
 .status,
@@ -316,7 +308,7 @@
 }
 
 .prose {
-  --avn-content-font-size: 14px;
+  --avn-content-font-size: 1rem;
   --avn-content-font-delta: -6px;
 }
 

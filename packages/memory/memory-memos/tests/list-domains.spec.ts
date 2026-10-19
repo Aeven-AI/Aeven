@@ -2,7 +2,11 @@
  * Listing by domain: the memory manager lists one tab's domains at a time, so a page, its offset, and the total
  * count only memories in those domains, including domains read from a workspace instead of a tag.
  */
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
+import { openDb, runMigrations } from '@deepseek-ai/memos-local-plugin/core/storage/index.js'
+import { makeTracesRepo } from '@deepseek-ai/memos-local-plugin/core/storage/repos/traces.js'
+import type { StorageDb, TraceListFilter } from '@deepseek-ai/memos-local-plugin/core/storage/types.js'
+import { normalizeNamespace } from '@deepseek-ai/memos-local-plugin/core/runtime/namespace.js'
 import { OwnerCores } from '../src/cores.ts'
 import { LlmRouteContext } from '../src/host-llm.ts'
 import { MemosMemory, ownerProfile } from '../src/runtime.ts'
@@ -17,21 +21,32 @@ interface ListedTrace {
 
 const OWNER = 'owner-1'
 
-/**
- * A core whose listing pages through the given traces, newest first as given, and records each page it served.
- * @param traces - every trace the owner's listing matches.
- * @returns the core and the `{ limit, offset }` of each listing call.
- */
+const databases: StorageDb[] = []
+afterEach(() => { for (const db of databases.splice(0)) db.close() })
+
+/** Exercise the provider's page requests against MemOS's actual SQLite predicates. */
 function listingCore(traces: readonly ListedTrace[]) {
+  const db = openDb({ filepath: ':memory:', agent: 'memory-list-test' })
+  databases.push(db)
+  runMigrations(db)
+  db.exec("INSERT INTO sessions(id, agent, started_at, last_seen_at) VALUES ('s', 'test', 0, 0)")
+  db.exec("INSERT INTO episodes(id, session_id, started_at) VALUES ('e', 's', 0)")
+  const repo = makeTracesRepo(db)
+  for (const [index, trace] of traces.entries()) {
+    repo.insert({
+      ...trace, tags: [...trace.tags], ownerAgentKind: 'deepseek-harness',
+      ts: traces.length - index, summary: trace.id, userText: '', agentText: '', sessionId: 's', episodeId: 'e',
+      toolCalls: [], reflection: null, value: 0, alpha: 0, rHuman: null, priority: 0,
+      vecSummary: null, vecAction: null, turnId: index, schemaVersion: 1,
+    })
+  }
   const calls: { limit: number; offset: number }[] = []
   const core = {
-    listTraces: async ({ limit, offset }: { limit: number; offset: number }) => {
-      calls.push({ limit, offset })
-      return traces.slice(offset, offset + limit).map(trace => ({
-        ...trace, ts: 0, summary: trace.id, userText: '', agentText: '', sessionId: 's', episodeId: 'e',
-      }))
+    listTraces: async (filter: TraceListFilter & { limit: number; offset: number }) => {
+      calls.push({ limit: filter.limit, offset: filter.offset })
+      return repo.list(filter)
     },
-    countTraces: async () => traces.length,
+    countTraces: async (filter: TraceListFilter) => repo.count(filter),
   }
   return { core, calls }
 }
@@ -87,10 +102,38 @@ describe('listing memories by domain', () => {
     expect(page.total).toBe(3)
   })
 
-  it('reads the listing in page-sized chunks until a short chunk ends it', async () => {
+  it('requests only the requested page instead of walking every trace', async () => {
     const { memory, calls } = provider(TRACES)
     await memory.list({ owner: OWNER, domains: ['person'], limit: 3, offset: 0, signal })
-    expect(calls).toEqual([{ limit: 3, offset: 0 }, { limit: 3, offset: 3 }, { limit: 3, offset: 6 }])
+    expect(calls).toEqual([{ limit: 3, offset: 0 }])
+  })
+
+  it('uses the first valid domain tag and treats an empty domain filter as no matches', async () => {
+    const { memory } = provider([trace('p', ['domain:unknown', 'domain:person', 'domain:world'])])
+    const page = await memory.list({ owner: OWNER, domains: ['person'], limit: 2, offset: 0, signal })
+    expect(page.records.map(record => record.id)).toEqual(['p'])
+    expect(page.total).toBe(1)
+    expect(await memory.list({ owner: OWNER, domains: [], limit: 2, offset: 0, signal }))
+      .toEqual({ records: [], total: 0 })
+  })
+
+  it('restricts project memories to the workspace while retaining other domains', async () => {
+    const cwd = '/project'
+    const workspace = normalizeNamespace({ workspacePath: cwd }, 'deepseek-harness').workspaceId!
+    const { memory } = provider([
+      trace('mine', [], workspace), trace('other', [], 'another-workspace'), trace('person', ['domain:person']),
+    ])
+    const page = await memory.list({ owner: OWNER, cwd, limit: 10, offset: 0, signal })
+    expect(page.records.map(record => record.id)).toEqual(['mine', 'person'])
+    expect(page.total).toBe(2)
+  })
+
+  it('counts matches beyond the repository page cap without fetching every page', async () => {
+    const { memory, calls } = provider(Array.from({ length: 1001 }, (_, i) => trace(`p${i}`, ['domain:person'])))
+    const page = await memory.list({ owner: OWNER, domains: ['person'], limit: 2, offset: 999, signal })
+    expect(page.records.map(record => record.id)).toEqual(['p999', 'p1000'])
+    expect(page.total).toBe(1001)
+    expect(calls).toEqual([{ limit: 2, offset: 999 }])
   })
 
   it('passes the core\'s page and count through when no domain is requested', async () => {

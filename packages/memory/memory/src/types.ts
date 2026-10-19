@@ -196,6 +196,11 @@ export interface MemoryListRequest {
   readonly query?: string
   /** Domains to list; absent lists every domain. */
   readonly domains?: readonly MemoryDomain[]
+  /**
+   * Workspace whose sessions may see the listed memories: project memory of any other workspace is left out, as
+   * recall leaves it out. Absent lists the project memory of every workspace.
+   */
+  readonly cwd?: string
   readonly limit: number
   readonly offset: number
   readonly signal: AbortSignal
@@ -206,6 +211,34 @@ export interface MemoryPage {
   readonly records: readonly MemoryRecord[]
   /** Number of memories matching the query across all pages. */
   readonly total: number
+}
+
+/**
+ * One learned procedure: a memory whose text is `Learned procedure <name>: <description>`, a blank line, and the
+ * Markdown procedure, and whose summary is `Learned procedure <name>: <condensed procedure>`.
+ */
+export interface LearnedProcedure {
+  readonly id: MemoryItemId
+  /** Kebab-case name of the kind of task the procedure does. */
+  readonly name: string
+  /** One line: what the procedure does and when to use it. */
+  readonly description: string
+  /** The condensed procedure memory recall delivers, without the leading prefix and name. */
+  readonly summary: string
+  /** The full Markdown procedure. */
+  readonly content: string
+  readonly domain: MemoryDomain
+  readonly time: number
+  /** Session whose work the procedure was learned from or saved in. */
+  readonly sessionId: SessionId
+}
+
+/** Request for the owner's learned procedures. */
+export interface LearnedProceduresRequest {
+  readonly owner: string
+  /** Workspace whose sessions may see the procedures; see {@link MemoryListRequest.cwd}. */
+  readonly cwd?: string
+  readonly signal: AbortSignal
 }
 
 /** Direction of a human judgment about one turn. */

@@ -2029,6 +2029,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'one page and the total match count.',
       },
       {
+        signature: 'async procedures(request: LearnedProceduresRequest): Promise<LearnedProcedure[]>',
+        description: 'List every learned procedure of the owner, newest first. Copies stored under one name are all listed.',
+        parameters: [{ name: 'request', description: 'owner, the workspace whose sessions may see them, and cancellation.' }],
+        returns: 'the procedures.',
+      },
+      {
         signature: 'remember(request: Parameters<MemoryProvider[\'remember\']>[0]): Promise<MemoryItemId>',
         description: 'Store one fact the user explicitly asked to be remembered.',
         parameters: [{ name: 'request', description: 'scope and the fact in the user\'s words.' }],
@@ -2056,8 +2062,8 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
   },
   {
     key: 'memoryManagerController',
-    summary: 'The signed-in user\'s memories and learned capabilities.',
-    description: 'The signed-in user\'s memories and learned capabilities.',
+    summary: 'The signed-in user\'s memories, standing facts, and learned procedures.',
+    description: 'The signed-in user\'s memories, standing facts, and learned procedures.',
     methods: [
       {
         signature: '@Remote async memories(request: ManagedMemoryQuery): Promise<ManagedMemoryPage>',
@@ -2102,46 +2108,22 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'what changed, with the reason when the caller has no such statement.',
       },
       {
-        signature: '@Remote async capabilities(): Promise<ManagedCapability[]>',
-        description: 'List the caller\'s learned capabilities with the run counts of their current revisions.',
+        signature: '@Remote async procedures(): Promise<ManagedProceduresPage>',
+        description: 'List the caller\'s learned procedures, newest first, one per name.',
         parameters: [],
-        returns: 'capabilities sorted by name.',
+        returns: 'the procedures without their text, or `available: false` when no memory provider runs.',
       },
       {
-        signature: '@Remote async capability(name: string): Promise<ManagedCapabilityDetail | undefined>',
-        description: 'Read one of the caller\'s capabilities with its procedure, history, and executions.',
-        parameters: [{ name: 'name', description: 'capability name.' }],
-        returns: 'the capability, or undefined when the caller has none by that name.',
+        signature: '@Remote async procedure(id: MemoryItemId): Promise<ManagedProcedureDetail | undefined>',
+        description: 'Read one of the caller\'s learned procedures with its condensed and full text.',
+        parameters: [{ name: 'id', description: 'memory id of the procedure.' }],
+        returns: 'the procedure, or undefined when the caller has no such procedure.',
       },
       {
-        signature: '@Remote async editCapability(name: string, edit: ManagedCapabilityEdit): Promise<ManagedCapabilityDetail>',
-        description: 'Replace the description and procedure of one of the caller\'s capabilities. A trusted capability whose procedure changes must verify the new revision before it is trusted again.',
-        parameters: [{ name: 'name', description: 'capability name.' }, { name: 'edit', description: 'new description and procedure.' }],
-        returns: 'the updated capability.',
-      },
-      {
-        signature: '@Remote async setCapabilityStatus(name: string, status: ManagedCapabilityStatusChange): Promise<ManagedCapabilityDetail>',
-        description: 'Retire one of the caller\'s capabilities, or put a retired or unconfirmed one in use; its evidence then decides between learned, trusted, needs-validation, and degraded.',
-        parameters: [{ name: 'name', description: 'capability name.' }, { name: 'status', description: '`retired` or `learned`.' }],
-        returns: 'the updated capability.',
-      },
-      {
-        signature: '@Remote deleteCapability(name: string): Promise<boolean>',
-        description: 'Delete one of the caller\'s capabilities with its files and history.',
-        parameters: [{ name: 'name', description: 'capability name.' }],
-        returns: 'true when a capability was deleted.',
-      },
-      {
-        signature: '@Remote capabilityVersions(name: string): Promise<CapabilityVersion[]>',
-        description: 'List the revisions of one of the caller\'s capabilities that are still kept, oldest first.',
-        parameters: [{ name: 'name', description: 'capability name.' }],
-        returns: 'one entry per kept revision, each with the procedure it held.',
-      },
-      {
-        signature: '@Remote async rollbackCapability(name: string, revision: number): Promise<ManagedCapabilityDetail>',
-        description: 'Restore one kept revision of a capability as its new revision.',
-        parameters: [{ name: 'name', description: 'capability name.' }, { name: 'revision', description: 'revision whose procedure to restore.' }],
-        returns: 'the capability at its restored revision.',
+        signature: '@Remote async editProcedure(id: MemoryItemId, summary: string): Promise<ManagedProcedureDetail | undefined>',
+        description: 'Replace the condensed procedure memory recall delivers for one of the caller\'s learned procedures.',
+        parameters: [{ name: 'id', description: 'memory id of the procedure.' }, { name: 'summary', description: 'the corrected condensed procedure, without the procedure\'s name.' }],
+        returns: 'the updated procedure, or undefined when the caller has no such procedure.',
       },
     ],
   },
@@ -6243,6 +6225,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface KvUnitDescriptor {\n    readonly name: string;\n    readonly version: number;\n    readonly tables: readonly string[];\n    readonly hasGlobal: boolean;\n    readonly layout?: \'single\' | \'per-record\';\n    readonly compatibleVersions?: readonly number[];\n}',
   },
   {
+    name: 'LearnedProcedure',
+    declaration: 'export interface LearnedProcedure {\n    readonly id: MemoryItemId;\n    readonly name: string;\n    readonly description: string;\n    readonly summary: string;\n    readonly content: string;\n    readonly domain: MemoryDomain;\n    readonly time: number;\n    readonly sessionId: SessionId;\n}',
+  },
+  {
+    name: 'LearnedProceduresRequest',
+    declaration: 'export interface LearnedProceduresRequest {\n    readonly owner: string;\n    readonly cwd?: string;\n    readonly signal: AbortSignal;\n}',
+  },
+  {
     name: 'LlmAdapter',
     declaration: 'export abstract class LlmAdapter {\n    providerInfo(provider: string): LlmProviderInfo;\n    providerRetryPolicy(_provider: string): ResolvedRetryPolicy | undefined;\n    imageRequestPricing(_provider: string, _model: string): LlmImageRequestPricing | undefined;\n    listModels(_provider: string): Promise<readonly LlmModelInfo[]>;\n    resolveModel(provider: string, model: string, _signal?: AbortSignal): Promise<LlmResolvedModelInfo>;\n    async prepareCall(provider: string, model: string, signal?: AbortSignal): Promise<PreparedAdapterCall>;\n    abstract stream(options: GenerateOptions): AsyncIterable<StreamChunk>;\n}',
   },
@@ -6443,34 +6433,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface MailUpdateRequest {\n    account: string;\n    folder: string;\n    ids: string[];\n    action: MailUpdateAction;\n    destination?: string;\n}',
   },
   {
-    name: 'ManagedCapability',
-    declaration: 'export interface ManagedCapability extends Omit<CapabilityRecord, \'provenance\'> {\n    readonly runs: ManagedCapabilityRuns;\n    readonly impact?: ManagedCapabilityImpact;\n}',
-  },
-  {
-    name: 'ManagedCapabilityDetail',
-    declaration: 'export interface ManagedCapabilityDetail extends ManagedCapability {\n    readonly content: string;\n    readonly provenance: readonly CapabilityProvenance[];\n    readonly executions: readonly ManagedCapabilityExecution[];\n}',
-  },
-  {
-    name: 'ManagedCapabilityEdit',
-    declaration: 'export interface ManagedCapabilityEdit {\n    readonly description: string;\n    readonly content: string;\n}',
-  },
-  {
-    name: 'ManagedCapabilityExecution',
-    declaration: 'export interface ManagedCapabilityExecution {\n    readonly id: string;\n    readonly revision: number;\n    readonly sessionId: string;\n    readonly endedAt: number;\n    readonly verdict: ExecutionVerdict;\n    readonly correction?: string;\n    readonly rating?: \'positive\' | \'negative\';\n    readonly notes?: string;\n}',
-  },
-  {
-    name: 'ManagedCapabilityImpact',
-    declaration: 'export interface ManagedCapabilityImpact {\n    readonly before: CapabilityRunMetrics;\n    readonly after?: CapabilityRunMetrics;\n    readonly runs: number;\n}',
-  },
-  {
-    name: 'ManagedCapabilityRuns',
-    declaration: 'export interface ManagedCapabilityRuns {\n    readonly total: number;\n    readonly succeeded: number;\n    readonly failed: number;\n    readonly lastRunAt?: number;\n}',
-  },
-  {
-    name: 'ManagedCapabilityStatusChange',
-    declaration: 'export type ManagedCapabilityStatusChange = Extract<CapabilityStatus, \'retired\' | \'learned\'>;',
-  },
-  {
     name: 'ManagedInvariantChange',
     declaration: 'export type ManagedInvariantChange = {\n    readonly available: false;\n} | ({\n    readonly available: true;\n} & InvariantChange);',
   },
@@ -6489,6 +6451,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ManagedMemoryQuery',
     declaration: 'export interface ManagedMemoryQuery {\n    readonly query?: string;\n    readonly domains?: readonly MemoryDomain[];\n    readonly limit: number;\n    readonly offset: number;\n}',
+  },
+  {
+    name: 'ManagedProcedure',
+    declaration: 'export interface ManagedProcedure {\n    readonly id: MemoryItemId;\n    readonly name: string;\n    readonly description: string;\n    readonly domain: MemoryDomain;\n    readonly time: number;\n    readonly sessionId: SessionId;\n    readonly workspace?: string;\n}',
+  },
+  {
+    name: 'ManagedProcedureDetail',
+    declaration: 'export interface ManagedProcedureDetail extends ManagedProcedure {\n    readonly summary: string;\n    readonly content: string;\n}',
+  },
+  {
+    name: 'ManagedProceduresPage',
+    declaration: 'export type ManagedProceduresPage = {\n    readonly available: false;\n} | {\n    readonly available: true;\n    readonly procedures: readonly ManagedProcedure[];\n};',
   },
   {
     name: 'ManualCompactAgentContext',
@@ -6588,7 +6562,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'MemoryListRequest',
-    declaration: 'export interface MemoryListRequest {\n    readonly owner: string;\n    readonly query?: string;\n    readonly domains?: readonly MemoryDomain[];\n    readonly limit: number;\n    readonly offset: number;\n    readonly signal: AbortSignal;\n}',
+    declaration: 'export interface MemoryListRequest {\n    readonly owner: string;\n    readonly query?: string;\n    readonly domains?: readonly MemoryDomain[];\n    readonly cwd?: string;\n    readonly limit: number;\n    readonly offset: number;\n    readonly signal: AbortSignal;\n}',
   },
   {
     name: 'MemoryLlmRoute',

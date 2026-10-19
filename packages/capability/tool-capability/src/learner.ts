@@ -9,10 +9,10 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { BlockAssembler, createUserMessage } from '@aeven/llm'
 import type { CapabilityOrigin, CapabilityRecord } from '@aeven/capability'
-import type { MemoryDomain, MemoryItemId, MemoryScope } from '@aeven/memory'
+import type { LearnedProcedure, MemoryDomain, MemoryItemId, MemoryScope } from '@aeven/memory'
 import type { SessionId } from '@aeven/session/types'
 import type { CompletedWork, WorkStep } from './executions.ts'
-import { findLearnedProcedures, forgetLearnedProcedures, LEARNED_DOMAINS, storeLearnedProcedure, type LearnedProcedure } from './memory-learning.ts'
+import { forgetLearnedProcedures, LEARNED_DOMAINS, recallLearnedNames, storeLearnedProcedure } from './memory-learning.ts'
 
 /** Learner configuration. */
 export interface LearnerConfig {
@@ -29,6 +29,11 @@ export interface LearnerConfig {
   readonly model?: string
   /** Where a learned procedure is kept: long-term memory, or the capability registry. */
   readonly store: 'memory' | 'capabilities'
+  /**
+   * Memory store only: distinct learned procedures a session sees above which the procedures of one kind of task
+   * are merged in the background, once per owner and workspace per process; zero never merges.
+   */
+  readonly consolidateAbove: number
 }
 
 /** Model route of one session's requests. */
@@ -68,6 +73,8 @@ type Decision =
     readonly domain?: MemoryDomain
     /** Memory store only: the procedure condensed for recall. */
     readonly summary?: string
+    /** Memory store only: other listed procedures this one now covers, which are forgotten. */
+    readonly replaces?: readonly string[]
   }
 
 /** Tool calls that record bookkeeping rather than doing the work. */
@@ -75,6 +82,21 @@ const BOOKKEEPING = /^(?:skill|capability_manage|todo_write|memory_[a-z_]+|ask_u
 
 const MAX_EXISTING = 40
 const MAX_RELATED = 2
+
+/** Learned procedures, one line each, the memory-store distillation chooses among. */
+const MAX_EXISTING_PROCEDURES = 120
+
+/** Learned procedures whose full text the memory-store distillation reads. */
+const MAX_RELATED_PROCEDURES = 3
+
+/** Characters of one listed procedure's description. */
+const EXISTING_LINE_CHARS = 160
+
+/** Characters of one related procedure's full text in a memory-store distillation. */
+const RELATED_PROCEDURE_CHARS = 6_000
+
+/** Procedures one grouping call sorts; it bounds the call's reply, which names every grouped procedure. */
+const GROUP_BATCH = 150
 
 /**
  * Characters per token in the fixed text-density estimate of the input budget. The provider's own
@@ -106,6 +128,9 @@ The purpose is speed: the next request of this kind must finish in far fewer ste
 
 Name a procedure after the kind of task, not this instance (for example "aeven-client-ui-change", not "rename-clear-history-button"). When an existing procedure covers the same kind of task, even with a different instance, update it: return its exact name and the complete merged procedure, keeping what still holds, fixing what the work showed to be wrong, and folding this instance in as an example. Create a new one only for a different kind of task.`
 
+/** How a memory-store procedure chooses its domain. */
+const DOMAIN_RULE = 'Choose "domain": "world" when it is how an application, tool, service, or environment works and applies in any project; "project" when it only applies to the current workspace\'s code or files; "experience" for other reusable know-how.'
+
 /** Sections every written procedure has. */
 const PROCEDURE_SECTIONS = 'in Markdown with these sections: "Fast path" (the minimal numbered sequence of calls for this kind of task, and a short "Avoid" list of the time sinks), "When to use", "Requirements" (including the user\'s preferences), "Steps" (numbered, with the exact commands, paths, settings, menu items, and tool parameters that worked; replace values that vary between uses with named placeholders), "Verification" (observable success criteria, no heavier than the user asked for), and "Recovery" (known failures and their fixes, from the work). Do not include the dead ends except under "Avoid" or "Recovery".'
 
@@ -129,15 +154,35 @@ Write "content" so another session can follow it without this conversation, ${PR
 
 Write "summary" as the procedure condensed to at most 800 characters that can be followed on its own, because recall shows only the summary: start with the fast path (the minimal steps with their exact commands, files, or settings), then the time sinks to avoid and the user's preferences, then the check.
 
-Choose "domain": "world" when it is how an application, tool, service, or environment works and applies in any project; "project" when it only applies to the current workspace's code or files; "experience" for other reusable know-how.
+${DOMAIN_RULE}
+
+When the procedure you write now covers other procedures in <existing_procedures> that are the same kind of task, list their exact names in "replaces"; they are forgotten in favour of this one.
 
 Reply with one JSON object and nothing else:
 {"decision":"skip"}
 or
-{"decision":"create" or "update","name":"kebab-case-name","description":"One line: what it does and when to use it.","domain":"world" or "project" or "experience","summary":"The condensed procedure.","content":"The Markdown procedure."}`
+{"decision":"create" or "update","name":"kebab-case-name","description":"One line: what it does and when to use it.","domain":"world" or "project" or "experience","summary":"The condensed procedure.","content":"The Markdown procedure.","replaces":["other-procedure-name"]}`
 
-/** Characters of the longer distillation prompt, which every input budget is measured against. */
-const PROMPT_CHARS = Math.max(SYSTEM.length, MEMORY_SYSTEM.length)
+/** How grouping finds the learned procedures that are one kind of task. */
+const GROUP_SYSTEM = `You maintain the procedures an assistant learned for one user. Each line of <procedures> is one procedure: its name and what it does. Many were learned separately from single instances of the same kind of task. Group the procedures that cover the same kind of task so each group can be merged into one procedure; for example "app-button-color-tweak", "settings-focus-style", and "ui-typography-change" in one repository are one kind of task, changing the styling of that application's UI. Keep different kinds of task apart, even within one application or repository. Name each group after its kind of task, in kebab case.
+
+Reply with one JSON object and nothing else, listing only groups of two or more procedures, each procedure in at most one group, with the exact names from <procedures>:
+{"groups":[{"name":"kebab-case-name","members":["procedure-name","procedure-name"]}]}`
+
+/** How one group of learned procedures is merged. */
+const MERGE_SYSTEM = `You maintain the know-how an assistant learned for one user, kept in its long-term memory and recalled when a later request needs it. You receive several procedures learned separately for the same kind of task, newest first, and the name of the kind of task. Merge them into one procedure under that name that another session can follow without the original conversations: keep every step, file, command, setting, user preference, and recovery that still holds, drop repetition, settle contradictions in favour of the newest procedure, and keep the instances as short examples. The purpose is speed: the "Fast path" must be the fewest calls that do this kind of task.
+
+Write "content" ${PROCEDURE_SECTIONS}
+
+Write "summary" as the procedure condensed to at most 800 characters that can be followed on its own, because recall shows only the summary: start with the fast path (the minimal steps with their exact commands, files, or settings), then the time sinks to avoid and the user's preferences, then the check.
+
+${DOMAIN_RULE}
+
+Reply with one JSON object and nothing else:
+{"decision":"create","name":"kebab-case-name","description":"One line: what it does and when to use it.","domain":"world" or "project" or "experience","summary":"The condensed procedure.","content":"The Markdown procedure."}`
+
+/** Characters of the longest learning prompt, which every input budget is measured against. */
+const PROMPT_CHARS = Math.max(SYSTEM.length, MEMORY_SYSTEM.length, GROUP_SYSTEM.length, MERGE_SYSTEM.length)
 
 /** One distillation request: the fixed system prompt and the transcript of the work. */
 interface Transcript {
@@ -275,6 +320,17 @@ export function capabilityWords(record: CapabilityRecord): Set<string> {
   return words(`${record.name.replaceAll('-', ' ')} ${record.description} ${record.origin?.request ?? ''}`)
 }
 
+/**
+ * The newest procedure under each name.
+ * @param procedures - procedures, newest first.
+ * @returns the procedures by name.
+ */
+function latestByName(procedures: readonly LearnedProcedure[]): Map<string, LearnedProcedure> {
+  const latest = new Map<string, LearnedProcedure>()
+  for (const procedure of procedures) if (!latest.has(procedure.name)) latest.set(procedure.name, procedure)
+  return latest
+}
+
 function overlap(a: ReadonlySet<string>, b: ReadonlySet<string>): number {
   let count = 0
   for (const word of a) if (b.has(word)) count++
@@ -296,11 +352,12 @@ function parseDecision(text: string): Decision | undefined {
   const record = value as Record<string, unknown>
   if (record['decision'] === 'skip') return { decision: 'skip' }
   if (record['decision'] !== 'create' && record['decision'] !== 'update') return undefined
-  const { name, description, content, domain, summary } = record
+  const { name, description, content, domain, summary, replaces } = record
   if (typeof name !== 'string' || typeof description !== 'string' || typeof content !== 'string') return undefined
   if (!name.trim() || !description.trim() || !content.trim()) return undefined
-  const kebab = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+  const kebab = kebabName(name)
   if (!kebab) return undefined
+  const covered = Array.isArray(replaces) ? replaces.flatMap(item => typeof item === 'string' && kebabName(item) ? [kebabName(item)] : []) : []
   return {
     decision: record['decision'],
     name: kebab,
@@ -308,7 +365,44 @@ function parseDecision(text: string): Decision | undefined {
     content: content.trim(),
     ...typeof domain === 'string' && (LEARNED_DOMAINS as readonly string[]).includes(domain) ? { domain: domain as MemoryDomain } : {},
     ...typeof summary === 'string' && summary.trim() ? { summary: summary.trim() } : {},
+    ...covered.length === 0 ? {} : { replaces: covered },
   }
+}
+
+function kebabName(name: string): string {
+  return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+}
+
+/** One group of learned procedures to merge, as a grouping call returned it. */
+interface ProcedureGroup {
+  readonly name: string
+  readonly members: readonly string[]
+}
+
+function parseGroups(text: string, names: ReadonlySet<string>): ProcedureGroup[] | undefined {
+  const start = text.indexOf('{')
+  const end = text.lastIndexOf('}')
+  if (start === -1 || end <= start) return undefined
+  let value: unknown
+  try {
+    value = JSON.parse(text.slice(start, end + 1))
+  } catch {
+    // A reply that is not JSON groups nothing; these procedures stay as they are.
+    return undefined
+  }
+  const groups = value !== null && typeof value === 'object' ? (value as Record<string, unknown>)['groups'] : undefined
+  if (!Array.isArray(groups)) return undefined
+  const taken = new Set<string>()
+  return groups.flatMap((group: unknown) => {
+    if (group === null || typeof group !== 'object') return []
+    const { name, members } = group as Record<string, unknown>
+    if (typeof name !== 'string' || !kebabName(name) || !Array.isArray(members)) return []
+    const kept = members.filter((member): member is string => typeof member === 'string' && names.has(member) && !taken.has(member))
+    const distinct = [...new Set(kept)]
+    if (distinct.length < 2) return []
+    for (const member of distinct) taken.add(member)
+    return [{ name: kebabName(name), members: distinct }]
+  })
 }
 
 /** Learns capabilities from the completed work of every live session this agent runs. */
@@ -319,6 +413,10 @@ export class CapabilityLearner {
   private readonly owners = new Map<string, Promise<void>>()
   /** Learning in flight, per session, for a run that waits on it before ending the session. */
   private readonly sessions = new Map<string, Promise<void>>()
+  /** Merges of learned procedures in flight, per owner, run one at a time beside that owner's learning. */
+  private readonly merges = new Map<string, Promise<void>>()
+  /** Owner and workspace pairs whose procedures were grouped for merging in this process. */
+  private readonly consolidated = new Set<string>()
   private disposed = false
   private readonly logger: ReturnType<Context['logger']>
 
@@ -463,9 +561,9 @@ export class CapabilityLearner {
   }
 
   /**
-   * Learn into long-term memory: look up the procedures memory already holds for the work, distill the work
-   * against them, and store the result as a memory. A procedure the work improves is replaced rather than kept
-   * beside its newer version.
+   * Learn into long-term memory: list the procedures memory already holds for the session's workspace, rank them
+   * against the work, distill the work against them, and store the result as a memory. Every procedure stored under
+   * the result's name, and every procedure the result says it covers, is forgotten in favour of it.
    * @param recent - the work to learn from, with the procedure it was already learned into.
    * @param feedback - the user's reaction to the work, when it is re-learned for it.
    * @returns the procedure stored, or undefined when the work taught nothing.
@@ -473,24 +571,29 @@ export class CapabilityLearner {
   private async learnIntoMemory(recent: Recent, feedback: LearnerFeedback | undefined): Promise<Recent['learned']> {
     const { owner, route, work, cwd } = recent
     const signal = AbortSignal.timeout(this.config.timeoutMs)
-    const scope: MemoryScope = {
-      owner,
-      sessionId: work.sessionId as SessionId,
-      ...cwd === undefined ? {} : { cwd },
-      route: { provider: route.provider, model: route.model },
+    const scope = this.scopeOf(recent)
+    const all = await this.ctx.memory.procedures({ owner, ...cwd === undefined ? {} : { cwd }, signal })
+    const latest = latestByName(all)
+    // The backlog is merged whether or not this work teaches anything new.
+    this.consolidateWhenNeeded(recent, latest.size)
+    const recalled = await recallLearnedNames(this.ctx, scope, `${work.request}\n\n${work.answer.slice(0, 600)}`, signal)
+    const requestWords = words(work.request)
+    const rank = (procedure: LearnedProcedure): number => {
+      // The procedure this work was already learned into is the one feedback refines, then what recall ranks.
+      if (procedure.name === recent.learned?.name) return Number.MAX_SAFE_INTEGER
+      const recalledAt = recalled.indexOf(procedure.name)
+      return (recalledAt === -1 ? 0 : 1_000 - recalledAt) + overlap(requestWords, words(`${procedure.name.replaceAll('-', ' ')} ${procedure.description}`))
     }
-    const known = await findLearnedProcedures(this.ctx, scope, `${work.request}\n\n${work.answer.slice(0, 600)}`, signal)
-    // The procedure this work was already learned into is the one feedback refines, whether or not recall finds it.
-    const learned = recent.learned
-    if (learned?.id !== undefined && !known.some(item => item.id === learned.id)) {
-      const detail = await this.ctx.memory.detail({ scope, kind: 'trace', id: learned.id, signal })
-      if (detail !== undefined) {
-        const learnedEntry = { id: learned.id, name: learned.name, summary: detail.title, body: detail.body } satisfies LearnedProcedure
-        known.unshift(learnedEntry)
-      }
-    }
-    const existing = known.slice(0, MAX_EXISTING).map(item => `- ${item.name}: ${item.summary}`).join('\n') || '(none)'
-    const related = known.filter(item => item.body !== undefined).map(item => ({ name: item.name, description: item.summary, content: item.body ?? '' }))
+    const ordered = [...latest.values()]
+      .map(procedure => ({ procedure, score: rank(procedure) }))
+      .sort((a, b) => b.score - a.score || b.procedure.time - a.procedure.time)
+    const existing = ordered.slice(0, MAX_EXISTING_PROCEDURES)
+      .map(({ procedure }) => `- ${procedure.name}: ${clip(procedure.description, EXISTING_LINE_CHARS)}`).join('\n') || '(none)'
+    const related = ordered.filter(item => item.score >= 2).slice(0, MAX_RELATED_PROCEDURES).map(({ procedure }) => ({
+      name: procedure.name,
+      description: procedure.description,
+      content: clip(procedure.content, RELATED_PROCEDURE_CHARS),
+    }))
     const decision = await this.distill(route, work, feedback, existing, related, MEMORY_SYSTEM)
     if (decision === undefined) return undefined
     if (decision.decision === 'skip') {
@@ -498,7 +601,8 @@ export class CapabilityLearner {
       return undefined
     }
     const domain: MemoryDomain = decision.domain === 'project' && cwd === undefined ? 'experience' : decision.domain ?? 'experience'
-    const replaced = known.filter(item => item.name === decision.name).map(item => item.id)
+    const covered = new Set([decision.name, ...decision.replaces ?? []])
+    const replaced = all.filter(procedure => covered.has(procedure.name)).map(procedure => procedure.id)
     const id = await storeLearnedProcedure(this.ctx, scope, {
       name: decision.name,
       description: decision.description,
@@ -512,6 +616,123 @@ export class CapabilityLearner {
     const replacedNote = replaced.length > 0 ? `, replacing ${replaced.join(', ')}` : ''
     this.logger.info(`${learnedNote}${feedbackNote}${replacedNote}`)
     return { name: decision.name, id }
+  }
+
+  private scopeOf(recent: Held): MemoryScope {
+    const { owner, route, work, cwd } = recent
+    return {
+      owner,
+      sessionId: work.sessionId as SessionId,
+      ...cwd === undefined ? {} : { cwd },
+      route: { provider: route.provider, model: route.model },
+    }
+  }
+
+  /**
+   * Start merging an owner's procedures of one kind of task when a session sees more than the configured number,
+   * once per owner and workspace per process. Merges run on their own queue, so a session's learning and its end
+   * never wait for them.
+   * @param recent - the work whose learning found the count, which supplies the owner, workspace, and route.
+   * @param kinds - distinct procedures the session sees.
+   */
+  private consolidateWhenNeeded(recent: Recent, kinds: number): void {
+    const above = this.config.consolidateAbove
+    if (above === 0 || kinds <= above) return
+    const key = `${recent.owner}\u0000${recent.cwd ?? ''}`
+    if (this.consolidated.has(key)) return
+    this.consolidated.add(key)
+    this.merge(recent.owner, async () => {
+      const groups = await this.groupProcedures(recent)
+      this.logger.info(`merging ${groups.length} groups of learned procedures of ${recent.owner}`)
+      for (const group of groups) this.merge(recent.owner, () => this.mergeGroup(recent, group), `merging procedures into ${group.name}`)
+    }, `grouping learned procedures of ${recent.owner}`)
+  }
+
+  private merge(owner: string, job: () => Promise<void>, label: string): void {
+    const previous = this.merges.get(owner) ?? Promise.resolve()
+    const run = previous.then(async () => {
+      if (!this.disposed) await job()
+    }).catch((error: unknown) => {
+      this.logger.warn(`${label} failed: ${error instanceof Error ? error.message : String(error)}`)
+    })
+    this.merges.set(owner, run)
+    void run.then(() => { if (this.merges.get(owner) === run) this.merges.delete(owner) })
+  }
+
+  /**
+   * Forget older copies stored under one name, then sort the remaining procedures into groups of one kind of task.
+   * Procedures are sorted by name and grouped in batches, so procedures of one kind in different batches stay apart.
+   * @param recent - work that supplies the owner, workspace, and route.
+   * @returns groups of two or more procedures to merge.
+   */
+  private async groupProcedures(recent: Recent): Promise<ProcedureGroup[]> {
+    const { owner, cwd, route } = recent
+    const signal = AbortSignal.timeout(this.config.timeoutMs)
+    const all = await this.ctx.memory.procedures({ owner, ...cwd === undefined ? {} : { cwd }, signal })
+    const latest = latestByName(all)
+    const kept = new Set([...latest.values()].map(procedure => procedure.id))
+    const copies = all.filter(procedure => !kept.has(procedure.id)).map(procedure => procedure.id)
+    await forgetLearnedProcedures(this.ctx, owner, copies, signal)
+    if (copies.length > 0) this.logger.info(`forgot ${copies.length} older copies of learned procedures of ${owner}`)
+    const sorted = [...latest.values()].sort((a, b) => a.name.localeCompare(b.name))
+    const room = Math.max(0, this.config.maxInputTokens * CHARS_PER_TOKEN - PROMPT_CHARS)
+    const groups: ProcedureGroup[] = []
+    for (let start = 0; start < sorted.length;) {
+      const lines: string[] = []
+      let chars = 0
+      while (start < sorted.length && lines.length < GROUP_BATCH) {
+        const procedure = sorted[start]
+        if (procedure === undefined) break
+        const line = `- ${procedure.name}: ${clip(procedure.description, EXISTING_LINE_CHARS)}`
+        if (lines.length > 0 && chars + line.length + 1 > room) break
+        lines.push(line)
+        chars += line.length + 1
+        start += 1
+      }
+      const names = new Set(lines.map(line => line.slice(2, line.indexOf(':'))))
+      const reply = await this.complete(route, GROUP_SYSTEM, `<procedures>\n${lines.join('\n')}\n</procedures>`)
+      const found = parseGroups(reply, names)
+      if (found === undefined) this.logger.warn(`grouping learned procedures returned no groups: ${reply.slice(0, 200)}`)
+      groups.push(...found ?? [])
+    }
+    return groups
+  }
+
+  /**
+   * Merge one group into a single procedure and forget its members. Members forgotten or replaced since the
+   * grouping are left out; a group with fewer than two left is not merged.
+   * @param recent - work that supplies the owner, workspace, session, and route.
+   * @param group - the procedures to merge.
+   */
+  private async mergeGroup(recent: Recent, group: ProcedureGroup): Promise<void> {
+    const { owner, cwd, route } = recent
+    const signal = AbortSignal.timeout(this.config.timeoutMs)
+    const latest = latestByName(await this.ctx.memory.procedures({ owner, ...cwd === undefined ? {} : { cwd }, signal }))
+    const members = group.members.flatMap(name => latest.get(name) ?? []).sort((a, b) => b.time - a.time)
+    if (members.length < 2) return
+    const room = Math.max(0, this.config.maxInputTokens * CHARS_PER_TOKEN - PROMPT_CHARS)
+    const each = Math.floor(room / members.length) - 200
+    const text = [
+      `<kind_of_task>${group.name}</kind_of_task>`,
+      ...members.map(member => `<procedure name="${member.name}" learned="${new Date(member.time).toISOString().slice(0, 10)}">\n${member.description}\n\n${clip(member.content, Math.max(each, 0))}\n</procedure>`),
+    ].join('\n\n')
+    const reply = await this.complete(route, MERGE_SYSTEM, text)
+    const decision = parseDecision(reply)
+    if (decision === undefined || decision.decision === 'skip') {
+      this.logger.warn(`merging procedures into ${group.name} returned no procedure: ${reply.slice(0, 200)}`)
+      return
+    }
+    const domain: MemoryDomain = decision.domain === 'project' && cwd === undefined ? 'experience' : decision.domain ?? 'experience'
+    const id = await storeLearnedProcedure(this.ctx, this.scopeOf(recent), {
+      name: decision.name,
+      description: decision.description,
+      content: decision.content,
+      summary: decision.summary ?? `${decision.description} ${decision.content}`,
+      domain,
+    }, signal)
+    const replaced = members.map(member => member.id)
+    await forgetLearnedProcedures(this.ctx, owner, replaced, signal)
+    this.logger.info(`merged ${members.map(member => member.name).join(', ')} into procedure ${decision.name} (${domain} memory ${id})`)
   }
 
   private async distill(
@@ -534,6 +755,20 @@ export class CapabilityLearner {
       related: related.map(procedure => `<procedure name="${procedure.name}">\n${procedure.description}\n\n${procedure.content}\n</procedure>`),
     }, this.config.maxInputTokens)
     if (dropped > 0) this.logger.info(`learning from ${work.sessionId} turn ${work.turn} omitted ${dropped} older tool calls to stay within ${this.config.maxInputTokens} input tokens`)
+    const reply = await this.complete(route, system, text)
+    const decision = parseDecision(reply)
+    if (decision === undefined) this.logger.warn(`learning from ${work.sessionId} turn ${work.turn} returned no decision: ${reply.slice(0, 200)}`)
+    return decision
+  }
+
+  /**
+   * One learning model call.
+   * @param route - model route.
+   * @param system - system prompt.
+   * @param text - the user message.
+   * @returns the reply text.
+   */
+  private async complete(route: LearnerRoute, system: string, text: string): Promise<string> {
     const assembler = new BlockAssembler()
     for await (const chunk of this.ctx.llm.stream({
       provider: route.provider,
@@ -543,9 +778,6 @@ export class CapabilityLearner {
       maxTokens: this.config.maxOutputTokens,
       signal: AbortSignal.timeout(this.config.timeoutMs),
     })) assembler.push(chunk)
-    const reply = assembler.blocks().map(block => block.type === 'text' ? block.text : '').join('')
-    const decision = parseDecision(reply)
-    if (decision === undefined) this.logger.warn(`learning from ${work.sessionId} turn ${work.turn} returned no decision: ${reply.slice(0, 200)}`)
-    return decision
+    return assembler.blocks().map(block => block.type === 'text' ? block.text : '').join('')
   }
 }

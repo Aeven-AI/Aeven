@@ -42,6 +42,7 @@ const DUPLICATE_SAFE_PACKAGES: readonly string[] = [
  */
 const SAFE_HOST_DEPENDENCY_EXPORTS = {
   '@aeven/atomic-write': ['withFileLock', 'writeFileAtomic'],
+  '@aeven/brand-page': ['brandPageHtml'],
   '@aeven/credentials': ['credentialKey'],
   '@aeven/deque': ['Deque'],
   '@aeven/home-paths': ['resolveAvnHome'],

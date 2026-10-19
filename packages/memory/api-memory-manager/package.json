@@ -1,6 +1,6 @@
 {
   "name": "@aeven/api-memory-manager",
-  "description": "Signed-in user's view of what Aeven has learned: memories and learned capabilities, over a Remote",
+  "description": "Signed-in user's view of what Aeven has learned: memories, standing facts, and learned procedures, over a Remote",
   "version": "0.3.8-alpha",
   "publishConfig": {
     "access": "public"
@@ -44,7 +44,6 @@
   ],
   "license": "Apache-2.0",
   "peerDependencies": {
-    "@aeven/capability": "workspace:^",
     "@aeven/identity-user": "workspace:^",
     "@aeven/memory": "workspace:^",
     "@aeven/memory-invariants": "workspace:^",
@@ -54,7 +53,6 @@
     "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
-    "@aeven/capability": "workspace:^",
     "@aeven/identity-user": "workspace:^",
     "@aeven/memory": "workspace:^",
     "@aeven/memory-invariants": "workspace:^",

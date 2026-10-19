@@ -12,17 +12,17 @@ Settings → Memory shows memories under three tabs: About you (`person`), Proje
 
 `MemoryProvider.list` takes an optional `domains` filter (`MemoryListRequest`). With it, the page, its `offset`, and `total` count only memories in those domains; without it, listing is unchanged. The `memoryManager` Remote passes `domains` through from `ManagedMemoryQuery`, and each memory tab requests its own domains, pages by offset, and shows Load more only while the provider reports more of that tab's memories than are loaded and the last page was not empty.
 
-MemOS cannot filter on a domain: the domain is a `domain:` trace tag, and an untagged trace falls back to `project` inside a workspace and `experience` outside one. The MemOS provider therefore reads the owner's matching traces in `limit`-sized chunks, classifies each with the same `traceDomain` recall uses, keeps the requested page, and counts every match. A domain-filtered page costs a read of every trace the owner's text query matches.
+MemOS's `listTraces` and `countTraces` apply domain and project-workspace predicates in SQLite. The first valid `domain:` tag determines the domain; an untagged trace is `project` inside a workspace and `experience` outside one, matching `traceDomain`. An unsearched page reads only its requested rows; the count evaluates the same predicates without hydrating trace payloads. Text search retains MemOS's substring matching after the database filters domains and workspaces.
 
 ## Alternatives considered
 
 - **Keep filtering in the client and hide Load more when a tab shows nothing new.** The page cannot know whether unloaded records belong to the current tab without loading them, so the button would still appear on tabs with nothing more to show, or hide while the tab still had memories.
-- **Store the domain in a MemOS column and filter in SQL.** MemOS's `listTraces` and `countTraces` filter on owner, session, and text only; a column would require changing that external dependency's database schema.
+- **Store the domain in a MemOS column and filter in SQL.** SQLite's JSON functions filter the existing tags without a new column or schema migration.
 
 ## Consequences
 
-A domain-filtered `list` scales with the owner's whole trace count rather than the page size. Settings → Memory is the only caller and runs on user action, so the scan runs once per tab open, search, or Load more.
+Opening a tab or loading another page performs one page read and one count. Counting still evaluates domain tags across matching rows, but does not decode their full text, tool calls, or embeddings. Domain predicates preserve owner isolation and project visibility before pagination.
 
 ## Verification
 
-`packages/memory/memory-memos/tests/list-domains.spec.ts` pins paging and totals per domain, the workspace and untagged fallbacks, the owner filter, the chunked reads, and the unfiltered pass-through.
+`packages/memory/memory-memos/tests/list-domains.spec.ts` pins paging and totals per domain, the workspace and untagged fallbacks, the owner filter, one-page reads beyond the repository cap, domain-tag precedence, an empty domain filter, project visibility, and the unfiltered pass-through.

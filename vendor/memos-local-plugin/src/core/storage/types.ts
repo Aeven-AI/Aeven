@@ -86,6 +86,10 @@ export interface TimeRange {
 }
 
 export interface TraceListFilter extends PageOptions, TimeRange {
+  /** Recorded domain tags, with project/experience inferred for untagged traces. */
+  domains?: readonly string[];
+  /** Restrict project traces to this workspace; other domains remain visible. */
+  projectWorkspaceId?: string | null;
   sessionId?: string;
   episodeId?: EpisodeId;
   ownerAgentKind?: string;

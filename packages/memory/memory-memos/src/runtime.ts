@@ -166,9 +166,9 @@ export class MemosMemory implements MemoryProvider {
     return withDeadline(search, deadlineAt, request.signal, `Memory recall exceeded ${request.timeoutMs}ms`)
   }
 
-  /** MemOS workspace key of the scope's working directory, as MemOS stamps it on captured memory. */
-  private workspaceOf(scope: MemoryScope): string | undefined {
-    return scope.cwd === undefined ? undefined : normalizeNamespace({ workspacePath: scope.cwd }, MEMOS_AGENT).workspaceId
+  /** MemOS workspace key of a working directory, as MemOS stamps it on captured memory. */
+  private workspaceOf(cwd: string | undefined): string | undefined {
+    return cwd === undefined ? undefined : normalizeNamespace({ workspacePath: cwd }, MEMOS_AGENT).workspaceId
   }
 
   /**
@@ -181,7 +181,7 @@ export class MemosMemory implements MemoryProvider {
     hits: readonly RetrievalHitDTO[],
     turnStart: boolean,
   ): Promise<MemoryHit[]> {
-    const workspace = this.workspaceOf(scope)
+    const workspace = this.workspaceOf(scope.cwd)
     const namespace = this.namespaceOf(scope)
     const classified = await Promise.all(hits.map(async (hit) => {
       const { domain, workspaceId, summary, correction, superseded, recordedAt } = await this.hitOrigin(core, hit, namespace, turnStart)
@@ -587,31 +587,18 @@ export class MemosMemory implements MemoryProvider {
       ownerProfileId: profile,
       includeAllNamespaces: true,
       ...request.query ? { q: request.query } : {},
+      ...request.domains === undefined ? {} : { domains: request.domains },
+      ...request.cwd === undefined ? {} : { projectWorkspaceId: this.workspaceOf(request.cwd) ?? null },
     }
-    if (request.domains === undefined) {
-      const [traces, total] = await this.read(request, () => Promise.all([
-        core.listTraces({ ...filter, limit: request.limit, offset: request.offset }),
-        core.countTraces(filter),
-      ]))
-      return { records: traces.filter(trace => trace.ownerProfileId === profile).map(toRecord), total }
-    }
-    // A domain is a trace tag with a workspace fallback, which the core cannot filter on, so every matching
-    // trace is read in `limit`-sized chunks to place the requested page and count the domain's total.
-    const chunk = Math.max(request.limit, 1)
-    const domains = new Set(request.domains)
-    const records: MemoryRecord[] = []
-    let total = 0
-    for (let offset = 0; ; offset += chunk) {
-      const traces = await this.read(request, () => core.listTraces({ ...filter, limit: chunk, offset }))
-      for (const trace of traces) {
-        if (trace.ownerProfileId !== profile) continue
-        const record = toRecord(trace)
-        if (!domains.has(record.domain)) continue
-        if (total >= request.offset && records.length < request.limit) records.push(record)
-        total++
-      }
-      if (traces.length < chunk) return { records, total }
-    }
+    const [traces, total] = await this.read(request, () => Promise.all([
+      core.listTraces({
+        ...filter,
+        limit: request.limit,
+        offset: request.offset,
+      }),
+      core.countTraces(filter),
+    ]))
+    return { records: traces.filter(trace => trace.ownerProfileId === profile).map(toRecord), total }
   }
 
   async remember(request: Parameters<MemoryProvider['remember']>[0]): Promise<MemoryItemId> {

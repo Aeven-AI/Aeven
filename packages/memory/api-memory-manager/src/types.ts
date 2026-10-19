@@ -1,10 +1,8 @@
 /** JSON-safe results of the `memoryManager` Remote namespace. */
 import type { MemoryDomain, MemoryItemId } from '@aeven/memory/types'
 import type { InvariantsView, InvariantChange } from '@aeven/memory-invariants/types'
-import type { CapabilityProvenance, CapabilityRecord, CapabilityRunMetrics, CapabilityStatus, ExecutionVerdict } from '@aeven/capability/types'
 import type { SessionId } from '@aeven/session/types'
 
-export type { CapabilityRunMetrics, CapabilityStatus, ExecutionVerdict } from '@aeven/capability/types'
 export type { MemoryDomain, MemoryItemId } from '@aeven/memory/types'
 export type { Invariant, InvariantChange, InvariantId, InvariantReason, InvariantsView } from '@aeven/memory-invariants/types'
 
@@ -49,57 +47,31 @@ export type ManagedInvariantChange =
   | { readonly available: false }
   | ({ readonly available: true } & InvariantChange)
 
-/** Execution counts of a capability's current revision. */
-export interface ManagedCapabilityRuns {
-  readonly total: number
-  readonly succeeded: number
-  readonly failed: number
-  readonly lastRunAt?: number
-}
-
-/** What a capability changed: the work it was learned from against its recent successful runs. */
-export interface ManagedCapabilityImpact {
-  /** Cost of the work the capability was learned from. */
-  readonly before: CapabilityRunMetrics
-  /** Median cost of its most recent successful runs; absent until one succeeded. */
-  readonly after?: CapabilityRunMetrics
-  /** Successful runs the median covers. */
-  readonly runs: number
-}
-
-/** One learned capability of the signed-in user, as listed. */
-export interface ManagedCapability extends Omit<CapabilityRecord, 'provenance'> {
-  readonly runs: ManagedCapabilityRuns
-  /** Absent for a capability that was not learned from measured work. */
-  readonly impact?: ManagedCapabilityImpact
-}
-
-/** One recorded execution, judged from its evidence. */
-export interface ManagedCapabilityExecution {
-  readonly id: string
-  readonly revision: number
-  readonly sessionId: string
-  readonly endedAt: number
-  readonly verdict: ExecutionVerdict
-  readonly correction?: string
-  readonly rating?: 'positive' | 'negative'
-  readonly notes?: string
-}
-
-/** One learned capability with its procedure and history. */
-export interface ManagedCapabilityDetail extends ManagedCapability {
-  /** Markdown procedure. */
-  readonly content: string
-  readonly provenance: readonly CapabilityProvenance[]
-  /** Executions, newest first. */
-  readonly executions: readonly ManagedCapabilityExecution[]
-}
-
-/** Replacement text for one capability. */
-export interface ManagedCapabilityEdit {
+/** One learned procedure of the signed-in user, as listed. */
+export interface ManagedProcedure {
+  readonly id: MemoryItemId
+  /** Kebab-case name of the kind of task. */
+  readonly name: string
+  /** One line: what the procedure does and when to use it. */
   readonly description: string
+  readonly domain: MemoryDomain
+  /** When the procedure was last learned, merged, or saved. */
+  readonly time: number
+  /** Session whose work the procedure was last learned from or saved in. */
+  readonly sessionId: SessionId
+  /** Working directory of that session, when it is still known. */
+  readonly workspace?: string
+}
+
+/** One learned procedure with its text. */
+export interface ManagedProcedureDetail extends ManagedProcedure {
+  /** The condensed procedure memory recall delivers. */
+  readonly summary: string
+  /** The full Markdown procedure. */
   readonly content: string
 }
 
-/** Status the user can set from the memory manager: withdraw a capability or put it back in use. */
-export type ManagedCapabilityStatusChange = Extract<CapabilityStatus, 'retired' | 'learned'>
+/** The signed-in user's learned procedures, newest first. */
+export type ManagedProceduresPage =
+  | { readonly available: false }
+  | { readonly available: true; readonly procedures: readonly ManagedProcedure[] }

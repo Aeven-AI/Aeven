@@ -9176,9 +9176,6 @@ importers:
         specifier: ^4.4.3
         version: 4.6.5
     devDependencies:
-      '@aeven/capability':
-        specifier: workspace:^
-        version: link:../../capability/capability
       '@aeven/identity-user':
         specifier: workspace:^
         version: link:../../identity/user

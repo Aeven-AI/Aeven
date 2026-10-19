@@ -1,9 +1,8 @@
 /** The Memory settings page: quiet cards, with detail and actions behind a reveal. */
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import type {
-  CapabilityRunMetrics, CapabilityStatus, ExecutionVerdict, InvariantId, ManagedCapability, ManagedCapabilityDetail, ManagedCapabilityEdit,
-  ManagedCapabilityStatusChange, ManagedInvariantChange, ManagedInvariantsPage, ManagedMemory, ManagedMemoryPage, ManagedMemoryQuery,
-  MemoryDomain, MemoryItemId,
+  InvariantId, ManagedInvariantChange, ManagedInvariantsPage, ManagedMemory, ManagedMemoryPage, ManagedMemoryQuery, ManagedProcedure,
+  ManagedProcedureDetail, ManagedProceduresPage, MemoryDomain, MemoryItemId,
 } from '@aeven/api-remotes/client'
 import { Button, IconChevronDownOutline14, IconSearchOutline16, LoadingBlock, MarkdownText, Modal, SectionHeader, Spinner, relativeTime } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
@@ -19,11 +18,9 @@ export interface MemorySectionInjected {
   addInvariant: (text: string) => Promise<ManagedInvariantChange>
   editInvariant: (id: InvariantId, text: string) => Promise<ManagedInvariantChange>
   removeInvariant: (id: InvariantId) => Promise<ManagedInvariantChange>
-  capabilities: () => Promise<ManagedCapability[]>
-  capability: (name: string) => Promise<ManagedCapabilityDetail | undefined>
-  editCapability: (name: string, edit: ManagedCapabilityEdit) => Promise<ManagedCapabilityDetail>
-  setCapabilityStatus: (name: string, status: ManagedCapabilityStatusChange) => Promise<ManagedCapabilityDetail>
-  deleteCapability: (name: string) => Promise<boolean>
+  procedures: () => Promise<ManagedProceduresPage>
+  procedure: (id: MemoryItemId) => Promise<ManagedProcedureDetail | undefined>
+  editProcedure: (id: MemoryItemId, summary: string) => Promise<ManagedProcedureDetail | undefined>
   /**
    * Switch the app to a conversation and leave Settings.
    * @param sessionId - conversation to show.
@@ -41,7 +38,6 @@ type Translate = MemorySectionProps['t']
 type MemoriesTab = 'person' | 'project' | 'knowledge'
 type Tab = MemoriesTab | 'facts' | 'capabilities'
 type Load<T> = { readonly status: 'loading' } | { readonly status: 'error' } | { readonly status: 'ready'; readonly value: T }
-type Fold = 'procedure' | 'runs' | 'origin'
 /** The allowance fill reads both its width and its color step from one row-local property. */
 type BudgetStyle = CSSProperties & { readonly '--avn-usage-percent': string }
 
@@ -51,25 +47,9 @@ const TABS: readonly { readonly id: Tab; readonly label: MemoryLocaleKey }[] = [
   { id: 'person', label: 'tabs.person' },
   { id: 'project', label: 'tabs.project' },
   { id: 'knowledge', label: 'tabs.knowledge' },
-  { id: 'facts', label: 'tabs.facts' },
   { id: 'capabilities', label: 'tabs.capabilities' },
+  { id: 'facts', label: 'tabs.facts' },
 ]
-
-const STATUS_LABEL = {
-  'candidate': 'statusCandidate',
-  'learned': 'statusLearned',
-  'trusted': 'statusTrusted',
-  'needs-validation': 'statusNeedsValidation',
-  'degraded': 'statusDegraded',
-  'retired': 'statusRetired',
-} satisfies Record<CapabilityStatus, MemoryLocaleKey>
-
-const VERDICT_LABEL = {
-  verified: 'verdictVerified',
-  succeeded: 'verdictSucceeded',
-  failed: 'verdictFailed',
-  unknown: 'verdictUnknown',
-} satisfies Record<ExecutionVerdict, MemoryLocaleKey>
 
 /** The domains each memory tab lists; the provider filters, so paging and totals count only the tab's own memories. */
 const TAB_DOMAINS: Record<MemoriesTab, readonly MemoryDomain[]> = {
@@ -82,6 +62,23 @@ const EMPTY: Record<MemoriesTab, MemoryLocaleKey> = {
   person: 'emptyPerson',
   project: 'emptyProject',
   knowledge: 'emptyKnowledge',
+}
+
+/**
+ * Run one page operation, keeping the busy and failed state in step with its promise.
+ * @param setBusy - the page's busy flag setter.
+ * @param setFailed - the page's failure flag setter.
+ * @returns a runner that starts the work and settles the flags.
+ */
+function usePendingRun(
+  setBusy: (busy: boolean) => void,
+  setFailed: (failed: boolean) => void,
+): (work: () => Promise<void>) => void {
+  return useCallback((work: () => Promise<void>) => {
+    setBusy(true)
+    setFailed(false)
+    void work().then(() => { setBusy(false) }, () => { setBusy(false); setFailed(true) })
+  }, [setBusy, setFailed])
 }
 
 /**
@@ -150,7 +147,7 @@ export function MemorySection(props: MemorySectionProps) {
         aria-labelledby={paneLoading ? undefined : `${tabsId}-tab-${tab}`}
       >
         {tab === 'capabilities'
-          ? <Capabilities {...props} reportLoading={setPaneLoading} />
+          ? <Procedures {...props} reportLoading={setPaneLoading} />
           : tab === 'facts'
             ? <Facts {...props} reportLoading={setPaneLoading} />
             : <Memories {...props} tab={tab} reportLoading={setPaneLoading} />}
@@ -187,21 +184,6 @@ function domainLabel(domain: MemoryDomain, t: Translate): string {
 function folderName(path: string): string {
   const parts = path.split(/[\\/]/).filter(part => part.length > 0)
   return parts[parts.length - 1] ?? path
-}
-
-function duration(ms: number): string {
-  const seconds = Math.max(1, Math.round(ms / 1000))
-  return seconds < 90
-    ? new Intl.NumberFormat(undefined, { style: 'unit', unit: 'second', unitDisplay: 'narrow' }).format(seconds)
-    : new Intl.NumberFormat(undefined, { style: 'unit', unit: 'minute', unitDisplay: 'narrow', maximumFractionDigits: 1 }).format(seconds / 60)
-}
-
-function metrics(t: Translate, value: CapabilityRunMetrics): string {
-  const steps = String(value.toolCalls)
-  const time = duration(value.durationMs)
-  if (value.tokens === undefined) return t('metrics', { steps, time })
-  const tokens = new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(value.tokens.input + value.tokens.output)
-  return t('metricsTokens', { steps, time, tokens })
 }
 
 /** What a promote, replace, or remove attempt means for the user. An unknown reason is a failure, not a guess. */
@@ -433,11 +415,7 @@ function MemoryCard({ t, memory, now, open, onToggle, editMemory, forgetMemory, 
     setDraft(fact)
   }, [open, fact])
 
-  const run = (work: () => Promise<void>) => {
-    setBusy(true)
-    setFailed(false)
-    void work().then(() => { setBusy(false) }, () => { setBusy(false); setFailed(true) })
-  }
+  const run = usePendingRun(setBusy, setFailed)
 
   const showConversation = () => {
     try {
@@ -781,106 +759,119 @@ function Failure({ t, onRetry }: { readonly t: Translate; readonly onRetry: () =
   )
 }
 
-function Capabilities(props: MemorySectionProps & { readonly reportLoading: (loading: boolean) => void }) {
-  const { t, capabilities, reportLoading } = props
-  const [state, setState] = useState<Load<ManagedCapability[]>>({ status: 'loading' })
-  const [open, setOpen] = useState<string | undefined>()
+function Procedures(props: MemorySectionProps & { readonly reportLoading: (loading: boolean) => void }) {
+  const { t, procedures, reportLoading } = props
+  const [state, setState] = useState<Load<ManagedProceduresPage>>({ status: 'loading' })
+  const [query, setQuery] = useState('')
+  const [openId, setOpenId] = useState<MemoryItemId | undefined>()
+  const now = Date.now()
 
   const load = useCallback(async () => {
     try {
-      setState({ status: 'ready', value: await capabilities() })
+      setState({ status: 'ready', value: await procedures() })
     } catch {
       // The failure is shown as the page's error state with a retry.
       setState({ status: 'error' })
     }
-  }, [capabilities])
+  }, [procedures])
 
   useEffect(() => { void load() }, [load])
 
   useEffect(() => { reportLoading(state.status === 'loading') }, [state.status, reportLoading])
 
+  const listed = state.status === 'ready' && state.value.available ? state.value.procedures : []
+  const visible = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    return needle === '' ? listed : listed.filter(item => `${item.name} ${item.description}`.toLowerCase().includes(needle))
+  }, [listed, query])
+
+  const forget = (id: MemoryItemId) => {
+    setState((current) => {
+      if (current.status !== 'ready' || !current.value.available) return current
+      return { status: 'ready', value: { available: true, procedures: current.value.procedures.filter(item => item.id !== id) } }
+    })
+  }
+
   if (state.status === 'loading') return <LoadingBlock label={t('loading')} />
   if (state.status === 'error') return <Failure t={t} onRetry={() => { setState({ status: 'loading' }); void load() }} />
-  if (state.value.length === 0) return <p className={css.status}>{t('emptyCapabilities')}</p>
+  if (!state.value.available) return <p className={css.status}>{t('unavailable')}</p>
+  if (listed.length === 0) return <p className={css.status}>{t('emptyProcedures')}</p>
   return (
-    <ul className={css.cards}>
-      {state.value.map(capability => (
-        <CapabilityCard
-          key={capability.name}
-          {...props}
-          item={capability}
-          open={open === capability.name}
-          onToggle={() => { setOpen(open === capability.name ? undefined : capability.name) }}
-          onChanged={() => { void load() }}
+    <>
+      <label className={css.search}>
+        <IconSearchOutline16 />
+        <input
+          value={query}
+          placeholder={t('searchProcedures')}
+          aria-label={t('searchProcedures')}
+          onChange={(event) => { setQuery(event.target.value) }}
         />
-      ))}
-    </ul>
+      </label>
+      {visible.length === 0 && <p className={css.status}>{t('emptyProcedureSearch')}</p>}
+      {visible.length > 0 && (
+        <ul className={css.cards}>
+          {visible.map(item => (
+            <ProcedureCard
+              key={item.id}
+              {...props}
+              item={item}
+              now={now}
+              open={openId === item.id}
+              onToggle={() => { setOpenId(openId === item.id ? undefined : item.id) }}
+              onForgotten={() => { forget(item.id) }}
+            />
+          ))}
+        </ul>
+      )}
+    </>
   )
 }
 
-function CapabilityCard({
-  t, item, open, onToggle, capability: loadCapability, editCapability, setCapabilityStatus, deleteCapability,
-  openConversation, close, onChanged,
+function ProcedureCard({
+  t, item, now, open, onToggle, onForgotten, procedure: loadProcedure, editProcedure, forgetMemory, openConversation, close,
 }: MemorySectionProps & {
-  readonly item: ManagedCapability
+  readonly item: ManagedProcedure
+  readonly now: number
   readonly open: boolean
   readonly onToggle: () => void
-  readonly onChanged: () => void
+  readonly onForgotten: () => void
 }) {
-  const [fold, setFold] = useState<Fold | undefined>()
+  const [steps, setSteps] = useState(false)
   const [mode, setMode] = useState<'view' | 'edit'>('view')
   const [confirming, setConfirming] = useState(false)
-  const [detail, setDetail] = useState<Load<ManagedCapabilityDetail | undefined> | undefined>()
-  const [draft, setDraft] = useState({ description: item.description, content: '' })
+  const [detail, setDetail] = useState<Load<ManagedProcedureDetail | undefined> | undefined>()
+  const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
   const [gone, setGone] = useState(false)
-  const retired = item.status === 'retired'
-  const origin = item.origin
-  const needsDetail = open && (mode === 'edit' || fold === 'procedure' || fold === 'runs')
 
   useEffect(() => {
-    if (!open) {
-      setMode('view')
-      setFold(undefined)
-      setFailed(false)
-      setGone(false)
-    }
+    if (open) return
+    setMode('view')
+    setSteps(false)
+    setFailed(false)
+    setGone(false)
+    // A failed read is tried again the next time the card opens.
+    setDetail(current => current?.status === 'error' ? undefined : current)
   }, [open])
 
+  // Keyed on the read's inputs only: a dependency on `detail` would rerun the effect when the read starts and
+  // drop its result.
+  const needsDetail = open && detail === undefined
   useEffect(() => {
-    if (!needsDetail || detail !== undefined) return
-    let cancelled = false
+    if (!needsDetail) return
     setDetail({ status: 'loading' })
-    loadCapability(item.name).then(
-      (value) => { if (!cancelled) setDetail({ status: 'ready', value }) },
-      () => { if (!cancelled) setDetail({ status: 'error' }) },
+    loadProcedure(item.id).then(
+      (value) => { setDetail({ status: 'ready', value }) },
+      () => { setDetail({ status: 'error' }) },
     )
-    return () => { cancelled = true }
-  }, [needsDetail, detail, loadCapability, item.name])
+  }, [needsDetail, loadProcedure, item.id])
 
-  useEffect(() => {
-    if (detail?.status !== 'ready' || detail.value === undefined) return
-    setDraft({ description: detail.value.description, content: detail.value.content })
-  }, [detail])
+  const run = usePendingRun(setBusy, setFailed)
 
-  const run = (work: () => Promise<ManagedCapabilityDetail | undefined>) => {
-    setBusy(true)
-    setFailed(false)
-    void work().then((next) => {
-      setBusy(false)
-      if (next === undefined) onChanged()
-      else {
-        setDetail({ status: 'ready', value: next })
-        setMode('view')
-        onChanged()
-      }
-    }, () => { setBusy(false); setFailed(true) })
-  }
-
-  const showConversation = (sessionId: string) => {
+  const showConversation = () => {
     try {
-      openConversation(sessionId)
+      openConversation(item.sessionId)
     } catch {
       // sessions.open throws when that conversation is no longer listed.
       setGone(true)
@@ -889,7 +880,6 @@ function CapabilityCard({
     close()
   }
 
-  const toggle = (next: Fold) => { setFold(fold === next ? undefined : next) }
   const ready = detail?.status === 'ready' ? detail.value : undefined
 
   return (
@@ -905,100 +895,41 @@ function CapabilityCard({
       </button>
       {open && (
         <div className={css.body}>
-          {mode === 'view' && (
-            <>
-              <p className={css.note}>
-                {t(STATUS_LABEL[item.status])}
-                {' · '}
-                {t('revision', { revision: String(item.revision) })}
-                {item.runs.lastRunAt !== undefined && ` · ${t('lastUsed', { time: formatWhen(item.runs.lastRunAt) })}`}
-              </p>
-              {item.impact !== undefined && (
-                <p className={css.note}>
-                  {t('impactBefore', { metrics: metrics(t, item.impact.before) })}
-                  {' · '}
-                  {item.impact.after === undefined
-                    ? t('impactPending')
-                    : t('impactNow', { metrics: metrics(t, item.impact.after), runs: String(item.impact.runs) })}
+          <p className={css.note}>
+            {t('learnedAt', { time: ago(item.time, now, t) })}
+            {' · '}
+            {domainLabel(item.domain, t)}
+            {item.domain === 'project' && item.workspace !== undefined && ` · ${folderName(item.workspace)}`}
+          </p>
+          <DetailBody detail={detail} t={t}>
+            {ready !== undefined && mode === 'view' && (
+              <>
+                <p className={css.said}>
+                  <span>{t('recalled')}</span>
+                  {ready.summary}
                 </p>
-              )}
-              <Fold label={t('procedure')} open={fold === 'procedure'} onToggle={() => { toggle('procedure') }}>
-                <DetailBody detail={detail} t={t}>
-                  {ready !== undefined && (
-                    <>
-                      <div className={css.prose}>
-                        <MarkdownText text={ready.content} variant="compact" labels={{ code: { copyLabel: t('copy'), copiedLabel: t('copied') }, footnotes: t('footnotes') }} />
-                      </div>
-                      {ready.files.length > 0 && (
-                        <p className={css.note}>{t('files')}: {ready.files.join(', ')}</p>
-                      )}
-                    </>
-                  )}
-                </DetailBody>
-              </Fold>
-              <Fold label={t('history')} open={fold === 'runs'} onToggle={() => { toggle('runs') }}>
-                <DetailBody detail={detail} t={t}>
-                  {ready !== undefined && ready.executions.length === 0 && <p className={css.note}>{t('noRuns')}</p>}
-                  {ready !== undefined && ready.executions.length > 0 && (
-                    <ul className={css.runs}>
-                      {ready.executions.map(run => (
-                        <li key={run.id} className={css.run}>
-                          <span>{t(VERDICT_LABEL[run.verdict])} · {formatWhen(run.endedAt)}</span>
-                          <button type="button" className={css.textButton} onClick={() => { showConversation(run.sessionId) }}>{t('openSession')}</button>
-                          {(run.correction ?? run.notes) !== undefined && (
-                            <span className={css.subtitle}>{run.correction ?? run.notes}</span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </DetailBody>
-              </Fold>
-              {origin !== undefined && (
-                <Fold label={t('origin')} open={fold === 'origin'} onToggle={() => { toggle('origin') }}>
-                  <p className={css.said}>{origin.request}</p>
-                  {origin.tools.length > 0 && (
-                    <p className={css.note}>{t('tools')}: {origin.tools.join(', ')}</p>
-                  )}
-                  <button type="button" className={css.textButton} onClick={() => { showConversation(origin.sessionId) }}>{t('openSession')}</button>
+                <Fold label={t('procedure')} open={steps} onToggle={() => { setSteps(!steps) }}>
+                  <div className={css.prose}>
+                    <MarkdownText text={ready.content} variant="compact" labels={{ code: { copyLabel: t('copy'), copiedLabel: t('copied') }, footnotes: t('footnotes') }} />
+                  </div>
                 </Fold>
-              )}
-            </>
-          )}
-          {mode === 'edit' && (
-            <DetailBody detail={detail} t={t}>
-              {ready !== undefined && (
-                <>
-                  <label className={css.field}>
-                    {t('description')}
-                    <input value={draft.description} onChange={(event) => { setDraft({ ...draft, description: event.target.value }) }} />
-                  </label>
-                  <label className={css.field}>
-                    {t('procedure')}
-                    <textarea
-                      rows={8}
-                      value={draft.content}
-                      onChange={(event) => { setDraft({ ...draft, content: event.target.value }) }}
-                    />
-                  </label>
-                </>
-              )}
-            </DetailBody>
-          )}
+              </>
+            )}
+            {ready !== undefined && mode === 'edit' && (
+              <label className={css.field}>
+                {t('recalled')}
+                <textarea rows={6} value={draft} onChange={(event) => { setDraft(event.target.value) }} />
+              </label>
+            )}
+          </DetailBody>
           {failed && !confirming && <p className={css.failure}>{t('failed')}</p>}
           {gone && <p className={css.failure}>{t('conversationGone')}</p>}
           <div className={css.footer}>
             {mode === 'view' && (
               <>
-                <Button variant="outline" onClick={() => { setMode('edit') }}>{t('edit')}</Button>
-                <Button
-                  variant="outline"
-                  disabled={busy}
-                  onClick={() => { run(() => setCapabilityStatus(item.name, retired ? 'learned' : 'retired')) }}
-                >
-                  {t(retired ? 'restore' : 'retire')}
-                </Button>
-                <Button variant="outline" onClick={() => { setFailed(false); setConfirming(true) }}>{t('delete')}</Button>
+                <Button variant="outline" className={css.footerStart} onClick={showConversation}>{t('openSession')}</Button>
+                <Button variant="outline" disabled={ready === undefined} onClick={() => { setDraft(ready?.summary ?? ''); setMode('edit') }}>{t('edit')}</Button>
+                <Button variant="outline" onClick={() => { setFailed(false); setConfirming(true) }}>{t('forget')}</Button>
               </>
             )}
             {mode === 'edit' && (
@@ -1006,9 +937,16 @@ function CapabilityCard({
                 t={t}
                 labelKey="save"
                 busy={busy}
-                blocked={draft.description.trim() === '' || draft.content.trim() === ''}
+                blocked={draft.trim() === ''}
                 onCancel={() => { setMode('view') }}
-                onCommit={() => { run(() => editCapability(item.name, draft)) }}
+                onCommit={() => {
+                  run(async () => {
+                    const next = await editProcedure(item.id, draft)
+                    if (next === undefined) throw new Error('procedure is gone')
+                    setDetail({ status: 'ready', value: next })
+                    setMode('view')
+                  })
+                }}
               />
             )}
           </div>
@@ -1017,20 +955,20 @@ function CapabilityCard({
       <ConfirmDialog
         t={t}
         open={confirming}
-        title={t('deleteConfirm')}
+        title={t('forgetProcedureConfirm')}
         subject={item.name}
-        action={t('delete')}
+        action={t('forget')}
         busy={busy}
         failed={failed}
         onCancel={() => { setConfirming(false) }}
-        onConfirm={() => { run(async () => { await deleteCapability(item.name); setConfirming(false); return undefined }) }}
+        onConfirm={() => { run(async () => { await forgetMemory(item.id); setConfirming(false); onForgotten() }) }}
       />
     </li>
   )
 }
 
 function DetailBody({ detail, t, children }: {
-  readonly detail: Load<ManagedCapabilityDetail | undefined> | undefined
+  readonly detail: Load<ManagedProcedureDetail | undefined> | undefined
   readonly t: Translate
   readonly children: ReactNode
 }) {

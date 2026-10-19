@@ -221,7 +221,7 @@ Source: [`packages/api/job-controller/src/index.ts:40`](../packages/api/job-cont
 
 ## `@aeven/api-memory-manager`
 
-Requires: `typert` · `memory` · `capabilities` · `identityUsers` · `sessionQuery`
+Requires: `typert` · `memory` · `identityUsers` · `sessionQuery`
 
 ```ts config-catalog
 /** Service configuration. */
@@ -233,7 +233,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/memory/api-memory-manager/src/index.ts:41`](../packages/memory/api-memory-manager/src/index.ts)
+Source: [`packages/memory/api-memory-manager/src/index.ts:38`](../packages/memory/api-memory-manager/src/index.ts)
 
 <a id="aevenapi-session-controller"></a>
 
@@ -4010,6 +4010,11 @@ export interface Config {
    * brings back; `capabilities` keeps them as capability files recalled as `<procedure_context>`.
    */
   store: 'memory' | 'capabilities'
+  /**
+   * Memory store only: distinct learned procedures a session sees above which procedures of one kind of task are
+   * merged in the background, once per owner and workspace per process; zero never merges.
+   */
+  consolidateAbove: number
 }
 ```
 

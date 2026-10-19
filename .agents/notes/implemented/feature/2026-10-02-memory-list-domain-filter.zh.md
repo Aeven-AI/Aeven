@@ -12,17 +12,17 @@ Status: implemented
 
 `MemoryProvider.list` 接受可选的 `domains` 过滤（`MemoryListRequest`）。传入时，页面、其 `offset` 和 `total` 只统计这些领域中的记忆；不传时，列表行为不变。`memoryManager` Remote 从 `ManagedMemoryQuery` 透传 `domains`，每个记忆标签页请求自己的领域、按 offset 翻页，并且只在提供方报告该标签页还有未加载的记忆且上一页不为空时显示加载更多。
 
-MemOS 无法按领域过滤：领域是 `domain:` trace 标签，未打标签的 trace 在工作区内回退为 `project`，在工作区外回退为 `experience`。因此 MemOS 提供方按 `limit` 大小分块读取该所有者匹配的 trace，用召回所用的同一个 `traceDomain` 为每条分类，保留所请求的那一页，并统计全部匹配数。一次按领域过滤的列表请求需要读取该所有者文本查询匹配的每条 trace。
+MemOS 的 `listTraces` 与 `countTraces` 在 SQLite 中应用领域与项目工作区过滤。第一个有效的 `domain:` 标签决定领域；未打标签的 trace 在工作区内为 `project`，在工作区外为 `experience`，与 `traceDomain` 一致。没有文本搜索的分页只读取所请求的行；计数使用相同条件且不加载轨迹内容。文本搜索在数据库过滤领域和工作区后，保留 MemOS 的子串匹配。
 
 ## Alternatives considered
 
 - **保留客户端过滤，并在标签页没有新内容时隐藏加载更多。** 页面不加载就无法知道未加载记录是否属于当前标签页，因此按钮仍会出现在没有更多内容的标签页上，或在标签页仍有记忆时被隐藏。
-- **把领域存进 MemOS 的列并用 SQL 过滤。** MemOS 的 `listTraces` 和 `countTraces` 只按所有者、会话和文本过滤；增加列需要修改该外部依赖的数据库结构。
+- **把领域存进 MemOS 的列并用 SQL 过滤。** SQLite 的 JSON 函数可过滤现有标签，无需新增列或迁移数据库结构。
 
 ## Consequences
 
-按领域过滤的 `list` 的开销随该所有者的 trace 总数增长，而不是随页大小增长。设置 → 记忆是唯一调用方，且只在用户操作时运行，因此每次打开标签页、搜索或点击加载更多时扫描一次。
+打开标签页或加载下一页执行一次分页读取与一次计数。计数仍会检查匹配行的领域标签，但不解码其完整文本、工具调用或嵌入。领域条件在分页前保留所有者隔离与项目可见性。
 
 ## Verification
 
-`packages/memory/memory-memos/tests/list-domains.spec.ts` 固定了按领域的分页与总数、工作区与未打标签的回退、所有者过滤、分块读取，以及不过滤时的透传。
+`packages/memory/memory-memos/tests/list-domains.spec.ts` 固定了按领域的分页与总数、工作区与未打标签的回退、所有者过滤、超过仓库分页上限时的单页读取、领域标签优先级、空领域过滤、项目可见性，以及不过滤时的透传。

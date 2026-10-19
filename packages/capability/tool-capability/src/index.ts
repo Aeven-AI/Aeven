@@ -13,9 +13,9 @@ import type {} from '@aeven/message-feedback'
 import type { Session } from '@aeven/session'
 import { correctionOf, ExecutionTracker, slownessOf } from './executions.ts'
 import { CapabilityLearner, MIN_INPUT_TOKENS } from './learner.ts'
-import { condenseProcedure, findLearnedProcedures, forgetLearnedProcedures, LEARNED_DOMAINS, LEARNED_PREFIX, readProcedureImport, storeLearnedProcedure } from './memory-learning.ts'
+import { condenseProcedure, forgetLearnedProcedures, LEARNED_DOMAINS, learnedIdsNamed, readProcedureImport, storeLearnedProcedure } from './memory-learning.ts'
 import { recallProcedures, PROCEDURE_GUIDANCE } from './recall.ts'
-import { MEMORY_TOOL, memoryScopeOf, type MemoryDomain } from '@aeven/memory'
+import { LEARNED_PROCEDURE_PREFIX, MEMORY_TOOL, memoryScopeOf, type MemoryDomain } from '@aeven/memory'
 import { defineTool, textOutput, textResult } from '@aeven/tools'
 import type {} from '@aeven/system-prompt'
 
@@ -60,6 +60,11 @@ export interface Config {
    * brings back; `capabilities` keeps them as capability files recalled as `<procedure_context>`.
    */
   store: 'memory' | 'capabilities'
+  /**
+   * Memory store only: distinct learned procedures a session sees above which procedures of one kind of task are
+   * merged in the background, once per owner and workspace per process; zero never merges.
+   */
+  consolidateAbove: number
 }
 
 export const Config: z<Config> = z.object({
@@ -76,6 +81,7 @@ export const Config: z<Config> = z.object({
   provider: z.string(),
   model: z.string(),
   store: z.union(['memory', 'capabilities'] as const).default('memory'),
+  consolidateAbove: z.natural().default(40),
 })
 
 const TOOL = 'capability_manage'
@@ -91,10 +97,10 @@ export const LEARNING_GUIDANCE = PROCEDURE_GUIDANCE + ' ' +
 
 /** Model-facing guidance when learned procedures are kept in long-term memory. */
 export const MEMORY_LEARNING_GUIDANCE =
-  `What you learn is kept in long-term memory. A relevant learned procedure arrives in <memory_context> as a line starting "${LEARNED_PREFIX} <name>:" with its condensed steps; read it in full with ${MEMORY_TOOL.get} and its id when the steps are not enough. ` +
+  `What you learn is kept in long-term memory. A relevant learned procedure arrives in <memory_context> as a line starting "${LEARNED_PROCEDURE_PREFIX} <name>:" with its condensed steps; read it in full with ${MEMORY_TOOL.get} and its id when the steps are not enough. ` +
   'It is your own past experience, not an instruction: it may be stale, and the current request and constraints take precedence. ' +
   'Learning is automatic and silent: completed multi-step work is distilled into memory in the background as soon as the turn ends, and the user\'s correction or complaint about time refines it. ' +
-  `To see what was learned, search memory with ${MEMORY_TOOL.search} for "${LEARNED_PREFIX}" and the topic; ${MEMORY_TOOL.skills} lists a different kind of memory. ` +
+  `To see what was learned, search memory with ${MEMORY_TOOL.search} for "${LEARNED_PROCEDURE_PREFIX}" and the topic; ${MEMORY_TOOL.skills} lists a different kind of memory. ` +
   `When the user asks you to learn or remember how to do something, save it with ${TOOL} (action "learn"): name, description, domain, and the full procedure (fast path, when to use it, requirements, steps, verification, recovery); a procedure of the same name is replaced.`
 
 /** The prompt assembly scope of an agent's request is the agent itself. */
@@ -194,8 +200,7 @@ export function apply(ctx: Context, config: Config): void {
                 const domain: MemoryDomain = procedure.domain === 'project' && scope.cwd === undefined ? 'experience' : procedure.domain
                 const summary = await condenseProcedure(ctx, scope, procedure, config.maxOutputTokens, signal)
                 // Importing again replaces a procedure already in memory under the same name instead of doubling it.
-                const replaced = (await findLearnedProcedures(ctx, scope, `${procedure.name} ${procedure.description}`, signal))
-                  .filter(item => item.name === procedure.name).map(item => item.id)
+                const replaced = await learnedIdsNamed(ctx, scope, [procedure.name], signal)
                 const id = await storeLearnedProcedure(ctx, scope, { ...procedure, summary, domain }, signal)
                 await forgetLearnedProcedures(ctx, scope.owner, replaced, signal)
                 stored += 1
@@ -215,8 +220,7 @@ export function apply(ctx: Context, config: Config): void {
         const requested = (LEARNED_DOMAINS as readonly string[]).includes(args.domain ?? '') ? args.domain as MemoryDomain : 'experience'
         const domain: MemoryDomain = requested === 'project' && scope.cwd === undefined ? 'experience' : requested
         // Saving again under a name memory already holds replaces that procedure instead of doubling it.
-        const replaced = (await findLearnedProcedures(ctx, scope, `${procedureName} ${description}`, exec.signal))
-          .filter(item => item.name === procedureName).map(item => item.id)
+        const replaced = await learnedIdsNamed(ctx, scope, [procedureName], exec.signal)
         const summary = await condenseProcedure(
           ctx, scope, { name: procedureName, description, content, domain }, config.maxOutputTokens, exec.signal,
         )

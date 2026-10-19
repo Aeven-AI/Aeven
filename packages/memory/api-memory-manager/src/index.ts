@@ -1,7 +1,7 @@
 /**
  * The memory manager Remote: what Aeven has learned about the signed-in user, their projects, and their
  * work, with View, Correct, and Forget. Every operation acts for the caller of the running request and
- * never reaches another user's memories or capabilities.
+ * never reaches another user's memories or procedures.
  *
  * @module @aeven/api-memory-manager
  */
@@ -10,22 +10,19 @@ import z from '@deepseek-ai/schemastery'
 import { Remote, TypertRemoteService } from '@aeven/typert-protocol'
 import type {} from '@aeven/identity-user'
 import type {} from '@aeven/session-query'
-import type {} from '@aeven/memory'
+import { LEARNED_PROCEDURE_PREFIX, learnedProcedureOf } from '@aeven/memory'
 import type {} from '@aeven/memory-invariants'
-import type { Capability, CapabilityRecord, CapabilityRunMetrics, CapabilityVersion, JudgedExecution } from '@aeven/capability'
 import type { InvariantId } from '@aeven/memory-invariants/types'
-import type { MemoryItemId, MemoryRecord } from '@aeven/memory/types'
+import type { LearnedProcedure, MemoryItemId, MemoryRecord } from '@aeven/memory/types'
 import type {
-  ManagedCapability,
-  ManagedCapabilityDetail,
-  ManagedCapabilityEdit,
-  ManagedCapabilityImpact,
-  ManagedCapabilityStatusChange,
   ManagedInvariantChange,
   ManagedInvariantsPage,
   ManagedMemory,
   ManagedMemoryPage,
   ManagedMemoryQuery,
+  ManagedProcedure,
+  ManagedProcedureDetail,
+  ManagedProceduresPage,
 } from './types.ts'
 
 export type * from './types.ts'
@@ -45,9 +42,9 @@ export interface Config {
   maxPageSize: number
 }
 
-/** The signed-in user's memories and learned capabilities. */
+/** The signed-in user's memories, standing facts, and learned procedures. */
 export default class MemoryManagerController extends TypertRemoteService {
-  static inject = ['typert', 'memory', 'capabilities', 'identityUsers', 'sessionQuery']
+  static inject = ['typert', 'memory', 'identityUsers', 'sessionQuery']
 
   static Config: z<Config> = z.object({
     timeoutMs: z.natural().min(1).default(15_000),
@@ -55,7 +52,7 @@ export default class MemoryManagerController extends TypertRemoteService {
   })
 
   /**
-   * @param ctx - Host context carrying memory, capabilities, identity, and session query.
+   * @param ctx - Host context carrying memory, identity, and session query.
    * @param config - provider budget and page bound.
    */
   constructor(ctx: Context, private readonly config: Config) {
@@ -158,94 +155,61 @@ export default class MemoryManagerController extends TypertRemoteService {
   }
 
   /**
-   * List the caller's learned capabilities with the run counts of their current revisions.
-   * @returns capabilities sorted by name.
+   * List the caller's learned procedures, newest first, one per name.
+   * @returns the procedures without their text, or `available: false` when no memory provider runs.
    */
   @Remote
-  async capabilities(): Promise<ManagedCapability[]> {
+  async procedures(): Promise<ManagedProceduresPage> {
     const owner = this.owner()
-    const records = await this.ctx.capabilities.list(owner)
-    return await Promise.all(records.map(async (record) => {
-      return managedCapability(record, await this.ctx.capabilities.evidence(owner, record.name))
-    }))
+    if (!this.ctx.memory.active) return { available: false }
+    const workspaces = await this.workspaces(owner)
+    return { available: true, procedures: (await this.latest(owner)).map(procedure => managedProcedure(procedure, workspaces)) }
   }
 
   /**
-   * Read one of the caller's capabilities with its procedure, history, and executions.
-   * @param name - capability name.
-   * @returns the capability, or undefined when the caller has none by that name.
+   * Read one of the caller's learned procedures with its condensed and full text.
+   * @param id - memory id of the procedure.
+   * @returns the procedure, or undefined when the caller has no such procedure.
    */
   @Remote
-  async capability(name: string): Promise<ManagedCapabilityDetail | undefined> {
+  async procedure(id: MemoryItemId): Promise<ManagedProcedureDetail | undefined> {
     const owner = this.owner()
-    const capability = await this.ctx.capabilities.get(owner, name)
-    return capability === undefined ? undefined : this.detail(owner, capability)
+    const procedure = (await this.latest(owner)).find(item => item.id === id)
+    return procedure === undefined ? undefined : managedProcedureDetail(procedure, await this.workspaces(owner))
   }
 
   /**
-   * Replace the description and procedure of one of the caller's capabilities. A trusted capability
-   * whose procedure changes must verify the new revision before it is trusted again.
-   * @param name - capability name.
-   * @param edit - new description and procedure.
-   * @returns the updated capability.
+   * Replace the condensed procedure memory recall delivers for one of the caller's learned procedures.
+   * @param id - memory id of the procedure.
+   * @param summary - the corrected condensed procedure, without the procedure's name.
+   * @returns the updated procedure, or undefined when the caller has no such procedure.
    */
   @Remote
-  async editCapability(name: string, edit: ManagedCapabilityEdit): Promise<ManagedCapabilityDetail> {
+  async editProcedure(id: MemoryItemId, summary: string): Promise<ManagedProcedureDetail | undefined> {
     const owner = this.owner()
-    const current = await this.ctx.capabilities.get(owner, name)
-    if (current === undefined) throw new Error(`no capability named ${name}`)
-    if (!edit.description.trim() || !edit.content.trim()) throw new Error('a capability needs a description and a procedure')
-    const saved = await this.ctx.capabilities.save(owner, { name, description: edit.description, content: edit.content }, {
-      status: current.status,
-      source: 'user',
-      sessionId: undefined,
+    const text = summary.trim()
+    if (!text) throw new Error('a procedure needs its steps')
+    const procedure = (await this.latest(owner)).find(item => item.id === id)
+    if (procedure === undefined) return undefined
+    const updated = await this.ctx.memory.edit({
+      owner,
+      id,
+      summary: `${LEARNED_PROCEDURE_PREFIX} ${procedure.name}: ${text}`,
+      signal: AbortSignal.timeout(this.config.timeoutMs),
     })
-    return this.detail(owner, saved)
+    const parsed = updated === undefined ? undefined : learnedProcedureOf(updated)
+    return parsed === undefined ? undefined : managedProcedureDetail(parsed, await this.workspaces(owner))
   }
 
-  /**
-   * Retire one of the caller's capabilities, or put a retired or unconfirmed one in use; its evidence
-   * then decides between learned, trusted, needs-validation, and degraded.
-   * @param name - capability name.
-   * @param status - `retired` or `learned`.
-   * @returns the updated capability.
-   */
-  @Remote
-  async setCapabilityStatus(name: string, status: ManagedCapabilityStatusChange): Promise<ManagedCapabilityDetail> {
-    const owner = this.owner()
-    return this.detail(owner, await this.ctx.capabilities.setStatus(owner, name, status, undefined))
-  }
-
-  /**
-   * Delete one of the caller's capabilities with its files and history.
-   * @param name - capability name.
-   * @returns true when a capability was deleted.
-   */
-  @Remote
-  deleteCapability(name: string): Promise<boolean> {
-    return this.ctx.capabilities.remove(this.owner(), name)
-  }
-
-  /**
-   * List the revisions of one of the caller's capabilities that are still kept, oldest first.
-   * @param name - capability name.
-   * @returns one entry per kept revision, each with the procedure it held.
-   */
-  @Remote
-  capabilityVersions(name: string): Promise<CapabilityVersion[]> {
-    return this.ctx.capabilities.versions(this.owner(), name)
-  }
-
-  /**
-   * Restore one kept revision of a capability as its new revision.
-   * @param name - capability name.
-   * @param revision - revision whose procedure to restore.
-   * @returns the capability at its restored revision.
-   */
-  @Remote
-  async rollbackCapability(name: string, revision: number): Promise<ManagedCapabilityDetail> {
-    const owner = this.owner()
-    return this.detail(owner, await this.ctx.capabilities.rollback(owner, name, revision, undefined))
+  /** The newest procedure under each name, newest first. */
+  private async latest(owner: string): Promise<LearnedProcedure[]> {
+    const procedures = await this.ctx.memory.procedures({ owner, signal: AbortSignal.timeout(this.config.timeoutMs) })
+    const names = new Set<string>()
+    return procedures.filter((procedure) => {
+      if (names.has(procedure.name)) return false
+      names.add(procedure.name)
+      return true
+    })
   }
 
   private owner(): string {
@@ -263,25 +227,6 @@ export default class MemoryManagerController extends TypertRemoteService {
     }
     return workspaces
   }
-
-  private async detail(owner: string, capability: Capability): Promise<ManagedCapabilityDetail> {
-    const judged = await this.ctx.capabilities.evidence(owner, capability.name)
-    return {
-      ...managedCapability(capability, judged),
-      content: capability.content,
-      provenance: capability.provenance,
-      executions: judged.toReversed().map(item => ({
-        id: item.execution.id,
-        revision: item.execution.revision,
-        sessionId: item.execution.sessionId,
-        endedAt: item.execution.endedAt,
-        verdict: item.verdict,
-        ...item.correction === undefined ? {} : { correction: item.correction },
-        ...item.rating === undefined ? {} : { rating: item.rating },
-        ...item.execution.report?.notes === undefined ? {} : { notes: item.execution.report.notes },
-      })),
-    }
-  }
 }
 
 function managedMemory(record: MemoryRecord, workspaces: ReadonlyMap<string, string>): ManagedMemory {
@@ -297,52 +242,19 @@ function managedMemory(record: MemoryRecord, workspaces: ReadonlyMap<string, str
   }
 }
 
-/** Successful runs the "after" median covers. */
-const IMPACT_RUNS = 5
-
-function median(values: readonly number[]): number {
-  const sorted = [...values].sort((a, b) => a - b)
-  const middle = Math.floor(sorted.length / 2)
-  return sorted.length % 2 === 1 ? sorted[middle] ?? 0 : Math.round(((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2)
-}
-
-function impact(before: CapabilityRunMetrics, judged: readonly JudgedExecution[]): ManagedCapabilityImpact {
-  const recent = judged.filter(item => item.verdict === 'verified' || item.verdict === 'succeeded').slice(-IMPACT_RUNS).map(item => item.execution)
-  if (recent.length === 0) return { before, runs: 0 }
-  const withTokens = recent.flatMap(run => run.tokens === undefined ? [] : [run.tokens])
+function managedProcedure(procedure: LearnedProcedure, workspaces: ReadonlyMap<string, string>): ManagedProcedure {
+  const workspace = workspaces.get(procedure.sessionId)
   return {
-    before,
-    runs: recent.length,
-    after: {
-      durationMs: median(recent.map(run => run.endedAt - run.startedAt)),
-      toolCalls: median(recent.map(run => run.tools.length)),
-      failedToolCalls: median(recent.map(run => run.tools.filter(tool => tool.failed).length)),
-      ...withTokens.length === 0
-        ? {}
-        : { tokens: { input: median(withTokens.map(tokens => tokens.input)), output: median(withTokens.map(tokens => tokens.output)) } },
-    },
+    id: procedure.id,
+    name: procedure.name,
+    description: procedure.description,
+    domain: procedure.domain,
+    time: procedure.time,
+    sessionId: procedure.sessionId,
+    ...workspace === undefined ? {} : { workspace },
   }
 }
 
-function managedCapability(record: CapabilityRecord, judged: readonly JudgedExecution[]): ManagedCapability {
-  const current = judged.filter(item => item.execution.revision === record.revision)
-  const lastRunAt = judged.at(-1)?.execution.endedAt
-  return {
-    name: record.name,
-    description: record.description,
-    status: record.status,
-    revision: record.revision,
-    ...record.trustedRevision === undefined ? {} : { trustedRevision: record.trustedRevision },
-    source: record.source,
-    createdAt: record.createdAt,
-    updatedAt: record.updatedAt,
-    files: record.files,
-    ...record.origin === undefined ? {} : { origin: record.origin, impact: impact(record.origin.baseline, judged) },
-    runs: {
-      total: current.length,
-      succeeded: current.filter(item => item.verdict === 'verified' || item.verdict === 'succeeded').length,
-      failed: current.filter(item => item.verdict === 'failed').length,
-      ...lastRunAt === undefined ? {} : { lastRunAt },
-    },
-  }
+function managedProcedureDetail(procedure: LearnedProcedure, workspaces: ReadonlyMap<string, string>): ManagedProcedureDetail {
+  return { ...managedProcedure(procedure, workspaces), summary: procedure.summary, content: procedure.content }
 }

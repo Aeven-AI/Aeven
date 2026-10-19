@@ -97,6 +97,13 @@ useSkill(request: Parameters<MemoryProvider['useSkill']>[0]): Promise<MemorySkil
 list(request: Parameters<MemoryProvider['list']>[0]): Promise<MemoryPage>
 
 /**
+ * List every learned procedure of the owner, newest first. Copies stored under one name are all listed.
+ * @param request - owner, the workspace whose sessions may see them, and cancellation.
+ * @returns the procedures.
+ */
+async procedures(request: LearnedProceduresRequest): Promise<LearnedProcedure[]>
+
+/**
  * Store one fact the user explicitly asked to be remembered.
  * @param request - scope and the fact in the user's words.
  * @returns the stored memory's id.
@@ -133,7 +140,7 @@ Source: [`packages/memory/memory/src/index.ts`](../../packages/memory/memory/src
 
 ### `ctx.memoryManagerController` — `MemoryManagerController`
 
-The signed-in user's memories and learned capabilities.
+The signed-in user's memories, standing facts, and learned procedures.
 
 ```ts cordis-catalog
 /**
@@ -188,57 +195,25 @@ The signed-in user's memories and learned capabilities.
 @Remote removeInvariant(id: InvariantId): ManagedInvariantChange
 
 /**
- * List the caller's learned capabilities with the run counts of their current revisions.
- * @returns capabilities sorted by name.
+ * List the caller's learned procedures, newest first, one per name.
+ * @returns the procedures without their text, or `available: false` when no memory provider runs.
  */
-@Remote async capabilities(): Promise<ManagedCapability[]>
+@Remote async procedures(): Promise<ManagedProceduresPage>
 
 /**
- * Read one of the caller's capabilities with its procedure, history, and executions.
- * @param name - capability name.
- * @returns the capability, or undefined when the caller has none by that name.
+ * Read one of the caller's learned procedures with its condensed and full text.
+ * @param id - memory id of the procedure.
+ * @returns the procedure, or undefined when the caller has no such procedure.
  */
-@Remote async capability(name: string): Promise<ManagedCapabilityDetail | undefined>
+@Remote async procedure(id: MemoryItemId): Promise<ManagedProcedureDetail | undefined>
 
 /**
- * Replace the description and procedure of one of the caller's capabilities. A trusted capability
- * whose procedure changes must verify the new revision before it is trusted again.
- * @param name - capability name.
- * @param edit - new description and procedure.
- * @returns the updated capability.
+ * Replace the condensed procedure memory recall delivers for one of the caller's learned procedures.
+ * @param id - memory id of the procedure.
+ * @param summary - the corrected condensed procedure, without the procedure's name.
+ * @returns the updated procedure, or undefined when the caller has no such procedure.
  */
-@Remote async editCapability(name: string, edit: ManagedCapabilityEdit): Promise<ManagedCapabilityDetail>
-
-/**
- * Retire one of the caller's capabilities, or put a retired or unconfirmed one in use; its evidence
- * then decides between learned, trusted, needs-validation, and degraded.
- * @param name - capability name.
- * @param status - `retired` or `learned`.
- * @returns the updated capability.
- */
-@Remote async setCapabilityStatus(name: string, status: ManagedCapabilityStatusChange): Promise<ManagedCapabilityDetail>
-
-/**
- * Delete one of the caller's capabilities with its files and history.
- * @param name - capability name.
- * @returns true when a capability was deleted.
- */
-@Remote deleteCapability(name: string): Promise<boolean>
-
-/**
- * List the revisions of one of the caller's capabilities that are still kept, oldest first.
- * @param name - capability name.
- * @returns one entry per kept revision, each with the procedure it held.
- */
-@Remote capabilityVersions(name: string): Promise<CapabilityVersion[]>
-
-/**
- * Restore one kept revision of a capability as its new revision.
- * @param name - capability name.
- * @param revision - revision whose procedure to restore.
- * @returns the capability at its restored revision.
- */
-@Remote async rollbackCapability(name: string, revision: number): Promise<ManagedCapabilityDetail>
+@Remote async editProcedure(id: MemoryItemId, summary: string): Promise<ManagedProcedureDetail | undefined>
 ```
 
 Source: [`packages/memory/api-memory-manager/src/index.ts`](../../packages/memory/api-memory-manager/src/index.ts)
