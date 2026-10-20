@@ -41,6 +41,6 @@ Ghidra's release archive carries a native decompiler under `os/linux_x86_64` onl
 ## Consequences
 
 - Enabling the skill installs behind the settings page, so the first request after it already has the tools. A machine whose Ghidra and JDK certify downloads only the REA package.
-- A setup failure is visible only in the Host log, not in the conversation, so the transcript does not tell a person that the tools are unavailable or why.
+- Settings shows installation progress beside the skill switch. A failure opens its reason from a warning button and offers an explicit retry that bypasses the automatic retry delay; setup does not add conversation messages.
 - On darwin/arm64 the release archive ships no decompiler, so setup builds one from the sources the archive carries and therefore needs the Xcode command line tools; without them it fails with that reason rather than after the download.
 - Enabling the skill downloads about 770 MB where no certifying engine exists, and nothing at all where Ghidra is already installed. Disabling it does not cancel a download already running.

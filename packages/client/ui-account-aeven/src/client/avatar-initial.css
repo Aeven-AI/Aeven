@@ -6,6 +6,14 @@
    doubled `.initial` reach that sheet's markup and outrank it wherever it lands
    in the cascade. Engines without text-box trimming keep the measured padding
    fallback: half a pixel of drift at 40px, scaling with the 45cqh font. */
+/* The vendored sheet draws the disc black; the avatar sits in the band beside
+   the #222 controls, so its fill matches theirs and only the white glyph
+   separates the two. Doubled here for the same reach as the trim below. */
+.avatar .image-container .image.image,
+.avatar .image-container .initial.initial {
+  background-color: #222222;
+}
+
 .avatar .image-container .initial.initial {
   padding-top: 0.025em;
 }

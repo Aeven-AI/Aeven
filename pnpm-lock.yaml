@@ -2265,6 +2265,12 @@ importers:
       '@aeven/media-aeven':
         specifier: workspace:^
         version: link:../../media/media-aeven
+      '@aeven/media-deepinfra':
+        specifier: workspace:^
+        version: link:../../media/media-deepinfra
+      '@aeven/media-openrouter':
+        specifier: workspace:^
+        version: link:../../media/media-openrouter
       '@aeven/memory':
         specifier: workspace:^
         version: link:../../memory/memory

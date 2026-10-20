@@ -81,7 +81,7 @@ describe('FontSizeRow', () => {
   })
 
   it('disables the outward arrow at each bound', () => {
-    mount(17)
+    mount(24)
     expect(arrow('Increase font size').disabled).toBe(true)
     expect(arrow('Decrease font size').disabled).toBe(false)
     cleanup()

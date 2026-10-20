@@ -21,6 +21,16 @@ export interface PersonalSkillView {
   files: string[]
   /** `account` for an imported bundle; the discovery source of a connector-owned skill. */
   source: string
+  /** Install progress for a skill whose tools are prepared after it is enabled; absent for skills that need none. */
+  setup?: SkillSetup
+}
+
+/** Progress of the tool installation a heavy skill starts when it is enabled. */
+export interface SkillSetup {
+  /** `installing` while work is running, `ready` once tools answer, `failed` until a retry starts. */
+  state: 'installing' | 'ready' | 'failed'
+  /** Why the last attempt failed; present with `failed` so Settings can say what to fix. */
+  detail?: string | undefined
 }
 
 /** Connector metadata; credentials are never returned. */

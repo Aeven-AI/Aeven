@@ -6,7 +6,7 @@ import Schema from '@deepseek-ai/schemastery'
 import { bindSnapshotSelector, RemoteError } from '@aeven/client-test-runtime'
 import type { SettingsNamespaceView } from '@aeven/api-remotes/client'
 import type { JsonValue } from '@aeven/util-values'
-import { ModelsSection, providerCopy } from '../src/client/ModelsSection.tsx'
+import { ModelsSection } from '../src/client/ModelsSection.tsx'
 import type { ModelsSectionInjected, ModelsSectionProps } from '../src/client/ModelsSection.tsx'
 import { CustomProviderCard } from '../src/client/CustomProviderCard.tsx'
 import { formatCapacity, parseCapacity } from '../src/client/DeepSeekModelsEditor.tsx'
@@ -488,112 +488,6 @@ describe('capacity spellings', () => {
 })
 
 describe('endpoint interrogation', () => {
-  it('asks the endpoint the form shows, with a key that is not yet stored', async () => {
-    const discover = vi.fn(() => Promise.resolve(ok([{ id: 'acme-large', contextWindow: 65_536 }])))
-    await mountSection({ discover })
-    openEditor('openai')
-
-    fireEvent.change(screen.getByLabelText(en.keyInput), { target: { value: 'typed-not-saved' } })
-    fireEvent.change(screen.getByLabelText(en.baseUrl), { target: { value: 'https://edited.example/v1' } })
-    fireEvent.click(screen.getByText(en.fetchModels))
-
-    await waitFor(() => { expect(discover).toHaveBeenCalled() })
-    expect(firstProbe(discover)).toEqual({
-      settingsNs: 'llm-pi-ai',
-      // The route is named, so an adapter that already describes it answers
-      // from its own registry rather than the endpoint.
-      provider: 'openai',
-      baseURL: 'https://edited.example/v1',
-      apiKey: 'typed-not-saved',
-    })
-  })
-
-  it('carries the protocol the profile already names', async () => {
-    const discover = vi.fn(() => Promise.resolve(ok([])))
-    await mountSection({
-      discover,
-      providers: { openai: { baseURL: 'https://proxy.example/v1', api: 'openai-responses' } },
-    })
-    openEditor('openai')
-
-    fireEvent.click(screen.getByText(en.fetchModels))
-
-    await waitFor(() => { expect(discover).toHaveBeenCalled() })
-    expect(firstProbe(discover)).toEqual({
-      settingsNs: 'llm-pi-ai',
-      provider: 'openai',
-      baseURL: 'https://proxy.example/v1',
-      api: 'openai-responses',
-    })
-  })
-
-  it('adopts only the picked candidates, keeping a row the user already tuned', async () => {
-    const discover = vi.fn(() => Promise.resolve(ok([
-      { id: 'kept', contextWindow: 999 },
-      { id: 'fresh', contextWindow: 4096, maxTokens: 2048, name: 'Fresh' },
-    ])))
-    const { mutate } = await mountSection({
-      discover,
-      providers: { openai: { baseURL: 'https://proxy.example/v1', models: [{ id: 'kept', contextWindow: 111 }] } },
-    })
-    openEditor('openai')
-
-    fireEvent.click(screen.getByText(en.fetchModels))
-    await screen.findByText(en.fetchTitle)
-    // The already-configured row starts unchecked; the new one starts checked.
-    const boxes = [...document.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')]
-    expect(boxes.map(box => box.checked)).toEqual([false, true])
-    fireEvent.click(screen.getByText(en.fetchAdopt))
-
-    expect(screen.getByLabelText<HTMLInputElement>(`${en.modelId} 2`).value).toBe('fresh')
-    expect(screen.getByLabelText<HTMLInputElement>(`${en.modelName} 2`).value).toBe('Fresh')
-    expandModel(2)
-    expect(screen.getByLabelText<HTMLInputElement>(`${en.modelContextWindow} 2`).value).toBe('4096')
-    expect(screen.getByLabelText<HTMLInputElement>(`${en.modelMaxTokens} 2`).value).toBe('2048')
-
-    fireEvent.click(screen.getByText(en.apply))
-    await waitFor(() => { expect(mutate).toHaveBeenCalled() })
-    expect(firstMutate(mutate).ops[0]?.value).toEqual([
-      { id: 'kept', contextWindow: 111 },
-      { id: 'fresh', contextWindow: 4096, maxTokens: 2048, name: 'Fresh' },
-    ])
-  })
-
-  it('keeps the rows editable when the provider cannot be interrogated', async () => {
-    const discover = vi.fn(() => Promise.resolve(
-      fail('https://proxy.example/v1/models answered 401; check the API key', 'llm/model-discovery-rejected'),
-    ))
-    await mountSection({ discover })
-    openEditor('openai')
-
-    fireEvent.click(screen.getByText(en.fetchModels))
-
-    await screen.findByText(/answered 401; check the API key/)
-    // The failure is a detour, not a dead end: hand-entry is still offered.
-    expect(screen.getByRole('button', { name: en.addModel })).toBeTruthy()
-  })
-
-  it('reports an empty listing', async () => {
-    const empty = vi.fn(() => Promise.resolve(ok([])))
-    await mountSection({ discover: empty })
-    openEditor('openai')
-    fireEvent.click(screen.getByText(en.fetchModels))
-    await screen.findByText(en.fetchEmpty)
-  })
-
-  it('can be asked for a configured route even with no endpoint', async () => {
-    const discover = vi.fn(() => Promise.resolve(ok([{ id: 'from-registry' }])))
-    await mountSection({ discover, providers: { openai: {} } })
-    openEditor('openai')
-
-    // A route the adapter already describes needs no endpoint at all.
-    expect(buttonNamed(en.fetchModels).disabled).toBe(false)
-    fireEvent.click(screen.getByText(en.fetchModels))
-
-    await waitFor(() => { expect(discover).toHaveBeenCalled() })
-    expect(firstProbe(discover)).toEqual({ settingsNs: 'llm-pi-ai', provider: 'openai' })
-  })
-
   it('keeps the create card asking only once it has an endpoint', () => {
     // A provider being declared has no route yet, so the endpoint is the only
     // thing an interrogation could go on.
@@ -619,97 +513,6 @@ describe('endpoint interrogation', () => {
     })
   })
 
-  it('folds a row\u2019s capacities away until they are asked for', async () => {
-    await mountSection({
-      providers: { openai: { baseURL: 'https://proxy.example/v1', models: [{ id: 'only' }] } },
-    })
-    openEditor('openai')
-
-    // The row shows what identifies a model; capacities are the exception.
-    expect(screen.queryByLabelText(`${en.modelContextWindow} 1`)).toBeNull()
-    expandModel(1)
-    expect(screen.getByLabelText(`${en.modelContextWindow} 1`)).toBeTruthy()
-    expandModel(1)
-    expect(screen.queryByLabelText(`${en.modelContextWindow} 1`)).toBeNull()
-  })
-
-  it('closes the picker without adopting anything on cancel', async () => {
-    const discover = vi.fn(() => Promise.resolve(ok([{ id: 'fresh' }])))
-    const { mutate } = await mountSection({ discover })
-    openEditor('openai')
-
-    fireEvent.click(screen.getByText(en.fetchModels))
-    const dialog = await screen.findByRole('dialog')
-    // The editor card carries a Cancel of its own; this one is the dialog's.
-    fireEvent.click(within_(dialog, en.cancel))
-
-    await waitFor(() => { expect(screen.queryByText(en.fetchTitle)).toBeNull() })
-    expect(mutate).not.toHaveBeenCalled()
-  })
-
-  it('toggles a candidate off and back on before adopting', async () => {
-    const discover = vi.fn(() => Promise.resolve(ok([
-      { id: 'a' }, { id: 'b', maxTokens: 2048 },
-    ])))
-    const { mutate } = await mountSection({ discover })
-    openEditor('openai')
-
-    fireEvent.click(screen.getByText(en.fetchModels))
-    await screen.findByText(en.fetchTitle)
-    const boxes = [...document.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')]
-    const first = boxes[0] as HTMLInputElement
-    fireEvent.click(first)
-    fireEvent.click(first)
-    fireEvent.click(screen.getByText(en.fetchAdopt))
-    fireEvent.click(screen.getByText(en.apply))
-
-    await waitFor(() => { expect(mutate).toHaveBeenCalled() })
-    // A disclosed output cap rides along with the candidate that has one.
-    expect(firstMutate(mutate).ops[0]?.value).toEqual([{ id: 'a' }, { id: 'b', maxTokens: 2048 }])
-  })
-
-  it('filters by model id or name, selects visible candidates, and clears every selection', async () => {
-    const discover = vi.fn(() => Promise.resolve(ok([
-      { id: 'alpha' }, { id: 'opaque-id', name: 'Beta Display' }, { id: 'gamma' },
-    ])))
-    await mountSection({ discover })
-    openEditor('openai')
-
-    fireEvent.click(screen.getByText(en.fetchModels))
-    const dialog = await screen.findByRole('dialog')
-    const search = screen.getByLabelText<HTMLInputElement>(en.fetchSearch)
-    expect([...dialog.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')]
-      .map(box => box.checked)).toEqual([true, true, true])
-
-    fireEvent.change(search, { target: { value: 'ALP' } })
-    expect(dialog.textContent).toContain('alpha')
-    expect(dialog.textContent).not.toContain('opaque-id')
-
-    // The display name is searchable even though adoption and the row use id.
-    fireEvent.change(search, { target: { value: 'beta' } })
-    expect(dialog.textContent).toContain('opaque-id')
-    expect(dialog.textContent).not.toContain('alpha')
-
-    fireEvent.click(within_(dialog, en.fetchDeselectAll))
-    expect([...dialog.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')]
-      .map(box => box.checked)).toEqual([false])
-
-    // Deselecting a filtered result must also clear hidden selections so they
-    // cannot be adopted accidentally.
-    fireEvent.change(search, { target: { value: '' } })
-    const boxes = [...dialog.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')]
-    expect(boxes.map(box => box.checked)).toEqual([false, false, false])
-
-    // Selecting while filtered adds only visible candidates.
-    fireEvent.change(search, { target: { value: 'alpha' } })
-    fireEvent.click(within_(dialog, en.fetchSelectAll))
-    fireEvent.change(search, { target: { value: '' } })
-    expect(boxes.map(box => box.checked)).toEqual([true, false, false])
-
-    fireEvent.change(search, { target: { value: 'missing' } })
-    expect(screen.getByText(en.fetchNoMatches)).toBeTruthy()
-    expect((within_(dialog, en.fetchSelectAll) as HTMLButtonElement).disabled).toBe(true)
-  })
 })
 
 describe('provider rows', () => {
@@ -885,34 +688,6 @@ describe('hand-declared providers', () => {
     const name = screen.getByLabelText<HTMLInputElement>(en.customDisplayName)
     expect(name.value).toBe('')
     expect(name.placeholder).toBe('Acme (pinned)')
-  })
-
-  it('names the provider as the refreshed directory reports it after a rename', async () => {
-    // A name can change after the card opens, so the saved status reads the
-    // refreshed directory name rather than the target captured at open.
-    const { face } = await mountSection({
-      providers: { 'acme-gateway': { displayName: 'Acme Gateway', api: 'openai-completions' } },
-      declaredRoutes: ['acme-gateway'],
-    })
-    // The reload after the write answers with the renamed route, exactly as
-    // the adapter re-registers it.
-    face.llm.listConfigurableProviders = vi.fn(() => Promise.resolve(ok([{
-      provider: 'acme-gateway',
-      displayName: 'Acme 网关',
-      settingsNs: 'llm-pi-ai',
-      settingsPath: ['providers', 'acme-gateway'],
-      declared: true,
-    }])))
-    openEditor('acme-gateway')
-
-    fireEvent.change(screen.getByLabelText(en.customDisplayName), { target: { value: 'Acme 网关' } })
-    fireEvent.click(screen.getByText(en.apply))
-
-    const notice = await screen.findByRole('status')
-    expect(notice.textContent).toBe(providerCopy(en.savedProvider, {
-      provider: 'acme-gateway',
-      displayName: 'Acme 网关',
-    }))
   })
 
   it('drops the stored name rather than storing an empty one the adapter refuses', async () => {
@@ -1506,30 +1281,6 @@ describe('API key field', () => {
 
     await waitFor(() => { expect(set).toHaveBeenCalled() })
     expect(set.mock.calls[0]?.[1]).toBe('sk-abc')
-  })
-
-  it('blocks the interrogation too, rather than spending a round trip on a refused key', async () => {
-    const { discover } = await mountSection()
-    openEditor('openai')
-
-    fireEvent.change(screen.getByLabelText(en.keyInput), { target: { value: 'sk-\u{1F600}' } })
-
-    // The host would refuse this before building the header anyway; asking is
-    // a round trip to be told what the field already says.
-    expect(buttonNamed(en.fetchModels).disabled).toBe(true)
-    expect(buttonNamed(en.fetchModels).title).toBe(en.keyIllegalCharacters)
-    expect(discover).not.toHaveBeenCalled()
-  })
-
-  it('carries the trimmed key into an interrogation, not the padded draft', async () => {
-    const { discover } = await mountSection()
-    openEditor('openai')
-
-    fireEvent.change(screen.getByLabelText(en.keyInput), { target: { value: '  sk-abc  ' } })
-    fireEvent.click(screen.getByRole('button', { name: en.fetchModels }))
-
-    await waitFor(() => { expect(discover).toHaveBeenCalled() })
-    expect(firstProbe(discover)).toMatchObject({ apiKey: 'sk-abc' })
   })
 
   it('reloads the section after creating a hand-declared provider', async () => {

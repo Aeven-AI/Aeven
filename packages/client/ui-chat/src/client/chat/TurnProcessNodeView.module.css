@@ -9,7 +9,7 @@
   border: none;
   /* Same rule as the Markdown host sheet's hr, so the turn divider and a
      reply's horizontal rules read as one line style. */
-  border-bottom: 2px solid #fff;
+  border-bottom: 2px solid var(--dsw-aeven-rule);
   background: none;
   color: var(--dsw-alias-label-primary);
   cursor: pointer;

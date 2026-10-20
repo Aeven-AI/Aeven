@@ -127,6 +127,12 @@ export interface PiAiProviderProfile {
    */
   modelOverrides?: Record<string, PiAiModelOverride>
   /**
+   * Model ids switched off for selectors. The route keeps serving them — a
+   * Session that already selected one still runs — but the advisory catalog
+   * the model pickers read omits them.
+   */
+  disabledModels?: string[]
+  /**
    * Live model-list refresh for a route whose provider publishes an
    * OpenRouter-style `GET /models` document. Absent, the route serves the
    * installed pi-ai snapshot alone, which lags whatever the provider
@@ -375,6 +381,7 @@ const profile = z.object({
   baseURL: z.string(),
   models: z.array(modelProfile),
   modelOverrides: z.dict(modelOverride),
+  disabledModels: z.array(z.string()),
   catalogRefresh,
   compat: compatProfile,
   defaultContextWindow: z.number().step(1).min(1).default(DEFAULT_CONTEXT_WINDOW),

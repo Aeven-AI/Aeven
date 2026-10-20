@@ -143,6 +143,11 @@
   transition: transform 120ms ease;
 }
 
+/* Dark: the knob stays black on the settings surface, whose ink token is white. */
+:global(body[data-ds-dark-theme]) .thumb {
+  background: #000000;
+}
+
 .switchOn .thumb {
   transform: translateX(16px);
 }

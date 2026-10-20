@@ -30,6 +30,24 @@ export type ModelDiscoveryOutcome =
   /** The interrogation was refused, with the Host's own diagnostic. */
   | { readonly kind: 'refused'; readonly message: string }
 
+/** A media generation kind whose models a provider card lists. */
+export type MediaKind = 'image' | 'video'
+
+/** One media model a provider lists, as the Host catalog carries it. */
+export interface MediaModelView {
+  /** Media provider id; a provider card shows the models whose id matches its route. */
+  readonly provider: string
+  /** The provider's model id, verbatim. */
+  readonly id: string
+  /** Human-readable name where the provider's catalog states one. */
+  readonly label?: string
+}
+
+/** What one media catalog read answered. */
+export type MediaModelsOutcome =
+  | { readonly kind: 'found'; readonly models: readonly MediaModelView[] }
+  | { readonly kind: 'refused'; readonly message: string }
+
 /** The Host operations the Models page and its cards invoke. */
 export interface ModelsOperations {
   /**
@@ -71,12 +89,18 @@ export interface ModelsOperations {
    * @returns the candidates, or the refusal.
    */
   discoverModels(settingsNs: string, request: LlmModelDiscoveryRequest): Promise<ModelDiscoveryOutcome>
+  /**
+   * Read every image or video model the deployment's media providers list.
+   * @param kind - which generation catalog to read.
+   * @returns the models, or the refusal.
+   */
+  listMediaModels(kind: MediaKind): Promise<MediaModelsOutcome>
 }
 
 /**
  * Bind the page's Host operations to the plugin's own Remote namespaces.
  * @param ctx - the page plugin's context, which declares `remote.credentials`,
- * `remote.llm`, and `remote.settings` in its own `inject`.
+ * `remote.llm`, `remote.session`, and `remote.settings` in its own `inject`.
  * @returns the callbacks the section and its cards are injected with.
  */
 export function createModelsOperations(ctx: ClientContext): ModelsOperations {
@@ -103,6 +127,14 @@ export function createModelsOperations(ctx: ClientContext): ModelsOperations {
       const response = await ctx.remote.llm.discoverModels(settingsNs, request)
       return response.ok
         ? { kind: 'found', models: response.value }
+        : { kind: 'refused', message: response.error.message }
+    },
+    listMediaModels: async (kind) => {
+      const response = kind === 'video'
+        ? await ctx.remote.session.videoModelCatalog()
+        : await ctx.remote.session.imageModelCatalog()
+      return response.ok
+        ? { kind: 'found', models: response.value.models }
         : { kind: 'refused', message: response.error.message }
     },
   }

@@ -57,6 +57,7 @@ function catalogued(name: string, displayName: string, downloads: number, catego
 /** Mount the Skills page with stubbed account operations. */
 function mount(view: AccountIntegrationsView, detail?: string, catalog?: SkillCatalogView) {
   const setSkillEnabled = vi.fn().mockResolvedValue(undefined)
+  const retryReverseEngineering = vi.fn().mockResolvedValue(undefined)
   const removeSkill = vi.fn().mockResolvedValue(undefined)
   const showDetail = vi.fn()
   // The page reads no global session or workspace state; the seats only satisfy the slot props.
@@ -72,7 +73,7 @@ function mount(view: AccountIntegrationsView, detail?: string, catalog?: SkillCa
     catalog: () => Promise.resolve(catalog),
     catalogSkillContent: () => Promise.resolve(undefined),
     installCatalogSkill: vi.fn().mockResolvedValue(undefined),
-    showDetail, importSkill: vi.fn().mockResolvedValue(undefined), setSkillEnabled, removeSkill,
+    showDetail, importSkill: vi.fn().mockResolvedValue(undefined), setSkillEnabled, removeSkill, retryReverseEngineering,
     connect: vi.fn(), connectEmail: vi.fn(), updateEmail: vi.fn(), authorize: vi.fn(),
     setConnectorEnabled: vi.fn().mockResolvedValue(undefined), disconnect: vi.fn().mockResolvedValue(undefined),
     startWhatsAppPairing: vi.fn(), whatsAppPairing: vi.fn(), cancelWhatsAppPairing: vi.fn(),
@@ -80,13 +81,13 @@ function mount(view: AccountIntegrationsView, detail?: string, catalog?: SkillCa
     submitTelegramCode: vi.fn(), submitTelegramPassword: vi.fn(), cancelTelegramPairing: vi.fn(),
   }
   render(<IntegrationsSection {...props} />)
-  return { setSkillEnabled, removeSkill, showDetail }
+  return { setSkillEnabled, removeSkill, retryReverseEngineering, showDetail }
 }
 
 describe('the skills library', () => {
   it('lists an account-owned skill with its description', async () => {
     mount({ skills: [imported()], connectors: [], providers: [] })
-    await waitFor(() => { expect(screen.getByText('invoice-checker')).toBeDefined() })
+    await waitFor(() => { expect(screen.getByText('Invoice checker')).toBeDefined() })
     expect(screen.getByText('Checks invoices against the ledger.')).toBeDefined()
     expect(screen.queryByText('You haven’t added any skills yet.')).toBeNull()
   })
@@ -139,7 +140,7 @@ describe('the skills catalog', () => {
     mount(EMPTY_ACCOUNT, 'category:reverse-engineering', CATALOG)
     await waitFor(() => { expect(screen.getByRole('heading', { name: 'Reverse Engineering' })).toBeDefined() })
     expect(screen.getByText('2 skills')).toBeDefined()
-    expect(screen.getByText('leanrea')).toBeDefined()
+    expect(screen.getByText('Leanrea')).toBeDefined()
     expect(screen.queryByText('motion-design')).toBeNull()
   })
 
@@ -152,8 +153,8 @@ describe('the skills catalog', () => {
     const display = await screen.findByRole('button', { name: 'Display' })
     fireEvent.click(display)
     fireEvent.click(await screen.findByText('All'))
-    await waitFor(() => { expect(screen.getByText('alpha-skill')).toBeDefined() })
+    await waitFor(() => { expect(screen.getByText('Alpha skill')).toBeDefined() })
     const text = document.body.textContent ?? ''
-    expect(text.indexOf('alpha-skill')).toBeLessThan(text.indexOf('zeta-skill'))
+    expect(text.indexOf('Alpha skill')).toBeLessThan(text.indexOf('Zeta skill'))
   })
 })

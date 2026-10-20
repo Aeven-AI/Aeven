@@ -278,10 +278,19 @@ export function apply(ctx: Context, config: Config): void {
   // except the stored credential and deployment-owned headers: the curated UI
   // accepts neither, so an already-configured route supplies both inside the
   // Host rather than widening the discovery request.
-  ctx.llm.registerModelDiscovery(NS, (request, signal) => discoverModels(
-    { ...request, ...signal === undefined ? {} : { signal } },
-    () => storedDiscoveryProfile(request.provider),
-  ))
+  ctx.llm.registerModelDiscovery(NS, (request, signal) => {
+    // A configured route asked about as stored answers from what it serves,
+    // installed and refreshed models alike, so the Providers page lists every
+    // model the route offers with its capabilities and no endpoint call. A
+    // draft naming its own endpoint, protocol, or key is still interrogated.
+    const configured = request.provider !== undefined && profiles().has(request.provider)
+      && request.baseURL === undefined && request.api === undefined && request.apiKey === undefined
+    if (configured) return Promise.resolve(adapter.routeModels(request.provider as string))
+    return discoverModels(
+      { ...request, ...signal === undefined ? {} : { signal } },
+      () => storedDiscoveryProfile(request.provider),
+    )
+  })
   // Route effects bind to this apply fiber via the stable `ctx` reference,
   // even when a swap runs inside the scoped settings callback below. A bare
   // mount (zero routes) is the dormant posture: nothing registers until a
@@ -413,6 +422,17 @@ export function apply(ctx: Context, config: Config): void {
       // A widened catalog only reaches selectors once the routes and the
       // directory are rebuilt from the re-resolved profiles.
       rebuildRoutes()
+      // The rebuild re-registers only when route facts change, and added
+      // models change none, so the widened model list is announced here;
+      // without it an open selector keeps the pre-refresh list until reload.
+      try {
+        ctx.emit('llm/adapters-updated')
+      } catch (error) {
+        // Catalog observers are advisory; a broken listener must not reject
+        // this fire-and-forget refresh pass.
+        ctx.logger.warn('llm-pi-ai: an llm/adapters-updated listener failed')
+        ctx.logger.warn(error)
+      }
     }
   }
 
@@ -431,6 +451,14 @@ export function apply(ctx: Context, config: Config): void {
         current = source
       },
       onChange: () => {
+        // A removed route forgets its refreshed models and its attempt, so
+        // adding it again fetches the provider's current list.
+        const routes = new Set(Object.keys(current().providers ?? {}))
+        for (const provider of attempted) {
+          if (routes.has(provider)) continue
+          attempted.delete(provider)
+          liveModels.delete(provider)
+        }
         // A route configuring a refresh usually arrives here rather than at
         // mount: the shipped posture is dormant, and settings supply the
         // profiles. Routes already attempted are skipped inside, and a pass

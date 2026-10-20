@@ -13,15 +13,15 @@
   padding: 0;
   border: none;
   border-radius: 15px;
-  background: var(--dsw-static-neutral-00);
-  color: var(--dsw-static-neutral-1000);
+  background: var(--dsw-aeven-disc);
+  color: var(--dsw-aeven-disc-ink);
   cursor: pointer;
   transition: background var(--ds-transition-duration-fast) var(--ds-ease-in-out);
 }
 
 /* No hover tint, matching the fold control beside it: the pointer cursor and
    the tooltip are the hover affordance, and keyboard focus keeps a visible
-   ring in the label tone, which contrasts with this button's black fill in
+   ring in the label tone, which contrasts with this button's dark fill in
    either theme. */
 .optionsButton:focus-visible {
   outline: 2px solid var(--dsw-alias-label-primary);

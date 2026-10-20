@@ -124,7 +124,7 @@ export function ModelsList({ t, models, busy, onChange }: ModelsListProps) {
         )}
       </div>
       {models.length === 0 ? <p style={bodyStyle}>{t('modelsEmpty')}</p> : (
-        <ul style={listStyle} aria-label={t('models')}>
+        <ul className="no-scrollbar" style={listStyle} aria-label={t('models')}>
           {models.map(model => (
             <li key={model.id}>
               <label style={{ ...rowStyle, cursor: busy ? 'default' : 'pointer' }} title={model.id}>

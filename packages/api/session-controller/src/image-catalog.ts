@@ -12,16 +12,17 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import type { ImageModelCatalog, ImageModelEntry } from './types.ts'
+import type { ImageModelCatalog, ImageModelEntry, VideoModelCatalog } from './types.ts'
 
 // The catalog types live on the `./types` subpath: they cross the remote
 // boundary, and typert requires such types to be reachable from a public
 // non-root type entry rather than only from this module.
-export type { ImageModelCatalog, ImageModelEntry } from './types.ts'
+export type { ImageModelCatalog, ImageModelEntry, VideoModelCatalog } from './types.ts'
 
 /** The part of `ctx.media` this catalog reads. */
 interface ImageModelSource {
   listImageModels(signal?: AbortSignal): Promise<readonly ImageModelEntry[]>
+  listVideoModels(signal?: AbortSignal): Promise<readonly ImageModelEntry[]>
 }
 
 /**
@@ -33,4 +34,15 @@ export async function buildImageModelCatalog(ctx: Context): Promise<ImageModelCa
   const media = ctx.get('media') as unknown as ImageModelSource | undefined
   if (media === undefined) return { models: [] }
   return { models: [...await media.listImageModels()] }
+}
+
+/**
+ * Read every video model the composed providers publish.
+ * @param ctx - Host context that may carry the media seam.
+ * @returns the catalog, empty where no seam or no provider publishes one.
+ */
+export async function buildVideoModelCatalog(ctx: Context): Promise<VideoModelCatalog> {
+  const media = ctx.get('media') as unknown as ImageModelSource | undefined
+  if (media === undefined) return { models: [] }
+  return { models: [...await media.listVideoModels()] }
 }

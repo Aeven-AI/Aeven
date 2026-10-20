@@ -615,6 +615,8 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   GeneratedMedia: 'media.md',
   ImageModelCatalog: 'media.md',
   MediaImageModel: 'media.md',
+  MediaVideoModel: 'media.md',
+  VideoModelCatalog: 'media.md',
   MediaImageProvider: 'media.md',
   MediaImageReference: 'media.md',
   MediaImageRequest: 'media.md',

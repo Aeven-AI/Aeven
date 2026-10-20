@@ -137,6 +137,14 @@
   text-decoration: none;
 }
 
+/* The row's ink, under the pointer too. The boot gate's auth stylesheet states
+   `body a:hover { color: #000 }` for its own screens, and because it loads with
+   every document it outranks this link's inherited ink — a Session title turned
+   black under the pointer in dark. The class pair here outranks that rule. */
+.sessionLink:hover {
+  color: inherit;
+}
+
 @keyframes row-in {
   from {
     opacity: 0;
@@ -397,6 +405,13 @@
   width: auto;
   height: var(--dsw-aeven-control-size);
   padding-right: 24px;
+}
+
+/* No hover ink of its own: the boot gate's `body a:hover { color: #000 }` loads
+   with every document and would turn the New Session mark black under the
+   pointer in dark, where the row's ink is #fff. */
+.trailingAction:hover {
+  color: inherit;
 }
 
 /* A row action's lucide glyph: the sidebar's own 18px grapheme, drawn at the

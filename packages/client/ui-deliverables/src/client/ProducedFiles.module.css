@@ -73,6 +73,12 @@
   font-weight: 500;
 }
 
+/* Dark: the header rules are the #333 divider, not the #111 base fill. */
+:global(body[data-ds-dark-theme]) .table th {
+  border-top-color: #333333;
+  border-bottom-color: #333333;
+}
+
 .table th:first-child {
   width: 40%;
 }

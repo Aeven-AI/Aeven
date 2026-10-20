@@ -28,7 +28,7 @@ kind: "package-reference"
 
 `choices` 是可选模型的完整集合，每项都指明自己的 Provider。它非空时，选择器、`/image-model` 命令以及调用指明的模型都限于该列表，因此列表之外的模型会在任何生成之前被拒绝。内置 Preset 列出 `Aeven-1.0-Image-Flash` 与 `Aeven-1.0-Image-Pro`，默认 Flash，并设置 `confirmModel: false`，因此首次生成不经询问直接使用 Flash，`/image-model` 用于更改已存储的选择：不带参数的行会打开选择器，而 `/image-model <provider>/<model>`（或恰好只有一个可选模型使用的模型 id）会直接存储该模型。
 
-`listedProviders` 指定一些媒体 Provider，它们自己的图像模型列表会排在 `choices` 之后提供。该列表在每次调用时读取，因此选择器、`/image-model` 与调用校验会跟随在运行时变化模型的 Provider。内置 Preset 指定 `grok-subscription` 与 `codex-subscription`，它们的图像模型在订阅已登录、且该模型在 设置 → 提供方 中开启时被列出。
+`listedProviders` 指定一些媒体 Provider，它们自己的模型列表会排在 `choices` 之后提供，图像与 `video` 皆然；`disabledModels`（`provider/model` 引用）移除在 设置 → 提供方 中关闭的列出模型。该列表在每次调用时读取，因此选择器、`/image-model`、`/video-model` 与调用校验会跟随在运行时变化模型的 Provider。内置 Preset 指定 `grok-subscription` 与 `codex-subscription`，它们的图像模型在订阅已登录、且该模型开启时被列出；以及 `deepinfra` 与 `openrouter`，其图像与视频模型在已存储该提供方密钥时被列出。
 
 挂载两个图像 Provider 的部署需要固定其一，或在此处、或作为 Seam 的 `imageProvider`：选择存在歧义时，Seam 会报错而不是猜测。
 

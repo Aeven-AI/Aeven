@@ -26,7 +26,9 @@ import { SessionMediaReferences } from './media-references.ts'
 import { registerFileReadRoute, registerFileUploadRoutes, registerImageReadRoute } from './file-uploads.ts'
 import { ApiSessionList } from './list.ts'
 import { buildModelCatalog } from './catalog.ts'
-import { buildImageModelCatalog, type ImageModelCatalog } from './image-catalog.ts'
+import {
+  buildImageModelCatalog, buildVideoModelCatalog, type ImageModelCatalog, type VideoModelCatalog,
+} from './image-catalog.ts'
 import { installModelSelectionProjection } from './model-selection-projection.ts'
 import { SessionSkillCatalog } from './skill-catalog.ts'
 import type {
@@ -308,6 +310,15 @@ The user's account display name is ${JSON.stringify(source.clientDisplayName)}.
   @Remote('imageModelCatalog')
   imageModelCatalog(): Promise<ImageModelCatalog> {
     return buildImageModelCatalog(this.ctx)
+  }
+
+  /**
+   * Describe every video model this deployment can generate with.
+   * @returns the models in provider registration order; empty where no media seam is composed.
+   */
+  @Remote('videoModelCatalog')
+  videoModelCatalog(): Promise<VideoModelCatalog> {
+    return buildVideoModelCatalog(this.ctx)
   }
 
   /**

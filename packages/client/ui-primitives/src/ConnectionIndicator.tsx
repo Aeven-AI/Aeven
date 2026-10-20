@@ -12,7 +12,9 @@ export type ConnectionIndicatorState =
  * Render the connection-recovery toast: a floating card centered at the top of
  * the viewport, portaled to `document.body` so no sidebar or transformed
  * ancestor clips it. Outage and retry states carry an immediate-reconnect
- * action; every state carries a dismiss button.
+ * action; every state carries a dismiss button. The state glyph and the
+ * dismiss control each sit in a 30px disc of the base surface, and the
+ * trailing controls hold the toast's end.
  * @param props.state - visible outage, retry-attempt, or recovered state.
  * @param props.disconnectedLabel - localized outage text.
  * @param props.reconnectLabel - localized reconnect action text.
@@ -74,19 +76,21 @@ export function ConnectionIndicator({
           </>
         )}
       </span>
-      {!recovered && (
-        <button
-          type="button"
-          className={css.action}
-          aria-label={connecting ? restartActionLabel : reconnectActionLabel}
-          onClick={onReconnect}
-        >
-          {reconnectLabel}
+      <span className={css.end}>
+        {!recovered && (
+          <button
+            type="button"
+            className={css.action}
+            aria-label={connecting ? restartActionLabel : reconnectActionLabel}
+            onClick={onReconnect}
+          >
+            {reconnectLabel}
+          </button>
+        )}
+        <button type="button" className={css.dismiss} aria-label={dismissLabel} onClick={onDismiss}>
+          <IconCloseOutline16 size={14} />
         </button>
-      )}
-      <button type="button" className={css.dismiss} aria-label={dismissLabel} onClick={onDismiss}>
-        <IconCloseOutline16 size={14} />
-      </button>
+      </span>
     </div>,
     document.body,
   )

@@ -71,6 +71,14 @@ body {
   --dsw-aeven-surface: rgb(255, 255, 255);
   --dsw-aeven-well: rgb(242, 242, 242);
   --dsw-aeven-raised: rgb(235, 235, 235);
+  /* The band's self-painted discs — the sidebar fold, the options control, and
+     the account avatar — carry one fill and one glyph in each scheme, so they
+     read over whatever the transcript scrolls under them. */
+  --dsw-aeven-disc: var(--dsw-aeven-surface);
+  --dsw-aeven-disc-ink: var(--dsw-aeven-ink);
+  /* The transcript's own rules — a reply's horizontal rules, the turn divider
+     under a run's timing, and the scroll-to-end pill — draw one line colour. */
+  --dsw-aeven-rule: var(--dsw-aeven-surface);
 
   --dsw-alias-bg-base: var(--dsw-aeven-well);
   --dsw-alias-bg-layer-1: var(--dsw-aeven-surface);
@@ -233,14 +241,17 @@ body:not([data-ds-dark-theme]) [data-chat-flow] {
 
 body[data-ds-dark-theme] {
   --dsw-alias-bg-base: #111111;
-  --dsw-alias-bg-layer-1: #1a1a1a;
+  --dsw-alias-bg-layer-1: #222222;
+  --dsw-aeven-disc: #222222;
+  --dsw-aeven-disc-ink: #ffffff;
+  --dsw-aeven-rule: #222222;
   --dsw-alias-bg-layer-2: #1e1e1e;
   --dsw-alias-bg-layer-3: rgb(36, 36, 36);
   --dsw-alias-bg-module-platform: rgb(18, 18, 18);
   --dsw-alias-bg-multi-select: #1a1a1a;
-  --dsw-alias-label-primary: rgb(245, 245, 245);
+  --dsw-alias-label-primary: #ffffff;
   --dsw-alias-label-primary-dimmed: rgb(205, 205, 205);
-  --dsw-alias-label-secondary: rgb(190, 190, 190);
+  --dsw-alias-label-secondary: #ffffff;
   --dsw-alias-label-tertiary: rgb(165, 165, 165);
   --dsw-alias-brand-primary: rgb(245, 245, 245);
   --dsw-alias-brand-primary-invert: rgb(245, 245, 245);
@@ -251,9 +262,9 @@ body[data-ds-dark-theme] {
   --dsw-alias-state-business-tertiary: rgb(44, 44, 44);
 
   --dsw-tint-menu: rgba(36, 36, 36, 0.7);
-  --dsw-tint-surface-fade: rgba(0, 0, 0, 0.6);
-  --dsw-tint-layer-1-58: rgba(26, 26, 26, 0.58);
-  --dsw-tint-layer-1-75: rgba(26, 26, 26, 0.75);
+  --dsw-tint-surface-fade: rgba(17, 17, 17, 0.6);
+  --dsw-tint-layer-1-58: rgba(34, 34, 34, 0.58);
+  --dsw-tint-layer-1-75: rgba(34, 34, 34, 0.75);
   --dsw-tint-business-08: rgba(245, 245, 245, 0.08);
   --dsw-tint-business-10: rgba(245, 245, 245, 0.1);
   --dsw-tint-business-12: rgba(245, 245, 245, 0.12);
@@ -281,17 +292,17 @@ body[data-ds-dark-theme] {
   --dsw-blend-error-surface: rgb(72, 39, 39);
   --dsw-blend-error-surface-soft: rgb(50, 32, 32);
   --dsw-blend-decoding-ttft: rgb(94, 76, 115);
-  --dsw-specific-bubble: #1a1a1a;
-  --dsw-specific-input-major: #1a1a1a;
+  --dsw-specific-bubble: #222222;
+  --dsw-specific-input-major: #222222;
   --dsw-specific-menu: rgb(36, 36, 36);
   /* The same rim on the dark palette, at the alpha its hairlines use. */
-  --dsw-specific-popup-highlight: rgba(255, 255, 255, 0.08);
+  --dsw-specific-popup-highlight: #ffffff05;
   --dsw-specific-selector: rgb(36, 36, 36);
-  --dsw-specific-sidebar-fill: #1a1a1a;
+  --dsw-specific-sidebar-fill: #222222;
   --dsw-specific-sidebar-nav-item-active-accent: transparent;
   --dsw-specific-sidebar-nav-item-active: transparent;
   --dsw-alias-markdown-code-block-banner: rgb(36, 36, 36);
-  --dsw-alias-markdown-code-block: #1a1a1a;
+  --dsw-alias-markdown-code-block: #222222;
   --dsw-alias-markdown-inline-code: rgb(44, 44, 44);
-  --dsw-alias-markdown-inline-code-text: rgb(165, 165, 165);
+  --dsw-alias-markdown-inline-code-text: #888888;
 }

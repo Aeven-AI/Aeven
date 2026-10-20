@@ -20,8 +20,8 @@ describe('Settings theme token contracts', () => {
     expect(String(secondaryButtonStyle.borderColor)).toContain('--dsw-alias-border-l3')
   })
 
-  it('draws the card like the Plugins card, open and closed', () => {
-    expect(foldoutStyle(false)).toMatchObject({ borderRadius: 16, background: 'var(--dsw-alias-bg-layer-3)' })
+  it('fills the card with the panel surface, open and closed', () => {
+    expect(foldoutStyle(false)).toMatchObject({ borderRadius: 16, background: 'var(--dsw-alias-bg-layer-2)' })
     expect(foldoutStyle(true)).toMatchObject({
       background: 'var(--dsw-alias-bg-layer-2)',
       borderColor: 'var(--dsw-alias-label-dimmed)',

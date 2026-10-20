@@ -19,12 +19,50 @@
   padding: 0;
   border: none;
   background: none;
+  outline: none;
+}
+
+/* The disc is the control, so no ring is drawn around it in either scheme. */
+.trigger:focus-visible {
+  outline: none;
+}
+
+/* The band's disc is #222 with the letter in white; the one inside the popup
+   sits on the popup's own surface and takes the deeper #111. */
+.trigger :global(.avatar .image-container .image.image),
+.trigger :global(.avatar .image-container .initial.initial) {
+  background-color: #222222;
+}
+
+.popover :global(.avatar .image-container .image.image),
+.popover :global(.avatar .image-container .initial.initial) {
+  background-color: #111111;
 }
 
 .popover {
   position: absolute;
   top: 100%;
   right: 0;
+}
+
+/* Keep the original menu layout; dark mode uses the composer popup's surface. */
+:global(body[data-ds-dark-theme]) .mount .popover :global(.tippy-box[data-theme='menu'] .tippy-content) {
+  background: var(--dsw-tint-menu);
+  border-radius: var(--dsw-aeven-radius-surface);
+  backdrop-filter: blur(4px);
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
+  box-shadow:
+    inset 1px 1px 0 0 var(--dsw-specific-popup-highlight),
+    inset 0 0 1px 1px var(--dsw-specific-popup-highlight),
+    var(--dsw-elevation-prominent);
+}
+
+:global(body[data-ds-dark-theme]) .mount .popover :global(.profile-overview),
+:global(body[data-ds-dark-theme]) .mount .popover :global(.menu-button),
+:global(body[data-ds-dark-theme]) .mount .popover :global(.menu-button .txt),
+:global(body[data-ds-dark-theme]) .mount .popover :global(.menu-button .icon svg),
+:global(body[data-ds-dark-theme]) .mount .popover :global(.menu-button .icon-right svg) {
+  color: var(--dsw-alias-label-primary);
 }
 
 /* The picture and the name lead to the account page, so the block is a button.

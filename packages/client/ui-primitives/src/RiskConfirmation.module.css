@@ -3,6 +3,9 @@
   max-height: calc(100vh - 48px);
   max-height: calc(100dvh - 48px);
   overflow: hidden;
+  /* No rim on the card: the shared elevation draws its 0.5px hairline from the
+     stroke color, so a transparent one keeps the soft shadow alone. */
+  --dsw-elevation-stroke-color: transparent;
 }
 
 .confirmationContent {

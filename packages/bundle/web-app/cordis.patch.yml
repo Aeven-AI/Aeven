@@ -768,7 +768,7 @@
 
 # Image and video generation. The seam and its providers stay in the host
 # composition; only the model-facing tools are per-session, and they live in
-# the agent preset beside the other tools. Aeven's own gateway is the one image
+# the agent preset beside the other tools. Aeven's own gateway is the default image
 # and video provider: it serves Aeven-1.0-Image-Flash, Aeven-1.0-Image-Pro,
 # Aeven-1.0-Video-Flash and Aeven-1.0-Video-Pro over the signed-in session, the same credential
 # `llm-aeven` presents, so no vendor key is held here.
@@ -782,6 +782,15 @@
       name: '@aeven/media-aeven'
       config:
         apiUrl: !!js process.env.AEVEN_API_URL ?? 'http://localhost:9000'
+    # DeepInfra's image and video models, listed while a DeepInfra key is
+    # stored (Settings → Providers writes DEEPINFRA_API_KEY); without one the
+    # authenticated catalog read fails and the provider lists nothing.
+    - id: media-deepinfra
+      name: '@aeven/media-deepinfra'
+    # OpenRouter's image and video models, on the same terms with an
+    # OPENROUTER_API_KEY.
+    - id: media-openrouter
+      name: '@aeven/media-openrouter'
 
 # Every session runs the one shipped `aeven` composition, bundled inside
 # `avn-agent-presets`. There is no preset choice: changing what a session can

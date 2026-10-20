@@ -6,6 +6,7 @@ import { basename, delimiter, dirname, join } from 'node:path'
 import { pipeline } from 'node:stream/promises'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@aeven/agent'
+import type { SkillSetup } from './types.ts'
 import { avnHomePath } from '@aeven/home-paths'
 import { createScope } from '@aeven/scope'
 import * as mcp from '@aeven/mcp-client'
@@ -75,8 +76,16 @@ export class ReverseEngineeringRuntime {
   /** When the last setup failed, so later requests do not repeat a multi-minute download. */
   private failedAt: number | undefined
 
-  /** @param ctx - owning Host context; disposal cancels and drains installation. @param config - validated versions and budgets. */
-  constructor(private readonly ctx: Context, private readonly config: ReverseEngineeringConfig) {
+  /**
+   * @param ctx - owning Host context; disposal cancels and drains installation.
+   * @param config - validated versions and budgets.
+   * @param publish - receives every state change, so Settings can show progress beside the skill's switch.
+   */
+  constructor(
+    private readonly ctx: Context,
+    private readonly config: ReverseEngineeringConfig,
+    private readonly publish: (setup: SkillSetup) => void = () => {},
+  ) {
     ctx.effect(() => async () => {
       this.lifecycle.abort(new Error('reverse-engineering runtime disposed'))
       await this.installation?.catch(() => undefined)
@@ -100,6 +109,15 @@ export class ReverseEngineeringRuntime {
    */
   warm(): void {
     this.background('install', () => this.prepareInstallation().then(() => undefined))
+  }
+
+  /**
+   * Start another attempt now, which the failure dialog offers instead of asking a person to toggle the skill again.
+   * Clearing the failure first is what lets the next attempt run inside the retry delay.
+   */
+  retry(): void {
+    this.failedAt = undefined
+    this.warm()
   }
 
   /**
@@ -156,9 +174,12 @@ export class ReverseEngineeringRuntime {
    */
   private background(taskName: 'prepare' | 'install', task: () => Promise<void>): void {
     if (this.failedAt !== undefined && Date.now() - this.failedAt < this.config.retryDelayMs) return
-    void task().catch((error: unknown) => {
+    this.publish({ state: 'installing' })
+    void task().then(() => { this.publish({ state: 'ready' }) }, (error: unknown) => {
       this.failedAt = Date.now()
-      this.ctx.logger('account-integrations').warn(`reverse-engineering ${taskName} failed: ${error instanceof Error ? error.message : String(error)}`)
+      const detail = error instanceof Error ? error.message : String(error)
+      this.publish({ state: 'failed', detail })
+      this.ctx.logger('account-integrations').warn(`reverse-engineering ${taskName} failed: ${detail}`)
     })
   }
 

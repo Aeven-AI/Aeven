@@ -373,8 +373,9 @@
     provider: aeven
     confirmModel: false
     # Each subscription's image model, offered while it is signed in and
-    # switched on in Settings → Providers.
-    listedProviders: [grok-subscription, codex-subscription]
+    # switched on in Settings → Providers, and DeepInfra's and OpenRouter's
+    # image models while that provider's key is stored there.
+    listedProviders: [grok-subscription, codex-subscription, deepinfra, openrouter]
     # `generate_video` and `/video-model`: the configured video models, served
     # by `media-aeven` as gateway jobs over the signed-in Aeven session.
     video:
@@ -392,6 +393,9 @@
       model: Aeven-1.0-Video-Flash
       provider: aeven
       confirmModel: false
+      # DeepInfra's and OpenRouter's video models, offered while that
+      # provider's key is stored in Settings → Providers.
+      listedProviders: [deepinfra, openrouter]
 
 - id: tool-web
   name: '@aeven/tool-web'

@@ -121,9 +121,9 @@
    transparent behind it: the transcript scrolls under the bar, and the glyph
    has to stay legible over whatever is passing beneath.
 
-   Fill and glyph are the two static extremes, so the control reads the same
-   over the light and dark canvases rather than following the layer and label
-   aliases the rest of the bar uses.
+   Fill and glyph are one pair per scheme (`--dsw-aeven-disc`), so the control
+   reads over the transcript beneath it instead of following the layer and
+   label aliases the rest of the bar uses.
 
    Above the fade scrim, which is absolutely positioned in this header and
    would otherwise paint over a control that takes part in the static flow. */
@@ -138,16 +138,16 @@
   padding: 0;
   border: none;
   border-radius: 15px;
-  background: var(--dsw-static-neutral-00);
-  color: var(--dsw-static-neutral-1000);
+  background: var(--dsw-aeven-disc);
+  color: var(--dsw-aeven-disc-ink);
   cursor: pointer;
   transition: background var(--ds-transition-duration-fast) var(--ds-ease-in-out);
 }
 
 /* No hover tint: the pointer cursor and the tooltip are the hover affordance.
    Keyboard focus keeps a visible mark as a ring in the label tone, which
-   contrasts with this button's black fill in either theme; repainting the fill
-   in the accent tint would take the white glyph down with it. */
+   contrasts with this button's dark fill in either theme; repainting the fill
+   in the accent tint would take its glyph down with it. */
 .foldButton:focus-visible {
   outline: 2px solid var(--dsw-alias-label-primary);
   outline-offset: 2px;
@@ -500,6 +500,12 @@
 .widthHandle:hover::after,
 .widthHandle[data-dragging]::after {
   opacity: 1;
+}
+
+/* The rule is drawn for the light surface: 10% black over the dark
+   conversation is invisible, so the dark scheme gives it the divider tone. */
+:global(body[data-ds-dark-theme]) .widthHandle::after {
+  background: #222222;
 }
 
 /* Composer context stack (Figma 9:937): the dock surface, then the input card. */

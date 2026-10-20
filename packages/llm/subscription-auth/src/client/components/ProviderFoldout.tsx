@@ -127,12 +127,24 @@ export function ProviderFoldout(props: ProviderFoldoutProps) {
           <span style={cardNameStyle}>{title}</span>
           <span style={cardDescriptionStyle}>{t(definition.descriptionKey)}</span>
         </span>
-        <span style={statusLabelStyle}>
-          {status === 'signed-in' ? <StateDot state="done" /> : null}
-          {status === 'signing-in' ? <StateDot state="ongoing" /> : null}
-          {status === 'error' ? <StateDot state="error" /> : null}
-          {statusLabel(providerStatus, t)}
-        </span>
+        {/* Signed in is the resting state, so its dot stands alone and the
+            label stays available to assistive technology and on hover. */}
+        {status === 'signed-in'
+          ? (
+            <span style={statusLabelStyle} role="img" aria-label={statusLabel(providerStatus, t)} title={statusLabel(providerStatus, t)}>
+              <StateDot state="done" />
+            </span>
+          )
+          : status === 'signed-out'
+            // Signed out shows nothing: the card's sign-in action says it.
+            ? null
+            : (
+              <span style={statusLabelStyle}>
+                {status === 'signing-in' ? <StateDot state="ongoing" /> : null}
+                {status === 'error' ? <StateDot state="error" /> : null}
+                {statusLabel(providerStatus, t)}
+              </span>
+            )}
         <span style={chevronStyle(open)}><IconChevronDownOutline14 /></span>
       </button>
       {open ? (

@@ -632,7 +632,7 @@ export function JobListAction({ sessionId, useJobs, watchRows, observe, killJob,
       </button>
       {open
         ? createPortal(
-          <ul ref={menuRef} className={css.menu} style={menuPosition ?? { visibility: 'hidden', left: 0, top: 0 }} aria-label={t('list.aria')}>
+          <ul ref={menuRef} className={`${css.menu} no-scrollbar`} style={menuPosition ?? { visibility: 'hidden', left: 0, top: 0 }} aria-label={t('list.aria')}>
             {liveRows.map(item)}
             {settledRows.length > 0
               ? (

@@ -13,7 +13,8 @@ declare module '@deepseek-ai/cordis' {
   interface Events {
     /**
      * The provider topology changed: an adapter registered or unregistered
-     * routes, or the configurable-provider directory gained or lost entries.
+     * routes, the configurable-provider directory gained or lost entries, or
+     * an adapter's model list changed without a route change.
      * This payload-free registry notification fires at each commit point
      * (including registration disposal); consumers re-read `listProviders()`,
      * `listModels()`, or `listConfigurableProviders()` for the new state.
@@ -291,6 +292,10 @@ export interface LlmDiscoveredModel {
   contextWindow?: number
   /** Maximum output tokens, when disclosed. */
   maxTokens?: number
+  /** Accepted request modalities, when the adapter describes the model. */
+  inputModalities?: readonly ModelModality[]
+  /** Whether the model reasons before answering, when the adapter describes it. */
+  reasoning?: boolean
 }
 
 /** One adapter-discovered model; catalog membership is advisory, not request validation. */

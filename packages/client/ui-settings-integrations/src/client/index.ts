@@ -58,6 +58,7 @@ export function apply(ctx: Context): void {
     installCatalogSkill: name => value(remote.installCatalogSkill(name)),
     importSkill: files => value(remote.importSkill(files)),
     setSkillEnabled: (name, enabled) => value(remote.setSkillEnabled(name, enabled)),
+    retryReverseEngineering: () => value(remote.retryReverseEngineering()),
     removeSkill: name => value(remote.removeSkill(name)),
     connect: request => value(remote.connect(request)),
     connectEmail: request => value(remote.connectEmail(request)),

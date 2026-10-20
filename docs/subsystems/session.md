@@ -736,6 +736,12 @@ async inspect( sessionId: SessionId, signal?: AbortSignal, ): Promise<SessionIns
 @Remote('imageModelCatalog') imageModelCatalog(): Promise<ImageModelCatalog>
 
 /**
+ * Describe every video model this deployment can generate with.
+ * @returns the models in provider registration order; empty where no media seam is composed.
+ */
+@Remote('videoModelCatalog') videoModelCatalog(): Promise<VideoModelCatalog>
+
+/**
  * Report whether this deployment can hand a Session workspace path to a native desktop.
  * @returns true when the matching open operation is available.
  */
@@ -845,7 +851,7 @@ async inspect( sessionId: SessionId, signal?: AbortSignal, ): Promise<SessionIns
 @Remote({ mode: 'stream' }) control(signal: AbortSignal): AsyncIterable<SessionControlFrame>
 ```
 
-Types: [ImageModelCatalog](media.md) · [SessionId](core.md) · [SessionInspection](persistence.md) · [SessionSearchRequest](session-query.md)
+Types: [ImageModelCatalog](media.md) · [SessionId](core.md) · [SessionInspection](persistence.md) · [SessionSearchRequest](session-query.md) · [VideoModelCatalog](media.md)
 
 Source: [`packages/api/session-controller/src/index.ts`](../../packages/api/session-controller/src/index.ts)
 

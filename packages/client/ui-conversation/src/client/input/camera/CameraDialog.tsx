@@ -6,6 +6,7 @@
  * component owns only the stream, the countdown, and the recording.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import clsx from 'clsx'
 import {
   Button, IconCloseOutline16, IconLucideCamera, IconLucideSwitchCamera, IconLucideTimer, IconLucideVideo, Modal, Tooltip,
   VideoPlayer,
@@ -230,6 +231,7 @@ export function CameraDialog({ open, onClose, onCapture, onCaptureClip, canRecor
       title={t('camera.title')}
       headless
       width="min(1200px, calc(100vw - 32px))"
+      className={clsx(css.dialog)}
     >
       <div className={css.card}>
         {/* The viewfinder is the card's own top edge, so the close control

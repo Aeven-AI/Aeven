@@ -16,6 +16,7 @@ import type {
   MediaImageRequest,
   MediaImageResult,
   MediaVideoJob,
+  MediaVideoModel,
   MediaVideoProvider,
   MediaVideoRequest,
 } from './types.ts'
@@ -39,6 +40,7 @@ export type {
   MediaImageResult,
   MediaProvider,
   MediaVideoJob,
+  MediaVideoModel,
   MediaVideoProvider,
   MediaVideoRequest,
   MediaVideoStatus,
@@ -154,6 +156,26 @@ export class MediaRuntime extends Service {
       if (provider.listImageModels === undefined) continue
       try {
         listed.push(...await provider.listImageModels(signal))
+      } catch {
+        // An unreachable or unauthorized route contributes no models; the
+        // caller's menu keeps every provider that did answer.
+      }
+    }
+    return listed
+  }
+
+  /**
+   * Every video model the registered providers serve, in registration order,
+   * on the same terms as {@link listImageModels}.
+   * @param signal - cancellation forwarded to every provider.
+   * @returns the models, grouped by provider in registration order.
+   */
+  async listVideoModels(signal?: AbortSignal): Promise<readonly MediaVideoModel[]> {
+    const listed: MediaVideoModel[] = []
+    for (const provider of this.videoProviders.values()) {
+      if (provider.listVideoModels === undefined) continue
+      try {
+        listed.push(...await provider.listVideoModels(signal))
       } catch {
         // An unreachable or unauthorized route contributes no models; the
         // caller's menu keeps every provider that did answer.

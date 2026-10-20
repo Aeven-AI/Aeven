@@ -3,6 +3,12 @@
    floats on the picture. Mask, card radius, elevation, and Escape come from the
    Modal primitive, so this sheet carries only what the camera adds. */
 
+/* No rim on the card: the shared elevation draws its 0.5px hairline from the
+   stroke color, so a transparent one keeps the soft shadow alone. */
+.dialog {
+  --dsw-elevation-stroke-color: transparent;
+}
+
 .card {
   position: relative;
   display: flex;

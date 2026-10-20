@@ -136,6 +136,8 @@
     "@aeven/mcp-client": "workspace:^",
     "@aeven/media": "workspace:^",
     "@aeven/media-aeven": "workspace:^",
+    "@aeven/media-deepinfra": "workspace:^",
+    "@aeven/media-openrouter": "workspace:^",
     "@aeven/memory": "workspace:^",
     "@aeven/memory-memos": "workspace:^",
     "@aeven/message-feedback": "workspace:^",

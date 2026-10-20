@@ -10,7 +10,7 @@
   align-items: center;
   gap: 10px;
   max-width: min(560px, calc(100vw - 32px));
-  padding: 8px 8px 8px 14px;
+  padding: 8px;
   box-sizing: border-box;
   border-radius: var(--dsw-aeven-radius-surface);
   background: var(--dsw-tint-menu);
@@ -19,24 +19,25 @@
   font-size: 0.875rem;
   line-height: 1.375rem;
   white-space: nowrap;
-  --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
-  box-shadow:
-    inset 1px 1px 0 0 var(--dsw-specific-popup-highlight),
-    inset 0 0 1px 1px var(--dsw-specific-popup-highlight),
-    var(--dsw-elevation-prominent);
   transform: translateX(-50%);
   animation: avn-connection-toast-in 160ms ease-out;
 }
 
-.icon {
+/* The state glyph and the dismiss control sit in one 30px disc each, filled
+   with the base surface so the disc inverts against the glass card in both
+   palettes. */
+.icon,
+.dismiss {
   flex: none;
   display: grid;
   place-items: center;
-  width: 14px;
-  height: 14px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--dsw-alias-bg-base);
 }
 
-.warning .icon {
+.icon {
   color: var(--dsw-alias-state-warn-label);
 }
 
@@ -50,45 +51,50 @@
   text-overflow: ellipsis;
 }
 
+/* Trailing controls stay flush with the toast's end when the label stops
+   short of the width ceiling. */
+.end {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
 .action,
 .dismiss {
-  flex: none;
-  display: grid;
-  place-items: center;
-  height: 28px;
   border: none;
-  border-radius: 8px;
   font-family: inherit;
-  font-size: 0.8125rem;
   cursor: pointer;
   transition: background-color 160ms ease-out, color 160ms ease-out;
 }
 
 .action {
+  height: 30px;
   padding: 0 10px;
-  background: var(--dsw-alias-state-warn-tertiary);
-  color: var(--dsw-alias-state-warn-label);
+  border-radius: 15px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-size: 0.875rem;
+  line-height: 1;
 }
 
 .action:hover {
-  background: var(--dsw-blend-warn-surface);
+  background: var(--dsw-alias-interactive-bg-hover);
 }
 
 .action:focus-visible {
-  outline: 2px solid var(--dsw-alias-state-warn-label);
+  outline: 2px solid var(--dsw-alias-label-primary);
   outline-offset: 2px;
 }
 
 .dismiss {
-  width: 28px;
   padding: 0;
-  background: transparent;
-  color: var(--dsw-alias-label-secondary);
+  color: var(--dsw-alias-label-primary);
 }
 
 .dismiss:hover {
   background: var(--dsw-alias-interactive-bg-hover);
-  color: var(--dsw-alias-label-primary);
 }
 
 .dismiss:focus-visible {
