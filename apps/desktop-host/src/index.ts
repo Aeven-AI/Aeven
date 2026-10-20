@@ -267,6 +267,9 @@ function desktopPatches(projectDir: string, allowLinkedPackages: boolean, portFi
       },
     }])
   }
+  // A development host runs over workspace-linked packages that `pnpm run build:client` rewrites in place; without
+  // the bundle watcher the host keeps serving the bytes it read at boot until it restarts.
+  if (allowLinkedPackages) layers.push([{ id: 'client-hmr', disabled: false }])
   layers.push([{ insert: [{
     id: 'desktop-http-frontend', name: '@aeven/host-frontend-static',
     config: { distIndex: join(projectDir, 'node_modules', '@aeven', 'web-frontend', 'dist', 'index.html') },

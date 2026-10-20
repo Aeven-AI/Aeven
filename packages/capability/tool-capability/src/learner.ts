@@ -11,7 +11,7 @@ import { BlockAssembler, createUserMessage } from '@aeven/llm'
 import type { CapabilityOrigin, CapabilityRecord } from '@aeven/capability'
 import type { LearnedProcedure, MemoryDomain, MemoryItemId, MemoryScope } from '@aeven/memory'
 import type { SessionId } from '@aeven/session/types'
-import type { CompletedWork, WorkStep } from './executions.ts'
+import type { CompletedWork, WorkInstruction, WorkStep } from './executions.ts'
 import { forgetLearnedProcedures, LEARNED_DOMAINS, recallLearnedNames, storeLearnedProcedure } from './memory-learning.ts'
 
 /** Learner configuration. */
@@ -126,6 +126,8 @@ The purpose is speed: the next request of this kind must finish in far fewer ste
 
 <user_feedback>, when present, is what the user said after the work. A correction means the procedure must change to avoid what they corrected. A complaint about time means the fast path must cut what took the time.
 
+Lines in <tool_calls> starting "USER (during the work):" are what the user said while the work ran, placed after the calls that preceded them. Each is a requirement of the procedure from its first step: a call that went against one, such as a test run after "no tests", or browser measuring and screenshots after "just make the change", goes under "Avoid", never in the fast path. Repeated complaints or impatience mean the fast path must be far shorter. Tests, browser inspection, screenshots, and measurements belong in the fast path only when the user asked for them.
+
 Name a procedure after the kind of task, not this instance (for example "aeven-client-ui-change", not "rename-clear-history-button"). When an existing procedure covers the same kind of task, even with a different instance, update it: return its exact name and the complete merged procedure, keeping what still holds, fixing what the work showed to be wrong, and folding this instance in as an example. Create a new one only for a different kind of task.`
 
 /** How a memory-store procedure chooses its domain. */
@@ -192,6 +194,8 @@ interface Transcript {
   readonly timing: string
   /** The turn's tool calls, oldest first, bookkeeping excluded. */
   readonly steps: readonly WorkStep[]
+  /** Direct-user messages that arrived while the work ran, rendered between the calls they followed. */
+  readonly instructions: readonly WorkInstruction[]
   /** When the turn started, in epoch milliseconds; the first call's thinking time counts from it. */
   readonly startedAt: number
   /** The turn's final answer, clipped. */
@@ -245,15 +249,29 @@ function timingOf(work: CompletedWork, steps: readonly WorkStep[]): string {
   return `The work took ${seconds(total)} with ${steps.length} tool calls: about ${seconds(total - tools)} the assistant thinking between calls and ${seconds(tools)} running tools.`
 }
 
-function renderSteps(steps: readonly WorkStep[], startedAt: number, max: number, first: number): string[] {
-  return steps.map((step, index) => {
+function instructionLine(instruction: WorkInstruction): string {
+  return `USER (during the work): ${clip(instruction.text, 1_000)}`
+}
+
+function renderSteps(
+  steps: readonly WorkStep[], startedAt: number, max: number, first: number, instructions: readonly WorkInstruction[],
+): string[] {
+  const lines: string[] = []
+  const pending = [...instructions]
+  steps.forEach((step, index) => {
+    while (pending[0] !== undefined && pending[0].at <= step.calledAt) {
+      const instruction = pending.shift()
+      if (instruction !== undefined) lines.push(instructionLine(instruction))
+    }
     const previous = index === 0 ? undefined : steps[index - 1]
     const since = previous === undefined ? startedAt : previous.answeredAt ?? previous.calledAt
     const run = step.answeredAt === undefined ? '' : `, run ${seconds(step.answeredAt - step.calledAt)}`
     // A failed call keeps more of its result, because its error is what recovery advice is written from.
     const limit = step.failed ? Math.max(max, 600) : max
-    return `${first + index + 1}. [think ${seconds(step.calledAt - since)}${run}] ${step.name} ${clip(step.input, limit)}\n   ${step.failed ? 'FAILED' : 'ok'}: ${clip(step.output ?? '(no result)', limit)}`
+    lines.push(`${first + index + 1}. [think ${seconds(step.calledAt - since)}${run}] ${step.name} ${clip(step.input, limit)}\n   ${step.failed ? 'FAILED' : 'ok'}: ${clip(step.output ?? '(no result)', limit)}`)
   })
+  lines.push(...pending.map(instructionLine))
+  return lines
 }
 
 function renderTranscript(transcript: Transcript, steps: readonly string[]): string {
@@ -282,13 +300,14 @@ function renderTranscript(transcript: Transcript, steps: readonly string[]): str
 function boundTranscript(transcript: Transcript, maxInputTokens: number): { readonly text: string; readonly dropped: number } {
   const fits = (text: string): boolean => estimateDistillationTokens(text) <= maxInputTokens
   for (const max of STEP_CLIPS) {
-    const text = renderTranscript(transcript, renderSteps(transcript.steps, transcript.startedAt, max, 0))
+    const text = renderTranscript(transcript, renderSteps(transcript.steps, transcript.startedAt, max, 0, transcript.instructions))
     if (fits(text)) return { text, dropped: 0 }
   }
   let dropped = 0
   const assembled = (): string => {
     const kept = transcript.steps.slice(dropped)
-    const lines = renderSteps(kept, transcript.steps[dropped - 1]?.answeredAt ?? transcript.startedAt, SHORTEST_CLIP, dropped)
+    const since = transcript.steps[dropped - 1]?.answeredAt ?? transcript.startedAt
+    const lines = renderSteps(kept, since, SHORTEST_CLIP, dropped, transcript.instructions)
     return renderTranscript(transcript, dropped === 0 ? lines : [`(${dropped} older tool calls omitted to fit the learning input budget)`, ...lines])
   }
   while (dropped < transcript.steps.length && !fits(assembled())) dropped += 1
@@ -748,6 +767,7 @@ export class CapabilityLearner {
       request: work.request,
       timing: timingOf(work, steps),
       steps,
+      instructions: work.instructions ?? [],
       startedAt: work.startedAt,
       answer: work.answer.slice(0, 4_000),
       ...feedback === undefined ? {} : { feedback: { kind: feedback.kind, text: feedback.text.slice(0, 2_000) } },

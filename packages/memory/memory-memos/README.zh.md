@@ -43,6 +43,7 @@ kind: "package-reference"
 | `classifyTimeoutMs` | `15000` | 一次兜底分类调用的界限 |
 | `candidateTraces` | `20` | Aeven 排序之前 MemOS 为召回排序的轨迹候选数 |
 | `maxTextChars` | `16000` | 一条记忆存储的请求或回复文本的最长值；更长的文本保留开头与结尾，因此它约束 `memory_get` 读回的已学流程 |
+| `learning` | `true` | 在每个关闭的 episode 上运行 MemOS 的学习流水线——奖励评分、策略归纳、世界模型、skill 结晶与反馈；`false` 保留轻量的捕获与召回流水线。覆盖 `config.yaml` 中的 `algorithm.lightweightMemory.enabled` |
 
 领域是轨迹标签（`domain:person`、`domain:project`、`domain:world`）。会话所用的模型在写入已存储摘要的同一个请求中为每个被捕获的轮次归档：承载该轮次助手回复的摘要请求（轻量捕获把整个轮次摘要为一个步骤；完整捕获不给工具子步骤助手文本）同时收到领域规则、会话的项目，以及用户消息所回答的那条回复，因此它的 JSON 答案在 `summary` 旁给出 `domain` 与 `corrects`（[`src/domain.ts`](src/domain.ts)）。当该请求没有走 Host 桥，或它的答案没有给出领域时，改为在捕获之后运行一次简短分类调用。`remember` 直接设置领域，而未打标签的轨迹在没有工作区时捕获算作 `experience`，在工作区内算作 `project`。`world` 分类要求关于工具或环境的可复用操作或事实，而不是关于 Aeven 设计的讨论。MemOS 的 experiences 与 skills 是 `experience`，world models 是 `world`。召回为每条命中读取它的轨迹以取得领域、工作区与摘要：它丢弃在另一个工作区捕获的项目记忆，而 MemOS 检索不会过滤这一点。自动轨迹召回使用已存储的摘要，包括结果标签。显式搜索整条返回轨迹：先已存储的摘要，再是摘要所提炼自的被捕获消息，随后是已存储的工具输入、输出与助手回答。缺少摘要时保留候选片段。轨迹读取保留存储的细节，受[记忆工具的输出限制](../tool-memory/README.zh.md)约束。记忆按已登录用户区分：每个操作都运行在该作用域所属账户的核心上、走该账户自己的数据库，并仍使用 MemOS profile `user-<owner>`，因此召回、捕获与工具从不跨账户。嵌入模型每个进程只加载一次并被每个核心共享；每个打开的核心保留自己的 SQLite 连接、嵌入缓存与后台计时器。
 
@@ -50,7 +51,7 @@ MemOS 核心以 [`@deepseek-ai/memos-local-plugin`](../../../vendor/memos-local-
 
 轮次开始查询先按原样运行。MemOS 会把查询中的长标识符读作硬性资格过滤，只保留逐字包含它的候选，这对标识符查找是对的，对主题查询是错的：粘贴进来的一个会话 id 或 commit hash 否则会返回空，使该轮次没有记忆。当按原样查询的那一轮没有产生可见命中，且查询含有核心能精确确认的 token——包含 `-`、`_`、`:` 或数字的小写 token，长度 16 个字符以上，因此 `long-term-memory` 这类普通复合词也符合条件——提供方在同一截止时间内去掉这些 token 重试一次（[`src/query.ts`](src/query.ts)）。显式搜索保留该标识符，因为在那种场景下它正是重点。
 
-运行时根目录存放可选的 MemOS `config.yaml`（共用的 MemOS 核心 schema）、`data/memos.db` 与 `skills/`。缺少 `config.yaml` 时使用 MemOS 默认值：轻量流水线与本地 `Xenova/all-MiniLM-L6-v2` 嵌入模型，后者在首次使用时下载。自动召回与显式 `memory_search` 走 MemOS 的轮次开始候选路径，以绕过它两秒的相关性 LLM 过滤；MemOS 轻量模式否则会在 `retrieval.llmFilterEnabled` 为 false 时也强制开启该过滤器。显式搜索保留配置的按层结果上限，除非它的工具参数覆盖它们。Aeven 把带纠正标签的轨迹排除在自动召回之外，因为那些轮次并未指明一条可持久保留的规则或它的指称对象；显式搜索仍可把它们作为历史取回。在 `config.yaml` 中设置 `algorithm.lightweightMemory.enabled: false` 会启用策略归纳、世界模型与 skill 结晶；在 Host LLM 桥下，启动与周期性恢复随后保持关闭，因为它们运行在任何会话路由之外。
+运行时根目录存放可选的 MemOS `config.yaml`（共用的 MemOS 核心 schema）、`data/memos.db` 与 `skills/`。缺少 `config.yaml` 时使用 MemOS 默认值，包括本地 `Xenova/all-MiniLM-L6-v2` 嵌入模型，后者在首次使用时下载；由 `learning` 字段而不是 `config.yaml` 在完整流水线与轻量流水线之间选择。自动召回与显式 `memory_search` 走 MemOS 的轮次开始候选路径，以绕过它两秒的相关性 LLM 过滤；MemOS 轻量模式否则会在 `retrieval.llmFilterEnabled` 为 false 时也强制开启该过滤器。显式搜索保留配置的按层结果上限，除非它的工具参数覆盖它们。Aeven 把带纠正标签的轨迹排除在自动召回之外，因为那些轮次并未指明一条可持久保留的规则或它的指称对象；显式搜索仍可把它们作为历史取回。只有当下一条用户消息指出回复所陈述的某个事实是错的时，该轮次的轨迹才被取代；对工作方式的抱怨或重复的指令会让它保持可召回，因为那个轮次往往包含用户自己的指令。在开启 `learning` 并使用 Host LLM 桥时，奖励、归纳与反馈在所属会话的路由上运行，而启动与周期性恢复保持关闭，因为它们运行在任何会话路由之外。
 
 <a id="understand-the-implementation"></a>
 ## 理解实现
