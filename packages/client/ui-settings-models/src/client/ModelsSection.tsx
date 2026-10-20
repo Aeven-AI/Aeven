@@ -12,11 +12,11 @@
  * pushed invalidations or the post-apply reload.
  */
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { SettingsNamespaceView, SettingsPathOpView } from '@aeven/api-remotes/client'
 import {
-  Button, IconPlusOutline16, Modal, ProviderRow as ProviderRowCard, ProviderRowButton, ProviderRowList, SectionHeader,
+  Button, IconPlusOutline16, IconSettingsOutline16, IconTrashOutline16, Modal, SectionHeader,
 } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsRenderSlots } from '@aeven/client-ui-slots'
 // Type-only: pulls this package's SlotMap merge (the two Models child slots).
@@ -27,6 +27,7 @@ import type { ModelsSettingsStore, ProviderRow } from './store.ts'
 import type { ModelsOperations } from './operations.ts'
 import type { SettingsSchemaOperations } from './schema-operations.ts'
 import { ProviderEditor } from './ProviderEditor.tsx'
+import { ProviderModels } from './ProviderModels.tsx'
 import { ProviderPicker } from './ProviderPicker.tsx'
 import type { en } from './locales.ts'
 import styles from './ModelsSection.module.css'
@@ -227,21 +228,18 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
   const [deleteTarget, setDeleteTarget] = useState<EditorTarget | undefined>(undefined)
   const [deleting, setDeleting] = useState(false)
   const [deleteFailure, setDeleteFailure] = useState<string | undefined>(undefined)
-  const [savedTarget, setSavedTarget] = useState<ProviderIdentity | undefined>(undefined)
   const [declaring, setDeclaring] = useState(false)
+  // Counts page reloads, so an open Models block reads its lists again after
+  // whatever pushed the reload: a key change, a route or catalog change, or a
+  // settings write.
+  const reloads = useRef({ rows: state.rows, count: 0 })
+  if (reloads.current.rows !== state.rows) reloads.current = { rows: state.rows, count: reloads.current.count + 1 }
 
-  const announceSaved = (target: ProviderIdentity): void => {
-    // Announced only once the refreshed directory is in the snapshot the
-    // notice reads its name from: an apply can rename the route, and the
-    // target captured when the card opened still carries the old name.
-    void controller.load().then(() => { setSavedTarget(target) })
-  }
-
-  const closeEditor = (changed: boolean, target: ProviderIdentity): void => {
+  const closeEditor = (changed: boolean): void => {
     setEditing(undefined)
     setAdding(false)
     setDeclaring(false)
-    if (changed) announceSaved(target)
+    if (changed) void controller.load()
   }
 
   const closeDelete = (): void => {
@@ -288,17 +286,6 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
     )
   }
 
-  // The saved provider as the directory currently names it. The route id is
-  // what the apply cannot change, so it is what the notice is keyed by; a row
-  // the same apply removed keeps the captured identity, since nothing newer
-  // exists to name it with.
-  const savedRow = savedTarget === undefined
-    ? undefined
-    : state.rows.find(row => row.entry.provider === savedTarget.provider)
-  const savedIdentity = savedRow === undefined
-    ? savedTarget
-    : { provider: savedRow.entry.provider, displayName: savedRow.entry.displayName }
-
   const configured = state.rows.filter(row => row.configured)
   // A dormant keyed profile is added by writing it; a dormant whole-section
   // provider only when its section can switch it on.
@@ -328,107 +315,138 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
   // one whose schema names the protocols one may speak; without it mounted
   // there is nothing to declare and the entry point stays disabled.
   const protocols = protocolChoices(state.namespaces.get('llm-pi-ai'), schema)
+  // The media documents whose `disabledModels` the Models blocks write, where composed.
+  const mediaImage = state.namespaces.get('media')
+  const mediaVideo = state.namespaces.get('media-video')
+  const mediaNamespaces = {
+    ...mediaImage === undefined ? {} : { image: mediaImage },
+    ...mediaVideo === undefined ? {} : { video: mediaVideo },
+  }
+  const refreshKey = String(reloads.current.count)
 
   return (
     <div className={styles['section']}>
       <SectionHeader title={t('title')} description={t('intro')} />
       {!state.writable && state.status === 'ready' ? <p className={styles['notice']}>{t('readOnly')}</p> : null}
-      {savedIdentity === undefined
-        ? null
-        : (
-          <p className={styles['savedNotice']} role="status" aria-live="polite">
-            {providerCopy(t('savedProvider'), savedIdentity)}
-          </p>
-        )}
       {configured.length === 0 && state.status === 'ready'
         ? <p className={styles['empty']}>{t('empty')}</p>
         : null}
-      <div className={configured.length === 0 ? undefined : styles['rows']}>
-        <ProviderRowList>
-          {configured.map((row) => {
-            const target = targetOf(row)
-            const namespace = state.namespaces.get(target.settingsNs)
-            /* v8 ignore next -- the join marks a row configured only when its namespace resolved */
-            if (namespace === undefined) return null
-            const open = !adding && editing?.provider === row.entry.provider
-            const credentialConfigured = row.credential?.configured === true
-            const credentialMissing = !credentialConfigured
-              && row.apiKeyEnv !== undefined
-              && row.credential?.configured === false
-            return (
-              <ProviderRowCard
-                key={row.entry.provider}
-                name={row.entry.displayName}
-                // Only the adapter can tell a hand-declared route from a
-                // shipped one it also has a stored profile for, so the tag
-                // follows its answer and stays off when it gives none.
-                tag={row.entry.declared === true ? t('customTag') : undefined}
-                status={credentialConfigured
-                  ? { tone: 'ok', label: t('credentialConfigured') }
-                  : credentialMissing
-                    ? { tone: 'missing', label: t('credentialMissing') }
-                    : undefined}
-                actions={(
-                  <>
-                    <ProviderRowButton
-                      aria-label={providerCopy(t('editProvider'), target)}
-                      onClick={() => {
-                        setSavedTarget(undefined)
-                        // One card at a time: leaving `declaring` set would show
-                        // the create card beside this editor, and closing either
-                        // one discards the other's draft.
-                        setDeclaring(false)
-                        setAdding(false)
-                        setEditing(open ? undefined : target)
-                      }}
+      {configured.length === 0
+        ? null
+        : (
+          <ul className={styles['foldoutList']}>
+            {configured.map((row) => {
+              const target = targetOf(row)
+              const namespace = state.namespaces.get(target.settingsNs)
+              /* v8 ignore next -- the join marks a row configured only when its namespace resolved */
+              if (namespace === undefined) return null
+              const open = !adding && editing?.provider === row.entry.provider
+              const credentialConfigured = row.credential?.configured === true
+              const credentialMissing = !credentialConfigured
+                && row.apiKeyEnv !== undefined
+                && row.credential?.configured === false
+              const toggle = (): void => {
+                // One card at a time: leaving `declaring` set would show the
+                // create card beside this editor, and closing either one
+                // discards the other's draft.
+                setDeclaring(false)
+                setAdding(false)
+                setEditing(open ? undefined : target)
+              }
+              return (
+                <li key={row.entry.provider} className={styles['foldout']} data-open={open}>
+                  <div className={styles['foldoutHeader']}>
+                    <button
+                      type="button"
+                      className={styles['foldoutToggle']}
+                      aria-expanded={open}
+                      onClick={toggle}
                     >
-                      {t('edit')}
-                    </ProviderRowButton>
+                      <span className={styles['foldoutName']}>
+                        {row.entry.displayName}
+                        {/* Only the adapter can tell a hand-declared route from
+                            a shipped one it also has a stored profile for, so
+                            the tag follows its answer. */}
+                        {row.entry.declared === true ? <span className={styles['foldoutTag']}>{t('customTag')}</span> : null}
+                      </span>
+                      <span className={styles['foldoutDescription']}>
+                        {credentialConfigured
+                          ? t('providerKeyDescription')
+                          : credentialMissing ? t('providerKeyMissingDescription') : t('providerNativeDescription')}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className={styles['foldoutAction']}
+                      aria-label={providerCopy(t('editProvider'), target)}
+                      aria-expanded={open}
+                      title={t('edit')}
+                      onClick={toggle}
+                    >
+                      <IconSettingsOutline16 />
+                    </button>
                     {row.removable
                       ? (
-                        <ProviderRowButton
-                          tone="danger"
+                        <button
+                          type="button"
+                          className={styles['foldoutAction']}
                           aria-label={providerCopy(t('removeProvider'), target)}
+                          title={t('remove')}
                           disabled={!state.writable}
                           onClick={() => {
-                            setSavedTarget(undefined)
                             setDeleteFailure(undefined)
                             setDeleteTarget(target)
                           }}
                         >
-                          {t('remove')}
-                        </ProviderRowButton>
+                          <IconTrashOutline16 />
+                        </button>
                       )
                       : null}
-                  </>
-                )}
-              >
-                {renderSlot(
-                  'settings.models.provider-card',
-                  { provider: row.entry, configured: row.configured, keyConfigured: keyConfiguredOf(row) },
-                  { entryKey: row.entry.settingsNs },
-                )}
-                {open
-                  ? (
-                    <ProviderEditor
-                      provider={target.provider}
-                      displayName={target.displayName}
-                      settingsPath={target.settingsPath}
-                      {...target.declared === true ? { declared: true } : {}}
-                      namespace={namespace}
-                      schema={schema}
-                      operations={operations}
-                      t={t}
-                      readOnly={!state.writable}
-                      onClose={(changed) => { closeEditor(changed, target) }}
-                    />
-                  )
-                  : null}
-              </ProviderRowCard>
-            )
-          })}
-        </ProviderRowList>
-      </div>
+                  </div>
+                  {open
+                    ? (
+                      <div className={styles['foldoutBody']}>
+                        {renderSlot(
+                          'settings.models.provider-card',
+                          { provider: row.entry, configured: row.configured, keyConfigured: keyConfiguredOf(row) },
+                          { entryKey: row.entry.settingsNs },
+                        )}
+                        <ProviderEditor
+                          provider={target.provider}
+                          displayName={target.displayName}
+                          hideTitle
+                          settingsPath={target.settingsPath}
+                          {...target.declared === true ? { declared: true } : {}}
+                          namespace={namespace}
+                          schema={schema}
+                          operations={operations}
+                          t={t}
+                          readOnly={!state.writable}
+                          models={namespace.ns === 'llm-pi-ai'
+                            ? (
+                              <ProviderModels
+                                provider={target.provider}
+                                namespace={namespace}
+                                settingsPath={target.settingsPath}
+                                mediaNamespaces={mediaNamespaces}
+                                refreshKey={refreshKey}
+                                schema={schema}
+                                operations={operations}
+                                t={t}
+                                readOnly={!state.writable}
+                              />
+                            )
+                            : undefined}
+                          onClose={(changed) => { closeEditor(changed) }}
+                        />
+                      </div>
+                    )
+                    : null}
+                </li>
+              )
+            })}
+          </ul>
+        )}
       <div className={styles['addBlock']}>
         {adding
           ? (
@@ -466,13 +484,14 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                     operations={operations}
                     t={t}
                     readOnly={!state.writable}
+                    alwaysShowFooter
                     {...addTarget.switchable === true ? { activate: true } : {}}
                     // Switching a keyed route on without a key would only add
                     // models that fail on first use.
                     {...addTarget.switchable === true && addRow?.credential?.configured !== true
                       ? { credentialRequired: true }
                       : {}}
-                    onClose={(changed) => { closeEditor(changed, addTarget) }}
+                    onClose={(changed) => { closeEditor(changed) }}
                   />
                 )
                 : null}
@@ -513,7 +532,6 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                   className={`${styles['addButton']} ${styles['addButtonPrimary']}`}
                   disabled={addable.length === 0 || !state.writable}
                   onClick={() => {
-                    setSavedTarget(undefined)
                     setDeclaring(false)
                     setAdding(true)
                     setEditing(undefined)
@@ -527,7 +545,6 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                   className={styles['addButton']}
                   disabled={protocols.length === 0 || !state.writable}
                   onClick={() => {
-                    setSavedTarget(undefined)
                     setAdding(false)
                     setEditing(undefined)
                     setDeclaring(true)
@@ -565,9 +582,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
               disabled={deleting}
               onClick={confirmDelete}
             >
-              {deleteTarget === undefined
-                ? ''
-                : providerCopy(deleting ? t('deleting') : t('deleteConfirm'), deleteTarget)}
+              {deleting ? t('deleting') : t('deleteConfirm')}
             </Button>
           </>
         )}

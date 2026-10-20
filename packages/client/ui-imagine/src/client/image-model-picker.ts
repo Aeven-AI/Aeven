@@ -10,9 +10,10 @@
  * The rows are the deployment's configured choices, then every model a
  * `listedProviders` provider currently offers. That merge is derived here from
  * the same two sources the host reads — this client's settings scope and the
- * seam's own image-model catalog — because a subscription's image models
- * appear and disappear with its sign-in state, which no shipped list can
- * carry. The host re-resolves the offered choices when the line arrives and
+ * seam's own model catalog for that kind — because a subscription's image
+ * models appear and disappear with its sign-in state, and a vendor's with its
+ * stored key, which no shipped list can carry. Models switched off in
+ * Settings → Providers (`disabledModels`) are left out. The host re-resolves the offered choices when the line arrives and
  * refuses anything outside them, so this list guides and never authorizes.
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
@@ -31,8 +32,8 @@ import type {} from '@aeven/client-ui-settings/client'
 
 /**
  * Settings namespaces the media tool owns, one per kind. Each document holds
- * the selectable `choices` and the stored `provider`/`model` pair; the image
- * document also holds the `listedProviders`.
+ * the selectable `choices`, the stored `provider`/`model` pair, the
+ * `listedProviders`, and the `disabledModels`.
  */
 const SETTINGS_NAMESPACE = { image: 'media', video: 'media-video' } as const
 
@@ -64,6 +65,8 @@ interface MediaSettings {
   choices?: readonly OfferableModel[]
   /** Media providers whose own listing is offered after `choices`. */
   listedProviders?: readonly string[]
+  /** Listed models switched off in Settings → Providers, as `provider/model` references. */
+  disabledModels?: readonly string[]
 }
 
 /** Stable identity of one provider/model pair. */
@@ -87,6 +90,7 @@ function offeredModels(
   const providers = new Set(settings.listedProviders ?? [])
   if (providers.size === 0) return [...configured]
   const known = new Set(configured.map(identityOf))
+  const disabled = new Set(settings.disabledModels ?? [])
   const extra = listed
     .map(entry => ({
       provider: entry.provider,
@@ -94,7 +98,8 @@ function offeredModels(
       ...entry.label === undefined ? {} : { label: entry.label },
       ...entry.description === undefined ? {} : { description: entry.description },
     }))
-    .filter(model => providers.has(model.provider) && !known.has(identityOf(model)))
+    .filter(model => providers.has(model.provider) && !known.has(identityOf(model))
+      && !disabled.has(`${model.provider}/${model.model}`))
   return [...configured, ...extra]
 }
 
@@ -135,8 +140,9 @@ export function imageModelDecoration(ctx: ClientContext): CommandDecoration {
 }
 
 /**
- * The `/video-model` decoration, offering the configured video models.
- * @param ctx - client root context, carrying the settings scope and the session faces.
+ * The `/video-model` decoration.
+ * @param ctx - client root context, carrying the settings scope, the session
+ * faces, and the remote video-model catalog.
  * @returns the decoration the command surface hangs on the host command.
  */
 export function videoModelDecoration(ctx: ClientContext): CommandDecoration {
@@ -144,8 +150,7 @@ export function videoModelDecoration(ctx: ClientContext): CommandDecoration {
 }
 
 /**
- * One kind's model decoration. Only images read the seam's catalog, because
- * only the image document lists providers whose models come and go.
+ * One kind's model decoration, reading that kind's catalog from the seam.
  * @param ctx - client root context.
  * @param kind - what the picked model generates.
  * @returns the decoration for `/<kind>-model`.
@@ -171,10 +176,11 @@ function modelDecoration(ctx: ClientContext, kind: MediaKind): CommandDecoration
         await ctx.settingsScope.describe().ensure()
         const value = settings.getSnapshot().value
         if (value === undefined) throw new Error(`the ${kind}-model settings are not available on this host`)
-        if (kind === 'video') return rowsOf(offeredModels(value, []), value)
-        const response = await ctx.remote.session.imageModelCatalog()
+        const response = kind === 'video'
+          ? await ctx.remote.session.videoModelCatalog()
+          : await ctx.remote.session.imageModelCatalog()
         if (!response.ok) {
-          throw new Error(`image model catalog failed: ${response.error.code}: ${response.error.message}`)
+          throw new Error(`${kind} model catalog failed: ${response.error.code}: ${response.error.message}`)
         }
         return rowsOf(offeredModels(value, response.value.models), value)
       },

@@ -5,10 +5,10 @@
  * transcript — while `ctx.media` owns which provider serves the call and
  * `ctx.attachments` owns durable storage.
  *
- * For images, the configured `choices`, plus the models the `listedProviders`
- * list at call time, are the whole set of selectable models: the picker,
- * `/image-model`, and a model named in a call are all limited to them. For
- * video, `video.choices` plays the same part for its picker and `/video-model`.
+ * For each kind, the configured `choices`, plus the models the
+ * `listedProviders` list at call time minus the `disabledModels`, are the
+ * whole set of selectable models: the picker, `/image-model` or
+ * `/video-model`, and a model named in a call are all limited to them.
  *
  * Generated images become durable image attachments, and a finished clip a
  * durable file attachment, rather than files or URLs, because a settled tool
@@ -104,6 +104,20 @@ export interface ModelSelection {
    * deployment default from a choice, so the picker asks exactly once.
    */
   modelChosen?: boolean
+  /**
+   * Media providers whose own model listing is offered after `choices`. The
+   * listing is read on every call, so a provider whose models change at
+   * runtime — a subscription whose image model the user switches on or off,
+   * or a vendor whose key is added or removed in Settings → Providers — is
+   * selectable exactly while it lists them.
+   */
+  listedProviders?: string[]
+  /**
+   * Listed models switched off in Settings → Providers, as `provider/model`
+   * references. Only the `listedProviders` additions are filtered: a
+   * configured choice is the deployment's own and stays offered.
+   */
+  disabledModels?: string[]
   /** Largest reference image file one call may read, in bytes. */
   maxReferenceImageBytes?: number
 }
@@ -120,15 +134,7 @@ export interface VideoConfig extends ModelSelection {
 }
 
 /** Config for the image tool, which is also the `media` settings document. */
-export interface ImageConfig extends ModelSelection {
-  /**
-   * Media providers whose own image-model listing is offered after `choices`.
-   * The listing is read on every call, so a provider whose models change at
-   * runtime — such as a subscription whose image model the user switches on or
-   * off in Settings → Providers — is selectable exactly while it lists them.
-   */
-  listedProviders?: string[]
-}
+export type ImageConfig = ModelSelection
 
 /** Config for the media tools: the image tool's fields, and the video tool's under `video`. */
 export interface Config extends ImageConfig {
@@ -159,6 +165,8 @@ const selectionFields = {
   })).default([]),
   confirmModel: z.boolean().default(true),
   modelChosen: z.boolean().default(false),
+  listedProviders: z.array(z.string()).default([]),
+  disabledModels: z.array(z.string()).default([]),
   maxReferenceImageBytes: z.number().step(1).min(1).default(DEFAULT_MAX_REFERENCE_IMAGE_BYTES),
 }
 
@@ -170,14 +178,10 @@ export const VideoConfig: z<VideoConfig> = z.object({
 })
 
 /** Runtime schema for {@link ImageConfig}: the `media` settings document. */
-export const ImageConfig: z<ImageConfig> = z.object({
-  ...selectionFields,
-  listedProviders: z.array(z.string()).default([]),
-})
+export const ImageConfig: z<ImageConfig> = z.object(selectionFields)
 
 export const Config: z<Config> = z.object({
   ...selectionFields,
-  listedProviders: z.array(z.string()).default([]),
   video: VideoConfig,
 })
 
@@ -764,8 +768,10 @@ function installSelection<C extends ModelSelection>(ctx: Context, spec: Selectio
   const offeredChoices = async (settings: C, signal: AbortSignal | undefined): Promise<ImageModelChoice[]> => {
     const configured = settings.choices ?? []
     const known = new Set(configured.map(choice => `${choice.provider}\u0000${choice.model}`))
+    const disabled = new Set(settings.disabledModels ?? [])
     const extra = (await spec.extraChoices(settings, signal))
-      .filter(choice => !known.has(`${choice.provider}\u0000${choice.model}`))
+      .filter(choice => !known.has(`${choice.provider}\u0000${choice.model}`)
+        && !disabled.has(`${choice.provider}/${choice.model}`))
     return [...configured, ...extra]
   }
 
@@ -1024,7 +1030,18 @@ function registerVideoTool(ctx: Context, config: VideoConfig): void {
     namespace: VIDEO_SETTINGS_NAMESPACE,
     schema: VideoConfig,
     base: config,
-    extraChoices: () => Promise.resolve([]),
+    extraChoices: async (settings, signal) => {
+      const listed = new Set(settings.listedProviders ?? [])
+      if (listed.size === 0) return []
+      return (await ctx.media.listVideoModels(signal))
+        .filter(model => listed.has(model.provider))
+        .map(model => ({
+          provider: model.provider,
+          model: model.id,
+          ...model.label === undefined ? {} : { label: model.label },
+          ...model.description === undefined ? {} : { description: model.description },
+        }))
+    },
   })
 
   ctx.tools.register(defineTool({

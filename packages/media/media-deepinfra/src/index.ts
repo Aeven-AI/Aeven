@@ -129,33 +129,47 @@ export function apply(ctx: Context, config: Config): void {
   const route = vendorRoute(ctx, { id, apiKeyEnv, origin: DEEPINFRA_ORIGIN, vendor: VENDOR })
   const call = route.json
 
+  /**
+   * The models DeepInfra's own catalog lists for one generation type.
+   *
+   * The catalog document lists every modality; `type` is what marks the image
+   * and video generators. The OpenAI-shaped listing is not a substitute: it
+   * tags image models `image-gen` and omits models that serve here anyway
+   * (ByteDance/Seedream-5.0-Pro and -4.5 are absent from it). The read is
+   * authenticated, so a deployment holding no key lists nothing.
+   * @param type - the catalog's generation type.
+   * @param signal - cancellation forwarded from the caller.
+   * @returns the non-deprecated models of that type, labelled by their short name.
+   */
+  const catalogModels = async (
+    type: 'text-to-image' | 'text-to-video',
+    signal: AbortSignal | undefined,
+  ): Promise<MediaImageModel[]> => {
+    const payload = await call('/models/list', { method: 'GET' }, signal)
+    const rows = Array.isArray(payload['data']) ? payload['data'] : payload
+    if (!Array.isArray(rows)) return []
+    const models: MediaImageModel[] = []
+    for (const row of rows) {
+      if (typeof row !== 'object' || row === null) continue
+      const entry = row as { model_name?: unknown; type?: unknown; deprecated?: unknown; description?: unknown }
+      if (typeof entry.model_name !== 'string' || entry.model_name === '') continue
+      if (entry.type !== type) continue
+      if (entry.deprecated === true) continue
+      const description = entry.description
+      models.push({
+        provider: id,
+        id: entry.model_name,
+        label: entry.model_name.slice(entry.model_name.lastIndexOf('/') + 1),
+        ...typeof description === 'string' && description !== '' ? { description } : {},
+      })
+    }
+    return models
+  }
+
   const images: MediaImageProvider = {
     id,
     available: route.available,
-    async listImageModels(signal?: AbortSignal): Promise<readonly MediaImageModel[]> {
-      // The catalog document lists every modality; `type` is what marks the
-      // image generators. The OpenAI-shaped listing is not a substitute: it
-      // tags image models `image-gen` and omits models that serve here anyway
-      // (ByteDance/Seedream-5.0-Pro and -4.5 are absent from it).
-      const payload = await call('/models/list', { method: 'GET' }, signal)
-      const rows = Array.isArray(payload['data']) ? payload['data'] : payload
-      if (!Array.isArray(rows)) return []
-      const models: MediaImageModel[] = []
-      for (const row of rows) {
-        if (typeof row !== 'object' || row === null) continue
-        const entry = row as { model_name?: unknown; type?: unknown; deprecated?: unknown; description?: unknown }
-        if (typeof entry.model_name !== 'string' || entry.model_name === '') continue
-        if (entry.type !== 'text-to-image') continue
-        if (entry.deprecated === true) continue
-        const description = entry.description
-        models.push({
-          provider: id,
-          id: entry.model_name,
-          ...typeof description === 'string' && description !== '' ? { description } : {},
-        })
-      }
-      return models
-    },
+    listImageModels: signal => catalogModels('text-to-image', signal),
 
     async generateImage(request: MediaImageRequest, signal?: AbortSignal): Promise<MediaImageResult> {
       if (SEEDREAM_MODELS.has(request.model)) {
@@ -285,5 +299,8 @@ export function apply(ctx: Context, config: Config): void {
   })
 
   ctx.effect(() => ctx.media.registerImageProvider(images), 'media-deepinfra: image provider')
-  ctx.effect(() => ctx.media.registerVideoProvider(video), 'media-deepinfra: video provider')
+  ctx.effect(
+    () => ctx.media.registerVideoProvider({ ...video, listVideoModels: signal => catalogModels('text-to-video', signal) }),
+    'media-deepinfra: video provider',
+  )
 }

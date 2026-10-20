@@ -17,23 +17,11 @@
   color: var(--dsw-alias-state-warn-label);
 }
 
-.savedNotice {
-  margin: 0;
-  font-size: 0.75rem;
-  line-height: 1.125rem;
-  color: var(--dsw-alias-state-success-primary);
-}
-
 .empty {
   margin: 0;
   font-size: 0.875rem;
   line-height: 1.25rem;
   color: var(--dsw-alias-label-tertiary);
-}
-
-.rows {
-  /* Extra air between the title/intro block and the first provider card. */
-  margin: 12px 0 0;
 }
 
 /* `box-sizing` on every control here: the app has no global border-box reset,
@@ -318,8 +306,9 @@
 }
 
 .addCard {
-  border-radius: 12px;
-  background: var(--dsw-alias-bg-module-platform);
+  border: 0.5px solid var(--dsw-alias-label-dimmed);
+  border-radius: 16px;
+  background: var(--dsw-alias-bg-layer-2);
   padding: 14px 16px;
   display: flex;
   flex-direction: column;
@@ -675,4 +664,271 @@ select.input {
   font-size: 0.875rem;
   line-height: 1.25rem;
   text-align: center;
+}
+
+/* Provider cards: the subscription cards' chrome (Settings → Providers →
+   Subscriptions), so both groups on the page read as one component family. An
+   open card reads as the one being worked on through its border alone. */
+.foldoutList {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.foldout {
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: 16px;
+  background: var(--dsw-alias-bg-layer-2);
+  transition: border-color 0.16s;
+}
+
+.foldout[data-open='true'] {
+  border-color: var(--dsw-alias-label-dimmed);
+}
+
+.foldoutHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 6px 10px 6px 0;
+}
+
+.foldoutToggle {
+  flex: 1;
+  min-width: 0;
+  appearance: none;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 6px 8px 16px;
+  border-radius: 12px;
+}
+
+.foldoutToggle:focus-visible,
+.foldoutAction:focus-visible,
+.textButton:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--dsw-alias-border-l3);
+}
+
+.foldoutName {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--dsw-alias-label-primary);
+}
+
+.foldoutTag {
+  padding: 0 6px;
+  border-radius: 6px;
+  background: var(--dsw-alias-interactive-bg-hover);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.foldoutDescription {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.foldoutAction {
+  flex: none;
+  appearance: none;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  /* Lines the icon up with the provider name: the toggle's top padding plus
+     half the gap between the 32px hit area and the name's line box. */
+  margin-top: 2px;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+  transition: color 0.12s;
+}
+
+.foldoutAction:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Disclosed content, ruled off from the header like a subscription card. */
+.foldoutBody {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin: 0 16px;
+  padding: 14px 0 14px;
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+/* Inside a card the editor needs no module chrome of its own. */
+.foldoutBody .editor {
+  background: none;
+  padding: 0;
+  gap: 20px;
+}
+
+.foldoutBody .fieldLabel,
+.foldoutBody .customizedSummary {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  color: var(--dsw-alias-label-primary);
+}
+
+/* The Models block: the subscription cards' list, with chat, image, and video
+   models as groups under one scroll so a provider listing hundreds stays one
+   card tall. */
+.modelsBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.modelsHead,
+.modelsGroupHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modelsTitle {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  color: var(--dsw-alias-label-primary);
+}
+
+.modelsHint {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.modelsSearch {
+  margin: 2px 0 4px;
+}
+
+.modelsScroll {
+  max-height: 420px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.modelsGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.modelsGroupHead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 6px 0;
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.modelsGroupTitle {
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.modelsGroupHead .textButton {
+  margin-left: auto;
+}
+
+.textButton {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.textButton:hover:not(:disabled) {
+  color: var(--dsw-alias-label-primary);
+}
+
+.textButton:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.modelsList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.modelsRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 8px 0;
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
+  cursor: pointer;
+}
+
+.modelsRow[data-locked='true'] {
+  cursor: default;
+}
+
+.modelsCheckbox {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--dsw-alias-label-primary);
+  cursor: inherit;
+}
+
+.modelsName {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capability {
+  display: inline-flex;
+  align-items: center;
+  color: var(--dsw-alias-label-tertiary);
 }

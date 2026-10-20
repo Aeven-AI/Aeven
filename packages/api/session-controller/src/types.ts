@@ -688,5 +688,11 @@ export interface ImageModelCatalog {
   models: ImageModelEntry[]
 }
 
+/** Every video model this deployment can reach, in provider registration order. */
+export interface VideoModelCatalog {
+  /** The models, in the image catalog's entry shape; empty where no media seam is composed. */
+  models: ImageModelEntry[]
+}
+
 /** Application metadata returned by the serving desktop for one file. */
 export type SessionWorkspacePathApplication = NativeFileApplication

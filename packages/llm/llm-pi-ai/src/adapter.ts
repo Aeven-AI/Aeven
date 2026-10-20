@@ -48,6 +48,7 @@ import {
 import type {
   GenerateOptions,
   ImageAttachmentAccess,
+  LlmDiscoveredModel,
   LlmModelInfo,
   LlmProviderInfo,
   LlmResolvedModelInfo,
@@ -271,14 +272,36 @@ export class PiAiAdapter extends LlmAdapter {
   override listModels(provider: string): Promise<readonly LlmModelInfo[]> {
     return Promise.resolve().then(() => {
       const snapshot = this.current()
-      this.profileOf(snapshot, provider)
-      return snapshot.models.getModels(provider).map(model => ({
-        provider,
-        id: model.id,
-        name: model.name,
-        inputModalities: [...model.input],
-      }))
+      const disabled = new Set(this.profileOf(snapshot, provider).disabledModels ?? [])
+      return snapshot.models.getModels(provider)
+        .filter(model => !disabled.has(model.id))
+        .map(model => ({
+          provider,
+          id: model.id,
+          name: model.name,
+          inputModalities: [...model.input],
+        }))
     })
+  }
+
+  /**
+   * Every model one configured route serves, including the ones its profile
+   * switches off for selectors, with the capabilities a configuration surface
+   * shows beside each.
+   * @param provider - a route this adapter owns.
+   * @returns the route's models in catalog order.
+   */
+  routeModels(provider: string): LlmDiscoveredModel[] {
+    const snapshot = this.current()
+    this.profileOf(snapshot, provider)
+    return snapshot.models.getModels(provider).map(model => ({
+      id: model.id,
+      name: model.name,
+      contextWindow: model.contextWindow,
+      maxTokens: model.maxTokens,
+      inputModalities: [...model.input],
+      reasoning: model.reasoning,
+    }))
   }
 
   override resolveModel(

@@ -209,6 +209,7 @@ export class FakeApiClient {
         // No media seam in the fixture composition: the empty catalog is what
         // a deployment without image generation answers.
         imageModelCatalog: () => Promise.resolve(ok({ models: [] })),
+        videoModelCatalog: () => Promise.resolve(ok({ models: [] })),
         list: payload => this.record('session.list', payload, this.onList(payload)),
         modelCatalog: () => Promise.resolve({
           ok: true,

@@ -105,6 +105,11 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the instruction body the skill installs with, or undefined when the deployment mounts no catalog or does not catalogue that name.',
       },
       {
+        signature: '@Remote async retryReverseEngineering(): Promise<void>',
+        description: 'Retry the analysis runtime\'s install after a failure, which Settings offers from the failure dialog.',
+        parameters: [],
+      },
+      {
         signature: '@Remote async installCatalogSkill(name: string): Promise<void>',
         description: 'Install one catalogued skill into the account\'s library.',
         parameters: [{ name: 'name', description: 'catalogued skill name.' }],
@@ -1933,6 +1938,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the models, grouped by provider in registration order.',
       },
       {
+        signature: 'async listVideoModels(signal?: AbortSignal): Promise<readonly MediaVideoModel[]>',
+        description: 'Every video model the registered providers serve, in registration order, on the same terms as listImageModels.',
+        parameters: [{ name: 'signal', description: 'cancellation forwarded to every provider.' }],
+        returns: 'the models, grouped by provider in registration order.',
+      },
+      {
         signature: 'async generateImage(request: MediaImageRequest, signal?: AbortSignal): Promise<MediaImageResult>',
         description: 'Generate one image through the selected image provider.',
         parameters: [{ name: 'request', description: 'the prompt, model, and generation controls; its `provider` names the route to use instead of the configured default.' }, { name: 'signal', description: 'cancellation forwarded to the provider.' }],
@@ -2326,6 +2337,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       {
         signature: '@Remote(\'imageModelCatalog\') imageModelCatalog(): Promise<ImageModelCatalog>',
         description: 'Describe every image model this deployment can generate with.',
+        parameters: [],
+        returns: 'the models in provider registration order; empty where no media seam is composed.',
+      },
+      {
+        signature: '@Remote(\'videoModelCatalog\') videoModelCatalog(): Promise<VideoModelCatalog>',
+        description: 'Describe every video model this deployment can generate with.',
         parameters: [],
         returns: 'the models in provider registration order; empty where no media seam is composed.',
       },
@@ -4480,8 +4497,8 @@ export const EVENT_API: readonly EventApiEntry[] = [
     name: 'llm/adapters-updated',
     mode: 'emit',
     signature: '\'llm/adapters-updated\'(): void',
-    summary: 'The provider topology changed: an adapter registered or unregistered routes, or the configurable-provider directory gained or lost entries.',
-    description: 'The provider topology changed: an adapter registered or unregistered routes, or the configurable-provider directory gained or lost entries. This payload-free registry notification fires at each commit point (including registration disposal); consumers re-read `listProviders()`, `listModels()`, or `listConfigurableProviders()` for the new state. Observer failures are contained and cannot veto the registry mutation.',
+    summary: 'The provider topology changed: an adapter registered or unregistered routes, the configurable-provider directory gained or lost entries, or an adapter\'s model list changed without a route change.',
+    description: 'The provider topology changed: an adapter registered or unregistered routes, the configurable-provider directory gained or lost entries, or an adapter\'s model list changed without a route change. This payload-free registry notification fires at each commit point (including registration disposal); consumers re-read `listProviders()`, `listModels()`, or `listConfigurableProviders()` for the new state. Observer failures are contained and cannot veto the registry mutation.',
     parameters: [],
   },
   {
@@ -6262,7 +6279,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'LlmDiscoveredModel',
-    declaration: 'export interface LlmDiscoveredModel {\n    id: string;\n    name?: string;\n    contextWindow?: number;\n    maxTokens?: number;\n}',
+    declaration: 'export interface LlmDiscoveredModel {\n    id: string;\n    name?: string;\n    contextWindow?: number;\n    maxTokens?: number;\n    inputModalities?: readonly ModelModality[];\n    reasoning?: boolean;\n}',
   },
   {
     name: 'LlmFailure',
@@ -6529,8 +6546,12 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface MediaVideoJob {\n    readonly provider: string;\n    readonly id: string;\n    readonly status: MediaVideoStatus;\n    readonly error?: string;\n    readonly costUsdMicros?: number;\n}',
   },
   {
+    name: 'MediaVideoModel',
+    declaration: 'export interface MediaVideoModel {\n    readonly provider: string;\n    readonly id: string;\n    readonly label?: string;\n    readonly description?: string;\n}',
+  },
+  {
     name: 'MediaVideoProvider',
-    declaration: 'export interface MediaVideoProvider extends MediaProvider {\n    startVideo(request: MediaVideoRequest, signal?: AbortSignal): Promise<MediaVideoJob>;\n    videoStatus(jobId: string, signal?: AbortSignal): Promise<MediaVideoJob>;\n    fetchVideo(jobId: string, signal?: AbortSignal): Promise<GeneratedMedia>;\n}',
+    declaration: 'export interface MediaVideoProvider extends MediaProvider {\n    startVideo(request: MediaVideoRequest, signal?: AbortSignal): Promise<MediaVideoJob>;\n    videoStatus(jobId: string, signal?: AbortSignal): Promise<MediaVideoJob>;\n    fetchVideo(jobId: string, signal?: AbortSignal): Promise<GeneratedMedia>;\n    listVideoModels?(signal?: AbortSignal): Promise<readonly MediaVideoModel[]>;\n}',
   },
   {
     name: 'MediaVideoRequest',
@@ -6842,7 +6863,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'PersonalSkillView',
-    declaration: 'export interface PersonalSkillView {\n    id: SkillViewId;\n    name: string;\n    description: string;\n    enabled: boolean;\n    content: string;\n    files: string[];\n    source: string;\n}',
+    declaration: 'export interface PersonalSkillView {\n    id: SkillViewId;\n    name: string;\n    description: string;\n    enabled: boolean;\n    content: string;\n    files: string[];\n    source: string;\n    setup?: SkillSetup;\n}',
   },
   {
     name: 'PlatformInvocation',
@@ -7797,6 +7818,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type SkillResourceBase = {\n    readonly kind: \'directory\';\n    readonly path: string;\n} | {\n    readonly kind: \'url\';\n    readonly url: string;\n} | {\n    readonly kind: \'opaque\';\n    readonly description: string;\n};',
   },
   {
+    name: 'SkillSetup',
+    declaration: 'export interface SkillSetup {\n    state: \'installing\' | \'ready\' | \'failed\';\n    detail?: string | undefined;\n}',
+  },
+  {
     name: 'SkillSource',
     declaration: 'export type SkillSource = \'project-avn\' | \'project-agents\' | \'runtime\' | \'user-avn\' | \'user-agents\' | \'custom\' | \'bundled\' | (string & {});',
   },
@@ -8555,6 +8580,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'VerifiedWebhookDelivery',
     declaration: 'export interface VerifiedWebhookDelivery<K extends string = string> {\n    readonly kind: K;\n    readonly source: WebhookSourceId;\n    readonly deliveryId: WebhookDeliveryId;\n    readonly event: WebhookEventOf<K>;\n    readonly receivedAt: number;\n}',
+  },
+  {
+    name: 'VideoModelCatalog',
+    declaration: 'export interface VideoModelCatalog {\n    models: ImageModelEntry[];\n}',
   },
   {
     name: 'WebBootBatch',

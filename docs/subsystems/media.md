@@ -82,6 +82,14 @@ registerVideoProvider(provider: MediaVideoProvider): () => void
 async listImageModels(signal?: AbortSignal): Promise<readonly MediaImageModel[]>
 
 /**
+ * Every video model the registered providers serve, in registration order,
+ * on the same terms as {@link listImageModels}.
+ * @param signal - cancellation forwarded to every provider.
+ * @returns the models, grouped by provider in registration order.
+ */
+async listVideoModels(signal?: AbortSignal): Promise<readonly MediaVideoModel[]>
+
+/**
  * Generate one image through the selected image provider.
  * @param request - the prompt, model, and generation controls; its `provider` names the route to use instead of the configured default.
  * @param signal - cancellation forwarded to the provider.

@@ -202,6 +202,18 @@ export interface MediaImageModel {
   readonly description?: string
 }
 
+/** One video model a provider can serve, as its own catalog reports it. */
+export interface MediaVideoModel {
+  /** Provider route id that serves this model. */
+  readonly provider: string
+  /** The provider's model id, verbatim — what a request must name. */
+  readonly id: string
+  /** Human-readable name where the catalog states one; otherwise the id stands alone. */
+  readonly label?: string
+  /** One-line note a menu can show beside the label. */
+  readonly description?: string
+}
+
 /** A provider that generates images. */
 export interface MediaImageProvider extends MediaProvider {
   /**
@@ -253,4 +265,12 @@ export interface MediaVideoProvider extends MediaProvider {
    * @returns the finished clip.
    */
   fetchVideo(jobId: string, signal?: AbortSignal): Promise<GeneratedMedia>
+  /**
+   * Every video model this provider serves.
+   *
+   * Optional on the same terms as {@link MediaImageProvider.listImageModels}.
+   * @param signal - cancellation forwarded from the caller.
+   * @returns the provider's video models.
+   */
+  listVideoModels?(signal?: AbortSignal): Promise<readonly MediaVideoModel[]>
 }

@@ -80,6 +80,7 @@ Each profile may set a `retryPolicy`; omission uses normal mode with five retrie
 | `baseURL` | catalog endpoint | Endpoint of every model on the route |
 | `models` | installed catalog | Replaces the route's catalog wholesale; each entry defaults from the installed model |
 | `modelOverrides` | none | Reshapes individual installed-catalog models without replacing the rest |
+| `disabledModels` | none | Model ids the selectors omit; the route still serves them |
 | `catalogRefresh` | none | Adds models the provider currently publishes but the installed snapshot does not describe |
 | `compat` | catalog detection | Wire-compatibility switches for unrecognized endpoints |
 | `defaultContextWindow` | `262,144` | Capacity fallback for undescribed models |
@@ -101,7 +102,7 @@ A profile's `models` list replaces the route's installed catalog rather than ext
 
 ### Run with reasoning and wire compatibility
 
-The installed catalog is a snapshot regenerated on pi-ai's own cadence, so a route serving it lags whatever the provider currently lists. `catalogRefresh` closes that gap for a provider publishing an OpenRouter-style `GET /models` document: name its `url` (and optionally a `timeoutMs`, default ten seconds) and the route fetches that document once at mount, adds every published model the snapshot does not describe, and re-resolves so the additions reach selectors. Against OpenRouter's live endpoint this takes the route from the 346 models the snapshot ships to 433.
+The installed catalog is a snapshot regenerated on pi-ai's own cadence, so a route serving it lags whatever the provider currently lists. `catalogRefresh` closes that gap for a provider publishing an OpenRouter-style `GET /models` document: name its `url` (and optionally a `timeoutMs`, default ten seconds) and the route fetches that document once at mount, adds every published model the snapshot does not describe, and re-resolves and announces `llm/adapters-updated` so the additions reach open selectors. Against OpenRouter's live endpoint this takes the route from the 346 models the snapshot ships to 433.
 
 The refresh is **additive by contract**: a published entry never replaces an installed one. The snapshot carries hand-tuned `compat` and `thinkingLevelMap` values the document does not express — reasoning dialects, developer-role support, per-level wire spellings — so rewriting an installed entry from the document would silently downgrade models that work today. Correcting an installed model stays `modelOverrides`. An added model declares only what the document implies: its capacities, its accepted modalities, and, when it advertises a reasoning parameter, the OpenRouter reasoning dialect with low/medium/high levels. Everything else is left for a `models` entry to state rather than guessed.
 

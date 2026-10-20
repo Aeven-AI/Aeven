@@ -6,11 +6,12 @@
  * has none. The pi-ai profile records that derivation as `apiKeyEnv` only when
  * a key is entered; a blank key materializes a reference-free profile for
  * provider-native authentication);
+ * a configured route's live Models block (passed in as `models`) follows it;
  * the collapsed 自定义设置 area carries the per-family extras (`baseURL` for
  * both families, DeepSeek's id/name/context-window model catalog, and the
- * display name and wire protocol of a pi-ai route the adapter does not ship —
- * the two fields the create card asked that route for, editable here for the
- * same reason).
+ * display name, wire protocol, and hand-entered or fetched models of a pi-ai
+ * route the adapter does not ship — the fields the create card asked that route for,
+ * editable here for the same reason).
  * Reasoning effort is deliberately absent: it is a per-MODEL capability, and
  * the models under one provider disagree about it, so a provider-scoped
  * control can only be set to a value some of them reject. The composer's
@@ -80,6 +81,14 @@ export interface ProviderEditorProps {
    * write also sets the section's `enabled` field, so the route registers.
    */
   activate?: boolean
+  /** The route's live Models block, shown under the key field of a configured route. */
+  models?: ReactNode
+  /**
+   * Keep Cancel and Apply visible with nothing edited yet. An add card needs
+   * them to commit at all; an open provider card shows them only once a key or
+   * a customized setting is drafted, because its model switches apply at once.
+   */
+  alwaysShowFooter?: boolean
   /** Close the editor; `changed` reports whether an Apply committed. */
   onClose: (changed: boolean) => void
 }
@@ -153,6 +162,7 @@ function refFor(
 export function ProviderEditor(props: ProviderEditorProps): ReactNode {
   const { namespace, schema, settingsPath, operations, t } = props
   const [draft, setDraft] = useState<Record<string, unknown>>(() => draftAt(schema, namespace, settingsPath))
+  const [baseline] = useState(() => JSON.stringify(draftAt(schema, namespace, settingsPath)))
   const [keyDraft, setKeyDraft] = useState('')
   const [keyState, setKeyState] = useState<CredentialInfo | undefined>(undefined)
   const [busy, setBusy] = useState(false)
@@ -233,6 +243,7 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
     ...probeApi === undefined ? {} : { api: probeApi },
     ...keyValue.length === 0 ? {} : { apiKey: keyValue },
   }
+  const dirty = keyDraft.length > 0 || JSON.stringify(draft) !== baseline
   /**
    * The write for this card, or a failure message. Every edit travels as
    * path ops against the STORED section: the draft comes from the redacted
@@ -374,6 +385,7 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
           />
           {shownKeyFailure === undefined ? null : <p className={styles['error']}>{t(shownKeyFailure)}</p>}
         </div>
+        {props.models}
         <details className={styles['customized']}>
           <summary className={styles['customizedSummary']}>{t('customized')}</summary>
           <div className={styles['customizedBody']}>
@@ -445,9 +457,9 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
                 </div>
               )
               : null}
-            {/* Both families edit the same rows through the same contract; only
-                the extras differ — DeepSeek's inherited capacities, pi-ai's
-                endpoint interrogation. */}
+            {/* DeepSeek's catalog is its own section; a declared pi-ai route's
+                models are entered by hand or fetched from its endpoint, while a
+                catalog route's models are the Models block's switches. */}
             {family === 'deepseek'
               ? (
                 <DeepSeekModelsEditor
@@ -458,14 +470,16 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
                   defaultMaxTokens={typeof defaultMaxTokens === 'number' ? defaultMaxTokens : undefined}
                 />
               )
-              : (
-                <ModelListEditor
-                  {...catalogProps}
-                  probe={probe}
-                  probeBlocked={keyFailure}
-                  operations={operations}
-                />
-              )}
+              : ownsIdentity
+                ? (
+                  <ModelListEditor
+                    {...catalogProps}
+                    probe={probe}
+                    probeBlocked={keyFailure}
+                    operations={operations}
+                  />
+                )
+                : null}
           </div>
         </details>
       </>
@@ -495,18 +509,22 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
             {`${t('model')} ${String(modelFailure.index + 1)}: ${t(modelFailure.key)}`}
           </p>
         )}
-      <EditorFooter
-        t={t}
-        busy={busy}
-        submitDisabled={disabled || layout === 'unknown'
-          || modelFailure !== undefined
-          || shownKeyFailure !== undefined
-          || (props.credentialRequired === true && keyValue.length === 0)}
-        submitLabelKey="apply"
-        submitBusyLabelKey="applying"
-        onCancel={() => { props.onClose(false) }}
-        onSubmit={() => { void apply() }}
-      />
+      {props.alwaysShowFooter !== true && !dirty && failure === undefined
+        ? null
+        : (
+          <EditorFooter
+            t={t}
+            busy={busy}
+            submitDisabled={disabled || layout === 'unknown'
+              || modelFailure !== undefined
+              || shownKeyFailure !== undefined
+              || (props.credentialRequired === true && keyValue.length === 0)}
+            submitLabelKey="apply"
+            submitBusyLabelKey="applying"
+            onCancel={() => { props.onClose(false) }}
+            onSubmit={() => { void apply() }}
+          />
+        )}
     </div>
   )
 }

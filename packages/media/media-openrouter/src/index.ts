@@ -185,6 +185,32 @@ export function apply(ctx: Context, config: Config): void {
     },
   })
 
+  /**
+   * The video models OpenRouter's own video catalog lists; the general model
+   * document carries no video output modality.
+   * @param signal - cancellation forwarded from the caller.
+   * @returns the video models, labelled by their catalog names.
+   */
+  const listVideoModels = async (signal?: AbortSignal): Promise<readonly MediaImageModel[]> => {
+    const payload = await call('/api/v1/videos/models', { method: 'GET' }, signal)
+    const rows = Array.isArray(payload['data']) ? payload['data'] : []
+    const models: MediaImageModel[] = []
+    for (const row of rows) {
+      if (typeof row !== 'object' || row === null) continue
+      const entry = row as { id?: unknown; name?: unknown }
+      if (typeof entry.id !== 'string' || entry.id === '') continue
+      models.push({
+        provider: id,
+        id: entry.id,
+        ...typeof entry.name === 'string' && entry.name !== '' ? { label: entry.name } : {},
+      })
+    }
+    return models
+  }
+
   ctx.effect(() => ctx.media.registerImageProvider(images), 'media-openrouter: image provider')
-  ctx.effect(() => ctx.media.registerVideoProvider(provider), 'media-openrouter: video provider')
+  ctx.effect(
+    () => ctx.media.registerVideoProvider({ ...provider, listVideoModels }),
+    'media-openrouter: video provider',
+  )
 }
