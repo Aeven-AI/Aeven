@@ -1,135 +1,384 @@
-/* Turn-tail produced-files card, drawn on the answer's table-block metrics
-   (HyperMarkdown `.table-wrapper`): the conversation column's width, a 30px
-   radius, a 50px header whose 12px title sits 16px in with 30px icon controls
-   8px from the edge, and 14px/30px cells between hairline column-header rules. */
+/* Turn-tail produced files, on DeepSeek Harness's deliverables metrics: an
+   edited-files card (60px filled header with a 40px icon tile, 12px path rows
+   with line counts, a bottom fold control) and created-file cards (60px tiles
+   in two columns that collapse to one below 620px). */
 
 .root {
-  box-sizing: border-box;
-  width: 100%;
-  padding: 0 16px 30px;
-  border-radius: 30px;
+  --deliverable-fill: var(--dsw-static-neutral-50);
+  --deliverable-hover: var(--dsw-static-neutral-100);
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  margin-top: 4px;
+}
+
+:global(body[data-ds-dark-theme]) .root {
+  --deliverable-fill: var(--dsw-static-neutral-850);
+  --deliverable-hover: var(--dsw-static-neutral-800);
+}
+
+/* Edited files. */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: var(--dsw-radius-lg);
   background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+}
+
+.card[data-single='true'] {
+  border-color: var(--dsw-alias-border-l1);
 }
 
 .header {
   display: flex;
   align-items: center;
-  height: 50px;
-  margin: 0 -8px;
+  gap: 10px;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 60px;
+  margin: 0;
+  padding: 8px 10px;
+  border: 0;
+  background: var(--deliverable-fill);
+  color: inherit;
+  font: inherit;
+  text-align: left;
 }
 
-.title {
-  padding: 0 8px;
-  color: var(--dsw-alias-label-secondary);
-  font-size: 0.75rem;
-  font-weight: 400;
-  line-height: 1rem;
+button.header {
+  cursor: pointer;
+  transition: background-color 120ms ease;
 }
 
-.iconButton {
+button.header:hover,
+button.header:focus-visible {
+  background: var(--deliverable-hover);
+}
+
+.tile,
+.fileIcon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  box-sizing: border-box;
+  width: 40px;
+  height: 40px;
+  overflow: hidden;
+  border: 0.5px solid var(--dsw-alias-border-l1);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--dsw-static-neutral-00) 50%, transparent);
+}
+
+:global(body[data-ds-dark-theme]) :is(.tile, .fileIcon) {
+  background: color-mix(in srgb, var(--dsw-static-neutral-00) 5%, transparent);
+}
+
+.titles {
   display: flex;
-  align-items: center;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.title,
+.fileName {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stat {
+  display: inline-flex;
+  min-height: 16px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 10px;
+  line-height: 16px;
+}
+
+.statCounts,
+.counts {
+  display: inline-flex;
+  flex: none;
+  gap: 6px;
+  font-family: var(--ds-font-family-code);
+  white-space: nowrap;
+}
+
+.previewHint {
+  display: none;
+}
+
+button.header:is(:hover, :focus-visible) .statCounts {
+  display: none;
+}
+
+button.header:is(:hover, :focus-visible) .previewHint {
+  display: inline;
+}
+
+.added {
+  color: var(--dsw-alias-state-success-primary);
+}
+
+.deleted {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.iconButton,
+.cardAction {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 30px;
   height: 30px;
-  margin: 0 0 0 auto;
-  padding: 0 8px;
+  margin: 0;
+  padding: 0;
   border: none;
-  border-radius: 15px;
+  border-radius: var(--dsw-radius-sm);
   background: transparent;
-  color: var(--dsw-alias-label-secondary);
+  color: var(--dsw-alias-label-tertiary);
   cursor: pointer;
 }
 
-.iconButton > svg {
+.iconButton > svg,
+.cardAction > svg {
   width: 14px;
   height: 14px;
 }
 
-.iconButton:hover {
+.iconButton:hover,
+.cardAction:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
   color: var(--dsw-alias-label-primary);
 }
 
-.table {
-  width: 100%;
-  table-layout: fixed;
-  border-collapse: collapse;
-  color: var(--dsw-alias-label-secondary);
-  font-size: 0.875rem;
-  font-weight: 400;
-  line-height: 1.875rem;
-}
-
-.table th,
-.table td {
-  padding: 6px 1px;
-  text-align: left;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.table th {
-  border-top: 1px solid var(--dsw-alias-bg-base);
-  border-bottom: 1px solid var(--dsw-alias-bg-base);
-  font-weight: 500;
-}
-
-/* Dark: the header rules are the #333 divider, not the #111 base fill. */
-:global(body[data-ds-dark-theme]) .table th {
-  border-top-color: #333333;
-  border-bottom-color: #333333;
-}
-
-.table th:first-child {
-  width: 40%;
-}
-
-.table :is(th, td) + :is(th, td) {
-  padding-left: 36px;
-}
-
-.file {
-  display: inline-flex;
-  align-items: center;
-  vertical-align: top;
-  gap: 8px;
-  max-width: 100%;
+.list {
   margin: 0;
   padding: 0;
-  border: none;
-  background: none;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
+  list-style: none;
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
 }
 
-.file > svg {
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 24px;
+  margin: 0;
+  padding: 7px 18px 7px 14px;
+  border: 0;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: pointer;
+  font-family: var(--ds-font-family-code);
+  font-size: 11px;
+  line-height: 18px;
+  text-align: left;
+}
+
+.row:hover,
+.row:focus-visible {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.rowName {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.rowName > svg {
+  flex: none;
+}
+
+.path {
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--dsw-font-family);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row:hover .path {
+  color: var(--dsw-alias-label-primary);
+}
+
+.listToggle,
+.gridToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.listToggle {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px 18px 10px 14px;
+  text-align: left;
+}
+
+.gridToggle {
+  align-self: center;
+  padding: 1px 11px;
+  border-radius: var(--dsw-radius-sm);
+}
+
+.listToggle:hover,
+.gridToggle:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.listToggle svg,
+.gridToggle svg {
   flex: none;
   width: 14px;
   height: 14px;
 }
 
-.name {
+/* Created files. */
+
+.created {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+
+.grid[data-single='true'] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@container (max-width: 620px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.file {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  height: 60px;
+  padding: 8px 10px;
   overflow: hidden;
-  text-overflow: ellipsis;
+  border: 0.5px solid var(--dsw-alias-border-l1);
+  border-radius: var(--dsw-radius-lg);
+  background: var(--deliverable-fill);
+  color: var(--dsw-alias-label-primary);
+  transition: background-color 120ms ease;
 }
 
 .file:hover {
-  color: var(--dsw-alias-label-primary);
+  background: var(--deliverable-hover);
 }
 
-.file:hover .name {
-  text-decoration: underline;
-  text-underline-offset: 3px;
+/* The whole card opens the file; the icon and text above it pass pointer
+   events through, and only the folder action takes its own. */
+.cardPreview {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  cursor: pointer;
 }
 
-.file:focus-visible,
-.iconButton:focus-visible {
-  outline: none;
-  border-radius: 6px;
-  box-shadow: 0 0 0 2px var(--dsw-alias-border-l3);
+.fileIcon {
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
 }
 
-/* Overflow count: the table never silently drops files it did not show. */
-.more {
+.fileBody {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  pointer-events: none;
+}
+
+.details {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.description {
+  overflow: hidden;
   color: var(--dsw-alias-label-tertiary);
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file:hover .secondaryText {
+  display: none;
+}
+
+.file:hover .previewHint {
+  display: inline;
+}
+
+.cardAction {
+  pointer-events: auto;
+}
+
+:is(.header, .row, .cardPreview, .listToggle, .gridToggle, .iconButton, .cardAction):focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
+}
+
+@media (pointer: coarse) {
+  .row,
+  .listToggle {
+    min-height: 44px;
+  }
 }

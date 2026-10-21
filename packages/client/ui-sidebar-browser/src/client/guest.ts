@@ -169,11 +169,55 @@ export interface BrowserCursor {
   readonly url?: string
 }
 
+/** Guests by session, with a wait for a pane that has not mounted yet. */
+export class LiveGuests extends Map<string, BrowserGuest> {
+  /** Callers waiting for a session's pane to mount its guest. */
+  readonly #waiters = new Map<string, Set<(guest: BrowserGuest) => void>>()
+
+  override set(sessionId: string, guest: BrowserGuest): this {
+    super.set(sessionId, guest)
+    const waiters = this.#waiters.get(sessionId)
+    this.#waiters.delete(sessionId)
+    for (const resolve of waiters ?? []) resolve(guest)
+    return this
+  }
+
+  /**
+   * The session's guest, once its pane mounts one.
+   * @param sessionId - session whose guest is awaited.
+   * @param signal - abandons the wait.
+   * @returns the mounted guest.
+   * @throws the signal's reason when it aborts first.
+   */
+  whenMounted(sessionId: string, signal?: AbortSignal): Promise<BrowserGuest> {
+    const mounted = this.get(sessionId)
+    if (mounted !== undefined) return Promise.resolve(mounted)
+    return new Promise((resolve, reject) => {
+      const waiters = this.#waiters.get(sessionId) ?? new Set()
+      this.#waiters.set(sessionId, waiters)
+      const settle = (guest: BrowserGuest): void => {
+        signal?.removeEventListener('abort', abort)
+        resolve(guest)
+      }
+      const abort = (): void => {
+        waiters.delete(settle)
+        reject(signal?.reason as Error)
+      }
+      if (signal?.aborted === true) {
+        abort()
+        return
+      }
+      signal?.addEventListener('abort', abort, { once: true })
+      waiters.add(settle)
+    })
+  }
+}
+
 /**
  * The guest each session's pane holds while it is mounted, so an agent action
  * addressed to a session reaches the page its user sees.
  */
-export const liveGuests = new Map<string, BrowserGuest>()
+export const liveGuests = new LiveGuests()
 
 /**
  * Controls in the pane's own chrome the agent can drive, each of which the pane

@@ -186,6 +186,17 @@ export async function showFileMenu(
 }
 
 /**
+ * Reveal one produced file in the Host's file manager.
+ * @param remote - the client's Remote namespaces.
+ * @param path - the produced path as the assistant wrote it.
+ * @param cwd - the Session workspace root, used to resolve a relative path.
+ * @returns after the Host accepted or refused the handoff.
+ */
+export async function revealFile(remote: ClientRemote, path: string, cwd: string | undefined): Promise<void> {
+  await handOff(remote, { path: resolveWorkspacePath(cwd, path), action: 'reveal' })
+}
+
+/**
  * Hand one path request to the Host and report a refusal.
  * @param remote - the client's Remote namespaces.
  * @param request - the path and the handoff the reader chose.

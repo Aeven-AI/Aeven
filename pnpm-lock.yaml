@@ -3189,6 +3189,10 @@ importers:
         version: 4.6.5
 
   packages/client/ui-deliverables:
+    dependencies:
+      diff:
+        specifier: ^9.0.0
+        version: 9.0.0
     devDependencies:
       '@aeven/api-remotes':
         specifier: workspace:^

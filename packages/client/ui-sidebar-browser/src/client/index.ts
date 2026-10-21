@@ -20,7 +20,7 @@ import { createElement } from 'react'
 import { writeClipboard } from '@aeven/client-ui-primitives'
 import { BrowserPane } from './BrowserPane.tsx'
 import { SearchEngineRow, type SearchEngineRowInjected } from './SearchEngineRow.tsx'
-import { automate } from './automation.ts'
+import { automate, navigateClosed } from './automation.ts'
 import {
   desktopBrowser, desktopLinks, desktopMenus, isDesktopShell, liveGuests, setPointerHold, writeLastUrl,
 } from './guest.ts'
@@ -184,8 +184,9 @@ export function apply(ctx: ClientContext): void {
   const Pane = ({ sessionId, visible }: SidebarContentPaneProps) =>
     createElement(BrowserPane, { sessionId, t, openInChrome, visible, search: searchEngines })
   // The agent's browser_* tools reach this session's page. A session whose
-  // pane is not mounted has no page here, so the request passes on and the
-  // tool reports the browser closed.
+  // pane is not mounted reports that it can open one, and a navigation opens
+  // the pane at the address; every other action passes on and the tool reports
+  // the browser closed.
   ctx.inject(['remote', 'sessions'], (scoped) => {
     // While the agent works its pointer is held, so the gaps between its
     // actions do not read as finishing; when the work stops, the hold is
@@ -195,9 +196,14 @@ export function apply(ctx: ClientContext): void {
     })
     scoped.remote.$on('browser/automation', function (request, next) {
       const sessionId = (scoped.sessions).scopeOf(this)
-      const guest = sessionId === undefined ? undefined : liveGuests.get(sessionId)
-      if (guest === undefined) return next()
-      return automate(guest, request) as ReturnType<typeof next>
+      if (sessionId === undefined) return next()
+      const guest = liveGuests.get(sessionId)
+      if (guest !== undefined) return automate(guest, request) as ReturnType<typeof next>
+      const content = ctx.get('sidebarContent')
+      if (content === undefined) return next()
+      if (request.operation === 'status') return Promise.resolve({ open: false, openable: true })
+      if (request.operation !== 'navigate') return next()
+      return navigateClosed(sessionId, request, () => { content.requestOpen(sessionId, 'browser') }) as ReturnType<typeof next>
     })
   })
 
