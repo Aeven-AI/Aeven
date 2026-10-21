@@ -67,13 +67,15 @@ export async function embedSteps(
       if (embedder.embedManySettled) {
         const settled = await embedder.embedManySettled(inputs);
         warnPartialFailures(settled, inputs.length);
-        return steps.map((_, i) => ({
-          summary: settled[i]?.ok ? settled[i].vector : null,
-          action: null,
-        }));
+        // A remembered fact has no separate action: its text is both, so it carries the summary vector in both
+        // channels and ranks against multi-channel conversation traces on equal terms.
+        return steps.map((_, i) => {
+          const vector = settled[i]?.ok ? settled[i].vector : null;
+          return { summary: vector, action: vector };
+        });
       }
       const vecs = await embedder.embedMany(inputs);
-      return steps.map((_, i) => ({ summary: vecs[i] ?? null, action: null }));
+      return steps.map((_, i) => ({ summary: vecs[i] ?? null, action: vecs[i] ?? null }));
     } catch (err) {
       log.warn("embed.failed_all", { err: errDetail(err), stepCount: steps.length });
       return steps.map(() => ({ summary: null, action: null }));

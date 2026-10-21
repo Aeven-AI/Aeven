@@ -2553,6 +2553,7 @@ export function createMemoryCore(
           llm: handle.llm ?? undefined,
           namespace: handle.namespace,
           now: Date.now,
+          mergeSimilarity: handle.config.algorithm.feedback.mergeSimilarity,
         },
       );
       policyId = experience.policyId;
@@ -4404,6 +4405,63 @@ export function createMemoryCore(
     };
   }
 
+  async function rememberFacts(input: Parameters<MemoryCore["rememberFacts"]>[0]): Promise<{ ids: string[]; skipped: number }> {
+    ensureLive();
+    input.signal.throwIfAborted();
+    if (input.facts.length === 0) return { ids: [], skipped: 0 };
+    if (!handle.embedder) throw new MemosError("embedding_unavailable", "embedding provider is not configured");
+    const ns = normalizeNamespace(input.namespace, handle.agent);
+    const owner = ownerFromNamespace(ns);
+    // Importing the same file twice must not double the owner's memory: a fact already stored with the same text,
+    // or repeated within the batch, is skipped.
+    const key = (text: string): string => text.replace(/\s+/g, " ").trim().toLowerCase();
+    const stored = handle.db.prepare<{ profile: string; text: string }, { id: string }>(
+      "SELECT id FROM traces WHERE owner_profile_id = @profile AND lower(trim(user_text)) = @text LIMIT 1",
+    );
+    const seen = new Set<string>();
+    const facts = input.facts.filter((fact) => {
+      const text = key(fact.text);
+      if (seen.has(text)) return false;
+      seen.add(text);
+      return stored.get({ profile: owner.ownerProfileId, text }) === undefined;
+    });
+    const skipped = input.facts.length - facts.length;
+    if (facts.length === 0) return { ids: [], skipped };
+    const vectors = await handle.embedder.embedMany(
+      facts.map((fact) => ({ text: fact.text, role: "document" as const })),
+      { signal: input.signal },
+    );
+    input.signal.throwIfAborted();
+    ensureLive();
+    const ts = Date.now();
+    const episodeId = `ep_${randomUUID()}` as EpisodeId;
+    const ids = facts.map(() => `tr_${randomUUID()}` as TraceId);
+    handle.db.tx(() => {
+      const session = handle.repos.sessions.getById(input.sessionId);
+      if (session && !ownedByCurrent(session, ns)) {
+        throw new MemosError("invalid_argument", "source session belongs to another memory owner");
+      }
+      if (!session) handle.repos.sessions.upsert({
+        ...owner, id: input.sessionId, agent: ns.agentKind, startedAt: ts, lastSeenAt: ts, meta: {},
+      });
+      handle.repos.episodes.upsert({
+        ...owner, id: episodeId, sessionId: input.sessionId, startedAt: ts, endedAt: ts,
+        traceIds: ids, rTask: null, status: "closed", meta: { lightweightMemory: true },
+      });
+      for (const [index, fact] of facts.entries()) {
+        handle.repos.traces.insert({
+          ...owner, id: ids[index]!, episodeId, sessionId: input.sessionId, ts: fact.ts ?? ts,
+          userText: fact.text, agentText: "", summary: fact.text, toolCalls: [],
+          reflection: null, value: 0, alpha: 0, rHuman: null, priority: 0.5,
+          tags: [...new Set([...fact.tags, "lightweight_memory"])],
+          // The fact is its own action, so it matches in both vector channels like a conversation trace does.
+          vecSummary: vectors[index]!, vecAction: vectors[index]!, turnId: ts + index, schemaVersion: 1,
+        });
+      }
+    });
+    return { ids, skipped };
+  }
+
   async function importBundle(bundle: {
     version?: number;
     traces?: unknown[];
@@ -4904,8 +4962,10 @@ export function createMemoryCore(
     for (let offset = 0;; offset += pageSize) {
       const rows = handle.repos.traces.list({ limit: pageSize, offset, newestFirst: false });
       for (const row of rows) {
-        // Skip traces that shouldn't have embeddings
-        if (!shouldTraceHaveEmbeddings(row)) {
+        // Skip traces that shouldn't have embeddings, unless one was
+        // stored anyway: a vector left from another model would stay
+        // searchable in an incomparable space.
+        if (!shouldTraceHaveEmbeddings(row) && !row.vecSummary && !row.vecAction) {
           continue;
         }
 
@@ -4917,13 +4977,15 @@ export function createMemoryCore(
           sourceText: row.summary?.trim() || row.userText.trim() || "(empty)",
           update: (vec) => handle.repos.traces.updateVector(row.id, "vecSummary", vec),
         });
-        if (!isLightweightMemoryTrace(row)) {
+        {
+          // A remembered fact's action vector is its summary vector, so it ranks in both channels.
+          const lightweight = isLightweightMemoryTrace(row);
           slots.push({
             kind: "trace",
             id: row.id,
             field: "vec_action",
             vec: row.vecAction,
-            sourceText: traceActionEmbeddingText(row),
+            sourceText: lightweight ? row.summary?.trim() || row.userText.trim() || "(empty)" : traceActionEmbeddingText(row),
             update: (vec) => handle.repos.traces.updateVector(row.id, "vecAction", vec),
           });
         }
@@ -5325,6 +5387,7 @@ export function createMemoryCore(
     metrics,
     exportBundle,
     importBundle,
+    rememberFacts,
     embeddingMaintenanceStats,
     rebuildEmbeddings,
     subscribeEvents,

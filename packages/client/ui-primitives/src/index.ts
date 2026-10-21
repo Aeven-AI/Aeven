@@ -55,6 +55,8 @@ export { BrandWordmark } from './BrandWordmark.tsx'
 export type { BrandWordmarkProps } from './BrandWordmark.tsx'
 export { ReferenceIcon } from './ReferenceIcon.tsx'
 export { extensionOf, fileGlyph, fileKindOf } from './file-kind.tsx'
+export { classifyFileType, fileExtension, FileTypeIcon } from './FileTypeIcon.tsx'
+export type { CodeFileType, FileType, FileTypeIconProps, FileTypeKind, FileTypeProjectContext } from './FileTypeIcon.tsx'
 export type { FileKind } from './file-kind.tsx'
 export type { ReferenceIconKind, ReferenceIconProps } from './ReferenceIcon.tsx'
 export { projectUserText } from './user-text.tsx'
@@ -95,6 +97,7 @@ export type {
   MarkdownCodeLabels,
   MarkdownFileMentions,
   MarkdownLabels,
+  MarkdownMessageLabels,
   MarkdownReasoningLabels,
   MarkdownTextProps,
   MarkdownVideoLabels,

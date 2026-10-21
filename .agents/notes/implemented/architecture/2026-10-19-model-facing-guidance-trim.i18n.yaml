@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-19-model-facing-guidance-trim.md
-2026-10-19-model-facing-guidance-trim.md: 6449fd03a5152b9ff4266e90cd017a72adcd2cbf
-2026-10-19-model-facing-guidance-trim.zh.md: c10c464a364ca6fd970a862246a3f4ee7c1c8a3f
+2026-10-19-model-facing-guidance-trim.md: 84e86c724dad5cac8c6976608dce1c1ed7364a41
+2026-10-19-model-facing-guidance-trim.zh.md: 017c7807b50ed250e3529d4dcc7aedab1b868632

@@ -625,10 +625,9 @@ class UiWorkspaceService extends Service implements UiWorkspace {
 
       if (!urlInitialized) {
         const requested = this.sessionUrl.read()
-        if (requested !== undefined && sessions.byId[requested] !== undefined) {
+        if (requested !== undefined && this.openKnown(requested, sessions)) {
           urlInitialized = true
           this.markInitialNav('done')
-          if (sessions.current !== requested) this.sessions.open(requested)
           return
         }
         if (requested !== undefined && this.adoptRequestedSession(
@@ -713,10 +712,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
         this.startSession()
         return
       }
-      if (sessions.byId[requested] !== undefined) {
-        this.sessions.open(requested)
-        return
-      }
+      if (this.openKnown(requested, sessions)) return
       this.sessionUrl.replace(sessions.current)
     }
     const disposeWorkspaces = this.workspaces.list.subscribe(reconcile)
@@ -729,6 +725,27 @@ class UiWorkspaceService extends Service implements UiWorkspace {
       disposeSessions()
       disposeWorkspaces()
     }
+  }
+
+  /**
+   * Select the Session an address names when this client already knows it: a listed chat, or a subagent's
+   * conversation, which is not listed but whose address the selection restores across a reload. A subagent id must
+   * never reach {@link adoptRequestedSession}, which would create an empty chat under the same id.
+   * @param requested - the Session id the address names.
+   * @param sessions - the current Session list.
+   * @returns true when the id is known and selected.
+   */
+  private openKnown(requested: SessionId, sessions: ReturnType<ISessions['list']['getSnapshot']>): boolean {
+    // An address written before subagent conversations had their own form reads back with the chat prefix.
+    const address = sessions.byId[requested] === undefined
+      ? this.sessions.subagentAddress(requested)
+        ?? this.sessions.subagentAddress(requested.replace(/^session-/u, '') as SessionId)
+      : undefined
+    if (sessions.byId[requested] === undefined && address === undefined) return false
+    if (sessions.current === requested || sessions.current === address?.childSessionId) return true
+    if (address === undefined) this.sessions.open(requested)
+    else this.sessions.openSubagent(address)
+    return true
   }
 
   /**

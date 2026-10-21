@@ -27,6 +27,10 @@ export interface Translations {
 
   copy: string
   copyCode: string
+  /** Title of a ```message fence: text the person will send on, shown as prose rather than code. */
+  message: string
+  /** Copy button of a ```message fence. */
+  copyMessage: string
   fullScreen: string
   /** The same button once the block is expanded. */
   exitFullScreen: string
@@ -67,6 +71,8 @@ export const defaultTranslations: Translations = {
 
   copy: 'Copy',
   copyCode: 'Copy code',
+  message: 'Message',
+  copyMessage: 'Copy message',
   fullScreen: 'Full screen',
   exitFullScreen: 'Exit full screen',
   preview: 'Preview',

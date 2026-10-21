@@ -64,6 +64,7 @@ const DOMAIN_RULES = `- "person": a fact the user stated about themselves or a p
 - "world": a reusable operation or verified fact about an application, tool, or environment that applies beyond this project, such as a command, key binding, path, setting, or procedure. The turn must state the usable fact itself. Do not choose "world" for discussion about designing Aeven, its memory system, or a proposed feature.
 - "work": the turn records what the assistant did, found, answered, or planned, and the user stated no fact of their own.
 Only the user's own words make a turn "person". An assistant's answer, report of its work, status update, or plan is "work".
+Preserve attribution, dates and uncertainty in the summary: an advertised capability is a source's claim, a plan is not implemented behavior, and the assistant's assessment is not a verified fact. A complaint about the assistant's work is not a personal-life fact merely because the user is angry: the summary states what the user disputes or asks for, without their swearing, their anger, or the assistant's apology or promise. When the user shares how they feel or what is happening to them, the summary states that in their terms (what they feel, fear or are going through, and about whom), not the assistant's response such as questions it asked, helplines or contacts it suggested, or drafts it offered.
 When the conversation has no project, never answer "project".`
 
 const CLASSIFY_PROMPT = `You label one memory taken from a conversation between a user and an AI assistant.
@@ -77,8 +78,51 @@ ${DOMAIN_RULES}`
 const JUDGE_RULES = `Also put these keys in the same JSON object:
 - "domain": one of the following.
 ${DOMAIN_RULES}
-- "corrects": true only when the USER message says that a fact PREVIOUS ASSISTANT stated is wrong, such as a name, value, location, date, or claim about the world; otherwise false. A complaint about how the assistant worked, its speed, or an unfinished or wrong change, and a repeated or new instruction, are not corrections of a fact: answer false.
+- "corrects": true only when the USER message replaces a specific factual claim in PREVIOUS ASSISTANT with the corrected fact, such as a name, value, location or date; otherwise false. A complaint about the assistant's analysis, framing, tone, comparison, speed, or an unfinished or wrong change, and a repeated or new instruction, are not replacements of a factual claim: answer false.
+- "log": true only when the exchange only records an action, such as reading, searching, listing, opening, or running something, and states no lasting fact about the user, their work, or the world; otherwise false.
 PREVIOUS ASSISTANT is the reply the USER message answers. When the USER refers to it ("yes", "that one", "not my son"), the summary states the referent itself.`
+
+/**
+ * Rules added to the same request when the session read memories during the exchange, so the judgment can rewrite
+ * one the exchange showed to be wrong or out of date. Without such evidence nothing is revised.
+ */
+const REVISE_RULES = `MEMORIES READ lists memories the assistant was given or looked up during this exchange. Also put this key in the same JSON object:
+- "revises": for each memory in MEMORIES READ that this exchange shows to be wrong or out of date, {"memory": <its number>, "statement": "<the memory rewritten as now known>"}. A memory is shown wrong only when ASSISTANT reports checking it in this exchange, by reading code, files, a page or a tool result, and finding otherwise, or when the USER states the correct fact. Disagreement, complaints, swearing, opinions, and the assistant changing its mind without such a check revise nothing. The statement keeps everything in the memory that still holds and who said it, states what was found instead and that it was re-checked on TODAY, and is no longer than the original needs. Answer "revises": [] when no memory qualifies, which is the usual case.`
+
+/** Characters of the statement one revision may store. */
+const REVISION_CHARS = 1000
+
+/** Shortest statement accepted as a revision; anything shorter cannot restate a memory. */
+const MIN_REVISION_CHARS = 20
+
+/**
+ * Revisions named in a model answer.
+ * @param text - the model's JSON answer.
+ * @param count - number of memories the request listed.
+ * @returns the usable revisions, at most one per memory; empty when the answer holds none.
+ */
+export function revisionsOf(text: string, count: number): TurnRevision[] {
+  const start = text.indexOf('{')
+  const end = text.lastIndexOf('}')
+  if (start === -1 || end <= start) return []
+  let value: unknown
+  try {
+    value = JSON.parse(text.slice(start, end + 1))
+  } catch {
+    // An answer that is not one JSON object names no revision; the summary and domain are read separately.
+    return []
+  }
+  const list = (value as { revises?: unknown } | null)?.revises
+  if (!Array.isArray(list)) return []
+  const seen = new Set<number>()
+  return list.flatMap((entry: unknown) => {
+    const { memory, statement } = (entry ?? {}) as Record<string, unknown>
+    if (typeof memory !== 'number' || !Number.isInteger(memory) || memory < 1 || memory > count || seen.has(memory)) return []
+    if (typeof statement !== 'string' || statement.trim().length < MIN_REVISION_CHARS) return []
+    seen.add(memory)
+    return [{ index: memory - 1, statement: statement.trim().slice(0, REVISION_CHARS) }]
+  })
+}
 
 /**
  * Domain named in a model answer.
@@ -138,6 +182,18 @@ export interface TurnJudgment {
   readonly domain: TurnDomain
   /** The user message corrects the reply before it, so that reply's trace is superseded. */
   readonly corrects: boolean
+  /** The exchange only records an action and states no lasting fact, so automatic recall treats it as a log. */
+  readonly log: boolean
+  /** Memories read during the exchange that it showed to be wrong or out of date, restated as now known. */
+  readonly revisions: readonly TurnRevision[]
+}
+
+/** One memory a captured exchange showed to be wrong or out of date. */
+export interface TurnRevision {
+  /** Position of the memory in {@link TurnJudgeInput.memories}. */
+  readonly index: number
+  /** The memory restated as now known. */
+  readonly statement: string
 }
 
 /** Context the turn judgment reads beyond the exchange MemOS sends. */
@@ -146,6 +202,10 @@ export interface TurnJudgeInput {
   readonly project: string | undefined
   /** The captured reply the user message answers; undefined when the previous turn was not captured in this process. */
   readonly previousReply: string | undefined
+  /** Text of each memory the session read during the exchange, oldest first; empty or absent when it read none. */
+  readonly memories?: readonly string[]
+  /** Epoch milliseconds the exchange ended, which dates a revision. */
+  readonly now?: number
 }
 
 /** A captured turn's request extended with the judgment rules, and the reader of its answer. */
@@ -164,6 +224,12 @@ interface JudgeSlot {
 }
 
 const SUMMARIZE_OP = 'capture.summarize'
+
+/** The host's local calendar day, which dates a revision the way the person reads it. */
+function localDay(time: number): string {
+  const date = new Date(time)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
 const PREVIOUS_REPLY_CHARS = 1000
 
 /**
@@ -198,20 +264,33 @@ export class TurnJudgeContext {
     if (slot === undefined || input.op !== SUMMARIZE_OP) return undefined
     const request = input.messages.find(message => message.role === 'user')
     if (request === undefined || !/(?:^|\n)ASSISTANT:\n/.test(request.content)) return undefined
+    const memories = slot.input.memories ?? []
     const context = [
       `PROJECT: ${slot.input.project ?? 'none'}`,
       ...slot.input.previousReply ? [`PREVIOUS ASSISTANT:\n${slot.input.previousReply.slice(0, PREVIOUS_REPLY_CHARS)}`] : [],
+      ...memories.length === 0 ? [] : [
+        `TODAY: ${localDay(slot.input.now ?? Date.now())}`,
+        `MEMORIES READ:\n${memories.map((memory, index) => `${index + 1}. ${memory}`).join('\n')}`,
+      ],
     ].join('\n\n')
     // The bridge joins system messages in order, so the rules follow MemOS's summary instructions.
     const messages = [
       ...input.messages.map(message => message === request ? { ...message, content: `${context}\n\n${message.content}` } : message),
       { role: 'system' as const, content: JUDGE_RULES },
+      ...memories.length === 0 ? [] : [{ role: 'system' as const, content: REVISE_RULES }],
     ]
     return {
       input: { ...input, messages },
       read(text) {
         const domain = domainOf(text, slot.input.project)
-        if (domain !== undefined) slot.judgment = { domain, corrects: /"corrects"\s*:\s*true\b/.test(text) }
+        if (domain !== undefined) {
+          slot.judgment = {
+            domain,
+            corrects: /"corrects"\s*:\s*true\b/.test(text),
+            log: /"log"\s*:\s*true\b/.test(text),
+            revisions: memories.length === 0 ? [] : revisionsOf(text, memories.length),
+          }
+        }
       },
     }
   }

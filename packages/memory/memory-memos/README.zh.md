@@ -44,6 +44,14 @@ kind: "package-reference"
 | `candidateTraces` | `20` | Aeven 排序之前 MemOS 为召回排序的轨迹候选数 |
 | `maxTextChars` | `16000` | 一条记忆存储的请求或回复文本的最长值；更长的文本保留开头与结尾，因此它约束 `memory_get` 读回的已学流程 |
 | `learning` | `true` | 在每个关闭的 episode 上运行 MemOS 的学习流水线——奖励评分、策略归纳、世界模型、skill 结晶与反馈；`false` 保留轻量的捕获与召回流水线。覆盖 `config.yaml` 中的 `algorithm.lightweightMemory.enabled` |
+| `embedding` | `Xenova/multilingual-e5-small`、`query: ` / `passage: `、`cpu`、`q8`、`maxInputTokens` 512 | 本地嵌入模型、角色前缀、transformers.js 设备与精度，以及每个嵌入片段的估算 token 数，保持在 E5 的 512 token 窗口内。`embedding.similarity` 在该模型自身的尺度上设定 MemOS 的余弦阈值——召回轨迹 0.84、episode 目标 0.86、策略关联 0.94、反馈合并 0.93、世界模型聚类 0.91——按每个阈值保留的记忆对比例从 MemOS 的 MiniLM 默认值映射而来，因为 E5 对无关文本的打分接近 0.8。在 `config.yaml` 保留 `local` 提供方时覆盖该文件的 `embedding` 模型字段。模型、前缀或片段大小变更时，每个账号的已存记忆会在其核心打开时于后台重新嵌入一次 |
+| `reindexBatchSize` | `100` | 重新索引时每批重新嵌入的向量数 |
+| `relevanceTimeoutMs` | `2500` | 召回预算内相关性判定的最长时间；失败或超时最多返回两个机械排序结果并标记降级 |
+| `minEpisodesForInduction` | `2` | MemOS 归纳策略前须支持该模式的独立片段数（`l2Induction.minEpisodesForInduction`） |
+| `candidatePolicies` | `false` | 是否同时召回 `candidate` 与 `active` 策略（`retrieval.includeCandidatePolicies`） |
+| `skillsPerTurn` | `1` | 每次召回最多提供的 MemOS 技能数（`retrieval.tier1TopK`） |
+
+轮次开始的召回由会话路由上的一次模型调用判定，而不是 MemOS 自身的过滤器：它读取请求、先前对话以及每个候选的种类（事实、往来、日志、流程、片段、技能、知识）、领域、年龄和流程状态，决定个人或任务优先，可不保留任何候选，并报告用户是否分享个人生活。捕获判定标记为 `kind:log` 的轮次以及摘要呈现为行动记录的旧记忆会作为日志提供。已归档的流程不作为候选。`rememberMany` 逐字导入事实，跳过所有者已有的相同文本，以 `source:import` 标记导入；无原始日期时添加 `imported:undated`，其轨迹时间视为未知年龄，且不加入近期记忆候选。`turnDomain` 返回捕获轮次的领域，`setProcedureStatus` 设置已学流程的 `procedure:<status>` 标签。对工作的抱怨即使带有愤怒仍属于任务请求。判定检查每个候选的内容，包括经验片段中的个人历史，并排除无关的个人历史。捕获摘要保留广告声明、计划和评估的归属、日期及不确定性。
 
 领域是轨迹标签（`domain:person`、`domain:project`、`domain:world`）。会话所用的模型在写入已存储摘要的同一个请求中为每个被捕获的轮次归档：承载该轮次助手回复的摘要请求（轻量捕获把整个轮次摘要为一个步骤；完整捕获不给工具子步骤助手文本）同时收到领域规则、会话的项目，以及用户消息所回答的那条回复，因此它的 JSON 答案在 `summary` 旁给出 `domain` 与 `corrects`（[`src/domain.ts`](src/domain.ts)）。当该请求没有走 Host 桥，或它的答案没有给出领域时，改为在捕获之后运行一次简短分类调用。`remember` 直接设置领域，而未打标签的轨迹在没有工作区时捕获算作 `experience`，在工作区内算作 `project`。`world` 分类要求关于工具或环境的可复用操作或事实，而不是关于 Aeven 设计的讨论。MemOS 的 experiences 与 skills 是 `experience`，world models 是 `world`。召回为每条命中读取它的轨迹以取得领域、工作区与摘要：它丢弃在另一个工作区捕获的项目记忆，而 MemOS 检索不会过滤这一点。自动轨迹召回使用已存储的摘要，包括结果标签。显式搜索整条返回轨迹：先已存储的摘要，再是摘要所提炼自的被捕获消息，随后是已存储的工具输入、输出与助手回答。缺少摘要时保留候选片段。轨迹读取保留存储的细节，受[记忆工具的输出限制](../tool-memory/README.zh.md)约束。记忆按已登录用户区分：每个操作都运行在该作用域所属账户的核心上、走该账户自己的数据库，并仍使用 MemOS profile `user-<owner>`，因此召回、捕获与工具从不跨账户。嵌入模型每个进程只加载一次并被每个核心共享；每个打开的核心保留自己的 SQLite 连接、嵌入缓存与后台计时器。
 
@@ -51,7 +59,7 @@ MemOS 核心以 [`@deepseek-ai/memos-local-plugin`](../../../vendor/memos-local-
 
 轮次开始查询先按原样运行。MemOS 会把查询中的长标识符读作硬性资格过滤，只保留逐字包含它的候选，这对标识符查找是对的，对主题查询是错的：粘贴进来的一个会话 id 或 commit hash 否则会返回空，使该轮次没有记忆。当按原样查询的那一轮没有产生可见命中，且查询含有核心能精确确认的 token——包含 `-`、`_`、`:` 或数字的小写 token，长度 16 个字符以上，因此 `long-term-memory` 这类普通复合词也符合条件——提供方在同一截止时间内去掉这些 token 重试一次（[`src/query.ts`](src/query.ts)）。显式搜索保留该标识符，因为在那种场景下它正是重点。
 
-运行时根目录存放可选的 MemOS `config.yaml`（共用的 MemOS 核心 schema）、`data/memos.db` 与 `skills/`。缺少 `config.yaml` 时使用 MemOS 默认值，包括本地 `Xenova/all-MiniLM-L6-v2` 嵌入模型，后者在首次使用时下载；由 `learning` 字段而不是 `config.yaml` 在完整流水线与轻量流水线之间选择。自动召回与显式 `memory_search` 走 MemOS 的轮次开始候选路径，以绕过它两秒的相关性 LLM 过滤；MemOS 轻量模式否则会在 `retrieval.llmFilterEnabled` 为 false 时也强制开启该过滤器。显式搜索保留配置的按层结果上限，除非它的工具参数覆盖它们。Aeven 把带纠正标签的轨迹排除在自动召回之外，因为那些轮次并未指明一条可持久保留的规则或它的指称对象；显式搜索仍可把它们作为历史取回。只有当下一条用户消息指出回复所陈述的某个事实是错的时，该轮次的轨迹才被取代；对工作方式的抱怨或重复的指令会让它保持可召回，因为那个轮次往往包含用户自己的指令。在开启 `learning` 并使用 Host LLM 桥时，奖励、归纳与反馈在所属会话的路由上运行，而启动与周期性恢复保持关闭，因为它们运行在任何会话路由之外。
+运行时根目录存放可选的 MemOS `config.yaml`（共用的 MemOS 核心 schema）、`data/memos.db` 与 `skills/`。缺少 `config.yaml` 时使用 MemOS 默认值，但本地嵌入模型是多语言的 `Xenova/multilingual-e5-small`（`q8`，约 118 MB，首次使用时下载），并带有 E5 的 `query: ` 与 `passage: ` 前缀；每个账号的 `data/embedding-index.json` 记录为其向量建立索引的重建版本、模型、前缀与片段大小，核心在不同设置下打开时会通过 MemOS `rebuildEmbeddings` 重建全部向量，期间召回继续使用旧向量，重建完成后才记录新值；由 `learning` 字段而不是 `config.yaml` 在完整流水线与轻量流水线之间选择。自动召回与显式 `memory_search` 走 MemOS 的轮次开始候选路径。自动召回保留相关性 LLM 过滤：在会话路由上调用一次、上限两秒，剔除与本轮共享词语却并不相关的候选，调用失败或超时则回退到机械排序；显式搜索绕过该过滤，因为查询由模型自己选择。MemOS 轻量模式会在 `retrieval.llmFilterEnabled` 为 false 时也强制开启该过滤器。显式搜索保留配置的按层结果上限，除非它的工具参数覆盖它们。Aeven 把带纠正标签的轨迹排除在自动召回之外，因为那些轮次并未指明一条可持久保留的规则或它的指称对象；显式搜索仍可把它们作为历史取回。只有当下一条用户消息指出回复所陈述的某个事实是错的时，该轮次的轨迹才被取代；对工作方式的抱怨或重复的指令会让它保持可召回，因为那个轮次往往包含用户自己的指令。在开启 `learning` 并使用 Host LLM 桥时，奖励、归纳与反馈在所属会话的路由上运行，而启动与周期性恢复保持关闭，因为它们运行在任何会话路由之外。
 
 <a id="understand-the-implementation"></a>
 ## 理解实现
@@ -69,7 +77,7 @@ MemOS 核心以 [`@deepseek-ai/memos-local-plugin`](../../../vendor/memos-local-
 
 `list` 以所有者过滤跨越该所有者数据库的各个命名空间，因为核心的默认命名空间看不到私有所有者记忆，并会丢弃属于其他所有者的行。MemOS 在 SQLite 中根据已存储的领域标签与未打标签时的工作区推断，过滤 `domains` 与项目工作区可见性；没有文本搜索的分页只读取所请求的行，总数统计不加载轨迹内容；`edit` 与 `forget` 在该所有者的命名空间中读取轨迹并在调用 MemOS 之前检查它的所有者，因为 MemOS 的更新与删除只接受一个 id。`feedback` 通过一张进程内表把被捕获的轮次映射到它的轨迹，因此它适用于自本会话上次打开以来捕获的轮次。召回（包括用于标注结果的轨迹读取）受调用方预算约束；截止时间在这里以及 MemOS 内部都强制执行，因为正在加载的 ONNX 模型可能忽略取消。捕获在按会话的串行队列中运行；关闭会话会在其已接受的捕获之后运行，而 dispose 会在关闭核心之前排空每个队列。MemOS 渲染的后续提示会点名它自己的 `memos_*` 工具；运行时把它们改写为 `MEMORY_TOOL` 的名称。
 
-携带纠正的被捕获轮次会记录它取代了什么：要么 `@aeven/memory-context` 报告了一个纠正短语，要么轮次判定回答了 `corrects`。一次纠正回答的是它之前的那次往来，因此前一轮次的轨迹以及该轮次中 `remember` 写下的事实会在捕获时打上 `superseded:<替代轨迹>` 标签；自动召回不包含被取代的轨迹，而显式搜索把它作为历史返回。该写入在捕获队列上、于 `turn/end` 之后运行，因此不给请求路径带来任何成本。
+轮次判定识别出具体的替代事实时，会在捕获时为前一次往来的轨迹添加 `superseded:<替代轨迹>` 标签；自动召回不包含该往来，而显式搜索将其作为历史返回。仅有纠正短语不会取代它。独立记住的事实保持有效，因为轮次级判定并未指明批量事实中的哪一条被替代；错误事实须显式编辑或忘记。该写入在 `turn/end` 之后通过捕获队列执行。
 
 被捕获的结果证据存放在轨迹的 `contextHints` 中，以 `outcome:` 标签建立索引，并追加到召回返回的轨迹摘要。验证被标注为助手的报告；目标完成被标注为一次已记录的目标变更。持久完成的目标还会为其轨迹带来正向隐式反馈。失败的工具调用留在轨迹中并喂给 MemOS 的工具结果路径；仅一次重试不算任务失败。显式的消息评分继续使用单独的 feedback 操作。
 

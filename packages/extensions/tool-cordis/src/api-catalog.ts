@@ -2004,6 +2004,18 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'after the provider released the session.',
       },
       {
+        signature: 'setProcedureStatus(request: Parameters<MemoryProvider[\'setProcedureStatus\']>[0]): Promise<boolean>',
+        description: 'Set a learned procedure\'s maturity.',
+        parameters: [{ name: 'request', description: 'account id, the procedure\'s memory id, and the new status.' }],
+        returns: 'true when a procedure of the owner was updated.',
+      },
+      {
+        signature: 'async turnDomain(request: Parameters<MemoryProvider[\'turnDomain\']>[0]): Promise<MemoryDomain | undefined>',
+        description: 'Domain one captured turn was filed under; undefined while no provider is registered.',
+        parameters: [{ name: 'request', description: 'the session and its turn number.' }],
+        returns: 'the turn\'s domain, or undefined when the provider has none for it.',
+      },
+      {
         signature: 'detail(request: Parameters<MemoryProvider[\'detail\']>[0]): Promise<MemoryDetail | undefined>',
         description: 'Read one memory item.',
         parameters: [{ name: 'request', description: 'scope, item kind, and id.' }],
@@ -2050,6 +2062,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Store one fact the user explicitly asked to be remembered.',
         parameters: [{ name: 'request', description: 'scope and the fact in the user\'s words.' }],
         returns: 'the stored memory\'s id.',
+      },
+      {
+        signature: 'rememberMany(request: Parameters<MemoryProvider[\'rememberMany\']>[0]): Promise<{ readonly ids: readonly MemoryItemId[]; readonly skipped: number }>',
+        description: 'Import already-distilled facts verbatim in one atomic batch, skipping facts the owner\'s memory already holds.',
+        parameters: [{ name: 'request', description: 'owning scope, ordered facts with their original time when known, their domain, and cancellation.' }],
+        returns: 'ids of the facts written, in input order, and how many were skipped; rejects without writing any fact on failure.',
       },
       {
         signature: 'edit(request: Parameters<MemoryProvider[\'edit\']>[0]): Promise<MemoryRecord | undefined>',
@@ -6255,7 +6273,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'LearnedProcedure',
-    declaration: 'export interface LearnedProcedure {\n    readonly id: MemoryItemId;\n    readonly name: string;\n    readonly description: string;\n    readonly summary: string;\n    readonly content: string;\n    readonly domain: MemoryDomain;\n    readonly time: number;\n    readonly sessionId: SessionId;\n}',
+    declaration: 'export interface LearnedProcedure {\n    readonly id: MemoryItemId;\n    readonly name: string;\n    readonly description: string;\n    readonly summary: string;\n    readonly content: string;\n    readonly domain: MemoryDomain;\n    readonly time: number;\n    readonly sessionId: SessionId;\n    readonly status: ProcedureStatus;\n}',
   },
   {
     name: 'LearnedProceduresRequest',
@@ -6583,7 +6601,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'MemoryHit',
-    declaration: 'export interface MemoryHit {\n    readonly kind: MemoryHitKind;\n    readonly id: MemoryItemId;\n    readonly domain: MemoryDomain;\n    readonly tier: number;\n    readonly score: number;\n    readonly snippet: string;\n    readonly recordedAt?: number;\n}',
+    declaration: 'export interface MemoryHit {\n    readonly kind: MemoryHitKind;\n    readonly id: MemoryItemId;\n    readonly domain: MemoryDomain;\n    readonly tier: number;\n    readonly score: number;\n    readonly snippet: string;\n    readonly recordedAt?: number;\n    readonly procedureStatus?: ProcedureStatus;\n}',
   },
   {
     name: 'MemoryHitKind',
@@ -6592,10 +6610,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'MemoryItemId',
     declaration: 'export type MemoryItemId = Branded<\'MemoryItemId\'>;',
-  },
-  {
-    name: 'MemoryListRequest',
-    declaration: 'export interface MemoryListRequest {\n    readonly owner: string;\n    readonly query?: string;\n    readonly domains?: readonly MemoryDomain[];\n    readonly cwd?: string;\n    readonly limit: number;\n    readonly offset: number;\n    readonly signal: AbortSignal;\n}',
   },
   {
     name: 'MemoryLlmRoute',
@@ -6611,11 +6625,11 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'MemoryProvider',
-    declaration: 'export interface MemoryProvider {\n    readonly id: string;\n    recall(request: MemoryRecallRequest): Promise<MemoryRecall>;\n    capture(turn: MemoryTurn): void;\n    closeSession(sessionId: SessionId): Promise<void>;\n    detail(request: {\n        readonly scope: MemoryScope;\n        readonly kind: MemoryDetailKind;\n        readonly id: MemoryItemId;\n        readonly signal: AbortSignal;\n    }): Promise<MemoryDetail | undefined>;\n    timeline(request: {\n        readonly scope: MemoryScope;\n        readonly episodeId: MemoryEpisodeId;\n        readonly limit: number;\n        readonly signal: AbortSignal;\n    }): Promise<readonly MemoryTimelineEntry[]>;\n    environments(request: {\n        readonly scope: MemoryScope;\n        readonly query?: string;\n        readonly limit: number;\n        readonly signal: AbortSignal;\n    }): Promise<readonly MemoryEnvironment[]>;\n    skills(request: {\n        readonly scope: MemoryScope;\n        readonly status?: MemorySkillStatus;\n        readonly limit: number;\n        readonly signal: AbortSignal;\n    }): Promise<readonly MemorySkill[]>;\n    useSkill(request: {\n        readonly scope: MemoryScope;\n        readonly id: MemoryItemId;\n        readonly callId: string;\n        readonly signal: AbortSignal;\n    }): Promise<MemorySkill | undefined>;\n    list(request: MemoryListRequest): Promise<MemoryPage>;\n    remember(request: {\n        readonly scope: MemoryScope;\n        readonly text: string;\n        readonly domain: MemoryDomain;\n        readon /* …truncated — full shape in source */',
+    declaration: 'export interface MemoryProvider {\n    readonly id: string;\n    recall(request: MemoryRecallRequest): Promise<MemoryRecall>;\n    capture(turn: MemoryTurn): void;\n    setProcedureStatus(request: {\n        readonly owner: string;\n        readonly id: MemoryItemId;\n        readonly status: ProcedureStatus;\n        readonly signal: AbortSignal;\n    }): Promise<boolean>;\n    turnDomain(request: {\n        readonly sessionId: SessionId;\n        readonly turn: number;\n    }): Promise<MemoryDomain | undefined>;\n    closeSession(sessionId: SessionId): Promise<void>;\n    detail(request: {\n        readonly scope: MemoryScope;\n        readonly kind: MemoryDetailKind;\n        readonly id: MemoryItemId;\n        readonly signal: AbortSignal;\n    }): Promise<MemoryDetail | undefined>;\n    timeline(request: {\n        readonly scope: MemoryScope;\n        readonly episodeId: MemoryEpisodeId;\n        readonly limit: number;\n        readonly signal: AbortSignal;\n    }): Promise<readonly MemoryTimelineEntry[]>;\n    environments(request: {\n        readonly scope: MemoryScope;\n        readonly query?: string;\n        readonly limit: number;\n        readonly signal: AbortSignal;\n    }): Promise<readonly MemoryEnvironment[]>;\n    skills(request: {\n        readonly scope: MemoryScope;\n        readonly status?: MemorySkillStatus;\n        readonly limit: number;\n        readonly signal: AbortSignal;\n    }): Promise<readonly MemorySkill[]>;\n    useSkill(request: {\n        readonly scope: MemoryScope;\n       /* …truncated — full shape in source */',
   },
   {
     name: 'MemoryRecall',
-    declaration: 'export interface MemoryRecall {\n    readonly hits: readonly MemoryHit[];\n    readonly timedOut: boolean;\n}',
+    declaration: 'export interface MemoryRecall {\n    readonly hits: readonly MemoryHit[];\n    readonly timedOut: boolean;\n    readonly degraded?: boolean;\n    readonly lead?: \'person\' | \'task\';\n}',
   },
   {
     name: 'MemoryRecallLimits',
@@ -6623,11 +6637,11 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'MemoryRecallRequest',
-    declaration: 'export interface MemoryRecallRequest {\n    readonly scope: MemoryScope;\n    readonly query: string;\n    readonly purpose: \'turn-start\' | \'tool\';\n    readonly sessionOnly?: boolean;\n    readonly limits?: MemoryRecallLimits;\n    readonly timeoutMs: number;\n    readonly signal: AbortSignal;\n}',
+    declaration: 'export interface MemoryRecallRequest {\n    readonly scope: MemoryScope;\n    readonly query: string;\n    readonly request?: string;\n    readonly context?: string;\n    readonly recent?: {\n        readonly hours: number;\n        readonly items: number;\n    };\n    readonly purpose: \'turn-start\' | \'tool\';\n    readonly sessionOnly?: boolean;\n    readonly limits?: MemoryRecallLimits;\n    readonly timeoutMs: number;\n    readonly signal: AbortSignal;\n}',
   },
   {
     name: 'MemoryRecord',
-    declaration: 'export interface MemoryRecord {\n    readonly id: MemoryItemId;\n    readonly domain: MemoryDomain;\n    readonly time: number;\n    readonly summary: string;\n    readonly userText: string;\n    readonly agentText: string;\n    readonly sessionId: SessionId;\n    readonly episodeId: MemoryEpisodeId;\n}',
+    declaration: 'export interface MemoryRecord {\n    readonly id: MemoryItemId;\n    readonly domain: MemoryDomain;\n    readonly time: number;\n    readonly summary: string;\n    readonly userText: string;\n    readonly agentText: string;\n    readonly sessionId: SessionId;\n    readonly episodeId: MemoryEpisodeId;\n    readonly procedureStatus?: ProcedureStatus;\n}',
   },
   {
     name: 'MemoryScope',
@@ -6924,6 +6938,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'PreToolDecision',
     declaration: 'export type PreToolDecision = {\n    kind: \'allow\';\n} | {\n    kind: \'deny\';\n    reason: string;\n} | {\n    kind: \'ask\';\n    reason?: string;\n    allowSession?: string;\n    allowSessionCoverage?: SessionGrantCoverage;\n};',
+  },
+  {
+    name: 'ProcedureStatus',
+    declaration: 'export type ProcedureStatus = \'candidate\' | \'active\' | \'archived\';',
   },
   {
     name: 'ProjectionChangeListener',

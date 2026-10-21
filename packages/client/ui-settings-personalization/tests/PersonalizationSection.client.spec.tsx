@@ -13,9 +13,11 @@ afterEach(cleanup)
 /** The seat's key domain falls back to the key, and interpolates as the real chain does. */
 const t: PersonalizationSectionProps['t'] = (key, variables) => {
   const copy = (en as Record<string, string>)[key] ?? key
-  return variables === undefined
-    ? copy
-    : copy.replace(/\{(\w+)\}/g, (match, name: string) => String(variables[name] ?? match))
+  if (variables === undefined) return copy
+  return copy.replace(/\{(\w+)\}/g, (match, name: string) => {
+    const value = variables[name]
+    return typeof value === 'string' ? value : match
+  })
 }
 
 // Global standard kit stubs: this page consumes none of these hooks.

@@ -49,7 +49,7 @@ This table connects model-visible tool names to the plugin package and service s
 | `@aeven/tool-elevation` | - | `ctx.tools`, `ctx.approval`, `ctx.subprocess`, `a Windows host` | `tool/call`, `tool/result` | `elevated` | A Windows-only tool: the user approves the run in Aeven and again in the operating-system consent prompt, and a refusal fails the call instead of running the command at the caller's own privilege. Compositions that mount the package off Windows offer the model nothing. |
 | `@aeven/tool-image-search` | `find_images` | `ctx.tools`, `ctx.attachments`, `ctx.llm`, `ctx.web (execution time)` | `tool/call`, `one durable image attachment per photograph or card`, `tool/result` | - | `find_images` reads Wikimedia Commons first and the web seam second, so a deployment without a web provider still answers and cites what Commons holds. Every photograph and news card becomes a durable image attachment the client shows in the transcript. |
 | `@aeven/tool-mail` | `mail_accounts`, `mail_read`, `mail_search`, `mail_send`, `mail_update` | `ctx.tools`, `ctx.mail`, `a session owner with at least one usable mail account`, `a calling Agent for account addressing and approval routing` | `tool/call`, `tool/result`, `mail folder and message changes through ctx.mail`, `a saved attachment file inside the workspace` | - | The tools register for an agent only while its session owner has at least one usable mail account, so a signed-out session or a mailbox-less owner sees none; sending and permanent deletion ask through ctx.approval, where a deny from another policy still wins. |
-| `@aeven/tool-memory` | `memory_environments`, `memory_get`, `memory_remember`, `memory_search`, `memory_skill`, `memory_skills`, `memory_timeline` | `ctx.tools`, `ctx.memory` | `tool/call`, `tool/result`, `a remembered fact on memory_remember` | - | Registered only while a memory provider is active, so a composition without one shows the model no memory tools at all; the seven tools read the provider and only `memory_remember` writes to it. |
+| `@aeven/tool-memory` | `memory_environments`, `memory_get`, `memory_remember`, `memory_remember_bulk`, `memory_search`, `memory_skill`, `memory_skills`, `memory_timeline` | `ctx.tools`, `ctx.memory` | `tool/call`, `tool/result`, `remembered facts on memory_remember and memory_remember_bulk` | - | Registered only while a memory provider is active; `memory_remember` stores one fact and `memory_remember_bulk` stores an atomic batch of already-distilled facts. |
 
 <a id="aeventool-ask-user"></a>
 
@@ -190,19 +190,19 @@ exit_plan_mode stays in the model-facing schema while planning is inactive so tr
 
 ### `bash`
 
-Execute a bash command (`bash -c`) and return its stdout/stderr. Each call runs in a fresh shell: no state (cwd, variables, functions) persists between calls — pass `workdir` instead of using `cd`. Non-zero exits are reported as `[exit code: N]`. Current harness environment facts are exposed through managed `$AVN_*` variables; inspect them when needed. Commands may run under a file sandbox; a blocked file operation is reported as `[sandbox: file access denied under <mode> mode]` — a policy denial, not a bug in the command; do not retry another way. Long output is truncated to its tail; the full output is saved to a file whose path is reported when available. Start anything whose duration you cannot bound in the background with `run_in_background: true` — installs, builds, test suites, servers, downloads — so `job_output` collects it while you keep working. A foreground command still running after 20000ms is handed back as a background job instead of blocking the turn.
+Execute a bash command (`bash -c`) and return its stdout/stderr. Each call runs in a fresh shell; pass `workdir` instead of using `cd`. Managed `$AVN_*` variables expose current harness environment facts. Long output is truncated to its tail; the full output is saved to a file whose path is reported when available. A foreground command still running after 20000ms is handed back as a background job instead of blocking the turn. Provide `description` before `command` in the arguments. Before any delete or move, verify that the resolved absolute target path is the intended one; never run it against a computed path you have not checked. An unset variable expands to an empty string, so guard variables in such paths with `${VAR:?}`. Commands may run under a file sandbox; a blocked file operation is reported as `[sandbox: file access denied under <mode> mode]`, a policy denial: do not retry another way.
 
 ```json
 {
   "type": "object",
   "properties": {
-    "command": {
-      "type": "string",
-      "description": "The bash command to execute."
-    },
     "description": {
       "type": "string",
       "description": "Clear, concise description of what this command does in active voice, 5-10 words (shown in the UI). Examples: \"ls\" → \"List files in current directory\"; \"git status\" → \"Show working tree status\"; \"npm install\" → \"Install package dependencies\"."
+    },
+    "command": {
+      "type": "string",
+      "description": "The bash command to execute."
     },
     "timeoutMs": {
       "type": "number",
@@ -218,8 +218,8 @@ Execute a bash command (`bash -c`) and return its stdout/stderr. Each call runs 
     }
   },
   "required": [
-    "command",
-    "description"
+    "description",
+    "command"
   ]
 }
 ```
@@ -234,19 +234,19 @@ The bash tool is the model-facing consumer of the bash executor seam. A `run_in_
 
 ### `pwsh`
 
-Execute a PowerShell command (`pwsh -Command`) and return its stdout/stderr. Each call runs in a fresh pwsh process: no state (cwd, variables, functions) persists between calls — pass `workdir` instead of using `cd`. Paths use native Windows form (`C:\...`); read environment variables with `$env:NAME`. Non-zero exits are reported as `[exit code: N]`. Current harness environment facts are exposed through managed `$env:AVN_*` variables; inspect them when needed. Commands may run under a file sandbox; a blocked file operation is reported as `[sandbox: file access denied under <mode> mode]` — a policy denial, not a bug in the command; do not retry another way. Long output is truncated to its tail; the full output is saved to a file whose path is reported when available. On Windows a force-killed command settles as `[exit code: 1]` without a signal marker — treat it as an interruption, not a command failure. Start anything whose duration you cannot bound in the background with `run_in_background: true` — installs, builds, test suites, servers, downloads — so `job_output` collects it while you keep working. A foreground command still running after 20000ms is handed back as a background job instead of blocking the turn.
+Execute a PowerShell command (`pwsh -Command`) and return its stdout/stderr. Each call runs in a fresh pwsh process; pass `workdir` instead of using `cd`. Paths use native Windows form (`C:\...`); read environment variables with `$env:NAME`. Managed `$env:AVN_*` variables expose current harness environment facts. Long output is truncated to its tail; the full output is saved to a file whose path is reported when available. On Windows a force-killed command settles as `[exit code: 1]` without a signal marker — treat it as an interruption, not a command failure. A foreground command still running after 20000ms is handed back as a background job instead of blocking the turn. Provide `description` before `command` in the arguments. Before any delete or move, verify that the resolved absolute target path is the intended one; never run it against a computed path you have not checked. Do not assign to automatic variables such as `$HOME`; variable names are case-insensitive, so `$home` is the same read-only variable. Commands may run under a file sandbox; a blocked file operation is reported as `[sandbox: file access denied under <mode> mode]`, a policy denial: do not retry another way.
 
 ```json
 {
   "type": "object",
   "properties": {
-    "command": {
-      "type": "string",
-      "description": "The PowerShell command to execute."
-    },
     "description": {
       "type": "string",
       "description": "Clear, concise description of what this command does in active voice, 5-10 words (shown in the UI). Examples: \"ls\" → \"List files in current directory\"; \"git status\" → \"Show working tree status\"; \"Get-Process\" → \"List running processes\"."
+    },
+    "command": {
+      "type": "string",
+      "description": "The PowerShell command to execute."
     },
     "timeoutMs": {
       "type": "number",
@@ -262,8 +262,8 @@ Execute a PowerShell command (`pwsh -Command`) and return its stdout/stderr. Eac
     }
   },
   "required": [
-    "command",
-    "description"
+    "description",
+    "command"
   ]
 }
 ```
@@ -793,7 +793,7 @@ The read-before-write/edit policy is added by `@aeven/fs-observation-policy` (an
 
 ### `glob`
 
-Find files whose paths match a glob pattern. Returns matching file paths — never directories — including hidden and ignored files (VCS metadata directories are excluded). Up to 100 paths come back in modification-time order; a larger result instead returns 100 paths sampled across top-level entries, says so, and reports where the complete sorted list was saved. This tool does not enumerate directory entries.
+Find files, not directories, whose paths match a glob pattern, including hidden and ignored files. Returns up to 100 paths in modification-time order; a larger result is sampled across top-level entries and reports where the complete list was saved.
 
 ```json
 {
@@ -818,7 +818,7 @@ Source: [`packages/fs/tool-fs-search/src/index.ts`](../packages/fs/tool-fs-searc
 
 ### `grep`
 
-Search file contents with a ripgrep regular expression. Returns matching lines with line numbers, grouped by file. Returns the first 250 matches inline; a capped result reports where the complete match list was saved. Use read on a matched file for surrounding context.
+Search file contents with a ripgrep regular expression. Returns matching lines with line numbers, grouped by file. Returns up to 250 matches; a larger result reports where the complete match list was saved.
 
 ```json
 {
@@ -1018,7 +1018,7 @@ The six terminal tools are opt-in and complement one-shot shell/filesystem tools
 
 ### `create_goal`
 
-Create one persisted same-session completion goal when the current direct human request is a long-running objective that should continue across autonomous goal rounds. You may infer that intent without requiring the user to say "create a goal". Do not use this for trivial single-turn work. Execution rejects non-human and subagent authority.
+Create a persisted goal that keeps this session working across automatic continuation rounds. Use it when the direct human request is a long-running objective, even if the user did not say "goal"; not for single-turn work.
 
 ```json
 {
@@ -1043,7 +1043,7 @@ Source: [`packages/goal/tool-goal/src/index.ts`](../packages/goal/tool-goal/src/
 
 ### `get_goal`
 
-Read the current same-session goal, including its exact id/revision, objective, phase, completed continuation rounds, round limit, blocker reason when present, and whether another continuation is armed. Call this before updating a goal.
+Read the current session goal, including the id and revision that update_goal requires.
 
 ```json
 {
@@ -1056,7 +1056,7 @@ Source: [`packages/goal/tool-goal/src/index.ts`](../packages/goal/tool-goal/src/
 
 ### `update_goal`
 
-Update the exact current goal revision. edit, pause, and resume require a direct top-level human request. During an automatic continuation of the current goal, complete and blocked are also allowed. blocked is rejected before the configured minimum round count; the model remains responsible for judging that the same condition persisted across those rounds and must explain it in blocked_reason.
+Update the current goal.
 
 ```json
 {
@@ -1072,7 +1072,7 @@ Update the exact current goal revision. edit, pause, and resume require a direct
     },
     "action": {
       "type": "string",
-      "description": "edit | pause | resume | complete | blocked",
+      "description": "edit, pause, and resume require a direct top-level human request. complete and blocked are also allowed during an automatic continuation of this goal; blocked is rejected before the configured minimum round count.",
       "enum": [
         "edit",
         "pause",
@@ -1091,7 +1091,7 @@ Update the exact current goal revision. edit, pause, and resume require a direct
     },
     "blocked_reason": {
       "type": "string",
-      "description": "Concrete blocking condition; required only with action blocked."
+      "description": "Required only with action blocked: the concrete condition that persisted across rounds and blocks progress."
     }
   },
   "required": [
@@ -2235,7 +2235,7 @@ The catalog mounts the tool with no configured model, which is the shape that re
 
 ### `todo_write`
 
-Record and update a structured task list for the current work. Send the ENTIRE list every call — it REPLACES the previous list (there are no partial updates, no per-item edits). Use it to plan multi-step work and show progress: add one todo per concrete step before you start. Mark every todo being actively worked on `in_progress` — several at once when work genuinely runs in parallel (e.g. concurrent subagents or background commands), one for sequential work; while work remains, at least one task should be `in_progress`. Mark a todo `completed` the moment it is done (do not batch completions), and allow no `in_progress` item only once all work is complete. Skip the list for trivial single-step tasks. Statuses: `pending` (not started), `in_progress` (being worked on now), `completed` (finished).
+Record and update a task list to plan multi-step work and show progress; skip it for trivial single-step tasks. Add one todo per concrete step before you start. While work remains, keep the todos being worked on `in_progress`, several only when work runs in parallel. Mark each todo `completed` as soon as it is done.
 
 ```json
 {
@@ -2401,7 +2401,7 @@ Source: [`packages/web/tool-web/src/index.ts`](../packages/web/tool-web/src/inde
 
 ### `web_search`
 
-Search the web for current information. Use it before answering anything that may have changed since your training data, and whenever you would otherwise guess. Provide 1–4 queries in the required queries array. Returns an optional summary answer and a list of source URLs.
+Search the web for current information. Returns an optional summary answer and a list of source URLs.
 
 ```json
 {
@@ -3418,7 +3418,7 @@ Source: [`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-mem
 
 ### `memory_remember`
 
-Store one fact the user explicitly asked you to remember, such as a preference, a name, or how they like a task done. Use only when the user asks you to remember something; ordinary conversation is remembered automatically.
+Store one fact the user explicitly asked you to remember, such as a preference, a name, or how they like a task done. Use only when the user asks you to remember something; ordinary conversation is remembered automatically. Preserve attribution, dates and uncertainty: distinguish a source's advertised claim, an observation, a plan and an assessment. Do not store your interpretation as a verified fact.
 
 ```json
 {
@@ -3430,10 +3430,11 @@ Store one fact the user explicitly asked you to remember, such as a preference, 
     },
     "about": {
       "type": "string",
-      "description": "user: a fact about the user that holds everywhere (the default). project: a fact that matters only in this project.",
+      "description": "user: a fact about the user that holds everywhere (the default). project: a fact that matters only in this project. knowledge: information about a product or subject beyond the current project, not the user's own life.",
       "enum": [
         "user",
-        "project"
+        "project",
+        "knowledge"
       ]
     }
   },
@@ -3445,9 +3446,43 @@ Store one fact the user explicitly asked you to remember, such as a preference, 
 
 Source: [`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-memory/src/index.ts)
 
+### `memory_remember_bulk`
+
+Import already-distilled facts when the user asks to import or remember many facts. Use this instead of repeated memory_remember calls. Each fact is stored verbatim as its own memory, with batched embeddings and no per-fact summarization. When the facts are in a file, pass `file` and the tool reads it itself: every fact is imported exactly as written, none is left out or reworded. Otherwise pass `facts`, at most 500 per call. Facts the memory already holds with the same text are skipped, so importing a file again is safe. Preserve attribution, dates and uncertainty: distinguish a source's advertised claim, an observation, a plan and an assessment. Do not store your interpretation as a verified fact.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "facts": {
+      "type": "array",
+      "description": "Already-distilled, self-contained facts; name whom each fact is about. Give this or `file`.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "file": {
+      "type": "string",
+      "description": "Absolute path of a fact file: `.jsonl` with one {\"fact\": \"...\", \"about\": \"user\" | \"project\" | \"knowledge\", \"date\": \"YYYY-MM-DD\"} object per line (`about` and `date` optional), or `.txt` with one fact per line. Give this or `facts`."
+    },
+    "about": {
+      "type": "string",
+      "description": "user: facts about the user or people they know (the default). project: facts specific to the current project. knowledge: facts about the world, a product, or a subject that are not about the user's own life.",
+      "enum": [
+        "user",
+        "project",
+        "knowledge"
+      ]
+    }
+  }
+}
+```
+
+Source: [`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-memory/src/index.ts)
+
 ### `memory_search`
 
-Search long-term memory of earlier work: past task traces, learned policies, environment knowledge, and reusable skills. Each direct-user turn already receives one automatic recall; use this to rephrase or broaden an insufficient recall, and before claiming earlier context is unavailable.
+Search long-term memory of earlier work: past task traces, learned policies, environment knowledge, and reusable skills. Each direct-user turn already receives one automatic recall; use this to rephrase or broaden an insufficient recall, and before claiming earlier context is unavailable. For several unrelated topics, pass `queries` with one topic each instead of one long query.
 
 ```json
 {
@@ -3455,7 +3490,14 @@ Search long-term memory of earlier work: past task traces, learned policies, env
   "properties": {
     "query": {
       "type": "string",
-      "description": "A concise free-text memory query."
+      "description": "A concise free-text memory query. Give this, or `queries` for several topics."
+    },
+    "queries": {
+      "type": "array",
+      "description": "Up to four queries, each naming one topic. Retrieval embeds a query whole, so one string holding several unrelated names - a person, a product and a year - matches none of them, while one query per name returns each.",
+      "items": {
+        "type": "string"
+      }
     },
     "maxResults": {
       "type": "integer",
@@ -3477,10 +3519,7 @@ Search long-term memory of earlier work: past task traces, learned policies, env
       "type": "boolean",
       "description": "Restrict results to memory captured from this session."
     }
-  },
-  "required": [
-    "query"
-  ]
+  }
 }
 ```
 
@@ -3559,4 +3598,4 @@ List the ordered traces of one past episode to reconstruct how an earlier task w
 
 Source: [`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-memory/src/index.ts)
 
-Registered only while a memory provider is active, so a composition without one shows the model no memory tools at all; the seven tools read the provider and only `memory_remember` writes to it.
+Registered only while a memory provider is active; `memory_remember` stores one fact and `memory_remember_bulk` stores an atomic batch of already-distilled facts.

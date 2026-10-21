@@ -7,13 +7,14 @@ import {
   deriveBrowserTimeZoneContext,
   renderBrowserTimeZoneContext,
 } from './request-zone.ts'
-import { createTimestampFormatter, formatTimestamp } from './timestamp.ts'
+import { createTimestampFormatter, formatLocalTime, formatTimestamp } from './timestamp.ts'
 
 const PACKAGE_NAME = '@aeven/time-context'
 const SOURCE_NAME = 'time-context'
 const READING = new RegExp(
   '^Time sampled while preparing turn (\\d+), step (\\d+): '
-  + '(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:Z|[+-]\\d{2}:\\d{2})\\[[^\\]]+\\])\\n'
+  + '(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:Z|[+-]\\d{2}:\\d{2})\\[([^\\]]+)\\])\\n'
+  + '(Local time: .+)\\n'
   + '(Browser time zone for this request: .+)\\n'
   + 'Elapsed since the preceding (model-visible message|step context): '
   + '(?:unavailable|(?:(?:\\d+d )?(?:\\d+h )?(?:\\d+m )?\\d+s))\\.$',
@@ -123,13 +124,13 @@ function validateReading(
     || section.text !== blockText) {
     fail('time-context source must carry only the exact snapshot text, not request authority')
   }
-  const renderedBrowserContext = match[4]
+  const renderedBrowserContext = match[6]
   const browserContext = deriveBrowserTimeZoneContext(requestMessages(history, turn))
   const expectedBrowserContext = renderBrowserTimeZoneContext(browserContext)
   if (renderedBrowserContext !== expectedBrowserContext) {
     fail('time-context browser-zone text does not match current-turn user messages')
   }
-  const baseline = match[5]
+  const baseline = match[7]
   if ((step === 1) !== (baseline === 'model-visible message')) {
     fail(`time-context step ${step} uses the wrong elapsed-time baseline ${JSON.stringify(baseline)}`)
   }
@@ -140,6 +141,17 @@ function validateReading(
   if (!Number.isFinite(renderedTime) || !Number.isSafeInteger(event.time)
     || event.time < renderedTime) {
     fail('time-context rendered timestamp must parse and not postdate its durable event')
+  }
+  /* v8 ignore next -- the preceding fixed regexp always supplies capture groups four and five. */
+  if (match[4] === undefined || match[5] === undefined) fail('time-context reading omitted its local time')
+  let expectedLocalTime: string
+  try {
+    expectedLocalTime = formatLocalTime(renderedTime, match[4])
+  } catch (error: unknown) {
+    fail(`time-context reading names a zone that cannot format its local time: ${String(error)}`)
+  }
+  if (match[5] !== expectedLocalTime) {
+    fail('time-context local-time line does not match its rendered timestamp')
   }
   if (browserContext.kind === 'resolved') {
     let expectedTimestamp: string

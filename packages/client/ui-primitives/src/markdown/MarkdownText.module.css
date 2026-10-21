@@ -151,6 +151,11 @@
   overflow: auto;
 }
 
+/* A ```message fence holds text the person sends on: it reads as the reply's own paragraphs. */
+.markdown :global(.codeblock-wrapper.message) code {
+  font: var(--dsw-font-markdown-base) !important;
+}
+
 .markdown :not(pre) > code {
   display: inline-flex;
   align-items: center;

@@ -239,6 +239,20 @@ export interface MemoryCore {
   ): Promise<{ traceId: string; episodeId: EpisodeId }>;
 
   // ── memory queries ──
+  /**
+   * Embed already-distilled facts as documents and persist them atomically, without capture or LLM calls. A fact
+   * whose text the owner's memory already holds, or that repeats an earlier fact of the batch, is skipped.
+   * @param input - owning namespace, source session, ordered facts with tags and an optional recorded time, and
+   * cancellation.
+   * @returns ids of the written facts in input order and the number skipped, after commit; embedding or
+   * cancellation failure writes nothing.
+   */
+  rememberFacts(input: {
+    namespace: RuntimeNamespace;
+    sessionId: string;
+    facts: readonly { text: string; tags: readonly string[]; ts?: number }[];
+    signal: AbortSignal;
+  }): Promise<{ ids: string[]; skipped: number }>;
   searchMemory(
     query: RetrievalQueryDTO,
     execution?: MemorySearchExecutionOptions,

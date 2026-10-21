@@ -55,7 +55,7 @@ describe('Aeven account menu', () => {
     expect(screen.queryByText('Ollie')).toBeNull()
   })
 
-  it('offers the reader above Settings, Language and Log out, and nothing else', () => {
+  it('offers the reader above Settings, Language and Sign out, and nothing else', () => {
     render(<AccountMenu {...props()} />)
     fireEvent.click(screen.getByLabelText('trigger.aria'))
     const rows = screen.getAllByRole('menuitem').map(row => row.textContent)

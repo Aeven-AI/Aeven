@@ -303,7 +303,9 @@
       config:
         transport: stdio
         serverName: chrome_devtools
-        title: Chrome the user can see (signed-in sessions)
+        # The title is how the tool index tells the two browsers apart, so it
+        # names which one web development uses.
+        title: Chrome DevTools over CDP in the visible Chrome the user can see; use it for all web development, debugging, and checking pages, signed-in ones included
         command: !!js "process.platform === 'win32' ? 'npx.cmd' : 'npx'"
         args:
           - '-y'
@@ -328,7 +330,7 @@
       config:
         transport: stdio
         serverName: playwright
-        title: Headless browser
+        title: Headless Playwright browser nobody can see; use it only when the person asks for Playwright, or to read a page for a search when web_fetch cannot get it
         command: !!js "process.platform === 'win32' ? 'npx.cmd' : 'npx'"
         args:
           - '-y'
@@ -813,3 +815,13 @@
 
     - id: ui-automations
       name: '@aeven/client-ui-automations'
+
+# A session without a workspace (a chat) works and writes in its own directory.
+# The base root is the Host process's working directory, which is wherever
+# `avn web` started — for someone developing Aeven, the Aeven checkout, where a
+# chat's downloads and scratch files do not belong. A session with a workspace
+# keeps that workspace as its root.
+- id: sandbox-policy
+  config:
+    mode: !!js process.env.AVN_PERMISSION_MODE ?? 'workspace-write'
+    workspaceRoot: !!js "(process.getBuiltinModule('node:fs').mkdirSync(avnHomePath('chats'), { recursive: true }), avnHomePath('chats'))"

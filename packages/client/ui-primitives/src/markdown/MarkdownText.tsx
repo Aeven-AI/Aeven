@@ -41,6 +41,8 @@ import css from './MarkdownText.module.css'
 export interface MarkdownLabels {
   /** Fence toolbar copy control. */
   code: MarkdownCodeLabels
+  /** A ```message fence's title and copy control; the engine's English labels apply when absent. */
+  message?: MarkdownMessageLabels | undefined
   /** Heading of the footnote section. */
   footnotes: string
   /** Reasoning block chrome, for a caller that renders reasoning at all. */
@@ -69,6 +71,14 @@ export interface MarkdownReasoningLabels {
   thinking: string
   /** Header once it has finished, containing `{seconds}`. */
   thoughtFor: string
+}
+
+/** Chrome of a ```message fence: text the person will send on, shown as prose. */
+export interface MarkdownMessageLabels {
+  /** Fence title. */
+  title: string
+  /** Copy-button label. */
+  copyLabel: string
 }
 
 /** Copy-button labels forwarded to fence toolbars (this package is cordis-free, so copy arrives via props). */
@@ -386,11 +396,15 @@ export const MarkdownText = memo(function MarkdownText({
   const translations = useMemo<Partial<Translations>>(() => {
     const reasoning = labels.reasoning
     const video = labels.video
+    const message = labels.message
 
     return {
       copy: labels.code.copyLabel,
       copyCode: labels.code.copyLabel,
       codeCopied: labels.code.copiedLabel,
+      ...message === undefined
+        ? {}
+        : { message: message.title, copyMessage: message.copyLabel },
       ...reasoning === undefined
         ? {}
         : { thinking: reasoning.thinking, thoughtFor: reasoning.thoughtFor },

@@ -7,6 +7,18 @@ import * as TimeInvariant from '@aeven/time-context/invariant'
 import InvariantRegistry from '@aeven/invariants'
 
 const SECOND = Date.parse('2026-07-14T00:00:00Z')
+const UTC_TIMESTAMP = '2026-07-14T00:00:00+00:00[UTC]'
+const SHANGHAI_TIMESTAMP = '2026-07-14T08:00:00+08:00[Asia/Shanghai]'
+const UTC_LOCAL_TIME = 'Local time: Tuesday 14 July 2026, 00:00 (night). '
+  + 'Before dawn a person\'s "today" usually still means Monday 13 July '
+  + 'and their "tomorrow" means Tuesday 14 July. '
+  + 'When the person\'s wording about the time of day disagrees with this, go by this reading.'
+const SHANGHAI_LOCAL_TIME = 'Local time: Tuesday 14 July 2026, 08:00 (morning). '
+  + 'When the person\'s wording about the time of day disagrees with this, go by this reading.'
+const UNAVAILABLE_BROWSER = 'Browser time zone for this request: unavailable. '
+  + 'Ask the user to clarify otherwise-unqualified dates and times.'
+const SHANGHAI_BROWSER = 'Browser time zone for this request: Asia/Shanghai. '
+  + 'Interpret otherwise-unqualified dates and times in this zone.'
 
 async function setup(): Promise<Context> {
   const ctx = new Context()
@@ -44,10 +56,12 @@ function reading(
   turn = '1',
   step = '1',
   baseline = 'model-visible message',
-  timestamp = '2026-07-14T00:00:00+00:00[UTC]',
-  browser = 'Browser time zone for this request: unavailable. Ask the user to clarify otherwise-unqualified dates and times.',
+  timestamp = UTC_TIMESTAMP,
+  local = UTC_LOCAL_TIME,
+  browser = UNAVAILABLE_BROWSER,
 ): string {
   return `Time sampled while preparing turn ${turn}, step ${step}: ${timestamp}\n`
+    + `${local}\n`
     + `${browser}\n`
     + `Elapsed since the preceding ${baseline}: unavailable.`
 }
@@ -88,8 +102,9 @@ function appendReading(session: Session, text: string): void {
 describe('time-context invariants', () => {
   it('accepts a reading whose turn, step, baseline, and timestamp agree', async () => {
     const ctx = await setup()
-    const text = 'Time sampled while preparing turn 2, step 3: 2026-07-14T00:00:00+00:00[UTC]\n'
-      + 'Browser time zone for this request: unavailable. Ask the user to clarify otherwise-unqualified dates and times.\n'
+    const text = `Time sampled while preparing turn 2, step 3: ${UTC_TIMESTAMP}\n`
+      + `${UTC_LOCAL_TIME}\n`
+      + `${UNAVAILABLE_BROWSER}\n`
       + 'Elapsed since the preceding step context: 4m 2s.'
     expect(() => { ctx.emit('session/event', preparing(2, 3), event(text)) }).not.toThrow()
   })
@@ -103,15 +118,14 @@ describe('time-context invariants', () => {
 
   it('requires browser-zone policy and timestamp to match current-turn request provenance', async () => {
     const ctx = await setup()
-    const policy = 'Browser time zone for this request: Asia/Shanghai. '
-      + 'Interpret otherwise-unqualified dates and times in this zone.'
     expect(() => {
       ctx.emit('session/event', preparing(1, 1, 'Asia/Shanghai'), event(reading(
         '1',
         '1',
         'model-visible message',
-        '2026-07-14T08:00:00+08:00[Asia/Shanghai]',
-        policy,
+        SHANGHAI_TIMESTAMP,
+        SHANGHAI_LOCAL_TIME,
+        SHANGHAI_BROWSER,
       ), SECOND + 456))
     }).not.toThrow()
     expect(() => {
@@ -122,17 +136,22 @@ describe('time-context invariants', () => {
         '1',
         '1',
         'model-visible message',
-        '2026-07-14T00:00:00+00:00[UTC]',
-        policy,
+        UTC_TIMESTAMP,
+        UTC_LOCAL_TIME,
+        SHANGHAI_BROWSER,
       )))
     }).toThrow(/rendered timestamp does not match the unique browser zone/)
   })
 
   it('reports browser-zone timestamp formatter failures as invariant violations', async () => {
     const ctx = await setup()
-    const policy = 'Browser time zone for this request: Asia/Shanghai. '
-      + 'Interpret otherwise-unqualified dates and times in this zone.'
+    // oxlint-disable-next-line typescript/unbound-method -- the pass-through must keep the caller's receiver.
+    const original = Intl.DateTimeFormat.prototype.formatToParts
+    // The reading formats its local-time line first, so only the durable-timestamp call fails.
     const formatToParts = vi.spyOn(Intl.DateTimeFormat.prototype, 'formatToParts')
+      .mockImplementationOnce(function (this: Intl.DateTimeFormat, ...args: Parameters<Intl.DateTimeFormat['formatToParts']>) {
+        return original.call(this, ...args)
+      })
       .mockImplementationOnce(() => { throw new RangeError('formatter unavailable') })
     try {
       expect(() => {
@@ -140,13 +159,40 @@ describe('time-context invariants', () => {
           '1',
           '1',
           'model-visible message',
-          '2026-07-14T08:00:00+08:00[Asia/Shanghai]',
-          policy,
+          SHANGHAI_TIMESTAMP,
+          SHANGHAI_LOCAL_TIME,
+          SHANGHAI_BROWSER,
         )))
       }).toThrow(/browser zone cannot format its durable timestamp: RangeError: formatter unavailable/)
     } finally {
       formatToParts.mockRestore()
     }
+  })
+
+  it('rejects a local-time line that disagrees with its rendered timestamp', async () => {
+    const ctx = await setup()
+    expect(() => {
+      ctx.emit('session/event', preparing(1, 1), event(reading(
+        '1',
+        '1',
+        'model-visible message',
+        UTC_TIMESTAMP,
+        SHANGHAI_LOCAL_TIME,
+      )))
+    }).toThrow(/local-time line does not match its rendered timestamp/)
+  })
+
+  it('rejects a reading whose bracketed zone cannot format its local time', async () => {
+    const ctx = await setup()
+    expect(() => {
+      ctx.emit('session/event', preparing(1, 1), event(reading(
+        '1',
+        '1',
+        'model-visible message',
+        '2026-07-14T00:00:00+00:00[Not/A_Real_Zone]',
+        UTC_LOCAL_TIME,
+      )))
+    }).toThrow(/names a zone that cannot format its local time/)
   })
 
   it('rejects invalid browser provenance loaded across the durable boundary', async () => {
@@ -160,6 +206,7 @@ describe('time-context invariants', () => {
         '1',
         'model-visible message',
         `2026-07-14T00:00:00+00:00[${timeZone}]`,
+        UTC_LOCAL_TIME,
         policy,
       )))
     }).toThrow(/browser time zone is unsupported/)
@@ -182,6 +229,7 @@ describe('time-context invariants', () => {
         '1',
         'model-visible message',
         '2026-07-14T00:00:00+00:00[UTC]',
+        UTC_LOCAL_TIME,
         'Browser time zone for this request: mixed ["Asia/Shanghai","Not/A_Real_Zone"]. '
         + 'Ask the user to clarify otherwise-unqualified dates and times.',
       )))
@@ -257,6 +305,9 @@ describe('time-context invariants', () => {
 
   it.each([
     ['not a reading', SECOND, undefined, /durable reading format/],
+    ['Time sampled while preparing turn 1, step 1: 2026-07-14T00:00:00+00:00[UTC]\n'
+      + `${UNAVAILABLE_BROWSER}\n`
+      + 'Elapsed since the preceding model-visible message: unavailable.', SECOND, undefined, /durable reading format/],
     [reading('0'), SECOND, undefined, /positive safe integers/],
     [reading('999999999999999999999'), SECOND, undefined, /positive safe integers/],
     [reading('1', '0', 'step context'), SECOND, undefined, /positive safe integers/],

@@ -27,6 +27,14 @@ export interface EmbeddingConfig {
   provider: EmbeddingProviderName;
   endpoint?: string;
   model: string;
+  /** Prepended to every query-role provider input. Default: none. */
+  queryPrefix?: string;
+  /** Prepended to every document-role provider input. Default: none. */
+  documentPrefix?: string;
+  /** `local` provider execution device (transformers.js device name). Default: `cpu`. */
+  device?: string;
+  /** `local` provider weight precision (transformers.js dtype). Default: `q8`. */
+  dtype?: string;
   dimensions: number;
   apiKey?: string;
   /** OpenRouter provider routing — providers to skip. */

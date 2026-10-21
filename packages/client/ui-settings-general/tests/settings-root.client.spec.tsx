@@ -314,7 +314,8 @@ describe('SettingsPanel navigation', () => {
     expect(scrollIntoView.mock.contexts).toEqual([screen.getByRole('button', { name: 'General' })])
     fireEvent.click(screen.getByRole('button', { name: 'Agent presets' }))
     expect(scrollIntoView.mock.contexts.at(-1)).toBe(screen.getByRole('button', { name: 'Agent presets' }))
-    expect(scrollIntoView).toHaveBeenLastCalledWith({ block: 'nearest', inline: 'nearest' })
+    // `inline: 'start'` rests the active cell on the content inset.
+    expect(scrollIntoView).toHaveBeenLastCalledWith({ block: 'nearest', inline: 'start' })
   })
 
   it('returns a classic scrollbar\'s width to the section\'s right inset', () => {

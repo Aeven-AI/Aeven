@@ -158,7 +158,7 @@ export function apply(ctx: ClientContext): void {
     },
     setImage: image => reader.setImage(image),
     removeImage: () => reader.removeImage(),
-    cached: <T>(path: string) => cache.peek<T>(path),
+    cached: (path: string) => cache.peek<unknown>(path),
   }
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section',

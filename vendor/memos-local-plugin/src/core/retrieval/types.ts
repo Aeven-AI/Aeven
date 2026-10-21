@@ -222,6 +222,10 @@ export interface RankedSnippet {
  * build minimal configs without standing up the TypeBox defaults.
  */
 export interface RetrievalConfig {
+  /** Learned value a remembered (`lightweight_memory`) trace ranks with at least; its own value stays 0. */
+  rememberedFactValue?: number;
+  /** Retrieve `candidate` policies beside `active` ones; false retrieves `active` policies only. */
+  includeCandidatePolicies?: boolean;
   tier1TopK: number;
   tier2TopK: number;
   tier3TopK: number;

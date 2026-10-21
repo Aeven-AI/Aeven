@@ -177,7 +177,7 @@ export const en: Record<AccountAevenKey, string> = {
   'avatar.failed': 'We couldn’t save that picture. Try another one.',
   'settings': 'Settings',
   'language': 'Language',
-  'logout': 'Log out',
+  'logout': 'Sign out',
   'section.nav': 'Account',
   'section.intro': 'Your Aeven account, plan, credits and usage.',
   'section.loading': 'Loading…',

@@ -27,7 +27,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount the component, attach the plugins the surface needs, and drive streaming through the imperative handle. The heavy engines are opt-in: a slot left empty degrades instead of failing, so `$x$` stays literal, a fence renders unhighlighted, and a ```` ```mermaid ```` fence renders as a code block.
+Mount the component, attach the plugins the surface needs, and drive streaming through the imperative handle. The heavy engines are opt-in: a slot left empty degrades instead of failing, so `$x$` stays literal, a fence renders unhighlighted, and a ```` ```mermaid ```` fence renders as a code block. A ```` ```message ```` fence holds text the reader will send on — a message, email, or reply — and renders as wrapped prose in the surrounding text's font, with a copy button and no line numbers; its title and copy label are the `message` and `copyMessage` translations.
 
 ```tsx
 import { HyperMarkdown, katexPlugin, highlightPlugin, mermaidPlugin } from '@aeven/client-hypermarkdown'

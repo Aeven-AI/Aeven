@@ -18,7 +18,7 @@ import {
   renderBrowserTimeZoneContext,
 } from './request-zone.ts'
 import type { BrowserTimeZoneContext } from './request-zone.ts'
-import { createTimestampFormatter, formatTimestamp } from './timestamp.ts'
+import { createTimestampFormatter, formatLocalTime, formatTimestamp } from './timestamp.ts'
 
 /** Cordis plugin name used by loader diagnostics. */
 export const name = 'time-context'
@@ -102,6 +102,7 @@ function renderText(
   const baseline = step === 1 ? 'model-visible message' : 'step context'
   const browserText = renderBrowserTimeZoneContext(browserContext)
   return `Time sampled while preparing turn ${turn}, step ${step}: ${formatTimestamp(now, formatter, timeZone)}\n`
+    + `${formatLocalTime(now, timeZone)}\n`
     + `${browserText}\n`
     + `Elapsed since the preceding ${baseline}: ${elapsed}.`
 }

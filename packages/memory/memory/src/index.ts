@@ -11,7 +11,9 @@ import type {
   LearnedProcedure,
   LearnedProceduresRequest,
   MemoryDetail,
+  MemoryDomain,
   MemoryEnvironment,
+  MemoryHit,
   MemoryItemId,
   MemoryPage,
   MemoryProvider,
@@ -45,7 +47,27 @@ export const MEMORY_TOOL = {
   skills: 'memory_skills',
   skill: 'memory_skill',
   remember: 'memory_remember',
+  rememberBulk: 'memory_remember_bulk',
 } as const
+
+/**
+ * Where and when a recalled memory came from, as the model reads it beside the memory: the date it was recorded, or
+ * that it was imported, with the source's own date when the import gave one.
+ * @param hit - the recalled memory.
+ * @returns a short label such as `recorded 2026-10-20` or `imported 2026-10-20, undated`; empty when nothing is known.
+ */
+export function memoryOriginLabel(hit: Pick<MemoryHit, 'origin' | 'recordedAt'>): string {
+  // The host's local calendar day, which is the person's: a UTC day labels a late-evening memory with the day before.
+  const day = (time: number): string => {
+    const date = new Date(time)
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+  }
+  if (hit.origin?.kind === 'import') {
+    return `imported ${day(hit.origin.savedAt)}, ${hit.recordedAt === undefined ? 'undated' : `dated ${day(hit.recordedAt)}`}`
+  }
+  const time = hit.recordedAt ?? hit.origin?.savedAt
+  return time === undefined ? '' : `recorded ${day(time)}`
+}
 
 /** Opens the text and the summary of every learned-procedure memory, followed by its name and a colon. */
 export const LEARNED_PROCEDURE_PREFIX = 'Learned procedure'
@@ -77,6 +99,7 @@ export function learnedProcedureOf(record: MemoryRecord): LearnedProcedure | und
     domain: record.domain,
     time: record.time,
     sessionId: record.sessionId,
+    status: record.procedureStatus ?? 'candidate',
   }
 }
 
@@ -203,6 +226,24 @@ export default class Memory extends Service {
   }
 
   /**
+   * Set a learned procedure's maturity.
+   * @param request - account id, the procedure's memory id, and the new status.
+   * @returns true when a procedure of the owner was updated.
+   */
+  setProcedureStatus(request: Parameters<MemoryProvider['setProcedureStatus']>[0]): Promise<boolean> {
+    return this.current().setProcedureStatus(request)
+  }
+
+  /**
+   * Domain one captured turn was filed under; undefined while no provider is registered.
+   * @param request - the session and its turn number.
+   * @returns the turn's domain, or undefined when the provider has none for it.
+   */
+  async turnDomain(request: Parameters<MemoryProvider['turnDomain']>[0]): Promise<MemoryDomain | undefined> {
+    return this.provider?.turnDomain(request)
+  }
+
+  /**
    * Read one memory item.
    * @param request - scope, item kind, and id.
    * @returns the item, or undefined when the scope holds no such item.
@@ -288,6 +329,16 @@ export default class Memory extends Service {
    */
   remember(request: Parameters<MemoryProvider['remember']>[0]): Promise<MemoryItemId> {
     return this.current().remember(request)
+  }
+
+  /**
+   * Import already-distilled facts verbatim in one atomic batch, skipping facts the owner's memory already holds.
+   * @param request - owning scope, ordered facts with their original time when known, their domain, and cancellation.
+   * @returns ids of the facts written, in input order, and how many were skipped; rejects without writing any fact
+   * on failure.
+   */
+  rememberMany(request: Parameters<MemoryProvider['rememberMany']>[0]): Promise<{ readonly ids: readonly MemoryItemId[]; readonly skipped: number }> {
+    return this.current().rememberMany(request)
   }
 
   /**

@@ -17,10 +17,11 @@ function chatOwns(pathname: string, starts: ReadonlySet<string>): boolean {
 }
 
 /**
- * The Host mints every Session id as `session-<uuid>`, and repeating that word
- * in a path already meaning "conversation" makes the address twice as long as
- * it reads. The prefix is dropped on the way out and restored on the way in,
- * so the id the rest of the client handles is unchanged.
+ * The Host mints every chat's Session id as `session-<uuid>`, and repeating that
+ * word in a path already meaning "conversation" makes the address twice as long
+ * as it reads. The prefix is dropped on the way out and restored on the way in,
+ * so the id the rest of the client handles is unchanged. A subagent's
+ * conversation has a bare `<uuid>` id, addressed with {@link BARE_ID_MARKER}.
  */
 const SESSION_ID_PREFIX = 'session-'
 
@@ -30,6 +31,12 @@ const SESSION_ID_PREFIX = 'session-'
  * whatever the address happened to say.
  */
 const SESSION_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * Path marker of a Session id that is a bare UUID, such as a subagent's conversation. Without it the address would
+ * read back as `session-<uuid>`, a chat that does not exist, and opening it would create an empty one.
+ */
+const BARE_ID_MARKER = 'agent-'
 
 /**
  * Session address for one Session id, as `/c/<uuid>`.
@@ -43,7 +50,7 @@ const SESSION_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 export function sessionPathOf(sessionId: string): string {
   const bare = sessionId.startsWith(SESSION_ID_PREFIX)
     ? sessionId.slice(SESSION_ID_PREFIX.length)
-    : sessionId
+    : SESSION_UUID.test(sessionId) ? `${BARE_ID_MARKER}${sessionId}` : sessionId
   return `${SESSION_PATH_PREFIX}${encodeURIComponent(bare)}`
 }
 
@@ -156,6 +163,10 @@ export class BrowserSessionUrlNavigation implements SessionUrlNavigation {
       /* v8 ignore next -- kept as a parser guard: no non-empty percent-encoding
        * decodes to the empty string, and the empty path was rejected above. */
       if (value.length === 0) return undefined
+      if (value.startsWith(BARE_ID_MARKER)) {
+        const id = value.slice(BARE_ID_MARKER.length)
+        return SESSION_UUID.test(id) ? id.toLowerCase() as SessionId : undefined
+      }
       // An address written before the prefix was dropped still names its
       // session, so it is accepted as it stands rather than prefixed twice.
       const bare = value.startsWith(SESSION_ID_PREFIX) ? value.slice(SESSION_ID_PREFIX.length) : value

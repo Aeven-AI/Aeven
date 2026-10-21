@@ -235,7 +235,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/memory/api-memory-manager/src/index.ts:41`](../packages/memory/api-memory-manager/src/index.ts)
+来源：[`packages/memory/api-memory-manager/src/index.ts:38`](../packages/memory/api-memory-manager/src/index.ts)
 
 <a id="aevenapi-session-controller"></a>
 
@@ -251,7 +251,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/api/session-controller/src/index.ts:82`](../packages/api/session-controller/src/index.ts)
+来源：[`packages/api/session-controller/src/index.ts:84`](../packages/api/session-controller/src/index.ts)
 
 <a id="aevenapi-settings-controller"></a>
 
@@ -473,7 +473,7 @@ export type Config = LocalConfig
 
 依赖：[`LocalConfig`](#aevenbash-local)
 
-来源：[`packages/shell/bash-sandbox/src/index.ts:35`](../packages/shell/bash-sandbox/src/index.ts)
+来源：[`packages/shell/bash-sandbox/src/index.ts:36`](../packages/shell/bash-sandbox/src/index.ts)
 
 <a id="aevenbrowser-chromium"></a>
 
@@ -1454,7 +1454,7 @@ export interface ReverseEngineeringConfig {
 }
 ```
 
-来源：[`packages/host/account-integrations/src/index.ts:53`](../packages/host/account-integrations/src/index.ts)
+来源：[`packages/host/account-integrations/src/index.ts:54`](../packages/host/account-integrations/src/index.ts)
 
 <a id="aevenhost-directory-picker-browse"></a>
 
@@ -1859,6 +1859,12 @@ export interface PiAiProviderProfile {
    */
   modelOverrides?: Record<string, PiAiModelOverride>
   /**
+   * Model ids switched off for selectors. The route keeps serving them — a
+   * Session that already selected one still runs — but the advisory catalog
+   * the model pickers read omits them.
+   */
+  disabledModels?: string[]
+  /**
    * Live model-list refresh for a route whose provider publishes an
    * OpenRouter-style `GET /models` document. Absent, the route serves the
    * installed pi-ai snapshot alone, which lags whatever the provider
@@ -2117,7 +2123,7 @@ export type PiAiThinkingFormat = NonNullable<OpenAICompletionsCompat['thinkingFo
 
 依赖：`Api` （`@earendil-works/pi-ai`） · `CacheRetention` （`@earendil-works/pi-ai`） · `Model` （`@earendil-works/pi-ai`） · `ModelThinkingLevel` （`@earendil-works/pi-ai`） · `OpenAICompletionsCompat` （`@earendil-works/pi-ai`） · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts) · `ThinkingBudgets` （`@earendil-works/pi-ai`） · `Transport` （`@earendil-works/pi-ai`）
 
-来源：[`packages/llm/llm-pi-ai/src/config.ts:259`](../packages/llm/llm-pi-ai/src/config.ts)
+来源：[`packages/llm/llm-pi-ai/src/config.ts:265`](../packages/llm/llm-pi-ai/src/config.ts)
 
 <a id="aevenllm-replay"></a>
 
@@ -2376,7 +2382,7 @@ export interface MediaRuntimeConfig {
 }
 ```
 
-来源：[`packages/media/media/src/index.ts:58`](../packages/media/media/src/index.ts)
+来源：[`packages/media/media/src/index.ts:60`](../packages/media/media/src/index.ts)
 
 <a id="aevenmedia-aeven"></a>
 
@@ -2486,13 +2492,39 @@ export interface Config {
    * detail stays behind `memory_get`.
    */
   itemMaxChars: number
-  /** Maximum recalled items from each domain. */
-  domainMaxItems: Record<MemoryDomain, number>
   /**
-   * Share of shared words at which two recalled memories are taken to describe one subject, so a later one
-   * supersedes an earlier one. `1` limits supersession to summaries with identical word sets.
+   * Maximum recalled items from each domain when the provider did not judge relevance, or the judgment failed and the
+   * hits are a mechanical fallback.
    */
-  supersedeOverlap: number
+  domainMaxItems: Record<MemoryDomain, number>
+  /** Maximum recalled items in one unjudged block, chosen in rank order across domains. */
+  maxItems: number
+  /**
+   * Maximum recalled items in one block whose hits the provider's relevance judgment chose. The judgment already
+   * dropped every memory that does not help the reply, so no domain is capped: a question about one subject receives
+   * all the facts about it that fit, up to this count.
+   */
+  judgedMaxItems: number
+  /**
+   * Characters of the person's earlier messages in the same session that join the turn's own text in the recall
+   * query, newest first. A follow-up such as "what should I reply to her?" names nobody, so without the earlier
+   * messages recall searches for the follow-up's words alone. `0` recalls on the turn's text alone.
+   */
+  queryContextChars: number
+  /**
+   * Hours back from which a session's first turn also offers the person's newest memories about themselves as
+   * recall candidates: recall searches the turn's words, so without them a new session cannot know what the person
+   * is going through unless their words happen to match it. They pass the same relevance judgment as every other
+   * candidate. `0` turns it off.
+   */
+  recentPersonHours: number
+  /** Most memories about the person a session's first turn offers from the last `recentPersonHours`. */
+  recentPersonItems: number
+  /**
+   * Most of those memories taken from any one conversation, newest first. Every recent conversation is sampled, so a
+   * long one (a biography session that stored dozens of facts) cannot hide a short one about how the person is doing.
+   */
+  recentPersonPerSession: number
   /** System-prompt section order of the memory guidance. */
   promptOrder: number
 }
@@ -2565,13 +2597,80 @@ export interface Config {
    * `algorithm.lightweightMemory.enabled` in `config.yaml`. Each stage spends auxiliary calls on the owning session's route.
    */
   learning: boolean
+  /**
+   * Local embedding model behind vector recall, applied when `config.yaml` keeps MemOS's `local` embedding
+   * provider; it overrides that file's `embedding.model`, prefixes, `device`, `dtype`, and `maxInputTokens`. Changing the model,
+   * a prefix, or the piece size re-embeds each account's stored memory once, in the background, when its core opens.
+   */
+  embedding: EmbeddingConfig
+  /** Vectors re-embedded per batch when an account's memory is re-indexed. */
+  reindexBatchSize: number
+  /**
+   * Separate episodes whose traces must support a pattern before MemOS induces a policy from it
+   * (`l2Induction.minEpisodesForInduction`); one episode is a single example, not a pattern.
+   */
+  minEpisodesForInduction: number
+  /** Recall `candidate` policies beside `active` ones (`retrieval.includeCandidatePolicies`). */
+  candidatePolicies: boolean
+  /** MemOS Skills one recall delivers at most (`retrieval.tier1TopK`). */
+  skillsPerTurn: number
+  /**
+   * Learned value a remembered or imported fact ranks with at least (`retrieval.rememberedFactValue`). Such a fact
+   * never takes part in a rewarded task, so its own value stays 0 and rewarded conversation traces, tool-step logs
+   * included, would always outrank it.
+   */
+  rememberedFactValue: number
+  /**
+   * Longest the turn-start relevance judgment may take, in milliseconds, inside the recall's own budget; when it fails
+   * or runs out, at most two mechanically ranked memories are delivered and the recall is marked degraded.
+   */
+  relevanceTimeoutMs: number
 }
 
 /** Natural language MemOS writes stored memory in; `auto` follows the language of the captured user text. */
 export type MemoryLanguage = 'auto' | 'en' | 'zh'
+
+/** Local embedding model settings. */
+export interface EmbeddingConfig {
+  /** Hugging Face model id loaded through transformers.js. */
+  model: string
+  /** Prepended to every recall query; E5 models require `query: `. */
+  queryPrefix: string
+  /** Prepended to every stored text; E5 models require `passage: `. */
+  documentPrefix: string
+  /** transformers.js execution device, such as `cpu`, `coreml`, or `webgpu`. */
+  device: string
+  /** transformers.js weight precision, such as `q8`, `fp16`, or `fp32`. */
+  dtype: string
+  /**
+   * Estimated tokens per embedded piece; MemOS splits a longer text into pieces and pools their vectors. Keep it
+   * within the model's input window (512 for E5), or the model truncates each piece.
+   */
+  maxInputTokens: number
+  /**
+   * Cosine cutoffs on this model's scale. A model's similarity scale is its own: E5 scores unrelated texts
+   * around 0.8 where MiniLM scores them near 0.1, so MemOS's defaults admit everything under E5. The defaults
+   * map MemOS's MiniLM values to E5 by matching the share of memory pairs each cutoff keeps.
+   */
+  similarity: SimilarityConfig
+}
+
+/** Embedding-scale cosine cutoffs applied to MemOS's algorithm configuration. */
+export interface SimilarityConfig {
+  /** Minimum query-to-memory cosine for a recalled trace (`retrieval.minTraceSim`). */
+  trace: number
+  /** Minimum query-to-episode-goal cosine (`retrieval.episodeGoalMinSim`). */
+  episodeGoal: number
+  /** Minimum cosine to attach a new trace to an existing policy (`l2Induction.minSimilarity`). */
+  policyAssociation: number
+  /** Minimum cosine to merge feedback into an existing policy (`feedback.mergeSimilarity`). */
+  policyMerge: number
+  /** Minimum cosine for two policies to share a world model (`l3Abstraction.clusterMinSimilarity`). */
+  policyCluster: number
+}
 ```
 
-来源：[`packages/memory/memory-memos/src/index.ts:27`](../packages/memory/memory-memos/src/index.ts)
+来源：[`packages/memory/memory-memos/src/index.ts:28`](../packages/memory/memory-memos/src/index.ts)
 
 <a id="aevenmessage-feedback"></a>
 
@@ -2675,7 +2774,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/preset/personalization/src/index.ts:35`](../packages/preset/personalization/src/index.ts)
+来源：[`packages/preset/personalization/src/index.ts:41`](../packages/preset/personalization/src/index.ts)
 
 <a id="aevenplan-mode"></a>
 
@@ -2762,7 +2861,7 @@ export type Config = LocalConfig
 
 依赖：[`LocalConfig`](#aevenpwsh-local)
 
-来源：[`packages/shell/pwsh-sandbox/src/index.ts:40`](../packages/shell/pwsh-sandbox/src/index.ts)
+来源：[`packages/shell/pwsh-sandbox/src/index.ts:41`](../packages/shell/pwsh-sandbox/src/index.ts)
 
 <a id="aevenrepeat-tool-reminder"></a>
 
@@ -3818,7 +3917,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/core/system-prompt/src/index.ts:242`](../packages/core/system-prompt/src/index.ts)
+来源：[`packages/core/system-prompt/src/index.ts:243`](../packages/core/system-prompt/src/index.ts)
 
 <a id="aeventerminal-bash"></a>
 
@@ -3937,7 +4036,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/shell/tool-bash/src/index.ts:33`](../packages/shell/tool-bash/src/index.ts)
+来源：[`packages/shell/tool-bash/src/index.ts:36`](../packages/shell/tool-bash/src/index.ts)
 
 <a id="aeventool-bash-persistent"></a>
 
@@ -4045,6 +4144,8 @@ export interface Config {
    * merged in the background, once per owner and workspace per process; zero never merges.
    */
   consolidateAbove: number
+  /** Memory store: days an unconfirmed candidate procedure waits before it is archived. */
+  candidateTtlDays: number
 }
 ```
 
@@ -4267,15 +4368,7 @@ export interface Config extends ImageConfig {
 }
 
 /** Config for the image tool, which is also the `media` settings document. */
-export interface ImageConfig extends ModelSelection {
-  /**
-   * Media providers whose own image-model listing is offered after `choices`.
-   * The listing is read on every call, so a provider whose models change at
-   * runtime — such as a subscription whose image model the user switches on or
-   * off in Settings → Providers — is selectable exactly while it lists them.
-   */
-  listedProviders?: string[]
-}
+export type ImageConfig = ModelSelection
 
 /**
  * Config for the video tool, which is also the `media-video` settings
@@ -4315,6 +4408,20 @@ export interface ModelSelection {
    * deployment default from a choice, so the picker asks exactly once.
    */
   modelChosen?: boolean
+  /**
+   * Media providers whose own model listing is offered after `choices`. The
+   * listing is read on every call, so a provider whose models change at
+   * runtime — a subscription whose image model the user switches on or off,
+   * or a vendor whose key is added or removed in Settings → Providers — is
+   * selectable exactly while it lists them.
+   */
+  listedProviders?: string[]
+  /**
+   * Listed models switched off in Settings → Providers, as `provider/model`
+   * references. Only the `listedProviders` additions are filtered: a
+   * configured choice is the deployment's own and stays offered.
+   */
+  disabledModels?: string[]
   /** Largest reference image file one call may read, in bytes. */
   maxReferenceImageBytes?: number
 }
@@ -4332,7 +4439,7 @@ export interface ImageModelChoice {
 }
 ```
 
-来源：[`packages/media/tool-media/src/index.ts:134`](../packages/media/tool-media/src/index.ts)
+来源：[`packages/media/tool-media/src/index.ts:140`](../packages/media/tool-media/src/index.ts)
 
 <a id="aeventool-memory"></a>
 
@@ -4347,10 +4454,12 @@ export interface Config {
   resultMaxChars: number
   /** Hard budget for one `memory_search`, in milliseconds. */
   searchTimeoutMs: number
+  /** Maximum already-distilled facts accepted by one bulk write. */
+  bulkMaxFacts: number
 }
 ```
 
-来源：[`packages/memory/tool-memory/src/index.ts:18`](../packages/memory/tool-memory/src/index.ts)
+来源：[`packages/memory/tool-memory/src/index.ts:20`](../packages/memory/tool-memory/src/index.ts)
 
 <a id="aeventool-pwsh"></a>
 
@@ -4372,7 +4481,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/shell/tool-pwsh/src/index.ts:51`](../packages/shell/tool-pwsh/src/index.ts)
+来源：[`packages/shell/tool-pwsh/src/index.ts:54`](../packages/shell/tool-pwsh/src/index.ts)
 
 <a id="aeventool-pwsh-persistent"></a>
 
@@ -4568,7 +4677,7 @@ export interface Config {
 
 依赖：[`AgentOptions`](subsystems/core.zh.md)
 
-来源：[`packages/subagent/tool-subagent/src/index.ts:47`](../packages/subagent/tool-subagent/src/index.ts)
+来源：[`packages/subagent/tool-subagent/src/index.ts:52`](../packages/subagent/tool-subagent/src/index.ts)
 
 <a id="aeventool-terminal"></a>
 

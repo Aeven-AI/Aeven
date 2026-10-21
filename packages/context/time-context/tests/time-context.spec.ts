@@ -165,6 +165,8 @@ describe('durable step context', () => {
 
     expect(contextTexts(session)).toEqual([
       'Time sampled while preparing turn 1, step 1: 2026-07-15T09:01:01+08:00[Asia/Shanghai]\n'
+      + 'Local time: Wednesday 15 July 2026, 09:01 (morning). '
+      + 'When the person\'s wording about the time of day disagrees with this, go by this reading.\n'
       + 'Browser time zone for this request: Asia/Shanghai. Interpret otherwise-unqualified dates and times in this zone.\n'
       + 'Elapsed since the preceding model-visible message: 1d 1h 1m 1s.',
     ])
@@ -181,11 +183,30 @@ describe('durable step context', () => {
       sections: [{
         name: 'time-context',
         text: 'Time sampled while preparing turn 1, step 1: 2026-07-15T09:01:01+08:00[Asia/Shanghai]\n'
+          + 'Local time: Wednesday 15 July 2026, 09:01 (morning). '
+          + 'When the person\'s wording about the time of day disagrees with this, go by this reading.\n'
           + 'Browser time zone for this request: Asia/Shanghai. Interpret otherwise-unqualified dates and times in this zone.\n'
           + 'Elapsed since the preceding model-visible message: 1d 1h 1m 1s.',
       }],
     })
     expect(event.surfaceOp).toBe('append')
+  })
+
+  it.each([
+    ['04:59', BASE + 4 * 3_600_000 + 59 * 60_000, 'Tuesday 14 July 2026, 04:59 (night). Before dawn'],
+    ['05:00', BASE + 5 * 3_600_000, 'Tuesday 14 July 2026, 05:00 (morning). When'],
+    ['12:00', BASE + 12 * 3_600_000, 'Tuesday 14 July 2026, 12:00 (afternoon). When'],
+    ['17:00', BASE + 17 * 3_600_000, 'Tuesday 14 July 2026, 17:00 (evening). When'],
+    ['22:00', BASE + 22 * 3_600_000, 'Tuesday 14 July 2026, 22:00 (night). When'],
+  ] as const)('names the local weekday, date, time, and part of day at UTC %s', async (clock, now, marker) => {
+    const { ctx } = await mount({ timeZone: 'UTC' })
+    const session = Session.create(SessionId(`part-of-day-${clock.replace(':', '-')}`))
+    openMessageTurn(session, 1)
+    vi.setSystemTime(now)
+
+    await fire(ctx, sessionAgent(session), 1, 1)
+
+    expect(contextTexts(session)[0]).toContain(`Local time: ${marker}`)
   })
 
   it('reports an unavailable first-step baseline when no model-visible message precedes it', async () => {
@@ -215,6 +236,10 @@ describe('durable step context', () => {
 
     expect(contextTexts(session)[1]).toBe(
       'Time sampled while preparing turn 3, step 2: 2026-07-14T00:01:01+00:00[UTC]\n'
+      + 'Local time: Tuesday 14 July 2026, 00:01 (night). '
+      + 'Before dawn a person\'s "today" usually still means Monday 13 July '
+      + 'and their "tomorrow" means Tuesday 14 July. '
+      + 'When the person\'s wording about the time of day disagrees with this, go by this reading.\n'
       + 'Browser time zone for this request: unavailable. Ask the user to clarify otherwise-unqualified dates and times.\n'
       + 'Elapsed since the preceding step context: 1m 1s.',
     )
@@ -227,6 +252,8 @@ describe('durable step context', () => {
     await fire(ctx, sessionAgent(resolved), 1, 1)
     expect(contextTexts(resolved)[0]).toContain(
       '2026-07-13T20:00:00-04:00[America/New_York]\n'
+      + 'Local time: Monday 13 July 2026, 20:00 (evening). '
+      + 'When the person\'s wording about the time of day disagrees with this, go by this reading.\n'
       + 'Browser time zone for this request: America/New_York. '
       + 'Interpret otherwise-unqualified dates and times in this zone.',
     )
@@ -244,6 +271,10 @@ describe('durable step context', () => {
     await fire(ctx, sessionAgent(mixed), 1, 1)
     expect(contextTexts(mixed)[0]).toContain(
       '2026-07-14T00:00:00+00:00[UTC]\n'
+      + 'Local time: Tuesday 14 July 2026, 00:00 (night). '
+      + 'Before dawn a person\'s "today" usually still means Monday 13 July '
+      + 'and their "tomorrow" means Tuesday 14 July. '
+      + 'When the person\'s wording about the time of day disagrees with this, go by this reading.\n'
       + 'Browser time zone for this request: mixed ["America/New_York","Asia/Shanghai"]. '
       + 'Ask the user to clarify otherwise-unqualified dates and times.',
     )

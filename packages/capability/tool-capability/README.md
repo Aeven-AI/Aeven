@@ -41,7 +41,10 @@ Mount it per agent beside a host `capability` registry (the `standard`, `cordis`
 | `maxOutputTokens` | `16000` | Output limit of one learning model call; a reasoning model spends part of it thinking before it answers |
 | `maxInputTokens` | `32000` | Input budget of one learning model call, estimated at four characters per token; a longer transcript is condensed, then cut |
 | `consolidateAbove` | `40` | Memory store: distinct procedures a session sees above which procedures of one kind of task are merged in the background; `0` never merges |
+| `candidateTtlDays` | `30` | Memory store: days an unconfirmed `candidate` procedure waits before it is archived; archived procedures are kept for restoring but neither recalled nor merged into |
 | `provider`, `model` | — | Explicit learning route; absent uses each session's route |
+
+With the memory store, learning waits for the person's next message and reads it as feedback: a correction or complaint about time shapes the procedure, and a reply that rejects or disputes the answer means nothing is learned. A turn memory filed as being about the person is never learned from. A written procedure is a `candidate` unless it replaces an `active` one without a correction and keeps most of its steps; memory recall promotes a candidate once it informs work the person does not correct, and a correction or negative rating returns it to `candidate`. A procedure saved because the person asked, or imported, is `active` at once.
 
 ## Model Experience
 

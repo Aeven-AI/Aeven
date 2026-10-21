@@ -14,6 +14,14 @@ The `app:web-surface` session section stated the Aeven Web GUI's URL inline: `Yo
 
 The split follows the surface's own rule: what the GUI renders, how replies and images render, and which update contract holds are facts about the surface and belong in the section; which port this process bound to is a fact about the process and belongs in the context that the request rebuilds every turn. The `AVN_WEB_URL` bash variable keeps carrying the same live value for shell consumers.
 
+## Alternatives considered
+
+**Keep the URL in `app:web-surface` and rebuild the session's prompt on a rebind.** Rebuilding the prefix rewrites the cached system prompt from the first changed token, so every turn after a rebind loses KV-cache reuse, and a session created before the rebind keeps an address the server no longer serves.
+
+**Carry the URL only in `AVN_WEB_URL` and name that variable in the section.** The model reads the variable only by running a shell command, so a turn that never calls bash has no address at all; a runtime-context entry reaches every request assembly without a tool call.
+
+**Append the URL as a logged session event on bind.** A bind is process state, not conversation state: the event would need rewriting on every rebind and would leave sessions mounted before it without the value.
+
 ## Consequences
 
 - A rebind appends a new runtime-context snapshot instead of rewriting the prompt prefix, so the section before it stays cacheable.

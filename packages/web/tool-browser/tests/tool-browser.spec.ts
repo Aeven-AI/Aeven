@@ -216,8 +216,9 @@ describe('tool-browser first-step context', () => {
   })
 
   it('leaves a rejected step untouched', async () => {
-    const ctx = await mount()
-    const seen = answer(ctx, () => Promise.resolve(PAGE))
+    const ctx = await mount({ statusTimeoutMs: 60_000 })
+    const pane = Promise.withResolvers<unknown>()
+    const seen = answer(ctx, () => pane.promise)
 
     const decision = await agentEvents(ctx, sessionAgent()).waterfall(
       'agent/pre-step',
@@ -225,8 +226,12 @@ describe('tool-browser first-step context', () => {
       () => Promise.resolve({ kind: 'reject' as const }),
     )
 
+    // The lookup runs beside the later listeners, so a rejected step has already asked for the page; the decision
+    // neither waits for that answer nor carries it.
     expect(decision).toEqual({ kind: 'reject' })
-    expect(seen).toEqual([])
+    expect(seen.map(request => request.operation)).toEqual(['status'])
+    pane.resolve(PAGE)
+    await Promise.resolve()
   })
 })
 

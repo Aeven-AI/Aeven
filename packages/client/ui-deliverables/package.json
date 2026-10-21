@@ -65,6 +65,9 @@
     "@aeven/system-prompt": "workspace:^",
     "@aeven/util-workspace-path": "workspace:^"
   },
+  "dependencies": {
+    "diff": "^9.0.0"
+  },
   "files": [
     "lib/index.js",
     "lib/client.js",

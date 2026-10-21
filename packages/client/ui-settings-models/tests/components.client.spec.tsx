@@ -61,6 +61,18 @@ function capacityInputs(label: string): HTMLInputElement[] {
   return screen.getAllByLabelText<HTMLInputElement>(new RegExp(label))
 }
 
+/**
+ * Every row's remove action. The button draws a trash glyph and no text, so the
+ * dictionary's remove-provider copy, which names the row it deletes, is what
+ * identifies it.
+ */
+function removeActions(): HTMLButtonElement[] {
+  const [head = '', tail = ''] = en.removeProvider.split('{provider}')
+  return screen.getAllByRole<HTMLButtonElement>('button', {
+    name: (accessibleName: string) => accessibleName.startsWith(head) && accessibleName.endsWith(tail),
+  })
+}
+
 const PiAiConfig = Schema.object({
   providers: Schema.dict(Schema.object({
     apiKeyEnv: Schema.string().role('credential-ref'),
@@ -221,6 +233,11 @@ function scriptedFace(overrides: {
       set,
       unset,
     },
+    // The provider card groups media models from the session catalogs.
+    session: {
+      imageModelCatalog: vi.fn(() => Promise.resolve(remoteOk({ models: [] }))),
+      videoModelCatalog: vi.fn(() => Promise.resolve(remoteOk({ models: [] }))),
+    },
   }
   return { face, update, mutate, set, unset }
 }
@@ -314,15 +331,19 @@ describe('ModelsSection', () => {
     expect(document.body.textContent).toBe('')
   })
 
-  it('dispatches the provider-card seat per rendered row, keyed by the owning namespace', async () => {
+  it('dispatches the provider-card seat inside each opened row, keyed by the owning namespace', async () => {
     const { renderSlot } = await mountSection()
-    const cards = cardSeatCalls(renderSlot)
-    expect(cards).toContainEqual(['openai', true, true, 'llm-pi-ai'])
-    expect(cards).toContainEqual(['deepseek-official', true, false, 'llm-deepseek'])
-    // The footer seat renders once below the rows and the add controls.
+    // The footer seat renders once with the section, below the rows and the add controls.
     expect(renderSlot.mock.calls.filter(call => call[0] === 'settings.models.footer')).toEqual([
       ['settings.models.footer', {}],
     ])
+    // A row's card is its expanded body, so a closed row dispatches nothing.
+    expect(cardSeatCalls(renderSlot)).toEqual([])
+    fireEvent.click(screen.getByRole('button', { name: openaiCopy(en.editProvider) }))
+    expect(cardSeatCalls(renderSlot)).toContainEqual(['openai', true, true, 'llm-pi-ai'])
+    // One card at a time: opening the DeepSeek row closes the pi-ai one.
+    fireEvent.click(screen.getByRole('button', { name: deepSeekCopy(en.editProvider) }))
+    expect(cardSeatCalls(renderSlot)).toContainEqual(['deepseek-official', true, false, 'llm-deepseek'])
   })
 
   it('dispatches the provider-card seat on the add-provider draft with its dormant row', async () => {
@@ -383,17 +404,17 @@ describe('ModelsSection', () => {
       renderSlot={() => null}
     />)
 
-    const missing = screen.getAllByRole('img', { name: en.credentialMissing })
-    // Every row whose declared reference the Host confirmed missing is marked:
+    // Every row whose declared reference the Host confirmed missing says so:
     // the dedicated DeepSeek route and the adopted pi-ai profile.
-    expect(missing.map(dot => dot.closest('li')?.textContent)).toEqual([
+    const missing = screen.getAllByText(en.providerKeyMissingDescription)
+    expect(missing.map(description => description.closest('li')?.textContent)).toEqual([
       expect.stringContaining('DeepSeek'),
       expect.stringContaining('openai'),
     ])
-    expect(missing[0]!.getAttribute('title')).toBe(en.credentialMissing)
-    expect(missing[0]!.className).toContain('dotMissing')
-    expect(screen.queryByRole('img', { name: en.credentialConfigured })).toBeNull()
-    expect(screen.getByText('zombie').closest('li')?.querySelector('[role="img"]')).toBeNull()
+    // A confirmed key reads as connected, so no row claims it is missing.
+    expect(screen.queryByText(en.providerKeyDescription)).toBeNull()
+    // A route that authenticates from the environment is neither missing nor connected.
+    expect(screen.getByText('zombie').closest('li')?.textContent).toContain(en.providerNativeDescription)
   })
 
   it('derives conventional credential references from route ids', () => {
@@ -710,10 +731,9 @@ describe('ModelsSection', () => {
     const restored = capacityInputs(en.contextWindow)
     expect((restored[0] as HTMLInputElement).value).toBe('1M')
 
-    // Reset put the draft back where it started, so Apply writes nothing at
-    // all rather than persisting whatever the stale text had parsed to.
-    fireEvent.click(screen.getByText(en.apply))
-    await waitFor(() => { expect(screen.queryByText(en.apply)).toBeNull() })
+    // Reset put the draft back where it started, so the card has nothing left
+    // to commit — and the stale text it dropped never reached the Host.
+    expect(screen.queryByText(en.apply)).toBeNull()
     expect(mutate).not.toHaveBeenCalled()
   })
 
@@ -1175,7 +1195,8 @@ describe('ModelsSection', () => {
       renderSlot={() => null}
     />)
     expect(screen.getByText(en.readOnly)).toBeTruthy()
-    expect(screen.getAllByText<HTMLButtonElement>(en.remove).every(button => button.disabled)).toBe(true)
+    expect(removeActions().length).toBeGreaterThan(0)
+    expect(removeActions().every(button => button.disabled)).toBe(true)
     expect(screen.getByText<HTMLButtonElement>(en.add).disabled).toBe(true)
   })
 
@@ -1188,6 +1209,8 @@ describe('ModelsSection', () => {
     expect(screen.queryAllByLabelText(en.keyInput)).toHaveLength(0)
     fireEvent.click(edit)
     await waitFor(() => { expect(screen.queryAllByLabelText(en.keyInput).length).toBe(1) })
+    // Cancel belongs to the action row, which a card shows once it has a draft.
+    fireEvent.change(screen.getByLabelText(en.keyInput), { target: { value: 'sk-draft' } })
     fireEvent.click(screen.getByText(en.cancel))
     expect(screen.queryAllByLabelText(en.keyInput)).toHaveLength(0)
     expect(mutate).not.toHaveBeenCalled()

@@ -535,6 +535,9 @@ function rollupEpisodes(
 
   const buckets = new Map<EpisodeId, { best: TraceCandidate; all: TraceCandidate[] }>();
   for (const t of traces) {
+    // Remembered facts and stored records sit in the episode they were written in, but they are not steps of
+    // its work; they are recalled on their own, under their own visibility rules.
+    if (t.tags.includes("lightweight_memory")) continue;
     const b = buckets.get(t.episodeId);
     if (!b) {
       buckets.set(t.episodeId, { best: t, all: [t] });

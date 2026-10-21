@@ -529,6 +529,11 @@ export default class AccountIntegrations extends TypertRemoteService {
   private readonly slackPresence = new Map<ConnectorId, { at: number; present: boolean }>()
   private readonly pairings = new Map<ConnectorId, WhatsAppPairing>()
   private readonly telegramPairings = new Map<ConnectorId, TelegramPairing>()
+  /**
+   * Connector synchronization in flight per agent. A conversation starts connecting its accounts when it is created,
+   * and its first step waits for that same run instead of starting a second one.
+   */
+  private readonly syncing = new Map<Agent, Promise<void>>()
   private readonly mounts = new Map<Agent, {
     scope: Scope
     connections: Map<ConnectorId, { key: string; fiber: Fiber }>
@@ -638,8 +643,14 @@ export default class AccountIntegrations extends TypertRemoteService {
         },
       }), 'account-integrations: mail account source')
     })
+    // A new conversation connects its accounts while the person is still typing its first message.
+    this.ctx.on('agent/created', ({ agent }) => {
+      this.syncOnce(agent).catch((error: unknown) => {
+        this.ctx.logger('account-integrations').warn(`connecting accounts for a new conversation failed: ${error instanceof Error ? error.message : String(error)}`)
+      })
+    })
     this.ctx.on('agent/pre-step', async ({ agent }, next): Promise<PreStepDecision> => {
-      await this.syncConnectors(agent)
+      await this.syncOnce(agent)
       const owner = agent.session.header.owner
       const skill = owner === undefined ? undefined : this.domain.table('skills').get(`${accountDirectory(owner)}:reverse-engineering`)
       if (skill?.enabled === true && this.config.reverseEngineering !== undefined) {
@@ -2239,6 +2250,19 @@ export default class AccountIntegrations extends TypertRemoteService {
     this.invalidateSkills()
   }
 
+  /**
+   * Synchronize an agent's connectors, joining a run already in flight for it.
+   * @param agent - the agent whose connectors to mount.
+   * @returns when the agent's connectors match the stored accounts.
+   */
+  private syncOnce(agent: Agent): Promise<void> {
+    const running = this.syncing.get(agent)
+    if (running !== undefined) return running
+    const run = this.syncConnectors(agent).finally(() => { this.syncing.delete(agent) })
+    this.syncing.set(agent, run)
+    return run
+  }
+
   private async syncConnectors(agent: Agent): Promise<void> {
     const owner = agent.session.header.owner
     if (owner === undefined) return
@@ -2270,7 +2294,9 @@ export default class AccountIntegrations extends TypertRemoteService {
     for (const [id, mount] of mounts) {
       if (!connectors.some(([active]) => active === id)) { await mount.fiber.dispose(); mounts.delete(id) }
     }
-    for (const [id, saved] of connectors) {
+    // Each connector checks its sign-in, fetches its token and opens its own server, independently of the others,
+    // so they connect together: the first step of a conversation waits for the slowest account, not for all of them.
+    await Promise.all(connectors.map(async ([id, saved]) => {
       const daemon = saved.provider === 'whatsapp' ? await this.linkedWhatsApp(id, saved)
         : saved.provider === 'telegram' ? await this.linkedTelegram(id, saved) : undefined
       const connector = this.domain.table('connectors').get(id) ?? saved
@@ -2280,11 +2306,11 @@ export default class AccountIntegrations extends TypertRemoteService {
         if (linked !== true) this.connected.delete(id)
         await this.unmountConnector(id)
         this.invalidateSkills()
-        continue
+        return
       }
       if (connector.provider === 'discord' && !await this.discordPresent(id, connector)) {
         await this.markDiscordUnlinked(id)
-        continue
+        return
       }
       this.connected.add(id)
       const google = googleService(connector.provider)
@@ -2306,14 +2332,14 @@ export default class AccountIntegrations extends TypertRemoteService {
       } catch (error) {
         this.ctx.logger('account-integrations').warn(`connector ${id} is unavailable this step: ${error instanceof Error ? error.message : String(error)}`)
         await this.unmountConnector(id)
-        continue
+        return
       }
       const url = daemon?.endpoint ?? connector.endpoint ?? ''
       // Mounts are kept across steps while what the server needs has not changed: the endpoint and
       // token of a remote server, or the entry and guild of a local one.
       const key = stdio === undefined ? `${token}\0${url}` : `${stdio.command}\0${stdio.args.join(' ')}\0${Object.entries(stdio.env).sort().flat().join('\0')}`
       const existing = mounts.get(id)
-      if (existing?.key === key) continue
+      if (existing?.key === key) return
       if (existing !== undefined) { await existing.fiber.dispose(); mounts.delete(id) }
       const serverName = connectorServerName(id, connector.provider)
       const title = `${providerTitles[connector.provider]} (${connector.name})`
@@ -2334,10 +2360,10 @@ export default class AccountIntegrations extends TypertRemoteService {
         // account's tools, and the next step tries to connect it again.
         await fiber.dispose()
         this.ctx.logger('account-integrations').warn(`connector ${id} could not connect: ${error instanceof Error ? error.message : String(error)}`)
-        continue
+        return
       }
       mounts.set(id, { key, fiber })
-    }
+    }))
   }
 
   private async verifyMcp(url: string, token?: string): Promise<void> {

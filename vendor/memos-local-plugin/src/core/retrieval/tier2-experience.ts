@@ -42,7 +42,9 @@ export async function runTier2Experience(
       deps.config.tier2TopK,
       deps.config.keywordTopK ?? DEFAULT_KEYWORD_TOPK,
     );
-    const statusIn: Array<"active" | "candidate"> = ["active", "candidate"];
+    const statusIn: Array<"active" | "candidate"> = deps.config.includeCandidatePolicies === false
+      ? ["active"]
+      : ["active", "candidate"];
     const haveVec = !!repo.searchByVector && !!input.queryVec && input.queryVec.length > 0;
     const haveFts = !!input.ftsMatch && !!repo.searchByText;
     const havePattern =

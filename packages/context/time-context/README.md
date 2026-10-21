@@ -29,7 +29,7 @@ Mount this plugin when the model should interpret unqualified dates and times in
 
 ### What the agent gets
 
-Each injected reading has three lines: an ISO-shaped timestamp with numeric offset and IANA zone, the browser-zone policy for the request, and the elapsed duration in compact whole-second units. Step 1 measures from the latest preceding model-visible message; later steps measure from the preceding time-context event in the same turn. A missing baseline reports `unavailable`, and backward wall-clock movement clamps elapsed time to zero.
+Each injected reading has four lines: an ISO-shaped timestamp with numeric offset and IANA zone, the same instant as a weekday, date, time, and part of the day with the instruction to go by the reading when the person's wording about the day or time of day disagrees, the browser-zone policy for the request, and the elapsed duration in compact whole-second units. Step 1 measures from the latest preceding model-visible message; later steps measure from the preceding time-context event in the same turn. A missing baseline reports `unavailable`, and backward wall-clock movement clamps elapsed time to zero.
 
 ### Configuration
 
@@ -77,7 +77,7 @@ The plugin prepends an `agent/pre-step` listener that delegates first and append
 
 ### Main flow
 
-When an injection is due, the plugin samples the wall clock, derives the browser-zone policy from the open turn's `user-rpc` messages, resolves the display zone (request-local or fallback), and renders the three-line reading. Positive-interval scheduling scans raw durable session events for the latest plugin-attributed message — including one shadowed by compaction — so the schedule survives resume without a process-local cache. A reading records an entered step, not a completed or transmitted request; a later preparation failure can leave it in history.
+When an injection is due, the plugin samples the wall clock, derives the browser-zone policy from the open turn's `user-rpc` messages, resolves the display zone (request-local or fallback), and renders the four-line reading. Positive-interval scheduling scans raw durable session events for the latest plugin-attributed message — including one shadowed by compaction — so the schedule survives resume without a process-local cache. A reading records an entered step, not a completed or transmitted request; a later preparation failure can leave it in history.
 
 </details>
 
@@ -102,12 +102,13 @@ Read these pages when the package-level contract is not enough. They move from t
 
 #### What the model sees
 
-Each injected message contains three lines. `<timestamp>` is an ISO-shaped timestamp with numeric offset and IANA zone; durations use compact whole-second units.
+Each injected message contains four lines. `<timestamp>` is an ISO-shaped timestamp with numeric offset and IANA zone; durations use compact whole-second units.
 
 ##### First step
 
 ```markdown
 Time sampled while preparing turn <turn>, step 1: <timestamp>
+Local time: <weekday> <day> <month> <year>, <HH:MM> (<morning|afternoon|evening|night>). [Before 05:00: Before dawn a person's "today" usually still means <previous weekday day month> and their "tomorrow" means <weekday day month>.] When the person's wording about the time of day disagrees with this, go by this reading.
 Browser time zone for this request: <iana-zone-or-mixed-or-unavailable-policy>.
 Elapsed since the preceding model-visible message: <duration-or-unavailable>.
 ```
@@ -116,6 +117,7 @@ Elapsed since the preceding model-visible message: <duration-or-unavailable>.
 
 ```markdown
 Time sampled while preparing turn <turn>, step <step>: <timestamp>
+Local time: <weekday> <day> <month> <year>, <HH:MM> (<morning|afternoon|evening|night>). [Before 05:00: Before dawn a person's "today" usually still means <previous weekday day month> and their "tomorrow" means <weekday day month>.] When the person's wording about the time of day disagrees with this, go by this reading.
 Browser time zone for this request: <iana-zone-or-mixed-or-unavailable-policy>.
 Elapsed since the preceding step context: <duration-or-unavailable>.
 ```

@@ -80,3 +80,6 @@ packages/*/*/src/**/*.d.ts.map
 
 # Files downloaded from mail by the mail connector, never source.
 /mail-attachments/
+
+# Local scratch exports and fetched artifacts; never source.
+/.tmp-yc/

@@ -65,17 +65,17 @@
     },
     {
       "name": "bash",
-      "description": "Execute a bash command (`bash -c`) and return its stdout/stderr. Each call runs in a fresh shell: no state (cwd, variables, functions) persists between calls — pass `workdir` instead of using `cd`. Non-zero exits are reported as `[exit code: N]`. Current harness environment facts are exposed through managed `$AVN_*` variables; inspect them when needed. Commands may run under a file sandbox; a blocked file operation is reported as `[sandbox: file access denied under <mode> mode]` — a policy denial, not a bug in the command; do not retry another way. Long output is truncated to its tail; the full output is saved to a file whose path is reported when available. Start anything whose duration you cannot bound in the background with `run_in_background: true` — installs, builds, test suites, servers, downloads — so `job_output` collects it while you keep working. A foreground command still running after 20000ms is handed back as a background job instead of blocking the turn. Attempting a command the sandbox may deny is safe and expected: run it and read the marker rather than assuming the denial. When a command is denied and a wider mode would let it succeed, escalate immediately in the same turn — the one sanctioned exception to a denial: retry the exact same command once with `sandbox_permissions` (the narrowest wider mode that suffices) plus a one-sentence `justification`. Do not detour through chat to ask permission first — the approval prompt raised by that retry is how the user consents. If the session states approval prompts are disabled, there is no exception: a denial is final — do not set `sandbox_permissions`. Never escalate speculatively: ground the request in a real denial — normally the one this command just hit; escalating up front is fine only when this session already denied the same access. A rejected escalation is final for that command — stop and explain, never work around it — but it does not forbid attempting or escalating other commands later.",
+      "description": "Execute a bash command (`bash -c`) and return its stdout/stderr. Each call runs in a fresh shell; pass `workdir` instead of using `cd`. Managed `$AVN_*` variables expose current harness environment facts. Long output is truncated to its tail; the full output is saved to a file whose path is reported when available. A foreground command still running after 20000ms is handed back as a background job instead of blocking the turn. Provide `description` before `command` in the arguments. Before any delete or move, verify that the resolved absolute target path is the intended one; never run it against a computed path you have not checked. An unset variable expands to an empty string, so guard variables in such paths with `${VAR:?}`. Commands run under a file sandbox; a blocked file operation is reported as `[sandbox: file access denied under <mode> mode]`, a policy denial: do not retry another way except through the escalation the denial offers. Attempting a command the sandbox may deny is safe: run it rather than assuming the denial.",
       "parameters": {
         "type": "object",
         "properties": {
-          "command": {
-            "type": "string",
-            "description": "The bash command to execute."
-          },
           "description": {
             "type": "string",
             "description": "Clear, concise description of what this command does in active voice, 5-10 words (shown in the UI). Examples: \"ls\" → \"List files in current directory\"; \"git status\" → \"Show working tree status\"; \"npm install\" → \"Install package dependencies\"."
+          },
+          "command": {
+            "type": "string",
+            "description": "The bash command to execute."
           },
           "timeoutMs": {
             "type": "number",
@@ -99,18 +99,18 @@
           },
           "justification": {
             "type": "string",
-            "description": "Required with sandbox_permissions: one sentence for the user explaining why this exact command needs the wider access."
+            "description": "Required with sandbox_permissions: one sentence for the user explaining why this exact command needs the wider access. Use the language of the user’s current request."
           }
         },
         "required": [
-          "command",
-          "description"
+          "description",
+          "command"
         ]
       }
     },
     {
       "name": "create_goal",
-      "description": "Create one persisted same-session completion goal when the current direct human request is a long-running objective that should continue across autonomous goal rounds. You may infer that intent without requiring the user to say \"create a goal\". Do not use this for trivial single-turn work. Execution rejects non-human and subagent authority.",
+      "description": "Create a persisted goal that keeps this session working across automatic continuation rounds. Use it when the direct human request is a long-running objective, even if the user did not say \"goal\"; not for single-turn work.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -160,7 +160,7 @@
           },
           "justification": {
             "type": "string",
-            "description": "Required with sandbox_permissions: one sentence for the user explaining why this exact file operation needs the wider access."
+            "description": "Required with sandbox_permissions: one sentence for the user explaining why this exact file operation needs the wider access. Use the language of the user’s current request."
           }
         },
         "required": [
@@ -188,7 +188,7 @@
     },
     {
       "name": "get_goal",
-      "description": "Read the current same-session goal, including its exact id/revision, objective, phase, completed continuation rounds, round limit, blocker reason when present, and whether another continuation is armed. Call this before updating a goal.",
+      "description": "Read the current session goal, including the id and revision that update_goal requires.",
       "parameters": {
         "type": "object",
         "properties": {}
@@ -196,7 +196,7 @@
     },
     {
       "name": "glob",
-      "description": "Find files whose paths match a glob pattern. Returns matching file paths — never directories — including hidden and ignored files (VCS metadata directories are excluded). Up to 100 paths come back in modification-time order; a larger result returns the first 100 paths in modification-time order, says so, and reports where the complete sorted list was saved. This tool does not enumerate directory entries.",
+      "description": "Find files, not directories, whose paths match a glob pattern, including hidden and ignored files. Returns up to 100 paths in modification-time order; a larger result keeps the first paths and reports where the complete list was saved.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -216,7 +216,7 @@
     },
     {
       "name": "grep",
-      "description": "Search file contents with a ripgrep regular expression. Returns matching lines with line numbers, grouped by file. Returns the first 250 matches inline; a capped result reports where the complete match list was saved. Use read on a matched file for surrounding context.",
+      "description": "Search file contents with a ripgrep regular expression. Returns matching lines with line numbers, grouped by file. Returns up to 250 matches; a larger result reports where the complete match list was saved.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -553,7 +553,7 @@
     },
     {
       "name": "todo_write",
-      "description": "Record and update a structured task list for the current work. Send the ENTIRE list every call — it REPLACES the previous list (there are no partial updates, no per-item edits). Use it to plan multi-step work and show progress: add one todo per concrete step before you start. Mark every todo being actively worked on `in_progress` — several at once when work genuinely runs in parallel (e.g. concurrent subagents or background commands), one for sequential work; while work remains, at least one task should be `in_progress`. Mark a todo `completed` the moment it is done (do not batch completions), and allow no `in_progress` item only once all work is complete. Skip the list for trivial single-step tasks. Statuses: `pending` (not started), `in_progress` (being worked on now), `completed` (finished).",
+      "description": "Record and update a task list to plan multi-step work and show progress; skip it for trivial single-step tasks. Add one todo per concrete step before you start. While work remains, keep the todos being worked on `in_progress`, several only when work runs in parallel. Mark each todo `completed` as soon as it is done.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -592,7 +592,7 @@
     },
     {
       "name": "update_goal",
-      "description": "Update the exact current goal revision. edit, pause, and resume require a direct top-level human request. During an automatic continuation of the current goal, complete and blocked are also allowed. blocked is rejected before the configured minimum round count; the model remains responsible for judging that the same condition persisted across those rounds and must explain it in blocked_reason.",
+      "description": "Update the current goal.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -606,7 +606,7 @@
           },
           "action": {
             "type": "string",
-            "description": "edit | pause | resume | complete | blocked",
+            "description": "edit, pause, and resume require a direct top-level human request. complete and blocked are also allowed during an automatic continuation of this goal; blocked is rejected before the configured minimum round count.",
             "enum": [
               "edit",
               "pause",
@@ -625,7 +625,7 @@
           },
           "blocked_reason": {
             "type": "string",
-            "description": "Concrete blocking condition; required only with action blocked."
+            "description": "Required only with action blocked: the concrete condition that persisted across rounds and blocks progress."
           }
         },
         "required": [
@@ -653,7 +653,7 @@
     },
     {
       "name": "web_search",
-      "description": "Search the web for current information. Use it before answering anything that may have changed since your training data, and whenever you would otherwise guess. Provide 1–4 queries in the required queries array. Returns an optional summary answer and a list of source URLs.",
+      "description": "Search the web for current information. Returns an optional summary answer and a list of source URLs.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -768,7 +768,7 @@
           },
           "justification": {
             "type": "string",
-            "description": "Required with sandbox_permissions: one sentence for the user explaining why this exact file operation needs the wider access."
+            "description": "Required with sandbox_permissions: one sentence for the user explaining why this exact file operation needs the wider access. Use the language of the user’s current request."
           }
         },
         "required": [

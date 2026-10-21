@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { IndexInjection } from '@aeven/host-webserver'
 import { SettingsProvider, type SettingsNamespace } from '@aeven/settings'
 import {
-  DEFAULT_FONT_SIZE, DEFAULT_PREFERENCE, THEME_SETTINGS_NAMESPACE, apply,
+  DEFAULT_FONT_SIZE, DEFAULT_PREFERENCE, FONT_SIZE_MAX, FONT_SIZE_MIN, THEME_SETTINGS_NAMESPACE, apply,
 } from '@aeven/client-ui-theme'
 
 class MemorySettings extends SettingsProvider {
@@ -39,8 +39,8 @@ describe('ui-theme host', () => {
     await ctx.settings.update(ns, { preference: 'dark', fontSize: 15 })
     expect(ctx.settings.get(ns)).toEqual({ preference: 'dark', fontSize: 15 })
     await expect(ctx.settings.update(ns, { preference: 'sepia' })).rejects.toThrow()
-    await expect(ctx.settings.update(ns, { fontSize: 11 })).rejects.toThrow()
-    await expect(ctx.settings.update(ns, { fontSize: 18 })).rejects.toThrow()
+    await expect(ctx.settings.update(ns, { fontSize: FONT_SIZE_MIN - 1 })).rejects.toThrow()
+    await expect(ctx.settings.update(ns, { fontSize: FONT_SIZE_MAX + 1 })).rejects.toThrow()
     await fiber.dispose()
     expect(ctx.settings.describe().map(row => row.ns)).not.toContain(ns)
   })

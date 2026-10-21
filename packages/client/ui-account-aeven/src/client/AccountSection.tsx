@@ -60,7 +60,7 @@ export interface AccountSectionInjected {
    * @param path - the route below `/api/cloud`.
    * @returns that answer, or undefined when the route has not settled yet.
    */
-  cached: <T>(path: string) => T | undefined
+  cached: (path: string) => unknown
 }
 
 /** Full component props assembled by the slot renderer. */
@@ -140,7 +140,7 @@ function useLoad<T>(
   path: string,
 ): { state: Load<T>; reload: () => void; refresh: () => Promise<T | undefined> } {
   const [state, setState] = useState<Load<T>>(() => {
-    const value = cached<T>(path)
+    const value = cached(path) as T | undefined
     return value === undefined ? { status: 'loading' } : { status: 'ready', value }
   })
   const live = useRef(true)

@@ -33,11 +33,17 @@ Mount it per agent (the `standard`, `cordis`, and `ptc` presets include it) besi
 | `recallTimeoutMs` | `3000` | Hard budget for one recall; the turn proceeds without memory when it elapses |
 | `contextMaxChars` | `6000` | Bound on one framed memory block |
 | `itemMaxChars` | `1000` | Bound on one memory line in the block, including technical artifacts and outcomes |
-| `domainMaxItems` | person 2, project 2, world 3, experience 2 | Maximum recalled items in each domain |
-| `supersedeOverlap` | `0.6` | Share of shared words at which two recalled memories describe one subject, so the later one retires the earlier |
+| `domainMaxItems` | person 6, project 3, world 2, experience 2 | Maximum recalled items in each domain when the provider did not judge relevance or the judgment failed |
+| `maxItems` | `7` | Maximum recalled items in one unjudged block, chosen in rank order across domains |
+| `judgedMaxItems` | `14` | Maximum recalled items in one block the provider's relevance judgment chose; no domain is capped |
+| `queryContextChars` | `1000` | Characters of the person's earlier messages in the session, newest first, that join the turn's text in the recall query; `0` recalls on the turn's text alone |
+| `recentPersonHours` | `48` | Hours back from which a session's first turn also offers the person's newest memories about themselves as recall candidates; they pass the same relevance judgment as every other candidate; `0` turns it off |
+| `recentPersonItems` | `5` | Most such recent memories offered |
 | `promptOrder` | `114` | Order of the memory guidance prompt section |
 
 Messages whose source kind is `user`, and approved task notices from the built-in `automations` service, trigger recall and become captured task text. Other plugin and tool messages do neither, so recall cannot recall itself. The pre-step decision returned by downstream listeners is authoritative: rewritten or rejected input is what recall and capture see.
+
+A candidate learned procedure proves itself through use: when a turn that recall gave one called a tool and the person's next message does not correct it, the procedure becomes `active`; a correction of that turn, or a negative rating of its reply, returns every procedure it was given to `candidate`.
 
 ## Model Experience
 
@@ -79,7 +85,7 @@ Static text in the system prompt; it does not change between requests.
 
 #### What the model sees
 
-After a direct-user message, when recall found something, one appended message holds the lines below in one frame. User and project sections spend the shared budget before experience and general knowledge; sections without memories are omitted, duplicate snippets are dropped, memories that do not fit `contextMaxChars` are left out whole, and literal `</memory_context>` inside recalled text is escaped. Aeven orders hits by query-term overlap in the summary before considering the complete snippet; a question about outcomes prefers a matching summary with recorded outcome evidence. Provider score breaks the remaining ties, then the recorded time, before per-domain item limits apply. The [MemOS provider](../memory-memos/README.md#use-this-package) supplies stored trace summaries for automatic recall and retains detailed records for explicit retrieval. A statement a later one replaced does not reach the block: when two recalled memories sit in the same domain, both know when they were recorded, and their summaries share at least `supersedeOverlap` of the shorter summary's words, only the later one is rendered, because the two describe one subject and the earlier is history beside its replacement rather than a competing fact. That check compares memories already retrieved, so it adds no provider call and no model call to the turn, and it removes an earlier statement from the block alone — an explicit search still returns it.
+Recall retrieves with the person's earlier messages in the session (up to `queryContextChars`) followed by the turn's text, so a follow-up such as "what should I reply to her?" is searched together with the message that named her; the provider's relevance judgment reads the turn's text whole as the request and the earlier messages apart as context. On a session's first turn the provider also offers the person's own memories from the last `recentPersonHours` as candidates. The provider orders what it keeps by importance, and the block keeps that order: only an exact repeat in the same domain is dropped, because word overlap is no evidence that one memory replaced another — replacement is recorded on the memory when a correction supersedes it. The block is grouped into user, project, experience, and general-knowledge sections within `judgedMaxItems` and `contextMaxChars` when the provider judged relevance, so a question about one subject receives every kept fact about it that fits, and within the per-domain, `maxItems`, and `contextMaxChars` limits otherwise; literal `</memory_context>` inside recalled text is escaped, and a candidate learned procedure is marked `(unproven: check each step)`. When the judgment found the person telling how they feel or what is happening in their life and the block holds memories about them, a short notice follows the block asking the reply to show, in a sentence, that it knows what they are going through; it stands outside the block because the block's content is data, never instructions. A recall the provider marks degraded — its memories were not judged — is logged.
 
 ##### Recalled block frame
 
@@ -133,7 +139,6 @@ Append-only after the user's message; it does not invalidate earlier cache entri
 
 - **Recall runs every direct-user turn** — including greetings; there is no relevance gate before the provider's own ranking.
 - **Recall stays advisory** — delivery is logged, but nothing blocks a tool when an action contradicts a recalled preference. The block is delivered once per turn, so a long tool sequence separates it from the action it should inform, and later steering does not trigger a fresh lookup.
-- **Supersession is inferred from overlap** — two summaries that share enough words are taken to be one subject, so a genuinely different memory phrased with the same vocabulary can be retired from the block while it remains in explicit search. Raising `supersedeOverlap` narrows the check; it never crosses a domain boundary, and neither memory is deleted.
 - **The invariants block depends on another row** — with `@aeven/memory-invariants` absent, the section is registered and empty, so a composition can lose the block that never depends on recall without saying so.
 - **The block is context, not authority** — it is read into the prompt like a recalled memory and can be ignored the same way. A statement that must bind an action belongs to an enforcement point such as an access-mode guard, not here.
 - **Capture follows live events** — a turn whose process dies before `turn/end` is not captured, and resumed sessions do not re-capture earlier turns. A one-shot driver drains the captures this turn queued at the `session/settle` checkpoint; a process killed outright still loses them.

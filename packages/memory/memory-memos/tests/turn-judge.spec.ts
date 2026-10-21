@@ -61,14 +61,14 @@ describe('TurnJudgeContext.extend', () => {
       return 'captured'
     })
     expect(result).toBe('captured')
-    expect(judgment).toEqual({ domain: 'person', corrects: true })
+    expect(judgment).toEqual({ domain: 'person', corrects: true, log: false, revisions: [] })
   })
 
   it('files a project answer without a project as experience', async () => {
     const { judgment } = await judges.run(input, async () => {
       judges.extend(summarizeRequest(FINAL_REPLY))?.read('{"summary":"s","domain":"project","corrects":false}')
     })
-    expect(judgment).toEqual({ domain: 'experience', corrects: false })
+    expect(judgment).toEqual({ domain: 'experience', corrects: false, log: false, revisions: [] })
   })
 
   it('returns no judgment when the answer names no domain, so the classification call runs', async () => {
@@ -100,6 +100,14 @@ describe('capture with a turn judgment', () => {
       getTrace: async (id: string) => ({ id, summary: 's', tags: tags.get(id) ?? [] }),
       updateTrace: async (id: string, patch: { tags?: string[] }) => {
         if (patch.tags) tags.set(id, patch.tags)
+      },
+      rememberFacts: async (request: { facts: { text: string; tags: string[] }[] }) => {
+        const ids = request.facts.map((fact) => {
+          const id = `tr_remembered_${++remembered}`
+          tags.set(id, fact.tags)
+          return id
+        })
+        return { ids, skipped: 0 }
       },
       closeSession: async () => {},
     }
@@ -154,7 +162,27 @@ describe('capture with a turn judgment', () => {
     expect(tags.get('tr_2')).toEqual(['domain:person'])
   })
 
-  it('supersedes the facts the corrected turn remembered, and keeps that turn\'s reply for the next judgment', async () => {
+  it('keeps the previous exchange when a correction phrase is a complaint about the analysis', async () => {
+    const judges = new TurnJudgeContext()
+    const { core, tags } = captureCore(judges, {
+      1: '{"summary":"The report compares two products","domain":"work","corrects":false}',
+      2: '{"summary":"User objects to the comparison criteria","domain":"work","corrects":false}',
+    })
+    const memory = new MemosMemory({
+      cores: new OwnerCores(async () => core as never),
+      routes: new LlmRouteContext(),
+      toolLimits: { skills: 8, traces: 8, worldModels: 8 },
+      judges,
+      warn: () => {},
+      info: () => {},
+    })
+    memory.capture(turn(1))
+    memory.capture({ ...turn(2) as object, outcome: { correction: 'No, that comparison is unfair!', retryCodes: [] } } as never)
+    await memory.closeSession('session-1' as never)
+    expect(tags.get('tr_1')).toEqual(['domain:experience'])
+  })
+
+  it('keeps independently remembered facts when the following turn corrects the reply', async () => {
     const judges = new TurnJudgeContext()
     const { core, tags, judgedRequests } = captureCore(judges, {
       2: '{"summary":"User\'s dog: Bram; Pixel is their sister\'s dog","domain":"person","corrects":true}',
@@ -167,15 +195,21 @@ describe('capture with a turn judgment', () => {
       warn: () => {},
       info: () => {},
     })
-    // The model saves a fact with the memory tool during turn 1; that turn's capture follows it on the queue.
-    await memory.remember({ scope: SCOPE, text: 'my dog is called Pixel', signal: new AbortController().signal } as never)
+    await memory.rememberMany({
+      scope: SCOPE,
+      facts: [{ text: 'My dog is called Pixel.' }, { text: 'My dog likes the park.' }],
+      domain: 'person',
+      signal: new AbortController().signal,
+    })
     memory.capture(turn(1))
     // During turn 2 the model saves the corrected fact, which stays current.
     await memory.remember({ scope: SCOPE, text: 'my dog is called Bram', signal: new AbortController().signal } as never)
     memory.capture(turn(2))
     await memory.closeSession('session-1' as never)
-    expect(tags.get('tr_remembered_1')).toEqual(['domain:person', `${SUPERSEDED_TAG}tr_2`])
-    expect(tags.get('tr_remembered_2')).toEqual(['domain:person'])
+    expect(tags.get('tr_remembered_1')).toContain('domain:person')
+    expect(tags.get('tr_remembered_1')).not.toContain(`${SUPERSEDED_TAG}tr_2`)
+    expect(tags.get('tr_remembered_2')).not.toContain(`${SUPERSEDED_TAG}tr_2`)
+    expect(tags.get('tr_remembered_3')).toEqual(['domain:person'])
     expect(tags.get('tr_1')).toEqual([`${SUPERSEDED_TAG}tr_2`])
     expect(judgedRequests.at(-1)).toContain('PREVIOUS ASSISTANT:\nreply 1')
   })

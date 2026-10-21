@@ -684,6 +684,10 @@ interface LlmDiscoveredModel {
   contextWindow?: number
   /** Maximum output tokens, when disclosed. */
   maxTokens?: number
+  /** Accepted request modalities, when the adapter describes the model. */
+  inputModalities?: readonly ModelModality[]
+  /** Whether the model reasons before answering, when the adapter describes it. */
+  reasoning?: boolean
 }
 ```
 

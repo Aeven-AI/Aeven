@@ -6,6 +6,12 @@ import { defaultUi, previewValue } from '../config.ts'
 import type { UiConfig } from '../config.ts'
 import Tooltip, { type TooltipHandle } from '../tooltip.tsx'
 
+/**
+ * Fence language of text the person will send on — a message, email, or reply. It renders as prose with a copy
+ * button: no line numbers, no monospace, wrapped lines.
+ */
+export const MESSAGE_LANGUAGE = 'message'
+
 interface HeaderProps {
   /** This renderer's own bus, so blocks report only to the renderer that made them. */
   events?: Emitter | undefined
@@ -231,6 +237,9 @@ class Header extends Component<HeaderProps> {
     const { translations, icons } = ui
     const controls = ui.controls.code
 
+    const message = props.language === MESSAGE_LANGUAGE
+    const copyLabel = message ? translations.copyMessage : translations.copyCode
+
     tippyCopyTxt = translations.codeCopied
 
     if (props.stream === true) {
@@ -251,7 +260,7 @@ class Header extends Component<HeaderProps> {
       <div ref={vm.headerRef} className="codeblock-header">
         <div className="codeblock-header-content">
           <span className="codeblock-title-container">
-            <span className="codeblock-title">{props.language}</span>
+            <span className="codeblock-title">{message ? translations.message : props.language}</span>
           </span>
           <span className="codeblock-spacer" />
           <span className="codeblock-button-container">
@@ -267,14 +276,14 @@ class Header extends Component<HeaderProps> {
                 <span className="tippy-button">
                   <Tooltip
                     placement={'top'}
-                    content={translations.copyCode}
+                    content={copyLabel}
                     touch={false}
                     trigger={'mouseenter'}
                   >
                     <button
                       type="button"
                       className="codeblock-icon-button first"
-                      aria-label={translations.copyCode}
+                      aria-label={copyLabel}
                       onClick={vm.copyContent}
                     >
                       <span className="button-content">

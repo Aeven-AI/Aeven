@@ -12,6 +12,7 @@ const CONFIG: LearnerConfig = {
   timeoutMs: 5_000,
   maxOutputTokens: 4_000,
   maxInputTokens: UNBOUNDED,
+  candidateTtlDays: 30,
   store: 'capabilities',
   consolidateAbove: 0,
 }
@@ -41,10 +42,11 @@ function reply(text: string): AsyncIterable<StreamChunk> {
   })()
 }
 
-/** A context holding what the learner reads: the logger, the LLM service, and the registry. */
+/** A context holding what the learner reads: the logger, the LLM service, and the registry, with no memory service. */
 function context(sent: GenerateOptions[]): Context {
   return {
     logger: () => ({ info: () => {}, warn: () => {}, debug: () => {}, error: () => {} }),
+    get: () => undefined,
     llm: {
       stream: (options: GenerateOptions): AsyncIterable<StreamChunk> => {
         sent.push(options)
@@ -63,6 +65,8 @@ async function learn(turn: CompletedWork, maxInputTokens: number): Promise<strin
   const sent: GenerateOptions[] = []
   const learner = new CapabilityLearner(context(sent), { ...CONFIG, maxInputTokens })
   learner.offer('owner-1', { provider: 'provider', model: 'model' }, turn)
+  // The work is learned from when the person's next message arrives, as acceptance of the answer.
+  learner.next(turn.sessionId, { kind: 'reply', text: 'Thanks, that answers it.' })
   await learner.settle(turn.sessionId)
   expect(sent).toHaveLength(1)
   return sent[0]!.messages.flatMap(message => message.content.map(block => block.type === 'text' ? block.text : '')).join('')

@@ -34,7 +34,7 @@ describe('gen-tool-catalog collectToolCatalog', () => {
       'interrupt_agent', 'interrupt_agent', 'job_kill', 'job_list', 'job_output',
       'list_agents', 'list_agents', 'list_subagent_models', 'lsp', 'mail_accounts', 'mail_read',
       'mail_search', 'mail_send', 'mail_update', 'memory_environments', 'memory_get',
-      'memory_remember', 'memory_search', 'memory_skill', 'memory_skills', 'memory_timeline',
+      'memory_remember', 'memory_remember_bulk', 'memory_search', 'memory_skill', 'memory_skills', 'memory_timeline',
       'preview_back', 'preview_click', 'preview_evaluate', 'preview_forward', 'preview_navigate',
       'preview_press', 'preview_reload', 'preview_screenshot', 'preview_scroll', 'preview_sequence',
       'preview_snapshot', 'preview_status', 'preview_type', 'preview_upload',
