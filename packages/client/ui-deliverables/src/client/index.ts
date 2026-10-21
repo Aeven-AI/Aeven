@@ -15,7 +15,7 @@ import type {} from '@aeven/client-locale/client'
 import type {} from '@aeven/client-ui-conversation/client'
 import type {} from '@aeven/client-ui-renderer/client'
 import { ProducedFiles } from './ProducedFiles.tsx'
-import { desktopFileMenus, fileMenuLabels, showFileMenu } from './file-menu.ts'
+import { desktopFileMenus, fileMenuLabels, revealFile, showFileMenu } from './file-menu.ts'
 import { en, es, NS, zh, type DeliverablesKey } from './locales.ts'
 import {
   deliverablesDefinition, producedFileMentions, selectProducedFiles,
@@ -29,7 +29,7 @@ declare module '@aeven/client-ui-slots' {
 }
 
 export { ProducedFiles, type ProducedFilesProps } from './ProducedFiles.tsx'
-export { producedForClosing } from './turn-deliverables.ts'
+export { producedFilesForClosing, producedForClosing, type ProducedFile } from './turn-deliverables.ts'
 
 /** Required services for the tail-slot registration and its dictionaries. */
 export const inject = ['slots', 'locale', 'uiConversation', 'remote', 'remote.session']
@@ -86,6 +86,7 @@ export function apply(ctx: ClientContext): void {
         isLoopback: ctx.remote.$host.isLoopback,
         ensureWorkspacePathOpen,
         openFileMenu: showMenu,
+        revealFile: (path: string, cwd: string | undefined) => { void revealFile(ctx.remote, path, cwd) },
         hooks: { workspacePathOpen },
       }),
     }, ProducedFiles),
@@ -96,10 +97,10 @@ export function apply(ctx: ClientContext): void {
     forClosing(owner) {
       // Same claim test the turn-tail chain entry runs: no produced files,
       // no vocabulary — the two surfaces agree by construction.
-      const paths = selectProducedFiles(owner)
-      if (paths === null) return undefined
+      const files = selectProducedFiles(owner)
+      if (files === null) return undefined
       return producedFileMentions(
-        paths,
+        files.map(file => file.path),
         owner.openFile,
         path => t('produced.open', { name: path }),
         showMenu === undefined ? undefined : (path) => { showMenu(path, owner.cwd) },

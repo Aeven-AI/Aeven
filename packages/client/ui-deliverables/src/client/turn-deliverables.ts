@@ -68,7 +68,7 @@ interface DeliverablesState extends DeliverablesTurnData {
  * Definition independently.
  * @param name - wire tool name.
  * @param argsRaw - model-produced JSON arguments.
- * @returns the mutation path, or null when the call is not a supported mutation.
+ * @returns the mutation path and what its result needs, or null when the call is not a supported mutation.
  */
 function mutationCall(name: string, argsRaw: string): MutationCall | null {
   let args: unknown

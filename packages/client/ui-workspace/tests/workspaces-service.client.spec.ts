@@ -149,6 +149,8 @@ class FakeSessions {
   readonly create: ReturnType<typeof vi.fn<ISessions['create']>>
   readonly open: ReturnType<typeof vi.fn<(id: SessionId) => void>>
   readonly clear: ReturnType<typeof vi.fn<() => void>>
+  /** These fixtures hold no subagent conversation, so no address resolves to a parent. */
+  readonly subagentAddress = vi.fn<ISessions['subagentAddress']>(() => undefined)
   readonly faces = new Map<SessionId, FakeSessionSnapshot>()
 
   constructor(initial: SessionListState) {

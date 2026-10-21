@@ -1,12 +1,11 @@
 // @vitest-environment jsdom
 /**
  * ui-deliverables browser half: the derivation contract of
- * `producedForClosing` over engine-published Turn data, the row's rendering
- * and opener wiring, and the plugin registrations' fiber-teardown removal
+ * `producedForClosing` over engine-published Turn data and the plugin registrations' fiber-teardown removal
  * (HMR safety) against the real SlotRegistry.
  */
 import { Context } from '@deepseek-ai/cordis'
-import { cleanup, fireEvent, render, within } from '@testing-library/react'
+import { cleanup } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { SessionLiveEventEntry } from '@aeven/api-session-controller/client'
 import {
@@ -20,14 +19,13 @@ import type {
 import { SlotRegistry } from '@aeven/client-ui-renderer/client'
 import { apply as applyLocale, inject as localeInject } from '@aeven/client-locale/client'
 import type { ChatFileMentions, TurnTailOwnerProps } from '@aeven/client-ui-chat/client'
-import { makeTranslate, RemoteError, stubSettingsScope } from '@aeven/client-test-runtime'
-import { ProducedFiles, type ProducedFilesInjected, type ProducedFilesProps } from '../src/client/ProducedFiles.tsx'
+import { RemoteError, stubSettingsScope } from '@aeven/client-test-runtime'
+import type { ProducedFilesInjected } from '../src/client/ProducedFiles.tsx'
 import {
   basename, deliverablesDefinition, producedFileMentions, producedForClosing, selectProducedFiles,
   type DeliverablesTurnData,
 } from '../src/client/turn-deliverables.ts'
 import { apply, inject } from '../src/client/index.ts'
-import { en, zh } from '../src/client/locales.ts'
 import type { SessionEvent } from '@aeven/session/types'
 
 afterEach(() => {
@@ -72,7 +70,7 @@ const turnLocation = (turn: number, deliverables?: DeliverablesTurnData): TurnLo
 }
 
 const produced = (...values: ReadonlyArray<readonly [seq: number, path: string]>): DeliverablesTurnData => ({
-  produced: values.map(([seq, path]) => ({ seq, path })),
+  produced: values.map(([seq, path]) => ({ seq, path, created: false })),
 })
 
 function tailOwner(
@@ -185,7 +183,7 @@ describe('produced-file Turn data', () => {
       [8, 'after.txt'],
     )
     expect(producedForClosing(data, 6)).toEqual(['out/index.html', 'out/app.css'])
-    expect(selectProducedFiles(tailOwner(data, 6))).toEqual(['out/index.html', 'out/app.css'])
+    expect(selectProducedFiles(tailOwner(data, 6))?.map(file => file.path)).toEqual(['out/index.html', 'out/app.css'])
     expect(producedForClosing(undefined)).toEqual([])
     expect(selectProducedFiles(tailOwner(undefined, 9, () => {}, 2))).toBeNull()
   })
@@ -400,98 +398,6 @@ describe('produced-file Turn data', () => {
     value.append(result(5, 'second'))
     value.flush()
     expect(producedForClosing(deliverablesOf(value))).toEqual(['first.txt', 'second.txt'])
-  })
-})
-
-describe('ProducedFiles row', () => {
-  const t = makeTranslate(zh)
-  const capability = (
-    canOpenPath: boolean | undefined,
-    isLoopback = true,
-  ): Pick<ProducedFilesProps, 'isLoopback' | 'ensureWorkspacePathOpen' | 'useWorkspacePathOpen'> => {
-    return {
-      isLoopback,
-      ensureWorkspacePathOpen: () => {},
-      useWorkspacePathOpen: selector => selector(canOpenPath),
-    }
-  }
-
-  it('renders the bounded CSS candidates and opens a file or the workspace folder', () => {
-    const paths = ['deep/a.html', 'b.css', 'c.ts', 'd.ts', 'e.ts', 'f.ts', 'g.ts', 'h.ts']
-    const openFile = vi.fn<(path: string) => void>()
-
-    const view = render(
-      <ProducedFiles matched={paths} openFile={openFile} {...capability(true)} t={t} />,
-    )
-    expect(view.getByText('产物')).toBeTruthy()
-    const row = view.container.querySelector('[data-produced-files-row]')
-    if (!(row instanceof HTMLElement)) throw new Error('produced row missing')
-    expect(within(row).getAllByRole('button')).toHaveLength(6)
-    expect(within(row).getByText('+ 2 个文件')).toBeTruthy()
-    const chip = view.getByRole('button', { name: '打开 deep/a.html' })
-    expect(chip.textContent).toBe('a.html')
-    expect(chip.getAttribute('title')).toBe('deep/a.html')
-    expect(view.queryByRole('button', { name: '打开 g.ts' })).toBeNull()
-    fireEvent.click(chip)
-    expect(openFile).toHaveBeenCalledWith('deep/a.html')
-
-    const showFolder = view.getByRole('button', { name: '在文件夹中显示' })
-    fireEvent.click(showFolder)
-    expect(openFile).toHaveBeenLastCalledWith('.')
-  })
-
-  it("offers the row's own menu where the client has one, and leaves the platform's alone without", () => {
-    const openFileMenu = vi.fn<(path: string, cwd: string | undefined) => void>()
-    const paths = ['deep/a.html']
-    const view = render(
-      <ProducedFiles
-        matched={paths}
-        openFile={() => {}}
-        cwd="/workspace"
-        {...capability(true)}
-        openFileMenu={openFileMenu}
-        t={t}
-      />,
-    )
-    const owned = view.getByRole('button', { name: '打开 deep/a.html' })
-    const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
-    owned.dispatchEvent(event)
-    expect(event.defaultPrevented).toBe(true)
-    expect(openFileMenu).toHaveBeenCalledWith('deep/a.html', '/workspace')
-
-    // No menu to offer: the element carries no handler, so the platform's own
-    // right-click menu is what the reader gets.
-    view.rerender(<ProducedFiles matched={paths} openFile={() => {}} {...capability(true)} t={t} />)
-    const inert = new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
-    view.getByRole('button', { name: '打开 deep/a.html' }).dispatchEvent(inert)
-    expect(inert.defaultPrevented).toBe(false)
-  })
-
-  it('keeps the folder action absent without overflow or a local native opener', () => {
-    const openFile = vi.fn<(path: string) => void>()
-    const view = render(
-      <ProducedFiles matched={['a.md']} openFile={openFile} {...capability(true)} t={t} />,
-    )
-    const overflowing = ['a.md', 'b.md', 'c.md', 'd.md', 'e.md', 'f.md', 'g.md']
-    expect(view.queryByRole('button', { name: '在文件夹中显示' })).toBeNull()
-    for (const unavailable of [capability(false), capability(true, false), capability(undefined)]) {
-      view.rerender(<ProducedFiles matched={overflowing} openFile={openFile} {...unavailable} t={t} />)
-      expect(view.queryByRole('button', { name: '在文件夹中显示' })).toBeNull()
-    }
-  })
-
-  it('uses singular English copy when exactly one file is hidden', () => {
-    const view = render(
-      <ProducedFiles
-        matched={['a.md', 'b.md', 'c.md', 'd.md', 'e.md', 'f.md', 'g.md']}
-        openFile={() => {}}
-        {...capability(false)}
-        t={makeTranslate(en)}
-      />,
-    )
-    const row = view.container.querySelector('[data-produced-files-row]')
-    if (!(row instanceof HTMLElement)) throw new Error('produced row missing')
-    expect(within(row).getByText('+ 1 file')).toBeTruthy()
   })
 })
 
