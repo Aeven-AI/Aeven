@@ -29,7 +29,7 @@ kind: "package-reference"
 
 ### 模型能得到什么
 
-每条注入读数包含三行：带数字偏移与 IANA 时区、形如 ISO 的时间戳，该请求的浏览器时区策略，以及以紧凑整秒单位表示的经过时长。第 1 步从最新一条先前模型可见消息起测量；后续步骤从同一轮次中前一个 time-context 事件起测量。缺少基线时报告 `unavailable`，挂钟时间倒退时把经过时长钳制为零。
+每条注入读数包含四行：带数字偏移与 IANA 时区、形如 ISO 的时间戳，同一时刻的星期、日期、时间与一天中的时段（并指示当用户对日期或时段的措辞与读数不符时以读数为准），该请求的浏览器时区策略，以及以紧凑整秒单位表示的经过时长。第 1 步从最新一条先前模型可见消息起测量；后续步骤从同一轮次中前一个 time-context 事件起测量。缺少基线时报告 `unavailable`，挂钟时间倒退时把经过时长钳制为零。
 
 ### 配置
 
@@ -77,7 +77,7 @@ kind: "package-reference"
 
 ### 主要流程
 
-需要注入时，插件采样挂钟时间，从开放轮次的 `user-rpc` 消息派生浏览器时区策略，解析显示时区（请求本地或回退），并渲染三行读数。正数间隔调度会扫描原始持久会话事件，查找最新一条归因于插件的消息——包括被压缩（compaction）遮蔽的读数——因此调度无需进程本地缓存也能在恢复后存续。读数记录的是已进入的步骤，不是已完成或已传输的请求；后续准备失败时，该读数可能留在历史中。
+需要注入时，插件采样挂钟时间，从开放轮次的 `user-rpc` 消息派生浏览器时区策略，解析显示时区（请求本地或回退），并渲染四行读数。正数间隔调度会扫描原始持久会话事件，查找最新一条归因于插件的消息——包括被压缩（compaction）遮蔽的读数——因此调度无需进程本地缓存也能在恢复后存续。读数记录的是已进入的步骤，不是已完成或已传输的请求；后续准备失败时，该读数可能留在历史中。
 
 </details>
 
@@ -102,12 +102,13 @@ kind: "package-reference"
 
 #### 模型看到的内容
 
-每条注入消息包含三行。`<timestamp>` 是带数字偏移和 IANA 时区、形如 ISO 的时间戳；持续时间使用紧凑的整秒单位。
+每条注入消息包含四行。`<timestamp>` 是带数字偏移和 IANA 时区、形如 ISO 的时间戳；持续时间使用紧凑的整秒单位。
 
 ##### 第一步
 
 ```markdown
 Time sampled while preparing turn <turn>, step 1: <timestamp>
+Local time: <weekday> <day> <month> <year>, <HH:MM> (<morning|afternoon|evening|night>). [Before 05:00: Before dawn a person's "today" usually still means <previous weekday day month> and their "tomorrow" means <weekday day month>.] When the person's wording about the time of day disagrees with this, go by this reading.
 Browser time zone for this request: <iana-zone-or-mixed-or-unavailable-policy>.
 Elapsed since the preceding model-visible message: <duration-or-unavailable>.
 ```
@@ -116,6 +117,7 @@ Elapsed since the preceding model-visible message: <duration-or-unavailable>.
 
 ```markdown
 Time sampled while preparing turn <turn>, step <step>: <timestamp>
+Local time: <weekday> <day> <month> <year>, <HH:MM> (<morning|afternoon|evening|night>). [Before 05:00: Before dawn a person's "today" usually still means <previous weekday day month> and their "tomorrow" means <weekday day month>.] When the person's wording about the time of day disagrees with this, go by this reading.
 Browser time zone for this request: <iana-zone-or-mixed-or-unavailable-policy>.
 Elapsed since the preceding step context: <duration-or-unavailable>.
 ```

@@ -65,6 +65,8 @@ export interface Config {
    * merged in the background, once per owner and workspace per process; zero never merges.
    */
   consolidateAbove: number
+  /** Memory store: days an unconfirmed candidate procedure waits before it is archived. */
+  candidateTtlDays: number
 }
 
 export const Config: z<Config> = z.object({
@@ -82,6 +84,7 @@ export const Config: z<Config> = z.object({
   model: z.string(),
   store: z.union(['memory', 'capabilities'] as const).default('memory'),
   consolidateAbove: z.natural().default(40),
+  candidateTtlDays: z.natural().min(1).default(30),
 })
 
 const TOOL = 'capability_manage'
@@ -201,7 +204,8 @@ export function apply(ctx: Context, config: Config): void {
                 const summary = await condenseProcedure(ctx, scope, procedure, config.maxOutputTokens, signal)
                 // Importing again replaces a procedure already in memory under the same name instead of doubling it.
                 const replaced = await learnedIdsNamed(ctx, scope, [procedure.name], signal)
-                const id = await storeLearnedProcedure(ctx, scope, { ...procedure, summary, domain }, signal)
+                // An imported procedure is the user's own, so it is active at once.
+                const id = await storeLearnedProcedure(ctx, scope, { ...procedure, summary, domain }, 'active', signal)
                 await forgetLearnedProcedures(ctx, scope.owner, replaced, signal)
                 stored += 1
                 logger.info(`imported procedure ${procedure.name} into ${domain} memory ${id} (${stored}/${procedures.length})${replaced.length > 0 ? `, replacing ${replaced.join(', ')}` : ''}`)
@@ -224,7 +228,8 @@ export function apply(ctx: Context, config: Config): void {
         const summary = await condenseProcedure(
           ctx, scope, { name: procedureName, description, content, domain }, config.maxOutputTokens, exec.signal,
         )
-        const id = await storeLearnedProcedure(ctx, scope, { name: procedureName, description, content, summary, domain }, exec.signal)
+        // The user asked for this procedure, so it is active at once.
+        const id = await storeLearnedProcedure(ctx, scope, { name: procedureName, description, content, summary, domain }, 'active', exec.signal)
         await forgetLearnedProcedures(ctx, scope.owner, replaced, exec.signal)
         return textResult({ text: `Saved ${procedureName} to ${domain} memory (${id})${replaced.length > 0 ? ', replacing its earlier version' : ''}; later requests that need it recall it.`, id, domain })
       },
@@ -362,7 +367,7 @@ export function apply(ctx: Context, config: Config): void {
     const slowness = correction === undefined ? slownessOf(query) : undefined
     learner?.next(sessionId, correction !== undefined
       ? { kind: 'correction', text: correction }
-      : slowness === undefined ? undefined : { kind: 'slowness', text: slowness })
+      : slowness === undefined ? { kind: 'reply', text: query } : { kind: 'slowness', text: slowness })
     // With the memory store, learned procedures arrive through memory recall instead.
     if (inMemory) return decision
     try {

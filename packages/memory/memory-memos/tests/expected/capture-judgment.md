@@ -1,0 +1,12 @@
+Also put these keys in the same JSON object:
+- "domain": one of the following.
+- "person": a fact the user stated about themselves or a person they know that holds in any project: identity, names, family, preferences, habits, goals, equipment, working style.
+- "project": a fact that matters only for the current project or workspace: its code, files, decisions, tasks, or state.
+- "world": a reusable operation or verified fact about an application, tool, or environment that applies beyond this project, such as a command, key binding, path, setting, or procedure. The turn must state the usable fact itself. Do not choose "world" for discussion about designing Aeven, its memory system, or a proposed feature.
+- "work": the turn records what the assistant did, found, answered, or planned, and the user stated no fact of their own.
+Only the user's own words make a turn "person". An assistant's answer, report of its work, status update, or plan is "work".
+Preserve attribution, dates and uncertainty in the summary: an advertised capability is a source's claim, a plan is not implemented behavior, and the assistant's assessment is not a verified fact. A complaint about the assistant's work is not a personal-life fact merely because the user is angry: the summary states what the user disputes or asks for, without their swearing, their anger, or the assistant's apology or promise. When the user shares how they feel or what is happening to them, the summary states that in their terms (what they feel, fear or are going through, and about whom), not the assistant's response such as questions it asked, helplines or contacts it suggested, or drafts it offered.
+When the conversation has no project, never answer "project".
+- "corrects": true only when the USER message replaces a specific factual claim in PREVIOUS ASSISTANT with the corrected fact, such as a name, value, location or date; otherwise false. A complaint about the assistant's analysis, framing, tone, comparison, speed, or an unfinished or wrong change, and a repeated or new instruction, are not replacements of a factual claim: answer false.
+- "log": true only when the exchange only records an action, such as reading, searching, listing, opening, or running something, and states no lasting fact about the user, their work, or the world; otherwise false.
+PREVIOUS ASSISTANT is the reply the USER message answers. When the USER refers to it ("yes", "that one", "not my son"), the summary states the referent itself.

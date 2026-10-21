@@ -9,7 +9,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { BlockAssembler, createUserMessage } from '@aeven/llm'
 import type { CapabilityOrigin, CapabilityRecord } from '@aeven/capability'
-import type { LearnedProcedure, MemoryDomain, MemoryItemId, MemoryScope } from '@aeven/memory'
+import type { LearnedProcedure, MemoryDomain, MemoryItemId, MemoryScope, ProcedureStatus } from '@aeven/memory'
 import type { SessionId } from '@aeven/session/types'
 import type { CompletedWork, WorkInstruction, WorkStep } from './executions.ts'
 import { forgetLearnedProcedures, LEARNED_DOMAINS, recallLearnedNames, storeLearnedProcedure } from './memory-learning.ts'
@@ -34,6 +34,11 @@ export interface LearnerConfig {
    * are merged in the background, once per owner and workspace per process; zero never merges.
    */
   readonly consolidateAbove: number
+  /**
+   * Memory store only: days a `candidate` procedure waits for confirming work before it is archived; archived
+   * procedures are kept for restoring and are neither recalled nor merged into.
+   */
+  readonly candidateTtlDays: number
 }
 
 /** Model route of one session's requests. */
@@ -44,7 +49,11 @@ export interface LearnerRoute {
 
 /** The user's reaction to learned work, in their words. */
 export interface LearnerFeedback {
-  readonly kind: 'correction' | 'slowness'
+  /**
+   * `correction` and `slowness` are recognized reactions to the work; `reply` is any other next message, which the
+   * distillation reads for acceptance or rejection.
+   */
+  readonly kind: 'correction' | 'slowness' | 'reply'
   readonly text: string
 }
 
@@ -124,7 +133,9 @@ const LEARNING_RULES = `Learn from successful multi-step operational work: how a
 
 The purpose is speed: the next request of this kind must finish in far fewer steps. <timing> gives how long the work took and how much of it was the assistant thinking between calls; each tool call shows the seconds spent before it ("think") and running it ("run"). Every call costs thinking time, so the fewest calls win. Find the time sinks: searches and reads that did not change what was done, checks heavier than the user asked for, work the user did not ask for, and retries. Write the shortest path that would have produced the same result, with the exact files, commands, and settings found, so none of them has to be searched for again. Keep the user's stated preferences for this kind of work (for example which checks they want and which they do not) as rules of the procedure.
 
-<user_feedback>, when present, is what the user said after the work. A correction means the procedure must change to avoid what they corrected. A complaint about time means the fast path must cut what took the time.
+<user_feedback> is what the user said next, after the work. A correction means the procedure must change to avoid what they corrected. A complaint about time means the fast path must cut what took the time. With kind "reply", read it as their reaction: when it rejects, disputes, or contradicts the answer, the work did not succeed — skip it.
+
+Never learn from a conversation about the user's own life: relationships, family, feelings, health, money, or how to talk with them, even when it used tools such as reading messages, mail, or files. How to be with this person is not a procedure. Also skip: failures caused by the environment (a missing binary, credentials, an uninstalled package), which the user can fix and which would harden into false rules; negative claims about tools ("X does not work"); transient errors that resolved; one-off tasks that are not a class of work; and work that ended without a method that actually worked.
 
 Lines in <tool_calls> starting "USER (during the work):" are what the user said while the work ran, placed after the calls that preceded them. Each is a requirement of the procedure from its first step: a call that went against one, such as a test run after "no tests", or browser measuring and screenshots after "just make the change", goes under "Avoid", never in the fast path. Repeated complaints or impatience mean the fast path must be far shorter. Tests, browser inspection, screenshots, and measurements belong in the fast path only when the user asked for them.
 
@@ -344,6 +355,46 @@ export function capabilityWords(record: CapabilityRecord): Set<string> {
  * @param procedures - procedures, newest first.
  * @returns the procedures by name.
  */
+const DAY_MS = 86_400_000
+
+/**
+ * Status of a procedure written from new work. Writing never proves a procedure: it is `active` only when it replaces
+ * an active procedure without a correction and keeps most of that procedure's steps. Anything new, corrected, or
+ * materially rewritten is a `candidate`, which memory recall promotes once it informs work the user does not correct.
+ * @param previous - the stored procedures the new one replaces.
+ * @param content - the new procedure's Markdown.
+ * @param feedback - the user's next message after the work.
+ * @returns the status to store.
+ */
+function procedureStatusAfter(
+  previous: readonly LearnedProcedure[],
+  content: string,
+  feedback: LearnerFeedback | undefined,
+): ProcedureStatus {
+  if (feedback?.kind === 'correction') return 'candidate'
+  const active = previous.find(procedure => procedure.status === 'active')
+  return active !== undefined && sameSteps(active.content, content) ? 'active' : 'candidate'
+}
+
+/** Share of the earlier procedure's step lines a rewrite must keep to stay proven. */
+const KEPT_STEPS = 0.6
+
+/**
+ * Whether a rewrite keeps most of a procedure's steps, compared by normalized line.
+ * @param before - the earlier procedure's Markdown.
+ * @param after - the rewrite.
+ * @returns true when at least {@link KEPT_STEPS} of the earlier lines remain.
+ */
+function sameSteps(before: string, after: string): boolean {
+  const lines = (text: string): Set<string> => new Set(text.split('\n').map(line => line.replace(/\s+/g, ' ').trim().toLowerCase()).filter(line => line.length > 8))
+  const earlier = lines(before)
+  if (earlier.size === 0) return false
+  const later = lines(after)
+  let kept = 0
+  for (const line of earlier) if (later.has(line)) kept++
+  return kept / earlier.size >= KEPT_STEPS
+}
+
 function latestByName(procedures: readonly LearnedProcedure[]): Map<string, LearnedProcedure> {
   const latest = new Map<string, LearnedProcedure>()
   for (const procedure of procedures) if (!latest.has(procedure.name)) latest.set(procedure.name, procedure)
@@ -448,50 +499,55 @@ export class CapabilityLearner {
   }
 
   /**
-   * Consider one finished turn. Work that qualifies is learned from at once, in the background.
+   * Consider one finished turn. Qualifying work is held until the person's next message and learned from with that
+   * message as feedback; work still held when a newer turn qualifies is learned from without a reaction.
    * @param owner - account id of the session.
    * @param route - the session's model route.
    * @param work - the turn's work.
    * @param cwd - the session's workspace, when it has one.
    */
   offer(owner: string, route: LearnerRoute | undefined, work: CompletedWork, cwd?: string): void {
+    const pending = this.recent.get(work.sessionId)
     this.recent.delete(work.sessionId)
+    if (pending !== undefined) this.enqueue(pending)
     if (!this.qualifies(work)) return
     const resolved = this.config.provider !== undefined && this.config.model !== undefined
       ? { provider: this.config.provider, model: this.config.model }
       : route
     if (resolved === undefined) return
     const recent: Recent = { owner, route: resolved, work, ...cwd === undefined ? {} : { cwd } }
+    // Held until the user's next message, so their reaction to the answer decides what, if anything, is learned.
     this.recent.set(work.sessionId, recent)
-    this.enqueue(recent)
   }
 
   /**
-   * The user's next message arrived. Feedback on the previous turn re-learns its work with that feedback; any other
-   * message ends the chance to refine it.
+   * The user's next message arrived: the held work is learned from with that message as its feedback.
    * @param sessionId - the session.
-   * @param feedback - the user's correction of, or complaint about the time of, the previous turn.
+   * @param feedback - the user's next message, classified as a correction, a complaint about time, or a reply.
    */
-  next(sessionId: string, feedback: LearnerFeedback | undefined): void {
+  next(sessionId: string, feedback: LearnerFeedback): void {
     const recent = this.recent.get(sessionId)
     this.recent.delete(sessionId)
-    if (recent !== undefined && feedback !== undefined) this.enqueue(recent, feedback)
+    if (recent !== undefined) this.enqueue(recent, feedback)
   }
 
   /**
-   * Forget a session that ended; learning already started still finishes.
+   * A session ended: held work is learned from without a reaction; learning already started still finishes.
    * @param sessionId - the session.
    */
   close(sessionId: string): void {
+    const recent = this.recent.get(sessionId)
     this.recent.delete(sessionId)
+    if (recent !== undefined) this.enqueue(recent)
   }
 
   /**
-   * Wait for a session's learning in flight, because its owner is about to end it.
+   * Learn from a session's held work and wait for its learning in flight, because its owner is about to end it.
    * @param sessionId - the session.
    * @returns after learning from the session finished or failed.
    */
   async settle(sessionId: string): Promise<void> {
+    this.close(sessionId)
     await this.sessions.get(sessionId)
   }
 
@@ -529,6 +585,12 @@ export class CapabilityLearner {
   }
 
   private async learn(recent: Recent, feedback: LearnerFeedback | undefined): Promise<Recent['learned']> {
+    // A turn memory filed as being about the person is never a procedure, whatever tools it used.
+    const domain = await this.ctx.get('memory')?.turnDomain({ sessionId: recent.work.sessionId as SessionId, turn: recent.work.turn })
+    if (domain === 'person') {
+      this.logger.info(`skipped ${recent.work.sessionId} turn ${recent.work.turn}: a conversation about the person`)
+      return undefined
+    }
     if (this.config.store === 'memory') return this.learnIntoMemory(recent, feedback)
     const { owner, route, work } = recent
     const records = (await this.ctx.capabilities.list(owner)).filter(record => record.status !== 'retired')
@@ -592,7 +654,11 @@ export class CapabilityLearner {
     const signal = AbortSignal.timeout(this.config.timeoutMs)
     const scope = this.scopeOf(recent)
     const all = await this.ctx.memory.procedures({ owner, ...cwd === undefined ? {} : { cwd }, signal })
-    const latest = latestByName(all)
+    await this.archiveStaleCandidates(owner, all, signal)
+    const cutoff = Date.now() - this.config.candidateTtlDays * DAY_MS
+    // Archived and expiring candidates are not offered for merging; work of their kind starts a fresh candidate.
+    const latest = latestByName(all.filter(procedure => procedure.status === 'active'
+      || (procedure.status === 'candidate' && procedure.time >= cutoff)))
     // The backlog is merged whether or not this work teaches anything new.
     this.consolidateWhenNeeded(recent, latest.size)
     const recalled = await recallLearnedNames(this.ctx, scope, `${work.request}\n\n${work.answer.slice(0, 600)}`, signal)
@@ -621,20 +687,37 @@ export class CapabilityLearner {
     }
     const domain: MemoryDomain = decision.domain === 'project' && cwd === undefined ? 'experience' : decision.domain ?? 'experience'
     const covered = new Set([decision.name, ...decision.replaces ?? []])
-    const replaced = all.filter(procedure => covered.has(procedure.name)).map(procedure => procedure.id)
+    const previous = all.filter(procedure => covered.has(procedure.name))
+    const replaced = previous.map(procedure => procedure.id)
+    const status = procedureStatusAfter(previous, decision.content, feedback)
     const id = await storeLearnedProcedure(this.ctx, scope, {
       name: decision.name,
       description: decision.description,
       content: decision.content,
       summary: decision.summary ?? `${decision.description} ${decision.content}`,
       domain,
-    }, signal)
+    }, status, signal)
     await forgetLearnedProcedures(this.ctx, owner, replaced, signal)
-    const learnedNote = `learned procedure ${decision.name} into ${domain} memory ${id} from ${work.sessionId} turn ${work.turn}`
+    const learnedNote = `learned ${status} procedure ${decision.name} into ${domain} memory ${id} from ${work.sessionId} turn ${work.turn}`
     const feedbackNote = feedback === undefined ? '' : ` with the user's ${feedback.kind} feedback`
     const replacedNote = replaced.length > 0 ? `, replacing ${replaced.join(', ')}` : ''
     this.logger.info(`${learnedNote}${feedbackNote}${replacedNote}`)
     return { name: decision.name, id }
+  }
+
+  /**
+   * Archive the candidates no later work confirmed within `candidateTtlDays`.
+   * @param owner - account id.
+   * @param procedures - the owner's procedures.
+   * @param signal - cancellation.
+   */
+  private async archiveStaleCandidates(owner: string, procedures: readonly LearnedProcedure[], signal: AbortSignal): Promise<void> {
+    const cutoff = Date.now() - this.config.candidateTtlDays * DAY_MS
+    for (const procedure of procedures) {
+      if (procedure.status !== 'candidate' || procedure.time >= cutoff) continue
+      await this.ctx.memory.setProcedureStatus({ owner, id: procedure.id, status: 'archived', signal })
+      this.logger.info(`archived candidate procedure ${procedure.name}: unconfirmed for ${this.config.candidateTtlDays} days`)
+    }
   }
 
   private scopeOf(recent: Held): MemoryScope {
@@ -726,7 +809,8 @@ export class CapabilityLearner {
   private async mergeGroup(recent: Recent, group: ProcedureGroup): Promise<void> {
     const { owner, cwd, route } = recent
     const signal = AbortSignal.timeout(this.config.timeoutMs)
-    const latest = latestByName(await this.ctx.memory.procedures({ owner, ...cwd === undefined ? {} : { cwd }, signal }))
+    const procedures = await this.ctx.memory.procedures({ owner, ...cwd === undefined ? {} : { cwd }, signal })
+    const latest = latestByName(procedures.filter(procedure => procedure.status !== 'archived'))
     const members = group.members.flatMap(name => latest.get(name) ?? []).sort((a, b) => b.time - a.time)
     if (members.length < 2) return
     const room = Math.max(0, this.config.maxInputTokens * CHARS_PER_TOKEN - PROMPT_CHARS)
@@ -742,13 +826,16 @@ export class CapabilityLearner {
       return
     }
     const domain: MemoryDomain = decision.domain === 'project' && cwd === undefined ? 'experience' : decision.domain ?? 'experience'
+    // A merge rewrites its members, so only an all-active group whose steps survive stays proven.
+    const status: ProcedureStatus = members.every(member => member.status === 'active')
+      && members.some(member => sameSteps(member.content, decision.content)) ? 'active' : 'candidate'
     const id = await storeLearnedProcedure(this.ctx, this.scopeOf(recent), {
       name: decision.name,
       description: decision.description,
       content: decision.content,
       summary: decision.summary ?? `${decision.description} ${decision.content}`,
       domain,
-    }, signal)
+    }, status, signal)
     const replaced = members.map(member => member.id)
     await forgetLearnedProcedures(this.ctx, owner, replaced, signal)
     this.logger.info(`merged ${members.map(member => member.name).join(', ')} into procedure ${decision.name} (${domain} memory ${id})`)

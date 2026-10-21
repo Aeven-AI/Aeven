@@ -1,9 +1,10 @@
 /**
  * Local MiniLM embeddings via `@huggingface/transformers`.
  *
- * Model: by default `Xenova/all-MiniLM-L6-v2` — 384-dim, ~23 MB on first run,
- * quantized to int8 for CPU friendliness. The model loads lazily on the first
- * call and is shared across all embedders in the process.
+ * Model: by default `Xenova/all-MiniLM-L6-v2` — 384-dim, ~23 MB on first run.
+ * `device` and `dtype` come from config (default `cpu` + `q8`, int8 for CPU
+ * friendliness). The model loads lazily on the first call and is shared
+ * across all embedders in the process.
  *
  * Output: `pipeline("feature-extraction")` already supports mean-pooling and
  * L2-normalize via `{ pooling: "mean", normalize: true }`. We intentionally
@@ -21,6 +22,7 @@ import type {
 type Extractor = (text: string, options?: Record<string, unknown>) => Promise<any>;
 
 let extractorPromise: Promise<Extractor> | null = null;
+/** `model|device|dtype` of the shared extractor. */
 let currentModel: string | null = null;
 
 function abortReason(signal: AbortSignal): unknown {
@@ -59,13 +61,19 @@ function awaitWithAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T
   });
 }
 
-async function ensureExtractor(model: string, log: ProviderCallCtx["log"]): Promise<Extractor> {
-  if (extractorPromise && currentModel === model) return extractorPromise;
-  if (extractorPromise && currentModel && currentModel !== model) {
-    log.warn("model.swap", { from: currentModel, to: model });
+async function ensureExtractor(
+  model: string,
+  device: string,
+  dtype: string,
+  log: ProviderCallCtx["log"],
+): Promise<Extractor> {
+  const key = `${model}|${device}|${dtype}`;
+  if (extractorPromise && currentModel === key) return extractorPromise;
+  if (extractorPromise && currentModel && currentModel !== key) {
+    log.warn("model.swap", { from: currentModel, to: key });
     extractorPromise = null;
   }
-  log.info("loading", { model });
+  log.info("loading", { model, device, dtype });
   const t0 = Date.now();
   extractorPromise = (async () => {
     // Dynamic import keeps the heavy dep out of the hot path for tests that
@@ -73,10 +81,10 @@ async function ensureExtractor(model: string, log: ProviderCallCtx["log"]): Prom
     const mod = await import("@huggingface/transformers");
     const pipeline = (mod as unknown as { pipeline: PipelineFn }).pipeline;
     const ext = (await pipeline("feature-extraction", model, {
-      dtype: "q8",
-      device: "cpu",
+      dtype,
+      device,
     })) as unknown as Extractor;
-    log.info("ready", { model, durationMs: Date.now() - t0 });
+    log.info("ready", { model, device, dtype, durationMs: Date.now() - t0 });
     return ext;
   })().catch((err) => {
     extractorPromise = null;
@@ -86,7 +94,7 @@ async function ensureExtractor(model: string, log: ProviderCallCtx["log"]): Prom
     });
     throw err;
   });
-  currentModel = model;
+  currentModel = key;
   return extractorPromise;
 }
 
@@ -108,7 +116,10 @@ export class LocalEmbeddingProvider implements EmbeddingProvider {
     const { config, log } = ctx;
     // Avoid starting a costly lazy model load for an already-expired request.
     if (ctx.signal?.aborted) throw abortReason(ctx.signal);
-    const ext = await awaitWithAbort(ensureExtractor(config.model, log), ctx.signal);
+    const ext = await awaitWithAbort(
+      ensureExtractor(config.model, config.device ?? "cpu", config.dtype ?? "q8", log),
+      ctx.signal,
+    );
     const out: number[][] = [];
     for (let i = 0; i < texts.length; i++) {
       if (ctx.signal?.aborted) throw abortReason(ctx.signal);

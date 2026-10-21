@@ -49,6 +49,8 @@ export const es = {
   'markdown.imageInfoName': 'Nombre del archivo:',
   'markdown.imageInfoUnknown': 'Desconocido',
   'markdown.imageMegabytes': '{value} MB',
+  'markdown.message': 'Mensaje',
+  'markdown.copyMessage': 'Copiar mensaje',
   'markdown.playVideo': 'Reproducir {title}',
   'markdown.playVideoUntitled': 'Reproducir video',
   'markdown.truncatedCharacters': '… truncado en {total} caracteres',

@@ -138,6 +138,11 @@ function scriptedFace(options: {
       set,
       unset: vi.fn(),
     },
+    // The provider card groups media models from the session catalogs.
+    session: {
+      imageModelCatalog: vi.fn(() => Promise.resolve(remoteOk({ models: [] }))),
+      videoModelCatalog: vi.fn(() => Promise.resolve(remoteOk({ models: [] }))),
+    },
   }
   return { face, discover, mutate, set, namespace }
 }
@@ -215,11 +220,20 @@ async function mountSection(options: Parameters<typeof scriptedFace>[0] = {}) {
   return { ...scripted, controller }
 }
 
+/**
+ * Mount the section with its one route hand-declared. Only a route the adapter
+ * does not ship carries the hand-entered model list: a catalog route's models
+ * are the Models block's switches instead.
+ */
+async function mountDeclared(options: Parameters<typeof scriptedFace>[0] = {}) {
+  return mountSection({ ...options, declaredRoutes: ['openai'] })
+}
+
 /** Open the editor of one configured row and expand its customized fold. */
 function openEditor(provider: string): void {
   const row = screen.getByText(provider).closest('li')
   if (row === null) throw new Error(`no row for ${provider}`)
-  fireEvent.click(within_(row, en.edit))
+  fireEvent.click(editActionIn(row))
   const summary = document.querySelector('summary')
   if (summary === null) throw new Error('no customized fold')
   fireEvent.click(summary)
@@ -237,10 +251,13 @@ function buttonNamed(label: string): HTMLButtonElement {
   return found
 }
 
-/** Click the button with `label` inside `scope`. */
-function within_(scope: HTMLElement, label: string): HTMLElement {
-  const found = [...scope.querySelectorAll('button')].find(button => button.textContent === label)
-  if (found === undefined) throw new Error(`no "${label}" button`)
+/**
+ * The row's edit action. It draws a gear glyph and no text, so the chrome
+ * tooltip is what names it: the dictionary's own `edit` label.
+ */
+function editActionIn(scope: HTMLElement): HTMLElement {
+  const found = [...scope.querySelectorAll('button')].find(button => button.title === en.edit)
+  if (found === undefined) throw new Error(`no "${en.edit}" button`)
   return found
 }
 
@@ -257,7 +274,7 @@ describe('protocolChoices', () => {
 
 describe('model list editing', () => {
   it('adds, edits, and removes rows without storing emptied optional fields', async () => {
-    const { mutate } = await mountSection()
+    const { mutate } = await mountDeclared()
     openEditor('openai')
 
     fireEvent.click(screen.getByRole('button', { name: en.addModel }))
@@ -278,7 +295,7 @@ describe('model list editing', () => {
   })
 
   it('names a duplicate model id in the edit flow too', async () => {
-    const { mutate } = await mountSection({
+    const { mutate } = await mountDeclared({
       providers: { openai: { baseURL: 'https://proxy.example/v1', models: [{ id: 'dup' }] } },
     })
     openEditor('openai')
@@ -294,7 +311,7 @@ describe('model list editing', () => {
   })
 
   it('reads K and M suffixes and keeps the text the user typed', async () => {
-    const { mutate } = await mountSection()
+    const { mutate } = await mountDeclared()
     openEditor('openai')
 
     fireEvent.click(screen.getByRole('button', { name: en.addModel }))
@@ -317,7 +334,7 @@ describe('model list editing', () => {
   })
 
   it('refuses to apply while a capacity is unreadable', async () => {
-    const { mutate } = await mountSection()
+    const { mutate } = await mountDeclared()
     openEditor('openai')
 
     fireEvent.click(screen.getByRole('button', { name: en.addModel }))
@@ -334,7 +351,7 @@ describe('model list editing', () => {
   })
 
   it('spells a stored capacity back the way it is typed', async () => {
-    await mountSection({
+    await mountDeclared({
       providers: {
         openai: {
           baseURL: 'https://proxy.example/v1',
@@ -353,7 +370,7 @@ describe('model list editing', () => {
   })
 
   it('edits one row of several and lets a cleared capacity leave the profile', async () => {
-    const { mutate } = await mountSection({
+    const { mutate } = await mountDeclared({
       providers: { openai: { baseURL: 'https://proxy.example/v1', models: [{ id: 'first' }, { id: 'second' }] } },
     })
     openEditor('openai')
@@ -374,7 +391,7 @@ describe('model list editing', () => {
   })
 
   it('shows the adapter defaults as inherited until an edit takes them over', async () => {
-    await mountSection({ providers: { openai: { baseURL: 'https://proxy.example/v1' } } })
+    await mountDeclared({ providers: { openai: { baseURL: 'https://proxy.example/v1' } } })
     openEditor('openai')
 
     // The user layer names no models, so the list belongs to the adapter and
@@ -385,7 +402,7 @@ describe('model list editing', () => {
 
 
   it('keeps expansion on the row it belongs to after an earlier one is removed', async () => {
-    await mountSection({
+    await mountDeclared({
       providers: {
         openai: {
           baseURL: 'https://proxy.example/v1',
@@ -408,7 +425,7 @@ describe('model list editing', () => {
   })
 
   it('leaves an earlier row expanded and forgets the removed row\u2019s own state', async () => {
-    await mountSection({
+    await mountDeclared({
       providers: {
         openai: {
           baseURL: 'https://proxy.example/v1',
@@ -432,7 +449,7 @@ describe('model list editing', () => {
   })
 
   it('separates emptying the list from restoring the adapter defaults', async () => {
-    const { mutate } = await mountSection({
+    const { mutate } = await mountDeclared({
       providers: { openai: { baseURL: 'https://proxy.example/v1', models: [{ id: 'kept' }] } },
     })
     openEditor('openai')

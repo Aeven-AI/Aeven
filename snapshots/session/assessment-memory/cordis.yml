@@ -1,0 +1,7 @@
+- insert:
+    - id: assessment-memory-service
+      name: '@aeven/memory'
+    - id: assessment-memory-fixture
+      name: '../../../packages/test-support/session-snapshot/tests/fixtures/assessment-memory.ts'
+    - id: assessment-memory-tools
+      name: '@aeven/tool-memory'

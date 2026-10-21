@@ -408,8 +408,13 @@ function relevanceFor(c: TierCandidate, input: RankerInput): number {
   }
   if (c.refKind === "trace") {
     const tc = c as TraceCandidate;
+    // A remembered fact never takes part in a rewarded task, so its learned value stays 0; being saved on purpose
+    // is its endorsement, and it ranks with at least `rememberedFactValue` against rewarded conversation traces.
+    const value = tc.tags?.includes("lightweight_memory")
+      ? Math.max(tc.value, input.config.rememberedFactValue ?? 0)
+      : tc.value;
     const live = priorityFor(
-      tc.value,
+      value,
       tc.ts,
       input.config.decayHalfLifeDays,
       input.now,

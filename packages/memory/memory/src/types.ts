@@ -55,6 +55,21 @@ export interface MemoryHit {
    * Absent for a memory with no recorded time, which then competes on score alone.
    */
   readonly recordedAt?: number
+  /** Maturity of a learned procedure; absent for every other memory. */
+  readonly procedureStatus?: ProcedureStatus
+  /** How the memory entered the store, when the provider knows it; recall renders it beside the memory. */
+  readonly origin?: MemoryOrigin
+}
+
+/**
+ * How one memory entered the store. `conversation`: captured from a conversation with the user. `import`: saved in
+ * bulk from a source the assistant read, such as an archive, a transcript of another assistant, or a document; it
+ * states what that source said, which may be someone's assessment rather than a checked fact.
+ */
+export interface MemoryOrigin {
+  readonly kind: 'conversation' | 'import'
+  /** Epoch milliseconds the memory was saved; for an undated import this is the only time known. */
+  readonly savedAt: number
 }
 
 /** Per-tier result limits for one recall. */
@@ -67,7 +82,25 @@ export interface MemoryRecallLimits {
 /** One bounded recall. */
 export interface MemoryRecallRequest {
   readonly scope: MemoryScope
+  /** Retrieval text: for a turn-start recall, the person's earlier messages followed by `request`. */
   readonly query: string
+  /**
+   * Turn-start only: the person's current message, which the relevance judgment reads whole and apart from
+   * `context`; absent judges against `query`.
+   */
+  readonly request?: string
+  /** Turn-start only: the person's earlier messages in the session, oldest first, already bounded. */
+  readonly context?: string
+  /**
+   * Turn-start only: also offer the person's own memories from the last `hours` as candidates, at most `items`,
+   * so a new session can know what the person is going through; they pass the same relevance judgment.
+   */
+  readonly recent?: {
+    readonly hours: number
+    readonly items: number
+    /** Most memories offered from any one conversation, so one long conversation cannot crowd out the others. */
+    readonly perSession: number
+  }
   /** `turn-start` recalls context for a new direct-user turn; `tool` serves an explicit model lookup. */
   readonly purpose: 'turn-start' | 'tool'
   /** Restrict results to memory captured from `scope.sessionId`. */
@@ -85,6 +118,15 @@ export interface MemoryRecall {
   readonly hits: readonly MemoryHit[]
   /** True when the foreground budget elapsed before retrieval completed. */
   readonly timedOut: boolean
+  /**
+   * True when the relevance judgment did not run to completion and the hits are a mechanical fallback, or when
+   * recall was skipped because the memory index is being rebuilt.
+   */
+  readonly degraded?: boolean
+  /** Which lane the relevance judgment found the turn to be about: the person themselves, or a task. */
+  readonly lead?: 'person' | 'task'
+  /** The relevance judgment found the person telling how they feel or what is happening in their life. */
+  readonly sharing?: boolean
 }
 
 /** One tool invocation observed during a captured turn. */
@@ -177,6 +219,12 @@ export interface MemorySkill {
 }
 
 /** One stored memory of the scope's owner, as listed for inspection. */
+/**
+ * Maturity of a learned procedure. A `candidate` is stored but not recalled automatically; evidence from later
+ * work promotes it to `active`; an `archived` one is kept for restoring but neither recalled nor merged into.
+ */
+export type ProcedureStatus = 'candidate' | 'active' | 'archived'
+
 export interface MemoryRecord {
   readonly id: MemoryItemId
   readonly domain: MemoryDomain
@@ -187,6 +235,8 @@ export interface MemoryRecord {
   readonly agentText: string
   readonly sessionId: SessionId
   readonly episodeId: MemoryEpisodeId
+  /** Status a learned procedure carries; undefined for other memories and for procedures stored without one. */
+  readonly procedureStatus?: ProcedureStatus
 }
 
 /** Page request for {@link MemoryProvider.list}. */
@@ -231,6 +281,8 @@ export interface LearnedProcedure {
   readonly time: number
   /** Session whose work the procedure was learned from or saved in. */
   readonly sessionId: SessionId
+  /** Maturity; a procedure stored without a status is a `candidate`. */
+  readonly status: ProcedureStatus
 }
 
 /** Request for the owner's learned procedures. */
@@ -265,6 +317,24 @@ export interface MemoryProvider {
    * @param turn - turn assembled from committed session events.
    */
   capture(turn: MemoryTurn): void
+  /**
+   * Set a learned procedure's maturity.
+   * @param request - account id, the procedure's memory id, and the new status.
+   * @returns true when a procedure of the owner was updated.
+   */
+  setProcedureStatus(request: {
+    readonly owner: string
+    readonly id: MemoryItemId
+    readonly status: ProcedureStatus
+    readonly signal: AbortSignal
+  }): Promise<boolean>
+  /**
+   * Domain one captured turn was filed under, read after that session's queued captures finish.
+   * @param request - the session and its turn number.
+   * @returns the turn's domain, or undefined when the turn was not captured, was not classified, or its session
+   * was already released.
+   */
+  turnDomain(request: { readonly sessionId: SessionId; readonly turn: number }): Promise<MemoryDomain | undefined>
   /**
    * Release per-session provider state after the session's accepted captures finish.
    * @param sessionId - session that is no longer live.
@@ -345,6 +415,21 @@ export interface MemoryProvider {
     readonly domain: MemoryDomain
     readonly signal: AbortSignal
   }): Promise<MemoryItemId>
+  /**
+   * Import already-distilled facts verbatim, without per-fact language-model processing. A fact the owner's memory
+   * already holds with the same text, or one repeated in the batch, is skipped, so importing a file again is safe.
+   * Imported facts are marked as imported: a fact without `recordedAt` has no known age, so recall does not read
+   * it as something that happened today.
+   * @param request - owning scope, ordered facts with their original time when known, their domain, and cancellation.
+   * @returns ids of the facts written, in input order, and how many were skipped, after every written fact is
+   * durable; rejects without writing any fact on failure.
+   */
+  rememberMany(request: {
+    readonly scope: MemoryScope
+    readonly facts: readonly { readonly text: string; readonly recordedAt?: number }[]
+    readonly domain: MemoryDomain
+    readonly signal: AbortSignal
+  }): Promise<{ readonly ids: readonly MemoryItemId[]; readonly skipped: number }>
   /**
    * Replace the summary of one of an owner's memories.
    * @param request - account id, memory id, and the corrected summary.

@@ -67,7 +67,13 @@ export async function runL2(
   const warnings: L2ProcessResult["warnings"] = [];
   const timings = { associate: 0, candidate: 0, induce: 0, gain: 0, persist: 0, total: 0 };
 
-  const eligibleTraces = input.traces.filter((t) => t.value >= config.minTraceValue && !!(t.vecSummary ?? t.vecAction));
+  // Remembered facts and stored records (`lightweight_memory`) and conversations about the person
+  // (`domain:person`) are not work, so no policy is induced from them.
+  const eligibleTraces = input.traces.filter((t) =>
+    t.value >= config.minTraceValue &&
+    !!(t.vecSummary ?? t.vecAction) &&
+    !t.tags.includes("lightweight_memory") &&
+    !t.tags.includes("domain:person"));
   log.info("run.start", {
     episodeId: input.episodeId,
     sessionId: input.sessionId,

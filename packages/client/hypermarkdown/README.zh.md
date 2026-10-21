@@ -27,7 +27,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-挂载组件、按界面需要挂上插件，并通过命令式 handle 驱动流式输出。重型引擎是可选加入的：某个槽位留空会降级而不是失败，因此 `$x$` 保持字面量、代码围栏不高亮、```` ```mermaid ```` 围栏渲染为代码块。
+挂载组件、按界面需要挂上插件，并通过命令式 handle 驱动流式输出。重型引擎是可选加入的：某个槽位留空会降级而不是失败，因此 `$x$` 保持字面量、代码围栏不高亮、```` ```mermaid ```` 围栏渲染为代码块。```` ```message ```` 围栏承载读者将要发送出去的文本，例如一条消息、一封邮件或一封回复，以周围正文的字体渲染为自动换行的正文，带有复制按钮且不显示行号；其标题与复制按钮的文案取自 `message` 与 `copyMessage` 两条译文。
 
 ```tsx
 import { HyperMarkdown, katexPlugin, highlightPlugin, mermaidPlugin } from '@aeven/client-hypermarkdown'

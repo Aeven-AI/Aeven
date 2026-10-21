@@ -5,8 +5,9 @@
  * `settings.models.provider-card` is keyed by the row's owning settings
  * namespace (`ProviderDirectoryEntry.settingsNs`): an adapter family's
  * companion plugin registers one entry under the family's namespace and
- * receives every card of that family — shipped, added, and hand-declared rows
- * alike — while the section never learns what the namespace means. Keying on
+ * receives the card of an expanded row of that family — shipped, added, and
+ * hand-declared rows alike — while the section never learns what the namespace
+ * means. Keying on
  * the namespace follows `settings.plugin.item`, and the key domain stays the
  * open string space because hand-declared route ids are user-chosen at
  * runtime.
@@ -23,10 +24,10 @@ declare module '@aeven/client-ui-slots' {
   interface SlotMap {
     /**
      * One provider card's adapter extension area, dispatched with
-     * `entryKey = settingsNs` on every card that renders a directory row: a
-     * saved row's card and the add-provider draft card. The hand-declared draft card has no directory
-     * row yet, so it dispatches nothing until saved. Without a registrant the
-     * area renders nothing.
+     * `entryKey = settingsNs` on the card of a saved row while that row is
+     * expanded, and on the add-provider draft card. The hand-declared draft card
+     * has no directory row yet, so it dispatches nothing until saved. Without a
+     * registrant the area renders nothing.
      */
     'settings.models.provider-card': { kind: 'keyed'; scope: 'root'; owner: ProviderCardExtrasOwnerProps }
     /**

@@ -50,7 +50,7 @@ English | [中文](README.zh.md)
 
 #### What the model sees
 
-One system-prompt section, registered in each agent's own scope at the configured `promptOrder` (`10` by default), so it reads as an amendment to the persona directly above it. Its text is evaluated at every assembly from the session owner's document, and a session without an owner renders nothing. Because the section is part of the system prompt, every `request/header` event records it, so a change is reconstructable from the log from the first request it reached.
+One system-prompt section, registered in each agent's own scope at the configured `promptOrder` (`10` by default), so it reads as an amendment to the persona directly above it. Its text is evaluated at every assembly from the session owner's document, and a session without an owner renders nothing. The master prompt keeps the preset's own section name and order, so a person who wrote nothing renders exactly the assembled prompt a person who wrote the shipped text back verbatim would; only the last paragraphs differ, because the person's text replaces the deployment's outright. Because the section is part of the system prompt, every `request/header` event records it, so a change is reconstructable from the log from the first request it reached.
 
 ##### Verbatim guidance and frame
 
@@ -67,8 +67,6 @@ In their own words: <the person's notes>
 ```markdown
 <the person's own text, or the shipped persona the deploying composition registered>
 ```
-
-It is the same section name and order the preset uses, so a person who wrote nothing renders exactly the assembled prompt a person who wrote the shipped text back verbatim would; only the last paragraphs differ, because the person's text replaces the deployment's outright.
 
 ##### Verbatim voice instructions (`warm`, `direct`, `playful`, in that order)
 

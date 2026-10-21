@@ -5,7 +5,7 @@ import { cssLength, defaultUi } from '../config.ts'
 import type { UiConfig } from '../config.ts'
 import { portalFullscreen } from '../fullscreen-portal.tsx'
 
-import Header from './header.tsx'
+import Header, { MESSAGE_LANGUAGE } from './header.tsx'
 import LineNumber from './line-numbers.tsx'
 
 interface CodeElementProps {
@@ -199,6 +199,7 @@ class MarkdownCode extends PureComponent<CodeBlockProps, CodeBlockState> {
     const maxHeight = cssLength(ui.codeBlockMaxHeight)
 
     const language = vm.language()
+    const message = language === MESSAGE_LANGUAGE ? ' message' : ''
 
     if (props.stream !== true) {
       stream = ''
@@ -229,7 +230,7 @@ class MarkdownCode extends PureComponent<CodeBlockProps, CodeBlockState> {
     const tree = (
       <div
         ref={vm.wrapperRef}
-        className={'codeblock-wrapper' + stream + fullscreen}
+        className={'codeblock-wrapper' + message + stream + fullscreen}
         style={
           maxHeight === undefined ||  state.fullscreen
             ? undefined
@@ -250,7 +251,7 @@ class MarkdownCode extends PureComponent<CodeBlockProps, CodeBlockState> {
 
           <div className="codeblock-pre-code-content">
             <pre>
-              {!ui.lineNumbers ? null : (
+              {!ui.lineNumbers || message ? null : (
                 <LineNumber
                   codeRef={vm.codeRef}
                   animation={lineAnimation}
@@ -270,7 +271,7 @@ class MarkdownCode extends PureComponent<CodeBlockProps, CodeBlockState> {
     if (state.fullscreen) {
       return portalFullscreen(
         tree,
-        'codeblock-wrapper' + stream,
+        'codeblock-wrapper' + message + stream,
         vm.slotHeight,
       )
     }

@@ -29,6 +29,8 @@ export interface FeedbackExperienceDeps {
   llm?: LlmClient;
   namespace: RuntimeNamespace;
   now?: () => number;
+  /** Cosine ≥ this merges the experience into an existing policy (`algorithm.feedback.mergeSimilarity`). */
+  mergeSimilarity: number;
 }
 
 export interface FeedbackExperienceInput {
@@ -57,7 +59,6 @@ interface DraftExperience {
 }
 
 const MIN_SIGNIFICANCE = 0.5;
-const MERGE_SIMILARITY = 0.72;
 const MAX_TITLE_CHARS = 120;
 const MAX_LINE_CHARS = 360;
 // Strict scenarios: only full credit counts as a pass (covers {-1,+1} and 0..1
@@ -371,7 +372,7 @@ function findSimilarPolicy(
     hardCap: 50,
   });
   for (const hit of hits) {
-    if (hit.score < MERGE_SIMILARITY) continue;
+    if (hit.score < deps.mergeSimilarity) continue;
     const row = deps.repos.policies.getById(hit.id as PolicyId);
     if (!row) continue;
     if (row.experienceType && row.experienceType !== draft.type && hit.score < 0.82) {

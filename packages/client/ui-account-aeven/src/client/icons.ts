@@ -1,5 +1,5 @@
 /**
- * The account menu's icons: the Settings and Log out glyphs are verbatim from
+ * The account menu's icons: the Settings and Sign out glyphs are verbatim from
  * Aeven's `Navigation` component so the two menus draw the same rows, and the
  * Language row takes [lucide `globe`](https://lucide.dev/icons/globe) at the
  * same canvas and stroke weight.
@@ -23,7 +23,7 @@ export const LANGUAGE_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="24"
   + '<path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/>'
   + '<path d="M2 12h20"/></svg>'
 
-/** Remix `logout-circle-r`, on the Log out row. */
+/** Remix `logout-circle-r`, on the Sign out row. */
 export const LOGOUT_ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"'
   + ' width="24" height="24"><path fill="none" d="M0 0h24v24H0z"/><path d="M12 22C6.477 22 2'
   + ' 17.523 2 12S6.477 2 12 2a9.985 9.985 0 0 1 8 4h-2.71a8 8 0 1 0 .001 12h2.71A9.985 9.985 0'

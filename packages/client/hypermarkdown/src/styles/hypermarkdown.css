@@ -2414,6 +2414,38 @@
     }
   }
 
+  /* A ```message fence: text the person sends on, read and copied as prose. */
+  .codeblock-wrapper.message {
+    .code-container {
+      .codeblock-pre-code-content {
+        /* The text matches the reply around it, whatever font the host gives its paragraphs. */
+        pre {
+          grid-template-columns: 1fr;
+
+          font: inherit;
+
+          .code-content {
+            overflow-x: hidden;
+
+            code {
+              white-space: pre-wrap;
+              overflow-wrap: anywhere;
+
+              font: inherit;
+              letter-spacing: inherit;
+
+              color: var(--hm-color);
+
+              @media screen and (max-width: 640px) {
+                font-size: inherit;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
   .codeblock-wrapper.stream-active {
     .code-container {
       .codeblock-header {

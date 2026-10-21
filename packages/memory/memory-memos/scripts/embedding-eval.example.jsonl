@@ -1,0 +1,3 @@
+{"label": "personal (en)", "query": "I'm feeling pretty rough today, can you check the weather for a walk?", "pattern": "rough|tired|down|walk|weather"}
+{"label": "personal (nl)", "query": "ik voel me echt slecht vandaag", "pattern": "slecht|down|sad|depress|tired"}
+{"label": "code", "query": "the build fails with a TypeScript error in the settings page", "pattern": "build|typescript|tsc|settings"}

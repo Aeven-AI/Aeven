@@ -271,7 +271,10 @@ export function createEmbedderWithProvider(
     role: EmbedRole,
     options?: EmbedCallOptions,
   ): Promise<EmbeddingSettledResult[]> {
-    const texts = entries.map((entry) => entry.text);
+    // Role prefixes apply per physical input, so every chunk of a long text
+    // carries the marker an asymmetric retrieval model such as E5 expects.
+    const prefix = (role === "query" ? config.queryPrefix : config.documentPrefix) ?? "";
+    const texts = entries.map((entry) => prefix + entry.text);
     roundTrips++;
     const startedAt = Date.now();
     try {

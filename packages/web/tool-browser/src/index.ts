@@ -75,7 +75,7 @@ function unlessAborted<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
  * Whether a turn's cancellation has already reached this point.
  *
  * A turn can cancel while its page lookup is in flight, so the signal is read
- * where its answer is used rather than once when the step starts.
+ * both before a lookup starts and where its answer is used.
  * @param signal - the turn's cancellation.
  * @returns whether the turn was cancelled.
  */
@@ -119,6 +119,15 @@ function asSessionTabPage(value: JsonValue): { readonly url: string; readonly ti
 }
 
 /**
+ * Whether a status answer reports a closed browser the client opens on a navigation.
+ * @param value - the Client's answer.
+ * @returns true for the `{ open: false, openable: true }` answer.
+ */
+function isOpenable(value: JsonValue): boolean {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) && value.open === false && value.openable === true
+}
+
+/**
  * How the browser beside the session answered a status lookup. The three
  * absent outcomes are different facts: `absent` is a session whose pane is not
  * mounted, `unanswered` is a connected Client that has not answered yet, and
@@ -158,11 +167,13 @@ type HostBrowserReport = {
  * report that named only a closed pane is what leaves a model believing no
  * browser exists on the machine at all.
  * @param pageOpen - whether the browser beside the session shows a page.
+ * @param openable - whether the client holding the session can open that browser on a navigation.
  * @param host - the Host's Chromium as sampled, or null when the composition mounts none.
  * @returns the sentence the model acts on.
  */
-function nextStepFor(pageOpen: boolean, host: HostBrowserReport | null): string {
+function nextStepFor(pageOpen: boolean, openable: boolean, host: HostBrowserReport | null): string {
   if (pageOpen) return 'Drive the page beside this session with the preview_* tools.'
+  if (openable) return 'No page is open beside this session yet. preview_navigate opens the collaborative browser beside it at an address; use it whenever the user asks to open, visit, or go to a website or URL, then drive the page with the other preview_* tools.'
   if (host === null) {
     return 'No browser is open beside this session, and this deployment mounts none on the Host. Ask the user to open one from the right sidebar (Browser).'
   }
@@ -303,9 +314,13 @@ export function apply(ctx: Context, config: Config): void {
   // is optional, so an unanswered lookup costs the step at most
   // `statusTimeoutMs`.
   ctx.on('agent/pre-step', async ({ agent, step, signal }, next): Promise<PreStepDecision> => {
+    // The pane lookup needs nothing from the later listeners, so it runs while they do: a session without an open
+    // pane waits out the status timeout once, alongside recall and connector setup, instead of after them. A turn
+    // already cancelled here has no step to describe, so it issues no request.
+    const pending = step === 1 && !isCancelled(signal) ? readSessionTab(agent, signal) : undefined
     const decision = await next()
-    if (decision.kind === 'reject' || step !== 1 || isCancelled(signal)) return decision
-    const lookup = await readSessionTab(agent, signal)
+    if (pending === undefined || decision.kind === 'reject' || isCancelled(signal)) return decision
+    const lookup = await pending
     switch (lookup.kind) {
       case 'page': {
         const page = asSessionTabPage(lookup.page)
@@ -382,11 +397,12 @@ export function apply(ctx: Context, config: Config): void {
     async execute(_args, exec) {
       const lookup = await readSessionTab(callingAgent(exec), exec.signal)
       const page = lookup.kind === 'page' ? asSessionTabPage(lookup.page) : null
+      const openable = lookup.kind === 'page' && isOpenable(lookup.page)
       const host = await readHostBrowser(callingAgent(exec), exec.signal)
       const report: { [key: string]: JsonValue } = {
         sessionTab: page,
         hostBrowser: host === null ? null : { ...host },
-        nextStep: nextStepFor(page !== null, host),
+        nextStep: nextStepFor(page !== null, openable, host),
       }
       return JSON.stringify(report)
     },
@@ -419,7 +435,7 @@ export function apply(ctx: Context, config: Config): void {
       },
     }),
     action('preview_navigate', 'navigate',
-      "Navigate the collaborative browser tab. Pass {url:'https://t3.chat'} for a website or a local dev server URL.",
+      "Navigate the collaborative browser tab, opening that browser beside the session when it is closed. Use it whenever the user asks to open, visit, or go to a website or URL, rather than a shell command that opens another browser. Pass {url:'https://t3.chat'} for a website or a local dev server URL.",
       { url: { type: 'string', required: true, description: 'Website URL. Use this for public pages and directly reachable URLs.' } }),
     action('preview_back', 'back',
       'Go back one page in the collaborative browser tab, showing the pointer pressing the control.',

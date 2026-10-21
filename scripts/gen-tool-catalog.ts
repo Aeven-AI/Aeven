@@ -788,7 +788,7 @@ const TOOL_PACKAGES: ToolPackage[] = [
     dir: 'tool-memory',
     source: 'packages/memory/tool-memory/src/index.ts',
     requires: ['ctx.tools', 'ctx.memory'],
-    writes: ['tool/call', 'tool/result', 'a remembered fact on memory_remember'],
+    writes: ['tool/call', 'tool/result', 'remembered facts on memory_remember and memory_remember_bulk'],
     async mount(ctx) {
       await ctx.plugin(Memory)
       ctx.memory.register({
@@ -798,7 +798,7 @@ const TOOL_PACKAGES: ToolPackage[] = [
       await ctx.plugin(ToolMemory)
     },
     note:
-      'Registered only while a memory provider is active, so a composition without one shows the model no memory tools at all; the seven tools read the provider and only `memory_remember` writes to it.',
+      'Registered only while a memory provider is active; `memory_remember` stores one fact and `memory_remember_bulk` stores an atomic batch of already-distilled facts.',
   },
 ]
 

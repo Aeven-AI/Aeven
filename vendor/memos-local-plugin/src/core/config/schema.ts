@@ -43,6 +43,20 @@ const EmbeddingSchema = Type.Object({
   ], { default: "local" }),
   endpoint: StringWithDefault(""),
   model: StringWithDefault("Xenova/all-MiniLM-L6-v2"),
+  /**
+   * Text prepended to every query input before the provider sees it.
+   * Retrieval models such as E5 require one (`"query: "`).
+   */
+  queryPrefix: StringWithDefault(""),
+  /**
+   * Text prepended to every stored-document input before the provider sees
+   * it. Retrieval models such as E5 require one (`"passage: "`).
+   */
+  documentPrefix: StringWithDefault(""),
+  /** Execution device of the `local` provider, a transformers.js device name such as `cpu`, `coreml`, or `webgpu`. */
+  device: StringWithDefault("cpu"),
+  /** Weight precision of the `local` provider, a transformers.js dtype such as `q8`, `fp16`, or `fp32`. */
+  dtype: StringWithDefault("q8"),
   apiKey: StringWithDefault(""),
   /** OpenRouter provider routing — providers to skip. */
   providerIgnore: Type.Optional(Type.Array(Type.String(), { default: [] })),
@@ -399,6 +413,11 @@ const AlgorithmSchema = Type.Object({
     minLowValueThreshold: NumberInRange(0.01, 0, 1),
     /** Let the LLM rewrite the preference / anti-pattern lines. */
     useLlm: Bool(true),
+    /**
+     * Cosine ≥ this merges a feedback-derived experience into an existing
+     * policy instead of creating one. Calibrated per embedding model.
+     */
+    mergeSimilarity: NumberInRange(0.72, 0, 1),
     /** Tag the L2 policies referenced by the evidence with the guidance. */
     attachToPolicy: Bool(true),
     /** Debounce (ms) for repeat repairs on the same context hash. */
@@ -456,6 +475,18 @@ const AlgorithmSchema = Type.Object({
     bgLlmConcurrency: NumberInRange(2, 1, 8),
   }, { default: {} }),
   retrieval: Type.Object({
+    /**
+     * Retrieve `candidate` policies beside `active` ones. False keeps
+     * policies out of retrieval until induction promotes them; candidate
+     * Skills stay retrievable because their trials come from being used.
+     */
+    includeCandidatePolicies: Bool(true),
+    /**
+     * Learned value a remembered fact (`lightweight_memory`) ranks with at
+     * least. Such facts never take part in a rewarded task, so their own
+     * value stays 0 and rewarded conversation traces would always outrank them.
+     */
+    rememberedFactValue: NumberInRange(0, 0, 1),
     /** How many Skill snippets to inject at turn start. */
     tier1TopK: NumberInRange(3, 0, 100),
     /** How many trace/episode snippets to inject. */

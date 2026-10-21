@@ -55,6 +55,20 @@ capture(turn: MemoryTurn): void
 async closeSession(sessionId: SessionId): Promise<void>
 
 /**
+ * Set a learned procedure's maturity.
+ * @param request - account id, the procedure's memory id, and the new status.
+ * @returns true when a procedure of the owner was updated.
+ */
+setProcedureStatus(request: Parameters<MemoryProvider['setProcedureStatus']>[0]): Promise<boolean>
+
+/**
+ * Domain one captured turn was filed under; undefined while no provider is registered.
+ * @param request - the session and its turn number.
+ * @returns the turn's domain, or undefined when the provider has none for it.
+ */
+async turnDomain(request: Parameters<MemoryProvider['turnDomain']>[0]): Promise<MemoryDomain | undefined>
+
+/**
  * Read one memory item.
  * @param request - scope, item kind, and id.
  * @returns the item, or undefined when the scope holds no such item.
@@ -109,6 +123,14 @@ async procedures(request: LearnedProceduresRequest): Promise<LearnedProcedure[]>
  * @returns the stored memory's id.
  */
 remember(request: Parameters<MemoryProvider['remember']>[0]): Promise<MemoryItemId>
+
+/**
+ * Import already-distilled facts verbatim in one atomic batch, skipping facts the owner's memory already holds.
+ * @param request - owning scope, ordered facts with their original time when known, their domain, and cancellation.
+ * @returns ids of the facts written, in input order, and how many were skipped; rejects without writing any fact
+ * on failure.
+ */
+rememberMany(request: Parameters<MemoryProvider['rememberMany']>[0]): Promise<{ readonly ids: readonly MemoryItemId[]; readonly skipped: number }>
 
 /**
  * Replace the summary of one of the owner's memories.

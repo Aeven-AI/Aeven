@@ -106,7 +106,12 @@ const VERIFICATION = new RegExp(
   'iu',
 )
 
-function correctionOf(text: string): string | undefined {
+/**
+ * Read a direct-user message as a correction of the previous answer.
+ * @param text - the message.
+ * @returns the trimmed message when it opens as a correction, otherwise undefined.
+ */
+export function correctionOf(text: string): string | undefined {
   const trimmed = text.trim()
   return CORRECTION.test(trimmed) ? trimmed : undefined
 }

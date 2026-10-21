@@ -16,6 +16,14 @@ Every tool description and prompt section had grown by repeating what its own re
 
 **The escalation contract is stated once, on the path that can act on it.** Where the composition admits approval, the description names the same-turn retry and the rejection that ends it; where no approval channel exists, it states the plain denial instead, because advertising a retry that cannot be approved invites a wasted call.
 
+## Alternatives considered
+
+**Keep both copies and let the specs catch the drift.** Every duplicated fact then has two homes that must move together, and a spec pinning both only reports the drift after someone changes one of them; assigning each fact a single owner removes the second copy instead of watching it.
+
+**Cut the descriptions by length, leaving each fact where it sits.** A shorter description that still restates its result's markers still teaches the same fact twice, so the drift survives the trim and the next sentence added to either side brings the duplication back.
+
+**Advertise the same-turn escalation retry in every description, including compositions with no approval channel.** A retry the runtime cannot approve turns a denial into a call that was always going to fail, so the description states the retry only where an approval answer can reach it.
+
 ## Consequences
 
 - The bash and pwsh descriptions name no `job_output`/`job_kill`; the background handoff lives on the `run_in_background` parameter and in the completion notice the runtime sends.

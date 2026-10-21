@@ -53,7 +53,7 @@
 | `@aeven/tool-elevation` | - | `ctx.tools`、`ctx.approval`、`ctx.subprocess`、`a Windows host` | `tool/call`、`tool/result` | `elevated` | 仅限 Windows 的工具：用户在 Aeven 中批准这次运行，并在操作系统的授权提示中再次批准；拒绝会使调用失败，而不会以调用方自身的权限运行该命令。在非 Windows 上挂载本包的组合不会向模型提供任何内容。 |
 | `@aeven/tool-image-search` | `find_images` | `ctx.tools`、`ctx.attachments`、`ctx.llm`、`ctx.web (execution time)` | `tool/call`、`one durable image attachment per photograph or card`、`tool/result` | - | `find_images` 先读 Wikimedia Commons，再读 Web seam，因此没有 Web 提供方的部署仍能作答，并引用 Commons 所持有的照片。每张照片和每张新闻卡片都会成为持久图像附件，由客户端在 transcript（文本记录）中展示。 |
 | `@aeven/tool-mail` | `mail_accounts`、`mail_read`、`mail_search`、`mail_send`、`mail_update` | `ctx.tools`、`ctx.mail`、`a session owner with at least one usable mail account`、`a calling Agent for account addressing and approval routing` | `tool/call`、`tool/result`、`mail folder and message changes through ctx.mail`、`a saved attachment file inside the workspace` | - | 只有当某个 agent 的会话所有者至少有一个可用邮箱账户时，这些工具才会为该 agent 注册，因此未登录的会话或没有邮箱的所有者看不到任何邮件工具；发送与永久删除通过 ctx.approval 询问，其他策略给出的拒绝仍然优先。 |
-| `@aeven/tool-memory` | `memory_environments`、`memory_get`、`memory_remember`、`memory_search`、`memory_skill`、`memory_skills`、`memory_timeline` | `ctx.tools`、`ctx.memory` | `tool/call`、`tool/result`、`a remembered fact on memory_remember` | - | 只有在记忆提供方处于活动状态时才会注册，因此没有提供方的组合根本不会向模型展示任何记忆工具；这 7 个工具都读取提供方，且只有 `memory_remember` 会写入。 |
+| `@aeven/tool-memory` | `memory_environments`、`memory_get`、`memory_remember`、`memory_remember_bulk`、`memory_search`、`memory_skill`、`memory_skills`、`memory_timeline` | `ctx.tools`、`ctx.memory` | `tool/call`、`tool/result`、`remembered facts on memory_remember and memory_remember_bulk` | - | 只在记忆提供方处于活动状态时才会注册；`memory_remember` 存储一条事实，`memory_remember_bulk` 以原子方式存储一批已提炼的事实。 |
 
 <a id="aeventool-ask-user"></a>
 
@@ -197,19 +197,19 @@ ask_user_question 会暂停工具调用，直到当前 UI 提供方返回人类�
 
 ### `bash`
 
-执行 bash 命令（`bash -c`）并返回 stdout/stderr。每次调用都在新 shell 中运行：调用之间不保留任何状态（cwd、变量、函数），请传入 `workdir`，不要使用 `cd`。非零退出会报告为 `[exit code: N]`。当前 harness 环境信息通过托管的 `$AVN_*` 变量公开，需要时请检查这些变量。命令可能在文件沙箱中运行；被阻止的文件操作报告为 `[sandbox: file access denied under <mode> mode]`，这是策略拒绝，而不是命令缺陷，请勿换一种方式重试。较长的输出会截断，只保留尾部；如可用，完整输出会保存到文件并报告其路径。对于长时间运行的命令，请设置 `run_in_background: true`：调用会立即返回 job id；使用 `job_output` 读取输出，使用 `job_kill` 停止任务。
+执行 bash 命令（`bash -c`）并返回 stdout/stderr。每次调用都在新的 shell 中运行；请传入 `workdir`，不要使用 `cd`。托管 `$AVN_*` 变量公开当前 harness 环境信息。较长的输出会截断，只保留尾部；如可用，完整输出会保存到文件并报告其路径。前台命令若在 20000ms 后仍在运行，会作为后台任务交回，而不是阻塞本轮。请在参数中先给出 `description`，再给出 `command`。执行任何删除或移动前，请确认解析后的绝对目标路径正是预期路径；绝不要对未经核对的拼接路径执行此类操作。未设置的变量会展开为空字符串，因此这类路径中的变量请用 `${VAR:?}` 保护。命令可能在文件沙箱中运行；被阻止的文件操作会报告为 `[sandbox: file access denied under <mode> mode]`，这是策略拒绝：请勿换一种方式重试。
 
 ```json
 {
   "type": "object",
   "properties": {
-    "command": {
-      "type": "string",
-      "description": "The bash command to execute."
-    },
     "description": {
       "type": "string",
       "description": "Clear, concise description of what this command does in active voice, 5-10 words (shown in the UI). Examples: \"ls\" → \"List files in current directory\"; \"git status\" → \"Show working tree status\"; \"npm install\" → \"Install package dependencies\"."
+    },
+    "command": {
+      "type": "string",
+      "description": "The bash command to execute."
     },
     "timeoutMs": {
       "type": "number",
@@ -225,8 +225,8 @@ ask_user_question 会暂停工具调用，直到当前 UI 提供方返回人类�
     }
   },
   "required": [
-    "command",
-    "description"
+    "description",
+    "command"
   ]
 }
 ```
@@ -242,19 +242,19 @@ bash 工具是 bash 执行器 seam 面向模型的消费方。使用 `run_in_bac
 
 ### `pwsh`
 
-执行 PowerShell 命令（`pwsh -Command`）并返回 stdout/stderr。每次调用都在新的 pwsh 进程中运行：调用之间不保留任何状态（cwd、变量、函数），请传入 `workdir`，不要使用 `cd`。路径采用 Windows 原生形式（`C:\...`）；使用 `$env:NAME` 读取环境变量。非零退出会报告为 `[exit code: N]`。当前 harness 环境信息通过托管的 `$env:AVN_*` 变量公开，需要时请检查这些变量。命令可能在文件沙箱中运行；被阻止的文件操作报告为 `[sandbox: file access denied under <mode> mode]`，这是策略拒绝，而不是命令缺陷，请勿换一种方式重试。较长的输出会截断，只保留尾部；如可用，完整输出会保存到文件并报告其路径。在 Windows 上，被强制终止的命令会以 `[exit code: 1]` 结算且不带信号标记，请将其视为中断，而不是命令失败。对于长时间运行的命令，请设置 `run_in_background: true`：调用会立即返回 job id；使用 `job_output` 读取输出，使用 `job_kill` 停止任务。
+执行 PowerShell 命令（`pwsh -Command`）并返回 stdout/stderr。每次调用都在新的 pwsh 进程中运行；请传入 `workdir`，不要使用 `cd`。路径采用 Windows 原生形式（`C:\...`）；使用 `$env:NAME` 读取环境变量。托管 `$env:AVN_*` 变量公开当前 harness 环境信息。较长的输出会截断，只保留尾部；如可用，完整输出会保存到文件并报告其路径。在 Windows 上，被强制终止的命令会以 `[exit code: 1]` 结算且不带信号标记，请将其视为中断，而不是命令失败。前台命令若在 20000ms 后仍在运行，会作为后台任务交回，而不是阻塞本轮。请在参数中先给出 `description`，再给出 `command`。执行任何删除或移动前，请确认解析后的绝对目标路径正是预期路径；绝不要对未经核对的拼接路径执行此类操作。不要给 `$HOME` 这类自动变量赋值；变量名不区分大小写，因此 `$home` 就是同一个只读变量。命令可能在文件沙箱中运行；被阻止的文件操作会报告为 `[sandbox: file access denied under <mode> mode]`，这是策略拒绝：请勿换一种方式重试。
 
 ```json
 {
   "type": "object",
   "properties": {
-    "command": {
-      "type": "string",
-      "description": "The PowerShell command to execute."
-    },
     "description": {
       "type": "string",
       "description": "Clear, concise description of what this command does in active voice, 5-10 words (shown in the UI). Examples: \"ls\" → \"List files in current directory\"; \"git status\" → \"Show working tree status\"; \"Get-Process\" → \"List running processes\"."
+    },
+    "command": {
+      "type": "string",
+      "description": "The PowerShell command to execute."
     },
     "timeoutMs": {
       "type": "number",
@@ -270,8 +270,8 @@ bash 工具是 bash 执行器 seam 面向模型的消费方。使用 `run_in_bac
     }
   },
   "required": [
-    "command",
-    "description"
+    "description",
+    "command"
   ]
 }
 ```
@@ -818,7 +818,7 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
 
 ### `glob`
 
-查找路径匹配 glob 模式的文件。只返回匹配的文件路径，绝不返回目录；包括隐藏文件和被忽略的文件，但排除 VCS 元数据目录。最多按修改时间顺序返回 100 条路径；如果结果更多，则改为返回从顶层条目中抽样的 100 条路径，说明已抽样，并报告完整排序列表的保存位置。该工具不枚举目录条目。
+查找路径匹配 glob 模式的文件，而不是目录，包括隐藏文件和被忽略的文件。最多按修改时间顺序返回 100 条路径；结果更多时会从顶层条目中抽样，并报告完整列表的保存位置。
 
 ```json
 {
@@ -844,7 +844,7 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
 
 ### `grep`
 
-使用 ripgrep 正则表达式搜索文件内容。返回带行号的匹配行，并按文件分组。前 250 条匹配会直接返回；结果达到上限时会报告完整匹配列表的保存位置。如需周边上下文，请对匹配的文件使用 read。
+使用 ripgrep 正则表达式搜索文件内容。返回带行号的匹配行，并按文件分组。最多返回 250 条匹配；结果更多时会报告完整匹配列表的保存位置。
 
 ```json
 {
@@ -1051,7 +1051,7 @@ glob 和 grep 是无条件可用的发现工具，通过 ctx.subprocess spawn �
 
 ### `create_goal`
 
-当当前直接人类请求是需要跨自主 Goal Round 持续推进的长期目标时，创建一个持久化的同会话完成目标。即使用户没有明确说「创建目标」，你也可以推断其意图。不要用于简单的单轮工作。执行时会拒绝非人类权限和 subagent 权限。
+创建一个持久化目标，让本会话在自动延续的 Round 中持续工作。当直接来自人类的请求是长期目标时使用它，即使用户没有说出「目标」也不例外；不用于单轮工作。
 
 ```json
 {
@@ -1077,7 +1077,7 @@ glob 和 grep 是无条件可用的发现工具，通过 ctx.subprocess spawn �
 
 ### `get_goal`
 
-读取当前的同会话目标，包括确切的 id／revision、目标、阶段、已完成的延续 Round 数、Round 上限、存在时的阻塞原因，以及是否已准备下一次延续。更新目标前请先调用此工具。
+读取当前会话目标，包括 update_goal 所需的 id 与 revision。
 
 ```json
 {
@@ -1091,7 +1091,7 @@ glob 和 grep 是无条件可用的发现工具，通过 ctx.subprocess spawn �
 
 ### `update_goal`
 
-更新确切的当前目标 revision。edit、pause 和 resume 要求直接的顶层人类请求。在自动延续当前目标期间，也允许 complete 和 blocked。在达到配置的最小 Round 数之前会拒绝 blocked；模型仍须判断相同条件是否在这些 Round 中持续存在，并在 blocked_reason 中予以说明。
+更新当前目标。
 
 ```json
 {
@@ -1107,7 +1107,7 @@ glob 和 grep 是无条件可用的发现工具，通过 ctx.subprocess spawn �
     },
     "action": {
       "type": "string",
-      "description": "edit | pause | resume | complete | blocked",
+      "description": "edit, pause, and resume require a direct top-level human request. complete and blocked are also allowed during an automatic continuation of this goal; blocked is rejected before the configured minimum round count.",
       "enum": [
         "edit",
         "pause",
@@ -1126,7 +1126,7 @@ glob 和 grep 是无条件可用的发现工具，通过 ctx.subprocess spawn �
     },
     "blocked_reason": {
       "type": "string",
-      "description": "Concrete blocking condition; required only with action blocked."
+      "description": "Required only with action blocked: the concrete condition that persisted across rounds and blocks progress."
     }
   },
   "required": [
@@ -2304,7 +2304,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 
 ### `todo_write`
 
-记录并更新当前工作的结构化任务列表。每次调用都要发送**完整列表**，它会**替换**之前的列表，不支持局部更新或逐项编辑。请用它规划多步骤工作并展示进度：开始前为每个具体步骤添加一项 todo。将当前正在处理的每项 todo 标记为 `in_progress`；确实并行运行时（例如并发 subagent 或后台命令）可同时标记多项，顺序工作则标记 1 项。只要工作尚未完成，就应至少有一项任务为 `in_progress`。某项 todo 完成后立即标记为 `completed`，不要批量标记完成；只有全部工作完成后，才可以没有 `in_progress` 项。简单的单步骤任务无需使用列表。状态：`pending`（未开始）、`in_progress`（正在处理）、`completed`（已完成）。
+记录并更新任务列表，用于规划多步骤工作并展示进度；简单的单步任务可跳过不用。开始前为每个具体步骤添加一项 todo。只要工作尚未完成，就把正在处理的 todo 保持为 `in_progress`，仅在确实并行时同时标记多项。每项 todo 完成后立即标记为 `completed`。
 
 ```json
 {
@@ -2474,7 +2474,7 @@ todo_write 是会话所有的状态；UI 将最新的 todo/write 事件渲染为
 
 ### `web_search`
 
-在 Web 上搜索最新信息。在必填的 `queries` 数组中提供 1–4 个查询。返回可选的摘要答案和来源 URL 列表。
+在 Web 上搜索最新信息。返回可选的摘要答案和来源 URL 列表。
 
 ```json
 {
@@ -3520,7 +3520,7 @@ get_location 由显示该会话的客户端在读者做出选择后应答；该�
 
 ### `memory_remember`
 
-存储一条用户明确要求你记住的事实，例如偏好、姓名，或他们希望某项工作如何完成。仅在用户要求你记住某事时使用；普通对话会被自动记住。
+存储一条用户明确要求你记住的事实，例如偏好、姓名，或他们希望某项工作如何完成。仅在用户要求你记住某事时使用；普通对话会被自动记住。保留归属、日期与不确定性：区分来源宣称的说法、一次观察、一个计划与一次评估。不要把自己的解读存储为已验证的事实。
 
 ```json
 {
@@ -3532,10 +3532,11 @@ get_location 由显示该会话的客户端在读者做出选择后应答；该�
     },
     "about": {
       "type": "string",
-      "description": "user: a fact about the user that holds everywhere (the default). project: a fact that matters only in this project.",
+      "description": "user: a fact about the user that holds everywhere (the default). project: a fact that matters only in this project. knowledge: information about a product or subject beyond the current project, not the user's own life.",
       "enum": [
         "user",
-        "project"
+        "project",
+        "knowledge"
       ]
     }
   },
@@ -3548,9 +3549,44 @@ get_location 由显示该会话的客户端在读者做出选择后应答；该�
 
 来源：[`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-memory/src/index.ts)
 
+### `memory_remember_bulk`
+
+当用户要求导入或记住大量事实时，导入已经提炼好的事实。请用它代替反复调用 memory_remember。每条事实都按原文单独存储为一条记忆，嵌入（embedding）批量处理，且不会对单条事实做摘要。事实保存在文件中时，请传入 `file`，由工具自行读取：每条事实都按写入的内容原样导入，不会遗漏或改写。否则请传入 `facts`，每次调用最多 500 条。记忆中已存在相同文本的事实会被跳过，因此再次导入同一文件是安全的。保留归属、日期与不确定性：区分来源宣称的说法、一次观察、一个计划与一次评估。不要把自己的解读存储为已验证的事实。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "facts": {
+      "type": "array",
+      "description": "Already-distilled, self-contained facts; name whom each fact is about. Give this or `file`.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "file": {
+      "type": "string",
+      "description": "Absolute path of a fact file: `.jsonl` with one {\"fact\": \"...\", \"about\": \"user\" | \"project\" | \"knowledge\", \"date\": \"YYYY-MM-DD\"} object per line (`about` and `date` optional), or `.txt` with one fact per line. Give this or `facts`."
+    },
+    "about": {
+      "type": "string",
+      "description": "user: facts about the user or people they know (the default). project: facts specific to the current project. knowledge: facts about the world, a product, or a subject that are not about the user's own life.",
+      "enum": [
+        "user",
+        "project",
+        "knowledge"
+      ]
+    }
+  }
+}
+```
+
+
+来源：[`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-memory/src/index.ts)
+
 ### `memory_search`
 
-搜索关于既往工作的长期记忆：过去的任务轨迹、学到的策略、环境知识与可复用的 skill（技能）。每个直接来自人类的轮次都已经获得一次自动回忆；当这次回忆不够充分时，用它换一种说法或扩大范围，并在声称先前的上下文不可用之前先调用它。
+搜索关于既往工作的长期记忆：过去的任务轨迹、学到的策略、环境知识与可复用的 skill（技能）。每个直接来自人类的轮次都已经获得一次自动回忆；当这次回忆不够充分时，用它换一种说法或扩大范围，并在声称先前的上下文不可用之前先调用它。对于多个互不相关的主题，请传入 `queries`，每个主题一个查询，而不是一个很长的查询。
 
 ```json
 {
@@ -3558,7 +3594,14 @@ get_location 由显示该会话的客户端在读者做出选择后应答；该�
   "properties": {
     "query": {
       "type": "string",
-      "description": "A concise free-text memory query."
+      "description": "A concise free-text memory query. Give this, or `queries` for several topics."
+    },
+    "queries": {
+      "type": "array",
+      "description": "Up to four queries, each naming one topic. Retrieval embeds a query whole, so one string holding several unrelated names - a person, a product and a year - matches none of them, while one query per name returns each.",
+      "items": {
+        "type": "string"
+      }
     },
     "maxResults": {
       "type": "integer",
@@ -3580,10 +3623,7 @@ get_location 由显示该会话的客户端在读者做出选择后应答；该�
       "type": "boolean",
       "description": "Restrict results to memory captured from this session."
     }
-  },
-  "required": [
-    "query"
-  ]
+  }
 }
 ```
 
@@ -3666,4 +3706,4 @@ get_location 由显示该会话的客户端在读者做出选择后应答；该�
 
 来源：[`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-memory/src/index.ts)
 
-只有在记忆提供方处于活动状态时才会注册，因此没有提供方的组合根本不会向模型展示任何记忆工具；这 7 个工具都读取提供方，且只有 `memory_remember` 会写入。
+只在记忆提供方处于活动状态时才会注册；`memory_remember` 存储一条事实，`memory_remember_bulk` 以原子方式存储一批已提炼的事实。

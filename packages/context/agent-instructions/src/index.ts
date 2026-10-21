@@ -122,8 +122,10 @@ export function apply(ctx: Context, config: Config): void {
     const changes: AgentInstructionChange[] = []
     let desiredBaseline = false
     const authorityMessages = [...claimed]
-    /* v8 ignore next -- normal agents carry an absolute session cwd. */
-    const cwd = agent.session.header.cwd ?? process.cwd()
+    // A session without a workspace, such as a personal chat, has no project instructions; the Host process
+    // cwd is the server's own checkout, not the person's workspace.
+    const cwd = agent.session.header.cwd
+    if (cwd === undefined) return undefined
     const projectRoot = await findProjectRoot(cwd, resolved.projectRootMarkers, fileSystem, signal)
     const identity = workspaceBaselineIdentity(resolved, cwd, projectRoot)
     const visibleBaseline = visibleBaselineSource(agent, authorityMessages)

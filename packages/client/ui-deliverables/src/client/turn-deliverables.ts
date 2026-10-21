@@ -3,14 +3,46 @@
  * model-free: the vocabulary comes from successful first-party mutation
  * calls, never presentation data or the closing prose.
  */
+import { diffArrays } from 'diff'
 import { isAppendSurfaceEvent } from '@aeven/session/surface'
 import type { TurnTailOwnerProps } from '@aeven/client-ui-chat/client'
 import type { ConversationNodeDefinition } from '@aeven/client-ui-conversation/client'
 import type { MarkdownFileMentions } from '@aeven/client-ui-primitives'
 
+/** Lines one successful mutation added and deleted. */
+interface LineCounts {
+  readonly added: number
+  readonly deleted: number
+}
+
+/** One successful mutation of a path. */
 interface ProducedPath {
   readonly seq: number
   readonly path: string
+  /** Whether the mutation created the file rather than changing an existing one. */
+  readonly created: boolean
+  /** Line counts, absent when the tool records none. */
+  readonly counts?: LineCounts | undefined
+}
+
+/** One produced file of a turn, its mutations folded together. */
+export interface ProducedFile {
+  /** The path as the first mutation spelled it. */
+  readonly path: string
+  /** Whether the turn's first mutation of the path created the file. */
+  readonly created: boolean
+  /** Summed line counts, absent when any mutation of the path recorded none. */
+  readonly counts?: LineCounts | undefined
+}
+
+/** A recognized mutation call, held until its result settles. */
+interface MutationCall {
+  readonly name: string
+  readonly path: string
+  /** The `write` tool's full new content, whose lines a create adds. */
+  readonly content?: string | undefined
+  /** Whether the call itself names a create (`str_replace_editor` `create`). */
+  readonly creates: boolean
 }
 
 /** Immutable produced-file facts published against one Turn. */
@@ -27,7 +59,7 @@ declare module '@aeven/client-ui-conversation/client' {
 
 interface DeliverablesState extends DeliverablesTurnData {
   readonly turn: number
-  readonly calls: ReadonlyMap<string, string | null>
+  readonly calls: ReadonlyMap<string, MutationCall | null>
 }
 
 /**
@@ -38,24 +70,80 @@ interface DeliverablesState extends DeliverablesTurnData {
  * @param argsRaw - model-produced JSON arguments.
  * @returns the mutation path, or null when the call is not a supported mutation.
  */
-function mutationPath(name: string, argsRaw: string): string | null {
+function mutationCall(name: string, argsRaw: string): MutationCall | null {
   let args: unknown
   try {
     args = JSON.parse(argsRaw) as unknown
   } catch {
+    // Malformed model JSON is not a mutation the tool ran.
     return null
   }
   if (!isRecord(args)) return null
+  let path: string | null
   switch (name) {
     case 'write':
-      return typeof args.content === 'string' ? pathValue(args.file_path) : null
+      path = typeof args.content === 'string' ? pathValue(args.file_path) : null
+      return path === null ? null : { name, path, content: args.content as string, creates: false }
     case 'edit':
-      return validEditArgs(args) ? pathValue(args.file_path) : null
+      path = validEditArgs(args) ? pathValue(args.file_path) : null
+      return path === null ? null : { name, path, creates: false }
     case 'str_replace_editor':
-      return editorMutationPath(args)
+      path = editorMutationPath(args)
+      return path === null ? null : { name, path, creates: args.command === 'create' }
     default:
       return null
   }
+}
+
+/**
+ * Lines a text holds, not counting the empty remainder after a final newline.
+ * @param text - file text.
+ * @returns the line count; 0 for empty text.
+ */
+function lineCount(text: string): number {
+  if (text === '') return 0
+  const lines = text.split('\n').length
+  return text.endsWith('\n') ? lines - 1 : lines
+}
+
+/**
+ * Added and deleted lines of the `write`/`edit` result-time hunks.
+ *
+ * Each hunk carries three context lines on each side, so the counts come from a
+ * line diff of the hunk's two sides rather than their lengths.
+ * @param meta - the tool result's opaque `meta`, `{ diffs: [{ oldText, newText }] }` for these tools.
+ * @returns the counts, or undefined when `meta` holds no hunks.
+ */
+function hunkCounts(meta: unknown): LineCounts | undefined {
+  if (!isRecord(meta) || !Array.isArray(meta.diffs)) return undefined
+  let added = 0
+  let deleted = 0
+  for (const hunk of meta.diffs as unknown[]) {
+    if (!isRecord(hunk) || typeof hunk.newText !== 'string') return undefined
+    const before = typeof hunk.oldText === 'string' ? hunk.oldText.split('\n') : []
+    for (const part of diffArrays(before, hunk.newText.split('\n'))) {
+      if (part.added) added += part.count
+      else if (part.removed) deleted += part.count
+    }
+  }
+  return { added, deleted }
+}
+
+/**
+ * What one successful mutation did, read from its call and result.
+ * @param call - the recognized call.
+ * @param text - the result's model-facing text.
+ * @param meta - the result's opaque `meta`.
+ * @returns whether it created the file, and its line counts when the tool recorded them.
+ */
+function settledMutation(call: MutationCall, text: string, meta: unknown): Pick<ProducedPath, 'created' | 'counts'> {
+  if (call.name === 'str_replace_editor') return { created: call.creates }
+  // `write` reports `Created file` for a path that did not exist, and records
+  // hunks only for an update, so a create's lines are its whole content.
+  if (call.name === 'write' && /\bCreated file\b/.test(text)) {
+    return { created: true, counts: { added: lineCount(call.content ?? ''), deleted: 0 } }
+  }
+  return { created: false, counts: hunkCounts(meta) }
 }
 
 /** Validate the fields that an `edit` execution requires. */
@@ -123,25 +211,46 @@ export function producedForClosing(
   data: Readonly<DeliverablesTurnData> | undefined,
   seq = Number.POSITIVE_INFINITY,
 ): readonly string[] {
+  return producedFilesForClosing(data, seq).map(file => file.path)
+}
+
+/**
+ * Files produced by one Turn data value, each path's mutations folded into
+ * one entry: created when the first mutation created it, with line counts
+ * summed while every mutation recorded them.
+ * @param data - engine-published Deliverables data for one Turn.
+ * @param seq - closing Assistant seq; later Tool settlements are excluded.
+ * @returns Produced files in first-seen order; empty when the turn wrote nothing.
+ */
+export function producedFilesForClosing(
+  data: Readonly<DeliverablesTurnData> | undefined,
+  seq = Number.POSITIVE_INFINITY,
+): readonly ProducedFile[] {
   if (data === undefined) return []
-  const paths: string[] = []
-  const seen = new Set<string>()
+  const files = new Map<string, ProducedFile>()
   for (const produced of data.produced) {
-    if (produced.seq > seq || seen.has(produced.path)) continue
-    seen.add(produced.path)
-    paths.push(produced.path)
+    if (produced.seq > seq) continue
+    const seen = files.get(produced.path)
+    if (seen === undefined) {
+      files.set(produced.path, { path: produced.path, created: produced.created, counts: produced.counts })
+      continue
+    }
+    const counts = seen.counts === undefined || produced.counts === undefined
+      ? undefined
+      : { added: seen.counts.added + produced.counts.added, deleted: seen.counts.deleted + produced.counts.deleted }
+    files.set(produced.path, { ...seen, counts })
   }
-  return paths
+  return [...files.values()]
 }
 
 /**
  * Claim the turn-tail chain only when its closing turn produced files.
  * @param owner - Turn-tail owner currency for the closing assistant.
- * @returns Produced paths as the component's match, or null to decline before mount.
+ * @returns Produced files as the component's match, or null to decline before mount.
  */
-export function selectProducedFiles(owner: TurnTailOwnerProps): readonly string[] | null {
-  const paths = producedForClosing(owner.turn.data.get('deliverables'), owner.seq)
-  return paths.length === 0 ? null : paths
+export function selectProducedFiles(owner: TurnTailOwnerProps): readonly ProducedFile[] | null {
+  const files = producedFilesForClosing(owner.turn.data.get('deliverables'), owner.seq)
+  return files.length === 0 ? null : files
 }
 
 /** Turn-local successful mutation accumulator; it publishes no view Node. */
@@ -164,7 +273,7 @@ export const deliverablesDefinition: ConversationNodeDefinition<DeliverablesStat
       const calls = new Map(context.state.calls)
       calls.set(
         String(match.event.data.callId),
-        mutationPath(match.event.data.name, match.event.data.arguments),
+        mutationCall(match.event.data.name, match.event.data.arguments),
       )
       return { ...context.state, calls }
     }
@@ -172,10 +281,11 @@ export const deliverablesDefinition: ConversationNodeDefinition<DeliverablesStat
     const result = match.event.data.message.content[0]
     if (result.isError === true) return context.state
     const callId = String(match.event.data.message.source.callId)
-    const path = context.state.calls.get(callId)
-    return path === null || path === undefined
-      ? context.state
-      : { ...context.state, produced: [...context.state.produced, { seq: match.event.seq, path }] }
+    const call = context.state.calls.get(callId)
+    if (call === null || call === undefined) return context.state
+    const text = result.content.map(block => block.type === 'text' ? block.text : '').join('\n')
+    const produced = { seq: match.event.seq, path: call.path, ...settledMutation(call, text, match.event.data.meta) }
+    return { ...context.state, produced: [...context.state.produced, produced] }
   },
   buildLocationData: (context, scope, previous) => {
     if (scope !== 'turn' || context.state === undefined) return null

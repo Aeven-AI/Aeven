@@ -35,6 +35,8 @@ kind: "package-reference"
 
 ### 随包交付的 skill
 
+随包交付的人设以会话工作目录作为仓库工作的默认目标。记忆和已确认的不变量不能改变该目标；当前用户请求可以要求其他文件夹，工作区外的相关文件仍可读取。对助手工作的不满仍由同事角色处理：纠正针对具体有争议的声明，比较采用相同的证据标准，记住的评估保留归属及不确定性。
+
 会做本地 skill 发现的 preset 同时挂载本包随包交付的 skill，因此会话无需本地副本即可获得它们。它们只有一份，位于 `presets/aeven/skills/`，每个组装都从自身 URL 解析该目录：`aeven` 挂载 `./skills/`，`standard`、`ptc` 与 `cordis` 挂载 `../aeven/skills/`。`minimal` 不挂载文件系统发现，因此也拿不到它们。
 
 随包交付 skill 的 `SKILL.md` 是唯一正本，仓库路径 `.agents/skills/<name>/SKILL.md` 是指向它的相对符号链接，因此在本 checkout 中工作的 agent 发现的是同一个文件。该根目录在组装旁解析，所以复制到用户根目录的 preset 不携带任何随包交付的 skill，而同名的本地 skill 会让位于随包交付的那一份。

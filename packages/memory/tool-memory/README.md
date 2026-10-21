@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`avn-tool-memory` registers seven tools over `ctx.memory`: `memory_search` (bounded search across traces, policies, environment models, and skills), `memory_get` (one trace, policy, or world model), `memory_timeline` (an episode's ordered traces), `memory_environments`, `memory_skills`, `memory_skill` (loads a skill and records its use), and `memory_remember` (stores a fact the user explicitly asked to be remembered, about the user or about the current project). Search results carry each memory's domain. Tool names come from `MEMORY_TOOL` in `@aeven/memory`, the same names the provider's recall context points to.
+`avn-tool-memory` registers seven tools over `ctx.memory`: `memory_search` (bounded search across traces, policies, environment models, and skills), `memory_get` (one trace, policy, or world model), `memory_timeline` (an episode's ordered traces), `memory_environments`, `memory_skills`, `memory_skill` (loads a skill and records its use), and `memory_remember` (stores a fact the user explicitly asked to be remembered, about the user, the current project, or general knowledge). Search results carry each memory's domain. Tool names come from `MEMORY_TOOL` in `@aeven/memory`, the same names the provider's recall context points to.
 
 ## Table of Contents
 
@@ -26,6 +26,8 @@ Mount it per agent (the `standard`, `cordis`, and `ptc` presets include it) besi
 |---|---|---|
 | `resultMaxChars` | `1200` | Maximum characters of each body or snippet a tool returns |
 | `searchTimeoutMs` | `3000` | Hard budget for one `memory_search`; an overrun returns no results with `timedOut: true` |
+
+`memory_remember_bulk` imports facts verbatim with batched embeddings and no per-fact summarization. With `file` it reads a `.jsonl` file of `{"fact", "about"?, "date"?}` lines (`about`: `user`, `project`, or `knowledge`, which files general knowledge such as facts about a product) or a `.txt` file of one fact per line itself, so the model neither rewords nor drops facts; with `facts` it takes at most `bulkMaxFacts` strings. Facts the memory already holds with the same text are skipped, so importing a file again is safe, and the result states how many were written, skipped, and not facts. Both memory-writing tools preserve attribution, dates and uncertainty in the supplied text; advertised claims, plans and assessments must not be stored as verified observations. `memory_remember` accepts the same `user`, `project` and `knowledge` categories.
 
 ## Model Experience
 
