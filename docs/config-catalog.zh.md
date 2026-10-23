@@ -423,10 +423,33 @@ export interface Config {
   readonly historyLimit: number
   /** Display title of the built-in workspace that holds every run conversation. */
   readonly workspaceTitle: string
+  /**
+   * Largest inbound trigger request accepted, in bytes. A larger request is refused
+   * before it is read, and the accepted body becomes the run's untrusted payload.
+   */
+  readonly webhookMaxBodyBytes: number
 }
 ```
 
-来源：[`packages/core/automations/src/index.ts:32`](../packages/core/automations/src/index.ts)
+来源：[`packages/core/automations/src/index.ts:116`](../packages/core/automations/src/index.ts)
+
+<a id="aevenbash-edit-guard"></a>
+
+## `@aeven/bash-edit-guard`
+
+需要：`tools`
+
+```ts config-catalog
+/** Plugin configuration; every field is changeable from `cordis.yml`. */
+export interface Config {
+  /** Shell tool names whose commands are checked. */
+  tools: string[]
+  /** File extensions, without the dot, that count as source files. */
+  sourceExtensions: string[]
+}
+```
+
+来源：[`packages/guard/bash-edit-guard/src/index.ts:28`](../packages/guard/bash-edit-guard/src/index.ts)
 
 <a id="aevenbash-local"></a>
 
@@ -2512,13 +2535,13 @@ export interface Config {
    */
   queryContextChars: number
   /**
-   * Hours back from which a session's first turn also offers the person's newest memories about themselves as
-   * recall candidates: recall searches the turn's words, so without them a new session cannot know what the person
-   * is going through unless their words happen to match it. They pass the same relevance judgment as every other
-   * candidate. `0` turns it off.
+   * Hours back from which a session's first turn, and any later turn the relevance judgment finds personal, also
+   * offers the person's newest memories about themselves as recall candidates: recall searches the turn's words, so
+   * without them the reply cannot know what the person is going through unless their words happen to match it. They
+   * pass the same relevance judgment as every other candidate. `0` turns it off.
    */
   recentPersonHours: number
-  /** Most memories about the person a session's first turn offers from the last `recentPersonHours`. */
+  /** Most memories about the person one recall offers from the last `recentPersonHours`. */
   recentPersonItems: number
   /**
    * Most of those memories taken from any one conversation, newest first. Every recent conversation is sampled, so a
@@ -2620,6 +2643,20 @@ export interface Config {
    * included, would always outrank it.
    */
   rememberedFactValue: number
+  /**
+   * Trace tags that rank with at least `rememberedFactValue` (`retrieval.rememberedFactTags`). A fact the turn
+   * judgment filed under the person or a project carries its conversation's reward, which is lowest exactly when the
+   * person had to correct the assistant, so it ranks like a remembered fact.
+   */
+  rememberedFactTags: string[]
+  /**
+   * Sentences of the person's message that get their own turn-start retrieval beside the conversation query; 0 runs
+   * the conversation query alone. A message that opens on one subject and asks about another is otherwise matched
+   * only to memories of its first subject.
+   */
+  sentenceRetrievals: number
+  /** Top hits each sentence retrieval adds to the candidates the relevance judgment reads. */
+  sentenceHits: number
   /**
    * Longest the turn-start relevance judgment may take, in milliseconds, inside the recall's own budget; when it fails
    * or runs out, at most two mechanically ranked memories are delivered and the recall is marked degraded.
@@ -2807,6 +2844,32 @@ export interface Config {
 ```
 
 来源：[`packages/llm/plugin-package-inventory-deepseek/src/index.ts:31`](../packages/llm/plugin-package-inventory-deepseek/src/index.ts)
+
+<a id="aevenproject-context"></a>
+
+## `@aeven/project-context`
+
+需要：`agents`
+
+```ts config-catalog
+/** Orientation sources and budgets. Invalid values fail plugin load. */
+export interface Config {
+  /** README file names tried in the working directory, first existing one wins. */
+  readmeNames: string[]
+  /** Bytes read from the README before its summary is extracted. */
+  maxReadmeBytes: number
+  /** Code points of README prose kept in the summary. */
+  maxSummaryLength: number
+  /** Top-level entries listed before the rest are counted. */
+  maxEntries: number
+  /** Top-level entry names left out of the listing, in addition to dot-entries. */
+  ignoredEntries: string[]
+  /** Other project folders of the session owner named before the rest are counted. */
+  maxRelatedProjects: number
+}
+```
+
+来源：[`packages/context/project-context/src/index.ts:31`](../packages/context/project-context/src/index.ts)
 
 <a id="aevenpwsh-local"></a>
 
@@ -4799,7 +4862,37 @@ export interface Config {
 export type ToolPresentationMode = 'native' | 'ptc' | 'both'
 ```
 
-来源：[`packages/core/tools/src/index.ts:650`](../packages/core/tools/src/index.ts)
+来源：[`packages/core/tools/src/index.ts:651`](../packages/core/tools/src/index.ts)
+
+<a id="aeventurn-review"></a>
+
+## `@aeven/turn-review`
+
+需要：`llm`
+
+```ts config-catalog
+/** Plugin configuration; every field is changeable from `cordis.yml`. */
+export interface Config {
+  /** Tool names whose successful call in a turn makes it a turn to review. */
+  triggerTools: string[]
+  /** Reviews per turn; a turn whose findings persist after this many rounds closes anyway. */
+  maxReviewsPerTurn: number
+  /** Cap on the characters of one tool argument, tool result, or message quoted to the reviewer. */
+  maxEntryChars: number
+  /** Cap on the characters of the whole turn transcript sent to the reviewer; the oldest entries are dropped first. */
+  maxTranscriptChars: number
+  /** Review output-token cap. */
+  maxOutputTokens: number
+  /** End-to-end deadline of one review call in milliseconds. */
+  timeoutMs: number
+  /** Explicit review provider; pairs with `model`. Absent uses the turn's own route. */
+  provider?: string
+  /** Explicit review model; pairs with `provider`. */
+  model?: string
+}
+```
+
+来源：[`packages/guard/turn-review/src/index.ts:65`](../packages/guard/turn-review/src/index.ts)
 
 <a id="aeventypert-loader"></a>
 
@@ -4827,8 +4920,8 @@ export interface Config {
   /**
    * The deployment's default {@link ApprovalPolicy} for sessions without an
    * `approval/policy` override — `'ask'` delegates to the composed answerers
-   * (fail-closed with none); `'never'` auto-rejects every ask without
-   * prompting (the deterministic CI/unattended stance).
+   * (fail-closed with none); `'never'` auto-rejects every ask except
+   * connected-account actions (the deterministic CI/unattended stance).
    */
   readonly policy?: ApprovalPolicy
 }
@@ -4839,14 +4932,16 @@ export interface Config {
  *
  * - `'ask'` (the default) — delegate to the composed answerers; with none
  *   composed the chain falls through to the fail-closed `'unavailable'`.
- * - `'never'` — never prompt anyone: every ask resolves `'rejected'`
- *   deterministically. The strict headless stance (CI, unattended runs) and
- *   the policy whose outcome is knowable without asking.
+ * - `'never'` — every ask resolves `'rejected'` deterministically, except an
+ *   ask with `allowSessionCoverage: 'account'` (an action on the user's
+ *   connected account that other people see), which still goes to the
+ *   answerers unless the override is a `'delegation'` pin. The strict
+ *   headless stance (CI, unattended runs).
  */
 export type ApprovalPolicy = 'ask' | 'never'
 ```
 
-来源：[`packages/interaction/user-approval/src/index.ts:129`](../packages/interaction/user-approval/src/index.ts)
+来源：[`packages/interaction/user-approval/src/index.ts:132`](../packages/interaction/user-approval/src/index.ts)
 
 <a id="aevenweb"></a>
 

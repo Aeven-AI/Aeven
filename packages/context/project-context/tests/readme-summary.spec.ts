@@ -32,7 +32,7 @@ pnpm install
 
 The logo ![icon](icon.png) sits in the header of every page.
 
-See [the docs](docs/index.md) for the full contract of the site engine.
+See [the docs](docs/architecture.md) for the full contract of the site engine.
 
 ~~~
 tilde fenced block

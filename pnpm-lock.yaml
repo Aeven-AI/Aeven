@@ -216,6 +216,9 @@ importers:
       '@aeven/plan-mode':
         specifier: workspace:^
         version: link:../../packages/plan/plan-mode
+      '@aeven/project-context':
+        specifier: workspace:^
+        version: link:../../packages/context/project-context
       '@aeven/pwsh-local':
         specifier: workspace:^
         version: link:../../packages/shell/pwsh-local
@@ -1556,6 +1559,9 @@ importers:
       '@aeven/attachment-local':
         specifier: workspace:^
         version: link:../../attachment/attachment-local
+      '@aeven/bash-edit-guard':
+        specifier: workspace:^
+        version: link:../../guard/bash-edit-guard
       '@aeven/bash-sandbox':
         specifier: workspace:^
         version: link:../../shell/bash-sandbox
@@ -1769,6 +1775,9 @@ importers:
       '@aeven/tools':
         specifier: workspace:^
         version: link:../../core/tools
+      '@aeven/turn-review':
+        specifier: workspace:^
+        version: link:../../guard/turn-review
       '@aeven/typert-loader':
         specifier: workspace:^
         version: link:../../typert/loader
@@ -3224,6 +3233,9 @@ importers:
       '@aeven/client-ui-renderer':
         specifier: workspace:^
         version: link:../ui-renderer
+      '@aeven/client-ui-sidebar-files':
+        specifier: workspace:^
+        version: link:../ui-sidebar-files
       '@aeven/client-ui-slots':
         specifier: workspace:^
         version: link:../ui-slots
@@ -4546,6 +4558,9 @@ importers:
       '@aeven/typert-protocol':
         specifier: workspace:^
         version: link:../../typert/protocol
+      '@aeven/util-workspace-path':
+        specifier: workspace:^
+        version: link:../../util/workspace-path
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -5833,6 +5848,31 @@ importers:
         specifier: workspace:^
         version: link:../../../vendor/cordis
 
+  packages/context/project-context:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@aeven/agent':
+        specifier: workspace:^
+        version: link:../../core/agent
+      '@aeven/fs':
+        specifier: workspace:^
+        version: link:../../fs/fs
+      '@aeven/llm':
+        specifier: workspace:^
+        version: link:../../llm/llm
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@aeven/workspace':
+        specifier: workspace:^
+        version: link:../../workspace/workspace
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
   packages/context/reply-language:
     dependencies:
       '@deepseek-ai/schemastery':
@@ -6158,6 +6198,9 @@ importers:
       '@aeven/client-connection':
         specifier: workspace:^
         version: link:../../client/connection
+      '@aeven/host-webserver':
+        specifier: workspace:^
+        version: link:../../host/webserver
       '@aeven/identity-user':
         specifier: workspace:^
         version: link:../../identity/user
@@ -7664,6 +7707,25 @@ importers:
         specifier: workspace:^
         version: link:../../../vendor/cordis
 
+  packages/guard/bash-edit-guard:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@aeven/agent':
+        specifier: workspace:^
+        version: link:../../core/agent
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@aeven/tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
   packages/guard/repeat-tool-reminder:
     dependencies:
       '@deepseek-ai/schemastery':
@@ -7706,6 +7768,28 @@ importers:
       '@aeven/tools':
         specifier: workspace:^
         version: link:../../core/tools
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/guard/turn-review:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@aeven/agent':
+        specifier: workspace:^
+        version: link:../../core/agent
+      '@aeven/llm':
+        specifier: workspace:^
+        version: link:../../llm/llm
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@aeven/timeout':
+        specifier: workspace:^
+        version: link:../../util/timeout
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -12980,6 +13064,9 @@ importers:
       '@aeven/plugin-package-inventory-deepseek':
         specifier: workspace:^
         version: link:../../packages/llm/plugin-package-inventory-deepseek
+      '@aeven/project-context':
+        specifier: workspace:^
+        version: link:../../packages/context/project-context
       '@aeven/pwsh-local':
         specifier: workspace:^
         version: link:../../packages/shell/pwsh-local
@@ -13058,6 +13145,12 @@ importers:
       '@aeven/spill':
         specifier: workspace:^
         version: link:../../packages/spill/spill
+      '@aeven/storage':
+        specifier: workspace:^
+        version: link:../../packages/storage/storage
+      '@aeven/storage-domain':
+        specifier: workspace:^
+        version: link:../../packages/storage/storage-domain
       '@aeven/subagent':
         specifier: workspace:^
         version: link:../../packages/subagent/subagent
@@ -13217,6 +13310,9 @@ importers:
       '@aeven/workflow-worker-thread':
         specifier: workspace:^
         version: link:../../packages/workflow/workflow-worker-thread
+      '@aeven/workspace':
+        specifier: workspace:^
+        version: link:../../packages/workspace/workspace
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../vendor/cordis

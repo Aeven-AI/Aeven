@@ -2508,7 +2508,7 @@ Source: [`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/
 
 ### `preview_navigate`
 
-Navigate the collaborative browser tab. Pass {url:'https://t3.chat'} for a website or a local dev server URL.
+Navigate the collaborative browser tab, opening that browser beside the session when it is closed. Use it whenever the user asks to open, visit, or go to a website or URL, rather than a shell command that opens another browser. Pass {url:'https://t3.chat'} for a website or a local dev server URL.
 
 ```json
 {
