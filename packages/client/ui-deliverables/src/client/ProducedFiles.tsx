@@ -1,10 +1,10 @@
-import { useEffect, useState, type MouseEvent } from 'react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import {
-  FileTypeIcon, fileExtension, IconChevronDownOutline14, IconChevronUpOutline14, IconLucideFolderOpen, Tooltip,
+  fileGlyph, IconChevronDownOutline14, IconChevronUpOutline14, IconLucideFolderOpen, Tooltip,
 } from '@aeven/client-ui-primitives'
 import type { HostObservable, InjectFace, PropsLocale } from '@aeven/client-ui-slots'
 import type { TurnTailOwnerProps } from '@aeven/client-ui-chat/client'
-import { basename, parentFolder, type ProducedFile } from './turn-deliverables.ts'
+import { basename, type ProducedFile } from './turn-deliverables.ts'
 import { revealLabel } from './file-menu.ts'
 import type { NS } from './locales.ts'
 import css from './ProducedFiles.module.css'
@@ -16,6 +16,8 @@ const GROUPED = new Intl.NumberFormat('en-US')
 
 /** Registration-side Host capability facts. */
 export interface ProducedFilesInjected {
+  /** Open a produced file in the session's Files sidebar. @param path - Produced file path. */
+  previewFile(path: string): Promise<boolean>
   /** Whether the browser itself is connected over loopback. */
   isLoopback: boolean
   /** Load the opener capability when this row first reaches the page. */
@@ -49,16 +51,19 @@ type Translate = ProducedFilesProps['t']
 
 /**
  * Render one turn's produced files: a changed-files card for the files it
- * edited, then a card per file it created.
+ * edited, then the same table without change counts for files it created.
  * @param props - selector-matched files, the chat view's file opener and workspace root, and the locale seat.
  * @returns The produced-files section.
  */
 export function ProducedFiles({
-  matched, openFile, cwd, isLoopback, ensureWorkspacePathOpen, openFileMenu, revealFile, useWorkspacePathOpen, t,
+  matched, openFile, previewFile, cwd, isLoopback, ensureWorkspacePathOpen, openFileMenu, useWorkspacePathOpen, t,
 }: ProducedFilesProps) {
   useEffect(() => { ensureWorkspacePathOpen() }, [ensureWorkspacePathOpen])
   const hostCanOpenPath = useWorkspacePathOpen(available => available === true)
   const canOpenPath = isLoopback && hostCanOpenPath
+  const openProducedFile = (path: string): void => {
+    void previewFile(path).then((previewed) => { if (!previewed) openFile(path) })
+  }
   const edited = matched.filter(file => !file.created)
   const created = matched.filter(file => file.created)
   const menu = openFileMenu === undefined
@@ -70,12 +75,12 @@ export function ProducedFiles({
   return (
     <section className={css.root} aria-label={t('produced.label')} data-produced-files-row>
       {edited.length > 0 && (
-        <ChangedFiles files={edited} openFile={openFile} menu={menu} t={t}
-          openWorkspace={canOpenPath && matched.length > 1 ? () => { openFile('.') } : undefined} />
+        <FilesTable files={edited} openFile={openProducedFile} menu={menu} t={t}
+          openWorkspace={canOpenPath ? () => { openFile('.') } : undefined} />
       )}
       {created.length > 0 && (
-        <CreatedFiles files={created} cwd={cwd} openFile={openFile} menu={menu} t={t}
-          reveal={canOpenPath ? (path) => { revealFile(path, cwd) } : undefined} />
+        <FilesTable files={created} created openFile={openProducedFile} menu={menu} t={t}
+          openWorkspace={canOpenPath ? () => { openFile('.') } : undefined} />
       )}
     </section>
   )
@@ -118,11 +123,11 @@ function totalCounts(files: readonly ProducedFile[]): ProducedFile['counts'] {
 }
 
 /**
- * The files a turn edited: a filled header with the total line counts, then
- * one row per file folded after four. A single file is the header alone, and
- * opens that file.
+ * A turn's file table, folded after four rows. Created-file tables omit
+ * per-file and total line counts.
  */
-function ChangedFiles({ files, openFile, menu, openWorkspace, t }: {
+function FilesTable({ files, created = false, openFile, menu, openWorkspace, t }: {
+  created?: boolean
   files: readonly ProducedFile[]
   openFile: (path: string) => void
   menu: ((path: string) => (event: MouseEvent) => void) | undefined
@@ -131,128 +136,64 @@ function ChangedFiles({ files, openFile, menu, openWorkspace, t }: {
   t: Translate
 }) {
   const [expanded, setExpanded] = useState(false)
-  const single = files.length === 1 ? files[0] : undefined
+  // The pills take their backdrop only once the header pins, as the code
+  // block's own `.scroll` state does.
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
+  const [scrolled, setScrolled] = useState(false)
+  useEffect(() => {
+    const sentinel = sentinelRef.current
+    if (sentinel === null || typeof IntersectionObserver === 'undefined') return
+    const observer = new IntersectionObserver(
+      ([entry]) => { setScrolled(entry !== undefined && !entry.isIntersecting) },
+      { rootMargin: '-40px 0px 0px 0px' },
+    )
+    observer.observe(sentinel)
+    return () => { observer.disconnect() }
+  }, [])
   const foldable = files.length > COLLAPSED_COUNT
   const rows = foldable && !expanded ? files.slice(0, COLLAPSED_COUNT) : files
-  const total = totalCounts(files)
-  const titles = (
-    <span className={css.titles}>
-      <span className={css.title}>{single === undefined
-        ? t('changes.title', { count: String(files.length) })
-        : t('changes.singleTitle', { name: basename(single.path) })}</span>
-      <span className={css.stat}>
-        {total !== undefined && <span className={css.statCounts}><Counts counts={total} t={t} /></span>}
-        {single !== undefined && <span className={css.previewHint}>{t('produced.preview')}</span>}
-      </span>
+  const total = created ? undefined : totalCounts(files)
+  const heading = (
+    <span className={css.heading}>
+      <span className={css.title}>{t(created ? 'produced.title' : 'changes.title', { count: String(files.length) })}</span>
+      {total !== undefined && <span className={css.counts}><Counts counts={total} t={t} /></span>}
     </span>
   )
   return (
-    <div className={css.card} data-changed-files data-single={single !== undefined || undefined}>
-      {single === undefined
-        ? (
-          <div className={css.header}>
-            <span className={css.tile}><FileTypeIcon kind="code" size={20} /></span>
-            {titles}
-            {openWorkspace !== undefined && (
-              <Tooltip label={revealLabel(t)} side="top" anchor="icon">
-                <button type="button" className={css.iconButton} aria-label={revealLabel(t)} onClick={openWorkspace}>
-                  <IconLucideFolderOpen />
-                </button>
-              </Tooltip>
-            )}
-          </div>
-        )
-        : (
-          <button type="button" className={css.header} title={single.path}
-            aria-label={t('produced.open', { name: single.path })}
-            onClick={() => { openFile(single.path) }}
-            onContextMenu={menu?.(single.path)}>
-            <span className={css.tile}><FileTypeIcon path={single.path} size={20} /></span>
-            {titles}
-          </button>
+    <div className={css.card} data-changed-files={!created || undefined} data-created-files={created || undefined}>
+      <div ref={sentinelRef} className={css.sentinel} aria-hidden="true" />
+      <div className={css.header} data-scroll={scrolled || undefined}>
+        {heading}
+        {openWorkspace !== undefined && (
+          <Tooltip label={revealLabel(t)} side="top" anchor="icon">
+            <button type="button" className={css.iconButton} aria-label={revealLabel(t)} onClick={openWorkspace}>
+              <IconLucideFolderOpen />
+            </button>
+          </Tooltip>
         )}
-      {single === undefined && (
+      </div>
+      <div className={css.content}>
         <ul className={css.list}>
           {rows.map(file => (
-            <li key={file.path}>
+            <li key={file.path} data-produced-file={created || undefined}>
               <button type="button" className={css.row} title={file.path}
                 aria-label={t('produced.open', { name: file.path })}
                 onClick={() => { openFile(file.path) }}
                 onContextMenu={menu?.(file.path)}>
                 <span className={css.rowName}>
-                  <FileTypeIcon path={file.path} size={14} />
+                  {fileGlyph(basename(file.path))}
                   <span className={css.path}>{file.path}</span>
                 </span>
-                {file.counts !== undefined && <span className={css.counts}><Counts counts={file.counts} t={t} /></span>}
+                {!created && file.counts !== undefined && <span className={css.counts}><Counts counts={file.counts} t={t} /></span>}
               </button>
             </li>
           ))}
         </ul>
-      )}
-      {foldable && (
-        <FoldToggle className={css.listToggle} expanded={expanded} count={files.length} t={t}
-          onToggle={() => { setExpanded(value => !value) }} />
-      )}
-    </div>
-  )
-}
-
-/**
- * The files a turn created: one card each, two columns on a wide column, the
- * first four shown before the fold. A card opens its file; its folder button
- * reveals it where the Host can.
- */
-function CreatedFiles({ files, cwd, openFile, menu, reveal, t }: {
-  files: readonly ProducedFile[]
-  cwd: string | undefined
-  openFile: (path: string) => void
-  menu: ((path: string) => (event: MouseEvent) => void) | undefined
-  /** Reveal one file in the Host's file manager; absent where the Host cannot. */
-  reveal: ((path: string) => void) | undefined
-  t: Translate
-}) {
-  const [expanded, setExpanded] = useState(false)
-  const foldable = files.length > COLLAPSED_COUNT
-  const shown = foldable && !expanded ? files.slice(0, COLLAPSED_COUNT) : files
-  return (
-    <div className={css.created}>
-      <div className={css.grid} data-single={files.length === 1 || undefined}>
-        {shown.map((file) => {
-          const name = basename(file.path)
-          const folder = parentFolder(file.path, cwd)
-          const kind = fileExtension(name).toUpperCase() || t('produced.fileKind')
-          return (
-            <div key={file.path} className={css.file} data-produced-file>
-              <button type="button" className={css.cardPreview} title={file.path}
-                aria-label={t('produced.open', { name: file.path })}
-                onClick={() => { openFile(file.path) }}
-                onContextMenu={menu?.(file.path)} />
-              <span className={css.fileIcon}><FileTypeIcon path={file.path} size={20} /></span>
-              <div className={css.fileBody}>
-                <div className={css.details}>
-                  <span className={css.fileName}>{name}</span>
-                  <span className={css.description}>
-                    <span className={css.secondaryText}>{folder === '' ? kind : `${kind} · ${folder}`}</span>
-                    <span className={css.previewHint}>{t('produced.preview')}</span>
-                  </span>
-                </div>
-                {reveal !== undefined && (
-                  <Tooltip label={revealLabel(t)} side="top" anchor="icon">
-                    <button type="button" className={css.cardAction} aria-label={revealLabel(t)}
-                      onClick={() => { reveal(file.path) }}>
-                      <IconLucideFolderOpen />
-                    </button>
-                  </Tooltip>
-                )}
-              </div>
-            </div>
-          )
-        })}
+        {foldable && (
+          <FoldToggle className={css.listToggle} expanded={expanded} count={files.length} t={t}
+            onToggle={() => { setExpanded(value => !value) }} />
+        )}
       </div>
-      {foldable && (
-        <FoldToggle className={css.gridToggle} expanded={expanded} count={files.length} t={t}
-          onToggle={() => { setExpanded(value => !value) }} />
-      )}
     </div>
   )
 }

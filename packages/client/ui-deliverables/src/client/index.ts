@@ -14,6 +14,7 @@ import type { ChatFileMentions } from '@aeven/client-ui-chat/client'
 import type {} from '@aeven/client-locale/client'
 import type {} from '@aeven/client-ui-conversation/client'
 import type {} from '@aeven/client-ui-renderer/client'
+import type {} from '@aeven/client-ui-sidebar-files/client'
 import { ProducedFiles } from './ProducedFiles.tsx'
 import { desktopFileMenus, fileMenuLabels, revealFile, showFileMenu } from './file-menu.ts'
 import { en, es, NS, zh, type DeliverablesKey } from './locales.ts'
@@ -32,7 +33,7 @@ export { ProducedFiles, type ProducedFilesProps } from './ProducedFiles.tsx'
 export { producedFilesForClosing, producedForClosing, type ProducedFile } from './turn-deliverables.ts'
 
 /** Required services for the tail-slot registration and its dictionaries. */
-export const inject = ['slots', 'locale', 'uiConversation', 'remote', 'remote.session']
+export const inject = ['slots', 'locale', 'uiConversation', 'remote', 'remote.session', 'sidebarFiles']
 
 /**
  * Client plugin body: register the dictionaries and the turn-tail entry.
@@ -82,7 +83,8 @@ export function apply(ctx: ClientContext): void {
       name: 'conversation.chat.turnTail',
       select: selectProducedFiles,
       locale: NS,
-      inject: () => ({
+      inject: sessionId => ({
+        previewFile: (path: string) => ctx.sidebarFiles.open(sessionId, path),
         isLoopback: ctx.remote.$host.isLoopback,
         ensureWorkspacePathOpen,
         openFileMenu: showMenu,

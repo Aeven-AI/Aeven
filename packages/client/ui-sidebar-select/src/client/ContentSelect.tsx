@@ -97,10 +97,12 @@ export function ContentSelect(props: ContentSelectComponentProps) {
   }, [registry, sessionId, state.surfaces, update])
 
   useEffect(() => {
-    const kind = registry.takeOpenRequest(sessionId)
-    if (kind === undefined) return
+    const request = registry.takeOpenRequest(sessionId)
+    if (request === undefined) return
+    const { kind, newSurface, surfaceId } = request
     update((current) => {
-      const existing = current.surfaces.find(surface => surface.kind === kind)
+      const existing = newSurface ? undefined : current.surfaces.find(surface =>
+        surface.kind === kind && (surfaceId === undefined || surface.id === surfaceId))
       return existing === undefined ? openSurface(current, kind).state : { ...current, active: existing.id }
     })
     openRightbar(sessionId)
@@ -190,7 +192,7 @@ export function ContentSelect(props: ContentSelectComponentProps) {
         <div className={css.tabbar}>
           <div
             ref={strip.ref}
-            className={clsx(css.strip, strip.fadeRight && css.fadeRight)}
+            className={clsx(css.strip, strip.fadeLeft && css.fadeLeft, strip.fadeRight && css.fadeRight)}
             role="tablist"
             aria-orientation="horizontal"
           >
@@ -348,10 +350,12 @@ function useStripScroll(active: string | null) {
   // State, not a ref object: the strip mounts with the first open surface,
   // after this hook's first effects, and the listeners must bind to it then.
   const [strip, ref] = useState<HTMLDivElement | null>(null)
+  const [fadeLeft, setFadeLeft] = useState(false)
   const [fadeRight, setFadeRight] = useState(false)
 
   const measure = useCallback(() => {
     if (strip === null) return
+    setFadeLeft(strip.scrollLeft > EDGE_TOLERANCE)
     setFadeRight(strip.scrollLeft + strip.clientWidth < strip.scrollWidth - EDGE_TOLERANCE)
   }, [strip])
 
@@ -381,5 +385,5 @@ function useStripScroll(active: string | null) {
     measure()
   }, [active, strip, measure])
 
-  return { ref, fadeRight }
+  return { ref, fadeLeft, fadeRight }
 }

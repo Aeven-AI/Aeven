@@ -6,6 +6,7 @@ export const NS = 'deliverables'
 /** Simplified Chinese dictionary (the key-set source of truth). */
 export const zh = {
   'produced.label': '产物',
+  'produced.title': '已创建 {count} 个文件',
   'produced.fileKind': '文件',
   'produced.preview': '在侧边栏预览',
   'produced.all': '全部 {count} 个文件',
@@ -27,6 +28,7 @@ export const zh = {
 /** English dictionary (same key set). */
 export const en: Record<DeliverablesKey, string> = {
   'produced.label': 'Produced',
+  'produced.title': 'Created {count} files',
   'produced.fileKind': 'File',
   'produced.preview': 'Preview in sidebar',
   'produced.all': 'All {count} files',
@@ -51,6 +53,7 @@ export type DeliverablesKey = keyof typeof zh
 /** Spanish dictionary, checked complete against the zh key set. */
 export const es: Record<DeliverablesKey, string> = {
   'produced.label': 'Archivos generados',
+  'produced.title': '{count} archivos creados',
   'produced.fileKind': 'Archivo',
   'produced.preview': 'Vista previa en la barra lateral',
   'produced.all': 'Los {count} archivos',
