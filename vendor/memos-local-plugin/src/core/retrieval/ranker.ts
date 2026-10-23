@@ -408,9 +408,11 @@ function relevanceFor(c: TierCandidate, input: RankerInput): number {
   }
   if (c.refKind === "trace") {
     const tc = c as TraceCandidate;
-    // A remembered fact never takes part in a rewarded task, so its learned value stays 0; being saved on purpose
-    // is its endorsement, and it ranks with at least `rememberedFactValue` against rewarded conversation traces.
-    const value = tc.tags?.includes("lightweight_memory")
+    // A stated fact is true or false, not rewarded or punished: a remembered fact never takes part in a rewarded
+    // task, and a fact learned in a conversation carries that conversation's reward, which is lowest exactly when
+    // the person had to correct the assistant. Such a trace ranks with at least `rememberedFactValue`.
+    const factTags = input.config.rememberedFactTags ?? ["lightweight_memory"];
+    const value = tc.tags?.some((tag) => factTags.includes(tag))
       ? Math.max(tc.value, input.config.rememberedFactValue ?? 0)
       : tc.value;
     const live = priorityFor(

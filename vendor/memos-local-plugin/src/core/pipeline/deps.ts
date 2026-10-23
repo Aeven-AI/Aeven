@@ -143,6 +143,7 @@ export function extractAlgorithmConfig(
     retrieval: {
       includeCandidatePolicies: alg.retrieval.includeCandidatePolicies,
       rememberedFactValue: alg.retrieval.rememberedFactValue,
+      rememberedFactTags: alg.retrieval.rememberedFactTags,
       tier1TopK: alg.retrieval.tier1TopK,
       tier2TopK: alg.retrieval.tier2TopK,
       tier3TopK: alg.retrieval.tier3TopK,

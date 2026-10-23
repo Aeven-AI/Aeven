@@ -487,6 +487,11 @@ const AlgorithmSchema = Type.Object({
      * value stays 0 and rewarded conversation traces would always outrank them.
      */
     rememberedFactValue: NumberInRange(0, 0, 1),
+    /**
+     * Trace tags that mark a stated fact rather than a rewarded action; a
+     * trace carrying any of them ranks with at least `rememberedFactValue`.
+     */
+    rememberedFactTags: Type.Optional(Type.Array(Type.String(), { default: ["lightweight_memory"] })),
     /** How many Skill snippets to inject at turn start. */
     tier1TopK: NumberInRange(3, 0, 100),
     /** How many trace/episode snippets to inject. */

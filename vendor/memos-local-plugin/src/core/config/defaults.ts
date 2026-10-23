@@ -288,6 +288,7 @@ export const DEFAULT_CONFIG: ResolvedConfig = {
     retrieval: {
       includeCandidatePolicies: true,
       rememberedFactValue: 0,
+      rememberedFactTags: ["lightweight_memory"],
       tier1TopK: 3,
       tier2TopK: 5,
       tier3TopK: 2,

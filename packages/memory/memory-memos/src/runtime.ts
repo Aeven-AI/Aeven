@@ -28,7 +28,7 @@ import type { RetrievalHitDTO, RuntimeNamespace, SkillDTO, TraceDTO } from '@dee
 import type { MemoryCore } from '@deepseek-ai/memos-local-plugin/agent-contract/memory-core.js'
 import type { OwnerCores } from './cores.ts'
 import { MemoryDeadlineError, withDeadline } from './deadline.ts'
-import { queryClauses, withoutExactIdentifiers } from './query.ts'
+import { messageSentences, queryClauses, withoutExactIdentifiers } from './query.ts'
 import { isLogMemory, LOG_TAG, parseRelevance, RELEVANCE_PROMPT, relevanceInput, type CandidateKind, type FilterCandidate } from './filter.ts'
 import type { LlmRouteContext } from './host-llm.ts'
 import { SUPERSEDED_TAG, traceDomain, withDomainTag, withSupersededTag, type ClassifyInput, type TurnDomain, type TurnJudgeContext, type TurnRevision } from './domain.ts'
@@ -70,6 +70,11 @@ export interface MemosMemoryOptions {
     readonly run: (system: string, user: string, timeoutMs: number) => Promise<string>
     readonly timeoutMs: number
   }
+  /**
+   * Turn-start retrieval per sentence of the person's message: at most `sentences` sentences each add up to `hits`
+   * of their top hits to the conversation query's. Absent runs the conversation query alone.
+   */
+  readonly sentenceRecall?: { readonly sentences: number; readonly hits: number }
   /** True while an owner's memory index is being rebuilt, when its vectors are not comparable to new queries. */
   readonly rebuilding?: (owner: string) => boolean
   readonly warn: (message: string) => void
@@ -212,12 +217,37 @@ export class MemosMemory implements MemoryProvider {
         const topic = withoutExactIdentifiers(request.query)
         if (topic !== request.query && topic.length > 0) hits = await this.search({ ...request, query: topic }, deadlineAt, turnStart)
       }
-      const recent = request.recent === undefined ? [] : await this.recentPersonHits(request, hits, deadlineAt)
-      return await this.judge(request, [...hits, ...recent], deadlineAt)
+      const sharingOnly = request.recent?.sharingOnly === true
+      const recent = request.recent === undefined || sharingOnly ? [] : await this.recentPersonHits(request, hits, deadlineAt)
+      const recall = await this.judge(request, [...hits, ...recent], deadlineAt)
+      return sharingOnly && recall.sharing === true ? await this.judgeWithRecent(request, hits, recall, deadlineAt) : recall
     } catch (error) {
       if (!(error instanceof MemoryDeadlineError)) throw error
       return { hits: [], timedOut: true }
     }
+  }
+
+  /**
+   * Judge a personal turn again with the person's recent memories among the candidates. The first judgment stands
+   * when there are none, or when the second one fails or runs out of time.
+   */
+  private async judgeWithRecent(
+    request: MemoryRecallRequest,
+    hits: readonly MemoryHit[],
+    first: MemoryRecall,
+    deadlineAt: number,
+  ): Promise<MemoryRecall> {
+    let recent: MemoryHit[]
+    try {
+      recent = await this.recentPersonHits(request, hits, deadlineAt)
+    } catch (error) {
+      // The deadline elapsed during the scan; the first judgment is already complete.
+      if (!(error instanceof MemoryDeadlineError)) throw error
+      return first
+    }
+    if (recent.length === 0) return first
+    const second = await this.judge(request, [...hits, ...recent], deadlineAt)
+    return second.degraded === true ? first : second
   }
 
   /**
@@ -362,12 +392,19 @@ export class MemosMemory implements MemoryProvider {
       return await this.visibleHits(core, scope, result.hits, turnStart)
     }
     // One embedding of a query that names four things sits far from all four, so an explicit search that names
-    // several topics retrieves each of them and merges. A single-topic query, which is every turn-start query
-    // and most explicit ones, still costs exactly one retrieval.
+    // several topics retrieves each of them and merges. At turn start, each sentence of a message with several also
+    // gets its own retrieval beside the conversation query. A single-topic query costs exactly one retrieval.
     const clauses = turnStart ? [] : queryClauses(request.query)
-    const search = clauses.length === 0
-      ? retrieve(request.query)
-      : Promise.all(clauses.map(retrieve)).then(mergeHits)
+    const sentenceRecall = this.options.sentenceRecall
+    const sentences = turnStart && sentenceRecall !== undefined && request.request !== undefined
+      ? messageSentences(request.request, sentenceRecall.sentences)
+      : []
+    const search = clauses.length > 0
+      ? Promise.all(clauses.map(retrieve)).then(mergeHits)
+      : sentences.length > 0 && sentenceRecall !== undefined
+        ? Promise.all([retrieve(request.query), ...sentences.map(retrieve)])
+          .then(([whole, ...parts]) => withSentenceHits(whole, parts, sentenceRecall.hits))
+        : retrieve(request.query)
     // A provider can be temporarily non-cancellable (for example while a local ONNX model loads),
     // so the deadline is enforced here as well as inside the core; it also bounds the account's first core open.
     return withDeadline(search, deadlineAt, request.signal, `Memory recall exceeded ${request.timeoutMs}ms`)
@@ -1186,6 +1223,28 @@ function withoutDistantHits(hits: readonly MemoryHit[]): MemoryHit[] {
   if (best <= 0) return [...hits]
   const floor = best * DISTANT_HIT_RATIO
   return hits.filter(hit => hit.score >= floor)
+}
+
+/**
+ * Add each sentence retrieval's best hits to the conversation query's hits. The conversation query keeps its whole
+ * ranking; a sentence contributes at most `perSentence` of its top hits, so the candidates the relevance judgment
+ * reads grow by a bounded amount.
+ * @param whole - hits of the conversation query, in rank order.
+ * @param parts - hits of each sentence retrieval, in rank order.
+ * @param perSentence - top hits taken from each sentence retrieval.
+ * @returns the conversation query's hits followed by the sentences' new ones.
+ */
+function withSentenceHits(whole: readonly MemoryHit[], parts: readonly (readonly MemoryHit[])[], perSentence: number): MemoryHit[] {
+  const seen = new Set<MemoryItemId>(whole.map(hit => hit.id))
+  const merged = [...whole]
+  for (const part of parts) {
+    for (const hit of part.slice(0, perSentence)) {
+      if (seen.has(hit.id)) continue
+      seen.add(hit.id)
+      merged.push(hit)
+    }
+  }
+  return merged
 }
 
 /**

@@ -50,7 +50,8 @@ Rules:
 - Drop logs unless the request asks what was done before.
 - Keep a candidate (unproven) procedure only when it fits the request exactly.
 - Drop memories that only share words or a topic with the request.
-- Drop an earlier exchange where the person asked this same thing and the assistant already answered it: that answer repeats the request, not what is known about the person.
+- Drop an earlier exchange where the person asked this same or nearly the same thing and the assistant already answered it, and an episode that summarizes such an exchange: that answer repeats the request, not what is known.
+- Keep a memory where the person corrected the assistant, and the fact the correction established, whenever the request touches that subject: what the person said is true outranks what the assistant had answered. For a request about their project, keep facts about how it is built, hosted, run and paid for.
 - Judge the content of every candidate, regardless of kind or domain: an episode or experience record can contain personal history. For a work request or complaint about an answer, drop unrelated health, family, relationship and financial history even when the person sounds upset. Keep task facts, relevant corrections and working preferences. When the person actually shares personal distress or asks for support, keep relevant personal history.
 - When REQUEST asks what is known about a subject (a person, a project, the assistant itself, or a topic), keep every distinct fact about that subject, most informative first: the answer is those facts.
 - Never keep two memories that state the same fact, even in different words: keep the most complete one, and the newer when they disagree.
