@@ -243,10 +243,10 @@ export function ProviderModels(props: ProviderModelsProps): ReactNode {
   const needle = query.trim().toLowerCase()
   const matches = (row: ModelRow): boolean => needle.length === 0
     || row.name.toLowerCase().includes(needle) || row.id.toLowerCase().includes(needle)
-  const groups: { group: ModelGroup; title: keyof typeof en; rows: ModelRow[] }[] = [
-    { group: 'chat' as const, title: 'modelsChat' as const, rows: loaded.chat },
-    { group: 'image' as const, title: 'modelsImage' as const, rows: loaded.image },
-    { group: 'video' as const, title: 'modelsVideo' as const, rows: loaded.video },
+  const groups: { group: ModelGroup; heading: string; rows: ModelRow[] }[] = [
+    { group: 'chat' as const, heading: t('modelsChat'), rows: loaded.chat },
+    { group: 'image' as const, heading: t('modelsImage'), rows: loaded.image },
+    { group: 'video' as const, heading: t('modelsVideo'), rows: loaded.video },
   ].filter(entry => entry.rows.length > 0)
   const locked = props.readOnly || saving
   const visibleCount = groups.reduce((count, entry) => count + entry.rows.filter(matches).length, 0)
@@ -275,7 +275,7 @@ export function ProviderModels(props: ProviderModelsProps): ReactNode {
         ? null
         : (
           <div className={`${styles['modelsScroll']} no-scrollbar`}>
-            {groups.map(({ group, title, rows }) => {
+            {groups.map(({ group, heading, rows }) => {
               const visible = rows.filter(matches)
               if (visible.length === 0) return null
               const disabled = disabledOf(group)
@@ -290,9 +290,9 @@ export function ProviderModels(props: ProviderModelsProps): ReactNode {
                 void write(group, [...next])
               }
               return (
-                <section key={group} className={styles['modelsGroup']} aria-label={t(title)}>
+                <section key={group} className={styles['modelsGroup']} aria-label={heading}>
                   <div className={styles['modelsGroupHead']}>
-                    <span className={styles['modelsGroupTitle']}>{t(title)}</span>
+                    <span className={styles['modelsGroupTitle']}>{heading}</span>
                     <span className={styles['modelsHint']}>{`${String(onCount)}/${String(rows.length)}`}</span>
                     <button
                       type="button"

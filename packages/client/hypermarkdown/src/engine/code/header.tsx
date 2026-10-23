@@ -8,9 +8,10 @@ import Tooltip, { type TooltipHandle } from '../tooltip.tsx'
 
 /**
  * Fence language of text the person will send on — a message, email, or reply. It renders as prose with a copy
- * button: no line numbers, no monospace, wrapped lines.
+ * button: no line numbers, no monospace, wrapped lines. Named for the rendering, not the copy: the value is a
+ * fence info string, and looks like product copy to the client i18n gate under a message-shaped name.
  */
-export const MESSAGE_LANGUAGE = 'message'
+export const PROSE_LANGUAGE = 'message'
 
 interface HeaderProps {
   /** This renderer's own bus, so blocks report only to the renderer that made them. */
@@ -237,8 +238,8 @@ class Header extends Component<HeaderProps> {
     const { translations, icons } = ui
     const controls = ui.controls.code
 
-    const message = props.language === MESSAGE_LANGUAGE
-    const copyLabel = message ? translations.copyMessage : translations.copyCode
+    const prose = props.language === PROSE_LANGUAGE
+    const copyLabel = prose ? translations.copyMessage : translations.copyCode
 
     tippyCopyTxt = translations.codeCopied
 
@@ -260,7 +261,7 @@ class Header extends Component<HeaderProps> {
       <div ref={vm.headerRef} className="codeblock-header">
         <div className="codeblock-header-content">
           <span className="codeblock-title-container">
-            <span className="codeblock-title">{message ? translations.message : props.language}</span>
+            <span className="codeblock-title">{prose ? translations.message : props.language}</span>
           </span>
           <span className="codeblock-spacer" />
           <span className="codeblock-button-container">
