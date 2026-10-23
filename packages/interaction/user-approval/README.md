@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`avn-user-approval` lets a sensitive tool action pause for a one-shot allow/reject decision: `ctx.approval.request(req)` asks the composed answerers whether one specific action may proceed and returns `allowed-once`, `rejected`, `cancelled`, or `unavailable`. Missing, non-owning, or throwing answerers fail closed to `unavailable`, and a one-shot grant applies only to the requested action; explicitly scoped session grants cover repeat operations in the same session. A per-session policy — `ask` (the default) or `never` — decides what happens before any answerer runs: `ask` delegates to the composed answerers, `never` rejects every request deterministically without prompting anyone. Each request is recorded in the requesting session's audit log, and the model sees only the asking consumer's tool outcome plus the current policy in the runtime-context snapshot. UI channels provide human answerers; the ACP automation bridge answers for its own agents.
+`avn-user-approval` lets a sensitive tool action pause for a one-shot allow/reject decision: `ctx.approval.request(req)` asks the composed answerers whether one specific action may proceed and returns `allowed-once`, `rejected`, `cancelled`, or `unavailable`. Missing, non-owning, or throwing answerers fail closed to `unavailable`, and a one-shot grant applies only to the requested action; explicitly scoped session grants cover repeat operations in the same session. A per-session policy — `ask` (the default) or `never` — decides what happens before any answerer runs: `ask` delegates to the composed answerers, `never` rejects every request deterministically without prompting anyone, except actions on the user's connected accounts that other people see, which still reach the answerers unless the policy is a subagent's delegation pin. Each request is recorded in the requesting session's audit log, and the model sees only the asking consumer's tool outcome plus the current policy in the runtime-context snapshot. UI channels provide human answerers; the ACP automation bridge answers for its own agents.
 
 ## Table of Contents
 
@@ -33,7 +33,7 @@ Answerers are `approval/request` waterfall listeners: return an outcome to answe
 
 ### Setting the policy
 
-The effective policy is the one set for the session, falling back to the configured default. `ask` (the default) delegates to the composed answerers; `never` rejects every request deterministically before interactive dispatch — the strict headless stance for CI and unattended runs.
+The effective policy is the one set for the session, falling back to the configured default. `ask` (the default) delegates to the composed answerers; `never` rejects every request deterministically before interactive dispatch — the strict headless stance for CI and unattended runs. Requests with `allowSessionCoverage: 'account'` (actions on the user's connected accounts that other people see) are exempt and still reach the answerers, unless the override is a subagent's `delegation` pin.
 
 ```yaml
 - name: '@aeven/user-approval'
@@ -119,7 +119,7 @@ Approval policy: ask. Operations that require approval may ask through the confi
 ##### Never-policy contribution
 
 ```markdown
-Approval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set `sandbox_permissions`).
+Approval prompts are disabled in this session: actions that require approval are rejected automatically, except actions on the user's connected accounts (such as sending a message), which still ask the user — do not request sandbox escalation (do not set `sandbox_permissions`).
 ```
 
 #### Token effect

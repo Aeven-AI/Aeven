@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-07-connector-session-approval.md
-2026-10-07-connector-session-approval.md: d3c4323b8a0346cefd5aa648559e24d49f4c23a0
-2026-10-07-connector-session-approval.zh.md: 443e7e7c86b3700b85f68cc10726b31aa0ab253e
+2026-10-07-connector-session-approval.md: 32b06dddcdf812a694d54f11abffab32081c5b64
+2026-10-07-connector-session-approval.zh.md: 55cf49b599cd69c7a2d18e76cd633d999ea024f6

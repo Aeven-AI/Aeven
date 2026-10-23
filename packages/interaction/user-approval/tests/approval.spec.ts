@@ -374,7 +374,7 @@ describe('ApprovalService.request', () => {
 })
 
 describe('approval policy (the approval/policy fold)', () => {
-  const NEVER_SENTENCE = 'Approval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set `sandbox_permissions`).'
+  const NEVER_SENTENCE = 'Approval prompts are disabled in this session: actions that require approval are rejected automatically, except actions on the user\'s connected accounts (such as sending a message), which still ask the user — do not request sandbox escalation (do not set `sandbox_permissions`).'
   const ASK_SENTENCE = 'Approval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.'
 
   /**
@@ -458,6 +458,34 @@ describe('approval policy (the approval/policy fold)', () => {
     await expect(ctx.approval.request(requestOf(agent))).resolves.toBe('rejected')
     expect(consulted).not.toHaveBeenCalled()
     expect(appended.map(e => e.type)).toEqual(['approval/asked', 'approval/decided'])
+  })
+
+  it('still asks for an account-coverage action under never, unless a delegation pin set the override', async () => {
+    const ctx = new Context()
+    await ctx.plugin(ApprovalService)
+    const { agent, session } = sessionAgent('sess-never-account')
+    const asked = vi.fn(() => Promise.resolve<ApprovalOutcome>('allowed-once'))
+    ctx.on('approval/request', asked)
+    setApprovalPolicy(session, 'never')
+
+    // An action on the user's connected account reaches other people, so a
+    // user-chosen 'never' still asks the answerers about it.
+    await expect(ctx.approval.request({
+      agent, toolName: 'slack__send_message', allowSessionCoverage: 'account',
+    })).resolves.toBe('allowed-once')
+    expect(asked).toHaveBeenCalledTimes(1)
+
+    // An ordinary ask stays deterministically rejected without dispatching.
+    await expect(ctx.approval.request({ agent, toolName: 'bash' })).resolves.toBe('rejected')
+    expect(asked).toHaveBeenCalledTimes(1)
+
+    // A delegation pin seeds the strict stance into a child: even an
+    // account-coverage ask is rejected without consulting an answerer.
+    session.append('approval/policy', { policy: 'never', source: 'delegation' })
+    await expect(ctx.approval.request({
+      agent, toolName: 'slack__send_message', allowSessionCoverage: 'account',
+    })).resolves.toBe('rejected')
+    expect(asked).toHaveBeenCalledTimes(1)
   })
 
   it('a session override outranks the configured default, in both directions', async () => {

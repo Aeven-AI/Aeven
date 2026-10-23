@@ -44,9 +44,11 @@ type ApprovalAnswer = ApprovalOutcome | 'allowed-session'
  *
  * - `'ask'` (the default) — delegate to the composed answerers; with none
  *   composed the chain falls through to the fail-closed `'unavailable'`.
- * - `'never'` — never prompt anyone: every ask resolves `'rejected'`
- *   deterministically. The strict headless stance (CI, unattended runs) and
- *   the policy whose outcome is knowable without asking.
+ * - `'never'` — every ask resolves `'rejected'` deterministically, except an
+ *   ask with `allowSessionCoverage: 'account'` (an action on the user's
+ *   connected account that other people see), which still goes to the
+ *   answerers unless the override is a `'delegation'` pin. The strict
+ *   headless stance (CI, unattended runs).
  */
 type ApprovalPolicy = 'ask' | 'never'
 ```
