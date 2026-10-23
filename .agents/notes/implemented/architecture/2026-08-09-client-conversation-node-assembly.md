@@ -267,7 +267,7 @@ Page size, record packing, the number of history loads, and RAF coalescing affec
 | Command / `command` | Command ID | `command/run` | `command/done` and compact lifecycle/checkpoint Events carrying a source command ID | Aggregate command outcome and manual-compaction evidence |
 | Automatic Compaction / `compaction` | Compaction ID | `compaction/start` without a source command ID | Summary, end, and replacement checkpoint | Aggregate summary/checkpoint; sufficient checkpoint evidence supports fallback without a start |
 | Retry / `model-retry` | Retry ID | Attempt 1 `llm/retry` | Later `llm/retry` and `llm/retry-started` | Aggregate one RetryId's attempts and scheduled/started state |
-| Turn Error / `turn-error` | Turn number | `turn/start` | Error `turn/end` | Aggregate the terminal failure; the turn's Retry history renders through Retry and never hides this row |
+| Turn Error / `turn-error` | Turn number | `turn/start` | Error `turn/end` | Aggregate the terminal failure; the turn's Retry history renders through Retry and never hides the failure |
 | Turn Tail / `turn-tail` | Turn number | `turn/start` | Assistant, Retry, `step/end`, and `turn/end` | Retain turn end, read each Step's Assistant data, and publish Turn data; use complete Matches to choose the visual tail anchor |
 | Deliverables / `deliverables` | Turn number | `turn/start` | Tool calls/results in that Turn | Aggregate successful mutation paths and publish Turn data without producing a view Node |
 | Unknown fallback / `unknown-surface` | Event seq | Append-surface Event unclaimed by any ordinary Definition | None | Retain raw type/data for the JSON fallback |
@@ -284,7 +284,7 @@ Page size, record packing, the number of history loads, and RAF coalescing affec
 | Command | Immediate by default | Ordinary `command` or integrated `manual-compaction` | Checkpoint arrival may change the anchor without changing the Context key |
 | Compaction | Immediate by default | `compaction` marker | A checkpoint may render before start; an older start triggers forward replay |
 | Retry | Immediate by default | One `model-retry` Node containing all attempts | Multiple retries update one key; Location close presents the last scheduled attempt as cancelled |
-| Turn Error | Immediate by default | `turn-error` on terminal failure | Error end supports fallback without start; the turn's settled Retry chain renders beside it |
+| Turn Error | Immediate by default | `turn-error` on terminal failure, opened as the failure dialog for the latest turn | Error end supports fallback without start; the settled Retry chain stays in the transcript under the dialog |
 | Turn Tail | Immediate only for `turn/end`; otherwise none | Independent `turn-tail` footer | Compute closing/metrics from Step Assistant data and use same-turn Matches to choose the anchor |
 | Deliverables | Immediate by default | No Node | Tool settlement incrementally updates Turn data; the Turn Tail extension slot reads produced files |
 | Fallback | Immediate by default | `unknown` JSON row | Covers only append-surface Events; an ordinary business that claimed but has not rendered an Event does not duplicate it |

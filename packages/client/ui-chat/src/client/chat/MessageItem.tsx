@@ -6,10 +6,12 @@ import type {
 } from '@aeven/client-ui-conversation/client'
 import { SessionSeq } from '@aeven/session/types'
 import {
-  IconCheckOutline16, IconCloseOutline16, IconEditOutline16, IconSendOutline14, IconTrashOutline16,
-  JsonBlock, projectUserText, StateDot, Tooltip, useTextAnimation,
+  Button, IconCheckOutline16, IconCloseOutline16, IconEditOutline16, IconSendOutline14, IconTrashOutline16,
+  JsonBlock, Modal, projectUserText, StateDot, Tooltip, useTextAnimation,
 } from '@aeven/client-ui-primitives'
 import type { ChatNodeOwnerProps, ChatNodeViewProps, ChatViewInjected, ChatViewSlotProps } from '../contract/slots.ts'
+import type { ChatSnapshot } from '../contract/snapshot.ts'
+import type { ChatKey } from '../locale.ts'
 import { CompactionItem } from './CompactionItem.tsx'
 import { ContextInjectionRow } from './ContextInjectionRow.tsx'
 import { EditIconActions, MessageIconActions } from './MessageIconActions.tsx'
@@ -48,6 +50,9 @@ function contentParts(content: readonly unknown[]): {
   }
   return { text: texts.join(''), images, files, rest }
 }
+
+/** Failure code of a request refused by the account's plan or credit (`@aeven/llm` `QUOTA_EXCEEDED_CODE`). */
+const QUOTA_CODE = 'QUOTA'
 
 function retrySeconds(milliseconds: number): number {
   return Math.max(1, Math.ceil(milliseconds / 1_000))
@@ -132,21 +137,138 @@ function ModelRetryItem({ node, active, t }: {
   )
 }
 
-/** Persistent, turn-positioned feedback for a terminal failure. */
-function TurnErrorItem({ node, t }: {
+/** Plain-language copy group for a terminal failure code. */
+type TurnFailureKind = 'quota' | 'tooLong' | 'signedOut' | 'busy' | 'connection' | 'other'
+
+/**
+ * Group a recorded failure code under the copy a reader understands. Codes are
+ * the `@aeven/llm` and Aeven gateway codes a provider records on `turn/end`.
+ */
+function turnFailureKind(code: string | undefined): TurnFailureKind {
+  switch (code) {
+    case QUOTA_CODE:
+      return 'quota'
+    case 'CONTEXT_WINDOW_EXCEEDED':
+    case 'MESSAGE_COUNT_EXCEEDED':
+      return 'tooLong'
+    case 'AUTH':
+    case 'MISSING_CREDENTIAL':
+    case 'INVALID_CREDENTIAL':
+      return 'signedOut'
+    case 'RATE_LIMIT':
+    case 'RATE_LIMITED':
+    case 'CONCURRENCY_LIMITED':
+      return 'busy'
+    case 'TRANSPORT':
+    case 'TIMEOUT':
+    case 'SERVER':
+    case 'INTERNAL':
+    case 'PROVIDER_ERROR':
+    case 'PROVIDER_TIMEOUT':
+    case 'PROVIDER_UNAVAILABLE':
+      return 'connection'
+    default:
+      return 'other'
+  }
+}
+
+/** Title and body copy per failure group. */
+const TURN_FAILURE_COPY = {
+  quota: { title: 'turnError.quota.title', body: 'turnError.quota.body' },
+  tooLong: { title: 'turnError.tooLong.title', body: 'turnError.tooLong.body' },
+  signedOut: { title: 'turnError.signedOut.title', body: 'turnError.signedOut.body' },
+  busy: { title: 'turnError.busy.title', body: 'turnError.busy.body' },
+  connection: { title: 'turnError.connection.title', body: 'turnError.connection.body' },
+  other: { title: 'turnError.other.title', body: 'turnError.other.body' },
+} as const satisfies Record<TurnFailureKind, { title: ChatKey; body: ChatKey }>
+
+/** Failures this page already showed and the reader closed, keyed by {@link failureKey}. */
+const dismissedFailures = new Set<string>()
+
+function failureKey(node: TurnErrorNode, nodeKey: string): string {
+  return `${nodeKey}@${node.seq}@${node.time}`
+}
+
+/**
+ * Popup for the latest turn's terminal failure, in plain language. Try again
+ * re-runs the turn's prompt unchanged through the message edit, which rewinds
+ * the failed turn first; a plan-limit failure also offers the plan picker, and
+ * a plan changed there applies to the retried request.
+ */
+function TurnErrorDialog({ node, prompt, editMessage, openPlans, onClose, t }: {
   node: TurnErrorNode
+  /** The user-authored prompt that opened the failed turn, when it is loaded. */
+  prompt: UserMessageNode | undefined
+  editMessage: ChatNodeOwnerProps['editMessage']
+  openPlans: ChatNodeOwnerProps['openPlans']
+  onClose: () => void
   t: ChatViewSlotProps['t']
 }) {
+  const [busy, setBusy] = useState(false)
+  const text = useMemo(() => prompt === undefined ? '' : contentParts(prompt.content).text, [prompt])
+  const kind = turnFailureKind(node.code)
+  const plans = kind === 'quota' ? openPlans : undefined
+  const retry = editMessage === undefined || prompt === undefined || text.trim() === ''
+    ? undefined
+    : async (): Promise<void> => {
+      setBusy(true)
+      try {
+        // An accepted retry rewinds the failed turn out of the transcript, which unmounts this dialog.
+        await editMessage(SessionSeq(prompt.seq), text)
+      } catch {
+        // The session face mirrors the refusal into the composer's error line; the dialog stays for another try.
+        setBusy(false)
+      }
+    }
   return (
-    <div className={css.turnErrorRow} role="status">
-      <StateDot state="error" className={css.turnErrorDot} />
-      <div className={css.turnErrorCopy}>
-        <span className={css.turnErrorTitle}>{t('message.turnError')}</span>
-        <span className={css.turnErrorMessage}>{failureMessage(node.message, node.code, t)}</span>
-      </div>
-      {node.code !== undefined && <code className={css.turnErrorCode}>{node.code}</code>}
-    </div>
+    <Modal
+      open
+      onClose={onClose}
+      closeLabel={t('turnError.close')}
+      title={t(TURN_FAILURE_COPY[kind].title)}
+      description={t(TURN_FAILURE_COPY[kind].body)}
+      footer={(
+        <>
+          <Button variant="outline" className={css.modalAction} onClick={onClose}>{t('turnError.dismiss')}</Button>
+          {retry !== undefined && (
+            <Button
+              variant={plans === undefined ? 'primary' : 'outline'}
+              className={css.modalAction}
+              disabled={busy}
+              onClick={() => { void retry() }}
+            >
+              {t('turnError.retry')}
+            </Button>
+          )}
+          {plans !== undefined && (
+            <Button
+              variant="primary"
+              className={css.modalAction}
+              onClick={() => { onClose(); plans() }}
+            >
+              {t('turnError.plans')}
+            </Button>
+          )}
+        </>
+      )}
+    />
   )
+}
+
+/**
+ * Key of the last user-authored prompt Node in one turn of the Chat snapshot.
+ * @param snapshot - current Chat target snapshot.
+ * @param turn - the failed turn.
+ * @returns the prompt Node's key, or undefined when none is loaded.
+ */
+function turnPromptKey(snapshot: ChatSnapshot, turn: number): string | undefined {
+  const keys = snapshot.locations.getTurn(turn)
+  for (let index = keys.length - 1; index >= 0; index -= 1) {
+    // oxlint-disable-next-line typescript/no-non-null-assertion -- index is within keys
+    const key = keys[index]!
+    if (snapshot.nodes.get(key)?.kind === 'user') return key
+  }
+  return undefined
 }
 
 /** Persistent, turn-positioned notice for a turn ended at the output-token cap. */
@@ -657,8 +779,32 @@ export const RetryNodeView = memo(function RetryNodeView({ node, t }: ChatNodeVi
 })
 
 /** Terminal turn-error keyed Chat renderer. */
-export const TurnErrorNodeView = memo(function TurnErrorNodeView({ node, t }: ChatNodeViewProps<'turn-error'>) {
-  return <TurnErrorItem node={node.data} t={t} />
+export const TurnErrorNodeView = memo(function TurnErrorNodeView({
+  node, editMessage, openPlans, useChat, t,
+}: ChatNodeViewProps<'turn-error'>) {
+  const turn = node.data.turn
+  const latest = useChat(snapshot => snapshot.timeline.turnOrder.at(-1) === turn)
+  const promptKey = useChat(snapshot => turnPromptKey(snapshot, turn))
+  const promptNode = useChat(snapshot => promptKey === undefined ? undefined : snapshot.nodes.get(promptKey))
+  const prompt = promptNode?.kind === 'user' ? (promptNode.data as UserMessageNode) : undefined
+  const key = failureKey(node.data, node.key)
+  const [dismissed, setDismissed] = useState(() => dismissedFailures.has(key))
+  // Only the latest turn's failure is still actionable; earlier ones were answered by later turns.
+  if (!latest || dismissed) return null
+  const close = (): void => {
+    dismissedFailures.add(key)
+    setDismissed(true)
+  }
+  return (
+    <TurnErrorDialog
+      node={node.data}
+      prompt={prompt}
+      editMessage={editMessage}
+      openPlans={openPlans}
+      onClose={close}
+      t={t}
+    />
+  )
 })
 
 /** Max-tokens turn-end notice keyed Chat renderer. */

@@ -190,6 +190,7 @@ export function apply(ctx: Context): void {
             const result = await session.edit(seq, text)
             if (!result.ok) throw new Error(`ui-chat: edit failed: ${result.error.code}: ${result.error.message}`)
           },
+          openPlans: () => { ctx.emit('settings/open', 'account') },
           notifyError: (text) => {
             const actx = ctx.sessions.scope(sessionId)
             actx?.get('conversation')?.input.for(actx).notify('error', text)

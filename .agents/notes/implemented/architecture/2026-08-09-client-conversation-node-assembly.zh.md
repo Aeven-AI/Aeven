@@ -267,7 +267,7 @@ Chat `order` 的结构性变化仍可能重排当前可见 key；纯 data 更新
 | Command / `command` | command ID | `command/run` | `command/done`、带 source command ID 的 compact lifecycle/checkpoint | 聚合 command outcome 和手动压缩证据 |
 | Automatic Compaction / `compaction` | compaction ID | 无 source command ID 的 `compaction/start` | summary、end、replacement checkpoint | 聚合 summary/checkpoint；checkpoint 足够时可在缺 start 下 fallback |
 | Retry / `model-retry` | retry ID | attempt 1 的 `llm/retry` | 后续 `llm/retry` 与 `llm/retry-started` | 聚合同一 RetryId 的 attempts 与 scheduled/started 状态 |
-| Turn Error / `turn-error` | turn number | `turn/start` | error `turn/end` | 聚合 terminal failure；该 turn 的 Retry 历史经由 Retry 渲染，绝不会隐藏此行 |
+| Turn Error / `turn-error` | turn number | `turn/start` | error `turn/end` | 聚合 terminal failure；该 turn 的 Retry 历史经由 Retry 渲染，绝不会隐藏该失败 |
 | Turn Tail / `turn-tail` | turn number | `turn/start` | Assistant、Retry、`step/end`、`turn/end` | 保存 turn end，读取各 Step 的 Assistant data，发布 Turn data；完整 Matches 用于选择视觉尾部 anchor |
 | Deliverables / `deliverables` | turn number | `turn/start` | 该 Turn 的 Tool call/result | 聚合成功 mutation paths 并发布 Turn data，不生成 view Node |
 | Unknown fallback / `unknown-surface` | Event seq | 未被普通 Definition 认领的 append-surface Event | 无 | 保存原始 type/data 作为 JSON fallback |
@@ -284,7 +284,7 @@ Chat `order` 的结构性变化仍可能重排当前可见 key；纯 data 更新
 | Command | 默认 immediate | 普通 `command` 或集成 `manual-compaction` | checkpoint 到达可改变 anchor，但不改变 Context key |
 | Compaction | 默认 immediate | `compaction` marker | checkpoint 可先展示，older 补 start 后正序 replay |
 | Retry | 默认 immediate | 一个 `model-retry` Node 内含 attempts | 多次 retry 更新同一 key；Location close 把最后 scheduled 表现为 cancelled |
-| Turn Error | 默认 immediate | terminal failure 时的 `turn-error` | 缺 start 可从 error end fallback；该 turn 定格的 Retry 链在其旁渲染 |
+| Turn Error | 默认 immediate | terminal failure 时的 `turn-error`，在最新轮次以失败对话框打开 | 缺 start 可从 error end fallback；定格的重试链留在 transcript 中、位于对话框之下 |
 | Turn Tail | 仅 `turn/end` immediate，其余 none | 独立 `turn-tail` footer | 从 Step Assistant data 计算 closing/metrics，并通过同 turn Matches 决定 anchor |
 | Deliverables | 默认 immediate | 不生成 Node | Tool 结算增量更新所属 Turn data，Turn Tail 扩展槽读取 produced files |
 | Fallback | 默认 immediate | `unknown` JSON row | 只兜底 append surface，普通业务已认领但暂不可见时不会重复生成 |
