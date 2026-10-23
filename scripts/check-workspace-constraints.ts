@@ -175,6 +175,10 @@ const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
   // also shares its generated FFI code through a hashed runtime chunk.
   '@aeven/sandbox-windows-acl': ['lib/runner.js', 'lib/types-*.js'],
   '@aeven/skill-badge': ['assets'],
+  // The wordmark face ships beside the module that inlines it: `page.ts` reads
+  // it through `new URL('../assets/…', import.meta.url)`, so the file has to
+  // travel with the package rather than being produced by the build.
+  '@aeven/brand-page': ['assets/**'],
   // tsdown shares the repository/pack code between the lib entry and the bin
   // through a hashed chunk. The committed bin.js is the link target pnpm can
   // resolve at install time, before the build produces lib/bin.js.
