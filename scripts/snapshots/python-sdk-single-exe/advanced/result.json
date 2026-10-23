@@ -81,7 +81,7 @@
         "content": [
           {
             "type": "text",
-            "text": "Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\n\nCurrent AVN file policy: danger-full-access. The AVN file sandbox does not restrict file modifications by available operations.\n\nApproval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set `sandbox_permissions`)."
+            "text": "Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\n\nCurrent AVN file policy: danger-full-access. The AVN file sandbox does not restrict file modifications by available operations.\n\nApproval prompts are disabled in this session: actions that require approval are rejected automatically, except actions on the user's connected accounts (such as sending a message), which still ask the user — do not request sandbox escalation (do not set `sandbox_permissions`)."
           }
         ],
         "source": {
@@ -95,7 +95,7 @@
             },
             {
               "name": "approval:policy",
-              "text": "Approval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set `sandbox_permissions`)."
+              "text": "Approval prompts are disabled in this session: actions that require approval are rejected automatically, except actions on the user's connected accounts (such as sending a message), which still ask the user — do not request sandbox escalation (do not set `sandbox_permissions`)."
             }
           ]
         },
@@ -1744,7 +1744,7 @@
             "content": [
               {
                 "type": "text",
-                "text": "Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\n\nCurrent AVN file policy: danger-full-access. The AVN file sandbox does not restrict file modifications by available operations.\n\nApproval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set `sandbox_permissions`)."
+                "text": "Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\n\nCurrent AVN file policy: danger-full-access. The AVN file sandbox does not restrict file modifications by available operations.\n\nApproval prompts are disabled in this session: actions that require approval are rejected automatically, except actions on the user's connected accounts (such as sending a message), which still ask the user — do not request sandbox escalation (do not set `sandbox_permissions`)."
               }
             ],
             "source": {
@@ -1758,7 +1758,7 @@
                 },
                 {
                   "name": "approval:policy",
-                  "text": "Approval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set `sandbox_permissions`)."
+                  "text": "Approval prompts are disabled in this session: actions that require approval are rejected automatically, except actions on the user's connected accounts (such as sending a message), which still ask the user — do not request sandbox escalation (do not set `sandbox_permissions`)."
                 }
               ]
             },
@@ -3070,7 +3070,7 @@
             "content": [
               {
                 "type": "text",
-                "text": "Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\n\nCurrent AVN file policy: danger-full-access. The AVN file sandbox does not restrict file modifications by available operations.\n\nApproval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set `sandbox_permissions`).\n\nYou are a delegated subagent: your permission scope was fixed when you were started and cannot be widened from inside this session — operations that require approval are rejected automatically. When the task needs access beyond that scope, do not retry the denied operation; state the limitation in your reply so the delegating agent can handle it."
+                "text": "Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\n\nCurrent AVN file policy: danger-full-access. The AVN file sandbox does not restrict file modifications by available operations.\n\nApproval prompts are disabled in this session: actions that require approval are rejected automatically, except actions on the user's connected accounts (such as sending a message), which still ask the user — do not request sandbox escalation (do not set `sandbox_permissions`).\n\nYou are a delegated subagent: your permission scope was fixed when you were started and cannot be widened from inside this session — operations that require approval are rejected automatically. When the task needs access beyond that scope, do not retry the denied operation; state the limitation in your reply so the delegating agent can handle it."
               }
             ],
             "source": {
@@ -3084,7 +3084,7 @@
                 },
                 {
                   "name": "approval:policy",
-                  "text": "Approval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set `sandbox_permissions`)."
+                  "text": "Approval prompts are disabled in this session: actions that require approval are rejected automatically, except actions on the user's connected accounts (such as sending a message), which still ask the user — do not request sandbox escalation (do not set `sandbox_permissions`)."
                 },
                 {
                   "name": "subagent:delegation",
@@ -3847,7 +3847,7 @@
             "content": [
               {
                 "type": "text",
-                "text": "Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\n\nCurrent AVN file policy: danger-full-access. The AVN file sandbox does not restrict file modifications by available operations.\n\nApproval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set `sandbox_permissions`).\n\nYou are a delegated subagent: your permission scope was fixed when you were started and cannot be widened from inside this session — operations that require approval are rejected automatically. When the task needs access beyond that scope, do not retry the denied operation; state the limitation in your reply so the delegating agent can handle it."
+                "text": "Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\n\nCurrent AVN file policy: danger-full-access. The AVN file sandbox does not restrict file modifications by available operations.\n\nApproval prompts are disabled in this session: actions that require approval are rejected automatically, except actions on the user's connected accounts (such as sending a message), which still ask the user — do not request sandbox escalation (do not set `sandbox_permissions`).\n\nYou are a delegated subagent: your permission scope was fixed when you were started and cannot be widened from inside this session — operations that require approval are rejected automatically. When the task needs access beyond that scope, do not retry the denied operation; state the limitation in your reply so the delegating agent can handle it."
               }
             ],
             "source": {
@@ -3861,7 +3861,7 @@
                 },
                 {
                   "name": "approval:policy",
-                  "text": "Approval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set `sandbox_permissions`)."
+                  "text": "Approval prompts are disabled in this session: actions that require approval are rejected automatically, except actions on the user's connected accounts (such as sending a message), which still ask the user — do not request sandbox escalation (do not set `sandbox_permissions`)."
                 },
                 {
                   "name": "subagent:delegation",
