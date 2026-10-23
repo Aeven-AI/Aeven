@@ -1637,14 +1637,77 @@ describe('ChatView', () => {
       .toContain('重试已取消')
   })
 
-  it('renders terminal turn failures inline with their durable message and optional code', () => {
-    const h = makeHarness({ nodes: [user(1, 'try'), turnError(2, 'AUTH'), turnError(3)] })
+  it('renders a terminal turn failure as a plain-language dialog for its copy group', () => {
+    const h = makeHarness({ nodes: [userInTurn(1, 'try', 1), turnError(2, 'AUTH')] })
     const view = render(<h.ChatView {...h.props} />)
-    const statuses = view.getAllByRole('status')
-    expect(statuses.map(status => status.textContent)).toEqual([
-      '本轮运行失败API 密钥无效AUTH',
-      '本轮运行失败plugin exploded',
-    ])
+    const dialog = view.getByRole('dialog', { name: '请重新登录' })
+    expect(within(dialog).getByText('你的登录已过期。重新登录后再试一次。')).toBeTruthy()
+    // Dismiss is always offered, Retry needs the turn's loaded prompt, and the
+    // plan picker belongs to quota failures only.
+    expect(within(dialog).getByRole('button', { name: '稍后再说' })).toBeTruthy()
+    expect(within(dialog).getByRole('button', { name: '重试' })).toBeTruthy()
+    expect(within(dialog).queryByRole('button', { name: '查看方案' })).toBeNull()
+  })
+
+  it.each<[string | undefined, string]>([
+    ['QUOTA', '已达到你的方案额度'],
+    ['CONTEXT_WINDOW_EXCEEDED', '这段对话太长了'],
+    ['MESSAGE_COUNT_EXCEEDED', '这段对话太长了'],
+    ['AUTH', '请重新登录'],
+    ['MISSING_CREDENTIAL', '请重新登录'],
+    ['INVALID_CREDENTIAL', '请重新登录'],
+    ['RATE_LIMIT', 'Aeven 现在有点忙'],
+    ['RATE_LIMITED', 'Aeven 现在有点忙'],
+    ['CONCURRENCY_LIMITED', 'Aeven 现在有点忙'],
+    ['TRANSPORT', '无法连接到 Aeven'],
+    ['TIMEOUT', '无法连接到 Aeven'],
+    ['SERVER', '无法连接到 Aeven'],
+    ['PROVIDER_UNAVAILABLE', '无法连接到 Aeven'],
+    ['UNRECOGNIZED_CODE', '出了点问题'],
+    [undefined, '出了点问题'],
+  ])('groups the %s failure code under its plain-language copy', (code, title) => {
+    const h = makeHarness({ nodes: [userInTurn(1, 'try', 1), turnError(2, code)] })
+    const view = render(<h.ChatView {...h.props} />)
+    expect(view.getByRole('dialog', { name: title })).toBeTruthy()
+  })
+
+  it('retries the failed turn by re-running its durable prompt through editMessage', async () => {
+    const h = makeHarness({ nodes: [userInTurn(1, 'build the thing', 1), turnError(2, 'TRANSPORT')] })
+    const editMessage = vi.fn(async () => {})
+    const view = render(<h.ChatView {...h.props} editMessage={editMessage} />)
+
+    fireEvent.click(within(view.getByRole('dialog')).getByRole('button', { name: '重试' }))
+
+    await waitFor(() => { expect(editMessage).toHaveBeenCalledWith(1, 'build the thing') })
+  })
+
+  it('opens the plan picker from a quota failure and closes the dialog first', async () => {
+    const h = makeHarness({ nodes: [userInTurn(1, 'try', 1), turnError(2, 'QUOTA')] })
+    const openPlans = vi.fn()
+    const view = render(<h.ChatView {...h.props} openPlans={openPlans} />)
+
+    fireEvent.click(within(view.getByRole('dialog')).getByRole('button', { name: '查看方案' }))
+
+    expect(openPlans).toHaveBeenCalledOnce()
+    await waitFor(() => { expect(view.queryByRole('dialog')).toBeNull() })
+  })
+
+  it('dismisses the failure dialog', () => {
+    const h = makeHarness({ nodes: [userInTurn(41, 'try', 1), turnError(42, 'AUTH')] })
+    const view = render(<h.ChatView {...h.props} />)
+
+    fireEvent.click(within(view.getByRole('dialog', { name: '请重新登录' }))
+      .getByRole('button', { name: '稍后再说' }))
+
+    expect(view.queryByRole('dialog')).toBeNull()
+  })
+
+  it('shows no failure dialog for a turn the conversation has moved past', () => {
+    const h = makeHarness({
+      nodes: [userInTurn(1, 'first', 1), turnError(2, 'AUTH'), userInTurn(3, 'second', 2)],
+    })
+    const view = render(<h.ChatView {...h.props} />)
+    expect(view.queryByRole('dialog')).toBeNull()
   })
 
   it('renders the max-tokens notice with localized guidance, distinct from turn errors', () => {
@@ -1657,7 +1720,7 @@ describe('ChatView', () => {
     expect(statuses.map(status => status.textContent)).toEqual([
       '已达到输出 token 上限回答被截断，已有输出保留在对话中。发送“继续”可让模型接着输出。',
     ])
-    expect(view.queryByText('本轮运行失败')).toBeNull()
+    expect(view.queryByRole('dialog')).toBeNull()
   })
 
   it('shows assistant IconActions only on the last content message of each turn', () => {

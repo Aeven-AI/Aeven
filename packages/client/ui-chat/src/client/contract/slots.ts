@@ -87,6 +87,8 @@ export interface ChatNodeOwnerProps {
    * where the transcript is read-only.
    */
   editMessage?: ChatViewInjected['editMessage'] | undefined
+  /** Open the account's plan picker, the remedy a `QUOTA` turn failure names. Omitted where no picker exists. */
+  openPlans?: ChatViewInjected['openPlans'] | undefined
   renderMessageImages: RenderMessageImages
   /** Generated image calls and artifacts owned by this Turn. */
   generatedImages?: import('./generated-images.ts').GeneratedImages | undefined
@@ -215,6 +217,8 @@ export interface ChatViewInjected {
    * @returns settlement; rejects when the Host refuses the edit.
    */
   editMessage: (seq: SessionSeq, text: string) => Promise<void>
+  /** Open the account's plan picker in Settings; omitted where the composition has none. */
+  openPlans?: () => void
   /**
    * Show one failed queue action on the composer's notice line.
    * @param text - localized failure text.

@@ -410,19 +410,12 @@
   overflow-wrap: anywhere;
 }
 
-.turnErrorTitle {
-  margin-right: 6px;
-  color: var(--dsw-alias-state-error-primary);
-  font-weight: 500;
-}
-
 .turnErrorMessage {
   color: var(--dsw-alias-label-secondary);
 }
 
-.turnErrorCode {
-  color: var(--dsw-alias-label-tertiary);
-  font: var(--dsw-font-markdown-code-block-small);
+.modalAction {
+  min-width: 72px;
 }
 
 .maxTokensTitle {
