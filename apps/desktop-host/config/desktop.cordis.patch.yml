@@ -3,12 +3,12 @@
 - id: identity-user-aeven
   config:
     apiUrl: !!js process.env.AEVEN_API_URL ?? 'https://aeven.io/api'
-    xOAuthUrl: !!js process.env.AEVEN_OAUTH_X_URL ?? 'https://preview.aeven.io/oauth/x'
-    appleOAuthUrl: !!js process.env.AEVEN_OAUTH_APPLE_URL ?? 'https://preview.aeven.io/oauth/apple'
-    googleOAuthUrl: !!js process.env.AEVEN_OAUTH_GOOGLE_URL ?? 'https://preview.aeven.io/oauth/google'
+    xOAuthUrl: !!js process.env.AEVEN_OAUTH_X_URL ?? 'https://aeven.io/oauth/x'
+    appleOAuthUrl: !!js process.env.AEVEN_OAUTH_APPLE_URL ?? 'https://aeven.io/oauth/apple'
+    googleOAuthUrl: !!js process.env.AEVEN_OAUTH_GOOGLE_URL ?? 'https://aeven.io/oauth/google'
     oauthFlow: window
-    webUrl: !!js process.env.AEVEN_WEB_URL ?? 'https://preview.aeven.io'
-    mediaUrl: !!js process.env.AEVEN_MEDIA_URL ?? 'https://preview.aeven.io'
+    webUrl: !!js process.env.AEVEN_WEB_URL ?? 'https://aeven.io'
+    mediaUrl: !!js process.env.AEVEN_MEDIA_URL ?? 'https://aeven.io'
 
 - id: llm-aeven
   config:

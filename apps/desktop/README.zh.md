@@ -14,7 +14,7 @@
 
 应用在启动后不久检查一次发行流，之后每 30 分钟检查一次；发现新版本时在后台下载，不影响读者继续工作，并在退出应用时安装。已下载的版本只通过一个原生对话框询问一次——立即重启，或留待下次退出时安装；应用菜单中的 **检查更新…** 会报告最新版本、正在进行的下载或失败原因。一个发行版是签名的应用、与之匹配的 avn 种子、Node.js 与 pnpm 组成的整体，不会分开更新。在 macOS 上，更新器安装 `latest-mac.yml` 指定的签名 ZIP，并将它的 Developer ID 签名与正在运行的应用校验；未签名的构建在发行流中没有 ZIP，无法自我更新。
 
-[Desktop Host overlay](../desktop-host/config/desktop.cordis.patch.yml) 为登录、推理、搜索、媒体和账户集成提供生产服务 URL；安装后的应用不需要 `.env` 文件。API 默认为 `https://aeven.io/api`；Web、媒体和 OAuth 使用 `https://preview.aeven.io`。显式设置的 `AEVEN_API_URL`、`AEVEN_WEB_URL`、`AEVEN_MEDIA_URL` 和 `AEVEN_OAUTH_{X,APPLE,GOOGLE}_URL` 环境变量会覆盖这些默认值。Desktop 登录在独立窗口中打开。参见[端点决策](../../.agents/notes/implemented/bug-fix/2026-10-14-desktop-production-service-endpoints.zh.md)。
+[Desktop Host overlay](../desktop-host/config/desktop.cordis.patch.yml) 为登录、推理、搜索、媒体和账户集成提供生产服务 URL；安装后的应用不需要 `.env` 文件。API 默认为 `https://aeven.io/api`；Web、媒体和 OAuth 使用 `https://aeven.io`。显式设置的 `AEVEN_API_URL`、`AEVEN_WEB_URL`、`AEVEN_MEDIA_URL` 和 `AEVEN_OAUTH_{X,APPLE,GOOGLE}_URL` 环境变量会覆盖这些默认值。Desktop 登录在独立窗口中打开。参见[端点决策](../../.agents/notes/implemented/bug-fix/2026-10-14-desktop-production-service-endpoints.zh.md)。
 
 ## 关键技术决策
 

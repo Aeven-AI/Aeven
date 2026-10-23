@@ -10,7 +10,7 @@ Desktop Host 从基础和 Web bundle 继承开发 URL。安装后的应用若没
 
 ## 决策
 
-[打包的 Desktop Host overlay](../../../../apps/desktop-host/config/desktop.cordis.patch.yml) 拥有与仓库操作者确认的部署一致的生产默认值：API 使用 `https://aeven.io/api`，Web、媒体和 OAuth 使用 `https://preview.aeven.io`。身份认证方、模型路由、搜索路由、媒体提供方和账户集成使用相同的 API 默认值，并接受 `AEVEN_API_URL` 覆盖。Web、媒体和提供方 URL 接受对应环境变量覆盖。Desktop OAuth 使用 `window`，因为重定向应用文档会替换桌面壳。
+[打包的 Desktop Host overlay](../../../../apps/desktop-host/config/desktop.cordis.patch.yml) 拥有与仓库操作者确认的部署一致的生产默认值：API 使用 `https://aeven.io/api`，Web、媒体和 OAuth 使用 `https://aeven.io`。身份认证方、模型路由、搜索路由、媒体提供方和账户集成使用相同的 API 默认值，并接受 `AEVEN_API_URL` 覆盖。Web、媒体和提供方 URL 接受对应环境变量覆盖。Desktop OAuth 使用 `window`，因为重定向应用文档会替换桌面壳。
 
 只有公开服务 URL 进入 overlay。打包过程不把 `.env` 或其中凭据复制到发布产物。基础和 Web bundle 保留开发默认值。[打包环境加载器](../process/2026-09-14-desktop-packaging-reads-the-repository-env-file.zh.md) 继续负责构建设置，而非已安装运行时的服务发现。
 
