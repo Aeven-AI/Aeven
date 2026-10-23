@@ -1,6 +1,7 @@
 # Agent Note: MemOS Viewer 默认关闭
 
 Status: implemented
+Archived: 2026-10-23
 
 [English](2026-10-01-memos-viewer-default-off.md) | 中文
 

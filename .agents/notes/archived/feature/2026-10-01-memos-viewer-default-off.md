@@ -1,6 +1,7 @@
 # Agent Note: The MemOS Viewer is off unless a composition asks for it
 
 Status: implemented
+Archived: 2026-10-23
 
 English | [中文](2026-10-01-memos-viewer-default-off.zh.md)
 
