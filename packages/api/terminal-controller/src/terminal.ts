@@ -117,6 +117,7 @@ export class BrowserTerminal {
 
   /**
    * Read rendered text without attaching or changing browser input ownership.
+   * The newest line is the cursor row; the unwritten screen rows below it are omitted.
    * @param count - positive maximum number of newest screen and history lines.
    * @param maxBytes - maximum UTF-8 bytes returned to the model.
    * @returns a consistent text snapshot and whether older text was omitted.
@@ -124,10 +125,11 @@ export class BrowserTerminal {
   read(count: number, maxBytes: number): Promise<{ text: string; truncated: boolean }> {
     return this.enqueue(() => {
       const buffer = this.screen.buffer.active
+      const end = Math.min(buffer.length, buffer.baseY + buffer.cursorY + 1)
       const lines: string[] = []
       let bytes = 0
-      let truncated = buffer.length > count
-      for (let index = buffer.length - 1; index >= Math.max(0, buffer.length - count); index -= 1) {
+      let truncated = end > count
+      for (let index = end - 1; index >= Math.max(0, end - count); index -= 1) {
         const bufferLine = buffer.getLine(index)
         if (bufferLine === undefined) break
         const line = bufferLine.translateToString(true)
