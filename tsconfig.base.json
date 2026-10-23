@@ -419,6 +419,7 @@
       "@aeven/plan-mode": ["./packages/plan/plan-mode/src"],
       "@aeven/plan-mode/invariant": ["./packages/plan/plan-mode/src/invariant.ts"],
       "@aeven/plugin-package-inventory-deepseek": ["./packages/llm/plugin-package-inventory-deepseek/src"],
+      "@aeven/project-context": ["./packages/context/project-context/src"],
       "@aeven/pwsh-local": ["./packages/shell/pwsh-local/src"],
       "@aeven/pwsh-sandbox": ["./packages/shell/pwsh-sandbox/src"],
       "@aeven/repeat-tool-reminder": ["./packages/guard/repeat-tool-reminder/src"],

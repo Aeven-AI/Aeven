@@ -55,6 +55,13 @@
   config:
     maxBytes: 65536
 
+# A session filed in a project folder runs in the person's own project, and
+# AGENTS.md says how to work there, not what the project is. Without this
+# orientation a question about the project, such as how to host it, reads as
+# general knowledge and gets answered from the web instead of from its files.
+- id: project-context
+  name: '@aeven/project-context'
+
 # The clock. Without a reading, a session cannot tell whether what it remembers
 # still holds, and the `tool:web_search` policy asks it to search exactly
 # then. One durable user message per refresh interval: no injection is a
