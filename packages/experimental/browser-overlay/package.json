@@ -1,7 +1,7 @@
 {
   "name": "@aeven/experimental-browser-overlay",
   "description": "On-screen agent pointer and action feedback for a browser the model is operating",
-  "version": "0.3.8-alpha",
+  "version": "0.3.9-alpha",
   "private": true,
   "repository": {
     "type": "git",

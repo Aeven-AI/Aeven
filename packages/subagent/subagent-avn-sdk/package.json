@@ -1,7 +1,7 @@
 {
   "name": "@aeven/subagent-avn-sdk",
   "description": "Out-of-process SDK subagent backend: drives a child Aeven runtime subprocess over stdio JSON-RPC through the TypeScript SDK client",
-  "version": "0.3.8-alpha",
+  "version": "0.3.9-alpha",
   "publishConfig": {
     "access": "public"
   },

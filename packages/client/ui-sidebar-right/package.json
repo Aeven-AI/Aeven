@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-sidebar-right",
   "description": "Right sidebar plugin: per-session docking column with foldout, foldin, and resize",
-  "version": "0.3.8-alpha",
+  "version": "0.3.9-alpha",
   "publishConfig": {
     "access": "public"
   },

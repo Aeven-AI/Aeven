@@ -1,7 +1,7 @@
 {
   "name": "@aeven/agent",
   "description": "Agent interface, registry, initiator scope, and event vocabulary for the Aeven",
-  "version": "0.3.8-alpha",
+  "version": "0.3.9-alpha",
   "publishConfig": {
     "access": "public"
   },

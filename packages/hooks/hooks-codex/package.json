@@ -1,7 +1,7 @@
 {
   "name": "@aeven/hooks-codex",
   "description": "Bridge plugin: run a Codex hooks.json hook config on the Aeven interception seams",
-  "version": "0.3.8-alpha",
+  "version": "0.3.9-alpha",
   "publishConfig": {
     "access": "public"
   },
