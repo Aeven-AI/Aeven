@@ -25,6 +25,12 @@
     },
     {
       "path": "../../typert/protocol"
+    },
+    {
+      "path": "../../core/scope"
+    },
+    {
+      "path": "../../core/tools"
     }
   ]
 }

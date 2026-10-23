@@ -4,7 +4,6 @@ import { createHash } from 'node:crypto'
 import {
   chmodSync,
   copyFileSync,
-  cpSync,
   existsSync,
   mkdirSync,
   readdirSync,
@@ -12,6 +11,7 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs'
+import { cp } from 'node:fs/promises'
 import { join, relative, sep } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { create, extract, list } from 'tar'
@@ -144,18 +144,19 @@ function mergeStoreIndex(source: string, destination: string): void {
 }
 
 /**
- * Merge a completely extracted seed store into Desktop's persistent pnpm store.
+ * Merge a completely extracted seed store into Desktop's persistent pnpm store. The copy runs on the event loop's
+ * I/O, so the Electron main process keeps painting and answering input while thousands of files move.
  * @param source - Verified temporary store extraction.
  * @param destination - Desktop-owned persistent pnpm store.
  */
-export function mergePnpmStore(source: string, destination: string): void {
+export async function mergePnpmStore(source: string, destination: string): Promise<void> {
   mkdirSync(destination, { recursive: true, mode: 0o700 })
   const indexPaths = readdirSync(source, { withFileTypes: true })
     .filter(entry => entry.isDirectory() && STORE_VERSION_PATTERN.test(entry.name)
       && existsSync(join(source, entry.name, 'index.db')))
     .map(entry => `${entry.name}/index.db`)
   const indexes = new Set(indexPaths)
-  cpSync(source, destination, {
+  await cp(source, destination, {
     recursive: true,
     force: true,
     filter: path => !indexes.has(relative(source, path).split(sep).join('/')),
@@ -207,11 +208,12 @@ export function archivePnpmStore(
 }
 
 /**
- * Validate and extract a packaged pnpm store archive set into an empty directory.
+ * Validate and extract a packaged pnpm store archive set into an empty directory. Reading and writing stream through
+ * the event loop, so the Electron main process stays responsive for the whole extraction.
  * @param seedRoot - verified packaged seed directory.
  * @param destination - empty Desktop-owned temporary extraction directory.
  */
-export function extractPnpmStoreArchives(seedRoot: string, destination: string): void {
+export async function extractPnpmStoreArchives(seedRoot: string, destination: string): Promise<void> {
   const manifest = readArchiveManifest(seedRoot)
   const archiveRoot = join(seedRoot, SEED_STORE_ARCHIVE_DIR)
   const actualFiles = readdirSync(archiveRoot, { withFileTypes: true }).map((entry) => {
@@ -233,31 +235,43 @@ export function extractPnpmStoreArchives(seedRoot: string, destination: string):
     const archivePath = join(archiveRoot, archive.file)
     const archiveShard = Number.parseInt(archive.file.slice('store-'.length, -'.tar'.length), 16)
     let entries = 0
-    list({
+    // An asynchronous listing calls this from a stream event, where a throw would escape the returned promise, so
+    // the first invalid entry is kept and thrown once the listing settles.
+    let invalid: Error | undefined
+    await list({
       file: archivePath,
       onReadEntry: (entry) => {
+        if (invalid !== undefined) return
         if (entry.type !== 'File' && entry.type !== 'OldFile') {
-          throw new Error(`desktop seed: unsupported pnpm store archive entry type ${entry.type}`)
+          invalid = new Error(`desktop seed: unsupported pnpm store archive entry type ${entry.type}`)
+          return
         }
-        assertArchivePath(entry.path)
+        try {
+          assertArchivePath(entry.path)
+        } catch (error) {
+          invalid = error as Error
+          return
+        }
         if (shardFor(entry.path, manifest.shardCount) !== archiveShard) {
-          throw new Error(`desktop seed: pnpm store path is assigned to the wrong archive shard: ${entry.path}`)
+          invalid = new Error(`desktop seed: pnpm store path is assigned to the wrong archive shard: ${entry.path}`)
+          return
         }
         if (paths.has(entry.path)) {
-          throw new Error(`desktop seed: duplicate pnpm store archive path ${entry.path}`)
+          invalid = new Error(`desktop seed: duplicate pnpm store archive path ${entry.path}`)
+          return
         }
         paths.add(entry.path)
         entries += 1
       },
       strict: true,
-      sync: true,
     })
+    if (invalid !== undefined) throw invalid
     if (entries !== archive.entries) {
       throw new Error(`desktop seed: pnpm store archive ${archive.file} has an unexpected entry count`)
     }
   }
   for (const archive of manifest.archives) {
-    extract({
+    await extract({
       chmod: true,
       cwd: destination,
       file: join(archiveRoot, archive.file),
@@ -265,7 +279,6 @@ export function extractPnpmStoreArchives(seedRoot: string, destination: string):
       preservePaths: false,
       processUmask: 0,
       strict: true,
-      sync: true,
     })
   }
 }

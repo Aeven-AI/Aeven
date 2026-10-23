@@ -44,6 +44,8 @@
   ],
   "license": "Apache-2.0",
   "dependencies": {
+    "@aeven/scope": "workspace:^",
+    "@aeven/tools": "workspace:^",
     "@deepseek-ai/schemastery": "workspace:^",
     "zod": "^4.4.3"
   },

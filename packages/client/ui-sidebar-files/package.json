@@ -29,6 +29,7 @@
     "client": {
       "inject": [
         "@aeven/api-remotes",
+        "@aeven/api-session-controller",
         "@aeven/client-locale",
         "@aeven/client-ui-sidebar-select"
       ],

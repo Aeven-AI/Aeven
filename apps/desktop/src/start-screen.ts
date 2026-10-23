@@ -43,7 +43,18 @@ function startPageStyles(platform: NodeJS.Platform): string {
       : '')
     + loadingFaceStyles()
     + '.logo,.spinner{color:var(--avn-start-ink)}'
+    // Positioned out of flow, so a line appearing never moves the mark and spinner the client's preloader repaints.
+    + 'main{position:relative}'
+    + '.avn-start-status{position:absolute;top:100%;left:50%;transform:translateX(-50%);width:min(80vw,440px);'
+    + 'margin:20px 0 0;text-align:center;font:13px/1.45 -apple-system,system-ui,sans-serif;'
+    + 'color:var(--avn-start-ink);opacity:.7}'
 }
+
+/**
+ * The line under the spinner the shell writes while a launch does visible work,
+ * such as installing an update; empty otherwise.
+ */
+const STATUS_LINE = '<p class="avn-start-status" role="status" aria-live="polite"></p>'
 
 /**
  * Build the start screen document.
@@ -52,5 +63,5 @@ function startPageStyles(platform: NodeJS.Platform): string {
  */
 export function startPageDocument(platform: NodeJS.Platform): string {
   return brandDocumentHead('light dark', `<style>${startPageStyles(platform)}</style>`)
-    + `<body>${platform === 'darwin' ? DRAG_BAND : ''}${loadingFace()}</body></html>`
+    + `<body>${platform === 'darwin' ? DRAG_BAND : ''}${loadingFace(undefined, STATUS_LINE)}</body></html>`
 }

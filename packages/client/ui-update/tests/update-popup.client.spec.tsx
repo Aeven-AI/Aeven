@@ -74,7 +74,7 @@ describe('desktop update popup', () => {
   it('asks before the restart that installs the downloaded release', () => {
     const { install, close } = popup({ phase: 'ready', version: '1.2.0' })
     expect(screen.getByText('Update 1.2.0 is ready to install.')).toBeTruthy()
-    expect(screen.getByText('Restarting installs it and reopens Aeven.')).toBeTruthy()
+    expect(screen.getByText('Restarting switches Aeven to the new version.')).toBeTruthy()
     fireEvent.click(screen.getByText('Restart and install'))
     expect(install).toHaveBeenCalledOnce()
     fireEvent.click(screen.getByText('Later'))

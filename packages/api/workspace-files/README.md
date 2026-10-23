@@ -24,15 +24,15 @@ English | [中文](README.zh.md)
 
 #### What the model sees
 
-Nothing: the namespace answers the sidebar's file explorer and registers no tool, prompt section, or session event, so what a model reads of a workspace stays `avn-tool-fs`'s.
+The tool `sidebar_files` with an optional `path`: it stats the path and asks the window showing the Session, through the `workspace-files/show` waterfall, to open a file in a preview tab of the explorer or expand the explorer to a folder inside the workspace. It returns one sentence naming what is shown, and fails when the path is missing, a folder lies outside the workspace, the file has no text or image preview, or no window answers within `showTimeoutMs`. The Remote namespace itself registers no prompt section or session event, so what a model reads of a workspace stays `avn-tool-fs`'s.
 
 #### Token effect
 
-None; a listing, a preview page, and a search result are drawn in the browser and never join a request.
+Only the `sidebar_files` call and its one-sentence result; a listing, a preview page, and a search result are drawn in the browser and never join a request.
 
 #### KV Cache effect
 
-None; these calls neither assemble nor change a model request.
+Append-only for `sidebar_files`: its result joins the conversation after the user's message. The Remote calls neither assemble nor change a model request.
 
 ## Known Limitations and Deferred Work
 

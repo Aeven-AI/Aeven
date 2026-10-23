@@ -35,6 +35,14 @@ export interface FilesPaneProps extends SidebarContentPaneProps {
   readonly onFileChange?: ((path: string | null, root: string | null) => void) | undefined
   /** Workspace-relative or absolute file requested by another client surface. */
   readonly requestedFile?: { readonly path: string } | undefined
+  /** Workspace-relative folder requested by another client surface, which the tree expands to. */
+  readonly requestedFolder?: { readonly path: string } | undefined
+  /**
+   * Offer this pane to reveal later folder requests in place.
+   * @param reveal - expands the tree to a workspace-relative folder and focuses it.
+   * @returns withdrawal of the offer.
+   */
+  readonly registerReveal?: ((reveal: (path: string) => void) => () => void) | undefined
   readonly t: TranslateNS<'sidebarFiles'>
   readonly remote: ClientRemote
 }
@@ -107,7 +115,9 @@ function failureLine(t: TranslateNS<'sidebarFiles'>, code: string, message: stri
  * @param props - the column's pane props plus the plugin's copy and Remote.
  * @returns the explorer element tree.
  */
-export function FilesPane({ sessionId, surfaceId, setTab, t, remote, requestedFile, onFileChange }: FilesPaneProps): ReactNode {
+export function FilesPane({
+  sessionId, surfaceId, setTab, t, remote, requestedFile, requestedFolder, registerReveal, onFileChange,
+}: FilesPaneProps): ReactNode {
   const [memory, setMemory] = useState<ExplorerMemory>(() => recall(sessionId, surfaceId))
   const update = useCallback((next: (current: ExplorerMemory) => ExplorerMemory) => {
     setMemory((current) => {
@@ -187,6 +197,15 @@ export function FilesPane({ sessionId, surfaceId, setTab, t, remote, requestedFi
     for (const folder of folders) void load(folder)
     setFocus(path)
   }, [load, update])
+
+  useEffect(() => {
+    if (requestedFolder !== undefined) reveal(requestedFolder.path, 'directory')
+  }, [requestedFolder, reveal])
+  useEffect(() => registerReveal?.((path) => {
+    // Revealing a folder shows the tree, so an open file preview gives way to it.
+    update(current => ({ ...current, openFile: null }))
+    reveal(path, 'directory')
+  }), [registerReveal, reveal, update])
 
   // The pill names the open file and keeps the Files glyph.
   useEffect(() => {

@@ -86,6 +86,16 @@ export class ClientTerminals extends Service {
   }
 
   /**
+   * Whether a content identity already names a Host terminal, so its pane restores that shell.
+   * @param sessionId - owning Session.
+   * @param contentId - terminal content identity.
+   * @returns true once a view or restore has bound the content.
+   */
+  bound(sessionId: SessionId, contentId: string): boolean {
+    return this.bindings.get(sessionId, contentId) !== undefined
+  }
+
+  /**
    * Save a close intent and release the tab immediately; cleanup outlives DOM unmount and reload.
    * @param sessionId - owning Session.
    * @param key - sidebar occurrence key, including an inactive restored tab.

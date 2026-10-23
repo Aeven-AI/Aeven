@@ -25,14 +25,15 @@ import { hardenBrowserGuests, registerBrowserIpc } from './browser-guests.ts'
 import { acquireHostClientLease, resolveAvnHome } from '@aeven/home-paths'
 import { planDesktopBackend } from './attached-host.ts'
 import { resolveDesktopPaths } from './paths.ts'
-import { DesktopProjectManager, type DesktopProjectHooks } from './project-manager.ts'
+import { DesktopProjectManager, type DesktopProjectHooks, type DesktopReleaseStep } from './project-manager.ts'
 import { DesktopHostProcess } from './host-process.ts'
 import { DESKTOP_AEVEN_API_PATH, type DesktopAevenSignIn } from './host-protocol.ts'
 import { DESKTOP_IPC, type DesktopCaptionAction, type DesktopMenuCommand } from './ipc.ts'
-import { resolveDesktopLocale } from './locale.ts'
+import { formatDesktopMessage, resolveDesktopLocale, type DesktopMessages } from './locale.ts'
 import { claimDesktopSingleInstance } from './single-instance.ts'
 import { DesktopBackgroundMode } from './background-mode.ts'
 import { DesktopUpdateCoordinator } from './update-coordinator.ts'
+import { stagedReleaseResources, stageNativeUpdate } from './update-staging.ts'
 import type { DesktopUpdateState } from './ipc.ts'
 import { desktopUpdatePrompt } from './update-prompt.ts'
 import { loginShellPath, mergePath } from './login-shell-path.ts'
@@ -212,6 +213,13 @@ function shipItCacheDir(resourcesPath: string, cacheRoot: string): string | unde
   }
   const identifier = bundleIdentifier(plist)
   return identifier === undefined ? undefined : join(cacheRoot, `${identifier}.ShipIt`)
+}
+
+/** The start screen line each release step shows while a launch installs its release. */
+const RELEASE_STEP_MESSAGE: Readonly<Record<DesktopReleaseStep, keyof DesktopMessages>> = {
+  unpacking: 'updateStepUnpacking',
+  installing: 'updateStepInstalling',
+  checking: 'updateStepChecking',
 }
 
 /**
@@ -411,6 +419,20 @@ async function main(): Promise<void> {
   const startupFinished = Promise.withResolvers<void>()
 
   /**
+   * Write one line under the start screen's spinner. The application's own page
+   * has replaced the start screen once this matters no more, so a window showing
+   * anything else is left alone.
+   * @param text - the line, already localized.
+   */
+  const showStartStatus = (text: string): void => {
+    const window = mainWindow
+    if (window === undefined || window.isDestroyed() || window.webContents.getURL() !== startPageUrl()) return
+    window.webContents.executeJavaScript(
+      `{const line=document.querySelector('.avn-start-status');if(line)line.textContent=${JSON.stringify(text)}}`,
+    ).catch((error: unknown) => { console.warn('avn desktop: the start screen status did not update', error) })
+  }
+
+  /**
    * Hand one menu command to the page and bring its window forward: the page
    * owns both the Settings surface and the composer dictation acts on.
    * @param command - the command the page listens for.
@@ -475,8 +497,10 @@ async function main(): Promise<void> {
       applicationName: app.name,
       messages,
       actions: {
-        // The update installer must not quit the shell while startup installs or starts the backend.
+        // The update installer must not quit the shell while startup installs or starts the backend, so a
+        // check asked for during startup says so on the start screen and opens the popup once the page is up.
         checkForUpdates: () => {
+          showStartStatus(messages.updateCheckAfterStartup)
           void startupFinished.promise.then(() => {
             showUpdateSurface()
             void checkAndPrompt(true)
@@ -648,6 +672,7 @@ async function main(): Promise<void> {
     afterActivate: async () => {
       host = await startHost()
     },
+    progress: (step) => { showStartStatus(formatDesktopMessage(messages[RELEASE_STEP_MESSAGE[step]], { version: app.getVersion() })) },
   }
 
   if (development === undefined && plan.kind === 'spawn') {
@@ -680,6 +705,31 @@ async function main(): Promise<void> {
   await clearStaleUpdateResidue().catch((error: unknown) => {
     console.warn('avn desktop: could not clear update residue', error)
   })
+  /** Release Squirrel holds staged; a later periodic check finds the same release again. */
+  let stagedVersion: string | undefined
+  /**
+   * Ready a downloaded release for its restart. On macOS Squirrel stages the
+   * bundle, and the shell installs that bundle's profile with its own runtime,
+   * so the first launch of the release adopts the profile instead of installing
+   * it behind the start screen. A profile that cannot be prepared leaves that
+   * launch to install it; a bundle Squirrel cannot stage fails the update.
+   * @param version - the downloaded release.
+   */
+  const prepareDownloadedRelease = async (version: string): Promise<void> => {
+    if (process.platform !== 'darwin' || !app.isPackaged) return
+    if (stagedVersion !== version) {
+      await stageNativeUpdate()
+      stagedVersion = version
+    }
+    const shipItDir = shipItCacheDir(process.resourcesPath, updateCacheRoot(process.platform, process.env))
+    if (shipItDir === undefined || development !== undefined || plan.kind !== 'spawn') return
+    try {
+      const staged = await stagedReleaseResources(shipItDir, version)
+      await manager.prepareRelease(staged.seed, version, { node: staged.node, pnpm: staged.pnpm })
+    } catch (error) {
+      console.warn(`avn desktop: could not prepare release ${version}; its first launch installs it`, error)
+    }
+  }
   const updates = new DesktopUpdateCoordinator(
     publishUpdate,
     async () => {
@@ -689,6 +739,7 @@ async function main(): Promise<void> {
       await active?.stop()
       await releaseClientLease?.()
     },
+    prepareDownloadedRelease,
   )
 
   const background = new DesktopBackgroundMode(join(app.getPath('userData'), 'background-mode.json'), messages, {

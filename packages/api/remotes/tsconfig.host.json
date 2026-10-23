@@ -70,6 +70,12 @@
     },
     {
       "path": "../../skill/skill"
+    },
+    {
+      "path": "../terminal-controller/tsconfig.host.json"
+    },
+    {
+      "path": "../workspace-files"
     }
   ]
 }

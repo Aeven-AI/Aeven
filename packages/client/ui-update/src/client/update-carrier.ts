@@ -8,7 +8,7 @@ export type DesktopUpdateStatus =
   | { readonly phase: 'idle' }
   | { readonly phase: 'checking' }
   | {
-    readonly phase: 'available' | 'downloading' | 'ready' | 'installing'
+    readonly phase: 'available' | 'downloading' | 'preparing' | 'ready' | 'installing'
     readonly version: string
     /** Download progress, 0 through 100, while `downloading`. */
     readonly percent?: number

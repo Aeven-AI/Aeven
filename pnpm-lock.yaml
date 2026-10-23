@@ -1332,6 +1332,9 @@ importers:
       '@aeven/sandbox-policy':
         specifier: workspace:^
         version: link:../../sandbox/sandbox-policy
+      '@aeven/scope':
+        specifier: workspace:^
+        version: link:../../core/scope
       '@aeven/session':
         specifier: workspace:^
         version: link:../../core/session
@@ -1411,6 +1414,12 @@ importers:
 
   packages/api/workspace-files:
     dependencies:
+      '@aeven/scope':
+        specifier: workspace:^
+        version: link:../../core/scope
+      '@aeven/tools':
+        specifier: workspace:^
+        version: link:../../core/tools
       '@deepseek-ai/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
@@ -4660,6 +4669,9 @@ importers:
       '@aeven/api-remotes':
         specifier: workspace:^
         version: link:../../api/remotes
+      '@aeven/api-session-controller':
+        specifier: workspace:^
+        version: link:../../api/session-controller
       '@aeven/api-terminal-controller':
         specifier: workspace:^
         version: link:../../api/terminal-controller

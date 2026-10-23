@@ -8,6 +8,8 @@
 
 import type {} from '@aeven/api-session-controller/remote-events'
 import type {} from '@aeven/skill'
+import type {} from '@aeven/api-terminal-controller/types'
+import type {} from '@aeven/api-workspace-files/types'
 import type { TypertForwardableEventEntry } from '@aeven/typert-protocol'
 
 /**
@@ -35,5 +37,7 @@ export const API_REMOTE_FORWARDED_EVENTS = [
   { event: 'location/request', mode: 'waterfall' },
   { event: 'settings/document-updated', mode: 'emit' },
   { event: 'skills/change', mode: 'emit' },
+  { event: 'terminal/show', mode: 'waterfall' },
   { event: 'user-questions/request', mode: 'waterfall' },
+  { event: 'workspace-files/show', mode: 'waterfall' },
 ] as const satisfies readonly TypertForwardableEventEntry[]

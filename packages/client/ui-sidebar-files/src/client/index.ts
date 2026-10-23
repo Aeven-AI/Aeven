@@ -1,7 +1,9 @@
 /** Registers the file explorer as a right sidebar content kind. */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
-// Type-only: pulls the Remote Context merge (ctx.remote).
+// Type-only: pulls the Remote Context merge (ctx.remote) and its forwarded `workspace-files/show` request.
 import type {} from '@aeven/api-remotes/client'
+// Type-only: pulls the session client's Context merge (ctx.sessions).
+import type {} from '@aeven/api-session-controller/client'
 import type { SessionId } from '@aeven/api-remotes/client'
 // Type-only: pulls the locale plugin's Context merge (ctx.locale).
 import type {} from '@aeven/client-locale/client'
@@ -55,25 +57,47 @@ export function apply(ctx: ClientContext): void {
   const t = ctx.locale.bind(NS)
   ctx.inject(['sidebarContent', 'remote', 'remote.workspaceFiles', 'remote.session'], (scoped) => {
     const remote = scoped.remote
-    const pending = new Map<string, string>()
+    // The path the next new Files pill of a session opens: a file to preview or a folder to expand to.
+    const pending = new Map<string, { readonly path: string; readonly type: 'file' | 'directory' }>()
     const openFiles = new Map<string, { sessionId: string; surfaceId: string; path: string | null; root: string | null }>()
-    scoped.provide('sidebarFiles', {
-      async open(sessionId, path) {
-        if (fileKindOf(path) !== 'image') {
-          const result = await remote.workspaceFiles.read(sessionId, path)
-          if (!result.ok && result.error.code === 'workspace-file/not-text') return false
+    // Mounted panes, which reveal a folder in place instead of opening another pill.
+    const revealers = new Map<string, { sessionId: string; surfaceId: string; reveal: (path: string) => void }>()
+    const openFile = async (sessionId: SessionId, path: string): Promise<boolean> => {
+      if (fileKindOf(path) !== 'image') {
+        const result = await remote.workspaceFiles.read(sessionId, path)
+        if (!result.ok && result.error.code === 'workspace-file/not-text') return false
+      }
+      for (const file of openFiles.values()) {
+        if (file.sessionId === sessionId && file.path !== null
+          && resolveWorkspacePath(file.root ?? undefined, file.path) === resolveWorkspacePath(file.root ?? undefined, path)) {
+          scoped.sidebarContent.requestOpen(sessionId, 'files', false, file.surfaceId)
+          return true
         }
-        for (const file of openFiles.values()) {
-          if (file.sessionId === sessionId && file.path !== null
-            && resolveWorkspacePath(file.root ?? undefined, file.path) === resolveWorkspacePath(file.root ?? undefined, path)) {
-            scoped.sidebarContent.requestOpen(sessionId, 'files', false, file.surfaceId)
-            return true
-          }
-        }
-        pending.set(sessionId, path)
-        scoped.sidebarContent.requestOpen(sessionId, 'files', true)
-        return true
-      },
+      }
+      pending.set(sessionId, { path, type: 'file' })
+      scoped.sidebarContent.requestOpen(sessionId, 'files', true)
+      return true
+    }
+    const openFolder = (sessionId: SessionId, path: string): void => {
+      const mounted = [...revealers.values()].find(pane => pane.sessionId === sessionId)
+      if (mounted !== undefined) {
+        mounted.reveal(path)
+        scoped.sidebarContent.requestOpen(sessionId, 'files', false, mounted.surfaceId)
+        return
+      }
+      pending.set(sessionId, { path, type: 'directory' })
+      scoped.sidebarContent.requestOpen(sessionId, 'files', true)
+    }
+    scoped.provide('sidebarFiles', { open: openFile })
+    scoped.inject(['sessions'], (shown) => {
+      // The model's `sidebar_files` reaches the window showing its session; a window showing another session delegates.
+      shown.remote.$on('workspace-files/show', function (request, next) {
+        const sessionId = shown.sessions.scopeOf(this)
+        if (sessionId === undefined) return next()
+        if (request.type === 'file') return openFile(sessionId, request.path).then(opened => opened ? 'shown' : 'not-previewable')
+        openFolder(sessionId, request.path)
+        return Promise.resolve('shown')
+      })
     })
     const Pane = (props: SidebarContentPaneProps) => {
       const key = `${props.sessionId}\u0000${props.surfaceId}`
@@ -81,14 +105,19 @@ export function apply(ctx: ClientContext): void {
         openFiles.set(key, { sessionId: props.sessionId, surfaceId: props.surfaceId, path, root })
       }, [key, props.sessionId, props.surfaceId])
       useEffect(() => () => { openFiles.delete(key) }, [key])
-      const [requestedFile] = useState(() => {
-        const path = pending.get(props.sessionId)
-        return path === undefined ? undefined : { path }
-      })
+      const registerReveal = useCallback((reveal: (path: string) => void) => {
+        revealers.set(key, { sessionId: props.sessionId, surfaceId: props.surfaceId, reveal })
+        return () => { if (revealers.get(key)?.reveal === reveal) revealers.delete(key) }
+      }, [key, props.sessionId, props.surfaceId])
+      const [requested] = useState(() => pending.get(props.sessionId))
       useEffect(() => {
-        if (pending.get(props.sessionId) === requestedFile?.path) pending.delete(props.sessionId)
-      }, [props.sessionId, requestedFile])
-      return createElement(FilesPane, { ...props, t, remote, requestedFile, onFileChange })
+        if (pending.get(props.sessionId) === requested) pending.delete(props.sessionId)
+      }, [props.sessionId, requested])
+      return createElement(FilesPane, {
+        ...props, t, remote, onFileChange, registerReveal,
+        requestedFile: requested?.type === 'file' ? { path: requested.path } : undefined,
+        requestedFolder: requested?.type === 'directory' ? { path: requested.path } : undefined,
+      })
     }
     scoped.effect(() => scoped.sidebarContent.register('files', Pane), 'ui-sidebar-files: files content kind')
   })

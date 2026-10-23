@@ -34,7 +34,8 @@ export type UpdatePopupProps = PropsRuntime<'shell.overlay'> & InjectFace<Update
 
 /** Phases that report work in flight. */
 function isBusy(phase: DesktopUpdateStatus['phase']): boolean {
-  return phase === 'checking' || phase === 'available' || phase === 'downloading' || phase === 'installing'
+  return phase === 'checking' || phase === 'available' || phase === 'downloading' || phase === 'preparing'
+    || phase === 'installing'
 }
 
 /**
@@ -57,6 +58,8 @@ function describe(
       return status.percent === undefined
         ? t('downloading', { version: status.version })
         : t('downloadingPercent', { version: status.version, percent: String(status.percent) })
+    case 'preparing':
+      return t('preparing', { version: status.version })
     case 'ready':
       return t('ready', { version: status.version })
     case 'installing':
@@ -102,6 +105,7 @@ function actions(
     case 'checking':
     case 'available':
     case 'downloading':
+    case 'preparing':
     case 'installing':
       return undefined
     /* v8 ignore next 2 -- the phase union is closed; a new phase must extend actions() */

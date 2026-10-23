@@ -8,6 +8,8 @@ import type { SessionId } from '@aeven/session'
 import type {} from '@aeven/sandbox-policy'
 import type {} from '@aeven/identity-user'
 import { Remote, RemoteError, TypertRemoteService } from '@aeven/typert-protocol'
+import { scopeTarget } from '@aeven/scope'
+import { randomUUID } from 'node:crypto'
 import { discoverShells, resolveShell } from './shells.ts'
 import { BrowserTerminal } from './terminal.ts'
 import { TerminalRetention, UNKNOWN_ACTIVITY } from './retention.ts'
@@ -60,6 +62,12 @@ export interface Config {
   readonly activityPollIntervalMs: number
   /** Delay before retrying failed owned terminal cleanup. */
   readonly cleanupRetryMs: number
+  /** Columns of a shell the model opens, until the pane that shows it fits it to its width. */
+  readonly openCols: number
+  /** Rows of a shell the model opens, until the pane that shows it fits it to its height. */
+  readonly openRows: number
+  /** How long a model open waits for the window showing the Session to open its Terminal pill. */
+  readonly showTimeoutMs: number
 }
 
 interface TerminalAllocation {
@@ -97,6 +105,9 @@ export class TerminalController extends TypertRemoteService {
     unattendedTimeoutMs: z.number().step(1).min(0).max(Number.MAX_SAFE_INTEGER).default(7_200_000),
     activityPollIntervalMs: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(30_000),
     cleanupRetryMs: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(60_000),
+    openCols: z.number().step(1).min(2).default(120),
+    openRows: z.number().step(1).min(1).default(32),
+    showTimeoutMs: z.number().step(1).min(1).default(5_000),
   })
 
   private readonly owners = new Map<SessionId, OwnedSession>()
@@ -311,10 +322,10 @@ export class TerminalController extends TypertRemoteService {
     })
     ctx.effect(() => ctx.tools.register(defineTool({
       name: 'sidebar_terminal',
-      description: 'Control the existing terminals beside this chat in web or Electron. List returns this session’s terminal ids; read returns bounded rendered screen and history text without taking keyboard ownership. Send shares the same shell and writes text, optionally followed by Enter; use submit=false for raw control keys such as Ctrl-C (\\u0003), Tab (\\t), or arrow escape sequences. Input acceptance does not prove command completion: read again to inspect output. Rename, resize, and close affect that same sidebar terminal. These are user shells with system-user permissions; restricted agent sessions require approval. To start a shell, ask the user to open Terminal in the sidebar.',
+      description: 'Control the terminals beside this chat in web or Electron. Open starts a new shell in the workspace and shows it in a Terminal tab in the sidebar, returning its id; use it when the user asks for a terminal. List returns this session’s terminal ids; read returns bounded rendered screen and history text without taking keyboard ownership. Send shares the same shell and writes text, optionally followed by Enter; use submit=false for raw control keys such as Ctrl-C (\\u0003), Tab (\\t), or arrow escape sequences. Input acceptance does not prove command completion: read again to inspect output. Rename, resize, and close affect that same sidebar terminal. These are user shells with system-user permissions; restricted agent sessions require approval to use them.',
       parameters: {
-        action: { type: 'string', required: true, enum: ['list', 'read', 'send', 'rename', 'resize', 'close'] },
-        terminalId: { type: 'string', description: 'Id from list; required for every action except list.' },
+        action: { type: 'string', required: true, enum: ['open', 'list', 'read', 'send', 'rename', 'resize', 'close'] },
+        terminalId: { type: 'string', description: 'Id from open or list; required for every action except open and list.' },
         text: { type: 'string', description: 'Required for send; UTF-8 input, including control characters.' },
         submit: { type: 'boolean', description: 'Append Enter for send (default true). False sends text exactly.' },
         count: { type: 'integer', description: 'Maximum newest lines for read (default 100).' },
@@ -331,6 +342,7 @@ export class TerminalController extends TypertRemoteService {
         if (agent === undefined) throw new Error('Sidebar terminal control requires a calling agent')
         exec.signal.throwIfAborted()
         if (args.action === 'list') return JSON.stringify(this.list(agent.id))
+        if (args.action === 'open') return JSON.stringify(await this.openShown(ctx, agent, exec.signal))
         if (args.terminalId === undefined) throw new Error('terminalId is required for this action; call list for current ids')
         const id = args.terminalId as WebTerminalId
         const terminal = this.terminal(agent, id)
@@ -368,6 +380,33 @@ export class TerminalController extends TypertRemoteService {
         rawInput: args.text ?? args.terminalId,
       }),
     })), 'terminal-controller.model-tool')
+  }
+
+  /**
+   * Start a shell for the model and have the window showing its Session open a Terminal pill on it. A shell no window
+   * shows is closed again, since nobody could see what the model types into it.
+   * @param ctx - the context the tool is registered in, which dispatches the show request.
+   * @param agent - the Session the shell belongs to.
+   * @param signal - the tool call's cancellation.
+   * @returns the new terminal.
+   */
+  private async openShown(ctx: Context, agent: Agent, signal: AbortSignal): Promise<WebTerminalInfo> {
+    const info = await this.create(agent, {
+      id: randomUUID() as WebTerminalId, cols: this.config.openCols, rows: this.config.openRows,
+    }, signal)
+    const bounded = AbortSignal.any([signal, AbortSignal.timeout(this.config.showTimeoutMs)])
+    const unanswered = new Promise<boolean>((resolve) => {
+      if (bounded.aborted) resolve(false)
+      else bounded.addEventListener('abort', () => { resolve(false) }, { once: true })
+    })
+    const shown = await Promise.race([
+      ctx.waterfall(scopeTarget(agent, agent), 'terminal/show', { terminalId: info.id, agent, signal: bounded }, () => Promise.resolve(false)),
+      unanswered,
+    ])
+    if (shown) return info
+    await this.close(agent, info.id)
+    signal.throwIfAborted()
+    throw new Error('No window is showing this chat, so no terminal was opened. Ask the user to open Terminal in the sidebar.')
   }
 
   private callerMayAccess(owner: OwnedSession): boolean {

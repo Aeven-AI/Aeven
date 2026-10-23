@@ -12,9 +12,10 @@ const { autoUpdater } = electronUpdater
 /**
  * Checks, downloads, and installs one complete Desktop release.
  *
- * A found release downloads while the reader keeps working, and the downloaded
- * release installs only when the reader asks for the restart: installing
- * replaces the application and relaunches it, so the shell never decides that
+ * A found release downloads while the reader keeps working, then `prepare`
+ * readies it in the background — on macOS, Squirrel stages the new bundle and
+ * the shell installs that bundle's profile — so the restart the reader answers
+ * swaps applications instead of starting that work. The shell never restarts
  * on the reader's behalf.
  */
 export class DesktopUpdateCoordinator {
@@ -28,20 +29,24 @@ export class DesktopUpdateCoordinator {
   /**
    * @param publish - state sink for the shell's own update surface.
    * @param beforeRestart - stop application-owned processes before replacement.
+   * @param prepare - ready a downloaded release for its restart; a rejection
+   * reports the update as failed.
    * @param updater - Electron artifact updater; replaceable for tests.
    * @param enabled - whether this packaged process carries updater configuration.
    */
   constructor(
     private readonly publish: (state: DesktopUpdateState) => DesktopUpdateState,
     private readonly beforeRestart: () => Promise<void> = async () => {},
+    private readonly prepare: (version: string) => Promise<void> = async () => {},
     private readonly updater: AppUpdater = autoUpdater,
     private readonly enabled: () => boolean = () => (
       app.isPackaged && existsSync(join(process.resourcesPath, 'app-update.yml'))
     ),
   ) {
     // A found release downloads at once, so the offer is about installing what
-    // is already on disk. Nothing installs on quit: a restart is the reader's
-    // decision, and the updater's quit handler would take it from them.
+    // is already on disk. The updater's own quit handler stays off: a restart is
+    // the reader's decision. On macOS the bundle `prepare` has Squirrel stage
+    // still installs when the application quits, which is Squirrel's behaviour.
     this.updater.autoDownload = true
     this.updater.autoInstallOnAppQuit = false
     // The download belongs to the updater, so its progress arrives as events
@@ -98,6 +103,9 @@ export class DesktopUpdateCoordinator {
       await download
       // A newer check owns the stream now; its own download reports the state.
       if (this.availableVersion !== version) return available
+      this.publish({ phase: 'preparing', version })
+      await this.prepare(version)
+      if (this.availableVersion !== version) return available
       this.downloadedVersion = version
       return this.publish({ phase: 'ready', version })
     } catch (error) {
@@ -118,6 +126,7 @@ export class DesktopUpdateCoordinator {
     try {
       if (this.downloadedVersion !== version) {
         await (this.downloadOperation ?? this.updater.downloadUpdate())
+        await this.prepare(version)
         this.downloadedVersion = version
       }
       this.availableVersion = undefined

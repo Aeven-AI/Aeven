@@ -327,10 +327,16 @@ export interface Config {
   readonly activityPollIntervalMs: number
   /** Delay before retrying failed owned terminal cleanup. */
   readonly cleanupRetryMs: number
+  /** Columns of a shell the model opens, until the pane that shows it fits it to its width. */
+  readonly openCols: number
+  /** Rows of a shell the model opens, until the pane that shows it fits it to its height. */
+  readonly openRows: number
+  /** How long a model open waits for the window showing the Session to open its Terminal pill. */
+  readonly showTimeoutMs: number
 }
 ```
 
-来源：[`packages/api/terminal-controller/src/index.ts:29`](../packages/api/terminal-controller/src/index.ts)
+来源：[`packages/api/terminal-controller/src/index.ts:31`](../packages/api/terminal-controller/src/index.ts)
 
 <a id="aevenapi-workspace-files"></a>
 
@@ -353,10 +359,12 @@ export interface Config {
   readonly searchMaxDirectories: number
   /** Directory names a search never descends into. */
   readonly searchSkip: string[]
+  /** How long `sidebar_files` waits for the window showing the Session to open the explorer. */
+  readonly showTimeoutMs: number
 }
 ```
 
-来源：[`packages/api/workspace-files/src/index.ts:40`](../packages/api/workspace-files/src/index.ts)
+来源：[`packages/api/workspace-files/src/index.ts:46`](../packages/api/workspace-files/src/index.ts)
 
 <a id="aevenattachment-local"></a>
 
@@ -1391,6 +1399,11 @@ export interface Config {
   timeoutMs: number
   /** Maximum time between starting a consent and the provider returning to the Aeven API. */
   consentLifetimeMs: number
+  /**
+   * Interval at which pending consents are checked with the Aeven API, so a sign-in the provider completed becomes a
+   * connector, and Settings shows it, while the reader is still on the provider's page.
+   */
+  consentPollMs: number
   /**
    * Aeven API origin whose connector broker holds every provider credential: OAuth
    * client secrets and refresh tokens, the Discord bot token, and the Telegram

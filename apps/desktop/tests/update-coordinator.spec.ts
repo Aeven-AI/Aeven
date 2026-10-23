@@ -64,6 +64,7 @@ describe('desktop update coordinator', () => {
         return state
       },
       beforeRestart,
+      async () => {},
       updater,
       () => true,
     )
@@ -90,7 +91,7 @@ describe('desktop update coordinator', () => {
       downloadUpdate,
       quitAndInstall: vi.fn(),
     } as unknown as AppUpdater
-    const coordinator = new DesktopUpdateCoordinator(state => state, async () => {}, updater, () => true)
+    const coordinator = new DesktopUpdateCoordinator(state => state, async () => {}, async () => {}, updater, () => true)
 
     const checking = coordinator.check()
     const installing = coordinator.install()
@@ -125,6 +126,7 @@ describe('desktop update coordinator', () => {
         return state
       },
       async () => {},
+      async () => {},
       updater,
       () => true,
     )
@@ -140,11 +142,11 @@ describe('desktop update coordinator', () => {
     downloaded.resolve(true)
 
     await expect(checking).resolves.toEqual({ phase: 'ready', version: '1.1.0' })
-    expect(states.map(state => state.phase)).toEqual(['checking', 'available', 'ready'])
+    expect(states.map(state => state.phase)).toEqual(['checking', 'available', 'preparing', 'ready'])
     await expect(coordinator.install()).resolves.toEqual({ phase: 'ready', version: '1.1.0' })
     expect(downloadUpdate).not.toHaveBeenCalled()
     expect(quitAndInstall).toHaveBeenCalledWith(false, true)
-    expect(states.map(state => state.phase)).toEqual(['checking', 'available', 'ready', 'installing', 'ready'])
+    expect(states.map(state => state.phase)).toEqual(['checking', 'available', 'preparing', 'ready', 'installing', 'ready'])
   })
 
   it('reports the release download it is waiting for as progress', async () => {
@@ -171,6 +173,7 @@ describe('desktop update coordinator', () => {
         return state
       },
       async () => {},
+      async () => {},
       updater,
       () => true,
     )
@@ -194,7 +197,7 @@ describe('desktop update coordinator', () => {
       downloadUpdate: vi.fn(),
       quitAndInstall: vi.fn(),
     } as unknown as AppUpdater
-    const coordinator = new DesktopUpdateCoordinator(state => state, async () => {}, updater, () => true)
+    const coordinator = new DesktopUpdateCoordinator(state => state, async () => {}, async () => {}, updater, () => true)
 
     await expect(coordinator.check()).resolves.toEqual({ phase: 'idle' })
     expect(checkForUpdates).toHaveBeenCalledOnce()
@@ -211,7 +214,7 @@ describe('desktop update coordinator', () => {
       downloadUpdate: vi.fn(),
       quitAndInstall: vi.fn(),
     } as unknown as AppUpdater
-    const coordinator = new DesktopUpdateCoordinator(state => state, async () => {}, updater, () => false)
+    const coordinator = new DesktopUpdateCoordinator(state => state, async () => {}, async () => {}, updater, () => false)
 
     await expect(coordinator.check()).resolves.toEqual({ phase: 'idle' })
     expect(checkForUpdates).not.toHaveBeenCalled()
@@ -234,6 +237,7 @@ describe('desktop update coordinator', () => {
         states.push(state)
         return state
       },
+      async () => {},
       async () => {},
       updater,
       () => true,
