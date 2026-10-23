@@ -66,6 +66,8 @@
     "@aeven/plugin-package-inventory-deepseek": "workspace:^",
     "@aeven/pwsh-sandbox": "workspace:^",
     "@aeven/repeat-tool-reminder": "workspace:^",
+    "@aeven/turn-review": "workspace:^",
+    "@aeven/bash-edit-guard": "workspace:^",
     "@aeven/sandbox-local": "workspace:^",
     "@aeven/sandbox-policy": "workspace:^",
     "@aeven/session": "workspace:^",
