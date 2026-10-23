@@ -50,7 +50,7 @@ The landing `<title>` and window sizing are the provider's own; the application 
 
 - `oauth.client.spec.ts` covers the window: the URL, name, and features it is opened with; that a document is a landing only when another document opened it; and the wait — resolved at once when a session is already there, still waiting while the API answers none, and still waiting through an API that cannot be reached rather than reading that as finished.
 - `config.client.spec.ts` covers the resolver: the stated flow, and the fallthrough a page with no provider reaches.
-- `packages/identity/user-aeven/tests/loopback-inject.spec.ts` covers the Host side: the flow the page is served with. No suite asserts the refusal to load when a provider is offered without one, or a stated flow ignored when no provider is; `resolveOAuthFlow` in `packages/identity/user-aeven/src/index.ts` enforces both.
+- `packages/identity/user-aeven/tests/loopback-inject.spec.ts` covers the Host side: the flow the page is served with, the refusal to load when a provider is offered without one, and a stated flow the page does not carry when `resolveOAuthFlow` in `packages/identity/user-aeven/src/index.ts` finds no provider.
 - The assembled browser is unchanged under `redirect`, which is every deployment the web lane runs: the gate, the preloader, and the boot path are covered by the suites that already own them.
 
 ## Deferred
