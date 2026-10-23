@@ -53,4 +53,4 @@ Status: implemented
 
 ## 测试
 
-`packages/client/ui-chat/tests/chat-view.client.spec.tsx` 固定了：来自 outline 的导轨阶梯、指针到标记的映射、采样步长及其「最新轮次」追加、固定间距样式、跳转的事件导航生命周期（意图已投递、一次分页请求、确认、最近行兜底）、作为标记来源的阅读带、底部规则、轮次跳转的原点落位、挂载时的填空拉取，以及八屏预取跑道。`packages/api/session-controller/tests/session.client.spec.ts` 固定了：针对建模宿主日志的「每个跳转目标一次锚定读取」、重定向的第二次读取、被拒绝且不留下任何目标的跳转，以及在毫无进展的页面上有限的这一趟。`packages/client/ui-chat/tests/chat-stats.client.spec.tsx` 固定了尺寸观察者与被裁剪行的提示气泡。
+`packages/client/ui-chat/tests/chat-view.client.spec.tsx` 固定了：来自 outline 的导轨阶梯、指针到标记的映射、采样步长及其「最新轮次」追加、固定间距样式、跳转的事件导航生命周期（意图已投递、一次分页请求、确认、最近行兜底）、作为标记来源的阅读带、底部规则、轮次跳转的原点落位、挂载时的填空拉取，以及八屏预取跑道。`packages/api/session-controller/tests/session.client.spec.ts` 固定了：针对建模宿主日志的「每个跳转目标一次锚定读取」、重定向的第二次读取、被拒绝且不留下任何目标的跳转，以及在毫无进展的页面上有限的这一趟。尺寸观察者与被裁剪行的提示气泡属于 `StatsLine`；该组件与 `chat-stats.client.spec.tsx` 已随工作详情呈现一并删除，因此如今没有测试套件固化这两者。

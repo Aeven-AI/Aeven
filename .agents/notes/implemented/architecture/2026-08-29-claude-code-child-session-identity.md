@@ -19,7 +19,7 @@ An inherited value therefore wins over the SDK's own answer, and the CLI the SDK
 
 This is not a test-only condition. Any deployment whose Host is launched from a Claude Code session reaches it, and the failure names nothing that points at the environment.
 
-`packages/subagent/subagent-claude-code/tests/real-product.spec.ts` failed all 8 tests for exactly this reason and passed with `CLAUDE_CODE_ENTRYPOINT` alone removed from the ambient environment. The file already isolates `ANTHROPIC_MODEL` and `ANTHROPIC_SMALL_FAST_MODEL` against the same class of leak.
+`packages/subagent/subagent-claude-code/tests/real-product.e2e.ts` — the real-product end-to-end suite — failed all 8 of its tests for exactly this reason and passed with `CLAUDE_CODE_ENTRYPOINT` alone removed from the ambient environment. The file already isolates `ANTHROPIC_MODEL` and `ANTHROPIC_SMALL_FAST_MODEL` against the same class of leak.
 
 ## Decision
 
@@ -31,7 +31,7 @@ This is not a test-only condition. Any deployment whose Host is launched from a 
 
 ## Testing
 
-`real-product.spec.ts` runs 8 green with the ambient Claude Code environment present, which is the condition that failed. A unit test in `subagent-claude-code.spec.ts` stubs both variables, asserts neither reaches the composed options, and asserts an explicit `env` entry still does. The package holds per-file 100% coverage.
+`real-product.e2e.ts` runs 8 green with the ambient Claude Code environment present, which is the condition that failed. A unit test in `subagent-claude-code.spec.ts` stubs both variables, asserts neither reaches the composed options, and asserts an explicit `env` entry still does. The package holds per-file 100% coverage.
 
 ## Alternatives considered
 

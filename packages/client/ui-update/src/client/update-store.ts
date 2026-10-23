@@ -1,6 +1,6 @@
 /** The update popup's own state: the shell's last release-stream state, and whether the popup shows. */
 
-import { createSnapshotStore } from '@aeven/client-store'
+import { createSnapshotStore, type SnapshotStore } from '@aeven/client-store'
 import type { DesktopUpdateStatus } from './update-carrier.ts'
 
 /**
@@ -15,23 +15,31 @@ export interface UpdateSurfaceState {
   readonly status: DesktopUpdateStatus
 }
 
+/** The popup's store: the observable the renderer binds, and the writes its plugin makes. */
+interface UpdateStore {
+  /** Bare observable; `update` is its snapshot type. */
+  readonly state: SnapshotStore<UpdateSurfaceState>
+  /** Show the popup. */
+  show: () => void
+  /** Dismiss the popup without answering the restart question. */
+  hide: () => void
+  /**
+   * Record one state the shell published.
+   * @param status - the state the shell reported.
+   */
+  publish: (status: DesktopUpdateStatus) => void
+}
+
 /**
  * Create the popup's store.
  * @returns the bare observable the renderer binds as the component's hook, with the writes its plugin makes.
  */
-export function createUpdateStore() {
+export function createUpdateStore(): UpdateStore {
   const state = createSnapshotStore<UpdateSurfaceState>({ open: false, status: { phase: 'idle' } })
   return {
-    /** Bare observable; `update` is its snapshot type. */
     state,
-    /** Show the popup. */
     show: (): void => { state.set({ ...state.getSnapshot(), open: true }) },
-    /** Dismiss the popup without answering the restart question. */
     hide: (): void => { state.set({ ...state.getSnapshot(), open: false }) },
-    /**
-     * Record one state the shell published.
-     * @param status - the state the shell reported.
-     */
     publish: (status: DesktopUpdateStatus): void => { state.set({ ...state.getSnapshot(), status }) },
   }
 }

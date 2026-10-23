@@ -10,7 +10,7 @@ Status: implemented
 
 在 PR #64 的计数修复之后，`packages/boot/app-boot/tests/hmr-config.spec.ts` 在十二路争用下 36 次运行中失败 3 次：两次是同组用例在 `120000 ms` 超时，一次是目标用例读到 `['one']` 而非 `['one', 'two']`。当时记录的假设是某个轮询器饥饿了整整 30 s 预算，并把 `/var/...` 与规范化的 `/private/var/...` 两个 StatWatcher 列为促成因素。
 
-`scripts/locale-dictionary-parity.spec.ts` 则在一次完整 `check:all` 中因 `packages/fs/fs-observation-policy/src/oxlint-contract-<uuid>.ts` 报出 `ENOENT` 而失败，那是 `scripts/oxlint-contract.spec.ts` 创建后又删除的探针文件。
+`scripts/locale-dictionary-parity.spec.ts` 则在一次完整 `check:all` 中因 `packages/fs/fs-observation-policy/src/` 下一个名为 `oxlint-contract-<uuid>.ts` 的探针文件报出 `ENOENT` 而失败，那是 `scripts/oxlint-contract.spec.ts` 创建后又删除的探针文件。
 
 ## Decision
 

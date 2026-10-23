@@ -174,6 +174,12 @@ export class LiveGuests extends Map<string, BrowserGuest> {
   /** Callers waiting for a session's pane to mount its guest. */
   readonly #waiters = new Map<string, Set<(guest: BrowserGuest) => void>>()
 
+  /**
+   * Record the session's guest and hand it to that session's waiters.
+   * @param sessionId - session whose pane mounted the guest.
+   * @param guest - the mounted guest.
+   * @returns this map.
+   */
   override set(sessionId: string, guest: BrowserGuest): this {
     super.set(sessionId, guest)
     const waiters = this.#waiters.get(sessionId)

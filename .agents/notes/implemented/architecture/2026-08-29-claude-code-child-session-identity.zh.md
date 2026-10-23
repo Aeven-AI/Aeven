@@ -19,7 +19,7 @@ if (!env.CLAUDE_AGENT_SDK_VERSION) env.CLAUDE_AGENT_SDK_VERSION = '0.3.241'
 
 这不是仅存在于测试中的条件。任何 Host 由 Claude Code 会话启动的部署都会遇到它，而失败信息没有任何一处指向环境。
 
-`packages/subagent/subagent-claude-code/tests/real-product.spec.ts` 的 8 个测试全部因此失败，而仅从环境中移除 `CLAUDE_CODE_ENTRYPOINT` 便全部通过。该文件本就针对同一类泄漏隔离了 `ANTHROPIC_MODEL` 与 `ANTHROPIC_SMALL_FAST_MODEL`。
+`packages/subagent/subagent-claude-code/tests/real-product.e2e.ts` —— 真实产品端到端套件 —— 的 8 个测试全部因此失败，而仅从环境中移除 `CLAUDE_CODE_ENTRYPOINT` 便全部通过。该文件本就针对同一类泄漏隔离了 `ANTHROPIC_MODEL` 与 `ANTHROPIC_SMALL_FAST_MODEL`。
 
 ## Decision
 
@@ -31,7 +31,7 @@ if (!env.CLAUDE_AGENT_SDK_VERSION) env.CLAUDE_AGENT_SDK_VERSION = '0.3.241'
 
 ## Testing
 
-`real-product.spec.ts` 在保留 Claude Code 环境变量（即此前失败的条件）下 8 个测试全绿。`subagent-claude-code.spec.ts` 中的单元测试打桩这两个变量，断言二者均未进入组装后的 options，并断言显式 `env` 条目依然生效。该包保持按文件 100% 覆盖率。
+`real-product.e2e.ts` 在保留 Claude Code 环境变量（即此前失败的条件）下 8 个测试全绿。`subagent-claude-code.spec.ts` 中的单元测试打桩这两个变量，断言二者均未进入组装后的 options，并断言显式 `env` 条目依然生效。该包保持按文件 100% 覆盖率。
 
 ## Alternatives considered
 

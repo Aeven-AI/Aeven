@@ -10,7 +10,7 @@ Two suites failed only when many processes ran over the same files, and both wer
 
 `packages/boot/app-boot/tests/hmr-config.spec.ts` failed 3 of 36 runs at twelve-way contention after the accounting repair in PR #64: two sibling-case timeouts at `120000 ms`, and one target case reading `['one']` instead of `['one', 'two']`. The recorded hypothesis was that a poller starved for a whole 30 s budget, with `/var/...` and canonical `/private/var/...` StatWatchers named as a contributing factor.
 
-`scripts/locale-dictionary-parity.spec.ts` failed a full `check:all` with `ENOENT` for `packages/fs/fs-observation-policy/src/oxlint-contract-<uuid>.ts`, a probe file that `scripts/oxlint-contract.spec.ts` had created and deleted.
+`scripts/locale-dictionary-parity.spec.ts` failed a full `check:all` with `ENOENT` for a probe file named `oxlint-contract-<uuid>.ts` under `packages/fs/fs-observation-policy/src/`, which `scripts/oxlint-contract.spec.ts` had created and deleted.
 
 ## Decision
 
