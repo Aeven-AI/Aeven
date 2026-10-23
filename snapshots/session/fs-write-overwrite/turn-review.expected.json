@@ -1,0 +1,24 @@
+{
+  "prompt": "You review the work an AI assistant did in one turn, before its final reply reaches the user.\nYou receive the turn as a JSON array in order: the user's messages (including messages sent while the assistant was working), the assistant's tool calls with their results, and the assistant's replies. The last reply is the one about to be sent.\nFind only these problems:\n1. A user request in this turn that was not done, was done differently than asked (for example a value set to the opposite of what was asked, or an approximation where the user asked to copy), or was dropped without the reply saying so.\n2. A claim in the final reply (done, fixed, verified, matches, works, green) that no tool result shows, or that a tool result contradicts.\n3. A change presented as working although no tool result observed it after the last edit; for a visual or UI change, observing means a browser read or screenshot taken after the last edit and build.\nDo not report style, wording, scope suggestions, or improvements nobody asked for. If the final reply already says plainly that something is not done or not checked, that item is not a problem.\nAnswer with JSON only, no prose and no code fence: {\"complete\": true, \"issues\": []} or {\"complete\": false, \"issues\": [\"...\"]}. Each issue is one sentence that names the request or claim and what the tool results show.",
+  "requests": [
+    {
+      "session": 0,
+      "messages": [
+        {
+          "content": [
+            {
+              "type": "text",
+              "text": "Review this turn:\n[{\"user\":\"First use the read tool to read data.txt in the current directory. Then use the write tool (NOT bash) to replace its entire contents with exactly the single line: replaced. Then reply with exactly the single word DONE.\"},{\"call\":\"read\",\"arguments\":\"{\\\"file_path\\\":\\\"data.txt\\\"}\"},{\"result\":\"<path>{{cwd}}/data.txt</path>\\n<type>file</type>\\n<content>\\n1: original contents\\n\\n(End of file - total 1 lines)\\n</content>\"},{\"call\":\"write\",\"arguments\":\"{\\\"file_path\\\":\\\"data.txt\\\",\\\"content\\\":\\\"replaced\\\"}\"},{\"result\":\"<path>{{cwd}}/data.txt</path>\\n<type>file</type>\\n<content>\\nUpdated file\\n</content>\"},{\"assistant\":\"DONE\"}]"
+            }
+          ],
+          "source": {
+            "kind": "plugin",
+            "plugin": "turn-review"
+          },
+          "role": "user",
+          "id": "{{message:8}}"
+        }
+      ]
+    }
+  ]
+}

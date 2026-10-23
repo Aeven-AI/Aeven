@@ -18,8 +18,10 @@ import { describe, expect, it } from 'vitest'
 import {
   captureExpectedWorkspaceSnapshot,
   captureWorkspaceSnapshot,
+  expectTurnReviewSnapshot,
   normalizeSessionLog,
   normalizeSessionSnapshots,
+  normalizeSessionSnapshotsWithReview,
   normalizeStdout,
   normalizedHeaders,
   normalizedSystemPrompts,
@@ -32,6 +34,7 @@ import {
   scrubRequestHeaders,
   scrubSessionSnapshot,
   scrubSystemPrompts,
+  scrubTurnReviewRequests,
   sessionFixtureNames,
   stabilizeFixtureMessageIds,
   stabilizeRefreshLog,
@@ -39,6 +42,8 @@ import {
   materializeProfilePatch,
   formatSystemPromptSnapshot,
   formatToolSchemasSnapshot,
+  turnReviewSnapshot,
+  writeTurnReviewSnapshot,
   type HarvestedLog,
   type NormalizeContext,
   type SnapshotManifest,
@@ -772,6 +777,8 @@ describe('TypeScript SDK snapshots over the jsonrpc runtime', () => {
           join(scenarioDir, 'session.jsonl'),
           ...Array.from({ length: expectedContents.length - 1 }, (_, index) => join(scenarioDir, `session.${index + 1}.jsonl`)),
         ]
+        await writeTurnReviewSnapshot(scenarioDir, turnReviewSnapshot(expectedContents))
+        expectedContents = expectedContents.map(scrubTurnReviewRequests)
         await Promise.all(expectedContents.map((stable, index) => writeFile(outputFiles[index] as string, stable)))
         if (recording) {
           const retained = new Set(outputFiles.map(file => basename(file)))
@@ -793,11 +800,12 @@ describe('TypeScript SDK snapshots over the jsonrpc runtime', () => {
 
       // Persisted transcripts match the committed fixtures.
       const expectedContext = contextOfContents(expectedContents)
-      const actualSnapshots = normalizeSessionSnapshots(ordered.map(log => log.content), actualContext)
+      const actual = normalizeSessionSnapshotsWithReview(ordered.map(log => log.content), actualContext)
       const expectedSnapshots = normalizeSessionSnapshots(expectedContents, expectedContext)
-      for (const [index, actual] of actualSnapshots.entries()) {
-        expect(actual, `${scenario.name}: session ${index}`).toBe(expectedSnapshots[index])
+      for (const [index, snapshot] of actual.snapshots.entries()) {
+        expect(snapshot, `${scenario.name}: session ${index}`).toBe(expectedSnapshots[index])
       }
+      await expectTurnReviewSnapshot(scenarioDir, actual.review)
       await verifyHeaders(scenario, ordered, actualContext, assertions.avnSdkChild?.agentConfig)
 
       // Genuine SDK protocol cases retain their secondary wire projections.

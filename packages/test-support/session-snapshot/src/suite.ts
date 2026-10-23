@@ -19,7 +19,7 @@
 
 import { readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { isSurfaceEligibleType } from '@aeven/session/surface'
 import { describe, expect, it } from 'vitest'
 import { type AgentUnderTest, type HarvestedLog, type InputScript, runScenario } from './harness.ts'
@@ -29,15 +29,21 @@ import { captureExpectedWorkspaceSnapshot } from './workspace.ts'
 import {
   type CwdPathMode,
   type NormalizeContext,
+  type TurnReviewSnapshot,
   extractSnapshotSpillPaths,
+  formatTurnReviewSnapshot,
   normalizeSessionLog,
   normalizeSessionSnapshots,
+  normalizeSessionSnapshotsWithReview,
   normalizeStdout,
+  parseTurnReviewSnapshot,
   scrubRequestHeaders,
   scrubSessionSnapshot,
   scrubSystemPrompts,
   scrubToolSchemas,
+  scrubTurnReviewRequests,
   tokenizeSessionFixtureCwd,
+  turnReviewSnapshot,
 } from './normalize.ts'
 
 /** The readable system-prompt snapshot beside its owning header pin. */
@@ -45,6 +51,9 @@ const SYSTEM_PROMPT_SNAPSHOT = 'system-prompt.expected.md'
 
 /** The structured tool-schema snapshot beside its owning header pin. */
 const TOOL_SCHEMAS_SNAPSHOT = 'tool-schemas.expected.json'
+
+/** The readable review-request evidence beside the session fixtures that logged it. */
+export const TURN_REVIEW_SNAPSHOT = 'turn-review.expected.json'
 
 /** Return the dedicated tool-schema sidecar for one child fixture index. */
 function childToolSchemasSnapshot(index: number): string {
@@ -502,6 +511,50 @@ export function parseToolSchemasSnapshot(snapshot: string): ToolSchemasSnapshot 
     throw new Error('acp-snapshot: tool-schema snapshot must carry array-valued initial and changes fields')
   }
   return { initial, changes }
+}
+
+/**
+ * Write or remove one scenario's committed review evidence. A run that logged
+ * no review request owns no sidecar, so a stale file would pin a call the
+ * scenario no longer makes.
+ *
+ * @param dir The scenario's fixture directory.
+ * @param review The review requests the run logged, or undefined for none.
+ * @returns Nothing.
+ */
+export async function writeTurnReviewSnapshot(
+  dir: string,
+  review: TurnReviewSnapshot | undefined,
+): Promise<void> {
+  const path = join(dir, TURN_REVIEW_SNAPSHOT)
+  if (review === undefined) {
+    if (existsSync(path)) await rm(path)
+    return
+  }
+  await writeFile(path, formatTurnReviewSnapshot(review))
+}
+
+/**
+ * Compare one scenario's committed review evidence with what the run logged.
+ * Presence and content both follow the run: a scenario that reviews a turn
+ * owns a sidecar, and one that does not owns none.
+ *
+ * @param dir The scenario's fixture directory.
+ * @param logged The review requests the run logged, or undefined for none.
+ * @returns Nothing.
+ */
+export async function expectTurnReviewSnapshot(
+  dir: string,
+  logged: TurnReviewSnapshot | undefined,
+): Promise<void> {
+  const label = `${basename(dir)}/${TURN_REVIEW_SNAPSHOT}`
+  const path = join(dir, TURN_REVIEW_SNAPSHOT)
+  if (!existsSync(path)) {
+    expect(logged, `${label} is missing for a run that reviewed a turn`).toBeUndefined()
+    return
+  }
+  expect(logged, `${label} exists although the run logged no review request`).toBeDefined()
+  expect(parseTurnReviewSnapshot(await readFile(path, 'utf8')), `${label} mismatch`).toEqual(logged)
 }
 
 /**
@@ -1291,7 +1344,9 @@ export function defineAcpSnapshotSuite(options: SnapshotSuiteOptions): void {
               ctx,
             ))))
             : result.sessionLogs.map(log => scrubSessionSnapshot(portableFixture(log.content)))
-          const outputFixtures = redactSessionSnapshotIds(stabilizeFixtureMessageIds(freshFixtures, existingFixtures))
+          const committedFixtures = redactSessionSnapshotIds(stabilizeFixtureMessageIds(freshFixtures, existingFixtures))
+          await writeTurnReviewSnapshot(dir, turnReviewSnapshot(committedFixtures))
+          const outputFixtures = committedFixtures.map(scrubTurnReviewRequests)
           await Promise.all(outputFixtures.map((fixture, index) =>
             writeFile(join(dir, outputFixtureFiles[index] as string), fixture)))
           if (RECORDING) {
@@ -1385,11 +1440,12 @@ export function defineAcpSnapshotSuite(options: SnapshotSuiteOptions): void {
             sessionIds: fixtureContexts.flatMap(context => context.sessionIds),
             cwd: (fixtureContexts[0] as NormalizeContext).cwd,
           }
-          const actualSnapshots = normalizeSessionSnapshots(harvested, ctx)
+          const actual = normalizeSessionSnapshotsWithReview(harvested, ctx)
           const expectedSnapshots = normalizeSessionSnapshots(fixtures, fixtureCtx)
-          for (const [index, actual] of actualSnapshots.entries()) {
-            expect(actual, `${fixtureFiles[index]} mismatch`).toEqual(expectedSnapshots[index])
+          for (const [index, snapshot] of actual.snapshots.entries()) {
+            expect(snapshot, `${fixtureFiles[index]} mismatch`).toEqual(expectedSnapshots[index])
           }
+          await expectTurnReviewSnapshot(dir, actual.review)
         }
 
         // Every live full header must equal its class pin reconstructed from

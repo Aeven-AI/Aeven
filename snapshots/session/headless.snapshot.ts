@@ -11,11 +11,13 @@ import ts from 'typescript'
 import {
   captureExpectedWorkspaceSnapshot,
   captureWorkspaceSnapshot,
+  expectTurnReviewSnapshot,
   fixtureContext,
   formatSystemPromptSnapshot,
   formatToolSchemasSnapshot,
   materializeProfilePatch,
   normalizeSessionSnapshots,
+  normalizeSessionSnapshotsWithReview,
   normalizedHeaders,
   normalizedSystemPrompts,
   normalizedToolSchemas,
@@ -27,11 +29,14 @@ import {
   scrubSessionSnapshot,
   scrubSystemPrompts,
   scrubToolSchemas,
+  scrubTurnReviewRequests,
   sessionFixtureNames,
   snapshotSpillRoot,
   stabilizeFixtureMessageIds,
   stabilizeRefreshLog,
   tokenizeSessionFixtureCwd,
+  turnReviewSnapshot,
+  writeTurnReviewSnapshot,
   type HarvestedLog,
   type NormalizeContext,
   type SnapshotManifest,
@@ -192,7 +197,9 @@ async function writeSessionFixtures(
       : log.content,
   )))
   const output = redactSessionSnapshotIds(stabilizeFixtureMessageIds(fresh, prior))
-  await Promise.all(output.map((content, index) => writeFile(join(scenario.dir, names[index] as string), content)))
+  await writeTurnReviewSnapshot(scenario.dir, turnReviewSnapshot(output))
+  const committed = output.map(scrubTurnReviewRequests)
+  await Promise.all(committed.map((content, index) => writeFile(join(scenario.dir, names[index] as string), content)))
 
   if (mode === 'record') {
     const retained = new Set(names)
@@ -241,7 +248,7 @@ async function writeSessionFixtures(
       formatToolSchemasSnapshot(schemas[0] as unknown[], schemas.slice(1)),
     )
   }
-  return output
+  return committed
 }
 
 function taskFromSession(log: string): string | undefined {
@@ -743,11 +750,12 @@ describe('headless recorded-session snapshots', () => {
       expect(actualLogs, `${scenario.name}: persisted session count`).toHaveLength(fixtures.length)
       const actualContext = contextOf(actualLogs.map(log => log.content))
       const fixtureContext = contextOf(fixtures)
-      const actualSnapshots = normalizeSessionSnapshots(actualLogs.map(log => log.content), actualContext)
+      const actual = normalizeSessionSnapshotsWithReview(actualLogs.map(log => log.content), actualContext)
       const expectedSnapshots = normalizeSessionSnapshots(fixtures, fixtureContext)
-      for (const [index, actual] of actualSnapshots.entries()) {
-        expect(actual, `${scenario.name}: session ${index}`).toBe(expectedSnapshots[index])
+      for (const [index, snapshot] of actual.snapshots.entries()) {
+        expect(snapshot, `${scenario.name}: session ${index}`).toBe(expectedSnapshots[index])
       }
+      await expectTurnReviewSnapshot(scenario.dir, actual.review)
       await verifyHeaders(scenario, actualLogs, actualContext)
 
       if (initialWorkspace === undefined || finalWorkspace === undefined) {

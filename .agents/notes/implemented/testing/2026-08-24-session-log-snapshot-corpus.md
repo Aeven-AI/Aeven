@@ -45,7 +45,7 @@ Workspace inputs remain scenario-local. A mutating scenario compares a complete 
 - Every existing recorded-session scenario has one passing replacement before its old owner is removed.
 - Every process-level snapshot starts through `avn`, and the application-entrypoint inventory no longer allows the retired snapshot drivers.
 - Every top-level scenario owns or references session JSONL; non-session expected output remains owner-local.
-- Committed session fixtures are redaction fixed points, contain no system-prompt or tool-schema bulk, and retain exactly one pin per header class.
+- Committed session fixtures are redaction fixed points, contain no system-prompt, tool-schema, or review-transcript bulk, and retain exactly one pin per header class.
 - Mutating scenarios verify their final workspace externally.
 - Owner-local process expectations use `*.expected.e2e.ts` and a separate built-output gate.
 - Source and built adapters install replay-only packages in isolated profile fallbacks; distinct prompt-section orders keep their request headers byte-identical.

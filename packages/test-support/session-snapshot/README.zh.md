@@ -80,6 +80,10 @@ defineAcpSnapshotSuite({
 
 每个 pin 默认拥有其生成的 `system-prompt.expected.md` 或 `tool-schemas.expected.json` 伴随文件；当完整的对应序列相同时，`systemPromptSource` 与 `toolSchemasSource` 指定另一个 pin 作为来源，因此每个不同版本只提交一次。该 pin 的 `session.jsonl` 存储 `"system":"{{system}}","tools":"{{tools}}"`，同时保留配置、原因与任何模型可见前缀。自身作用域组合出不同请求的子会话按 fixture 索引以 `pinsChildToolSchemas` 与 `pinsChildSystemPrompts` 单独声明。运行中改变请求 header 的场景声明 `expectedHeaderChanges`。
 
+### 日志内批量 payload 的伴随文件
+
+负载批量文本的日志事件在 `session.jsonl` 中保留 token，可读副本存放在场景自有的伴随文件中：pin 把提示词与工具 schema 存入 `system-prompt.expected.md` 与 `tool-schemas.expected.json`，而 `turn-review/request` 事件内联保留 `turn`、`round`、`route` 与 `maxTokens`，并以 `"system":"{{turnReviewSystem}}"` 与 `"messages":"{{turnReviewMessages}}"` 指向 `turn-review.expected.json`，该文件保存审查提示词以及每个被审查会话在 `requests` 中的一条记录。刷新会从已提交模型脚本重新生成每个伴随文件；伴随文件缺失、过期，或日志并无此类事件却存在伴随文件时，回放即失败。
+
 ### 平台与组合变体
 
 需要非 Windows 主机的场景声明 `posixOnly`，在 Windows 上跳过运行测试，但 fixture 保护仍在所有平台覆盖其已提交文件；组合需要可用 `pwsh` 的场景声明 `pwshOnly`。当临时目录授权自身待测时，`workspaceParent` 将生成子级 cwd 移出平台临时区域；场景签入的 `workspace/` 会先复制到该子级，随后 `prepareWorkspace` 在 agent 启动前针对生成 cwd 运行。默认生成的 workspace 在会话 fixture 中存储为 `{{cwd}}`，使平台临时根目录与随机 basename 不影响录制。
