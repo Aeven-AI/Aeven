@@ -16,6 +16,7 @@ Every band is a real element, and the rectangle a document needs is drawn by who
 - The macOS start screen renders `<div class="avn-drag-band" aria-hidden="true"></div>` at full width, because that page carries no controls of its own.
 - `apps/web/index.html` carries a band inside `#avn-preloader`, and `apps/web/src/preloader.css` styles it under `html[data-avn-traffic-lights]` at the client header row's height. The boot cover itself declares `drag`, and `#avn-preloader.screen-hidden` is `display: none`, so a hidden cover cannot intercept clicks on the toolbar that replaces it.
 - `AppFrame` renders `.dragBand` as an element of its frame, one header row tall, `z-index: 29` — above the transcript's scrolling controls, below the header (30) and the sidebars (50). Its `no-drag` holes are unchanged: the window subtracts every control from the band, and the header paints above it.
+- The hole rule skips everything in the conversation scroller (`[data-conversation-scroll]`) outside its sticky `header`. Transcript rows scroll up beneath that header into the band, and the window subtracts a `no-drag` rectangle regardless of paint order, so a covered tool or thinking row (`role="button"`) used to cut a hole across the header wherever the scroll position put it.
 
 The gate attribute stays in the preload, because only the carrier knows the platform.
 

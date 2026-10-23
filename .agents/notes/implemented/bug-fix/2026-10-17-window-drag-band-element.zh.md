@@ -16,6 +16,7 @@ Status: implemented
 - macOS 启动画面渲染全宽的 `<div class="avn-drag-band" aria-hidden="true"></div>`，因为该页面自身没有控件。
 - `apps/web/index.html` 在 `#avn-preloader` 内放置一条拖动条，`apps/web/src/preloader.css` 在 `html[data-avn-traffic-lights]` 下按客户端表头行的高度为其设样式。启动遮罩本身声明 `drag`，且 `#avn-preloader.screen-hidden` 为 `display: none`，因此隐藏后的遮罩不会拦截落在取代它的工具栏上的点击。
 - `AppFrame` 把 `.dragBand` 作为自身框架中的一个元素渲染，高一行表头，`z-index: 29`——高于会话记录中的滚动控件，低于表头（30）与侧栏（50）。其 `no-drag` 空洞不变：窗口会把每个控件从条带中扣除，表头则绘制在条带之上。
+- 空洞规则跳过会话滚动容器（`[data-conversation-scroll]`）中粘性 `header` 之外的一切。会话记录的行会向上滚到该表头之下、进入条带，而窗口扣除 `no-drag` 矩形时不考虑绘制顺序，因此被遮住的工具行或思考行（`role="button"`）曾按滚动位置在表头上切出空洞。
 
 门槛属性仍由 preload 设置，因为只有载体知道平台。
 
