@@ -739,10 +739,34 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Built-in automation service; schedules never authorize additional tool access.',
     methods: [
       {
-        signature: 'async list(): Promise<{ definitions: (AutomationDefinition & { nextRunAt: string | null; lastRun: AutomationRun | null })[]; runs: AutomationRun[]; capabilities: { executionTarget: \'local\'; triggers: readonly [\'once\', \'interval\', \'daily\', \'weekly\'] } }>',
+        signature: 'async list(): Promise<{ definitions: (AutomationDefinition & { nextRunAt: string | null; lastRun: AutomationRun | null; webhook: boolean })[]; runs: AutomationRun[]; capabilities: { executionTarget: \'local\'; triggers: readonly AutomationSchedule[\'kind\'][]; webhook: boolean } }>',
         description: 'Read the acting account\'s definitions, newest created first, and bounded execution history, newest scheduled first. History leaves out runs whose conversation is archived, so it lists what the sidebar\'s Automations workspace shows; unarchiving the conversation lists the run again. Each definition\'s `lastRun` is its latest retained run either way.',
         parameters: [],
-        returns: 'owned definitions and latest run records.',
+        returns: 'owned definitions, latest run records, and the triggers this Host evaluates. A definition\'s `webhook` says an inbound credential exists; the secret itself never enters this projection.',
+      },
+      {
+        signature: 'async enableWebhook(id: AutomationId): Promise<{ path: string; keyId: string; secret: string }>',
+        description: 'Give one owned automation an inbound trigger credential, keeping an existing one.',
+        parameters: [{ name: 'id', description: 'owned definition identity.' }],
+        returns: 'the credential path and key to show once; the key is never listed again.',
+      },
+      {
+        signature: 'async rotateWebhook(id: AutomationId): Promise<{ path: string; keyId: string; secret: string }>',
+        description: 'Replace one owned automation\'s inbound credential, invalidating the previous key.',
+        parameters: [{ name: 'id', description: 'owned definition identity.' }],
+        returns: 'the credential path and the replacement key.',
+      },
+      {
+        signature: 'async disableWebhook(id: AutomationId): Promise<void>',
+        description: 'Revoke one owned automation\'s inbound credential.',
+        parameters: [{ name: 'id', description: 'owned definition identity.' }],
+        returns: 'resolution after the credential is gone; a later request with the old key is refused.',
+      },
+      {
+        signature: 'async webhookSecret(id: AutomationId): Promise<{ path: string; keyId: string; secret: string }>',
+        description: 'Read one owned automation\'s inbound credential for display.',
+        parameters: [{ name: 'id', description: 'owned definition identity.' }],
+        returns: 'the credential path and key; refused when the automation has none.',
       },
       {
         signature: 'create(input: AutomationInput, agent?: Agent): Promise<AutomationDefinition>',
@@ -763,8 +787,14 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'durable run admission.',
       },
       {
+        signature: 'async requestRun(id: AutomationId, key: string, payload: string | null): Promise<AutomationRun>',
+        description: 'Admit one run from an authenticated inbound request. The presented key is the whole authority, so this path reads no acting account. A paused automation refuses the request; work already in flight records the occurrence as skipped rather than queueing behind it.',
+        parameters: [{ name: 'id', description: 'automation named by the request path.' }, { name: 'key', description: 'bearer credential presented by the caller.' }, { name: 'payload', description: 'accepted request body, marked untrusted in the run notice.' }],
+        returns: 'the admitted or skipped run; its execution proceeds in the background.',
+      },
+      {
         signature: 'remove(id: AutomationId): Promise<void>',
-        description: 'Remove an owned definition while retaining its run history.',
+        description: 'Remove an owned definition, its inbound credential, while retaining its run history.',
         parameters: [{ name: 'id', description: 'owned definition identity.' }],
         returns: 'resolution after durable deletion.',
       },
@@ -4205,8 +4235,8 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'builtIn(key: string, title: string): Promise<Workspace>',
-        description: 'Seed or return one built-in workspace declared by a plugin under a stable key. The registration has no directory, every account reaches it, and it refuses delete, rename, and move like the default workspace. The key binds durably to the registration, so repeated calls and restarts return the same workspace without changing its title; a new one lands directly below the default workspace.',
-        parameters: [{ name: 'key', description: 'stable key naming the declaring plugin\'s registration.' }, { name: 'title', description: 'display title used only when the registration is created.' }],
+        description: 'Seed or return one built-in workspace declared by a plugin under a stable key. The registration has no directory, every account reaches it, and it refuses delete, rename, and move like the default workspace. The key binds durably to the registration, so repeated calls and restarts return the same workspace; a changed declared title is adopted on the next call, and a new one lands directly below the default workspace.',
+        parameters: [{ name: 'key', description: 'stable key naming the declaring plugin\'s registration.' }, { name: 'title', description: 'display title the declaring plugin owns.' }],
         returns: 'the built-in workspace.',
       },
     ],
@@ -5029,7 +5059,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'AutomationRun',
-    declaration: 'export interface AutomationRun {\n    readonly id: AutomationRunId;\n    readonly definition: AutomationDefinition;\n    readonly trigger: \'schedule\' | \'manual\';\n    readonly scheduledFor: string;\n    readonly status: \'queued\' | \'running\' | \'succeeded\' | \'failed\' | \'skipped\' | \'cancelled\';\n    readonly sessionId: SessionId | null;\n    readonly startedAt: string | null;\n    readonly finishedAt: string | null;\n    readonly summary: string | null;\n    readonly error: string | null;\n    readonly admittedBy: AutomationRunnerId;\n    readonly retryOfRunId: AutomationRunId | null;\n    readonly resolution: {\n        readonly kind: \'retried\';\n        readonly at: string;\n        readonly retryRunId: AutomationRunId | null;\n    } | null;\n}',
+    declaration: 'export interface AutomationRun {\n    readonly id: AutomationRunId;\n    readonly definition: AutomationDefinition;\n    readonly trigger: AutomationTrigger;\n    readonly scheduledFor: string;\n    readonly status: \'queued\' | \'running\' | \'succeeded\' | \'failed\' | \'skipped\' | \'cancelled\';\n    readonly sessionId: SessionId | null;\n    readonly startedAt: string | null;\n    readonly finishedAt: string | null;\n    readonly summary: string | null;\n    readonly error: string | null;\n    readonly admittedBy: AutomationRunnerId;\n    readonly retryOfRunId: AutomationRunId | null;\n    readonly payload?: string | null | undefined;\n    readonly resolution: {\n        readonly kind: \'retried\';\n        readonly at: string;\n        readonly retryRunId: AutomationRunId | null;\n    } | null;\n}',
   },
   {
     name: 'AutomationRunId',
@@ -5041,7 +5071,11 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'AutomationSchedule',
-    declaration: 'export type AutomationSchedule = ({\n    readonly kind: \'once\';\n    readonly at: string;\n    readonly timeZone: string;\n} | {\n    readonly kind: \'interval\';\n    readonly everyMinutes: number;\n    readonly anchor: string;\n    readonly timeZone: string;\n} | {\n    readonly kind: \'daily\';\n    readonly time: string;\n    readonly timeZone: string;\n} | {\n    readonly kind: \'weekly\';\n    readonly time: string;\n    readonly weekdays: readonly Weekday[];\n    readonly timeZone: string;\n}) & {\n    readonly until?: string | undefined;\n};',
+    declaration: 'export type AutomationSchedule = ({\n    readonly kind: \'once\';\n    readonly at: string;\n    readonly timeZone: string;\n} | {\n    readonly kind: \'interval\';\n    readonly everyMinutes: number;\n    readonly anchor: string;\n    readonly timeZone: string;\n} | {\n    readonly kind: \'hours\';\n    readonly everyHours: number;\n    readonly atMinute: number;\n    readonly timeZone: string;\n} | {\n    readonly kind: \'daily\';\n    readonly time: LocalTime;\n    readonly timeZone: string;\n} | {\n    readonly kind: \'weekly\';\n    readonly time: LocalTime;\n    readonly weekdays: readonly Weekday[];\n    readonly timeZone: string;\n} | {\n    readonly kind: \'monthly\';\n    readonly time: LocalTime;\n    readonly days: readonly number[];\n    readonly timeZone: string;\n} | {\n    readonly kind: \'nth-weekday\';\n    readonly time: LocalTime;\n    readonly week: 1 | 2 | 3 | 4;\n    readonly weekday: Weekday;\n    readonly timeZone: string;\n} | {\n    readonly kind: \'yearly\';\n    readonly time: LocalTime;\n    readonly month: number;\n    readonly day: number;\n    readonly timeZone: string;\n} | {\n    readonly kind: \'cron\';\n    readonly expression: string;\n    readonly timeZone: string;\n}) & {\n    readonly until?: string | undefined;\n};',
+  },
+  {
+    name: 'AutomationTrigger',
+    declaration: 'export type AutomationTrigger = \'schedule\' | \'manual\' | \'webhook\';',
   },
   {
     name: 'AvnEnvironment',
@@ -6344,6 +6378,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export class LlmRuntime extends TypertRemoteService {\n    constructor(ctx: Context);\n    registerAdapter(providers: string[], adapter: LlmAdapter): AdapterRegistrationHandle;\n    @Remote\n    listProviders(): LlmProviderInfo[];\n    registerConfigurableProviders(entries: readonly LlmConfigurableProvider[]): DirectoryRegistrationHandle;\n    @Remote\n    listConfigurableProviders(): LlmConfigurableProvider[];\n    registerModelDiscovery(settingsNs: string, discover: (request: LlmModelDiscoveryRequest, signal?: AbortSignal) => Promise<readonly LlmDiscoveredModel[]>): () => void;\n    async discoverModels(settingsNs: string, request: LlmModelDiscoveryRequest, signal?: AbortSignal): Promise<LlmDiscoveredModel[]>;\n    @Remote(\'discoverModels\')\n    async remoteDiscoverModels(settingsNs: string, request: LlmModelDiscoveryRequest, signal: AbortSignal): Promise<LlmDiscoveredModel[]>;\n    providerRetryPolicy(provider: string): ResolvedRetryPolicy;\n    imageRequestPricing(provider: string, model: string): LlmImageRequestPricing | undefined;\n    async listModels(provider: string): Promise<LlmModelInfo[]>;\n    async resolveModelInfo(provider: string, model: string, signal?: AbortSignal): Promise<LlmResolvedModelInfo>;\n    async resolveCallConfig(config: LlmCallConfig, signal?: AbortSignal): Promise<LlmCallConfig>;\n    async prepareCall(config: LlmCallConfig, signal?: AbortSignal): Promise<PreparedLlmCall>;\n    stream(options: GenerateOptions): AsyncIterable<StreamChunk>;\n}',
   },
   {
+    name: 'LocalTime',
+    declaration: 'export type LocalTime = string;',
+  },
+  {
     name: 'LocationAnswer',
     declaration: 'export type LocationAnswer = {\n    readonly kind: \'device\';\n    readonly latitude: number;\n    readonly longitude: number;\n    readonly accuracyMeters: number;\n    readonly timestamp: number;\n} | {\n    readonly kind: \'manual\';\n    readonly place: string;\n} | {\n    readonly kind: \'declined\';\n} | {\n    readonly kind: \'unavailable\';\n    readonly reason: string;\n};',
   },
@@ -6601,7 +6639,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'MemoryHit',
-    declaration: 'export interface MemoryHit {\n    readonly kind: MemoryHitKind;\n    readonly id: MemoryItemId;\n    readonly domain: MemoryDomain;\n    readonly tier: number;\n    readonly score: number;\n    readonly snippet: string;\n    readonly recordedAt?: number;\n    readonly procedureStatus?: ProcedureStatus;\n}',
+    declaration: 'export interface MemoryHit {\n    readonly kind: MemoryHitKind;\n    readonly id: MemoryItemId;\n    readonly domain: MemoryDomain;\n    readonly tier: number;\n    readonly score: number;\n    readonly snippet: string;\n    readonly recordedAt?: number;\n    readonly procedureStatus?: ProcedureStatus;\n    readonly origin?: MemoryOrigin;\n}',
   },
   {
     name: 'MemoryHitKind',
@@ -6614,6 +6652,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'MemoryLlmRoute',
     declaration: 'export interface MemoryLlmRoute {\n    readonly provider: string;\n    readonly model: string;\n    readonly reasoningEffort?: string;\n}',
+  },
+  {
+    name: 'MemoryOrigin',
+    declaration: 'export interface MemoryOrigin {\n    readonly kind: \'conversation\' | \'import\';\n    readonly savedAt: number;\n}',
   },
   {
     name: 'MemoryOutcomeEvidence',
@@ -6629,7 +6671,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'MemoryRecall',
-    declaration: 'export interface MemoryRecall {\n    readonly hits: readonly MemoryHit[];\n    readonly timedOut: boolean;\n    readonly degraded?: boolean;\n    readonly lead?: \'person\' | \'task\';\n}',
+    declaration: 'export interface MemoryRecall {\n    readonly hits: readonly MemoryHit[];\n    readonly timedOut: boolean;\n    readonly degraded?: boolean;\n    readonly lead?: \'person\' | \'task\';\n    readonly sharing?: boolean;\n}',
   },
   {
     name: 'MemoryRecallLimits',
@@ -6637,7 +6679,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'MemoryRecallRequest',
-    declaration: 'export interface MemoryRecallRequest {\n    readonly scope: MemoryScope;\n    readonly query: string;\n    readonly request?: string;\n    readonly context?: string;\n    readonly recent?: {\n        readonly hours: number;\n        readonly items: number;\n    };\n    readonly purpose: \'turn-start\' | \'tool\';\n    readonly sessionOnly?: boolean;\n    readonly limits?: MemoryRecallLimits;\n    readonly timeoutMs: number;\n    readonly signal: AbortSignal;\n}',
+    declaration: 'export interface MemoryRecallRequest {\n    readonly scope: MemoryScope;\n    readonly query: string;\n    readonly request?: string;\n    readonly context?: string;\n    readonly recent?: {\n        readonly hours: number;\n        readonly items: number;\n        readonly perSession: number;\n        readonly sharingOnly: boolean;\n    };\n    readonly purpose: \'turn-start\' | \'tool\';\n    readonly sessionOnly?: boolean;\n    readonly limits?: MemoryRecallLimits;\n    readonly timeoutMs: number;\n    readonly signal: AbortSignal;\n}',
   },
   {
     name: 'MemoryRecord',

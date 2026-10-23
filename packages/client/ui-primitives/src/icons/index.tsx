@@ -897,6 +897,15 @@ export const IconClockOutline16 = ({ size = 16, className }: IconProps) => (
   </svg>
 )
 
+/** Bot: the clock's bare dial with two filled eyes inside it, so the mark reads
+ *  as a small face. */
+export const IconBotOutline16 = ({ size = 16, className }: IconProps) => (
+  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="8" cy="8" r="6.375" stroke="currentColor" strokeWidth="1.25" />
+    <path fill="currentColor" fillRule="evenodd" d="m7.642 4.422.179.013.172.045.162.075.141.108.114.135.092.152.08.159.077.16.078.16.076.16.076.16.073.162.072.163.07.163.067.164.065.166.047.172.008.177-.036.175-.08.16-.117.136-.148.102-.167.065-.178.026-.177-.014-.17-.052-.156-.087-.133-.118-.106-.142-.082-.157-.07-.163-.068-.165-.07-.163-.072-.162-.073-.162-.074-.161-.076-.16-.078-.161-.083-.157-.08-.158-.064-.166-.023-.176.029-.176.08-.16.121-.132.153-.093.171-.055zM11.324 4.422l.15.011.145.038.136.063.118.09.096.114.077.128.067.133.065.134.066.135.063.134.064.135.062.136.06.137.059.137.056.137.055.14.039.144.007.149-.03.147-.067.134-.099.115-.124.085-.14.055-.15.022-.149-.012-.142-.044-.131-.073-.112-.099-.089-.119-.069-.132-.059-.137-.057-.139-.059-.137-.06-.136-.061-.136-.063-.135-.063-.134-.066-.136-.07-.131-.067-.133-.054-.14-.019-.147.024-.148.068-.135.101-.111.129-.078.143-.046z" />
+  </svg>
+)
+
 /** ic_send_outline_14 (figma extract): thin-stroke upward send arrow. */
 export const IconSendOutline14 = ({ size = 14, className }: IconProps) => (
   <svg width={size} height={size} className={className} viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">

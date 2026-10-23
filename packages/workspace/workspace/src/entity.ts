@@ -219,6 +219,16 @@ export class WorkspaceEntity implements Workspace {
     await this.mutate(record => ({ ...record, title }))
   }
 
+  /**
+   * Adopt the title its declaring plugin now declares. A built-in title is
+   * product copy, so the plugin that owns the registration — never a reader —
+   * is what renames it.
+   * @param title - the title the declaring plugin currently declares.
+   */
+  async adoptDeclaredTitle(title: string): Promise<void> {
+    await this.mutate(record => record.title === title ? record : { ...record, title })
+  }
+
   async attachSession(sessionId: SessionId): Promise<void> {
     // Validation is skipped when the settled snapshot already accounts the
     // id: the cwd fact was checked when it first attached and both inputs

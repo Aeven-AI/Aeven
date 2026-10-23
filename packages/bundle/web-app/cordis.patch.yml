@@ -812,6 +812,7 @@
         misfireGraceMinutes: 15
         historyLimit: 200
         workspaceTitle: Automations
+        webhookMaxBodyBytes: 8192
 
     - id: ui-automations
       name: '@aeven/client-ui-automations'
