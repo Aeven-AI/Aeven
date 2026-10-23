@@ -208,7 +208,7 @@ Types: [ToolCallId](subsystems/core.zh.md)
 }
 ```
 
-来源：[`packages/interaction/user-approval/src/index.ts:33`](../packages/interaction/user-approval/src/index.ts)
+来源：[`packages/interaction/user-approval/src/index.ts:34`](../packages/interaction/user-approval/src/index.ts)
 
 ### `assistant/*`
 
@@ -1058,6 +1058,30 @@ Types: [TurnEndReason](subsystems/session.zh.md)
 ```
 
 来源：[`packages/core/session/src/types.ts:274`](../packages/core/session/src/types.ts)
+
+### `turn-review/*`
+
+<a id="turn-reviewrequest--log-only"></a>
+
+#### `turn-review/request` — log-only
+
+```ts persistence-catalog
+/** Log-only pre-dispatch record of one turn-review model request. */
+'turn-review/request': TurnReviewRequestEventData
+```
+
+来源：[`packages/guard/turn-review/src/index.ts:58`](../packages/guard/turn-review/src/index.ts)
+
+<a id="turn-reviewverdict--log-only"></a>
+
+#### `turn-review/verdict` — log-only
+
+```ts persistence-catalog
+/** Log-only parsed outcome of one turn-review model request. */
+'turn-review/verdict': TurnReviewVerdictEventData
+```
+
+来源：[`packages/guard/turn-review/src/index.ts:60`](../packages/guard/turn-review/src/index.ts)
 
 ### `user/*`
 

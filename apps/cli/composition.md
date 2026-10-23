@@ -164,6 +164,10 @@ flowchart LR
   cfg --> plugin_avn_base_tool_str_replace_editor
   plugin_avn_base_repeat_tool_reminder["repeat-tool-reminder<br/>@aeven/repeat-tool-reminder"]
   cfg --> plugin_avn_base_repeat_tool_reminder
+  plugin_avn_base_turn_review["turn-review<br/>@aeven/turn-review"]
+  cfg --> plugin_avn_base_turn_review
+  plugin_avn_base_bash_edit_guard["bash-edit-guard<br/>@aeven/bash-edit-guard"]
+  cfg --> plugin_avn_base_bash_edit_guard
   plugin_avn_base_web["web<br/>@aeven/web"]
   cfg --> plugin_avn_base_web
   plugin_avn_base_web_search_deepseek["web-search-deepseek<br/>@aeven/web-search-deepseek"]
@@ -266,6 +270,8 @@ flowchart LR
 | `tool-ralph` | `@aeven/tool-ralph` |
 | `tool-str-replace-editor` | `@aeven/tool-str-replace-editor` |
 | `repeat-tool-reminder` | `@aeven/repeat-tool-reminder` |
+| `turn-review` | `@aeven/turn-review` |
+| `bash-edit-guard` | `@aeven/bash-edit-guard` |
 | `web` | `@aeven/web` |
 | `web-search-deepseek` | `@aeven/web-search-deepseek` |
 | `web-fetch-http` | `@aeven/web-fetch-http` |

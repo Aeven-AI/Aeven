@@ -820,9 +820,34 @@ Built-in automation service; schedules never authorize additional tool access.
  * History leaves out runs whose conversation is archived, so it lists what the sidebar's Automations
  * workspace shows; unarchiving the conversation lists the run again. Each definition's `lastRun` is its
  * latest retained run either way.
- * @returns owned definitions and latest run records.
+ * @returns owned definitions, latest run records, and the triggers this Host evaluates. A definition's
+ * `webhook` says an inbound credential exists; the secret itself never enters this projection.
  */
-async list(): Promise<{ definitions: (AutomationDefinition & { nextRunAt: string | null; lastRun: AutomationRun | null })[]; runs: AutomationRun[]; capabilities: { executionTarget: 'local'; triggers: readonly ['once', 'interval', 'daily', 'weekly'] } }>
+async list(): Promise<{ definitions: (AutomationDefinition & { nextRunAt: string | null; lastRun: AutomationRun | null; webhook: boolean })[]; runs: AutomationRun[]; capabilities: { executionTarget: 'local'; triggers: readonly AutomationSchedule['kind'][]; webhook: boolean } }>
+
+/** Give one owned automation an inbound trigger credential, keeping an existing one.
+ * @param id - owned definition identity.
+ * @returns the credential path and key to show once; the key is never listed again.
+ */
+async enableWebhook(id: AutomationId): Promise<{ path: string; keyId: string; secret: string }>
+
+/** Replace one owned automation's inbound credential, invalidating the previous key.
+ * @param id - owned definition identity.
+ * @returns the credential path and the replacement key.
+ */
+async rotateWebhook(id: AutomationId): Promise<{ path: string; keyId: string; secret: string }>
+
+/** Revoke one owned automation's inbound credential.
+ * @param id - owned definition identity.
+ * @returns resolution after the credential is gone; a later request with the old key is refused.
+ */
+async disableWebhook(id: AutomationId): Promise<void>
+
+/** Read one owned automation's inbound credential for display.
+ * @param id - owned definition identity.
+ * @returns the credential path and key; refused when the automation has none.
+ */
+async webhookSecret(id: AutomationId): Promise<{ path: string; keyId: string; secret: string }>
 
 /** Save one confirmed task using the caller's execution context.
  * @param input - editable task values.
@@ -844,7 +869,19 @@ update(id: AutomationId, patch: { [K in keyof AutomationInput]?: AutomationInput
  */
 runNow(id: AutomationId): Promise<AutomationRun>
 
-/** Remove an owned definition while retaining its run history.
+/**
+ * Admit one run from an authenticated inbound request.
+ * The presented key is the whole authority, so this path reads no acting account.
+ * A paused automation refuses the request; work already in flight records the
+ * occurrence as skipped rather than queueing behind it.
+ * @param id - automation named by the request path.
+ * @param key - bearer credential presented by the caller.
+ * @param payload - accepted request body, marked untrusted in the run notice.
+ * @returns the admitted or skipped run; its execution proceeds in the background.
+ */
+async requestRun(id: AutomationId, key: string, payload: string | null): Promise<AutomationRun>
+
+/** Remove an owned definition, its inbound credential, while retaining its run history.
  * @param id - owned definition identity.
  * @returns resolution after durable deletion.
  */
