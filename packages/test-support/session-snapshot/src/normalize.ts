@@ -26,6 +26,12 @@ const EVENT_TIME = '{{eventTime}}'
 const EVENT_OMITTED_BYTES = '{{eventOmittedBytes}}'
 const PACKED_CHUNK_ROW_TYPES = new Set(['text-chunks', 'reasoning-chunks', 'tool-call-chunks'])
 
+/** Stable session-log token standing in for a review request's system prompt. */
+const TURN_REVIEW_SYSTEM = '{{turnReviewSystem}}'
+
+/** Stable session-log token standing in for a review request's messages. */
+const TURN_REVIEW_MESSAGES = '{{turnReviewMessages}}'
+
 function isPackedFixtureRow(record: Record<string, unknown>): boolean {
   return typeof record.type === 'string' && PACKED_CHUNK_ROW_TYPES.has(record.type)
 }
@@ -180,7 +186,14 @@ function scrubString(
   if (cwdPathMode === 'canonical') {
     // Restrict separator conversion to paths rooted at the cwd token. A global
     // backslash rewrite would corrupt regexes, commands, and model-authored text.
-    out = out.replace(CWD_ROOTED_PATH_RE, path => path.replaceAll('\\', '/'))
+    out = out.replace(CWD_ROOTED_PATH_RE, (path: string, offset: number, whole: string) => {
+      // A trailing backslash that escapes the quote closing an embedded JSON
+      // payload separates no path segment; converting it would invent a
+      // trailing separator in the recorded text.
+      const escape = path.endsWith('\\') && whole[offset + path.length] === '"'
+      const body = escape ? path.slice(0, -1) : path
+      return `${body.replaceAll('\\', '/')}${escape ? '\\' : ''}`
+    })
     out = canonicalizeEmbeddedPaths(out)
   }
   out = out.replace(LOCAL_SPILL_PATH_RE, (_match, name: string) => `{{spillLocator:${name}}}`)
@@ -438,13 +451,33 @@ export function normalizeSessionSnapshots(
   ctx: NormalizeContext,
   options: Omit<NormalizeOptions, 'identityMode'> = {},
 ): string[] {
-  return redactSessionSnapshotIds(rawLogs).map(log => repackSessionSnapshot(
+  return normalizeSessionSnapshotsWithReview(rawLogs, ctx, options).snapshots
+}
+
+/**
+ * Normalize one scenario's logs and report the review requests their fixtures
+ * no longer carry as tokens. Both sides of a replay comparison use the same
+ * identity numbering, so the collected evidence matches the committed sidecar
+ * exactly; the tokens themselves stay out of reach once a log is projected.
+ *
+ * @param rawLogs - primary-first persisted or projected session JSONL.
+ * @param ctx - generated cwd spellings and other volatile run facts.
+ * @param options - separator controls; relationship-preserving identity mode is mandatory.
+ * @returns the normalized fixtures plus the review evidence they pinned.
+ */
+export function normalizeSessionSnapshotsWithReview(
+  rawLogs: readonly string[],
+  ctx: NormalizeContext,
+  options: Omit<NormalizeOptions, 'identityMode'> = {},
+): { snapshots: string[]; review: TurnReviewSnapshot | undefined } {
+  const committed = redactSessionSnapshotIds(rawLogs).map(log => repackSessionSnapshot(
     scrubSessionSnapshot(normalizeSessionLog(
       log,
       { ...ctx, sessionIds: [] },
       { ...options, identityMode: 'preserve' },
     )),
   ))
+  return { snapshots: committed.map(scrubTurnReviewRequests), review: turnReviewSnapshot(committed) }
 }
 
 /**
@@ -489,6 +522,137 @@ export function scrubToolSchemas(rawLog: string): string {
  */
 export function scrubRequestHeaders(rawLog: string): string {
   return scrubHeaderContent(rawLog, { system: true, tools: true })
+}
+
+/**
+ * One `turn-review/request` payload recorded outside the session JSONL.
+ * The review call is an auxiliary model request, so its prompt and turn
+ * transcript are evidence rather than conversation; committed fixtures keep
+ * them in one readable sidecar per scenario instead of restating them on every
+ * log line.
+ */
+export interface TurnReviewRequestSnapshot {
+  /** Index of the scenario's session fixture that logged the request. */
+  readonly session: number
+  /** The exact messages the review call received. */
+  readonly messages: unknown
+}
+
+/** The review evidence a scenario's committed fixtures pin. */
+export interface TurnReviewSnapshot {
+  /** The review system prompt every request in the corpus sends. */
+  readonly prompt: string
+  /** Review requests in fixture order, primary session first. */
+  readonly requests: TurnReviewRequestSnapshot[]
+}
+
+/** Read the `data` payload of every review-request record in one log. */
+function turnReviewRequestData(rawLog: string): Record<string, unknown>[] {
+  return rawLog.split('\n')
+    .filter(line => line.trim().length > 0)
+    .map(line => JSON.parse(line) as { type?: unknown; data?: Record<string, unknown> | null })
+    .flatMap((record) => {
+      if (record.type !== 'turn-review/request') return []
+      const data = record.data
+      if (data === null || data === undefined) {
+        throw new Error('acp-snapshot: a turn-review/request record carries no payload object')
+      }
+      return [data]
+    })
+}
+
+/**
+ * Collect the review requests a scenario's logs recorded, in fixture order.
+ * Every request in the corpus must send one prompt, so a second prompt fails
+ * loud instead of silently pinning one of two.
+ *
+ * @param rawLogs - fixtures in scenario order, primary first.
+ * @returns the review evidence, or undefined when no log logged a review.
+ * @throws If a request carries no string prompt or two requests differ.
+ */
+export function turnReviewSnapshot(rawLogs: readonly string[]): TurnReviewSnapshot | undefined {
+  let prompt: string | undefined
+  const requests: TurnReviewRequestSnapshot[] = []
+  for (const [session, rawLog] of rawLogs.entries()) {
+    for (const data of turnReviewRequestData(rawLog)) {
+      const { system, messages } = data
+      if (typeof system !== 'string') {
+        throw new Error('acp-snapshot: a turn-review/request record carries no system prompt')
+      }
+      if (prompt !== undefined && prompt !== system) {
+        throw new Error('acp-snapshot: turn-review requests pin different system prompts')
+      }
+      prompt = system
+      requests.push({ session, messages })
+    }
+  }
+  return prompt === undefined ? undefined : { prompt, requests }
+}
+
+/**
+ * Replace a review request's prompt and messages with stable tokens while
+ * retaining its turn, round, route, and output cap. Lines without a review
+ * request pass through byte-for-byte, and the transform is idempotent.
+ *
+ * @param rawLog - the session `.jsonl` content, with identities already redacted.
+ * @returns the JSONL whose review payloads are tokens.
+ */
+export function scrubTurnReviewRequests(rawLog: string): string {
+  return rawLog.split('\n').map((line) => {
+    if (line.trim().length === 0) return line
+    const record = JSON.parse(line) as { type?: unknown; data?: unknown }
+    if (record.type !== 'turn-review/request') return line
+    const data = record.data
+    if (data === null || typeof data !== 'object') {
+      throw new Error('acp-snapshot: a turn-review/request record carries no payload object')
+    }
+    const payload = data as Record<string, unknown>
+    if (payload.system === TURN_REVIEW_SYSTEM && payload.messages === TURN_REVIEW_MESSAGES) return line
+    payload.system = TURN_REVIEW_SYSTEM
+    payload.messages = TURN_REVIEW_MESSAGES
+    return JSON.stringify(record)
+  }).join('\n')
+}
+
+/**
+ * Render the review evidence as canonical, readable JSON.
+ *
+ * @param snapshot - the scenario's review requests.
+ * @returns a pretty-printed JSON sidecar ending in one newline.
+ */
+export function formatTurnReviewSnapshot(snapshot: TurnReviewSnapshot): string {
+  return `${JSON.stringify(snapshot, null, 2)}\n`
+}
+
+/**
+ * Parse and validate a committed review sidecar.
+ *
+ * @param snapshot - the JSON sidecar text.
+ * @returns its prompt and review requests.
+ * @throws If the sidecar is not an object carrying a prompt and request list.
+ */
+export function parseTurnReviewSnapshot(snapshot: string): TurnReviewSnapshot {
+  const parsed = JSON.parse(snapshot) as unknown
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('acp-snapshot: turn-review snapshot must be an object')
+  }
+  const { prompt, requests } = parsed as { prompt?: unknown; requests?: unknown }
+  if (typeof prompt !== 'string' || prompt === '') {
+    throw new Error('acp-snapshot: turn-review snapshot must carry a non-empty prompt')
+  }
+  if (!Array.isArray(requests) || requests.length === 0) {
+    throw new Error('acp-snapshot: turn-review snapshot must carry at least one request')
+  }
+  for (const request of requests) {
+    const { session, messages } = (request ?? {}) as { session?: unknown; messages?: unknown }
+    if (!Number.isSafeInteger(session) || (session as number) < 0) {
+      throw new Error('acp-snapshot: turn-review snapshot requests must name their session fixture index')
+    }
+    if (messages === undefined) {
+      throw new Error('acp-snapshot: turn-review snapshot requests must carry their messages')
+    }
+  }
+  return { prompt, requests: requests as TurnReviewRequestSnapshot[] }
 }
 
 /**

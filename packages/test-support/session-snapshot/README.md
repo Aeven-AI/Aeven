@@ -80,6 +80,10 @@ Each recorded-session directory carries a closed `snapshot.yml` manifest plus it
 
 A pin owns its generated `system-prompt.expected.md` or `tool-schemas.expected.json` sidecar by default; `systemPromptSource` and `toolSchemasSource` name another pin when the complete corresponding sequence is identical, so each distinct version is committed once. The pin's `session.jsonl` stores `"system":"{{system}}","tools":"{{tools}}"` while retaining config, reason, and any model-visible prefix. A child session whose own scope composes a different request declares it per fixture index with `pinsChildToolSchemas` and `pinsChildSystemPrompts`. A scenario that changes the request header mid-run declares `expectedHeaderChanges`.
 
+### Sidecars for logged bulk payloads
+
+A logged event whose payload carries bulk text keeps a token in `session.jsonl` and its readable copy in a scenario-owned sidecar: pins store prompts and tool schemas in `system-prompt.expected.md` and `tool-schemas.expected.json`, and a `turn-review/request` event keeps `turn`, `round`, `route`, and `maxTokens` inline while `"system":"{{turnReviewSystem}}"` and `"messages":"{{turnReviewMessages}}"` point at `turn-review.expected.json`, which holds the review prompt and one `requests` entry per reviewed session. Refresh regenerates each sidecar from the committed model scripts, and replay fails while a sidecar is missing, stale, or present for a log that logs no such event.
+
 ### Platform and composition variants
 
 A scenario requiring a non-Windows host declares `posixOnly`, which skips its run test on Windows while the fixture guards keep covering its committed files everywhere; a scenario whose composition needs a usable `pwsh` declares `pwshOnly`. `workspaceParent` moves the generated child cwd outside the platform temp directory when temporary-directory grants are themselves under test; a scenario's committed `workspace/` is copied into that child first, then `prepareWorkspace` runs against the generated cwd before the agent starts. Default generated workspaces are stored in session fixtures as `{{cwd}}`, so platform temp roots and random basenames do not affect recordings.

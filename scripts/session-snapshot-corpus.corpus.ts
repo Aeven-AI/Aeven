@@ -8,10 +8,13 @@ import {
   captureExpectedWorkspaceSnapshot,
   EMPTY_WORKSPACE_MARKER,
   parseSnapshotManifest,
+  parseTurnReviewSnapshot,
   redactSessionSnapshotIds,
   scrubSystemPrompts,
   scrubToolSchemas,
+  scrubTurnReviewRequests,
   sessionFixtureNames,
+  TURN_REVIEW_SNAPSHOT,
   type SnapshotManifest,
 } from '@aeven/session-snapshot'
 
@@ -166,6 +169,15 @@ it('keeps every recorded session owned, pinned, redacted, and header-scrubbed', 
     for (const [index, fixture] of fixtures.entries()) {
       expect(scrubSystemPrompts(fixture), `${key}/${names[index]}: system prompt must be a sidecar`).toBe(fixture)
       expect(scrubToolSchemas(fixture), `${key}/${names[index]}: tool schemas must be a sidecar`).toBe(fixture)
+      expect(scrubTurnReviewRequests(fixture), `${key}/${names[index]}: review request bulk must be a sidecar`).toBe(fixture)
+    }
+    const reviewed = fixtures.some(fixture => fixture.includes('"type":"turn-review/request"'))
+    expect(existsSync(join(dir, TURN_REVIEW_SNAPSHOT)), `${key}: review sidecar presence`)
+      .toBe(reviewed)
+    if (reviewed) {
+      const review = parseTurnReviewSnapshot(await readFile(join(dir, TURN_REVIEW_SNAPSHOT), 'utf8'))
+      expect(review.requests.every(request => request.session < names.length), `${key}: review sidecar names a session fixture`)
+        .toBe(true)
     }
     for (const index of manifest.header.childSystemPrompts ?? []) {
       expect(names[index], `${key}: child prompt index ${index}`).toBeDefined()

@@ -6,7 +6,7 @@ Every process under test starts through the `avn` CLI with a shipped profile and
 
 Each scenario owns or explicitly references one primary `session.jsonl` plus contiguous child files. The owner alone records or refreshes it. For an ordinary one-shot case, derive the user task and replay script from that JSONL; do not duplicate them in an `input.json`. Shared references are read-only, acyclic, and used only when another interface intentionally renders the same recorded behavior.
 
-Committed sessions are normalization fixed points. Replace volatile identities with typed relationship-preserving tokens, replace request system prompts and tool schemas with tokens, and keep exactly one readable sidecar owner per header class. Never redact arbitrary user or tool text merely because it resembles an identifier.
+Committed sessions are normalization fixed points. Replace volatile identities with typed relationship-preserving tokens, and replace bulk payloads — request system prompts, tool schemas, and logged review transcripts — with tokens whose readable copies live in a sidecar: exactly one sidecar owner per header class, and one scenario-owned sidecar per payload kind. Never redact arbitrary user or tool text merely because it resembles an identifier.
 
 An adapter-local symlink may expose a cross-profile prompt or schema sidecar only when `snapshot.yml` names that source; the corpus gate resolves the link and checks the declared target. The required snapshot lane runs these aliases on macOS and Linux.
 

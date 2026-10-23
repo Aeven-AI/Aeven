@@ -39,18 +39,25 @@ export {
 } from './launcher.ts'
 export {
   extractSnapshotSpillPaths,
+  formatTurnReviewSnapshot,
   normalizeSessionLog,
   normalizeSessionSnapshot,
   normalizeSessionSnapshots,
+  normalizeSessionSnapshotsWithReview,
   normalizeStdout,
+  parseTurnReviewSnapshot,
   scrubRequestHeaders,
   scrubSessionSnapshot,
   scrubSystemPrompts,
   scrubToolSchemas,
+  scrubTurnReviewRequests,
   tokenizeSessionFixtureCwd,
+  turnReviewSnapshot,
   type CwdPathMode,
   type NormalizeContext,
   type NormalizeOptions,
+  type TurnReviewRequestSnapshot,
+  type TurnReviewSnapshot,
 } from './normalize.ts'
 export {
   parseSnapshotManifest,
@@ -72,6 +79,7 @@ export {
   fixtureContext,
   headerChangeCount,
   defineAcpSnapshotSuite,
+  expectTurnReviewSnapshot,
   normalizedHeaders,
   normalizedSystemPrompts,
   normalizedToolSchemas,
@@ -81,6 +89,8 @@ export {
   sessionFixtureNames,
   stabilizeFixtureMessageIds,
   stabilizeRefreshLog,
+  TURN_REVIEW_SNAPSHOT,
+  writeTurnReviewSnapshot,
   type Scenario,
   type SnapshotSuiteOptions,
 } from './suite.ts'
