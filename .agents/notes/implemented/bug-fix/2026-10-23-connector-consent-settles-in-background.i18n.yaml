@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-10-23-connector-consent-settles-in-background.md
+2026-10-23-connector-consent-settles-in-background.md: 71322cb76f0e60cdcc5b11d6e510fccec2767eeb
+2026-10-23-connector-consent-settles-in-background.zh.md: 2beebb4e453db6b48539e99005a884951cd97d0b
