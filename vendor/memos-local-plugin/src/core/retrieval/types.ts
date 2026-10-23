@@ -224,6 +224,8 @@ export interface RankedSnippet {
 export interface RetrievalConfig {
   /** Learned value a remembered (`lightweight_memory`) trace ranks with at least; its own value stays 0. */
   rememberedFactValue?: number;
+  /** Trace tags that mark a stated fact; a trace carrying any ranks with at least `rememberedFactValue`. */
+  rememberedFactTags?: readonly string[];
   /** Retrieve `candidate` policies beside `active` ones; false retrieves `active` policies only. */
   includeCandidatePolicies?: boolean;
   tier1TopK: number;

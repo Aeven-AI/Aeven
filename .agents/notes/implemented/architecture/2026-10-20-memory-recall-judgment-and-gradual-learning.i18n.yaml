@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-20-memory-recall-judgment-and-gradual-learning.md
-2026-10-20-memory-recall-judgment-and-gradual-learning.md: 8e44dff4b4f067a28717c6ef5e6910c3dcaaf5a4
-2026-10-20-memory-recall-judgment-and-gradual-learning.zh.md: 5977c0f231a681cb0680aec7cae6c8a98850fb16
+2026-10-20-memory-recall-judgment-and-gradual-learning.md: 75a1419c6933057ef56800f8db48102f4001f165
+2026-10-20-memory-recall-judgment-and-gradual-learning.zh.md: f1e2d76930dc4ecb43bb18c5b446b1d8641f14fb

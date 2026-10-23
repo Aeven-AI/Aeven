@@ -83,3 +83,35 @@ export function queryClauses(query: string): string[] {
   }
   return clauses.length > 1 ? clauses : []
 }
+
+/** Boundaries between the sentences of one message: a sentence end followed by space, or a line break. */
+const SENTENCE_BOUNDARY = /(?<=[.!?])\s+|\s*\n+\s*/u
+
+/** Fewest words a sentence needs to be its own topic. */
+const MIN_SENTENCE_WORDS = 3
+
+/**
+ * Split the person's current message into its sentences for turn-start recall.
+ *
+ * Turn-start retrieval embeds the conversation whole, and a message that opens on one subject and asks about another -
+ * "I have Oracle's $300 trial credit. What would you advise? I like to have aeven with highly performant inference" -
+ * sits closest to memories of its first subject, while each sentence alone sits closest to memories of its own.
+ * Each sentence therefore gets its own retrieval beside the whole query.
+ *
+ * @param message - the person's current message.
+ * @param max - most sentences returned.
+ * @returns the message's distinct sentences of at least three words, or an empty list for a one-sentence message.
+ */
+export function messageSentences(message: string, max: number): string[] {
+  const sentences: string[] = []
+  const seen = new Set<string>()
+  for (const part of message.split(SENTENCE_BOUNDARY)) {
+    const sentence = part.replace(/\s+/gu, ' ').trim()
+    if (sentence.split(' ').length < MIN_SENTENCE_WORDS) continue
+    const key = sentence.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    sentences.push(sentence)
+  }
+  return sentences.length > 1 ? sentences.slice(0, max) : []
+}

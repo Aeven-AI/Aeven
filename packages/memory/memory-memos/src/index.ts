@@ -83,6 +83,20 @@ export interface Config {
    */
   rememberedFactValue: number
   /**
+   * Trace tags that rank with at least `rememberedFactValue` (`retrieval.rememberedFactTags`). A fact the turn
+   * judgment filed under the person or a project carries its conversation's reward, which is lowest exactly when the
+   * person had to correct the assistant, so it ranks like a remembered fact.
+   */
+  rememberedFactTags: string[]
+  /**
+   * Sentences of the person's message that get their own turn-start retrieval beside the conversation query; 0 runs
+   * the conversation query alone. A message that opens on one subject and asks about another is otherwise matched
+   * only to memories of its first subject.
+   */
+  sentenceRetrievals: number
+  /** Top hits each sentence retrieval adds to the candidates the relevance judgment reads. */
+  sentenceHits: number
+  /**
    * Longest the turn-start relevance judgment may take, in milliseconds, inside the recall's own budget; when it fails
    * or runs out, at most two mechanically ranked memories are delivered and the recall is marked degraded.
    */
@@ -167,6 +181,9 @@ export const Config: z<Config> = z.object({
   candidatePolicies: z.boolean().default(false),
   skillsPerTurn: z.natural().max(100).default(1),
   rememberedFactValue: z.number().min(0).max(1).default(0.5),
+  rememberedFactTags: z.array(z.string().min(1)).default(['lightweight_memory', 'domain:person', 'domain:project']),
+  sentenceRetrievals: z.natural().max(8).default(3),
+  sentenceHits: z.natural().min(1).max(40).default(8),
   relevanceTimeoutMs: z.natural().min(300).default(4000),
 })
 
@@ -251,6 +268,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         tier2TopK: config.candidateTraces,
         includeCandidatePolicies: config.candidatePolicies,
         rememberedFactValue: config.rememberedFactValue,
+        rememberedFactTags: config.rememberedFactTags,
       },
       l2Induction: { ...configured.algorithm.l2Induction, minEpisodesForInduction: config.minEpisodesForInduction },
       capture: { ...configured.algorithm.capture, maxTextChars: config.maxTextChars },
@@ -319,6 +337,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         timeoutMs: config.relevanceTimeoutMs,
       },
     },
+    ...config.sentenceRetrievals > 0 ? { sentenceRecall: { sentences: config.sentenceRetrievals, hits: config.sentenceHits } } : {},
     rebuilding: owner => rebuilding.has(owner),
     warn: (message) =>{  logger.warn(message) },
     info: (message) =>{  logger.debug(message) },

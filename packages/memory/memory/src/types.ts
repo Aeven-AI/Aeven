@@ -100,6 +100,11 @@ export interface MemoryRecallRequest {
     readonly items: number
     /** Most memories offered from any one conversation, so one long conversation cannot crowd out the others. */
     readonly perSession: number
+    /**
+     * Offer them only when the relevance judgment finds the person sharing their life; the provider then judges
+     * again with them. A failed second judgment keeps the first one's result.
+     */
+    readonly sharingOnly: boolean
   }
   /** `turn-start` recalls context for a new direct-user turn; `tool` serves an explicit model lookup. */
   readonly purpose: 'turn-start' | 'tool'
@@ -218,13 +223,13 @@ export interface MemorySkill {
   readonly gain?: number
 }
 
-/** One stored memory of the scope's owner, as listed for inspection. */
 /**
  * Maturity of a learned procedure. A `candidate` is stored but not recalled automatically; evidence from later
  * work promotes it to `active`; an `archived` one is kept for restoring but neither recalled nor merged into.
  */
 export type ProcedureStatus = 'candidate' | 'active' | 'archived'
 
+/** One stored memory of the scope's owner, as listed for inspection. */
 export interface MemoryRecord {
   readonly id: MemoryItemId
   readonly domain: MemoryDomain

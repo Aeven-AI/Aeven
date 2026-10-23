@@ -63,13 +63,13 @@ export interface Config {
    */
   queryContextChars: number
   /**
-   * Hours back from which a session's first turn also offers the person's newest memories about themselves as
-   * recall candidates: recall searches the turn's words, so without them a new session cannot know what the person
-   * is going through unless their words happen to match it. They pass the same relevance judgment as every other
-   * candidate. `0` turns it off.
+   * Hours back from which a session's first turn, and any later turn the relevance judgment finds personal, also
+   * offers the person's newest memories about themselves as recall candidates: recall searches the turn's words, so
+   * without them the reply cannot know what the person is going through unless their words happen to match it. They
+   * pass the same relevance judgment as every other candidate. `0` turns it off.
    */
   recentPersonHours: number
-  /** Most memories about the person a session's first turn offers from the last `recentPersonHours`. */
+  /** Most memories about the person one recall offers from the last `recentPersonHours`. */
   recentPersonItems: number
   /**
    * Most of those memories taken from any one conversation, newest first. Every recent conversation is sampled, so a
@@ -95,7 +95,7 @@ export const Config: z<Config> = z.object({
   maxItems: z.natural().min(1).default(7),
   judgedMaxItems: z.natural().min(1).default(14),
   queryContextChars: z.natural().default(1000),
-  recentPersonHours: z.natural().default(48),
+  recentPersonHours: z.natural().default(168),
   recentPersonItems: z.natural().default(24),
   recentPersonPerSession: z.natural().min(1).default(3),
   promptOrder: z.number().default(114),
@@ -108,6 +108,8 @@ const CLOSE = `\nUse ${MEMORY_TOOL.get} with an id to read a memory in full.\n</
  * is data, never instructions.
  */
 export const PERSONAL_NOTE = 'This turn is personal. From the memories above you know what this person has been going through: let your reply show that you know, in a sentence, warmly and in your own words, before or while you help with the request. ' +
+  'Name the specific thing you remember, such as the event, the day or the person, instead of hinting at it. ' +
+  'When their wording echoes something they told you before, such as a day or a place that weighs on them, read it in that light; never correct it as a literal mistake. ' +
   'When they refer to what happened today or lately, the recent memories above are what happened: name it plainly and kindly, the way a friend who was there would, instead of saying you do not know.'
 
 /**
@@ -376,8 +378,16 @@ export function apply(ctx: Context, config: Config): void {
         query: context ? `${context}\n\n${state.userText}` : state.userText,
         request: state.userText,
         context,
-        ...payload.turn === 1 && config.recentPersonHours > 0 && config.recentPersonItems > 0
-          ? { recent: { hours: config.recentPersonHours, items: config.recentPersonItems, perSession: config.recentPersonPerSession } }
+        ...config.recentPersonHours > 0 && config.recentPersonItems > 0
+          ? {
+            recent: {
+              hours: config.recentPersonHours,
+              items: config.recentPersonItems,
+              perSession: config.recentPersonPerSession,
+              // A new session always needs them; a later turn needs them once it turns personal.
+              sharingOnly: payload.turn !== 1,
+            },
+          }
           : {},
         purpose: 'turn-start',
         timeoutMs: config.recallTimeoutMs,

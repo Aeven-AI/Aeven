@@ -8,11 +8,10 @@
  *      keyword token mode, escape internal quotes and AND the resulting
  *      phrases.
  *
- *   2. `extractPatternTerms(query)` — return short tokens (length 2)
- *      and CJK bigrams (sliding 2-char windows over CJK runs). These
- *      cover the queries that fall below the trigram tokenizer's 3-char
- *      window — most importantly 2-char Chinese names and verbs which
- *      are extremely common in zh-CN agent traffic.
+ *   2. `extractPatternTerms(query)` — return CJK bigrams (sliding 2-char
+ *      windows over CJK runs). These cover the queries that fall below the
+ *      trigram tokenizer's 3-char window — most importantly 2-char Chinese
+ *      names and verbs which are extremely common in zh-CN agent traffic.
  *
  * Both helpers are pure — no SQL prepared here so the repos can choose
  * the right column list / table for the FTS join.
@@ -22,7 +21,6 @@ const PUNCT = /["“”'’(){}\[\]<>«»《》【】（）\\^~!@#$%&*+/=:;,.，
 const CJK_RUN = /[\u4e00-\u9fff\u3400-\u4dbf\uF900-\uFAFF]+/g;
 const TRIGRAM_MIN = 3;
 const PATTERN_MIN = 2;
-const ASCII_PATTERN_NOISE = new Set(["am", "an", "as", "at", "be", "by", "do", "he", "if", "in", "is", "it", "me", "my", "of", "on", "or", "so", "to", "up", "us", "we"]);
 const MAX_FTS_TOKENS = 12;
 const MAX_PATTERN_TERMS = 16;
 const MAX_EXACT_IDENTIFIERS = 8;
@@ -145,9 +143,10 @@ function expandCjkToken(token: string): string[] {
 /**
  * Pattern-channel terms — what the trigram FTS can't catch on its own.
  *
- * Returns:
- *   - 2-char ASCII tokens from the query (FTS trigram requires ≥3).
- *   - CJK bigrams sliding over each CJK run of length ≥2.
+ * Returns CJK bigrams sliding over each CJK run of length ≥2. Two-letter
+ * ASCII tokens are not pattern terms: the channel matches by substring, so
+ * `io` from `aeven.io` matches "session" and "action" in nearly every trace,
+ * and every such match enters ranking with a full keyword score.
  *
  * Empty array is a perfectly valid result — caller skips the pattern
  * channel.
@@ -156,13 +155,6 @@ export function extractPatternTerms(query: string): string[] {
   if (!query) return [];
   const cleaned = String(query).replace(PUNCT, " ");
   const out = new Set<string>();
-
-  // Short ASCII tokens (length === 2). Length 1 is too noisy.
-  for (const tok of cleaned.split(/\s+/).filter(Boolean)) {
-    if (tok.length === PATTERN_MIN && /[^\u4e00-\u9fff]/.test(tok) && !ASCII_PATTERN_NOISE.has(tok.toLowerCase())) {
-      out.add(tok.toLowerCase());
-    }
-  }
 
   // CJK bigrams.
   const runs = cleaned.match(CJK_RUN) ?? [];
