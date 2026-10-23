@@ -96,6 +96,9 @@ export function apply(ctx: ClientContext): void {
     startCtx.slots.inject('sidebar.nav', () => startCtx.slots.register({
       name: 'sidebar.nav',
       id: 'imagine',
+      // After the Bots row: the two shares an order, so the explicit step keeps
+      // Imagine second regardless of which package registers first.
+      order: 1,
       locale: NS,
       inject: () => row,
     }, ImagineRow))

@@ -18,9 +18,6 @@ export const zh = {
   'security.info': '登录时需要身份验证器应用中的验证码。',
 
   'mfa.title': '保护你的账号',
-  'mfa.intro': '使用身份验证器应用增强安全性。你也可以稍后在设置中启用。',
-  'mfa.setup': '设置身份验证器',
-  'mfa.skip': '稍后再说',
   'mfa.scan': '使用身份验证器应用扫描二维码，然后输入六位验证码。',
   'mfa.manual': '无法扫描？手动输入设置密钥',
   'mfa.code': '身份验证器验证码',
@@ -143,9 +140,6 @@ export const en: Record<AccountAevenKey, string> = {
   'security.info': 'Require a code from your authenticator app when signing in.',
 
   'mfa.title': 'Protect your account',
-  'mfa.intro': 'Add an extra layer of security with an authenticator app. You can also do this later in settings.',
-  'mfa.setup': 'Set up authenticator',
-  'mfa.skip': 'Maybe later',
   'mfa.scan': 'Scan this QR code with your authenticator app, then enter the six-digit code.',
   'mfa.manual': 'Can’t scan? Enter a setup key instead',
   'mfa.code': 'Authenticator code',
@@ -271,9 +265,6 @@ export const es: Record<AccountAevenKey, string> = {
   'security.info': 'Solicita un código de tu aplicación de autenticación al iniciar sesión.',
 
   'mfa.title': 'Protege tu cuenta',
-  'mfa.intro': 'Añade una capa extra de seguridad con una aplicación de autenticación. También puedes hacerlo más tarde en los ajustes.',
-  'mfa.setup': 'Configurar la aplicación de autenticación',
-  'mfa.skip': 'Quizá más tarde',
   'mfa.scan': 'Escanea este código QR con tu aplicación de autenticación y luego introduce el código de seis dígitos.',
   'mfa.manual': '¿No puedes escanear? Introduce una clave de configuración',
   'mfa.code': 'Código de autenticación',

@@ -724,7 +724,7 @@ select.input {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 500;
   line-height: 1.4;
   color: var(--dsw-alias-label-primary);
@@ -734,14 +734,14 @@ select.input {
   padding: 0 6px;
   border-radius: 6px;
   background: var(--dsw-alias-interactive-bg-hover);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 400;
-  line-height: 18px;
+  line-height: 1.125rem;
   color: var(--dsw-alias-label-secondary);
 }
 
 .foldoutDescription {
-  font-size: 14px;
+  font-size: 0.875rem;
   line-height: 1.5;
   color: var(--dsw-alias-label-tertiary);
 }
@@ -791,8 +791,8 @@ select.input {
 
 .foldoutBody .fieldLabel,
 .foldoutBody .customizedSummary {
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   font-weight: 500;
   color: var(--dsw-alias-label-primary);
 }
@@ -815,16 +815,16 @@ select.input {
 
 .modelsTitle {
   margin: 0;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   font-weight: 500;
   color: var(--dsw-alias-label-primary);
 }
 
 .modelsHint {
   margin: 0;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   color: var(--dsw-alias-label-tertiary);
 }
 
@@ -855,8 +855,8 @@ select.input {
 }
 
 .modelsGroupTitle {
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   color: var(--dsw-alias-label-secondary);
 }
 
@@ -870,8 +870,8 @@ select.input {
   padding: 0;
   background: none;
   font: inherit;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   color: var(--dsw-alias-label-secondary);
   cursor: pointer;
 }
@@ -912,15 +912,14 @@ select.input {
   width: 16px;
   height: 16px;
   margin: 0;
-  accent-color: var(--dsw-alias-label-primary);
   cursor: inherit;
 }
 
 .modelsName {
   flex: 1;
   min-width: 0;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   color: var(--dsw-alias-label-primary);
   overflow: hidden;
   text-overflow: ellipsis;
