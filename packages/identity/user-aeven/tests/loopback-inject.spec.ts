@@ -89,3 +89,24 @@ describe('loopback spellings in the injected page config', () => {
     await expect(apply(ctx, Config({ apiUrl: 'not-a-url' }))).rejects.toThrow('Invalid URL')
   })
 })
+
+describe('provider sign-in flow', () => {
+  it('refuses a provider URL that states no flow', async () => {
+    // The flow says how the page reaches its provider, and only the deployment
+    // knows which it can do. A page served without one cannot start a sign-in.
+    const ctx = new Context()
+    const users = new IdentityUsers(ctx)
+    ;(ctx as unknown as { identityUsers: IdentityUsers }).identityUsers = users
+    await expect(apply(ctx, Config({
+      apiUrl: 'http://127.0.0.1:9000',
+      googleOAuthUrl: 'http://127.0.0.1:9000/oauth/google',
+    }))).rejects.toThrow('oauthFlow is required when a provider URL is configured')
+  })
+
+  it('ignores a stated flow when the deployment offers no provider', async () => {
+    // No provider URL means no sign-in for the flow to describe, so the page
+    // states none rather than one nothing reads.
+    expect(await injected({ apiUrl: 'http://127.0.0.1:9000', oauthFlow: 'redirect' }, 'http://127.0.0.1:3060'))
+      .not.toHaveProperty('oauthFlow')
+  })
+})

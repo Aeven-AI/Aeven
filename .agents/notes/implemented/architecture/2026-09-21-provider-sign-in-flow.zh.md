@@ -50,7 +50,7 @@ Status: implemented
 
 - `oauth.client.spec.ts` 覆盖该窗口：打开它所用的 URL、名称与特性；只有当另一个文档打开了本文档时它才是落地；以及那次等待——会话已存在时立刻返回，API 尚无会话时继续等待，API 完全无法抵达时也继续等待，而不是把它读成已完成。
 - `config.client.spec.ts` 覆盖解析器：声明过的形式，以及没有提供方的页面所抵达的回退值。
-- `packages/identity/user-aeven/tests/loopback-inject.spec.ts` 覆盖 Host 一侧：页面被服务时携带的形式。没有任何测试套件断言「配置了提供方却未声明形式时拒绝加载」与「没有提供方时声明过的形式被忽略」；`packages/identity/user-aeven/src/index.ts` 中的 `resolveOAuthFlow` 强制这两点。
+- `packages/identity/user-aeven/tests/loopback-inject.spec.ts` 覆盖 Host 一侧：页面被服务时携带的形式、配置了提供方却未声明形式时拒绝加载，以及 `packages/identity/user-aeven/src/index.ts` 中的 `resolveOAuthFlow` 找不到提供方时页面不携带声明过的形式。
 - 在 `redirect` 之下，组装后的浏览器没有变化，而 web 车道所运行的每个部署都是如此：gate、预加载页与启动路径由已经负责它们的测试套件覆盖。
 
 ## Deferred
