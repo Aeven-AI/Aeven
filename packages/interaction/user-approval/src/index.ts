@@ -11,6 +11,7 @@ import type { Agent } from '@aeven/agent'
 import { createUserMessage, type ToolCallId } from '@aeven/llm'
 import { scopeTarget } from '@aeven/scope'
 import type { Session } from '@aeven/session'
+import type { SessionEventMap } from '@aeven/session/types'
 import { SessionSeq } from '@aeven/session'
 import type {} from '@aeven/system-prompt'
 
@@ -53,9 +54,11 @@ const OUTCOMES: readonly ApprovalAnswer[] = ['allowed-session', 'allowed-once', 
  *
  * - `'ask'` (the default) — delegate to the composed answerers; with none
  *   composed the chain falls through to the fail-closed `'unavailable'`.
- * - `'never'` — never prompt anyone: every ask resolves `'rejected'`
- *   deterministically. The strict headless stance (CI, unattended runs) and
- *   the policy whose outcome is knowable without asking.
+ * - `'never'` — every ask resolves `'rejected'` deterministically, except an
+ *   ask with `allowSessionCoverage: 'account'` (an action on the user's
+ *   connected account that other people see), which still goes to the
+ *   answerers unless the override is a `'delegation'` pin. The strict
+ *   headless stance (CI, unattended runs).
  */
 export type ApprovalPolicy = 'ask' | 'never'
 
@@ -63,7 +66,7 @@ export type ApprovalPolicy = 'ask' | 'never'
 export const APPROVAL_POLICIES: readonly ApprovalPolicy[] = ['ask', 'never']
 
 /** Model-facing statement for the deterministic `'never'` policy. */
-const NEVER_SENTENCE = 'Approval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set `sandbox_permissions`).'
+const NEVER_SENTENCE = 'Approval prompts are disabled in this session: actions that require approval are rejected automatically, except actions on the user\'s connected accounts (such as sending a message), which still ask the user — do not request sandbox escalation (do not set `sandbox_permissions`).'
 /** Model-facing statement for an interactive policy that may still fail closed. */
 const ASK_SENTENCE = 'Approval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.'
 
@@ -130,8 +133,8 @@ export interface Config {
   /**
    * The deployment's default {@link ApprovalPolicy} for sessions without an
    * `approval/policy` override — `'ask'` delegates to the composed answerers
-   * (fail-closed with none); `'never'` auto-rejects every ask without
-   * prompting (the deterministic CI/unattended stance).
+   * (fail-closed with none); `'never'` auto-rejects every ask except
+   * connected-account actions (the deterministic CI/unattended stance).
    */
   readonly policy?: ApprovalPolicy
 }
@@ -254,9 +257,18 @@ export class ApprovalService extends Service {
    * @returns the last logged policy, or `undefined` without one.
    */
   overrideOf(session: Session): ApprovalPolicy | undefined {
+    return this.overrideEventOf(session)?.policy
+  }
+
+  /**
+   * Read the last logged policy switch with its source.
+   * @param session - session whose log supplies the override.
+   * @returns the last `approval/policy` payload, or `undefined` without one.
+   */
+  private overrideEventOf(session: Session): SessionEventMap['approval/policy'] | undefined {
     for (let seq = session.seq - 1; seq >= 0; seq -= 1) {
       const event = session.eventAt(SessionSeq(seq))
-      if (event?.type === 'approval/policy') return event.data.policy
+      if (event?.type === 'approval/policy') return event.data
     }
     return undefined
   }
@@ -275,7 +287,11 @@ export class ApprovalService extends Service {
     // ahead of any gate LISTENER, so a listener-shaped gate cannot keep the
     // documented promise that 'never' rejects deterministically regardless
     // of registration order — only the service's own request path can.
-    if (this.effectivePolicy(session) === 'never') return 'rejected'
+    // Actions on the user's connected accounts are visible to other people,
+    // so a user-chosen 'never' still asks for them; a delegation pin does not.
+    const override = this.overrideEventOf(session)
+    if ((override?.policy ?? this.config.policy ?? 'ask') === 'never'
+      && (req.allowSessionCoverage !== 'account' || override?.source === 'delegation')) return 'rejected'
     if (req.allowSession !== undefined) {
       for (let seq = session.seq - 1; seq >= 0; seq -= 1) {
         const event = session.eventAt(SessionSeq(seq))

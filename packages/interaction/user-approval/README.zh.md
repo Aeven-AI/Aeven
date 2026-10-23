@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`avn-user-approval` 让敏感的工具操作暂停等待一次性的允许／拒绝决定：`ctx.approval.request(req)` 向已组合的应答者询问某个具体操作是否可以继续，并返回 `allowed-once`、`rejected`、`cancelled` 或 `unavailable`。应答者缺失、不负责或抛出异常时，请求以 `unavailable` 关闭；一次性授权只适用于所请求的操作；明确限定范围的会话授权涵盖同一会话中的重复操作。按会话策略——`ask`（默认）或 `never`——决定在任何应答者运行之前发生什么：`ask` 委托给已组合的应答者，`never` 确定性地拒绝每个请求，不提示任何人。每个请求都会记录在发起请求的会话审计日志中；模型只会看到发起请求的消费方的工具结果，以及运行时上下文快照中的当前策略。UI 通道提供人类应答者；ACP（Agent Client Protocol）自动化桥接层为其自有 agent 作答。
+`avn-user-approval` 让敏感的工具操作暂停等待一次性的允许／拒绝决定：`ctx.approval.request(req)` 向已组合的应答者询问某个具体操作是否可以继续，并返回 `allowed-once`、`rejected`、`cancelled` 或 `unavailable`。应答者缺失、不负责或抛出异常时，请求以 `unavailable` 关闭；一次性授权只适用于所请求的操作；明确限定范围的会话授权涵盖同一会话中的重复操作。按会话策略——`ask`（默认）或 `never`——决定在任何应答者运行之前发生什么：`ask` 委托给已组合的应答者，`never` 确定性地拒绝每个请求，不提示任何人；但对用户已连接账户执行、其他人可见的操作仍交给应答者，除非该策略是子代理的委派固定值。每个请求都会记录在发起请求的会话审计日志中；模型只会看到发起请求的消费方的工具结果，以及运行时上下文快照中的当前策略。UI 通道提供人类应答者；ACP（Agent Client Protocol）自动化桥接层为其自有 agent 作答。
 
 ## 目录
 
@@ -33,7 +33,7 @@ kind: "package-reference"
 
 ### 设置策略
 
-有效策略取会话中已设置的策略，并回退到配置的默认值。`ask`（默认）委托给已组合的应答者；`never` 在交互式分发之前确定性地拒绝每个请求——这是 CI 与无人值守运行的严格无头姿态。
+有效策略取会话中已设置的策略，并回退到配置的默认值。`ask`（默认）委托给已组合的应答者；`never` 在交互式分发之前确定性地拒绝每个请求——这是 CI 与无人值守运行的严格无头姿态。带 `allowSessionCoverage: 'account'` 的请求（对用户已连接账户执行、其他人可见的操作）不受此限，仍交给应答者，除非覆盖值是子代理的 `delegation` 固定值。
 
 ```yaml
 - name: '@aeven/user-approval'
@@ -119,7 +119,7 @@ Approval policy: ask. Operations that require approval may ask through the confi
 ##### Never 策略贡献
 
 ```markdown
-Approval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set `sandbox_permissions`).
+Approval prompts are disabled in this session: actions that require approval are rejected automatically, except actions on the user's connected accounts (such as sending a message), which still ask the user — do not request sandbox escalation (do not set `sandbox_permissions`).
 ```
 
 #### Token 影响
