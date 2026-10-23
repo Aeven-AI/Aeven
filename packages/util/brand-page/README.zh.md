@@ -46,7 +46,9 @@ const page = brandPageHtml({
 即将离开的页面以等待状态渲染，并把去向交给文档，于是读者在浏览器离开之前看到的是封面：
 
 ```ts
-brandPageHtml({ state: 'waiting', note: 'Continuing to sign in…', redirect: providerUrl })
+import { brandPageHtml } from '@aeven/brand-page'
+
+brandPageHtml({ state: 'waiting', note: 'Continuing to sign in…', redirect: 'https://example.com/continue' })
 ```
 
 `scripted: false` 为不允许脚本的策略下的页面渲染同一套设计。此时样式表在入场动画上显示字标组合，而不是等待字体开关，并且既不输出重定向脚本，也不输出显示脚本。
@@ -90,6 +92,8 @@ Aeven API 的连接器页与账单页用的是这份设计的 CommonJS 副本。
 
 <a id="dev-note"></a>
 ## 开发备注
+
+本包不发布运行时不变式伴随模块：页面只是对其参数的纯渲染，包本身既不持有持久事件流，也没有可独立观察的关系可供断言。
 
 ### 测试
 
