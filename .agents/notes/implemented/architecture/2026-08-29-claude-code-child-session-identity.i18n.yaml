@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-08-29-claude-code-child-session-identity.md
-2026-08-29-claude-code-child-session-identity.md: ef05afbf578b9edc0d2ce546fd0712d8f2b147ed
-2026-08-29-claude-code-child-session-identity.zh.md: 54d6e6133f6effc82b941f6ab9466ab33355bd6f
+2026-08-29-claude-code-child-session-identity.md: 75e633a9f391d8644ae9ff12566e7535440cbc1e
+2026-08-29-claude-code-child-session-identity.zh.md: 229acd90d81d2e879dccaa54b383ff9837c7d1ca

@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-21-provider-sign-in-flow.md
-2026-09-21-provider-sign-in-flow.md: 08820ddf48ec9aaa7d4c8a57823da4f783e6caf1
-2026-09-21-provider-sign-in-flow.zh.md: aca8388070f0c1558bafe1c852cb1d41c9b98d80
+2026-09-21-provider-sign-in-flow.md: 903fed4e434740cd7051fe4ca65e8af124fe3f7c
+2026-09-21-provider-sign-in-flow.zh.md: 5e3d9b386afaf46b38a1e478f614357bb526888e

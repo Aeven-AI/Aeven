@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/proposed/architecture/2026-09-30-hosted-web-surface-and-sync.md
-2026-09-30-hosted-web-surface-and-sync.md: 9ced01b0608473055accf670140fc0d83e673194
-2026-09-30-hosted-web-surface-and-sync.zh.md: 74453782f7bbe2d9ef77ee9e387cd29a5ef960be
+2026-09-30-hosted-web-surface-and-sync.md: 738c945adbd04230f1a46f4cbe39a31910dceb88
+2026-09-30-hosted-web-surface-and-sync.zh.md: 5464457cbaaad300d83589019cf2bd82bfe68fa2
