@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-15-authenticator-two-factor-authentication.md
-2026-10-15-authenticator-two-factor-authentication.md: 9d795c8fb948ba797a7644b480b4903c6f897304
-2026-10-15-authenticator-two-factor-authentication.zh.md: dd968cec9cc503b148bed1776c11d3ccbc4dcbb4
+2026-10-15-authenticator-two-factor-authentication.md: 40cdb3750f5d335eb12110e45176498b521f81b6
+2026-10-15-authenticator-two-factor-authentication.zh.md: a42ed17f4379b8f270a6e9b16f1deaaaa08008df

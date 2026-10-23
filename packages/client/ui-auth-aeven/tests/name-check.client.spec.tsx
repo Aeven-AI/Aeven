@@ -53,7 +53,7 @@ function scriptedApi(answers: Record<string, { status: number; body: unknown }>)
  * @returns the recording.
  */
 const namedApi = (answers: Record<string, { status: number; body: unknown }>) =>
-  scriptedApi({ '/refresh-token': { status: 200, body: grant }, '/mfa/status': { status: 200, body: { enabled: false } }, ...answers })
+  scriptedApi({ '/refresh-token': { status: 200, body: grant }, ...answers })
 
 /** The `/set-display-name` grant the API sends back for a stored name. */
 const stored = {
@@ -108,10 +108,7 @@ describe('the naming step', () => {
     fireEvent.change(field, { target: { value: 'Ollie' } })
     fireEvent.click(submit)
 
-    await vi.waitFor(() => { expect(screen.getByRole('button', { name: t('mfa.skip') })).toBeDefined() })
-    expect(screen.getByRole('heading', { name: t('mfa.title') }).closest('form')?.textContent).toMatchSnapshot()
-    fireEvent.click(screen.getByRole('button', { name: t('mfa.skip') }))
-    expect(onNamed).toHaveBeenCalledTimes(1)
+    await vi.waitFor(() => { expect(onNamed).toHaveBeenCalledTimes(1) })
     expect(api.calls.find(call => call.url === '/set-display-name')).toEqual({
       url: '/set-display-name', body: JSON.stringify({ displayName: 'Ollie' }),
     })
@@ -129,9 +126,7 @@ describe('the naming step', () => {
     fireEvent.change(field, { target: { value: '  \u200BOllie\uFEFF  ' } })
     fireEvent.click(submit)
 
-    await vi.waitFor(() => { expect(screen.getByRole('button', { name: t('mfa.skip') })).toBeDefined() })
-    fireEvent.click(screen.getByRole('button', { name: t('mfa.skip') }))
-    expect(onNamed).toHaveBeenCalledTimes(1)
+    await vi.waitFor(() => { expect(onNamed).toHaveBeenCalledTimes(1) })
     expect(api.calls.find(call => call.url === '/set-display-name')?.body).toBe(JSON.stringify({ displayName: 'Ollie' }))
   })
 
@@ -143,9 +138,7 @@ describe('the naming step', () => {
     fireEvent.change(field, { target: { value: 'Ollie' } })
     fireEvent.submit(field.closest('form') as HTMLFormElement)
 
-    await vi.waitFor(() => { expect(screen.getByRole('button', { name: t('mfa.skip') })).toBeDefined() })
-    fireEvent.click(screen.getByRole('button', { name: t('mfa.skip') }))
-    expect(onNamed).toHaveBeenCalledTimes(1)
+    await vi.waitFor(() => { expect(onNamed).toHaveBeenCalledTimes(1) })
     expect(api.calls.filter(call => call.url === '/set-display-name')).toHaveLength(1)
   })
 
@@ -192,9 +185,7 @@ describe('the naming step', () => {
     fireEvent.change(field, { target: { value: 'Ollie' } })
     fireEvent.click(submit)
 
-    await vi.waitFor(() => { expect(screen.getByRole('button', { name: t('mfa.skip') })).toBeDefined() })
-    fireEvent.click(screen.getByRole('button', { name: t('mfa.skip') }))
-    expect(onNamed).toHaveBeenCalledTimes(1)
+    await vi.waitFor(() => { expect(onNamed).toHaveBeenCalledTimes(1) })
     expect(session.displayName).toBe('Ollie')
     expect(session.displayNameSet).toBe(true)
   })
@@ -228,22 +219,6 @@ describe('the naming step', () => {
     expect(onNamed).not.toHaveBeenCalled()
     expect(assign).not.toHaveBeenCalled()
     expect(session.displayNameSet).toBeUndefined()
-  })
-
-  it('boots the application when the status route answers nothing', async () => {
-    const { NameCheck, session, t } = await load()
-    // The deployed API serves no `/mfa` routes: the name is stored either way,
-    // so a status nobody can answer must not read as a refused name.
-    namedApi({ ...stored, '/mfa/status': { status: 404, body: {} } })
-    const { onNamed, field, submit } = mountStep(NameCheck, t)
-
-    fireEvent.change(field, { target: { value: 'Ollie' } })
-    fireEvent.click(submit)
-
-    await vi.waitFor(() => { expect(onNamed).toHaveBeenCalledTimes(1) })
-    expect(screen.queryByRole('heading', { name: t('mfa.title') })).toBeNull()
-    expect(session.displayName).toBe('Ollie')
-    expect(session.displayNameSet).toBe(true)
   })
 
   it('reports a refused credential to the page owner, which is what leaves the step', async () => {

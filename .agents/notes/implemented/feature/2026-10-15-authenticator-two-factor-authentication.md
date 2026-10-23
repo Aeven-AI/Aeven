@@ -6,11 +6,11 @@ English | [中文](2026-10-15-authenticator-two-factor-authentication.zh.md)
 
 ## Problem
 
-An account password or social sign-in alone gives access to Aeven. Readers need optional authenticator protection during signup and a way to manage it from account settings.
+An account password or social sign-in alone gives access to Aeven. Readers need optional authenticator protection and a way to manage it from account settings.
 
 ## Decision
 
-The Node account server owns TOTP enrollment and verification. Signup offers enrollment after naming; Account → Security exposes an inline switch with confirmed On/Off status. Cancelling or a refused code preserves protection; unavailable status disables changes and offers a retry. Account settings contain enrollment and verification without an external account-management link. An encrypted pending secret expires after ten minutes, and a valid six-digit code commits activation. Recovery codes are disclosed once and stored as hashes. Disabling requires a valid authenticator or recovery code.
+The Node account server owns TOTP enrollment and verification. Account → Security exposes enrollment and an inline switch with confirmed On/Off status. Cancelling or a refused code preserves protection; unavailable status disables changes and offers a retry. Account settings contain enrollment and verification without an external account-management link. An encrypted pending secret expires after ten minutes, and a valid six-digit code commits activation. Recovery codes are disclosed once and stored as hashes. Disabling requires a valid authenticator or recovery code.
 
 Password sign-in, repeated registration, and social token exchange withhold credentials from the client until a second-factor challenge completes. Challenges expire after five minutes. Account-scoped attempt limits include newly issued challenges. Mongo updates atomically consume a TOTP time step or recovery hash, and Redis atomically consumes the sign-in challenge. The shared `MfaForm` primitive receives API operations and locale-owned copy; it holds no boot-session state.
 

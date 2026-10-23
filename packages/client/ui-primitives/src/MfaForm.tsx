@@ -4,7 +4,7 @@ import type React from 'react'
 import css from './MfaForm.module.css'
 
 /** User-facing operations supported by the authenticator form. */
-export type MfaMode = 'offer' | 'setup' | 'disable'
+export type MfaMode = 'setup' | 'disable'
 /** Responses contain enrollment material only during setup and recovery codes only on enable. */
 export interface MfaAnswer {
   readonly secret?: string
@@ -13,7 +13,7 @@ export interface MfaAnswer {
   readonly enabled?: boolean
 }
 /** Localized copy shared by signup and Account settings. */
-export type MfaKey = 'mfa.title' | 'mfa.intro' | 'mfa.setup' | 'mfa.skip' | 'mfa.scan' | 'mfa.manual'
+export type MfaKey = 'mfa.title' | 'mfa.scan' | 'mfa.manual'
   | 'mfa.code' | 'mfa.confirm' | 'mfa.cancel' | 'mfa.disable' | 'mfa.disableInfo'
   | 'mfa.error' | 'mfa.expired' | 'mfa.limited' | 'mfa.recovery' | 'mfa.recoveryInfo'
   | 'mfa.used' | 'mfa.restart' | 'mfa.recoveryCode' | 'mfa.failure' | 'mfa.saved' | 'mfa.copy' | 'mfa.copied' | 'mfa.loading' | 'mfa.useRecovery' | 'mfa.useApp'
@@ -43,7 +43,7 @@ function titleKey(mode: MfaMode): MfaKey {
 
 /** Instruction of the step the form is showing. */
 function infoKey(mode: MfaMode): MfaKey {
-  return mode === 'offer' ? 'mfa.intro' : mode === 'setup' ? 'mfa.scan' : 'mfa.disableInfo'
+  return mode === 'setup' ? 'mfa.scan' : 'mfa.disableInfo'
 }
 
 /** Failure response code of the enable or disable call. */
@@ -65,7 +65,7 @@ function Emblem() {
  * @returns the form; enabled state changes only after the server confirms a code.
  */
 export function MfaForm({ mode: initialMode, t, request, onDone, onCancel, standalone = false, layout = 'card' }: MfaFormProps): React.JSX.Element {
-  const [mode, setMode] = useState(initialMode)
+  const [mode] = useState(initialMode)
   const [setup, setSetup] = useState<MfaAnswer>()
   const [codes, setCodes] = useState<readonly string[]>()
   const [code, setCode] = useState('')
@@ -147,13 +147,6 @@ export function MfaForm({ mode: initialMode, t, request, onDone, onCancel, stand
     </button>
   )
 
-  const offer = (
-    <>
-      <button type="button" className={css.primary} onClick={() => { setMode('setup') }}>{t('mfa.setup')}</button>
-      <button type="button" className={css.secondary} onClick={onCancel}>{t('mfa.skip')}</button>
-    </>
-  )
-
   if (codes !== undefined) {
     const disclosure = (
       <>
@@ -205,10 +198,7 @@ export function MfaForm({ mode: initialMode, t, request, onDone, onCancel, stand
     <form className={cells ? css.cells : css.card} onSubmit={submit}>
       {!cells && <Emblem />}
       {!cells && <h2>{t(titleKey(mode))}</h2>}
-      {mode === 'offer' ? <>
-        <p>{t(infoKey(mode))}</p>
-        {offer}
-      </> : body}
+      {body}
     </form>
   )
   return standalone ? <div className={css.screen}>{card}</div> : card
