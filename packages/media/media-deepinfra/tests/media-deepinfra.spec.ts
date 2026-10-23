@@ -58,9 +58,9 @@ describe('the image catalog', () => {
     ] })
     const runtime = await media()
     expect(await runtime.listImageModels()).toEqual([
-      { provider: 'deepinfra', id: 'black-forest-labs/FLUX-1.1-pro', description: 'fast' },
-      { provider: 'deepinfra', id: 'ByteDance/Seedream-5.0-Pro', description: 'flagship' },
-      { provider: 'deepinfra', id: 'quiet/img' },
+      { provider: 'deepinfra', id: 'black-forest-labs/FLUX-1.1-pro', label: 'FLUX-1.1-pro', description: 'fast' },
+      { provider: 'deepinfra', id: 'ByteDance/Seedream-5.0-Pro', label: 'Seedream-5.0-Pro', description: 'flagship' },
+      { provider: 'deepinfra', id: 'quiet/img', label: 'img' },
     ])
     expect(calls[0]?.url).toBe('https://api.deepinfra.com/models/list')
   })
