@@ -1,7 +1,7 @@
 {
   "name": "@aeven/sdk-jsonrpc-server",
   "description": "Stdio JSON-RPC server plugin for out-of-process Aeven SDK clients",
-  "version": "0.3.9-alpha",
+  "version": "0.3.10-alpha",
   "publishConfig": {
     "access": "public"
   },

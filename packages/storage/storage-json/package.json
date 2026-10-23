@@ -1,7 +1,7 @@
 {
   "name": "@aeven/storage-json",
   "description": "JSON file KV storage backend for the Aeven storage hub",
-  "version": "0.3.9-alpha",
+  "version": "0.3.10-alpha",
   "publishConfig": {
     "access": "public"
   },

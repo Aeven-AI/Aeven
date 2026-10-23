@@ -1,7 +1,7 @@
 {
   "name": "@aeven/session-title",
   "description": "Log-backed session title service and provider registry for the Aeven",
-  "version": "0.3.9-alpha",
+  "version": "0.3.10-alpha",
   "publishConfig": {
     "access": "public"
   },

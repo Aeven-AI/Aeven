@@ -1,7 +1,7 @@
 {
   "name": "@aeven/code-runtime-worker-thread",
   "description": "Worker-thread implementation of the Aeven code-execution seam",
-  "version": "0.3.9-alpha",
+  "version": "0.3.10-alpha",
   "publishConfig": {
     "access": "public"
   },
