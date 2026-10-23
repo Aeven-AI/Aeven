@@ -23,11 +23,11 @@ describe('desktop service endpoints', () => {
     expect(configs).toEqual({
       'identity-user-aeven': {
         apiUrl: 'https://aeven.io/api',
-        webUrl: 'https://preview.aeven.io',
-        mediaUrl: 'https://preview.aeven.io',
-        xOAuthUrl: 'https://preview.aeven.io/oauth/x',
-        appleOAuthUrl: 'https://preview.aeven.io/oauth/apple',
-        googleOAuthUrl: 'https://preview.aeven.io/oauth/google',
+        webUrl: 'https://aeven.io',
+        mediaUrl: 'https://aeven.io',
+        xOAuthUrl: 'https://aeven.io/oauth/x',
+        appleOAuthUrl: 'https://aeven.io/oauth/apple',
+        googleOAuthUrl: 'https://aeven.io/oauth/google',
         oauthFlow: 'window',
       },
       'llm-aeven': { apiUrl: 'https://aeven.io/api' },
