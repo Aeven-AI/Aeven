@@ -136,6 +136,50 @@ export function selectCompactableRange(
 }
 
 /**
+ * Resolve the largest head of a selected range holding at most half of the
+ * range's route-priced tokens, ending on a balanced tool-call boundary. The
+ * head holds at least two nodes, so replacing it with one checkpoint always
+ * shortens the surface.
+ * @param session - session supplying authoritative current surface positions.
+ * @param measurement - current measurement whose nodes match the surface.
+ * @param range - inclusive positional range whose head is selected.
+ * @returns the inclusive head range, or `null` when no such head exists.
+ */
+export function halveRange(
+  session: Session,
+  measurement: TokenMeasurement,
+  range: { start: SessionSeq; end: SessionSeq },
+): { start: SessionSeq; end: SessionSeq } | null {
+  const surfaceNodes = session.surface.nodes
+  const pricedNodes = measurement.nodes
+  if (surfaceNodes.length !== pricedNodes.length
+    || surfaceNodes.some((seq, index) => seq !== pricedNodes[index]?.seq)) {
+    throw new Error('compaction: token-meter surface does not match the current session surface')
+  }
+  const startIdx = surfaceNodes.indexOf(range.start)
+  const endIdx = surfaceNodes.indexOf(range.end)
+  if (startIdx === -1 || endIdx === -1) return null
+
+  let total = 0
+  // oxlint-disable-next-line typescript/no-non-null-assertion
+  for (let index = startIdx; index <= endIdx; index += 1) total += pricedNodes[index]!.tokens
+  const budget = Math.floor(total / 2)
+  let accumulated = 0
+  let lastIdx = startIdx - 1
+  for (let index = startIdx; index < endIdx; index += 1) {
+    // oxlint-disable-next-line typescript/no-non-null-assertion
+    accumulated += pricedNodes[index]!.tokens
+    if (accumulated > budget) break
+    lastIdx = index
+  }
+  // oxlint-disable-next-line typescript/no-non-null-assertion
+  while (lastIdx > startIdx && !toolPairingBalancedAfter(session, surfaceNodes[lastIdx]!)) lastIdx -= 1
+  if (lastIdx <= startIdx) return null
+  // oxlint-disable-next-line typescript/no-non-null-assertion
+  return { start: range.start, end: surfaceNodes[lastIdx]! }
+}
+
+/**
  * Run the single compaction transaction over one selected positional span.
  * Selection and validation are read-only. Idle/log validation and
  * `compaction/start` are synchronously adjacent, so the durable opening marker is

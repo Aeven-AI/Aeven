@@ -3,7 +3,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { AttachmentId } from '@aeven/attachment'
 import BasicCompactionEngine from '@aeven/compaction-basic'
 import type { BasicCompactionConfig } from '@aeven/compaction-basic'
-import { selectCompactableRange } from '@aeven/compaction-basic/src/region.ts'
+import { selectCompactableRange, halveRange } from '@aeven/compaction-basic/src/region.ts'
 import { frameSummary } from '@aeven/compaction-basic/src/summarizer.ts'
 import type { SummarizationInput, SummaryResult } from '@aeven/compaction-basic/src/summarizer.ts'
 import { CompactionId, toolPairingBalancedAfter, toolPairingBalancedBefore } from '@aeven/compaction'
@@ -2077,5 +2077,259 @@ describe('route-priced image pressure', () => {
       .filter(node => result?.shadowedSeqs.includes(node.seq))
       .reduce((total, node) => total + node.heuristicTokens, 0)
     expect(summaryEvent?.data.shadowedTokenCount).toBe(shadowedHeuristic)
+  })
+})
+
+/** Two closed tool turns whose second result dominates the priced range, followed by an open turn. */
+function unevenToolConversation(): Session {
+  const session = Session.create(SessionId('uneven-tools'))
+  for (const turn of [1, 2]) {
+    const callId = ToolCallId(`uneven-call-${turn}`)
+    session.append('turn/start', { turn })
+    session.append('user/message', createUserMessage({
+      content: [{ type: 'text', text: `request ${turn}` }],
+      source: { kind: 'user' },
+    }), { surfaceOp: 'append' })
+    session.append('step/start', { turn, step: 1 })
+    if (turn === 1) {
+      session.append('request/header', {
+        header: { config: { provider: MODEL, model: MODEL } },
+        reason: 'initial',
+      })
+    }
+    session.append('assistant/message', {
+      turn,
+      step: 1,
+      message: createMessage({
+        role: 'assistant',
+        content: [{ type: 'tool-call', id: callId, name: 'read', arguments: '{}' }],
+        source: {
+          kind: 'model',
+          ...{ provider: MODEL, model: MODEL },
+        },
+      }),
+    }, { surfaceOp: 'append' })
+    session.append('tool/call', { turn, step: 1, callId, name: 'read', arguments: '{}' })
+    session.append('tool/result', {
+      turn,
+      step: 1,
+      message: createToolResultMessage({
+        callId,
+        content: [{ type: 'text', text: turn === 1 ? 'short result' : 'long result '.repeat(2_000) }],
+        isError: false,
+      }),
+    }, { surfaceOp: 'append' })
+    session.append('step/end', { turn, step: 1 })
+    session.append('turn/end', { turn, reason: { kind: 'completed' } })
+  }
+  session.append('turn/start', { turn: 3 })
+  return session
+}
+
+/** A first message that prices past half of the head range it starts, with one small reply and a follow-up. */
+function frontLoadedConversation(): Session {
+  const session = Session.create(SessionId('front-loaded'))
+  session.append('turn/start', { turn: 1 })
+  session.append('user/message', createUserMessage({
+    content: [{ type: 'text', text: 'older history '.repeat(1_500) }],
+    source: { kind: 'user' },
+  }), { surfaceOp: 'append' })
+  session.append('step/start', { turn: 1, step: 1 })
+  session.append('request/header', {
+    header: { config: { provider: MODEL, model: MODEL } },
+    reason: 'initial',
+  })
+  session.append('assistant/message', {
+    turn: 1,
+    step: 1,
+    message: createMessage({
+      role: 'assistant',
+      content: [{ type: 'text', text: 'acknowledged' }],
+      source: {
+        kind: 'model',
+        ...{ provider: MODEL, model: MODEL },
+      },
+    }),
+  }, { surfaceOp: 'append' })
+  session.append('step/end', { turn: 1, step: 1 })
+  session.append('turn/end', { turn: 1, reason: { kind: 'completed' } })
+  session.append('turn/start', { turn: 2 })
+  session.append('user/message', createUserMessage({
+    content: [{ type: 'text', text: 'next request' }],
+    source: { kind: 'user' },
+  }), { surfaceOp: 'append' })
+  return session
+}
+
+describe('head-halving compaction', () => {
+  /** A summarizer that accepts a span of at most `widest` replayed messages and fails wider ones with `code`. */
+  class HalvingEngine extends BasicCompactionEngine {
+    readonly spans: number[] = []
+    code: string = CONTEXT_WINDOW_EXCEEDED_CODE
+    duringSummarize: (() => void) | undefined
+
+    constructor(ctx: Context, private readonly widest: number) {
+      super(ctx, { auto: false })
+    }
+
+    override async summarize(
+      input: SummarizationInput,
+      _agent: Agent,
+      _signal?: AbortSignal,
+    ): Promise<{ summary: ContentBlock[]; provider: string; model: string }> {
+      const span = input.messages.length
+      this.spans.push(span)
+      this.duringSummarize?.()
+      if (span > this.widest) {
+        throw Object.assign(new Error(`summarization span of ${span} messages is too wide`), { code: this.code })
+      }
+      return { summary: [{ type: 'text', text: 'head checkpoint' }], provider: 'summary-provider', model: 'summary-model' }
+    }
+  }
+
+  /** A three-turn conversation whose messages each outweigh the checkpoint that replaces a halved head. */
+  function wideConversation(): Session {
+    return conversation(3, 'fixture '.repeat(400))
+  }
+
+  /** The whole surface of a session with the meter's prices for it, as a copy the session cannot rewrite. */
+  function pricedSurface(ctx: Context, session: Session) {
+    const measurement = ctx.tokenMeter.measure(session)
+    const nodes = [...session.surface.nodes]
+    return { measurement, nodes, range: { start: nodes[0]!, end: nodes[nodes.length - 1]! } }
+  }
+
+  /** Priced tokens of the surface nodes from `from` through `to`, inclusive. */
+  function tokensOf(measurement: ReturnType<Context['tokenMeter']['measure']>, from: number, to: number): number {
+    return measurement.nodes.slice(from, to + 1).reduce((total, node) => total + node.tokens, 0)
+  }
+
+  /** Number of surface nodes one selected range spans. */
+  function spanOf(nodes: readonly SessionSeq[], range: { readonly start: SessionSeq; readonly end: SessionSeq }): number {
+    return nodes.indexOf(range.end) - nodes.indexOf(range.start) + 1
+  }
+
+  it('selects the largest balanced head holding at most half the range\'s priced tokens', () => {
+    const ctx = createContext()
+    const session = conversation(3)
+    const { measurement, nodes, range } = pricedSurface(ctx, session)
+    const head = halveRange(session, measurement, range)
+
+    expect(head?.start).toBe(nodes[0])
+    const headIdx = nodes.indexOf(head!.end)
+    const budget = Math.floor(tokensOf(measurement, 0, nodes.length - 1) / 2)
+    expect(headIdx).toBeGreaterThanOrEqual(1)
+    expect(tokensOf(measurement, 0, headIdx)).toBeLessThanOrEqual(budget)
+    expect(tokensOf(measurement, 0, headIdx + 1)).toBeGreaterThan(budget)
+    expect(toolPairingBalancedAfter(session, head!.end)).toBe(true)
+  })
+
+  it('steps the head back onto a balanced tool-call boundary', () => {
+    const ctx = createContext()
+    const session = unevenToolConversation()
+    const { measurement, nodes, range } = pricedSurface(ctx, session)
+    // The natural half ends on the second turn's assistant tool call, whose result the head would drop.
+    const head = halveRange(session, measurement, range)
+
+    expect(head?.end).toBe(nodes[3])
+    expect(toolPairingBalancedAfter(session, head!.end)).toBe(true)
+    expect(tokensOf(measurement, 0, 3)).toBeLessThanOrEqual(Math.floor(tokensOf(measurement, 0, nodes.length - 1) / 2))
+  })
+
+  it('throws when the token-meter surface does not match the current session surface', () => {
+    const ctx = createContext()
+    const session = conversation(2)
+    const { measurement, nodes, range } = pricedSurface(ctx, session)
+
+    expect(() => halveRange(session, { ...measurement, nodes: measurement.nodes.slice(1) }, range))
+      .toThrow(/token-meter surface does not match/)
+    expect(() => halveRange(session, {
+      ...measurement,
+      nodes: measurement.nodes.map((node, index) => index === 0 ? { ...node, seq: nodes[1]! } : node),
+    }, range)).toThrow(/token-meter surface does not match/)
+  })
+
+  it('returns null for a boundary outside the surface or with no head of two nodes under half', () => {
+    const ctx = createContext()
+    const session = conversation(2)
+    const { measurement, nodes, range } = pricedSurface(ctx, session)
+    expect(halveRange(session, measurement, { start: SessionSeq(9_001), end: range.end })).toBeNull()
+    expect(halveRange(session, measurement, { start: nodes[0]!, end: SessionSeq(9_002) })).toBeNull()
+
+    // One tool pair prices past half in its first node, so the only head that fits would split the pair.
+    const paired = oversizedToolResult(3_000, true)
+    const priced = ctx.tokenMeter.measure(paired)
+    const pairNodes = paired.surface.nodes
+    expect(halveRange(paired, priced, { start: pairNodes[0]!, end: pairNodes[pairNodes.length - 1]! })).toBeNull()
+  })
+
+  it.each([CONTEXT_WINDOW_EXCEEDED_CODE, MESSAGE_COUNT_EXCEEDED_CODE])(
+    'halves the span after a %s summarization failure and compacts the head',
+    async (code) => {
+      const ctx = createContext()
+      const compact = new HalvingEngine(ctx, 3)
+      compact.code = code
+      const session = wideConversation()
+      const { measurement, nodes } = pricedSurface(ctx, session)
+      const selected = selectCompactableRange(session, measurement, 0)
+      expect(selected).not.toBeNull()
+
+      const result = await compactIfNeeded(compact, session, 'context-overflow')
+
+      expect(compact.spans[0]).toBe(spanOf(nodes, selected!))
+      expect(compact.spans[1]).toBeLessThan(compact.spans[0]!)
+      expect(result).not.toBeNull()
+      expect(result?.shadowedSeqs.length).toBeLessThan(spanOf(nodes, selected!))
+    },
+  )
+
+  it('rethrows a summarization failure that is not about the request size', async () => {
+    const ctx = createContext()
+    const compact = new HalvingEngine(ctx, 2)
+    compact.code = 'SERVER'
+    const session = conversation(3)
+    const generation = session.surface.replaceGeneration
+
+    await expect(compactIfNeeded(compact, session, 'context-overflow'))
+      .rejects.toThrow(/summarization span of \d+ messages is too wide/)
+    expect(compact.spans).toHaveLength(1)
+    expect(session.surface.replaceGeneration).toBe(generation)
+  })
+
+  it('rethrows the size failure when the turn is cancelled during summarization', async () => {
+    const ctx = createContext()
+    const compact = new HalvingEngine(ctx, 2)
+    const controller = new AbortController()
+    compact.duringSummarize = () => { controller.abort() }
+    const session = conversation(3)
+
+    await expect(compact.compactIfNeeded(agent(session, MODEL), 'context-overflow', controller.signal))
+      .rejects.toThrow(/is too wide/)
+    expect(compact.spans).toHaveLength(1)
+  })
+
+  it('rethrows the size failure when no smaller head exists', async () => {
+    const ctx = createContext()
+    const compact = new HalvingEngine(ctx, 1)
+    const session = frontLoadedConversation()
+
+    await expect(compactIfNeeded(compact, session, 'context-overflow'))
+      .rejects.toThrow(/is too wide/)
+    expect(compact.spans).toHaveLength(1)
+  })
+
+  it('re-measures and condenses the remainder until the shadowed range reaches the original end', async () => {
+    const ctx = createContext()
+    const compact = new HalvingEngine(ctx, 3)
+    const session = wideConversation()
+    const originalEnd = selectCompactableRange(session, ctx.tokenMeter.measure(session), 0)?.end
+    expect(originalEnd).toBeDefined()
+
+    const result = await compactIfNeeded(compact, session, 'context-overflow')
+
+    expect(result?.shadowedRange.end).toBe(originalEnd)
+    const summaries = session.snapshotEvents().filter(event => event.type === 'compaction/summary')
+    expect(summaries.length).toBeGreaterThan(1)
+    expect(compact.spans.length).toBeGreaterThan(summaries.length)
   })
 })
