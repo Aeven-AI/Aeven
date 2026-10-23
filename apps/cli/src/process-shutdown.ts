@@ -3,20 +3,12 @@
 /** Maximum grace allowed for the application tree to dispose before process exit. */
 export const PROCESS_SHUTDOWN_TIMEOUT_MS = 5_000
 
-/**
- * Grace for the event loop to drain after an interrupt's disposal before the exit is forced. A natural exit lets native
- * addons release their resources first: onnxruntime aborts the process ("mutex lock failed") when `process.exit()`
- * ends it while its threads are alive.
- */
-export const PROCESS_DRAIN_TIMEOUT_MS = 1_000
-
 /** Process-exit controller shared by normal completion and Unix signal handlers. */
 export interface ProcessShutdown {
   /** Start or join graceful disposal before allowing natural completion with `code`. */
   shutdown(code: number): Promise<void>
   /**
-   * Start graceful disposal followed by a natural exit with `code`, forced when the event loop has not drained within
-   * {@link PROCESS_DRAIN_TIMEOUT_MS}; force exit at once when shutdown is already running.
+   * Start graceful disposal followed by a natural exit with `code`; force exit at once when shutdown is already running.
    */
   interrupt(code: number): void
 }
@@ -59,14 +51,12 @@ export function createProcessShutdown(
     complete(code)
   }
 
-  const start = (code: number, forceAfterDispose: boolean): Promise<void> => {
+  const start = (code: number): Promise<void> => {
     if (pending !== undefined) return pending
     timeout = setTimeout(() => { forceExitOnce(code) }, timeoutMs)
     pending = Promise.resolve().then(dispose).then(
       () => {
         completeOnce(code)
-        // A handle that outlives disposal must not keep an interrupted process alive; the timer itself does not.
-        if (forceAfterDispose) setTimeout(() => { forceExitOnce(code) }, PROCESS_DRAIN_TIMEOUT_MS).unref()
       },
       () => { forceExitOnce(code) },
     )
@@ -75,14 +65,14 @@ export function createProcessShutdown(
 
   return {
     shutdown(code) {
-      return start(code, false)
+      return start(code)
     },
     interrupt(code) {
       if (pending !== undefined) {
         forceExitOnce(code)
         return
       }
-      void start(code, true)
+      void start(code)
     },
   }
 }

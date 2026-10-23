@@ -21,6 +21,13 @@ function readVersion(): string {
   return typeof manifest.version === 'string' ? manifest.version : '0.0.0'
 }
 
+// Suppress only Node's SQLite maturity notice; application and other runtime warnings remain visible.
+const emitWarning = process.emitWarning.bind(process)
+process.emitWarning = function (warning: string | Error, ...args: unknown[]): void {
+  if (warning === 'SQLite is an experimental feature and might change at any time' && args[0] === 'ExperimentalWarning') return
+  Reflect.apply(emitWarning, process, [warning, ...args])
+}
+
 const version = readVersion()
 const invocation = parseAvnArgs(process.argv.slice(2), version)
 

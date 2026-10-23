@@ -21,11 +21,11 @@ Status: implemented
 Web 与 headless 共用 `createProcessShutdown`，它是围绕根级 dispose 建立的进程级控制器：
 
 - 多次正常关闭调用会汇合到同一次 dispose，并保留首次请求的退出码；这些调用不会相互触发强制退出。dispose 成功后，控制器通过 `process.exitCode` 记录该退出码，让 Node 自然排空剩余句柄；dispose 失败时仍强制退出，因为启动器不能假定失败的插件树已经完全停稳。
-- 第一个信号会启动同一次优雅 dispose，并设置一个带引用的 5 秒退出兜底。dispose 无论成功或失败都会触发且仅触发一次退出；任何一种结果都无法取消进程退出。
+- 第一个信号会启动同一次优雅 dispose，并设置一个带引用的 5 秒退出兜底。dispose 成功时记录退出码并允许自然退出；dispose 失败时强制退出。
 - 关闭待结算期间收到信号时，会立即按该信号路径的退出码强制退出。这既包括 headless 正常完成已经进入 dispose 后收到的第一次 `Ctrl+C`，也包括由信号启动排空后收到的第二个信号。
 - 5 秒上限是进程安全不变式，而不是部署调节项。它足以覆盖遥测部署的常规排空时限，同时仍在启动器边界为任何卡死的 disposer 设置等待上限。
 
-正常完成会刻意避免调用 `process.exit()`：Undici 请求刚完成后立即强制退出，可能会在原生句柄清理尚未排空时触发 Node 的 [Windows libuv 异步句柄断言](https://github.com/nodejs/node/issues/56645)。如果正常 dispose 已经完成，但仍有其他句柄让进程保持存活，信号依然可以强制退出。
+正常完成会刻意避免调用 `process.exit()`：Undici 请求刚完成后立即强制退出，可能会在原生句柄清理尚未排空时触发 Node 的 [Windows libuv 异步句柄断言](https://github.com/nodejs/node/issues/56645)。如果 dispose 已经完成，但仍有其他句柄让进程保持存活，信号依然可以强制退出。在 macOS 上，`process.exit()` 绕过 Node 的拆卸流程时，ONNX Runtime 会在环境析构函数中终止进程；即使已显式释放 pipeline 也会发生此问题。自然退出可避免该析构顺序错误，因此信号触发的 dispose 不设置延迟强制退出计时器。
 
 headless 对完成的轮次仍以 0 退出，对其他轮次结束原因或 API 业务错误仍以 1 退出，对 SIGINT 以 130 退出，对 SIGTERM 以 143 退出。Web 保留现有行为：SIGTERM 以 0 退出，SIGINT 以 130 退出。
 
