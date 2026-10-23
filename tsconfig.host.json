@@ -360,6 +360,8 @@
     { "path": "./packages/preset/persona" },
     { "path": "./packages/preset/personalization" },
     { "path": "./packages/guard/repeat-tool-reminder" },
+    { "path": "./packages/guard/turn-review" },
+    { "path": "./packages/guard/bash-edit-guard" },
     { "path": "./packages/extensions/cordis-host-runner" },
     { "path": "./packages/extensions/tool-cordis" },
     { "path": "./packages/hooks/hook-protocol" },

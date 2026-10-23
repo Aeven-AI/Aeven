@@ -448,6 +448,26 @@
         thresholds: [3, 5, 8]
         argumentsPreviewChars: 500
 
+    # Before a turn that changed files closes, one review call checks the final
+    # reply against the turn's requests and tool results; findings steer one
+    # more step, at most twice per turn.
+    - id: turn-review
+      name: '@aeven/turn-review'
+      config:
+        triggerTools: [write, edit, str_replace_editor]
+        maxReviewsPerTurn: 2
+        maxEntryChars: 2000
+        maxTranscriptChars: 60000
+        maxOutputTokens: 4000
+        timeoutMs: 90000
+
+    # Shell commands may not change an existing source file in place; edits go
+    # through edit/write. New files, scratch output, builds, and installs pass.
+    - id: bash-edit-guard
+      name: '@aeven/bash-edit-guard'
+      config:
+        tools: [bash]
+
     # The shared base enables the stable model-facing web_search and web_fetch
     # tools. The Web app disables this host row and composes both tools per agent
     # preset; products with a stricter network policy override tool-web. DeepSeek
