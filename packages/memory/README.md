@@ -33,6 +33,7 @@ The `avn-web-app` bundle mounts the `memory` slot and a disabled `memory-memos` 
 
 ## Related documentation
 
+- [Memory subsystem](../../docs/subsystems/memory.md) — the `ctx.memory` provider slot, its recall, capture, and inspection requests, and the `ctx.memoryManagerController` Remote behind Settings → Memory.
 - [Long-term memory Agent Note](../../.agents/notes/implemented/feature/2026-09-28-long-term-memory-memos.md) — why Aeven owns the seam and how the MemOS DeepSeek Harness adapter was ported.
 
 ## Dev Note

@@ -33,6 +33,7 @@ kind: "package-group"
 
 ## 相关文档
 
+- [记忆子系统](../../docs/subsystems/memory.zh.md) —— `ctx.memory` 的提供方槽位、它的召回、捕获与检视请求，以及 Settings → Memory 背后的 `ctx.memoryManagerController` Remote。
 - [长期记忆 Agent Note](../../.agents/notes/implemented/feature/2026-09-28-long-term-memory-memos.zh.md) —— 为什么 Aeven 拥有这个 seam，以及 MemOS DeepSeek Harness 适配器是如何移植过来的。
 
 ## 开发备注

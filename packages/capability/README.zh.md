@@ -20,6 +20,7 @@ kind: "package-group"
 
 ## 相关文档
 
+- [能力子系统](../../docs/subsystems/capability.zh.md) —— `ctx.capabilities` 的各项操作、`capabilities/*` 事件，以及它们所改变的流程记录与修订。
 - [能力学习 Agent Note](../../.agents/notes/implemented/feature/2026-09-29-capability-learning.zh.md) —— 各项状态，以及为什么执行从不依赖记忆；[生命周期说明](../../.agents/notes/implemented/feature/2026-09-29-capability-lifecycle.zh.md) —— 证据、自动学习与 Settings → Memory。
 - [长期记忆路线图](../../.agents/notes/proposed/feature/2026-09-28-long-term-memory-roadmap.zh.md) —— 能力学习在计划中所处的位置。
 
