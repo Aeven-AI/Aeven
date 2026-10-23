@@ -177,7 +177,7 @@ it('pins native DeepSeek Files offload and inline fallback in assembled requests
         role: 'user',
         content: 'Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\n\n'
           + 'Current AVN file policy: danger-full-access. The AVN file sandbox does not restrict file modifications by available operations.\n\n'
-          + 'Approval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set `sandbox_permissions`).',
+          + 'Approval prompts are disabled in this session: actions that require approval are rejected automatically, except actions on the user\'s connected accounts (such as sending a message), which still ask the user — do not request sandbox escalation (do not set `sandbox_permissions`).',
       },
       {
         role: 'assistant',

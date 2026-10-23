@@ -12,7 +12,7 @@
       },
       {
         "role": "user",
-        "content": "Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\n\nCurrent AVN file policy: danger-full-access. The AVN file sandbox does not restrict file modifications by available operations.\n\nApproval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set `sandbox_permissions`)."
+        "content": "Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\n\nCurrent AVN file policy: danger-full-access. The AVN file sandbox does not restrict file modifications by available operations.\n\nApproval prompts are disabled in this session: actions that require approval are rejected automatically, except actions on the user's connected accounts (such as sending a message), which still ask the user — do not request sandbox escalation (do not set `sandbox_permissions`)."
       }
     ],
     "toolNames": [
@@ -44,7 +44,7 @@
       },
       {
         "role": "user",
-        "content": "Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\n\nCurrent AVN file policy: danger-full-access. The AVN file sandbox does not restrict file modifications by available operations.\n\nApproval prompts are disabled in this session: actions that require approval are rejected automatically — do not request sandbox escalation (do not set `sandbox_permissions`)."
+        "content": "Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\n\nCurrent AVN file policy: danger-full-access. The AVN file sandbox does not restrict file modifications by available operations.\n\nApproval prompts are disabled in this session: actions that require approval are rejected automatically, except actions on the user's connected accounts (such as sending a message), which still ask the user — do not request sandbox escalation (do not set `sandbox_permissions`)."
       }
     ],
     "toolNames": [
