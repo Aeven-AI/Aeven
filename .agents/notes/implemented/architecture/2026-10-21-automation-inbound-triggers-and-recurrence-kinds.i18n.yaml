@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-21-automation-inbound-triggers-and-recurrence-kinds.md
+2026-10-21-automation-inbound-triggers-and-recurrence-kinds.md: 6ba70f4f488e5a2877423d712bb8acc008edb6e6
+2026-10-21-automation-inbound-triggers-and-recurrence-kinds.zh.md: fbd81b01f8518ccbfc00e366e328c82b281fd10f

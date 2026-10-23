@@ -19,7 +19,7 @@ declare module '@aeven/client-ui-slots' {
   }
 }
 /** Start address of each management view. */
-const VIEW_PATHS = { automations: '/automations', runs: '/automations/runs' } as const satisfies Record<AutomationPanelInjected['view'], string>
+const VIEW_PATHS = { automations: '/bots', runs: '/bots/runs' } as const satisfies Record<AutomationPanelInjected['view'], string>
 
 /** Services that own management transport, navigation, and slot composition. */
 export const inject = ['connection', 'slots', 'locale', 'uiWorkspace', 'sessions']
@@ -65,7 +65,7 @@ export function apply(ctx: Context): void {
     openConnector: (provider) => { ctx.emit('settings/open', 'connectors', provider) },
   }
   const navigation: AutomationRowInjected = { open: () => { workspace.openStartAddress(VIEW_PATHS.automations) } }
-  ctx.slots.inject('sidebar.nav', () => ctx.slots.register({ name: 'sidebar.nav', id: 'automations', order: 1, locale: 'automations', inject: () => navigation }, AutomationRow))
+  ctx.slots.inject('sidebar.nav', () => ctx.slots.register({ name: 'sidebar.nav', id: 'automations', order: 0, locale: 'automations', inject: () => navigation }, AutomationRow))
   for (const [view, path] of Object.entries(VIEW_PATHS) as [AutomationPanelInjected['view'], string][]) {
     ctx.slots.inject('conversation.start', () => ctx.slots.register({ name: 'conversation.start', key: path, locale: 'automations', inject: () => ({ ...operations, view }) }, AutomationsPanel))
   }

@@ -60,6 +60,7 @@
     "@aeven/permission-presets": "workspace:^",
     "@aeven/workspace": "workspace:^",
     "@aeven/client-connection": "workspace:^",
+    "@aeven/host-webserver": "workspace:^",
     "@aeven/brand": "workspace:^",
     "@aeven/llm": "workspace:^",
     "@aeven/session": "workspace:^",

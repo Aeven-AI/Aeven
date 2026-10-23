@@ -656,6 +656,80 @@
   height: 16px;
 }
 
+/* The recurrence sentence reads above the task in the task's own type size and
+   the secondary ink, so when it runs stays a fact about what it does. */
+.schedule {
+  margin: 0 0 12px;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* Inbound trigger values carry no field chrome, like every other value on the
+   page; the monospaced face is the only distinction, so an address and a key can
+   be copied exactly. */
+.triggerRow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.triggerLabel {
+  flex: none;
+  min-width: 4.5rem;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
+  color: var(--dsw-alias-label-caption);
+}
+
+.triggerValue {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--ds-font-family-code);
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+  overflow-wrap: anywhere;
+}
+
+.triggerRow button {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+}
+
+.triggerText {
+  margin: 0 0 12px;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.triggerActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.triggerActions button {
+  height: 30px;
+}
+
+.copied {
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.triggerRow svg,
+.triggerActions svg {
+  width: 16px;
+  height: 16px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .chevron {
     transition: none;

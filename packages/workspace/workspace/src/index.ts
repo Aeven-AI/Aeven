@@ -514,17 +514,20 @@ export class WorkspaceRegistry extends Service {
    * key. The registration has no directory, every account reaches it, and it
    * refuses delete, rename, and move like the default workspace. The key binds
    * durably to the registration, so repeated calls and restarts return the
-   * same workspace without changing its title; a new one lands directly below
-   * the default workspace.
+   * same workspace; a changed declared title is adopted on the next call, and a
+   * new one lands directly below the default workspace.
    * @param key - stable key naming the declaring plugin's registration.
-   * @param title - display title used only when the registration is created.
+   * @param title - display title the declaring plugin owns.
    * @returns the built-in workspace.
    */
   builtIn(key: string, title: string): Promise<Workspace> {
     return this.enqueueOperation(async () => {
       const existing = this.requireState().builtInWorkspaceIds?.[key]
       const entity = existing === undefined ? undefined : this.entities.get(existing)
-      if (entity !== undefined) return entity
+      if (entity !== undefined) {
+        if (entity.title !== title) await entity.adoptDeclaredTitle(title)
+        return entity
+      }
       return await this.createVirtualCanonical(title, (state, id) => ({
         ...this.carryState(state, { initialized: true, workspaceIds: this.withNewWorkspace(state, id) }),
         builtInWorkspaceIds: { ...state.builtInWorkspaceIds, [key]: id },

@@ -12,10 +12,21 @@ const taskFields = {
   name: { type: 'string', description: 'Short name describing the outcome.' },
   prompt: { type: 'string', description: 'Complete repeatable task, including requirements and how to verify its result.' },
   schedule: { type: 'object', properties: {
-    kind: { type: 'string', enum: ['once', 'interval', 'daily', 'weekly'] }, timeZone: { type: 'string', description: 'Explicit IANA time zone.' },
-    time: { type: 'string', description: 'Local HH:mm for daily or weekly.' }, at: { type: 'string', description: 'Future ISO timestamp for once.' },
-    everyMinutes: { type: 'integer', minimum: 5 }, anchor: { type: 'string', description: 'ISO creation timestamp for intervals.' },
-    weekdays: { type: 'array', items: { type: 'string', enum: ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'] } },
+    kind: { type: 'string', enum: ['once', 'interval', 'hours', 'daily', 'weekly', 'monthly', 'nth-weekday', 'yearly', 'cron'] },
+    timeZone: { type: 'string', description: 'Explicit IANA time zone.' },
+    time: { type: 'string', description: 'Local HH:mm for hours, daily, weekly, monthly, nth-weekday, and yearly.' },
+    at: { type: 'string', description: 'Future ISO timestamp for once.' },
+    everyMinutes: { type: 'integer', minimum: 5, description: 'Elapsed minutes between runs, for interval.' },
+    anchor: { type: 'string', description: 'ISO creation timestamp for intervals.' },
+    everyHours: { type: 'integer', minimum: 1, maximum: 24, description: 'Hours between runs, counted from local midnight, for hours.' },
+    atMinute: { type: 'integer', minimum: 0, maximum: 59, description: 'Minute past the hour, for hours.' },
+    weekdays: { type: 'array', items: { type: 'string', enum: ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'] }, description: 'Selected weekdays, for weekly.' },
+    days: { type: 'array', items: { type: 'integer', minimum: 1, maximum: 31 }, description: 'Days of the month, for monthly; a month without the day is skipped.' },
+    week: { type: 'integer', enum: [1, 2, 3, 4], description: 'Which weekday of the month, for nth-weekday.' },
+    weekday: { type: 'string', enum: ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'], description: 'Weekday of the month, for nth-weekday.' },
+    month: { type: 'integer', minimum: 1, maximum: 12, description: 'Month of the year, for yearly.' },
+    day: { type: 'integer', minimum: 1, maximum: 31, description: 'Day of that month, for yearly.' },
+    expression: { type: 'string', description: 'Five-field cron expression (minute, hour, day of month, month, day of week) for cron.' },
     until: { type: 'string', description: 'Optional inclusive ISO end time. Omit for a recurring task without an end date.' },
   }, required: ['kind', 'timeZone'], additionalProperties: false },
   permission: { type: 'string', enum: ['read-only', 'workspace-write'], description: 'Read-only inspection or permission to create and edit files. External connector writes still require approval.' },
@@ -39,14 +50,14 @@ export function registerAutomationTools(service: Automations, agent: Agent, iden
       parameters: { type: 'object', properties: taskFields, required: ['name', 'prompt', 'schedule', 'permission'], additionalProperties: false },
       output: { schema: { type: 'object', additionalProperties: true }, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },
       execute: async (args, exec) => { exec.signal.throwIfAborted(); return asOwner(() => service.create(inputSchema.parse(args), agent)) },
-      presentCall: args => ({ card: 'generic', title: 'Create automation', kind: 'other', rawInput: args }),
+      presentCall: args => ({ card: 'generic', title: 'Create bot', kind: 'other', rawInput: args }),
     },
     {
       name: 'automation_list', description: 'List this account’s automations and recent run history. Use the stable IDs for subsequent changes.',
       parameters: { type: 'object', properties: {}, additionalProperties: false },
       output: { schema: { type: 'object', additionalProperties: true }, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },
       execute: async (_args, exec) => { exec.signal.throwIfAborted(); return asOwner(() => service.list()) },
-      presentCall: () => ({ card: 'generic', title: 'Automations', kind: 'read' }),
+      presentCall: () => ({ card: 'generic', title: 'Bots', kind: 'read' }),
     },
     {
       name: 'automation_update', description: 'Adjust a task, schedule, or file permissions after confirmation, or pause an automation immediately. Omitted fields remain unchanged.',
@@ -57,7 +68,7 @@ export function registerAutomationTools(service: Automations, agent: Agent, iden
         const { id, ...patch } = updateSchema.parse(args)
         return asOwner(() => service.update(id, patch))
       },
-      presentCall: args => ({ card: 'generic', title: 'Adjust automation', kind: 'other', rawInput: args }),
+      presentCall: args => ({ card: 'generic', title: 'Adjust bot', kind: 'other', rawInput: args }),
     },
     {
       name: 'automation_run_now', description: 'Run one existing automation now with its approved task and file permissions. Read its run history for the actual outcome.',
@@ -67,14 +78,14 @@ export function registerAutomationTools(service: Automations, agent: Agent, iden
         exec.signal.throwIfAborted()
         return asOwner(() => service.runNow(z.object({ id: idSchema }).strict().parse(args).id))
       },
-      presentCall: () => ({ card: 'generic', title: 'Run automation', kind: 'other' }),
+      presentCall: () => ({ card: 'generic', title: 'Run bot', kind: 'other' }),
     },
     {
       name: 'automation_retry', description: 'After explicit human confirmation, retry an unresolved failed, skipped, or cancelled run in a fresh conversation using its original task. Inspect the earlier evidence first: external changes may already exist. Refused while the same automation has active work.',
       parameters: { type: 'object', properties: { id: { type: 'string', description: 'Earlier run ID, not the automation ID.' } }, required: ['id'], additionalProperties: false },
       output: { schema: { type: 'object', additionalProperties: true }, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },
       execute: async (args, exec) => { exec.signal.throwIfAborted(); return asOwner(() => service.retry(runIdSchema.parse(args).id)) },
-      presentCall: args => ({ card: 'generic', title: 'Retry automation run', kind: 'other', rawInput: args }),
+      presentCall: args => ({ card: 'generic', title: 'Retry bot run', kind: 'other', rawInput: args }),
     },
   ]
   const disposers = tools.map(tool => agent.ctx.tools.register(tool))
