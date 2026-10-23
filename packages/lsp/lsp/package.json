@@ -1,7 +1,7 @@
 {
   "name": "@aeven/lsp",
   "description": "Abstract LSP capability seam (ctx.lsp) for the Aeven — language-server provider registry keyed by branded id and extension mapping, order-independent per-query selection, normalized definition/references/implementation/hover requests and results, and the LspError taxonomy",
-  "version": "0.3.9-alpha",
+  "version": "0.3.10-alpha",
   "publishConfig": {
     "access": "public"
   },

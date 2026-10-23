@@ -1,7 +1,7 @@
 {
   "name": "@aeven/session-persistence-jsonl",
   "description": "JSONL durable session persistence backend for the Aeven",
-  "version": "0.3.9-alpha",
+  "version": "0.3.10-alpha",
   "publishConfig": {
     "access": "public"
   },

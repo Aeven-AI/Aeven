@@ -1,7 +1,7 @@
 {
   "name": "@aeven/computer-use-benchmark",
   "description": "Step-count benchmark for computer-use tasks",
-  "version": "0.3.9-alpha",
+  "version": "0.3.10-alpha",
   "publishConfig": {
     "access": "public"
   },
