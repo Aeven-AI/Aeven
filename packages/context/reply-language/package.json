@@ -1,7 +1,7 @@
 {
   "name": "@aeven/reply-language",
   "description": "Durable per-step reminder that keeps replies in the language of the person's latest message",
-  "version": "0.3.10-alpha",
+  "version": "0.3.11-alpha",
   "publishConfig": {
     "access": "public"
   },

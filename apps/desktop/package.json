@@ -3,7 +3,7 @@
   "productName": "Aeven",
   "desktopName": "aeven.desktop",
   "description": "Electron desktop shell for an isolated pnpm-installed avn runtime",
-  "version": "0.3.10-alpha",
+  "version": "0.3.11-alpha",
   "homepage": "https://github.com/Aeven-AI/Aeven",
   "private": true,
   "license": "Apache-2.0",
