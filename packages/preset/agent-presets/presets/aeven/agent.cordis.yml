@@ -177,8 +177,20 @@
     compaction: true
     toolResultPruner: true
   config:
+    # Aeven Cloud models advertise a 1M window, but upstream latency and
+    # failover rates climb past ~200k input tokens, so they compact at 20%.
     - id: compaction-basic
       name: '@aeven/compaction-basic'
+      config:
+        modelPolicies:
+          - provider: aeven-cloud
+            model: Aeven-1.0-Flash
+            thresholdRatio: 0.2
+            retainTokens: 40000
+          - provider: aeven-cloud
+            model: Aeven-1.0-Pro
+            thresholdRatio: 0.2
+            retainTokens: 40000
 
     - id: command-compact
       name: '@aeven/command-compact'

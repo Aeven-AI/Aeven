@@ -26,6 +26,7 @@ import {
 import {
   assertNoActiveCompaction,
   compactSurfaceRegion,
+  halveRange,
   selectCompactableRange,
 } from './region.ts'
 import { summarizeWithLlm } from './summarizer.ts'
@@ -93,6 +94,13 @@ const SHRINK_RECOVERABLE_CODES: ReadonlySet<string> = new Set([
   CONTEXT_WINDOW_EXCEEDED_CODE,
   MESSAGE_COUNT_EXCEEDED_CODE,
 ])
+
+/** Whether a thrown summarization failure carries a {@link SHRINK_RECOVERABLE_CODES} code. */
+function isShrinkRecoverable(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false
+  const code = (error as { code?: unknown }).code
+  return typeof code === 'string' && SHRINK_RECOVERABLE_CODES.has(code)
+}
 
 const modelPolicy: z<ModelCompactPolicyConfig> = z.object({
   provider: z.string().required(),
@@ -309,9 +317,17 @@ export class BasicCompactionEngine extends CompactionEngine {
         prune.pruneSession(agent.session)
         measurement = meter.measure(agent.session)
       }
-      const range = selectCompactableRange(agent.session, measurement, 0)
-      if (range === null) return null
-      return this.compactRegion(range.start, range.end, agent, signal)
+      // A head that had to be halved leaves the rest of the range verbatim, so
+      // the remainder is condensed next together with the checkpoint that
+      // replaced the head. Every pass replaces two or more nodes with one.
+      let result: CompactionResult | null = null
+      for (;;) {
+        const range = selectCompactableRange(agent.session, measurement, 0)
+        if (range === null) return result
+        result = await this.compactFitting(agent, range, signal)
+        if (result.shadowedRange.end === range.end) return result
+        measurement = meter.measure(agent.session)
+      }
     }
 
     const context = (await this.ctx.llm.resolveModelInfo(target.provider, target.model, signal)).context
@@ -344,7 +360,7 @@ export class BasicCompactionEngine extends CompactionEngine {
         /* v8 ignore next -- paired with the defensive post-success branch above. */
         break
       }
-      result = await this.compactRegion(range.start, range.end, agent, signal)
+      result = await this.compactFitting(agent, range, signal)
       measurement = meter.measure(agent.session)
       if (measurement.totalTokens < spec.thresholdTokens) return result
     }
@@ -379,6 +395,34 @@ export class BasicCompactionEngine extends CompactionEngine {
       { owner: 'current-turn', stability: 'whole-surface' },
       signal,
     )
+  }
+
+  /**
+   * Compact a range, or the largest balanced head of it whose summary request
+   * the endpoint accepts. The summary call replays the span it condenses, so a
+   * span rejected for size is rejected again unchanged; each rejection halves
+   * the span toward the head until one is accepted or no head remains.
+   * @param agent - owner of the target session, used by the summarizer.
+   * @param range - inclusive positional range to compact, starting at the surface head.
+   * @param signal - live turn cancellation signal forwarded to summarization.
+   * @returns the committed result, whose shadowed range ends at or before `range.end`.
+   */
+  private async compactFitting(
+    agent: Agent,
+    range: { start: SessionSeq; end: SessionSeq },
+    signal: AbortSignal,
+  ): Promise<CompactionResult> {
+    let current = range
+    for (;;) {
+      try {
+        return await this.compactRegion(current.start, current.end, agent, signal)
+      } catch (error: unknown) {
+        if (signal.aborted || !isShrinkRecoverable(error)) throw error
+        const head = halveRange(agent.session, this.ctx.tokenMeter.measure(agent.session), current)
+        if (head === null) throw error
+        current = head
+      }
+    }
   }
 
   /**
