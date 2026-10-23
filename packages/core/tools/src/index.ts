@@ -20,6 +20,7 @@ import type { CodeRunPauses, CodeRuntime } from '@aeven/code-runtime'
 import type { ApprovalOutcome, SessionGrantCoverage } from '@aeven/user-approval'
 import type { ToolCallView, ToolResultView } from './presentation.ts'
 import { assertSupportedJsonSchema, validateJsonSchemaValue } from './json-schema.ts'
+import { ToolArgsError as ArgsError } from './schema.ts'
 import type { JsonSchemaNode } from './json-schema.ts'
 import { createRunCodeTool, RUN_CODE_NAME } from './ptc.ts'
 import type { CodeSdkLanguage } from './ptc.ts'
@@ -1438,6 +1439,16 @@ export class ToolRuntime extends Service {
           )),
         }
       }
+      // Arguments that violate the advertised parameters can only fail, so
+      // they end before the policy pipeline: approval never asks about them.
+      const violations = argumentViolations(visible, detached)
+      if (violations.length > 0) {
+        return {
+          kind: 'final-result',
+          exec: execution,
+          result: signal.aborted ? toolAbortedBeforeDispatchResult() : toolErrorResult(new ArgsError(violations)),
+        }
+      }
       return { kind: 'ready', exec: execution }
     } catch (error: unknown) {
       const execution: MutableToolRunContext = { ...base, arguments: undefined }
@@ -1718,7 +1729,7 @@ export class ToolRuntime extends Service {
     switch (outcome) {
       case 'allowed-once': return { decision: { kind: 'allow' }, approvalCancelled: false }
       case 'rejected': return {
-        decision: { kind: 'deny', reason: `the user rejected tool "${exec.name}"` },
+        decision: { kind: 'deny', reason: `the user rejected this call of tool "${exec.name}"; the rejection covers this call only, and a later call asks again` },
         approvalCancelled: false,
       }
       case 'cancelled': return {
@@ -1907,6 +1918,25 @@ function toolErrorResult(error: unknown): ToolExecutionResult {
     isError: true,
     error: { message, ...info ? { info } : {} },
   }
+}
+
+/**
+ * Check call arguments against a tool's advertised parameters before policy runs.
+ * @param tool - the visible definition, or `undefined` for an unknown tool.
+ * @param args - the detached call arguments.
+ * @returns violations in schema-walk order; empty for an unknown tool or a
+ *   schema outside the supported vocabulary, which the tool body still owns.
+ */
+function argumentViolations(tool: ToolDefinition | undefined, args: unknown): string[] {
+  if (tool === undefined) return []
+  const parameters: unknown = tool.parameters
+  try {
+    assertSupportedJsonSchema(parameters)
+  } catch {
+    // Unsupported external vocabulary (MCP servers advertise arbitrary JSON Schema): the tool validates its own input.
+    return []
+  }
+  return validateJsonSchemaValue(parameters, args, '')
 }
 
 /** Read live abort state across an await without treating it as synchronously immutable. */

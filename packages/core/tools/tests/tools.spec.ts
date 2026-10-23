@@ -771,7 +771,9 @@ describe('ToolRuntime', () => {
 
       const result = await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('c1'), name: 'echo', arguments: {}, agent: fakeAgent() })
       expect(result.isError).toBe(true)
-      expect(result.content[0]).toMatchObject({ text: 'Error: the user rejected tool "echo"' })
+      expect(result.content[0]).toMatchObject({
+        text: 'Error: the user rejected this call of tool "echo"; the rejection covers this call only, and a later call asks again',
+      })
     })
 
     it('denies with the cancellation reason on cancelled', async () => {
@@ -2667,9 +2669,9 @@ describe('defineTool validation (the runtime-validation Agent Note, part 1)', ()
     expect(result.content[0]).toMatchObject({ text: 'Error: just a message' })
   })
 
-  it('raw-registered tools are NOT validated by defineTool (MCP keeps its own)', async () => {
+  it('pre-validates raw-registered tool arguments against the advertised parameters', async () => {
     const ctx = await setup()
-    // A raw ToolDefinition: no defineTool wrapping, so no validateArgs guard.
+    // A raw ToolDefinition: no defineTool wrapping, so no body-level validateArgs guard.
     ctx.tools.register({
       name: 'raw',
       description: 'raw tool',
@@ -2682,9 +2684,73 @@ describe('defineTool validation (the runtime-validation Agent Note, part 1)', ()
         return typeof args
       },
     })
-    // Missing the "required" path — but raw tools validate their own input, so
-    // this reaches execute rather than being rejected by the harness.
+    // The runtime checks the advertised `parameters` before the policy pipeline,
+    // so a call missing the required "path" never reaches the body.
     const result = await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('c1'), name: 'raw', arguments: {} })
+    expect(result.isError).toBe(true)
+    expect(result.content[0]).toMatchObject({
+      text: 'Error: invalid arguments: missing required property "path"',
+    })
+    expect(result.error).toEqual({
+      message: 'invalid arguments: missing required property "path"',
+      info: { name: 'ToolArgsError', code: 'INVALID_ARGS' },
+    })
+  })
+
+  it('runs a raw tool whose arguments satisfy the advertised parameters', async () => {
+    const ctx = await setup()
+    let dispatched = 0
+    ctx.tools.register({
+      name: 'raw-ok',
+      description: 'raw tool',
+      parameters: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'] },
+      output: {
+        schema: { type: 'string' },
+        render: (_args, value) => [{ type: 'text', text: value as string }],
+      },
+      async execute(args: unknown) {
+        dispatched += 1
+        return typeof args
+      },
+    })
+    const result = await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('c1'), name: 'raw-ok', arguments: { path: '/x' } })
+    expect(dispatched).toBe(1)
+    expect(result).toEqual({
+      content: [{ type: 'text', text: 'object' }],
+      isError: false,
+      value: 'object',
+    })
+  })
+
+  it('keeps the preflight out of the way of an unknown tool', async () => {
+    const ctx = await setup()
+    const result = await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('c1'), name: 'ghost', arguments: {} })
+    expect(result.isError).toBe(true)
+    expect(result.error).toEqual({
+      message: 'unknown tool "ghost"',
+      info: { name: 'ToolNotFoundError', code: 'UNKNOWN_TOOL' },
+    })
+  })
+
+  it('skips the preflight for parameters outside the supported JSON Schema vocabulary', async () => {
+    const ctx = await setup()
+    let dispatched = 0
+    // `format` is external MCP vocabulary: the tool owns validating its input.
+    ctx.tools.register({
+      name: 'raw-external',
+      description: 'raw tool',
+      parameters: { type: 'object', properties: { path: { type: 'string', format: 'uri' } }, required: ['path'] },
+      output: {
+        schema: { type: 'string' },
+        render: (_args, value) => [{ type: 'text', text: value as string }],
+      },
+      async execute(args: unknown) {
+        dispatched += 1
+        return typeof args
+      },
+    })
+    const result = await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('c1'), name: 'raw-external', arguments: {} })
+    expect(dispatched).toBe(1)
     expect(result.isError).toBe(false)
   })
 

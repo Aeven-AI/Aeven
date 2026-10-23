@@ -1288,40 +1288,55 @@ describe('createTransport', () => {
   })
 })
 
-describe('tool execution — non-object args fallback', () => {
+describe('tool execution — non-object args are refused before callTool', () => {
   let ctx: Context
 
   beforeEach(async () => {
     ctx = await mountRegistry()
   })
 
-  it('coerces null args to empty object for callTool', async () => {
+  it('refuses null args against the advertised object schema', async () => {
     const client = createMockClient(
       [{ name: 'coerce', inputSchema: { type: 'object' } }],
       { content: [{ type: 'text', text: 'ok' }] },
     )
 
     await syncTools(client as never, ctx, defaultOpts, new Map())
-    await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('c1'), name: 'mcp__srv__coerce', arguments: null })
+    const result = await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('c1'), name: 'mcp__srv__coerce', arguments: null })
 
-    expect(client.callTool).toHaveBeenCalledWith(
-      { name: 'coerce', arguments: {} },
-      undefined,
-      expect.anything(),
-    )
+    expect(result.isError).toBe(true)
+    expect(result.content[0]).toMatchObject({ text: 'Error: invalid arguments: "arguments" must be an object' })
+    expect(client.callTool).not.toHaveBeenCalled()
   })
 
-  it('coerces primitive string args to empty object for callTool', async () => {
+  it('refuses primitive string args against the advertised object schema', async () => {
     const client = createMockClient(
       [{ name: 'coerce2', inputSchema: { type: 'object' } }],
       { content: [{ type: 'text', text: 'ok' }] },
     )
 
     await syncTools(client as never, ctx, defaultOpts, new Map())
-    await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('c1'), name: 'mcp__srv__coerce2', arguments: 'bad' })
+    const result = await ctx.tools.execute({ signal: testToolSignal, callId: ToolCallId('c1'), name: 'mcp__srv__coerce2', arguments: 'bad' })
 
+    expect(result.isError).toBe(true)
+    expect(result.content[0]).toMatchObject({ text: 'Error: invalid arguments: "arguments" must be an object' })
+    expect(client.callTool).not.toHaveBeenCalled()
+  })
+
+  it('forwards an object payload that satisfies the advertised schema', async () => {
+    const client = createMockClient(
+      [{ name: 'coerce3', inputSchema: { type: 'object', properties: { q: { type: 'string' } } } }],
+      { content: [{ type: 'text', text: 'ok' }] },
+    )
+
+    await syncTools(client as never, ctx, defaultOpts, new Map())
+    const result = await ctx.tools.execute({
+      signal: testToolSignal, callId: ToolCallId('c1'), name: 'mcp__srv__coerce3', arguments: { q: 'hi' },
+    })
+
+    expect(result.isError).toBe(false)
     expect(client.callTool).toHaveBeenCalledWith(
-      { name: 'coerce2', arguments: {} },
+      { name: 'coerce3', arguments: { q: 'hi' } },
       undefined,
       expect.anything(),
     )
