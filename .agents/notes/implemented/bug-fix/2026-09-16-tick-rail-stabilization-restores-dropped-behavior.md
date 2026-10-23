@@ -23,7 +23,7 @@ Four source behaviors are restored, each of which the branch's own older tests a
 
 `Session.loadThrough` keeps its declared "superseded" contract. A request arriving while an anchored read is in flight joins that pass at the lower of the two targets, and the pass serves it with one more anchored read rather than with the walk the two-sided window replaced — the anchored read costs the same at any distance, so a rail clicked twice in quick succession still lands the second, deeper destination instead of leaving it unserved.
 
-`StatsLine` again measures its row for ellipsis and shows the whole line in a delayed tooltip **only while the row is clipped**. The work-in-progress commit had replaced that with a bare `title` attribute, dropping the truncation check and the observer that fed it; nothing in the commit's stated scope mentioned the statistics line.
+The statistics line was restored to measure its row for ellipsis and show the whole line in a delayed tooltip **only while the row is clipped**. The work-in-progress commit had replaced that with a bare `title` attribute, dropping the truncation check and the observer that fed it; nothing in the commit's stated scope mentioned the statistics line. The line itself later went with the work-detail presentation port, which owns per-turn timing in `TurnUsagePanel` and `TurnProcessNodeView`.
 
 The rail's unloaded-tick dimming states its 35% rest colour as `rgba(10, 10, 10, 0.35)`. `color-mix()` is a value-level function the floor drops, which would have left every unloaded tick painting at full strength.
 

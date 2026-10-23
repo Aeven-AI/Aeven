@@ -36,12 +36,16 @@ Every package lives in exactly one group; new packages join existing groups, and
 | [`feedback/`](feedback/README.md) | Human feedback capture and command |
 | [`identity/`](identity/README.md) | Shared anonymous identity |
 | [`llm/`](llm/README.md) | LLM capability family: abstract service + provider adapters |
+| [`media/`](media/README.md) | Generated-image and generated-video seam + the Aeven, DeepInfra, OpenRouter, and pi-ai providers |
+| [`speech/`](speech/README.md) | Speech-recognition registry, the speech Remote the browser calls, and the local Whisper provider |
 | [`e2b/`](e2b/README.md) | E2B remote-runtime providers |
 | [`subprocess/`](subprocess/README.md) | Subprocess capability family: Service Definition + local process-tree provider |
 | [`shell/`](shell/README.md) | Bash capability family: executor seam, local impl, model-facing tools |
 | [`terminal/`](terminal/README.md) | Persistent PTY capability family: owner-scoped sessions, local implementation, model-facing tools |
 | [`code-runtime/`](code-runtime/README.md) | Code-execution capability family: Service Definition + worker-thread provider + PTC mode Consumer |
 | [`sandbox/`](sandbox/README.md) | Process-confinement seam; bwrap/Landlock/Seatbelt backends |
+| [`computer-use/`](computer-use/README.md) | Desktop-driving seam: select and register one computer-use provider |
+| [`device/`](device/README.md) | `ctx.devices` seam, the local simulator toolchain host, and the model-facing device tools |
 | [`fs/`](fs/README.md) | Filesystem capability family: seam, local impl, model-facing file tools, discovery tools |
 | [`lsp/`](lsp/README.md) | LSP capability family: seam, generic stdio provider, and the `lsp` tool |
 | [`skill/`](skill/README.md) | Skill capability family: provider registry, local provider, model-facing catalog/loader |
@@ -54,6 +58,7 @@ Every package lives in exactly one group; new packages join existing groups, and
 | [`webhook/`](webhook/README.md) | Verified external events, trusted rules, and fire-and-forget Workspace Sessions |
 | [`web/`](web/README.md) | Web capability family: seam, search/fetch providers, model-facing web tools |
 | [`attachment/`](attachment/README.md) | Durable attachment identity, validation, local content-addressed storage |
+| [`document/`](document/README.md) | Document-extraction registry + the readers that turn a document or recorded clip into text |
 | [`spill/`](spill/README.md) | Spill capability family: storage seam, local impl, tool-result spill policy |
 | [`todo/`](todo/README.md) | The model-facing `todo_write` tool |
 | [`plan/`](plan/README.md) | Plan collaboration state with a direct entry command and reviewed exit |
@@ -61,9 +66,11 @@ Every package lives in exactly one group; new packages join existing groups, and
 | [`guard/`](guard/README.md) | Loop-hygiene guards: advisory repeat-call reminders + the `tools/execute` deadline enforcer |
 | [`bundle/`](bundle/README.md) | Installable `avn --profile` patch layers |
 | [`extensions/`](extensions/README.md) | Agent runtime self-modification: live plugin/service inspection and model-written mount/unmount |
+| [`mcp/`](mcp/README.md) | External Model Context Protocol servers, attached so their tools are callable as native tools |
 | [`hooks/`](hooks/README.md) | Hook bridges + the shared Claude Code / Codex wire-protocol library |
 | [`session/`](session/README.md) | Durable session data plane: persistence seam + backends, projection seam, log-backed titles, session reporting |
 | [`capability/`](capability/README.md) | Learned capabilities: per-user procedures confirmed by the user and published through the skill catalog |
+| [`mail/`](mail/README.md) | Mail capability family: IMAP/POP3/SMTP service and the model-facing mail tools |
 | [`memory/`](memory/README.md) | Long-term memory capability family: Service Definition, MemOS provider, per-turn recall and capture, model-facing memory tools |
 | [`session-query/`](session-query/README.md) | Session retrieval family: logical corpus, bounded reads, lineage, semantic filtering, SQLite full-text search |
 | [`settings/`](settings/README.md) | User-settings seam + file-backed provider |

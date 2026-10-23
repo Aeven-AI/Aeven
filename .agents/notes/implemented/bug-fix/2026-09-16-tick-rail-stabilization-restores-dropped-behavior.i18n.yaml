@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-16-tick-rail-stabilization-restores-dropped-behavior.md
-2026-09-16-tick-rail-stabilization-restores-dropped-behavior.md: 9ebaf5c85e427307e62958c3c4efe9d72dc767c2
-2026-09-16-tick-rail-stabilization-restores-dropped-behavior.zh.md: e646b5aa44bc86254b00cb14e6bb3703a011c4f3
+2026-09-16-tick-rail-stabilization-restores-dropped-behavior.md: d7cfd503cf92046f668748f7bcbddeaa323047ff
+2026-09-16-tick-rail-stabilization-restores-dropped-behavior.zh.md: 10e10e67b3340d8f11de4e12dcdb1f2eb9cd0488
