@@ -1,7 +1,7 @@
 {
   "name": "@aeven/sdk-minimal",
   "description": "The standalone minimal SDK profile bundle: JSON-RPC, one DeepSeek adapter, persistent shell, editor, and JSONL sessions",
-  "version": "0.3.8-alpha",
+  "version": "0.3.9-alpha",
   "publishConfig": {
     "access": "public"
   },

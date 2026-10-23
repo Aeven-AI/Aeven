@@ -1,7 +1,7 @@
 {
   "name": "@aeven/computer-use-windows",
   "description": "Windows desktop adapter for self-contained computer use",
-  "version": "0.3.8-alpha",
+  "version": "0.3.9-alpha",
   "publishConfig": {
     "access": "public"
   },

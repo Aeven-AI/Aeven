@@ -1,7 +1,7 @@
 {
   "name": "@aeven/fs-observation-policy",
   "description": "File-context policy plugin for the Aeven — observed-state, read-before-edit, and version-guarded write/edit added over the ctx.fs provider seam through the fs/* event gate (no service API)",
-  "version": "0.3.8-alpha",
+  "version": "0.3.9-alpha",
   "publishConfig": {
     "access": "public"
   },

@@ -1,7 +1,7 @@
 {
   "name": "@aeven/computer-use-layout",
   "description": "Slide layout as pure geometry: parameterised layouts that need no application",
-  "version": "0.3.8-alpha",
+  "version": "0.3.9-alpha",
   "publishConfig": {
     "access": "public"
   },

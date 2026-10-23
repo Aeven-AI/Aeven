@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-sidebar-select",
   "description": "Right sidebar content selection: the per-session choice of Browser, Terminal, or Workspace files",
-  "version": "0.3.8-alpha",
+  "version": "0.3.9-alpha",
   "publishConfig": {
     "access": "public"
   },

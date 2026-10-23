@@ -1,7 +1,7 @@
 {
   "name": "@aeven/tool-location",
   "description": "Model-facing get_location tool that asks the reader for their location through the client beside a session",
-  "version": "0.3.8-alpha",
+  "version": "0.3.9-alpha",
   "publishConfig": {
     "access": "public"
   },

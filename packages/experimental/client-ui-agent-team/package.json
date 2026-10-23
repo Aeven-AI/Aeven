@@ -1,7 +1,7 @@
 {
   "name": "@aeven/experimental-client-ui-agent-team",
   "description": "Web Agent Teams roster, task board, and teammate navigation",
-  "version": "0.3.8-alpha",
+  "version": "0.3.9-alpha",
   "private": true,
   "repository": {
     "type": "git",

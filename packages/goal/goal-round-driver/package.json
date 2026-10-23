@@ -1,7 +1,7 @@
 {
   "name": "@aeven/goal-round-driver",
   "description": "Race-fenced same-session goal-round driver",
-  "version": "0.3.8-alpha",
+  "version": "0.3.9-alpha",
   "publishConfig": {
     "access": "public"
   },
