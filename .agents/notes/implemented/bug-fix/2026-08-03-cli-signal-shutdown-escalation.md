@@ -21,11 +21,11 @@ The fix has two ownership layers. The OTel backend adds `shutdownTimeoutMillis` 
 Web and headless share `createProcessShutdown`, one process-level controller around root disposal:
 
 - Normal shutdown calls coalesce onto one disposal and retain the first requested exit code; they never escalate one another. Successful disposal records that code through `process.exitCode` and lets Node drain its remaining handles naturally. Disposal failure still forces process exit because the launcher cannot assume the failed tree reached quiescence.
-- The first signal starts the same graceful disposal and a referenced five-second exit backstop. Disposal success or failure exits once; neither can cancel the process exit.
+- The first signal starts the same graceful disposal and a referenced five-second exit backstop. Successful disposal records the exit code and permits natural completion; disposal failure forces exit.
 - A signal received while shutdown is pending forces immediate exit with that signal path's code. This includes the first `Ctrl+C` after headless normal completion has already entered disposal, and a second signal after a signal initiated the drain.
 - The five-second bound is a process-safety invariant, not a deployment tunable. It is long enough for the telemetry deployment's ordinary drain ceiling while still bounding any wedged disposer at the launcher boundary.
 
-Normal completion deliberately avoids `process.exit()`: an immediately forced exit after an Undici request can hit Node's [Windows libuv async-handle assertion](https://github.com/nodejs/node/issues/56645) before the completed request's native handle cleanup drains. A signal can still force exit after normal disposal has completed if another handle keeps the process alive.
+Normal completion deliberately avoids `process.exit()`: an immediately forced exit after an Undici request can hit Node's [Windows libuv async-handle assertion](https://github.com/nodejs/node/issues/56645) before the completed request's native handle cleanup drains. A signal can still force exit after disposal has completed if another handle keeps the process alive. ONNX Runtime on macOS aborts in its environment destructor when `process.exit()` bypasses Node teardown, including after a pipeline is explicitly disposed; natural completion avoids that destructor-order failure. Signal disposal therefore has no delayed forced-exit timer.
 
 Headless preserves exit 0 for a completed turn, exit 1 for another turn-end reason or API business error, 130 for SIGINT, and 143 for SIGTERM. Web preserves its existing SIGTERM exit 0 and SIGINT exit 130 behavior.
 

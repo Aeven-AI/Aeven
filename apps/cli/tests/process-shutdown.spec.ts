@@ -111,7 +111,8 @@ describe('process shutdown', () => {
     expect(complete).not.toHaveBeenCalled()
   })
 
-  it('forces exit after disposal started by a signal', async () => {
+  it('allows natural exit after signal disposal without a delayed forced exit', async () => {
+    vi.useFakeTimers()
     const disposal = deferred()
     const exit = vi.fn()
     const complete = vi.fn()
@@ -121,9 +122,10 @@ describe('process shutdown', () => {
     disposal.resolve()
     await shutdown.shutdown(0)
 
-    expect(exit).toHaveBeenCalledOnce()
-    expect(exit).toHaveBeenCalledWith(143)
-    expect(complete).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(exit).not.toHaveBeenCalled()
+    expect(complete).toHaveBeenCalledOnce()
+    expect(complete).toHaveBeenCalledWith(143)
   })
 
   it('drains on the first signal and forces on the second signal', async () => {
