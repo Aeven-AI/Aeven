@@ -110,6 +110,9 @@ export class DesktopUpdateCoordinator {
       return this.publish({ phase: 'ready', version })
     } catch (error) {
       this.availableVersion = undefined
+      // A release tag is pushed before its build uploads the update feed, so the newest
+      // release can name a version whose feed file does not exist yet: nothing is installable.
+      if (isUnpublishedRelease(error)) return this.publish({ phase: 'idle' })
       return this.publish({
         phase: 'error',
         message: error instanceof Error ? error.message : String(error),
@@ -155,4 +158,13 @@ export class DesktopUpdateCoordinator {
     if (running === undefined || running === null) return true
     return valid(version) !== null && lt(running, version)
   }
+}
+
+/**
+ * Whether a check failed only because the newest release carries no update feed file yet.
+ * @param error - what the updater's check threw.
+ * @returns true for electron-updater's missing channel file error.
+ */
+function isUnpublishedRelease(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ERR_UPDATER_CHANNEL_FILE_NOT_FOUND'
 }
