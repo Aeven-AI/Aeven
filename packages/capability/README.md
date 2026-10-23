@@ -20,6 +20,7 @@ The capability group lets an agent learn reusable procedures for one signed-in u
 
 ## Related documentation
 
+- [Capability subsystem](../../docs/subsystems/capability.md) — the `ctx.capabilities` operations, the `capabilities/*` events, and the procedure records and revisions they change.
 - [Capability learning Agent Note](../../.agents/notes/implemented/feature/2026-09-29-capability-learning.md) — statuses and why execution never depends on memory; [lifecycle note](../../.agents/notes/implemented/feature/2026-09-29-capability-lifecycle.md) — evidence, automatic learning, and Settings → Memory.
 - [Long-term memory roadmap](../../.agents/notes/proposed/feature/2026-09-28-long-term-memory-roadmap.md) — where capability learning sits in the plan.
 
