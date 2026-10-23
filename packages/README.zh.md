@@ -36,12 +36,16 @@ harness 由 `packages/` 下的 npm 包组装而成，按能力系列分组：会
 | [`feedback/`](feedback/README.zh.md) | 人类反馈的采集与命令 |
 | [`identity/`](identity/README.zh.md) | 共享匿名身份 |
 | [`llm/`](llm/README.zh.md) | LLM 能力系列：抽象服务 + 提供方适配器 |
+| [`media/`](media/README.zh.md) | 生成图像与生成视频 seam + Aeven、DeepInfra、OpenRouter、pi-ai 提供方 |
+| [`speech/`](speech/README.zh.md) | 语音识别注册表、浏览器调用的语音 Remote，以及本地 Whisper 提供方 |
 | [`e2b/`](e2b/README.zh.md) | E2B 远程运行时提供方 |
 | [`subprocess/`](subprocess/README.zh.md) | 子进程能力系列：Service Definition + 本地进程树提供方 |
 | [`shell/`](shell/README.zh.md) | Bash 能力系列：执行器 seam、本地实现、面向模型的工具 |
 | [`terminal/`](terminal/README.zh.md) | 持久 PTY 能力系列：限定所有者范围的会话、本地实现、面向模型的工具 |
 | [`code-runtime/`](code-runtime/README.zh.md) | 代码执行能力系列：Service Definition + worker 线程提供方 + PTC mode Consumer |
 | [`sandbox/`](sandbox/README.zh.md) | 进程限制 seam；bwrap/Landlock/Seatbelt 后端 |
+| [`computer-use/`](computer-use/README.zh.md) | 桌面操作 seam：选择并注册一个 computer-use 提供方 |
+| [`device/`](device/README.zh.md) | `ctx.devices` seam、运行模拟器工具链的本地宿主，以及面向模型的设备工具 |
 | [`fs/`](fs/README.zh.md) | 文件系统能力系列：seam、本地实现、面向模型的文件工具、发现工具 |
 | [`lsp/`](lsp/README.zh.md) | LSP 能力系列：seam、通用 stdio 提供方和 `lsp` 工具 |
 | [`skill/`](skill/README.zh.md) | skill 能力系列：提供方注册表、本地提供方、面向模型的目录/loader |
@@ -54,6 +58,7 @@ harness 由 `packages/` 下的 npm 包组装而成，按能力系列分组：会
 | [`webhook/`](webhook/README.zh.md) | 已验证外部事件、受信规则与即发即弃 Workspace Session |
 | [`web/`](web/README.zh.md) | Web 能力系列：seam、搜索/获取提供方、面向模型的 Web 工具 |
 | [`attachment/`](attachment/README.zh.md) | 持久附件标识、校验、本地内容寻址存储 |
+| [`document/`](document/README.zh.md) | 文档抽取注册表 + 把文档或录制片段转成文本的读取方 |
 | [`spill/`](spill/README.zh.md) | spill 能力系列：存储 seam、本地实现、工具结果 spill 策略 |
 | [`todo/`](todo/README.zh.md) | 面向模型的 `todo_write` 工具 |
 | [`plan/`](plan/README.zh.md) | Plan 协作状态，提供直接进入命令与经评审的退出 |
@@ -61,9 +66,11 @@ harness 由 `packages/` 下的 npm 包组装而成，按能力系列分组：会
 | [`guard/`](guard/README.zh.md) | 循环卫生守卫：建议性重复调用提醒 + `tools/execute` 截止时间强制执行器 |
 | [`bundle/`](bundle/README.zh.md) | 可安装的 `avn --profile` 补丁层 |
 | [`extensions/`](extensions/README.zh.md) | agent 运行时自修改：实时插件/服务检查与模型所写挂载/卸载 |
+| [`mcp/`](mcp/README.zh.md) | 接入外部 Model Context Protocol 服务器，使其工具可当作原生工具调用 |
 | [`hooks/`](hooks/README.zh.md) | 钩子桥接 + 共享的 Claude Code / Codex 线协议库 |
 | [`session/`](session/README.zh.md) | 持久会话数据平面：持久化 seam + 后端、投影 seam、基于日志的标题、会话上报 |
 | [`capability/`](capability/README.zh.md) | 习得能力：经用户确认、按用户保存，并通过 skill 目录发布的流程 |
+| [`mail/`](mail/README.zh.md) | 邮件能力系列：IMAP/POP3/SMTP 服务与面向模型的邮件工具 |
 | [`memory/`](memory/README.zh.md) | 长期记忆能力系列：Service Definition、MemOS 提供方、逐回合召回与捕获、面向模型的记忆工具 |
 | [`session-query/`](session-query/README.zh.md) | 会话检索系列：逻辑语料库、有界读取、血缘、语义过滤、SQLite 全文搜索 |
 | [`settings/`](settings/README.zh.md) | 用户设置 seam + 基于文件的提供方 |
