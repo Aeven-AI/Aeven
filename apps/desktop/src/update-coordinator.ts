@@ -156,7 +156,9 @@ export class DesktopUpdateCoordinator {
     const running = this.updater.currentVersion
     // oxlint-disable-next-line typescript/no-unnecessary-condition -- assigned at the updater's first check
     if (running === undefined || running === null) return true
-    return valid(version) !== null && lt(running, version)
+    // `currentVersion` is a SemVer from electron-updater's own semver copy, which this
+    // bundle's semver does not recognize as its class, so the comparison takes its text.
+    return valid(version) !== null && lt(String(running), version)
   }
 }
 
