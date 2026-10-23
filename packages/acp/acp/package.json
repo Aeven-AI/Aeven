@@ -1,7 +1,7 @@
 {
   "name": "@aeven/acp",
   "description": "Automation-only Agent Client Protocol server for driving Aeven agents over JSON-RPC stdio",
-  "version": "0.3.10-alpha",
+  "version": "0.3.11-alpha",
   "publishConfig": {
     "access": "public"
   },

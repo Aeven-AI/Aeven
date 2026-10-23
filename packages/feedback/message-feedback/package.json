@@ -1,7 +1,7 @@
 {
   "name": "@aeven/message-feedback",
   "description": "Lifecycle-bound per-message rating and note sidecar for the Aeven",
-  "version": "0.3.10-alpha",
+  "version": "0.3.11-alpha",
   "publishConfig": {
     "access": "public"
   },
