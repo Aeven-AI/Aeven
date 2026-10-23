@@ -231,10 +231,12 @@ export const EVENT_SCOPE_PAGE: Record<string, string> = {
   'subagent': 'subagent.md',
   'system-prompt': 'system-prompt.md',
   'session-telemetry': 'session-telemetry.md',
+  'terminal': 'terminal.md',
   'tools': 'tools.md',
   'user-questions': 'user-questions.md',
   'webserver': 'web-server.md',
   'workflow': 'workflow.md',
+  'workspace-files': 'workspace.md',
 }
 
 /**
@@ -851,6 +853,9 @@ export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   AgentPresetRoster: 'path-free preset roster is owned by packages/preset/agent-presets/README.md',
   AgentPresetDocument: 'preset composition view is owned by packages/preset/agent-presets/README.md',
   BrowserAutomationRequestEvent: 'event-local request contract is owned by packages/web/tool-browser/src/types.ts',
+  TerminalShowRequestEvent: 'event-local request contract is owned by packages/api/terminal-controller/src/types.ts',
+  WorkspaceFilesShowRequestEvent: 'event-local request contract is owned by packages/api/workspace-files/src/types.ts',
+  WorkspaceFilesShowResult: 'event-local answer is owned by packages/api/workspace-files/src/types.ts',
   LocationAnswer: 'client-face location answer is owned by packages/interaction/tool-location/src/types.ts',
   LocationRequestEvent: 'client-face location request is owned by packages/interaction/tool-location/src/types.ts',
   CapabilityChange: 'service-local change record is owned by packages/capability/capability/src/types.ts',

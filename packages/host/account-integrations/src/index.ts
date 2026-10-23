@@ -61,6 +61,11 @@ export interface Config {
   /** Maximum time between starting a consent and the provider returning to the Aeven API. */
   consentLifetimeMs: number
   /**
+   * Interval at which pending consents are checked with the Aeven API, so a sign-in the provider completed becomes a
+   * connector, and Settings shows it, while the reader is still on the provider's page.
+   */
+  consentPollMs: number
+  /**
    * Aeven API origin whose connector broker holds every provider credential: OAuth
    * client secrets and refresh tokens, the Discord bot token, and the Telegram
    * application identifiers. Absent leaves Google, GitHub, Discord, and Telegram unavailable.
@@ -474,6 +479,7 @@ export default class AccountIntegrations extends TypertRemoteService {
     maxSkillBytes: Schema.natural().min(1).default(10 * 1024 * 1024),
     timeoutMs: Schema.natural().min(1).default(60_000),
     consentLifetimeMs: Schema.natural().min(1).default(600_000),
+    consentPollMs: Schema.natural().min(100).default(2_000),
     maxEmailAccounts: Schema.natural().min(1).default(20),
     maxWhatsAppAccounts: Schema.natural().min(1).default(10),
     maxTelegramAccounts: Schema.natural().min(1).default(10),
@@ -510,6 +516,8 @@ export default class AccountIntegrations extends TypertRemoteService {
   private invalidateSkills: () => void = () => {}
   private readonly connected = new Set<ConnectorId>()
   private readonly consents = new Map<string, PendingConsent>()
+  /** The next background settlement of pending consents; undefined while none is pending. */
+  private consentWatch: ReturnType<typeof setTimeout> | undefined
   private readonly consentFailures = new Map<string, { authorizationFailure: 'admin-consent-required' | 'failed'; adminConsentUrl?: string }>()
   private readonly whatsappBinary: string | undefined
   private readonly ffmpegBinary: string | undefined
@@ -735,6 +743,8 @@ export default class AccountIntegrations extends TypertRemoteService {
       return next()
     })
     this.ctx.effect(() => () => {
+      clearTimeout(this.consentWatch)
+      this.consentWatch = undefined
       this.consents.clear()
       this.consentFailures.clear()
       this.issuedTokens.clear()
@@ -1084,7 +1094,28 @@ export default class AccountIntegrations extends TypertRemoteService {
     })
     const expiresAt = Math.min(Date.parse(started.expiresAt), Date.now() + this.config.consentLifetimeMs)
     this.consents.set(started.state, { owner, id, provider, expiresAt })
+    this.watchConsents()
     return { url: started.url }
+  }
+
+  /**
+   * Settle pending consents on a timer until none is left. Settlement stores the connector and invalidates skills,
+   * whose `skills/change` event makes Settings re-list, so the reader sees the connector switch on without returning
+   * focus to the window.
+   */
+  private watchConsents(): void {
+    if (this.consentWatch !== undefined) return
+    this.consentWatch = setTimeout(() => {
+      const owners = new Set([...this.consents.values()].filter(consent => consent.completion === undefined).map(consent => consent.owner))
+      void Promise.all([...owners].map(owner => this.settleConsents(owner)))
+        .catch((error: unknown) => {
+          this.ctx.logger('account-integrations').warn(`pending connector sign-ins were not settled: ${error instanceof Error ? error.message : String(error)}`)
+        })
+        .finally(() => {
+          this.consentWatch = undefined
+          if ([...this.consents.values()].some(consent => consent.completion === undefined)) this.watchConsents()
+        })
+    }, this.config.consentPollMs)
   }
 
   /**
@@ -1944,6 +1975,8 @@ export default class AccountIntegrations extends TypertRemoteService {
       })
       .catch((error: unknown) => {
         this.consentFailures.set(`${owner}\0slack`, { authorizationFailure: error instanceof SlackLoginError && error.reason === 'approval' ? 'admin-consent-required' : 'failed' })
+        // Settings re-lists on the skills change event, which is how it shows the failure.
+        this.invalidateSkills()
         this.ctx.logger('account-integrations').warn(`Slack sign-in was not completed: ${error instanceof Error ? error.message : String(error)}`)
       })
       .finally(() => {
@@ -2185,17 +2218,25 @@ export default class AccountIntegrations extends TypertRemoteService {
           if (consent.expiresAt <= Date.now()) this.consents.delete(state)
           return
         }
+        // The background watch and a Settings read can both reach a completed consent; the first one completes it.
+        if (consent.completion !== undefined) {
+          await consent.completion
+          return
+        }
+        // A failure changes no skill, but the skills change event is what makes Settings re-list and show it.
         if (status.status === 'failed' || status.result === undefined) {
           this.consentFailures.set(`${owner}\0${consent.provider}`, {
             authorizationFailure: status.error === 'admin-consent-required' ? 'admin-consent-required' : 'failed',
             ...status.adminConsentUrl === undefined ? {} : { adminConsentUrl: status.adminConsentUrl },
           })
           this.consents.delete(state)
+          this.invalidateSkills()
           return
         }
         const result = status.result
         consent.completion = this.completeConsent(state, consent, result).catch((error: unknown) => {
           this.consentFailures.set(`${owner}\0${consent.provider}`, { authorizationFailure: 'failed' })
+          this.invalidateSkills()
           this.ctx.logger('account-integrations').warn(`connector ${consent.provider} sign-in was not completed: ${error instanceof Error ? error.message : String(error)}`)
         }).finally(() => {
           if (this.consents.get(state) === consent) this.consents.delete(state)

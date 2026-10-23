@@ -25,7 +25,7 @@ kind: "package-reference"
 
 #### 模型看到什么
 
-工具 `sidebar_terminal` 及其 `list`、`read`、`send`、`rename`、`resize`、`close`：读取返回终端信息与有界的渲染屏幕和历史文本，其余每个动作都指名它所操作的终端 id。
+工具 `sidebar_terminal` 及其 `open`、`list`、`read`、`send`、`rename`、`resize`、`close`：`open` 在会话工作区中启动一个 shell，并通过 `terminal/show` waterfall 请求显示该会话的窗口在其上打开一个终端标签，返回终端信息；若在 `showTimeoutMs` 内没有窗口应答，则重新关闭该 shell 并失败。读取返回终端信息与有界的渲染屏幕和历史文本，其余每个动作都指名它所操作的终端 id。
 
 #### Token 影响
 

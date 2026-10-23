@@ -8,6 +8,8 @@ export interface DesktopPaths {
   readonly root: string
   readonly profile: string
   readonly staging: string
+  /** Profile a downloaded release installed ahead of its restart, which that release's first launch adopts. */
+  readonly prepared: string
   readonly rollback: string
   readonly pending: string
   readonly lock: string
@@ -33,6 +35,7 @@ export function resolveDesktopPaths(avnHome: string = resolveAvnHome()): Desktop
     root,
     profile: join(avnHome, 'profiles', 'desktop'),
     staging: join(root, 'staging'),
+    prepared: join(root, 'prepared', 'profile'),
     rollback: join(root, 'rollback', 'profile'),
     pending: join(root, 'pending.json'),
     lock: join(root, 'lock'),

@@ -4702,6 +4702,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [],
   },
   {
+    name: 'terminal/show',
+    mode: 'waterfall',
+    signature: '\'terminal/show\'( this: Scoped<Agent>, request: TerminalShowRequestEvent, next: () => Promise<boolean>, ): Promise<boolean>',
+    summary: 'Show one terminal in a new Terminal pill beside its session.',
+    description: 'Show one terminal in a new Terminal pill beside its session. The client displaying that session opens the pill and returns true; a listener without that session calls `next()` to delegate. Scope-filtered dispatch (`@aeven/scope`): agent-scoped listeners receive only that agent.',
+    parameters: [{ name: 'request', description: 'the terminal to show.' }],
+  },
+  {
     name: 'tools/change',
     mode: 'emit',
     signature: '\'tools/change\'(): void',
@@ -4812,6 +4820,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     summary: 'A workflow run started — the script\'s meta block validated, the body about to execute.',
     description: 'A workflow run started — the script\'s meta block validated, the body about to execute. Paired with Events[\'workflow/end\'].',
     parameters: [{ name: 'info', description: 'the run\'s identity snapshot (id + meta).' }],
+  },
+  {
+    name: 'workspace-files/show',
+    mode: 'waterfall',
+    signature: '\'workspace-files/show\'( this: Scoped<Agent>, request: WorkspaceFilesShowRequestEvent, next: () => Promise<WorkspaceFilesShowResult>, ): Promise<WorkspaceFilesShowResult>',
+    summary: 'Show one workspace path in the Files sidebar beside its session.',
+    description: 'Show one workspace path in the Files sidebar beside its session. The client displaying that session opens the explorer and answers; a listener without that session calls `next()` to delegate. Scope-filtered dispatch (`@aeven/scope`): agent-scoped listeners receive only that agent.',
+    parameters: [{ name: 'request', description: 'the path to show.' }],
   },
 ]
 
@@ -8342,6 +8358,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface TerminalShell {\n    readonly path: string;\n    readonly args: readonly string[];\n    readonly name: string;\n}',
   },
   {
+    name: 'TerminalShowRequestEvent',
+    declaration: 'export interface TerminalShowRequestEvent {\n    readonly terminalId: WebTerminalId;\n    agent?: Agent;\n    signal?: AbortSignal;\n}',
+  },
+  {
     name: 'TerminalSignal',
     declaration: 'export type TerminalSignal = \'SIGINT\' | \'SIGTERM\' | \'SIGKILL\' | \'SIGTSTP\' | \'SIGHUP\';',
   },
@@ -8872,6 +8892,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'WorkspaceDirectoryListing',
     declaration: 'export interface WorkspaceDirectoryListing {\n    readonly root: string;\n    readonly path: string;\n    readonly entries: readonly WorkspaceDirectoryEntry[];\n    readonly truncated: boolean;\n}',
+  },
+  {
+    name: 'WorkspaceFilesShowRequestEvent',
+    declaration: 'export interface WorkspaceFilesShowRequestEvent {\n    readonly path: string;\n    readonly type: \'file\' | \'directory\';\n    agent?: Agent;\n    signal?: AbortSignal;\n}',
+  },
+  {
+    name: 'WorkspaceFilesShowResult',
+    declaration: 'export type WorkspaceFilesShowResult = \'shown\' | \'not-previewable\' | \'no-window\';',
   },
   {
     name: 'WorkspaceFileText',

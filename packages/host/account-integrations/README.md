@@ -126,6 +126,7 @@ Register the client id and the callback port in the profile that serves the conn
 | `maxSkillBytes` | 10485760 | Maximum decoded bundle size |
 | `timeoutMs` | 60000 | OAuth, MCP discovery, daemon control, and tool request budget |
 | `consentLifetimeMs` | 600000 | Maximum consent or sign-in duration |
+| `consentPollMs` | 2000 | Interval for checking pending sign-ins with the Aeven API, so a completed one connects without reopening Settings |
 | `apiUrl` | none | Aeven API origin whose connector broker holds every provider credential; absent leaves Google, Microsoft, GitHub, Discord, and Telegram unavailable |
 | `credentialRef` | `AEVEN_TOKEN` | Credential reference holding each signed-in user's Aeven access token |
 | `maxEmailAccounts` | 20 | Email accounts one account may connect |

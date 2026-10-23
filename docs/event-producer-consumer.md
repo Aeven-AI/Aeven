@@ -64,6 +64,7 @@ This matrix shows which packages dispatch each harness-owned event and which pac
 | `subagent/start` | `emit` | [`packages/subagent/subagent/src/index.ts:165`](../packages/subagent/subagent/src/index.ts) | [`subagent`](../packages/subagent/subagent) (`events.dispatch`) | [`hooks-claude-code`](../packages/hooks/hooks-claude-code), [`subagent`](../packages/subagent/subagent) |
 | `system-prompt/assemble` | `waterfall` | [`packages/core/system-prompt/src/index.ts:31`](../packages/core/system-prompt/src/index.ts) | [`system-prompt`](../packages/core/system-prompt) (`waterfall`) | [`agent`](../packages/core/agent), [`agent-presets`](../packages/preset/agent-presets), [`system-prompt`](../packages/core/system-prompt), [`tool-search`](../packages/core/tool-search) |
 | `system-prompt/change` | `emit` | [`packages/core/system-prompt/src/index.ts:37`](../packages/core/system-prompt/src/index.ts) | [`system-prompt`](../packages/core/system-prompt) (`emit`) | - |
+| `terminal/show` | `waterfall` | [`packages/api/terminal-controller/src/types.ts:94`](../packages/api/terminal-controller/src/types.ts) | `terminal-controller` (`waterfall`) | `remotes` |
 | `tools/change` | `emit` | [`packages/core/tools/src/index.ts:203`](../packages/core/tools/src/index.ts) | [`agent-presets`](../packages/preset/agent-presets) (`emit`), [`tools`](../packages/core/tools) (`emit`) | [`tool-subagent`](../packages/subagent/tool-subagent) |
 | `tools/execute` | `waterfall` | [`packages/core/tools/src/index.ts:159`](../packages/core/tools/src/index.ts) | [`tools`](../packages/core/tools) (`waterfall`) | [`browser-chromium`](../packages/web/browser-chromium), [`session-checkpoint-policy`](../packages/session/session-checkpoint-policy), `timeout-policy` |
 | `tools/post-execute` | `waterfall` | [`packages/core/tools/src/index.ts:171`](../packages/core/tools/src/index.ts) | [`tools`](../packages/core/tools) (`waterfall`) | [`hooks-claude-code`](../packages/hooks/hooks-claude-code), [`hooks-codex`](../packages/hooks/hooks-codex), [`repeat-tool-reminder`](../packages/guard/repeat-tool-reminder), [`spill-policy`](../packages/spill/spill-policy), [`tool-fs-search`](../packages/fs/tool-fs-search) |
@@ -78,6 +79,7 @@ This matrix shows which packages dispatch each harness-owned event and which pac
 | `workflow/log` | `emit` | [`packages/workflow/workflow/src/index.ts:58`](../packages/workflow/workflow/src/index.ts) | [`workflow`](../packages/workflow/workflow) (`events.dispatch`) | - |
 | `workflow/phase` | `emit` | [`packages/workflow/workflow/src/index.ts:51`](../packages/workflow/workflow/src/index.ts) | [`workflow`](../packages/workflow/workflow) (`events.dispatch`) | - |
 | `workflow/start` | `emit` | [`packages/workflow/workflow/src/index.ts:43`](../packages/workflow/workflow/src/index.ts) | [`workflow`](../packages/workflow/workflow) (`events.dispatch`) | [`workflow`](../packages/workflow/workflow) |
+| `workspace-files/show` | `waterfall` | [`packages/api/workspace-files/src/types.ts:100`](../packages/api/workspace-files/src/types.ts) | `workspace-files` (`waterfall`) | `remotes` |
 
 ## Non-harness or undeclared event strings seen in package source
 

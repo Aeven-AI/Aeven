@@ -10,6 +10,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, use
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import type { ClientTerminals, TerminalView, TerminalViewState } from '@aeven/api-terminal-controller/client'
+import type { WebTerminalId } from '@aeven/api-terminal-controller/types'
 import { Button, IconLucidePlus, IconTerminalMark } from '@aeven/client-ui-primitives'
 import type { SidebarContentPaneProps } from '@aeven/client-ui-sidebar-select/client'
 import type { TranslateNS } from '@aeven/client-ui-slots'
@@ -46,6 +47,12 @@ export interface TerminalPaneProps extends SidebarContentPaneProps {
   readonly terminals: ClientTerminals
   readonly theme: ThemeSource
   readonly holds: TerminalHolds
+  /**
+   * Take the shell the model opened for this session's next new pill.
+   * @param sessionId - the pill's session.
+   * @returns that shell's Host identity, or undefined when the model opened none.
+   */
+  readonly adopt: (sessionId: SessionId) => WebTerminalId | undefined
 }
 
 /**
@@ -53,11 +60,14 @@ export interface TerminalPaneProps extends SidebarContentPaneProps {
  * @param props - the column's pane props plus the plugin's copy and services.
  * @returns the terminal element tree.
  */
-export function TerminalPane({ sessionId, surfaceId, active, setTab, t, terminals, theme, holds }: TerminalPaneProps): ReactNode {
+export function TerminalPane({ sessionId, surfaceId, active, setTab, t, terminals, theme, holds, adopt }: TerminalPaneProps): ReactNode {
   const session = sessionId as SessionId
   // Bumped by "New terminal", which closes this pill's shell and binds a fresh one.
   const [generation, setGeneration] = useState(0)
-  const model = useMemo(() => terminals.view(session, surfaceId, surfaceId), [terminals, session, surfaceId, generation])
+  // A pill bound to no shell yet takes the one the model opened for it; a pill renewed with "New terminal" starts its own.
+  const model = useMemo(() => terminals.view(session, surfaceId, surfaceId,
+    generation === 0 && !terminals.bound(session, surfaceId) ? adopt(session) : undefined),
+  [terminals, session, surfaceId, generation, adopt])
   useEffect(() => holds.hold(session, surfaceId), [holds, session, surfaceId])
   const state = useSyncExternalStore(listener => model.state.subscribe(listener), () => model.state.getSnapshot())
   const themeSnapshot = useSyncExternalStore(theme.subscribe, theme.getSnapshot)

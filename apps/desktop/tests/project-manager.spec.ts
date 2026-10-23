@@ -149,6 +149,7 @@ function hooks(overrides: Partial<DesktopProjectHooks> = {}): DesktopProjectHook
     healthCheck: async () => {},
     beforeActivate: async () => {},
     afterActivate: async () => {},
+    progress: () => {},
     ...overrides,
   }
 }
@@ -173,14 +174,14 @@ afterEach(async () => {
 })
 
 describe('desktop package policy', () => {
-  it('rejects any seed content changed after release inventory generation', () => {
+  it('rejects any seed content changed after release inventory generation', async () => {
     const seed = join(temporaryRoot(), 'seed')
     createTestSeedMetadata(seed, release())
     writeFileSync(join(seed, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
     writeIntegrity(seed)
-    expect(() => { verifySeedIntegrity(seed) }).not.toThrow()
+    await expect(verifySeedIntegrity(seed)).resolves.toBeUndefined()
     writeFileSync(join(seed, 'package.json'), '{}\n')
-    expect(() => { verifySeedIntegrity(seed) }).toThrow(/integrity verification failed/u)
+    await expect(verifySeedIntegrity(seed)).rejects.toThrow(/integrity verification failed/u)
   })
 
   it('rewrites only dependency edges the workspace manifests declare', () => {

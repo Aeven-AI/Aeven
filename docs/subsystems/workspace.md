@@ -474,4 +474,31 @@ builtIn(key: string, title: string): Promise<Workspace>
 Types: [SessionId](core.md)
 
 Source: [`packages/workspace/workspace/src/index.ts`](../../packages/workspace/workspace/src/index.ts)
+
+<a id="workspace-files-events"></a>
+
+### `workspace-files/*` events
+
+<a id="workspace-filesshow--waterfall"></a>
+
+#### `workspace-files/show` — waterfall
+
+Show one workspace path in the Files sidebar beside its session. The client displaying that session opens the explorer and answers; a listener without that session calls `next()` to delegate. Scope-filtered dispatch (`@aeven/scope`): agent-scoped listeners receive only that agent.
+
+```ts cordis-catalog
+/**
+ * Show one workspace path in the Files sidebar beside its session. The
+ * client displaying that session opens the explorer and answers; a
+ * listener without that session calls `next()` to delegate.
+ * Scope-filtered dispatch (`@aeven/scope`): agent-scoped listeners receive
+ * only that agent.
+ * @param request - the path to show.
+ * @mode waterfall
+ */
+'workspace-files/show'( this: Scoped<Agent>, request: WorkspaceFilesShowRequestEvent, next: () => Promise<WorkspaceFilesShowResult>, ): Promise<WorkspaceFilesShowResult>
+```
+
+Types: [Agent](core.md) · [Scoped](scope.md)
+
+Source: [`packages/api/workspace-files/src/types.ts`](../../packages/api/workspace-files/src/types.ts)
 <!-- END GENERATED cordis-surface -->

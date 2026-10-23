@@ -40,7 +40,8 @@ export function desktopUpdatePrompt(
     case 'available':
       return options.manual ? 'downloading' : 'silent'
     case 'downloading':
-      // The popup a reader opened follows the download through its own states.
+    case 'preparing':
+      // The popup a reader opened follows the download and preparation through its own states.
       return 'silent'
     case 'ready':
       // A downloaded release installs on quit, so offering it once is enough.

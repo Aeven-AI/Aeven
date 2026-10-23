@@ -12,6 +12,9 @@
  * A preview page is cut from `streamText`, which decodes as it goes, so a file
  * is read only up to the first character past the page and is never held whole
  * in memory; a page that would exceed the byte cap is refused rather than cut.
+ *
+ * The `sidebar_files` model tool shows a path in that explorer: it resolves and
+ * stats the path here, then asks the window displaying the Session to open it.
  * @module @aeven/api-workspace-files
  */
 
@@ -22,9 +25,12 @@ import type {} from '@aeven/fs'
 import type { FsTarget } from '@aeven/fs'
 import type {} from '@aeven/sandbox-policy'
 import { Remote, RemoteError, TypertRemoteService } from '@aeven/typert-protocol'
+import { scopeTarget } from '@aeven/scope'
+import { defineTool } from '@aeven/tools'
 import type {} from './types.ts'
 import type {
-  WorkspaceDirectoryEntry, WorkspaceDirectoryListing, WorkspaceFileText, WorkspaceSearchHit, WorkspaceSearchResult,
+  WorkspaceDirectoryEntry, WorkspaceDirectoryListing, WorkspaceFileText, WorkspaceFilesShowResult, WorkspaceSearchHit,
+  WorkspaceSearchResult,
 } from './types.ts'
 
 export type * from './types.ts'
@@ -50,6 +56,8 @@ export interface Config {
   readonly searchMaxDirectories: number
   /** Directory names a search never descends into. */
   readonly searchSkip: string[]
+  /** How long `sidebar_files` waits for the window showing the Session to open the explorer. */
+  readonly showTimeoutMs: number
 }
 
 /** The byte text never carries: its presence marks a page as binary. */
@@ -119,6 +127,7 @@ export class WorkspaceFiles extends TypertRemoteService {
     searchMaxHits: z.number().step(1).min(1).default(200),
     searchMaxDirectories: z.number().step(1).min(1).default(5000),
     searchSkip: z.array(z.string()).default(['.git', 'node_modules']),
+    showTimeoutMs: z.number().step(1).min(1).default(5_000),
   })
 
   /**
@@ -127,6 +136,50 @@ export class WorkspaceFiles extends TypertRemoteService {
    */
   constructor(ctx: Context, private readonly config: Config) {
     super(ctx, 'workspaceFiles')
+    ctx.inject(['tools'], (scoped) => { this.registerTool(scoped) })
+  }
+
+  private registerTool(ctx: Context): void {
+    ctx.effect(() => ctx.tools.register(defineTool({
+      name: 'sidebar_files',
+      description: 'Show a file or folder in the file explorer beside this chat in web or Electron. A file opens in a preview tab there; a folder opens the explorer expanded at it. Use it when the user asks to see files, a folder, or a file in the sidebar.',
+      parameters: {
+        path: { type: 'string', description: 'Workspace-relative or absolute path. Omit or leave empty for the workspace root.' },
+      },
+      output: {
+        schema: { type: 'string' },
+        render: (_args, value) => [{ type: 'text', text: value }],
+      },
+      execute: async (args, exec) => {
+        const agent = exec.agent
+        if (agent === undefined) throw new Error('Showing files in the sidebar requires a calling agent')
+        const path = args.path ?? ''
+        const workspaceRoot = this.workspaceRootOf(agent)
+        const root = await this.ctx.fs.resolve(workspaceRoot, { signal: exec.signal })
+        const target = path.length === 0 ? root : await this.ctx.fs.resolve(path, { cwd: workspaceRoot, signal: exec.signal })
+        const info = await this.ctx.fs.stat(target, exec.signal)
+        if (info === undefined) throw new Error(`No file or folder exists at "${path}"`)
+        if (info.type === 'other') throw new Error(`"${path}" is neither a file nor a folder`)
+        // The explorer lists only inside the workspace; a file preview follows read access, as `read` does.
+        if (info.type === 'directory' && !this.ctx.fs.contains(root, target)) throw new Error(`"${path}" is outside the workspace, which the explorer shows`)
+        const shownPath = info.type === 'directory' ? workspacePathOf(this.ctx.fs.fileUrl(root), this.ctx.fs.fileUrl(target)) : path
+        const bounded = AbortSignal.any([exec.signal, AbortSignal.timeout(this.config.showTimeoutMs)])
+        const unanswered = new Promise<WorkspaceFilesShowResult>((resolve) => {
+          if (bounded.aborted) resolve('no-window')
+          else bounded.addEventListener('abort', () => { resolve('no-window') }, { once: true })
+        })
+        const result = await Promise.race([
+          ctx.waterfall(scopeTarget(agent, agent), 'workspace-files/show',
+            { path: shownPath, type: info.type, agent, signal: bounded }, () => Promise.resolve<WorkspaceFilesShowResult>('no-window')),
+          unanswered,
+        ])
+        exec.signal.throwIfAborted()
+        if (result === 'no-window') throw new Error('No window is showing this chat, so nothing was opened. Ask the user to open Files in the sidebar.')
+        if (result === 'not-previewable') throw new Error(`"${path}" has no text or image preview, so the explorer cannot open it`)
+        return info.type === 'directory' ? `Showing the folder "${shownPath || '.'}" in the file explorer.` : `Showing "${path}" in the file explorer.`
+      },
+      presentCall: args => ({ card: 'generic', title: 'Show in Files', kind: 'read', rawInput: args.path ?? '' }),
+    })), 'workspace-files.model-tool')
   }
 
   /**

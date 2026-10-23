@@ -25,12 +25,13 @@ describe('desktop start screen', () => {
     expect(html).toContain('body{display:flex;align-items:center;justify-content:center}')
   })
 
-  it('carries no copy of its own, so nothing shifts when the application loads', () => {
+  it('keeps launch status outside the loading face layout', () => {
     const html = startPageDocument('darwin')
     expect(html).toContain('<main>')
-    expect(html).not.toContain('class="status"')
+    expect(html).toContain('<p class="avn-start-status" role="status" aria-live="polite"></p>')
+    expect(html).toContain('main{position:relative}')
+    expect(html).toContain('.avn-start-status{position:absolute;top:100%')
     expect(html).not.toContain('<script')
-    expect(html).not.toContain('margin:20px')
   })
 
   it('drags the macOS window while it shows, and no other platform', () => {

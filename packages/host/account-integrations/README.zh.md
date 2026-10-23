@@ -126,6 +126,7 @@ Slack 是唯一不需要在 Aeven API 上保存凭据的提供方：它的 PKCE 
 | `maxSkillBytes` | 10485760 | 解码后技能包的最大字节数 |
 | `timeoutMs` | 60000 | OAuth、MCP 发现、守护进程控制及工具请求的时限 |
 | `consentLifetimeMs` | 600000 | 授权或登录操作的最大持续时间 |
+| `consentPollMs` | 2000 | 向 Aeven API 检查待完成登录的间隔，登录完成后无需重新打开设置即可连接 |
 | `apiUrl` | 无 | 由其连接器代理持有所有提供商凭据的 Aeven API 源；缺省时 Google、Microsoft、GitHub、Discord 和 Telegram 不可用 |
 | `credentialRef` | `AEVEN_TOKEN` | 持有每个已登录用户 Aeven 访问令牌的凭据引用 |
 | `maxEmailAccounts` | 20 | 一个账户可连接的邮箱数 |

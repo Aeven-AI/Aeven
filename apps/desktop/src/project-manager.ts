@@ -13,7 +13,6 @@ import {
   mkdirSync,
   openSync,
   closeSync,
-  readdirSync,
   readFileSync,
   renameSync,
   rmSync,
@@ -21,6 +20,7 @@ import {
   writeFileSync,
   writeSync,
 } from 'node:fs'
+import { readdir, readFile } from 'node:fs/promises'
 import { basename, delimiter, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import {
   DESKTOP_PACKAGES_DIR,
@@ -89,6 +89,13 @@ export interface DesktopRuntimeExecutables {
   readonly pnpm: string
 }
 
+/**
+ * The long-running step a release replacement is in: unpacking the seed's pnpm store, installing the profile from
+ * it, or proving the installed profile boots. Verifying the seed and the fast path that finds the profile current
+ * report no step, since every launch runs them.
+ */
+export type DesktopReleaseStep = 'unpacking' | 'installing' | 'checking'
+
 /** Hooks that bind project replacement to backend lifecycle and health. */
 export interface DesktopProjectHooks {
   /** Prove the staged dependency graph while the active backend is stopped. */
@@ -97,6 +104,11 @@ export interface DesktopProjectHooks {
   beforeActivate(): Promise<void>
   /** Start the selected active project after commit or rollback. */
   afterActivate(): Promise<void>
+  /**
+   * Observe each step of a replacement that has work to do.
+   * @param step - the step that starts now.
+   */
+  progress(step: DesktopReleaseStep): void
 }
 
 interface DesktopSeedIntegrityRecord {
@@ -240,20 +252,20 @@ function copyMetadata(source: string, target: string): void {
   })
 }
 
-function seedFiles(root: string): readonly DesktopSeedIntegrityRecord[] {
+async function seedFiles(root: string): Promise<readonly DesktopSeedIntegrityRecord[]> {
   const files: DesktopSeedIntegrityRecord[] = []
-  const visit = (directory: string): void => {
-    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+  const visit = async (directory: string): Promise<void> => {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
       const path = join(directory, entry.name)
       const relativePath = path.slice(root.length + 1).split(sep).join('/')
       if (relativePath === 'integrity.json') continue
       if (entry.isSymbolicLink()) throw new Error(`desktop seed: symbolic link is not allowed: ${relativePath}`)
       if (entry.isDirectory()) {
-        visit(path)
+        await visit(path)
         continue
       }
       if (!entry.isFile()) throw new Error(`desktop seed: unsupported file type: ${relativePath}`)
-      const body = readFileSync(path)
+      const body = await readFile(path)
       files.push({
         path: relativePath,
         bytes: body.byteLength,
@@ -261,12 +273,16 @@ function seedFiles(root: string): readonly DesktopSeedIntegrityRecord[] {
       })
     }
   }
-  visit(root)
+  await visit(root)
   return files.sort((left, right) => left.path.localeCompare(right.path))
 }
 
-/** Verify the packaged offline seed before any content enters writable desktop state. */
-export function verifySeedIntegrity(seedDir: string): void {
+/**
+ * Verify the packaged offline seed before any content enters writable desktop state. Files are read and hashed one
+ * at a time between event-loop turns, so the Electron main process stays responsive across the whole seed.
+ * @param seedDir - packaged seed directory.
+ */
+export async function verifySeedIntegrity(seedDir: string): Promise<void> {
   const integrityPath = join(seedDir, 'integrity.json')
   const integrity = readJson(integrityPath)
   if (!isRecord(integrity) || integrity.schemaVersion !== 2 || !Array.isArray(integrity.files)) {
@@ -281,7 +297,7 @@ export function verifySeedIntegrity(seedDir: string): void {
     }
     return { path: record.path, bytes: record.bytes, sha256: record.sha256 }
   }).sort((left, right) => left.path.localeCompare(right.path))
-  const actual = seedFiles(seedDir)
+  const actual = await seedFiles(seedDir)
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
     throw new Error('desktop seed: integrity verification failed')
   }
@@ -428,11 +444,19 @@ export class DesktopProjectManager {
     return installedReleaseVersion(this.paths.profile)
   }
 
-  /** Install or reconcile the active project to the Electron package's exact release. */
+  /**
+   * Install or reconcile the active project to the Electron package's exact release. A profile `prepareRelease`
+   * already installed from this exact seed, with the active profile's plugins, is adopted instead of installing
+   * again, which leaves the health check and the directory swap.
+   * @param seedDir - this application's packaged seed.
+   * @param electronVersion - version of the running Electron application.
+   * @param hooks - backend lifecycle, health check, and step observer.
+   * @returns whether the active profile changed.
+   */
   async applyRelease(seedDir: string, electronVersion: string, hooks: DesktopProjectHooks): Promise<boolean> {
     return this.withLock(async () => {
       this.recover()
-      verifySeedIntegrity(seedDir)
+      await verifySeedIntegrity(seedDir)
       const target = releaseFile(seedDir)
       verifyDesktopCorePackageSet(seedDir, target.version)
       if (target.version !== electronVersion) {
@@ -444,26 +468,18 @@ export class DesktopProjectManager {
         verifyDesktopCorePackageSet(this.paths.profile, target.version)
         return false
       }
-      this.mergeSeedPnpmState(seedDir)
-      const stagingProfile = this.newStagingProfile()
+      const prepared = this.adoptPreparedProfile(seedDir)
+      if (prepared === undefined) {
+        hooks.progress('unpacking')
+        await this.mergeSeedPnpmState(seedDir)
+      }
+      const stagingProfile = prepared ?? this.newStagingProfile()
       try {
-        if (existsSync(this.paths.profile)) {
-          const plugins = pluginRecords(this.paths.profile)
-          copyMetadata(seedDir, stagingProfile)
-          await this.runPnpm(stagingProfile, ['install', '--offline', '--frozen-lockfile', '--trust-lockfile'])
-          if (plugins.length > 0) {
-            await this.runPnpm(stagingProfile, [
-              'add',
-              ...plugins.map(plugin => `${plugin.name}@${plugin.version}`),
-              '--save-exact',
-              '--offline',
-            ])
-            writeProfilePlugins(stagingProfile, plugins)
-          }
-        } else {
-          copyMetadata(seedDir, stagingProfile)
-          await this.runPnpm(stagingProfile, ['install', '--offline', '--frozen-lockfile', '--trust-lockfile'])
+        if (prepared === undefined) {
+          hooks.progress('installing')
+          await this.installProfile(seedDir, stagingProfile, this.runtime)
         }
+        hooks.progress('checking')
         await hooks.healthCheck(stagingProfile)
         await this.activate(stagingProfile, hooks)
         return true
@@ -474,18 +490,98 @@ export class DesktopProjectManager {
     })
   }
 
+  /**
+   * Install a downloaded release's profile while the running release keeps serving, so that release's first launch
+   * adopts it through `applyRelease` instead of unpacking and installing behind its start screen. The active
+   * profile and backend are untouched; the prepared profile replaces any earlier one.
+   * @param seedDir - the downloaded release's packaged seed.
+   * @param version - the release version the seed must carry.
+   * @param runtime - the downloaded release's own Node.js and pnpm, which install its native dependencies.
+   * @returns whether a profile was prepared; false when the active or prepared profile already matches the seed.
+   */
+  async prepareRelease(seedDir: string, version: string, runtime: DesktopRuntimeExecutables): Promise<boolean> {
+    return this.withLock(async () => {
+      this.recover()
+      await verifySeedIntegrity(seedDir)
+      const target = releaseFile(seedDir)
+      verifyDesktopCorePackageSet(seedDir, target.version)
+      if (target.version !== version) {
+        throw new Error(`desktop project: seed ${target.version} does not match the downloaded release ${version}`)
+      }
+      if (existsSync(this.paths.profile) && profileMatchesSeed(this.paths.profile, seedDir)) return false
+      if (existsSync(this.paths.prepared) && profileMatchesSeed(this.paths.prepared, seedDir)) return false
+      removeOwnedDirectory(dirname(this.paths.prepared))
+      await this.mergeSeedPnpmState(seedDir)
+      const stagingProfile = this.newStagingProfile()
+      try {
+        await this.installProfile(seedDir, stagingProfile, runtime)
+        mkdirSync(dirname(this.paths.prepared), { recursive: true, mode: 0o700 })
+        renameSync(stagingProfile, this.paths.prepared)
+        return true
+      } finally {
+        removeOwnedDirectory(dirname(stagingProfile))
+      }
+    })
+  }
+
+  /**
+   * Move a prepared profile into staging when it was installed from this exact seed with the active profile's
+   * plugins, and discard it otherwise: a profile prepared for another release, or before the reader changed their
+   * plugins, is not this launch's profile.
+   */
+  private adoptPreparedProfile(seedDir: string): string | undefined {
+    const prepared = this.paths.prepared
+    if (!existsSync(prepared)) return undefined
+    let usable = false
+    try {
+      usable = profileMatchesSeed(prepared, seedDir) && JSON.stringify(pluginRecords(prepared))
+        === JSON.stringify(existsSync(this.paths.profile) ? pluginRecords(this.paths.profile) : [])
+    } catch (error) {
+      // A prepared profile whose manifest or plugins no longer read is discarded and installed afresh.
+      console.warn('desktop project: discarding an unreadable prepared profile', error)
+    }
+    if (!usable) {
+      removeOwnedDirectory(dirname(prepared))
+      return undefined
+    }
+    const stagingProfile = join(this.paths.staging, randomUUID(), 'profile')
+    mkdirSync(dirname(stagingProfile), { recursive: true, mode: 0o700 })
+    renameSync(prepared, stagingProfile)
+    return stagingProfile
+  }
+
+  /**
+   * Install one release's profile into an empty staging directory, carrying the active profile's plugins over.
+   * @param seedDir - the release's packaged seed.
+   * @param stagingProfile - empty staging profile directory.
+   * @param runtime - the Node.js and pnpm that install the release.
+   */
+  private async installProfile(seedDir: string, stagingProfile: string, runtime: DesktopRuntimeExecutables): Promise<void> {
+    const plugins = existsSync(this.paths.profile) ? pluginRecords(this.paths.profile) : []
+    copyMetadata(seedDir, stagingProfile)
+    await this.runPnpm(runtime, stagingProfile, ['install', '--offline', '--frozen-lockfile', '--trust-lockfile'])
+    if (plugins.length === 0) return
+    await this.runPnpm(runtime, stagingProfile, [
+      'add',
+      ...plugins.map(plugin => `${plugin.name}@${plugin.version}`),
+      '--save-exact',
+      '--offline',
+    ])
+    writeProfilePlugins(stagingProfile, plugins)
+  }
+
   private newStagingProfile(): string {
     const path = join(this.paths.staging, randomUUID(), 'profile')
     mkdirSync(path, { recursive: true, mode: 0o700 })
     return path
   }
 
-  private mergeSeedPnpmState(seedDir: string): void {
+  private async mergeSeedPnpmState(seedDir: string): Promise<void> {
     const transactionRoot = join(this.paths.staging, randomUUID())
     const extractedStore = join(transactionRoot, 'store')
     try {
-      extractPnpmStoreArchives(seedDir, extractedStore)
-      mergePnpmStore(extractedStore, this.paths.pnpm.store)
+      await extractPnpmStoreArchives(seedDir, extractedStore)
+      await mergePnpmStore(extractedStore, this.paths.pnpm.store)
     } finally {
       removeOwnedDirectory(transactionRoot)
     }
@@ -523,7 +619,7 @@ export class DesktopProjectManager {
     }
   }
 
-  private async runPnpm(projectDir: string, args: readonly string[]): Promise<void> {
+  private async runPnpm(runtime: DesktopRuntimeExecutables, projectDir: string, args: readonly string[]): Promise<void> {
     const [command, ...commandArgs] = args
     if (command === undefined) throw new Error('desktop project: pnpm command is required')
     for (const path of [this.paths.root, this.paths.pnpm.store, this.paths.pnpm.cache,
@@ -536,8 +632,8 @@ export class DesktopProjectManager {
       !/^AVN_DESKTOP_/u.test(name) && !/^(?:npm|pnpm|corepack)_/iu.test(name)
     )))
     await new Promise<void>((settle, reject) => {
-      const child = spawn(this.runtime.node, [
-        this.runtime.pnpm,
+      const child = spawn(runtime.node, [
+        runtime.pnpm,
         `--config.registry=${DESKTOP_REGISTRY}`,
         `--config.store-dir=${this.paths.pnpm.store}`,
         '--config.enable-global-virtual-store=false',
@@ -552,7 +648,7 @@ export class DesktopProjectManager {
           NPM_CONFIG_REGISTRY: DESKTOP_REGISTRY,
           NPM_CONFIG_STORE_DIR: this.paths.pnpm.store,
           NPM_CONFIG_USERCONFIG: npmrc,
-          PATH: `${dirname(this.runtime.node)}${delimiter}${process.env.PATH ?? ''}`,
+          PATH: `${dirname(runtime.node)}${delimiter}${process.env.PATH ?? ''}`,
           PNPM_HOME: this.paths.pnpm.home,
           XDG_CACHE_HOME: this.paths.pnpm.cache,
           XDG_CONFIG_HOME: this.paths.pnpm.config,

@@ -1,5 +1,9 @@
 /** Client-safe Remote wire types of the workspace file service. @module @aeven/api-workspace-files/types */
 
+import type { Agent } from '@aeven/agent/types'
+import type { Scoped } from '@aeven/scope'
+import type {} from '@aeven/typert-protocol'
+
 /** One direct child of a listed directory. */
 export interface WorkspaceDirectoryEntry {
   /** Basename inside the listed directory. */
@@ -64,5 +68,39 @@ declare module '@aeven/typert-protocol' {
     'workspace-file/not-regular-file': { readonly path: string; readonly kind: 'directory' | 'other' }
     /** The path is not a directory, so it has no children to list. */
     'workspace-file/not-directory': { readonly path: string; readonly kind: 'file' | 'other' }
+  }
+}
+
+/** Client-safe payload of the request to show a workspace path in the Files sidebar beside its Session. */
+export interface WorkspaceFilesShowRequestEvent {
+  /** A file path as the model gave it, or a folder path relative to the workspace root (empty for the root). */
+  readonly path: string
+  /** Whether the path is a file, which opens in a preview tab, or a folder, which the explorer expands to. */
+  readonly type: 'file' | 'directory'
+  /** Agent identity projected to the corresponding Client Context in transit. */
+  agent?: Agent
+  /** Cancellation lifetime of the pending request. */
+  signal?: AbortSignal
+}
+
+/** How a show request ended: shown, refused because the file has no preview, or answered by no window. */
+export type WorkspaceFilesShowResult = 'shown' | 'not-previewable' | 'no-window'
+
+declare module '@deepseek-ai/cordis' {
+  interface Events {
+    /**
+     * Show one workspace path in the Files sidebar beside its session. The
+     * client displaying that session opens the explorer and answers; a
+     * listener without that session calls `next()` to delegate.
+     * Scope-filtered dispatch (`@aeven/scope`): agent-scoped listeners receive
+     * only that agent.
+     * @param request - the path to show.
+     * @mode waterfall
+     */
+    'workspace-files/show'(
+      this: Scoped<Agent>,
+      request: WorkspaceFilesShowRequestEvent,
+      next: () => Promise<WorkspaceFilesShowResult>,
+    ): Promise<WorkspaceFilesShowResult>
   }
 }

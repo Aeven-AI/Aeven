@@ -2,6 +2,11 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // Type-only: pulls the terminal client's Context merge (ctx.webTerminals).
 import type {} from '@aeven/api-terminal-controller/client'
+import type { WebTerminalId } from '@aeven/api-terminal-controller/types'
+// Type-only: pulls the Remote Context merge (ctx.remote) and its forwarded `terminal/show` request.
+import type {} from '@aeven/api-remotes/client'
+// Type-only: pulls the session client's Context merge (ctx.sessions).
+import type {} from '@aeven/api-session-controller/client'
 // Type-only: pulls the locale plugin's Context merge (ctx.locale).
 import type {} from '@aeven/client-locale/client'
 // Type-only: pulls the content registry's Context merge (ctx.sidebarContent).
@@ -51,7 +56,25 @@ export function apply(ctx: ClientContext): void {
       },
     }
     scoped.effect(() => () => { terminals.retainTabs([]) }, 'ui-sidebar-terminal: holds')
-    const Pane = (props: SidebarContentPaneProps) => createElement(TerminalPane, { ...props, t, terminals, theme, holds })
+    // The shell the model opened, per session, until the pill opened for it mounts and takes it.
+    const opened = new Map<SessionId, WebTerminalId>()
+    const adopt = (sessionId: SessionId): WebTerminalId | undefined => {
+      const id = opened.get(sessionId)
+      opened.delete(sessionId)
+      return id
+    }
+    scoped.inject(['remote', 'sessions'], (shown) => {
+      // The model's `sidebar_terminal` open reaches the window showing its session, which opens a new pill on that
+      // shell; a window showing another session delegates.
+      shown.remote.$on('terminal/show', function (request, next) {
+        const sessionId = shown.sessions.scopeOf(this)
+        if (sessionId === undefined) return next()
+        opened.set(sessionId, request.terminalId)
+        shown.sidebarContent.requestOpen(sessionId, 'terminal', true)
+        return Promise.resolve(true)
+      })
+    })
+    const Pane = (props: SidebarContentPaneProps) => createElement(TerminalPane, { ...props, t, terminals, theme, holds, adopt })
     scoped.effect(() => scoped.sidebarContent.register('terminal', Pane), 'ui-sidebar-terminal: terminal content kind')
     // Closing the pill ends its shell; a pane unmounting on a session switch does not.
     scoped.effect(() => scoped.sidebarContent.registerCloseHandler('terminal', (sessionId, surfaceId) => {

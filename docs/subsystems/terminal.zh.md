@@ -281,4 +281,30 @@ list(owner: Agent): TerminalSessionSnapshot[]
 Types: [Agent](core.zh.md)
 
 Source: [`packages/terminal/terminal/src/index.ts`](../../packages/terminal/terminal/src/index.ts)
+
+<a id="terminal-events"></a>
+
+### `terminal/*` events
+
+<a id="terminalshow--waterfall"></a>
+
+#### `terminal/show` — waterfall
+
+Show one terminal in a new Terminal pill beside its session. The client displaying that session opens the pill and returns true; a listener without that session calls `next()` to delegate. Scope-filtered dispatch (`@aeven/scope`): agent-scoped listeners receive only that agent.
+
+```ts cordis-catalog
+/**
+ * Show one terminal in a new Terminal pill beside its session. The client
+ * displaying that session opens the pill and returns true; a listener
+ * without that session calls `next()` to delegate. Scope-filtered dispatch
+ * (`@aeven/scope`): agent-scoped listeners receive only that agent.
+ * @param request - the terminal to show.
+ * @mode waterfall
+ */
+'terminal/show'( this: Scoped<Agent>, request: TerminalShowRequestEvent, next: () => Promise<boolean>, ): Promise<boolean>
+```
+
+Types: [Agent](core.zh.md) · [Scoped](scope.zh.md)
+
+Source: [`packages/api/terminal-controller/src/types.ts`](../../packages/api/terminal-controller/src/types.ts)
 <!-- END GENERATED cordis-surface -->
