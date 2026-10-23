@@ -142,22 +142,27 @@ describe('known-route model discovery', () => {
       .toEqual(['google/gemma-4-26B-A4B-it', 'XiaomiMiMo/MiMo-V2.5-Pro'])
   })
 
-  it('interrogates a route configured with a credential alone', async () => {
-    const sent = await recordingFetch(JSON.stringify({ data: [{ id: 'chat-model', metadata: { tags: ['chat'] } }] }))
+  it('answers a configured route from what it serves, without a second request', async () => {
+    const document = await readFile(
+      new URL('./fixtures/model-listings/deepinfra-2026-09-11.json', import.meta.url),
+      'utf8',
+    )
+    const sent = await recordingFetch(document)
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
     process.env['DEEPINFRA_API_KEY'] = 'stored-deepinfra-key'
     touchedEnv.push('DEEPINFRA_API_KEY')
     await ctx.plugin(LlmPiAi, { providers: { deepinfra: { apiKeyEnv: 'DEEPINFRA_API_KEY' } } })
-    // The route's own refresh asks the same document at mount, unauthenticated.
-    // This case is about the interrogation that follows it.
-    sent.length = 0
+    // The route's own refresh asks the document once at mount; a Models page
+    // reading a route that already exists answers from that, because discovery
+    // over a configured route is not an interrogation.
+    expect(sent).toHaveLength(1)
 
-    await expect(ctx.llm.discoverModels('llm-pi-ai', { provider: 'deepinfra' }))
-      .resolves.toEqual([{ id: 'chat-model', name: 'chat-model' }])
-
-    expect(sent.map(request => request.url)).toEqual(['https://api.deepinfra.com/v1/openai/models'])
-    expect(sent.map(request => request.headers.get('authorization'))).toEqual(['Bearer stored-deepinfra-key'])
+    await expect.poll(async () => {
+      const models = await ctx.llm.discoverModels('llm-pi-ai', { provider: 'deepinfra' })
+      return models.map(model => model.id)
+    }).toEqual(['google/gemma-4-26B-A4B-it', 'XiaomiMiMo/MiMo-V2.5-Pro'])
+    expect(sent).toHaveLength(1)
   })
 
   it('asks where a draft says when it names an endpoint of its own', async () => {
