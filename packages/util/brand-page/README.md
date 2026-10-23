@@ -46,7 +46,9 @@ const page = brandPageHtml({
 A page that is on its way somewhere else renders in the waiting state and hands the destination to the document, so the cover is what the reader sees until the browser leaves:
 
 ```ts
-brandPageHtml({ state: 'waiting', note: 'Continuing to sign in…', redirect: providerUrl })
+import { brandPageHtml } from '@aeven/brand-page'
+
+brandPageHtml({ state: 'waiting', note: 'Continuing to sign in…', redirect: 'https://example.com/continue' })
 ```
 
 `scripted: false` renders the same design for a page served under a policy that refuses script. The stylesheet then reveals the lockup on its entrance instead of on the font gate, and neither a redirect nor a reveal script is emitted.
@@ -88,6 +90,8 @@ The Aeven API serves its own connector and billing pages from a CommonJS copy of
 
 <a id="dev-note"></a>
 ## Dev Note
+
+No runtime invariant companion is published: the page is a pure render of its arguments, so the package owns no durable event stream or independent observable relation to check.
 
 ### Testing
 

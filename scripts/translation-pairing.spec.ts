@@ -30,6 +30,7 @@ import {
   translationPairSourcePredicate,
   translationStructureDiff,
   translationStructureSignature,
+  TRANSLATION_SCOPE_GLOB_EXCLUDES,
 } from './translation-pairing.ts'
 
 const fixturePairSource = (): boolean => true
@@ -318,6 +319,7 @@ describe('translation scope discovery', () => {
     'native/example/README.i18n.yaml',
     '.agents/notes/proposed/feature.md',
     'docs/guide.md',
+    'docs/keys/README.md',
     'python/guide.md',
   ])('includes %s', (file) => {
     expect(isTranslationScopeFile(file)).toBe(true)
@@ -331,6 +333,8 @@ describe('translation scope discovery', () => {
     'website/reference.md',
     'packages/example/README.txt',
     'vendor/example/README.md',
+    'keys/oci/README.md',
+    'keys/release/notes.i18n.yaml',
     'packages/example/node_modules/dependency/README.md',
     'packages/example/lib/README.md',
     'coverage/report/README.md',
@@ -338,6 +342,10 @@ describe('translation scope discovery', () => {
     'python/sdk-runtime/src/aeven_runtime/runtime/node/README.md',
   ])('excludes non-source or non-README path %s', (file) => {
     expect(isTranslationScopeFile(file)).toBe(false)
+  })
+
+  it('excludes the local credential tree from glob traversal too', () => {
+    expect(TRANSLATION_SCOPE_GLOB_EXCLUDES).toContain('keys/**')
   })
 })
 

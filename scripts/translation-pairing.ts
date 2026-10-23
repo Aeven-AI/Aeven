@@ -147,8 +147,20 @@ const NON_SOURCE_DIRECTORIES = new Set([
   'vendor',
 ])
 
-/** Glob traversal exclusions corresponding to the non-source path predicate. */
+/**
+ * Local credential trees. `.gitignore` keeps them out of version control, so
+ * their contents are one machine's secrets rather than repository source; a
+ * pairing check must never demand a Chinese counterpart for them.
+ */
+const LOCAL_CREDENTIAL_DIRECTORIES = ['keys/'] as const
+
+/**
+ * Glob traversal exclusions corresponding to the non-source path predicate.
+ * `LOCAL_CREDENTIAL_DIRECTORIES` contributes its own entries so the two lists
+ * cannot drift.
+ */
 export const TRANSLATION_SCOPE_GLOB_EXCLUDES = [
+  ...LOCAL_CREDENTIAL_DIRECTORIES.map(directory => `${directory}**`),
   '.agents/notes/archived/**',
   '**/node_modules/**',
   '**/lib/**',
@@ -177,6 +189,7 @@ function isTranslationSourceExcluded(file: string): boolean {
   return segments.some(segment => NON_SOURCE_DIRECTORIES.has(segment)
       || segment.startsWith('.doc-typecheck-')
     || segment.startsWith('.node-next-types-'))
+    || LOCAL_CREDENTIAL_DIRECTORIES.some(directory => file.startsWith(directory))
     || file.startsWith('apps/web/dist/')
     || file.startsWith('python/sdk-runtime/src/aeven_runtime/runtime/aeven-sdk-runtime-')
     || file.startsWith('python/sdk-runtime/src/aeven_runtime/runtime/node/')

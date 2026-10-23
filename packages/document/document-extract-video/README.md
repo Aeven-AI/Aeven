@@ -35,7 +35,7 @@ Without a reachable `ffprobe` the reader still claims the formats and reports th
 <a id="dev-note"></a>
 ## Dev Note
 
-The package publishes no `./invariant`: the relationship it could assert — that a registered format is also extractable — is already enforced by the registry's own routing, and a companion would restate it.
+No runtime invariant companion is published: the relationship it could assert — that a registered format is also extractable — is already enforced by the registry's own routing, and a companion would restate it.
 
 ### Verification
 
