@@ -8,6 +8,7 @@
     "src"
   ],
   "references": [
+    { "path": "../ui-sidebar-files" },
     {
       "path": "../../api/remotes/tsconfig.client.json"
     },

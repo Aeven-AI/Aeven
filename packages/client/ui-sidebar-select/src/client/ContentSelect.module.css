@@ -55,8 +55,18 @@
   display: none;
 }
 
+/* A 24px band at each end that still has content beyond it, so the strip reads
+   as scrollable without a scrollbar. */
+.fadeLeft {
+  mask-image: linear-gradient(to right, transparent, black 24px);
+}
+
 .fadeRight {
   mask-image: linear-gradient(to left, transparent, black 24px);
+}
+
+.fadeLeft.fadeRight {
+  mask-image: linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent);
 }
 
 /* One pill: glyph (a close button on hover) and title, on the same box, glyph

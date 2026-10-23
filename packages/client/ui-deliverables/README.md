@@ -25,11 +25,11 @@ This package renders the deliverables row a finished turn ends with — the file
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this plugin alongside `ui-conversation`; a finished turn then ends with the produced-files row between the closing message's body and its action footer. Each chip opens the file through the Host opener, with relative paths resolved against the session cwd; when the row first appears, it queries `session.canOpenWorkspacePath()`, and an omitted-file **Show in folder** action opens the session workspace only when the page is loopback and that query succeeds with `true`.
+Mount this plugin alongside `ui-conversation`; a finished turn then ends with the produced-files row between the closing message's body and its action footer. New-file pills and edited-file rows preview the selected file in the Files sidebar through `sidebarFiles.open`; non-text files without a sidebar image viewer open in the default app. Inline mentions use the Host opener, with relative paths resolved against the session cwd; when the row first appears, it queries `session.canOpenWorkspacePath()`, and an omitted-file **Show in folder** action opens the session workspace only when the page is loopback and that query succeeds with `true`.
 
 ### The row
 
-The row uses CSS container-width bands to show a responsive prefix of up to six file chips. Flexbox shrinks and ellipsizes basename text, while CSS selects the matching localized `+ N files` label for omitted paths; the full path remains available as the title, and the row performs no JavaScript layout observation or horizontal scrolling.
+Created and edited files use the same table layout, with four rows shown before the fold. Created files have a separate table without added/deleted line counts; edited files retain per-file and total counts. Each row shows the file icon and path, and opens or focuses the file in the sidebar when supported.
 
 ### Inline-code links
 

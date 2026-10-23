@@ -8,6 +8,7 @@
     "src"
   ],
   "references": [
+    { "path": "../../util/workspace-path" },
     {
       "path": "../../../vendor/cordis"
     },

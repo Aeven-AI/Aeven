@@ -1,69 +1,128 @@
 /* Turn-tail produced files, on DeepSeek Harness's deliverables metrics: an
-   edited-files card (60px filled header with a 40px icon tile, 12px path rows
-   with line counts, a bottom fold control) and created-file cards (60px tiles
-   in two columns that collapse to one below 620px). */
+   edited-files card with a floating sticky header, 12px path rows with line
+   counts and a bottom fold control, then created-file cards in two columns
+   that collapse to one below 640px. Every surface is the page's own white;
+   the file icons are the upload tray's neutral glyphs. */
 
 .root {
-  --deliverable-fill: var(--dsw-static-neutral-50);
-  --deliverable-hover: var(--dsw-static-neutral-100);
-  container-type: inline-size;
+  --deliverable-surface: #fff;
+  --deliverable-pill: var(--hm-toolbar-backdrop, rgba(255, 255, 255, 0.4));
+  --deliverable-ease: cubic-bezier(0.23, 1, 0.32, 1);
+  --deliverable-toolbar-color: rgb(80, 80, 80);
   display: flex;
   flex-direction: column;
   gap: 16px;
   min-width: 0;
   margin-top: 4px;
+  /* The upload tray's neutral outline glyphs rather than the category colors. */
+  color: var(--dsw-alias-label-tertiary);
 }
 
 :global(body[data-ds-dark-theme]) .root {
-  --deliverable-fill: var(--dsw-static-neutral-850);
-  --deliverable-hover: var(--dsw-static-neutral-800);
+  --deliverable-surface: var(--dsw-alias-bg-layer-1);
+  --deliverable-pill: rgba(255, 255, 255, 0.12);
+  --deliverable-toolbar-color: #fff;
 }
 
 /* Edited files. */
 
 .card {
   display: flex;
+  position: relative;
   flex-direction: column;
   min-width: 0;
-  overflow: hidden;
-  border: 0.5px solid var(--dsw-alias-border-l2);
-  border-radius: var(--dsw-radius-lg);
-  background: var(--dsw-alias-bg-layer-1);
+  /* One white surface, as the table card: the header is part of it and the
+     rows scroll underneath. Clip, not hide — hide would make the card a
+     scrollport and break the header's sticky overlap. */
+  overflow: clip;
+  border-radius: 30px;
+  background: var(--deliverable-surface);
   color: var(--dsw-alias-label-primary);
 }
 
-.card[data-single='true'] {
-  border-color: var(--dsw-alias-border-l1);
+/* The rows below the header, inset as the table's own content box is. */
+.content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 0 16px 16px;
 }
 
+/* The code block's header: a sticky 50px strip whose title and action live in
+   15px pills that take a backdrop once it pins. 40px is the app's own override
+   of the engine's -16px, parking the strip under the column's navigation band. */
 .header {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  box-sizing: border-box;
+  position: sticky;
+  z-index: 5;
   width: 100%;
-  min-width: 0;
-  height: 60px;
+  height: 50px;
+  top: 40px;
+  align-items: center;
+  box-sizing: border-box;
   margin: 0;
-  padding: 8px 10px;
+  padding: 0 8px;
   border: 0;
-  background: var(--deliverable-fill);
+  background: transparent;
   color: inherit;
   font: inherit;
   text-align: left;
+  user-select: none;
+  pointer-events: none;
 }
 
-button.header {
-  cursor: pointer;
-  transition: background-color 120ms ease;
+.header > * {
+  pointer-events: all;
 }
 
-button.header:hover,
-button.header:focus-visible {
-  background: var(--deliverable-hover);
+.sentinel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
 }
 
-.tile,
+/* .codeblock-title-container */
+.heading {
+  display: flex;
+  position: relative;
+  height: 30px;
+  min-width: 100px;
+  padding: 0 8px;
+  border-radius: 15px;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  background-color: transparent;
+  backdrop-filter: blur(0px);
+  transition:
+    background-color 0.4s var(--deliverable-ease),
+    backdrop-filter 0.4s var(--deliverable-ease);
+}
+
+/* .codeblock-title */
+.heading > .title {
+  display: flex;
+  position: relative;
+  align-items: center;
+  color: var(--deliverable-toolbar-color);
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1rem;
+}
+
+.header[data-scroll] .heading,
+.header[data-scroll] .iconButton {
+  background-color: var(--deliverable-pill);
+  backdrop-filter: blur(2px);
+}
+
+.heading > .title {
+  line-height: 1.875rem;
+}
+
 .fileIcon {
   display: grid;
   flex: none;
@@ -72,59 +131,47 @@ button.header:focus-visible {
   width: 40px;
   height: 40px;
   overflow: hidden;
-  border: 0.5px solid var(--dsw-alias-border-l1);
   border-radius: 10px;
-  background: color-mix(in srgb, var(--dsw-static-neutral-00) 50%, transparent);
+  background: var(--deliverable-surface);
 }
 
-:global(body[data-ds-dark-theme]) :is(.tile, .fileIcon) {
-  background: color-mix(in srgb, var(--dsw-static-neutral-00) 5%, transparent);
-}
-
-.titles {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-width: 0;
+.fileIcon svg {
+  width: 20px;
+  height: 20px;
 }
 
 .title,
 .fileName {
   overflow: hidden;
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 20px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.stat {
-  display: inline-flex;
-  min-height: 16px;
-  color: var(--dsw-alias-label-tertiary);
-  font-size: 10px;
-  line-height: 16px;
+.fileName {
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.25rem;
 }
 
-.statCounts,
 .counts {
   display: inline-flex;
   flex: none;
   gap: 6px;
   font-family: var(--ds-font-family-code);
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.25rem;
   white-space: nowrap;
+}
+
+.heading .counts {
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1rem;
 }
 
 .previewHint {
   display: none;
-}
-
-button.header:is(:hover, :focus-visible) .statCounts {
-  display: none;
-}
-
-button.header:is(:hover, :focus-visible) .previewHint {
-  display: inline;
 }
 
 .added {
@@ -151,6 +198,24 @@ button.header:is(:hover, :focus-visible) .previewHint {
   cursor: pointer;
 }
 
+/* .codeblock-button-container holding .codeblock-icon-button */
+.iconButton {
+  display: flex;
+  position: relative;
+  align-items: center;
+  box-sizing: border-box;
+  width: auto;
+  height: 30px;
+  margin-left: auto;
+  padding: 0 8px;
+  border-radius: 15px;
+  background-color: transparent;
+  backdrop-filter: blur(0px);
+  transition:
+    background-color 0.4s var(--deliverable-ease),
+    backdrop-filter 0.4s var(--deliverable-ease);
+}
+
 .iconButton > svg,
 .cardAction > svg {
   width: 14px;
@@ -159,7 +224,7 @@ button.header:is(:hover, :focus-visible) .previewHint {
 
 .iconButton:hover,
 .cardAction:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
+  background: transparent;
   color: var(--dsw-alias-label-primary);
 }
 
@@ -167,7 +232,6 @@ button.header:is(:hover, :focus-visible) .previewHint {
   margin: 0;
   padding: 0;
   list-style: none;
-  border-top: 0.5px solid var(--dsw-alias-border-l2);
 }
 
 .row {
@@ -180,20 +244,20 @@ button.header:is(:hover, :focus-visible) .previewHint {
   min-width: 0;
   min-height: 24px;
   margin: 0;
-  padding: 7px 18px 7px 14px;
+  padding: 7px 2px;
   border: 0;
-  background: transparent;
+  background: var(--deliverable-surface);
   color: var(--dsw-alias-label-tertiary);
   cursor: pointer;
   font-family: var(--ds-font-family-code);
-  font-size: 11px;
-  line-height: 18px;
+  font-size: 0.6875rem;
+  line-height: 1.125rem;
   text-align: left;
 }
 
 .row:hover,
 .row:focus-visible {
-  background: var(--dsw-alias-interactive-bg-hover);
+  background: var(--deliverable-surface);
 }
 
 .rowName {
@@ -205,13 +269,15 @@ button.header:is(:hover, :focus-visible) .previewHint {
 
 .rowName > svg {
   flex: none;
+  width: 14px;
+  height: 14px;
 }
 
 .path {
   min-width: 0;
   overflow: hidden;
   font-family: var(--dsw-font-family);
-  font-size: 12px;
+  font-size: 0.875rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -232,14 +298,14 @@ button.header:is(:hover, :focus-visible) .previewHint {
   color: var(--dsw-alias-label-tertiary);
   cursor: pointer;
   font: inherit;
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 0.875rem;
+  line-height: 1.125rem;
 }
 
 .listToggle {
   box-sizing: border-box;
   width: 100%;
-  padding: 10px 18px 10px 14px;
+  padding: 10px 2px;
   text-align: left;
 }
 
@@ -247,11 +313,13 @@ button.header:is(:hover, :focus-visible) .previewHint {
   align-self: center;
   padding: 1px 11px;
   border-radius: var(--dsw-radius-sm);
+  font-size: 0.875rem;
 }
 
 .listToggle:hover,
 .gridToggle:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
 }
 
 .listToggle svg,
@@ -281,7 +349,7 @@ button.header:is(:hover, :focus-visible) .previewHint {
   grid-template-columns: minmax(0, 1fr);
 }
 
-@container (max-width: 620px) {
+@media (max-width: 640px) {
   .grid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -295,17 +363,15 @@ button.header:is(:hover, :focus-visible) .previewHint {
   gap: 10px;
   min-width: 0;
   height: 60px;
-  padding: 8px 10px;
+  padding: 8px 10px 8px 16px;
   overflow: hidden;
-  border: 0.5px solid var(--dsw-alias-border-l1);
-  border-radius: var(--dsw-radius-lg);
-  background: var(--deliverable-fill);
+  border-radius: 30px;
+  background: var(--deliverable-surface);
   color: var(--dsw-alias-label-primary);
-  transition: background-color 120ms ease;
 }
 
 .file:hover {
-  background: var(--deliverable-hover);
+  background: var(--deliverable-surface);
 }
 
 /* The whole card opens the file; the icon and text above it pass pointer
@@ -345,16 +411,16 @@ button.header:is(:hover, :focus-visible) .previewHint {
   flex: 1;
   flex-direction: column;
   justify-content: center;
-  gap: 2px;
+  gap: 0;
   min-width: 0;
 }
 
 .description {
   overflow: hidden;
   color: var(--dsw-alias-label-tertiary);
-  font-size: 10px;
+  font-size: 0.75rem;
   font-weight: 400;
-  line-height: 16px;
+  line-height: 1rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

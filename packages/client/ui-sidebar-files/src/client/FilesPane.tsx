@@ -23,6 +23,7 @@ import {
   type MarkdownLabels, type MenuEntry,
 } from '@aeven/client-ui-primitives'
 import type { SidebarContentPaneProps } from '@aeven/client-ui-sidebar-select/client'
+import { resolveWorkspacePath } from '@aeven/util-workspace-path'
 import type { TranslateNS } from '@aeven/client-ui-slots'
 import { ancestorsOf, recall, remember, type ExplorerMemory } from './memory.ts'
 import { applicationItems, openOnDesktop, operationOf, OpenWithButton, revealLabel, useApplications } from './open-with.tsx'
@@ -30,6 +31,10 @@ import css from './FilesPane.module.css'
 
 /** What the plugin hands every Files pane beyond the column's props. */
 export interface FilesPaneProps extends SidebarContentPaneProps {
+  /** Report the current file and workspace root to the sidebar opener. */
+  readonly onFileChange?: ((path: string | null, root: string | null) => void) | undefined
+  /** Workspace-relative or absolute file requested by another client surface. */
+  readonly requestedFile?: { readonly path: string } | undefined
   readonly t: TranslateNS<'sidebarFiles'>
   readonly remote: ClientRemote
 }
@@ -70,9 +75,7 @@ function join(parent: string, name: string): string {
 
 /** A workspace-relative path in Host syntax, once the root is known. */
 function absolutePath(root: string | null, path: string): string {
-  if (root === null) return path
-  const base = root.replace(/\/+$/, '')
-  return path === '' ? base : `${base}/${path}`
+  return resolveWorkspacePath(root ?? undefined, path)
 }
 
 function basename(path: string): string {
@@ -104,7 +107,7 @@ function failureLine(t: TranslateNS<'sidebarFiles'>, code: string, message: stri
  * @param props - the column's pane props plus the plugin's copy and Remote.
  * @returns the explorer element tree.
  */
-export function FilesPane({ sessionId, surfaceId, setTab, t, remote }: FilesPaneProps): ReactNode {
+export function FilesPane({ sessionId, surfaceId, setTab, t, remote, requestedFile, onFileChange }: FilesPaneProps): ReactNode {
   const [memory, setMemory] = useState<ExplorerMemory>(() => recall(sessionId, surfaceId))
   const update = useCallback((next: (current: ExplorerMemory) => ExplorerMemory) => {
     setMemory((current) => {
@@ -115,6 +118,10 @@ export function FilesPane({ sessionId, surfaceId, setTab, t, remote }: FilesPane
   }, [sessionId, surfaceId])
 
   const [root, setRoot] = useState<string | null>(null)
+  useEffect(() => {
+    onFileChange?.(memory.openFile, root)
+  }, [memory.openFile, root, onFileChange])
+
   const [folders, setFolders] = useState<ReadonlyMap<string, Folder>>(new Map())
   const [focus, setFocus] = useState<string | null>(null)
   const [rowMenu, setRowMenu] = useState<RowMenu | null>(null)
@@ -168,6 +175,10 @@ export function FilesPane({ sessionId, surfaceId, setTab, t, remote }: FilesPane
     update(current => ({ ...current, openFile: path }))
     setFocus(path)
   }, [update])
+
+  useEffect(() => {
+    if (requestedFile !== undefined) openFile(requestedFile.path)
+  }, [requestedFile, openFile])
 
   /** Show a path in the tree: open its folders and focus its row. */
   const reveal = useCallback((path: string, type: WorkspaceDirectoryEntry['type']) => {
@@ -298,7 +309,7 @@ export function FilesPane({ sessionId, surfaceId, setTab, t, remote }: FilesPane
         </button>
         <button
           type="button"
-          className={css.iconButton}
+          className={clsx(css.iconButton, css.collapseAll)}
           aria-label={t('collapseAll')}
           title={t('collapseAll')}
           disabled={memory.expanded.size === 0}
@@ -523,11 +534,56 @@ function FileView({ path, root, canOpenNative, treeVisible, remote, sessionId, t
   const segments = path.split('/')
   const rootName = root === null ? '' : basename(root.replace(/\/+$/, ''))
   const absolute = absolutePath(root, path)
+  const crumbsRef = useRef<HTMLElement | null>(null)
+  const [crumbs, setCrumbs] = useState<HTMLElement | null>(null)
+  const [fadeLeft, setFadeLeft] = useState(false)
+  const [fadeRight, setFadeRight] = useState(false)
+  const measureCrumbs = useCallback(() => {
+    if (crumbs === null) return
+    setFadeLeft(crumbs.scrollLeft > 1)
+    setFadeRight(crumbs.scrollLeft + crumbs.clientWidth < crumbs.scrollWidth - 1)
+  }, [crumbs])
+
+  useEffect(() => {
+    if (crumbs === null) return undefined
+    const observer = new ResizeObserver(measureCrumbs)
+    observer.observe(crumbs)
+    crumbs.addEventListener('scroll', measureCrumbs, { passive: true })
+    measureCrumbs()
+    return () => {
+      observer.disconnect()
+      crumbs.removeEventListener('scroll', measureCrumbs)
+    }
+  }, [crumbs, measureCrumbs])
+
+  // A path wider than the bar shows its own end, where the file's name is. The
+  // column widens after it mounts and the typeface settles later still, so the
+  // current segment is followed into view until the reader scrolls the path.
+  useEffect(() => {
+    const strip = crumbsRef.current
+    if (strip === null) return undefined
+    const reveal = () => { strip.lastElementChild?.scrollIntoView({ block: 'nearest', inline: 'nearest' }) }
+    reveal()
+    const observer = new ResizeObserver(reveal)
+    observer.observe(strip)
+    const release = () => { observer.disconnect() }
+    strip.addEventListener('pointerdown', release)
+    strip.addEventListener('wheel', release, { passive: true })
+    return () => {
+      observer.disconnect()
+      strip.removeEventListener('pointerdown', release)
+      strip.removeEventListener('wheel', release)
+    }
+  }, [path])
 
   return (
     <div className={css.file}>
       <div className={css.fileBar}>
-        <nav className={css.crumbs} aria-label={path}>
+        <nav
+          className={clsx(css.crumbs, fadeLeft && css.fadeLeft, fadeRight && css.fadeRight)}
+          ref={(node) => { crumbsRef.current = node; setCrumbs(node) }}
+          aria-label={path}
+        >
           {rootName !== '' && (
             <>
               <button type="button" className={css.crumb} onClick={() => { onReveal('') }}>{rootName}</button>
@@ -558,7 +614,7 @@ function FileView({ path, root, canOpenNative, treeVisible, remote, sessionId, t
         >
           <IconLucideFolderSearch />
         </button>
-        <button type="button" className={clsx(css.iconButton, css.lightButton)} aria-label={t('file.close')} title={t('file.close')} onClick={onClose}>
+        <button type="button" className={clsx(css.iconButton, css.lightButton, css.fileClose)} aria-label={t('file.close')} title={t('file.close')} onClick={onClose}>
           <IconLucideX />
         </button>
       </div>

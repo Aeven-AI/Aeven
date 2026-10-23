@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The Files pill in the right sidebar shows the session's workspace: a tree that loads one folder per request, a name search over the workspace, code and Markdown rendering for the open file, and desktop-open actions for row paths. Content plugins join the column through its registry, so this package contributes the `files` pane and its copy and nothing else. Folders, file text, and search hits come from the `workspaceFiles` Remote on demand; the open folders, the query, and the tree's dock state are remembered per session and pill in browser memory, so a reload starts at the root.
+The Files pill in the right sidebar shows the session's workspace: a tree that loads one folder per request, a name search over the workspace, code and Markdown rendering for the open file, and desktop-open actions for row paths. Content plugins join the column through its registry, so this package contributes the `files` pane, its copy, and the `sidebarFiles` opener. Folders, file text, and search hits come from the `workspaceFiles` Remote on demand; the open folders, the query, and the tree's dock state are remembered per session and pill in browser memory, so a reload starts at the root.
 
 ## Table of Contents
 
@@ -25,6 +25,8 @@ The Files pill in the right sidebar shows the session's workspace: a tree that l
 ## Use this package
 
 Compose it in a web client whose sidebar should browse the session workspace. It needs `sidebarContent`, `remote`, `remote.workspaceFiles`, and `remote.session`. `apply` registers the `files` pane and its dictionaries inside effects on the plugin fiber, so disposing the fiber withdraws the kind, and the registration waits for the column's registry rather than racing the column's own apply. The pane lists a folder with `workspaceFiles.list`, reads the open file with `workspaceFiles.read`, searches names with `workspaceFiles.search`, and asks `session.canOpenWorkspacePath`, `session.workspacePathApplications`, and `session.openWorkspacePath` for the row menu.
+
+`sidebarFiles.open(sessionId, path)` focuses a Files pane already showing the requested file, or opens a new pane, and shows the sidebar. The opener returns `false` for non-text files without an image viewer so callers can use the default app. Requests wait for the selected pane to mount; the viewer reads through `workspaceFiles` and retains its workspace access checks.
 
 -----
 

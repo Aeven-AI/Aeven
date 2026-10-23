@@ -5,7 +5,7 @@
  * (HMR safety) against the real SlotRegistry.
  */
 import { Context } from '@deepseek-ai/cordis'
-import { cleanup } from '@testing-library/react'
+import { cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { SessionLiveEventEntry } from '@aeven/api-session-controller/client'
 import {
@@ -20,13 +20,14 @@ import { SlotRegistry } from '@aeven/client-ui-renderer/client'
 import { apply as applyLocale, inject as localeInject } from '@aeven/client-locale/client'
 import type { ChatFileMentions, TurnTailOwnerProps } from '@aeven/client-ui-chat/client'
 import { RemoteError, stubSettingsScope } from '@aeven/client-test-runtime'
-import type { ProducedFilesInjected } from '../src/client/ProducedFiles.tsx'
+import { ProducedFiles, type ProducedFilesInjected } from '../src/client/ProducedFiles.tsx'
 import {
   basename, deliverablesDefinition, producedFileMentions, producedForClosing, selectProducedFiles,
   type DeliverablesTurnData,
 } from '../src/client/turn-deliverables.ts'
 import { apply, inject } from '../src/client/index.ts'
 import type { SessionEvent } from '@aeven/session/types'
+import { SessionId } from '@aeven/session'
 
 afterEach(() => {
   cleanup()
@@ -445,6 +446,25 @@ describe('producedFileMentions resolver', () => {
 })
 
 
+describe('produced-file opening', () => {
+  it.each([true, false])('previews files and opens unsupported files in the default app (created=%s)', async (created) => {
+    const openFile = vi.fn()
+    const previewFile = vi.fn().mockResolvedValue(true)
+    const view = render(<ProducedFiles matched={[{ path: 'report.pdf', created, counts: { added: 12, deleted: 3 } }]} openFile={openFile}
+      previewFile={previewFile} isLoopback={false} ensureWorkspacePathOpen={() => {}}
+      revealFile={() => {}} useWorkspacePathOpen={vi.fn().mockReturnValue(false)}
+      t={vi.fn().mockImplementation((key: string) => key)} />)
+    expect(view.container.querySelector(created ? '[data-created-files]' : '[data-changed-files]')).not.toBeNull()
+    expect(view.queryAllByText('changes.added')).toHaveLength(created ? 0 : 2)
+    fireEvent.click(view.getByTitle('report.pdf'))
+    await vi.waitFor(() => { expect(previewFile).toHaveBeenCalledWith('report.pdf') })
+    expect(openFile).not.toHaveBeenCalled()
+    previewFile.mockResolvedValue(false)
+    fireEvent.click(view.getByTitle('report.pdf'))
+    await vi.waitFor(() => { expect(openFile).toHaveBeenCalledWith('report.pdf') })
+  })
+})
+
 describe('plugin registration', () => {
   it('registers the tail entry and fiber disposal removes it', async () => {
     const ctx = new Context()
@@ -465,6 +485,8 @@ describe('plugin registration', () => {
       session,
     } as never)
     ctx.provide('remote.session', session as never)
+    const openSidebarFile = vi.fn().mockResolvedValue(true)
+    ctx.provide('sidebarFiles', { open: openSidebarFile } as never)
     ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
     await ctx.plugin({ inject: localeInject, apply: applyLocale }).await()
 
@@ -472,8 +494,11 @@ describe('plugin registration', () => {
     await fiber.await()
     const [entry] = ctx.slots.entries('conversation.chat.turnTail')
     expect(entry).toBeDefined()
-    const injected = entry?.inject?.() as unknown as ProducedFilesInjected
+    const injectEntry = entry?.inject as ((sessionId: SessionId) => unknown) | undefined
+    const injected = injectEntry?.(SessionId('preview-session')) as ProducedFilesInjected
     expect(injected.isLoopback).toBe(false)
+    await injected.previewFile('site/index.html')
+    expect(openSidebarFile).toHaveBeenCalledWith('preview-session', 'site/index.html')
     expect(typeof injected.ensureWorkspacePathOpen).toBe('function')
     // Served over HTTP there is no desktop to draw a file menu, so neither the
     // row nor the prose mention carries one; the platform's own menu is what
@@ -534,6 +559,7 @@ describe('plugin registration', () => {
       session,
     } as never)
     ctx.provide('remote.session', session as never)
+    ctx.provide('sidebarFiles', { open: vi.fn().mockResolvedValue(true) })
     ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
     await ctx.plugin({ inject: localeInject, apply: applyLocale }).await()
 
@@ -576,6 +602,7 @@ describe('plugin registration', () => {
       session,
     } as never)
     ctx.provide('remote.session', session as never)
+    ctx.provide('sidebarFiles', { open: vi.fn().mockResolvedValue(true) })
     ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
     await ctx.plugin({ inject: localeInject, apply: applyLocale }).await()
     const fiber = ctx.plugin({ inject: [...inject], apply })

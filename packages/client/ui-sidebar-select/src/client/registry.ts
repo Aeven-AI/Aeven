@@ -61,7 +61,7 @@ export class SidebarContentRegistry extends Service {
   private readonly entries = new Map<SidebarContentKind, SidebarContentComponent>()
   private readonly closeHandlers = new Map<SidebarContentKind, SidebarSurfaceCloseHandler>()
   private readonly launchers = new Map<SidebarContentKind, SidebarContentLauncher>()
-  private readonly pendingOpens = new Map<string, SidebarContentKind>()
+  private readonly pendingOpens = new Map<string, { kind: SidebarContentKind; newSurface: boolean; surfaceId?: string }>()
   private readonly listeners = new Set<() => void>()
   /** Bumped on every add or removal, so a reader can compare snapshots. */
   version: number = 0
@@ -120,18 +120,20 @@ export class SidebarContentRegistry extends Service {
    * Ask the column to show a kind for a session, including when that session mounts later.
    * @param sessionId - session whose column shows the kind.
    * @param kind - the content kind to show.
+   * @param newSurface - Open a new pill instead of selecting an existing one.
+   * @param surfaceId - Select this existing pill when provided.
    */
-  requestOpen(sessionId: string, kind: SidebarContentKind): void {
-    this.pendingOpens.set(sessionId, kind)
+  requestOpen(sessionId: string, kind: SidebarContentKind, newSurface: boolean = false, surfaceId?: string): void {
+    this.pendingOpens.set(sessionId, { kind, newSurface, ...(surfaceId === undefined ? {} : { surfaceId }) })
     this.emit()
   }
 
   /**
    * Consume a pending open after the column has handled it.
    * @param sessionId - session whose pending open is consumed.
-   * @returns the requested kind, or undefined when none was pending.
+   * @returns the requested kind and pill policy, or undefined when none was pending.
    */
-  takeOpenRequest(sessionId: string): SidebarContentKind | undefined {
+  takeOpenRequest(sessionId: string): { kind: SidebarContentKind; newSurface: boolean; surfaceId?: string } | undefined {
     const kind = this.pendingOpens.get(sessionId)
     this.pendingOpens.delete(sessionId)
     return kind

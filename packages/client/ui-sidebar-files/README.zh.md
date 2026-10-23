@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-右侧栏的 Files 标签页展示会话工作区：一棵每次请求加载一个文件夹的树、对整个工作区的名称搜索、打开文件的代码与 Markdown 渲染，以及针对行路径的桌面打开操作。内容插件通过该栏的注册表加入，因此本包只贡献 `files` 窗格与其文案。文件夹、文件文本与搜索命中按需从 `workspaceFiles` Remote 读取；已展开的文件夹、查询词与树的停靠状态按会话与标签页保存在浏览器内存中，因此重新加载会回到根目录。
+右侧栏的 Files 标签页展示会话工作区：一棵每次请求加载一个文件夹的树、对整个工作区的名称搜索、打开文件的代码与 Markdown 渲染，以及针对行路径的桌面打开操作。内容插件通过该栏的注册表加入，因此本包贡献 `files` 窗格、文案与 `sidebarFiles` 打开器。文件夹、文件文本与搜索命中按需从 `workspaceFiles` Remote 读取；已展开的文件夹、查询词与树的停靠状态按会话与标签页保存在浏览器内存中，因此重新加载会回到根目录。
 
 ## 目录
 
@@ -25,6 +25,8 @@ kind: "package-reference"
 ## 使用本包
 
 当 Web 客户端的侧栏应当浏览会话工作区时编排本插件。它需要 `sidebarContent`、`remote`、`remote.workspaceFiles` 与 `remote.session`。`apply` 在插件 fiber 的 effect 中注册 `files` 窗格及其字典，因此销毁 fiber 会撤下该种类，且注册会等待该栏的注册表，而不是与该栏自身的 apply 竞争。窗格用 `workspaceFiles.list` 列出一个文件夹，用 `workspaceFiles.read` 读取打开的文件，用 `workspaceFiles.search` 搜索名称，并用 `session.canOpenWorkspacePath`、`session.workspacePathApplications` 与 `session.openWorkspacePath` 支撑行菜单。
+
+`sidebarFiles.open(sessionId, path)` 聚焦已显示所请求文件的 Files 窗格，或打开新的窗格，并显示侧栏。对于没有图片查看器的非文本文件，打开器返回 `false`，以便调用者使用默认应用。请求会等待选定窗格挂载；查看器通过 `workspaceFiles` 读取文件并保留工作区访问检查。
 
 -----
 

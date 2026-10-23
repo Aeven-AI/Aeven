@@ -47,6 +47,7 @@
     "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
+    "@aeven/util-workspace-path": "workspace:^",
     "@aeven/api-remotes": "workspace:^",
     "@aeven/api-session-controller": "workspace:^",
     "@aeven/api-workspace-files": "workspace:^",

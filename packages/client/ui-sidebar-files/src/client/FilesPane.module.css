@@ -55,8 +55,8 @@
   padding: 0 3px 0 12px;
   box-sizing: border-box;
   border-radius: 15px;
-  background: #000;
-  color: #fff;
+  background: #f2f2f2;
+  color: #000;
 }
 
 .searchGlyph {
@@ -295,32 +295,53 @@
   padding: 0 24px;
 }
 
+/* The path scrolls sideways on one line, as the right sidebar's pill strip
+   does: no scrollbar, no segment shortened, the row alone moves. */
 .crumbs {
   display: flex;
   flex: 1 1 auto;
   align-items: center;
   min-width: 0;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
   color: var(--dsw-alias-label-tertiary);
   font-size: 0.875rem;
   white-space: nowrap;
 }
 
+.crumbs::-webkit-scrollbar {
+  display: none;
+}
+
+/* A 24px band at each end that still has a segment beyond it, so a path wider
+   than the bar reads as scrollable without a scrollbar. */
+.fadeLeft {
+  mask-image: linear-gradient(to right, transparent, black 24px);
+}
+
+.fadeRight {
+  mask-image: linear-gradient(to left, transparent, black 24px);
+}
+
+.fadeLeft.fadeRight {
+  mask-image: linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent);
+}
+
 .crumbItem {
   display: flex;
+  flex: none;
   align-items: center;
-  min-width: 0;
 }
 
 .crumb {
-  min-width: 0;
-  overflow: hidden;
+  flex: none;
   padding: 0;
   border: none;
   background: transparent;
   color: inherit;
   font: inherit;
-  text-overflow: ellipsis;
+  white-space: nowrap;
   cursor: pointer;
 }
 
@@ -334,15 +355,15 @@
 }
 
 .crumbCurrent {
-  overflow: hidden;
+  flex: none;
   padding: 2px 6px;
   color: var(--dsw-alias-label-primary);
   font-weight: 400;
-  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* File-bar controls carry the 18px glyph metric; their white disc and black
-   glyph come from `.lightButton` below. */
+/* File-bar controls carry the 18px glyph metric; their glyph tone comes from
+   `.lightButton` below, and the close control's disc from `.fileClose`. */
 .fileBar > .iconButton svg {
   width: 18px;
   height: 18px;
@@ -355,6 +376,18 @@
 .iconButton.lightButton[aria-pressed="true"] {
   background: transparent;
   color: var(--dsw-alias-label-primary);
+}
+
+/* The file bar's close control keeps its own light disc, including on hover. */
+.iconButton.fileClose,
+.iconButton.fileClose:hover:not(:disabled) {
+  background: #f2f2f2;
+}
+
+/* Collapse-all keeps the hover fill at rest. */
+.iconButton.collapseAll,
+.iconButton.collapseAll:hover:not(:disabled) {
+  background: #f2f2f2;
 }
 
 .fileBody {
@@ -411,14 +444,14 @@
   box-shadow: var(--files-glass-edge);
 }
 
-/* The open file's "Open with" split button stays a black pill, including on hover. */
+/* The open file's "Open with" split button stays a light pill, including on hover. */
 .openWith {
   display: flex;
   flex: none;
   align-items: center;
   height: 30px;
   border-radius: 15px;
-  background: #000;
+  background: #f2f2f2;
   color: #fff;
 }
 
@@ -462,6 +495,7 @@
 .openWithMore svg {
   width: 12px;
   height: 12px;
+  color: #000;
 }
 
 .appIcon {
