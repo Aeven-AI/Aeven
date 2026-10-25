@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-sidebar-browser",
   "description": "Right sidebar browser: an Electron webview guest for HTTP(S) pages beside a session",
-  "version": "0.3.11-alpha",
+  "version": "0.3.12-alpha",
   "publishConfig": {
     "access": "public"
   },

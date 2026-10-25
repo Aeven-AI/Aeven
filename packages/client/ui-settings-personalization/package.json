@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-settings-personalization",
   "description": "Settings → Personalization: how the signed-in person wants Aeven to talk with them",
-  "version": "0.3.11-alpha",
+  "version": "0.3.12-alpha",
   "publishConfig": {
     "access": "public"
   },

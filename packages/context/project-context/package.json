@@ -1,7 +1,7 @@
 {
   "name": "@aeven/project-context",
   "description": "Durable project orientation for sessions that run in a project folder",
-  "version": "0.3.11-alpha",
+  "version": "0.3.12-alpha",
   "publishConfig": {
     "access": "public"
   },
