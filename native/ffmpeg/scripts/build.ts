@@ -1,9 +1,10 @@
 /**
  * Build the bundled ffmpeg executable for one platform package from the pinned upstream release source.
  *
- * `source.json` pins the ffmpeg release tarball and its SHA-256, plus the pinned libopus release that is
- * linked statically into the executable. Both archives are downloaded once into `.cache/` and verified
- * before extraction. The configure line is LGPL-only: no `--enable-gpl`, no `--enable-nonfree`, and
+ * `source.json` pins the ffmpeg release and the libopus release linked statically into the executable. Each
+ * names archives from independent hosts with their own SHA-256: ffmpeg's GitHub tag archive is a `git archive`
+ * whose bytes differ from the ffmpeg.org tarball. The first archive that downloads and verifies is cached in
+ * `.cache/`, and every host is retried in rounds before the build fails. The configure line is LGPL-only: no `--enable-gpl`, no `--enable-nonfree`, and
  * `--disable-autodetect` keeps every external codec library out, so the executable ships beside the
  * Apache-2.0 application under an LGPL notice. H.264 encoding therefore comes from the platform encoder
  * (VideoToolbox or VAAPI) instead of libx264, which is GPL.
@@ -22,6 +23,7 @@ import { createHash } from 'node:crypto'
 import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { availableParallelism } from 'node:os'
 import { join, resolve } from 'node:path'
+import { setTimeout as sleep } from 'node:timers/promises'
 import { parseArgs } from 'node:util'
 import { x as extractTar } from 'tar'
 
@@ -30,17 +32,25 @@ const CACHE = join(ROOT, '.cache')
 const TARGETS = ['darwin-arm64', 'darwin-x64', 'linux-arm64', 'linux-x64', 'win32-arm64', 'win32-x64'] as const
 type Target = typeof TARGETS[number]
 
-/** Pinned upstream release identity. */
-interface PinnedSource {
-  readonly version: string
+/** One downloadable copy of a pinned release. */
+interface PinnedArchive {
   readonly url: string
   readonly sha256: string
+}
+
+/** Pinned upstream release identity: one version and the archives that carry its source tree. */
+interface PinnedSource {
+  readonly version: string
+  readonly archives: readonly PinnedArchive[]
 }
 
 /** Everything this build pins: ffmpeg and the one external library it links. */
 interface Source extends PinnedSource {
   readonly opus: PinnedSource
 }
+
+/** Passes over every archive host before a download failure ends the build; pass `n` first waits `(n - 1) * 15` s. */
+const DOWNLOAD_ROUNDS = 3
 
 /**
  * Run one build command, inheriting stdio so compiler diagnostics reach the caller.
@@ -58,43 +68,92 @@ function run(command: string, args: readonly string[], cwd: string, env: NodeJS.
 }
 
 /**
- * Download, verify, and extract one pinned source archive into the cache.
+ * SHA-256 of one file.
+ * @param file - absolute path to hash.
+ * @returns lowercase hex digest.
+ */
+function sha256(file: string): string {
+  return createHash('sha256').update(readFileSync(file)).digest('hex')
+}
+
+/**
+ * Download one archive and keep it only when it matches its pinned digest.
+ * @param archive - pinned URL and SHA-256.
+ * @param file - cache path the verified archive is written to.
+ * @throws When the request fails, answers non-2xx, or the bytes do not match the digest.
+ */
+async function download(archive: PinnedArchive, file: string): Promise<void> {
+  const response = await fetch(archive.url)
+  if (!response.ok) throw new Error(`HTTP ${String(response.status)}`)
+  const bytes = new Uint8Array(await response.arrayBuffer())
+  const digest = createHash('sha256').update(bytes).digest('hex')
+  if (digest !== archive.sha256) throw new Error(`checksum mismatch (${digest})`)
+  writeFileSync(file, bytes)
+}
+
+/**
+ * Find or download one verified archive of a pinned release.
+ * @param name - archive name without the version, used for cache file names.
+ * @param source - pinned release identity.
+ * @returns absolute path of a cached archive that matches its pinned digest.
+ * @throws When every archive host fails in every round.
+ */
+async function verifiedArchive(name: string, source: PinnedSource): Promise<string> {
+  const candidates = source.archives.map(archive => ({
+    archive,
+    file: join(CACHE, `${name}-${source.version}-${archive.sha256.slice(0, 16)}.tar.gz`),
+  }))
+  const cached = candidates.find(({ archive, file }) => existsSync(file) && sha256(file) === archive.sha256)
+  if (cached !== undefined) return cached.file
+  const failures: string[] = []
+  for (let round = 1; round <= DOWNLOAD_ROUNDS; round++) {
+    if (round > 1) await sleep((round - 1) * 15_000)
+    for (const { archive, file } of candidates) {
+      try {
+        await download(archive, file)
+        return file
+      } catch (error) {
+        const reason = error instanceof Error ? `${error.message}${error.cause instanceof Error ? `: ${error.cause.message}` : ''}` : String(error)
+        failures.push(`round ${String(round)} ${archive.url}: ${reason}`)
+        console.warn(`build: ${archive.url} failed (${reason})`)
+      }
+    }
+  }
+  throw new Error(`build: no ${name} ${source.version} archive could be downloaded\n${failures.join('\n')}`)
+}
+
+/**
+ * Download, verify, and extract one pinned source release into the cache.
  * @param name - archive name without the version, used for the cached directory.
  * @param source - pinned release identity.
  * @param marker - file, relative to the extracted tree, that proves extraction finished.
  * @returns absolute path of the extracted source directory.
- * @throws When the download fails or the archive does not match the pinned SHA-256.
+ * @throws When no archive downloads and verifies, or the archive lacks the marker.
  */
 async function sourceTree(name: string, source: PinnedSource, marker: string): Promise<string> {
   const tree = join(CACHE, `${name}-${source.version}`)
   if (existsSync(join(tree, marker))) return tree
   mkdirSync(CACHE, { recursive: true })
-  const archive = join(CACHE, `${name}-${source.version}.tar.gz`)
-  if (!existsSync(archive)) {
-    const response = await fetch(source.url)
-    if (!response.ok) throw new Error(`build: ${source.url} returned HTTP ${String(response.status)}`)
-    writeFileSync(archive, new Uint8Array(await response.arrayBuffer()))
-  }
-  const digest = createHash('sha256').update(readFileSync(archive)).digest('hex')
-  if (digest !== source.sha256) {
-    rmSync(archive, { force: true })
-    throw new Error(`build: ${name} ${source.version} archive checksum mismatch (${digest})`)
-  }
+  const archive = await verifiedArchive(name, source)
   rmSync(tree, { recursive: true, force: true })
-  await extractTar({ file: archive, cwd: CACHE })
-  if (!existsSync(join(tree, marker))) throw new Error(`build: archive did not extract to ${tree}`)
+  mkdirSync(tree)
+  // Hosts name the top-level directory differently (ffmpeg-9.0.2, FFmpeg-n9.0.2), so it is replaced by `tree`.
+  await extractTar({ file: archive, cwd: tree, strip: 1 })
+  if (!existsSync(join(tree, marker))) throw new Error(`build: ${archive} did not extract ${marker}`)
   return tree
 }
 
 /**
  * Read the pinned release identities shipped beside this script.
- * @returns the ffmpeg and libopus versions, URLs, and SHA-256 digests.
+ * @returns the ffmpeg and libopus versions with each archive's URL and SHA-256 digest.
  */
 function readSource(): Source {
   const source = JSON.parse(readFileSync(join(ROOT, 'source.json'), 'utf8')) as Source
   const pinned = [source, source.opus]
-  if (pinned.some(entry => entry.version === '' || entry.url === '' || entry.sha256 === '')) {
-    throw new Error('build: source.json is missing a version, url, or sha256')
+  const incomplete = (entry: PinnedSource): boolean => entry.version === '' || entry.archives.length === 0
+    || entry.archives.some(archive => archive.url === '' || archive.sha256 === '')
+  if (pinned.some(incomplete)) {
+    throw new Error('build: source.json is missing a version, an archive, or an archive url or sha256')
   }
   return source
 }
@@ -376,6 +435,9 @@ async function main(): Promise<void> {
   }
   const source = readSource()
   const tree = await sourceTree('ffmpeg', source, 'configure')
+  // A GitHub tag archive has no VERSION file, and without one ffbuild/version.sh reports `git describe` of the
+  // enclosing Aeven checkout as ffmpeg's version.
+  if (!existsSync(join(tree, 'VERSION'))) writeFileSync(join(tree, 'VERSION'), `${source.version}\n`)
   // MSYS2 ships a static libopus and its pkg-config metadata for each Windows toolchain, so only macOS and Linux
   // build the pinned copy.
   const opusPrefix = process.platform === 'win32'
