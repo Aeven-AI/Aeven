@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`avn-capability` 提供 `ctx.capabilities`，即每个已登录用户的 agent（智能体）所学能力的注册表。每个操作都接受所有者的账户 id。一项能力是一个目录 `<root>/<owner>/<name>/`，其中放着 agentskills 的 `SKILL.md`（frontmatter 的 `name` 与 `description`，随后是流程）、`references/`、`scripts/`、`templates/`、`assets/` 或 `examples/` 下的配套文件、含状态、修订、来源、时间戳、文件清单与出处的 `capability.json`、含每个修订流程的 `versions/<revision>.md`，以及仅追加的证据日志 `executions.jsonl`。本服务不贡献任何 skill（技能）；能力消费方直接把符合条件的流程作为建议上下文召回。
+`avn-capability` 提供 `ctx.capabilities`，即每个已登录用户的 agent（智能体）所学能力的注册表。每个操作都接受所有者的账户 id。一项能力是一个目录 `<root>/<owner>/<name>/`，其中放着 agentskills 的 `SKILL.md`（frontmatter 的 `name` 与 `description`，随后是流程）、`references/`、`scripts/`、`templates/`、`assets/` 或 `examples/` 下的配套文件、含状态、修订、来源、时间戳、文件清单与出处的 `capability.json`、含每个修订流程的 `versions/<revision>.md`，以及仅追加的证据日志 `executions.jsonl`。`save`、`patch` 与 `writeFile` 在写入前会对凭据（已知格式的令牌、私钥、URL 中的密码，以及凭据类键名的值）脱敏，`redactSecrets` 则把同一套脱敏导出给已学流程的其他存储。本服务不贡献任何 skill（技能）；能力消费方直接把符合条件的流程作为建议上下文召回。
 
 ## 目录
 

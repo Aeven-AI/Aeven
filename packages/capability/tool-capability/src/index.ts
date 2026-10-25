@@ -25,7 +25,8 @@ export const inject = {
   tools: { required: true },
   systemPrompt: { required: true },
   llm: { required: true },
-  // Required by the memory store: learned procedures are written to it and recalled from it.
+  // Required by the memory store, which `apply` refuses to load without it: learned procedures are written to it and
+  // recalled from it.
   memory: { required: false },
 }
 
@@ -150,6 +151,9 @@ export function apply(ctx: Context, config: Config): void {
   const logger = ctx.logger(name)
   const tracker = new ExecutionTracker()
   const inMemory = config.store === 'memory'
+  if (inMemory && ctx.get('memory') === undefined) {
+    throw new Error(`${name}: store "memory" requires the memory service; mount @aeven/memory or set store: capabilities`)
+  }
   const learner = config.learn ? new CapabilityLearner(ctx, config) : undefined
   ctx.effect(() => () => learner?.dispose(), 'tool-capability.learner')
   /** Recorded executions of each session by turn, for corrections and ratings that arrive later. */
