@@ -114,6 +114,14 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # The pinned ffmpeg and libopus archives, keyed by their pins, so a release does not depend on every
+      # upstream host answering on every runner.
+      - name: Cache the pinned ffmpeg sources
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: native/ffmpeg/.cache/*.tar.gz
+          key: ffmpeg-sources-${{ hashFiles('native/ffmpeg/source.json') }}
+
       - name: Select the MSYS2 environment (Windows)
         if: startsWith(matrix.target, 'win32-')
         run: echo "MSYSTEM=${{ matrix.target == 'win32-arm64' && 'CLANGARM64' || 'CLANG64' }}" >> "$GITHUB_ENV"
