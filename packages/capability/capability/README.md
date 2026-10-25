@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`avn-capability` provides `ctx.capabilities`, the registry of capabilities each signed-in user's agents learned. Every operation takes the owner's account id. A capability is a directory `<root>/<owner>/<name>/` holding an agentskills `SKILL.md` (frontmatter `name` and `description`, then the procedure), supporting files under `references/`, `scripts/`, `templates/`, `assets/`, or `examples/`, `capability.json` with status, revision, source, timestamps, file list, and provenance, `versions/<revision>.md` with every revision's procedure, and `executions.jsonl`, the append-only evidence log. The service contributes no skills; the capability consumer recalls eligible procedures directly as advisory context.
+`avn-capability` provides `ctx.capabilities`, the registry of capabilities each signed-in user's agents learned. Every operation takes the owner's account id. A capability is a directory `<root>/<owner>/<name>/` holding an agentskills `SKILL.md` (frontmatter `name` and `description`, then the procedure), supporting files under `references/`, `scripts/`, `templates/`, `assets/`, or `examples/`, `capability.json` with status, revision, source, timestamps, file list, and provenance, `versions/<revision>.md` with every revision's procedure, and `executions.jsonl`, the append-only evidence log. `save`, `patch`, and `writeFile` redact credentials (known token formats, private keys, URL passwords, and values of credential-named keys) before writing, and `redactSecrets` exports the same redaction for other stores of learned procedures. The service contributes no skills; the capability consumer recalls eligible procedures directly as advisory context.
 
 ## Table of Contents
 

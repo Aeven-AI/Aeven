@@ -6,6 +6,7 @@
  */
 import { readFile } from 'node:fs/promises'
 import type { Context } from '@deepseek-ai/cordis'
+import { redactSecrets } from '@aeven/capability'
 import { BlockAssembler, createUserMessage, type ReasoningEffortId } from '@aeven/llm'
 import { LEARNED_PROCEDURE_PREFIX, type MemoryDomain, type MemoryItemId, type MemoryScope, type ProcedureStatus } from '@aeven/memory'
 
@@ -94,7 +95,8 @@ export async function learnedIdsNamed(
 }
 
 /**
- * Store one procedure as a memory whose summary is the condensed procedure.
+ * Store one procedure as a memory whose summary is the condensed procedure. Credentials in the text and the summary
+ * are redacted before they are stored, because recall replays both into the owner's later requests.
  * @param ctx - context with the memory service.
  * @param scope - the session's memory scope.
  * @param draft - the procedure.
@@ -109,10 +111,10 @@ export async function storeLearnedProcedure(
   status: ProcedureStatus,
   signal: AbortSignal,
 ): Promise<MemoryItemId> {
-  const text = `${LEARNED_PROCEDURE_PREFIX} ${draft.name}: ${draft.description}\n\n${draft.content}`
+  const text = redactSecrets(`${LEARNED_PROCEDURE_PREFIX} ${draft.name}: ${draft.description}\n\n${draft.content}`)
   const id = await ctx.memory.remember({ scope, text, domain: draft.domain, signal })
   // The summary capture wrote is a one-line gist; the learned summary carries the steps recall should deliver.
-  await ctx.memory.edit({ owner: scope.owner, id, summary: clip(`${LEARNED_PROCEDURE_PREFIX} ${draft.name}: ${draft.summary}`, SUMMARY_MAX), signal })
+  await ctx.memory.edit({ owner: scope.owner, id, summary: clip(redactSecrets(`${LEARNED_PROCEDURE_PREFIX} ${draft.name}: ${draft.summary}`), SUMMARY_MAX), signal })
   await ctx.memory.setProcedureStatus({ owner: scope.owner, id, status, signal })
   return id
 }

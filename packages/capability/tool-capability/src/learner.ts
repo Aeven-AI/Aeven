@@ -123,7 +123,7 @@ const STEP_CLIPS = [1_500, 600, 240, 80] as const satisfies readonly number[]
 const SHORTEST_CLIP = 80
 
 /**
- * Smallest input budget a learning call accepts. It stays above the longer fixed system prompt of about 1,100
+ * Smallest input budget a learning call accepts. It stays above the longest fixed system prompt of about 1,400
  * estimated tokens, so a transcript bounded to any accepted budget still leaves that prompt room.
  */
 export const MIN_INPUT_TOKENS = 2_000
@@ -139,7 +139,7 @@ Never learn from a conversation about the user's own life: relationships, family
 
 Lines in <tool_calls> starting "USER (during the work):" are what the user said while the work ran, placed after the calls that preceded them. Each is a requirement of the procedure from its first step: a call that went against one, such as a test run after "no tests", or browser measuring and screenshots after "just make the change", goes under "Avoid", never in the fast path. Repeated complaints or impatience mean the fast path must be far shorter. Tests, browser inspection, screenshots, and measurements belong in the fast path only when the user asked for them.
 
-Name a procedure after the kind of task, not this instance (for example "aeven-client-ui-change", not "rename-clear-history-button"). When an existing procedure covers the same kind of task, even with a different instance, update it: return its exact name and the complete merged procedure, keeping what still holds, fixing what the work showed to be wrong, and folding this instance in as an example. Create a new one only for a different kind of task.`
+Name a procedure after the kind of task, not this instance (for example "aeven-client-ui-change", not "rename-clear-history-button"). When an existing procedure covers the same kind of task, even with a different instance, update it: return its exact name and the complete merged procedure, keeping what still holds, fixing what the work showed to be wrong, and adding only what this work taught about the kind of task, with its instance-specific values as placeholders; do not add this instance as an example. Create a new one only for a different kind of task.`
 
 /** How a memory-store procedure chooses its domain. */
 const DOMAIN_RULE = 'Choose "domain": "world" when it is how an application, tool, service, or environment works and applies in any project; "project" when it only applies to the current workspace\'s code or files; "experience" for other reusable know-how.'
@@ -183,7 +183,7 @@ Reply with one JSON object and nothing else, listing only groups of two or more 
 {"groups":[{"name":"kebab-case-name","members":["procedure-name","procedure-name"]}]}`
 
 /** How one group of learned procedures is merged. */
-const MERGE_SYSTEM = `You maintain the know-how an assistant learned for one user, kept in its long-term memory and recalled when a later request needs it. You receive several procedures learned separately for the same kind of task, newest first, and the name of the kind of task. Merge them into one procedure under that name that another session can follow without the original conversations: keep every step, file, command, setting, user preference, and recovery that still holds, drop repetition, settle contradictions in favour of the newest procedure, and keep the instances as short examples. The purpose is speed: the "Fast path" must be the fewest calls that do this kind of task.
+const MERGE_SYSTEM = `You maintain the know-how an assistant learned for one user, kept in its long-term memory and recalled when a later request needs it. You receive several procedures learned separately for the same kind of task, newest first, and the name of the kind of task. Merge them into one procedure under that name that another session can follow without the original conversations: keep the steps, commands, settings, user preferences, and recoveries that hold for this kind of task as a whole, turn values that differ between the procedures (file names, identifiers, versions, wording) into named placeholders, drop what only one instance needed, drop repetition, and settle contradictions in favour of the newest procedure. Do not list the instances. The merged procedure is no longer than the longest procedure you received. The purpose is speed: the "Fast path" must be the fewest calls that do this kind of task.
 
 Write "content" ${PROCEDURE_SECTIONS}
 

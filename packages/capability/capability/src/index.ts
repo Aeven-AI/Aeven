@@ -10,6 +10,7 @@ import z from '@deepseek-ai/schemastery'
 import { randomUUID } from 'node:crypto'
 import { capabilityName, CapabilityStore, supportingPath } from './store.ts'
 import { judge, supportedStatus } from './policy.ts'
+import { redactSecrets } from './redact.ts'
 import type {
   Capability,
   CapabilityAmendment,
@@ -27,6 +28,7 @@ import type {
 export type * from './types.ts'
 export { capabilityName, FILE_FOLDERS, supportingPath } from './store.ts'
 export { currentEnvironment, EXECUTABLE_STATUSES } from './policy.ts'
+export { redactSecrets } from './redact.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -92,7 +94,8 @@ export default class Capabilities extends Service {
   }
 
   /**
-   * Create a capability or replace its body and description, keeping its supporting files.
+   * Create a capability or replace its body and description, keeping its supporting files. Credentials in the
+   * description, the procedure, and the origin's request are redacted before they are stored.
    * @param owner - account id.
    * @param draft - name, description, and procedure.
    * @param options - resulting status, who originated it, the writing session (undefined outside a session), and
@@ -112,10 +115,11 @@ export default class Capabilities extends Service {
     const name = capabilityName(draft.name)
     return this.serialize(owner, name, async () => {
       const existing = await this.store.record(owner, name)
+      const work = existing?.origin ?? (options.origin === undefined ? undefined : redactedOrigin(options.origin))
       const now = Date.now()
       await this.store.write(owner, {
         name,
-        description: oneLine(draft.description),
+        description: oneLine(redactSecrets(draft.description)),
         status: options.status,
         revision: (existing?.revision ?? 0) + 1,
         ...existing?.trustedRevision === undefined ? {} : { trustedRevision: existing.trustedRevision },
@@ -124,15 +128,15 @@ export default class Capabilities extends Service {
         updatedAt: now,
         files: existing?.files ?? [],
         provenance: [...existing?.provenance ?? [], { ...origin(options.sessionId), at: now, action: existing ? 'update' : 'save' }],
-        ...(existing?.origin ?? options.origin) === undefined ? {} : { origin: existing?.origin ?? options.origin },
-        content: draft.content,
+        ...work === undefined ? {} : { origin: work },
+        content: redactSecrets(draft.content),
       })
       return await this.settle(owner, name)
     })
   }
 
   /**
-   * Replace one exact, unique passage of a capability's procedure.
+   * Replace one exact, unique passage of a capability's procedure; credentials in the result are redacted.
    * @param owner - account id.
    * @param name - capability name.
    * @param edit - the passage to replace and its replacement.
@@ -156,14 +160,14 @@ export default class Capabilities extends Service {
         revision: current.revision + 1,
         updatedAt: now,
         provenance: [...current.provenance, { ...origin(sessionId), at: now, action: 'update' }],
-        content: current.content.replace(edit.oldString, edit.newString),
+        content: redactSecrets(current.content.replace(edit.oldString, edit.newString)),
       })
       return await this.settle(owner, name)
     })
   }
 
   /**
-   * Write one supporting file, such as a script the procedure runs.
+   * Write one supporting file, such as a script the procedure runs; credentials in it are redacted.
    * @param owner - account id.
    * @param name - capability name.
    * @param path - path inside a supporting-file folder.
@@ -175,7 +179,7 @@ export default class Capabilities extends Service {
     const file = supportingPath(path)
     return this.serialize(owner, capabilityName(name), async () => {
       const current = await this.require(owner, name)
-      await this.store.writeFile(owner, name, file, content)
+      await this.store.writeFile(owner, name, file, redactSecrets(content))
       const now = Date.now()
       await this.store.write(owner, {
         ...record(current),
@@ -366,6 +370,10 @@ function record(capability: Capability): CapabilityRecord {
 
 function oneLine(text: string): string {
   return text.replace(/\s+/g, ' ').trim()
+}
+
+function redactedOrigin(work: CapabilityOrigin): CapabilityOrigin {
+  return { ...work, request: redactSecrets(work.request) }
 }
 
 function origin(sessionId: string | undefined): { sessionId?: string } {
