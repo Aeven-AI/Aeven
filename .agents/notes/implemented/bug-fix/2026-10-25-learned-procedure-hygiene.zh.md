@@ -10,7 +10,7 @@ Status: implemented
 
 ## 决策
 
-`@aeven/capability` 拥有唯一一个确定性的脱敏器 `redactSecrets`，覆盖已知格式的令牌、私钥块、URL 用户信息、`Bearer`/`Basic` 值，以及凭据类键名下形似凭据的值；占位符和路径保持不变。注册表在 `save`、`patch` 与 `writeFile` 中应用它（包括来源记录中的请求），`storeLearnedProcedure` 则对记忆文本和摘要应用它。合并与提炼只保留对这类任务整体成立的内容，把实例中的值改为占位符，且不再添加实例；合并结果不长于其中最长的一套。`store: memory` 而没有挂载记忆服务时，`tool-capability` 拒绝加载。
+`@aeven/capability` 拥有唯一一个确定性的脱敏器 `redactSecrets`，覆盖已知格式的令牌、私钥块、URL 用户信息、`Bearer`/`Basic` 值，以及凭据类键名下形似凭据的值；占位符和路径保持不变。注册表在 `save`、`patch` 与 `writeFile` 中应用它（包括来源记录中的请求），`storeLearnedProcedure` 则对记忆文本和摘要应用它。合并与提炼只保留对这类任务整体成立的内容，把实例中的值改为占位符，且不再添加实例；合并结果不长于其中最长的一套。流程带有“事实”一节，按原样记下这份工作对工作区或应用验证过的内容，因为占位符恰恰会丢掉下一次运行原本需要重新查找的东西；合并保留每条没有被更新流程推翻的已验证事实，并说明只有部分流程采取的步骤何时该采取。`store: memory` 而没有挂载记忆服务时，`tool-capability` 拒绝加载。
 
 ## 考虑过的替代方案
 
