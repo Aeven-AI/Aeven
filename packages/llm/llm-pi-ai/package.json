@@ -1,7 +1,7 @@
 {
   "name": "@aeven/llm-pi-ai",
   "description": "pi-ai-backed DeepSeek adapter for the Aeven LLM seam (design-verification twin of avn-llm-deepseek)",
-  "version": "0.3.13-alpha",
+  "version": "0.3.14-alpha",
   "publishConfig": {
     "access": "public"
   },
