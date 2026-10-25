@@ -1,7 +1,7 @@
 {
   "name": "@aeven/computer-use-executor",
   "description": "Perform a resolved recipe and verify it independently",
-  "version": "0.3.11-alpha",
+  "version": "0.3.12-alpha",
   "publishConfig": {
     "access": "public"
   },

@@ -1,7 +1,7 @@
 {
   "name": "@aeven/computer-use",
   "description": "Exclusive named computer-use provider registration",
-  "version": "0.3.11-alpha",
+  "version": "0.3.12-alpha",
   "publishConfig": {
     "access": "public"
   },
