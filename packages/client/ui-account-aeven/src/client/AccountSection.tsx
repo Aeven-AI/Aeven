@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useId, useRef, useState, type ChangeEvent, type CSSProperties, type ReactNode } from 'react'
 import {
   Button, IconCheckOutline14, IconLucideCamera, IconRightUpOutline16, IconTrashOutline16,
-  LoadingBlock, SectionHeader, Spinner,
+  LoadingBlock, Modal, SectionHeader, Spinner,
 } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import { MfaForm } from '@aeven/client-ui-primitives'
@@ -115,6 +115,10 @@ function count(value: number): string {
 
 function day(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
+function fullDay(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
 }
 
 function planName(plan: CloudPlan, t: Translate): string {
@@ -894,12 +898,55 @@ function paymentLabel(line: CloudPayment): AccountAevenKey {
   return line.kind === 'subscription' ? 'activity.subscription' : PAYMENT_LABEL[line.type]
 }
 
+/** The parts of a payment that are known, in reading order: what was bought, then the fee, then VAT. */
+function breakdownRows(line: CloudPayment): ReadonlyArray<readonly [AccountAevenKey, number]> {
+  const parts = line.breakdown ?? {}
+  const rows: Array<readonly [AccountAevenKey, number]> = []
+  if (parts.creditUsdMicros !== undefined) rows.push(['payment.credit', parts.creditUsdMicros])
+  if (parts.planUsdMicros !== undefined) rows.push(['payment.plan', parts.planUsdMicros])
+  if (parts.feeUsdMicros !== undefined && parts.feeUsdMicros > 0) rows.push(['payment.fee', parts.feeUsdMicros])
+  if (parts.taxUsdMicros !== undefined && parts.taxUsdMicros > 0) rows.push(['payment.tax', parts.taxUsdMicros])
+  return rows
+}
+
+/** A payment's details: what it bought, the fee and VAT it carried, and the total charged. */
+function PaymentDetails({ t, line, onClose }: {
+  readonly t: Translate
+  readonly line: CloudPayment
+  readonly onClose: () => void
+}) {
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      closeLabel={t('payment.close')}
+      title={t('payment.title')}
+      description={`${t(paymentLabel(line))} · ${fullDay(line.createdAt)}`}
+      footer={<Button variant="outline" onClick={onClose}>{t('payment.close')}</Button>}
+    >
+      <dl className={css.breakdown}>
+        {breakdownRows(line).map(([key, micros]) => (
+          <div key={key} className={css.breakdownRow}>
+            <dt>{t(key)}</dt>
+            <dd>{money(micros, line.currency)}</dd>
+          </div>
+        ))}
+        <div className={`${css.breakdownRow} ${css.breakdownTotal}`}>
+          <dt>{t('payment.total')}</dt>
+          <dd>{money(line.amountUsdMicros, line.currency)}</dd>
+        </div>
+      </dl>
+    </Modal>
+  )
+}
+
 function Usage({ t, usage, payments, retryPayments }: {
   readonly t: Translate
   readonly usage: CloudUsage
   readonly payments: Load<CloudPayments>
   readonly retryPayments: () => void
 }) {
+  const [shown, setShown] = useState<CloudPayment>()
   const figures = usage.usage
   return (
     <>
@@ -934,20 +981,32 @@ function Usage({ t, usage, payments, retryPayments }: {
               <div className={css.payments}>
                 {answer.payments.length === 0
                   ? <p className={`${css.desc} ${css.empty}`}>{t('activity.empty')}</p>
-                  : answer.payments.map((line, index) => (
-                    <div key={`${line.createdAt}-${index}`} className={css.payment}>
-                      <span className={css.desc}>{day(line.createdAt)}</span>
-                      <span>{t(paymentLabel(line))}</span>
-                      <span className={css.figureSmall}>
-                        {`${line.kind === 'credit' && line.amountUsdMicros > 0 ? '+' : ''}${money(line.amountUsdMicros, line.currency)}`}
-                      </span>
-                    </div>
-                  ))}
+                  : answer.payments.map((line, index) => {
+                    // One amount per payment: what was charged, fee and VAT included. The
+                    // parts are a click away rather than a second column.
+                    const amount = `${line.kind === 'credit' && line.amountUsdMicros > 0 ? '+' : ''}${money(line.amountUsdMicros, line.currency)}`
+                    return (
+                      <div key={`${line.createdAt}-${index}`} className={css.payment}>
+                        <span className={css.desc}>{day(line.createdAt)}</span>
+                        <span>{t(paymentLabel(line))}</span>
+                        <button
+                          type="button"
+                          className={`${css.figureSmall} ${css.paymentAmount}`}
+                          aria-haspopup="dialog"
+                          aria-label={t('payment.open', { amount })}
+                          onClick={() => { setShown(line) }}
+                        >
+                          {amount}
+                        </button>
+                      </div>
+                    )
+                  })}
               </div>
             )}
           </Loaded>
         </>
       )}
+      {shown !== undefined && <PaymentDetails t={t} line={shown} onClose={() => { setShown(undefined) }} />}
     </>
   )
 }

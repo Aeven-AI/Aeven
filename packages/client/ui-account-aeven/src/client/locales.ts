@@ -123,6 +123,14 @@ export const zh = {
   'activity.refund': '退款',
   'activity.adjustment': '调整',
   'activity.subscription': '订阅',
+  'payment.title': '付款详情',
+  'payment.open': '{amount} 的付款详情',
+  'payment.credit': '额度',
+  'payment.fee': '手续费',
+  'payment.plan': '套餐',
+  'payment.tax': '增值税',
+  'payment.total': '实付金额',
+  'payment.close': '关闭',
 } as const
 
 /** English dictionary, key-identical to the Chinese source of truth. */
@@ -245,6 +253,14 @@ export const en: Record<AccountAevenKey, string> = {
   'activity.refund': 'Refund',
   'activity.adjustment': 'Adjustment',
   'activity.subscription': 'Subscription',
+  'payment.title': 'Payment details',
+  'payment.open': 'Payment details for {amount}',
+  'payment.credit': 'Credits',
+  'payment.fee': 'Processing fee',
+  'payment.plan': 'Plan',
+  'payment.tax': 'VAT',
+  'payment.total': 'Total paid',
+  'payment.close': 'Close',
 }
 
 /** Key domain of the Aeven account namespace. */
@@ -370,4 +386,12 @@ export const es: Record<AccountAevenKey, string> = {
   'activity.refund': 'Reembolso',
   'activity.adjustment': 'Ajuste',
   'activity.subscription': 'Suscripción',
+  'payment.title': 'Detalles del pago',
+  'payment.open': 'Detalles del pago de {amount}',
+  'payment.credit': 'Créditos',
+  'payment.fee': 'Tarifa de procesamiento',
+  'payment.plan': 'Plan',
+  'payment.tax': 'IVA',
+  'payment.total': 'Total pagado',
+  'payment.close': 'Cerrar',
 }
