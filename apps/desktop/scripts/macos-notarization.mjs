@@ -3,11 +3,11 @@
 import { spawn } from 'node:child_process'
 import { notarize } from '@electron/notarize'
 
-/** Attempts one ticket-delivery command gets before the release fails. */
-const NOTARY_TICKET_ATTEMPTS = 3
+/** Attempts one ticket-delivery command gets before the release fails, covering about eight minutes of Apple outages. */
+const NOTARY_TICKET_ATTEMPTS = 6
 
 /** Delay before a repeated attempt, multiplied by the number of attempts that already failed. */
-const NOTARY_TICKET_RETRY_DELAY_MS = 15_000
+const NOTARY_TICKET_RETRY_DELAY_MS = 30_000
 
 /**
  * What Apple's ticket-delivery service reports when it drops a lookup for a ticket it has already
