@@ -53,6 +53,8 @@ kind: "package-reference"
 
 ### 激活与所有权
 
+`awaitStartup` 默认为 `true`。设为 `false` 时，激活不等待驱动；工具在发现后注册，启动失败遵循 MCP 重连策略。
+
 提供者在连接前以 `cua-driver-mcp` 注册。第二个计算机使用提供者会激活失败，包括本包的另一个实例。初始化或首次工具发现失败会使本条目激活失败，并在清理后释放注册。之后连接断开时，MCP 客户端重连或耗尽尝试次数均保留注册；卸载条目才会释放注册。
 
 模型看到的工具使用固定的 `mcp__cua-driver-mcp__` 命名空间。工具名称、描述、输入模式、规范结果和图像准入遵循现有 [MCP 桥接器](../../mcp/mcp-client/README.zh.md)。本包不额外提供 Aeven 操作目录或提供者选择工具。提供方只添加一个自有工具 `computer_use_setup`：每次调用都先请求用户批准，然后启动驱动的 `permissions grant` 流程。在 macOS 上，该流程通过 LaunchServices 启动 CuaDriver，使系统将辅助功能与屏幕录制请求归属于该应用，并打开对应的系统设置面板。工具不等待该流程结束；模型随后以 `prompt: false` 调用 `check_permissions` 重新检查。`embedded` 驱动则运行在宿主应用的启动链内，macOS 检查的是该应用的授权，驱动本身从不弹出请求；此时在 macOS 上 `computer_use_setup` 会通过 `osascript` 为宿主应用请求辅助功能与屏幕录制权限，并告诉用户开启后重新打开该应用。在 macOS 上，嵌入式驱动没有代理光标叠加层。

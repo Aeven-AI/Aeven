@@ -75,6 +75,12 @@ export interface StdioConfig {
   toolCallTimeoutMs: number
   /** Fail plugin activation when the initial connection or tool synchronization fails. */
   failOnStartupError: boolean
+  /**
+   * Hold plugin activation until the initial connection and tool discovery settle. Off, the plugin activates at
+   * once and the server's tools register when it connects, so a slow server does not delay its tree's readiness;
+   * `failOnStartupError` then cannot apply and is refused at load. Absent waits.
+   */
+  awaitStartup?: boolean
   /** Automatic reconnect policy after a lost connection; omission uses the defaults. */
   reconnect?: ReconnectConfig
 }
@@ -99,6 +105,12 @@ export interface StreamableHttpConfig {
   toolCallTimeoutMs: number
   /** Fail plugin activation when the initial connection or tool synchronization fails. */
   failOnStartupError: boolean
+  /**
+   * Hold plugin activation until the initial connection and tool discovery settle. Off, the plugin activates at
+   * once and the server's tools register when it connects, so a slow server does not delay its tree's readiness;
+   * `failOnStartupError` then cannot apply and is refused at load. Absent waits.
+   */
+  awaitStartup?: boolean
   /** Automatic reconnect policy after a lost connection; omission uses the defaults. */
   reconnect?: ReconnectConfig
 }
@@ -106,10 +118,10 @@ export interface StreamableHttpConfig {
 /** Configuration for one stdio or Streamable HTTP MCP server. */
 export type Config = StdioConfig | StreamableHttpConfig
 
-type StdioConfigInput = Omit<StdioConfig, 'args' | 'env' | 'cwd' | 'toolCallTimeoutMs' | 'failOnStartupError'>
-  & Partial<Pick<StdioConfig, 'args' | 'env' | 'cwd' | 'toolCallTimeoutMs' | 'failOnStartupError'>>
-type StreamableHttpConfigInput = Omit<StreamableHttpConfig, 'headers' | 'toolCallTimeoutMs' | 'failOnStartupError'>
-  & Partial<Pick<StreamableHttpConfig, 'headers' | 'toolCallTimeoutMs' | 'failOnStartupError'>>
+type StdioConfigInput = Omit<StdioConfig, 'args' | 'env' | 'cwd' | 'toolCallTimeoutMs' | 'failOnStartupError' | 'awaitStartup'>
+  & Partial<Pick<StdioConfig, 'args' | 'env' | 'cwd' | 'toolCallTimeoutMs' | 'failOnStartupError' | 'awaitStartup'>>
+type StreamableHttpConfigInput = Omit<StreamableHttpConfig, 'headers' | 'toolCallTimeoutMs' | 'failOnStartupError' | 'awaitStartup'>
+  & Partial<Pick<StreamableHttpConfig, 'headers' | 'toolCallTimeoutMs' | 'failOnStartupError' | 'awaitStartup'>>
 type ConfigInput = StdioConfigInput | StreamableHttpConfigInput
 
 const Reconnect: z<ReconnectConfig> = z.object({
@@ -132,6 +144,7 @@ export const Config = z.union([
     allowedTools: z.array(String).default(undefined as unknown as string[]),
     toolCallTimeoutMs: z.number().default(DEFAULT_TOOL_CALL_TIMEOUT_MS),
     failOnStartupError: z.boolean().default(false),
+    awaitStartup: z.boolean().default(true),
     reconnect: Reconnect,
   }),
   z.object({
@@ -142,6 +155,7 @@ export const Config = z.union([
     headers: z.dict(String).default({}),
     toolCallTimeoutMs: z.number().default(DEFAULT_TOOL_CALL_TIMEOUT_MS),
     failOnStartupError: z.boolean().default(false),
+    awaitStartup: z.boolean().default(true),
     reconnect: Reconnect,
   }),
 ]) as unknown as z<ConfigInput, Config>
@@ -149,18 +163,21 @@ export const Config = z.union([
 // ---- Plugin apply ----
 
 /**
- * Connect one MCP server and publish its initial tool generation before activation.
+ * Connect one MCP server and, with `awaitStartup` (the default), publish its initial tool generation before activation.
  * This entry remains explicitly `async`: Cordis treats a prototype-bearing
  * ordinary function as a constructor, whose returned Promise is not startup work.
  * @param ctx - plugin context carrying the tool registry.
  * @param config - resolved transport and server namespace configuration.
- * @returns startup readiness after connection and initial tool discovery settle.
+ * @returns startup readiness: after connection and initial tool discovery settle, or at once without `awaitStartup`.
  */
 export async function apply(ctx: Context, config: Config): Promise<void> {
   // Fail loud at load: reconnect misconfiguration (including programmatic
   // construction that bypassed Schemastery) rejects THIS instance before any
   // effect registers.
   const reconnect = resolveReconnectPolicy(config.reconnect, `mcp-client(${config.serverName}): reconnect`)
+  if (config.awaitStartup === false && config.failOnStartupError) {
+    throw new Error(`mcp-client(${config.serverName}): failOnStartupError needs awaitStartup, because an activation that does not wait cannot fail on the connection`)
+  }
 
   // Reserve the namespace next: a duplicate `serverName` fails THIS instance
   // at load with an actionable error and leaves the earlier instance intact.
@@ -208,7 +225,9 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   // Cordis consumers observe the tools immediately after the fiber activates.
   // When failOnStartupError is true, a failed initial attempt rejects the
   // fiber (Cordis rolls it back); otherwise the error is logged and the
-  // supervisor enters its reconnect loop.
+  // supervisor enters its reconnect loop. With awaitStartup off the tools
+  // register when the connection lands.
+  if (config.awaitStartup === false) return
   const outcome = await connection.ready
   if (outcome.error !== undefined && config.failOnStartupError) {
     throw new Error(`mcp-client(${config.serverName}): initial connection or tool synchronization failed`, { cause: outcome.error })
