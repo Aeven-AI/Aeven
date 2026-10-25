@@ -25,6 +25,7 @@
     "@aeven/host-webserver": "workspace:^",
     "@aeven/identity-user-aeven": "workspace:^",
     "@aeven/launch-environment": "workspace:^",
+    "@aeven/web-app": "workspace:^",
     "@aeven/web-frontend": "workspace:^",
     "@aeven/home-paths": "workspace:^",
     "@aeven/host-frontend-static": "workspace:^"

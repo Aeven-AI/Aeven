@@ -620,6 +620,9 @@ importers:
       '@aeven/launch-environment':
         specifier: workspace:^
         version: link:../../packages/util/launch-environment
+      '@aeven/web-app':
+        specifier: workspace:^
+        version: link:../../packages/bundle/web-app
       '@aeven/web-frontend':
         specifier: workspace:^
         version: link:../web
