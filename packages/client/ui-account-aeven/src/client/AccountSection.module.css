@@ -648,13 +648,15 @@
   color: var(--dsw-alias-label-tertiary);
 }
 
-/* Usage. */
+/* Usage. Figures keep the page's own face; tabular digits are what make them read as
+   numbers that line up, not a code font. */
 .figure {
   flex: none;
+  font-family: var(--dsw-font-family);
   font-size: 0.875rem;
   font-weight: 400;
   line-height: 1.375rem;
-  font-variant-numeric: normal;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Payment history lists every statement line, so it needs no control of its
@@ -665,14 +667,34 @@
   padding: 0 0 8px;
 }
 
+/* The whole row is the control that opens a payment's details: a target the size of
+   the line is what a reader aims at, and the amount alone was too small to find. */
 .payment {
   display: grid;
   grid-template-columns: 72px 1fr auto;
   align-items: baseline;
   gap: 12px;
-  padding: 10px 0;
+  width: calc(100% + 24px);
+  margin: 0 -12px;
+  padding: 10px 12px;
+  box-sizing: border-box;
+  border: none;
+  border-radius: 999px;
+  background: none;
+  color: inherit;
+  font-family: inherit;
   font-size: 0.875rem;
   line-height: 1.25rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.payment:hover {
+  background: #f2f2f2;
+}
+
+.payment:focus-visible {
+  outline: none;
 }
 
 /* The date reads at the row's own size: it dates the payment, so it is not a
@@ -690,31 +712,13 @@
 }
 
 .figureSmall {
-  font-variant-numeric: normal;
+  font-variant-numeric: tabular-nums;
 }
 
-/* A payment's amount opens its details. It reads as the figure it is, and only the
-   underline on hover and the focus ring say it can be pressed. */
+/* A payment's amount reads as the figure it is; the row around it is the control. */
 .paymentAmount {
   justify-self: end;
-  padding: 0;
-  border: none;
-  border-radius: 4px;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-decoration: underline dotted transparent;
-  text-underline-offset: 3px;
-  cursor: pointer;
-}
-
-.paymentAmount:hover {
-  text-decoration-color: currentColor;
-}
-
-.paymentAmount:focus-visible {
-  outline: 2px solid var(--dsw-alias-state-business-primary);
-  outline-offset: 2px;
+  font-variant-numeric: tabular-nums;
 }
 
 .breakdown {
@@ -746,6 +750,17 @@
   padding-top: 10px;
   border-top: 0.5px solid var(--dsw-alias-border-l2);
   font-weight: 500;
+}
+
+/* The dialog's Close is the black capsule in every theme, so it reads as the way out
+   rather than a bordered secondary. */
+.dialogClose {
+  background: #000000;
+  color: #ffffff;
+}
+
+.dialogClose:hover:not(:disabled) {
+  background: #1a1a1a;
 }
 
 .breakdownTotal dt {
