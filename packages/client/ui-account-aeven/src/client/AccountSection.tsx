@@ -922,7 +922,7 @@ function PaymentDetails({ t, line, onClose }: {
       closeLabel={t('payment.close')}
       title={t('payment.title')}
       description={`${t(paymentLabel(line))} · ${fullDay(line.createdAt)}`}
-      footer={<Button variant="outline" onClick={onClose}>{t('payment.close')}</Button>}
+      footer={<Button variant="primary" className={css.dialogClose} onClick={onClose}>{t('payment.close')}</Button>}
     >
       <dl className={css.breakdown}>
         {breakdownRows(line).map(([key, micros]) => (
@@ -983,22 +983,21 @@ function Usage({ t, usage, payments, retryPayments }: {
                   ? <p className={`${css.desc} ${css.empty}`}>{t('activity.empty')}</p>
                   : answer.payments.map((line, index) => {
                     // One amount per payment: what was charged, fee and VAT included. The
-                    // parts are a click away rather than a second column.
+                    // whole row opens the parts rather than a second column.
                     const amount = `${line.kind === 'credit' && line.amountUsdMicros > 0 ? '+' : ''}${money(line.amountUsdMicros, line.currency)}`
                     return (
-                      <div key={`${line.createdAt}-${index}`} className={css.payment}>
+                      <button
+                        key={`${line.createdAt}-${index}`}
+                        type="button"
+                        className={css.payment}
+                        aria-haspopup="dialog"
+                        aria-label={t('payment.open', { amount })}
+                        onClick={() => { setShown(line) }}
+                      >
                         <span className={css.desc}>{day(line.createdAt)}</span>
                         <span>{t(paymentLabel(line))}</span>
-                        <button
-                          type="button"
-                          className={`${css.figureSmall} ${css.paymentAmount}`}
-                          aria-haspopup="dialog"
-                          aria-label={t('payment.open', { amount })}
-                          onClick={() => { setShown(line) }}
-                        >
-                          {amount}
-                        </button>
-                      </div>
+                        <span className={`${css.figureSmall} ${css.paymentAmount}`}>{amount}</span>
+                      </button>
                     )
                   })}
               </div>

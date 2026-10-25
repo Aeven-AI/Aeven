@@ -157,10 +157,11 @@
   display: inline-flex;
   flex: none;
   gap: 6px;
-  font-family: var(--ds-font-family-code);
+  font-family: var(--dsw-font-family);
   font-size: 0.875rem;
   font-weight: 400;
   line-height: 1.25rem;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
@@ -249,7 +250,7 @@
   background: var(--deliverable-surface);
   color: var(--dsw-alias-label-tertiary);
   cursor: pointer;
-  font-family: var(--ds-font-family-code);
+  font-family: var(--dsw-font-family);
   font-size: 0.6875rem;
   line-height: 1.125rem;
   text-align: left;
