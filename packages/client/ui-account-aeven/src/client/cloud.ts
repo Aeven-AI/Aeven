@@ -101,10 +101,27 @@ export interface CloudWallet {
 }
 
 /**
+ * What one payment was made of. Every part is optional: a top-up from before the charge
+ * was recorded knows only its credit, and a plan invoice has a plan part instead.
+ */
+export interface PaymentBreakdown {
+  /** Credit added to the wallet. */
+  readonly creditUsdMicros?: number
+  /** The processing fee charged with a top-up. */
+  readonly feeUsdMicros?: number
+  /** The plan, before tax. */
+  readonly planUsdMicros?: number
+  /** VAT. */
+  readonly taxUsdMicros?: number
+}
+
+/**
  * One line of `GET /api/cloud/payments`: money the reader paid.
  *
  * A `credit` line is purchased credit from the wallet; a `subscription` line is a plan
  * invoice Stripe collected. Both are money in, which is why one list holds them.
+ * `amountUsdMicros` is what was charged, fee and VAT included; `breakdown` holds the
+ * parts, and is absent from servers that predate it.
  */
 export type CloudPayment =
   | {
@@ -113,6 +130,7 @@ export type CloudPayment =
     readonly amountUsdMicros: number
     readonly currency: string
     readonly createdAt: string
+    readonly breakdown?: PaymentBreakdown | null
   }
   | {
     readonly kind: 'subscription'
@@ -120,6 +138,7 @@ export type CloudPayment =
     readonly amountUsdMicros: number
     readonly currency: string
     readonly createdAt: string
+    readonly breakdown?: PaymentBreakdown | null
   }
 
 /** `GET /api/cloud/payments`. */
