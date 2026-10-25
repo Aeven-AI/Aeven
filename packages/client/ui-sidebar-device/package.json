@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-sidebar-device",
   "description": "Right sidebar device simulator: live iOS Simulator and Android Emulator screens with touch, keys, and device tools",
-  "version": "0.3.13-alpha",
+  "version": "0.3.14-alpha",
   "publishConfig": {
     "access": "public"
   },

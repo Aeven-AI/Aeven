@@ -1,7 +1,7 @@
 {
   "name": "@aeven/session-title-first-prompt-llm",
   "description": "First-message LLM provider plugin for Aeven session titles",
-  "version": "0.3.13-alpha",
+  "version": "0.3.14-alpha",
   "publishConfig": {
     "access": "public"
   },

@@ -1,7 +1,7 @@
 {
   "name": "@aeven/hook-protocol",
   "description": "Shared Claude Code / Codex hook wire protocol: matcher engine, stdin/exit-code/stdout codec, multi-hook merge, and hook/* session events",
-  "version": "0.3.13-alpha",
+  "version": "0.3.14-alpha",
   "publishConfig": {
     "access": "public"
   },

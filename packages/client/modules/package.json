@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-modules",
   "description": "Client module system, dual-face: node half composes the __AVN_BOOT__ entry graph (incremental avn.client scan, bundle route, index tap, webPlugins service); browser half is the lazy-CJS module table the vendored cordis Loader consumes as its internal seam",
-  "version": "0.3.13-alpha",
+  "version": "0.3.14-alpha",
   "publishConfig": {
     "access": "public"
   },

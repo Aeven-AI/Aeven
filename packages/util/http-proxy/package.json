@@ -1,7 +1,7 @@
 {
   "name": "@aeven/http-proxy",
   "description": "Process-wide outbound HTTP proxy policy for Aeven: resolve it from the launch environment and install it as undici's global dispatcher",
-  "version": "0.3.13-alpha",
+  "version": "0.3.14-alpha",
   "publishConfig": {
     "access": "public"
   },
