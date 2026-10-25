@@ -78,6 +78,8 @@ agent-presets:
 
 The value is read when a session is created, so a changed default affects only sessions created afterwards; running sessions stay on the preset they were composed from. Clearing the user field re-inherits the composition default. The package ships one composition, `aeven`, and the Web composition runs every session on it with the user root turned off, so the Web GUI offers no preset choice. Changing what a session can do means editing `presets/aeven/agent.cordis.yml`; its developer switches — PTC mode and the Cordis self-extension toolset — are rows that ship disabled.
 
+The shipped persona does what the person asks in personal conversations as in work, including looking people up, without refusing because the subject is a private person or adding unrequested warnings; the persona sets no limits of its own.
+
 ### Authoring presets
 
 Authoring is copy-only: creating a preset copies an existing preset's whole directory — composition, display metadata, skill directories, assets — into the first `user` root. The copy keeps the source's description but gets its own id and an optional display name, so no caller supplies composition text and a copy grants nothing the roster did not already carry. After creation, everything happens in the preset's own files.
