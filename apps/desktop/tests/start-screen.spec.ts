@@ -1,5 +1,8 @@
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { START_PAGE_PATH, startPageDocument, startPageUrl } from '../src/start-screen.ts'
+import { START_PAGE_PATH, readStartScreenScheme, startPageDocument, startPageUrl } from '../src/start-screen.ts'
 
 describe('desktop start screen', () => {
   it('draws the loading face the client preloader continues', () => {
@@ -23,6 +26,39 @@ describe('desktop start screen', () => {
     expect(html).toContain('--avn-start-bg:#111111')
     expect(html).toContain('--avn-start-ink:rgb(249,250,251)')
     expect(html).toContain('body{display:flex;align-items:center;justify-content:center}')
+  })
+
+  it('paints a chosen scheme whatever the system scheme', () => {
+    const dark = startPageDocument('darwin', 'dark')
+    expect(dark).toContain('name="color-scheme" content="dark"')
+    expect(dark).toContain('html{color-scheme:dark}:root{--avn-start-bg:#111111;--avn-start-ink:rgb(249,250,251)}')
+    expect(dark).not.toContain('prefers-color-scheme:dark')
+    const light = startPageDocument('darwin', 'light')
+    expect(light).toContain('name="color-scheme" content="light"')
+    expect(light).toContain('html{color-scheme:light}:root{--avn-start-bg:rgb(242,242,242);--avn-start-ink:#000000}')
+    expect(light).not.toContain('prefers-color-scheme:dark')
+  })
+
+  it('reads the theme preference from the settings document', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'avn-start-scheme-'))
+    const file = join(dir, 'settings.yaml')
+    try {
+      expect(await readStartScreenScheme(file)).toBe('system')
+      await writeFile(file, 'locale:\n  language: en\nui-theme:\n  preference: dark\n  fontSize: 16\n')
+      expect(await readStartScreenScheme(file)).toBe('dark')
+      await writeFile(file, 'ui-theme:\n  preference: light\n')
+      expect(await readStartScreenScheme(file)).toBe('light')
+      await writeFile(file, 'ui-theme:\n  preference: system\n')
+      expect(await readStartScreenScheme(file)).toBe('system')
+      await writeFile(file, 'ui-theme:\n  preference: sepia\n')
+      expect(await readStartScreenScheme(file)).toBe('system')
+      await writeFile(file, 'ui-theme: dark\n')
+      expect(await readStartScreenScheme(file)).toBe('system')
+      await writeFile(file, 'ui-theme: [\n')
+      expect(await readStartScreenScheme(file)).toBe('system')
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
   })
 
   it('keeps launch status outside the loading face layout', () => {
