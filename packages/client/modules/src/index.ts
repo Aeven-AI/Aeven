@@ -170,8 +170,28 @@ interface ComboArtifactBase {
 
 /** One generated combo response over an ordered list of plugin resources. */
 interface ComboArtifact extends ComboArtifactBase {
-  sourceMap: Buffer
+  /** The indexed source map, built on first call: only a debugger requests it. */
+  sourceMap: () => Buffer
   sourceMapUrl: string
+}
+
+/** One servable resource; the body is produced on its first request and kept. */
+interface ComboResponse {
+  readonly contentType: string
+  readonly body: () => Buffer
+}
+
+const JAVASCRIPT = 'text/javascript; charset=utf-8'
+const SOURCE_MAP_JSON = 'application/json; charset=utf-8'
+
+/**
+ * Compute a value on first use and keep it.
+ * @param build - produces the value.
+ * @returns a function returning the same value on every call.
+ */
+function once<T>(build: () => T): () => T {
+  let built: { value: T } | undefined
+  return () => (built ??= { value: build() }).value
 }
 
 /** One generated initial-load response and its wire descriptor. */
@@ -342,8 +362,25 @@ interface ComboSource {
   fallbackSource: string
 }
 
+/** Prepared sources by bundle; a rebuild replaces the bundle buffer, so an entry never goes stale. */
+const preparedSources = new WeakMap<Buffer, Map<string, ComboSource>>()
+
 /** Remove bundle-local debug directives and retain their stable generated-file name. */
 function comboSource(record: WebPluginRecord): ComboSource {
+  let entries = preparedSources.get(record.bundle)
+  const prepared = entries?.get(record.entry.id)
+  if (prepared !== undefined) return prepared
+  const built = prepareComboSource(record)
+  if (entries === undefined) {
+    entries = new Map()
+    preparedSources.set(record.bundle, entries)
+  }
+  entries.set(record.entry.id, built)
+  return built
+}
+
+/** Strip the trailers {@link comboSource} removes, once per bundle. */
+function prepareComboSource(record: WebPluginRecord): ComboSource {
   let source = record.bundle.toString('utf8')
   const sourceUrl = SOURCE_URL_TRAILER.exec(source)?.[1]
   source = source.replace(SOURCE_URL_TRAILER, '').replace(SOURCE_MAP_TRAILER, '')
@@ -387,7 +424,7 @@ function sourceMapSnapshot(clientPath: string): WebPluginRecord['sourceMap'] {
 /** Count generated lines while assembling indexed-map section offsets. */
 function newlineCount(value: string): number {
   let count = 0
-  for (const char of value) if (char === '\n') count += 1
+  for (let index = value.indexOf('\n'); index !== -1; index = value.indexOf('\n', index + 1)) count += 1
   return count
 }
 
@@ -413,8 +450,8 @@ function comboSectionMap(record: WebPluginRecord): Record<string, unknown> {
 
 /** Map each generated line to the same line in a bundled JavaScript source. */
 function identitySectionMap(source: string, sourceUrl: string): Record<string, unknown> {
-  const mappings = Array.from({ length: newlineCount(source) }, (_, index) => index === 0 ? 'AAAA' : 'AACA')
-    .join(';')
+  const lines = newlineCount(source)
+  const mappings = lines === 0 ? '' : `AAAA${';AACA'.repeat(lines - 1)}`
   return {
     version: 3,
     names: [],
@@ -427,21 +464,30 @@ function identitySectionMap(source: string, sourceUrl: string): Record<string, u
 /** Concatenate one or more factory registrations and compose their maps as indexed sections. */
 function buildCombo(records: readonly WebPluginRecord[], revision?: string): ComboArtifact {
   let source = ''
-  const sections: { offset: { line: number; column: 0 }; map: Record<string, unknown> }[] = []
+  const offsets: number[] = []
+  const mapInputs: Buffer[] = []
   let line = 0
   for (const record of records) {
     const prepared = comboSource(record)
-    const section = record.sourceMap === undefined
-      ? identitySectionMap(prepared.source, prepared.fallbackSource)
-      : comboSectionMap(record)
-    sections.push({ offset: { line, column: 0 }, map: section })
+    offsets.push(line)
+    // Everything the record's section depends on besides the executable bytes hashed below.
+    mapInputs.push(Buffer.from(record.entry.id), record.sourceMap?.body ?? Buffer.from(prepared.fallbackSource))
     const bundle = `${prepared.source};\n`
     source += bundle
     line += newlineCount(bundle)
   }
-  const sourceMap = Buffer.from(`${JSON.stringify({ version: 3, file: 'client.js', sections })}\n`)
-  const sourceBytes = Buffer.from(source)
-  const rev = revision ?? framedHash('combo', [sourceBytes, sourceMap])
+  const snapshot = records.map(record => ({ ...record }))
+  const sourceMap = once(() => {
+    const sections = snapshot.map((record, index) => {
+      const prepared = comboSource(record)
+      return {
+        offset: { line: offsets[index] ?? 0, column: 0 as const },
+        map: record.sourceMap === undefined ? identitySectionMap(prepared.source, prepared.fallbackSource) : comboSectionMap(record),
+      }
+    })
+    return Buffer.from(`${JSON.stringify({ version: 3, file: 'client.js', sections })}\n`)
+  })
+  const rev = revision ?? framedHash('combo', [Buffer.from(source), ...mapInputs])
   const entries = records.map(record => record.entry.id)
   const url = comboUrl(entries, rev)
   const sourceMapUrl = comboUrl(entries, rev, true)
@@ -592,10 +638,10 @@ export class ClientModuleRegistry extends Service {
   private readonly dirty = new Set<string>()
   private readonly initialRevisionNonce = randomBytes(8).toString('hex')
   private nextInitialRevision = 0
-  private responses = new Map<string, { body: Buffer; contentType: string }>()
-  private batchResponses = new Map<string, { body: Buffer; contentType: string }>()
+  private responses = new Map<string, ComboResponse>()
+  private batchResponses = new Map<string, ComboResponse>()
   /** One prior graph generation covers a request racing the HMR recomposition that replaced its URL. */
-  private previousBatchResponses = new Map<string, { body: Buffer; contentType: string }>()
+  private previousBatchResponses = new Map<string, ComboResponse>()
   private flushQueued = false
   private composed: WebBootGraph
   private readonly maxInitialBatchBytes: number
@@ -773,28 +819,22 @@ export class ClientModuleRegistry extends Service {
       artifacts.push(buildBatch('application', records))
     }
 
-    const batchResponses = new Map<string, { body: Buffer; contentType: string }>()
+    const batchResponses = new Map<string, ComboResponse>()
     for (const artifact of artifacts) {
-      batchResponses.set(artifact.descriptor.url, {
-        body: artifact.script,
-        contentType: 'text/javascript; charset=utf-8',
-      })
-      batchResponses.set(artifact.sourceMapUrl, {
-        body: artifact.sourceMap,
-        contentType: 'application/json; charset=utf-8',
-      })
+      const script = artifact.script
+      batchResponses.set(artifact.descriptor.url, { contentType: JAVASCRIPT, body: () => script })
+      batchResponses.set(artifact.sourceMapUrl, { contentType: SOURCE_MAP_JSON, body: artifact.sourceMap })
     }
     const responses = new Map(batchResponses)
+    // Single-plugin combos serve HMR and dynamic loads, not the startup page, so they are built on their
+    // first request. The URL needs only the record's revision; the snapshot keeps an in-place rebuild of
+    // the record from changing what an already advertised revision serves.
     for (const record of this.table.values()) {
-      const artifact = buildCombo([record], record.entry.rev)
-      responses.set(artifact.url, {
-        body: artifact.script,
-        contentType: 'text/javascript; charset=utf-8',
-      })
-      responses.set(artifact.sourceMapUrl, {
-        body: artifact.sourceMap,
-        contentType: 'application/json; charset=utf-8',
-      })
+      const snapshot = { ...record }
+      const artifact = once(() => buildCombo([snapshot], snapshot.entry.rev))
+      const ids = [snapshot.entry.id]
+      responses.set(comboUrl(ids, snapshot.entry.rev), { contentType: JAVASCRIPT, body: () => artifact().script })
+      responses.set(comboUrl(ids, snapshot.entry.rev, true), { contentType: SOURCE_MAP_JSON, body: () => artifact().sourceMap() })
     }
     this.previousBatchResponses = this.batchResponses
     this.batchResponses = batchResponses
@@ -1092,7 +1132,7 @@ export class ClientModuleRegistry extends Service {
       return {
         status: 200,
         headers: { 'content-type': response.contentType, 'cache-control': IMMUTABLE_CACHE },
-        ...(method === 'HEAD' ? {} : { body: response.body }),
+        ...(method === 'HEAD' ? {} : { body: response.body() }),
       }
     }
     // Anything else under /plugins (including unadvertised combinations and

@@ -39,6 +39,12 @@ export interface Config {
   toolCallTimeoutMs?: number
   /** Reconnection overrides; defaults to the MCP client's policy. */
   reconnect: McpClient.ReconnectConfig
+  /**
+   * Hold activation until the driver connects and its tools are discovered, and fail activation when it cannot
+   * start. Off, the row activates at once, the driver's tools register when it connects, and a failed start is
+   * logged while the client keeps reconnecting. Defaults to `true`.
+   */
+  awaitStartup: boolean
 }
 
 /** Validate executable options; the MCP client resolves connection defaults. */
@@ -46,6 +52,7 @@ export const Config: z<Partial<Config>, Config> = z.object({
   command: z.string().pattern(/[^\s]/u).default('cua-driver'),
   args: z.array(String).default(['mcp']),
   embedded: z.boolean().default(false),
+  awaitStartup: z.boolean().default(true),
   toolCallTimeoutMs: z.number().min(1),
   reconnect: z.object({
     enabled: z.boolean(),
@@ -147,13 +154,14 @@ export async function shellHelperStatus(
 
 /**
  * Reserve computer use and activate the installed Cua Driver's MCP tools.
- * Initial connection or discovery failure rejects activation and rolls back.
+ * With `awaitStartup` (the default), an initial connection or discovery failure rejects activation and rolls back;
+ * without it, activation completes at once and the driver's tools register when it connects.
  * Disposal retains the reservation until the MCP child has finished teardown.
  * When `command` is an absolute path that does not exist, nothing is reserved
  * or spawned; the model gets only the install guidance tool.
  * @param ctx - context providing computer use and the tool registry.
  * @param config - validated executable options and optional connection overrides.
- * @returns initial MCP tool-discovery completion.
+ * @returns activation completion: after initial MCP tool discovery with `awaitStartup`, at once without it.
  */
 export async function apply(ctx: Context, config: Config): Promise<void> {
   if (isAbsolute(config.command) && !existsSync(config.command)) {
@@ -171,7 +179,8 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     reconnect: config.reconnect,
     transport: 'stdio',
     serverName: 'cua-driver-mcp',
-    failOnStartupError: true,
+    failOnStartupError: config.awaitStartup,
+    awaitStartup: config.awaitStartup,
   })
   // One effect orders child shutdown before release; separate fiber effects
   // unload concurrently and could otherwise admit another live driver.

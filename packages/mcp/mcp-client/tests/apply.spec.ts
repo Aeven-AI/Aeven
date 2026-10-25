@@ -293,6 +293,25 @@ describe('apply (plugin lifecycle)', () => {
     expect(mockClose).toHaveBeenCalled()
   })
 
+  it('activates before discovery and publishes tools when the connection completes', async () => {
+    const gate: PromiseWithResolvers<void> = Promise.withResolvers()
+    mockConnect.mockReturnValueOnce(gate.promise)
+    await apply(ctx, { ...stdioConfig, awaitStartup: false })
+    expect(ctx.tools.get('mcp__srv__remote')).toBeUndefined()
+    gate.resolve()
+    await vi.waitFor(() => { expect(ctx.tools.get('mcp__srv__remote')).toBeDefined() })
+    const tools = ctx.tools
+    await ctx.fiber.dispose()
+    expect(tools.get('mcp__srv__remote')).toBeUndefined()
+  })
+
+  it('rejects fatal startup without waiting before opening a connection', async () => {
+    await expect(apply(ctx, {
+      ...stdioConfig, awaitStartup: false, failOnStartupError: true,
+    })).rejects.toThrow('failOnStartupError needs awaitStartup')
+    expect(mockConnect).not.toHaveBeenCalled()
+  })
+
   it('rejects activation and still closes the client when startup failure is configured as fatal', async () => {
     const cause = new Error('connection refused')
     mockConnect.mockRejectedValue(cause)

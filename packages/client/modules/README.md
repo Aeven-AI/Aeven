@@ -83,6 +83,8 @@ The host injects the `window.__ModuleLoader__` queue facade, deferred bootstrap 
 
 ### Source map
 
+Source maps and single-plugin combo responses are generated on first request from captured artifact snapshots. HEAD requests do not generate response bodies.
+
 | File | Role |
 |---|---|
 | [`src/index.ts`](src/index.ts) | Node half: `ClientModuleRegistry`, scan, artifact snapshots, combo routes, index tap |

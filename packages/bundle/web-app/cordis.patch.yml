@@ -325,6 +325,9 @@
           - '--workspace'
           - !!js "process.env.HOME ?? process.env.USERPROFILE"
         failOnStartupError: false
+        # npx resolution takes seconds; the tools register when the server
+        # connects instead of holding up the Host's readiness.
+        awaitStartup: false
     - id: mcp-playwright
       name: '@aeven/mcp-client'
       config:
@@ -338,6 +341,7 @@
           - '--headless'
           - '--caps=devtools'
         failOnStartupError: false
+        awaitStartup: false
 
     # Computer use on the Host's own desktop through Cua Driver. The installed
     # Electron app ships the driver and sets AVN_CUA_DRIVER to it with
@@ -364,6 +368,10 @@
         command: !!js "process.env.AVN_CUA_DRIVER ?? (process.platform === 'win32' ? process.env.LOCALAPPDATA + '/Programs/Cua/cua-driver/bin/cua-driver.exe' : process.platform === 'linux' ? process.getBuiltinModule('node:os').homedir() + '/.local/bin/cua-driver' : '/Applications/CuaDriver.app/Contents/MacOS/cua-driver')"
         args: [mcp]
         embedded: !!js "process.env.AVN_CUA_DRIVER_EMBEDDED === '1'"
+        # The driver's handshake takes seconds at launch; its tools register
+        # when it connects, and a failed start is logged instead of failing the
+        # Host.
+        awaitStartup: false
 
     - id: computer-use-semantic-batches
       name: '@aeven/computer-use-macos-provider'

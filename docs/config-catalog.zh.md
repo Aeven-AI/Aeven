@@ -551,7 +551,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/capability/capability/src/index.ts:48`](../packages/capability/capability/src/index.ts)
+来源：[`packages/capability/capability/src/index.ts:50`](../packages/capability/capability/src/index.ts)
 
 <a id="aevenclient-connection"></a>
 
@@ -613,7 +613,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/client/modules/src/index.ts:320`](../packages/client/modules/src/index.ts)
+来源：[`packages/client/modules/src/index.ts:340`](../packages/client/modules/src/index.ts)
 
 <a id="aevencode-runtime-worker-thread"></a>
 
@@ -747,6 +747,12 @@ export interface Config {
   toolCallTimeoutMs?: number
   /** Reconnection overrides; defaults to the MCP client's policy. */
   reconnect: McpClient.ReconnectConfig
+  /**
+   * Hold activation until the driver connects and its tools are discovered, and fail activation when it cannot
+   * start. Off, the row activates at once, the driver's tools register when it connects, and a failed start is
+   * logged while the client keeps reconnecting. Defaults to `true`.
+   */
+  awaitStartup: boolean
 }
 ```
 
@@ -2357,6 +2363,12 @@ export interface StdioConfig {
   toolCallTimeoutMs: number
   /** Fail plugin activation when the initial connection or tool synchronization fails. */
   failOnStartupError: boolean
+  /**
+   * Hold plugin activation until the initial connection and tool discovery settle. Off, the plugin activates at
+   * once and the server's tools register when it connects, so a slow server does not delay its tree's readiness;
+   * `failOnStartupError` then cannot apply and is refused at load. Absent waits.
+   */
+  awaitStartup?: boolean
   /** Automatic reconnect policy after a lost connection; omission uses the defaults. */
   reconnect?: ReconnectConfig
 }
@@ -2381,6 +2393,12 @@ export interface StreamableHttpConfig {
   toolCallTimeoutMs: number
   /** Fail plugin activation when the initial connection or tool synchronization fails. */
   failOnStartupError: boolean
+  /**
+   * Hold plugin activation until the initial connection and tool discovery settle. Off, the plugin activates at
+   * once and the server's tools register when it connects, so a slow server does not delay its tree's readiness;
+   * `failOnStartupError` then cannot apply and is refused at load. Absent waits.
+   */
+  awaitStartup?: boolean
   /** Automatic reconnect policy after a lost connection; omission uses the defaults. */
   reconnect?: ReconnectConfig
 }
@@ -2398,7 +2416,7 @@ export interface ReconnectConfig {
 }
 ```
 
-来源：[`packages/mcp/mcp-client/src/index.ts:107`](../packages/mcp/mcp-client/src/index.ts)
+来源：[`packages/mcp/mcp-client/src/index.ts:119`](../packages/mcp/mcp-client/src/index.ts)
 
 <a id="aevenmedia"></a>
 
@@ -4225,7 +4243,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/capability/tool-capability/src/index.ts:33`](../packages/capability/tool-capability/src/index.ts)
+来源：[`packages/capability/tool-capability/src/index.ts:34`](../packages/capability/tool-capability/src/index.ts)
 
 <a id="aeventool-elevation"></a>
 
@@ -4991,7 +5009,7 @@ export interface Config {
   /** Print the URL line on activation; a non-interactive layer can turn it off. */
   printUrl: boolean
   /**
-   * Register the model-visible surface context (the `app:web-surface` prompt
+   * Mount `@aeven/web-app/surface`, the model-visible surface context (the `app:web-surface` prompt
    * section, the `app:web-url` runtime context, and the `AVN_WEB_URL` bash variable). A one-shot non-interactive
    * layer can turn it off when its user is not in the GUI, so the
    * orientation text would be false.
@@ -5010,7 +5028,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/bundle/web-app/src/index.ts:44`](../packages/bundle/web-app/src/index.ts)
+来源：[`packages/bundle/web-app/src/index.ts:40`](../packages/bundle/web-app/src/index.ts)
 
 <a id="aevenweb-fetch-http"></a>
 

@@ -83,6 +83,8 @@ node 半侧会在发布前快照每个客户端 bundle 及其现有 source map�
 
 ### 源码地图
 
+源码映射和单插件 combo 响应在首次请求时根据捕获的产物快照生成。HEAD 请求不生成响应体。
+
 | 文件 | 职责 |
 |---|---|
 | [`src/index.ts`](src/index.ts) | node 半侧：`ClientModuleRegistry`、扫描、产物快照、combo 路由、索引 tap |
