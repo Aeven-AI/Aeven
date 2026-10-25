@@ -1,7 +1,7 @@
 {
   "name": "@aeven/bash-edit-guard",
   "description": "Bash edit guard plugin: refuses shell commands that change existing source files in place",
-  "version": "0.3.12-alpha",
+  "version": "0.3.13-alpha",
   "publishConfig": {
     "access": "public"
   },

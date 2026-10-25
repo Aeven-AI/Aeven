@@ -1,7 +1,7 @@
 {
   "name": "@aeven/util-values",
   "description": "Duplicate-install-safe value primitives for the Aeven",
-  "version": "0.3.12-alpha",
+  "version": "0.3.13-alpha",
   "publishConfig": {
     "access": "public"
   },

@@ -1,7 +1,7 @@
 {
   "name": "@aeven/cli",
   "description": "avn CLI: profile boot, plugin management, and the browser UI alias",
-  "version": "0.3.12-alpha",
+  "version": "0.3.13-alpha",
   "publishConfig": {
     "access": "public"
   },
