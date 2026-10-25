@@ -5,10 +5,20 @@
 
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
-import { cpSync, createReadStream, createWriteStream, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  cpSync,
+  createReadStream,
+  createWriteStream,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { chmod, readdir, readFile, stat } from 'node:fs/promises'
 import { createRequire } from 'node:module'
-import { dirname, join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { pipeline } from 'node:stream/promises'
 import { unzipSync } from 'fflate'
 import { extract } from 'tar'
@@ -17,6 +27,14 @@ import { resolveDesktopTargetBuildPaths } from './desktop-build-paths.mjs'
 const NODE_VERSION = '24.17.0'
 /** Upstream Cua Driver release shipped beside Node.js; its tag is `cua-driver-rs-v<version>`. */
 const CUA_DRIVER_VERSION = '0.35.4'
+/** Attempts per upstream file, so one DNS lapse or dropped connection does not fail a release build. */
+const DOWNLOAD_ATTEMPTS = 4
+/** Delay before the second attempt; each later attempt doubles it. */
+const DOWNLOAD_BACKOFF_MS = 2_000
+/** Ceiling for the doubling delay. */
+const DOWNLOAD_BACKOFF_CAP_MS = 30_000
+/** Per-attempt ceiling, so a socket that stops answering fails and retries instead of holding the release job. */
+const DOWNLOAD_ATTEMPT_TIMEOUT_MS = 300_000
 const BUILD_PATHS = resolveDesktopTargetBuildPaths()
 const RUNTIME_ROOT = BUILD_PATHS.runtime
 const DOWNLOAD_ROOT = BUILD_PATHS.downloads
@@ -35,10 +53,111 @@ function target(): { platform: RuntimePlatform; arch: RuntimeArch } {
   return { platform, arch: rawArch }
 }
 
-async function download(url: string, path: string): Promise<void> {
-  const response = await fetch(url)
-  if (!response.ok) throw new Error(`desktop runtime: ${url} returned HTTP ${String(response.status)}`)
-  writeFileSync(path, new Uint8Array(await response.arrayBuffer()), { mode: 0o600 })
+/** One upstream file and the cache path it is stored at. */
+interface UpstreamFile {
+  readonly url: string
+  readonly path: string
+}
+
+/** An upstream answer no later attempt can change: the file is not published at that address. */
+class MissingUpstreamFileError extends Error {}
+
+/**
+ * @param milliseconds - How long to wait.
+ * @returns Resolves after the delay.
+ */
+async function delay(milliseconds: number): Promise<void> {
+  await new Promise((resolvePromise) => {
+    setTimeout(resolvePromise, milliseconds)
+  })
+}
+
+/**
+ * @param error - Failure raised by one download attempt.
+ * @returns Its message, following Node's fetch error chain to the network fault it wraps.
+ */
+function describeFailure(error: unknown): string {
+  if (!(error instanceof Error)) return String(error)
+  return error.cause instanceof Error ? `${error.message}: ${error.cause.message}` : error.message
+}
+
+/**
+ * @param path - File to hash.
+ * @returns The file's hex-encoded SHA-256 digest.
+ */
+async function sha256(path: string): Promise<string> {
+  return createHash('sha256').update(await readFile(path)).digest('hex')
+}
+
+/**
+ * Download one upstream file into the cache, retrying the failures a later attempt can clear.
+ * The bytes land in a sibling `.part` file and are renamed into place, so an interrupted transfer never leaves a
+ * file that a later build mistakes for a complete cached download.
+ * @param file - Upstream address and cache path.
+ * @param attempt - Attempt number, which bounds the retries and scales the backoff.
+ */
+async function downloadFile(file: UpstreamFile, attempt = 1): Promise<void> {
+  const partial = `${file.path}.part`
+  try {
+    const response = await fetch(file.url, { signal: AbortSignal.timeout(DOWNLOAD_ATTEMPT_TIMEOUT_MS) })
+    if (!response.ok) {
+      const message = `desktop runtime: ${file.url} returned HTTP ${String(response.status)}`
+      // Only server faults and rate limiting are worth another attempt; a 4xx answer says the file is not there.
+      if (response.status < 500 && response.status !== 429) throw new MissingUpstreamFileError(message)
+      throw new Error(message)
+    }
+    writeFileSync(partial, new Uint8Array(await response.arrayBuffer()), { mode: 0o600 })
+    renameSync(partial, file.path)
+  } catch (error) {
+    rmSync(partial, { force: true })
+    if (error instanceof MissingUpstreamFileError || attempt === DOWNLOAD_ATTEMPTS) throw error
+    const backoff = Math.min(DOWNLOAD_BACKOFF_MS * 2 ** (attempt - 1), DOWNLOAD_BACKOFF_CAP_MS)
+    console.warn(`desktop runtime: ${file.url} attempt ${String(attempt)} failed (${describeFailure(error)}); retrying in ${String(backoff)}ms`)
+    await delay(backoff)
+    await downloadFile(file, attempt + 1)
+  }
+}
+
+/**
+ * Resolve the checksum an upstream archive must match, fetching the checksum file when it is not cached.
+ * @param sums - Checksum file's upstream address and cache path.
+ * @param archiveName - Archive file name to find in the checksum file.
+ * @param absent - Message for a checksum file that does not list the archive.
+ * @returns The expected hex-encoded SHA-256 digest.
+ */
+async function expectedChecksum(sums: UpstreamFile, archiveName: string, absent: string): Promise<string> {
+  const listed = async (): Promise<string | undefined> => {
+    if (!existsSync(sums.path)) await downloadFile(sums)
+    const line = (await readFile(sums.path, 'utf8')).split(/\r?\n/u)
+      .find(candidate => candidate.endsWith(`  ${archiveName}`))
+    return line?.split(/\s+/u)[0]
+  }
+  const checksum = await listed()
+  if (checksum !== undefined) return checksum
+  // A checksum file cached by an interrupted download lists nothing: fetch it again before failing.
+  rmSync(sums.path, { force: true })
+  const refreshed = await listed()
+  if (refreshed === undefined) throw new Error(absent)
+  return refreshed
+}
+
+/**
+ * Resolve an upstream archive into the cache and verify it against its checksum file.
+ * A cached archive that fails verification is fetched again, so a truncated download left by an interrupted run
+ * cannot fail every later build.
+ * @param archive - Archive's upstream address and cache path.
+ * @param sums - Checksum file's upstream address and cache path.
+ * @param absent - Message for a checksum file that does not list the archive.
+ * @returns The verified archive's cache path.
+ */
+async function verifiedArchive(archive: UpstreamFile, sums: UpstreamFile, absent: string): Promise<string> {
+  const archiveName = basename(archive.path)
+  const checksum = await expectedChecksum(sums, archiveName, absent)
+  if (existsSync(archive.path) && await sha256(archive.path) === checksum) return archive.path
+  rmSync(archive.path, { force: true })
+  await downloadFile(archive)
+  if (await sha256(archive.path) !== checksum) throw new Error(`desktop runtime: checksum mismatch for ${archiveName}`)
+  return archive.path
 }
 
 /**
@@ -70,16 +189,11 @@ async function prepareNode(platform: RuntimePlatform, arch: RuntimeArch): Promis
   const folder = `node-v${NODE_VERSION}-${platform}-${arch}`
   const archiveName = `${folder}.${extension}`
   const releaseRoot = `https://nodejs.org/download/release/v${NODE_VERSION}`
-  const archive = join(DOWNLOAD_ROOT, archiveName)
-  const sums = join(DOWNLOAD_ROOT, `node-v${NODE_VERSION}-SHASUMS256.txt`)
-  if (!existsSync(archive)) await download(`${releaseRoot}/${archiveName}`, archive)
-  if (!existsSync(sums)) await download(`${releaseRoot}/SHASUMS256.txt`, sums)
-  const line = (await readFile(sums, 'utf8')).split(/\r?\n/u)
-    .find(candidate => candidate.endsWith(`  ${archiveName}`))
-  if (line === undefined) throw new Error(`desktop runtime: ${archiveName} is absent from Node.js SHASUMS256.txt`)
-  const expected = line.split(/\s+/u)[0]
-  const actual = createHash('sha256').update(await readFile(archive)).digest('hex')
-  if (actual !== expected) throw new Error(`desktop runtime: checksum mismatch for ${archiveName}`)
+  const archive = await verifiedArchive(
+    { url: `${releaseRoot}/${archiveName}`, path: join(DOWNLOAD_ROOT, archiveName) },
+    { url: `${releaseRoot}/SHASUMS256.txt`, path: join(DOWNLOAD_ROOT, `node-v${NODE_VERSION}-SHASUMS256.txt`) },
+    `desktop runtime: ${archiveName} is absent from Node.js SHASUMS256.txt`,
+  )
 
   const extraction = BUILD_PATHS.nodeExtract
   rmSync(extraction, { recursive: true, force: true })
@@ -166,16 +280,14 @@ function shipsCuaDriverEntry(name: string): boolean {
 async function prepareCuaDriver(platform: RuntimePlatform, arch: RuntimeArch): Promise<void> {
   const archiveName = cuaDriverArchive(platform, arch)
   const releaseRoot = `https://github.com/trycua/cua/releases/download/cua-driver-rs-v${CUA_DRIVER_VERSION}`
-  const archive = join(DOWNLOAD_ROOT, archiveName)
-  const sums = join(DOWNLOAD_ROOT, `cua-driver-rs-${CUA_DRIVER_VERSION}-checksums.txt`)
-  if (!existsSync(archive)) await download(`${releaseRoot}/${archiveName}`, archive)
-  if (!existsSync(sums)) await download(`${releaseRoot}/checksums.txt`, sums)
-  const line = (await readFile(sums, 'utf8')).split(/\r?\n/u)
-    .find(candidate => candidate.endsWith(`  ${archiveName}`))
-  if (line === undefined) throw new Error(`desktop runtime: ${archiveName} is absent from the Cua Driver checksums`)
-  const expected = line.split(/\s+/u)[0]
-  const actual = createHash('sha256').update(await readFile(archive)).digest('hex')
-  if (actual !== expected) throw new Error(`desktop runtime: checksum mismatch for ${archiveName}`)
+  const archive = await verifiedArchive(
+    { url: `${releaseRoot}/${archiveName}`, path: join(DOWNLOAD_ROOT, archiveName) },
+    {
+      url: `${releaseRoot}/checksums.txt`,
+      path: join(DOWNLOAD_ROOT, `cua-driver-rs-${CUA_DRIVER_VERSION}-checksums.txt`),
+    },
+    `desktop runtime: ${archiveName} is absent from the Cua Driver checksums`,
+  )
 
   const extraction = BUILD_PATHS.cuaDriverExtract
   rmSync(extraction, { recursive: true, force: true })

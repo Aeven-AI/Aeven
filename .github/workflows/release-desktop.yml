@@ -293,6 +293,17 @@ jobs:
           path: native/ffmpeg/.cache/*.tar.gz
           key: ffmpeg-sources-${{ hashFiles('native/ffmpeg/source.json') }}
 
+      # The Node.js and Cua Driver archives, keyed by the pins in prepare-runtime.ts for the same reason. The two
+      # macOS variants of one architecture share the key, so a signed build can reuse the archives the unsigned
+      # build beside it already fetched, and prepare-runtime.ts checks every cached archive against its checksum
+      # file before use.
+      - name: Cache the pinned runtime downloads
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: apps/desktop/.desktop-build/downloads
+          key: desktop-runtime-${{ matrix.target }}-${{ hashFiles('apps/desktop/scripts/prepare-runtime.ts') }}
+          restore-keys: desktop-runtime-${{ matrix.target }}-
+
       - name: Select the MSYS2 environment (Windows)
         if: startsWith(matrix.target, 'win-')
         run: echo "MSYSTEM=${{ matrix.target == 'win-arm64' && 'CLANGARM64' || 'CLANG64' }}" >> "$GITHUB_ENV"
