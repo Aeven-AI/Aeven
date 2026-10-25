@@ -63,6 +63,11 @@
   config: {}
 
 - insert:
+    # The disabled web-runtime row also carried the model's surface context;
+    # replies here render in the same GUI, so the desktop mounts that part alone.
+    - id: web-surface
+      name: '@aeven/web-app/surface'
+
     - id: directory-picker-native
       name: '@aeven/host-directory-picker-native'
 
