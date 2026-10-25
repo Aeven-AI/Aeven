@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-10-25-desktop-start-screen-scheme.md
+2026-10-25-desktop-start-screen-scheme.md: b5fa4e15492818d0f27cdc4c974ce70c552557e4
+2026-10-25-desktop-start-screen-scheme.zh.md: 0f9607a2436a512d9b41892ec4e825c3b3975a9c

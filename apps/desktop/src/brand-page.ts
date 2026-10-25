@@ -91,12 +91,12 @@ export function loadingFace(label?: string, extra = ''): string {
 
 /**
  * Document head every shell-owned page starts from.
- * @param scheme - the page's `color-scheme`: `light` for a page that is always
- * white, `light dark` for one that follows the system scheme.
+ * @param scheme - the page's `color-scheme`: `light` or `dark` for a page drawn
+ * in one scheme, `light dark` for one that follows the system scheme.
  * @param extra - further head markup, appended after the title.
  * @returns the doctype through the title.
  */
-export function brandDocumentHead(scheme: 'light' | 'light dark', extra = ''): string {
+export function brandDocumentHead(scheme: 'light' | 'dark' | 'light dark', extra = ''): string {
   return '<!doctype html><html><head><meta charset="utf-8">'
     + '<meta name="viewport" content="width=device-width, initial-scale=1">'
     + `<meta name="color-scheme" content="${scheme}"><title>Æven</title>`

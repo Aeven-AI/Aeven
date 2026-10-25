@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-16-desktop-start-screen.md
-2026-10-16-desktop-start-screen.md: 5a1d26b4a2aa432e74c1aa1596fae4977deb1c22
-2026-10-16-desktop-start-screen.zh.md: 6676cb3fd2747a1cd74d4d16c644555ec23996e2
+2026-10-16-desktop-start-screen.md: 3f52d2d62c55ca399238b132c000ec207e8d21de
+2026-10-16-desktop-start-screen.zh.md: 54abe7af053a90077fd0d255eeae7a63e1cf3762

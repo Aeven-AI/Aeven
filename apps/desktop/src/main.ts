@@ -25,11 +25,11 @@ import { hardenBrowserGuests, registerBrowserIpc } from './browser-guests.ts'
 import { acquireHostClientLease, resolveAvnHome } from '@aeven/home-paths'
 import { planDesktopBackend } from './attached-host.ts'
 import { resolveDesktopPaths } from './paths.ts'
-import { DesktopProjectManager, type DesktopProjectHooks, type DesktopReleaseStep } from './project-manager.ts'
+import { DesktopProjectManager, type DesktopProjectHooks } from './project-manager.ts'
 import { DesktopHostProcess } from './host-process.ts'
 import { DESKTOP_AEVEN_API_PATH, type DesktopAevenSignIn } from './host-protocol.ts'
 import { DESKTOP_IPC, type DesktopCaptionAction, type DesktopMenuCommand } from './ipc.ts'
-import { formatDesktopMessage, resolveDesktopLocale, type DesktopMessages } from './locale.ts'
+import { resolveDesktopLocale } from './locale.ts'
 import { claimDesktopSingleInstance } from './single-instance.ts'
 import { DesktopBackgroundMode } from './background-mode.ts'
 import { DesktopUpdateCoordinator } from './update-coordinator.ts'
@@ -38,7 +38,7 @@ import type { DesktopUpdateState } from './ipc.ts'
 import { desktopUpdatePrompt } from './update-prompt.ts'
 import { loginShellPath, mergePath } from './login-shell-path.ts'
 import { sendVideoEmbedReferrer } from './video-embeds.ts'
-import { START_PAGE_PATH, startPageDocument, startPageUrl } from './start-screen.ts'
+import { START_PAGE_PATH, readStartScreenScheme, startPageDocument, startPageUrl } from './start-screen.ts'
 import { bundleIdentifier, clearUpdateResidue, updateCacheRoot, updaterCacheDir } from './update-residue.ts'
 
 const SCHEME = 'avn-app'
@@ -213,13 +213,6 @@ function shipItCacheDir(resourcesPath: string, cacheRoot: string): string | unde
   }
   const identifier = bundleIdentifier(plist)
   return identifier === undefined ? undefined : join(cacheRoot, `${identifier}.ShipIt`)
-}
-
-/** The start screen line each release step shows while a launch installs its release. */
-const RELEASE_STEP_MESSAGE: Readonly<Record<DesktopReleaseStep, keyof DesktopMessages>> = {
-  unpacking: 'updateStepUnpacking',
-  installing: 'updateStepInstalling',
-  checking: 'updateStepChecking',
 }
 
 /**
@@ -522,9 +515,12 @@ async function main(): Promise<void> {
     const url = new URL(request.url)
     if (url.hostname === 'shell') {
       if (url.pathname !== START_PAGE_PATH) return serveShellAsset(request)
-      return Promise.resolve(new Response(startPageDocument(process.platform), {
-        headers: { 'content-type': MIME['.html'] ?? 'text/html; charset=utf-8' },
-      }))
+      // The Host's settings document holds the theme preference; the desktop
+      // composition keeps it at the settings provider's default path.
+      return readStartScreenScheme(join(resolveAvnHome(), 'settings.yaml')).then(scheme =>
+        new Response(startPageDocument(process.platform, scheme), {
+          headers: { 'content-type': MIME['.html'] ?? 'text/html; charset=utf-8' },
+        }))
     }
     if (url.hostname !== 'app') return Promise.resolve(new Response(null, { status: 404 }))
     if (url.pathname.startsWith(`${DESKTOP_AEVEN_API_PATH}/`)) return forwardAevenApiRequest(request, aevenSignIn)
@@ -672,7 +668,7 @@ async function main(): Promise<void> {
     afterActivate: async () => {
       host = await startHost()
     },
-    progress: (step) => { showStartStatus(formatDesktopMessage(messages[RELEASE_STEP_MESSAGE[step]], { version: app.getVersion() })) },
+    progress: () => { showStartStatus(messages.updateInstalling) },
   }
 
   if (development === undefined && plan.kind === 'spawn') {

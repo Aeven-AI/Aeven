@@ -10,7 +10,52 @@
  * @module @aeven/desktop/start-screen
  */
 
+import { readFile } from 'node:fs/promises'
+import { load } from 'js-yaml'
 import { brandDocumentHead, loadingFace, loadingFaceStyles } from './brand-page.ts'
+
+/**
+ * Scheme the start screen paints in: the built-in theme preference the
+ * client paints with next, where `system` follows the operating system.
+ */
+export type StartScreenScheme = 'light' | 'dark' | 'system'
+
+/** Cover and ink of each scheme, the client preloader's own. */
+const START_PALETTE = {
+  light: '--avn-start-bg:rgb(242,242,242);--avn-start-ink:#000000',
+  dark: '--avn-start-bg:#111111;--avn-start-ink:rgb(249,250,251)',
+} as const
+
+/**
+ * Read the theme preference from the Host's settings document. The start
+ * screen shows before any Host runs, so the shell reads the file itself.
+ * @param file - the settings document, `settings.yaml` under the Aeven home.
+ * @returns its `ui-theme.preference`, or `system` when the document is absent,
+ * unparsable, or holds no built-in preference — the Host's own default.
+ */
+export async function readStartScreenScheme(file: string): Promise<StartScreenScheme> {
+  let text: string
+  let document: unknown
+  try {
+    text = await readFile(file, 'utf8')
+  } catch {
+    // The document exists only once a setting has been changed.
+    return 'system'
+  }
+  try {
+    document = load(text)
+  } catch {
+    // The Host refuses an unparsable document at boot and reports it there.
+    return 'system'
+  }
+  const theme = typeof document === 'object' && document !== null
+    ? (document as Record<string, unknown>)['ui-theme']
+    : undefined
+  const preference = typeof theme === 'object' && theme !== null
+    ? (theme as Record<string, unknown>)['preference']
+    : undefined
+  return preference === 'light' || preference === 'dark' ? preference : 'system'
+}
 
 /** Path of the start screen on the shell's own origin. */
 export const START_PAGE_PATH = '/start.html'
@@ -31,11 +76,13 @@ const DRAG_BAND = '<div class="avn-drag-band" aria-hidden="true"></div>'
  * Styles the window's own scheme and ink: the colours the client's preloader
  * paints as soon as it replaces this page.
  * @param platform - host platform, which decides whether this page drags the window.
+ * @param scheme - scheme the page paints in.
  */
-function startPageStyles(platform: NodeJS.Platform): string {
-  return 'html{color-scheme:light dark}'
-    + ':root{--avn-start-bg:rgb(242,242,242);--avn-start-ink:#000000}'
-    + '@media (prefers-color-scheme:dark){:root{--avn-start-bg:#111111;--avn-start-ink:rgb(249,250,251)}}'
+function startPageStyles(platform: NodeJS.Platform, scheme: StartScreenScheme): string {
+  return (scheme === 'system'
+    ? `html{color-scheme:light dark}:root{${START_PALETTE.light}}`
+      + `@media (prefers-color-scheme:dark){:root{${START_PALETTE.dark}}}`
+    : `html{color-scheme:${scheme}}:root{${START_PALETTE[scheme]}}`)
     + 'html,body{margin:0;height:100%;background:var(--avn-start-bg);color:var(--avn-start-ink)}'
     + 'body{display:flex;align-items:center;justify-content:center}'
     + (platform === 'darwin'
@@ -45,9 +92,9 @@ function startPageStyles(platform: NodeJS.Platform): string {
     + '.logo,.spinner{color:var(--avn-start-ink)}'
     // Positioned out of flow, so a line appearing never moves the mark and spinner the client's preloader repaints.
     + 'main{position:relative}'
-    + '.avn-start-status{position:absolute;top:100%;left:50%;transform:translateX(-50%);width:min(80vw,440px);'
-    + 'margin:20px 0 0;text-align:center;font:13px/1.45 -apple-system,system-ui,sans-serif;'
-    + 'color:var(--avn-start-ink);opacity:.7}'
+    + '.avn-start-status{position:absolute;top:100%;left:50%;transform:translateX(-50%);width:min(80vw,260px);'
+    + 'margin:14px 0 0;text-align:center;font:11px/1.4 -apple-system,system-ui,sans-serif;'
+    + 'color:var(--avn-start-ink);opacity:.55}'
 }
 
 /**
@@ -59,9 +106,10 @@ const STATUS_LINE = '<p class="avn-start-status" role="status" aria-live="polite
 /**
  * Build the start screen document.
  * @param platform - host platform, which decides whether this page drags the window.
+ * @param scheme - scheme the page paints in; `system` follows the operating system.
  * @returns a complete HTML document for the start screen window.
  */
-export function startPageDocument(platform: NodeJS.Platform): string {
-  return brandDocumentHead('light dark', `<style>${startPageStyles(platform)}</style>`)
+export function startPageDocument(platform: NodeJS.Platform, scheme: StartScreenScheme = 'system'): string {
+  return brandDocumentHead(scheme === 'system' ? 'light dark' : scheme, `<style>${startPageStyles(platform, scheme)}</style>`)
     + `<body>${platform === 'darwin' ? DRAG_BAND : ''}${loadingFace(undefined, STATUS_LINE)}</body></html>`
 }
