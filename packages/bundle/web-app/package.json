@@ -147,7 +147,6 @@
     "@aeven/memory-memos": "workspace:^",
     "@aeven/message-feedback": "workspace:^",
     "@aeven/personalization": "workspace:^",
-    "@aeven/session-labels": "workspace:^",
     "@aeven/session-reference": "workspace:^",
     "@aeven/session-stats": "workspace:^",
     "@aeven/session-turn-outline": "workspace:^",

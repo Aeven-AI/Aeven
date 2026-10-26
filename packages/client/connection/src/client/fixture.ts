@@ -261,11 +261,6 @@ interface FixtureSessionApi {
     readonly agentPreset?: string
   }): Promise<ConnectionRpcResult<unknown>>
   rename(request: { readonly sessionId: SessionId; readonly title: string }): Promise<ConnectionRpcResult<unknown>>
-  label(request: {
-    readonly sessionId: SessionId
-    readonly at: number
-    readonly label: string
-  }): Promise<ConnectionRpcResult<unknown>>
   fork(request: { readonly sessionId: SessionId; readonly atSeq?: number }): Promise<ConnectionRpcResult<unknown>>
   history(request: {
     readonly sessionId: SessionId
@@ -2897,22 +2892,6 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
       const appended = logOf(sessionId).at(-1) as SessionEvent
       return sessionOk({ title: normalized, seq: appended.seq })
     },
-    label: (request) => {
-      const missing = requireRemoteSession(request)
-      if (missing !== undefined) return missing
-      const { sessionId, at, label } = request
-      if (logOf(sessionId).every(event => event.seq !== at)) {
-        return sessionErr({
-          code: 'session/label-target-invalid',
-          message: `session label: seq ${String(at)} names no logged event`,
-          details: { sessionId },
-        })
-      }
-      const normalized = label.trim().replace(/\s+/g, ' ')
-      append(sessionId, { type: 'session/label', data: { at, label: normalized } })
-      const committed = logOf(sessionId).at(-1) as SessionEvent
-      return sessionOk({ label: normalized === '' ? null : normalized, seq: committed.seq })
-    },
     fork: (request) => {
       const { sessionId, atSeq } = request
       const source = summaryOf(sessionId)
@@ -3601,9 +3580,6 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
         )
         case 'session/rename': return sessionApi.rename(
           request as Parameters<FixtureSessionApi['rename']>[0],
-        )
-        case 'session/label': return sessionApi.label(
-          request as Parameters<FixtureSessionApi['label']>[0],
         )
         case 'session/fork': return sessionApi.fork(
           request as Parameters<FixtureSessionApi['fork']>[0],

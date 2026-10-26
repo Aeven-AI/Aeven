@@ -248,7 +248,6 @@ declare module '@aeven/typert-protocol' {
     'session/queue-item-not-found': { readonly itemId: MessageId }
     'session/steer-unavailable': { readonly itemId: MessageId }
     'session/title-invalid': { readonly sessionId: SessionId }
-    'session/label-target-invalid': { readonly sessionId: SessionId }
     'session/search-disabled': Record<string, never>
     'session/fork-unavailable': { readonly sessionId: SessionId }
     /** The Session cannot leave its current place for the named Workspace. */
@@ -348,23 +347,6 @@ export interface SessionRenameRequest {
 /** Normalized title and the durable event position that committed it. */
 export interface SessionRenameValue {
   readonly title: string
-  readonly seq: number
-}
-
-/** Session bookmark request. */
-export interface SessionLabelRequest {
-  readonly sessionId: SessionId
-  /** The logged point to label. */
-  readonly at: number
-  /** The label to set; text that normalizes to nothing removes the bookmark at `at`. */
-  readonly label: string
-}
-
-/** What a label write left at its point. */
-export interface SessionLabelValue {
-  readonly at: number
-  /** The text the point now carries, or `null` when the write removed it. */
-  readonly label: string | null
   readonly seq: number
 }
 

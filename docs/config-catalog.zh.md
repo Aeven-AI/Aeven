@@ -251,7 +251,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/api/session-controller/src/index.ts:88`](../packages/api/session-controller/src/index.ts)
+来源：[`packages/api/session-controller/src/index.ts:86`](../packages/api/session-controller/src/index.ts)
 
 <a id="aevenapi-settings-controller"></a>
 
@@ -3145,22 +3145,6 @@ export interface JsonRpcConfig {
 依赖：`Readable` （`node:stream`） · `Writable` （`node:stream`）
 
 来源：[`packages/sdk/server/src/index.ts:25`](../packages/sdk/server/src/index.ts)
-
-<a id="aevensession-labels"></a>
-
-## `@aeven/session-labels`
-
-需要：`sessionProjections`
-
-```ts config-catalog
-/** Label write policy; every field is changeable from `cordis.yml`. */
-export interface Config {
-  /** Maximum UTF-8 bytes in one accepted label. */
-  readonly maxLabelBytes: number
-}
-```
-
-来源：[`packages/session/session-labels/src/types.ts:39`](../packages/session/session-labels/src/types.ts)
 
 <a id="aevensession-log-deepseek"></a>
 

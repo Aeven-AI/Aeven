@@ -1198,9 +1198,6 @@ importers:
       '@aeven/session':
         specifier: workspace:^
         version: link:../../core/session
-      '@aeven/session-labels':
-        specifier: workspace:^
-        version: link:../../session/session-labels
       '@aeven/session-persistence':
         specifier: workspace:^
         version: link:../../session/session-persistence
@@ -2310,9 +2307,6 @@ importers:
       '@aeven/personalization':
         specifier: workspace:^
         version: link:../../preset/personalization
-      '@aeven/session-labels':
-        specifier: workspace:^
-        version: link:../../session/session-labels
       '@aeven/session-reference':
         specifier: workspace:^
         version: link:../../context/session-reference
@@ -10056,28 +10050,6 @@ importers:
       '@deepseek-ai/cordis-plugin-loader':
         specifier: workspace:^
         version: link:../../../vendor/loader
-
-  packages/session/session-labels:
-    dependencies:
-      '@deepseek-ai/schemastery':
-        specifier: link:../../../vendor/schemastery
-        version: link:../../../vendor/schemastery
-      zod:
-        specifier: ^4.4.3
-        version: 4.6.5
-    devDependencies:
-      '@aeven/session':
-        specifier: workspace:^
-        version: link:../../core/session
-      '@aeven/session-projection':
-        specifier: workspace:^
-        version: link:../session-projection
-      '@aeven/session-title':
-        specifier: workspace:^
-        version: link:../session-title
-      '@deepseek-ai/cordis':
-        specifier: workspace:^
-        version: link:../../../vendor/cordis
 
   packages/session/session-log-deepseek:
     dependencies:

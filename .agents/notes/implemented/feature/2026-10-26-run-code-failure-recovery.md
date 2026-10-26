@@ -27,15 +27,3 @@ The composed text stays `code run failed (<kind>): <message>`, then the clause, 
 ## Verification
 
 `packages/core/tools/tests/ptc.spec.ts` pins both composed texts — the abandoned sub-call message and the full `output-limit` failure with its captured output. The tool description and schema are unchanged, so `docs/tool-catalog.md` and the recorded `tool-schemas` snapshots stay valid; no new event, config field, or model-visible input is introduced.
-
-## Alternatives considered
-
-**Trim the tool description and schema.** The measurements argued against it: `run_code`'s own schema is about 930 characters, 2.6% of the `ptc` prompt, while the generated `tools:sdk` declarations are 81% of it. Trimming it would save almost nothing and would invalidate `docs/tool-catalog.md` and every recorded `tool-schemas` snapshot.
-
-**A separate diagnostic tool that explains a failure.** A catalog entry costs prompt tokens on every request the model makes, while the advice is only needed after a failure the model has already seen. Result content reaches the model for free at exactly that moment.
-
-**Structured failure data that the client formats.** The model reads result content, not the client's card, so advice placed in a client presenter would never reach the caller that has to act on it.
-
-## Consequences
-
-A failed program now names its next step, and the three ended-run rejections state that the call had no effect, so a model stops retrying a write it believed had landed. The price is that these strings are model-visible text pinned by specs: rewording a recovery clause is a test change, and each clause adds a few dozen characters to a result the session was already logging. The recovery table is typed against the runtime's own `CodeRunFailure['kind']` union, so a new failure kind fails `typecheck` rather than reaching a model with no advice.

@@ -14,7 +14,6 @@ import { SessionLogOffset, SessionSeq } from '@aeven/session'
 import type { SessionEvent, SessionHeader, SessionId, TurnEndReason, UserMessage } from '@aeven/session'
 import { SessionQueryError, type SessionObservation } from '@aeven/session-query'
 import { SessionTitleInvalidError } from '@aeven/session-title'
-import { SessionLabelTargetError } from '@aeven/session-labels'
 import { canonicalClientTimeZone } from '@aeven/util-time'
 import { RemoteError, remoteErrorOf } from '@aeven/typert-protocol'
 import type { Workspace } from '@aeven/workspace'
@@ -40,8 +39,6 @@ import type {
   SessionEditValue,
   SessionForkRequest,
   SessionForkValue,
-  SessionLabelRequest,
-  SessionLabelValue,
   SessionMoveRequest,
   SessionMoveValue,
   SessionPromptRequest,
@@ -269,38 +266,6 @@ export class SessionCommandController {
         )
       }
     })
-  }
-
-  /**
-   * Set or remove the bookmark at one logged point of a Session.
-   * @param request - Session identity, the point to label, and the label text.
-   * @returns the text the point now carries and the committed event sequence.
-   */
-  async label(request: SessionLabelRequest): Promise<SessionLabelValue> {
-    let at: SessionSeq
-    try {
-      at = SessionSeq(request.at)
-    } catch {
-      throw new RemoteError('gateway/bad-request', 'at must be a non-negative safe integer', {})
-    }
-    const agent = await this.resolveAgent(request.sessionId)
-    const labels = this.ctx.get('sessionLabels')
-    if (labels === undefined) {
-      throw new RemoteError('gateway/internal', 'labelling is unavailable: this deployment mounts no session-labels service', {})
-    }
-    try {
-      const written = labels.label(agent.session, at, request.label)
-      return { at: written.at, label: written.label, seq: written.eventSeq }
-    } catch (error) {
-      if (error instanceof SessionLabelTargetError) {
-        throw new RemoteError('session/label-target-invalid', error.message, { sessionId: request.sessionId })
-      }
-      throw new RemoteError(
-        'gateway/internal',
-        `failed to label session "${request.sessionId}": ${String(error)}`,
-        {},
-      )
-    }
   }
 
   /**
