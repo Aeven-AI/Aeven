@@ -77,7 +77,7 @@ export const en = {
 export type AutomationKey = keyof typeof en
 /** Chinese copy for all bot page and composer instructions. */
 export const zh: Record<AutomationKey, string> = {
-  title: 'Bot', create: '新建', composerPlaceholder: '描述一个新Bot',
+  title: 'Bots', create: '新建', composerPlaceholder: '描述一个新Bot',
   newDraft: '帮我创建Bot。询问我希望完成什么以及何时执行，然后展示任务、计划和权限，得到确认后再创建。',
   offlineDetail: '重新连接后可管理Bot。已保存的计划没有被删除。',
   recommended: '想法', empty: '创建第一个Bot', emptyDetail: '从下方选择一个想法，或在输入框描述一项日常工作。',
@@ -151,7 +151,7 @@ export const zh: Record<AutomationKey, string> = {
  * Spanish dictionary, checked complete against the zh key set.
  */
 export const es = {
-  title: 'Automatizaciones', create: 'Nueva', composerPlaceholder: 'Describe un bot nueva',
+  title: 'Bots', create: 'Nueva', composerPlaceholder: 'Describe un bot nuevo',
   newDraft: 'Ayúdame a crear un bot. Pregunta qué quiero hacer y cuándo, y luego muéstrame la tarea, la programación y los permisos para confirmar antes de crearla.',
   offlineDetail: 'Vuelve a conectarte para gestionar los bots. Las programaciones guardadas no se han eliminado.',
   recommended: 'Ideas', empty: 'Crea tu primer bot', emptyDetail: 'Elige una idea abajo o describe una rutina en el cuadro de texto.',
