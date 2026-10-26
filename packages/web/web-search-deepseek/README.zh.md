@@ -47,7 +47,7 @@ kind: "package-reference"
 |---|---|---|
 | `apiKey` | 未设置 | DeepSeek API 密钥字面值；优先使用 `apiKeyEnv`，避免密钥进入配置。非空字面值优先 |
 | `apiKeyEnv` | `DEEPSEEK_API_KEY` | 每次搜索通过 `ctx.credentials` 解析的凭据引用；没有该服务时从进程环境解析。值缺失时调用以 `WEB_PROVIDER_CREDENTIAL_MISSING` 失败 |
-| `baseURL` | `https://api.deepseek.com/anthropic/v1` | Anthropic 兼容端点基址；追加 `/messages`。缺省时回退到 `$DEEPSEEK_SEARCH_BASE_URL`；无法解析时提供方不可用 |
+| `baseURL` | `https://api.deepseek.com/anthropic/v1` | Anthropic 兼容端点基址；追加 `/messages`。缺省时回退到 `$DEEPSEEK_SEARCH_BASE_URL`，再回退到部署的 `$AEVEN_API_URL` 并追加 `/v1`；无法解析时提供方不可用 |
 | `model` | `deepseek-v4-flash` | Anthropic 格式模型名称 |
 | `apiVersion` | `2023-06-01` | `anthropic-version` 标头值 |
 | `maxTokens` | `4096` | Messages 请求生成 token 的正整数上限 |

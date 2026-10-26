@@ -502,6 +502,60 @@ describe('web-search-deepseek plugin registration', () => {
     }
   })
 
+  it('serves search through the deployment API base when no search endpoint is configured', async () => {
+    const previousKey = process.env.DEEPSEEK_API_KEY
+    const previousApi = process.env.AEVEN_API_URL
+    const previousSearch = process.env.DEEPSEEK_SEARCH_BASE_URL
+    process.env.DEEPSEEK_API_KEY = 'env-key'
+    process.env.AEVEN_API_URL = 'https://aeven.example/api'
+    delete process.env.DEEPSEEK_SEARCH_BASE_URL
+    try {
+      const fetchMock = vi.fn(async () => jsonResponse(searchResponse()))
+      vi.stubGlobal('fetch', fetchMock)
+      const ctx = new Context()
+      await ctx.plugin(WebRuntime, { searchProvider: DEEPSEEK_PROVIDER_ID })
+      deepseekPlugin.apply(ctx, {})
+      await ctx.web.search({ query: 'q' })
+      const [url] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+      expect(url).toBe('https://aeven.example/api/v1/messages')
+      await ctx.fiber.dispose()
+    } finally {
+      if (previousKey === undefined) delete process.env.DEEPSEEK_API_KEY
+      else process.env.DEEPSEEK_API_KEY = previousKey
+      if (previousApi === undefined) delete process.env.AEVEN_API_URL
+      else process.env.AEVEN_API_URL = previousApi
+      if (previousSearch === undefined) delete process.env.DEEPSEEK_SEARCH_BASE_URL
+      else process.env.DEEPSEEK_SEARCH_BASE_URL = previousSearch
+    }
+  })
+
+  it('prefers a configured search endpoint over the deployment API base', async () => {
+    const previousKey = process.env.DEEPSEEK_API_KEY
+    const previousApi = process.env.AEVEN_API_URL
+    const previousSearch = process.env.DEEPSEEK_SEARCH_BASE_URL
+    process.env.DEEPSEEK_API_KEY = 'env-key'
+    process.env.AEVEN_API_URL = 'https://aeven.example/api'
+    process.env.DEEPSEEK_SEARCH_BASE_URL = 'https://search.example/v1'
+    try {
+      const fetchMock = vi.fn(async () => jsonResponse(searchResponse()))
+      vi.stubGlobal('fetch', fetchMock)
+      const ctx = new Context()
+      await ctx.plugin(WebRuntime, { searchProvider: DEEPSEEK_PROVIDER_ID })
+      deepseekPlugin.apply(ctx, {})
+      await ctx.web.search({ query: 'q' })
+      const [url] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+      expect(url).toBe('https://search.example/v1/messages')
+      await ctx.fiber.dispose()
+    } finally {
+      if (previousKey === undefined) delete process.env.DEEPSEEK_API_KEY
+      else process.env.DEEPSEEK_API_KEY = previousKey
+      if (previousApi === undefined) delete process.env.AEVEN_API_URL
+      else process.env.AEVEN_API_URL = previousApi
+      if (previousSearch === undefined) delete process.env.DEEPSEEK_SEARCH_BASE_URL
+      else process.env.DEEPSEEK_SEARCH_BASE_URL = previousSearch
+    }
+  })
+
   it('resolves the credential for each search so a stored or rotated key needs no restart', async () => {
     const previous = process.env.DEEPSEEK_API_KEY
     delete process.env.DEEPSEEK_API_KEY

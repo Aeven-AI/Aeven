@@ -17,7 +17,6 @@
 - id: web-search-deepseek
   config:
     apiKeyEnv: AEVEN_TOKEN
-    baseURL: !!js (process.env.AEVEN_API_URL ?? 'https://aeven.io/api') + '/v1'
     model: Aeven-1.0-Flash
 
 - id: media-aeven

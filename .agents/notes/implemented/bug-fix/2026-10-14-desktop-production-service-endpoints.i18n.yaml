@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-10-14-desktop-production-service-endpoints.md
-2026-10-14-desktop-production-service-endpoints.md: dc97d11c322558aec11104a9c61a5e8ea3a889ca
-2026-10-14-desktop-production-service-endpoints.zh.md: 187c115642a050e3f699bea19ab06ff7afe9524a
+2026-10-14-desktop-production-service-endpoints.md: 2ff6a06741dd9f7632ec502417b23f24e5e91ba1
+2026-10-14-desktop-production-service-endpoints.zh.md: 7066d66f5eac98dd714761dbbd823b6546b8fa5f

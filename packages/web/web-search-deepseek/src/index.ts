@@ -82,6 +82,24 @@ export const Config: z<Config> = z.object({
  */
 const SEARCH_BASE_URL_ENV = 'DEEPSEEK_SEARCH_BASE_URL'
 
+/**
+ * Environment variable naming the deployment's API base. Aeven deployments
+ * serve search through their own gateway, whose Anthropic-compatible base sits
+ * at `<api base>/v1`; a deployment naming no base reaches DeepSeek directly
+ * through {@link DEEPSEEK_DEFAULT_BASE_URL}.
+ */
+const API_BASE_ENV = 'AEVEN_API_URL'
+
+/**
+ * Gateway base for one deployment API base.
+ * @param apiBase - the deployment's API base, or undefined when it names none.
+ * @returns the Anthropic-compatible base, or undefined without a deployment base.
+ */
+function gatewaySearchBase(apiBase: string | undefined): string | undefined {
+  if (apiBase === undefined || apiBase.length === 0) return undefined
+  return `${apiBase.replace(/\/+$/, '')}/v1`
+}
+
 /** Settings namespace carrying this provider's endpoint, model, and key reference. */
 export const WEB_SEARCH_DEEPSEEK_SETTINGS_NAMESPACE = 'web-search-deepseek'
 
@@ -113,6 +131,7 @@ function resolveOptions(ctx: Context, config: Config): DeepSeekSearchProviderOpt
     apiKeyEnv,
     baseURL: config.baseURL
       ?? launchEnvironmentOf(ctx).get(SEARCH_BASE_URL_ENV)?.value
+      ?? gatewaySearchBase(launchEnvironmentOf(ctx).get(API_BASE_ENV)?.value)
       ?? DEEPSEEK_DEFAULT_BASE_URL,
     model: config.model ?? DEEPSEEK_DEFAULT_MODEL,
     apiVersion: config.apiVersion ?? DEEPSEEK_DEFAULT_API_VERSION,

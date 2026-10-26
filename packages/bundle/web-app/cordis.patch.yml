@@ -37,7 +37,6 @@
 - id: web-search-deepseek
   config:
     apiKeyEnv: AEVEN_TOKEN
-    baseURL: !!js (process.env.AEVEN_API_URL ?? 'http://localhost:9000') + '/v1'
     model: Aeven-1.0-Flash
 
 # DeepSeek is one provider among many here, not a default: the route stays
