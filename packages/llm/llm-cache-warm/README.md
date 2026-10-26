@@ -20,6 +20,7 @@ This plugin replays the session's last conversation request with a one-token out
 - [Further Exploration](#further-exploration)
 - [Model Experience](#model-experience)
 - [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
 
 ## Use this package
 
@@ -90,3 +91,12 @@ It exists to preserve the KV cache: the prefix is replayed byte-identically, out
 - **A warm cannot re-upload files.** Requests carrying a file or image block are never captured, so a session that works through attachments warms nothing.
 - **The prefix is measured, not counted.** `minPrefixChars` compares characters of the system prompt, tool schemas, and messages; a tokenizer would be more exact and is not worth a dependency here.
 - **No cache metrics are read back.** The plugin records what a warm cost, not whether the following request hit; proving the saving needs the provider's own cache-hit counters.
+
+<a id="dev-note"></a>
+### Dev Note
+
+**Runtime invariant:** No companion is published. The plugin owns no cross-plugin relation beyond reading the request `llm/stream` already logged and the usage it folded into `token-meter`: a warm is a log write and a dispatch, and there is nothing two independent observations could disagree about.
+
+- The pilot numbers this plugin follows come from `dsh-warm` 0.2.0 outside this repository, and its idle-warming half stays out until a deployment measures it. Any change to that boundary belongs in the Agent Note, not in a config flag.
+- `intervalMs` has no published source. DeepSeek states no cache lifetime, so a warmed row is a deployment's estimate with room for one request's latency; `dryRun` and the logged `cache-warm/result` usage are how a deployment prices it against its own traffic.
+- The window is one `tools/execute` block with a depth counter, which keeps a `run_code` program to one window. A future block kind — a workflow step, a background job — would need the same opening and closing, and the counter is what makes that extension safe.

@@ -705,7 +705,7 @@ Types: [ScheduleChange](subsystems/schedule.zh.md)
 'session/label': import('./types.ts').SessionLabelEventData
 ```
 
-来源：[`packages/session/session-labels/src/index.ts:29`](../packages/session/session-labels/src/index.ts)
+来源：[`packages/session/session-labels/src/index.ts:30`](../packages/session/session-labels/src/index.ts)
 
 <a id="sessionrewind--log-only"></a>
 

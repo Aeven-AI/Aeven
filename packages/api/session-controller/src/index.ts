@@ -57,6 +57,8 @@ import type {
   SessionWorkspacePathApplication,
   SessionPage,
   SessionPageRequest,
+  SessionLabelRequest,
+  SessionLabelValue,
   SessionPromptRequest,
   SessionPromptValue,
   SessionRenameRequest,
@@ -404,6 +406,16 @@ The user's account display name is ${JSON.stringify(source.clientDisplayName)}.
   @Remote('rename')
   rename(request: SessionRenameRequest): Promise<SessionRenameValue> {
     return this.commands.rename(request)
+  }
+
+  /**
+   * Set or remove the bookmark at one logged point of a Session.
+   * @param request - Session identity, the point to label, and the label text.
+   * @returns the text the point now carries and the committed event sequence.
+   */
+  @Remote('label')
+  label(request: SessionLabelRequest): Promise<SessionLabelValue> {
+    return this.commands.label(request)
   }
 
   /**

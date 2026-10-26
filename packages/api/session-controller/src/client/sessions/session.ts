@@ -444,6 +444,19 @@ export class Session implements SessionFace {
   }
 
   /**
+   * Label: contract session.label 1:1. The `sessionLabels` view arrives with
+   * the log event this command commits, so no projection cell is settled here.
+   * @param at - the event to label.
+   * @param label - raw label text (the host normalizes acceptance).
+   * @returns the text the point now carries (`null` after removal) and its event seq.
+   */
+  async label(at: SessionSeq, label: string): Promise<RemoteResult<{ label: string | null; seq: SessionSeq }>> {
+    const result = await this.remote.session.label({ sessionId: this.sessionId, at, label })
+    if (!result.ok) return result
+    return { ok: true, value: { label: result.value.label, seq: SessionSeq(result.value.seq) } }
+  }
+
+  /**
    * Execute one slash-command line against this session's agent — pure
    * admission semantics (the host executor durably logs the lifecycle;
    * outcomes render as flow nodes, never as a response echo).

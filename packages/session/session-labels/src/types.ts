@@ -35,6 +35,22 @@ export interface SessionLabelsState {
   readonly labels: readonly SessionLabelRow[]
 }
 
+/** Label write policy; every field is changeable from `cordis.yml`. */
+export interface Config {
+  /** Maximum UTF-8 bytes in one accepted label. */
+  readonly maxLabelBytes: number
+}
+
+/** What one write left at the labelled point. */
+export interface SessionLabelSnapshot {
+  /** The point the write addressed. */
+  readonly at: SessionSeq
+  /** The text the point now carries, or `null` when the write removed the bookmark. */
+  readonly label: string | null
+  /** Sequence of the `session/label` event that committed the write. */
+  readonly eventSeq: SessionSeq
+}
+
 export {}
 
 declare module '@aeven/session-projection/types' {
