@@ -11,6 +11,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { dirname, relative, resolve } from 'node:path'
 import type { Nodes } from 'mdast'
 import { markdownHeadingLines, parseMarkdown, visitMarkdown } from './markdown.ts'
+import { recordGreen, skipIfUnchanged } from './gate-fingerprint.ts'
 import { isArchivedAgentNotePath, uniqueRepoFiles } from './repo-files.ts'
 
 const root = resolve(import.meta.dirname, '..')
@@ -197,11 +198,14 @@ export function findViolations(
 if (process.argv[1] && import.meta.filename === resolve(process.argv[1])) {
   // Archived notes remain valid link targets, but their historical outbound links are frozen.
   const files = uniqueRepoFiles(root, PATTERNS, isArchivedAgentNotePath)
+  const inputs = files.map(file => relative(root, file.abs))
+  if (skipIfUnchanged('md-links', inputs)) process.exit(0)
   const anchorsOf = anchorCache()
   const all = files.flatMap(file => findViolations(file.abs, anchorsOf))
   const checked = files.length
 
   if (all.length === 0) {
+    recordGreen('md-links', inputs)
     console.log(`verify-md-links: ${checked} file(s) checked, all relative cross-links and fragments resolve.`)
     process.exit(0)
   }

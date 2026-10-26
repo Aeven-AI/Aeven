@@ -83,6 +83,8 @@ Typert 只在 Host tsdown 中以 `tsconfig.host.json` 为种子运行。它分�
 
 静态分析和测试通过 base 的 `paths` 映射把工作区 import 解析到 `src`，且必须在干净树上通过；消费构建产物 `lib/` 的门禁显式声明该依赖。生成的 Host-for-Client Remote 声明是有意设置的例外：公共 `typecheck`、`lint` 和 `doc-typecheck` 命令会先生成这些声明，而内部 `*:contracts-ready` 脚本假定调用它的公共命令或调度器门禁已经依赖 Typert 约定生成阶段或完整构建。两个 aggregate 的设置见 [solution-root Note](../.agents/notes/implemented/process/2026-07-22-tsconfig-solution-root-two-aggregates.zh.md)，tsc-first 发射职责见 [ts-build-config Note](../.agents/notes/implemented/process/2026-06-17-ts-build-config.zh.md)，门禁准备约定见 [Typert Remote Agent Note](../.agents/notes/implemented/architecture/2026-08-02-typert-remote-method-calls.zh.md)。
 
+`pnpm run check:changed` 只针对工作区改动所触及的包，运行同样的 typecheck、测试与翻译配对检查（`typecheck:changed`、`test:changed`、`docs:changed` 分别只运行其中一步）；落在任何包之外的改动，会在该步回退到覆盖语料库的命令。它读取已暂存、未暂存与未跟踪文件，因此覆盖进行中的工作，而不是已推送的提交——内层循环为何独立于 `typecheck`、`test` 和 `doc-sync` 由[该 Agent Note](../.agents/notes/implemented/process/2026-10-26-generated-catalog-locales.zh.md) 记录。
+
 业务服务在 Host 使用 `@Remote` 或 `@RemoteScope` 声明可调用方法；Host 构建生成 Host-for-Client 类型与运行时贡献，Client 的 `api-remotes` 组合加载这些贡献并挂到 `ctx.remote` 与作用域 `agentCtx.remote` namespace。两侧的生成产物、装配关系、SRC 开发回退和 Web 构建顺序见 [API Gateway](api-gateway.zh.md)。
 
 如果相关的本地检查需要使用构建后的包产物，请先构建一次：
