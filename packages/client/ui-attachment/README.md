@@ -29,7 +29,7 @@ Mount this plugin alongside [`ui-conversation`](../ui-conversation/README.md); i
 
 ### Draft tray
 
-Draft attachments show as 80px tiles, five per row, wrapping: images first as cover thumbnails, then files with their type icon and name. An uploading file shows a spinner and a failed one shows an error tile. Clicking an image opens the gallery over all draft images; clicking a file opens its bytes in a new tab.
+Draft attachments show as 80px tiles, five per row, wrapping: images first as cover thumbnails, then files with their type icon and name; video files use a play icon and MP3 files a musical note. An uploading file shows a spinner and a failed one shows an error tile. Clicking an image opens the gallery over all draft images; clicking a file opens its bytes in a new tab.
 
 ### Sent attachments and the gallery
 
