@@ -1,7 +1,7 @@
 {
   "name": "@aeven/tool-call-timeout-policy",
   "description": "Tool-call timeout policy: a tools/execute wrapper that arms a per-tool deadline on exec.signal and returns TOOL_TIMEOUT when it wins",
-  "version": "0.3.14-alpha",
+  "version": "0.3.15-alpha",
   "publishConfig": {
     "access": "public"
   },

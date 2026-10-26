@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-goal",
   "description": "Session goal surface: GoalBar docked above the composer, read from the goal session projection",
-  "version": "0.3.14-alpha",
+  "version": "0.3.15-alpha",
   "publishConfig": {
     "access": "public"
   },

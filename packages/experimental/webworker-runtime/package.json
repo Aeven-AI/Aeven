@@ -1,7 +1,7 @@
 {
   "name": "@aeven/experimental-webworker-runtime",
   "description": "Browser-only harness runtime: in-memory VFS, module transform and loader, postMessage tunnel, and the dedicated Web Worker assembly, with the Node-compatibility layer that lets the host tree run unchanged",
-  "version": "0.3.14-alpha",
+  "version": "0.3.15-alpha",
   "private": true,
   "repository": {
     "type": "git",

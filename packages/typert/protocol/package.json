@@ -1,7 +1,7 @@
 {
   "name": "@aeven/typert-protocol",
   "description": "Compiler-independent Remote metadata and Typert provider protocols",
-  "version": "0.3.14-alpha",
+  "version": "0.3.15-alpha",
   "publishConfig": {
     "access": "public"
   },

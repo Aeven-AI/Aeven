@@ -1,7 +1,7 @@
 {
   "name": "@aeven/deepseek-llm-api-extensions",
   "description": "Additive request-field registry for the official DeepSeek LLM API adapter",
-  "version": "0.3.14-alpha",
+  "version": "0.3.15-alpha",
   "publishConfig": {
     "access": "public"
   },

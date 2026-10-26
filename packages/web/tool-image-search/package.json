@@ -1,7 +1,7 @@
 {
   "name": "@aeven/tool-image-search",
   "description": "Model-facing find_images tool that shows real photographs of a subject from Wikimedia Commons with their sources",
-  "version": "0.3.14-alpha",
+  "version": "0.3.15-alpha",
   "publishConfig": {
     "access": "public"
   },
