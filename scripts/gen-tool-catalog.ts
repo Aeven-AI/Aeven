@@ -66,6 +66,8 @@ import { MediaRuntime } from '@aeven/media'
 import * as ToolTodo from '@aeven/tool-todo'
 import * as ToolWorkingDirectory from '@aeven/tool-working-directory'
 import WorkingDirectory from '@aeven/working-directory'
+import * as ToolWorktrees from '@aeven/tool-worktrees'
+import Worktrees from '@aeven/worktrees'
 import * as ToolSubagent from '@aeven/tool-subagent'
 import { registerListSubagentModels } from '../packages/subagent/tool-subagent/src/list-models.ts'
 import * as ToolWeb from '@aeven/tool-web'
@@ -618,6 +620,21 @@ const TOOL_PACKAGES: ToolPackage[] = [
     },
     note:
       'The catalog mounts the capability and the tool together, because the tool reads the directory the service resolves. One change appends `session/cwd`, which replays last-wins: a resumed or forked session continues in the directory the log recorded, and the next call resolves relative paths against it.',
+  },
+  {
+    pkg: '@aeven/tool-worktrees',
+    dir: 'tool-worktrees',
+    source: 'packages/session/tool-worktrees/src/index.ts',
+    requires: ['ctx.tools', 'ctx.subprocess', 'ctx.workingDirectory', 'ctx.worktrees', 'owning Agent session'],
+    writes: ['tool/call', 'session/cwd', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(LocalSubprocessRuntime)
+      await ctx.plugin(WorkingDirectory)
+      await ctx.plugin(Worktrees, { directory: '.aeven/worktrees', branchPrefix: 'avn/', graceMs: 5000 })
+      await ctx.plugin(ToolWorktrees)
+    },
+    note:
+      'The catalog mounts the capability and the tool together, because `create_worktree` moves the session through `workingDirectory`, which the same call then reports. The checkout directory, branch prefix, and git grace period are Config with no defaults, so the catalog states them: `.aeven/worktrees`, `avn/`, and 5000 ms.',
   },
   {
     pkg: '@aeven/tool-todo',

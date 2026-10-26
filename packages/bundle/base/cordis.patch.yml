@@ -428,6 +428,18 @@
     - id: tool-working-directory
       name: '@aeven/tool-working-directory'
 
+    # One checkout per task: `create_worktree` adds a branch-backed git worktree
+    # and moves the session there, so parallel agents stop sharing one tree.
+    - id: worktrees
+      name: '@aeven/worktrees'
+      config:
+        directory: .aeven/worktrees
+        branchPrefix: 'avn/'
+        graceMs: 5000
+
+    - id: tool-worktrees
+      name: '@aeven/tool-worktrees'
+
     - id: tool-todo
       name: '@aeven/tool-todo'
       config:

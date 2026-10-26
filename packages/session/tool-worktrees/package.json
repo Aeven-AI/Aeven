@@ -1,0 +1,27 @@
+{
+  "name": "@aeven/tool-worktrees",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The create_worktree model tool: a branch-backed checkout per task that the session then works in.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
+  },
+  "peerDependencies": {
+    "@aeven/tools": "workspace:^",
+    "@aeven/worktrees": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "devDependencies": {
+    "@aeven/tools": "workspace:^",
+    "@aeven/worktrees": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  }
+}

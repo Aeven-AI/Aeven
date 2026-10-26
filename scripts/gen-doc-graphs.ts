@@ -389,6 +389,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Resolves a session\'s effective directory from the immutable header plus the last logged `session/cwd`; shell tools resolve their working directory through it with the header as fallback.',
   },
   {
+    key: 'worktrees',
+    pkg: 'worktrees',
+    title: 'Git worktrees per task',
+    mode: 'seam',
+    consumers: ['tool-worktrees'],
+    note: 'Runs `git worktree add -b <branch> <path> <rev>` through `ctx.subprocess` and then moves the session through `ctx.workingDirectory`, so a task works in its own checkout instead of the shared tree.',
+  },
+  {
     key: 'systemPrompt',
     pkg: 'system-prompt',
     title: 'System prompt assembly registry',

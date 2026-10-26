@@ -242,4 +242,42 @@ async change(session: Session, target: string): Promise<string>
 Types: [Session](session.zh.md)
 
 Source: [`packages/session/working-directory/src/index.ts`](../../packages/session/working-directory/src/index.ts)
+
+<a id="ctxworktrees--worktrees"></a>
+
+### `ctx.worktrees` — `Worktrees`
+
+The git worktree service, registered as `ctx.worktrees`.
+
+```ts cordis-catalog
+/**
+ * Root of the repository the session works in.
+ * @param session - the session whose working directory names the repository.
+ * @param signal - cancels the git call.
+ * @returns the absolute repository root.
+ * @throws when the session is in no repository.
+ */
+async repositoryRoot(session: Session, signal?: AbortSignal): Promise<string>
+
+/**
+ * Registered checkouts of the session's repository, main working tree first.
+ * @param session - the session whose repository is listed.
+ * @param signal - cancels the git call.
+ * @returns one entry per registered worktree.
+ */
+async list(session: Session, signal?: AbortSignal): Promise<WorktreeInfo[]>
+
+/**
+ * Create a branch-backed checkout and move the session into it.
+ * @param session - the session that will work in the new checkout.
+ * @param request - optional name and starting revision.
+ * @param signal - cancels the git calls.
+ * @returns the checkout path, its branch, its base commit, and the repository root.
+ */
+async create(session: Session, request: CreateWorktreeRequest = {}, signal?: AbortSignal): Promise<CreatedWorktree>
+```
+
+Types: [Session](session.zh.md)
+
+Source: [`packages/session/worktrees/src/index.ts`](../../packages/session/worktrees/src/index.ts)
 <!-- END GENERATED cordis-surface -->

@@ -158,6 +158,10 @@ flowchart LR
   cfg --> plugin_avn_base_working_directory
   plugin_avn_base_tool_working_directory["tool-working-directory<br/>@aeven/tool-working-directory"]
   cfg --> plugin_avn_base_tool_working_directory
+  plugin_avn_base_worktrees["worktrees<br/>@aeven/worktrees"]
+  cfg --> plugin_avn_base_worktrees
+  plugin_avn_base_tool_worktrees["tool-worktrees<br/>@aeven/tool-worktrees"]
+  cfg --> plugin_avn_base_tool_worktrees
   plugin_avn_base_tool_todo["tool-todo<br/>@aeven/tool-todo"]
   cfg --> plugin_avn_base_tool_todo
   plugin_avn_base_tool_goal["tool-goal<br/>@aeven/tool-goal"]
@@ -271,6 +275,8 @@ flowchart LR
 | `tool-result-pruner` | `@aeven/compaction-tool-result-pruner` |
 | `working-directory` | `@aeven/working-directory` |
 | `tool-working-directory` | `@aeven/tool-working-directory` |
+| `worktrees` | `@aeven/worktrees` |
+| `tool-worktrees` | `@aeven/tool-worktrees` |
 | `tool-todo` | `@aeven/tool-todo` |
 | `tool-goal` | `@aeven/tool-goal` |
 | `tool-ralph` | `@aeven/tool-ralph` |

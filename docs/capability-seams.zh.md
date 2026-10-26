@@ -115,6 +115,9 @@ flowchart LR
   pkg_tool_pwsh["tool-pwsh"]
   pkg_tool_pwsh_persistent["tool-pwsh-persistent"]
   pkg_tool_working_directory["tool-working-directory"]
+  pkg_worktrees["worktrees"]
+  svc_worktrees["ctx.worktrees<br/>Git worktrees per task"]
+  pkg_tool_worktrees["tool-worktrees"]
   pkg_system_prompt["system-prompt"]
   svc_systemPrompt["ctx.systemPrompt<br/>System prompt assembly registry"]
   pkg_tools["tools"]
@@ -446,6 +449,7 @@ flowchart LR
   pkg_working_directory --> svc_workingDirectory
   pkg_workspace --> svc_workspaceRegistry
   pkg_workspace_files --> svc_workspaceFiles
+  pkg_worktrees --> svc_worktrees
   svc_accountIntegrations --> pkg_ui_automations
   svc_accountIntegrations --> pkg_ui_settings_integrations
   svc_agentDefaultModel --> pkg_api_session_controller
@@ -599,6 +603,7 @@ flowchart LR
   svc_workspaceFiles --> pkg_ui_sidebar_files
   svc_workspaceRegistry --> pkg_api_session_controller
   svc_workspaceRegistry --> pkg_api_workspace_controller
+  svc_worktrees --> pkg_tool_worktrees
   svc_fs -. event gate .-> pkg_fs_observation_policy
 ```
 | ctx 键 | 角色 | 所属包 | 实现 | 直接消费方 | 配套插件 | 说明 |
@@ -639,6 +644,7 @@ flowchart LR
 | `ctx.sessionReferenceResolver` | `core` | [`session-reference`](../packages/context/session-reference) | - | - | - | Projects bounded current-surface conversation snapshots into durable untrusted message context; host adapters own mention syntax. 将当前表层中有界的对话快照投影为持久但不可信的消息上下文；Host 适配器负责提及语法。 |
 | `ctx.sessionTitle` | `seam` | [`session-title`](../packages/session/session-title) | [`session-title-first-prompt-llm`](../packages/session/session-title-first-prompt-llm), [`session-title-all-prompts-llm`](../packages/session/session-title-all-prompts-llm) | - | - | Owns the deterministic fallback, latest-title fold, and sole optional asynchronous provider registration. 负责确定性回退、最新标题折叠区，以及唯一的可选异步提供方注册。 |
 | `ctx.workingDirectory` | `seam` | [`working-directory`](../packages/session/working-directory) | - | [`tool-bash`](../packages/shell/tool-bash), [`tool-bash-persistent`](../packages/shell/tool-bash-persistent), [`tool-pwsh`](../packages/shell/tool-pwsh), [`tool-pwsh-persistent`](../packages/shell/tool-pwsh-persistent), [`tool-working-directory`](../packages/session/tool-working-directory) | - | Resolves a session's effective directory from the immutable header plus the last logged `session/cwd`; shell tools resolve their working directory through it with the header as fallback. 从不可变头部加上最后记录的 `session/cwd` 解析会话的生效目录；shell 工具通过它解析工作目录，并以头部作为回退。 |
+| `ctx.worktrees` | `seam` | [`worktrees`](../packages/session/worktrees) | - | [`tool-worktrees`](../packages/session/tool-worktrees) | - | Runs `git worktree add -b <branch> <path> <rev>` through `ctx.subprocess` and then moves the session through `ctx.workingDirectory`, so a task works in its own checkout instead of the shared tree. 通过 `ctx.subprocess` 运行 `git worktree add -b <branch> <path> <rev>`，随后通过 `ctx.workingDirectory` 移动会话，使任务在自己的检出中工作而不是共享工作树。 |
 | `ctx.systemPrompt` | `core` | [`system-prompt`](../packages/core/system-prompt) | - | [`agent-loop`](../packages/core/agent-loop), [`tools`](../packages/core/tools), [`tool-fs`](../packages/fs/tool-fs), [`tool-terminal`](../packages/terminal/tool-terminal), [`tool-web`](../packages/web/tool-web) | - | Collects prompt sections and model-facing tool schemas for each step. 为每个步骤收集提示词各部分和面向模型的工具 schema。 |
 | `ctx.tools` | `core` | [`tools`](../packages/core/tools) | - | [`agent-loop`](../packages/core/agent-loop), [`tool-ask-user`](../packages/interaction/tool-ask-user), [`tool-bash`](../packages/shell/tool-bash), [`tool-cordis`](../packages/extensions/tool-cordis), [`tool-fs`](../packages/fs/tool-fs), [`tool-terminal`](../packages/terminal/tool-terminal), [`tool-skill`](../packages/skill/tool-skill), [`tool-subagent`](../packages/subagent/tool-subagent), [`tool-todo`](../packages/todo/tool-todo), [`tool-web`](../packages/web/tool-web) | - | Registers capabilities, owns PTC mode transport, and routes calls through pre-policy, monotonic guards, around dispatch, post-policy, and final-result observation. 注册能力，负责 PTC mode 传输，并让调用依次经过策略前处理、单调守卫、环绕分派、策略后处理和最终结果观测。 |
 | `ctx.userQuestions` | `seam` | [`user-questions`](../packages/interaction/user-questions) | - | [`tool-ask-user`](../packages/interaction/tool-ask-user) | - | UI front ends provide the active human-answer provider; tool-ask-user pauses a tool call on the provider-neutral ask() promise. UI 前端提供当前生效的人工回答提供方；tool-ask-user 在提供方无关的 ask() promise 上暂停工具调用。 |
