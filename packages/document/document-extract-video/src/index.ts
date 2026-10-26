@@ -1,5 +1,5 @@
 /**
- * Video reader: claims recorded and uploaded clips so a composer can attach
+ * Video and MP3 reader: claims recorded and uploaded clips so a composer can attach
  * them, and reports what this deployment knows about the file — duration,
  * frame size, and codec when `ffprobe` answers, the container and size always.
  * Frames and sound are not transcribed, so the text never implies the model
@@ -41,17 +41,17 @@ export const Config: z<Partial<Config>, Config> = z.object({
 export const PROVIDER_ID = 'video' as DocumentExtractProviderId
 
 /** Recorded with stored text; bump when the reported facts change. */
-const EXTRACTOR_VERSION = '1'
+const EXTRACTOR_VERSION = '2'
 
-/** Clip formats the composer can record or a browser can upload. */
+/** Video and MP3 formats the composer can record or a browser can upload. */
 export const VIDEO_FORMATS: DocumentFormats = {
-  extensions: ['mp4', 'm4v', 'mov', 'webm'],
-  mediaTypes: ['video/mp4', 'video/quicktime', 'video/x-m4v', 'video/webm'],
+  extensions: ['mp4', 'm4v', 'mov', 'webm', 'mp3'],
+  mediaTypes: ['video/mp4', 'video/quicktime', 'video/x-m4v', 'video/webm', 'audio/mpeg', 'audio/mp3'],
 }
 
 /** Container names for the extensions this reader claims. */
 const CONTAINERS: Readonly<Record<string, string>> = {
-  mp4: 'MP4', m4v: 'MP4', mov: 'QuickTime', webm: 'WebM',
+  mp4: 'MP4', m4v: 'MP4', mov: 'QuickTime', webm: 'WebM', mp3: 'MP3',
 }
 
 /** Facts one clip reports, in the order the sentence lists them. */
@@ -90,6 +90,9 @@ export function describeClip(name: string, facts: ClipFacts): string {
   if (facts.width !== undefined && facts.height !== undefined) details.push(`${facts.width}×${facts.height}`)
   if (facts.codec !== undefined) details.push(facts.codec)
   details.push(facts.container, sizeText(facts.bytes))
+  if (facts.container === 'MP3') {
+    return `Audio clip "${name}": ${details.join(', ')}. The clip is stored with this session; its sound is not transcribed.`
+  }
   return `Video clip "${name}": ${details.join(', ')}. The clip is stored with this session; its frames and sound are not transcribed.`
 }
 
@@ -114,7 +117,7 @@ async function probe(data: Uint8Array, extension: string, config: Config, signal
   try {
     await writeFile(file, data)
     const { stdout } = await promisify(execFile)(config.ffprobePath, [
-      '-v', 'error', '-select_streams', 'v:0',
+      '-v', 'error', '-select_streams', extension === 'mp3' ? 'a:0' : 'v:0',
       '-show_entries', 'stream=width,height,codec_name:format=duration',
       '-of', 'json', file,
     ], { timeout: config.probeTimeoutMs, signal, maxBuffer: 1 << 20 })

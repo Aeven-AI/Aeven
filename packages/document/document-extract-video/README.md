@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`@aeven/document-extract-video` registers the provider `video` at priority 10 on `ctx.documentExtract`, so an uploaded or camera-recorded clip (`mp4`, `m4v`, `mov`, `webm`) becomes an admissible file attachment instead of an unsupported type. The reader probes the clip with the host's own `ffprobe` and stores one sentence describing it; frames and sound are never transcribed, so the sentence says exactly that.
+`@aeven/document-extract-video` registers the provider `video` at priority 10 on `ctx.documentExtract`, so an uploaded or camera-recorded clip (`mp4`, `m4v`, `mov`, `webm`, `mp3`) becomes an admissible file attachment instead of an unsupported type. MP3 uploads use the audio stream and report audio metadata without claiming transcription. The reader probes the clip with the host's own `ffprobe` and stores one sentence describing it; frames and sound are never transcribed, so the sentence says exactly that.
 
 ## Table of Contents
 
@@ -21,7 +21,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount it beside the service: the plugin registers the `video` provider on `ctx.documentExtract`. The composer's file intake then accepts video because `documentExtract.accepted()` includes the provider's formats.
+Mount it beside the service: the plugin registers the `video` provider on `ctx.documentExtract`. The composer's file intake then accepts video and MP3 because `documentExtract.accepted()` includes the provider's formats.
 
 ### Configuration
 

@@ -62,6 +62,8 @@ describe('document-extract-video', () => {
     expect(extract.accepts('clip.webm', 'video/webm')).toBe(true)
     expect(extract.accepts('clip.mov', 'video/quicktime')).toBe(true)
     expect(extract.accepts('clip.webm', '')).toBe(true)
+    expect(extract.accepts('audio.mp3', 'audio/mpeg')).toBe(true)
+    expect(extract.accepts('audio.mp3', '')).toBe(true)
     expect({ extensions: VIDEO_FORMATS.extensions, mediaTypes: VIDEO_FORMATS.mediaTypes }).toBeDefined()
     expect(extract.accepts('notes.txt', 'text/plain')).toBe(false)
   })
@@ -76,6 +78,14 @@ describe('document-extract-video', () => {
     expect(result.text).toContain('8.2 s, 720×1280, vp9, WebM, 3.4 MB')
     expect(result.method).toBe('native')
     expect(result.providerId).toBe('video')
+  })
+
+  it('reads MP3 duration and audio codec without claiming transcription', async () => {
+    probeAnswers(JSON.stringify({ streams: [{ codec_name: 'mp3' }], format: { duration: '1.2' } }))
+    const { extract } = await mount()
+    const result = await extract.extract({ data: new Uint8Array(900), name: 'audio.mp3', mediaType: 'audio/mpeg' }, AbortSignal.timeout(5_000))
+    expect(result.text).toMatchInlineSnapshot('"Audio clip \"audio.mp3\": 1.2 s, mp3, MP3, 1 kB. The clip is stored with this session; its sound is not transcribed."')
+    expect(execFile.mock.calls[0]?.[1]).toContain('a:0')
   })
 
   it('reports the container alone when the probe cannot answer', async () => {
