@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-10-15-macos-release-builds-run-to-the-github-ceiling.md
-2026-10-15-macos-release-builds-run-to-the-github-ceiling.md: 73fbdec586e33d16dc0d3d397dd409b9c8829b1f
-2026-10-15-macos-release-builds-run-to-the-github-ceiling.zh.md: c0be17e079ec59d8bf20b850564ff67fffa9b2d3
+2026-10-15-macos-release-builds-run-to-the-github-ceiling.md: 05f5a55fe463b698b152ef64b6aae524371a17a4
+2026-10-15-macos-release-builds-run-to-the-github-ceiling.zh.md: 83995571a457b2d49e56b5762f44aaa03ac87ec9
