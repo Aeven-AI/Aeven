@@ -9,7 +9,7 @@
 import { brandString } from '@aeven/brand'
 import { createUserMessage, HarnessError } from '@aeven/llm'
 import type { ContentBlock, ToolCallId } from '@aeven/llm'
-import type { CodeBindingFunction, CodeRunPauses, CodeRunResult, CodeRuntime } from '@aeven/code-runtime'
+import type { CodeBindingFunction, CodeRunFailure, CodeRunPauses, CodeRunResult, CodeRuntime } from '@aeven/code-runtime'
 import { snapshotJsonValue, type JsonValue } from '@aeven/util-values'
 import { defineTool, parameterSchemaSpecToJsonSchema } from './schema.ts'
 import { TOOL_RUNTIME_SCHEDULER } from './index.ts'
@@ -140,6 +140,36 @@ export class CodeRunFailedError extends HarnessError {
     super(message, 'CODE_RUN_FAILED')
     this.name = 'CodeRunFailedError'
   }
+}
+
+/**
+ * The one instruction that changes the next program, per failure kind. The
+ * runtime reports what happened; this table says what to do about it, so a
+ * failed run teaches recovery instead of only narrating the outcome. Kinds are
+ * the runtime's own taxonomy ({@link CodeRunFailure}), so a new kind fails
+ * `typecheck` here rather than reaching a model with no advice.
+ */
+const RECOVERY_BY_KIND: Record<CodeRunFailure['kind'], string> = {
+  exception: 'Fix the program and re-run it; tool calls the failed run completed still took effect.',
+  timeout: 'The run spent its compute or wall-clock budget: do less per program and split the work across runs.',
+  abort: 'The run was cancelled before it finished; re-run the program if you still need its result.',
+  'worker-exit': 'The runtime process died mid-run: re-run the program, and split it if this happens again.',
+  'invalid-output': 'Return or print JSON-serializable values only — no functions, class instances, or cycles.',
+  'output-limit': 'The program produced too much output: print less, or write the bulk to a file with a tool.',
+}
+
+/**
+ * One message shape for the three outcomes an ended run can still produce for a
+ * sub-call: never dispatched, abandoned before dispatch, or discarded after it
+ * returned. All three mean the same thing to the model — the run is over and
+ * this call changed nothing — so they share a recovery clause as well.
+ * @param reason - the run controller's abort reason.
+ * @param name - the bound tool's model-facing name.
+ * @param outcome - what happened to this particular call.
+ * @returns the model-facing message.
+ */
+function runOverMessage(reason: unknown, name: string, outcome: string): string {
+  return `run_code run is over (${String(reason)}); ${name} ${outcome} — the run had already ended, so this call changed nothing; re-run the program if you still need this result`
 }
 
 /**
@@ -332,7 +362,7 @@ export function createRunCodeTool(registry: ToolRuntime, options: RunCodeBridgeO
     },
     async execute(args, exec): Promise<RunCodeOutput> {
       if (args.description.trim().length === 0) {
-        throw new Error('invalid description: expected a non-empty string')
+        throw new Error('invalid description: expected a non-empty string — pass a 5-10 word summary of what the program does')
       }
       const runtime = requireRuntime()
 
@@ -468,7 +498,7 @@ export function createRunCodeTool(registry: ToolRuntime, options: RunCodeBridgeO
 
       const binding = (name: string): CodeBindingFunction => async (rawArgs: unknown): Promise<JsonValue> => {
         if (runOver()) {
-          throw new Error(`run_code run is over (${String(runController.signal.reason)}); ${name} not dispatched`)
+          throw new Error(runOverMessage(runController.signal.reason, name, 'not dispatched'))
         }
         const normalized = jsonNormalizeArgs(rawArgs)
         const n = ++dispatches
@@ -534,7 +564,7 @@ export function createRunCodeTool(registry: ToolRuntime, options: RunCodeBridgeO
             // declared; fail-closed exclusive when undeclared/invalid.
             classify: () => registry.executionMode(input).kind,
             abandon: () => {
-              reject(new Error(`run_code run is over (${String(runController.signal.reason)}); ${name} tool call abandoned`))
+              reject(new Error(runOverMessage(runController.signal.reason, name, 'tool call abandoned')))
             },
             async start(): Promise<void> {
               exec.agent?.session.append('tool/code-dispatch-start', {
@@ -595,7 +625,7 @@ export function createRunCodeTool(registry: ToolRuntime, options: RunCodeBridgeO
         // flight already aborted the dispatch; stop the program now rather
         // than hand it a result from a run that is over.
         if (runOver()) {
-          throw new Error(`run_code run is over (${String(runController.signal.reason)}); ${name} result discarded`)
+          throw new Error(runOverMessage(runController.signal.reason, name, 'result discarded'))
         }
         // The worker turns a binding rejection into ToolCallError and adds
         // only the binding name. Native content and internal error metadata
@@ -643,7 +673,8 @@ export function createRunCodeTool(registry: ToolRuntime, options: RunCodeBridgeO
 
         if (result.error) {
           const logsText = result.logs.length > 0 ? `\nCaptured output:\n${result.logs.join('\n')}` : ''
-          throw new CodeRunFailedError(`code run failed (${result.error.kind}): ${result.error.message}${logsText}`)
+          const recovery = RECOVERY_BY_KIND[result.error.kind]
+          throw new CodeRunFailedError(`code run failed (${result.error.kind}): ${result.error.message}\n${recovery}${logsText}`)
         }
         return {
           logs: result.logs,

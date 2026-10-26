@@ -806,7 +806,7 @@ describe('the sub-dispatch scheduler (native concurrency contract)', () => {
     // abandonment message at drain time.
     expect(starts).toEqual(['call-1:code:1'])
     expect(settles).toEqual(['call-1:code:1'])
-    expect(abandoned).toEqual(['run_code run is over (run_code settled); writer tool call abandoned'])
+    expect(abandoned).toEqual(['run_code run is over (run_code settled); writer tool call abandoned — the run had already ended, so this call changed nothing; re-run the program if you still need this result'])
   })
 })
 
@@ -1377,7 +1377,7 @@ describe('the run_code dispatch bridge', () => {
     expect(result.isError).toBe(true)
     expect(result.content).toEqual([{
       type: 'text',
-      text: 'Error: code run failed (output-limit): outer output exceeded 8 bytes\nCaptured output:\ncaptured before failure',
+      text: 'Error: code run failed (output-limit): outer output exceeded 8 bytes\nThe program produced too much output: print less, or write the bulk to a file with a tool.\nCaptured output:\ncaptured before failure',
     }])
     expect('presentResult' in tool).toBe(false)
   })
