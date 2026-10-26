@@ -35,7 +35,8 @@ list(owner: string): Promise<CapabilityRecord[]>
 get(owner: string, name: string): Promise<Capability | undefined>
 
 /**
- * Create a capability or replace its body and description, keeping its supporting files.
+ * Create a capability or replace its body and description, keeping its supporting files. Credentials in the
+ * description, the procedure, and the origin's request are redacted before they are stored.
  * @param owner - account id.
  * @param draft - name, description, and procedure.
  * @param options - resulting status, who originated it, the writing session (undefined outside a session), and
@@ -45,7 +46,7 @@ get(owner: string, name: string): Promise<Capability | undefined>
 save( owner: string, draft: CapabilityDraft, options: { readonly status: CapabilityStatus readonly source: CapabilitySource readonly sessionId: string | undefined readonly origin?: CapabilityOrigin }, ): Promise<Capability>
 
 /**
- * Replace one exact, unique passage of a capability's procedure.
+ * Replace one exact, unique passage of a capability's procedure; credentials in the result are redacted.
  * @param owner - account id.
  * @param name - capability name.
  * @param edit - the passage to replace and its replacement.
@@ -56,7 +57,7 @@ save( owner: string, draft: CapabilityDraft, options: { readonly status: Capabil
 patch( owner: string, name: string, edit: { readonly oldString: string; readonly newString: string }, sessionId: string | undefined, ): Promise<Capability>
 
 /**
- * Write one supporting file, such as a script the procedure runs.
+ * Write one supporting file, such as a script the procedure runs; credentials in it are redacted.
  * @param owner - account id.
  * @param name - capability name.
  * @param path - path inside a supporting-file folder.

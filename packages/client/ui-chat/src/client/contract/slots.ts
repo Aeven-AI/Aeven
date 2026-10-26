@@ -87,6 +87,8 @@ export interface ChatNodeOwnerProps {
    * where the transcript is read-only.
    */
   editMessage?: ChatViewInjected['editMessage'] | undefined
+  /** Continue after the latest turn failed, keeping its work. Omitted where the transcript is read-only. */
+  retryTurn?: ChatViewInjected['retryTurn'] | undefined
   /** Open the account's plan picker, the remedy a `QUOTA` turn failure names. Omitted where no picker exists. */
   openPlans?: ChatViewInjected['openPlans'] | undefined
   renderMessageImages: RenderMessageImages
@@ -217,6 +219,12 @@ export interface ChatViewInjected {
    * @returns settlement; rejects when the Host refuses the edit.
    */
   editMessage: (seq: SessionSeq, text: string) => Promise<void>
+  /**
+   * Continue the Session after its latest turn failed; the Host keeps the
+   * failed turn's transcript and work and starts the next turn on top of it.
+   * @returns settlement; rejects when the Host refuses the retry.
+   */
+  retryTurn: () => Promise<void>
   /** Open the account's plan picker in Settings; omitted where the composition has none. */
   openPlans?: () => void
   /**

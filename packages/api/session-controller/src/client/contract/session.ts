@@ -117,6 +117,13 @@ export interface ISession {
    */
   edit(messageSeq: SessionSeq, text: string): Promise<RemoteResult<{ accepted: true }>>
   /**
+   * Continue after the latest turn ended in a failure: the Host keeps that
+   * turn's transcript, model history, and work, and starts the next turn with
+   * a continuation notice instead of re-running the prompt.
+   * @returns acceptance, or the business error (also mirrored into snapshot.promptError).
+   */
+  retry(): Promise<RemoteResult<{ accepted: true }>>
+  /**
    * Cancel the running turn. Pending queued work remains and resumes in FIFO
    * order after the Host reaches cancellation quiescence.
    * @returns acceptance, or the business error.

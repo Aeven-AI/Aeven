@@ -11,7 +11,7 @@ import {
 } from '@aeven/llm'
 import type { MessageSource } from '@aeven/llm'
 import { SessionLogOffset, SessionSeq } from '@aeven/session'
-import type { SessionEvent, SessionHeader, SessionId, UserMessage } from '@aeven/session'
+import type { SessionEvent, SessionHeader, SessionId, TurnEndReason, UserMessage } from '@aeven/session'
 import { SessionQueryError, type SessionObservation } from '@aeven/session-query'
 import { SessionTitleInvalidError } from '@aeven/session-title'
 import { canonicalClientTimeZone } from '@aeven/util-time'
@@ -45,6 +45,8 @@ import type {
   SessionPromptValue,
   SessionRenameRequest,
   SessionRenameValue,
+  SessionRetryRequest,
+  SessionRetryValue,
   SessionSelectModelRequest,
   SessionSelectModelValue,
   SessionUpdateQueueRequest,
@@ -113,6 +115,27 @@ function editTarget(
     if (earlier?.type === 'user/message' && earlier.data.source.kind === 'user') return { message: event.data, cut: seq }
   }
   throw unavailable()
+}
+
+/**
+ * Resolve a retry target: the `turn/end` of the Session's latest turn when it
+ * ended in a failure and no later turn or rewind followed it.
+ * @throws RemoteError `session/retry-unavailable` otherwise.
+ */
+function retryTarget(session: Agent['session'], sessionId: SessionId): Extract<TurnEndReason, { kind: 'error' }> {
+  for (let index = session.seq - 1; index >= 0; index--) {
+    const event = session.eventAt(SessionSeq(index))
+    if (event?.type === 'turn/end') {
+      if (event.data.reason.kind === 'error') return event.data.reason
+      break
+    }
+    if (event?.type === 'turn/start' || event?.type === 'session/rewind') break
+  }
+  throw new RemoteError(
+    'session/retry-unavailable',
+    `the latest turn of session "${sessionId}" did not end in a failure`,
+    { sessionId },
+  )
 }
 
 /** Replace the text blocks of a prompt with `text` at the first text position, keeping attachments. */
@@ -512,6 +535,42 @@ export class SessionCommandController {
     }
     // oxlint-disable-next-line typescript/no-non-null-assertion -- the resolved maintenance task assigned it
     return { accepted: true, rewindSeq: rewindSeq! }
+  }
+
+  /**
+   * Continue a Session whose latest turn failed: admit a continuation notice as
+   * the next turn, so the model resumes on the failed turn's recorded work
+   * instead of repeating it. Nothing is rewound.
+   * @param request - Session identity.
+   * @returns acknowledgement that the notice entered the Agent inbox.
+   */
+  async retry(request: SessionRetryRequest): Promise<SessionRetryValue> {
+    const agent = await this.resolveAgent(request.sessionId)
+    if (hasApiSessionSubagentOwner(this.ctx, agent.session, agent)) {
+      throw apiSessionSubagentOwnershipError(request.sessionId)
+    }
+    this.assertRouteServed(agent)
+    retryTarget(agent.session, request.sessionId)
+    try {
+      await agent.runMaintenance(() => {
+        // Re-resolved inside the idle phase: a concurrent prompt or retry may have started a turn.
+        const failure = retryTarget(agent.session, request.sessionId).error
+        agent.followup(createUserMessage({
+          content: [{
+            type: 'text',
+            text: `The previous turn stopped because a model request failed (${failure.code}). `
+              + 'Everything recorded above, including tool results and file changes, is already in place. '
+              + 'Continue the task from where it stopped; do not redo finished work.',
+          }],
+          source: { kind: 'plugin', plugin: 'api-session-controller', form: 'notice', summary: 'Continued after a failed request' },
+        }))
+        return Promise.resolve()
+      })
+    } catch (error) {
+      if (remoteErrorOf(error) !== undefined) throw error
+      throw new RemoteError('session/agent-busy', 'retry rejected', { reason: String(error) })
+    }
+    return { accepted: true }
   }
 
   /**

@@ -808,6 +808,8 @@ export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   SaveFileAttachment: 'package-owned type is documented in packages/attachment/attachment/src/types.ts',
   SessionEditRequest: 'package-owned type is documented in packages/api/session-controller/src/types.ts',
   SessionEditValue: 'package-owned type is documented in packages/api/session-controller/src/types.ts',
+  SessionRetryRequest: 'package-owned type is documented in packages/api/session-controller/src/types.ts',
+  SessionRetryValue: 'package-owned type is documented in packages/api/session-controller/src/types.ts',
   SessionMoveRequest: 'package-owned type is documented in packages/api/session-controller/src/types.ts',
   SessionMoveValue: 'package-owned type is documented in packages/api/session-controller/src/types.ts',
   SessionWorkspacePathApplication: 'package-owned type is documented in packages/api/session-controller/src/types.ts',

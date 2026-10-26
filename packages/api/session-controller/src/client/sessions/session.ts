@@ -386,6 +386,24 @@ export class Session implements SessionFace {
   }
 
   /**
+   * Continue after the latest turn failed, keeping that turn's transcript and
+   * work; failures land in promptError. Like a send, it moves the window to the live end.
+   * @returns the retry result.
+   */
+  async retry(): Promise<RemoteResult<{ accepted: true }>> {
+    this.promptError = null
+    this.lastAgentError = null
+    if (this.hasNewer) void this.returnToLive()
+    this.notifier.markDirty()
+    const result = await this.remote.session.retry({ sessionId: this.sessionId })
+    if (!result.ok) {
+      this.promptError = { op: 'send', error: result.error }
+      this.notifier.markDirty()
+    }
+    return result
+  }
+
+  /**
    * Stop the active turn while the Host preserves pending inbox work; failures
    * land in promptError (same error-strip display slot). A subagent address
    * routes through `subagents.interruptByParent`, whose durable parent-address
