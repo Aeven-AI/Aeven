@@ -10,6 +10,7 @@ export const DESKTOP_IPC = {
   appMenuShow: 'avn-desktop:app-menu-show',
   linksOpen: 'avn-desktop:links-open',
   linksListen: 'avn-desktop:links-listen',
+  providerSignIn: 'avn-desktop:provider-sign-in',
   browserOpenExternal: 'avn-desktop:browser-open-external',
   browserSetColorScheme: 'avn-desktop:browser-set-color-scheme',
   browserClearData: 'avn-desktop:browser-clear-data',
@@ -288,3 +289,10 @@ export interface AvnDesktopUpdateApi {
    */
   onChange(listener: (state: DesktopUpdateState) => void): () => void
 }
+
+/**
+ * How a provider sign-in the shell ran in the default browser ended, as the
+ * window hears it: `signed-in` once the session is established, `ended` when the
+ * sign-in timed out or failed without one.
+ */
+export type DesktopProviderSignInState = 'signed-in' | 'ended'

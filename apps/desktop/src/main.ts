@@ -31,7 +31,7 @@ import { resolveDesktopPaths } from './paths.ts'
 import { DesktopProjectManager, type DesktopProjectHooks } from './project-manager.ts'
 import { DesktopHostProcess } from './host-process.ts'
 import { DESKTOP_AEVEN_API_PATH, type DesktopAevenSignIn } from './host-protocol.ts'
-import { DESKTOP_IPC, type DesktopCaptionAction, type DesktopMenuCommand } from './ipc.ts'
+import { DESKTOP_IPC, type DesktopCaptionAction, type DesktopMenuCommand, type DesktopProviderSignInState } from './ipc.ts'
 import { formatDesktopMessage, resolveDesktopLocale } from './locale.ts'
 import { claimDesktopSingleInstance } from './single-instance.ts'
 import { DesktopBackgroundMode } from './background-mode.ts'
@@ -601,18 +601,43 @@ async function main(): Promise<void> {
    * Sign in with a provider in the default browser, then bring the app back.
    * Providers refuse embedded windows, so none is opened here.
    */
-  const beginProviderSignIn = (window: BrowserWindow, url: string, land: (path: string) => void): void => {
+  const reportProviderSignIn = (window: BrowserWindow, state: DesktopProviderSignInState): void => {
+    if (!window.isDestroyed()) window.webContents.send(DESKTOP_IPC.providerSignIn, state)
+  }
+  const beginProviderSignIn = (window: BrowserWindow, url: string, land: (path: string) => Promise<void>): void => {
     void startBrowserSignIn({
       providerUrl: url,
       openExternal: target => shell.openExternal(target),
+      // The window comes forward once the landing is settled, so the reader
+      // returns to its cover rather than to the sign-in screen it left.
       land: (path) => {
-        land(path)
-        if (window.isDestroyed()) return
-        if (window.isMinimized()) window.restore()
-        window.focus()
-        app.focus({ steal: true })
+        void land(path).finally(() => {
+          if (window.isDestroyed()) return
+          if (window.isMinimized()) window.restore()
+          window.focus()
+          app.focus({ steal: true })
+        })
       },
-    }).catch((error: unknown) => { console.error('avn desktop: provider sign-in failed', error) })
+    }).then((outcome) => {
+      if (outcome === 'timed-out') reportProviderSignIn(window, 'ended')
+    }, (error: unknown) => {
+      console.error('avn desktop: provider sign-in failed', error)
+      reportProviderSignIn(window, 'ended')
+    })
+  }
+
+  /**
+   * Exchange a landing in the session that holds the API's cookie, and tell the
+   * window how it went; it shows its cover the moment the session exists.
+   * @param window - the window that started the sign-in.
+   * @param path - the `/oauth-result/...` path the sign-in collected.
+   */
+  const exchangeLanding = async (window: BrowserWindow, path: string): Promise<void> => {
+    const signedIn = await completeOAuthLanding(path, aevenSignIn).catch((error: unknown) => {
+      console.error('avn desktop: the provider sign-in could not be exchanged', error)
+      return false
+    })
+    reportProviderSignIn(window, signedIn ? 'signed-in' : 'ended')
   }
 
   const createMainWindow = (): BrowserWindow => {
@@ -628,7 +653,7 @@ async function main(): Promise<void> {
     // system browser opens it otherwise.
     window.webContents.setWindowOpenHandler(({ url }) => {
       if (aevenSignIn?.oauthUrls.includes(url) === true) {
-        beginProviderSignIn(window, url, (path) => { void completeOAuthLanding(path, aevenSignIn) })
+        beginProviderSignIn(window, url, path => exchangeLanding(window, path))
       } else {
         openContentAddress(window.webContents, url)
       }
@@ -637,7 +662,7 @@ async function main(): Promise<void> {
     window.webContents.on('will-navigate', (event, url) => {
       if (aevenSignIn?.oauthUrls.includes(url) !== true) return
       event.preventDefault()
-      beginProviderSignIn(window, url, (path) => { void window.loadURL(appPathUrl(path)) })
+      beginProviderSignIn(window, url, path => window.loadURL(appPathUrl(path)))
     })
     window.once('ready-to-show', () => { if (!window.isDestroyed()) window.show() })
     // The View menu's full-screen item names the state the window is in.
