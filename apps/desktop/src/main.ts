@@ -11,6 +11,7 @@ import {
   ipcMain,
   Menu,
   nativeTheme,
+  powerMonitor,
   protocol,
   session,
   shell,
@@ -20,6 +21,7 @@ import {
 import { DESKTOP_MENU_ZOOM_STEP, FULL_SCREEN_ITEM_ID, applicationMenuTemplate, type DesktopMenuZoom } from './application-menu.ts'
 import { adoptedHostSignIn, completeOAuthLanding, forwardAevenApiRequest } from './aeven-sign-in.ts'
 import { startBrowserSignIn } from './oauth-browser.ts'
+import { AevenSession } from './aeven-session.ts'
 import { installContextMenu, registerContextMenuIpc } from './context-menu.ts'
 import { listenForPageLinks, openContentAddress } from './external-links.ts'
 import { hardenBrowserGuests, registerBrowserIpc } from './browser-guests.ts'
@@ -382,6 +384,24 @@ async function main(): Promise<void> {
     releaseClientLease ??= await acquireHostClientLease(resolveAvnHome())
   }
   let aevenSignIn: DesktopAevenSignIn | undefined
+  let aevenSession: AevenSession | undefined
+  /** Keep the reader's Aeven session for the Host the window renders, replacing the previous keeper. */
+  const keepAevenSession = (): void => {
+    aevenSession?.dispose()
+    aevenSession = undefined
+    if (aevenSignIn === undefined || attachedBackend === undefined) return
+    aevenSession = new AevenSession({
+      apiUrl: aevenSignIn.apiUrl,
+      hostOrigin: attachedBackend.origin,
+      cookies: session.defaultSession.cookies,
+      fetchApi: (url, init) => session.defaultSession.fetch(url, init),
+      fetchHost: (url, init) => fetch(url, init),
+      warn: (message) => { console.warn(message) },
+    })
+    aevenSession.start()
+  }
+  // Timers stall while the machine sleeps; a renewal it slept through runs on waking.
+  powerMonitor.on('resume', () => { aevenSession?.wake() })
   let mainWindow: BrowserWindow | undefined
   let shellInstallerOwnsQuit = false
   const locale = resolveDesktopLocale(app.getLocale())
@@ -584,7 +604,6 @@ async function main(): Promise<void> {
   const beginProviderSignIn = (window: BrowserWindow, url: string, land: (path: string) => void): void => {
     void startBrowserSignIn({
       providerUrl: url,
-      labels: { continuing: messages.signInContinuing, signedIn: messages.signInDone, failed: messages.signInFailed },
       openExternal: target => shell.openExternal(target),
       land: (path) => {
         land(path)
@@ -593,7 +612,7 @@ async function main(): Promise<void> {
         window.focus()
         app.focus({ steal: true })
       },
-    }).catch((error: unknown) => { console.error('avn desktop: provider sign-in could not start', error) })
+    }).catch((error: unknown) => { console.error('avn desktop: provider sign-in failed', error) })
   }
 
   const createMainWindow = (): BrowserWindow => {
@@ -675,6 +694,7 @@ async function main(): Promise<void> {
     if (projectDir === activeProject) {
       aevenSignIn = ready.aevenSignIn ?? await adoptedHostSignIn(ready.url)
       attachedBackend = { url: ready.url, origin: new URL(ready.url).origin }
+      keepAevenSession()
     }
     return next
   }
@@ -742,6 +762,7 @@ async function main(): Promise<void> {
       console.error('avn desktop: could not read sign-in endpoints from the adopted Host; provider sign-in is unavailable', error)
       return undefined
     })
+    keepAevenSession()
   } else {
     console.log(`desktop: starting a Host of its own because ${plan.reason}`)
     host = await startHost()

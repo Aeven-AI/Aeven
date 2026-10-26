@@ -73,6 +73,13 @@ export interface Config {
   jwksRefreshIntervalMs?: number
   /** Budget for one key set fetch. */
   jwksTimeoutMs?: number
+  /**
+   * File keeping the last key set fetched. A Host that starts with it verifies
+   * tokens at once and refreshes the set in the background, so a reader signed
+   * in before keeps working while the API is unreachable. Absent keeps the keys
+   * in memory only, and the Host waits for its first fetch.
+   */
+  jwksCacheFile?: string
   /** Cookie carrying the refresh token for a request that presents no bearer. */
   refreshCookieName?: string
   /**
@@ -124,6 +131,7 @@ export const Config: z<Config> = z.object({
   id: z.string().default('aeven'),
   jwksRefreshIntervalMs: z.natural().min(1).default(60_000),
   jwksTimeoutMs: z.natural().min(1).default(10_000),
+  jwksCacheFile: z.string(),
   refreshCookieName: z.string().default('refreshToken'),
   credentialRef: z.string().default('AEVEN_TOKEN'),
   apiUrl: z.string(),
@@ -214,6 +222,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     url: new URL('/.well-known/jwks.json', config.apiUrl).href,
     minRefreshIntervalMs: jwksRefreshIntervalMs,
     timeoutMs: jwksTimeoutMs,
+    ...config.jwksCacheFile === undefined ? {} : { cacheFile: config.jwksCacheFile },
     warn: (message) =>{  ctx.logger('identity-user-aeven').warn(message) },
   })
   if (keySet !== undefined) {
@@ -298,10 +307,13 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     table.push({ kind: 'global', name: AEVEN_CLIENT_CONFIG_GLOBAL, value })
   })
 
-  // The plugin becomes active only once the first key set fetch settles, so a
-  // Host that waits for its plugin tree does not admit its first requests
-  // while no token can verify yet. The resolver is already registered, so
-  // those requests are refused rather than unauthenticated; a failed fetch is
-  // reported through the logger and later misses refresh in the background.
-  if (keySet !== undefined) await keySet.refresh()
+  // The plugin becomes active once it holds keys to verify with: the cached set
+  // when there is one, otherwise the first fetch, so a Host that waits for its
+  // plugin tree does not admit its first requests while no token can verify yet.
+  // The resolver is already registered, so those requests are refused rather
+  // than unauthenticated; a failed fetch is reported through the logger and
+  // later misses refresh in the background.
+  if (keySet === undefined) return
+  if (await keySet.load()) void keySet.refresh()
+  else await keySet.refresh()
 }

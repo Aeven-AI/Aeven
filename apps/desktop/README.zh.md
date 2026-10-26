@@ -16,7 +16,7 @@
 
 **关于 Aeven** 报告正在运行的应用、Electron 与已安装后端的版本：在 macOS 上位于应用菜单，在 Windows 与 Linux 上位于“帮助”菜单。
 
-[Desktop Host overlay](../desktop-host/config/desktop.cordis.patch.yml) 为登录、推理、搜索、媒体和账户集成提供生产服务 URL；安装后的应用不需要 `.env` 文件。API 默认为 `https://aeven.io/api`；Web、媒体和 OAuth 使用 `https://aeven.io`。显式设置的 `AEVEN_API_URL`、`AEVEN_WEB_URL`、`AEVEN_MEDIA_URL` 和 `AEVEN_OAUTH_{X,APPLE,GOOGLE}_URL` 环境变量会覆盖这些默认值。Desktop 登录在独立窗口中打开。参见[端点决策](../../.agents/notes/implemented/bug-fix/2026-10-14-desktop-production-service-endpoints.zh.md)。
+[Desktop Host overlay](../desktop-host/config/desktop.cordis.patch.yml) 为登录、推理、搜索、媒体和账户集成提供生产服务 URL；安装后的应用不需要 `.env` 文件。API 默认为 `https://aeven.io/api`；Web、媒体和 OAuth 使用 `https://aeven.io`。显式设置的 `AEVEN_API_URL`、`AEVEN_WEB_URL`、`AEVEN_MEDIA_URL` 和 `AEVEN_OAUTH_{X,APPLE,GOOGLE}_URL` 环境变量会覆盖这些默认值。提供方登录在默认浏览器中进行，浏览器最终停在 Aeven 站点，由外壳收取结果（[决定](../../.agents/notes/implemented/bug-fix/2026-10-26-desktop-sign-in-is-collected-by-the-app.zh.md)）。此后外壳在有无窗口时都保持会话，Aeven 不可达时读者仍保持登录（[决定](../../.agents/notes/implemented/bug-fix/2026-10-26-desktop-keeps-the-aeven-session.zh.md)）。参见[端点决策](../../.agents/notes/implemented/bug-fix/2026-10-14-desktop-production-service-endpoints.zh.md)。
 
 ## 关键技术决策
 

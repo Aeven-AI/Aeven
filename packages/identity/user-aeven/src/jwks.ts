@@ -4,6 +4,8 @@
  */
 
 import type { KeyObject } from 'node:crypto'
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
+import { dirname } from 'node:path'
 import { parseKeySet } from './jwt.ts'
 
 /** Settings for one {@link RemoteKeySet}. */
@@ -16,6 +18,11 @@ export interface RemoteKeySetOptions {
   readonly timeoutMs: number
   /** Sink for a failed fetch; verification keeps the previous keys. */
   readonly warn: (message: string) => void
+  /**
+   * File holding the last key set fetched, so a Host started while the API is unreachable
+   * still verifies tokens; absent keeps the keys in memory only. The keys are public.
+   */
+  readonly cacheFile?: string
 }
 
 /**
@@ -58,6 +65,32 @@ export class RemoteKeySet {
     return this.inFlight
   }
 
+  /**
+   * Adopt the key set {@link RemoteKeySetOptions.cacheFile} holds.
+   * @returns true when the file held at least one usable key, which is then verified against until a fetch replaces it.
+   */
+  async load(): Promise<boolean> {
+    const file = this.options.cacheFile
+    if (file === undefined) return false
+    let text: string
+    try {
+      text = await readFile(file, 'utf8')
+    } catch {
+      // Absent until the first fetch succeeds, which is the only writer.
+      return false
+    }
+    let keys: Map<string, KeyObject>
+    try {
+      keys = parseKeySet(JSON.parse(text))
+    } catch (error) {
+      this.options.warn(`identity-user-aeven: ignoring unreadable key set cache ${file}: ${error instanceof Error ? error.message : String(error)}`)
+      return false
+    }
+    if (keys.size === 0 || this.keys.size > 0) return false
+    this.keys = keys
+    return true
+  }
+
   /** Abort any running fetch; later refreshes do nothing. */
   dispose(): void {
     this.controller.abort()
@@ -69,13 +102,32 @@ export class RemoteKeySet {
       const signal = AbortSignal.any([this.controller.signal, AbortSignal.timeout(this.options.timeoutMs)])
       const response = await fetch(this.options.url, { headers: { Accept: 'application/json' }, signal, redirect: 'error' })
       if (!response.ok) throw new Error(`HTTP ${String(response.status)}`)
-      const keys = parseKeySet(await response.json())
+      const text = await response.text()
+      const keys = parseKeySet(JSON.parse(text))
       if (keys.size === 0) throw new Error('the key set holds no ES256 key')
       this.keys = keys
+      await this.store(text)
     } catch (error) {
       // A fetch that fails because the set was disposed says nothing about the API.
       if (this.isDisposed()) return
       this.options.warn(`identity-user-aeven: could not load ${this.options.url}: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+
+  /**
+   * Replace the cache file with a fetched key set; a failed write leaves the previous file.
+   * @param text - the key set document as the API served it.
+   */
+  private async store(text: string): Promise<void> {
+    const file = this.options.cacheFile
+    if (file === undefined) return
+    const staging = `${file}.${String(process.pid)}.tmp`
+    try {
+      await mkdir(dirname(file), { recursive: true })
+      await writeFile(staging, text)
+      await rename(staging, file)
+    } catch (error) {
+      this.options.warn(`identity-user-aeven: could not write ${file}: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
 

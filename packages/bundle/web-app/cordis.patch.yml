@@ -169,6 +169,9 @@
         oauthFlow: !!js process.env.AEVEN_OAUTH_FLOW ?? 'redirect'
         webUrl: !!js process.env.AEVEN_WEB_URL
         mediaUrl: !!js process.env.AEVEN_MEDIA_URL ?? 'http://localhost:9020'
+        # The last key set fetched, so a reader signed in before stays signed in
+        # while the API is unreachable.
+        jwksCacheFile: !!js avnHomePath('identity', 'aeven-jwks.json')
 
     # Session commands, cold reads, and live control over Typert Remote.
     - id: session-controller

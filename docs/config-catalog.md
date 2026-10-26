@@ -1588,6 +1588,13 @@ export interface Config {
   jwksRefreshIntervalMs?: number
   /** Budget for one key set fetch. */
   jwksTimeoutMs?: number
+  /**
+   * File keeping the last key set fetched. A Host that starts with it verifies
+   * tokens at once and refreshes the set in the background, so a reader signed
+   * in before keeps working while the API is unreachable. Absent keeps the keys
+   * in memory only, and the Host waits for its first fetch.
+   */
+  jwksCacheFile?: string
   /** Cookie carrying the refresh token for a request that presents no bearer. */
   refreshCookieName?: string
   /**
