@@ -13,13 +13,22 @@ import { createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 
 import { Popup } from './com/Popup.tsx'
-import { Authenticate } from './views/Authenticate.tsx'
+import { Authenticate, type AuthScreenCover } from './views/Authenticate.tsx'
 import { NameCheck } from './views/NameCheck.tsx'
 import { OauthResult } from './views/OauthResult.tsx'
 import { matchAuthRoute } from './route-match.ts'
-import { AUTH_ROUTES, isAuthRoute } from './services/routes.ts'
+import { AUTH_EXIT_ELSEWHERE, AUTH_ROUTES, isAuthRoute } from './services/routes.ts'
 import { storage } from './services/session.ts'
 import '../../vendor/aeven-auth.css'
+
+/**
+ * How the reader left an authentication screen: `here` through this page, or
+ * `elsewhere` when the sign-in finished in another window — a provider window
+ * or the default browser a shell opened — which the reader is returning from.
+ */
+export type AuthScreenExit = 'here' | 'elsewhere'
+
+export type { AuthScreenCover } from './views/Authenticate.tsx'
 
 /** A mounted authentication screen, and how to take it down. */
 export interface MountedAuthScreen {
@@ -28,8 +37,10 @@ export interface MountedAuthScreen {
    *
    * The boot gate waits on this and then boots the application in the same
    * document, so a reader who signs in is never sent through a document load.
+   * A reader returning from another window should find the cover already up,
+   * so `elsewhere` asks the gate not to fade it in over this screen.
    */
-  readonly authenticated: Promise<void>
+  readonly authenticated: Promise<AuthScreenExit>
   /** Unmount and release the container back to the application. */
   unmount(): void
 }
@@ -52,9 +63,10 @@ function destination(): string {
  * Render the authentication screen a path names.
  * @param container - the element to render into.
  * @param pathname - the browser path.
+ * @param cover - the gate's cover, which a provider sign-in raises from the press on.
  * @returns the mounted screen, or undefined when no screen owns that path.
  */
-export function mountAuthScreen(container: Element, pathname: string): MountedAuthScreen | undefined {
+export function mountAuthScreen(container: Element, pathname: string, cover?: AuthScreenCover): MountedAuthScreen | undefined {
   const match = matchAuthRoute(pathname)
   if (match === undefined) return undefined
 
@@ -63,6 +75,7 @@ export function mountAuthScreen(container: Element, pathname: string): MountedAu
     const screen = current.screen === 'oauthResult'
       ? createElement(OauthResult, { match: { params: current.params } })
       : createElement(Authenticate, {
+        ...cover === undefined ? {} : { cover },
         match: {
           path: current.path,
           params: current.params.authType === undefined ? {} : { authType: current.params.authType },
@@ -85,8 +98,8 @@ export function mountAuthScreen(container: Element, pathname: string): MountedAu
   // what this settles. The boot gate is waiting on it and boots the application
   // in this document; a document load would re-run the whole kernel to reach the
   // same place, and would repaint the cover from the served HTML on the way.
-  let settle: () => void = () => {}
-  const authenticated = new Promise<void>((resolve) => { settle = resolve })
+  let settle: (exit: AuthScreenExit) => void = () => {}
+  const authenticated = new Promise<AuthScreenExit>((resolve) => { settle = resolve })
 
   // The screens navigate between themselves — sign-in to sign-up, and on to the
   // verification step — so the mounted screen follows the address rather than
@@ -97,7 +110,8 @@ export function mountAuthScreen(container: Element, pathname: string): MountedAu
       render(next)
       return
     }
-    settle()
+    const state = window.history.state as { authExit?: unknown } | null
+    settle(state?.authExit === AUTH_EXIT_ELSEWHERE.authExit ? 'elsewhere' : 'here')
   }
   window.addEventListener('popstate', followRoute)
 
@@ -128,8 +142,8 @@ export function mountNameScreen(container: Element, pathname: string): MountedAu
     storage.setItem('authReferrer', pathname)
   }
 
-  let settle: () => void = () => {}
-  const authenticated = new Promise<void>((resolve) => { settle = resolve })
+  let settle: (exit: AuthScreenExit) => void = () => {}
+  const authenticated = new Promise<AuthScreenExit>((resolve) => { settle = resolve })
 
   const root: Root = createRoot(container)
   root.render(
@@ -146,7 +160,7 @@ export function mountNameScreen(container: Element, pathname: string): MountedAu
             // `pushState`: the application reads the address as it boots, and
             // there is no mounted application yet to hear a navigation.
             window.history.pushState(null, '', destination())
-            settle()
+            settle('here')
           },
         }))),
   )

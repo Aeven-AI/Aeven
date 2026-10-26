@@ -52,7 +52,7 @@ Aeven 无法抵达时，`restoreSession` 会用它所保留的最近一份 profi
 
 界面通过离开认证界面来报告成功，而 boot gate 等待的正是这一点：它在读者已经身处的文档中启动应用，因此登录完成的读者绝不会被送进一次文档加载。目标路径是读者最初请求的那一条，记在 `authReferrer` 中；命名界面以相同方式报告成功，先通过 `/set-display-name` 保存名字，随后 gate 重新读取 profile，而不是相信读者已经完成。
 
-提供方登录遵循部署所声明的形式（[`oauthFlow`](../../identity/user-aeven/README.zh.md#provider-sign-in-flow)）。在 `redirect` 下，本文档前往提供方，提供方把它送回 `/oauth-result`，交换在那里进行。在 `window` 下，由一个独立窗口抵达提供方，在该窗口的落地点完成交换后关闭；本文档保持读者请求的页面不变，并通过读取会话把它接过来，因此应用的文档没有任何变化。在此之前，被按下的提供方按钮一直显示进度，并且仍可点击，再次点击即重新开始。自行运行提供方登录的外壳（如在默认浏览器中登录的桌面应用）在会话建立后于 `window` 上派发 `aeven:provider-signed-in`，让本文档立即读取会话；登录未产生会话而结束时派发 `aeven:provider-sign-in-ended`，清除进度。
+提供方登录遵循部署所声明的形式（[`oauthFlow`](../../identity/user-aeven/README.zh.md#provider-sign-in-flow)）。在 `redirect` 下，本文档前往提供方，提供方把它送回 `/oauth-result`，交换在那里进行。在 `window` 下，由一个独立窗口抵达提供方，在该窗口的落地点完成交换后关闭；本文档保持读者请求的页面不变，并通过读取会话把它接过来，因此应用的文档没有任何变化。网关把它的遮罩借给登录界面（`mountAuthScreen` 的 `cover`），从按下起即显示。被按下的提供方按钮显示进度，并且仍可点击，再次点击即重新开始。未完成就返回的读者会重新看到表单：本文档在失去焦点后又持续获得焦点两秒，或从未失去焦点达五秒时，遮罩即撤下。在其他窗口完成的登录以 `elsewhere` 解析 `authenticated`，网关随后不经淡入直接显示遮罩。自行运行提供方登录的外壳（如在默认浏览器中登录的桌面应用）在会话建立后于 `window` 上派发 `aeven:provider-signed-in`，让本文档立即读取会话；登录未产生会话而结束时派发 `aeven:provider-sign-in-ended`，清除进度。
 
 -----
 

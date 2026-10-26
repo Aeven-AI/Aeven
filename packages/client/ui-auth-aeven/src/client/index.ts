@@ -11,7 +11,7 @@
 export { Authenticate, type AuthenticateProps } from './auth/views/Authenticate.tsx'
 export { OauthResult, type OauthResultProps } from './auth/views/OauthResult.tsx'
 export { matchAuthRoute, type AuthRouteMatch } from './auth/route-match.ts'
-export { mountAuthScreen, mountNameScreen, type MountedAuthScreen } from './auth/mount.tsx'
+export { mountAuthScreen, mountNameScreen, type AuthScreenCover, type AuthScreenExit, type MountedAuthScreen } from './auth/mount.tsx'
 export { NameCheck, type NameCheckProps } from './auth/views/NameCheck.tsx'
 export { AUTH_ROUTES, AUTH_ROUTE_PREFIXES, isAuthRoute, navigateRoute } from './auth/services/routes.ts'
 export {
