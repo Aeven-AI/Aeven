@@ -1,7 +1,7 @@
 {
   "name": "@aeven/tool-capability",
   "description": "Model-facing capability learning: the capability_manage tool, learning guidance, and draft recall",
-  "version": "0.3.14-alpha",
+  "version": "0.3.15-alpha",
   "publishConfig": {
     "access": "public"
   },

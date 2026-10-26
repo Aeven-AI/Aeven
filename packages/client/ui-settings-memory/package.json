@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-settings-memory",
   "description": "Settings \u2192 Memory: the signed-in user's memories and learned capabilities, with View, Correct, and Forget",
-  "version": "0.3.14-alpha",
+  "version": "0.3.15-alpha",
   "publishConfig": {
     "access": "public"
   },
