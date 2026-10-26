@@ -21,7 +21,9 @@ const REVIEW_SYSTEM = [
   '2. A claim in the final reply (done, fixed, verified, matches, works, green) that no tool result shows, or that a tool result contradicts.',
   '   This includes a claim that something does not exist, is missing, or is not supported when the tool result behind it read only a filtered, truncated, or partial view: a search pattern or filter that could not match the thing, a cut list, or a first page.',
   '3. A change presented as working although no tool result observed it after the last edit; for a visual or UI change, observing means a browser read or screenshot taken after the last edit and build.',
-  'Do not report style, wording, scope suggestions, or improvements nobody asked for. If the final reply already says plainly that something is not done or not checked, that item is not a problem.',
+  '4. A reply claims work is starting, running, or continuing without a corresponding dispatched tool or continuing job, or promises to act after the turn ends with no job to do it.',
+  'For an action request, listing unfinished authorised work is not completion. Report it unless the user stopped or changed the task, or a concrete blocker requires user input. Questions and requests for a plan do not require execution.',
+  'Do not report style, wording, scope suggestions, or improvements nobody asked for. Disclosing that a check was not run avoids a false verification claim but does not excuse leaving requested work unfinished.',
   'Answer with JSON only, no prose and no code fence: {"complete": true, "issues": []} or {"complete": false, "issues": ["..."]}. Each issue is one sentence that names the request or claim and what the tool results show.',
 ].join('\n')
 
@@ -156,4 +158,53 @@ describe('findings', () => {
     expect(review.ofType('turn-review/request').map(event => [event.data.turn, event.data.round]))
       .toEqual([[1, 1], [2, 1]])
   })
+})
+
+
+describe('action commitments without a file change', () => {
+  it.each(["I'll write the notes now.", 'I am running the checks now.', 'I’m going to fix it.', 'We will keep working on it.'])(
+    'reviews the execution evidence for %s', async (reply) => {
+      const review = await mountReview([
+        textResponse(reply),
+        textResponse('{"complete": false, "issues": ["The requested work has not started; no tool or continuing job exists."]}'),
+        toolCallResponse('c1', 'write', {}),
+        textResponse('Wrote notes.md.'),
+      ], reviewConfig({ maxReviewsPerTurn: 1 }))
+      try {
+        await review.turn()
+        expect(review.ofType('turn-review/request')).toHaveLength(1)
+        expect(review.ofType('tool/call').map(event => event.data.name)).toEqual(['write'])
+        expect(review.injected()[0]?.text).toContain('has not started')
+      } finally {
+        await review.fiber.dispose()
+      }
+    },
+  )
+
+  it('reviews a progress promise after read-only preparation', async () => {
+    const review = await mountReview([
+      toolCallResponse('c1', 'read', {}),
+      textResponse('I am writing the implementation now.'),
+      textResponse(CLEAN),
+    ])
+    try {
+      await review.turn()
+      expect(review.ofType('turn-review/request')).toHaveLength(1)
+      expect(transcriptOf(review.ofType('turn-review/request')[0]!.data)).toContainEqual({ call: 'read', arguments: '{}' })
+    } finally {
+      await review.fiber.dispose()
+    }
+  })
+
+  it.each(['Here is the plan you asked for.', 'The example is:\n```text\nI will write the file.\n```', '> I am running the build.\nThat is the statement you asked about.'])(
+    'keeps plans and quoted examples free of auxiliary calls', async (reply) => {
+      const review = await mountReview([textResponse(reply)])
+      try {
+        await review.turn('Explain this example; do not execute it.')
+        expect(review.ofType('turn-review/request')).toEqual([])
+      } finally {
+        await review.fiber.dispose()
+      }
+    },
+  )
 })

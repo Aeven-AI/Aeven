@@ -14,13 +14,15 @@ In a nine-turn CSS session the agent changed `ProducedFiles.module.css` and `Pro
 
 `@aeven/turn-review` listens on `agent/turn-stopping`. When a turn ends on a text reply and a `write`, `edit`, or `str_replace_editor` call succeeded in it, one auxiliary call on the turn's own route reads the turn as JSON (user messages, tool calls, clipped tool results, replies) and answers `{"complete", "issues"}` for three problems only: a request not done or done differently than asked, a claim no tool result supports or one contradicts — including a claim that something does not exist or is not supported when the result behind it read only a filtered, truncated, or partial view — and a change presented as working without an observation after the last edit. Issues steer the agent into another step through a `plugin`-sourced user message; a clean verdict, a failed or timed-out call, or the `maxReviewsPerTurn` budget (2) lets the turn close. `turn-review/request` records the exact request, `turn-review/verdict` the parsed outcome, and `turn-review/failure` a call that produced neither, with its reason.
 
+Selected final replies containing English action commitments also receive review. The reviewer checks unsupported progress claims and unfinished authorised work even when the reply discloses that it is incomplete; see [execution efficiency](../bug-fix/2026-10-26-agent-execution-efficiency.md).
+
 ## Alternatives considered
 
 **A rule in the persona or system prompt.** Rejected: the session's prompt already told the model to use `edit` for targeted changes, and the model routed around it after a refusal. A guard in the operation is enforcement; prose is not.
 
 **Snapshot the workspace around every bash call.** Rejected for now: a `git status` per call costs time on every command and still cannot tell a formatter run from a hand edit.
 
-**Review every turn.** Rejected: turns that change no file have no edit claims to check, and the extra call would add latency to conversation and research turns.
+**Review every turn.** Rejected: the extra call adds latency to ordinary conversation. Selected action commitments also receive review under the [execution-efficiency decision](../bug-fix/2026-10-26-agent-execution-efficiency.md).
 
 ## Consequences
 

@@ -28,11 +28,9 @@ The generated banners say so on both sides: the file is generated, do not edit i
 
 It is a driver, not a gate. `typecheck`, `test`, and `doc-sync` keep their corpus-wide meaning, and CI still runs them.
 
-### The documentation aggregate asks Git before it walks the corpus
+### Documentation checks cache successful inputs
 
-Once the gates are the only remaining cost, the aggregate itself has to stop repeating work. `doc-sync` and `doc-quick` still run their seventeen gates, and any dirty documentation input runs all of them. What they no longer do is re-read a corpus no dirty path can change: a working tree whose only changes are application source leaves every gate input byte-identical, so the aggregate reads `git status --porcelain`, finds no Markdown, pairing record, generator, or package manifest, and reports the skip instead of spending half a minute confirming what the previous green run established. `AVN_GATE_CACHE=0` disables the skip and CI sets it, so a pushed diff is always checked in full.
-
-`verify-md-links` carries the same idea at the gate level: it hashes the content of every file it reads and skips when a repeat run sees identical bytes — the case where one document changed and the other 2 982 did not.
+The aggregate always schedules its gates. A leaf may skip only when its recorded successful fingerprint matches its current inputs, verifier code, and discovered dependencies. `verify-md-links` includes local file and directory targets, so deleting a linked source file invalidates its cache. See [execution efficiency](../bug-fix/2026-10-26-agent-execution-efficiency.md).
 
 ## Alternatives considered
 
@@ -53,5 +51,3 @@ Once the gates are the only remaining cost, the aggregate itself has to stop rep
 - A generator that owns two locales must place the language switcher after the H1 heading, because the pairing check reads the switcher there. Both generators do, and a locale array makes the next one do it by construction.
 - `check:changed` is a convenience with no spec and no CI role; a defect in the mapping surfaces as a fallback to the corpus-wide command, not as a false pass.
 - `check:changed` reads the working tree only. A commit already made on another branch is not its input; `check:all` and CI remain the authority for a pushed diff.
-- The aggregate skip trusts that HEAD is green, which the merge ruleset and CI establish for `main` and which a topic branch inherits from its base. A branch whose base never passed the gates re-runs them by touching any documentation input or by setting `AVN_GATE_CACHE=0`.
-- A documentation change still pays a full aggregate — 32s for seventeen gates. The skip removes the cost from changes that cannot affect a document, not the cost of a change that does.

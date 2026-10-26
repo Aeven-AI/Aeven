@@ -80,6 +80,8 @@ The value is read when a session is created, so a changed default affects only s
 
 The shipped persona does what the person asks in personal conversations as in work, including looking people up, without refusing because the subject is a private person or adding unrequested warnings; the persona sets no limits of its own.
 
+The shipped persona batches independent tool calls, reads files before guarded edits, checks coherent patches once, and continues authorised actions until completion or a concrete blocker. Progress reports describe dispatched actions and observed results.
+
 ### Authoring presets
 
 Authoring is copy-only: creating a preset copies an existing preset's whole directory — composition, display metadata, skill directories, assets — into the first `user` root. The copy keeps the source's description but gets its own id and an optional display name, so no caller supplies composition text and a copy grants nothing the roster did not already carry. After creation, everything happens in the preset's own files.

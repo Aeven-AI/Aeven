@@ -7,7 +7,7 @@
  * symlinked instruction files are deduped.
  */
 
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, globSync, readFileSync } from 'node:fs'
 import { dirname, relative, resolve } from 'node:path'
 import type { Nodes } from 'mdast'
 import { markdownHeadingLines, parseMarkdown, visitMarkdown } from './markdown.ts'
@@ -159,12 +159,14 @@ export function anchorCache(): (absPath: string) => Set<string> {
  * @param absPath - absolute path of the Markdown source to scan.
  * @param anchorsOf - anchor lookup shared across files for cross-link checks.
  * @param scanRoot - repository root violations are reported relative to.
+ * @param dependencies - optional collection of absolute target paths for cache invalidation.
  * @returns one entry per broken link, in document order.
  */
 export function findViolations(
   absPath: string,
   anchorsOf: (abs: string) => Set<string>,
   scanRoot: string = root,
+  dependencies?: Set<string>,
 ): Violation[] {
   const file = relative(scanRoot, absPath)
   const dir = dirname(absPath)
@@ -176,6 +178,7 @@ export function findViolations(
     if (isExternal(url)) return
     const target = pathPart(url)
     const resolved = target === '' ? absPath : resolve(dir, target)
+    dependencies?.add(resolved)
     if (!existsSync(resolved)) {
       out.push({ file, line: node.position?.start.line ?? 0, url, reason: 'target' })
       return
@@ -198,14 +201,20 @@ export function findViolations(
 if (process.argv[1] && import.meta.filename === resolve(process.argv[1])) {
   // Archived notes remain valid link targets, but their historical outbound links are frozen.
   const files = uniqueRepoFiles(root, PATTERNS, isArchivedAgentNotePath)
-  const inputs = files.map(file => relative(root, file.abs))
+  const inputs = [
+    ...files.map(file => relative(root, file.abs)),
+    ...globSync('scripts/**/*.ts', { cwd: root }),
+    'package.json',
+    'pnpm-lock.yaml',
+  ]
   if (skipIfUnchanged('md-links', inputs)) process.exit(0)
   const anchorsOf = anchorCache()
-  const all = files.flatMap(file => findViolations(file.abs, anchorsOf))
+  const dependencies = new Set<string>()
+  const all = files.flatMap(file => findViolations(file.abs, anchorsOf, root, dependencies))
   const checked = files.length
 
   if (all.length === 0) {
-    recordGreen('md-links', inputs)
+    recordGreen('md-links', inputs, [...dependencies].map(file => relative(root, file)))
     console.log(`verify-md-links: ${checked} file(s) checked, all relative cross-links and fragments resolve.`)
     process.exit(0)
   }

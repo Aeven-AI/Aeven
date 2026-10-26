@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-A model can end a turn with "done" or "verified" while a request is still open or its own tool results show the opposite. `avn-turn-review` reads every turn that changed files before it closes: one auxiliary model call receives the turn's user messages, tool calls, tool results, and final reply, and names requests left undone or done differently than asked, claims no tool result supports or one contradicts, and changes presented as working without an observation after the last edit. Findings send the agent into another step with the list; a clean review, a failed review call, or a spent per-turn budget lets the turn close. It ships enabled in the `avn` base bundle.
+A model can end a turn with "done" or "verified" while a request is still open or its own tool results show the opposite. `avn-turn-review` reads every turn that changed files, or whose final reply contains a screened action commitment, before it closes: one auxiliary model call receives the turn's user messages, tool calls, tool results, and final reply, and names requests left undone or done differently than asked, claims no tool result supports or one contradicts, and changes presented as working without an observation after the last edit. Findings send the agent into another step with the list; a clean review, a failed review call, or a spent per-turn budget lets the turn close. It ships enabled in the `avn` base bundle.
 
 ## Table of Contents
 
@@ -29,7 +29,7 @@ Mount it beside the model runtime when a composition exposes file-editing tools.
 
 ### When to choose it
 
-Choose it when agents edit files and the product's value depends on the turn's final reply matching what the tools actually did. It costs one auxiliary model call per file-changing turn, so a composition that never edits files, or one whose route has no spare capacity, leaves it out. The review is deliberately narrow: it reports only undone or misapplied requests, unsupported or contradicted claims, and changes presented as working without an observation after the last edit — never style, wording, or unrequested improvements.
+Choose it when agents edit files and the product's value depends on the turn's final reply matching what the tools actually did. It costs an auxiliary model call for a selected turn; ordinary conversation without an action commitment is not selected. The review is deliberately narrow: it reports only undone or misapplied requests, unsupported or contradicted claims, and changes presented as working without an observation after the last edit — never style, wording, or unrequested improvements.
 
 ### Minimal configuration
 
@@ -68,7 +68,7 @@ This section explains how one turn is quoted and judged; the observable behavior
 
 ### Design concept
 
-The plugin listens on `agent/turn-stopping`, which runs while the turn can still take another step. It reviews only a turn whose last assistant message carries text with no tool call and no interruption, and only when a trigger tool completed with a non-error result in that turn. The review is one `ctx.llm.stream` call on the turn's own provider and model, or on the configured explicit route; a session with no recorded route is not reviewed.
+The plugin listens on `agent/turn-stopping`, which runs while the turn can still take another step. It reviews only a turn whose last assistant message carries text with no tool call and no interruption, and only when a trigger tool completed with a non-error result in that turn or the final reply matches the English first-person action-commitment screen. The reviewer decides whether a screened commitment actually leaves requested work unfinished; the screen does not dispatch tools. The review is one `ctx.llm.stream` call on the turn's own provider and model, or on the configured explicit route; a session with no recorded route is not reviewed.
 
 The reviewer reads a JSON array built from the turn's events in order: user messages whose source kind is `user`, every tool call with its arguments, every tool result, and every assistant reply. Each entry is clipped to `maxEntryChars`, keeping its head and tail with a cut marker, and the whole array is trimmed by dropping the oldest call and result entries until it fits `maxTranscriptChars`; messages and replies are never dropped.
 
@@ -105,7 +105,7 @@ Read these pages when the package-level contract is not enough.
 
 #### What the model sees
 
-A reviewed turn with a clean verdict adds no message, and a turn without a successful trigger call, one that ends on a tool call, or an interrupted turn is not reviewed at all. Findings arrive as one `plugin`-sourced user message attributed to `turn-review`, listing one line per finding; `<issue>` is the reviewer's one-sentence statement of the request or claim and what the tool results show.
+A reviewed turn with a clean verdict adds no message, and a turn without a successful trigger call or screened action commitment, one that ends on a tool call, or an interrupted turn is not reviewed at all. Findings arrive as one `plugin`-sourced user message attributed to `turn-review`, listing one line per finding; `<issue>` is the reviewer's one-sentence statement of the request or claim and what the tool results show.
 
 ##### Steering message
 
@@ -128,7 +128,7 @@ Append-only. The steering message enters after the prefix the turn already sent,
 
 #### What the model sees
 
-The review is a separate model request. Its system prompt is fixed by the package and names the three problems the reviewer may report; its single user message is `Review this turn:` followed by the quoted transcript as a JSON array of `user`, `call`/`arguments`, `result`/`error`, and `assistant` entries. The reviewer answers with JSON only.
+The review is a separate model request. Its system prompt is fixed by the package and names the four problems the reviewer may report; its single user message is `Review this turn:` followed by the quoted transcript as a JSON array of `user`, `call`/`arguments`, `result`/`error`, and `assistant` entries. The reviewer answers with JSON only.
 
 ##### Review system prompt
 
@@ -140,7 +140,9 @@ Find only these problems:
 2. A claim in the final reply (done, fixed, verified, matches, works, green) that no tool result shows, or that a tool result contradicts.
    This includes a claim that something does not exist, is missing, or is not supported when the tool result behind it read only a filtered, truncated, or partial view: a search pattern or filter that could not match the thing, a cut list, or a first page.
 3. A change presented as working although no tool result observed it after the last edit; for a visual or UI change, observing means a browser read or screenshot taken after the last edit and build.
-Do not report style, wording, scope suggestions, or improvements nobody asked for. If the final reply already says plainly that something is not done or not checked, that item is not a problem.
+4. A reply claims work is starting, running, or continuing without a corresponding dispatched tool or continuing job, or promises to act after the turn ends with no job to do it.
+For an action request, listing unfinished authorised work is not completion. Report it unless the user stopped or changed the task, or a concrete blocker requires user input. Questions and requests for a plan do not require execution.
+Do not report style, wording, scope suggestions, or improvements nobody asked for. Disclosing that a check was not run avoids a false verification claim but does not excuse leaving requested work unfinished.
 Answer with JSON only, no prose and no code fence: {"complete": true, "issues": []} or {"complete": false, "issues": ["..."]}. Each issue is one sentence that names the request or claim and what the tool results show.
 ```
 
@@ -158,8 +160,9 @@ Independent. The review call has its own prefix — a fixed system prompt follow
 
 These limits define what a review can and cannot establish. They are current package constraints, not a task backlog.
 
+- **English commitment screen** — the additional screen recognises selected English first-person action phrases; other wording and languages can escape it. The persona guidance applies independently of this screen.
 - **Clipped evidence** — the review reads tool results trimmed to `maxEntryChars` and the oldest tool entries dropped beyond `maxTranscriptChars`, so evidence outside those budgets is invisible to it.
-- **Untriggered changes go unreviewed** — file changes made outside the trigger tools, such as a formatter run through `bash`, do not trigger a review on their own. A turn that only browses, fetches, or runs commands is not reviewed either, so its claims about what a page or result shows go unchecked; adding those tools to `triggerTools` reviews such turns at the cost of one review call, and the wait for it, per turn.
+- **Untriggered changes go unreviewed** — file changes made outside the trigger tools, such as a formatter run through `bash`, do not trigger a review on their own. Without a screened action commitment, a turn that only browses, fetches, or runs commands is not reviewed either, so its claims about what a page or result shows go unchecked; adding those tools to `triggerTools` reviews such turns at the cost of one review call, and the wait for it, per turn.
 - **A finding is advice, not enforcement** — after `maxReviewsPerTurn` rounds the turn closes with its findings unresolved, and a failed, timed-out, or unparseable review leaves the reply as written.
 - **No invariant companion is published** — the review observes the turn it just read: the request and its outcome are logged as `turn-review/request` and either `turn-review/verdict` or `turn-review/failure`, and a reporter would re-derive the same records rather than compare independent observations.
 
