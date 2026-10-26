@@ -18,9 +18,10 @@ const SESSION_POLL_MS = 1000
 /**
  * How long this document may hold focus during a provider sign-in before the
  * reader counts as back without finishing. Longer than the desktop shell needs
- * to collect and exchange a finished sign-in after the reader switches back.
+ * to collect and exchange a finished sign-in, which it starts the moment the
+ * reader switches back.
  */
-const RETURN_FOCUS_MS = 2000
+const RETURN_FOCUS_MS = 750
 
 /**
  * How long this document may keep focus after the press before the provider's

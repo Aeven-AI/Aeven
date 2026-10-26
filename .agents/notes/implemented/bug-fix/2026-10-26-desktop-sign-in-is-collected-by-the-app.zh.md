@@ -10,7 +10,7 @@ Status: implemented
 
 ## 决定
 
-外壳生成一个 verifier，并以 `?app=desktop&nonce=<sha256(verifier)>` 在系统浏览器中打开提供方路由（[oauth-browser.ts](../../../../apps/desktop/src/oauth-browser.ts)）。网关（`servers/node`，`passport/OAuthRedirectTarget.js`）把该哈希记在会话上，对 Apple 不带 cookie 的 form-post 回调还记在签名的 `state` 中。提供方完成后，网关把 session/challenge 对或拒绝结果以该哈希为键存入 Redis，保留十分钟（`passport/DesktopHandoff.js`），并让浏览器停在 `https://aeven.io/oauth-result/desktop`，这是一个显示 "You are signed in to Aeven. You can close this page and return to the app." 的品牌页。外壳每秒向 `/oauth/desktop/claim` 提交 verifier，只收取一次该对值，并通过持有 API 刷新 cookie 的会话完成交换。网络失败和服务器错误视为尚未收取到结果。网关的遮罩从按下起即显示，被按下的提供方按钮显示进度；未完成就返回的读者在获得焦点两秒后看到恢复原样的表单，浏览器从未获得焦点时为五秒，等待在后台继续。外壳先完成交换，再把窗口带到前台并报告 `signed-in`，窗口随即显示加载遮罩；超时或失败时报告 `ended`，清除进度。因此读者从浏览器回来时，不会在登录完成期间看到一个空闲的登录表单。
+外壳生成一个 verifier，并以 `?app=desktop&nonce=<sha256(verifier)>` 在系统浏览器中打开提供方路由（[oauth-browser.ts](../../../../apps/desktop/src/oauth-browser.ts)）。网关（`servers/node`，`passport/OAuthRedirectTarget.js`）把该哈希记在会话上，对 Apple 不带 cookie 的 form-post 回调还记在签名的 `state` 中。提供方完成后，网关把 session/challenge 对或拒绝结果以该哈希为键存入 Redis，保留十分钟（`passport/DesktopHandoff.js`），并让浏览器停在 `https://aeven.io/oauth-result/desktop`，这是一个显示 "You are signed in to Aeven. You can close this page and return to the app." 的品牌页。外壳每秒向 `/oauth/desktop/claim` 提交 verifier，只收取一次该对值，并通过持有 API 刷新 cookie 的会话完成交换。网络失败和服务器错误视为尚未收取到结果。网关的遮罩从按下起即显示，被按下的提供方按钮显示进度；未完成就返回的读者在获得焦点 0.75 秒后看到恢复原样的表单，浏览器从未获得焦点时为五秒，等待在后台继续；外壳的窗口重新获得焦点时会立即收取，因此已完成的登录会先到达。外壳先完成交换，再把窗口带到前台并报告 `signed-in`，窗口随即显示加载遮罩；超时或失败时报告 `ended`，清除进度。因此读者从浏览器回来时，不会在登录完成期间看到一个空闲的登录表单。
 
 ## 考虑过的替代方案
 
