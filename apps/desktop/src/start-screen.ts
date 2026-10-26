@@ -93,8 +93,8 @@ function startPageStyles(platform: NodeJS.Platform, scheme: StartScreenScheme): 
     // Positioned out of flow, so a line appearing never moves the mark and spinner the client's preloader repaints.
     + 'main{position:relative}'
     + '.avn-start-status{position:absolute;top:100%;left:50%;transform:translateX(-50%);width:min(80vw,260px);'
-    + 'margin:14px 0 0;text-align:center;font:11px/1.4 -apple-system,system-ui,sans-serif;'
-    + 'color:var(--avn-start-ink);opacity:.55}'
+    + 'margin:14px 0 0;text-align:center;font:14px/1.4 \'Google Sans Flex\',\'Google Sans\',sans-serif;'
+    + 'color:#000}'
 }
 
 /**
