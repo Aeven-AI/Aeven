@@ -76,6 +76,13 @@ interface ToolArgsMap {
     /** Optional positive safe-integer limit on automatic continuation rounds. */
     max_goal_rounds?: number;
   } & Record<string, JsonValue>;
+  /** Create a git worktree on a new branch and move this session into it. Use it when a task needs its own checkout: work in parallel with another agent on the same repository, try a change without touching the main working tree, or leave a build in place while starting something else. The new checkout is created from HEAD, or from the revision you name, and every later file, shell, and search call resolves against it. */
+  create_worktree: {
+    /** Worktree name: letters, digits, dots, dashes, or underscores. The branch and the checkout directory both use it. Omit for a generated name. */
+    name?: string;
+    /** Revision the new branch starts from: a branch, tag, or commit. Defaults to HEAD of the session's repository. */
+    from?: string;
+  } & Record<string, JsonValue>;
   /** Edit an existing UTF-8 text file by replacing literal text. */
   edit: {
     /** Path to edit, resolved by the filesystem backend. */
@@ -270,6 +277,11 @@ interface ToolArgsMap {
     /** Optional JSON input exposed to the script as the `args` global (wrap a bare list as a field, e.g. {"files": [...]}). */
     args?: Record<string, JsonValue>;
   } & Record<string, JsonValue>;
+  /** Read or change this session's working directory. With no path, report the current directory. With a path, resolve it (absolute, or relative to the current directory), require an existing directory, and make it the directory every later file, shell, and search call resolves against. The change lasts for the rest of the session; there is no directory stack to pop. */
+  working_directory: {
+    /** Directory to enter: absolute, or relative to the current working directory. Omit to read the current directory. */
+    path?: string;
+  } & Record<string, JsonValue>;
   /** Create or fully replace a UTF-8 text file. */
   write: {
     /** Path to write, resolved by the filesystem backend. */
@@ -329,6 +341,12 @@ interface ToolOutputMap {
       };
     };
     activation: "armed" | "disarmed";
+  };
+  create_worktree: {
+    path: string;
+    branch: string;
+    baseCommit: string;
+    repositoryRoot: string;
   };
   edit: {
     path: string;
@@ -540,6 +558,10 @@ interface ToolOutputMap {
     runId: string;
     agentsStarted: number;
     result: JsonValue;
+  };
+  working_directory: {
+    cwd: string;
+    changed: boolean;
   };
   write: {
     path: string;
