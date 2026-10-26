@@ -88,4 +88,4 @@ Append-only; the result follows the reusable request prefix and does not invalid
 - **`list` has no tool.** The capability lists checkouts, but no model-facing verb exposes it yet; a model that needs to know its siblings asks the shell.
 - **Removal is manual.** `git worktree remove` is not wrapped, so a finished checkout stays registered until someone removes it or the directory is pruned.
 - **A checkout inside the repository shows up as untracked.** The configured `directory` defaults to a path under the repository root, so a repository that does not ignore it reports `.aeven/` in `git status`. A deployment that wants a clean source tree points `directory` outside the repository.
-- This package publishes no `./invariant` companion: its observable outcome is the git exit status plus the `session/cwd` it appends, which the specs assert directly, and a companion could only restate them.
+- No invariant companion is published because its observable outcome is the git exit status plus the `session/cwd` it appends, which the specs assert directly, and a companion could only restate them.

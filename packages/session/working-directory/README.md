@@ -55,7 +55,7 @@ The `workingDirectory` projection unit folds the same events for clients.
 
 ## Dev Note
 
-The service publishes no `./invariant` companion. Its one owned relationship — the projection agreeing with `of()` — is observed inside the unit spec on a real session log, and no independent observation exists that could diverge from it.
+No invariant companion is published because its one owned relationship — the projection agreeing with `of()` — is observed inside the unit spec on a real session log, and no independent observation exists that could diverge from it.
 
 `of()` returns `undefined` rather than falling back to the process directory, so a session created without a `cwd` is visibly undecided instead of silently inheriting wherever the host happened to start. The tool turns that into an actionable message; `resolve()` is the one place that falls back, and only because a caller asked for a path it needs.
 

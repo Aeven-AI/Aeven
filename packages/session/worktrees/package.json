@@ -1,17 +1,33 @@
 {
   "name": "@aeven/worktrees",
-  "version": "0.3.17-alpha",
-  "private": true,
-  "type": "module",
   "description": "Git worktrees as a session capability: create a branch-backed checkout and move the session into it.",
+  "version": "0.3.17-alpha",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Aeven.git",
+    "directory": "packages/session/worktrees"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
   },
-  "types": "./src/index.ts",
-  "scripts": {
-    "build": "tsc -b"
-  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
   "dependencies": {
+    "@aeven/brand": "workspace:^",
     "zod": "^4.4.3"
   },
   "peerDependencies": {
