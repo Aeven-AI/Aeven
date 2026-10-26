@@ -89,19 +89,19 @@ function actions(
       // Installing restarts Aeven, so it happens on this answer and never on quit.
       return (
         <>
-          <Button variant="ghost" onClick={close}>{t('later')}</Button>
+          <Button variant="primary" onClick={close}>{t('later')}</Button>
           <Button variant="primary" onClick={install}>{t('restart')}</Button>
         </>
       )
     case 'error':
       return (
         <>
-          <Button variant="ghost" onClick={close}>{t('close')}</Button>
+          <Button variant="primary" onClick={close}>{t('close')}</Button>
           <Button variant="primary" onClick={check}>{t('retry')}</Button>
         </>
       )
     case 'idle':
-      return <Button variant="ghost" onClick={close}>{t('close')}</Button>
+      return <Button variant="primary" onClick={close}>{t('close')}</Button>
     case 'checking':
     case 'available':
     case 'downloading':
