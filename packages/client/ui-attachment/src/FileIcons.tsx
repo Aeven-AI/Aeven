@@ -1,10 +1,12 @@
 /** File-type, status, and control icons of the upload tray. */
 
 /** Icon family chosen from a file's extension and media type. */
-export type FileIconKind = 'pdf' | 'doc' | 'sheet' | 'slides' | 'code'
+export type FileIconKind = 'pdf' | 'doc' | 'sheet' | 'slides' | 'video' | 'audio' | 'code'
 
 const DOC_EXTENSIONS = new Set(['txt', 'rtf', 'doc', 'docx', 'md', 'markdown', 'odt', 'rtfd', 'pages', 'epub'])
 const SHEET_EXTENSIONS = new Set(['xls', 'xlsx', 'xlsm', 'csv', 'tsv', 'ods', 'numbers'])
+const VIDEO_EXTENSIONS = new Set(['mp4', 'm4v', 'mov', 'webm'])
+const AUDIO_EXTENSIONS = new Set(['mp3'])
 const SLIDES_EXTENSIONS = new Set(['ppt', 'pptx', 'key', 'odp', 'potx'])
 
 /**
@@ -20,7 +22,11 @@ export function fileIconKind(name: string, mediaType: string): FileIconKind {
   if (DOC_EXTENSIONS.has(extension)) return 'doc'
   if (SHEET_EXTENSIONS.has(extension)) return 'sheet'
   if (SLIDES_EXTENSIONS.has(extension)) return 'slides'
+  if (VIDEO_EXTENSIONS.has(extension)) return 'video'
+  if (AUDIO_EXTENSIONS.has(extension)) return 'audio'
   const type = mediaType.toLowerCase()
+  if (type.startsWith('video/')) return 'video'
+  if (type.startsWith('audio/')) return 'audio'
   if (type === 'application/pdf') return 'pdf'
   if (type.startsWith('text/plain') || type === 'application/rtf' || type === 'text/rtf' || type === 'text/markdown'
     || type === 'application/msword' || type === 'application/vnd.oasis.opendocument.text'
@@ -91,6 +97,23 @@ export function FileTypeIcon({ kind }: { kind: FileIconKind }) {
           <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
           <path d="M14 2v4a2 2 0 0 0 2 2h4" />
           <path d="m16 13-3.5 3.5-2-2L8 17" />
+        </svg>
+      )
+    case 'video':
+      return (
+        <svg {...OUTLINE}>
+          <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+          <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+          <path d="m10 11 6 4-6 4Z" />
+        </svg>
+      )
+    case 'audio':
+      return (
+        <svg {...OUTLINE}>
+          <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+          <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+          <path d="M14 10v7m0-7 3 1" />
+          <ellipse cx="12" cy="17" rx="2" ry="1.5" />
         </svg>
       )
     case 'code':
