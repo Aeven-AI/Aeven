@@ -127,6 +127,12 @@ class CreateGoalOutput2(TypedDict):
     goal: CreateGoalOutput2Goal
     activation: Literal["armed", "disarmed"]
 
+class CreateWorktreeOutput(TypedDict):
+    path: str
+    branch: str
+    baseCommit: str
+    repositoryRoot: str
+
 class EditArgs(TypedDict):
     # Path to edit, resolved by the filesystem backend.
     file_path: str
@@ -557,6 +563,15 @@ class WorkflowOutput(TypedDict):
     agentsStarted: int
     result: Any
 
+class WorkingDirectoryArgs(TypedDict):
+    # Directory to enter: absolute, or relative to the current working directory. Omit to read the current directory.
+    path: NotRequired[str]
+    # Additional keys beyond those declared are allowed.
+
+class WorkingDirectoryOutput(TypedDict):
+    cwd: str
+    changed: bool
+
 class WriteArgs(TypedDict):
     # Path to write, resolved by the filesystem backend.
     file_path: str
@@ -579,6 +594,8 @@ class Tools(Protocol):
         """Execute a bash command (`bash -c`) and return its stdout/stderr. Each call runs in a fresh shell; pass `workdir` instead of using `cd`. Managed `$AVN_*` variables expose current harness environment facts. Long output is truncated to its tail; the full output is saved to a file whose path is reported when available. A foreground command still running after 20000ms is handed back as a background job instead of blocking the turn. Provide `description` before `command` in the arguments. Before any delete or move, verify that the resolved absolute target path is the intended one; never run it against a computed path you have not checked. An unset variable expands to an empty string, so guard variables in such paths with `${VAR:?}`. Commands run under a file sandbox; a blocked file operation is reported as `[sandbox: file access denied under <mode> mode]`, a policy denial: do not retry another way except through the escalation the denial offers. Attempting a command the sandbox may deny is safe: run it rather than assuming the denial."""
     async def create_goal(self, args: CreateGoalArgs) -> CreateGoalOutput1 | CreateGoalOutput2:
         """Create a persisted goal that keeps this session working across automatic continuation rounds. Use it when the direct human request is a long-running objective, even if the user did not say \"goal\"; not for single-turn work."""
+    async def create_worktree(self, args: dict[str, Any]) -> CreateWorktreeOutput:
+        """Create a git worktree on a new branch and move this session into it. Use it when a task needs its own checkout: work in parallel with another agent on the same repository, try a change without touching the main working tree, or leave a build in place while starting something else. The new checkout is created from HEAD, or from the revision you name, and every later file, shell, and search call resolves against it."""
     async def edit(self, args: EditArgs) -> EditOutput:
         """Edit an existing UTF-8 text file by replacing literal text."""
     async def exit_plan_mode(self, args: ExitPlanModeArgs) -> ExitPlanModeOutput:
@@ -625,6 +642,8 @@ class Tools(Protocol):
         """Search the web for current information. Returns an optional summary answer and a list of source URLs."""
     async def workflow(self, args: WorkflowArgs) -> WorkflowOutput:
         """Run a JavaScript workflow script that orchestrates subagents at scale. Use this for work that fans out across many independent pieces — an audit over many files, a migration, multi-angle research, adversarial verification of findings — where you write the orchestration as a script instead of delegating turn by turn. The workflow's identity rides the `meta` parameter as JSON: required `name` (short kebab-case) and `description` strings, optional `whenToUse` string and `phases` array (`{title, detail?, provider?, model?}`). The `script` parameter is the plain JavaScript body ONLY (NOT TypeScript, and NO `export const meta` statement — meta is a parameter, not code), running with top-level await; end with `return <value>` — the value must be JSON-serializable and is this tool's result. Script-body hooks: - `agent(prompt, opts?): Promise<any>` — run one subagent to completion. Without `opts.schema` it resolves to the child's final text; with `opts.schema` (an object-rooted JSON Schema using ONLY type/properties/required/additionalProperties/items/enum/const/oneOf — no pattern/format/numeric bounds) it resolves to the validated object. Resolves `null` when the child fails (filter with `.filter(Boolean)`). Other opts: `label` (display), `phase` (progress group), and independent `provider`/`model` LLM target overrides (either may be provided alone). Anything else (`effort`/`isolation`/`agentType`) is rejected loudly. - `pipeline(items, ...stages): Promise<any[]>` — run each item through the stages independently with NO barrier between stages (prefer this for multi-stage work). Each stage receives `(prev, item, index)`. An ordinary stage throw drops that ITEM to `null` and skips its remaining stages. - `parallel(thunks): Promise<any[]>` — run zero-argument functions concurrently and await ALL of them (a barrier; use only when a stage genuinely needs every prior result together). A throwing thunk resolves to `null`. - `phase(title)` — start a progress phase; `log(message)` — narrate progress; `args` — the tool call's `args` input, verbatim. Misused hooks (bad arguments, unknown options, unsupported schemas, tripped caps) throw errors that ALWAYS kill the script — they never dissolve into a per-item `null`. Constraints: concurrency and total-agent caps apply; no filesystem, network, timers, or Node.js APIs are provided — the agents do the work, the script only coordinates them. The run executes in the foreground: this call returns when the whole script finishes."""
+    async def working_directory(self, args: WorkingDirectoryArgs) -> WorkingDirectoryOutput:
+        """Read or change this session's working directory. With no path, report the current directory. With a path, resolve it (absolute, or relative to the current directory), require an existing directory, and make it the directory every later file, shell, and search call resolves against. The change lasts for the rest of the session; there is no directory stack to pop."""
     async def write(self, args: WriteArgs) -> WriteOutput:
         """Create or fully replace a UTF-8 text file."""
 
