@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type RefObject } from 'react'
 import type React from 'react'
 
 import JSConfetti from '../../../vendor/confetti/index.ts'
@@ -89,6 +89,7 @@ const configService = {
 const oauthService = {
   open: oauth.openProviderSignIn,
   awaitSession: oauth.awaitProviderSession,
+  onEnded: oauth.onProviderSignInEnded,
 }
 const utilityService = utility
 const storageService = storage
@@ -170,6 +171,11 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
   const loginX = useRef<ButtonHandle>(null)
   const loginApple = useRef<ButtonHandle>(null)
   const loginGoogle = useRef<ButtonHandle>(null)
+
+  // A provider sign-in an embedding shell ran and lost leaves nothing in progress.
+  useEffect(() => oauthService.onEnded(() => {
+    for (const provider of [loginX, loginApple, loginGoogle]) provider.current?.loadingStatus(false)
+  }), [])
 
   /** The screen's root class, which the stylesheet keys on. */
   const componentName = 'authenticate'
@@ -468,10 +474,16 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
    * leaves this document where it is, so the reader keeps the page they asked
    * for; that window finishes the sign-in and this one picks the session up as
    * it does after the email form.
+   *
+   * The pressed button shows progress from the press on, so a reader coming back
+   * from the provider finds a sign-in in progress rather than an idle form; it
+   * still takes presses, and pressing any provider again starts over.
    * @param url - the provider's sign-in URL, absent when the deployment offers that provider.
+   * @param button - the button that was pressed.
    */
-  const beginProviderSignIn = (url: string | undefined): void => {
+  const beginProviderSignIn = (url: string | undefined, button: RefObject<ButtonHandle | null>): void => {
     if (url === undefined) return
+    for (const provider of [loginX, loginApple, loginGoogle]) provider.current?.loadingStatus(provider === button)
     if (configService.oauthFlow() === 'redirect') {
       location.href = url
       return
@@ -498,19 +510,19 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
 
       case 'x':
         {
-          beginProviderSignIn(configService.oauth.xOAuth)
+          beginProviderSignIn(configService.oauth.xOAuth, loginX)
         }
         break
 
       case 'apple':
         {
-          beginProviderSignIn(configService.oauth.appleOAuth)
+          beginProviderSignIn(configService.oauth.appleOAuth, loginApple)
         }
         break
 
       case 'google':
         {
-          beginProviderSignIn(configService.oauth.googleOAuth)
+          beginProviderSignIn(configService.oauth.googleOAuth, loginGoogle)
         }
         break
     }
@@ -843,6 +855,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
               <Button
                 ref={loginX}
                 type={'loaderButtonIcon'}
+                interruptible
                 cssClass={'loader-button-icon large light'}
                 label={t(`${mode}.withX`)}
                 loading={false}
@@ -860,6 +873,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
               <Button
                 ref={loginApple}
                 type={'loaderButtonIcon'}
+                interruptible
                 cssClass={'loader-button-icon large light'}
                 label={t(`${mode}.withApple`)}
                 loading={false}
@@ -877,6 +891,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
               <Button
                 ref={loginGoogle}
                 type={'loaderButtonIcon'}
+                interruptible
                 cssClass={'loader-button-icon large light'}
                 label={t(`${mode}.withGoogle`)}
                 loading={false}

@@ -8,6 +8,7 @@ import {
   type DesktopBrowserCursor,
   type DesktopCaptionAction,
   type DesktopMenuCommand,
+  type DesktopProviderSignInState,
   type DesktopUpdateState,
 } from './ipc.ts'
 
@@ -79,6 +80,19 @@ const api: AvnDesktopAppApi = {
 }
 
 contextBridge.exposeInMainWorld('avnDesktop', api)
+
+/**
+ * The window events `@aeven/client-ui-auth-aeven` follows while a provider
+ * sign-in runs outside the page, by the state the shell reports.
+ */
+const PROVIDER_SIGN_IN_EVENTS: Readonly<Record<DesktopProviderSignInState, string>> = {
+  'signed-in': 'aeven:provider-signed-in',
+  ended: 'aeven:provider-sign-in-ended',
+}
+
+ipcRenderer.on(DESKTOP_IPC.providerSignIn, (_event: Electron.IpcRendererEvent, state: DesktopProviderSignInState) => {
+  window.dispatchEvent(new Event(PROVIDER_SIGN_IN_EVENTS[state]))
+})
 
 /** The scheme the page renders in: its own `color-scheme`, else the system's. */
 function pageScheme(): 'light' | 'dark' {

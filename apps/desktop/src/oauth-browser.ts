@@ -19,6 +19,9 @@ const SIGN_IN_TIMEOUT_MS = 10 * 60 * 1000
 /** Pause between two collection attempts while the reader is still at the provider. */
 const CLAIM_INTERVAL_MS = 1000
 
+/** How one sign-in ended without landing. */
+export type BrowserSignInOutcome = 'landed' | 'replaced' | 'timed-out'
+
 /** Stops the one sign-in in flight; a newer one replaces it. */
 let cancelActive: (() => void) | undefined
 
@@ -89,19 +92,24 @@ async function collect(fetcher: typeof fetch, claimUrl: string, verifier: string
  * @param options.openExternal - opens a URL in the reader's default browser.
  * @param options.land - receives the `/oauth-result/...` path the finished sign-in collected.
  * @param options.fetcher - sends the collection request.
- * @returns resolves once the sign-in landed, failed, timed out, or was replaced by a newer one.
+ * @returns how the sign-in ended: it landed, a newer one replaced it, or it timed out.
+ * @throws when the site refuses the collection.
  */
 export async function startBrowserSignIn(options: {
   readonly providerUrl: string
   readonly openExternal: (url: string) => Promise<void>
   readonly land: (path: string) => void
   readonly fetcher?: typeof fetch
-}): Promise<void> {
+}): Promise<BrowserSignInOutcome> {
   cancelActive?.()
   const controller = new AbortController()
+  let outcome: BrowserSignInOutcome = 'replaced'
   const cancel = (): void => { controller.abort() }
   cancelActive = cancel
-  const timer = setTimeout(cancel, SIGN_IN_TIMEOUT_MS)
+  const timer = setTimeout(() => {
+    outcome = 'timed-out'
+    cancel()
+  }, SIGN_IN_TIMEOUT_MS)
   const fetcher = options.fetcher ?? fetch
   const verifier = randomBytes(32).toString('base64url')
   const nonce = createHash('sha256').update(verifier).digest('base64url')
@@ -112,7 +120,7 @@ export async function startBrowserSignIn(options: {
       const landing = await collect(fetcher, claimUrl, verifier, controller.signal)
       if (landing !== undefined) {
         options.land(landing)
-        return
+        return 'landed'
       }
       await new Promise<void>((resolve) => {
         const pause = setTimeout(resolve, CLAIM_INTERVAL_MS)
@@ -125,4 +133,5 @@ export async function startBrowserSignIn(options: {
     clearTimeout(timer)
     if (cancelActive === cancel) cancelActive = undefined
   }
+  return outcome
 }

@@ -15,6 +15,19 @@ import { getProfile } from './api.ts'
 /** How long this document waits between reads of the session. */
 const SESSION_POLL_MS = 1000
 
+/**
+ * Window event an embedding shell dispatches once it has established the
+ * session a provider sign-in produced outside this page, as the desktop shell
+ * does after its default-browser sign-in; the wait reads the session at once.
+ */
+export const PROVIDER_SIGNED_IN_EVENT = 'aeven:provider-signed-in'
+
+/**
+ * Window event an embedding shell dispatches when a provider sign-in it ran
+ * ended without a session: it timed out or failed.
+ */
+export const PROVIDER_SIGN_IN_ENDED_EVENT = 'aeven:provider-sign-in-ended'
+
 /** Window features for a provider's consent form. */
 const PROVIDER_WINDOW_FEATURES = 'popup=yes,width=520,height=760'
 
@@ -54,8 +67,26 @@ export function isProviderLanding(): boolean {
  */
 export async function awaitProviderSession(): Promise<void> {
   while (!await hasSession()) {
-    await new Promise((resolve) => { setTimeout(resolve, SESSION_POLL_MS) })
+    await new Promise<void>((resolve) => {
+      const wake = (): void => {
+        clearTimeout(timer)
+        window.removeEventListener(PROVIDER_SIGNED_IN_EVENT, wake)
+        resolve()
+      }
+      const timer = setTimeout(wake, SESSION_POLL_MS)
+      window.addEventListener(PROVIDER_SIGNED_IN_EVENT, wake)
+    })
   }
+}
+
+/**
+ * Follow the end of a provider sign-in that produced no session.
+ * @param listener - called each time an embedding shell reports one.
+ * @returns disposer removing the listener.
+ */
+export function onProviderSignInEnded(listener: () => void): () => void {
+  window.addEventListener(PROVIDER_SIGN_IN_ENDED_EVENT, listener)
+  return () => { window.removeEventListener(PROVIDER_SIGN_IN_ENDED_EVENT, listener) }
 }
 
 /**

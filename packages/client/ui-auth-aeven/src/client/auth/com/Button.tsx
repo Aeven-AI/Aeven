@@ -31,6 +31,12 @@ export interface ButtonProps {
   icon?: string
   /** Initial progress state; later changes come through the handle. */
   loading?: boolean
+  /**
+   * Keep taking clicks while showing progress. For a wait the reader may have
+   * abandoned elsewhere, such as a provider sign-in in another window, where
+   * pressing again starts over.
+   */
+  interruptible?: boolean
   onClick?: (event: MouseEvent<HTMLButtonElement>) => void
 }
 
@@ -45,7 +51,7 @@ export interface ButtonHandle {
 }
 
 export const Button = forwardRef<ButtonHandle, ButtonProps>(function Button(props, ref) {
-  const { type, cssClass, label, icon, loading, onClick } = props
+  const { type, cssClass, label, icon, loading, interruptible, onClick } = props
   const [busy, setBusy] = useState(loading ?? false)
 
   useEffect(() => { setBusy(loading ?? false) }, [loading])
@@ -60,7 +66,7 @@ export const Button = forwardRef<ButtonHandle, ButtonProps>(function Button(prop
         event.stopPropagation()
         // A button showing progress ignores further clicks, so a second
         // request cannot be raised while the first is open.
-        if (!busy) onClick?.(event)
+        if (!busy || interruptible === true) onClick?.(event)
       }}
     >
       <span className="container">
