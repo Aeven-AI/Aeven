@@ -440,6 +440,7 @@
       "@aeven/session": ["./packages/core/session/src"],
       "@aeven/session/invariant": ["./packages/core/session/src/invariant.ts"],
       "@aeven/session-checkpoint-policy": ["./packages/session/session-checkpoint-policy/src"],
+      "@aeven/session-labels": ["./packages/session/session-labels/src"],
       "@aeven/session-log-deepseek": ["./packages/session/session-log-deepseek/src"],
       "@aeven/session-log-deepseek/invariant": ["./packages/session/session-log-deepseek/src/invariant.ts"],
       "@aeven/session-persistence": ["./packages/session/session-persistence/src"],
