@@ -1,7 +1,7 @@
 {
   "name": "@aeven/tool-lsp",
   "description": "Model-facing lsp tool over the Aeven LSP capability seam (ctx.lsp) — one read-only tool with goToDefinition/findReferences/goToImplementation/hover operations, one-based UTF-16 cursor coordinates, bounded location rendering, and hover normalization",
-  "version": "0.3.17-alpha",
+  "version": "0.3.18-alpha",
   "publishConfig": {
     "access": "public"
   },

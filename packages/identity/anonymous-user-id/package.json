@@ -1,7 +1,7 @@
 {
   "name": "@aeven/anonymous-user-id",
   "description": "Shared anonymous user identity for Aeven telemetry and feedback correlation",
-  "version": "0.3.17-alpha",
+  "version": "0.3.18-alpha",
   "publishConfig": {
     "access": "public"
   },
