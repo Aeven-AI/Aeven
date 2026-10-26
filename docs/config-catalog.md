@@ -1765,6 +1765,44 @@ Depends on: [`DeepSeekCatalogModel`](../packages/llm/llm-deepseek/src/index.ts) 
 
 Source: [`packages/llm/llm-aeven/src/index.ts:225`](../packages/llm/llm-aeven/src/index.ts)
 
+<a id="aevenllm-cache-warm"></a>
+
+## `@aeven/llm-cache-warm`
+
+Requires: `llm`
+
+```ts config-catalog
+/** Plugin configuration; every field is changeable from `cordis.yml`. */
+export interface Config {
+  /** Per-provider warming schedule, keyed by provider name; a provider absent here is never warmed. */
+  providers: Record<string, ProviderSchedule>
+  /** Tool names whose block is a human wait rather than model work. */
+  excludeTools: string[]
+  /** Prefix size below which a cache miss costs less than a warm. */
+  minPrefixChars: number
+  /** Warms allowed in flight across all sessions. */
+  maxConcurrentPings: number
+  /** Warm dispatches allowed per UTC day. */
+  dailyPingBudget: number
+  /** Cap on one warm request's lifetime. */
+  pingTimeoutMs: number
+  /** Warms per tool call when the provider entry sets no cap. */
+  maxPings: number
+  /** Journal each warm as a `cache-warm/start` event and dispatch nothing. */
+  dryRun: boolean
+}
+
+/** One provider's warming schedule; its presence in the table enables that provider. */
+export interface ProviderSchedule {
+  /** Delay between warms while a tool call is in flight, under that provider's cache lifetime. */
+  readonly intervalMs: number
+  /** Warms per tool call for this provider; absent uses the plugin-wide cap. */
+  readonly maxPings?: number
+}
+```
+
+Source: [`packages/llm/llm-cache-warm/src/index.ts:40`](../packages/llm/llm-cache-warm/src/index.ts)
+
 <a id="aevenllm-deepseek"></a>
 
 ## `@aeven/llm-deepseek`

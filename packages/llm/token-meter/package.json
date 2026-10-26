@@ -35,6 +35,7 @@
     "@deepseek-ai/cordis": "workspace:^",
     "@aeven/compaction": "workspace:^",
     "@aeven/llm": "workspace:^",
+    "@aeven/llm-cache-warm": "workspace:^",
     "@aeven/llm-retry": "workspace:^",
     "@aeven/session": "workspace:^",
     "@aeven/session-projection": "workspace:^"
@@ -48,6 +49,7 @@
     "@deepseek-ai/cordis": "workspace:^",
     "@aeven/compaction": "workspace:^",
     "@aeven/llm": "workspace:^",
+    "@aeven/llm-cache-warm": "workspace:^",
     "@aeven/llm-retry": "workspace:^",
     "@aeven/session": "workspace:^",
     "@aeven/session-projection": "workspace:^"

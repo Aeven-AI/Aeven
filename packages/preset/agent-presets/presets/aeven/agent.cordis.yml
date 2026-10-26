@@ -476,3 +476,16 @@
 - id: tool-cordis
   name: '@aeven/tool-cordis'
   disabled: true
+
+# Prompt-cache warming: while a tool call keeps the loop waiting, replay the
+# session's last conversation request with a one-token cap, so the tool result
+# the loop appends next still lands on a cached prefix. Each warm spends a
+# cached prefix read, so a deployment enables it only for a provider whose cache
+# lifetime it knows, with `intervalMs` under that lifetime.
+- id: llm-cache-warm
+  name: '@aeven/llm-cache-warm'
+  disabled: true
+  config:
+    providers:
+      deepseek:
+        intervalMs: 240000

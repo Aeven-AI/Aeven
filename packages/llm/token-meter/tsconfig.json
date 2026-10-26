@@ -21,6 +21,9 @@
       "path": "../../llm/llm"
     },
     {
+      "path": "../../llm/llm-cache-warm"
+    },
+    {
       "path": "../../llm/llm-retry"
     },
     {

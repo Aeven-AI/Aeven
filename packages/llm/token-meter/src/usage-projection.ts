@@ -5,6 +5,7 @@
 import { z } from 'zod'
 import type { TokenUsage } from '@aeven/llm'
 import type {} from '@aeven/llm-retry/types'
+import type {} from '@aeven/llm-cache-warm'
 import { SessionSeq } from '@aeven/session'
 import type { SessionEvent } from '@aeven/session'
 import type { ProjectionDefinition } from '@aeven/session-projection'
@@ -120,7 +121,7 @@ type ContextPressureState = z.infer<typeof contextPressureStateSchema>
  */
 export const tokenUsageProjectionDefinition = {
   key: 'tokenUsage',
-  stateVersion: 2,
+  stateVersion: 3,
   stateSchema: tokenUsageStateSchema,
   init: () => ({ totals: zeroBuckets(), last: null }),
   apply: (state, event) => {
@@ -128,6 +129,11 @@ export const tokenUsageProjectionDefinition = {
       return state.last?.turn === event.data.turn && state.last.step === event.data.step
         ? { ...state, last: null }
         : state
+    }
+    if (event.type === 'cache-warm/result') {
+      if (event.data.usage === undefined) return state
+      const warm = bucketsFrom(event.data.usage)
+      return { totals: addReplacing(state.totals, undefined, warm), last: state.last }
     }
     let turn: number
     let step: number

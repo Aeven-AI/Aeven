@@ -129,6 +129,7 @@
     "@aeven/host-frontend-static": "workspace:^",
     "@aeven/host-webserver": "workspace:^",
     "@aeven/llm": "workspace:^",
+    "@aeven/llm-cache-warm": "workspace:^",
     "@aeven/llm-deepseek": "workspace:^",
     "@aeven/llm-mock-server": "workspace:^",
     "@aeven/llm-pi-ai": "workspace:^",
