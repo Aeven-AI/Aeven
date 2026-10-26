@@ -250,6 +250,9 @@ const CAPTION_SYMBOL_COLOR = { light: '#000', dark: '#f9fafb' } as const
  */
 const CAPTION_STRIP_PLATFORM = process.platform === 'win32' || process.platform === 'linux'
 
+/** The deployment a packaged shell talks to when the launching environment names none. */
+const DESKTOP_AEVEN_API_BASE = 'https://aeven.io/api'
+
 /** Wait after launch before the first automatic update check. */
 const UPDATE_CHECK_STARTUP_DELAY_MS = 10_000
 
@@ -655,6 +658,9 @@ async function main(): Promise<void> {
   else process.env.PATH = mergePath(loginPath, process.env.PATH, delimiter)
   // Last, so an installed Node.js still wins: on a machine without one, the bundled `node`, `npm`, and `npx` resolve.
   process.env.PATH = mergePath(process.env.PATH ?? '', dirname(resources.node), delimiter)
+  // The deployment whose services the Host's plugins resolve: the packaged app carries no `.env`,
+  // so the launching environment supplies the base that the overlays and the search endpoint read.
+  process.env.AEVEN_API_URL ??= DESKTOP_AEVEN_API_BASE
   const plan = await planDesktopBackend(development === undefined ? { avnVersion: app.getVersion() } : {})
   if (development === undefined && plan.kind === 'spawn') manager.recover()
 
