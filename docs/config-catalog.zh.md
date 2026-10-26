@@ -4923,7 +4923,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/guard/turn-review/src/index.ts:65`](../packages/guard/turn-review/src/index.ts)
+来源：[`packages/guard/turn-review/src/index.ts:77`](../packages/guard/turn-review/src/index.ts)
 
 <a id="aeventypert-loader"></a>
 

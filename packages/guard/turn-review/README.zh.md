@@ -72,14 +72,14 @@ kind: "package-reference"
 
 复核者按顺序读取由轮次事件构成的 JSON 数组：来源类型为 `user` 的用户消息、每次工具调用及其参数、每个工具结果，以及每条 assistant 回复。每个条目都被裁剪到 `maxEntryChars`，保留头与尾并附上截断标记；整个数组超限时按最旧的调用与结果条目逐个丢弃，直到符合 `maxTranscriptChars`；消息与回复绝不会被丢弃。
 
-发现问题的轮次产生的是一条引导消息，而不是重复的步骤。插件按智能体与轮次计算配额，请求一经派发即消耗一轮，因此问题在 `maxReviewsPerTurn` 之后仍然存在的轮次照样结束。
+发现问题的轮次产生的是一条引导消息，而不是重复的步骤。插件按智能体与轮次计算配额，请求一经派发即消耗一轮，因此问题在 `maxReviewsPerTurn` 之后仍然存在的轮次照样结束。超时、失败、达到 `maxOutputTokens` 或回答中没有可解析判定的复核调用会追加带原因的 `turn-review/failure`，轮次保留原来的回复结束。
 
 ### 源码地图
 
 | 文件 | 职责 |
 |---|---|
 | [`src/index.ts`](src/index.ts) | 插件入口：`Config` schema、轮次选择、记录引用、复核调用、判定解析、引导消息 |
-| — | 不发布不变式伴生包（No invariant companion is published），因为复核观察的正是它刚刚读过的轮次：请求与解析后的判定都已作为 `turn-review/request` 与 `turn-review/verdict` 记录，报告器只会重新推导出同样的两条记录，而不是比较彼此独立的观测。 |
+| — | 不发布不变式伴生包（No invariant companion is published），因为复核观察的正是它刚刚读过的轮次：请求及其结果已作为 `turn-review/request` 以及 `turn-review/verdict` 或 `turn-review/failure` 记录，报告器只会重新推导出同样的记录，而不是比较彼此独立的观测。 |
 
 </details>
 
@@ -138,6 +138,7 @@ You receive the turn as a JSON array in order: the user's messages (including me
 Find only these problems:
 1. A user request in this turn that was not done, was done differently than asked (for example a value set to the opposite of what was asked, or an approximation where the user asked to copy), or was dropped without the reply saying so.
 2. A claim in the final reply (done, fixed, verified, matches, works, green) that no tool result shows, or that a tool result contradicts.
+   This includes a claim that something does not exist, is missing, or is not supported when the tool result behind it read only a filtered, truncated, or partial view: a search pattern or filter that could not match the thing, a cut list, or a first page.
 3. A change presented as working although no tool result observed it after the last edit; for a visual or UI change, observing means a browser read or screenshot taken after the last edit and build.
 Do not report style, wording, scope suggestions, or improvements nobody asked for. If the final reply already says plainly that something is not done or not checked, that item is not a problem.
 Answer with JSON only, no prose and no code fence: {"complete": true, "issues": []} or {"complete": false, "issues": ["..."]}. Each issue is one sentence that names the request or claim and what the tool results show.
@@ -158,9 +159,9 @@ Answer with JSON only, no prose and no code fence: {"complete": true, "issues": 
 这些限制说明复核能确立什么、不能确立什么。它们是当前包约束，不是任务清单。
 
 - **被裁剪的证据**：复核读取的工具结果被裁剪到 `maxEntryChars`，超出 `maxTranscriptChars` 的最旧工具条目会被丢弃，因此这些预算之外的证据对它不可见。
-- **未触发的改动不会被复核**：在触发工具之外做出的文件改动，例如通过 `bash` 运行的格式化器，不会自行触发复核。
+- **未触发的改动不会被复核**：在触发工具之外做出的文件改动，例如通过 `bash` 运行的格式化器，不会自行触发复核。只浏览网页、抓取内容或运行命令的轮次同样不会被复核，因此其中关于页面或结果显示了什么的断言不会被检查；把这些工具加入 `triggerTools` 即可复核这类轮次，代价是每轮多一次复核调用及其等待时间。
 - **发现只是建议，不是强制**：`maxReviewsPerTurn` 轮之后，轮次会带着未解决的问题结束；失败、超时或无法解析的复核会保留原来的回复。
-- **不发布不变式伴生包**：复核观察的正是它刚刚读过的轮次——请求与解析后的判定都已作为 `turn-review/request` 与 `turn-review/verdict` 记录，报告器只会重新推导出同样的两条记录，而不是比较彼此独立的观测。
+- **不发布不变式伴生包**：复核观察的正是它刚刚读过的轮次——请求及其结果已作为 `turn-review/request` 以及 `turn-review/verdict` 或 `turn-review/failure` 记录，报告器只会重新推导出同样的记录，而不是比较彼此独立的观测。
 
 <a id="dev-note"></a>
 ### 开发备注

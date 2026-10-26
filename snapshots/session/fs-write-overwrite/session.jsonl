@@ -39,4 +39,5 @@
 {"type":"assistant/message","data":{"turn":1,"step":3,"message":{"role":"assistant","content":[{"type":"text","text":"DONE"}],"source":{"kind":"model","provider":"deepseek-official","model":"deepseek-v4-flash"},"id":"{{message:7}}"},"usage":{"inputTokens":10,"outputTokens":2}},"sourceEventSeqs":[[32,36]],"surfaceOp":"append"}
 {"type":"step/end","data":{"turn":1,"step":3}}
 {"type":"turn-review/request","data":{"turn":1,"round":1,"route":{"provider":"deepseek-official","model":"deepseek-v4-flash"},"system":"{{turnReviewSystem}}","messages":"{{turnReviewMessages}}","maxTokens":4000}}
+{"type":"turn-review/failure","data":{"turn":1,"round":1,"message":"turn-review: llm-replay: script exhausted — session requested model call #4 but its script has only 3; re-record the scenario"}}
 {"type":"turn/end","data":{"turn":1,"reason":{"kind":"completed"}}}

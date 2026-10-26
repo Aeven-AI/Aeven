@@ -4921,7 +4921,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/guard/turn-review/src/index.ts:65`](../packages/guard/turn-review/src/index.ts)
+Source: [`packages/guard/turn-review/src/index.ts:77`](../packages/guard/turn-review/src/index.ts)
 
 <a id="aeventypert-loader"></a>
 
