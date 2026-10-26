@@ -1,7 +1,7 @@
 {
   "name": "@aeven/experimental-agent-team",
   "description": "Implicit-root Agent Teams roster, durable peer mailbox, and shared task DAG",
-  "version": "0.3.17-alpha",
+  "version": "0.3.18-alpha",
   "private": true,
   "repository": {
     "type": "git",

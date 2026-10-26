@@ -1,7 +1,7 @@
 {
   "name": "@aeven/tool-worktrees",
   "description": "Model-facing create_worktree tool over the git worktree session capability",
-  "version": "0.3.17-alpha",
+  "version": "0.3.18-alpha",
   "publishConfig": {
     "access": "public"
   },

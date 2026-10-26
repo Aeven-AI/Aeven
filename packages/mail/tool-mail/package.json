@@ -1,7 +1,7 @@
 {
   "name": "@aeven/tool-mail",
   "description": "Model-facing mail tools (mail_accounts, mail_search, mail_read, mail_update, mail_send) over the Aeven mail capability seam (ctx.mail)",
-  "version": "0.3.17-alpha",
+  "version": "0.3.18-alpha",
   "publishConfig": {
     "access": "public"
   },
