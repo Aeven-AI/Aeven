@@ -14,7 +14,7 @@ The [release workflow](../../../../.github/workflows/release-desktop.yml) calls 
 
 Linux publishes each target's feed immediately. Windows and macOS upload architecture-suffixed manifests and publish their shared feed only when both architectures' manifests exist in the release. The merger keeps x64's top-level fields. Unsigned macOS contributes only its DMG. The updater can fall back to another architecture when its own installer is absent, so a partial shared feed is unsafe.
 
-The [target-selection policy](2026-10-14-desktop-release-target-selection.md) still requires publishing runs to select every target; each successful build uploads regardless of the other targets. The [macOS job ceiling](2026-10-15-macos-release-builds-run-to-the-github-ceiling.md) limits only that target's availability.
+The [target-selection policy](2026-10-14-desktop-release-target-selection.md) still requires publishing runs to select every target; each successful build uploads regardless of the other targets. A manual run takes the `upload` input to add whichever targets it built to the version's draft release without publishing it, so one failed target is rebuilt on its own; `publish` requires every target plus `upload`. The [macOS job ceiling](2026-10-15-macos-release-builds-run-to-the-github-ceiling.md) limits only that target's availability.
 
 ## Alternatives considered
 
