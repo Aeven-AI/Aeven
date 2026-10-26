@@ -188,11 +188,16 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
   const providerAttempt = useRef<AbortController | undefined>(undefined)
   useEffect(() => () => { providerAttempt.current?.abort() }, [])
 
+  /** Put the form back as it was before the press: no cover, no provider in progress. */
+  const releaseProviderForm = (): void => {
+    props.cover?.hide()
+    for (const provider of [loginX, loginApple, loginGoogle]) provider.current?.loadingStatus(false)
+  }
+
   // A provider sign-in an embedding shell ran and lost leaves nothing in progress.
   useEffect(() => oauthService.onEnded(() => {
     providerAttempt.current?.abort()
-    props.cover?.hide()
-    for (const provider of [loginX, loginApple, loginGoogle]) provider.current?.loadingStatus(false)
+    releaseProviderForm()
   }), [props.cover])
 
   /** The screen's root class, which the stylesheet keys on. */
@@ -495,8 +500,9 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
    *
    * The cover rises from the press on and the pressed button shows progress, so a
    * reader coming back from a finished sign-in never sees an idle form. A reader
-   * who comes back without finishing gets the form again, the button still
-   * showing progress and still taking presses: pressing any provider starts over.
+   * who comes back without finishing gets the form back as it was; the wait goes
+   * on unseen, so finishing in the browser afterwards still signs them in, and
+   * pressing any provider starts over.
    * @param url - the provider's sign-in URL, absent when the deployment offers that provider.
    * @param button - the button that was pressed.
    */
@@ -512,7 +518,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
     providerAttempt.current = attempt
     props.cover?.show()
     oauthService.open(url)
-    oauthService.watchReturn(() => { props.cover?.hide() }, attempt.signal)
+    oauthService.watchReturn(releaseProviderForm, attempt.signal)
     // The session exists once the wait ends, so the screen hands over at once:
     // the boot gate reads the session under the cover and returns here if there
     // is none.
