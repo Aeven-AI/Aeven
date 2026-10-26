@@ -92,5 +92,5 @@ kind: "package-reference"
 
 - **`list` 没有工具。** 容量能列出检出，但尚无面向模型的动词暴露它；需要知道同级检出的模型得问 shell。
 - **移除仍需手工。** 没有包装 `git worktree remove`，因此完成的检出会一直登记，直到有人移除或目录被 prune。
-- 本包不发布 `./invariant` 配套：它的可观察结果就是 git 退出状态加上它追加的 `session/cwd`，规格直接断言这些，配套只会重复它们。
+- 不发布 invariant 配套，因为它的可观察结果就是 git 退出状态加上它追加的 `session/cwd`，规格直接断言这些，配套只会重复它们。
 - **仓库内部的检出会显示为未跟踪。** 配置的 `directory` 默认位于仓库根之下，因此未忽略它的仓库会在 `git status` 中报告 `.aeven/`。想要干净源树的部署把 `directory` 指向仓库之外。

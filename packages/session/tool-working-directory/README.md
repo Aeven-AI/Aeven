@@ -70,4 +70,4 @@ Append-only; the result follows the reusable request prefix and does not invalid
 
 - No directory stack and no `cd -`; a model returns by naming the previous path.
 - The tool does not create directories and does not check sandbox confinement; a confined composition must reject out-of-root targets where confinement is owned.
-- This package publishes no `./invariant` companion: the only relationship it could check is the service's own fold, which the unit spec observes directly, and no independent observation can diverge.
+- No invariant companion is published because the only relationship it could check is the service's own fold, which the unit spec observes directly, and no independent observation can diverge.

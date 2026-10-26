@@ -220,6 +220,10 @@ export function expectedAvnPackageFiles(manifest: PackageManifest): readonly str
     // A surface bundle's startup row is its own bundle: the Loader imports it
     // as a row module, so it cannot ride inside the package entry.
     ...exportDefault(manifest, './startup') === './lib/startup.js' ? ['lib/startup.js'] : [],
+    // A surface subpath ships the bundle the startup row mounts, keyed on the
+    // artifact path like ./client: a `./surface` that resolves into the emitted
+    // tree is a source channel, not a bundle.
+    ...exportDefault(manifest, './surface') === './lib/surface.js' ? ['lib/surface.js'] : [],
     ...extras,
     // Subpaths whose runtime default is the tsc-emitted tree (lib/types/*.js —
     // browser-safe source channels rehomed off src so plain Node can import
