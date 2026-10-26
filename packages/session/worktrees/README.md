@@ -60,8 +60,6 @@ The specs use real git in a temporary repository, because the behavior worth tes
 
 ## Model Experience
 
-The model-facing verbs live in [`@aeven/tool-worktrees`](../tool-worktrees/README.md). This package adds runtime context.
-
 ### Worktree runtime context
 
 #### What the model sees

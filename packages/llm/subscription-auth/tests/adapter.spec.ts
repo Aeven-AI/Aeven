@@ -783,7 +783,7 @@ describe('createCodingOAuthAdapter model discovery', () => {
     const consume = async (): Promise<void> => {
       for await (const _chunk of adapter.stream({
         provider: CODEX_OAUTH_ROUTE,
-        model: 'gpt-5.4',
+        model: 'gpt-6.1-sol',
         messages: [],
       })) {
         // Drain; the stream must reject before yielding anything.

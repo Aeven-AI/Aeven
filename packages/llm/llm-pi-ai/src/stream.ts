@@ -197,9 +197,9 @@ export async function* toStreamChunks(
             type: 'tool-call',
             id: brandString<ToolCallId>(event.toolCall.id),
             name: event.toolCall.name,
-            // pi-ai hands back the PARSED arguments; the harness vocabulary
-            // keeps the raw string.
-            arguments: JSON.stringify(event.toolCall.arguments),
+            // Invalid arguments stay non-JSON text so tool validation rejects
+            // the call instead of executing pi-ai's empty-object placeholder.
+            arguments: event.toolCall.argumentsError ?? JSON.stringify(event.toolCall.arguments),
           },
         }
         break

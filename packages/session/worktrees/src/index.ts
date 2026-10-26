@@ -66,15 +66,6 @@ export interface Config {
   setupTimeoutMs: number
 }
 
-const configSchema = z.object({
-  directory: z.string().min(1).refine(path => path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(path), 'must be an absolute path'),
-  branchPrefix: z.string().min(1),
-  graceMs: z.number().int().positive(),
-  isolateSubagents: z.boolean(),
-  setup: z.array(z.object({ when: z.string().min(1), argv: z.array(z.string().min(1)).min(1) })),
-  setupTimeoutMs: z.number().int().positive(),
-})
-
 const createdWorktreeSchema = z.object({
   path: z.string().min(1),
   branch: z.string().min(1),
@@ -155,13 +146,20 @@ function renderWorktreesContext(state: WorktreesUnitState, root: string | undefi
 /** The git worktree service, registered as `ctx.worktrees`. */
 export class Worktrees extends Service {
   static inject = ['subprocess', 'workingDirectory', 'sessionProjections']
-  static Config = configSchema
+  static Config = z.object({
+    directory: z.string().min(1).refine(path => path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(path), 'must be an absolute path'),
+    branchPrefix: z.string().min(1),
+    graceMs: z.number().int().positive(),
+    isolateSubagents: z.boolean(),
+    setup: z.array(z.object({ when: z.string().min(1), argv: z.array(z.string().min(1)).min(1) })),
+    setupTimeoutMs: z.number().int().positive(),
+  })
 
   private readonly config: Config
 
   constructor(ctx: Context, config: Config) {
     super(ctx, 'worktrees')
-    const parsed = configSchema.parse(config)
+    const parsed = Worktrees.Config.parse(config)
     // Canonical, so checkout paths compare equal to the realpaths git reports.
     mkdirSync(parsed.directory, { recursive: true })
     this.config = { ...parsed, directory: realpathSync.native(parsed.directory) }

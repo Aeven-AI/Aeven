@@ -1,5 +1,5 @@
 /**
- * Image provider for `ctx.media` backed by pi-ai's images registry. pi-ai owns
+ * Image provider for `ctx.media` backed by pi-ai's unified model collection. pi-ai owns
  * the transports and the model metadata; this package owns credential
  * resolution, the request and result translation, and the failure mapping.
  * @module @aeven/media-pi-ai
@@ -17,7 +17,8 @@ import type {
   MediaImageRequest,
   MediaImageResult,
 } from '@aeven/media'
-import { openrouterImagesProvider } from '@earendil-works/pi-ai/providers/openrouter-images'
+import { createModels } from '@earendil-works/pi-ai'
+import { openrouterProvider } from '@earendil-works/pi-ai/providers/openrouter'
 import type { AssistantImages, ImagesInputContent } from '@earendil-works/pi-ai'
 
 /** Cordis plugin name. */
@@ -104,8 +105,8 @@ function toResult(providerId: string, answer: AssistantImages): MediaImageResult
 export function apply(ctx: Context, config: Config): void {
   // schemastery (Config) has already filled every defaulted field.
   const { id, apiKeyEnv } = config as ResolvedConfig
-  const upstream = openrouterImagesProvider()
-  const models = new Map(upstream.getModels().map(model => [model.id, model]))
+  const upstream = createModels()
+  upstream.setProvider(openrouterProvider())
 
   /** The credential for this provider, or undefined when none is configured. */
   const resolveApiKey = async (): Promise<string | undefined> => {
@@ -127,7 +128,7 @@ export function apply(ctx: Context, config: Config): void {
       if (request.n !== undefined && request.n !== 1) {
         throw new MediaError(`n is not supported by ${request.provider ?? request.model}`, 'MEDIA_INVALID_REQUEST')
       }
-      const model = models.get(request.model)
+      const model = upstream.getModelOfType('image', 'openrouter', request.model)
       if (model === undefined) {
         throw new MediaError(
           `"${request.model}" is not an image model this provider serves`,
@@ -141,9 +142,6 @@ export function apply(ctx: Context, config: Config): void {
           'MEDIA_PROVIDER_CONFIGURED_UNAVAILABLE',
         )
       }
-      // The provider carries its own `generateImages`; pi-ai's registry entry
-      // point is absent from its export map, and going through the provider
-      // keeps model, auth, and transport resolved by one object.
       const answer = await upstream.generateImages(model, { input: toInput(request) }, {
         apiKey,
         ...signal === undefined ? {} : { signal },

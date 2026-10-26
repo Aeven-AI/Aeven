@@ -422,9 +422,12 @@ abstract writeText( target: FsTarget, content: string, expected?: FsWriteIntent,
 /**
  * Atomically edit literal text. When supplied, the version guard is checked
  * before matching so stale content reports `FS_STALE_VERSION`; omission edits
- * the current content without a freshness precondition.
+ * the current content without a freshness precondition. A list of
+ * replacements applies in order, each matched against the content the
+ * previous ones produced, and is written once: any replacement that does not
+ * match leaves the file unchanged.
  * @param target - the resolved target to edit.
- * @param edit - the literal search/replace request.
+ * @param edit - one literal search/replace request, or a non-empty ordered list of them.
  * @param expected - the version guard; omit for an unconditional edit.
  * @param signal - aborts before atomic publication takes effect.
  * @param sandboxPolicy - the per-call mode and workspace root this edit runs
@@ -432,7 +435,7 @@ abstract writeText( target: FsTarget, content: string, expected?: FsWriteIntent,
  *   ignores it. Omit to leave the backend its own default.
  * @returns the outcome, including the version the edit produced.
  */
-abstract editText( target: FsTarget, edit: FsEditRequest, expected?: { version: FsVersion }, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy, ): Promise<FsEditOutcome>
+abstract editText( target: FsTarget, edit: FsEditRequest | readonly FsEditRequest[], expected?: { version: FsVersion }, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy, ): Promise<FsEditOutcome>
 ```
 
 Types: [SandboxExecutionPolicy](sandbox.zh.md)

@@ -1,0 +1,10 @@
+version: 1
+scenario: pi-malformed-tool-arguments
+profile: headless
+composition: default
+recording: authored
+header:
+  class: pi-malformed-tool-arguments
+  pin: true
+workspace:
+  final: true

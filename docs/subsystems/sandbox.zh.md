@@ -40,7 +40,7 @@ type SandboxEnforcement = 'full' | 'partial'
 
 ## 逐调用策略
 
-完整执行策略会按每次能力调用解析并携带。它包括 `danger-full-access`，因此消费方可以只解析一次策略，再决定是否绕过约束。普通工具调用从调用会话的不可变 cwd 派生 `workspaceRoot`；部署配置是没有 agent（智能体）时的回退值。root 会先按文件系统语义规范化，再做词法规范化，因此包含 `symlink/..` 的 cwd 会标识 spawn 出的进程实际运行的目录。
+完整执行策略会按每次能力调用解析并携带。它包括 `danger-full-access`，因此消费方可以只解析一次策略，再决定是否绕过约束。普通工具调用从调用会话的活动工作区根目录派生 `workspaceRoot`；部署配置是没有 agent（智能体）时的回退值。root 会先按文件系统语义规范化，再做词法规范化，因此包含 `symlink/..` 的 cwd 会标识 spawn 出的进程实际运行的目录。
 
 ```ts type-equiv
 /**
@@ -53,6 +53,12 @@ interface SandboxExecutionPolicy {
   mode: SandboxMode
   /** Absolute root directory `workspace-write` may write under. */
   workspaceRoot: string
+  /**
+   * Further absolute directories `workspace-write` may write under, beside the
+   * workspace root: the shared repository metadata of a linked git worktree,
+   * which lives outside the checkout. Ignored under `read-only`.
+   */
+  additionalWritableRoots?: readonly string[]
   /**
    * Opaque identity of the calling session (the branded `avn-session`
    * SessionId). Backends key per-session state off it (e.g. windows-acl gives
@@ -69,7 +75,7 @@ interface SandboxExecutionPolicy {
 ```ts type-equiv
 /** Inputs that select the sandbox policy for one capability call. */
 interface SandboxPolicyRequest {
-  /** Calling session; its immutable cwd becomes the workspace boundary. */
+  /** Calling session; its workspace root becomes the workspace boundary. */
   session?: Session
   /** Explicit approved mode override, which outranks session policy. */
   mode?: SandboxMode
@@ -198,11 +204,13 @@ The sandbox-policy service (`ctx.sandboxPolicy`). Owns the deployment default mo
 /**
  * Resolve the complete policy for one capability call. An approved explicit
  * mode outranks the session's last `sandbox/mode` event, which outranks the
- * deployment default. A session cwd is its workspace-write boundary; the
- * configured root is the fallback for agentless calls and sessions without a
- * cwd.
+ * deployment default. A session's workspace root — the logged root from
+ * `ctx.workingDirectory` when composed, else its header cwd — is its
+ * workspace-write boundary; the configured root is the fallback for
+ * agentless calls and sessions without a cwd. A root that is a linked git
+ * worktree also grants the repository's shared git directory.
  * @param request - optional session and approved mode override.
- * @returns the fully resolved per-call mode and absolute workspace root.
+ * @returns the fully resolved per-call mode, absolute workspace root, and additional writable roots.
  */
 resolve(request: SandboxPolicyRequest = {}): SandboxExecutionPolicy
 

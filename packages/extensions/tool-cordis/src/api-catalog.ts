@@ -1523,9 +1523,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the outcome, including the version the write produced.',
       },
       {
-        signature: 'abstract editText( target: FsTarget, edit: FsEditRequest, expected?: { version: FsVersion }, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy, ): Promise<FsEditOutcome>',
-        description: 'Atomically edit literal text. When supplied, the version guard is checked before matching so stale content reports `FS_STALE_VERSION`; omission edits the current content without a freshness precondition.',
-        parameters: [{ name: 'target', description: 'the resolved target to edit.' }, { name: 'edit', description: 'the literal search/replace request.' }, { name: 'expected', description: 'the version guard; omit for an unconditional edit.' }, { name: 'signal', description: 'aborts before atomic publication takes effect.' }, { name: 'sandboxPolicy', description: 'the per-call mode and workspace root this edit runs under; a sandboxing backend fences the edit by it, the bare backend ignores it. Omit to leave the backend its own default.' }],
+        signature: 'abstract editText( target: FsTarget, edit: FsEditRequest | readonly FsEditRequest[], expected?: { version: FsVersion }, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy, ): Promise<FsEditOutcome>',
+        description: 'Atomically edit literal text. When supplied, the version guard is checked before matching so stale content reports `FS_STALE_VERSION`; omission edits the current content without a freshness precondition. A list of replacements applies in order, each matched against the content the previous ones produced, and is written once: any replacement that does not match leaves the file unchanged.',
+        parameters: [{ name: 'target', description: 'the resolved target to edit.' }, { name: 'edit', description: 'one literal search/replace request, or a non-empty ordered list of them.' }, { name: 'expected', description: 'the version guard; omit for an unconditional edit.' }, { name: 'signal', description: 'aborts before atomic publication takes effect.' }, { name: 'sandboxPolicy', description: 'the per-call mode and workspace root this edit runs under; a sandboxing backend fences the edit by it, the bare backend ignores it. Omit to leave the backend its own default.' }],
         returns: 'the outcome, including the version the edit produced.',
       },
     ],
@@ -2323,9 +2323,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'resolve(request: SandboxPolicyRequest = {}): SandboxExecutionPolicy',
-        description: 'Resolve the complete policy for one capability call. An approved explicit mode outranks the session\'s last `sandbox/mode` event, which outranks the deployment default. A session cwd is its workspace-write boundary; the configured root is the fallback for agentless calls and sessions without a cwd.',
+        description: 'Resolve the complete policy for one capability call. An approved explicit mode outranks the session\'s last `sandbox/mode` event, which outranks the deployment default. A session\'s workspace root — the logged root from `ctx.workingDirectory` when composed, else its header cwd — is its workspace-write boundary; the configured root is the fallback for agentless calls and sessions without a cwd. A root that is a linked git worktree also grants the repository\'s shared git directory.',
         parameters: [{ name: 'request', description: 'optional session and approved mode override.' }],
-        returns: 'the fully resolved per-call mode and absolute workspace root.',
+        returns: 'the fully resolved per-call mode, absolute workspace root, and additional writable roots.',
       },
       {
         signature: 'overrideOf(session: Session): SandboxMode | undefined',
@@ -4104,6 +4104,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the last logged `session/cwd`, else the header\'s `cwd`, else undefined when the session records none and nothing overrode it.',
       },
       {
+        signature: 'rootOf(session: Session): string | undefined',
+        description: 'The workspace root in force for a session: the directory sandboxed writes are confined to.',
+        parameters: [{ name: 'session', description: 'the session to resolve.' }],
+        returns: 'the last logged `root`, else the header\'s `cwd`, else undefined.',
+      },
+      {
         signature: 'resolve(session: Session, path: string): string',
         description: 'Resolve a path the way the tools do, without touching the filesystem.',
         parameters: [{ name: 'session', description: 'the session supplying the base directory.' }, { name: 'path', description: 'absolute, or relative to {@link of}.' }],
@@ -4111,10 +4117,27 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'async change(session: Session, target: string): Promise<string>',
-        description: 'Move the session into a directory and record it in the log.\n\nThe directory must already exist: this changes where later calls run, it does not create directories. A relative target resolves against the current directory, so successive changes compose the way a shell\'s `cd` does.',
+        description: 'Move the session into a directory and record it in the log. The workspace root stays where it is.\n\nThe directory must already exist: this changes where later calls run, it does not create directories. A relative target resolves against the current directory, so successive changes compose the way a shell\'s `cd` does.',
         parameters: [{ name: 'session', description: 'the session to move.' }, { name: 'target', description: 'absolute, or relative to the current directory.' }],
         returns: 'the absolute directory now in force.',
         throws: ['when the target is empty, missing, or not a directory.'],
+      },
+      {
+        signature: 'async enter(session: Session, target: string): Promise<string>',
+        description: 'Move the session into another workspace: the directory becomes both the working directory and the root sandboxed writes are confined to.',
+        parameters: [{ name: 'session', description: 'the session to move.' }, { name: 'target', description: 'absolute, or relative to the current directory.' }],
+        returns: 'the absolute directory now in force.',
+        throws: ['when the target is empty, missing, or not a directory.'],
+      },
+      {
+        signature: 'enterVerified(session: Session, path: string): void',
+        description: 'enter for a directory the caller has just created and checked, in a window that cannot await — a child agent\'s creation setup.',
+        parameters: [{ name: 'session', description: 'the session to move.' }, { name: 'path', description: 'absolute path of an existing directory.' }],
+      },
+      {
+        signature: 'inherit(child: Session, parent: Session): void',
+        description: 'Start a child session where its parent works: copy the parent\'s logged directory and workspace root onto the child\'s log. A parent still in its header directory leaves the child on its own header.',
+        parameters: [{ name: 'child', description: 'the child session, inside its creation window.' }, { name: 'parent', description: 'the delegating session.' }],
       },
     ],
   },
@@ -4279,13 +4302,6 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'The git worktree service, registered as `ctx.worktrees`.',
     methods: [
       {
-        signature: 'async repositoryRoot(session: Session, signal?: AbortSignal): Promise<string>',
-        description: 'Root of the repository the session works in.',
-        parameters: [{ name: 'session', description: 'the session whose working directory names the repository.' }, { name: 'signal', description: 'cancels the git call.' }],
-        returns: 'the absolute repository root.',
-        throws: ['when the session is in no repository.'],
-      },
-      {
         signature: 'async list(session: Session, signal?: AbortSignal): Promise<WorktreeInfo[]>',
         description: 'Registered checkouts of the session\'s repository, main working tree first.',
         parameters: [{ name: 'session', description: 'the session whose repository is listed.' }, { name: 'signal', description: 'cancels the git call.' }],
@@ -4294,8 +4310,26 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       {
         signature: 'async create(session: Session, request: CreateWorktreeRequest = {}, signal?: AbortSignal): Promise<CreatedWorktree>',
         description: 'Create a branch-backed checkout and move the session into it.',
-        parameters: [{ name: 'session', description: 'the session that will work in the new checkout.' }, { name: 'request', description: 'optional name and starting revision.' }, { name: 'signal', description: 'cancels the git calls.' }],
-        returns: 'the checkout path, its branch, its base commit, and the repository root.',
+        parameters: [{ name: 'session', description: 'the session that will work in the new checkout.' }, { name: 'request', description: 'optional name and starting revision.' }, { name: 'signal', description: 'cancels the git and setup calls.' }],
+        returns: 'the checkout path, its branch, its base commit, the repository root, and the setup outcome.',
+      },
+      {
+        signature: 'async isolate(parent: Session, child: SessionId, signal?: AbortSignal): Promise<CreatedWorktree | undefined>',
+        description: 'Create a checkout for a delegated child from a snapshot of the parent\'s working tree, and record it on the parent\'s log. The child moves in through adopt while it is composed.',
+        parameters: [{ name: 'parent', description: 'the delegating session.' }, { name: 'child', description: 'the child session the checkout is for.' }, { name: 'signal', description: 'cancels the git and setup calls.' }],
+        returns: 'the checkout, or undefined when isolation is off, or the parent works outside a git repository or in one without commits.',
+      },
+      {
+        signature: 'adopt(child: Session, worktree: CreatedWorktree): void',
+        description: 'Move a child session into the checkout isolate created for it.',
+        parameters: [{ name: 'child', description: 'the child session, inside its creation window.' }, { name: 'worktree', description: 'the checkout created for it.' }],
+      },
+      {
+        signature: 'async remove( session: Session, name: string | undefined, options: { deleteBranch: boolean }, signal?: AbortSignal, ): Promise<RemovedWorktree>',
+        description: 'Remove a checkout and optionally its branch. When the session works in the checkout, it moves back to the repository\'s main working tree first.',
+        parameters: [{ name: 'session', description: 'the session removing the checkout.' }, { name: 'name', description: 'checkout name; omit for the checkout the session works in.' }, { name: 'options', description: '`deleteBranch` deletes the branch when it is merged into the main working tree\'s HEAD.' }, { name: 'signal', description: 'cancels the git calls.' }],
+        returns: 'what was removed and where the session works afterwards.',
+        throws: ['when the checkout has uncommitted changes, or the branch is unmerged.'],
       },
     ],
   },
@@ -5529,7 +5563,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'CreatedWorktree',
-    declaration: 'export interface CreatedWorktree {\n    readonly path: WorktreePath;\n    readonly branch: WorktreeBranch;\n    readonly baseCommit: string;\n    readonly repositoryRoot: string;\n}',
+    declaration: 'export interface CreatedWorktree {\n    readonly path: WorktreePath;\n    readonly branch: WorktreeBranch;\n    readonly baseCommit: string;\n    readonly repositoryRoot: string;\n    readonly setup: string | null;\n}',
   },
   {
     name: 'CreateGoalRequest',
@@ -7192,6 +7226,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface RemoteEventHostInfo {\n    readonly home: string;\n}',
   },
   {
+    name: 'RemovedWorktree',
+    declaration: 'export interface RemovedWorktree {\n    readonly path: WorktreePath;\n    readonly branch: WorktreeBranch | undefined;\n    readonly branchDeleted: boolean;\n    readonly cwd: string | undefined;\n}',
+  },
+  {
     name: 'ReplayEnvelope',
     declaration: 'export interface ReplayEnvelope {\n    response: unknown;\n    blocks?: readonly unknown[];\n}',
   },
@@ -7265,7 +7303,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SandboxExecutionPolicy',
-    declaration: 'export interface SandboxExecutionPolicy {\n    mode: SandboxMode;\n    workspaceRoot: string;\n    sessionId?: SessionId;\n}',
+    declaration: 'export interface SandboxExecutionPolicy {\n    mode: SandboxMode;\n    workspaceRoot: string;\n    additionalWritableRoots?: readonly string[];\n    sessionId?: SessionId;\n}',
   },
   {
     name: 'SandboxMode',

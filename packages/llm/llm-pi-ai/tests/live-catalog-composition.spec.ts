@@ -86,6 +86,7 @@ async function loadComposition(url: string, route = 'openrouter', extra: string[
     '  providers:',
     `    ${route}:`,
     '      apiKeyEnv: LIVE_CATALOG_KEY',
+    ...route === 'openrouter' ? ['      api: openai-completions'] : [],
     ...extra,
     '      catalogRefresh:',
     `        url: ${url}`,
@@ -171,17 +172,17 @@ describe('llm-pi-ai live catalog refresh in a real composition', () => {
 describe('routes a refresh cannot widen', () => {
   it('skips a route whose installed models disagree on a protocol', async () => {
     vi.stubEnv('LIVE_CATALOG_KEY', 'key')
-    // The xai catalog spans Chat Completions and Responses, so an added model
+    // The Cloudflare gateway catalog spans multiple protocols, so an added model
     // has no single `api` to inherit and the route has to name one itself.
-    const apis = new Set([...catalogModels('xai').values()].map(model => model.api))
+    const apis = new Set([...catalogModels('cloudflare-ai-gateway').values()].map(model => model.api))
     expect(apis.size).toBeGreaterThan(1)
     const origin = await documentServer({ body: DOCUMENT })
-    const ctx = await loadComposition(`${origin}/models`, 'xai')
+    const ctx = await loadComposition(`${origin}/models`, 'cloudflare-ai-gateway')
 
-    const ids = (await ctx.llm.listModels('xai')).map(model => model.id)
+    const ids = (await ctx.llm.listModels('cloudflare-ai-gateway')).map(model => model.id)
 
     expect(ids).not.toContain(ADDED_ID)
-    expect(ids.length).toBe(catalogModels('xai').size)
+    expect(ids.length).toBe(catalogModels('cloudflare-ai-gateway').size)
   })
 
   it('adds nothing when the document publishes only ids the snapshot already serves', async () => {

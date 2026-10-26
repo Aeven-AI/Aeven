@@ -219,7 +219,7 @@ pi-ai 不提供的路由需要 `api`、`baseURL` 与非空 `models` 列表；无
 
 #### 模型看到什么
 
-pi-ai 事件变成 harness 的推理、文本、工具调用、用量与 finish 分片。适配器把解析后的工具参数以原始 JSON 字符串传给 harness。
+pi-ai 事件变成 harness 的推理、文本、工具调用、用量与 finish 分片。适配器把解析后的工具参数以原始 JSON 字符串传给 harness。 无效工具参数保留为诊断文本，使工具校验拒绝调用，而不是执行空对象。
 
 #### Token 影响
 

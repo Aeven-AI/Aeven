@@ -31,7 +31,7 @@ function request(overrides: Partial<GenerateOptions> = {}): GenerateOptions {
     system: 'x'.repeat(20000),
     messages: [createUserMessage({ content: [{ type: 'text', text: 'start the build' }], source: { kind: 'user' } })],
     ...overrides,
-  } as GenerateOptions
+  }
 }
 
 /** One appended log event, as the fake session recorded it. */
@@ -200,7 +200,7 @@ describe('bounds on one tool block', () => {
     const recorded: Recorded[] = []
     const warnings: string[] = []
     const warmer = new CacheWarmer({
-      stream: async function* () { throw new Error('429 rate limited') } as unknown as (options: GenerateOptions) => AsyncIterable<StreamChunk>,
+      stream: async function* () { throw new Error('429 rate limited') },
       now: () => Date.now(),
       warn: (message) => { warnings.push(message) },
     }, settings())

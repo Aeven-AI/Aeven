@@ -120,6 +120,7 @@ export async function startInProcessRun(
   // parent's future.
   const inherited = captureDelegatedPolicyOverrides(parent)
   const worktree = await prepareDelegatedWorktree(parent, childId, request.signal)
+  // oxlint-disable-next-line typescript/no-unnecessary-condition -- cancellation can change while the checkout is prepared.
   if (request.signal.aborted) throw prePublicationAbort()
 
   let structured: StructuredAttachment | undefined

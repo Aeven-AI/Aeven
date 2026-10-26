@@ -713,6 +713,20 @@ describe('toStreamChunks', () => {
     ])
   })
 
+  it('preserves malformed argument diagnostics instead of an executable empty object', async () => {
+    const argumentsError = 'Unexpected end of JSON input\n\nReceived arguments:\n{"command":'
+    const chunks = await collect(toStreamChunks(feed({
+      type: 'toolcall_end',
+      contentIndex: 0,
+      toolCall: { type: 'toolCall', id: 'bad-call', name: 'bash', arguments: {}, argumentsError },
+      partial: assistant(),
+    }, { type: 'done', reason: 'toolUse', message: assistant({ stopReason: 'toolUse' }) })))
+    expect(chunks[0]).toEqual({
+      type: 'block-end', index: 0,
+      block: { type: 'tool-call', id: 'bad-call', name: 'bash', arguments: argumentsError },
+    })
+  })
+
   it('tolerates toolcall_start with a missing partial entry', async () => {
     const chunks = await collect(toStreamChunks(feed(
       { type: 'toolcall_start', contentIndex: 0, partial: assistant() },

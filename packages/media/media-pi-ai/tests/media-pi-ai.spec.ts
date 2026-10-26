@@ -14,11 +14,14 @@ const generateImages = vi.fn<
   Promise<AssistantImages>
 >()
 
-vi.mock('@earendil-works/pi-ai/providers/openrouter-images', () => ({
-  openrouterImagesProvider: () => ({
+vi.mock('@earendil-works/pi-ai/providers/openrouter', () => ({
+  openrouterProvider: () => ({
     id: 'openrouter',
     name: 'OpenRouter',
-    getModels: () => [{ id: MODEL, api: 'openrouter-images', provider: 'openrouter', output: ['image'] }],
+    auth: { apiKey: { name: 'API key', resolve: ({ credential }: { credential?: { key: string } }) =>
+      Promise.resolve({ auth: { apiKey: credential?.key }, source: 'test' }) } },
+    getModels: () => [],
+    getAllModels: () => [{ type: 'image', id: MODEL, api: 'openrouter-images', provider: 'openrouter', output: ['image'] }],
     generateImages,
   }),
 }))

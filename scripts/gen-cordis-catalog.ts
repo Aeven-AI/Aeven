@@ -842,6 +842,7 @@ export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   WhatsAppPairingView: 'package-owned type is documented in packages/host/account-integrations/src/types.ts',
   CreateWorktreeRequest: 'package-owned type is documented in packages/session/worktrees/src/types.ts',
   CreatedWorktree: 'package-owned type is documented in packages/session/worktrees/src/types.ts',
+  RemovedWorktree: 'package-owned type is documented in packages/session/worktrees/src/types.ts',
   WorktreeInfo: 'package-owned type is documented in packages/session/worktrees/src/types.ts',
   WorkspaceDirectoryListing: 'package-owned type is documented in packages/api/workspace-files/src/types.ts',
   WorkspaceFileText: 'package-owned type is documented in packages/api/workspace-files/src/types.ts',

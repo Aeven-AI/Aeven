@@ -229,10 +229,10 @@ describe('route materialization', () => {
   it('serves added models beside the installed catalog, customizable by the same keys', () => {
     const installed = catalogModels('openrouter')
     expect(installed.size).toBeGreaterThan(0)
-    const addedId = 'deepseek/deepseek-v4-flash-vision-exp'
+    const addedId = 'acme/live-only-model'
     // The premise of the whole refresh: this id is live upstream and absent here.
     expect(installed.has(addedId)).toBe(false)
-    const liveModels = new Map([['openrouter', liveAdditions({ data: [entry()] }, new Set(installed.keys()), ROUTE)]])
+    const liveModels = new Map([['openrouter', liveAdditions({ data: [entry({ id: addedId })] }, new Set(installed.keys()), ROUTE)]])
 
     const resolved = resolveProfiles({ openrouter: { apiKeyEnv: 'OPENROUTER_API_KEY' } }, liveModels)
     const models = resolved.get('openrouter')?.piProvider.getModels() ?? []

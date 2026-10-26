@@ -44,7 +44,7 @@
 | `@aeven/experimental-tool-agent-team` | `followup_task`、`interrupt_agent`、`list_agents`、`send_message`、`spawn_teammate`、`team_task_create`、`team_task_get`、`team_task_list`、`team_task_update`、`wait_agent` | `ctx.tools`、`ctx.systemPrompt`、`ctx.agentTeams`、`an exact live Team member Agent` | `tool/call`、`team/member`、`team/message/queued`、`team/message/delivered`、`team/task`、`tool/result` | - | 这 10 个工具限定于隐式 Team Lead 与持久 teammate 作用域。随产品发布的 avn-base bundle 默认禁用该包；文档中的 Agent Teams profile patch 会启用它，并禁用旧 continuable child 的同名控制工具。 |
 | `@aeven/tool-media` | `generate_image`、`generate_video` | `ctx.tools`、`ctx.media`、`ctx.attachments` | `tool/call`、`tool/result carrying one image block per stored image` | - | 本目录以未配置模型的形态挂载该工具，这种形态要求每次调用自行指明模型。设置了 `model` 的部署得到的是同一份 Schema；默认值不会进入描述。生成的字节经 `ctx.attachments` 存储，因此结果携带的图像块无需在此注册任何东西即可被会话卡片渲染。 |
 | `@aeven/tool-working-directory` | `working_directory` | `ctx.tools`、`ctx.workingDirectory`、`owning Agent session` | `tool/call`、`session/cwd`、`tool/result` | - | 本目录同时挂载该容量与该工具，因为工具读取的目录由服务解析。一次变更追加 `session/cwd`，按最后一条重放：恢复或分叉的会话继续在日志记录的目录中，下一次调用相对于它解析相对路径。 |
-| `@aeven/tool-worktrees` | `create_worktree` | `ctx.tools`、`ctx.subprocess`、`ctx.workingDirectory`、`ctx.worktrees`、`owning Agent session` | `tool/call`、`session/cwd`、`tool/result` | - | 本目录同时挂载该容量与该工具，因为 `create_worktree` 通过 `workingDirectory` 移动会话，而同一次调用随后报告该目录。检出目录、分支前缀与 git 宽限期都是无默认值的 Config，因此本目录明确声明它们：`.aeven/worktrees`、`avn/` 与 5000 ms。 |
+| `@aeven/tool-worktrees` | `create_worktree`, `remove_worktree` | `ctx.tools`、`ctx.subprocess`、`ctx.workingDirectory`、`ctx.worktrees`、`owning Agent session` | `tool/call`、`session/cwd`、`worktree/entered`、`worktree/removed`、`tool/result` | - | 本目录同时挂载该能力与工具，因为 `create_worktree` 和 `remove_worktree` 通过 `workingDirectory` 移动会话，而同一次调用随后报告该目录。检出目录、分支前缀、git 宽限期、子智能体隔离和依赖准备都是无默认值的 Config；基础 bundle 把检出放在 `$AVN_HOME/worktrees` 下，为分支添加 `avn/` 前缀，隔离子智能体，并用检出中锁文件对应的包管理器安装依赖。 |
 | `@aeven/tool-todo` | `todo_write` | `ctx.tools`、`owning Agent session` | `tool/call`、`todo/write`、`tool/result` | - | todo_write 是会话所有的状态；UI 将最新的 todo/write 事件渲染为检查清单。`allowParallelInProgress` 是没有默认值的必填项，因此本目录明确选择 `true`，对应描述允许同时存在多个 `in_progress` 项。选择 `false` 的部署会获得同一工具，但描述会要求只能有 1 个活动任务。 |
 | `@aeven/tool-workflow` | `workflow` | `ctx.tools`、`ctx.workflowEngine`、`ctx.systemPrompt`、`a calling Agent (exec.agent parents the script children)` | `tool/call`、`tool/result` | - | - |
 | `@aeven/tool-web` | `web_fetch`、`web_search` | `ctx.tools`、`ctx.web`、`ctx.systemPrompt` | `tool/call`、`tool/result` | - | web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可见 schema 在更换后端时保持稳定。 |
@@ -711,21 +711,45 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
     },
     "old_string": {
       "type": "string",
-      "description": "Literal text to replace. Must match exactly."
+      "description": "Literal text to replace. Must match exactly. Required unless edits is given."
     },
     "new_string": {
       "type": "string",
-      "description": "Literal replacement text. Use an empty string to delete the match."
+      "description": "Literal replacement text. Use an empty string to delete the match. Required unless edits is given."
     },
     "replace_all": {
       "type": "boolean",
       "description": "Replace all matches. Defaults to false; when false, old_string must appear exactly once."
+    },
+    "edits": {
+      "type": "array",
+      "description": "Several replacements for this file in one call, applied in order; none applies unless all match. Use instead of old_string/new_string.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "old_string": {
+            "type": "string",
+            "description": "Literal text to replace. Must match exactly."
+          },
+          "new_string": {
+            "type": "string",
+            "description": "Literal replacement text."
+          },
+          "replace_all": {
+            "type": "boolean",
+            "description": "Replace all matches of this old_string."
+          }
+        },
+        "required": [
+          "old_string",
+          "new_string"
+        ]
+      }
     }
   },
   "required": [
-    "file_path",
-    "old_string",
-    "new_string"
+    "file_path"
   ]
 }
 ```
@@ -2330,7 +2354,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 
 ### `create_worktree`
 
-在新的分支上创建 git 工作树，并把本会话移入其中。当一个任务需要自己的检出时使用：在同一仓库上与另一个智能体并行工作、尝试改动而不触碰主工作树，或者在开始别的事情时保留一个构建原地不动。新检出从 HEAD 或你指明的版本创建，此后每次文件、shell 与搜索调用都针对它解析。
+在新的分支上创建 git 工作树，并把本会话移入其中。当一个任务需要自己的检出时使用：在同一仓库上与另一个智能体并行工作、尝试改动而不触碰主工作树，或者在开始别的事情时保留一个构建原地不动。新检出从 HEAD 或你指明的版本创建；当前检出中尚未提交的改动不会带过去。此后每次文件、shell 与搜索调用都针对它解析，文件写入被限制在其中。子智能体会自动获得自己的工作树。
 
 ```json
 {
@@ -2350,7 +2374,29 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 
 来源：[`packages/session/tool-worktrees/src/index.ts`](../packages/session/tool-worktrees/src/index.ts)
 
-本目录同时挂载该容量与该工具，因为 `create_worktree` 通过 `workingDirectory` 移动会话，而同一次调用随后报告该目录。检出目录、分支前缀与 git 宽限期都是无默认值的 Config，因此本目录明确声明它们：`.aeven/worktrees`、`avn/` 与 5000 ms。
+### `remove_worktree`
+
+在分支已合并或不再需要时，移除由 create_worktree 或为子智能体创建的 git 工作树。不指定名称时，移除本会话所在的工作树，并把会话移回仓库的主检出。工作树有未提交改动时失败。设置 delete_branch 时也删除其分支；分支尚未合并时 git 会拒绝。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Name of the worktree to remove, as its directory and branch name it (without the branch prefix). Omit to remove the worktree this session works in."
+    },
+    "delete_branch": {
+      "type": "boolean",
+      "description": "Also delete the worktree's branch. Git refuses while the branch is not merged."
+    }
+  }
+}
+```
+
+来源： [`packages/session/tool-worktrees/src/index.ts`](../packages/session/tool-worktrees/src/index.ts)
+
+本目录同时挂载该能力与工具，因为 `create_worktree` 和 `remove_worktree` 通过 `workingDirectory` 移动会话，而同一次调用随后报告该目录。检出目录、分支前缀、git 宽限期、子智能体隔离和依赖准备都是无默认值的 Config；基础 bundle 把检出放在 `$AVN_HOME/worktrees` 下，为分支添加 `avn/` 前缀，隔离子智能体，并用检出中锁文件对应的包管理器安装依赖。
 
 <a id="aeventool-todo"></a>
 

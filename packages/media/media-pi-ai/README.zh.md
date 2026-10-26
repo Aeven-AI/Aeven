@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`avn-media-pi-ai` 把 pi-ai 的 images 注册表注册为 `ctx.media` 的图片后端，因此已经在聊天上信任 pi-ai 的部署可以用同样的方式触达它的图片目录。pi-ai 拥有传输层与模型元数据——在所固定的版本上是 45 个 OpenRouter 图片模型，含 FLUX.2 与 Seedream 系列——而本包拥有凭据解析、把 seam 的请求转换为 pi-ai 的输入内容，以及把 pi-ai 的带内失败转为 `MediaError`。当部署希望无需手写客户端即可使用 OpenRouter 图片时挂载它。
+`avn-media-pi-ai` 把 pi-ai 的统一模型集合注册为 `ctx.media` 的图片后端，因此已经在聊天上信任 pi-ai 的部署可以用同样的方式触达它的图片目录。pi-ai 拥有传输层与模型元数据，而本包拥有凭据解析、把 seam 的请求转换为 pi-ai 的输入内容，以及把 pi-ai 的带内失败转为 `MediaError`。当部署希望无需手写客户端即可使用 OpenRouter 图片时挂载它。
 
 ## 目录
 
@@ -41,9 +41,9 @@ seam 的提示词成为 pi-ai 的首条文本内容，每张参考图按给定�
 <a id="understand-the-implementation"></a>
 ## 理解实现
 
-### 通过 provider 对象调用
+### 选择图片模型
 
-pi-ai 从其 images 注册表导出 `generateImages`，但该模块不在包的 export map 中。`openrouterImagesProvider()` 返回的 provider 对象自带 `generateImages`，因此本包经由它调用——这也让模型、鉴权与传输由同一个对象解析，而不是三个可能彼此漂移的导入。
+pi-ai 模型集合注册 `openrouterProvider()`，并通过 `getModelOfType('image', 'openrouter', id)` 选择模型。聊天模型在分发前被拒绝。集合的 `generateImages()` 解析传入的凭据并调用所属图片传输层。
 
 ### 失败在结果里，而非抛出
 

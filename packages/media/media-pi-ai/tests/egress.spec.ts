@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { installProxyFromEnvironment } from '@aeven/http-proxy'
 import { Context } from '@deepseek-ai/cordis'
 import { MediaRuntime } from '@aeven/media'
-import { openrouterImagesProvider } from '@earendil-works/pi-ai/providers/openrouter-images'
+import { getBuiltinImageModels } from '@earendil-works/pi-ai/providers/all'
 import * as provider from '../src/index.ts'
 
 let seen: string[] = []
@@ -49,7 +49,7 @@ async function generateOnce(): Promise<void> {
     await ctx.plugin(provider)
     // The provider rejects a model outside pi-ai's catalog before it sends
     // anything, so the model comes from the catalog the provider itself reads.
-    const model = openrouterImagesProvider().getModels()[0]?.id
+    const model = getBuiltinImageModels('openrouter')[0]?.id
     if (model === undefined) throw new Error('pi-ai served no image model to probe with')
     await ctx.media.generateImage({ model, prompt: 'a probe' })
   } finally {
