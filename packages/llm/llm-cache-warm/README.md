@@ -77,7 +77,7 @@ Nothing. A warm's response is drained inside the plugin, so no assistant message
 
 #### Token effect
 
-One output token per warm plus a cached prefix read, for the whole captured prefix. The plugin spends that only under a configured provider, only inside a tool call, and only within the ping, concurrency, and daily budgets.
+One `maxTokens: 1` completion per warm plus a cached prefix read of the whole captured prefix. The plugin spends that only under a configured provider, only inside a tool call, and only within the ping, concurrency, and daily budgets.
 
 #### KV Cache effect
 
