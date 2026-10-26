@@ -38,6 +38,25 @@ DeepSeek publishes no TTL and pi-ai exposes none, so `providers` names each warm
 
 A warm dispatches through the same `llm/stream` waterfall, so routing, retries, and provider auth apply unchanged, but its response is drained inside the plugin: no assistant message, no tool call, no prompt text, no steering. Nothing model-visible changes, so the conversation, the compaction path, and the turn review see exactly what they saw before. A tool's own signal cancels an in-flight warm, so a block that ends early stops paying immediately.
 
+## Alternatives considered
+
+**Wait for the provider to refresh the entry.** DeepSeek bills a hit only while the entry lives and offers no keep-alive, so a session that stalls for a long tool call pays a full-price prefix read unless something replays the prefix itself.
+
+**Warm on an idle timer as well as inside tool blocks.** The longest waits are usually a human reading a reply, which is the case with no measurement behind it here: `dsh-warm` justified its idle mode from a streaming run this repository has not recorded. The plugin stays inside tool blocks until a deployment reports that window.
+
+**Warm synchronously before the tool returns.** The prefix is known at block start, but sending the warm then puts a provider round trip between the tool and its result and serializes parallel calls behind one ping. Appending after the tool result keeps the conversation order unchanged.
+
+**Read a cache TTL from provider metadata.** No adapter here exposes one, and adding a per-adapter field would put a deployment decision inside a client that cannot observe it. `intervalMs` is configuration instead.
+
+**Record the spend only in the plugin's own log.** Warm spend would appear beside nothing: a review or title call bills today without reaching `tokenUsage`, and repeating that gap for a higher-frequency call hides the cost the bounds exist to control.
+
+## Consequences
+
+- Two log-only events and a `stateVersion: 3` bump in the usage projection; nothing model-visible changes, so no snapshot scenario records the feature.
+- The plugin ships `disabled: true`. A deployment opts in by naming a provider with an `intervalMs`, and the example row is not a recommendation.
+- A byte-different prefix suppresses the warm rather than paying for a second cache entry, so a deployment that changes its system prompt or tool schemas mid-session warms only after the prefix settles.
+- Spend is bounded per tool block, per day, and across sessions, and `dryRun` prices the feature on real traffic before it dispatches anything.
+
 ## Verification
 
 `packages/llm/llm-cache-warm/tests/warmer.spec.ts` covers the window in both directions: no warm without a configured provider, an auxiliary purpose, an attachment, a small prefix, or outside a tool block; one logged warm per interval inside it; the ping, daily-budget, dry-run, and concurrency bounds; and the failure path. `packages/llm/token-meter` typechecks with the event folded into the usage projection, at `stateVersion: 3`.

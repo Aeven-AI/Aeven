@@ -201,4 +201,45 @@ register(provider: SessionTitleProvider): () => Promise<void>
 Types: [Session](session.zh.md)
 
 Source: [`packages/session/session-title/src/index.ts`](../../packages/session/session-title/src/index.ts)
+
+<a id="ctxworkingdirectory--workingdirectoryservice"></a>
+
+### `ctx.workingDirectory` — `WorkingDirectoryService`
+
+Directory resolution and change for one session.
+
+```ts cordis-catalog
+/**
+ * The directory in force for a session.
+ * @param session - the session whose tool calls resolve paths against it.
+ * @returns the last logged `session/cwd`, else the header's `cwd`, else
+ *   undefined when the session records none and nothing overrode it.
+ */
+of(session: Session): string | undefined
+
+/**
+ * Resolve a path the way the tools do, without touching the filesystem.
+ * @param session - the session supplying the base directory.
+ * @param path - absolute, or relative to {@link of}.
+ * @returns the normalized absolute path.
+ */
+resolve(session: Session, path: string): string
+
+/**
+ * Move the session into a directory and record it in the log.
+ *
+ * The directory must already exist: this changes where later calls run, it
+ * does not create directories. A relative target resolves against the current
+ * directory, so successive changes compose the way a shell's `cd` does.
+ * @param session - the session to move.
+ * @param target - absolute, or relative to the current directory.
+ * @returns the absolute directory now in force.
+ * @throws when the target is empty, missing, or not a directory.
+ */
+async change(session: Session, target: string): Promise<string>
+```
+
+Types: [Session](session.zh.md)
+
+Source: [`packages/session/working-directory/src/index.ts`](../../packages/session/working-directory/src/index.ts)
 <!-- END GENERATED cordis-surface -->

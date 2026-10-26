@@ -61,6 +61,7 @@
     "@aeven/system-prompt": "workspace:^",
     "@aeven/tool-jobs": "workspace:^",
     "@aeven/tools": "workspace:^",
-    "@aeven/user-approval": "workspace:^"
+    "@aeven/user-approval": "workspace:^",
+    "@aeven/working-directory": "workspace:^"
   }
 }

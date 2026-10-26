@@ -24,6 +24,23 @@ The composed text stays `code run failed (<kind>): <message>`, then the clause, 
 
 `invalid description` names its fix as well, so the two validation paths a model hits with malformed arguments both say what to send instead.
 
+## Alternatives considered
+
+**Trim the `run_code` description instead.** Measuring first ruled this out: the schema is about 930 characters, 2.6% of the `ptc` prompt, while the generated `tools:sdk` declarations are 81%. A model that lost a minute to a failure would have regained microseconds.
+
+**One generic recovery sentence for every kind.** A single `fix the problem and re-run` is wrong where it matters most: after a compute-budget expiry the fix is a smaller program, after a cancellation it is a re-run, and after `invalid-output` it is a serializable return value. The runtime's kinds already form a closed union, so the table can be exhaustive instead of vague.
+
+**Push the advice into the prompt.** A prompt section costs tokens on every step of every turn and still cannot know which failure occurred; the recovery clause is paid only when a call fails and names the failure it answers.
+
+**Return a structured error object the model must interpret.** `run_code` results are text the model reads directly, and a JSON envelope adds a parsing step at the one moment the model is already recovering.
+
+## Consequences
+
+- The runtime's failure taxonomy, the session log, and the tool schema are unchanged: the change is result content, which is already model-visible and already logged as `tool/result`.
+- `RECOVERY_BY_KIND` is typed against `CodeRunFailure['kind']`, so a new failure kind fails `typecheck` here rather than reaching a model with no advice.
+- The three ended-run rejections share one shape that states the call changed nothing, so a retried write is a decision the model makes knowingly.
+- No snapshot scenario changes, because the composed strings appear only on failure paths.
+
 ## Verification
 
 `packages/core/tools/tests/ptc.spec.ts` pins both composed texts — the abandoned sub-call message and the full `output-limit` failure with its captured output. The tool description and schema are unchanged, so `docs/tool-catalog.md` and the recorded `tool-schemas` snapshots stay valid; no new event, config field, or model-visible input is introduced.

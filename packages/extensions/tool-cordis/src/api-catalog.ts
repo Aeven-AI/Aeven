@@ -4093,6 +4093,32 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'workingDirectory',
+    summary: 'Directory resolution and change for one session.',
+    description: 'Directory resolution and change for one session.',
+    methods: [
+      {
+        signature: 'of(session: Session): string | undefined',
+        description: 'The directory in force for a session.',
+        parameters: [{ name: 'session', description: 'the session whose tool calls resolve paths against it.' }],
+        returns: 'the last logged `session/cwd`, else the header\'s `cwd`, else undefined when the session records none and nothing overrode it.',
+      },
+      {
+        signature: 'resolve(session: Session, path: string): string',
+        description: 'Resolve a path the way the tools do, without touching the filesystem.',
+        parameters: [{ name: 'session', description: 'the session supplying the base directory.' }, { name: 'path', description: 'absolute, or relative to {@link of}.' }],
+        returns: 'the normalized absolute path.',
+      },
+      {
+        signature: 'async change(session: Session, target: string): Promise<string>',
+        description: 'Move the session into a directory and record it in the log.\n\nThe directory must already exist: this changes where later calls run, it does not create directories. A relative target resolves against the current directory, so successive changes compose the way a shell\'s `cd` does.',
+        parameters: [{ name: 'session', description: 'the session to move.' }, { name: 'target', description: 'absolute, or relative to the current directory.' }],
+        returns: 'the absolute directory now in force.',
+        throws: ['when the target is empty, missing, or not a directory.'],
+      },
+    ],
+  },
+  {
     key: 'workspaceController',
     summary: 'Host service backing the generated `ctx.remote.workspace` namespace.',
     description: 'Host service backing the generated `ctx.remote.workspace` namespace.',

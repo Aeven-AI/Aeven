@@ -53,6 +53,7 @@ const NO_MODEL_EXPERIENCE_SECTION: Readonly<Record<string, string>> = {
   'packages/util/launch-environment': 'The package only resolves host environment values; model-facing consumers own any rendered use.',
   'packages/util/workspace-path': 'The package only formats Workspace paths for browser UI; it never constructs model input.',
   'packages/util/values': 'The package only validates, snapshots, compares, freezes, or rejects caller-owned values; consumers own every model-facing use.',
+  'packages/session/working-directory': 'The service resolves the effective directory from the session log and the header and registers no tool, schema, or prompt section; `tool-working-directory` owns the model-facing tool and its consumers own what the model reads.',
 }
 
 /**

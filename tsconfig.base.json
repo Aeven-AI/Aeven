@@ -454,6 +454,8 @@
       "@aeven/session-telemetry": ["./packages/session/session-telemetry/src"],
       "@aeven/session-telemetry-otel": ["./packages/session/session-telemetry-otel/src"],
       "@aeven/session-title": ["./packages/session/session-title/src"],
+      "@aeven/tool-working-directory": ["./packages/session/tool-working-directory/src"],
+      "@aeven/working-directory": ["./packages/session/working-directory/src"],
       "@aeven/session-title/invariant": ["./packages/session/session-title/src/invariant.ts"],
       "@aeven/session-title-all-prompts-llm": ["./packages/session/session-title-all-prompts-llm/src"],
       "@aeven/session-title-first-prompt-llm": ["./packages/session/session-title-first-prompt-llm/src"],
