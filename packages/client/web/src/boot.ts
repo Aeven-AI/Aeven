@@ -246,19 +246,24 @@ export class AppWebEntry {
         step.unmount()
       } else {
         const pathname = window.location.pathname
+        // A provider sign-in raises the cover from the press on, and lowers it
+        // when the reader comes back without finishing.
+        const cover = { show: () => { void showPreloader() }, hide: () => { hidePreloader() } }
         // An address that is not itself an authentication screen is remembered,
         // so signing in returns the reader to what they asked for.
-        let screen = auth.mountAuthScreen(this.container, pathname)
+        let screen = auth.mountAuthScreen(this.container, pathname, cover)
         if (screen === undefined) {
           auth.requireSignIn(pathname)
-          screen = auth.mountAuthScreen(this.container, window.location.pathname)
+          screen = auth.mountAuthScreen(this.container, window.location.pathname, cover)
         }
         if (screen === undefined) throw new Error('web boot: no authentication screen owns the page')
-        await Promise.race([screen.authenticated, ended])
+        const exit = await Promise.race([screen.authenticated, ended.then(() => 'here' as const)])
         // The reader has committed and the button still shows its progress: the
         // cover fades in over that screen, which comes off only once the cover
-        // is opaque, so the page never shows empty between the two.
-        await showPreloader()
+        // is opaque, so the page never shows empty between the two. A reader
+        // returning from another window is not watching this one, and finds the
+        // cover already up rather than this screen fading out under it.
+        await showPreloader(exit === 'here')
         screen.unmount()
       }
     }

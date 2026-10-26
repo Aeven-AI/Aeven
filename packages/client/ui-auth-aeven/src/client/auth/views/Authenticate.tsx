@@ -89,6 +89,7 @@ const configService = {
 const oauthService = {
   open: oauth.openProviderSignIn,
   awaitSession: oauth.awaitProviderSession,
+  watchReturn: oauth.watchProviderReturn,
   onEnded: oauth.onProviderSignInEnded,
 }
 const utilityService = utility
@@ -102,8 +103,19 @@ const storageService = storage
  */
 let pendingResetCode: string | undefined
 
-/** What the router matched out of the path. */
+/**
+ * The cover the boot gate raises over the page, lent to the screen so a
+ * provider sign-in can raise it from the press on and lower it when the reader
+ * comes back without finishing.
+ */
+export interface AuthScreenCover {
+  show(): void
+  hide(): void
+}
+
+/** What the router matched out of the path, and the gate's cover. */
 export interface AuthenticateProps {
+  readonly cover?: AuthScreenCover
   readonly match?: { readonly path?: string; readonly params?: { readonly authType?: string } }
   readonly location?: {
     readonly state?: {
@@ -172,10 +184,16 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
   const loginApple = useRef<ButtonHandle>(null)
   const loginGoogle = useRef<ButtonHandle>(null)
 
+  /** The provider sign-in in flight; a newer press or its end abandons it. */
+  const providerAttempt = useRef<AbortController | undefined>(undefined)
+  useEffect(() => () => { providerAttempt.current?.abort() }, [])
+
   // A provider sign-in an embedding shell ran and lost leaves nothing in progress.
   useEffect(() => oauthService.onEnded(() => {
+    providerAttempt.current?.abort()
+    props.cover?.hide()
     for (const provider of [loginX, loginApple, loginGoogle]) provider.current?.loadingStatus(false)
-  }), [])
+  }), [props.cover])
 
   /** The screen's root class, which the stylesheet keys on. */
   const componentName = 'authenticate'
@@ -475,9 +493,10 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
    * for; that window finishes the sign-in and this one picks the session up as
    * it does after the email form.
    *
-   * The pressed button shows progress from the press on, so a reader coming back
-   * from the provider finds a sign-in in progress rather than an idle form; it
-   * still takes presses, and pressing any provider again starts over.
+   * The cover rises from the press on and the pressed button shows progress, so a
+   * reader coming back from a finished sign-in never sees an idle form. A reader
+   * who comes back without finishing gets the form again, the button still
+   * showing progress and still taking presses: pressing any provider starts over.
    * @param url - the provider's sign-in URL, absent when the deployment offers that provider.
    * @param button - the button that was pressed.
    */
@@ -488,18 +507,18 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
       location.href = url
       return
     }
+    providerAttempt.current?.abort()
+    const attempt = new AbortController()
+    providerAttempt.current = attempt
+    props.cover?.show()
     oauthService.open(url)
-    void oauthService.awaitSession().then(() => {
-      appService
-        .getInitData()
-        .then(() => {
-          routeService.navigateRoute(utilityService.href(referrer, false))
-        })
-        .catch(() => {
-          // A profile read that fails after the provider finished leaves the
-          // reader on this screen. The exchange and the read are one step to
-          // them, and the step is the button they just pressed.
-        })
+    oauthService.watchReturn(() => { props.cover?.hide() }, attempt.signal)
+    // The session exists once the wait ends, so the screen hands over at once:
+    // the boot gate reads the session under the cover and returns here if there
+    // is none.
+    void oauthService.awaitSession(attempt.signal).then((signedIn) => {
+      attempt.abort()
+      if (signedIn) routeService.navigateRoute(utilityService.href(referrer, false), routes.AUTH_EXIT_ELSEWHERE)
     })
   }
 

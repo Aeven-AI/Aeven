@@ -17,6 +17,12 @@ export const AUTH_ROUTES = {
   oAuthResultSession: '/oauth-result/:oAuthSession/:oAuthChallenge',
 } as const
 
+/**
+ * History state of the entry a screen leaves for when the sign-in finished
+ * outside this page, so the screen reports its exit as `elsewhere`.
+ */
+export const AUTH_EXIT_ELSEWHERE = { authExit: 'elsewhere' } as const
+
 /** The prefixes the Host must resolve to the application index. */
 export const AUTH_ROUTE_PREFIXES = ['/sign-in', '/sign-up', '/oauth-result'] as const
 
@@ -35,9 +41,10 @@ export function isAuthRoute(pathname: string): boolean {
  * `pushState` notifies nothing on its own, so the event a Back or Forward would
  * raise is dispatched here and the application observes one thing either way.
  * @param path - the path to move to.
+ * @param state - history state for the new entry, such as {@link AUTH_EXIT_ELSEWHERE}.
  */
-export function navigateRoute(path: string): void {
+export function navigateRoute(path: string, state: unknown = null): void {
   if (path === '' || window.location.pathname === path) return
-  window.history.pushState(null, '', path)
+  window.history.pushState(state, '', path)
   window.dispatchEvent(new PopStateEvent('popstate'))
 }
