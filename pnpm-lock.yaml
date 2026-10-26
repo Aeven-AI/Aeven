@@ -1790,6 +1790,9 @@ importers:
       '@aeven/tool-working-directory':
         specifier: workspace:^
         version: link:../../session/tool-working-directory
+      '@aeven/tool-worktrees':
+        specifier: workspace:^
+        version: link:../../session/tool-worktrees
       '@aeven/tools':
         specifier: workspace:^
         version: link:../../core/tools
@@ -1823,6 +1826,9 @@ importers:
       '@aeven/working-directory':
         specifier: workspace:^
         version: link:../../session/working-directory
+      '@aeven/worktrees':
+        specifier: workspace:^
+        version: link:../../session/worktrees
       '@deepseek-ai/cordis-plugin-hmr':
         specifier: workspace:^
         version: link:../../../vendor/hmr
@@ -10447,6 +10453,22 @@ importers:
         specifier: workspace:^
         version: link:../../../vendor/cordis
 
+  packages/session/tool-worktrees:
+    dependencies:
+      zod:
+        specifier: ^4.4.3
+        version: 4.6.5
+    devDependencies:
+      '@aeven/tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+      '@aeven/worktrees':
+        specifier: workspace:^
+        version: link:../worktrees
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
   packages/session/working-directory:
     dependencies:
       zod:
@@ -10459,6 +10481,25 @@ importers:
       '@aeven/session-projection':
         specifier: workspace:^
         version: link:../session-projection
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/session/worktrees:
+    dependencies:
+      zod:
+        specifier: ^4.4.3
+        version: 4.6.5
+    devDependencies:
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@aeven/subprocess':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess
+      '@aeven/working-directory':
+        specifier: workspace:^
+        version: link:../working-directory
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
