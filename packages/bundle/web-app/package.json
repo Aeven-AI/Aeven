@@ -1,7 +1,7 @@
 {
   "name": "@aeven/web-app",
   "description": "The avn browser-surface bundle: the web patch layer over avn-base plus the runtime glue plugin (frontend dist serving, web-surface prompt, bash runtime variables, URL line)",
-  "version": "0.3.16-alpha",
+  "version": "0.3.17-alpha",
   "publishConfig": {
     "access": "public"
   },

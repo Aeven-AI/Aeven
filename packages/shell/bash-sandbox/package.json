@@ -1,7 +1,7 @@
 {
   "name": "@aeven/bash-sandbox",
   "description": "Sandbox-consuming implementation of the Aeven bash executor seam (confines every command via ctx.sandbox, reports denial/enforcement result facts)",
-  "version": "0.3.16-alpha",
+  "version": "0.3.17-alpha",
   "publishConfig": {
     "access": "public"
   },

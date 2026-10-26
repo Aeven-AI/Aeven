@@ -1,6 +1,6 @@
 {
   "name": "@aeven/tool-worktrees",
-  "version": "0.0.0",
+  "version": "0.3.17-alpha",
   "private": true,
   "type": "module",
   "description": "The create_worktree model tool: a branch-backed checkout per task that the session then works in.",

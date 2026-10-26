@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-commands",
   "description": "Client command surface: global directory cache, '/' source, three command UI kinds, popupSelect registry",
-  "version": "0.3.16-alpha",
+  "version": "0.3.17-alpha",
   "publishConfig": {
     "access": "public"
   },

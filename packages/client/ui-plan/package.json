@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-plan",
   "description": "Plan-mode composer control: the conversation.input.plan seat over the plan projection and the /plan command channel",
-  "version": "0.3.16-alpha",
+  "version": "0.3.17-alpha",
   "publishConfig": {
     "access": "public"
   },

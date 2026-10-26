@@ -1,7 +1,7 @@
 {
   "name": "@aeven/web-fetch-http",
   "description": "Anonymous public HTTP(S) fetch provider for the Aeven web capability seam (ctx.web)",
-  "version": "0.3.16-alpha",
+  "version": "0.3.17-alpha",
   "publishConfig": {
     "access": "public"
   },
