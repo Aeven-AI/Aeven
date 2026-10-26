@@ -23,6 +23,7 @@ import type {
   KnownApi,
   Model,
   ModelCost,
+  MistralConversationsCompat,
   ModelThinkingLevel,
   OpenAICompletionsCompat,
   OpenAIResponsesCompat,
@@ -144,6 +145,7 @@ export type PiAiChatTemplateVar = Extract<ChatTemplateKwargValue, { $var: string
 const CHAT_TEMPLATE_VAR_GATE: Record<PiAiChatTemplateVar, true> = {
   'thinking.enabled': true,
   'thinking.effort': true,
+  'thinking.budget': true,
 }
 
 /** The request-state placeholders a profile may name. */
@@ -287,7 +289,10 @@ const COMPLETIONS_COMPAT_GATE = {
   zaiToolStream: 'withhold',
   supportsOpenAIGrammarTools: 'withhold',
   sendSessionAffinityHeaders: 'withhold',
-  deferredToolsMode: 'withhold',
+  thinkingTokenBudgetField: 'withhold',
+  supportsMidConvoSystemMessages: 'withhold',
+  supportsMidConvoToolAdditions: 'withhold',
+  vllmPriority: 'withhold',
   sessionAffinityFormat: 'withhold',
 } as const satisfies Record<keyof OpenAICompletionsCompat, CompatDisposition>
 
@@ -301,6 +306,9 @@ const RESPONSES_COMPAT_GATE = {
   supportsAdditionalTools: 'withhold',
   supportsToolSearch: 'withhold',
   supportsExplicitPromptCacheMode: 'withhold',
+  supportsMidConvoSystemMessages: 'withhold',
+  supportsMidConvoEffort: 'withhold',
+  supportsMaxOutputTokens: 'withhold',
 } as const satisfies Record<keyof OpenAIResponsesCompat, CompatDisposition>
 
 /** Disposition of every `AnthropicMessagesCompat` field; a drift gate like the one above. */
@@ -313,13 +321,22 @@ const ANTHROPIC_COMPAT_GATE = {
   allowEmptySignature: 'offer',
   supportsStrictTools: 'offer',
   sendSessionAffinityHeaders: 'withhold',
-  supportsToolReferences: 'withhold',
+  sessionAffinityFormat: 'withhold',
+  supportsMidConvoEffort: 'withhold',
+  supportsMidConvoSystemMessages: 'withhold',
+  supportsMidConvoToolChanges: 'withhold',
+  allowedFallbackModels: 'withhold',
 } as const satisfies Record<keyof AnthropicMessagesCompat, CompatDisposition>
 
 /** Disposition of every `BedrockCompat` field; a drift gate like the one above. */
 const BEDROCK_COMPAT_GATE = {
   supportsStrictMode: 'offer',
 } as const satisfies Record<keyof BedrockCompat, CompatDisposition>
+
+/** Disposition of Mistral's catalog-owned transcript capability. */
+const MISTRAL_COMPAT_GATE = {
+  supportsMidConvoSystemMessages: 'withhold',
+} as const satisfies Record<keyof MistralConversationsCompat, CompatDisposition>
 
 /**
  * Every wire protocol pi-ai gives a compat type. Derived from `Model.compat`'s
@@ -346,6 +363,7 @@ const COMPAT_GATES: Readonly<Record<ApiWithCompat, Readonly<Record<string, Compa
   'openai-codex-responses': RESPONSES_COMPAT_GATE,
   'anthropic-messages': ANTHROPIC_COMPAT_GATE,
   'bedrock-converse-stream': BEDROCK_COMPAT_GATE,
+  'mistral-conversations': MISTRAL_COMPAT_GATE,
 }
 
 /**

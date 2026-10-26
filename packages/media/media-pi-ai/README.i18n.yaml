@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/media/media-pi-ai/README.md
-README.md: 2662680941b806edfdcf54b706badc3b5a7ce2a1
-README.zh.md: 4832d7bb10a906e820ae8eca74a4a39a235dc682
+README.md: adb22501c4213c25102c4262bad8514cf9dacd29
+README.zh.md: 8e3a09a358e12bad94f824eab002d362a3d09617

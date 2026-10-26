@@ -219,7 +219,7 @@ Conversion preserves logical request order, while image handles and offload plac
 
 #### What the model sees
 
-pi-ai events become harness reasoning, text, tool-call, usage, and finish chunks. The adapter passes parsed tool arguments to the harness as raw JSON strings.
+pi-ai events become harness reasoning, text, tool-call, usage, and finish chunks. The adapter passes parsed tool arguments to the harness as raw JSON strings. Invalid tool arguments remain diagnostic text so tool validation rejects the call instead of executing an empty object.
 
 #### Token effect
 

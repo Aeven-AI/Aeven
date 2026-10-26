@@ -92,7 +92,9 @@ export async function awaitProviderSession(signal: AbortSignal): Promise<boolean
   const onReported = (): void => { reported = true }
   window.addEventListener(PROVIDER_SIGNED_IN_EVENT, onReported)
   try {
+    // oxlint-disable-next-line typescript/no-unnecessary-condition -- the abort and sign-in listeners can run during either await.
     while (!signal.aborted && !reported && !await hasSession()) {
+      // oxlint-disable-next-line typescript/no-unnecessary-condition -- the sign-in listener can run while hasSession is pending.
       if (reported) return !signal.aborted
       await new Promise<void>((resolve) => {
         const wake = (): void => {

@@ -690,21 +690,45 @@ Edit an existing UTF-8 text file by replacing literal text.
     },
     "old_string": {
       "type": "string",
-      "description": "Literal text to replace. Must match exactly."
+      "description": "Literal text to replace. Must match exactly. Required unless edits is given."
     },
     "new_string": {
       "type": "string",
-      "description": "Literal replacement text. Use an empty string to delete the match."
+      "description": "Literal replacement text. Use an empty string to delete the match. Required unless edits is given."
     },
     "replace_all": {
       "type": "boolean",
       "description": "Replace all matches. Defaults to false; when false, old_string must appear exactly once."
+    },
+    "edits": {
+      "type": "array",
+      "description": "Several replacements for this file in one call, applied in order; none applies unless all match. Use instead of old_string/new_string.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "old_string": {
+            "type": "string",
+            "description": "Literal text to replace. Must match exactly."
+          },
+          "new_string": {
+            "type": "string",
+            "description": "Literal replacement text."
+          },
+          "replace_all": {
+            "type": "boolean",
+            "description": "Replace all matches of this old_string."
+          }
+        },
+        "required": [
+          "old_string",
+          "new_string"
+        ]
+      }
     }
   },
   "required": [
-    "file_path",
-    "old_string",
-    "new_string"
+    "file_path"
   ]
 }
 ```

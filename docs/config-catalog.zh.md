@@ -336,7 +336,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/api/terminal-controller/src/index.ts:31`](../packages/api/terminal-controller/src/index.ts)
+来源：[`packages/api/terminal-controller/src/index.ts:32`](../packages/api/terminal-controller/src/index.ts)
 
 <a id="aevenapi-workspace-files"></a>
 
@@ -364,7 +364,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/api/workspace-files/src/index.ts:46`](../packages/api/workspace-files/src/index.ts)
+来源：[`packages/api/workspace-files/src/index.ts:47`](../packages/api/workspace-files/src/index.ts)
 
 <a id="aevenattachment-local"></a>
 
@@ -457,7 +457,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/guard/bash-edit-guard/src/index.ts:28`](../packages/guard/bash-edit-guard/src/index.ts)
+来源：[`packages/guard/bash-edit-guard/src/index.ts:29`](../packages/guard/bash-edit-guard/src/index.ts)
 
 <a id="aevenbash-local"></a>
 
@@ -1245,7 +1245,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/context/file-reference-local/src/index.ts:34`](../packages/context/file-reference-local/src/index.ts)
+来源：[`packages/context/file-reference-local/src/index.ts:35`](../packages/context/file-reference-local/src/index.ts)
 
 <a id="aevenfs-local"></a>
 
@@ -1590,6 +1590,13 @@ export interface Config {
   jwksRefreshIntervalMs?: number
   /** Budget for one key set fetch. */
   jwksTimeoutMs?: number
+  /**
+   * File keeping the last key set fetched. A Host that starts with it verifies
+   * tokens at once and refreshes the set in the background, so a reader signed
+   * in before keeps working while the API is unreachable. Absent keeps the keys
+   * in memory only, and the Host waits for its first fetch.
+   */
+  jwksCacheFile?: string
   /** Cookie carrying the refresh token for a request that presents no bearer. */
   refreshCookieName?: string
   /**
@@ -2560,7 +2567,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/media/media-pi-ai/src/index.ts:33`](../packages/media/media-pi-ai/src/index.ts)
+来源：[`packages/media/media-pi-ai/src/index.ts:34`](../packages/media/media-pi-ai/src/index.ts)
 
 <a id="aevenmemory-context"></a>
 
@@ -3104,7 +3111,7 @@ export interface Config {
 
 依赖：[`SandboxMode`](subsystems/sandbox.zh.md)
 
-来源：[`packages/sandbox/sandbox-policy/src/index.ts:70`](../packages/sandbox/sandbox-policy/src/index.ts)
+来源：[`packages/sandbox/sandbox-policy/src/index.ts:101`](../packages/sandbox/sandbox-policy/src/index.ts)
 
 <a id="aevensdk-app"></a>
 
@@ -4049,7 +4056,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/core/system-prompt/src/index.ts:243`](../packages/core/system-prompt/src/index.ts)
+来源：[`packages/core/system-prompt/src/index.ts:245`](../packages/core/system-prompt/src/index.ts)
 
 <a id="aeventerminal-bash"></a>
 
@@ -4190,7 +4197,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/shell/tool-bash-persistent/src/index.ts:442`](../packages/shell/tool-bash-persistent/src/index.ts)
+来源：[`packages/shell/tool-bash-persistent/src/index.ts:450`](../packages/shell/tool-bash-persistent/src/index.ts)
 
 <a id="aeventool-browser"></a>
 
@@ -4635,7 +4642,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/shell/tool-pwsh-persistent/src/index.ts:458`](../packages/shell/tool-pwsh-persistent/src/index.ts)
+来源：[`packages/shell/tool-pwsh-persistent/src/index.ts:466`](../packages/shell/tool-pwsh-persistent/src/index.ts)
 
 <a id="aeventool-ralph"></a>
 
@@ -5238,6 +5245,40 @@ export interface Config {
 
 来源：[`packages/workspace/workspace/src/index.ts:43`](../packages/workspace/workspace/src/index.ts)
 
+<a id="aevenworktrees"></a>
+
+## `@aeven/worktrees`
+
+需要：`subprocess` · `workingDirectory` · `sessionProjections`
+
+```ts config-catalog
+/** Deployment choices for where checkouts live, how branches are named, and how checkouts are prepared. */
+export interface Config {
+  /** Absolute directory that holds the checkouts, one subdirectory per repository. */
+  directory: string
+  /** Prefix every created branch carries, e.g. `avn/`. */
+  branchPrefix: string
+  /** Grace period in milliseconds for a git or setup child process to exit after termination. */
+  graceMs: number
+  /** Whether every delegated in-process child agent works in its own checkout. */
+  isolateSubagents: boolean
+  /** Dependency setup for a new checkout; the first entry whose `when` file exists runs. */
+  setup: SetupEntry[]
+  /** Milliseconds a setup command may run before it is terminated. */
+  setupTimeoutMs: number
+}
+
+/** One dependency-setup command, run in a new checkout that contains its marker file. */
+export interface SetupEntry {
+  /** File at the checkout root that selects this entry, e.g. `pnpm-lock.yaml`. */
+  when: string
+  /** Command and arguments, run without a shell in the checkout. */
+  argv: string[]
+}
+```
+
+来源：[`packages/session/worktrees/src/index.ts:54`](../packages/session/worktrees/src/index.ts)
+
 ## Loadable plugins with no config
 
 These load from a `cordis.yml` entry with no `config:` block; they declare no configuration API.
@@ -5333,6 +5374,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@aeven/tool-device` — requires `tools` ([`packages/device/tool-device/src/index.ts`](../packages/device/tool-device/src/index.ts))
 - `@aeven/tool-subagent-control` — requires `tools` · `subagents` ([`packages/subagent/tool-subagent-control/src/index.ts`](../packages/subagent/tool-subagent-control/src/index.ts))
 - `@aeven/tool-working-directory` — requires `tools` · `workingDirectory` ([`packages/session/tool-working-directory/src/index.ts`](../packages/session/tool-working-directory/src/index.ts))
+- `@aeven/tool-worktrees` — requires `tools` · `worktrees` ([`packages/session/tool-worktrees/src/index.ts`](../packages/session/tool-worktrees/src/index.ts))
 - `@aeven/user-questions` ([`packages/interaction/user-questions/src/index.ts`](../packages/interaction/user-questions/src/index.ts))
 - `@aeven/webhook` — requires `agents` · `agentDefaultModel` · `agentPresets` · `permissionPresets` · `sessionTitle` · `workspaceRegistry` ([`packages/webhook/webhook/src/index.ts`](../packages/webhook/webhook/src/index.ts))
 - `@aeven/working-directory` — requires `sessionProjections` ([`packages/session/working-directory/src/index.ts`](../packages/session/working-directory/src/index.ts))

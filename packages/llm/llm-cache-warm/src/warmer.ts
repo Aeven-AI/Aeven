@@ -237,13 +237,13 @@ export class CacheWarmer {
         maxTokens: 1,
         signal: ping_deadline.signal,
       }
-      delete (options as { sessionId?: SessionId }).sessionId
+      delete options.sessionId
       for await (const chunk of this.ports.stream(options)) {
         ping_deadline.signal.throwIfAborted()
         assembler.push(chunk)
       }
       const finish = assembler.finish
-      if (finish !== undefined && finish.kind !== 'stop' && finish.kind !== 'max-tokens') {
+      if (finish.kind !== 'stop' && finish.kind !== 'max-tokens') {
         error = `warm finished with ${finish.kind}`
       }
       usage = assembler.usage

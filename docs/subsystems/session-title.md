@@ -218,6 +218,14 @@ Directory resolution and change for one session.
 of(session: Session): string | undefined
 
 /**
+ * The workspace root in force for a session: the directory sandboxed writes
+ * are confined to.
+ * @param session - the session to resolve.
+ * @returns the last logged `root`, else the header's `cwd`, else undefined.
+ */
+rootOf(session: Session): string | undefined
+
+/**
  * Resolve a path the way the tools do, without touching the filesystem.
  * @param session - the session supplying the base directory.
  * @param path - absolute, or relative to {@link of}.
@@ -226,7 +234,8 @@ of(session: Session): string | undefined
 resolve(session: Session, path: string): string
 
 /**
- * Move the session into a directory and record it in the log.
+ * Move the session into a directory and record it in the log. The
+ * workspace root stays where it is.
  *
  * The directory must already exist: this changes where later calls run, it
  * does not create directories. A relative target resolves against the current
@@ -237,6 +246,33 @@ resolve(session: Session, path: string): string
  * @throws when the target is empty, missing, or not a directory.
  */
 async change(session: Session, target: string): Promise<string>
+
+/**
+ * Move the session into another workspace: the directory becomes both the
+ * working directory and the root sandboxed writes are confined to.
+ * @param session - the session to move.
+ * @param target - absolute, or relative to the current directory.
+ * @returns the absolute directory now in force.
+ * @throws when the target is empty, missing, or not a directory.
+ */
+async enter(session: Session, target: string): Promise<string>
+
+/**
+ * {@link enter} for a directory the caller has just created and checked, in
+ * a window that cannot await — a child agent's creation setup.
+ * @param session - the session to move.
+ * @param path - absolute path of an existing directory.
+ */
+enterVerified(session: Session, path: string): void
+
+/**
+ * Start a child session where its parent works: copy the parent's logged
+ * directory and workspace root onto the child's log. A parent still in its
+ * header directory leaves the child on its own header.
+ * @param child - the child session, inside its creation window.
+ * @param parent - the delegating session.
+ */
+inherit(child: Session, parent: Session): void
 ```
 
 Types: [Session](session.md)
@@ -251,15 +287,6 @@ The git worktree service, registered as `ctx.worktrees`.
 
 ```ts cordis-catalog
 /**
- * Root of the repository the session works in.
- * @param session - the session whose working directory names the repository.
- * @param signal - cancels the git call.
- * @returns the absolute repository root.
- * @throws when the session is in no repository.
- */
-async repositoryRoot(session: Session, signal?: AbortSignal): Promise<string>
-
-/**
  * Registered checkouts of the session's repository, main working tree first.
  * @param session - the session whose repository is listed.
  * @param signal - cancels the git call.
@@ -271,13 +298,44 @@ async list(session: Session, signal?: AbortSignal): Promise<WorktreeInfo[]>
  * Create a branch-backed checkout and move the session into it.
  * @param session - the session that will work in the new checkout.
  * @param request - optional name and starting revision.
- * @param signal - cancels the git calls.
- * @returns the checkout path, its branch, its base commit, and the repository root.
+ * @param signal - cancels the git and setup calls.
+ * @returns the checkout path, its branch, its base commit, the repository root, and the setup outcome.
  */
 async create(session: Session, request: CreateWorktreeRequest = {}, signal?: AbortSignal): Promise<CreatedWorktree>
+
+/**
+ * Create a checkout for a delegated child from a snapshot of the parent's
+ * working tree, and record it on the parent's log. The child moves in
+ * through {@link adopt} while it is composed.
+ * @param parent - the delegating session.
+ * @param child - the child session the checkout is for.
+ * @param signal - cancels the git and setup calls.
+ * @returns the checkout, or undefined when isolation is off, or the parent
+ *   works outside a git repository or in one without commits.
+ */
+async isolate(parent: Session, child: SessionId, signal?: AbortSignal): Promise<CreatedWorktree | undefined>
+
+/**
+ * Move a child session into the checkout {@link isolate} created for it.
+ * @param child - the child session, inside its creation window.
+ * @param worktree - the checkout created for it.
+ */
+adopt(child: Session, worktree: CreatedWorktree): void
+
+/**
+ * Remove a checkout and optionally its branch. When the session works in
+ * the checkout, it moves back to the repository's main working tree first.
+ * @param session - the session removing the checkout.
+ * @param name - checkout name; omit for the checkout the session works in.
+ * @param options - `deleteBranch` deletes the branch when it is merged into the main working tree's HEAD.
+ * @param signal - cancels the git calls.
+ * @returns what was removed and where the session works afterwards.
+ * @throws when the checkout has uncommitted changes, or the branch is unmerged.
+ */
+async remove( session: Session, name: string | undefined, options: { deleteBranch: boolean }, signal?: AbortSignal, ): Promise<RemovedWorktree>
 ```
 
-Types: [Session](session.md)
+Types: [Session](session.md) · [SessionId](core.md)
 
 Source: [`packages/session/worktrees/src/index.ts`](../../packages/session/worktrees/src/index.ts)
 <!-- END GENERATED cordis-surface -->

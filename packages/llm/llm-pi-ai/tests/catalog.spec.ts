@@ -1,3 +1,4 @@
+import { normalizeContext } from '@earendil-works/pi-ai/utils/transcript'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -560,7 +561,7 @@ describe('catalog routes with per-model configuration', () => {
     if (built === undefined) throw new Error('the deepseek route built no provider')
     const [model] = built.getModels()
     if (model === undefined) throw new Error('the deepseek route resolved no models')
-    const context = { messages: [{ role: 'user' as const, content: 'hi', timestamp: 0 }] }
+    const context = normalizeContext({ messages: [{ role: 'user', content: 'hi', timestamp: 0 }] })
 
     // `stream` is interface-required and unused by the harness adapter, which
     // only calls `streamSimple`; both must still reach the catalog provider.
@@ -849,19 +850,19 @@ describe('compat switches', () => {
   })
 
   it('skips models of other protocols on a mixed route instead of failing them', () => {
-    // xai ships both completions and responses models, so a route-level switch
-    // must land on the former without invalidating the latter.
-    const catalog = getBuiltinModels('xai') as readonly Model<Api>[]
+    // Cloudflare serves both protocols; a route switch applies only to
+    // models whose protocol declares it.
+    const catalog = getBuiltinModels('cloudflare-ai-gateway') as readonly Model<Api>[]
     const completions = catalog.find(model => model.api === 'openai-completions')
     const responses = catalog.find(model => model.api === 'openai-responses')
-    if (completions === undefined || responses === undefined) throw new Error('xai no longer ships a mixed catalog')
+    if (completions === undefined || responses === undefined) throw new Error('cloudflare-ai-gateway no longer ships a mixed catalog')
 
     const models = modelsOf({
-      xai: {
+      'cloudflare-ai-gateway': {
         compat: { supportsReasoningEffort: false },
         models: [{ id: completions.id }, { id: responses.id }],
       },
-    }, 'xai')
+    }, 'cloudflare-ai-gateway')
 
     expect((models.get(completions.id)?.compat as OpenAICompletionsCompat).supportsReasoningEffort).toBe(false)
     expect(models.get(responses.id)?.compat).toEqual(responses.compat)
@@ -930,18 +931,18 @@ describe('compat switches', () => {
   })
 
   it('lands each route switch only on the models whose protocol declares it', () => {
-    const catalog = getBuiltinModels('xai') as readonly Model<Api>[]
+    const catalog = getBuiltinModels('cloudflare-ai-gateway') as readonly Model<Api>[]
     const completions = catalog.find(model => model.api === 'openai-completions')
     const responses = catalog.find(model => model.api === 'openai-responses')
-    if (completions === undefined || responses === undefined) throw new Error('xai no longer ships a mixed catalog')
+    if (completions === undefined || responses === undefined) throw new Error('cloudflare-ai-gateway no longer ships a mixed catalog')
 
     const models = modelsOf({
-      xai: {
+      'cloudflare-ai-gateway': {
         // Both protocols take the first switch; only completions takes the second.
         compat: { supportsDeveloperRole: false, thinkingFormat: 'openai' },
         models: [{ id: completions.id }, { id: responses.id }],
       },
-    }, 'xai')
+    }, 'cloudflare-ai-gateway')
 
     const onCompletions = models.get(completions.id)?.compat as OpenAICompletionsCompat
     expect(onCompletions.supportsDeveloperRole).toBe(false)
@@ -961,7 +962,10 @@ describe('compat switches', () => {
           reasoningEfforts: { off: null, medium: 'medium' },
           compat: {
             thinkingFormat: 'qwen-chat-template',
-            chatTemplateKwargs: { enable_thinking: { $var: 'thinking.enabled' } },
+            chatTemplateKwargs: {
+              enable_thinking: { $var: 'thinking.enabled' },
+              thinking_budget: { $var: 'thinking.budget' },
+            },
           },
         }],
       },
@@ -969,7 +973,10 @@ describe('compat switches', () => {
 
     expect(models.get('qwen-local')?.compat).toEqual({
       thinkingFormat: 'qwen-chat-template',
-      chatTemplateKwargs: { enable_thinking: { $var: 'thinking.enabled' } },
+      chatTemplateKwargs: {
+        enable_thinking: { $var: 'thinking.enabled' },
+        thinking_budget: { $var: 'thinking.budget' },
+      },
     })
   })
 
@@ -1088,15 +1095,15 @@ describe('compat switches', () => {
   it('refuses a valueless compat key on a model entry too', () => {
     expect(() => resolveProfiles({
       deepseek: {
-        modelOverrides: { 'deepseek-v4-flash': { compat: { requiresReasoningContentOnAssistantMessages: null } } as never },
+        modelOverrides: { 'deepseek-flash': { compat: { requiresReasoningContentOnAssistantMessages: null } } as never },
       },
-    })).toThrow(/model "deepseek-v4-flash" sets compat "requiresReasoningContentOnAssistantMessages" with no value/)
+    })).toThrow(/model "deepseek-flash" sets compat "requiresReasoningContentOnAssistantMessages" with no value/)
   })
 
   it('serves the Responses compat type on every protocol pi-ai gives it to', () => {
     // pi-ai types azure-openai-responses and openai-codex-responses with the
     // same OpenAIResponsesCompat, so a switch settable on one is settable on all.
-    for (const route of ['azure-openai-responses', 'openai-codex']) {
+    for (const route of ['azure', 'openai-codex']) {
       const models = modelsOf({ [route]: { compat: { supportsDeveloperRole: false } } }, route)
       const [first] = [...models.values()]
       expect((first?.compat as { supportsDeveloperRole?: boolean }).supportsDeveloperRole).toBe(false)
@@ -1153,7 +1160,7 @@ describe('resolution snapshots', () => {
     const inFlight = (async () => {
       for await (const chunk of adapter.stream({
         provider: 'deepseek',
-        model: 'deepseek-v4-flash',
+        model: 'deepseek-flash',
         messages: [],
       })) chunks.push(chunk)
     })()
@@ -1182,7 +1189,7 @@ describe('resolution snapshots', () => {
     })
     const drain = async (): Promise<void> => {
       for await (const _chunk of adapter.stream({
-        provider: 'deepseek', model: 'deepseek-v4-flash', messages: [],
+        provider: 'deepseek', model: 'deepseek-flash', messages: [],
       })) { /* drain */ }
     }
 
@@ -1265,7 +1272,7 @@ describe('configurable-provider directory', () => {
 
     expect(ctx.llm.listConfigurableProviders()).toContainEqual({
       provider: 'openai-codex',
-      displayName: 'OpenAI Codex',
+      displayName: 'OpenAI Codex (legacy)',
       settingsNs: 'llm-pi-ai',
       settingsPath: ['providers', 'openai-codex'],
       declared: false,

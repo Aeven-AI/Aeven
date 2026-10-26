@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-18-pi-ai-wire-compat-surface.md
-2026-08-18-pi-ai-wire-compat-surface.md: ae07a98a007173da3206d66f03cf50daec34ef7c
-2026-08-18-pi-ai-wire-compat-surface.zh.md: 2a4a657cee8dab1717098178c72aa61d4bb1c5a4
+2026-08-18-pi-ai-wire-compat-surface.md: f81d4b1af49f9fe0c9b560e73bcf66040b4c5637
+2026-08-18-pi-ai-wire-compat-surface.zh.md: fe9f3ac834b66f50e34ea398a9649e2df2f9f96a

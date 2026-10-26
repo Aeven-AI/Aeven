@@ -65,8 +65,7 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
-    "@aeven/scope": "workspace:^",
-    "@aeven/working-directory": "workspace:^"
+    "@aeven/scope": "workspace:^"
   },
   "devDependencies": {
     "@aeven/agent": "workspace:^",

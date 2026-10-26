@@ -64,8 +64,6 @@ kind: "package-reference"
 <a id="model-experience"></a>
 ## 模型体验
 
-面向模型的动词位于 [`@aeven/tool-worktrees`](../tool-worktrees/README.zh.md)。本包添加运行时上下文。
-
 ### 工作树运行时上下文
 
 #### 模型看到什么

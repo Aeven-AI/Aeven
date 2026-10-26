@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`avn-media-pi-ai` registers pi-ai's images registry as a `ctx.media` image backend, so a deployment that already trusts pi-ai for chat reaches its image catalog the same way. pi-ai owns the transports and the model metadata — 45 OpenRouter image models at the pinned version, including the FLUX.2 and Seedream families — while this package owns credential resolution, translating the seam's request into pi-ai's input content, and turning pi-ai's in-band failures into `MediaError`. Mount it when a deployment wants OpenRouter images without a hand-written client.
+`avn-media-pi-ai` registers pi-ai's unified model collection as a `ctx.media` image backend, so a deployment that already trusts pi-ai for chat reaches its image catalog the same way. pi-ai owns the transports and the model metadata while this package owns credential resolution, translating the seam's request into pi-ai's input content, and turning pi-ai's in-band failures into `MediaError`. Mount it when a deployment wants OpenRouter images without a hand-written client.
 
 ## Table of Contents
 
@@ -41,9 +41,9 @@ Image providers in this package refuse `guidanceScale`, `outputFormat` and `opti
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 
-### Calling through the provider object
+### Selecting image models
 
-pi-ai exposes `generateImages` from its images registry, but that module is absent from the package's export map. The provider object `openrouterImagesProvider()` returns carries its own `generateImages`, so this package calls through it — which also keeps model, auth, and transport resolved by one object rather than three imports that could drift apart.
+The pi-ai model collection registers `openrouterProvider()` and selects models with `getModelOfType('image', 'openrouter', id)`. Chat models are refused before dispatch. The collection's `generateImages()` resolves the supplied credential and calls the owning image transport.
 
 ### Failure is in the result, not a throw
 

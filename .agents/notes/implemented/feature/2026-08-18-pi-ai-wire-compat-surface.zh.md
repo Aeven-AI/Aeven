@@ -14,7 +14,7 @@ pi-ai 依据提供方 id 与 baseURL 决定每个请求的形状——系统提�
 
 ## Decision
 
-每个 pi-ai compat 类型一张漂移门禁——以 `Record<keyof OpenAICompletionsCompat | …, CompatDisposition>` 为键——把每一个上游字段分类为 `offer` 或 `withhold`。去重后三十四个字段，开放二十三个。分界线在于私有 URL 能推出什么：凡是无法从未识别端点推断的，部署方必须能够说出口；而 pi-ai 已安装 catalog 为具名厂商设定的字段保持扣留，因为伸手去够 `openRouterRouting` 或 `deferredToolsMode` 的路由，本就是一条应当以该厂商命名、并继承其值的 catalog 路由。
+每个 pi-ai compat 类型一张漂移门禁——以 `Record<keyof OpenAICompletionsCompat | …, CompatDisposition>` 为键——把每一个上游字段分类为 `offer` 或 `withhold`。分界线在于私有 URL 能推出什么：凡是无法从未识别端点推断的，部署方必须能够说出口；而 pi-ai 已安装 catalog 为具名厂商设定的字段保持扣留，因为伸手去够 `openRouterRouting` 或 `supportsMidConvoToolAdditions` 的路由，本就是一条应当以该厂商命名、并继承其值的 catalog 路由。 Pi-ai 1.4.0 的转录能力、token 预算字段选择、vLLM 优先级和回退模型策略由目录拥有。Mistral 有独立的 compat 门禁；聊天模板占位符包含 `thinking.budget`。
 
 `PiAiCompatProfile` 保持为带逐字段 JSDoc 的显式 interface——它是配置界面所渲染、也是 `docs/config-catalog.md` 所粘贴的东西——并由一个作用在对称差上的类型级 `AssertNever` 证明它恰好命名了开放集。schemastery schema 声明为 `z<PiAiCompatProfile>`，而使这条标注在两个方向上都真正吃劲的是 `exactOptionalPropertyTypes`，于是四个面互锁：上游新增字段、门禁漏一条、interface 忘记一个字段、schema 少一个键，都会在编译期失败。字段的**类型**派生自上游而非重述，另有一条证明把 profile 钉为可赋值给上游 compat 类型，因此被拓宽的值并集不会悄悄收窄配置所接受的范围——否则物化处对 `ModelCompat` 的强转会把它洗掉。
 
