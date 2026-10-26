@@ -12,7 +12,7 @@ Status: implemented
 
 `@aeven/bash-edit-guard` 注册一个 `tools.guard`，拒绝这样的 `bash` 命令：它指名一个携带源码扩展名的现有文件，并就地编辑该文件（`sed -i`、`perl -i`）、通过脚本调用写入（`open(…, 'w')`、`write_text`、`writeFileSync` 等），或重定向进该文件（`>`、`>>`、`tee`）。路径按调用的 `workdir`、会话 cwd 以及命令中每个 `cd` 目标解析。创建文件、写入系统临时目录以及运行程序都不会被拒绝，因此用 `cat > package.json` 搭建新项目仍然可行。回放该 CSS 会话时，守卫恰好拒绝它的 28 个编辑脚本；回放一个单轮网站构建时，它没有拒绝按原样运行的 12 条命令中的任何一条。
 
-`@aeven/turn-review` 监听 `agent/turn-stopping`。当一个轮次以文本回复结束、且其中一次 `write`、`edit` 或 `str_replace_editor` 调用成功时，一次使用该轮次自身路由的辅助调用把该轮次当作 JSON 读取（用户消息、工具调用、裁剪后的工具结果、回复），并只针对三个问题回答 `{"complete", "issues"}`：请求未做或做得与要求不同、没有任何工具结果支持或被工具结果否定的断言，以及在最后一次编辑之后没有任何观测却被说成可用的改动。问题通过一条来源为 `plugin` 的 user 消息把智能体送入另一个步骤；干净的判定、失败或超时的调用，或用完的 `maxReviewsPerTurn` 配额（2）都会允许轮次结束。`turn-review/request` 与 `turn-review/verdict` 记录确切的请求与解析后的结果。
+`@aeven/turn-review` 监听 `agent/turn-stopping`。当一个轮次以文本回复结束、且其中一次 `write`、`edit` 或 `str_replace_editor` 调用成功时，一次使用该轮次自身路由的辅助调用把该轮次当作 JSON 读取（用户消息、工具调用、裁剪后的工具结果、回复），并只针对三个问题回答 `{"complete", "issues"}`：请求未做或做得与要求不同、没有任何工具结果支持或被工具结果否定的断言（包括只读到经过筛选、被截断或不完整视图的结果时，断言某物不存在、缺失或不受支持），以及在最后一次编辑之后没有任何观测却被说成可用的改动。问题通过一条来源为 `plugin` 的 user 消息把智能体送入另一个步骤；干净的判定、失败或超时的调用，或用完的 `maxReviewsPerTurn` 配额（2）都会允许轮次结束。`turn-review/request` 记录确切的请求，`turn-review/verdict` 记录解析后的结果，`turn-review/failure` 记录两者皆无的调用及其原因。
 
 ## 考虑过的替代方案
 

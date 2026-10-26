@@ -72,14 +72,14 @@ The plugin listens on `agent/turn-stopping`, which runs while the turn can still
 
 The reviewer reads a JSON array built from the turn's events in order: user messages whose source kind is `user`, every tool call with its arguments, every tool result, and every assistant reply. Each entry is clipped to `maxEntryChars`, keeping its head and tail with a cut marker, and the whole array is trimmed by dropping the oldest call and result entries until it fits `maxTranscriptChars`; messages and replies are never dropped.
 
-A finding round is a steering message, not a duplicate step. The plugin budgets rounds per agent and turn, and a round is spent when its request is dispatched, so a turn whose findings persist after `maxReviewsPerTurn` closes anyway.
+A finding round is a steering message, not a duplicate step. The plugin budgets rounds per agent and turn, and a round is spent when its request is dispatched, so a turn whose findings persist after `maxReviewsPerTurn` closes anyway. A review call that times out, fails, reaches `maxOutputTokens`, or answers without a parsable verdict appends `turn-review/failure` with the reason, and the turn closes with its reply as written.
 
 ### Source map
 
 | File | Role |
 |---|---|
 | [`src/index.ts`](src/index.ts) | Plugin entry: `Config` schema, turn selection, transcript quoting, review call, verdict parsing, steering message |
-| — | No invariant companion is published because the review observes the turn it just read: the request and the parsed verdict are both logged as `turn-review/request` and `turn-review/verdict`, and a reporter would re-derive the same two records rather than compare independent observations. |
+| — | No invariant companion is published because the review observes the turn it just read: the request and its outcome are logged as `turn-review/request` and either `turn-review/verdict` or `turn-review/failure`, and a reporter would re-derive the same records rather than compare independent observations. |
 
 </details>
 
@@ -138,6 +138,7 @@ You receive the turn as a JSON array in order: the user's messages (including me
 Find only these problems:
 1. A user request in this turn that was not done, was done differently than asked (for example a value set to the opposite of what was asked, or an approximation where the user asked to copy), or was dropped without the reply saying so.
 2. A claim in the final reply (done, fixed, verified, matches, works, green) that no tool result shows, or that a tool result contradicts.
+   This includes a claim that something does not exist, is missing, or is not supported when the tool result behind it read only a filtered, truncated, or partial view: a search pattern or filter that could not match the thing, a cut list, or a first page.
 3. A change presented as working although no tool result observed it after the last edit; for a visual or UI change, observing means a browser read or screenshot taken after the last edit and build.
 Do not report style, wording, scope suggestions, or improvements nobody asked for. If the final reply already says plainly that something is not done or not checked, that item is not a problem.
 Answer with JSON only, no prose and no code fence: {"complete": true, "issues": []} or {"complete": false, "issues": ["..."]}. Each issue is one sentence that names the request or claim and what the tool results show.
@@ -158,9 +159,9 @@ Independent. The review call has its own prefix — a fixed system prompt follow
 These limits define what a review can and cannot establish. They are current package constraints, not a task backlog.
 
 - **Clipped evidence** — the review reads tool results trimmed to `maxEntryChars` and the oldest tool entries dropped beyond `maxTranscriptChars`, so evidence outside those budgets is invisible to it.
-- **Untriggered changes go unreviewed** — file changes made outside the trigger tools, such as a formatter run through `bash`, do not trigger a review on their own.
+- **Untriggered changes go unreviewed** — file changes made outside the trigger tools, such as a formatter run through `bash`, do not trigger a review on their own. A turn that only browses, fetches, or runs commands is not reviewed either, so its claims about what a page or result shows go unchecked; adding those tools to `triggerTools` reviews such turns at the cost of one review call, and the wait for it, per turn.
 - **A finding is advice, not enforcement** — after `maxReviewsPerTurn` rounds the turn closes with its findings unresolved, and a failed, timed-out, or unparseable review leaves the reply as written.
-- **No invariant companion is published** — the review observes the turn it just read: the request and the parsed verdict are both logged as `turn-review/request` and `turn-review/verdict`, and a reporter would re-derive the same two records rather than compare independent observations.
+- **No invariant companion is published** — the review observes the turn it just read: the request and its outcome are logged as `turn-review/request` and either `turn-review/verdict` or `turn-review/failure`, and a reporter would re-derive the same records rather than compare independent observations.
 
 <a id="dev-note"></a>
 ### Dev Note

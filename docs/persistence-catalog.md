@@ -1059,6 +1059,17 @@ Source: [`packages/core/session/src/types.ts:274`](../packages/core/session/src/
 
 ### `turn-review/*`
 
+<a id="turn-reviewfailure--log-only"></a>
+
+#### `turn-review/failure` — log-only
+
+```ts persistence-catalog
+/** Log-only record of one turn-review model request that produced no verdict. */
+'turn-review/failure': TurnReviewFailureEventData
+```
+
+Source: [`packages/guard/turn-review/src/index.ts:72`](../packages/guard/turn-review/src/index.ts)
+
 <a id="turn-reviewrequest--log-only"></a>
 
 #### `turn-review/request` — log-only
@@ -1068,7 +1079,7 @@ Source: [`packages/core/session/src/types.ts:274`](../packages/core/session/src/
 'turn-review/request': TurnReviewRequestEventData
 ```
 
-Source: [`packages/guard/turn-review/src/index.ts:58`](../packages/guard/turn-review/src/index.ts)
+Source: [`packages/guard/turn-review/src/index.ts:68`](../packages/guard/turn-review/src/index.ts)
 
 <a id="turn-reviewverdict--log-only"></a>
 
@@ -1079,7 +1090,7 @@ Source: [`packages/guard/turn-review/src/index.ts:58`](../packages/guard/turn-re
 'turn-review/verdict': TurnReviewVerdictEventData
 ```
 
-Source: [`packages/guard/turn-review/src/index.ts:60`](../packages/guard/turn-review/src/index.ts)
+Source: [`packages/guard/turn-review/src/index.ts:70`](../packages/guard/turn-review/src/index.ts)
 
 ### `user/*`
 
