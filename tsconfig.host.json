@@ -149,6 +149,7 @@
     { "path": "./packages/attachment/attachment" },
     { "path": "./packages/attachment/attachment-local" },
     { "path": "./packages/llm/llm" },
+    { "path": "./packages/llm/llm-cache-warm" },
     { "path": "./packages/llm/deepseek-llm-api-extensions" },
     { "path": "./packages/llm/token-meter" },
     { "path": "./packages/core/session" },

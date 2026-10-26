@@ -427,6 +427,9 @@ importers:
       '@aeven/llm':
         specifier: workspace:^
         version: link:../../packages/llm/llm
+      '@aeven/llm-cache-warm':
+        specifier: workspace:^
+        version: link:../../packages/llm/llm-cache-warm
       '@aeven/llm-deepseek':
         specifier: workspace:^
         version: link:../../packages/llm/llm-deepseek
@@ -8593,6 +8596,28 @@ importers:
         specifier: workspace:^
         version: link:../../../vendor/cordis
 
+  packages/llm/llm-cache-warm:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@aeven/llm':
+        specifier: workspace:^
+        version: link:../llm
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@aeven/timeout':
+        specifier: workspace:^
+        version: link:../../util/timeout
+      '@aeven/tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
   packages/llm/llm-deepseek:
     dependencies:
       '@aeven/brand':
@@ -8925,6 +8950,9 @@ importers:
       '@aeven/llm':
         specifier: workspace:^
         version: link:../llm
+      '@aeven/llm-cache-warm':
+        specifier: workspace:^
+        version: link:../llm-cache-warm
       '@aeven/llm-retry':
         specifier: workspace:^
         version: link:../llm-retry

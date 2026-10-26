@@ -245,6 +245,30 @@ Types: [TokenUsage](subsystems/llm-streaming.md)
 
 Source: [`packages/core/session/src/types.ts:308`](../packages/core/session/src/types.ts)
 
+### `cache-warm/*`
+
+<a id="cache-warmresult--log-only"></a>
+
+#### `cache-warm/result` — log-only
+
+```ts persistence-catalog
+/** Log-only outcome of one prompt-cache warm request, with the usage the provider billed. */
+'cache-warm/result': import('./types.ts').CacheWarmResultEventData
+```
+
+Source: [`packages/llm/llm-cache-warm/src/index.ts:35`](../packages/llm/llm-cache-warm/src/index.ts)
+
+<a id="cache-warmstart--log-only"></a>
+
+#### `cache-warm/start` — log-only
+
+```ts persistence-catalog
+/** Log-only record of one prompt-cache warm request, written before dispatch. */
+'cache-warm/start': import('./types.ts').CacheWarmStartEventData
+```
+
+Source: [`packages/llm/llm-cache-warm/src/index.ts:33`](../packages/llm/llm-cache-warm/src/index.ts)
+
 ### `command/*`
 
 <a id="commanddone--log-only"></a>
