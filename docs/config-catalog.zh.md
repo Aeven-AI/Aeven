@@ -251,7 +251,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/api/session-controller/src/index.ts:84`](../packages/api/session-controller/src/index.ts)
+来源：[`packages/api/session-controller/src/index.ts:86`](../packages/api/session-controller/src/index.ts)
 
 <a id="aevenapi-settings-controller"></a>
 
