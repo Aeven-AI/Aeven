@@ -1,0 +1,378 @@
+# Build one desktop target and publish it without waiting for other targets.
+name: Release desktop target
+
+on:
+  workflow_call:
+    inputs:
+      target:
+        type: string
+        required: true
+      variant:
+        type: string
+        required: true
+      runner:
+        type: string
+        required: true
+      script:
+        type: string
+        required: true
+      publish:
+        type: boolean
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ inputs.target }}${{ inputs.variant && format(' ({0})', inputs.variant) || '' }}
+    runs-on: ${{ inputs.runner }}
+    # The macOS targets wait on Apple's notarization queue rather than on the
+    # runner, so they take GitHub's six-hour job ceiling; the other targets fit
+    # in a window that a stalled package step cannot hold all day.
+    timeout-minutes: ${{ startsWith(inputs.target, 'mac-') && 360 || 150 }}
+    env:
+      AVN_DESKTOP_APP_ID: ${{ vars.AVN_DESKTOP_APP_ID || 'com.aeven.desktop' }}
+      AEVEN_API_URL: ${{ vars.AEVEN_API_URL || 'https://aeven.io/api' }}
+      AEVEN_WEB_URL: ${{ vars.AEVEN_WEB_URL }}
+      AEVEN_MEDIA_URL: ${{ vars.AEVEN_MEDIA_URL }}
+      AEVEN_OAUTH_X_URL: ${{ vars.AEVEN_OAUTH_X_URL }}
+      AEVEN_OAUTH_APPLE_URL: ${{ vars.AEVEN_OAUTH_APPLE_URL }}
+      AEVEN_OAUTH_GOOGLE_URL: ${{ vars.AEVEN_OAUTH_GOOGLE_URL }}
+      SLACK_CLIENT_ID: ${{ vars.SLACK_CLIENT_ID }}
+      # electron-builder's bundled fpm is x64-only, so deb packaging uses the
+      # system fpm installed below, as linux-builder.Dockerfile does.
+      USE_SYSTEM_FPM: ${{ startsWith(inputs.target, 'linux-') && 'true' || '' }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # The Intel macOS image ships pnpm 11.25.0. Downgrading to the version this project pins makes pnpm verify
+      # its own engine identity against the project lockfile, which records no @pnpm/exe platform binary, and it
+      # refuses to run. Install the pinned release through npm on that target instead of switching versions.
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        if: ${{ !startsWith(inputs.target, 'mac-x64') }}
+
+      - name: Install the pinned pnpm for the Intel macOS target
+        if: ${{ startsWith(inputs.target, 'mac-x64') }}
+        run: |
+          npm install --global pnpm@11.7.0
+          pnpm --version
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: native/whatsapp-mcp/source/go.mod
+          cache: false
+
+      - name: Check the tag matches the release version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match package.json version ${version}"
+            exit 1
+          fi
+
+      # The tools linux-builder.Dockerfile adds to its Node image: fpm and
+      # fakeroot package the deb, CMake builds the native speech worker.
+      - name: Install Linux packaging tools
+        if: startsWith(inputs.target, 'linux-')
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends ruby ruby-dev fakeroot cmake
+          sudo gem install --no-document fpm
+
+      # ffmpeg builds from its pinned release source on every target, with libopus compiled statically from its
+      # own pinned source. configure needs a POSIX shell, pkg-config, a zlib development package, and nasm for
+      # the x86_64 assembly kernels. Each Windows target installs only its own toolchain: fetching both doubled
+      # the download, and one slow mirror failed the whole transaction. pacman is retried for the same reason.
+      - name: Install ffmpeg build tools (macOS)
+        if: startsWith(inputs.target, 'mac-')
+        run: brew install pkg-config nasm
+
+      - name: Install ffmpeg build tools (Linux)
+        if: startsWith(inputs.target, 'linux-')
+        run: |
+          sudo apt-get install --yes --no-install-recommends zlib1g-dev pkg-config nasm libva-dev
+
+      # The same MSYS2 setup the ffmpeg-only workflow uses: the action installs and updates the environment, and
+      # its package set supplies the compiler, binutils, static libopus, pkgconf, nasm, make, and diffutils.
+      - name: Set up MSYS2 (Windows x64)
+        if: inputs.target == 'win-x64'
+        id: msys2-x64
+        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
+        with:
+          msystem: CLANG64
+          release: false
+          update: true
+          install: >-
+            make nasm diffutils pkgconf
+            mingw-w64-clang-x86_64-clang mingw-w64-clang-x86_64-binutils
+            mingw-w64-clang-x86_64-opus mingw-w64-clang-x86_64-zlib
+
+      - name: Set up MSYS2 (Windows arm64)
+        if: inputs.target == 'win-arm64'
+        id: msys2-arm64
+        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
+        with:
+          msystem: CLANGARM64
+          release: false
+          update: true
+          install: >-
+            make nasm diffutils pkgconf
+            mingw-w64-clang-aarch64-clang mingw-w64-clang-aarch64-binutils
+            mingw-w64-clang-aarch64-opus mingw-w64-clang-aarch64-zlib
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Choose signed or unsigned
+        id: signing
+        env:
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TRUSTED_SIGNING_ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+          AZURE_TRUSTED_SIGNING_ACCOUNT_NAME: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT_NAME }}
+          AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME: ${{ secrets.AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME }}
+          AZURE_TRUSTED_SIGNING_PUBLISHER_NAME: ${{ secrets.AZURE_TRUSTED_SIGNING_PUBLISHER_NAME }}
+          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          AVN_DESKTOP_MACOS_SIGNING_IDENTITY: ${{ secrets.AVN_DESKTOP_MACOS_SIGNING_IDENTITY }}
+          AVN_DESKTOP_MACOS_TEAM_ID: ${{ secrets.AVN_DESKTOP_MACOS_TEAM_ID }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          if [ "${{ inputs.variant }}" = unsigned ]; then
+            echo "unsigned=true" >> "$GITHUB_OUTPUT"
+            echo "${{ inputs.target }}: unsigned variant"
+            exit 0
+          fi
+          case "${{ inputs.target }}" in
+            linux-*)
+              echo "unsigned=false" >> "$GITHUB_OUTPUT"
+              echo "${{ inputs.target }}: Linux packages carry no code signature"
+              exit 0
+              ;;
+            win-*) names="AZURE_TENANT_ID AZURE_CLIENT_ID AZURE_CLIENT_SECRET AZURE_TRUSTED_SIGNING_ENDPOINT AZURE_TRUSTED_SIGNING_ACCOUNT_NAME AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME AZURE_TRUSTED_SIGNING_PUBLISHER_NAME" ;;
+            mac-*) names="MACOS_CERTIFICATE_P12 MACOS_CERTIFICATE_PASSWORD AVN_DESKTOP_MACOS_SIGNING_IDENTITY AVN_DESKTOP_MACOS_TEAM_ID APPLE_API_KEY_P8 APPLE_API_KEY_ID APPLE_API_ISSUER" ;;
+          esac
+          present=""
+          missing=""
+          for name in $names; do
+            if [ -n "${!name}" ]; then present="$present $name"; else missing="$missing $name"; fi
+          done
+          if [ -n "$present" ] && [ -n "$missing" ]; then
+            echo "::error::${{ inputs.target }}: signing is partly configured; missing:${missing}"
+            exit 1
+          fi
+          if [ -z "$missing" ]; then unsigned=false; else unsigned=true; fi
+          echo "unsigned=${unsigned}" >> "$GITHUB_OUTPUT"
+          if [ "$unsigned" = false ]; then echo "${{ inputs.target }}: signing enabled"; else echo "${{ inputs.target }}: no signing secrets, building unsigned"; fi
+
+      # Seed preparation signs every embedded Mach-O with `codesign --sign`
+      # before electron-builder runs, so the Developer ID identity must already
+      # be in a keychain on the search list.
+      - name: Import the macOS signing identity
+        if: startsWith(inputs.target, 'mac-') && steps.signing.outputs.unsigned == 'false'
+        env:
+          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+        run: |
+          keychain="$RUNNER_TEMP/release.keychain-db"
+          password="$(openssl rand -hex 24)"
+          echo "$MACOS_CERTIFICATE_P12" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          security import "$RUNNER_TEMP/certificate.p12" -P "$MACOS_CERTIFICATE_PASSWORD" -f pkcs12 -T /usr/bin/codesign -k "$keychain"
+          security set-key-partition-list -S apple-tool:,apple: -k "$password" "$keychain" > /dev/null
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/certificate.p12"
+          key="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
+          printf '%s' "$APPLE_API_KEY_P8" > "$key"
+          echo "APPLE_API_KEY=$key" >> "$GITHUB_ENV"
+
+      # The pinned ffmpeg and libopus archives, keyed by their pins, so a release does not depend on every
+      # upstream host answering on every runner.
+      - name: Cache the pinned ffmpeg sources
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: native/ffmpeg/.cache/*.tar.gz
+          key: ffmpeg-sources-${{ hashFiles('native/ffmpeg/source.json') }}
+
+      - name: Select the MSYS2 environment (Windows)
+        if: startsWith(inputs.target, 'win-')
+        run: echo "MSYSTEM=${{ inputs.target == 'win-arm64' && 'CLANGARM64' || 'CLANG64' }}" >> "$GITHUB_ENV"
+
+      - name: Package
+        env:
+          # The setup action may place MSYS2 outside C:\msys64; the native ffmpeg build reads it from here.
+          MSYS2_ROOT: ${{ (inputs.target == 'win-arm64' && steps.msys2-arm64.outputs.msys2-location || steps.msys2-x64.outputs.msys2-location) || 'C:\\msys64' }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TRUSTED_SIGNING_ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+          AZURE_TRUSTED_SIGNING_ACCOUNT_NAME: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT_NAME }}
+          AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME: ${{ secrets.AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME }}
+          AZURE_TRUSTED_SIGNING_PUBLISHER_NAME: ${{ secrets.AZURE_TRUSTED_SIGNING_PUBLISHER_NAME }}
+          AVN_DESKTOP_MACOS_SIGNING_IDENTITY: ${{ secrets.AVN_DESKTOP_MACOS_SIGNING_IDENTITY }}
+          AVN_DESKTOP_MACOS_TEAM_ID: ${{ secrets.AVN_DESKTOP_MACOS_TEAM_ID }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          if [ "${{ steps.signing.outputs.unsigned }}" = true ]; then
+            pnpm run package:desktop:${{ inputs.script }}:unsigned
+          else
+            pnpm run package:desktop:${{ inputs.script }}
+          fi
+
+      # Each target writes its own feed under the channel's name (latest.yml,
+      # alpha.yml, alpha-mac.yml, alpha-linux-arm64.yml, ...). The target goes
+      # into the name so publication can merge each platform's architecture pair.
+      # The unsigned macOS variant contributes only its DMG.
+      - name: Collect release assets
+        run: |
+          artifacts="apps/desktop/.desktop-build/targets/${{ inputs.target }}/artifacts"
+          mkdir -p release-assets
+          shopt -s nullglob
+          if [ "${{ inputs.variant }}" = unsigned ]; then
+            cp "$artifacts"/*.dmg release-assets/
+            ls -la release-assets
+            exit 0
+          fi
+          for file in "$artifacts"/*.exe "$artifacts"/*.dmg "$artifacts"/*.zip "$artifacts"/*.AppImage "$artifacts"/*.deb "$artifacts"/*.blockmap; do
+            cp "$file" release-assets/
+          done
+          for feed in "$artifacts"/*.yml; do
+            name="$(basename "$feed" .yml)"
+            case "$name" in builder-debug|builder-effective-config) continue ;; esac
+            cp "$feed" "release-assets/${name}--${{ inputs.target }}.yml"
+          done
+          ls -la release-assets
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-${{ inputs.target }}${{ inputs.variant && format('-{0}', inputs.variant) || '' }}
+          path: release-assets/*
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    if: inputs.publish
+    runs-on: ubuntu-latest
+    concurrency:
+      group: release-desktop-publish-${{ github.repository }}
+      cancel-in-progress: false
+      queue: max
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile --filter @aeven/desktop...
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-${{ inputs.target }}${{ inputs.variant && format('-{0}', inputs.variant) || '' }}
+          path: release-assets
+
+      - name: Resolve the release
+        id: release
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          echo "tag=v${version}" >> "$GITHUB_OUTPUT"
+          case "$version" in *-*) echo "prerelease=true" >> "$GITHUB_OUTPUT" ;; *) echo "prerelease=false" >> "$GITHUB_OUTPUT" ;; esac
+
+      # Only this job holds the publication lock. Existing releases remain public,
+      # and each feed becomes visible only after its installers are uploaded.
+      - name: Create the release if absent
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+          PRERELEASE: ${{ steps.release.outputs.prerelease }}
+        run: |
+          release_id="$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases" --jq '.[] | select(.tag_name == env.TAG) | .id')"
+          if [ -z "$release_id" ]; then
+            args=()
+            if [ "$PRERELEASE" = true ]; then args+=(--prerelease); fi
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+              --title "Aeven $TAG" --draft --generate-notes "${args[@]}"
+          fi
+
+      - name: Upload installers
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          shopt -s nullglob
+          assets=()
+          for file in release-assets/*; do
+            case "$file" in *.yml) continue ;; esac
+            assets+=("$file")
+          done
+          gh release upload "$TAG" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+
+      # Shared Windows/macOS feeds require both architectures: the updater can
+      # select a different architecture when its own installer is absent.
+      - name: Publish update feeds
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+          TARGET: ${{ inputs.target }}
+        run: |
+          shopt -s nullglob
+          mkdir -p previous-feeds
+          for feed in release-assets/*--*.yml; do
+            name="$(basename "$feed" .yml)"
+            name="${name%%--*}"
+            case "$TARGET" in
+              win-x64) counterpart=win-arm64 ;;
+              win-arm64) counterpart=win-x64 ;;
+              mac-x64) counterpart=mac-arm64 ;;
+              mac-arm64) counterpart=mac-x64 ;;
+              linux-*)
+                cp "$feed" "release-assets/$name.yml"
+                gh release upload "$TAG" "release-assets/$name.yml" --repo "$GITHUB_REPOSITORY" --clobber
+                continue
+                ;;
+            esac
+            gh release upload "$TAG" "$feed" --repo "$GITHUB_REPOSITORY" --clobber
+            other="$name--$counterpart.yml"
+            names="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')"
+            if ! printf '%s\n' "$names" | grep -Fxq "$other"; then continue; fi
+            gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$other" --dir previous-feeds
+            primary="$PWD/$feed"
+            secondary="$PWD/previous-feeds/$other"
+            if [[ "$TARGET" = *-arm64 ]]; then
+              primary="$PWD/previous-feeds/$other"
+              secondary="$PWD/$feed"
+            fi
+            pnpm --dir apps/desktop exec tsx scripts/merge-update-manifests.ts \
+              "$primary" "$secondary" "$PWD/release-assets/$name.yml"
+            gh release upload "$TAG" "release-assets/$name.yml" --repo "$GITHUB_REPOSITORY" --clobber
+          done
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false

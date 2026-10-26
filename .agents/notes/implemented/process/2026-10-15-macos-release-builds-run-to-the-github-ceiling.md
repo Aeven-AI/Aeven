@@ -10,8 +10,8 @@ The `build` job in `.github/workflows/release-desktop.yml` gave every matrix tar
 
 ## Decision
 
-- **The macOS targets take GitHub's six-hour job ceiling.** `timeout-minutes` became `${{ startsWith(matrix.target, 'mac-') && 360 || 150 }}`. Both macOS targets get 360 minutes, the longest a GitHub-hosted job may run; the Windows and Linux targets keep 150.
-- **The window is derived from the target, not added to the target list.** The `plan` job's JSON entries keep describing where a target builds and through which script, and the build job derives its own window from `matrix.target`.
+- **The macOS targets take GitHub's six-hour job ceiling.** `timeout-minutes` became `${{ startsWith(inputs.target, 'mac-') && 360 || 150 }}`. Both macOS targets get 360 minutes, the longest a GitHub-hosted job may run; the Windows and Linux targets keep 150.
+- **The window is derived from the target, not added to the target list.** The `plan` job's JSON entries keep describing where a target builds and through which script, and the build job derives its own window from `inputs.target`.
 
 ## Alternatives considered
 
@@ -24,4 +24,4 @@ The `build` job in `.github/workflows/release-desktop.yml` gave every matrix tar
 ## Consequences
 
 - A signed macOS build occupies its runner for as long as notarization takes; GitHub ignores a `timeout-minutes` above 360 on hosted runners, so nothing in the workflow extends the window further.
-- A notarization Apple's queue holds past six hours still kills the target and, with it, the release. Beyond that the answer is not a workflow setting: it needs a self-hosted runner or notarization that does not happen on CI.
+- A notarization Apple's queue holds past six hours kills that target. Other targets [publish independently](2026-10-26-desktop-targets-publish-independently.md). Extending notarization beyond that needs a self-hosted runner or notarization outside CI.

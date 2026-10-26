@@ -10,8 +10,8 @@ Status: implemented
 
 ## 决定
 
-- **macOS 目标用满 GitHub 六小时的作业上限。** `timeout-minutes` 改为 `${{ startsWith(matrix.target, 'mac-') && 360 || 150 }}`。两个 macOS 目标获得 360 分钟，即 GitHub 托管作业允许的最长时间；Windows 与 Linux 目标仍为 150。
-- **窗口由目标推导，而不是加进目标清单。** `plan` 作业的 JSON 条目继续只描述某目标在何处构建、用哪个脚本；build 作业自行依据 `matrix.target` 推导窗口。
+- **macOS 目标用满 GitHub 六小时的作业上限。** `timeout-minutes` 改为 `${{ startsWith(inputs.target, 'mac-') && 360 || 150 }}`。两个 macOS 目标获得 360 分钟，即 GitHub 托管作业允许的最长时间；Windows 与 Linux 目标仍为 150。
+- **窗口由目标推导，而不是加进目标清单。** `plan` 作业的 JSON 条目继续只描述某目标在何处构建、用哪个脚本；build 作业自行依据 `inputs.target` 推导窗口。
 
 ## 考虑过的替代方案
 
@@ -24,4 +24,4 @@ Status: implemented
 ## 后果
 
 - 签名 macOS 构建会按公证实际耗时占用 runner；GitHub 会忽略托管 runner 上超过 360 的 `timeout-minutes`，因此工作流内无法再延长窗口。
-- 若某次公证被 Apple 队列拖过六小时，该目标仍会被终止，发布也随之失败。超出这一范围的答案不是工作流设置：需要自托管 runner，或在 CI 之外完成公证。
+- 若某次公证被 Apple 队列拖过六小时，该目标会被终止。其他目标[独立发布](2026-10-26-desktop-targets-publish-independently.zh.md)。延长公证等待时间需要自托管 runner，或在 CI 之外完成公证。
