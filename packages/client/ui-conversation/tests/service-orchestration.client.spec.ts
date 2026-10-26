@@ -37,6 +37,31 @@ async function bench() {
 }
 
 describe('ConversationController', () => {
+  it.each(['document.pdf', 'document.pages', 'sheet.numbers', 'sheet.xlsx', 'clip.mp4', 'audio.mp3'])(
+    'uploads and removes %s through the authenticated page transport', async (name) => {
+      const b = await bench()
+      const send = vi.fn(async (_url: URL, init: RequestInit) => init.method === 'POST'
+        ? Response.json({ uploadId: 'staged-file' }, { status: 201 })
+        : new Response(null, { status: 204 }))
+      vi.stubGlobal('__AVN_TRANSPORT__', { fetch: send })
+      try {
+        const file = new File(['file bytes'], name)
+        const [draft] = b.root.createDraftFiles([file])
+        if (draft === undefined) throw new Error('draft file missing')
+        await vi.waitFor(() => {
+          expect(b.root.draftImages([draft.id])[0]).toMatchObject({ status: 'ready', uploadId: 'staged-file' })
+        })
+        expect(send.mock.calls[0]?.[0].pathname).toBe('/api/attachment-upload')
+        expect(send.mock.calls[0]?.[1].body).toBe(file)
+        b.root.releaseDraftImage(draft.id)
+        expect(send.mock.calls[1]?.[1].method).toBe('DELETE')
+      } finally {
+        await b.runtime.dispose()
+        vi.unstubAllGlobals()
+      }
+    },
+  )
+
   it('routes operations through the public Session binding', async () => {
     const b = await bench()
     await b.scoped.send('hello')

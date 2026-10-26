@@ -140,46 +140,50 @@ interface FileUpload {
 
 /** Upload callbacks; exactly one of `done` or `fail` runs unless the upload is aborted. */
 interface FileUploadCallbacks {
-  progress(percent: number): void
   done(uploadId: string): void
   fail(message: string): void
 }
 
-/**
- * Upload one file with progress. XMLHttpRequest is used because fetch
- * reports no upload progress; same-origin credentials authenticate it like
- * every other `/api` request.
- */
+/** Send attachment writes through the page's authenticated Host transport. */
+function attachmentFetch(input: URL, init: RequestInit): Promise<Response> {
+  const transport = (globalThis as {
+    __AVN_TRANSPORT__?: { fetch(input: URL, init: RequestInit): Promise<Response> }
+  }).__AVN_TRANSPORT__
+  return transport === undefined ? globalThis.fetch(input, init) : transport.fetch(input, init)
+}
+
+/** Upload one file under the same account as the page's RPC calls. */
 function uploadFile(file: File, callbacks: FileUploadCallbacks): FileUpload {
   const url = new URL(FILE_UPLOAD_ROUTE, document.baseURI)
   url.searchParams.set('name', file.name)
   url.searchParams.set('type', file.type)
-  const request = new XMLHttpRequest()
-  request.open('POST', url.href)
-  request.setRequestHeader('Content-Type', file.type === '' ? 'application/octet-stream' : file.type)
-  request.upload.onprogress = (event) => {
-    if (event.lengthComputable && event.total > 0) callbacks.progress(Math.round((event.loaded / event.total) * 100))
-  }
-  request.onload = () => {
+  const controller = new AbortController()
+  void attachmentFetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': file.type === '' ? 'application/octet-stream' : file.type },
+    body: file,
+    signal: controller.signal,
+  }).then(async (response) => {
     let body: { readonly uploadId?: unknown; readonly message?: unknown } = {}
     try {
-      body = JSON.parse(request.responseText) as typeof body
+      body = await response.json() as typeof body
     } catch {
-      // A non-JSON body is a carrier failure; the status text below reports it.
+      // A non-JSON body is a carrier failure; its status below reports it.
     }
-    if (request.status === 201 && typeof body.uploadId === 'string') callbacks.done(body.uploadId)
-    else callbacks.fail(typeof body.message === 'string' ? body.message : `Upload failed (${request.status})`)
-  }
-  request.onerror = () => { callbacks.fail('Upload failed: the connection was interrupted.') }
-  request.send(file)
-  return { abort: () => { request.abort() } }
+    if (controller.signal.aborted) return
+    if (response.status === 201 && typeof body.uploadId === 'string') callbacks.done(body.uploadId)
+    else callbacks.fail(typeof body.message === 'string' ? body.message : `Upload failed (${response.status})`)
+  }).catch(() => {
+    if (!controller.signal.aborted) callbacks.fail('Upload failed: the connection was interrupted.')
+  })
+  return { abort: () => { controller.abort() } }
 }
 
 /** Discard one staged upload the user removed before sending. */
 function discardUpload(uploadId: string): void {
   const url = new URL(FILE_UPLOAD_ROUTE, document.baseURI)
   url.searchParams.set('id', uploadId)
-  void fetch(url.href, { method: 'DELETE' }).catch(() => {
+  void attachmentFetch(url, { method: 'DELETE' }).catch(() => {
     // An undiscarded upload expires on the Host after its lifetime.
   })
 }
@@ -368,7 +372,6 @@ export class ConversationController extends Service implements IConversation {
     for (const draft of drafts) {
       this.draftAttachments.set(draft.id, draft)
       this.uploads.set(draft.id, uploadFile(draft.file, {
-        progress: (progress) => { this.patchDraftFile(draft.id, { progress }) },
         done: (uploadId) => {
           this.uploads.delete(draft.id)
           if (!this.draftAttachments.has(draft.id)) {
