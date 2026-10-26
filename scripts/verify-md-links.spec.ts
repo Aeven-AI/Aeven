@@ -106,3 +106,15 @@ describe('findViolations fragments', () => {
     expect(violationsIn(root, 'a.md')).toEqual([{ url: 'missing.md#anything', reason: 'target' }])
   })
 })
+
+it('records non-Markdown and directory targets as cache dependencies', () => {
+  const root = layout({
+    'README.md': '[code](source.ts#L1) [directory](folder/) [missing](missing.ts) [external](https://example.com/)\n',
+    'source.ts': 'export {}\n',
+    'folder/README.md': '# Folder\n',
+  })
+  const dependencies = new Set<string>()
+  expect(findViolations(join(root, 'README.md'), anchorCache(), root, dependencies))
+    .toMatchObject([{ url: 'missing.ts', reason: 'target' }])
+  expect(dependencies).toEqual(new Set([join(root, 'source.ts'), join(root, 'folder'), join(root, 'missing.ts')]))
+})

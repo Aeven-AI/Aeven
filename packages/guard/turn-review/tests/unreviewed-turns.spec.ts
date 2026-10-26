@@ -1,7 +1,7 @@
 /**
  * Turns the plugin leaves alone: no file-changing tool ran, the change tool
  * failed, the turn ends on a tool call rather than a reply, or the reply is
- * empty. None of them spends a review call, and none of them logs a request.
+ * empty. Replies without action commitments spend no review call, and none of them logs a request.
  */
 
 import { describe, expect, it } from 'vitest'

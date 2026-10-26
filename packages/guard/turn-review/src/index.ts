@@ -1,5 +1,5 @@
 /**
- * Turn review: before a turn that changed files closes, one auxiliary model call reads the turn's
+ * Turn review: before a file-changing turn or an action commitment closes, one auxiliary model call reads the turn's
  * user messages, tool calls, tool results, and final reply, and names requests left undone or done
  * differently than asked, and claims that no tool result supports or that a tool result
  * contradicts. Findings steer the agent into another step; a clean review, a failed review call,
@@ -115,7 +115,9 @@ const SYSTEM = [
   '2. A claim in the final reply (done, fixed, verified, matches, works, green) that no tool result shows, or that a tool result contradicts.',
   '   This includes a claim that something does not exist, is missing, or is not supported when the tool result behind it read only a filtered, truncated, or partial view: a search pattern or filter that could not match the thing, a cut list, or a first page.',
   '3. A change presented as working although no tool result observed it after the last edit; for a visual or UI change, observing means a browser read or screenshot taken after the last edit and build.',
-  'Do not report style, wording, scope suggestions, or improvements nobody asked for. If the final reply already says plainly that something is not done or not checked, that item is not a problem.',
+  '4. A reply claims work is starting, running, or continuing without a corresponding dispatched tool or continuing job, or promises to act after the turn ends with no job to do it.',
+  'For an action request, listing unfinished authorised work is not completion. Report it unless the user stopped or changed the task, or a concrete blocker requires user input. Questions and requests for a plan do not require execution.',
+  'Do not report style, wording, scope suggestions, or improvements nobody asked for. Disclosing that a check was not run avoids a false verification claim but does not excuse leaving requested work unfinished.',
   'Answer with JSON only, no prose and no code fence: {"complete": true, "issues": []} or {"complete": false, "issues": ["..."]}. Each issue is one sentence that names the request or claim and what the tool results show.',
 ].join('\n')
 
@@ -173,6 +175,30 @@ function endsWithReply(events: readonly SessionEvent[]): boolean {
       && !content.some(block => block.type === 'tool-call')
   }
   return false
+}
+
+/**
+ * Screen a tool-free final reply for first-person action commitments. The reviewer
+ * judges the request and execution evidence; a phrase alone never forces a tool.
+ * Code examples and quoted lines do not describe the assistant's current work.
+ * @param events - the current turn's events.
+ * @returns whether semantic review should inspect an action commitment.
+ */
+function promisesAction(events: readonly SessionEvent[]): boolean {
+  const reply = events.findLast(event => event.type === 'assistant/message')
+  if (reply?.type !== 'assistant/message') return false
+  const text = reply.data.message.content
+    .filter(block => block.type === 'text')
+    .map(block => block.text).join('\n')
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/^\s*>.*$/gm, '')
+  return new RegExp([
+    "\\b(?:i(?:['’]m|\\s+am|['’]ll|\\s+will)|we(?:['’]re|\\s+are|['’]ll|\\s+will))\\s+",
+    '(?:(?:now|currently|still|just|keep)\\s+)?(?:going\\s+to\\s+)?(?:be\\s+)?',
+    '(?:start(?:ing)?|continu(?:e|ing)|work(?:ing)?|writ(?:e|ing)|edit(?:ing)?|implement(?:ing)?|fix(?:ing)?|build(?:ing)?|',
+    'run(?:ning)?|check(?:ing)?|investigat(?:e|ing)|read(?:ing)?|updat(?:e|ing)|creat(?:e|ing)|remov(?:e|ing)|',
+    'delet(?:e|ing)|send(?:ing)?|upload(?:ing)?|deploy(?:ing)?|push(?:ing)?|merg(?:e|ing))\\b',
+  ].join(''), 'i').test(text)
 }
 
 /**
@@ -293,7 +319,7 @@ export function apply(ctx: Context, config: Config): void {
     const count = spent?.turn === turn ? spent.count : 0
     if (count >= config.maxReviewsPerTurn) return
     const events = turnEvents(agent, turn)
-    if (!endsWithReply(events) || !changedFiles(events, triggers)) return
+    if (!endsWithReply(events) || (!changedFiles(events, triggers) && !promisesAction(events))) return
     const header = agent.session.requestHeader()?.config
     const route = config.provider !== undefined && config.model !== undefined
       ? { provider: config.provider, model: config.model }

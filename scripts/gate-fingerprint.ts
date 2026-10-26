@@ -17,7 +17,7 @@
  */
 
 import { createHash } from 'node:crypto'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 
 const root = resolve(import.meta.dirname, '..')
@@ -33,31 +33,33 @@ function cacheDisabled(): boolean {
   return process.env.AVN_GATE_CACHE === '0' || process.argv.includes('--no-cache')
 }
 
-/** A content hash over the named repository-relative files and the gate's own sources
- * under `scripts/`; a missing input contributes its path alone, so a deleted file
- * still changes the hash. */
+/** Hash input contents and target existence together with this cache implementation. */
 function fingerprint(inputs: readonly string[]): string {
   const hash = createHash('sha256')
-  const gateSources = inputs.filter(file => file.startsWith('scripts/')).sort()
-  for (const file of [...new Set([...inputs, ...gateSources])].sort()) {
+  hash.update(readFileSync(import.meta.filename))
+  for (const file of [...new Set(inputs)].sort()) {
     hash.update(file).update('\0')
     try {
-      hash.update(readFileSync(join(root, file)))
-    } catch {
-      // Only ENOENT is expected: a tracked-then-deleted document still has to
-      // change the hash, and the path alone already does that. Any other read
-      // failure surfaces as a full run, which fails loudly on its own.
+      const path = resolve(root, file)
+      hash.update(statSync(path).isDirectory() ? '<directory>' : readFileSync(path))
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
       hash.update('<absent>')
     }
   }
   return hash.digest('hex')
 }
 
-/** Record a green run for this gate under its current input fingerprint. */
-export function recordGreen(gate: string, inputs: readonly string[]): void {
+/**
+ * Record a successful check with the extra targets it discovered while running.
+ * @param gate - stable cache key.
+ * @param inputs - files known before scanning, including verifier code and configuration.
+ * @param dependencies - files or directories discovered by the successful scan.
+ */
+export function recordGreen(gate: string, inputs: readonly string[], dependencies: readonly string[] = []): void {
   if (cacheDisabled()) return
   mkdirSync(dirname(cachePath(gate)), { recursive: true })
-  writeFileSync(cachePath(gate), `${JSON.stringify({ fingerprint: fingerprint(inputs) })}\n`)
+  writeFileSync(cachePath(gate), `${JSON.stringify({ version: 1, fingerprint: fingerprint([...inputs, ...dependencies]), dependencies })}\n`)
 }
 
 /**
@@ -68,15 +70,17 @@ export function recordGreen(gate: string, inputs: readonly string[]): void {
  */
 export function skipIfUnchanged(gate: string, inputs: readonly string[]): boolean {
   if (cacheDisabled()) return false
-  let recorded: string | null = null
+  let recorded: { version?: unknown; fingerprint?: unknown; dependencies?: unknown } | null
   try {
-    recorded = (JSON.parse(readFileSync(cachePath(gate), 'utf8')) as { fingerprint?: string }).fingerprint ?? null
+    recorded = JSON.parse(readFileSync(cachePath(gate), 'utf8')) as typeof recorded
   } catch {
-    // Only a missing or unreadable cache file is expected — the first run after
-    // a fresh install, or a corrupt entry. Both mean "run the gate".
-    recorded = null
+    // An absent or unreadable cache entry requires a full check.
+    return false
   }
-  if (recorded === null || recorded !== fingerprint(inputs)) return false
+  if (recorded?.version !== 1 || typeof recorded.fingerprint !== 'string'
+    || !Array.isArray(recorded.dependencies)
+    || !recorded.dependencies.every((file: unknown): file is string => typeof file === 'string')) return false
+  if (recorded.fingerprint !== fingerprint([...inputs, ...recorded.dependencies])) return false
   console.log(`${gate}: inputs unchanged since the last green run, skipped (AVN_GATE_CACHE=0 re-runs it).`)
   return true
 }

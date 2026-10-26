@@ -99,53 +99,9 @@ if (import.meta.main) {
   process.exitCode = await main(process.argv.slice(2))
 }
 
-/**
- * Whether a dirty path can change what a documentation gate reads: Markdown,
- * a pairing record, a generator or gate under `scripts/`, or a package manifest
- * whose dependency list a catalog renders. Anything else — application source,
- * tests, fixtures — leaves the documentation corpus byte-identical.
- * @param path - Repository-relative path from `git status --porcelain`.
- * @returns true when the path is a documentation-gate input.
- */
-function isDocumentationInput(path: string): boolean {
-  return path.endsWith('.md')
-    || path.endsWith('.i18n.yaml')
-    || path.startsWith('scripts/')
-    || path.startsWith('docs/')
-    || path.startsWith('.agents/')
-    || path.startsWith('website/')
-    || path.endsWith('package.json')
-}
-
-/**
- * Whether the documentation aggregate would re-read exactly what its last green
- * run accepted. A working tree whose only changes are application source leaves
- * every documentation input byte-identical, so the aggregate repeats work it has
- * already done; this asks Git that question in milliseconds instead of walking
- * the corpus. `AVN_GATE_CACHE=0` (CI's setting) disables it, and a Git failure
- * falls through to a full run.
- * @returns true when no documentation input is dirty, staged, or untracked.
- */
-function documentationUnchanged(): boolean {
-  if (process.env.AVN_GATE_CACHE === '0' || process.argv.includes('--no-cache')) return false
-  const result = spawnSync('git', ['status', '--porcelain', '--untracked-files=all'], {
-    cwd: resolve(import.meta.dirname, '..'),
-    encoding: 'utf8',
-  })
-  if (result.status !== 0) return false
-  return !result.stdout.split('\n').some((line) => {
-    const path = line.slice(3).trim()
-    return path !== '' && isDocumentationInput(path)
-  })
-}
-
 async function main(args: string[]): Promise<number> {
   const mode = parseMode(args[0])
   const gates = gatesForMode(mode)
-  if ((mode === 'doc-sync' || mode === 'doc-quick') && documentationUnchanged()) {
-    console.log(`run-gates: ${mode} skipped — no documentation input has changed since HEAD (AVN_GATE_CACHE=0 re-runs it).`)
-    return 0
-  }
   const concurrencyDefault = defaultConcurrency(mode, gates.length)
   const concurrencyOverride = process.env.AVN_GATE_CONCURRENCY
   const maxConcurrency = concurrencyFromEnv('AVN_GATE_CONCURRENCY', concurrencyDefault.workers)
