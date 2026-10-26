@@ -1605,14 +1605,15 @@ describe('ChatView', () => {
     // until the reader opens it; its own state is what these cases read.
     const status = (): string => within(disclosure).getByRole('status', { hidden: true }).textContent ?? ''
     expect(disclosure.dataset.active).toBe('true')
-    expect(status()).toBe('正在重试模型请求（1/2） · 1s')
+    expect(status()).toBe('连接中断了，1 秒后自动重试')
 
     act(() => {
       h.setChat({ nodes: [user(1, 'try'), nextRetry] })
     })
     expect(within(disclosure).getAllByRole('status', { hidden: true })).toHaveLength(1)
     expect(view.container.querySelector('details')).toBe(disclosure)
-    expect(status()).toBe('正在重试模型请求（2/2） · 1s')
+    expect(status()).toBe('连接中断了，1 秒后自动重试')
+    expect(within(disclosure).getByText('第 2 次尝试，共 2 次')).toBeTruthy()
 
     act(() => {
       h.setChat({
@@ -1626,7 +1627,7 @@ describe('ChatView', () => {
       h.setSession({ running: false })
     })
     expect(disclosure.dataset.active).toBeUndefined()
-    expect(status()).toBe('已重试模型请求（2/2） · 1s')
+    expect(status()).toBe('连接短暂中断，已自动重试')
 
     act(() => {
       h.setChat({ nodes: [user(1, 'try'), { ...retry(6), retryState: 'cancelled' }] })
@@ -1635,7 +1636,7 @@ describe('ChatView', () => {
     const cancelledDisclosure = view.container.querySelector('details') as HTMLDetailsElement
     expect(cancelledDisclosure.dataset.active).toBeUndefined()
     expect(within(cancelledDisclosure).getByRole('status', { hidden: true }).textContent)
-      .toContain('重试已取消')
+      .toContain('已停止重试')
   })
 
   it('renders a terminal turn failure as a plain-language dialog for its copy group', () => {
