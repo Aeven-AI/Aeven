@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-26-prompt-cache-warming.md
-2026-10-26-prompt-cache-warming.md: 09ee65aff9ace11c60a95f8145b17548b376eae1
-2026-10-26-prompt-cache-warming.zh.md: 40061d255ce6938b4fb372ab74bd6af83c3edd96
+2026-10-26-prompt-cache-warming.md: 7bb869e6883ba17ff8686168298538c7f47fdeda
+2026-10-26-prompt-cache-warming.zh.md: 045cb0ff6b73153333f37270c465485aa56da082

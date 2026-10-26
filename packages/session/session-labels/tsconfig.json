@@ -15,16 +15,10 @@
       "path": "../../../vendor/cordis"
     },
     {
-      "path": "../../../vendor/schemastery"
-    },
-    {
       "path": "../../core/session"
     },
     {
       "path": "../../session/session-projection"
-    },
-    {
-      "path": "../../session/session-title"
     }
   ]
 }

@@ -249,7 +249,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/api/session-controller/src/index.ts:88`](../packages/api/session-controller/src/index.ts)
+Source: [`packages/api/session-controller/src/index.ts:86`](../packages/api/session-controller/src/index.ts)
 
 <a id="aevenapi-settings-controller"></a>
 
@@ -3144,22 +3144,6 @@ Depends on: `Readable` (`node:stream`) · `Writable` (`node:stream`)
 
 Source: [`packages/sdk/server/src/index.ts:25`](../packages/sdk/server/src/index.ts)
 
-<a id="aevensession-labels"></a>
-
-## `@aeven/session-labels`
-
-Requires: `sessionProjections`
-
-```ts config-catalog
-/** Label write policy; every field is changeable from `cordis.yml`. */
-export interface Config {
-  /** Maximum UTF-8 bytes in one accepted label. */
-  readonly maxLabelBytes: number
-}
-```
-
-Source: [`packages/session/session-labels/src/types.ts:39`](../packages/session/session-labels/src/types.ts)
-
 <a id="aevensession-log-deepseek"></a>
 
 ## `@aeven/session-log-deepseek`
@@ -5333,6 +5317,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@aeven/schedule` — requires `agents` · `sessions` · `tools` · `sessionPersistence` ([`packages/schedule/schedule/src/index.ts`](../packages/schedule/schedule/src/index.ts))
 - `@aeven/session` ([`packages/core/session/src/index.ts`](../packages/core/session/src/index.ts))
 - `@aeven/session-checkpoint-policy` — requires `llm` · `sessionPersistence` · `sessions` · `tools` ([`packages/session/session-checkpoint-policy/src/index.ts`](../packages/session/session-checkpoint-policy/src/index.ts))
+- `@aeven/session-labels` — requires `sessionProjections` ([`packages/session/session-labels/src/index.ts`](../packages/session/session-labels/src/index.ts))
 - `@aeven/session-projection` ([`packages/session/session-projection/src/index.ts`](../packages/session/session-projection/src/index.ts))
 - `@aeven/session-stats` — requires `sessionProjections` ([`packages/session/session-stats/src/index.ts`](../packages/session/session-stats/src/index.ts))
 - `@aeven/session-turn-outline` — requires `sessionProjections` ([`packages/session/session-turn-outline/src/index.ts`](../packages/session/session-turn-outline/src/index.ts))

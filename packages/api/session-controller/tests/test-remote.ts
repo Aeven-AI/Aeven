@@ -34,8 +34,6 @@ import type {
   SessionForkValue,
   SessionFollowFrame,
   SessionFollowRequest,
-  SessionLabelRequest,
-  SessionLabelValue,
   SessionListRequest,
   SessionListValue,
   SessionOpenWorkspacePathRequest,
@@ -64,7 +62,6 @@ export interface TestSessionRemote {
   modelCatalog(): Promise<RemoteResult<ModelCatalog>>
   imageModelCatalog(): Promise<RemoteResult<ImageModelCatalog>>
   rename(request: SessionRenameRequest): Promise<RemoteResult<SessionRenameValue>>
-  label(request: SessionLabelRequest): Promise<RemoteResult<SessionLabelValue>>
   fork(request: SessionForkRequest): Promise<RemoteResult<SessionForkValue>>
   prompt(request: SessionPromptRequest, signal?: AbortSignal): Promise<RemoteResult<SessionPromptValue>>
   attachment(request: SessionAttachmentRequest): Promise<RemoteResult<SessionAttachmentValue>>
@@ -269,7 +266,6 @@ export function createSessionTestRemote(
     modelCatalog: () => remoteResult(() => direct.modelCatalog()),
     imageModelCatalog: () => remoteResult(() => direct.imageModelCatalog()),
     rename: request => remoteResult(() => direct.rename(request)),
-    label: request => remoteResult(() => direct.label(request)),
     fork: request => remoteResult(() => direct.fork(request)),
     prompt: (request, signal = new AbortController().signal) => remoteResult(
       () => direct.prompt(request, signal),

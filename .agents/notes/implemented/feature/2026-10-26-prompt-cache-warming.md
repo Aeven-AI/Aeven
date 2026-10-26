@@ -43,17 +43,3 @@ A warm dispatches through the same `llm/stream` waterfall, so routing, retries, 
 `packages/llm/llm-cache-warm/tests/warmer.spec.ts` covers the window in both directions: no warm without a configured provider, an auxiliary purpose, an attachment, a small prefix, or outside a tool block; one logged warm per interval inside it; the ping, daily-budget, dry-run, and concurrency bounds; and the failure path. `packages/llm/token-meter` typechecks with the event folded into the usage projection, at `stateVersion: 3`.
 
 Not covered: a recorded snapshot scenario. The plugin ships disabled, so no shipped profile produces `cache-warm/start` events, and warming is invisible on the model-visible surface by design.
-
-## Alternatives considered
-
-**Warm idle sessions too.** Idling is often the longest wait, but dsh-warm's own numbers show idle warming can cost more than it saves when nothing follows the idle period. This plugin ships the half the pilot measured as a win, and a deployment that measures the other half can extend the window without changing the request the warm replays.
-
-**Bake a cache lifetime into the plugin.** DeepSeek publishes no lifetime and pi-ai 0.84.2 carries no cache metadata, so any constant here would be a guess presented as a default. `providers` makes the interval a deployment value, and a provider absent from that table is never warmed.
-
-**A new `llm` purpose for warms.** Every adapter and extension would have to honour or ignore it, and any extension that turns a purpose into a wire field would change the prefix that the warm exists to preserve.
-
-**Decide from the provider's cache-hit signal.** No adapter in this repository reports cache hits before a request, so nothing can tell the plugin whether the entry is still alive; the interval is the only lever available.
-
-## Consequences
-
-A tool block of several minutes no longer drops the cached prefix, and the spend it causes is visible: `cache-warm/result` carries the usage the provider reported and `@aeven/token-meter` folds it into the session's totals. The cost is an extra request per interval that bills even when the prefix was still warm, bounded by `maxPings`, `maxConcurrentPings`, and `dailyPingBudget`, and kept off entirely by `disabled: true` until a deployment opts in. A warm inside a tool block competes with the session's own requests for the provider's rate limits, which `maxConcurrentPings` bounds across sessions rather than eliminating.

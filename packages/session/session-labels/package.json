@@ -1,7 +1,7 @@
 {
   "name": "@aeven/session-labels",
-  "description": "Session bookmarks: the sessionLabels projection folded from session/label events plus the service that writes them",
-  "version": "0.2.0-alpha",
+  "description": "Session bookmark projection: the labels a user set on one session's log, folded from the session/label event",
+  "version": "0.1.0-alpha",
   "publishConfig": {
     "access": "public"
   },
@@ -27,19 +27,16 @@
   ],
   "license": "Apache-2.0",
   "dependencies": {
-    "@deepseek-ai/schemastery": "workspace:^",
     "zod": "^4.4.3"
   },
   "peerDependencies": {
     "@aeven/session": "workspace:^",
     "@aeven/session-projection": "workspace:^",
-    "@aeven/session-title": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
     "@aeven/session": "workspace:^",
     "@aeven/session-projection": "workspace:^",
-    "@aeven/session-title": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   }
 }
