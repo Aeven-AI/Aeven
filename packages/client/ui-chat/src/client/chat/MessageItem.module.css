@@ -277,8 +277,8 @@
 
 .compactionTitle {
   flex: none;
-  font-size: 0.875rem;
-  line-height: 1.5rem;
+  font-size: 1rem;
+  line-height: 1.75rem;
   color: #000;
 }
 
@@ -296,8 +296,8 @@
   min-width: 0;
   overflow: hidden;
   color: var(--dsw-alias-label-tertiary);
-  font-size: 0.875rem;
-  line-height: 1.5rem;
+  font-size: 1rem;
+  line-height: 1.75rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -306,8 +306,8 @@
   /* Indent under the title, which starts at leading (16 + delta) + gap 6. */
   padding: 4px 0 4px 1.375rem;
   color: var(--dsw-alias-label-tertiary);
-  font-size: 0.875rem;
-  line-height: 1.5rem;
+  font-size: 1rem;
+  line-height: 1.75rem;
 }
 
 .retryRow {

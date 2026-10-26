@@ -84,12 +84,12 @@ describe('chat flow font-size axis', () => {
     ]))
   })
 
-  it('compaction rows follow the axis like the disclosure rows they mirror', () => {
+  it('compaction rows read the conversation content size', () => {
     const css = read('MessageItem.module.css')
     for (const selector of ['.compactionTitle', '.compactionSummary', '.compactionBody']) {
       expect(declarationsFrom(css, selector)).toEqual(expect.arrayContaining([
-        'font-size: 0.875rem',
-        'line-height: 1.5rem',
+        'font-size: 1rem',
+        'line-height: 1.75rem',
       ]))
     }
     expect(declarationsFrom(css, '.compactionLeading svg')).toEqual(expect.arrayContaining([
