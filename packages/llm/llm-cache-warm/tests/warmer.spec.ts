@@ -8,6 +8,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createUserMessage } from '@aeven/llm'
 import type { GenerateOptions, StreamChunk, TokenUsage } from '@aeven/llm'
+import { SessionId } from '@aeven/session'
 import type { Session } from '@aeven/session'
 import { CacheWarmer } from '@aeven/llm-cache-warm'
 import type { WarmerSettings } from '@aeven/llm-cache-warm'
@@ -26,11 +27,11 @@ function request(overrides: Partial<GenerateOptions> = {}): GenerateOptions {
   return {
     provider: 'deepseek',
     model: 'deepseek-chat',
-    sessionId: 'session-1' as GenerateOptions['sessionId'],
+    sessionId: SessionId('session-1'),
     system: 'x'.repeat(20000),
-    messages: [createUserMessage({ content: [{ type: 'text', text: 'start the build' }] })],
+    messages: [createUserMessage({ content: [{ type: 'text', text: 'start the build' }], source: { kind: 'user' } })],
     ...overrides,
-  }
+  } as GenerateOptions
 }
 
 /** One appended log event, as the fake session recorded it. */
@@ -136,7 +137,7 @@ describe('whether a request is warmed at all', () => {
   it('ignores a request carrying an attachment', async () => {
     const { warmer, dispatched, session } = mount()
     warmer.capture(request({
-      messages: [createUserMessage({ content: [{ type: 'file', id: 'f1' } as never] })],
+      messages: [createUserMessage({ content: [{ type: 'file', id: 'f1' } as never], source: { kind: 'user' } })],
     }))
     warmer.beginBlock(session, 'bash', new AbortController().signal)
     await vi.advanceTimersByTimeAsync(5000)
