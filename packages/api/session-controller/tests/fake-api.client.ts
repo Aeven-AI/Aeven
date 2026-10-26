@@ -238,6 +238,7 @@ export class FakeApiClient {
         updateQueue: payload => this.record('session.updateQueue', payload, this.onUpdateQueue(payload)),
         cancel: payload => this.record('session.cancel', payload, this.onCancel(payload)),
         edit: payload => this.record('session.edit', payload, this.onEdit(payload)),
+        retry: payload => this.record('session.retry', payload, Promise.resolve(ok({ accepted: true as const }))),
         openWorkspacePath: payload => this.record(
           'session.openWorkspacePath',
           payload,

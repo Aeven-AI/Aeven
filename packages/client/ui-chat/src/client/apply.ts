@@ -190,6 +190,12 @@ export function apply(ctx: Context): void {
             const result = await session.edit(seq, text)
             if (!result.ok) throw new Error(`ui-chat: edit failed: ${result.error.code}: ${result.error.message}`)
           },
+          retryTurn: async () => {
+            const session = ctx.sessions.binding(sessionId)?.session
+            if (session === undefined) throw new Error(`ui-chat: session "${sessionId}" resolved no binding`)
+            const result = await session.retry()
+            if (!result.ok) throw new Error(`ui-chat: retry failed: ${result.error.code}: ${result.error.message}`)
+          },
           openPlans: () => { ctx.emit('settings/open', 'account') },
           notifyError: (text) => {
             const actx = ctx.sessions.scope(sessionId)

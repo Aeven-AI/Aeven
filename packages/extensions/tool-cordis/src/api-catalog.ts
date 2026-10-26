@@ -857,20 +857,20 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'save( owner: string, draft: CapabilityDraft, options: { readonly status: CapabilityStatus readonly source: CapabilitySource readonly sessionId: string | undefined readonly origin?: CapabilityOrigin }, ): Promise<Capability>',
-        description: 'Create a capability or replace its body and description, keeping its supporting files.',
+        description: 'Create a capability or replace its body and description, keeping its supporting files. Credentials in the description, the procedure, and the origin\'s request are redacted before they are stored.',
         parameters: [{ name: 'owner', description: 'account id.' }, { name: 'draft', description: 'name, description, and procedure.' }, { name: 'options', description: 'resulting status, who originated it, the writing session (undefined outside a session), and the work it was learned from; a later save keeps the first origin.' }],
         returns: 'the stored capability.',
       },
       {
         signature: 'patch( owner: string, name: string, edit: { readonly oldString: string; readonly newString: string }, sessionId: string | undefined, ): Promise<Capability>',
-        description: 'Replace one exact, unique passage of a capability\'s procedure.',
+        description: 'Replace one exact, unique passage of a capability\'s procedure; credentials in the result are redacted.',
         parameters: [{ name: 'owner', description: 'account id.' }, { name: 'name', description: 'capability name.' }, { name: 'edit', description: 'the passage to replace and its replacement.' }, { name: 'sessionId', description: 'the writing session; undefined when the user changed it outside a session.' }],
         returns: 'the updated capability.',
         throws: ['when the capability does not exist or the passage is missing or ambiguous.'],
       },
       {
         signature: 'writeFile(owner: string, name: string, path: string, content: string, sessionId: string | undefined): Promise<Capability>',
-        description: 'Write one supporting file, such as a script the procedure runs.',
+        description: 'Write one supporting file, such as a script the procedure runs; credentials in it are redacted.',
         parameters: [{ name: 'owner', description: 'account id.' }, { name: 'name', description: 'capability name.' }, { name: 'path', description: 'path inside a supporting-file folder.' }, { name: 'content', description: 'file content.' }, { name: 'sessionId', description: 'the writing session; undefined when the user changed it outside a session.' }],
         returns: 'the updated capability.',
       },
@@ -2443,6 +2443,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Replace one user prompt\'s text, discard it (with its turn when it opened one) and everything after, and run the edited prompt as the next turn.',
         parameters: [{ name: 'request', description: 'Session identity, edited message seq, replacement text, and source metadata.' }, { name: 'signal', description: 'caller cancellation before the edit begins.' }],
         returns: 'the committed rewind position.',
+      },
+      {
+        signature: '@Remote(\'retry\') retry(request: SessionRetryRequest, signal: AbortSignal): Promise<SessionRetryValue>',
+        description: 'Continue a Session whose latest turn failed, keeping that turn\'s work.',
+        parameters: [{ name: 'request', description: 'Session identity.' }, { name: 'signal', description: 'caller cancellation before the retry begins.' }],
+        returns: 'acknowledgement that the continuation entered the Agent inbox.',
       },
       {
         signature: '@Remote(\'attachment\') attachment(request: SessionAttachmentRequest): Promise<SessionAttachmentValue>',
@@ -7596,6 +7602,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SessionResultRange',
     declaration: 'export interface SessionResultRange {\n    from?: number;\n    to?: number;\n}',
+  },
+  {
+    name: 'SessionRetryRequest',
+    declaration: 'export interface SessionRetryRequest {\n    readonly sessionId: SessionId;\n}',
+  },
+  {
+    name: 'SessionRetryValue',
+    declaration: 'export interface SessionRetryValue {\n    readonly accepted: true;\n}',
   },
   {
     name: 'SessionSearchCursor',

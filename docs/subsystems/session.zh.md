@@ -811,6 +811,14 @@ async inspect( sessionId: SessionId, signal?: AbortSignal, ): Promise<SessionIns
 @Remote('edit') edit(request: SessionEditRequest, signal: AbortSignal): Promise<SessionEditValue>
 
 /**
+ * Continue a Session whose latest turn failed, keeping that turn's work.
+ * @param request - Session identity.
+ * @param signal - caller cancellation before the retry begins.
+ * @returns acknowledgement that the continuation entered the Agent inbox.
+ */
+@Remote('retry') retry(request: SessionRetryRequest, signal: AbortSignal): Promise<SessionRetryValue>
+
+/**
  * Read one image proven reachable from the addressed Session log.
  * @param request - Session and attachment identities used for authorization.
  * @returns the durable attachment reference and base64-encoded bytes.

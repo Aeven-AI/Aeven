@@ -312,8 +312,8 @@
 
 .retryRow {
   color: var(--dsw-alias-label-tertiary);
-  font-size: 0.875rem;
-  line-height: 1.25rem;
+  font-size: 1rem;
+  line-height: 1.5rem;
 }
 
 .retrySummary {
@@ -321,8 +321,8 @@
   align-items: center;
   width: fit-content;
   padding: 2px 0;
-  gap: 7px;
-  border-radius: 3px;
+  gap: 8px;
+  border-radius: 4px;
   color: inherit;
   cursor: pointer;
   list-style: none;
@@ -353,6 +353,15 @@
   outline-offset: 2px;
 }
 
+.retryIcon {
+  flex: none;
+  opacity: 0.85;
+}
+
+.retryRow[data-active] .retryIcon {
+  animation: retry-spin 1.2s linear infinite;
+}
+
 .retryText {
   color: inherit;
 }
@@ -379,16 +388,22 @@
 
 .retryDetails {
   display: grid;
-  gap: 2px;
-  margin-top: 3px;
-  padding-left: 14px;
+  gap: 4px;
+  margin: 6px 0 2px 6px;
+  padding: 2px 0 2px 16px;
+  border-left: 2px solid var(--dsw-alias-border-l2);
   overflow-wrap: anywhere;
-  font-size: 0.875rem;
-  line-height: 1.125rem;
+  font-size: 1rem;
+  line-height: 1.5rem;
 }
 
-.retryDetailLabel {
+.retryDetailText {
+  margin: 0;
   color: var(--dsw-alias-label-secondary);
+}
+
+.retryAttempt {
+  color: var(--dsw-alias-label-tertiary);
 }
 
 .turnErrorRow {
@@ -434,10 +449,20 @@
   }
 }
 
+@keyframes retry-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .retryRow[data-active] .retryText {
     background: none;
     color: inherit;
+    animation: none;
+  }
+
+  .retryRow[data-active] .retryIcon {
     animation: none;
   }
 }

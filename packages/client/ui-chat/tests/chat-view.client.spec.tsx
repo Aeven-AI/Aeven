@@ -459,6 +459,7 @@ function makeHarness(
     onFullscreenChange: () => {},
     updateQueue: async () => {},
     editMessage: async () => {},
+    retryTurn: async () => {},
     notifyError: () => {},
     t,
   }
@@ -1671,14 +1672,16 @@ describe('ChatView', () => {
     expect(view.getByRole('dialog', { name: title })).toBeTruthy()
   })
 
-  it('retries the failed turn by re-running its durable prompt through editMessage', async () => {
+  it('retries the failed turn by continuing on top of it, without editing its prompt', async () => {
     const h = makeHarness({ nodes: [userInTurn(1, 'build the thing', 1), turnError(2, 'TRANSPORT')] })
     const editMessage = vi.fn(async () => {})
-    const view = render(<h.ChatView {...h.props} editMessage={editMessage} />)
+    const retryTurn = vi.fn(async () => {})
+    const view = render(<h.ChatView {...h.props} editMessage={editMessage} retryTurn={retryTurn} />)
 
     fireEvent.click(within(view.getByRole('dialog')).getByRole('button', { name: '重试' }))
 
-    await waitFor(() => { expect(editMessage).toHaveBeenCalledWith(1, 'build the thing') })
+    await waitFor(() => { expect(retryTurn).toHaveBeenCalledOnce() })
+    expect(editMessage).not.toHaveBeenCalled()
   })
 
   it('opens the plan picker from a quota failure and closes the dialog first', async () => {

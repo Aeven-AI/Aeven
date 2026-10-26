@@ -126,7 +126,15 @@ export function RootStandardProvider({ children }: { children: ReactNode }) {
   return <RootBindingContext.Provider value={binding}>{children}</RootBindingContext.Provider>
 }
 
-/** Subscribe to the scope roster before resolving and binding its current adapter. */
+/** Scopes each Host has resolved an adapter for; an absent adapter of a listed scope is a plugin reload in progress. */
+const resolvedScopes = new WeakMap<SlotRendererHost, Set<'session' | 'session-maybe'>>()
+
+/**
+ * Subscribe to the scope roster before resolving and binding its current
+ * adapter. A scope that never had an adapter fails assembly; one whose adapter
+ * left after resolving (its owning plugin is being reloaded) renders nothing
+ * until the roster publishes the replacement.
+ */
 export function ScopeProvider({
   scope,
   children,
@@ -137,7 +145,13 @@ export function ScopeProvider({
   const host = useHost()
   observableHook(host.scopeRevision)(value => value)
   const adapter = host.scope(scope)
-  if (adapter === undefined) throw new SlotAssemblyError(`scope '${scope}' rendered without an installed adapter`)
-  const binding = observableHook(adapter.current)(value => value)
+  const binding = maybeObservableHook(adapter?.current)(value => value)
+  if (adapter === undefined || binding === undefined) {
+    if (resolvedScopes.get(host)?.has(scope) === true) return null
+    throw new SlotAssemblyError(`scope '${scope}' rendered without an installed adapter`)
+  }
+  let resolved = resolvedScopes.get(host)
+  if (resolved === undefined) resolvedScopes.set(host, resolved = new Set())
+  resolved.add(scope)
   return <ScopeBindingContext.Provider value={binding}>{children}</ScopeBindingContext.Provider>
 }

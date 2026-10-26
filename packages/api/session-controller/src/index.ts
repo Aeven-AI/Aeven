@@ -42,6 +42,8 @@ import type {
   SessionCreateValue,
   SessionEditRequest,
   SessionEditValue,
+  SessionRetryRequest,
+  SessionRetryValue,
   SessionFollowFrame,
   SessionFollowRequest,
   SessionForkRequest,
@@ -448,6 +450,18 @@ The user's account display name is ${JSON.stringify(source.clientDisplayName)}.
   edit(request: SessionEditRequest, signal: AbortSignal): Promise<SessionEditValue> {
     signal.throwIfAborted()
     return this.commands.edit(request)
+  }
+
+  /**
+   * Continue a Session whose latest turn failed, keeping that turn's work.
+   * @param request - Session identity.
+   * @param signal - caller cancellation before the retry begins.
+   * @returns acknowledgement that the continuation entered the Agent inbox.
+   */
+  @Remote('retry')
+  retry(request: SessionRetryRequest, signal: AbortSignal): Promise<SessionRetryValue> {
+    signal.throwIfAborted()
+    return this.commands.retry(request)
   }
 
   /**

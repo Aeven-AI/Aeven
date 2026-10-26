@@ -6,11 +6,10 @@ import type {
 } from '@aeven/client-ui-conversation/client'
 import { SessionSeq } from '@aeven/session/types'
 import {
-  Button, IconCheckOutline16, IconCloseOutline16, IconEditOutline16, IconSendOutline14, IconTrashOutline16,
+  Button, IconCheckOutline16, IconCloseOutline16, IconEditOutline16, IconRefreshOutline16, IconSendOutline14, IconTrashOutline16,
   JsonBlock, Modal, projectUserText, StateDot, Tooltip, useTextAnimation,
 } from '@aeven/client-ui-primitives'
 import type { ChatNodeOwnerProps, ChatNodeViewProps, ChatViewInjected, ChatViewSlotProps } from '../contract/slots.ts'
-import type { ChatSnapshot } from '../contract/snapshot.ts'
 import type { ChatKey } from '../locale.ts'
 import { CompactionItem } from './CompactionItem.tsx'
 import { ContextInjectionRow } from './ContextInjectionRow.tsx'
@@ -63,12 +62,12 @@ interface RetryCountdown {
   seconds: number
 }
 
-function failureMessage(
-  message: string,
-  code: unknown,
-  t: ChatViewSlotProps['t'],
-): string {
-  return code === 'AUTH' ? t('message.failure.auth') : message
+/** Copy group of a retried request: the retryable subset of {@link TurnFailureKind}. */
+type RetryKind = 'connection' | 'busy' | 'other'
+
+function retryKind(code: string | undefined): RetryKind {
+  const kind = turnFailureKind(code)
+  return kind === 'connection' || kind === 'busy' ? kind : 'other'
 }
 
 function ModelRetryItem({ node, active, t }: {
@@ -80,7 +79,6 @@ function ModelRetryItem({ node, active, t }: {
   // retry node. Host event time and Date.now() may belong to different clocks.
   const deadline = useMemo(() => Date.now() + node.delayMs, [node.delayMs, node.seq])
   const scheduledSeconds = retrySeconds(node.delayMs)
-  const maximum = node.mode === 'normal' ? node.maxRetries : '∞'
   const [countdown, setCountdown] = useState<RetryCountdown>(() => ({
     deadline,
     seconds: retrySeconds(deadline - Date.now()),
@@ -107,31 +105,25 @@ function ModelRetryItem({ node, active, t }: {
     return () => { window.clearInterval(timer) }
   }, [active, deadline])
 
-  const label = active
-    ? t('message.retry.active')
-    : node.retryState === 'cancelled'
-      ? t('message.retry.cancelled')
-      : node.retryState === 'started'
-        ? t('message.retry.started')
-        : t('message.retry.scheduled')
-  const seconds = active ? remainingSeconds : scheduledSeconds
+  const kind = retryKind(node.failure.code)
+  const label = node.retryState === 'cancelled'
+    ? t('message.retry.cancelled')
+    : active || node.retryState === 'scheduled'
+      ? t(`message.retry.${kind}.waiting`, { seconds: active ? remainingSeconds : scheduledSeconds })
+      : t(`message.retry.${kind}.done`)
+  const attempt = node.mode === 'normal'
+    ? t('message.retry.attempt', { retry: node.retry, maximum: node.maxRetries })
+    : t('message.retry.attemptUnbounded', { retry: node.retry })
 
   return (
     <details className={css.retryRow} data-active={active || undefined}>
-      <summary className={css.retrySummary}>
-        <span className={css.retryText} role="status">
-          {t('message.retry.status', { label, retry: node.retry, maximum, seconds })}
-        </span>
+      <summary className={css.retrySummary} title={node.failure.message}>
+        <IconRefreshOutline16 size={14} className={css.retryIcon} />
+        <span className={css.retryText} role="status">{label}</span>
       </summary>
       <div className={css.retryDetails}>
-        <div>
-          <span className={css.retryDetailLabel}>{t('message.retry.delay')}</span>
-          {t('duration.milliseconds', { milliseconds: Math.round(node.delayMs) })}
-        </div>
-        <div>
-          <span className={css.retryDetailLabel}>{t('message.retry.failure')}</span>
-          {failureMessage(node.failure.message, node.failure.code, t)}
-        </div>
+        <p className={css.retryDetailText}>{t(`message.retry.${kind}.detail`)}</p>
+        <span className={css.retryAttempt}>{attempt}</span>
       </div>
     </details>
   )
@@ -191,30 +183,27 @@ function failureKey(node: TurnErrorNode, nodeKey: string): string {
 
 /**
  * Popup for the latest turn's terminal failure, in plain language. Try again
- * re-runs the turn's prompt unchanged through the message edit, which rewinds
- * the failed turn first; a plan-limit failure also offers the plan picker, and
- * a plan changed there applies to the retried request.
+ * continues the Session on top of the failed turn, so its transcript and work
+ * stay; a plan-limit failure also offers the plan picker, and a plan changed
+ * there applies to the retried request.
  */
-function TurnErrorDialog({ node, prompt, editMessage, openPlans, onClose, t }: {
+function TurnErrorDialog({ node, retryTurn, openPlans, onClose, t }: {
   node: TurnErrorNode
-  /** The user-authored prompt that opened the failed turn, when it is loaded. */
-  prompt: UserMessageNode | undefined
-  editMessage: ChatNodeOwnerProps['editMessage']
+  retryTurn: ChatNodeOwnerProps['retryTurn']
   openPlans: ChatNodeOwnerProps['openPlans']
   onClose: () => void
   t: ChatViewSlotProps['t']
 }) {
   const [busy, setBusy] = useState(false)
-  const text = useMemo(() => prompt === undefined ? '' : contentParts(prompt.content).text, [prompt])
   const kind = turnFailureKind(node.code)
   const plans = kind === 'quota' ? openPlans : undefined
-  const retry = editMessage === undefined || prompt === undefined || text.trim() === ''
+  const retry = retryTurn === undefined
     ? undefined
     : async (): Promise<void> => {
       setBusy(true)
       try {
-        // An accepted retry rewinds the failed turn out of the transcript, which unmounts this dialog.
-        await editMessage(SessionSeq(prompt.seq), text)
+        // An accepted retry starts a later turn, which unmounts this dialog.
+        await retryTurn()
       } catch {
         // The session face mirrors the refusal into the composer's error line; the dialog stays for another try.
         setBusy(false)
@@ -253,22 +242,6 @@ function TurnErrorDialog({ node, prompt, editMessage, openPlans, onClose, t }: {
       )}
     />
   )
-}
-
-/**
- * Key of the last user-authored prompt Node in one turn of the Chat snapshot.
- * @param snapshot - current Chat target snapshot.
- * @param turn - the failed turn.
- * @returns the prompt Node's key, or undefined when none is loaded.
- */
-function turnPromptKey(snapshot: ChatSnapshot, turn: number): string | undefined {
-  const keys = snapshot.locations.getTurn(turn)
-  for (let index = keys.length - 1; index >= 0; index -= 1) {
-    // oxlint-disable-next-line typescript/no-non-null-assertion -- index is within keys
-    const key = keys[index]!
-    if (snapshot.nodes.get(key)?.kind === 'user') return key
-  }
-  return undefined
 }
 
 /** Persistent, turn-positioned notice for a turn ended at the output-token cap. */
@@ -780,13 +753,10 @@ export const RetryNodeView = memo(function RetryNodeView({ node, t }: ChatNodeVi
 
 /** Terminal turn-error keyed Chat renderer. */
 export const TurnErrorNodeView = memo(function TurnErrorNodeView({
-  node, editMessage, openPlans, useChat, t,
+  node, retryTurn, openPlans, useChat, t,
 }: ChatNodeViewProps<'turn-error'>) {
   const turn = node.data.turn
   const latest = useChat(snapshot => snapshot.timeline.turnOrder.at(-1) === turn)
-  const promptKey = useChat(snapshot => turnPromptKey(snapshot, turn))
-  const promptNode = useChat(snapshot => promptKey === undefined ? undefined : snapshot.nodes.get(promptKey))
-  const prompt = promptNode?.kind === 'user' ? (promptNode.data as UserMessageNode) : undefined
   const key = failureKey(node.data, node.key)
   const [dismissed, setDismissed] = useState(() => dismissedFailures.has(key))
   // Only the latest turn's failure is still actionable; earlier ones were answered by later turns.
@@ -798,8 +768,7 @@ export const TurnErrorNodeView = memo(function TurnErrorNodeView({
   return (
     <TurnErrorDialog
       node={node.data}
-      prompt={prompt}
-      editMessage={editMessage}
+      retryTurn={retryTurn}
       openPlans={openPlans}
       onClose={close}
       t={t}

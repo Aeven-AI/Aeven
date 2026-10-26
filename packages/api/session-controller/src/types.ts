@@ -257,6 +257,8 @@ declare module '@aeven/typert-protocol' {
     }
     /** The edit target is not a current user-authored prompt of the Session. */
     'session/edit-unavailable': { readonly sessionId: SessionId; readonly messageSeq: number }
+    /** The Session's latest turn did not end in a failure, or later activity followed it. */
+    'session/retry-unavailable': { readonly sessionId: SessionId }
     'subagent/not-found': {
       readonly parentSessionId: SessionId
       readonly childSessionId: SessionId
@@ -408,6 +410,16 @@ export interface SessionEditValue {
   readonly accepted: true
   /** Seq of the committed `session/rewind` event. */
   readonly rewindSeq: number
+}
+
+/** Request to continue a Session whose latest turn ended in a failure. */
+export interface SessionRetryRequest {
+  readonly sessionId: SessionId
+}
+
+/** Receipt after the continuation notice enters the Agent inbox as the next turn. */
+export interface SessionRetryValue {
+  readonly accepted: true
 }
 
 /** Durable image read request. */
