@@ -154,6 +154,10 @@ flowchart LR
   cfg --> plugin_avn_base_session_checkpoint_policy
   plugin_avn_base_tool_result_pruner["tool-result-pruner<br/>@aeven/compaction-tool-result-pruner"]
   cfg --> plugin_avn_base_tool_result_pruner
+  plugin_avn_base_working_directory["working-directory<br/>@aeven/working-directory"]
+  cfg --> plugin_avn_base_working_directory
+  plugin_avn_base_tool_working_directory["tool-working-directory<br/>@aeven/tool-working-directory"]
+  cfg --> plugin_avn_base_tool_working_directory
   plugin_avn_base_tool_todo["tool-todo<br/>@aeven/tool-todo"]
   cfg --> plugin_avn_base_tool_todo
   plugin_avn_base_tool_goal["tool-goal<br/>@aeven/tool-goal"]
@@ -265,6 +269,8 @@ flowchart LR
 | `spill-policy` | `@aeven/spill-policy` |
 | `session-checkpoint-policy` | `@aeven/session-checkpoint-policy` |
 | `tool-result-pruner` | `@aeven/compaction-tool-result-pruner` |
+| `working-directory` | `@aeven/working-directory` |
+| `tool-working-directory` | `@aeven/tool-working-directory` |
 | `tool-todo` | `@aeven/tool-todo` |
 | `tool-goal` | `@aeven/tool-goal` |
 | `tool-ralph` | `@aeven/tool-ralph` |

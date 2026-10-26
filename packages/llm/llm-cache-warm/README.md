@@ -67,6 +67,16 @@ Cache lifetimes are provider facts, so they are configuration, not constants: th
 - The measured pilot this design follows: `dsh-warm` 0.2.0 for the DeepSeek harness, which reports an idle-warming saving of $6.91 over 50 days against a $7.15 cost when a warm is blocked by a tool result.
 - Cache lifetimes beyond DeepSeek's published "cleared within hours to days": check the provider's own documentation before setting `intervalMs`.
 
+## Dev Note
+
+The unit under test is the decision, not the network: the specs drive capture and timers with a fake clock and a fake provider client, because a warm that fires twice, or fires outside a tool block, is the defect worth catching and neither shows up in a latency measurement.
+
+The prefix comparison is byte-exact on purpose. A warm whose request differs from the real one by a single field uploads a second cache entry instead of extending the first, which costs more than doing nothing; the output cap is the one field the comparison ignores, and `maxTokens: 1` keeps the completion short enough that the spend stays bounded.
+
+`intervalMs` has no default. The budget rules that read it are deployment choices, and a value shipped here would be a guess about a provider's cache lifetime that the plugin cannot observe.
+
+**Runtime invariant:** No companion is published because the plugin's observable outcome is a pair of log-only events whose fields are the values it already computed, so a companion could only restate them.
+
 ## Model Experience
 
 ### Warm request

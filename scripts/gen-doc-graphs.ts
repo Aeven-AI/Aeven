@@ -381,6 +381,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Owns the deterministic fallback, latest-title fold, and sole optional asynchronous provider registration.',
   },
   {
+    key: 'workingDirectory',
+    pkg: 'working-directory',
+    title: 'Session working directory',
+    mode: 'seam',
+    consumers: ['tool-bash', 'tool-bash-persistent', 'tool-pwsh', 'tool-pwsh-persistent', 'tool-working-directory'],
+    note: 'Resolves a session\'s effective directory from the immutable header plus the last logged `session/cwd`; shell tools resolve their working directory through it with the header as fallback.',
+  },
+  {
     key: 'systemPrompt',
     pkg: 'system-prompt',
     title: 'System prompt assembly registry',

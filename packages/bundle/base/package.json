@@ -110,6 +110,8 @@
     "@aeven/tool-subagent": "workspace:^",
     "@aeven/tool-subagent-control": "workspace:^",
     "@aeven/tool-todo": "workspace:^",
+    "@aeven/tool-working-directory": "workspace:^",
+    "@aeven/working-directory": "workspace:^",
     "@aeven/tool-web": "workspace:^",
     "@aeven/tool-workflow": "workspace:^",
     "@aeven/tools": "workspace:^",

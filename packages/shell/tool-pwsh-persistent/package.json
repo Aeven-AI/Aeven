@@ -52,6 +52,7 @@
     "@aeven/system-prompt": "workspace:^",
     "@aeven/timeout": "workspace:^",
     "@aeven/tools": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/working-directory": "workspace:^"
   }
 }

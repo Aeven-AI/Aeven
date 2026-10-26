@@ -16,6 +16,7 @@ import type { GenericCallView, TerminalCallView, ToolExecution, ToolResult, Tool
 import { HarnessError } from '@aeven/llm'
 import type { Agent } from '@aeven/agent'
 import type { JobId, JobRegistry } from '@aeven/jobs'
+import type {} from '@aeven/working-directory'
 import type {} from '@aeven/user-approval'
 import type {} from '@aeven/shell-env'
 import type { SandboxExecutionPolicy, SandboxMode } from '@aeven/sandbox'
@@ -155,9 +156,10 @@ function presentBashResult(args: unknown, result: ToolResult): ToolResultView | 
 function resolveWorkdir(
   modelWorkdir: string | undefined,
   exec: { agent?: Agent },
-  policyWorkspaceRoot?: string,
+  policyWorkspaceRoot: string | undefined,
+  loggedCwd: string | undefined,
 ): string | undefined {
-  const headerCwd = exec.agent?.session.header.cwd
+  const headerCwd = loggedCwd ?? exec.agent?.session.header.cwd
   const sessionCwd = policyWorkspaceRoot ?? (headerCwd === undefined ? undefined : canonicalPath(headerCwd))
   if (modelWorkdir === undefined) return sessionCwd
   if (sessionCwd !== undefined && !isAbsolute(modelWorkdir)) {
@@ -411,7 +413,12 @@ export function apply(ctx: Context, config: Config = {}): void {
       const policy = approvedMode === undefined
         ? standingPolicy
         : { ...(standingPolicy as SandboxExecutionPolicy), mode: approvedMode }
-      const workdir = resolveWorkdir(args.workdir, exec, standingPolicy?.workspaceRoot)
+      const workdir = resolveWorkdir(
+        args.workdir,
+        exec,
+        standingPolicy?.workspaceRoot,
+        exec.agent === undefined ? undefined : ctx.get('workingDirectory')?.of(exec.agent.session),
+      )
       const avnEnv = ctx.shellEnv.collect(exec)
       const request = {
         command: args.command,

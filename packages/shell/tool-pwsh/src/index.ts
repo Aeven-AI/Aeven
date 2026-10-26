@@ -28,6 +28,7 @@ import { HarnessError } from '@aeven/llm'
 import type { Agent } from '@aeven/agent'
 import type { JobId, JobRegistry } from '@aeven/jobs'
 import type {} from '@aeven/shell-env'
+import type {} from '@aeven/working-directory'
 import type {} from '@aeven/user-approval'
 import type { SandboxExecutionPolicy, SandboxMode } from '@aeven/sandbox'
 import { ESCALATION_TARGETS, approveEscalation, validateEscalationArgs } from '@aeven/sandbox'
@@ -158,8 +159,12 @@ function pwshDescription(
  * Resolve an explicit workdir first, making a relative one session-workspace-relative;
  * otherwise use the session header cwd and leave executor defaulting as the fallback.
  */
-function resolveWorkdir(modelWorkdir: string | undefined, exec: { agent?: Agent }): string | undefined {
-  const headerCwd = exec.agent?.session.header.cwd
+function resolveWorkdir(
+  modelWorkdir: string | undefined,
+  exec: { agent?: Agent },
+  loggedCwd: string | undefined,
+): string | undefined {
+  const headerCwd = loggedCwd ?? exec.agent?.session.header.cwd
   if (modelWorkdir === undefined) return headerCwd
   if (headerCwd !== undefined && !isAbsolute(modelWorkdir)) {
     return resolvePath(headerCwd, modelWorkdir)
@@ -423,7 +428,11 @@ export function apply(ctx: Context, config: Config = {}): void {
       const policy = approvedMode === undefined
         ? standingPolicy
         : { ...(standingPolicy as SandboxExecutionPolicy), mode: approvedMode }
-      const workdir = resolveWorkdir(args.workdir, exec)
+      const workdir = resolveWorkdir(
+        args.workdir,
+        exec,
+        exec.agent === undefined ? undefined : ctx.get('workingDirectory')?.of(exec.agent.session),
+      )
       const request = {
         command: args.command,
         ...workdir !== undefined ? { workdir } : {},

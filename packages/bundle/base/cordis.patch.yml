@@ -419,6 +419,15 @@
         headChars: 4096
         tailChars: 1024
 
+    # The session's working directory as a logged capability: shell, file, and
+    # search tools resolve relative paths through it instead of the immutable
+    # session header, so a session can enter a checkout or a worktree.
+    - id: working-directory
+      name: '@aeven/working-directory'
+
+    - id: tool-working-directory
+      name: '@aeven/tool-working-directory'
+
     - id: tool-todo
       name: '@aeven/tool-todo'
       config:

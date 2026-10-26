@@ -1787,6 +1787,9 @@ importers:
       '@aeven/tool-workflow':
         specifier: workspace:^
         version: link:../../workflow/tool-workflow
+      '@aeven/tool-working-directory':
+        specifier: workspace:^
+        version: link:../../session/tool-working-directory
       '@aeven/tools':
         specifier: workspace:^
         version: link:../../core/tools
@@ -1817,6 +1820,9 @@ importers:
       '@aeven/workflow-worker-thread':
         specifier: workspace:^
         version: link:../../workflow/workflow-worker-thread
+      '@aeven/working-directory':
+        specifier: workspace:^
+        version: link:../../session/working-directory
       '@deepseek-ai/cordis-plugin-hmr':
         specifier: workspace:^
         version: link:../../../vendor/hmr
@@ -10426,6 +10432,37 @@ importers:
         specifier: workspace:^
         version: link:../../../vendor/loader
 
+  packages/session/tool-working-directory:
+    devDependencies:
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@aeven/tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+      '@aeven/working-directory':
+        specifier: workspace:^
+        version: link:../working-directory
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/session/working-directory:
+    dependencies:
+      zod:
+        specifier: ^4.4.3
+        version: 4.6.5
+    devDependencies:
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@aeven/session-projection':
+        specifier: workspace:^
+        version: link:../session-projection
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
   packages/settings/settings:
     dependencies:
       '@aeven/util-values':
@@ -10689,6 +10726,9 @@ importers:
       '@aeven/user-approval':
         specifier: workspace:^
         version: link:../../interaction/user-approval
+      '@aeven/working-directory':
+        specifier: workspace:^
+        version: link:../../session/working-directory
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -10738,6 +10778,9 @@ importers:
       '@aeven/tools':
         specifier: workspace:^
         version: link:../../core/tools
+      '@aeven/working-directory':
+        specifier: workspace:^
+        version: link:../../session/working-directory
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -10808,6 +10851,9 @@ importers:
       '@aeven/user-approval':
         specifier: workspace:^
         version: link:../../interaction/user-approval
+      '@aeven/working-directory':
+        specifier: workspace:^
+        version: link:../../session/working-directory
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -10860,6 +10906,9 @@ importers:
       '@aeven/tools':
         specifier: workspace:^
         version: link:../../core/tools
+      '@aeven/working-directory':
+        specifier: workspace:^
+        version: link:../../session/working-directory
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis

@@ -659,6 +659,22 @@ Types: [ScheduleChange](subsystems/schedule.zh.md)
 
 ### `session/*`
 
+<a id="sessioncwd--log-only"></a>
+
+#### `session/cwd` — log-only
+
+```ts persistence-catalog
+/**
+ * The absolute directory every later tool resolves paths against, from
+ * this point on: log-only, non-surface, whole-value replace. The last
+ * `session/cwd` wins; a log with none keeps the session header's `cwd`.
+ * @param cwd - absolute directory that must exist when the event is appended.
+ */
+'session/cwd': { cwd: string }
+```
+
+来源：[`packages/session/working-directory/src/types.ts:16`](../packages/session/working-directory/src/types.ts)
+
 <a id="sessionend-seed--log-only"></a>
 
 #### `session/end-seed` — log-only

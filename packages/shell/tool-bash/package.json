@@ -62,6 +62,7 @@
     "@aeven/tools": "workspace:^",
     "@aeven/user-approval": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
-    "@aeven/session-projection": "workspace:^"
+    "@aeven/session-projection": "workspace:^",
+    "@aeven/working-directory": "workspace:^"
   }
 }

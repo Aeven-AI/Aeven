@@ -9,6 +9,7 @@ import { randomUUID } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { Agent } from '@aeven/agent'
+import type {} from '@aeven/working-directory'
 import { truncateWithoutSplittingSurrogatePair } from '@aeven/output-retention'
 import type { TerminalReadResult, TerminalSessionId } from '@aeven/terminal'
 import { deadline, timeoutOf } from '@aeven/timeout'
@@ -276,7 +277,7 @@ function persistentShells(ctx: Context, config: ResolvedConfig): PersistentShell
     const combinedSignal = AbortSignal.any([signal, lifecycle.signal])
     const creation = (async () => {
       try {
-        const cwd = owner.session.header.cwd
+        const cwd = ctx.get('workingDirectory')?.of(owner.session) ?? owner.session.header.cwd
         const spawned = await ctx.terminals.spawn(owner, {
           type: config.backendType,
           ...cwd === undefined ? {} : { cwd },
