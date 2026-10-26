@@ -1,7 +1,7 @@
 {
   "name": "@aeven/typert-loader",
   "description": "Loader integration for generated Typert package contributions",
-  "version": "0.3.15-alpha",
+  "version": "0.3.16-alpha",
   "publishConfig": {
     "access": "public"
   },
