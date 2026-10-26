@@ -9,7 +9,7 @@ import { constants as bufferConstants } from 'node:buffer'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import z from '@deepseek-ai/schemastery'
-import { FileSystem, FsError, FsVersion } from '@aeven/fs'
+import { FileSystem, FsError, FsVersion, editRequests } from '@aeven/fs'
 import type {
   FsDirEntry,
   FsEditOutcome,
@@ -224,10 +224,11 @@ export class LocalFileSystem extends FileSystem {
 
   override async editText(
     target: FsTarget,
-    edit: FsEditRequest,
+    edit: FsEditRequest | readonly FsEditRequest[],
     expected?: { version: FsVersion },
     signal?: AbortSignal,
   ): Promise<FsEditOutcome> {
+    const requests = editRequests(edit)
     return this.withLock(target.targetKey, async () => {
       const existing = await probe(target.targetKey)
       // Stale guard before literal matching: an edit based on an old read reports
@@ -243,8 +244,11 @@ export class LocalFileSystem extends FileSystem {
       }
 
       const original = await readForEdit(target.targetKey, target.displayPath, signal)
-      const edited = applyLiteralEdit(original.content, edit.oldString, edit.newString, edit.replaceAll, target.displayPath)
-      const content = restoreLineEndings(edited.content, original.lineEndings)
+      let edited = original.content
+      for (const request of requests) {
+        edited = applyLiteralEdit(edited, request.oldString, request.newString, request.replaceAll, target.displayPath).content
+      }
+      const content = restoreLineEndings(edited, original.lineEndings)
       await writeFileAtomic(target.targetKey, content, existing.mode, signal, this.internals)
 
       const after = await probe(target.targetKey)
@@ -253,7 +257,7 @@ export class LocalFileSystem extends FileSystem {
         // The LF-normalized before/after text (the applied-hunk diff basis);
         // line-ending restoration is a storage detail the diff ignores.
         before: original.content,
-        after: edited.content,
+        after: edited,
       }
     })
   }

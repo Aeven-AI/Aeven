@@ -17,6 +17,7 @@ import { extname, isAbsolute, join, relative, resolve } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { ToolExecution } from '@aeven/tools'
+import type {} from '@aeven/working-directory'
 
 /** Cordis plugin name used by loader diagnostics. */
 export const name = 'bash-edit-guard'
@@ -90,7 +91,9 @@ export function apply(ctx: Context, config: Config): void {
     const args = exec.arguments as { command?: unknown; workdir?: unknown } | null
     if (typeof args?.command !== 'string') return undefined
     const command = args.command
-    const sessionCwd = exec.agent?.session.header.cwd ?? process.cwd()
+    const session = exec.agent?.session
+    const sessionCwd = (session === undefined ? undefined : ctx.get('workingDirectory')?.of(session) ?? session.header.cwd)
+      ?? process.cwd()
     const workdir = typeof args.workdir === 'string' ? resolve(sessionCwd, args.workdir) : sessionCwd
     const bases = [workdir, ...captures(CD, command).map(dir => resolve(workdir, dir))]
 

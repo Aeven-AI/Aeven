@@ -28,6 +28,7 @@ import type { RetainedItems } from '@aeven/output-retention'
 import type { SubprocessHandle, SubprocessOutcome, SubprocessOutputRead, SubprocessSpawnSpec } from '@aeven/subprocess'
 import type { SaveTextSpill, SpillRef } from '@aeven/spill'
 import type { ToolExecution } from '@aeven/tools'
+import type {} from '@aeven/working-directory'
 
 /**
  * Default cap on the complete raw `rg` stdout the tools will parse (the
@@ -183,7 +184,7 @@ export function resolveRgPath(): Promise<string> {
 /**
  * Run the packaged ripgrep binary with a plain argv vector and return its
  * complete raw stdout. The working directory is the calling agent's session
- * cwd (`exec.agent.session.header.cwd`) when available, else
+ * directory (`ctx.workingDirectory` when composed, else the header cwd) when available, else
  * `process.cwd()`. `exec.signal` is forwarded so the cooperative tool timeout
  * (`@aeven/tool-call-timeout-policy`) and caller cancellation terminate the
  * process tree.
@@ -227,7 +228,8 @@ export async function runRipgrep(
   if (exec.signal.aborted) {
     throw new SearchError(`${toolName} was aborted before completion (tool timeout or caller cancellation)`, 'SEARCH_ABORTED')
   }
-  const cwd = exec.agent?.session.header.cwd
+  const session = exec.agent?.session
+  const cwd = session === undefined ? undefined : ctx.get('workingDirectory')?.of(session) ?? session.header.cwd
   const workdir = cwd ?? process.cwd()
   let handle: SubprocessHandle
   try {

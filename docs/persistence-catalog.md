@@ -666,12 +666,16 @@ Source: [`packages/schedule/schedule/src/types.ts:219`](../packages/schedule/sch
  * The absolute directory every later tool resolves paths against, from
  * this point on: log-only, non-surface, whole-value replace. The last
  * `session/cwd` wins; a log with none keeps the session header's `cwd`.
+ * An event carrying `root` also moves the session's workspace — the
+ * directory `workspace-write` confines writes to — and the last `root`
+ * wins independently of later `cwd`-only events.
  * @param cwd - absolute directory that must exist when the event is appended.
+ * @param root - absolute workspace root the session moved into, e.g. a git worktree checkout.
  */
-'session/cwd': { cwd: string }
+'session/cwd': { cwd: string; root?: string }
 ```
 
-Source: [`packages/session/working-directory/src/types.ts:16`](../packages/session/working-directory/src/types.ts)
+Source: [`packages/session/working-directory/src/types.ts:20`](../packages/session/working-directory/src/types.ts)
 
 <a id="sessionend-seed--log-only"></a>
 
@@ -1163,3 +1167,52 @@ Source: [`packages/core/session/src/types.ts:295`](../packages/core/session/src/
 ```
 
 Source: [`packages/web/web-search-deepseek/src/provider.ts:83`](../packages/web/web-search-deepseek/src/provider.ts)
+
+### `worktree/*`
+
+<a id="worktreedelegated--log-only"></a>
+
+#### `worktree/delegated` — log-only
+
+```ts persistence-catalog
+/**
+ * This session created a worktree checkout for a delegated child agent:
+ * log-only, non-surface. The child's own log records `worktree/entered`.
+ * @param worktree - the checkout created for the child.
+ * @param child - the child session the checkout belongs to.
+ */
+'worktree/delegated': { worktree: CreatedWorktree; child: SessionId }
+```
+
+Source: [`packages/session/worktrees/src/types.ts:75`](../packages/session/worktrees/src/types.ts)
+
+<a id="worktreeentered--log-only"></a>
+
+#### `worktree/entered` — log-only
+
+```ts persistence-catalog
+/**
+ * This session moved into a worktree checkout: log-only, non-surface. The
+ * paired `session/cwd` carries the directory change; this event carries
+ * the branch facts the model is told about the checkout.
+ * @param worktree - the checkout the session now works in.
+ */
+'worktree/entered': { worktree: CreatedWorktree }
+```
+
+Source: [`packages/session/worktrees/src/types.ts:68`](../packages/session/worktrees/src/types.ts)
+
+<a id="worktreeremoved--log-only"></a>
+
+#### `worktree/removed` — log-only
+
+```ts persistence-catalog
+/**
+ * This session removed a worktree checkout: log-only, non-surface. Drops
+ * the checkout from the session's entered and delegated worktrees.
+ * @param path - absolute path of the removed checkout.
+ */
+'worktree/removed': { path: string }
+```
+
+Source: [`packages/session/worktrees/src/types.ts:81`](../packages/session/worktrees/src/types.ts)

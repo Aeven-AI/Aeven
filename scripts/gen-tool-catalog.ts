@@ -7,7 +7,8 @@
  */
 
 import { globSync, readFileSync, writeFileSync } from 'node:fs'
-import { basename, resolve } from 'node:path'
+import { tmpdir } from 'node:os'
+import { basename, join, resolve } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import LlmRuntime from '@aeven/llm'
 import type { ToolSchema } from '@aeven/llm'
@@ -626,15 +627,22 @@ const TOOL_PACKAGES: ToolPackage[] = [
     dir: 'tool-worktrees',
     source: 'packages/session/tool-worktrees/src/index.ts',
     requires: ['ctx.tools', 'ctx.subprocess', 'ctx.workingDirectory', 'ctx.worktrees', 'owning Agent session'],
-    writes: ['tool/call', 'session/cwd', 'tool/result'],
+    writes: ['tool/call', 'session/cwd', 'worktree/entered', 'worktree/removed', 'tool/result'],
     async mount(ctx) {
       await ctx.plugin(LocalSubprocessRuntime)
       await ctx.plugin(WorkingDirectory)
-      await ctx.plugin(Worktrees, { directory: '.aeven/worktrees', branchPrefix: 'avn/', graceMs: 5000 })
+      await ctx.plugin(Worktrees, {
+        directory: join(tmpdir(), 'avn-catalog-worktrees'),
+        branchPrefix: 'avn/',
+        graceMs: 5000,
+        isolateSubagents: true,
+        setup: [],
+        setupTimeoutMs: 300_000,
+      })
       await ctx.plugin(ToolWorktrees)
     },
     note:
-      'The catalog mounts the capability and the tool together, because `create_worktree` moves the session through `workingDirectory`, which the same call then reports. The checkout directory, branch prefix, and git grace period are Config with no defaults, so the catalog states them: `.aeven/worktrees`, `avn/`, and 5000 ms.',
+      'The catalog mounts the capability and the tools together, because `create_worktree` and `remove_worktree` move the session through `workingDirectory`, which the same call then reports. The checkout directory, branch prefix, git grace period, subagent isolation, and dependency setup are Config with no defaults; the base bundle keeps checkouts under `$AVN_HOME/worktrees`, prefixes branches with `avn/`, isolates subagents, and installs dependencies with the package manager whose lockfile a checkout carries.',
   },
   {
     pkg: '@aeven/tool-todo',

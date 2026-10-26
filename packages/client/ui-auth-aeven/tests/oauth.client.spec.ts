@@ -71,7 +71,7 @@ describe('the provider window', () => {
 describe('waiting for a sign-in the reader finishes in another window', () => {
   it('returns as soon as the session is there', async () => {
     scriptedApi({ signedIn: true })
-    await expect(awaitProviderSession()).resolves.toBeUndefined()
+    await expect(awaitProviderSession(new AbortController().signal)).resolves.toBe(true)
   })
 
   it('waits while the API answers no session, then takes the one that arrives', async () => {
@@ -79,7 +79,7 @@ describe('waiting for a sign-in the reader finishes in another window', () => {
     const state = { signedIn: false }
     scriptedApi(state)
 
-    const waiting = awaitProviderSession()
+    const waiting = awaitProviderSession(new AbortController().signal)
     let settled = false
     void waiting.then(() => { settled = true })
     await vi.advanceTimersByTimeAsync(2500)
@@ -88,7 +88,7 @@ describe('waiting for a sign-in the reader finishes in another window', () => {
 
     state.signedIn = true
     await vi.advanceTimersByTimeAsync(1000)
-    await expect(waiting).resolves.toBeUndefined()
+    await expect(waiting).resolves.toBe(true)
   })
 
   it('keeps waiting when the API cannot be reached, rather than reading that as finished', async () => {
@@ -96,11 +96,11 @@ describe('waiting for a sign-in the reader finishes in another window', () => {
     const state = { signedIn: true, reachable: false }
     scriptedApi(state)
 
-    const waiting = awaitProviderSession()
+    const waiting = awaitProviderSession(new AbortController().signal)
     await vi.advanceTimersByTimeAsync(2000)
 
     state.reachable = true
     await vi.advanceTimersByTimeAsync(1000)
-    await expect(waiting).resolves.toBeUndefined()
+    await expect(waiting).resolves.toBe(true)
   })
 })

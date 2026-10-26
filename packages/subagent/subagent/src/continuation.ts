@@ -44,10 +44,13 @@ import {
   applyChildComposition,
   captureDelegatedPolicyOverrides,
   childSessionMeta,
+  placeDelegatedChild,
+  prepareDelegatedWorktree,
   resolveChildAgentOptions,
   resolveChildDepth,
 } from './child-agent.ts'
 import type { DelegatedPolicyOverrides } from './child-agent.ts'
+import type { CreatedWorktree } from '@aeven/worktrees'
 import { assertSubagentMaxDepth } from './depth.ts'
 import { seedDescriptorTurn } from './descriptor-seed.ts'
 import type { ContinuableCreateRequest, ContinuableCreateSpec, SubagentResult, SubagentStartRequest } from './types.ts'
@@ -245,6 +248,8 @@ interface MaterializeInputs {
     inheritedEventCount: SessionLogOffsetType
     /** Policy captured at the delegation boundary: the parent's sandbox override plus the approval pin. */
     delegatedPolicies: DelegatedPolicyOverrides
+    /** The child's own git worktree, or undefined when it shares the parent's directory. */
+    worktree: CreatedWorktree | undefined
   }
   agentOptions: AgentOptions
   composition: { persona?: string | undefined; toolFilter?: ToolRestriction | undefined }
@@ -478,6 +483,9 @@ export class SubagentContinuationManager {
           throw new SubagentError(`subagent "${childId}" already exists`, 'DUPLICATE_CHILD')
         }
       }
+      const worktree = await prepareDelegatedWorktree(parent, childId, spec.signal)
+      spec.signal.throwIfAborted()
+      this.assertAdmitting(parent)
       const activation = await this.materialize({
         childId,
         provider: spec.provider,
@@ -487,6 +495,7 @@ export class SubagentContinuationManager {
           meta: childSessionMeta(parent, childDepth, prepared.seed !== undefined),
           inheritedEventCount,
           delegatedPolicies,
+          worktree,
         },
         agentOptions,
         composition: { persona: request.persona, toolFilter: request.toolFilter },
@@ -1132,6 +1141,7 @@ export class SubagentContinuationManager {
       // cold resume replays those persisted events instead.
       if (create !== undefined) {
         appendDelegatedPolicyOverrides((childCtx.agent as Agent).session, create.delegatedPolicies)
+        placeDelegatedChild(childCtx, parent, create.worktree)
       }
       applyChildComposition(childCtx, parent, inputs.composition)
     }

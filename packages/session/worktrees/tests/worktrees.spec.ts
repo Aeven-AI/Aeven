@@ -7,8 +7,9 @@ import { execFile } from 'node:child_process'
 import { mkdtemp, readFile, realpath, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { promisify } from 'node:util'
+import { createHash } from 'node:crypto'
 import { afterEach, describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import SessionProjectionRegistry from '@aeven/session-projection'
@@ -21,6 +22,22 @@ import Worktrees from '../src/index.ts'
 
 const run = promisify(execFile)
 const created: string[] = []
+
+/** Checkout home for this file's harnesses; set by {@link worktreeHome}. */
+let home = ''
+
+/** Create a canonical checkout home the spec cleans up. */
+async function worktreeHome(): Promise<string> {
+  home = await realpath(await mkdtemp(join(tmpdir(), 'avn-wt-home-')))
+  created.push(home)
+  return home
+}
+
+/** Where the service places checkout `name` of the repository at `root`. */
+function checkoutPath(root: string, name: string): string {
+  const digest = createHash('sha256').update(join(root, '.git')).digest('hex').slice(0, 8)
+  return join(home, `${basename(root)}-${digest}`, name)
+}
 
 /**
  * Create a repository with one commit and a session working in it.
@@ -51,7 +68,7 @@ async function setup(): Promise<Context> {
   await ctx.plugin(SessionProjectionRegistry)
   await ctx.plugin(SubprocessLocal)
   await ctx.plugin(WorkingDirectoryService)
-  await ctx.plugin(Worktrees, { directory: '.aeven/worktrees', branchPrefix: 'avn/', graceMs: 5000 })
+  await ctx.plugin(Worktrees, { directory: await worktreeHome(), branchPrefix: 'avn/', graceMs: 5000, isolateSubagents: false, setup: [], setupTimeoutMs: 60_000 })
   return ctx
 }
 
@@ -66,7 +83,7 @@ describe('worktrees', () => {
     const ctx = await setup()
     const createdWorktree = await ctx.worktrees.create(session, { name: 'feature' })
 
-    expect(createdWorktree.path).toBe(join(root, '.aeven/worktrees/feature'))
+    expect(createdWorktree.path).toBe(checkoutPath(root, 'feature'))
     expect(createdWorktree.branch).toBe('avn/feature')
     expect(createdWorktree.repositoryRoot).toBe(root)
     expect(existsSync(createdWorktree.path)).toBe(true)
@@ -119,7 +136,7 @@ describe('worktrees', () => {
     await ctx.worktrees.create(session, { name: 'listed' })
     const entries = await ctx.worktrees.list(session)
     expect(entries.map(entry => entry.path)).toContain(root)
-    expect(entries.map(entry => entry.path)).toContain(join(root, '.aeven/worktrees/listed'))
+    expect(entries.map(entry => entry.path)).toContain(checkoutPath(root, 'listed'))
     expect(entries[0]?.main).toBe(true)
     expect(entries.find(entry => entry.path.endsWith('listed'))?.ref).toBe('refs/heads/avn/listed')
   })

@@ -40,7 +40,8 @@
     "@aeven/system-prompt": "workspace:^",
     "@aeven/tools": "workspace:^",
     "@aeven/user-approval": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/working-directory": "workspace:^"
   },
   "devDependencies": {
     "@aeven/agent": "workspace:^",
@@ -61,6 +62,7 @@
     "@deepseek-ai/cordis": "workspace:^",
     "@aeven/session-projection": "workspace:^",
     "@aeven/scope": "workspace:^",
-    "@aeven/code-runtime": "workspace:^"
+    "@aeven/code-runtime": "workspace:^",
+    "@aeven/working-directory": "workspace:^"
   }
 }

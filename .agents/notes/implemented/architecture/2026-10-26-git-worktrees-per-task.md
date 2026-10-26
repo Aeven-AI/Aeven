@@ -12,11 +12,11 @@ The port target is DeepSeek Harness's Git Worktrees service and its `create_work
 
 ## Decision
 
-`@aeven/worktrees` owns the operation. `create(session, { name?, from? })` resolves the repository root from the session's effective directory, resolves the base commit, runs `git worktree add -b <branchPrefix><name> <root>/<directory>/<name> <from>` through `ctx.subprocess`, and only then moves the session through `ctx.workingDirectory.change()`. `list()` parses `git worktree list --porcelain`.
+`@aeven/worktrees` owns the operation. `create(session, { name?, from? })` resolves the repository root from the session's effective directory, resolves the base commit, runs `git worktree add -b <branchPrefix><name> <directory>/<repository>-<digest>/<name> <from>` through `ctx.subprocess`, and only then moves the session through `ctx.workingDirectory.enter()`. `list()` parses `git worktree list --porcelain`.
 
 The order is the contract: the directory change is the last step, so a failed checkout leaves the session where it was and the model can keep working. `@aeven/tool-worktrees` exposes the same operation as `create_worktree`, returning `{ path, branch, baseCommit, repositoryRoot }`.
 
-Checkout directory, branch prefix, and the git grace period are `Config` with no defaults, because a deployment chooses where checkouts live and how branches are named; the base bundle states `.aeven/worktrees`, `avn/`, and 5000 ms.
+Checkout directory, branch prefix, and the git grace period are `Config` with no defaults, because a deployment chooses where checkouts live and how branches are named; the base bundle states `$AVN_HOME/worktrees`, `avn/`, and 5000 ms. [Parallel agents work in isolated worktrees outside the repository](2026-10-27-isolated-worktrees-for-parallel-agents.md) moved checkouts out of the repository, confined writes to them, and isolated subagents.
 
 The capability shells out to git instead of importing a library, because the checkout is git's construct: `worktree add`, `worktree list`, and `worktree remove` are the operations, and a wrapper would have to reproduce their arguments and error text for no gain.
 
@@ -30,6 +30,5 @@ The capability shells out to git instead of importing a library, because the che
 ## Consequences
 
 - A task that creates a worktree changes the directory every later call resolves against, and that change is logged as `session/cwd`, so a resumed or forked session continues in the checkout.
-- A checkout under the repository root appears as untracked in `git status` unless the repository ignores it; the README states this and points a deployment that wants a clean source tree at a `directory` outside the repository.
-- `list` has no tool and removal is not wrapped, so a finished checkout stays registered until someone runs `git worktree remove` or prunes.
+- `list` has no tool; `remove_worktree` removes a finished checkout and optionally its branch.
 - The specs run real git in a temporary repository rather than mocking it, because the behavior worth asserting is exactly what a mock cannot show: the branch, the directory, the untouched source tree, and git's own refusal of a duplicate name.

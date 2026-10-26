@@ -26,6 +26,11 @@ import type {} from '@aeven/user-approval'
 // keeps its model-facing rows on the host plane, where the child already sees
 // them through the tool registry's global layer.
 import type {} from '@aeven/agent-presets'
+// Type-only: make `ctx.get('worktrees')` resolve to the worktree capability
+// when composed — a child gets its own checkout opportunistically, never as a
+// hard dep.
+import type { CreatedWorktree } from '@aeven/worktrees'
+import type {} from '@aeven/working-directory'
 import { delegationDepthOf } from './depth.ts'
 
 /** Thrown when starting a child would exceed the requested depth cap. */
@@ -266,6 +271,42 @@ export function appendDelegatedPolicyOverrides(
   if (overrides.approvalPolicy !== undefined) {
     childSession.append('approval/policy', { policy: overrides.approvalPolicy, source: 'delegation' })
   }
+}
+
+/**
+ * Create the child's own git worktree before the child exists, when the
+ * worktree capability is composed and isolates subagents: a checkout on a new
+ * branch from a snapshot of the parent's working tree, recorded on the
+ * parent's log. Call after {@link captureDelegatedPolicyOverrides}.
+ * @param parent - the delegating parent agent.
+ * @param childId - the child's reserved session id.
+ * @param signal - cancels the git and setup calls.
+ * @returns the checkout, or undefined when the child shares the parent's directory.
+ */
+export async function prepareDelegatedWorktree(
+  parent: Agent,
+  childId: SessionId,
+  signal: AbortSignal,
+): Promise<CreatedWorktree | undefined> {
+  return await parent.ctx.get('worktrees')?.isolate(parent.session, childId, signal)
+}
+
+/**
+ * Place the unpublished child inside its creation window: in the checkout
+ * {@link prepareDelegatedWorktree} created, else where the parent works now
+ * (`ctx.workingDirectory`, when composed). The appends land after any fork
+ * seed, so they win the parent's logged directory the seed carries.
+ * @param childCtx - the child agent's scoped creation context.
+ * @param parent - the delegating parent agent.
+ * @param worktree - the prepared checkout, or undefined for none.
+ */
+export function placeDelegatedChild(childCtx: Context, parent: Agent, worktree: CreatedWorktree | undefined): void {
+  const child = (childCtx.agent as Agent).session
+  if (worktree !== undefined) {
+    childCtx.get('worktrees')?.adopt(child, worktree)
+    return
+  }
+  childCtx.get('workingDirectory')?.inherit(child, parent.session)
 }
 
 /** Identity and lineage inputs shared by every in-process child creation. */

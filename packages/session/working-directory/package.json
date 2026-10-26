@@ -32,11 +32,15 @@
   "peerDependencies": {
     "@aeven/session": "workspace:^",
     "@aeven/session-projection": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/system-prompt": "workspace:^",
+    "@aeven/agent": "workspace:^"
   },
   "devDependencies": {
     "@aeven/session": "workspace:^",
     "@aeven/session-projection": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/system-prompt": "workspace:^",
+    "@aeven/agent": "workspace:^"
   }
 }

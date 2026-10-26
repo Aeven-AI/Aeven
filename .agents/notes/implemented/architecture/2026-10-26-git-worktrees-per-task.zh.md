@@ -12,11 +12,11 @@
 
 ## 决定
 
-`@aeven/worktrees` 拥有该操作。`create(session, { name?, from? })` 从会话生效目录解析仓库根，解析基线提交，通过 `ctx.subprocess` 运行 `git worktree add -b <branchPrefix><name> <root>/<directory>/<name> <from>`，只有在此之后才通过 `ctx.workingDirectory.change()` 移动会话。`list()` 解析 `git worktree list --porcelain`。
+`@aeven/worktrees` 拥有该操作。`create(session, { name?, from? })` 从会话生效目录解析仓库根，解析基线提交，通过 `ctx.subprocess` 运行 `git worktree add -b <branchPrefix><name> <directory>/<仓库>-<摘要>/<name> <from>`，只有在此之后才通过 `ctx.workingDirectory.enter()` 移动会话。`list()` 解析 `git worktree list --porcelain`。
 
 顺序就是契约：目录变更是最后一步，因此检出失败会让会话留在原处，模型可以继续工作。`@aeven/tool-worktrees` 把同一操作暴露为 `create_worktree`，返回 `{ path, branch, baseCommit, repositoryRoot }`。
 
-检出目录、分支前缀与 git 宽限期都是无默认值的 `Config`，因为部署要决定检出放在哪里、分支如何命名；基础 bundle 声明为 `.aeven/worktrees`、`avn/` 与 5000 ms。
+检出目录、分支前缀与 git 宽限期都是无默认值的 `Config`，因为部署要决定检出放在哪里、分支如何命名；基础 bundle 声明为 `$AVN_HOME/worktrees`、`avn/` 与 5000 ms。[并行智能体在仓库之外的隔离工作树中工作](2026-10-27-isolated-worktrees-for-parallel-agents.zh.md)把检出移出仓库，把写入限制在其中，并隔离了子智能体。
 
 该容量用 shell 调 git，而不是引入库，因为检出本身就是 git 的构造：`worktree add`、`worktree list` 与 `worktree remove` 就是这些操作，包装只会重新实现它们的参数与错误文本而无所收益。
 
@@ -30,6 +30,5 @@
 ## 影响
 
 - 创建工作树的任务会改变此后每次调用解析的目录，而该变更记为 `session/cwd`，因此恢复或分叉的会话会继续在该检出中工作。
-- 位于仓库根之下的检出会在 `git status` 中显示为未跟踪，除非仓库忽略它；README 说明了这一点，并把想要干净源树的部署指向仓库之外的 `directory`。
-- `list` 没有对应工具，移除也没有包装，因此完成的检出会一直登记，直到有人运行 `git worktree remove` 或执行 prune。
+- `list` 没有对应工具；`remove_worktree` 移除已完成的检出，并可选地删除其分支。
 - 规格在临时仓库中运行真实 git 而不是模拟，因为值得断言的行为恰恰是模拟无法展示的：分支、目录、未被触碰的源工作树，以及 git 自身对重名的拒绝。

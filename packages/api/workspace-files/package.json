@@ -54,13 +54,15 @@
     "@aeven/fs": "workspace:^",
     "@aeven/sandbox-policy": "workspace:^",
     "@aeven/typert-protocol": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/working-directory": "workspace:^"
   },
   "devDependencies": {
     "@aeven/agent": "workspace:^",
     "@aeven/fs": "workspace:^",
     "@aeven/sandbox-policy": "workspace:^",
     "@aeven/typert-protocol": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/working-directory": "workspace:^"
   }
 }

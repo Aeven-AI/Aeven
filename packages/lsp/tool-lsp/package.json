@@ -32,7 +32,8 @@
     "@aeven/lsp": "workspace:^",
     "@aeven/system-prompt": "workspace:^",
     "@aeven/timeout": "workspace:^",
-    "@aeven/tools": "workspace:^"
+    "@aeven/tools": "workspace:^",
+    "@aeven/working-directory": "workspace:^"
   },
   "dependencies": {
     "@aeven/util-values": "workspace:^",
@@ -50,6 +51,7 @@
     "@aeven/system-prompt": "workspace:^",
     "@aeven/timeout": "workspace:^",
     "@aeven/tool-call-timeout-policy": "workspace:^",
-    "@aeven/tools": "workspace:^"
+    "@aeven/tools": "workspace:^",
+    "@aeven/working-directory": "workspace:^"
   }
 }

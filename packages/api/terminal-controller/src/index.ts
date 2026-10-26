@@ -6,6 +6,7 @@ import { assertNever } from '@aeven/util-values'
 import type { Agent } from '@aeven/agent'
 import type { SessionId } from '@aeven/session'
 import type {} from '@aeven/sandbox-policy'
+import type {} from '@aeven/working-directory'
 import type {} from '@aeven/identity-user'
 import { Remote, RemoteError, TypertRemoteService } from '@aeven/typert-protocol'
 import { scopeTarget } from '@aeven/scope'
@@ -138,7 +139,7 @@ export class TerminalController extends TypertRemoteService {
   environment(agent: Agent, signal: AbortSignal): TerminalEnvironment {
     signal.throwIfAborted()
     const { sandboxPolicy } = this.execution(agent)
-    return { cwd: agent.session.header.cwd ?? sandboxPolicy.workspaceRoot,
+    return { cwd: this.ctx.get('workingDirectory')?.of(agent.session) ?? agent.session.header.cwd ?? sandboxPolicy.workspaceRoot,
       maxInputBytes: this.config.maxInputBytes, maxCols: this.config.maxCols,
       maxRows: this.config.maxRows, scrollback: this.config.scrollback }
   }

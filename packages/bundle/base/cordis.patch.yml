@@ -429,13 +429,28 @@
       name: '@aeven/tool-working-directory'
 
     # One checkout per task: `create_worktree` adds a branch-backed git worktree
-    # and moves the session there, so parallel agents stop sharing one tree.
+    # and moves the session there, and every in-process subagent gets its own
+    # from a snapshot of its parent's working tree, so parallel agents stop
+    # sharing one tree. Checkouts live outside every repository so a session
+    # confined to one cannot write another; setup installs dependencies with
+    # the package manager whose lockfile the checkout carries.
     - id: worktrees
       name: '@aeven/worktrees'
       config:
-        directory: .aeven/worktrees
+        directory: !!js avnHomePath('worktrees')
         branchPrefix: 'avn/'
         graceMs: 5000
+        isolateSubagents: true
+        setupTimeoutMs: 300000
+        setup:
+          - when: pnpm-lock.yaml
+            argv: [pnpm, install, --frozen-lockfile, --prefer-offline]
+          - when: yarn.lock
+            argv: [yarn, install, --frozen-lockfile]
+          - when: bun.lock
+            argv: [bun, install, --frozen-lockfile]
+          - when: package-lock.json
+            argv: [npm, ci, --prefer-offline]
 
     - id: tool-worktrees
       name: '@aeven/tool-worktrees'

@@ -70,6 +70,12 @@
     },
     {
       "path": "../../identity/user"
+    },
+    {
+      "path": "../../session/worktrees"
+    },
+    {
+      "path": "../../session/working-directory"
     }
   ]
 }

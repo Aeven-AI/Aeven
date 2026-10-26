@@ -223,6 +223,8 @@ function persistentShells(ctx: Context, config: ResolvedConfig): PersistentShell
   const live = new Map<Agent, TerminalSessionId>()
   const creating = new Set<Promise<TerminalSessionId>>()
   const ownerCleanupInstalled = new WeakSet<Agent>()
+  /** Session directory each owner's shell was spawned in. */
+  const spawnedIn = new WeakMap<Agent, string | undefined>()
   const lifecycle = new AbortController()
 
   const close = async (owner: Agent, id: TerminalSessionId, reason: string): Promise<void> => {
@@ -246,12 +248,18 @@ function persistentShells(ctx: Context, config: ResolvedConfig): PersistentShell
   }
 
   const get = (owner: Agent, signal: AbortSignal): Promise<TerminalSessionId> => {
+    const cwd = ctx.get('workingDirectory')?.of(owner.session) ?? owner.session.header.cwd
     const existing = pending.get(owner)
-    if (existing !== undefined) return existing
+    if (existing !== undefined) {
+      if (spawnedIn.get(owner) === cwd) return existing
+      // The session moved since this shell started; commands are serialized per
+      // owner, so no command is running in the shell being replaced.
+      return reset(owner, 'session working directory changed').then(() => get(owner, signal))
+    }
+    spawnedIn.set(owner, cwd)
     const combinedSignal = AbortSignal.any([signal, lifecycle.signal])
     const creation = (async () => {
       try {
-        const cwd = ctx.get('workingDirectory')?.of(owner.session) ?? owner.session.header.cwd
         const spawned = await ctx.terminals.spawn(owner, {
           type: config.backendType,
           ...cwd === undefined ? {} : { cwd },

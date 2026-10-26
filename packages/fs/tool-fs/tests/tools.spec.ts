@@ -14,7 +14,7 @@ import { turnBoundaryProjectionDefinition } from '@aeven/agent-loop'
 import { ToolCallId } from '@aeven/llm'
 import SystemPrompt, { renderPrompt } from '@aeven/system-prompt'
 import ToolRuntime, { type ToolResult } from '@aeven/tools'
-import { FileSystem, FsError, FsTargetKey, FsVersion } from '@aeven/fs'
+import { FileSystem, FsError, FsTargetKey, FsVersion, editRequests } from '@aeven/fs'
 import type {
   FsDirEntry,
   FsEditOutcome,
@@ -93,11 +93,15 @@ class FakeFs extends FileSystem {
     this.files.set(target.targetKey, content)
     return { operation: before !== null ? 'update' : 'create', version: FsVersion('v2'), before, after: content }
   }
-  override async editText(target: FsTarget, edit: FsEditRequest, expected?: { version: FsVersion }): Promise<FsEditOutcome> {
+  override async editText(
+    target: FsTarget,
+    edit: FsEditRequest | readonly FsEditRequest[],
+    expected?: { version: FsVersion },
+  ): Promise<FsEditOutcome> {
     this.throwIfArmed()
     this.editIntents.push(expected)
     const content = this.files.get(target.targetKey) ?? ''
-    const after = content.split(edit.oldString).join(edit.newString)
+    const after = editRequests(edit).reduce((text, request) => text.split(request.oldString).join(request.newString), content)
     this.files.set(target.targetKey, after)
     return { version: FsVersion('v3'), before: content, after }
   }
@@ -137,9 +141,9 @@ describe('session cwd resolution', () => {
   it('retains ordinary spelling but resolves the cwd before parent traversal', () => {
     const cwd = process.cwd()
     const throughParent = `${cwd}${sep}..`
-    expect(sessionCwd(execution() as never, 'file.txt')).toBeUndefined()
-    expect(sessionCwd(execution(cwd) as never, 'file.txt')).toBe(cwd)
-    expect(sessionCwd(execution(throughParent) as never, 'file.txt')).toBe(realpathSync.native(throughParent))
+    expect(sessionCwd(new Context(), execution() as never, 'file.txt')).toBeUndefined()
+    expect(sessionCwd(new Context(), execution(cwd) as never, 'file.txt')).toBe(cwd)
+    expect(sessionCwd(new Context(), execution(throughParent) as never, 'file.txt')).toBe(realpathSync.native(throughParent))
 
     const root = mkdtempSync(join(tmpdir(), 'avn-tool-fs-session-cwd-'))
     const physical = join(root, 'physical')
@@ -147,8 +151,8 @@ describe('session cwd resolution', () => {
     try {
       mkdirSync(physical)
       symlinkSync(physical, link, process.platform === 'win32' ? 'junction' : 'dir')
-      expect(sessionCwd(execution(link) as never, 'child.txt')).toBe(link)
-      expect(sessionCwd(execution(link) as never, `..${sep}parent.txt`)).toBe(realpathSync.native(link))
+      expect(sessionCwd(new Context(), execution(link) as never, 'child.txt')).toBe(link)
+      expect(sessionCwd(new Context(), execution(link) as never, `..${sep}parent.txt`)).toBe(realpathSync.native(link))
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
@@ -466,12 +470,38 @@ describe('edit tool', () => {
     expect(text(result)).toContain('file_path must be a non-empty string')
   })
 
-  it('propagates FS_NOT_OBSERVED when the file was never read (the gate decides)', async () => {
+  it('observes a never-read file and guards the edit with the version it observed', async () => {
     const { ctx, fs } = await setup()
     fs.files.set('key:a.txt', 'hello')
-    const result = await call(ctx, 'edit', { file_path: 'a.txt', old_string: 'a', new_string: 'b' }, { session: { header: {} } })
+    const result = await call(ctx, 'edit', { file_path: 'a.txt', old_string: 'ell', new_string: 'ipp' }, { session: { header: {} } })
+    expect(result.isError).toBe(false)
+    expect(fs.files.get('key:a.txt')).toBe('hippo')
+    expect(fs.editIntents).toEqual([{ version: FsVersion('v1') }])
+  })
+
+  it('refuses a never-read file that does not exist', async () => {
+    const { ctx } = await setup()
+    const result = await call(ctx, 'edit', { file_path: 'missing.txt', old_string: 'a', new_string: 'b' }, { session: { header: {} } })
     expect(result.isError).toBe(true)
-    expect(result.error).toMatchObject({ info: { code: 'FS_NOT_OBSERVED' } })
+    expect(result.error).toMatchObject({ info: { code: 'FS_NOT_FOUND' } })
+  })
+
+  it('applies an edits list in order in one call', async () => {
+    const { ctx, fs } = await setup()
+    fs.files.set('key:a.txt', 'one two')
+    const result = await call(ctx, 'edit', {
+      file_path: 'a.txt',
+      edits: [{ old_string: 'one', new_string: 'three' }, { old_string: 'three two', new_string: 'done' }],
+    }, { session: { header: {} } })
+    expect(text(result)).toBe('The file /abs/a.txt has been updated with 2 replacements.')
+    expect(fs.files.get('key:a.txt')).toBe('done')
+  })
+
+  it('rejects mixing edits with old_string', async () => {
+    const { ctx } = await setup()
+    const result = await call(ctx, 'edit', { file_path: 'a.txt', old_string: 'a', new_string: 'b', edits: [{ old_string: 'c', new_string: 'd' }] })
+    expect(result.isError).toBe(true)
+    expect(text(result)).toContain('pass either edits or old_string/new_string')
   })
 })
 
@@ -783,7 +813,7 @@ describe('sandbox escalation API (write/edit)', () => {
     }
     override async editText(
       target: FsTarget,
-      edit: FsEditRequest,
+      edit: FsEditRequest | readonly FsEditRequest[],
       expected?: { version: FsVersion },
       _signal?: AbortSignal,
       sandboxPolicy?: SandboxExecutionPolicy,
