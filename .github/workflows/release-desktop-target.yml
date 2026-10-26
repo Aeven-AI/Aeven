@@ -17,7 +17,7 @@ on:
       script:
         type: string
         required: true
-      publish:
+      upload:
         type: boolean
         required: true
 
@@ -105,12 +105,15 @@ jobs:
 
       # The same MSYS2 setup the ffmpeg-only workflow uses: the action installs and updates the environment, and
       # its package set supplies the compiler, binutils, static libopus, pkgconf, nasm, make, and diffutils.
+      # The action's package cache is off: its last step prunes that cache with paccache, and a failed prune
+      # failed a build after every package had installed, so the download cost is the cheaper failure mode.
       - name: Set up MSYS2 (Windows x64)
         if: inputs.target == 'win-x64'
         id: msys2-x64
         uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
         with:
           msystem: CLANG64
+          cache: false
           release: false
           update: true
           install: >-
@@ -124,6 +127,7 @@ jobs:
         uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
         with:
           msystem: CLANGARM64
+          cache: false
           release: false
           update: true
           install: >-
@@ -270,7 +274,7 @@ jobs:
   release:
     name: Upload to GitHub Release
     needs: build
-    if: inputs.publish
+    if: inputs.upload
     runs-on: ubuntu-latest
     concurrency:
       group: release-desktop-publish-${{ github.repository }}

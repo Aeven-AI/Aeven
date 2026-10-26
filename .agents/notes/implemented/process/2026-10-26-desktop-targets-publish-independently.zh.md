@@ -14,7 +14,7 @@ Status: implemented
 
 Linux 立即发布各目标的更新元数据。Windows 与 macOS 上传带架构后缀的 manifest（元数据清单），且只在版本中存在两个架构的 manifest 后发布共享更新元数据。合并器保留 x64 的顶层字段。不签名的 macOS 只提供 DMG。当前架构的安装包缺失时，更新器可能回退到其他架构，因此不完整的共享更新元数据不安全。
 
-[目标选择策略](2026-10-14-desktop-release-target-selection.zh.md)仍要求发布运行选择全部目标；每个成功的构建都会上传，不受其他目标影响。[macOS 作业上限](2026-10-15-macos-release-builds-run-to-the-github-ceiling.zh.md)仅限制该目标的可用时间。
+[目标选择策略](2026-10-14-desktop-release-target-selection.zh.md)仍要求发布运行选择全部目标；每个成功的构建都会上传，不受其他目标影响。手工运行可用 `upload` 输入把它构建的目标加入该版本的草稿发布而不对外发布，因此单个失败目标可以单独重建；`publish` 需要全部目标加上 `upload`。[macOS 作业上限](2026-10-15-macos-release-builds-run-to-the-github-ceiling.zh.md)仅限制该目标的可用时间。
 
 ## 考虑过的替代方案
 
