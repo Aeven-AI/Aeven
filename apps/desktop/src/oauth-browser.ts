@@ -25,6 +25,18 @@ export type BrowserSignInOutcome = 'landed' | 'replaced' | 'timed-out'
 /** Stops the one sign-in in flight; a newer one replaces it. */
 let cancelActive: (() => void) | undefined
 
+/** Ends the pause before the in-flight sign-in's next collection attempt. */
+let collectSoon: (() => void) | undefined
+
+/**
+ * Make the in-flight sign-in's next collection attempt now, as when the reader
+ * switches back to the app: a finished sign-in then lands before the window
+ * decides the reader came back without one.
+ */
+export function collectNow(): void {
+  collectSoon?.()
+}
+
 /**
  * The provider route as the desktop shell opens it.
  * @param providerUrl - the provider route the Host reported.
@@ -123,8 +135,15 @@ export async function startBrowserSignIn(options: {
         return 'landed'
       }
       await new Promise<void>((resolve) => {
-        const pause = setTimeout(resolve, CLAIM_INTERVAL_MS)
-        controller.signal.addEventListener('abort', () => { clearTimeout(pause); resolve() }, { once: true })
+        const wake = (): void => {
+          clearTimeout(pause)
+          controller.signal.removeEventListener('abort', wake)
+          collectSoon = undefined
+          resolve()
+        }
+        const pause = setTimeout(wake, CLAIM_INTERVAL_MS)
+        collectSoon = wake
+        controller.signal.addEventListener('abort', wake, { once: true })
       })
     }
   } catch (error) {

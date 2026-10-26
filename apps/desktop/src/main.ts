@@ -20,7 +20,7 @@ import {
 } from 'electron'
 import { DESKTOP_MENU_ZOOM_STEP, FULL_SCREEN_ITEM_ID, applicationMenuTemplate, type DesktopMenuZoom } from './application-menu.ts'
 import { adoptedHostSignIn, completeOAuthLanding, forwardAevenApiRequest } from './aeven-sign-in.ts'
-import { startBrowserSignIn } from './oauth-browser.ts'
+import { collectNow, startBrowserSignIn } from './oauth-browser.ts'
 import { AevenSession } from './aeven-session.ts'
 import { installContextMenu, registerContextMenuIpc } from './context-menu.ts'
 import { listenForPageLinks, openContentAddress } from './external-links.ts'
@@ -665,6 +665,9 @@ async function main(): Promise<void> {
       beginProviderSignIn(window, url, path => window.loadURL(appPathUrl(path)))
     })
     window.once('ready-to-show', () => { if (!window.isDestroyed()) window.show() })
+    // A reader switching back mid sign-in is either done in the browser or gave
+    // up; collecting at once tells the window which before it decides.
+    window.on('focus', collectNow)
     // The View menu's full-screen item names the state the window is in.
     window.on('enter-full-screen', syncFullScreenLabel)
     window.on('leave-full-screen', syncFullScreenLabel)
