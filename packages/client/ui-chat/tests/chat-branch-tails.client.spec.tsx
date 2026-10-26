@@ -879,14 +879,14 @@ describe('MessageItem arms', () => {
     const summary = view.container.querySelector('summary')
     expect(details?.open).toBe(false)
     expect(details?.dataset.active).toBe('true')
-    expect(view.getByRole('status').textContent).toBe('正在重试模型请求（1/2） · 3s')
-    expect(view.getByText('重试延迟：').parentElement?.textContent).toBe('重试延迟：2500毫秒')
-    expect(view.getByText('失败原因：').parentElement?.textContent).toBe('失败原因：连接被重置')
+    expect(view.getByRole('status').textContent).toBe('连接中断了，3 秒后自动重试')
+    expect(view.getByText('与模型的连接短暂中断，Aeven 已自动重新发送请求。没有丢失任何内容。')).toBeTruthy()
+    expect(view.getByText('第 1 次尝试，共 2 次')).toBeTruthy()
 
     act(() => { vi.advanceTimersByTime(1_100) })
-    expect(view.getByRole('status').textContent).toBe('正在重试模型请求（1/2） · 2s')
+    expect(view.getByRole('status').textContent).toBe('连接中断了，2 秒后自动重试')
     act(() => { vi.advanceTimersByTime(1_000) })
-    expect(view.getByRole('status').textContent).toBe('正在重试模型请求（1/2） · 1s')
+    expect(view.getByRole('status').textContent).toBe('连接中断了，1 秒后自动重试')
 
     view.rerender(
       <MessageItem
@@ -909,7 +909,8 @@ describe('MessageItem arms', () => {
         }}
       />,
     )
-    expect(view.getByRole('status').textContent).toBe('正在重试模型请求（2/2） · 4s')
+    expect(view.getByRole('status').textContent).toBe('连接中断了，4 秒后自动重试')
+    expect(view.getByText('第 2 次尝试，共 2 次')).toBeTruthy()
 
     if (summary === null) throw new Error('retry summary missing')
     fireEvent.click(summary)
@@ -935,7 +936,7 @@ describe('MessageItem arms', () => {
       />,
     )
     expect(details?.dataset.active).toBeUndefined()
-    expect(view.getByRole('status').textContent).toBe('已重试模型请求（2/2） · 4s')
+    expect(view.getByRole('status').textContent).toBe('连接短暂中断，已自动重试')
 
     view.rerender(
       <MessageItem t={t} node={{
@@ -955,7 +956,8 @@ describe('MessageItem arms', () => {
       }}
       />,
     )
-    expect(view.getByRole('status').textContent).toBe('已重试模型请求（3/∞） · 4s')
+    expect(view.getByRole('status').textContent).toBe('连接短暂中断，已自动重试')
+    expect(view.getByText('第 3 次尝试')).toBeTruthy()
 
     view.rerender(
       <MessageItem t={t} node={{
@@ -976,7 +978,7 @@ describe('MessageItem arms', () => {
       }}
       />,
     )
-    expect(view.getByRole('status').textContent).toBe('模型请求重试已取消（1/2） · 4s')
+    expect(view.getByRole('status').textContent).toBe('已停止重试')
   })
 
 })

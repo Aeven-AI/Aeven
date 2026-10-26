@@ -308,10 +308,10 @@ describe('desktop macOS notary ticket delivery', () => {
     expect(run).toHaveBeenCalledTimes(2)
   })
 
-  it('gives a dropped lookup three attempts by default', async () => {
+  it('gives a dropped lookup six attempts by default', async () => {
     const run = vi.fn<StaplerCommand>().mockRejectedValue(new Error(DROPPED_TICKET_DELIVERY))
     await expect(stapleMacOSArtifact('/tmp/release.dmg', { run, delayMs: 0 })).rejects.toThrow(/Error 68/u)
-    expect(run).toHaveBeenCalledTimes(3)
+    expect(run).toHaveBeenCalledTimes(6)
   })
 
   it('does not repeat a stapler failure that is not a ticket lookup', async () => {
