@@ -1,7 +1,7 @@
 {
   "name": "@aeven/computer-use-router",
   "description": "Recipe routing over the desktop adapter contract",
-  "version": "0.3.15-alpha",
+  "version": "0.3.16-alpha",
   "publishConfig": {
     "access": "public"
   },

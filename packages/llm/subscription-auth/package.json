@@ -1,6 +1,6 @@
 {
   "name": "@aeven/subscription-auth",
-  "version": "0.3.15-alpha",
+  "version": "0.3.16-alpha",
   "publishConfig": {
     "access": "public"
   },

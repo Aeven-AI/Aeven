@@ -1,7 +1,7 @@
 {
   "name": "@aeven/tool-jobs",
   "description": "Model-facing background job control tools (job_output, job_list, job_kill) over the ctx.jobs registry",
-  "version": "0.3.15-alpha",
+  "version": "0.3.16-alpha",
   "publishConfig": {
     "access": "public"
   },

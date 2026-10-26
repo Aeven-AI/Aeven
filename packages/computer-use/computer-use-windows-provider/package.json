@@ -1,7 +1,7 @@
 {
   "name": "@aeven/computer-use-windows-provider",
   "description": "First-party Windows computer-use provider for an Aeven composition",
-  "version": "0.3.15-alpha",
+  "version": "0.3.16-alpha",
   "publishConfig": { "access": "public" },
   "repository": {
     "type": "git",
