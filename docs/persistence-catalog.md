@@ -703,7 +703,7 @@ Source: [`packages/core/session/src/types.ts:370`](../packages/core/session/src/
 'session/label': import('./types.ts').SessionLabelEventData
 ```
 
-Source: [`packages/session/session-labels/src/index.ts:29`](../packages/session/session-labels/src/index.ts)
+Source: [`packages/session/session-labels/src/index.ts:30`](../packages/session/session-labels/src/index.ts)
 
 <a id="sessionrewind--log-only"></a>
 

@@ -426,6 +426,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Plugins register direct human commands without sending invocations to the model.',
   },
   {
+    key: 'sessionLabels',
+    pkg: 'session-labels',
+    title: 'Session bookmarks',
+    mode: 'core',
+    consumers: ['api-session-controller'],
+    note: 'Owns the label verb and the `sessionLabels` fold it feeds: a bookmark names one logged seq, is not model-visible, and travels with the log through forks and exports.',
+  },
+  {
     key: 'sessionProjections',
     pkg: 'session-projection',
     title: 'Session projection units',

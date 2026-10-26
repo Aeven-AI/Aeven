@@ -137,6 +137,16 @@ export interface ISession {
    */
   rename(title: string): Promise<RemoteResult<{ title: string; seq: SessionSeq }>>
   /**
+   * Set or remove the bookmark at one logged point. The labels projection
+   * carries the result; nothing here is model-visible.
+   * @param at - the event to label; must already be in this session's log.
+   * @param label - raw label text (the host normalizes it); text that normalizes
+   * to nothing removes the bookmark at `at`.
+   * @returns the text the point now carries (`null` after removal) and its event
+   * seq, or the business error.
+   */
+  label(at: SessionSeq, label: string): Promise<RemoteResult<{ label: string | null; seq: SessionSeq }>>
+  /**
    * Extend the history window backwards (older messages pagination).
    * @returns completion; failures land in snapshot.openState/loadingOlder.
    */

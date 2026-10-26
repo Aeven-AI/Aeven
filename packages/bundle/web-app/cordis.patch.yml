@@ -102,10 +102,13 @@
     - id: session-turn-outline
       name: '@aeven/session-turn-outline'
 
-    # Session bookmarks (the sessionLabels projection key): the labels a user
-    # set on points of the log, delivered through the same seam.
+    # Session bookmarks (the sessionLabels projection key and the label verb):
+    # the labels a user set on points of the log, delivered through the same
+    # seam. The budget keeps one bookmark readable in the turn rail.
     - id: session-labels
       name: '@aeven/session-labels'
+      config:
+        maxLabelBytes: 120
 
     # Resolve bind host, SSH launch, and display once at boot, then mount the
     # matching dual-face directory picker. Mount -native or -browse directly in
