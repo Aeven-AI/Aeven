@@ -4273,6 +4273,32 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
     ],
   },
+  {
+    key: 'worktrees',
+    summary: 'The git worktree service, registered as `ctx.worktrees`.',
+    description: 'The git worktree service, registered as `ctx.worktrees`.',
+    methods: [
+      {
+        signature: 'async repositoryRoot(session: Session, signal?: AbortSignal): Promise<string>',
+        description: 'Root of the repository the session works in.',
+        parameters: [{ name: 'session', description: 'the session whose working directory names the repository.' }, { name: 'signal', description: 'cancels the git call.' }],
+        returns: 'the absolute repository root.',
+        throws: ['when the session is in no repository.'],
+      },
+      {
+        signature: 'async list(session: Session, signal?: AbortSignal): Promise<WorktreeInfo[]>',
+        description: 'Registered checkouts of the session\'s repository, main working tree first.',
+        parameters: [{ name: 'session', description: 'the session whose repository is listed.' }, { name: 'signal', description: 'cancels the git call.' }],
+        returns: 'one entry per registered worktree.',
+      },
+      {
+        signature: 'async create(session: Session, request: CreateWorktreeRequest = {}, signal?: AbortSignal): Promise<CreatedWorktree>',
+        description: 'Create a branch-backed checkout and move the session into it.',
+        parameters: [{ name: 'session', description: 'the session that will work in the new checkout.' }, { name: 'request', description: 'optional name and starting revision.' }, { name: 'signal', description: 'cancels the git calls.' }],
+        returns: 'the checkout path, its branch, its base commit, and the repository root.',
+      },
+    ],
+  },
 ]
 
 /** Every harness event, sorted by name. */
@@ -5502,6 +5528,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface CreateAgentOptions {\n    readonly sessionId: SessionId;\n    readonly meta?: {\n        readonly cwd?: string;\n        readonly parentSession?: SessionId;\n        readonly isSeeded?: boolean;\n        readonly origin?: \'subagent\';\n        readonly delegationDepth?: number;\n        readonly agentPreset?: string;\n        readonly owner?: string;\n    };\n    readonly inheritedEventCount?: SessionLogOffset;\n    readonly seed?: readonly SessionEvent[];\n    readonly agentOptions?: AgentOptions;\n    readonly signal?: AbortSignal;\n    readonly setup?: AgentSetup;\n}',
   },
   {
+    name: 'CreatedWorktree',
+    declaration: 'export interface CreatedWorktree {\n    readonly path: WorktreePath;\n    readonly branch: WorktreeBranch;\n    readonly baseCommit: string;\n    readonly repositoryRoot: string;\n}',
+  },
+  {
     name: 'CreateGoalRequest',
     declaration: 'export interface CreateGoalRequest {\n    readonly objective: string;\n    readonly maxGoalRounds?: number;\n}',
   },
@@ -5516,6 +5546,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'CreateTeamTaskRequest',
     declaration: 'export interface CreateTeamTaskRequest {\n    readonly subject: string;\n    readonly description: string;\n    readonly blockedBy?: readonly TeamTaskId[];\n    readonly writeScopes?: readonly string[];\n}',
+  },
+  {
+    name: 'CreateWorktreeRequest',
+    declaration: 'export interface CreateWorktreeRequest {\n    readonly name?: string;\n    readonly from?: string;\n}',
   },
   {
     name: 'CredentialInfo',
@@ -8992,6 +9026,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'WorkspaceView',
     declaration: 'export interface WorkspaceView {\n    readonly workspaceId: WorkspaceId;\n    readonly isDefault: boolean;\n    readonly isBuiltIn: boolean;\n    readonly kind: WorkspaceKind;\n    readonly path: string | null;\n    readonly title: string;\n    readonly sessionIds: readonly SessionId[];\n    readonly createdAt: string;\n    readonly updatedAt: string;\n}',
+  },
+  {
+    name: 'WorktreeBranch',
+    declaration: 'export type WorktreeBranch = Branded<\'WorktreeBranch\'>;',
+  },
+  {
+    name: 'WorktreeInfo',
+    declaration: 'export interface WorktreeInfo {\n    readonly path: WorktreePath;\n    readonly ref: string | undefined;\n    readonly head: string;\n    readonly main: boolean;\n    readonly prunable: boolean;\n}',
+  },
+  {
+    name: 'WorktreePath',
+    declaration: 'export type WorktreePath = Branded<\'WorktreePath\'>;',
   },
 ]
 
