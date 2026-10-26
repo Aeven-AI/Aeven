@@ -1,7 +1,7 @@
 {
   "name": "@aeven/deque",
   "description": "Zero-dependency circular deque with amortized constant-time end operations and bounded vacant storage",
-  "version": "0.3.16-alpha",
+  "version": "0.3.17-alpha",
   "publishConfig": {
     "access": "public"
   },

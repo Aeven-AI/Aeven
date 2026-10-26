@@ -1,7 +1,7 @@
 {
   "name": "@aeven/tmux-context",
   "description": "Opt-in durable per-step context with this agent's tmux pane and window location",
-  "version": "0.3.16-alpha",
+  "version": "0.3.17-alpha",
   "publishConfig": {
     "access": "public"
   },

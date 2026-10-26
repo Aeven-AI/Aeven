@@ -1,7 +1,7 @@
 {
   "name": "@aeven/tool-working-directory",
   "description": "Model-facing working_directory tool over the logged session working directory",
-  "version": "0.3.16-alpha",
+  "version": "0.3.17-alpha",
   "publishConfig": {
     "access": "public"
   },

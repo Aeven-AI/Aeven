@@ -1,7 +1,7 @@
 {
   "name": "@aeven/media-openrouter",
   "description": "OpenRouter video provider for the Aeven media seam — submit, poll, and content retrieval pinned to the OpenRouter origin, with its documented job states mapped onto the seam's union",
-  "version": "0.3.16-alpha",
+  "version": "0.3.17-alpha",
   "publishConfig": {
     "access": "public"
   },

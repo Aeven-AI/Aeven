@@ -1,7 +1,7 @@
 {
   "name": "@aeven/web-search-deepseek",
   "description": "DeepSeek-backed search provider (native web_search via the Anthropic-compatible API) for the Aeven web capability seam (ctx.web)",
-  "version": "0.3.16-alpha",
+  "version": "0.3.17-alpha",
   "publishConfig": {
     "access": "public"
   },

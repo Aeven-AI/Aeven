@@ -1,6 +1,6 @@
 {
   "name": "@aeven/worktrees",
-  "version": "0.0.0",
+  "version": "0.3.17-alpha",
   "private": true,
   "type": "module",
   "description": "Git worktrees as a session capability: create a branch-backed checkout and move the session into it.",

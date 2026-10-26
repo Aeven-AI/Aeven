@@ -1,7 +1,7 @@
 {
   "name": "@aeven/tool-skill",
   "description": "Model-facing skill loading tool for the Aeven",
-  "version": "0.3.16-alpha",
+  "version": "0.3.17-alpha",
   "publishConfig": {
     "access": "public"
   },

@@ -1,7 +1,7 @@
 {
   "name": "@aeven/lsp-stdio",
   "description": "Generic stdio language-server provider for the Aeven LSP capability seam (ctx.lsp) — spawns configured servers, translates JSON-RPC, and serves transient-open goToDefinition/findReferences/goToImplementation/hover queries in the host filesystem namespace",
-  "version": "0.3.16-alpha",
+  "version": "0.3.17-alpha",
   "publishConfig": {
     "access": "public"
   },

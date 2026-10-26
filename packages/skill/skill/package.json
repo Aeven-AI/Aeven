@@ -1,7 +1,7 @@
 {
   "name": "@aeven/skill",
   "description": "Agent skill provider registry for the Aeven",
-  "version": "0.3.16-alpha",
+  "version": "0.3.17-alpha",
   "publishConfig": {
     "access": "public"
   },
