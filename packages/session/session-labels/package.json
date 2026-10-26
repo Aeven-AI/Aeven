@@ -1,0 +1,42 @@
+{
+  "name": "@aeven/session-labels",
+  "description": "Session bookmark projection: the labels a user set on one session's log, folded from the session/label event",
+  "version": "0.1.0-alpha",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Aeven.git",
+    "directory": "packages/session/session-labels"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "dependencies": {
+    "zod": "^4.4.3"
+  },
+  "peerDependencies": {
+    "@aeven/session": "workspace:^",
+    "@aeven/session-projection": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "devDependencies": {
+    "@aeven/session": "workspace:^",
+    "@aeven/session-projection": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  }
+}

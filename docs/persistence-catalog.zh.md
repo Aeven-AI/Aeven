@@ -691,6 +691,22 @@ Types: [ScheduleChange](subsystems/schedule.zh.md)
 
 来源：[`packages/core/session/src/types.ts:370`](../packages/core/session/src/types.ts)
 
+<a id="sessionlabel--log-only"></a>
+
+#### `session/label` — log-only
+
+```ts persistence-catalog
+/**
+ * A bookmark on one logged point of this session: sets the label at `at`, or
+ * removes it when `label` is empty. The event points at an earlier `seq` and
+ * changes nothing model-visible, so a warm, a review, or a transcript sees
+ * the same conversation with or without it.
+ */
+'session/label': import('./types.ts').SessionLabelEventData
+```
+
+来源：[`packages/session/session-labels/src/index.ts:29`](../packages/session/session-labels/src/index.ts)
+
 <a id="sessionrewind--log-only"></a>
 
 #### `session/rewind` — log-only
