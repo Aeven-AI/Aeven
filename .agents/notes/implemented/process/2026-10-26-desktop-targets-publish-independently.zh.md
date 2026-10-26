@@ -10,11 +10,11 @@ Status: implemented
 
 ## 决定
 
-[发布工作流](../../../../.github/workflows/release-desktop.yml)为每个选定目标调用一次[可复用工作流](../../../../.github/workflows/release-desktop-target.yml)。每次调用在自身构建成功后发布。发布作业共享仓库级并发组并设置 `queue: max`，因此版本创建与更新元数据替换串行执行，不会取消等待中的目标。第一个完成的目标上传至草稿并公开发布；后续目标向该公开版本添加资产。安装包与 blockmap 先于引用它们的更新元数据上传。
+[发布工作流](../../../../.github/workflows/release-desktop.yml)为每个选定目标调用一次[可复用工作流](../../../../.github/workflows/release-desktop-target.yml)。每次调用在自身构建成功后上传。发布作业共享仓库级并发组并设置 `queue: max`，因此版本创建与更新元数据替换串行执行，不会取消等待中的目标。第一个完成的目标创建草稿版本，后续目标向其添加资产；所有目标上传完成后版本才公开（[发布规则](2026-10-26-desktop-release-public-after-every-target.zh.md)）。安装包与 blockmap 先于引用它们的更新元数据上传。
 
 Linux 立即发布各目标的更新元数据。Windows 与 macOS 上传带架构后缀的 manifest（元数据清单），且只在版本中存在两个架构的 manifest 后发布共享更新元数据。合并器保留 x64 的顶层字段。不签名的 macOS 只提供 DMG。当前架构的安装包缺失时，更新器可能回退到其他架构，因此不完整的共享更新元数据不安全。
 
-[目标选择策略](2026-10-14-desktop-release-target-selection.zh.md)仍要求发布运行选择全部目标；成功发布无需每个选定构建都成功。[macOS 作业上限](2026-10-15-macos-release-builds-run-to-the-github-ceiling.zh.md)仅限制该目标的可用时间。
+[目标选择策略](2026-10-14-desktop-release-target-selection.zh.md)仍要求发布运行选择全部目标；每个成功的构建都会上传，不受其他目标影响。[macOS 作业上限](2026-10-15-macos-release-builds-run-to-the-github-ceiling.zh.md)仅限制该目标的可用时间。
 
 ## 考虑过的替代方案
 
@@ -26,4 +26,4 @@ Linux 立即发布各目标的更新元数据。Windows 与 macOS 上传带架�
 
 ## 后果
 
-下载按目标可用，Linux 更新也是如此。Windows 与 macOS 自动更新只等待各自的架构对。构建失败会留下部分公开版本和失败的工作流；重新运行可补上缺失的目标。目标 manifest 保留为公开发布资产，供后续发布者合并，无需下载其他目标的安装包。当前运行中的工作流保留原始作业依赖；此改动适用于后续运行。
+构建失败会留下草稿版本和失败的工作流；重新运行可补上缺失的目标并发布版本。目标 manifest 保留为公开发布资产，供后续发布者合并，无需下载其他目标的安装包。当前运行中的工作流保留原始作业依赖；此改动适用于后续运行。

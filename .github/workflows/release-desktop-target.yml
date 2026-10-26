@@ -1,4 +1,5 @@
-# Build one desktop target and publish it without waiting for other targets.
+# Build one desktop target and upload it to the draft release without waiting
+# for other targets; the calling workflow publishes the release.
 name: Release desktop target
 
 on:
@@ -267,7 +268,7 @@ jobs:
           if-no-files-found: error
 
   release:
-    name: Publish GitHub Release
+    name: Upload to GitHub Release
     needs: build
     if: inputs.publish
     runs-on: ubuntu-latest
@@ -302,8 +303,9 @@ jobs:
           echo "tag=v${version}" >> "$GITHUB_OUTPUT"
           case "$version" in *-*) echo "prerelease=true" >> "$GITHUB_OUTPUT" ;; *) echo "prerelease=false" >> "$GITHUB_OUTPUT" ;; esac
 
-      # Only this job holds the publication lock. Existing releases remain public,
-      # and each feed becomes visible only after its installers are uploaded.
+      # Only this job holds the publication lock. The release stays a draft until
+      # the calling workflow publishes it, and each feed is uploaded only after
+      # its installers.
       - name: Create the release if absent
         env:
           GH_TOKEN: ${{ github.token }}
@@ -370,9 +372,3 @@ jobs:
               "$primary" "$secondary" "$PWD/release-assets/$name.yml"
             gh release upload "$TAG" "release-assets/$name.yml" --repo "$GITHUB_REPOSITORY" --clobber
           done
-
-      - name: Publish the release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.release.outputs.tag }}
-        run: gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
