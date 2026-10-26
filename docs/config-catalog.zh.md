@@ -1,5 +1,5 @@
-<!-- 英文源文件由 scripts/gen-config-catalog.ts 生成；本中文文件是通过双语配对维护的经评审对侧。
-     更新时先运行 `pnpm run gen-config-catalog` 更新英文，再更新本文件并运行 `pnpm run verify-translation-pairing --write docs/config-catalog.md` 重新记录配对。 -->
+<!-- 由 scripts/gen-config-catalog.ts 生成——请勿手动编辑。
+     运行 `pnpm run gen-config-catalog` 重新生成。 -->
 
 # 插件配置目录
 
@@ -7,9 +7,9 @@
 
 每个 `config:` 块均可由 `cordis.yml` 条目设置：针对每个可加载的 harness 包，原样列出其 `apply` 函数或服务构造函数接收的配置声明（包括 JSDoc），并附上所有引用类型——包内类型直接粘贴，其他类型则提供链接。粘贴的内容是插件声明的完整配置类型——运行时 schema 有意排除的字段是仅供运行时使用的 seam（其自身的 JSDoc 会如此说明），不能通过 `cordis.yml` 设置。这是以**部署**为轴的参考文档——插件作者所依据的连接方式请参阅各[子系统页面](subsystems/core.zh.md)中的生成 `cordis-surface` 区域，面向模型的工具 schema 请参阅[工具目录](tool-catalog.zh.md)，而 [subsystems/](subsystems/core.zh.md) 则记录了这些声明所引用的类型。
 
-英文源文件由源代码（`scripts/gen-config-catalog.ts`）生成，并通过 `pnpm run verify-config-catalog`（`doc-sync` 的一部分）验证新鲜度；本中文文件作为经评审对侧通过双语配对维护。声明块使用 `ts config-catalog` 围栏（doc-typecheck 会跳过它，因为单独引用导入项的声明无法独立编译）。英文生成器还会将运行时 schemastery schema 与粘贴的声明进行交叉核对——每个经 schema 验证的键（包括嵌套键）都必须能在声明的配置类型中找到——因此，粘贴内容无法隐藏加载器接受的字段。
+本文件根据源代码（`scripts/gen-config-catalog.ts`）生成，并由 `pnpm run verify-config-catalog`（`doc-sync` 的一部分）验证新鲜度——请勿手动编辑。声明块使用 `ts config-catalog` 围栏（doc-typecheck 会跳过它，因为单独引用导入项的声明无法独立编译）。生成器还会将运行时 schemastery schema 与粘贴的声明进行交叉核对——每个经 schema 验证的键（包括嵌套键）都必须能在声明的配置类型中找到——因此，粘贴内容无法隐藏加载器接受的字段。
 
-`Requires:` 行列出插件通过 `inject` 注入的服务键：其 `cordis.yml` 树还必须加载这些服务的提供者。范围限定为 harness 层级（`packages/`）；配置树还可能加载的 vendored cordis 插件（`hmr`、控制台日志记录器等）固定为上游源代码（参见 [vendoring policy](../vendor/README.md)），未收录于此目录。
+`需要：` 行列出插件通过 `inject` 注入的服务键：其 `cordis.yml` 树还必须加载这些服务的提供者。范围限定为 harness 层级（`packages/`）；配置树还可能加载的 vendored cordis 插件（`hmr`、控制台日志记录器等）固定为上游源代码（参见 [vendoring policy](../vendor/README.md)），未收录于此目录。
 
 <a id="aevenacp"></a>
 
@@ -223,7 +223,7 @@ export interface Config {
 
 ## `@aeven/api-memory-manager`
 
-需要：`typert` · `memory` · `capabilities` · `identityUsers` · `sessionQuery`
+需要：`typert` · `memory` · `identityUsers` · `sessionQuery`
 
 ```ts config-catalog
 /** Service configuration. */
@@ -251,7 +251,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/api/session-controller/src/index.ts:86`](../packages/api/session-controller/src/index.ts)
+来源：[`packages/api/session-controller/src/index.ts:88`](../packages/api/session-controller/src/index.ts)
 
 <a id="aevenapi-settings-controller"></a>
 
@@ -800,7 +800,7 @@ export interface Config {
 
 ## `@aeven/computer-use-windows-provider`
 
-Requires: `computerUse`
+需要：`computerUse`
 
 ```ts config-catalog
 /** Configuration a composition may supply. */
@@ -828,9 +828,9 @@ export interface Config {
 }
 ```
 
-Depends on: [`RecipeBook`](../packages/computer-use/computer-use-router/src/index.ts)
+依赖：[`RecipeBook`](../packages/computer-use/computer-use-router/src/index.ts)
 
-Source: [`packages/computer-use/computer-use-windows-provider/src/index.ts:56`](../packages/computer-use/computer-use-windows-provider/src/index.ts)
+来源：[`packages/computer-use/computer-use-windows-provider/src/index.ts:56`](../packages/computer-use/computer-use-windows-provider/src/index.ts)
 
 <a id="aevencordis-host-runner"></a>
 
@@ -1392,7 +1392,7 @@ export interface Config {
 
 ## `@aeven/host-account-integrations`
 
-需要：`typert` · `identityUsers` · `storageDomain` · `credentials` · `skills` · `agents` · `tools` · `workspaceRegistry`
+需要：`typert` · `identityUsers` · `storageDomain` · `credentials` · `skills` · `agents` · `tools` · `workspaceRegistry` · `subprocess`
 
 ```ts config-catalog
 /** Deployment upload, network, and connector settings; no connector credential is configured here. */
@@ -2861,7 +2861,7 @@ export interface Config {
 
 ## `@aeven/personalization`
 
-需要：`typert` · `identityUsers` · `agents`
+需要：`typert` · `identityUsers` · `agents` · `systemPrompt`
 
 ```ts config-catalog
 /** Service configuration. */
