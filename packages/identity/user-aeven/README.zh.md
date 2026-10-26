@@ -29,7 +29,7 @@ kind: "package-reference"
 
 ### 何时选择它
 
-当 AVN 与 Aeven API 一同运营，且读者应以 Aeven 账号访问 AVN 时选择它。Host 启动时会获取 API 的公钥，因此 Host 必须能访问该 API。不运行 Aeven API 的部署不得挂载这一行：存在 authority 而 API 不可达时，每个 `/api` 路由都回答 401，任何读者都无法登录。
+当 AVN 与 Aeven API 一同运营，且读者应以 Aeven 账号访问 AVN 时选择它。Host 启动时会获取 API 的公钥，因此 Host 首次启动时必须能访问该 API；设置 `jwksCacheFile` 后，之后的启动在 API 不可达时使用其中保存的密钥校验。不运行 Aeven API 的部署不得挂载这一行：存在 authority 而 API 不可达时，每个 `/api` 路由都回答 401，任何读者都无法登录。
 
 ### 最小配置
 
@@ -48,6 +48,7 @@ kind: "package-reference"
 | `id` | `aeven` | 该 seam 下的注册表键 |
 | `jwksRefreshIntervalMs` | 60000 | 两次获取 `<apiUrl>/.well-known/jwks.json` 之间的最短间隔 |
 | `jwksTimeoutMs` | 10000 | 单次获取密钥集的时限 |
+| `jwksCacheFile` | 无 | 保存最近一次获取的密钥集的文件；带着它启动的 Host 立即可以校验，并在后台刷新密钥集；不设置则密钥只保存在内存中 |
 | `refreshCookieName` | `refreshToken` | 为不带 bearer 的请求携带 refresh token 的 cookie |
 | `apiUrl` | 无 | 浏览器据以登录的 Aeven API origin；缺失时客户端没有任何认证界面 |
 | `webUrl` | 无 | 账户菜单链接到的 Aeven web 客户端 origin |
@@ -84,7 +85,7 @@ refresh cookie 仍决定任何不带 bearer 的请求，而浏览器只把 cooki
 
 ### 为什么在本地校验
 
-seam 同步解析，因此 authority 无法调用 Aeven。它改为用内存中 API 的公钥检查签名，这让识别调用方无需发出站请求。token 若指明 Host 尚未持有的密钥 id，会触发后台重新获取（受 `jwksRefreshIntervalMs` 限速），因此轮换后的密钥从调用方的下一次请求起即可校验。代价是一个吊销窗口：在过期前被吊销的 token 在此仍会校验通过，直到它过期。登出会在源头使凭据失效，这正是该窗口在实践中很窄的原因。
+seam 同步解析，因此 authority 无法调用 Aeven。它改为用 API 的公钥检查签名，公钥保存在内存中，设置 `jwksCacheFile` 时还保存到磁盘供下次启动使用，这让识别调用方无需发出站请求。token 若指明 Host 尚未持有的密钥 id，会触发后台重新获取（受 `jwksRefreshIntervalMs` 限速），因此轮换后的密钥从调用方的下一次请求起即可校验。代价是一个吊销窗口：在过期前被吊销的 token 在此仍会校验通过，直到它过期。登出会在源头使凭据失效，这正是该窗口在实践中很窄的原因。
 
 ### 在页面中声明端点
 
@@ -130,7 +131,7 @@ None, as the authority only identifies the caller for the request fence and regi
 以下是该 authority 的当前约束，不是任务积压。
 
 - **过期前被吊销的 token 仍会校验通过**——本地校验无法观察到 API 记录的吊销。该窗口在 token 过期时关闭。
-- **AVN 与 API 必须共享站点**——cookie 路径要求同一站点，且 Host 必须能访问 API 以加载其公钥。本 authority 适用于 AVN 与 Aeven 一同运营，而非第三方对接公开的 Aeven。
+- **AVN 与 API 必须共享站点**——cookie 路径要求同一站点，且 Host 必须至少能访问 API 一次以加载其公钥。本 authority 适用于 AVN 与 Aeven 一同运营，而非第三方对接公开的 Aeven。
 - **挂载它会为整个界面设围栏**——没有按路由的豁免。没有可达 Aeven API 的部署应移除该行，而不是期待降级模式。
 
 <a id="dev-note"></a>

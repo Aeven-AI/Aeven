@@ -29,7 +29,7 @@ Mount it after the seam, point `apiUrl` at the Aeven API, and the Web surface pr
 
 ### When to choose it
 
-Choose it when AVN and an Aeven API are operated together and readers should reach AVN with their Aeven account. The Host fetches the API's public keys when it starts, so the API must be reachable from the Host. A deployment that does not run an Aeven API must not mount this row: with an authority present and no reachable API, every `/api` route answers 401 and no reader can sign in.
+Choose it when AVN and an Aeven API are operated together and readers should reach AVN with their Aeven account. The Host fetches the API's public keys when it starts, so the API must be reachable from the Host the first time it starts; with `jwksCacheFile` set, later starts verify with the keys kept there while the API is unreachable. A deployment that does not run an Aeven API must not mount this row: with an authority present and no reachable API, every `/api` route answers 401 and no reader can sign in.
 
 ### Minimal configuration
 
@@ -48,6 +48,7 @@ The row injects the seam and names the API whose keys it verifies against:
 | `id` | `aeven` | Registry key under the seam |
 | `jwksRefreshIntervalMs` | 60000 | Least time between two fetches of `<apiUrl>/.well-known/jwks.json` |
 | `jwksTimeoutMs` | 10000 | Budget for one key set fetch |
+| `jwksCacheFile` | none | File keeping the last key set fetched; a Host that starts with it verifies at once and refreshes the set in the background, and absent keeps the keys in memory only |
 | `refreshCookieName` | `refreshToken` | Cookie carrying the refresh token for a request that presents no bearer |
 | `apiUrl` | none | Aeven API origin the browser signs in against; absent leaves the client with no authentication surface |
 | `webUrl` | none | Aeven web client origin the account menu links to |
@@ -84,7 +85,7 @@ A presented bearer decides alone: a valid one names the caller and an invalid on
 
 ### Why verification is local
 
-The seam resolves synchronously, so the authority cannot call Aeven. It checks the signature against the API's public keys instead, held in memory, which makes identifying a caller free of an outbound request. A token naming a key id the Host does not hold starts a background refetch, rate-limited by `jwksRefreshIntervalMs`, so a rotated key verifies from the caller's next request. The price is a revocation window: a token revoked before it expires still verifies here until it does. A sign-out invalidates the credential at its source, which is what keeps that window narrow in practice.
+The seam resolves synchronously, so the authority cannot call Aeven. It checks the signature against the API's public keys instead, held in memory and, with `jwksCacheFile`, kept on disk for the next start, which makes identifying a caller free of an outbound request. A token naming a key id the Host does not hold starts a background refetch, rate-limited by `jwksRefreshIntervalMs`, so a rotated key verifies from the caller's next request. The price is a revocation window: a token revoked before it expires still verifies here until it does. A sign-out invalidates the credential at its source, which is what keeps that window narrow in practice.
 
 ### Stating the endpoints in the page
 
@@ -130,7 +131,7 @@ None; this package neither assembles nor sends a provider request.
 These are current constraints of the authority, not a task backlog.
 
 - **Revoked-before-expiry tokens still verify** — local verification cannot observe a revocation the API recorded. The window closes when the token expires.
-- **AVN and the API must share a site** — the cookie path requires one site, and the Host must reach the API to load its public keys. This authority suits AVN and Aeven operated together, not a third party integrating against a public Aeven.
+- **AVN and the API must share a site** — the cookie path requires one site, and the Host must reach the API to load its public keys at least once. This authority suits AVN and Aeven operated together, not a third party integrating against a public Aeven.
 - **Mounting it fences the whole surface** — there is no per-route opt-out. A deployment with no reachable Aeven API must remove the row rather than expect a degraded mode.
 
 <a id="dev-note"></a>

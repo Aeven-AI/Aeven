@@ -33,9 +33,6 @@ export const en = {
   quitApplication: 'Quit Aeven',
   copyLink: 'Copy Link',
   copyImage: 'Copy Image',
-  signInContinuing: 'Continuing to sign in…',
-  signInDone: 'You are signed in to Aeven. You can close this tab and return to the app.',
-  signInFailed: 'Sign-in did not finish. Return to Aeven and try again.',
 } as const
 
 /** Every Desktop locale supplies the complete English key set. */
@@ -74,9 +71,6 @@ export const zh = {
   quitApplication: '退出 Aeven',
   copyLink: '复制链接',
   copyImage: '复制图片',
-  signInContinuing: '正在继续登录…',
-  signInDone: '已登录 Aeven。可以关闭此标签页并返回应用。',
-  signInFailed: '登录未完成。请返回 Aeven 重试。',
 } as const satisfies DesktopMessages
 
 /** Locale payload exposed to the Desktop-owned renderer. */

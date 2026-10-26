@@ -9,6 +9,7 @@
     oauthFlow: window
     webUrl: !!js process.env.AEVEN_WEB_URL ?? 'https://aeven.io'
     mediaUrl: !!js process.env.AEVEN_MEDIA_URL ?? 'https://aeven.io'
+    jwksCacheFile: !!js avnHomePath('identity', 'aeven-jwks.json')
 
 - id: llm-aeven
   config:
