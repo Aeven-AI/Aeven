@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`@aeven/document-extract-video` 在 `ctx.documentExtract` 上以优先级 10 注册 `video` provider，于是上传或相机录制的片段（`mp4`、`m4v`、`mov`、`webm`）成为一个可用的文件附件，而不是不支持的类型。读取器用宿主机自带的 `ffprobe` 探测片段，并存储一句描述；画面与声音从不转录，因此这句话会明确说明这一点。
+`@aeven/document-extract-video` 在 `ctx.documentExtract` 上以优先级 10 注册 `video` provider，于是上传或相机录制的片段（`mp4`、`m4v`、`mov`、`webm`、`mp3`）成为一个可用的文件附件，而不是不支持的类型。MP3 上传使用音频流，报告音频元数据，不声称已转录内容。读取器用宿主机自带的 `ffprobe` 探测片段，并存储一句描述；画面与声音从不转录，因此这句话会明确说明这一点。
 
 ## 目录
 
@@ -21,7 +21,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-把它挂在 service 旁边：插件在 `ctx.documentExtract` 上注册 `video` provider。此后 composer 的文件输入会接受视频，因为 `documentExtract.accepted()` 已包含该 provider 的格式。
+把它挂在 service 旁边：插件在 `ctx.documentExtract` 上注册 `video` provider。此后 composer 的文件输入会接受视频与 MP3，因为 `documentExtract.accepted()` 已包含该 provider 的格式。
 
 ### 配置
 
