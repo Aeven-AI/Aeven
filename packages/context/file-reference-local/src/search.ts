@@ -90,7 +90,7 @@ export class WorkspaceFileSearch {
   private disposed = false
 
   constructor(
-    private readonly root: string,
+    readonly root: string,
     private readonly config: FileSearchConfig,
   ) {
     if (!Number.isSafeInteger(config.maxResults) || config.maxResults <= 0) {

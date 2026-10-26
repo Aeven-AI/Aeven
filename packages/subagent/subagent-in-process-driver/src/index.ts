@@ -26,6 +26,8 @@ import {
   captureDelegatedPolicyOverrides,
   childSessionMeta,
   finalAssistantOutput,
+  placeDelegatedChild,
+  prepareDelegatedWorktree,
   resolveChildAgentOptions,
   resolveChildDepth,
 } from '@aeven/subagent'
@@ -117,10 +119,13 @@ export async function startInProcessRun(
   // Capture before the first await: a later parent switch belongs to the
   // parent's future.
   const inherited = captureDelegatedPolicyOverrides(parent)
+  const worktree = await prepareDelegatedWorktree(parent, childId, request.signal)
+  if (request.signal.aborted) throw prePublicationAbort()
 
   let structured: StructuredAttachment | undefined
   const setup = (childCtx: Context): void => {
     appendDelegatedPolicyOverrides((childCtx.agent as Agent).session, inherited)
+    placeDelegatedChild(childCtx, parent, worktree)
     applyChildComposition(childCtx, parent, {
       persona: request.persona,
       toolFilter: request.toolFilter,

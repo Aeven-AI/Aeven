@@ -19,6 +19,12 @@
     },
     {
       "path": "../session-projection"
+    },
+    {
+      "path": "../../core/system-prompt"
+    },
+    {
+      "path": "../../core/agent"
     }
   ]
 }

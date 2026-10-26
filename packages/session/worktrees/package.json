@@ -34,12 +34,18 @@
     "@aeven/session": "workspace:^",
     "@aeven/subprocess": "workspace:^",
     "@aeven/working-directory": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/session-projection": "workspace:^",
+    "@aeven/system-prompt": "workspace:^",
+    "@aeven/agent": "workspace:^"
   },
   "devDependencies": {
     "@aeven/session": "workspace:^",
     "@aeven/subprocess": "workspace:^",
     "@aeven/working-directory": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/session-projection": "workspace:^",
+    "@aeven/system-prompt": "workspace:^",
+    "@aeven/agent": "workspace:^"
   }
 }

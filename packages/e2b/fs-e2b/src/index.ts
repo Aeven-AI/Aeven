@@ -7,7 +7,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { Buffer } from 'node:buffer'
 import { posix } from 'node:path'
-import { FileSystem, FsError, FsTargetKey, FsVersion } from '@aeven/fs'
+import { FileSystem, FsError, FsTargetKey, FsVersion, editRequests } from '@aeven/fs'
 import type {
   FsDirEntry,
   FsEditOutcome,
@@ -164,7 +164,10 @@ function literalEdit(content: string, request: FsEditRequest, displayPath: strin
   if (!request.replaceAll && matches !== 1) {
     throw new FsError(`cannot edit "${displayPath}": old_string matched ${matches} times`, 'FS_AMBIGUOUS_EDIT')
   }
-  return request.replaceAll ? content.split(oldString).join(newString) : content.replace(oldString, newString)
+  // split/join on the first match: String.prototype.replace would expand `$&`-style patterns in newString.
+  if (request.replaceAll) return content.split(oldString).join(newString)
+  const at = content.indexOf(oldString)
+  return content.slice(0, at) + newString + content.slice(at + oldString.length)
 }
 
 /** Remote filesystem backend sharing the sandbox owned by `ctx.e2b`. */
@@ -404,7 +407,7 @@ export class E2BFileSystem extends FileSystem {
 
   override async editText(
     target: FsTarget,
-    edit: FsEditRequest,
+    edit: FsEditRequest | readonly FsEditRequest[],
     expected?: { version: ReturnType<typeof FsVersion> },
     signal?: AbortSignal,
   ): Promise<FsEditOutcome> {
@@ -421,7 +424,7 @@ export class E2BFileSystem extends FileSystem {
       }
       const raw = await this.readForEdit(target, signal)
       const before = normalizeLineEndings(raw)
-      const after = literalEdit(before, edit, target.displayPath)
+      const after = editRequests(edit).reduce((content, request) => literalEdit(content, request, target.displayPath), before)
       const storage = restoreLineEndings(after, detectsCrlf(raw))
       const version = await this.writeAtomic(target, storage, existing, false, signal)
       return { version, before, after }

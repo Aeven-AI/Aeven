@@ -20,7 +20,8 @@
  * @module @aeven/sandbox-policy
  */
 
-import { resolve as resolvePath } from 'node:path'
+import { readFileSync } from 'node:fs'
+import { join, resolve as resolvePath } from 'node:path'
 import { Context, Service } from '@deepseek-ai/cordis'
 import { z as zod } from 'zod'
 import z from '@deepseek-ai/schemastery'
@@ -29,12 +30,42 @@ import { canonicalPath, type SandboxExecutionPolicy, type SandboxMode } from '@a
 import type { Session } from '@aeven/session'
 import type {} from '@aeven/session-projection'
 import type {} from '@aeven/system-prompt'
+import type {} from '@aeven/working-directory'
 
 export { SANDBOX_MODES, setSandboxMode } from './session-mode.ts'
 
 /** Resolve filesystem identity before lexical normalization can erase symlink-sensitive components. */
 function resolveWorkspaceRoot(path: string): string {
   return resolvePath(canonicalPath(path))
+}
+
+/**
+ * The shared repository metadata of a linked git worktree. A linked checkout's
+ * `.git` is a file naming its private git directory, whose `commondir` names
+ * the repository's shared one; commits, refs, and objects land there, outside
+ * the checkout, so a workspace rooted at the checkout must also write it.
+ * @param root - the canonical workspace root.
+ * @returns the shared git directory, or undefined when the root is not a linked worktree.
+ */
+function linkedWorktreeGitDir(root: string): string | undefined {
+  let pointer: string
+  try {
+    pointer = readFileSync(join(root, '.git'), 'utf8')
+  } catch {
+    // Missing, or a directory (EISDIR): the root is a main checkout or no repository.
+    return undefined
+  }
+  const target = /^gitdir: (.+)$/m.exec(pointer)?.[1]
+  if (target === undefined) return undefined
+  const gitDir = resolvePath(root, target.trim())
+  let common: string
+  try {
+    common = readFileSync(join(gitDir, 'commondir'), 'utf8').trim()
+  } catch {
+    // A submodule's `.git` file names a git directory without `commondir`.
+    return undefined
+  }
+  return resolveWorkspaceRoot(resolvePath(gitDir, common))
 }
 
 /** Render the policy without claiming which capabilities are mounted. */
@@ -79,7 +110,7 @@ export interface Config {
 
 /** Inputs that select the sandbox policy for one capability call. */
 export interface SandboxPolicyRequest {
-  /** Calling session; its immutable cwd becomes the workspace boundary. */
+  /** Calling session; its workspace root becomes the workspace boundary. */
   session?: Session
   /** Explicit approved mode override, which outranks session policy. */
   mode?: SandboxMode
@@ -154,17 +185,25 @@ export class SandboxPolicyService extends Service {
   /**
    * Resolve the complete policy for one capability call. An approved explicit
    * mode outranks the session's last `sandbox/mode` event, which outranks the
-   * deployment default. A session cwd is its workspace-write boundary; the
-   * configured root is the fallback for agentless calls and sessions without a
-   * cwd.
+   * deployment default. A session's workspace root — the logged root from
+   * `ctx.workingDirectory` when composed, else its header cwd — is its
+   * workspace-write boundary; the configured root is the fallback for
+   * agentless calls and sessions without a cwd. A root that is a linked git
+   * worktree also grants the repository's shared git directory.
    * @param request - optional session and approved mode override.
-   * @returns the fully resolved per-call mode and absolute workspace root.
+   * @returns the fully resolved per-call mode, absolute workspace root, and additional writable roots.
    */
   resolve(request: SandboxPolicyRequest = {}): SandboxExecutionPolicy {
     const { session } = request
+    const sessionRoot = session === undefined
+      ? undefined
+      : this.ctx.get('workingDirectory')?.rootOf(session) ?? session.header.cwd
+    const workspaceRoot = resolveWorkspaceRoot(sessionRoot ?? this.workspaceRoot)
+    const gitDir = linkedWorktreeGitDir(workspaceRoot)
     return {
       mode: request.mode ?? (session === undefined ? undefined : this.overrideOf(session)) ?? this.defaultMode,
-      workspaceRoot: resolveWorkspaceRoot(session?.header.cwd ?? this.workspaceRoot),
+      workspaceRoot,
+      ...gitDir === undefined ? {} : { additionalWritableRoots: [gitDir] },
       ...session === undefined ? {} : { sessionId: session.id },
     }
   }

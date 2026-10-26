@@ -78,7 +78,9 @@
     "@aeven/typert-protocol": "workspace:^",
     "@aeven/user-approval": "workspace:^",
     "@aeven/util-time": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/worktrees": "workspace:^",
+    "@aeven/working-directory": "workspace:^"
   },
   "peerDependenciesMeta": {
     "@aeven/agent-presets": {
@@ -107,6 +109,12 @@
     },
     "@aeven/user-approval": {
       "optional": true
+    },
+    "@aeven/worktrees": {
+      "optional": true
+    },
+    "@aeven/working-directory": {
+      "optional": true
     }
   },
   "devDependencies": {
@@ -133,6 +141,8 @@
     "@aeven/typert-protocol": "workspace:^",
     "@aeven/user-approval": "workspace:^",
     "@aeven/util-time": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/worktrees": "workspace:^",
+    "@aeven/working-directory": "workspace:^"
   }
 }

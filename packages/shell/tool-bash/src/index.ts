@@ -148,10 +148,11 @@ function presentBashResult(args: unknown, result: ToolResult): ToolResultView | 
 }
 
 /**
- * Resolve an explicit workdir first, making a relative one session-workspace-relative;
- * otherwise use the filesystem identity of the session cwd and leave executor
- * defaulting as the fallback. A resolved sandbox-policy root wins so workdir
- * and confinement use the exact same per-call identity.
+ * Resolve an explicit workdir first, making a relative one session-directory-relative;
+ * otherwise use the filesystem identity of the session directory and leave executor
+ * defaulting as the fallback. While the session directory is the workspace root, the
+ * resolved sandbox-policy root stands in for it so workdir and confinement use the
+ * exact same per-call identity.
  */
 function resolveWorkdir(
   modelWorkdir: string | undefined,
@@ -159,8 +160,11 @@ function resolveWorkdir(
   policyWorkspaceRoot: string | undefined,
   loggedCwd: string | undefined,
 ): string | undefined {
-  const headerCwd = loggedCwd ?? exec.agent?.session.header.cwd
-  const sessionCwd = policyWorkspaceRoot ?? (headerCwd === undefined ? undefined : canonicalPath(headerCwd))
+  const directory = loggedCwd ?? exec.agent?.session.header.cwd
+  const canonical = directory === undefined ? undefined : canonicalPath(directory)
+  const sessionCwd = policyWorkspaceRoot !== undefined && (canonical === undefined || canonical === policyWorkspaceRoot)
+    ? policyWorkspaceRoot
+    : canonical
   if (modelWorkdir === undefined) return sessionCwd
   if (sessionCwd !== undefined && !isAbsolute(modelWorkdir)) {
     return resolvePath(sessionCwd, modelWorkdir)

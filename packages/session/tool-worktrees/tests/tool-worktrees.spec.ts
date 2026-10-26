@@ -4,8 +4,9 @@ import { execFile } from 'node:child_process'
 import { mkdtemp, realpath, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { promisify } from 'node:util'
+import { createHash } from 'node:crypto'
 import { afterEach, describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import SystemPrompt from '@aeven/system-prompt'
@@ -24,6 +25,22 @@ import * as tool from '../src/index.ts'
 const run = promisify(execFile)
 const signal = new AbortController().signal
 const created: string[] = []
+
+/** Checkout home for this file's harnesses; set by {@link worktreeHome}. */
+let home = ''
+
+/** Create a canonical checkout home the spec cleans up. */
+async function worktreeHome(): Promise<string> {
+  home = await realpath(await mkdtemp(join(tmpdir(), 'avn-wt-home-')))
+  created.push(home)
+  return home
+}
+
+/** Where the service places checkout `name` of the repository at `root`. */
+function checkoutPath(root: string, name: string): string {
+  const digest = createHash('sha256').update(join(root, '.git')).digest('hex').slice(0, 8)
+  return join(home, `${basename(root)}-${digest}`, name)
+}
 
 /**
  * Create a repository with one commit and a session working in it.
@@ -55,7 +72,7 @@ async function setup(): Promise<Context> {
   await ctx.plugin(SessionProjectionRegistry)
   await ctx.plugin(SubprocessLocal)
   await ctx.plugin(WorkingDirectoryService)
-  await ctx.plugin(Worktrees, { directory: '.aeven/worktrees', branchPrefix: 'avn/', graceMs: 5000 })
+  await ctx.plugin(Worktrees, { directory: await worktreeHome(), branchPrefix: 'avn/', graceMs: 5000, isolateSubagents: false, setup: [], setupTimeoutMs: 60_000 })
   await ctx.plugin(tool)
   return ctx
 }
@@ -108,12 +125,12 @@ describe('tool-worktrees', () => {
     expect(result.isError).toBe(false)
     if (result.isError) throw new Error('expected success')
     expect(result.value).toMatchObject({
-      path: join(root, '.aeven/worktrees/task-a'),
+      path: checkoutPath(root, 'task-a'),
       branch: 'avn/task-a',
       repositoryRoot: root,
     })
-    expect(existsSync(join(root, '.aeven/worktrees/task-a'))).toBe(true)
-    expect(ctx.workingDirectory.of(agent.session)).toBe(join(root, '.aeven/worktrees/task-a'))
+    expect(existsSync(checkoutPath(root, 'task-a'))).toBe(true)
+    expect(ctx.workingDirectory.of(agent.session)).toBe(checkoutPath(root, 'task-a'))
     expect(text(result)).toContain('avn/task-a')
   })
 

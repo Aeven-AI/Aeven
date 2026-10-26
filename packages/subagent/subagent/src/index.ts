@@ -116,6 +116,8 @@ export {
   captureDelegatedPolicyOverrides,
   childSessionMeta,
   parentAgentOptionsForDelegation,
+  placeDelegatedChild,
+  prepareDelegatedWorktree,
   resolveChildAgentOptions,
   resolveChildDepth,
   SubagentDepthError,

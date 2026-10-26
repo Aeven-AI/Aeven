@@ -1,5 +1,5 @@
 ---
-description: "Git worktrees as a session capability: create a branch-backed checkout through git, move the session into it, and list the checkouts a repository has."
+description: "Git worktrees as a session capability: one branch-backed checkout per task or subagent, outside the repository, with writes confined to it."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`@aeven/worktrees` gives a task its own checkout. `create()` runs `git worktree add -b <prefix><name> <path> <rev>` and then moves the session into the new directory through `@aeven/working-directory`, so every later file, shell, and search call resolves against the checkout instead of the shared tree. `list()` reads the repository's registered checkouts. Use it when parallel agents would otherwise contend for one branch and one build directory, or when a change should be tried without touching what is already uncommitted in the main tree.
+`@aeven/worktrees` gives a task its own checkout so agents on one repository do not edit, build, or switch branches in each other's working tree. `create()` adds a branch-backed checkout and moves the session into it; `isolate()` and `adopt()` give every delegated in-process subagent its own checkout from a snapshot of the parent's working tree; `remove()` deletes a checkout and optionally its branch. Checkouts live outside every repository, and the moved session's workspace root is the checkout, so `workspace-write` confines its writes there.
 
 ## Table of Contents
 
@@ -23,69 +23,64 @@ English | [中文](README.zh.md)
 
 ## Contract
 
-`create(session, { name?, from? }, signal?)`:
+Checkouts of a repository live at `<directory>/<repository name>-<8 hex of its shared git directory>/<name>`, and branches are `<branchPrefix><name>`. Names are letters, digits, dots, dashes, and underscores, starting with a letter or digit. The service's own git calls run with `core.hooksPath=/dev/null` and `core.fsmonitor=false`, so no repository-configured hook or monitor runs.
 
-1. Resolves the repository root from the session's effective directory (`git rev-parse --show-toplevel`).
-2. Validates the name — letters, digits, dots, dashes, underscores, starting with a letter or digit — because the name is both the branch leaf and the directory leaf. A generated `work-<8 hex>` name is used when none is given.
-3. Resolves the base commit (`rev-parse <from>`, default `HEAD`), then runs `git worktree add -b <branchPrefix><name> <root>/<directory>/<name> <from>`.
-4. Moves the session with `workingDirectory.change()`, which appends `session/cwd`.
-5. Returns `{ path, branch, baseCommit, repositoryRoot }`.
+`create(session, { name?, from? }, signal?)` resolves `from` (default `HEAD`) to a commit, runs `git worktree add -b`, runs the setup entry described under [Configuration](#configuration), then moves the session with `workingDirectory.enter()` and appends `worktree/entered`. A generated `work-<8 hex>` name is used when none is given. Uncommitted changes in the current checkout do not carry over. A git failure surfaces with git's output and leaves the session where it was.
 
-A duplicate name, a name git rejects, or a directory git cannot create surfaces as the git failure with its stderr, naming the command and the exit; the session's directory is left unchanged because the change happens only after `git worktree add` succeeds.
+`isolate(parent, childId, signal?)` returns `undefined` when `isolateSubagents` is off or the parent's directory is not a git repository with a commit. Otherwise it records the parent's working tree — tracked changes and untracked, unignored files — as a commit on top of `HEAD`, through a copy of the index, so the user's index, files, and branch stay untouched; a clean tree uses `HEAD` itself. It creates `subagent-<8 hex>` from that commit, runs setup, appends `worktree/delegated` to the parent's log, and returns the checkout. `adopt(child, worktree)` moves the child in synchronously inside its creation window and appends `worktree/entered`. `@aeven/subagent` calls both for every in-process child, one-shot and continuable.
+
+`remove(session, name?, { deleteBranch }, signal?)` removes the named checkout, or the one the session works in. A session inside it moves back to the repository's main working tree first. `git worktree remove` refuses a checkout with uncommitted changes, and `git branch -d` refuses an unmerged branch; both refusals surface as errors. Success appends `worktree/removed`.
 
 `list(session, signal?)` parses `git worktree list --porcelain` into `{ path, ref, head, main, prunable }` entries, main working tree first.
+
+The `worktrees` projection folds the three events into the checkout the session works in and the checkouts it created for children. Before each request it renders that state as runtime context: a session in its own checkout is told the checkout, branch, base commit, and setup outcome; a parent is told each child's branch, path, and base, and how to take the work (`git merge <branch>` on a clean tree, `git diff <base>..<branch> | git apply` beside uncommitted changes).
 
 ## Configuration
 
 | Field | Meaning |
 |---|---|
-| `directory` | Directory under the repository root that holds checkouts. |
+| `directory` | Absolute directory holding the checkouts; created and canonicalized at load. |
 | `branchPrefix` | Prefix every created branch carries. |
-| `graceMs` | Grace a git child gets between SIGTERM and SIGKILL. |
+| `graceMs` | Grace a git or setup child gets between SIGTERM and SIGKILL. |
+| `isolateSubagents` | Whether every delegated in-process child works in its own checkout. |
+| `setup` | Ordered `{ when, argv }` entries; the first whose `when` file exists at the checkout root runs `argv` there without a shell. |
+| `setupTimeoutMs` | Deadline for the setup command. |
 
-The base bundle sets `.aeven/worktrees`, `avn/`, and `5000`.
+The base bundle sets `$AVN_HOME/worktrees`, `avn/`, `5000`, isolation on, a 300000 ms setup deadline, and one setup entry per lockfile: `pnpm install --frozen-lockfile --prefer-offline`, `yarn install --frozen-lockfile`, `bun install --frozen-lockfile`, and `npm ci --prefer-offline`.
 
 ## Dev Note
 
-The capability runs git through `ctx.subprocess` rather than importing a git library, because the checkout is git's own construct: `worktree add`, `worktree list`, and `worktree remove` are the operations, and a library wrapper would have to reproduce their argument and error semantics for no gain.
+The capability runs git through `ctx.subprocess` rather than a git library, because the checkout is git's own construct and a wrapper would have to reproduce its argument and error semantics.
 
-Order matters in `create`: resolve the base commit before the checkout, run the checkout before the directory change. A failure at any step leaves the session where it was, which is what makes "the checkout failed, keep working where you are" a safe answer for a model.
+Checkouts live outside the repository because `@aeven/sandbox-policy` confines a session to its workspace root: with checkouts under the repository, an agent in the main tree could write every child's checkout. A linked checkout's commits land in the repository's shared git directory, so the sandbox policy grants that directory beside the checkout.
 
-The specs use real git in a temporary repository, because the thing worth testing is exactly the part a mock cannot show: that a branch and a directory are created, that an uncommitted file in the source tree stays out of the new checkout, and that a duplicate name fails through git's own error path.
+The snapshot commit is what lets a child review or continue the parent's uncommitted work. It sits between `HEAD` and the child's own commits, so `git diff <base>..<branch>` is exactly the child's work and applies cleanly beside the parent's uncommitted changes.
+
+The specs use real git in a temporary repository, because the behavior worth testing is git's own: that a branch and a checkout are created, and that a duplicate name fails through git's error path.
 
 ## Model Experience
 
-### `create_worktree` tool schema
+The model-facing verbs live in [`@aeven/tool-worktrees`](../tool-worktrees/README.md). This package adds runtime context.
+
+### Worktree runtime context
 
 #### What the model sees
 
-The model sees the generated [`create_worktree` schema](../../../docs/tool-catalog.md#aeventool-worktrees): an object with optional `name` and `from` strings. The description says a worktree gives a task its own checkout — parallel work on one repository, trying a change without touching the main tree — and that later calls resolve against the new directory.
+A session in its own checkout: `You work in your own git worktree "<path>" on branch <branch>, started from commit <12 hex> of the repository at "<root>". Other agents work in other checkouts of the same repository. Commit your finished changes on this branch and name the branch when you report back.`, plus `Dependency setup in this worktree: <outcome>` when setup ran. A parent with children's checkouts: one line per checkout with branch, path, subagent id, and base, then how to merge or apply the work and that `remove_worktree` removes a checkout.
 
 #### Token effect
 
-Fixed schema cost on every request where the tool is visible.
+About 60 tokens for a session in a checkout, and about 30 per child checkout plus 50 for the merge instructions.
 
 #### KV Cache effect
 
-Prefix-stable while the definition and visibility are unchanged. Plugin lifecycle or scoped restrictions may invalidate reuse from this schema.
-
-### Tool call and result
-
-#### What the model sees
-
-Success returns `{ path, branch, baseCommit, repositoryRoot }` and one rendered line: `Created worktree <path> on branch <branch> (from <short sha>). This session now works there; later calls resolve relative paths against it.` Failures are the git command, its exit, and its stderr, or `create_worktree requires an owning agent session`.
-
-#### Token effect
-
-One result per call: two paths, a branch, and a commit prefix. The checkout itself costs no tokens; the model learns the new directory from this result and from the resolved paths of its later calls.
-
-#### KV Cache effect
-
-Append-only; the result follows the reusable request prefix and does not invalidate existing KV-cache entries.
+Runtime context sits after the stable system prompt and is logged with each request, so it leaves the cached prefix intact; it changes only when a checkout is entered, created for a child, or removed.
 
 ## Known Limitations and Deferred Work
 
-- **`list` has no tool.** The capability lists checkouts, but no model-facing verb exposes it yet; a model that needs to know its siblings asks the shell.
-- **Removal is manual.** `git worktree remove` is not wrapped, so a finished checkout stays registered until someone removes it or the directory is pruned.
-- **A checkout inside the repository shows up as untracked.** The configured `directory` defaults to a path under the repository root, so a repository that does not ignore it reports `.aeven/` in `git status`. A deployment that wants a clean source tree points `directory` outside the repository.
-- No invariant companion is published because its observable outcome is the git exit status plus the `session/cwd` it appends, which the specs assert directly, and a companion could only restate them.
+- **Setup runs unconfined.** The setup command needs the package manager's store outside the checkout, so it runs through `ctx.subprocess` without the sandbox. The command is deployment configuration; the scripts it runs come from the repository.
+- **Out-of-process subagents are not isolated.** `subagent-avn-sdk`, `subagent-acp`, `subagent-claude-code`, and `subagent-codex` start their child in the parent's header directory.
+- **Instructions and skills read the header directory.** Project instructions and skill discovery resolve against the session's creation directory, which matches the checkout only when the branch carries the same files.
+- **Shared ports and caches.** Checkouts separate files and builds, not dev-server ports or caches outside the checkout.
+- **A failed child start keeps its checkout.** The checkout and branch stay, and the parent's context lists them for `remove_worktree`.
+- No invariant companion is published because its observable outcomes are git's exit status and the events it appends, which the specs assert directly.

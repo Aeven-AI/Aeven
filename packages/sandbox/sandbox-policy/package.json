@@ -38,7 +38,8 @@
     "@aeven/session": "workspace:^",
     "@aeven/system-prompt": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
-    "@aeven/session-projection": "workspace:^"
+    "@aeven/session-projection": "workspace:^",
+    "@aeven/working-directory": "workspace:^"
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "workspace:^",
@@ -51,6 +52,7 @@
     "@aeven/session": "workspace:^",
     "@aeven/system-prompt": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
-    "@aeven/session-projection": "workspace:^"
+    "@aeven/session-projection": "workspace:^",
+    "@aeven/working-directory": "workspace:^"
   }
 }

@@ -24,6 +24,7 @@ import type { Agent } from '@aeven/agent'
 import type {} from '@aeven/fs'
 import type { FsTarget } from '@aeven/fs'
 import type {} from '@aeven/sandbox-policy'
+import type {} from '@aeven/working-directory'
 import { Remote, RemoteError, TypertRemoteService } from '@aeven/typert-protocol'
 import { scopeTarget } from '@aeven/scope'
 import { defineTool } from '@aeven/tools'
@@ -282,9 +283,9 @@ export class WorkspaceFiles extends TypertRemoteService {
     return { hits, truncated: false }
   }
 
-  /** The Session's workspace root: its header `cwd`, or the sandbox policy root. */
+  /** The Session's workspace root: its logged root, its header `cwd`, or the sandbox policy root. */
   private workspaceRootOf(agent: Agent): string {
-    return agent.session.header.cwd ?? this.ctx.sandboxPolicy.workspaceRoot
+    return this.ctx.get('workingDirectory')?.rootOf(agent.session) ?? agent.session.header.cwd ?? this.ctx.sandboxPolicy.workspaceRoot
   }
 
   /** Resolve `path` against the root and refuse it unless the workspace contains it. */

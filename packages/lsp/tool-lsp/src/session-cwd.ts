@@ -5,13 +5,19 @@
  * @module @aeven/tool-lsp/session-cwd
  */
 
+import type { Context } from '@deepseek-ai/cordis'
 import type { ToolExecution } from '@aeven/tools'
+import type {} from '@aeven/working-directory'
 
 /**
  * The session workspace cwd for this call, or `undefined` when none applies.
+ * @param ctx - the tool plugin's context, through which `workingDirectory` is looked up when composed.
  * @param exec - the tool-execution context; only its optional `agent` is read.
- * @returns the calling agent's session cwd, or undefined for a non-agent caller.
+ * @returns the calling agent's session directory (`ctx.workingDirectory` when
+ *   composed, else its header cwd), or undefined for a non-agent caller.
  */
-export function sessionCwd(exec: ToolExecution): string | undefined {
-  return exec.agent?.session.header.cwd
+export function sessionCwd(ctx: Context, exec: ToolExecution): string | undefined {
+  const session = exec.agent?.session
+  if (session === undefined) return undefined
+  return ctx.get('workingDirectory')?.of(session) ?? session.header.cwd
 }

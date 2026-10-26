@@ -1365,6 +1365,9 @@ importers:
       '@aeven/util-crypto':
         specifier: workspace:^
         version: link:../../util/crypto
+      '@aeven/working-directory':
+        specifier: workspace:^
+        version: link:../../session/working-directory
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -1445,6 +1448,9 @@ importers:
       '@aeven/typert-protocol':
         specifier: workspace:^
         version: link:../../typert/protocol
+      '@aeven/working-directory':
+        specifier: workspace:^
+        version: link:../../session/working-directory
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -5874,6 +5880,9 @@ importers:
       '@aeven/tools':
         specifier: workspace:^
         version: link:../../core/tools
+      '@aeven/working-directory':
+        specifier: workspace:^
+        version: link:../../session/working-directory
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -7461,6 +7470,9 @@ importers:
       '@aeven/user-approval':
         specifier: workspace:^
         version: link:../../interaction/user-approval
+      '@aeven/working-directory':
+        specifier: workspace:^
+        version: link:../../session/working-directory
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -7507,6 +7519,9 @@ importers:
       '@aeven/tools':
         specifier: workspace:^
         version: link:../../core/tools
+      '@aeven/working-directory':
+        specifier: workspace:^
+        version: link:../../session/working-directory
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -7752,6 +7767,9 @@ importers:
       '@aeven/tools':
         specifier: workspace:^
         version: link:../../core/tools
+      '@aeven/working-directory':
+        specifier: workspace:^
+        version: link:../../session/working-directory
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -9075,6 +9093,9 @@ importers:
       '@aeven/tools':
         specifier: workspace:^
         version: link:../../core/tools
+      '@aeven/working-directory':
+        specifier: workspace:^
+        version: link:../../session/working-directory
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -9725,6 +9746,9 @@ importers:
       '@aeven/system-prompt':
         specifier: workspace:^
         version: link:../../core/system-prompt
+      '@aeven/working-directory':
+        specifier: workspace:^
+        version: link:../../session/working-directory
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -10471,12 +10495,18 @@ importers:
         specifier: ^4.4.3
         version: 4.6.5
     devDependencies:
+      '@aeven/agent':
+        specifier: workspace:^
+        version: link:../../core/agent
       '@aeven/session':
         specifier: workspace:^
         version: link:../../core/session
       '@aeven/session-projection':
         specifier: workspace:^
         version: link:../session-projection
+      '@aeven/system-prompt':
+        specifier: workspace:^
+        version: link:../../core/system-prompt
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -10490,12 +10520,21 @@ importers:
         specifier: ^4.4.3
         version: 4.6.5
     devDependencies:
+      '@aeven/agent':
+        specifier: workspace:^
+        version: link:../../core/agent
       '@aeven/session':
         specifier: workspace:^
         version: link:../../core/session
+      '@aeven/session-projection':
+        specifier: workspace:^
+        version: link:../session-projection
       '@aeven/subprocess':
         specifier: workspace:^
         version: link:../../subprocess/subprocess
+      '@aeven/system-prompt':
+        specifier: workspace:^
+        version: link:../../core/system-prompt
       '@aeven/working-directory':
         specifier: workspace:^
         version: link:../working-directory
@@ -11350,6 +11389,12 @@ importers:
       '@aeven/util-time':
         specifier: workspace:^
         version: link:../../util/time
+      '@aeven/working-directory':
+        specifier: workspace:^
+        version: link:../../session/working-directory
+      '@aeven/worktrees':
+        specifier: workspace:^
+        version: link:../../session/worktrees
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis

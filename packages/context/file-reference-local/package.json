@@ -39,13 +39,15 @@
     "@aeven/file-reference": "workspace:^",
     "@aeven/system-prompt": "workspace:^",
     "@aeven/tools": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/working-directory": "workspace:^"
   },
   "devDependencies": {
     "@aeven/agent": "workspace:^",
     "@aeven/file-reference": "workspace:^",
     "@aeven/system-prompt": "workspace:^",
     "@aeven/tools": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/working-directory": "workspace:^"
   }
 }

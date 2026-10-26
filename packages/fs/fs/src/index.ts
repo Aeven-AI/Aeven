@@ -10,6 +10,7 @@
 
 import { Context, Service } from '@deepseek-ai/cordis'
 import type { SandboxExecutionPolicy, SandboxMode } from '@aeven/sandbox'
+import { FsError } from './types.ts'
 import type {
   FsDirEntry,
   FsEditOutcome,
@@ -40,6 +41,18 @@ export type {
   FsWriteIntent,
   FsWriteOutcome,
 } from './types.ts'
+
+/**
+ * The ordered replacements one {@link FileSystem.editText} call applies.
+ * @param edit - one replacement, or a non-empty ordered list of them.
+ * @returns the replacements in application order.
+ * @throws when the list is empty.
+ */
+export function editRequests(edit: FsEditRequest | readonly FsEditRequest[]): readonly FsEditRequest[] {
+  const requests = Array.isArray(edit) ? edit as readonly FsEditRequest[] : [edit as FsEditRequest]
+  if (requests.length === 0) throw new FsError('an edit needs at least one replacement', 'FS_EDIT_NOT_FOUND')
+  return requests
+}
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -243,9 +256,12 @@ export abstract class FileSystem extends Service {
   /**
    * Atomically edit literal text. When supplied, the version guard is checked
    * before matching so stale content reports `FS_STALE_VERSION`; omission edits
-   * the current content without a freshness precondition.
+   * the current content without a freshness precondition. A list of
+   * replacements applies in order, each matched against the content the
+   * previous ones produced, and is written once: any replacement that does not
+   * match leaves the file unchanged.
    * @param target - the resolved target to edit.
-   * @param edit - the literal search/replace request.
+   * @param edit - one literal search/replace request, or a non-empty ordered list of them.
    * @param expected - the version guard; omit for an unconditional edit.
    * @param signal - aborts before atomic publication takes effect.
    * @param sandboxPolicy - the per-call mode and workspace root this edit runs
@@ -255,7 +271,7 @@ export abstract class FileSystem extends Service {
    */
   abstract editText(
     target: FsTarget,
-    edit: FsEditRequest,
+    edit: FsEditRequest | readonly FsEditRequest[],
     expected?: { version: FsVersion },
     signal?: AbortSignal,
     sandboxPolicy?: SandboxExecutionPolicy,

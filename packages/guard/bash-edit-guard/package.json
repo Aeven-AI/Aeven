@@ -33,12 +33,14 @@
     "@aeven/agent": "workspace:^",
     "@aeven/session": "workspace:^",
     "@aeven/tools": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/working-directory": "workspace:^"
   },
   "devDependencies": {
     "@aeven/agent": "workspace:^",
     "@aeven/session": "workspace:^",
     "@aeven/tools": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/working-directory": "workspace:^"
   }
 }

@@ -42,6 +42,12 @@ export interface SandboxExecutionPolicy {
   /** Absolute root directory `workspace-write` may write under. */
   workspaceRoot: string
   /**
+   * Further absolute directories `workspace-write` may write under, beside the
+   * workspace root: the shared repository metadata of a linked git worktree,
+   * which lives outside the checkout. Ignored under `read-only`.
+   */
+  additionalWritableRoots?: readonly string[]
+  /**
    * Opaque identity of the calling session (the branded `avn-session`
    * SessionId). Backends key per-session state off it (e.g. windows-acl gives
    * each live session/workspace pair a random private temp directory and SID,
