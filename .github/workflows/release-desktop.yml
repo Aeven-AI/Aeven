@@ -1,11 +1,12 @@
-# Build the desktop application for every release target and publish the
-# installers and update feeds progressively to one GitHub Release.
+# Build the desktop application for every release target, upload each target's
+# installers and update feeds to one draft GitHub Release as it finishes, and
+# publish the release once every target has uploaded.
 #
 # A `v<version>` tag that matches the root package.json version starts a run
 # that builds every target and publishes. A manual run names the targets it
 # builds in the comma separated `targets` input — `all` builds every target, as
 # a tag does — and keeps the installers as workflow artifacts; with `publish`
-# set it publishes completed targets under the version tag.
+# set it uploads completed targets under the version tag.
 # The release targets are win-x64, win-arm64, mac-arm64, mac-arm64-unsigned,
 # mac-x64, mac-x64-unsigned, linux-x64, and linux-arm64.
 # Each Windows and macOS target signs when all of its secrets exist, builds
@@ -95,7 +96,7 @@ jobs:
             echo "::error::no release target named; name a comma separated list of $known_ids, or all"
             exit 1
           fi
-          # Publishing runs select every target; each completed target publishes independently.
+          # Publishing runs select every target; each completed target uploads independently.
           if [ "${{ inputs.publish }}" = true ] && [ "$selected" -ne "$(printf '%s' "$targets" | jq 'length')" ]; then
             echo "::error::publishing needs every release target, but this run builds $(printf '%s' "$matrix" | jq -r '[.include[].id] | join(", ")')"
             exit 1
@@ -117,3 +118,25 @@ jobs:
       script: ${{ matrix.script }}
       publish: ${{ github.event_name == 'push' || inputs.publish == true }}
     secrets: inherit
+
+  # electron-updater reads only the newest public release and does not fall back
+  # to an older one, so a public release without a platform's feed hides every
+  # earlier update from that platform. The release stays a draft until every
+  # target has uploaded; rerunning a failed target publishes it.
+  publish:
+    name: Publish GitHub Release
+    needs: build
+    if: github.event_name == 'push' || inputs.publish == true
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="v$(node -p "require('./package.json').version")"
+          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false
