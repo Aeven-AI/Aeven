@@ -287,7 +287,7 @@ export abstract class ReleaseFamily {
    * The tag prefix a member's versions are tagged under. Every tag for that
    * member starts with it, which is how the last published version is found.
    * @param member - the member being published.
-   * @returns The prefix, ending in `-v`.
+   * @returns The prefix every tag for that member starts with.
    */
   abstract tagPrefixFor(member: ReleaseMember): string
 
@@ -328,7 +328,7 @@ class AvnFamily extends ReleaseFamily {
   readonly id = 'avn'
   readonly patterns = ['packages/!(experimental)/*/package.json', 'apps/*/package.json'] as const
   readonly packageScope = '@aeven'
-  readonly tagPrefix = 'avn-v'
+  readonly tagPrefix = 'v'
 
   /** Require current artifacts from a complete official client build. */
   override verifyBuildArtifacts(root: string): void {
@@ -349,7 +349,7 @@ class AvnFamily extends ReleaseFamily {
 
   /**
    * The single family prefix: every member shares one version, so one tag names it.
-   * @returns `avn-v`.
+   * @returns `v`.
    */
   tagPrefixFor(): string {
     return this.tagPrefix
