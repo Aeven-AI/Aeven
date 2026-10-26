@@ -42,6 +42,8 @@ export interface DesktopMenuFullScreen {
  */
 export interface DesktopMenuActions {
   checkForUpdates(): void
+  /** Show the running versions: the AppKit about panel on macOS, a native dialog elsewhere. */
+  showAbout(): void
   /** Ask the rendered page to open its Settings surface, which only the page owns. */
   openSettings(): void
   /** Ask the rendered page's composer to start or finish its local dictation. */
@@ -69,7 +71,7 @@ function applicationMenu(input: DesktopMenuInput): MenuItemConstructorOptions {
   return {
     label: input.applicationName,
     submenu: [
-      { role: 'about' },
+      { label: input.messages.aboutMenu, click: () => { input.actions.showAbout() } },
       { label: input.messages.checkUpdatesMenu, click: () => { input.actions.checkForUpdates() } },
       { type: 'separator' },
       { label: input.messages.settingsMenu, accelerator: 'CmdOrCtrl+,', click: () => { input.actions.openSettings() } },
@@ -200,13 +202,25 @@ function viewMenu(input: DesktopMenuInput): MenuItemConstructorOptions {
   }
 }
 
-/** Help menu: the manual update check, reachable without the application menu. */
+/**
+ * Help menu: the manual update check and, where no application menu exists to
+ * carry it, the About item.
+ */
 function helpMenu(input: DesktopMenuInput): MenuItemConstructorOptions {
+  const checkForUpdates = {
+    label: input.messages.checkUpdatesMenu,
+    click: () => { input.actions.checkForUpdates() },
+  }
   return {
     role: 'help',
-    submenu: [
-      { label: input.messages.checkUpdatesMenu, click: () => { input.actions.checkForUpdates() } },
-    ],
+    // macOS carries About in the application menu, so Help holds the check alone there.
+    submenu: input.platform === 'darwin'
+      ? [checkForUpdates]
+      : [
+        checkForUpdates,
+        { type: 'separator' },
+        { label: input.messages.aboutMenu, click: () => { input.actions.showAbout() } },
+      ],
   }
 }
 

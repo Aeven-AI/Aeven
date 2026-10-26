@@ -15,6 +15,7 @@ import {
   session,
   shell,
   type IpcMainInvokeEvent,
+  type MessageBoxOptions,
 } from 'electron'
 import { DESKTOP_MENU_ZOOM_STEP, FULL_SCREEN_ITEM_ID, applicationMenuTemplate, type DesktopMenuZoom } from './application-menu.ts'
 import { adoptedHostSignIn, completeOAuthLanding, forwardAevenApiRequest } from './aeven-sign-in.ts'
@@ -29,7 +30,7 @@ import { DesktopProjectManager, type DesktopProjectHooks } from './project-manag
 import { DesktopHostProcess } from './host-process.ts'
 import { DESKTOP_AEVEN_API_PATH, type DesktopAevenSignIn } from './host-protocol.ts'
 import { DESKTOP_IPC, type DesktopCaptionAction, type DesktopMenuCommand } from './ipc.ts'
-import { resolveDesktopLocale } from './locale.ts'
+import { formatDesktopMessage, resolveDesktopLocale } from './locale.ts'
 import { claimDesktopSingleInstance } from './single-instance.ts'
 import { DesktopBackgroundMode } from './background-mode.ts'
 import { DesktopUpdateCoordinator } from './update-coordinator.ts'
@@ -453,6 +454,49 @@ async function main(): Promise<void> {
   const openSettings = (): void => { sendMenuCommand(OPEN_SETTINGS_COMMAND) }
   const startDictation = (): void => { sendMenuCommand(START_DICTATION_COMMAND) }
 
+  /** The installed profile's release, absent until a launch has installed one. */
+  const installedBackendVersion = (): string | undefined => {
+    try {
+      return manager.releaseVersion()
+    } catch {
+      // `releaseVersion` throws only while no profile is installed, which the start screen precedes.
+      return undefined
+    }
+  }
+
+  /**
+   * Show the running versions: the AppKit about panel on macOS, a native dialog
+   * on the platforms whose Help menu carries the item.
+   */
+  const showAbout = (): void => {
+    const backend = installedBackendVersion()
+    const lines = [
+      formatDesktopMessage(messages.aboutAppLine, { version: app.getVersion() }),
+      formatDesktopMessage(messages.aboutElectronLine, { version: process.versions.electron }),
+      ...backend === undefined ? [] : [formatDesktopMessage(messages.aboutBackendLine, { version: backend })],
+    ]
+    if (process.platform === 'darwin') {
+      app.setAboutPanelOptions({
+        applicationName: app.name,
+        applicationVersion: app.getVersion(),
+        credits: lines.slice(1).join('\n'),
+      })
+      app.showAboutPanel()
+      return
+    }
+    const options: MessageBoxOptions = {
+      type: 'info',
+      title: messages.aboutMenu,
+      message: app.name,
+      detail: lines.join('\n'),
+      noLink: true,
+    }
+    const window = mainWindow
+    void (window === undefined || window.isDestroyed()
+      ? dialog.showMessageBox(options)
+      : dialog.showMessageBox(window, options))
+  }
+
   // The edit menu carries the clipboard and selection accelerators: macOS binds
   // Cmd+C, Cmd+V and Cmd+A through these roles, so a window without it cannot
   // copy or paste however the page is focused. The window menu is listed for
@@ -499,6 +543,7 @@ async function main(): Promise<void> {
             void checkAndPrompt(true)
           })
         },
+        showAbout,
         openSettings,
         startDictation,
         fullScreen: { label: fullScreenLabel(), click: toggleFullScreen },

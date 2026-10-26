@@ -14,6 +14,8 @@ Electron creates its window and paints the start screen from its own `avn-app://
 
 The application checks its release stream shortly after launch and every 30 minutes, downloads a release it finds while the reader keeps working, and installs it when the application quits. One native dialog offers a downloaded release once — restart now, or install on the next quit — and the application menu's **Check for Updates…** reports the newest release, a download in progress, or the failure. A release is the signed application, its matching avn seed, Node.js, and pnpm as one unit, so nothing updates in parts. On macOS the updater installs the signed ZIP that `latest-mac.yml` names and validates its Developer ID signature against the running application; an unsigned build has no ZIP in the feed and cannot update itself.
 
+**About Aeven** reports the running application, Electron, and installed backend versions: in the application menu on macOS, and in the Help menu on Windows and Linux.
+
 The [Desktop Host overlay](../desktop-host/config/desktop.cordis.patch.yml) supplies production service URLs for sign-in, inference, search, media, and account integrations; an installed app needs no `.env` file. The API defaults to `https://aeven.io/api`; web, media, and OAuth use `https://aeven.io`. Explicit `AEVEN_API_URL`, `AEVEN_WEB_URL`, `AEVEN_MEDIA_URL`, and `AEVEN_OAUTH_{X,APPLE,GOOGLE}_URL` environment settings override those defaults. Desktop sign-in opens a separate window. See the [endpoint decision](../../.agents/notes/implemented/bug-fix/2026-10-14-desktop-production-service-endpoints.md).
 
 ## Key technical decisions
