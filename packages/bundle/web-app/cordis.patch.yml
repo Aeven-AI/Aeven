@@ -102,11 +102,6 @@
     - id: session-turn-outline
       name: '@aeven/session-turn-outline'
 
-    # Session bookmarks (the sessionLabels projection key): the labels a user
-    # set on points of the log, delivered through the same seam.
-    - id: session-labels
-      name: '@aeven/session-labels'
-
     # Resolve bind host, SSH launch, and display once at boot, then mount the
     # matching dual-face directory picker. Mount -native or -browse directly in
     # an overlay to pin the interaction.
