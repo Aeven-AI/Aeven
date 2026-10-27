@@ -97,9 +97,16 @@ describe('the Yjs sync provider', () => {
     })
 
     const second = await host()
+    const opened: string[] = []
+    second.ctx.on('sync/status', (owner) => {
+      void second.sync.openDocument(owner, 'settings/account').then(() => { opened.push('opened') }, () => { opened.push('refused') })
+    })
     const join = await second.sync.join(account)
     await expect(second.sync.join(account)).rejects.toThrow(/already asking/)
     expect(second.sync.status(account)).toMatchObject({ state: 'joining' })
+    await new Promise(resolve => setTimeout(resolve, 250))
+    expect(second.sync.status(account).state).toBe('joining')
+    expect(opened.every(outcome => outcome === 'refused')).toBe(true)
     const stop = first.sync.acceptJoins(account)
     const code = await join.code
     await vi.waitFor(() => { expect(second.sync.status(account).joinCode).toBe(code) })

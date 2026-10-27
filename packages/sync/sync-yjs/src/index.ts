@@ -375,9 +375,9 @@ export default class YjsSync extends Sync {
   }
 
   /** @inheritdoc */
-  openDocument(owner: string, name: string): Promise<SyncDocument> {
-    const account = this.accounts.get(owner)
-    if (account === undefined) return Promise.reject(new Error('this device is not enrolled in the account\'s vault'))
-    return Promise.resolve(account.vault.openDocument(name))
+  async openDocument(owner: string, name: string): Promise<SyncDocument> {
+    const vault = this.enrolledVault(owner)
+    await Promise.resolve()
+    return vault.openDocument(name)
   }
 }

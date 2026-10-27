@@ -243,7 +243,8 @@ export class AccountVault {
    */
   async attach(relay: RelayConnection): Promise<void> {
     this.relay = relay
-    this.setState('connecting')
+    // A device waiting for admission stays unenrolled, so Consumers do not open documents it cannot hold yet.
+    if (this.enrolled()) this.setState('connecting')
     const { entries } = await relay.request('chain.get') as { entries: ChainEntry[] }
     this.adoptChain(verifyChain(entries), entries)
     if (!this.enrolled()) return
