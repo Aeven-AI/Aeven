@@ -41,7 +41,7 @@ Each candidate has labels:
 - status, for procedures: active (proven) or candidate (unproven)
 
 There are two lanes:
-- Person lane: what someone who cares about this person should know right now: their situation, mood, health, relationships, family, work and money circumstances, recent events, and how they want to be treated. Recent memories matter most here. When the person refers to what happened today or lately, keep the memories of those events, the most serious first: distress, crisis, or not wanting to live come before biography, achievements and logistics.
+- Person lane: what someone who cares about this person should know right now: their situation, mood, health, relationships, family, work and money circumstances, recent events, and how they want to be treated. Recent memories matter most for how they are doing now; lasting facts such as names, family, dates and life history matter however long ago they were recorded. When the person refers to what happened today or lately, keep the memories of those events, the most serious first: distress, crisis, or not wanting to live come before biography, achievements and logistics.
 - Task lane: what helps carry out the request: facts about the code, project, tools, and services, procedures for this kind of task, and the person's preferences for this kind of work.
 
 Decide which lane leads from REQUEST, read with CONTEXT. When the person shares their personal life or asks for emotional support, the person lane leads and task memories are kept only when the request also needs them. When they ask for work or complain about the assistant's work, the task lane leads. Frustration, swearing or criticism of an answer does not by itself mean personal sharing or a request for emotional support.

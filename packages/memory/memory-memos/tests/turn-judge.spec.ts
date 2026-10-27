@@ -126,6 +126,7 @@ describe('capture with a turn judgment', () => {
       cores: new OwnerCores(async () => core as never),
       routes: new LlmRouteContext(),
       toolLimits: { skills: 8, traces: 8, worldModels: 8 },
+      personFactsTtlMs: 0,
       judges,
       classify: async (input) => {
         classified.push(input.userText)
@@ -150,6 +151,7 @@ describe('capture with a turn judgment', () => {
       cores: new OwnerCores(async () => core as never),
       routes: new LlmRouteContext(),
       toolLimits: { skills: 8, traces: 8, worldModels: 8 },
+      personFactsTtlMs: 0,
       judges,
       warn: () => {},
       info: () => {},
@@ -172,6 +174,7 @@ describe('capture with a turn judgment', () => {
       cores: new OwnerCores(async () => core as never),
       routes: new LlmRouteContext(),
       toolLimits: { skills: 8, traces: 8, worldModels: 8 },
+      personFactsTtlMs: 0,
       judges,
       warn: () => {},
       info: () => {},
@@ -191,6 +194,7 @@ describe('capture with a turn judgment', () => {
       cores: new OwnerCores(async () => core as never),
       routes: new LlmRouteContext(),
       toolLimits: { skills: 8, traces: 8, worldModels: 8 },
+      personFactsTtlMs: 0,
       judges,
       warn: () => {},
       info: () => {},

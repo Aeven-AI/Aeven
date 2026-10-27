@@ -81,6 +81,7 @@ export function recallHarness(traces: readonly FakeTrace[], options: FakeCoreOpt
     cores: new OwnerCores(async () => fakeCore(traces, { ...options, queries }) as never),
     routes: new LlmRouteContext(),
     toolLimits: { skills: 8, traces: 8, worldModels: 8 },
+    personFactsTtlMs: 0,
     ...options.relevance === undefined ? {} : { relevance: options.relevance },
     ...options.sentenceRecall === undefined ? {} : { sentenceRecall: options.sentenceRecall },
     warn: () => {},

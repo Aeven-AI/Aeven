@@ -47,11 +47,14 @@ kind: "package-reference"
 | `embedding` | `Xenova/multilingual-e5-small`、`query: ` / `passage: `、`cpu`、`q8`、`maxInputTokens` 512 | 本地嵌入模型、角色前缀、transformers.js 设备与精度，以及每个嵌入片段的估算 token 数，保持在 E5 的 512 token 窗口内。`embedding.similarity` 在该模型自身的尺度上设定 MemOS 的余弦阈值——召回轨迹 0.84、episode 目标 0.86、策略关联 0.94、反馈合并 0.93、世界模型聚类 0.91——按每个阈值保留的记忆对比例从 MemOS 的 MiniLM 默认值映射而来，因为 E5 对无关文本的打分接近 0.8。在 `config.yaml` 保留 `local` 提供方时覆盖该文件的 `embedding` 模型字段。模型、前缀或片段大小变更时，每个账号的已存记忆会在其核心打开时于后台重新嵌入一次 |
 | `reindexBatchSize` | `100` | 重新索引时每批重新嵌入的向量数 |
 | `relevanceTimeoutMs` | `2500` | 召回预算内相关性判定的最长时间；失败或超时最多返回两个机械排序结果并标记降级 |
+| `profile` | enabled、`maxChars` 6000、`batchFacts` 150、`refreshMs` 600000、`timeoutMs` 180000 | 从该所有者全部 person 记忆中不分记录早晚蒸馏出的画像；需要 `hostLlm`。`refreshMs` 同时限定一次 person 记忆列表、以及由它读出的已记录日期被复用的时长 |
 | `minEpisodesForInduction` | `2` | MemOS 归纳策略前须支持该模式的独立片段数（`l2Induction.minEpisodesForInduction`） |
 | `candidatePolicies` | `false` | 是否同时召回 `candidate` 与 `active` 策略（`retrieval.includeCandidatePolicies`） |
 | `skillsPerTurn` | `1` | 每次召回最多提供的 MemOS 技能数（`retrieval.tier1TopK`） |
 
 轮次开始的召回由会话路由上的一次模型调用判定，而不是 MemOS 自身的过滤器：它读取请求、先前对话以及每个候选的种类（事实、往来、日志、流程、片段、技能、知识）、领域、年龄和流程状态，决定个人或任务优先，可不保留任何候选，并报告用户是否分享个人生活。捕获判定标记为 `kind:log` 的轮次以及摘要呈现为行动记录的旧记忆会作为日志提供。已归档的流程不作为候选。`rememberMany` 逐字导入事实，跳过所有者已有的相同文本，以 `source:import` 标记导入；无原始日期时添加 `imported:undated`，其轨迹时间视为未知年龄，且不加入近期记忆候选。`turnDomain` 返回捕获轮次的领域，`setProcedureStatus` 设置已学流程的 `procedure:<status>` 标签。对工作的抱怨即使带有愤怒仍属于任务请求。判定检查每个候选的内容，包括经验片段中的个人历史，并排除无关的个人历史。捕获摘要保留广告声明、计划和评估的归属、日期及不确定性。
+
+`profile` 提供一位密友始终会知道的内容，无论那条记忆多旧：召回只在轮次的文字与之匹配时才取到记忆。每次读取都会列出该所有者当前的 person 记忆（略去被取代的记忆、日志与已学流程），并从中读出每一条年度日期——紧接在 born、birthday、married 或 died 这类词之后的日期，或生日列表中的日期——已知时带年份，每个不同日期一条（[`src/dates.ts`](src/dates.ts)）。蒸馏出的画像存放在每个账户的 `data/profile.json`，并带有已并入的最新记忆游标。当存在更新的 person 记忆时，这次读取会在提问会话的路由上启动一次后台刷新，把它们从旧到新、每次 `batchFacts` 条并入，并在每次调用后写出画像，因此被中断的刷新会从停下的地方继续（[`src/profile.ts`](src/profile.ts)）；一次失败的调用会把原因留在 `data/profile.json.error`，直到下一次成功写入。提示词保留确切的姓名与日期，写出生日期而非年龄，为每种当前状况标注日期，并略去助手自己的看法。
 
 领域是轨迹标签（`domain:person`、`domain:project`、`domain:world`）。会话所用的模型在写入已存储摘要的同一个请求中为每个被捕获的轮次归档：承载该轮次助手回复的摘要请求（轻量捕获把整个轮次摘要为一个步骤；完整捕获不给工具子步骤助手文本）同时收到领域规则、会话的项目，以及用户消息所回答的那条回复，因此它的 JSON 答案在 `summary` 旁给出 `domain` 与 `corrects`（[`src/domain.ts`](src/domain.ts)）。当该请求没有走 Host 桥，或它的答案没有给出领域时，改为在捕获之后运行一次简短分类调用。`remember` 直接设置领域，而未打标签的轨迹在没有工作区时捕获算作 `experience`，在工作区内算作 `project`。`world` 分类要求关于工具或环境的可复用操作或事实，而不是关于 Aeven 设计的讨论。MemOS 的 experiences 与 skills 是 `experience`，world models 是 `world`。召回为每条命中读取它的轨迹以取得领域、工作区与摘要：它丢弃在另一个工作区捕获的项目记忆，而 MemOS 检索不会过滤这一点。自动轨迹召回使用已存储的摘要，包括结果标签。显式搜索整条返回轨迹：先已存储的摘要，再是摘要所提炼自的被捕获消息，随后是已存储的工具输入、输出与助手回答。缺少摘要时保留候选片段。轨迹读取保留存储的细节，受[记忆工具的输出限制](../tool-memory/README.zh.md)约束。记忆按已登录用户区分：每个操作都运行在该作用域所属账户的核心上、走该账户自己的数据库，并仍使用 MemOS profile `user-<owner>`，因此召回、捕获与工具从不跨账户。嵌入模型每个进程只加载一次并被每个核心共享；每个打开的核心保留自己的 SQLite 连接、嵌入缓存与后台计时器。
 
