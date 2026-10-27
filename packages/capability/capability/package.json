@@ -32,12 +32,20 @@
   ],
   "license": "Apache-2.0",
   "dependencies": {
-    "@deepseek-ai/schemastery": "workspace:^"
+    "@deepseek-ai/schemastery": "workspace:^",
+    "yjs": "13.6.27"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/sync": "workspace:^"
+  },
+  "peerDependenciesMeta": {
+    "@aeven/sync": {
+      "optional": true
+    }
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/sync": "workspace:^"
   }
 }

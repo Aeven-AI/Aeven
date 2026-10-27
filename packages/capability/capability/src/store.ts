@@ -239,6 +239,56 @@ export class CapabilityStore {
   async remove(owner: string, name: string): Promise<void> {
     await rm(this.directory(owner, name), { recursive: true, force: true })
   }
+
+  /**
+   * Read every file of one capability, keyed by its path relative to the capability's directory. The execution
+   * log is this device's record of the runs it saw, so it is not part of what the capability holds.
+   * @param owner - account id.
+   * @param name - capability name.
+   * @returns file contents by path.
+   */
+  async files(owner: string, name: string): Promise<Record<string, string>> {
+    const root = this.directory(owner, name)
+    const found: Record<string, string> = {}
+    const walk = async (relative: string): Promise<void> => {
+      for (const entry of await readdir(join(root, relative), { withFileTypes: true })) {
+        const path = relative === '' ? entry.name : `${relative}/${entry.name}`
+        if (entry.isDirectory()) {
+          await walk(path)
+          continue
+        }
+        if (path === 'executions.jsonl') continue
+        found[path] = await readFile(join(root, path), 'utf8')
+      }
+    }
+    await walk('')
+    return found
+  }
+
+  /**
+   * Replace one capability's files with another device's copy, leaving nothing the copy does not hold.
+   * @param owner - account id.
+   * @param name - capability name.
+   * @param files - file contents by path relative to the capability's directory.
+   */
+  async replaceFiles(owner: string, name: string, files: Readonly<Record<string, string>>): Promise<void> {
+    const root = this.directory(owner, name)
+    await rm(root, { recursive: true, force: true })
+    for (const [path, content] of Object.entries(files)) {
+      const target = join(root, relativePath(path))
+      await mkdir(dirname(target), { recursive: true })
+      await atomicWrite(target, content)
+    }
+  }
+}
+
+/** A path relative to a capability's directory, refused when it leaves that directory. */
+function relativePath(path: string): string {
+  const normalized = normalize(path).split(sep).join('/')
+  if (normalized.startsWith('/') || normalized.split('/').includes('..')) {
+    throw new Error(`capability files must stay inside the capability: ${path}`)
+  }
+  return normalized
 }
 
 async function atomicWrite(path: string, content: string): Promise<void> {

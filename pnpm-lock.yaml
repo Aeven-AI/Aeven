@@ -2447,7 +2447,13 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
+      yjs:
+        specifier: 13.6.27
+        version: 13.6.27
     devDependencies:
+      '@aeven/sync':
+        specifier: workspace:^
+        version: link:../../sync/sync
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
