@@ -105,7 +105,7 @@ MemOS 核心以 [`@deepseek-ai/memos-local-plugin`](../../../vendor/memos-local-
 
 #### 模型看到什么
 
-一次有意的 `memory_search` 或 `memory_get` 整条返回轨迹，按读者需要的顺序：已存储的摘要，随后 `User message: <摘要所提炼自的被捕获消息>`，随后 `Tool record: <每个工具的名称、参数、输出与错误代码>`，随后 `Assistant answer: <被捕获的回复>`，轨迹没有的部分略去。`@aeven/tool-memory` 把该文本渲染进模型的工具结果。
+一次有意的 `memory_search` 整条返回轨迹，按读者需要的顺序：已存储的摘要，随后 `User message: <摘要所提炼自的被捕获消息>`，随后 `Tool record: <每个工具的名称、参数、输出与错误代码>`，随后 `Assistant answer: <被捕获的回复>`，轨迹没有的部分略去。`memory_get` 以摘要与记录日期作为轨迹标题，并以相同的标签返回 `User message:` 与 `Assistant answer:`，因此更早的回复绝不会被读成此人说过的话。`@aeven/tool-memory` 把该文本渲染进模型的工具结果。
 
 #### Token 影响
 
