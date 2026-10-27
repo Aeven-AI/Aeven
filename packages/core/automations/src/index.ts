@@ -15,10 +15,12 @@ import type {} from '@aeven/host-webserver'
 import { brandString } from '@aeven/brand'
 import { boundContextSummary, createUserMessage } from '@aeven/llm'
 import { SessionId, SessionSeq, type Session } from '@aeven/session'
+import { LeaseHolder } from '@aeven/sync'
 import type { Domain } from '@aeven/storage-domain'
 import { setApprovalPolicy, type ApprovalRequestId } from '@aeven/user-approval'
 import { automationDomain, webhookDomain, inputSchema, patchSchema } from './domain.ts'
 import { latestDueOccurrence, nextOccurrence, SCHEDULE_KINDS } from './recurrence.ts'
+import { DefinitionSync, type SyncedDefinition } from './sync.ts'
 import { registerAutomationTools } from './tools.ts'
 import type { AutomationDefinition, AutomationId, AutomationInput, AutomationRun, AutomationRunId, AutomationRunnerId, AutomationSchedule, AutomationTrigger } from './types.ts'
 
@@ -132,6 +134,13 @@ export interface Config {
    * before it is read, and the accepted body becomes the run's untrusted payload.
    */
   readonly webhookMaxBodyBytes: number
+  /** How this device claims one automation for its scheduled runs while account sync serves its owner. */
+  readonly sync: {
+    /** Lifetime requested on each renewal of an automation's claim, in milliseconds. */
+    readonly leaseTtlMs: number
+    /** Interval between renewals of that claim, in milliseconds. */
+    readonly leaseRenewMs: number
+  }
 }
 /** Built-in automation service; schedules never authorize additional tool access. */
 export class Automations extends Service<Config> {
@@ -140,6 +149,10 @@ export class Automations extends Service<Config> {
     maxConcurrentRuns: z.number().step(1).min(1).required(), runTimeoutMinutes: z.number().min(1).required(),
     misfireGraceMinutes: z.number().min(0).required(), historyLimit: z.number().step(1).min(1).required(),
     workspaceTitle: z.string().required(), webhookMaxBodyBytes: z.number().step(1).min(1).required(),
+    sync: z.object({
+      leaseTtlMs: z.natural().min(1_000).default(180_000),
+      leaseRenewMs: z.natural().min(100).default(60_000),
+    }).default({ leaseTtlMs: 180_000, leaseRenewMs: 60_000 }),
   })
   private readonly ready: Promise<Domain<typeof automationDomain>>
   private readonly hooks: Promise<Domain<typeof webhookDomain>>
@@ -148,9 +161,17 @@ export class Automations extends Service<Config> {
   private stopped = false
   private readonly executionSessions = new Set<SessionId>()
   private readonly active = new Map<AutomationRunId, { promise: Promise<void>; handle?: AgentHandle }>()
+  private readonly synced: DefinitionSync
+  /** This device's claim on each automation's scheduled runs, by account and automation. */
+  private readonly leases = new Map<string, LeaseHolder>()
 
   constructor(ctx: Context, private readonly config: Config) {
     super(ctx, 'automations')
+    this.synced = new DefinitionSync(
+      ctx,
+      (id, entry) => { this.applySynced(id, entry) },
+      (message) => { ctx.logger.warn(message) },
+    )
     // Inbound secrets open before definitions, so a rejected trigger record cannot
     // leave the definition domain open without its owner.
     this.hooks = ctx.storageDomain.open(webhookDomain)
@@ -204,6 +225,13 @@ export class Automations extends Service<Config> {
         await hooks.close()
       }
     })
+    // Each account's automations follow it to every device its sync vault holds, once that vault is served here.
+    this.ctx.on('sync/status', (owner) => { void this.synced.attach(owner) })
+    this.ctx.effect(() => async () => {
+      await this.synced.dispose()
+      await Promise.all([...this.leases.values()].map(holder => holder.dispose()))
+      this.leases.clear()
+    }, 'automations.sync')
     ctx.effect(() => ctx.webServer.register({ kind: 'prefix', path: WEBHOOK_PATH, handler: (req, res) => this.answerWebhook(req, res) }), 'automations: inbound trigger')
     ctx.effect(() => ctx.connection.rpc.handle('/automation-control', async (endpoint, payload, signal) => {
       try {
@@ -339,7 +367,7 @@ export class Automations extends Service<Config> {
         ...parsed, id, ...owner === undefined ? {} : { owner }, revision: 1, status: 'active', agentPreset, grants: [],
         model, createdAt: now, updatedAt: now, lastAdmittedAt: null, executionTarget: { kind: 'local', runnerId: this.runnerId(domain) },
       }
-      await domain.table('definitions').put(id, definition)
+      await this.store(domain, definition)
       this.arm(domain)
       return definition
     })
@@ -361,7 +389,7 @@ export class Automations extends Service<Config> {
       const next: AutomationDefinition = {
         ...current, ...parsed, status, revision: current.revision + 1, updatedAt: new Date().toISOString(),
       }
-      await domain.table('definitions').put(id, next)
+      await this.store(domain, next)
       this.arm(domain)
       return next
     })
@@ -433,8 +461,9 @@ export class Automations extends Service<Config> {
    */
   remove(id: AutomationId): Promise<void> {
     return this.transaction(async (domain) => {
-      this.owned(domain, id)
+      const definition = this.owned(domain, id)
       await domain.table('definitions').delete(id)
+      this.forget(definition)
       // The credential dies with its definition; an interrupted second write leaves
       // an orphan secret that the startup sweep removes.
       await (await this.hooks).table('webhooks').delete(id)
@@ -526,7 +555,7 @@ export class Automations extends Service<Config> {
     return this.transaction(async (domain) => {
       const definition = this.definitionOf(domain, session.id)
       if (definition === undefined || definition.grants.some(grant => grant.toolName === toolName && grant.scope === scope)) return
-      await domain.table('definitions').put(definition.id, { ...definition, grants: [...definition.grants, { toolName, scope, grantedAt: new Date().toISOString() }] })
+      await this.store(domain, { ...definition, grants: [...definition.grants, { toolName, scope, grantedAt: new Date().toISOString() }] })
     })
   }
 
@@ -554,7 +583,7 @@ export class Automations extends Service<Config> {
   private async advanceAdmission(domain: Domain<typeof automationDomain>, id: AutomationId, at: string): Promise<void> {
     const definition = domain.table('definitions').get(id)
     if (definition === undefined || (definition.lastAdmittedAt !== null && Date.parse(definition.lastAdmittedAt) >= Date.parse(at))) return
-    await domain.table('definitions').put(id, { ...definition, lastAdmittedAt: at })
+    await this.store(domain, { ...definition, lastAdmittedAt: at })
   }
 
   private async prune(domain: Domain<typeof automationDomain>): Promise<void> {
@@ -655,12 +684,88 @@ export class Automations extends Service<Config> {
           const lastAdmitted = definition.lastAdmittedAt === null ? -Infinity : Date.parse(definition.lastAdmittedAt)
           if (occurrence === null || Date.parse(occurrence) <= Math.max(Date.parse(definition.updatedAt), lastAdmitted)) continue
           const id = this.occurrenceId(definition.id, occurrence)
-          if (current.table('runs').get(id) === undefined) await this.admit(current, definition, 'schedule', occurrence)
+          if (current.table('runs').get(id) !== undefined) continue
+          // While the account is served here, one of its devices runs an automation's occurrence.
+          if (!await this.claimsScheduler(definition)) continue
+          await this.admit(current, definition, 'schedule', occurrence)
         }
         this.drain(current)
         this.arm(current)
       }).catch((error: unknown) => { this.stopped = true; clearTimeout(this.timer); this.ctx.logger.error(error) })
     }, Math.min(2_147_483_647, Math.max(0, Math.min(...due) - Date.now())))
+  }
+
+  /**
+   * Store one definition and publish it to the account's other devices.
+   * @param domain - the open definition domain.
+   * @param definition - the definition to store.
+   * @returns when the definition is durable.
+   */
+  private async store(domain: Domain<typeof automationDomain>, definition: AutomationDefinition): Promise<void> {
+    await domain.table('definitions').put(definition.id, definition)
+    const owner = definition.owner
+    if (owner === undefined) return
+    this.synced.publish(owner, definition).catch((error: unknown) => {
+      this.ctx.logger.warn(`automations: the definition was not published to the account: ${String(error)}`)
+    })
+  }
+
+  /** Publish the removal of one automation to the account's other devices. */
+  private forget(definition: AutomationDefinition): void {
+    const owner = definition.owner
+    if (owner === undefined) return
+    this.synced.forget(owner, definition.id, Date.now()).catch((error: unknown) => {
+      this.ctx.logger.warn(`automations: the removal was not published to the account: ${String(error)}`)
+    })
+  }
+
+  /**
+   * Apply another device's definition or removal when it is newer than what this device holds.
+   * @param id - the automation.
+   * @param entry - the synced definition or its removal.
+   */
+  private applySynced(id: AutomationId, entry: SyncedDefinition): void {
+    void this.transaction(async (domain) => {
+      const current = domain.table('definitions').get(id)
+      // A later edit wins over an earlier one, and a removal wins over an edit stored at the same instant.
+      if (current !== undefined && Date.parse(current.updatedAt) > entry.changedAt) return
+      if (entry.definition === undefined) {
+        if (current === undefined) return
+        await domain.table('definitions').delete(id)
+        this.arm(domain)
+        return
+      }
+      if (current !== undefined && JSON.stringify(current) === JSON.stringify(entry.definition)) return
+      await domain.table('definitions').put(id, entry.definition)
+      this.arm(domain)
+    }).catch((error: unknown) => {
+      this.ctx.logger.warn(`automations: another device's automation was not stored: ${String(error)}`)
+    })
+  }
+
+  /**
+   * Whether this device may admit one automation's scheduled occurrence: always while sync does not serve the
+   * automation's account, and otherwise only while this device holds the automation's claim.
+   * @param definition - the automation that is due.
+   * @returns whether to admit the occurrence.
+   */
+  private async claimsScheduler(definition: AutomationDefinition): Promise<boolean> {
+    const owner = definition.owner
+    if (owner === undefined) return true
+    const sync = this.ctx.get('sync')
+    const state = sync?.status(owner).state
+    if (sync === undefined || state === undefined || state === 'unenrolled' || state === 'joining') return true
+    const key = `${owner}\n${definition.id}`
+    let holder = this.leases.get(key)
+    if (holder === undefined) {
+      holder = new LeaseHolder(sync, owner, `automations/${definition.id}`, {
+        ttlMs: this.config.sync.leaseTtlMs, renewMs: this.config.sync.leaseRenewMs,
+      })
+      this.leases.set(key, holder)
+      holder.start()
+    }
+    await holder.renew()
+    return holder.held()
   }
 
   private occurrenceId(id: AutomationId, at: string): AutomationRunId {
@@ -756,9 +861,7 @@ export class Automations extends Service<Config> {
       const last = messages.at(-1)
       const summary = last?.type === 'assistant/message' ? last.data.message.content.filter(block => block.type === 'text').map(block => block.text).join('\n') : null
       const completed = end?.type === 'turn/end' && end.data.reason.kind === 'completed'
-      // oxlint-disable-next-line typescript/no-unnecessary-condition -- the run timeout is set while the turns above are awaited.
       const status = completed && !timedOut ? 'succeeded' : this.stopped ? 'cancelled' : 'failed'
-      // oxlint-disable-next-line typescript/no-unnecessary-condition -- a Host stop can land during the awaits above.
       const error = timedOut ? 'Execution timed out.' : completed ? null : 'Execution did not complete; inspect its conversation.'
       await domain.table('runs').put(run.id, { ...running, status, finishedAt: new Date().toISOString(), summary, error })
     } catch (error) {

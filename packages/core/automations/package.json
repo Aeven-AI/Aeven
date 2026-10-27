@@ -32,6 +32,7 @@
   ],
   "dependencies": {
     "luxon": "^3.7.2",
+    "yjs": "13.6.27",
     "zod": "^4.4.3"
   },
   "peerDependencies": {
@@ -47,10 +48,16 @@
     "@aeven/session": "workspace:^",
     "@aeven/session-title": "workspace:^",
     "@aeven/storage-domain": "workspace:^",
+    "@aeven/sync": "workspace:^",
     "@aeven/user-approval": "workspace:^",
     "@aeven/tools": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/schemastery": "workspace:^"
+  },
+  "peerDependenciesMeta": {
+    "@aeven/sync": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@aeven/agent": "workspace:^",
@@ -66,6 +73,7 @@
     "@aeven/session": "workspace:^",
     "@aeven/session-title": "workspace:^",
     "@aeven/storage-domain": "workspace:^",
+    "@aeven/sync": "workspace:^",
     "@aeven/user-approval": "workspace:^",
     "@aeven/tools": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",

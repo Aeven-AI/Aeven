@@ -6300,6 +6300,9 @@ importers:
       luxon:
         specifier: ^3.7.2
         version: 3.7.2
+      yjs:
+        specifier: 13.6.27
+        version: 13.6.27
       zod:
         specifier: ^4.4.3
         version: 4.6.5
@@ -6340,6 +6343,9 @@ importers:
       '@aeven/storage-domain':
         specifier: workspace:^
         version: link:../../storage/storage-domain
+      '@aeven/sync':
+        specifier: workspace:^
+        version: link:../../sync/sync
       '@aeven/tools':
         specifier: workspace:^
         version: link:../tools
