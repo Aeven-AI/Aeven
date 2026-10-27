@@ -1,7 +1,7 @@
 {
   "name": "@aeven/llm-cache-warm",
   "description": "Prompt-cache warmer plugin: while a tool call keeps the loop waiting, replay the session's last conversation request with a one-token cap so the next step lands on a cached prefix",
-  "version": "0.3.20-alpha",
+  "version": "0.3.21-alpha",
   "publishConfig": {
     "access": "public"
   },

@@ -1,7 +1,7 @@
 {
   "name": "@aeven/pwsh-sandbox",
   "description": "Sandbox-consuming implementation of the Aeven PowerShell executor seam (confines every command via ctx.sandbox, reports denial/enforcement result facts)",
-  "version": "0.3.20-alpha",
+  "version": "0.3.21-alpha",
   "publishConfig": {
     "access": "public"
   },
