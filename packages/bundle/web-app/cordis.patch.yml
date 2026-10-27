@@ -243,6 +243,10 @@
     - id: session-sync
       name: '@aeven/session-sync'
 
+    # Account-level settings (theme, language, default models) on every device of the account.
+    - id: settings-sync
+      name: '@aeven/settings-sync'
+
     # Settings → Personalization: how each signed-in person wants Aeven to
     # talk with them, rendered into their sessions right after the persona.
     - id: personalization

@@ -2374,6 +2374,9 @@ importers:
       '@aeven/session-turn-outline':
         specifier: workspace:^
         version: link:../../session/session-turn-outline
+      '@aeven/settings-sync':
+        specifier: workspace:^
+        version: link:../../settings/settings-sync
       '@aeven/skill-catalog':
         specifier: workspace:^
         version: link:../../skill/skill-catalog
@@ -10701,6 +10704,25 @@ importers:
       '@aeven/settings':
         specifier: workspace:^
         version: link:../settings
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/settings/settings-sync:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+      yjs:
+        specifier: 13.6.27
+        version: 13.6.27
+    devDependencies:
+      '@aeven/settings':
+        specifier: workspace:^
+        version: link:../settings
+      '@aeven/sync':
+        specifier: workspace:^
+        version: link:../../sync/sync
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
