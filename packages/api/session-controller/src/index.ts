@@ -189,6 +189,17 @@ The user's account display name is ${JSON.stringify(source.clientDisplayName)}.
     ctx.on('session/created', (session) => {
       ctx.emit('api-session/added', this.listState.summaryFor(session))
     })
+    ctx.on('session-persistence/append', (header) => {
+      if (!header.replica) return
+      const updating = this.listState.summaryForStored(header.id).then((summary) => {
+        ctx.emit('api-session/added', summary)
+        ctx.emit('api-session/activity', summary.sessionId, summary.updatedAt)
+      }).catch((error: unknown) => {
+        ctx.logger.warn(`session sync: updating the imported session's list entry failed: ${String(error)}`)
+      })
+      this.promotions.add(updating)
+      void updating.finally(() => { this.promotions.delete(updating) })
+    })
     ctx.on('session/disposed', (session) => {
       ctx.emit('api-session/removed', session.id)
     })
@@ -214,6 +225,10 @@ The user's account display name is ${JSON.stringify(source.clientDisplayName)}.
   }
 
   private promote(observation: SessionObservation): void {
+    if (observation.header.replica) {
+      observation[Symbol.dispose]()
+      return
+    }
     const sessionId = observation.header.id
     const task = (async () => {
       using ownedObservation = observation

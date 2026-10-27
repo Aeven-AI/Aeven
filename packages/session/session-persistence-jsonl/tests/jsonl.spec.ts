@@ -181,6 +181,12 @@ describe('JsonlSessionPersistence: format helpers', () => {
       .toThrow('unseeded session header inherited event count must be 0')
   })
 
+  it('round-trips the replica marker and refuses malformed marker values', () => {
+    const line = toHeaderLine({ ...meta('replica'), replica: true })
+    expect(scanLog(Buffer.from(`${JSON.stringify(line)}\n`)).meta.replica).toBe(true)
+    expect(() => scanLog(Buffer.from(`${JSON.stringify({ ...line, replica: false })}\n`))).toThrow(/session header/)
+  })
+
   it('round-trips the subagent origin and rejects other physical values', () => {
     const line = toHeaderLine({ ...meta('subagent-origin'), origin: 'subagent' })
     expect(scanLog(Buffer.from(`${JSON.stringify(line)}\n`)).meta.origin).toBe('subagent')

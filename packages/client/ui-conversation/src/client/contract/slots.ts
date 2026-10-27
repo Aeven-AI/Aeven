@@ -284,6 +284,8 @@ export type ConvViewProps = PropsRuntime<'conversation.view'>
 
 /** Business callbacks injected into the resident Conversation shell. */
 export interface ConversationInjected {
+  /** Fork the selected replicated conversation and open the writable child on this device. */
+  continueHere?: (() => Promise<void>) | undefined
   /** Connect and open a blank Session in the selected Workspace. */
   selectWorkspace: (workspaceId: WorkspaceId) => Promise<void>
   /**

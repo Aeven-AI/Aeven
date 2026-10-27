@@ -18,7 +18,7 @@ import type { SessionPersistenceRevision } from './revision.ts'
 // Re-export the metadata vocabulary so Consumers import it from the Service Definition.
 export type { SessionHeader } from '@aeven/session'
 export { SessionPersistenceRevision } from './revision.ts'
-export { SessionPersistenceBusyError, SessionPersistenceNotFoundError } from './errors.ts'
+export { SessionPersistenceBusyError, SessionPersistenceNotFoundError, SessionPersistenceReadOnlyError } from './errors.ts'
 
 /** Lightweight immutable source identity returned without loading a full log. */
 export interface SessionPersistenceSnapshot {
@@ -96,6 +96,17 @@ export type {
 } from './coordinator.ts'
 
 declare module '@deepseek-ai/cordis' {
+  interface Events {
+    /**
+     * A contiguous event batch committed to durable storage, including cold replicated logs.
+     * @mode emit
+     * @param header - the persisted session's metadata.
+     * @param events - the newly committed events.
+     * @avnScopeScan unsupported
+     */
+    'session-persistence/append'(header: SessionHeader, events: readonly SessionEvent[]): void
+  }
+
   interface Context {
     sessionPersistence: SessionPersistence
   }

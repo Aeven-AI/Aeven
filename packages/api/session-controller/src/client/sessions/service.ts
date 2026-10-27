@@ -37,6 +37,8 @@ import type { Session } from './session.ts'
 
 /** Session list row projected from the host list RPC plus live stream increments. */
 export interface SessionSummary {
+  /** This device reads a replicated log; continuing creates a writable fork. */
+  replica?: true
   id: SessionId
   /** Session header creation time, epoch ms (the sidebar row's created distance). */
   createdAt: number
@@ -671,6 +673,7 @@ export class ClientSessions implements ISessions {
         ...(entry.cwd !== undefined ? { cwd: entry.cwd } : {}),
         ...(entry.parentSessionId !== undefined ? { parentId: entry.parentSessionId } : {}),
         ...(entry.origin !== undefined ? { origin: entry.origin } : {}),
+        ...(entry.replica ? { replica: true } : {}),
       }
       this.summaryCache.set(entry, summary)
       byId[entry.sessionId] = summary

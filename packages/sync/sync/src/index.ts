@@ -62,6 +62,16 @@ export interface SyncStreamBatch {
   readonly payload: Uint8Array
 }
 
+/** The relay's decision on one device's exclusive work. */
+export interface SyncLease {
+  /** Whether this device holds the lease. */
+  granted: boolean
+  /** The device that currently holds it. */
+  holder: DeviceId
+  /** Expiry according to the relay's clock, in milliseconds since the Unix epoch. */
+  expiresAt: number
+}
+
 /** A join in progress on the device that asked to join. */
 export interface SyncJoin {
   /** The six-digit code, once an enrolled device answered; the user compares it with the code that device shows. */
@@ -224,6 +234,23 @@ export abstract class Sync extends Service {
    * @returns the next page of batches and whether more follow.
    */
   abstract readStream(owner: string, name: string, after: number): Promise<{ batches: SyncStreamBatch[]; more: boolean }>
+
+  /**
+   * Acquire or renew exclusive work on this device. Requires an enrolled, online account; an unreachable relay
+   * rejects the request. Callers must stop work before renewal fails or its requested duration elapses.
+   * @param owner - the account.
+   * @param name - logical work name, hidden from the relay.
+   * @param ttlMs - requested lifetime, bounded by the relay's deployment policy.
+   * @returns the current holder and whether this device acquired the lease.
+   */
+  abstract acquireLease(owner: string, name: string, ttlMs: number): Promise<SyncLease>
+
+  /**
+   * Release work held by this device; another device's lease is unaffected. Requires a connection.
+   * @param owner - the account.
+   * @param name - logical work name.
+   */
+  abstract releaseLease(owner: string, name: string): Promise<void>
 
   /**
    * Publish a status change to `sync/status` listeners.

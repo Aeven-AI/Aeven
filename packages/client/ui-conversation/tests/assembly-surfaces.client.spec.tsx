@@ -63,7 +63,7 @@ function WorkspaceProbe({ open }: EmptyWorkspaceOwnerProps) {
   )
 }
 
-async function bench(opts?: { blank?: boolean }) {
+async function bench(opts?: { blank?: boolean; replica?: true }) {
   const runtime = await SlotTestRuntime.create()
   // The plugin injects `remote.session` for Session export; the double parks it
   // without a wire.
@@ -78,7 +78,7 @@ async function bench(opts?: { blank?: boolean }) {
   runtime.slots.installLocale(locale)
   await runtime.sessions.add({
     id: SID,
-    summary: { title: 'S', displayTitle: 'S', cwd: '/proj' },
+    summary: { title: 'S', displayTitle: 'S', cwd: '/proj', ...(opts?.replica ? { replica: true as const } : {}) },
     ...(opts?.blank === true ? { snapshot: { blank: true } } : {}),
     session: {
       loadOlder: vi.fn<ISession['loadOlder']>(),
@@ -91,6 +91,39 @@ async function bench(opts?: { blank?: boolean }) {
 }
 
 describe('resident composer', () => {
+  it('offers a linked continuation instead of the composer for a replicated conversation', async () => {
+    const runtime = await bench({ replica: true })
+    try {
+      const childId = 'replica-child' as SessionId
+      await runtime.sessions.add({ id: childId, summary: { title: 'Child', displayTitle: 'Child' } })
+      runtime.sessions.open(SID)
+      const fork = vi.spyOn(runtime.sessions, 'fork').mockResolvedValue(childId)
+      const open = vi.spyOn(runtime.sessions, 'open')
+      const view = runtime.renderRoot()
+      expect(view.container.querySelector('[data-composer-input]')).toBeNull()
+      fireEvent.click(view.getByRole('button', { name: '在此继续' }))
+      await waitFor(() => { expect(open).toHaveBeenCalledWith(childId) })
+      expect(fork).toHaveBeenCalledWith({ sessionId: SID, increaseTitle: true })
+    } finally {
+      await runtime.dispose()
+    }
+  })
+
+  it('keeps the replicated conversation selected and shows failure when continuation is refused', async () => {
+    const runtime = await bench({ replica: true })
+    try {
+      vi.spyOn(runtime.sessions, 'fork').mockRejectedValue(new Error('no completed turn'))
+      const open = vi.spyOn(runtime.sessions, 'open')
+      const view = runtime.renderRoot()
+      fireEvent.click(view.getByRole('button', { name: '在此继续' }))
+      await waitFor(() => { expect(view.getByText('无法在此继续。')).toBeTruthy() })
+      expect(open).not.toHaveBeenCalled()
+      expect(view.getByRole('button', { name: '在此继续' }).hasAttribute('disabled')).toBe(false)
+    } finally {
+      await runtime.dispose()
+    }
+  })
+
   it('renders the inert cold-start composer while no session exists at all', async () => {
     const runtime = await SlotTestRuntime.create()
     // The plugin injects `remote.session` for Session export; the double parks

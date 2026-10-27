@@ -55,6 +55,7 @@ interface HeaderLine {
   delegationDepth: number
   agentPreset?: string
   owner?: string
+  replica?: true
 }
 
 /**
@@ -87,6 +88,7 @@ export function toHeaderLine(
     delegationDepth: header.delegationDepth ?? 0,
     ...header.agentPreset !== undefined ? { agentPreset: header.agentPreset } : {},
     ...header.owner !== undefined ? { owner: header.owner } : {},
+    ...header.replica === true ? { replica: true } : {},
   }
 }
 
@@ -111,6 +113,7 @@ function fromHeaderLine(line: HeaderLine): SessionStorageMetadata {
       delegationDepth: line.delegationDepth,
       ...line.agentPreset !== undefined ? { agentPreset: line.agentPreset } : {},
       ...line.owner !== undefined ? { owner: line.owner } : {},
+      ...line.replica === true ? { replica: true } : {},
     },
     inheritedEventCount: SessionLogOffset(line.seedLength ?? 0),
   }
@@ -140,6 +143,7 @@ function isHeaderLine(value: unknown): value is HeaderLine {
       || (value as { origin?: unknown }).origin === 'subagent')
     && ((value as { agentPreset?: unknown }).agentPreset === undefined
       || typeof (value as { agentPreset?: unknown }).agentPreset === 'string')
+    && ((value as { replica?: unknown }).replica === undefined || (value as { replica?: unknown }).replica === true)
     && ((value as { owner?: unknown }).owner === undefined
       || typeof (value as { owner?: unknown }).owner === 'string')
   )

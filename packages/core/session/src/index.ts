@@ -143,6 +143,9 @@ function validateSessionHeader(id: SessionId, input: unknown): SessionHeader {
   if (record.agentPreset !== undefined && typeof record.agentPreset !== 'string') {
     throw new Error('session header agentPreset must be a string')
   }
+  if (record.replica !== undefined && record.replica !== true) {
+    throw new Error('session header replica must be true when present')
+  }
   if (record.owner !== undefined && (typeof record.owner !== 'string' || record.owner.length === 0)) {
     throw new Error('session header owner must be a non-empty string')
   }
@@ -586,7 +589,7 @@ export class Session {
     // captures the creation seed: no load-time write. Re-marking is skipped
     // because a cold session is resumed on first touch, so repeatedly opening
     // one must not grow its log per open.
-    if (seed !== undefined && this.log.at(-1)?.type !== 'session/end-seed') {
+    if (!this.header.replica && seed !== undefined && this.log.at(-1)?.type !== 'session/end-seed') {
       this.append('session/end-seed', {})
     }
   }
@@ -684,6 +687,7 @@ export class Session {
     data: SessionEventMap[T],
     ...opts: T extends SurfaceEventType ? [opts: SurfaceIntent] : []
   ): SessionEvent<T> {
+    if (this.header.replica) throw new Error(`session "${this.id}" is a replica; fork it to continue`)
     const surfaceOpts: SurfaceIntent | undefined = opts[0]
     const surfaceMetadata = {
       ...surfaceOpts?.sourceEventSeqs === undefined ? {} : { sourceEventSeqs: surfaceOpts.sourceEventSeqs },
@@ -964,6 +968,7 @@ export class SessionStore extends Service {
       ...meta?.delegationDepth === undefined ? {} : { delegationDepth: meta.delegationDepth },
       ...meta?.agentPreset === undefined ? {} : { agentPreset: meta.agentPreset },
       ...meta?.owner === undefined ? {} : { owner: meta.owner },
+      ...meta?.replica === undefined ? {} : { replica: meta.replica },
     }
     return Session.create(sessionId, seed, header, options?.inheritedEventCount)
   }
@@ -1185,7 +1190,7 @@ export class SessionStore extends Service {
       seed,
       inheritedEventCount: SessionLogOffset(seed.length),
       meta: {
-        ...liveSource.header.cwd !== undefined ? { cwd: liveSource.header.cwd } : {},
+        ...liveSource.header.cwd !== undefined && !liveSource.header.replica ? { cwd: liveSource.header.cwd } : {},
         ...liveSource.header.owner !== undefined ? { owner: liveSource.header.owner } : {},
         parentSession: liveSource.id,
         isSeeded: true,

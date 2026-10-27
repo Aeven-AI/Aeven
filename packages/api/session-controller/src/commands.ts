@@ -348,7 +348,7 @@ export class SessionCommandController {
       sessionId: childId,
       seed: source.events.slice(0, cut),
       inheritedEventCount: cut,
-      cwd: source.header.cwd,
+      cwd: source.header.replica ? workspace?.path : source.header.cwd,
       parentSession: source.header.id,
     })
     if (workspace !== undefined) {

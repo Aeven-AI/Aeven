@@ -177,6 +177,26 @@ export class ApiSessionList {
   }
 
   /**
+   * Project one cold log after a replication batch committed.
+   * @param id - the imported session.
+   * @returns its current list summary without activating an agent.
+   */
+  async summaryForStored(id: SessionId): Promise<SessionSummary> {
+    using source = await this.ctx.sessionQuery.observeSession(id)
+    const snapshot = source.projections
+    const values = snapshot?.values as SessionProjectionValues | undefined
+    const metadata = values?.sessionListMetadata
+    return {
+      sessionId: id,
+      updatedAt: updatedAt(source.header, metadata),
+      running: false,
+      blank: metadata?.blank ?? false,
+      ...listFields(source.header),
+      ...snapshot === undefined ? {} : { projections: { asOfSeq: snapshot.asOfSeq, values: snapshot.values as SessionProjectionValues } },
+    }
+  }
+
+  /**
    * Read every visible attached and persisted Session without activating an Agent.
    * @param signal - optional cancellation for persistence reads.
    * @returns visible Session summaries ordered by activity.
@@ -468,10 +488,12 @@ function listFields(header: SessionHeader): {
   readonly createdAt: number
   readonly parentSessionId?: SessionId
   readonly origin?: 'subagent'
+  readonly replica?: true
   readonly cwd?: string
 } {
   return {
     createdAt: header.createdAt,
+    ...(header.replica ? { replica: true as const } : {}),
     ...(header.parentSession === undefined ? {} : { parentSessionId: header.parentSession }),
     ...(header.origin === undefined ? {} : { origin: header.origin }),
     ...(header.cwd === undefined ? {} : { cwd: header.cwd }),

@@ -275,6 +275,10 @@ export function apply(ctx: Context): void {
       'conversation.navigation.utilities': { kind: 'list', scope: 'root' },
     },
     inject: (sessionId: SessionId | undefined): ConversationInjected => ({
+      continueHere: sessionId === undefined ? undefined : async () => {
+        const childId = await sessions.fork({ sessionId, increaseTitle: true })
+        sessions.open(childId)
+      },
       hooks: {
         composerBlock: sessionId === undefined ? ABSENT_BLOCK : composerBlocks.storeFor(sessionId),
         selectedView: sessionId === undefined ? ABSENT_SELECTED_VIEW : uiConversation.binding(sessionId).selectedView,

@@ -12,7 +12,7 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import Schema from '@deepseek-ai/schemastery'
 import { credentialRef, type CredentialRef } from '@aeven/credentials'
 import { accountHomePath, avnHomePath, ACCOUNTS_DIR_NAME } from '@aeven/home-paths'
-import { Sync, type SyncDevice, type SyncDocument, type SyncJoin, type SyncJoinRequest, type SyncStatus, type SyncStreamBatch } from '@aeven/sync'
+import { Sync, type SyncDevice, type SyncDocument, type SyncJoin, type SyncJoinRequest, type SyncLease, type SyncStatus, type SyncStreamBatch } from '@aeven/sync'
 import type { DeviceId } from '@aeven/sync-vault'
 import { JoinRequester } from './join.ts'
 import { RelayConnection, type RelayHandlers } from './relay.ts'
@@ -47,6 +47,7 @@ function ignore(): void {}
 
 interface Account {
   store: SyncStore
+  loop?: Promise<void>
   vault: AccountVault
   /** The open relay connection, if any. */
   relay?: RelayConnection
@@ -85,14 +86,17 @@ export default class YjsSync extends Sync {
 
   /** Open every enrolled account's store and start its connection loop. */
   [Service.init](): void {
-    this.ctx.effect(() => () => {
+    this.ctx.effect(() => async () => {
       this.disposed = true
       for (const account of this.accounts.values()) {
         account.relay?.close()
         account.wake()
-        account.vault.dispose()
-        account.store.close()
       }
+      await Promise.all([...this.accounts.values()].map(async (account) => {
+        await account.loop
+        await account.vault.dispose()
+        account.store.close()
+      }))
       this.accounts.clear()
     }, 'sync-yjs: accounts')
     const root = avnHomePath(ACCOUNTS_DIR_NAME)
@@ -122,7 +126,7 @@ export default class YjsSync extends Sync {
     )
     account = { store, vault, wake: () => {} }
     this.accounts.set(owner, account)
-    void this.connectLoop(owner, account)
+    account.loop = this.connectLoop(owner, account)
     return account
   }
 
@@ -354,6 +358,32 @@ export default class YjsSync extends Sync {
     const account = this.accounts.get(owner)
     if (account === undefined) throw new Error('this device is not enrolled in the account\'s vault')
     return account.vault
+  }
+
+  private leaseConnection(owner: string): { relay: RelayConnection; device: DeviceId; vault: AccountVault } {
+    const account = this.accounts.get(owner)
+    const status = account?.vault.status()
+    if (account?.relay === undefined || status?.state !== 'online' || status.device === undefined) {
+      throw new Error('exclusive sync work needs an enrolled account connected to the relay')
+    }
+    return { relay: account.relay, device: status.device, vault: account.vault }
+  }
+
+  /** @inheritdoc */
+  async acquireLease(owner: string, name: string, ttlMs: number): Promise<SyncLease> {
+    const { relay, device, vault } = this.leaseConnection(owner)
+    const result = await relay.request('lease.acquire', { name: vault.documentId(`leases/${name}`), device, ttlMs })
+    if (typeof result.granted !== 'boolean' || typeof result.holder !== 'string' ||
+      !Number.isSafeInteger(result.expiresAt) || (result.granted && result.holder !== device)) {
+      throw new Error('the relay returned an invalid lease')
+    }
+    return { granted: result.granted, holder: result.holder as DeviceId, expiresAt: result.expiresAt as number }
+  }
+
+  /** @inheritdoc */
+  async releaseLease(owner: string, name: string): Promise<void> {
+    const { relay, device, vault } = this.leaseConnection(owner)
+    await relay.request('lease.release', { name: vault.documentId(`leases/${name}`), device })
   }
 
   /** @inheritdoc */

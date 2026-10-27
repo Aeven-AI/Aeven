@@ -14,6 +14,20 @@ import SessionStore, {
 import type { CreateSessionOptions, SessionEventType, SessionHeader, SessionSurface } from '@aeven/session'
 
 describe('Session', () => {
+  it('keeps a replicated open log byte-for-byte and rejects live appends', () => {
+    const id = SessionId('replica')
+    const events: SessionEvent[] = [{ type: 'turn/start', seq: SessionSeq(0), time: 1, data: { turn: 1 } }]
+    const replica = Session.fromRestore(id, events, {
+      version: SESSION_FORMAT_VERSION, id, createdAt: 1, isSeeded: false, replica: true,
+    }, SessionLogOffset(0))
+    expect(replica.snapshotEvents()).toEqual(events)
+    expect(() => replica.append('turn/end', { turn: 1, reason: { kind: 'completed' } })).toThrow(/replica; fork/)
+    expect(replica.snapshotEvents()).toEqual(events)
+    expect(() => Session.fromRestore(id, [], {
+      ...replica.header, replica: false as unknown as true,
+    }, SessionLogOffset(0))).toThrow(/replica must be true/)
+  })
+
   it('exposes one stable readonly surface view', () => {
     const session = Session.create(SessionId('surface-view'))
     const surface = session.surface

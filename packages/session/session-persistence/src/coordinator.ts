@@ -33,7 +33,7 @@ import type {
   SessionLocation,
   SessionStorageMetadata,
 } from './index.ts'
-import { SessionPersistenceNotFoundError } from './errors.ts'
+import { SessionPersistenceNotFoundError, SessionPersistenceReadOnlyError } from './errors.ts'
 import type { SessionPersistenceRevision } from './revision.ts'
 import { observeQueuedAbort, SessionPreparations } from './preparations.ts'
 import type { SessionPreparationReservation } from './preparations.ts'
@@ -878,6 +878,7 @@ export class PersistenceCoordinator<TornMarker = unknown> {
     state.materialized = true
     state.cursor = nextCursor
     this.preparations.invalidate(id)
+    this.ctx.emit('session-persistence/append', state.storage.meta, events)
   }
 
   /**
@@ -1151,7 +1152,7 @@ export class PersistenceCoordinator<TornMarker = unknown> {
       }
 
       // Preserve complete interrupted events and synthesize only missing closers.
-      const closers = interruptedTurnClosers(storedEvents).map(adoptSessionEvent)
+      const closers = meta.replica ? [] : interruptedTurnClosers(storedEvents).map(adoptSessionEvent)
       const balanced = [...storedEvents, ...closers]
       const session = this.ctx.sessions.prepare(id, {
         seed: balanced,
@@ -1304,7 +1305,10 @@ export class PersistenceCoordinator<TornMarker = unknown> {
       return await this.preparations.reserve(
         id,
         () => this.serialize(id, () => this.prepareCore(id)),
-        source => this.serialize(id, () => this.commitPrepared(source), signal),
+        source => this.serialize(id, () => {
+          if (source.inspection.meta.replica) throw new SessionPersistenceReadOnlyError(id)
+          return this.commitPrepared(source)
+        }, signal),
         signal,
       )
     } catch (error: unknown) {

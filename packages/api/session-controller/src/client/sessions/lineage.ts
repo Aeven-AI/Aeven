@@ -15,6 +15,8 @@ export interface TitledSessionSummary extends SessionSummary {
 
 /** One flattened session-list row with lineage depth. */
 export interface SessionListEntry {
+  /** This device holds a read-only replicated log. */
+  replica?: true
   sessionId: SessionId
   /** Session header creation time, epoch ms. */
   createdAt: number

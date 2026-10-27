@@ -239,7 +239,7 @@ function WidthHandle(props: {
 export function ConversationRoot({
   sessionId, useSession, useSessions, useSessionPendingInteraction,
   useInput, useComposerBlock, useSelectedView, useStartAddress, useArchivedSessionIds,
-  renderSlot, renderSlotChain, t, sidebarCollapsed, toggleSidebar, composerPlaceholder, unarchiveSession,
+  renderSlot, renderSlotChain, t, sidebarCollapsed, toggleSidebar, composerPlaceholder, unarchiveSession, continueHere,
 }: ConversationRootProps) {
   const session = useSession(s => s)
   const pendingInteraction = useSessionPendingInteraction(snapshot =>
@@ -247,6 +247,14 @@ export function ConversationRoot({
   const openState = session?.openState
   const inputState = useInput(s => s)
   const summaryBlank = useSessions(s => sessionId === undefined ? undefined : s.byId[sessionId]?.blank)
+  const replica = useSessions(s => sessionId !== undefined && s.byId[sessionId]?.replica === true)
+  const [continuation, setContinuation] = useState<{
+    sessionId: SessionId | undefined
+    pending: boolean
+    failed: boolean
+  }>()
+  const continuing = continuation?.sessionId === sessionId && continuation?.pending === true
+  const continueFailed = continuation?.sessionId === sessionId && continuation?.failed === true
   const sessionsPending = useSessions(s => s.phase) === 'pending'
   // A plugin this package cannot import (ui-model-selection) says this session cannot
   // send; its reason is already localized by whoever raised it.
@@ -395,12 +403,30 @@ export function ConversationRoot({
     </div>
   )
 
+  const replicaBar = (
+    <div className={css.archivedFrame}>
+      <div className={css.archivedBar} role="status">
+        <span>{t(continueFailed ? 'sync.continueFailed' : 'sync.replica')}</span>
+        {continueHere !== undefined && (
+          <Button variant="primary" size="sm" disabled={continuing} onClick={() => {
+            setContinuation({ sessionId, pending: true, failed: false })
+            void continueHere().then(() => {
+              setContinuation(current => current?.sessionId === sessionId ? undefined : current)
+            }, () => {
+              setContinuation(current => current?.sessionId === sessionId ? { sessionId, pending: false, failed: true } : current)
+            })
+          }}>{t('sync.continueHere')}</Button>
+        )}
+      </div>
+    </div>
+  )
+
   const phase: ComposerPhase = settling ? 'settling' : centered ? 'hero' : 'active'
   const composer = renderSlotChain(
     'conversation.composer',
     { sessionId, session, pendingInteraction },
     {
-      fallback: archived ? archivedBar : composerBar,
+      fallback: archived ? archivedBar : replica ? replicaBar : composerBar,
       fallbackOnly: sessionId === undefined,
       overlay: true,
     },

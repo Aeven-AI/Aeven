@@ -15,6 +15,7 @@ import type {} from '@aeven/credentials'
 import type { Sync } from '@aeven/sync'
 import YjsSync from '../src/index.ts'
 import { SyncStore } from '../src/store.ts'
+import { RelayConnection } from '../src/relay.ts'
 import { FakeRelay } from './fake-relay.ts'
 
 let relay: FakeRelay
@@ -77,6 +78,39 @@ describe('the Yjs sync provider', () => {
     expect(sync.joinRequests('nobody')).toEqual([])
     sync.rejectJoin('nobody', 'x')
     await expect(sync.approveJoin('nobody', 'x')).rejects.toThrow(/no join request/)
+  })
+
+  it('coordinates exclusive work across enrolled Hosts without exposing its logical name', async () => {
+    const account = owner()
+    const first = await host()
+    await expect(first.sync.acquireLease(account, 'memory/maintenance', 30_000)).rejects.toThrow(/connected/)
+    await expect(first.sync.releaseLease(account, 'memory/maintenance')).rejects.toThrow(/connected/)
+    await first.sync.createVault(account)
+    await vi.waitFor(() => { expect(first.sync.status(account).state).toBe('online') })
+    const second = await host()
+    const accept = first.sync.acceptJoins(account)
+    const joining = await second.sync.join(account)
+    await joining.code
+    await vi.waitFor(() => { expect(first.sync.joinRequests(account)).toHaveLength(1) })
+    await first.sync.approveJoin(account, first.sync.joinRequests(account)[0]!.id)
+    await joining.admitted
+    accept()
+    await vi.waitFor(() => { expect(second.sync.status(account).state).toBe('online') })
+
+    const winner = await first.sync.acquireLease(account, 'memory/maintenance', 30_000)
+    expect(winner).toMatchObject({ granted: true, holder: first.sync.status(account).device })
+    expect(await second.sync.acquireLease(account, 'memory/maintenance', 30_000)).toEqual({ ...winner, granted: false })
+    await second.sync.releaseLease(account, 'memory/maintenance')
+    expect((await second.sync.acquireLease(account, 'memory/maintenance', 30_000)).granted).toBe(false)
+    expect((await first.sync.acquireLease(account, 'memory/maintenance', 30_000)).granted).toBe(true)
+    expect([...relay.account(account).leases.keys()]).not.toContain('memory/maintenance')
+    await first.sync.releaseLease(account, 'memory/maintenance')
+    expect((await second.sync.acquireLease(account, 'memory/maintenance', 30_000)).granted).toBe(true)
+    const lease = [...relay.account(account).leases.values()][0]!
+    lease.expiresAt = 0
+    expect((await first.sync.acquireLease(account, 'memory/maintenance', 30_000)).granted).toBe(true)
+    relay.refusals.set('lease.acquire', ['server-error'])
+    await expect(first.sync.acquireLease(account, 'memory/maintenance', 30_000)).rejects.toThrow(/server-error/)
   })
 
   it('turns sync on, joins a second Host by code, and carries a document between them', async () => {
@@ -237,6 +271,40 @@ describe('the Yjs sync provider', () => {
     const restored = await host({ home })
     await new Promise(resolve => setTimeout(resolve, 250))
     expect(restored.sync.status(waiting).state).toBe('unenrolled')
+  })
+
+  it('waits for an in-flight publish acknowledgement before closing account storage', async () => {
+    const account = owner()
+    const first = await host()
+    await first.sync.createVault(account)
+    await vi.waitFor(() => {
+      expect(first.sync.status(account)).toMatchObject({ state: 'online', pending: 0 })
+    })
+    const started = Promise.withResolvers<undefined>()
+    const finish = Promise.withResolvers<undefined>()
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- request.call(this) supplies the connection.
+    const request = RelayConnection.prototype.request
+    const spy = vi.spyOn(RelayConnection.prototype, 'request').mockImplementation(async function (this: RelayConnection, type, fields) {
+      const result = await request.call(this, type, fields)
+      if (type === 'publish') {
+        started.resolve(undefined)
+        await finish.promise
+      }
+      return result
+    })
+    try {
+      const document = await first.sync.openDocument(account, 'settings/pending')
+      document.doc.getMap('values').set('name', 'pending')
+      await started.promise
+      const stopping = first.fiber.dispose()
+      await vi.waitFor(() => { expect(relay.account(account).sockets.size).toBe(0) })
+      finish.resolve(undefined)
+      await stopping
+      expect(first.sync.status(account).state).toBe('unenrolled')
+    } finally {
+      finish.resolve(undefined)
+      spy.mockRestore()
+    }
   })
 
   it('closes a connection that opens after the provider stopped', async () => {

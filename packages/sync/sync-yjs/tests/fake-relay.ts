@@ -16,6 +16,7 @@ interface Account {
   seq: number
   frames: StoredFrame[]
   chain: unknown[]
+  leases: Map<string, { device: string; expiresAt: number }>
   keys: Map<string, string>
   sockets: Set<Peer>
 }
@@ -74,7 +75,7 @@ export class FakeRelay {
   account(owner: string): Account {
     let account = this.accounts.get(owner)
     if (account === undefined) {
-      account = { seq: 0, frames: [], chain: [], keys: new Map(), sockets: new Set() }
+      account = { seq: 0, frames: [], chain: [], leases: new Map(), keys: new Map(), sockets: new Set() }
       this.accounts.set(owner, account)
     }
     return account
@@ -156,6 +157,25 @@ export class FakeRelay {
         const after = typeof request.after === 'number' ? request.after : 0
         const frames = account.frames.filter(frame => frame.id === request.id && frame.kind === 'stream' && frame.seq > after)
         ok({ frames: frames.slice(0, 2).map(frame => ({ seq: frame.seq, frame: frame.data.toString('base64url') })), more: frames.length > 2 })
+        return
+      }
+      case 'lease.acquire': {
+        const name = String(request.name)
+        const device = String(request.device)
+        const held = account.leases.get(name)
+        if (held !== undefined && held.device !== device && held.expiresAt > Date.now()) {
+          ok({ granted: false, holder: held.device, expiresAt: held.expiresAt })
+        } else {
+          const lease = { device, expiresAt: Date.now() + Number(request.ttlMs) }
+          account.leases.set(name, lease)
+          ok({ granted: true, holder: device, expiresAt: lease.expiresAt })
+        }
+        return
+      }
+      case 'lease.release': {
+        const name = String(request.name)
+        if (account.leases.get(name)?.device === request.device) account.leases.delete(name)
+        ok()
         return
       }
       case 'signal':

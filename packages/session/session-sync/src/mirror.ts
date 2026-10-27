@@ -54,7 +54,7 @@ function after(events: readonly SessionEvent[], fallback: number): number {
 export class SessionMirror {
   private index: SyncDocument | undefined
   private timer: ReturnType<typeof setInterval> | undefined
-  private publishing = false
+  private publishing: Promise<void> | undefined
   private importing: Promise<void> | undefined
   private importAgain = false
   private closed = false
@@ -66,6 +66,7 @@ export class SessionMirror {
   private readonly revisions = new Map<string, string>()
   private readonly localNext = new Map<string, number>()
   private readonly cursors = new Map<string, number>()
+  private readonly created = new Set<string>()
 
   /**
    * @param owner - the account.
@@ -159,10 +160,13 @@ export class SessionMirror {
 
   private async importSession(id: string, entry: IndexEntry, from: number, exists: boolean): Promise<void> {
     let next = from
-    let created = exists
+    let created = exists || this.created.has(id)
+    let pending: SessionEvent[] = []
     let cursor = this.cursors.get(id) ?? 0
+    let committedCursor = cursor
     for (;;) {
       const { batches, more } = await this.sync.readStream(this.owner, streamName(id), cursor)
+      if (this.isClosed()) return
       for (const { seq, payload } of batches) {
         cursor = seq
         const batch = JSON.parse(brotliDecompressSync(payload).toString('utf8')) as Batch
@@ -170,15 +174,24 @@ export class SessionMirror {
         const first = events.at(0)
         if (first === undefined) continue
         if (first.seq !== next) throw new Error(`session ${id} is missing events ${String(next)}–${String(first.seq - 1)}`)
+        pending.push(...events)
+        next = after(events, next)
+        // A seeded artifact materializes only once its complete inherited prefix can commit together.
+        if (next < entry.inherited) continue
         if (!created) {
-          await this.persistence.create(entry.header, entry.header.isSeeded ? SessionLogOffset(entry.inherited) : undefined)
+          await this.persistence.create(
+            { ...entry.header, replica: true },
+            entry.header.isSeeded ? SessionLogOffset(entry.inherited) : undefined,
+          )
+          this.created.add(id)
           created = true
         }
-        await this.persistence.append(id as SessionId, events)
-        next = after(events, next)
+        await this.persistence.append(id as SessionId, pending)
+        pending = []
         this.localNext.set(id, next)
+        committedCursor = cursor
       }
-      this.cursors.set(id, cursor)
+      this.cursors.set(id, committedCursor)
       if (!more || this.isClosed()) return
     }
   }
@@ -187,10 +200,14 @@ export class SessionMirror {
    * Publish new events of sessions this device writes.
    * @returns when this scan ends.
    */
-  async publish(): Promise<void> {
+  publish(): Promise<void> {
     const me = this.device()
-    if (this.publishing || me === undefined || this.isClosed()) return
-    this.publishing = true
+    if (me === undefined || this.isClosed()) return Promise.resolve()
+    this.publishing ??= this.publishAll(me).finally(() => { this.publishing = undefined })
+    return this.publishing
+  }
+
+  private async publishAll(me: string): Promise<void> {
     try {
       const entries = this.entries()
       const oldest = Date.now() - this.tuning.backfillDays * DAY_MS
@@ -198,7 +215,7 @@ export class SessionMirror {
         if (this.isClosed()) return
         const id = header.id as string
         const entry = entries.get(id)
-        if (header.owner !== this.owner || (entry !== undefined && entry.origin !== me)) continue
+        if (header.replica || header.owner !== this.owner || (entry !== undefined && entry.origin !== me)) continue
         if (entry === undefined && header.createdAt < oldest) continue
         if (this.revisions.get(id) === String(revision)) continue
         await this.publishSession(header, entry?.next ?? 0, me)
@@ -206,31 +223,30 @@ export class SessionMirror {
       }
     } catch (error) {
       this.warn(`session sync: publishing sessions failed: ${String(error)}`)
-    } finally {
-      this.publishing = false
     }
   }
 
   private async publishSession(header: SessionHeader, from: number, me: string): Promise<void> {
     const suffix = await this.persistence.readFrom(header.id, SessionLogOffset(from))
-    if (suffix.events.length === 0) return
+    if (this.isClosed() || suffix.events.length === 0) return
     let batch: SessionEvent[] = []
     let bytes = 0
     const flush = async (): Promise<void> => {
       const first = batch.at(0)
-      if (first === undefined) return
+      if (first === undefined || this.isClosed()) return
       const payload: Batch = { first: first.seq, events: batch }
       await this.sync.appendStream(this.owner, streamName(header.id), new Uint8Array(brotliCompressSync(JSON.stringify(payload))))
       batch = []
       bytes = 0
     }
     for (const event of suffix.events) {
-      const size = JSON.stringify(event).length
+      const size = Buffer.byteLength(JSON.stringify(event), 'utf8')
       if (bytes + size > this.tuning.batchBytes) await flush()
       batch.push(event)
       bytes += size
     }
     await flush()
+    if (this.isClosed()) return
     this.entries().set(header.id, {
       header: suffix.meta,
       inherited: suffix.inheritedEventCount,
@@ -239,10 +255,11 @@ export class SessionMirror {
     })
   }
 
-  /** Stop publishing and close the index. */
-  dispose(): void {
+  /** Stop scheduling, wait for active imports and publications, and close the index. */
+  async dispose(): Promise<void> {
     this.closed = true
     if (this.timer !== undefined) clearInterval(this.timer)
+    await Promise.all([this.publishing, this.importing])
     this.index?.close()
   }
 }

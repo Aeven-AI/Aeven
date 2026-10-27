@@ -43,8 +43,8 @@ export function apply(ctx: Context, config: Config): void {
       ctx.logger.warn(`session sync: starting failed: ${String(error)}`)
     })
   })
-  ctx.effect(() => () => {
-    for (const mirror of mirrors.values()) mirror.dispose()
+  ctx.effect(() => async () => {
+    await Promise.all([...mirrors.values()].map(mirror => mirror.dispose()))
     mirrors.clear()
   }, 'session-sync.mirrors')
 }

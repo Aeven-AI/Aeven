@@ -468,9 +468,11 @@ export class AccountVault {
     }
   }
 
-  /** Destroy every open document. */
-  dispose(): void {
+  /** Destroy open documents and wait for the active outbox pass to stop. */
+  async dispose(): Promise<void> {
+    this.detach()
     for (const open of this.docs.values()) open.doc.destroy()
     this.docs.clear()
+    await this.flushing
   }
 }

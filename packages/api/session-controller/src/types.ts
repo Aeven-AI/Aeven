@@ -197,6 +197,8 @@ export type QueueAction =
 
 /** One Session list entry. */
 export interface SessionSummary {
+  /** Another device owns this log; continue by forking its completed history. */
+  readonly replica?: true
   readonly sessionId: SessionId
   /** Session header creation time, epoch ms. */
   readonly createdAt: number

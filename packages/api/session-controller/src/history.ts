@@ -17,6 +17,7 @@ import type {
 } from '@aeven/session'
 import { SessionQueryError, type SessionObservation } from '@aeven/session-query'
 import type {} from '@aeven/subagent'
+import type {} from '@aeven/session-persistence'
 import { RemoteError } from '@aeven/typert-protocol'
 import { callerMayAccessSession } from './agent.ts'
 import type {
@@ -133,6 +134,11 @@ export class SessionHistoryController {
       buffered.pushBack(event)
       notify()
     }, { global: true })
+    const disposeStored = this.ctx.on('session-persistence/append', (header, events) => {
+      if (header.id !== target || !header.replica) return
+      for (const event of events) buffered.pushBack(event)
+      notify()
+    })
     const disposeCreated = this.ctx.on('session/created', (session) => {
       if (session.id !== target) return
       // Constructor seed events have no session/event notification. Normally
@@ -193,6 +199,7 @@ export class SessionHistoryController {
       this.closeFollowers.delete(close)
       signal.removeEventListener('abort', onAbort)
       disposeCreated()
+      disposeStored()
       disposeEvent()
     }
   }

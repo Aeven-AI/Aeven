@@ -43,6 +43,7 @@ class MemoryPersistence {
   append(id: string, events: readonly SessionEvent[]): Promise<void> {
     const log = this.logs.get(id)
     if (log === undefined) return Promise.reject(new Error(`no session ${id}`))
+    if (log.events.length + events.length < log.inherited) return Promise.reject(new Error('incomplete inherited prefix'))
     if (events[0]?.seq !== log.events.length) return Promise.reject(new Error(`non-contiguous append to ${id}`))
     log.events.push(...events)
     log.revision++
@@ -72,7 +73,7 @@ class MemoryPersistence {
 
 const tuning: SessionSyncTuning = { publishMs: 20, batchBytes: 2_000, backfillDays: 30 }
 const mirrors: SessionMirror[] = []
-afterEach(() => { for (const mirror of mirrors.splice(0)) mirror.dispose() })
+afterEach(async () => { await Promise.all(mirrors.splice(0).map(mirror => mirror.dispose())) })
 
 function mirror(device: MemorySyncDevice, persistence: MemoryPersistence, warn = vi.fn()): { mirror: SessionMirror; warn: typeof warn } {
   const created = new SessionMirror(OWNER, device.asSync(), persistence as never, tuning, warn)
@@ -98,7 +99,7 @@ describe('session mirror', () => {
     await vi.waitFor(() => { expect(count(homeB, 'recent')).toBe(60) })
     expect(network.streams.get('sessions/recent')!.length).toBeGreaterThan(1)
     expect(homeB.logs.get('recent')!.events).toEqual(homeA.logs.get('recent')!.events)
-    expect(homeB.logs.get('recent')!.header).toMatchObject({ cwd: '/work', owner: OWNER })
+    expect(homeB.logs.get('recent')!.header).toMatchObject({ cwd: '/work', owner: OWNER, replica: true })
     await vi.waitFor(() => { expect(count(homeB, 'seeded')).toBe(4) })
     expect(count(homeB, 'old')).toBe(0)
     expect(count(homeB, 'someone-else')).toBe(0)
@@ -110,6 +111,46 @@ describe('session mirror', () => {
     const published = network.streams.get('sessions/recent')!.length
     await new Promise(resolve => setTimeout(resolve, 80))
     expect(network.streams.get('sessions/recent')!.length).toBe(published)
+  })
+
+  it('commits a fork inherited across many stream pages as one initial prefix', async () => {
+    const network = new MemorySyncNetwork()
+    const a = network.device()
+    const b = network.device()
+    const homeA = new MemoryPersistence()
+    const homeB = new MemoryPersistence()
+    homeA.start('large-fork', Date.now(), 0, { isSeeded: true })
+    homeA.logs.get('large-fork')!.inherited = 12
+    homeA.add('large-fork', 20, 900)
+    await mirror(a, homeA).mirror.start()
+    const append = vi.spyOn(homeB, 'append')
+    await mirror(b, homeB).mirror.start()
+    await vi.waitFor(() => { expect(count(homeB, 'large-fork')).toBe(20) })
+    expect(network.streams.get('sessions/large-fork')!.length).toBeGreaterThan(6)
+    expect(append.mock.calls[0]![1].length).toBeGreaterThanOrEqual(12)
+    expect(homeB.logs.get('large-fork')!.header.replica).toBe(true)
+    expect(homeB.logs.get('large-fork')!.events).toEqual(homeA.logs.get('large-fork')!.events)
+  })
+
+  it('retries a failed first append without registering the replica twice', async () => {
+    const network = new MemorySyncNetwork()
+    const a = network.device()
+    const b = network.device()
+    const homeA = new MemoryPersistence()
+    const homeB = new MemoryPersistence()
+    homeA.start('retry', Date.now(), 3)
+    await mirror(a, homeA).mirror.start()
+    const create = vi.spyOn(homeB, 'create').mockImplementation(async (header, inherited) => {
+      if (homeB.logs.has(header.id)) throw new Error('session already registered')
+      homeB.logs.set(header.id, { header, inherited: inherited ?? 0, events: [], revision: 0 })
+    })
+    vi.spyOn(homeB, 'append').mockRejectedValueOnce(new Error('disk unavailable'))
+    const { mirror: receiver, warn } = mirror(b, homeB)
+    await receiver.start()
+    await vi.waitFor(() => { expect(warn).toHaveBeenCalledWith(expect.stringContaining('disk unavailable')) })
+    receiver.reconnected()
+    await vi.waitFor(() => { expect(count(homeB, 'retry')).toBe(3) })
+    expect(create).toHaveBeenCalledTimes(1)
   })
 
   it('continues a session the device already holds part of, and catches up after reconnecting', async () => {
