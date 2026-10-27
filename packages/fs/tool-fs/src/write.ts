@@ -1,15 +1,17 @@
 /**
  * Model-facing full-file write. It obtains an optional intent from the single policy slot, calls
  * `ctx.fs.writeText` without a stat, then records the resulting version; no policy means an
- * unconditional atomic create-or-overwrite.
+ * unconditional atomic create-or-overwrite. A guarded replace whose target was deleted since the
+ * session observed it records the absence and creates the file, since no content can be lost.
  * @module @aeven/tool-fs/src/write
  */
 
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@aeven/tools'
 import type { DiffCallView, DiffResultView, ToolResult } from '@aeven/tools'
-import type { FsWriteOutcome } from '@aeven/fs'
-import type {} from '@aeven/fs'
+import { FsError } from '@aeven/fs'
+import type { FsTarget, FsWriteIntent, FsWriteOutcome } from '@aeven/fs'
+import type { ToolExecution } from '@aeven/tools'
 import { computeHunkDiffs, diffsFromMeta } from './diff.ts'
 import { remediateFsError } from './error.ts'
 import { sessionResolveOptions } from './session-cwd.ts'
@@ -59,6 +61,24 @@ interface WriteToolArgs {
  * @param sandbox - the shared sandbox-escalation API (advertisement, mode stamping, denial mapping).
  */
 export function applyWriteTool(ctx: Context, sandbox: FsSandboxController): void {
+  /** Write under the intent; a replace whose target is gone records the absence and creates it. */
+  const writeOrRecreate = async (
+    target: FsTarget,
+    content: string,
+    intent: FsWriteIntent | undefined,
+    exec: ToolExecution,
+    sandboxPolicy: Parameters<Context['fs']['writeText']>[4],
+  ): Promise<FsWriteOutcome> => {
+    try {
+      return await ctx.fs.writeText(target, content, intent, exec.signal, sandboxPolicy)
+    } catch (error: unknown) {
+      if (!(error instanceof FsError) || error.code !== 'FS_STALE_VERSION') throw error
+      if (await ctx.fs.stat(target, exec.signal) !== undefined) throw error
+    }
+    ctx.emit('fs/observed', target, { kind: 'absent' }, exec)
+    return await ctx.fs.writeText(target, content, { kind: 'createIfAbsent' }, exec.signal, sandboxPolicy)
+  }
+
   ctx.systemPrompt.section({
     name: 'tool:write',
     order: ctx.systemPrompt.getSectionOrder('TOOL_WRITE'),
@@ -114,7 +134,7 @@ export function applyWriteTool(ctx: Context, sandbox: FsSandboxController): void
       const intent = await ctx.waterfall('fs/write-intent', target, exec, () => undefined)
       let outcome: FsWriteOutcome
       try {
-        outcome = await ctx.fs.writeText(target, input.content, intent, exec.signal, sandboxPolicy)
+        outcome = await writeOrRecreate(target, input.content, intent, exec, sandboxPolicy)
       } catch (error: unknown) {
         // A sandbox denial becomes the shared [sandbox: …] marker (the model
         // recognizes it from bash); guarded mutation failures receive their
