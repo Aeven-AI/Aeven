@@ -269,6 +269,15 @@ function removeOwnedDirectory(path: string): void {
   rmSync(path, { recursive: true, maxRetries: 10, retryDelay: 200 })
 }
 
+/** Remove a failed step's leftover directory without letting a held file replace the error that step threw. */
+function discardOwnedDirectory(path: string): void {
+  try {
+    removeOwnedDirectory(path)
+  } catch (error) {
+    console.warn(`desktop project: could not remove ${path}`, error)
+  }
+}
+
 function copyMetadata(source: string, target: string): void {
   mkdirSync(target, { recursive: true, mode: 0o700 })
   for (const filename of DESKTOP_PROJECT_FILES) {
@@ -514,7 +523,7 @@ export class DesktopProjectManager {
         await this.activate(stagingProfile, hooks)
         return true
       } catch (error) {
-        removeOwnedDirectory(stagingProfile)
+        discardOwnedDirectory(stagingProfile)
         throw error
       }
     })
@@ -549,7 +558,7 @@ export class DesktopProjectManager {
         await renameDirectory(stagingProfile, this.paths.prepared)
         return true
       } finally {
-        removeOwnedDirectory(dirname(stagingProfile))
+        discardOwnedDirectory(dirname(stagingProfile))
       }
     })
   }
@@ -613,7 +622,7 @@ export class DesktopProjectManager {
       await extractPnpmStoreArchives(seedDir, extractedStore)
       await mergePnpmStore(extractedStore, this.paths.pnpm.store)
     } finally {
-      removeOwnedDirectory(transactionRoot)
+      discardOwnedDirectory(transactionRoot)
     }
   }
 
@@ -627,6 +636,7 @@ export class DesktopProjectManager {
     writeJson(this.paths.pending, pending)
     await hooks.beforeActivate()
     let activeMoved = false
+    let stagingMoved = false
     try {
       removeOwnedDirectory(this.paths.rollback)
       mkdirSync(dirname(this.paths.rollback), { recursive: true, mode: 0o700 })
@@ -638,12 +648,20 @@ export class DesktopProjectManager {
       mkdirSync(dirname(this.paths.profile), { recursive: true, mode: 0o700 })
       writeJson(this.paths.pending, { ...pending, step: 'staging-activated' } satisfies DesktopPendingTransaction)
       await renameDirectory(stagingProfile, this.paths.profile)
+      stagingMoved = true
       await hooks.afterActivate()
       unlinkSync(this.paths.pending)
     } catch (error) {
-      if (existsSync(this.paths.profile)) removeOwnedDirectory(this.paths.profile)
-      if (activeMoved && existsSync(this.paths.rollback)) await renameDirectory(this.paths.rollback, this.paths.profile)
-      if (existsSync(this.paths.pending)) unlinkSync(this.paths.pending)
+      // Undo only the moves that happened, by rename, so a held file leaves the swap unfinished rather than deleting
+      // the active profile. An undo that fails keeps the journal for the next launch's recover() and never replaces
+      // the error that stopped the swap.
+      try {
+        if (stagingMoved) await renameDirectory(this.paths.profile, stagingProfile)
+        if (activeMoved) await renameDirectory(this.paths.rollback, this.paths.profile)
+        if (existsSync(this.paths.pending)) unlinkSync(this.paths.pending)
+      } catch (undoError) {
+        console.error('desktop project: could not undo the profile swap; the next launch recovers it', undoError)
+      }
       await hooks.afterActivate().catch(() => undefined)
       throw error
     }

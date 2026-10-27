@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-10-27-desktop-windows-profile-swap-locks.md
+2026-10-27-desktop-windows-profile-swap-locks.md: 526b3ba586ccd9a32dc871916d73dce45e516fb6
+2026-10-27-desktop-windows-profile-swap-locks.zh.md: 1d8f2ad8a09e8e4aa742fee8198154cff8687e6a

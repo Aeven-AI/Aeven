@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -98,7 +98,7 @@ function answer(streamId) {
 `)
     const previous = process.env.NODE_OPTIONS
     process.env.NODE_OPTIONS = '--require /path/that-must-not-reach-the-child'
-    const host = new DesktopHostProcess(process.execPath, project)
+    const host = new DesktopHostProcess(process.execPath, project, tmpdir())
     try {
       await expect(host.start()).resolves.toMatchObject({ avnVersion: 'clean' })
       const response = await host.fetch(new Request('avn-app://app/example', { method: 'POST', body: 'request' }))
@@ -124,7 +124,7 @@ function onRequestFrame(frame) {
   responseEnd(frame.streamId)
 }
 `)
-    const host = new DesktopHostProcess(process.execPath, project)
+    const host = new DesktopHostProcess(process.execPath, project, tmpdir())
     try {
       const response = await host.fetch(new Request('avn-app://app/large'))
       const body = new Uint8Array(await response.arrayBuffer())
@@ -151,7 +151,7 @@ function onRequestFrame(frame) {
       start(controller) { controller.enqueue(Buffer.from('first')) },
       cancel() { canceled = true },
     })
-    const host = new DesktopHostProcess(process.execPath, project)
+    const host = new DesktopHostProcess(process.execPath, project, tmpdir())
     try {
       const request = new Request('avn-app://app/early', {
         method: 'POST',
@@ -184,7 +184,7 @@ function onRequestFrame(frame) {
   }
 }
 `)
-    const host = new DesktopHostProcess(process.execPath, project)
+    const host = new DesktopHostProcess(process.execPath, project, tmpdir())
     try {
       const canceled = await host.fetch(new Request('avn-app://app/cancel'))
       await canceled.body?.cancel()
@@ -202,7 +202,7 @@ process.send({ type: 'ready', protocolVersion: 6, url: 'http://127.0.0.1:3080/',
 function onRequestFrame(frame) {
   if (frame.type === 1) responsePipe.write(Buffer.alloc(13))
 }
-`))
+`), tmpdir())
     await invalid.start()
     await expect(invalid.fetch(new Request('avn-app://app/invalid'))).rejects.toThrow(/invalid Host response frame marker/u)
     await invalid.stop().catch(() => undefined)
@@ -210,7 +210,46 @@ function onRequestFrame(frame) {
     const earlyExit = new DesktopHostProcess(process.execPath, projectWithHost(`
 function onRequestFrame() {}
 process.exit(0)
-`))
+`), tmpdir())
     await expect(earlyExit.start()).rejects.toThrow(/response pipe ended/u)
+  })
+
+  it('runs the Host from its working directory rather than its profile', async () => {
+    const work = mkdtempSync(join(tmpdir(), 'avn-desktop-host-work-'))
+    roots.push(work)
+    const project = projectWithHost(`
+import { writeFileSync as recordCwd } from 'node:fs'
+recordCwd(process.argv[2] + '/host-cwd', process.cwd())
+process.send({ type: 'ready', protocolVersion: 6, url: 'http://127.0.0.1:3080/', ownsHost: true, avnVersion: 'cwd' })
+function onRequestFrame() {}
+`)
+    const host = new DesktopHostProcess(process.execPath, project, work)
+    await host.start()
+    await host.stop()
+    expect(realpathSync(readFileSync(join(project, 'host-cwd'), 'utf8'))).toBe(realpathSync(work))
+  })
+
+  it.runIf(process.platform === 'win32')('lets a stopped Host\'s profile be renamed while a process it started lives on', async () => {
+    const project = projectWithHost(`
+import { spawn as spawnLingering } from 'node:child_process'
+import { writeFileSync as recordPid } from 'node:fs'
+const lingering = spawnLingering(process.execPath, ['-e', 'setTimeout(() => {}, 30000)'], { detached: true, stdio: 'ignore' })
+lingering.unref()
+recordPid(process.argv[2] + '/lingering.pid', String(lingering.pid))
+process.send({ type: 'ready', protocolVersion: 6, url: 'http://127.0.0.1:3080/', ownsHost: true, avnVersion: 'lingering' })
+function onRequestFrame() {}
+`)
+    const host = new DesktopHostProcess(process.execPath, project, tmpdir())
+    await host.start()
+    await host.stop()
+    const lingeringPid = Number.parseInt(readFileSync(join(project, 'lingering.pid'), 'utf8'), 10)
+    const moved = `${project}-moved`
+    roots.push(moved)
+    try {
+      renameSync(project, moved)
+    } finally {
+      process.kill(lingeringPid)
+    }
+    expect(existsSync(moved)).toBe(true)
   })
 })
