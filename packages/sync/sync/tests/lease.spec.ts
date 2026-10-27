@@ -10,8 +10,8 @@ import { MemorySyncNetwork } from './memory.ts'
 const holders: LeaseHolder[] = []
 afterEach(async () => { await Promise.all(holders.splice(0).map(holder => holder.dispose())) })
 
-function holder(network: MemorySyncNetwork, device = network.device()): LeaseHolder {
-  const created = new LeaseHolder(device.asSync(), 'owner', 'memory/maintenance', { ttlMs: 1_000, renewMs: 60_000 }, () => network.now())
+function holder(network: MemorySyncNetwork, device = network.device(), name = 'memory/maintenance'): LeaseHolder {
+  const created = new LeaseHolder(device.asSync(), 'owner', name, { ttlMs: 1_000, renewMs: 60_000 }, { now: () => network.now() })
   holders.push(created)
   return created
 }
@@ -44,6 +44,32 @@ describe('LeaseHolder', () => {
     lease.start()
     const first = network.leases.get('memory/maintenance')!.expiresAt
     await vi.waitFor(() => { expect(network.leases.get('memory/maintenance')!.expiresAt).toBeGreaterThan(first) })
+  })
+
+  it('reports when a renewal wins or loses the lease', async () => {
+    const network = new MemorySyncNetwork()
+    let clock = 0
+    network.now = () => clock
+    const changes: boolean[] = []
+    const lease = new LeaseHolder(network.device().asSync(), 'owner', 'automations/scheduler', { ttlMs: 1_000, renewMs: 60_000 }, {
+      now: () => network.now(),
+      changed: (held) => { changes.push(held) },
+    })
+    holders.push(lease)
+    const other = holder(network, network.device(), 'automations/scheduler')
+    await other.renew()
+    await lease.renew()
+    clock = 500
+    await other.renew()
+    clock = 2_000
+    await lease.renew()
+    await lease.renew()
+    expect(changes).toEqual([true])
+    await other.renew()
+    clock = 3_100
+    await other.renew()
+    await lease.renew()
+    expect(changes).toEqual([true, false])
   })
 
   it('lets a device work while sync does not serve its account', async () => {

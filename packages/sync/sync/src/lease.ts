@@ -12,26 +12,43 @@ export interface LeaseHolderTiming {
   renewMs: number
 }
 
+/** Optional collaborators of a {@link LeaseHolder}. */
+export interface LeaseHolderOptions {
+  /** Clock the lease's local expiry is kept by; `Date.now` unless given. */
+  now?: () => number
+  /**
+   * Called when whether this device holds the lease differs from the last state reported, including a lease
+   * that expired between renewals.
+   */
+  changed?: (held: boolean) => void
+}
+
 /** One account's claim on one kind of exclusive work. */
 export class LeaseHolder {
   private expiresAt = 0
   private timer: ReturnType<typeof setInterval> | undefined
   private renewing: Promise<void> | undefined
+  private readonly now: () => number
+  /** The state {@link LeaseHolderOptions.changed} last received. */
+  private reported: boolean
 
   /**
    * @param sync - the account sync service.
    * @param owner - the account.
    * @param name - logical name of the work, hidden from the relay.
    * @param timing - requested lifetime and renewal interval.
-   * @param now - clock the lease's local expiry is kept by.
+   * @param options - clock and change listener.
    */
   constructor(
     private readonly sync: Sync,
     private readonly owner: string,
     private readonly name: string,
     private readonly timing: LeaseHolderTiming,
-    private readonly now: () => number = Date.now,
-  ) {}
+    private readonly options: LeaseHolderOptions = {},
+  ) {
+    this.now = options.now ?? Date.now
+    this.reported = this.held()
+  }
 
   /**
    * Whether this device may do the work now: always while sync does not serve the account, and otherwise only
@@ -65,6 +82,10 @@ export class LeaseHolder {
       } catch {
         // An unreachable relay keeps the previous expiry; held() turns false once it passes.
       }
+      const after = this.held()
+      if (after === this.reported) return
+      this.reported = after
+      this.options.changed?.(after)
     })().finally(() => { this.renewing = undefined })
     return this.renewing
   }

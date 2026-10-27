@@ -301,4 +301,4 @@ export abstract class Sync extends Service {
 export default Sync
 
 export { LeaseHolder } from './lease.ts'
-export type { LeaseHolderTiming } from './lease.ts'
+export type { LeaseHolderOptions, LeaseHolderTiming } from './lease.ts'
