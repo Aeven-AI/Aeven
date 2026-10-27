@@ -514,14 +514,17 @@ export class DesktopProjectManager {
   async prepareRelease(seedDir: string, version: string, runtime: DesktopRuntimeExecutables): Promise<boolean> {
     return this.withLock(async () => {
       await this.recover()
-      await verifySeedIntegrity(seedDir)
       const target = releaseFile(seedDir)
-      verifyDesktopCorePackageSet(seedDir, target.version)
+      readDesktopCorePackageSet(seedDir, target.version)
       if (target.version !== version) {
         throw new Error(`desktop project: seed ${target.version} does not match the downloaded release ${version}`)
       }
       if (existsSync(this.paths.profile) && profileMatchesSeed(this.paths.profile, seedDir)) return false
       if (existsSync(this.paths.prepared) && profileMatchesSeed(this.paths.prepared, seedDir)) return false
+      // Every periodic check that finds the same downloaded release lands here, so hashing waits until seed content
+      // is about to enter writable state, as in `applyRelease`.
+      await verifySeedIntegrity(seedDir)
+      verifyDesktopCorePackageSet(seedDir, target.version)
       removeOwnedDirectory(dirname(this.paths.prepared))
       await this.mergeSeedPnpmState(seedDir)
       const stagingProfile = this.newStagingProfile()

@@ -368,6 +368,9 @@ async function serveShellAsset(request: Request): Promise<Response> {
 }
 
 async function main(): Promise<void> {
+  // The user's startup files can take seconds, and nothing before the backend install spawns a process that needs
+  // their PATH, so the login shell runs alongside the deployment, the start screen, and the backend plan.
+  const loginPathProbe = loginShellPath(process.env)
   await applyPackagedDeployment()
   applyBundledComputerUseDriver()
   const resources = runtimeResources()
@@ -768,19 +771,19 @@ async function main(): Promise<void> {
     console.error('avn desktop: the start screen did not load', error)
   })
 
+  // The deployment whose services the Host's plugins resolve: the packaged app carries no `.env`,
+  // so the launching environment supplies the base that the overlays and the search endpoint read.
+  process.env.AEVEN_API_URL ??= DESKTOP_AEVEN_API_BASE
   // A packaged shell replaces a desktop Host from another release; a
   // development shell adopts whatever serves the home.
-  // The Host and every process it starts inherit this PATH; a GUI launch alone carries the session's minimal one.
-  const loginPath = await loginShellPath(process.env)
+  const plan = await planDesktopBackend(development === undefined ? { avnVersion: app.getVersion() } : {})
+  if (development === undefined && plan.kind === 'spawn') await manager.recover()
+  // pnpm, the Host, and every process they start inherit this PATH; a GUI launch alone carries the session's minimal one.
+  const loginPath = await loginPathProbe
   if (loginPath === undefined) console.warn('desktop: the login shell did not report a PATH; the Host keeps the inherited one')
   else process.env.PATH = mergePath(loginPath, process.env.PATH, delimiter)
   // Last, so an installed Node.js still wins: on a machine without one, the bundled `node`, `npm`, and `npx` resolve.
   process.env.PATH = mergePath(process.env.PATH ?? '', dirname(resources.node), delimiter)
-  // The deployment whose services the Host's plugins resolve: the packaged app carries no `.env`,
-  // so the launching environment supplies the base that the overlays and the search endpoint read.
-  process.env.AEVEN_API_URL ??= DESKTOP_AEVEN_API_BASE
-  const plan = await planDesktopBackend(development === undefined ? { avnVersion: app.getVersion() } : {})
-  if (development === undefined && plan.kind === 'spawn') await manager.recover()
 
   const startHost = async (projectDir = activeProject): Promise<DesktopHostProcess> => {
     // The serving Host keeps its profile as the cwd that sessions without a directory fall back to; a staged health
