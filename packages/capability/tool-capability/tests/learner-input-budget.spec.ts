@@ -15,6 +15,8 @@ const CONFIG: LearnerConfig = {
   candidateTtlDays: 30,
   store: 'capabilities',
   consolidateAbove: 0,
+  maintenanceTtlMs: 180_000,
+  maintenanceRenewMs: 60_000,
 }
 
 /** One tool call whose output is long enough that dropping it pays for the omission line. */

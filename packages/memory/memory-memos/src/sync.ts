@@ -61,6 +61,10 @@ export interface MemorySyncTuning {
   drainMs: number
   /** Changes published per drain. */
   drainBatch: number
+  /** Lifetime of this device's claim on the account's memory maintenance, in milliseconds. */
+  maintenanceTtlMs: number
+  /** Interval between renewals of that claim, in milliseconds. */
+  maintenanceRenewMs: number
 }
 
 function shardOf(table: string, keyValue: string): string {

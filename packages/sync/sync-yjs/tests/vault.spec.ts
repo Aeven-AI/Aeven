@@ -124,8 +124,8 @@ describe('a vault on two devices', () => {
     docA.close()
     expect(second.doc.getMap('prefs').get('fontSize')).toBe(16)
     second.close()
-    a.vault.dispose()
-    b.vault.dispose()
+    await a.vault.dispose()
+    await b.vault.dispose()
   })
 
   it('refuses enrollment operations that do not fit the device', async () => {

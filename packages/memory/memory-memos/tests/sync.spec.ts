@@ -13,6 +13,7 @@ import { MemorySyncNetwork, type MemorySyncDevice } from '../../../sync/sync/tes
 import { MemorySyncMirror } from '../src/sync.ts'
 
 const OWNER = 'owner-1'
+const TUNING = { drainMs: 20, drainBatch: 100, maintenanceTtlMs: 1_000, maintenanceRenewMs: 100 }
 type Warn = ReturnType<typeof vi.fn<(message: string) => void>>
 const MODEL = 'model-a'
 const cleanups: Array<() => void> = []
@@ -36,7 +37,7 @@ function memos(): { file: string; db: Database.Database } {
 
 function mirror(device: MemorySyncDevice, file: string, model = MODEL): { mirror: MemorySyncMirror; warn: Warn } {
   const warn = vi.fn<(message: string) => void>()
-  const created = new MemorySyncMirror(OWNER, file, device.asSync(), model, { drainMs: 20, drainBatch: 100 }, warn)
+  const created = new MemorySyncMirror(OWNER, file, device.asSync(), model, TUNING, warn)
   device.documentChanged = (id) => { created.documentChanged(id) }
   cleanups.push(() => { created.dispose() })
   return { mirror: created, warn }
@@ -155,7 +156,7 @@ describe('memory sync', () => {
     const device = network.device()
     const sync = device.asSync()
     const { warn } = mirror(device, home.file)
-    const failing = new MemorySyncMirror(OWNER, home.file, { documentId: (owner: string, name: string) => sync.documentId(owner, name), openDocument: () => Promise.reject(new Error('locked')) } as never, MODEL, { drainMs: 20, drainBatch: 100 }, warn)
+    const failing = new MemorySyncMirror(OWNER, home.file, { documentId: (owner: string, name: string) => sync.documentId(owner, name), openDocument: () => Promise.reject(new Error('locked')) } as never, MODEL, TUNING, warn)
     cleanups.push(() => { failing.dispose() })
     failing.documentChanged('id:memory/traces/aa')
     await vi.waitFor(() => { expect(warn).toHaveBeenCalledWith('memory sync: opening memory/traces/aa failed: Error: locked') })
@@ -163,7 +164,7 @@ describe('memory sync', () => {
 
     const handle = await sync.openDocument(OWNER, 'memory/traces/zz')
     handle.doc.getMap('rows').set('["tr_zz99999999"]', { id: 'tr_zz99999999', episode_id: 'e', session_id: 's', ts: 'not a number', user_text: '', agent_text: '', turn_id: 1 })
-    const own = new MemorySyncMirror(OWNER, home.file, sync, MODEL, { drainMs: 20, drainBatch: 100 }, warn)
+    const own = new MemorySyncMirror(OWNER, home.file, sync, MODEL, TUNING, warn)
     cleanups.push(() => { own.dispose() })
     own.documentChanged('id:memory/traces/zz')
     own.documentChanged('id:memory/traces/zz')

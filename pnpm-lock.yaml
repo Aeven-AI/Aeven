@@ -2479,6 +2479,9 @@ importers:
       '@aeven/session':
         specifier: workspace:^
         version: link:../../core/session
+      '@aeven/sync':
+        specifier: workspace:^
+        version: link:../../sync/sync
       '@aeven/system-prompt':
         specifier: workspace:^
         version: link:../../core/system-prompt

@@ -9,9 +9,9 @@ import { isAbsolute, join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { accountDirectoryName } from '@aeven/home-paths'
-import type {} from '@aeven/sync'
+import { LeaseHolder } from '@aeven/sync'
 import type {} from '@aeven/llm'
-import type {} from '@aeven/memory'
+import { MEMORY_MAINTENANCE_LEASE } from '@aeven/memory'
 import { loadConfig, resolveHome, type ResolvedConfig } from '@deepseek-ai/memos-local-plugin/core/config/index.js'
 import type { ResolvedHome } from '@deepseek-ai/memos-local-plugin/core/config/paths.js'
 import { bootstrapMemoryCore } from '@deepseek-ai/memos-local-plugin/core/index.js'
@@ -183,7 +183,9 @@ export const Config: z<Config> = z.object({
   sync: z.object({
     drainMs: z.natural().min(100).default(2_000),
     drainBatch: z.natural().min(1).default(500),
-  }).default({ drainMs: 2_000, drainBatch: 500 }),
+    maintenanceTtlMs: z.natural().min(1_000).default(180_000),
+    maintenanceRenewMs: z.natural().min(100).default(60_000),
+  }).default({ drainMs: 2_000, drainBatch: 500, maintenanceTtlMs: 180_000, maintenanceRenewMs: 60_000 }),
   embedding: z.object({
     model: z.string().min(1).default('Xenova/multilingual-e5-small'),
     queryPrefix: z.string().default('query: '),
@@ -315,6 +317,15 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   })
   // Accounts whose index is being rebuilt; their turn-start recall is skipped until the rebuild finishes.
   const rebuilding = new Set<string>()
+  // Maintenance that derives new memory from all of an account's memory runs on one of its devices at a time.
+  const maintenance = new Map<string, LeaseHolder>()
+  const mayMaintain = (owner: string): boolean => {
+    const holder = maintenance.get(owner)
+    if (holder !== undefined) return holder.held()
+    const state = ctx.get('sync')?.status(owner).state
+    return state === undefined || state === 'unenrolled' || state === 'joining'
+  }
+
   const cores = new OwnerCores(async (owner) => {
     const accountRoot = accountHome(config.accounts, owner)
     mkdirSync(accountRoot.dataDir, { recursive: true, mode: 0o700 })
@@ -326,6 +337,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       config: memosConfig,
       hostLlmBridge: bridge,
       autoRecovery: recovery,
+      maintenanceGate: () => mayMaintain(owner),
       initLogging: false,
     })
     await core.init()
@@ -402,9 +414,15 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   const mirror = (owner: string): void => {
     const sync = ctx.get('sync')
     const state = sync?.status(owner).state
-    if (sync === undefined || mirrors.has(owner) || state === undefined || state === 'unenrolled' || state === 'joining') return
+    if (sync === undefined || state === undefined || state === 'unenrolled' || state === 'joining') return
+    if (!maintenance.has(owner)) {
+      const timing = { ttlMs: config.sync.maintenanceTtlMs, renewMs: config.sync.maintenanceRenewMs }
+      const holder = new LeaseHolder(sync, owner, MEMORY_MAINTENANCE_LEASE, timing)
+      maintenance.set(owner, holder)
+      holder.start()
+    }
     const dbFile = accountHome(config.accounts, owner).dbFile
-    if (!existsSync(dbFile)) return
+    if (mirrors.has(owner) || !existsSync(dbFile)) return
     const created = new MemorySyncMirror(owner, dbFile, sync, config.embedding.model, config.sync, (message) => { logger.warn(message) })
     mirrors.set(owner, created)
     created.start().catch((error: unknown) => {
@@ -413,9 +431,11 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   }
   ctx.on('sync/status', mirror)
   ctx.on('sync/document', (owner, id) => { mirrors.get(owner)?.documentChanged(id) })
-  ctx.effect(() => () => {
+  ctx.effect(() => async () => {
     for (const created of mirrors.values()) created.dispose()
     mirrors.clear()
+    await Promise.all([...maintenance.values()].map(holder => holder.dispose()))
+    maintenance.clear()
   }, 'memory-memos.sync')
 
   ctx.effect(() => {

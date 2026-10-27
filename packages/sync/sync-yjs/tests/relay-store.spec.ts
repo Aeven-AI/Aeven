@@ -72,8 +72,8 @@ describe('RelayConnection', () => {
   it('drops a connection whose relay sends something other than JSON, failing pending requests', async () => {
     const closed = vi.fn()
     const connection = await RelayConnection.open(relay.url, 'ok-carol', handlers({ closed }), 2000)
-    relay.refusals.set('slow', [])
-    const pending = connection.request('never-answered-until-close')
+    relay.unanswered.add('never-answered')
+    const pending = connection.request('never-answered')
     relay.broadcastRaw('carol', 'not json')
     await connection.closed
     expect(closed).toHaveBeenCalled()

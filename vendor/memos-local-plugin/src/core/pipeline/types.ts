@@ -163,6 +163,8 @@ export interface PipelineDeps {
   namespace: RuntimeNamespace;
   /** Injection hook so tests can provide a fake clock. */
   now?: () => number;
+  /** Whether this process may run periodic maintenance now; omitted means always. */
+  maintenanceGate?: () => boolean;
 }
 
 /**

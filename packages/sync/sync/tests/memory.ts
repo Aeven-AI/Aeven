@@ -6,7 +6,7 @@
  */
 import * as Y from 'yjs'
 import type { DeviceId } from '@aeven/sync-vault'
-import type { Sync, SyncDocument, SyncState, SyncStatus, SyncStreamBatch } from '../src/index.ts'
+import type { Sync, SyncDocument, SyncLease, SyncState, SyncStatus, SyncStreamBatch } from '../src/index.ts'
 
 const REMOTE = Symbol('memory-sync-remote')
 
@@ -14,6 +14,9 @@ const REMOTE = Symbol('memory-sync-remote')
 export class MemorySyncNetwork {
   readonly devices: MemorySyncDevice[] = []
   readonly streams = new Map<string, SyncStreamBatch[]>()
+  readonly leases = new Map<string, { holder: string; expiresAt: number }>()
+  /** Clock leases expire by. */
+  now: () => number = Date.now
   private seq = 0
 
   /**
@@ -110,6 +113,21 @@ export class MemorySyncDevice {
         const batches = this.network.streams.get(name) ?? []
         batches.push({ seq: this.network.nextSeq(), payload })
         this.network.streams.set(name, batches)
+        return Promise.resolve()
+      },
+      acquireLease: (_owner: string, name: string, ttlMs: number): Promise<SyncLease> => {
+        if (this.state !== 'online') return Promise.reject(new Error('exclusive sync work needs a connection'))
+        const held = this.network.leases.get(name)
+        const now = this.network.now()
+        if (held !== undefined && held.holder !== this.id && held.expiresAt > now) {
+          return Promise.resolve({ granted: false, holder: held.holder as DeviceId, expiresAt: held.expiresAt })
+        }
+        this.network.leases.set(name, { holder: this.id, expiresAt: now + ttlMs })
+        return Promise.resolve({ granted: true, holder: this.id as DeviceId, expiresAt: now + ttlMs })
+      },
+      releaseLease: (_owner: string, name: string): Promise<void> => {
+        if (this.state !== 'online') return Promise.reject(new Error('exclusive sync work needs a connection'))
+        if (this.network.leases.get(name)?.holder === this.id) this.network.leases.delete(name)
         return Promise.resolve()
       },
       readStream: (_owner: string, name: string, after: number): Promise<{ batches: SyncStreamBatch[]; more: boolean }> => {

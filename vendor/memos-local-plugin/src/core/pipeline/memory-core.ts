@@ -165,6 +165,12 @@ export interface BootstrapOptions {
   config?: ResolvedConfig;
   /** Override `Date.now` — useful for deterministic tests. */
   now?: () => number;
+  /**
+   * Whether this process may run periodic maintenance that derives new memory from all stored memory (the
+   * skill lifecycle tick). A host that shares one memory across several processes answers true in one of them.
+   * Omitted means always.
+   */
+  maintenanceGate?: () => boolean;
   /** Plugin package version (surfaced via `health()`). */
   pkgVersion?: string;
   /**
@@ -547,6 +553,7 @@ export async function bootstrapMemoryCoreFull(
     log,
     namespace,
     now: options.now,
+    maintenanceGate: options.maintenanceGate,
   };
   const handle = createPipeline(deps);
 
