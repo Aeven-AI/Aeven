@@ -11983,6 +11983,16 @@ importers:
         specifier: workspace:^
         version: link:../../../vendor/cordis
 
+  packages/sync/sync-vault:
+    dependencies:
+      '@aeven/brand':
+        specifier: workspace:^
+        version: link:../../util/brand
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
   packages/terminal/terminal:
     devDependencies:
       '@aeven/agent':

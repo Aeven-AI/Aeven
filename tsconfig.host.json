@@ -141,6 +141,7 @@
     { "path": "./packages/util/time" },
     { "path": "./packages/util/timeout" },
     { "path": "./packages/util/crypto" },
+    { "path": "./packages/sync/sync-vault" },
     { "path": "./packages/util/deque" },
     { "path": "./packages/util/values" },
     { "path": "./packages/util/workspace-path" },
