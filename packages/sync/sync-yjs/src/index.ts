@@ -2,7 +2,8 @@
  * Yjs Service Provider for account sync. Each enrolled account keeps a local store under
  * `accounts/<hash>/sync/sync.db` and, while a client of that account holds a session on this Host (so its
  * Aeven access token resolves), one relay connection that exchanges encrypted frames with the account's other
- * devices.
+ * devices. Devices of the account on the same local network also link directly and send each other updates as
+ * they are made.
  * @module @aeven/sync-yjs
  */
 import { existsSync, readdirSync } from 'node:fs'
@@ -15,6 +16,7 @@ import { accountHomePath, avnHomePath, ACCOUNTS_DIR_NAME } from '@aeven/home-pat
 import { Sync, type SyncDevice, type SyncDocument, type SyncJoin, type SyncJoinRequest, type SyncLease, type SyncStatus, type SyncStreamBatch } from '@aeven/sync'
 import { recoveryKeysOf, type DeviceId } from '@aeven/sync-vault'
 import { JoinRequester } from './join.ts'
+import { LanTransport, MdnsDiscovery } from './lan.ts'
 import { RelayConnection, type RelayHandlers } from './relay.ts'
 import { SyncStore } from './store.ts'
 import { AccountVault } from './vault.ts'
@@ -35,6 +37,14 @@ export interface Config {
   compactAfter: number
   /** Frames per document since its last snapshot before this device queues a new one. */
   snapshotAfter: number
+  /** Whether enrolled devices on the same local network link directly. */
+  lan: boolean
+  /** Port this device accepts local-network links on; 0 picks a free one. */
+  lanPort: number
+  /** Wait before linking again to a device on the local network whose link closed, in milliseconds. */
+  lanRetryMs: number
+  /** Largest message a local-network link accepts, in bytes. */
+  lanMaxBytes: number
 }
 
 const STORE_SEGMENTS = ['sync', 'sync.db'] as const
@@ -55,6 +65,8 @@ interface Account {
   wake: () => void
   /** The join in progress, with its code once an enrolled device answered. */
   joining?: { code?: string }
+  /** The local-network links while this device is enrolled; undefined when it failed to start. */
+  lan?: Promise<LanTransport | undefined>
 }
 
 /** Yjs account sync provider. */
@@ -69,6 +81,10 @@ export default class YjsSync extends Sync {
     deviceName: Schema.string().min(1).default(hostname()),
     compactAfter: Schema.natural().min(1).default(200),
     snapshotAfter: Schema.natural().min(1).default(500),
+    lan: Schema.boolean().default(true),
+    lanPort: Schema.natural().max(65_535).default(0),
+    lanRetryMs: Schema.natural().min(100).default(5_000),
+    lanMaxBytes: Schema.natural().min(1_024).default(8_388_608),
   })
 
   private readonly accounts = new Map<string, Account>()
@@ -94,6 +110,7 @@ export default class YjsSync extends Sync {
       }
       await Promise.all([...this.accounts.values()].map(async (account) => {
         await account.loop
+        await (await account.lan)?.close()
         await account.vault.dispose()
         account.store.close()
       }))
@@ -116,7 +133,10 @@ export default class YjsSync extends Sync {
     const vault = new AccountVault(
       store,
       { compactAfter: this.config.compactAfter, snapshotAfter: this.config.snapshotAfter },
-      () => { this.notifyStatus(owner) },
+      () => {
+        this.updateLan(owner)
+        this.notifyStatus(owner)
+      },
       () => { this.notifyJoinRequests(owner) },
       (id) => { this.notifyDocument(owner, id) },
       (message, error) => {
@@ -127,7 +147,43 @@ export default class YjsSync extends Sync {
     account = { store, vault, wake: () => {} }
     this.accounts.set(owner, account)
     account.loop = this.connectLoop(owner, account)
+    this.updateLan(owner)
     return account
+  }
+
+  /** Start the account's local-network links once it is enrolled, stop them when it is not, and drop removed devices. */
+  private updateLan(owner: string): void {
+    const account = this.accounts.get(owner)
+    if (!this.config.lan || account === undefined) return
+    const { vault } = account
+    const enrolled = vault.enrolled() && !this.disposed
+    if (enrolled && account.lan === undefined) {
+      account.lan = LanTransport.start({
+        tag: () => vault.lanTag(),
+        device: () => vault.deviceId(),
+        sign: data => vault.signLan(data),
+        verify: (device, data, signature) => vault.verifyLan(device, data, signature),
+        receive: (frame) => { vault.receiveLanFrame(frame) },
+      }, new MdnsDiscovery(), {
+        port: this.config.lanPort,
+        handshakeMs: this.config.connectTimeoutMs,
+        retryMs: this.config.lanRetryMs,
+        maxBytes: this.config.lanMaxBytes,
+      }).then((transport) => {
+        vault.setLanSender((frame) => { transport.send(frame) })
+        return transport
+      }, (error: unknown) => {
+        this.ctx.logger.warn('sync: local-network links for %s could not start: %s', owner, error)
+        return undefined
+      })
+    } else if (!enrolled && account.lan !== undefined) {
+      const stopping = account.lan
+      delete account.lan
+      vault.setLanSender(undefined)
+      void stopping.then(transport => transport?.close())
+    } else {
+      void account.lan?.then((transport) => { transport?.refresh() })
+    }
   }
 
   private async token(owner: string): Promise<string | undefined> {

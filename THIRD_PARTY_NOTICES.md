@@ -80,6 +80,7 @@ External packages that a workspace package resolves at runtime. The tier covers 
 | [`acorn`](https://github.com/acornjs/acorn) | MIT |
 | [`anser`](https://github.com/IonicaBizau/anser) | MIT |
 | [`better-sqlite3`](https://github.com/WiseLibs/better-sqlite3) | MIT |
+| [`bonjour-service`](https://github.com/onlxltd/bonjour-service) | MIT |
 | [`buffer`](https://github.com/feross/buffer) | MIT |
 | [`chokidar`](https://github.com/paulmillr/chokidar) | MIT |
 | [`clsx`](https://github.com/lukeed/clsx) | MIT |

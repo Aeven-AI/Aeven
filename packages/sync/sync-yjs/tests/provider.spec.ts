@@ -57,7 +57,7 @@ async function host(options: { home?: string; relayUrl?: string } = {}): Promise
   ctx.on('sync/status', (owner) => { statuses.push(owner) })
   ctx.on('sync/document', (_owner, id) => { documents.push(id) })
   const fiber = ctx.plugin(YjsSync, {
-    relayUrl: options.relayUrl ?? relay.url, credentialRef: 'AEVEN_TOKEN', deviceName: 'test-host', reconnectMs: 100, connectTimeoutMs: 2000, compactAfter: 50, snapshotAfter: 50,
+    relayUrl: options.relayUrl ?? relay.url, credentialRef: 'AEVEN_TOKEN', deviceName: 'test-host', reconnectMs: 100, connectTimeoutMs: 2000, compactAfter: 50, snapshotAfter: 50, lan: false, lanPort: 0, lanRetryMs: 100, lanMaxBytes: 65_536,
   })
   await fiber
   cleanups.push(() => fiber.dispose())

@@ -7,9 +7,10 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import * as Y from 'yjs'
 import { brandNumber, brandString } from '@aeven/brand'
 import {
-  createChainEntry, generateDeviceKeys, generateVaultKey, opaqueIdOf, sealEnvelope, verifyChain,
+  chainDeviceOf, createChainEntry, generateDeviceKeys, generateVaultKey, opaqueIdOf, sealEnvelope, verifyChain,
   type DeviceKeys, type KeyEpoch, type OpaqueId,
 } from '@aeven/sync-vault'
 import { JoinApprover, JoinRequester } from '../src/join.ts'
@@ -168,6 +169,49 @@ describe('a vault on two devices', () => {
 })
 
 describe('frames', () => {
+  it('applies an update frame from a device on the local network and drops every other frame', async () => {
+    const { a } = await account()
+    const keyring = a.store.keyring()
+    const genesis = keyring.get(brandNumber<KeyEpoch>(0))!
+    const id = opaqueIdOf(genesis, 'doc')
+    const keys = a.store.deviceKeys()!
+    const sent: Uint8Array[] = []
+    a.vault.setLanSender((frame) => { sent.push(frame) })
+    const doc = a.vault.openDocument('doc')
+    doc.doc.getMap('m').set('k', 1)
+    expect(sent).toHaveLength(1)
+    a.vault.setLanSender(undefined)
+
+    const seal = (kind: 'update' | 'snapshot', sender: DeviceKeys, payload: Uint8Array) =>
+      sealEnvelope({ kind, id, epoch: brandNumber<KeyEpoch>(0), vaultKey: genesis, sender, counter: 99, payload })
+    const remote = new Y.Doc()
+    remote.getMap('m').set('from', 'peer')
+    const update = Y.encodeStateAsUpdate(remote)
+    const before = a.store.docUpdates(id).length
+    a.vault.receiveLanFrame(seal('update', keys, update))
+    a.vault.receiveLanFrame(seal('snapshot', keys, update))
+    a.vault.receiveLanFrame(seal('update', generateDeviceKeys(), update))
+    expect(a.warn).toHaveBeenCalledWith('sync: dropped a frame from a device on the local network', expect.any(Error))
+    expect(a.store.docUpdates(id)).toHaveLength(before)
+
+    const other = generateDeviceKeys()
+    const state = verifyChain(a.store.chain())
+    const added = createChainEntry(state, { type: 'add-device', device: chainDeviceOf(other.publicKeys) }, { kind: 'device', device: keys })
+    a.vault.receiveChainEntry(added)
+    expect(a.vault.verifyLan(other.id, Uint8Array.of(1), Uint8Array.of(0))).toBe(false)
+    expect(a.vault.verifyLan('nobody', Uint8Array.of(1), new Uint8Array(64))).toBe(false)
+    a.vault.receiveLanFrame(seal('update', other, update))
+    expect(doc.doc.getMap('m').get('from')).toBe('peer')
+    doc.close()
+    a.vault.receiveLanFrame(seal('update', other, update))
+    expect(a.store.docUpdates(id)).toHaveLength(before + 2)
+    expect(a.documents).toEqual([id, id])
+
+    const outsider = device('nobody')
+    outsider.vault.receiveLanFrame(seal('update', other, update))
+    expect(outsider.store.docUpdates(id)).toHaveLength(0)
+  })
+
   it('drops frames it cannot open, replays, and its own frames, while advancing the cursor', async () => {
     const { owner, a, connectionA } = await account()
     const b = device(owner)
@@ -266,7 +310,7 @@ describe('frames', () => {
     lonely.store.setDeviceKeys(keys)
     const genesis = createChainEntry(verifyChain([]), { type: 'genesis', device: { id: keys.id, signing: Buffer.from(keys.publicKeys.signing).toString('base64url'), agreement: Buffer.from(keys.publicKeys.agreement).toString('base64url') } }, { kind: 'device', device: keys })
     const other = generateDeviceKeys()
-    const added = createChainEntry(verifyChain([genesis]), { type: 'add-device', device: { id: other.id, signing: Buffer.from(other.publicKeys.signing).toString('base64url'), agreement: Buffer.from(other.publicKeys.agreement).toString('base64url') } }, { kind: 'device', device: keys })
+    const added = createChainEntry(verifyChain([genesis]), { type: 'add-device', device: chainDeviceOf(other.publicKeys) }, { kind: 'device', device: keys })
     const removed = createChainEntry(verifyChain([genesis, added]), { type: 'remove-device', device: other.id, epoch: brandNumber<KeyEpoch>(1), until: 0 }, { kind: 'device', device: keys })
     lonely.store.setChain([genesis, added, removed])
     lonely.store.addKeys(new Map([[brandNumber<KeyEpoch>(0), generateVaultKey()]]))

@@ -5,6 +5,12 @@ export declare const MACOS_USAGE_DESCRIPTIONS: Readonly<{
   NSLocationUsageDescription: string
   NSScreenCaptureUsageDescription: string
   NSAppleEventsUsageDescription: string
+  NSLocalNetworkUsageDescription: string
+}>
+
+/** Info.plist local-network settings the Desktop shell adds on macOS. */
+export declare const MACOS_NETWORK_SETTINGS: Readonly<{
+  NSBonjourServices: readonly string[]
 }>
 
 /** Info.plist text-input settings the Desktop shell adds on macOS. */

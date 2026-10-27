@@ -8,7 +8,7 @@ import { brandNumber } from '@aeven/brand'
 import {
   applyChainEntry, chainDeviceOf, createChainEntry, createGenesis, decodeKeyring, deviceIdOf, encodeKeyring,
   fromBase64Url, generateDeviceKeys, generateVaultKey, opaqueIdOf, openEnvelope, recoveryRecordOf, sealEnvelope,
-  signingKeyAt, toBase64Url, unwrapForDevice, verifyChain, wrapForDevice,
+  signBytes, signingKeyAt, toBase64Url, unwrapForDevice, verifyBytes, verifyChain, wrapForDevice,
   type ChainEntry, type ChainState, type DeviceId, type DeviceKeys, type DevicePublicKeys, type EnvelopeKind, type KeyEpoch,
   type Keyring, type OpaqueId, type RecoveryKeys,
 } from '@aeven/sync-vault'
@@ -22,6 +22,9 @@ const PERMANENT_REFUSALS: ReadonlySet<string> = new Set(['too-large', 'bad-frame
 
 /** Relay recipient of the keyring wrapped to the recovery passkey. */
 const RECOVERY = 'recovery'
+
+/** Logical name whose opaque id is the account's local-network tag. */
+const LAN_TAG = 'lan/account'
 
 /** Transaction origin of updates that arrived from other devices or local storage. */
 const REMOTE = Symbol('sync-remote')
@@ -56,6 +59,7 @@ export class AccountVault {
   private state: SyncState
   private flushing: Promise<void> | undefined
   private approver: JoinApprover | undefined
+  private lanSend: ((frame: Uint8Array) => void) | undefined
   private readonly docs = new Map<OpaqueId, OpenDoc>()
 
   /**
@@ -468,13 +472,81 @@ export class AccountVault {
   }
 
   private localUpdate(id: OpaqueId, update: Uint8Array): void {
+    const frame = this.seal('update', id, update)
     this.store.transaction(() => {
       this.store.appendDocUpdate(id, update)
-      this.store.enqueue(this.seal('update', id, update))
+      this.store.enqueue(frame)
     })
+    this.lanSend?.(frame)
     this.afterAppend(id)
     this.changed()
     void this.flush()
+  }
+
+  /**
+   * Also send every local update frame to the account's devices linked on the local network.
+   * @param send - delivers a frame to the linked devices; undefined stops sending.
+   */
+  setLanSender(send: ((frame: Uint8Array) => void) | undefined): void {
+    this.lanSend = send
+  }
+
+  /** @returns the account's opaque local-network tag, the same on every device of the account. */
+  lanTag(): string {
+    return this.documentId(LAN_TAG)
+  }
+
+  /** @returns this enrolled device's id. */
+  deviceId(): DeviceId {
+    return this.requireMember().keys.id
+  }
+
+  /**
+   * Sign local-network handshake bytes with this device's key.
+   * @param data - the bytes.
+   * @returns the signature.
+   */
+  signLan(data: Uint8Array): Uint8Array {
+    return signBytes(this.requireMember().keys.secretKeys.signing, data)
+  }
+
+  /**
+   * Check a local-network handshake signature against an active device.
+   * @param device - the claimed device.
+   * @param data - the signed bytes.
+   * @param signature - the signature.
+   * @returns whether `device` is active in the chain and signed `data`.
+   */
+  verifyLan(device: string, data: Uint8Array, signature: Uint8Array): boolean {
+    const key = this.member()?.chain.devices.get(device as DeviceId)?.signing
+    return key !== undefined && verifyBytes(key, data, signature)
+  }
+
+  /**
+   * Apply an update frame a device linked on the local network sent. It is stored like a relay frame but
+   * leaves the sender's counter alone, so the relay's copy of the same frame still passes the counter check.
+   * @param frame - the sealed frame.
+   */
+  receiveLanFrame(frame: Uint8Array): void {
+    const member = this.member()
+    if (member === undefined) return
+    const keyring = this.store.keyring()
+    let opened: ReturnType<typeof openEnvelope>
+    try {
+      opened = openEnvelope(frame, {
+        vaultKey: epoch => keyring.get(epoch),
+        signingKey: device => member.chain.devices.get(device)?.signing,
+      })
+    } catch (error) {
+      this.warn('sync: dropped a frame from a device on the local network', error)
+      return
+    }
+    const { header, payload } = opened
+    if (header.kind !== 'update' || header.device === member.keys.id) return
+    this.store.appendDocUpdate(header.id, payload)
+    const open = this.docs.get(header.id)
+    if (open !== undefined) Y.applyUpdate(open.doc, payload, REMOTE)
+    this.documentChanged(header.id)
   }
 
   private afterAppend(id: OpaqueId): void {
