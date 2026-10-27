@@ -1,7 +1,7 @@
 {
   "name": "@aeven/computer-use-linux",
   "description": "Linux desktop adapter for self-contained computer use",
-  "version": "0.3.18-alpha",
+  "version": "0.3.19-alpha",
   "publishConfig": {
     "access": "public"
   },

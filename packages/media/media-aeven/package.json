@@ -1,7 +1,7 @@
 {
   "name": "@aeven/media-aeven",
   "description": "Aeven gateway image provider for the Aeven media seam — Aeven-1.0-Image-Flash and Aeven-1.0-Image-Pro over the signed-in session",
-  "version": "0.3.18-alpha",
+  "version": "0.3.19-alpha",
   "publishConfig": {
     "access": "public"
   },

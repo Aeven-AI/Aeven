@@ -1,7 +1,7 @@
 {
   "name": "@aeven/computer-use-windows-com",
   "description": "COM mechanism handler for Windows computer use",
-  "version": "0.3.18-alpha",
+  "version": "0.3.19-alpha",
   "publishConfig": {
     "access": "public"
   },

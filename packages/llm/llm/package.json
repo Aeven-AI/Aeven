@@ -1,7 +1,7 @@
 {
   "name": "@aeven/llm",
   "description": "Provider-neutral LLM service interface for the Aeven",
-  "version": "0.3.18-alpha",
+  "version": "0.3.19-alpha",
   "publishConfig": {
     "access": "public"
   },
