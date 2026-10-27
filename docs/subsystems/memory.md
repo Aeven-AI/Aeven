@@ -42,6 +42,13 @@ whileActive(setup: () => () => void): () => void
 recall(request: MemoryRecallRequest): Promise<MemoryRecall>
 
 /**
+ * Read the owner's profile and recorded dates from all of their person memories.
+ * @param request - scope whose owner is profiled, and cancellation.
+ * @returns the profile; its `text` is absent until the provider's first distillation finishes.
+ */
+profile(request: Parameters<MemoryProvider['profile']>[0]): Promise<MemoryProfile>
+
+/**
  * Hand one completed turn to the provider for background learning.
  * @param turn - turn assembled from committed session events.
  */

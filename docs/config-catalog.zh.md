@@ -2624,6 +2624,15 @@ export interface Config {
    * long one (a biography session that stored dozens of facts) cannot hide a short one about how the person is doing.
    */
   recentPersonPerSession: number
+  /**
+   * Deliver the person-profile block: today's date, the yearly dates memory records that fall today or within
+   * `upcomingDays` with the ages they make, current ages from recorded birth dates, and the profile the provider
+   * distilled from all of the person's memories regardless of age. It enters a session's first turn and the first
+   * turn of each later day.
+   */
+  profile: boolean
+  /** Days ahead whose recorded birthdays and anniversaries the profile block lists. */
+  upcomingDays: number
   /** System-prompt section order of the memory guidance. */
   promptOrder: number
 }
@@ -2631,7 +2640,7 @@ export interface Config {
 
 依赖：[`MemoryDomain`](../packages/memory/memory/src/index.ts)
 
-来源：[`packages/memory/memory-context/src/index.ts:32`](../packages/memory/memory-context/src/index.ts)
+来源：[`packages/memory/memory-context/src/index.ts:33`](../packages/memory/memory-context/src/index.ts)
 
 <a id="aevenmemory-invariants"></a>
 
@@ -2738,6 +2747,11 @@ export interface Config {
    * or runs out, at most two mechanically ranked memories are delivered and the recall is marked degraded.
    */
   relevanceTimeoutMs: number
+  /**
+   * Person profile distilled from all of the owner's person memories regardless of age, delivered at the start of
+   * every conversation; needs `hostLlm`. Recorded dates are delivered whether or not it is enabled.
+   */
+  profile: ProfileConfig
 }
 
 /** Natural language MemOS writes stored memory in; `auto` follows the language of the captured user text. */
@@ -2768,6 +2782,23 @@ export interface EmbeddingConfig {
   similarity: SimilarityConfig
 }
 
+/** Person profile settings. */
+export interface ProfileConfig {
+  /** Distill and deliver the profile. */
+  enabled: boolean
+  /** Longest profile, in characters. */
+  maxChars: number
+  /** Memories folded into the profile per distillation call. */
+  batchFacts: number
+  /**
+   * Shortest interval between two checks of one owner for memories newer than the profile, in milliseconds; listed
+   * person memories, and the dates read from them, are reused for the same time.
+   */
+  refreshMs: number
+  /** Longest one distillation call may take, in milliseconds. */
+  timeoutMs: number
+}
+
 /** Embedding-scale cosine cutoffs applied to MemOS's algorithm configuration. */
 export interface SimilarityConfig {
   /** Minimum query-to-memory cosine for a recalled trace (`retrieval.minTraceSim`). */
@@ -2783,7 +2814,7 @@ export interface SimilarityConfig {
 }
 ```
 
-来源：[`packages/memory/memory-memos/src/index.ts:28`](../packages/memory/memory-memos/src/index.ts)
+来源：[`packages/memory/memory-memos/src/index.ts:29`](../packages/memory/memory-memos/src/index.ts)
 
 <a id="aevenmessage-feedback"></a>
 
@@ -3000,7 +3031,7 @@ export type Config = LocalConfig
 
 依赖：[`LocalConfig`](#aevenpwsh-local)
 
-来源：[`packages/shell/pwsh-sandbox/src/index.ts:41`](../packages/shell/pwsh-sandbox/src/index.ts)
+来源：[`packages/shell/pwsh-sandbox/src/index.ts:43`](../packages/shell/pwsh-sandbox/src/index.ts)
 
 <a id="aevenrepeat-tool-reminder"></a>
 
@@ -4620,7 +4651,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/shell/tool-pwsh/src/index.ts:55`](../packages/shell/tool-pwsh/src/index.ts)
+来源：[`packages/shell/tool-pwsh/src/index.ts:56`](../packages/shell/tool-pwsh/src/index.ts)
 
 <a id="aeventool-pwsh-persistent"></a>
 

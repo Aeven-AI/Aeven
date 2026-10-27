@@ -2023,6 +2023,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'ranked hits visible to the scope.',
       },
       {
+        signature: 'profile(request: Parameters<MemoryProvider[\'profile\']>[0]): Promise<MemoryProfile>',
+        description: 'Read the owner\'s profile and recorded dates from all of their person memories.',
+        parameters: [{ name: 'request', description: 'scope whose owner is profiled, and cancellation.' }],
+        returns: 'the profile; its `text` is absent until the provider\'s first distillation finishes.',
+      },
+      {
         signature: 'capture(turn: MemoryTurn): void',
         description: 'Hand one completed turn to the provider for background learning.',
         parameters: [{ name: 'turn', description: 'turn assembled from committed session events.' }],
@@ -6734,6 +6740,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type MediaVideoStatus = \'running\' | \'succeeded\' | \'failed\';',
   },
   {
+    name: 'MemoryDate',
+    declaration: 'export interface MemoryDate {\n    readonly month: number;\n    readonly day: number;\n    readonly year?: number;\n    readonly birth: boolean;\n    readonly text: string;\n    readonly id: MemoryItemId;\n}',
+  },
+  {
     name: 'MemoryDetail',
     declaration: 'export interface MemoryDetail {\n    readonly kind: MemoryDetailKind;\n    readonly id: MemoryItemId;\n    readonly title: string;\n    readonly body: string;\n    readonly facts: Readonly<Record<string, JsonValue>>;\n}',
   },
@@ -6782,8 +6792,12 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface MemoryPage {\n    readonly records: readonly MemoryRecord[];\n    readonly total: number;\n}',
   },
   {
+    name: 'MemoryProfile',
+    declaration: 'export interface MemoryProfile {\n    readonly text?: string;\n    readonly updatedAt?: number;\n    readonly dates: readonly MemoryDate[];\n}',
+  },
+  {
     name: 'MemoryProvider',
-    declaration: 'export interface MemoryProvider {\n    readonly id: string;\n    recall(request: MemoryRecallRequest): Promise<MemoryRecall>;\n    capture(turn: MemoryTurn): void;\n    setProcedureStatus(request: {\n        readonly owner: string;\n        readonly id: MemoryItemId;\n        readonly status: ProcedureStatus;\n        readonly signal: AbortSignal;\n    }): Promise<boolean>;\n    turnDomain(request: {\n        readonly sessionId: SessionId;\n        readonly turn: number;\n    }): Promise<MemoryDomain | undefined>;\n    closeSession(sessionId: SessionId): Promise<void>;\n    detail(request: {\n        readonly scope: MemoryScope;\n        readonly kind: MemoryDetailKind;\n        readonly id: MemoryItemId;\n        readonly signal: AbortSignal;\n    }): Promise<MemoryDetail | undefined>;\n    timeline(request: {\n        readonly scope: MemoryScope;\n        readonly episodeId: MemoryEpisodeId;\n        readonly limit: number;\n        readonly signal: AbortSignal;\n    }): Promise<readonly MemoryTimelineEntry[]>;\n    environments(request: {\n        readonly scope: MemoryScope;\n        readonly query?: string;\n        readonly limit: number;\n        readonly signal: AbortSignal;\n    }): Promise<readonly MemoryEnvironment[]>;\n    skills(request: {\n        readonly scope: MemoryScope;\n        readonly status?: MemorySkillStatus;\n        readonly limit: number;\n        readonly signal: AbortSignal;\n    }): Promise<readonly MemorySkill[]>;\n    useSkill(request: {\n        readonly scope: MemoryScope;\n       /* …truncated — full shape in source */',
+    declaration: 'export interface MemoryProvider {\n    readonly id: string;\n    recall(request: MemoryRecallRequest): Promise<MemoryRecall>;\n    profile(request: {\n        readonly scope: MemoryScope;\n        readonly signal: AbortSignal;\n    }): Promise<MemoryProfile>;\n    capture(turn: MemoryTurn): void;\n    setProcedureStatus(request: {\n        readonly owner: string;\n        readonly id: MemoryItemId;\n        readonly status: ProcedureStatus;\n        readonly signal: AbortSignal;\n    }): Promise<boolean>;\n    turnDomain(request: {\n        readonly sessionId: SessionId;\n        readonly turn: number;\n    }): Promise<MemoryDomain | undefined>;\n    closeSession(sessionId: SessionId): Promise<void>;\n    detail(request: {\n        readonly scope: MemoryScope;\n        readonly kind: MemoryDetailKind;\n        readonly id: MemoryItemId;\n        readonly signal: AbortSignal;\n    }): Promise<MemoryDetail | undefined>;\n    timeline(request: {\n        readonly scope: MemoryScope;\n        readonly episodeId: MemoryEpisodeId;\n        readonly limit: number;\n        readonly signal: AbortSignal;\n    }): Promise<readonly MemoryTimelineEntry[]>;\n    environments(request: {\n        readonly scope: MemoryScope;\n        readonly query?: string;\n        readonly limit: number;\n        readonly signal: AbortSignal;\n    }): Promise<readonly MemoryEnvironment[]>;\n    skills(request: {\n        readonly scope: MemoryScope;\n        readonly status?: MemorySkillStatus;\n        readonly limit: number;\n        readonly /* …truncated — full shape in source */',
   },
   {
     name: 'MemoryRecall',
