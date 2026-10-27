@@ -1,0 +1,266 @@
+/**
+ * Conversation history across two devices of one account: each session is published by the device that
+ * created it and imported elsewhere event for event; old sessions stay home; imported sessions are not
+ * published again; gaps, offline reads, and persistence failures are reported rather than imported.
+ */
+import { Context } from '@deepseek-ai/cordis'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { SessionEvent, SessionHeader } from '@aeven/session'
+import { MemorySyncNetwork, type MemorySyncDevice } from '../../../sync/sync/tests/memory.ts'
+import * as plugin from '../src/index.ts'
+import { SessionMirror, type SessionSyncTuning } from '../src/mirror.ts'
+
+const OWNER = 'owner-1'
+const DAY = 86_400_000
+
+/** A stored-log suffix as `readFrom` returns it. */
+interface Suffix {
+  meta: SessionHeader
+  inheritedEventCount: number
+  fromSeq: number
+  events: SessionEvent[]
+}
+
+/** Session persistence with JSONL's contiguity rule, held in memory. */
+class MemoryPersistence {
+  readonly logs = new Map<string, { header: SessionHeader; inherited: number; events: SessionEvent[]; revision: number }>()
+  failSnapshots = false
+
+  list(): Promise<SessionHeader[]> {
+    return Promise.resolve([...this.logs.values()].filter(log => log.events.length > 0).map(log => log.header))
+  }
+
+  listSnapshots(): Promise<Array<{ header: SessionHeader; revision: string }>> {
+    if (this.failSnapshots) return Promise.reject(new Error('disk unavailable'))
+    return Promise.resolve([...this.logs.values()].filter(log => log.events.length > 0).map(log => ({ header: log.header, revision: `r${String(log.revision)}` })))
+  }
+
+  create(header: SessionHeader, inherited?: number): Promise<void> {
+    if (!this.logs.has(header.id)) this.logs.set(header.id, { header, inherited: inherited ?? 0, events: [], revision: 0 })
+    return Promise.resolve()
+  }
+
+  append(id: string, events: readonly SessionEvent[]): Promise<void> {
+    const log = this.logs.get(id)
+    if (log === undefined) return Promise.reject(new Error(`no session ${id}`))
+    if (events[0]?.seq !== log.events.length) return Promise.reject(new Error(`non-contiguous append to ${id}`))
+    log.events.push(...events)
+    log.revision++
+    return Promise.resolve()
+  }
+
+  readFrom(id: string, from: number): Promise<Suffix> {
+    const log = this.logs.get(id)
+    if (log === undefined) return Promise.reject(new Error(`no session ${id}`))
+    return Promise.resolve({ meta: log.header, inheritedEventCount: log.inherited, fromSeq: from, events: log.events.slice(from) })
+  }
+
+  start(id: string, createdAt: number, count: number, extra: Partial<SessionHeader> = {}): void {
+    const header = { id, version: 0, createdAt, isSeeded: false, owner: OWNER, ...extra } as unknown as SessionHeader
+    this.logs.set(id, { header, inherited: 0, events: [], revision: 0 })
+    this.add(id, count)
+  }
+
+  add(id: string, count: number, size = 50): void {
+    const log = this.logs.get(id)!
+    for (let i = 0; i < count; i++) {
+      log.events.push({ type: 'user/message', seq: log.events.length, time: 0, data: { text: 'x'.repeat(size) } } as unknown as SessionEvent)
+    }
+    log.revision++
+  }
+}
+
+const tuning: SessionSyncTuning = { publishMs: 20, batchBytes: 2_000, backfillDays: 30 }
+const mirrors: SessionMirror[] = []
+afterEach(() => { for (const mirror of mirrors.splice(0)) mirror.dispose() })
+
+function mirror(device: MemorySyncDevice, persistence: MemoryPersistence, warn = vi.fn()): { mirror: SessionMirror; warn: typeof warn } {
+  const created = new SessionMirror(OWNER, device.asSync(), persistence as never, tuning, warn)
+  mirrors.push(created)
+  return { mirror: created, warn }
+}
+
+const count = (persistence: MemoryPersistence, id: string): number => persistence.logs.get(id)?.events.length ?? 0
+
+describe('session mirror', () => {
+  it('publishes recent sessions in batches, imports them on the other device, and follows new turns both ways', async () => {
+    const network = new MemorySyncNetwork()
+    const a = network.device()
+    const b = network.device()
+    const homeA = new MemoryPersistence()
+    const homeB = new MemoryPersistence()
+    homeA.start('recent', Date.now(), 60, { cwd: '/work' })
+    homeA.start('seeded', Date.now(), 4, { isSeeded: true })
+    homeA.start('old', Date.now() - 90 * DAY, 4)
+    homeA.start('someone-else', Date.now(), 4, { owner: 'other' })
+    await mirror(a, homeA).mirror.start()
+    await mirror(b, homeB).mirror.start()
+    await vi.waitFor(() => { expect(count(homeB, 'recent')).toBe(60) })
+    expect(network.streams.get('sessions/recent')!.length).toBeGreaterThan(1)
+    expect(homeB.logs.get('recent')!.events).toEqual(homeA.logs.get('recent')!.events)
+    expect(homeB.logs.get('recent')!.header).toMatchObject({ cwd: '/work', owner: OWNER })
+    await vi.waitFor(() => { expect(count(homeB, 'seeded')).toBe(4) })
+    expect(count(homeB, 'old')).toBe(0)
+    expect(count(homeB, 'someone-else')).toBe(0)
+
+    homeA.add('recent', 3)
+    await vi.waitFor(() => { expect(count(homeB, 'recent')).toBe(63) })
+    homeB.start('from-b', Date.now(), 5)
+    await vi.waitFor(() => { expect(count(homeA, 'from-b')).toBe(5) })
+    const published = network.streams.get('sessions/recent')!.length
+    await new Promise(resolve => setTimeout(resolve, 80))
+    expect(network.streams.get('sessions/recent')!.length).toBe(published)
+  })
+
+  it('continues a session the device already holds part of, and catches up after reconnecting', async () => {
+    const network = new MemorySyncNetwork()
+    const a = network.device()
+    const b = network.device()
+    const homeA = new MemoryPersistence()
+    const homeB = new MemoryPersistence()
+    homeA.start('s', Date.now(), 0)
+    homeA.add('s', 10, 900)
+    homeA.start('huge', Date.now(), 0)
+    homeA.add('huge', 1, 3_000)
+    await mirror(a, homeA).mirror.start()
+    await vi.waitFor(() => { expect(network.streams.get('sessions/huge')).toHaveLength(1) })
+    homeB.start('s', Date.now(), 0)
+    homeB.add('s', 4, 900)
+    const second = mirror(b, homeB)
+    b.setState('offline')
+    await second.mirror.start()
+    b.setState('online')
+    second.mirror.reconnected()
+    await vi.waitFor(() => { expect(count(homeB, 's')).toBe(10) })
+  })
+
+  it('reports a session whose published events have a gap, and offline reads, without importing them', async () => {
+    const network = new MemorySyncNetwork()
+    const a = network.device()
+    const b = network.device()
+    const homeA = new MemoryPersistence()
+    homeA.start('s', Date.now(), 0)
+    homeA.add('s', 6, 900)
+    await mirror(a, homeA).mirror.start()
+    await vi.waitFor(() => { expect(network.streams.get('sessions/s')!.length).toBeGreaterThan(1) })
+    network.streams.set('sessions/s', network.streams.get('sessions/s')!.slice(1))
+    const homeB = new MemoryPersistence()
+    const { mirror: mirrorB, warn } = mirror(b, homeB)
+    await mirrorB.start()
+    await vi.waitFor(() => { expect(warn).toHaveBeenCalledWith(expect.stringMatching(/missing events 0–/)) })
+    expect(count(homeB, 's')).toBe(0)
+
+  })
+
+  it('reports a stream it cannot read while offline', async () => {
+    const network = new MemorySyncNetwork()
+    const a = network.device()
+    const c = network.device()
+    const sync = c.asSync()
+    sync.readStream = () => Promise.reject(new Error('reading a stream needs a connection to the relay'))
+    const warn = vi.fn()
+    const offline = new SessionMirror(OWNER, sync, new MemoryPersistence() as never, tuning, warn)
+    mirrors.push(offline)
+    await offline.start()
+    const homeA = new MemoryPersistence()
+    homeA.start('s', Date.now(), 2)
+    await mirror(a, homeA).mirror.start()
+    await vi.waitFor(() => { expect(warn).toHaveBeenCalledWith(expect.stringMatching(/needs a connection/)) })
+  })
+
+  it('reports a listing failure and does nothing for a device that is not enrolled', async () => {
+    const network = new MemorySyncNetwork()
+    const home = new MemoryPersistence()
+    home.start('s', Date.now(), 2)
+    home.failSnapshots = true
+    const { mirror: failing, warn } = mirror(network.device(), home)
+    await failing.start()
+    await vi.waitFor(() => { expect(warn).toHaveBeenCalledWith('session sync: publishing sessions failed: Error: disk unavailable') })
+    const idle = mirror(network.device('unenrolled'), new MemoryPersistence())
+    await idle.mirror.start()
+    await idle.mirror.publish()
+    expect(idle.warn).not.toHaveBeenCalled()
+  })
+
+  it('skips a session whose log did not change and publishes nothing for an empty suffix', async () => {
+    const network = new MemorySyncNetwork()
+    const home = new MemoryPersistence()
+    home.start('s', Date.now(), 2)
+    const { mirror: created } = mirror(network.device(), home)
+    await created.start()
+    await vi.waitFor(() => { expect(network.streams.get('sessions/s')).toHaveLength(1) })
+    home.logs.get('s')!.revision++
+    await created.publish()
+    await created.publish()
+    expect(network.streams.get('sessions/s')).toHaveLength(1)
+  })
+
+  it('stops importing and publishing when disposed mid-pass', async () => {
+    const network = new MemorySyncNetwork()
+    const a = network.device()
+    const b = network.device()
+    const homeA = new MemoryPersistence()
+    const homeB = new MemoryPersistence()
+    const { mirror: mirrorB } = mirror(b, homeB)
+    await mirrorB.start()
+    homeA.start('s', Date.now(), 2)
+    const { mirror: mirrorA } = mirror(a, homeA)
+    await mirrorA.start()
+    await vi.waitFor(() => { expect(count(homeB, 's')).toBe(2) })
+    homeA.add('s', 1)
+    const publishing = mirrorA.publish()
+    mirrorA.dispose()
+    await publishing
+    mirrorB.reconnected()
+    mirrorB.dispose()
+    await new Promise(resolve => setTimeout(resolve, 20))
+    expect(count(homeB, 's')).toBe(2)
+  })
+
+  it('stops when disposed before its index opened, and refuses to run before it started', async () => {
+    const network = new MemorySyncNetwork()
+    const { mirror: early } = mirror(network.device(), new MemoryPersistence())
+    const starting = early.start()
+    early.dispose()
+    await starting
+    await early.publish()
+    const { mirror: unstarted } = mirror(network.device(), new MemoryPersistence())
+    await expect(unstarted.publish()).resolves.toBeUndefined()
+  })
+})
+
+describe('session-sync plugin', () => {
+  it('starts a mirror when sync serves an account, catches up when it comes back online, and reports a failed start', async () => {
+    const network = new MemorySyncNetwork()
+    const device = network.device('connecting')
+    const home = new MemoryPersistence()
+    const ctx = new Context()
+    const sync = device.asSync()
+    let failOpen = false
+    const openDocument = sync.openDocument.bind(sync)
+    sync.openDocument = (owner: string, name: string) => failOpen ? Promise.reject(new Error('locked')) : openDocument(owner, name)
+    ctx.provide('sync', sync)
+    ctx.provide('sessionPersistence', home as never)
+    const warnings: string[] = []
+    const spy = vi.spyOn(ctx.logger, 'warn').mockImplementation((message: unknown) => { warnings.push(String(message)) })
+    const fiber = ctx.plugin(plugin, { publishMs: 250, batchBytes: 2_000, backfillDays: 30 })
+    await fiber
+    ctx.emit('sync/status', OWNER)
+    device.setState('online')
+    ctx.emit('sync/status', OWNER)
+    home.start('s', Date.now(), 3)
+    await vi.waitFor(() => { expect(network.streams.get('sessions/s')).toBeDefined() })
+    device.setState('offline')
+    ctx.emit('sync/status', OWNER)
+    home.failSnapshots = true
+    await vi.waitFor(() => { expect(warnings.some(warning => warning.includes('disk unavailable'))).toBe(true) })
+    device.setState('unenrolled')
+    ctx.emit('sync/status', 'not-enrolled')
+    failOpen = true
+    device.setState('online')
+    ctx.emit('sync/status', 'other-owner')
+    await vi.waitFor(() => { expect(warnings.some(warning => warning.includes('locked'))).toBe(true) })
+    await fiber.dispose()
+    spy.mockRestore()
+  })
+})

@@ -47,8 +47,7 @@ const streamName = (id: string): string => `sessions/${id}`
 
 /** One past the `seq` of the last event, or `fallback` for no events. */
 function after(events: readonly SessionEvent[], fallback: number): number {
-  const last = events.at(-1)
-  return last === undefined ? fallback : last.seq + 1
+  return events.reduce((_next, event) => event.seq + 1, fallback)
 }
 
 /** One account's session mirror on this device. */
@@ -153,7 +152,7 @@ export class SessionMirror {
         const next = await this.next(id, local)
         if (entry.next > next) await this.importSession(id, entry, next, local.has(id))
       } catch (error) {
-        this.warn(`session sync: importing a session failed: ${error instanceof Error ? error.message : String(error)}`)
+        this.warn(`session sync: importing a session failed: ${String(error)}`)
       }
     }
   }
@@ -206,7 +205,7 @@ export class SessionMirror {
         this.revisions.set(id, String(revision))
       }
     } catch (error) {
-      this.warn(`session sync: publishing sessions failed: ${error instanceof Error ? error.message : String(error)}`)
+      this.warn(`session sync: publishing sessions failed: ${String(error)}`)
     } finally {
       this.publishing = false
     }

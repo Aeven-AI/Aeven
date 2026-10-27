@@ -29,7 +29,6 @@ export const Config: z<Config> = z.object({
  */
 export function apply(ctx: Context, config: Config): void {
   const mirrors = new Map<string, SessionMirror>()
-  const logger = ctx.logger('session-sync')
   ctx.on('sync/status', (owner) => {
     const state = ctx.sync.status(owner).state
     const existing = mirrors.get(owner)
@@ -38,10 +37,10 @@ export function apply(ctx: Context, config: Config): void {
       return
     }
     if (state === 'unenrolled' || state === 'joining') return
-    const mirror = new SessionMirror(owner, ctx.sync, ctx.sessionPersistence, config, (message) => { logger.warn(message) })
+    const mirror = new SessionMirror(owner, ctx.sync, ctx.sessionPersistence, config, (message) => { ctx.logger.warn(message) })
     mirrors.set(owner, mirror)
     mirror.start().catch((error: unknown) => {
-      logger.warn(`starting session sync failed: ${error instanceof Error ? error.message : String(error)}`)
+      ctx.logger.warn(`session sync: starting failed: ${String(error)}`)
     })
   })
   ctx.effect(() => () => {
