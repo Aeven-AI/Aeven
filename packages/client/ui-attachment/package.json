@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-attachment",
   "description": "Dynamic attachment presentation plugin for conversation input, message-image, and trajectory image slots",
-  "version": "0.3.20-alpha",
+  "version": "0.3.21-alpha",
   "publishConfig": {
     "access": "public"
   },

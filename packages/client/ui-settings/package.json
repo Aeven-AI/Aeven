@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-settings",
   "description": "Settings domain base plugin: the settings-namespace scope service and the canonical settings slot-type contract",
-  "version": "0.3.20-alpha",
+  "version": "0.3.21-alpha",
   "publishConfig": {
     "access": "public"
   },

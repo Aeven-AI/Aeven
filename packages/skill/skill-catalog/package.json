@@ -1,7 +1,7 @@
 {
   "name": "@aeven/skill-catalog",
   "description": "Vendored skill catalog: browse, search and install the shipped skills without network access",
-  "version": "0.3.20-alpha",
+  "version": "0.3.21-alpha",
   "publishConfig": {
     "access": "public"
   },
