@@ -156,6 +156,8 @@ describe('a vault on two devices', () => {
     await vi.waitFor(() => { expect(b.vault.status().state).toBe('unenrolled') })
     expect(b.vault.enrolled()).toBe(false)
     await vi.waitFor(() => { expect(a.warn).toHaveBeenCalledWith('sync: fetching the rotated keyring failed', expect.any(Error)) })
+    const removedId = b.vault.status().device
+    expect(b.vault.prepareJoin().id).not.toBe(removedId)
   })
 
   it('ignores a chain entry on a device that holds no chain', () => {
