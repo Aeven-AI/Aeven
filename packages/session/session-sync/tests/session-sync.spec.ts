@@ -3,6 +3,7 @@
  * created it and imported elsewhere event for event; old sessions stay home; imported sessions are not
  * published again; gaps, offline reads, and persistence failures are reported rather than imported.
  */
+import { createHash } from 'node:crypto'
 import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { SessionEvent, SessionHeader } from '@aeven/session'
@@ -147,6 +148,8 @@ describe('session mirror', () => {
     vi.spyOn(homeB, 'append').mockRejectedValueOnce(new Error('disk unavailable'))
     const { mirror: receiver, warn } = mirror(b, homeB)
     await receiver.start()
+    await new Promise(resolve => setTimeout(resolve, 200))
+    console.log('DBG', JSON.stringify([...(await b.asSync().openDocument('o', 'sessions/index')).doc.getMap('sessions').keys()]), JSON.stringify([...(await a.asSync().openDocument('o', 'sessions/index')).doc.getMap('sessions').keys()]), network.streams.size, JSON.stringify(warn.mock.calls), homeB.logs.size, create.mock.calls.length)
     await vi.waitFor(() => { expect(warn).toHaveBeenCalledWith(expect.stringContaining('disk unavailable')) })
     receiver.reconnected()
     await vi.waitFor(() => { expect(count(homeB, 'retry')).toBe(3) })
@@ -250,23 +253,136 @@ describe('session mirror', () => {
     await vi.waitFor(() => { expect(count(homeB, 's')).toBe(2) })
     homeA.add('s', 1)
     const publishing = mirrorA.publish()
-    mirrorA.dispose()
+    const disposingA = mirrorA.dispose()
     await publishing
+    await disposingA
     mirrorB.reconnected()
-    mirrorB.dispose()
+    await mirrorB.dispose()
     await new Promise(resolve => setTimeout(resolve, 20))
     expect(count(homeB, 's')).toBe(2)
+  })
+
+  it('stops an import and a publication that are waiting when disposed', async () => {
+    const network = new MemorySyncNetwork()
+    const a = network.device()
+    const b = network.device()
+    const homeA = new MemoryPersistence()
+    homeA.start('s', Date.now(), 2)
+    await mirror(a, homeA).mirror.start()
+    const sync = b.asSync()
+    const read = sync.readStream.bind(sync)
+    const gate = Promise.withResolvers<undefined>()
+    sync.readStream = async (owner, name, after) => { await gate.promise; return await read(owner, name, after) }
+    const homeB = new MemoryPersistence()
+    const receiver = new SessionMirror(OWNER, sync, homeB as never, tuning, vi.fn())
+    await receiver.start()
+    await vi.waitFor(() => { expect(network.streams.get('sessions/s')).toBeDefined() })
+    receiver.reconnected()
+    const stopping = receiver.dispose()
+    gate.resolve(undefined)
+    await stopping
+    expect(count(homeB, 's')).toBe(0)
+
+    const homeC = new MemoryPersistence()
+    homeC.start('c', Date.now(), 1)
+    const readFrom = homeC.readFrom.bind(homeC)
+    const slow = Promise.withResolvers<undefined>()
+    homeC.readFrom = async (id, from) => { await slow.promise; return await readFrom(id, from) }
+    const publisher = new SessionMirror(OWNER, network.device().asSync(), homeC as never, tuning, vi.fn())
+    await publisher.start()
+    const closing = publisher.dispose()
+    slow.resolve(undefined)
+    await closing
+    expect(network.streams.get('sessions/c')).toBeUndefined()
+
+    const homeD = new MemoryPersistence()
+    homeD.start('d', Date.now(), 1)
+    const writer = network.device().asSync()
+    const append = writer.appendStream.bind(writer)
+    const sending = Promise.withResolvers<undefined>()
+    const sent = Promise.withResolvers<undefined>()
+    writer.appendStream = async (owner, name, payload) => {
+      sent.resolve(undefined)
+      await sending.promise
+      await append(owner, name, payload)
+    }
+    const last = new SessionMirror(OWNER, writer, homeD as never, tuning, vi.fn())
+    await last.start()
+    await sent.promise
+    const ending = last.dispose()
+    sending.resolve(undefined)
+    await ending
+    const index = await network.device().asSync().openDocument(OWNER, 'sessions/index')
+    expect(index.doc.getMap('sessions').has('d')).toBe(false)
   })
 
   it('stops when disposed before its index opened, and refuses to run before it started', async () => {
     const network = new MemorySyncNetwork()
     const { mirror: early } = mirror(network.device(), new MemoryPersistence())
     const starting = early.start()
-    early.dispose()
+    const disposing = early.dispose()
     await starting
+    await disposing
     await early.publish()
     const { mirror: unstarted } = mirror(network.device(), new MemoryPersistence())
     await expect(unstarted.publish()).resolves.toBeUndefined()
+  })
+})
+
+/** Content-addressed objects held in memory, verified on import like the local store. */
+class MemoryAttachments {
+  readonly objects = new Map<string, Uint8Array>()
+
+  hold(data: Uint8Array): string {
+    const id = `sha256:${createHash('sha256').update(data).digest('hex')}`
+    this.objects.set(id, data)
+    return id
+  }
+
+  hasObject(id: string): Promise<boolean> {
+    return Promise.resolve(this.objects.has(id))
+  }
+
+  readObject(id: string): Promise<Uint8Array> {
+    const data = this.objects.get(id)
+    return data === undefined ? Promise.reject(new Error('missing')) : Promise.resolve(data)
+  }
+
+  importObject(id: string, data: Uint8Array): Promise<void> {
+    if (`sha256:${createHash('sha256').update(data).digest('hex')}` !== id) return Promise.reject(new Error('corrupt'))
+    this.objects.set(id, data)
+    return Promise.resolve()
+  }
+}
+
+describe('attachments of synced conversations', () => {
+  it('sends the attachments a conversation references along with it, once, in chunks', async () => {
+    const network = new MemorySyncNetwork()
+    const a = network.device()
+    const b = network.device()
+    const homeA = new MemoryPersistence()
+    const homeB = new MemoryPersistence()
+    const storeA = new MemoryAttachments()
+    const storeB = new MemoryAttachments()
+    const image = storeA.hold(new Uint8Array(5_000).map((_, index) => index % 251))
+    const empty = storeA.hold(new Uint8Array(0))
+    const absent = `sha256:${'0'.repeat(64)}`
+    const mirrorB = new SessionMirror(OWNER, b.asSync(), homeB as never, tuning, vi.fn(), storeB as never)
+    const mirrorA = new SessionMirror(OWNER, a.asSync(), homeA as never, tuning, vi.fn(), storeA as never)
+    mirrors.push(mirrorA, mirrorB)
+    await mirrorB.start()
+    homeA.start('s', Date.now(), 1)
+    homeA.logs.get('s')!.events.push({ type: 'user/message', seq: 1, time: 0, data: { images: [{ attachmentId: image }, { attachmentId: empty }, { attachmentId: absent }] } } as never)
+    homeA.logs.get('s')!.revision++
+    await mirrorA.start()
+    await vi.waitFor(() => { expect(storeB.objects.get(image)).toEqual(storeA.objects.get(image)) })
+    expect(storeB.objects.get(empty)).toEqual(new Uint8Array(0))
+    expect(storeB.objects.has(absent)).toBe(false)
+    expect(network.streams.get(`attachments/${image}`)!.length).toBe(3)
+    homeA.add('s', 1)
+    homeA.logs.get('s')!.events.at(-1)!.data = { images: [{ attachmentId: image }] } as never
+    await vi.waitFor(() => { expect(count(homeB, 's')).toBe(3) })
+    expect(network.streams.get(`attachments/${image}`)!.length).toBe(3)
   })
 })
 

@@ -39,6 +39,8 @@ export class FakeRelay {
   readonly accounts = new Map<string, Account>()
   /** Codes the next requests of a type answer with, consumed in order. */
   readonly refusals = new Map<string, string[]>()
+  /** Replies the next requests of a type receive instead of the relay's own, consumed in order. */
+  readonly replies = new Map<string, Array<Record<string, unknown>>>()
   /** Request types the relay leaves unanswered. */
   readonly unanswered = new Set<string>()
   /** Delay before accepting a handshake, in milliseconds. */
@@ -111,6 +113,11 @@ export class FakeRelay {
     const queued = this.refusals.get(String(t))?.shift()
     if (queued !== undefined) {
       refuse(queued)
+      return
+    }
+    const reply = this.replies.get(String(t))?.shift()
+    if (reply !== undefined) {
+      ok(reply)
       return
     }
     const account = peer.account

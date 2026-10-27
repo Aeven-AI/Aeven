@@ -7,6 +7,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type {} from '@aeven/sync'
 import type {} from '@aeven/session-persistence'
+import type {} from '@aeven/attachment'
 import { SessionMirror, type SessionSyncTuning } from './mirror.ts'
 
 export const name = 'session-sync'
@@ -37,7 +38,7 @@ export function apply(ctx: Context, config: Config): void {
       return
     }
     if (state === 'unenrolled' || state === 'joining') return
-    const mirror = new SessionMirror(owner, ctx.sync, ctx.sessionPersistence, config, (message) => { ctx.logger.warn(message) })
+    const mirror = new SessionMirror(owner, ctx.sync, ctx.sessionPersistence, config, (message) => { ctx.logger.warn(message) }, ctx.get('attachments'))
     mirrors.set(owner, mirror)
     mirror.start().catch((error: unknown) => {
       ctx.logger.warn(`session sync: starting failed: ${String(error)}`)

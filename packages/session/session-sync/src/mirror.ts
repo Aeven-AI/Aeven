@@ -10,6 +10,7 @@ import type { Map as YMap, YMapEvent, Transaction } from 'yjs'
 import { SessionLogOffset, type SessionEvent, type SessionHeader, type SessionId } from '@aeven/session'
 import type { SessionPersistence } from '@aeven/session-persistence'
 import type { Sync, SyncDocument } from '@aeven/sync'
+import { AttachmentId, type AttachmentStore } from '@aeven/attachment'
 
 /** One session as the index records it. */
 interface IndexEntry {
@@ -44,6 +45,13 @@ const INDEX = 'sessions/index'
 const DAY_MS = 86_400_000
 
 const streamName = (id: string): string => `sessions/${id}`
+const attachmentStream = (id: string): string => `attachments/${id}`
+const ATTACHMENT_ID = /sha256:[a-f0-9]{64}/g
+
+/** Content addresses of the attachments some events reference: images, files, and files' extracted text. */
+function attachmentIds(events: readonly SessionEvent[]): Set<string> {
+  return new Set(JSON.stringify(events).match(ATTACHMENT_ID))
+}
 
 /** One past the `seq` of the last event, or `fallback` for no events. */
 function after(events: readonly SessionEvent[], fallback: number): number {
@@ -81,16 +89,70 @@ export class SessionMirror {
     private readonly persistence: SessionPersistence,
     private readonly tuning: SessionSyncTuning,
     private readonly warn: (message: string) => void,
+    private readonly attachments?: AttachmentStore,
   ) {}
+
+  /** Content addresses of attachments the account's devices published, by id. */
+  private published(): YMap<{ chunks: number }> {
+    return this.started().doc.getMap<{ chunks: number }>('attachments')
+  }
+
+  /**
+   * Publish the attachments some events reference that this device holds and no device published yet.
+   * @param events - the events being published.
+   */
+  private async publishAttachments(events: readonly SessionEvent[]): Promise<void> {
+    const store = this.attachments
+    if (store === undefined) return
+    const published = this.published()
+    for (const id of attachmentIds(events)) {
+      if (published.has(id) || !await store.hasObject(AttachmentId(id))) continue
+      const data = await store.readObject(AttachmentId(id))
+      let chunks = 0
+      for (let offset = 0; offset < data.byteLength || chunks === 0; offset += this.tuning.batchBytes) {
+        await this.sync.appendStream(this.owner, attachmentStream(id), data.subarray(offset, offset + this.tuning.batchBytes))
+        chunks++
+      }
+      published.set(id, { chunks })
+    }
+  }
+
+  /**
+   * Fetch the attachments some imported events reference that are missing here and another device published.
+   * @param events - the imported events.
+   */
+  private async importAttachments(events: readonly SessionEvent[]): Promise<void> {
+    const store = this.attachments
+    if (store === undefined) return
+    const published = this.published()
+    for (const id of attachmentIds(events)) {
+      if (!published.has(id) || await store.hasObject(AttachmentId(id))) continue
+      const parts: Uint8Array[] = []
+      let cursor = 0
+      for (;;) {
+        const { batches, more } = await this.sync.readStream(this.owner, attachmentStream(id), cursor)
+        for (const batch of batches) {
+          parts.push(batch.payload)
+          cursor = batch.seq
+        }
+        if (!more) break
+      }
+      await store.importObject(AttachmentId(id), new Uint8Array(Buffer.concat(parts)))
+    }
+  }
 
   /** Opaque read of {@link closed}: control flow cannot narrow it across awaits. */
   private isClosed(): boolean {
     return this.closed
   }
 
-  private entries(): YMap<IndexEntry> {
+  private started(): SyncDocument {
     if (this.index === undefined) throw new Error('the session mirror has not started')
-    return this.index.doc.getMap<IndexEntry>('sessions')
+    return this.index
+  }
+
+  private entries(): YMap<IndexEntry> {
+    return this.started().doc.getMap<IndexEntry>('sessions')
   }
 
   private device(): string | undefined {
@@ -129,6 +191,8 @@ export class SessionMirror {
       } while (this.repeatImport() && !this.isClosed())
     })().finally(() => {
       this.importing = undefined
+      // A change that arrived after the loop's last check but before this point still needs its pass.
+      if (this.repeatImport() && !this.isClosed()) this.scheduleImport()
     })
   }
 
@@ -187,6 +251,7 @@ export class SessionMirror {
           created = true
         }
         await this.persistence.append(id as SessionId, pending)
+        await this.importAttachments(pending)
         pending = []
         this.localNext.set(id, next)
         committedCursor = cursor
@@ -247,6 +312,7 @@ export class SessionMirror {
     }
     await flush()
     if (this.isClosed()) return
+    await this.publishAttachments(suffix.events)
     this.entries().set(header.id, {
       header: suffix.meta,
       inherited: suffix.inheritedEventCount,

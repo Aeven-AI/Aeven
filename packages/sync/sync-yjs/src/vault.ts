@@ -441,17 +441,20 @@ export class AccountVault {
    * @returns when this flush pass ends.
    */
   flush(): Promise<void> {
-    this.flushing ??= this.drain().finally(() => {
+    this.flushing ??= this.drain().then((emptied) => {
       this.flushing = undefined
-    })
+      // A frame queued after the pass found the outbox empty, but before this point, still needs sending.
+      if (emptied && this.relay !== undefined && this.store.pending() > 0) void this.flush()
+    }, () => { this.flushing = undefined })
     return this.flushing
   }
 
-  private async drain(): Promise<void> {
+  /** @returns whether the pass ended with an empty outbox rather than a missing or failing relay. */
+  private async drain(): Promise<boolean> {
     for (;;) {
       const relay = this.relay
       const next = this.store.outbox()[0]
-      if (relay === undefined || next === undefined) return
+      if (relay === undefined || next === undefined) return next === undefined
       try {
         await relay.request('publish', { frame: toBase64Url(next.frame), ...next.covers === undefined ? {} : { covers: next.covers } })
       } catch (error) {
@@ -460,7 +463,7 @@ export class AccountVault {
           this.warn(`sync: the relay refused a frame (${error.code}); dropping it`, error)
         } else {
           this.warn('sync: publishing a frame failed; it stays queued', error)
-          return
+          return false
         }
       }
       this.store.acknowledge(next.seq)

@@ -71,6 +71,13 @@ export class MemorySyncDevice {
         else this.outbox.push({ name, update })
       })
       this.docs.set(name, doc)
+      // Like the relay's backlog, a document opened late starts from what online devices already hold.
+      if (this.state === 'online') {
+        for (const other of this.network.devices) {
+          const held = other.state === 'online' ? other.docs.get(name) : undefined
+          if (other !== this && held !== undefined) Y.applyUpdate(doc, Y.encodeStateAsUpdate(held), REMOTE)
+        }
+      }
     }
     return doc
   }

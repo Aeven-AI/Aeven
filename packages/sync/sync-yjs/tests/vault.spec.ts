@@ -210,6 +210,21 @@ describe('frames', () => {
     doc.close()
   })
 
+  it('sends a frame queued while a pass ends, and survives a pass that fails unexpectedly', async () => {
+    const { owner, a } = await account()
+    const doc = a.vault.openDocument('doc')
+    const outbox = vi.spyOn(a.store, 'outbox').mockReturnValueOnce([])
+    doc.doc.getMap('m').set('k', 1)
+    await vi.waitFor(() => { expect(a.store.pending()).toBe(0) })
+    expect(relay.account(owner).frames.length).toBeGreaterThan(0)
+    outbox.mockImplementationOnce(() => { throw new Error('disk') })
+    await a.vault.flush()
+    outbox.mockRestore()
+    doc.doc.getMap('m').set('k', 2)
+    await vi.waitFor(() => { expect(a.store.pending()).toBe(0) })
+    doc.close()
+  })
+
   it('compacts stored updates and queues a snapshot that prunes the relay', async () => {
     const { owner, a } = await account({ compactAfter: 3, snapshotAfter: 4 })
     const doc = a.vault.openDocument('doc')

@@ -34,12 +34,14 @@
     "@aeven/session": "workspace:^",
     "@aeven/session-persistence": "workspace:^",
     "@aeven/sync": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/attachment": "workspace:^"
   },
   "devDependencies": {
     "@aeven/session": "workspace:^",
     "@aeven/session-persistence": "workspace:^",
     "@aeven/sync": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/attachment": "workspace:^"
   }
 }

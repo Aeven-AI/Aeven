@@ -111,6 +111,15 @@ describe('the Yjs sync provider', () => {
     expect((await first.sync.acquireLease(account, 'memory/maintenance', 30_000)).granted).toBe(true)
     relay.refusals.set('lease.acquire', ['server-error'])
     await expect(first.sync.acquireLease(account, 'memory/maintenance', 30_000)).rejects.toThrow(/server-error/)
+    relay.replies.set('lease.acquire', [
+      { granted: true, holder: 'someone-else', expiresAt: 1 },
+      { granted: false, holder: 7, expiresAt: 1 },
+      { granted: false, holder: 'someone-else', expiresAt: 1.5 },
+      { granted: 'yes', holder: 'someone-else', expiresAt: 1 },
+    ])
+    for (let i = 0; i < 4; i++) {
+      await expect(first.sync.acquireLease(account, 'memory/maintenance', 30_000)).rejects.toThrow(/invalid lease/)
+    }
   })
 
   it('turns sync on, joins a second Host by code, and carries a document between them', async () => {

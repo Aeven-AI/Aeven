@@ -2,7 +2,7 @@
 
 import { randomUUID } from 'node:crypto'
 import { Context, Service } from '@deepseek-ai/cordis'
-import { UploadId } from './brand.ts'
+import { UploadId, type AttachmentId } from './brand.ts'
 import { AttachmentError } from './error.ts'
 import type {
   FileAttachmentLimits,
@@ -190,6 +190,50 @@ export abstract class AttachmentStore extends Service {
   readFileText(ref: FileAttachmentRef, signal?: AbortSignal): Promise<string> {
     void ref
     return this.filesUnsupported(signal)
+  }
+
+  /**
+   * Read the verified bytes of one stored content-addressed object (an image, a file, or a file's text), for
+   * moving it to another store, such as another device of the account.
+   * @param id - the object's content address.
+   * @param signal - optional cancellation.
+   * @returns the object's bytes.
+   */
+  readObject(id: AttachmentId, signal?: AbortSignal): Promise<Uint8Array> {
+    void id
+    return this.objectsUnsupported(signal)
+  }
+
+  /**
+   * Whether this store holds one content-addressed object.
+   * @param id - the object's content address.
+   * @returns whether a read would find it.
+   */
+  hasObject(id: AttachmentId): Promise<boolean> {
+    void id
+    return this.objectsUnsupported()
+  }
+
+  /**
+   * Store bytes another store held under their content address, byte for byte; bytes whose digest differs from
+   * the address are refused.
+   * @param id - the object's content address.
+   * @param data - the object's bytes.
+   */
+  importObject(id: AttachmentId, data: Uint8Array): Promise<void> {
+    void id
+    void data
+    return this.objectsUnsupported()
+  }
+
+  /**
+   * Reject object-level access on a backend that exposes no objects.
+   * @param signal - optional cancellation; its reason is thrown before the rejection.
+   * @returns a rejection carrying the unsupported-objects error.
+   */
+  private objectsUnsupported(signal?: AbortSignal): Promise<never> {
+    signal?.throwIfAborted()
+    return Promise.reject(new AttachmentError('The mounted attachment provider exposes no stored objects.', 'OBJECTS_UNSUPPORTED'))
   }
 
   /**
