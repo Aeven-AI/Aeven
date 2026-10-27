@@ -101,6 +101,23 @@ describe('desktop seed store merge', () => {
     expect(readFileSync(join(destination, 'v11', 'files', 'shared'), 'utf8')).toBe('new')
     expect(readFileSync(join(destination, 'v11', 'files', 'plugin'), 'utf8')).toBe('plugin')
   })
+
+  it('moves whole directories the store lacks and consumes the extraction', async () => {
+    const root = temporaryRoot()
+    const source = join(root, 'source')
+    const destination = join(root, 'destination')
+    mkdirSync(join(source, 'v11', 'files', 'ab'), { recursive: true })
+    writeFileSync(join(source, 'v11', 'files', 'ab', 'cd'), 'package')
+    const index = new DatabaseSync(join(source, 'v11', 'index.db'))
+    index.exec('CREATE TABLE package_index (key TEXT PRIMARY KEY, data BLOB NOT NULL) WITHOUT ROWID')
+    index.close()
+
+    await mergePnpmStore(source, destination)
+
+    expect(readFileSync(join(destination, 'v11', 'files', 'ab', 'cd'), 'utf8')).toBe('package')
+    expect(existsSync(join(destination, 'v11', 'index.db'))).toBe(true)
+    expect(existsSync(join(source, 'v11', 'files'))).toBe(false)
+  })
 })
 
 describe('desktop seed store archives', () => {
@@ -123,6 +140,27 @@ describe('desktop seed store archives', () => {
     if (process.platform !== 'win32') {
       expect(statSync(join(destination, 'v10', 'files', 'native-addon')).mode & 0o111).toBe(0o111)
     }
+  })
+
+  it('leaves out files an existing store holds at the same size and always extracts the index', async () => {
+    const root = temporaryRoot()
+    const seed = join(root, 'seed')
+    const store = join(seed, 'store')
+    mkdirSync(join(store, 'v11', 'files'), { recursive: true })
+    for (const name of ['held', 'truncated', 'missing']) writeFileSync(join(store, 'v11', 'files', name), 'package')
+    writeFileSync(join(store, 'v11', 'index.db'), 'seed index')
+    archivePnpmStore(seed, store)
+    const existing = join(root, 'existing')
+    mkdirSync(join(existing, 'v11', 'files'), { recursive: true })
+    writeFileSync(join(existing, 'v11', 'files', 'held'), 'package')
+    writeFileSync(join(existing, 'v11', 'files', 'truncated'), 'pack')
+    writeFileSync(join(existing, 'v11', 'index.db'), 'seed index')
+
+    const destination = join(root, 'extracted')
+    await extractPnpmStoreArchives(seed, destination, existing)
+
+    expect(readdirSync(join(destination, 'v11', 'files')).sort()).toEqual(['missing', 'truncated'])
+    expect(readFileSync(join(destination, 'v11', 'index.db'), 'utf8')).toBe('seed index')
   })
 
   it('produces identical shards for identical paths, bytes, and modes', () => {

@@ -19,7 +19,7 @@ import {
   writeFileSync,
   writeSync,
 } from 'node:fs'
-import { readdir, readFile, rename } from 'node:fs/promises'
+import { readdir, readFile } from 'node:fs/promises'
 import { basename, delimiter, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import {
   DESKTOP_PACKAGES_DIR,
@@ -32,6 +32,7 @@ import {
 } from './core-package-set.ts'
 import type { DesktopPaths } from './paths.ts'
 import { parseDesktopRelease, parseInstalledDesktopReleaseVersion, type DesktopRelease } from './release.ts'
+import { renameRetryingWindowsLocks } from './rename-retry.ts'
 import { extractPnpmStoreArchives, mergePnpmStore } from './seed-store.ts'
 
 /**
@@ -91,7 +92,7 @@ export interface DesktopRuntimeExecutables {
 /**
  * The long-running step a release replacement is in: unpacking the seed's pnpm store, installing the profile from
  * it, or proving the installed profile boots. Verifying the seed and the fast path that finds the profile current
- * report no step, since every launch runs them.
+ * report no step.
  */
 export type DesktopReleaseStep = 'unpacking' | 'installing' | 'checking'
 
@@ -125,14 +126,6 @@ const PACKAGE_NAME_PATTERN = /^(?:@[a-z0-9][a-z0-9._~-]*\/[a-z0-9][a-z0-9._~-]*|
 const VERSION_PATTERN = /^[0-9A-Za-z][0-9A-Za-z.+_-]*$/u
 const MAX_PNPM_DIAGNOSTIC_BYTES = 64 * 1024
 const DESKTOP_REGISTRY = 'https://registry.npmjs.org/'
-/**
- * Errors a Windows directory rename reports while another process still holds a handle inside the tree: antivirus
- * or the search indexer scanning a freshly installed `node_modules`, or a just-stopped Host releasing its files.
- */
-const WINDOWS_TRANSIENT_RENAME_ERRORS: ReadonlySet<string> = new Set(['EACCES', 'EBUSY', 'EPERM'])
-const WINDOWS_RENAME_RETRY_INITIAL_MS = 50
-const WINDOWS_RENAME_RETRY_MAX_MS = 1_000
-const WINDOWS_RENAME_RETRY_DEADLINE_MS = 60_000
 
 /** Dependencies of `@aeven/client-ui-primitives`, a browser library the web frontend build compiles in. */
 const BROWSER_LIBRARY_DEPENDENCIES = [
@@ -233,28 +226,6 @@ function assertPackageName(name: string): void {
 
 function assertVersion(version: string): void {
   if (!VERSION_PATTERN.test(version)) throw new Error(`desktop project: invalid exact version ${JSON.stringify(version)}`)
-}
-
-/**
- * Rename a directory, retrying for a bounded interval while Windows reports a handle held inside the tree.
- * @param from - existing directory.
- * @param to - absent destination on the same volume.
- */
-async function renameDirectory(from: string, to: string): Promise<void> {
-  const deadline = Date.now() + WINDOWS_RENAME_RETRY_DEADLINE_MS
-  let delay = WINDOWS_RENAME_RETRY_INITIAL_MS
-  for (;;) {
-    try {
-      await rename(from, to)
-      return
-    } catch (error) {
-      if (process.platform !== 'win32'
-        || !WINDOWS_TRANSIENT_RENAME_ERRORS.has((error as NodeJS.ErrnoException).code ?? '')
-        || Date.now() + delay > deadline) throw error
-    }
-    await new Promise(resolve => setTimeout(resolve, delay))
-    delay = Math.min(delay * 2, WINDOWS_RENAME_RETRY_MAX_MS)
-  }
 }
 
 function removeOwnedDirectory(path: string): void {
@@ -455,7 +426,7 @@ export class DesktopProjectManager {
     }
     if (!existsSync(this.paths.profile) && existsSync(this.paths.rollback)) {
       mkdirSync(dirname(this.paths.profile), { recursive: true })
-      await renameDirectory(this.paths.rollback, this.paths.profile)
+      await renameRetryingWindowsLocks(this.paths.rollback, this.paths.profile)
     }
     removeOwnedDirectory(pending.stagingProfile)
     unlinkSync(this.paths.pending)
@@ -495,18 +466,20 @@ export class DesktopProjectManager {
   async applyRelease(seedDir: string, electronVersion: string, hooks: DesktopProjectHooks): Promise<boolean> {
     return this.withLock(async () => {
       await this.recover()
-      await verifySeedIntegrity(seedDir)
       const target = releaseFile(seedDir)
-      verifyDesktopCorePackageSet(seedDir, target.version)
+      readDesktopCorePackageSet(seedDir, target.version)
       if (target.version !== electronVersion) {
         throw new Error(`desktop project: seed ${target.version} does not match Electron ${electronVersion}`)
       }
       if (existsSync(this.paths.profile) && profileMatchesSeed(this.paths.profile, seedDir)
         && this.avnVersion() === target.version
         && this.installedPackageVersion(DESKTOP_HOST_PACKAGE) === target.version) {
-        verifyDesktopCorePackageSet(this.paths.profile, target.version)
         return false
       }
+      // Hashing the seed and its tarballs costs seconds on the main process, so it runs only once seed content is
+      // about to enter writable state; a current profile runs from its `node_modules` and never reads a tarball again.
+      await verifySeedIntegrity(seedDir)
+      verifyDesktopCorePackageSet(seedDir, target.version)
       const prepared = await this.adoptPreparedProfile(seedDir)
       if (prepared === undefined) {
         hooks.progress('unpacking')
@@ -555,7 +528,7 @@ export class DesktopProjectManager {
       try {
         await this.installProfile(seedDir, stagingProfile, runtime)
         mkdirSync(dirname(this.paths.prepared), { recursive: true, mode: 0o700 })
-        await renameDirectory(stagingProfile, this.paths.prepared)
+        await renameRetryingWindowsLocks(stagingProfile, this.paths.prepared)
         return true
       } finally {
         discardOwnedDirectory(dirname(stagingProfile))
@@ -585,7 +558,7 @@ export class DesktopProjectManager {
     }
     const stagingProfile = join(this.paths.staging, randomUUID(), 'profile')
     mkdirSync(dirname(stagingProfile), { recursive: true, mode: 0o700 })
-    await renameDirectory(prepared, stagingProfile)
+    await renameRetryingWindowsLocks(prepared, stagingProfile)
     return stagingProfile
   }
 
@@ -619,7 +592,7 @@ export class DesktopProjectManager {
     const transactionRoot = join(this.paths.staging, randomUUID())
     const extractedStore = join(transactionRoot, 'store')
     try {
-      await extractPnpmStoreArchives(seedDir, extractedStore)
+      await extractPnpmStoreArchives(seedDir, extractedStore, this.paths.pnpm.store)
       await mergePnpmStore(extractedStore, this.paths.pnpm.store)
     } finally {
       discardOwnedDirectory(transactionRoot)
@@ -642,12 +615,12 @@ export class DesktopProjectManager {
       mkdirSync(dirname(this.paths.rollback), { recursive: true, mode: 0o700 })
       writeJson(this.paths.pending, { ...pending, step: 'active-moved' } satisfies DesktopPendingTransaction)
       if (existsSync(this.paths.profile)) {
-        await renameDirectory(this.paths.profile, this.paths.rollback)
+        await renameRetryingWindowsLocks(this.paths.profile, this.paths.rollback)
         activeMoved = true
       }
       mkdirSync(dirname(this.paths.profile), { recursive: true, mode: 0o700 })
       writeJson(this.paths.pending, { ...pending, step: 'staging-activated' } satisfies DesktopPendingTransaction)
-      await renameDirectory(stagingProfile, this.paths.profile)
+      await renameRetryingWindowsLocks(stagingProfile, this.paths.profile)
       stagingMoved = true
       await hooks.afterActivate()
       unlinkSync(this.paths.pending)
@@ -656,8 +629,8 @@ export class DesktopProjectManager {
       // the active profile. An undo that fails keeps the journal for the next launch's recover() and never replaces
       // the error that stopped the swap.
       try {
-        if (stagingMoved) await renameDirectory(this.paths.profile, stagingProfile)
-        if (activeMoved) await renameDirectory(this.paths.rollback, this.paths.profile)
+        if (stagingMoved) await renameRetryingWindowsLocks(this.paths.profile, stagingProfile)
+        if (activeMoved) await renameRetryingWindowsLocks(this.paths.rollback, this.paths.profile)
         if (existsSync(this.paths.pending)) unlinkSync(this.paths.pending)
       } catch (undoError) {
         console.error('desktop project: could not undo the profile swap; the next launch recovers it', undoError)
