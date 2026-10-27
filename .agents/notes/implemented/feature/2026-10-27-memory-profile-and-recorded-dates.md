@@ -2,6 +2,8 @@
 
 Status: implemented
 
+English | [中文](2026-10-27-memory-profile-and-recorded-dates.zh.md)
+
 ## Problem
 
 On 27 October 2026, the owner's birthday, a new chat opened with "goodmorning" and the assistant did not know it was his birthday, then gave his age as 48 instead of 49. His birth date had been stored about thirty times since 2 October. Turn-start recall reaches a memory only when the turn's words match it, plus the person's memories from the last `recentPersonHours` (168); a greeting matches nothing, so in practice a plain message saw one week of the person's life. The same chat showed three related faults: a memory recorded two days earlier was read as last night, an age stored as "48" was repeated on the day it changed, and `memory_get` returned the assistant's own earlier reply as the trace body without a label, so it read as a fact about the person.
@@ -28,7 +30,7 @@ Recall lines state how long ago each memory was recorded, the guidance says an a
 - Storing the profile as a confirmed invariant: rejected; invariants are statements the owner confirmed, and the profile is derived and changes as memories arrive.
 - Letting the distilled profile carry dates alone: rejected; a model-written date can be wrong, while the recorded dates come from the memories verbatim.
 
-## Known limitations
+## Consequences
 
 - The profile is bounded by `profile.maxChars` (6000), so minor details from long ago reach a turn only when recall matches them.
 - The day-mark lookup after a restart depends on the capture summary of the marking conversation mentioning a birthday or an anniversary.

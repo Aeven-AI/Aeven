@@ -796,6 +796,7 @@ export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   MemoryPage: 'package-owned type is documented in packages/memory/memory/src/types.ts',
   LearnedProcedure: 'package-owned type is documented in packages/memory/memory/src/types.ts',
   LearnedProceduresRequest: 'package-owned type is documented in packages/memory/memory/src/types.ts',
+  MemoryProfile: 'package-owned type is documented in packages/memory/memory/src/types.ts',
   MemoryProvider: 'package-owned type is documented in packages/memory/memory/src/types.ts',
   MemoryRecall: 'package-owned type is documented in packages/memory/memory/src/types.ts',
   MemoryRecallRequest: 'package-owned type is documented in packages/memory/memory/src/types.ts',
