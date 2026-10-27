@@ -82,6 +82,14 @@ declare module '@deepseek-ai/cordis' {
      * @avnScopeScan unsupported
      */
     'sync/join-requests'(owner: string): void
+    /**
+     * Another device's change to a document was stored on this device; open the document by name to read it.
+     * @mode emit
+     * @param owner - the account.
+     * @param id - the document's opaque id, as {@link Sync.documentId} returns it.
+     * @avnScopeScan unsupported
+     */
+    'sync/document'(owner: string, id: string): void
   }
 }
 
@@ -151,6 +159,14 @@ export abstract class Sync extends Service {
   abstract rejectJoin(owner: string, id: string): void
 
   /**
+   * The opaque id of a logical document name, the id `sync/document` reports.
+   * @param owner - an enrolled account.
+   * @param name - the logical name.
+   * @returns the opaque id.
+   */
+  abstract documentId(owner: string, name: string): string
+
+  /**
    * Open a document in an enrolled account's vault, loading its local state first.
    * @param owner - the account.
    * @param name - logical name, such as `settings/account`; never sent to the relay.
@@ -172,6 +188,15 @@ export abstract class Sync extends Service {
    */
   protected notifyJoinRequests(owner: string): void {
     this.ctx.emit('sync/join-requests', owner)
+  }
+
+  /**
+   * Publish a stored remote document change to `sync/document` listeners.
+   * @param owner - the account.
+   * @param id - the document's opaque id.
+   */
+  protected notifyDocument(owner: string, id: string): void {
+    this.ctx.emit('sync/document', owner, id)
   }
 }
 

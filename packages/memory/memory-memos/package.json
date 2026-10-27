@@ -33,19 +33,27 @@
     "@aeven/util-values": "workspace:^",
     "@deepseek-ai/memos-local-plugin": "workspace:^",
     "@deepseek-ai/schemastery": "workspace:^",
-    "better-sqlite3": "^12.10.0"
+    "better-sqlite3": "^12.10.0",
+    "yjs": "13.6.27"
   },
   "peerDependencies": {
     "@aeven/llm": "workspace:^",
     "@aeven/memory": "workspace:^",
     "@aeven/session": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/sync": "workspace:^"
   },
   "devDependencies": {
     "@aeven/llm": "workspace:^",
     "@aeven/memory": "workspace:^",
     "@aeven/session": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
-    "@types/better-sqlite3": "^7.6.12"
+    "@types/better-sqlite3": "^7.6.12",
+    "@aeven/sync": "workspace:^"
+  },
+  "peerDependenciesMeta": {
+    "@aeven/sync": {
+      "optional": true
+    }
   }
 }

@@ -4,11 +4,12 @@
  *
  * @module @aeven/memory-memos
  */
-import { mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync } from 'node:fs'
 import { isAbsolute, join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { accountDirectoryName } from '@aeven/home-paths'
+import type {} from '@aeven/sync'
 import type {} from '@aeven/llm'
 import type {} from '@aeven/memory'
 import { loadConfig, resolveHome, type ResolvedConfig } from '@deepseek-ai/memos-local-plugin/core/config/index.js'
@@ -21,6 +22,7 @@ import { MEMOS_AGENT, MemosMemory, memosHome } from './runtime.ts'
 import { PersonProfiles } from './profile.ts'
 import { classifyTurnDomain, TurnJudgeContext } from './domain.ts'
 import { REINDEX_VERSION, reindexIfEmbeddingChanged } from './reindex.ts'
+import { MemorySyncMirror, type MemorySyncTuning } from './sync.ts'
 
 export const name = 'memory-memos'
 export const inject = ['memory', 'llm']
@@ -68,6 +70,8 @@ export interface Config {
   embedding: EmbeddingConfig
   /** Vectors re-embedded per batch when an account's memory is re-indexed. */
   reindexBatchSize: number
+  /** How this device publishes memory changes to the account's other devices while account sync serves it. */
+  sync: MemorySyncTuning
   /**
    * Separate episodes whose traces must support a pattern before MemOS induces a policy from it
    * (`l2Induction.minEpisodesForInduction`); one episode is a single example, not a pattern.
@@ -176,6 +180,10 @@ export const Config: z<Config> = z.object({
   candidateTraces: z.natural().min(1).default(40),
   maxTextChars: z.natural().min(200).max(64_000).default(16_000),
   learning: z.boolean().default(true),
+  sync: z.object({
+    drainMs: z.natural().min(100).default(2_000),
+    drainBatch: z.natural().min(1).default(500),
+  }).default({ drainMs: 2_000, drainBatch: 500 }),
   embedding: z.object({
     model: z.string().min(1).default('Xenova/multilingual-e5-small'),
     queryPrefix: z.string().default('query: '),
@@ -387,6 +395,28 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   })
 
   logger.info(`ready (accounts=${config.accounts}, hostLlm=${String(config.hostLlm)}, autoRecovery=${String(recovery)})`)
+
+  // Each account's memory follows it to every device its sync vault holds, once that vault is served here and
+  // the account's database exists.
+  const mirrors = new Map<string, MemorySyncMirror>()
+  const mirror = (owner: string): void => {
+    const sync = ctx.get('sync')
+    const state = sync?.status(owner).state
+    if (sync === undefined || mirrors.has(owner) || state === undefined || state === 'unenrolled' || state === 'joining') return
+    const dbFile = accountHome(config.accounts, owner).dbFile
+    if (!existsSync(dbFile)) return
+    const created = new MemorySyncMirror(owner, dbFile, sync, config.embedding.model, config.sync, (message) => { logger.warn(message) })
+    mirrors.set(owner, created)
+    created.start().catch((error: unknown) => {
+      logger.warn(`memory sync: starting for an account failed: ${error instanceof Error ? error.message : String(error)}`)
+    })
+  }
+  ctx.on('sync/status', mirror)
+  ctx.on('sync/document', (owner, id) => { mirrors.get(owner)?.documentChanged(id) })
+  ctx.effect(() => () => {
+    for (const created of mirrors.values()) created.dispose()
+    mirrors.clear()
+  }, 'memory-memos.sync')
 
   ctx.effect(() => {
     const unregister = ctx.memory.register(memory)

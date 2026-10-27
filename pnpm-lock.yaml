@@ -9530,6 +9530,9 @@ importers:
       better-sqlite3:
         specifier: ^12.10.0
         version: 12.11.1
+      yjs:
+        specifier: 13.6.27
+        version: 13.6.27
     devDependencies:
       '@aeven/llm':
         specifier: workspace:^
@@ -9540,6 +9543,9 @@ importers:
       '@aeven/session':
         specifier: workspace:^
         version: link:../../core/session
+      '@aeven/sync':
+        specifier: workspace:^
+        version: link:../../sync/sync
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis

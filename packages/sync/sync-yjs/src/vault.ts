@@ -56,6 +56,7 @@ export class AccountVault {
    * @param tuning - compaction and snapshot thresholds.
    * @param changed - called whenever {@link status} may have changed.
    * @param joinsChanged - called whenever {@link joinRequests} may have changed.
+   * @param documentChanged - called after another device's change to a document was stored.
    * @param warn - receives dropped-frame diagnostics.
    */
   constructor(
@@ -63,6 +64,7 @@ export class AccountVault {
     private readonly tuning: VaultTuning,
     private readonly changed: () => void,
     private readonly joinsChanged: () => void,
+    private readonly documentChanged: (id: OpaqueId) => void,
     private readonly warn: VaultWarn,
   ) {
     this.keys = store.deviceKeys()
@@ -288,6 +290,17 @@ export class AccountVault {
     const open = this.docs.get(header.id)
     if (open !== undefined) Y.applyUpdate(open.doc, payload, REMOTE)
     this.afterAppend(header.id)
+    this.documentChanged(header.id)
+  }
+
+  /**
+   * The opaque id of a logical document name.
+   * @param name - the logical name.
+   * @returns the id the relay and `sync/document` use.
+   */
+  documentId(name: string): OpaqueId {
+    this.requireMember()
+    return opaqueIdOf(this.genesisKey(), name)
   }
 
   /**
@@ -296,8 +309,7 @@ export class AccountVault {
    * @returns a handle on the live document.
    */
   openDocument(name: string): SyncDocument {
-    this.requireMember()
-    const id = opaqueIdOf(this.genesisKey(), name)
+    const id = this.documentId(name)
     let open = this.docs.get(id)
     if (open === undefined) {
       const doc = new Y.Doc()

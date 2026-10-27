@@ -103,6 +103,7 @@ export default class YjsSync extends Sync {
       { compactAfter: this.config.compactAfter, snapshotAfter: this.config.snapshotAfter },
       () => { this.notifyStatus(owner) },
       () => { this.notifyJoinRequests(owner) },
+      (id) => { this.notifyDocument(owner, id) },
       (message, error) => {
         this.ctx.logger.warn(message)
         if (error !== undefined) this.ctx.logger.warn(error)
@@ -302,6 +303,13 @@ export default class YjsSync extends Sync {
   /** @inheritdoc */
   rejectJoin(owner: string, id: string): void {
     this.accounts.get(owner)?.vault.takeJoinRequest(id)
+  }
+
+  /** @inheritdoc */
+  documentId(owner: string, name: string): string {
+    const account = this.accounts.get(owner)
+    if (account === undefined) throw new Error('this device is not enrolled in the account\'s vault')
+    return account.vault.documentId(name)
   }
 
   /** @inheritdoc */
