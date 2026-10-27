@@ -28,7 +28,7 @@ import { hardenBrowserGuests, registerBrowserIpc } from './browser-guests.ts'
 import { acquireHostClientLease, resolveAvnHome } from '@aeven/home-paths'
 import { planDesktopBackend } from './attached-host.ts'
 import { resolveDesktopPaths } from './paths.ts'
-import { DesktopProjectManager, type DesktopProjectHooks } from './project-manager.ts'
+import { DesktopProjectManager, type DesktopProjectHooks, type DesktopReleaseStep } from './project-manager.ts'
 import { DesktopHostProcess } from './host-process.ts'
 import { DESKTOP_AEVEN_API_PATH, type DesktopAevenSignIn } from './host-protocol.ts'
 import { DESKTOP_IPC, type DesktopCaptionAction, type DesktopMenuCommand, type DesktopProviderSignInState } from './ipc.ts'
@@ -688,6 +688,64 @@ async function main(): Promise<void> {
     window.focus()
   }
 
+  // Registered before the start screen loads: the preload fills the caption strip's menu bar on every page,
+  // and a request with no handler yet would leave the strip empty for the whole startup.
+  // The page reports the colour scheme it renders in, so the caption glyphs
+  // stay legible against the page background the strip shows.
+  ipcMain.on(DESKTOP_IPC.captionScheme, (event, scheme: unknown) => {
+    if (process.platform !== 'win32' || mainWindow === undefined || event.sender !== mainWindow.webContents) return
+    if (event.senderFrame !== event.sender.mainFrame || (scheme !== 'light' && scheme !== 'dark')) return
+    mainWindow.setTitleBarOverlay({ color: '#00000000', symbolColor: CAPTION_SYMBOL_COLOR[scheme] })
+  })
+  // The caption strip's menu bar shows the application menu's top-level
+  // entries and opens each one's submenu under its label, so the strip carries
+  // the same native menus, accelerators included, that a framed window shows.
+  const captionMenuWindow = (event: IpcMainInvokeEvent): BrowserWindow => {
+    if (!CAPTION_STRIP_PLATFORM || mainWindow === undefined || event.sender !== mainWindow.webContents
+      || event.senderFrame !== event.sender.mainFrame) {
+      throw new Error('avn desktop: caption menu request from another frame')
+    }
+    return mainWindow
+  }
+  ipcMain.handle(DESKTOP_IPC.captionMenuLabels, (event) => {
+    captionMenuWindow(event)
+    return (Menu.getApplicationMenu()?.items ?? []).map(item => item.label.replace(/&/gu, ''))
+  })
+  ipcMain.handle(DESKTOP_IPC.captionMenuOpen, (event, index: unknown, x: unknown, y: unknown) => {
+    const window = captionMenuWindow(event)
+    if (typeof index !== 'number' || !Number.isInteger(index)
+      || typeof x !== 'number' || typeof y !== 'number' || !Number.isFinite(x) || !Number.isFinite(y)) {
+      throw new Error('avn desktop: invalid caption menu request')
+    }
+    // Electron's runtime stores null for an item with no submenu, while its typings declare only `Menu | undefined`.
+    const submenu = Menu.getApplicationMenu()?.items[index]?.submenu ?? null
+    if (submenu === null) return
+    // The page measures in CSS pixels; the popup is placed in window pixels.
+    const zoom = window.webContents.getZoomFactor()
+    return new Promise<void>((resolvePopup) => {
+      submenu.popup({ window, x: Math.round(x * zoom), y: Math.round(y * zoom), callback: () => { resolvePopup() } })
+    })
+  })
+  // A frameless Linux window has only the strip's page-drawn buttons to
+  // minimize, maximize and close it; their names follow the shell's locale.
+  ipcMain.handle(DESKTOP_IPC.captionButtonLabels, (event): Record<DesktopCaptionAction, string> => {
+    if (process.platform !== 'linux' || mainWindow === undefined || event.sender !== mainWindow.webContents
+      || event.senderFrame !== event.sender.mainFrame) {
+      throw new Error('avn desktop: caption button request from another frame')
+    }
+    return { minimize: messages.minimizeWindow, maximize: messages.maximizeWindow, close: messages.closeWindow }
+  })
+  ipcMain.on(DESKTOP_IPC.captionWindowControl, (event, action: unknown) => {
+    if (process.platform !== 'linux' || mainWindow === undefined || event.sender !== mainWindow.webContents) return
+    if (event.senderFrame !== event.sender.mainFrame) return
+    switch (action) {
+      case 'minimize': mainWindow.minimize(); return
+      case 'maximize': if (mainWindow.isMaximized()) mainWindow.unmaximize(); else mainWindow.maximize(); return
+      case 'close': mainWindow.close(); return
+      default: return
+    }
+  })
+
   // The window is created, and the start screen is loaded into it, before any
   // of the waits below: the deployment, the login shell, a package install, and
   // a Host boot otherwise leave a launch showing nothing at all. A start screen
@@ -770,7 +828,13 @@ async function main(): Promise<void> {
     afterActivate: async () => {
       host = await startHost()
     },
-    progress: () => { showStartStatus(messages.updateInstalling) },
+    progress: (step) => {
+      // Every step runs before the swap, so a home without an active profile is a first install, not an update.
+      const lines: Record<DesktopReleaseStep, string> = existsSync(paths.profile)
+        ? { unpacking: messages.updateUnpacking, installing: messages.updateInstalling, checking: messages.updateChecking }
+        : { unpacking: messages.setupUnpacking, installing: messages.setupInstalling, checking: messages.setupChecking }
+      showStartStatus(lines[step])
+    },
   }
 
   if (development === undefined && plan.kind === 'spawn') {
@@ -869,61 +933,6 @@ async function main(): Promise<void> {
   registerContextMenuIpc(event => mainWindow !== undefined
     && event.sender === mainWindow.webContents
     && event.senderFrame === event.sender.mainFrame)
-  // The page reports the colour scheme it renders in, so the caption glyphs
-  // stay legible against the page background the strip shows.
-  ipcMain.on(DESKTOP_IPC.captionScheme, (event, scheme: unknown) => {
-    if (process.platform !== 'win32' || mainWindow === undefined || event.sender !== mainWindow.webContents) return
-    if (event.senderFrame !== event.sender.mainFrame || (scheme !== 'light' && scheme !== 'dark')) return
-    mainWindow.setTitleBarOverlay({ color: '#00000000', symbolColor: CAPTION_SYMBOL_COLOR[scheme] })
-  })
-  // The caption strip's menu bar shows the application menu's top-level
-  // entries and opens each one's submenu under its label, so the strip carries
-  // the same native menus, accelerators included, that a framed window shows.
-  const captionMenuWindow = (event: IpcMainInvokeEvent): BrowserWindow => {
-    if (!CAPTION_STRIP_PLATFORM || mainWindow === undefined || event.sender !== mainWindow.webContents
-      || event.senderFrame !== event.sender.mainFrame) {
-      throw new Error('avn desktop: caption menu request from another frame')
-    }
-    return mainWindow
-  }
-  ipcMain.handle(DESKTOP_IPC.captionMenuLabels, (event) => {
-    captionMenuWindow(event)
-    return (Menu.getApplicationMenu()?.items ?? []).map(item => item.label.replace(/&/gu, ''))
-  })
-  ipcMain.handle(DESKTOP_IPC.captionMenuOpen, (event, index: unknown, x: unknown, y: unknown) => {
-    const window = captionMenuWindow(event)
-    if (typeof index !== 'number' || !Number.isInteger(index)
-      || typeof x !== 'number' || typeof y !== 'number' || !Number.isFinite(x) || !Number.isFinite(y)) {
-      throw new Error('avn desktop: invalid caption menu request')
-    }
-    // Electron's runtime stores null for an item with no submenu, while its typings declare only `Menu | undefined`.
-    const submenu = Menu.getApplicationMenu()?.items[index]?.submenu ?? null
-    if (submenu === null) return
-    // The page measures in CSS pixels; the popup is placed in window pixels.
-    const zoom = window.webContents.getZoomFactor()
-    return new Promise<void>((resolvePopup) => {
-      submenu.popup({ window, x: Math.round(x * zoom), y: Math.round(y * zoom), callback: () => { resolvePopup() } })
-    })
-  })
-  // A frameless Linux window has only the strip's page-drawn buttons to
-  // minimize, maximize and close it; their names follow the shell's locale.
-  ipcMain.handle(DESKTOP_IPC.captionButtonLabels, (event): Record<DesktopCaptionAction, string> => {
-    if (process.platform !== 'linux' || mainWindow === undefined || event.sender !== mainWindow.webContents
-      || event.senderFrame !== event.sender.mainFrame) {
-      throw new Error('avn desktop: caption button request from another frame')
-    }
-    return { minimize: messages.minimizeWindow, maximize: messages.maximizeWindow, close: messages.closeWindow }
-  })
-  ipcMain.on(DESKTOP_IPC.captionWindowControl, (event, action: unknown) => {
-    if (process.platform !== 'linux' || mainWindow === undefined || event.sender !== mainWindow.webContents) return
-    if (event.senderFrame !== event.sender.mainFrame) return
-    switch (action) {
-      case 'minimize': mainWindow.minimize(); return
-      case 'maximize': if (mainWindow.isMaximized()) mainWindow.unmaximize(); else mainWindow.maximize(); return
-      case 'close': mainWindow.close(); return
-      default: return
-    }
-  })
   // The app page says once that it takes the addresses its own content opens;
   // until then the shell hands them to the system browser, which is what a page
   // the client does not drive expects.

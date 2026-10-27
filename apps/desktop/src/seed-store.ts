@@ -9,12 +9,14 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs'
-import { cp } from 'node:fs/promises'
+import { readdir } from 'node:fs/promises'
 import { join, relative, sep } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { create, extract, list } from 'tar'
+import { renameRetryingWindowsLocks } from './rename-retry.ts'
 
 /** Directory containing the seed's uncompressed pnpm store archives. */
 export const SEED_STORE_ARCHIVE_DIR = 'store-archives'
@@ -143,10 +145,39 @@ function mergeStoreIndex(source: string, destination: string): void {
   }
 }
 
+function isStoreIndexPath(path: string): boolean {
+  const parts = path.split('/')
+  return parts.length === 2 && STORE_VERSION_PATTERN.test(parts[0] as string) && parts[1] === 'index.db'
+}
+
 /**
- * Merge a completely extracted seed store into Desktop's persistent pnpm store. The copy runs on the event loop's
- * I/O, so the Electron main process keeps painting and answering input while thousands of files move.
- * @param source - Verified temporary store extraction.
+ * Move every entry of `source` except the index databases into `destination`. A directory the destination lacks
+ * moves whole unless it holds an index; a file replaces the destination's file at the same path.
+ */
+async function moveStoreEntries(
+  source: string,
+  destination: string,
+  prefix: string,
+  indexPaths: readonly string[],
+): Promise<void> {
+  for (const entry of await readdir(source, { withFileTypes: true })) {
+    const path = prefix === '' ? entry.name : `${prefix}/${entry.name}`
+    if (indexPaths.includes(path)) continue
+    const from = join(source, entry.name)
+    const to = join(destination, entry.name)
+    if (entry.isDirectory() && (existsSync(to) || indexPaths.some(index => index.startsWith(`${path}/`)))) {
+      mkdirSync(to, { recursive: true, mode: 0o700 })
+      await moveStoreEntries(from, to, path, indexPaths)
+      continue
+    }
+    await renameRetryingWindowsLocks(from, to)
+  }
+}
+
+/**
+ * Merge a completely extracted seed store into Desktop's persistent pnpm store. Files and directories move by rename
+ * on the same volume, so no byte is written twice, and every file the store receives was complete before it moved.
+ * @param source - Verified temporary store extraction on the destination's volume; the merge consumes its entries.
  * @param destination - Desktop-owned persistent pnpm store.
  */
 export async function mergePnpmStore(source: string, destination: string): Promise<void> {
@@ -155,12 +186,7 @@ export async function mergePnpmStore(source: string, destination: string): Promi
     .filter(entry => entry.isDirectory() && STORE_VERSION_PATTERN.test(entry.name)
       && existsSync(join(source, entry.name, 'index.db')))
     .map(entry => `${entry.name}/index.db`)
-  const indexes = new Set(indexPaths)
-  await cp(source, destination, {
-    recursive: true,
-    force: true,
-    filter: path => !indexes.has(relative(source, path).split(sep).join('/')),
-  })
+  await moveStoreEntries(source, destination, '', indexPaths)
   for (const path of indexPaths) {
     mergeStoreIndex(join(source, ...path.split('/')), join(destination, ...path.split('/')))
   }
@@ -212,8 +238,11 @@ export function archivePnpmStore(
  * the event loop, so the Electron main process stays responsive for the whole extraction.
  * @param seedRoot - verified packaged seed directory.
  * @param destination - empty Desktop-owned temporary extraction directory.
+ * @param existingStore - pnpm store whose files are left out of the extraction where it already holds a file of the
+ *   same path and size. A pnpm content-addressed path names its bytes' digest, so such a file holds the same bytes;
+ *   the size comparison catches a file an interrupted write truncated. Index databases are always extracted.
  */
-export async function extractPnpmStoreArchives(seedRoot: string, destination: string): Promise<void> {
+export async function extractPnpmStoreArchives(seedRoot: string, destination: string, existingStore?: string): Promise<void> {
   const manifest = readArchiveManifest(seedRoot)
   const archiveRoot = join(seedRoot, SEED_STORE_ARCHIVE_DIR)
   const actualFiles = readdirSync(archiveRoot, { withFileTypes: true }).map((entry) => {
@@ -270,11 +299,19 @@ export async function extractPnpmStoreArchives(seedRoot: string, destination: st
       throw new Error(`desktop seed: pnpm store archive ${archive.file} has an unexpected entry count`)
     }
   }
+  const absent = existingStore === undefined
+    ? undefined
+    : (path: string, entry: { readonly size: number }): boolean => {
+      if (isStoreIndexPath(path)) return true
+      const stored = statSync(join(existingStore, ...path.split('/')), { throwIfNoEntry: false })
+      return stored?.isFile() !== true || stored.size !== entry.size
+    }
   for (const archive of manifest.archives) {
     await extract({
       chmod: true,
       cwd: destination,
       file: join(archiveRoot, archive.file),
+      ...(absent === undefined ? {} : { filter: absent }),
       noMtime: true,
       preservePaths: false,
       processUmask: 0,

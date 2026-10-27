@@ -1,6 +1,6 @@
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
@@ -107,10 +107,10 @@ describe('desktop update residue', () => {
   })
 
   it('derives the cache root the updater uses on each platform', () => {
-    expect(updateCacheRoot('darwin', {})).toMatch(/\/Library\/Caches$/u)
+    expect(updateCacheRoot('darwin', {})).toBe(join(homedir(), 'Library', 'Caches'))
     expect(updateCacheRoot('win32', { LOCALAPPDATA: 'C:\\Local' })).toBe('C:\\Local')
     expect(updateCacheRoot('linux', { XDG_CACHE_HOME: '/var/cache/reader' })).toBe('/var/cache/reader')
-    expect(updateCacheRoot('linux', {})).toMatch(/\/\.cache$/u)
+    expect(updateCacheRoot('linux', {})).toBe(join(homedir(), '.cache'))
   })
 
   it('leaves Squirrel state alone when its staged bundle is still there', async () => {

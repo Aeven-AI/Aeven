@@ -14,7 +14,7 @@ Status: implemented
 
 ## 决策
 
-- 切换、其恢复以及预备配置目录采用中的每一次目录重命名都经过 `renameDirectory`。在 Windows 上，它对 `EBUSY`、`EPERM` 和 `EACCES` 进行重试，延迟从 50 ms 开始、逐次翻倍、上限 1 s，60 s 后停止；在其他平台上直接抛出第一个错误。`removeOwnedDirectory` 向 `rmSync` 传入 `maxRetries: 10`。由于重试需要等待，`recover()` 和预备配置目录的采用是异步的。
+- 切换、其恢复以及预备配置目录采用中的每一次目录重命名都经过 `renameRetryingWindowsLocks`。在 Windows 上，它对 `EBUSY`、`EPERM` 和 `EACCES` 进行重试，延迟从 50 ms 开始、逐次翻倍、上限 1 s，60 s 后停止；在其他平台上直接抛出第一个错误。`removeOwnedDirectory` 向 `rmSync` 传入 `maxRetries: 10`。由于重试需要等待，`recover()` 和预备配置目录的采用是异步的。
 - `DesktopHostProcess` 接收 Host 的工作目录。暂存健康检查用的 Host 从 `~/.aeven/desktop/work`（`DesktopPaths.work`）运行，位于所有配置目录之外。提供服务的 Host 仍以其配置目录为工作目录；没有目录的会话在执行 shell 命令、解析相对路径以及确定沙箱后备根目录时使用它。Desktop Host 把自己的配置目录传给 `loadLayeredEnv`，因此两种情况下项目 `.env` 层都是该配置目录的。
 - `activate` 只撤销已经发生的移动：把已激活的配置目录重命名回暂存目录，并把 `rollback/profile` 重命名回 `profiles/desktop`。撤销失败时会记录日志，保留 `pending.json` 供下次启动的 `recover()` 使用，并抛出切换本身的错误。无法删除的残留暂存目录或存储事务目录会被记录并保留。
 
