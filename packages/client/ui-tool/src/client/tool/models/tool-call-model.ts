@@ -194,6 +194,14 @@ function deriveSummary(variant: ToolRowVariant, argsRaw: string): string {
     const queries = args.queries.filter((query): query is string => typeof query === 'string' && query !== '')
     if (queries.length > 0) return queries.map(firstLine).join(', ')
   }
+  if (FILE_PATH_VARIANTS.has(variant) && Array.isArray(args.files)) {
+    const paths = args.files.flatMap((file: unknown) => {
+      if (typeof file !== 'object' || file === null) return []
+      const path = (file as Record<string, unknown>).file_path
+      return typeof path === 'string' && path !== '' ? [firstLine(path)] : []
+    })
+    if (paths.length > 0) return paths.join(', ')
+  }
   const picked = pickString(args, SUMMARY_KEYS[variant])
   if (picked !== undefined) return firstLine(picked)
   for (const v of Object.values(args)) {

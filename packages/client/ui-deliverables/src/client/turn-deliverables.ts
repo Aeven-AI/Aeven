@@ -59,39 +59,48 @@ declare module '@aeven/client-ui-conversation/client' {
 
 interface DeliverablesState extends DeliverablesTurnData {
   readonly turn: number
-  readonly calls: ReadonlyMap<string, MutationCall | null>
+  readonly calls: ReadonlyMap<string, readonly MutationCall[]>
 }
 
 /**
- * Extract the path from a supported first-party mutation call. Session
+ * Extract the paths from a supported first-party mutation call: one per
+ * file, several for an `edit` with a `files` list. Session
  * `tool/call` events are root calls; Code Dispatch children do not enter this
  * Definition independently.
  * @param name - wire tool name.
  * @param argsRaw - model-produced JSON arguments.
- * @returns the mutation path and what its result needs, or null when the call is not a supported mutation.
+ * @returns each mutated path and what its result needs; empty when the call is not a supported mutation.
  */
-function mutationCall(name: string, argsRaw: string): MutationCall | null {
+function mutationCalls(name: string, argsRaw: string): MutationCall[] {
   let args: unknown
   try {
     args = JSON.parse(argsRaw) as unknown
   } catch {
     // Malformed model JSON is not a mutation the tool ran.
-    return null
+    return []
   }
-  if (!isRecord(args)) return null
+  if (!isRecord(args)) return []
   let path: string | null
   switch (name) {
     case 'write':
       path = typeof args.content === 'string' ? pathValue(args.file_path) : null
-      return path === null ? null : { name, path, content: args.content as string, creates: false }
-    case 'edit':
-      path = validEditArgs(args) ? pathValue(args.file_path) : null
-      return path === null ? null : { name, path, creates: false }
+      return path === null ? [] : [{ name, path, content: args.content as string, creates: false }]
+    case 'edit': {
+      const files = args.files === undefined ? [args] : args.files
+      if (!Array.isArray(files) || files.length === 0) return []
+      const calls: MutationCall[] = []
+      for (const file of files as unknown[]) {
+        path = isRecord(file) && validEditArgs(file) ? pathValue(file.file_path) : null
+        if (path === null) return []
+        calls.push({ name, path, creates: false })
+      }
+      return calls
+    }
     case 'str_replace_editor':
       path = editorMutationPath(args)
-      return path === null ? null : { name, path, creates: args.command === 'create' }
+      return path === null ? [] : [{ name, path, creates: args.command === 'create' }]
     default:
-      return null
+      return []
   }
 }
 
@@ -111,15 +120,17 @@ function lineCount(text: string): number {
  *
  * Each hunk carries three context lines on each side, so the counts come from a
  * line diff of the hunk's two sides rather than their lengths.
- * @param meta - the tool result's opaque `meta`, `{ diffs: [{ oldText, newText }] }` for these tools.
+ * @param meta - the tool result's opaque `meta`, `{ diffs: [{ path, oldText, newText }] }` for these tools.
+ * @param path - the mutated path; only its hunks count, since one `edit` call can change several files.
  * @returns the counts, or undefined when `meta` holds no hunks.
  */
-function hunkCounts(meta: unknown): LineCounts | undefined {
+function hunkCounts(meta: unknown, path: string): LineCounts | undefined {
   if (!isRecord(meta) || !Array.isArray(meta.diffs)) return undefined
   let added = 0
   let deleted = 0
   for (const hunk of meta.diffs as unknown[]) {
     if (!isRecord(hunk) || typeof hunk.newText !== 'string') return undefined
+    if (hunk.path !== path) continue
     const before = typeof hunk.oldText === 'string' ? hunk.oldText.split('\n') : []
     for (const part of diffArrays(before, hunk.newText.split('\n'))) {
       if (part.added) added += part.count
@@ -143,11 +154,20 @@ function settledMutation(call: MutationCall, text: string, meta: unknown): Pick<
   if (call.name === 'write' && /\bCreated file\b/.test(text)) {
     return { created: true, counts: { added: lineCount(call.content ?? ''), deleted: 0 } }
   }
-  return { created: false, counts: hunkCounts(meta) }
+  return { created: false, counts: hunkCounts(meta, call.path) }
 }
 
-/** Validate the fields that an `edit` execution requires. */
+/** Validate the replacement fields that one `edit` file requires: the single form or an `edits` list. */
 function validEditArgs(args: Readonly<Record<string, unknown>>): boolean {
+  if (args.edits !== undefined) {
+    return Array.isArray(args.edits) && args.edits.length > 0
+      && (args.edits as unknown[]).every(edit => isRecord(edit) && validReplacement(edit))
+  }
+  return validReplacement(args)
+}
+
+/** Validate one literal replacement. */
+function validReplacement(args: Readonly<Record<string, unknown>>): boolean {
   return typeof args.old_string === 'string'
     && args.old_string.length > 0
     && typeof args.new_string === 'string'
@@ -273,7 +293,7 @@ export const deliverablesDefinition: ConversationNodeDefinition<DeliverablesStat
       const calls = new Map(context.state.calls)
       calls.set(
         String(match.event.data.callId),
-        mutationCall(match.event.data.name, match.event.data.arguments),
+        mutationCalls(match.event.data.name, match.event.data.arguments),
       )
       return { ...context.state, calls }
     }
@@ -281,11 +301,12 @@ export const deliverablesDefinition: ConversationNodeDefinition<DeliverablesStat
     const result = match.event.data.message.content[0]
     if (result.isError === true) return context.state
     const callId = String(match.event.data.message.source.callId)
-    const call = context.state.calls.get(callId)
-    if (call === null || call === undefined) return context.state
+    const calls = context.state.calls.get(callId)
+    if (calls === undefined || calls.length === 0) return context.state
     const text = result.content.map(block => block.type === 'text' ? block.text : '').join('\n')
-    const produced = { seq: match.event.seq, path: call.path, ...settledMutation(call, text, match.event.data.meta) }
-    return { ...context.state, produced: [...context.state.produced, produced] }
+    const { seq, data: { meta } } = match.event
+    const produced = calls.map(call => ({ seq, path: call.path, ...settledMutation(call, text, meta) }))
+    return { ...context.state, produced: [...context.state.produced, ...produced] }
   },
   buildLocationData: (context, scope, previous) => {
     if (scope !== 'turn' || context.state === undefined) return null
