@@ -45,7 +45,7 @@ Choose it when a composition exposes a shell tool to an agent that also has `edi
 | `tools` | `[bash]` | Shell tool names whose commands are checked |
 | `sourceExtensions` | common source, style, markup, config, and docs extensions | Extensions, without the dot, that count as source files |
 
-Paths resolve against the call's `workdir`, the session cwd, and every `cd` target in the command. Files under the system temporary directories are never refused.
+A relative path resolves against the last `cd` before it in the command, or against the call's `workdir` (the session cwd when absent) when no `cd` precedes it. Files under the system temporary directories are never refused.
 
 -----
 
@@ -59,7 +59,7 @@ This section explains how one command is classified; the observable behavior is 
 
 ### Design concept
 
-The plugin registers one `ctx.tools.guard` callback for the lifetime of its fiber. The registry calls it before a matching tool runs, and a returned string becomes the call's error result instead of an execution. The callback is a predicate over the command text and the files it names: an in-place edit or scripting write pattern marks the command, every path token in it is resolved against the call's bases, and the command is refused when one of those paths exists and carries a source extension. Redirect and `tee` targets are resolved the same way. Temporary-directory paths are skipped because scratch output there is not a source edit.
+The plugin registers one `ctx.tools.guard` callback for the lifetime of its fiber. The registry calls it before a matching tool runs, and a returned string becomes the call's error result instead of an execution. The callback is a predicate over the command text and the files it names: an in-place edit pattern marks every path token in the command; a scripting write marks only the files its write calls name as string literals, or every path token when any write call names its file through a variable; each marked path is resolved, and the command is refused when one of those paths exists and carries a source extension. Redirect and `tee` targets are resolved the same way. Temporary-directory paths are skipped because scratch output there is not a source edit.
 
 A path that vanishes or cannot be stat'd between the two calls counts as absent, so a race never refuses a command for a file that is gone.
 

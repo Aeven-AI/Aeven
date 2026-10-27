@@ -7,7 +7,10 @@
  * Detection reads the command text. A command is refused when it names an existing file with a
  * source extension and either edits in place (`sed -i`, `perl -i`), writes through a scripting
  * call (`open(…, 'w')`, `write_text`, `writeFileSync`, …), or redirects (`>`, `>>`, `tee`) into it.
- * Files under the system temporary directories are never refused.
+ * When every scripting write names its file as a string literal, only those files are checked, so a
+ * script that reads a source file and writes scratch output passes. A relative path resolves against
+ * the last `cd` before it in the command, or the working directory when none precedes it. Files under
+ * the system temporary directories are never refused.
  * @module @aeven/bash-edit-guard
  */
 
@@ -52,12 +55,29 @@ const REDIRECT = /(?:^|[^<>&0-9])>>?\|?\s*(['"]?)([^\s;&|<>'"()]+)\1/g
 const TEE = /\btee\s+(?:-a\s+)?(['"]?)([^\s;&|<>'"()]+)\1/g
 const PATH_TOKEN = /(['"`]?)([\w./@~+-]+\.\w+)\1/g
 const CD = /\bcd\s+(['"]?)([^\s;&|'"()]+)\1/g
+const SCRIPT_WRITE_ALL = new RegExp(SCRIPT_WRITE.source, 'g')
+// eslint-disable-next-line @stylistic/max-len -- Keep the literal write-target alternatives in one regular expression.
+const LITERAL_WRITE = /\bopen\(\s*(['"])([^'"]+)\1\s*,\s*(?:mode\s*=\s*)?['"][wax]\+?b?['"]|\bPath\(\s*(['"])([^'"]+)\3\s*\)\.write_(?:text|bytes)\(|\b(?:writeFileSync|appendFileSync|writeFile|appendFile)\(\s*(['"`])([^'"`]+)\5|\bFile\.write\(\s*(['"])([^'"]+)\7/g
 
 const TEMP_ROOTS = [tmpdir(), '/tmp', '/private/tmp', '/var/folders', '/private/var/folders'].map(root => resolve(root))
 
+/** A path a command names, with the offset that decides which `cd` it follows. */
+interface PathToken {
+  readonly path: string
+  readonly index: number
+}
+
 /** Every capture group 2 of a global pattern over the command. */
-function captures(pattern: RegExp, command: string): string[] {
-  return [...command.matchAll(pattern)].map(match => match[2]).filter((value): value is string => value !== undefined)
+function captures(pattern: RegExp, command: string): PathToken[] {
+  return [...command.matchAll(pattern)].flatMap(match => match[2] === undefined ? [] : [{ path: match[2], index: match.index }])
+}
+
+/** The literal file each scripting write names; one capture group per alternative of {@link LITERAL_WRITE}. */
+function literalWrites(command: string): PathToken[] {
+  return [...command.matchAll(LITERAL_WRITE)].flatMap((match) => {
+    const path = match[2] ?? match[4] ?? match[6] ?? match[8]
+    return path === undefined ? [] : [{ path, index: match.index }]
+  })
 }
 
 /**
@@ -70,20 +90,16 @@ export function apply(ctx: Context, config: Config): void {
   const extensions = new Set(config.sourceExtensions.map(extension => extension.replace(/^\./, '').toLowerCase()))
 
   /** Absolute existing source file a command token names, or undefined. */
-  const existingSource = (token: string, bases: readonly string[]): string | undefined => {
+  const existingSource = (token: string, base: string): string | undefined => {
     if (!extensions.has(extname(token).slice(1).toLowerCase())) return undefined
-    const candidates = isAbsolute(token) ? [token] : bases.map(base => join(base, token))
-    for (const candidate of candidates) {
-      const path = resolve(candidate)
-      if (TEMP_ROOTS.some(root => path === root || path.startsWith(`${root}/`))) continue
-      // A path that vanishes or is unreadable between the two calls is not an existing file.
-      try {
-        if (existsSync(path) && statSync(path).isFile()) return path
-      } catch {
-        continue
-      }
+    const path = resolve(isAbsolute(token) ? token : join(base, token))
+    if (TEMP_ROOTS.some(root => path === root || path.startsWith(`${root}/`))) return undefined
+    // A path that vanishes or is unreadable between the two calls is not an existing file.
+    try {
+      return existsSync(path) && statSync(path).isFile() ? path : undefined
+    } catch {
+      return undefined
     }
-    return undefined
   }
 
   ctx.effect(() => ctx.tools.guard((exec: ToolExecution) => {
@@ -95,12 +111,18 @@ export function apply(ctx: Context, config: Config): void {
     const sessionCwd = (session === undefined ? undefined : ctx.get('workingDirectory')?.of(session) ?? session.header.cwd)
       ?? process.cwd()
     const workdir = typeof args.workdir === 'string' ? resolve(sessionCwd, args.workdir) : sessionCwd
-    const bases = [workdir, ...captures(CD, command).map(dir => resolve(workdir, dir))]
+    // Each `cd` resolves against the directory the one before it entered.
+    const cds: Array<{ readonly dir: string; readonly index: number }> = []
+    for (const cd of captures(CD, command)) cds.push({ dir: resolve(cds.at(-1)?.dir ?? workdir, cd.path), index: cd.index })
+    const baseAt = (index: number): string => cds.findLast(cd => cd.index < index)?.dir ?? workdir
 
     const targets = [...captures(REDIRECT, command), ...captures(TEE, command)]
-    if (IN_PLACE.test(command) || SCRIPT_WRITE.test(command)) targets.push(...captures(PATH_TOKEN, command))
+    const literal = literalWrites(command)
+    if (IN_PLACE.test(command)) targets.push(...captures(PATH_TOKEN, command))
+    else if (literal.length > 0 && literal.length === [...command.matchAll(SCRIPT_WRITE_ALL)].length) targets.push(...literal)
+    else if (SCRIPT_WRITE.test(command)) targets.push(...captures(PATH_TOKEN, command))
     for (const token of targets) {
-      const path = existingSource(token, bases)
+      const path = existingSource(token.path, baseAt(token.index))
       if (path === undefined) continue
       const shown = relative(workdir, path) || path
       return `${exec.name} refused: this command would change the existing file ${shown.startsWith('..') ? path : shown} in place. `
