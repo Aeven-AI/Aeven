@@ -55,7 +55,7 @@ async function fixture() {
   const core = await bootstrapMemoryCore({ agent: MEMOS_AGENT, home, config, autoRecovery: false })
   const memory = new MemosMemory({
     cores: new OwnerCores(async () => core), routes: new LlmRouteContext(),
-    toolLimits: { skills: 0, traces: 10, worldModels: 0 }, warn: () => {}, info: () => {},
+    toolLimits: { skills: 0, traces: 10, worldModels: 0 }, personFactsTtlMs: 0, warn: () => {}, info: () => {},
   })
   cleanup.push(() => memory.dispose())
   const db = new Database(home.dbFile)

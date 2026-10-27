@@ -18,6 +18,7 @@ import { OwnerCores } from './cores.ts'
 import { createHostLlmBridge, LlmRouteContext, type MemoryLanguage } from './host-llm.ts'
 import { splitSharedMemory } from './migrate.ts'
 import { MEMOS_AGENT, MemosMemory, memosHome } from './runtime.ts'
+import { PersonProfiles } from './profile.ts'
 import { classifyTurnDomain, TurnJudgeContext } from './domain.ts'
 import { REINDEX_VERSION, reindexIfEmbeddingChanged } from './reindex.ts'
 
@@ -101,6 +102,28 @@ export interface Config {
    * or runs out, at most two mechanically ranked memories are delivered and the recall is marked degraded.
    */
   relevanceTimeoutMs: number
+  /**
+   * Person profile distilled from all of the owner's person memories regardless of age, delivered at the start of
+   * every conversation; needs `hostLlm`. Recorded dates are delivered whether or not it is enabled.
+   */
+  profile: ProfileConfig
+}
+
+/** Person profile settings. */
+export interface ProfileConfig {
+  /** Distill and deliver the profile. */
+  enabled: boolean
+  /** Longest profile, in characters. */
+  maxChars: number
+  /** Memories folded into the profile per distillation call. */
+  batchFacts: number
+  /**
+   * Shortest interval between two checks of one owner for memories newer than the profile, in milliseconds; listed
+   * person memories, and the dates read from them, are reused for the same time.
+   */
+  refreshMs: number
+  /** Longest one distillation call may take, in milliseconds. */
+  timeoutMs: number
 }
 
 /** Local embedding model settings. */
@@ -185,6 +208,13 @@ export const Config: z<Config> = z.object({
   sentenceRetrievals: z.natural().max(8).default(3),
   sentenceHits: z.natural().min(1).max(40).default(8),
   relevanceTimeoutMs: z.natural().min(300).default(4000),
+  profile: z.object({
+    enabled: z.boolean().default(true),
+    maxChars: z.natural().min(500).max(20_000).default(6000),
+    batchFacts: z.natural().min(10).max(500).default(150),
+    refreshMs: z.natural().min(10_000).default(600_000),
+    timeoutMs: z.natural().min(5000).default(180_000),
+  }).default({ enabled: true, maxChars: 6000, batchFacts: 150, refreshMs: 600_000, timeoutMs: 180_000 }),
 })
 
 /** MemOS core configuration with the Host bridge selected when `config.yaml` leaves the LLM provider empty. */
@@ -330,6 +360,28 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     },
     ...config.sentenceRetrievals > 0 ? { sentenceRecall: { sentences: config.sentenceRetrievals, hits: config.sentenceHits } } : {},
     rebuilding: owner => rebuilding.has(owner),
+    ...bridge === null || !config.profile.enabled ? {} : {
+      profiles: {
+        store: new PersonProfiles({
+          file: owner => join(accountHome(config.accounts, owner).dataDir, 'profile.json'),
+          maxChars: config.profile.maxChars,
+          batchFacts: config.profile.batchFacts,
+          refreshMs: config.profile.refreshMs,
+          timeoutMs: config.profile.timeoutMs,
+          warn: (message) =>{  logger.warn(message) },
+          info: (message) =>{  logger.info(message) },
+        }),
+        distill: async (system: string, user: string, timeoutMs: number) => (await bridge.complete({
+          messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+          temperature: 0,
+          // One token per character bounds any profile text; the stored text is still cut to `maxChars`.
+          maxTokens: config.profile.maxChars,
+          timeoutMs,
+          op: 'aeven.memory.profile',
+        })).text,
+      },
+    },
+    personFactsTtlMs: config.profile.refreshMs,
     warn: (message) =>{  logger.warn(message) },
     info: (message) =>{  logger.debug(message) },
   })

@@ -12,6 +12,7 @@ import type {
   MemoryLlmRoute,
   MemoryOrigin,
   MemoryPage,
+  MemoryProfile,
   MemoryProvider,
   MemoryRecall,
   MemoryRecallLimits,
@@ -33,6 +34,8 @@ import { MemoryDeadlineError, withDeadline } from './deadline.ts'
 import { messageSentences, queryClauses, withoutExactIdentifiers } from './query.ts'
 import { isLogMemory, LOG_TAG, parseRelevance, RELEVANCE_PROMPT, relevanceInput, type CandidateKind, type FilterCandidate } from './filter.ts'
 import type { LlmRouteContext } from './host-llm.ts'
+import { recordedDates } from './dates.ts'
+import type { PersonFact, PersonProfiles, ProfileDistill } from './profile.ts'
 import { SUPERSEDED_TAG, traceDomain, withDomainTag, withSupersededTag, type ClassifyInput, type TurnDomain, type TurnJudgeContext, type TurnRevision } from './domain.ts'
 import { normalizeNamespace } from '@deepseek-ai/memos-local-plugin/core/runtime/namespace.js'
 
@@ -96,6 +99,13 @@ export interface MemosMemoryOptions {
   readonly sentenceRecall?: { readonly sentences: number; readonly hits: number }
   /** True while an owner's memory index is being rebuilt, when its vectors are not comparable to new queries. */
   readonly rebuilding?: (owner: string) => boolean
+  /**
+   * The owners' person profiles and the distillation call that updates them on the asking session's route; absent
+   * serves recorded dates without a profile text.
+   */
+  readonly profiles?: { readonly store: PersonProfiles; readonly distill: ProfileDistill }
+  /** How long one owner's listed person memories are reused by profile reads, in milliseconds. */
+  readonly personFactsTtlMs: number
   readonly warn: (message: string) => void
   readonly info: (message: string) => void
 }
@@ -144,6 +154,9 @@ const PERSON_WORDS_CHARS = 160
 /** Person traces one page of the recent-memory scan reads. */
 const RECENT_PERSON_PAGE = 100
 
+/** Person traces one page of a profile read lists. */
+const PERSON_FACTS_PAGE = 1000
+
 /** Pages the recent-memory scan reads at most, which bounds its cost after a large import. */
 const RECENT_PERSON_PAGES = 10
 
@@ -165,6 +178,8 @@ export class MemosMemory implements MemoryProvider {
   private readonly sessions = new Map<SessionId, SessionState>()
   /** What each turn-start candidate is, from the trace its hit was read from; hits with no entry use their kind. */
   private readonly candidateKinds = new WeakMap<MemoryHit, CandidateKind>()
+  /** Each owner's current person memories, as profile reads list them, and when they were listed. */
+  private readonly personFacts = new Map<string, { readonly at: number; readonly facts: readonly PersonFact[] }>()
   private disposing: Promise<void> | undefined
 
   constructor(private readonly options: MemosMemoryOptions) {}
@@ -197,6 +212,56 @@ export class MemosMemory implements MemoryProvider {
     const recall = await this.recallHits(request)
     this.noteServed(request.scope, recall.hits.flatMap(hit => hit.kind === 'trace' ? [{ id: hit.id, text: hit.snippet }] : []))
     return recall
+  }
+
+  async profile(request: Parameters<MemoryProvider['profile']>[0]): Promise<MemoryProfile> {
+    const { scope } = request
+    const facts = await this.read(request, () => this.currentPersonFacts(scope.owner, request.signal))
+    const profiles = this.options.profiles
+    if (profiles !== undefined) {
+      profiles.store.refresh(scope.owner, facts, (system, user, timeoutMs) =>
+        this.withRoute(scope.route, () => profiles.distill(system, user, timeoutMs)))
+    }
+    const stored = profiles?.store.read(scope.owner)
+    return {
+      ...stored === undefined || !stored.text ? {} : { text: stored.text, updatedAt: stored.updatedAt },
+      dates: recordedDates(facts, new Date().getFullYear()),
+    }
+  }
+
+  /**
+   * Every current person memory of the owner, regardless of age: superseded memories, logs, and learned procedures
+   * are left out. A listing is reused for `personFactsTtlMs`.
+   */
+  private async currentPersonFacts(owner: string, signal: AbortSignal): Promise<readonly PersonFact[]> {
+    const cached = this.personFacts.get(owner)
+    if (cached !== undefined && Date.now() - cached.at < this.options.personFactsTtlMs) return cached.facts
+    const core = await this.options.cores.get(owner)
+    const facts: PersonFact[] = []
+    for (let page = 0; ; page++) {
+      signal.throwIfAborted()
+      const traces = await core.listTraces({
+        ownerAgentKind: MEMOS_AGENT,
+        ownerProfileId: ownerProfile(owner),
+        includeAllNamespaces: true,
+        domains: ['person'],
+        limit: PERSON_FACTS_PAGE,
+        offset: page * PERSON_FACTS_PAGE,
+      })
+      for (const trace of traces) {
+        const summary = (trace.summary ?? '').trim()
+        if (!summary || trace.userText.startsWith(LEARNED_PROCEDURE_PREFIX) || isLogMemory(trace.tags, summary)) continue
+        if ((trace.tags ?? []).some(tag => tag.startsWith(SUPERSEDED_TAG))) continue
+        const label = memoryOriginLabel({
+          origin: originOf(trace),
+          ...trace.tags?.includes(UNDATED_TAG) === true ? {} : { recordedAt: trace.ts },
+        })
+        facts.push({ id: trace.id, text: summary, time: trace.ts, label })
+      }
+      if (traces.length < PERSON_FACTS_PAGE) break
+    }
+    this.personFacts.set(owner, { at: Date.now(), facts })
+    return facts
   }
 
   /** Remember which traces the session was given, for the judgment of the turn that reads them. */
@@ -822,6 +887,7 @@ export class MemosMemory implements MemoryProvider {
    */
   dispose(): Promise<void> {
     this.disposing ??= (async () => {
+      await this.options.profiles?.store.dispose()
       await Promise.all([...this.sessions.keys()].map(sessionId => this.closeSession(sessionId)))
       await this.options.cores.shutdown()
     })()

@@ -57,6 +57,7 @@ function provider(traces: readonly ListedTrace[]) {
     cores: new OwnerCores(async () => core as never),
     routes: new LlmRouteContext(),
     toolLimits: { skills: 8, traces: 8, worldModels: 8 },
+    personFactsTtlMs: 0,
     warn: () => {},
     info: () => {},
   })

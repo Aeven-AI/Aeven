@@ -16,6 +16,7 @@ import type {
   MemoryHit,
   MemoryItemId,
   MemoryPage,
+  MemoryProfile,
   MemoryProvider,
   MemoryRecord,
   MemoryRecall,
@@ -70,9 +71,11 @@ export const MEMORY_TOOL = {
  * Where and when a recalled memory came from, as the model reads it beside the memory: the date it was recorded, or
  * that it was imported, with the source's own date when the import gave one.
  * @param hit - the recalled memory.
+ * @param now - epoch milliseconds of the reading; when given, a recorded date is followed by how long ago it was, so
+ * the model does not read a memory from two days ago as last night.
  * @returns a short label such as `recorded 2026-10-20` or `imported 2026-10-20, undated`; empty when nothing is known.
  */
-export function memoryOriginLabel(hit: Pick<MemoryHit, 'origin' | 'recordedAt'>): string {
+export function memoryOriginLabel(hit: Pick<MemoryHit, 'origin' | 'recordedAt'>, now?: number): string {
   // The host's local calendar day, which is the person's: a UTC day labels a late-evening memory with the day before.
   const day = (time: number): string => {
     const date = new Date(time)
@@ -82,7 +85,28 @@ export function memoryOriginLabel(hit: Pick<MemoryHit, 'origin' | 'recordedAt'>)
     return `imported ${day(hit.origin.savedAt)}, ${hit.recordedAt === undefined ? 'undated' : `dated ${day(hit.recordedAt)}`}`
   }
   const time = hit.recordedAt ?? hit.origin?.savedAt
-  return time === undefined ? '' : `recorded ${day(time)}`
+  if (time === undefined) return ''
+  return now === undefined ? `recorded ${day(time)}` : `recorded ${day(time)}, ${elapsedLabel(time, now)}`
+}
+
+/**
+ * Calendar days between two instants in the host's local zone, in words.
+ * @param time - the earlier instant, epoch milliseconds.
+ * @param now - the later instant, epoch milliseconds.
+ * @returns `today`, `yesterday`, or a count of days, weeks, months, or years ago.
+ */
+function elapsedLabel(time: number, now: number): string {
+  const midnight = (at: number): number => {
+    const date = new Date(at)
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
+  }
+  const days = Math.round((midnight(now) - midnight(time)) / 86_400_000)
+  if (days <= 0) return 'today'
+  if (days === 1) return 'yesterday'
+  if (days < 14) return `${days} days ago`
+  if (days < 60) return `${Math.round(days / 7)} weeks ago`
+  if (days < 730) return `${Math.round(days / 30)} months ago`
+  return `${Math.round(days / 365)} years ago`
 }
 
 /** Opens the text and the summary of every learned-procedure memory, followed by its name and a colon. */
@@ -222,6 +246,15 @@ export default class Memory extends Service {
    */
   recall(request: MemoryRecallRequest): Promise<MemoryRecall> {
     return this.current().recall(request)
+  }
+
+  /**
+   * Read the owner's profile and recorded dates from all of their person memories.
+   * @param request - scope whose owner is profiled, and cancellation.
+   * @returns the profile; its `text` is absent until the provider's first distillation finishes.
+   */
+  profile(request: Parameters<MemoryProvider['profile']>[0]): Promise<MemoryProfile> {
+    return this.current().profile(request)
   }
 
   /**

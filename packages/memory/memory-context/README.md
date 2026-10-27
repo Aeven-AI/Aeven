@@ -39,6 +39,8 @@ Mount it per agent (the `standard`, `cordis`, and `ptc` presets include it) besi
 | `queryContextChars` | `1000` | Characters of the person's earlier messages in the session, newest first, that join the turn's text in the recall query; `0` recalls on the turn's text alone |
 | `recentPersonHours` | `168` | Hours back from which a session's first turn, and any later turn the relevance judgment finds personal, also offers the person's newest memories about themselves as recall candidates; they pass the same relevance judgment as every other candidate; `0` turns it off |
 | `recentPersonItems` | `24` | Most such recent memories offered |
+| `profile` | `true` | Deliver the person-profile block on a session's first turn and on the first turn of each later day |
+| `upcomingDays` | `30` | Days ahead whose recorded birthdays and anniversaries the profile block lists |
 | `promptOrder` | `114` | Order of the memory guidance prompt section |
 
 Messages whose source kind is `user`, and approved task notices from the built-in `automations` service, trigger recall and become captured task text. Other plugin and tool messages do neither, so recall cannot recall itself. The pre-step decision returned by downstream listeners is authoritative: rewritten or rejected input is what recall and capture see.
@@ -81,6 +83,39 @@ A fixed guidance section in every request while memory is active.
 
 Static text in the system prompt; it does not change between requests.
 
+### Person profile
+
+#### What the model sees
+
+Recall reaches a memory only when the turn's words match it, so a plain greeting would otherwise carry no lasting knowledge. The first turn of a session, and the first turn of each later day in the person's browser zone, therefore receives a `<memory_profile>` block from `ctx.memory.profile`, built from all of the person's memories regardless of age: today's date; every recorded birthday or anniversary that falls today or within `upcomingDays`, with the birthday count or years since; the other birth dates; and the provider's distilled profile. The first conversation of the owner's day that states a date falling today marks it; a later conversation that day, including one after a Host restart, finds that conversation through a person memory recorded today that mentions a birthday or an anniversary, and its line says the date was already marked, so the reply does not congratulate again. A failed or late profile read leaves the turn without the block.
+
+##### Profile block frame
+
+```markdown
+<memory_profile>
+Today is <weekday> <day> <month> <year>.
+
+Dates today and in the next <upcomingDays> days:
+- <day> <month> [<year>] (TODAY[, already marked in an earlier conversation today] | tomorrow | in <n> days[, <n>th birthday | <n> years ago today | <n> years on that day]): <memory text> [trace:<id>]
+
+Other birth dates:
+- <day> <month> <year> (born <n> years ago): <memory text> [trace:<id>]
+
+Profile from all memories, updated <YYYY-MM-DD>:
+<profile text>
+
+Use memory_get with an id to read a memory in full.
+</memory_profile>
+```
+
+#### Token effect
+
+The provider's profile (at most its `maxChars`, 6000 by default) plus the date lines, once per session and day, retained in history until compaction.
+
+#### KV Cache effect
+
+Appended to the turn that receives it; earlier history is unchanged.
+
 ### Recalled context
 
 #### What the model sees
@@ -92,7 +127,7 @@ Recall retrieves with the person's earlier messages in the session (up to `query
 ```markdown
 <memory_context>
 About the user and people they mention:
-- <one memory, at most itemMaxChars> [trace:<id>]
+- <one memory, at most itemMaxChars> (recorded <YYYY-MM-DD>, <how long ago>) [trace:<id>]
 
 This project:
 - <one memory> [trace:<id>]
@@ -102,7 +137,7 @@ Experience from earlier tasks:
 
 Knowledge:
 - <one memory> [world-model:<id>]
-Use memory_get with an id to read a memory in full.
+Use memory_get with an id to read a memory in full, before you start writing your reply.
 </memory_context>
 ```
 

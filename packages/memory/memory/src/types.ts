@@ -298,6 +298,37 @@ export interface LearnedProceduresRequest {
   readonly signal: AbortSignal
 }
 
+/**
+ * A yearly date the owner's memory records about the person or someone in their life: a birth, a wedding, a death,
+ * or an anniversary. Recall renders today's and upcoming ones, and the time since `year`, on every new day.
+ */
+export interface MemoryDate {
+  /** Month, 1 through 12. */
+  readonly month: number
+  /** Day of the month, 1 through 31. */
+  readonly day: number
+  /** Year of the original event, when the memory states one. */
+  readonly year?: number
+  /** True when the date is a birth or a birthday, so the time since `year` is that person's age. */
+  readonly birth: boolean
+  /** The memory text that states the date. */
+  readonly text: string
+  readonly id: MemoryItemId
+}
+
+/**
+ * Lasting knowledge about the owner drawn from all of their person memories regardless of age, so that what a
+ * close friend would always know reaches every conversation, not only what the turn's words retrieve.
+ */
+export interface MemoryProfile {
+  /** Distilled profile of the person and the people in their life; absent until the first distillation finishes. */
+  readonly text?: string
+  /** Epoch milliseconds `text` was last updated. */
+  readonly updatedAt?: number
+  /** Every yearly date the memories record, one entry per distinct date. */
+  readonly dates: readonly MemoryDate[]
+}
+
 /** Direction of a human judgment about one turn. */
 export type MemoryFeedbackPolarity = 'positive' | 'negative'
 
@@ -317,6 +348,14 @@ export interface MemoryProvider {
    * @returns ranked hits visible to the scope; a budget overrun resolves with `timedOut: true`.
    */
   recall(request: MemoryRecallRequest): Promise<MemoryRecall>
+  /**
+   * Read the owner's profile and recorded dates from all of their person memories. The stored profile is returned
+   * at once; when person memories were recorded after it, the provider brings it up to date in the background on
+   * the scope's route, so a later read returns the newer profile.
+   * @param request - scope whose owner is profiled, and cancellation.
+   * @returns the profile; its `text` is absent until the first distillation finishes.
+   */
+  profile(request: { readonly scope: MemoryScope; readonly signal: AbortSignal }): Promise<MemoryProfile>
   /**
    * Accept one completed turn for background learning; failures are the provider's to log.
    * @param turn - turn assembled from committed session events.

@@ -40,6 +40,8 @@ kind: "package-reference"
 | `queryContextChars` | `1000` | 会话中此人较早消息的字符数（从最新开始），与本轮文本一起组成召回查询；`0` 表示仅用本轮文本召回 |
 | `recentPersonHours` | `168` | 从多少小时之内开始，会话的第一个轮次以及相关性判定认为属于个人话题的后续轮次，还会把此人关于自己的最新记忆作为召回候选提供出来；它们与其他任何候选一样通过相同的相关性判定；`0` 表示关闭 |
 | `recentPersonItems` | `24` | 最多提供多少条这样的近期记忆 |
+| `profile` | `true` | 在会话的第一个轮次、以及此后每天的第一个轮次交付人物画像块 |
+| `upcomingDays` | `30` | 画像块列出的、落在未来多少天内的已记录生日与纪念日 |
 | `promptOrder` | `114` | 记忆指引提示词段落的顺序 |
 
 来源类型为 `user` 的消息，以及来自内置 `automations` 服务的已批准任务通知，会触发召回并成为被捕获的任务文本。其他插件与工具消息两者都不做，因此召回无法召回自己。下游监听器返回的步骤前决策是权威的：被改写或被拒绝的输入才是召回与捕获所看到的内容。
@@ -83,6 +85,39 @@ A direct-user turn may be followed by a `<memory_context>` block recalled from l
 
 系统提示词中的静态文本；它在请求之间不变。
 
+### 人物画像
+
+#### 模型看到什么
+
+召回只有在轮次的文字与之匹配时才会取到一条记忆，因此一句朴素的问候否则不会带来任何长期知识。会话的第一个轮次、以及此后每天在人物浏览器时区中的第一个轮次，因此会通过 `ctx.memory.profile` 收到一个 `<memory_profile>` 块，它由此人的全部记忆不分记录早晚构建：今天的日期；落在今天或 `upcomingDays` 之内的每一条已记录生日或纪念日，带上生日序号或距今年数；其他出生日期；以及提供方蒸馏出的画像。所有者当天第一个说出落在今天某个日期的对话会标记该日期；当天更晚的对话（包括 Host 重启之后的对话）会通过一条今天记录、提到生日或纪念日的 person 记忆找到那次对话，它的行会说明该日期已被标记，因此回复不会再次道贺。读取画像失败或过慢时，该轮次没有这个块。
+
+##### 画像块的框架
+
+```markdown
+<memory_profile>
+Today is <weekday> <day> <month> <year>.
+
+Dates today and in the next <upcomingDays> days:
+- <day> <month> [<year>] (TODAY[, already marked in an earlier conversation today] | tomorrow | in <n> days[, <n>th birthday | <n> years ago today | <n> years on that day]): <memory text> [trace:<id>]
+
+Other birth dates:
+- <day> <month> <year> (born <n> years ago): <memory text> [trace:<id>]
+
+Profile from all memories, updated <YYYY-MM-DD>:
+<profile text>
+
+Use memory_get with an id to read a memory in full.
+</memory_profile>
+```
+
+#### Token 影响
+
+提供方的画像（最多 `maxChars`，默认 6000）加上日期行，每个会话、每天一次，并保留在历史中直到压缩（compaction）。
+
+#### KV Cache 影响
+
+追加到收到它的那个轮次；更早的历史不变。
+
 ### 召回的上下文
 
 #### 模型看到什么
@@ -94,7 +129,7 @@ A direct-user turn may be followed by a `<memory_context>` block recalled from l
 ```markdown
 <memory_context>
 About the user and people they mention:
-- <one memory, at most itemMaxChars> [trace:<id>]
+- <one memory, at most itemMaxChars> (recorded <YYYY-MM-DD>, <how long ago>) [trace:<id>]
 
 This project:
 - <one memory> [trace:<id>]
@@ -104,7 +139,7 @@ Experience from earlier tasks:
 
 Knowledge:
 - <one memory> [world-model:<id>]
-Use memory_get with an id to read a memory in full.
+Use memory_get with an id to read a memory in full, before you start writing your reply.
 </memory_context>
 ```
 
