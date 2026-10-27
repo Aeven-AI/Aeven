@@ -45,12 +45,21 @@ function parseSettingsNamespace(value: string): SettingsNamespace {
 /** When a namespace's changes take effect for its owner. */
 export type SettingsApplies = 'live' | 'restart'
 
+/**
+ * Who a namespace's user section belongs to: `account` sections are the same on every device of the signed-in
+ * account and account sync carries them; `device` sections describe one machine, such as ports, paths, and
+ * device support, and stay on it.
+ */
+export type SettingsReach = 'account' | 'device'
+
 /** Registration options beyond the namespace schema. */
 export interface SettingsRegisterOptions<T> {
   /** Composition-layer values resolved below the user layer (entry-config subset). */
   base?: Partial<T>
   /** Owner's effect timing, surfaced to configuration UIs; defaults to `live`. */
   applies?: SettingsApplies
+  /** Whether the section belongs to the account or to this device; defaults to `device`. */
+  reach?: SettingsReach
   /**
    * Reject a resolved section the owner could not act on, for constraints its
    * schema cannot express — a cross-field requirement, or one field's validity
@@ -97,6 +106,8 @@ export interface SettingsDescriptor {
   user?: unknown
   /** Owner's declared effect timing. */
   applies: SettingsApplies
+  /** Whether the section belongs to the account or to this device. */
+  reach: SettingsReach
   /** Schema-declared secret positions; present only under `redactSecrets`. */
   secrets?: RedactedSecret[]
 }
@@ -309,6 +320,7 @@ interface SettingsRegistration {
   schema: z<unknown>
   base: unknown
   applies: SettingsApplies
+  reach: SettingsReach
   /** Owner-supplied check for constraints the schema cannot express. */
   validate?: (value: unknown) => void
   resolved: unknown
@@ -430,6 +442,7 @@ export abstract class SettingsProvider extends Service {
       schema: schema as z<unknown>,
       base: options?.base,
       applies: options?.applies ?? 'live',
+      reach: options?.reach ?? 'device',
       ...options?.validate === undefined
         ? {}
         : { validate: options.validate as (value: unknown) => void },
@@ -479,6 +492,7 @@ export abstract class SettingsProvider extends Service {
     const scope = this.register<Namespace, T>(ns, schema, {
       base: entry,
       ...hooks.validate === undefined ? {} : { validate: hooks.validate },
+      ...hooks.reach === undefined ? {} : { reach: hooks.reach },
     })
     hooks.setSource(() => scope.get())
     this.ctx.effect(() => () => {
@@ -523,6 +537,7 @@ export abstract class SettingsProvider extends Service {
         ...base === undefined ? {} : { base },
         ...detachedUser === undefined ? {} : { user: detachedUser },
         applies: registration.applies,
+        reach: registration.reach,
       }
       if (options?.redactSecrets !== true) return descriptor
       const schema = registration.schema as z<never>
@@ -888,6 +903,8 @@ export interface SettingsSectionHooks<T> {
    * @param value - the resolved section, schema-valid by construction.
    */
   validate?: (value: T) => void
+  /** Whether the section belongs to the account or to this device; defaults to `device`. */
+  reach?: SettingsReach
 }
 
 export default SettingsProvider

@@ -1,11 +1,10 @@
 /**
- * Account sync Consumer for settings: the configured account-level namespaces of `settings.yaml`, such as theme,
- * language, and default model, are the same on every device of the account. Device facts (ports, paths, provider
- * keys, device support) stay on the device because they are not listed.
+ * Account sync Consumer for settings: every namespace registered with `reach: 'account'`, such as theme,
+ * language, and default model, is the same on every device of the account. Device namespaces (ports, paths,
+ * provider keys, device support) stay on the device.
  * @module @aeven/settings-sync
  */
 import type { Context } from '@deepseek-ai/cordis'
-import z from '@deepseek-ai/schemastery'
 import type { Map as YMap, Transaction, YMapEvent } from 'yjs'
 import type {} from '@aeven/settings'
 import type { SyncDocument } from '@aeven/sync'
@@ -14,38 +13,31 @@ export const name = 'settings-sync'
 
 export const inject = ['sync', 'settings']
 
-/** Plugin configuration. */
-export interface Config {
-  /** Settings namespaces that belong to the account rather than to one device. */
-  namespaces: string[]
-}
-
-export const Config: z<Config> = z.object({
-  namespaces: z.array(z.string()).default(['ui-theme', 'locale', 'ui-chat', 'ui-conversation', 'agent-default-model', 'media', 'media-video']),
-})
-
 const DOCUMENT = 'settings/account'
 
-/** The raw user section of each listed namespace that holds one. */
-function userSections(ctx: Context, namespaces: ReadonlySet<string>): Map<string, unknown> {
+/** The registered account namespaces. */
+function accountNamespaces(ctx: Context): Set<string> {
+  return new Set(ctx.settings.describe().filter(descriptor => descriptor.reach === 'account').map(descriptor => descriptor.ns as string))
+}
+
+/** The raw user section of each account namespace that holds one. */
+function userSections(ctx: Context): Map<string, unknown> {
   const sections = new Map<string, unknown>()
   for (const descriptor of ctx.settings.describe({ redactSecrets: true })) {
-    if (namespaces.has(descriptor.ns) && descriptor.user !== undefined) sections.set(descriptor.ns, descriptor.user)
+    if (descriptor.reach === 'account' && descriptor.user !== undefined) sections.set(descriptor.ns, descriptor.user)
   }
   return sections
 }
 
 /**
- * Mirror the listed namespaces of each account sync serves on this Host.
+ * Mirror the account namespaces of each account sync serves on this Host.
  * @param ctx - Host context with sync and settings.
- * @param config - the account-level namespaces.
  */
-export function apply(ctx: Context, config: Config): void {
-  const namespaces = new Set(config.namespaces)
+export function apply(ctx: Context): void {
   const open = new Map<string, Promise<SyncDocument | undefined>>()
 
   const publish = (map: YMap<unknown>): void => {
-    const sections = userSections(ctx, namespaces)
+    const sections = userSections(ctx)
     map.doc?.transact(() => {
       for (const [ns, section] of sections) {
         if (JSON.stringify(map.get(ns)) !== JSON.stringify(section)) map.set(ns, section)
@@ -54,11 +46,11 @@ export function apply(ctx: Context, config: Config): void {
   }
 
   const take = (map: YMap<unknown>, keys: Iterable<string>): void => {
-    const registered = new Set(ctx.settings.describe().map(descriptor => descriptor.ns as string))
+    const namespaces = accountNamespaces(ctx)
     for (const ns of keys) {
       const section = map.get(ns)
-      if (!namespaces.has(ns) || !registered.has(ns) || typeof section !== 'object' || section === null) continue
-      const current = userSections(ctx, new Set([ns])).get(ns)
+      if (!namespaces.has(ns) || typeof section !== 'object' || section === null) continue
+      const current = userSections(ctx).get(ns)
       if (JSON.stringify(current) === JSON.stringify(section)) continue
       ctx.settings.replace(ns, section).catch((error: unknown) => {
         ctx.logger.warn(`settings sync: applying ${ns} failed: ${String(error)}`)
@@ -88,7 +80,7 @@ export function apply(ctx: Context, config: Config): void {
 
   ctx.on('sync/status', attach)
   ctx.on('settings/document-updated', (ns) => {
-    if (!namespaces.has(ns)) return
+    if (!accountNamespaces(ctx).has(ns)) return
     for (const opening of open.values()) {
       void opening.then((handle) => { if (handle !== undefined) publish(handle.doc.getMap<unknown>('sections')) })
     }

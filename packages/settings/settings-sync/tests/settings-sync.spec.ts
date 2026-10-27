@@ -1,6 +1,6 @@
 /**
- * Account-level settings across two devices: a listed namespace changed on one device lands on the other, an
- * unlisted namespace stays on its device, the first device seeds an empty account document, and a joining
+ * Account-level settings across two devices: an account namespace changed on one device lands on the other, a
+ * device namespace stays on its device, the first device seeds an empty account document, and a joining
  * device takes the account's settings instead of its own.
  */
 import { Context } from '@deepseek-ai/cordis'
@@ -25,12 +25,12 @@ async function host(device: MemorySyncDevice, doc: Record<string, unknown> = {})
     name: 'registrations',
     inject: ['settings'],
     apply: (scope: Context) => {
-      scope.settings.register('ui-theme', Theme)
+      scope.settings.register('ui-theme', Theme, { reach: 'account' })
       scope.settings.register('device', Device)
     },
   })
   await registrations
-  const fiber = ctx.plugin(plugin, { namespaces: ['ui-theme', 'not-registered'] })
+  const fiber = ctx.plugin(plugin, {})
   await fiber
   disposers.push(() => fiber.dispose(), () => registrations.dispose(), () => settings.dispose())
   return ctx
@@ -39,7 +39,7 @@ async function host(device: MemorySyncDevice, doc: Record<string, unknown> = {})
 const theme = (ctx: Context): unknown => ctx.settings.describe().find(descriptor => descriptor.ns === 'ui-theme')?.value
 
 describe('settings sync', () => {
-  it('carries a listed namespace between devices and keeps device settings home', async () => {
+  it('carries an account namespace between devices and keeps device settings home', async () => {
     const network = new MemorySyncNetwork()
     const a = await host(network.device(), { 'ui-theme': { preference: 'dark' } })
     const b = await host(network.device())
@@ -94,7 +94,8 @@ describe('settings sync', () => {
     ctx.provide('sync', sync)
     const settings = ctx.plugin(MemorySettings, {})
     await settings
-    const fiber = ctx.plugin(plugin, { namespaces: ['ui-theme'] })
+    ctx.settings.register('ui-theme', Theme, { reach: 'account' })
+    const fiber = ctx.plugin(plugin, {})
     await fiber
     disposers.push(() => fiber.dispose(), () => settings.dispose())
     const warn = vi.spyOn(ctx.logger, 'warn').mockImplementation(() => {})
