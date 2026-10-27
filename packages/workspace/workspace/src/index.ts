@@ -19,6 +19,7 @@ export { WorkspaceDefaultImmutableError, WorkspaceMoveInvalidError } from './ent
 import { defaultWorkspaceTitle, realpathNormalize } from './paths.ts'
 import { kindPathAgrees, workspaceDomainSpec } from './spec.ts'
 import type { WorkspaceDomainState, WorkspaceRecord } from './spec.ts'
+import { WorkspaceSync, type SyncedWorkspaces, type SyncedWorkspace } from './sync.ts'
 import type { FolderWorkspace, Workspace, WorkspaceId as WorkspaceIdBrand } from './types.ts'
 
 export type { FolderWorkspace, Workspace, WorkspaceKind } from './types.ts'
@@ -155,6 +156,7 @@ export class WorkspaceRegistry extends Service {
   private readonly sessionPaths = new Map<SessionId, string>()
   private readonly invalidSessionPaths = new Map<SessionId, string>()
   private operationTail: Promise<void> = Promise.resolve()
+  private readonly synced: WorkspaceSync
 
   private readonly host: WorkspaceEntityHost = {
     table: () => this.requireTable(),
@@ -182,6 +184,14 @@ export class WorkspaceRegistry extends Service {
     // Every birth re-derives membership, so no creation path can strand a
     // Session outside the Workspace its own cwd names.
     ctx.on('session/created', (session) => { void this.adoptByCwd(session.header) })
+    this.synced = new WorkspaceSync(
+      ctx,
+      (owner, projection) => { void this.applySynced(owner, projection) },
+      (message) => { ctx.logger('workspace').warn(message) },
+    )
+    // The account's workspaces follow it to every device its sync vault holds, once that vault is served here.
+    ctx.on('sync/status', (owner) => { void this.synced.attach(owner) })
+    ctx.effect(() => () => this.synced.dispose(), 'workspace.sync')
   }
 
   /**
@@ -418,6 +428,97 @@ export class WorkspaceRegistry extends Service {
         await this.setState({ ...state, archivedSessionIds: state.archivedSessionIds.filter(id => id !== sessionId) })
       }
     })
+  }
+
+  /**
+   * Publish each account's workspaces to its synced document after a committed mutation.
+   *
+   * A directory path, session accounting, and the archive set stay on this device; what travels is the
+   * workspace's identity, title, and timestamps together with the account's display order.
+   */
+  private publish(): void {
+    if (this.ctx.get('sync') === undefined) return
+    const state = this.requireState()
+    const accounts = new Map<string, { records: ({ readonly id: WorkspaceId } & SyncedWorkspace)[]; order: WorkspaceId[] }>()
+    // An account whose last workspace was just deleted still has to publish that removal.
+    for (const owner of this.synced.owners()) accounts.set(owner, { records: [], order: [] })
+    for (const id of state.workspaceIds) {
+      const record = this.requireTable().get(id) as WorkspaceRecord | undefined
+      // A built-in registration is declared by the composition on every device, so it is not the account's.
+      if (record?.owner === undefined || this.isBuiltInId(state, id)) continue
+      const group = accounts.get(record.owner) ?? { records: [], order: [] }
+      group.records.push({ id, title: record.title, owner: record.owner, createdAt: record.createdAt, updatedAt: record.updatedAt })
+      group.order.push(id)
+      accounts.set(record.owner, group)
+    }
+    for (const [owner, projection] of accounts) {
+      void this.synced.publish(owner, projection).catch((error: unknown) => {
+        this.ctx.logger('workspace').warn(`workspace: publishing to the account's other devices failed: ${String(error)}`)
+      })
+    }
+  }
+
+  /**
+   * Store another device's workspaces of one account.
+   *
+   * A workspace this device opened a directory for keeps its path and kind, and one it only received is `remote`,
+   * which is the kind a workspace without a directory here has always had. A later title wins, and a removal drops
+   * this device's record without touching a directory or a session log.
+   * @param owner - the account the workspaces belong to.
+   * @param projection - its workspaces and their order as another device published them.
+   */
+  private async applySynced(owner: string, projection: SyncedWorkspaces): Promise<void> {
+    try {
+      await this.enqueueOperation(async () => {
+        const state = this.requireState()
+        const table = this.requireTable()
+        const remote = new Map(projection.records.map(record => [record.id, record]))
+        const kept: WorkspaceId[] = []
+        for (const id of state.workspaceIds) {
+          const record = table.get(id) as WorkspaceRecord | undefined
+          if (record === undefined) continue
+          const entry = remote.get(id)
+          // A built-in registration and a workspace of another account are not this account's to remove here.
+          const foreign = this.isBuiltInId(state, id) || (record.owner !== undefined && record.owner !== owner)
+          if (entry === undefined) {
+            // The account's document says nothing about it yet; this device keeps what it has.
+            kept.push(id)
+            continue
+          }
+          if (entry.removed === true) {
+            if (foreign) kept.push(id)
+            else await table.delete(id)
+            continue
+          }
+          if (entry.title !== undefined && entry.updatedAt !== undefined && entry.updatedAt > record.updatedAt) {
+            await table.put(id, { ...record, title: entry.title, updatedAt: entry.updatedAt })
+          }
+          kept.push(id)
+        }
+        const known = new Set(kept)
+        for (const entry of projection.records) {
+          if (entry.removed === true || known.has(entry.id) || entry.title === undefined) continue
+          const at = entry.updatedAt ?? new Date().toISOString()
+          await table.put(entry.id, {
+            kind: 'remote',
+            title: entry.title,
+            ...entry.owner === undefined ? {} : { owner: entry.owner },
+            sessionIds: [],
+            createdAt: entry.createdAt ?? at,
+            updatedAt: entry.updatedAt ?? at,
+          })
+          kept.push(entry.id)
+        }
+        const rank = new Map(projection.order.map((id, index) => [id, index]))
+        const account = kept.filter(id => rank.has(id)).sort((left, right) => (rank.get(left) ?? 0) - (rank.get(right) ?? 0))
+        const workspaceIds = [...this.pinnedHead(state, [...account, ...kept.filter(id => !rank.has(id))])]
+        if (!sameIds(workspaceIds, state.workspaceIds)) await this.setState({ ...state, workspaceIds })
+        this.rebuildEntities()
+        this.validateStoredState(this.requireState())
+      }, false)
+    } catch (error: unknown) {
+      this.ctx.logger('workspace').warn(`workspace: another device's workspaces were not stored: ${String(error)}`)
+    }
   }
 
   /**
@@ -1173,7 +1274,7 @@ export class WorkspaceRegistry extends Service {
     return state.defaultWorkspaceId === id || Object.values(state.builtInWorkspaceIds ?? {}).includes(id)
   }
 
-  private enqueueOperation<T>(operation: () => Promise<T>): Promise<T> {
+  private enqueueOperation<T>(operation: () => Promise<T>, publish = true): Promise<T> {
     const result = this.operationTail.then(async () => {
       // A committed delete may leave only its marker cleanup pending. Retry
       // recovery before another create/delete can overwrite that pending operation record.
@@ -1181,7 +1282,11 @@ export class WorkspaceRegistry extends Service {
       return await operation()
     })
     this.operationTail = result.then(() => {}, () => {})
-    return result
+    // Publish after the write committed, so the account's other devices never see a half-applied mutation.
+    return result.then((committed) => {
+      if (publish) this.publish()
+      return committed
+    })
   }
 }
 

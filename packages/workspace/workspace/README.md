@@ -110,6 +110,8 @@ The domain uses the `per-record` layout, so a write rewrites only the record it 
 
 Two processes sharing one home converge: each observes the other's record and global writes through the domain layer's [cross-process coherence](../../../.agents/notes/implemented/architecture/2026-09-16-cross-process-domain-coherence.md). Convergence is eventual rather than transactional, so simultaneous edits to the order or archive set — both of which live in the single `global.json` — still resolve last-writer-wins.
 
+While account sync serves an account, that account's workspaces also travel between its devices through the synced `workspaces` document: each workspace's title and timestamps, and the account's display order. A directory path stays on the device that opened it, so a workspace another device receives arrives pathless as `remote` and opens once this device registers a directory of its own. Session accounting and the archive set stay device-local, because a session body lives where it ran; a row only this device holds keeps its place beside the account's. A later title wins, and a removal drops the record without touching a directory or a session log.
+
 ### Lifecycle
 
 On start, the registry opens the domain, completes a marked mutation if one is pending, validates stored state — duplicate paths, duplicate session accounts, and order drift all fail loud — and, when not yet initialized, bootstraps history from persisted headers before writing the initialized marker last, so an interrupted bootstrap resumes safely. A fresh empty registry is real once initialized; it never re-bootstraps.
@@ -164,6 +166,7 @@ Independent of live requests: the package never touches a request prefix, so it 
 These limits define when the project list is a poor fit or needs special operational care. They are current package constraints, not a task backlog.
 
 - **Removal never deletes data** — removing a project leaves its folder, files, and session histories in place; those sessions are archived, and session deletion or folder removal are separate, absent capabilities ([decision](../../../.agents/notes/implemented/feature/2026-07-27-workspace-registration-deletion.md)).
+- **A received workspace opens after this device binds a directory** — a workspace that arrived from another device carries no path here, so it lists as `remote` until a path binding exists.
 - **A session joins only with a recorded directory** — a session belongs to a project only when its record carries a directory that resolves to the project's path; sessions without one stay ungrouped, and a session from another directory cannot be moved in.
 - **External changes are seen late** — if another process deletes or damages a directory, the project reflects it only at the next refresh or restart.
 - **Archiving is one-way** — a hidden session keeps its history and its place, but no unarchive action exists yet; the archive set is a durable display filter.

@@ -30,6 +30,9 @@
       "path": "../../session/session-persistence"
     },
     {
+      "path": "../../sync/sync"
+    },
+    {
       "path": "../../typert/protocol"
     },
     {
