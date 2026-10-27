@@ -483,7 +483,13 @@ describe('web-search-deepseek plugin registration', () => {
 
   it('falls back to the env key and defaults when config omits them', async () => {
     const prev = process.env.DEEPSEEK_API_KEY
+    // The machine's own deployment base and search endpoint would outrank the
+    // defaults this test is about, so both layers start empty here.
+    const previousApi = process.env.AEVEN_API_URL
+    const previousSearch = process.env.DEEPSEEK_SEARCH_BASE_URL
     process.env.DEEPSEEK_API_KEY = 'env-key'
+    delete process.env.AEVEN_API_URL
+    delete process.env.DEEPSEEK_SEARCH_BASE_URL
     try {
       const fetchMock = vi.fn(async () => jsonResponse(searchResponse()))
       vi.stubGlobal('fetch', fetchMock)
@@ -499,6 +505,10 @@ describe('web-search-deepseek plugin registration', () => {
     } finally {
       if (prev === undefined) delete process.env.DEEPSEEK_API_KEY
       else process.env.DEEPSEEK_API_KEY = prev
+      if (previousApi === undefined) delete process.env.AEVEN_API_URL
+      else process.env.AEVEN_API_URL = previousApi
+      if (previousSearch === undefined) delete process.env.DEEPSEEK_SEARCH_BASE_URL
+      else process.env.DEEPSEEK_SEARCH_BASE_URL = previousSearch
     }
   })
 

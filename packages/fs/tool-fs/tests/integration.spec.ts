@@ -148,13 +148,17 @@ describe('default deployment (with avn-fs-observation-policy)', () => {
       expect(await readFile(join(dir, 'a.txt'), 'utf8')).toBe('hello there')
     })
 
-    it('rejects an edit before any read, leaving the file untouched', async () => {
+    it('observes a never-read file, so an edit without a read applies', async () => {
       await writeFile(join(dir, 'a.txt'), 'hello world')
       const result = await call('edit', { file_path: 'a.txt', old_string: 'world', new_string: 'there' })
+      expect(result.isError).toBe(false)
+      expect(await readFile(join(dir, 'a.txt'), 'utf8')).toBe('hello there')
+    })
+
+    it('refuses an edit of a missing file after observing it', async () => {
+      const result = await call('edit', { file_path: 'gone.txt', old_string: 'a', new_string: 'b' })
       expect(result.isError).toBe(true)
-      expect(result.error).toMatchObject({ info: { code: 'FS_NOT_OBSERVED' } })
-      expect(text(result)).toBe(notObservedDiagnostic(join(dir, 'a.txt')))
-      expect(await readFile(join(dir, 'a.txt'), 'utf8')).toBe('hello world')
+      expect(result.error).toMatchObject({ info: { code: 'FS_NOT_FOUND' } })
     })
 
     it('lets a WINDOWED read authorize an edit when the file is unchanged (freshness, not full-view)', async () => {
@@ -223,14 +227,15 @@ describe('default deployment (with avn-fs-observation-policy)', () => {
   })
 
   describe('the gate records only through the events (no method coupling)', () => {
-    it('a direct ctx.fs.readText records no observed-state, so a later edit rejects', async () => {
+    it('a direct ctx.fs.readText records no observed-state, so a later write rejects', async () => {
       await writeFile(join(dir, 'a.txt'), 'hello world')
       // Reach AROUND the tool — an explicit escape hatch for non-tool consumers.
       await ctx.fs.readText(await ctx.fs.resolve('a.txt'))
-      // The model-facing edit still rejects: the read did not emit fs/observed.
-      const result = await call('edit', { file_path: 'a.txt', old_string: 'world', new_string: 'there' })
+      // The model-facing write still rejects: the read did not emit fs/observed.
+      const result = await call('write', { file_path: 'a.txt', content: 'clobber' })
       expect(result.isError).toBe(true)
       expect(result.error).toMatchObject({ info: { code: 'FS_NOT_OBSERVED' } })
+      expect(await readFile(join(dir, 'a.txt'), 'utf8')).toBe('hello world')
     })
   })
 
