@@ -43,10 +43,10 @@ The policy plugin is optional: without it the tools run against the bare provide
 
 | Tool | Arguments | Behavior |
 |---|---|---|
-| `read` | `file_path`, `offset?`, `limit?`, or `files` | Line-numbered UTF-8 content with a pagination footer; `offset` is 1-based and `limit` defaults to and caps at the configured `readLimit`; `files` lists several `{ file_path, offset?, limit? }` entries read concurrently in one call |
+| `read` | `file_path`, `offset?`, `limit?` | Line-numbered UTF-8 content with a pagination footer; `offset` is 1-based and `limit` defaults to and caps at the configured `readLimit` |
 | `read_image` | `file_path` | Reads and persists a PNG/JPEG/WebP/GIF source; an extension-less path (normalized attachment object paths included) is identified from its file signature; normalization can downscale it before the next model request, so the model need not create a thumbnail first |
 | `write` | `file_path`, `content` | Creates or fully replaces a file; with the policy plugin, overwriting requires a prior `read` at the unchanged version, creating does not |
-| `edit` | `file_path` with `old_string`/`new_string`/`replace_all?` or `edits`, or `files` | Literal replacement requiring a unique match unless `replace_all` is true; `edits` applies several replacements to one file all-or-nothing; `files` lists several files, each in the single-file form, applied in order; with the policy plugin, a file changed since it was read is refused |
+| `edit` | `file_path`, `old_string`, `new_string`, `replace_all?` | Literal replacement requiring a unique match unless `replace_all` is true; with the policy plugin, requires a prior `read` and an unchanged file |
 
 Field names are snake_case to match Claude Code and existing harness tool schemas. Successes return compact envelopes — a read window, an image reference, or a `Created file`/`Updated file` confirmation — and `write`/`edit` derive replayable diff-card metadata for UI presentation.
 
@@ -138,7 +138,7 @@ At assembly time, each guidance section checks `ctx.tools.get(name, scope)` and 
 ##### Read guidance
 
 ```markdown
-Use the read tool — not shell commands like cat — to inspect text files. Results include line numbers. Use offset and limit to continue reading large files. To read several files you already know you need, pass them together as files in one call instead of one call per file.
+Use the read tool — not shell commands like cat — to inspect text files. Results include line numbers. Use offset and limit to continue reading large files.
 ```
 
 ##### Write guidance
@@ -150,7 +150,7 @@ Use the write tool to create files or completely replace file contents. Existing
 ##### Edit guidance
 
 ```markdown
-Use the edit tool for targeted changes to existing UTF-8 text files. It replaces literal old_string with new_string; by default old_string must appear exactly once. If old_string appears multiple times, provide a more specific old_string or set replace_all to true. For several changes to one file, pass them together as edits in one call: they apply in order, each against the result of the previous ones, and none applies unless all match. To change several files whose edits are already decided, pass them together as files in one call, one entry per file in the same form as a single-file call: files apply in order, and a failure stops at that file and reports the files already changed. The text you replace must match the current file exactly, so take it from the file; a file that changed since you last read it is refused until you read it again.
+Use the edit tool for targeted changes to existing UTF-8 text files. It replaces literal old_string with new_string; by default old_string must appear exactly once. If old_string appears multiple times, provide a more specific old_string or set replace_all to true. Read the file first (the default fs-observation-policy requires it), unless you just created or edited it in this session.
 ```
 
 #### Token effect
@@ -179,7 +179,7 @@ Prefix-stable while the visible tool definitions and order are unchanged. Regist
 
 #### What the model sees
 
-A successful read is exactly `<path><displayPath></path>`, newline, `<type>file</type>`, newline, `<content>`, numbered lines as `<lineNumber>: <text>`, a blank line, one footer, and `</content>`. The footer is exactly `(Output capped. Showing lines <start>-<end>. Use offset=<next> to continue.)`, `(Showing lines <start>-<end> of <total>. Use offset=<next> to continue.)`, or `(End of file - total <total> lines)`. A long line ends exactly `... (line truncated to <max> chars)`. A missing read still returns `FS_NOT_FOUND`, but it records confirmed absence for the calling session; after an externally deleted file is re-read, a retried `write` can safely recreate it through the provider's no-replace guard. A `files` call returns each file's envelope in call order, separated by a blank line; a file that fails appears as `<path><requestedPath></path>`, newline, `<error><message></error>`, and the call fails only when every file fails.
+A successful read is exactly `<path><displayPath></path>`, newline, `<type>file</type>`, newline, `<content>`, numbered lines as `<lineNumber>: <text>`, a blank line, one footer, and `</content>`. The footer is exactly `(Output capped. Showing lines <start>-<end>. Use offset=<next> to continue.)`, `(Showing lines <start>-<end> of <total>. Use offset=<next> to continue.)`, or `(End of file - total <total> lines)`. A long line ends exactly `... (line truncated to <max> chars)`. A missing read still returns `FS_NOT_FOUND`, but it records confirmed absence for the calling session; after an externally deleted file is re-read, a retried `write` can safely recreate it through the provider's no-replace guard.
 
 #### Token effect
 
@@ -207,7 +207,7 @@ Append-only; newly visible content follows the reusable request prefix and does 
 
 #### What the model sees
 
-Write returns the exact five-line envelope `<path><displayPath></path>`, `<type>file</type>`, `<content>`, `Created file` or `Updated file`, then `</content>`. Edit returns exactly `The file <displayPath> has been updated successfully.` or, for `replace_all`, `The file <displayPath> has been updated. All occurrences were successfully replaced.` The full write or replacement text remains in the assistant tool-call arguments. An `edits` list returns `The file <displayPath> has been updated with <n> replacements.`; a `files` call returns one such line per file, in order. When a file of a `files` call fails after earlier files changed, the error starts `Already edited: <paths>. Then: ` and ends `The remaining <n> file(s) were not edited.` when later files were skipped.
+Write returns the exact five-line envelope `<path><displayPath></path>`, `<type>file</type>`, `<content>`, `Created file` or `Updated file`, then `</content>`. Edit returns exactly `The file <displayPath> has been updated successfully.` or, for `replace_all`, `The file <displayPath> has been updated. All occurrences were successfully replaced.` The full write or replacement text remains in the assistant tool-call arguments.
 
 #### Token effect
 
