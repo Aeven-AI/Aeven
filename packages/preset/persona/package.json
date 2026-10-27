@@ -1,7 +1,7 @@
 {
   "name": "@aeven/persona",
   "description": "Composition-authored deployment persona section for the Aeven",
-  "version": "0.3.19-alpha",
+  "version": "0.3.20-alpha",
   "publishConfig": {
     "access": "public"
   },
