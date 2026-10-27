@@ -79,26 +79,23 @@ function* allShards(): Generator<string> {
   }
 }
 
-function encode(row: Record<string, unknown>, vectors: readonly string[], model: string): SyncedRow {
+/** Encode a row for a document. Every BLOB the replicated tables hold is a vector, so a BLOB marks the model. */
+function encode(row: Record<string, unknown>, model: string): SyncedRow {
   const out: SyncedRow = {}
-  let hasVector = false
   for (const [column, value] of Object.entries(row)) {
     if (Buffer.isBuffer(value)) {
       out[column] = { $b: value.toString('base64') }
-      if (vectors.includes(column)) hasVector = true
+      out.$model = model
     } else {
       out[column] = value
     }
   }
-  if (hasVector) out.$model = model
   return out
 }
 
+/** Decode one encoded column value; the only object values a row holds are encoded BLOBs. */
 function decode(value: unknown): unknown {
-  if (typeof value === 'object' && value !== null && typeof (value as { $b?: unknown }).$b === 'string') {
-    return Buffer.from((value as { $b: string }).$b, 'base64')
-  }
-  return value
+  return typeof value === 'object' && value !== null ? Buffer.from((value as { $b: string }).$b, 'base64') : value
 }
 
 /** One account's memory mirror. */
@@ -219,7 +216,7 @@ export class MemorySyncMirror {
         this.db.prepare('DELETE FROM sync_changes WHERE seq <= ?').run(changes.at(-1)?.seq ?? 0)
       }
     } catch (error) {
-      this.warn(`memory sync: publishing changes failed: ${error instanceof Error ? error.message : String(error)}`)
+      this.warn(`memory sync: publishing changes failed: ${String(error)}`)
     } finally {
       this.draining = false
     }
@@ -239,7 +236,7 @@ export class MemorySyncMirror {
             continue
           }
           if (forgotten.get(change.pk) === true) continue
-          const encoded = encode(row, specOf(change.tbl).vectors, this.model)
+          const encoded = encode(row, this.model)
           if (JSON.stringify(rows.get(change.pk)) !== JSON.stringify(encoded)) rows.set(change.pk, encoded)
         }
       })
@@ -271,7 +268,7 @@ export class MemorySyncMirror {
     try {
       handle = await this.sync.openDocument(this.owner, name)
     } catch (error) {
-      this.warn(`memory sync: opening ${name} failed: ${error instanceof Error ? error.message : String(error)}`)
+      this.warn(`memory sync: opening ${name} failed: ${String(error)}`)
       return
     }
     try {
@@ -280,7 +277,7 @@ export class MemorySyncMirror {
       if (this.isClosed() || (rows.size === 0 && forgotten.size === 0)) return
       this.apply(table, columns, rows, forgotten)
     } catch (error) {
-      this.warn(`memory sync: applying ${name} failed: ${error instanceof Error ? error.message : String(error)}`)
+      this.warn(`memory sync: applying ${name} failed: ${String(error)}`)
     } finally {
       handle.close()
     }
@@ -299,7 +296,9 @@ export class MemorySyncMirror {
         const keepLocalVectors = row.$model !== this.model
         const present = columns.filter(column => column in row && !(keepLocalVectors && spec.vectors.includes(column)))
         const local = this.readRow(table, JSON.parse(key) as unknown[])
-        if (local !== undefined && present.every(column => JSON.stringify(encode({ [column]: local[column] }, [], '')[column]) === JSON.stringify(row[column]))) continue
+        const same = (column: string): boolean =>
+          JSON.stringify(encode({ [column]: local?.[column] }, this.model)[column]) === JSON.stringify(row[column])
+        if (local !== undefined && present.every(same)) continue
         const updates = present.filter(column => !spec.key.includes(column)).map(column => `${column} = excluded.${column}`)
         this.db.prepare(
           `INSERT INTO ${table} (${present.join(', ')}) VALUES (${present.map(() => '?').join(', ')})

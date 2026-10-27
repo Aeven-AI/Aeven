@@ -408,7 +408,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     const created = new MemorySyncMirror(owner, dbFile, sync, config.embedding.model, config.sync, (message) => { logger.warn(message) })
     mirrors.set(owner, created)
     created.start().catch((error: unknown) => {
-      logger.warn(`memory sync: starting for an account failed: ${error instanceof Error ? error.message : String(error)}`)
+      logger.warn(`memory sync: starting for an account failed: ${String(error)}`)
     })
   }
   ctx.on('sync/status', mirror)
