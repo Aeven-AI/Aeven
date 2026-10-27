@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-auth-aeven",
   "description": "The Aeven sign-in, sign-up and OAuth-result screens, ported verbatim so AVN presents the same authentication surface",
-  "version": "0.3.19-alpha",
+  "version": "0.3.20-alpha",
   "publishConfig": {
     "access": "public"
   },

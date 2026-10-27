@@ -1,7 +1,7 @@
 {
   "name": "@aeven/document-extract-video",
   "description": "Video reader: claims recorded and uploaded clips and reports what the deployment stored about them",
-  "version": "0.3.19-alpha",
+  "version": "0.3.20-alpha",
   "publishConfig": {
     "access": "public"
   },

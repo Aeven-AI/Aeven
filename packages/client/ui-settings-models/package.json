@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-settings-models",
   "description": "Model providers settings page over existing settings and credential joins",
-  "version": "0.3.19-alpha",
+  "version": "0.3.20-alpha",
   "publishConfig": {
     "access": "public"
   },

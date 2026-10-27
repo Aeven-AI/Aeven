@@ -1,7 +1,7 @@
 {
   "name": "@aeven/base",
   "description": "The shared avn core as a profile bundle: the first patch layer of base-backed profiles, inserting core rows over the empty profile root",
-  "version": "0.3.19-alpha",
+  "version": "0.3.20-alpha",
   "publishConfig": {
     "access": "public"
   },
