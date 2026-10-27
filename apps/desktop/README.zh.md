@@ -6,7 +6,7 @@
 
 被接入的 Host 拥有其后端包依赖图。打包后的 Desktop 会停止服务于其他 avn 版本且没有客户端租约的桌面启动 Host，并启动自己的 Host，因此更新后绝不会呈现旧后端；`avn web` 启动的 Host 则无论版本都会被接入。Desktop 包更新要求被接入的 Host 在验证与激活之前停止；接入运行中的 Host 不会替换其包。第一个启动器决定提供服务的 profile 与能力。两个客户端使用同一份 Session 和工作区状态。
 
-在启动或接入 Host 之前，Electron 会向用户的登录 shell（`$SHELL -ilc`，限时十秒）查询其 PATH，并把这些条目放在继承条目之前。从 Finder、Dock 或桌面启动器启动时，应用只带有会话的最小 PATH，因此 Host 找不到 `npm` 或用户安装的任何工具：通过 `npm exec` 启动的 `chrome-devtools-mcp` 与 Playwright 从未运行，shell 命令也缺少用户的工具。shell 失败或超时时，Host 保留继承的 PATH，桌面壳记录一条警告。
+在安装 profile、启动或接入 Host 之前，Electron 会向用户的登录 shell（`$SHELL -ilc`，限时十秒）查询其 PATH，并把这些条目放在继承条目之前。该 shell 随 Electron 一同启动，并在启动画面加载和选择后端期间运行，因此较慢的启动文件只会把启动推迟其超出这些步骤的那部分时间。从 Finder、Dock 或桌面启动器启动时，应用只带有会话的最小 PATH，因此 Host 找不到 `npm` 或用户安装的任何工具：通过 `npm exec` 启动的 `chrome-devtools-mcp` 与 Playwright 从未运行，shell 命令也缺少用户的工具。shell 失败或超时时，Host 保留继承的 PATH，桌面壳记录一条警告。
 
 在这些步骤之前，Electron 就已创建窗口，并从自己的 `avn-app://shell` 来源绘制启动画面；待 Host 就绪后，再把应用地址加载进同一个窗口，由客户端自己的预加载界面接续。启动画面在预加载界面的底色与墨色上绘制标记与加载标记，配色取自“外观”设置：shell 从 Aeven 主目录下 Host 的 `settings.yaml` 读取 `ui-theme.preference`，缺失或无法读取时跟随系统配色；安装发行版或排入一次更新检查的启动会在加载标记下方写一行短文案，该行脱离画面的排布流，因此交接时不会发生位移：无论后面还要等待多久，进程启动后数百毫秒内就会画出产品自己的画面。任何平台都不给窗口标题栏，因此拖动窗口的条带由页面自己负责：shell 的 preload 在解析器创建文档元素时即标记该文档所属平台的窗口装饰，启动画面与客户端自己的首帧样式表各自绘制 macOS 红绿灯条带，使窗口自首次绘制的一帧起即可拖动，而不必等到客户端框架首次渲染。
 
