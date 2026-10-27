@@ -67,3 +67,26 @@
   gap: 8px;
   flex-wrap: wrap;
 }
+
+.subtitle {
+  margin: 4px 0 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.devices {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.device {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 36px;
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
+}

@@ -13,6 +13,7 @@ import { MemorySyncNetwork, type MemorySyncDevice } from '../../../sync/sync/tes
 import { MemorySyncMirror } from '../src/sync.ts'
 
 const OWNER = 'owner-1'
+type Warn = ReturnType<typeof vi.fn<(message: string) => void>>
 const MODEL = 'model-a'
 const cleanups: Array<() => void> = []
 afterEach(() => { for (const cleanup of cleanups.splice(0).reverse()) cleanup() })
@@ -33,8 +34,8 @@ function memos(): { file: string; db: Database.Database } {
   return { file, db }
 }
 
-function mirror(device: MemorySyncDevice, file: string, model = MODEL): { mirror: MemorySyncMirror; warn: ReturnType<typeof vi.fn> } {
-  const warn = vi.fn()
+function mirror(device: MemorySyncDevice, file: string, model = MODEL): { mirror: MemorySyncMirror; warn: Warn } {
+  const warn = vi.fn<(message: string) => void>()
   const created = new MemorySyncMirror(OWNER, file, device.asSync(), model, { drainMs: 20, drainBatch: 100 }, warn)
   device.documentChanged = (id) => { created.documentChanged(id) }
   cleanups.push(() => { created.dispose() })

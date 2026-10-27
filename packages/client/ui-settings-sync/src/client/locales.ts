@@ -23,7 +23,7 @@ export const en = {
   connecting: 'Syncing…',
   offline: 'Offline. Changes are kept and sync when you are back online.',
   pending: '{n} changes waiting to sync',
-  devices: 'Devices: {n}',
+  devices: 'Devices ({n})',
   lossNote: 'Only your devices hold the key. If you lose access to all of them, your synced data cannot be recovered.',
   addDevice: 'Add a device',
   addingTitle: 'Add a device',
@@ -32,6 +32,11 @@ export const en = {
   approve: 'Approve',
   reject: 'Reject',
   done: 'Done',
+  thisDevice: 'this device',
+  unnamed: 'Unnamed device',
+  remove: 'Remove',
+  confirmRemove: 'Remove device',
+  removeNote: 'A removed device keeps what it already has but cannot read anything synced after this.',
 }
 
 /** Locale key of this section. */
@@ -60,7 +65,7 @@ export const zh = {
   connecting: '同步中…',
   offline: '离线。更改会被保留，恢复联网后自动同步。',
   pending: '{n} 项更改等待同步',
-  devices: '设备：{n}',
+  devices: '设备（{n}）',
   lossNote: '只有你的设备持有密钥。如果你失去所有设备的访问权限，已同步的数据将无法恢复。',
   addDevice: '添加设备',
   addingTitle: '添加设备',
@@ -69,6 +74,11 @@ export const zh = {
   approve: '批准',
   reject: '拒绝',
   done: '完成',
+  thisDevice: '此设备',
+  unnamed: '未命名设备',
+  remove: '移除',
+  confirmRemove: '移除设备',
+  removeNote: '被移除的设备会保留已有的内容，但无法读取此后同步的任何内容。',
 } satisfies Record<SyncLocaleKey, string>
 
 /** Spanish dictionary. */
@@ -94,7 +104,7 @@ export const es = {
   connecting: 'Sincronizando…',
   offline: 'Sin conexión. Los cambios se guardan y se sincronizan cuando vuelvas a estar en línea.',
   pending: '{n} cambios pendientes de sincronizar',
-  devices: 'Dispositivos: {n}',
+  devices: 'Dispositivos ({n})',
   lossNote: 'Solo tus dispositivos tienen la clave. Si pierdes el acceso a todos, tus datos sincronizados no se pueden recuperar.',
   addDevice: 'Añadir un dispositivo',
   addingTitle: 'Añadir un dispositivo',
@@ -103,4 +113,9 @@ export const es = {
   approve: 'Aprobar',
   reject: 'Rechazar',
   done: 'Listo',
+  thisDevice: 'este dispositivo',
+  unnamed: 'Dispositivo sin nombre',
+  remove: 'Quitar',
+  confirmRemove: 'Quitar dispositivo',
+  removeNote: 'Un dispositivo quitado conserva lo que ya tiene, pero no puede leer nada de lo que se sincronice después.',
 } satisfies Record<SyncLocaleKey, string>

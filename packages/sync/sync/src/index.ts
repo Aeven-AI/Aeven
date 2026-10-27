@@ -44,6 +44,16 @@ export interface SyncDocument {
   close(): void
 }
 
+/** A device of the account as Settings lists it. */
+export interface SyncDevice {
+  /** The device id. */
+  readonly id: DeviceId
+  /** The name the device gave itself, such as its host name; empty until it has written one. */
+  readonly name: string
+  /** Whether this is the device answering. */
+  readonly current: boolean
+}
+
 /** One batch of a stream as the relay stored it. */
 export interface SyncStreamBatch {
   /** The relay's sequence number; pass the last one as `after` to read on. */
@@ -128,6 +138,21 @@ export abstract class Sync extends Service {
    * @param owner - the account.
    */
   abstract createVault(owner: string): Promise<void>
+
+  /**
+   * List the account's active devices.
+   * @param owner - an enrolled account.
+   * @returns the devices, this one first.
+   */
+  abstract devices(owner: string): Promise<SyncDevice[]>
+
+  /**
+   * Remove a device from the account: it can no longer read changes made from now on, and the other devices
+   * refuse its frames. Requires a connection.
+   * @param owner - an enrolled account.
+   * @param device - the device to remove; this device may remove itself.
+   */
+  abstract removeDevice(owner: string, device: DeviceId): Promise<void>
 
   /**
    * Ask the account's enrolled devices to admit this device. Requires a signed-in session for the account and

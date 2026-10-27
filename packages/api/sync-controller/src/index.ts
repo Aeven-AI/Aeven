@@ -8,7 +8,8 @@ import z from '@deepseek-ai/schemastery'
 import { Remote, TypertRemoteService } from '@aeven/typert-protocol'
 import type {} from '@aeven/identity-user'
 import type { SyncJoin } from '@aeven/sync'
-import type { SyncJoinRequestView, SyncView } from './types.ts'
+import type { DeviceId } from '@aeven/sync-vault'
+import type { SyncDeviceView, SyncJoinRequestView, SyncView } from './types.ts'
 
 export type * from './types.ts'
 
@@ -155,6 +156,27 @@ export default class SyncController extends TypertRemoteService {
     const owner = this.owner()
     this.accepting.get(owner)?.()
     return await Promise.resolve(this.view(owner))
+  }
+
+  /**
+   * List the caller's devices.
+   * @returns the devices, this one first.
+   */
+  @Remote
+  async devices(): Promise<SyncDeviceView[]> {
+    return (await this.ctx.sync.devices(this.owner())).map(({ id, name, current }) => ({ id, name, current }))
+  }
+
+  /**
+   * Remove one of the caller's devices: it cannot read anything synced from now on.
+   * @param id - the device id.
+   * @returns the status afterwards.
+   */
+  @Remote
+  async removeDevice(id: string): Promise<SyncView> {
+    const owner = this.owner()
+    await this.ctx.sync.removeDevice(owner, id as DeviceId)
+    return this.view(owner)
   }
 
   /**

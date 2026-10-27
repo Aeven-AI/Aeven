@@ -22,6 +22,9 @@
     },
     {
       "path": "../../typert/protocol"
+    },
+    {
+      "path": "../../sync/sync-vault"
     }
   ]
 }

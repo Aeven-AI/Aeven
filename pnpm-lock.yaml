@@ -1308,6 +1308,9 @@ importers:
       '@aeven/sync':
         specifier: workspace:^
         version: link:../../sync/sync
+      '@aeven/sync-vault':
+        specifier: workspace:^
+        version: link:../../sync/sync-vault
       '@aeven/typert-protocol':
         specifier: workspace:^
         version: link:../../typert/protocol

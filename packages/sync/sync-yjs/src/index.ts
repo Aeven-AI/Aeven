@@ -6,12 +6,14 @@
  * @module @aeven/sync-yjs
  */
 import { existsSync, readdirSync } from 'node:fs'
+import { hostname } from 'node:os'
 import { join } from 'node:path'
 import { Context, Service } from '@deepseek-ai/cordis'
 import Schema from '@deepseek-ai/schemastery'
 import { credentialRef, type CredentialRef } from '@aeven/credentials'
 import { accountHomePath, avnHomePath, ACCOUNTS_DIR_NAME } from '@aeven/home-paths'
-import { Sync, type SyncDocument, type SyncJoin, type SyncJoinRequest, type SyncStatus, type SyncStreamBatch } from '@aeven/sync'
+import { Sync, type SyncDevice, type SyncDocument, type SyncJoin, type SyncJoinRequest, type SyncStatus, type SyncStreamBatch } from '@aeven/sync'
+import type { DeviceId } from '@aeven/sync-vault'
 import { JoinRequester } from './join.ts'
 import { RelayConnection, type RelayHandlers } from './relay.ts'
 import { SyncStore } from './store.ts'
@@ -27,6 +29,8 @@ export interface Config {
   reconnectMs: number
   /** Longest a relay handshake may take, in milliseconds. */
   connectTimeoutMs: number
+  /** Name this device shows the account's other devices; the host name unless configured. */
+  deviceName: string
   /** Stored updates per document before they are merged into one. */
   compactAfter: number
   /** Frames per document since its last snapshot before this device queues a new one. */
@@ -34,6 +38,9 @@ export interface Config {
 }
 
 const STORE_SEGMENTS = ['sync', 'sync.db'] as const
+
+/** The document holding each device's name, keyed by device id. */
+const DEVICES = 'devices'
 
 /** Handler for pushes a short-lived connection does not use. */
 function ignore(): void {}
@@ -58,6 +65,7 @@ export default class YjsSync extends Sync {
     credentialRef: Schema.string().default('AEVEN_TOKEN'),
     reconnectMs: Schema.natural().min(100).default(5_000),
     connectTimeoutMs: Schema.natural().min(100).default(10_000),
+    deviceName: Schema.string().min(1).default(hostname()),
     compactAfter: Schema.natural().min(1).default(200),
     snapshotAfter: Schema.natural().min(1).default(500),
   })
@@ -150,6 +158,16 @@ export default class YjsSync extends Sync {
     }, this.config.connectTimeoutMs)
   }
 
+  /** Record this device's name in the account's devices document once it is enrolled. */
+  private nameDevice(account: Account): void {
+    const device = account.vault.status().device
+    if (!account.vault.enrolled() || device === undefined) return
+    const names = account.vault.openDocument(DEVICES)
+    const map = names.doc.getMap<{ name: string }>('names')
+    if (map.get(device)?.name !== this.config.deviceName) map.set(device, { name: this.config.deviceName })
+    names.close()
+  }
+
   private live(owner: string, account: Account): boolean {
     return !this.disposed && this.accounts.get(owner) === account
   }
@@ -178,6 +196,7 @@ export default class YjsSync extends Sync {
     account.relay = relay
     try {
       await account.vault.attach(relay)
+      this.nameDevice(account)
     } catch (error) {
       this.ctx.logger.warn('sync: catching up with the relay failed for %s', owner)
       this.ctx.logger.warn(error)
@@ -285,6 +304,31 @@ export default class YjsSync extends Sync {
     const account = this.accounts.get(owner)
     if (account?.relay === undefined) throw new Error('adding a device needs a connection to the relay')
     return account.vault.acceptJoins(account.relay)
+  }
+
+  /** @inheritdoc */
+  async devices(owner: string): Promise<SyncDevice[]> {
+    const vault = this.enrolledVault(owner)
+    const ids = vault.deviceIds()
+    if (ids.length === 0) return []
+    const names = vault.openDocument(DEVICES)
+    try {
+      const map = names.doc.getMap<{ name: string }>('names')
+      return ids.map((id, index) => ({ id, name: map.get(id)?.name ?? '', current: index === 0 }))
+    } finally {
+      names.close()
+      await Promise.resolve()
+    }
+  }
+
+  /** @inheritdoc */
+  async removeDevice(owner: string, device: DeviceId): Promise<void> {
+    const account = this.accounts.get(owner)
+    if (account?.relay === undefined) throw new Error('removing a device needs a connection to the relay')
+    await account.vault.removeDevice(account.relay, device)
+    const names = account.vault.openDocument(DEVICES)
+    names.doc.getMap('names').delete(device)
+    names.close()
   }
 
   /** @inheritdoc */

@@ -47,13 +47,15 @@
     "@aeven/identity-user": "workspace:^",
     "@aeven/sync": "workspace:^",
     "@aeven/typert-protocol": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/sync-vault": "workspace:^"
   },
   "devDependencies": {
     "@aeven/identity-user": "workspace:^",
     "@aeven/sync": "workspace:^",
     "@aeven/typert-protocol": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/sync-vault": "workspace:^"
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "workspace:^"

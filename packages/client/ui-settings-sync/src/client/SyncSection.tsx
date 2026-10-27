@@ -1,6 +1,6 @@
 /** The Sync settings page: turn sync on, add this device to an account that syncs, or approve a new device. */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { SyncJoinRequestView, SyncView } from '@aeven/api-remotes/client'
+import type { SyncDeviceView, SyncJoinRequestView, SyncView } from '@aeven/api-remotes/client'
 import { Button, LoadingBlock, SectionHeader } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import css from './SyncSection.module.css'
@@ -15,6 +15,8 @@ export interface SyncSectionInjected {
   acceptJoins: () => Promise<SyncView>
   stopAcceptingJoins: () => Promise<SyncView>
   joinRequests: () => Promise<SyncJoinRequestView[]>
+  devices: () => Promise<SyncDeviceView[]>
+  removeDevice: (id: string) => Promise<SyncView>
   approveJoin: (id: string) => Promise<SyncView>
   rejectJoin: (id: string) => Promise<SyncView>
   /**
@@ -48,6 +50,8 @@ export function SyncSection(props: SyncSectionProps) {
   const ops: SyncSectionInjected = props
   const [state, setState] = useState<Load>({ status: 'loading' })
   const [requests, setRequests] = useState<SyncJoinRequestView[]>([])
+  const [devices, setDevices] = useState<SyncDeviceView[]>([])
+  const [removing, setRemoving] = useState<string | undefined>()
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
   const generation = useRef(0)
@@ -58,9 +62,12 @@ export function SyncSection(props: SyncSectionProps) {
       const view = await ops.status()
       const exists = view.state === 'unenrolled' ? await ops.vaultExists().catch(() => undefined) : undefined
       const pending = view.acceptingJoins ? await ops.joinRequests() : []
+      const enrolled = view.state === 'online' || view.state === 'offline' || view.state === 'connecting'
+      const listed = enrolled ? await ops.devices() : []
       if (run !== generation.current) return
       setState({ status: 'ready', view, ...exists === undefined ? {} : { exists } })
       setRequests(pending)
+      setDevices(listed)
     } catch {
       if (run === generation.current) setState({ status: 'error' })
     }
@@ -137,8 +144,22 @@ export function SyncSection(props: SyncSectionProps) {
         <>
           <div className={css.card}>
             <h3 className={css.title}>{view.state === 'online' ? t('online') : view.state === 'connecting' ? t('connecting') : t('offline')}</h3>
-            <p className={css.body}>{t('devices', { n: String(view.devices) })}</p>
             {view.pending > 0 && <p className={css.body}>{t('pending', { n: String(view.pending) })}</p>}
+            <h4 className={css.subtitle}>{t('devices', { n: String(view.devices) })}</h4>
+            <ul className={css.devices}>
+              {devices.map(device => (
+                <li key={device.id} className={css.device}>
+                  <span>{device.name === '' ? t('unnamed') : device.name}{device.current ? ` · ${t('thisDevice')}` : ''}</span>
+                  {!device.current && (removing === device.id
+                    ? <div className={css.actions}>
+                      <Button variant="primary" size="sm" disabled={busy} onClick={act(async () => { setRemoving(undefined); await ops.removeDevice(device.id) })}>{t('confirmRemove')}</Button>
+                      <Button variant="ghost" size="sm" disabled={busy} onClick={() => { setRemoving(undefined) }}>{t('cancel')}</Button>
+                    </div>
+                    : <Button variant="ghost" size="sm" disabled={busy || view.state !== 'online'} onClick={() => { setRemoving(device.id) }}>{t('remove')}</Button>)}
+                </li>
+              ))}
+            </ul>
+            {removing !== undefined && <p className={css.note}>{t('removeNote')}</p>}
             <p className={css.note}>{t('lossNote')}</p>
             {!view.acceptingJoins && (
               <div className={css.actions}>

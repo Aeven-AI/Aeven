@@ -9,7 +9,7 @@ import {
   applyChainEntry, chainDeviceOf, createChainEntry, createGenesis, decodeKeyring, deviceIdOf, encodeKeyring,
   generateDeviceKeys, generateVaultKey, opaqueIdOf,
   openEnvelope, sealEnvelope, toBase64Url, unwrapForDevice, verifyChain, wrapForDevice,
-  type ChainEntry, type ChainState, type DeviceKeys, type DevicePublicKeys, type EnvelopeKind, type KeyEpoch, type OpaqueId,
+  type ChainEntry, type ChainState, type DeviceId, type DeviceKeys, type DevicePublicKeys, type EnvelopeKind, type KeyEpoch, type OpaqueId,
 } from '@aeven/sync-vault'
 import type { SyncDocument, SyncState, SyncStatus } from '@aeven/sync'
 import { JoinApprover, type PendingJoin } from './join.ts'
@@ -124,6 +124,36 @@ export class AccountVault {
     await relay.request('chain.append', { entry })
     this.adoptChain(next, [...this.store.chain(), entry])
     this.changed()
+  }
+
+  /**
+   * Remove a device: rotate the vault key, wrap the new keyring for every remaining device, then record the
+   * removal in the chain.
+   * @param relay - an open connection for the account.
+   * @param device - the device to remove.
+   */
+  async removeDevice(relay: RelayConnection, device: DeviceId): Promise<void> {
+    const { keys, chain } = this.requireMember()
+    if (!chain.devices.has(device)) throw new Error(`device ${device} is not active in this vault`)
+    const epoch = brandNumber<KeyEpoch>(chain.epoch + 1)
+    const entry = createChainEntry(chain, { type: 'remove-device', device, epoch }, { kind: 'device', device: keys })
+    const next = applyChainEntry(chain, entry)
+    const keyring = new Map([...this.store.keyring(), [epoch, generateVaultKey()]])
+    const encoded = encodeKeyring(keyring)
+    for (const [id, publicKeys] of next.devices) {
+      await relay.request('keys.put', { recipient: id, wrapped: toBase64Url(wrapForDevice(encoded, publicKeys.agreement)) })
+    }
+    await relay.request('chain.append', { entry })
+    this.store.addKeys(keyring)
+    this.adoptChain(next, [...this.store.chain(), entry])
+    this.changed()
+  }
+
+  /** @returns the ids of the vault's active devices, this one first, or none while not enrolled. */
+  deviceIds(): DeviceId[] {
+    const member = this.member()
+    if (member === undefined) return []
+    return [member.keys.id, ...[...member.chain.devices.keys()].filter(id => id !== member.keys.id)]
   }
 
   /**

@@ -54,6 +54,8 @@ export function apply(ctx: ClientContext): void {
     acceptJoins: () => value(remote.acceptJoins()),
     stopAcceptingJoins: () => value(remote.stopAcceptingJoins()),
     joinRequests: () => value(remote.joinRequests()),
+    devices: () => value(remote.devices()),
+    removeDevice: id => value(remote.removeDevice(id)),
     approveJoin: id => value(remote.approveJoin(id)),
     rejectJoin: id => value(remote.rejectJoin(id)),
     onChange: (listener) => {

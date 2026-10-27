@@ -5,6 +5,7 @@
  * offline device queues its changes until it comes back.
  */
 import * as Y from 'yjs'
+import type { DeviceId } from '@aeven/sync-vault'
 import type { Sync, SyncDocument, SyncState, SyncStatus, SyncStreamBatch } from '../src/index.ts'
 
 const REMOTE = Symbol('memory-sync-remote')
@@ -99,7 +100,10 @@ export class MemorySyncDevice {
   /** @returns this device as the `ctx.sync` surface Consumers use. */
   asSync(): Sync {
     const surface = {
-      status: (): SyncStatus => ({ state: this.state, devices: this.network.devices.length, pending: this.outbox.length, ...this.state === 'unenrolled' ? {} : { device: this.id } }),
+      status: (): SyncStatus => {
+        const status: SyncStatus = { state: this.state, devices: this.network.devices.length, pending: this.outbox.length }
+        return this.state === 'unenrolled' ? status : { ...status, device: this.id as DeviceId }
+      },
       documentId: (_owner: string, name: string): string => `id:${name}`,
       openDocument: (_owner: string, name: string): Promise<SyncDocument> => Promise.resolve({ doc: this.docOf(name), close: () => {} }),
       appendStream: (_owner: string, name: string, payload: Uint8Array): Promise<void> => {

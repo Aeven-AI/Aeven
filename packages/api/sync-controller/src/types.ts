@@ -16,6 +16,15 @@ export interface SyncView {
   readonly acceptingJoins: boolean
 }
 
+/** One of the caller's devices. */
+export interface SyncDeviceView {
+  readonly id: string
+  /** The name the device gave itself; empty until it wrote one. */
+  readonly name: string
+  /** Whether this is the device the caller is using. */
+  readonly current: boolean
+}
+
 /** A join request waiting for the caller's decision on this device. */
 export interface SyncJoinRequestView {
   readonly id: string

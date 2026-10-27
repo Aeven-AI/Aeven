@@ -56,7 +56,7 @@ async function host(options: { home?: string; relayUrl?: string } = {}): Promise
   ctx.on('sync/status', (owner) => { statuses.push(owner) })
   ctx.on('sync/document', (_owner, id) => { documents.push(id) })
   const fiber = ctx.plugin(YjsSync, {
-    relayUrl: options.relayUrl ?? relay.url, credentialRef: 'AEVEN_TOKEN', reconnectMs: 100, connectTimeoutMs: 2000, compactAfter: 50, snapshotAfter: 50,
+    relayUrl: options.relayUrl ?? relay.url, credentialRef: 'AEVEN_TOKEN', deviceName: 'test-host', reconnectMs: 100, connectTimeoutMs: 2000, compactAfter: 50, snapshotAfter: 50,
   })
   await fiber
   cleanups.push(() => fiber.dispose())
@@ -117,11 +117,33 @@ describe('the Yjs sync provider', () => {
     await vi.waitFor(() => { expect(doc.doc.getMap('prefs').get('theme')).toBe('light') })
     expect(first.documents).toContain(first.sync.documentId(account, 'settings/account'))
 
+    await vi.waitFor(async () => {
+      expect(await first.sync.devices(account)).toEqual([
+        { id: first.sync.status(account).device, name: 'test-host', current: true },
+        { id: second.sync.status(account).device, name: 'test-host', current: false },
+      ])
+    })
     await second.sync.appendStream(account, 'sessions/s', Uint8Array.of(7))
     await vi.waitFor(() => { expect(second.sync.status(account).pending).toBe(0) })
     expect((await first.sync.readStream(account, 'sessions/s', 0)).batches.map(batch => batch.payload)).toEqual([Uint8Array.of(7)])
     doc.close()
     copy.close()
+
+    await expect(first.sync.removeDevice(account, 'not-a-device' as never)).rejects.toThrow(/not active/)
+    await first.sync.removeDevice(account, second.sync.status(account).device!)
+    await vi.waitFor(() => { expect(second.sync.status(account).state).toBe('unenrolled') })
+    expect((await first.sync.devices(account)).map(device => device.current)).toEqual([true])
+    expect(first.sync.status(account).devices).toBe(1)
+    await expect(second.sync.devices(account)).resolves.toEqual([])
+    const kept = await first.sync.openDocument(account, 'settings/account')
+    kept.doc.getMap('prefs').set('after-removal', true)
+    await vi.waitFor(() => { expect(first.sync.status(account).pending).toBe(0) })
+    kept.close()
+  })
+
+  it('needs a connection to remove a device', async () => {
+    const { sync } = await host()
+    await expect(sync.removeDevice('nobody', 'x' as never)).rejects.toThrow(/needs a connection/)
   })
 
   it('lets the user cancel a join or reject a request', async () => {
@@ -147,6 +169,10 @@ describe('the Yjs sync provider', () => {
     const first = await host()
     await first.sync.createVault(account)
     await vi.waitFor(() => { expect(first.sync.status(account).state).toBe('online') })
+    const names = await first.sync.openDocument(account, 'devices')
+    names.doc.getMap('names').delete(first.sync.status(account).device!)
+    names.close()
+    expect(await first.sync.devices(account)).toEqual([{ id: first.sync.status(account).device, name: '', current: true }])
     await first.fiber.dispose()
     const restarted = await host({ home: first.home })
     await vi.waitFor(() => { expect(restarted.sync.status(account).state).toBe('online') })
