@@ -42,7 +42,7 @@ interface OpenDoc {
 }
 
 /** Diagnostics sink for frames that are dropped rather than applied. */
-export type VaultWarn = (message: string, error?: unknown) => void
+export type VaultWarn = (message: string, error: unknown) => void
 
 /** One account's vault on this device. */
 export class AccountVault {
@@ -218,8 +218,8 @@ export class AccountVault {
     this.adoptChain(verifyChain(entries), entries)
     if (!this.enrolled()) return
     await this.refreshKeyring(relay)
-    const { seq } = await relay.request('sync', { since: this.store.relayCursor() }) as { seq: number }
-    if (seq > this.store.relayCursor()) this.store.setRelayCursor(seq)
+    // The relay pushes every frame after the cursor before answering, and each one advances the cursor.
+    await relay.request('sync', { since: this.store.relayCursor() })
     await this.flush()
     if (this.relay === relay) this.setState('online')
   }

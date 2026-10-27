@@ -16,6 +16,9 @@
 import WebSocket from 'ws'
 import type { ChainEntry } from '@aeven/sync-vault'
 
+/** Listener for socket errors whose `close` that follows is handled. */
+function ignore(): void {}
+
 /** A relay `error` answer. */
 export class RelayError extends Error {
   override name = 'RelayError'
@@ -46,8 +49,9 @@ export interface RelayHandlers {
    * A device-to-device message from another socket of the account.
    * @param from - the sender's relay peer number.
    * @param data - the message.
+   * @param connection - the connection it arrived on, for replies.
    */
-  signal(from: number, data: unknown): void
+  signal(from: number, data: unknown, connection: RelayConnection): void
   /** The connection closed, for any reason. */
   closed(): void
 }
@@ -90,6 +94,8 @@ export class RelayConnection {
       const socket = new WebSocket(url, { headers: { authorization: `Bearer ${token}` }, handshakeTimeout: timeoutMs })
       const fail = (error: Error): void => {
         socket.removeAllListeners()
+        // Terminating a connecting socket emits one more `error`; without a listener it would be unhandled.
+        socket.on('error', ignore)
         socket.terminate()
         reject(error)
       }
@@ -97,7 +103,8 @@ export class RelayConnection {
       socket.once('unexpected-response', (_request, response) => { fail(new RelayError('refused', `relay refused the connection (HTTP ${String(response.statusCode)})`)) })
       socket.once('open', () => {
         socket.removeAllListeners()
-        socket.on('error', () => { socket.terminate() })
+        // A protocol error ends the connection; `close` follows and fails pending requests.
+        socket.on('error', ignore)
         resolve(new RelayConnection(socket, handlers))
       })
     })
@@ -129,7 +136,7 @@ export class RelayConnection {
         this.handlers.chain(message.entry as ChainEntry)
         return
       case 'signal':
-        this.handlers.signal(message.from as number, message.data)
+        this.handlers.signal(message.from as number, message.data, this)
         return
       default:
         // Messages this build does not know are ignored so the relay can add push types.

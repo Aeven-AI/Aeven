@@ -35,6 +35,9 @@ export interface Config {
 
 const STORE_SEGMENTS = ['sync', 'sync.db'] as const
 
+/** Handler for pushes a short-lived connection does not use. */
+function ignore(): void {}
+
 interface Account {
   store: SyncStore
   vault: AccountVault
@@ -106,7 +109,7 @@ export default class YjsSync extends Sync {
       (id) => { this.notifyDocument(owner, id) },
       (message, error) => {
         this.ctx.logger.warn(message)
-        if (error !== undefined) this.ctx.logger.warn(error)
+        this.ctx.logger.warn(error)
       },
     )
     account = { store, vault, wake: () => {} }
@@ -142,9 +145,7 @@ export default class YjsSync extends Sync {
           this.ctx.logger.warn(error)
         }
       },
-      signal: (from, data) => {
-        if (account.relay !== undefined) account.vault.receiveSignal(account.relay, from, data)
-      },
+      signal: (from, data, connection) => { account.vault.receiveSignal(connection, from, data) },
       closed: () => { account.vault.detach() },
     }, this.config.connectTimeoutMs)
   }
@@ -185,7 +186,7 @@ export default class YjsSync extends Sync {
     // A device that is waiting for admission, or was removed, has nothing to exchange.
     if (!account.vault.enrolled()) relay.close()
     await relay.closed
-    if (account.relay === relay) delete account.relay
+    delete account.relay
   }
 
   /** @inheritdoc */
@@ -201,10 +202,10 @@ export default class YjsSync extends Sync {
     const token = await this.token(owner)
     if (token === undefined) throw new Error('this needs a signed-in session for the account on this Host')
     return RelayConnection.open(this.config.relayUrl, token, {
-      frame: () => {},
-      chain: () => {},
-      signal: () => {},
-      closed: () => {},
+      frame: ignore,
+      chain: ignore,
+      signal: ignore,
+      closed: ignore,
       ...handlers,
     }, this.config.connectTimeoutMs)
   }
@@ -260,8 +261,8 @@ export default class YjsSync extends Sync {
     pending.requester = requester
     const joining: { code?: string } = {}
     account.joining = joining
+    // A second join is refused while this one is registered, so this join is still the account's when it ends.
     const finish = (): void => {
-      if (account.joining !== joining) return
       delete account.joining
       this.notifyStatus(owner)
     }
@@ -312,14 +313,14 @@ export default class YjsSync extends Sync {
   }
 
   /** @inheritdoc */
-  appendStream(owner: string, name: string, payload: Uint8Array): Promise<void> {
+  async appendStream(owner: string, name: string, payload: Uint8Array): Promise<void> {
     this.enrolledVault(owner).appendStream(name, payload)
-    return Promise.resolve()
+    await Promise.resolve()
   }
 
   /** @inheritdoc */
-  readStream(owner: string, name: string, after: number): Promise<{ batches: SyncStreamBatch[]; more: boolean }> {
-    return this.enrolledVault(owner).readStream(name, after)
+  async readStream(owner: string, name: string, after: number): Promise<{ batches: SyncStreamBatch[]; more: boolean }> {
+    return await this.enrolledVault(owner).readStream(name, after)
   }
 
   /** @inheritdoc */
