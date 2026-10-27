@@ -1,6 +1,6 @@
 {
   "name": "@aeven/subscription-auth",
-  "version": "0.3.19-alpha",
+  "version": "0.3.20-alpha",
   "publishConfig": {
     "access": "public"
   },
@@ -28,27 +28,27 @@
       "diagnostics": "standalone",
       "bom": {
         "@deepseek-ai/cordis": "4.0.2",
-        "@aeven/atomic-write": "0.3.19-alpha",
-        "@aeven/attachment": "0.3.19-alpha",
-        "@aeven/client-locale": "0.3.19-alpha",
-        "@aeven/client-ui-renderer": "0.3.19-alpha",
-        "@aeven/client-ui-settings": "0.3.19-alpha",
-        "@aeven/client-ui-slots": "0.3.19-alpha",
-        "@aeven/client-web": "0.3.19-alpha",
-        "@aeven/credentials": "0.3.19-alpha",
-        "@aeven/home-paths": "0.3.19-alpha",
-        "@aeven/host-webserver": "0.3.19-alpha",
-        "@aeven/invariants": "0.3.19-alpha",
-        "@aeven/llm": "0.3.19-alpha",
-        "@aeven/llm-pi-ai": "0.3.19-alpha",
-        "@aeven/tools": "0.3.19-alpha",
+        "@aeven/atomic-write": "0.3.20-alpha",
+        "@aeven/attachment": "0.3.20-alpha",
+        "@aeven/client-locale": "0.3.20-alpha",
+        "@aeven/client-ui-renderer": "0.3.20-alpha",
+        "@aeven/client-ui-settings": "0.3.20-alpha",
+        "@aeven/client-ui-slots": "0.3.20-alpha",
+        "@aeven/client-web": "0.3.20-alpha",
+        "@aeven/credentials": "0.3.20-alpha",
+        "@aeven/home-paths": "0.3.20-alpha",
+        "@aeven/host-webserver": "0.3.20-alpha",
+        "@aeven/invariants": "0.3.20-alpha",
+        "@aeven/llm": "0.3.20-alpha",
+        "@aeven/llm-pi-ai": "0.3.20-alpha",
+        "@aeven/tools": "0.3.20-alpha",
         "@deepseek-ai/schemastery": "3.18.2",
         "@earendil-works/pi-ai": "1.4.0",
         "react": "18.3.1",
         "react-dom": "18.3.1",
-        "@aeven/client-ui-primitives": "0.3.19-alpha",
-        "@aeven/client-ui-settings-models": "0.3.19-alpha",
-        "@aeven/media": "0.3.19-alpha"
+        "@aeven/client-ui-primitives": "0.3.20-alpha",
+        "@aeven/client-ui-settings-models": "0.3.20-alpha",
+        "@aeven/media": "0.3.20-alpha"
       }
     },
     "bundle": {
