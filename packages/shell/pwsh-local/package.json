@@ -1,7 +1,7 @@
 {
   "name": "@aeven/pwsh-local",
   "description": "Local PowerShell implementation of the Aeven bash executor seam",
-  "version": "0.3.18-alpha",
+  "version": "0.3.19-alpha",
   "publishConfig": {
     "access": "public"
   },

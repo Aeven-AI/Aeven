@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-imagine",
   "description": "Imagine: a sidebar row that starts a chat with starter image prompts under its composer, the in-chat generated-image view, and the /image-model picker",
-  "version": "0.3.18-alpha",
+  "version": "0.3.19-alpha",
   "publishConfig": {
     "access": "public"
   },
