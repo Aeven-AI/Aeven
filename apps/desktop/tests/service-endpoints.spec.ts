@@ -1,7 +1,14 @@
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { interpolate } from '@deepseek-ai/cordis-plugin-loader'
+import { avnHomePath } from '@aeven/home-paths'
 import { composeEntries, loadOverlayPatches } from '@aeven/app-boot'
+
+/** Throwaway Aeven home the rows' home-relative paths resolve under. */
+let home = ''
 
 function serviceConfigs(environment: NodeJS.ProcessEnv): Record<string, unknown> {
   const layers = [
@@ -12,12 +19,20 @@ function serviceConfigs(environment: NodeJS.ProcessEnv): Record<string, unknown>
   const serviceIds = ['identity-user-aeven', 'llm-aeven', 'web-search-deepseek', 'media-aeven', 'account-integrations']
   return Object.fromEntries(composeEntries(layers).flatMap(row =>
     row.id !== undefined && serviceIds.includes(row.id)
-      ? [[row.id, interpolate({ process: { env: environment } }, row.config)]]
+      ? [[row.id, interpolate({ process: { env: environment }, avnHomePath }, row.config)]]
       : [],
   ))
 }
 
 describe('desktop service endpoints', () => {
+  beforeEach(() => {
+    home = mkdtempSync(join(tmpdir(), 'avn-desktop-endpoints-'))
+    vi.stubEnv('AVN_HOME', home)
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
   it('reaches the deployed services without a shell or home env file', () => {
     const configs = serviceConfigs({})
     expect(configs).toEqual({
@@ -29,6 +44,7 @@ describe('desktop service endpoints', () => {
         appleOAuthUrl: 'https://aeven.io/oauth/apple',
         googleOAuthUrl: 'https://aeven.io/oauth/google',
         oauthFlow: 'window',
+        jwksCacheFile: join(home, 'identity', 'aeven-jwks.json'),
       },
       'llm-aeven': { apiUrl: 'https://aeven.io/api' },
       'media-aeven': { apiUrl: 'https://aeven.io/api' },
@@ -59,6 +75,7 @@ describe('desktop service endpoints', () => {
       appleOAuthUrl: 'http://localhost:9000/oauth/apple',
       googleOAuthUrl: 'http://localhost:9000/oauth/google',
       oauthFlow: 'window',
+      jwksCacheFile: join(home, 'identity', 'aeven-jwks.json'),
     })
     expect(configs['llm-aeven']).toEqual({ apiUrl: 'http://localhost:9000' })
     expect(configs['media-aeven']).toEqual({ apiUrl: 'http://localhost:9000' })
