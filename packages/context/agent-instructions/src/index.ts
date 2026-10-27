@@ -72,19 +72,12 @@ function sameContextPayload(left: UserMessage, right: UserMessage): boolean {
 
 const FILE_TOUCH_TOOL_NAMES = new Set(['read', 'write', 'edit'])
 
-/** The paths a file tool call touched: its `file_path`, or each entry of its `files` list. */
-function filePathsFromExecution(exec: ToolExecution): string[] {
-  if (!FILE_TOUCH_TOOL_NAMES.has(exec.name)) return []
-  if (typeof exec.arguments !== 'object' || exec.arguments === null) return []
-  const args = exec.arguments as Record<string, unknown>
-  const entries = Array.isArray(args.files) ? args.files as unknown[] : [args]
-  return entries.flatMap((entry) => {
-    if (typeof entry !== 'object' || entry === null) return []
-    const filePath = (entry as Record<string, unknown>).file_path
-    if (typeof filePath !== 'string') return []
-    const trimmed = filePath.trim()
-    return trimmed.length > 0 ? [trimmed] : []
-  })
+function filePathFromExecution(exec: ToolExecution): string | undefined {
+  if (!FILE_TOUCH_TOOL_NAMES.has(exec.name)) return undefined
+  if (typeof exec.arguments !== 'object' || exec.arguments === null) return undefined
+  if (!('file_path' in exec.arguments) || typeof exec.arguments.file_path !== 'string') return undefined
+  const filePath = exec.arguments.file_path.trim()
+  return filePath.length > 0 ? filePath : undefined
 }
 
 export function apply(ctx: Context, config: Config): void {
@@ -351,8 +344,8 @@ export function apply(ctx: Context, config: Config): void {
     const touches = executionTouches.get(exec.token) ?? []
     executionTouches.delete(exec.token)
     if (!result.isError && exec.agent !== undefined && !exec.signal.aborted) {
-      const agent = exec.agent
-      touches.push(...filePathsFromExecution(exec).map(path => ({ agent, path })))
+      const ownPath = filePathFromExecution(exec)
+      if (ownPath !== undefined) touches.push({ agent: exec.agent, path: ownPath })
     }
     if (exec.parent !== undefined) {
       if (touches.length > 0) {

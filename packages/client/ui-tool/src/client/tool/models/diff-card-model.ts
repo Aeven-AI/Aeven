@@ -47,29 +47,7 @@ function narrowDiffs(diffs: unknown): DiffHunk[] | null {
   return out
 }
 
-type IntendedDiff = { tool: 'write' | 'edit' | 'str_replace_editor'; diffs: DiffHunk[] }
-
-/**
- * The call-time hunks of one `edit` file: its single replacement or each entry of its `edits` list.
- * @param file - one file's arguments, top-level or a `files` entry.
- * @returns the hunks, or null when the file's arguments are malformed.
- */
-function editFileDiffs(file: unknown): DiffHunk[] | null {
-  if (typeof file !== 'object' || file === null || Array.isArray(file)) return null
-  const { file_path: path, edits } = file as Record<string, unknown>
-  if (typeof path !== 'string' || path.trim() === '') return null
-  const replacements = edits === undefined ? [file] : edits
-  if (!Array.isArray(replacements) || replacements.length === 0) return null
-  const diffs: DiffHunk[] = []
-  for (const replacement of replacements as unknown[]) {
-    if (typeof replacement !== 'object' || replacement === null) return null
-    const { old_string: oldText, new_string: newText, replace_all: replaceAll } = replacement as Record<string, unknown>
-    if (typeof oldText !== 'string' || typeof newText !== 'string') return null
-    if (replaceAll !== undefined && typeof replaceAll !== 'boolean') return null
-    diffs.push({ path, oldText: oldText || null, newText })
-  }
-  return diffs
-}
+type IntendedDiff = { tool: 'write' | 'edit' | 'str_replace_editor'; diff: DiffHunk }
 
 function intendedDiff(block: ToolCallBlock): IntendedDiff | null {
   const parsed = parsedToolCall(block)
@@ -81,7 +59,7 @@ function intendedDiff(block: ToolCallBlock): IntendedDiff | null {
       if (fileText !== undefined && typeof fileText !== 'string') return null
       return {
         tool: 'str_replace_editor',
-        diffs: [{ path, oldText: null, newText: fileText ?? '' }],
+        diff: { path, oldText: null, newText: fileText ?? '' },
       }
     }
     if (command === 'str_replace') {
@@ -89,30 +67,25 @@ function intendedDiff(block: ToolCallBlock): IntendedDiff | null {
       if (newText !== undefined && typeof newText !== 'string') return null
       return {
         tool: 'str_replace_editor',
-        diffs: [{ path, oldText: oldText ?? null, newText: newText ?? '' }],
+        diff: { path, oldText: oldText ?? null, newText: newText ?? '' },
       }
     }
     return null
   }
+  const { file_path: path } = parsed.args
+  if (typeof path !== 'string' || path.trim() === '') return null
   if (!validEscalationFields(parsed.args)) return null
   if (parsed.name === 'write') {
-    const { file_path: path, content } = parsed.args
-    if (typeof path !== 'string' || path.trim() === '') return null
+    const { content } = parsed.args
     return typeof content === 'string'
-      ? { tool: 'write', diffs: [{ path, oldText: null, newText: content }] }
+      ? { tool: 'write', diff: { path, oldText: null, newText: content } }
       : null
   }
   if (parsed.name !== 'edit') return null
-  const { files } = parsed.args
-  const entries = files === undefined ? [parsed.args] : files
-  if (!Array.isArray(entries) || entries.length === 0) return null
-  const diffs: DiffHunk[] = []
-  for (const entry of entries as unknown[]) {
-    const fileDiffs = editFileDiffs(entry)
-    if (fileDiffs === null) return null
-    diffs.push(...fileDiffs)
-  }
-  return { tool: 'edit', diffs }
+  const { old_string: oldText, new_string: newText, replace_all: replaceAll } = parsed.args
+  if (typeof oldText !== 'string' || typeof newText !== 'string') return null
+  if (replaceAll !== undefined && typeof replaceAll !== 'boolean') return null
+  return { tool: 'edit', diff: { path, oldText: oldText || null, newText } }
 }
 
 function appliedDiffs(meta: unknown): DiffHunk[] | 'empty' | null {
@@ -124,8 +97,7 @@ function appliedDiffs(meta: unknown): DiffHunk[] | 'empty' | null {
 }
 
 /**
- * Derive running diffs for root write/edit (every file of an `edit` `files`
- * list, every entry of an `edits` list) and `str_replace_editor`
+ * Derive running diffs for root write/edit and `str_replace_editor`
  * create/replace calls, plus applied settled diffs for root write/edit calls.
  * A successful write with valid empty metadata uses its argument-derived
  * whole-file diff, matching create and identical-overwrite presentation;
@@ -137,12 +109,12 @@ export function diffCardModel(block: ToolCallBlock): DiffCardModel | null {
   if (block.parentCallId !== undefined) return null
   const intended = intendedDiff(block)
   if (intended === null) return null
-  if (!('kind' in block)) return { card: { diffs: intended.diffs } }
+  if (!('kind' in block)) return { card: { diffs: [intended.diff] } }
   if (intended.tool === 'str_replace_editor') return null
   if (block.isError) return null
   const applied = appliedDiffs(block.meta)
   if (applied === null || applied === 'empty') {
-    return intended.tool === 'write' ? { card: { diffs: intended.diffs } } : null
+    return intended.tool === 'write' ? { card: { diffs: [intended.diff] } } : null
   }
   return { card: { diffs: applied } }
 }
