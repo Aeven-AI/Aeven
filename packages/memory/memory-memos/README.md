@@ -102,7 +102,7 @@ Append-only: this provider contributes no system-prompt section and no tool sche
 
 #### What the model sees
 
-A deliberate `memory_search` or `memory_get` returns the trace whole, in the order a reader needs it: the stored summary, then `User message: <the captured message the summary was distilled from>`, then `Tool record: <each tool's name, arguments, output, and error code>`, then `Assistant answer: <the captured reply>`, with the parts the trace does not hold left out. `@aeven/tool-memory` renders that text into the model's tool result.
+A deliberate `memory_search` returns the trace whole, in the order a reader needs it: the stored summary, then `User message: <the captured message the summary was distilled from>`, then `Tool record: <each tool's name, arguments, output, and error code>`, then `Assistant answer: <the captured reply>`, with the parts the trace does not hold left out. `memory_get` titles a trace with its summary and recording date and returns `User message:` and `Assistant answer:` with the same labels, so an earlier reply is never read as something the person said. `@aeven/tool-memory` renders that text into the model's tool result.
 
 #### Token effect
 

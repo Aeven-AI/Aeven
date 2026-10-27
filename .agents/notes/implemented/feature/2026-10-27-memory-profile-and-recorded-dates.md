@@ -15,7 +15,7 @@ Lasting knowledge no longer depends on the turn's words. `ctx.memory.profile({ s
 - `@aeven/memory-context` renders both as a `<memory_profile>` block on a session's first turn and the first turn of each later day: today's date in the browser zone, dates falling today or within `upcomingDays` with the birthday count or years since, other birth dates, and the profile. Birth dates are stated as birthday counts and "born N years ago", never as an age, because a recorded parent may have died.
 - The first conversation of the owner's day that states a date falling today marks it; later conversations that day are told it was marked, found in-process or, after a Host restart, through a person memory recorded today that mentions a birthday or an anniversary. A second chat on a birthday therefore does not congratulate again.
 
-Recall lines state how long ago each memory was recorded, the guidance says an age or "now" inside a line is as of that day, and the relevance judgment no longer says recent memories matter most without qualification: lasting facts matter however old they are.
+Recall lines state how long ago each memory was recorded, the guidance says an age or "now" inside a line is as of that day, and the relevance judgment no longer says recent memories matter most without qualification: lasting facts matter however old they are. `memory_get` labels a trace's parts `User message:` and `Assistant answer:` as `memory_search` does.
 
 ### Verification
 

@@ -907,7 +907,7 @@ export class MemosMemory implements MemoryProvider {
           kind: 'trace',
           id,
           title: withOriginLabel(trace.summary || trace.userText, trace),
-          body: trace.agentText || trace.summary || trace.userText,
+          body: exchangeBody(trace),
           facts: facts({
             episodeId: trace.episodeId,
             time: trace.ts,
@@ -1166,6 +1166,22 @@ function traceSnippet(trace: TraceDTO): string {
     ...tools.length === 0 ? [] : [`Tool record: ${tools.join('; ')}`],
     ...trace.agentText.trim() ? [`Assistant answer: ${trace.agentText.trim()}`] : [],
   ].filter(Boolean).join('\n')
+}
+
+/**
+ * What `memory_get` shows of one trace: the person's message and the assistant's reply, labelled as `memory_search`
+ * labels them, so an earlier answer of the assistant is never read as a fact the person stated.
+ * @param trace - the trace read.
+ * @returns the labelled exchange, or the summary when the trace holds neither side.
+ */
+function exchangeBody(trace: TraceDTO): string {
+  const user = trace.userText.trim()
+  const agent = trace.agentText.trim()
+  if (!user && !agent) return trace.summary ?? ''
+  return [
+    ...user ? [`User message: ${user}`] : [],
+    ...agent ? [`Assistant answer: ${agent}`] : [],
+  ].join('\n\n')
 }
 
 const MEMOS_TOOLS: Readonly<Record<string, string>> = {
