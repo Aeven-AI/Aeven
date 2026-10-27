@@ -64,6 +64,7 @@ const checkboxStyle: React.CSSProperties = {
   cursor: 'inherit',
 }
 
+/* jscpd:ignore-start -- deliberate copy of ui-settings-models' model-capability glyphs (capability chips are presentation-local). */
 /** Lucide `eye`: the model reads images. */
 function ImageInputIcon() {
   return (
@@ -86,6 +87,7 @@ function ImageOutputIcon() {
     </svg>
   )
 }
+/* jscpd:ignore-end */
 
 function Capability({ label, children }: { label: string; children: React.ReactNode }) {
   return (

@@ -6,6 +6,7 @@
  * @module @aeven/memory-memos/filter
  */
 import type { MemoryDomain, ProcedureStatus } from '@aeven/memory'
+import { embeddedJsonObject } from '@aeven/util-values'
 
 /** What a candidate memory is, as the judgment reads it. */
 export type CandidateKind = 'fact' | 'exchange' | 'log' | 'procedure' | 'episode' | 'skill' | 'knowledge'
@@ -108,18 +109,9 @@ export function relevanceInput(request: string, context: string, candidates: rea
  * @returns the judgment, or undefined when the answer is not usable.
  */
 export function parseRelevance(text: string, count: number): RelevanceJudgment | undefined {
-  const start = text.indexOf('{')
-  const end = text.lastIndexOf('}')
-  if (start === -1 || end <= start) return undefined
-  let value: unknown
-  try {
-    value = JSON.parse(text.slice(start, end + 1))
-  } catch {
-    // A reply that is not JSON carries no judgment; the caller falls back and marks the recall degraded.
-    return undefined
-  }
-  if (value === null || typeof value !== 'object') return undefined
-  const { lead, sharing, keep } = value as Record<string, unknown>
+  const record = embeddedJsonObject(text)
+  if (record === undefined) return undefined
+  const { lead, sharing, keep } = record
   if (!Array.isArray(keep)) return undefined
   const kept: number[] = []
   for (const item of keep) {

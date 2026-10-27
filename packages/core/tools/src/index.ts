@@ -81,7 +81,7 @@ export {
   type DefineToolOptions,
 } from './schema.ts'
 
-export { textOutput, textResult, type TextResult } from './text-output.ts'
+export { jsonStringOutput, textOutput, textResult, type TextResult } from './text-output.ts'
 
 export {
   assertSupportedJsonSchema,

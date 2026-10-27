@@ -17,7 +17,7 @@ import { bootstrapMemoryCore } from '@deepseek-ai/memos-local-plugin/core/index.
 import { OwnerCores } from './cores.ts'
 import { createHostLlmBridge, LlmRouteContext, type MemoryLanguage } from './host-llm.ts'
 import { splitSharedMemory } from './migrate.ts'
-import { MEMOS_AGENT, MemosMemory } from './runtime.ts'
+import { MEMOS_AGENT, MemosMemory, memosHome } from './runtime.ts'
 import { classifyTurnDomain, TurnJudgeContext } from './domain.ts'
 import { REINDEX_VERSION, reindexIfEmbeddingChanged } from './reindex.ts'
 
@@ -224,16 +224,7 @@ function autoRecoveryEnabled(config: ResolvedConfig): boolean {
  * override would point every account at the same database.
  */
 function accountHome(accounts: string, owner: string): ResolvedHome {
-  const root = join(accounts, accountDirectoryName(owner), 'memory')
-  return {
-    root,
-    configFile: join(root, 'config.yaml'),
-    dataDir: join(root, 'data'),
-    dbFile: join(root, 'data', 'memos.db'),
-    skillsDir: join(root, 'skills'),
-    logsDir: join(root, 'logs'),
-    daemonDir: join(root, 'daemon'),
-  }
+  return memosHome(join(accounts, accountDirectoryName(owner), 'memory'))
 }
 
 /**

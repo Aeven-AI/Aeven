@@ -886,6 +886,38 @@ const MEDIA_CALL_PROVENANCE = {
   costUsdMicros: { type: 'integer' },
 } as const
 
+/** One model a media settings surface can select. */
+interface ListedModel {
+  readonly provider: string
+  readonly id: string
+  readonly label?: string
+  readonly description?: string
+}
+
+/**
+ * The selectable models a settings surface offers, filtered to the providers it lists.
+ * @param listed - provider ids the surface selects from; none listed offers nothing.
+ * @param list - the seam's model listing for that media kind.
+ * @param signal - cancellation forwarded to the listing.
+ * @returns one choice per listed model, in listing order.
+ */
+async function listedChoices(
+  listed: readonly string[] | undefined,
+  list: (signal?: AbortSignal) => Promise<readonly ListedModel[]>,
+  signal?: AbortSignal,
+): Promise<{ provider: string; model: string; label?: string; description?: string }[]> {
+  const selectable = new Set(listed ?? [])
+  if (selectable.size === 0) return []
+  return (await list(signal))
+    .filter(model => selectable.has(model.provider))
+    .map(model => ({
+      provider: model.provider,
+      model: model.id,
+      ...model.label === undefined ? {} : { label: model.label },
+      ...model.description === undefined ? {} : { description: model.description },
+    }))
+}
+
 /**
  * Register `generate_image`, and `generate_video` where `video` is configured,
  * on `ctx.tools`.
@@ -901,18 +933,11 @@ export function apply(ctx: Context, config: Config): void {
     base: imageConfig,
     // The listing is read on every call, so a provider whose models change at
     // runtime is selectable exactly while it lists them.
-    extraChoices: async (settings, signal) => {
-      const listed = new Set(settings.listedProviders ?? [])
-      if (listed.size === 0) return []
-      return (await ctx.media.listImageModels(signal))
-        .filter(model => listed.has(model.provider))
-        .map(model => ({
-          provider: model.provider,
-          model: model.id,
-          ...model.label === undefined ? {} : { label: model.label },
-          ...model.description === undefined ? {} : { description: model.description },
-        }))
-    },
+    extraChoices: async (settings, signal) => listedChoices(
+      settings.listedProviders,
+      modelSignal => ctx.media.listImageModels(modelSignal),
+      signal,
+    ),
   })
 
   if (video !== undefined) registerVideoTool(ctx, video)
@@ -1030,18 +1055,11 @@ function registerVideoTool(ctx: Context, config: VideoConfig): void {
     namespace: VIDEO_SETTINGS_NAMESPACE,
     schema: VideoConfig,
     base: config,
-    extraChoices: async (settings, signal) => {
-      const listed = new Set(settings.listedProviders ?? [])
-      if (listed.size === 0) return []
-      return (await ctx.media.listVideoModels(signal))
-        .filter(model => listed.has(model.provider))
-        .map(model => ({
-          provider: model.provider,
-          model: model.id,
-          ...model.label === undefined ? {} : { label: model.label },
-          ...model.description === undefined ? {} : { description: model.description },
-        }))
-    },
+    extraChoices: async (settings, signal) => listedChoices(
+      settings.listedProviders,
+      modelSignal => ctx.media.listVideoModels(modelSignal),
+      signal,
+    ),
   })
 
   ctx.tools.register(defineTool({

@@ -34,6 +34,19 @@ export function textOutput(): typeof TEXT_OUTPUT {
   return TEXT_OUTPUT
 }
 
+const JSON_STRING_OUTPUT = {
+  schema: { type: 'string' as const },
+  render: (_args: unknown, value: string) => [{ type: 'text' as const, text: value }],
+} as const
+
+/**
+ * The output declaration of a tool whose canonical value is one JSON string.
+ * @returns a string schema plus the render that emits that string as the single block the model reads.
+ */
+export function jsonStringOutput(): typeof JSON_STRING_OUTPUT {
+  return JSON_STRING_OUTPUT
+}
+
 /**
  * Detach a tool result into lossless JSON, dropping absent optional fields.
  * @param value - the result, whose `text` is what the model reads.

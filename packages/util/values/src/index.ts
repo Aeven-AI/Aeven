@@ -14,6 +14,25 @@ export function assertNever(value: never, context?: string): never {
   throw new Error(`unreachable variant${context ? ` in ${context}` : ''}: ${rendered}`)
 }
 
+/**
+ * Read the one JSON object a text embeds, from its first `{` to its last `}`.
+ * @param text - text that may wrap a JSON object in prose or a code fence.
+ * @returns the parsed object, or undefined when the text carries no parsable object.
+ */
+export function embeddedJsonObject(text: string): Record<string, unknown> | undefined {
+  const start = text.indexOf('{')
+  const end = text.lastIndexOf('}')
+  if (start === -1 || end <= start) return undefined
+  let value: unknown
+  try {
+    value = JSON.parse(text.slice(start, end + 1))
+  } catch {
+    // Those braces do not bound one JSON value, so the text carries no object to read.
+    return undefined
+  }
+  return value !== null && typeof value === 'object' ? value as Record<string, unknown> : undefined
+}
+
 /** Whether a realm-owned intrinsic prototype has a native constructor matching this engine's representation. */
 function hasIntrinsicConstructor(prototype: object, name: 'Array' | 'Object'): boolean {
   const descriptor = Object.getOwnPropertyDescriptor(prototype, 'constructor')

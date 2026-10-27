@@ -1,7 +1,7 @@
 /** Session-owned user terminals with the execution environment's system-user permissions. */
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { defineTool } from '@aeven/tools'
+import { defineTool, jsonStringOutput } from '@aeven/tools'
 import { assertNever } from '@aeven/util-values'
 import type { Agent } from '@aeven/agent'
 import type { SessionId } from '@aeven/session'
@@ -334,10 +334,7 @@ export class TerminalController extends TypertRemoteService {
         cols: { type: 'integer', description: 'Required columns for resize.' },
         rows: { type: 'integer', description: 'Required rows for resize.' },
       },
-      output: {
-        schema: { type: 'string' },
-        render: (_args, value) => [{ type: 'text', text: value }],
-      },
+      output: jsonStringOutput(),
       execute: async (args, exec) => {
         const agent = exec.agent
         if (agent === undefined) throw new Error('Sidebar terminal control requires a calling agent')

@@ -493,16 +493,7 @@ function MemoryCard({ t, memory, now, open, onToggle, editMemory, forgetMemory, 
                 <Button variant="outline" onClick={() => { setFailed(false); setConfirming(true) }}>{t('forget')}</Button>
               </>
             )}
-            {mode === 'edit' && (
-              <Commit
-                t={t}
-                labelKey="save"
-                busy={busy}
-                blocked={draft.trim() === ''}
-                onCancel={() => { setMode('view') }}
-                onCommit={() => { run(async () => { onChange(memory.id, await editMemory(memory.id, draft)); setMode('view') }) }}
-              />
-            )}
+            <EditCommit editing={mode === 'edit'} t={t} busy={busy} draft={draft} onCancel={() => { setMode('view') }} onCommit={() => { run(async () => { onChange(memory.id, await editMemory(memory.id, draft)); setMode('view') }) }} />
           </div>
         </div>
       )}
@@ -605,9 +596,8 @@ function Facts({ t, invariants, addInvariant, editInvariant, removeInvariant, re
                           <span className={css.factActions}>
                             <Commit
                               t={t}
-                              labelKey="save"
                               busy={busy}
-                              blocked={row.text.trim() === ''}
+                              draft={row.text}
                               onCancel={() => { setActive(undefined) }}
                               onCommit={() => { run(() => editInvariant(entry.id, row.text), () => { setActive(undefined) }) }}
                             />
@@ -696,22 +686,34 @@ function Fold({ label, open, onToggle, children }: {
   )
 }
 
-/** The open card's Cancel and its commit action. */
-function Commit({ t, labelKey, busy, blocked = false, onCancel, onCommit }: {
+/** The open card's Cancel and its Save action. */
+function Commit({ t, busy, draft, onCancel, onCommit }: {
   readonly t: Translate
-  readonly labelKey: MemoryLocaleKey
   readonly busy: boolean
-  /** The draft cannot be committed as it stands. */
-  readonly blocked?: boolean
+  /** The draft being committed; a blank one leaves Save disabled. */
+  readonly draft: string
   readonly onCancel: () => void
   readonly onCommit: () => void
 }) {
   return (
     <>
       <Button variant="outline" disabled={busy} onClick={onCancel}>{t('cancel')}</Button>
-      <Button variant="primary" disabled={busy || blocked} onClick={onCommit}>{t(labelKey)}</Button>
+      <Button variant="primary" disabled={busy || draft.trim() === ''} onClick={onCommit}>{t('save')}</Button>
     </>
   )
+}
+
+/** The card's Save row, present only while its draft is being edited. */
+function EditCommit({ editing, t, busy, draft, onCancel, onCommit }: {
+  readonly editing: boolean
+  readonly t: Translate
+  readonly busy: boolean
+  readonly draft: string
+  readonly onCancel: () => void
+  readonly onCommit: () => void
+}) {
+  if (!editing) return null
+  return <Commit t={t} busy={busy} draft={draft} onCancel={onCancel} onCommit={onCommit} />
 }
 
 /**
@@ -932,23 +934,14 @@ function ProcedureCard({
                 <Button variant="outline" onClick={() => { setFailed(false); setConfirming(true) }}>{t('forget')}</Button>
               </>
             )}
-            {mode === 'edit' && (
-              <Commit
-                t={t}
-                labelKey="save"
-                busy={busy}
-                blocked={draft.trim() === ''}
-                onCancel={() => { setMode('view') }}
-                onCommit={() => {
-                  run(async () => {
-                    const next = await editProcedure(item.id, draft)
-                    if (next === undefined) throw new Error('procedure is gone')
-                    setDetail({ status: 'ready', value: next })
-                    setMode('view')
-                  })
-                }}
-              />
-            )}
+            <EditCommit editing={mode === 'edit'} t={t} busy={busy} draft={draft} onCancel={() => { setMode('view') }} onCommit={() => {
+              run(async () => {
+                const next = await editProcedure(item.id, draft)
+                if (next === undefined) throw new Error('procedure is gone')
+                setDetail({ status: 'ready', value: next })
+                setMode('view')
+              })
+            }} />
           </div>
         </div>
       )}

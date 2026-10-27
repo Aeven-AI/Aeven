@@ -9,7 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
 import {
   Button, IconCloseOutline16, IconLucideCamera, IconLucideSwitchCamera, IconLucideTimer, IconLucideVideo, Modal, Tooltip,
-  VideoPlayer,
+  VideoPlayer, videoPlayerLabels,
 } from '@aeven/client-ui-primitives'
 import type { ComposerBarProps } from '../../contract/slots.ts'
 import {
@@ -259,18 +259,7 @@ export function CameraDialog({ open, onClose, onCapture, onCaptureClip, canRecor
                     saveName={clip.name}
                     mirrored={facing === 'user'}
                     fit="cover"
-                    labels={{
-                      play: t('video.play'),
-                      pause: t('video.pause'),
-                      mute: t('video.mute'),
-                      unmute: t('video.unmute'),
-                      seek: t('video.seek'),
-                      volume: t('video.volume'),
-                      fullscreen: t('video.fullscreen'),
-                      exitFullscreen: t('video.exitFullscreen'),
-                      save: t('video.save'),
-                      download: t('video.download'),
-                    }}
+                    labels={videoPlayerLabels(t)}
                   />
                 </div>
               )}

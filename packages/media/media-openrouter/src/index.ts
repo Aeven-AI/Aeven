@@ -77,6 +77,18 @@ export function apply(ctx: Context, config: Config): void {
   const route = vendorRoute(ctx, { id, apiKeyEnv, origin: OPENROUTER_ORIGIN, vendor: VENDOR })
   const call = route.json
 
+  /**
+   * The entries one catalog document lists, with malformed rows dropped.
+   * @param path - catalog path to read.
+   * @param signal - cancellation forwarded from the caller.
+   * @returns the entry records, in document order.
+   */
+  const catalogEntries = async (path: string, signal?: AbortSignal): Promise<Record<string, unknown>[]> => {
+    const payload = await call(path, { method: 'GET' }, signal)
+    const rows = Array.isArray(payload['data']) ? payload['data'] : []
+    return rows.filter((row): row is Record<string, unknown> => typeof row === 'object' && row !== null)
+  }
+
   const images: MediaImageProvider = {
     id,
     available: route.available,
@@ -85,24 +97,16 @@ export function apply(ctx: Context, config: Config): void {
       // `output_modalities` is what separates an image model from the chat
       // models in the same document; the chat route refuses these and the
       // image route serves only these.
-      const payload = await call('/api/v1/models', { method: 'GET' }, signal)
-      const rows = Array.isArray(payload['data']) ? payload['data'] : []
       const models: MediaImageModel[] = []
-      for (const row of rows) {
-        if (typeof row !== 'object' || row === null) continue
-        const entry = row as {
-          id?: unknown
-          name?: unknown
-          description?: unknown
-          architecture?: { output_modalities?: unknown } | undefined
-        }
-        if (typeof entry.id !== 'string' || entry.id === '') continue
-        const outputs = entry.architecture?.output_modalities
+      for (const entry of await catalogEntries('/api/v1/models', signal)) {
+        if (typeof entry['id'] !== 'string' || entry['id'] === '') continue
+        const outputs = (entry['architecture'] as { output_modalities?: unknown } | undefined)?.output_modalities
         if (!Array.isArray(outputs) || !outputs.includes('image')) continue
+        const name = entry['name']
         models.push({
           provider: id,
-          id: entry.id,
-          ...typeof entry.name === 'string' && entry.name !== '' ? { label: entry.name } : {},
+          id: entry['id'],
+          ...typeof name === 'string' && name !== '' ? { label: name } : {},
         })
       }
       return models
@@ -192,17 +196,14 @@ export function apply(ctx: Context, config: Config): void {
    * @returns the video models, labelled by their catalog names.
    */
   const listVideoModels = async (signal?: AbortSignal): Promise<readonly MediaImageModel[]> => {
-    const payload = await call('/api/v1/videos/models', { method: 'GET' }, signal)
-    const rows = Array.isArray(payload['data']) ? payload['data'] : []
     const models: MediaImageModel[] = []
-    for (const row of rows) {
-      if (typeof row !== 'object' || row === null) continue
-      const entry = row as { id?: unknown; name?: unknown }
-      if (typeof entry.id !== 'string' || entry.id === '') continue
+    for (const entry of await catalogEntries('/api/v1/videos/models', signal)) {
+      if (typeof entry['id'] !== 'string' || entry['id'] === '') continue
+      const name = entry['name']
       models.push({
         provider: id,
-        id: entry.id,
-        ...typeof entry.name === 'string' && entry.name !== '' ? { label: entry.name } : {},
+        id: entry['id'],
+        ...typeof name === 'string' && name !== '' ? { label: name } : {},
       })
     }
     return models

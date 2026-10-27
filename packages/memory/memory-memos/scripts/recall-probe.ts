@@ -18,7 +18,7 @@ import { join } from 'node:path'
 import Database from 'better-sqlite3'
 import { loadConfig } from '@deepseek-ai/memos-local-plugin/core/config/index.js'
 import { bootstrapMemoryCore } from '@deepseek-ai/memos-local-plugin/core/index.js'
-import { MEMOS_AGENT, ownerProfile } from '../src/runtime.ts'
+import { MEMOS_AGENT, memosHome, ownerProfile } from '../src/runtime.ts'
 
 const [source, owner, tag, ...queries] = process.argv.slice(2)
 if (!source || !owner || !tag || queries.length === 0) {
@@ -27,15 +27,7 @@ if (!source || !owner || !tag || queries.length === 0) {
 }
 
 const root = mkdtempSync(join(tmpdir(), 'recall-probe-'))
-const home = {
-  root,
-  configFile: join(root, 'config.yaml'),
-  dataDir: join(root, 'data'),
-  dbFile: join(root, 'data', 'memos.db'),
-  skillsDir: join(root, 'skills'),
-  logsDir: join(root, 'logs'),
-  daemonDir: join(root, 'daemon'),
-}
+const home = memosHome(root)
 mkdirSync(home.dataDir, { recursive: true })
 const original = new Database(source, { readonly: true, fileMustExist: true })
 await original.backup(home.dbFile)
