@@ -10,7 +10,7 @@ Status: implemented
 
 ## Decision
 
-Desktop 的目标集合为 `mac-arm64`、`mac-x64`、`win-arm64`、`win-x64`、`linux-arm64` 与 `linux-x64`。[`project-manager.ts`](../../../../apps/desktop/src/project-manager.ts) 通过替换 Transformers.js `sharp` 时使用的同一机制，把 `@huggingface/transformers>onnxruntime-node` 覆盖为 `1.23.2`，即仍发布 `darwin/x64` 绑定的最新版本；`pnpm-workspace.yaml` 为仓库与 CLI 安装固定同一版本。seed 剪裁规则改为 `1.23.2`，并为每个平台（含 macOS）移除另一架构的运行时。发布自动化在 `macos-15-intel` 上构建 `mac-x64`，使用与 `mac-arm64` 相同的 Developer ID 身份与公证凭据签名，始终另建一个不签名变体（公证未完成时先提供其 DMG），并把两个 macOS 更新元数据合并为一个 `latest-mac.yml`，使 Intel Mac 不会下载 arm64 的 ZIP。
+Desktop 的目标集合为 `mac-arm64`、`mac-x64`、`win-arm64`、`win-x64`、`linux-arm64` 与 `linux-x64`。[`project-manager.ts`](../../../../apps/desktop/src/project-manager.ts) 通过替换 Transformers.js `sharp` 时使用的同一机制，把 `@huggingface/transformers>onnxruntime-node` 覆盖为 `1.23.2`，即仍发布 `darwin/x64` 绑定的最新版本；`pnpm-workspace.yaml` 为仓库与 CLI 安装固定同一版本。seed 剪裁规则改为 `1.23.2`，并为每个平台（含 macOS）移除另一架构的运行时。发布自动化在 `macos-15-intel` 上构建 `mac-x64`，使用与 `mac-arm64` 相同的 Developer ID 身份与公证凭据签名，并把两个 macOS 更新元数据合并为一个 `latest-mac.yml`，使 Intel Mac 不会下载 arm64 的 ZIP。另一个始终不签名的 DMG 变体已[移除](2026-10-27-drop-unsigned-mac-release-targets.zh.md)。
 
 该固定让实际安装的 Transformers.js 运行在比其声明更旧的 ONNX Runtime 上，因此两者都被测量。固定句子经 `Xenova/all-MiniLM-L6-v2`（`q8`、cpu）embedding 后，在 arm64 上 1.24.3 与 1.23.2 返回相同向量；在 darwin/x64 上 1.23.2 的结果与 arm64 相差至多 3.4e-08，属于浮点噪声，而非 embedding 变化。本地 `mac-x64 --prepare-only --unsigned` 构建产出了完整发布载荷：319 个一方包与 10 个 vendor 包、`darwin-x64` 的 whisper worker 与 WhatsApp 守护进程、Node.js 运行时、package set，以及一个 lockfile 解析为 `onnxruntime-node@1.23.2`、17 个 Mach-O 对象全部为 x86_64 的 seed。
 

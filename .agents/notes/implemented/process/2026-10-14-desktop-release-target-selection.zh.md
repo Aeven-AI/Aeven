@@ -10,8 +10,8 @@ Status: implemented
 
 ## 决定
 
-- **目标列表是 `plan` job 中的一份 JSON 数组。** 每个条目带有 `id`、`target`、`runner` 与 `script`；不签名的 macOS 变体额外带 `variant: unsigned`。该 job 选出本次运行要求的目标，通过 `fromJSON` 交给 `build` job 的 `matrix`，并为缺少该键的条目补上 `variant: ""`，让每一行的键完全相同。输出采用动态 matrix 要求的 `{"include": [...]}` 对象形式：裸数组会在任何 job 被调度之前就以 `A sequence was not expected` 让整次运行失败。`v<version>` 标签推送与 `all` 选择都会选中全部条目。
-- **手动运行指定一个或多个目标。** `workflow_dispatch` 接受逗号分隔的 `targets` 字符串输入，默认为 `all`，也就是标签推送所构建的内容。签名与不签名的 macOS 构建是两个独立名称，因此同时列出两者即可构建两个 DMG；它取代的单目标选择输入为何落选，见[多目标 Agent Note](2026-10-16-desktop-release-selects-several-targets.zh.md)。
+- **目标列表是 `plan` job 中的一份 JSON 数组。** 每个条目带有 `id`、`target`、`runner` 与 `script`。该 job 选出本次运行要求的目标，通过 `fromJSON` 交给 `build` job 的 `matrix`。输出采用动态 matrix 要求的 `{"include": [...]}` 对象形式：裸数组会在任何 job 被调度之前就以 `A sequence was not expected` 让整次运行失败。`v<version>` 标签推送与 `all` 选择都会选中全部条目。
+- **手动运行指定一个或多个目标。** `workflow_dispatch` 接受逗号分隔的 `targets` 字符串输入，默认为 `all`，也就是标签推送所构建的内容。每个目标是一个独立名称，因此列出两个就会构建两个；它取代的单目标选择输入为何落选，见[多目标 Agent Note](2026-10-16-desktop-release-selects-several-targets.zh.md)。
 - **`plan` 拒绝发布部分目标的构建。** 发布运行选择完整的发布目标集，因此某次运行若只指定部分目标并设置 `publish`，会在 runner 开始打包前于 `plan` 失败。每个完成的目标[独立发布](2026-10-26-desktop-targets-publish-independently.zh.md)。
 - **无法识别的目标在 `plan` 阶段失败**，而不是作为空 matrix 交给 GitHub，否则它只会报告该 job 被跳过；没有命名任何目标的集合同样如此。
 

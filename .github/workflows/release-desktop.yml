@@ -9,12 +9,11 @@
 # set it adds the targets it built to the version's draft release, so one
 # failed target is rebuilt without waiting for the others; with `publish` set it
 # also makes the release public, which needs every target built and uploaded.
-# The release targets are win-x64, win-arm64, mac-arm64, mac-arm64-unsigned,
-# mac-x64, mac-x64-unsigned, linux-x64, and linux-arm64.
+# The release targets are win-x64, win-arm64, mac-arm64, mac-x64, linux-x64,
+# and linux-arm64.
 # Each Windows and macOS target signs when all of its secrets exist, builds
 # unsigned when none exist, and fails when only some exist. Linux packages
-# carry no code signature, and the `unsigned` macOS variant always builds
-# without one, so a DMG is available while notarization is pending:
+# carry no code signature:
 #   Windows - Azure Trusted Signing: AZURE_TENANT_ID, AZURE_CLIENT_ID,
 #             AZURE_CLIENT_SECRET, AZURE_TRUSTED_SIGNING_ENDPOINT,
 #             AZURE_TRUSTED_SIGNING_ACCOUNT_NAME,
@@ -36,7 +35,7 @@ on:
   workflow_dispatch:
     inputs:
       targets:
-        description: Comma separated release targets — win-x64, win-arm64, mac-arm64, mac-arm64-unsigned, mac-x64, mac-x64-unsigned, linux-x64, linux-arm64 — or `all` for every target
+        description: Comma separated release targets — win-x64, win-arm64, mac-arm64, mac-x64, linux-x64, linux-arm64 — or `all` for every target
         type: string
         default: all
       publish:
@@ -76,9 +75,7 @@ jobs:
             {"id":"win-x64","target":"win-x64","runner":"windows-latest","script":"win:x64"},
             {"id":"win-arm64","target":"win-arm64","runner":"windows-11-arm","script":"win:arm64"},
             {"id":"mac-arm64","target":"mac-arm64","runner":"macos-15","script":"mac:arm64"},
-            {"id":"mac-arm64-unsigned","target":"mac-arm64","variant":"unsigned","runner":"macos-15","script":"mac:arm64"},
             {"id":"mac-x64","target":"mac-x64","runner":"macos-15-intel","script":"mac:x64"},
-            {"id":"mac-x64-unsigned","target":"mac-x64","variant":"unsigned","runner":"macos-15-intel","script":"mac:x64"},
             {"id":"linux-x64","target":"linux-x64","runner":"ubuntu-24.04","script":"linux:x64"},
             {"id":"linux-arm64","target":"linux-arm64","runner":"ubuntu-24.04-arm","script":"linux:arm64"}
           ]'
@@ -96,7 +93,7 @@ jobs:
           fi
           # The matrix keeps the target list's order and drops repeated ids, which selects each named target once.
           matrix="$(printf '%s' "$targets" | jq -c --arg wanted "$wanted" \
-            '($wanted | split(" ")) as $ids | {include: [.[] | select(.id as $id | $ids | index($id)) | . + {variant: (.variant // "")}]}')"
+            '($wanted | split(" ")) as $ids | {include: [.[] | select(.id as $id | $ids | index($id))]}')"
           selected="$(printf '%s' "$matrix" | jq '.include | length')"
           if [ "$selected" -eq 0 ]; then
             echo "::error::no release target named; name a comma separated list of $known_ids, or all"
@@ -124,7 +121,6 @@ jobs:
     uses: ./.github/workflows/release-desktop-target.yml
     with:
       target: ${{ matrix.target }}
-      variant: ${{ matrix.variant }}
       runner: ${{ matrix.runner }}
       script: ${{ matrix.script }}
       upload: ${{ github.event_name == 'push' || inputs.upload == true }}
