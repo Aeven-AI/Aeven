@@ -206,6 +206,17 @@ Measured on the developer's own account (21,887 traces) on an Apple-silicon Mac.
 - **Vectors.** `Xenova/multilingual-e5-small` (q8, CPU) embeds a summary in 2.6 ms, about 2 minutes for both vectors of every trace; texts longer than 512 tokens are split into pieces and take longer. Vectors are recomputed locally and not replicated.
 - **Passkeys in Electron.** Electron's built-in WebAuthn does not reach platform passkeys on macOS ([electron/electron#24573](https://github.com/electron/electron/issues/24573)); pull request [#51563](https://github.com/electron/electron/pull/51563) proposes `app.configureWebAuthn()`, and community native modules expose PRF on macOS 15 and later. The first release runs the passkey ceremony in the system browser on an `aeven.io` page, which unwraps the vault key in the page and hands it to the Host through a loopback request. A native ceremony replaces it once a released Electron supports platform passkeys with PRF.
 
+### Built so far
+
+The [account sync packages](../../../../packages/sync/README.md) and the `servers/node` relay implement phases 1–5 with these differences from the plan above:
+
+- **Joining** is answered only by a device whose add-device screen is open, and opening that screen asks a waiting device to repeat its request, so a background or headless device never takes a join meant for the user's open screen.
+- **Memory vectors travel** with the rows, tagged with the embedding model, instead of being recomputed: MemOS's vector source texts are internal to it. A device on another model keeps its own vectors.
+- **Memory rows** replicate per row, last writer wins, with tombstones that win over concurrent edits; shards key on the first one or two characters of the random id part.
+- **Conversations** are published by the device that created each session; the writer lease, "Continue here", and live viewing of another device's running turn are not built.
+- **Devices** are named by host name, listed in Settings → Sync, and removed with a key rotation; a removed device joins again with new keys.
+- Not built: passkey recovery, the maintenance lease, the local-network transport, attachments, the settings scope declaration, and the production `/sync` route on aeven.io.
+
 ### Open questions
 
 1. Which browsers and passkey providers return PRF results in the system-browser ceremony on Windows and Linux. A device without one enrolls through approval from another device.

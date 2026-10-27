@@ -277,7 +277,14 @@ flowchart LR
   pkg_tool_memory["tool-memory"]
   svc_memoryManagerController["ctx.memoryManagerController<br/>Memory manager Remote"]
   pkg_ui_settings_memory["ui-settings-memory"]
+  pkg_sync["sync"]
+  svc_sync["ctx.sync<br/>Account sync"]
+  pkg_sync_yjs["sync-yjs"]
   pkg_personalization["personalization"]
+  pkg_session_sync["session-sync"]
+  pkg_sync_controller["sync-controller"]
+  svc_syncController["ctx.syncController<br/>Sync Remote"]
+  pkg_ui_settings_sync["ui-settings-sync"]
   svc_personalizationController["ctx.personalizationController<br/>Personalization store and prompt section"]
   pkg_ui_settings_personalization["ui-settings-personalization"]
   pkg_skill_catalog["skill-catalog"]
@@ -426,6 +433,9 @@ flowchart LR
   pkg_subprocess --> svc_subprocess
   pkg_subprocess_e2b --> svc_subprocess
   pkg_subprocess_local --> svc_subprocess
+  pkg_sync --> svc_sync
+  pkg_sync_controller --> svc_syncController
+  pkg_sync_yjs --> svc_sync
   pkg_system_prompt --> svc_systemPrompt
   pkg_terminal --> svc_terminals
   pkg_terminal_bash --> svc_terminals
@@ -564,6 +574,11 @@ flowchart LR
   svc_subprocess --> pkg_subagent_claude_code
   svc_subprocess --> pkg_subagent_codex
   svc_subprocess --> pkg_terminal_bash
+  svc_sync --> pkg_memory_memos
+  svc_sync --> pkg_personalization
+  svc_sync --> pkg_session_sync
+  svc_sync --> pkg_sync_controller
+  svc_syncController --> pkg_ui_settings_sync
   svc_systemPrompt --> pkg_agent_loop
   svc_systemPrompt --> pkg_tool_fs
   svc_systemPrompt --> pkg_tool_terminal
@@ -693,6 +708,8 @@ flowchart LR
 | `ctx.mail` | `seam` | [`mail`](../packages/mail/mail) | `account-integrations` | [`tool-mail`](../packages/mail/tool-mail) | - | Account sources register owner-scoped accounts, and every operation resolves its named account for the given owner before a socket opens. |
 | `ctx.memory` | `seam` | [`memory`](../packages/memory/memory) | [`memory-memos`](../packages/memory/memory-memos) | [`api-memory-manager`](../packages/memory/api-memory-manager), [`memory-context`](../packages/memory/memory-context), [`memory-memos`](../packages/memory/memory-memos), [`tool-capability`](../packages/capability/tool-capability), [`tool-memory`](../packages/memory/tool-memory) | - | One registered provider serves recall, turn capture, and inspection to every memory consumer; the definition holds no storage of its own. |
 | `ctx.memoryManagerController` | `core` | [`api-memory-manager`](../packages/memory/api-memory-manager) | - | `ui-settings-memory` | - | Serves what Aeven has learned about the signed-in user, with view, correct, and forget, always for the caller of the running request. |
+| `ctx.sync` | `seam` | [`sync`](../packages/sync/sync) | [`sync-yjs`](../packages/sync/sync-yjs) | [`memory-memos`](../packages/memory/memory-memos), [`personalization`](../packages/preset/personalization), [`session-sync`](../packages/session/session-sync), `sync-controller` | - | Keeps an account's documents and streams the same on every device of the account, encrypted end to end through the Aeven relay. |
+| `ctx.syncController` | `core` | `sync-controller` | - | `ui-settings-sync` | - | Turns account sync on, joins and approves devices, and removes them, always for the caller of the running request. |
 | `ctx.personalizationController` | `core` | [`personalization`](../packages/preset/personalization) | - | `ui-settings-personalization` | - | One Host row owns each account's voice and notes, the Remote behind Settings → Personalization, and the system-prompt section that renders the session owner's preferences after the persona. |
 | `ctx.skillCatalog` | `core` | [`skill-catalog`](../packages/skill/skill-catalog) | - | `account-integrations` | - | Read-only local source of installable skills: the catalog lists what a reader may install and the installer reads one entry's files from the same tree. |
 | `ctx.speechController` | `core` | [`api-speech-to-text`](../packages/speech/api-speech-to-text) | - | `ui-voice-input` | - | Authenticated, cancellation-aware Client access to speech preparation and transcription; a speech call never activates or submits to an Agent. |

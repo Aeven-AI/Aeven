@@ -231,6 +231,12 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/capability/capability': { kind: 'none', reason: 'the registry adds no prompt text, tool, skill, or slash suggestion of its own; the capability consumer owns what recall and inspection put in front of the model' },
   'packages/client/ui-automations': { kind: 'none', reason: 'this page registers no tool and no prompt section; a starter only fills a localized draft that sends nothing until the person submits it' },
   'packages/client/ui-settings-personalization': { kind: 'none', reason: 'the page adds nothing to a model request; it reads and writes the personalization document the owning prompt section renders' },
+  'packages/sync/sync': { kind: 'none', reason: 'account sync moves stored data between devices; the packages that own that data render it' },
+  'packages/sync/sync-vault': { kind: 'none', reason: 'a cryptography library with no model-facing surface' },
+  'packages/sync/sync-yjs': { kind: 'none', reason: 'the provider moves encrypted frames between devices and registers no prompt, schema, or tool' },
+  'packages/api/sync-controller': { kind: 'none', reason: 'the Remote serves Settings and adds nothing to a model request' },
+  'packages/client/ui-settings-sync': { kind: 'none', reason: 'the page adds nothing to a model request' },
+  'packages/session/session-sync': { kind: 'none', reason: 'imported sessions are stored as they were logged and never replayed into a live model request' },
 }
 
 interface Failure {

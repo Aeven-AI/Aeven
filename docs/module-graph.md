@@ -122,6 +122,7 @@ flowchart TD
     pkg_api_remotes["api-remotes"]
     pkg_api_session_controller["api-session-controller"]
     pkg_api_settings_controller["api-settings-controller"]
+    pkg_api_sync_controller["api-sync-controller"]
     pkg_api_terminal_controller["api-terminal-controller"]
     pkg_api_workspace_controller["api-workspace-controller"]
     pkg_api_workspace_files["api-workspace-files"]
@@ -187,6 +188,7 @@ flowchart TD
     pkg_client_ui_settings_personalization["client-ui-settings-personalization"]
     pkg_client_ui_settings_plugin_inventory["client-ui-settings-plugin-inventory"]
     pkg_client_ui_settings_plugins["client-ui-settings-plugins"]
+    pkg_client_ui_settings_sync["client-ui-settings-sync"]
     pkg_client_ui_sidebar["client-ui-sidebar"]
     pkg_client_ui_sidebar_browser["client-ui-sidebar-browser"]
     pkg_client_ui_sidebar_device["client-ui-sidebar-device"]
@@ -385,6 +387,7 @@ flowchart TD
     pkg_session_projection["session-projection"]
     pkg_session_projection_cache["session-projection-cache"]
     pkg_session_stats["session-stats"]
+    pkg_session_sync["session-sync"]
     pkg_session_telemetry["session-telemetry"]
     pkg_session_telemetry_otel["session-telemetry-otel"]
     pkg_session_title["session-title"]
@@ -428,6 +431,11 @@ flowchart TD
     pkg_subprocess["subprocess"]
     pkg_subprocess_local["subprocess-local"]
     pkg_win32_process["win32-process"]
+  end
+  subgraph group_sync["packages/sync"]
+    pkg_sync["sync"]
+    pkg_sync_vault["sync-vault"]
+    pkg_sync_yjs["sync-yjs"]
   end
   subgraph group_terminal["packages/terminal"]
     pkg_terminal["terminal"]
@@ -531,10 +539,16 @@ flowchart TD
   pkg_media --> pkg_llm
   pkg_subprocess_local --> pkg_subprocess
   pkg_subprocess_local --> pkg_timeout
+  pkg_sync_yjs --> pkg_credentials
+  pkg_sync_yjs --> pkg_sync
   pkg_skill_badge --> pkg_skill
   pkg_spill --> pkg_brand
   pkg_spill --> pkg_llm
   pkg_spill --> pkg_session
+  pkg_api_sync_controller --> pkg_identity_user
+  pkg_api_sync_controller --> pkg_sync
+  pkg_api_sync_controller --> pkg_sync_vault
+  pkg_api_sync_controller --> pkg_typert_protocol
   pkg_app_boot --> pkg_home_paths
   pkg_app_boot --> pkg_launch_environment
   pkg_app_boot --> pkg_system_prompt
@@ -598,6 +612,9 @@ flowchart TD
   pkg_session_stats --> pkg_llm
   pkg_session_stats --> pkg_session
   pkg_session_stats --> pkg_session_projection
+  pkg_session_sync --> pkg_session
+  pkg_session_sync --> pkg_session_persistence
+  pkg_session_sync --> pkg_sync
   pkg_session_turn_outline --> pkg_llm
   pkg_session_turn_outline --> pkg_session
   pkg_session_turn_outline --> pkg_session_projection
@@ -740,6 +757,7 @@ flowchart TD
   pkg_personalization --> pkg_agent
   pkg_personalization --> pkg_identity_user
   pkg_personalization --> pkg_scope
+  pkg_personalization --> pkg_sync
   pkg_personalization --> pkg_system_prompt
   pkg_personalization --> pkg_typert_protocol
   pkg_session_telemetry --> pkg_agent
@@ -823,6 +841,7 @@ flowchart TD
   pkg_memory_memos --> pkg_llm
   pkg_memory_memos --> pkg_memory
   pkg_memory_memos --> pkg_session
+  pkg_memory_memos --> pkg_sync
   pkg_sandbox_policy --> pkg_agent
   pkg_sandbox_policy --> pkg_invariants
   pkg_sandbox_policy --> pkg_sandbox
@@ -1541,6 +1560,7 @@ flowchart TD
 | [`client-ui-settings-personalization`](../packages/client/ui-settings-personalization) | `client` | — |
 | [`client-ui-settings-plugin-inventory`](../packages/client/ui-settings-plugin-inventory) | `client` | — |
 | [`client-ui-settings-plugins`](../packages/client/ui-settings-plugins) | `client` | — |
+| [`client-ui-settings-sync`](../packages/client/ui-settings-sync) | `client` | — |
 | [`client-ui-sidebar`](../packages/client/ui-sidebar) | `client` | — |
 | [`client-ui-sidebar-browser`](../packages/client/ui-sidebar-browser) | `client` | — |
 | [`client-ui-sidebar-device`](../packages/client/ui-sidebar-device) | `client` | — |
@@ -1593,6 +1613,8 @@ flowchart TD
 | [`sandbox-windows-acl`](../packages/sandbox/sandbox-windows-acl) | `sandbox` | — |
 | [`storage`](../packages/storage/storage) | `storage` | — |
 | [`win32-process`](../packages/subprocess/win32-process) | `subprocess` | — |
+| [`sync`](../packages/sync/sync) | `sync` | — |
+| [`sync-vault`](../packages/sync/sync-vault) | `sync` | — |
 | [`llm-mock-server`](../packages/test-support/llm-mock-server) | `test-support` | — |
 | [`typert-generator`](../packages/typert/generator) | `typert` | — |
 | [`typert-protocol`](../packages/typert/protocol) | `typert` | — |
@@ -1636,8 +1658,10 @@ flowchart TD
 | [`identity-user`](../packages/identity/user) | `identity` | [`credentials`](../packages/credentials/credentials) |
 | [`media`](../packages/media/media) | `media` | [`attachment`](../packages/attachment/attachment), [`credentials`](../packages/credentials/credentials), [`llm`](../packages/llm/llm) |
 | [`subprocess-local`](../packages/subprocess/subprocess-local) | `subprocess` | [`subprocess`](../packages/subprocess/subprocess), [`timeout`](../packages/util/timeout) |
+| [`sync-yjs`](../packages/sync/sync-yjs) | `sync` | [`credentials`](../packages/credentials/credentials), [`sync`](../packages/sync/sync) |
 | [`skill-badge`](../packages/skill/skill-badge) | `skill` | [`skill`](../packages/skill/skill) |
 | [`spill`](../packages/spill/spill) | `spill` | [`brand`](../packages/util/brand), [`llm`](../packages/llm/llm), [`session`](../packages/core/session) |
+| [`api-sync-controller`](../packages/api/sync-controller) | `api` | [`identity-user`](../packages/identity/user), [`sync`](../packages/sync/sync), [`sync-vault`](../packages/sync/sync-vault), [`typert-protocol`](../packages/typert/protocol) |
 | [`app-boot`](../packages/boot/app-boot) | `boot` | [`home-paths`](../packages/util/home-paths), [`launch-environment`](../packages/util/launch-environment), [`system-prompt`](../packages/core/system-prompt) |
 | [`code-runtime-worker-thread`](../packages/code-runtime/code-runtime-worker-thread) | `code-runtime` | [`code-runtime`](../packages/code-runtime/code-runtime), [`session`](../packages/core/session), [`timeout`](../packages/util/timeout) |
 | [`device`](../packages/device/device) | `device` | [`identity-user`](../packages/identity/user), [`typert-protocol`](../packages/typert/protocol) |
@@ -1661,6 +1685,7 @@ flowchart TD
 | [`session-persistence-jsonl`](../packages/session/session-persistence-jsonl) | `session` | [`session`](../packages/core/session), [`session-persistence`](../packages/session/session-persistence) |
 | [`session-projection-cache`](../packages/session/session-projection-cache) | `session` | [`session`](../packages/core/session), [`session-projection`](../packages/session/session-projection), [`storage-domain`](../packages/storage/storage-domain) |
 | [`session-stats`](../packages/session/session-stats) | `session` | [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`session-projection`](../packages/session/session-projection) |
+| [`session-sync`](../packages/session/session-sync) | `session` | [`session`](../packages/core/session), [`session-persistence`](../packages/session/session-persistence), [`sync`](../packages/sync/sync) |
 | [`session-turn-outline`](../packages/session/session-turn-outline) | `session` | [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`session-projection`](../packages/session/session-projection) |
 | [`settings-file`](../packages/settings/settings-file) | `settings` | [`atomic-write`](../packages/util/atomic-write), [`home-paths`](../packages/util/home-paths), [`settings`](../packages/settings/settings) |
 | [`shell`](../packages/shell/shell) | `shell` | [`sandbox`](../packages/sandbox/sandbox), [`settings`](../packages/settings/settings), [`subprocess`](../packages/subprocess/subprocess) |
@@ -1692,7 +1717,7 @@ flowchart TD
 | [`lsp-stdio`](../packages/lsp/lsp-stdio) | `lsp` | [`brand`](../packages/util/brand), [`fs`](../packages/fs/fs), [`llm`](../packages/llm/llm), [`lsp`](../packages/lsp/lsp), [`subprocess`](../packages/subprocess/subprocess), [`timeout`](../packages/util/timeout) |
 | [`media-aeven`](../packages/media/media-aeven) | `media` | [`agent`](../packages/core/agent), [`credentials`](../packages/credentials/credentials), [`identity-user`](../packages/identity/user), [`media`](../packages/media/media), [`session`](../packages/core/session) |
 | [`memory`](../packages/memory/memory) | `memory` | [`agent`](../packages/core/agent), [`session`](../packages/core/session) |
-| [`personalization`](../packages/preset/personalization) | `preset` | [`agent`](../packages/core/agent), [`identity-user`](../packages/identity/user), [`scope`](../packages/core/scope), [`system-prompt`](../packages/core/system-prompt), [`typert-protocol`](../packages/typert/protocol) |
+| [`personalization`](../packages/preset/personalization) | `preset` | [`agent`](../packages/core/agent), [`identity-user`](../packages/identity/user), [`scope`](../packages/core/scope), [`sync`](../packages/sync/sync), [`system-prompt`](../packages/core/system-prompt), [`typert-protocol`](../packages/typert/protocol) |
 | [`session-telemetry`](../packages/session/session-telemetry) | `session` | [`agent`](../packages/core/agent), [`session`](../packages/core/session) |
 | [`session-title`](../packages/session/session-title) | `session` | [`agent`](../packages/core/agent), [`brand`](../packages/util/brand), [`invariants`](../packages/runtime-diagnostics/invariants), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`session-projection`](../packages/session/session-projection) |
 | [`working-directory`](../packages/session/working-directory) | `session` | [`agent`](../packages/core/agent), [`session`](../packages/core/session), [`session-projection`](../packages/session/session-projection), [`system-prompt`](../packages/core/system-prompt) |
@@ -1711,7 +1736,7 @@ flowchart TD
 | [`compaction`](../packages/compaction/compaction) | `compaction` | [`brand`](../packages/util/brand), [`commands`](../packages/interaction/commands), [`invariants`](../packages/runtime-diagnostics/invariants), [`llm`](../packages/llm/llm), [`session`](../packages/core/session) |
 | [`command-feedback`](../packages/feedback/command-feedback) | `feedback` | [`anonymous-user-id`](../packages/identity/anonymous-user-id), [`commands`](../packages/interaction/commands), [`session`](../packages/core/session), [`session-telemetry`](../packages/session/session-telemetry) |
 | [`jobs-local`](../packages/jobs/jobs-local) | `jobs` | [`agent`](../packages/core/agent), [`jobs`](../packages/jobs/jobs), [`scope`](../packages/core/scope), [`timeout`](../packages/util/timeout) |
-| [`memory-memos`](../packages/memory/memory-memos) | `memory` | [`llm`](../packages/llm/llm), [`memory`](../packages/memory/memory), [`session`](../packages/core/session) |
+| [`memory-memos`](../packages/memory/memory-memos) | `memory` | [`llm`](../packages/llm/llm), [`memory`](../packages/memory/memory), [`session`](../packages/core/session), [`sync`](../packages/sync/sync) |
 | [`sandbox-policy`](../packages/sandbox/sandbox-policy) | `sandbox` | [`agent`](../packages/core/agent), [`invariants`](../packages/runtime-diagnostics/invariants), [`sandbox`](../packages/sandbox/sandbox), [`session`](../packages/core/session), [`session-projection`](../packages/session/session-projection), [`system-prompt`](../packages/core/system-prompt), [`working-directory`](../packages/session/working-directory) |
 | [`session-title-llm`](../packages/session/session-title-llm) | `session` | [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`session-title`](../packages/session/session-title), [`timeout`](../packages/util/timeout) |
 | [`worktrees`](../packages/session/worktrees) | `session` | [`agent`](../packages/core/agent), [`session`](../packages/core/session), [`session-projection`](../packages/session/session-projection), [`subprocess`](../packages/subprocess/subprocess), [`system-prompt`](../packages/core/system-prompt), [`working-directory`](../packages/session/working-directory) |

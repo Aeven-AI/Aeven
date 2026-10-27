@@ -805,6 +805,23 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Serves what Aeven has learned about the signed-in user, with view, correct, and forget, always for the caller of the running request.',
   },
   {
+    key: 'sync',
+    pkg: 'sync',
+    title: 'Account sync',
+    mode: 'seam',
+    implementations: ['sync-yjs'],
+    consumers: ['memory-memos', 'personalization', 'session-sync', 'sync-controller'],
+    note: 'Keeps an account\'s documents and streams the same on every device of the account, encrypted end to end through the Aeven relay.',
+  },
+  {
+    key: 'syncController',
+    pkg: 'sync-controller',
+    title: 'Sync Remote',
+    mode: 'core',
+    consumers: ['ui-settings-sync'],
+    note: 'Turns account sync on, joins and approves devices, and removes them, always for the caller of the running request.',
+  },
+  {
     key: 'personalizationController',
     pkg: 'personalization',
     title: 'Personalization store and prompt section',

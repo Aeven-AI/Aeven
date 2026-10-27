@@ -285,6 +285,22 @@ export interface Config {
 
 来源：[`packages/speech/api-speech-to-text/src/index.ts:20`](../packages/speech/api-speech-to-text/src/index.ts)
 
+<a id="aevenapi-sync-controller"></a>
+
+## `@aeven/api-sync-controller`
+
+需要：`typert` · `sync` · `identityUsers`
+
+```ts config-catalog
+/** Service configuration. */
+export interface Config {
+  /** How long an add-device screen keeps answering join requests without being reopened, in milliseconds. */
+  acceptJoinsMs: number
+}
+```
+
+来源：[`packages/api/sync-controller/src/index.ts:24`](../packages/api/sync-controller/src/index.ts)
+
 <a id="aevenapi-terminal-controller"></a>
 
 ## `@aeven/api-terminal-controller`
@@ -457,7 +473,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/guard/bash-edit-guard/src/index.ts:29`](../packages/guard/bash-edit-guard/src/index.ts)
+来源：[`packages/guard/bash-edit-guard/src/index.ts:32`](../packages/guard/bash-edit-guard/src/index.ts)
 
 <a id="aevenbash-local"></a>
 
@@ -2713,6 +2729,8 @@ export interface Config {
   embedding: EmbeddingConfig
   /** Vectors re-embedded per batch when an account's memory is re-indexed. */
   reindexBatchSize: number
+  /** How this device publishes memory changes to the account's other devices while account sync serves it. */
+  sync: MemorySyncTuning
   /**
    * Separate episodes whose traces must support a pattern before MemOS induces a policy from it
    * (`l2Induction.minEpisodesForInduction`); one episode is a single example, not a pattern.
@@ -2782,6 +2800,14 @@ export interface EmbeddingConfig {
   similarity: SimilarityConfig
 }
 
+/** Tuning the provider configures. */
+export interface MemorySyncTuning {
+  /** Interval between drains of recorded changes, in milliseconds. */
+  drainMs: number
+  /** Changes published per drain. */
+  drainBatch: number
+}
+
 /** Person profile settings. */
 export interface ProfileConfig {
   /** Distill and deliver the profile. */
@@ -2814,7 +2840,7 @@ export interface SimilarityConfig {
 }
 ```
 
-来源：[`packages/memory/memory-memos/src/index.ts:29`](../packages/memory/memory-memos/src/index.ts)
+来源：[`packages/memory/memory-memos/src/index.ts:31`](../packages/memory/memory-memos/src/index.ts)
 
 <a id="aevenmessage-feedback"></a>
 
@@ -2918,7 +2944,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/preset/personalization/src/index.ts:41`](../packages/preset/personalization/src/index.ts)
+来源：[`packages/preset/personalization/src/index.ts:43`](../packages/preset/personalization/src/index.ts)
 
 <a id="aevenplan-mode"></a>
 
@@ -3341,6 +3367,29 @@ export interface Config {
 ```
 
 来源：[`packages/context/session-reference/src/config.ts:11`](../packages/context/session-reference/src/config.ts)
+
+<a id="aevensession-sync"></a>
+
+## `@aeven/session-sync`
+
+需要：`sync` · `sessionPersistence`
+
+```ts config-catalog
+/** Plugin configuration. */
+export type Config = SessionSyncTuning
+
+/** Tuning the plugin configures. */
+export interface SessionSyncTuning {
+  /** Interval between scans for changed local sessions, in milliseconds. */
+  publishMs: number
+  /** Uncompressed JSON bytes per published batch before a new batch starts. */
+  batchBytes: number
+  /** Sessions created up to this many days before this device first publishes are published too. */
+  backfillDays: number
+}
+```
+
+来源：[`packages/session/session-sync/src/index.ts:17`](../packages/session/session-sync/src/index.ts)
 
 <a id="aevensession-telemetry-otel"></a>
 
@@ -4061,6 +4110,34 @@ export interface CapabilitySettings {
 依赖：[`RetryPolicyConfig`](../packages/llm/llm/src/index.ts)
 
 来源：[`packages/llm/subscription-auth/src/index.ts:254`](../packages/llm/subscription-auth/src/index.ts)
+
+<a id="aevensync-yjs"></a>
+
+## `@aeven/sync-yjs`
+
+需要：`credentials`
+
+```ts config-catalog
+/** Provider configuration. */
+export interface Config {
+  /** WebSocket URL of the Aeven sync relay. */
+  relayUrl: string
+  /** Credential reference holding each account's Aeven access token. */
+  credentialRef: string
+  /** Wait before reconnecting after a dropped connection or while no token resolves, in milliseconds. */
+  reconnectMs: number
+  /** Longest a relay handshake may take, in milliseconds. */
+  connectTimeoutMs: number
+  /** Name this device shows the account's other devices; the host name unless configured. */
+  deviceName: string
+  /** Stored updates per document before they are merged into one. */
+  compactAfter: number
+  /** Frames per document since its last snapshot before this device queues a new one. */
+  snapshotAfter: number
+}
+```
+
+来源：[`packages/sync/sync-yjs/src/index.ts:23`](../packages/sync/sync-yjs/src/index.ts)
 
 <a id="aevensystem-prompt"></a>
 
@@ -5353,6 +5430,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@aeven/client-ui-settings-personalization` ([`packages/client/ui-settings-personalization/src/index.ts`](../packages/client/ui-settings-personalization/src/index.ts))
 - `@aeven/client-ui-settings-plugin-inventory` ([`packages/client/ui-settings-plugin-inventory/src/index.ts`](../packages/client/ui-settings-plugin-inventory/src/index.ts))
 - `@aeven/client-ui-settings-plugins` ([`packages/client/ui-settings-plugins/src/index.ts`](../packages/client/ui-settings-plugins/src/index.ts))
+- `@aeven/client-ui-settings-sync` ([`packages/client/ui-settings-sync/src/index.ts`](../packages/client/ui-settings-sync/src/index.ts))
 - `@aeven/client-ui-sidebar` ([`packages/client/ui-sidebar/src/index.ts`](../packages/client/ui-sidebar/src/index.ts))
 - `@aeven/client-ui-sidebar-browser` ([`packages/client/ui-sidebar-browser/src/index.ts`](../packages/client/ui-sidebar-browser/src/index.ts))
 - `@aeven/client-ui-sidebar-device` ([`packages/client/ui-sidebar-device/src/index.ts`](../packages/client/ui-sidebar-device/src/index.ts))
@@ -5429,6 +5507,7 @@ Abstract service classes — a deployment loads a concrete implementation packag
 - `@aeven/shell` — abstract `ShellExecutor` ([`packages/shell/shell/src/index.ts`](../packages/shell/shell/src/index.ts))
 - `@aeven/spill` — abstract `SpillStore` ([`packages/spill/spill/src/index.ts`](../packages/spill/spill/src/index.ts))
 - `@aeven/subprocess` — abstract `SubprocessRuntime` ([`packages/subprocess/subprocess/src/index.ts`](../packages/subprocess/subprocess/src/index.ts))
+- `@aeven/sync` — abstract `Sync` ([`packages/sync/sync/src/index.ts`](../packages/sync/sync/src/index.ts))
 - `@aeven/workflow` — abstract `WorkflowEngine` ([`packages/workflow/workflow/src/index.ts`](../packages/workflow/workflow/src/index.ts))
 
 ## Library packages (no plugin entry)
@@ -5486,6 +5565,7 @@ Imported as libraries by other packages; a `cordis.yml` cannot load them.
 - `@aeven/session-telemetry` ([`packages/session/session-telemetry/src/index.ts`](../packages/session/session-telemetry/src/index.ts))
 - `@aeven/session-title-llm` ([`packages/session/session-title-llm/src/index.ts`](../packages/session/session-title-llm/src/index.ts))
 - `@aeven/subagent-in-process-driver` ([`packages/subagent/subagent-in-process-driver/src/index.ts`](../packages/subagent/subagent-in-process-driver/src/index.ts))
+- `@aeven/sync-vault` ([`packages/sync/sync-vault/src/index.ts`](../packages/sync/sync-vault/src/index.ts))
 - `@aeven/timeout` ([`packages/util/timeout/src/index.ts`](../packages/util/timeout/src/index.ts))
 - `@aeven/typert-generator` ([`packages/typert/generator/src/index.ts`](../packages/typert/generator/src/index.ts))
 - `@aeven/typert-protocol` ([`packages/typert/protocol/src/index.ts`](../packages/typert/protocol/src/index.ts))

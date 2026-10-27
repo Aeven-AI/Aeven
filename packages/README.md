@@ -72,6 +72,7 @@ Every package lives in exactly one group; new packages join existing groups, and
 | [`capability/`](capability/README.md) | Learned capabilities: per-user procedures confirmed by the user and published through the skill catalog |
 | [`mail/`](mail/README.md) | Mail capability family: IMAP/POP3/SMTP service and the model-facing mail tools |
 | [`memory/`](memory/README.md) | Long-term memory capability family: Service Definition, MemOS provider, per-turn recall and capture, model-facing memory tools |
+| [`sync/`](sync/README.md) | Account sync: vault cryptography, the `ctx.sync` Service Definition, and the Yjs provider |
 | [`session-query/`](session-query/README.md) | Session retrieval family: logical corpus, bounded reads, lineage, semantic filtering, SQLite full-text search |
 | [`settings/`](settings/README.md) | User-settings seam + file-backed provider |
 | [`credentials/`](credentials/README.md) | Credential-reference and credential-record seam + env-over-`.env` provider + authorization flows that ask a human |
