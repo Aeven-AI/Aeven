@@ -1,7 +1,7 @@
 {
   "name": "@aeven/device-local",
   "description": "Local device host: runs expo-device-hub and agent-device on the Host machine for its iOS Simulators and Android Emulators",
-  "version": "0.3.20-alpha",
+  "version": "0.3.19-alpha",
   "publishConfig": {
     "access": "public"
   },

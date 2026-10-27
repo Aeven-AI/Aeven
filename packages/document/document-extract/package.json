@@ -1,7 +1,7 @@
 {
   "name": "@aeven/document-extract",
   "description": "Document text-extraction service with independently registered providers",
-  "version": "0.3.20-alpha",
+  "version": "0.3.19-alpha",
   "publishConfig": {
     "access": "public"
   },

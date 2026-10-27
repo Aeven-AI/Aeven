@@ -1,7 +1,7 @@
 {
   "name": "@aeven/computer-use-desktop",
   "description": "Shared adapter contract for self-contained desktop computer use",
-  "version": "0.3.20-alpha",
+  "version": "0.3.19-alpha",
   "publishConfig": {
     "access": "public"
   },

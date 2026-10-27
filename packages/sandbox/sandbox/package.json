@@ -1,7 +1,7 @@
 {
   "name": "@aeven/sandbox",
   "description": "Abstract process-sandbox seam (ctx.sandbox) for the Aeven: same-world confinement vocabulary and the SandboxProvider contract",
-  "version": "0.3.20-alpha",
+  "version": "0.3.19-alpha",
   "publishConfig": {
     "access": "public"
   },

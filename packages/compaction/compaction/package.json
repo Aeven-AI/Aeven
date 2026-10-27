@@ -1,7 +1,7 @@
 {
   "name": "@aeven/compaction",
   "description": "Abstract compaction service seam (ctx.compaction) for the Aeven",
-  "version": "0.3.20-alpha",
+  "version": "0.3.19-alpha",
   "publishConfig": {
     "access": "public"
   },
