@@ -440,7 +440,8 @@ export async function runDesktopHost(
   mkdirSync(absoluteProject, { recursive: true })
   const rootConfig = join(absoluteProject, ROOT_CONFIG_FILENAME)
   writeFileSync(rootConfig, ROOT_CONFIG)
-  const environment = loadLayeredEnv('avn desktop')
+  // The profile's `.env` is the project layer; the shell starts the Host outside the profile.
+  const environment = loadLayeredEnv('avn desktop', absoluteProject)
   let current: Context | undefined
   try {
     const patches = desktopPatches(absoluteProject, options.allowLinkedPackages === true, options.portFile)

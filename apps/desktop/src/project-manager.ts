@@ -14,13 +14,12 @@ import {
   openSync,
   closeSync,
   readFileSync,
-  renameSync,
   rmSync,
   unlinkSync,
   writeFileSync,
   writeSync,
 } from 'node:fs'
-import { readdir, readFile } from 'node:fs/promises'
+import { readdir, readFile, rename } from 'node:fs/promises'
 import { basename, delimiter, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import {
   DESKTOP_PACKAGES_DIR,
@@ -126,6 +125,14 @@ const PACKAGE_NAME_PATTERN = /^(?:@[a-z0-9][a-z0-9._~-]*\/[a-z0-9][a-z0-9._~-]*|
 const VERSION_PATTERN = /^[0-9A-Za-z][0-9A-Za-z.+_-]*$/u
 const MAX_PNPM_DIAGNOSTIC_BYTES = 64 * 1024
 const DESKTOP_REGISTRY = 'https://registry.npmjs.org/'
+/**
+ * Errors a Windows directory rename reports while another process still holds a handle inside the tree: antivirus
+ * or the search indexer scanning a freshly installed `node_modules`, or a just-stopped Host releasing its files.
+ */
+const WINDOWS_TRANSIENT_RENAME_ERRORS: ReadonlySet<string> = new Set(['EACCES', 'EBUSY', 'EPERM'])
+const WINDOWS_RENAME_RETRY_INITIAL_MS = 50
+const WINDOWS_RENAME_RETRY_MAX_MS = 1_000
+const WINDOWS_RENAME_RETRY_DEADLINE_MS = 60_000
 
 /** Dependencies of `@aeven/client-ui-primitives`, a browser library the web frontend build compiles in. */
 const BROWSER_LIBRARY_DEPENDENCIES = [
@@ -228,6 +235,28 @@ function assertVersion(version: string): void {
   if (!VERSION_PATTERN.test(version)) throw new Error(`desktop project: invalid exact version ${JSON.stringify(version)}`)
 }
 
+/**
+ * Rename a directory, retrying for a bounded interval while Windows reports a handle held inside the tree.
+ * @param from - existing directory.
+ * @param to - absent destination on the same volume.
+ */
+async function renameDirectory(from: string, to: string): Promise<void> {
+  const deadline = Date.now() + WINDOWS_RENAME_RETRY_DEADLINE_MS
+  let delay = WINDOWS_RENAME_RETRY_INITIAL_MS
+  for (;;) {
+    try {
+      await rename(from, to)
+      return
+    } catch (error) {
+      if (process.platform !== 'win32'
+        || !WINDOWS_TRANSIENT_RENAME_ERRORS.has((error as NodeJS.ErrnoException).code ?? '')
+        || Date.now() + delay > deadline) throw error
+    }
+    await new Promise(resolve => setTimeout(resolve, delay))
+    delay = Math.min(delay * 2, WINDOWS_RENAME_RETRY_MAX_MS)
+  }
+}
+
 function removeOwnedDirectory(path: string): void {
   if (!existsSync(path)) return
   const stat = lstatSync(path)
@@ -236,7 +265,17 @@ function removeOwnedDirectory(path: string): void {
     return
   }
   if (!stat.isDirectory()) throw new Error(`desktop project: owned directory path is not a directory: ${path}`)
-  rmSync(path, { recursive: true })
+  // Windows reports EBUSY or EPERM while a scanner still holds a file in the tree; Node retries those itself.
+  rmSync(path, { recursive: true, maxRetries: 10, retryDelay: 200 })
+}
+
+/** Remove a failed step's leftover directory without letting a held file replace the error that step threw. */
+function discardOwnedDirectory(path: string): void {
+  try {
+    removeOwnedDirectory(path)
+  } catch (error) {
+    console.warn(`desktop project: could not remove ${path}`, error)
+  }
 }
 
 function copyMetadata(source: string, target: string): void {
@@ -399,7 +438,7 @@ export class DesktopProjectManager {
   ) {}
 
   /** Recover an interrupted directory replacement before reading the active project. */
-  recover(): void {
+  async recover(): Promise<void> {
     if (!existsSync(this.paths.pending)) return
     const value = readJson(this.paths.pending)
     if (!isRecord(value) || value.schemaVersion !== 1
@@ -416,7 +455,7 @@ export class DesktopProjectManager {
     }
     if (!existsSync(this.paths.profile) && existsSync(this.paths.rollback)) {
       mkdirSync(dirname(this.paths.profile), { recursive: true })
-      renameSync(this.paths.rollback, this.paths.profile)
+      await renameDirectory(this.paths.rollback, this.paths.profile)
     }
     removeOwnedDirectory(pending.stagingProfile)
     unlinkSync(this.paths.pending)
@@ -455,7 +494,7 @@ export class DesktopProjectManager {
    */
   async applyRelease(seedDir: string, electronVersion: string, hooks: DesktopProjectHooks): Promise<boolean> {
     return this.withLock(async () => {
-      this.recover()
+      await this.recover()
       await verifySeedIntegrity(seedDir)
       const target = releaseFile(seedDir)
       verifyDesktopCorePackageSet(seedDir, target.version)
@@ -468,7 +507,7 @@ export class DesktopProjectManager {
         verifyDesktopCorePackageSet(this.paths.profile, target.version)
         return false
       }
-      const prepared = this.adoptPreparedProfile(seedDir)
+      const prepared = await this.adoptPreparedProfile(seedDir)
       if (prepared === undefined) {
         hooks.progress('unpacking')
         await this.mergeSeedPnpmState(seedDir)
@@ -484,7 +523,7 @@ export class DesktopProjectManager {
         await this.activate(stagingProfile, hooks)
         return true
       } catch (error) {
-        removeOwnedDirectory(stagingProfile)
+        discardOwnedDirectory(stagingProfile)
         throw error
       }
     })
@@ -501,7 +540,7 @@ export class DesktopProjectManager {
    */
   async prepareRelease(seedDir: string, version: string, runtime: DesktopRuntimeExecutables): Promise<boolean> {
     return this.withLock(async () => {
-      this.recover()
+      await this.recover()
       await verifySeedIntegrity(seedDir)
       const target = releaseFile(seedDir)
       verifyDesktopCorePackageSet(seedDir, target.version)
@@ -516,10 +555,10 @@ export class DesktopProjectManager {
       try {
         await this.installProfile(seedDir, stagingProfile, runtime)
         mkdirSync(dirname(this.paths.prepared), { recursive: true, mode: 0o700 })
-        renameSync(stagingProfile, this.paths.prepared)
+        await renameDirectory(stagingProfile, this.paths.prepared)
         return true
       } finally {
-        removeOwnedDirectory(dirname(stagingProfile))
+        discardOwnedDirectory(dirname(stagingProfile))
       }
     })
   }
@@ -529,7 +568,7 @@ export class DesktopProjectManager {
    * plugins, and discard it otherwise: a profile prepared for another release, or before the reader changed their
    * plugins, is not this launch's profile.
    */
-  private adoptPreparedProfile(seedDir: string): string | undefined {
+  private async adoptPreparedProfile(seedDir: string): Promise<string | undefined> {
     const prepared = this.paths.prepared
     if (!existsSync(prepared)) return undefined
     let usable = false
@@ -546,7 +585,7 @@ export class DesktopProjectManager {
     }
     const stagingProfile = join(this.paths.staging, randomUUID(), 'profile')
     mkdirSync(dirname(stagingProfile), { recursive: true, mode: 0o700 })
-    renameSync(prepared, stagingProfile)
+    await renameDirectory(prepared, stagingProfile)
     return stagingProfile
   }
 
@@ -583,7 +622,7 @@ export class DesktopProjectManager {
       await extractPnpmStoreArchives(seedDir, extractedStore)
       await mergePnpmStore(extractedStore, this.paths.pnpm.store)
     } finally {
-      removeOwnedDirectory(transactionRoot)
+      discardOwnedDirectory(transactionRoot)
     }
   }
 
@@ -597,23 +636,32 @@ export class DesktopProjectManager {
     writeJson(this.paths.pending, pending)
     await hooks.beforeActivate()
     let activeMoved = false
+    let stagingMoved = false
     try {
       removeOwnedDirectory(this.paths.rollback)
       mkdirSync(dirname(this.paths.rollback), { recursive: true, mode: 0o700 })
       writeJson(this.paths.pending, { ...pending, step: 'active-moved' } satisfies DesktopPendingTransaction)
       if (existsSync(this.paths.profile)) {
-        renameSync(this.paths.profile, this.paths.rollback)
+        await renameDirectory(this.paths.profile, this.paths.rollback)
         activeMoved = true
       }
       mkdirSync(dirname(this.paths.profile), { recursive: true, mode: 0o700 })
       writeJson(this.paths.pending, { ...pending, step: 'staging-activated' } satisfies DesktopPendingTransaction)
-      renameSync(stagingProfile, this.paths.profile)
+      await renameDirectory(stagingProfile, this.paths.profile)
+      stagingMoved = true
       await hooks.afterActivate()
       unlinkSync(this.paths.pending)
     } catch (error) {
-      if (existsSync(this.paths.profile)) removeOwnedDirectory(this.paths.profile)
-      if (activeMoved && existsSync(this.paths.rollback)) renameSync(this.paths.rollback, this.paths.profile)
-      if (existsSync(this.paths.pending)) unlinkSync(this.paths.pending)
+      // Undo only the moves that happened, by rename, so a held file leaves the swap unfinished rather than deleting
+      // the active profile. An undo that fails keeps the journal for the next launch's recover() and never replaces
+      // the error that stopped the swap.
+      try {
+        if (stagingMoved) await renameDirectory(this.paths.profile, stagingProfile)
+        if (activeMoved) await renameDirectory(this.paths.rollback, this.paths.profile)
+        if (existsSync(this.paths.pending)) unlinkSync(this.paths.pending)
+      } catch (undoError) {
+        console.error('desktop project: could not undo the profile swap; the next launch recovers it', undoError)
+      }
       await hooks.afterActivate().catch(() => undefined)
       throw error
     }

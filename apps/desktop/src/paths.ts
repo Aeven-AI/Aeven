@@ -11,6 +11,11 @@ export interface DesktopPaths {
   /** Profile a downloaded release installed ahead of its restart, which that release's first launch adopts. */
   readonly prepared: string
   readonly rollback: string
+  /**
+   * Working directory of a staged profile's health-check Host. It sits outside every profile because Windows refuses
+   * to rename a directory that any process, including one the Host leaves running, holds as its working directory.
+   */
+  readonly work: string
   readonly pending: string
   readonly lock: string
   readonly pnpm: {
@@ -37,6 +42,7 @@ export function resolveDesktopPaths(avnHome: string = resolveAvnHome()): Desktop
     staging: join(root, 'staging'),
     prepared: join(root, 'prepared', 'profile'),
     rollback: join(root, 'rollback', 'profile'),
+    work: join(root, 'work'),
     pending: join(root, 'pending.json'),
     lock: join(root, 'lock'),
     pnpm: {

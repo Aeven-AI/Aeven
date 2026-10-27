@@ -709,10 +709,13 @@ async function main(): Promise<void> {
   // so the launching environment supplies the base that the overlays and the search endpoint read.
   process.env.AEVEN_API_URL ??= DESKTOP_AEVEN_API_BASE
   const plan = await planDesktopBackend(development === undefined ? { avnVersion: app.getVersion() } : {})
-  if (development === undefined && plan.kind === 'spawn') manager.recover()
+  if (development === undefined && plan.kind === 'spawn') await manager.recover()
 
   const startHost = async (projectDir = activeProject): Promise<DesktopHostProcess> => {
-    const next = new DesktopHostProcess(resources.node, projectDir, hostInspectPort)
+    // The serving Host keeps its profile as the cwd that sessions without a directory fall back to; a staged health
+    // check runs from `paths.work`, since its profile is renamed into place as soon as it stops.
+    const workDir = projectDir === activeProject ? projectDir : paths.work
+    const next = new DesktopHostProcess(resources.node, projectDir, workDir, hostInspectPort)
     const ready = await next.start()
     if (!ready.ownsHost && projectDir !== activeProject) {
       next.release()

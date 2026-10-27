@@ -266,6 +266,28 @@ describe('desktop project transactions', () => {
     expect(invocation.env.npm_config_registry).toBeUndefined()
   })
 
+  it('keeps the active profile when the swap fails before moving it', async () => {
+    const root = temporaryRoot()
+    const seed = join(root, 'seed')
+    createTestSeedMetadata(seed, release())
+    writeFileSync(join(seed, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
+    archiveStore(seed)
+    writeIntegrity(seed)
+    const paths = resolveDesktopPaths(join(root, '.aeven'))
+    const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm: writeFakePnpm(root) })
+    await manager.applyRelease(seed, '1.0.0', hooks())
+    const activeHost = join(paths.profile, 'node_modules', '@aeven', 'desktop-host', 'package.json')
+    writeFileSync(activeHost, '{"name":"@aeven/desktop-host","version":"0.9.0"}\n')
+    // A file where the rollback directory belongs fails the swap before the active profile moves.
+    rmSync(join(paths.root, 'rollback'), { recursive: true, force: true })
+    writeFileSync(join(paths.root, 'rollback'), 'blocks the rollback directory')
+
+    await expect(manager.applyRelease(seed, '1.0.0', hooks())).rejects.toThrow()
+
+    expect(readFileSync(activeHost, 'utf8')).toContain('"0.9.0"')
+    expect(existsSync(paths.pending)).toBe(false)
+  })
+
   it('records the live pnpm worker as transaction owner until it exits', async ({ task, signal }) => {
     const root = temporaryRoot()
     const seed = join(root, 'seed')

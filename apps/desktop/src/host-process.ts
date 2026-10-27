@@ -2,6 +2,7 @@
 
 import { spawn, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
+import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { Readable, Writable } from 'node:stream'
 import {
@@ -112,11 +113,14 @@ export class DesktopHostProcess {
   /**
    * @param node - absolute bundled upstream Node.js executable.
    * @param projectDir - active or staged desktop npm project.
+   * @param workDir - the Host's working directory: the active profile, or a directory outside every profile for a
+   * staged health check, so nothing that Host leaves running can hold the staged profile against its rename on Windows.
    * @param inspectPort - optional loopback inspector port for workspace development.
    */
   constructor(
     private readonly node: string,
     private readonly projectDir: string,
+    private readonly workDir: string,
     private readonly inspectPort?: number,
   ) {}
 
@@ -124,6 +128,7 @@ export class DesktopHostProcess {
   async start(): Promise<DesktopHostReady> {
     if (this.child !== undefined) return this.readyPromise
     const entry = join(this.projectDir, 'node_modules', '@aeven', 'desktop-host', 'lib', 'index.js')
+    mkdirSync(this.workDir, { recursive: true, mode: 0o700 })
     const child = spawn(this.node, [
       // The Cordis Loader imports plugins through Node's internal ESM loader. The flag reaches it directly; the
       // fallback, node-addon-require-builtin, ships a darwin-arm64 build that macOS 14 refuses to load.
@@ -133,7 +138,7 @@ export class DesktopHostProcess {
       this.projectDir,
       ...(this.inspectPort === undefined ? [] : ['--allow-linked-profile']),
     ], {
-      cwd: this.projectDir,
+      cwd: this.workDir,
       detached: true,
       env: Object.fromEntries(Object.entries(process.env).filter(([name]) => (
         name !== 'NODE_OPTIONS' && !/^AVN_DESKTOP_/u.test(name) && !/^(?:npm|pnpm|corepack)_/iu.test(name)
