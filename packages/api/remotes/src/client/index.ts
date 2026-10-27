@@ -20,6 +20,7 @@ import jobRemote from '@aeven/api-job-controller/remote'
 import workspaceRemote from '@aeven/api-workspace-controller/remote'
 import speechRemote from '@aeven/api-speech-to-text/remote'
 import memoryManagerRemote from '@aeven/api-memory-manager/remote'
+import syncRemote from '@aeven/api-sync-controller/remote'
 import personalizationRemote from '@aeven/personalization/remote'
 import accountIntegrationsRemote from '@aeven/host-account-integrations/remote'
 import type { ClientRemote } from '@aeven/api-gateway/client'
@@ -59,7 +60,10 @@ export type * from '@aeven/api-speech-to-text/types'
 export type {} from '@aeven/api-memory-manager/remote'
 export type {} from '@aeven/host-account-integrations/remote'
 export type {} from '@aeven/skill'
+export type {} from '@aeven/sync'
 export type * from '@aeven/api-memory-manager/types'
+export type {} from '@aeven/api-sync-controller/remote'
+export type * from '@aeven/api-sync-controller/types'
 export type {} from '@aeven/personalization/remote'
 export type * from '@aeven/personalization/types'
 export type { SessionJob as JobView } from '@aeven/api-session-controller/types'
@@ -181,6 +185,7 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       pluginInventoryRemote, messageFeedbackRemote, sessionReferencesRemote,
       subagentsRemote, sessionRemote, jobRemote, workspaceRemote, browserChromiumRemote, workspaceFilesRemote,
       terminalRemote, deviceRemote, speechRemote, memoryManagerRemote, personalizationRemote, accountIntegrationsRemote,
+      syncRemote,
     ]) {
       disposers.push(await ctx.remote.$mount(contribution))
     }

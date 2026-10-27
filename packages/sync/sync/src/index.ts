@@ -13,6 +13,8 @@ import type { DeviceId } from '@aeven/sync-vault'
 export type SyncState =
   /** This device holds no vault for the account. */
   | 'unenrolled'
+  /** This device asked the account's enrolled devices to admit it and waits for approval. */
+  | 'joining'
   /** Enrolled; no connection to the relay, such as while no client of the account holds a session. */
   | 'offline'
   /** Enrolled; connecting or catching up. */
@@ -30,6 +32,8 @@ export interface SyncStatus {
   devices: number
   /** Local changes not yet acknowledged by the relay. */
   pending: number
+  /** While joining, the six-digit code once an enrolled device answered. */
+  joinCode?: string
 }
 
 /** An open document. Changes made through {@link doc} replicate until {@link close}. */
@@ -93,6 +97,14 @@ export abstract class Sync extends Service {
    * @returns the current status.
    */
   abstract status(owner: string): SyncStatus
+
+  /**
+   * Ask the relay whether the account already has a vault, so a device not enrolled yet knows whether to
+   * create one or join it. Requires a signed-in session for the account.
+   * @param owner - the account.
+   * @returns whether a vault exists.
+   */
+  abstract vaultExists(owner: string): Promise<boolean>
 
   /**
    * Create the account's vault with this device as its first member. Fails when this device is already

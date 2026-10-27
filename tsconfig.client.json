@@ -124,6 +124,7 @@
     { "path": "./packages/client/ui-settings-models" },
     { "path": "./packages/client/ui-settings-plugin-inventory" },
     { "path": "./packages/client/ui-settings-memory" },
+    { "path": "./packages/client/ui-settings-sync" },
     { "path": "./packages/client/ui-settings-personalization" },
     { "path": "./packages/client/locale" },
     { "path": "./packages/client/ui-renderer" },

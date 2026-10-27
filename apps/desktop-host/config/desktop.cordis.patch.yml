@@ -24,6 +24,10 @@
   config:
     apiUrl: !!js process.env.AEVEN_API_URL ?? 'https://aeven.io/api'
 
+- id: sync-yjs
+  config:
+    relayUrl: !!js process.env.AEVEN_SYNC_URL ?? 'wss://aeven.io/sync'
+
 - id: account-integrations
   config:
     apiUrl: !!js process.env.AEVEN_API_URL ?? 'https://aeven.io/api'

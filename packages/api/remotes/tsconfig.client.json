@@ -112,6 +112,12 @@
     },
     {
       "path": "../../skill/skill"
+    },
+    {
+      "path": "../sync-controller"
+    },
+    {
+      "path": "../../sync/sync"
     }
   ]
 }

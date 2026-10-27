@@ -227,6 +227,17 @@
     - id: api-memory-manager
       name: '@aeven/api-memory-manager'
 
+    # Account sync: every device signed in to one account holds the same
+    # documents, end-to-end encrypted on the device and relayed by the Aeven API.
+    - id: sync-yjs
+      name: '@aeven/sync-yjs'
+      config:
+        relayUrl: !!js process.env.AEVEN_SYNC_URL ?? 'ws://localhost:9010/sync'
+
+    # Settings → Sync: turn sync on, add this device, approve new devices.
+    - id: api-sync-controller
+      name: '@aeven/api-sync-controller'
+
     # Settings → Personalization: how each signed-in person wants Aeven to
     # talk with them, rendered into their sessions right after the persona.
     - id: personalization
@@ -532,6 +543,10 @@
     # Settings → Memory, over the memoryManager Remote.
     - id: ui-settings-memory
       name: '@aeven/client-ui-settings-memory'
+
+    # Settings → Sync, over the sync Remote.
+    - id: ui-settings-sync
+      name: '@aeven/client-ui-settings-sync'
 
     # Settings → Personalization, over the personalization Remote.
     - id: ui-settings-personalization

@@ -158,6 +158,25 @@ export class PersonalizationStore {
     return { changed: true, state: this.stateOf(this.persist(owner, { ...current, masterPrompt: '' })) }
   }
 
+  /**
+   * Store preferences another device of the same account chose, as they arrived. A voice this build does not
+   * offer keeps the current one.
+   * @param owner - the signed-in account id.
+   * @param preferences - the synced preferences.
+   * @returns whether the stored document changed.
+   */
+  apply(owner: string, preferences: Personalization): boolean {
+    const current = this.state(owner).preferences
+    const next: Personalization = {
+      voice: PERSONALIZATION_VOICES.includes(preferences.voice) ? preferences.voice : current.voice,
+      notes: preferences.notes,
+      masterPrompt: preferences.masterPrompt,
+    }
+    if (next.voice === current.voice && next.notes === current.notes && next.masterPrompt === current.masterPrompt) return false
+    this.persist(owner, next)
+    return true
+  }
+
   private refusal(preferences: Personalization): PersonalizationReason | undefined {
     if (preferences.notes.length > this.maxNotesChars) return 'notes-too-long'
     if (preferences.masterPrompt.length > this.maxMasterPromptChars) return 'master-prompt-too-long'

@@ -42,6 +42,8 @@ interface Account {
   relay?: RelayConnection
   /** Ends the connection loop's current wait early, such as after enrollment. */
   wake: () => void
+  /** The join in progress, with its code once an enrolled device answered. */
+  joining?: { code?: string }
 }
 
 /** Yjs account sync provider. */
@@ -188,8 +190,10 @@ export default class YjsSync extends Sync {
   /** @inheritdoc */
   status(owner: string): SyncStatus {
     const account = this.accounts.get(owner)
-    if (account !== undefined) return account.vault.status()
-    return { state: 'unenrolled', devices: 0, pending: 0 }
+    if (account === undefined) return { state: 'unenrolled', devices: 0, pending: 0 }
+    const status = account.vault.status()
+    if (account.joining === undefined || status.state !== 'unenrolled') return status
+    return { ...status, state: 'joining', ...account.joining.code === undefined ? {} : { joinCode: account.joining.code } }
   }
 
   private async connect(owner: string, handlers: Partial<RelayHandlers>): Promise<RelayConnection> {
@@ -202,6 +206,17 @@ export default class YjsSync extends Sync {
       closed: () => {},
       ...handlers,
     }, this.config.connectTimeoutMs)
+  }
+
+  /** @inheritdoc */
+  async vaultExists(owner: string): Promise<boolean> {
+    const relay = await this.connect(owner, {})
+    try {
+      const { entries } = await relay.request('chain.get') as { entries: unknown[] }
+      return entries.length > 0
+    } finally {
+      relay.close()
+    }
   }
 
   /** @inheritdoc */
@@ -219,6 +234,7 @@ export default class YjsSync extends Sync {
   /** @inheritdoc */
   async join(owner: string): Promise<SyncJoin> {
     const account = this.account(owner)
+    if (account.joining !== undefined) throw new Error('this device is already asking to join')
     const keys = account.vault.prepareJoin()
     const pending: { requester?: JoinRequester } = {}
     let settle!: { resolve: () => void; reject: (error: Error) => void }
@@ -241,6 +257,19 @@ export default class YjsSync extends Sync {
     })
     const requester = new JoinRequester(relay, keys)
     pending.requester = requester
+    const joining: { code?: string } = {}
+    account.joining = joining
+    const finish = (): void => {
+      if (account.joining !== joining) return
+      delete account.joining
+      this.notifyStatus(owner)
+    }
+    void admitted.then(finish, finish)
+    void requester.code.then((code) => {
+      joining.code = code
+      this.notifyStatus(owner)
+    })
+    this.notifyStatus(owner)
     await requester.start()
     return {
       code: requester.code,

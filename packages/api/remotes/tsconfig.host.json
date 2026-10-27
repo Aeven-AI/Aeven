@@ -76,6 +76,9 @@
     },
     {
       "path": "../workspace-files"
+    },
+    {
+      "path": "../../sync/sync"
     }
   ]
 }

@@ -1038,6 +1038,9 @@ importers:
       '@aeven/api-speech-to-text':
         specifier: workspace:^
         version: link:../../speech/api-speech-to-text
+      '@aeven/api-sync-controller':
+        specifier: workspace:^
+        version: link:../sync-controller
       '@aeven/api-terminal-controller':
         specifier: workspace:^
         version: link:../terminal-controller
@@ -1104,6 +1107,9 @@ importers:
       '@aeven/subagent':
         specifier: workspace:^
         version: link:../../subagent/subagent
+      '@aeven/sync':
+        specifier: workspace:^
+        version: link:../../sync/sync
       '@aeven/tool-browser':
         specifier: workspace:^
         version: link:../../web/tool-browser
@@ -1283,6 +1289,25 @@ importers:
       '@aeven/settings':
         specifier: workspace:^
         version: link:../../settings/settings
+      '@aeven/typert-protocol':
+        specifier: workspace:^
+        version: link:../../typert/protocol
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/api/sync-controller:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@aeven/identity-user':
+        specifier: workspace:^
+        version: link:../../identity/user
+      '@aeven/sync':
+        specifier: workspace:^
+        version: link:../../sync/sync
       '@aeven/typert-protocol':
         specifier: workspace:^
         version: link:../../typert/protocol
@@ -2025,6 +2050,9 @@ importers:
       '@aeven/api-speech-to-text':
         specifier: workspace:^
         version: link:../../speech/api-speech-to-text
+      '@aeven/api-sync-controller':
+        specifier: workspace:^
+        version: link:../../api/sync-controller
       '@aeven/api-terminal-controller':
         specifier: workspace:^
         version: link:../../api/terminal-controller
@@ -2160,6 +2188,9 @@ importers:
       '@aeven/client-ui-settings-plugins':
         specifier: workspace:^
         version: link:../../client/ui-settings-plugins
+      '@aeven/client-ui-settings-sync':
+        specifier: workspace:^
+        version: link:../../client/ui-settings-sync
       '@aeven/client-ui-sidebar':
         specifier: workspace:^
         version: link:../../client/ui-sidebar
@@ -2349,6 +2380,9 @@ importers:
       '@aeven/subscription-auth':
         specifier: workspace:^
         version: link:../../llm/subscription-auth
+      '@aeven/sync-yjs':
+        specifier: workspace:^
+        version: link:../../sync/sync-yjs
       '@aeven/tool-device':
         specifier: workspace:^
         version: link:../../device/tool-device
@@ -4399,6 +4433,39 @@ importers:
       react:
         specifier: ^18.2.0
         version: 18.3.1
+
+  packages/client/ui-settings-sync:
+    devDependencies:
+      '@aeven/api-remotes':
+        specifier: workspace:^
+        version: link:../../api/remotes
+      '@aeven/client-locale':
+        specifier: workspace:^
+        version: link:../locale
+      '@aeven/client-ui-primitives':
+        specifier: workspace:^
+        version: link:../ui-primitives
+      '@aeven/client-ui-renderer':
+        specifier: workspace:^
+        version: link:../ui-renderer
+      '@aeven/client-ui-settings':
+        specifier: workspace:^
+        version: link:../ui-settings
+      '@aeven/client-ui-slots':
+        specifier: workspace:^
+        version: link:../ui-slots
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@types/react':
+        specifier: ~18.3.1
+        version: 18.3.31
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.2.0
+        version: 18.3.1(react@18.3.1)
 
   packages/client/ui-sidebar:
     dependencies:
@@ -9642,6 +9709,9 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
+      yjs:
+        specifier: 13.6.27
+        version: 13.6.27
       zod:
         specifier: ^4.4.3
         version: 4.6.5
@@ -9655,6 +9725,9 @@ importers:
       '@aeven/scope':
         specifier: workspace:^
         version: link:../../core/scope
+      '@aeven/sync':
+        specifier: workspace:^
+        version: link:../../sync/sync
       '@aeven/system-prompt':
         specifier: workspace:^
         version: link:../../core/system-prompt
