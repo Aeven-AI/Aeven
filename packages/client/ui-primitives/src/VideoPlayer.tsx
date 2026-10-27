@@ -31,6 +31,39 @@ export interface VideoPlayerLabels {
   readonly download: string
 }
 
+/** The dictionary keys the clip player's chrome reads. */
+export type VideoPlayerLabelKey =
+  | 'video.play'
+  | 'video.pause'
+  | 'video.mute'
+  | 'video.unmute'
+  | 'video.seek'
+  | 'video.volume'
+  | 'video.fullscreen'
+  | 'video.exitFullscreen'
+  | 'video.save'
+  | 'video.download'
+
+/**
+ * Read the clip player's chrome sentences from a surface's own dictionary.
+ * @param t - the owning surface's translator, which carries every `video.*` key.
+ * @returns the labels the player and its controls read.
+ */
+export function videoPlayerLabels(t: (key: VideoPlayerLabelKey) => string): VideoPlayerLabels {
+  return {
+    play: t('video.play'),
+    pause: t('video.pause'),
+    mute: t('video.mute'),
+    unmute: t('video.unmute'),
+    seek: t('video.seek'),
+    volume: t('video.volume'),
+    fullscreen: t('video.fullscreen'),
+    exitFullscreen: t('video.exitFullscreen'),
+    save: t('video.save'),
+    download: t('video.download'),
+  }
+}
+
 /** Props of one clip's player. */
 export interface VideoPlayerProps {
   /** Same-origin URL of the clip. */

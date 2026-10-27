@@ -36,6 +36,22 @@ declare module '@deepseek-ai/cordis' {
 }
 
 /**
+ * Fold several ranked hit lists into one, keeping each memory once at its best score.
+ * @param parts - one ranked list per query clause.
+ * @returns one ranked list, best first.
+ */
+export function mergeRankedHits<T extends { readonly id: string; readonly score: number }>(
+  parts: readonly (readonly T[])[],
+): T[] {
+  const best = new Map<string, T>()
+  for (const hit of parts.flat()) {
+    const seen = best.get(hit.id)
+    if (seen === undefined || hit.score > seen.score) best.set(hit.id, hit)
+  }
+  return [...best.values()].sort((a, b) => b.score - a.score)
+}
+
+/**
  * Model-facing memory tool names. Recalled context and hit snippets may direct the model to these tools
  * (with `memory_get` taking the `MemoryDetailKind` values); `@aeven/tool-memory` registers them.
  */

@@ -529,19 +529,11 @@ function SessionTree({
                 )
               })}
               {collapsed.hiddenCount > 0 && (
-                <button
-                  type="button"
-                  className={css.sessionOverflowButton}
-                  aria-expanded={sessionsExpanded}
-                  onClick={() => { setExpandedSessionGroups(keys => toggled(keys, group.key)) }}
-                >
-                  {sessionsExpanded
-                    ? <IconLucideListChevronsDownUp className={css.sessionOverflowIcon} />
-                    : <IconLucideListChevronsUpDown className={css.sessionOverflowIcon} />}
-                  <span className={css.sessionOverflowLabel}>
-                    {sessionsExpanded ? t('sessions.collapse') : t('sessions.expand')}
-                  </span>
-                </button>
+                <SessionOverflowToggle
+                  expanded={sessionsExpanded}
+                  onToggle={() => { setExpandedSessionGroups(keys => toggled(keys, group.key)) }}
+                  t={t}
+                />
               )}
             </div>
           )
@@ -729,19 +721,11 @@ function StatusList({
                 />
               ))}
               {collapsed.hiddenCount > 0 && (
-                <button
-                  type="button"
-                  className={css.sessionOverflowButton}
-                  aria-expanded={sessionsExpanded}
-                  onClick={() => { setExpandedBuckets(keys => toggled(keys, bucket.key)) }}
-                >
-                  {sessionsExpanded
-                    ? <IconLucideListChevronsDownUp className={css.sessionOverflowIcon} />
-                    : <IconLucideListChevronsUpDown className={css.sessionOverflowIcon} />}
-                  <span className={css.sessionOverflowLabel}>
-                    {sessionsExpanded ? t('sessions.collapse') : t('sessions.expand')}
-                  </span>
-                </button>
+                <SessionOverflowToggle
+                  expanded={sessionsExpanded}
+                  onToggle={() => { setExpandedBuckets(keys => toggled(keys, bucket.key)) }}
+                  t={t}
+                />
               )}
             </div>
           )
@@ -1141,5 +1125,32 @@ export function WorkspaceBrowser({
         {deleteError !== null && <div className={css.renameError} role="alert">{deleteError}</div>}
       </Modal>
     </div>
+  )
+}
+
+/**
+ * The control that reveals the Sessions a group or bucket hides.
+ * @param props - whether the list is expanded, the toggle, and the translator.
+ * @returns the overflow button with its chevron and label.
+ */
+function SessionOverflowToggle({ expanded, onToggle, t }: {
+  readonly expanded: boolean
+  readonly onToggle: () => void
+  readonly t: WorkspaceBrowserProps['t']
+}): ReactNode {
+  return (
+    <button
+      type="button"
+      className={css.sessionOverflowButton}
+      aria-expanded={expanded}
+      onClick={onToggle}
+    >
+      {expanded
+        ? <IconLucideListChevronsDownUp className={css.sessionOverflowIcon} />
+        : <IconLucideListChevronsUpDown className={css.sessionOverflowIcon} />}
+      <span className={css.sessionOverflowLabel}>
+        {expanded ? t('sessions.collapse') : t('sessions.expand')}
+      </span>
+    </button>
   )
 }

@@ -11,6 +11,7 @@ import { BlockAssembler, createUserMessage } from '@aeven/llm'
 import type { CapabilityOrigin, CapabilityRecord } from '@aeven/capability'
 import type { LearnedProcedure, MemoryDomain, MemoryItemId, MemoryScope, ProcedureStatus } from '@aeven/memory'
 import type { SessionId } from '@aeven/session/types'
+import { embeddedJsonObject } from '@aeven/util-values'
 import type { CompletedWork, WorkInstruction, WorkStep } from './executions.ts'
 import { forgetLearnedProcedures, LEARNED_DOMAINS, recallLearnedNames, storeLearnedProcedure } from './memory-learning.ts'
 
@@ -408,18 +409,8 @@ function overlap(a: ReadonlySet<string>, b: ReadonlySet<string>): number {
 }
 
 function parseDecision(text: string): Decision | undefined {
-  const start = text.indexOf('{')
-  const end = text.lastIndexOf('}')
-  if (start === -1 || end <= start) return undefined
-  let value: unknown
-  try {
-    value = JSON.parse(text.slice(start, end + 1))
-  } catch {
-    // A reply that is not JSON carries no decision; the work is not learned from.
-    return undefined
-  }
-  if (value === null || typeof value !== 'object') return undefined
-  const record = value as Record<string, unknown>
+  const record = embeddedJsonObject(text)
+  if (record === undefined) return undefined
   if (record['decision'] === 'skip') return { decision: 'skip' }
   if (record['decision'] !== 'create' && record['decision'] !== 'update') return undefined
   const { name, description, content, domain, summary, replaces } = record
@@ -450,17 +441,7 @@ interface ProcedureGroup {
 }
 
 function parseGroups(text: string, names: ReadonlySet<string>): ProcedureGroup[] | undefined {
-  const start = text.indexOf('{')
-  const end = text.lastIndexOf('}')
-  if (start === -1 || end <= start) return undefined
-  let value: unknown
-  try {
-    value = JSON.parse(text.slice(start, end + 1))
-  } catch {
-    // A reply that is not JSON groups nothing; these procedures stay as they are.
-    return undefined
-  }
-  const groups = value !== null && typeof value === 'object' ? (value as Record<string, unknown>)['groups'] : undefined
+  const groups = embeddedJsonObject(text)?.['groups']
   if (!Array.isArray(groups)) return undefined
   const taken = new Set<string>()
   return groups.flatMap((group: unknown) => {

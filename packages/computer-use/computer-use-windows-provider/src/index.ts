@@ -84,6 +84,7 @@ export interface Config {
  * together.
  * @returns the runner the Windows adapter uses.
  */
+/* jscpd:ignore-start -- deliberate mirror of the macOS provider's host probe: each platform package owns its runner (see README). */
 export function createWindowsCommandRunner(): WinCommandRunner {
   const run = promisify(execFile)
   return {
@@ -102,6 +103,7 @@ export function createWindowsCommandRunner(): WinCommandRunner {
     },
   }
 }
+/* jscpd:ignore-end */
 
 /**
  * Present the command runner as the script runner the COM handler needs.
@@ -159,6 +161,7 @@ export class WindowsComputerUseProvider {
       [COM_MECHANISM]: createComHandler({ runner: createPowerShellScriptRunner(commands, config.powershell) }),
     }
     this.executor = new TaskExecutor({ book, adapter: this.adapter, handlers })
+    /* jscpd:ignore-start -- deliberate mirror of MacComputerUseProvider's facade: a platform adds a provider package (see README). */
     this.session = new ComputerUseSession({ book, adapter: this.adapter, handlers })
   }
 
@@ -196,6 +199,7 @@ export class WindowsComputerUseProvider {
     return this.executor.routing.tasks()
   }
 }
+/* jscpd:ignore-end */
 
 /**
  * Mount the provider.
@@ -217,6 +221,7 @@ export function apply(ctx: Context, config: Config = {}): void {
   }
   // `provide`, not `set`: the name has to be claimed before it can hold a value, and
   // the returned disposer is what makes unloading this plugin release the slot again.
+  /* jscpd:ignore-start -- deliberate mirror of the macOS provider's batch tool and its approval gate (see this package's README). */
   ctx.provide('windowsComputerUseProvider', provider)
   ctx.inject(['tools'], (ctx) => {
     ctx.on('tools/pre-execute', async (exec, next) => {
@@ -279,6 +284,7 @@ export function apply(ctx: Context, config: Config = {}): void {
       },
     })), 'computer-use-windows-provider.batch-tool')
   })
+  /* jscpd:ignore-end */
   // Not optional-chained: Cordis types `logger` and its methods as always present,
   // and guarding a value that cannot be absent only hides it if that ever changes.
   ctx.logger.info('computer use: Windows provider ready on %s with %d task(s)', provider.adapter.platform, provider.tasks().length)

@@ -17,6 +17,7 @@ export const zh = {
   'security.title': '双重验证',
   'security.info': '登录时需要身份验证器应用中的验证码。',
 
+  /* jscpd:ignore-start -- deliberate copy of auth.aeven's two-factor flow sentences (locale-owned-client-ui-copy Agent Note). */
   'mfa.title': '保护你的账号',
   'mfa.scan': '使用身份验证器应用扫描二维码，然后输入六位验证码。',
   'mfa.manual': '无法扫描？手动输入设置密钥',
@@ -38,6 +39,7 @@ export const zh = {
   'mfa.loading': '正在准备身份验证器…',
   'mfa.useRecovery': '使用恢复码',
   'mfa.useApp': '使用身份验证器验证码',
+  /* jscpd:ignore-end */
 
   'trigger.aria': '账户菜单',
   'avatar.alt': '头像',
@@ -147,6 +149,7 @@ export const en: Record<AccountAevenKey, string> = {
   'security.title': 'Two-factor authentication',
   'security.info': 'Require a code from your authenticator app when signing in.',
 
+  /* jscpd:ignore-start -- deliberate copy of auth.aeven's two-factor flow sentences (locale-owned-client-ui-copy Agent Note). */
   'mfa.title': 'Protect your account',
   'mfa.scan': 'Scan this QR code with your authenticator app, then enter the six-digit code.',
   'mfa.manual': 'Can’t scan? Enter a setup key instead',
@@ -168,6 +171,7 @@ export const en: Record<AccountAevenKey, string> = {
   'mfa.loading': 'Preparing your authenticator…',
   'mfa.useRecovery': 'Use a recovery code',
   'mfa.useApp': 'Use an authenticator code',
+  /* jscpd:ignore-end */
 
   'trigger.aria': 'Account menu',
   'avatar.alt': 'profile',
@@ -280,6 +284,7 @@ export const es: Record<AccountAevenKey, string> = {
   'security.title': 'Verificación en dos pasos',
   'security.info': 'Solicita un código de tu aplicación de autenticación al iniciar sesión.',
 
+  /* jscpd:ignore-start -- deliberate copy of auth.aeven's two-factor flow sentences (locale-owned-client-ui-copy Agent Note). */
   'mfa.title': 'Protege tu cuenta',
   'mfa.scan': 'Escanea este código QR con tu aplicación de autenticación y luego introduce el código de seis dígitos.',
   'mfa.manual': '¿No puedes escanear? Introduce una clave de configuración',
@@ -301,6 +306,7 @@ export const es: Record<AccountAevenKey, string> = {
   'mfa.loading': 'Preparando tu aplicación de autenticación…',
   'mfa.useRecovery': 'Usar un código de recuperación',
   'mfa.useApp': 'Usar un código de autenticación',
+  /* jscpd:ignore-end */
 
   'trigger.aria': 'Menú de la cuenta',
   'avatar.alt': 'perfil',

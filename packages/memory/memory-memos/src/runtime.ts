@@ -1,6 +1,7 @@
 /** MemOS-backed {@link MemoryProvider}: namespaces, per-session capture ordering, and MemOS session lifecycle. */
+import { join } from 'node:path'
 import { brandString } from '@aeven/brand'
-import { LEARNED_PROCEDURE_PREFIX, MEMORY_TOOL, memoryOriginLabel } from '@aeven/memory'
+import { LEARNED_PROCEDURE_PREFIX, MEMORY_TOOL, memoryOriginLabel, mergeRankedHits } from '@aeven/memory'
 import type {
   MemoryDetail,
   MemoryDomain,
@@ -26,6 +27,7 @@ import type { SessionId } from '@aeven/session'
 import type { JsonValue } from '@aeven/util-values'
 import type { RetrievalHitDTO, RuntimeNamespace, SkillDTO, TraceDTO } from '@deepseek-ai/memos-local-plugin/agent-contract/dto.js'
 import type { MemoryCore } from '@deepseek-ai/memos-local-plugin/agent-contract/memory-core.js'
+import type { ResolvedHome } from '@deepseek-ai/memos-local-plugin/core/config/paths.js'
 import type { OwnerCores } from './cores.ts'
 import { MemoryDeadlineError, withDeadline } from './deadline.ts'
 import { messageSentences, queryClauses, withoutExactIdentifiers } from './query.ts'
@@ -33,6 +35,23 @@ import { isLogMemory, LOG_TAG, parseRelevance, RELEVANCE_PROMPT, relevanceInput,
 import type { LlmRouteContext } from './host-llm.ts'
 import { SUPERSEDED_TAG, traceDomain, withDomainTag, withSupersededTag, type ClassifyInput, type TurnDomain, type TurnJudgeContext, type TurnRevision } from './domain.ts'
 import { normalizeNamespace } from '@deepseek-ai/memos-local-plugin/core/runtime/namespace.js'
+
+/**
+ * MemOS runtime paths under one account's memory directory.
+ * @param root - the account's memory root.
+ * @returns the home layout MemOS boots over.
+ */
+export function memosHome(root: string): ResolvedHome {
+  return {
+    root,
+    configFile: join(root, 'config.yaml'),
+    dataDir: join(root, 'data'),
+    dbFile: join(root, 'data', 'memos.db'),
+    skillsDir: join(root, 'skills'),
+    logsDir: join(root, 'logs'),
+    daemonDir: join(root, 'daemon'),
+  }
+}
 
 /** MemOS agent kind. The embedded Viewer server keys its in-process host behavior on this value. */
 export const MEMOS_AGENT = 'deepseek-harness'
@@ -400,7 +419,7 @@ export class MemosMemory implements MemoryProvider {
       ? messageSentences(request.request, sentenceRecall.sentences)
       : []
     const search = clauses.length > 0
-      ? Promise.all(clauses.map(retrieve)).then(mergeHits)
+      ? Promise.all(clauses.map(retrieve)).then(mergeRankedHits)
       : sentences.length > 0 && sentenceRecall !== undefined
         ? Promise.all([retrieve(request.query), ...sentences.map(retrieve)])
           .then(([whole, ...parts]) => withSentenceHits(whole, parts, sentenceRecall.hits))
@@ -1252,15 +1271,6 @@ function withSentenceHits(whole: readonly MemoryHit[], parts: readonly (readonly
  * @param parts - one ranked list per query clause.
  * @returns one ranked list, best first.
  */
-function mergeHits(parts: readonly (readonly MemoryHit[])[]): MemoryHit[] {
-  const best = new Map<MemoryItemId, MemoryHit>()
-  for (const hit of parts.flat()) {
-    const seen = best.get(hit.id)
-    if (seen === undefined || hit.score > seen.score) best.set(hit.id, hit)
-  }
-  return [...best.values()].sort((a, b) => b.score - a.score)
-}
-
 function toSkill(skill: SkillDTO): MemorySkill {
   return {
     id: brandString<MemoryItemId>(skill.id),

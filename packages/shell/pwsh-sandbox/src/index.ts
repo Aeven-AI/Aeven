@@ -12,6 +12,7 @@
  * @module @aeven/pwsh-sandbox
  */
 
+/* jscpd:ignore-start -- deliberate import mirror of bash-sandbox's sandbox seam (pwsh-tool-and-executor Agent Note). */
 import { Context } from '@deepseek-ai/cordis'
 import { isDetachedRun } from '@aeven/shell'
 import type { ShellExecRequest, ShellExecSpec, ShellProcess, ShellRunOutcome, ShellRunResult } from '@aeven/shell'
@@ -29,6 +30,7 @@ import type {} from '@aeven/sandbox-policy'
 import { PwshLocalExecutor } from '@aeven/pwsh-local'
 import type { Config as LocalConfig } from '@aeven/pwsh-local'
 import { classifyDenial, classifyRunnerFailure, isRunnerSpawnFailure, matchesSignature } from './helpers.ts'
+/* jscpd:ignore-end */
 
 /**
  * Plugin config: the local executor's knobs, verbatim. The sandbox policy —

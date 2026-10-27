@@ -27,7 +27,7 @@ import type {} from '@aeven/sandbox-policy'
 import type {} from '@aeven/working-directory'
 import { Remote, RemoteError, TypertRemoteService } from '@aeven/typert-protocol'
 import { scopeTarget } from '@aeven/scope'
-import { defineTool } from '@aeven/tools'
+import { defineTool, jsonStringOutput } from '@aeven/tools'
 import type {} from './types.ts'
 import type {
   WorkspaceDirectoryEntry, WorkspaceDirectoryListing, WorkspaceFileText, WorkspaceFilesShowResult, WorkspaceSearchHit,
@@ -147,10 +147,7 @@ export class WorkspaceFiles extends TypertRemoteService {
       parameters: {
         path: { type: 'string', description: 'Workspace-relative or absolute path. Omit or leave empty for the workspace root.' },
       },
-      output: {
-        schema: { type: 'string' },
-        render: (_args, value) => [{ type: 'text', text: value }],
-      },
+      output: jsonStringOutput(),
       execute: async (args, exec) => {
         const agent = exec.agent
         if (agent === undefined) throw new Error('Showing files in the sidebar requires a calling agent')

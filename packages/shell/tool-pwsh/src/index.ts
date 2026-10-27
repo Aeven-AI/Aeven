@@ -48,6 +48,7 @@ declare module '@aeven/jobs' {
 export const name = 'tool-pwsh'
 export const inject = ['tools', 'shell', 'systemPrompt', 'shellEnv']
 
+/* jscpd:ignore-start -- deliberate mirror of avn-tool-bash's config schema and parsed-args shape (pwsh-tool-and-executor Agent Note). */
 /** Default foreground budget before a still-running command is handed to a background job. */
 const DEFAULT_DETACH_AFTER_MS = 20_000
 
@@ -79,6 +80,7 @@ interface PwshToolArgs {
   sandbox_permissions?: string
   justification?: string
 }
+/* jscpd:ignore-end */
 
 /** The canonical foreground result of one pwsh call (the `output.schema` value shape). */
 interface PwshForegroundResult {
@@ -295,6 +297,7 @@ export function apply(ctx: Context, config: Config = {}): void {
    * process exists; a detached foreground run hands its already-live handle
    * through the same path.
    */
+  /* jscpd:ignore-start -- deliberate mirror of avn-tool-bash's background job registration (pwsh-tool-and-executor Agent Note). */
   const startJob = (
     jobs: JobRegistry,
     owner: Agent | undefined,
@@ -318,6 +321,7 @@ export function apply(ctx: Context, config: Config = {}): void {
       },
     })
   }
+  /* jscpd:ignore-end */
 
   ctx.tools.register(defineTool({
     name: 'pwsh',

@@ -10,7 +10,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { brandString } from '@aeven/brand'
 import type { Agent } from '@aeven/agent'
-import { MEMORY_TOOL, memoryOriginLabel, memoryScopeOf, type MemoryDomain, type MemoryEpisodeId, type MemoryItemId, type MemoryRecallLimits, type MemoryScope } from '@aeven/memory'
+import { MEMORY_TOOL, memoryOriginLabel, memoryScopeOf, mergeRankedHits, type MemoryDomain, type MemoryEpisodeId, type MemoryItemId, type MemoryRecallLimits, type MemoryScope } from '@aeven/memory'
 import { defineTool, textOutput, textResult } from '@aeven/tools'
 
 export const name = 'tool-memory'
@@ -65,20 +65,6 @@ function limitsOf(args: { maxResults?: number; skills?: number; traces?: number;
 
 /** Most topics one search may name, so a scattered query stays inside the search budget. */
 const MAX_SEARCH_QUERIES = 4
-
-/**
- * Merge the results of several queries, keeping each memory once at its best score.
- * @param hits - every query's hits, in any order.
- * @returns one ranked list, best first.
- */
-function mergeHits<T extends { readonly id: string; readonly score: number }>(hits: readonly T[]): T[] {
-  const best = new Map<string, T>()
-  for (const hit of hits) {
-    const seen = best.get(hit.id)
-    if (seen === undefined || hit.score > seen.score) best.set(hit.id, hit)
-  }
-  return [...best.values()].sort((a, b) => b.score - a.score)
-}
 
 /**
  * Register the memory tools.
@@ -178,7 +164,7 @@ export function apply(ctx: Context, config: Config): void {
         signal: exec.signal,
       })))
       // One memory can answer two of the queries; it is reported once, at its best score.
-      const merged = mergeHits(recalls.flatMap(recall => recall.hits))
+      const merged = mergeRankedHits(recalls.map(recall => recall.hits))
       const timedOut = recalls.some(recall => recall.timedOut)
       const hits = merged.map(hit => ({
         kind: hit.kind, id: hit.id, domain: hit.domain, score: hit.score, snippet: clip(hit.snippet, cap), origin: memoryOriginLabel(hit),

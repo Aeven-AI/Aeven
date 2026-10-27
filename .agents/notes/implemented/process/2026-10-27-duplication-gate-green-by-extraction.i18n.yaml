@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-10-27-duplication-gate-green-by-extraction.md
+2026-10-27-duplication-gate-green-by-extraction.md: 06d1db7c91137c9244a80b1018f70d6d9e2a0fe7
+2026-10-27-duplication-gate-green-by-extraction.zh.md: dc0ecf12e5c286b365f424e2a690c22cddc01982
