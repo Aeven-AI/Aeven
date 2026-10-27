@@ -157,6 +157,7 @@ External packages that a workspace package resolves at runtime. The tier covers 
 | [`vfile`](https://github.com/vfile/vfile) | MIT |
 | [`ws`](https://github.com/websockets/ws) | MIT |
 | [`yaml`](https://github.com/eemeli/yaml) | ISC |
+| [`yjs`](https://github.com/yjs/yjs) | MIT |
 | [`zod`](https://github.com/colinhacks/zod) | MIT |
 | [`zustand`](https://github.com/pmndrs/zustand) | MIT |
 
