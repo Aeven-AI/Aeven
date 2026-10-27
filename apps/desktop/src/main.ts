@@ -16,9 +16,9 @@ import {
   session,
   shell,
   type IpcMainInvokeEvent,
-  type MessageBoxOptions,
 } from 'electron'
 import { DESKTOP_MENU_ZOOM_STEP, FULL_SCREEN_ITEM_ID, applicationMenuTemplate, type DesktopMenuZoom } from './application-menu.ts'
+import { ABOUT_WINDOW_HEIGHT, ABOUT_WINDOW_WIDTH, aboutPageDocument } from './about-window.ts'
 import { adoptedHostSignIn, completeOAuthLanding, forwardAevenApiRequest } from './aeven-sign-in.ts'
 import { collectNow, startBrowserSignIn } from './oauth-browser.ts'
 import { AevenSession } from './aeven-session.ts'
@@ -487,37 +487,50 @@ async function main(): Promise<void> {
     }
   }
 
+  /** The open About window, kept so the menu item returns to it instead of opening another. */
+  let aboutWindow: BrowserWindow | undefined
+
   /**
-   * Show the running versions: the AppKit about panel on macOS, a native dialog
-   * on the platforms whose Help menu carries the item.
+   * Show the running versions in the shell's own about window: one column with
+   * one line per fact, the same on every platform.
    */
   const showAbout = (): void => {
-    const backend = installedBackendVersion()
-    const lines = [
-      formatDesktopMessage(messages.aboutAppLine, { version: app.getVersion() }),
-      formatDesktopMessage(messages.aboutElectronLine, { version: process.versions.electron }),
-      ...backend === undefined ? [] : [formatDesktopMessage(messages.aboutBackendLine, { version: backend })],
-    ]
-    if (process.platform === 'darwin') {
-      app.setAboutPanelOptions({
-        applicationName: app.name,
-        applicationVersion: app.getVersion(),
-        credits: lines.slice(1).join('\n'),
-      })
-      app.showAboutPanel()
+    if (aboutWindow !== undefined && !aboutWindow.isDestroyed()) {
+      aboutWindow.show()
+      aboutWindow.focus()
       return
     }
-    const options: MessageBoxOptions = {
-      type: 'info',
+    const backend = installedBackendVersion()
+    const window = new BrowserWindow({
+      width: ABOUT_WINDOW_WIDTH,
+      height: ABOUT_WINDOW_HEIGHT,
       title: messages.aboutMenu,
-      message: app.name,
-      detail: lines.join('\n'),
-      noLink: true,
-    }
-    const window = mainWindow
-    void (window === undefined || window.isDestroyed()
-      ? dialog.showMessageBox(options)
-      : dialog.showMessageBox(window, options))
+      show: false,
+      resizable: false,
+      minimizable: false,
+      maximizable: false,
+      fullscreenable: false,
+      // The page draws the strip macOS's traffic lights sit in; Windows and Linux
+      // keep their native frame, which carries the same title.
+      ...process.platform === 'darwin'
+        ? { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: 14, y: 13 } }
+        : {},
+      webPreferences: { sandbox: true, contextIsolation: true },
+    })
+    aboutWindow = window
+    window.on('closed', () => { aboutWindow = undefined })
+    window.once('ready-to-show', () => { window.show() })
+    const page = aboutPageDocument(process.platform, {
+      title: messages.aboutMenu,
+      name: app.name,
+      version: formatDesktopMessage(messages.aboutVersionLine, { version: app.getVersion() }),
+      backend: backend === undefined
+        ? undefined
+        : formatDesktopMessage(messages.aboutBackendLine, { version: backend }),
+      electron: formatDesktopMessage(messages.aboutElectronLine, { version: process.versions.electron }),
+      copyright: messages.aboutCopyrightLine,
+    })
+    void window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(page)}`)
   }
 
   // The edit menu carries the clipboard and selection accelerators: macOS binds

@@ -24,6 +24,14 @@ const LOGO_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 671 581" 
   + '<path d="M306.5 0h57.8v50h-57.8z"/>'
   + '</g></svg>'
 
+/**
+ * The mark as inline SVG, drawn in `currentColor` so each page owns its ink.
+ * @returns the mark's `svg` element, for a page that draws it outside the loading face.
+ */
+export function brandMarkSvg(): string {
+  return LOGO_SVG
+}
+
 /** The spinner glyph drawn under the mark. */
 const SPINNER_SVG = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'
   + '<path d="M16 16L19 19M18 12H22M8 8L5 5M16 8L19 5M8 16L5 19M2 12H6M12 2V6M12 18V22"'
