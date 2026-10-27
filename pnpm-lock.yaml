@@ -7375,6 +7375,9 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
+      yjs:
+        specifier: 13.6.27
+        version: 13.6.27
       zod:
         specifier: ^4.4.3
         version: 4.6.5
@@ -7406,6 +7409,9 @@ importers:
       '@aeven/storage-json':
         specifier: workspace:^
         version: link:../../storage/storage-json
+      '@aeven/sync':
+        specifier: workspace:^
+        version: link:../../sync/sync
       '@aeven/typert-protocol':
         specifier: workspace:^
         version: link:../../typert/protocol

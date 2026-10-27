@@ -40,6 +40,9 @@
     },
     {
       "path": "../../identity/user"
+    },
+    {
+      "path": "../../sync/sync"
     }
   ]
 }

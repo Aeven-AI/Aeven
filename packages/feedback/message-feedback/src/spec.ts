@@ -41,7 +41,6 @@ export const messageFeedbackItemSchema = z.object({
 /** Persisted Session fields that fence a sidecar row to one log lifecycle. */
 export const messageFeedbackSessionIdentitySchema = z.object({
   createdAt: nonNegativeSafeInteger,
-  cwd: z.string().optional(),
 })
 
 /** Persisted lifecycle identity inferred from its durable schema. */

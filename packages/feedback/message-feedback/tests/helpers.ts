@@ -97,7 +97,7 @@ export function appendMessageFixture(session: Session): Omit<MessageFixture, 'se
 /** Construct one cold persistence fixture without publishing a live Session. */
 export function messageFixture(
   rawId: string,
-  options: { readonly createdAt?: number; readonly cwd?: string } = {},
+  options: { readonly createdAt?: number; readonly cwd?: string; readonly owner?: string } = {},
 ): MessageFixture {
   const id = SessionId(rawId)
   const header: SessionHeader = {
@@ -106,6 +106,7 @@ export function messageFixture(
     createdAt: options.createdAt ?? 1_700_000_000_000,
     isSeeded: false,
     ...(options.cwd === undefined ? {} : { cwd: options.cwd }),
+    ...(options.owner === undefined ? {} : { owner: options.owner }),
   }
   const session = Session.create(id, [], header)
   return { session, ...appendMessageFixture(session) }

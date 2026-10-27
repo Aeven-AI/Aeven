@@ -51,11 +51,13 @@
     "@aeven/session-persistence": "workspace:^",
     "@aeven/storage-domain": "workspace:^",
     "@aeven/typert-protocol": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/sync": "workspace:^"
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "workspace:^",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "yjs": "13.6.27"
   },
   "devDependencies": {
     "@aeven/brand": "workspace:^",
@@ -70,6 +72,12 @@
     "@aeven/typert-protocol": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/cordis-plugin-include": "workspace:^",
-    "@deepseek-ai/cordis-plugin-loader": "workspace:^"
+    "@deepseek-ai/cordis-plugin-loader": "workspace:^",
+    "@aeven/sync": "workspace:^"
+  },
+  "peerDependenciesMeta": {
+    "@aeven/sync": {
+      "optional": true
+    }
   }
 }

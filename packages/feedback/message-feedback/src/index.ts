@@ -15,6 +15,7 @@ import type { SessionInspection } from '@aeven/session-persistence'
 import type { KvTable } from '@aeven/storage-domain'
 import { TypertRemoteService, Remote } from '@aeven/typert-protocol'
 import { messageFeedbackDomainSpec } from './spec.ts'
+import { FeedbackSync, type SyncedFeedback } from './sync.ts'
 import type { MessageFeedbackRow, MessageFeedbackSessionIdentity } from './spec.ts'
 import type {
   MessageFeedbackDeleteRequest,
@@ -119,20 +120,19 @@ function rejected<E extends MessageFeedbackFailure>(error: E): MessageFeedbackRe
 
 /** Project the Session fields that distinguish one persisted log lifecycle. */
 function identityOf(header: SessionHeader): MessageFeedbackSessionIdentity {
-  return Object.freeze({
-    createdAt: header.createdAt,
-    ...(header.cwd === undefined ? {} : { cwd: header.cwd }),
-  })
+  return Object.freeze({ createdAt: header.createdAt })
 }
 
+// The working directory is not part of a Session's identity: each device of a synced account files the same
+// Session under its own folder.
 /** Whether a stored row belongs to the inspected Session lifecycle. */
 function sameIdentity(row: MessageFeedbackRow, header: SessionHeader): boolean {
-  return row.session.createdAt === header.createdAt && row.session.cwd === header.cwd
+  return row.session.createdAt === header.createdAt
 }
 
 /** Whether two observations name the same persisted Session lifecycle. */
 function sameHeaderIdentity(left: SessionHeader, right: SessionHeader): boolean {
-  return left.id === right.id && left.createdAt === right.createdAt && left.cwd === right.cwd
+  return left.id === right.id && left.createdAt === right.createdAt
 }
 
 /** Freeze the replacement row so storage-domain never exposes mutable aliases. */
@@ -179,6 +179,7 @@ export class MessageFeedbackService extends TypertRemoteService {
   private table?: KvTable<SessionId, MessageFeedbackRow>
   private readonly operationTails = new Map<SessionId, Promise<void>>()
   private mutationAdmissionOpen = true
+  private readonly synced: FeedbackSync
 
   /**
    * @param ctx - Host context carrying persistence and the storage-domain form.
@@ -187,6 +188,11 @@ export class MessageFeedbackService extends TypertRemoteService {
   constructor(ctx: Context, config: Config) {
     super(ctx, 'messageFeedback')
     this.maxNoteBytes = resolveMaxNoteBytes(config.maxNoteBytes)
+    this.synced = new FeedbackSync(
+      ctx,
+      (sessionId, messageId, entry) => { void this.applySynced(sessionId, messageId, entry) },
+      (message) => { ctx.logger('message-feedback').warn(message) },
+    )
   }
 
   /** Open and own the one message-feedback sidecar domain. */
@@ -198,6 +204,37 @@ export class MessageFeedbackService extends TypertRemoteService {
       await domain.close()
     }, 'message-feedback.domainClose')
     this.table = domain.table('sessions')
+    // Each account's feedback follows it to every device its sync vault holds, once that vault is served here.
+    this.ctx.on('sync/status', (owner) => { void this.synced.attach(owner) })
+    this.ctx.effect(() => () => this.synced.dispose(), 'message-feedback.sync')
+  }
+
+  /**
+   * Apply another device's feedback change when it is newer than what this device holds.
+   * @param sessionId - the Session.
+   * @param messageId - the rated message.
+   * @param entry - the synced item or its removal.
+   * @returns when the change is stored or found older.
+   */
+  private applySynced(sessionId: SessionId, messageId: string, entry: SyncedFeedback): Promise<void> {
+    return this.enqueue(sessionId, async () => {
+      const table = this.requireTable()
+      const stored = table.get(sessionId)
+      const current = stored?.session.createdAt === entry.sessionCreatedAt ? stored : undefined
+      const items = current?.items ?? EMPTY_ITEMS
+      const existing = items.find(item => item.messageId === messageId)
+      if (entry.item === undefined) {
+        if (existing === undefined || existing.updatedAt > entry.changedAt) return
+      } else if (existing !== undefined && existing.updatedAt >= entry.changedAt) {
+        return
+      }
+      const rest = items.filter(item => item.messageId !== messageId)
+      const nextItems = entry.item === undefined ? rest : [...rest, entry.item]
+      await table.put(sessionId, rowSnapshot({ createdAt: entry.sessionCreatedAt }, nextItems))
+      this.announce({ sessionId, messageId: messageId as MessageFeedbackItem['messageId'], ...entry.item === undefined ? {} : { item: snapshotItem(entry.item) } })
+    }).catch((error: unknown) => {
+      this.ctx.logger('message-feedback').warn(`applying synced feedback failed: ${String(error)}`)
+    })
   }
 
   /**
@@ -279,6 +316,11 @@ export class MessageFeedbackService extends TypertRemoteService {
         rowSnapshot(identityOf(durable.meta), nextItems),
       )
       this.announce({ sessionId: request.sessionId, messageId: request.messageId, item: snapshotItem(item) })
+      this.publish(durable.meta, request.messageId, {
+        sessionCreatedAt: durable.meta.createdAt,
+        item: snapshotItem(item),
+        changedAt: item.updatedAt,
+      })
       return success(snapshotItem(item))
     })
   }
@@ -312,8 +354,17 @@ export class MessageFeedbackService extends TypertRemoteService {
         rowSnapshot(identityOf(known.value.meta), items.filter(item => item !== existing)),
       )
       this.announce({ sessionId: request.sessionId, messageId: request.messageId })
+      this.publish(known.value.meta, request.messageId, {
+        sessionCreatedAt: known.value.meta.createdAt,
+        changedAt: Math.max(Date.now(), existing.updatedAt + 1),
+      })
       return success<MessageFeedbackDeleteValue>(Object.freeze({ absent: true }))
     })
+  }
+
+  /** Publish a committed change to the account the Session belongs to. */
+  private publish(header: SessionHeader, messageId: string, entry: SyncedFeedback): void {
+    if (header.owner !== undefined) void this.synced.publish(header.owner, header.id, messageId, entry)
   }
 
   /** Notify observers of one committed change; an observer failure never fails the write. */
