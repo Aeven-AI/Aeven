@@ -112,12 +112,16 @@ Two paths outside sync still carry plaintext through Aeven infrastructure and ne
 - **Inference.** Model requests from a local Host go through the Aeven gateway, so each turn's prompt, including recalled memory, passes through it in plaintext, as does the background memory work that calls a model. The gateway must not store request or response bodies, and that is stated publicly beside the sync promise.
 - **An Aeven-hosted Host.** A hosted Web surface ([hosted Web surface note](2026-09-30-hosted-web-surface-and-sync.md)) run by Aeven would need the vault key, which breaks the promise. Browser access to a vault goes through one of the user's own devices.
 
-### Sessions: replication, writer lease, and paths
+### Sessions: one runner, input from anywhere, and paths
 
-- **Writer lease.** A device appends to a session only while it holds that session's lease. The server grants leases; when the server is unreachable, the device currently holding a lease can hand it over directly to a LAN peer. A device that cannot reach either continues the conversation as a fork (a new session with a parent reference) rather than appending. Within one home, the existing per-session file lock keeps two Host processes from appending to one session; the lease extends that rule across devices.
-- **Import.** A received batch is written through the persistence provider with its original `seq`, envelope fields, and event ids; projections and caches rebuild from the log as they do on resume. Imported events never enter a live agent loop, and no tool runs because an event arrived. The log is the model-visible record, so reconstructability is unchanged.
-- **Live view.** A device that does not hold the lease renders the session as its events arrive and shows which device is running it. "Continue here" asks for the lease; the holder releases it when its turn is idle, and otherwise the requester forks.
-- **Workspaces and paths.** The synchronized workspace record keeps its UUID, title, and session ids; `path` becomes a per-device binding stored locally. On a device without a binding, the workspace and its sessions are readable and the user binds a folder, or Aeven proposes the folder whose git remote matches. Imported logs are filed under the local binding's `projectKey`, or under a per-workspace remote folder before binding. Continuing a session whose recorded working directory belongs to another machine forks it with the local directory, because its tool history refers to the other machine's paths.
+A session stays a single-writer log — contiguous `seq`, replayed exactly on every device — and the product never asks the user which device writes it. One device is the session's **runner** at a time; every device lists the session, renders the same events, and accepts typing.
+
+- **Live view.** The runner publishes batches as events commit rather than on a periodic scan: a debounce of about 100 ms while a turn is open. A receiver imports each batch through the persistence provider with its original `seq`, and a client attached to any device already receives imported appends as frames ([`follow`](../../../../packages/api/session-controller/src/history.ts)), so a reply streams on every device. Importing never runs a tool because an event arrived, and imported events never enter a live agent loop.
+- **Input from any device.** A prompt submitted where this device does not hold the lease is published to the session's inbox stream; the runner appends it as an ordinary user message and runs the turn. The composer is enabled everywhere, and the only visible trace of the runner is a status line naming the device running the current turn. A message typed during a turn reaches the runner's queue in the order the inbox received it.
+- **Runner lease and invisible handover.** The server grants the session lease, and a device that holds it offline hands it directly to a LAN peer. A device claims an idle session when the lease is free or expired, and claiming promotes the local copy to a writable log: the replica flag moves into a sidecar so the imported log header stays byte-identical, and the claim waits until the import cursor reaches `next`, so no turn starts on a gap. The claiming device then writes the following events. Forking is not the product's answer to "I am on my other computer": it survives only for a session whose log this device cannot read at all.
+- **Approvals, stop, and steering.** A turn that asks for approval records `approval/asked` in the log; the request and its decision also travel the inbox, so the device the user is holding can answer, and stop and mid-turn guidance arrive the same way. The runner stays the only writer of those events, and only the owner's account may answer.
+- **Unreachable runner.** When no device holding a readable log is reachable, input waits in the inbox rather than forking the conversation. A promoted device runs the turn in its own binding for that workspace, because the recorded `cwd` names the other machine's folder: a path-bound tool whose target is absent reports that in the transcript instead of failing the turn. A workspace with no binding here asks for one first, which is the same "Not on this device" state the registry already has.
+- **Workspaces and paths.** The synchronized workspace record keeps its UUID, title, and session ids; `path` becomes a per-device binding stored locally. On a device without a binding, the workspace and its sessions are readable and the user binds a folder.
 - **Lazy bodies.** A new device downloads session metadata first and session bodies when opened or in a throttled background pass, so the session list is available long before 686 MB has arrived.
 
 ### Memory: capture, materialization, and maintenance
@@ -185,11 +189,11 @@ Estimates are engineer-weeks for one developer who knows this codebase, includin
 | 2. Sync core and relay | `ctx.sync`, Yjs manager, `sync.db`, outbox, server WebSocket rooms, encrypted store, snapshots, catch-up, status | 3–4 |
 | 3. Account documents | Settings scope declaration, personalization, account settings, workspace registry with bindings, automations, feedback, capabilities | 2–2.5 |
 | 4. Memory | Triggers, shards, materialization, local vectors, forget, maintenance lease, backfill | 3–4 |
-| 5. Sessions | Streams, import, live view, session lease, continue or fork, path rebinding, lazy bodies, backfill | 3–4 |
+| 5. Sessions | Streams, import, live view at turn speed, runner lease, input and approvals from any device, promotion without forks, path rebinding, lazy bodies, backfill | 4–5 |
 | 6. Attachments | Encrypted blobs, on-demand fetch | 1 |
 | 7. Local-network peers | mDNS, peer transport, peer authentication, lease handover | 1.5–2 |
 | 8. Hardening and release | Convergence, crash, offline, and revocation verification on macOS, Windows, and Linux; resource budgets; documentation; fixes from security review | 3 |
-| **Total** | | **19.5–24.5** |
+| **Total** | | **20.5–25.5** |
 
 An external review of the vault and envelope design and code is recommended before release; it runs in parallel with phases 5–8. Phases 1–4 alone deliver memory, learned capabilities, personalization, and settings that are identical across devices, which is 11–14.5 engineer-weeks.
 
@@ -213,7 +217,7 @@ The [account sync packages](../../../../packages/sync/README.md) and the `server
 - **Joining** is answered only by a device whose add-device screen is open, and opening that screen asks a waiting device to repeat its request, so a background or headless device never takes a join meant for the user's open screen.
 - **Memory vectors travel** with the rows, tagged with the embedding model, instead of being recomputed: MemOS's vector source texts are internal to it. A device on another model keeps its own vectors.
 - **Memory rows** replicate per row, last writer wins, with tombstones that win over concurrent edits; shards key on the first one or two characters of the random id part.
-- **Conversations** are published by the device that created each session; the writer lease, "Continue here", and live viewing of another device's running turn are not built.
+- **Conversations** are published by the device that created each session, and a device that imported a session renders its new events as they arrive. The runner lease, input and approvals from another device, invisible handover, and promotion of an imported log are not built, so a session on another device is read-only there today.
 - **Devices** are named by host name, listed in Settings → Sync, and removed with a key rotation; a removed device joins again with new keys.
 - Not built: passkey recovery, the maintenance lease, the local-network transport, attachments, the settings scope declaration, and the production `/sync` route on aeven.io.
 
@@ -243,12 +247,14 @@ The [account sync packages](../../../../packages/sync/README.md) and the `server
 
 **Session logs as CRDT documents** (`Y.Array` per session). A session has one writer, so merging is never needed, and holding gigabytes of events in CRDT documents costs memory and storage for no gain.
 
+**Read-only replicas with forks.** Letting every device read another device's session but write only by creating a linked copy asks the user to manage which machine holds their conversation, and a copy splits the reply history from its continuation. The log stays single-writer; what moves is the input and the lease.
+
 **Building on the hosted Web surface's sync stage.** That note's Stage 4 proposes moving settings, capabilities, and memory first and importing sessions before any replication service, and rejects log replication because one writer per session was not enforced across Hosts. The per-session file lock covers Hosts on one home, this note's session lease covers devices, and this note owns account synchronization.
 
 ## Acceptance criteria
 
 - With two devices online through the server, a memory captured on one is recalled on the other within 2 seconds at the 95th percentile; on one local network, within 1 second.
-- A session running on device A appears on device B with its reply streaming; B cannot append without the lease; "Continue here" hands the lease over when A is idle and forks otherwise.
+- A session running on device A appears on device B with its reply streaming; a prompt typed on B reaches A's turn, an approval asked by that turn can be answered on B, and a prompt typed on either device while neither holds a turn runs on whichever device holds the lease.
 - A new device that signs in with the passkey restores memory, capabilities, personalization, settings, and the session list with no other device online.
 - A new device without the passkey joins only after the user confirms matching codes on an enrolled device.
 - A search of the server's database and object storage for a known memory sentence, session title, and file name finds nothing; no document or stream id on the server matches its logical name.
