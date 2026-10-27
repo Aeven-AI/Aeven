@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-10-27-drop-unsigned-mac-release-targets.md
+2026-10-27-drop-unsigned-mac-release-targets.md: 8bb7377e62d546cc221aefa26c8da66d79523e40
+2026-10-27-drop-unsigned-mac-release-targets.zh.md: 770150a8c5d063589aedb6cc93757724f917aa3d

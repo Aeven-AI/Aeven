@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-10-15-desktop-restores-intel-mac-target.md
-2026-10-15-desktop-restores-intel-mac-target.md: 5675afa835ba2c83edc390e9ff00fa4d64dd4023
-2026-10-15-desktop-restores-intel-mac-target.zh.md: 571e877b0114c23371f41054755f115b2396cde4
+2026-10-15-desktop-restores-intel-mac-target.md: 7e01dfc8d9d4bbd051ed015fa5447430abf45e64
+2026-10-15-desktop-restores-intel-mac-target.zh.md: e86d18d01f367b750e7a91ed1b9330144e4ff99e
