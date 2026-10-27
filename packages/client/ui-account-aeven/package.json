@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-account-aeven",
   "description": "The signed-in Aeven reader's avatar and account menu in the Web Session header",
-  "version": "0.3.19-alpha",
+  "version": "0.3.20-alpha",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",

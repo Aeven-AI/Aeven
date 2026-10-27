@@ -1,7 +1,7 @@
 {
   "name": "@aeven/session-turn-outline",
   "description": "Whole-log turn outline projection (turnOutline) for the Aeven",
-  "version": "0.3.19-alpha",
+  "version": "0.3.20-alpha",
   "publishConfig": {
     "access": "public"
   },

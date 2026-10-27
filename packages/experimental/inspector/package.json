@@ -1,7 +1,7 @@
 {
   "name": "@aeven/experimental-inspector",
   "description": "Experimental cross-realm CDP hub for Host debugging and Client Runtime inspection",
-  "version": "0.3.19-alpha",
+  "version": "0.3.20-alpha",
   "private": true,
   "repository": {
     "type": "git",
