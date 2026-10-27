@@ -14,6 +14,30 @@ export interface SyncView {
   readonly joinCode?: string
   /** Whether this device is currently answering join requests. */
   readonly acceptingJoins: boolean
+  /** Whether the account can be restored with a recovery passkey; false while unenrolled. */
+  readonly recovery: boolean
+  /** The recovery passkey step in progress or failed on this Host, if any. */
+  readonly passkey?: SyncPasskeyView
+}
+
+/** What a recovery passkey step does. */
+export type SyncPasskeyMode =
+  /** Make a new passkey the account's recovery passkey. */
+  | 'setup'
+  /** Add this device to the account with its recovery passkey. */
+  | 'unlock'
+
+/** A recovery passkey step on this Host. */
+export interface SyncPasskeyView {
+  readonly mode: SyncPasskeyMode
+  /** `waiting` until the passkey page returns a result; `failed` after it could not be used or the step timed out. */
+  readonly state: 'waiting' | 'failed'
+}
+
+/** Where the user continues a recovery passkey step. */
+export interface SyncPasskeyStart {
+  /** The passkey page, to open in the system browser. */
+  readonly url: string
 }
 
 /** One of the caller's devices. */

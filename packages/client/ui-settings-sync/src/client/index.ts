@@ -58,6 +58,8 @@ export function apply(ctx: ClientContext): void {
     removeDevice: id => value(remote.removeDevice(id)),
     approveJoin: id => value(remote.approveJoin(id)),
     rejectJoin: id => value(remote.rejectJoin(id)),
+    startPasskey: mode => value(remote.startPasskey(mode)),
+    cancelPasskey: () => value(remote.cancelPasskey()),
     onChange: (listener) => {
       const stops = [
         ctx.remote.$on('sync/status', () => { listener() }),

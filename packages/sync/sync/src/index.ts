@@ -34,6 +34,8 @@ export interface SyncStatus {
   pending: number
   /** While joining, the six-digit code once an enrolled device answered. */
   joinCode?: string
+  /** Whether the account can be restored with a recovery passkey; false while unenrolled. */
+  recovery: boolean
 }
 
 /** An open document. Changes made through {@link doc} replicate until {@link close}. */
@@ -148,6 +150,24 @@ export abstract class Sync extends Service {
    * @param owner - the account.
    */
   abstract createVault(owner: string): Promise<void>
+
+  /**
+   * Make the passkey behind a PRF result the account's recovery passkey: record its public keys in the device
+   * chain and wrap the keyring to it, replacing an earlier recovery passkey. Every later key rotation wraps the
+   * new keyring to it too. Requires an enrolled, connected device.
+   * @param owner - the account.
+   * @param secret - the passkey's PRF output for `RECOVERY_PRF_SALT` of `@aeven/sync-vault`.
+   */
+  abstract setRecovery(owner: string, secret: Uint8Array): Promise<void>
+
+  /**
+   * Enroll this device with the account's recovery passkey instead of another device's approval, such as when
+   * no other device is left. Requires a signed-in session for the account and a vault this device is not
+   * enrolled in; fails when the account has no recovery passkey or `secret` came from another passkey.
+   * @param owner - the account.
+   * @param secret - the passkey's PRF output for `RECOVERY_PRF_SALT` of `@aeven/sync-vault`.
+   */
+  abstract recover(owner: string, secret: Uint8Array): Promise<void>
 
   /**
    * List the account's active devices.

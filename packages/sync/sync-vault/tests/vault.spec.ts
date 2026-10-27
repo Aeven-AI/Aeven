@@ -7,9 +7,9 @@ import { describe, expect, it } from 'vitest'
 import { brandNumber, brandString } from '@aeven/brand'
 import {
   applyChainEntry, approvalCode, chainDeviceOf, commitToKeys, contentKeyOf, createChainEntry, createGenesis,
-  decodeKeyring, deviceIdOf, encodeKeyring, fromBase64Url, generateDeviceKeys, generateVaultKey, opaqueIdOf,
-  openEnvelope, readEnvelopeHeader, recoveryKeysOf, sealEnvelope, signBytes, SyncVaultError, toBase64Url,
-  unwrapForDevice, unwrapWithKey, verifyBytes, verifyChain, verifyCommitment, wrapForDevice, wrapWithKey,
+  decodeKeyring, deviceIdOf, encodeKeyring, fromBase64Url, generateAgreementKeys, generateDeviceKeys, generateVaultKey,
+  opaqueIdOf, openEnvelope, readEnvelopeHeader, RECOVERY_PRF_SALT, recoveryKeysOf, recoveryRecordOf, sealEnvelope,
+  signBytes, signingKeyAt, SyncVaultError, toBase64Url, unwrapForDevice, verifyBytes, verifyChain, verifyCommitment, wrapForDevice,
   type ChainEntry, type DeviceId, type DeviceKeys, type KeyEpoch, type OpaqueId,
 } from '../src/index.ts'
 
@@ -121,18 +121,25 @@ describe('keys', () => {
     const other = generateDeviceKeys()
     expect(() => unwrapForDevice(wrapped, other.secretKeys.agreement, other.publicKeys.agreement)).toThrow(SyncVaultError)
     expect(() => unwrapForDevice(new Uint8Array(5), recipient.secretKeys.agreement, recipient.publicKeys.agreement)).toThrow(/unsupported/)
+    const truncated = wrapped.subarray(0, 40)
+    expect(() => unwrapForDevice(truncated, recipient.secretKeys.agreement, recipient.publicKeys.agreement)).toThrow(/truncated/)
   })
 
-  it('unlocks the same keyring from the same passkey PRF result', () => {
+  it('unlocks a keyring wrapped to the recovery key only with the same passkey PRF result', () => {
     const prf = generateVaultKey()
     const keyring = new Map([[epoch0, generateVaultKey()]])
-    const wrapped = wrapWithKey(encodeKeyring(keyring), recoveryKeysOf(prf).wrappingKey)
+    const wrapped = wrapForDevice(encodeKeyring(keyring), recoveryKeysOf(prf).publicKeys.agreement)
     const again = recoveryKeysOf(prf)
-    expect(decodeKeyring(unwrapWithKey(wrapped, again.wrappingKey))).toEqual(keyring)
-    expect(verifyBytes(again.signingPublicKey, bytes('m'), signBytes(again.signingSeed, bytes('m')))).toBe(true)
-    expect(() => unwrapWithKey(wrapped, recoveryKeysOf(generateVaultKey()).wrappingKey)).toThrow(/failed authentication/)
-    expect(() => unwrapWithKey(new Uint8Array(0), again.wrappingKey)).toThrow(/unsupported/)
-    expect(() => unwrapWithKey(Uint8Array.of(1, 2), again.wrappingKey)).toThrow(/truncated/)
+    expect(decodeKeyring(unwrapForDevice(wrapped, again.secretKeys.agreement, again.publicKeys.agreement))).toEqual(keyring)
+    expect(verifyBytes(again.publicKeys.signing, bytes('m'), signBytes(again.secretKeys.signing, bytes('m')))).toBe(true)
+    const other = recoveryKeysOf(generateVaultKey())
+    expect(() => unwrapForDevice(wrapped, other.secretKeys.agreement, other.publicKeys.agreement)).toThrow(/failed authentication/)
+    expect(RECOVERY_PRF_SALT).toHaveLength(32)
+  })
+
+  it('opens a value wrapped to a one-use agreement key', () => {
+    const pair = generateAgreementKeys()
+    expect(unwrapForDevice(wrapForDevice(bytes('prf'), pair.publicKey), pair.secretKey, pair.publicKey)).toEqual(bytes('prf'))
   })
 
   it('rejects malformed keyrings and base64 of the wrong length', () => {
@@ -151,7 +158,7 @@ describe('device chain', () => {
   const recovery = recoveryKeysOf(generateVaultKey())
   const genesis = createGenesis(first)
   const base = verifyChain([genesis])
-  const withRecovery = applyChainEntry(base, createChainEntry(base, { type: 'set-recovery', recovery: toBase64Url(recovery.signingPublicKey) }, { kind: 'device', device: first }))
+  const withRecovery = applyChainEntry(base, createChainEntry(base, { type: 'set-recovery', recovery: recoveryRecordOf(recovery.publicKeys) }, { kind: 'device', device: first }))
 
   it('admits the genesis device', () => {
     expect([...base.devices.keys()]).toEqual([first.id])
@@ -162,25 +169,30 @@ describe('device chain', () => {
   it('adds a device signed by an active device or by the recovery key', () => {
     const byDevice = applyChainEntry(base, createChainEntry(base, { type: 'add-device', device: chainDeviceOf(second.publicKeys) }, { kind: 'device', device: first }))
     expect(byDevice.devices.has(second.id)).toBe(true)
-    const byRecovery = applyChainEntry(withRecovery, createChainEntry(withRecovery, { type: 'add-device', device: chainDeviceOf(second.publicKeys) }, { kind: 'recovery', signingSeed: recovery.signingSeed }))
+    const byRecovery = applyChainEntry(withRecovery, createChainEntry(withRecovery, { type: 'add-device', device: chainDeviceOf(second.publicKeys) }, { kind: 'recovery', recovery }))
     expect(byRecovery.devices.has(second.id)).toBe(true)
   })
 
   it('removes a device by advancing the epoch, and never re-admits it', () => {
     const added = applyChainEntry(base, createChainEntry(base, { type: 'add-device', device: chainDeviceOf(second.publicKeys) }, { kind: 'device', device: first }))
-    const removed = applyChainEntry(added, createChainEntry(added, { type: 'remove-device', device: second.id, epoch: epoch1 }, { kind: 'device', device: first }))
+    const removed = applyChainEntry(added, createChainEntry(added, { type: 'remove-device', device: second.id, epoch: epoch1, until: 5 }, { kind: 'device', device: first }))
     expect(removed.devices.has(second.id)).toBe(false)
     expect(removed.epoch).toBe(1)
     expect(() => applyChainEntry(removed, createChainEntry(removed, { type: 'add-device', device: chainDeviceOf(second.publicKeys) }, { kind: 'device', device: first }))).toThrow(/already enrolled/)
-    expect(() => applyChainEntry(removed, createChainEntry(removed, { type: 'remove-device', device: second.id, epoch: brandNumber<KeyEpoch>(2) }, { kind: 'device', device: first }))).toThrow(/not active/)
-    expect(() => applyChainEntry(added, createChainEntry(added, { type: 'remove-device', device: second.id, epoch: brandNumber<KeyEpoch>(3) }, { kind: 'device', device: first }))).toThrow(/advance the epoch/)
+    expect(() => applyChainEntry(removed, createChainEntry(removed, { type: 'remove-device', device: second.id, epoch: brandNumber<KeyEpoch>(2), until: 5 }, { kind: 'device', device: first }))).toThrow(/not active/)
+    expect(() => applyChainEntry(added, createChainEntry(added, { type: 'remove-device', device: second.id, epoch: brandNumber<KeyEpoch>(3), until: 5 }, { kind: 'device', device: first }))).toThrow(/advance the epoch/)
+    expect(() => applyChainEntry(added, createChainEntry(added, { type: 'remove-device', device: second.id, epoch: epoch1, until: -1 }, { kind: 'device', device: first }))).toThrow(/relay sequence/)
+    expect(signingKeyAt(removed, second.id, 5)).toEqual(second.publicKeys.signing)
+    expect(signingKeyAt(removed, second.id, 6)).toBeUndefined()
+    expect(signingKeyAt(removed, first.id, 6)).toEqual(first.publicKeys.signing)
+    expect(signingKeyAt(removed, generateDeviceKeys().id, 1)).toBeUndefined()
   })
 
   it('refuses entries from keys the chain does not authorize', () => {
     const outsider = generateDeviceKeys()
     expect(() => applyChainEntry(base, createChainEntry(base, { type: 'add-device', device: chainDeviceOf(outsider.publicKeys) }, { kind: 'device', device: outsider }))).toThrow(/not authorized/)
-    expect(() => applyChainEntry(base, createChainEntry(base, { type: 'add-device', device: chainDeviceOf(outsider.publicKeys) }, { kind: 'recovery', signingSeed: recovery.signingSeed }))).toThrow(/not authorized/)
-    expect(() => applyChainEntry(withRecovery, createChainEntry(withRecovery, { type: 'set-recovery', recovery: toBase64Url(outsider.publicKeys.signing) }, { kind: 'recovery', signingSeed: recovery.signingSeed }))).toThrow(/cannot replace itself/)
+    expect(() => applyChainEntry(base, createChainEntry(base, { type: 'add-device', device: chainDeviceOf(outsider.publicKeys) }, { kind: 'recovery', recovery }))).toThrow(/not authorized/)
+    expect(() => applyChainEntry(withRecovery, createChainEntry(withRecovery, { type: 'set-recovery', recovery: recoveryRecordOf(outsider.publicKeys) }, { kind: 'recovery', recovery }))).toThrow(/only adds devices/)
   })
 
   it('refuses a tampered, reordered, or misplaced entry', () => {

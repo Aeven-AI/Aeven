@@ -237,6 +237,9 @@
     # Settings → Sync: turn sync on, add this device, approve new devices.
     - id: api-sync-controller
       name: '@aeven/api-sync-controller'
+      config:
+        # The site that serves the recovery passkey page; locally the servers/node web server.
+        siteUrl: !!js process.env.AEVEN_WEB_URL ?? 'http://localhost:9020'
 
     # Conversation history on every device of the account: each session is
     # published by the device that created it and imported elsewhere.

@@ -69,7 +69,7 @@ const owner = (): string => `owner${String(++accounts)}`
 describe('the Yjs sync provider', () => {
   it('reports an account it has never seen as unenrolled and refuses document work for it', async () => {
     const { sync } = await host()
-    expect(sync.status('nobody')).toEqual({ state: 'unenrolled', devices: 0, pending: 0 })
+    expect(sync.status('nobody')).toEqual({ state: 'unenrolled', devices: 0, pending: 0, recovery: false })
     await expect(sync.openDocument('nobody', 'x')).rejects.toThrow(/not enrolled/)
     expect(() => sync.documentId('nobody', 'x')).toThrow(/not enrolled/)
     await expect(sync.appendStream('nobody', 'x', Uint8Array.of(1))).rejects.toThrow(/not enrolled/)
@@ -189,6 +189,52 @@ describe('the Yjs sync provider', () => {
     kept.doc.getMap('prefs').set('after-removal', true)
     await vi.waitFor(() => { expect(first.sync.status(account).pending).toBe(0) })
     kept.close()
+  })
+
+  it('restores the account on a new device with the recovery passkey, also after a key rotation', async () => {
+    const account = owner()
+    const prf = new Uint8Array(32).fill(7)
+    const first = await host()
+    await expect(first.sync.setRecovery(account, prf)).rejects.toThrow(/needs a connection/)
+    await first.sync.createVault(account)
+    await vi.waitFor(() => { expect(first.sync.status(account).state).toBe('online') })
+    expect(first.sync.status(account).recovery).toBe(false)
+    const doc = await first.sync.openDocument(account, 'notes')
+    doc.doc.getMap('m').set('k', 'before')
+    await vi.waitFor(() => { expect(first.sync.status(account).pending).toBe(0) })
+
+    const second = await host()
+    await expect(second.sync.recover(account, prf)).rejects.toThrow(/no recovery passkey/)
+    await first.sync.setRecovery(account, prf)
+    expect(first.sync.status(account).recovery).toBe(true)
+    await expect(second.sync.recover(account, new Uint8Array(32).fill(8))).rejects.toThrow(/not the account's recovery passkey/)
+    await second.sync.recover(account, prf)
+    await vi.waitFor(() => { expect(second.sync.status(account)).toMatchObject({ state: 'online', devices: 2, recovery: true }) })
+    const copy = await second.sync.openDocument(account, 'notes')
+    expect(copy.doc.getMap('m').get('k')).toBe('before')
+
+    const lost = first.sync.status(account).device!
+    await second.sync.removeDevice(account, lost)
+    await vi.waitFor(() => { expect(first.sync.status(account).state).toBe('unenrolled') })
+    copy.doc.getMap('m').set('k', 'after')
+    await vi.waitFor(() => { expect(second.sync.status(account).pending).toBe(0) })
+    doc.close()
+    copy.close()
+
+    const third = await host()
+    await third.sync.recover(account, prf)
+    await vi.waitFor(() => { expect(third.sync.status(account).state).toBe('online') })
+    const latest = await third.sync.openDocument(account, 'notes')
+    await vi.waitFor(() => { expect(latest.doc.getMap('m').get('k')).toBe('after') })
+    latest.close()
+
+    const fourth = await host()
+    const join = await fourth.sync.join(account)
+    await expect(fourth.sync.recover(account, prf)).rejects.toThrow(/already asking/)
+    join.cancel()
+    await expect(join.admitted).rejects.toThrow(/ended/)
+    relay.account(account).keys.delete('recovery')
+    await vi.waitFor(async () => { await expect(fourth.sync.recover(account, prf)).rejects.toThrow(/no keyring for the recovery passkey/) })
   })
 
   it('needs a connection to remove a device', async () => {

@@ -111,7 +111,7 @@ export class MemorySyncDevice {
   asSync(): Sync {
     const surface = {
       status: (): SyncStatus => {
-        const status: SyncStatus = { state: this.state, devices: this.network.devices.length, pending: this.outbox.length }
+        const status: SyncStatus = { state: this.state, devices: this.network.devices.length, pending: this.outbox.length, recovery: false }
         return this.state === 'unenrolled' ? status : { ...status, device: this.id as DeviceId }
       },
       documentId: (_owner: string, name: string): string => `id:${name}`,

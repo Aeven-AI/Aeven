@@ -5,12 +5,12 @@ import {
   LoadingBlock, Modal, SectionHeader, Spinner,
 } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
-import { MfaForm } from '@aeven/client-ui-primitives'
+import { externalWindow, MfaForm } from '@aeven/client-ui-primitives'
 import type { AevenReader } from '@aeven/client-ui-auth-aeven'
 import { Avatar } from './Avatar.tsx'
 import type { AccountReader } from './AccountMenu.tsx'
 import {
-  externalWindow, MICROS_PER_USD,
+  MICROS_PER_USD,
   type BillingPortal, type CloudPayment, type CloudPayments, type CloudPlan, type CloudPlans,
   type CloudSubscription, type CloudUsage, type CloudWallet, type SubscriptionCheckout, type TopUpCheckout,
   type TopUpOptions,

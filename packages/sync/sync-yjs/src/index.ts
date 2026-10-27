@@ -13,7 +13,7 @@ import Schema from '@deepseek-ai/schemastery'
 import { credentialRef, type CredentialRef } from '@aeven/credentials'
 import { accountHomePath, avnHomePath, ACCOUNTS_DIR_NAME } from '@aeven/home-paths'
 import { Sync, type SyncDevice, type SyncDocument, type SyncJoin, type SyncJoinRequest, type SyncLease, type SyncStatus, type SyncStreamBatch } from '@aeven/sync'
-import type { DeviceId } from '@aeven/sync-vault'
+import { recoveryKeysOf, type DeviceId } from '@aeven/sync-vault'
 import { JoinRequester } from './join.ts'
 import { RelayConnection, type RelayHandlers } from './relay.ts'
 import { SyncStore } from './store.ts'
@@ -215,7 +215,7 @@ export default class YjsSync extends Sync {
   /** @inheritdoc */
   status(owner: string): SyncStatus {
     const account = this.accounts.get(owner)
-    if (account === undefined) return { state: 'unenrolled', devices: 0, pending: 0 }
+    if (account === undefined) return { state: 'unenrolled', devices: 0, pending: 0, recovery: false }
     const status = account.vault.status()
     if (account.joining === undefined || status.state !== 'unenrolled') return status
     return { ...status, state: 'joining', ...account.joining.code === undefined ? {} : { joinCode: account.joining.code } }
@@ -250,6 +250,26 @@ export default class YjsSync extends Sync {
     const relay = await this.connect(owner, {})
     try {
       await account.vault.create(relay)
+    } finally {
+      relay.close()
+    }
+    account.wake()
+  }
+
+  /** @inheritdoc */
+  async setRecovery(owner: string, secret: Uint8Array): Promise<void> {
+    const account = this.accounts.get(owner)
+    if (account?.relay === undefined) throw new Error('setting up recovery needs a connection to the relay')
+    await account.vault.setRecovery(account.relay, recoveryKeysOf(secret))
+  }
+
+  /** @inheritdoc */
+  async recover(owner: string, secret: Uint8Array): Promise<void> {
+    const account = this.account(owner)
+    if (account.joining !== undefined) throw new Error('this device is already asking to join')
+    const relay = await this.connect(owner, {})
+    try {
+      await account.vault.recover(relay, recoveryKeysOf(secret))
     } finally {
       relay.close()
     }

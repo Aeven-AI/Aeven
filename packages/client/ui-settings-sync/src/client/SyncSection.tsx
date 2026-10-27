@@ -1,7 +1,7 @@
 /** The Sync settings page: turn sync on, add this device to an account that syncs, or approve a new device. */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { SyncDeviceView, SyncJoinRequestView, SyncView } from '@aeven/api-remotes/client'
-import { Button, LoadingBlock, SectionHeader } from '@aeven/client-ui-primitives'
+import type { SyncDeviceView, SyncJoinRequestView, SyncPasskeyMode, SyncPasskeyStart, SyncView } from '@aeven/api-remotes/client'
+import { Button, externalWindow, LoadingBlock, SectionHeader } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import css from './SyncSection.module.css'
 
@@ -19,6 +19,8 @@ export interface SyncSectionInjected {
   removeDevice: (id: string) => Promise<SyncView>
   approveJoin: (id: string) => Promise<SyncView>
   rejectJoin: (id: string) => Promise<SyncView>
+  startPasskey: (mode: SyncPasskeyMode) => Promise<SyncPasskeyStart>
+  cancelPasskey: () => Promise<SyncView>
   /**
    * Call `listener` whenever the Host reports a sync change.
    * @param listener - refresh callback.
@@ -32,6 +34,9 @@ export type SyncSectionProps =
   PropsRuntime<'settings.section'>
   & PropsLocale<'settings.sync'>
   & InjectFace<SyncSectionInjected>
+
+/** How often the page asks for the status while a passkey step waits on the browser, in milliseconds. */
+const PASSKEY_REFRESH_MS = 2_000
 
 type Load = { readonly status: 'loading' } | { readonly status: 'error' } | { readonly status: 'ready'; readonly view: SyncView; readonly exists?: boolean }
 
@@ -80,6 +85,14 @@ export function SyncSection(props: SyncSectionProps) {
 
   useEffect(() => () => { void ops.stopAcceptingJoins() }, [ops])
 
+  // The passkey result reaches the Host from the site, which pushes no event, so the page asks until it lands.
+  const waitingOnPasskey = state.status === 'ready' && state.view.passkey?.state === 'waiting'
+  useEffect(() => {
+    if (!waitingOnPasskey) return
+    const timer = setInterval(() => { void refresh() }, PASSKEY_REFRESH_MS)
+    return () => { clearInterval(timer) }
+  }, [waitingOnPasskey, refresh])
+
   const run = async (operation: () => Promise<unknown>): Promise<void> => {
     setBusy(true)
     setFailed(false)
@@ -93,6 +106,18 @@ export function SyncSection(props: SyncSectionProps) {
     }
   }
   const act = (operation: () => Promise<unknown>) => () => { void run(operation) }
+  // The browser tab opens inside the click, before the Host answers, or a browser blocks it as a popup.
+  const passkey = (mode: SyncPasskeyMode) => () => {
+    const target = externalWindow()
+    void run(async () => {
+      try {
+        target.navigate((await ops.startPasskey(mode)).url)
+      } catch (error) {
+        target.cancel()
+        throw error
+      }
+    })
+  }
 
   const header = <SectionHeader title={t('nav')} description={t('intro')} />
   if (state.status === 'loading') return <div className={css.section}>{header}<LoadingBlock label={t('loading')} /></div>
@@ -109,6 +134,30 @@ export function SyncSection(props: SyncSectionProps) {
   }
 
   const { view } = state
+  if (view.passkey !== undefined) {
+    const { mode } = view.passkey
+    return (
+      <div className={css.section}>
+        {header}
+        <div className={css.card}>
+          {view.passkey.state === 'waiting'
+            ? <>
+              <h3 className={css.title}>{t('passkeyTitle')}</h3>
+              <p className={css.body}>{t('passkeyBody')}</p>
+            </>
+            : <>
+              <h3 className={css.title}>{t('passkeyFailedTitle')}</h3>
+              <p className={css.body}>{t('passkeyFailedBody')}</p>
+            </>}
+          <div className={css.actions}>
+            {view.passkey.state === 'failed' && <Button variant="primary" disabled={busy} onClick={passkey(mode)}>{t('tryAgain')}</Button>}
+            <Button variant="outline" disabled={busy} onClick={act(ops.cancelPasskey)}>{t('cancel')}</Button>
+          </div>
+        </div>
+        {failed && <p className={css.failed} role="alert">{t('failed')}</p>}
+      </div>
+    )
+  }
   return (
     <div className={css.section}>
       {header}
@@ -118,7 +167,10 @@ export function SyncSection(props: SyncSectionProps) {
           <p className={css.body}>{state.exists === true ? t('joinBody') : t('offBody')}</p>
           <div className={css.actions}>
             {state.exists === true
-              ? <Button variant="primary" disabled={busy} onClick={act(ops.startJoin)}>{t('join')}</Button>
+              ? <>
+                <Button variant="primary" disabled={busy} onClick={act(ops.startJoin)}>{t('join')}</Button>
+                <Button variant="outline" disabled={busy} onClick={passkey('unlock')}>{t('usePasskey')}</Button>
+              </>
               : <Button variant="primary" disabled={busy} onClick={act(ops.createVault)}>{t('turnOn')}</Button>}
           </div>
         </div>
@@ -160,10 +212,13 @@ export function SyncSection(props: SyncSectionProps) {
               ))}
             </ul>
             {removing !== undefined && <p className={css.note}>{t('removeNote')}</p>}
-            <p className={css.note}>{t('lossNote')}</p>
+            <p className={css.note}>{view.recovery ? t('recoveryOn') : `${t('lossNote')} ${t('recoveryOff')}`}</p>
             {!view.acceptingJoins && (
               <div className={css.actions}>
                 <Button variant="outline" disabled={busy || view.state !== 'online'} onClick={act(ops.acceptJoins)}>{t('addDevice')}</Button>
+                <Button variant="ghost" disabled={busy || view.state !== 'online'} onClick={passkey('setup')}>
+                  {view.recovery ? t('replaceRecovery') : t('setUpRecovery')}
+                </Button>
               </div>
             )}
           </div>

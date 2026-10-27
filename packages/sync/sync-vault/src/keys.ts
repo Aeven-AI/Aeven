@@ -251,39 +251,31 @@ export function unwrapForDevice(wrapped: Uint8Array, agreementSecret: Uint8Array
   return open(key, wrapped.subarray(33), header)
 }
 
+/** Salt the passkey PRF is evaluated with; every recovery ceremony uses the same one. */
+export const RECOVERY_PRF_SALT: Uint8Array = new Uint8Array(createHash('sha256').update('aeven-sync/recovery/prf').digest())
+
 /**
  * Derive recovery keys from a WebAuthn PRF result.
- * @param prfOutput - the PRF extension output for the vault's fixed salt.
- * @returns the wrapping key and recovery signing key pair.
+ * @param prfOutput - the PRF extension output for {@link RECOVERY_PRF_SALT}.
+ * @returns the recovery signing and agreement key pairs.
  */
 export function recoveryKeysOf(prfOutput: Uint8Array): RecoveryKeys {
-  const signingSeed = hkdf(prfOutput, new Uint8Array(0), 'aeven-sync/recovery/sign')
+  const signing = hkdf(prfOutput, new Uint8Array(0), 'aeven-sync/recovery/sign')
+  const agreement = hkdf(prfOutput, new Uint8Array(0), 'aeven-sync/recovery/agree')
   return {
-    wrappingKey: hkdf(prfOutput, new Uint8Array(0), 'aeven-sync/recovery/wrap'),
-    signingSeed,
-    signingPublicKey: rawPublic(createPublicKey(ed25519Private(signingSeed))),
+    publicKeys: {
+      signing: rawPublic(createPublicKey(ed25519Private(signing))),
+      agreement: rawPublic(createPublicKey(x25519Private(agreement))),
+    },
+    secretKeys: { signing, agreement },
   }
 }
 
 /**
- * Wrap a secret under a symmetric key, such as a recovery wrapping key.
- * @param secret - bytes to wrap.
- * @param wrappingKey - 32-byte key.
- * @returns version and sealed secret.
+ * Generate a one-use X25519 key pair, such as the one a passkey ceremony's result is wrapped to.
+ * @returns the raw public and private keys.
  */
-export function wrapWithKey(secret: Uint8Array, wrappingKey: Uint8Array): Uint8Array {
-  const header = Buffer.of(WRAP_VERSION)
-  return new Uint8Array(Buffer.concat([header, seal(wrappingKey, secret, header)]))
-}
-
-/**
- * Reverse {@link wrapWithKey}.
- * @param wrapped - the wrapped value.
- * @param wrappingKey - 32-byte key.
- * @returns the secret.
- * @throws {SyncVaultError} when the value is malformed or was wrapped under another key.
- */
-export function unwrapWithKey(wrapped: Uint8Array, wrappingKey: Uint8Array): Uint8Array {
-  if (wrapped.length < 1 || wrapped[0] !== WRAP_VERSION) throw new SyncVaultError('unsupported wrapped value')
-  return open(wrappingKey, wrapped.subarray(1), wrapped.subarray(0, 1))
+export function generateAgreementKeys(): { publicKey: Uint8Array; secretKey: Uint8Array } {
+  const pair = generateKeyPairSync('x25519')
+  return { publicKey: rawPublic(pair.publicKey), secretKey: rawPrivate(pair.privateKey) }
 }

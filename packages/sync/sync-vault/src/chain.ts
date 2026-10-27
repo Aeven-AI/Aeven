@@ -5,12 +5,14 @@
 import { createHash } from 'node:crypto'
 import { brandNumber } from '@aeven/brand'
 import { deviceIdOf, fromBase64Url, signBytes, SyncVaultError, toBase64Url, verifyBytes } from './keys.ts'
-import type { ChainBody, ChainDevice, ChainEntry, ChainState, DeviceKeys, DevicePublicKeys, KeyEpoch } from './types.ts'
+import type {
+  ChainBody, ChainDevice, ChainEntry, ChainState, DeviceId, DeviceKeys, DevicePublicKeys, KeyEpoch, RecoveryKeys, RecoveryRecord,
+} from './types.ts'
 
 /** Who signs a new entry. */
 export type ChainSigner =
   | { kind: 'device'; device: DeviceKeys }
-  | { kind: 'recovery'; signingSeed: Uint8Array }
+  | { kind: 'recovery'; recovery: RecoveryKeys }
 
 /** JSON with object keys sorted, so a chain re-serialized by the server verifies. Chain values hold no arrays. */
 function canonical(value: unknown): string {
@@ -38,6 +40,15 @@ export function chainDeviceOf(keys: DevicePublicKeys): ChainDevice {
   return { id: deviceIdOf(keys), signing: toBase64Url(keys.signing), agreement: toBase64Url(keys.agreement) }
 }
 
+/**
+ * Describe a recovery key for a `set-recovery` entry.
+ * @param keys - the recovery key's public keys.
+ * @returns the chain record.
+ */
+export function recoveryRecordOf(keys: DevicePublicKeys): RecoveryRecord {
+  return { signing: toBase64Url(keys.signing), agreement: toBase64Url(keys.agreement) }
+}
+
 function publicKeysOf(device: ChainDevice): DevicePublicKeys {
   const keys = { signing: fromBase64Url(device.signing, 32), agreement: fromBase64Url(device.agreement, 32) }
   if (deviceIdOf(keys) !== device.id) throw new SyncVaultError(`device ${device.id} does not match its keys`)
@@ -46,7 +57,7 @@ function publicKeysOf(device: ChainDevice): DevicePublicKeys {
 
 /** The state before any entry. */
 const EMPTY: ChainState = {
-  devices: new Map(), removed: new Set(), epoch: brandNumber<KeyEpoch>(0), length: 0, head: '',
+  devices: new Map(), removed: new Map(), epoch: brandNumber<KeyEpoch>(0), length: 0, head: '',
 }
 
 /**
@@ -68,8 +79,8 @@ export function applyChainEntry(state: ChainState, entry: ChainEntry): ChainStat
   } else if (state.length === 0) {
     throw new SyncVaultError('the chain does not start with genesis')
   } else if (entry.signer === 'recovery') {
-    if (body.type === 'set-recovery') throw new SyncVaultError('the recovery key cannot replace itself')
-    signerKey = state.recovery
+    if (body.type !== 'add-device') throw new SyncVaultError('the recovery key only adds devices')
+    signerKey = state.recovery?.signing
   } else {
     signerKey = state.devices.get(entry.signer)?.signing
   }
@@ -78,7 +89,7 @@ export function applyChainEntry(state: ChainState, entry: ChainEntry): ChainStat
     throw new SyncVaultError(`chain entry ${String(entry.index)} signature is invalid`)
   }
   const devices = new Map(state.devices)
-  const removed = new Set(state.removed)
+  const removed = new Map(state.removed)
   let { recovery, epoch } = state
   switch (body.type) {
     case 'genesis':
@@ -88,15 +99,17 @@ export function applyChainEntry(state: ChainState, entry: ChainEntry): ChainStat
       break
     }
     case 'remove-device': {
-      if (!devices.has(body.device)) throw new SyncVaultError(`device ${body.device} is not active`)
+      const device = devices.get(body.device)
+      if (device === undefined) throw new SyncVaultError(`device ${body.device} is not active`)
       if (body.epoch !== epoch + 1) throw new SyncVaultError('device removal must advance the epoch by one')
+      if (!Number.isSafeInteger(body.until) || body.until < 0) throw new SyncVaultError('device removal needs a relay sequence number')
       devices.delete(body.device)
-      removed.add(body.device)
+      removed.set(body.device, { signing: device.signing, until: body.until })
       epoch = body.epoch
       break
     }
     case 'set-recovery': {
-      recovery = fromBase64Url(body.recovery, 32)
+      recovery = { signing: fromBase64Url(body.recovery.signing, 32), agreement: fromBase64Url(body.recovery.agreement, 32) }
       break
     }
     default: {
@@ -105,6 +118,21 @@ export function applyChainEntry(state: ChainState, entry: ChainEntry): ChainStat
     }
   }
   return { devices, removed, ...recovery === undefined ? {} : { recovery }, epoch, length: state.length + 1, head: entryHash(entry) }
+}
+
+/**
+ * The key that verifies a device's frame at a relay position: an active device's key, or a removed device's
+ * key for frames up to its removal's `until`.
+ * @param state - the verified chain state.
+ * @param device - the sending device.
+ * @param seq - the frame's relay sequence number.
+ * @returns the Ed25519 public key, or undefined when the device may not send at `seq`.
+ */
+export function signingKeyAt(state: ChainState, device: DeviceId, seq: number): Uint8Array | undefined {
+  const active = state.devices.get(device)?.signing
+  if (active !== undefined) return active
+  const removed = state.removed.get(device)
+  return removed !== undefined && seq <= removed.until ? removed.signing : undefined
 }
 
 /**
@@ -132,7 +160,7 @@ export function createChainEntry(state: ChainState, body: ChainBody, signer: Cha
     body,
     signer: signer.kind === 'device' ? signer.device.id : 'recovery',
   }
-  const seed = signer.kind === 'device' ? signer.device.secretKeys.signing : signer.signingSeed
+  const seed = signer.kind === 'device' ? signer.device.secretKeys.signing : signer.recovery.secretKeys.signing
   return { ...unsigned, signature: toBase64Url(signBytes(seed, signedBytes(unsigned))) }
 }
 

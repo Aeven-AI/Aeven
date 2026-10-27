@@ -70,12 +70,24 @@ export interface ChainDevice {
   agreement: string
 }
 
+/** The recovery key as recorded in the device chain. */
+export interface RecoveryRecord {
+  /** base64url Ed25519 public key that signs `add-device` entries for the passkey holder. */
+  signing: string
+  /** base64url X25519 public key that every new keyring is wrapped to. */
+  agreement: string
+}
+
 /** One change to the set of devices or the recovery key. */
 export type ChainBody =
   | { type: 'genesis'; device: ChainDevice }
   | { type: 'add-device'; device: ChainDevice }
-  | { type: 'remove-device'; device: DeviceId; epoch: KeyEpoch }
-  | { type: 'set-recovery'; recovery: string }
+  /**
+   * `until` is the last relay sequence number the removing device had received: frames the removed device
+   * published up to it stay valid history, and later ones are refused.
+   */
+  | { type: 'remove-device'; device: DeviceId; epoch: KeyEpoch; until: number }
+  | { type: 'set-recovery'; recovery: RecoveryRecord }
 
 /** One signed, hash-linked device chain entry. */
 export interface ChainEntry {
@@ -91,14 +103,22 @@ export interface ChainEntry {
   signature: string
 }
 
+/** A removed device as the chain remembers it, so its earlier frames stay readable. */
+export interface RemovedDevice {
+  /** Raw Ed25519 public key that verified its frames. */
+  signing: Uint8Array
+  /** The last relay sequence number at which its frames are accepted. */
+  until: number
+}
+
 /** The vault membership a valid chain establishes. */
 export interface ChainState {
   /** Active devices and their public keys. */
   devices: ReadonlyMap<DeviceId, DevicePublicKeys>
   /** Devices that were removed; they cannot be added again. */
-  removed: ReadonlySet<DeviceId>
-  /** Raw recovery signing key, once one is set. */
-  recovery?: Uint8Array
+  removed: ReadonlyMap<DeviceId, RemovedDevice>
+  /** The recovery key's public keys, once one is set. */
+  recovery?: DevicePublicKeys
   /** Current vault key epoch. */
   epoch: KeyEpoch
   /** Number of entries verified. */
@@ -107,12 +127,13 @@ export interface ChainState {
   head: string
 }
 
-/** Keys derived from a passkey PRF result. */
+/**
+ * Keys derived from a passkey PRF result: the same two key kinds a device holds. Devices wrap every keyring
+ * to the public agreement key, so only the passkey holder can unwrap it; the signing key admits a device.
+ */
 export interface RecoveryKeys {
-  /** AES-256 key that wraps the keyring for passkey unlock. */
-  wrappingKey: Uint8Array
-  /** Ed25519 seed that signs chain entries on behalf of the passkey holder. */
-  signingSeed: Uint8Array
-  /** Ed25519 public key recorded by `set-recovery`. */
-  signingPublicKey: Uint8Array
+  /** Keys `set-recovery` records. */
+  publicKeys: DevicePublicKeys
+  /** Keys that exist only while the passkey's PRF result is in hand. */
+  secretKeys: DeviceSecretKeys
 }

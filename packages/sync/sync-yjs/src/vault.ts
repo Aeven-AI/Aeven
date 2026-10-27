@@ -7,9 +7,10 @@ import * as Y from 'yjs'
 import { brandNumber } from '@aeven/brand'
 import {
   applyChainEntry, chainDeviceOf, createChainEntry, createGenesis, decodeKeyring, deviceIdOf, encodeKeyring,
-  generateDeviceKeys, generateVaultKey, opaqueIdOf,
-  openEnvelope, sealEnvelope, toBase64Url, unwrapForDevice, verifyChain, wrapForDevice,
-  type ChainEntry, type ChainState, type DeviceId, type DeviceKeys, type DevicePublicKeys, type EnvelopeKind, type KeyEpoch, type OpaqueId,
+  fromBase64Url, generateDeviceKeys, generateVaultKey, opaqueIdOf, openEnvelope, recoveryRecordOf, sealEnvelope,
+  signingKeyAt, toBase64Url, unwrapForDevice, verifyChain, wrapForDevice,
+  type ChainEntry, type ChainState, type DeviceId, type DeviceKeys, type DevicePublicKeys, type EnvelopeKind, type KeyEpoch,
+  type Keyring, type OpaqueId, type RecoveryKeys,
 } from '@aeven/sync-vault'
 import type { SyncDocument, SyncState, SyncStatus } from '@aeven/sync'
 import { JoinApprover, type PendingJoin } from './join.ts'
@@ -18,6 +19,9 @@ import type { SyncStore } from './store.ts'
 
 /** Relay error codes that no retry can change. */
 const PERMANENT_REFUSALS: ReadonlySet<string> = new Set(['too-large', 'bad-frame'])
+
+/** Relay recipient of the keyring wrapped to the recovery passkey. */
+const RECOVERY = 'recovery'
 
 /** Transaction origin of updates that arrived from other devices or local storage. */
 const REMOTE = Symbol('sync-remote')
@@ -138,17 +142,65 @@ export class AccountVault {
     const { keys, chain } = this.requireMember()
     if (!chain.devices.has(device)) throw new Error(`device ${device} is not active in this vault`)
     const epoch = brandNumber<KeyEpoch>(chain.epoch + 1)
-    const entry = createChainEntry(chain, { type: 'remove-device', device, epoch }, { kind: 'device', device: keys })
+    // Frames the removed device published that this device has not received yet are lost with it.
+    const until = this.store.relayCursor()
+    const entry = createChainEntry(chain, { type: 'remove-device', device, epoch, until }, { kind: 'device', device: keys })
     const next = applyChainEntry(chain, entry)
     const keyring = new Map([...this.store.keyring(), [epoch, generateVaultKey()]])
     const encoded = encodeKeyring(keyring)
     for (const [id, publicKeys] of next.devices) {
       await relay.request('keys.put', { recipient: id, wrapped: toBase64Url(wrapForDevice(encoded, publicKeys.agreement)) })
     }
+    if (next.recovery !== undefined) {
+      await relay.request('keys.put', { recipient: RECOVERY, wrapped: toBase64Url(wrapForDevice(encoded, next.recovery.agreement)) })
+    }
     await relay.request('chain.append', { entry })
     this.store.addKeys(keyring)
     this.adoptChain(next, [...this.store.chain(), entry])
     this.changed()
+  }
+
+  /**
+   * Make a passkey's recovery keys the vault's recovery key: wrap the keyring to it, then record it in the chain.
+   * @param relay - an open connection for the account.
+   * @param recovery - keys derived from the passkey's PRF result.
+   */
+  async setRecovery(relay: RelayConnection, recovery: RecoveryKeys): Promise<void> {
+    const { keys, chain } = this.requireMember()
+    const body = { type: 'set-recovery' as const, recovery: recoveryRecordOf(recovery.publicKeys) }
+    const entry = createChainEntry(chain, body, { kind: 'device', device: keys })
+    const next = applyChainEntry(chain, entry)
+    await relay.request('keys.put', { recipient: RECOVERY, wrapped: toBase64Url(wrapForDevice(encodeKeyring(this.store.keyring()), recovery.publicKeys.agreement)) })
+    await relay.request('chain.append', { entry })
+    this.adoptChain(next, [...this.store.chain(), entry])
+    this.changed()
+  }
+
+  /**
+   * Enroll this device with the vault's recovery key: unwrap the keyring wrapped to it, then add this device to
+   * the chain under the recovery key's signature.
+   * @param relay - an open connection for the account.
+   * @param recovery - keys derived from the passkey's PRF result.
+   */
+  async recover(relay: RelayConnection, recovery: RecoveryKeys): Promise<void> {
+    const keys = this.prepareJoin()
+    const { entries } = await relay.request('chain.get') as { entries: ChainEntry[] }
+    const chain = verifyChain(entries)
+    if (chain.recovery === undefined) throw new Error('the account has no recovery passkey')
+    if (toBase64Url(chain.recovery.signing) !== toBase64Url(recovery.publicKeys.signing)) {
+      throw new Error('this passkey is not the account\'s recovery passkey')
+    }
+    const { wrapped } = await relay.request('keys.get', { recipient: RECOVERY }) as { wrapped?: string }
+    if (wrapped === undefined) throw new Error('the relay holds no keyring for the recovery passkey')
+    const { secretKeys, publicKeys } = recovery
+    const keyring: Keyring = decodeKeyring(unwrapForDevice(fromBase64Url(wrapped), secretKeys.agreement, publicKeys.agreement))
+    const entry = createChainEntry(chain, { type: 'add-device', device: chainDeviceOf(keys.publicKeys) }, { kind: 'recovery', recovery })
+    const next = applyChainEntry(chain, entry)
+    await relay.request('keys.put', { recipient: keys.id, wrapped: toBase64Url(wrapForDevice(encodeKeyring(keyring), keys.publicKeys.agreement)) })
+    await relay.request('chain.append', { entry })
+    this.store.addKeys(keyring)
+    this.adoptChain(next, [...entries, entry])
+    this.setState('offline')
   }
 
   /** @returns the ids of the vault's active devices, this one first, or none while not enrolled. */
@@ -203,6 +255,7 @@ export class AccountVault {
       ...this.keys === undefined ? {} : { device: this.keys.id },
       devices: this.member()?.chain.devices.size ?? 0,
       pending: this.store.pending(),
+      recovery: this.member()?.chain.recovery !== undefined,
     }
   }
 
@@ -306,7 +359,7 @@ export class AccountVault {
     try {
       opened = openEnvelope(frame, {
         vaultKey: epoch => keyring.get(epoch),
-        signingKey: device => member.chain.devices.get(device)?.signing,
+        signingKey: device => signingKeyAt(member.chain, device, seq),
       })
     } catch (error) {
       this.warn(`sync: dropped relay frame ${String(seq)}`, error)
@@ -400,7 +453,7 @@ export class AccountVault {
       seq,
       payload: openEnvelope(new Uint8Array(Buffer.from(frame, 'base64url')), {
         vaultKey: epoch => keyring.get(epoch),
-        signingKey: device => chain.devices.get(device)?.signing,
+        signingKey: device => signingKeyAt(chain, device, seq),
       }).payload,
     }))
     return { batches, more }
