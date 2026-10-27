@@ -2362,6 +2362,9 @@ importers:
       '@aeven/session-stats':
         specifier: workspace:^
         version: link:../../session/session-stats
+      '@aeven/session-sync':
+        specifier: workspace:^
+        version: link:../../session/session-sync
       '@aeven/session-turn-outline':
         specifier: workspace:^
         version: link:../../session/session-turn-outline
@@ -10303,6 +10306,28 @@ importers:
       '@deepseek-ai/cordis-plugin-loader':
         specifier: workspace:^
         version: link:../../../vendor/loader
+
+  packages/session/session-sync:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+      yjs:
+        specifier: 13.6.27
+        version: 13.6.27
+    devDependencies:
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@aeven/session-persistence':
+        specifier: workspace:^
+        version: link:../session-persistence
+      '@aeven/sync':
+        specifier: workspace:^
+        version: link:../../sync/sync
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
 
   packages/session/session-telemetry:
     devDependencies:

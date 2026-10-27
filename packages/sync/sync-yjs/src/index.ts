@@ -11,7 +11,7 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import Schema from '@deepseek-ai/schemastery'
 import { credentialRef, type CredentialRef } from '@aeven/credentials'
 import { accountHomePath, avnHomePath, ACCOUNTS_DIR_NAME } from '@aeven/home-paths'
-import { Sync, type SyncDocument, type SyncJoin, type SyncJoinRequest, type SyncStatus } from '@aeven/sync'
+import { Sync, type SyncDocument, type SyncJoin, type SyncJoinRequest, type SyncStatus, type SyncStreamBatch } from '@aeven/sync'
 import { JoinRequester } from './join.ts'
 import { RelayConnection, type RelayHandlers } from './relay.ts'
 import { SyncStore } from './store.ts'
@@ -303,6 +303,23 @@ export default class YjsSync extends Sync {
   /** @inheritdoc */
   rejectJoin(owner: string, id: string): void {
     this.accounts.get(owner)?.vault.takeJoinRequest(id)
+  }
+
+  private enrolledVault(owner: string): AccountVault {
+    const account = this.accounts.get(owner)
+    if (account === undefined) throw new Error('this device is not enrolled in the account\'s vault')
+    return account.vault
+  }
+
+  /** @inheritdoc */
+  appendStream(owner: string, name: string, payload: Uint8Array): Promise<void> {
+    this.enrolledVault(owner).appendStream(name, payload)
+    return Promise.resolve()
+  }
+
+  /** @inheritdoc */
+  readStream(owner: string, name: string, after: number): Promise<{ batches: SyncStreamBatch[]; more: boolean }> {
+    return this.enrolledVault(owner).readStream(name, after)
   }
 
   /** @inheritdoc */

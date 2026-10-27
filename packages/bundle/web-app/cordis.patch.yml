@@ -238,6 +238,11 @@
     - id: api-sync-controller
       name: '@aeven/api-sync-controller'
 
+    # Conversation history on every device of the account: each session is
+    # published by the device that created it and imported elsewhere.
+    - id: session-sync
+      name: '@aeven/session-sync'
+
     # Settings → Personalization: how each signed-in person wants Aeven to
     # talk with them, rendered into their sessions right after the persona.
     - id: personalization

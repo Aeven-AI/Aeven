@@ -13,8 +13,11 @@ import {
 } from '@aeven/sync-vault'
 import type { SyncDocument, SyncState, SyncStatus } from '@aeven/sync'
 import { JoinApprover, type PendingJoin } from './join.ts'
-import type { RelayConnection } from './relay.ts'
+import { RelayError, type RelayConnection } from './relay.ts'
 import type { SyncStore } from './store.ts'
+
+/** Relay error codes that no retry can change. */
+const PERMANENT_REFUSALS: ReadonlySet<string> = new Set(['too-large', 'bad-frame'])
 
 /** Transaction origin of updates that arrived from other devices or local storage. */
 const REMOTE = Symbol('sync-remote')
@@ -336,6 +339,40 @@ export class AccountVault {
     }
   }
 
+  /**
+   * Queue one stream batch behind every frame already queued.
+   * @param name - the stream's logical name.
+   * @param payload - the batch.
+   */
+  appendStream(name: string, payload: Uint8Array): void {
+    const id = this.documentId(name)
+    this.store.enqueue(this.seal('stream', id, payload))
+    this.changed()
+    void this.flush()
+  }
+
+  /**
+   * Fetch and open a page of a stream's batches.
+   * @param name - the stream's logical name.
+   * @param after - the last relay sequence number already read.
+   * @returns the opened batches and whether more follow.
+   */
+  async readStream(name: string, after: number): Promise<{ batches: Array<{ seq: number; payload: Uint8Array }>; more: boolean }> {
+    const relay = this.relay
+    if (relay === undefined) throw new Error('reading a stream needs a connection to the relay')
+    const { frames, more } = await relay.request('stream.get', { id: this.documentId(name), after }) as { frames: Array<{ seq: number; frame: string }>; more: boolean }
+    const keyring = this.store.keyring()
+    const { chain } = this.requireMember()
+    const batches = frames.map(({ seq, frame }) => ({
+      seq,
+      payload: openEnvelope(new Uint8Array(Buffer.from(frame, 'base64url')), {
+        vaultKey: epoch => keyring.get(epoch),
+        signingKey: device => chain.devices.get(device)?.signing,
+      }).payload,
+    }))
+    return { batches, more }
+  }
+
   private seal(kind: EnvelopeKind, id: OpaqueId, payload: Uint8Array): Uint8Array {
     const { keys, chain } = this.requireMember()
     const epoch = chain.epoch
@@ -385,8 +422,13 @@ export class AccountVault {
       try {
         await relay.request('publish', { frame: toBase64Url(next.frame), ...next.covers === undefined ? {} : { covers: next.covers } })
       } catch (error) {
-        this.warn('sync: publishing a frame failed; it stays queued', error)
-        return
+        // A frame the relay refuses outright would block every frame behind it; it is dropped instead.
+        if (error instanceof RelayError && PERMANENT_REFUSALS.has(error.code)) {
+          this.warn(`sync: the relay refused a frame (${error.code}); dropping it`, error)
+        } else {
+          this.warn('sync: publishing a frame failed; it stays queued', error)
+          return
+        }
       }
       this.store.acknowledge(next.seq)
       this.changed()

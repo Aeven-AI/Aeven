@@ -332,6 +332,7 @@
       "@aeven/sync-vault": ["./packages/sync/sync-vault/src"],
       "@aeven/sync": ["./packages/sync/sync/src"],
       "@aeven/sync-yjs": ["./packages/sync/sync-yjs/src"],
+      "@aeven/session-sync": ["./packages/session/session-sync/src"],
       "@aeven/api-sync-controller": ["./packages/api/sync-controller/src/index.ts"],
       "@aeven/api-sync-controller/types": ["./packages/api/sync-controller/src/types.ts"],
       "@aeven/brand-page": ["./packages/util/brand-page/src"],

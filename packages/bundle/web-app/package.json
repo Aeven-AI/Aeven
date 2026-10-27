@@ -49,6 +49,7 @@
     "@aeven/api-memory-manager": "workspace:^",
     "@aeven/api-sync-controller": "workspace:^",
     "@aeven/sync-yjs": "workspace:^",
+    "@aeven/session-sync": "workspace:^",
     "@aeven/api-remotes": "workspace:^",
     "@aeven/api-session-controller": "workspace:^",
     "@aeven/api-settings-controller": "workspace:^",

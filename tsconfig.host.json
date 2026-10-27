@@ -144,6 +144,7 @@
     { "path": "./packages/sync/sync" },
     { "path": "./packages/sync/sync-vault" },
     { "path": "./packages/sync/sync-yjs" },
+    { "path": "./packages/session/session-sync" },
     { "path": "./packages/api/sync-controller" },
     { "path": "./packages/util/deque" },
     { "path": "./packages/util/values" },

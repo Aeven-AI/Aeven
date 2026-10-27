@@ -44,6 +44,14 @@ export interface SyncDocument {
   close(): void
 }
 
+/** One batch of a stream as the relay stored it. */
+export interface SyncStreamBatch {
+  /** The relay's sequence number; pass the last one as `after` to read on. */
+  readonly seq: number
+  /** The decrypted payload. */
+  readonly payload: Uint8Array
+}
+
 /** A join in progress on the device that asked to join. */
 export interface SyncJoin {
   /** The six-digit code, once an enrolled device answered; the user compares it with the code that device shows. */
@@ -173,6 +181,24 @@ export abstract class Sync extends Service {
    * @returns the open document.
    */
   abstract openDocument(owner: string, name: string): Promise<SyncDocument>
+
+  /**
+   * Queue one batch for a stream this device writes. Batches reach the relay in the order they were queued,
+   * after every document change queued before them.
+   * @param owner - an enrolled account.
+   * @param name - the stream's logical name.
+   * @param payload - the batch.
+   */
+  abstract appendStream(owner: string, name: string, payload: Uint8Array): Promise<void>
+
+  /**
+   * Read a stream's batches from the relay, oldest first, one page at a time. Requires a connection.
+   * @param owner - an enrolled account.
+   * @param name - the stream's logical name.
+   * @param after - the last relay sequence number already read; 0 reads from the start.
+   * @returns the next page of batches and whether more follow.
+   */
+  abstract readStream(owner: string, name: string, after: number): Promise<{ batches: SyncStreamBatch[]; more: boolean }>
 
   /**
    * Publish a status change to `sync/status` listeners.
