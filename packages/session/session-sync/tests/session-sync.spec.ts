@@ -387,6 +387,36 @@ describe('attachments of synced conversations', () => {
 })
 
 describe('session-sync plugin', () => {
+  it('files an imported session into the workspace it belongs to on the device that published it', async () => {
+    const network = new MemorySyncNetwork()
+    const homeA = new MemoryPersistence()
+    homeA.start('filed', Date.now(), 2)
+    homeA.start('loose', Date.now(), 1)
+    const filingA = { sessionHome: (id: string) => (id === 'filed' ? 'workspace-1' : undefined), fileSession: vi.fn() }
+    const a = new SessionMirror(OWNER, network.device().asSync(), homeA as never, tuning, vi.fn(), undefined, filingA)
+    mirrors.push(a)
+    await a.start()
+    let ready = false
+    const fileSession = vi.fn(() => Promise.resolve(ready))
+    const homeB = new MemoryPersistence()
+    const filingB = { sessionHome: () => undefined, fileSession }
+    const b = new SessionMirror(OWNER, network.device().asSync(), homeB as never, tuning, vi.fn(), undefined, filingB)
+    mirrors.push(b)
+    await b.start()
+    await vi.waitFor(() => { expect(fileSession).toHaveBeenCalledWith('filed', 'workspace-1') })
+    // The workspace had not arrived; a later pass files the session once it has, and then stops asking.
+    ready = true
+    b.reconnected()
+    await vi.waitFor(() => { expect(fileSession.mock.results.some(result => result.value instanceof Promise)).toBe(true) })
+    const calls = fileSession.mock.calls.length
+    b.reconnected()
+    await new Promise(resolve => setTimeout(resolve, 30))
+    b.reconnected()
+    await new Promise(resolve => setTimeout(resolve, 30))
+    expect(fileSession.mock.calls.length).toBeLessThanOrEqual(calls + 1)
+    expect(fileSession.mock.calls.every(([id]) => id === 'filed')).toBe(true)
+  })
+
   it('starts a mirror when sync serves an account, catches up when it comes back online, and reports a failed start', async () => {
     const network = new MemorySyncNetwork()
     const device = network.device('connecting')

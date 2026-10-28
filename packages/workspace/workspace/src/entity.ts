@@ -79,6 +79,17 @@ export interface WorkspaceEntityHost {
   readSessionHeader(id: SessionId): Promise<SessionHeader>
 
   /**
+   * Whether a session is a replica of another device's log. Its recorded cwd names that device's folder, so the
+   * record alone decides its membership here.
+   * @param id - Session to check.
+   * @returns whether the indexed header marks the session as replicated.
+   */
+  replicated(id: SessionId): boolean
+
+  /** Tell the registry a reader renamed a workspace, so the account's other devices receive the title. */
+  titleChanged(): void
+
+  /**
    * Publish a successfully validated canonical cwd to the projection index.
    * @param id - Validated session id.
    * @param path - Canonical existing directory from the immutable header cwd.
@@ -196,7 +207,7 @@ export class WorkspaceEntity implements Workspace {
    */
   private member(id: SessionId): boolean {
     const path = this.record.path
-    if (this.record.kind !== 'folder' || path === undefined) return true
+    if (this.record.kind !== 'folder' || path === undefined || this.host.replicated(id)) return true
     return this.host.sessionPath(id) === path
   }
 
@@ -216,7 +227,8 @@ export class WorkspaceEntity implements Workspace {
     if (this.host.isBuiltIn(this.id)) {
       throw new WorkspaceDefaultImmutableError(this.id, 'rename')
     }
-    await this.mutate(record => ({ ...record, title }))
+    await this.mutate(record => ({ ...record, title, titleChangedAt: new Date().toISOString() }))
+    this.host.titleChanged()
   }
 
   /**
@@ -227,6 +239,16 @@ export class WorkspaceEntity implements Workspace {
    */
   async adoptDeclaredTitle(title: string): Promise<void> {
     await this.mutate(record => record.title === title ? record : { ...record, title })
+  }
+
+  /**
+   * Give a workspace another device registered a directory on this device. The directory stays on this device:
+   * account sync carries the workspace's title and order, never its path.
+   * @param path - canonical existing directory.
+   */
+  async bindDirectory(path: string): Promise<void> {
+    if (this.record.kind !== 'remote') throw new Error(`workspace '${this.label}' already has its directory on this device`)
+    await this.mutate(record => ({ ...record, kind: 'folder', path }))
   }
 
   async attachSession(sessionId: SessionId): Promise<void> {
@@ -257,6 +279,8 @@ export class WorkspaceEntity implements Workspace {
    */
   private async validateAdmission(sessionId: SessionId): Promise<void> {
     const header = await this.host.readSessionHeader(sessionId)
+    // A replica's cwd names the folder of the device it came from; the account's record files it here.
+    if (header.replica === true) return
     const path = this.record.path
     if (this.record.kind !== 'folder' || path === undefined) {
       if (header.cwd !== undefined) {
@@ -362,7 +386,7 @@ export class WorkspaceEntity implements Workspace {
       next = await this.host.table().update(this.id, (current) => {
         const changed = fn(current)
         const sessionIds = changed.sessionIds.filter(
-          id => this.host.sessionPath(id) === changed.path,
+          id => this.host.replicated(id) || this.host.sessionPath(id) === changed.path,
         )
         if (changed === current && sessionIds.length === current.sessionIds.length) {
           throw unchangedSentinel

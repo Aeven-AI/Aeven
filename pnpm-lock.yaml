@@ -10358,6 +10358,9 @@ importers:
       '@aeven/sync':
         specifier: workspace:^
         version: link:../../sync/sync
+      '@aeven/workspace':
+        specifier: workspace:^
+        version: link:../../workspace/workspace
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis

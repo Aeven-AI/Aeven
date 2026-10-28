@@ -40,8 +40,6 @@ export type WorkspaceApply = (owner: string, projection: SyncedWorkspaces) => vo
 /** Mirror between the workspace registry and each account's synced document. */
 export class WorkspaceSync {
   private readonly open = new Map<string, Promise<SyncDocument | undefined>>()
-  /** What this device last published per account, so a removed workspace leaves a tombstone. */
-  private readonly published = new Map<string, Map<WorkspaceId, SyncedWorkspace>>()
 
   /**
    * @param ctx - the registry context; `sync` is read optionally.
@@ -70,8 +68,6 @@ export class WorkspaceSync {
     const opening = sync.openDocument(owner, DOCUMENT).then((handle) => {
       const records = handle.doc.getMap<SyncedWorkspace>('records')
       const order = handle.doc.getArray<WorkspaceId>('order')
-      // What the document already holds is what this device may later have to remove.
-      this.published.set(owner, new Map([...records.entries()].map(([id, entry]) => [id as WorkspaceId, entry])))
       const take = () => { this.take(owner, records, order) }
       take()
       records.observe((_event: YMapEvent<SyncedWorkspace>, transaction: Transaction) => {
@@ -107,8 +103,8 @@ export class WorkspaceSync {
   }
 
   /**
-   * Publish one account's workspaces after a local change, marking the workspaces this device published before
-   * and no longer holds as removed.
+   * Publish one account's workspaces after a local change. A workspace this device does not hold is left as the
+   * document has it, since it may be one this device has not received yet; only {@link forget} removes one.
    * @param owner - the account.
    * @param projection - its workspaces and their order.
    */
@@ -117,29 +113,32 @@ export class WorkspaceSync {
     if (handle === undefined) return
     const records = handle.doc.getMap<SyncedWorkspace>('records')
     const order = handle.doc.getArray<WorkspaceId>('order')
-    const published = new Map<WorkspaceId, SyncedWorkspace>()
-    for (const record of projection.records) {
-      const { id, ...entry } = record
-      published.set(id, entry)
-    }
-    const tombstone = { removed: true, updatedAt: this.now().toISOString() }
     handle.doc.transact(() => {
-      for (const [id, entry] of published) records.set(id, entry)
-      for (const id of this.published.get(owner)?.keys() ?? []) {
-        if (published.has(id)) continue
-        const title = records.get(id)?.title
-        records.set(id, title === undefined ? tombstone : { ...tombstone, title })
+      for (const { id, ...entry } of projection.records) {
+        if (JSON.stringify(records.get(id)) !== JSON.stringify(entry)) records.set(id, entry)
       }
+      const held = new Set(projection.order)
+      // Workspaces this device has not received yet keep their place after the ones it orders.
+      const rest = order.toArray().filter(id => !held.has(id))
       order.delete(0, order.length)
-      order.insert(0, [...projection.order])
+      order.insert(0, [...projection.order, ...rest])
     })
-    this.published.set(owner, published)
+  }
+
+  /**
+   * Publish the removal of one workspace this device deleted.
+   * @param owner - the account.
+   * @param id - the removed workspace.
+   * @param title - its last title, kept so a device that never received it can still name it.
+   */
+  async forget(owner: string, id: WorkspaceId, title: string): Promise<void> {
+    const handle = await this.attach(owner)
+    handle?.doc.getMap<SyncedWorkspace>('records').set(id, { removed: true, title, updatedAt: this.now().toISOString() })
   }
 
   /** Close every open document. */
   async dispose(): Promise<void> {
     for (const opening of this.open.values()) (await opening)?.close()
     this.open.clear()
-    this.published.clear()
   }
 }

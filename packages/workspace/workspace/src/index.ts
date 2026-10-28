@@ -162,6 +162,8 @@ export class WorkspaceRegistry extends Service {
     table: () => this.requireTable(),
     sessionPath: id => this.sessionPaths.get(id),
     sessionOwner: id => this.headers.get(id)?.owner,
+    replicated: id => this.headers.get(id)?.replica === true,
+    titleChanged: () => { this.publish() },
     readSessionHeader: id => this.readSessionHeader(id),
     rememberSessionPath: (id, path) => {
       this.sessionPaths.set(id, path)
@@ -315,11 +317,75 @@ export class WorkspaceRegistry extends Service {
    * @throws {WorkspaceDefaultImmutableError} when the id names the built-in workspace.
    */
   delete(id: WorkspaceId): Promise<boolean> {
-    return this.enqueueOperation(() => {
+    return this.enqueueOperation(async () => {
       if (this.isBuiltInId(this.requireState(), id)) {
         throw new WorkspaceDefaultImmutableError(id, 'delete')
       }
-      return this.deleteKnown(id)
+      const record = this.requireTable().get(id)
+      const deleted = await this.deleteKnown(id)
+      // The removal reaches the account's other devices only as this explicit tombstone.
+      if (deleted && record?.owner !== undefined) {
+        void this.synced.forget(record.owner, id, record.title).catch((error: unknown) => {
+          this.ctx.logger('workspace').warn(`workspace: publishing a removal to the account's other devices failed: ${String(error)}`)
+        })
+      }
+      return deleted
+    })
+  }
+
+  /**
+   * Name the workspace a session belongs to in the terms every device of the account shares: `default` for the
+   * built-in default workspace, `builtin:<key>` for a plugin-declared one, and the workspace id otherwise.
+   * @param sessionId - the session.
+   * @returns the shared name, or undefined when no workspace holds the session.
+   */
+  sessionHome(sessionId: SessionId): string | undefined {
+    const state = this.requireState()
+    const home = this.list().find(workspace => workspace.sessionIds.includes(sessionId))
+    if (home === undefined) return undefined
+    if (state.defaultWorkspaceId === home.id) return 'default'
+    const key = Object.entries(state.builtInWorkspaceIds ?? {}).find(([, id]) => id === home.id)?.[0]
+    return key === undefined ? home.id : `builtin:${key}`
+  }
+
+  /**
+   * File a session another device published into the workspace its {@link sessionHome} names, when this device
+   * holds that workspace and the session is not filed yet.
+   * @param sessionId - the session, already stored on this device.
+   * @param home - the shared workspace name.
+   * @returns whether the session is now filed there.
+   */
+  async fileSession(sessionId: SessionId, home: string): Promise<boolean> {
+    const state = this.requireState()
+    const id = home === 'default'
+      ? state.defaultWorkspaceId
+      : home.startsWith('builtin:') ? state.builtInWorkspaceIds?.[home.slice('builtin:'.length)] : WorkspaceId(home)
+    const target = id === undefined ? undefined : this.entities.get(id)
+    if (target === undefined) return false
+    if (this.list().some(workspace => workspace.sessionIds.includes(sessionId))) return true
+    await target.attachSession(sessionId)
+    return true
+  }
+
+  /**
+   * Give a workspace that another device of the account registered a directory on this device. The directory
+   * stays here; the account's other devices keep their own.
+   * @param id - a workspace without a directory on this device.
+   * @param path - existing directory, in a fully qualified spelling.
+   * @returns the workspace, now folder-backed.
+   */
+  async bind(id: WorkspaceId, path: string): Promise<Workspace> {
+    const canonical = await realpathNormalize(path)
+    if (!(await stat(canonical)).isDirectory()) {
+      throw new Error(`cannot bind a workspace to '${canonical}': path is not a directory`)
+    }
+    return await this.enqueueOperation(async () => {
+      const entity = this.entities.get(id)
+      if (entity === undefined) throw new Error(`no workspace '${id}'`)
+      const taken = this.list().find(other => other.id !== id && other.path === canonical && other.owner === entity.owner)
+      if (taken !== undefined) throw new Error(`'${canonical}' is already the directory of workspace '${taken.title}'`)
+      await entity.bindDirectory(canonical)
+      return entity
     })
   }
 
@@ -443,11 +509,13 @@ export class WorkspaceRegistry extends Service {
     // An account whose last workspace was just deleted still has to publish that removal.
     for (const owner of this.synced.owners()) accounts.set(owner, { records: [], order: [] })
     for (const id of state.workspaceIds) {
-      const record = this.requireTable().get(id) as WorkspaceRecord | undefined
+      const record = this.requireTable().get(id)
       // A built-in registration is declared by the composition on every device, so it is not the account's.
       if (record?.owner === undefined || this.isBuiltInId(state, id)) continue
       const group = accounts.get(record.owner) ?? { records: [], order: [] }
-      group.records.push({ id, title: record.title, owner: record.owner, createdAt: record.createdAt, updatedAt: record.updatedAt })
+      group.records.push({
+        id, title: record.title, owner: record.owner, createdAt: record.createdAt, updatedAt: record.titleChangedAt ?? record.createdAt,
+      })
       group.order.push(id)
       accounts.set(record.owner, group)
     }
@@ -470,28 +538,29 @@ export class WorkspaceRegistry extends Service {
   private async applySynced(owner: string, projection: SyncedWorkspaces): Promise<void> {
     try {
       await this.enqueueOperation(async () => {
-        const state = this.requireState()
         const table = this.requireTable()
         const remote = new Map(projection.records.map(record => [record.id, record]))
+        // A removal takes the same path as one made here, so the workspace's sessions join the archive set.
+        for (const id of this.requireState().workspaceIds) {
+          const record = table.get(id)
+          // A built-in registration and a workspace of another account are not this account's to remove here.
+          const foreign = this.isBuiltInId(this.requireState(), id) || record?.owner !== owner
+          if (!foreign && remote.get(id)?.removed === true) await this.deleteKnown(id)
+        }
+        const state = this.requireState()
         const kept: WorkspaceId[] = []
         for (const id of state.workspaceIds) {
-          const record = table.get(id) as WorkspaceRecord | undefined
+          const record = table.get(id)
           if (record === undefined) continue
           const entry = remote.get(id)
-          // A built-in registration and a workspace of another account are not this account's to remove here.
-          const foreign = this.isBuiltInId(state, id) || (record.owner !== undefined && record.owner !== owner)
-          if (entry === undefined) {
-            // The account's document says nothing about it yet; this device keeps what it has.
+          if (entry === undefined || entry.removed === true) {
+            // The account's document says nothing about it yet, or it is another account's; this device keeps it.
             kept.push(id)
             continue
           }
-          if (entry.removed === true) {
-            if (foreign) kept.push(id)
-            else await table.delete(id)
-            continue
-          }
-          if (entry.title !== undefined && entry.updatedAt !== undefined && entry.updatedAt > record.updatedAt) {
-            await table.put(id, { ...record, title: entry.title, updatedAt: entry.updatedAt })
+          const titled = record.titleChangedAt ?? record.createdAt
+          if (entry.title !== undefined && entry.updatedAt !== undefined && entry.updatedAt > titled && entry.title !== record.title) {
+            await table.put(id, { ...record, title: entry.title, titleChangedAt: entry.updatedAt, updatedAt: new Date().toISOString() })
           }
           kept.push(id)
         }
@@ -505,7 +574,8 @@ export class WorkspaceRegistry extends Service {
             ...entry.owner === undefined ? {} : { owner: entry.owner },
             sessionIds: [],
             createdAt: entry.createdAt ?? at,
-            updatedAt: entry.updatedAt ?? at,
+            updatedAt: at,
+            ...entry.updatedAt === undefined ? {} : { titleChangedAt: entry.updatedAt },
           })
           kept.push(entry.id)
         }

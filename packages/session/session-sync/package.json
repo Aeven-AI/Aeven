@@ -35,13 +35,20 @@
     "@aeven/session-persistence": "workspace:^",
     "@aeven/sync": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
-    "@aeven/attachment": "workspace:^"
+    "@aeven/attachment": "workspace:^",
+    "@aeven/workspace": "workspace:^"
   },
   "devDependencies": {
     "@aeven/session": "workspace:^",
     "@aeven/session-persistence": "workspace:^",
     "@aeven/sync": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
-    "@aeven/attachment": "workspace:^"
+    "@aeven/attachment": "workspace:^",
+    "@aeven/workspace": "workspace:^"
+  },
+  "peerDependenciesMeta": {
+    "@aeven/workspace": {
+      "optional": true
+    }
   }
 }

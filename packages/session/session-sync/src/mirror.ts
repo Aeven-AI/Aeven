@@ -22,6 +22,23 @@ interface IndexEntry {
   next: number
   /** The device that writes this session. */
   origin: string
+  /** The workspace the session belongs to, in the terms every device of the account shares. */
+  workspace?: string
+}
+
+/** Where sessions are filed on this device; the workspace registry provides it. */
+export interface SessionFiling {
+  /**
+   * @param sessionId - a session.
+   * @returns the shared name of the workspace holding it, if any.
+   */
+  sessionHome(sessionId: SessionId): string | undefined
+  /**
+   * @param sessionId - a stored session.
+   * @param home - the shared workspace name.
+   * @returns whether the session is filed there now.
+   */
+  fileSession(sessionId: SessionId, home: string): Promise<boolean>
 }
 
 /** One published batch. */
@@ -75,6 +92,8 @@ export class SessionMirror {
   private readonly localNext = new Map<string, number>()
   private readonly cursors = new Map<string, number>()
   private readonly created = new Set<string>()
+  /** Imported sessions already filed into their workspace on this device. */
+  private readonly filed = new Set<string>()
 
   /**
    * @param owner - the account.
@@ -82,6 +101,8 @@ export class SessionMirror {
    * @param persistence - this Host's session persistence.
    * @param tuning - scan interval, batch size, and backfill window.
    * @param warn - receives failures to publish or import.
+   * @param attachments - this Host's attachment store, when one is mounted.
+   * @param filing - this Host's workspace registry, when one is mounted.
    */
   constructor(
     private readonly owner: string,
@@ -90,6 +111,7 @@ export class SessionMirror {
     private readonly tuning: SessionSyncTuning,
     private readonly warn: (message: string) => void,
     private readonly attachments?: AttachmentStore,
+    private readonly filing?: SessionFiling,
   ) {}
 
   /** Content addresses of attachments the account's devices published, by id. */
@@ -216,10 +238,18 @@ export class SessionMirror {
       try {
         const next = await this.next(id, local)
         if (entry.next > next) await this.importSession(id, entry, next, local.has(id))
+        if (local.has(id) || this.created.has(id)) await this.file(id, entry)
       } catch (error) {
         this.warn(`session sync: importing a session failed: ${String(error)}`)
       }
     }
+  }
+
+  /** File a stored imported session into its workspace once that workspace is on this device too. */
+  private async file(id: string, entry: IndexEntry): Promise<void> {
+    const home = entry.workspace
+    if (this.filing === undefined || home === undefined || this.filed.has(id)) return
+    if (await this.filing.fileSession(id as SessionId, home)) this.filed.add(id)
   }
 
   private async importSession(id: string, entry: IndexEntry, from: number, exists: boolean): Promise<void> {
@@ -313,11 +343,13 @@ export class SessionMirror {
     await flush()
     if (this.isClosed()) return
     await this.publishAttachments(suffix.events)
+    const home = this.filing?.sessionHome(header.id)
     this.entries().set(header.id, {
       header: suffix.meta,
       inherited: suffix.inheritedEventCount,
       next: after(suffix.events, from),
       origin: me,
+      ...home === undefined ? {} : { workspace: home },
     })
   }
 
