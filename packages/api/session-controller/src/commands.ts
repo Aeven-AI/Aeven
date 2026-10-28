@@ -757,7 +757,8 @@ export class SessionCommandController {
     if (handoff === undefined || owner === undefined) return undefined
     const runner = handoff.runnerOf(owner, sessionId)
     const workspace = this.ctx.workspaceRegistry.list().find(candidate => candidate.sessionIds.includes(sessionId))
-    if (runner !== undefined && workspace?.kind === 'remote') {
+    // Without a folder here, running the session on this device gains nothing, so input goes to the device writing it.
+    if (runner !== undefined && workspace?.path === undefined) {
       return owner
     }
     const claimed = await handoff.claim(owner, sessionId)
@@ -773,7 +774,9 @@ export class SessionCommandController {
 
   private async forward(owner: string, sessionId: SessionId, operation: string, request: unknown): Promise<{ accepted: true }> {
     try {
-      await this.ctx.sessionHandoff.forward(owner, sessionId, { operation, request })
+      const handoff = this.ctx.get('sessionHandoff')
+      if (handoff === undefined) throw new Error('session handoff is not mounted')
+      await handoff.forward(owner, sessionId, { operation, request })
     } catch (error) {
       throw new RemoteError('session/agent-busy', 'the device running this conversation could not take the input', { reason: String(error) })
     }
