@@ -153,6 +153,45 @@ describe('session mirror', () => {
     expect(a.progress()).toEqual({ sessionsPending: 0, sessionsTotal: 3 })
   })
 
+  it('counts history downloads until they are stored and notifies progress listeners', async () => {
+    const network = new MemorySyncNetwork()
+    const homeA = new MemoryPersistence()
+    homeA.start('recent', Date.now(), 2)
+    homeA.start('older', Date.now() - 90 * DAY, 2)
+    const a = mirror(network.device(), homeA).mirror
+    await a.start()
+    await a.publish()
+    const device = network.device().asSync()
+    const read = device.readStream.bind(device)
+    let release!: () => void
+    const blocked = new Promise<void>((resolve) => { release = resolve })
+    const reads = vi.spyOn(device, 'readStream').mockImplementation(async (...args) => {
+      await blocked
+      return read(...args)
+    })
+    const changed = vi.fn()
+    const homeB = new MemoryPersistence()
+    const b = new SessionMirror(OWNER, device, homeB as never, tuning, vi.fn(),
+      undefined, undefined, undefined, undefined, undefined, undefined, changed)
+    mirrors.push(b)
+    try {
+      await b.start()
+      await vi.waitFor(() => { expect(reads).toHaveBeenCalled() })
+      expect(b.progress()).toEqual({ sessionsPending: 1, sessionsTotal: 1 })
+      changed.mockClear()
+    } finally {
+      release()
+    }
+    await vi.waitFor(() => { expect(b.progress()).toEqual({ sessionsPending: 0, sessionsTotal: 1 }) })
+    expect(count(homeB, 'recent')).toBe(2)
+    expect(count(homeB, 'older')).toBe(0)
+    expect(changed).toHaveBeenCalled()
+    homeA.add('recent', 1)
+    await a.publish()
+    await vi.waitFor(() => { expect(count(homeB, 'recent')).toBe(3) })
+    expect(b.progress()).toEqual({ sessionsPending: 0, sessionsTotal: 1 })
+  })
+
   it('lists older conversation metadata before downloading bodies, and fetches one when opened', async () => {
     const network = new MemorySyncNetwork()
     const homeA = new MemoryPersistence()
@@ -589,14 +628,14 @@ describe('session-sync plugin', () => {
     const homeA = new MemoryPersistence()
     homeA.start('filed', Date.now(), 2)
     homeA.start('loose', Date.now(), 1)
-    const filingA = { sessionHome: (id: string) => (id === 'filed' ? 'workspace-1' : undefined), fileSession: vi.fn() }
+    const filingA = { sessionHome: (id: string) => (id === 'filed' ? 'workspace-1' : undefined), fileSession: vi.fn(), onLateFiling: vi.fn(() => vi.fn()) }
     const a = new SessionMirror(OWNER, network.device().asSync(), homeA as never, tuning, vi.fn(), undefined, filingA)
     mirrors.push(a)
     await a.start()
     let ready = false
     const fileSession = vi.fn((_id: string, _home: string) => Promise.resolve(ready))
     const homeB = new MemoryPersistence()
-    const filingB = { sessionHome: () => undefined, fileSession }
+    const filingB = { sessionHome: () => undefined, fileSession, onLateFiling: vi.fn(() => vi.fn()) }
     const b = new SessionMirror(OWNER, network.device().asSync(), homeB as never, tuning, vi.fn(), undefined, filingB)
     mirrors.push(b)
     await b.start()

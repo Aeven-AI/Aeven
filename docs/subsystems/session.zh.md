@@ -1346,6 +1346,26 @@ The account's conversation metadata changed, including histories not downloaded 
 
 Source: [`packages/session/session-handoff/src/index.ts`](../../packages/session/session-handoff/src/index.ts)
 
+<a id="session-handoffimported--emit"></a>
+
+#### `session-handoff/imported` — emit
+
+Events another device published for a session were stored on this device; one import pass emits once.
+
+```ts cordis-catalog
+/**
+ * Events another device published for a session were stored on this device; one import pass emits once.
+ * @mode emit
+ * @param owner - the account the session belongs to.
+ * @param sessionId - the session whose stored log grew.
+ */
+'session-handoff/imported'(owner: string, sessionId: SessionId): void
+```
+
+Types: [SessionId](core.zh.md)
+
+Source: [`packages/session/session-handoff/src/index.ts`](../../packages/session/session-handoff/src/index.ts)
+
 <a id="session-handoffinput--emit"></a>
 
 #### `session-handoff/input` — emit

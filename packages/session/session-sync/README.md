@@ -44,4 +44,4 @@ None.
 
 </details>
 
-**Runtime invariant:** No runtime invariant companion is published because publication progress is read from the outbox at call time, so counters and the outbox never keep independent copies.
+**Runtime invariant:** No runtime invariant companion is published because download progress is derived from the session index and locally committed event positions; upload preparation and relay frames report their own pending work. Settings remains syncing until all three finish.

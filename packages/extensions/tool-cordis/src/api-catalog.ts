@@ -3619,6 +3619,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the devices, this one first.',
       },
       {
+        signature: 'abstract removeDevice(owner: string, device: DeviceId): Promise<void>',
+        description: 'Take another device off the account\'s device list. It does not revoke the device: one that syncs again lists itself again.',
+        parameters: [{ name: 'owner', description: 'an account whose documents this device can open.' }, { name: 'device', description: 'a device {@link devices} lists, other than this one.' }],
+        returns: 'when the list no longer names the device.',
+      },
+      {
         signature: 'abstract documentId(owner: string, name: string): string',
         description: 'The opaque id of a logical document name, the id `sync/document` reports.',
         parameters: [{ name: 'owner', description: 'an account whose documents this device can open.' }, { name: 'name', description: 'the logical name.' }],
@@ -3700,6 +3706,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'List the caller\'s devices.',
         parameters: [],
         returns: 'the devices, this one first.',
+      },
+      {
+        signature: '@Remote async removeDevice(id: string): Promise<SyncDeviceView[]>',
+        description: 'Take another of the caller\'s devices off the device list.',
+        parameters: [{ name: 'id', description: 'a listed device other than this one.' }],
+        returns: 'the devices afterwards, this one first.',
       },
     ],
   },
@@ -4464,6 +4476,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'whether the session is now filed there.',
       },
       {
+        signature: 'onLateFiling(listener: () => void): () => void',
+        description: 'Observe sessions that fileSession could not file earlier joining their workspace once it arrived from another device.',
+        parameters: [{ name: 'listener', description: 'called after one or more such sessions were filed.' }],
+        returns: 'the disposer.',
+      },
+      {
         signature: 'async bind(id: WorkspaceId, path: string): Promise<Workspace>',
         description: 'Give a workspace that another device of the account registered a directory on this device. The directory stays here; the account\'s other devices keep their own.',
         parameters: [{ name: 'id', description: 'a workspace without a directory on this device.' }, { name: 'path', description: 'existing directory, in a fully qualified spelling.' }],
@@ -4906,6 +4924,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     summary: 'The account\'s conversation metadata changed, including histories not downloaded here.',
     description: 'The account\'s conversation metadata changed, including histories not downloaded here.',
     parameters: [{ name: 'owner', description: 'account whose catalog changed.' }],
+  },
+  {
+    name: 'session-handoff/imported',
+    mode: 'emit',
+    signature: '\'session-handoff/imported\'(owner: string, sessionId: SessionId): void',
+    summary: 'Events another device published for a session were stored on this device; one import pass emits once.',
+    description: 'Events another device published for a session were stored on this device; one import pass emits once.',
+    parameters: [{ name: 'owner', description: 'the account the session belongs to.' }, { name: 'sessionId', description: 'the session whose stored log grew.' }],
   },
   {
     name: 'session-handoff/input',

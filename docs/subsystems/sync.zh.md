@@ -46,6 +46,15 @@ abstract setEnabled(owner: string, enabled: boolean): void
 abstract devices(owner: string): Promise<SyncDevice[]>
 
 /**
+ * Take another device off the account's device list. It does not revoke the device: one that syncs again lists
+ * itself again.
+ * @param owner - an account whose documents this device can open.
+ * @param device - a device {@link devices} lists, other than this one.
+ * @returns when the list no longer names the device.
+ */
+abstract removeDevice(owner: string, device: DeviceId): Promise<void>
+
+/**
  * The opaque id of a logical document name, the id `sync/document` reports.
  * @param owner - an account whose documents this device can open.
  * @param name - the logical name.
@@ -155,6 +164,13 @@ The signed-in user's account sync.
  * @returns the devices, this one first.
  */
 @Remote async devices(): Promise<SyncDeviceView[]>
+
+/**
+ * Take another of the caller's devices off the device list.
+ * @param id - a listed device other than this one.
+ * @returns the devices afterwards, this one first.
+ */
+@Remote async removeDevice(id: string): Promise<SyncDeviceView[]>
 ```
 
 Source: [`packages/api/sync-controller/src/index.ts`](../../packages/api/sync-controller/src/index.ts)

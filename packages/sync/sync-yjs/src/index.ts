@@ -2,8 +2,8 @@
  * Yjs Service Provider for account sync. Every account signed in on this Host syncs unless the user turned it off
  * on this device: it keeps a local store under `accounts/<hash>/sync/sync.db` and, while a client of that account
  * holds a session on this Host (so its Aeven access token resolves), one relay connection that takes the account
- * key and exchanges encrypted frames with the account's other devices. Devices of the account on the same local network also link directly and send each other updates as
- * they are made.
+ * key and exchanges encrypted frames with the account's other devices. Devices of the account on the same local
+ * network also link directly and send each other updates as they are made.
  * @module @aeven/sync-yjs
  */
 import { existsSync, readdirSync } from 'node:fs'
@@ -313,6 +313,19 @@ export default class YjsSync extends Sync {
       const map = names.doc.getMap<{ name: string }>('names')
       const ids = [current, ...[...map.keys()].filter(id => id !== current)] as DeviceId[]
       return ids.map(id => ({ id, name: map.get(id)?.name ?? '', current: id === current }))
+    } finally {
+      names.close()
+      await Promise.resolve()
+    }
+  }
+
+  /** @inheritdoc */
+  async removeDevice(owner: string, device: DeviceId): Promise<void> {
+    const vault = this.readyVault(owner)
+    if (device === vault.deviceId()) throw new Error('this device cannot remove itself from the account')
+    const names = vault.openDocument(DEVICES)
+    try {
+      names.doc.getMap<{ name: string }>('names').delete(device)
     } finally {
       names.close()
       await Promise.resolve()

@@ -137,6 +137,12 @@ export class SessionController extends TypertRemoteService {
   private readonly openFileApplication: typeof openNativeFileApplication
   private readonly revealPath: (path: string, signal: AbortSignal) => Promise<void>
   private readonly promotions = new Set<Promise<void>>()
+  /** Imported sessions whose list entry is being rebuilt, mapped to whether another append arrived meanwhile. */
+  private readonly refreshing = new Map<SessionId, boolean>()
+  /** Accounts whose catalog emission waits for the next turn of the event loop. */
+  private readonly catalogPending = new Map<string, ReturnType<typeof setImmediate>>()
+  /** Per account, the catalog entries last emitted, serialized, so an unchanged entry is not emitted again. */
+  private readonly catalogSent = new Map<string, Map<SessionId, string>>()
 
   /**
    * @param ctx - Host context containing the Session capability assembly.
@@ -188,11 +194,27 @@ export class SessionController extends TypertRemoteService {
       })
     })
 
+    // A first sync changes the catalog once per received frame: emit once per turn of the event loop, and only the
+    // entries that changed since the last emission.
     ctx.on('session-handoff/catalog', (owner) => {
-      for (const summary of this.listState.sharedFor(owner)) {
-        if (ctx.sessions.get(summary.sessionId) === undefined) ctx.emit('api-session/added', summary, owner)
-      }
+      if (this.catalogPending.has(owner)) return
+      this.catalogPending.set(owner, setImmediate(() => {
+        this.catalogPending.delete(owner)
+        const sent = this.catalogSent.get(owner) ?? new Map<SessionId, string>()
+        this.catalogSent.set(owner, sent)
+        for (const summary of this.listState.sharedFor(owner)) {
+          if (ctx.sessions.get(summary.sessionId) !== undefined) continue
+          const serialized = JSON.stringify(summary)
+          if (sent.get(summary.sessionId) === serialized) continue
+          sent.set(summary.sessionId, serialized)
+          ctx.emit('api-session/added', summary, owner)
+        }
+      }))
     })
+    ctx.effect(() => () => {
+      for (const timer of this.catalogPending.values()) clearImmediate(timer)
+      this.catalogPending.clear()
+    }, 'session-controller.catalog')
 
     ctx.on('session-handoff/released', async (owner, sessionId) => {
       const agent = ctx.agents.get(sessionId)
@@ -224,14 +246,23 @@ The user's account display name is ${JSON.stringify(source.clientDisplayName)}.
     ctx.on('session/created', (session) => {
       ctx.emit('api-session/added', this.listState.summaryFor(session))
     })
-    ctx.on('session-persistence/append', (header) => {
-      if (!header.replica) return
-      const updating = this.listState.summaryForStored(header.id).then((summary) => {
-        ctx.emit('api-session/added', summary)
-        ctx.emit('api-session/activity', summary.sessionId, summary.updatedAt)
-      }).catch((error: unknown) => {
+    // Rebuilding a list entry reads the whole log, so imports that land during a rebuild share one more rebuild.
+    ctx.on('session-handoff/imported', (_owner, sessionId) => {
+      if (this.refreshing.has(sessionId)) {
+        this.refreshing.set(sessionId, true)
+        return
+      }
+      this.refreshing.set(sessionId, false)
+      const updating = (async () => {
+        do {
+          this.refreshing.set(sessionId, false)
+          const summary = await this.listState.summaryForStored(sessionId)
+          ctx.emit('api-session/added', summary)
+          ctx.emit('api-session/activity', summary.sessionId, summary.updatedAt)
+        } while (this.refreshing.get(sessionId) === true)
+      })().catch((error: unknown) => {
         ctx.logger.warn(`session sync: updating the imported session's list entry failed: ${String(error)}`)
-      })
+      }).finally(() => { this.refreshing.delete(sessionId) })
       this.promotions.add(updating)
       void updating.finally(() => { this.promotions.delete(updating) })
     })

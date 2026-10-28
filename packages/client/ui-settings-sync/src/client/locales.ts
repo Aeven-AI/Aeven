@@ -20,6 +20,7 @@ export const en = {
   devices: 'Devices',
   thisDevice: 'this device',
   unnamed: 'Unnamed device',
+  remove: 'Remove',
 }
 
 /** Locale key of this section. */
@@ -45,6 +46,7 @@ export const zh = {
   devices: '设备',
   thisDevice: '这台设备',
   unnamed: '未命名设备',
+  remove: '移除',
 } satisfies Record<SyncLocaleKey, string>
 
 /** Spanish dictionary. */
@@ -67,4 +69,5 @@ export const es = {
   devices: 'Dispositivos',
   thisDevice: 'este dispositivo',
   unnamed: 'Dispositivo sin nombre',
+  remove: 'Quitar',
 } satisfies Record<SyncLocaleKey, string>

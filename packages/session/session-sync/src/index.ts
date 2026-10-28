@@ -94,6 +94,7 @@ export default class SessionSync extends SessionHandoff {
       sessionId => this.released(owner, sessionId),
       () => { this.ctx.emit('session-handoff/catalog', owner) },
       () => { this.ctx.emit('sync/status', owner) },
+      (sessionId) => { this.ctx.emit('session-handoff/imported', owner, sessionId) },
     )
     this.mirrors.set(owner, mirror)
     mirror.start().catch((error: unknown) => {
