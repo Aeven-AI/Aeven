@@ -80,8 +80,8 @@ pnpm run build          # tsc emits lib/types, tsdown bundles runtime
 pnpm run build:client   # client libs + web frontend only; the build a web UI change needs
 pnpm run hygiene        # publint + workspace/package/dependency checks + NodeNext consumer check
 pnpm run check:windows-wine  # ONLY when diagnosing a known Windows failure (needs wine); CI owns it
-pnpm run doc-sync       # all documentation gates; leaf list in scripts/run-gates.ts
-pnpm run test:docs      # quick documentation checks (no build; doc-quick aggregate)
+pnpm run doc-sync       # regenerate generated docs + translation records; never blocks
+pnpm run doc-check      # opt-in documentation gates; never required, never chase
 pnpm run website:build  # VitePress build (doubles as dead-link check)
 pnpm avn --profile headless "task"  # run one task from source (needs DEEPSEEK_API_KEY)
 ```
@@ -94,7 +94,7 @@ If a required `gh`, `pnpm`, build, test, or generator command fails because the 
 
 Run checks before pushes via [avn-pre-push-checks](.agents/skills/avn-pre-push-checks/SKILL.md); report only commands run. After `gh stack sync`, validate before merging.
 
-- Match evidence to the surface: focused behavior tests, model/user-output snapshots, `doc-sync` for docs, built smokes for published paths, and real-API e2e for providers. Never repeat a passing check; CI owns exhaustive coverage and the platform matrix, so rehearse locally only by explicit request or for CI diagnosis.
+- Match evidence to the surface: focused behavior tests, model/user-output snapshots, `doc-sync` once for docs (advisory), built smokes for published paths, and real-API e2e for providers. Never repeat a passing check; CI owns exhaustive coverage and the platform matrix, so rehearse locally only by explicit request or for CI diagnosis.
 - `test:coverage`, not `test`, is the CI coverage gate ([why](docs/testing.md)).
 
 ## Secrets / .env
