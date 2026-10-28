@@ -1,7 +1,7 @@
 {
   "name": "@aeven/terminal",
   "description": "Persistent PTY session seam for the Aeven — owner-scoped ids, backend registry, interactive sends, reads, signals, and awaited cleanup",
-  "version": "0.3.25-alpha",
+  "version": "0.3.26-alpha",
   "publishConfig": {
     "access": "public"
   },

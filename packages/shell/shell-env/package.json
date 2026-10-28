@@ -1,7 +1,7 @@
 {
   "name": "@aeven/shell-env",
   "description": "Tool-independent managed AVN_* shell environment registry",
-  "version": "0.3.25-alpha",
+  "version": "0.3.26-alpha",
   "publishConfig": {
     "access": "public"
   },

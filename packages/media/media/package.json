@@ -1,7 +1,7 @@
 {
   "name": "@aeven/media",
   "description": "Generated-media capability seam (ctx.media) for the Aeven \u2014 image and video provider registries, execution-time provider selection, the video job vocabulary, and the MediaError taxonomy",
-  "version": "0.3.25-alpha",
+  "version": "0.3.26-alpha",
   "publishConfig": {
     "access": "public"
   },

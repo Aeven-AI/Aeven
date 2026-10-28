@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-settings-sync",
   "description": "Settings → Sync: turn account sync on, add this device, and approve new devices",
-  "version": "0.3.25-alpha",
+  "version": "0.3.26-alpha",
   "publishConfig": {
     "access": "public"
   },
