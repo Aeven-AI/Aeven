@@ -8,7 +8,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { SessionEvent, SessionHeader } from '@aeven/session'
 import { MemorySyncNetwork, type MemorySyncDevice } from '../../../sync/sync/tests/memory.ts'
-import * as plugin from '../src/index.ts'
+import SessionSync from '../src/index.ts'
 import { SessionMirror, type SessionSyncTuning } from '../src/mirror.ts'
 
 const OWNER = 'owner-1'
@@ -469,6 +469,86 @@ describe('session-sync plugin', () => {
     expect(fileSession.mock.calls.every(([id]) => id === 'filed')).toBe(true)
   })
 
+  it('forwards input for a session another device writes to that device, in order, with its attachments', async () => {
+    const network = new MemorySyncNetwork()
+    const syncA = network.device()
+    const homeA = new MemoryPersistence()
+    homeA.start('shared', Date.now(), 1)
+    const delivered: Array<[string, unknown]> = []
+    const collect = (id: string, input: unknown): void => { delivered.push([id, input]) }
+    const a = new SessionMirror(OWNER, syncA.asSync(), homeA as never, tuning, vi.fn(), undefined, undefined, collect)
+    const attachments = new MemoryAttachments()
+    const image = `sha256:${'c'.repeat(64)}`
+    attachments.objects.set(image, Uint8Array.of(4, 5))
+    const homeB = new MemoryPersistence()
+    const b = new SessionMirror(OWNER, network.device().asSync(), homeB as never, tuning, vi.fn(), attachments as never)
+    mirrors.push(a, b)
+    await a.start()
+    const names = await syncA.asSync().openDocument(OWNER, 'devices')
+    names.doc.getMap('names').set(syncA.id, { name: 'laptop' })
+    await b.start()
+    await vi.waitFor(() => { expect(b.runnerOf('shared' as never)).toEqual({ device: syncA.id, name: 'laptop' }) })
+    expect(a.runnerOf('shared' as never)).toBeUndefined()
+    expect(b.runnerOf('unknown' as never)).toBeUndefined()
+    await b.forward('shared' as never, { operation: 'prompt', request: { text: 'first', image } })
+    await b.forward('shared' as never, { operation: 'cancel', request: {} })
+    await vi.waitFor(() => { expect(delivered.map(([, input]) => (input as { operation: string }).operation)).toEqual(['prompt', 'cancel']) })
+    expect(network.streams.get(`attachments/${image}`)).toBeDefined()
+    await expect(b.forward('unknown' as never, { operation: 'cancel', request: {} })).rejects.toThrow(/not written by another device/)
+    const inbox = await network.device().asSync().openDocument(OWNER, 'sessions/inbox')
+    await vi.waitFor(() => { expect(inbox.doc.getMap('inputs').size).toBe(0) })
+  })
+
+  it('fetches the attachments a forwarded input references before applying it, and applies it when fetching fails', async () => {
+    const network = new MemorySyncNetwork()
+    const homeA = new MemoryPersistence()
+    homeA.start('pictured', Date.now(), 1)
+    const attachmentsA = new MemoryAttachments()
+    const held: boolean[] = []
+    const image = new MemoryAttachments().hold(Uint8Array.of(7, 8, 9))
+    const deliverA = (): void => { held.push(attachmentsA.objects.has(image)) }
+    const syncA = network.device().asSync()
+    const a = new SessionMirror(OWNER, syncA, homeA as never, tuning, vi.fn(), attachmentsA as never, undefined, deliverA)
+    const attachmentsB = new MemoryAttachments()
+    attachmentsB.hold(Uint8Array.of(7, 8, 9))
+    const b = new SessionMirror(OWNER, network.device().asSync(), new MemoryPersistence() as never, tuning, vi.fn(), attachmentsB as never)
+    mirrors.push(a, b)
+    await a.start()
+    await b.start()
+    await vi.waitFor(() => { expect(b.runnerOf('pictured' as never)).toBeDefined() })
+    await b.forward('pictured' as never, { operation: 'prompt', request: { content: [{ image }] } })
+    await vi.waitFor(() => { expect(held).toEqual([true]) })
+    attachmentsA.objects.clear()
+    attachmentsA.importObject = () => Promise.reject(new Error('disk full'))
+    await b.forward('pictured' as never, { operation: 'prompt', request: { content: [{ image }] } })
+    await vi.waitFor(() => { expect(held).toEqual([true, false]) })
+  })
+
+  it('holds forwarded input until the writing device is back, and applies what waited when it starts', async () => {
+    const network = new MemorySyncNetwork()
+    const syncA = network.device()
+    const homeA = new MemoryPersistence()
+    homeA.start('later', Date.now(), 1)
+    const first = new SessionMirror(OWNER, syncA.asSync(), homeA as never, tuning, vi.fn())
+    mirrors.push(first)
+    expect(first.runnerOf('later' as never)).toBeUndefined()
+    await first.start()
+    const b = new SessionMirror(OWNER, network.device().asSync(), new MemoryPersistence() as never, tuning, vi.fn())
+    mirrors.push(b)
+    await b.start()
+    await vi.waitFor(() => { expect(b.runnerOf('later' as never)).toBeDefined() })
+    await first.dispose()
+    await b.forward('later' as never, { operation: 'prompt', request: { text: 'while away' } })
+    await new Promise(resolve => setTimeout(resolve, 2))
+    await b.forward('later' as never, { operation: 'cancel', request: {} })
+    const delivered: string[] = []
+    const collect = (_id: string, input: { operation: string }): void => { delivered.push(input.operation) }
+    const again = new SessionMirror(OWNER, syncA.asSync(), homeA as never, tuning, vi.fn(), undefined, undefined, collect)
+    mirrors.push(again)
+    await again.start()
+    await vi.waitFor(() => { expect(delivered).toEqual(['prompt', 'cancel']) })
+  })
+
   it('starts a mirror when sync serves an account, catches up when it comes back online, and reports a failed start', async () => {
     const network = new MemorySyncNetwork()
     const device = network.device('connecting')
@@ -482,7 +562,7 @@ describe('session-sync plugin', () => {
     ctx.provide('sessionPersistence', home as never)
     const warnings: string[] = []
     const spy = vi.spyOn(ctx.logger, 'warn').mockImplementation((message: unknown) => { warnings.push(String(message)) })
-    const fiber = ctx.plugin(plugin, { publishMs: 250, batchBytes: 2_000, backfillDays: 30, liveMs: 5 })
+    const fiber = ctx.plugin(SessionSync, { publishMs: 250, batchBytes: 2_000, backfillDays: 30, liveMs: 5 })
     await fiber
     ctx.emit('sync/status', OWNER)
     device.setState('online')
@@ -494,6 +574,19 @@ describe('session-sync plugin', () => {
     ctx.emit('session-persistence/append', home.logs.get('s')!.header, [])
     ctx.emit('session-persistence/append', { ...home.logs.get('s')!.header, owner: undefined } as never, [])
     await vi.waitFor(() => { expect(network.streams.get('sessions/s')!.length).toBeGreaterThan(1) })
+    // Input another device forwards for a session this Host writes reaches this Host's listeners.
+    const inputs: unknown[] = []
+    ctx.on('session-handoff/input', (owner, sessionId, input) => { inputs.push([owner, sessionId, input.operation]) })
+    expect(ctx.sessionHandoff.runnerOf(OWNER, 's' as never)).toBeUndefined()
+    expect(ctx.sessionHandoff.runnerOf('nobody', 's' as never)).toBeUndefined()
+    await expect(ctx.sessionHandoff.forward('nobody', 's' as never, { operation: 'cancel', request: {} })).rejects.toThrow(/does not serve/)
+    const other = new SessionMirror(OWNER, network.device().asSync(), new MemoryPersistence() as never, tuning, vi.fn())
+    mirrors.push(other)
+    await other.start()
+    await vi.waitFor(() => { expect(other.runnerOf('s' as never)).toBeDefined() })
+    await other.forward('s' as never, { operation: 'cancel', request: {} })
+    await vi.waitFor(() => { expect(inputs).toEqual([[OWNER, 's', 'cancel']]) })
+    await expect(ctx.sessionHandoff.forward(OWNER, 's' as never, { operation: 'cancel', request: {} })).rejects.toThrow(/not written by another device/)
     device.setState('offline')
     ctx.emit('sync/status', OWNER)
     home.failSnapshots = true

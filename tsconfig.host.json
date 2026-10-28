@@ -142,6 +142,7 @@
     { "path": "./packages/util/timeout" },
     { "path": "./packages/util/crypto" },
     { "path": "./packages/sync/sync" },
+    { "path": "./packages/session/session-handoff" },
     { "path": "./packages/sync/sync-vault" },
     { "path": "./packages/sync/sync-yjs" },
     { "path": "./packages/session/session-sync" },

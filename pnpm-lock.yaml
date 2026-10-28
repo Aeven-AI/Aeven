@@ -1204,6 +1204,9 @@ importers:
       '@aeven/session':
         specifier: workspace:^
         version: link:../../core/session
+      '@aeven/session-handoff':
+        specifier: workspace:^
+        version: link:../../session/session-handoff
       '@aeven/session-persistence':
         specifier: workspace:^
         version: link:../../session/session-persistence
@@ -10199,6 +10202,15 @@ importers:
         specifier: workspace:^
         version: link:../../../vendor/loader
 
+  packages/session/session-handoff:
+    devDependencies:
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
   packages/session/session-log-deepseek:
     dependencies:
       '@aeven/brand':
@@ -10352,6 +10364,9 @@ importers:
       '@aeven/session':
         specifier: workspace:^
         version: link:../../core/session
+      '@aeven/session-handoff':
+        specifier: workspace:^
+        version: link:../session-handoff
       '@aeven/session-persistence':
         specifier: workspace:^
         version: link:../session-persistence

@@ -28,6 +28,9 @@
     },
     {
       "path": "../../workspace/workspace"
+    },
+    {
+      "path": "../session-handoff"
     }
   ]
 }

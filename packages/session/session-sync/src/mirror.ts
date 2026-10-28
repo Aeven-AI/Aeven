@@ -5,12 +5,14 @@
  * session persistence with their original `seq`, so the imported log replays exactly; importing never runs a
  * model or a tool.
  */
+import { randomUUID } from 'node:crypto'
 import { brotliCompressSync, brotliDecompressSync } from 'node:zlib'
 import type { Map as YMap, YMapEvent, Transaction } from 'yjs'
 import { SessionLogOffset, type SessionEvent, type SessionHeader, type SessionId } from '@aeven/session'
 import type { SessionPersistence } from '@aeven/session-persistence'
 import type { Sync, SyncDocument } from '@aeven/sync'
 import { AttachmentId, type AttachmentStore } from '@aeven/attachment'
+import type { SessionHandoffInput, SessionRunner } from '@aeven/session-handoff'
 
 /** One session as the index records it. */
 interface IndexEntry {
@@ -61,15 +63,34 @@ export interface SessionSyncTuning {
 }
 
 const INDEX = 'sessions/index'
+/** The account's inputs for sessions another device writes, until that device applies them. */
+const INBOX = 'sessions/inbox'
+/** The document each device names itself in, as the sync provider writes it. */
+const DEVICES = 'devices'
+
+/** One forwarded input waiting for the device that writes its session. */
+interface InboxEntry {
+  /** The session. */
+  session: string
+  /** The input, in the forwarding Consumer's vocabulary. */
+  input: SessionHandoffInput
+  /** The device that forwarded it. */
+  from: string
+  /** When it was forwarded, in milliseconds since the Unix epoch; inputs apply in this order. */
+  at: number
+}
+
+/** Receives an input another device forwarded for a session this device writes. */
+export type SessionInputDelivery = (sessionId: SessionId, input: SessionHandoffInput) => void
 const DAY_MS = 86_400_000
 
 const streamName = (id: string): string => `sessions/${id}`
 const attachmentStream = (id: string): string => `attachments/${id}`
 const ATTACHMENT_ID = /sha256:[a-f0-9]{64}/g
 
-/** Content addresses of the attachments some events reference: images, files, and files' extracted text. */
-function attachmentIds(events: readonly SessionEvent[]): Set<string> {
-  return new Set(JSON.stringify(events).match(ATTACHMENT_ID))
+/** Content addresses of the attachments some events or an input reference: images, files, and files' extracted text. */
+function attachmentIds(value: unknown): Set<string> {
+  return new Set(JSON.stringify(value).match(ATTACHMENT_ID))
 }
 
 /** One past the `seq` of the last event, or `fallback` for no events. */
@@ -79,7 +100,7 @@ function after(events: readonly SessionEvent[], fallback: number): number {
 
 /** One account's session mirror on this device. */
 export class SessionMirror {
-  private index: SyncDocument | undefined
+  private docs: { index: SyncDocument; inbox: SyncDocument; names: SyncDocument } | undefined
   private timer: ReturnType<typeof setInterval> | undefined
   private publishing: Promise<void> | undefined
   private importing: Promise<void> | undefined
@@ -96,6 +117,8 @@ export class SessionMirror {
   private readonly created = new Set<string>()
   /** Imported sessions already filed into their workspace on this device. */
   private readonly filed = new Set<string>()
+  /** Inbox passes, one at a time, so forwarded inputs apply in order. */
+  private consuming: Promise<void> = Promise.resolve()
   /** Each session's publications, one at a time, so a scan and a live publication never send the same events twice. */
   private readonly publications = new Map<string, Promise<void>>()
   /** Sessions whose committed events wait for their live publication. */
@@ -109,6 +132,7 @@ export class SessionMirror {
    * @param warn - receives failures to publish or import.
    * @param attachments - this Host's attachment store, when one is mounted.
    * @param filing - this Host's workspace registry, when one is mounted.
+   * @param deliver - receives inputs other devices forwarded for sessions this device writes.
    */
   constructor(
     private readonly owner: string,
@@ -118,18 +142,19 @@ export class SessionMirror {
     private readonly warn: (message: string) => void,
     private readonly attachments?: AttachmentStore,
     private readonly filing?: SessionFiling,
+    private readonly deliver?: SessionInputDelivery,
   ) {}
 
   /** Content addresses of attachments the account's devices published, by id. */
   private published(): YMap<{ chunks: number }> {
-    return this.started().doc.getMap<{ chunks: number }>('attachments')
+    return this.started().index.doc.getMap<{ chunks: number }>('attachments')
   }
 
   /**
    * Publish the attachments some events reference that this device holds and no device published yet.
    * @param events - the events being published.
    */
-  private async publishAttachments(events: readonly SessionEvent[]): Promise<void> {
+  private async publishAttachments(events: unknown): Promise<void> {
     const store = this.attachments
     if (store === undefined) return
     const published = this.published()
@@ -149,7 +174,7 @@ export class SessionMirror {
    * Fetch the attachments some imported events reference that are missing here and another device published.
    * @param events - the imported events.
    */
-  private async importAttachments(events: readonly SessionEvent[]): Promise<void> {
+  private async importAttachments(events: unknown): Promise<void> {
     const store = this.attachments
     if (store === undefined) return
     const published = this.published()
@@ -174,29 +199,96 @@ export class SessionMirror {
     return this.closed
   }
 
-  private started(): SyncDocument {
-    if (this.index === undefined) throw new Error('the session mirror has not started')
-    return this.index
+  private started(): { index: SyncDocument; inbox: SyncDocument; names: SyncDocument } {
+    if (this.docs === undefined) throw new Error('the session mirror has not started')
+    return this.docs
   }
 
   private entries(): YMap<IndexEntry> {
-    return this.started().doc.getMap<IndexEntry>('sessions')
+    return this.started().index.doc.getMap<IndexEntry>('sessions')
   }
 
   private device(): string | undefined {
     return this.sync.status(this.owner).device
   }
 
+  private pending(): YMap<InboxEntry> {
+    return this.started().inbox.doc.getMap<InboxEntry>('inputs')
+  }
+
+  /**
+   * The device writing a session when it is another device of the account.
+   * @param sessionId - the session.
+   * @returns the writing device, or undefined when this device writes it or no device published it.
+   */
+  runnerOf(sessionId: SessionId): SessionRunner | undefined {
+    const docs = this.docs
+    if (docs === undefined) return undefined
+    const origin = docs.index.doc.getMap<IndexEntry>('sessions').get(sessionId)?.origin
+    if (origin === undefined || origin === this.device()) return undefined
+    const name = docs.names.doc.getMap<{ name: string }>('names').get(origin)?.name ?? ''
+    return { device: origin, name }
+  }
+
+  /**
+   * Forward one input to the device writing a session, after publishing the attachments it references so that
+   * device can read them.
+   * @param sessionId - the session.
+   * @param input - the input.
+   */
+  async forward(sessionId: SessionId, input: SessionHandoffInput): Promise<void> {
+    const me = this.device()
+    if (me === undefined || this.runnerOf(sessionId) === undefined) {
+      throw new Error(`session ${sessionId} is not written by another device of the account`)
+    }
+    await this.publishAttachments(input.request)
+    const entry: InboxEntry = { session: sessionId, input, from: me, at: Date.now() }
+    this.pending().set(`${String(entry.at).padStart(16, '0')}:${randomUUID()}`, entry)
+  }
+
+  /**
+   * Apply the waiting inputs of sessions this device writes, oldest first, and remove them from the inbox. An
+   * input's attachments are fetched before it applies, since the forwarding device stored them.
+   */
+  private consumeInbox(): void {
+    this.consuming = this.consuming.then(async () => {
+      const me = this.device()
+      const deliver = this.deliver
+      if (me === undefined || this.isClosed() || deliver === undefined) return
+      const inputs = this.pending()
+      const mine = [...inputs.entries()]
+        .filter(([, entry]) => this.entries().get(entry.session)?.origin === me)
+        .sort(([left], [right]) => left.localeCompare(right))
+      for (const [key, entry] of mine) {
+        inputs.delete(key)
+        await this.importAttachments(entry.input.request).catch((error: unknown) => {
+          this.warn(`session sync: fetching a forwarded input's attachments failed: ${String(error)}`)
+        })
+        deliver(entry.session as SessionId, entry.input)
+      }
+    })
+  }
+
   /** Open the index, import what other devices published, and start publishing this device's sessions. */
   async start(): Promise<void> {
-    this.index = await this.sync.openDocument(this.owner, INDEX)
+    const index = await this.sync.openDocument(this.owner, INDEX)
+    const inbox = await this.sync.openDocument(this.owner, INBOX)
+    const names = await this.sync.openDocument(this.owner, DEVICES)
     if (this.isClosed()) {
-      this.index.close()
+      for (const handle of [index, inbox, names]) handle.close()
       return
     }
+    this.docs = { index, inbox, names }
     this.entries().observe((_event: YMapEvent<IndexEntry>, transaction: Transaction) => {
-      if (!transaction.local) this.scheduleImport()
+      if (transaction.local) return
+      this.scheduleImport()
+      // A session that became this device's to write may have input waiting.
+      this.consumeInbox()
     })
+    this.pending().observe((_event: YMapEvent<InboxEntry>, transaction: Transaction) => {
+      if (!transaction.local) this.consumeInbox()
+    })
+    this.consumeInbox()
     this.scheduleImport()
     this.timer = setInterval(() => { void this.publish() }, this.tuning.publishMs)
     void this.publish()
@@ -342,7 +434,7 @@ export class SessionMirror {
    */
   appended(header: SessionHeader): void {
     const id = header.id as string
-    if (header.replica || header.owner !== this.owner || this.index === undefined || this.live.has(id)) return
+    if (header.replica || header.owner !== this.owner || this.docs === undefined || this.live.has(id)) return
     this.live.set(id, setTimeout(() => {
       this.live.delete(id)
       const me = this.device()
@@ -393,7 +485,7 @@ export class SessionMirror {
     if (this.timer !== undefined) clearInterval(this.timer)
     for (const timer of this.live.values()) clearTimeout(timer)
     this.live.clear()
-    await Promise.all([this.publishing, this.importing, ...this.publications.values()])
-    this.index?.close()
+    await Promise.all([this.publishing, this.importing, this.consuming, ...this.publications.values()])
+    for (const handle of Object.values(this.docs ?? {})) handle.close()
   }
 }

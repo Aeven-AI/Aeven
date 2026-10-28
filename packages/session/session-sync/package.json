@@ -36,7 +36,8 @@
     "@aeven/sync": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
     "@aeven/attachment": "workspace:^",
-    "@aeven/workspace": "workspace:^"
+    "@aeven/workspace": "workspace:^",
+    "@aeven/session-handoff": "workspace:^"
   },
   "devDependencies": {
     "@aeven/session": "workspace:^",
@@ -44,7 +45,8 @@
     "@aeven/sync": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
     "@aeven/attachment": "workspace:^",
-    "@aeven/workspace": "workspace:^"
+    "@aeven/workspace": "workspace:^",
+    "@aeven/session-handoff": "workspace:^"
   },
   "peerDependenciesMeta": {
     "@aeven/workspace": {

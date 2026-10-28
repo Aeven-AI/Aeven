@@ -17,6 +17,7 @@ import { SessionTitleInvalidError } from '@aeven/session-title'
 import { canonicalClientTimeZone } from '@aeven/util-time'
 import { RemoteError, remoteErrorOf } from '@aeven/typert-protocol'
 import type { Workspace } from '@aeven/workspace'
+import type { SessionHandoffInput } from '@aeven/session-handoff'
 import {
   ApiSessionAgentController,
   ApiSessionCwdConflict,
@@ -90,7 +91,7 @@ function userSource(request: SessionPromptRequest | SessionEditRequest): Message
  * @throws RemoteError `session/edit-unavailable` for any other seq.
  */
 function editTarget(
-  session: Agent['session'],
+  session: Pick<Agent['session'], 'seq' | 'eventAt'>,
   request: SessionEditRequest,
 ): { message: UserMessage; cut: SessionSeq } {
   const unavailable = (): RemoteError => new RemoteError(
@@ -467,6 +468,8 @@ export class SessionCommandController {
       )
     }
     const source = userSource(request)
+    const owner = this.runnerAccount(request.sessionId)
+    if (owner !== undefined) return await this.forward(owner, request.sessionId, 'prompt', request)
     const agent = await this.resolveAgent(request.sessionId)
     this.assertRouteServed(agent)
     const hasImage = request.content.some(part => part.type === 'image')
@@ -512,6 +515,14 @@ export class SessionCommandController {
       throw new RemoteError('gateway/bad-request', 'edited text must include non-whitespace text', {})
     }
     const source = userSource(request)
+    const owner = this.runnerAccount(request.sessionId)
+    if (owner !== undefined) {
+      const { events } = await this.readSessionState(request.sessionId)
+      editTarget({ seq: SessionLogOffset(events.length), eventAt: seq => events[seq] }, request)
+      await this.forward(owner, request.sessionId, 'edit', request)
+      // The writing device appends the rewind; on a copy that is caught up it lands at the copy's end.
+      return { accepted: true, rewindSeq: events.length }
+    }
     const agent = await this.resolveAgent(request.sessionId)
     if (hasApiSessionSubagentOwner(this.ctx, agent.session, agent)) {
       throw apiSessionSubagentOwnershipError(request.sessionId)
@@ -545,6 +556,8 @@ export class SessionCommandController {
    * @returns acknowledgement that the notice entered the Agent inbox.
    */
   async retry(request: SessionRetryRequest): Promise<SessionRetryValue> {
+    const owner = this.runnerAccount(request.sessionId)
+    if (owner !== undefined) return await this.forward(owner, request.sessionId, 'retry', request)
     const agent = await this.resolveAgent(request.sessionId)
     if (hasApiSessionSubagentOwner(this.ctx, agent.session, agent)) {
       throw apiSessionSubagentOwnershipError(request.sessionId)
@@ -643,7 +656,7 @@ export class SessionCommandController {
    * @param request - Session, queue item, and requested mutation.
    * @returns acknowledgement that the queue mutation was applied.
    */
-  updateQueue(request: SessionUpdateQueueRequest): SessionUpdateQueueValue {
+  updateQueue(request: SessionUpdateQueueRequest): SessionUpdateQueueValue | Promise<SessionUpdateQueueValue> {
     if (request.action.kind === 'edit') {
       if (request.action.content.some(block => block.type !== 'text')) {
         throw new RemoteError(
@@ -660,6 +673,8 @@ export class SessionCommandController {
         )
       }
     }
+    const owner = this.runnerAccount(request.sessionId)
+    if (owner !== undefined) return this.forward(owner, request.sessionId, 'queue', request)
     const agent = this.ctx.agents.get(request.sessionId)
     if (agent !== undefined && hasApiSessionSubagentOwner(this.ctx, agent.session, agent)) {
       throw apiSessionSubagentOwnershipError(request.sessionId)
@@ -697,7 +712,9 @@ export class SessionCommandController {
    * @param request - Session whose active Agent turn is cancelled.
    * @returns acknowledgement that cancellation was requested.
    */
-  cancel(request: SessionCancelRequest): SessionCancelValue {
+  cancel(request: SessionCancelRequest): SessionCancelValue | Promise<SessionCancelValue> {
+    const owner = this.runnerAccount(request.sessionId)
+    if (owner !== undefined) return this.forward(owner, request.sessionId, 'cancel', request)
     const agent = this.ctx.agents.get(request.sessionId)
     if (agent === undefined || !this.agents.callerMayAccess(agent.session.header)) {
       throw new RemoteError(
@@ -721,6 +738,45 @@ export class SessionCommandController {
         `no adapter serves provider "${selection.provider}"; select a model for this session`,
         { provider: selection.provider, model: selection.model },
       )
+    }
+  }
+
+  /**
+   * The caller's account when another device of it writes the session, so this device forwards the input there.
+   * A session this device holds live is always this device's.
+   */
+  private runnerAccount(sessionId: SessionId): string | undefined {
+    const handoff = this.ctx.get('sessionHandoff')
+    const owner = this.ctx.get('identityUsers')?.actingUser()?.id
+    if (handoff === undefined || owner === undefined || this.ctx.agents.get(sessionId) !== undefined) return undefined
+    return handoff.runnerOf(owner, sessionId) === undefined ? undefined : owner
+  }
+
+  private async forward(owner: string, sessionId: SessionId, operation: string, request: unknown): Promise<{ accepted: true }> {
+    try {
+      await this.ctx.sessionHandoff.forward(owner, sessionId, { operation, request })
+    } catch (error) {
+      throw new RemoteError('session/agent-busy', 'the device running this conversation could not take the input', { reason: String(error) })
+    }
+    return { accepted: true }
+  }
+
+  /**
+   * Apply an input another device forwarded for a session this device writes, as that device would have applied it.
+   * @param sessionId - the session.
+   * @param input - the forwarded operation and request.
+   * @returns when the input was admitted.
+   */
+  async applyForwarded(sessionId: SessionId, input: SessionHandoffInput): Promise<void> {
+    const request = { ...(input.request as object), sessionId }
+    switch (input.operation) {
+      case 'prompt': await this.prompt(request as SessionPromptRequest); return
+      case 'edit': await this.edit(request as SessionEditRequest); return
+      case 'retry': await this.retry(request); return
+      case 'queue': await this.updateQueue(request as SessionUpdateQueueRequest); return
+      case 'cancel': await this.cancel(request); return
+      // A newer device's operation this build does not know is refused rather than guessed.
+      default: throw new Error(`unknown forwarded session operation ${JSON.stringify(input.operation)}`)
     }
   }
 

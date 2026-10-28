@@ -16,6 +16,26 @@ const defaults = {
 }
 
 describe('SessionController facade', () => {
+  it('applies input another device forwarded as the session\'s owner, and reports one it could not apply', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SessionStore)
+    await ctx.plugin(AgentRegistry)
+    ctx.provide('sessionPersistence', testSessionPersistence(ctx, {}) as never)
+    const controller = createSessionTestController(ctx, defaults)
+    const apply = vi.fn((_id: unknown, _input: unknown) => Promise.resolve())
+    ;(controller as unknown as { commands: { applyForwarded: typeof apply } }).commands.applyForwarded = apply
+    const warn = vi.spyOn(ctx.logger, 'warn').mockImplementation(() => {})
+    const input = { operation: 'cancel', request: {} }
+    ctx.emit('session-handoff/input', 'owner-1', SessionId('s'), input)
+    await vi.waitFor(() => { expect(apply).toHaveBeenCalledWith('s', input) })
+    const runAs = vi.fn((_user: unknown, work: () => Promise<void>) => work())
+    ctx.provide('identityUsers', { runAs } as never)
+    apply.mockRejectedValueOnce(new Error('agent busy'))
+    ctx.emit('session-handoff/input', 'owner-1', SessionId('s'), input)
+    await vi.waitFor(() => { expect(warn).toHaveBeenCalledWith(expect.stringContaining('agent busy')) })
+    expect(runAs).toHaveBeenCalledWith({ id: 'owner-1' }, expect.any(Function))
+  })
+
   it('does not require the Tools service', () => {
     expect(SessionController.inject).not.toContain('tools')
   })

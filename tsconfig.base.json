@@ -331,6 +331,7 @@
       "@aeven/brand": ["./packages/util/brand/src"],
       "@aeven/sync-vault": ["./packages/sync/sync-vault/src"],
       "@aeven/sync": ["./packages/sync/sync/src"],
+      "@aeven/session-handoff": ["./packages/session/session-handoff/src"],
       "@aeven/sync-yjs": ["./packages/sync/sync-yjs/src"],
       "@aeven/session-sync": ["./packages/session/session-sync/src"],
       "@aeven/settings-sync": ["./packages/settings/settings-sync/src"],

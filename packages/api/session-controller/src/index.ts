@@ -168,6 +168,15 @@ export class SessionController extends TypertRemoteService {
       )
     })
 
+    // Input the account's other devices typed for a session this device writes runs here as if typed here.
+    ctx.on('session-handoff/input', (owner, sessionId, input) => {
+      const identity = ctx.get('identityUsers')
+      const apply = () => this.commands.applyForwarded(sessionId, input)
+      void (identity === undefined ? apply() : identity.runAs({ id: owner }, apply)).catch((error: unknown) => {
+        ctx.logger.warn(`session: input another device forwarded for ${sessionId} was not applied: ${String(error)}`)
+      })
+    })
+
     ctx.on('agent/pre-step', async ({ step, signal }, next) => {
       const decision = await next()
       if (decision.kind === 'reject' || signal.aborted || step !== 1) return decision
@@ -495,8 +504,8 @@ The user's account display name is ${JSON.stringify(source.clientDisplayName)}.
    * @returns acknowledgement that the queue mutation was applied.
    */
   @Remote('updateQueue')
-  updateQueue(request: SessionUpdateQueueRequest): SessionUpdateQueueValue {
-    return this.commands.updateQueue(request)
+  async updateQueue(request: SessionUpdateQueueRequest): Promise<SessionUpdateQueueValue> {
+    return await this.commands.updateQueue(request)
   }
 
   /**
@@ -505,8 +514,8 @@ The user's account display name is ${JSON.stringify(source.clientDisplayName)}.
    * @returns acknowledgement that cancellation was requested.
    */
   @Remote('cancel')
-  cancel(request: SessionCancelRequest): SessionCancelValue {
-    return this.commands.cancel(request)
+  async cancel(request: SessionCancelRequest): Promise<SessionCancelValue> {
+    return await this.commands.cancel(request)
   }
 
   /**

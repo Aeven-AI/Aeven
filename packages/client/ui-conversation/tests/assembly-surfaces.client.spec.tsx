@@ -91,34 +91,12 @@ async function bench(opts?: { blank?: boolean; replica?: true }) {
 }
 
 describe('resident composer', () => {
-  it('offers a linked continuation instead of the composer for a replicated conversation', async () => {
+  it('offers the composer for a conversation another device runs, since its input reaches that device', async () => {
     const runtime = await bench({ replica: true })
     try {
-      const childId = 'replica-child' as SessionId
-      await runtime.sessions.add({ id: childId, summary: { title: 'Child', displayTitle: 'Child' } })
       runtime.sessions.open(SID)
-      const fork = vi.spyOn(runtime.sessions, 'fork').mockResolvedValue(childId)
-      const open = vi.spyOn(runtime.sessions, 'open')
       const view = runtime.renderRoot()
-      expect(view.container.querySelector('[data-composer-input]')).toBeNull()
-      fireEvent.click(view.getByRole('button', { name: '在此继续' }))
-      await waitFor(() => { expect(open).toHaveBeenCalledWith(childId) })
-      expect(fork).toHaveBeenCalledWith({ sessionId: SID, increaseTitle: true })
-    } finally {
-      await runtime.dispose()
-    }
-  })
-
-  it('keeps the replicated conversation selected and shows failure when continuation is refused', async () => {
-    const runtime = await bench({ replica: true })
-    try {
-      vi.spyOn(runtime.sessions, 'fork').mockRejectedValue(new Error('no completed turn'))
-      const open = vi.spyOn(runtime.sessions, 'open')
-      const view = runtime.renderRoot()
-      fireEvent.click(view.getByRole('button', { name: '在此继续' }))
-      await waitFor(() => { expect(view.getByText('无法在此继续。')).toBeTruthy() })
-      expect(open).not.toHaveBeenCalled()
-      expect(view.getByRole('button', { name: '在此继续' }).hasAttribute('disabled')).toBe(false)
+      await waitFor(() => { expect(view.container.querySelector('[data-composer-input]')).not.toBeNull() })
     } finally {
       await runtime.dispose()
     }
