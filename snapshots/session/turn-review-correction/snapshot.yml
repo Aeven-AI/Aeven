@@ -1,0 +1,12 @@
+version: 1
+scenario: turn-review-correction
+profile: headless
+composition: default
+recording: authored
+header:
+  class: turn-review-correction
+  pin: true
+replay:
+  override: true
+workspace:
+  final: true

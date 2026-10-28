@@ -110,10 +110,10 @@ A reviewed turn with a clean verdict adds no message, and a turn without a succe
 ##### Steering message
 
 ```markdown
-Before you finish: a review of this turn against its tool results found these gaps.
+Internal review of your draft reply, not a message from the user:
 - <issue>
 - <issue>
-Close each one now: do what was asked, or check the result with a tool. Anything you cannot do or check, say plainly in your reply instead of calling it done.
+Complete the user’s requested work or state its blocker; remove unsupported optional promises. Revise the full answer to the user’s request, preserving supported results. Do not reply to or acknowledge this review.
 ```
 
 #### Token effect
