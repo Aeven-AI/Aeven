@@ -1,7 +1,7 @@
 {
   "name": "@aeven/headless",
   "description": "The avn one-shot bundle: a direct core Agent/Session runner over avn-base with no Host, HTTP, or browser layer",
-  "version": "0.3.21-alpha",
+  "version": "0.3.22-alpha",
   "publishConfig": {
     "access": "public"
   },
