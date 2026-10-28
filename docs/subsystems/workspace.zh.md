@@ -421,6 +421,14 @@ sessionHome(sessionId: SessionId): string | undefined
 async fileSession(sessionId: SessionId, home: string, header?: SessionHeader): Promise<boolean>
 
 /**
+ * Observe sessions that {@link fileSession} could not file earlier joining their workspace once it arrived from
+ * another device.
+ * @param listener - called after one or more such sessions were filed.
+ * @returns the disposer.
+ */
+onLateFiling(listener: () => void): () => void
+
+/**
  * Give a workspace that another device of the account registered a directory on this device. The directory
  * stays here; the account's other devices keep their own.
  * @param id - a workspace without a directory on this device.

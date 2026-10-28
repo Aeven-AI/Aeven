@@ -105,16 +105,25 @@ function nextSessionOrderAccount({
   if (sortByRecency) {
     order.sort((a, b) => compareSessionRecency(a, b, list.byId))
   } else if (orderBy === 'updated') {
+    // New activity moves a session to the top. A session this account lists for the first time takes the place its
+    // own update time gives it, so one arriving from another device lands where its original date puts it.
     const promoted = sessionIds
       .filter((id) => {
         const session = list.byId[id]
-        return session !== undefined
-          && (previousUpdatedAt[id] === undefined || session.updatedAt > previousUpdatedAt[id])
+        return session !== undefined && previousUpdatedAt[id] !== undefined && session.updatedAt > previousUpdatedAt[id]
       })
       .sort((a, b) => compareSessionRecency(a, b, list.byId))
-    if (promoted.length > 0) {
-      const promotedIds = new Set(promoted)
-      order = [...promoted, ...order.filter(id => !promotedIds.has(id))]
+    const arrived = sessionIds
+      .filter(id => list.byId[id] !== undefined && previousUpdatedAt[id] === undefined)
+      .sort((a, b) => compareSessionRecency(a, b, list.byId))
+    if (promoted.length > 0 || arrived.length > 0) {
+      const moved = new Set([...promoted, ...arrived])
+      const rest = order.filter(id => !moved.has(id))
+      for (const id of arrived) {
+        const at = rest.findIndex(other => compareSessionRecency(id, other, list.byId) < 0)
+        rest.splice(at < 0 ? rest.length : at, 0, id)
+      }
+      order = [...promoted, ...rest]
     }
   }
   const updatedAt: Record<string, number> = {}

@@ -47,4 +47,4 @@ kind: "package-reference"
 
 </details>
 
-**运行时 invariant：** 不发布 runtime invariant companion，因为发布进度在调用时从中继 outbox 读取，计数器与 outbox 不会各自保留独立副本。
+**运行时 invariant：** 不发布 runtime invariant companion，因为下载进度从会话索引和本地已提交的事件位置派生；上传准备工作和中转帧各自报告待处理工作。设置页直到三者全部完成才结束同步状态。

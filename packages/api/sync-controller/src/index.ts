@@ -74,4 +74,18 @@ export default class SyncController extends TypertRemoteService {
   async devices(): Promise<SyncDeviceView[]> {
     return (await this.ctx.sync.devices(this.owner())).map(({ id, name, current }) => ({ id, name, current }))
   }
+
+  /**
+   * Take another of the caller's devices off the device list.
+   * @param id - a listed device other than this one.
+   * @returns the devices afterwards, this one first.
+   */
+  @Remote
+  async removeDevice(id: string): Promise<SyncDeviceView[]> {
+    const owner = this.owner()
+    const device = (await this.ctx.sync.devices(owner)).find(listed => listed.id === id)
+    if (device === undefined) throw new Error(`no device '${id}' on this account`)
+    await this.ctx.sync.removeDevice(owner, device.id)
+    return await this.devices()
+  }
 }

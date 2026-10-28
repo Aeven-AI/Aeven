@@ -10,6 +10,7 @@ export interface SyncSectionInjected {
   status: () => Promise<SyncView>
   setEnabled: (enabled: boolean) => Promise<SyncView>
   devices: () => Promise<SyncDeviceView[]>
+  removeDevice: (id: string) => Promise<SyncDeviceView[]>
   /**
    * Call `listener` whenever the Host reports a sync change.
    * @param listener - refresh callback.
@@ -74,6 +75,15 @@ export function SyncSection(props: SyncSectionProps) {
     }
   }
 
+  const remove = async (id: string): Promise<void> => {
+    setFailed(false)
+    try {
+      setDevices(await ops.removeDevice(id))
+    } catch {
+      setFailed(true)
+    }
+  }
+
   const header = <SectionHeader title={t('nav')} description={t('intro')} />
   if (state.status === 'loading') return <div className={css.section}>{header}<LoadingBlock label={t('loading')} /></div>
   if (state.status === 'error') {
@@ -127,7 +137,9 @@ export function SyncSection(props: SyncSectionProps) {
             <SettingsRow
               key={device.id}
               title={device.name === '' ? t('unnamed') : device.name}
-              control={device.current ? <span className={css.tag}>{t('thisDevice')}</span> : undefined}
+              control={device.current
+                ? <span className={css.tag}>{t('thisDevice')}</span>
+                : <Button variant="ghost" size="sm" onClick={() => { void remove(device.id) }}>{t('remove')}</Button>}
             />
           ))}
         </SettingsGroup>

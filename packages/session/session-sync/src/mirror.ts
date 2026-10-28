@@ -45,6 +45,21 @@ export interface SessionFiling {
    * @returns whether the session is filed there now.
    */
   fileSession(sessionId: SessionId, home: string, header?: SessionHeader): Promise<boolean>
+  /**
+   * Observe sessions {@link fileSession} could not file earlier joining their workspace once it arrived.
+   * @param listener - called after such sessions were filed.
+   * @returns the disposer.
+   */
+  onLateFiling(listener: () => void): () => void
+}
+
+/**
+ * @param events - session events in log order.
+ * @returns the title the last `session/title` event set, if any.
+ */
+function titleOf(events: readonly SessionEvent[]): string | undefined {
+  const last = events.findLast(event => (event.type as string) === 'session/title')
+  return last === undefined ? undefined : (last.data as unknown as { title: string }).title
 }
 
 /** One published batch. */
@@ -68,7 +83,10 @@ export interface SessionSyncTuning {
   compressionQuality: number
   /** Wait after a session's events commit before they are published, so a streaming reply travels in small batches. */
   liveMs: number
-  /** Sessions created up to this many days before this device first publishes are published too. */
+  /**
+   * Background import skips sessions this device does not store and that were created more than this many days
+   * ago; they import when opened. `0` imports every session.
+   */
   backfillDays: number
   /** Pause between two sessions of a background import or publication scan, in milliseconds. */
   pauseMs: number
@@ -337,6 +355,12 @@ export class SessionMirror {
   private consuming: Promise<void> = Promise.resolve()
   /** Each session's publications, one at a time, so a scan and a live publication never send the same events twice. */
   private readonly publications = new Map<string, Promise<void>>()
+  /** Stops observing late workspace filing. */
+  private offLateFiling: (() => void) | undefined
+  /** Conversations a caller is waiting to open. */
+  private readonly opening = new Set<string>()
+  /** Background imports waiting for {@link opening} to empty. */
+  private readonly openingDone: (() => void)[] = []
   /** Sessions whose committed events wait for their live publication. */
   private readonly live = new Map<string, ReturnType<typeof setTimeout>>()
 
@@ -352,7 +376,8 @@ export class SessionMirror {
    * @param liveChange - receives sessions whose live state another device changed.
    * @param released - stops and drains a local agent before its log becomes a replica.
    * @param catalogChanged - publishes received metadata before histories are downloaded.
-   * @param progressChanged - reports discovery or completion of conversation publication work.
+   * @param progressChanged - reports discovery or completion of conversation uploads and downloads.
+   * @param imported - receives a session once an import pass stored new events for it.
    */
   constructor(
     private readonly owner: string,
@@ -367,6 +392,7 @@ export class SessionMirror {
     private readonly released?: (sessionId: SessionId) => Promise<void>,
     private readonly catalogChanged?: () => void,
     private readonly progressChanged?: () => void,
+    private readonly imported?: (sessionId: SessionId) => void,
   ) {}
 
   /** Content addresses of attachments the account's devices published, by id. */
@@ -446,11 +472,14 @@ export class SessionMirror {
    */
   catalog(): readonly SharedSession[] {
     if (this.docs === undefined) return []
-    return [...this.entries().values()].filter(entry => entry.header.owner === this.owner).map(entry => ({
-      header: { ...entry.header, replica: true }, next: entry.next,
-      updatedAt: entry.updatedAt ?? entry.header.createdAt,
-      ...entry.title === undefined ? {} : { title: entry.title },
-    }))
+    // A conversation is listed once it sits in a workspace here, never outside one while its workspace is on its way.
+    return [...this.entries().values()].filter(entry => entry.header.owner === this.owner
+      && (this.filing === undefined || this.filing.sessionHome(entry.header.id) !== undefined))
+      .map(entry => ({
+        header: { ...entry.header, replica: true }, next: entry.next,
+        updatedAt: entry.updatedAt ?? entry.header.createdAt,
+        ...entry.title === undefined ? {} : { title: entry.title },
+      }))
   }
 
   /**
@@ -498,8 +527,25 @@ export class SessionMirror {
       importing.catch((error: unknown) => { this.warn(`session sync: importing an opened session failed: ${String(error)}`) })
       return
     }
-    await importing
+    // Background import of other conversations waits while this one downloads.
+    this.opening.add(sessionId)
+    try {
+      await importing
+    } finally {
+      this.opening.delete(sessionId)
+      if (this.opening.size === 0) for (const resume of this.openingDone.splice(0)) resume()
+    }
     signal?.throwIfAborted()
+  }
+
+  /**
+   * Wait while conversations other than `id` are being opened, so the one on screen gets the connection first.
+   * @param id - the conversation about to import.
+   */
+  private async yieldToOpening(id: string): Promise<void> {
+    while (this.opening.size > 0 && !this.opening.has(id) && !this.isClosed()) {
+      await new Promise<void>((resolve) => { this.openingDone.push(resolve) })
+    }
   }
 
   /**
@@ -609,6 +655,11 @@ export class SessionMirror {
       return
     }
     this.docs = { index, inbox, names, live }
+    this.offLateFiling = this.filing?.onLateFiling(() => {
+      this.catalogChanged?.()
+      this.scheduleImport()
+      this.progressChanged?.()
+    })
     this.catalogChanged?.()
     live.doc.getMap<LiveEntry>('sessions').observe((event: YMapEvent<LiveEntry>, transaction: Transaction) => {
       if (transaction.local) return
@@ -624,6 +675,7 @@ export class SessionMirror {
       }
       this.catalogChanged?.()
       this.scheduleImport()
+      this.progressChanged?.()
       // A session that became this device's to write may have input waiting.
       this.consumeInbox()
     })
@@ -632,6 +684,7 @@ export class SessionMirror {
     })
     this.consumeInbox()
     this.scheduleImport()
+    this.progressChanged?.()
     this.timer = setInterval(() => { void this.publish() }, this.tuning.publishMs)
     void this.publish()
   }
@@ -703,6 +756,7 @@ export class SessionMirror {
         await this.persistence.append(id as SessionId, events)
         await this.importAttachments(events)
         this.localNext.set(id, after(events, next))
+        this.imported?.(id as SessionId)
       })
     })
   }
@@ -713,13 +767,25 @@ export class SessionMirror {
     const local = new Set((await this.persistence.list()).map(header => header.id as string))
     // The most recently active conversations arrive first; older history follows.
     const ordered = [...this.entries()].sort(([, left], [, right]) => recency(right) - recency(left))
+      .filter(([, entry]) => entry.origin !== me && entry.header.owner === this.owner)
+    // Every conversation joins its workspace before any body downloads, so the list shows the account's structure first.
+    const unfiled = this.filed.size
+    // Filing puts a conversation first in its workspace, so the oldest goes first and the most recent ends on top.
+    for (const [id, entry] of [...ordered].reverse()) {
+      if (this.isClosed()) return
+      await this.file(id, entry).catch((error: unknown) => {
+        this.warn(`session sync: filing a session into its workspace failed: ${String(error)}`)
+      })
+    }
+    if (this.filed.size !== unfiled) this.catalogChanged?.()
     for (const [id, entry] of ordered) {
       if (this.isClosed()) return
-      if (entry.origin === me || entry.header.owner !== this.owner) continue
       await pause(this.tuning.pauseMs)
       if (local.has(id) || this.created.has(id)) this.watch(id)
-      await this.file(id, entry)
-      if (entry.header.createdAt < Date.now() - this.tuning.backfillDays * DAY_MS && !local.has(id)) continue
+      // A body imports once its workspace holds it here; opening the conversation imports it regardless.
+      if (this.filing !== undefined && this.filing.sessionHome(id as SessionId) === undefined && !local.has(id)) continue
+      if (this.tuning.backfillDays > 0 && entry.header.createdAt < Date.now() - this.tuning.backfillDays * DAY_MS
+        && !local.has(id)) continue
       try {
         await this.releases.get(id)
         await this.importOne(id, entry, local)
@@ -746,7 +812,14 @@ export class SessionMirror {
 
   /** Run one append to an imported session after every earlier one, whether it came from the relay or the local network. */
   private serialImport(id: string, work: () => Promise<void>): Promise<void> {
-    const run = (this.imports.get(id) ?? Promise.resolve()).then(work)
+    const run = (this.imports.get(id) ?? Promise.resolve()).then(async () => {
+      const pending = this.progress().sessionsPending
+      try {
+        await work()
+      } finally {
+        if (this.progress().sessionsPending !== pending) this.progressChanged?.()
+      }
+    })
     this.imports.set(id, run.catch(() => {}))
     return run
   }
@@ -757,46 +830,66 @@ export class SessionMirror {
     let pending: SessionEvent[] = []
     let cursor = this.cursors.get(id) ?? 0
     let committedCursor = cursor
-    for (;;) {
-      const { batches, more } = await this.sync.readStream(this.owner, streamName(id), cursor)
-      if (this.isClosed()) return
-      for (const { seq, payload } of batches) {
-        cursor = seq
-        const batch = await readBatch(payload)
-        const events = batch.events.filter(event => event.seq >= next)
-        const first = events.at(0)
-        if (first === undefined) continue
-        if (first.seq !== next) throw new Error(`session ${id} is missing events ${String(next)}–${String(first.seq - 1)}`)
-        pending.push(...events)
-        next = after(events, next)
-        // A seeded artifact materializes only once its complete inherited prefix can commit together.
-        if (next < entry.inherited) continue
-        if (!created) {
-          await this.persistence.create(
-            { ...entry.header, replica: true },
-            entry.header.isSeeded ? SessionLogOffset(entry.inherited) : undefined,
-          )
-          this.created.add(id)
-          created = true
-          this.watch(id)
+    let stored = false
+    try {
+      for (;;) {
+        await this.yieldToOpening(id)
+        const { batches, more } = await this.sync.readStream(this.owner, streamName(id), cursor)
+        if (this.isClosed()) return
+        for (const { seq, payload } of batches) {
+          cursor = seq
+          const batch = await readBatch(payload)
+          const events = batch.events.filter(event => event.seq >= next)
+          const first = events.at(0)
+          if (first === undefined) continue
+          if (first.seq !== next) throw new Error(`session ${id} is missing events ${String(next)}–${String(first.seq - 1)}`)
+          pending.push(...events)
+          next = after(events, next)
+          // A seeded artifact materializes only once its complete inherited prefix can commit together.
+          if (next < entry.inherited) continue
+          if (!created) {
+            await this.persistence.create(
+              { ...entry.header, replica: true },
+              entry.header.isSeeded ? SessionLogOffset(entry.inherited) : undefined,
+            )
+            this.created.add(id)
+            created = true
+            this.watch(id)
+          }
+          await this.persistence.append(id as SessionId, pending)
+          await this.importAttachments(pending)
+          pending = []
+          this.localNext.set(id, next)
+          committedCursor = cursor
+          stored = true
         }
-        await this.persistence.append(id as SessionId, pending)
-        await this.importAttachments(pending)
-        pending = []
-        this.localNext.set(id, next)
-        committedCursor = cursor
+        this.cursors.set(id, committedCursor)
+        if (!more || this.isClosed()) return
       }
-      this.cursors.set(id, committedCursor)
-      if (!more || this.isClosed()) return
+    } finally {
+      // Listeners rebuild from the whole stored log, so they follow a pass rather than each of its batches.
+      if (stored) this.imported?.(id as SessionId)
     }
   }
 
   /**
-   * Read the discovered conversation publication work.
+   * Read the discovered conversation uploads and eligible history downloads.
    * @returns counters that include sessions not yet read or queued.
    */
   progress(): Readonly<SyncProgress> {
-    return this.publicationProgress
+    const progress = { ...this.publicationProgress }
+    if (this.docs === undefined) return progress
+    const me = this.device()
+    for (const [id, entry] of this.entries()) {
+      if (entry.origin === me || entry.header.owner !== this.owner) continue
+      const next = this.localNext.get(id)
+      const local = next !== undefined || this.created.has(id)
+      if (!local && this.filing !== undefined && this.filing.sessionHome(id as SessionId) === undefined) continue
+      if (!local && this.tuning.backfillDays > 0 && entry.header.createdAt < Date.now() - this.tuning.backfillDays * DAY_MS) continue
+      progress.sessionsTotal += 1
+      if (entry.next > (next ?? 0)) progress.sessionsPending += 1
+    }
+    return progress
   }
 
   /**
@@ -887,8 +980,23 @@ export class SessionMirror {
     if (this.isClosed()) return
     if (suffix.events.length === 0) {
       const current = this.entries().get(header.id)
-      if (current !== undefined && current.running !== this.running.has(header.id)) {
-        this.entries().set(header.id, { ...current, running: this.running.has(header.id) })
+      const home = this.filing?.sessionHome(header.id)
+      // An entry published before titles and activity times were recorded takes them from the whole log once.
+      const backfill = current !== undefined && current.next > 0 && (current.title === undefined || current.updatedAt === undefined)
+        ? (await this.persistence.readFrom(header.id, SessionLogOffset(0))).events
+        : undefined
+      if (this.isClosed()) return
+      const title = current?.title ?? (backfill === undefined ? undefined : titleOf(backfill))
+      const updatedAt = current?.updatedAt ?? backfill?.filter(event => event.type === 'user/message').at(-1)?.time
+      if (current !== undefined && (current.running !== this.running.has(header.id) || current.workspace !== home
+        || current.title !== title || current.updatedAt !== updatedAt)) {
+        const { workspace: _previous, ...rest } = current
+        this.entries().set(header.id, {
+          ...rest, running: this.running.has(header.id),
+          ...home === undefined ? {} : { workspace: home },
+          ...title === undefined ? {} : { title },
+          ...updatedAt === undefined ? {} : { updatedAt },
+        })
       }
       return
     }
@@ -933,8 +1041,7 @@ export class SessionMirror {
     await this.publishAttachments(suffix.events)
     const home = this.filing?.sessionHome(header.id)
     const previous = this.entries().get(header.id)
-    const lastTitle = [...suffix.events].reverse().find(event => (event.type as string) === 'session/title')
-    const title = lastTitle === undefined ? previous?.title : (lastTitle.data as unknown as { title: string }).title
+    const title = titleOf(suffix.events) ?? previous?.title
     this.entries().set(header.id, {
       header: suffix.meta,
       running: this.running.has(header.id),
@@ -951,6 +1058,8 @@ export class SessionMirror {
   /** Stop scheduling, wait for active imports and publications, and close the index. */
   async dispose(): Promise<void> {
     this.closed = true
+    this.offLateFiling?.()
+    for (const resume of this.openingDone.splice(0)) resume()
     if (this.timer !== undefined) clearInterval(this.timer)
     for (const off of this.watchers.values()) off()
     this.watchers.clear()

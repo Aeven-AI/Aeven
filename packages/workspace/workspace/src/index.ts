@@ -154,6 +154,12 @@ export class WorkspaceRegistry extends Service {
   private state?: WorkspaceDomainState
   private readonly entities = new Map<WorkspaceId, WorkspaceEntity>()
   private readonly headers = new Map<SessionId, SessionHeader>()
+  /** Imported sessions whose shared workspace has not reached this device yet, by shared workspace name. */
+  private readonly unfiled = new Map<SessionId, string>()
+  /** Observers of sessions filed after their workspace arrived from another device. */
+  private readonly lateFiling = new Set<() => void>()
+  /** Accounts whose ownerless workspaces this process already claimed. */
+  private readonly claimed = new Set<string>()
   private readonly sessionPaths = new Map<SessionId, string>()
   private readonly invalidSessionPaths = new Map<SessionId, string>()
   private operationTail: Promise<void> = Promise.resolve()
@@ -197,7 +203,15 @@ export class WorkspaceRegistry extends Service {
       (message) => { ctx.logger('workspace').warn(message) },
     )
     // The account's workspaces follow it to every device its sync vault holds, once that vault is served here.
-    ctx.on('sync/status', (owner) => { void this.synced.attach(owner) })
+    ctx.on('sync/status', (owner) => {
+      void this.synced.attach(owner).then(async (handle) => {
+        if (handle === undefined || this.claimed.has(owner)) return
+        this.claimed.add(owner)
+        await this.claimOwnerless(owner)
+      }).catch((error: unknown) => {
+        ctx.logger('workspace').warn(`workspace: claiming workspaces for the account failed: ${String(error)}`)
+      })
+    })
     ctx.effect(() => () => this.synced.dispose(), 'workspace.sync')
   }
 
@@ -371,10 +385,25 @@ export class WorkspaceRegistry extends Service {
       ? state.defaultWorkspaceId
       : home.startsWith('builtin:') ? state.builtInWorkspaceIds?.[home.slice('builtin:'.length)] : WorkspaceId(home)
     const target = id === undefined ? undefined : this.entities.get(id)
-    if (target === undefined) return false
+    if (target === undefined) {
+      this.unfiled.set(sessionId, home)
+      return false
+    }
+    this.unfiled.delete(sessionId)
     if (this.list().some(workspace => workspace.sessionIds.includes(sessionId))) return true
     await target.attachSession(sessionId)
     return true
+  }
+
+  /**
+   * Observe sessions that {@link fileSession} could not file earlier joining their workspace once it arrived from
+   * another device.
+   * @param listener - called after one or more such sessions were filed.
+   * @returns the disposer.
+   */
+  onLateFiling(listener: () => void): () => void {
+    this.lateFiling.add(listener)
+    return () => { this.lateFiling.delete(listener) }
   }
 
   /**
@@ -494,6 +523,7 @@ export class WorkspaceRegistry extends Service {
   forgetSession(sessionId: SessionId): Promise<void> {
     return this.enqueueOperation(async () => {
       this.headers.delete(sessionId)
+      this.unfiled.delete(sessionId)
       this.sessionPaths.delete(sessionId)
       this.invalidSessionPaths.delete(sessionId)
       // `sessionIds` is the path-filtered projection, so it no longer lists the
@@ -534,6 +564,30 @@ export class WorkspaceRegistry extends Service {
         this.ctx.logger('workspace').warn(`workspace: publishing to the account's other devices failed: ${String(error)}`)
       })
     }
+  }
+
+  /**
+   * Give the account each workspace that has no owner and holds sessions of that account and of no other, then
+   * publish. Workspaces registered before workspaces carried an owner would otherwise never reach the account's
+   * other devices, and their sessions would arrive there without a workspace.
+   * @param owner - the account this device now syncs.
+   * @returns when the claimed workspaces are stored and published.
+   */
+  private async claimOwnerless(owner: string): Promise<void> {
+    await this.enqueueOperation(async () => {
+      const state = this.requireState()
+      const table = this.requireTable()
+      let changed = false
+      for (const id of state.workspaceIds) {
+        const record = table.get(id)
+        if (record === undefined || record.owner !== undefined || this.isBuiltInId(state, id)) continue
+        const owners = new Set(record.sessionIds.flatMap(sessionId => this.headers.get(sessionId)?.owner ?? []))
+        if (owners.size !== 1 || !owners.has(owner)) continue
+        await table.put(id, { ...record, owner, updatedAt: new Date().toISOString() })
+        changed = true
+      }
+      if (changed) this.rebuildEntities()
+    })
   }
 
   /**
@@ -592,10 +646,24 @@ export class WorkspaceRegistry extends Service {
         const rank = new Map(projection.order.map((id, index) => [id, index]))
         const account = kept.filter(id => rank.has(id)).sort((left, right) => (rank.get(left) ?? 0) - (rank.get(right) ?? 0))
         const workspaceIds = [...this.pinnedHead(state, [...account, ...kept.filter(id => !rank.has(id))])]
-        if (!sameIds(workspaceIds, state.workspaceIds)) await this.setState({ ...state, workspaceIds })
-        this.rebuildEntities()
+        // Observers of the state write look the new workspaces up, so their entities exist before it commits.
+        this.rebuildEntities(workspaceIds)
+        try {
+          if (!sameIds(workspaceIds, state.workspaceIds)) await this.setState({ ...state, workspaceIds })
+        } finally {
+          this.rebuildEntities()
+        }
         this.validateStoredState(this.requireState())
       }, false)
+      // Sessions imported before their workspace arrived join it now.
+      let filed = false
+      for (const [sessionId, home] of [...this.unfiled]) {
+        filed = await this.fileSession(sessionId, home).catch((error: unknown) => {
+          this.ctx.logger('workspace').warn(`workspace: filing session '${sessionId}' into '${home}' failed: ${String(error)}`)
+          return false
+        }) || filed
+      }
+      if (filed) for (const listener of this.lateFiling) listener()
     } catch (error: unknown) {
       this.ctx.logger('workspace').warn(`workspace: another device's workspaces were not stored: ${String(error)}`)
     }
@@ -1070,9 +1138,9 @@ export class WorkspaceRegistry extends Service {
     }
   }
 
-  private rebuildEntities(): void {
+  private rebuildEntities(workspaceIds: readonly WorkspaceId[] = this.requireState().workspaceIds): void {
     this.entities.clear()
-    for (const id of this.requireState().workspaceIds) {
+    for (const id of workspaceIds) {
       const record = this.requireTable().get(id) as WorkspaceRecord
       this.entities.set(id, new WorkspaceEntity(this.host, id, record))
     }

@@ -69,6 +69,13 @@ declare module '@deepseek-ai/cordis' {
      * @param owner - account whose catalog changed.
      */
     'session-handoff/catalog'(owner: string): void
+    /**
+     * Events another device published for a session were stored on this device; one import pass emits once.
+     * @mode emit
+     * @param owner - the account the session belongs to.
+     * @param sessionId - the session whose stored log grew.
+     */
+    'session-handoff/imported'(owner: string, sessionId: SessionId): void
 
     /**
      * Another device of the account took over writing a session this device wrote. Listeners stop running it
