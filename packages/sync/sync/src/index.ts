@@ -34,6 +34,14 @@ export interface SyncStatus {
   queued: number
 }
 
+/** Conversation history discovered by publishers, including work not yet in the transport queue. */
+export interface SyncProgress {
+  /** Conversations whose current revision still needs publication. */
+  sessionsPending: number
+  /** Conversations in the current publication pass, retained after completion until another pass has work. */
+  sessionsTotal: number
+}
+
 /** An open document. Changes made through {@link doc} replicate until {@link close}. */
 export interface SyncDocument {
   /** The live Yjs document. Remote changes apply with the provider's own transaction origin. */
@@ -83,6 +91,14 @@ declare module '@deepseek-ai/cordis' {
      * @avnScopeScan unsupported
      */
     'sync/status'(owner: string): void
+    /**
+     * Collect an account's conversation publication progress without reading its logs.
+     * @mode emit
+     * @param owner - the account whose progress is requested.
+     * @param progress - publisher counters, initialized to zero by the caller.
+     * @avnScopeScan unsupported
+     */
+    'sync/progress'(owner: string, progress: SyncProgress): void
     /**
      * Another device's change to a document was stored on this device; open the document by name to read it.
      * @mode emit

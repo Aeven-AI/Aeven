@@ -7,11 +7,11 @@
  */
 import { randomUUID } from 'node:crypto'
 import { promisify } from 'node:util'
-import { brotliCompress, brotliDecompress } from 'node:zlib'
+import { brotliCompress, brotliDecompress, constants } from 'node:zlib'
 import type { Map as YMap, YMapEvent, Transaction } from 'yjs'
 import { SessionLogOffset, type SessionEvent, type SessionHeader, type SessionId } from '@aeven/session'
 import type { SessionPersistence } from '@aeven/session-persistence'
-import { LeaseHolder, type Sync, type SyncDocument, type LeaseHolderTiming } from '@aeven/sync'
+import { LeaseHolder, type Sync, type SyncDocument, type SyncProgress, type LeaseHolderTiming } from '@aeven/sync'
 import { AttachmentId, type AttachmentStore } from '@aeven/attachment'
 import type { SessionClaim, SessionHandoffInput, SessionRunner, SharedSession } from '@aeven/session-handoff'
 
@@ -62,6 +62,10 @@ export interface SessionSyncTuning {
   publishMs: number
   /** Uncompressed JSON bytes per published batch before a new batch starts. */
   batchBytes: number
+  /** Maximum history batches compressed concurrently; one conversation log is loaded at a time. */
+  publishConcurrency: number
+  /** Brotli quality for outgoing history, from 0 through 11. */
+  compressionQuality: number
   /** Wait after a session's events commit before they are published, so a streaming reply travels in small batches. */
   liveMs: number
   /** Sessions created up to this many days before this device first publishes are published too. */
@@ -90,6 +94,10 @@ const INDEX = 'sessions/index'
 const INBOX = 'sessions/inbox'
 /** The document each device names itself in, as the sync provider writes it. */
 const DEVICES = 'devices'
+/** Local execution settings and seed markers wait for conversation activity before publication. */
+const INITIALIZATION_EVENTS: ReadonlySet<string> = new Set([
+  'permission/preset', 'sandbox/mode', 'approval/policy', 'session/end-seed',
+])
 /** The live state of each session, as the device writing it publishes it. */
 const LIVE = 'sessions/live'
 
@@ -126,7 +134,10 @@ const ATTACHMENT_ID = /sha256:[a-f0-9]{64}/g
 
 /** Content addresses of the attachments some events or an input reference: images, files, and files' extracted text. */
 function attachmentIds(value: unknown): Set<string> {
-  return new Set(JSON.stringify(value).match(ATTACHMENT_ID))
+  if (!Array.isArray(value)) return new Set(JSON.stringify(value).match(ATTACHMENT_ID))
+  const ids = new Set<string>()
+  for (const item of value) for (const id of attachmentIds(item)) ids.add(id)
+  return ids
 }
 
 /** One past the `seq` of the last event, or `fallback` for no events. */
@@ -145,6 +156,7 @@ export class SessionMirror {
   private starting: Promise<void> | undefined
   private timer: ReturnType<typeof setInterval> | undefined
   private publishing: Promise<void> | undefined
+  private readonly publicationProgress: SyncProgress = { sessionsPending: 0, sessionsTotal: 0 }
   private importing: Promise<void> | undefined
   private importAgain = false
   private closed = false
@@ -336,6 +348,7 @@ export class SessionMirror {
    * @param liveChange - receives sessions whose live state another device changed.
    * @param released - stops and drains a local agent before its log becomes a replica.
    * @param catalogChanged - publishes received metadata before histories are downloaded.
+   * @param progressChanged - reports discovery or completion of conversation publication work.
    */
   constructor(
     private readonly owner: string,
@@ -349,6 +362,7 @@ export class SessionMirror {
     private readonly liveChange?: SessionLiveChange,
     private readonly released?: (sessionId: SessionId) => Promise<void>,
     private readonly catalogChanged?: () => void,
+    private readonly progressChanged?: () => void,
   ) {}
 
   /** Content addresses of attachments the account's devices published, by id. */
@@ -769,6 +783,11 @@ export class SessionMirror {
     }
   }
 
+  /** @returns discovered conversation publication work, including sessions not yet read or queued. */
+  progress(): Readonly<SyncProgress> {
+    return this.publicationProgress
+  }
+
   /**
    * Publish new events of sessions this device writes.
    * @returns when this scan ends.
@@ -784,26 +803,27 @@ export class SessionMirror {
     try {
       const entries = this.entries()
       const snapshots = await this.persistence.listSnapshots()
-      // Announce every identity in one index update before transferring bodies; recent conversations publish first.
-      entries.doc?.transact(() => {
-        for (const { header } of snapshots) {
-          if (header.owner !== this.owner || header.replica || entries.has(header.id)) continue
-          const home = this.filing?.sessionHome(header.id)
-          entries.set(header.id, { header, next: 0, inherited: 0, origin: me,
-            ...home === undefined ? {} : { workspace: home },
-          })
-        }
+      const pending = snapshots.filter(({ header, revision }) => {
+        const entry = entries.get(header.id)
+        return !header.replica && header.owner === this.owner && (entry === undefined || entry.origin === me)
+          && this.revisions.get(header.id) !== String(revision)
       })
-      snapshots.sort((left, right) => right.header.createdAt - left.header.createdAt)
-      for (const { header, revision } of snapshots) {
+      if (pending.length > 0) {
+        this.publicationProgress.sessionsPending = pending.length
+        this.publicationProgress.sessionsTotal = pending.length
+        this.progressChanged?.()
+      }
+      pending.sort((left, right) => right.header.createdAt - left.header.createdAt)
+      for (const { header, revision } of pending) {
         if (this.isClosed()) return
         const id = header.id as string
         const entry = entries.get(id)
-        if (header.replica || header.owner !== this.owner || (entry !== undefined && entry.origin !== me)) continue
-        if (this.revisions.get(id) === String(revision)) continue
+        if (entry !== undefined && entry.origin !== me) continue
         await pause(this.tuning.pauseMs)
         await this.serialize(id, () => this.publishSession(header, me, true))
         this.revisions.set(id, String(revision))
+        this.publicationProgress.sessionsPending -= 1
+        this.progressChanged?.()
       }
     } catch (error) {
       this.warn(`session sync: publishing sessions failed: ${String(error)}`)
@@ -861,16 +881,34 @@ export class SessionMirror {
       }
       return
     }
+    if (!suffix.events.some(event => !INITIALIZATION_EVENTS.has(event.type))) return
+    if (entry === undefined) {
+      const home = this.filing?.sessionHome(header.id)
+      this.entries().set(header.id, { header, next: 0, inherited: suffix.inheritedEventCount, origin: me,
+        ...home === undefined ? {} : { workspace: home },
+      })
+    }
     let batch: SessionEvent[] = []
     let bytes = 0
+    const prepared: Promise<Uint8Array>[] = []
+    const queue = async (): Promise<void> => {
+      const payloads = await Promise.all(prepared.splice(0))
+      if (this.isClosed()) return
+      for (const payload of payloads) {
+        if (history) await this.outboxRoom()
+        await this.sync.appendStream(this.owner, streamName(header.id), payload)
+      }
+    }
     const flush = async (): Promise<void> => {
       const first = batch.at(0)
       if (first === undefined || this.isClosed()) return
-      if (history) await this.outboxRoom()
       const payload: Batch = { first: first.seq, events: batch }
-      await this.sync.appendStream(this.owner, streamName(header.id), new Uint8Array(await compress(JSON.stringify(payload))))
+      prepared.push(compress(JSON.stringify(payload), {
+        params: { [constants.BROTLI_PARAM_QUALITY]: this.tuning.compressionQuality },
+      }).then(data => new Uint8Array(data)))
       batch = []
       bytes = 0
+      if (!history || prepared.length >= this.tuning.publishConcurrency) await queue()
     }
     for (const event of suffix.events) {
       const size = Buffer.byteLength(JSON.stringify(event), 'utf8')
@@ -879,6 +917,7 @@ export class SessionMirror {
       bytes += size
     }
     await flush()
+    await queue()
     if (this.isClosed() || (this.entries().get(header.id)?.origin ?? me) !== me) return
     await this.publishAttachments(suffix.events)
     const home = this.filing?.sessionHome(header.id)

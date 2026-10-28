@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
 
 The `ctx.sync` Service Definition. Consumers open a document by logical name in an account's vault and edit its Yjs state, append to and read streams, receive a stream's batches as another device sends them (`watchStream`, including over a local network with no relay), count the devices linked to this one directly (`linked`), list and remove devices, and drive joining: `createVault`, `vaultExists`, `join`, `acceptJoins`, `joinRequests`, `approveJoin`, and `rejectJoin`. `sync/status`, `sync/join-requests`, and `sync/document` tell listeners when an account's status, pending join requests, or a document changed. `tests/memory.ts` is an in-memory network of devices for Consumer tests. See the [account sync group](../README.md).
 
+`sync/progress` collects conversation publication counters, including discovered history that has not yet entered the transport queue. These counters are separate from queued relay frames.
+
 ## Table of Contents
 
 - [Model Experience](#model-experience)

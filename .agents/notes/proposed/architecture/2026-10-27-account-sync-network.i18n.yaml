@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/proposed/architecture/2026-10-27-account-sync-network.md
-2026-10-27-account-sync-network.md: 48e93a9b2fe69447bb73f53b2d3a277e7f5c0fee
-2026-10-27-account-sync-network.zh.md: baf8939c437cc3e0d19e363d722e2b123e9f4d0a
+2026-10-27-account-sync-network.md: 4262dfd84242d793e7266d28d32b30e2ec90ca52
+2026-10-27-account-sync-network.zh.md: b1676f030fe75b25c2d0a58541be286084d7a96b

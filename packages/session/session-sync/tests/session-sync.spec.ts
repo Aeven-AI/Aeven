@@ -81,6 +81,7 @@ class MemoryPersistence {
 }
 
 const tuning: SessionSyncTuning = {
+  publishConcurrency: 4, compressionQuality: 4,
   publishMs: 20, batchBytes: 2_000, backfillDays: 30, liveMs: 5, pauseMs: 0, outboxLimit: 1000,
   runnerLease: { ttlMs: 30_000, renewMs: 10_000 },
 }
@@ -96,6 +97,62 @@ function mirror(device: MemorySyncDevice, persistence: MemoryPersistence, warn =
 const count = (persistence: MemoryPersistence, id: string): number => persistence.logs.get(id)?.events.length ?? 0
 
 describe('session mirror', () => {
+  it('keeps initialization-only drafts local until they contain a message', async () => {
+    const network = new MemorySyncNetwork()
+    const home = new MemoryPersistence()
+    home.start('blank', Date.now(), 1)
+    home.logs.get('blank')!.events[0] = { type: 'sandbox/mode', seq: 0, time: 0, data: { mode: 'off' } } as never
+    const a = mirror(network.device(), home).mirror
+    await a.start()
+    await a.publish()
+    expect(a.catalog()).toEqual([])
+    expect(network.streams.size).toBe(0)
+    home.add('blank', 1)
+    await a.publish()
+    expect(network.streams.get('sessions/blank')).toBeDefined()
+    expect(a.catalog().map(entry => entry.header.id)).toContain('blank')
+    const batches = network.streams.get('sessions/blank')!.length
+    home.add('blank', 1)
+    home.logs.get('blank')!.events.at(-1)!.type = 'session/end-seed'
+    await a.publish()
+    expect(network.streams.get('sessions/blank')).toHaveLength(batches)
+    home.add('blank', 1)
+    await a.publish()
+    expect(network.streams.get('sessions/blank')!.length).toBeGreaterThan(batches)
+  })
+
+  it('counts all discovered history before publication and leaves unchanged idle sessions alone', async () => {
+    const network = new MemorySyncNetwork()
+    const home = new MemoryPersistence()
+    for (const id of ['one', 'two', 'three']) home.start(id, Date.now(), 2)
+    let release!: () => void
+    const blocked = new Promise<void>((resolve) => { release = resolve })
+    const original = home.readFrom.bind(home)
+    const read = vi.spyOn(home, 'readFrom').mockImplementation(async (id, from) => {
+      await blocked
+      return original(id, from)
+    })
+    const a = new SessionMirror(OWNER, network.device().asSync(), home as never,
+      { ...tuning, publishMs: 60_000 }, vi.fn())
+    mirrors.push(a)
+    try {
+      await a.start()
+      await vi.waitFor(() => { expect(read).toHaveBeenCalledTimes(1) })
+      expect(a.progress()).toEqual({ sessionsPending: 3, sessionsTotal: 3 })
+    } finally {
+      release()
+    }
+    await a.publish()
+    expect(a.progress()).toEqual({ sessionsPending: 0, sessionsTotal: 3 })
+    const published = [...network.streams].map(([name, batches]) => [name, batches.length])
+    read.mockClear()
+    await a.publish()
+    await a.publish()
+    expect(read).not.toHaveBeenCalled()
+    expect([...network.streams].map(([name, batches]) => [name, batches.length])).toEqual(published)
+    expect(a.progress()).toEqual({ sessionsPending: 0, sessionsTotal: 3 })
+  })
+
   it('lists older conversation metadata before downloading bodies, and fetches one when opened', async () => {
     const network = new MemorySyncNetwork()
     const homeA = new MemoryPersistence()
@@ -459,7 +516,10 @@ describe('attachments of synced conversations', () => {
     homeA.start('s', Date.now(), 1)
     homeA.logs.get('s')!.events.push({ type: 'user/message', seq: 1, time: 0, data: { images: [{ attachmentId: image }, { attachmentId: empty }, { attachmentId: absent }] } } as never)
     homeA.logs.get('s')!.revision++
+    homeA.start('also-references-image', Date.now(), 1)
+    homeA.logs.get('also-references-image')!.events[0]!.data = { images: [{ attachmentId: image }] } as never
     await mirrorA.start()
+    await mirrorA.publish()
     await vi.waitFor(() => { expect(storeB.objects.get(image)).toEqual(storeA.objects.get(image)) })
     expect(storeB.objects.get(empty)).toEqual(new Uint8Array(0))
     expect(storeB.objects.has(absent)).toBe(false)
@@ -674,6 +734,7 @@ describe('session-sync plugin', () => {
     const warnings: string[] = []
     const spy = vi.spyOn(ctx.logger, 'warn').mockImplementation((message: unknown) => { warnings.push(String(message)) })
     const fiber = ctx.plugin(SessionSync, {
+      publishConcurrency: 4, compressionQuality: 4,
       publishMs: 250, batchBytes: 2_000, backfillDays: 30, liveMs: 5, pauseMs: 0, outboxLimit: 1000,
       runnerLease: { ttlMs: 30_000, renewMs: 10_000 },
     })

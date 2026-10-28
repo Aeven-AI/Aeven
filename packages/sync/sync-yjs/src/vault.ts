@@ -165,12 +165,13 @@ export class AccountVault {
 
   /**
    * Take the account key over a new connection, start sending queued frames, and catch up in the background.
+   * A device without an account key stays in `starting` until the key is stored.
    * @param relay - an open connection for the account.
    */
   async attach(relay: RelayConnection): Promise<void> {
     if (!this.store.enabled()) return
     this.relay = relay
-    this.setState('connecting')
+    this.setState(this.ready() ? 'connecting' : 'starting')
     const { key } = await relay.request('key.get') as { key: string }
     if (this.relay !== relay) return
     if (this.store.setAccountKey(fromBase64Url(key, 32))) {

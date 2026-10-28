@@ -10,6 +10,10 @@ export interface SyncView {
   readonly pending: number
   /** Changes queued since the outbox was last empty; `queued - pending` of them are sent. */
   readonly queued: number
+  /** Conversations discovered but not yet fully queued for upload. */
+  readonly sessionsPending: number
+  /** Conversations in the current publication pass, including those already queued. */
+  readonly sessionsTotal: number
 }
 
 /** One of the caller's devices. */

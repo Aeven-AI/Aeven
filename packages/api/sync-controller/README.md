@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
 
 A Typert Remote over `ctx.sync` that acts only for the caller of the running request. `acceptJoins` answers join requests for `acceptJoinsMs` unless the add-device screen closes first. See the [account sync group](../../sync/README.md).
 
+Status includes conversation publication progress collected through `sync/progress`, alongside pending and queued relay-frame counts.
+
 ## Table of Contents
 
 - [Model Experience](#model-experience)
