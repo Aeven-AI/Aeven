@@ -1,4 +1,4 @@
-/** Settings → Sync: turn account sync on, add this device, or approve a new one, over the sync Remote. */
+/** Settings → Sync: whether this device syncs the account, its progress, and the account's devices, over the sync Remote. */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@aeven/client-locale/client'
@@ -47,26 +47,9 @@ export function apply(ctx: ClientContext): void {
   const remote = ctx.remote.sync
   const operations: SyncSectionInjected = {
     status: () => value(remote.status()),
-    vaultExists: () => value(remote.vaultExists()),
-    createVault: () => value(remote.createVault()),
-    startJoin: () => value(remote.startJoin()),
-    cancelJoin: () => value(remote.cancelJoin()),
-    acceptJoins: () => value(remote.acceptJoins()),
-    stopAcceptingJoins: () => value(remote.stopAcceptingJoins()),
-    joinRequests: () => value(remote.joinRequests()),
+    setEnabled: enabled => value(remote.setEnabled(enabled)),
     devices: () => value(remote.devices()),
-    removeDevice: id => value(remote.removeDevice(id)),
-    approveJoin: id => value(remote.approveJoin(id)),
-    rejectJoin: id => value(remote.rejectJoin(id)),
-    startPasskey: mode => value(remote.startPasskey(mode)),
-    cancelPasskey: () => value(remote.cancelPasskey()),
-    onChange: (listener) => {
-      const stops = [
-        ctx.remote.$on('sync/status', () => { listener() }),
-        ctx.remote.$on('sync/join-requests', () => { listener() }),
-      ]
-      return () => { for (const stop of stops) stop() }
-    },
+    onChange: listener => ctx.remote.$on('sync/status', () => { listener() }),
   }
 
   ctx.slots.inject('settings.section', () => ctx.slots.register({

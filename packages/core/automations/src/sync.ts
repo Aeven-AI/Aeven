@@ -37,7 +37,7 @@ export class DefinitionSync {
   ) {}
 
   /**
-   * Open the account's document once its vault is enrolled here and apply what other devices wrote.
+   * Open the account's document once this device syncs it and apply what other devices wrote.
    * @param owner - the account.
    * @returns the open document, or undefined while sync does not serve the account.
    */
@@ -46,7 +46,7 @@ export class DefinitionSync {
     if (existing !== undefined) return existing
     const sync = this.ctx.get('sync')
     const state = sync?.status(owner).state
-    if (sync === undefined || state === 'unenrolled' || state === 'joining') return Promise.resolve(undefined)
+    if (sync === undefined || state === 'disabled' || state === 'starting') return Promise.resolve(undefined)
     const opening = sync.openDocument(owner, DOCUMENT).then((handle) => {
       const map = handle.doc.getMap<SyncedDefinition>('definitions')
       this.take(map, map.keys())

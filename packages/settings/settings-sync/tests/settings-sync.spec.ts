@@ -85,7 +85,7 @@ describe('settings sync', () => {
 
   it('ignores an account sync does not serve, and reports a document it cannot open', async () => {
     const network = new MemorySyncNetwork()
-    const idle = await host(network.device('unenrolled'))
+    const idle = await host(network.device('disabled'))
     idle.emit('sync/status', OWNER)
     const failing = network.device()
     const sync = failing.asSync()

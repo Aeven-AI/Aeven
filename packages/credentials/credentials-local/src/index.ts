@@ -693,8 +693,10 @@ export class LocalCredentialProvider extends CredentialProvider {
       if (values?.size === 0) this.sessionValues.delete(user)
       return
     }
+    if (values?.get(ref) === value) return
     if (values === undefined) this.sessionValues.set(user, new Map([[ref, value]]))
     else values.set(ref, value)
+    this.ctx.emit('credentials/session-updated', ref, user)
   }
 
   override async set(ref: CredentialRef, value: string): Promise<void> {

@@ -60,7 +60,7 @@ export function apply(ctx: Context): void {
 
   const attach = (owner: string): void => {
     const state = ctx.sync.status(owner).state
-    if (open.has(owner) || state === 'unenrolled' || state === 'joining') return
+    if (open.has(owner) || state === 'disabled' || state === 'starting') return
     const opening = ctx.sync.openDocument(owner, DOCUMENT).then((handle) => {
       const map = handle.doc.getMap<unknown>('sections')
       // An empty document is seeded by this device; otherwise the account's settings win over this device's.

@@ -1,6 +1,6 @@
 {
   "name": "@aeven/sync-vault",
-  "description": "Vault cryptography for account sync: device keys, envelopes, key wrapping, and the device chain",
+  "description": "Account sync cryptography: the account key, opaque ids, and encrypted envelopes",
   "version": "0.3.23-alpha",
   "publishConfig": {
     "access": "public"

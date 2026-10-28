@@ -39,39 +39,10 @@
   color: var(--dsw-alias-label-danger, var(--dsw-alias-label-primary));
 }
 
-.code {
-  margin: 0;
-  font-variant-numeric: tabular-nums;
-  font-size: 1.5rem;
-  line-height: 2rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-}
-
-.request {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  padding: 8px 0;
-  border-top: 0.5px solid var(--dsw-alias-border-l2);
-}
-
-.request .code {
-  font-size: 1.125rem;
-}
-
 .actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-}
-
-.subtitle {
-  margin: 4px 0 0;
-  font-size: 0.875rem;
-  font-weight: 600;
 }
 
 .devices {
@@ -89,4 +60,106 @@
   gap: 12px;
   min-height: 36px;
   border-top: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.rowText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* The upload bar is the Account allowance meter: an 8px track on the module platform fill. */
+.meterRow {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 8px;
+}
+
+.meterLine {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.meterLabel {
+  flex: none;
+  color: var(--dsw-alias-label-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.meter {
+  display: block;
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--dsw-alias-bg-module-platform);
+}
+
+.meter > span {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background-color: var(--dsw-alias-state-success-primary);
+  transition: width 0.3s;
+}
+
+/* The Account section's switch: a 36×20 track with a 16px thumb. */
+.switch {
+  flex: none;
+  width: 36px;
+  height: 20px;
+  padding: 2px;
+  border: none;
+  border-radius: 10px;
+  background: var(--dsw-alias-border-l3);
+  cursor: pointer;
+  transition: background 150ms;
+}
+
+.thumb {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--dsw-alias-label-primary-foreground);
+  transition: transform 150ms;
+}
+
+:global(body[data-ds-dark-theme]) .thumb {
+  background: #000000;
+}
+
+.switch[aria-checked="true"] {
+  background: var(--dsw-alias-brand-primary);
+}
+
+.switch[aria-checked="true"] .thumb {
+  transform: translateX(16px);
+}
+
+.switch:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.switch:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .switch,
+  .thumb,
+  .meter > span {
+    transition: none;
+  }
 }

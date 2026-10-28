@@ -184,9 +184,10 @@ export const Config: z<Config> = z.object({
     drainMs: z.natural().min(100).default(2_000),
     drainBatch: z.natural().min(1).default(500),
     applyPauseMs: z.natural().default(16),
+    outboxLimit: z.natural().min(1).default(200),
     maintenanceTtlMs: z.natural().min(1_000).default(180_000),
     maintenanceRenewMs: z.natural().min(100).default(60_000),
-  }).default({ drainMs: 2_000, drainBatch: 500, applyPauseMs: 16, maintenanceTtlMs: 180_000, maintenanceRenewMs: 60_000 }),
+  }).default({ drainMs: 2_000, drainBatch: 500, applyPauseMs: 16, outboxLimit: 200, maintenanceTtlMs: 180_000, maintenanceRenewMs: 60_000 }),
   embedding: z.object({
     model: z.string().min(1).default('Xenova/multilingual-e5-small'),
     queryPrefix: z.string().default('query: '),
@@ -324,7 +325,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     const holder = maintenance.get(owner)
     if (holder !== undefined) return holder.held()
     const state = ctx.get('sync')?.status(owner).state
-    return state === undefined || state === 'unenrolled' || state === 'joining'
+    return state === undefined || state === 'disabled' || state === 'starting'
   }
 
   const cores = new OwnerCores(async (owner) => {
@@ -415,7 +416,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   const mirror = (owner: string): void => {
     const sync = ctx.get('sync')
     const state = sync?.status(owner).state
-    if (sync === undefined || state === undefined || state === 'unenrolled' || state === 'joining') return
+    if (sync === undefined || state === undefined || state === 'disabled' || state === 'starting') return
     if (!maintenance.has(owner)) {
       const timing = { ttlMs: config.sync.maintenanceTtlMs, renewMs: config.sync.maintenanceRenewMs }
       const holder = new LeaseHolder(sync, owner, MEMORY_MAINTENANCE_LEASE, timing)

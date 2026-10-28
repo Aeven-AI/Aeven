@@ -1,8 +1,9 @@
 /**
  * In-process stand-in for the Aeven sync relay, speaking the same protocol over a WebSocket on an ephemeral
- * loopback port: `Authorization: Bearer <token>` names the account, frames are delivered to each syncing socket
- * in sequence order, snapshots prune what they cover, and signals reach the account's other sockets.
+ * loopback port: `Authorization: Bearer <token>` names the account, each account has one key, frames are
+ * delivered to each syncing socket in sequence order, and snapshots prune what they cover.
  */
+import { randomBytes } from 'node:crypto'
 import { WebSocketServer, type WebSocket } from 'ws'
 
 interface StoredFrame {
@@ -15,9 +16,8 @@ interface StoredFrame {
 interface Account {
   seq: number
   frames: StoredFrame[]
-  chain: unknown[]
+  key: string
   leases: Map<string, { device: string; expiresAt: number }>
-  keys: Map<string, string>
   sockets: Set<Peer>
 }
 
@@ -83,7 +83,7 @@ export class FakeRelay {
   account(owner: string): Account {
     let account = this.accounts.get(owner)
     if (account === undefined) {
-      account = { seq: 0, frames: [], chain: [], leases: new Map(), keys: new Map(), sockets: new Set() }
+      account = { seq: 0, frames: [], key: randomBytes(32).toString('base64url'), leases: new Map(), sockets: new Set() }
       this.accounts.set(owner, account)
     }
     return account
@@ -131,39 +131,23 @@ export class FakeRelay {
     }
     const account = peer.account
     switch (t) {
-      case 'chain.get':
-        ok({ entries: account.chain })
+      case 'key.get':
+        ok({ key: account.key })
         return
-      case 'chain.append': {
-        const entry = request.entry as { index: number }
-        if (entry.index !== account.chain.length) {
-          refuse('conflict')
-          return
-        }
-        account.chain.push(entry)
-        for (const other of account.sockets) if (other !== peer) this.send(other, { t: 'chain', entry })
-        ok()
-        return
-      }
-      case 'keys.put':
-        account.keys.set(String(request.recipient), String(request.wrapped))
-        ok()
-        return
-      case 'keys.get': {
-        const wrapped = account.keys.get(String(request.recipient))
-        ok(wrapped === undefined ? {} : { wrapped })
-        return
-      }
       case 'publish': {
-        const data = Buffer.from(String(request.frame), 'base64url')
-        const header = headerOf(data)
-        account.seq += 1
-        account.frames.push({ seq: account.seq, id: header.id, kind: header.kind, data })
-        if (typeof request.covers === 'number') {
-          const covers = request.covers
-          account.frames = account.frames.filter(frame => frame.id !== header.id || frame.seq > covers)
-        }
-        ok({ seq: account.seq })
+        const items = Array.isArray(request.frames) ? request.frames as Array<Record<string, unknown>> : [request]
+        const seqs = items.map((item) => {
+          const data = Buffer.from(String(item.frame), 'base64url')
+          const header = headerOf(data)
+          account.seq += 1
+          account.frames.push({ seq: account.seq, id: header.id, kind: header.kind, data })
+          if (typeof item.covers === 'number') {
+            const covers = item.covers
+            account.frames = account.frames.filter(frame => frame.id !== header.id || frame.seq > covers)
+          }
+          return account.seq
+        })
+        ok(Array.isArray(request.frames) ? { seqs } : { seq: seqs[0] })
         for (const other of account.sockets) if (other !== peer && other.paging !== true) this.pump(other)
         return
       }
@@ -205,12 +189,6 @@ export class FakeRelay {
         ok()
         return
       }
-      case 'signal':
-        for (const other of account.sockets) {
-          if (other !== peer && (request.to === undefined || other.peer === request.to)) this.send(other, { t: 'signal', from: peer.peer, data: request.data })
-        }
-        ok({ peer: peer.peer })
-        return
       default:
         refuse('bad-request')
     }

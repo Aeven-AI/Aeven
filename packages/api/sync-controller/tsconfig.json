@@ -12,9 +12,6 @@
       "path": "../../../vendor/cordis"
     },
     {
-      "path": "../../../vendor/schemastery"
-    },
-    {
       "path": "../../identity/user"
     },
     {
@@ -22,9 +19,6 @@
     },
     {
       "path": "../../typert/protocol"
-    },
-    {
-      "path": "../../sync/sync-vault"
     }
   ]
 }

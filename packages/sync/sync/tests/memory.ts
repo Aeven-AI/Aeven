@@ -132,8 +132,8 @@ export class MemorySyncDevice {
       status: (): SyncStatus => {
         // Documents keep travelling the local network, so only the relay's reachability decides the state.
         const state: SyncState = this.relay ? this.state : 'offline'
-        const status: SyncStatus = { state, devices: this.network.devices.length, pending: this.outbox.length, recovery: false }
-        return state === 'unenrolled' ? status : { ...status, device: this.id as DeviceId }
+        const status: SyncStatus = { state, pending: this.outbox.length, queued: this.outbox.length }
+        return state === 'disabled' ? status : { ...status, device: this.id as DeviceId }
       },
       synchronize: (): Promise<void> => this.state === 'online' && this.relay ? Promise.resolve() : Promise.reject(new Error('offline')),
       documentId: (_owner: string, name: string): string => `id:${name}`,

@@ -88,6 +88,14 @@ declare module '@deepseek-ai/cordis' {
      * @mode emit
      */
     'credentials/reference-updated'(ref: CredentialRef): void
+    /**
+     * A signed-in user's session credential appeared or changed, so work that acts for that user on this Host,
+     * such as account sync, can start. Withdrawing a value does not emit.
+     * @param ref - the reference the value answers.
+     * @param user - the signed-in user.
+     * @mode emit
+     */
+    'credentials/session-updated'(ref: CredentialRef, user: string): void
 
     /**
      * Committed change to a stored credential record: a `modifyRecord` that

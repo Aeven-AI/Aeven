@@ -1,20 +1,17 @@
 /**
  * Client side of the relay protocol, JSON text messages over one WebSocket per account, authenticated with the
  * account's Aeven access token. Requests carry `rid` and receive `ok` or `error` with the same `rid`; the relay
- * also pushes `frame` and `chain` messages. Frames and wrapped keys travel as base64url.
+ * also pushes `frame` messages. Frames and the account key travel as base64url.
  *
  * Requests:
- * - `chain.get` → `{ entries }`
- * - `chain.append { entry }` → `{}`; refused unless `entry.index` equals the stored length
- * - `keys.put { recipient, wrapped }` → `{}`; `recipient` is a device id or `recovery`
- * - `keys.get { recipient }` → `{ wrapped? }`
+ * - `key.get` → `{ key }`; the account key, created by the relay on first use
  * - `publish { frame, covers? }` → `{ seq }`; `covers` marks a snapshot that replaces the id's frames up to it
- * - `signal { to?, data }` → `{ peer }`; forwards `data` to one peer or every other socket of the account
- * - `sync { since }` → pushes every stored document frame after `since`, then answers `{ seq }`, the account's
- *   latest sequence number
+ * - `sync { since, limit? }` → pushes stored document frames after `since`, at most `limit` of them, then answers
+ *   `{ seq, more? }`; `more` asks for the next page, and its absence subscribes the socket to new frames
+ * - `stream.get { id, after? }` → `{ frames, more }`
+ * - `lease.acquire { name, device, ttlMs }` / `lease.release { name, device }`
  */
 import WebSocket from 'ws'
-import type { ChainEntry } from '@aeven/sync-vault'
 
 /** Listener for socket errors whose `close` that follows is handled. */
 function ignore(): void {}
@@ -40,18 +37,6 @@ export interface RelayHandlers {
    * @param frame - the sealed frame.
    */
   frame(seq: number, frame: Uint8Array): void
-  /**
-   * A chain entry another device appended.
-   * @param entry - the entry.
-   */
-  chain(entry: ChainEntry): void
-  /**
-   * A device-to-device message from another socket of the account.
-   * @param from - the sender's relay peer number.
-   * @param data - the message.
-   * @param connection - the connection it arrived on, for replies.
-   */
-  signal(from: number, data: unknown, connection: RelayConnection): void
   /** The connection closed, for any reason. */
   closed(): void
 }
@@ -68,7 +53,11 @@ export class RelayConnection {
   /** Settles once the connection has closed, for any reason. */
   readonly closed: Promise<void>
 
-  private constructor(private readonly socket: WebSocket, private readonly handlers: RelayHandlers) {
+  private constructor(
+    private readonly socket: WebSocket,
+    private readonly handlers: RelayHandlers,
+    private readonly requestMs: number,
+  ) {
     // The socket keeps ws's default `nodebuffer` binary type, so every message arrives as one Buffer.
     socket.on('message', (data: Buffer) => { this.receive(data.toString('utf8')) })
     this.closed = new Promise((resolve) => {
@@ -87,9 +76,10 @@ export class RelayConnection {
    * @param token - the account's Aeven access token.
    * @param handlers - push callbacks.
    * @param timeoutMs - longest the opening handshake may take.
+   * @param requestMs - longest a request may wait for its answer before the connection is closed.
    * @returns the open connection.
    */
-  static open(url: string, token: string, handlers: RelayHandlers, timeoutMs: number): Promise<RelayConnection> {
+  static open(url: string, token: string, handlers: RelayHandlers, timeoutMs: number, requestMs: number): Promise<RelayConnection> {
     return new Promise((resolve, reject) => {
       const socket = new WebSocket(url, { headers: { authorization: `Bearer ${token}` }, handshakeTimeout: timeoutMs })
       const fail = (error: Error): void => {
@@ -105,7 +95,7 @@ export class RelayConnection {
         socket.removeAllListeners()
         // A protocol error ends the connection; `close` follows and fails pending requests.
         socket.on('error', ignore)
-        resolve(new RelayConnection(socket, handlers))
+        resolve(new RelayConnection(socket, handlers, requestMs))
       })
     })
   }
@@ -132,12 +122,6 @@ export class RelayConnection {
       case 'frame':
         this.handlers.frame(message.seq as number, new Uint8Array(Buffer.from(message.frame as string, 'base64url')))
         return
-      case 'chain':
-        this.handlers.chain(message.entry as ChainEntry)
-        return
-      case 'signal':
-        this.handlers.signal(message.from as number, message.data, this)
-        return
       default:
         // Messages this build does not know are ignored so the relay can add push types.
         return
@@ -149,15 +133,19 @@ export class RelayConnection {
    * @param type - the request type.
    * @param fields - the request's fields.
    * @returns the `ok` answer's fields.
-   * @throws {RelayError} on an `error` answer or a closed connection.
+   * @throws {RelayError} on an `error` answer or a closed connection. An answer that does not arrive in time closes
+   * the connection, which fails this and every other waiting request, so the connection loop starts over.
    */
   request(type: string, fields: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
     if (this.socket.readyState !== WebSocket.OPEN) return Promise.reject(new RelayError('closed', 'relay connection closed'))
     const rid = this.nextRid++
-    return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      if (this.pending.has(rid)) this.socket.terminate()
+    }, this.requestMs)
+    return new Promise<Record<string, unknown>>((resolve, reject) => {
       this.pending.set(rid, { resolve, reject })
       this.socket.send(JSON.stringify({ ...fields, rid, t: type }))
-    })
+    }).finally(() => { clearTimeout(timer) })
   }
 
   /** Close the connection. */

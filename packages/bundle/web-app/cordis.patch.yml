@@ -234,12 +234,9 @@
       config:
         relayUrl: !!js process.env.AEVEN_SYNC_URL ?? 'ws://localhost:9010/sync'
 
-    # Settings → Sync: turn sync on, add this device, approve new devices.
+    # Settings → Sync: sync status, this device's on/off switch, and the account's devices.
     - id: api-sync-controller
       name: '@aeven/api-sync-controller'
-      config:
-        # The site that serves the recovery passkey page; locally the servers/node web server.
-        siteUrl: !!js process.env.AEVEN_WEB_URL ?? 'http://localhost:9020'
 
     # Conversation history on every device of the account: each session is
     # published by the device that created it and imported elsewhere.

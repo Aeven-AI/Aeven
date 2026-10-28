@@ -74,8 +74,8 @@ describe('LeaseHolder', () => {
 
   it('lets a device work while sync does not serve its account', async () => {
     const network = new MemorySyncNetwork()
-    expect(holder(network, network.device('unenrolled')).held()).toBe(true)
-    expect(holder(network, network.device('joining')).held()).toBe(true)
+    expect(holder(network, network.device('disabled')).held()).toBe(true)
+    expect(holder(network, network.device('starting')).held()).toBe(true)
   })
 
   it('keeps the last expiry when the relay is unreachable, and starts renewing once', async () => {

@@ -67,7 +67,7 @@ describe('personalization sync', () => {
 
   it('does nothing while sync does not serve the account, and reports a document it cannot open', async () => {
     const network = new MemorySyncNetwork()
-    const unenrolled = home(network.device('unenrolled'))
+    const unenrolled = home(network.device('disabled'))
     expect(await unenrolled.sync.attach(OWNER)).toBeUndefined()
     const root = mkdtempSync(join(tmpdir(), 'personalization-sync-'))
     cleanups.push(() => { rmSync(root, { recursive: true, force: true }) })

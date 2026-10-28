@@ -13,7 +13,7 @@ import { MemorySyncNetwork, type MemorySyncDevice } from '../../../sync/sync/tes
 import { MemorySyncMirror } from '../src/sync.ts'
 
 const OWNER = 'owner-1'
-const TUNING = { drainMs: 20, drainBatch: 100, applyPauseMs: 0, maintenanceTtlMs: 1_000, maintenanceRenewMs: 100 }
+const TUNING = { drainMs: 20, drainBatch: 100, applyPauseMs: 0, outboxLimit: 1000, maintenanceTtlMs: 1_000, maintenanceRenewMs: 100 }
 type Warn = ReturnType<typeof vi.fn<(message: string) => void>>
 const MODEL = 'model-a'
 const cleanups: Array<() => void> = []
@@ -156,7 +156,7 @@ describe('memory sync', () => {
     const device = network.device()
     const sync = device.asSync()
     const { warn } = mirror(device, home.file)
-    const failing = new MemorySyncMirror(OWNER, home.file, { documentId: (owner: string, name: string) => sync.documentId(owner, name), openDocument: () => Promise.reject(new Error('locked')) } as never, MODEL, TUNING, warn)
+    const failing = new MemorySyncMirror(OWNER, home.file, { status: () => sync.status(OWNER), documentId: (owner: string, name: string) => sync.documentId(owner, name), openDocument: () => Promise.reject(new Error('locked')) } as never, MODEL, TUNING, warn)
     cleanups.push(() => { failing.dispose() })
     failing.documentChanged('id:memory/traces/aa')
     await vi.waitFor(() => { expect(warn).toHaveBeenCalledWith('memory sync: opening memory/traces/aa failed: Error: locked') })

@@ -1,29 +1,21 @@
 /**
- * One account's vault on this device: membership from the verified device chain, the keyring, open Yjs
- * documents, and the exchange of sealed frames with the relay. Frames are applied in relay order; the relay
- * delivers each connection's frames in sequence order, which the per-sender counter check relies on.
+ * One account's vault on this device: the account key the relay hands to signed-in devices, open Yjs documents,
+ * and the exchange of sealed frames with the relay. Frames are applied in relay order; the relay delivers each
+ * connection's frames in sequence order, which the per-sender counter check relies on.
  */
 import * as Y from 'yjs'
-import { brandNumber } from '@aeven/brand'
 import { Deque } from '@aeven/deque'
 import {
-  applyChainEntry, chainDeviceOf, createChainEntry, createGenesis, decodeKeyring, deviceIdOf, encodeKeyring,
-  fromBase64Url, generateDeviceKeys, generateVaultKey, opaqueIdOf, openEnvelope, recoveryRecordOf, sealEnvelope,
-  signBytes, signingKeyAt, toBase64Url, unwrapForDevice, verifyBytes, verifyChain, wrapForDevice,
-  type ChainEntry, type ChainState, type DeviceId, type DeviceKeys, type DevicePublicKeys, type EnvelopeKind, type KeyEpoch,
-  type Keyring, type OpaqueId, type RecoveryKeys,
+  fromBase64Url, opaqueIdOf, openEnvelope, proveKey, sealEnvelope, toBase64Url, verifyKeyProof,
+  type DeviceId, type EnvelopeKind, type OpaqueId,
 } from '@aeven/sync-vault'
 import type { SyncDocument, SyncState, SyncStatus } from '@aeven/sync'
-import { JoinApprover, type PendingJoin } from './join.ts'
 import type { SyncOffload } from './offload.ts'
 import { RelayError, type RelayConnection } from './relay.ts'
 import type { SyncStore } from './store.ts'
 
 /** Relay error codes that no retry can change. */
 const PERMANENT_REFUSALS: ReadonlySet<string> = new Set(['too-large', 'bad-frame'])
-
-/** Relay recipient of the keyring wrapped to the recovery passkey. */
-const RECOVERY = 'recovery'
 
 /** Logical name whose opaque id is the account's local-network tag. */
 const LAN_TAG = 'lan/account'
@@ -45,17 +37,15 @@ export interface VaultTuning {
   pageFrames: number
   /** Shortest interval between two status notifications, in milliseconds. */
   statusMs: number
+  /** Most queued frames one publish request carries. */
+  publishFrames: number
+  /** Most frame bytes one publish request carries; a larger single frame travels alone. */
+  publishBytes: number
 }
 
 /** Settles after a real timer, so I/O, HTTP, and the agent loop run before the next slice. */
 function pause(ms: number): Promise<void> {
   return new Promise((resolve) => { setTimeout(resolve, ms) })
-}
-
-/** This device's keys and the chain state that admits them. */
-interface Member {
-  keys: DeviceKeys
-  chain: ChainState
 }
 
 interface OpenDoc {
@@ -68,12 +58,10 @@ export type VaultWarn = (message: string, error: unknown) => void
 
 /** One account's vault on this device. */
 export class AccountVault {
-  private chainState: ChainState | undefined
-  private keys: DeviceKeys | undefined
+  private readonly device: DeviceId
   private relay: RelayConnection | undefined
   private state: SyncState
   private flushing: Promise<void> | undefined
-  private approver: JoinApprover | undefined
   private lanSend: ((frame: Uint8Array) => void) | undefined
   private readonly streamWatchers = new Map<OpaqueId, Set<(payload: Uint8Array) => void>>()
   private readonly docs = new Map<OpaqueId, OpenDoc>()
@@ -86,32 +74,30 @@ export class AccountVault {
   private statusAt = 0
   /** The background catch-up of the current connection. */
   private catchingUp: Promise<void> | undefined
+  /** The most changes waiting since the outbox was last empty. */
+  private queued = 0
   /** Each document's compaction and snapshot, one at a time. */
   private readonly maintenance = new Map<OpaqueId, Promise<void>>()
 
   /**
    * @param store - the account's local store.
    * @param tuning - compaction and snapshot thresholds.
-   * @param changed - called whenever {@link status} may have changed.
-   * @param joinsChanged - called whenever {@link joinRequests} may have changed.
+   * @param statusChanged - called whenever {@link status} may have changed.
    * @param documentChanged - called after another device's change to a document was stored.
    * @param warn - receives dropped-frame diagnostics.
-   * @param offload - the provider's sync worker for opening frames and merging updates.
+   * @param offload - the provider's sync worker for opening frames and compacting documents.
    */
   constructor(
     private readonly store: SyncStore,
     private readonly tuning: VaultTuning,
     private readonly statusChanged: () => void,
-    private readonly joinsChanged: () => void,
     private readonly documentChanged: (id: OpaqueId) => void,
     private readonly warn: VaultWarn,
     private readonly offload: SyncOffload,
   ) {
-    this.keys = store.deviceKeys()
+    this.device = store.deviceId()
     this.received = store.relayCursor()
-    const entries = store.chain()
-    this.chainState = entries.length === 0 ? undefined : verifyChain(entries)
-    this.state = this.enrolled() ? 'offline' : 'unenrolled'
+    this.state = !store.enabled() ? 'disabled' : store.accountKey() === undefined ? 'starting' : 'offline'
   }
 
   /**
@@ -133,183 +119,42 @@ export class AccountVault {
     }, wait)
   }
 
-  private member(): Member | undefined {
-    const { keys, chainState } = this
-    return keys !== undefined && chainState?.devices.has(keys.id) === true ? { keys, chain: chainState } : undefined
+  private key(): Uint8Array | undefined {
+    return this.store.enabled() ? this.store.accountKey() : undefined
   }
 
-  private requireMember(): Member {
-    const member = this.member()
-    if (member === undefined) throw new Error('this device is not enrolled in the account\'s vault')
-    return member
+  private requireKey(): Uint8Array {
+    const key = this.key()
+    if (key === undefined) throw new Error('this device does not sync the account')
+    return key
   }
 
-  /** @returns whether this device is an active member of the vault. */
-  enrolled(): boolean {
-    return this.member() !== undefined
+  /** @returns whether this device syncs the account and holds its key, so documents can open. */
+  ready(): boolean {
+    return this.key() !== undefined
   }
 
-  /** @returns whether this device holds keys, enrolled or waiting to be admitted. */
-  hasKeys(): boolean {
-    return this.keys !== undefined
-  }
-
-  /**
-   * Generate this device's keys ahead of admission; keeps keys generated by an earlier attempt unless the
-   * vault removed them.
-   * @returns this device's keys.
-   */
-  prepareJoin(): DeviceKeys {
-    if (this.enrolled()) throw new Error('this device is already enrolled in the account\'s vault')
-    // A removed device id can never be admitted again, so a removed device joins with new keys.
-    if (this.keys === undefined || this.chainState?.removed.has(this.keys.id) === true) {
-      const keys = generateDeviceKeys()
-      this.store.setDeviceKeys(keys)
-      this.keys = keys
-    }
-    return this.keys
+  /** @returns whether the user lets this device sync the account. */
+  enabled(): boolean {
+    return this.store.enabled()
   }
 
   /**
-   * Admit a device whose code the user confirmed: wrap the keyring for it, then append it to the chain.
-   * @param relay - an open connection for the account.
-   * @param joining - the device's public keys.
+   * Turn syncing on or off for this device. Turning it off keeps the local copy; turning it on again resumes
+   * from where the device stopped.
+   * @param enabled - whether this device syncs the account.
    */
-  async admit(relay: RelayConnection, joining: DevicePublicKeys): Promise<void> {
-    const { keys, chain } = this.requireMember()
-    const entry = createChainEntry(chain, { type: 'add-device', device: chainDeviceOf(joining) }, { kind: 'device', device: keys })
-    const next = applyChainEntry(chain, entry)
-    await relay.request('keys.put', { recipient: deviceIdOf(joining), wrapped: toBase64Url(wrapForDevice(encodeKeyring(this.store.keyring()), joining.agreement)) })
-    await relay.request('chain.append', { entry })
-    this.adoptChain(next, [...this.store.chain(), entry])
-    this.changed()
-  }
-
-  /**
-   * Remove a device: rotate the vault key, wrap the new keyring for every remaining device, then record the
-   * removal in the chain.
-   * @param relay - an open connection for the account.
-   * @param device - the device to remove.
-   */
-  async removeDevice(relay: RelayConnection, device: DeviceId): Promise<void> {
-    const { keys, chain } = this.requireMember()
-    if (!chain.devices.has(device)) throw new Error(`device ${device} is not active in this vault`)
-    const epoch = brandNumber<KeyEpoch>(chain.epoch + 1)
-    // Frames the removed device published that this device has not received yet are lost with it.
-    const until = this.store.relayCursor()
-    const entry = createChainEntry(chain, { type: 'remove-device', device, epoch, until }, { kind: 'device', device: keys })
-    const next = applyChainEntry(chain, entry)
-    const keyring = new Map([...this.store.keyring(), [epoch, generateVaultKey()]])
-    const encoded = encodeKeyring(keyring)
-    for (const [id, publicKeys] of next.devices) {
-      await relay.request('keys.put', { recipient: id, wrapped: toBase64Url(wrapForDevice(encoded, publicKeys.agreement)) })
-    }
-    if (next.recovery !== undefined) {
-      await relay.request('keys.put', { recipient: RECOVERY, wrapped: toBase64Url(wrapForDevice(encoded, next.recovery.agreement)) })
-    }
-    await relay.request('chain.append', { entry })
-    this.store.addKeys(keyring)
-    this.adoptChain(next, [...this.store.chain(), entry])
-    this.changed()
-  }
-
-  /**
-   * Make a passkey's recovery keys the vault's recovery key: wrap the keyring to it, then record it in the chain.
-   * @param relay - an open connection for the account.
-   * @param recovery - keys derived from the passkey's PRF result.
-   */
-  async setRecovery(relay: RelayConnection, recovery: RecoveryKeys): Promise<void> {
-    const { keys, chain } = this.requireMember()
-    const body = { type: 'set-recovery' as const, recovery: recoveryRecordOf(recovery.publicKeys) }
-    const entry = createChainEntry(chain, body, { kind: 'device', device: keys })
-    const next = applyChainEntry(chain, entry)
-    await relay.request('keys.put', { recipient: RECOVERY, wrapped: toBase64Url(wrapForDevice(encodeKeyring(this.store.keyring()), recovery.publicKeys.agreement)) })
-    await relay.request('chain.append', { entry })
-    this.adoptChain(next, [...this.store.chain(), entry])
-    this.changed()
-  }
-
-  /**
-   * Enroll this device with the vault's recovery key: unwrap the keyring wrapped to it, then add this device to
-   * the chain under the recovery key's signature.
-   * @param relay - an open connection for the account.
-   * @param recovery - keys derived from the passkey's PRF result.
-   */
-  async recover(relay: RelayConnection, recovery: RecoveryKeys): Promise<void> {
-    const keys = this.prepareJoin()
-    const { entries } = await relay.request('chain.get') as { entries: ChainEntry[] }
-    const chain = verifyChain(entries)
-    if (chain.recovery === undefined) throw new Error('the account has no recovery passkey')
-    if (toBase64Url(chain.recovery.signing) !== toBase64Url(recovery.publicKeys.signing)) {
-      throw new Error('this passkey is not the account\'s recovery passkey')
-    }
-    const { wrapped } = await relay.request('keys.get', { recipient: RECOVERY }) as { wrapped?: string }
-    if (wrapped === undefined) throw new Error('the relay holds no keyring for the recovery passkey')
-    const { secretKeys, publicKeys } = recovery
-    const keyring: Keyring = decodeKeyring(unwrapForDevice(fromBase64Url(wrapped), secretKeys.agreement, publicKeys.agreement))
-    const entry = createChainEntry(chain, { type: 'add-device', device: chainDeviceOf(keys.publicKeys) }, { kind: 'recovery', recovery })
-    const next = applyChainEntry(chain, entry)
-    await relay.request('keys.put', { recipient: keys.id, wrapped: toBase64Url(wrapForDevice(encodeKeyring(keyring), keys.publicKeys.agreement)) })
-    await relay.request('chain.append', { entry })
-    this.store.addKeys(keyring)
-    this.adoptChain(next, [...entries, entry])
-    this.setState('offline')
-  }
-
-  /** @returns the ids of the vault's active devices, this one first, or none while not enrolled. */
-  deviceIds(): DeviceId[] {
-    const member = this.member()
-    if (member === undefined) return []
-    return [member.keys.id, ...[...member.chain.devices.keys()].filter(id => id !== member.keys.id)]
-  }
-
-  /**
-   * Handle a device-to-device signal that arrived on this vault's connection.
-   * @param relay - the connection it arrived on.
-   * @param from - the sender's relay peer number.
-   * @param data - the signal payload.
-   */
-  receiveSignal(relay: RelayConnection, from: number, data: unknown): void {
-    const member = this.member()
-    if (member === undefined) return
-    this.approver ??= new JoinApprover(member.keys, this.joinsChanged)
-    this.approver.receive(relay, from, data)
-  }
-
-  /**
-   * Answer join requests while the user has this device's add-device screen open.
-   * @param relay - the account's open connection.
-   * @returns a function that stops answering.
-   */
-  acceptJoins(relay: RelayConnection): () => void {
-    const { keys } = this.requireMember()
-    this.approver ??= new JoinApprover(keys, this.joinsChanged)
-    return this.approver.accept(relay)
-  }
-
-  /** @returns join requests waiting for the user. */
-  joinRequests(): PendingJoin[] {
-    return this.approver?.pending() ?? []
-  }
-
-  /**
-   * Remove a join request once the user decided.
-   * @param id - the request id.
-   * @returns the request, or undefined when it is unknown.
-   */
-  takeJoinRequest(id: string): PendingJoin | undefined {
-    return this.approver?.take(id)
+  setEnabled(enabled: boolean): void {
+    this.store.setEnabled(enabled)
+    if (!enabled) this.relay?.close()
+    this.setState(!enabled ? 'disabled' : this.store.accountKey() === undefined ? 'starting' : 'offline')
   }
 
   /** @returns the current status. */
   status(): SyncStatus {
-    return {
-      state: this.state,
-      ...this.keys === undefined ? {} : { device: this.keys.id },
-      devices: this.member()?.chain.devices.size ?? 0,
-      pending: this.store.pending(),
-      recovery: this.member()?.chain.recovery !== undefined,
-    }
+    const pending = this.store.pending()
+    this.queued = pending === 0 ? 0 : Math.max(this.queued, pending)
+    return { state: this.state, device: this.device, pending, queued: this.queued }
   }
 
   private setState(state: SyncState): void {
@@ -318,46 +163,20 @@ export class AccountVault {
     this.changed()
   }
 
-  private genesisKey(): Uint8Array {
-    const key = this.store.keyring().get(brandNumber<KeyEpoch>(0))
-    if (key === undefined) throw new Error('the vault keyring lacks its genesis key')
-    return key
-  }
-
   /**
-   * Create the vault with this device as its first member.
-   * @param relay - an open connection for the account.
-   */
-  async create(relay: RelayConnection): Promise<void> {
-    if (this.keys !== undefined) throw new Error('this device already belongs to a vault for this account')
-    const keys = generateDeviceKeys()
-    const keyring = new Map([[brandNumber<KeyEpoch>(0), generateVaultKey()]])
-    const genesis = createGenesis(keys)
-    await relay.request('chain.append', { entry: genesis })
-    await relay.request('keys.put', { recipient: keys.id, wrapped: toBase64Url(wrapForDevice(encodeKeyring(keyring), keys.publicKeys.agreement)) })
-    this.store.transaction(() => {
-      this.store.setDeviceKeys(keys)
-      this.store.addKeys(keyring)
-      this.store.setChain([genesis])
-    })
-    this.keys = keys
-    this.chainState = verifyChain([genesis])
-    this.setState('offline')
-  }
-
-  /**
-   * Bring the vault up to date over a new connection and start sending queued frames.
+   * Take the account key over a new connection, start sending queued frames, and catch up in the background.
    * @param relay - an open connection for the account.
    */
   async attach(relay: RelayConnection): Promise<void> {
+    if (!this.store.enabled()) return
     this.relay = relay
-    // A device waiting for admission stays unenrolled, so Consumers do not open documents it cannot hold yet.
-    if (this.enrolled()) this.setState('connecting')
-    const { entries } = await relay.request('chain.get') as { entries: ChainEntry[] }
-    this.adoptChain(verifyChain(entries), entries)
-    if (!this.enrolled()) return
-    await this.refreshKeyring(relay)
+    this.setState('connecting')
+    const { key } = await relay.request('key.get') as { key: string }
     if (this.relay !== relay) return
+    if (this.store.setAccountKey(fromBase64Url(key, 32))) {
+      this.received = 0
+      this.warn('sync: the relay started the account over with a new key; this device publishes its data again', undefined)
+    }
     // The device is online once connected; queued frames go out and the relay's backlog arrives in the background.
     this.setState('online')
     void this.flush()
@@ -392,37 +211,7 @@ export class AccountVault {
   /** The relay connection closed. */
   detach(): void {
     this.relay = undefined
-    if (this.state !== 'unenrolled') this.setState('offline')
-  }
-
-  private adoptChain(state: ChainState, entries: readonly ChainEntry[]): void {
-    this.store.setChain(entries)
-    this.chainState = state
-    if (!this.enrolled()) this.setState('unenrolled')
-  }
-
-  /**
-   * Apply a chain entry another device appended.
-   * @param entry - the entry.
-   */
-  receiveChainEntry(entry: ChainEntry): void {
-    if (this.chainState === undefined) return
-    const state = applyChainEntry(this.chainState, entry)
-    this.adoptChain(state, [...this.store.chain(), entry])
-    const relay = this.relay
-    if (this.enrolled() && relay !== undefined) {
-      this.refreshKeyring(relay).catch((error: unknown) => { this.warn('sync: fetching the rotated keyring failed', error) })
-    }
-    this.changed()
-  }
-
-  private async refreshKeyring(relay: RelayConnection): Promise<void> {
-    const { keys, chain } = this.requireMember()
-    const held = Math.max(-1, ...this.store.keyring().keys())
-    if (held >= chain.epoch) return
-    const { wrapped } = await relay.request('keys.get', { recipient: keys.id }) as { wrapped?: string }
-    if (wrapped === undefined) throw new Error(`the relay holds no keyring for device ${keys.id}`)
-    this.store.addKeys(decodeKeyring(unwrapForDevice(new Uint8Array(Buffer.from(wrapped, 'base64url')), keys.secretKeys.agreement, keys.publicKeys.agreement)))
+    if (this.store.enabled()) this.setState(this.store.accountKey() === undefined ? 'starting' : 'offline')
   }
 
   /**
@@ -432,7 +221,7 @@ export class AccountVault {
    * @param frame - the sealed frame.
    */
   receiveFrame(seq: number, frame: Uint8Array): void {
-    if (this.member() === undefined) return
+    if (!this.ready()) return
     // A replayed frame fails its counter check when applied; the highest number only resumes catch-up.
     this.received = Math.max(this.received, seq)
     this.inbound.pushBack({ seq, frame })
@@ -458,8 +247,8 @@ export class AccountVault {
 
   /** Open one batch of received frames on the sync worker and store what it opened in one transaction. */
   private async applyBatch(): Promise<void> {
-    const member = this.member()
-    if (member === undefined) {
+    const key = this.key()
+    if (key === undefined) {
       this.inbound.clear()
       return
     }
@@ -468,9 +257,7 @@ export class AccountVault {
       frames.push(next)
       if (frames.length >= this.tuning.applyFrames) break
     }
-    const opened = await this.offload.open(frames, {
-      keyring: this.store.keyring(), devices: member.chain.devices, removed: member.chain.removed,
-    })
+    const opened = await this.offload.open(frames, key)
     const applied = new Map<OpaqueId, Uint8Array[]>()
     this.store.transaction(() => {
       for (const result of opened) {
@@ -479,7 +266,7 @@ export class AccountVault {
           continue
         }
         const { header, payload } = result
-        const apply = header.device !== member.keys.id && (header.kind === 'update' || header.kind === 'snapshot')
+        const apply = header.device !== this.device && (header.kind === 'update' || header.kind === 'snapshot')
         if (!apply || !this.store.acceptCounter(header.device, header.id, header.counter)) continue
         this.store.appendDocUpdate(header.id, payload)
         applied.set(header.id, [...applied.get(header.id) ?? [], payload])
@@ -500,8 +287,7 @@ export class AccountVault {
    * @returns the id the relay and `sync/document` use.
    */
   documentId(name: string): OpaqueId {
-    this.requireMember()
-    return opaqueIdOf(this.genesisKey(), name)
+    return opaqueIdOf(this.requireKey(), name)
   }
 
   /**
@@ -578,24 +364,13 @@ export class AccountVault {
     const relay = this.relay
     if (relay === undefined) throw new Error('reading a stream needs a connection to the relay')
     const { frames, more } = await relay.request('stream.get', { id: this.documentId(name), after }) as { frames: Array<{ seq: number; frame: string }>; more: boolean }
-    const keyring = this.store.keyring()
-    const { chain } = this.requireMember()
-    const batches = frames.map(({ seq, frame }) => ({
-      seq,
-      payload: openEnvelope(new Uint8Array(Buffer.from(frame, 'base64url')), {
-        vaultKey: epoch => keyring.get(epoch),
-        signingKey: device => signingKeyAt(chain, device, seq),
-      }).payload,
-    }))
+    const key = this.requireKey()
+    const batches = frames.map(({ seq, frame }) => ({ seq, payload: openEnvelope(new Uint8Array(Buffer.from(frame, 'base64url')), key).payload }))
     return { batches, more }
   }
 
   private seal(kind: EnvelopeKind, id: OpaqueId, payload: Uint8Array): Uint8Array {
-    const { keys, chain } = this.requireMember()
-    const epoch = chain.epoch
-    const vaultKey = this.store.keyring().get(epoch)
-    if (vaultKey === undefined) throw new Error(`the vault keyring lacks epoch ${String(epoch)}`)
-    return sealEnvelope({ kind, id, epoch, vaultKey, sender: keys, counter: this.store.nextCounter(id), payload })
+    return sealEnvelope({ kind, id, accountKey: this.requireKey(), device: this.device, counter: this.store.nextCounter(id), payload })
   }
 
   private localUpdate(id: OpaqueId, update: Uint8Array): void {
@@ -623,30 +398,30 @@ export class AccountVault {
     return this.documentId(LAN_TAG)
   }
 
-  /** @returns this enrolled device's id. */
+  /** @returns this device's id. */
   deviceId(): DeviceId {
-    return this.requireMember().keys.id
+    return this.device
   }
 
   /**
-   * Sign local-network handshake bytes with this device's key.
+   * Prove holding the account key over local-network handshake bytes.
    * @param data - the bytes.
-   * @returns the signature.
+   * @returns the proof.
    */
   signLan(data: Uint8Array): Uint8Array {
-    return signBytes(this.requireMember().keys.secretKeys.signing, data)
+    return proveKey(this.requireKey(), data)
   }
 
   /**
-   * Check a local-network handshake signature against an active device.
-   * @param device - the claimed device.
-   * @param data - the signed bytes.
-   * @param signature - the signature.
-   * @returns whether `device` is active in the chain and signed `data`.
+   * Check a local-network handshake proof.
+   * @param _device - the claimed device; any device holding the account key belongs to the account.
+   * @param data - the proven bytes.
+   * @param proof - the proof.
+   * @returns whether the proof was made with the account key.
    */
-  verifyLan(device: string, data: Uint8Array, signature: Uint8Array): boolean {
-    const key = this.member()?.chain.devices.get(device as DeviceId)?.signing
-    return key !== undefined && verifyBytes(key, data, signature)
+  verifyLan(_device: string, data: Uint8Array, proof: Uint8Array): boolean {
+    const key = this.key()
+    return key !== undefined && verifyKeyProof(key, data, proof)
   }
 
   /**
@@ -655,21 +430,17 @@ export class AccountVault {
    * @param frame - the sealed frame.
    */
   receiveLanFrame(frame: Uint8Array): void {
-    const member = this.member()
-    if (member === undefined) return
-    const keyring = this.store.keyring()
+    const key = this.key()
+    if (key === undefined) return
     let opened: ReturnType<typeof openEnvelope>
     try {
-      opened = openEnvelope(frame, {
-        vaultKey: epoch => keyring.get(epoch),
-        signingKey: device => member.chain.devices.get(device)?.signing,
-      })
+      opened = openEnvelope(frame, key)
     } catch (error) {
       this.warn('sync: dropped a frame from a device on the local network', error)
       return
     }
     const { header, payload } = opened
-    if (header.device === member.keys.id) return
+    if (header.device === this.device) return
     if (header.kind === 'stream') {
       for (const listener of this.streamWatchers.get(header.id) ?? []) listener(payload)
       return
@@ -698,22 +469,18 @@ export class AccountVault {
   }
 
   private async maintain(id: OpaqueId, snapshotDue: boolean): Promise<void> {
-    const member = this.member()
-    if (member === undefined) return
-    const epoch = member.chain.epoch
-    const vaultKey = this.store.keyring().get(epoch)
-    if (vaultKey === undefined) throw new Error(`the vault keyring lacks epoch ${String(epoch)}`)
+    const key = this.key()
+    if (key === undefined) return
     await this.offload.maintain({
       path: this.store.path,
       doc: id,
       compact: this.store.docUpdateCount(id) > this.tuning.compactAfter,
       ...snapshotDue
-        ? { snapshot: { epoch, vaultKey, sender: member.keys, counter: this.store.nextCounter(id), covers: this.store.relayCursor() } }
+        ? { snapshot: { accountKey: key, device: this.device, counter: this.store.nextCounter(id), covers: this.store.relayCursor() } }
         : {},
     })
     if (snapshotDue) void this.flush()
   }
-
 
   /**
    * Send queued frames in order until the outbox is empty or the connection drops.
@@ -728,28 +495,51 @@ export class AccountVault {
     return this.flushing
   }
 
-  /** @returns whether the pass ended with an empty outbox rather than a missing or failing relay. */
+  /**
+   * Send the outbox in batches, each one request the relay stores in order.
+   * @returns whether the pass ended with an empty outbox rather than a missing or failing relay.
+   */
   private async drain(): Promise<boolean> {
     for (;;) {
       const relay = this.relay
-      const next = this.store.outbox(1)[0]
-      if (relay === undefined || next === undefined) return next === undefined
+      const queued = this.store.outbox(this.tuning.publishFrames)
+      if (relay === undefined || queued.length === 0) return queued.length === 0
+      const batch: typeof queued = []
+      let bytes = 0
+      for (const next of queued) {
+        if (batch.length > 0 && bytes + next.frame.length > this.tuning.publishBytes) break
+        batch.push(next)
+        bytes += next.frame.length
+      }
+      let stored: number
       try {
-        await relay.request('publish', { frame: toBase64Url(next.frame), ...next.covers === undefined ? {} : { covers: next.covers } })
+        const answer = await relay.request('publish', {
+          frames: batch.map(next => ({ frame: toBase64Url(next.frame), ...next.covers === undefined ? {} : { covers: next.covers } })),
+        }) as { seqs: number[]; refused?: { code: string; message: string } }
+        stored = answer.seqs.length
+        if (answer.refused !== undefined) throw new RelayError(answer.refused.code, answer.refused.message)
       } catch (error) {
+        stored ??= 0
         // A frame the relay refuses outright would block every frame behind it; it is dropped instead.
         if (error instanceof RelayError && PERMANENT_REFUSALS.has(error.code)) {
           this.warn(`sync: the relay refused a frame (${error.code}); dropping it`, error)
+          stored += 1
         } else {
-          this.warn('sync: publishing a frame failed; it stays queued', error)
+          this.warn('sync: publishing frames failed; they stay queued', error)
+          this.acknowledge(batch, stored)
           return false
         }
       }
-      this.store.acknowledge(next.seq)
-      this.changed()
+      this.acknowledge(batch, stored)
     }
   }
 
+  private acknowledge(batch: ReadonlyArray<{ seq: number }>, count: number): void {
+    const last = batch[count - 1]
+    if (last === undefined) return
+    this.store.acknowledge(last.seq)
+    this.changed()
+  }
 
   /** Wait for durable publication and a complete relay backlog before transferring a session writer. */
   async synchronize(): Promise<void> {
