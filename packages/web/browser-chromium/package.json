@@ -1,7 +1,7 @@
 {
   "name": "@aeven/browser-chromium",
   "description": "Host-launched Chromium that the web client's right sidebar browser opens and chrome-devtools-mcp drives",
-  "version": "0.3.21-alpha",
+  "version": "0.3.22-alpha",
   "publishConfig": {
     "access": "public"
   },

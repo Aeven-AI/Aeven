@@ -1,7 +1,7 @@
 {
   "name": "@aeven/memory",
   "description": "Long-term memory Service Definition: one provider slot serving recall, turn capture, and inspection",
-  "version": "0.3.21-alpha",
+  "version": "0.3.22-alpha",
   "publishConfig": {
     "access": "public"
   },

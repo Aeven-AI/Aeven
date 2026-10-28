@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-workflow-run",
   "description": "Durable workflow-run Conversation Node and nested member disclosure for avn web",
-  "version": "0.3.21-alpha",
+  "version": "0.3.22-alpha",
   "publishConfig": {
     "access": "public"
   },

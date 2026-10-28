@@ -1,7 +1,7 @@
 {
   "name": "@aeven/sync-vault",
   "description": "Vault cryptography for account sync: device keys, envelopes, key wrapping, and the device chain",
-  "version": "0.3.21-alpha",
+  "version": "0.3.22-alpha",
   "publishConfig": {
     "access": "public"
   },

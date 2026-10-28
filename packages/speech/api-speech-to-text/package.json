@@ -1,7 +1,7 @@
 {
   "name": "@aeven/api-speech-to-text",
   "description": "Authenticated speech transcription Remote for browser clients",
-  "version": "0.3.21-alpha",
+  "version": "0.3.22-alpha",
   "publishConfig": {
     "access": "public"
   },
