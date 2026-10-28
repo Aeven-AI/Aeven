@@ -3643,6 +3643,17 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the opaque ids, as {@link documentId} returns them.',
       },
       {
+        signature: 'abstract localValue(owner: string, key: string): string | undefined',
+        description: 'Read a value this device keeps for the account and never sends to another device, such as how far a Consumer got with work that survives restarts.',
+        parameters: [{ name: 'owner', description: 'an account this device syncs.' }, { name: 'key', description: 'the value\'s name, prefixed by the Consumer that owns it.' }],
+        returns: 'the stored value, or undefined when none is stored.',
+      },
+      {
+        signature: 'abstract setLocalValue(owner: string, key: string, value: string): void',
+        description: 'Store a value this device keeps for the account and never sends to another device; see localValue.',
+        parameters: [{ name: 'owner', description: 'an account this device syncs.' }, { name: 'key', description: 'the value\'s name, prefixed by the Consumer that owns it.' }, { name: 'value', description: 'the value to keep.' }],
+      },
+      {
         signature: 'abstract appendStream(owner: string, name: string, payload: Uint8Array): Promise<void>',
         description: 'Queue one batch for a stream this device writes. Batches reach the relay in the order they were queued, after every document change queued before them.',
         parameters: [{ name: 'owner', description: 'an account whose documents this device can open.' }, { name: 'name', description: 'the stream\'s logical name.' }, { name: 'payload', description: 'the batch.' }],
@@ -4468,6 +4479,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Name the workspace a session belongs to in the terms every device of the account shares: `default` for the built-in default workspace, `builtin:<key>` for a plugin-declared one, and the workspace id otherwise.',
         parameters: [{ name: 'sessionId', description: 'the session.' }],
         returns: 'the shared name, or undefined when no workspace holds the session.',
+      },
+      {
+        signature: 'sessionHomes(): ReadonlyMap<SessionId, string>',
+        description: 'Name the workspace of every filed session at once, as sessionHome names each, in one pass over the registry; a caller that asks about many sessions uses this instead of one sessionHome call per session.',
+        parameters: [],
+        returns: 'each filed session\'s shared workspace name.',
       },
       {
         signature: 'async fileSession(sessionId: SessionId, home: string, header?: SessionHeader): Promise<boolean>',

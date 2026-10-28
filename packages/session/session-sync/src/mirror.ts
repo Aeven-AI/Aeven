@@ -39,6 +39,8 @@ export interface SessionFiling {
    * @returns the shared name of the workspace holding it, if any.
    */
   sessionHome(sessionId: SessionId): string | undefined
+  /** @returns each filed session's shared workspace name, built in one pass. */
+  sessionHomes(): ReadonlyMap<SessionId, string>
   /**
    * @param sessionId - a stored session.
    * @param home - the shared workspace name.
@@ -60,6 +62,21 @@ export interface SessionFiling {
 function titleOf(events: readonly SessionEvent[]): string | undefined {
   const last = events.findLast(event => (event.type as string) === 'session/title')
   return last === undefined ? undefined : (last.data as unknown as { title: string }).title
+}
+
+/** Key prefix of the device-local {@link SessionRecord} values. */
+const RECORD_PREFIX = 'session-sync/'
+
+/** What this device keeps about one session across restarts; it never syncs. */
+interface SessionRecord {
+  /** Log revision whose committed events this device last published, for a session it writes. */
+  revision?: string
+  /** Stream position this device imported up to, for a session another device writes. */
+  cursor?: number
+  /** One past the last stored `seq` of a session another device writes, valid while its log has revision {@link local}. */
+  next?: number
+  /** Log revision {@link next} was counted at. */
+  local?: string
 }
 
 /** One published batch. */
@@ -310,8 +327,9 @@ export class SessionMirror {
     if (!this.running.delete(sessionId)) return Promise.resolve()
     return this.own(sessionId, async () => {
       if (this.running.has(sessionId)) return
+      // A session claimed over the local network holds no lease, so its release still has to clear the index flag
+      // that tells the account's other devices a turn runs here; only the lease disposal depends on having one.
       const holder = this.runners.get(sessionId)
-      if (holder === undefined) return
       const header = (await this.persistence.readFrom(sessionId, SessionLogOffset(0))).meta
       const me = this.device()
       if (me === undefined) throw new Error('session runner device disappeared')
@@ -322,7 +340,7 @@ export class SessionMirror {
       })
       if (this.running.has(sessionId)) return
       this.runners.delete(sessionId)
-      await holder.dispose()
+      await holder?.dispose()
     })
   }
 
@@ -337,6 +355,8 @@ export class SessionMirror {
       await this.persistence.setReplica(sessionId, true)
       this.revisions.delete(sessionId)
       this.localNext.delete(sessionId)
+      this.appendedNext.delete(sessionId)
+      this.record(sessionId, { revision: undefined })
     })().finally(() => {
       if (this.releases.get(sessionId) === release) this.releases.delete(sessionId)
     })
@@ -347,6 +367,35 @@ export class SessionMirror {
   private readonly revisions = new Map<string, string>()
   private readonly localNext = new Map<string, number>()
   private readonly cursors = new Map<string, number>()
+  /** One past the last `seq` this process saw committed, per session this device writes. */
+  private readonly appendedNext = new Map<string, number>()
+
+  /**
+   * What this device recorded about a session across restarts: the log revision it last published and the stream
+   * position it imported up to.
+   * @param id - the session.
+   * @returns the record, empty when none is stored.
+   */
+  private recorded(id: string): SessionRecord {
+    const stored = this.sync.localValue(this.owner, `${RECORD_PREFIX}${id}`)
+    if (stored === undefined) return {}
+    try {
+      return JSON.parse(stored) as SessionRecord
+    } catch {
+      // A record this build cannot read only costs one full publication or stream read; nothing depends on it.
+      return {}
+    }
+  }
+
+  /**
+   * Update what this device records about a session across restarts.
+   * @param id - the session.
+   * @param change - the fields to replace; an undefined field is removed.
+   */
+  private record(id: string, change: { readonly [K in keyof SessionRecord]?: SessionRecord[K] | undefined }): void {
+    // JSON drops the undefined fields, which removes them from the record.
+    this.sync.setLocalValue(this.owner, `${RECORD_PREFIX}${id}`, JSON.stringify({ ...this.recorded(id), ...change }))
+  }
   private readonly imports = new Map<string, Promise<void>>()
   private readonly created = new Set<string>()
   /** Imported sessions already filed into their workspace on this device. */
@@ -473,8 +522,9 @@ export class SessionMirror {
   catalog(): readonly SharedSession[] {
     if (this.docs === undefined) return []
     // A conversation is listed once it sits in a workspace here, never outside one while its workspace is on its way.
+    const homes = this.filing?.sessionHomes()
     return [...this.entries().values()].filter(entry => entry.header.owner === this.owner
-      && (this.filing === undefined || this.filing.sessionHome(entry.header.id) !== undefined))
+      && (homes === undefined || homes.has(entry.header.id)))
       .map(entry => ({
         header: { ...entry.header, replica: true }, next: entry.next,
         updatedAt: entry.updatedAt ?? entry.header.createdAt,
@@ -706,20 +756,31 @@ export class SessionMirror {
         this.importAgain = false
         await this.importAll()
       } while (this.repeatImport() && !this.isClosed())
-    })().finally(() => {
+    })().catch((error: unknown) => {
+      // Importing runs in the background, so a failed pass is reported here instead of becoming an unhandled rejection.
+      this.warn(`session sync: importing sessions failed: ${String(error)}`)
+    }).finally(() => {
       this.importing = undefined
       // A change that arrived after the loop's last check but before this point still needs its pass.
       if (this.repeatImport() && !this.isClosed()) this.scheduleImport()
     })
   }
 
-  private async next(id: string, local: ReadonlySet<string>): Promise<number> {
+  private async next(id: string, local: ReadonlySet<string>, revisions?: ReadonlyMap<string, string>): Promise<number> {
     const cached = this.localNext.get(id)
     if (cached !== undefined) return cached
     if (!local.has(id)) return 0
+    // A log unchanged since its count was recorded is not read again, so a restart reads only what changed.
+    const revision = revisions?.get(id)
+    const recorded = revision === undefined ? undefined : this.recorded(id)
+    if (recorded?.next !== undefined && recorded.local === revision) {
+      this.localNext.set(id, recorded.next)
+      return recorded.next
+    }
     const { events } = await this.persistence.readFrom(id as SessionId, SessionLogOffset(0))
     const next = after(events, 0)
     this.localNext.set(id, next)
+    if (revision !== undefined) this.record(id, { next, local: revision })
     return next
   }
 
@@ -764,7 +825,9 @@ export class SessionMirror {
   private async importAll(): Promise<void> {
     const me = this.device()
     if (me === undefined || this.isClosed()) return
-    const local = new Set((await this.persistence.list()).map(header => header.id as string))
+    const snapshots = await this.persistence.listSnapshots()
+    const local = new Set(snapshots.map(({ header }) => header.id as string))
+    const revisions = new Map(snapshots.map(({ header, revision }) => [header.id as string, String(revision)]))
     // The most recently active conversations arrive first; older history follows.
     const ordered = [...this.entries()].sort(([, left], [, right]) => recency(right) - recency(left))
       .filter(([, entry]) => entry.origin !== me && entry.header.owner === this.owner)
@@ -778,17 +841,19 @@ export class SessionMirror {
       })
     }
     if (this.filed.size !== unfiled) this.catalogChanged?.()
+    // A session filed later in this pass schedules another pass through the late-filing observer.
+    const homes = this.filing?.sessionHomes()
     for (const [id, entry] of ordered) {
       if (this.isClosed()) return
       await pause(this.tuning.pauseMs)
       if (local.has(id) || this.created.has(id)) this.watch(id)
       // A body imports once its workspace holds it here; opening the conversation imports it regardless.
-      if (this.filing !== undefined && this.filing.sessionHome(id as SessionId) === undefined && !local.has(id)) continue
+      if (homes !== undefined && !homes.has(id as SessionId) && !local.has(id)) continue
       if (this.tuning.backfillDays > 0 && entry.header.createdAt < Date.now() - this.tuning.backfillDays * DAY_MS
         && !local.has(id)) continue
       try {
         await this.releases.get(id)
-        await this.importOne(id, entry, local)
+        await this.importOne(id, entry, local, revisions)
         if (local.has(id) || this.created.has(id)) await this.file(id, entry)
       } catch (error) {
         this.warn(`session sync: importing a session failed: ${String(error)}`)
@@ -803,9 +868,9 @@ export class SessionMirror {
     if (await this.filing.fileSession(id as SessionId, home, { ...entry.header, replica: true })) this.filed.add(id)
   }
 
-  private importOne(id: string, entry: IndexEntry, local: ReadonlySet<string>): Promise<void> {
+  private importOne(id: string, entry: IndexEntry, local: ReadonlySet<string>, revisions?: ReadonlyMap<string, string>): Promise<void> {
     return this.serialImport(id, async () => {
-      const next = await this.next(id, local)
+      const next = await this.next(id, local, revisions)
       if (entry.next > next) await this.importSession(id, entry, next, local.has(id) || this.created.has(id))
     })
   }
@@ -828,11 +893,13 @@ export class SessionMirror {
     let next = from
     let created = exists || this.created.has(id)
     let pending: SessionEvent[] = []
-    let cursor = this.cursors.get(id) ?? 0
+    // A restart resumes the stream where the last import of a stored log stopped instead of reading it from the start.
+    let resumed = !this.cursors.has(id) && from > 0
+    let cursor = this.cursors.get(id) ?? (resumed ? this.recorded(id).cursor ?? 0 : 0)
     let committedCursor = cursor
     let stored = false
     try {
-      for (;;) {
+      reading: for (;;) {
         await this.yieldToOpening(id)
         const { batches, more } = await this.sync.readStream(this.owner, streamName(id), cursor)
         if (this.isClosed()) return
@@ -842,6 +909,13 @@ export class SessionMirror {
           const events = batch.events.filter(event => event.seq >= next)
           const first = events.at(0)
           if (first === undefined) continue
+          if (first.seq !== next && resumed && pending.length === 0) {
+            // The recorded position is past what the local log holds, so the stream is read again from its start.
+            resumed = false
+            cursor = 0
+            committedCursor = 0
+            continue reading
+          }
           if (first.seq !== next) throw new Error(`session ${id} is missing events ${String(next)}–${String(first.seq - 1)}`)
           pending.push(...events)
           next = after(events, next)
@@ -863,7 +937,10 @@ export class SessionMirror {
           committedCursor = cursor
           stored = true
         }
-        this.cursors.set(id, committedCursor)
+        if (this.cursors.get(id) !== committedCursor) {
+          this.cursors.set(id, committedCursor)
+          this.record(id, { cursor: committedCursor })
+        }
         if (!more || this.isClosed()) return
       }
     } finally {
@@ -880,11 +957,12 @@ export class SessionMirror {
     const progress = { ...this.publicationProgress }
     if (this.docs === undefined) return progress
     const me = this.device()
+    const homes = this.filing?.sessionHomes()
     for (const [id, entry] of this.entries()) {
       if (entry.origin === me || entry.header.owner !== this.owner) continue
       const next = this.localNext.get(id)
       const local = next !== undefined || this.created.has(id)
-      if (!local && this.filing !== undefined && this.filing.sessionHome(id as SessionId) === undefined) continue
+      if (!local && homes !== undefined && !homes.has(id as SessionId)) continue
       if (!local && this.tuning.backfillDays > 0 && entry.header.createdAt < Date.now() - this.tuning.backfillDays * DAY_MS) continue
       progress.sessionsTotal += 1
       if (entry.next > (next ?? 0)) progress.sessionsPending += 1
@@ -907,10 +985,22 @@ export class SessionMirror {
     try {
       const entries = this.entries()
       const snapshots = await this.persistence.listSnapshots()
+      const homes = this.filing?.sessionHomes()
       const pending = snapshots.filter(({ header, revision }) => {
-        const entry = entries.get(header.id)
-        return !header.replica && header.owner === this.owner && (entry === undefined || entry.origin === me)
-          && this.revisions.get(header.id) !== String(revision)
+        const id = header.id as string
+        const entry = entries.get(id)
+        if (header.replica || header.owner !== this.owner || (entry !== undefined && entry.origin !== me)) return false
+        // A workspace move changes the index entry, not the log, so it is published without a new revision.
+        const moved = entry !== undefined && homes !== undefined && entry.workspace !== homes.get(header.id as SessionId)
+        if (moved) return true
+        if ((this.revisions.get(id) ?? this.recorded(id).revision) === String(revision)) return false
+        // A live publication already carried every committed event; only its revision is left to record.
+        if (entry !== undefined && entry.next === this.appendedNext.get(id) && entry.running === this.running.has(header.id)) {
+          this.revisions.set(id, String(revision))
+          this.record(id, { revision: String(revision) })
+          return false
+        }
+        return true
       })
       if (pending.length > 0) {
         this.publicationProgress.sessionsPending = pending.length
@@ -926,6 +1016,7 @@ export class SessionMirror {
         await pause(this.tuning.pauseMs)
         await this.serialize(id, () => this.publishSession(header, me, true))
         this.revisions.set(id, String(revision))
+        this.record(id, { revision: String(revision) })
         this.publicationProgress.sessionsPending -= 1
         this.progressChanged?.()
       }
@@ -946,10 +1037,14 @@ export class SessionMirror {
    * Publish a session's newly committed events soon, rather than at the next scan, so the account's other
    * devices follow a running turn as it streams.
    * @param header - the header of the session whose events were committed.
+   * @param events - the committed events; without them the scan reads the log to find what is new.
    */
-  appended(header: SessionHeader): void {
+  appended(header: SessionHeader, events: readonly SessionEvent[] = []): void {
     const id = header.id as string
-    if (header.replica || header.owner !== this.owner || this.docs === undefined || this.live.has(id)) return
+    if (header.replica || header.owner !== this.owner || this.docs === undefined) return
+    const last = events.at(-1)
+    if (last !== undefined) this.appendedNext.set(id, last.seq + 1)
+    if (this.live.has(id)) return
     this.live.set(id, setTimeout(() => {
       this.live.delete(id)
       const me = this.device()

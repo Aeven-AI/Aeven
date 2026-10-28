@@ -68,8 +68,8 @@ export default class SessionSync extends SessionHandoff {
       })
     })
     // A running turn reaches the account's other devices as it streams, not at the next scan.
-    ctx.on('session-persistence/append', (header) => {
-      if (header.owner !== undefined) this.mirrors.get(header.owner)?.appended(header)
+    ctx.on('session-persistence/append', (header, events) => {
+      if (header.owner !== undefined) this.mirrors.get(header.owner)?.appended(header, events)
     })
     ctx.effect(() => async () => {
       await Promise.all([...this.mirrors.values()].map(mirror => mirror.dispose()))

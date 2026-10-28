@@ -1161,10 +1161,11 @@ export class PersistenceCoordinator<TornMarker = unknown> {
     if (stored === undefined) throw new SessionPersistenceNotFoundError(id)
     this.assertStoredId(id, stored.meta)
     this.assertVersion(stored.meta)
-    const events = snapshotStoredEvents(stored.events, id)
+    // `loadStored` returns fresh, unretained graphs, so they are adopted in place rather than copied again.
+    const events = adoptStoredEvents(stored.events, id)
     this.assertEventsSupported(stored.meta, events)
     return {
-      meta: structuredClone(stored.meta),
+      meta: stored.meta,
       inheritedEventCount: SessionLogOffset(stored.inheritedEventCount),
       events,
     }
@@ -1552,7 +1553,7 @@ export class PersistenceCoordinator<TornMarker = unknown> {
     /* v8 ignore next -- a cursor > 0 means the session was materialized, so it exists */
     if (stored === undefined) return false
     this.assertStoredId(id, stored.meta)
-    return seedCoversPrefix(seed, snapshotStoredEvents(stored.events, id).slice(0, cursor))
+    return seedCoversPrefix(seed, adoptStoredEvents(stored.events, id).slice(0, cursor))
   }
 
   /**

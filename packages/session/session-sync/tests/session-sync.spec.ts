@@ -6,7 +6,7 @@
 import { createHash } from 'node:crypto'
 import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { SessionEvent, SessionHeader } from '@aeven/session'
+import type { SessionEvent, SessionHeader, SessionId } from '@aeven/session'
 import { MemorySyncNetwork, type MemorySyncDevice } from '../../../sync/sync/tests/memory.ts'
 import SessionSync from '../src/index.ts'
 import { SessionMirror, type SessionSyncTuning } from '../src/mirror.ts'
@@ -628,14 +628,24 @@ describe('session-sync plugin', () => {
     const homeA = new MemoryPersistence()
     homeA.start('filed', Date.now(), 2)
     homeA.start('loose', Date.now(), 1)
-    const filingA = { sessionHome: (id: string) => (id === 'filed' ? 'workspace-1' : undefined), fileSession: vi.fn(), onLateFiling: vi.fn(() => vi.fn()) }
+    const filingA = {
+      sessionHome: (id: string) => (id === 'filed' ? 'workspace-1' : undefined),
+      sessionHomes: () => new Map([['filed' as SessionId, 'workspace-1']]),
+      fileSession: vi.fn(),
+      onLateFiling: vi.fn(() => vi.fn()),
+    }
     const a = new SessionMirror(OWNER, network.device().asSync(), homeA as never, tuning, vi.fn(), undefined, filingA)
     mirrors.push(a)
     await a.start()
     let ready = false
     const fileSession = vi.fn((_id: string, _home: string) => Promise.resolve(ready))
     const homeB = new MemoryPersistence()
-    const filingB = { sessionHome: () => undefined, fileSession, onLateFiling: vi.fn(() => vi.fn()) }
+    const filingB = {
+      sessionHome: (): undefined => undefined,
+      sessionHomes: (): ReadonlyMap<SessionId, string> => new Map(),
+      fileSession,
+      onLateFiling: vi.fn(() => vi.fn()),
+    }
     const b = new SessionMirror(OWNER, network.device().asSync(), homeB as never, tuning, vi.fn(), undefined, filingB)
     mirrors.push(b)
     await b.start()

@@ -140,6 +140,14 @@ interface JsonlTornMarker {
   recoveredEvents: SessionEvent[]
 }
 
+/** One listed session log: its header, where it lives, its seeded cut, and the revision it was read at. */
+interface ListedArtifact {
+  readonly header: SessionHeader
+  readonly path: string
+  readonly inheritedEventCount?: SessionLogOffsetType
+  readonly revision: PersistenceRevision
+}
+
 interface FileRevisionIdentity {
   readonly dev: bigint
   readonly ino: bigint
@@ -196,6 +204,11 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
   private compression: JsonlCompression
   private coordinator: PersistenceCoordinator<JsonlTornMarker>
   private rootEncodingCheck: Promise<void> | undefined
+  /**
+   * Listed artifacts by log path, each valid while its log and replica marker keep the revision it was read at. A
+   * header rewrite replaces the file, so a changed header always arrives with a changed revision.
+   */
+  private readonly listed = new Map<string, { readonly revision: PersistenceRevision; readonly artifact: ListedArtifact }>()
 
   constructor(ctx: Context, public config: Config) {
     super(ctx)
@@ -637,19 +650,11 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
     return snapshots
   }
 
-  private async listArtifacts(signal?: AbortSignal): Promise<Array<{
-    header: SessionHeader
-    path: string
-    inheritedEventCount?: SessionLogOffsetType
-  }>> {
+  private async listArtifacts(signal?: AbortSignal): Promise<ListedArtifact[]> {
     signal?.throwIfAborted()
     await this.ensureRootEncoding()
     signal?.throwIfAborted()
-    const artifacts: Array<{
-      header: SessionHeader
-      path: string
-      inheritedEventCount?: SessionLogOffsetType
-    }> = []
+    const artifacts: ListedArtifact[] = []
     const ids = new Set<SessionId>()
     // Collect every session directory first, then read them concurrently: the
     // per-directory work is three independent I/O waits (two existence probes
@@ -666,6 +671,8 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
       LIST_READ_CONCURRENCY,
       dir => this.readArtifactHeader(dir, signal),
     )
+    const present = new Set(read.flatMap(artifact => artifact === undefined ? [] : [artifact.path]))
+    for (const path of this.listed.keys()) if (!present.has(path)) this.listed.delete(path)
     // Ordering and duplicate detection stay sequential over the directory
     // order, so the result is identical to reading them one at a time.
     for (const artifact of read) {
@@ -688,21 +695,25 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
    * session log (absent, empty, half-written, or not a header line).
    * @throws when the directory holds a log in the opposite encoding.
    */
-  private async readArtifactHeader(dir: string, signal?: AbortSignal): Promise<{
-    header: SessionHeader
-    path: string
-    inheritedEventCount?: SessionLogOffsetType
-  } | undefined> {
+  private async readArtifactHeader(dir: string, signal?: AbortSignal): Promise<ListedArtifact | undefined> {
     signal?.throwIfAborted()
     const opposite = join(dir, `session${logSuffix(this.oppositeCompression())}`)
     const path = join(dir, `session${logSuffix(this.compression)}`)
-    const [oppositeExists, pathExists] = await Promise.all([
+    const [oppositeExists, identity] = await Promise.all([
       this.exists(opposite),
-      this.exists(path),
+      stat(path, { bigint: true }).catch((error: unknown) => {
+        // An absent log means the directory holds no session; every other failure surfaces.
+        if (isENOENT(error)) return undefined
+        throw error
+      }),
     ])
     signal?.throwIfAborted()
     if (oppositeExists) throw this.encodingMismatch(opposite)
-    if (!pathExists) return undefined
+    if (identity === undefined) return undefined
+    const revision = await this.replicaRevision(path, fileRevision(identity))
+    const cached = this.listed.get(path)
+    // Callers own the header they receive, so a cache hit hands out a copy.
+    if (cached?.revision === revision) return { ...cached.artifact, header: { ...cached.artifact.header } }
     // Read only headers so listing scales with session count, not log size.
     const first = this.compression === 'zstd'
       ? await this.readFirstZstdLine(path, signal)
@@ -718,11 +729,14 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
     // listing already read, so carrying it costs nothing, and a consumer
     // addressing a seeded Session's projection-cache row cannot reconstruct
     // it from the header alone.
-    return {
+    const artifact: ListedArtifact = {
       header: meta,
       path,
       ...meta.isSeeded ? { inheritedEventCount: parsed.inheritedEventCount } : {},
+      revision,
     }
+    this.listed.set(path, { revision, artifact: { ...artifact, header: { ...meta } } })
+    return artifact
   }
 
   // --- materialization / append / repair (file mechanics) ---

@@ -411,6 +411,13 @@ delete(id: WorkspaceId): Promise<boolean>
 sessionHome(sessionId: SessionId): string | undefined
 
 /**
+ * Name the workspace of every filed session at once, as {@link sessionHome} names each, in one pass over the
+ * registry; a caller that asks about many sessions uses this instead of one {@link sessionHome} call per session.
+ * @returns each filed session's shared workspace name.
+ */
+sessionHomes(): ReadonlyMap<SessionId, string>
+
+/**
  * File a session another device published into the workspace its {@link sessionHome} names, when this device
  * holds that workspace and the session is not filed yet.
  * @param sessionId - the session, already stored on this device.
