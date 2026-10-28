@@ -185,8 +185,10 @@ export class SessionMirror {
    */
   claim(sessionId: SessionId): Promise<SessionClaim> {
     // A runner this device holds continues without waiting for an earlier operation on the session, such as the
-    // release that publishes the previous turn.
-    if (this.runners.get(sessionId)?.held() === true && !this.isClosed()) return Promise.resolve({ claimed: true })
+    // release that publishes the previous turn. It keeps running while the relay is unreachable: other devices
+    // see the index mark the session running and do not claim it, so only a lease granted elsewhere stops it.
+    const runner = this.runners.get(sessionId)
+    if (runner !== undefined && !runner.refused() && !this.isClosed()) return Promise.resolve({ claimed: true })
     return this.own(sessionId, async () => {
       await this.starting
       await this.releases.get(sessionId)
@@ -195,7 +197,7 @@ export class SessionMirror {
       if (me === undefined || this.isClosed()) return { claimed: false }
       if (entry !== undefined && entry.header.owner !== this.owner) throw new Error('session does not belong to this account')
       const existing = this.runners.get(sessionId)
-      if (existing?.held()) return { claimed: true }
+      if (existing !== undefined && !existing.refused()) return { claimed: true }
       // A session this device writes needs no handover, so a turn never waits for the account's backlog.
       const mine = entry === undefined || entry.origin === me
       const online = this.sync.status(this.owner).state === 'online'
@@ -203,9 +205,10 @@ export class SessionMirror {
       if (!online) return await this.takeOver(sessionId, entry)
       const timing = this.tuning.runnerLease
       if (timing === undefined) throw new Error('session runner lease timing is not configured')
-      const holder = new LeaseHolder(this.sync, this.owner, streamName(sessionId), timing, {
+      const holder: LeaseHolder = new LeaseHolder(this.sync, this.owner, streamName(sessionId), timing, {
+        // A lease that lapsed because the relay was unreachable keeps the turn running; see the runner check above.
         changed: (held) => {
-          if (!held) void this.releaseLocal(sessionId).catch((error: unknown) => {
+          if (!held && holder.refused()) void this.releaseLocal(sessionId).catch((error: unknown) => {
             this.warn(`session sync: releasing a runner failed: ${String(error)}`)
           })
         },
@@ -272,6 +275,7 @@ export class SessionMirror {
   }
 
   /**
+   * Report whether a locally running session has a running turn.
    * @param sessionId - session running locally.
    * @param running - whether it has a running turn.
    */
@@ -436,7 +440,10 @@ export class SessionMirror {
     return this.started().inbox.doc.getMap<InboxEntry>('inputs')
   }
 
-  /** @returns conversation metadata available without importing log bodies. */
+  /**
+   * List the conversations this account mirrors without importing their logs.
+   * @returns the conversation metadata.
+   */
   catalog(): readonly SharedSession[] {
     if (this.docs === undefined) return []
     return [...this.entries().values()].filter(entry => entry.header.owner === this.owner).map(entry => ({
@@ -496,8 +503,9 @@ export class SessionMirror {
   }
 
   /**
+   * Report whether a conversation's workspace membership is shared across devices.
    * @param sessionId - conversation identity.
-   * @returns whether its workspace membership is shared across devices.
+   * @returns whether the membership is shared.
    */
   shared(sessionId: SessionId): boolean {
     return this.docs?.index.doc.getMap<IndexEntry>('sessions').has(sessionId) ?? false
@@ -783,7 +791,10 @@ export class SessionMirror {
     }
   }
 
-  /** @returns discovered conversation publication work, including sessions not yet read or queued. */
+  /**
+   * Read the discovered conversation publication work.
+   * @returns counters that include sessions not yet read or queued.
+   */
   progress(): Readonly<SyncProgress> {
     return this.publicationProgress
   }

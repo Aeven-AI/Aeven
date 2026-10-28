@@ -95,7 +95,7 @@ describe('ui-settings-general apply', () => {
     // The General section seats its own Developer-mode row last in the list.
     const developerRow = before.slots.entries('settings.general.item')[0]!
     expect(developerRow.component).toBe(DeveloperModeRow)
-    expect(developerRow.options).toMatchObject({ id: 'developer-mode', order: 100 })
+    expect(developerRow.options).toMatchObject({ id: 'developer-mode', order: 1000 })
     expect(before.slots.entries('settings.general.item')).toHaveLength(1)
     // The onboarding hole stays declared for feature-owned steps; this plugin
     // no longer seats one.

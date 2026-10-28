@@ -49,6 +49,8 @@ interface SessionLocation {
  * Immutable validated storage metadata, kept outside the conversation event log.
  */
 interface SessionHeader {
+  /** Local replica of another device's log: readable and forkable, but never resumed or repaired here. */
+  readonly replica?: true
   /**
    * On-disk format version, stamped from {@link SESSION_FORMAT_VERSION} when the
    * session is created. A persistence backend rejects any other version on load
@@ -131,6 +133,8 @@ interface CreateSessionOptions {
     readonly delegationDepth?: number
     readonly agentPreset?: string
     readonly owner?: string
+    /** Local replica that cannot be executed or repaired on this device. */
+    readonly replica?: true
   }
 }
 ```
@@ -348,6 +352,14 @@ delete(_id: SessionId): Promise<boolean>
 abstract create(meta: SessionHeader, inheritedEventCount?: SessionLogOffset): Promise<void>
 
 /**
+ * Change whether a cold stored session permits local execution without changing its log bytes.
+ * @param _id - stored session; live or reserved sessions are refused.
+ * @param _replica - true for a received copy, false after exclusive runner ownership is acquired.
+ * @returns when the local execution marker is durable.
+ */
+setReplica(_id: SessionId, _replica: boolean): Promise<void>
+
+/**
  * Ensure a live session has a durable header even when it has no events.
  * Ordinary sessions remain lazily materialized; lifecycle frontends call
  * this only when an empty session itself is a durable resumable resource.
@@ -477,6 +489,30 @@ listWithInheritedCuts?(signal?: AbortSignal): Promise<SessionInheritedCut[]>
 ```
 
 Types: [Session](session.zh.md) · [SessionEvent](session.zh.md) · [SessionId](core.zh.md) · [SessionLogOffset](session.zh.md)
+
+Source: [`packages/session/session-persistence/src/index.ts`](../../packages/session/session-persistence/src/index.ts)
+
+<a id="session-persistence-events"></a>
+
+### `session-persistence/*` events
+
+<a id="session-persistenceappend--emit"></a>
+
+#### `session-persistence/append` — emit
+
+A contiguous event batch committed to durable storage, including cold replicated logs.
+
+```ts cordis-catalog
+/**
+ * A contiguous event batch committed to durable storage, including cold replicated logs.
+ * @mode emit
+ * @param header - the persisted session's metadata.
+ * @param events - the newly committed events.
+ */
+'session-persistence/append'(header: SessionHeader, events: readonly SessionEvent[]): void
+```
+
+Types: [SessionEvent](session.zh.md)
 
 Source: [`packages/session/session-persistence/src/index.ts`](../../packages/session/session-persistence/src/index.ts)
 <!-- END GENERATED cordis-surface -->

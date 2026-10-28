@@ -1,85 +1,34 @@
-/* Sync settings: the Memory section's quiet cards and type scale. */
+/* Sync settings: settings rows, with the upload meter under the switch row. */
 
 .section {
   display: flex;
   flex-direction: column;
-  gap: 12px;
   width: 100%;
   color: var(--dsw-alias-label-primary);
-  font-size: 0.875rem;
-  line-height: 1.375rem;
-}
-
-.card {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 16px;
-  border: 0.5px solid var(--dsw-alias-border-l4);
-  border-radius: 16px;
-}
-
-.title {
-  margin: 0;
-  font-size: 0.875rem;
-  font-weight: 600;
-}
-
-.body,
-.note,
-.failed {
-  margin: 0;
-}
-
-.note {
-  color: var(--dsw-alias-label-tertiary);
 }
 
 .failed {
-  color: var(--dsw-alias-label-danger, var(--dsw-alias-label-primary));
-}
-
-.actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.devices {
-  display: flex;
-  flex-direction: column;
   margin: 0;
-  padding: 0;
-  list-style: none;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
+  color: var(--dsw-alias-state-error-primary);
 }
 
-.device {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 36px;
-}
-
-.row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.rowText {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+/* Marks the device this page runs on. */
+.tag {
+  padding: 1px 8px;
+  border: 0.5px solid var(--dsw-alias-border-l3);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
+  color: var(--dsw-alias-label-secondary);
 }
 
 /* The upload bar is the Account allowance meter: an 8px track on the module platform fill. */
 .meterRow {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding-top: 8px;
+  gap: 8px;
 }
 
 .meterLine {
@@ -87,11 +36,13 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
+  color: var(--dsw-alias-label-secondary);
 }
 
 .meterLabel {
   flex: none;
-  color: var(--dsw-alias-label-secondary);
   font-variant-numeric: tabular-nums;
 }
 
@@ -111,53 +62,7 @@
   transition: width 0.3s;
 }
 
-/* The Account section's switch: a 36×20 track with a 16px thumb. */
-.switch {
-  flex: none;
-  width: 36px;
-  height: 20px;
-  padding: 2px;
-  border: none;
-  border-radius: 10px;
-  background: var(--dsw-alias-border-l3);
-  cursor: pointer;
-  transition: background 150ms;
-}
-
-.thumb {
-  display: block;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--dsw-alias-label-primary-foreground);
-  transition: transform 150ms;
-}
-
-:global(body[data-ds-dark-theme]) .thumb {
-  background: #000000;
-}
-
-.switch[aria-checked="true"] {
-  background: var(--dsw-alias-brand-primary);
-}
-
-.switch[aria-checked="true"] .thumb {
-  transform: translateX(16px);
-}
-
-.switch:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.switch:focus-visible {
-  outline: 2px solid var(--dsw-alias-state-business-primary);
-  outline-offset: 2px;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .switch,
-  .thumb,
   .meter > span {
     transition: none;
   }

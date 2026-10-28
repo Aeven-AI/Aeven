@@ -362,17 +362,25 @@ export function isDesktopShell(): boolean {
   return desktopBrowser() !== undefined
 }
 
+/** The part of the page-stated reader the partition reads. */
+interface ReaderScope {
+  __AVN_AEVEN_READER__?: { readonly userId: string }
+}
+
 /**
- * The storage partition a session's guest uses.
+ * The storage partition every guest of the signed-in account uses.
  *
- * Per session, so a site signed in to beside one session is not signed in
- * beside another. The prefix is the one the shell allowlists; a guest naming
- * anything else never attaches (desktop `browser-guests.ts`).
- * @param sessionId - session the guest belongs to.
+ * One per Aeven account, so a site signed in to beside one session stays signed
+ * in beside every other session and across restarts, while another account on
+ * the same machine keeps its own sign-ins. A page with no signed-in reader uses
+ * the `local` profile; an Aeven user id is hex and never collides with it. The
+ * prefix is the one the shell allowlists; a guest naming anything else never
+ * attaches (desktop `browser-guests.ts`).
  * @returns the partition name.
  */
-export function browserPartition(sessionId: string): string {
-  return `persist:avn-browser-${sessionId}`
+export function browserPartition(): string {
+  const userId = (globalThis as ReaderScope).__AVN_AEVEN_READER__?.userId
+  return `persist:avn-browser-${userId === undefined || userId === '' ? 'local' : userId}`
 }
 
 /** Key prefix for the address each session's guest last showed. */

@@ -23,19 +23,61 @@ import clsx from 'clsx'
 import {
   ConnectionIndicator,
   IconCloseOutline16, IconCreditCardOutline16, IconDataOutline16, IconEnhanceOutline16,
-  IconLightOutline16, IconLucideMic, IconRefreshOutline16, IconLucidePlug, IconLucideScrollText, IconLucideWaypoints,
-  IconSettingsOutline16, IconThinkOutline16, IconUserOutline16,
+  IconRefreshOutline16, IconLucidePlug, IconLucideScrollText, IconLucideWaypoints,
+  IconSettingsOutline16, IconThinkOutline16, IconUserOutline16, Tabs,
 } from '@aeven/client-ui-primitives'
 import type { ConnectionIndicatorState } from '@aeven/client-ui-primitives'
+import type { SettingsKey } from './locales.ts'
 import type { SettingsRootComponentProps, SettingsSectionRow } from './shell-contract.ts'
 import css from './SettingsRoot.module.css'
 
 const RECOVERY_CONFIRMATION_MS = 2_000
 
-/** Nav glyph by section id; unknown ids fall back to the settings gear. */
+/**
+ * Sections the nav shows as one entry. The entry sits where its first
+ * registered member would, opens that member, and lists its members in nav
+ * order. Ids absent here are entries of their own.
+ */
+const NAV_GROUPS: readonly { id: string; label: SettingsKey; members: readonly string[] }[] = [
+  { id: 'account', label: 'group.account', members: ['account', 'sync'] },
+  { id: 'extensions', label: 'group.extensions', members: ['skills', 'plugins'] },
+]
+
+/** One nav entry: a group of registered sections, or a single section. */
+interface NavEntry {
+  id: string
+  label: string
+  /** Members in nav order; the first is the one the entry opens. */
+  sections: readonly [SettingsSectionRow, ...SettingsSectionRow[]]
+}
+
+/**
+ * Fold the ordered section rows into nav entries.
+ * @param rows - registered sections in nav order.
+ * @param t - the settings dictionary, for group labels.
+ * @returns entries in nav order, each holding at least one section.
+ */
+function navEntries(rows: readonly SettingsSectionRow[], t: SettingsRootComponentProps['t']): NavEntry[] {
+  const entries: NavEntry[] = []
+  const emitted = new Set<string>()
+  for (const row of rows) {
+    const group = NAV_GROUPS.find(candidate => candidate.members.includes(row.id))
+    if (group === undefined) {
+      entries.push({ id: row.id, label: row.label, sections: [row] })
+      continue
+    }
+    if (emitted.has(group.id)) continue
+    emitted.add(group.id)
+    const rest = rows.filter(candidate => candidate !== row && group.members.includes(candidate.id))
+    entries.push({ id: group.id, label: t(group.label), sections: [row, ...rest] })
+  }
+  return entries
+}
+
+/** Nav glyph by entry id; unknown ids fall back to the settings gear. */
 function navIcon(id: string) {
   if (id === 'account') return <IconUserOutline16 className={css.navIcon} size={16} />
-  if (id === 'appearance') return <IconLightOutline16 className={css.navIcon} size={16} />
+  if (id === 'extensions') return <span className={css.navIcon}><IconLucidePlug /></span>
   if (id === 'models') return <IconDataOutline16 className={css.navIcon} size={16} />
   if (id === 'personalization') return <IconEnhanceOutline16 className={css.navIcon} size={16} />
   if (id === 'plugins') return <span className={css.navIcon}><IconLucidePlug /></span>
@@ -43,7 +85,6 @@ function navIcon(id: string) {
   if (id === 'memory') return <IconThinkOutline16 className={css.navIcon} size={16} />
   if (id === 'sync') return <IconRefreshOutline16 className={css.navIcon} size={16} />
   // Lucide glyphs are drawn on the stock canvas, which the seat sizes.
-  if (id === 'voice') return <span className={css.navIcon}><IconLucideMic /></span>
   if (id === 'connectors') return <span className={css.navIcon}><IconLucideWaypoints /></span>
   if (id === 'skills') return <span className={css.navIcon}><IconLucideScrollText /></span>
   return <IconSettingsOutline16 className={css.navIcon} size={16} />
@@ -57,6 +98,7 @@ type PanelProps = {
   detail: string | undefined
   onSelect: (id: string, detail?: string) => void
   onClose: () => void
+  t: SettingsRootComponentProps['t']
 }
 
 /**
@@ -66,13 +108,15 @@ type PanelProps = {
  * the header button, a mask click, and document-level Escape (mounted only
  * while open, so the listener lifetime is the panel's).
  */
-function SettingsPanel({ rows, renderSlot, activeId, detail: addressedDetail, onSelect, onClose }: PanelProps) {
+function SettingsPanel({ rows, renderSlot, activeId, detail: addressedDetail, onSelect, onClose, t }: PanelProps) {
   // Entries can unmount underneath the requested id, so the render-time
   // projection falls back to the first row when the id is gone.
   const active = rows.find(r => r.id === activeId)?.id ?? rows[0]?.id
   const detail = active === activeId ? addressedDetail : undefined
   const showDetail = useCallback((page?: string) => { if (active !== undefined) onSelect(active, page) }, [active, onSelect])
   const titleId = useId()
+  const entries = navEntries(rows, t)
+  const activeEntry = entries.find(entry => entry.sections.some(section => section.id === active))
 
   // A section the reader has opened stays mounted: its wrapper keeps that
   // section's own state (scroll, query, expanded rows) together with the data
@@ -131,16 +175,16 @@ function SettingsPanel({ rows, renderSlot, activeId, detail: addressedDetail, on
           <div className={css.navTitle} id={titleId}>{renderSlot('settings.header', {})}</div>
           <div className={css.navTabs}>
             <div ref={navList} className={css.navList}>
-              {rows.map(row => (
+              {entries.map(entry => (
                 <button
-                  key={row.id}
+                  key={entry.id}
                   type="button"
-                  className={clsx(css.navCell, row.id === active && css.active)}
-                  aria-current={row.id === active ? 'true' : undefined}
-                  onClick={() => { onSelect(row.id) }}
+                  className={clsx(css.navCell, entry === activeEntry && css.active)}
+                  aria-current={entry === activeEntry ? 'true' : undefined}
+                  onClick={() => { onSelect(entry.sections[0].id) }}
                 >
-                  {navIcon(row.id)}
-                  <span className={css.navLabel}>{row.label}</span>
+                  {navIcon(entry.id)}
+                  <span className={css.navLabel}>{entry.label}</span>
                 </button>
               ))}
             </div>
@@ -148,11 +192,25 @@ function SettingsPanel({ rows, renderSlot, activeId, detail: addressedDetail, on
         </nav>
         <div className={css.content}>
           <div className={css.header}>
-            <div className={css.actions} data-page-open={detail === undefined ? undefined : ''}>{renderSlot('settings.action', { section: active, detail, showDetail })}</div>
-            <button ref={closeButton} type="button" className={css.close} onClick={onClose}>
-              <IconCloseOutline16 size={14} />
-              <span className={css.hiddenLabel}>{renderSlot('settings.close', {})}</span>
-            </button>
+            {/* A page inside a section leads the header with its back control instead. */}
+            {detail === undefined && activeEntry !== undefined && activeEntry.sections.length > 1 && (
+              <div className={css.groupTabs}>
+                <Tabs
+                  variant="pill"
+                  label={activeEntry.label}
+                  items={activeEntry.sections.map(section => ({ id: section.id, label: section.label }))}
+                  activeId={active}
+                  onSelect={(id) => { onSelect(id) }}
+                />
+              </div>
+            )}
+            <div className={css.headerEnd} data-page-open={detail === undefined ? undefined : ''}>
+              <div className={css.actions} data-page-open={detail === undefined ? undefined : ''}>{renderSlot('settings.action', { section: active, detail, showDetail })}</div>
+              <button ref={closeButton} type="button" className={css.close} onClick={onClose}>
+                <IconCloseOutline16 size={14} />
+                <span className={css.hiddenLabel}>{renderSlot('settings.close', {})}</span>
+              </button>
+            </div>
           </div>
           <div className={css.optionsFrame}>
             <div ref={options} className={clsx(css.options, 'no-scrollbar')}>
@@ -277,6 +335,7 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
           detail={address.detail}
           onSelect={show}
           onClose={close}
+          t={t}
         />
       )}
       {/* Dialog chrome and `#root` inert ownership live inside each step's

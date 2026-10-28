@@ -46,3 +46,5 @@ kind: "package-reference"
 无。
 
 </details>
+
+**运行时 invariant：** 不发布 runtime invariant companion，因为该 Service Definition 只声明 seam，每个 provider 拥有监听者可能比较的所有值。

@@ -92,7 +92,7 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
 }[T]
 ```
 
-来源：[`packages/core/session/src/types.ts:384`](../packages/core/session/src/types.ts) · [`packages/core/session/src/types.ts:391`](../packages/core/session/src/types.ts) · [`packages/core/session/src/types.ts:420`](../packages/core/session/src/types.ts) · [`packages/core/session/src/types.ts:452`](../packages/core/session/src/types.ts)
+来源：[`packages/core/session/src/types.ts:388`](../packages/core/session/src/types.ts) · [`packages/core/session/src/types.ts:395`](../packages/core/session/src/types.ts) · [`packages/core/session/src/types.ts:424`](../packages/core/session/src/types.ts) · [`packages/core/session/src/types.ts:456`](../packages/core/session/src/types.ts)
 
 ## 事件
 
@@ -223,7 +223,7 @@ Types: [ToolCallId](subsystems/core.zh.md)
 
 Types: [StreamChunk](subsystems/llm-streaming.zh.md)
 
-来源：[`packages/core/session/src/types.ts:297`](../packages/core/session/src/types.ts)
+来源：[`packages/core/session/src/types.ts:301`](../packages/core/session/src/types.ts)
 
 <a id="assistantmessage--surface"></a>
 
@@ -245,7 +245,7 @@ Types: [StreamChunk](subsystems/llm-streaming.zh.md)
 
 Types: [TokenUsage](subsystems/llm-streaming.zh.md)
 
-来源：[`packages/core/session/src/types.ts:308`](../packages/core/session/src/types.ts)
+来源：[`packages/core/session/src/types.ts:312`](../packages/core/session/src/types.ts)
 
 ### `cache-warm/*`
 
@@ -595,7 +595,7 @@ Types: [ContentBlock](subsystems/core.zh.md) · [TokenUsage](subsystems/llm-stre
 'request/context': RequestContext
 ```
 
-来源：[`packages/core/session/src/types.ts:347`](../packages/core/session/src/types.ts)
+来源：[`packages/core/session/src/types.ts:351`](../packages/core/session/src/types.ts)
 
 <a id="requestheader--log-only"></a>
 
@@ -614,7 +614,7 @@ Types: [ContentBlock](subsystems/core.zh.md) · [TokenUsage](subsystems/llm-stre
 }
 ```
 
-来源：[`packages/core/session/src/types.ts:337`](../packages/core/session/src/types.ts)
+来源：[`packages/core/session/src/types.ts:341`](../packages/core/session/src/types.ts)
 
 ### `sandbox/*`
 
@@ -709,7 +709,7 @@ Types: [ScheduleChange](subsystems/schedule.zh.md)
 'session/end-seed': Record<string, never>
 ```
 
-来源：[`packages/core/session/src/types.ts:370`](../packages/core/session/src/types.ts)
+来源：[`packages/core/session/src/types.ts:374`](../packages/core/session/src/types.ts)
 
 <a id="sessionrewind--log-only"></a>
 
@@ -728,7 +728,7 @@ Types: [ScheduleChange](subsystems/schedule.zh.md)
 'session/rewind': { seq: SessionSeq }
 ```
 
-来源：[`packages/core/session/src/types.ts:380`](../packages/core/session/src/types.ts)
+来源：[`packages/core/session/src/types.ts:384`](../packages/core/session/src/types.ts)
 
 <a id="sessiontitle--log-only"></a>
 
@@ -788,7 +788,7 @@ Types: [SessionTitleLlmRequestEventData](subsystems/session-title.zh.md)
 'step/end': { turn: number; step: number }
 ```
 
-来源：[`packages/core/session/src/types.ts:287`](../packages/core/session/src/types.ts)
+来源：[`packages/core/session/src/types.ts:291`](../packages/core/session/src/types.ts)
 
 <a id="stepstart--log-only"></a>
 
@@ -799,7 +799,7 @@ Types: [SessionTitleLlmRequestEventData](subsystems/session-title.zh.md)
 'step/start': { turn: number; step: number }
 ```
 
-来源：[`packages/core/session/src/types.ts:285`](../packages/core/session/src/types.ts)
+来源：[`packages/core/session/src/types.ts:289`](../packages/core/session/src/types.ts)
 
 ### `subagent/*`
 
@@ -930,7 +930,7 @@ Types: [TodoItem](subsystems/todo.zh.md)
 
 Types: [ToolCallId](subsystems/core.zh.md)
 
-来源：[`packages/core/session/src/types.ts:314`](../packages/core/session/src/types.ts)
+来源：[`packages/core/session/src/types.ts:318`](../packages/core/session/src/types.ts)
 
 <a id="toolcode-dispatch--log-only"></a>
 
@@ -1005,7 +1005,7 @@ Types: [ToolCallId](subsystems/core.zh.md)
 }
 ```
 
-来源：[`packages/core/session/src/types.ts:326`](../packages/core/session/src/types.ts)
+来源：[`packages/core/session/src/types.ts:330`](../packages/core/session/src/types.ts)
 
 ### `tool-workflow/*`
 
@@ -1085,7 +1085,7 @@ Types: [ToolCallId](subsystems/core.zh.md)
 
 Types: [TurnEndReason](subsystems/session.zh.md)
 
-来源：[`packages/core/session/src/types.ts:283`](../packages/core/session/src/types.ts)
+来源：[`packages/core/session/src/types.ts:287`](../packages/core/session/src/types.ts)
 
 <a id="turnstart--log-only"></a>
 
@@ -1101,7 +1101,7 @@ Types: [TurnEndReason](subsystems/session.zh.md)
 'turn/start': { turn: number }
 ```
 
-来源：[`packages/core/session/src/types.ts:274`](../packages/core/session/src/types.ts)
+来源：[`packages/core/session/src/types.ts:278`](../packages/core/session/src/types.ts)
 
 ### `turn-review/*`
 
@@ -1155,7 +1155,7 @@ Types: [TurnEndReason](subsystems/session.zh.md)
 'user/message': UserMessage
 ```
 
-来源：[`packages/core/session/src/types.ts:295`](../packages/core/session/src/types.ts)
+来源：[`packages/core/session/src/types.ts:299`](../packages/core/session/src/types.ts)
 
 ### `web/*`
 

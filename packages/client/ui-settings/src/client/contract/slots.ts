@@ -88,10 +88,10 @@ declare module '@aeven/client-ui-slots' {
      */
     'settings.general.item': { kind: 'list'; scope: 'root'; owner: SettingsGeneralItemOwnerProps }
     /**
-     * One preference row inside the Appearance section (theme, text size,
-     * conversation display, text animation). Same empty owner share as a
-     * General row: the section column only stacks rows. Declared at runtime
-     * by ui-theme's Appearance entry.
+     * One preference row inside the Appearance group of the General section
+     * (theme, text size, conversation display, text animation). Same empty
+     * owner share as a General row: the group only stacks rows. Declared at
+     * runtime by ui-theme's Appearance entry.
      */
     'settings.appearance.item': { kind: 'list'; scope: 'root'; owner: SettingsAppearanceItemOwnerProps }
   }

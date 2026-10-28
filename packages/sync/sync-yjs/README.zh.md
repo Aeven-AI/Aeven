@@ -46,3 +46,5 @@ kind: "package-reference"
 无。
 
 </details>
+
+**运行时 invariant：** 不发布 runtime invariant companion，因为 store 的行与中继的 frame 是仅有的副本，由包内测试直接在数据库上比较。

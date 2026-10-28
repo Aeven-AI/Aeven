@@ -62,7 +62,7 @@ describe('Account security', () => {
     const toggle = await screen.findByRole('switch', { name: 'Two-factor authentication' })
     await waitFor(() => { expect(toggle.hasAttribute('disabled')).toBe(false) })
     expect(screen.queryByText('Manage account')).toBeNull()
-    expect(screen.getByRole('heading', { name: 'Security' }).parentElement).toMatchSnapshot()
+    expect(screen.getByRole('heading', { name: 'Security' }).closest('section')).toMatchSnapshot()
     fireEvent.click(toggle)
     await screen.findByAltText(en['mfa.scan'])
     expect(toggle.getAttribute('aria-checked')).toBe('false')

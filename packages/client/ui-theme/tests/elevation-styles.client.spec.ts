@@ -186,7 +186,7 @@ const WIDE_NEUTRAL_BORDER_DEBT: SweepDebtRegistry = {
     offences: [
       '.card',
       '.field :is(input, select)',
-      ".section button:where(:not([role='menuitem']))",
+      ".section button:where(:not([role='menuitem'], [role='switch'], [role='tab']))",
       '.search',
     ],
     reason: 'integration card, fields, and buttons are 1px',

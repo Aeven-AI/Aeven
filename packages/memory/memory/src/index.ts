@@ -150,6 +150,7 @@ export function learnedProcedureOf(record: MemoryRecord): LearnedProcedure | und
  */
 export const MEMORY_MAINTENANCE_LEASE = 'memory/maintenance'
 
+/** Raised when a memory consumer needs a provider and the composition mounts none. */
 export class MemoryUnavailableError extends Error {
   constructor() {
     super('No memory provider is registered')

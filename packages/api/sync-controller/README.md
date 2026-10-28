@@ -43,3 +43,5 @@ None.
 None.
 
 </details>
+
+**Runtime invariant:** No runtime invariant companion is published because this Remote forwards each call to `ctx.sync` and derives no state of its own.

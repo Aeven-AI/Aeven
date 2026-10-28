@@ -1,0 +1,34 @@
+.selector {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  height: var(--dsw-aeven-control-size);
+  padding: 0 14px;
+  border: none;
+  border-radius: var(--dsw-aeven-radius-control);
+  background: var(--dsw-alias-bg-module-platform);
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+  white-space: nowrap;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+}
+
+.selector:hover:enabled {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.selector:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.selector:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+}
+
+.chevron {
+  flex: none;
+}

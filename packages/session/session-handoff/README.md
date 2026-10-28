@@ -43,3 +43,5 @@ None.
 The input vocabulary belongs to the Consumer that forwards and applies it; this Service Definition carries it unchanged as an operation name and a JSON request, so a new control (a steer, a tool answer) needs no change here.
 
 </details>
+
+**Runtime invariant:** No runtime invariant companion is published because the handoff state is the durable conversation itself, and the seam adds no second copy to compare.

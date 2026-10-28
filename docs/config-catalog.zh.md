@@ -290,28 +290,6 @@ export interface Config {
 
 来源：[`packages/speech/api-speech-to-text/src/index.ts:20`](../packages/speech/api-speech-to-text/src/index.ts)
 
-<a id="aevenapi-sync-controller"></a>
-
-## `@aeven/api-sync-controller`
-
-需要：`typert` · `sync` · `identityUsers`
-
-```ts config-catalog
-/** Service configuration. */
-export interface Config {
-  /** How long an add-device screen keeps answering join requests without being reopened, in milliseconds. */
-  acceptJoinsMs: number
-  /** Origin of the Aeven site that serves the recovery passkey page, such as `https://aeven.io`. */
-  siteUrl: string
-  /** How long a recovery passkey step waits for the page's result, in milliseconds. */
-  passkeyMs: number
-  /** Pause between two collection attempts of a recovery passkey result, in milliseconds. */
-  passkeyPollMs: number
-}
-```
-
-来源：[`packages/api/sync-controller/src/index.ts:29`](../packages/api/sync-controller/src/index.ts)
-
 <a id="aevenapi-terminal-controller"></a>
 
 ## `@aeven/api-terminal-controller`
@@ -2824,6 +2802,10 @@ export interface MemorySyncTuning {
   drainMs: number
   /** Changes published per drain. */
   drainBatch: number
+  /** Pause between two shard documents applied from other devices, in milliseconds. */
+  applyPauseMs: number
+  /** Queued sync frames above which a drain waits for the next interval. */
+  outboxLimit: number
   /** Lifetime of this device's claim on the account's memory maintenance, in milliseconds. */
   maintenanceTtlMs: number
   /** Interval between renewals of that claim, in milliseconds. */
@@ -3408,10 +3390,18 @@ export interface SessionSyncTuning {
   publishMs: number
   /** Uncompressed JSON bytes per published batch before a new batch starts. */
   batchBytes: number
+  /** Maximum history batches compressed concurrently; one conversation log is loaded at a time. */
+  publishConcurrency: number
+  /** Brotli quality for outgoing history, from 0 through 11. */
+  compressionQuality: number
   /** Wait after a session's events commit before they are published, so a streaming reply travels in small batches. */
   liveMs: number
   /** Sessions created up to this many days before this device first publishes are published too. */
   backfillDays: number
+  /** Pause between two sessions of a background import or publication scan, in milliseconds. */
+  pauseMs: number
+  /** Queued frames above which publishing history waits for the account's outbox to drain; live turns never wait. */
+  outboxLimit: number
 }
 ```
 
@@ -4156,13 +4146,27 @@ export interface Config {
   reconnectMs: number
   /** Longest a relay handshake may take, in milliseconds. */
   connectTimeoutMs: number
+  /** Longest a relay request may wait for its answer before the connection is closed and opened again, in milliseconds. */
+  requestTimeoutMs: number
+  /** Most queued frames one publish request carries. */
+  publishFrames: number
+  /** Most frame bytes one publish request carries; a larger single frame travels alone. */
+  publishBytes: number
   /** Name this device shows the account's other devices; the host name unless configured. */
   deviceName: string
   /** Stored updates per document before they are merged into one. */
   compactAfter: number
   /** Frames per document since its last snapshot before this device queues a new one. */
   snapshotAfter: number
-  /** Whether enrolled devices on the same local network link directly. */
+  /** Received frames opened on the sync worker and stored in one transaction per batch. */
+  applyFrames: number
+  /** Pause between two batches while a backlog waits, in milliseconds; it bounds the CPU and disk share of catch-up. */
+  applyPauseMs: number
+  /** Frames one catch-up page asks the relay for. */
+  pageFrames: number
+  /** Shortest interval between two status notifications, in milliseconds. */
+  statusMs: number
+  /** Whether the account's devices on the same local network link directly. */
   lan: boolean
   /** Port this device accepts local-network links on; 0 picks a free one. */
   lanPort: number
@@ -5434,6 +5438,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@aeven/acp-app` — requires `cmdlineArgs` ([`packages/bundle/acp-app/src/index.ts`](../packages/bundle/acp-app/src/index.ts))
 - `@aeven/agent` ([`packages/core/agent/src/index.ts`](../packages/core/agent/src/index.ts))
 - `@aeven/api-remotes` — requires `typertGateway` ([`packages/api/remotes/src/index.ts`](../packages/api/remotes/src/index.ts))
+- `@aeven/api-sync-controller` — requires `typert` · `sync` · `identityUsers` ([`packages/api/sync-controller/src/index.ts`](../packages/api/sync-controller/src/index.ts))
 - `@aeven/api-workspace-controller` — requires `typert` · `workspaceRegistry` ([`packages/api/workspace-controller/src/index.ts`](../packages/api/workspace-controller/src/index.ts))
 - `@aeven/authorization` — requires `credentials` ([`packages/credentials/authorization/src/index.ts`](../packages/credentials/authorization/src/index.ts))
 - `@aeven/client-locale` ([`packages/client/locale/src/index.ts`](../packages/client/locale/src/index.ts))

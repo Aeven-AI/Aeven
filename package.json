@@ -70,6 +70,7 @@
     "test:changed": "tsx scripts/check-changed.ts tests",
     "docs:changed": "tsx scripts/check-changed.ts docs",
     "doc-sync": "tsx scripts/run-gates.ts doc-sync",
+    "docs:fix": "tsx scripts/doc-fix.ts",
     "hygiene": "tsx scripts/run-gates.ts hygiene",
     "check:ci": "tsx scripts/run-gates.ts ci-primary",
     "check:ci:linux-primary": "tsx scripts/run-gates.ts ci-linux-primary",

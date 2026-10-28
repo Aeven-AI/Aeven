@@ -1,0 +1,91 @@
+/* Settings type scale: page title 16/500 (SectionHeader), group title 14/500,
+   row title 14/400, descriptions 12/18 tertiary. No weight above 500. */
+
+.group {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Groups after other content open a new subject: space, not a rule. */
+* + .group {
+  margin-top: 24px;
+}
+
+.groupHead {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.groupTitle {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+  font-weight: 500;
+  color: var(--dsw-alias-label-primary);
+}
+
+.groupAside {
+  flex: none;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.groupDescription {
+  margin: 2px 0 0;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* Content placed directly in a group (cards, lists) starts on the group's rhythm. */
+.groupHead + *:not(.row):not(.groupDescription),
+.groupDescription + *:not(.row) {
+  margin-top: 12px;
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 0;
+}
+
+.rowHead {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.rowText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-right: 32px;
+}
+
+.rowTitle {
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+  font-weight: 400;
+  color: var(--dsw-alias-label-primary);
+}
+
+.rowDescription {
+  font-size: 0.75rem;
+  line-height: 1.125rem;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.rowControl {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}

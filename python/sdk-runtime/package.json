@@ -105,6 +105,7 @@
     "@aeven/subagent-fork-in-process": "workspace:^",
     "@aeven/subagent-in-process-driver": "workspace:^",
     "@aeven/subagent-spawn-in-process": "workspace:^",
+    "@aeven/sync": "workspace:^",
     "@aeven/subprocess": "workspace:^",
     "@aeven/subprocess-local": "workspace:^",
     "@aeven/system-prompt": "workspace:^",

@@ -1522,8 +1522,8 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     key: 'settings.appearance.item',
     kind: 'list',
     scope: 'root',
-    summary: 'One preference row inside the Appearance section (theme, text size, conversation display, text animation).',
-    doc: 'One preference row inside the Appearance section (theme, text size,\nconversation display, text animation). Same empty owner share as a\nGeneral row: the section column only stacks rows. Declared at runtime\nby ui-theme\'s Appearance entry.',
+    summary: 'One preference row inside the Appearance group of the General section (theme, text size, conversation display, text animation).',
+    doc: 'One preference row inside the Appearance group of the General section\n(theme, text size, conversation display, text animation). Same empty\nowner share as a General row: the group only stacks rows. Declared at\nruntime by ui-theme\'s Appearance entry.',
     registerOptions: [
       {
         name: 'id',
@@ -1557,7 +1557,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     keyDomain: '',
     hookContext: '',
     slotInject: '',
-    declaredBy: 'an entry in \'settings.section\' (client-ui-theme), so it exists while that entry is mounted',
+    declaredBy: 'an entry in \'settings.general.item\' (client-ui-theme), so it exists while that entry is mounted',
     occupants: [
       'client-ui-chat TranscriptViewRow id \'transcript-view\'',
       'client-ui-chat TextAnimationRow id \'text-animation\'',
@@ -1643,6 +1643,8 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
       'client-ui-settings-general BackgroundModeRow id \'background-mode\'',
       'client-ui-settings-general DeveloperModeRow id \'developer-mode\'',
       'client-ui-sidebar-browser SearchEngineRow id \'search-engine\'',
+      'client-ui-theme AppearanceSection id \'appearance\'',
+      'client-ui-voice-input VoiceSection id \'voice\'',
     ],
     replaceRisk: 'none',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'settings.general.item\', () => ctx.slots.register(\n      { name: \'settings.general.item\', id: \'my-entry\', order: 100, label: \'My entry\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
@@ -1938,8 +1940,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
       'client-ui-settings-models ModelsSection id \'models\'',
       'client-ui-settings-personalization PersonalizationSection id \'personalization\'',
       'client-ui-settings-plugins PluginsSettingsSection id \'plugins\'',
-      'client-ui-theme AppearanceSection id \'appearance\'',
-      'client-ui-voice-input VoiceSection',
+      'client-ui-settings-sync SyncSection id \'sync\'',
     ],
     replaceRisk: 'none',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'settings.section\', () => ctx.slots.register(\n      { name: \'settings.section\', id: \'my-entry\', order: 100, label: \'My entry\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',

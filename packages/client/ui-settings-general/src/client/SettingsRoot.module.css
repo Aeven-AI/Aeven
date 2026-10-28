@@ -227,6 +227,22 @@
   box-sizing: border-box;
 }
 
+/* Tabs for the sections that share the active nav entry: the header's
+   leading item, on the close button's line. */
+.groupTabs {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Header actions and the close button, at the header's trailing edge. */
+.headerEnd {
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-left: auto;
+}
+
 .actions {
   min-width: 0;
   display: flex;
@@ -241,6 +257,7 @@
    at its leading edge. The panel states that the page is open (see
    SettingsRoot.tsx): reading the back control's presence as a selector would need
    `:has()` and Safari 15.4. */
+.headerEnd[data-page-open] { flex: 1; margin-left: 0; }
 .actions[data-page-open] { flex: 1; margin-left: 0; justify-content: flex-start; }
 
 /* Close button (figma .Icon_container 501:29982): 28x28, r28, 14px glyph, the
@@ -302,6 +319,12 @@
   );
 }
 
+/* Settings sets no weight above 500. Zero class specificity, so a section's
+   own class still decides; this replaces only the browser's bold defaults. */
+:where(.panel) :is(strong, b, h1, h2, h3, h4, h5, h6, th, dt, summary) {
+  font-weight: 500;
+}
+
 /* Text entry takes the caret, not a box: no Settings field frames itself when
    focused. Buttons, switches, tabs, and cards keep their keyboard rings. */
 .options input:focus,
@@ -332,10 +355,11 @@
   .panel {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-rows: auto auto minmax(0, 1fr);
+    grid-template-rows: auto auto auto minmax(0, 1fr);
     grid-template-areas:
       "title header"
       "tabs tabs"
+      "group group"
       "options options";
     /* One top inset for the panel, following the page inset the rest of the panel uses. */
     padding-top: var(--dsw-aeven-page-inset);
@@ -356,9 +380,20 @@
     text-overflow: ellipsis;
   }
 
+  /* The header's two parts take separate grid rows: the section tabs run
+     under the nav strip, the actions stay beside the title. */
   .header {
+    display: contents;
+  }
+
+  .headerEnd {
     grid-area: header;
     padding: 0 var(--dsw-aeven-page-inset) 0 0;
+  }
+
+  .groupTabs {
+    grid-area: group;
+    padding: 12px var(--dsw-aeven-page-inset) 0;
   }
 
   .navTabs {

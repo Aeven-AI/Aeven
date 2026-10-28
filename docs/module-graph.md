@@ -550,7 +550,6 @@ flowchart TD
   pkg_spill --> pkg_session
   pkg_api_sync_controller --> pkg_identity_user
   pkg_api_sync_controller --> pkg_sync
-  pkg_api_sync_controller --> pkg_sync_vault
   pkg_api_sync_controller --> pkg_typert_protocol
   pkg_app_boot --> pkg_home_paths
   pkg_app_boot --> pkg_launch_environment
@@ -1680,7 +1679,7 @@ flowchart TD
 | [`sync-yjs`](../packages/sync/sync-yjs) | `sync` | [`credentials`](../packages/credentials/credentials), [`sync`](../packages/sync/sync) |
 | [`skill-badge`](../packages/skill/skill-badge) | `skill` | [`skill`](../packages/skill/skill) |
 | [`spill`](../packages/spill/spill) | `spill` | [`brand`](../packages/util/brand), [`llm`](../packages/llm/llm), [`session`](../packages/core/session) |
-| [`api-sync-controller`](../packages/api/sync-controller) | `api` | [`identity-user`](../packages/identity/user), [`sync`](../packages/sync/sync), [`sync-vault`](../packages/sync/sync-vault), [`typert-protocol`](../packages/typert/protocol) |
+| [`api-sync-controller`](../packages/api/sync-controller) | `api` | [`identity-user`](../packages/identity/user), [`sync`](../packages/sync/sync), [`typert-protocol`](../packages/typert/protocol) |
 | [`app-boot`](../packages/boot/app-boot) | `boot` | [`home-paths`](../packages/util/home-paths), [`launch-environment`](../packages/util/launch-environment), [`system-prompt`](../packages/core/system-prompt) |
 | [`code-runtime-worker-thread`](../packages/code-runtime/code-runtime-worker-thread) | `code-runtime` | [`code-runtime`](../packages/code-runtime/code-runtime), [`session`](../packages/core/session), [`timeout`](../packages/util/timeout) |
 | [`device`](../packages/device/device) | `device` | [`identity-user`](../packages/identity/user), [`typert-protocol`](../packages/typert/protocol) |

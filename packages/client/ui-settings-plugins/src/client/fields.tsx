@@ -6,8 +6,8 @@
  * card's save is the single point where a draft becomes a document mutation.
  */
 
-import clsx from 'clsx'
 import type { ReactNode } from 'react'
+import { Switch } from '@aeven/client-ui-primitives'
 import css from './fields.module.css'
 
 /** What every field control needs regardless of its value type. */
@@ -165,17 +165,13 @@ export function ToggleField(props: Pick<
   return (
     <div className={css.field}>
       <FieldHead {...props}>
-        <button
+        <Switch
           id={props.id}
-          type="button"
-          role="switch"
-          aria-checked={props.checked}
-          className={clsx(css.switch, props.checked && css.switchOn)}
+          checked={props.checked}
+          label={props.label}
           disabled={props.disabled}
-          onClick={props.onToggle}
-        >
-          <span className={css.thumb} />
-        </button>
+          onChange={props.onToggle}
+        />
       </FieldHead>
       <p className={css.hint}>{props.hint}</p>
     </div>

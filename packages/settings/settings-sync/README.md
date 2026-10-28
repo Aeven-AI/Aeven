@@ -43,3 +43,5 @@ None of its own; a changed namespace reaches a request the way a local settings 
 The reach declaration lives in `@aeven/settings`; this package reads `describe()` and never keeps its own list of namespaces, so a new account-scoped setting syncs without a change here.
 
 </details>
+
+**Runtime invariant:** No runtime invariant companion is published because the mirror writes through `ctx.settings`, which stays the only owner of each namespace value.

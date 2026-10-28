@@ -4,12 +4,12 @@
  *
  * The guest is the only surface that can show a cross-origin page and still be
  * read: an iframe is refused by `X-Frame-Options` and cannot be inspected
- * across origins. Its storage partition is per session, so signing in to a site
- * in one session does not carry into another, and the shell refuses to attach a
- * guest naming any other partition (desktop `browser-guests.ts`).
+ * across origins. Its storage partition is per Aeven account, so signing in to a
+ * site once carries into every session, and the shell refuses to attach a guest
+ * naming any other partition (desktop `browser-guests.ts`).
  *
  * The selection keys this pane by session, so a session switch mounts a fresh
- * guest in that session's partition, reopened at the address it last showed.
+ * guest, reopened at the address that session's guest last showed.
  * The tag exists only in the desktop shell, so the plugin registers this pane
  * only there (index.ts) and a browser tab never lists the kind at all.
  */
@@ -494,7 +494,7 @@ export function BrowserPane({ sessionId, t, openInChrome, visible, search }: Bro
   useEffect(() => () => { window.clearTimeout(suggestTimer.current) }, [])
 
   const bridge = desktopBrowser()
-  const partition = browserPartition(sessionId)
+  const partition = browserPartition()
   const pageDisabled = state.url === ''
 
   return (
@@ -586,7 +586,7 @@ export function BrowserPane({ sessionId, t, openInChrome, visible, search }: Bro
 /**
  * Create the guest inside its stage, once per mount.
  * @param stage - the element that holds the guest, or null on unmount.
- * @param sessionId - session whose storage partition and last address the guest uses.
+ * @param sessionId - session whose last address the guest reopens.
  * @returns the guest element, or null when there is no stage.
  */
 function attachGuest(stage: HTMLDivElement | null, sessionId: string): BrowserGuest | null {
@@ -596,7 +596,7 @@ function attachGuest(stage: HTMLDivElement | null, sessionId: string): BrowserGu
   const guest = document.createElement('webview') as BrowserGuest
   // Fixed for the guest's lifetime: Electron reads the partition when the
   // element attaches and ignores a later change.
-  guest.setAttribute('partition', browserPartition(sessionId))
+  guest.setAttribute('partition', browserPartition())
   // Present means allowed; the shell loads a popup's address into this guest
   // instead of opening a window (desktop `browser-guests.ts`).
   guest.setAttribute('allowpopups', '')

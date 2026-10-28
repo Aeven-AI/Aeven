@@ -1,7 +1,7 @@
 /** The Sync settings page: whether this device syncs the account, how far it is, and the account's devices. */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { SyncDeviceView, SyncView } from '@aeven/api-remotes/client'
-import { Button, LoadingBlock, SectionHeader } from '@aeven/client-ui-primitives'
+import { Button, LoadingBlock, SectionHeader, SettingsGroup, SettingsRow, Switch } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import css from './SyncSection.module.css'
 
@@ -80,10 +80,10 @@ export function SyncSection(props: SyncSectionProps) {
     return (
       <div className={css.section}>
         {header}
-        <div className={css.card}>
-          <p className={css.body}>{t('error')}</p>
-          <div className={css.actions}><Button variant="outline" onClick={() => { void refresh() }}>{t('retry')}</Button></div>
-        </div>
+        <SettingsRow
+          title={t('error')}
+          control={<Button variant="outline" onClick={() => { void refresh() }}>{t('retry')}</Button>}
+        />
       </div>
     )
   }
@@ -102,21 +102,14 @@ export function SyncSection(props: SyncSectionProps) {
   return (
     <div className={css.section}>
       {header}
-      <div className={css.card}>
-        <div className={css.row}>
-          <span className={css.rowText}>
-            <span className={css.title}>{t('enabled')}</span>
-            <span className={css.note}>{t('enabledBody')}</span>
-          </span>
-          <button
-            type="button" role="switch" aria-label={t('enabled')} aria-checked={enabled}
-            className={css.switch} disabled={busy}
-            onClick={() => { void toggle(!enabled) }}
-          ><span className={css.thumb} /></button>
-        </div>
+      <SettingsRow
+        title={t('enabled')}
+        description={t('enabledBody')}
+        control={<Switch checked={enabled} onChange={(next) => { void toggle(next) }} label={t('enabled')} disabled={busy} />}
+      >
         <div className={css.meterRow}>
           <span className={css.meterLine}>
-            <span className={css.body}>{t(view.state === 'online' && syncing ? 'syncing' : view.state)}</span>
+            <span>{t(view.state === 'online' && syncing ? 'syncing' : view.state)}</span>
             <span className={css.meterLabel}>{progressLabel}</span>
           </span>
           <span
@@ -127,18 +120,17 @@ export function SyncSection(props: SyncSectionProps) {
           </span>
         </div>
         {failed && <p className={css.failed} role="alert">{t('failed')}</p>}
-      </div>
+      </SettingsRow>
       {devices.length > 0 && (
-        <div className={css.card}>
-          <h3 className={css.title}>{t('devices')}</h3>
-          <ul className={css.devices}>
-            {devices.map(device => (
-              <li key={device.id} className={css.device}>
-                <span>{device.name === '' ? t('unnamed') : device.name}{device.current ? ` · ${t('thisDevice')}` : ''}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+        <SettingsGroup title={t('devices')}>
+          {devices.map(device => (
+            <SettingsRow
+              key={device.id}
+              title={device.name === '' ? t('unnamed') : device.name}
+              control={device.current ? <span className={css.tag}>{t('thisDevice')}</span> : undefined}
+            />
+          ))}
+        </SettingsGroup>
       )}
     </div>
   )

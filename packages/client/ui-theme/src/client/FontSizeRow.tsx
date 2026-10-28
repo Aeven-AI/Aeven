@@ -1,14 +1,13 @@
 /**
- * Font-size preference row registered into the Appearance section item slot:
+ * Font-size preference row registered into the Appearance group item slot:
  * title + body-text-only description + stepper pill (centered value; hover
- * reveals the up/down arrow column anchored to the pill's right edge) + a px
- * unit label after the pill. Registered by this package — the theme feature
+ * reveals the up/down arrow column anchored to the pill's right edge). Registered by this package — the theme feature
  * owns the content font-size setting the same way it owns the appearance
  * preference. The displayed value follows the persisted setting, never the
  * click echo.
  */
 import {
-  IconChevronDownOutline14, IconChevronUpOutline14,
+  IconChevronDownOutline14, IconChevronUpOutline14, SettingsRow,
 } from '@aeven/client-ui-primitives'
 import type { PropsLocale, PropsRuntime, PropsStore } from '@aeven/client-ui-slots'
 import { FONT_SIZE_MAX, FONT_SIZE_MIN } from '../theme-settings.ts'
@@ -35,12 +34,10 @@ export type FontSizeRowComponentProps =
 export function FontSizeRow({ t, setFontSize, useStore }: FontSizeRowComponentProps) {
   const fontSize = useStore(s => s.fontSize)
   return (
-    <div className={css.row}>
-      <div className={css.rowText}>
-        <div className={css.title}>{t('fontSize.title')}</div>
-        <div className={css.desc}>{t('fontSize.description')}</div>
-      </div>
-      <div className={css.control}>
+    <SettingsRow
+      title={t('fontSize.title')}
+      description={t('fontSize.description')}
+      control={(
         <div className={css.stepper}>
           <span className={css.value}>{fontSize}</span>
           <span className={css.arrows}>
@@ -64,7 +61,7 @@ export function FontSizeRow({ t, setFontSize, useStore }: FontSizeRowComponentPr
             </button>
           </span>
         </div>
-      </div>
-    </div>
+      )}
+    />
   )
 }

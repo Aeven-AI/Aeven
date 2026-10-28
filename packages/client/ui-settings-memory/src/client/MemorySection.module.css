@@ -1,4 +1,4 @@
-/* Memory settings: the Plugins underline tabs, then quiet cards.
+/* Memory settings: the shared underline tabs, then quiet cards.
    One type size for the whole section — 14/22 — so a foldout cannot
    introduce a second scale. The section header keeps its own 16/24. */
 
@@ -10,53 +10,6 @@
   color: var(--dsw-alias-label-primary);
   font-size: 0.875rem;
   line-height: 1.375rem;
-}
-
-.tabs {
-  display: flex;
-  align-items: flex-end;
-  gap: 22px;
-  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
-  margin-top: 2px;
-}
-
-.tab {
-  position: relative;
-  border: 0;
-  padding: 7px 1px 9px;
-  background: transparent;
-  color: var(--dsw-alias-label-tertiary);
-  font: inherit;
-  font-size: 0.875rem;
-  line-height: 1.25rem;
-  cursor: pointer;
-}
-
-.tab:hover,
-.tab[data-active="true"] {
-  color: var(--dsw-alias-label-primary);
-}
-
-.tab[data-active="true"]::after,
-.tab:focus-visible::after {
-  position: absolute;
-  right: 0;
-  bottom: -1px;
-  left: 0;
-  height: 2px;
-  border-radius: 2px 2px 0 0;
-  background: var(--dsw-alias-label-primary);
-  content: "";
-}
-
-/* The ring is the quiet one the sibling settings section draws
-   (ui-settings-models' ModelsSection): the brand inks are near-black here, so an
-   outline in either one reads as a black box around the control. */
-.tab:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--dsw-alias-border-l3);
-  border-radius: 6px;
-  color: var(--dsw-alias-label-primary);
 }
 
 .panel {

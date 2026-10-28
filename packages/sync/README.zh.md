@@ -9,7 +9,7 @@ kind: "package-group"
 
 ## 概述
 
-账户同步让一个账户的数据在登录它的每台设备上保持一致。每台设备在变更离开之前将其加密，Aeven 中转服务器存储并转发它无法打开的密文；两台设备都在线时，变更在一秒内交换，离线的设备回来后会追上进度。本地数据在磁盘上保持不加密。设计及其取舍见[账户同步 Agent Note](../../.agents/notes/proposed/architecture/2026-10-27-account-sync-network.zh.md)。
+账户同步让一个账户的数据在登录它的每台设备上保持一致。每台设备在变更离开之前将其加密，Aeven 中转服务器存储并转发它无法打开的密文；两台设备都在线时，变更在一秒内交换，离线的设备回来后会追上进度。本地数据在磁盘上保持不加密。设计及其取舍见[账户同步 Agent Note](../../.agents/notes/proposed/architecture/2026-10-27-account-sync-network.zh.md)。[账户同步子系统页](../../docs/subsystems/sync.zh.md)是 `ctx.sync` 词汇与它发出的事件的参考。
 
 ## 目录
 

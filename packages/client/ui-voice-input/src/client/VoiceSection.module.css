@@ -1,65 +1,24 @@
-/* Voice settings: one filled card per recognizer, carrying its name, the state
-   it is in, and the download that moves it on.
-   A boundary is a fill, never a line: the card is the module surface, and the
-   only control on it is the black capsule that starts the download.
-   A card reads at one scale: name, state, and detail all sit at 14/22. */
-
-.section {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  width: 100%;
-  color: var(--dsw-alias-label-primary);
-}
-
-.card {
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 20px;
-  border-radius: var(--dsw-aeven-radius-content);
-  background: var(--dsw-alias-bg-module-platform);
-}
-
-.head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.name {
-  min-width: 0;
-  font-size: 0.875rem;
-  font-weight: 400;
-  line-height: 1.375rem;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
+/* Voice input group: each recognizer is a settings row whose control is its
+   state, plus the download button while one is needed. */
 
 .status {
   display: inline-flex;
-  flex: none;
   align-items: center;
   gap: 6px;
-  font-size: 0.875rem;
-  font-weight: 400;
-  line-height: 1.375rem;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
   color: var(--dsw-alias-label-tertiary);
 }
 
-.card[data-ready="true"] .status {
+.status[data-ready='true'] {
   color: var(--dsw-alias-label-secondary);
 }
 
 .detail,
 .notice {
   margin: 0;
-  font-size: 0.875rem;
-  font-weight: 400;
-  line-height: 1.375rem;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
   color: var(--dsw-alias-label-tertiary);
 }
 
@@ -69,15 +28,13 @@
   color: var(--dsw-alias-state-error-primary);
 }
 
-/* The preparation bar reads the percentage it fills from the row: a white
-   track on the card, filled with the success ink, matching the allowance bar
-   on the Account page. */
+/* The preparation bar, matching the allowance bar on the Account page. */
 .meter {
   display: block;
   width: 100%;
   height: 8px;
   border-radius: 4px;
-  background: var(--dsw-alias-bg-layer-1);
+  background: var(--dsw-alias-bg-module-platform);
 }
 
 .meter > span {
@@ -86,12 +43,6 @@
   border-radius: 4px;
   background: var(--dsw-alias-state-success-primary);
   transition: width 0.3s;
-}
-
-.actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 
 @media (prefers-reduced-motion: reduce) {

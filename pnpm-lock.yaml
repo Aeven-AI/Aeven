@@ -13613,6 +13613,9 @@ importers:
       '@aeven/subprocess-local':
         specifier: workspace:^
         version: link:../../packages/subprocess/subprocess-local
+      '@aeven/sync':
+        specifier: workspace:^
+        version: link:../../packages/sync/sync
       '@aeven/system-prompt':
         specifier: workspace:^
         version: link:../../packages/core/system-prompt

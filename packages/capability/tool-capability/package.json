@@ -65,9 +65,6 @@
     },
     "@aeven/llm-retry": {
       "optional": true
-    },
-    "@aeven/sync": {
-      "optional": true
     }
   }
 }

@@ -4,7 +4,7 @@ import type {
   InvariantId, ManagedInvariantChange, ManagedInvariantsPage, ManagedMemory, ManagedMemoryPage, ManagedMemoryQuery, ManagedProcedure,
   ManagedProcedureDetail, ManagedProceduresPage, MemoryDomain, MemoryItemId,
 } from '@aeven/api-remotes/client'
-import { Button, IconChevronDownOutline14, IconSearchOutline16, LoadingBlock, MarkdownText, Modal, SectionHeader, Spinner, relativeTime } from '@aeven/client-ui-primitives'
+import { Button, IconChevronDownOutline14, IconSearchOutline16, LoadingBlock, MarkdownText, Modal, SectionHeader, Spinner, Tabs, relativeTime } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import type { MemoryLocaleKey } from './locales.ts'
 import css from './MemorySection.module.css'
@@ -89,7 +89,6 @@ function usePendingRun(
 export function MemorySection(props: MemorySectionProps) {
   const { t } = props
   const tabsId = useId()
-  const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
   const [tab, setTab] = useState<Tab>('person')
   // The active pane reports its own read: while the first one is in flight the
   // section shows its header and the loading mark alone, so neither the strip
@@ -102,44 +101,15 @@ export function MemorySection(props: MemorySectionProps) {
   return (
     <div className={css.section}>
       <SectionHeader title={t('nav')} description={t('intro')} />
-      {!paneLoading && <div className={css.tabs} role="tablist" aria-label={t('tabs')}>
-        {TABS.map((item, index) => {
-          const selected = tab === item.id
-          return (
-            <button
-              key={item.id}
-              ref={(element) => { tabRefs.current[index] = element }}
-              id={`${tabsId}-tab-${item.id}`}
-              type="button"
-              role="tab"
-              className={css.tab}
-              aria-selected={selected}
-              aria-controls={`${tabsId}-panel-${item.id}`}
-              data-active={selected ? 'true' : undefined}
-              tabIndex={selected ? 0 : -1}
-              onClick={() => { select(item.id) }}
-              onKeyDown={(event) => {
-                let nextIndex: number
-                switch (event.key) {
-                  case 'ArrowRight': nextIndex = (index + 1) % TABS.length; break
-                  case 'ArrowLeft': nextIndex = (index - 1 + TABS.length) % TABS.length; break
-                  case 'Home': nextIndex = 0; break
-                  case 'End': nextIndex = TABS.length - 1; break
-                  default: return
-                }
-                event.preventDefault()
-                const next = TABS[nextIndex]
-                const button = tabRefs.current[nextIndex]
-                if (next === undefined || button === null || button === undefined) return
-                select(next.id)
-                button.focus()
-              }}
-            >
-              {t(item.label)}
-            </button>
-          )
-        })}
-      </div>}
+      {!paneLoading && (
+        <Tabs
+          items={TABS.map(item => ({ id: item.id, label: t(item.label) }))}
+          activeId={tab}
+          onSelect={(id) => { const next = TABS.find(item => item.id === id); if (next !== undefined) select(next.id) }}
+          label={t('tabs')}
+          idPrefix={tabsId}
+        />
+      )}
       <div
         id={`${tabsId}-panel-${tab}`}
         className={css.panel}

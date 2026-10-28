@@ -50,10 +50,5 @@
     "@deepseek-ai/cordis": "workspace:^",
     "@types/better-sqlite3": "^7.6.12",
     "@aeven/sync": "workspace:^"
-  },
-  "peerDependenciesMeta": {
-    "@aeven/sync": {
-      "optional": true
-    }
   }
 }

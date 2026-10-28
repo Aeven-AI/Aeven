@@ -2,7 +2,7 @@
 
 import type { ObservableSnapshot } from '@aeven/client-store'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
-import { OnOffRow } from './OnOffRow.tsx'
+import { SettingsRow, Switch } from '@aeven/client-ui-primitives'
 
 /** Registration-side background mode face. */
 export interface BackgroundModeRowInjected {
@@ -21,19 +21,17 @@ export type BackgroundModeRowProps =
   & InjectFace<BackgroundModeRowInjected>
 
 /**
- * Render the background mode selector.
+ * Render the background mode switch.
  * @param props - composed Settings slot props.
  * @returns the preference row.
  */
 export function BackgroundModeRow({ useBackgroundMode, setBackgroundMode, t }: BackgroundModeRowProps) {
   const enabled = useBackgroundMode(value => value)
   return (
-    <OnOffRow
+    <SettingsRow
       title={t('background.title')}
       description={t('background.description')}
-      enabled={enabled}
-      onChange={setBackgroundMode}
-      t={t}
+      control={<Switch checked={enabled} onChange={setBackgroundMode} label={t('background.title')} />}
     />
   )
 }

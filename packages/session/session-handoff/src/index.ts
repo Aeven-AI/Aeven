@@ -53,7 +53,6 @@ declare module '@deepseek-ai/cordis' {
      * @param owner - the account the session belongs to.
      * @param sessionId - the session.
      * @param input - the forwarded input.
-     * @avnScopeScan unsupported
      */
     'session-handoff/input'(owner: string, sessionId: SessionId, input: SessionHandoffInput): void
     /**
@@ -62,14 +61,12 @@ declare module '@deepseek-ai/cordis' {
      * @mode emit
      * @param owner - the account the session belongs to.
      * @param sessionId - the session.
-     * @avnScopeScan unsupported
      */
     'session-handoff/live'(owner: string, sessionId: SessionId): void
     /**
      * The account's conversation metadata changed, including histories not downloaded here.
      * @mode emit
      * @param owner - account whose catalog changed.
-     * @avnScopeScan unsupported
      */
     'session-handoff/catalog'(owner: string): void
 
@@ -79,7 +76,6 @@ declare module '@deepseek-ai/cordis' {
      * @mode parallel
      * @param owner - the account the session belongs to.
      * @param sessionId - the session.
-     * @avnScopeScan unsupported
      */
     'session-handoff/released'(owner: string, sessionId: SessionId): void | Promise<void>
   }

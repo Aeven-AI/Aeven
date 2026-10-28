@@ -217,6 +217,30 @@ readFile(ref: FileAttachmentRef, signal?: AbortSignal): Promise<StoredFileAttach
 readFileText(ref: FileAttachmentRef, signal?: AbortSignal): Promise<string>
 
 /**
+ * Read the verified bytes of one stored content-addressed object (an image, a file, or a file's text), for
+ * moving it to another store, such as another device of the account.
+ * @param id - the object's content address.
+ * @param signal - optional cancellation.
+ * @returns the object's bytes.
+ */
+readObject(id: AttachmentId, signal?: AbortSignal): Promise<Uint8Array>
+
+/**
+ * Whether this store holds one content-addressed object.
+ * @param id - the object's content address.
+ * @returns whether a read would find it.
+ */
+hasObject(id: AttachmentId): Promise<boolean>
+
+/**
+ * Store bytes another store held under their content address, byte for byte; bytes whose digest differs from
+ * the address are refused.
+ * @param id - the object's content address.
+ * @param data - the object's bytes.
+ */
+importObject(id: AttachmentId, data: Uint8Array): Promise<void>
+
+/**
  * Locate the stored original in the harness host filesystem.
  * @param ref - durable file reference.
  * @returns an absolute host path, or undefined when this backend is not host-file-backed.

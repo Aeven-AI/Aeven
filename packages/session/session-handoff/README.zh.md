@@ -43,3 +43,5 @@ kind: "package-reference"
 输入词汇属于转发并应用它的 Consumer；本 Service Definition 只把它作为操作名和 JSON 请求原样传递，因此新的控制（引导、工具回答）在这里无需改动。
 
 </details>
+
+**运行时 invariant：** 不发布 runtime invariant companion，因为交接状态就是持久化的对话本身，该 seam 没有第二份副本可供比较。

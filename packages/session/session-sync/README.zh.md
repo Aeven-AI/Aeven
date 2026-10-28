@@ -46,3 +46,5 @@ kind: "package-reference"
 无。
 
 </details>
+
+**运行时 invariant：** 不发布 runtime invariant companion，因为发布进度在调用时从中继 outbox 读取，计数器与 outbox 不会各自保留独立副本。

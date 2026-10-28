@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Account sync keeps an account's data the same on every device signed in to it. Each device encrypts every change before it leaves, the Aeven relay stores and forwards ciphertext it cannot open, and devices exchange changes within a second while both are online and catch up when one comes back. Local data stays unencrypted on disk. The design and its trade-offs are in the [account sync Agent Note](../../.agents/notes/proposed/architecture/2026-10-27-account-sync-network.md).
+Account sync keeps an account's data the same on every device signed in to it. Each device encrypts every change before it leaves, the Aeven relay stores and forwards ciphertext it cannot open, and devices exchange changes within a second while both are online and catch up when one comes back. Local data stays unencrypted on disk. The design and its trade-offs are in the [account sync Agent Note](../../.agents/notes/proposed/architecture/2026-10-27-account-sync-network.md). The [account sync subsystem page](../../docs/subsystems/sync.md) is the reference for the `ctx.sync` vocabulary and the events it emits.
 
 ## Table of Contents
 

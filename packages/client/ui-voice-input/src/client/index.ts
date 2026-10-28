@@ -25,8 +25,8 @@ declare module '@aeven/client-ui-slots' {
 export type { VoiceInputInjected, VoiceInputProps } from './VoiceInput.tsx'
 export type { VoiceSectionInjected, VoiceSectionProps } from './VoiceSection.tsx'
 
-/** Settings section id; the composer opens it when the local model still needs preparing. */
-export const VOICE_SECTION = 'voice'
+/** Settings section holding the Voice input group; the composer opens it when the local model still needs preparing. */
+export const VOICE_SECTION = 'general'
 
 /**
  * The Electron shell's preload carrier, as this plugin needs it. Optional: the
@@ -77,7 +77,6 @@ export function apply(ctx: Context): void {
   ctx.effect(() => readiness.dispose, 'ui-voice-input: readiness')
   const captures = new Set<Capture>()
   ctx.effect(() => async () => { await Promise.all([...captures].map(capture => capture.release())) }, 'ui-voice-input: captures')
-  const t = ctx.locale.bind(NS)
   const dictation = createDictationRequests()
   const carrier = (window as { avnDesktop?: DesktopShellCarrier }).avnDesktop
   const onCommand = carrier?.onCommand?.bind(carrier)
@@ -111,7 +110,7 @@ export function apply(ctx: Context): void {
   ctx.slots.inject('conversation.input.activity', () => ctx.slots.register({
     name: 'conversation.input.activity', locale: NS, inject: () => composer,
   }, VoiceInput))
-  ctx.slots.inject('settings.section', () => ctx.slots.register({
-    name: 'settings.section', id: VOICE_SECTION, order: 60, label: () => t('nav'), locale: NS, inject: () => settings,
+  ctx.slots.inject('settings.general.item', () => ctx.slots.register({
+    name: 'settings.general.item', id: 'voice', order: 300, locale: NS, inject: () => settings,
   }, VoiceSection))
 }
