@@ -6,7 +6,7 @@
  * `.agents/notes/implemented/process/2026-07-02-tool-schema-catalog.md`.
  */
 
-import { globSync, readFileSync, writeFileSync } from 'node:fs'
+import { globSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join, resolve } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
@@ -85,6 +85,7 @@ import * as ToolImageSearch from '@aeven/tool-image-search'
 import Memory from '@aeven/memory'
 import * as ToolMemory from '@aeven/tool-memory'
 import * as ToolMail from '@aeven/tool-mail'
+import { writePairedPage } from './paired-locale.ts'
 import { githubSlug } from './verify-md-links.ts'
 
 /** Attachment seam marker that makes the attachments-conditional `read_image` schema harvestable. */
@@ -1058,8 +1059,8 @@ async function main(): Promise<void> {
     process.exit(1)
   }
 
-  writeFileSync(resolve(root, OUT), content)
-  console.log(`gen-tool-catalog: wrote ${OUT}.`)
+  writePairedPage(resolve(root, OUT), content)
+  console.log(`gen-tool-catalog: wrote ${OUT} and its Chinese page.`)
 }
 
 if (process.argv[1] && import.meta.filename === resolve(process.argv[1])) {
