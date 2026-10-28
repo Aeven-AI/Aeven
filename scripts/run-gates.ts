@@ -94,6 +94,9 @@ interface ConcurrencyDefault {
 type GateExecutor = (gate: Gate, signal?: AbortSignal) => Promise<GateResult>
 type ResultObserver = (result: GateResult) => void
 
+/** Lines of a failing gate's output printed unless `AVN_GATE_VERBOSE=1`. */
+const FAILURE_OUTPUT_LINES = 40
+
 const root = resolve(import.meta.dirname, '..')
 if (import.meta.main) {
   process.exitCode = await main(process.argv.slice(2))
@@ -1520,9 +1523,6 @@ function printResult(result: GateResult): void {
   }
   if (result.gate.streamOutput !== true) printOutput(verbose ? result.output : truncatedOutput(result.output))
 }
-
-/** Lines of a failing gate's output printed unless `AVN_GATE_VERBOSE=1`. */
-const FAILURE_OUTPUT_LINES = 40
 
 /**
  * Keep the first {@link FAILURE_OUTPUT_LINES} lines of a gate's output, so a

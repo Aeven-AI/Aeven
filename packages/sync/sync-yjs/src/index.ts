@@ -399,6 +399,20 @@ export default class YjsSync extends Sync {
   }
 
   /** @inheritdoc */
+  localValue(owner: string, key: string): string | undefined {
+    const account = this.accounts.get(owner)
+    if (account === undefined) throw new Error('this device does not sync the account')
+    return account.store.localValue(key)
+  }
+
+  /** @inheritdoc */
+  setLocalValue(owner: string, key: string, value: string): void {
+    const account = this.accounts.get(owner)
+    if (account === undefined) throw new Error('this device does not sync the account')
+    account.store.setLocalValue(key, value)
+  }
+
+  /** @inheritdoc */
   documentId(owner: string, name: string): string {
     const account = this.accounts.get(owner)
     if (account === undefined) throw new Error('this device does not sync the account')

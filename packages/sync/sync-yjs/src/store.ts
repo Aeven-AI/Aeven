@@ -95,6 +95,24 @@ export class SyncStore {
     return this.db.transaction(fn)()
   }
 
+  /**
+   * Read a device-local value a Consumer keeps for this account; it shares the `meta` table under a `local:` prefix.
+   * @param key - the Consumer's key.
+   * @returns the value, or undefined when none is stored.
+   */
+  localValue(key: string): string | undefined {
+    return this.meta(`local:${key}`)
+  }
+
+  /**
+   * Store a device-local value a Consumer keeps for this account.
+   * @param key - the Consumer's key.
+   * @param value - the value.
+   */
+  setLocalValue(key: string, value: string): void {
+    this.setMeta(`local:${key}`, value)
+  }
+
   private meta(key: string): string | undefined {
     return (this.db.prepare('SELECT value FROM meta WHERE key = ?').get(key) as { value: string } | undefined)?.value
   }

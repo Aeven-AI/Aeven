@@ -70,6 +70,7 @@ export class MemorySyncDevice {
   /** Whether the relay serves this device; false models a local network with no server reachable. */
   relay = true
   private readonly docs = new Map<string, Y.Doc>()
+  private readonly local = new Map<string, string>()
   private readonly outbox: Array<{ name: string; update: Uint8Array }> = []
   private readonly inbox: Array<{ name: string; update: Uint8Array }> = []
 
@@ -139,6 +140,8 @@ export class MemorySyncDevice {
       documentId: (_owner: string, name: string): string => `id:${name}`,
       openDocument: (_owner: string, name: string): Promise<SyncDocument> => Promise.resolve({ doc: this.docOf(name), close: () => {} }),
       storedDocuments: (): readonly string[] => [...this.docs.keys()].map(name => `id:${name}`),
+      localValue: (_owner: string, key: string): string | undefined => this.local.get(key),
+      setLocalValue: (_owner: string, key: string, value: string): void => { this.local.set(key, value) },
       appendStream: (_owner: string, name: string, payload: Uint8Array): Promise<void> => {
         const batches = this.network.streams.get(name) ?? []
         batches.push({ seq: this.network.nextSeq(), payload })

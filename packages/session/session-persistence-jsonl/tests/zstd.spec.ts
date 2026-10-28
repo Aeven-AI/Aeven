@@ -543,7 +543,7 @@ describe('JsonlSessionPersistence: default Zstandard encoding', () => {
       const header = meta(`cancel-${compression}-header-read`, '/work')
       await ctx.sessionPersistence.create(header)
       await ctx.sessionPersistence.append(header.id, oneTurnLog())
-      await ctx.sessionPersistence.list()
+      // The first listing is this call: a warm cache would answer from the header it already read and perform no read.
       const path = logPath(root, header.cwd, header.id, compression)
       const probe = await open(path, 'r')
       const prototype = Object.getPrototypeOf(probe) as { read: HeaderRead }

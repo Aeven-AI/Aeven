@@ -359,12 +359,29 @@ export class WorkspaceRegistry extends Service {
    * @returns the shared name, or undefined when no workspace holds the session.
    */
   sessionHome(sessionId: SessionId): string | undefined {
-    const state = this.requireState()
     const home = this.list().find(workspace => workspace.sessionIds.includes(sessionId))
-    if (home === undefined) return undefined
-    if (state.defaultWorkspaceId === home.id) return 'default'
-    const key = Object.entries(state.builtInWorkspaceIds ?? {}).find(([, id]) => id === home.id)?.[0]
-    return key === undefined ? home.id : `builtin:${key}`
+    return home === undefined ? undefined : this.sharedName(home.id)
+  }
+
+  /**
+   * Name the workspace of every filed session at once, as {@link sessionHome} names each, in one pass over the
+   * registry; a caller that asks about many sessions uses this instead of one {@link sessionHome} call per session.
+   * @returns each filed session's shared workspace name.
+   */
+  sessionHomes(): ReadonlyMap<SessionId, string> {
+    const homes = new Map<SessionId, string>()
+    for (const workspace of this.list()) {
+      const home = this.sharedName(workspace.id)
+      for (const sessionId of workspace.sessionIds) if (!homes.has(sessionId)) homes.set(sessionId, home)
+    }
+    return homes
+  }
+
+  private sharedName(id: WorkspaceId): string {
+    const state = this.requireState()
+    if (state.defaultWorkspaceId === id) return 'default'
+    const key = Object.entries(state.builtInWorkspaceIds ?? {}).find(([, builtIn]) => builtIn === id)?.[0]
+    return key === undefined ? id : `builtin:${key}`
   }
 
   /**

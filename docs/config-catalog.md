@@ -3394,7 +3394,10 @@ export interface SessionSyncTuning {
   compressionQuality: number
   /** Wait after a session's events commit before they are published, so a streaming reply travels in small batches. */
   liveMs: number
-  /** Sessions created up to this many days before this device first publishes are published too. */
+  /**
+   * Background import skips sessions this device does not store and that were created more than this many days
+   * ago; they import when opened. `0` imports every session.
+   */
   backfillDays: number
   /** Pause between two sessions of a background import or publication scan, in milliseconds. */
   pauseMs: number

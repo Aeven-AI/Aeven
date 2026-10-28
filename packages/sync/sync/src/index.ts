@@ -168,6 +168,23 @@ export abstract class Sync extends Service {
   abstract storedDocuments(owner: string): readonly string[]
 
   /**
+   * Read a value this device keeps for the account and never sends to another device, such as how far a Consumer
+   * got with work that survives restarts.
+   * @param owner - an account this device syncs.
+   * @param key - the value's name, prefixed by the Consumer that owns it.
+   * @returns the stored value, or undefined when none is stored.
+   */
+  abstract localValue(owner: string, key: string): string | undefined
+
+  /**
+   * Store a value this device keeps for the account and never sends to another device; see {@link localValue}.
+   * @param owner - an account this device syncs.
+   * @param key - the value's name, prefixed by the Consumer that owns it.
+   * @param value - the value to keep.
+   */
+  abstract setLocalValue(owner: string, key: string, value: string): void
+
+  /**
    * Queue one batch for a stream this device writes. Batches reach the relay in the order they were queued,
    * after every document change queued before them.
    * @param owner - an account whose documents this device can open.
