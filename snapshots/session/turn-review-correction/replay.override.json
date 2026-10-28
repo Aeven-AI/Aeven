@@ -1,0 +1,151 @@
+[
+  {
+    "kind": "chunks",
+    "chunks": [
+      {
+        "type": "block-start",
+        "index": 0,
+        "blockType": "tool-call"
+      },
+      {
+        "type": "tool-call-delta",
+        "index": 0,
+        "id": "write-notes",
+        "name": "write",
+        "argumentsDelta": "{\"file_path\": \"notes.txt\", \"content\": \"hello world\"}"
+      },
+      {
+        "type": "block-end",
+        "index": 0,
+        "block": {
+          "type": "tool-call",
+          "id": "write-notes",
+          "name": "write",
+          "arguments": "{\"file_path\": \"notes.txt\", \"content\": \"hello world\"}"
+        }
+      },
+      {
+        "type": "finish",
+        "reason": {
+          "kind": "tool-calls"
+        }
+      }
+    ]
+  },
+  {
+    "kind": "chunks",
+    "chunks": [
+      {
+        "type": "block-start",
+        "index": 0,
+        "blockType": "text"
+      },
+      {
+        "type": "text-delta",
+        "index": 0,
+        "text": "Created notes.txt. I'll keep an eye on it and report changes."
+      },
+      {
+        "type": "block-end",
+        "index": 0,
+        "block": {
+          "type": "text",
+          "text": "Created notes.txt. I'll keep an eye on it and report changes."
+        }
+      },
+      {
+        "type": "finish",
+        "reason": {
+          "kind": "stop"
+        }
+      }
+    ]
+  },
+  {
+    "kind": "chunks",
+    "chunks": [
+      {
+        "type": "block-start",
+        "index": 0,
+        "blockType": "text"
+      },
+      {
+        "type": "text-delta",
+        "index": 0,
+        "text": "{\"complete\": false, \"issues\": [\"The reply promises to monitor the file, but no monitoring job was started.\"]}"
+      },
+      {
+        "type": "block-end",
+        "index": 0,
+        "block": {
+          "type": "text",
+          "text": "{\"complete\": false, \"issues\": [\"The reply promises to monitor the file, but no monitoring job was started.\"]}"
+        }
+      },
+      {
+        "type": "finish",
+        "reason": {
+          "kind": "stop"
+        }
+      }
+    ]
+  },
+  {
+    "kind": "chunks",
+    "chunks": [
+      {
+        "type": "block-start",
+        "index": 0,
+        "blockType": "text"
+      },
+      {
+        "type": "text-delta",
+        "index": 0,
+        "text": "DONE"
+      },
+      {
+        "type": "block-end",
+        "index": 0,
+        "block": {
+          "type": "text",
+          "text": "DONE"
+        }
+      },
+      {
+        "type": "finish",
+        "reason": {
+          "kind": "stop"
+        }
+      }
+    ]
+  },
+  {
+    "kind": "chunks",
+    "chunks": [
+      {
+        "type": "block-start",
+        "index": 0,
+        "blockType": "text"
+      },
+      {
+        "type": "text-delta",
+        "index": 0,
+        "text": "{\"complete\": true, \"issues\": []}"
+      },
+      {
+        "type": "block-end",
+        "index": 0,
+        "block": {
+          "type": "text",
+          "text": "{\"complete\": true, \"issues\": []}"
+        }
+      },
+      {
+        "type": "finish",
+        "reason": {
+          "kind": "stop"
+        }
+      }
+    ]
+  }
+]

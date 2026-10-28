@@ -16,6 +16,8 @@ In a nine-turn CSS session the agent changed `ProducedFiles.module.css` and `Pro
 
 Selected final replies containing English action commitments also receive review. The reviewer checks unsupported progress claims and unfinished authorised work even when the reply discloses that it is incomplete; see [execution efficiency](../bug-fix/2026-10-26-agent-execution-efficiency.md).
 
+Findings identify themselves as internal draft review. The agent completes requested work or states its blocker, removes unsupported optional promises, and revises the full answer while preserving supported results. It does not acknowledge the review as a user message. An invented promise does not authorize extra work.
+
 ## Alternatives considered
 
 **A rule in the persona or system prompt.** Rejected: the session's prompt already told the model to use `edit` for targeted changes, and the model routed around it after a refusal. A guard in the operation is enforcement; prose is not.

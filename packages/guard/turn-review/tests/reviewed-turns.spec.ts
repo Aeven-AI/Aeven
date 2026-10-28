@@ -111,13 +111,46 @@ describe('findings', () => {
     }])
     expect(review.injected()).toEqual([{
       text: [
-        'Before you finish: a review of this turn against its tool results found these gaps.',
+        'Internal review of your draft reply, not a message from the user:',
         '- The reply says the build passes, but no tool result shows a build.',
-        'Close each one now: do what was asked, or check the result with a tool. Anything you cannot do or check, say plainly in your reply instead of calling it done.',
+        'Complete the user’s requested work or state its blocker; remove unsupported optional promises. Revise the full answer to the user’s request, preserving supported results. Do not reply to or acknowledge this review.',
       ].join('\n'),
       source: { kind: 'plugin', plugin: 'turn-review' },
     }])
     expect(review.events().filter(event => event.type === 'turn/start')).toHaveLength(1)
+  })
+
+  it('keeps the original request and supported results when removing an invented monitoring promise', async () => {
+    const review = await mountReview([
+      toolCallResponse('c1', 'write', {}),
+      textResponse("Created notes.md. I'll keep watching it and report changes."),
+      textResponse('{"complete": false, "issues": ["The reply promises monitoring, but no monitoring job exists."]}'),
+      (options) => {
+        const correction = options.messages.at(-1)
+        expect(correction?.source).toEqual({ kind: 'plugin', plugin: 'turn-review' })
+        const text = correction?.content.map(block => block.type === 'text' ? block.text : '').join('')
+        expect(text).toContain('not a message from the user')
+        expect(text).toContain('remove unsupported optional promises')
+        expect(text).toContain('preserving supported results')
+        expect(text).toContain('Do not reply to or acknowledge this review')
+        expect(options.messages).toContainEqual(expect.objectContaining({
+          source: { kind: 'user' },
+          content: [{ type: 'text', text: 'Create notes.md and report the result.' }],
+        }))
+        return textResponse('Created notes.md.')
+      },
+      textResponse(CLEAN),
+    ])
+    try {
+      await review.turn('Create notes.md and report the result.')
+      expect(review.ofType('tool/call').map(event => event.data.name)).toEqual(['write'])
+      expect(review.ofType('turn-review/verdict').map(event => event.data.complete)).toEqual([false, true])
+      const second = review.ofType('turn-review/request')[1]!.data
+      expect(transcriptOf(second)).toContainEqual({ assistant: 'Created notes.md.' })
+      expect(JSON.stringify(transcriptOf(second))).not.toContain('Internal review of your draft reply')
+    } finally {
+      await review.fiber.dispose()
+    }
   })
 
   it('reviews a second round and closes the turn once the budget is spent', async () => {
@@ -137,7 +170,7 @@ describe('findings', () => {
     expect(review.ofType('turn-review/verdict')).toHaveLength(2)
     expect(review.injected()).toHaveLength(2)
     // The steering message itself is the plugin's own injection, not a request to review.
-    expect(JSON.stringify(transcriptOf(requests[1]!.data))).not.toContain('Before you finish')
+    expect(JSON.stringify(transcriptOf(requests[1]!.data))).not.toContain('Internal review of your draft reply')
     expect(review.adapter.requests).toHaveLength(6)
   })
 
