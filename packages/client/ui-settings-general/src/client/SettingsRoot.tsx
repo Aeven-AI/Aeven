@@ -23,7 +23,7 @@ import clsx from 'clsx'
 import {
   ConnectionIndicator,
   IconCloseOutline16, IconCreditCardOutline16, IconDataOutline16, IconEnhanceOutline16,
-  IconLightOutline16, IconLucideMic, IconLucidePlug, IconLucideScrollText, IconLucideWaypoints,
+  IconLightOutline16, IconLucideMic, IconRefreshOutline16, IconLucidePlug, IconLucideScrollText, IconLucideWaypoints,
   IconSettingsOutline16, IconThinkOutline16, IconUserOutline16,
 } from '@aeven/client-ui-primitives'
 import type { ConnectionIndicatorState } from '@aeven/client-ui-primitives'
@@ -41,6 +41,7 @@ function navIcon(id: string) {
   if (id === 'plugins') return <span className={css.navIcon}><IconLucidePlug /></span>
   if (id === 'grok-build') return <IconCreditCardOutline16 className={css.navIcon} size={16} />
   if (id === 'memory') return <IconThinkOutline16 className={css.navIcon} size={16} />
+  if (id === 'sync') return <IconRefreshOutline16 className={css.navIcon} size={16} />
   // Lucide glyphs are drawn on the stock canvas, which the seat sizes.
   if (id === 'voice') return <span className={css.navIcon}><IconLucideMic /></span>
   if (id === 'connectors') return <span className={css.navIcon}><IconLucideWaypoints /></span>

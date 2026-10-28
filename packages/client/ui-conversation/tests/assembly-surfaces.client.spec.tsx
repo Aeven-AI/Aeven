@@ -63,7 +63,7 @@ function WorkspaceProbe({ open }: EmptyWorkspaceOwnerProps) {
   )
 }
 
-async function bench(opts?: { blank?: boolean }) {
+async function bench(opts?: { blank?: boolean; replica?: true }) {
   const runtime = await SlotTestRuntime.create()
   // The plugin injects `remote.session` for Session export; the double parks it
   // without a wire.
@@ -78,7 +78,7 @@ async function bench(opts?: { blank?: boolean }) {
   runtime.slots.installLocale(locale)
   await runtime.sessions.add({
     id: SID,
-    summary: { title: 'S', displayTitle: 'S', cwd: '/proj' },
+    summary: { title: 'S', displayTitle: 'S', cwd: '/proj', ...(opts?.replica ? { replica: true as const } : {}) },
     ...(opts?.blank === true ? { snapshot: { blank: true } } : {}),
     session: {
       loadOlder: vi.fn<ISession['loadOlder']>(),
@@ -91,6 +91,17 @@ async function bench(opts?: { blank?: boolean }) {
 }
 
 describe('resident composer', () => {
+  it('offers the composer for a conversation another device runs, since its input reaches that device', async () => {
+    const runtime = await bench({ replica: true })
+    try {
+      runtime.sessions.open(SID)
+      const view = runtime.renderRoot()
+      await waitFor(() => { expect(view.container.querySelector('[data-composer-input]')).not.toBeNull() })
+    } finally {
+      await runtime.dispose()
+    }
+  })
+
   it('renders the inert cold-start composer while no session exists at all', async () => {
     const runtime = await SlotTestRuntime.create()
     // The plugin injects `remote.session` for Session export; the double parks

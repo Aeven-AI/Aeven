@@ -13,6 +13,15 @@ export const MACOS_USAGE_DESCRIPTIONS = Object.freeze({
   NSLocationUsageDescription: 'Aeven uses your location when you ask about things near you.',
   NSScreenCaptureUsageDescription: 'Aeven sees your screen when you ask it to operate apps on your computer.',
   NSAppleEventsUsageDescription: 'Aeven controls other apps when you ask it to operate them for you.',
+  NSLocalNetworkUsageDescription: 'Aeven syncs directly with your other devices on the same network.',
+})
+
+/**
+ * Info.plist local-network settings the Desktop shell adds on macOS. macOS lets an application browse and
+ * advertise only the Bonjour service types it lists; account sync links devices over `_aeven-sync._tcp`.
+ */
+export const MACOS_NETWORK_SETTINGS = Object.freeze({
+  NSBonjourServices: Object.freeze(['_aeven-sync._tcp']),
 })
 
 /**

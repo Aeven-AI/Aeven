@@ -153,7 +153,7 @@ export function ProjectRowItem({ group, onToggle, newSessionHref, onCreate, acti
   /** Start a New Session in this row's Workspace. */
   onCreate: () => void
   /** Real-Workspace actions; absent for the ungrouped bucket (no menu shown). */
-  actions?: { rename: () => void; delete: () => void } | undefined
+  actions?: { rename: () => void; delete: () => void; bind?: (() => void) | undefined } | undefined
   /** Present only for real Workspace rows in the grouped view. */
   drag?: WorkspaceRowDragProps | undefined
   t: RowTranslate
@@ -180,6 +180,8 @@ export function ProjectRowItem({ group, onToggle, newSessionHref, onCreate, acti
   // Deleting a workspace keeps its folder and session logs and archives its
   // sessions, so the row reads like the others rather than as destructive.
   const workspaceMenuItems = [
+    // A workspace another device registered opens here once it has a folder of this device.
+    ...actions?.bind === undefined ? [] : [{ id: 'bind', label: t('bind.workspace'), icon: <IconLucideFolder /> }],
     { id: 'rename', label: t('rename'), icon: <IconEditOutline16 /> },
     { id: 'delete', label: t('delete.workspace'), icon: <IconTrashOutline16 /> },
   ]
@@ -215,7 +217,11 @@ export function ProjectRowItem({ group, onToggle, newSessionHref, onCreate, acti
               setMenuOpen(false)
               // Unknown ids leave before the dispatch: a future menu row must
               // not inherit the destructive branch as an else fallback.
-              /* v8 ignore next -- Menu can emit only the rename and delete rows supplied above. */
+              if (id === 'bind') {
+                actions.bind?.()
+                return
+              }
+              /* v8 ignore next -- Menu can emit only the bind, rename, and delete rows supplied above. */
               if (id !== 'rename' && id !== 'delete') return
               if (id === 'rename') actions.rename()
               else actions.delete()

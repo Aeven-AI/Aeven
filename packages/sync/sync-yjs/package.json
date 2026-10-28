@@ -1,0 +1,51 @@
+{
+  "name": "@aeven/sync-yjs",
+  "description": "Yjs provider for account sync: local store, encrypted frames, and the Aeven relay connection",
+  "version": "0.3.21-alpha",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Aeven.git",
+    "directory": "packages/sync/sync-yjs"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@aeven/brand": "workspace:^",
+    "@aeven/home-paths": "workspace:^",
+    "@aeven/sync-vault": "workspace:^",
+    "@deepseek-ai/schemastery": "workspace:^",
+    "better-sqlite3": "^12.10.0",
+    "bonjour-service": "^1.4.4",
+    "ws": "^8.21.2",
+    "yjs": "13.6.27"
+  },
+  "peerDependencies": {
+    "@aeven/credentials": "workspace:^",
+    "@aeven/sync": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "devDependencies": {
+    "@aeven/credentials": "workspace:^",
+    "@aeven/sync": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^",
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/ws": "^8.18.1"
+  }
+}

@@ -119,6 +119,18 @@ describe('WorkspaceController commands', () => {
     })
   })
 
+  it('binds a workspace without a directory here and maps a refused directory to invalid-path', async () => {
+    const { controller, ctx, root } = await harness()
+    const registry = ctx.workspaceRegistry as unknown as { applySynced(owner: string, projection: unknown): Promise<void> }
+    await registry.applySynced('owner-x', {
+      records: [{ id: 'remote-1', title: 'Research', owner: 'owner-x', createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' }],
+      order: ['remote-1'],
+    })
+    const path = stageDir(root, 'research')
+    await expect(controller.bind({ workspaceId: 'remote-1' as never, path })).resolves.toMatchObject({ workspace: { kind: 'folder', path } })
+    await expect(controller.bind({ workspaceId: 'remote-1' as never, path })).rejects.toMatchObject({ code: 'workspace/invalid-path' })
+  })
+
   it('maps invalid paths, blank names, conflicts, and unknown ids to stable failures', async () => {
     const { controller, root } = await harness()
     const first = await controller.create({ path: stageDir(root, 'first') })

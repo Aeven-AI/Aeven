@@ -1038,6 +1038,9 @@ importers:
       '@aeven/api-speech-to-text':
         specifier: workspace:^
         version: link:../../speech/api-speech-to-text
+      '@aeven/api-sync-controller':
+        specifier: workspace:^
+        version: link:../sync-controller
       '@aeven/api-terminal-controller':
         specifier: workspace:^
         version: link:../terminal-controller
@@ -1104,6 +1107,9 @@ importers:
       '@aeven/subagent':
         specifier: workspace:^
         version: link:../../subagent/subagent
+      '@aeven/sync':
+        specifier: workspace:^
+        version: link:../../sync/sync
       '@aeven/tool-browser':
         specifier: workspace:^
         version: link:../../web/tool-browser
@@ -1198,6 +1204,9 @@ importers:
       '@aeven/session':
         specifier: workspace:^
         version: link:../../core/session
+      '@aeven/session-handoff':
+        specifier: workspace:^
+        version: link:../../session/session-handoff
       '@aeven/session-persistence':
         specifier: workspace:^
         version: link:../../session/session-persistence
@@ -1237,6 +1246,12 @@ importers:
       '@aeven/typert-registry':
         specifier: workspace:^
         version: link:../../typert/registry
+      '@aeven/user-approval':
+        specifier: workspace:^
+        version: link:../../interaction/user-approval
+      '@aeven/user-questions':
+        specifier: workspace:^
+        version: link:../../interaction/user-questions
       '@aeven/util-crypto':
         specifier: workspace:^
         version: link:../../util/crypto
@@ -1246,6 +1261,9 @@ importers:
       '@aeven/util-workspace-path':
         specifier: workspace:^
         version: link:../../util/workspace-path
+      '@aeven/working-directory':
+        specifier: workspace:^
+        version: link:../../session/working-directory
       '@aeven/workspace':
         specifier: workspace:^
         version: link:../../workspace/workspace
@@ -1283,6 +1301,31 @@ importers:
       '@aeven/settings':
         specifier: workspace:^
         version: link:../../settings/settings
+      '@aeven/typert-protocol':
+        specifier: workspace:^
+        version: link:../../typert/protocol
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/api/sync-controller:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+      zod:
+        specifier: ^4.4.3
+        version: 4.6.5
+    devDependencies:
+      '@aeven/identity-user':
+        specifier: workspace:^
+        version: link:../../identity/user
+      '@aeven/sync':
+        specifier: workspace:^
+        version: link:../../sync/sync
+      '@aeven/sync-vault':
+        specifier: workspace:^
+        version: link:../../sync/sync-vault
       '@aeven/typert-protocol':
         specifier: workspace:^
         version: link:../../typert/protocol
@@ -2025,6 +2068,9 @@ importers:
       '@aeven/api-speech-to-text':
         specifier: workspace:^
         version: link:../../speech/api-speech-to-text
+      '@aeven/api-sync-controller':
+        specifier: workspace:^
+        version: link:../../api/sync-controller
       '@aeven/api-terminal-controller':
         specifier: workspace:^
         version: link:../../api/terminal-controller
@@ -2160,6 +2206,9 @@ importers:
       '@aeven/client-ui-settings-plugins':
         specifier: workspace:^
         version: link:../../client/ui-settings-plugins
+      '@aeven/client-ui-settings-sync':
+        specifier: workspace:^
+        version: link:../../client/ui-settings-sync
       '@aeven/client-ui-sidebar':
         specifier: workspace:^
         version: link:../../client/ui-sidebar
@@ -2331,9 +2380,15 @@ importers:
       '@aeven/session-stats':
         specifier: workspace:^
         version: link:../../session/session-stats
+      '@aeven/session-sync':
+        specifier: workspace:^
+        version: link:../../session/session-sync
       '@aeven/session-turn-outline':
         specifier: workspace:^
         version: link:../../session/session-turn-outline
+      '@aeven/settings-sync':
+        specifier: workspace:^
+        version: link:../../settings/settings-sync
       '@aeven/skill-catalog':
         specifier: workspace:^
         version: link:../../skill/skill-catalog
@@ -2349,6 +2404,9 @@ importers:
       '@aeven/subscription-auth':
         specifier: workspace:^
         version: link:../../llm/subscription-auth
+      '@aeven/sync-yjs':
+        specifier: workspace:^
+        version: link:../../sync/sync-yjs
       '@aeven/tool-device':
         specifier: workspace:^
         version: link:../../device/tool-device
@@ -2401,7 +2459,13 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
+      yjs:
+        specifier: 13.6.27
+        version: 13.6.27
     devDependencies:
+      '@aeven/sync':
+        specifier: workspace:^
+        version: link:../../sync/sync
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -2436,6 +2500,9 @@ importers:
       '@aeven/session':
         specifier: workspace:^
         version: link:../../core/session
+      '@aeven/sync':
+        specifier: workspace:^
+        version: link:../../sync/sync
       '@aeven/system-prompt':
         specifier: workspace:^
         version: link:../../core/system-prompt
@@ -4400,6 +4467,39 @@ importers:
         specifier: ^18.2.0
         version: 18.3.1
 
+  packages/client/ui-settings-sync:
+    devDependencies:
+      '@aeven/api-remotes':
+        specifier: workspace:^
+        version: link:../../api/remotes
+      '@aeven/client-locale':
+        specifier: workspace:^
+        version: link:../locale
+      '@aeven/client-ui-primitives':
+        specifier: workspace:^
+        version: link:../ui-primitives
+      '@aeven/client-ui-renderer':
+        specifier: workspace:^
+        version: link:../ui-renderer
+      '@aeven/client-ui-settings':
+        specifier: workspace:^
+        version: link:../ui-settings
+      '@aeven/client-ui-slots':
+        specifier: workspace:^
+        version: link:../ui-slots
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@types/react':
+        specifier: ~18.3.1
+        version: 18.3.31
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.2.0
+        version: 18.3.1(react@18.3.1)
+
   packages/client/ui-sidebar:
     dependencies:
       clsx:
@@ -6218,6 +6318,9 @@ importers:
       luxon:
         specifier: ^3.7.2
         version: 3.7.2
+      yjs:
+        specifier: 13.6.27
+        version: 13.6.27
       zod:
         specifier: ^4.4.3
         version: 4.6.5
@@ -6258,6 +6361,9 @@ importers:
       '@aeven/storage-domain':
         specifier: workspace:^
         version: link:../../storage/storage-domain
+      '@aeven/sync':
+        specifier: workspace:^
+        version: link:../../sync/sync
       '@aeven/tools':
         specifier: workspace:^
         version: link:../tools
@@ -7293,6 +7399,9 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
+      yjs:
+        specifier: 13.6.27
+        version: 13.6.27
       zod:
         specifier: ^4.4.3
         version: 4.6.5
@@ -7324,6 +7433,9 @@ importers:
       '@aeven/storage-json':
         specifier: workspace:^
         version: link:../../storage/storage-json
+      '@aeven/sync':
+        specifier: workspace:^
+        version: link:../../sync/sync
       '@aeven/typert-protocol':
         specifier: workspace:^
         version: link:../../typert/protocol
@@ -9463,6 +9575,9 @@ importers:
       better-sqlite3:
         specifier: ^12.10.0
         version: 12.11.1
+      yjs:
+        specifier: 13.6.27
+        version: 13.6.27
     devDependencies:
       '@aeven/llm':
         specifier: workspace:^
@@ -9473,6 +9588,9 @@ importers:
       '@aeven/session':
         specifier: workspace:^
         version: link:../../core/session
+      '@aeven/sync':
+        specifier: workspace:^
+        version: link:../../sync/sync
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -9642,6 +9760,9 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
+      yjs:
+        specifier: 13.6.27
+        version: 13.6.27
       zod:
         specifier: ^4.4.3
         version: 4.6.5
@@ -9655,6 +9776,9 @@ importers:
       '@aeven/scope':
         specifier: workspace:^
         version: link:../../core/scope
+      '@aeven/sync':
+        specifier: workspace:^
+        version: link:../../sync/sync
       '@aeven/system-prompt':
         specifier: workspace:^
         version: link:../../core/system-prompt
@@ -10087,6 +10211,15 @@ importers:
         specifier: workspace:^
         version: link:../../../vendor/loader
 
+  packages/session/session-handoff:
+    devDependencies:
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
   packages/session/session-log-deepseek:
     dependencies:
       '@aeven/brand':
@@ -10224,6 +10357,40 @@ importers:
       '@deepseek-ai/cordis-plugin-loader':
         specifier: workspace:^
         version: link:../../../vendor/loader
+
+  packages/session/session-sync:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+      yjs:
+        specifier: 13.6.27
+        version: 13.6.27
+    devDependencies:
+      '@aeven/agent':
+        specifier: workspace:^
+        version: link:../../core/agent
+      '@aeven/attachment':
+        specifier: workspace:^
+        version: link:../../attachment/attachment
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@aeven/session-handoff':
+        specifier: workspace:^
+        version: link:../session-handoff
+      '@aeven/session-persistence':
+        specifier: workspace:^
+        version: link:../session-persistence
+      '@aeven/sync':
+        specifier: workspace:^
+        version: link:../../sync/sync
+      '@aeven/workspace':
+        specifier: workspace:^
+        version: link:../../workspace/workspace
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
 
   packages/session/session-telemetry:
     devDependencies:
@@ -10588,6 +10755,25 @@ importers:
       '@aeven/settings':
         specifier: workspace:^
         version: link:../settings
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/settings/settings-sync:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+      yjs:
+        specifier: 13.6.27
+        version: 13.6.27
+    devDependencies:
+      '@aeven/settings':
+        specifier: workspace:^
+        version: link:../settings
+      '@aeven/sync':
+        specifier: workspace:^
+        version: link:../../sync/sync
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -11983,6 +12169,72 @@ importers:
         specifier: workspace:^
         version: link:../../../vendor/cordis
 
+  packages/sync/sync:
+    dependencies:
+      '@aeven/sync-vault':
+        specifier: workspace:^
+        version: link:../sync-vault
+      yjs:
+        specifier: 13.6.27
+        version: 13.6.27
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/sync/sync-vault:
+    dependencies:
+      '@aeven/brand':
+        specifier: workspace:^
+        version: link:../../util/brand
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/sync/sync-yjs:
+    dependencies:
+      '@aeven/brand':
+        specifier: workspace:^
+        version: link:../../util/brand
+      '@aeven/home-paths':
+        specifier: workspace:^
+        version: link:../../util/home-paths
+      '@aeven/sync-vault':
+        specifier: workspace:^
+        version: link:../sync-vault
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+      better-sqlite3:
+        specifier: ^12.10.0
+        version: 12.11.1
+      bonjour-service:
+        specifier: ^1.4.4
+        version: 1.4.4
+      ws:
+        specifier: ^8.21.2
+        version: 8.21.2
+      yjs:
+        specifier: 13.6.27
+        version: 13.6.27
+    devDependencies:
+      '@aeven/credentials':
+        specifier: workspace:^
+        version: link:../../credentials/credentials
+      '@aeven/sync':
+        specifier: workspace:^
+        version: link:../sync
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@types/better-sqlite3':
+        specifier: ^7.6.12
+        version: 7.6.13
+      '@types/ws':
+        specifier: ^8.18.1
+        version: 8.18.1
+
   packages/terminal/terminal:
     devDependencies:
       '@aeven/agent':
@@ -13036,6 +13288,9 @@ importers:
       '@aeven/brand':
         specifier: workspace:^
         version: link:../../util/brand
+      yjs:
+        specifier: 13.6.27
+        version: 13.6.27
       zod:
         specifier: ^4.4.3
         version: 4.6.5
@@ -13046,6 +13301,9 @@ importers:
       '@aeven/session':
         specifier: workspace:^
         version: link:../../core/session
+      '@aeven/session-handoff':
+        specifier: workspace:^
+        version: link:../../session/session-handoff
       '@aeven/session-persistence':
         specifier: workspace:^
         version: link:../../session/session-persistence
@@ -13055,6 +13313,9 @@ importers:
       '@aeven/storage-domain':
         specifier: workspace:^
         version: link:../../storage/storage-domain
+      '@aeven/sync':
+        specifier: workspace:^
+        version: link:../../sync/sync
       '@aeven/typert-protocol':
         specifier: workspace:^
         version: link:../../typert/protocol
@@ -15406,6 +15667,9 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@leichtgewicht/ip-codec@2.0.5':
+    resolution: {integrity: sha512-Vo+PSpZG2/fmgmiNzYK9qWRh8h/CHrwD0mo1h1DzL4yzHNSfWYujGTYsWGreD000gcgmZ7K4Ys6Tx9TxtsKdDw==}
+
   '@lexical/clipboard@0.49.0':
     resolution: {integrity: sha512-AVKj21xH1qU7JAFA/v0hCoafa+Yti1I7cHG+JQIgc/EqCtP8ePeJyIfTPNN/tXskoCdq++HewQoiSXRwwlocVg==}
     peerDependencies:
@@ -17500,6 +17764,9 @@ packages:
     resolution: {integrity: sha512-2cGmJupaNgg+QUwVLAucDuWuoMZ6EX9iHDRswZ5lsNYEmwPaRknMPCLZz07yTzVq/83p4o/wzbDZbBrTvGGTIw==}
     engines: {node: '>=18'}
 
+  bonjour-service@1.4.4:
+    resolution: {integrity: sha512-jCZcVv7eoc4QesRscwEZtSROBen+6LpKAmBIsQYQrsAeVHLyMXWX/t6eIV5KiRZYNUBl8eVqImEEMQ8L5+c/Kw==}
+
   boolean@3.2.0:
     resolution: {integrity: sha512-d0II/GO9uf9lfUHH2BQsjxzRJZBdsjgsBiW4BvhWk/3qoKwQFjIDVN19PfX8F2D/r9PCMTtLWjYVCFrpeYUzsw==}
     deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
@@ -18062,6 +18329,10 @@ packages:
 
   dmg-builder@26.17.0:
     resolution: {integrity: sha512-EAw1f2iGkICmUvAVBOjm7v5mxJdB7/+OZSycHFhKBimiTkCXtvkCC6wBKzHo7ZQYi58C2MmwIleRbgRnROlK2Q==}
+
+  dns-packet@5.6.1:
+    resolution: {integrity: sha512-l4gcSouhcgIKRvyy99RNVOgxXiicE+2jZoNmaNmZ6JXiGajBOJAesk1OBlJuM5k2c+eudGdLxDqXuPCKIj6kpw==}
+    engines: {node: '>=6'}
 
   dockerfile-ast@0.7.1:
     resolution: {integrity: sha512-oX/A4I0EhSkGqrFv0YuvPkBUSYp1XiY8O8zAKc8Djglx8ocz+JfOr8gP0ryRMC2myqvDLagmnZaU9ot1vG2ijw==}
@@ -18966,6 +19237,9 @@ packages:
     resolution: {integrity: sha512-FFUtZMpoZ8RqHS3XeXEmHWLA4thH+ZxCv2lOiPIn1Xc7CxrqhWzNSDzD+/chS/zbYezmiwWLdQC09JdQKmthOw==}
     engines: {node: '>=20'}
 
+  isomorphic.js@0.2.5:
+    resolution: {integrity: sha512-PIeMbHqMt4DnUP3MA/Flc0HElYjMXArsw1qwJZcm9sqR8mq3l8NYizFMty0pWwE/tzIGH3EKK5+jes5mAr85yw==}
+
   istanbul-lib-coverage@3.2.2:
     resolution: {integrity: sha512-O8dpsF+r0WV/8MNRKfnmrtCWhuKjxrq2w+jpzBL5UZKTi2LeVWnWOmWRxFlesJONmc+wLAGvKQZEOanko0LFTg==}
     engines: {node: '>=8'}
@@ -19204,6 +19478,11 @@ packages:
     peerDependenciesMeta:
       typescript:
         optional: true
+
+  lib0@0.2.119:
+    resolution: {integrity: sha512-vh+TiejVy8Xm+hCdnRfn9BthGNvNUZdEXltNjVZL3TzRIKP3s1lnQh8pWd/Q0wCgY0FPAGVVjFF4ZiHUV3LFgA==}
+    engines: {node: '>=16'}
+    hasBin: true
 
   libbase64@1.3.2:
     resolution: {integrity: sha512-fFCoI0ceXhTu/0QiJ6Uf6BV9k7X/8QW2/D4BR1vw3BPrHcIjLbGLH+U7inQ4SeWrfNCOmpGE09Qt4XjSFfus0g==}
@@ -19690,6 +19969,10 @@ packages:
 
   msgpackr@2.0.5:
     resolution: {integrity: sha512-cef05H/dSYpLpqp3sj/qyZh5vhUYCalnaLO7j1yOmpsR0y/XwLVtK7r5gn+U/F7CTEfMowcGhlUQJDLcLf7jcA==}
+
+  multicast-dns@7.2.5:
+    resolution: {integrity: sha512-2eznPJP8z2BFLX50tf0LuODrpINqP1RVIm/CObbTcBRITQgmC/TjcREF1NeTBzIcR5XO/ukWo+YHOjBbFwIupg==}
+    hasBin: true
 
   nanoid@3.3.18:
     resolution: {integrity: sha512-DTg4MJbGMWkfi6VZFdNt2/caMbQy4Ou+Op/hJQvGEWcnVfoA1QA+xzRKAzw9jD6+GVOOeYr/mIcuDSdug6F6+w==}
@@ -20791,6 +21074,9 @@ packages:
     resolution: {integrity: sha512-e2zZ96wSChazBsbENf/Pcm/4swHt2cEKQ92rhUjkL9GCKiTDJIaTBenjE/m9DXi0QBmTMDkFDdOomUy20A1tDQ==}
     engines: {node: '>=20'}
 
+  thunky@1.1.0:
+    resolution: {integrity: sha512-eHY7nBftgThBqOyHGVN+l8gF0BucP09fMo0oO/Lb0w1OF80dJv+lDVpXG60WMQvkcxAkNybKsrEIE3ZtKGmPrA==}
+
   tiny-async-pool@1.3.0:
     resolution: {integrity: sha512-01EAw5EDrcVrdgyCLgoSPvqznC0sVxDSVeiOz09FUpjh71G79VCqneOr+xvt7T1r76CF6ZZfPjHorN2+d+3mqA==}
 
@@ -21474,6 +21760,10 @@ packages:
   yargs@17.7.3:
     resolution: {integrity: sha512-GZtjxm/J/4TSxuL3FNYjCmLktBTnIw/rVmKSIyKeYAZpmJB2ig9VauCC5xsa82GNKVKDAqpOn3KVzNt0zmrU0g==}
     engines: {node: '>=12'}
+
+  yjs@13.6.27:
+    resolution: {integrity: sha512-OIDwaflOaq4wC6YlPBy2L6ceKeKuF7DeTxx+jPzv1FHn9tCZ0ZwSRnUBxD05E3yed46fv/FWJbvR+Ud7x0L7zw==}
+    engines: {node: '>=16.0.0', npm: '>=8.0.0'}
 
   yocto-queue@0.1.0:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
@@ -23315,6 +23605,8 @@ snapshots:
 
   '@koromix/koffi-win32-x64@3.1.1':
     optional: true
+
+  '@leichtgewicht/ip-codec@2.0.5': {}
 
   '@lexical/clipboard@0.49.0(typescript@6.0.3)':
     dependencies:
@@ -25231,6 +25523,11 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  bonjour-service@1.4.4:
+    dependencies:
+      fast-deep-equal: 3.1.3
+      multicast-dns: 7.2.5
+
   boolean@3.2.0: {}
 
   bowser@2.14.1: {}
@@ -25786,6 +26083,10 @@ snapshots:
     transitivePeerDependencies:
       - electron-builder-squirrel-windows
       - supports-color
+
+  dns-packet@5.6.1:
+    dependencies:
+      '@leichtgewicht/ip-codec': 2.0.5
 
   dockerfile-ast@0.7.1:
     dependencies:
@@ -26961,6 +27262,8 @@ snapshots:
 
   isexe@4.0.0: {}
 
+  isomorphic.js@0.2.5: {}
+
   istanbul-lib-coverage@3.2.2: {}
 
   istanbul-lib-report@3.0.1:
@@ -27216,6 +27519,10 @@ snapshots:
       '@lexical/internal': 0.49.0(typescript@6.0.3)
     optionalDependencies:
       typescript: 6.0.3
+
+  lib0@0.2.119:
+    dependencies:
+      isomorphic.js: 0.2.5
 
   libbase64@1.3.2: {}
 
@@ -27912,6 +28219,11 @@ snapshots:
   msgpackr@2.0.5:
     optionalDependencies:
       msgpackr-extract: 3.0.4
+
+  multicast-dns@7.2.5:
+    dependencies:
+      dns-packet: 5.6.1
+      thunky: 1.1.0
 
   nanoid@3.3.18: {}
 
@@ -29213,6 +29525,8 @@ snapshots:
     dependencies:
       real-require: 1.0.0
 
+  thunky@1.1.0: {}
+
   tiny-async-pool@1.3.0:
     dependencies:
       semver: 5.7.2
@@ -29870,6 +30184,10 @@ snapshots:
       string-width: 4.2.3
       y18n: 5.0.8
       yargs-parser: 21.1.1
+
+  yjs@13.6.27:
+    dependencies:
+      lib0: 0.2.119
 
   yocto-queue@0.1.0: {}
 

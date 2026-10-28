@@ -7,8 +7,9 @@ import type { User } from '@aeven/identity-user'
 import type { JobView, JobEvent } from '@aeven/jobs'
 import type { MessageId } from '@aeven/llm/brand'
 import type {
-  Session, SessionEvent, SessionEventMap, SessionId, UserMessage,
+  Session, SessionEvent, SessionEventMap, SessionHeader, SessionId, UserMessage,
 } from '@aeven/session'
+import type {} from '@aeven/session-handoff'
 import type { JsonValue } from '@aeven/util-values'
 import type {
   SessionControlBaseline,
@@ -19,14 +20,44 @@ import type {
   SessionQueuedItem,
 } from './types.ts'
 import { callerMayAccessSession } from './agent.ts'
+import { InteractionRelay, type SharedInteraction } from './interactions.ts'
+
+/** What the device writing a session shares of it with the account's other devices. */
+interface RemoteLive {
+  /** Whether a turn runs there. */
+  readonly running: boolean
+  /** What waits in its queue. */
+  readonly queue: readonly SessionQueuedItem[]
+  /** Approvals and questions waiting for an answer. */
+  readonly interactions: readonly SharedInteraction[]
+}
+
+/** Read another device's live state, which arrives over the wire. */
+function remoteLive(value: unknown): RemoteLive {
+  const record = typeof value === 'object' && value !== null ? value as Record<string, unknown> : {}
+  return {
+    running: record.running === true,
+    queue: Array.isArray(record.queue) ? record.queue as SessionQueuedItem[] : [],
+    interactions: Array.isArray(record.interactions) ? record.interactions as SharedInteraction[] : [],
+  }
+}
 
 /** Owns the Host-wide Session control stream. */
 export class SessionControlController {
   private readonly streams = new Set<ControlQueue>()
+  /** Approvals and questions answered on whichever device of the account the user holds. */
+  readonly interactions: InteractionRelay
 
-  /** @param ctx - Host context carrying live Agent, projection, and jobs services. */
-  constructor(private readonly ctx: Context) {
+  /**
+   * @param ctx - Host context carrying live Agent, projection, and jobs services.
+   * @param remoteAnswerMs - how long a request nobody answered here waits for another device's answer.
+   */
+  constructor(private readonly ctx: Context, remoteAnswerMs: number) {
+    this.interactions = new InteractionRelay(ctx, (agent) => { this.shareLive(agent) }, remoteAnswerMs)
     ctx.on('session/event', (session, event) => { this.onSessionEvent(session, event) })
+    // A turn running here, and what waits in its queue, show on the account's other devices too.
+    ctx.on('agent/status', ({ agent }) => { this.shareLive(agent) })
+    ctx.on('session-handoff/live', (owner, sessionId) => { this.onRemoteLive(owner, sessionId) })
     ctx.sessionProjections.onChanged((session, key, value, seq) => {
       this.broadcast({
         type: 'projection',
@@ -104,12 +135,35 @@ export class SessionControlController {
     const agent = this.ctx.agents.get(session.id)
     if (agent?.session !== session) return
     const claimed = claimedMessageIds(agent, event.data)
+    const items = queueItems(agent, event.data)
     this.broadcast({
       type: 'queue',
       sessionId: session.id,
-      items: queueItems(agent, event.data),
+      items,
       ...claimed.length === 0 ? {} : { claimed },
     })
+    this.shareLive(agent, items)
+  }
+
+  /** Publish an Agent's running state and queue to the account's other devices, clearing it once nothing is live. */
+  private shareLive(agent: Agent, spliced?: readonly SessionQueuedItem[]): void {
+    const owner = agent.session.header.owner
+    const handoff = this.ctx.get('sessionHandoff')
+    if (owner === undefined || handoff === undefined) return
+    const items = spliced ?? queueItems(agent)
+    const running = agent.status === 'running'
+    const interactions = this.interactions.pendingFor(agent.id)
+    const live = running || items.length > 0 || interactions.length > 0 ? { running, queue: items, interactions } : undefined
+    handoff.publishLive(owner, agent.id, live)
+  }
+
+  /** Show what another device shares of a session it writes: its running state and queue. */
+  private onRemoteLive(owner: string, sessionId: SessionId): void {
+    const live = remoteLive(this.ctx.get('sessionHandoff')?.liveOf(owner, sessionId))
+    const header = { id: sessionId, owner } as SessionHeader
+    this.broadcastFor(header, { type: 'queue', sessionId, items: live.queue })
+    this.ctx.emit('api-session/status', sessionId, live.running)
+    this.interactions.present(owner, sessionId, live.interactions)
   }
 
   private onJobsChanged(event: JobEvent): void {
@@ -135,7 +189,10 @@ export class SessionControlController {
 
   private broadcast(frame: SessionControlFrame & { readonly sessionId: SessionId }): void {
     const header = this.ctx.sessions.get(frame.sessionId)?.header
-    if (header === undefined) return
+    if (header !== undefined) this.broadcastFor(header, frame)
+  }
+
+  private broadcastFor(header: SessionHeader, frame: SessionControlFrame): void {
     for (const stream of this.streams) {
       if (callerMayAccessSession(this.ctx, header, stream.caller)) stream.push(frame)
     }

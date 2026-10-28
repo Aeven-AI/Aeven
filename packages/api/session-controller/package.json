@@ -102,7 +102,11 @@
     "@aeven/util-time": "workspace:^",
     "@aeven/util-workspace-path": "workspace:^",
     "@aeven/workspace": "workspace:^",
-    "@aeven/identity-user": "workspace:^"
+    "@aeven/identity-user": "workspace:^",
+    "@aeven/session-handoff": "workspace:^",
+    "@aeven/user-questions": "workspace:^",
+    "@aeven/user-approval": "workspace:^",
+    "@aeven/working-directory": "workspace:^"
   },
   "peerDependenciesMeta": {
     "@aeven/jobs": {
@@ -118,6 +122,15 @@
       "optional": true
     },
     "@aeven/document-extract": {
+      "optional": true
+    },
+    "@aeven/session-handoff": {
+      "optional": true
+    },
+    "@aeven/user-questions": {
+      "optional": true
+    },
+    "@aeven/user-approval": {
       "optional": true
     }
   },
@@ -159,6 +172,10 @@
     "@aeven/util-workspace-path": "workspace:^",
     "@aeven/workspace": "workspace:^",
     "@types/mime-types": "^3.0.1",
-    "@aeven/identity-user": "workspace:^"
+    "@aeven/identity-user": "workspace:^",
+    "@aeven/session-handoff": "workspace:^",
+    "@aeven/user-questions": "workspace:^",
+    "@aeven/user-approval": "workspace:^",
+    "@aeven/working-directory": "workspace:^"
   }
 }

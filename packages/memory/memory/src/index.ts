@@ -144,6 +144,12 @@ export function learnedProcedureOf(record: MemoryRecord): LearnedProcedure | und
 }
 
 /** Thrown when a memory operation runs while no provider is registered. */
+/**
+ * Account sync lease name of an account's memory maintenance: work that derives new memory from all stored memory,
+ * such as skill crystallization and merging learned procedures. With account sync, one device runs it at a time.
+ */
+export const MEMORY_MAINTENANCE_LEASE = 'memory/maintenance'
+
 export class MemoryUnavailableError extends Error {
   constructor() {
     super('No memory provider is registered')

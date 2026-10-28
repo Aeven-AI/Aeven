@@ -9,7 +9,7 @@ import { notarizeMacOSDiskImageArtifact } from './notarize-macos-disk-images.mjs
 import { notarizeMacOSApplicationAfterSign } from './notarize-macos-application.mjs'
 import { resolveWindowsAzureSigning } from './windows-azure-signing.mjs'
 import { desktopTargetBuildPaths, resolveDesktopBuildTarget } from './desktop-build-paths.mjs'
-import { MACOS_TEXT_INPUT_SETTINGS, MACOS_USAGE_DESCRIPTIONS } from './macos-usage-descriptions.mjs'
+import { MACOS_NETWORK_SETTINGS, MACOS_TEXT_INPUT_SETTINGS, MACOS_USAGE_DESCRIPTIONS } from './macos-usage-descriptions.mjs'
 
 /** GitHub repository whose Releases carry the installers and the update feed. */
 export const DESKTOP_RELEASE_REPOSITORY = { owner: 'Aeven-AI', repo: 'Aeven' }
@@ -90,7 +90,7 @@ export function createElectronBuilderConfig(
       // Apple's ticket-delivery service drops the lookup; the after-sign hook owns this step instead.
       notarize: false,
       target: ['dmg', 'zip'],
-      extendInfo: { ...MACOS_USAGE_DESCRIPTIONS, ...MACOS_TEXT_INPUT_SETTINGS },
+      extendInfo: { ...MACOS_USAGE_DESCRIPTIONS, ...MACOS_TEXT_INPUT_SETTINGS, ...MACOS_NETWORK_SETTINGS },
     },
     dmg: {
       // Mounted-volume icon in Finder and on the desktop.

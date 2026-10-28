@@ -360,6 +360,32 @@ runCoordinatorContract('memory', async (): Promise<CoordinatorFixture> => {
 })
 
 describe('PersistenceCoordinator seed ownership', () => {
+  it('announces a cold imported batch only after its durable append', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SessionStore)
+    const backend = new ControlledBackend()
+    let coordinator!: PersistenceCoordinator<never>
+    const fiber = await ctx.plugin(Object.assign((inner: Context) => {
+      coordinator = new PersistenceCoordinator(inner, backend)
+    }, { inject: ['sessions'] }))
+    const committed = vi.fn((header: SessionHeader, events: readonly SessionEvent[]) => {
+      expect(backend.store.get(header.id)?.events).toEqual(events)
+    })
+    ctx.on('session-persistence/append', committed)
+    try {
+      const header = { ...meta('cold-import'), replica: true as const }
+      await coordinator.create(header)
+      expect(committed).not.toHaveBeenCalled()
+      const events = oneTurnLog()
+      await coordinator.append(header.id, events)
+      expect(committed).toHaveBeenCalledWith(header, events)
+      expect(ctx.sessions.get(header.id)).toBeUndefined()
+    } finally {
+      await fiber.dispose()
+      await ctx.fiber.dispose()
+    }
+  })
+
   it('retains the immutable session seed without cloning it', async () => {
     const ctx = new Context()
     await ctx.plugin(SessionStore)

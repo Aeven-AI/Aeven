@@ -249,8 +249,8 @@ export class ApiSessionAgentController {
     try {
       return { agent: await resume }
     } catch (error: unknown) {
-      const { SessionPersistenceBusyError } = await import('@aeven/session-persistence')
-      if (error instanceof SessionPersistenceBusyError) {
+      const { SessionPersistenceBusyError, SessionPersistenceReadOnlyError } = await import('@aeven/session-persistence')
+      if (error instanceof SessionPersistenceBusyError || error instanceof SessionPersistenceReadOnlyError) {
         return { error: new RemoteError('session/agent-busy', error.message, { reason: error.message }) }
       }
       if (error instanceof ApiSessionNotFound) {

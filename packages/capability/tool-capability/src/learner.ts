@@ -9,7 +9,8 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { BlockAssembler, createUserMessage } from '@aeven/llm'
 import type { CapabilityOrigin, CapabilityRecord } from '@aeven/capability'
-import type { LearnedProcedure, MemoryDomain, MemoryItemId, MemoryScope, ProcedureStatus } from '@aeven/memory'
+import { MEMORY_MAINTENANCE_LEASE, type LearnedProcedure, type MemoryDomain, type MemoryItemId, type MemoryScope, type ProcedureStatus } from '@aeven/memory'
+import { LeaseHolder } from '@aeven/sync'
 import type { SessionId } from '@aeven/session/types'
 import { embeddedJsonObject } from '@aeven/util-values'
 import type { CompletedWork, WorkInstruction, WorkStep } from './executions.ts'
@@ -35,6 +36,10 @@ export interface LearnerConfig {
    * are merged in the background, once per owner and workspace per process; zero never merges.
    */
   readonly consolidateAbove: number
+  /** Lifetime of this device's claim on an account's memory maintenance under account sync, in milliseconds. */
+  readonly maintenanceTtlMs: number
+  /** Interval between renewals of that claim, in milliseconds. */
+  readonly maintenanceRenewMs: number
   /**
    * Memory store only: days a `candidate` procedure waits for confirming work before it is archived; archived
    * procedures are kept for restoring and are neither recalled nor merged into.
@@ -468,6 +473,8 @@ export class CapabilityLearner {
   private readonly merges = new Map<string, Promise<void>>()
   /** Owner and workspace pairs whose procedures were grouped for merging in this process. */
   private readonly consolidated = new Set<string>()
+  /** Per owner, this device's claim on the account's memory maintenance while account sync serves the account. */
+  private readonly maintenance = new Map<string, LeaseHolder>()
   private disposed = false
   private readonly logger: ReturnType<Context['logger']>
 
@@ -536,6 +543,8 @@ export class CapabilityLearner {
   dispose(): void {
     this.disposed = true
     this.recent.clear()
+    for (const holder of this.maintenance.values()) void holder.dispose()
+    this.maintenance.clear()
   }
 
   private qualifies(work: CompletedWork): boolean {
@@ -722,13 +731,33 @@ export class CapabilityLearner {
     const above = this.config.consolidateAbove
     if (above === 0 || kinds <= above) return
     const key = `${recent.owner}\u0000${recent.cwd ?? ''}`
-    if (this.consolidated.has(key)) return
+    if (this.consolidated.has(key) || !this.mayMaintain(recent.owner)) return
     this.consolidated.add(key)
     this.merge(recent.owner, async () => {
       const groups = await this.groupProcedures(recent)
       this.logger.info(`merging ${groups.length} groups of learned procedures of ${recent.owner}`)
       for (const group of groups) this.merge(recent.owner, () => this.mergeGroup(recent, group), `merging procedures into ${group.name}`)
     }, `grouping learned procedures of ${recent.owner}`)
+  }
+
+  /**
+   * Whether this device may merge an owner's procedures now. With account sync, every device sees the same
+   * procedures, so only the holder of the account's maintenance lease merges them; another device asks again at
+   * a later turn.
+   * @param owner - the account.
+   * @returns whether to merge now.
+   */
+  private mayMaintain(owner: string): boolean {
+    const sync = this.ctx.get('sync')
+    if (sync === undefined) return true
+    let holder = this.maintenance.get(owner)
+    if (holder === undefined) {
+      const timing = { ttlMs: this.config.maintenanceTtlMs, renewMs: this.config.maintenanceRenewMs }
+      holder = new LeaseHolder(sync, owner, MEMORY_MAINTENANCE_LEASE, timing)
+      this.maintenance.set(owner, holder)
+      holder.start()
+    }
+    return holder.held()
   }
 
   private merge(owner: string, job: () => Promise<void>, label: string): void {

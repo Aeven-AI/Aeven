@@ -279,7 +279,14 @@ flowchart LR
   pkg_tool_memory["tool-memory"]
   svc_memoryManagerController["ctx.memoryManagerController<br/>Memory manager Remote"]
   pkg_ui_settings_memory["ui-settings-memory"]
+  pkg_sync["sync"]
+  svc_sync["ctx.sync<br/>Account sync"]
+  pkg_sync_yjs["sync-yjs"]
   pkg_personalization["personalization"]
+  pkg_session_sync["session-sync"]
+  pkg_sync_controller["sync-controller"]
+  svc_syncController["ctx.syncController<br/>Sync Remote"]
+  pkg_ui_settings_sync["ui-settings-sync"]
   svc_personalizationController["ctx.personalizationController<br/>Personalization store and prompt section"]
   pkg_ui_settings_personalization["ui-settings-personalization"]
   pkg_skill_catalog["skill-catalog"]
@@ -428,6 +435,9 @@ flowchart LR
   pkg_subprocess --> svc_subprocess
   pkg_subprocess_e2b --> svc_subprocess
   pkg_subprocess_local --> svc_subprocess
+  pkg_sync --> svc_sync
+  pkg_sync_controller --> svc_syncController
+  pkg_sync_yjs --> svc_sync
   pkg_system_prompt --> svc_systemPrompt
   pkg_terminal --> svc_terminals
   pkg_terminal_bash --> svc_terminals
@@ -566,6 +576,11 @@ flowchart LR
   svc_subprocess --> pkg_subagent_claude_code
   svc_subprocess --> pkg_subagent_codex
   svc_subprocess --> pkg_terminal_bash
+  svc_sync --> pkg_memory_memos
+  svc_sync --> pkg_personalization
+  svc_sync --> pkg_session_sync
+  svc_sync --> pkg_sync_controller
+  svc_syncController --> pkg_ui_settings_sync
   svc_systemPrompt --> pkg_agent_loop
   svc_systemPrompt --> pkg_tool_fs
   svc_systemPrompt --> pkg_tool_terminal
@@ -694,6 +709,8 @@ flowchart LR
 | `ctx.mail` | `seam` | [`mail`](../packages/mail/mail) | `account-integrations` | [`tool-mail`](../packages/mail/tool-mail) | - | Account sources register owner-scoped accounts, and every operation resolves its named account for the given owner before a socket opens. 账号来源注册按所有者隔离的账号，每个操作在打开套接字之前先为给定所有者解析出所命名的账号。 |
 | `ctx.memory` | `seam` | [`memory`](../packages/memory/memory) | [`memory-memos`](../packages/memory/memory-memos) | [`api-memory-manager`](../packages/memory/api-memory-manager), [`memory-context`](../packages/memory/memory-context), [`memory-memos`](../packages/memory/memory-memos), [`tool-capability`](../packages/capability/tool-capability), [`tool-memory`](../packages/memory/tool-memory) | - | One registered provider serves recall, turn capture, and inspection to every memory consumer; the definition holds no storage of its own. 唯一注册的提供方向每个记忆消费者提供回忆、回合捕获与检查；定义本身不持有存储。 |
 | `ctx.memoryManagerController` | `core` | [`api-memory-manager`](../packages/memory/api-memory-manager) | - | `ui-settings-memory` | - | Serves what Aeven has learned about the signed-in user, with view, correct, and forget, always for the caller of the running request. 提供 Aeven 对已登录用户所了解到的一切，含查看、更正与遗忘，且始终服务于当前请求的调用方。 |
+| `ctx.sync` | `seam` | [`sync`](../packages/sync/sync) | [`sync-yjs`](../packages/sync/sync-yjs) | [`memory-memos`](../packages/memory/memory-memos), [`personalization`](../packages/preset/personalization), [`session-sync`](../packages/session/session-sync), `sync-controller` | - | 让账户的文档和流在该账户的每台设备上保持一致，并通过 Aeven 中转服务器端到端加密传输。 |
+| `ctx.syncController` | `core` | `sync-controller` | - | `ui-settings-sync` | - | 开启账户同步、加入与批准设备以及移除设备，始终为当前请求的调用方执行。 |
 | `ctx.personalizationController` | `core` | [`personalization`](../packages/preset/personalization) | - | `ui-settings-personalization` | - | One Host row owns each account's voice and notes, the Remote behind Settings → Personalization, and the system-prompt section that renders the session owner's preferences after the persona. 一个宿主行拥有每个账号的声音与笔记、设置 → 个性化背后的 Remote，以及在 persona 之后渲染会话所有者偏好的系统提示词段落。 |
 | `ctx.skillCatalog` | `core` | [`skill-catalog`](../packages/skill/skill-catalog) | - | `account-integrations` | - | Read-only local source of installable skills: the catalog lists what a reader may install and the installer reads one entry's files from the same tree. 可安装 skill 的本地只读来源：目录列出读者可安装的内容，安装器从同一棵树读取某个条目的文件。 |
 | `ctx.speechController` | `core` | [`api-speech-to-text`](../packages/speech/api-speech-to-text) | - | `ui-voice-input` | - | Authenticated, cancellation-aware Client access to speech preparation and transcription; a speech call never activates or submits to an Agent. 经过认证且可取消的客户端语音准备与转写访问；一次语音调用不会激活或提交给 agent。 |

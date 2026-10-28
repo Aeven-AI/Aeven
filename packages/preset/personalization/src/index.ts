@@ -19,7 +19,9 @@ import { PERSONA_SECTION } from '@aeven/system-prompt'
 import { Remote, TypertRemoteService } from '@aeven/typert-protocol'
 import type { Agent } from '@aeven/agent'
 import type {} from '@aeven/identity-user'
+import type {} from '@aeven/sync'
 import { PersonalizationStore } from './store.ts'
+import { PersonalizationSync } from './sync.ts'
 import type { StoredChange } from './store.ts'
 import type {
   PersonalizationChange, PersonalizationState, PersonalizationUpdate, PersonalizationView,
@@ -64,6 +66,7 @@ export default class PersonalizationController extends TypertRemoteService {
   })
 
   private readonly store: PersonalizationStore
+  private readonly synced: PersonalizationSync
 
   /**
    * @param ctx - Host context carrying identity, the agent registry, and the prompt registry.
@@ -74,6 +77,10 @@ export default class PersonalizationController extends TypertRemoteService {
     super(ctx, 'personalizationController', { namespace: 'personalization' })
     if (!isAbsolute(config.root)) throw new Error(`personalization root must be absolute: ${config.root}`)
     this.store = new PersonalizationStore(config.root, config.maxNotesChars, config.maxMasterPromptChars)
+    this.synced = new PersonalizationSync(ctx, this.store, (message) => { ctx.logger('personalization').warn(message) })
+    // Each account's preferences follow it to every device its sync vault holds, once that vault is served here.
+    ctx.on('sync/status', (owner) => { void this.synced.attach(owner) })
+    ctx.effect(() => () => { void this.synced.dispose() }, 'personalization.sync')
 
     /* jscpd:ignore-start -- mirrors @aeven/memory-context's per-agent prompt-section fibers for its own block */
     // Registered in each agent's own scope, so each session renders the preferences — and the master prompt — of
@@ -125,6 +132,7 @@ export default class PersonalizationController extends TypertRemoteService {
   @Remote
   get(): PersonalizationView {
     const owner = this.owner()
+    void this.synced.attach(owner)
     return this.view(this.store.read(owner), owner)
   }
 
@@ -151,6 +159,7 @@ export default class PersonalizationController extends TypertRemoteService {
   }
 
   private change(stored: StoredChange, owner: string): PersonalizationChange {
+    if (stored.changed) void this.synced.publish(owner, stored.state)
     return {
       changed: stored.changed,
       ...stored.reason === undefined ? {} : { reason: stored.reason },

@@ -135,6 +135,8 @@ export type WorkspaceBrowserInjected = {
   renameWorkspace: (workspaceId: WorkspaceId, title: string) => Promise<void>
   /** Delete only a Host Workspace registration; directory and Session logs remain. */
   deleteWorkspace: (workspaceId: WorkspaceId) => Promise<void>
+  /** Ask for a folder of this device and give it to a Workspace that has none here. */
+  bindWorkspace: (workspaceId: WorkspaceId) => void
   /**
    * Reorder a Workspace in the durable registry display order.
    * Omitted anchor appends to the end.

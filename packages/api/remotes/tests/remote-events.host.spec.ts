@@ -79,6 +79,22 @@ function invocationOf(value: unknown): TypertRemoteEventInvocation {
 }
 
 describe('Remote event Host source', () => {
+  it('keeps metadata-only conversation notifications scoped to their account before any live Session exists', async () => {
+    const { ctx, gateway } = await setup()
+    const abort = new AbortController()
+    const iterator = sourceOf(gateway)(abort.signal)[Symbol.asyncIterator]()
+    try {
+      emitRaw(ctx, 'api-session/added', [{ sessionId: 'shared' }, 'account'])
+      expect((await iterator.next()).value).toMatchObject({ audience: { owner: 'account' } })
+      emitRaw(ctx, 'api-session/status', ['shared', true])
+      expect((await iterator.next()).value).toMatchObject({ audience: { owner: 'account' } })
+    } finally {
+      abort.abort()
+      await iterator.return?.()
+      await ctx.fiber.dispose()
+    }
+  })
+
   it('registers the Host home used by Client connection generations', async () => {
     const { gateway, fiber } = await setup()
     expect(gateway.host?.home).toBeTypeOf('string')

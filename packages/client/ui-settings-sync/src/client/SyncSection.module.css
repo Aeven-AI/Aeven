@@ -1,0 +1,92 @@
+/* Sync settings: the Memory section's quiet cards and type scale. */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  color: var(--dsw-alias-label-primary);
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: 16px;
+}
+
+.title {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.body,
+.note,
+.failed {
+  margin: 0;
+}
+
+.note {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.failed {
+  color: var(--dsw-alias-label-danger, var(--dsw-alias-label-primary));
+}
+
+.code {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.request {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 8px 0;
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.request .code {
+  font-size: 1.125rem;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.subtitle {
+  margin: 4px 0 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.devices {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.device {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 36px;
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
+}

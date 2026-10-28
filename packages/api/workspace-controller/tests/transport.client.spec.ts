@@ -29,6 +29,7 @@ import type {
   WorkspaceInsertBeforeRequest,
   WorkspaceInsertSessionBeforeRequest,
   WorkspaceOrderValue,
+  WorkspaceBindRequest,
   WorkspaceRenameRequest,
   WorkspaceId,
   WorkspaceValue,
@@ -129,6 +130,10 @@ class ScriptedWorkspaceRemote implements WorkspaceRemote {
     throw new Error('unused')
   }
 
+  bind(_request: WorkspaceBindRequest): Promise<RemoteResult<WorkspaceValue>> {
+    throw new Error('unused')
+  }
+
   delete(_request: WorkspaceDeleteRequest): Promise<RemoteResult<WorkspaceDeleteValue>> {
     throw new Error('unused')
   }
@@ -173,6 +178,10 @@ class CommandWorkspaceRemote implements WorkspaceRemote {
 
   readonly rename = vi.fn<WorkspaceRemote['rename']>(request => Promise.resolve(remoteOk({
     workspace: workspace(String(request.workspaceId), { title: request.title }),
+  })))
+
+  readonly bind = vi.fn<WorkspaceRemote['bind']>(request => Promise.resolve(remoteOk({
+    workspace: workspace(String(request.workspaceId), { path: request.path, kind: 'folder' }),
   })))
 
   readonly delete = vi.fn<WorkspaceRemote['delete']>(() => Promise.resolve(remoteOk({ deleted: true })))

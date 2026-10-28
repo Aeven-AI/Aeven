@@ -13,6 +13,7 @@ import type {
   WorkspaceInsertBeforeRequest,
   WorkspaceInsertSessionBeforeRequest,
   WorkspaceOrderValue,
+  WorkspaceBindRequest,
   WorkspaceRenameRequest,
   WorkspaceValue,
   WorkspaceId,
@@ -95,6 +96,11 @@ class FakeWorkspaceRemote implements WorkspaceRemote {
   rename(request: WorkspaceRenameRequest): Promise<RemoteResult<WorkspaceValue>> {
     this.record('rename', request)
     return this.onRename(request)
+  }
+
+  bind(request: WorkspaceBindRequest): Promise<RemoteResult<WorkspaceValue>> {
+    this.record('bind', request)
+    return this.onRename({ workspaceId: request.workspaceId, title: request.path })
   }
 
   delete(request: WorkspaceDeleteRequest): Promise<RemoteResult<WorkspaceDeleteValue>> {

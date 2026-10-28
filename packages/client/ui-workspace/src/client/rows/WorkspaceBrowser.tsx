@@ -181,6 +181,8 @@ type SessionTreeProps = Pick<
   onRenameRequest: (workspaceId: WorkspaceId, currentTitle: string) => void
   /** Open the browser-owned delete-confirmation dialog for a real Workspace group. */
   onDeleteRequest: (workspaceId: WorkspaceId, currentTitle: string) => void
+  /** Ask for a folder of this device for a Workspace that has none here. */
+  onBindRequest: (workspaceId: WorkspaceId) => void
   /** Open the browser-owned session rename dialog. */
   onSessionRename: (sessionId: SessionNode['id'], currentTitle: string) => void
   /** Archive a session (row menu action; the row disappears on the state echo). */
@@ -198,7 +200,7 @@ function SessionTree({
   useSessions, useSessionPendingInteraction, startSession, newSessionHref, open, forkSession, workspaces,
   archivedSessionIds, hideManaged, archivedSection,
   workspaceReady,
-  onRenameRequest, onDeleteRequest, onSessionRename, onSessionArchive,
+  onRenameRequest, onDeleteRequest, onBindRequest, onSessionRename, onSessionArchive,
   insertWorkspaceBefore, insertSessionBefore, orderBy,
   groupExpansion, setGroupExpanded,
   sessionOrderByAccount, sessionUpdatedAtByAccount, syncSessionOrderAccount, setSessionOrder, t,
@@ -480,6 +482,12 @@ function SessionTree({
                     /* v8 ignore next -- narrowing guard: the actions object exists only for real-workspace groups. */
                       if (group.workspaceId !== undefined) onDeleteRequest(group.workspaceId, group.label)
                     },
+                    bind: group.remote
+                      ? () => {
+                        /* v8 ignore next -- narrowing guard: the actions object exists only for real-workspace groups. */
+                        if (group.workspaceId !== undefined) onBindRequest(group.workspaceId)
+                      }
+                      : undefined,
                   }}
               />
               {(sessionsExpanded
@@ -587,6 +595,7 @@ function ArchivedSection({
     workspaceId: undefined,
     isBuiltIn: true,
     managed: true,
+    remote: false,
     cwd: undefined,
     createdAt: undefined,
     label: '',
@@ -758,6 +767,7 @@ export function WorkspaceBrowser({
   forkSession,
   renameWorkspace,
   deleteWorkspace,
+  bindWorkspace,
   insertWorkspaceBefore,
   archiveSession,
   unarchiveSession,
@@ -1029,6 +1039,7 @@ export function WorkspaceBrowser({
                 setDeleteTarget({ workspaceId, title })
                 setDeleteError(null)
               }}
+              onBindRequest={bindWorkspace}
             />
           ))}
       </div>

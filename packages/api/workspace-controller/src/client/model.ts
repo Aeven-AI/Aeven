@@ -102,6 +102,18 @@ export class ClientWorkspaceModel implements WorkspaceFollowSink {
   }
 
   /**
+   * Give a Workspace a directory of this Host and adopt the returned row.
+   * @param workspaceId - target Workspace.
+   * @param path - directory on this Host.
+   * @returns generated Remote result.
+   */
+  async bind(workspaceId: WorkspaceId, path: string): Promise<RemoteResult<WorkspaceValue>> {
+    const result = await this.remote.bind({ workspaceId, path })
+    if (result.ok) this.upsert(result.value.workspace)
+    return result
+  }
+
+  /**
    * Delete a Workspace and remove it from the local projection immediately.
    * @param workspaceId - target Workspace.
    * @returns generated Remote result.

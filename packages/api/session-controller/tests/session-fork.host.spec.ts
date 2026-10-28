@@ -103,6 +103,38 @@ describe('sessions.fork', () => {
     await ctx.fiber.dispose()
   })
 
+  it.each([undefined, '/local/project'])('continues a replica with the local workspace path %s and leaves its source untouched', async (path) => {
+    const sourceId = sid('replica-source')
+    const attachSession = vi.fn<Workspace['attachSession']>().mockResolvedValue(undefined)
+    const workspace = path === undefined ? undefined : { path, sessionIds: [sourceId], attachSession } as unknown as Workspace
+    const ctx = await composed(workspace === undefined ? [] : [workspace])
+    try {
+      const template = liveAgent(ctx, 'template', 2, 'open')
+      const events = template.snapshotEvents()
+      const header: SessionHeader = { ...template.header, id: sourceId, replica: true, cwd: '/other-device/project' }
+      ctx.provide('sessionPersistence', testSessionPersistence(ctx, {
+        list: () => Promise.resolve([header]),
+        inspect: () => Promise.resolve({ meta: header, inheritedEventCount: SessionLogOffset(0), events }),
+      }) as never)
+      const resume = vi.spyOn(ctx.agents, 'resume')
+      const response = await remote(ctx).fork({ sessionId: sourceId })
+      expect(response.ok ? undefined : response.error).toBeUndefined()
+      if (!response.ok) return
+      const child = ctx.sessions.get(response.value.sessionId)!
+      expect(child.header.parentSession).toBe(sourceId)
+      expect(child.header.replica).toBeUndefined()
+      expect(child.header.cwd).toBe(path)
+      expect(child.snapshotEvents().filter(event => event.type === 'turn/start')).toHaveLength(2)
+      expect(() => child.append('turn/start', { turn: 3 })).not.toThrow()
+      expect(resume).not.toHaveBeenCalled()
+      expect(ctx.sessions.get(sourceId)).toBeUndefined()
+      expect(events.at(-1)?.type).toBe('user/message')
+      if (workspace !== undefined) expect(attachSession).toHaveBeenCalledWith(child.id)
+    } finally {
+      await ctx.fiber.dispose()
+    }
+  })
+
   it('attaches a subagent fork to its nearest workspace-owning ancestor', async () => {
     const accounted: SessionId[] = []
     const attachSession = vi.fn<(sessionId: SessionId) => Promise<void>>()

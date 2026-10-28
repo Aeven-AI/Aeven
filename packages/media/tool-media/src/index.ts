@@ -751,7 +751,8 @@ function installSelection<C extends ModelSelection>(ctx: Context, spec: Selectio
   // patch into the user layer.
   let remember: (choice: Pick<ModelSelection, 'provider' | 'model'>) => Promise<void> = async () => {}
   ctx.inject(['settings'], (settingsCtx: Context) => {
-    const scope = settingsCtx.settings.register(spec.namespace, spec.schema, { base: spec.base })
+    // The chosen media models follow the account to every device.
+    const scope = settingsCtx.settings.register(spec.namespace, spec.schema, { base: spec.base, reach: 'account' })
     current = () => scope.get()
     remember = async (choice) => {
       await scope.update({ ...choice, modelChosen: true })

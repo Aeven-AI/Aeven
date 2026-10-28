@@ -18,7 +18,7 @@ import type { SessionPersistenceRevision } from './revision.ts'
 // Re-export the metadata vocabulary so Consumers import it from the Service Definition.
 export type { SessionHeader } from '@aeven/session'
 export { SessionPersistenceRevision } from './revision.ts'
-export { SessionPersistenceBusyError, SessionPersistenceNotFoundError } from './errors.ts'
+export { SessionPersistenceBusyError, SessionPersistenceNotFoundError, SessionPersistenceReadOnlyError } from './errors.ts'
 
 /** Lightweight immutable source identity returned without loading a full log. */
 export interface SessionPersistenceSnapshot {
@@ -96,6 +96,17 @@ export type {
 } from './coordinator.ts'
 
 declare module '@deepseek-ai/cordis' {
+  interface Events {
+    /**
+     * A contiguous event batch committed to durable storage, including cold replicated logs.
+     * @mode emit
+     * @param header - the persisted session's metadata.
+     * @param events - the newly committed events.
+     * @avnScopeScan unsupported
+     */
+    'session-persistence/append'(header: SessionHeader, events: readonly SessionEvent[]): void
+  }
+
   interface Context {
     sessionPersistence: SessionPersistence
   }
@@ -185,6 +196,16 @@ export abstract class SessionPersistence extends Service {
    * for a seeded header and omitted only for an unseeded header.
    */
   abstract create(meta: SessionHeader, inheritedEventCount?: SessionLogOffset): Promise<void>
+
+  /**
+   * Change whether a cold stored session permits local execution without changing its log bytes.
+   * @param _id - stored session; live or reserved sessions are refused.
+   * @param _replica - true for a received copy, false after exclusive runner ownership is acquired.
+   * @returns when the local execution marker is durable.
+   */
+  setReplica(_id: SessionId, _replica: boolean): Promise<void> {
+    return Promise.reject(new Error('this session persistence backend cannot change replica ownership'))
+  }
 
   /**
    * Ensure a live session has a durable header even when it has no events.

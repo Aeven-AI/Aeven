@@ -33,7 +33,7 @@ import type {
   SessionLocation,
   SessionStorageMetadata,
 } from './index.ts'
-import { SessionPersistenceNotFoundError } from './errors.ts'
+import { SessionPersistenceBusyError, SessionPersistenceNotFoundError, SessionPersistenceReadOnlyError } from './errors.ts'
 import type { SessionPersistenceRevision } from './revision.ts'
 import { observeQueuedAbort, SessionPreparations } from './preparations.ts'
 import type { SessionPreparationReservation } from './preparations.ts'
@@ -163,6 +163,13 @@ export interface PersistenceBackend<TornMarker = unknown> {
    * @returns synchronous disposer for the claim.
    */
   acquireWriter?(id: SessionId): Promise<() => void>
+
+  /**
+   * Persist local execution ownership separately from the append-only log.
+   * @param id - stored session protected by the coordinator's writer lock.
+   * @param replica - whether local execution is refused.
+   */
+  setStoredReplica?(id: SessionId, replica: boolean): Promise<void>
 
   /**
    * Read a stored prefix by id, scanning every backend storage scope. Returns
@@ -796,6 +803,32 @@ export class PersistenceCoordinator<TornMarker = unknown> {
     })
   }
 
+
+  /**
+   * Change the execution marker only while no live or prepared owner can retain the old header.
+   * @param id - stored session.
+   * @param replica - whether the session is read-only on this device.
+   */
+  setReplica(id: SessionId, replica: boolean): Promise<void> {
+    return this.serialize(id, async () => {
+      if (this.ctx.sessions.get(id) !== undefined || this.preparations.hasReservation(id)
+        || this.states.get(id)?.owner !== undefined) throw new SessionPersistenceBusyError(id)
+      if (this.backend.setStoredReplica === undefined) throw new Error('this backend cannot change replica ownership')
+      await this.claimWriter(id)
+      try {
+        const stored = await this.backend.loadStored(id)
+        if (stored === undefined) throw new SessionPersistenceNotFoundError(id)
+        this.assertStoredId(id, stored.meta)
+        this.assertVersion(stored.meta)
+        await this.backend.setStoredReplica(id, replica)
+        this.states.delete(id)
+        this.preparations.invalidate(id)
+      } finally {
+        this.releaseWriter(id)
+      }
+    })
+  }
+
   private async createCore(storage: SessionStorageMetadata): Promise<void> {
     const { meta } = storage
     // Do NOT clobber an existing session: the SessionId IS the identity.
@@ -878,6 +911,7 @@ export class PersistenceCoordinator<TornMarker = unknown> {
     state.materialized = true
     state.cursor = nextCursor
     this.preparations.invalidate(id)
+    this.ctx.emit('session-persistence/append', state.storage.meta, events)
   }
 
   /**
@@ -1151,7 +1185,7 @@ export class PersistenceCoordinator<TornMarker = unknown> {
       }
 
       // Preserve complete interrupted events and synthesize only missing closers.
-      const closers = interruptedTurnClosers(storedEvents).map(adoptSessionEvent)
+      const closers = meta.replica ? [] : interruptedTurnClosers(storedEvents).map(adoptSessionEvent)
       const balanced = [...storedEvents, ...closers]
       const session = this.ctx.sessions.prepare(id, {
         seed: balanced,
@@ -1304,7 +1338,10 @@ export class PersistenceCoordinator<TornMarker = unknown> {
       return await this.preparations.reserve(
         id,
         () => this.serialize(id, () => this.prepareCore(id)),
-        source => this.serialize(id, () => this.commitPrepared(source), signal),
+        source => this.serialize(id, () => {
+          if (source.inspection.meta.replica) throw new SessionPersistenceReadOnlyError(id)
+          return this.commitPrepared(source)
+        }, signal),
         signal,
       )
     } catch (error: unknown) {

@@ -8,6 +8,7 @@ import { WorkspaceFeed } from './feed.ts'
 import type {
   WorkspaceArchiveSessionRequest,
   WorkspaceArchiveValue,
+  WorkspaceBindRequest,
   WorkspaceCreateRequest,
   WorkspaceCreateValue,
   WorkspaceDeleteRequest,
@@ -68,6 +69,17 @@ export class WorkspaceController extends TypertRemoteService {
   @Remote('rename')
   rename(request: WorkspaceRenameRequest): Promise<WorkspaceValue> {
     return this.commands.rename(request)
+  }
+
+  /**
+   * Give a Workspace without a directory on this Host, such as one another device of the account registered, a
+   * directory here. The directory stays on this Host.
+   * @param request - Workspace identity and directory path.
+   * @returns the updated Workspace projection.
+   */
+  @Remote('bind')
+  bind(request: WorkspaceBindRequest): Promise<WorkspaceValue> {
+    return this.commands.bind(request)
   }
 
   /**

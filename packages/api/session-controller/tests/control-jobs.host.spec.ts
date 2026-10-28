@@ -51,7 +51,7 @@ async function harness(withJobs: boolean): Promise<{
     ctx,
   } as Agent
   ctx.agents.register(agent)
-  const control = new SessionControlController(ctx)
+  const control = new SessionControlController(ctx, 1_000)
   await new Promise(resolve => setTimeout(resolve, 0))
   return { ctx, session, agent, control }
 }

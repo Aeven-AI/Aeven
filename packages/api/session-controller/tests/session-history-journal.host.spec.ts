@@ -3,7 +3,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import AgentRegistry from '@aeven/agent'
-import SessionStore, { SessionSeq } from '@aeven/session'
+import SessionStore, { SessionSeq, SessionLogOffset } from '@aeven/session'
 import { decodeStorageRecord, type ChunkRow } from '@aeven/session/chunk-rows'
 import { ToolCallId, createMessage, createToolResultMessage, createUserMessage } from '@aeven/llm'
 import type { Session, SessionEvent, SessionId } from '@aeven/session'
@@ -14,7 +14,7 @@ import type {
   SessionPage,
   SessionWireEvent,
 } from '@aeven/api-session-controller/types'
-import { createSessionTestRemote, installSessionReadTestServices } from './test-remote.ts'
+import { createSessionTestRemote, installSessionReadTestServices, testSessionPersistence } from './test-remote.ts'
 
 /** Append a production-shaped human prompt to the session surface. */
 function appendUserText(session: Session, text: string): SessionEvent {
@@ -102,6 +102,35 @@ function chunkRow(event: ChunkRowEvent): ChunkRow {
 }
 
 describe('Session history raw journal', () => {
+  it('follows durable replica imports without publishing a local session', async () => {
+    const { ctx } = await harness()
+    const source = ctx.sessions.create()
+    source.append('turn/start', { turn: 1 })
+    appendUserText(source, 'from the first device')
+    const events = source.snapshotEvents()
+    const id = 'remote-replica' as SessionId
+    const header = { ...source.header, id, replica: true as const }
+    ctx.provide('sessionPersistence', testSessionPersistence(ctx, {
+      list: () => Promise.resolve([header]),
+      inspect: () => Promise.resolve({ meta: header, inheritedEventCount: SessionLogOffset(0), events }),
+    }) as never)
+    const history = new SessionHistoryController(ctx, (observation) => { observation[Symbol.dispose]() })
+    const abort = new AbortController()
+    const iterator = history.follow({ address: { kind: 'session', sessionId: id } }, abort.signal)[Symbol.asyncIterator]()
+    try {
+      expect((await iterator.next()).value).toMatchObject({ type: 'snapshot', header: { replica: true } })
+      const next = iterator.next()
+      const event = { type: 'turn/end', seq: SessionSeq(2), time: 3, data: { turn: 1, reason: { kind: 'completed' } } } as const
+      ctx.emit('session-persistence/append', header, [event])
+      expect((await next).value).toMatchObject({ type: 'event', event })
+      expect(ctx.sessions.get(id)).toBeUndefined()
+    } finally {
+      abort.abort()
+      await iterator.return?.()
+      await ctx.fiber.dispose()
+    }
+  })
+
   it('follows raw tool events and preserves result metadata without a Tools service', async () => {
     const { ctx } = await harness()
     const session = ctx.sessions.create(undefined, { meta: { cwd: '/workspace' } })

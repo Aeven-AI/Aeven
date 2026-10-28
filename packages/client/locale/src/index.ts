@@ -18,6 +18,7 @@ export function apply(ctx: Context): void {
     settingsCtx.settings.register(
       LOCALE_SETTINGS_NAMESPACE,
       LocaleSettingsSchema,
+      { reach: 'account' },
     )
   })
 }

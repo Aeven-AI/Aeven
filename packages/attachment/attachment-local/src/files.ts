@@ -11,7 +11,13 @@ import { cleanDisplayName, objectDigest, objectPath, publishObject, readObject }
 
 const ID_PATTERN = /^sha256:([a-f0-9]{64})$/
 
-function addressOf(id: AttachmentId): string {
+/**
+ * The hex digest of a content address.
+ * @param id - `sha256:<hex>` content address.
+ * @returns the lowercase hex digest.
+ * @throws {AttachmentError} when the address is malformed.
+ */
+export function addressOf(id: AttachmentId): string {
   const match = ID_PATTERN.exec(String(id))
   if (match?.[1] === undefined) throw new AttachmentError('Attachment reference is invalid.', 'INVALID_ATTACHMENT_REF')
   return match[1]

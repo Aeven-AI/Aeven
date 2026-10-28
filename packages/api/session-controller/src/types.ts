@@ -197,6 +197,8 @@ export type QueueAction =
 
 /** One Session list entry. */
 export interface SessionSummary {
+  /** Another device writes this log; input typed here is forwarded to it, and its events arrive as they commit. */
+  readonly replica?: true
   readonly sessionId: SessionId
   /** Session header creation time, epoch ms. */
   readonly createdAt: number
@@ -647,8 +649,9 @@ declare module '@deepseek-ai/cordis' {
      * A Session became visible to Session list consumers.
      * @mode emit
      * @param summary - initial list row for the Session.
+     * @param owner - account for metadata-only rows whose Session is not live locally.
      */
-    'api-session/added'(summary: SessionSummary): void
+    'api-session/added'(summary: SessionSummary, owner?: string): void
     /**
      * A Session left the live Host registry.
      * @mode emit

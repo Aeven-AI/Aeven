@@ -103,6 +103,8 @@ export interface GroupNode {
    * no New Session control there.
    */
   managed: boolean
+  /** Whether the backing Workspace has no directory on this device yet, such as one another device registered. */
+  remote: boolean
   cwd: string | undefined
   /** Workspace creation time (epoch ms); absent for derived buckets. */
   createdAt: number | undefined
@@ -170,6 +172,7 @@ interface Group {
   workspaceId: WorkspaceId | undefined
   isBuiltIn: boolean
   managed: boolean
+  remote: boolean
   cwd: string | undefined
   createdAt: number | undefined
   label: string
@@ -365,6 +368,7 @@ function groupByWorkspace(
       workspaceId: workspace.workspaceId,
       isBuiltIn: workspace.isBuiltIn,
       managed: isManagedWorkspace(workspace),
+      remote: workspace.kind === 'remote',
       // The wire carries "no directory" as JSON `null`; the grouping vocabulary
       // speaks `undefined`, so absence is translated once, here.
       cwd: workspace.path ?? undefined,
@@ -384,6 +388,7 @@ function groupByWorkspace(
       // the built-in one; it already renders without row actions.
       isBuiltIn: false,
       managed: false,
+      remote: false,
       cwd: undefined,
       createdAt: undefined,
       label: '',
@@ -466,6 +471,7 @@ export function deriveGroups(
       workspaceId: g.workspaceId,
       isBuiltIn: g.isBuiltIn,
       managed: g.managed,
+      remote: g.remote,
       cwd: g.cwd,
       createdAt: g.createdAt,
       label: g.label,
@@ -565,6 +571,7 @@ export function deriveStatusBuckets(
       // the renderer offers it no Workspace actions and no reorder drag.
       isBuiltIn: true,
       managed: true,
+      remote: false,
       cwd: undefined,
       createdAt: undefined,
       label: '',

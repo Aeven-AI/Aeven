@@ -98,6 +98,26 @@ export function appendLog(session: Session, events: readonly SessionEvent[]): vo
  */
 export function runPersistenceContract(name: string, make: () => Promise<ContractBackend>): void {
   describe(`SessionPersistence contract: ${name}`, () => {
+    it('imports a replicated open turn without repairing it and refuses resume and recovery', async () => {
+      const { persistence, dispose } = await make()
+      try {
+        const header = { ...meta('replicated-session'), replica: true as const }
+        const events = oneTurnLog().slice(0, 2)
+        await persistence.create(header)
+        await persistence.append(header.id, events)
+        const inspected = await persistence.inspect(header.id)
+        expect(inspected.meta.replica).toBe(true)
+        expect(inspected.events).toEqual(events)
+        await expect(persistence.prepare(header.id)).rejects.toThrow(/replicated from another device/)
+        await expect(persistence.load(header.id)).rejects.toThrow(/replicated from another device/)
+        expect((await persistence.readFrom(header.id, SessionLogOffset(0))).events).toEqual(events)
+        await persistence.append(header.id, oneTurnLog().slice(2))
+        expect((await persistence.inspect(header.id)).events).toEqual(oneTurnLog())
+      } finally {
+        await dispose()
+      }
+    })
+
     it('round-trips a session: create + append → load returns identical meta and byte-identical events', async () => {
       const { persistence, dispose } = await make()
       try {

@@ -165,3 +165,15 @@ describe('isImageAdmissionError', () => {
     expect(isImageAdmissionError(new Error('unknown failure'))).toBe(false)
   })
 })
+
+describe('object access on a provider without objects', () => {
+  it('rejects every object operation', async () => {
+    const store = new UnsupportedProjectionStore(new Context())
+    const id = AttachmentId(`sha256:${'a'.repeat(64)}`)
+    await expect(store.readObject(id)).rejects.toMatchObject({ code: 'OBJECTS_UNSUPPORTED' })
+    await expect(store.hasObject(id)).rejects.toMatchObject({ code: 'OBJECTS_UNSUPPORTED' })
+    await expect(store.importObject(id, new Uint8Array(0))).rejects.toMatchObject({ code: 'OBJECTS_UNSUPPORTED' })
+    const aborted = AbortSignal.abort(new Error('stop'))
+    expect(() => store.readObject(id, aborted)).toThrow('stop')
+  })
+})

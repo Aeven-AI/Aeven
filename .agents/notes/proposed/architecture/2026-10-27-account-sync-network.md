@@ -26,7 +26,7 @@ The state that has to move is large, mixed in kind, and stored by different owne
 Four properties of this state shape the design:
 
 - **Session logs already have the replication properties sync needs.** The persistence seam pins four invariants: append-only, contiguous `seq`, lossless JSON, and `append` resolving only after durability ([README](../../../../packages/session/session-persistence/README.md)). Rewind and compaction are appended events (`session/rewind`, `compaction/*` in [the session subsystem](../../../../docs/subsystems/session.md)), not rewrites, so copying a log means copying events in `seq` order.
-- **Session logs have no cross-process writer lock.** Appends are plain `open(path, 'a')`, and the backend README states one live writer per session without enforcing it ([hosted Web surface note](2026-09-30-hosted-web-surface-and-sync.md)). Two devices appending to one session would interleave.
+- **One writer per session is enforced only within one home.** `acquireWriter` holds a kernel file lock per session under the storage root ([`writer-lock.ts`](../../../../packages/session/session-persistence-jsonl/src/writer-lock.ts)), so two Host processes on one home cannot both write a session, but nothing coordinates two devices. Two devices appending to one session would interleave.
 - **Sessions are filed under machine paths.** `projectKey(cwd)` encodes the absolute working directory into the folder name, and the workspace record stores the absolute `path`. A second machine, especially Windows, has neither path.
 - **MemOS writes from many places.** Turn capture, the revision loop, background L2 policy and L3 world-model induction, skill crystallization, consolidation, and the Aeven learner all write `memos.db`. A sync bridge that hooks individual write paths misses the next one added.
 
@@ -50,13 +50,13 @@ The server side constrains the key design. Sign-in is Apple, Google, or X OAuth,
 | Session events | Stream per session | One writer at a time through the session lease; contiguous `seq`; receivers request gaps |
 | Session metadata (title, pin, archive, fork parent) | Document | Field-level merge |
 | Workspace registry | Document; `path` becomes a per-device binding kept local | Field-level merge; membership by set |
-| Memory rows (traces, episodes, policies, world model, skills, links, trials, feedback) | Documents sharded by table and, for traces, by creation month | Field-level merge; a forget tombstone wins over a concurrent edit |
+| Memory rows (traces, episodes, MemOS sessions, policies, trace-policy links, world model, skills, skill trials, feedback, decision repairs, L2 candidate pool) | Documents sharded by table and by the leading characters of the row id | Field-level merge; a forget tombstone wins over a concurrent edit |
 | Learned capabilities | Document (file contents keyed by path) | Field-level merge |
 | Personalization, account-scoped settings | Document | Field-level merge |
 | Automation definitions | Document; runs execute under a per-automation lease | Field-level merge |
 | Message feedback | Document per session | Field-level merge |
 | Attachments | Encrypted content-addressed blobs, fetched on demand | Content address; no conflict |
-| Embeddings, FTS indexes, projection caches, `api_logs`, `audit_events` | Not synchronized; rebuilt or kept local | — |
+| Embeddings, FTS indexes, projection caches, MemOS `api_logs`, `audit_events`, `kv`, `embedding_retry_queue`, and hub tables | Not synchronized; rebuilt or kept local | — |
 | Credentials, provider keys, connector tokens | Not synchronized; connectors already live on the server per account | — |
 | Device-specific settings (ports, paths, runtimes, Chrome profile, speech models) | Not synchronized | — |
 
@@ -64,7 +64,7 @@ This replicates raw memory traces, which the [long-term memory roadmap](../featu
 
 ### Two replication primitives
 
-**Documents** use [Yjs](https://github.com/yjs/yjs). A Yjs update is an opaque binary value; updates merge in any order, and applying one twice has no effect. That lets each update be encrypted on its own and lets the server store and forward ciphertext it cannot read or merge. Concurrent writes to one map key resolve deterministically by client id, not by wall clock, so no device clock affects the outcome. Each device keeps document state locally and loads a document only while a consumer has it open; memory trace shards keep any one loaded document to a few megabytes. The server keeps, per document, the latest encrypted snapshot plus the encrypted updates after it. Any device holding a document periodically uploads a new snapshot, after which the server drops the updates it covers. The [secsync](https://github.com/nikgraf/secsync) design for encrypted Yjs is the reference for the snapshot and update chain.
+**Documents** use [Yjs](https://github.com/yjs/yjs). A Yjs update is an opaque binary value; updates merge in any order, and applying one twice has no effect. That lets each update be encrypted on its own and lets the server store and forward ciphertext it cannot read or merge. Concurrent writes to one map key resolve deterministically by client id, not by wall clock, so no device clock affects the outcome. Each device keeps document state locally and loads a document only while a consumer has it open; sharding memory tables by row-id prefix keeps a loaded document under one megabyte ([phase 0 findings](#phase-0-findings)). The server keeps, per document, the latest encrypted snapshot plus the encrypted updates after it. Any device holding a document periodically uploads a new snapshot, after which the server drops the updates it covers. The [secsync](https://github.com/serenity-kit/secsync) design for encrypted Yjs is the reference for the snapshot and update chain.
 
 **Streams** carry session events. A session has one writer at a time, so the events need ordering, not merging. The writer sends batches of consecutive events (closed after 100 ms or a size limit) as stream envelopes tagged with their first and last `seq`. A receiver appends a batch only when it continues its local log contiguously, and requests the missing range otherwise. Streaming `assistant/chunk` events this way lets a second device watch a reply as it is generated.
 
@@ -112,12 +112,16 @@ Two paths outside sync still carry plaintext through Aeven infrastructure and ne
 - **Inference.** Model requests from a local Host go through the Aeven gateway, so each turn's prompt, including recalled memory, passes through it in plaintext, as does the background memory work that calls a model. The gateway must not store request or response bodies, and that is stated publicly beside the sync promise.
 - **An Aeven-hosted Host.** A hosted Web surface ([hosted Web surface note](2026-09-30-hosted-web-surface-and-sync.md)) run by Aeven would need the vault key, which breaks the promise. Browser access to a vault goes through one of the user's own devices.
 
-### Sessions: replication, writer lease, and paths
+### Sessions: one runner, input from anywhere, and paths
 
-- **Writer lease.** A device appends to a session only while it holds that session's lease. The server grants leases; when the server is unreachable, the device currently holding a lease can hand it over directly to a LAN peer. A device that cannot reach either continues the conversation as a fork (a new session with a parent reference) rather than appending. The JSONL provider gains a cross-process advisory lock so two Host processes on one home cannot append to one session either.
-- **Import.** A received batch is written through the persistence provider with its original `seq`, envelope fields, and event ids; projections and caches rebuild from the log as they do on resume. Imported events never enter a live agent loop, and no tool runs because an event arrived. The log is the model-visible record, so reconstructability is unchanged.
-- **Live view.** A device that does not hold the lease renders the session as its events arrive and shows which device is running it. "Continue here" asks for the lease; the holder releases it when its turn is idle, and otherwise the requester forks.
-- **Workspaces and paths.** The synchronized workspace record keeps its UUID, title, and session ids; `path` becomes a per-device binding stored locally. On a device without a binding, the workspace and its sessions are readable and the user binds a folder, or Aeven proposes the folder whose git remote matches. Imported logs are filed under the local binding's `projectKey`, or under a per-workspace remote folder before binding. Continuing a session whose recorded working directory belongs to another machine forks it with the local directory, because its tool history refers to the other machine's paths.
+A session stays a single-writer log — contiguous `seq`, replayed exactly on every device — and the product never asks the user which device writes it. One device is the session's **runner** at a time; every device lists the session, renders the same events, and accepts typing.
+
+- **Live view.** The runner publishes batches as events commit rather than on a periodic scan: a debounce of about 100 ms while a turn is open. A receiver imports each batch through the persistence provider with its original `seq`, and a client attached to any device already receives imported appends as frames ([`follow`](../../../../packages/api/session-controller/src/history.ts)), so a reply streams on every device. Importing never runs a tool because an event arrived, and imported events never enter a live agent loop.
+- **Input from any device.** A prompt submitted where this device does not hold the lease is published to the session's inbox stream; the runner appends it as an ordinary user message and runs the turn. The composer is enabled everywhere, and the only visible trace of the runner is a status line naming the device running the current turn. A message typed during a turn reaches the runner's queue in the order the inbox received it.
+- **Runner lease and invisible handover.** The server grants the session lease, and a device that holds it offline hands it directly to a LAN peer. A device claims an idle session when the lease is free or expired, and claiming promotes the local copy to a writable log: the replica flag moves into a sidecar so the imported log header stays byte-identical, and the claim waits until the import cursor reaches `next`, so no turn starts on a gap. The claiming device then writes the following events. Forking is not the product's answer to "I am on my other computer": it survives only for a session whose log this device cannot read at all.
+- **Approvals, stop, and steering.** A turn that asks for approval records `approval/asked` in the log; the request and its decision also travel the inbox, so the device the user is holding can answer, and stop and mid-turn guidance arrive the same way. The runner stays the only writer of those events, and only the owner's account may answer.
+- **Unreachable runner.** When no device holding a readable log is reachable, input waits in the inbox rather than forking the conversation. A promoted device runs the turn in its own binding for that workspace, because the recorded `cwd` names the other machine's folder: a path-bound tool whose target is absent reports that in the transcript instead of failing the turn. A workspace with no binding here asks for one first, which is the same "Not on this device" state the registry already has.
+- **Workspaces and paths.** The synchronized workspace record keeps its UUID, title, and session ids; `path` becomes a per-device binding stored locally. On a device without a binding, the workspace and its sessions are readable and the user binds a folder.
 - **Lazy bodies.** A new device downloads session metadata first and session bodies when opened or in a throttled background pass, so the session list is available long before 686 MB has arrived.
 
 ### Memory: capture, materialization, and maintenance
@@ -148,9 +152,8 @@ The base bundle mounts the sync rows disabled; the desktop profile patch enables
 
 ### Prerequisites in existing packages
 
-- The workspace registry is one global unit today. It needs an owner per workspace before it can join an account's vault ([per-account isolation](../../implemented/architecture/2026-09-30-per-account-isolation-on-a-shared-host.md)).
-- The settings capability declares each key as account-scoped or device-scoped; only account-scoped keys synchronize.
-- The JSONL provider takes a cross-process advisory lock per session for appends.
+- Workspace records already carry `owner` ([per-account isolation](../../implemented/architecture/2026-09-30-per-account-isolation-on-a-shared-host.md)), and the JSONL provider already locks each session writer per home.
+- The settings capability declares each namespace as account-scoped or device-scoped, and only account-scoped namespaces synchronize. Account-scoped namespaces include `ui-theme`, `locale`, `ui-chat`, `ui-conversation`, `agent-default-model`, `media`, and `media-video`; `device`, `ui-developer`, and provider-key namespaces stay on the device. The declaration lands in phase 3 together with the consumer that reads it.
 
 ### Server changes (`servers/node`)
 
@@ -181,26 +184,48 @@ Estimates are engineer-weeks for one developer who knows this codebase, includin
 
 | Phase | Scope | Engineer-weeks |
 |---|---|---|
-| 0. Prerequisites and spikes | Workspace owner, settings scope, JSONL append lock; spikes for Electron passkey PRF, MemOS row-id uniqueness and trigger survival, Yjs shard size, vector recompute time | 2 |
+| 0. Experiments | MemOS row ids and triggers, Yjs shard size, vector recomputation, Electron passkeys ([findings](#phase-0-findings)) | done |
 | 1. Vault and devices | Keys, envelope, device chain, approval with code comparison, passkey PRF enrollment and unlock, removal and epochs; server storage and passkey endpoints; minimal UI | 3–4 |
 | 2. Sync core and relay | `ctx.sync`, Yjs manager, `sync.db`, outbox, server WebSocket rooms, encrypted store, snapshots, catch-up, status | 3–4 |
-| 3. Account documents | Personalization, account settings, workspace registry with bindings, automations, feedback, capabilities | 1.5–2 |
+| 3. Account documents | Settings scope declaration, personalization, account settings, workspace registry with bindings, automations, feedback, capabilities | 2–2.5 |
 | 4. Memory | Triggers, shards, materialization, local vectors, forget, maintenance lease, backfill | 3–4 |
-| 5. Sessions | Streams, import, live view, session lease, continue or fork, path rebinding, lazy bodies, backfill | 3–4 |
+| 5. Sessions | Streams, import, live view at turn speed, runner lease, input and approvals from any device, promotion without forks, path rebinding, lazy bodies, backfill | 4–5 |
 | 6. Attachments | Encrypted blobs, on-demand fetch | 1 |
 | 7. Local-network peers | mDNS, peer transport, peer authentication, lease handover | 1.5–2 |
 | 8. Hardening and release | Convergence, crash, offline, and revocation verification on macOS, Windows, and Linux; resource budgets; documentation; fixes from security review | 3 |
-| **Total** | | **21–27** |
+| **Total** | | **20.5–25.5** |
 
-An external review of the vault and envelope design and code is recommended before release; it runs in parallel with phases 5–8. Phases 0–4 alone deliver memory, learned capabilities, personalization, and settings that are identical across devices, which is 12.5–16 engineer-weeks.
+An external review of the vault and envelope design and code is recommended before release; it runs in parallel with phases 5–8. Phases 1–4 alone deliver memory, learned capabilities, personalization, and settings that are identical across devices, which is 11–14.5 engineer-weeks.
+
+<a id="phase-0-findings"></a>
+### Phase 0 findings
+
+Measured on the developer's own account (21,887 traces) on an Apple-silicon Mac.
+
+- **Prerequisites.** Workspace ownership and the per-home session writer lock already exist; only the settings scope remains, and it lands in phase 3.
+- **Row ids.** MemOS ids are a type prefix plus 12 random Crockford base-32 characters, 60 random bits (`vendor/memos-local-plugin/src/core/id.ts`). MemOS `sessions` rows use Aeven session ids, and `trace_policy_links` keys on two such ids. Rows created on different devices do not collide.
+- **Replicated and local tables.** Replicated: `traces`, `episodes`, `sessions`, `policies`, `trace_policy_links`, `world_model`, `skills`, `skill_trials`, `feedback`, `decision_repairs`, and `l2_candidate_pool`, the induction working set, so a new maintenance-lease holder continues where the previous one stopped. Local: `api_logs`, `audit_events`, `embedding_retry_queue`, `kv` (induction retry bookkeeping), hub tables, `schema_migrations`, and FTS tables.
+- **Triggers.** MemOS already maintains its FTS tables with triggers, and none of its 14 migrations drops or rebuilds a table, so added triggers survive migrations. A trigger records only table, key, and operation, and the publisher reads the whole row, so columns added by later migrations replicate without trigger changes. A receiver writes the columns its schema has and keeps the rest in the document.
+- **Shard key.** October 2026 alone holds 21,878 traces with 56 MB of text, so month shards fail. Sharding by the first two characters of the random id part gives 1,024 shards per table; the largest is 587 KB and loads in 3.7 ms. The Yjs encoding of all trace rows without vectors (71 MB) is the size of their JSON, and a one-field edit is a 43-byte update. Tables with fewer than a few thousand rows use one character (32 shards).
+- **Vectors.** `Xenova/multilingual-e5-small` (q8, CPU) embeds a summary in 2.6 ms, about 2 minutes for both vectors of every trace; texts longer than 512 tokens are split into pieces and take longer. Vectors are recomputed locally and not replicated.
+- **Passkeys in Electron.** Electron's built-in WebAuthn does not reach platform passkeys on macOS ([electron/electron#24573](https://github.com/electron/electron/issues/24573)); pull request [#51563](https://github.com/electron/electron/pull/51563) proposes `app.configureWebAuthn()`, and community native modules expose PRF on macOS 15 and later. The first release runs the passkey ceremony in the system browser on an `aeven.io` page, which unwraps the vault key in the page and hands it to the Host through a loopback request. A native ceremony replaces it once a released Electron supports platform passkeys with PRF.
+
+### Built so far
+
+The [account sync packages](../../../../packages/sync/README.md) and the `servers/node` relay implement phases 1–5, phase 6, and phase 7's local-network transport, with these differences from the plan above:
+
+- **Joining** is answered only by a device whose add-device screen is open, and opening that screen asks a waiting device to repeat its request, so a background or headless device never takes a join meant for the user's open screen.
+- **Memory vectors travel** with the rows, tagged with the embedding model, instead of being recomputed: MemOS's vector source texts are internal to it. A device on another model keeps its own vectors.
+- **Memory rows** replicate per row, last writer wins, with tombstones that win over concurrent edits; shards key on the first one or two characters of the random id part.
+- **Conversations** are published by the device writing each session, and every device of the account lists, replays, types into, and answers approvals for any of them: a device that does not hold the runner lease forwards its input to the device that does, over the relay or, on one local network, directly. Claiming an idle session promotes the local log instead of forking it, and a device that holds a whole log continues a conversation whose writer is idle while the relay is unreachable. Forking stays a user's own choice rather than a consequence of where a conversation lives.
+- **Devices** are named by host name, listed in Settings → Sync, and removed with a key rotation; a removed device joins again with new keys.
+- Not built: the production `/sync` route on aeven.io, and the Windows and Linux passkey ceremonies that phase 8 verifies.
 
 ### Open questions
 
-1. Whether Electron 44 exposes platform passkeys with PRF on macOS, Windows, and Linux. macOS requires an associated-domains entitlement for `aeven.io`. If it does not, the ceremony runs in the system browser on an `aeven.io` page that unwraps the vault key in the page and hands it to the Host over a loopback request, which makes the page's served code part of what the user trusts.
-2. Whether every MemOS primary key is globally unique across devices, and which MemOS tables beyond those listed are canonical rather than derived.
-3. Shard size that keeps loaded Yjs documents small for accounts with 100,000 traces.
-4. Whether local vector recomputation for a full memory download finishes in acceptable background time, or whether vectors should travel as encrypted blobs tagged with the embedding model.
-5. Server storage per account and the quota policy for accounts with several gigabytes of sessions.
+1. Which browsers and passkey providers return PRF results in the system-browser ceremony on Windows and Linux. A device without one enrolls through approval from another device.
+2. Server storage per account and the quota policy for accounts with several gigabytes of sessions.
+3. Resharding when a table outgrows 1,024 shards, at roughly ten times the current largest account.
 
 ## Alternatives considered
 
@@ -222,12 +247,14 @@ An external review of the vault and envelope design and code is recommended befo
 
 **Session logs as CRDT documents** (`Y.Array` per session). A session has one writer, so merging is never needed, and holding gigabytes of events in CRDT documents costs memory and storage for no gain.
 
-**Building on the hosted Web surface's sync stage.** That note's Stage 4 proposes moving settings, capabilities, and memory first and importing sessions before any replication service, and rejects log replication because the JSONL backend has no cross-process writer lock. This note adds that lock and the session lease, and owns account synchronization from here.
+**Read-only replicas with forks.** Letting every device read another device's session but write only by creating a linked copy asks the user to manage which machine holds their conversation, and a copy splits the reply history from its continuation. The log stays single-writer; what moves is the input and the lease.
+
+**Building on the hosted Web surface's sync stage.** That note's Stage 4 proposes moving settings, capabilities, and memory first and importing sessions before any replication service, and rejects log replication because one writer per session was not enforced across Hosts. The per-session file lock covers Hosts on one home, this note's session lease covers devices, and this note owns account synchronization.
 
 ## Acceptance criteria
 
 - With two devices online through the server, a memory captured on one is recalled on the other within 2 seconds at the 95th percentile; on one local network, within 1 second.
-- A session running on device A appears on device B with its reply streaming; B cannot append without the lease; "Continue here" hands the lease over when A is idle and forks otherwise.
+- A session running on device A appears on device B with its reply streaming; a prompt typed on B reaches A's turn, an approval asked by that turn can be answered on B, and a prompt typed on either device while neither holds a turn runs on whichever device holds the lease.
 - A new device that signs in with the passkey restores memory, capabilities, personalization, settings, and the session list with no other device online.
 - A new device without the passkey joins only after the user confirms matching codes on an enrolled device.
 - A search of the server's database and object storage for a known memory sentence, session title, and file name finds nothing; no document or stream id on the server matches its logical name.
@@ -241,7 +268,7 @@ An external review of the vault and envelope design and code is recommended befo
 ## Risks
 
 - **Permanent loss.** Losing the passkey and every enrolled device loses the vault. This is accepted and has to be stated where the user creates the passkey.
-- **Served unlock page.** If Electron cannot run the passkey ceremony, the user trusts the code `aeven.io` serves for the unlock page.
+- **Served unlock page.** While the passkey ceremony runs in the system browser, the user trusts the code `aeven.io` serves for the unlock page.
 - **Plaintext outside sync.** The inference gateway sees each turn's prompt and recalled memory; without a body-free logging commitment, end-to-end sync does not make the product private.
 - **Metadata.** The server still learns device count, activity timing, sizes, and IP addresses.
 - **Local-network listener.** The LAN transport opens a listening port, which triggers the macOS incoming-connection prompt and is new attack surface; it speaks only the sync protocol and authenticates every peer against the chain.

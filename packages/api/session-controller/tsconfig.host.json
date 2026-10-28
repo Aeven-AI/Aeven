@@ -14,6 +14,7 @@
     "src/image-catalog.ts",
     "src/commands.ts",
     "src/control.ts",
+    "src/interactions.ts",
     "src/file-references.ts",
     "src/file-uploads.ts",
     "src/history.ts",
@@ -23,6 +24,7 @@
     "src/skill-catalog.ts"
   ],
   "references": [
+    { "path": "../../session/working-directory" },
     { "path": "../../../vendor/cordis" },
     { "path": "../../../vendor/schemastery" },
     { "path": "../../core/agent" },
@@ -42,6 +44,9 @@
     { "path": "../../util/native-command" },
     { "path": "../../preset/agent-presets" },
     { "path": "../../session/session-persistence" },
+    { "path": "../../session/session-handoff" },
+    { "path": "../../interaction/user-approval" },
+    { "path": "../../interaction/user-questions" },
     { "path": "../../session/session-projection" },
     { "path": "../../session/session-projection-cache" },
     { "path": "../../session/session-title" },

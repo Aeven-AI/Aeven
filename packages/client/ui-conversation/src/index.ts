@@ -18,6 +18,7 @@ export function apply(ctx: Context): void {
     settingsCtx.settings.register(
       CONVERSATION_SETTINGS_NAMESPACE,
       ConversationSettingsSchema,
+      { reach: 'account' },
     )
   })
 }

@@ -43,6 +43,9 @@
     },
     {
       "path": "../../llm/llm-retry"
+    },
+    {
+      "path": "../../sync/sync"
     }
   ]
 }

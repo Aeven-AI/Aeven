@@ -66,6 +66,10 @@ export interface Config {
    * merged in the background, once per owner and workspace per process; zero never merges.
    */
   consolidateAbove: number
+  /** Lifetime of this device's claim on an account's memory maintenance under account sync, in milliseconds. */
+  maintenanceTtlMs: number
+  /** Interval between renewals of that claim, in milliseconds. */
+  maintenanceRenewMs: number
   /** Memory store: days an unconfirmed candidate procedure waits before it is archived. */
   candidateTtlDays: number
 }
@@ -85,6 +89,8 @@ export const Config: z<Config> = z.object({
   model: z.string(),
   store: z.union(['memory', 'capabilities'] as const).default('memory'),
   consolidateAbove: z.natural().default(40),
+  maintenanceTtlMs: z.natural().min(1_000).default(180_000),
+  maintenanceRenewMs: z.natural().min(100).default(60_000),
   candidateTtlDays: z.natural().min(1).default(30),
 })
 

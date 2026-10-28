@@ -1016,6 +1016,7 @@ function applyMutation(summaries: readonly SessionSummary[], mutation: SessionLi
         // Blank only lowers: a stale true (session-added racing the local
         // first send) never re-hides an already-surfaced session.
         blank: existing.blank && mutation.summary.blank,
+        ...(mutation.summary.replica ? { replica: true as const } : {}),
         ...(existing.cwd === undefined && mutation.summary.cwd !== undefined ? { cwd: mutation.summary.cwd } : {}),
         ...(existing.parentSessionId === undefined && mutation.summary.parentSessionId !== undefined
           ? { parentSessionId: mutation.summary.parentSessionId } : {}),
@@ -1023,7 +1024,7 @@ function applyMutation(summaries: readonly SessionSummary[], mutation: SessionLi
           ? { origin: mutation.summary.origin } : {}),
       }
       if (filled.cwd === existing.cwd && filled.parentSessionId === existing.parentSessionId
-        && filled.origin === existing.origin && filled.blank === existing.blank
+        && filled.origin === existing.origin && filled.blank === existing.blank && filled.replica === existing.replica
       ) return [...summaries]
       return summaries.map(summary => summary.sessionId === mutation.summary.sessionId ? filled : summary)
     }

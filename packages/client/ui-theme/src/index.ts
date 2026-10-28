@@ -37,7 +37,7 @@ function readSection(ctx: Context): { preference: ThemePreference; fontSize: num
  */
 export function apply(ctx: Context): void {
   ctx.inject(['settings'], (settingsCtx) => {
-    settingsCtx.settings.register(THEME_NAMESPACE, ThemeSettingsSchema)
+    settingsCtx.settings.register(THEME_NAMESPACE, ThemeSettingsSchema, { reach: 'account' })
   })
   ctx.on('webserver/index-inject', (table) => {
     const section = readSection(ctx)

@@ -9,6 +9,7 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { randomUUID } from 'node:crypto'
 import { capabilityName, CapabilityStore, supportingPath } from './store.ts'
+import { CapabilitySync, type SyncedCapability } from './sync.ts'
 import { judge, supportedStatus } from './policy.ts'
 import { redactSecrets } from './redact.ts'
 import type {
@@ -66,12 +67,22 @@ export default class Capabilities extends Service {
 
   private readonly store: CapabilityStore
   private readonly writes = new Map<string, Promise<unknown>>()
+  private readonly synced: CapabilitySync
+  /** Capabilities whose files another device wrote here, which must not be published back. */
+  private readonly applying = new Set<string>()
 
   constructor(ctx: Context, private readonly config: Config) {
     super(ctx, 'capabilities')
     if (!isAbsolute(config.root)) throw new Error(`capabilities root must be absolute: ${config.root}`)
     this.store = new CapabilityStore(config.root)
-
+    this.synced = new CapabilitySync(
+      ctx,
+      (owner, name, entry) => { this.applySynced(owner, name, entry) },
+      (message) => { ctx.logger('capabilities').warn(message) },
+    )
+    // Each account's capabilities follow it to every device its sync vault holds, once that vault is served here.
+    this.ctx.on('sync/status', (owner) => { void this.synced.attach(owner) })
+    ctx.effect(() => () => this.synced.dispose(), 'capabilities.sync')
   }
 
   /**
@@ -334,6 +345,57 @@ export default class Capabilities extends Service {
     return await this.store.get(owner, name) as Capability
   }
 
+  /**
+   * Publish one capability to the account's other devices after a local write.
+   * @param owner - account id.
+   * @param name - capability name.
+   */
+  private publish(owner: string, name: string): void {
+    void this.publishOne(owner, name).catch((error: unknown) => {
+      this.ctx.logger('capabilities').warn(`capabilities: ${name} was not published to the account: ${String(error)}`)
+    })
+  }
+
+  private async publishOne(owner: string, name: string): Promise<void> {
+    const record = await this.store.record(owner, name)
+    if (record === undefined) {
+      await this.synced.forget(owner, name, Date.now())
+      return
+    }
+    await this.synced.publish(owner, name, {
+      files: await this.store.files(owner, name),
+      revision: record.revision,
+      changedAt: record.updatedAt,
+    })
+  }
+
+  /**
+   * Apply another device's capability or removal when it is newer than what this device holds.
+   * @param owner - account id.
+   * @param name - capability name.
+   * @param entry - the synced files or the removal.
+   */
+  private applySynced(owner: string, name: string, entry: SyncedCapability): void {
+    const key = JSON.stringify([owner, name])
+    this.applying.add(key)
+    void this.serialize(owner, name, async () => {
+      const current = await this.store.record(owner, name)
+      // A later write wins; at the same instant the entry the document stored last wins.
+      if (current !== undefined && current.updatedAt > entry.changedAt) return
+      if (entry.removed === true) {
+        if (current === undefined) return
+        await this.store.remove(owner, name)
+        return
+      }
+      if (entry.files === undefined) return
+      const files: Record<string, string> = await this.store.files(owner, name).catch(() => ({}))
+      if (JSON.stringify(files) === JSON.stringify(entry.files)) return
+      await this.store.replaceFiles(owner, name, entry.files)
+    }).catch((error: unknown) => {
+      this.ctx.logger('capabilities').warn(`capabilities: another device's ${name} was not stored: ${String(error)}`)
+    }).finally(() => { this.applying.delete(key) })
+  }
+
   private async require(owner: string, name: string): Promise<Capability> {
     const current = await this.store.get(owner, name)
     if (current === undefined) throw new Error(`no capability named ${name}`)
@@ -350,6 +412,7 @@ export default class Capabilities extends Service {
       if (this.writes.get(key) === settled) this.writes.delete(key)
     })
     return run.then((result) => {
+      if (!this.applying.has(key)) this.publish(owner, name)
       try {
         this.ctx.emit('capabilities/changed', { owner, name })
       } catch (error: unknown) {

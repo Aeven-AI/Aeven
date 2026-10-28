@@ -90,6 +90,8 @@ export const SESSION_FORMAT_VERSION = 0
  * Immutable validated storage metadata, kept outside the conversation event log.
  */
 export interface SessionHeader {
+  /** Local replica of another device's log: readable and forkable, but never resumed or repaired here. */
+  readonly replica?: true
   /**
    * On-disk format version, stamped from {@link SESSION_FORMAT_VERSION} when the
    * session is created. A persistence backend rejects any other version on load
@@ -162,6 +164,8 @@ export interface CreateSessionOptions {
     readonly delegationDepth?: number
     readonly agentPreset?: string
     readonly owner?: string
+    /** Local replica that cannot be executed or repaired on this device. */
+    readonly replica?: true
   }
 }
 

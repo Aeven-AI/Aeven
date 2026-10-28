@@ -741,6 +741,16 @@ describe('SettingsProvider.installSection', () => {
     expect(current()).toEqual({ theme: 'entry' })
   })
 
+  it('declares a section that belongs to the account, and a device section by default', async () => {
+    const { ctx } = await boot()
+    ctx.settings.installSection(ctx, 'helper-ns', HelperSchema, { theme: 'entry' }, { reach: 'account', setSource: () => {}, onChange: () => {} })
+    ctx.settings.register('device-ns', HelperSchema)
+    expect(ctx.settings.describe().map(({ ns, reach }) => ({ ns, reach }))).toEqual([
+      { ns: 'helper-ns', reach: 'account' },
+      { ns: 'device-ns', reach: 'device' },
+    ])
+  })
+
   it('stays silent when the consumer itself unloads', async () => {
     const { ctx } = await boot({ doc: { 'helper-ns': { theme: 'user' } } })
     const entry = { theme: 'entry' }

@@ -181,6 +181,12 @@ describe('JsonlSessionPersistence: format helpers', () => {
       .toThrow('unseeded session header inherited event count must be 0')
   })
 
+  it('round-trips the replica marker and refuses malformed marker values', () => {
+    const line = toHeaderLine({ ...meta('replica'), replica: true })
+    expect(scanLog(Buffer.from(`${JSON.stringify(line)}\n`)).meta.replica).toBe(true)
+    expect(() => scanLog(Buffer.from(`${JSON.stringify({ ...line, replica: false })}\n`))).toThrow(/session header/)
+  })
+
   it('round-trips the subagent origin and rejects other physical values', () => {
     const line = toHeaderLine({ ...meta('subagent-origin'), origin: 'subagent' })
     expect(scanLog(Buffer.from(`${JSON.stringify(line)}\n`)).meta.origin).toBe('subagent')
@@ -318,6 +324,33 @@ describe('JsonlSessionPersistence: format helpers', () => {
 })
 
 describe('JsonlSessionPersistence: durability and crash semantics', () => {
+  it('promotes and demotes a cold replica durably without changing its header or event bytes', async () => {
+    const m = { ...meta('promoted-copy'), replica: true as const }
+    await ctx.sessionPersistence.create(m)
+    await ctx.sessionPersistence.append(m.id, oneTurnLog())
+    const path = rawLogPath(root, m.cwd, m.id)
+    const bytes = await readFile(path)
+    expect(JSON.parse(bytes.toString().split('\n')[0]!) as Record<string, unknown>).not.toHaveProperty('replica')
+    await expect(ctx.sessionPersistence.prepare(m.id)).rejects.toThrow(/replicated/)
+    const before = (await ctx.sessionPersistence.listSnapshots())[0]!.revision
+    await ctx.sessionPersistence.setReplica(m.id, false)
+    expect((await ctx.sessionPersistence.inspect(m.id)).meta.replica).toBeUndefined()
+    expect((await ctx.sessionPersistence.list())[0]!.replica).toBeUndefined()
+    expect((await ctx.sessionPersistence.listSnapshots())[0]!.revision).not.toBe(before)
+    expect(await readFile(path)).toEqual(bytes)
+    using prepared = await ctx.sessionPersistence.prepare(m.id)
+    await expect(ctx.sessionPersistence.setReplica(m.id, true)).rejects.toThrow(/active in another Host/)
+    prepared[Symbol.dispose]()
+    await ctx.sessionPersistence.setReplica(m.id, true)
+    expect((await ctx.sessionPersistence.inspect(m.id)).meta.replica).toBe(true)
+    expect(await readFile(path)).toEqual(bytes)
+    await expect(ctx.sessionPersistence.setReplica(SessionId('missing-copy'), false)).rejects.toThrow(/not found/)
+    await ctx.fiber.dispose()
+    ctx = await mountHost()
+    expect((await ctx.sessionPersistence.inspect(m.id)).meta.replica).toBe(true)
+    await expect(ctx.sessionPersistence.prepare(m.id)).rejects.toThrow(/replicated/)
+  })
+
   let ctx: Context
   beforeEach(async () => {
     root = await freshRoot()

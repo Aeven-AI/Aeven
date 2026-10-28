@@ -47,6 +47,13 @@ export interface IWorkspaces {
    */
   rename(workspaceId: WorkspaceId, title: string): Promise<WorkspaceView>
   /**
+   * Give a Workspace without a directory on this device a directory here.
+   * @param workspaceId - target Workspace.
+   * @param path - directory on this device.
+   * @returns the bound Workspace.
+   */
+  bind(workspaceId: WorkspaceId, path: string): Promise<WorkspaceView>
+  /**
    * Delete a Workspace registration without deleting Sessions or files.
    * @param workspaceId - target Workspace.
    */
@@ -103,6 +110,12 @@ export class WorkspaceController extends Service implements IWorkspaces {
   async rename(workspaceId: WorkspaceId, title: string): Promise<WorkspaceView> {
     const result = await this.model.rename(workspaceId, title)
     if (!result.ok) throw commandError('rename', result.error)
+    return result.value.workspace
+  }
+
+  async bind(workspaceId: WorkspaceId, path: string): Promise<WorkspaceView> {
+    const result = await this.model.bind(workspaceId, path)
+    if (!result.ok) throw commandError('bind', result.error)
     return result.value.workspace
   }
 

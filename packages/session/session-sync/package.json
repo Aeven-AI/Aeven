@@ -1,0 +1,58 @@
+{
+  "name": "@aeven/session-sync",
+  "description": "Account sync Consumer for conversation history: every device of an account lists and replays its sessions",
+  "version": "0.3.21-alpha",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Aeven.git",
+    "directory": "packages/session/session-sync"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@deepseek-ai/schemastery": "workspace:^",
+    "yjs": "13.6.27"
+  },
+  "peerDependencies": {
+    "@aeven/session": "workspace:^",
+    "@aeven/session-persistence": "workspace:^",
+    "@aeven/sync": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/attachment": "workspace:^",
+    "@aeven/workspace": "workspace:^",
+    "@aeven/session-handoff": "workspace:^",
+    "@aeven/agent": "workspace:^"
+  },
+  "devDependencies": {
+    "@aeven/session": "workspace:^",
+    "@aeven/session-persistence": "workspace:^",
+    "@aeven/sync": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/attachment": "workspace:^",
+    "@aeven/workspace": "workspace:^",
+    "@aeven/session-handoff": "workspace:^",
+    "@aeven/agent": "workspace:^"
+  },
+  "peerDependenciesMeta": {
+    "@aeven/workspace": {
+      "optional": true
+    }
+  }
+}

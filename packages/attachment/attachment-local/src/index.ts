@@ -1,9 +1,11 @@
 /** Local durable attachment backend rooted below `AVN_HOME`. @module @aeven/attachment-local */
 
+import { createHash } from 'node:crypto'
+import { existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { AttachmentStore } from '@aeven/attachment'
+import { AttachmentError, AttachmentStore, type AttachmentId } from '@aeven/attachment'
 import type {
   FileAttachmentLimits,
   FileAttachmentRef,
@@ -19,9 +21,9 @@ import type {
 import { resolveAvnHome } from '@aeven/home-paths'
 import type { NormalizationPolicy } from './normalization.ts'
 import { CompressionLimiter } from './compression-limiter.ts'
-import { commitPreparedImageFile, normalizedImagePath, prepareImageFile, readImageFile, validateImageFile } from './store.ts'
+import { commitPreparedImageFile, normalizedImagePath, objectPath, prepareImageFile, publishObject, readImageFile, readObject, validateImageFile } from './store.ts'
 import { readRequestImageFile, requestImageVariantId } from './request-image.ts'
-import { fileObjectPath, readFileObject, readFileTextObject, saveFileObjects } from './files.ts'
+import { addressOf, fileObjectPath, readFileObject, readFileTextObject, saveFileObjects } from './files.ts'
 
 export { canPassThroughNormalization, normalizeImage } from './normalization.ts'
 export type { NormalizedImage, NormalizationPolicy } from './normalization.ts'
@@ -264,6 +266,25 @@ export class LocalAttachmentStore extends AttachmentStore {
       () => prepareImageFile(input, this.imageLimits, this.normalizationPolicy),
     )
     return commitPreparedImageFile(this.root, prepared)
+  }
+
+  /** @inheritdoc */
+  override readObject(id: AttachmentId, signal?: AbortSignal): Promise<Uint8Array> {
+    return readObject(this.root, addressOf(id), signal)
+  }
+
+  /** @inheritdoc */
+  override async hasObject(id: AttachmentId): Promise<boolean> {
+    return await Promise.resolve(existsSync(objectPath(this.root, addressOf(id))))
+  }
+
+  /** @inheritdoc */
+  override async importObject(id: AttachmentId, data: Uint8Array): Promise<void> {
+    const sha256 = addressOf(id)
+    if (createHash('sha256').update(data).digest('hex') !== sha256) {
+      throw new AttachmentError('Imported attachment does not match its address.', 'ATTACHMENT_CORRUPT')
+    }
+    await publishObject(this.root, sha256, data)
   }
 
   async readImage(ref: ImageAttachmentRef, signal?: AbortSignal): Promise<StoredImageAttachment> {

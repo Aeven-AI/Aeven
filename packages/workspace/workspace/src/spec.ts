@@ -36,6 +36,8 @@ export const workspaceRecord = z.object({
   sessionIds: z.array(z.string().transform(value => brandString<SessionId>(value))),
   createdAt: z.string(),
   updatedAt: z.string(),
+  /** When the title was last set by a reader on any device of the account; the later title wins. */
+  titleChangedAt: z.string().optional(),
 })
 
 /** One stored workspace record, inferred from {@link workspaceRecord}. */

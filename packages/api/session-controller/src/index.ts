@@ -86,6 +86,11 @@ declare module '@deepseek-ai/cordis' {
 export interface Config {
   /** Override platform desktop-opener detection. */
   readonly nativeOpen?: boolean
+  /**
+   * How long an approval or question nobody answered on the device running the turn waits for another device of
+   * the account to answer, in milliseconds.
+   */
+  readonly remoteAnswerMs?: number
 }
 
 /** Host integrations replaceable by direct unit tests. */
@@ -118,6 +123,7 @@ export class SessionController extends TypertRemoteService {
 
   static Config: z<Config> = z.object({
     nativeOpen: z.boolean(),
+    remoteAnswerMs: z.natural().default(600_000),
   })
 
   private readonly agents: ApiSessionAgentController
@@ -141,7 +147,7 @@ export class SessionController extends TypertRemoteService {
     installModelSelectionProjection(ctx)
     this.agents = new ApiSessionAgentController(ctx)
     this.commands = new SessionCommandController(ctx, this.agents, process.cwd())
-    this.controlState = new SessionControlController(ctx)
+    this.controlState = new SessionControlController(ctx, config.remoteAnswerMs ?? 600_000)
     // Registered before history so reverse-order teardown closes every
     // follower before waiting for already-admitted promotions.
     ctx.effect(() => async () => {
@@ -168,6 +174,32 @@ export class SessionController extends TypertRemoteService {
       )
     })
 
+    // Input the account's other devices typed for a session this device writes runs here as if typed here.
+    ctx.on('session-handoff/input', (owner, sessionId, input) => {
+      const identity = ctx.get('identityUsers')
+      if (input.operation === 'interaction') {
+        const answer = input.request as { readonly id?: unknown; readonly answer?: unknown }
+        if (typeof answer.id === 'string') this.controlState.interactions.answer(answer.id, answer.answer)
+        return
+      }
+      const apply = () => this.commands.applyForwarded(sessionId, input)
+      void (identity === undefined ? apply() : identity.runAs({ id: owner }, apply)).catch((error: unknown) => {
+        ctx.logger.warn(`session: input another device forwarded for ${sessionId} was not applied: ${String(error)}`)
+      })
+    })
+
+    ctx.on('session-handoff/catalog', (owner) => {
+      for (const summary of this.listState.sharedFor(owner)) {
+        if (ctx.sessions.get(summary.sessionId) === undefined) ctx.emit('api-session/added', summary, owner)
+      }
+    })
+
+    ctx.on('session-handoff/released', async (owner, sessionId) => {
+      const agent = ctx.agents.get(sessionId)
+      if (agent !== undefined && agent.session.header.owner !== owner) throw new Error('session runner owner mismatch')
+      await this.agents.release(sessionId)
+    })
+
     ctx.on('agent/pre-step', async ({ step, signal }, next) => {
       const decision = await next()
       if (decision.kind === 'reject' || signal.aborted || step !== 1) return decision
@@ -188,6 +220,17 @@ The user's account display name is ${JSON.stringify(source.clientDisplayName)}.
 
     ctx.on('session/created', (session) => {
       ctx.emit('api-session/added', this.listState.summaryFor(session))
+    })
+    ctx.on('session-persistence/append', (header) => {
+      if (!header.replica) return
+      const updating = this.listState.summaryForStored(header.id).then((summary) => {
+        ctx.emit('api-session/added', summary)
+        ctx.emit('api-session/activity', summary.sessionId, summary.updatedAt)
+      }).catch((error: unknown) => {
+        ctx.logger.warn(`session sync: updating the imported session's list entry failed: ${String(error)}`)
+      })
+      this.promotions.add(updating)
+      void updating.finally(() => { this.promotions.delete(updating) })
     })
     ctx.on('session/disposed', (session) => {
       ctx.emit('api-session/removed', session.id)
@@ -214,6 +257,10 @@ The user's account display name is ${JSON.stringify(source.clientDisplayName)}.
   }
 
   private promote(observation: SessionObservation): void {
+    if (observation.header.replica) {
+      observation[Symbol.dispose]()
+      return
+    }
     const sessionId = observation.header.id
     const task = (async () => {
       using ownedObservation = observation
@@ -480,8 +527,8 @@ The user's account display name is ${JSON.stringify(source.clientDisplayName)}.
    * @returns acknowledgement that the queue mutation was applied.
    */
   @Remote('updateQueue')
-  updateQueue(request: SessionUpdateQueueRequest): SessionUpdateQueueValue {
-    return this.commands.updateQueue(request)
+  async updateQueue(request: SessionUpdateQueueRequest): Promise<SessionUpdateQueueValue> {
+    return await this.commands.updateQueue(request)
   }
 
   /**
@@ -490,8 +537,8 @@ The user's account display name is ${JSON.stringify(source.clientDisplayName)}.
    * @returns acknowledgement that cancellation was requested.
    */
   @Remote('cancel')
-  cancel(request: SessionCancelRequest): SessionCancelValue {
-    return this.commands.cancel(request)
+  async cancel(request: SessionCancelRequest): Promise<SessionCancelValue> {
+    return await this.commands.cancel(request)
   }
 
   /**

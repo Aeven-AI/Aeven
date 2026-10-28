@@ -45,6 +45,8 @@ kind: "package-reference"
 
 每次写入都把该修订的 `SKILL.md` 保留在 `versions/<revision>.md` 下，因此一个修订始终可归因于跟随其后的那些执行，更早的流程也可恢复。`versions(owner, name)` 按从旧到新读回它们，并带上每个修订当时携带的描述，`rollback(owner, name, revision, sessionId)` 把其中一份写成新修订，其出处记录 `action: 'rollback'` 与 `restored: <revision>`；被恢复的修订随后像任何其他修订一样对自己的证据负责，因此恢复不会继承信任。没有保留正文时，这两个读操作都返回空，而不是抛出。
 
+当账户同步为该能力的所有者服务时，每个能力都是账户同步文档 `capabilities` 中的一个条目，内容以路径为键，因此一套流程及其附带文件会一起到达所有者的其他设备。设备保存写入较晚的那一份，删除则是最终结果。执行日志留在实际运行之处：从其他设备到达的状态，会在本机下一次写入时按本机日志重新推导，因此在本机自身的运行支持它之前，信任可能被降低。
+
 <a id="model-experience"></a>
 ## 模型体验
 
@@ -57,7 +59,7 @@ kind: "package-reference"
 <a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与延期工作
 
-- **证据记录在能力运行之处** —— 执行日志属于本机 Host，不参与同步。
+- **证据记录在能力运行之处** —— 执行日志属于本机 Host，不参与同步，因此从其他设备到达的能力会在本机下一次写入时按本机日志重新推导状态。
 - **所有者来自本次查找** —— 没有 `SessionHeader.owner` 的会话看不到任何已学能力。
 - **不变量省略** —— 不发布运行时不变量伴随模块，因为注册表为每个事实保留唯一归宿：`capabilities/changed` 由文件落盘后的单一串行写入路径发出，而 `list`、`get`、`versions`、`judge` 与 `supportedStatus` 都从同一个目录作答，因此监听器只会重新执行存储，而无法比较一份独立维护的关系。
 

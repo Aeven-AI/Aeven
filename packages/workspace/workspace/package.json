@@ -43,10 +43,21 @@
     "@aeven/session-persistence": "workspace:^",
     "@aeven/storage": "workspace:^",
     "@aeven/storage-domain": "workspace:^",
-    "@aeven/typert-protocol": "workspace:^"
+    "@aeven/sync": "workspace:^",
+    "@aeven/typert-protocol": "workspace:^",
+    "@aeven/session-handoff": "workspace:^"
+  },
+  "peerDependenciesMeta": {
+    "@aeven/sync": {
+      "optional": true
+    },
+    "@aeven/session-handoff": {
+      "optional": true
+    }
   },
   "dependencies": {
     "@aeven/brand": "workspace:^",
+    "yjs": "13.6.27",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -56,6 +67,8 @@
     "@aeven/session-persistence": "workspace:^",
     "@aeven/storage": "workspace:^",
     "@aeven/storage-domain": "workspace:^",
-    "@aeven/typert-protocol": "workspace:^"
+    "@aeven/sync": "workspace:^",
+    "@aeven/typert-protocol": "workspace:^",
+    "@aeven/session-handoff": "workspace:^"
   }
 }

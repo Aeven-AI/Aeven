@@ -19,3 +19,12 @@ export class SessionPersistenceNotFoundError extends Error {
     this.name = 'SessionPersistenceNotFoundError'
   }
 }
+
+/** The local log is replicated from another device and admits no execution or repair. */
+export class SessionPersistenceReadOnlyError extends Error {
+  /** @param sessionId - replicated session identity. */
+  constructor(readonly sessionId: SessionId) {
+    super(`session "${sessionId}" is replicated from another device; fork it to continue`)
+    this.name = 'SessionPersistenceReadOnlyError'
+  }
+}

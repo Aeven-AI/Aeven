@@ -4,13 +4,14 @@
  *
  * @module @aeven/memory-memos
  */
-import { mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync } from 'node:fs'
 import { isAbsolute, join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { accountDirectoryName } from '@aeven/home-paths'
+import { LeaseHolder } from '@aeven/sync'
 import type {} from '@aeven/llm'
-import type {} from '@aeven/memory'
+import { MEMORY_MAINTENANCE_LEASE } from '@aeven/memory'
 import { loadConfig, resolveHome, type ResolvedConfig } from '@deepseek-ai/memos-local-plugin/core/config/index.js'
 import type { ResolvedHome } from '@deepseek-ai/memos-local-plugin/core/config/paths.js'
 import { bootstrapMemoryCore } from '@deepseek-ai/memos-local-plugin/core/index.js'
@@ -21,6 +22,7 @@ import { MEMOS_AGENT, MemosMemory, memosHome } from './runtime.ts'
 import { PersonProfiles } from './profile.ts'
 import { classifyTurnDomain, TurnJudgeContext } from './domain.ts'
 import { REINDEX_VERSION, reindexIfEmbeddingChanged } from './reindex.ts'
+import { MemorySyncMirror, type MemorySyncTuning } from './sync.ts'
 
 export const name = 'memory-memos'
 export const inject = ['memory', 'llm']
@@ -68,6 +70,8 @@ export interface Config {
   embedding: EmbeddingConfig
   /** Vectors re-embedded per batch when an account's memory is re-indexed. */
   reindexBatchSize: number
+  /** How this device publishes memory changes to the account's other devices while account sync serves it. */
+  sync: MemorySyncTuning
   /**
    * Separate episodes whose traces must support a pattern before MemOS induces a policy from it
    * (`l2Induction.minEpisodesForInduction`); one episode is a single example, not a pattern.
@@ -176,6 +180,12 @@ export const Config: z<Config> = z.object({
   candidateTraces: z.natural().min(1).default(40),
   maxTextChars: z.natural().min(200).max(64_000).default(16_000),
   learning: z.boolean().default(true),
+  sync: z.object({
+    drainMs: z.natural().min(100).default(2_000),
+    drainBatch: z.natural().min(1).default(500),
+    maintenanceTtlMs: z.natural().min(1_000).default(180_000),
+    maintenanceRenewMs: z.natural().min(100).default(60_000),
+  }).default({ drainMs: 2_000, drainBatch: 500, maintenanceTtlMs: 180_000, maintenanceRenewMs: 60_000 }),
   embedding: z.object({
     model: z.string().min(1).default('Xenova/multilingual-e5-small'),
     queryPrefix: z.string().default('query: '),
@@ -307,6 +317,15 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   })
   // Accounts whose index is being rebuilt; their turn-start recall is skipped until the rebuild finishes.
   const rebuilding = new Set<string>()
+  // Maintenance that derives new memory from all of an account's memory runs on one of its devices at a time.
+  const maintenance = new Map<string, LeaseHolder>()
+  const mayMaintain = (owner: string): boolean => {
+    const holder = maintenance.get(owner)
+    if (holder !== undefined) return holder.held()
+    const state = ctx.get('sync')?.status(owner).state
+    return state === undefined || state === 'unenrolled' || state === 'joining'
+  }
+
   const cores = new OwnerCores(async (owner) => {
     const accountRoot = accountHome(config.accounts, owner)
     mkdirSync(accountRoot.dataDir, { recursive: true, mode: 0o700 })
@@ -318,6 +337,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       config: memosConfig,
       hostLlmBridge: bridge,
       autoRecovery: recovery,
+      maintenanceGate: () => mayMaintain(owner),
       initLogging: false,
     })
     await core.init()
@@ -387,6 +407,36 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   })
 
   logger.info(`ready (accounts=${config.accounts}, hostLlm=${String(config.hostLlm)}, autoRecovery=${String(recovery)})`)
+
+  // Each account's memory follows it to every device its sync vault holds, once that vault is served here and
+  // the account's database exists.
+  const mirrors = new Map<string, MemorySyncMirror>()
+  const mirror = (owner: string): void => {
+    const sync = ctx.get('sync')
+    const state = sync?.status(owner).state
+    if (sync === undefined || state === undefined || state === 'unenrolled' || state === 'joining') return
+    if (!maintenance.has(owner)) {
+      const timing = { ttlMs: config.sync.maintenanceTtlMs, renewMs: config.sync.maintenanceRenewMs }
+      const holder = new LeaseHolder(sync, owner, MEMORY_MAINTENANCE_LEASE, timing)
+      maintenance.set(owner, holder)
+      holder.start()
+    }
+    const dbFile = accountHome(config.accounts, owner).dbFile
+    if (mirrors.has(owner) || !existsSync(dbFile)) return
+    const created = new MemorySyncMirror(owner, dbFile, sync, config.embedding.model, config.sync, (message) => { logger.warn(message) })
+    mirrors.set(owner, created)
+    created.start().catch((error: unknown) => {
+      logger.warn(`memory sync: starting for an account failed: ${String(error)}`)
+    })
+  }
+  ctx.on('sync/status', mirror)
+  ctx.on('sync/document', (owner, id) => { mirrors.get(owner)?.documentChanged(id) })
+  ctx.effect(() => async () => {
+    for (const created of mirrors.values()) created.dispose()
+    mirrors.clear()
+    await Promise.all([...maintenance.values()].map(holder => holder.dispose()))
+    maintenance.clear()
+  }, 'memory-memos.sync')
 
   ctx.effect(() => {
     const unregister = ctx.memory.register(memory)

@@ -1,0 +1,39 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types"
+  },
+  "include": [
+    "src"
+  ],
+  "references": [
+    {
+      "path": "../../../vendor/cordis"
+    },
+    {
+      "path": "../../../vendor/schemastery"
+    },
+    {
+      "path": "../../core/session"
+    },
+    {
+      "path": "../session-persistence"
+    },
+    {
+      "path": "../../sync/sync"
+    },
+    {
+      "path": "../../attachment/attachment"
+    },
+    {
+      "path": "../../workspace/workspace"
+    },
+    {
+      "path": "../session-handoff"
+    },
+    {
+      "path": "../../core/agent"
+    }
+  ]
+}

@@ -15,6 +15,7 @@ export function apply(ctx: Context): void {
     settingsCtx.settings.register(
       CHAT_SETTINGS_NAMESPACE,
       ChatSettingsSchema,
+      { reach: 'account' },
     )
   })
 }

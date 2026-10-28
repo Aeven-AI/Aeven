@@ -44,6 +44,8 @@ Writes to one capability run one at a time; each committed write emits `capabili
 
 Every write keeps its revision's `SKILL.md` under `versions/<revision>.md`, so a revision stays attributable to the executions that followed it and an earlier procedure is recoverable. `versions(owner, name)` reads them back oldest first, with the description each revision carried, and `rollback(owner, name, revision, sessionId)` writes one as a new revision whose provenance records `action: 'rollback'` with `restored: <revision>`; the restored revision then answers to its own evidence like any other, so a restore does not inherit trust. Both reads answer with nothing rather than throwing when no body was kept.
 
+While account sync serves a capability's owner, each capability is one entry of the account's synced `capabilities` document holding its files keyed by path, so a procedure and its supporting files reach the owner's other devices together. A device stores the copy written later, and a removal is final. The execution log stays where the work ran: a status that arrived from another device is re-derived from this device's own log on its next write, which can lower trust until these runs support it.
+
 ## Model Experience
 
 None, as the registry adds no prompt text, tool, skill, or slash suggestion of its own; the capability consumer owns what recall and inspection put in front of the model.
@@ -54,7 +56,7 @@ None; no prompt input originates here.
 
 ## Known Limitations and Deferred Work
 
-- **Evidence is recorded where the capability ran** — the execution log is local to this Host and is not synced.
+- **Evidence is recorded where the capability ran** — the execution log is local to this Host and is not synced, so a capability that arrived from another device re-derives its status from this device's log on its next write.
 - **Owner comes from the lookup** — sessions without `SessionHeader.owner` see no learned capabilities.
 - **Invariant omission** — No invariant companion is published because the registry keeps one home for every fact: `capabilities/changed` is emitted by the single serialized write path after the files are durable, and `list`, `get`, `versions`, `judge`, and `supportedStatus` all answer from that same directory, so a listener would re-execute the store instead of comparing an independently maintained relation.
 

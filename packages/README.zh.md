@@ -72,6 +72,7 @@ harness 由 `packages/` 下的 npm 包组装而成，按能力系列分组：会
 | [`capability/`](capability/README.zh.md) | 习得能力：经用户确认、按用户保存，并通过 skill 目录发布的流程 |
 | [`mail/`](mail/README.zh.md) | 邮件能力系列：IMAP/POP3/SMTP 服务与面向模型的邮件工具 |
 | [`memory/`](memory/README.zh.md) | 长期记忆能力系列：Service Definition、MemOS 提供方、逐回合召回与捕获、面向模型的记忆工具 |
+| [`sync/`](sync/README.zh.md) | 账户同步：保管库密码学、`ctx.sync` Service Definition 与 Yjs 提供方 |
 | [`session-query/`](session-query/README.zh.md) | 会话检索系列：逻辑语料库、有界读取、血缘、语义过滤、SQLite 全文搜索 |
 | [`settings/`](settings/README.zh.md) | 用户设置 seam + 基于文件的提供方 |
 | [`credentials/`](credentials/README.zh.md) | 凭据引用/记录 seam + 环境变量优先于 `.env` 的提供方 + 询问人类的授权 flow |

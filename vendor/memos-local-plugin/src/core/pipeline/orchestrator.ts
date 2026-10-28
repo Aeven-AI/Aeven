@@ -310,7 +310,8 @@ export function createPipeline(deps: PipelineDeps): PipelineHandle {
     emit: emitCore,
   });
   const skillLifecycleWorker = createSkillLifecycleWorker({
-    runLifecycle: () => subs.skills.lifecycleTick(),
+    // A host sharing memory across processes lets one of them run the tick.
+    runLifecycle: () => (deps.maintenanceGate?.() === false ? Promise.resolve() : subs.skills.lifecycleTick()),
     log: log.child({ channel: "core.skill.lifecycle-worker" }),
     now: deps.now,
   });
