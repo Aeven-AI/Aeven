@@ -1,7 +1,7 @@
 {
   "name": "@aeven/acp-app",
   "description": "The avn ACP profile bundle: automation-only JSON-RPC stdio and process lifecycle over avn-base",
-  "version": "0.3.23-alpha",
+  "version": "0.3.24-alpha",
   "publishConfig": {
     "access": "public"
   },

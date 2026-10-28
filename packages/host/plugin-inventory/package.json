@@ -1,7 +1,7 @@
 {
   "name": "@aeven/host-plugin-inventory",
   "description": "Read-only Remote projection of current Cordis Loader plugin state",
-  "version": "0.3.23-alpha",
+  "version": "0.3.24-alpha",
   "publishConfig": {
     "access": "public"
   },
