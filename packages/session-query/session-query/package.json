@@ -1,7 +1,7 @@
 {
   "name": "@aeven/session-query",
   "description": "Combined session query service contract with concrete reads, traces, and filters",
-  "version": "0.3.23-alpha",
+  "version": "0.3.24-alpha",
   "publishConfig": {
     "access": "public"
   },

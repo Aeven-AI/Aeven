@@ -1,7 +1,7 @@
 {
   "name": "@aeven/experimental-code-runtime-python",
   "description": "CPython subprocess implementation of the Aeven code-execution seam",
-  "version": "0.3.23-alpha",
+  "version": "0.3.24-alpha",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Aeven-AI/Aeven.git",

@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-hypermarkdown",
   "description": "Streaming-native Markdown renderer for the avn web client: caches settled code lines, table rows and list items so growing model output never re-parses finished work",
-  "version": "0.3.23-alpha",
+  "version": "0.3.24-alpha",
   "publishConfig": {
     "access": "public"
   },

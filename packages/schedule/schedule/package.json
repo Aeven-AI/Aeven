@@ -1,7 +1,7 @@
 {
   "name": "@aeven/schedule",
   "description": "Agent-scoped durable after, at, and fixed-rate reminders over the session event log",
-  "version": "0.3.23-alpha",
+  "version": "0.3.24-alpha",
   "publishConfig": {
     "access": "public"
   },

@@ -1,7 +1,7 @@
 {
   "name": "@aeven/document-extract-ocr",
   "description": "OCR reader for scanned PDFs: pages rendered and recognized with Tesseract in a worker thread, language data bundled",
-  "version": "0.3.23-alpha",
+  "version": "0.3.24-alpha",
   "publishConfig": {
     "access": "public"
   },

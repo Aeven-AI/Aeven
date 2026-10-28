@@ -1,7 +1,7 @@
 {
   "name": "@aeven/api-session-controller",
   "description": "Session Remote commands, cold reads, and live control transport",
-  "version": "0.3.23-alpha",
+  "version": "0.3.24-alpha",
   "publishConfig": {
     "access": "public"
   },

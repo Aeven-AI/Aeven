@@ -1,7 +1,7 @@
 {
   "name": "@aeven/tool-session-query",
   "description": "Workspace-authorized model-facing session history search, trace, and event read tools",
-  "version": "0.3.23-alpha",
+  "version": "0.3.24-alpha",
   "publishConfig": {
     "access": "public"
   },

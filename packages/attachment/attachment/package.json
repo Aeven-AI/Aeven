@@ -1,7 +1,7 @@
 {
   "name": "@aeven/attachment",
   "description": "Durable immutable attachment storage seam for the Aeven",
-  "version": "0.3.23-alpha",
+  "version": "0.3.24-alpha",
   "publishConfig": {
     "access": "public"
   },
