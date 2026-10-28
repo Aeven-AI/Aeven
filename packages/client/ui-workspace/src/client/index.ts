@@ -150,6 +150,13 @@ export function apply(ctx: Context): void {
     },
     renameWorkspace: async (workspaceId, title) => { await workspaces.rename(workspaceId, title) },
     deleteWorkspace: async (workspaceId) => { await workspaces.delete(workspaceId) },
+    bindWorkspace: (workspaceId) => {
+      void uiWorkspace.pickDirectory().then(async (path) => {
+        if (path !== null) await workspaces.bind(workspaceId, path)
+      }).catch((error: unknown) => {
+        ctx.logger.warn(`workspace: choosing a folder for ${workspaceId} failed: ${String(error)}`)
+      })
+    },
     insertWorkspaceBefore: async (workspaceId, beforeWorkspaceId) => {
       await workspaces.insertBefore(workspaceId, beforeWorkspaceId)
     },

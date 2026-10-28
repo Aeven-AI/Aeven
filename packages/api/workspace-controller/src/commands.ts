@@ -16,6 +16,7 @@ import { callerWorkspaceView, workspaceSessionVisible, workspaceView, workspaceV
 import type {
   WorkspaceArchiveSessionRequest,
   WorkspaceArchiveValue,
+  WorkspaceBindRequest,
   WorkspaceCreateRequest,
   WorkspaceCreateValue,
   WorkspaceDeleteRequest,
@@ -57,6 +58,28 @@ export class WorkspaceCommands {
         throw new RemoteError(
           'workspace/invalid-path',
           `cannot create a Workspace at "${request.path}": ${errorMessage(error)}`,
+          { path: request.path },
+          { cause: error },
+        )
+      }
+    })
+  }
+
+  /**
+   * Give one Workspace without a directory here a directory of this Host.
+   * @param request - Workspace identity and directory path.
+   * @returns the updated Workspace projection.
+   */
+  bind(request: WorkspaceBindRequest): Promise<WorkspaceValue> {
+    return this.enqueue(async () => {
+      this.requireWorkspace(request.workspaceId)
+      try {
+        const workspace = await this.ctx.workspaceRegistry.bind(WorkspaceId(request.workspaceId), request.path)
+        return { workspace: this.view(workspace) }
+      } catch (error) {
+        throw new RemoteError(
+          'workspace/invalid-path',
+          `cannot bind the Workspace to "${request.path}": ${errorMessage(error)}`,
           { path: request.path },
           { cause: error },
         )

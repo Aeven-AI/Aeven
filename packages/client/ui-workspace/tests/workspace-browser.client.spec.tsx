@@ -102,6 +102,7 @@ function mount(
     forkSession: vi.fn(),
     renameWorkspace: vi.fn(async () => {}),
     deleteWorkspace: vi.fn(async () => {}),
+    bindWorkspace: vi.fn(),
     archiveSession: vi.fn(async () => {}),
     unarchiveSession: vi.fn(async () => {}),
     insertWorkspaceBefore: vi.fn(async () => {}),

@@ -397,7 +397,7 @@ describe('session-sync plugin', () => {
     mirrors.push(a)
     await a.start()
     let ready = false
-    const fileSession = vi.fn(() => Promise.resolve(ready))
+    const fileSession = vi.fn((_id: string, _home: string) => Promise.resolve(ready))
     const homeB = new MemoryPersistence()
     const filingB = { sessionHome: () => undefined, fileSession }
     const b = new SessionMirror(OWNER, network.device().asSync(), homeB as never, tuning, vi.fn(), undefined, filingB)

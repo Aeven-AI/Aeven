@@ -265,6 +265,7 @@ export class FakeApiClient {
       workspace: {
         create: payload => this.record('workspace.create', payload, this.onWorkspaceCreate(payload)),
         rename: payload => this.record('workspace.rename', payload, this.onWorkspaceRename(payload)),
+        bind: payload => this.record('workspace.bind', payload, this.onWorkspaceRename(payload)),
         delete: payload => this.record('workspace.delete', payload, this.onWorkspaceDelete(payload)),
         insertBefore: payload => this.record(
           'workspace.insertBefore',

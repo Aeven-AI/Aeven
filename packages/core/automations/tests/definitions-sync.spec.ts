@@ -30,7 +30,7 @@ afterEach(async () => {
 })
 
 /** A device of the account, signed in, sharing the account's sync network with its siblings. */
-async function device(network: MemorySyncNetwork, sync: MemorySyncDevice) {
+async function device(_network: MemorySyncNetwork, sync: MemorySyncDevice) {
   const harness = await mountAutomations()
   harnesses.push(harness)
   harness.ctx.provide('sync', sync.asSync())

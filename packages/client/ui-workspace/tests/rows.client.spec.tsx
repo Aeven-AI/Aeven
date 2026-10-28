@@ -172,7 +172,7 @@ describe('workspace browser rows', () => {
       return { href: `/c/new-${minted}`, sessionId: sid(`session-new-${minted}`) }
     }
     const group: GroupNode = {
-      key: 'project', workspaceId: wid('project'), isBuiltIn: false, managed: false, cwd: '/projects/project', createdAt: 0, label: 'Project',
+      key: 'project', workspaceId: wid('project'), isBuiltIn: false, managed: false, remote: false, cwd: '/projects/project', createdAt: 0, label: 'Project',
       sessionCount: 1, expanded: true, containsCurrent: true, sessions: [],
     }
     render(
@@ -207,7 +207,7 @@ describe('workspace browser rows', () => {
   it('leaves every non-plain press on a Workspace row\'s New Session link to the browser', () => {
     const onCreate = vi.fn()
     const group: GroupNode = {
-      key: 'project', workspaceId: wid('project'), isBuiltIn: false, managed: false, cwd: '/projects/project', createdAt: 0, label: 'Project',
+      key: 'project', workspaceId: wid('project'), isBuiltIn: false, managed: false, remote: false, cwd: '/projects/project', createdAt: 0, label: 'Project',
       sessionCount: 0, expanded: false, containsCurrent: false, sessions: [],
     }
     render(
@@ -470,12 +470,29 @@ describe('workspace browser rows', () => {
     expect(screen.getByText('Done').previousElementSibling?.textContent).toBe('已完成')
   })
 
+  it('offers a workspace without a folder here to choose one on this device', () => {
+    const onBind = vi.fn()
+    const group: GroupNode = {
+      key: 'research', workspaceId: wid('research'), isBuiltIn: false, managed: false, remote: true, cwd: undefined, createdAt: 0, label: 'Research',
+      sessionCount: 0, expanded: false, containsCurrent: false, sessions: [],
+    }
+    render(<ProjectRowItem
+      group={group} onToggle={vi.fn()} onCreate={vi.fn()}
+      newSessionHref={() => ({ href: '/c/new-1', sessionId: sid('session-new-1') })}
+      actions={{ rename: vi.fn(), delete: vi.fn(), bind: onBind }} t={t}
+    />)
+    fireEvent.click(screen.getByRole('button', { name: '工作区“Research”的操作' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '在此设备上选择文件夹' }))
+    expect(onBind).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('menu')).toBeNull()
+  })
+
   it('workspace row menu opens on the ellipsis, renames, and deletes', () => {
     const onRename = vi.fn()
     const onDelete = vi.fn()
     const onToggle = vi.fn()
     const group: GroupNode = {
-      key: 'project', workspaceId: wid('project'), isBuiltIn: false, managed: false, cwd: '/projects/project', createdAt: 0, label: 'Project',
+      key: 'project', workspaceId: wid('project'), isBuiltIn: false, managed: false, remote: false, cwd: '/projects/project', createdAt: 0, label: 'Project',
       sessionCount: 0, expanded: false, containsCurrent: false, sessions: [],
     }
     render(<ProjectRowItem
@@ -505,7 +522,7 @@ describe('workspace browser rows', () => {
 
   it('ungrouped bucket renders no workspace menu and no create control', () => {
     const group: GroupNode = {
-      key: '', workspaceId: undefined, isBuiltIn: false, managed: false, cwd: undefined, createdAt: undefined, label: 'Ungrouped',
+      key: '', workspaceId: undefined, isBuiltIn: false, managed: false, remote: false, cwd: undefined, createdAt: undefined, label: 'Ungrouped',
       sessionCount: 0, expanded: false, containsCurrent: false, sessions: [],
     }
     const newSessionHref = vi.fn(() => ({ href: '/c/new-1', sessionId: sid('session-new-1') }))

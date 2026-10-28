@@ -94,6 +94,13 @@ export interface WorkspaceRenameRequest {
   readonly title: string
 }
 
+/** Give a Workspace another device of the account registered a directory on this Host. */
+export interface WorkspaceBindRequest {
+  readonly workspaceId: WorkspaceId
+  /** Existing directory on this Host, fully qualified. */
+  readonly path: string
+}
+
 /** Workspace mutation returning the complete changed row. */
 export interface WorkspaceValue {
   readonly workspace: WorkspaceView

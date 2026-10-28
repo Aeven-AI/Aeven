@@ -30,7 +30,7 @@ async function host(device: MemorySyncDevice, doc: Record<string, unknown> = {})
     },
   })
   await registrations
-  const fiber = ctx.plugin(plugin, {})
+  const fiber = ctx.plugin(plugin)
   await fiber
   disposers.push(() => fiber.dispose(), () => registrations.dispose(), () => settings.dispose())
   return ctx
@@ -95,7 +95,7 @@ describe('settings sync', () => {
     const settings = ctx.plugin(MemorySettings, {})
     await settings
     ctx.settings.register('ui-theme', Theme, { reach: 'account' })
-    const fiber = ctx.plugin(plugin, {})
+    const fiber = ctx.plugin(plugin)
     await fiber
     disposers.push(() => fiber.dispose(), () => settings.dispose())
     const warn = vi.spyOn(ctx.logger, 'warn').mockImplementation(() => {})

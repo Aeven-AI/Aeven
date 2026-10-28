@@ -94,6 +94,19 @@ export class TestWorkspaces implements IWorkspaces {
   }
 
   /**
+   * Give a Workspace a directory of this device (recorded; stubbable).
+   * @param workspaceId - target workspace.
+   * @param path - directory on this device.
+   * @returns the updated view.
+   */
+  async bind(workspaceId: WorkspaceId, path: string): Promise<WorkspaceView> {
+    this.calls.push({ method: 'bind', args: [workspaceId, path] })
+    const stub = this.stubs.get('bind')
+    if (stub !== undefined) return await (stub(workspaceId, path) as Promise<WorkspaceView>)
+    return { workspaceId, title: path, path, sessionIds: [] } as unknown as WorkspaceView
+  }
+
+  /**
    * Delete a Workspace (recorded; default no-op).
    * @param workspaceId - target workspace.
    */
