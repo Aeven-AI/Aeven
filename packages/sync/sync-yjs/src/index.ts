@@ -474,6 +474,17 @@ export default class YjsSync extends Sync {
   }
 
   /** @inheritdoc */
+  override async linked(owner: string): Promise<number> {
+    const transport = await this.accounts.get(owner)?.lan
+    return transport?.peers().length ?? 0
+  }
+
+  /** @inheritdoc */
+  override watchStream(owner: string, name: string, listener: (payload: Uint8Array) => void): () => void {
+    return this.enrolledVault(owner).watchStream(name, listener)
+  }
+
+  /** @inheritdoc */
   async readStream(owner: string, name: string, after: number): Promise<{ batches: SyncStreamBatch[]; more: boolean }> {
     return await this.enrolledVault(owner).readStream(name, after)
   }

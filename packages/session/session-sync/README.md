@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Publishes each session from the device that created it as compressed, encrypted stream batches and lists it in the synced `sessions/index` document; other devices import the events through session persistence with their original `seq`, so imported sessions replay exactly and never run a model or a tool. Configuration: `publishMs`, `batchBytes`, and `backfillDays`. See the [account sync group](../../sync/README.md).
+Publishes each session from the device that created it as compressed, encrypted stream batches and lists it in the synced `sessions/index` document; other devices import the events through session persistence with their original `seq`, so imported sessions replay exactly and never run a model or a tool. A device that writes a session keeps input and batches flowing to the account's other devices over the relay and, where both are on one local network, directly between them; a device that holds the whole log continues the conversation when its writer is idle and the relay is unreachable, instead of copying it. Configuration: `publishMs`, `batchBytes`, `backfillDays`, and `runnerLease`. See the [account sync group](../../sync/README.md).
 
 ## Table of Contents
 

@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`ctx.sync` Service Definition。Consumer 按逻辑名在账户的保管库中打开文档并编辑其 Yjs 状态，追加和读取流，列出和移除设备，并驱动加入流程：`createVault`、`vaultExists`、`join`、`acceptJoins`、`joinRequests`、`approveJoin` 和 `rejectJoin`。`sync/status`、`sync/join-requests` 和 `sync/document` 在账户状态、待处理的加入请求或某个文档变化时通知监听方。`tests/memory.ts` 是供 Consumer 测试使用的内存设备网络。见[账户同步分组](../README.zh.md)。
+`ctx.sync` Service Definition。Consumer 按逻辑名在账户的保管库中打开文档并编辑其 Yjs 状态，追加和读取流，在另一台设备发送流批次时收到它们（`watchStream`，包括在没有中转服务器的局域网上），统计与本机直接相连的设备数（`linked`），列出和移除设备，并驱动加入流程：`createVault`、`vaultExists`、`join`、`acceptJoins`、`joinRequests`、`approveJoin` 和 `rejectJoin`。`sync/status`、`sync/join-requests` 和 `sync/document` 在账户状态、待处理的加入请求或某个文档变化时通知监听方。`tests/memory.ts` 是供 Consumer 测试使用的内存设备网络。见[账户同步分组](../README.zh.md)。
 
 ## 目录
 

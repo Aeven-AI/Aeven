@@ -256,6 +256,27 @@ export abstract class Sync extends Service {
   abstract readStream(owner: string, name: string, after: number): Promise<{ batches: SyncStreamBatch[]; more: boolean }>
 
   /**
+   * Count the account's devices this device is linked to directly, outside the relay.
+   * @param _owner - an enrolled account.
+   * @returns the number of directly linked devices; 0 when this provider has no direct path.
+   */
+  linked(_owner: string): Promise<number> {
+    return Promise.resolve(0)
+  }
+
+  /**
+   * Receive a stream's batches as another device of the account sends them, including over a local network while
+   * the relay is unreachable. A provider without a direct path between devices yields nothing.
+   * @param _owner - an enrolled account.
+   * @param _name - the stream's logical name.
+   * @param _listener - receives each batch payload once, in the order the writing device sent it.
+   * @returns a disposer that stops the subscription.
+   */
+  watchStream(_owner: string, _name: string, _listener: (payload: Uint8Array) => void): () => void {
+    return () => {}
+  }
+
+  /**
    * Publish the local outbox and receive the relay's committed backlog before transferring exclusive work.
    * @param _owner - account whose vault must be online.
    * @returns when the outbox is acknowledged and the received documents are current.

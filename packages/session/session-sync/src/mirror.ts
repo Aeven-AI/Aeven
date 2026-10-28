@@ -132,6 +132,8 @@ export class SessionMirror {
   }
   private readonly runners = new Map<SessionId, LeaseHolder>()
   private readonly releases = new Map<string, Promise<void>>()
+  /** Direct local-network subscriptions to sessions this device reads but does not write. */
+  private readonly watchers = new Map<string, () => void>()
   private readonly running = new Set<SessionId>()
   private readonly ownership = new Map<SessionId, Promise<unknown>>()
 
@@ -157,7 +159,7 @@ export class SessionMirror {
       if (entry !== undefined && entry.header.owner !== this.owner) throw new Error('session does not belong to this account')
       const existing = this.runners.get(sessionId)
       if (existing?.held()) return { claimed: true }
-      if (this.sync.status(this.owner).state !== 'online') return { claimed: false }
+      if (this.sync.status(this.owner).state !== 'online') return await this.takeOver(sessionId, entry)
       const timing = this.tuning.runnerLease
       if (timing === undefined) throw new Error('session runner lease timing is not configured')
       const holder = new LeaseHolder(this.sync, this.owner, streamName(sessionId), timing, {
@@ -207,7 +209,28 @@ export class SessionMirror {
   }
 
   /**
-   * Keep ownership through a running turn and publish its complete tail before giving it up at idle.
+   * Continue a session on this device while the relay is unreachable. The account's devices exchange the log
+   * directly on a local network, so a device that holds the whole committed log and finds no turn running on the
+   * device that wrote it takes the session over; the writing device releases when the index stops naming it.
+   * @param sessionId - the session to continue here.
+   * @param entry - its shared index entry, when this device already knows the session.
+   * @returns whether this device may admit input locally.
+   */
+  private async takeOver(sessionId: SessionId, entry: IndexEntry | undefined): Promise<SessionClaim> {
+    const me = this.device()
+    if (me === undefined || entry === undefined || entry.origin === me) return { claimed: false }
+    if (entry.running === true) return { claimed: false }
+    // Writing here without a direct link would produce events no other device can receive.
+    if (await this.sync.linked(this.owner) === 0) return { claimed: false }
+    const stored = (await this.persistence.list()).some(header => header.id === sessionId && header.owner === this.owner)
+    if (!stored) return { claimed: false }
+    if (await this.next(sessionId as string, new Set([sessionId as string])) !== entry.next) return { claimed: false }
+    this.entries().set(sessionId, { ...entry, origin: me })
+    await this.persistence.setReplica(sessionId, false)
+    return { claimed: true }
+  }
+
+  /**
    * @param sessionId - session running locally.
    * @param running - whether it has a running turn.
    */
@@ -230,7 +253,10 @@ export class SessionMirror {
       const me = this.device()
       if (me === undefined) throw new Error('session runner device disappeared')
       await this.serialize(sessionId, () => this.publishSession(header, me))
-      await this.sync.synchronize(this.owner)
+      await this.sync.synchronize(this.owner).catch((error: unknown) => {
+        // Without a relay the batches already took the local network; the release still hands the session on.
+        this.warn(`session sync: publishing before a release did not finish: ${String(error)}`)
+      })
       if (this.running.has(sessionId)) return
       this.runners.delete(sessionId)
       await holder.dispose()
@@ -585,6 +611,41 @@ export class SessionMirror {
     return next
   }
 
+  /**
+   * Subscribe once to the batches the writing device sends directly on the local network.
+   * @param id - a session this device holds and another device writes.
+   */
+  private watch(id: string): void {
+    if (this.watchers.has(id)) return
+    this.watchers.set(id, this.sync.watchStream(this.owner, streamName(id), (payload) => {
+      void this.ingestLan(id, payload).catch((error: unknown) => {
+        this.warn(`session sync: importing a batch from the local network failed: ${String(error)}`)
+      })
+    }))
+  }
+
+  /**
+   * Import one batch the writing device sent directly. Only a batch that continues this device's log is applied;
+   * the relay's copy carries the sequence numbers that order the rest, so anything else waits for it.
+   * @param id - the session another device writes.
+   * @param payload - the batch.
+   * @returns when the batch is durable locally.
+   */
+  private ingestLan(id: string, payload: Uint8Array): Promise<void> {
+    return this.own(id as SessionId, async () => {
+      await this.starting
+      await this.releases.get(id)
+      if (this.isClosed() || this.entries().get(id)?.origin === this.device()) return
+      const batch = JSON.parse(brotliDecompressSync(payload).toString('utf8')) as Batch
+      const next = await this.next(id, new Set([id]))
+      const events = batch.events.filter(event => event.seq >= next)
+      if (events[0]?.seq !== next) return
+      await this.persistence.append(id as SessionId, events)
+      await this.importAttachments(events)
+      this.localNext.set(id, after(events, next))
+    })
+  }
+
   private async importAll(): Promise<void> {
     const me = this.device()
     if (me === undefined || this.isClosed()) return
@@ -592,6 +653,7 @@ export class SessionMirror {
     for (const [id, entry] of this.entries()) {
       if (this.isClosed()) return
       if (entry.origin === me || entry.header.owner !== this.owner) continue
+      if (local.has(id) || this.created.has(id)) this.watch(id)
       await this.file(id, entry)
       if (entry.header.createdAt < Date.now() - this.tuning.backfillDays * DAY_MS && !local.has(id)) continue
       try {
@@ -777,6 +839,8 @@ export class SessionMirror {
   async dispose(): Promise<void> {
     this.closed = true
     if (this.timer !== undefined) clearInterval(this.timer)
+    for (const off of this.watchers.values()) off()
+    this.watchers.clear()
     for (const timer of this.live.values()) clearTimeout(timer)
     this.live.clear()
     await Promise.all([

@@ -60,6 +60,7 @@ export class AccountVault {
   private flushing: Promise<void> | undefined
   private approver: JoinApprover | undefined
   private lanSend: ((frame: Uint8Array) => void) | undefined
+  private readonly streamWatchers = new Map<OpaqueId, Set<(payload: Uint8Array) => void>>()
   private readonly docs = new Map<OpaqueId, OpenDoc>()
 
   /**
@@ -436,9 +437,28 @@ export class AccountVault {
    */
   appendStream(name: string, payload: Uint8Array): void {
     const id = this.documentId(name)
-    this.store.enqueue(this.seal('stream', id, payload))
+    const frame = this.seal('stream', id, payload)
+    this.store.enqueue(frame)
+    this.lanSend?.(frame)
     this.changed()
     void this.flush()
+  }
+
+  /**
+   * Receive the batches another device of the account sends directly on the local network.
+   * @param name - the stream's logical name.
+   * @param listener - receives each batch payload once, in the order the writing device sent it.
+   * @returns a disposer that stops the subscription.
+   */
+  watchStream(name: string, listener: (payload: Uint8Array) => void): () => void {
+    const id = this.documentId(name)
+    const listeners = this.streamWatchers.get(id) ?? new Set()
+    this.streamWatchers.set(id, listeners)
+    listeners.add(listener)
+    return () => {
+      listeners.delete(listener)
+      if (listeners.size === 0) this.streamWatchers.delete(id)
+    }
   }
 
   /**
@@ -542,7 +562,12 @@ export class AccountVault {
       return
     }
     const { header, payload } = opened
-    if (header.kind !== 'update' || header.device === member.keys.id) return
+    if (header.device === member.keys.id) return
+    if (header.kind === 'stream') {
+      for (const listener of this.streamWatchers.get(header.id) ?? []) listener(payload)
+      return
+    }
+    if (header.kind !== 'update') return
     this.store.appendDocUpdate(header.id, payload)
     const open = this.docs.get(header.id)
     if (open !== undefined) Y.applyUpdate(open.doc, payload, REMOTE)
