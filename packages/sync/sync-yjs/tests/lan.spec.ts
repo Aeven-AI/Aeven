@@ -1,14 +1,14 @@
 /**
- * Local-network links: devices of one account that discover each other link only after both proved an active
- * device key, deliver frames to each other, settle a double link to one, link again after a dropped link, drop
- * a device the chain no longer holds, and refuse anything that does not follow the handshake. mDNS discovery
- * reports only devices of the same account.
+ * Local-network links: devices of one account that discover each other link only after both proved the account
+ * key, deliver frames to each other, settle a double link to one, link again after a dropped link, drop a device
+ * the vault no longer accepts, and refuse anything that does not follow the handshake. mDNS discovery reports only
+ * devices of the same account.
  */
 import { EventEmitter } from 'node:events'
 import { createServer, type Server } from 'node:net'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { WebSocket } from 'ws'
-import { generateDeviceKeys, signBytes, verifyBytes, type DeviceKeys } from '@aeven/sync-vault'
+import { generateDeviceId, generateVaultKey, proveKey, verifyKeyProof } from '@aeven/sync-vault'
 import { LanTransport, MdnsDiscovery, type LanDiscovery, type LanPeer, type LanSelf, type LanTuning } from '../src/lan.ts'
 
 const bonjour = vi.hoisted(() => ({ instances: [] as unknown[] }))
@@ -36,28 +36,24 @@ afterEach(async () => {
   bonjour.instances.length = 0
 })
 
-/** The devices of one account; a device leaves the chain with `remove`. */
+/** The devices of one account, sharing its key; a device the vault stops accepting leaves `active`. */
 class Account {
-  readonly keys = new Map<string, DeviceKeys>()
+  readonly key = generateVaultKey()
   readonly active = new Set<string>()
 
-  device(): DeviceKeys {
-    const keys = generateDeviceKeys()
-    this.keys.set(keys.id, keys)
-    this.active.add(keys.id)
-    return keys
+  device(): { id: string } {
+    const id = generateDeviceId() as string
+    this.active.add(id)
+    return { id }
   }
 
-  vault(keys: DeviceKeys, received: Uint8Array[] = []) {
+  vault(keys: { id: string }, received: Uint8Array[] = []) {
     return {
       received,
       tag: () => TAG,
-      device: () => keys.id as string,
-      sign: (data: Uint8Array) => signBytes(keys.secretKeys.signing, data),
-      verify: (device: string, data: Uint8Array, signature: Uint8Array) => {
-        const peer = this.keys.get(device)
-        return peer !== undefined && this.active.has(device) && verifyBytes(peer.publicKeys.signing, data, signature)
-      },
+      device: () => keys.id,
+      sign: (data: Uint8Array) => proveKey(this.key, data),
+      verify: (device: string, data: Uint8Array, proof: Uint8Array) => this.active.has(device) && verifyKeyProof(this.key, data, proof),
       receive: (frame: Uint8Array) => { received.push(frame) },
     }
   }
@@ -146,7 +142,7 @@ describe('local-network links', () => {
     expect(second.peers()).toHaveLength(1)
   })
 
-  it('drops a device the chain no longer holds, and links again once a dropped device is back', async () => {
+  it('drops a device the vault no longer accepts, and links again once a dropped device is back', async () => {
     const account = new Account()
     const discovery = new MemoryDiscovery()
     const bKeys = account.device()
@@ -213,7 +209,7 @@ describe('local-network links', () => {
     const challenge = (honest.messages[0] as { nonce: string }).nonce
     honest.socket.send(JSON.stringify(hello))
     const transcript = new TextEncoder().encode(`aeven-sync/lan\n${TAG}\n${challenge}\n${peer.id}`)
-    honest.socket.send(JSON.stringify({ t: 'proof', signature: Buffer.from(signBytes(peer.secretKeys.signing, transcript)).toString('base64url') }))
+    honest.socket.send(JSON.stringify({ t: 'proof', signature: Buffer.from(proveKey(account.key, transcript)).toString('base64url') }))
     honest.socket.send(JSON.stringify({ t: 'frame', frame: 'CQ' }))
     await vi.waitFor(() => { expect(vault.received).toEqual([Uint8Array.of(9)]) })
     honest.socket.send(JSON.stringify({ t: 'proof', signature: 'AA' }))

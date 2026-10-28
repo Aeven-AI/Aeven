@@ -6,7 +6,7 @@
 import { createRequire } from 'node:module'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { Worker } from 'node:worker_threads'
-import type { DeviceId, DeviceKeys, DevicePublicKeys, EnvelopeHeader, KeyEpoch, RemovedDevice } from '@aeven/sync-vault'
+import type { DeviceId, EnvelopeHeader } from '@aeven/sync-vault'
 
 /** One frame to open, with its relay sequence number. */
 export interface InboundFrame {
@@ -25,9 +25,7 @@ export type WorkerRequest =
     readonly id: number
     readonly method: 'open'
     readonly frames: readonly InboundFrame[]
-    readonly keyring: ReadonlyArray<readonly [KeyEpoch, Uint8Array]>
-    readonly devices: ReadonlyMap<DeviceId, DevicePublicKeys>
-    readonly removed: ReadonlyMap<DeviceId, RemovedDevice>
+    readonly accountKey: Uint8Array
   }
   | ({ readonly id: number; readonly method: 'maintain' } & MaintainRequest)
 
@@ -41,9 +39,8 @@ export interface MaintainRequest {
   readonly compact: boolean
   /** Seal input for a snapshot frame queued with the relay sequence number it covers. */
   readonly snapshot?: {
-    readonly epoch: KeyEpoch
-    readonly vaultKey: Uint8Array
-    readonly sender: DeviceKeys
+    readonly accountKey: Uint8Array
+    readonly device: DeviceId
     readonly counter: number
     readonly covers: number
   }
@@ -110,20 +107,13 @@ export class SyncOffload {
   }
 
   /**
-   * Open received frames: check each signature against the chain and decrypt it.
+   * Open received frames: authenticate and decrypt each under the account key.
    * @param frames - the frames, in sequence order.
-   * @param keys - the vault's key generations and the chain's active and removed devices.
+   * @param accountKey - the account key.
    * @returns each frame opened or the reason it was dropped, in the same order.
    */
-  async open(
-    frames: readonly InboundFrame[],
-    keys: {
-      readonly keyring: ReadonlyMap<KeyEpoch, Uint8Array>
-      readonly devices: ReadonlyMap<DeviceId, DevicePublicKeys>
-      readonly removed: ReadonlyMap<DeviceId, RemovedDevice>
-    },
-  ): Promise<OpenedFrame[]> {
-    return await this.request({ method: 'open', frames, keyring: [...keys.keyring], devices: keys.devices, removed: keys.removed }) as OpenedFrame[]
+  async open(frames: readonly InboundFrame[], accountKey: Uint8Array): Promise<OpenedFrame[]> {
+    return await this.request({ method: 'open', frames, accountKey }) as OpenedFrame[]
   }
 
   /**

@@ -68,6 +68,8 @@ export interface SessionSyncTuning {
   backfillDays: number
   /** Pause between two sessions of a background import or publication scan, in milliseconds. */
   pauseMs: number
+  /** Queued frames above which publishing history waits for the account's outbox to drain; live turns never wait. */
+  outboxLimit: number
 }
 
 const compress = promisify(brotliCompress)
@@ -800,7 +802,7 @@ export class SessionMirror {
         if (header.replica || header.owner !== this.owner || (entry !== undefined && entry.origin !== me)) continue
         if (this.revisions.get(id) === String(revision)) continue
         await pause(this.tuning.pauseMs)
-        await this.serialize(id, () => this.publishSession(header, me))
+        await this.serialize(id, () => this.publishSession(header, me, true))
         this.revisions.set(id, String(revision))
       }
     } catch (error) {
@@ -835,7 +837,18 @@ export class SessionMirror {
     }, this.tuning.liveMs))
   }
 
-  private async publishSession(header: SessionHeader, me: string): Promise<void> {
+  /** Wait while the account's outbox holds more than {@link SessionSyncTuning.outboxLimit} frames. */
+  private async outboxRoom(): Promise<void> {
+    while (!this.isClosed() && this.sync.status(this.owner).pending > this.tuning.outboxLimit) await pause(this.tuning.publishMs)
+  }
+
+  /**
+   * Publish a session's events after its index entry's `next`.
+   * @param header - the session.
+   * @param me - this device.
+   * @param history - whether this is history publication, which waits for room in the outbox between batches.
+   */
+  private async publishSession(header: SessionHeader, me: string, history = false): Promise<void> {
     const entry = this.entries().get(header.id)
     if (entry !== undefined && entry.origin !== me) return
     const from = this.entries().get(header.id)?.next ?? 0
@@ -853,6 +866,7 @@ export class SessionMirror {
     const flush = async (): Promise<void> => {
       const first = batch.at(0)
       if (first === undefined || this.isClosed()) return
+      if (history) await this.outboxRoom()
       const payload: Batch = { first: first.seq, events: batch }
       await this.sync.appendStream(this.owner, streamName(header.id), new Uint8Array(await compress(JSON.stringify(payload))))
       batch = []

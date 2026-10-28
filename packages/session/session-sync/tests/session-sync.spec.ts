@@ -81,7 +81,7 @@ class MemoryPersistence {
 }
 
 const tuning: SessionSyncTuning = {
-  publishMs: 20, batchBytes: 2_000, backfillDays: 30, liveMs: 5, pauseMs: 0,
+  publishMs: 20, batchBytes: 2_000, backfillDays: 30, liveMs: 5, pauseMs: 0, outboxLimit: 1000,
   runnerLease: { ttlMs: 30_000, renewMs: 10_000 },
 }
 const mirrors: SessionMirror[] = []
@@ -305,7 +305,7 @@ describe('session mirror', () => {
     const { mirror: failing, warn } = mirror(network.device(), home)
     await failing.start()
     await vi.waitFor(() => { expect(warn).toHaveBeenCalledWith('session sync: publishing sessions failed: Error: disk unavailable') })
-    const idle = mirror(network.device('unenrolled'), new MemoryPersistence())
+    const idle = mirror(network.device('disabled'), new MemoryPersistence())
     await idle.mirror.start()
     await idle.mirror.publish()
     expect(idle.warn).not.toHaveBeenCalled()
@@ -674,7 +674,7 @@ describe('session-sync plugin', () => {
     const warnings: string[] = []
     const spy = vi.spyOn(ctx.logger, 'warn').mockImplementation((message: unknown) => { warnings.push(String(message)) })
     const fiber = ctx.plugin(SessionSync, {
-      publishMs: 250, batchBytes: 2_000, backfillDays: 30, liveMs: 5, pauseMs: 0,
+      publishMs: 250, batchBytes: 2_000, backfillDays: 30, liveMs: 5, pauseMs: 0, outboxLimit: 1000,
       runnerLease: { ttlMs: 30_000, renewMs: 10_000 },
     })
     await fiber
@@ -714,7 +714,7 @@ describe('session-sync plugin', () => {
     ctx.emit('sync/status', OWNER)
     home.failSnapshots = true
     await vi.waitFor(() => { expect(warnings.some(warning => warning.includes('disk unavailable'))).toBe(true) })
-    device.setState('unenrolled')
+    device.setState('disabled')
     ctx.emit('sync/status', 'not-enrolled')
     failOpen = true
     device.setState('online')

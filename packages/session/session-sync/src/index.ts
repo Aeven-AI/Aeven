@@ -28,6 +28,7 @@ export default class SessionSync extends SessionHandoff {
     batchBytes: z.natural().min(1_024).default(512 * 1024),
     backfillDays: z.natural().default(30),
     pauseMs: z.natural().default(16),
+    outboxLimit: z.natural().min(1).default(200),
     runnerLease: z.object({ ttlMs: z.natural().min(1_000).default(30_000), renewMs: z.natural().min(1).default(10_000) }),
   })
 
@@ -77,7 +78,7 @@ export default class SessionSync extends SessionHandoff {
       if (state === 'online') existing.reconnected()
       return
     }
-    if (state === 'unenrolled' || state === 'joining') return
+    if (state === 'disabled' || state === 'starting') return
     const mirror = new SessionMirror(
       owner, this.ctx.sync, this.ctx.sessionPersistence, this.config,
       (message) => { this.ctx.logger.warn(message) },

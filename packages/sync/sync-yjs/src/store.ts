@@ -1,18 +1,14 @@
 /**
- * One account's local sync state in `accounts/<hash>/sync/sync.db`: device keys, keyring, device chain,
- * document updates keyed by opaque id, the outbox of sealed frames, and replay counters. Every write that
- * must survive a crash together runs in one transaction.
+ * One account's local sync state in `accounts/<hash>/sync/sync.db`: this device's id, the account key, whether
+ * this device syncs, document updates keyed by opaque id, the outbox of sealed frames, and replay counters. Every
+ * write that must survive a crash together runs in one transaction.
  */
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, rmSync } from 'node:fs'
 import { dirname } from 'node:path'
 import Database from 'better-sqlite3'
-import { brandNumber } from '@aeven/brand'
-import {
-  fromBase64Url, toBase64Url,
-  type ChainEntry, type DeviceId, type DeviceKeys, type KeyEpoch, type Keyring, type OpaqueId,
-} from '@aeven/sync-vault'
+import { fromBase64Url, generateDeviceId, toBase64Url, type DeviceId, type OpaqueId } from '@aeven/sync-vault'
 
-const SCHEMA_VERSION = 1
+const SCHEMA_VERSION = 2
 
 /** A sealed frame waiting for the relay's acknowledgment. */
 export interface OutboxFrame {
@@ -26,7 +22,7 @@ export interface OutboxFrame {
 
 /** Durable state of one account's vault on this device. */
 export class SyncStore {
-  private readonly db: Database.Database
+  private db: Database.Database
 
   /**
    * Open or create the store.
@@ -44,13 +40,17 @@ export class SyncStore {
     this.db.pragma('synchronous = NORMAL')
     const version = this.db.pragma('user_version', { simple: true }) as number
     if (version !== 0 && version !== SCHEMA_VERSION) {
+      // A store of an earlier vault format holds nothing this build can use: the relay starts the account over with
+      // its account key, and the account's data is published again from each device's own copy.
       this.db.close()
-      throw new Error(`sync store ${path} has schema ${String(version)}; this build reads ${String(SCHEMA_VERSION)}`)
+      for (const suffix of ['', '-wal', '-shm']) rmSync(path + suffix, { force: true })
+      this.db = new Database(path)
+      this.db.pragma('journal_mode = WAL')
+      this.db.pragma('busy_timeout = 5000')
+      this.db.pragma('synchronous = NORMAL')
     }
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL) STRICT;
-      CREATE TABLE IF NOT EXISTS keyring (epoch INTEGER PRIMARY KEY, key BLOB NOT NULL) STRICT;
-      CREATE TABLE IF NOT EXISTS chain (idx INTEGER PRIMARY KEY, entry TEXT NOT NULL) STRICT;
       CREATE TABLE IF NOT EXISTS doc_updates (id TEXT NOT NULL, seq INTEGER PRIMARY KEY AUTOINCREMENT, data BLOB NOT NULL) STRICT;
       CREATE INDEX IF NOT EXISTS doc_updates_id ON doc_updates (id, seq);
       CREATE TABLE IF NOT EXISTS outbox (seq INTEGER PRIMARY KEY AUTOINCREMENT, frame BLOB NOT NULL, covers INTEGER) STRICT;
@@ -103,27 +103,49 @@ export class SyncStore {
     this.db.prepare('INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value').run(key, value)
   }
 
-  /** @returns this device's keys, once enrolled. */
-  deviceKeys(): DeviceKeys | undefined {
-    const raw = this.meta('device')
-    if (raw === undefined) return undefined
-    const parsed = JSON.parse(raw) as { id: DeviceId; signing: string; agreement: string; signingSecret: string; agreementSecret: string }
-    return {
-      id: parsed.id,
-      publicKeys: { signing: fromBase64Url(parsed.signing, 32), agreement: fromBase64Url(parsed.agreement, 32) },
-      secretKeys: { signing: fromBase64Url(parsed.signingSecret, 32), agreement: fromBase64Url(parsed.agreementSecret, 32) },
-    }
+  /** @returns this device's id, chosen once per store. */
+  deviceId(): DeviceId {
+    const stored = this.meta('device')
+    if (stored !== undefined) return stored as DeviceId
+    const id = generateDeviceId()
+    this.setMeta('device', id)
+    return id
   }
 
-  /** @param keys - this device's keys. */
-  setDeviceKeys(keys: DeviceKeys): void {
-    this.setMeta('device', JSON.stringify({
-      id: keys.id,
-      signing: toBase64Url(keys.publicKeys.signing),
-      agreement: toBase64Url(keys.publicKeys.agreement),
-      signingSecret: toBase64Url(keys.secretKeys.signing),
-      agreementSecret: toBase64Url(keys.secretKeys.agreement),
-    }))
+  /** @returns the account key, once the relay handed it to this device. */
+  accountKey(): Uint8Array | undefined {
+    const stored = this.meta('key')
+    return stored === undefined ? undefined : fromBase64Url(stored, 32)
+  }
+
+  /**
+   * Hold the relay's account key. A different key means the relay started the account over: the documents,
+   * outbox, counters, and cursor of the earlier key are dropped, and Consumers publish their data again.
+   * @param key - the account key.
+   * @returns whether the store started over.
+   */
+  setAccountKey(key: Uint8Array): boolean {
+    const stored = this.meta('key')
+    const encoded = toBase64Url(key)
+    if (stored === encoded) return false
+    this.transaction(() => {
+      if (stored !== undefined) {
+        this.db.exec('DELETE FROM doc_updates; DELETE FROM outbox; DELETE FROM counters; DELETE FROM seen; DELETE FROM since_snapshot;')
+        this.db.prepare("DELETE FROM meta WHERE key = 'cursor'").run()
+      }
+      this.setMeta('key', encoded)
+    })
+    return stored !== undefined
+  }
+
+  /** @returns whether this device syncs the account; true until the user turns it off. */
+  enabled(): boolean {
+    return this.meta('enabled') !== 'false'
+  }
+
+  /** @param enabled - whether this device syncs the account. */
+  setEnabled(enabled: boolean): void {
+    this.setMeta('enabled', String(enabled))
   }
 
   /** @returns the last relay sequence number applied; 0 before the first. */
@@ -134,30 +156,6 @@ export class SyncStore {
   /** @param cursor - the last relay sequence number applied. */
   setRelayCursor(cursor: number): void {
     this.setMeta('cursor', String(cursor))
-  }
-
-  /** @returns every held vault key generation. */
-  keyring(): Keyring {
-    const rows = this.db.prepare('SELECT epoch, key FROM keyring').all() as Array<{ epoch: number; key: Buffer }>
-    return new Map(rows.map(row => [brandNumber<KeyEpoch>(row.epoch), new Uint8Array(row.key)]))
-  }
-
-  /** @param keyring - generations to hold; existing epochs are kept. */
-  addKeys(keyring: Keyring): void {
-    const insert = this.db.prepare('INSERT OR IGNORE INTO keyring (epoch, key) VALUES (?, ?)')
-    for (const [epoch, key] of keyring) insert.run(epoch, Buffer.from(key))
-  }
-
-  /** @returns the locally held device chain. */
-  chain(): ChainEntry[] {
-    return (this.db.prepare('SELECT entry FROM chain ORDER BY idx').all() as Array<{ entry: string }>).map(row => JSON.parse(row.entry) as ChainEntry)
-  }
-
-  /** @param entries - the verified chain, replacing the held one. */
-  setChain(entries: readonly ChainEntry[]): void {
-    this.db.prepare('DELETE FROM chain').run()
-    const insert = this.db.prepare('INSERT INTO chain (idx, entry) VALUES (?, ?)')
-    for (const entry of entries) insert.run(entry.index, JSON.stringify(entry))
   }
 
   /**
@@ -266,9 +264,9 @@ export class SyncStore {
       .map(row => ({ seq: row.seq, frame: new Uint8Array(row.frame), ...row.covers === null ? {} : { covers: row.covers } }))
   }
 
-  /** @param seq - the acknowledged outbox position. */
+  /** @param seq - the last acknowledged outbox position; it and every earlier frame leave the outbox. */
   acknowledge(seq: number): void {
-    this.db.prepare('DELETE FROM outbox WHERE seq = ?').run(seq)
+    this.db.prepare('DELETE FROM outbox WHERE seq <= ?').run(seq)
   }
 
   /** @returns the number of unacknowledged frames. */

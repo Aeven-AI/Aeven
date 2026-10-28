@@ -1,14 +1,14 @@
 /**
  * The relay client's request, push, and close behavior against an in-process relay, and the local store's
- * durable state: ownership, keys, chain, document updates, outbox order, and replay counters.
+ * durable state: ownership, the account key and device id, document updates, outbox order, and replay counters.
  */
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import Database from 'better-sqlite3'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { brandNumber, brandString } from '@aeven/brand'
-import { createGenesis, generateDeviceKeys, type DeviceId, type KeyEpoch, type OpaqueId } from '@aeven/sync-vault'
+import { brandString } from '@aeven/brand'
+import type { DeviceId, OpaqueId } from '@aeven/sync-vault'
 import { RelayConnection, RelayError, type RelayHandlers } from '../src/relay.ts'
 import { SyncStore } from '../src/store.ts'
 import { FakeRelay } from './fake-relay.ts'
@@ -20,7 +20,7 @@ afterAll(async () => { await relay.stop() })
 afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }) })
 
 function handlers(overrides: Partial<RelayHandlers> = {}): RelayHandlers {
-  return { frame: vi.fn(), chain: vi.fn(), signal: vi.fn(), closed: vi.fn(), ...overrides }
+  return { frame: vi.fn(), closed: vi.fn(), ...overrides }
 }
 
 function tempPath(): string {
@@ -31,8 +31,8 @@ function tempPath(): string {
 
 describe('RelayConnection', () => {
   it('answers requests and reports relay refusals by code', async () => {
-    const connection = await RelayConnection.open(relay.url, 'ok-alice', handlers(), 2000)
-    expect(await connection.request('chain.get')).toMatchObject({ t: 'ok', entries: [] })
+    const connection = await RelayConnection.open(relay.url, 'ok-alice', handlers(), 2000, 2000)
+    expect(await connection.request('key.get')).toMatchObject({ t: 'ok', key: expect.any(String) })
     const refusal = await connection.request('nope').catch((error: unknown) => error)
     expect(refusal).toBeInstanceOf(RelayError)
     expect(refusal).toMatchObject({ code: 'bad-request' })
@@ -41,50 +41,49 @@ describe('RelayConnection', () => {
   })
 
   it('refuses to open without an accepted token, and when nothing listens', async () => {
-    await expect(RelayConnection.open(relay.url, 'bad', handlers(), 2000)).rejects.toMatchObject({ code: 'refused' })
-    await expect(RelayConnection.open('ws://127.0.0.1:9/sync', 'ok-x', handlers(), 2000)).rejects.toThrow()
+    await expect(RelayConnection.open(relay.url, 'bad', handlers(), 2000, 2000)).rejects.toMatchObject({ code: 'refused' })
+    await expect(RelayConnection.open('ws://127.0.0.1:9/sync', 'ok-x', handlers(), 2000, 2000)).rejects.toThrow()
   })
 
-  it('delivers pushed frames, chain entries, and signals, and ignores unknown pushes', async () => {
-    const signal = vi.fn()
-    const chain = vi.fn()
+  it('delivers pushed frames and ignores unknown pushes', async () => {
     const frameHandler = vi.fn()
-    const receiver = await RelayConnection.open(relay.url, 'ok-bob', handlers({ signal, chain, frame: frameHandler }), 2000)
-    const sender = await RelayConnection.open(relay.url, 'ok-bob', handlers(), 2000)
+    const receiver = await RelayConnection.open(relay.url, 'ok-bob', handlers({ frame: frameHandler }), 2000, 2000)
+    const sender = await RelayConnection.open(relay.url, 'ok-bob', handlers(), 2000, 2000)
     await receiver.request('sync', { since: 0 })
-    const genesis = createGenesis(generateDeviceKeys())
-    await sender.request('chain.append', { entry: genesis })
-    const frame = Buffer.concat([Buffer.from([1, 0, 2]), Buffer.from('{}'), Buffer.alloc(64)])
-    await sender.request('publish', { frame: frame.toString('base64url') })
-    await sender.request('signal', { data: { hello: 1 } })
+    const frame = Buffer.concat([Buffer.from([2, 0, 2]), Buffer.from('{}'), Buffer.alloc(28)])
     relay.broadcastRaw('bob', JSON.stringify({ t: 'later-push' }))
     relay.broadcastRaw('bob', JSON.stringify({ t: 'ok', rid: 999 }))
-    await vi.waitFor(() => {
-      expect(signal).toHaveBeenCalledOnce()
-    })
-    expect(signal.mock.calls[0]?.[1]).toEqual({ hello: 1 })
-    expect(chain).toHaveBeenCalledWith(genesis)
-    expect(frameHandler).toHaveBeenCalledWith(1, new Uint8Array(frame))
+    await sender.request('publish', { frames: [{ frame: frame.toString('base64url') }] })
+    await vi.waitFor(() => { expect(frameHandler).toHaveBeenCalledWith(1, new Uint8Array(frame)) })
     receiver.close()
     sender.close()
   })
 
+  it('closes the connection when an answer does not arrive in time', async () => {
+    const closed = vi.fn()
+    const connection = await RelayConnection.open(relay.url, 'ok-erin', handlers({ closed }), 2000, 50)
+    relay.unanswered.add('slow')
+    await expect(connection.request('slow')).rejects.toMatchObject({ code: 'closed' })
+    expect(closed).toHaveBeenCalled()
+    relay.unanswered.delete('slow')
+  })
+
   it('drops a connection whose relay sends something other than JSON, failing pending requests', async () => {
     const closed = vi.fn()
-    const connection = await RelayConnection.open(relay.url, 'ok-carol', handlers({ closed }), 2000)
+    const connection = await RelayConnection.open(relay.url, 'ok-carol', handlers({ closed }), 2000, 2000)
     relay.unanswered.add('never-answered')
     const pending = connection.request('never-answered')
     relay.broadcastRaw('carol', 'not json')
     await connection.closed
     expect(closed).toHaveBeenCalled()
     await expect(pending).rejects.toMatchObject({ code: 'closed' })
-    await expect(connection.request('chain.get')).rejects.toMatchObject({ code: 'closed' })
+    await expect(connection.request('key.get')).rejects.toMatchObject({ code: 'closed' })
   })
 })
 
 it('treats a protocol error from the relay as a closed connection', async () => {
   const closed = vi.fn()
-  const connection = await RelayConnection.open(relay.url, 'ok-dave', handlers({ closed }), 2000)
+  const connection = await RelayConnection.open(relay.url, 'ok-dave', handlers({ closed }), 2000, 2000)
   relay.corrupt('dave')
   await connection.closed
   expect(closed).toHaveBeenCalled()
@@ -104,7 +103,7 @@ describe('SyncStore', () => {
     reopened.close()
   })
 
-  it('reports no owner for a store that records none, and refuses an unknown schema', () => {
+  it('reports no owner for a store that records none, and starts over from a store of another schema', () => {
     const path = tempPath()
     const raw = new Database(path)
     raw.exec('CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)')
@@ -114,24 +113,30 @@ describe('SyncStore', () => {
     const db = new Database(future)
     db.pragma('user_version = 99')
     db.close()
-    expect(() => new SyncStore(future, owner)).toThrow(/schema 99/)
+    const restarted = new SyncStore(future, owner)
+    expect(restarted.relayCursor()).toBe(0)
+    restarted.close()
   })
 
-  it('keeps device keys, keyring, chain, and the relay cursor', () => {
+  it('keeps a device id, the account key, the enabled flag, and the relay cursor', () => {
     const store = new SyncStore(tempPath(), owner)
-    expect(store.deviceKeys()).toBeUndefined()
-    const keys = generateDeviceKeys()
-    store.setDeviceKeys(keys)
-    expect(store.deviceKeys()).toEqual(keys)
-    store.addKeys(new Map([[brandNumber<KeyEpoch>(0), new Uint8Array(32).fill(1)]]))
-    store.addKeys(new Map([[brandNumber<KeyEpoch>(0), new Uint8Array(32).fill(2)], [brandNumber<KeyEpoch>(1), new Uint8Array(32).fill(3)]]))
-    expect([...store.keyring()].map(([epoch, key]) => [epoch, key[0]])).toEqual([[0, 1], [1, 3]])
-    const genesis = createGenesis(keys)
-    store.setChain([genesis])
-    expect(store.chain()).toEqual([genesis])
-    expect(store.relayCursor()).toBe(0)
+    const deviceId = store.deviceId()
+    expect(store.deviceId()).toBe(deviceId)
+    expect(store.enabled()).toBe(true)
+    store.setEnabled(false)
+    expect(store.enabled()).toBe(false)
+    expect(store.accountKey()).toBeUndefined()
+    expect(store.setAccountKey(new Uint8Array(32).fill(1))).toBe(false)
+    expect(store.setAccountKey(new Uint8Array(32).fill(1))).toBe(false)
+    expect(store.accountKey()).toEqual(new Uint8Array(32).fill(1))
     store.setRelayCursor(42)
-    expect(store.relayCursor()).toBe(42)
+    store.appendDocUpdate(brandString<OpaqueId>('doc'), Uint8Array.of(1))
+    store.enqueue(Uint8Array.of(2))
+    expect(store.setAccountKey(new Uint8Array(32).fill(2))).toBe(true)
+    expect(store.relayCursor()).toBe(0)
+    expect(store.pending()).toBe(0)
+    expect(store.storedDocuments()).toEqual([])
+    expect(store.deviceId()).toBe(deviceId)
     store.close()
   })
 

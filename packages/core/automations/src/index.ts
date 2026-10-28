@@ -763,7 +763,7 @@ export class Automations extends Service<Config> {
     if (owner === undefined) return true
     const sync = this.ctx.get('sync')
     const state = sync?.status(owner).state
-    if (sync === undefined || state === undefined || state === 'unenrolled' || state === 'joining') return true
+    if (sync === undefined || state === undefined || state === 'disabled' || state === 'starting') return true
     const key = `${owner}\n${definition.id}`
     let holder = this.leases.get(key)
     if (holder === undefined) {
@@ -797,7 +797,7 @@ export class Automations extends Service<Config> {
   private runsHere(domain: Domain<typeof automationDomain>, definition: AutomationDefinition): boolean {
     const owner = definition.owner
     const state = owner === undefined ? undefined : this.ctx.get('sync')?.status(owner).state
-    if (state !== undefined && state !== 'unenrolled' && state !== 'joining') return true
+    if (state !== undefined && state !== 'disabled' && state !== 'starting') return true
     return definition.executionTarget.runnerId === this.runnerId(domain)
   }
 

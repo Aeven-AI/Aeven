@@ -1,8 +1,8 @@
 /**
- * Yjs Service Provider for account sync. Each enrolled account keeps a local store under
- * `accounts/<hash>/sync/sync.db` and, while a client of that account holds a session on this Host (so its
- * Aeven access token resolves), one relay connection that exchanges encrypted frames with the account's other
- * devices. Devices of the account on the same local network also link directly and send each other updates as
+ * Yjs Service Provider for account sync. Every account signed in on this Host syncs unless the user turned it off
+ * on this device: it keeps a local store under `accounts/<hash>/sync/sync.db` and, while a client of that account
+ * holds a session on this Host (so its Aeven access token resolves), one relay connection that takes the account
+ * key and exchanges encrypted frames with the account's other devices. Devices of the account on the same local network also link directly and send each other updates as
  * they are made.
  * @module @aeven/sync-yjs
  */
@@ -13,12 +13,11 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import Schema from '@deepseek-ai/schemastery'
 import { credentialRef, type CredentialRef } from '@aeven/credentials'
 import { accountHomePath, avnHomePath, ACCOUNTS_DIR_NAME } from '@aeven/home-paths'
-import { Sync, type SyncDevice, type SyncDocument, type SyncJoin, type SyncJoinRequest, type SyncLease, type SyncStatus, type SyncStreamBatch } from '@aeven/sync'
-import { recoveryKeysOf, type DeviceId } from '@aeven/sync-vault'
-import { JoinRequester } from './join.ts'
+import { Sync, type SyncDevice, type SyncDocument, type SyncLease, type SyncStatus, type SyncStreamBatch } from '@aeven/sync'
+import type { DeviceId } from '@aeven/sync-vault'
 import { SyncOffload } from './offload.ts'
 import { LanTransport, MdnsDiscovery } from './lan.ts'
-import { RelayConnection, type RelayHandlers } from './relay.ts'
+import { RelayConnection } from './relay.ts'
 import { SyncStore } from './store.ts'
 import { AccountVault } from './vault.ts'
 
@@ -32,6 +31,12 @@ export interface Config {
   reconnectMs: number
   /** Longest a relay handshake may take, in milliseconds. */
   connectTimeoutMs: number
+  /** Longest a relay request may wait for its answer before the connection is closed and opened again, in milliseconds. */
+  requestTimeoutMs: number
+  /** Most queued frames one publish request carries. */
+  publishFrames: number
+  /** Most frame bytes one publish request carries; a larger single frame travels alone. */
+  publishBytes: number
   /** Name this device shows the account's other devices; the host name unless configured. */
   deviceName: string
   /** Stored updates per document before they are merged into one. */
@@ -46,7 +51,7 @@ export interface Config {
   pageFrames: number
   /** Shortest interval between two status notifications, in milliseconds. */
   statusMs: number
-  /** Whether enrolled devices on the same local network link directly. */
+  /** Whether the account's devices on the same local network link directly. */
   lan: boolean
   /** Port this device accepts local-network links on; 0 picks a free one. */
   lanPort: number
@@ -61,20 +66,15 @@ const STORE_SEGMENTS = ['sync', 'sync.db'] as const
 /** The document holding each device's name, keyed by device id. */
 const DEVICES = 'devices'
 
-/** Handler for pushes a short-lived connection does not use. */
-function ignore(): void {}
-
 interface Account {
   store: SyncStore
   loop?: Promise<void>
   vault: AccountVault
   /** The open relay connection, if any. */
   relay?: RelayConnection
-  /** Ends the connection loop's current wait early, such as after enrollment. */
+  /** Ends the connection loop's current wait early, such as after the user turned sync back on. */
   wake: () => void
-  /** The join in progress, with its code once an enrolled device answered. */
-  joining?: { code?: string }
-  /** The local-network links while this device is enrolled; undefined when it failed to start. */
+  /** The local-network links while this device holds the account key; undefined when they failed to start. */
   lan?: Promise<LanTransport | undefined>
 }
 
@@ -87,6 +87,9 @@ export default class YjsSync extends Sync {
     credentialRef: Schema.string().default('AEVEN_TOKEN'),
     reconnectMs: Schema.natural().min(100).default(5_000),
     connectTimeoutMs: Schema.natural().min(100).default(10_000),
+    requestTimeoutMs: Schema.natural().min(100).default(60_000),
+    publishFrames: Schema.natural().min(1).default(100),
+    publishBytes: Schema.natural().min(1_024).default(2_097_152),
     deviceName: Schema.string().min(1).default(hostname()),
     compactAfter: Schema.natural().min(1).default(200),
     snapshotAfter: Schema.natural().min(1).default(500),
@@ -115,7 +118,7 @@ export default class YjsSync extends Sync {
     this.tokenRef = credentialRef(config.credentialRef)
   }
 
-  /** Open every enrolled account's store and start its connection loop. */
+  /** Open every stored account's store, start its connection loop, and start an account once one of its clients signs in. */
   [Service.init](): void {
     this.ctx.effect(() => async () => {
       this.disposed = true
@@ -132,6 +135,11 @@ export default class YjsSync extends Sync {
       this.accounts.clear()
       await this.offload.dispose()
     }, 'sync-yjs: accounts')
+    // An account syncs from the moment one of its clients signs in on this Host.
+    this.ctx.on('credentials/session-updated', (ref, user) => {
+      if (ref !== this.tokenRef || this.disposed) return
+      this.account(user).wake()
+    })
     const root = avnHomePath(ACCOUNTS_DIR_NAME)
     if (!existsSync(root)) return
     for (const directory of readdirSync(root)) {
@@ -155,12 +163,13 @@ export default class YjsSync extends Sync {
         applyPauseMs: this.config.applyPauseMs,
         pageFrames: this.config.pageFrames,
         statusMs: this.config.statusMs,
+        publishFrames: this.config.publishFrames,
+        publishBytes: this.config.publishBytes,
       },
       () => {
         this.updateLan(owner)
         this.notifyStatus(owner)
       },
-      () => { this.notifyJoinRequests(owner) },
       (id) => { this.notifyDocument(owner, id) },
       (message, error) => {
         this.ctx.logger.warn(message)
@@ -175,13 +184,13 @@ export default class YjsSync extends Sync {
     return account
   }
 
-  /** Start the account's local-network links once it is enrolled, stop them when it is not, and drop removed devices. */
+  /** Start the account's local-network links once this device holds the account key, and stop them when it stops syncing. */
   private updateLan(owner: string): void {
     const account = this.accounts.get(owner)
     if (!this.config.lan || account === undefined) return
     const { vault } = account
-    const enrolled = vault.enrolled() && !this.disposed
-    if (enrolled && account.lan === undefined) {
+    const ready = vault.ready() && !this.disposed
+    if (ready && account.lan === undefined) {
       account.lan = LanTransport.start({
         tag: () => vault.lanTag(),
         device: () => vault.deviceId(),
@@ -200,7 +209,7 @@ export default class YjsSync extends Sync {
         this.ctx.logger.warn('sync: local-network links for %s could not start: %s', owner, error)
         return undefined
       })
-    } else if (!enrolled && account.lan !== undefined) {
+    } else if (!ready && account.lan !== undefined) {
       const stopping = account.lan
       delete account.lan
       vault.setLanSender(undefined)
@@ -226,26 +235,17 @@ export default class YjsSync extends Sync {
     })
   }
 
-  private open(owner: string, token: string, account: Account): Promise<RelayConnection> {
+  private open(token: string, account: Account): Promise<RelayConnection> {
     return RelayConnection.open(this.config.relayUrl, token, {
       frame: (seq, frame) => { account.vault.receiveFrame(seq, frame) },
-      chain: (entry) => {
-        try {
-          account.vault.receiveChainEntry(entry)
-        } catch (error) {
-          this.ctx.logger.warn('sync: the relay pushed an invalid chain entry for %s', owner)
-          this.ctx.logger.warn(error)
-        }
-      },
-      signal: (from, data, connection) => { account.vault.receiveSignal(connection, from, data) },
       closed: () => { account.vault.detach() },
-    }, this.config.connectTimeoutMs)
+    }, this.config.connectTimeoutMs, this.config.requestTimeoutMs)
   }
 
-  /** Record this device's name in the account's devices document once it is enrolled. */
+  /** Record this device's name in the account's devices document once it holds the account key. */
   private nameDevice(account: Account): void {
     const device = account.vault.status().device
-    if (!account.vault.enrolled() || device === undefined) return
+    if (!account.vault.ready() || device === undefined) return
     const names = account.vault.openDocument(DEVICES)
     const map = names.doc.getMap<{ name: string }>('names')
     if (map.get(device)?.name !== this.config.deviceName) map.set(device, { name: this.config.deviceName })
@@ -258,7 +258,7 @@ export default class YjsSync extends Sync {
 
   private async connectLoop(owner: string, account: Account): Promise<void> {
     while (this.live(owner, account)) {
-      const token = account.vault.hasKeys() ? await this.token(owner) : undefined
+      const token = account.vault.enabled() ? await this.token(owner) : undefined
       if (token !== undefined && this.live(owner, account)) await this.session(owner, token, account)
       if (!this.live(owner, account)) return
       await this.wait(account)
@@ -268,7 +268,7 @@ export default class YjsSync extends Sync {
   private async session(owner: string, token: string, account: Account): Promise<void> {
     let relay: RelayConnection
     try {
-      relay = await this.open(owner, token, account)
+      relay = await this.open(token, account)
     } catch (error) {
       this.ctx.logger.debug('sync: relay connection for %s failed: %s', owner, error)
       return
@@ -286,192 +286,57 @@ export default class YjsSync extends Sync {
       this.ctx.logger.warn(error)
       relay.close()
     }
-    // A device that is waiting for admission, or was removed, has nothing to exchange.
-    if (!account.vault.enrolled()) relay.close()
+    // The user turned sync off while the connection opened.
+    if (!account.vault.enabled()) relay.close()
     await relay.closed
     delete account.relay
   }
 
   /** @inheritdoc */
   status(owner: string): SyncStatus {
-    const account = this.accounts.get(owner)
-    if (account === undefined) return { state: 'unenrolled', devices: 0, pending: 0, recovery: false }
-    const status = account.vault.status()
-    if (account.joining === undefined || status.state !== 'unenrolled') return status
-    return { ...status, state: 'joining', ...account.joining.code === undefined ? {} : { joinCode: account.joining.code } }
-  }
-
-  private async connect(owner: string, handlers: Partial<RelayHandlers>): Promise<RelayConnection> {
-    const token = await this.token(owner)
-    if (token === undefined) throw new Error('this needs a signed-in session for the account on this Host')
-    return RelayConnection.open(this.config.relayUrl, token, {
-      frame: ignore,
-      chain: ignore,
-      signal: ignore,
-      closed: ignore,
-      ...handlers,
-    }, this.config.connectTimeoutMs)
+    return this.accounts.get(owner)?.vault.status() ?? { state: 'starting', pending: 0, queued: 0 }
   }
 
   /** @inheritdoc */
-  async vaultExists(owner: string): Promise<boolean> {
-    const relay = await this.connect(owner, {})
-    try {
-      const { entries } = await relay.request('chain.get') as { entries: unknown[] }
-      return entries.length > 0
-    } finally {
-      relay.close()
-    }
-  }
-
-  /** @inheritdoc */
-  async createVault(owner: string): Promise<void> {
+  setEnabled(owner: string, enabled: boolean): void {
     const account = this.account(owner)
-    const relay = await this.connect(owner, {})
-    try {
-      await account.vault.create(relay)
-    } finally {
-      relay.close()
-    }
-    account.wake()
-  }
-
-  /** @inheritdoc */
-  async setRecovery(owner: string, secret: Uint8Array): Promise<void> {
-    const account = this.accounts.get(owner)
-    if (account?.relay === undefined) throw new Error('setting up recovery needs a connection to the relay')
-    await account.vault.setRecovery(account.relay, recoveryKeysOf(secret))
-  }
-
-  /** @inheritdoc */
-  async recover(owner: string, secret: Uint8Array): Promise<void> {
-    const account = this.account(owner)
-    if (account.joining !== undefined) throw new Error('this device is already asking to join')
-    const relay = await this.connect(owner, {})
-    try {
-      await account.vault.recover(relay, recoveryKeysOf(secret))
-    } finally {
-      relay.close()
-    }
-    account.wake()
-  }
-
-  /** @inheritdoc */
-  async join(owner: string): Promise<SyncJoin> {
-    const account = this.account(owner)
-    if (account.joining !== undefined) throw new Error('this device is already asking to join')
-    const keys = account.vault.prepareJoin()
-    const pending: { requester?: JoinRequester } = {}
-    let settle!: { resolve: () => void; reject: (error: Error) => void }
-    const admitted = new Promise<void>((resolve, reject) => {
-      settle = { resolve, reject }
-    })
-    let done = false
-    const relay = await this.connect(owner, {
-      signal: (from, data) => { pending.requester?.receive(from, data) },
-      chain: (entry) => {
-        if (entry.body.type !== 'add-device' || entry.body.device.id !== keys.id) return
-        done = true
-        relay.close()
-        settle.resolve()
-        account.wake()
-      },
-      closed: () => {
-        if (!done) settle.reject(new Error('the join ended before an enrolled device admitted this one'))
-      },
-    })
-    const requester = new JoinRequester(relay, keys)
-    pending.requester = requester
-    const joining: { code?: string } = {}
-    account.joining = joining
-    // A second join is refused while this one is registered, so this join is still the account's when it ends.
-    const finish = (): void => {
-      delete account.joining
-      this.notifyStatus(owner)
-    }
-    void admitted.then(finish, finish)
-    void requester.code.then((code) => {
-      joining.code = code
-      this.notifyStatus(owner)
-    })
-    this.notifyStatus(owner)
-    await requester.start()
-    return {
-      code: requester.code,
-      admitted,
-      cancel: () => { relay.close() },
-    }
-  }
-
-  /** @inheritdoc */
-  acceptJoins(owner: string): () => void {
-    const account = this.accounts.get(owner)
-    if (account?.relay === undefined) throw new Error('adding a device needs a connection to the relay')
-    return account.vault.acceptJoins(account.relay)
+    account.vault.setEnabled(enabled)
+    if (enabled) account.wake()
   }
 
   /** @inheritdoc */
   async devices(owner: string): Promise<SyncDevice[]> {
-    const vault = this.enrolledVault(owner)
-    const ids = vault.deviceIds()
-    if (ids.length === 0) return []
+    const vault = this.readyVault(owner)
+    const current = vault.deviceId()
     const names = vault.openDocument(DEVICES)
     try {
       const map = names.doc.getMap<{ name: string }>('names')
-      return ids.map((id, index) => ({ id, name: map.get(id)?.name ?? '', current: index === 0 }))
+      const ids = [current, ...[...map.keys()].filter(id => id !== current)] as DeviceId[]
+      return ids.map(id => ({ id, name: map.get(id)?.name ?? '', current: id === current }))
     } finally {
       names.close()
       await Promise.resolve()
     }
   }
 
-  /** @inheritdoc */
-  async removeDevice(owner: string, device: DeviceId): Promise<void> {
-    const account = this.accounts.get(owner)
-    if (account?.relay === undefined) throw new Error('removing a device needs a connection to the relay')
-    await account.vault.removeDevice(account.relay, device)
-    const names = account.vault.openDocument(DEVICES)
-    names.doc.getMap('names').delete(device)
-    names.close()
-  }
-
-  /** @inheritdoc */
-  joinRequests(owner: string): readonly SyncJoinRequest[] {
-    return (this.accounts.get(owner)?.vault.joinRequests() ?? []).map(({ id, code }) => ({ id, code }))
-  }
-
-  /** @inheritdoc */
-  async approveJoin(owner: string, id: string): Promise<void> {
-    const account = this.accounts.get(owner)
-    const request = account?.vault.takeJoinRequest(id)
-    if (account === undefined || request === undefined) throw new Error(`no join request ${id} is waiting`)
-    if (account.relay === undefined) throw new Error('approving a device needs a connection to the relay')
-    await account.vault.admit(account.relay, request.keys)
-  }
-
-  /** @inheritdoc */
-  rejectJoin(owner: string, id: string): void {
-    this.accounts.get(owner)?.vault.takeJoinRequest(id)
-  }
-
-  private enrolledVault(owner: string): AccountVault {
-    const account = this.accounts.get(owner)
-    if (account === undefined) throw new Error('this device is not enrolled in the account\'s vault')
-    return account.vault
+  private readyVault(owner: string): AccountVault {
+    const vault = this.accounts.get(owner)?.vault
+    if (vault?.ready() !== true) throw new Error('this device does not sync the account')
+    return vault
   }
 
   private leaseConnection(owner: string): { relay: RelayConnection; device: DeviceId; vault: AccountVault } {
     const account = this.accounts.get(owner)
     const status = account?.vault.status()
     if (account?.relay === undefined || status?.state !== 'online' || status.device === undefined) {
-      throw new Error('exclusive sync work needs an enrolled account connected to the relay')
+      throw new Error('exclusive sync work needs the account connected to the relay')
     }
     return { relay: account.relay, device: status.device, vault: account.vault }
   }
 
   /** @inheritdoc */
   override async synchronize(owner: string): Promise<void> {
-    await this.enrolledVault(owner).synchronize()
+    await this.readyVault(owner).synchronize()
   }
 
   /** @inheritdoc */
@@ -493,7 +358,7 @@ export default class YjsSync extends Sync {
 
   /** @inheritdoc */
   async appendStream(owner: string, name: string, payload: Uint8Array): Promise<void> {
-    this.enrolledVault(owner).appendStream(name, payload)
+    this.readyVault(owner).appendStream(name, payload)
     await Promise.resolve()
   }
 
@@ -505,31 +370,31 @@ export default class YjsSync extends Sync {
 
   /** @inheritdoc */
   override watchStream(owner: string, name: string, listener: (payload: Uint8Array) => void): () => void {
-    return this.enrolledVault(owner).watchStream(name, listener)
+    return this.readyVault(owner).watchStream(name, listener)
   }
 
   /** @inheritdoc */
   async readStream(owner: string, name: string, after: number): Promise<{ batches: SyncStreamBatch[]; more: boolean }> {
-    return await this.enrolledVault(owner).readStream(name, after)
+    return await this.readyVault(owner).readStream(name, after)
   }
 
   /** @inheritdoc */
   storedDocuments(owner: string): readonly string[] {
     const account = this.accounts.get(owner)
-    if (account === undefined) throw new Error('this device is not enrolled in the account\'s vault')
+    if (account === undefined) throw new Error('this device does not sync the account')
     return account.store.storedDocuments()
   }
 
   /** @inheritdoc */
   documentId(owner: string, name: string): string {
     const account = this.accounts.get(owner)
-    if (account === undefined) throw new Error('this device is not enrolled in the account\'s vault')
+    if (account === undefined) throw new Error('this device does not sync the account')
     return account.vault.documentId(name)
   }
 
   /** @inheritdoc */
   async openDocument(owner: string, name: string): Promise<SyncDocument> {
-    const vault = this.enrolledVault(owner)
+    const vault = this.readyVault(owner)
     await Promise.resolve()
     return vault.openDocument(name)
   }

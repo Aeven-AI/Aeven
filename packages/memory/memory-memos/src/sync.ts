@@ -63,6 +63,8 @@ export interface MemorySyncTuning {
   drainBatch: number
   /** Pause between two shard documents applied from other devices, in milliseconds. */
   applyPauseMs: number
+  /** Queued sync frames above which a drain waits for the next interval. */
+  outboxLimit: number
   /** Lifetime of this device's claim on the account's memory maintenance, in milliseconds. */
   maintenanceTtlMs: number
   /** Interval between renewals of that claim, in milliseconds. */
@@ -208,6 +210,8 @@ export class MemorySyncMirror {
    */
   async drain(): Promise<void> {
     if (this.draining || this.isClosed()) return
+    // Recorded changes wait while earlier ones are still on their way to the relay.
+    if (this.sync.status(this.owner).pending > this.tuning.outboxLimit) return
     this.draining = true
     try {
       const changes = this.db.prepare('SELECT seq, tbl, pk, op FROM sync_changes ORDER BY seq LIMIT ?').all(this.tuning.drainBatch) as Change[]

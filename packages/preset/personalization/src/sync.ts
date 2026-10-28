@@ -36,7 +36,7 @@ export class PersonalizationSync {
   }
 
   /**
-   * Open the account's document once its vault is enrolled here and take the document's preferences when
+   * Open the account's document once this device syncs it and take the document's preferences when
    * another device already wrote them. An empty document is seeded only by a caught-up device whose person
    * changed something, so a device that opens it before another device's write arrives cannot overwrite that
    * write with defaults.
@@ -48,7 +48,7 @@ export class PersonalizationSync {
     if (existing !== undefined) return existing
     const sync = this.ctx.get('sync')
     const state = sync?.status(owner).state
-    if (sync === undefined || state === 'unenrolled' || state === 'joining') return Promise.resolve(undefined)
+    if (sync === undefined || state === 'disabled' || state === 'starting') return Promise.resolve(undefined)
     const opening = sync.openDocument(owner, DOCUMENT).then((handle) => {
       const map = handle.doc.getMap<unknown>('preferences')
       const synced = this.preferences(map)

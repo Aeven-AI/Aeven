@@ -1,41 +1,37 @@
 /**
  * Service Definition for account sync (`ctx.sync`): every device signed in to one account holds the same
  * documents. Consumers open a document by logical name in an owner's vault and edit its Yjs state; the
- * provider persists it locally, encrypts every change end to end, and exchanges it with the account's other
- * devices.
+ * provider persists it locally, encrypts every change under the account key, and exchanges it with the
+ * account's other devices.
  * @module @aeven/sync
  */
 import { Context, Service } from '@deepseek-ai/cordis'
 import type { Doc } from 'yjs'
 import type { DeviceId } from '@aeven/sync-vault'
 
-/** Where one account's vault stands on this device. */
+/** Where one account's sync stands on this device. */
 export type SyncState =
-  /** This device holds no vault for the account. */
-  | 'unenrolled'
-  /** This device asked the account's enrolled devices to admit it and waits for approval. */
-  | 'joining'
-  /** Enrolled; no connection to the relay, such as while no client of the account holds a session. */
+  /** The user turned sync off on this device. */
+  | 'disabled'
+  /** This device has not received the account key yet; documents cannot open until it connects once. */
+  | 'starting'
+  /** No connection to the relay; documents open and change locally and reach other devices later. */
   | 'offline'
-  /** Enrolled; connecting or catching up. */
+  /** Connecting to the relay. */
   | 'connecting'
-  /** Enrolled, connected, and caught up. */
+  /** Connected; the relay's backlog may still be arriving. */
   | 'online'
 
 /** One account's sync status on this device. */
 export interface SyncStatus {
   /** Current state. */
   state: SyncState
-  /** This device's id in the account's vault, once enrolled. */
+  /** This device's id; absent for an account this device has never synced. */
   device?: DeviceId
-  /** Active devices in the vault, this one included; 0 while unenrolled. */
-  devices: number
   /** Local changes not yet acknowledged by the relay. */
   pending: number
-  /** While joining, the six-digit code once an enrolled device answered. */
-  joinCode?: string
-  /** Whether the account can be restored with a recovery passkey; false while unenrolled. */
-  recovery: boolean
+  /** Changes queued since the outbox was last empty; `queued - pending` of them reached the relay. */
+  queued: number
 }
 
 /** An open document. Changes made through {@link doc} replicate until {@link close}. */
@@ -74,24 +70,6 @@ export interface SyncLease {
   expiresAt: number
 }
 
-/** A join in progress on the device that asked to join. */
-export interface SyncJoin {
-  /** The six-digit code, once an enrolled device answered; the user compares it with the code that device shows. */
-  readonly code: Promise<string>
-  /** Settles once an enrolled device admitted this one; rejects when the join is cancelled. */
-  readonly admitted: Promise<void>
-  /** Abandon the join. */
-  cancel(): void
-}
-
-/** A request to join that an enrolled device received and the user has not decided yet. */
-export interface SyncJoinRequest {
-  /** Request id, unique on this device. */
-  id: string
-  /** The six-digit code the joining device also shows. */
-  code: string
-}
-
 declare module '@deepseek-ai/cordis' {
   interface Context {
     sync: Sync
@@ -105,13 +83,6 @@ declare module '@deepseek-ai/cordis' {
      * @avnScopeScan unsupported
      */
     'sync/status'(owner: string): void
-    /**
-     * The join requests waiting for a decision on this device changed.
-     * @mode emit
-     * @param owner - the account.
-     * @avnScopeScan unsupported
-     */
-    'sync/join-requests'(owner: string): void
     /**
      * Another device's change to a document was stored on this device; open the document by name to read it.
      * @mode emit
@@ -137,100 +108,30 @@ export abstract class Sync extends Service {
   abstract status(owner: string): SyncStatus
 
   /**
-   * Ask the relay whether the account already has a vault, so a device not enrolled yet knows whether to
-   * create one or join it. Requires a signed-in session for the account.
+   * Turn sync on or off for the account on this device. Syncing is on by default for every account signed in on
+   * this Host; turning it off keeps the local copy and stops exchanging changes until it is turned on again.
    * @param owner - the account.
-   * @returns whether a vault exists.
+   * @param enabled - whether this device syncs the account.
    */
-  abstract vaultExists(owner: string): Promise<boolean>
+  abstract setEnabled(owner: string, enabled: boolean): void
 
   /**
-   * Create the account's vault with this device as its first member. Fails when this device is already
-   * enrolled or the relay already holds a vault for the account.
-   * @param owner - the account.
-   */
-  abstract createVault(owner: string): Promise<void>
-
-  /**
-   * Make the passkey behind a PRF result the account's recovery passkey: record its public keys in the device
-   * chain and wrap the keyring to it, replacing an earlier recovery passkey. Every later key rotation wraps the
-   * new keyring to it too. Requires an enrolled, connected device.
-   * @param owner - the account.
-   * @param secret - the passkey's PRF output for `RECOVERY_PRF_SALT` of `@aeven/sync-vault`.
-   */
-  abstract setRecovery(owner: string, secret: Uint8Array): Promise<void>
-
-  /**
-   * Enroll this device with the account's recovery passkey instead of another device's approval, such as when
-   * no other device is left. Requires a signed-in session for the account and a vault this device is not
-   * enrolled in; fails when the account has no recovery passkey or `secret` came from another passkey.
-   * @param owner - the account.
-   * @param secret - the passkey's PRF output for `RECOVERY_PRF_SALT` of `@aeven/sync-vault`.
-   */
-  abstract recover(owner: string, secret: Uint8Array): Promise<void>
-
-  /**
-   * List the account's active devices.
-   * @param owner - an enrolled account.
+   * List the devices of the account that have synced, by the names they gave themselves.
+   * @param owner - an account whose documents this device can open.
    * @returns the devices, this one first.
    */
   abstract devices(owner: string): Promise<SyncDevice[]>
 
   /**
-   * Remove a device from the account: it can no longer read changes made from now on, and the other devices
-   * refuse its frames. Requires a connection.
-   * @param owner - an enrolled account.
-   * @param device - the device to remove; this device may remove itself.
-   */
-  abstract removeDevice(owner: string, device: DeviceId): Promise<void>
-
-  /**
-   * Ask the account's enrolled devices to admit this device. Requires a signed-in session for the account and
-   * a vault this device is not enrolled in.
-   * @param owner - the account.
-   * @returns the join in progress.
-   */
-  abstract join(owner: string): Promise<SyncJoin>
-
-  /**
-   * Answer join requests from new devices while the user has this device's add-device screen open. Opening it
-   * also asks a device that is already waiting to repeat its request.
-   * @param owner - the account.
-   * @returns a function that stops answering for this caller.
-   */
-  abstract acceptJoins(owner: string): () => void
-
-  /**
-   * List join requests waiting for the user on this enrolled device.
-   * @param owner - the account.
-   * @returns the pending requests.
-   */
-  abstract joinRequests(owner: string): readonly SyncJoinRequest[]
-
-  /**
-   * Admit the device behind a join request after the user confirmed both devices show the same code.
-   * @param owner - the account.
-   * @param id - the request id.
-   */
-  abstract approveJoin(owner: string, id: string): Promise<void>
-
-  /**
-   * Discard a join request.
-   * @param owner - the account.
-   * @param id - the request id.
-   */
-  abstract rejectJoin(owner: string, id: string): void
-
-  /**
    * The opaque id of a logical document name, the id `sync/document` reports.
-   * @param owner - an enrolled account.
+   * @param owner - an account whose documents this device can open.
    * @param name - the logical name.
    * @returns the opaque id.
    */
   abstract documentId(owner: string, name: string): string
 
   /**
-   * Open a document in an enrolled account's vault, loading its local state first.
+   * Open a document of an account whose key this device holds, loading its local state first.
    * @param owner - the account.
    * @param name - logical name, such as `settings/account`; never sent to the relay.
    * @returns the open document.
@@ -239,7 +140,7 @@ export abstract class Sync extends Service {
 
   /**
    * List the documents this device holds state for, so a Consumer that mirrors many documents opens only those.
-   * @param owner - an enrolled account.
+   * @param owner - an account whose documents this device can open.
    * @returns the opaque ids, as {@link documentId} returns them.
    */
   abstract storedDocuments(owner: string): readonly string[]
@@ -247,7 +148,7 @@ export abstract class Sync extends Service {
   /**
    * Queue one batch for a stream this device writes. Batches reach the relay in the order they were queued,
    * after every document change queued before them.
-   * @param owner - an enrolled account.
+   * @param owner - an account whose documents this device can open.
    * @param name - the stream's logical name.
    * @param payload - the batch.
    */
@@ -255,7 +156,7 @@ export abstract class Sync extends Service {
 
   /**
    * Read a stream's batches from the relay, oldest first, one page at a time. Requires a connection.
-   * @param owner - an enrolled account.
+   * @param owner - an account whose documents this device can open.
    * @param name - the stream's logical name.
    * @param after - the last relay sequence number already read; 0 reads from the start.
    * @returns the next page of batches and whether more follow.
@@ -264,7 +165,7 @@ export abstract class Sync extends Service {
 
   /**
    * Count the account's devices this device is linked to directly, outside the relay.
-   * @param _owner - an enrolled account.
+   * @param _owner - an account whose documents this device can open.
    * @returns the number of directly linked devices; 0 when this provider has no direct path.
    */
   linked(_owner: string): Promise<number> {
@@ -274,7 +175,7 @@ export abstract class Sync extends Service {
   /**
    * Receive a stream's batches as another device of the account sends them, including over a local network while
    * the relay is unreachable. A provider without a direct path between devices yields nothing.
-   * @param _owner - an enrolled account.
+   * @param _owner - an account whose documents this device can open.
    * @param _name - the stream's logical name.
    * @param _listener - receives each batch payload once, in the order the writing device sent it.
    * @returns a disposer that stops the subscription.
@@ -293,7 +194,7 @@ export abstract class Sync extends Service {
   }
 
   /**
-   * Acquire or renew exclusive work on this device. Requires an enrolled, online account; an unreachable relay
+   * Acquire or renew exclusive work on this device. Requires an online account; an unreachable relay
    * rejects the request. Callers must stop work before renewal fails or its requested duration elapses.
    * @param owner - the account.
    * @param name - logical work name, hidden from the relay.
@@ -315,14 +216,6 @@ export abstract class Sync extends Service {
    */
   protected notifyStatus(owner: string): void {
     this.ctx.emit('sync/status', owner)
-  }
-
-  /**
-   * Publish a change of pending join requests to `sync/join-requests` listeners.
-   * @param owner - the account.
-   */
-  protected notifyJoinRequests(owner: string): void {
-    this.ctx.emit('sync/join-requests', owner)
   }
 
   /**

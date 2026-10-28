@@ -1,7 +1,7 @@
 /**
- * Two Hosts of one account on one local network: once both are enrolled they link directly, an update reaches
- * the other Host while the relay refuses it, the relay carries it once it accepts again, a removed device
- * receives nothing more, and a Host whose link port is taken keeps syncing through the relay.
+ * Two Hosts of one account on one local network: once both hold the account key they link directly, an update
+ * reaches the other Host while the relay refuses it, the relay carries it once it accepts again, a device that
+ * turned sync off receives nothing more, and a Host whose link port is taken keeps syncing through the relay.
  */
 import { EventEmitter } from 'node:events'
 import { mkdtempSync, rmSync } from 'node:fs'
@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import type {} from '@aeven/credentials'
+import { credentialRef } from '@aeven/credentials'
 import type { Sync } from '@aeven/sync'
 import YjsSync from '../src/index.ts'
 import { FakeRelay } from './fake-relay.ts'
@@ -66,24 +66,25 @@ async function host(options: { lanPort?: number } = {}): Promise<{ ctx: Context;
   ctx.provide('credentials', { resolve: (_ref: unknown, owner: string) => Promise.resolve({ value: `ok-${owner}`, source: 'session' }) } as never)
   const fiber = ctx.plugin(YjsSync, {
     relayUrl: relay.url, credentialRef: 'AEVEN_TOKEN', deviceName: 'lan-host', reconnectMs: 100, connectTimeoutMs: 2000,
-    compactAfter: 50, snapshotAfter: 50, applyFrames: 200, applyPauseMs: 0, pageFrames: 500, statusMs: 0, lan: true, lanPort: options.lanPort ?? 0, lanRetryMs: 100, lanMaxBytes: 1_048_576,
+    requestTimeoutMs: 2000, publishFrames: 100, publishBytes: 2_097_152, compactAfter: 50, snapshotAfter: 50, applyFrames: 200, applyPauseMs: 0, pageFrames: 500, statusMs: 0, lan: true, lanPort: options.lanPort ?? 0, lanRetryMs: 100, lanMaxBytes: 1_048_576,
   })
   await fiber
   cleanups.push(() => fiber.dispose())
   return { ctx, sync: ctx.sync }
 }
 
-const PRF = new Uint8Array(32).fill(3)
+function signIn(target: { ctx: Context }, owner: string): void {
+  target.ctx.emit('credentials/session-updated', credentialRef('AEVEN_TOKEN'), owner)
+}
 
 describe('Hosts of one account on one local network', () => {
   it('deliver an update directly while the relay holds it, and drop a removed device', async () => {
     const account = 'lan-owner-1'
     const first = await host()
-    await first.sync.createVault(account)
+    signIn(first, account)
     await vi.waitFor(() => { expect(first.sync.status(account).state).toBe('online') })
-    await first.sync.setRecovery(account, PRF)
     const second = await host()
-    await second.sync.recover(account, PRF)
+    signIn(second, account)
     await vi.waitFor(() => { expect(second.sync.status(account).state).toBe('online') })
 
     const changed: string[] = []
@@ -104,9 +105,8 @@ describe('Hosts of one account on one local network', () => {
     await vi.waitFor(() => { expect(first.sync.status(account).pending).toBe(0) })
     expect(seen.doc.getMap('m').get('k')).toBe('relayed too')
 
-    const secondDevice = second.sync.status(account).device!
-    await first.sync.removeDevice(account, secondDevice)
-    await vi.waitFor(() => { expect(second.sync.status(account).state).toBe('unenrolled') })
+    second.sync.setEnabled(account, false)
+    expect(second.sync.status(account).state).toBe('disabled')
     sent.doc.getMap('m').set('k', 'private')
     await new Promise(resolve => setTimeout(resolve, 100))
     expect(seen.doc.getMap('m').get('k')).toBe('relayed too')
@@ -121,7 +121,7 @@ describe('Hosts of one account on one local network', () => {
     const port = (taken.address() as { port: number }).port
     const { ctx, sync } = await host({ lanPort: port })
     const warn = vi.spyOn(ctx.logger, 'warn').mockImplementation(() => {})
-    await sync.createVault('lan-owner-2')
+    signIn({ ctx }, 'lan-owner-2')
     await vi.waitFor(() => { expect(warn).toHaveBeenCalledWith(expect.stringContaining('could not start'), 'lan-owner-2', expect.anything()) })
     await vi.waitFor(() => { expect(sync.status('lan-owner-2').state).toBe('online') })
   })

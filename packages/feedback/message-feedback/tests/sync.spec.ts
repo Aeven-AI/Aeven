@@ -75,7 +75,7 @@ describe('message feedback sync', () => {
     await new Promise(resolve => setTimeout(resolve, 20))
     expect(reader.doc.getMap('messages').size).toBe(0)
 
-    const idle = await device(network.device('unenrolled'), '/b')
+    const idle = await device(network.device('disabled'), '/b')
     expect(await items(idle, idle.fixture.session.id)).toEqual([])
     const sync = network.device().asSync()
     const open = sync.openDocument.bind(sync)

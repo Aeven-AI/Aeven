@@ -57,7 +57,7 @@ export class LeaseHolder {
    */
   held(): boolean {
     const state = this.sync.status(this.owner).state
-    if (state === 'unenrolled' || state === 'joining') return true
+    if (state === 'disabled' || state === 'starting') return true
     return this.now() < this.expiresAt
   }
 
