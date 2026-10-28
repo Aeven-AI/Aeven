@@ -26,8 +26,9 @@ kind: "package-reference"
 
 本身没有；变更的命名空间通过与本地设置编辑相同的方式进入请求。
 
-<a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与延后工作
+
+<a id="known-limitations-and-deferred-work"></a>
 
 - **按命名空间合并** — 分节变化时整个被替换，因此两台设备同时编辑同一命名空间时保留较晚的分节，而不是在其中逐字段合并。
 - **首次接触时本机分节会丢失** — 加入的账户如果其设置文档已保存某命名空间，该设备会采用账户的分节。

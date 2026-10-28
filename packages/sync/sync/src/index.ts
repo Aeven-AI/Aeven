@@ -238,6 +238,13 @@ export abstract class Sync extends Service {
   abstract openDocument(owner: string, name: string): Promise<SyncDocument>
 
   /**
+   * List the documents this device holds state for, so a Consumer that mirrors many documents opens only those.
+   * @param owner - an enrolled account.
+   * @returns the opaque ids, as {@link documentId} returns them.
+   */
+  abstract storedDocuments(owner: string): readonly string[]
+
+  /**
    * Queue one batch for a stream this device writes. Batches reach the relay in the order they were queued,
    * after every document change queued before them.
    * @param owner - an enrolled account.

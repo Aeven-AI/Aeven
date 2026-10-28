@@ -13,7 +13,7 @@ import { MemorySyncNetwork, type MemorySyncDevice } from '../../../sync/sync/tes
 import { MemorySyncMirror } from '../src/sync.ts'
 
 const OWNER = 'owner-1'
-const TUNING = { drainMs: 20, drainBatch: 100, maintenanceTtlMs: 1_000, maintenanceRenewMs: 100 }
+const TUNING = { drainMs: 20, drainBatch: 100, applyPauseMs: 0, maintenanceTtlMs: 1_000, maintenanceRenewMs: 100 }
 type Warn = ReturnType<typeof vi.fn<(message: string) => void>>
 const MODEL = 'model-a'
 const cleanups: Array<() => void> = []

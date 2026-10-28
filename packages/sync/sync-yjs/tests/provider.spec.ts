@@ -57,7 +57,7 @@ async function host(options: { home?: string; relayUrl?: string } = {}): Promise
   ctx.on('sync/status', (owner) => { statuses.push(owner) })
   ctx.on('sync/document', (_owner, id) => { documents.push(id) })
   const fiber = ctx.plugin(YjsSync, {
-    relayUrl: options.relayUrl ?? relay.url, credentialRef: 'AEVEN_TOKEN', deviceName: 'test-host', reconnectMs: 100, connectTimeoutMs: 2000, compactAfter: 50, snapshotAfter: 50, lan: false, lanPort: 0, lanRetryMs: 100, lanMaxBytes: 65_536,
+    relayUrl: options.relayUrl ?? relay.url, credentialRef: 'AEVEN_TOKEN', deviceName: 'test-host', reconnectMs: 100, connectTimeoutMs: 2000, compactAfter: 50, snapshotAfter: 50, applyFrames: 200, applyPauseMs: 0, pageFrames: 500, statusMs: 0, lan: false, lanPort: 0, lanRetryMs: 100, lanMaxBytes: 65_536,
   })
   await fiber
   cleanups.push(() => fiber.dispose())
@@ -162,7 +162,7 @@ describe('the Yjs sync provider', () => {
     await vi.waitFor(() => { expect(second.sync.status(account)).toMatchObject({ state: 'online', devices: 2 }) })
 
     const copy = await second.sync.openDocument(account, 'settings/account')
-    expect(copy.doc.getMap('prefs').get('theme')).toBe('dark')
+    await vi.waitFor(() => { expect(copy.doc.getMap('prefs').get('theme')).toBe('dark') })
     copy.doc.getMap('prefs').set('theme', 'light')
     await vi.waitFor(() => { expect(doc.doc.getMap('prefs').get('theme')).toBe('light') })
     expect(first.documents).toContain(first.sync.documentId(account, 'settings/account'))
@@ -211,7 +211,7 @@ describe('the Yjs sync provider', () => {
     await second.sync.recover(account, prf)
     await vi.waitFor(() => { expect(second.sync.status(account)).toMatchObject({ state: 'online', devices: 2, recovery: true }) })
     const copy = await second.sync.openDocument(account, 'notes')
-    expect(copy.doc.getMap('m').get('k')).toBe('before')
+    await vi.waitFor(() => { expect(copy.doc.getMap('m').get('k')).toBe('before') })
 
     const lost = first.sync.status(account).device!
     await second.sync.removeDevice(account, lost)

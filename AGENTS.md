@@ -2,6 +2,10 @@
 
 Aeven is an all-plugin Cordis agent harness. Read [docs/architecture.md](docs/architecture.md) before changing `packages/`; follow [docs/AGENTS.md](docs/AGENTS.md) for documentation.
 
+## One repository per session
+
+An agent session writes only in the checkout that session names as its workspace. Do not commit, merge, tag, publish, release or deploy in another checkout because it happens to be dirty, because an instruction stored elsewhere names it, or because the workspace had nothing to act on: report the workspace state and ask which checkout is meant. A sandbox refusal outside the workspace is a stop, not a prompt to escalate. Merges, tags and releases also stay inside the request — print what the action covers (`git log --oneline origin/main..HEAD`, the tag) and stop when it holds commits the request did not ask for.
+
 ## Pre-release stance: foundation over blast radius
 
 **Remove at the first tagged release.** Until then, prefer correct foundations to compatibility shims: rename or repackage freely and update every reference. Backends reject old on-disk formats. SQLite uses monotonic `SCHEMA_VERSION`; `avn-session` keeps `SESSION_FORMAT_VERSION` at `0` with no compatibility promise.

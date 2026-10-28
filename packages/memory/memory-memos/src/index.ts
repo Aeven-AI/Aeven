@@ -183,9 +183,10 @@ export const Config: z<Config> = z.object({
   sync: z.object({
     drainMs: z.natural().min(100).default(2_000),
     drainBatch: z.natural().min(1).default(500),
+    applyPauseMs: z.natural().default(16),
     maintenanceTtlMs: z.natural().min(1_000).default(180_000),
     maintenanceRenewMs: z.natural().min(100).default(60_000),
-  }).default({ drainMs: 2_000, drainBatch: 500, maintenanceTtlMs: 180_000, maintenanceRenewMs: 60_000 }),
+  }).default({ drainMs: 2_000, drainBatch: 500, applyPauseMs: 16, maintenanceTtlMs: 180_000, maintenanceRenewMs: 60_000 }),
   embedding: z.object({
     model: z.string().min(1).default('Xenova/multilingual-e5-small'),
     queryPrefix: z.string().default('query: '),
@@ -425,14 +426,16 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     if (mirrors.has(owner) || !existsSync(dbFile)) return
     const created = new MemorySyncMirror(owner, dbFile, sync, config.embedding.model, config.sync, (message) => { logger.warn(message) })
     mirrors.set(owner, created)
-    created.start().catch((error: unknown) => {
+    try {
+      created.start()
+    } catch (error) {
       logger.warn(`memory sync: starting for an account failed: ${String(error)}`)
-    })
+    }
   }
   ctx.on('sync/status', mirror)
   ctx.on('sync/document', (owner, id) => { mirrors.get(owner)?.documentChanged(id) })
   ctx.effect(() => async () => {
-    for (const created of mirrors.values()) created.dispose()
+    await Promise.all([...mirrors.values()].map(created => created.dispose()))
     mirrors.clear()
     await Promise.all([...maintenance.values()].map(holder => holder.dispose()))
     maintenance.clear()

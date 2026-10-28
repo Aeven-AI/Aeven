@@ -27,6 +27,7 @@ export default class SessionSync extends SessionHandoff {
     liveMs: z.natural().default(100),
     batchBytes: z.natural().min(1_024).default(512 * 1024),
     backfillDays: z.natural().default(30),
+    pauseMs: z.natural().default(16),
     runnerLease: z.object({ ttlMs: z.natural().min(1_000).default(30_000), renewMs: z.natural().min(1).default(10_000) }),
   })
 
@@ -42,18 +43,13 @@ export default class SessionSync extends SessionHandoff {
       throw new Error('session runner lease renewal must be shorter than its lifetime')
     }
     ctx.on('sync/status', (owner) => { this.track(owner) })
-    ctx.on('agent/pre-step', async ({ agent, step }, next) => {
+    ctx.on('agent/pre-step', async ({ agent }, next) => {
       const owner = agent.session.header.owner
       const mirror = owner === undefined ? undefined : this.mirrors.get(owner)
       if (mirror !== undefined && owner !== undefined) {
         const claim = await mirror.claim(agent.id)
         if (!claim.claimed) return { kind: 'reject' }
         await mirror.holdRunner(agent.id, true)
-        if (step === 1) {
-          await ctx.parallel('session/flush', agent.session)
-          await mirror.publish()
-          await ctx.sync.synchronize(owner)
-        }
       }
       return next()
     }, { prepend: true })

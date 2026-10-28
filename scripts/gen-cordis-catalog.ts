@@ -713,6 +713,11 @@ export const FOUNDATION_TYPE_NAMES: ReadonlySet<string> = new Set([
 /** Project types deliberately documented outside the subsystems catalog. */
 export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   AccountIntegrationsView: 'package-owned type is documented in packages/host/account-integrations/src/types.ts',
+  SessionHandoffInput: 'package-owned type is documented in packages/session/session-handoff/src/index.ts',
+  SharedSession: 'package-owned type is documented in packages/session/session-handoff/src/index.ts',
+  SessionRunner: 'package-owned type is documented in packages/session/session-handoff/src/index.ts',
+  SessionClaim: 'package-owned type is documented in packages/session/session-handoff/src/index.ts',
+  WorkspaceBindRequest: 'package-owned type is documented in packages/api/workspace-controller/src/types.ts',
   AgentDeviceTarget: 'package-owned type is documented in packages/device/device/src/index.ts',
   AutomationDefinition: 'package-owned type is documented in packages/core/automations/src/types.ts',
   AutomationId: 'package-owned type is documented in packages/core/automations/src/types.ts',
