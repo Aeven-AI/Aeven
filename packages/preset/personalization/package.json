@@ -1,7 +1,7 @@
 {
   "name": "@aeven/personalization",
   "description": "How each signed-in person wants Aeven to talk with them: voice, notes and their own master prompt",
-  "version": "0.3.22-alpha",
+  "version": "0.3.23-alpha",
   "publishConfig": {
     "access": "public"
   },

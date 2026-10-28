@@ -1,7 +1,7 @@
 {
   "name": "@aeven/sync-yjs",
   "description": "Yjs provider for account sync: local store, encrypted frames, and the Aeven relay connection",
-  "version": "0.3.22-alpha",
+  "version": "0.3.23-alpha",
   "publishConfig": {
     "access": "public"
   },

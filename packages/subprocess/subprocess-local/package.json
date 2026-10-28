@@ -1,7 +1,7 @@
 {
   "name": "@aeven/subprocess-local",
   "description": "Local-subprocess implementation of the Aeven subprocess seam",
-  "version": "0.3.22-alpha",
+  "version": "0.3.23-alpha",
   "publishConfig": {
     "access": "public"
   },

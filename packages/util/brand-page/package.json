@@ -1,7 +1,7 @@
 {
   "name": "@aeven/brand-page",
   "description": "The Æven brand page every browser round trip lands on: one centred wordmark, the message that fits what happened, and the preloader for pages that wait",
-  "version": "0.3.22-alpha",
+  "version": "0.3.23-alpha",
   "publishConfig": {
     "access": "public"
   },

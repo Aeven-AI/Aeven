@@ -1,7 +1,7 @@
 {
   "name": "@aeven/sync",
   "description": "Service Definition for account sync: encrypted documents shared by every device of one account",
-  "version": "0.3.22-alpha",
+  "version": "0.3.23-alpha",
   "publishConfig": {
     "access": "public"
   },

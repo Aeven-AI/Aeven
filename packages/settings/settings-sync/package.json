@@ -1,7 +1,7 @@
 {
   "name": "@aeven/settings-sync",
   "description": "Account sync Consumer for settings: account-level settings namespaces are the same on every device of the account",
-  "version": "0.3.22-alpha",
+  "version": "0.3.23-alpha",
   "publishConfig": {
     "access": "public"
   },

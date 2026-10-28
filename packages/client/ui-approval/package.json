@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-approval",
   "description": "Approval composer takeover over the scoped Remote Event waterfall",
-  "version": "0.3.22-alpha",
+  "version": "0.3.23-alpha",
   "publishConfig": {
     "access": "public"
   },
