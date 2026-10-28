@@ -31,7 +31,7 @@ There is no universal local baseline beyond the hooks. Every behavior change nee
 When the outgoing change adds or changes a resource-owning or asynchronous test, fixture, helper, or CI execution path, use [avn-ci-test-reliability](../avn-ci-test-reliability/SKILL.md) first to decide whether restoration, negative-control, quiescent-teardown, or concurrent-process evidence applies. This skill still selects the commands and avoids repeating evidence that already passed.
 
 - **Package or script behavior:** run the owning Vitest file or focused test name. Add adjacent package tests when a shared contract changes; leave repository-wide coverage to CI unless the change is genuinely cross-cutting or the user requests it.
-- **Documentation, Agent Notes, catalogs, or doc-linked comments:** run `pnpm run doc-sync`; run full lint when the documentation workflow requires it.
+- **Documentation, Agent Notes, catalogs, or doc-linked comments:** run `pnpm run doc-sync` once and commit what it regenerates. It always exits 0; documentation checks never block a push, so do not hand-fix their findings.
 - **Model-, editor-, CLI-, or terminal-visible output:** run the focused keyless snapshot or real runnable-example scenario that owns the output.
 - **Expected-output placement:** a test whose recorded `session.jsonl` is replay input and expected persisted output belongs under top-level `snapshots/`, with `snapshot.yml` naming its shipped `avn` profile and composition/header pin. ARIA, geometry, generator, CLI, and unit expectations without that session round trip stay beside their owning test under `tests/expected/`; do not place them in `snapshots/` or give them a `*.snapshot.ts` owner. Use the owning `test:expected`, `test:web`, or `test` lane.
 - **Profile and configuration placement:** cross-package behavior of a shipped `avn` profile belongs under `apps/cli/tests/profiles/`; a package-specific Loader composition belongs under that package's `tests/fixtures/`. User-facing optional overlays live under `apps/cli/config/examples/` and pair with a guide under `docs/user/`.
@@ -128,8 +128,6 @@ For `gh stack sync`, use the post-sync validation sequence instead of pretending
 
 ## Generated-document freshness
 
-A change under any `packages/*/*/src` file, or to a package manifest, makes the generated references stale. `docs/event-producer-consumer.md`, `docs/config-catalog.md`, and `docs/module-graph.md` encode source line numbers, declarations, and the workspace import graph, so each has a Chinese counterpart to update with it. `pnpm run test:docs` runs `verify-doc-graphs`, `verify-config-catalog`, and `verify-module-graph`, so run it before pushing such a change and commit the regenerated documents with their re-recorded pairs.
-
-`doc-typecheck` is deliberately outside that aggregate because it builds the Host library first. Run `pnpm run doc-typecheck` before pushing a change that adds or edits an Agent Note, or any other Markdown carrying a `ts` fence: a fence that cannot compile fails that gate later, and a fence that is deliberately unchecked carries `ts ignore-check`.
+A change under any `packages/*/*/src` file, or to a package manifest, makes the generated references stale. `pnpm run doc-sync` regenerates them and re-records their translation pairs; commit what it writes. `doc-typecheck` and the rest of `pnpm run doc-check` run only on request.
 
 Running focused gates instead of the full suite never exempts generated-document freshness. Staleness is a property of the whole reference set, not of the file that moved, so a focused run reports the touched package green while the aggregate is already red.
