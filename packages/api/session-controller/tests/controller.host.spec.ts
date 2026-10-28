@@ -25,6 +25,10 @@ describe('SessionController facade', () => {
     const apply = vi.fn((_id: unknown, _input: unknown) => Promise.resolve())
     ;(controller as unknown as { commands: { applyForwarded: typeof apply } }).commands.applyForwarded = apply
     const warn = vi.spyOn(ctx.logger, 'warn').mockImplementation(() => {})
+    const answer = vi.spyOn((controller as unknown as { controlState: { interactions: { answer: () => void } } }).controlState.interactions, 'answer')
+    ctx.emit('session-handoff/input', 'owner-1', SessionId('s'), { operation: 'interaction', request: { id: 'i-1', answer: 'rejected' } })
+    ctx.emit('session-handoff/input', 'owner-1', SessionId('s'), { operation: 'interaction', request: { id: 7 } })
+    expect(answer).toHaveBeenCalledExactlyOnceWith('i-1', 'rejected')
     const input = { operation: 'cancel', request: {} }
     ctx.emit('session-handoff/input', 'owner-1', SessionId('s'), input)
     await vi.waitFor(() => { expect(apply).toHaveBeenCalledWith('s', input) })

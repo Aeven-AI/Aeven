@@ -86,6 +86,11 @@ declare module '@deepseek-ai/cordis' {
 export interface Config {
   /** Override platform desktop-opener detection. */
   readonly nativeOpen?: boolean
+  /**
+   * How long an approval or question nobody answered on the device running the turn waits for another device of
+   * the account to answer, in milliseconds.
+   */
+  readonly remoteAnswerMs?: number
 }
 
 /** Host integrations replaceable by direct unit tests. */
@@ -118,6 +123,7 @@ export class SessionController extends TypertRemoteService {
 
   static Config: z<Config> = z.object({
     nativeOpen: z.boolean(),
+    remoteAnswerMs: z.natural().default(600_000),
   })
 
   private readonly agents: ApiSessionAgentController
@@ -141,7 +147,7 @@ export class SessionController extends TypertRemoteService {
     installModelSelectionProjection(ctx)
     this.agents = new ApiSessionAgentController(ctx)
     this.commands = new SessionCommandController(ctx, this.agents, process.cwd())
-    this.controlState = new SessionControlController(ctx)
+    this.controlState = new SessionControlController(ctx, config.remoteAnswerMs ?? 600_000)
     // Registered before history so reverse-order teardown closes every
     // follower before waiting for already-admitted promotions.
     ctx.effect(() => async () => {
@@ -171,6 +177,11 @@ export class SessionController extends TypertRemoteService {
     // Input the account's other devices typed for a session this device writes runs here as if typed here.
     ctx.on('session-handoff/input', (owner, sessionId, input) => {
       const identity = ctx.get('identityUsers')
+      if (input.operation === 'interaction') {
+        const answer = input.request as { readonly id?: unknown; readonly answer?: unknown }
+        if (typeof answer.id === 'string') this.controlState.interactions.answer(answer.id, answer.answer)
+        return
+      }
       const apply = () => this.commands.applyForwarded(sessionId, input)
       void (identity === undefined ? apply() : identity.runAs({ id: owner }, apply)).catch((error: unknown) => {
         ctx.logger.warn(`session: input another device forwarded for ${sessionId} was not applied: ${String(error)}`)

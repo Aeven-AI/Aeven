@@ -29,7 +29,7 @@ async function harness(options: { owner?: string; handoff?: boolean } = {}) {
       liveOf: () => shared,
     } as never)
   }
-  const control = new SessionControlController(ctx)
+  const control = new SessionControlController(ctx, 1_000)
   return { ctx, control, agent, inbox, published, share: (value: unknown) => { shared = value } }
 }
 
@@ -69,7 +69,7 @@ describe('live session state across devices', () => {
     const iterator = control.control(abort.signal)[Symbol.asyncIterator]()
     await iterator.next()
     const queued = message('from the laptop')
-    share({ running: true, queue: [{ id: queued.id, placement: 'queued', message: { id: queued.id, content: [] } }] })
+    share({ running: true, queue: [{ id: queued.id, placement: 'queued', message: { id: queued.id, content: [] } }], interactions: [] })
     ctx.emit('session-handoff/live', 'owner-1', SessionId('remote-session'))
     const frame = await iterator.next()
     expect(frame.value).toMatchObject({ type: 'queue', sessionId: 'remote-session', items: [{ id: queued.id }] })

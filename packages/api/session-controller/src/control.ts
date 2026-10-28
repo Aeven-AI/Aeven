@@ -20,6 +20,7 @@ import type {
   SessionQueuedItem,
 } from './types.ts'
 import { callerMayAccessSession } from './agent.ts'
+import { InteractionRelay, type SharedInteraction } from './interactions.ts'
 
 /** What the device writing a session shares of it with the account's other devices. */
 interface RemoteLive {
@@ -27,6 +28,8 @@ interface RemoteLive {
   readonly running: boolean
   /** What waits in its queue. */
   readonly queue: readonly SessionQueuedItem[]
+  /** Approvals and questions waiting for an answer. */
+  readonly interactions: readonly SharedInteraction[]
 }
 
 /** Read another device's live state, which arrives over the wire. */
@@ -35,15 +38,22 @@ function remoteLive(value: unknown): RemoteLive {
   return {
     running: record.running === true,
     queue: Array.isArray(record.queue) ? record.queue as SessionQueuedItem[] : [],
+    interactions: Array.isArray(record.interactions) ? record.interactions as SharedInteraction[] : [],
   }
 }
 
 /** Owns the Host-wide Session control stream. */
 export class SessionControlController {
   private readonly streams = new Set<ControlQueue>()
+  /** Approvals and questions answered on whichever device of the account the user holds. */
+  readonly interactions: InteractionRelay
 
-  /** @param ctx - Host context carrying live Agent, projection, and jobs services. */
-  constructor(private readonly ctx: Context) {
+  /**
+   * @param ctx - Host context carrying live Agent, projection, and jobs services.
+   * @param remoteAnswerMs - how long a request nobody answered here waits for another device's answer.
+   */
+  constructor(private readonly ctx: Context, remoteAnswerMs: number) {
+    this.interactions = new InteractionRelay(ctx, (agent) => { this.shareLive(agent) }, remoteAnswerMs)
     ctx.on('session/event', (session, event) => { this.onSessionEvent(session, event) })
     // A turn running here, and what waits in its queue, show on the account's other devices too.
     ctx.on('agent/status', ({ agent }) => { this.shareLive(agent) })
@@ -142,7 +152,9 @@ export class SessionControlController {
     if (owner === undefined || handoff === undefined) return
     const items = spliced ?? queueItems(agent)
     const running = agent.status === 'running'
-    handoff.publishLive(owner, agent.id, running || items.length > 0 ? { running, queue: items } : undefined)
+    const interactions = this.interactions.pendingFor(agent.id)
+    const live = running || items.length > 0 || interactions.length > 0 ? { running, queue: items, interactions } : undefined
+    handoff.publishLive(owner, agent.id, live)
   }
 
   /** Show what another device shares of a session it writes: its running state and queue. */
@@ -151,6 +163,7 @@ export class SessionControlController {
     const header = { id: sessionId, owner } as SessionHeader
     this.broadcastFor(header, { type: 'queue', sessionId, items: live.queue })
     this.ctx.emit('api-session/status', sessionId, live.running)
+    this.interactions.present(owner, sessionId, live.interactions)
   }
 
   private onJobsChanged(event: JobEvent): void {

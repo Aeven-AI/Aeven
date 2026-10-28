@@ -21,7 +21,7 @@ async function harness(): Promise<{
   const inbox = new Inbox(session, { inserted: () => {}, discarded: () => {}, claimed: () => {} })
   const agent = { id: session.id, session, inbox, status: 'running', ctx } as Agent
   ctx.agents.register(agent)
-  return { ctx, control: new SessionControlController(ctx), agent, inbox }
+  return { ctx, control: new SessionControlController(ctx, 1_000), agent, inbox }
 }
 
 function message(text: string, source: 'user' | 'plugin' = 'user') {
