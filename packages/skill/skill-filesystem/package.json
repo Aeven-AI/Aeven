@@ -1,7 +1,7 @@
 {
   "name": "@aeven/skill-filesystem",
   "description": "Local filesystem skill provider for the Aeven",
-  "version": "0.3.24-alpha",
+  "version": "0.3.25-alpha",
   "publishConfig": {
     "access": "public"
   },

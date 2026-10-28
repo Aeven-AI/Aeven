@@ -1,7 +1,7 @@
 {
   "name": "@aeven/webhook-github",
   "description": "Signed GitHub HTTP webhook adapter for the Aeven webhook runtime",
-  "version": "0.3.24-alpha",
+  "version": "0.3.25-alpha",
   "publishConfig": {
     "access": "public"
   },
