@@ -164,6 +164,8 @@ export class Automations extends Service<Config> {
   private readonly synced: DefinitionSync
   /** This device's claim on each automation's scheduled runs, by account and automation. */
   private readonly leases = new Map<string, LeaseHolder>()
+  /** The due occurrence of each automation another device holds the claim for; it waits for a lease change. */
+  private readonly deferred = new Map<AutomationId, string>()
 
   constructor(ctx: Context, private readonly config: Config) {
     super(ctx, 'automations')
@@ -670,7 +672,10 @@ export class Automations extends Service<Config> {
       if (value.status !== 'active') return []
       const latest = latestDueOccurrence(value.schedule, now)
       const key = latest === null ? undefined : this.occurrenceId(value.id, latest)
-      if (latest !== null && Date.parse(latest) > Math.max(Date.parse(value.updatedAt), value.lastAdmittedAt === null ? -Infinity : Date.parse(value.lastAdmittedAt)) && key !== undefined && domain.table('runs').get(key) === undefined) return [Date.now()]
+      const admitted = Math.max(Date.parse(value.updatedAt), value.lastAdmittedAt === null ? -Infinity : Date.parse(value.lastAdmittedAt))
+      // An occurrence another device's claim covers is due again only once this device's claim changes.
+      if (latest !== null && Date.parse(latest) > admitted && key !== undefined && domain.table('runs').get(key) === undefined
+        && this.deferred.get(value.id) !== latest) return [Date.now()]
       const next = nextOccurrence(value.schedule, now)
       return next === null ? [] : [Date.parse(next)]
     })
@@ -686,7 +691,11 @@ export class Automations extends Service<Config> {
           const id = this.occurrenceId(definition.id, occurrence)
           if (current.table('runs').get(id) !== undefined) continue
           // While the account is served here, one of its devices runs an automation's occurrence.
-          if (!await this.claimsScheduler(definition)) continue
+          if (!await this.claimsScheduler(definition)) {
+            this.deferred.set(definition.id, occurrence)
+            continue
+          }
+          this.deferred.delete(definition.id)
           await this.admit(current, definition, 'schedule', occurrence)
         }
         this.drain(current)
@@ -758,14 +767,38 @@ export class Automations extends Service<Config> {
     const key = `${owner}\n${definition.id}`
     let holder = this.leases.get(key)
     if (holder === undefined) {
-      holder = new LeaseHolder(sync, owner, `automations/${definition.id}`, {
+      const id = definition.id
+      holder = new LeaseHolder(sync, owner, `automations/${id}`, {
         ttlMs: this.config.sync.leaseTtlMs, renewMs: this.config.sync.leaseRenewMs,
+      }, {
+        // Gaining the claim makes a waiting occurrence due here; the scheduler looks again.
+        changed: (held) => {
+          if (!held) return
+          this.deferred.delete(id)
+          void this.transaction((domain) => { this.arm(domain); return Promise.resolve() }).catch(() => {
+            // A stopping Host refuses the transaction; nothing remains to schedule.
+          })
+        },
       })
       this.leases.set(key, holder)
       holder.start()
     }
     await holder.renew()
     return holder.held()
+  }
+
+  /**
+   * Whether this device may execute an automation: any device of an account that sync serves here, since its
+   * definitions are the account's; otherwise only the device that created it.
+   * @param domain - the open definition domain.
+   * @param definition - the automation.
+   * @returns whether this device may admit its runs.
+   */
+  private runsHere(domain: Domain<typeof automationDomain>, definition: AutomationDefinition): boolean {
+    const owner = definition.owner
+    const state = owner === undefined ? undefined : this.ctx.get('sync')?.status(owner).state
+    if (state !== undefined && state !== 'unenrolled' && state !== 'joining') return true
+    return definition.executionTarget.runnerId === this.runnerId(domain)
   }
 
   private occurrenceId(id: AutomationId, at: string): AutomationRunId {
@@ -780,7 +813,7 @@ export class Automations extends Service<Config> {
     retryOfRunId: AutomationRunId | null = null,
     payload: string | null = null,
   ): Promise<AutomationRun> {
-    if (definition.executionTarget.runnerId !== this.runnerId(domain)) throw new Error('This automation belongs to another execution target.')
+    if (!this.runsHere(domain, definition)) throw new Error('This automation belongs to another execution target.')
     const overlapping = [...domain.table('runs').entries()].some(([, run]) => run.definition.id === definition.id && (run.status === 'queued' || run.status === 'running'))
     const stale = trigger === 'schedule' && Date.now() - Date.parse(scheduledFor) > this.config.misfireGraceMinutes * 60_000
     const skipped = overlapping || stale
@@ -861,7 +894,9 @@ export class Automations extends Service<Config> {
       const last = messages.at(-1)
       const summary = last?.type === 'assistant/message' ? last.data.message.content.filter(block => block.type === 'text').map(block => block.text).join('\n') : null
       const completed = end?.type === 'turn/end' && end.data.reason.kind === 'completed'
+      // oxlint-disable-next-line typescript/no-unnecessary-condition -- the run timeout is set while the turns above are awaited.
       const status = completed && !timedOut ? 'succeeded' : this.stopped ? 'cancelled' : 'failed'
+      // oxlint-disable-next-line typescript/no-unnecessary-condition -- a Host stop can land during the awaits above.
       const error = timedOut ? 'Execution timed out.' : completed ? null : 'Execution did not complete; inspect its conversation.'
       await domain.table('runs').put(run.id, { ...running, status, finishedAt: new Date().toISOString(), summary, error })
     } catch (error) {

@@ -1,7 +1,8 @@
 /**
  * Automations across two devices of one account: a definition created on one device reaches the other, an
- * edit travels with a newer timestamp, a removal travels as a tombstone, and an occurrence that comes due is
- * admitted by one device of the account rather than by each of them.
+ * edit travels with a newer timestamp, a removal travels as a tombstone, an occurrence that comes due is
+ * admitted by one device of the account rather than by each of them, whichever device holds the claim runs an
+ * automation another device created, and a device without the claim waits for it instead of retrying.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SessionId } from '@aeven/session'
@@ -89,5 +90,60 @@ describe('automation definitions across devices', () => {
     // Both devices hold the definition and both timers fire; the account's lease lets one admit.
     expect(admitted).toHaveLength(1)
     expect(admitted[0]?.scheduledFor).toBe('2026-06-01T00:05:00.000Z')
+  })
+
+  it('runs an automation created elsewhere on the device holding its claim, and waits for the claim instead of retrying', async () => {
+    const network = new MemorySyncNetwork()
+    const syncA = network.device()
+    const syncB = network.device()
+    const a = await device(network, syncA)
+    const b = await device(network, syncB)
+    const created = await create(a, { schedule: HOURLY })
+    await advanceUntil(0, async () => (await names(b)).includes('Nightly report') ? true : undefined, 'the definition on the second device')
+    // The second device holds this automation's claim when the occurrence comes due.
+    network.leases.set(`automations/${created.id}`, { holder: syncB.id, expiresAt: Date.parse(START) + 3_600_000 })
+    const acquire = vi.fn()
+    const sync = a.ctx.sync
+    const original = sync.acquireLease.bind(sync)
+    sync.acquireLease = (owner, name, ttl) => {
+      acquire()
+      return original(owner, name, ttl)
+    }
+    const admitted = await advanceUntil(5 * 60_000 + 1, async () => {
+      const runs = (await listAutomations(b)).runs.filter(run => run.trigger === 'schedule')
+      return runs.length > 0 ? runs : undefined
+    }, 'the scheduled run on the claiming device')
+    expect(admitted).toHaveLength(1)
+    expect((await listAutomations(a)).runs).toEqual([])
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect(acquire.mock.calls.length).toBeLessThanOrEqual(2)
+
+    const manual = await b.automations.runNow(created.id)
+    expect(manual.trigger).toBe('manual')
+  })
+
+  it('admits a waiting occurrence once this device gains the claim', async () => {
+    const network = new MemorySyncNetwork()
+    const syncA = network.device()
+    const a = await device(network, syncA)
+    const created = await create(a, { schedule: HOURLY })
+    network.leases.set(`automations/${created.id}`, { holder: 'gone', expiresAt: Date.parse(START) + 6 * 60_000 })
+    await vi.advanceTimersByTimeAsync(5 * 60_000 + 1)
+    expect((await listAutomations(a)).runs).toEqual([])
+    vi.setSystemTime(new Date(Date.parse(START) + 7 * 60_000))
+    const leases = (a.automations as unknown as { leases: Map<string, { renew(): Promise<void> }> }).leases
+    for (const holder of leases.values()) await holder.renew()
+    const admitted = await advanceUntil(0, async () => {
+      const runs = (await listAutomations(a)).runs.filter(run => run.trigger === 'schedule')
+      return runs.length > 0 ? runs : undefined
+    }, 'the scheduled run after gaining the claim')
+    expect(admitted[0]?.scheduledFor).toBe('2026-06-01T00:05:00.000Z')
+
+    // Losing the claim again leaves the next occurrence to the device that took it.
+    vi.setSystemTime(new Date(Date.parse(START) + 10 * 60_000 + 180_001))
+    network.leases.set(`automations/${created.id}`, { holder: 'other', expiresAt: Date.parse(START) + 3 * 3_600_000 })
+    for (const holder of leases.values()) await holder.renew()
+    await vi.advanceTimersByTimeAsync(3_600_000)
+    expect((await listAutomations(a)).runs.filter(run => run.trigger === 'schedule')).toHaveLength(1)
   })
 })
