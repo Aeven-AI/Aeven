@@ -105,7 +105,8 @@
     "@aeven/identity-user": "workspace:^",
     "@aeven/session-handoff": "workspace:^",
     "@aeven/user-questions": "workspace:^",
-    "@aeven/user-approval": "workspace:^"
+    "@aeven/user-approval": "workspace:^",
+    "@aeven/working-directory": "workspace:^"
   },
   "peerDependenciesMeta": {
     "@aeven/jobs": {
@@ -174,6 +175,7 @@
     "@aeven/identity-user": "workspace:^",
     "@aeven/session-handoff": "workspace:^",
     "@aeven/user-questions": "workspace:^",
-    "@aeven/user-approval": "workspace:^"
+    "@aeven/user-approval": "workspace:^",
+    "@aeven/working-directory": "workspace:^"
   }
 }

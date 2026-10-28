@@ -9,6 +9,7 @@ import type { Session, SessionEvent, SessionHeader, SessionId } from '@aeven/ses
 import type { ProjectionSnapshot } from '@aeven/session-projection'
 import type {} from '@aeven/session-projection-cache'
 import type {} from '@aeven/session-persistence'
+import type {} from '@aeven/session-handoff'
 import { SessionQueryError, type SessionSearchCursor } from '@aeven/session-query'
 import { RemoteError } from '@aeven/typert-protocol'
 import type {} from '@aeven/identity-user'
@@ -197,6 +198,19 @@ export class ApiSessionList {
   }
 
   /**
+   * Summarize received metadata without opening a conversation body.
+   * @param owner - account whose catalog to project.
+   * @returns summaries including conversations not downloaded here.
+   */
+  sharedFor(owner: string): SessionSummary[] {
+    return (this.ctx.get('sessionHandoff')?.catalog(owner) ?? []).map(entry => ({
+      sessionId: entry.header.id, ...listFields(entry.header),
+      updatedAt: entry.updatedAt, running: false, blank: false,
+      ...entry.title === undefined ? {} : { projections: { asOfSeq: entry.next - 1, values: { title: entry.title } } },
+    }))
+  }
+
+  /**
    * Read every visible attached and persisted Session without activating an Agent.
    * @param signal - optional cancellation for persistence reads.
    * @returns visible Session summaries ordered by activity.
@@ -229,6 +243,10 @@ export class ApiSessionList {
     }
     for (const entry of cold) items.push(this.summarizeCold(entry))
     await this.recoverMissingTitles(items, cold, signal)
+    if (caller !== undefined) {
+      const present = new Set(items.map(item => item.sessionId))
+      for (const summary of this.sharedFor(caller.id)) if (!present.has(summary.sessionId)) items.push(summary)
+    }
     items.sort((left, right) => right.updatedAt - left.updatedAt)
     return items
   }

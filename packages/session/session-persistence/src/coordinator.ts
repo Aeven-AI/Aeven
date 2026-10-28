@@ -33,7 +33,7 @@ import type {
   SessionLocation,
   SessionStorageMetadata,
 } from './index.ts'
-import { SessionPersistenceNotFoundError, SessionPersistenceReadOnlyError } from './errors.ts'
+import { SessionPersistenceBusyError, SessionPersistenceNotFoundError, SessionPersistenceReadOnlyError } from './errors.ts'
 import type { SessionPersistenceRevision } from './revision.ts'
 import { observeQueuedAbort, SessionPreparations } from './preparations.ts'
 import type { SessionPreparationReservation } from './preparations.ts'
@@ -163,6 +163,13 @@ export interface PersistenceBackend<TornMarker = unknown> {
    * @returns synchronous disposer for the claim.
    */
   acquireWriter?(id: SessionId): Promise<() => void>
+
+  /**
+   * Persist local execution ownership separately from the append-only log.
+   * @param id - stored session protected by the coordinator's writer lock.
+   * @param replica - whether local execution is refused.
+   */
+  setStoredReplica?(id: SessionId, replica: boolean): Promise<void>
 
   /**
    * Read a stored prefix by id, scanning every backend storage scope. Returns
@@ -790,6 +797,32 @@ export class PersistenceCoordinator<TornMarker = unknown> {
         this.states.delete(id)
         this.preparations.invalidate(id)
         return await deleteStored(id)
+      } finally {
+        this.releaseWriter(id)
+      }
+    })
+  }
+
+
+  /**
+   * Change the execution marker only while no live or prepared owner can retain the old header.
+   * @param id - stored session.
+   * @param replica - whether the session is read-only on this device.
+   */
+  setReplica(id: SessionId, replica: boolean): Promise<void> {
+    return this.serialize(id, async () => {
+      if (this.ctx.sessions.get(id) !== undefined || this.preparations.hasReservation(id)
+        || this.states.get(id)?.owner !== undefined) throw new SessionPersistenceBusyError(id)
+      if (this.backend.setStoredReplica === undefined) throw new Error('this backend cannot change replica ownership')
+      await this.claimWriter(id)
+      try {
+        const stored = await this.backend.loadStored(id)
+        if (stored === undefined) throw new SessionPersistenceNotFoundError(id)
+        this.assertStoredId(id, stored.meta)
+        this.assertVersion(stored.meta)
+        await this.backend.setStoredReplica(id, replica)
+        this.states.delete(id)
+        this.preparations.invalidate(id)
       } finally {
         this.releaseWriter(id)
       }

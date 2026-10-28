@@ -120,6 +120,17 @@ export async function publishNewFileWin32(existing: string, replacement: string)
 }
 
 /**
+ * Atomically replace a local execution marker with Windows write-through publication.
+ * @param existing - synced staging file on the destination volume.
+ * @param replacement - destination file, which may already exist.
+ */
+export async function replaceFileWin32(existing: string, replacement: string): Promise<void> {
+  const api = await win32()
+  const ok = api.moveFileExW(toNamespacedPath(existing), toNamespacedPath(replacement), MOVEFILE_WRITE_THROUGH | 0x1)
+  if (ok === 0) throw win32Error('MoveFileExW', api.getLastError(), existing, replacement)
+}
+
+/**
  * Create `target` and its missing ancestors with durable Windows namespace
  * publication. Each missing directory is first created as a random staging
  * sibling, then moved to its final name with `MOVEFILE_WRITE_THROUGH`; races

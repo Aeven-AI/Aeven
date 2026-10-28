@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import AgentRegistry from '@aeven/agent'
 import type { Agent } from '@aeven/agent'
-import SessionStore from '@aeven/session'
+import SessionStore, { SessionId } from '@aeven/session'
 import type { Session } from '@aeven/session'
 import { CommandId } from '@aeven/commands/brand'
 // Side-effect type imports: the configuration-event SessionEventMap merges.
@@ -54,6 +54,25 @@ async function listBlank(remote: TestSessionRemote, id: string): Promise<boolean
 }
 
 describe('summary blank = conversation not started', () => {
+  it('lists shared conversation metadata before its body exists on this device', async () => {
+    const { ctx, remote } = await harness()
+    try {
+      ctx.provide('identityUsers', { actingUser: () => ({ id: 'account' }) } as never)
+      ctx.provide('sessionHandoff', { catalog: () => [{
+        header: { id: SessionId('not-downloaded'), owner: 'account', version: 0, createdAt: 1, isSeeded: false, replica: true },
+        next: 10, updatedAt: 3, title: 'Shared history',
+      }] } as never)
+      const result = await remote.list({})
+      expect(result).toMatchObject({ ok: true, value: { items: [{
+        sessionId: 'not-downloaded', replica: true, blank: false,
+        projections: { asOfSeq: 9, values: { title: 'Shared history' } },
+      }] } })
+      expect(ctx.sessions.list()).toEqual([])
+    } finally {
+      await ctx.fiber.dispose()
+    }
+  })
+
   it('standalone events (command lifecycle, plan/mode, title) keep the session blank', async () => {
     const { ctx, remote, attach } = await harness()
     const session = ctx.sessions.create()

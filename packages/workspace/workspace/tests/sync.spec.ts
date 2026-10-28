@@ -33,7 +33,9 @@ async function folder(label: string): Promise<string> {
 }
 
 /** One device of the account: its own storage, and the account's synced document. */
-async function device(sync: MemorySyncDevice, headers: SessionHeader[] = [], seed = false): Promise<WorkspaceRegistry> {
+async function device(
+  sync: MemorySyncDevice, headers: SessionHeader[] = [], seed = false, shared: SessionId[] = [],
+): Promise<WorkspaceRegistry> {
   const ctx = new Context()
   contexts.push(ctx)
   await ctx.plugin(Storage)
@@ -47,6 +49,7 @@ async function device(sync: MemorySyncDevice, headers: SessionHeader[] = [], see
     inspect: () => { throw new Error('unused') },
   } as never)
   ctx.provide('sync', sync.asSync())
+  if (shared.length > 0) ctx.provide('sessionHandoff', { shared: (_owner: string, id: SessionId) => shared.includes(id) } as never)
   await ctx.plugin(WorkspaceRegistry, { seedDefaultWorkspace: seed })
   ctx.emit('sync/status', OWNER)
   return ctx.workspaceRegistry
@@ -65,6 +68,18 @@ async function until<T>(probe: () => T | undefined, label: string): Promise<T> {
 const titles = (registry: WorkspaceRegistry) => registry.list().map(workspace => workspace.title)
 
 describe('workspaces across devices', () => {
+  it('keeps a promoted shared session in its local workspace despite the other device’s header path', async () => {
+    const network = new MemorySyncNetwork()
+    const header: SessionHeader = {
+      version: SESSION_FORMAT_VERSION, id: SessionId('promoted'), createdAt: 1, isSeeded: false, owner: OWNER, cwd: '/other-device/project',
+    }
+    const registry = await device(network.device(), [header], false, [header.id])
+    const workspace = await registry.create(await folder('promoted'), 'Project', OWNER)
+    await workspace.attachSession(header.id)
+    expect(workspace.sessionIds).toEqual([header.id])
+    expect(registry.sessionHome(header.id)).toBe(workspace.id)
+  })
+
   it('gives the account\'s other device a workspace registered here, without its path', async () => {
     const network = new MemorySyncNetwork()
     const a = await device(network.device())

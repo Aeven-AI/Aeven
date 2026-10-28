@@ -446,6 +446,11 @@ export default class YjsSync extends Sync {
   }
 
   /** @inheritdoc */
+  override async synchronize(owner: string): Promise<void> {
+    await this.enrolledVault(owner).synchronize()
+  }
+
+  /** @inheritdoc */
   async acquireLease(owner: string, name: string, ttlMs: number): Promise<SyncLease> {
     const { relay, device, vault } = this.leaseConnection(owner)
     const result = await relay.request('lease.acquire', { name: vault.documentId(`leases/${name}`), device, ttlMs })

@@ -256,6 +256,15 @@ export abstract class Sync extends Service {
   abstract readStream(owner: string, name: string, after: number): Promise<{ batches: SyncStreamBatch[]; more: boolean }>
 
   /**
+   * Publish the local outbox and receive the relay's committed backlog before transferring exclusive work.
+   * @param _owner - account whose vault must be online.
+   * @returns when the outbox is acknowledged and the received documents are current.
+   */
+  synchronize(_owner: string): Promise<void> {
+    return Promise.reject(new Error('this sync provider cannot synchronize an ownership transfer'))
+  }
+
+  /**
    * Acquire or renew exclusive work on this device. Requires an enrolled, online account; an unreachable relay
    * rejects the request. Callers must stop work before renewal fails or its requested duration elapses.
    * @param owner - the account.

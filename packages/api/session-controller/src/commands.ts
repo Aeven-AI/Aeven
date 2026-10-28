@@ -17,6 +17,7 @@ import { SessionTitleInvalidError } from '@aeven/session-title'
 import { canonicalClientTimeZone } from '@aeven/util-time'
 import { RemoteError, remoteErrorOf } from '@aeven/typert-protocol'
 import type { Workspace } from '@aeven/workspace'
+import type {} from '@aeven/working-directory'
 import type { SessionHandoffInput } from '@aeven/session-handoff'
 import {
   ApiSessionAgentController,
@@ -468,7 +469,7 @@ export class SessionCommandController {
       )
     }
     const source = userSource(request)
-    const owner = this.runnerAccount(request.sessionId)
+    const owner = await this.claimRunnerAccount(request.sessionId)
     if (owner !== undefined) return await this.forward(owner, request.sessionId, 'prompt', request)
     const agent = await this.resolveAgent(request.sessionId)
     this.assertRouteServed(agent)
@@ -515,7 +516,7 @@ export class SessionCommandController {
       throw new RemoteError('gateway/bad-request', 'edited text must include non-whitespace text', {})
     }
     const source = userSource(request)
-    const owner = this.runnerAccount(request.sessionId)
+    const owner = await this.claimRunnerAccount(request.sessionId)
     if (owner !== undefined) {
       const { events } = await this.readSessionState(request.sessionId)
       editTarget({ seq: SessionLogOffset(events.length), eventAt: seq => events[seq] }, request)
@@ -556,7 +557,7 @@ export class SessionCommandController {
    * @returns acknowledgement that the notice entered the Agent inbox.
    */
   async retry(request: SessionRetryRequest): Promise<SessionRetryValue> {
-    const owner = this.runnerAccount(request.sessionId)
+    const owner = await this.claimRunnerAccount(request.sessionId)
     if (owner !== undefined) return await this.forward(owner, request.sessionId, 'retry', request)
     const agent = await this.resolveAgent(request.sessionId)
     if (hasApiSessionSubagentOwner(this.ctx, agent.session, agent)) {
@@ -742,14 +743,32 @@ export class SessionCommandController {
   }
 
   /**
-   * The caller's account when another device of it writes the session, so this device forwards the input there.
-   * A session this device holds live is always this device's.
+   * Select the local runner for a turn-starting input, or return the account whose current runner takes it.
    */
   private runnerAccount(sessionId: SessionId): string | undefined {
+    const owner = this.ctx.get('identityUsers')?.actingUser()?.id
+    if (owner === undefined) return undefined
+    return this.ctx.get('sessionHandoff')?.runnerOf(owner, sessionId) === undefined ? undefined : owner
+  }
+
+  private async claimRunnerAccount(sessionId: SessionId): Promise<string | undefined> {
     const handoff = this.ctx.get('sessionHandoff')
     const owner = this.ctx.get('identityUsers')?.actingUser()?.id
-    if (handoff === undefined || owner === undefined || this.ctx.agents.get(sessionId) !== undefined) return undefined
-    return handoff.runnerOf(owner, sessionId) === undefined ? undefined : owner
+    if (handoff === undefined || owner === undefined) return undefined
+    const runner = handoff.runnerOf(owner, sessionId)
+    const workspace = this.ctx.workspaceRegistry.list().find(candidate => candidate.sessionIds.includes(sessionId))
+    if (runner !== undefined && workspace?.kind === 'remote') {
+      return owner
+    }
+    const claimed = await handoff.claim(owner, sessionId)
+    if (!claimed.claimed) return owner
+    if (runner !== undefined && workspace?.path !== undefined) {
+      const agent = await this.resolveAgent(sessionId)
+      const directory = this.ctx.get('workingDirectory')
+      if (directory === undefined) throw new Error('session handover requires workingDirectory')
+      await directory.enter(agent.session, workspace.path)
+    }
+    return undefined
   }
 
   private async forward(owner: string, sessionId: SessionId, operation: string, request: unknown): Promise<{ accepted: true }> {
@@ -817,6 +836,9 @@ export class SessionCommandController {
 
   /** Read one Session's log for the acting caller; another account's Session reads as absent. */
   private async readSessionState(sessionId: SessionId): Promise<SessionReadState> {
+    const owner = this.ctx.get('identityUsers')?.actingUser()?.id
+    if (owner !== undefined) await this.ctx.get('sessionHandoff')?.fetch(owner, sessionId)
+
     const attached = this.ctx.sessions.get(sessionId)
     const state: SessionReadState = attached !== undefined
       ? { id: attached.id, header: attached.header, events: attached.snapshotEvents() }

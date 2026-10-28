@@ -16,7 +16,7 @@ import type { SessionRequestId } from '../src/types.ts'
 const REMOTE = SessionId('remote-session')
 const LOCAL = SessionId('local-session')
 
-async function harness(options: { handoff?: boolean; signedIn?: boolean } = {}) {
+async function harness(options: { handoff?: boolean; signedIn?: boolean; claim?: boolean; binding?: 'remote' | 'folder' } = {}) {
   const ctx = new Context()
   await ctx.plugin(SessionStore)
   await ctx.plugin(AgentRegistry)
@@ -40,25 +40,47 @@ async function harness(options: { handoff?: boolean; signedIn?: boolean } = {}) 
     ctx.provide('sessionHandoff', {
       runnerOf: (_owner: string, id: SessionId) => (id === REMOTE ? { device: 'laptop-id', name: 'laptop' } : undefined),
       forward,
+      fetch: () => Promise.resolve(),
+      claim: vi.fn((_owner: string, id: SessionId) => Promise.resolve({ claimed: id !== REMOTE || options.claim === true })),
     } as never)
   }
   if (options.signedIn !== false) ctx.provide('identityUsers', { actingUser: () => ({ id: 'owner-1' }) } as never)
-  ctx.provide('workspaceRegistry', { get: () => undefined, list: () => [] } as never)
+  ctx.provide('workspaceRegistry', { get: () => undefined, list: () => options.binding === undefined ? [] : [{
+    kind: options.binding, path: options.binding === 'folder' ? '/bound-here' : undefined, sessionIds: [REMOTE],
+  }] } as never)
+  const enter = vi.fn(() => Promise.resolve('/bound-here'))
+  ctx.provide('workingDirectory', { enter } as never)
   const selection: ModelSelectionRef = { current: { provider: 'fixture', model: 'fixture-model' }, assembled: undefined }
   const agents = {
-    resolveAgent: (id: SessionId) => Promise.resolve(id === LOCAL ? { agent } : { error: new Error(`resumed ${id}`) }),
+    resolveAgent: (id: SessionId) => Promise.resolve(id === LOCAL ? { agent } : options.claim && id === REMOTE ? { agent: { ...agent, id: copy.id, session: copy } } : { error: new Error(`resumed ${id}`) }),
     selectionFor: () => selection,
     serializeImageAdmission: <Value>(_agent: Agent, operation: () => Promise<Value>) => operation(),
     callerMayAccess: () => true,
   } as unknown as ApiSessionAgentController
   ctx.provide('llm', { resolveModelInfo: () => Promise.resolve({}), listProviders: () => [{ id: 'fixture' }] } as never)
   const controller = new SessionCommandController(ctx, agents, '/workspace')
-  return { ctx, controller, agent, forward, promptSeq, followup, cancel }
+  return { ctx, controller, agent, forward, promptSeq, followup, cancel, enter }
 }
 
 const requestId = 'request-1' as SessionRequestId
 
 describe('input for a session another device writes', () => {
+  it('continues locally after handover, rebinding paths to the workspace on this device', async () => {
+    const { controller, forward, followup, enter } = await harness({ claim: true, binding: 'folder' })
+    await expect(controller.prompt({ requestId, sessionId: REMOTE, mode: 'queue', content: [{ type: 'text', text: 'continue here' }] })).resolves.toEqual({ accepted: true })
+    expect(enter).toHaveBeenCalledWith(expect.objectContaining({ id: REMOTE }), '/bound-here')
+    expect(followup).toHaveBeenCalledOnce()
+    expect(forward).not.toHaveBeenCalled()
+  })
+
+  it('keeps input on the existing runner when this device has no folder binding', async () => {
+    const { controller, forward, followup, enter } = await harness({ claim: true, binding: 'remote' })
+    await expect(controller.prompt({ requestId, sessionId: REMOTE, mode: 'queue', content: [{ type: 'text', text: 'continue there' }] })).resolves.toEqual({ accepted: true })
+    expect(forward).toHaveBeenCalledOnce()
+    expect(followup).not.toHaveBeenCalled()
+    expect(enter).not.toHaveBeenCalled()
+  })
+
   it('forwards every input command to the writing device instead of resuming the session here', async () => {
     const { controller, forward, promptSeq } = await harness()
     const prompt = { requestId, sessionId: REMOTE, mode: 'queue' as const, content: [{ type: 'text' as const, text: 'hello' }] }

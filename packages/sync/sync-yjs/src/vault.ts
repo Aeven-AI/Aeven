@@ -596,6 +596,17 @@ export class AccountVault {
     }
   }
 
+
+  /** Wait for durable publication and a complete relay backlog before transferring a session writer. */
+  async synchronize(): Promise<void> {
+    const relay = this.relay
+    if (relay === undefined || this.state !== 'online') throw new Error('session handover needs an online vault')
+    await this.flush()
+    if (this.store.pending() > 0 || this.relay !== relay) throw new Error('session handover has unpublished changes')
+    await relay.request('sync', { since: this.store.relayCursor() })
+    if (this.relay !== relay) throw new Error('session handover lost its connection')
+  }
+
   /** Destroy open documents and wait for the active outbox pass to stop. */
   async dispose(): Promise<void> {
     this.detach()

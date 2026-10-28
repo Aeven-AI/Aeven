@@ -9,7 +9,7 @@
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { readdirSync } from 'node:fs'
-import { open, mkdir, readFile, readdir, realpath, link, rm, stat, truncate } from 'node:fs/promises'
+import { open, mkdir, readFile, readdir, realpath, link, rename, rm, stat, truncate } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { scheduler } from 'node:timers/promises'
@@ -41,7 +41,7 @@ import {
 import {
   compressZstdFrame, createZstdFrameDecoder, decompressZstdFrame, decompressZstdPrefix, scanZstdFrames,
 } from './zstd.ts'
-import { ensureDurableDirectoryWin32, publishNewFileWin32 } from './win32.ts'
+import { ensureDurableDirectoryWin32, publishNewFileWin32, replaceFileWin32 } from './win32.ts'
 import { acquireSessionWriter } from './writer-lock.ts'
 
 export type { JsonlCompression } from './format.ts'
@@ -272,6 +272,57 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
   // the coordinator would call this hook recursively.
 
   /* jscpd:ignore-end */
+
+  /** @inheritdoc */
+  override setReplica(id: SessionId, replica: boolean): Promise<void> {
+    return this.coordinator.setReplica(id, replica)
+  }
+
+  /** @inheritdoc */
+  async setStoredReplica(id: SessionId, replica: boolean): Promise<void> {
+    const path = await this.findLog(id)
+    if (path === undefined) throw new Error(`session "${id}" has no stored log`)
+    await this.writeReplica(path, replica)
+  }
+
+  private async writeReplica(path: string, replica: boolean): Promise<void> {
+    const target = join(dirname(path), 'replica.json')
+    const tmp = await this.writeSyncedTempFile(target, JSON.stringify(replica) + '\n')
+    try {
+      if (process.platform === 'win32') {
+        await replaceFileWin32(tmp, target)
+      } else {
+        await rename(tmp, target)
+        await this.syncDirPosix(dirname(path))
+      }
+    } finally {
+      await rm(tmp, { force: true })
+    }
+  }
+
+  private async replicaMeta(path: string, meta: SessionHeader): Promise<SessionHeader> {
+    let value: unknown
+    try {
+      value = JSON.parse(await readFile(join(dirname(path), 'replica.json'), 'utf8'))
+    } catch (error) {
+      if (isENOENT(error)) return meta
+      throw error
+    }
+    if (typeof value !== 'boolean') throw new Error(`invalid replica marker for session "${meta.id}"`)
+    const { replica: _replica, ...header } = meta
+    return value ? { ...header, replica: true } : header
+  }
+
+  private async replicaRevision(path: string, revision: PersistenceRevision): Promise<PersistenceRevision> {
+    try {
+      const marker = await stat(join(dirname(path), 'replica.json'), { bigint: true })
+      return SessionPersistenceRevision(`${revision}:replica:${fileRevision(marker)}`)
+    } catch (error) {
+      if (isENOENT(error)) return revision
+      throw error
+    }
+  }
+
   // --- PersistenceBackend hooks (the file-bytes storage primitives) ---
 
   /** Read a stored prefix by id across all project directories when cwd is unknown. */
@@ -297,7 +348,7 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
     try {
       const identity = await stat(path, { bigint: true })
       signal?.throwIfAborted()
-      return fileRevision(identity)
+      return await this.replicaRevision(path, fileRevision(identity))
     } catch (error: unknown) {
       signal?.throwIfAborted()
       if (isENOENT(error)) return undefined
@@ -411,7 +462,11 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
     signal?.throwIfAborted()
     await this.assertStoredIdentity(path, prefix.meta, expectedId, signal)
     signal?.throwIfAborted()
-    return { ...prefix, revision }
+    const before = await this.replicaRevision(path, revision)
+    const meta = await this.replicaMeta(path, prefix.meta)
+    const after = await this.replicaRevision(path, revision)
+    if (before !== after) return this.readPrefix(path, expectedId, signal)
+    return { ...prefix, meta, revision: after }
   }
 
   /** Decode complete frames and retain complete JSONL records from a torn final frame. */
@@ -571,7 +626,7 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
         signal?.throwIfAborted()
         snapshots.push({
           header: artifact.header,
-          revision: fileRevision(identity),
+          revision: await this.replicaRevision(artifact.path, fileRevision(identity)),
         })
       } catch (error: unknown) {
         signal?.throwIfAborted()
@@ -656,7 +711,7 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
     if (first === undefined) return undefined // empty/half-written file
     const parsed = parseHeader(first)
     if (parsed === undefined) return undefined // not a session header
-    const meta = parsed.meta
+    const meta = await this.replicaMeta(path, parsed.meta)
     await this.assertStoredIdentity(path, meta, undefined, signal)
     signal?.throwIfAborted()
     // The inherited cut rides along: it was parsed from the header line the
@@ -682,9 +737,9 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
     const content = await this.encodeMaterialization(storage, events)
     /* v8 ignore next -- native Windows coverage exercises this platform dispatch; Linux covers the POSIX peer */
     if (process.platform === 'win32') {
-      await this.materializeWin32(project, dir, finalPath, meta.id, content)
+      await this.materializeWin32(project, dir, finalPath, meta.id, content, meta.replica === true)
     } else {
-      await this.materializePosix(project, dir, finalPath, meta.id, content)
+      await this.materializePosix(project, dir, finalPath, meta.id, content, meta.replica === true)
     }
   }
 
@@ -695,6 +750,7 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
     finalPath: string,
     id: SessionId,
     content: Buffer | string,
+    replica: boolean,
   ): Promise<void> {
     await mkdir(this.root, { recursive: true, mode: 0o700 })
     await this.syncDirPosix(dirname(this.root))
@@ -703,6 +759,7 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
     await mkdir(dir, { recursive: true, mode: 0o700 })
     await this.syncDirPosix(project)
     await this.rejectExistingLog(finalPath, id)
+    await this.writeReplica(finalPath, replica)
     const tmp = await this.writeSyncedTempFile(finalPath, content)
     // Publish via link()+unlink(), NOT rename(): link fails with EEXIST if the
     // final path already exists, so two processes materializing the same id
@@ -739,11 +796,13 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
     finalPath: string,
     id: SessionId,
     content: Buffer | string,
+    replica: boolean,
   ): Promise<void> {
     await ensureDurableDirectoryWin32(this.root)
     await ensureDurableDirectoryWin32(project)
     await ensureDurableDirectoryWin32(dir)
     await this.rejectExistingLog(finalPath, id)
+    await this.writeReplica(finalPath, replica)
     const tmp = await this.writeSyncedTempFile(finalPath, content)
     try {
       await publishNewFileWin32(tmp, finalPath)
@@ -783,7 +842,8 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
     storage: SessionStorageMetadata,
     events: readonly SessionEvent[],
   ): Promise<Buffer | string> {
-    const header = JSON.stringify(toHeaderLine(storage.meta, storage.inheritedEventCount)) + '\n'
+    const { replica: _replica, ...meta } = storage.meta
+    const header = JSON.stringify(toHeaderLine(meta, storage.inheritedEventCount)) + '\n'
     if (events.length === 0) {
       return this.compression === 'none' ? header : compressZstdFrame(header)
     }

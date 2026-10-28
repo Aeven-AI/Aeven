@@ -280,7 +280,7 @@ export class WorkspaceEntity implements Workspace {
   private async validateAdmission(sessionId: SessionId): Promise<void> {
     const header = await this.host.readSessionHeader(sessionId)
     // A replica's cwd names the folder of the device it came from; the account's record files it here.
-    if (header.replica === true) return
+    if (this.host.replicated(sessionId)) return
     const path = this.record.path
     if (this.record.kind !== 'folder' || path === undefined) {
       if (header.cwd !== undefined) {

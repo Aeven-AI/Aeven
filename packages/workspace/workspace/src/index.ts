@@ -5,6 +5,7 @@
  * @module @aeven/workspace
  */
 
+import type {} from '@aeven/session-handoff'
 import { randomUUID } from 'node:crypto'
 import { stat } from 'node:fs/promises'
 import { Context, Service } from '@deepseek-ai/cordis'
@@ -162,7 +163,11 @@ export class WorkspaceRegistry extends Service {
     table: () => this.requireTable(),
     sessionPath: id => this.sessionPaths.get(id),
     sessionOwner: id => this.headers.get(id)?.owner,
-    replicated: id => this.headers.get(id)?.replica === true,
+    replicated: (id) => {
+      const header = this.headers.get(id)
+      return header?.replica === true || (header?.owner !== undefined
+        && this.ctx.get('sessionHandoff')?.shared(header.owner, id) === true)
+    },
     titleChanged: () => { this.publish() },
     readSessionHeader: id => this.readSessionHeader(id),
     rememberSessionPath: (id, path) => {
@@ -353,9 +358,14 @@ export class WorkspaceRegistry extends Service {
    * holds that workspace and the session is not filed yet.
    * @param sessionId - the session, already stored on this device.
    * @param home - the shared workspace name.
+   * @param header - received metadata when the body has not been downloaded yet.
    * @returns whether the session is now filed there.
    */
-  async fileSession(sessionId: SessionId, home: string): Promise<boolean> {
+  async fileSession(sessionId: SessionId, home: string, header?: SessionHeader): Promise<boolean> {
+    if (header !== undefined) {
+      if (header.id !== sessionId) throw new Error('shared session metadata names another session')
+      this.headers.set(sessionId, header)
+    }
     const state = this.requireState()
     const id = home === 'default'
       ? state.defaultWorkspaceId

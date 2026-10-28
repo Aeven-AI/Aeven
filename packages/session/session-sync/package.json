@@ -37,7 +37,8 @@
     "@deepseek-ai/cordis": "workspace:^",
     "@aeven/attachment": "workspace:^",
     "@aeven/workspace": "workspace:^",
-    "@aeven/session-handoff": "workspace:^"
+    "@aeven/session-handoff": "workspace:^",
+    "@aeven/agent": "workspace:^"
   },
   "devDependencies": {
     "@aeven/session": "workspace:^",
@@ -46,7 +47,8 @@
     "@deepseek-ai/cordis": "workspace:^",
     "@aeven/attachment": "workspace:^",
     "@aeven/workspace": "workspace:^",
-    "@aeven/session-handoff": "workspace:^"
+    "@aeven/session-handoff": "workspace:^",
+    "@aeven/agent": "workspace:^"
   },
   "peerDependenciesMeta": {
     "@aeven/workspace": {

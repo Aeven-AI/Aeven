@@ -188,6 +188,18 @@ export class SessionController extends TypertRemoteService {
       })
     })
 
+    ctx.on('session-handoff/catalog', (owner) => {
+      for (const summary of this.listState.sharedFor(owner)) {
+        if (ctx.sessions.get(summary.sessionId) === undefined) ctx.emit('api-session/added', summary, owner)
+      }
+    })
+
+    ctx.on('session-handoff/released', async (owner, sessionId) => {
+      const agent = ctx.agents.get(sessionId)
+      if (agent !== undefined && agent.session.header.owner !== owner) throw new Error('session runner owner mismatch')
+      await this.agents.release(sessionId)
+    })
+
     ctx.on('agent/pre-step', async ({ step, signal }, next) => {
       const decision = await next()
       if (decision.kind === 'reject' || signal.aborted || step !== 1) return decision

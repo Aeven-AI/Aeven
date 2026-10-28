@@ -1261,6 +1261,9 @@ importers:
       '@aeven/util-workspace-path':
         specifier: workspace:^
         version: link:../../util/workspace-path
+      '@aeven/working-directory':
+        specifier: workspace:^
+        version: link:../../session/working-directory
       '@aeven/workspace':
         specifier: workspace:^
         version: link:../../workspace/workspace
@@ -10364,6 +10367,9 @@ importers:
         specifier: 13.6.27
         version: 13.6.27
     devDependencies:
+      '@aeven/agent':
+        specifier: workspace:^
+        version: link:../../core/agent
       '@aeven/attachment':
         specifier: workspace:^
         version: link:../../attachment/attachment
@@ -13295,6 +13301,9 @@ importers:
       '@aeven/session':
         specifier: workspace:^
         version: link:../../core/session
+      '@aeven/session-handoff':
+        specifier: workspace:^
+        version: link:../../session/session-handoff
       '@aeven/session-persistence':
         specifier: workspace:^
         version: link:../../session/session-persistence

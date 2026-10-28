@@ -198,6 +198,16 @@ export abstract class SessionPersistence extends Service {
   abstract create(meta: SessionHeader, inheritedEventCount?: SessionLogOffset): Promise<void>
 
   /**
+   * Change whether a cold stored session permits local execution without changing its log bytes.
+   * @param _id - stored session; live or reserved sessions are refused.
+   * @param _replica - true for a received copy, false after exclusive runner ownership is acquired.
+   * @returns when the local execution marker is durable.
+   */
+  setReplica(_id: SessionId, _replica: boolean): Promise<void> {
+    return Promise.reject(new Error('this session persistence backend cannot change replica ownership'))
+  }
+
+  /**
    * Ensure a live session has a durable header even when it has no events.
    * Ordinary sessions remain lazily materialized; lifecycle frontends call
    * this only when an empty session itself is a durable resumable resource.

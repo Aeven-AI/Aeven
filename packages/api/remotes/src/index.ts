@@ -76,6 +76,7 @@ function remoteEventSource(ctx: Context): TypertRemoteEventSource {
     const audienceOf = (event: string, args: readonly unknown[]): RemoteEventAudience | undefined => {
       const sessionId = NOTIFICATION_SESSION[event]?.(args)
       if (typeof sessionId !== 'string') return undefined
+      if (event === 'api-session/added' && typeof args[1] === 'string') owners.set(sessionId, args[1])
       const live = ctx.get('sessions')?.get(sessionId as SessionId)
       if (live !== undefined) owners.set(sessionId, live.header.owner)
       return { owner: owners.get(sessionId) }

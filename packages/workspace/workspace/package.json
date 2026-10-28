@@ -44,10 +44,14 @@
     "@aeven/storage": "workspace:^",
     "@aeven/storage-domain": "workspace:^",
     "@aeven/sync": "workspace:^",
-    "@aeven/typert-protocol": "workspace:^"
+    "@aeven/typert-protocol": "workspace:^",
+    "@aeven/session-handoff": "workspace:^"
   },
   "peerDependenciesMeta": {
     "@aeven/sync": {
+      "optional": true
+    },
+    "@aeven/session-handoff": {
       "optional": true
     }
   },
@@ -64,6 +68,7 @@
     "@aeven/storage": "workspace:^",
     "@aeven/storage-domain": "workspace:^",
     "@aeven/sync": "workspace:^",
-    "@aeven/typert-protocol": "workspace:^"
+    "@aeven/typert-protocol": "workspace:^",
+    "@aeven/session-handoff": "workspace:^"
   }
 }

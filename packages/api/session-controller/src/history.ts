@@ -211,6 +211,8 @@ export class SessionHistoryController {
   ): Promise<SessionObservation> {
     const sessionId = addressId(address)
     try {
+      const owner = this.ctx.get('identityUsers')?.actingUser()?.id
+      if (owner !== undefined) await this.ctx.get('sessionHandoff')?.fetch(owner, sessionId, signal)
       const observation = await this.ctx.sessionQuery.observeSession(sessionId, {
         signal,
         projectionMode: withProjections || address.kind === 'subagent' ? 'all' : 'none',

@@ -10,9 +10,9 @@ import { brotliCompressSync, brotliDecompressSync } from 'node:zlib'
 import type { Map as YMap, YMapEvent, Transaction } from 'yjs'
 import { SessionLogOffset, type SessionEvent, type SessionHeader, type SessionId } from '@aeven/session'
 import type { SessionPersistence } from '@aeven/session-persistence'
-import type { Sync, SyncDocument } from '@aeven/sync'
+import { LeaseHolder, type Sync, type SyncDocument, type LeaseHolderTiming } from '@aeven/sync'
 import { AttachmentId, type AttachmentStore } from '@aeven/attachment'
-import type { SessionHandoffInput, SessionRunner } from '@aeven/session-handoff'
+import type { SessionClaim, SessionHandoffInput, SessionRunner, SharedSession } from '@aeven/session-handoff'
 
 /** One session as the index records it. */
 interface IndexEntry {
@@ -26,6 +26,9 @@ interface IndexEntry {
   origin: string
   /** The workspace the session belongs to, in the terms every device of the account shares. */
   workspace?: string
+  title?: string
+  updatedAt?: number
+  running?: boolean
 }
 
 /** Where sessions are filed on this device; the workspace registry provides it. */
@@ -40,7 +43,7 @@ export interface SessionFiling {
    * @param home - the shared workspace name.
    * @returns whether the session is filed there now.
    */
-  fileSession(sessionId: SessionId, home: string): Promise<boolean>
+  fileSession(sessionId: SessionId, home: string, header?: SessionHeader): Promise<boolean>
 }
 
 /** One published batch. */
@@ -52,6 +55,8 @@ interface Batch {
 
 /** Tuning the plugin configures. */
 export interface SessionSyncTuning {
+  /** Session runner lease lifetime and renewal interval. */
+  runnerLease?: LeaseHolderTiming
   /** Interval between scans for changed local sessions, in milliseconds. */
   publishMs: number
   /** Uncompressed JSON bytes per published batch before a new batch starts. */
@@ -114,6 +119,7 @@ function after(events: readonly SessionEvent[], fallback: number): number {
 /** One account's session mirror on this device. */
 export class SessionMirror {
   private docs: { index: SyncDocument; inbox: SyncDocument; names: SyncDocument; live: SyncDocument } | undefined
+  private starting: Promise<void> | undefined
   private timer: ReturnType<typeof setInterval> | undefined
   private publishing: Promise<void> | undefined
   private importing: Promise<void> | undefined
@@ -124,9 +130,135 @@ export class SessionMirror {
   private repeatImport(): boolean {
     return this.importAgain
   }
+  private readonly runners = new Map<SessionId, LeaseHolder>()
+  private readonly releases = new Map<string, Promise<void>>()
+  private readonly running = new Set<SessionId>()
+  private readonly ownership = new Map<SessionId, Promise<unknown>>()
+
+  private own<T>(id: SessionId, work: () => Promise<T>): Promise<T> {
+    const operation = (this.ownership.get(id) ?? Promise.resolve()).then(work)
+    this.ownership.set(id, operation.catch(() => {}))
+    return operation
+  }
+
+  /**
+   * Acquire the session lease, catch up its entire committed tail, and promote its local log.
+   * @param sessionId - session to continue on this device.
+   * @returns whether this device may admit input locally.
+   */
+  claim(sessionId: SessionId): Promise<SessionClaim> {
+    return this.own(sessionId, async () => {
+      await this.starting
+      await this.releases.get(sessionId)
+      const me = this.device()
+      const entry = this.docs?.index.doc.getMap<IndexEntry>('sessions').get(sessionId)
+      if (me === undefined || this.isClosed()) return { claimed: false }
+      if (entry === undefined && this.sync.status(this.owner).state !== 'online') return { claimed: true }
+      if (entry !== undefined && entry.header.owner !== this.owner) throw new Error('session does not belong to this account')
+      const existing = this.runners.get(sessionId)
+      if (existing?.held()) return { claimed: true }
+      if (this.sync.status(this.owner).state !== 'online') return { claimed: false }
+      const timing = this.tuning.runnerLease
+      if (timing === undefined) throw new Error('session runner lease timing is not configured')
+      const holder = new LeaseHolder(this.sync, this.owner, streamName(sessionId), timing, {
+        changed: (held) => {
+          if (!held) void this.releaseLocal(sessionId).catch((error: unknown) => {
+            this.warn(`session sync: releasing a runner failed: ${String(error)}`)
+          })
+        },
+      })
+      await holder.renew()
+      if (!holder.held()) return { claimed: false }
+      this.runners.set(sessionId, holder)
+      try {
+        if (entry === undefined) {
+          return { claimed: true }
+        }
+        await this.sync.synchronize(this.owner)
+        // A pending import finishes before promotion; the lease prevents another runner advancing the tail.
+        await this.fetch(sessionId)
+        const current = this.entries().get(sessionId)
+        if (current === undefined) throw new Error('session disappeared during handover')
+        if (current.origin !== me && current.running === true) {
+          this.runners.delete(sessionId)
+          await holder.dispose()
+          return { claimed: false }
+        }
+        const suffix = await this.persistence.readFrom(sessionId, SessionLogOffset(0))
+        let next = after(suffix.events, 0)
+        if (next < current.next) {
+          await this.importSession(sessionId, current, next, true)
+          next = after((await this.persistence.readFrom(sessionId, SessionLogOffset(0))).events, 0)
+        }
+        if (next !== current.next || !holder.held()) throw new Error('session is not caught up for handover')
+        if (current.origin !== me || suffix.meta.replica) {
+          await this.persistence.setReplica(sessionId, false)
+          this.entries().set(sessionId, { ...current, origin: me })
+          await this.sync.synchronize(this.owner)
+          this.consumeInbox()
+        }
+        return { claimed: true }
+      } catch (error) {
+        this.runners.delete(sessionId)
+        await holder.dispose()
+        throw error
+      }
+    })
+  }
+
+  /**
+   * Keep ownership through a running turn and publish its complete tail before giving it up at idle.
+   * @param sessionId - session running locally.
+   * @param running - whether it has a running turn.
+   */
+  holdRunner(sessionId: SessionId, running: boolean): Promise<void> {
+    if (running) {
+      this.running.add(sessionId)
+      this.runners.get(sessionId)?.start()
+      const entry = this.docs?.index.doc.getMap<IndexEntry>('sessions').get(sessionId)
+      if (entry !== undefined && entry.origin === this.device() && entry.running !== true) {
+        this.entries().set(sessionId, { ...entry, running: true })
+      }
+      return Promise.resolve()
+    }
+    if (!this.running.delete(sessionId)) return Promise.resolve()
+    return this.own(sessionId, async () => {
+      if (this.running.has(sessionId)) return
+      const holder = this.runners.get(sessionId)
+      if (holder === undefined) return
+      const header = (await this.persistence.readFrom(sessionId, SessionLogOffset(0))).meta
+      const me = this.device()
+      if (me === undefined) throw new Error('session runner device disappeared')
+      await this.serialize(sessionId, () => this.publishSession(header, me))
+      await this.sync.synchronize(this.owner)
+      if (this.running.has(sessionId)) return
+      this.runners.delete(sessionId)
+      await holder.dispose()
+    })
+  }
+
+  private releaseLocal(sessionId: SessionId): Promise<void> {
+    const existing = this.releases.get(sessionId)
+    if (existing !== undefined) return existing
+    const release = (async () => {
+      const holder = this.runners.get(sessionId)
+      this.runners.delete(sessionId)
+      await this.released?.(sessionId)
+      await holder?.dispose()
+      await this.persistence.setReplica(sessionId, true)
+      this.revisions.delete(sessionId)
+      this.localNext.delete(sessionId)
+    })().finally(() => {
+      if (this.releases.get(sessionId) === release) this.releases.delete(sessionId)
+    })
+    this.releases.set(sessionId, release)
+    return release
+  }
+
   private readonly revisions = new Map<string, string>()
   private readonly localNext = new Map<string, number>()
   private readonly cursors = new Map<string, number>()
+  private readonly imports = new Map<string, Promise<void>>()
   private readonly created = new Set<string>()
   /** Imported sessions already filed into their workspace on this device. */
   private readonly filed = new Set<string>()
@@ -147,6 +279,8 @@ export class SessionMirror {
    * @param filing - this Host's workspace registry, when one is mounted.
    * @param deliver - receives inputs other devices forwarded for sessions this device writes.
    * @param liveChange - receives sessions whose live state another device changed.
+   * @param released - stops and drains a local agent before its log becomes a replica.
+   * @param catalogChanged - publishes received metadata before histories are downloaded.
    */
   constructor(
     private readonly owner: string,
@@ -158,6 +292,8 @@ export class SessionMirror {
     private readonly filing?: SessionFiling,
     private readonly deliver?: SessionInputDelivery,
     private readonly liveChange?: SessionLiveChange,
+    private readonly released?: (sessionId: SessionId) => Promise<void>,
+    private readonly catalogChanged?: () => void,
   ) {}
 
   /** Content addresses of attachments the account's devices published, by id. */
@@ -231,6 +367,65 @@ export class SessionMirror {
     return this.started().inbox.doc.getMap<InboxEntry>('inputs')
   }
 
+  /** @returns conversation metadata available without importing log bodies. */
+  catalog(): readonly SharedSession[] {
+    if (this.docs === undefined) return []
+    return [...this.entries().values()].filter(entry => entry.header.owner === this.owner).map(entry => ({
+      header: { ...entry.header, replica: true }, next: entry.next,
+      updatedAt: entry.updatedAt ?? entry.header.createdAt,
+      ...entry.title === undefined ? {} : { title: entry.title },
+    }))
+  }
+
+  /**
+   * Import one conversation when opened, including an older body skipped by background backfill.
+   * @param sessionId - shared conversation.
+   * @param signal - cancellation while its publishing device uploads its first prefix.
+   * @returns when its published prefix is durable locally.
+   */
+  async fetch(sessionId: SessionId, signal?: AbortSignal): Promise<void> {
+    await this.starting
+    signal?.throwIfAborted()
+    let entry = this.entries().get(sessionId)
+    if (entry === undefined || entry.origin === this.device()) return
+    if (entry.header.owner !== this.owner) throw new Error('session does not belong to this account')
+    if (entry.next === 0) {
+      await new Promise<void>((resolve, reject) => {
+        const entries = this.entries()
+        const done = (): void => {
+          entries.unobserve(changed)
+          signal?.removeEventListener('abort', aborted)
+        }
+        const changed = (): void => {
+          if ((entries.get(sessionId)?.next ?? 0) === 0) return
+          done()
+          resolve()
+        }
+        const aborted = (): void => { done(); reject(new Error('history opening cancelled', { cause: signal?.reason })) }
+        entries.observe(changed)
+        signal?.addEventListener('abort', aborted, { once: true })
+        if (signal?.aborted) aborted()
+        else changed()
+      })
+      entry = this.entries().get(sessionId)
+      if (entry === undefined) throw new Error('session disappeared while opening history')
+    }
+    await this.importing
+    const local = new Set((await this.persistence.list()).map(header => header.id as string))
+    await this.importOne(sessionId, entry, local)
+    if ((this.localNext.get(sessionId) ?? 0) < entry.next) throw new Error('session is missing published events')
+    await this.file(sessionId, entry)
+    signal?.throwIfAborted()
+  }
+
+  /**
+   * @param sessionId - conversation identity.
+   * @returns whether its workspace membership is shared across devices.
+   */
+  shared(sessionId: SessionId): boolean {
+    return this.docs?.index.doc.getMap<IndexEntry>('sessions').has(sessionId) ?? false
+  }
+
   /**
    * The device writing a session when it is another device of the account.
    * @param sessionId - the session.
@@ -280,7 +475,8 @@ export class SessionMirror {
    */
   async forward(sessionId: SessionId, input: SessionHandoffInput): Promise<void> {
     const me = this.device()
-    if (me === undefined || this.runnerOf(sessionId) === undefined) {
+    if (me === undefined || (this.runnerOf(sessionId) === undefined
+      && (this.sync.status(this.owner).state === 'online' || !this.entries().has(sessionId)))) {
       throw new Error(`session ${sessionId} is not written by another device of the account`)
     }
     await this.publishAttachments(input.request)
@@ -296,12 +492,13 @@ export class SessionMirror {
     this.consuming = this.consuming.then(async () => {
       const me = this.device()
       const deliver = this.deliver
-      if (me === undefined || this.isClosed() || deliver === undefined) return
+      if (me === undefined || this.isClosed() || deliver === undefined || this.sync.status(this.owner).state !== 'online') return
       const inputs = this.pending()
       const mine = [...inputs.entries()]
         .filter(([, entry]) => this.entries().get(entry.session)?.origin === me)
         .sort(([left], [right]) => left.localeCompare(right))
       for (const [key, entry] of mine) {
+        if (!(await this.claim(entry.session as SessionId)).claimed) continue
         inputs.delete(key)
         await this.importAttachments(entry.input.request).catch((error: unknown) => {
           this.warn(`session sync: fetching a forwarded input's attachments failed: ${String(error)}`)
@@ -312,7 +509,12 @@ export class SessionMirror {
   }
 
   /** Open the index, import what other devices published, and start publishing this device's sessions. */
-  async start(): Promise<void> {
+  start(): Promise<void> {
+    this.starting ??= this.startCore()
+    return this.starting
+  }
+
+  private async startCore(): Promise<void> {
     const index = await this.sync.openDocument(this.owner, INDEX)
     const inbox = await this.sync.openDocument(this.owner, INBOX)
     const names = await this.sync.openDocument(this.owner, DEVICES)
@@ -322,12 +524,20 @@ export class SessionMirror {
       return
     }
     this.docs = { index, inbox, names, live }
+    this.catalogChanged?.()
     live.doc.getMap<LiveEntry>('sessions').observe((event: YMapEvent<LiveEntry>, transaction: Transaction) => {
       if (transaction.local) return
       for (const key of event.keysChanged) this.liveChange?.(key as SessionId)
     })
-    this.entries().observe((_event: YMapEvent<IndexEntry>, transaction: Transaction) => {
+    this.entries().observe((event: YMapEvent<IndexEntry>, transaction: Transaction) => {
       if (transaction.local) return
+      for (const [id, change] of event.changes.keys) {
+        if ((change.oldValue as IndexEntry | undefined)?.origin !== this.device()
+          || this.entries().get(id)?.origin === this.device()) continue
+        const release = this.releaseLocal(id as SessionId)
+        void release.catch((error: unknown) => { this.warn(`session sync: releasing a session failed: ${String(error)}`) })
+      }
+      this.catalogChanged?.()
       this.scheduleImport()
       // A session that became this device's to write may have input waiting.
       this.consumeInbox()
@@ -344,9 +554,11 @@ export class SessionMirror {
   /** The account's connection came back: fetch what may have been published meanwhile. */
   reconnected(): void {
     this.scheduleImport()
+    if (this.docs !== undefined) this.consumeInbox()
   }
 
   private scheduleImport(): void {
+    if (this.docs === undefined || this.isClosed()) return
     if (this.importing !== undefined) {
       this.importAgain = true
       return
@@ -380,9 +592,11 @@ export class SessionMirror {
     for (const [id, entry] of this.entries()) {
       if (this.isClosed()) return
       if (entry.origin === me || entry.header.owner !== this.owner) continue
+      await this.file(id, entry)
+      if (entry.header.createdAt < Date.now() - this.tuning.backfillDays * DAY_MS && !local.has(id)) continue
       try {
-        const next = await this.next(id, local)
-        if (entry.next > next) await this.importSession(id, entry, next, local.has(id))
+        await this.releases.get(id)
+        await this.importOne(id, entry, local)
         if (local.has(id) || this.created.has(id)) await this.file(id, entry)
       } catch (error) {
         this.warn(`session sync: importing a session failed: ${String(error)}`)
@@ -394,7 +608,16 @@ export class SessionMirror {
   private async file(id: string, entry: IndexEntry): Promise<void> {
     const home = entry.workspace
     if (this.filing === undefined || home === undefined || this.filed.has(id)) return
-    if (await this.filing.fileSession(id as SessionId, home)) this.filed.add(id)
+    if (await this.filing.fileSession(id as SessionId, home, { ...entry.header, replica: true })) this.filed.add(id)
+  }
+
+  private importOne(id: string, entry: IndexEntry, local: ReadonlySet<string>): Promise<void> {
+    const work = (this.imports.get(id) ?? Promise.resolve()).then(async () => {
+      const next = await this.next(id, local)
+      if (entry.next > next) await this.importSession(id, entry, next, local.has(id) || this.created.has(id))
+    })
+    this.imports.set(id, work.catch(() => {}))
+    return work
   }
 
   private async importSession(id: string, entry: IndexEntry, from: number, exists: boolean): Promise<void> {
@@ -450,13 +673,21 @@ export class SessionMirror {
   private async publishAll(me: string): Promise<void> {
     try {
       const entries = this.entries()
-      const oldest = Date.now() - this.tuning.backfillDays * DAY_MS
-      for (const { header, revision } of await this.persistence.listSnapshots()) {
+      const snapshots = await this.persistence.listSnapshots()
+      // Announce every identity before transferring bodies; recent conversations publish first.
+      for (const { header } of snapshots) {
+        if (header.owner !== this.owner || header.replica || entries.has(header.id)) continue
+        const home = this.filing?.sessionHome(header.id)
+        entries.set(header.id, { header, next: 0, inherited: 0, origin: me,
+          ...home === undefined ? {} : { workspace: home },
+        })
+      }
+      snapshots.sort((left, right) => right.header.createdAt - left.header.createdAt)
+      for (const { header, revision } of snapshots) {
         if (this.isClosed()) return
         const id = header.id as string
         const entry = entries.get(id)
         if (header.replica || header.owner !== this.owner || (entry !== undefined && entry.origin !== me)) continue
-        if (entry === undefined && header.createdAt < oldest) continue
         if (this.revisions.get(id) === String(revision)) continue
         await this.serialize(id, () => this.publishSession(header, me))
         this.revisions.set(id, String(revision))
@@ -494,9 +725,18 @@ export class SessionMirror {
   }
 
   private async publishSession(header: SessionHeader, me: string): Promise<void> {
+    const entry = this.entries().get(header.id)
+    if (entry !== undefined && entry.origin !== me) return
     const from = this.entries().get(header.id)?.next ?? 0
     const suffix = await this.persistence.readFrom(header.id, SessionLogOffset(from))
-    if (this.isClosed() || suffix.events.length === 0) return
+    if (this.isClosed()) return
+    if (suffix.events.length === 0) {
+      const current = this.entries().get(header.id)
+      if (current !== undefined && current.running !== this.running.has(header.id)) {
+        this.entries().set(header.id, { ...current, running: this.running.has(header.id) })
+      }
+      return
+    }
     let batch: SessionEvent[] = []
     let bytes = 0
     const flush = async (): Promise<void> => {
@@ -514,11 +754,18 @@ export class SessionMirror {
       bytes += size
     }
     await flush()
-    if (this.isClosed()) return
+    if (this.isClosed() || (this.entries().get(header.id)?.origin ?? me) !== me) return
     await this.publishAttachments(suffix.events)
     const home = this.filing?.sessionHome(header.id)
+    const previous = this.entries().get(header.id)
+    const lastTitle = [...suffix.events].reverse().find(event => (event.type as string) === 'session/title')
+    const title = lastTitle === undefined ? previous?.title : (lastTitle.data as unknown as { title: string }).title
     this.entries().set(header.id, {
       header: suffix.meta,
+      running: this.running.has(header.id),
+      ...title === undefined ? {} : { title },
+      updatedAt: suffix.events.filter(event => event.type === 'user/message').at(-1)?.time
+        ?? previous?.updatedAt ?? header.createdAt,
       inherited: suffix.inheritedEventCount,
       next: after(suffix.events, from),
       origin: me,
@@ -532,7 +779,11 @@ export class SessionMirror {
     if (this.timer !== undefined) clearInterval(this.timer)
     for (const timer of this.live.values()) clearTimeout(timer)
     this.live.clear()
-    await Promise.all([this.publishing, this.importing, this.consuming, ...this.publications.values()])
+    await Promise.all([
+      this.publishing, this.importing, this.consuming, ...this.publications.values(),
+      ...this.ownership.values(), ...this.releases.values(), ...this.imports.values(),
+    ])
+    await Promise.all([...this.runners.values()].map(holder => holder.dispose()))
     for (const handle of Object.values(this.docs ?? {})) handle.close()
   }
 }

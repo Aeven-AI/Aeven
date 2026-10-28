@@ -114,6 +114,7 @@ export class MemorySyncDevice {
         const status: SyncStatus = { state: this.state, devices: this.network.devices.length, pending: this.outbox.length, recovery: false }
         return this.state === 'unenrolled' ? status : { ...status, device: this.id as DeviceId }
       },
+      synchronize: (): Promise<void> => this.state === 'online' ? Promise.resolve() : Promise.reject(new Error('offline')),
       documentId: (_owner: string, name: string): string => `id:${name}`,
       openDocument: (_owner: string, name: string): Promise<SyncDocument> => Promise.resolve({ doc: this.docOf(name), close: () => {} }),
       appendStream: (_owner: string, name: string, payload: Uint8Array): Promise<void> => {

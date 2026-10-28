@@ -24,6 +24,7 @@
     "src/skill-catalog.ts"
   ],
   "references": [
+    { "path": "../../session/working-directory" },
     { "path": "../../../vendor/cordis" },
     { "path": "../../../vendor/schemastery" },
     { "path": "../../core/agent" },
