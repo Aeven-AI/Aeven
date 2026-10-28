@@ -26,6 +26,8 @@ export default class SessionSync extends SessionHandoff {
     publishMs: z.natural().min(250).default(3_000),
     liveMs: z.natural().default(100),
     batchBytes: z.natural().min(1_024).default(512 * 1024),
+    publishConcurrency: z.natural().min(1).default(4),
+    compressionQuality: z.natural().max(11).default(4),
     backfillDays: z.natural().default(30),
     pauseMs: z.natural().default(16),
     outboxLimit: z.natural().min(1).default(200),
@@ -44,6 +46,10 @@ export default class SessionSync extends SessionHandoff {
       throw new Error('session runner lease renewal must be shorter than its lifetime')
     }
     ctx.on('sync/status', (owner) => { this.track(owner) })
+    ctx.on('sync/progress', (owner, progress) => {
+      const current = this.mirrors.get(owner)?.progress()
+      if (current !== undefined) Object.assign(progress, current)
+    })
     ctx.on('agent/pre-step', async ({ agent }, next) => {
       const owner = agent.session.header.owner
       const mirror = owner === undefined ? undefined : this.mirrors.get(owner)
@@ -87,6 +93,7 @@ export default class SessionSync extends SessionHandoff {
       (sessionId) => { this.liveChanged(owner, sessionId) },
       sessionId => this.released(owner, sessionId),
       () => { this.ctx.emit('session-handoff/catalog', owner) },
+      () => { this.ctx.emit('sync/status', owner) },
     )
     this.mirrors.set(owner, mirror)
     mirror.start().catch((error: unknown) => {

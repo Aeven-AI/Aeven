@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
 
 Publishes each session from the device that created it as compressed, encrypted stream batches and lists it in the synced `sessions/index` document; other devices import the events through session persistence with their original `seq`, so imported sessions replay exactly and never run a model or a tool. A device that writes a session keeps input and batches flowing to the account's other devices over the relay and, where both are on one local network, directly between them; a device that holds the whole log continues the conversation when its writer is idle and the relay is unreachable, instead of copying it. Configuration: `publishMs`, `batchBytes`, `backfillDays`, and `runnerLease`. See the [account sync group](../../sync/README.md).
 
+History publication reports every discovered conversation before preparing its events. `publishConcurrency` limits concurrent compression batches (4 by default), while only one conversation log is loaded at a time, and `compressionQuality` sets Brotli quality (4 by default); event order within each conversation and the outbox limit remain enforced. Unchanged revisions produce no new uploads. Initialization-only drafts stay local; execution settings and seed markers wait for conversation activity before publication.
+
 ## Table of Contents
 
 - [Model Experience](#model-experience)

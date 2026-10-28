@@ -11,6 +11,8 @@ kind: "package-reference"
 
 基于 `ctx.sync` 的 Typert Remote，只为当前请求的调用方执行操作。`acceptJoins` 在 `acceptJoinsMs` 内回应加入请求，除非“添加设备”界面先关闭。见[账户同步分组](../../sync/README.zh.md)。
 
+状态包含通过 `sync/progress` 收集的对话发布进度，以及等待处理和排队的中转帧数。
+
 ## 目录
 
 - [模型体验](#model-experience)

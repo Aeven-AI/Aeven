@@ -11,6 +11,10 @@ English | [中文](README.zh.md)
 
 The Settings section over the `sync` Remote, refreshed by the forwarded `sync/status` and `sync/join-requests` events. It shows the six-digit code on both devices and approves only from the device whose add-device screen is open. Copy lives in the `settings.sync` dictionaries (English, Chinese, Spanish). See the [account sync group](../../sync/README.md).
 
+The upload counter and progress bar remain visible when the queue is empty, keeping the card height stable between batches.
+
+Conversation preparation shows the complete discovered backlog separately from upload batches. The status stays syncing while either conversation preparation or queued uploads remain.
+
 ## Table of Contents
 
 - [Model Experience](#model-experience)

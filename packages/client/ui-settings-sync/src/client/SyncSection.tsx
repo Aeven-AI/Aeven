@@ -1,5 +1,5 @@
 /** The Sync settings page: whether this device syncs the account, how far it is, and the account's devices. */
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { SyncDeviceView, SyncView } from '@aeven/api-remotes/client'
 import { Button, LoadingBlock, SectionHeader } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
@@ -90,9 +90,15 @@ export function SyncSection(props: SyncSectionProps) {
 
   const { view } = state
   const enabled = view.state !== 'disabled'
-  const sent = view.queued - view.pending
-  const percent = view.queued === 0 ? 100 : Math.round((sent / view.queued) * 100)
-  const uploading = enabled && view.pending > 0
+  const conversations = view.sessionsTotal > 0
+  const total = conversations ? view.sessionsTotal : view.queued
+  const pending = conversations ? view.sessionsPending : view.pending
+  const syncing = view.sessionsPending > 0 || view.pending > 0
+  // Nothing in flight reads 0 / 0 rather than the totals of the last finished run.
+  const shown = syncing ? total : 0
+  const sent = syncing ? total - pending : 0
+  const percent = shown === 0 ? 0 : Math.round((sent / shown) * 100)
+  const progressLabel = t('progress', { sent: String(sent), total: String(shown) })
   return (
     <div className={css.section}>
       {header}
@@ -110,17 +116,15 @@ export function SyncSection(props: SyncSectionProps) {
         </div>
         <div className={css.meterRow}>
           <span className={css.meterLine}>
-            <span className={css.body}>{t(view.state)}</span>
-            {uploading && <span className={css.meterLabel}>{t('uploading', { sent: String(sent), queued: String(view.queued) })}</span>}
+            <span className={css.body}>{t(view.state === 'online' && syncing ? 'syncing' : view.state)}</span>
+            <span className={css.meterLabel}>{progressLabel}</span>
           </span>
-          {uploading && (
-            <span
-              className={css.meter} role="progressbar" aria-valuemin={0} aria-valuemax={view.queued} aria-valuenow={sent}
-              aria-label={t('uploading', { sent: String(sent), queued: String(view.queued) })}
-            >
-              <span style={{ width: `${String(Math.max(percent, 2))}%` } as CSSProperties} />
-            </span>
-          )}
+          <span
+            className={css.meter} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}
+            aria-label={progressLabel}
+          >
+            <span style={{ width: `${String(syncing ? Math.max(percent, 2) : 0)}%` }} />
+          </span>
         </div>
         {failed && <p className={css.failed} role="alert">{t('failed')}</p>}
       </div>

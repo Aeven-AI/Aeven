@@ -7,7 +7,7 @@
 import { Context } from '@deepseek-ai/cordis'
 import { Remote, TypertRemoteService } from '@aeven/typert-protocol'
 import type { User } from '@aeven/identity-user'
-import type {} from '@aeven/sync'
+import type { SyncProgress } from '@aeven/sync'
 import type { SyncDeviceView, SyncView } from './types.ts'
 
 export type * from './types.ts'
@@ -40,7 +40,9 @@ export default class SyncController extends TypertRemoteService {
 
   private view(owner: string): SyncView {
     const { state, pending, queued } = this.ctx.sync.status(owner)
-    return { state, pending, queued }
+    const progress: SyncProgress = { sessionsPending: 0, sessionsTotal: 0 }
+    this.ctx.emit('sync/progress', owner, progress)
+    return { state, pending, queued, ...progress }
   }
 
   /**

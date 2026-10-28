@@ -46,7 +46,12 @@ function device(owner: string, tuning: VaultTuning = TUNING): Device {
   const store = new SyncStore(join(dir, 'sync.db'), owner)
   const warn = vi.fn()
   const documents: string[] = []
-  const vault = new AccountVault(store, tuning, () => {}, (id) => { documents.push(id) }, warn, offload)
+  const vault = new AccountVault(store, tuning, () => {
+    if (vault.status().state !== 'starting' && vault.status().state !== 'disabled') {
+      expect(vault.ready()).toBe(true)
+      expect(() => vault.documentId('memory')).not.toThrow()
+    }
+  }, (id) => { documents.push(id) }, warn, offload)
   return { store, vault, warn, documents }
 }
 
