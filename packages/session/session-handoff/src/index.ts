@@ -41,6 +41,15 @@ declare module '@deepseek-ai/cordis' {
      * @avnScopeScan unsupported
      */
     'session-handoff/input'(owner: string, sessionId: SessionId, input: SessionHandoffInput): void
+    /**
+     * The live state another device publishes for a session it writes changed; read it with
+     * {@link SessionHandoff.liveOf}.
+     * @mode emit
+     * @param owner - the account the session belongs to.
+     * @param sessionId - the session.
+     * @avnScopeScan unsupported
+     */
+    'session-handoff/live'(owner: string, sessionId: SessionId): void
   }
 }
 
@@ -66,6 +75,32 @@ export abstract class SessionHandoff extends Service {
    * @param input - the input.
    */
   abstract forward(owner: string, sessionId: SessionId, input: SessionHandoffInput): Promise<void>
+
+  /**
+   * Publish the live state of a session this device writes, such as whether a turn runs and what waits in its
+   * queue, to the account's other devices. The state is the publishing Consumer's JSON; undefined clears it.
+   * @param owner - the account.
+   * @param sessionId - the session.
+   * @param live - the state, or undefined once nothing is live.
+   */
+  abstract publishLive(owner: string, sessionId: SessionId, live: unknown): void
+
+  /**
+   * The live state the device writing a session published for it.
+   * @param owner - the account.
+   * @param sessionId - the session.
+   * @returns the state, or undefined when the writing device published none.
+   */
+  abstract liveOf(owner: string, sessionId: SessionId): unknown
+
+  /**
+   * Publish a change of another device's live state to `session-handoff/live` listeners.
+   * @param owner - the account.
+   * @param sessionId - the session.
+   */
+  protected liveChanged(owner: string, sessionId: SessionId): void {
+    this.ctx.emit('session-handoff/live', owner, sessionId)
+  }
 
   /**
    * Publish an input that arrived for a session this device writes to `session-handoff/input` listeners.

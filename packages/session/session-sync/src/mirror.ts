@@ -67,6 +67,19 @@ const INDEX = 'sessions/index'
 const INBOX = 'sessions/inbox'
 /** The document each device names itself in, as the sync provider writes it. */
 const DEVICES = 'devices'
+/** The live state of each session, as the device writing it publishes it. */
+const LIVE = 'sessions/live'
+
+/** One session's live state in the shared document. */
+interface LiveEntry {
+  /** The device that published it. */
+  device: string
+  /** The state, in the publishing Consumer's vocabulary. */
+  live: unknown
+}
+
+/** Receives the id of a session whose live state another device changed. */
+export type SessionLiveChange = (sessionId: SessionId) => void
 
 /** One forwarded input waiting for the device that writes its session. */
 interface InboxEntry {
@@ -100,7 +113,7 @@ function after(events: readonly SessionEvent[], fallback: number): number {
 
 /** One account's session mirror on this device. */
 export class SessionMirror {
-  private docs: { index: SyncDocument; inbox: SyncDocument; names: SyncDocument } | undefined
+  private docs: { index: SyncDocument; inbox: SyncDocument; names: SyncDocument; live: SyncDocument } | undefined
   private timer: ReturnType<typeof setInterval> | undefined
   private publishing: Promise<void> | undefined
   private importing: Promise<void> | undefined
@@ -133,6 +146,7 @@ export class SessionMirror {
    * @param attachments - this Host's attachment store, when one is mounted.
    * @param filing - this Host's workspace registry, when one is mounted.
    * @param deliver - receives inputs other devices forwarded for sessions this device writes.
+   * @param liveChange - receives sessions whose live state another device changed.
    */
   constructor(
     private readonly owner: string,
@@ -143,6 +157,7 @@ export class SessionMirror {
     private readonly attachments?: AttachmentStore,
     private readonly filing?: SessionFiling,
     private readonly deliver?: SessionInputDelivery,
+    private readonly liveChange?: SessionLiveChange,
   ) {}
 
   /** Content addresses of attachments the account's devices published, by id. */
@@ -199,7 +214,7 @@ export class SessionMirror {
     return this.closed
   }
 
-  private started(): { index: SyncDocument; inbox: SyncDocument; names: SyncDocument } {
+  private started(): { index: SyncDocument; inbox: SyncDocument; names: SyncDocument; live: SyncDocument } {
     if (this.docs === undefined) throw new Error('the session mirror has not started')
     return this.docs
   }
@@ -228,6 +243,33 @@ export class SessionMirror {
     if (origin === undefined || origin === this.device()) return undefined
     const name = docs.names.doc.getMap<{ name: string }>('names').get(origin)?.name ?? ''
     return { device: origin, name }
+  }
+
+  /**
+   * Publish the live state of a session this device writes; a session another device writes is left to it.
+   * @param sessionId - the session.
+   * @param live - the state, or undefined to clear it.
+   */
+  publishLive(sessionId: SessionId, live: unknown): void {
+    const me = this.device()
+    if (this.docs === undefined || me === undefined || this.runnerOf(sessionId) !== undefined) return
+    const states = this.docs.live.doc.getMap<LiveEntry>('sessions')
+    if (live === undefined) {
+      states.delete(sessionId)
+      return
+    }
+    states.set(sessionId, { device: me, live })
+  }
+
+  /**
+   * The live state the device writing a session published.
+   * @param sessionId - the session.
+   * @returns the state, or undefined when that device published none.
+   */
+  liveOf(sessionId: SessionId): unknown {
+    const runner = this.runnerOf(sessionId)
+    const entry = this.docs?.live.doc.getMap<LiveEntry>('sessions').get(sessionId)
+    return runner !== undefined && entry?.device === runner.device ? entry.live : undefined
   }
 
   /**
@@ -274,11 +316,16 @@ export class SessionMirror {
     const index = await this.sync.openDocument(this.owner, INDEX)
     const inbox = await this.sync.openDocument(this.owner, INBOX)
     const names = await this.sync.openDocument(this.owner, DEVICES)
+    const live = await this.sync.openDocument(this.owner, LIVE)
     if (this.isClosed()) {
-      for (const handle of [index, inbox, names]) handle.close()
+      for (const handle of [index, inbox, names, live]) handle.close()
       return
     }
-    this.docs = { index, inbox, names }
+    this.docs = { index, inbox, names, live }
+    live.doc.getMap<LiveEntry>('sessions').observe((event: YMapEvent<LiveEntry>, transaction: Transaction) => {
+      if (transaction.local) return
+      for (const key of event.keysChanged) this.liveChange?.(key as SessionId)
+    })
     this.entries().observe((_event: YMapEvent<IndexEntry>, transaction: Transaction) => {
       if (transaction.local) return
       this.scheduleImport()

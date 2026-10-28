@@ -524,6 +524,32 @@ describe('session-sync plugin', () => {
     await vi.waitFor(() => { expect(held).toEqual([true, false]) })
   })
 
+  it('shares the live state of a session with the account\'s other devices, from the device writing it only', async () => {
+    const network = new MemorySyncNetwork()
+    const homeA = new MemoryPersistence()
+    homeA.start('busy', Date.now(), 1)
+    const a = new SessionMirror(OWNER, network.device().asSync(), homeA as never, tuning, vi.fn())
+    const changes: string[] = []
+    const onLive = (id: string): void => { changes.push(id) }
+    const syncB = network.device().asSync()
+    const b = new SessionMirror(OWNER, syncB, new MemoryPersistence() as never, tuning, vi.fn(), undefined, undefined, undefined, onLive)
+    mirrors.push(a, b)
+    b.publishLive('busy' as never, { running: true })
+    await a.start()
+    await b.start()
+    await vi.waitFor(() => { expect(b.runnerOf('busy' as never)).toBeDefined() })
+    a.publishLive('busy' as never, { running: true })
+    await vi.waitFor(() => { expect(b.liveOf('busy' as never)).toEqual({ running: true }) })
+    expect(changes).toContain('busy')
+    // A device that does not write the session cannot speak for it, nor clear what the writer shared.
+    b.publishLive('busy' as never, { running: false })
+    b.publishLive('busy' as never, undefined)
+    expect(b.liveOf('busy' as never)).toEqual({ running: true })
+    expect(a.liveOf('busy' as never)).toBeUndefined()
+    a.publishLive('busy' as never, undefined)
+    await vi.waitFor(() => { expect(b.liveOf('busy' as never)).toBeUndefined() })
+  })
+
   it('holds forwarded input until the writing device is back, and applies what waited when it starts', async () => {
     const network = new MemorySyncNetwork()
     const syncA = network.device()
@@ -578,6 +604,12 @@ describe('session-sync plugin', () => {
     const inputs: unknown[] = []
     ctx.on('session-handoff/input', (owner, sessionId, input) => { inputs.push([owner, sessionId, input.operation]) })
     expect(ctx.sessionHandoff.runnerOf(OWNER, 's' as never)).toBeUndefined()
+    const lives: string[] = []
+    ctx.on('session-handoff/live', (_owner, sessionId) => { lives.push(sessionId) })
+    ctx.sessionHandoff.publishLive(OWNER, 's' as never, { running: true })
+    ctx.sessionHandoff.publishLive('nobody', 's' as never, { running: true })
+    expect(ctx.sessionHandoff.liveOf(OWNER, 's' as never)).toBeUndefined()
+    expect(ctx.sessionHandoff.liveOf('nobody', 's' as never)).toBeUndefined()
     expect(ctx.sessionHandoff.runnerOf('nobody', 's' as never)).toBeUndefined()
     await expect(ctx.sessionHandoff.forward('nobody', 's' as never, { operation: 'cancel', request: {} })).rejects.toThrow(/does not serve/)
     const other = new SessionMirror(OWNER, network.device().asSync(), new MemoryPersistence() as never, tuning, vi.fn())
@@ -586,6 +618,9 @@ describe('session-sync plugin', () => {
     await vi.waitFor(() => { expect(other.runnerOf('s' as never)).toBeDefined() })
     await other.forward('s' as never, { operation: 'cancel', request: {} })
     await vi.waitFor(() => { expect(inputs).toEqual([[OWNER, 's', 'cancel']]) })
+    const writer = await network.device().asSync().openDocument(OWNER, 'sessions/live')
+    writer.doc.getMap('sessions').set('s', { device: 'elsewhere', live: { running: true } })
+    await vi.waitFor(() => { expect(lives).toContain('s') })
     await expect(ctx.sessionHandoff.forward(OWNER, 's' as never, { operation: 'cancel', request: {} })).rejects.toThrow(/not written by another device/)
     device.setState('offline')
     ctx.emit('sync/status', OWNER)

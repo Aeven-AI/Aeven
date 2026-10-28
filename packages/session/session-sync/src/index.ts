@@ -60,6 +60,7 @@ export default class SessionSync extends SessionHandoff {
       (message) => { this.ctx.logger.warn(message) },
       this.ctx.get('attachments'), this.ctx.get('workspaceRegistry'),
       (sessionId, input) => { this.deliver(owner, sessionId, input) },
+      (sessionId) => { this.liveChanged(owner, sessionId) },
     )
     this.mirrors.set(owner, mirror)
     mirror.start().catch((error: unknown) => {
@@ -70,6 +71,16 @@ export default class SessionSync extends SessionHandoff {
   /** @inheritdoc */
   runnerOf(owner: string, sessionId: SessionId): SessionRunner | undefined {
     return this.mirrors.get(owner)?.runnerOf(sessionId)
+  }
+
+  /** @inheritdoc */
+  publishLive(owner: string, sessionId: SessionId, live: unknown): void {
+    this.mirrors.get(owner)?.publishLive(sessionId, live)
+  }
+
+  /** @inheritdoc */
+  liveOf(owner: string, sessionId: SessionId): unknown {
+    return this.mirrors.get(owner)?.liveOf(sessionId)
   }
 
   /** @inheritdoc */
