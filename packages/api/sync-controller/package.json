@@ -49,6 +49,9 @@
     "@aeven/typert-protocol": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
+  "dependencies": {
+    "zod": "^4.4.3"
+  },
   "devDependencies": {
     "@aeven/identity-user": "workspace:^",
     "@aeven/sync": "workspace:^",

@@ -1309,6 +1309,10 @@ importers:
         version: link:../../../vendor/cordis
 
   packages/api/sync-controller:
+    dependencies:
+      zod:
+        specifier: ^4.4.3
+        version: 4.6.5
     devDependencies:
       '@aeven/identity-user':
         specifier: workspace:^
