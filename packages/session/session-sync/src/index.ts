@@ -20,6 +20,7 @@ export type Config = SessionSyncTuning
 
 export const Config: z<Config> = z.object({
   publishMs: z.natural().min(250).default(3_000),
+  liveMs: z.natural().default(100),
   batchBytes: z.natural().min(1_024).default(512 * 1024),
   backfillDays: z.natural().default(30),
 })
@@ -44,6 +45,10 @@ export function apply(ctx: Context, config: Config): void {
     mirror.start().catch((error: unknown) => {
       ctx.logger.warn(`session sync: starting failed: ${String(error)}`)
     })
+  })
+  // A running turn reaches the account's other devices as it streams, not at the next scan.
+  ctx.on('session-persistence/append', (header) => {
+    if (header.owner !== undefined) mirrors.get(header.owner)?.appended(header)
   })
   ctx.effect(() => async () => {
     await Promise.all([...mirrors.values()].map(mirror => mirror.dispose()))

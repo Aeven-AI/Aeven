@@ -72,7 +72,7 @@ class MemoryPersistence {
   }
 }
 
-const tuning: SessionSyncTuning = { publishMs: 20, batchBytes: 2_000, backfillDays: 30 }
+const tuning: SessionSyncTuning = { publishMs: 20, batchBytes: 2_000, backfillDays: 30, liveMs: 5 }
 const mirrors: SessionMirror[] = []
 afterEach(async () => { await Promise.all(mirrors.splice(0).map(mirror => mirror.dispose())) })
 
@@ -387,6 +387,58 @@ describe('attachments of synced conversations', () => {
 })
 
 describe('session-sync plugin', () => {
+  it('publishes a running session\'s new events right after they commit, without waiting for the next scan', async () => {
+    const network = new MemorySyncNetwork()
+    const slow = { ...tuning, publishMs: 60_000 }
+    const homeA = new MemoryPersistence()
+    homeA.start('live', Date.now(), 1)
+    const a = new SessionMirror(OWNER, network.device().asSync(), homeA as never, slow, vi.fn())
+    const homeB = new MemoryPersistence()
+    const b = new SessionMirror(OWNER, network.device().asSync(), homeB as never, slow, vi.fn())
+    mirrors.push(a, b)
+    a.appended(homeA.logs.get('live')!.header)
+    await a.start()
+    await b.start()
+    await vi.waitFor(() => { expect(count(homeB, 'live')).toBe(1) })
+    homeA.add('live', 3)
+    const header = homeA.logs.get('live')!.header
+    a.appended(header)
+    a.appended(header)
+    await vi.waitFor(() => { expect(count(homeB, 'live')).toBe(4) })
+    // A scan and a live publication of the same session run one after the other and send each event once.
+    homeA.add('live', 1)
+    await new Promise<void>((resolve) => {
+      a.appended(header)
+      setTimeout(() => { void a.publish().then(resolve) }, 5)
+    })
+    await vi.waitFor(() => { expect(count(homeB, 'live')).toBe(5) })
+    b.appended({ ...homeB.logs.get('live')!.header, replica: undefined } as never)
+    // Another account's session, a replica, and a session another device writes are not this device's to publish.
+    a.appended({ ...header, owner: 'someone-else' })
+    a.appended({ ...header, replica: true })
+    b.appended(homeB.logs.get('live')!.header)
+    homeA.add('live', 1)
+    a.appended(header)
+    await a.dispose()
+    await new Promise(resolve => setTimeout(resolve, 20))
+    expect(count(homeB, 'live')).toBe(5)
+  })
+
+  it('reports a running session it could not publish', async () => {
+    const network = new MemorySyncNetwork()
+    const home = new MemoryPersistence()
+    home.start('live', Date.now(), 1)
+    const warn = vi.fn()
+    const a = new SessionMirror(OWNER, network.device().asSync(), home as never, { ...tuning, publishMs: 60_000 }, warn)
+    mirrors.push(a)
+    await a.start()
+    await vi.waitFor(() => { expect(network.streams.get('sessions/live')).toBeDefined() })
+    home.add('live', 1)
+    home.readFrom = () => Promise.reject(new Error('disk gone'))
+    a.appended(home.logs.get('live')!.header)
+    await vi.waitFor(() => { expect(warn).toHaveBeenCalledWith(expect.stringContaining('disk gone')) })
+  })
+
   it('files an imported session into the workspace it belongs to on the device that published it', async () => {
     const network = new MemorySyncNetwork()
     const homeA = new MemoryPersistence()
@@ -430,13 +482,18 @@ describe('session-sync plugin', () => {
     ctx.provide('sessionPersistence', home as never)
     const warnings: string[] = []
     const spy = vi.spyOn(ctx.logger, 'warn').mockImplementation((message: unknown) => { warnings.push(String(message)) })
-    const fiber = ctx.plugin(plugin, { publishMs: 250, batchBytes: 2_000, backfillDays: 30 })
+    const fiber = ctx.plugin(plugin, { publishMs: 250, batchBytes: 2_000, backfillDays: 30, liveMs: 5 })
     await fiber
     ctx.emit('sync/status', OWNER)
     device.setState('online')
     ctx.emit('sync/status', OWNER)
     home.start('s', Date.now(), 3)
     await vi.waitFor(() => { expect(network.streams.get('sessions/s')).toBeDefined() })
+    // A commit to a session of the account publishes it at once; one without an account is not the mirror's.
+    home.add('s', 1)
+    ctx.emit('session-persistence/append', home.logs.get('s')!.header, [])
+    ctx.emit('session-persistence/append', { ...home.logs.get('s')!.header, owner: undefined } as never, [])
+    await vi.waitFor(() => { expect(network.streams.get('sessions/s')!.length).toBeGreaterThan(1) })
     device.setState('offline')
     ctx.emit('sync/status', OWNER)
     home.failSnapshots = true

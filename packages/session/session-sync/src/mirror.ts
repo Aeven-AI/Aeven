@@ -54,6 +54,8 @@ export interface SessionSyncTuning {
   publishMs: number
   /** Uncompressed JSON bytes per published batch before a new batch starts. */
   batchBytes: number
+  /** Wait after a session's events commit before they are published, so a streaming reply travels in small batches. */
+  liveMs: number
   /** Sessions created up to this many days before this device first publishes are published too. */
   backfillDays: number
 }
@@ -94,6 +96,10 @@ export class SessionMirror {
   private readonly created = new Set<string>()
   /** Imported sessions already filed into their workspace on this device. */
   private readonly filed = new Set<string>()
+  /** Each session's publications, one at a time, so a scan and a live publication never send the same events twice. */
+  private readonly publications = new Map<string, Promise<void>>()
+  /** Sessions whose committed events wait for their live publication. */
+  private readonly live = new Map<string, ReturnType<typeof setTimeout>>()
 
   /**
    * @param owner - the account.
@@ -313,7 +319,7 @@ export class SessionMirror {
         if (header.replica || header.owner !== this.owner || (entry !== undefined && entry.origin !== me)) continue
         if (entry === undefined && header.createdAt < oldest) continue
         if (this.revisions.get(id) === String(revision)) continue
-        await this.publishSession(header, entry?.next ?? 0, me)
+        await this.serialize(id, () => this.publishSession(header, me))
         this.revisions.set(id, String(revision))
       }
     } catch (error) {
@@ -321,7 +327,35 @@ export class SessionMirror {
     }
   }
 
-  private async publishSession(header: SessionHeader, from: number, me: string): Promise<void> {
+  /** Run one publication of a session after every earlier one of the same session. */
+  private serialize(id: string, work: () => Promise<void>): Promise<void> {
+    const run = (this.publications.get(id) ?? Promise.resolve()).then(work)
+    // The caller reports the failure; the chain only orders publications.
+    this.publications.set(id, run.catch(() => {}))
+    return run
+  }
+
+  /**
+   * Publish a session's newly committed events soon, rather than at the next scan, so the account's other
+   * devices follow a running turn as it streams.
+   * @param header - the header of the session whose events were committed.
+   */
+  appended(header: SessionHeader): void {
+    const id = header.id as string
+    if (header.replica || header.owner !== this.owner || this.index === undefined || this.live.has(id)) return
+    this.live.set(id, setTimeout(() => {
+      this.live.delete(id)
+      const me = this.device()
+      const entry = this.entries().get(id)
+      if (me === undefined || this.isClosed() || (entry !== undefined && entry.origin !== me)) return
+      this.serialize(id, () => this.publishSession(header, me)).catch((error: unknown) => {
+        this.warn(`session sync: publishing a running session failed: ${String(error)}`)
+      })
+    }, this.tuning.liveMs))
+  }
+
+  private async publishSession(header: SessionHeader, me: string): Promise<void> {
+    const from = this.entries().get(header.id)?.next ?? 0
     const suffix = await this.persistence.readFrom(header.id, SessionLogOffset(from))
     if (this.isClosed() || suffix.events.length === 0) return
     let batch: SessionEvent[] = []
@@ -357,7 +391,9 @@ export class SessionMirror {
   async dispose(): Promise<void> {
     this.closed = true
     if (this.timer !== undefined) clearInterval(this.timer)
-    await Promise.all([this.publishing, this.importing])
+    for (const timer of this.live.values()) clearTimeout(timer)
+    this.live.clear()
+    await Promise.all([this.publishing, this.importing, ...this.publications.values()])
     this.index?.close()
   }
 }
