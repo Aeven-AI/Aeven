@@ -1,7 +1,7 @@
 {
   "name": "@aeven/session",
   "description": "Event-sourced session store for the Aeven",
-  "version": "0.3.22-alpha",
+  "version": "0.3.23-alpha",
   "publishConfig": {
     "access": "public"
   },

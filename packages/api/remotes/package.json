@@ -1,7 +1,7 @@
 {
   "name": "@aeven/api-remotes",
   "description": "Remote BFF assembly for application-selected Host capabilities",
-  "version": "0.3.22-alpha",
+  "version": "0.3.23-alpha",
   "publishConfig": {
     "access": "public"
   },

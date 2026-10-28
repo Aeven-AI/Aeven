@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-connection",
   "description": "Authenticated RPC transport, generation lifecycle, and browser fixture",
-  "version": "0.3.22-alpha",
+  "version": "0.3.23-alpha",
   "publishConfig": {
     "access": "public"
   },

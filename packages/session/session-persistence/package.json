@@ -1,7 +1,7 @@
 {
   "name": "@aeven/session-persistence",
   "description": "Abstract durable session persistence seam (ctx.sessionPersistence) for the Aeven",
-  "version": "0.3.22-alpha",
+  "version": "0.3.23-alpha",
   "publishConfig": {
     "access": "public"
   },

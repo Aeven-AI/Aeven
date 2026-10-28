@@ -1,7 +1,7 @@
 {
   "name": "@aeven/tool-goal",
   "description": "Model-facing same-session goal tools with execution-time authority checks",
-  "version": "0.3.22-alpha",
+  "version": "0.3.23-alpha",
   "publishConfig": {
     "access": "public"
   },

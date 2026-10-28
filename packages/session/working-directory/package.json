@@ -1,7 +1,7 @@
 {
   "name": "@aeven/working-directory",
   "description": "Session working directory as a logged capability: header cwd plus replayable session/cwd changes",
-  "version": "0.3.22-alpha",
+  "version": "0.3.23-alpha",
   "publishConfig": {
     "access": "public"
   },

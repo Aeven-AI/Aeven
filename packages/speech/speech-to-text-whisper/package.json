@@ -1,7 +1,7 @@
 {
   "name": "@aeven/speech-to-text-whisper",
   "description": "Local Whisper transcription with a managed whisper.cpp worker and on-demand verified models",
-  "version": "0.3.22-alpha",
+  "version": "0.3.23-alpha",
   "publishConfig": {
     "access": "public"
   },
