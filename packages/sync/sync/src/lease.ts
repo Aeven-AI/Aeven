@@ -31,6 +31,8 @@ export class LeaseHolder {
   private readonly now: () => number
   /** The state {@link LeaseHolderOptions.changed} last received. */
   private reported: boolean
+  /** Whether the relay's last answer gave the lease to another device. */
+  private lostToOther = false
 
   /**
    * @param sync - the account sync service.
@@ -61,6 +63,15 @@ export class LeaseHolder {
     return this.now() < this.expiresAt
   }
 
+  /**
+   * Whether the relay's last answer gave the lease to another device. An unreachable relay leaves the answer
+   * before it in place, so a lease that only expired between failed renewals reads false.
+   * @returns whether another device holds the lease.
+   */
+  refused(): boolean {
+    return this.lostToOther
+  }
+
   /** Take the lease when free and keep renewing it until {@link dispose}. */
   start(): void {
     if (this.timer !== undefined) return
@@ -79,6 +90,7 @@ export class LeaseHolder {
       try {
         const lease = await this.sync.acquireLease(this.owner, this.name, this.timing.ttlMs)
         this.expiresAt = lease.granted ? requested + this.timing.ttlMs : 0
+        this.lostToOther = !lease.granted
       } catch {
         // An unreachable relay keeps the previous expiry; held() turns false once it passes.
       }
@@ -98,6 +110,7 @@ export class LeaseHolder {
     if (this.timer !== undefined) clearInterval(this.timer)
     this.timer = undefined
     await this.renewing
+    this.lostToOther = false
     if (this.expiresAt === 0) return
     this.expiresAt = 0
     await this.sync.releaseLease(this.owner, this.name).catch(() => {

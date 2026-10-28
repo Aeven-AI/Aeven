@@ -678,7 +678,7 @@ Standalone view/create/unique literal replace/line insert tool over the filesyst
 
 ### `edit`
 
-Edit an existing UTF-8 text file by replacing literal text.
+Edit existing UTF-8 text files by replacing literal text. Several files whose edits are already decided go together in one call through files.
 
 ```json
 {
@@ -686,7 +686,7 @@ Edit an existing UTF-8 text file by replacing literal text.
   "properties": {
     "file_path": {
       "type": "string",
-      "description": "Path to edit, resolved by the filesystem backend."
+      "description": "Path to edit, resolved by the filesystem backend. Required unless files is given."
     },
     "old_string": {
       "type": "string",
@@ -725,11 +725,63 @@ Edit an existing UTF-8 text file by replacing literal text.
           "new_string"
         ]
       }
+    },
+    "files": {
+      "type": "array",
+      "description": "Several files in one call, applied in order, each file at most once. Use instead of the top-level file_path and its replacements.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "file_path": {
+            "type": "string",
+            "description": "Path to edit, resolved by the filesystem backend."
+          },
+          "old_string": {
+            "type": "string",
+            "description": "Literal text to replace. Must match exactly. Required unless edits is given."
+          },
+          "new_string": {
+            "type": "string",
+            "description": "Literal replacement text. Required unless edits is given."
+          },
+          "replace_all": {
+            "type": "boolean",
+            "description": "Replace all matches. Defaults to false."
+          },
+          "edits": {
+            "type": "array",
+            "description": "Several replacements for this file, applied in order; none applies unless all match.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "old_string": {
+                  "type": "string",
+                  "description": "Literal text to replace. Must match exactly."
+                },
+                "new_string": {
+                  "type": "string",
+                  "description": "Literal replacement text."
+                },
+                "replace_all": {
+                  "type": "boolean",
+                  "description": "Replace all matches of this old_string."
+                }
+              },
+              "required": [
+                "old_string",
+                "new_string"
+              ]
+            }
+          }
+        },
+        "required": [
+          "file_path"
+        ]
+      }
     }
-  },
-  "required": [
-    "file_path"
-  ]
+  }
 }
 ```
 
@@ -737,7 +789,7 @@ Source: [`packages/fs/tool-fs/src/index.ts`](../packages/fs/tool-fs/src/index.ts
 
 ### `read`
 
-Read a UTF-8 text file and return line-numbered content.
+Read UTF-8 text files and return line-numbered content. Several files you already know you need go together in one call through files.
 
 ```json
 {
@@ -745,7 +797,7 @@ Read a UTF-8 text file and return line-numbered content.
   "properties": {
     "file_path": {
       "type": "string",
-      "description": "Path to read, resolved by the filesystem backend."
+      "description": "Path to read, resolved by the filesystem backend. Required unless files is given."
     },
     "offset": {
       "type": "number",
@@ -754,11 +806,33 @@ Read a UTF-8 text file and return line-numbered content.
     "limit": {
       "type": "number",
       "description": "Maximum number of lines to return. Defaults to 2000."
+    },
+    "files": {
+      "type": "array",
+      "description": "Several files in one call, read concurrently and returned in order. Use instead of the top-level file_path, offset, and limit.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "file_path": {
+            "type": "string",
+            "description": "Path to read, resolved by the filesystem backend."
+          },
+          "offset": {
+            "type": "number",
+            "description": "1-based first line to return. Defaults to 1."
+          },
+          "limit": {
+            "type": "number",
+            "description": "Maximum number of lines to return. Defaults to 2000."
+          }
+        },
+        "required": [
+          "file_path"
+        ]
+      }
     }
-  },
-  "required": [
-    "file_path"
-  ]
+  }
 }
 ```
 

@@ -284,7 +284,10 @@ flowchart LR
   pkg_sync_yjs["sync-yjs"]
   pkg_personalization["personalization"]
   pkg_session_sync["session-sync"]
+  pkg_settings_sync["settings-sync"]
   pkg_sync_controller["sync-controller"]
+  pkg_session_handoff["session-handoff"]
+  svc_sessionHandoff["ctx.sessionHandoff<br/>Conversation handoff"]
   svc_syncController["ctx.syncController<br/>Sync Remote"]
   pkg_ui_settings_sync["ui-settings-sync"]
   svc_personalizationController["ctx.personalizationController<br/>Personalization store and prompt section"]
@@ -396,6 +399,7 @@ flowchart LR
   pkg_sandbox_local --> svc_sandbox
   pkg_sandbox_policy --> svc_sandboxPolicy
   pkg_session --> svc_sessions
+  pkg_session_handoff --> svc_sessionHandoff
   pkg_session_log_deepseek --> svc_deepseekLlmApiExtensions
   pkg_session_persistence --> svc_sessionPersistence
   pkg_session_persistence_jsonl --> svc_sessionPersistence
@@ -404,6 +408,7 @@ flowchart LR
   pkg_session_query --> svc_sessionQuery
   pkg_session_query_sqlite --> svc_sessionQuery
   pkg_session_reference --> svc_sessionReferenceResolver
+  pkg_session_sync --> svc_sessionHandoff
   pkg_session_telemetry --> svc_sessionTelemetry
   pkg_session_telemetry_otel --> svc_sessionTelemetry
   pkg_session_title --> svc_sessionTitle
@@ -524,6 +529,7 @@ flowchart LR
   svc_sandboxPolicy --> pkg_bash_sandbox
   svc_sandboxPolicy --> pkg_fs_sandbox
   svc_sandboxPolicy --> pkg_terminal_bash
+  svc_sessionHandoff --> pkg_api_session_controller
   svc_sessionPersistence --> pkg_agent_loop
   svc_sessionPersistence --> pkg_hooks_claude_code
   svc_sessionPersistence --> pkg_hooks_codex
@@ -579,6 +585,7 @@ flowchart LR
   svc_sync --> pkg_memory_memos
   svc_sync --> pkg_personalization
   svc_sync --> pkg_session_sync
+  svc_sync --> pkg_settings_sync
   svc_sync --> pkg_sync_controller
   svc_syncController --> pkg_ui_settings_sync
   svc_systemPrompt --> pkg_agent_loop
@@ -709,7 +716,8 @@ flowchart LR
 | `ctx.mail` | `seam` | [`mail`](../packages/mail/mail) | `account-integrations` | [`tool-mail`](../packages/mail/tool-mail) | - | Account sources register owner-scoped accounts, and every operation resolves its named account for the given owner before a socket opens. 账号来源注册按所有者隔离的账号，每个操作在打开套接字之前先为给定所有者解析出所命名的账号。 |
 | `ctx.memory` | `seam` | [`memory`](../packages/memory/memory) | [`memory-memos`](../packages/memory/memory-memos) | [`api-memory-manager`](../packages/memory/api-memory-manager), [`memory-context`](../packages/memory/memory-context), [`memory-memos`](../packages/memory/memory-memos), [`tool-capability`](../packages/capability/tool-capability), [`tool-memory`](../packages/memory/tool-memory) | - | One registered provider serves recall, turn capture, and inspection to every memory consumer; the definition holds no storage of its own. 唯一注册的提供方向每个记忆消费者提供回忆、回合捕获与检查；定义本身不持有存储。 |
 | `ctx.memoryManagerController` | `core` | [`api-memory-manager`](../packages/memory/api-memory-manager) | - | `ui-settings-memory` | - | Serves what Aeven has learned about the signed-in user, with view, correct, and forget, always for the caller of the running request. 提供 Aeven 对已登录用户所了解到的一切，含查看、更正与遗忘，且始终服务于当前请求的调用方。 |
-| `ctx.sync` | `seam` | [`sync`](../packages/sync/sync) | [`sync-yjs`](../packages/sync/sync-yjs) | [`memory-memos`](../packages/memory/memory-memos), [`personalization`](../packages/preset/personalization), [`session-sync`](../packages/session/session-sync), `sync-controller` | - | 让账户的文档和流在该账户的每台设备上保持一致，并通过 Aeven 中转服务器端到端加密传输。 |
+| `ctx.sync` | `seam` | [`sync`](../packages/sync/sync) | [`sync-yjs`](../packages/sync/sync-yjs) | [`memory-memos`](../packages/memory/memory-memos), [`personalization`](../packages/preset/personalization), [`session-sync`](../packages/session/session-sync), [`settings-sync`](../packages/settings/settings-sync), `sync-controller` | - | 让账户的文档和流在该账户的每台设备上保持一致，并通过 Aeven 中转服务器端到端加密传输。 |
+| `ctx.sessionHandoff` | `seam` | [`session-handoff`](../packages/session/session-handoff) | [`session-sync`](../packages/session/session-sync) | [`api-session-controller`](../packages/api/session-controller) | - | One device writes each conversation of an account, and every device that holds a copy forwards input to it, reads its live state, and takes it over once no turn runs there. 每个账户的每段对话由一台设备写入，持有副本的每台设备都把输入转发给它、读取其实时状态，并在其无运行中的 turn 时接管。 |
 | `ctx.syncController` | `core` | `sync-controller` | - | `ui-settings-sync` | - | 开启账户同步、加入与批准设备以及移除设备，始终为当前请求的调用方执行。 |
 | `ctx.personalizationController` | `core` | [`personalization`](../packages/preset/personalization) | - | `ui-settings-personalization` | - | One Host row owns each account's voice and notes, the Remote behind Settings → Personalization, and the system-prompt section that renders the session owner's preferences after the persona. 一个宿主行拥有每个账号的声音与笔记、设置 → 个性化背后的 Remote，以及在 persona 之后渲染会话所有者偏好的系统提示词段落。 |
 | `ctx.skillCatalog` | `core` | [`skill-catalog`](../packages/skill/skill-catalog) | - | `account-integrations` | - | Read-only local source of installable skills: the catalog lists what a reader may install and the installer reads one entry's files from the same tree. 可安装 skill 的本地只读来源：目录列出读者可安装的内容，安装器从同一棵树读取某个条目的文件。 |

@@ -80,8 +80,8 @@ export function apply(ctx: Context): void {
     name: 'settings.action', id: 'detail-back', locale: namespace,
   }, DetailBack))
   ctx.slots.inject('settings.section', function* () {
-    // Voice also registers at 60; Connectors sits just before it so the nav order does not depend on load order.
-    for (const [page, order] of [['skills', 55], ['connectors', 58]] as const) {
+    // Connectors follows General in the nav: what Aeven can reach is the first thing most readers set up.
+    for (const [page, order] of [['skills', 55], ['connectors', 25]] as const) {
       yield ctx.slots.register({
         name: 'settings.section', id: page, order, label: () => t(page), locale: namespace,
         inject: () => ({ ...operations, page }),

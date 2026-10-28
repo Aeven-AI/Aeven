@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AccountIntegrationsView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillCatalogView, SkillUploadFile, WhatsAppPairingView } from '@aeven/api-remotes/client'
-import { Button, LoadingBlock, SectionHeader, MarkdownText, Menu, Modal, Spinner, IconWarningOutline16, IconChevronLeftOutline14, IconLucideSettings2 } from '@aeven/client-ui-primitives'
+import { Button, LoadingBlock, SectionHeader, MarkdownText, Menu, Modal, Spinner, Switch, Tabs, IconWarningOutline16, IconChevronLeftOutline14, IconLucideSettings2 } from '@aeven/client-ui-primitives'
 import type { HostObservable, InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import css from './IntegrationsSection.module.css'
 import { connectorIcons } from './connector-icons.ts'
@@ -342,19 +342,17 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
     const installed = installedNames.has(skill.name)
     return toggle(skill.name, installed, false, () => { (installed ? uninstall : install)(skill.name) })
   }
-  const modeSwitch = <div className={css.modeTabs} role="tablist">
-    {(['library', 'catalog'] as const).map(id => <button
-      key={id} type="button" role="tab" aria-selected={mode === id} data-active={mode === id}
-      className={css.modeTab}
-      onClick={() => { setChosenMode(true); setMode(id) }}
-    >{t(id === 'library' ? 'modeLibrary' : 'modeCatalog')}</button>)}
-  </div>
+  const modeSwitch = <Tabs
+    items={[{ id: 'library', label: t('modeLibrary') }, { id: 'catalog', label: t('modeCatalog') }]}
+    activeId={mode}
+    onSelect={(id) => { setChosenMode(true); setMode(id === 'catalog' ? 'catalog' : 'library') }}
+  />
   const connectorIcon = (provider: ConnectorProvider, large = false) => <span className={`${css.connectorBadge} ${large ? css.connectorBadgeLarge : ''}`} aria-hidden="true">
     {connectorIcons[provider] === undefined
       ? <span className={css.connectorMonogram}>{t('mcpMonogram')}</span>
       : <img className={`${css.connectorIcon} ${MONOCHROME_ICONS.has(provider) ? css.connectorIconInverted : ''}`} src={connectorIcons[provider]} alt="" />}
   </span>
-  const toggle = (label: string, on: boolean, disabled: boolean, onChange: () => void) => <button type="button" role="switch" aria-label={label} aria-checked={on} title={t(on ? 'on' : 'off')} className={`${css.switch} ${on ? css.switchOn : ''}`} disabled={busy || disabled} onClick={(event) => { event.stopPropagation(); onChange() }}><span className={css.thumb} /></button>
+  const toggle = (label: string, on: boolean, disabled: boolean, onChange: () => void) => <Switch label={label} checked={on} title={t(on ? 'on' : 'off')} disabled={busy || disabled} onChange={onChange} />
   /** Install progress the Host reports for a skill whose engine is prepared after it is enabled. */
   const setupOf = (name: string) => snapshot?.skills.find(skill => skill.name === name)?.setup
   /** The shared spinner while a skill's engine installs, left of its switch and with no label of its own. */

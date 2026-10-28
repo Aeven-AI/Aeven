@@ -88,7 +88,6 @@ declare module '@deepseek-ai/cordis' {
      * An account's sync status changed.
      * @mode emit
      * @param owner - the account whose status changed.
-     * @avnScopeScan unsupported
      */
     'sync/status'(owner: string): void
     /**
@@ -96,7 +95,6 @@ declare module '@deepseek-ai/cordis' {
      * @mode emit
      * @param owner - the account whose progress is requested.
      * @param progress - publisher counters, initialized to zero by the caller.
-     * @avnScopeScan unsupported
      */
     'sync/progress'(owner: string, progress: SyncProgress): void
     /**
@@ -104,7 +102,6 @@ declare module '@deepseek-ai/cordis' {
      * @mode emit
      * @param owner - the account.
      * @param id - the document's opaque id, as {@link Sync.documentId} returns it.
-     * @avnScopeScan unsupported
      */
     'sync/document'(owner: string, id: string): void
   }

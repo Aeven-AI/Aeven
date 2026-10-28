@@ -522,4 +522,23 @@ Committed change to a provider-managed credential source: a `set`, an `unset`, o
 ```
 
 Source: [`packages/credentials/credentials/src/types.ts`](../../packages/credentials/credentials/src/types.ts)
+
+<a id="credentialssession-updated--emit"></a>
+
+#### `credentials/session-updated` — emit
+
+A signed-in user's session credential appeared or changed, so work that acts for that user on this Host, such as account sync, can start. Withdrawing a value does not emit.
+
+```ts cordis-catalog
+/**
+ * A signed-in user's session credential appeared or changed, so work that acts for that user on this Host,
+ * such as account sync, can start. Withdrawing a value does not emit.
+ * @param ref - the reference the value answers.
+ * @param user - the signed-in user.
+ * @mode emit
+ */
+'credentials/session-updated'(ref: CredentialRef, user: string): void
+```
+
+Source: [`packages/credentials/credentials/src/types.ts`](../../packages/credentials/credentials/src/types.ts)
 <!-- END GENERATED cordis-surface -->

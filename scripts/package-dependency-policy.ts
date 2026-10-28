@@ -56,7 +56,7 @@ const SAFE_HOST_DEPENDENCY_EXPORTS = {
   ],
   '@aeven/llm-pi-ai': ['PiAiAdapter'],
   '@aeven/media': ['MediaError', 'rejectImageControls'],
-  '@aeven/tools': ['defineTool'],
+  '@aeven/tools': ['defineTool', 'jsonStringOutput'],
   '@aeven/timeout': ['MAX_TIMER_DELAY_MS'],
   '@deepseek-ai/schemastery': ['default'],
 } as const satisfies HostDependencyExports

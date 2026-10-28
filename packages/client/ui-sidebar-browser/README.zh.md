@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-右侧栏的浏览器面板，供在 Electron 桌面外壳中查看的会话使用。该面板内嵌一个 Electron `<webview>` 访客，并由自身的控件驱动它：地址栏把读者输入的内容解析为地址或搜索，以及后退、前进、刷新、打开 DevTools 与缩放控件、设置 → 通用 中的搜索引擎行，还有把点击的链接送往本面板、Host 的 Chromium 或操作系统浏览器的链接菜单。Agent 工作期间，它的指针被保持在面板之上，并绘出每个动作指向的位置。同一个访客通过 `browser/automation` Remote Event 应答 Agent 的 `browser_*` 工具，因此模型驱动的是读者正在看的页面。以 HTTP 提供时既没有 webview 也没有外壳桥接：浏览器类型改为打开 Host 的 Chromium 窗口，链接则在标签页自身中打开。
+右侧栏的浏览器面板，供在 Electron 桌面外壳中查看的会话使用。该面板内嵌一个 Electron `<webview>` 访客，并由自身的控件驱动它：地址栏把读者输入的内容解析为地址或搜索，以及后退、前进、刷新、打开 DevTools 与缩放控件、设置 → 通用 中的搜索引擎行，还有把点击的链接送往本面板、Host 的 Chromium 或操作系统浏览器的链接菜单。登录状态与站点数据按 Aeven 账户保存，因此在某个站点登录一次后，它在每个会话旁和重启后都保持登录。Agent 工作期间，它的指针被保持在面板之上，并绘出每个动作指向的位置。同一个访客通过 `browser/automation` Remote Event 应答 Agent 的 `browser_*` 工具，因此模型驱动的是读者正在看的页面。以 HTTP 提供时既没有 webview 也没有外壳桥接：浏览器类型改为打开 Host 的 Chromium 窗口，链接则在标签页自身中打开。
 
 ## 目录
 

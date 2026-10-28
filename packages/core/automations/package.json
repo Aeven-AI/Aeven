@@ -54,11 +54,6 @@
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/schemastery": "workspace:^"
   },
-  "peerDependenciesMeta": {
-    "@aeven/sync": {
-      "optional": true
-    }
-  },
   "devDependencies": {
     "@aeven/agent": "workspace:^",
     "@aeven/agent-default-model": "workspace:^",

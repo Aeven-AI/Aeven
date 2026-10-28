@@ -2,15 +2,17 @@
 
 exports[`Account security > keeps the switch off through enrollment and shows recovery codes after verification 1`] = `
 <section
-  class="_group_f08576"
+  class="_group_47f409"
 >
-  <h3
-    class="_groupTitle_f08576"
+  <div
+    class="_groupHead_47f409"
   >
-    <span>
+    <h3
+      class="_groupTitle_47f409"
+    >
       Security
-    </span>
-  </h3>
+    </h3>
+  </div>
   <div
     class="_row_f08576 _securityRow_f08576"
   >
@@ -40,12 +42,12 @@ exports[`Account security > keeps the switch off through enrollment and shows re
       <button
         aria-checked="false"
         aria-label="Two-factor authentication"
-        class="_switch_f08576"
+        class="_switch_118aba"
         role="switch"
         type="button"
       >
         <span
-          class="_thumb_f08576"
+          class="_thumb_118aba"
         />
       </button>
     </span>

@@ -129,12 +129,18 @@ export class AccountVault {
     return key
   }
 
-  /** @returns whether this device syncs the account and holds its key, so documents can open. */
+  /**
+   * Report whether this device holds the account key, so documents can open.
+   * @returns whether the key is present.
+   */
   ready(): boolean {
     return this.key() !== undefined
   }
 
-  /** @returns whether the user lets this device sync the account. */
+  /**
+   * Report whether the user lets this device sync the account.
+   * @returns the stored preference.
+   */
   enabled(): boolean {
     return this.store.enabled()
   }
@@ -150,7 +156,10 @@ export class AccountVault {
     this.setState(!enabled ? 'disabled' : this.store.accountKey() === undefined ? 'starting' : 'offline')
   }
 
-  /** @returns the current status. */
+  /**
+   * Read the current sync status.
+   * @returns the state, device, and outbox counters.
+   */
   status(): SyncStatus {
     const pending = this.store.pending()
     this.queued = pending === 0 ? 0 : Math.max(this.queued, pending)
@@ -394,12 +403,18 @@ export class AccountVault {
     this.lanSend = send
   }
 
-  /** @returns the account's opaque local-network tag, the same on every device of the account. */
+  /**
+   * Read the account's opaque local-network tag.
+   * @returns the tag, identical on every device of the account.
+   */
   lanTag(): string {
     return this.documentId(LAN_TAG)
   }
 
-  /** @returns this device's id. */
+  /**
+   * Read this device's id.
+   * @returns the device id.
+   */
   deviceId(): DeviceId {
     return this.device
   }

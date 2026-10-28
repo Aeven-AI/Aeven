@@ -43,3 +43,5 @@ kind: "package-reference"
 作用域声明位于 `@aeven/settings`；本包读取 `describe()` 且不维护自己的命名空间清单，因此新增的账户级设置无需在这里改动即可同步。
 
 </details>
+
+**运行时 invariant：** 不发布 runtime invariant companion，因为镜像通过 `ctx.settings` 写入，每个命名空间的值始终只有它一个所有者。

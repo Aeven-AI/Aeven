@@ -48,3 +48,5 @@ kind: "package-reference"
 无。
 
 </details>
+
+**运行时 invariant：** 不发布 runtime invariant companion，因为这是一个 Client 展示包，只渲染注入的同步快照，不拥有任何运行时关系。

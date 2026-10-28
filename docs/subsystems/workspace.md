@@ -249,6 +249,14 @@ Host service backing the generated `ctx.remote.workspace` namespace.
 @Remote('rename') rename(request: WorkspaceRenameRequest): Promise<WorkspaceValue>
 
 /**
+ * Give a Workspace without a directory on this Host, such as one another device of the account registered, a
+ * directory here. The directory stays on this Host.
+ * @param request - Workspace identity and directory path.
+ * @returns the updated Workspace projection.
+ */
+@Remote('bind') bind(request: WorkspaceBindRequest): Promise<WorkspaceValue>
+
+/**
  * Remove one Workspace registration while retaining files and Sessions.
  * @param request - Workspace identity to remove.
  * @returns deletion confirmation.
@@ -395,6 +403,33 @@ list(): Workspace[]
 delete(id: WorkspaceId): Promise<boolean>
 
 /**
+ * Name the workspace a session belongs to in the terms every device of the account shares: `default` for the
+ * built-in default workspace, `builtin:<key>` for a plugin-declared one, and the workspace id otherwise.
+ * @param sessionId - the session.
+ * @returns the shared name, or undefined when no workspace holds the session.
+ */
+sessionHome(sessionId: SessionId): string | undefined
+
+/**
+ * File a session another device published into the workspace its {@link sessionHome} names, when this device
+ * holds that workspace and the session is not filed yet.
+ * @param sessionId - the session, already stored on this device.
+ * @param home - the shared workspace name.
+ * @param header - received metadata when the body has not been downloaded yet.
+ * @returns whether the session is now filed there.
+ */
+async fileSession(sessionId: SessionId, home: string, header?: SessionHeader): Promise<boolean>
+
+/**
+ * Give a workspace that another device of the account registered a directory on this device. The directory
+ * stays here; the account's other devices keep their own.
+ * @param id - a workspace without a directory on this device.
+ * @param path - existing directory, in a fully qualified spelling.
+ * @returns the workspace, now folder-backed.
+ */
+async bind(id: WorkspaceId, path: string): Promise<Workspace>
+
+/**
  * Move one workspace within the durable display order, DOM-insertBefore-like.
  * With an anchor it lands before that workspace; without one it appends.
  *
@@ -471,7 +506,7 @@ sessionOwner(sessionId: SessionId): string | undefined
 builtIn(key: string, title: string): Promise<Workspace>
 ```
 
-Types: [SessionId](core.md)
+Types: [SessionHeader](persistence.md) · [SessionId](core.md)
 
 Source: [`packages/workspace/workspace/src/index.ts`](../../packages/workspace/workspace/src/index.ts)
 

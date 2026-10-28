@@ -72,6 +72,25 @@ describe('LeaseHolder', () => {
     expect(changes).toEqual([true, false])
   })
 
+  it('tells a lease granted to another device from one that lapsed while the relay was unreachable', async () => {
+    const network = new MemorySyncNetwork()
+    let clock = 0
+    network.now = () => clock
+    const device = network.device()
+    const lease = holder(network, device)
+    await lease.renew()
+    device.setState('offline')
+    clock = 1_500
+    await lease.renew()
+    expect([lease.held(), lease.refused()]).toEqual([false, false])
+    device.setState('online')
+    await holder(network).renew()
+    await lease.renew()
+    expect([lease.held(), lease.refused()]).toEqual([false, true])
+    await lease.dispose()
+    expect(lease.refused()).toBe(false)
+  })
+
   it('lets a device work while sync does not serve its account', async () => {
     const network = new MemorySyncNetwork()
     expect(holder(network, network.device('disabled')).held()).toBe(true)

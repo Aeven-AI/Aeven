@@ -198,6 +198,9 @@ export class SessionController extends TypertRemoteService {
       const agent = ctx.agents.get(sessionId)
       if (agent !== undefined && agent.session.header.owner !== owner) throw new Error('session runner owner mismatch')
       await this.agents.release(sessionId)
+      // Releasing disposes the local agent, which removes the row; the conversation continues on the device that
+      // took it, so it stays listed as that device's replica.
+      ctx.emit('api-session/added', { ...await this.listState.summaryForStored(sessionId), replica: true }, owner)
     })
 
     ctx.on('agent/pre-step', async ({ step, signal }, next) => {

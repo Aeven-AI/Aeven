@@ -103,7 +103,10 @@ export class SyncStore {
     this.db.prepare('INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value').run(key, value)
   }
 
-  /** @returns this device's id, chosen once per store. */
+  /**
+   * Report this device's store id.
+   * @returns the id, chosen once per store.
+   */
   deviceId(): DeviceId {
     const stored = this.meta('device')
     if (stored !== undefined) return stored as DeviceId
@@ -112,7 +115,10 @@ export class SyncStore {
     return id
   }
 
-  /** @returns the account key, once the relay handed it to this device. */
+  /**
+   * Read the account key the relay handed to this device.
+   * @returns the key, or undefined before the handoff.
+   */
   accountKey(): Uint8Array | undefined {
     const stored = this.meta('key')
     return stored === undefined ? undefined : fromBase64Url(stored, 32)
@@ -138,35 +144,49 @@ export class SyncStore {
     return stored !== undefined
   }
 
-  /** @returns whether this device syncs the account; true until the user turns it off. */
+  /**
+   * Report whether the user lets this device sync the account.
+   * @returns the stored preference.
+   */
   enabled(): boolean {
     return this.meta('enabled') !== 'false'
   }
 
-  /** @param enabled - whether this device syncs the account. */
+  /**
+   * Store the user's sync preference.
+   * @param enabled - whether this device syncs the account.
+   */
   setEnabled(enabled: boolean): void {
     this.setMeta('enabled', String(enabled))
   }
 
-  /** @returns the last relay sequence number applied; 0 before the first. */
+  /**
+   * Read the last relay sequence number applied.
+   * @returns the cursor, 0 before the first frame.
+   */
   relayCursor(): number {
     return Number(this.meta('cursor') ?? '0')
   }
 
-  /** @param cursor - the last relay sequence number applied. */
+  /**
+   * Record the last relay sequence number applied.
+   * @param cursor - the relay sequence number.
+   */
   setRelayCursor(cursor: number): void {
     this.setMeta('cursor', String(cursor))
   }
 
   /**
+   * List the stored updates of a document, oldest first.
    * @param id - the document.
-   * @returns every stored update, oldest first.
+   * @returns every stored update.
    */
   docUpdates(id: OpaqueId): Uint8Array[] {
     return (this.db.prepare('SELECT data FROM doc_updates WHERE id = ? ORDER BY seq').all(id) as Array<{ data: Buffer }>).map(row => new Uint8Array(row.data))
   }
 
   /**
+   * Store one Yjs update for a document.
    * @param id - the document.
    * @param update - a Yjs update to store.
    * @returns the number of updates now stored for `id`.
@@ -176,6 +196,8 @@ export class SyncStore {
   }
 
   /**
+  /**
+   * Count the stored updates of a document.
    * @param id - the document.
    * @returns how many updates are stored for it.
    */
@@ -183,7 +205,10 @@ export class SyncStore {
     return (this.statement('SELECT COUNT(*) AS n FROM doc_updates WHERE id = ?').get(id) as { n: number }).n
   }
 
-  /** @returns every document this device stores updates for. */
+  /**
+   * List every document this device stores updates for.
+   * @returns their opaque ids.
+   */
   storedDocuments(): OpaqueId[] {
     return (this.statement('SELECT DISTINCT id FROM doc_updates').all() as Array<{ id: string }>).map(row => row.id as OpaqueId)
   }
@@ -239,13 +264,17 @@ export class SyncStore {
     ).get(id, added) as { frames: number }).frames
   }
 
-  /** @param id - the document a snapshot was just queued for. */
+  /**
+   * Clear a document's snapshot backlog after its snapshot was queued.
+   * @param id - the document.
+   */
   resetSinceSnapshot(id: OpaqueId): void {
     this.db.prepare('DELETE FROM since_snapshot WHERE id = ?').run(id)
   }
 
   /**
-   * @param frame - a sealed frame to send.
+   * Queue one sealed frame for the relay.
+   * @param frame - the frame.
    * @param covers - for a snapshot, the relay sequence number it covers.
    */
   enqueue(frame: Uint8Array, covers?: number): void {
@@ -253,8 +282,9 @@ export class SyncStore {
   }
 
   /**
+   * List queued frames, oldest first.
    * @param limit - maximum number of frames to return; omitted means every frame.
-   * @returns unacknowledged frames, oldest first.
+   * @returns unacknowledged frames.
    */
   outbox(limit?: number): OutboxFrame[] {
     const rows = limit === undefined
@@ -264,12 +294,18 @@ export class SyncStore {
       .map(row => ({ seq: row.seq, frame: new Uint8Array(row.frame), ...row.covers === null ? {} : { covers: row.covers } }))
   }
 
-  /** @param seq - the last acknowledged outbox position; it and every earlier frame leave the outbox. */
+  /**
+   * Drop acknowledged frames from the outbox.
+   * @param seq - the last acknowledged outbox position; it and every earlier frame leave the outbox.
+   */
   acknowledge(seq: number): void {
     this.db.prepare('DELETE FROM outbox WHERE seq <= ?').run(seq)
   }
 
-  /** @returns the number of unacknowledged frames. */
+  /**
+   * Count unacknowledged frames.
+   * @returns the number of frames still queued.
+   */
   pending(): number {
     return (this.db.prepare('SELECT COUNT(*) AS n FROM outbox').get() as { n: number }).n
   }

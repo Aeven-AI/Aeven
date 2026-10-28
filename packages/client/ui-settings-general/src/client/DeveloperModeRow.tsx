@@ -2,7 +2,7 @@
 
 import type { SnapshotStore } from '@aeven/client-store'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
-import { OnOffRow } from './OnOffRow.tsx'
+import { SettingsGroup, SettingsRow, Switch } from '@aeven/client-ui-primitives'
 
 /** Registration-side Developer mode face. */
 export interface DeveloperModeRowInjected {
@@ -21,20 +21,19 @@ export type DeveloperModeRowProps =
   & InjectFace<DeveloperModeRowInjected>
 
 /**
- * Render the Developer mode selector.
+ * Render the Advanced group holding the Developer mode switch.
  * @param props - composed Settings slot props.
  * @returns the preference row.
  */
 export function DeveloperModeRow({ useDeveloperMode, setDeveloperMode, t }: DeveloperModeRowProps) {
   const enabled = useDeveloperMode(value => value)
   return (
-    <OnOffRow
-      title={t('developer.title')}
-      description={t('developer.description')}
-      enabled={enabled}
-      onChange={setDeveloperMode}
-      divider
-      t={t}
-    />
+    <SettingsGroup title={t('general.advanced')}>
+      <SettingsRow
+        title={t('developer.title')}
+        description={t('developer.description')}
+        control={<Switch checked={enabled} onChange={setDeveloperMode} label={t('developer.title')} />}
+      />
+    </SettingsGroup>
   )
 }

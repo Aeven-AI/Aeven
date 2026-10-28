@@ -23,6 +23,7 @@ One page per subsystem of the Aeven: what it is, the data structures it moves, a
 | [commands.md](commands.md) | the human-command registry service: definitions, adapter discovery, direct invocation, results, and parsing views |
 | [session.md](session.md) | the full `SessionEventMap` variant catalog, `TurnEndReason`, `deriveMessages()`, execution enclosure, and standalone events |
 | [persistence.md](persistence.md) | the durability seam: `SessionPersistence`, the JSONL provider, `session/flush`, crash recovery, `SessionHeader` |
+| [sync.md](sync.md) | account sync: `ctx.sync`, its provider roles, the consumers that publish through it, and the events it emits |
 | [settings.md](settings.md) | the user-settings seam: `SettingsNamespace` registration, layered resolution (defaults → composition `base` → user document), owner scopes, hot commits |
 | [identity.md](identity.md) | the authenticated-user seam: `User`, `IdentityRequest`, `UserResolver`, synchronous first-match resolution, and what mounting an authority changes |
 | [credentials.md](credentials.md) | the credential seam: `CredentialRef` references (never values) in configuration, per-operation resolution, UI-safe `CredentialInfo`, provider source layers |

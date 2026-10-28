@@ -46,3 +46,5 @@ kind: "package-reference"
 无。
 
 </details>
+
+**运行时 invariant：** 不发布 runtime invariant companion，因为该 Remote 把每次调用转交给 `ctx.sync`，自身不保留任何状态。

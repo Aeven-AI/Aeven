@@ -199,7 +199,10 @@ export class LanTransport {
     return transport
   }
 
-  /** @returns the ids of linked devices. */
+  /**
+   * List the devices linked over the local network.
+   * @returns their ids.
+   */
   peers(): string[] {
     return [...this.links].flatMap(link => (link.proof !== undefined && link.device !== undefined ? [link.device] : []))
   }

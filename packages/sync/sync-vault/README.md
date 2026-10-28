@@ -41,3 +41,5 @@ None.
 None.
 
 </details>
+
+**Runtime invariant:** No runtime invariant companion is published because key epochs, envelope signatures, and the device chain are checked over its stored bytes in package tests, and nothing publishes a divergent in-process pair.

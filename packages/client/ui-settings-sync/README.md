@@ -45,3 +45,5 @@ None.
 None.
 
 </details>
+
+**Runtime invariant:** No runtime invariant companion is published because a Client presentation package renders the injected sync snapshot and owns no runtime relation.

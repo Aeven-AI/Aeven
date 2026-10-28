@@ -664,6 +664,23 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the stored text.',
       },
       {
+        signature: 'readObject(id: AttachmentId, signal?: AbortSignal): Promise<Uint8Array>',
+        description: 'Read the verified bytes of one stored content-addressed object (an image, a file, or a file\'s text), for moving it to another store, such as another device of the account.',
+        parameters: [{ name: 'id', description: 'the object\'s content address.' }, { name: 'signal', description: 'optional cancellation.' }],
+        returns: 'the object\'s bytes.',
+      },
+      {
+        signature: 'hasObject(id: AttachmentId): Promise<boolean>',
+        description: 'Whether this store holds one content-addressed object.',
+        parameters: [{ name: 'id', description: 'the object\'s content address.' }],
+        returns: 'whether a read would find it.',
+      },
+      {
+        signature: 'importObject(id: AttachmentId, data: Uint8Array): Promise<void>',
+        description: 'Store bytes another store held under their content address, byte for byte; bytes whose digest differs from the address are refused.',
+        parameters: [{ name: 'id', description: 'the object\'s content address.' }, { name: 'data', description: 'the object\'s bytes.' }],
+      },
+      {
         signature: 'fileHostPath(ref: FileAttachmentRef): string | undefined',
         description: 'Locate the stored original in the harness host filesystem.',
         parameters: [{ name: 'ref', description: 'durable file reference.' }],
@@ -2463,13 +2480,13 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the durable attachment reference and base64-encoded bytes.',
       },
       {
-        signature: '@Remote(\'updateQueue\') updateQueue(request: SessionUpdateQueueRequest): SessionUpdateQueueValue',
+        signature: '@Remote(\'updateQueue\') async updateQueue(request: SessionUpdateQueueRequest): Promise<SessionUpdateQueueValue>',
         description: 'Mutate one still-pending queue occurrence on a live Agent.',
         parameters: [{ name: 'request', description: 'Session, queue item, and requested mutation.' }],
         returns: 'acknowledgement that the queue mutation was applied.',
       },
       {
-        signature: '@Remote(\'cancel\') cancel(request: SessionCancelRequest): SessionCancelValue',
+        signature: '@Remote(\'cancel\') async cancel(request: SessionCancelRequest): Promise<SessionCancelValue>',
         description: 'Cancel one active Agent turn without dropping its pending inbox.',
         parameters: [{ name: 'request', description: 'Session whose active Agent turn is cancelled.' }],
         returns: 'acknowledgement that cancellation was requested.',
@@ -2508,6 +2525,64 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'sessionHandoff',
+    summary: 'Session handoff capability.',
+    description: 'Session handoff capability.',
+    methods: [
+      {
+        signature: 'abstract catalog(owner: string): readonly SharedSession[]',
+        description: 'List the account\'s conversation metadata without downloading bodies.',
+        parameters: [{ name: 'owner', description: 'account.' }],
+        returns: 'shared metadata currently received by this device.',
+      },
+      {
+        signature: 'abstract fetch(owner: string, sessionId: SessionId, signal?: AbortSignal): Promise<void>',
+        description: 'Download a shared conversation before it is opened or continued locally.',
+        parameters: [{ name: 'owner', description: 'account.' }, { name: 'sessionId', description: 'conversation to read.' }, { name: 'signal', description: 'cancellation of the opening operation.' }],
+        returns: 'when its published event prefix is stored locally.',
+      },
+      {
+        signature: 'abstract shared(owner: string, sessionId: SessionId): boolean',
+        description: 'Whether a session belongs to the account\'s device-independent conversation index.',
+        parameters: [{ name: 'owner', description: 'account.' }, { name: 'sessionId', description: 'session.' }],
+        returns: 'whether workspace membership is independent of the header\'s device-local path.',
+      },
+      {
+        signature: 'abstract runnerOf(owner: string, sessionId: SessionId): SessionRunner | undefined',
+        description: 'The device writing a session when it is not this device.',
+        parameters: [{ name: 'owner', description: 'the account.' }, { name: 'sessionId', description: 'the session.' }],
+        returns: 'the writing device, or undefined when this device writes the session or it is not synced.',
+      },
+      {
+        signature: 'abstract forward(owner: string, sessionId: SessionId, input: SessionHandoffInput): Promise<void>',
+        description: 'Forward one input to the device writing a session. Input reaches it in the order it was forwarded and waits while that device is unreachable.',
+        parameters: [{ name: 'owner', description: 'the account.' }, { name: 'sessionId', description: 'the session.' }, { name: 'input', description: 'the input.' }],
+      },
+      {
+        signature: 'abstract claim(owner: string, sessionId: SessionId): Promise<SessionClaim>',
+        description: 'Make this device the one writing a session another device writes, when no device runs a turn of it. This device\'s copy must hold everything the writing device published; it becomes writable here, and the other device stops writing it.',
+        parameters: [{ name: 'owner', description: 'the account.' }, { name: 'sessionId', description: 'the session.' }],
+        returns: 'whether this device writes the session now.',
+      },
+      {
+        signature: 'abstract holdRunner(owner: string, sessionId: SessionId, running: boolean): Promise<void>',
+        description: 'Hold a session for this device while it runs a turn, so no other device claims it meanwhile.',
+        parameters: [{ name: 'owner', description: 'the account.' }, { name: 'sessionId', description: 'the session.' }, { name: 'running', description: 'whether a turn runs; false lets other devices claim it again.' }],
+      },
+      {
+        signature: 'abstract publishLive(owner: string, sessionId: SessionId, live: unknown): void',
+        description: 'Publish the live state of a session this device writes, such as whether a turn runs and what waits in its queue, to the account\'s other devices. The state is the publishing Consumer\'s JSON; undefined clears it.',
+        parameters: [{ name: 'owner', description: 'the account.' }, { name: 'sessionId', description: 'the session.' }, { name: 'live', description: 'the state, or undefined once nothing is live.' }],
+      },
+      {
+        signature: 'abstract liveOf(owner: string, sessionId: SessionId): unknown',
+        description: 'The live state the device writing a session published for it.',
+        parameters: [{ name: 'owner', description: 'the account.' }, { name: 'sessionId', description: 'the session.' }],
+        returns: 'the state, or undefined when the writing device published none.',
+      },
+    ],
+  },
+  {
     key: 'sessionPersistence',
     summary: 'Durable append-only session storage.',
     description: 'Durable append-only session storage. Implementations preserve contiguous, losslessly JSON-serializable events; append resolves only after durability, and load balances a complete interrupted tail without rewriting committed events.',
@@ -2541,6 +2616,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         signature: 'abstract create(meta: SessionHeader, inheritedEventCount?: SessionLogOffset): Promise<void>',
         description: 'Register a new session\'s metadata. A backend MAY defer the physical write until the first append (lazy materialization), in which case a created-but-never-appended session is absent from list — abandoned sessions leave nothing behind.',
         parameters: [{ name: 'meta', description: 'the immutable header (id, version, cwd, lineage) to record.' }, { name: 'inheritedEventCount', description: 'exact fork-inherited prefix length. Required for a seeded header and omitted only for an unseeded header.' }],
+      },
+      {
+        signature: 'setReplica(_id: SessionId, _replica: boolean): Promise<void>',
+        description: 'Change whether a cold stored session permits local execution without changing its log bytes.',
+        parameters: [{ name: '_id', description: 'stored session; live or reserved sessions are refused.' }, { name: '_replica', description: 'true for a received copy, false after exclusive runner ownership is acquired.' }],
+        returns: 'when the local execution marker is durable.',
       },
       {
         signature: 'ensureMaterialized(_session: Session): Promise<void>',
@@ -3516,6 +3597,113 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'sync',
+    summary: 'Account sync capability.',
+    description: 'Account sync capability.',
+    methods: [
+      {
+        signature: 'abstract status(owner: string): SyncStatus',
+        description: 'Read one account\'s status on this device.',
+        parameters: [{ name: 'owner', description: 'the account.' }],
+        returns: 'the current status.',
+      },
+      {
+        signature: 'abstract setEnabled(owner: string, enabled: boolean): void',
+        description: 'Turn sync on or off for the account on this device. Syncing is on by default for every account signed in on this Host; turning it off keeps the local copy and stops exchanging changes until it is turned on again.',
+        parameters: [{ name: 'owner', description: 'the account.' }, { name: 'enabled', description: 'whether this device syncs the account.' }],
+      },
+      {
+        signature: 'abstract devices(owner: string): Promise<SyncDevice[]>',
+        description: 'List the devices of the account that have synced, by the names they gave themselves.',
+        parameters: [{ name: 'owner', description: 'an account whose documents this device can open.' }],
+        returns: 'the devices, this one first.',
+      },
+      {
+        signature: 'abstract documentId(owner: string, name: string): string',
+        description: 'The opaque id of a logical document name, the id `sync/document` reports.',
+        parameters: [{ name: 'owner', description: 'an account whose documents this device can open.' }, { name: 'name', description: 'the logical name.' }],
+        returns: 'the opaque id.',
+      },
+      {
+        signature: 'abstract openDocument(owner: string, name: string): Promise<SyncDocument>',
+        description: 'Open a document of an account whose key this device holds, loading its local state first.',
+        parameters: [{ name: 'owner', description: 'the account.' }, { name: 'name', description: 'logical name, such as `settings/account`; never sent to the relay.' }],
+        returns: 'the open document.',
+      },
+      {
+        signature: 'abstract storedDocuments(owner: string): readonly string[]',
+        description: 'List the documents this device holds state for, so a Consumer that mirrors many documents opens only those.',
+        parameters: [{ name: 'owner', description: 'an account whose documents this device can open.' }],
+        returns: 'the opaque ids, as {@link documentId} returns them.',
+      },
+      {
+        signature: 'abstract appendStream(owner: string, name: string, payload: Uint8Array): Promise<void>',
+        description: 'Queue one batch for a stream this device writes. Batches reach the relay in the order they were queued, after every document change queued before them.',
+        parameters: [{ name: 'owner', description: 'an account whose documents this device can open.' }, { name: 'name', description: 'the stream\'s logical name.' }, { name: 'payload', description: 'the batch.' }],
+      },
+      {
+        signature: 'abstract readStream(owner: string, name: string, after: number): Promise<{ batches: SyncStreamBatch[]; more: boolean }>',
+        description: 'Read a stream\'s batches from the relay, oldest first, one page at a time. Requires a connection.',
+        parameters: [{ name: 'owner', description: 'an account whose documents this device can open.' }, { name: 'name', description: 'the stream\'s logical name.' }, { name: 'after', description: 'the last relay sequence number already read; 0 reads from the start.' }],
+        returns: 'the next page of batches and whether more follow.',
+      },
+      {
+        signature: 'linked(_owner: string): Promise<number>',
+        description: 'Count the account\'s devices this device is linked to directly, outside the relay.',
+        parameters: [{ name: '_owner', description: 'an account whose documents this device can open.' }],
+        returns: 'the number of directly linked devices; 0 when this provider has no direct path.',
+      },
+      {
+        signature: 'watchStream(_owner: string, _name: string, _listener: (payload: Uint8Array) => void): () => void',
+        description: 'Receive a stream\'s batches as another device of the account sends them, including over a local network while the relay is unreachable. A provider without a direct path between devices yields nothing.',
+        parameters: [{ name: '_owner', description: 'an account whose documents this device can open.' }, { name: '_name', description: 'the stream\'s logical name.' }, { name: '_listener', description: 'receives each batch payload once, in the order the writing device sent it.' }],
+        returns: 'a disposer that stops the subscription.',
+      },
+      {
+        signature: 'synchronize(_owner: string): Promise<void>',
+        description: 'Publish the local outbox and receive the relay\'s committed backlog before transferring exclusive work.',
+        parameters: [{ name: '_owner', description: 'account whose vault must be online.' }],
+        returns: 'when the outbox is acknowledged and the received documents are current.',
+      },
+      {
+        signature: 'abstract acquireLease(owner: string, name: string, ttlMs: number): Promise<SyncLease>',
+        description: 'Acquire or renew exclusive work on this device. Requires an online account; an unreachable relay rejects the request. Callers must stop work before renewal fails or its requested duration elapses.',
+        parameters: [{ name: 'owner', description: 'the account.' }, { name: 'name', description: 'logical work name, hidden from the relay.' }, { name: 'ttlMs', description: 'requested lifetime, bounded by the relay\'s deployment policy.' }],
+        returns: 'the current holder and whether this device acquired the lease.',
+      },
+      {
+        signature: 'abstract releaseLease(owner: string, name: string): Promise<void>',
+        description: 'Release work held by this device; another device\'s lease is unaffected. Requires a connection.',
+        parameters: [{ name: 'owner', description: 'the account.' }, { name: 'name', description: 'logical work name.' }],
+      },
+    ],
+  },
+  {
+    key: 'syncController',
+    summary: 'The signed-in user\'s account sync.',
+    description: 'The signed-in user\'s account sync.',
+    methods: [
+      {
+        signature: '@Remote async status(): Promise<SyncView>',
+        description: 'Read the caller\'s sync status.',
+        parameters: [],
+        returns: 'the status.',
+      },
+      {
+        signature: '@Remote async setEnabled(enabled: boolean): Promise<SyncView>',
+        description: 'Turn sync on or off for the caller\'s account on this device.',
+        parameters: [{ name: 'enabled', description: 'whether this device syncs the account.' }],
+        returns: 'the status afterwards.',
+      },
+      {
+        signature: '@Remote async devices(): Promise<SyncDeviceView[]>',
+        description: 'List the caller\'s devices.',
+        parameters: [],
+        returns: 'the devices, this one first.',
+      },
+    ],
+  },
+  {
     key: 'systemPrompt',
     summary: 'Registry service for the prompt inputs assembled before each model step.',
     description: 'Registry service for the prompt inputs assembled before each model step.',
@@ -4165,6 +4353,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the updated Workspace projection.',
       },
       {
+        signature: '@Remote(\'bind\') bind(request: WorkspaceBindRequest): Promise<WorkspaceValue>',
+        description: 'Give a Workspace without a directory on this Host, such as one another device of the account registered, a directory here. The directory stays on this Host.',
+        parameters: [{ name: 'request', description: 'Workspace identity and directory path.' }],
+        returns: 'the updated Workspace projection.',
+      },
+      {
         signature: '@Remote(\'delete\') delete(request: WorkspaceDeleteRequest): Promise<WorkspaceDeleteValue>',
         description: 'Remove one Workspace registration while retaining files and Sessions.',
         parameters: [{ name: 'request', description: 'Workspace identity to remove.' }],
@@ -4256,6 +4450,24 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'id', description: 'Workspace registration to remove.' }],
         returns: '`true` when a record was deleted, `false` when it was unknown.',
         throws: ['{WorkspaceDefaultImmutableError} when the id names the built-in workspace.'],
+      },
+      {
+        signature: 'sessionHome(sessionId: SessionId): string | undefined',
+        description: 'Name the workspace a session belongs to in the terms every device of the account shares: `default` for the built-in default workspace, `builtin:<key>` for a plugin-declared one, and the workspace id otherwise.',
+        parameters: [{ name: 'sessionId', description: 'the session.' }],
+        returns: 'the shared name, or undefined when no workspace holds the session.',
+      },
+      {
+        signature: 'async fileSession(sessionId: SessionId, home: string, header?: SessionHeader): Promise<boolean>',
+        description: 'File a session another device published into the workspace its sessionHome names, when this device holds that workspace and the session is not filed yet.',
+        parameters: [{ name: 'sessionId', description: 'the session, already stored on this device.' }, { name: 'home', description: 'the shared workspace name.' }, { name: 'header', description: 'received metadata when the body has not been downloaded yet.' }],
+        returns: 'whether the session is now filed there.',
+      },
+      {
+        signature: 'async bind(id: WorkspaceId, path: string): Promise<Workspace>',
+        description: 'Give a workspace that another device of the account registered a directory on this device. The directory stays here; the account\'s other devices keep their own.',
+        parameters: [{ name: 'id', description: 'a workspace without a directory on this device.' }, { name: 'path', description: 'existing directory, in a fully qualified spelling.' }],
+        returns: 'the workspace, now folder-backed.',
       },
       {
         signature: 'insertBefore(id: WorkspaceId, beforeId?: WorkspaceId): Promise<readonly WorkspaceId[]>',
@@ -4466,10 +4678,10 @@ export const EVENT_API: readonly EventApiEntry[] = [
   {
     name: 'api-session/added',
     mode: 'emit',
-    signature: '\'api-session/added\'(summary: SessionSummary): void',
+    signature: '\'api-session/added\'(summary: SessionSummary, owner?: string): void',
     summary: 'A Session became visible to Session list consumers.',
     description: 'A Session became visible to Session list consumers.',
-    parameters: [{ name: 'summary', description: 'initial list row for the Session.' }],
+    parameters: [{ name: 'summary', description: 'initial list row for the Session.' }, { name: 'owner', description: 'account for metadata-only rows whose Session is not live locally.' }],
   },
   {
     name: 'api-session/error',
@@ -4600,6 +4812,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'ref', description: 'the reference whose stored value changed.' }],
   },
   {
+    name: 'credentials/session-updated',
+    mode: 'emit',
+    signature: '\'credentials/session-updated\'(ref: CredentialRef, user: string): void',
+    summary: 'A signed-in user\'s session credential appeared or changed, so work that acts for that user on this Host, such as account sync, can start.',
+    description: 'A signed-in user\'s session credential appeared or changed, so work that acts for that user on this Host, such as account sync, can start. Withdrawing a value does not emit.',
+    parameters: [{ name: 'ref', description: 'the reference the value answers.' }, { name: 'user', description: 'the signed-in user.' }],
+  },
+  {
     name: 'domain/changed',
     mode: 'emit',
     signature: '\'domain/changed\'(change: DomainChanged): void',
@@ -4678,6 +4898,46 @@ export const EVENT_API: readonly EventApiEntry[] = [
     summary: 'Feedback for one assistant message was stored, replaced, or deleted.',
     description: 'Feedback for one assistant message was stored, replaced, or deleted. Emitted after the write is durable; a matching no-op put and the delete of absent feedback emit nothing.',
     parameters: [{ name: 'change', description: 'the session, message, and stored item after the change.' }],
+  },
+  {
+    name: 'session-handoff/catalog',
+    mode: 'emit',
+    signature: '\'session-handoff/catalog\'(owner: string): void',
+    summary: 'The account\'s conversation metadata changed, including histories not downloaded here.',
+    description: 'The account\'s conversation metadata changed, including histories not downloaded here.',
+    parameters: [{ name: 'owner', description: 'account whose catalog changed.' }],
+  },
+  {
+    name: 'session-handoff/input',
+    mode: 'emit',
+    signature: '\'session-handoff/input\'(owner: string, sessionId: SessionId, input: SessionHandoffInput): void',
+    summary: 'Another device forwarded an input for a session this device writes.',
+    description: 'Another device forwarded an input for a session this device writes. Listeners apply it as the session\'s owner; it is delivered once.',
+    parameters: [{ name: 'owner', description: 'the account the session belongs to.' }, { name: 'sessionId', description: 'the session.' }, { name: 'input', description: 'the forwarded input.' }],
+  },
+  {
+    name: 'session-handoff/live',
+    mode: 'emit',
+    signature: '\'session-handoff/live\'(owner: string, sessionId: SessionId): void',
+    summary: 'The live state another device publishes for a session it writes changed; read it with SessionHandoff.liveOf.',
+    description: 'The live state another device publishes for a session it writes changed; read it with SessionHandoff.liveOf.',
+    parameters: [{ name: 'owner', description: 'the account the session belongs to.' }, { name: 'sessionId', description: 'the session.' }],
+  },
+  {
+    name: 'session-handoff/released',
+    mode: 'parallel',
+    signature: '\'session-handoff/released\'(owner: string, sessionId: SessionId): void | Promise<void>',
+    summary: 'Another device of the account took over writing a session this device wrote.',
+    description: 'Another device of the account took over writing a session this device wrote. Listeners stop running it here; its new events arrive like any other device\'s.',
+    parameters: [{ name: 'owner', description: 'the account the session belongs to.' }, { name: 'sessionId', description: 'the session.' }],
+  },
+  {
+    name: 'session-persistence/append',
+    mode: 'emit',
+    signature: '\'session-persistence/append\'(header: SessionHeader, events: readonly SessionEvent[]): void',
+    summary: 'A contiguous event batch committed to durable storage, including cold replicated logs.',
+    description: 'A contiguous event batch committed to durable storage, including cold replicated logs.',
+    parameters: [{ name: 'header', description: 'the persisted session\'s metadata.' }, { name: 'events', description: 'the newly committed events.' }],
   },
   {
     name: 'session-telemetry/record',
@@ -4782,6 +5042,30 @@ export const EVENT_API: readonly EventApiEntry[] = [
     summary: 'A provider established a published child.',
     description: 'A provider established a published child. For in-process providers, `ctx.agents.get(info.id)` resolves during this notification. Scope-filtered dispatch keys the carrier by the delegating parent, so a parent-scoped listener observes only its own delegations. Paired with `subagent/end`.',
     parameters: [{ name: 'info', description: 'the provider and published child identity.' }],
+  },
+  {
+    name: 'sync/document',
+    mode: 'emit',
+    signature: '\'sync/document\'(owner: string, id: string): void',
+    summary: 'Another device\'s change to a document was stored on this device; open the document by name to read it.',
+    description: 'Another device\'s change to a document was stored on this device; open the document by name to read it.',
+    parameters: [{ name: 'owner', description: 'the account.' }, { name: 'id', description: 'the document\'s opaque id, as {@link Sync.documentId} returns it.' }],
+  },
+  {
+    name: 'sync/progress',
+    mode: 'emit',
+    signature: '\'sync/progress\'(owner: string, progress: SyncProgress): void',
+    summary: 'Collect an account\'s conversation publication progress without reading its logs.',
+    description: 'Collect an account\'s conversation publication progress without reading its logs.',
+    parameters: [{ name: 'owner', description: 'the account whose progress is requested.' }, { name: 'progress', description: 'publisher counters, initialized to zero by the caller.' }],
+  },
+  {
+    name: 'sync/status',
+    mode: 'emit',
+    signature: '\'sync/status\'(owner: string): void',
+    summary: 'An account\'s sync status changed.',
+    description: 'An account\'s sync status changed.',
+    parameters: [{ name: 'owner', description: 'the account whose status changed.' }],
   },
   {
     name: 'system-prompt/assemble',
@@ -5581,7 +5865,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'CreateSessionOptions',
-    declaration: 'export interface CreateSessionOptions {\n    readonly seed?: readonly SessionEvent[];\n    readonly inheritedEventCount?: SessionLogOffset;\n    readonly meta?: {\n        readonly cwd?: string;\n        readonly parentSession?: SessionId;\n        readonly createdAt?: number;\n        readonly isSeeded?: boolean;\n        readonly origin?: \'subagent\';\n        readonly delegationDepth?: number;\n        readonly agentPreset?: string;\n        readonly owner?: string;\n    };\n}',
+    declaration: 'export interface CreateSessionOptions {\n    readonly seed?: readonly SessionEvent[];\n    readonly inheritedEventCount?: SessionLogOffset;\n    readonly meta?: {\n        readonly cwd?: string;\n        readonly parentSession?: SessionId;\n        readonly createdAt?: number;\n        readonly isSeeded?: boolean;\n        readonly origin?: \'subagent\';\n        readonly delegationDepth?: number;\n        readonly agentPreset?: string;\n        readonly owner?: string;\n        readonly replica?: true;\n    };\n}',
   },
   {
     name: 'CreateTeamTaskRequest',
@@ -5746,10 +6030,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'DeviceHostSummary',
     declaration: 'export interface DeviceHostSummary {\n    readonly id: DeviceHostId;\n    readonly kind: \'local\';\n    readonly label: string;\n    readonly platforms: readonly DevicePlatformAvailability[];\n    readonly hubInstalled: boolean;\n    readonly agentInstalled: boolean;\n}',
-  },
-  {
-    name: 'DeviceId',
-    declaration: 'export type DeviceId = Branded<\'DeviceId\'>;',
   },
   {
     name: 'DeviceOpenRequest',
@@ -7420,6 +7700,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SessionChunkRun {\n    readonly type: \'chunks\';\n    readonly event: ChunkRowEvent;\n}',
   },
   {
+    name: 'SessionClaim',
+    declaration: 'export type SessionClaim = {\n    readonly claimed: true;\n} | {\n    readonly claimed: false;\n};',
+  },
+  {
     name: 'SessionControlBaseline',
     declaration: 'export interface SessionControlBaseline {\n    readonly queues: Readonly<Record<SessionId, readonly SessionQueuedItem[]>>;\n    readonly jobs: Readonly<Record<SessionId, readonly SessionJob[]>>;\n    readonly projections: Readonly<Record<SessionId, SessionProjectionBaseline>>;\n}',
   },
@@ -7540,8 +7824,12 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type SessionGrantCoverage = \'action\' | \'account\' | \'sandbox\' | \'privilege\';',
   },
   {
+    name: 'SessionHandoffInput',
+    declaration: 'export interface SessionHandoffInput {\n    readonly operation: string;\n    readonly request: unknown;\n}',
+  },
+  {
     name: 'SessionHeader',
-    declaration: 'export interface SessionHeader {\n    readonly version: number;\n    readonly id: SessionId;\n    readonly createdAt: number;\n    readonly cwd?: string;\n    readonly parentSession?: SessionId;\n    readonly isSeeded: boolean;\n    readonly origin?: \'subagent\';\n    readonly delegationDepth?: number;\n    readonly agentPreset?: string;\n    readonly owner?: string;\n}',
+    declaration: 'export interface SessionHeader {\n    readonly replica?: true;\n    readonly version: number;\n    readonly id: SessionId;\n    readonly createdAt: number;\n    readonly cwd?: string;\n    readonly parentSession?: SessionId;\n    readonly isSeeded: boolean;\n    readonly origin?: \'subagent\';\n    readonly delegationDepth?: number;\n    readonly agentPreset?: string;\n    readonly owner?: string;\n}',
   },
   {
     name: 'SessionHistoryRecord',
@@ -7724,6 +8012,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SessionRetryValue {\n    readonly accepted: true;\n}',
   },
   {
+    name: 'SessionRunner',
+    declaration: 'export interface SessionRunner {\n    readonly device: string;\n    readonly name: string;\n}',
+  },
+  {
     name: 'SessionSearchCursor',
     declaration: 'export type SessionSearchCursor = Branded<\'SessionSearchCursor\'>;',
   },
@@ -7781,7 +8073,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SessionSummary',
-    declaration: 'export interface SessionSummary {\n    readonly sessionId: SessionId;\n    readonly createdAt: number;\n    readonly updatedAt: number;\n    readonly running: boolean;\n    readonly blank: boolean;\n    readonly parentSessionId?: SessionId;\n    readonly origin?: \'subagent\';\n    readonly cwd?: string;\n    readonly projections?: SessionProjectionHints;\n}',
+    declaration: 'export interface SessionSummary {\n    readonly replica?: true;\n    readonly sessionId: SessionId;\n    readonly createdAt: number;\n    readonly updatedAt: number;\n    readonly running: boolean;\n    readonly blank: boolean;\n    readonly parentSessionId?: SessionId;\n    readonly origin?: \'subagent\';\n    readonly cwd?: string;\n    readonly projections?: SessionProjectionHints;\n}',
   },
   {
     name: 'SessionSurface',
@@ -7885,7 +8177,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SettingsDescriptor',
-    declaration: 'export interface SettingsDescriptor {\n    ns: SettingsNamespace;\n    schema: unknown;\n    value: unknown;\n    revision: number;\n    base?: unknown;\n    user?: unknown;\n    applies: SettingsApplies;\n    secrets?: RedactedSecret[];\n}',
+    declaration: 'export interface SettingsDescriptor {\n    ns: SettingsNamespace;\n    schema: unknown;\n    value: unknown;\n    revision: number;\n    base?: unknown;\n    user?: unknown;\n    applies: SettingsApplies;\n    reach: SettingsReach;\n    secrets?: RedactedSecret[];\n}',
   },
   {
     name: 'SettingsDocumentOpenValue',
@@ -7908,8 +8200,12 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type SettingsPathOpView = {\n    op: \'set\';\n    path: string[];\n    value: JsonValue;\n} | {\n    op: \'unset\';\n    path: string[];\n};',
   },
   {
+    name: 'SettingsReach',
+    declaration: 'export type SettingsReach = \'account\' | \'device\';',
+  },
+  {
     name: 'SettingsRegisterOptions',
-    declaration: 'export interface SettingsRegisterOptions<T> {\n    base?: Partial<T>;\n    applies?: SettingsApplies;\n    validate?: (value: T) => void;\n}',
+    declaration: 'export interface SettingsRegisterOptions<T> {\n    base?: Partial<T>;\n    applies?: SettingsApplies;\n    reach?: SettingsReach;\n    validate?: (value: T) => void;\n}',
   },
   {
     name: 'SettingsSecretView',
@@ -7917,7 +8213,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SettingsSectionHooks',
-    declaration: 'export interface SettingsSectionHooks<T> {\n    setSource(current: () => T): void;\n    onChange(): void;\n    validate?: (value: T) => void;\n}',
+    declaration: 'export interface SettingsSectionHooks<T> {\n    setSource(current: () => T): void;\n    onChange(): void;\n    validate?: (value: T) => void;\n    reach?: SettingsReach;\n}',
   },
   {
     name: 'SettingsUpdateSource',
@@ -7926,6 +8222,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SetValueAction',
     declaration: 'export interface SetValueAction {\n    kind: \'setValue\';\n    target: ElementTarget;\n    value: string;\n}',
+  },
+  {
+    name: 'SharedSession',
+    declaration: 'export interface SharedSession {\n    readonly header: SessionHeader;\n    readonly next: number;\n    readonly title?: string;\n    readonly updatedAt: number;\n}',
   },
   {
     name: 'ShellDetachedRun',
@@ -8318,6 +8618,46 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SurfaceOp',
     declaration: 'export type SurfaceOp = \'append\' | {\n    op: \'replace\';\n    start: SessionSeq;\n    end: SessionSeq;\n};',
+  },
+  {
+    name: 'SyncDevice',
+    declaration: 'export interface SyncDevice {\n    readonly id: DeviceId;\n    readonly name: string;\n    readonly current: boolean;\n}',
+  },
+  {
+    name: 'SyncDeviceView',
+    declaration: 'export interface SyncDeviceView {\n    readonly id: string;\n    readonly name: string;\n    readonly current: boolean;\n}',
+  },
+  {
+    name: 'SyncDocument',
+    declaration: 'export interface SyncDocument {\n    readonly doc: Doc;\n    close(): void;\n}',
+  },
+  {
+    name: 'SyncLease',
+    declaration: 'export interface SyncLease {\n    granted: boolean;\n    holder: DeviceId;\n    expiresAt: number;\n}',
+  },
+  {
+    name: 'SyncProgress',
+    declaration: 'export interface SyncProgress {\n    sessionsPending: number;\n    sessionsTotal: number;\n}',
+  },
+  {
+    name: 'SyncState',
+    declaration: 'export type SyncState = \'disabled\' | \'starting\' | \'offline\' | \'connecting\' | \'online\';',
+  },
+  {
+    name: 'SyncStatus',
+    declaration: 'export interface SyncStatus {\n    state: SyncState;\n    device?: DeviceId;\n    pending: number;\n    queued: number;\n}',
+  },
+  {
+    name: 'SyncStreamBatch',
+    declaration: 'export interface SyncStreamBatch {\n    readonly seq: number;\n    readonly payload: Uint8Array;\n}',
+  },
+  {
+    name: 'SyncView',
+    declaration: 'export interface SyncView {\n    readonly state: SyncViewState;\n    readonly pending: number;\n    readonly queued: number;\n    readonly sessionsPending: number;\n    readonly sessionsTotal: number;\n}',
+  },
+  {
+    name: 'SyncViewState',
+    declaration: 'export type SyncViewState = \'disabled\' | \'starting\' | \'offline\' | \'connecting\' | \'online\';',
   },
   {
     name: 'SystemPrompt',
@@ -8994,6 +9334,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'WorkspaceBaseline',
     declaration: 'export interface WorkspaceBaseline {\n    readonly items: readonly WorkspaceView[];\n    readonly archivedSessionIds: readonly SessionId[];\n}',
+  },
+  {
+    name: 'WorkspaceBindRequest',
+    declaration: 'export interface WorkspaceBindRequest {\n    readonly workspaceId: WorkspaceId;\n    readonly path: string;\n}',
   },
   {
     name: 'WorkspaceCreateRequest',

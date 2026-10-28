@@ -102,7 +102,6 @@ declare module '@deepseek-ai/cordis' {
      * @mode emit
      * @param header - the persisted session's metadata.
      * @param events - the newly committed events.
-     * @avnScopeScan unsupported
      */
     'session-persistence/append'(header: SessionHeader, events: readonly SessionEvent[]): void
   }

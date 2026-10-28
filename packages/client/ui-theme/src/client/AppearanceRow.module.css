@@ -1,10 +1,12 @@
-/* Theme cubes (figma 'Frame 2117131228': column gap 8, pad 16/0). */
+/* Theme cubes: the first row of the Appearance group. They arrive through the
+   group's item slot, whose wrapper takes no box, so they space themselves from
+   the heading. */
 
 .group {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 16px 0;
+  padding: 12px 0 4px;
 }
 
 .cubeRow {

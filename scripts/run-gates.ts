@@ -1518,7 +1518,30 @@ function printResult(result: GateResult): void {
     console.error(`command: ${result.gate.displayCommand}`)
     console.error(`outcome: ${formatGateResultReason(result)}`)
   }
-  if (result.gate.streamOutput !== true) printOutput(result.output)
+  if (result.gate.streamOutput !== true) printOutput(verbose ? result.output : truncatedOutput(result.output))
+}
+
+/** Lines of a failing gate's output printed unless `AVN_GATE_VERBOSE=1`. */
+const FAILURE_OUTPUT_LINES = 40
+
+/**
+ * Keep the first {@link FAILURE_OUTPUT_LINES} lines of a gate's output, so a
+ * large diff or violation list does not flood the caller.
+ * @param output - the gate's captured chunks.
+ * @returns the leading chunks plus a line naming how much was omitted.
+ */
+function truncatedOutput(output: GateOutputChunk[]): GateOutputChunk[] {
+  const kept: GateOutputChunk[] = []
+  let remaining = FAILURE_OUTPUT_LINES
+  let omitted = 0
+  for (const chunk of output) {
+    const lines = chunk.text.split(/(?<=\n)/u)
+    if (remaining > 0) kept.push({ stream: chunk.stream, text: lines.slice(0, remaining).join('') })
+    omitted += Math.max(0, lines.length - remaining)
+    remaining = Math.max(0, remaining - lines.length)
+  }
+  if (omitted > 0) kept.push({ stream: 'stderr', text: `... ${omitted} more line(s); AVN_GATE_VERBOSE=1 prints all.\n` })
+  return kept
 }
 
 function printSummary(results: GateResult[], durationMs: number): void {

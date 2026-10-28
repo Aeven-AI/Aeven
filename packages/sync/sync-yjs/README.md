@@ -43,3 +43,5 @@ None.
 None.
 
 </details>
+
+**Runtime invariant:** No runtime invariant companion is published because the store rows and the relay frames are the only copies, compared by package tests over the database itself.

@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useId, useRef, useState, type ChangeEvent, type CSSProperties, type ReactNode } from 'react'
 import {
   Button, IconCheckOutline14, IconLucideCamera, IconRightUpOutline16, IconTrashOutline16,
-  LoadingBlock, Modal, SectionHeader, Spinner,
+  LoadingBlock, Modal, SectionHeader, SettingsGroup, Spinner, Switch,
 } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import { externalWindow, MfaForm } from '@aeven/client-ui-primitives'
@@ -319,17 +319,7 @@ export function AccountSection(props: AccountSectionProps) {
 }
 
 function Group({ title, aside, children }: { readonly title?: string; readonly aside?: string; readonly children: ReactNode }) {
-  return (
-    <section className={css.group}>
-      {title !== undefined && (
-        <h3 className={css.groupTitle}>
-          <span>{title}</span>
-          {aside !== undefined && <span className={css.groupAside}>{aside}</span>}
-        </h3>
-      )}
-      {children}
-    </section>
-  )
+  return <SettingsGroup title={title} aside={aside}>{children}</SettingsGroup>
 }
 
 function Loaded<T>({ t, load, retry, children }: {
@@ -1055,12 +1045,12 @@ function Security({ mfa, t, status, reload, record }: {
         </span>
         <span className={css.actions}>
           <span className={css.status} role="status">{t(label)}</span>
-          <button
-            type="button" role="switch" aria-label={t('security.title')} aria-checked={enabled === true}
-            className={css.switch}
+          <Switch
+            checked={enabled === true}
+            label={t('security.title')}
             disabled={enabled === undefined || failed || mode !== undefined}
-            onClick={() => { setMode(enabled ? 'disable' : 'setup') }}
-          ><span className={css.thumb} /></button>
+            onChange={() => { setMode(enabled ? 'disable' : 'setup') }}
+          />
         </span>
       </div>
       {failed && (

@@ -43,3 +43,5 @@ None.
 None.
 
 </details>
+
+**Runtime invariant:** No runtime invariant companion is published because the Service Definition declares the seam, and each provider owns every value a listener could compare.

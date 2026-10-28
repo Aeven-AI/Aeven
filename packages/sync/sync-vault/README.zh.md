@@ -44,3 +44,5 @@ kind: "package-reference"
 无。
 
 </details>
+
+**运行时 invariant：** 不发布 runtime invariant companion，因为 key epoch、envelope 签名和设备链都由包内测试针对其存储字节校验，且没有任何地方发布可发散的同进程值对。

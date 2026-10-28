@@ -830,14 +830,14 @@ async inspect( sessionId: SessionId, signal?: AbortSignal, ): Promise<SessionIns
  * @param request - Session, queue item, and requested mutation.
  * @returns acknowledgement that the queue mutation was applied.
  */
-@Remote('updateQueue') updateQueue(request: SessionUpdateQueueRequest): SessionUpdateQueueValue
+@Remote('updateQueue') async updateQueue(request: SessionUpdateQueueRequest): Promise<SessionUpdateQueueValue>
 
 /**
  * Cancel one active Agent turn without dropping its pending inbox.
  * @param request - Session whose active Agent turn is cancelled.
  * @returns acknowledgement that cancellation was requested.
  */
-@Remote('cancel') cancel(request: SessionCancelRequest): SessionCancelValue
+@Remote('cancel') async cancel(request: SessionCancelRequest): Promise<SessionCancelValue>
 
 /**
  * Read one cold-safe, message-aligned Session history page.
@@ -866,6 +866,94 @@ async inspect( sessionId: SessionId, signal?: AbortSignal, ): Promise<SessionIns
 Types: [ImageModelCatalog](media.zh.md) · [SessionId](core.zh.md) · [SessionInspection](persistence.zh.md) · [SessionSearchRequest](session-query.zh.md) · [VideoModelCatalog](media.zh.md)
 
 Source: [`packages/api/session-controller/src/index.ts`](../../packages/api/session-controller/src/index.ts)
+
+<a id="ctxsessionhandoff--sessionhandoff-abstract-seam"></a>
+
+### `ctx.sessionHandoff` — `SessionHandoff` (abstract seam)
+
+Session handoff capability.
+
+```ts cordis-catalog
+/**
+ * List the account's conversation metadata without downloading bodies.
+ * @param owner - account.
+ * @returns shared metadata currently received by this device.
+ */
+abstract catalog(owner: string): readonly SharedSession[]
+
+/**
+ * Download a shared conversation before it is opened or continued locally.
+ * @param owner - account.
+ * @param sessionId - conversation to read.
+ * @param signal - cancellation of the opening operation.
+ * @returns when its published event prefix is stored locally.
+ */
+abstract fetch(owner: string, sessionId: SessionId, signal?: AbortSignal): Promise<void>
+
+/**
+ * Whether a session belongs to the account's device-independent conversation index.
+ * @param owner - account.
+ * @param sessionId - session.
+ * @returns whether workspace membership is independent of the header's device-local path.
+ */
+abstract shared(owner: string, sessionId: SessionId): boolean
+
+/**
+ * The device writing a session when it is not this device.
+ * @param owner - the account.
+ * @param sessionId - the session.
+ * @returns the writing device, or undefined when this device writes the session or it is not synced.
+ */
+abstract runnerOf(owner: string, sessionId: SessionId): SessionRunner | undefined
+
+/**
+ * Forward one input to the device writing a session. Input reaches it in the order it was forwarded and waits
+ * while that device is unreachable.
+ * @param owner - the account.
+ * @param sessionId - the session.
+ * @param input - the input.
+ */
+abstract forward(owner: string, sessionId: SessionId, input: SessionHandoffInput): Promise<void>
+
+/**
+ * Make this device the one writing a session another device writes, when no device runs a turn of it. This
+ * device's copy must hold everything the writing device published; it becomes writable here, and the other
+ * device stops writing it.
+ * @param owner - the account.
+ * @param sessionId - the session.
+ * @returns whether this device writes the session now.
+ */
+abstract claim(owner: string, sessionId: SessionId): Promise<SessionClaim>
+
+/**
+ * Hold a session for this device while it runs a turn, so no other device claims it meanwhile.
+ * @param owner - the account.
+ * @param sessionId - the session.
+ * @param running - whether a turn runs; false lets other devices claim it again.
+ */
+abstract holdRunner(owner: string, sessionId: SessionId, running: boolean): Promise<void>
+
+/**
+ * Publish the live state of a session this device writes, such as whether a turn runs and what waits in its
+ * queue, to the account's other devices. The state is the publishing Consumer's JSON; undefined clears it.
+ * @param owner - the account.
+ * @param sessionId - the session.
+ * @param live - the state, or undefined once nothing is live.
+ */
+abstract publishLive(owner: string, sessionId: SessionId, live: unknown): void
+
+/**
+ * The live state the device writing a session published for it.
+ * @param owner - the account.
+ * @param sessionId - the session.
+ * @returns the state, or undefined when the writing device published none.
+ */
+abstract liveOf(owner: string, sessionId: SessionId): unknown
+```
+
+Types: [SessionId](core.zh.md)
+
+Source: [`packages/session/session-handoff/src/index.ts`](../../packages/session/session-handoff/src/index.ts)
 
 <a id="ctxsessions--sessionstore"></a>
 
@@ -1048,8 +1136,9 @@ A Session became visible to Session list consumers.
  * A Session became visible to Session list consumers.
  * @mode emit
  * @param summary - initial list row for the Session.
+ * @param owner - account for metadata-only rows whose Session is not live locally.
  */
-'api-session/added'(summary: SessionSummary): void
+'api-session/added'(summary: SessionSummary, owner?: string): void
 ```
 
 Source: [`packages/api/session-controller/src/types.ts`](../../packages/api/session-controller/src/types.ts)
@@ -1235,4 +1324,89 @@ Awaited parallel settlement before a process ends its ownership of a session, su
 Types: [Scoped](scope.zh.md)
 
 Source: [`packages/core/session/src/index.ts`](../../packages/core/session/src/index.ts)
+
+<a id="session-handoff-events"></a>
+
+### `session-handoff/*` events
+
+<a id="session-handoffcatalog--emit"></a>
+
+#### `session-handoff/catalog` — emit
+
+The account's conversation metadata changed, including histories not downloaded here.
+
+```ts cordis-catalog
+/**
+ * The account's conversation metadata changed, including histories not downloaded here.
+ * @mode emit
+ * @param owner - account whose catalog changed.
+ */
+'session-handoff/catalog'(owner: string): void
+```
+
+Source: [`packages/session/session-handoff/src/index.ts`](../../packages/session/session-handoff/src/index.ts)
+
+<a id="session-handoffinput--emit"></a>
+
+#### `session-handoff/input` — emit
+
+Another device forwarded an input for a session this device writes. Listeners apply it as the session's owner; it is delivered once.
+
+```ts cordis-catalog
+/**
+ * Another device forwarded an input for a session this device writes. Listeners apply it as the session's
+ * owner; it is delivered once.
+ * @mode emit
+ * @param owner - the account the session belongs to.
+ * @param sessionId - the session.
+ * @param input - the forwarded input.
+ */
+'session-handoff/input'(owner: string, sessionId: SessionId, input: SessionHandoffInput): void
+```
+
+Types: [SessionId](core.zh.md)
+
+Source: [`packages/session/session-handoff/src/index.ts`](../../packages/session/session-handoff/src/index.ts)
+
+<a id="session-handofflive--emit"></a>
+
+#### `session-handoff/live` — emit
+
+The live state another device publishes for a session it writes changed; read it with SessionHandoff.liveOf.
+
+```ts cordis-catalog
+/**
+ * The live state another device publishes for a session it writes changed; read it with
+ * {@link SessionHandoff.liveOf}.
+ * @mode emit
+ * @param owner - the account the session belongs to.
+ * @param sessionId - the session.
+ */
+'session-handoff/live'(owner: string, sessionId: SessionId): void
+```
+
+Types: [SessionId](core.zh.md)
+
+Source: [`packages/session/session-handoff/src/index.ts`](../../packages/session/session-handoff/src/index.ts)
+
+<a id="session-handoffreleased--parallel"></a>
+
+#### `session-handoff/released` — parallel
+
+Another device of the account took over writing a session this device wrote. Listeners stop running it here; its new events arrive like any other device's.
+
+```ts cordis-catalog
+/**
+ * Another device of the account took over writing a session this device wrote. Listeners stop running it
+ * here; its new events arrive like any other device's.
+ * @mode parallel
+ * @param owner - the account the session belongs to.
+ * @param sessionId - the session.
+ */
+'session-handoff/released'(owner: string, sessionId: SessionId): void | Promise<void>
+```
+
+Types: [SessionId](core.zh.md)
+
+Source: [`packages/session/session-handoff/src/index.ts`](../../packages/session/session-handoff/src/index.ts)
 <!-- END GENERATED cordis-surface -->

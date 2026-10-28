@@ -43,7 +43,6 @@ export type {
 export type { SettingsKey } from './locales.ts'
 export type { DeveloperModeRowInjected, DeveloperModeRowProps } from './DeveloperModeRow.tsx'
 export type { BackgroundModeRowInjected, BackgroundModeRowProps } from './BackgroundModeRow.tsx'
-export type { OnOffRowProps } from './OnOffRow.tsx'
 export type { DeveloperSettings, DeveloperSettingsNamespace } from '../developer-settings.ts'
 
 declare module '@aeven/client-ui-slots' {
@@ -242,7 +241,7 @@ export function apply(ctx: ClientContext): void {
   ctx.slots.inject('settings.general.item', () => ctx.slots.register({
     name: 'settings.general.item',
     id: 'developer-mode',
-    order: 100,
+    order: 1000,
     locale: NS,
     inject: (): DeveloperModeRowInjected => ({
       hooks: { developerMode: developerMode.enabled },

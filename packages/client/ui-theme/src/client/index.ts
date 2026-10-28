@@ -454,13 +454,13 @@ export function apply(ctx: ClientContext): void {
   ctx.provide('theme', theme)
 
   ctx.effect(() => ctx.locale.register(SETTINGS_NS, { zh, en, es }), 'ui-theme: settings row dictionaries')
-  const t = ctx.locale.bind(SETTINGS_NS)
 
-  ctx.slots.inject('settings.section', () => ctx.slots.register({
-    name: 'settings.section',
+  // A group inside General rather than a page of its own: its rows are a few
+  // preferences, not a list the reader manages.
+  ctx.slots.inject('settings.general.item', () => ctx.slots.register({
+    name: 'settings.general.item',
     id: 'appearance',
-    order: 30,
-    label: () => t('appearance.title'),
+    order: 200,
     locale: SETTINGS_NS,
     children: { 'settings.appearance.item': { kind: 'list', scope: 'root' } },
   }, AppearanceSection))

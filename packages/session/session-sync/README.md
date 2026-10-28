@@ -43,3 +43,5 @@ None.
 None.
 
 </details>
+
+**Runtime invariant:** No runtime invariant companion is published because publication progress is read from the outbox at call time, so counters and the outbox never keep independent copies.
