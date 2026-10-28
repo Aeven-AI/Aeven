@@ -68,7 +68,10 @@ export interface SessionSyncTuning {
   compressionQuality: number
   /** Wait after a session's events commit before they are published, so a streaming reply travels in small batches. */
   liveMs: number
-  /** Sessions created up to this many days before this device first publishes are published too. */
+  /**
+   * Background import skips sessions this device does not store and that were created more than this many days
+   * ago; they import when opened. `0` imports every session.
+   */
   backfillDays: number
   /** Pause between two sessions of a background import or publication scan, in milliseconds. */
   pauseMs: number
@@ -719,7 +722,8 @@ export class SessionMirror {
       await pause(this.tuning.pauseMs)
       if (local.has(id) || this.created.has(id)) this.watch(id)
       await this.file(id, entry)
-      if (entry.header.createdAt < Date.now() - this.tuning.backfillDays * DAY_MS && !local.has(id)) continue
+      if (this.tuning.backfillDays > 0 && entry.header.createdAt < Date.now() - this.tuning.backfillDays * DAY_MS
+        && !local.has(id)) continue
       try {
         await this.releases.get(id)
         await this.importOne(id, entry, local)
