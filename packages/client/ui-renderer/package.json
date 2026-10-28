@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-renderer",
   "description": "Browser UI renderer: React slot bindings, ctx.uiRenderer, and the assembled application root",
-  "version": "0.3.24-alpha",
+  "version": "0.3.25-alpha",
   "publishConfig": {
     "access": "public"
   },

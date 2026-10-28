@@ -1,7 +1,7 @@
 {
   "name": "@aeven/subprocess",
   "description": "Subprocess seam (ctx.subprocess) for the Aeven — managed process groups, bounded spill-backed output, and escalated kills behind one abstract service",
-  "version": "0.3.24-alpha",
+  "version": "0.3.25-alpha",
   "publishConfig": {
     "access": "public"
   },

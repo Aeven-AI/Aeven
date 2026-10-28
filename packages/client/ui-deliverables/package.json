@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-deliverables",
   "description": "Produced-files turn tail and clickable final-response file references for Web",
-  "version": "0.3.24-alpha",
+  "version": "0.3.25-alpha",
   "publishConfig": {
     "access": "public"
   },
