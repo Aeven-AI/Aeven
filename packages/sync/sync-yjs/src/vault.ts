@@ -5,6 +5,7 @@
  */
 import * as Y from 'yjs'
 import { brandNumber } from '@aeven/brand'
+import { Deque } from '@aeven/deque'
 import {
   applyChainEntry, chainDeviceOf, createChainEntry, createGenesis, decodeKeyring, deviceIdOf, encodeKeyring,
   fromBase64Url, generateDeviceKeys, generateVaultKey, opaqueIdOf, openEnvelope, recoveryRecordOf, sealEnvelope,
@@ -14,6 +15,7 @@ import {
 } from '@aeven/sync-vault'
 import type { SyncDocument, SyncState, SyncStatus } from '@aeven/sync'
 import { JoinApprover, type PendingJoin } from './join.ts'
+import type { SyncOffload } from './offload.ts'
 import { RelayError, type RelayConnection } from './relay.ts'
 import type { SyncStore } from './store.ts'
 
@@ -35,6 +37,19 @@ export interface VaultTuning {
   compactAfter: number
   /** Frames per document since its last snapshot before this device queues a new one. */
   snapshotAfter: number
+  /** Received frames opened and stored per batch; opening runs on the sync worker, storing in one transaction. */
+  applyFrames: number
+  /** Pause between two slices while received frames wait, in milliseconds; it bounds the share of CPU and disk catch-up takes. */
+  applyPauseMs: number
+  /** Frames one catch-up page asks the relay for; the next page waits until the received ones are applied. */
+  pageFrames: number
+  /** Shortest interval between two status notifications, in milliseconds. */
+  statusMs: number
+}
+
+/** Settles after a real timer, so I/O, HTTP, and the agent loop run before the next slice. */
+function pause(ms: number): Promise<void> {
+  return new Promise((resolve) => { setTimeout(resolve, ms) })
 }
 
 /** This device's keys and the chain state that admits them. */
@@ -62,6 +77,17 @@ export class AccountVault {
   private lanSend: ((frame: Uint8Array) => void) | undefined
   private readonly streamWatchers = new Map<OpaqueId, Set<(payload: Uint8Array) => void>>()
   private readonly docs = new Map<OpaqueId, OpenDoc>()
+  /** Frames the relay delivered that wait to be applied, in sequence order. */
+  private readonly inbound = new Deque<{ seq: number; frame: Uint8Array }>()
+  /** The highest sequence number received, applied or still waiting; the next page starts after it. */
+  private received = 0
+  private applying: Promise<void> | undefined
+  private statusTimer: ReturnType<typeof setTimeout> | undefined
+  private statusAt = 0
+  /** The background catch-up of the current connection. */
+  private catchingUp: Promise<void> | undefined
+  /** Each document's compaction and snapshot, one at a time. */
+  private readonly maintenance = new Map<OpaqueId, Promise<void>>()
 
   /**
    * @param store - the account's local store.
@@ -70,19 +96,41 @@ export class AccountVault {
    * @param joinsChanged - called whenever {@link joinRequests} may have changed.
    * @param documentChanged - called after another device's change to a document was stored.
    * @param warn - receives dropped-frame diagnostics.
+   * @param offload - the provider's sync worker for opening frames and merging updates.
    */
   constructor(
     private readonly store: SyncStore,
     private readonly tuning: VaultTuning,
-    private readonly changed: () => void,
+    private readonly statusChanged: () => void,
     private readonly joinsChanged: () => void,
     private readonly documentChanged: (id: OpaqueId) => void,
     private readonly warn: VaultWarn,
+    private readonly offload: SyncOffload,
   ) {
     this.keys = store.deviceKeys()
+    this.received = store.relayCursor()
     const entries = store.chain()
     this.chainState = entries.length === 0 ? undefined : verifyChain(entries)
     this.state = this.enrolled() ? 'offline' : 'unenrolled'
+  }
+
+  /**
+   * Report a possible status change at most every {@link VaultTuning.statusMs}: the first change at once and the
+   * last one of a burst, such as an acknowledgement per published frame, after the interval.
+   */
+  private changed(): void {
+    if (this.statusTimer !== undefined) return
+    const wait = this.statusAt + this.tuning.statusMs - Date.now()
+    if (wait <= 0) {
+      this.statusAt = Date.now()
+      this.statusChanged()
+      return
+    }
+    this.statusTimer = setTimeout(() => {
+      this.statusTimer = undefined
+      this.statusAt = Date.now()
+      this.statusChanged()
+    }, wait)
   }
 
   private member(): Member | undefined {
@@ -309,10 +357,36 @@ export class AccountVault {
     this.adoptChain(verifyChain(entries), entries)
     if (!this.enrolled()) return
     await this.refreshKeyring(relay)
-    // The relay pushes every frame after the cursor before answering, and each one advances the cursor.
-    await relay.request('sync', { since: this.store.relayCursor() })
-    await this.flush()
-    if (this.relay === relay) this.setState('online')
+    if (this.relay !== relay) return
+    // The device is online once connected; queued frames go out and the relay's backlog arrives in the background.
+    this.setState('online')
+    void this.flush()
+    this.catchingUp = this.catchUp(relay).catch((error: unknown) => {
+      // The connection loop reconnects after a dropped connection; the next attach resumes from the stored cursor.
+      if (this.relay === relay) this.warn('sync: catching up with the relay failed', error)
+    })
+  }
+
+  /**
+   * Take the relay's backlog one page at a time: each page is requested only after the frames of the previous one
+   * were applied, so a long history never sits in memory or on the event loop at once. The last page also
+   * subscribes the connection to frames published from then on. A relay that ignores the page size pushes the
+   * whole backlog and answers without `more`; its frames are applied the same way.
+   * @param relay - the open connection.
+   */
+  private async catchUp(relay: RelayConnection): Promise<void> {
+    for (;;) {
+      await this.applied()
+      if (this.relay !== relay) return
+      const answer = await relay.request('sync', { since: Math.max(this.received, this.store.relayCursor()), limit: this.tuning.pageFrames })
+      if (answer.more !== true) break
+    }
+    await this.applied()
+  }
+
+  /** @returns when every received frame is applied. */
+  private async applied(): Promise<void> {
+    while (this.applying !== undefined) await this.applying
   }
 
   /** The relay connection closed. */
@@ -352,39 +426,72 @@ export class AccountVault {
   }
 
   /**
-   * Apply one frame the relay delivered.
+   * Take one frame the relay delivered. It is applied in the background, in sequence order, so the socket
+   * callback stays short however many frames a catch-up delivers.
    * @param seq - its relay sequence number.
    * @param frame - the sealed frame.
    */
   receiveFrame(seq: number, frame: Uint8Array): void {
+    if (this.member() === undefined) return
+    // A replayed frame fails its counter check when applied; the highest number only resumes catch-up.
+    this.received = Math.max(this.received, seq)
+    this.inbound.pushBack({ seq, frame })
+    this.applying ??= this.applyInbound().finally(() => { this.applying = undefined })
+  }
+
+  private async applyInbound(): Promise<void> {
+    while (this.inbound.size > 0) {
+      try {
+        await this.applyBatch()
+      } catch (error) {
+        // Frames taken from the queue were not stored; reconnecting replays them from the stored cursor.
+        this.warn('sync: applying received frames failed; catching up again', error)
+        this.inbound.clear()
+        this.received = this.store.relayCursor()
+        this.relay?.close()
+        return
+      }
+      // A single live frame applies at once; a backlog leaves the CPU and the disk to the rest of the Host between batches.
+      if (this.inbound.size > 0) await pause(this.tuning.applyPauseMs)
+    }
+  }
+
+  /** Open one batch of received frames on the sync worker and store what it opened in one transaction. */
+  private async applyBatch(): Promise<void> {
     const member = this.member()
-    if (member === undefined) return
-    const keyring = this.store.keyring()
-    let opened: ReturnType<typeof openEnvelope>
-    try {
-      opened = openEnvelope(frame, {
-        vaultKey: epoch => keyring.get(epoch),
-        signingKey: device => signingKeyAt(member.chain, device, seq),
-      })
-    } catch (error) {
-      this.warn(`sync: dropped relay frame ${String(seq)}`, error)
-      this.store.setRelayCursor(seq)
+    if (member === undefined) {
+      this.inbound.clear()
       return
     }
-    const { header, payload } = opened
-    const own = header.device === member.keys.id
-    const apply = !own && (header.kind === 'update' || header.kind === 'snapshot')
-    const accepted = this.store.transaction(() => {
-      this.store.setRelayCursor(seq)
-      if (!apply || !this.store.acceptCounter(header.device, header.id, header.counter)) return false
-      this.store.appendDocUpdate(header.id, payload)
-      return true
+    const frames: Array<{ seq: number; frame: Uint8Array }> = []
+    for (let next = this.inbound.popFront(); next !== undefined; next = this.inbound.popFront()) {
+      frames.push(next)
+      if (frames.length >= this.tuning.applyFrames) break
+    }
+    const opened = await this.offload.open(frames, {
+      keyring: this.store.keyring(), devices: member.chain.devices, removed: member.chain.removed,
     })
-    if (!accepted) return
-    const open = this.docs.get(header.id)
-    if (open !== undefined) Y.applyUpdate(open.doc, payload, REMOTE)
-    this.afterAppend(header.id)
-    this.documentChanged(header.id)
+    const applied = new Map<OpaqueId, Uint8Array[]>()
+    this.store.transaction(() => {
+      for (const result of opened) {
+        if ('error' in result) {
+          this.warn(`sync: dropped relay frame ${String(result.seq)}`, new Error(result.error))
+          continue
+        }
+        const { header, payload } = result
+        const apply = header.device !== member.keys.id && (header.kind === 'update' || header.kind === 'snapshot')
+        if (!apply || !this.store.acceptCounter(header.device, header.id, header.counter)) continue
+        this.store.appendDocUpdate(header.id, payload)
+        applied.set(header.id, [...applied.get(header.id) ?? [], payload])
+      }
+      this.store.setRelayCursor((frames.at(-1) as { seq: number }).seq)
+    })
+    for (const [id, updates] of applied) {
+      const open = this.docs.get(id)
+      if (open !== undefined) for (const update of updates) Y.applyUpdate(open.doc, update, REMOTE)
+      this.afterAppend(id, updates.length)
+      this.documentChanged(id)
+    }
   }
 
   /**
@@ -574,17 +681,39 @@ export class AccountVault {
     this.documentChanged(header.id)
   }
 
-  private afterAppend(id: OpaqueId): void {
-    const updates = this.store.docUpdates(id)
-    if (updates.length > this.tuning.compactAfter) this.store.replaceDocUpdates(id, Y.mergeUpdates(updates))
-    if (this.store.countSinceSnapshot(id) <= this.tuning.snapshotAfter) return
-    const merged = Y.mergeUpdates(this.store.docUpdates(id))
-    this.store.transaction(() => {
-      this.store.enqueue(this.seal('snapshot', id, merged), this.store.relayCursor())
-      this.store.resetSinceSnapshot(id)
-    })
-    void this.flush()
+  /**
+   * Compact a document's stored updates and queue a snapshot once enough frames arrived. Both read the stored
+   * updates only when their threshold is crossed and merge them on the sync worker; a document's maintenance runs
+   * one pass at a time.
+   * @param id - the document.
+   * @param added - how many updates were just stored.
+   */
+  private afterAppend(id: OpaqueId, added = 1): void {
+    const snapshotDue = this.store.countSinceSnapshot(id, added) > this.tuning.snapshotAfter
+    if (!snapshotDue && this.store.docUpdateCount(id) <= this.tuning.compactAfter) return
+    const run = (this.maintenance.get(id) ?? Promise.resolve()).then(() => this.maintain(id, snapshotDue))
+    const settled = run.catch((error: unknown) => { this.warn(`sync: compacting document ${id} failed`, error) })
+    this.maintenance.set(id, settled)
+    void settled.then(() => { if (this.maintenance.get(id) === settled) this.maintenance.delete(id) })
   }
+
+  private async maintain(id: OpaqueId, snapshotDue: boolean): Promise<void> {
+    const member = this.member()
+    if (member === undefined) return
+    const epoch = member.chain.epoch
+    const vaultKey = this.store.keyring().get(epoch)
+    if (vaultKey === undefined) throw new Error(`the vault keyring lacks epoch ${String(epoch)}`)
+    await this.offload.maintain({
+      path: this.store.path,
+      doc: id,
+      compact: this.store.docUpdateCount(id) > this.tuning.compactAfter,
+      ...snapshotDue
+        ? { snapshot: { epoch, vaultKey, sender: member.keys, counter: this.store.nextCounter(id), covers: this.store.relayCursor() } }
+        : {},
+    })
+    if (snapshotDue) void this.flush()
+  }
+
 
   /**
    * Send queued frames in order until the outbox is empty or the connection drops.
@@ -603,7 +732,7 @@ export class AccountVault {
   private async drain(): Promise<boolean> {
     for (;;) {
       const relay = this.relay
-      const next = this.store.outbox()[0]
+      const next = this.store.outbox(1)[0]
       if (relay === undefined || next === undefined) return next === undefined
       try {
         await relay.request('publish', { frame: toBase64Url(next.frame), ...next.covers === undefined ? {} : { covers: next.covers } })
@@ -628,13 +757,21 @@ export class AccountVault {
     if (relay === undefined || this.state !== 'online') throw new Error('session handover needs an online vault')
     await this.flush()
     if (this.store.pending() > 0 || this.relay !== relay) throw new Error('session handover has unpublished changes')
-    await relay.request('sync', { since: this.store.relayCursor() })
+    await this.catchingUp
+    await this.catchUp(relay)
     if (this.relay !== relay) throw new Error('session handover lost its connection')
   }
 
   /** Destroy open documents and wait for the active outbox pass to stop. */
   async dispose(): Promise<void> {
+    if (this.statusTimer !== undefined) clearTimeout(this.statusTimer)
+    this.statusTimer = undefined
     this.detach()
+    // Frames not applied yet stay on the relay after the stored cursor and arrive again on the next connection.
+    this.inbound.clear()
+    await this.applying
+    await this.catchingUp
+    await Promise.all(this.maintenance.values())
     for (const open of this.docs.values()) open.doc.destroy()
     this.docs.clear()
     await this.flushing

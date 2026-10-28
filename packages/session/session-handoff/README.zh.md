@@ -26,8 +26,9 @@ kind: "package-reference"
 
 无。
 
-<a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与延后工作
+
+<a id="known-limitations-and-deferred-work"></a>
 
 - **转发的输入会等待编写方** — 编写的设备在线、或在同一局域网上直接相连时，输入才会到达；否则它留在账户的收件箱流中。
 - **接管需要完整的副本** — 设备只有导入编写方发布的全部事件后才会接管会话，因此对落后的副本调用 `claim` 会返回 `{ claimed: false }`。

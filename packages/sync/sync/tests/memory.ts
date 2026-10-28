@@ -138,6 +138,7 @@ export class MemorySyncDevice {
       synchronize: (): Promise<void> => this.state === 'online' && this.relay ? Promise.resolve() : Promise.reject(new Error('offline')),
       documentId: (_owner: string, name: string): string => `id:${name}`,
       openDocument: (_owner: string, name: string): Promise<SyncDocument> => Promise.resolve({ doc: this.docOf(name), close: () => {} }),
+      storedDocuments: (): readonly string[] => [...this.docs.keys()].map(name => `id:${name}`),
       appendStream: (_owner: string, name: string, payload: Uint8Array): Promise<void> => {
         const batches = this.network.streams.get(name) ?? []
         batches.push({ seq: this.network.nextSeq(), payload })

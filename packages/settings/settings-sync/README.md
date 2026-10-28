@@ -26,8 +26,9 @@ Indirectly, through a namespace another device changed, which reaches a later re
 
 None of its own; a changed namespace reaches a request the way a local settings edit does.
 
-<a id="known-limitations-and-deferred-work"></a>
 ## Known Limitations and Deferred Work
+
+<a id="known-limitations-and-deferred-work"></a>
 
 - **Merged per namespace** — a whole section is replaced when it changes, so two devices editing the same namespace at once keep the later section rather than merging fields within it.
 - **The device's section is lost on first contact** — a device that joins an account whose settings document already holds a namespace adopts the account's section.

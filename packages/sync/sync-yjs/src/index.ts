@@ -16,6 +16,7 @@ import { accountHomePath, avnHomePath, ACCOUNTS_DIR_NAME } from '@aeven/home-pat
 import { Sync, type SyncDevice, type SyncDocument, type SyncJoin, type SyncJoinRequest, type SyncLease, type SyncStatus, type SyncStreamBatch } from '@aeven/sync'
 import { recoveryKeysOf, type DeviceId } from '@aeven/sync-vault'
 import { JoinRequester } from './join.ts'
+import { SyncOffload } from './offload.ts'
 import { LanTransport, MdnsDiscovery } from './lan.ts'
 import { RelayConnection, type RelayHandlers } from './relay.ts'
 import { SyncStore } from './store.ts'
@@ -37,6 +38,14 @@ export interface Config {
   compactAfter: number
   /** Frames per document since its last snapshot before this device queues a new one. */
   snapshotAfter: number
+  /** Received frames opened on the sync worker and stored in one transaction per batch. */
+  applyFrames: number
+  /** Pause between two batches while a backlog waits, in milliseconds; it bounds the CPU and disk share of catch-up. */
+  applyPauseMs: number
+  /** Frames one catch-up page asks the relay for. */
+  pageFrames: number
+  /** Shortest interval between two status notifications, in milliseconds. */
+  statusMs: number
   /** Whether enrolled devices on the same local network link directly. */
   lan: boolean
   /** Port this device accepts local-network links on; 0 picks a free one. */
@@ -81,6 +90,10 @@ export default class YjsSync extends Sync {
     deviceName: Schema.string().min(1).default(hostname()),
     compactAfter: Schema.natural().min(1).default(200),
     snapshotAfter: Schema.natural().min(1).default(500),
+    applyFrames: Schema.natural().min(1).default(200),
+    applyPauseMs: Schema.natural().default(16),
+    pageFrames: Schema.natural().min(1).default(500),
+    statusMs: Schema.natural().default(250),
     lan: Schema.boolean().default(true),
     lanPort: Schema.natural().max(65_535).default(0),
     lanRetryMs: Schema.natural().min(100).default(5_000),
@@ -89,6 +102,8 @@ export default class YjsSync extends Sync {
 
   private readonly accounts = new Map<string, Account>()
   private readonly tokenRef: CredentialRef
+  /** One worker thread, shared by every account, opens received frames and merges document updates. */
+  private readonly offload = new SyncOffload()
   private disposed = false
 
   /**
@@ -115,6 +130,7 @@ export default class YjsSync extends Sync {
         account.store.close()
       }))
       this.accounts.clear()
+      await this.offload.dispose()
     }, 'sync-yjs: accounts')
     const root = avnHomePath(ACCOUNTS_DIR_NAME)
     if (!existsSync(root)) return
@@ -132,7 +148,14 @@ export default class YjsSync extends Sync {
     const store = new SyncStore(accountHomePath(owner, ...STORE_SEGMENTS), owner)
     const vault = new AccountVault(
       store,
-      { compactAfter: this.config.compactAfter, snapshotAfter: this.config.snapshotAfter },
+      {
+        compactAfter: this.config.compactAfter,
+        snapshotAfter: this.config.snapshotAfter,
+        applyFrames: this.config.applyFrames,
+        applyPauseMs: this.config.applyPauseMs,
+        pageFrames: this.config.pageFrames,
+        statusMs: this.config.statusMs,
+      },
       () => {
         this.updateLan(owner)
         this.notifyStatus(owner)
@@ -143,6 +166,7 @@ export default class YjsSync extends Sync {
         this.ctx.logger.warn(message)
         this.ctx.logger.warn(error)
       },
+      this.offload,
     )
     account = { store, vault, wake: () => {} }
     this.accounts.set(owner, account)
@@ -487,6 +511,13 @@ export default class YjsSync extends Sync {
   /** @inheritdoc */
   async readStream(owner: string, name: string, after: number): Promise<{ batches: SyncStreamBatch[]; more: boolean }> {
     return await this.enrolledVault(owner).readStream(name, after)
+  }
+
+  /** @inheritdoc */
+  storedDocuments(owner: string): readonly string[] {
+    const account = this.accounts.get(owner)
+    if (account === undefined) throw new Error('this device is not enrolled in the account\'s vault')
+    return account.store.storedDocuments()
   }
 
   /** @inheritdoc */

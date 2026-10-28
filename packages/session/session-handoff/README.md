@@ -26,8 +26,9 @@ None, as the handoff moves input between devices and adds nothing to a model req
 
 None.
 
-<a id="known-limitations-and-deferred-work"></a>
 ## Known Limitations and Deferred Work
+
+<a id="known-limitations-and-deferred-work"></a>
 
 - **Forwarded input waits for its writer** — input reaches the writing device when that device is online or directly linked on one local network; otherwise it waits in the account's inbox stream.
 - **A claim needs a complete copy** — a device takes a session over only after importing every event its writer published, so a claim on a lagging copy answers `{ claimed: false }`.

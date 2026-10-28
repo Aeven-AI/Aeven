@@ -12197,6 +12197,9 @@ importers:
       '@aeven/brand':
         specifier: workspace:^
         version: link:../../util/brand
+      '@aeven/deque':
+        specifier: workspace:^
+        version: link:../../util/deque
       '@aeven/home-paths':
         specifier: workspace:^
         version: link:../../util/home-paths
@@ -12234,6 +12237,9 @@ importers:
       '@types/ws':
         specifier: ^8.18.1
         version: 8.18.1
+      tsx:
+        specifier: ^4.22.4
+        version: 4.22.4
 
   packages/terminal/terminal:
     devDependencies:

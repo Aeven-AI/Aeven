@@ -61,6 +61,8 @@ export interface MemorySyncTuning {
   drainMs: number
   /** Changes published per drain. */
   drainBatch: number
+  /** Pause between two shard documents applied from other devices, in milliseconds. */
+  applyPauseMs: number
   /** Lifetime of this device's claim on the account's memory maintenance, in milliseconds. */
   maintenanceTtlMs: number
   /** Interval between renewals of that claim, in milliseconds. */
@@ -107,7 +109,9 @@ export class MemorySyncMirror {
   private readonly db: Database.Database
   private readonly columns = new Map<string, readonly string[]>()
   private readonly names = new Map<string, string>()
+  /** Shard documents other devices changed, applied one at a time in the background. */
   private readonly queued = new Set<string>()
+  private applying: Promise<void> | undefined
   private timer: ReturnType<typeof setInterval> | undefined
   private draining = false
   private closed = false
@@ -146,22 +150,22 @@ export class MemorySyncMirror {
   }
 
   /**
-   * Install the triggers, record existing rows once, take what other devices already synced, and start draining.
-   * @returns when the first pass over stored documents finished.
+   * Install the triggers, record existing rows once, queue the shard documents this device already holds, and
+   * start draining. Applying and publishing run in the background, one bounded step at a time.
    */
-  async start(): Promise<void> {
+  start(): void {
     this.installTriggers()
     const seeded = this.db.prepare("SELECT value FROM sync_state WHERE key = 'seeded'").get() as { value: string } | undefined
     if (seeded === undefined) {
       this.db.transaction(() => {
+        // The most recently written rows publish first.
         for (const [table, spec] of this.tables()) {
-          this.db.prepare(`INSERT INTO sync_changes (tbl, pk, op) SELECT ?, json_array(${spec.key.join(', ')}), 'upsert' FROM ${table}`).run(table)
+          this.db.prepare(`INSERT INTO sync_changes (tbl, pk, op) SELECT ?, json_array(${spec.key.join(', ')}), 'upsert' FROM ${table} ORDER BY rowid DESC`).run(table)
         }
         this.db.prepare("INSERT INTO sync_state (key, value) VALUES ('seeded', '1')").run()
       })()
     }
-    for (const name of allShards()) await this.materialize(name)
-    if (this.isClosed()) return
+    for (const id of this.sync.storedDocuments(this.owner)) this.documentChanged(id)
     this.timer = setInterval(() => { void this.drain() }, this.tuning.drainMs)
     void this.drain()
   }
@@ -198,27 +202,26 @@ export class MemorySyncMirror {
   }
 
   /**
-   * Publish recorded changes, oldest first, one shard document at a time.
+   * Publish one batch of recorded changes in recording order, one shard document at a time; a backlog takes one
+   * batch per drain interval.
    * @returns when this drain pass ends.
    */
   async drain(): Promise<void> {
     if (this.draining || this.isClosed()) return
     this.draining = true
     try {
-      for (;;) {
-        const changes = this.db.prepare('SELECT seq, tbl, pk, op FROM sync_changes ORDER BY seq LIMIT ?').all(this.tuning.drainBatch) as Change[]
-        if (changes.length === 0) return
-        const byShard = new Map<string, Change[]>()
-        for (const change of changes) {
-          if (!this.columns.has(change.tbl)) continue
-          const keyValues = JSON.parse(change.pk) as unknown[]
-          const shard = shardOf(change.tbl, String(keyValues[0]))
-          byShard.set(shard, [...byShard.get(shard) ?? [], change])
-        }
-        for (const [shard, shardChanges] of byShard) await this.publish(shard, shardChanges)
-        if (this.isClosed()) return
-        this.db.prepare('DELETE FROM sync_changes WHERE seq <= ?').run(changes.at(-1)?.seq ?? 0)
+      const changes = this.db.prepare('SELECT seq, tbl, pk, op FROM sync_changes ORDER BY seq LIMIT ?').all(this.tuning.drainBatch) as Change[]
+      if (changes.length === 0) return
+      const byShard = new Map<string, Change[]>()
+      for (const change of changes) {
+        if (!this.columns.has(change.tbl)) continue
+        const keyValues = JSON.parse(change.pk) as unknown[]
+        const shard = shardOf(change.tbl, String(keyValues[0]))
+        byShard.set(shard, [...byShard.get(shard) ?? [], change])
       }
+      for (const [shard, shardChanges] of byShard) await this.publish(shard, shardChanges)
+      if (this.isClosed()) return
+      this.db.prepare('DELETE FROM sync_changes WHERE seq <= ?').run(changes.at(-1)?.seq ?? 0)
     } catch (error) {
       this.warn(`memory sync: publishing changes failed: ${String(error)}`)
     } finally {
@@ -250,17 +253,27 @@ export class MemorySyncMirror {
   }
 
   /**
-   * Apply another device's change to one document.
+   * Queue another device's change to one document; queued documents apply one at a time with a pause between them.
    * @param id - the document's opaque id.
    */
   documentChanged(id: string): void {
     const name = this.names.get(id)
-    if (name === undefined || this.queued.has(name)) return
+    if (name === undefined || this.isClosed()) return
     this.queued.add(name)
-    setImmediate(() => {
-      this.queued.delete(name)
-      void this.materialize(name)
-    })
+    this.applying ??= this.applyQueued().finally(() => { this.applying = undefined })
+  }
+
+  private async applyQueued(): Promise<void> {
+    for (let name = this.next(); name !== undefined && !this.isClosed(); name = this.next()) {
+      await new Promise((resolve) => { setTimeout(resolve, this.tuning.applyPauseMs) })
+      await this.materialize(name)
+    }
+  }
+
+  private next(): string | undefined {
+    const [name] = this.queued
+    if (name !== undefined) this.queued.delete(name)
+    return name
   }
 
   private async materialize(name: string): Promise<void> {
@@ -313,10 +326,12 @@ export class MemorySyncMirror {
     })()
   }
 
-  /** Stop draining and close the connection. */
-  dispose(): void {
+  /** Stop draining and applying, then close the connection. */
+  async dispose(): Promise<void> {
     this.closed = true
     if (this.timer !== undefined) clearInterval(this.timer)
+    this.queued.clear()
+    await this.applying
     this.db.close()
   }
 }

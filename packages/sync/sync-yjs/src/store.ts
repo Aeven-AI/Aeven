@@ -33,11 +33,15 @@ export class SyncStore {
    * @param path - absolute database path.
    * @param owner - the account the store belongs to; a store holding another owner is refused.
    */
-  constructor(path: string, owner: string) {
+  constructor(readonly path: string, owner: string) {
     mkdirSync(dirname(path), { recursive: true, mode: 0o700 })
     this.db = new Database(path)
     this.db.pragma('journal_mode = WAL')
-    this.db.pragma('synchronous = FULL')
+    // The sync worker writes compactions and snapshots through its own connection.
+    this.db.pragma('busy_timeout = 5000')
+    // In WAL mode NORMAL keeps every commit atomic; a crash loses at most the last commits, and the relay cursor
+    // commits with the frames it covers, so catch-up resumes from there.
+    this.db.pragma('synchronous = NORMAL')
     const version = this.db.pragma('user_version', { simple: true }) as number
     if (version !== 0 && version !== SCHEMA_VERSION) {
       this.db.close()
@@ -169,19 +173,33 @@ export class SyncStore {
    * @param update - a Yjs update to store.
    * @returns the number of updates now stored for `id`.
    */
-  appendDocUpdate(id: OpaqueId, update: Uint8Array): number {
-    this.db.prepare('INSERT INTO doc_updates (id, data) VALUES (?, ?)').run(id, Buffer.from(update))
-    return (this.db.prepare('SELECT COUNT(*) AS n FROM doc_updates WHERE id = ?').get(id) as { n: number }).n
+  appendDocUpdate(id: OpaqueId, update: Uint8Array): void {
+    this.statement('INSERT INTO doc_updates (id, data) VALUES (?, ?)').run(id, Buffer.from(update))
   }
 
   /**
-   * Replace a document's stored updates with one merged update.
    * @param id - the document.
-   * @param merged - the merged update.
+   * @returns how many updates are stored for it.
    */
-  replaceDocUpdates(id: OpaqueId, merged: Uint8Array): void {
-    this.db.prepare('DELETE FROM doc_updates WHERE id = ?').run(id)
-    this.db.prepare('INSERT INTO doc_updates (id, data) VALUES (?, ?)').run(id, Buffer.from(merged))
+  docUpdateCount(id: OpaqueId): number {
+    return (this.statement('SELECT COUNT(*) AS n FROM doc_updates WHERE id = ?').get(id) as { n: number }).n
+  }
+
+  /** @returns every document this device stores updates for. */
+  storedDocuments(): OpaqueId[] {
+    return (this.statement('SELECT DISTINCT id FROM doc_updates').all() as Array<{ id: string }>).map(row => row.id as OpaqueId)
+  }
+
+  private readonly statements = new Map<string, Database.Statement>()
+
+  /** A prepared statement, compiled once per store. */
+  private statement(sql: string): Database.Statement {
+    let prepared = this.statements.get(sql)
+    if (prepared === undefined) {
+      prepared = this.db.prepare(sql)
+      this.statements.set(sql, prepared)
+    }
+    return prepared
   }
 
   /**
@@ -204,21 +222,23 @@ export class SyncStore {
    * @returns whether the counter is new for this sender and id.
    */
   acceptCounter(device: DeviceId, id: OpaqueId, counter: number): boolean {
-    const row = this.db.prepare('SELECT counter FROM seen WHERE device = ? AND id = ?').get(device, id) as { counter: number } | undefined
+    const row = this.statement('SELECT counter FROM seen WHERE device = ? AND id = ?').get(device, id) as { counter: number } | undefined
     if (row !== undefined && counter <= row.counter) return false
-    this.db.prepare('INSERT INTO seen (device, id, counter) VALUES (?, ?, ?) ON CONFLICT (device, id) DO UPDATE SET counter = excluded.counter').run(device, id, counter)
+    this.statement('INSERT INTO seen (device, id, counter) VALUES (?, ?, ?) ON CONFLICT (device, id) DO UPDATE SET counter = excluded.counter')
+      .run(device, id, counter)
     return true
   }
 
   /**
-   * Count a document frame since that document's last snapshot.
+   * Count document frames since that document's last snapshot.
    * @param id - the document.
+   * @param added - how many frames arrived or were made.
    * @returns the number of frames for `id` since its last snapshot.
    */
-  countSinceSnapshot(id: OpaqueId): number {
-    return (this.db.prepare(
-      'INSERT INTO since_snapshot (id, frames) VALUES (?, 1) ON CONFLICT (id) DO UPDATE SET frames = frames + 1 RETURNING frames',
-    ).get(id) as { frames: number }).frames
+  countSinceSnapshot(id: OpaqueId, added = 1): number {
+    return (this.statement(
+      'INSERT INTO since_snapshot (id, frames) VALUES (?, ?) ON CONFLICT (id) DO UPDATE SET frames = frames + excluded.frames RETURNING frames',
+    ).get(id, added) as { frames: number }).frames
   }
 
   /** @param id - the document a snapshot was just queued for. */
@@ -234,9 +254,15 @@ export class SyncStore {
     this.db.prepare('INSERT INTO outbox (frame, covers) VALUES (?, ?)').run(Buffer.from(frame), covers ?? null)
   }
 
-  /** @returns every unacknowledged frame, oldest first. */
-  outbox(): OutboxFrame[] {
-    return (this.db.prepare('SELECT seq, frame, covers FROM outbox ORDER BY seq').all() as Array<{ seq: number; frame: Buffer; covers: number | null }>)
+  /**
+   * @param limit - maximum number of frames to return; omitted means every frame.
+   * @returns unacknowledged frames, oldest first.
+   */
+  outbox(limit?: number): OutboxFrame[] {
+    const rows = limit === undefined
+      ? this.db.prepare('SELECT seq, frame, covers FROM outbox ORDER BY seq').all()
+      : this.db.prepare('SELECT seq, frame, covers FROM outbox ORDER BY seq LIMIT ?').all(limit)
+    return (rows as Array<{ seq: number; frame: Buffer; covers: number | null }>)
       .map(row => ({ seq: row.seq, frame: new Uint8Array(row.frame), ...row.covers === null ? {} : { covers: row.covers } }))
   }
 

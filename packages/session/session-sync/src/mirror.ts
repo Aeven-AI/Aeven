@@ -6,7 +6,8 @@
  * model or a tool.
  */
 import { randomUUID } from 'node:crypto'
-import { brotliCompressSync, brotliDecompressSync } from 'node:zlib'
+import { promisify } from 'node:util'
+import { brotliCompress, brotliDecompress } from 'node:zlib'
 import type { Map as YMap, YMapEvent, Transaction } from 'yjs'
 import { SessionLogOffset, type SessionEvent, type SessionHeader, type SessionId } from '@aeven/session'
 import type { SessionPersistence } from '@aeven/session-persistence'
@@ -65,6 +66,21 @@ export interface SessionSyncTuning {
   liveMs: number
   /** Sessions created up to this many days before this device first publishes are published too. */
   backfillDays: number
+  /** Pause between two sessions of a background import or publication scan, in milliseconds. */
+  pauseMs: number
+}
+
+const compress = promisify(brotliCompress)
+const decompress = promisify(brotliDecompress)
+
+/** Yield the event loop with a real timer, so background history work never starves a turn or a request. */
+function pause(ms: number): Promise<void> {
+  return new Promise((resolve) => { setTimeout(resolve, ms) })
+}
+
+/** @returns a decompressed batch; the thread pool decompresses it off the event loop. */
+async function readBatch(payload: Uint8Array): Promise<Batch> {
+  return JSON.parse((await decompress(payload)).toString('utf8')) as Batch
 }
 
 const INDEX = 'sessions/index'
@@ -112,6 +128,11 @@ function attachmentIds(value: unknown): Set<string> {
 }
 
 /** One past the `seq` of the last event, or `fallback` for no events. */
+/** @returns when a conversation was last active, for ordering imports newest first. */
+function recency(entry: IndexEntry): number {
+  return entry.updatedAt ?? entry.header.createdAt
+}
+
 function after(events: readonly SessionEvent[], fallback: number): number {
   return events.reduce((_next, event) => event.seq + 1, fallback)
 }
@@ -149,17 +170,23 @@ export class SessionMirror {
    * @returns whether this device may admit input locally.
    */
   claim(sessionId: SessionId): Promise<SessionClaim> {
+    // A runner this device holds continues without waiting for an earlier operation on the session, such as the
+    // release that publishes the previous turn.
+    if (this.runners.get(sessionId)?.held() === true && !this.isClosed()) return Promise.resolve({ claimed: true })
     return this.own(sessionId, async () => {
       await this.starting
       await this.releases.get(sessionId)
       const me = this.device()
       const entry = this.docs?.index.doc.getMap<IndexEntry>('sessions').get(sessionId)
       if (me === undefined || this.isClosed()) return { claimed: false }
-      if (entry === undefined && this.sync.status(this.owner).state !== 'online') return { claimed: true }
       if (entry !== undefined && entry.header.owner !== this.owner) throw new Error('session does not belong to this account')
       const existing = this.runners.get(sessionId)
       if (existing?.held()) return { claimed: true }
-      if (this.sync.status(this.owner).state !== 'online') return await this.takeOver(sessionId, entry)
+      // A session this device writes needs no handover, so a turn never waits for the account's backlog.
+      const mine = entry === undefined || entry.origin === me
+      const online = this.sync.status(this.owner).state === 'online'
+      if (mine && !online) return { claimed: true }
+      if (!online) return await this.takeOver(sessionId, entry)
       const timing = this.tuning.runnerLease
       if (timing === undefined) throw new Error('session runner lease timing is not configured')
       const holder = new LeaseHolder(this.sync, this.owner, streamName(sessionId), timing, {
@@ -173,12 +200,11 @@ export class SessionMirror {
       if (!holder.held()) return { claimed: false }
       this.runners.set(sessionId, holder)
       try {
-        if (entry === undefined) {
-          return { claimed: true }
-        }
+        if (mine) return { claimed: true }
         await this.sync.synchronize(this.owner)
         // A pending import finishes before promotion; the lease prevents another runner advancing the tail.
         await this.fetch(sessionId)
+        await this.imports.get(sessionId)
         const current = this.entries().get(sessionId)
         if (current === undefined) throw new Error('session disappeared during handover')
         if (current.origin !== me && current.running === true) {
@@ -189,7 +215,8 @@ export class SessionMirror {
         const suffix = await this.persistence.readFrom(sessionId, SessionLogOffset(0))
         let next = after(suffix.events, 0)
         if (next < current.next) {
-          await this.importSession(sessionId, current, next, true)
+          const from = next
+          await this.serialImport(sessionId, () => this.importSession(sessionId, current, from, true))
           next = after((await this.persistence.readFrom(sessionId, SessionLogOffset(0))).events, 0)
         }
         if (next !== current.next || !holder.held()) throw new Error('session is not caught up for handover')
@@ -404,10 +431,12 @@ export class SessionMirror {
   }
 
   /**
-   * Import one conversation when opened, including an older body skipped by background backfill.
+   * Import one conversation when opened, including an older body skipped by background backfill. A conversation
+   * this device already stores opens at once and its remaining events append in the background; only one this
+   * device has never stored waits, for its own events and never for the import of other conversations.
    * @param sessionId - shared conversation.
    * @param signal - cancellation while its publishing device uploads its first prefix.
-   * @returns when its published prefix is durable locally.
+   * @returns when the conversation can open from its local log.
    */
   async fetch(sessionId: SessionId, signal?: AbortSignal): Promise<void> {
     await this.starting
@@ -436,11 +465,17 @@ export class SessionMirror {
       entry = this.entries().get(sessionId)
       if (entry === undefined) throw new Error('session disappeared while opening history')
     }
-    await this.importing
     const local = new Set((await this.persistence.list()).map(header => header.id as string))
-    await this.importOne(sessionId, entry, local)
-    if ((this.localNext.get(sessionId) ?? 0) < entry.next) throw new Error('session is missing published events')
-    await this.file(sessionId, entry)
+    const opened = entry
+    const importing = this.importOne(sessionId, opened, local).then(async () => {
+      if ((this.localNext.get(sessionId) ?? 0) < opened.next) throw new Error('session is missing published events')
+      await this.file(sessionId, opened)
+    })
+    if (local.has(sessionId) || this.created.has(sessionId)) {
+      importing.catch((error: unknown) => { this.warn(`session sync: importing an opened session failed: ${String(error)}`) })
+      return
+    }
+    await importing
     signal?.throwIfAborted()
   }
 
@@ -636,13 +671,15 @@ export class SessionMirror {
       await this.starting
       await this.releases.get(id)
       if (this.isClosed() || this.entries().get(id)?.origin === this.device()) return
-      const batch = JSON.parse(brotliDecompressSync(payload).toString('utf8')) as Batch
-      const next = await this.next(id, new Set([id]))
-      const events = batch.events.filter(event => event.seq >= next)
-      if (events[0]?.seq !== next) return
-      await this.persistence.append(id as SessionId, events)
-      await this.importAttachments(events)
-      this.localNext.set(id, after(events, next))
+      const batch = await readBatch(payload)
+      await this.serialImport(id, async () => {
+        const next = await this.next(id, new Set([id]))
+        const events = batch.events.filter(event => event.seq >= next)
+        if (events[0]?.seq !== next) return
+        await this.persistence.append(id as SessionId, events)
+        await this.importAttachments(events)
+        this.localNext.set(id, after(events, next))
+      })
     })
   }
 
@@ -650,9 +687,12 @@ export class SessionMirror {
     const me = this.device()
     if (me === undefined || this.isClosed()) return
     const local = new Set((await this.persistence.list()).map(header => header.id as string))
-    for (const [id, entry] of this.entries()) {
+    // The most recently active conversations arrive first; older history follows.
+    const ordered = [...this.entries()].sort(([, left], [, right]) => recency(right) - recency(left))
+    for (const [id, entry] of ordered) {
       if (this.isClosed()) return
       if (entry.origin === me || entry.header.owner !== this.owner) continue
+      await pause(this.tuning.pauseMs)
       if (local.has(id) || this.created.has(id)) this.watch(id)
       await this.file(id, entry)
       if (entry.header.createdAt < Date.now() - this.tuning.backfillDays * DAY_MS && !local.has(id)) continue
@@ -674,12 +714,17 @@ export class SessionMirror {
   }
 
   private importOne(id: string, entry: IndexEntry, local: ReadonlySet<string>): Promise<void> {
-    const work = (this.imports.get(id) ?? Promise.resolve()).then(async () => {
+    return this.serialImport(id, async () => {
       const next = await this.next(id, local)
       if (entry.next > next) await this.importSession(id, entry, next, local.has(id) || this.created.has(id))
     })
-    this.imports.set(id, work.catch(() => {}))
-    return work
+  }
+
+  /** Run one append to an imported session after every earlier one, whether it came from the relay or the local network. */
+  private serialImport(id: string, work: () => Promise<void>): Promise<void> {
+    const run = (this.imports.get(id) ?? Promise.resolve()).then(work)
+    this.imports.set(id, run.catch(() => {}))
+    return run
   }
 
   private async importSession(id: string, entry: IndexEntry, from: number, exists: boolean): Promise<void> {
@@ -693,7 +738,7 @@ export class SessionMirror {
       if (this.isClosed()) return
       for (const { seq, payload } of batches) {
         cursor = seq
-        const batch = JSON.parse(brotliDecompressSync(payload).toString('utf8')) as Batch
+        const batch = await readBatch(payload)
         const events = batch.events.filter(event => event.seq >= next)
         const first = events.at(0)
         if (first === undefined) continue
@@ -709,6 +754,7 @@ export class SessionMirror {
           )
           this.created.add(id)
           created = true
+          this.watch(id)
         }
         await this.persistence.append(id as SessionId, pending)
         await this.importAttachments(pending)
@@ -736,14 +782,16 @@ export class SessionMirror {
     try {
       const entries = this.entries()
       const snapshots = await this.persistence.listSnapshots()
-      // Announce every identity before transferring bodies; recent conversations publish first.
-      for (const { header } of snapshots) {
-        if (header.owner !== this.owner || header.replica || entries.has(header.id)) continue
-        const home = this.filing?.sessionHome(header.id)
-        entries.set(header.id, { header, next: 0, inherited: 0, origin: me,
-          ...home === undefined ? {} : { workspace: home },
-        })
-      }
+      // Announce every identity in one index update before transferring bodies; recent conversations publish first.
+      entries.doc?.transact(() => {
+        for (const { header } of snapshots) {
+          if (header.owner !== this.owner || header.replica || entries.has(header.id)) continue
+          const home = this.filing?.sessionHome(header.id)
+          entries.set(header.id, { header, next: 0, inherited: 0, origin: me,
+            ...home === undefined ? {} : { workspace: home },
+          })
+        }
+      })
       snapshots.sort((left, right) => right.header.createdAt - left.header.createdAt)
       for (const { header, revision } of snapshots) {
         if (this.isClosed()) return
@@ -751,6 +799,7 @@ export class SessionMirror {
         const entry = entries.get(id)
         if (header.replica || header.owner !== this.owner || (entry !== undefined && entry.origin !== me)) continue
         if (this.revisions.get(id) === String(revision)) continue
+        await pause(this.tuning.pauseMs)
         await this.serialize(id, () => this.publishSession(header, me))
         this.revisions.set(id, String(revision))
       }
@@ -805,7 +854,7 @@ export class SessionMirror {
       const first = batch.at(0)
       if (first === undefined || this.isClosed()) return
       const payload: Batch = { first: first.seq, events: batch }
-      await this.sync.appendStream(this.owner, streamName(header.id), new Uint8Array(brotliCompressSync(JSON.stringify(payload))))
+      await this.sync.appendStream(this.owner, streamName(header.id), new Uint8Array(await compress(JSON.stringify(payload))))
       batch = []
       bytes = 0
     }

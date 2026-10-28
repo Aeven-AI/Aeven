@@ -135,13 +135,13 @@ describe('SyncStore', () => {
     store.close()
   })
 
-  it('stores document updates in order and replaces them with a merged one', () => {
+  it('stores document updates in order and lists the documents it holds', () => {
     const store = new SyncStore(tempPath(), owner)
-    expect(store.appendDocUpdate(id, Uint8Array.of(1))).toBe(1)
-    expect(store.appendDocUpdate(id, Uint8Array.of(2))).toBe(2)
+    store.appendDocUpdate(id, Uint8Array.of(1))
+    store.appendDocUpdate(id, Uint8Array.of(2))
+    expect(store.docUpdateCount(id)).toBe(2)
     expect(store.docUpdates(id)).toEqual([Uint8Array.of(1), Uint8Array.of(2)])
-    store.replaceDocUpdates(id, Uint8Array.of(9))
-    expect(store.docUpdates(id)).toEqual([Uint8Array.of(9)])
+    expect(store.storedDocuments()).toEqual([id])
     store.close()
   })
 
@@ -167,6 +167,7 @@ describe('SyncStore', () => {
     expect([first?.frame, first?.covers]).toEqual([Uint8Array.of(1), undefined])
     expect([second?.frame, second?.covers]).toEqual([Uint8Array.of(2), 7])
     expect(second!.seq).toBeGreaterThan(first!.seq)
+    expect(store.outbox(1)).toEqual([first])
     expect(store.pending()).toBe(2)
     store.acknowledge(first!.seq)
     expect(store.pending()).toBe(1)

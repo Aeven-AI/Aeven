@@ -14,6 +14,7 @@ import {
   type DeviceKeys, type KeyEpoch, type OpaqueId,
 } from '@aeven/sync-vault'
 import { JoinApprover, JoinRequester } from '../src/join.ts'
+import { SyncOffload } from '../src/offload.ts'
 import { RelayConnection } from '../src/relay.ts'
 import { SyncStore } from '../src/store.ts'
 import { AccountVault, type VaultTuning } from '../src/vault.ts'
@@ -38,13 +39,16 @@ interface Device {
   connect(): Promise<RelayConnection>
 }
 
-function device(owner: string, tuning: VaultTuning = { compactAfter: 100, snapshotAfter: 100 }): Device {
+const offload = new SyncOffload()
+afterAll(async () => { await offload.dispose() })
+
+function device(owner: string, tuning: VaultTuning = { compactAfter: 100, snapshotAfter: 100, applyFrames: 200, applyPauseMs: 0, pageFrames: 500, statusMs: 0 }): Device {
   const dir = mkdtempSync(join(tmpdir(), 'sync-vault-'))
   dirs.push(dir)
   const store = new SyncStore(join(dir, 'sync.db'), owner)
   const warn = vi.fn()
   const documents: string[] = []
-  const vault = new AccountVault(store, tuning, () => {}, () => {}, (id) => { documents.push(id) }, warn)
+  const vault = new AccountVault(store, tuning, () => {}, () => {}, (id) => { documents.push(id) }, warn, offload)
   return {
     vault, store, warn, documents,
     async connect() {
@@ -115,7 +119,7 @@ describe('a vault on two devices', () => {
     await vi.waitFor(() => { expect(a.vault.status().devices).toBe(2) })
 
     const docB = b.vault.openDocument('settings/account')
-    expect(docB.doc.getMap('prefs').get('theme')).toBe('dark')
+    await vi.waitFor(() => { expect(docB.doc.getMap('prefs').get('theme')).toBe('dark') })
     docB.doc.getMap('prefs').set('fontSize', 16)
     await vi.waitFor(() => { expect(docA.doc.getMap('prefs').get('fontSize')).toBe(16) })
     expect(a.documents).toContain(a.vault.documentId('settings/account'))
@@ -221,7 +225,7 @@ describe('frames', () => {
     const id = opaqueIdOf(genesis, 'doc')
     const outsider = generateDeviceKeys()
     b.vault.receiveFrame(500, sealEnvelope({ kind: 'update', id, epoch: brandNumber<KeyEpoch>(0), vaultKey: genesis, sender: outsider, counter: 1, payload: Uint8Array.of(0) }))
-    expect(b.warn).toHaveBeenCalledWith('sync: dropped relay frame 500', expect.any(Error))
+    await vi.waitFor(() => { expect(b.warn).toHaveBeenCalledWith('sync: dropped relay frame 500', expect.any(Error)) })
     expect(b.store.relayCursor()).toBe(500)
 
     const doc = a.vault.openDocument('doc')
@@ -229,9 +233,10 @@ describe('frames', () => {
     await vi.waitFor(() => { expect(b.store.docUpdates(id)).toHaveLength(1) })
     const frame = a.store.outbox().length === 0 ? relay.account(owner).frames.at(-1)!.data : undefined
     b.vault.receiveFrame(900, new Uint8Array(frame!))
+    await vi.waitFor(() => { expect(b.store.relayCursor()).toBe(900) })
     expect(b.store.docUpdates(id)).toHaveLength(1)
     a.vault.receiveFrame(901, new Uint8Array(frame!))
-    expect(a.store.relayCursor()).toBe(901)
+    await vi.waitFor(() => { expect(a.store.relayCursor()).toBe(901) })
     doc.close()
   })
 
@@ -270,7 +275,7 @@ describe('frames', () => {
   })
 
   it('compacts stored updates and queues a snapshot that prunes the relay', async () => {
-    const { owner, a } = await account({ compactAfter: 3, snapshotAfter: 4 })
+    const { owner, a } = await account({ compactAfter: 3, snapshotAfter: 4, applyFrames: 200, applyPauseMs: 0, pageFrames: 500, statusMs: 0 })
     const doc = a.vault.openDocument('doc')
     for (let i = 0; i < 6; i++) doc.doc.getMap('m').set('k', i)
     await vi.waitFor(() => { expect(a.store.pending()).toBe(0) })
@@ -297,7 +302,7 @@ describe('frames', () => {
     const keys: DeviceKeys = generateDeviceKeys()
     lonely.store.setDeviceKeys(keys)
     lonely.store.setChain([createChainEntry(verifyChain([]), { type: 'genesis', device: { id: keys.id, signing: Buffer.from(keys.publicKeys.signing).toString('base64url'), agreement: Buffer.from(keys.publicKeys.agreement).toString('base64url') } }, { kind: 'device', device: keys })])
-    const reopened = new AccountVault(lonely.store, { compactAfter: 10, snapshotAfter: 10 }, () => {}, () => {}, () => {}, vi.fn())
+    const reopened = new AccountVault(lonely.store, { compactAfter: 10, snapshotAfter: 10, applyFrames: 200, applyPauseMs: 0, pageFrames: 500, statusMs: 0 }, () => {}, () => {}, () => {}, vi.fn(), offload)
     expect(() => reopened.documentId('x')).toThrow(/genesis key/)
     lonely.store.addKeys(new Map([[brandNumber<KeyEpoch>(5), generateVaultKey()]]))
     expect(() => { reopened.appendStream('x', Uint8Array.of(1)) }).toThrow(/genesis key/)
@@ -314,7 +319,7 @@ describe('frames', () => {
     const removed = createChainEntry(verifyChain([genesis, added]), { type: 'remove-device', device: other.id, epoch: brandNumber<KeyEpoch>(1), until: 0 }, { kind: 'device', device: keys })
     lonely.store.setChain([genesis, added, removed])
     lonely.store.addKeys(new Map([[brandNumber<KeyEpoch>(0), generateVaultKey()]]))
-    const reopened = new AccountVault(lonely.store, { compactAfter: 10, snapshotAfter: 10 }, () => {}, () => {}, () => {}, vi.fn())
+    const reopened = new AccountVault(lonely.store, { compactAfter: 10, snapshotAfter: 10, applyFrames: 200, applyPauseMs: 0, pageFrames: 500, statusMs: 0 }, () => {}, () => {}, () => {}, vi.fn(), offload)
     expect(() => { reopened.appendStream('x', Uint8Array.of(1)) }).toThrow(/lacks epoch 1/)
   })
 })

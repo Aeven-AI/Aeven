@@ -26,6 +26,8 @@ interface Peer {
   account: Account
   peer: number
   cursor?: number
+  /** While a paged catch-up runs, frames published meanwhile wait for the next page. */
+  paging?: boolean
 }
 
 /** Header fields the relay routes on. */
@@ -41,6 +43,8 @@ export class FakeRelay {
   readonly refusals = new Map<string, string[]>()
   /** Replies the next requests of a type receive instead of the relay's own, consumed in order. */
   readonly replies = new Map<string, Array<Record<string, unknown>>>()
+  /** Answer `sync` the way a relay without paging does: push every frame and answer without `more`. */
+  legacySync = false
   /** Request types the relay leaves unanswered. */
   readonly unanswered = new Set<string>()
   /** Delay before accepting a handshake, in milliseconds. */
@@ -96,13 +100,18 @@ export class FakeRelay {
     if (peer.socket.readyState === peer.socket.OPEN) peer.socket.send(JSON.stringify(message))
   }
 
-  private pump(peer: Peer): void {
-    if (peer.cursor === undefined) return
+  /** Send document frames after the peer's cursor, at most `limit`; returns whether more remain. */
+  private pump(peer: Peer, limit = Infinity): boolean {
+    if (peer.cursor === undefined) return false
+    let sent = 0
     for (const frame of peer.account.frames) {
       if (frame.seq <= peer.cursor || frame.kind === 'stream') continue
+      if (sent === limit) return true
       this.send(peer, { t: 'frame', seq: frame.seq, frame: frame.data.toString('base64url') })
       peer.cursor = frame.seq
+      sent++
     }
+    return false
   }
 
   private handle(peer: Peer, request: Record<string, unknown>): void {
@@ -155,14 +164,22 @@ export class FakeRelay {
           account.frames = account.frames.filter(frame => frame.id !== header.id || frame.seq > covers)
         }
         ok({ seq: account.seq })
-        for (const other of account.sockets) if (other !== peer) this.pump(other)
+        for (const other of account.sockets) if (other !== peer && other.paging !== true) this.pump(other)
         return
       }
-      case 'sync':
+      case 'sync': {
         peer.cursor = request.since as number
-        this.pump(peer)
-        ok({ seq: peer.cursor })
+        if (this.legacySync || typeof request.limit !== 'number') {
+          peer.paging = false
+          this.pump(peer)
+          ok({ seq: peer.cursor })
+          return
+        }
+        const more = this.pump(peer, request.limit)
+        peer.paging = more
+        ok({ seq: peer.cursor, more })
         return
+      }
       case 'stream.get': {
         const after = typeof request.after === 'number' ? request.after : 0
         const frames = account.frames.filter(frame => frame.id === request.id && frame.kind === 'stream' && frame.seq > after)

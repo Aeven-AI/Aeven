@@ -248,6 +248,11 @@ export interface Config {
 export interface Config {
   /** Override platform desktop-opener detection. */
   readonly nativeOpen?: boolean
+  /**
+   * How long an approval or question nobody answered on the device running the turn waits for another device of
+   * the account to answer, in milliseconds.
+   */
+  readonly remoteAnswerMs?: number
 }
 ```
 
@@ -296,10 +301,16 @@ export interface Config {
 export interface Config {
   /** How long an add-device screen keeps answering join requests without being reopened, in milliseconds. */
   acceptJoinsMs: number
+  /** Origin of the Aeven site that serves the recovery passkey page, such as `https://aeven.io`. */
+  siteUrl: string
+  /** How long a recovery passkey step waits for the page's result, in milliseconds. */
+  passkeyMs: number
+  /** Pause between two collection attempts of a recovery passkey result, in milliseconds. */
+  passkeyPollMs: number
 }
 ```
 
-来源：[`packages/api/sync-controller/src/index.ts:24`](../packages/api/sync-controller/src/index.ts)
+来源：[`packages/api/sync-controller/src/index.ts:29`](../packages/api/sync-controller/src/index.ts)
 
 <a id="aevenapi-terminal-controller"></a>
 
@@ -423,7 +434,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/attachment/attachment-local/src/index.ts:68`](../packages/attachment/attachment-local/src/index.ts)
+来源：[`packages/attachment/attachment-local/src/index.ts:70`](../packages/attachment/attachment-local/src/index.ts)
 
 <a id="aevenautomations"></a>
 
@@ -452,10 +463,17 @@ export interface Config {
    * before it is read, and the accepted body becomes the run's untrusted payload.
    */
   readonly webhookMaxBodyBytes: number
+  /** How this device claims one automation for its scheduled runs while account sync serves its owner. */
+  readonly sync: {
+    /** Lifetime requested on each renewal of an automation's claim, in milliseconds. */
+    readonly leaseTtlMs: number
+    /** Interval between renewals of that claim, in milliseconds. */
+    readonly leaseRenewMs: number
+  }
 }
 ```
 
-来源：[`packages/core/automations/src/index.ts:116`](../packages/core/automations/src/index.ts)
+来源：[`packages/core/automations/src/index.ts:118`](../packages/core/automations/src/index.ts)
 
 <a id="aevenbash-edit-guard"></a>
 
@@ -567,7 +585,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/capability/capability/src/index.ts:50`](../packages/capability/capability/src/index.ts)
+来源：[`packages/capability/capability/src/index.ts:51`](../packages/capability/capability/src/index.ts)
 
 <a id="aevenclient-connection"></a>
 
@@ -2806,6 +2824,10 @@ export interface MemorySyncTuning {
   drainMs: number
   /** Changes published per drain. */
   drainBatch: number
+  /** Lifetime of this device's claim on the account's memory maintenance, in milliseconds. */
+  maintenanceTtlMs: number
+  /** Interval between renewals of that claim, in milliseconds. */
+  maintenanceRenewMs: number
 }
 
 /** Person profile settings. */
@@ -2856,7 +2878,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/feedback/message-feedback/src/index.ts:51`](../packages/feedback/message-feedback/src/index.ts)
+来源：[`packages/feedback/message-feedback/src/index.ts:52`](../packages/feedback/message-feedback/src/index.ts)
 
 <a id="aevenpermission-presets"></a>
 
@@ -3375,21 +3397,27 @@ export interface Config {
 需要：`sync` · `sessionPersistence`
 
 ```ts config-catalog
-/** Plugin configuration. */
+/** Provider configuration. */
 export type Config = SessionSyncTuning
 
 /** Tuning the plugin configures. */
 export interface SessionSyncTuning {
+  /** Session runner lease lifetime and renewal interval. */
+  runnerLease?: LeaseHolderTiming
   /** Interval between scans for changed local sessions, in milliseconds. */
   publishMs: number
   /** Uncompressed JSON bytes per published batch before a new batch starts. */
   batchBytes: number
+  /** Wait after a session's events commit before they are published, so a streaming reply travels in small batches. */
+  liveMs: number
   /** Sessions created up to this many days before this device first publishes are published too. */
   backfillDays: number
 }
 ```
 
-来源：[`packages/session/session-sync/src/index.ts:17`](../packages/session/session-sync/src/index.ts)
+依赖：[`LeaseHolderTiming`](../packages/sync/sync/src/index.ts)
+
+来源：[`packages/session/session-sync/src/index.ts:19`](../packages/session/session-sync/src/index.ts)
 
 <a id="aevensession-telemetry-otel"></a>
 
@@ -4134,10 +4162,18 @@ export interface Config {
   compactAfter: number
   /** Frames per document since its last snapshot before this device queues a new one. */
   snapshotAfter: number
+  /** Whether enrolled devices on the same local network link directly. */
+  lan: boolean
+  /** Port this device accepts local-network links on; 0 picks a free one. */
+  lanPort: number
+  /** Wait before linking again to a device on the local network whose link closed, in milliseconds. */
+  lanRetryMs: number
+  /** Largest message a local-network link accepts, in bytes. */
+  lanMaxBytes: number
 }
 ```
 
-来源：[`packages/sync/sync-yjs/src/index.ts:23`](../packages/sync/sync-yjs/src/index.ts)
+来源：[`packages/sync/sync-yjs/src/index.ts:25`](../packages/sync/sync-yjs/src/index.ts)
 
 <a id="aevensystem-prompt"></a>
 
@@ -4391,6 +4427,10 @@ export interface Config {
    * merged in the background, once per owner and workspace per process; zero never merges.
    */
   consolidateAbove: number
+  /** Lifetime of this device's claim on an account's memory maintenance under account sync, in milliseconds. */
+  maintenanceTtlMs: number
+  /** Interval between renewals of that claim, in milliseconds. */
+  maintenanceRenewMs: number
   /** Memory store: days an unconfirmed candidate procedure waits before it is archived. */
   candidateTtlDays: number
 }
@@ -5351,7 +5391,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/workspace/workspace/src/index.ts:43`](../packages/workspace/workspace/src/index.ts)
+来源：[`packages/workspace/workspace/src/index.ts:45`](../packages/workspace/workspace/src/index.ts)
 
 <a id="aevenworktrees"></a>
 
@@ -5472,6 +5512,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@aeven/session-projection` ([`packages/session/session-projection/src/index.ts`](../packages/session/session-projection/src/index.ts))
 - `@aeven/session-stats` — requires `sessionProjections` ([`packages/session/session-stats/src/index.ts`](../packages/session/session-stats/src/index.ts))
 - `@aeven/session-turn-outline` — requires `sessionProjections` ([`packages/session/session-turn-outline/src/index.ts`](../packages/session/session-turn-outline/src/index.ts))
+- `@aeven/settings-sync` — requires `sync` · `settings` ([`packages/settings/settings-sync/src/index.ts`](../packages/settings/settings-sync/src/index.ts))
 - `@aeven/skill-badge` — requires `skills` ([`packages/skill/skill-badge/src/index.ts`](../packages/skill/skill-badge/src/index.ts))
 - `@aeven/storage` ([`packages/storage/storage/src/index.ts`](../packages/storage/storage/src/index.ts))
 - `@aeven/subagent` ([`packages/subagent/subagent/src/index.ts`](../packages/subagent/subagent/src/index.ts))
@@ -5501,6 +5542,7 @@ Abstract service classes — a deployment loads a concrete implementation packag
 - `@aeven/host-directory-picker` — abstract `DirectoryPicker` ([`packages/host/directory-picker/src/index.ts`](../packages/host/directory-picker/src/index.ts))
 - `@aeven/jobs` — abstract `JobRegistry` ([`packages/jobs/jobs/src/index.ts`](../packages/jobs/jobs/src/index.ts))
 - `@aeven/sandbox` — abstract `SandboxProvider` ([`packages/sandbox/sandbox/src/index.ts`](../packages/sandbox/sandbox/src/index.ts))
+- `@aeven/session-handoff` — abstract `SessionHandoff` ([`packages/session/session-handoff/src/index.ts`](../packages/session/session-handoff/src/index.ts))
 - `@aeven/session-persistence` — abstract `SessionPersistence` ([`packages/session/session-persistence/src/index.ts`](../packages/session/session-persistence/src/index.ts))
 - `@aeven/session-query` — abstract `SessionQueryEngine` ([`packages/session-query/session-query/src/index.ts`](../packages/session-query/session-query/src/index.ts))
 - `@aeven/settings` — abstract `SettingsProvider` ([`packages/settings/settings/src/index.ts`](../packages/settings/settings/src/index.ts))

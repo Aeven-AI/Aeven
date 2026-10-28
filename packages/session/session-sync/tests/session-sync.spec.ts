@@ -81,7 +81,7 @@ class MemoryPersistence {
 }
 
 const tuning: SessionSyncTuning = {
-  publishMs: 20, batchBytes: 2_000, backfillDays: 30, liveMs: 5,
+  publishMs: 20, batchBytes: 2_000, backfillDays: 30, liveMs: 5, pauseMs: 0,
   runnerLease: { ttlMs: 30_000, renewMs: 10_000 },
 }
 const mirrors: SessionMirror[] = []
@@ -674,7 +674,7 @@ describe('session-sync plugin', () => {
     const warnings: string[] = []
     const spy = vi.spyOn(ctx.logger, 'warn').mockImplementation((message: unknown) => { warnings.push(String(message)) })
     const fiber = ctx.plugin(SessionSync, {
-      publishMs: 250, batchBytes: 2_000, backfillDays: 30, liveMs: 5,
+      publishMs: 250, batchBytes: 2_000, backfillDays: 30, liveMs: 5, pauseMs: 0,
       runnerLease: { ttlMs: 30_000, renewMs: 10_000 },
     })
     await fiber
