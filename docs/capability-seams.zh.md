@@ -1,5 +1,5 @@
-<!-- 英文源文件由 scripts/gen-doc-graphs.ts 生成；本中文文件是通过双语配对维护的经评审对侧。
-     更新时先运行 `pnpm run gen-doc-graphs` 更新英文，再更新本文件并运行 `pnpm run verify-translation-pairing --write docs/capability-seams.md` 重新记录配对。 -->
+<!-- 由 scripts/gen-doc-graphs.ts 生成——请勿手动编辑。
+     运行 `pnpm run gen-doc-graphs` 重新生成。 -->
 
 # 能力 Seams 与核心服务
 
@@ -628,6 +628,7 @@ flowchart LR
   svc_worktrees --> pkg_tool_worktrees
   svc_fs -. event gate .-> pkg_fs_observation_policy
 ```
+
 | ctx 键 | 角色 | 所属包 | 实现 | 直接消费方 | 配套插件 | 说明 |
 | --- | --- | --- | --- | --- | --- | --- |
 | `ctx.identityUsers` | `seam` | [`identity-user`](../packages/identity/user) | [`identity-user-aeven`](../packages/identity/user-aeven) | [`client-connection`](../packages/client/connection) | - | Authorities resolve a request's credential headers to a user synchronously; the request fence consults the seam before dispatch and answers 401 when nobody is recognized. authority 会同步地把请求的凭据 header 解析为用户；请求围栏在派发之前调用该 seam，无人被认得时回答 401。 |

@@ -1,5 +1,5 @@
-<!-- 英文源文件由 scripts/gen-tool-catalog.ts 生成；本中文文件是通过双语配对维护的经评审对侧。
-     更新时先运行 `pnpm run gen-tool-catalog` 更新英文，再更新本文件并运行 `pnpm run verify-translation-pairing --write docs/tool-catalog.md` 重新记录配对。 -->
+<!-- 由 scripts/gen-tool-catalog.ts 生成——请勿手动编辑。
+     运行 `pnpm run gen-tool-catalog` 重新生成。 -->
 
 # 工具 Schema 目录
 
@@ -127,7 +127,6 @@
 }
 ```
 
-
 来源：[`packages/interaction/tool-ask-user/src/index.ts`](../packages/interaction/tool-ask-user/src/index.ts)
 
 ask_user_question 会暂停工具调用，直到当前 UI 提供方返回人类答案。
@@ -160,7 +159,6 @@ ask_user_question 会暂停工具调用，直到当前 UI 提供方返回人类�
 }
 ```
 
-
 来源：[`packages/core/tools/src/ptc.ts`](../packages/core/tools/src/ptc.ts)
 
 在 `mode: ptc`／`mode: both` 下，它由工具注册表所有，作为可过滤能力层之外的保留传输机制（参见 PTC mode Agent Note）。在 `ptc` 下，它是注册表对协议格式的唯一贡献；其他可见能力在使用已加载运行时语言生成的 SDK 章节中声明。程序通过 binding 调用这些能力，调用按照原生并发约定调度：启动顺序和策略遵循提交顺序，并发安全的函数体最多重叠执行 `maxParallelSubCalls` 个。调用会重新进入完整且受守卫保护的工具流水线，并将每个嵌套执行关联到此外层结果。
@@ -187,7 +185,6 @@ ask_user_question 会暂停工具调用，直到当前 UI 提供方返回人类�
   ]
 }
 ```
-
 
 来源：[`packages/plan/plan-mode/src/index.ts`](../packages/plan/plan-mode/src/index.ts)
 
@@ -233,7 +230,6 @@ ask_user_question 会暂停工具调用，直到当前 UI 提供方返回人类�
 }
 ```
 
-
 来源：[`packages/shell/tool-bash/src/index.ts`](../packages/shell/tool-bash/src/index.ts)
 
 bash 工具是 bash 执行器 seam 面向模型的消费方。使用 `run_in_background` 的运行会注册到通用 `ctx.jobs` 运行时，并通过 `job_*` 工具（来自 `@aeven/tool-jobs`）收集／停止；禁用 `enableRunInBackground` 配置（默认为 true）后，该参数会被完全移除。
@@ -277,7 +273,6 @@ bash 工具是 bash 执行器 seam 面向模型的消费方。使用 `run_in_bac
   ]
 }
 ```
-
 
 来源：[`packages/shell/tool-pwsh/src/index.ts`](../packages/shell/tool-pwsh/src/index.ts)
 
@@ -367,7 +362,6 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
 }
 ```
 
-
 来源：[`packages/extensions/tool-cordis/src/index.ts`](../packages/extensions/tool-cordis/src/index.ts)
 
 ### `cordis_inspect_list`
@@ -380,7 +374,6 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
   "properties": {}
 }
 ```
-
 
 来源：[`packages/extensions/tool-cordis/src/index.ts`](../packages/extensions/tool-cordis/src/index.ts)
 
@@ -420,7 +413,6 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
 }
 ```
 
-
 来源：[`packages/extensions/tool-cordis/src/index.ts`](../packages/extensions/tool-cordis/src/index.ts)
 
 ### `cordis_inspect_self`
@@ -442,7 +434,6 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
   }
 }
 ```
-
 
 来源：[`packages/extensions/tool-cordis/src/index.ts`](../packages/extensions/tool-cordis/src/index.ts)
 
@@ -479,7 +470,6 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
 }
 ```
 
-
 来源：[`packages/extensions/tool-cordis/src/index.ts`](../packages/extensions/tool-cordis/src/index.ts)
 
 ### `cordis_stop`
@@ -501,7 +491,6 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
 }
 ```
 
-
 来源：[`packages/extensions/tool-cordis/src/index.ts`](../packages/extensions/tool-cordis/src/index.ts)
 
 ### `cordis_undefine`
@@ -522,7 +511,6 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
   ]
 }
 ```
-
 
 来源：[`packages/extensions/tool-cordis/src/index.ts`](../packages/extensions/tool-cordis/src/index.ts)
 
@@ -551,7 +539,6 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
 }
 ```
 
-
 来源：[`packages/shell/tool-bash-persistent/src/index.ts`](../packages/shell/tool-bash-persistent/src/index.ts)
 
 一个按所有者隔离的持久 bash 工具；部署组合提供 PTY 后端，并可覆盖面向模型的环境描述。
@@ -579,7 +566,6 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
 }
 ```
 
-
 来源：[`packages/shell/tool-pwsh-persistent/src/index.ts`](../packages/shell/tool-pwsh-persistent/src/index.ts)
 
 一个按所有者隔离的持久 pwsh 工具，持久 bash 工具的 Windows 对应物；部署组合提供 pwsh 方言的 PTY 后端，并可覆盖面向模型的环境描述。
@@ -591,7 +577,6 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
 ### `str_replace_editor`
 
 用于查看、创建和编辑文件的自定义编辑工具：
-
 * 状态会在命令调用以及与用户的讨论之间持久保留
 * 如果 `path` 是文件，`view` 会显示应用 `cat -n` 后的结果。如果 `path` 是目录，`view` 会列出最多向下 2 层的非隐藏文件和目录
 * 如果指定的 `create` 命令目标 `path` 已作为文件存在，则不能使用该命令
@@ -599,7 +584,6 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
 * 当前命令不使用某个参数时，值为 `null` 的占位参数视为未提供。必填参数仍须提供值；删除匹配内容时应省略 `str_replace.new_str`，而不是将其设为 `null`
 
 使用 `str_replace` 命令时请注意：
-
 * `old_str` 参数应与原文件中一行或多行连续内容**完全**匹配。请留意空白字符！
 * 如果 `old_str` 参数在文件中不唯一，则不会执行替换。请确保在 `old_str` 中包含足够的上下文，使其唯一
 * `new_str` 参数应包含用于替换 `old_str` 的已编辑行
@@ -687,7 +671,6 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
   ]
 }
 ```
-
 
 来源：[`packages/fs/tool-str-replace-editor/src/index.ts`](../packages/fs/tool-str-replace-editor/src/index.ts)
 
@@ -806,7 +789,6 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
 }
 ```
 
-
 来源：[`packages/fs/tool-fs/src/index.ts`](../packages/fs/tool-fs/src/index.ts)
 
 ### `read`
@@ -858,7 +840,6 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
 }
 ```
 
-
 来源：[`packages/fs/tool-fs/src/index.ts`](../packages/fs/tool-fs/src/index.ts)
 
 ### `read_image`
@@ -879,7 +860,6 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
   ]
 }
 ```
-
 
 来源：[`packages/fs/tool-fs/src/index.ts`](../packages/fs/tool-fs/src/index.ts)
 
@@ -906,7 +886,6 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
   ]
 }
 ```
-
 
 来源：[`packages/fs/tool-fs/src/index.ts`](../packages/fs/tool-fs/src/index.ts)
 
@@ -939,7 +918,6 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
 }
 ```
 
-
 来源：[`packages/fs/tool-fs-search/src/index.ts`](../packages/fs/tool-fs-search/src/index.ts)
 
 ### `grep`
@@ -969,7 +947,6 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
 }
 ```
 
-
 来源：[`packages/fs/tool-fs-search/src/index.ts`](../packages/fs/tool-fs-search/src/index.ts)
 
 glob 和 grep 是无条件可用的发现工具，通过 ctx.subprocess spawn 随包提供的 ripgrep 二进制文件（`@vscode/ripgrep`），并作为普通前台调用运行，绝不作为后台任务；无需在宿主机安装 `rg`，也不经过 shell 层。本目录使用 `sampleOverCapGlobResults: true`；部署必须显式选择该行为。结果超过上限时，会通过可选的 ctx.spillStore 后端保存完整的格式化列表；在共置部署中，如果后端公开本地路径，返回的定位信息可供后续读取／搜索。
@@ -997,7 +974,6 @@ glob 和 grep 是无条件可用的发现工具，通过 ctx.subprocess spawn �
 }
 ```
 
-
 来源：[`packages/terminal/tool-terminal/src/index.ts`](../packages/terminal/tool-terminal/src/index.ts)
 
 ### `terminal_list`
@@ -1010,7 +986,6 @@ glob 和 grep 是无条件可用的发现工具，通过 ctx.subprocess spawn �
   "properties": {}
 }
 ```
-
 
 来源：[`packages/terminal/tool-terminal/src/index.ts`](../packages/terminal/tool-terminal/src/index.ts)
 
@@ -1041,7 +1016,6 @@ glob 和 grep 是无条件可用的发现工具，通过 ctx.subprocess spawn �
 }
 ```
 
-
 来源：[`packages/terminal/tool-terminal/src/index.ts`](../packages/terminal/tool-terminal/src/index.ts)
 
 ### `terminal_read`
@@ -1070,7 +1044,6 @@ glob 和 grep 是无条件可用的发现工具，通过 ctx.subprocess spawn �
   ]
 }
 ```
-
 
 来源：[`packages/terminal/tool-terminal/src/index.ts`](../packages/terminal/tool-terminal/src/index.ts)
 
@@ -1106,7 +1079,6 @@ glob 和 grep 是无条件可用的发现工具，通过 ctx.subprocess spawn �
 }
 ```
 
-
 来源：[`packages/terminal/tool-terminal/src/index.ts`](../packages/terminal/tool-terminal/src/index.ts)
 
 ### `terminal_signal`
@@ -1140,7 +1112,6 @@ glob 和 grep 是无条件可用的发现工具，通过 ctx.subprocess spawn �
 }
 ```
 
-
 来源：[`packages/terminal/tool-terminal/src/index.ts`](../packages/terminal/tool-terminal/src/index.ts)
 
 这 6 个终端工具需要选择启用，用于补充一次性 bash／文件系统工具。`terminal_send(run_in_background: true)` 会注册到 `ctx.jobs`；schema 不包含 TUI、具名按键序列、BEL、调整尺寸、自动启动和跨 agent 共享。
@@ -1172,7 +1143,6 @@ glob 和 grep 是无条件可用的发现工具，通过 ctx.subprocess spawn �
 }
 ```
 
-
 来源：[`packages/goal/tool-goal/src/index.ts`](../packages/goal/tool-goal/src/index.ts)
 
 ### `get_goal`
@@ -1185,7 +1155,6 @@ glob 和 grep 是无条件可用的发现工具，通过 ctx.subprocess spawn �
   "properties": {}
 }
 ```
-
 
 来源：[`packages/goal/tool-goal/src/index.ts`](../packages/goal/tool-goal/src/index.ts)
 
@@ -1236,7 +1205,6 @@ glob 和 grep 是无条件可用的发现工具，通过 ctx.subprocess spawn �
   ]
 }
 ```
-
 
 来源：[`packages/goal/tool-goal/src/index.ts`](../packages/goal/tool-goal/src/index.ts)
 
@@ -1301,7 +1269,6 @@ create、edit、pause 和 resume 要求直接来自人类的根权限；complete
 }
 ```
 
-
 来源：[`packages/schedule/schedule/src/tools.ts`](../packages/schedule/schedule/src/tools.ts)
 
 ### `schedule_delete`
@@ -1323,7 +1290,6 @@ create、edit、pause 和 resume 要求直接来自人类的根权限；complete
 }
 ```
 
-
 来源：[`packages/schedule/schedule/src/tools.ts`](../packages/schedule/schedule/src/tools.ts)
 
 ### `schedule_list`
@@ -1336,7 +1302,6 @@ create、edit、pause 和 resume 要求直接来自人类的根权限；complete
   "properties": {}
 }
 ```
-
 
 来源：[`packages/schedule/schedule/src/tools.ts`](../packages/schedule/schedule/src/tools.ts)
 
@@ -1386,7 +1351,6 @@ create、edit、pause 和 resume 要求直接来自人类的根权限；complete
 }
 ```
 
-
 来源：[`packages/lsp/tool-lsp/src/index.ts`](../packages/lsp/tool-lsp/src/index.ts)
 
 lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，因此其模型可见 schema 在更换提供方时保持稳定。运行时要求已注册提供方，例如 `@aeven/lsp-stdio`；如果没有提供方，查询会返回结构化 `LSP_UNAVAILABLE` 错误，而不会改变 schema。
@@ -1418,7 +1382,6 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-
 来源：[`packages/workflow/tool-ralph/src/index.ts`](../packages/workflow/tool-ralph/src/index.ts)
 
 固定的前台工作流会在每个 Round 启动一个全新的结构化子级；模型只能选择不可变目标和可选的 Round 上限。
@@ -1445,7 +1408,6 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
   ]
 }
 ```
-
 
 来源：[`packages/skill/tool-skill/src/index.ts`](../packages/skill/tool-skill/src/index.ts)
 
@@ -1475,7 +1437,6 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
   ]
 }
 ```
-
 
 来源：[`packages/core/tool-search/src/index.ts`](../packages/core/tool-search/src/index.ts)
 
@@ -1515,7 +1476,6 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
   ]
 }
 ```
-
 
 来源：[`packages/session-query/tool-session-query/src/index.ts`](../packages/session-query/tool-session-query/src/index.ts)
 
@@ -1577,7 +1537,6 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-
 来源：[`packages/session-query/tool-session-query/src/index.ts`](../packages/session-query/tool-session-query/src/index.ts)
 
 ### `session_event_trace`
@@ -1602,7 +1561,6 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
   ]
 }
 ```
-
 
 来源：[`packages/session-query/tool-session-query/src/index.ts`](../packages/session-query/tool-session-query/src/index.ts)
 
@@ -1697,7 +1655,6 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-
 来源：[`packages/session-query/tool-session-query/src/index.ts`](../packages/session-query/tool-session-query/src/index.ts)
 
 ### `session_trace`
@@ -1715,7 +1672,6 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
   }
 }
 ```
-
 
 来源：[`packages/session-query/tool-session-query/src/index.ts`](../packages/session-query/tool-session-query/src/index.ts)
 
@@ -1744,7 +1700,6 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
   }
 }
 ```
-
 
 来源：[`packages/subagent/tool-subagent/src/list-models.ts`](../packages/subagent/tool-subagent/src/list-models.ts)
 
@@ -1776,7 +1731,6 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-
 来源：[`packages/subagent/tool-subagent/src/index.ts`](../packages/subagent/tool-subagent/src/index.ts)
 
 注册的委派工具名称取决于加载时 `toolName` 配置（默认为 `subagent`）；上述默认 schema 关闭模型选择，而发现 schema 则展示为已启用 Session 中可用的固定配套工具。Web preset 会在每个新顶层 Session 创建时读取插件页偏好，并为其子 Session 保留该决定；`subagent_fork` 始终使用固定路由。每个实例通过 `modelSelectionSettings`、`backgroundMode` 与 `enableRunInBackground` 独立控制是否读取模型选择设置及其后台行为。
@@ -1804,7 +1758,6 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-
 来源：[`packages/subagent/tool-subagent-control/src/index.ts`](../packages/subagent/tool-subagent-control/src/index.ts)
 
 ### `list_agents`
@@ -1826,7 +1779,6 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
   }
 }
 ```
-
 
 来源：[`packages/subagent/tool-subagent-control/src/list-agents.ts`](../packages/subagent/tool-subagent-control/src/list-agents.ts)
 
@@ -1853,7 +1805,6 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
   ]
 }
 ```
-
 
 来源：[`packages/subagent/tool-subagent-control/src/index.ts`](../packages/subagent/tool-subagent-control/src/index.ts)
 
@@ -1886,7 +1837,6 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-
 来源：[`packages/jobs/tool-jobs/src/index.ts`](../packages/jobs/tool-jobs/src/index.ts)
 
 ### `job_list`
@@ -1899,7 +1849,6 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
   "properties": {}
 }
 ```
-
 
 来源：[`packages/jobs/tool-jobs/src/index.ts`](../packages/jobs/tool-jobs/src/index.ts)
 
@@ -1929,7 +1878,6 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
   ]
 }
 ```
-
 
 来源：[`packages/jobs/tool-jobs/src/index.ts`](../packages/jobs/tool-jobs/src/index.ts)
 
@@ -1963,7 +1911,6 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-
 来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
 
 ### `interrupt_agent`
@@ -1985,7 +1932,6 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-
 来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
 
 ### `list_agents`
@@ -1998,7 +1944,6 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
   "properties": {}
 }
 ```
-
 
 来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
 
@@ -2025,7 +1970,6 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
   ]
 }
 ```
-
 
 来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
 
@@ -2065,7 +2009,6 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
   ]
 }
 ```
-
 
 来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
 
@@ -2107,7 +2050,6 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-
 来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
 
 ### `team_task_get`
@@ -2128,7 +2070,6 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
   ]
 }
 ```
-
 
 来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
 
@@ -2168,7 +2109,6 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
   }
 }
 ```
-
 
 来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
 
@@ -2237,7 +2177,6 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-
 来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
 
 ### `wait_agent`
@@ -2256,11 +2195,9 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-
 来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
 
 这 10 个工具限定于隐式 Team Lead 与持久 teammate 作用域。随产品发布的 avn-base bundle 默认禁用该包；文档中的 Agent Teams profile patch 会启用它，并禁用旧 continuable child 的同名控制工具。
-
 
 <a id="aeventool-media"></a>
 
@@ -2340,7 +2277,6 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-
 来源：[`packages/media/tool-media/src/index.ts`](../packages/media/tool-media/src/index.ts)
 
 ### `generate_video`
@@ -2392,7 +2328,6 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
   ]
 }
 ```
-
 
 来源：[`packages/media/tool-media/src/index.ts`](../packages/media/tool-media/src/index.ts)
 
@@ -2468,7 +2403,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-来源： [`packages/session/tool-worktrees/src/index.ts`](../packages/session/tool-worktrees/src/index.ts)
+来源：[`packages/session/tool-worktrees/src/index.ts`](../packages/session/tool-worktrees/src/index.ts)
 
 本目录同时挂载该能力与工具，因为 `create_worktree` 和 `remove_worktree` 通过 `workingDirectory` 移动会话，而同一次调用随后报告该目录。检出目录、分支前缀、git 宽限期、子智能体隔离和依赖准备都是无默认值的 Config；基础 bundle 把检出放在 `$AVN_HOME/worktrees` 下，为分支添加 `avn/` 前缀，隔离子智能体，并用检出中锁文件对应的包管理器安装依赖。
 
@@ -2518,7 +2453,6 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 }
 ```
 
-
 来源：[`packages/todo/tool-todo/src/index.ts`](../packages/todo/tool-todo/src/index.ts)
 
 todo_write 是会话所有的状态；UI 将最新的 todo/write 事件渲染为检查清单。`allowParallelInProgress` 是没有默认值的必填项，因此本目录明确选择 `true`，对应描述允许同时存在多个 `in_progress` 项。选择 `false` 的部署会获得同一工具，但描述会要求只能有 1 个活动任务。
@@ -2534,7 +2468,6 @@ todo_write 是会话所有的状态；UI 将最新的 todo/write 事件渲染为
 工作流的身份通过 `meta` 参数以 JSON 形式传入：必填的 `name`（简短 kebab-case）和 `description` 字符串，以及可选的 `whenToUse` 字符串和 `phases` 数组（`{title, detail?, provider?, model?}`）。`script` 参数只能是纯 JavaScript **函数体**，不能是 TypeScript，也不能包含 `export const meta` 语句；meta 是参数而非代码。脚本支持顶层 await；请以 `return <value>` 结尾，该值必须可以 JSON 序列化，并作为此工具的结果。
 
 脚本函数体提供以下钩子：
-
 - `agent(prompt, opts?): Promise<any>`：运行一个 subagent 直至完成。不提供 `opts.schema` 时，解析为子级最终文本；提供 `opts.schema` 时，它必须是以对象为根、且**只能**使用 type/properties/required/additionalProperties/items/enum/const/oneOf 的 JSON Schema，不支持 pattern/format/数值边界，此时解析为通过校验的对象。子级失败时解析为 `null`，可使用 `.filter(Boolean)` 过滤。其他选项包括 `label`（显示名称）、`phase`（进度组），以及相互独立的 `provider`／`model` LLM（大语言模型）目标覆盖项，两者可单独提供。其他任何选项（`effort`／`isolation`／`agentType`）都会明确报错。
 - `pipeline(items, ...stages): Promise<any[]>`：让每个条目分别经过各阶段，阶段之间**没有**屏障；多阶段工作优先使用它。每个阶段接收 `(prev, item, index)`。普通的阶段异常会将该**条目**变为 `null`，并跳过它的剩余阶段。
 - `parallel(thunks): Promise<any[]>`：并发运行零参数函数并等待**全部**完成。它会形成屏障，仅当某个阶段确实需要汇总全部先前结果时使用。抛出异常的 thunk 解析为 `null`。
@@ -2617,7 +2550,6 @@ todo_write 是会话所有的状态；UI 将最新的 todo/write 事件渲染为
 }
 ```
 
-
 来源：[`packages/workflow/tool-workflow/src/index.ts`](../packages/workflow/tool-workflow/src/index.ts)
 
 <a id="aeventool-web"></a>
@@ -2643,7 +2575,6 @@ todo_write 是会话所有的状态；UI 将最新的 todo/write 事件渲染为
 }
 ```
 
-
 来源：[`packages/web/tool-web/src/index.ts`](../packages/web/tool-web/src/index.ts)
 
 ### `web_search`
@@ -2668,7 +2599,6 @@ todo_write 是会话所有的状态；UI 将最新的 todo/write 事件渲染为
 }
 ```
 
-
 来源：[`packages/web/tool-web/src/index.ts`](../packages/web/tool-web/src/index.ts)
 
 web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可见 schema 在更换后端时保持稳定。
@@ -2687,7 +2617,6 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
   "properties": {}
 }
 ```
-
 
 来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
 
@@ -2719,7 +2648,6 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
 }
 ```
 
-
 来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
 
 ### `preview_evaluate`
@@ -2741,7 +2669,6 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
 }
 ```
 
-
 来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
 
 ### `preview_forward`
@@ -2754,7 +2681,6 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
   "properties": {}
 }
 ```
-
 
 来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
 
@@ -2776,7 +2702,6 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
   ]
 }
 ```
-
 
 来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
 
@@ -2812,7 +2737,6 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
 }
 ```
 
-
 来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
 
 ### `preview_reload`
@@ -2826,7 +2750,6 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
 }
 ```
 
-
 来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
 
 ### `preview_screenshot`
@@ -2839,7 +2762,6 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
   "properties": {}
 }
 ```
-
 
 来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
 
@@ -2866,7 +2788,6 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
   }
 }
 ```
-
 
 来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
 
@@ -3016,7 +2937,6 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
 }
 ```
 
-
 来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
 
 ### `preview_snapshot`
@@ -3039,7 +2959,6 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
 }
 ```
 
-
 来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
 
 ### `preview_status`
@@ -3052,7 +2971,6 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
   "properties": {}
 }
 ```
-
 
 来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
 
@@ -3087,7 +3005,6 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
 }
 ```
 
-
 来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
 
 ### `preview_upload`
@@ -3116,7 +3033,6 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
 }
 ```
 
-
 来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
 
 preview_* 调用由持有该会话浏览器的客户端应答；每次调用都受工具超时上限约束。
@@ -3143,7 +3059,6 @@ preview_* 调用由持有该会话浏览器的客户端应答；每次调用都�
   ]
 }
 ```
-
 
 来源：[`packages/interaction/tool-location/src/index.ts`](../packages/interaction/tool-location/src/index.ts)
 
@@ -3200,7 +3115,6 @@ get_location 由显示该会话的客户端在读者做出选择后应答；该�
 }
 ```
 
-
 来源：[`packages/capability/tool-capability/src/index.ts`](../packages/capability/tool-capability/src/index.ts)
 
 注册的 action 取决于加载时的 `store` 配置：默认的 `memory` 会把学到的流程保存为长期记忆，且只注册 `learn` 与 `import`；`capabilities` 则把它保存为能力文件，并注册 list、view、learn、update、write_file、report、retire 与 restore。学习器与流程回忆都运行在同一包内，本身不贡献任何工具。
@@ -3233,7 +3147,6 @@ get_location 由显示该会话的客户端在读者做出选择后应答；该�
 }
 ```
 
-
 来源：[`packages/device/tool-device/src/index.ts`](../packages/device/tool-device/src/index.ts)
 
 ### `device_list`
@@ -3251,7 +3164,6 @@ get_location 由显示该会话的客户端在读者做出选择后应答；该�
   }
 }
 ```
-
 
 来源：[`packages/device/tool-device/src/index.ts`](../packages/device/tool-device/src/index.ts)
 
@@ -3283,7 +3195,6 @@ get_location 由显示该会话的客户端在读者做出选择后应答；该�
 }
 ```
 
-
 来源：[`packages/device/tool-device/src/index.ts`](../packages/device/tool-device/src/index.ts)
 
 ### `device_screenshot`
@@ -3305,7 +3216,6 @@ get_location 由显示该会话的客户端在读者做出选择后应答；该�
   }
 }
 ```
-
 
 来源：[`packages/device/tool-device/src/index.ts`](../packages/device/tool-device/src/index.ts)
 
@@ -3380,7 +3290,6 @@ get_location 由显示该会话的客户端在读者做出选择后应答；该�
 }
 ```
 
-
 来源：[`packages/web/tool-image-search/src/index.ts`](../packages/web/tool-image-search/src/index.ts)
 
 `find_images` 先读 Wikimedia Commons，再读 Web seam，因此没有 Web 提供方的部署仍能作答，并引用 Commons 所持有的照片。每张照片和每张新闻卡片都会成为持久图像附件，由客户端在 transcript（文本记录）中展示。
@@ -3399,7 +3308,6 @@ get_location 由显示该会话的客户端在读者做出选择后应答；该�
   "properties": {}
 }
 ```
-
 
 来源：[`packages/mail/tool-mail/src/tools.ts`](../packages/mail/tool-mail/src/tools.ts)
 
@@ -3441,7 +3349,6 @@ get_location 由显示该会话的客户端在读者做出选择后应答；该�
   ]
 }
 ```
-
 
 来源：[`packages/mail/tool-mail/src/tools.ts`](../packages/mail/tool-mail/src/tools.ts)
 
@@ -3496,7 +3403,6 @@ get_location 由显示该会话的客户端在读者做出选择后应答；该�
   }
 }
 ```
-
 
 来源：[`packages/mail/tool-mail/src/tools.ts`](../packages/mail/tool-mail/src/tools.ts)
 
@@ -3575,7 +3481,6 @@ get_location 由显示该会话的客户端在读者做出选择后应答；该�
 }
 ```
 
-
 来源：[`packages/mail/tool-mail/src/tools.ts`](../packages/mail/tool-mail/src/tools.ts)
 
 ### `mail_update`
@@ -3629,7 +3534,6 @@ get_location 由显示该会话的客户端在读者做出选择后应答；该�
 }
 ```
 
-
 来源：[`packages/mail/tool-mail/src/tools.ts`](../packages/mail/tool-mail/src/tools.ts)
 
 只有当某个 agent 的会话所有者至少有一个可用邮箱账户时，这些工具才会为该 agent 注册，因此未登录的会话或没有邮箱的所有者看不到任何邮件工具；发送与永久删除通过 ctx.approval 询问，其他策略给出的拒绝仍然优先。
@@ -3657,7 +3561,6 @@ get_location 由显示该会话的客户端在读者做出选择后应答；该�
   }
 }
 ```
-
 
 来源：[`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-memory/src/index.ts)
 
@@ -3689,7 +3592,6 @@ get_location 由显示该会话的客户端在读者做出选择后应答；该�
 }
 ```
 
-
 来源：[`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-memory/src/index.ts)
 
 ### `memory_remember`
@@ -3719,7 +3621,6 @@ get_location 由显示该会话的客户端在读者做出选择后应答；该�
   ]
 }
 ```
-
 
 来源：[`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-memory/src/index.ts)
 
@@ -3754,7 +3655,6 @@ get_location 由显示该会话的客户端在读者做出选择后应答；该�
   }
 }
 ```
-
 
 来源：[`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-memory/src/index.ts)
 
@@ -3801,7 +3701,6 @@ get_location 由显示该会话的客户端在读者做出选择后应答；该�
 }
 ```
 
-
 来源：[`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-memory/src/index.ts)
 
 ### `memory_skill`
@@ -3822,7 +3721,6 @@ get_location 由显示该会话的客户端在读者做出选择后应答；该�
   ]
 }
 ```
-
 
 来源：[`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-memory/src/index.ts)
 
@@ -3851,7 +3749,6 @@ get_location 由显示该会话的客户端在读者做出选择后应答；该�
 }
 ```
 
-
 来源：[`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-memory/src/index.ts)
 
 ### `memory_timeline`
@@ -3876,7 +3773,6 @@ get_location 由显示该会话的客户端在读者做出选择后应答；该�
   ]
 }
 ```
-
 
 来源：[`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-memory/src/index.ts)
 

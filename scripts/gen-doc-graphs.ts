@@ -5,11 +5,12 @@
  * `--check` verifies the generated set.
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { dirname, relative, resolve } from 'node:path'
 import ts from 'typescript'
 import { projectCordisCatalog } from '@aeven/typert-generator'
 import { CORDIS_CATALOG_POLICY } from './gen-cordis-catalog.ts'
+import { writePairedPage } from './paired-locale.ts'
 import type { EventEntry, ServiceEntry } from '@aeven/typert-generator'
 import {
   collectPackageGraph,
@@ -1726,7 +1727,7 @@ function main(): void {
 
   for (const doc of docs) {
     mkdirSync(dirname(resolve(root, doc.rel)), { recursive: true })
-    writeFileSync(resolve(root, doc.rel), doc.content)
+    writePairedPage(resolve(root, doc.rel), doc.content)
   }
   console.log(`gen-doc-graphs: wrote ${docs.length} graph doc(s).`)
 }
