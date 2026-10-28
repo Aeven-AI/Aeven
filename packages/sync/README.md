@@ -30,6 +30,7 @@ Account sync keeps an account's data the same on every device signed in to it. E
 | [`@aeven/api-sync-controller`](../api/sync-controller/README.md) | The `sync` Remote for Settings |
 | [`@aeven/client-ui-settings-sync`](../client/ui-settings-sync/README.md) | Settings → Sync |
 | [`@aeven/session-sync`](../session/session-sync/README.md) | Consumer: conversation history |
+| [`@aeven/session-handoff`](../session/session-handoff/README.md) | Service Definition `ctx.sessionHandoff`: typing into and answering a conversation another device writes |
 
 `@aeven/memory-memos` and `@aeven/personalization` consume `ctx.sync` directly when it is mounted; without it they behave as before.
 
@@ -39,7 +40,7 @@ Account sync keeps an account's data the same on every device signed in to it. E
 | Data | Mechanism |
 |---|---|
 | Memory | SQLite triggers record every write to the replicated MemOS tables; rows travel in shard documents (`memory/<table>/<id prefix>`), are upserted on the other devices, and a delete wins over a concurrent edit. Vectors travel tagged with their embedding model and are applied only on a device that runs the same model. |
-| Conversations | The device that created a session publishes its events as compressed stream batches and lists it in the `sessions/index` document; other devices import them through session persistence with their original `seq`. Sessions created within the backfill window before a device first publishes are included. |
+| Conversations | The device writing a session publishes its events as compressed stream batches and lists it in the `sessions/index` document; other devices import them through session persistence with their original `seq`. That device holds the session's runner lease, and a device without it forwards prompts, approvals, and cancels to the holder, which applies them as input of its own; on one local network the batches travel between the two directly as well. Sessions created within the backfill window before a device first publishes are included. |
 | Preferences | Each account's personalization lives in the `personalization` document, merged per field. |
 | Device names | The `devices` document maps each device id to the name it gave itself. |
 
@@ -59,8 +60,6 @@ One WebSocket per account and device, authenticated with the account's Aeven acc
 ## Known Limitations and Deferred Work
 
 - **A device syncs only while its account holds a session on that Host.** The access token lives in memory for signed-in clients, so a Host with no client of the account waits and catches up when one connects.
-- **No passkey recovery yet.** Losing every enrolled device loses the vault; the PRF-based recovery in the Agent Note is not built.
-- **One writer per session is not enforced across devices.** Each session is published by the device that created it; continuing an imported session on another device is not published back, and the imported copy then stops following the original.
-- **Background memory induction runs on every device.** Two devices may derive duplicate policies from the same traces until the maintenance lease exists.
-- **No local-network transport.** Devices always exchange frames through the relay.
-- **Sessions are filed under the creating device's working directory.** A workspace on another machine with a different path lists its imported sessions separately.
+- **Input waits while no device can run the conversation.** A session whose writer is unreachable and whose log this device cannot take over keeps the input in its inbox until a device that holds it appears.
+- **A conversation body arrives when it is opened.** Devices exchange session metadata first and download a log on open or in a throttled background pass, so a session older than `backfillDays` that was never opened stays on its writing device.
+- **The relay's storage per account is unmeasured.** An account with several gigabytes of sessions keeps all of them on the relay.

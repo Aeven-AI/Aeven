@@ -212,14 +212,14 @@ Measured on the developer's own account (21,887 traces) on an Apple-silicon Mac.
 
 ### Built so far
 
-The [account sync packages](../../../../packages/sync/README.md) and the `servers/node` relay implement phases 1–5 with these differences from the plan above:
+The [account sync packages](../../../../packages/sync/README.md) and the `servers/node` relay implement phases 1–5, phase 6, and phase 7's local-network transport, with these differences from the plan above:
 
 - **Joining** is answered only by a device whose add-device screen is open, and opening that screen asks a waiting device to repeat its request, so a background or headless device never takes a join meant for the user's open screen.
 - **Memory vectors travel** with the rows, tagged with the embedding model, instead of being recomputed: MemOS's vector source texts are internal to it. A device on another model keeps its own vectors.
 - **Memory rows** replicate per row, last writer wins, with tombstones that win over concurrent edits; shards key on the first one or two characters of the random id part.
-- **Conversations** are published by the device that created each session, and a device that imported a session renders its new events as they arrive. The runner lease, input and approvals from another device, invisible handover, and promotion of an imported log are not built, so a session on another device is read-only there today.
+- **Conversations** are published by the device writing each session, and every device of the account lists, replays, types into, and answers approvals for any of them: a device that does not hold the runner lease forwards its input to the device that does, over the relay or, on one local network, directly. Claiming an idle session promotes the local log instead of forking it, and a device that holds a whole log continues a conversation whose writer is idle while the relay is unreachable. Forking stays a user's own choice rather than a consequence of where a conversation lives.
 - **Devices** are named by host name, listed in Settings → Sync, and removed with a key rotation; a removed device joins again with new keys.
-- Not built: passkey recovery, the maintenance lease, the local-network transport, attachments, the settings scope declaration, and the production `/sync` route on aeven.io.
+- Not built: the production `/sync` route on aeven.io, and the Windows and Linux passkey ceremonies that phase 8 verifies.
 
 ### Open questions
 

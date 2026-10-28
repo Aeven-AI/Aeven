@@ -237,6 +237,8 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/api/sync-controller': { kind: 'none', reason: 'the Remote serves Settings and adds nothing to a model request' },
   'packages/client/ui-settings-sync': { kind: 'none', reason: 'the page adds nothing to a model request' },
   'packages/session/session-sync': { kind: 'none', reason: 'imported sessions are stored as they were logged and never replayed into a live model request' },
+  'packages/session/session-handoff': { kind: 'none', reason: 'a forwarded prompt is stored as the user message the writing device logs; the handoff renders nothing to a model request' },
+  'packages/settings/settings-sync': { kind: 'indirect', reason: 'a synced account namespace changes a later request exactly as a local settings edit does; this package registers no prompt, schema, or result of its own' },
 }
 
 interface Failure {
