@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-sidebar",
   "description": "Sidebar plugin: session multi-level tree, search, grouping, state dots",
-  "version": "0.3.25-alpha",
+  "version": "0.3.26-alpha",
   "publishConfig": {
     "access": "public"
   },

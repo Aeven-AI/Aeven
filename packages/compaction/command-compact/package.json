@@ -1,7 +1,7 @@
 {
   "name": "@aeven/command-compact",
   "description": "Human-facing slash command for explicit session compaction",
-  "version": "0.3.25-alpha",
+  "version": "0.3.26-alpha",
   "publishConfig": {
     "access": "public"
   },
