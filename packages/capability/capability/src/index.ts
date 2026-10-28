@@ -388,7 +388,7 @@ export default class Capabilities extends Service {
         return
       }
       if (entry.files === undefined) return
-      const files = await this.store.files(owner, name).catch(() => ({} as Record<string, string>))
+      const files: Record<string, string> = await this.store.files(owner, name).catch(() => ({}))
       if (JSON.stringify(files) === JSON.stringify(entry.files)) return
       await this.store.replaceFiles(owner, name, entry.files)
     }).catch((error: unknown) => {

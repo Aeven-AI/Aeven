@@ -2,7 +2,7 @@
  * Learned capabilities across two devices of one account: a procedure saved on one device reaches the other with
  * its supporting files, and a removal there removes it here. Each device keeps its own execution log.
  */
-import { mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
@@ -26,11 +26,11 @@ function scratch(): string {
 }
 
 /** One device of the account, with its own capability directory and the account's synced document. */
-function device(sync: MemorySyncDevice): Capabilities {
+function device(sync: MemorySyncDevice, root = scratch()): Capabilities {
   const ctx = new Context()
   contexts.push(ctx)
   ctx.provide('sync', sync.asSync())
-  const service = new Capabilities(ctx, { root: scratch(), trustAfter: 2, degradeAfter: 2 } satisfies Config)
+  const service = new Capabilities(ctx, { root, trustAfter: 2, degradeAfter: 2 } satisfies Config)
   ctx.emit('sync/status', OWNER)
   return service
 }
@@ -70,5 +70,33 @@ describe('capabilities across devices', () => {
     await a.remove(OWNER, draft.name)
     await until(async () => (await b.list(OWNER)).length === 0 ? true : undefined, 'the removal on the second device')
     expect(await b.get(OWNER, draft.name)).toBeUndefined()
+  })
+
+  it('keeps this device\'s execution log when another device\'s copy arrives, and drops files the copy lacks', async () => {
+    const network = new MemorySyncNetwork()
+    const a = device(network.device())
+    const rootB = scratch()
+    const b = device(network.device(), rootB)
+    await a.save(OWNER, draft, options)
+    await until(async () => (await b.list(OWNER)).length === 1 ? true : undefined, 'the capability on the second device')
+    const find = (dir: string): string | undefined => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const path = join(dir, entry.name)
+        if (entry.isDirectory()) {
+          const found = find(path)
+          if (found !== undefined) return found
+        } else if (entry.name === 'capability.json') {
+          return dir
+        }
+      }
+      return undefined
+    }
+    const directory = find(rootB)!
+    writeFileSync(join(directory, 'executions.jsonl'), '{"kind":"execution"}\n')
+    writeFileSync(join(directory, 'stale.md'), 'only here')
+    await a.save(OWNER, { ...draft, content: 'Run the build twice.' }, options)
+    await until(async () => (await b.get(OWNER, draft.name))?.content === 'Run the build twice.' ? true : undefined, 'the edit on the second device')
+    expect(readFileSync(join(directory, 'executions.jsonl'), 'utf8')).toBe('{"kind":"execution"}\n')
+    expect(existsSync(join(directory, 'stale.md'))).toBe(false)
   })
 })

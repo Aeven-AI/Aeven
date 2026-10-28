@@ -266,14 +266,18 @@ export class CapabilityStore {
   }
 
   /**
-   * Replace one capability's files with another device's copy, leaving nothing the copy does not hold.
+   * Replace one capability's files with another device's copy, leaving nothing the copy does not hold except
+   * this device's execution log.
    * @param owner - account id.
    * @param name - capability name.
    * @param files - file contents by path relative to the capability's directory.
    */
   async replaceFiles(owner: string, name: string, files: Readonly<Record<string, string>>): Promise<void> {
     const root = this.directory(owner, name)
-    await rm(root, { recursive: true, force: true })
+    const held = await this.files(owner, name).catch(() => ({}))
+    for (const path of Object.keys(held)) {
+      if (!Object.hasOwn(files, path)) await rm(join(root, relativePath(path)), { force: true })
+    }
     for (const [path, content] of Object.entries(files)) {
       const target = join(root, relativePath(path))
       await mkdir(dirname(target), { recursive: true })
