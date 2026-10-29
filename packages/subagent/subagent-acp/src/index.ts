@@ -165,7 +165,8 @@ class AcpProvider implements SubagentProvider {
   constructor(readonly name: string, private readonly ctx: Context, private readonly config: ResolvedConfig) {}
 
   /**
-   * @throws {WorkingDirectoryUnavailableError} when the parent session's workspace has no folder on this device — that capability's refusal, not an ACP configuration failure.
+   * @throws {WorkingDirectoryUnavailableError} when the parent session's workspace has no folder on
+   * this device — that capability's refusal, not an ACP configuration failure.
    */
   start(request: ResolvedSubagentStartRequest) {
     if (request.signal.aborted) {

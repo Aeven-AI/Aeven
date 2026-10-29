@@ -146,7 +146,8 @@ class SdkSubagentProvider implements SubagentProvider {
   }
 
   /**
-   * @throws {WorkingDirectoryUnavailableError} when the parent session's workspace has no folder on this device and no `cwd` override is configured.
+   * @throws {WorkingDirectoryUnavailableError} when the parent session's workspace has no folder on
+   * this device and no `cwd` override is configured.
    */
   start(request: SubagentStartRequest) {
     if (request.signal.aborted) {
