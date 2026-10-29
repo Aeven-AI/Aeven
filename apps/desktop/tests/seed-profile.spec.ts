@@ -1,14 +1,14 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { readFile } from 'node:fs/promises'
+import { link, readFile } from 'node:fs/promises'
 import { afterEach, expect, it, vi } from 'vitest'
 import { createSeedProfileLayout, installSeedProfileLayout, SEED_PROFILE_LAYOUT } from '../src/seed-profile.ts'
 import { archivePnpmStore, extractPnpmStoreArchives } from '../src/seed-store.ts'
 
 vi.mock('node:fs/promises', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs/promises')>()
-  return { ...actual, readFile: vi.fn(actual.readFile) }
+  return { ...actual, link: vi.fn(actual.link), readFile: vi.fn(actual.readFile) }
 })
 
 const roots: string[] = []
@@ -35,6 +35,7 @@ function fixture(): { seed: string; store: string; modules: string; staging: str
 
 afterEach(() => {
   vi.mocked(readFile).mockReset()
+  vi.mocked(link).mockReset()
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
 })
 
@@ -46,6 +47,16 @@ it('links freshly extracted seed objects without reading and hashing them again'
   vi.mocked(readFile).mockRejectedValue(new Error('unexpected second content read'))
   await installSeedProfileLayout(seed, store, staging, active, extracted)
   expect(readFileSync(join(staging, 'node_modules', 'pkg/native.node'), 'utf8')).toBe('pkg/native.node')
+})
+
+it('copies a store object the filesystem will not link again', async () => {
+  const { seed, store, modules, staging, active } = fixture()
+  await createSeedProfileLayout(seed, store, modules, process.arch)
+  vi.mocked(link).mockRejectedValue(Object.assign(new Error('too many links'), { code: 'EMLINK' }))
+  await installSeedProfileLayout(seed, store, staging, active)
+  const installed = join(staging, 'node_modules', 'pkg/native.node')
+  expect(readFileSync(installed, 'utf8')).toBe('pkg/native.node')
+  expect(statSync(installed).nlink).toBe(1)
 })
 
 it('recreates the tested package layout with deduplicated hard links and relocated pnpm metadata', async () => {

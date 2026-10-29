@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-10-29-windows-precomputed-profile-layout.md
-2026-10-29-windows-precomputed-profile-layout.md: 2348521d63762fdddbafff5a7f283bd6661e3937
-2026-10-29-windows-precomputed-profile-layout.zh.md: b26ff079c055e8f7cca606da4c4faa29eafb612b
+2026-10-29-windows-precomputed-profile-layout.md: 603ac1b853e0b6557322aebafeca92906439f26e
+2026-10-29-windows-precomputed-profile-layout.zh.md: 839504c9cccc906d9a8cf2967a0dca4929c2d317

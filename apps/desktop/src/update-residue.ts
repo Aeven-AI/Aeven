@@ -5,8 +5,7 @@
  * the previous release's archive as the next download's differential baseline;
  * Squirrel keeps `ShipItState.plist` for an install it has staged. Once the
  * release one of them staged is the release that runs, that state describes
- * finished work: a pending install nobody can perform, and up to twice the
- * release's size on disk.
+ * finished work. A newer Windows installer remains available for checksum-verified reuse on the next launch.
  * @module @aeven/desktop/update-residue
  */
 
@@ -14,6 +13,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { readdir, readFile, rm } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { gt, valid } from 'semver'
 
 /** Squirrel's record of the install it staged, beside the bundle that record names. */
 const SHIP_IT_STATE = 'ShipItState.plist'
@@ -37,8 +37,8 @@ export interface UpdateResidueOptions {
 /**
  * Remove the updater state a completed install left behind.
  *
- * The staged download is always residue: only this session can install what a
- * check of this session downloaded. The differential baseline and Squirrel's
+ * A newer Windows installer remains cached for electron-updater to verify against the next checked feed's digest.
+ * Other staged downloads are removed. The differential baseline and Squirrel's
  * record of a staged bundle are residue only once the release they describe is
  * the one running, so an install still queued for a newer release keeps them.
  * @param options - the caches to clear and the version that decides ownership.
@@ -48,7 +48,12 @@ export async function clearUpdateResidue(options: UpdateResidueOptions): Promise
   const removed: string[] = []
   const stagedDir = join(options.cacheDir, STAGED_DIR)
   const staged = await stagedArtifactName(join(stagedDir, STAGED_INFO))
-  if (existsSync(stagedDir)) {
+  const version = staged === undefined ? undefined : stagedVersion(staged)
+  const keepWindowsDownload = staged !== undefined && !/[\\/\0]/u.test(staged)
+    && /-win-(?:arm64|x64)(?:-unsigned)?\.exe$/u.test(staged)
+    && version !== undefined && valid(version) !== null && valid(options.installedVersion) !== null
+    && gt(version, options.installedVersion)
+  if (!keepWindowsDownload && existsSync(stagedDir)) {
     await rm(stagedDir, { recursive: true, force: true })
     removed.push(stagedDir)
   }
