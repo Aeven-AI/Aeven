@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-location",
   "description": "Location consent composer takeover that answers get_location with the reader's choice",
-  "version": "0.3.27-alpha",
+  "version": "0.3.28-alpha",
   "publishConfig": {
     "access": "public"
   },

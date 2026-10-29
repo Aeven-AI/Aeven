@@ -1,7 +1,7 @@
 {
   "name": "@aeven/host-workspace-files",
   "description": "Authenticated read-only HTTP route serving a registered workspace's files, so agent-produced files can be referenced from rendered model replies",
-  "version": "0.3.27-alpha",
+  "version": "0.3.28-alpha",
   "publishConfig": {
     "access": "public"
   },

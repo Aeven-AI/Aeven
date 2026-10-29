@@ -1,7 +1,7 @@
 {
   "name": "@aeven/api-sync-controller",
   "description": "Signed-in user's account sync over a Remote: turn it on, join from a new device, approve another device",
-  "version": "0.3.27-alpha",
+  "version": "0.3.28-alpha",
   "publishConfig": {
     "access": "public"
   },

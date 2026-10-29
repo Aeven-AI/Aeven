@@ -1,7 +1,7 @@
 {
   "name": "@aeven/turn-review",
   "description": "Turn-review guard plugin: before a file-changing turn closes, a review call checks the reply against the turn's requests and tool results",
-  "version": "0.3.27-alpha",
+  "version": "0.3.28-alpha",
   "publishConfig": {
     "access": "public"
   },

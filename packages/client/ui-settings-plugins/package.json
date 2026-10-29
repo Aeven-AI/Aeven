@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-settings-plugins",
   "description": "Plugins settings section with feature-owned tabs and configurable host-plane plugin cards",
-  "version": "0.3.27-alpha",
+  "version": "0.3.28-alpha",
   "publishConfig": {
     "access": "public"
   },

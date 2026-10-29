@@ -1,7 +1,7 @@
 {
   "name": "@aeven/win32-process",
   "description": "Low-level Win32 process, stdio, and Job Object primitives for the Aeven Windows sandbox",
-  "version": "0.3.27-alpha",
+  "version": "0.3.28-alpha",
   "publishConfig": {
     "access": "public"
   },
