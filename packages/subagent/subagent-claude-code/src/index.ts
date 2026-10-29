@@ -1,7 +1,10 @@
 /**
  * Profile-named Claude Code one-shot subagent provider. Every accepted run
- * invokes the official Agent SDK in the delegating Session's workspace and
- * places the SDK-spawned real CLI under the shared subprocess owner.
+ * invokes the official Agent SDK in this device's directory for the delegating
+ * Session's workspace — never the `cwd` that session's header recorded, which
+ * names the device that wrote the log — and places the SDK-spawned real CLI
+ * under the shared subprocess owner. A delegating workspace with no folder on
+ * this device refuses with `WorkingDirectoryUnavailableError`.
  *
  * @module @aeven/subagent-claude-code
  */
@@ -17,6 +20,7 @@ import {
   type SubagentCapabilities,
   type SubagentProvider,
 } from '@aeven/subagent'
+import { sessionDirectory } from '@aeven/working-directory'
 import {
   CLAUDE_CODE_PERMISSION_MODES,
   DEFAULT_CLAUDE_CODE_PERMISSION_MODE,
@@ -80,8 +84,11 @@ class ClaudeCodeProvider implements SubagentProvider {
     private readonly config: ResolvedConfig,
   ) {}
 
+  /**
+   * @throws {WorkingDirectoryUnavailableError} when the parent session's workspace has no folder on this device.
+   */
   async start(request: ResolvedSubagentStartRequest) {
-    const parentCwd = request.parent.session.header.cwd
+    const parentCwd = sessionDirectory(this.ctx, request.parent.session)
     if (parentCwd === undefined) {
       throw new Error(
         'subagent-claude-code: no working directory for the child — delegate from a parent session that has one',

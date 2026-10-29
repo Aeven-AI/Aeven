@@ -1,9 +1,12 @@
 /**
  * Out-of-process ACP subagent backend. Each child has its own process, session, model, and
  * tools, so it shares no Cordis context and advertises no parent-enforced start capabilities;
- * the ONE thing it reads off `request.parent` is the session's workspace cwd (see
- * {@link resolveCwd}). This plugin uses named exports only; a default would hide its
- * loader metadata (see `docs/postmortem/0001-acp-default-export-drops-inject.md`).
+ * the ONE thing it reads off `request.parent` is the session whose workspace decides where the
+ * child starts (see {@link resolveCwd}). That is this device's directory for the workspace: the
+ * `cwd` the session header recorded names the device that wrote the log, so it is never used,
+ * and a workspace with no folder on this device refuses with
+ * `WorkingDirectoryUnavailableError`. This plugin uses named exports only; a default would hide
+ * its loader metadata (see `docs/postmortem/0001-acp-default-export-drops-inject.md`).
  * @module @aeven/subagent-acp
  */
 
@@ -15,9 +18,9 @@ import type {
   ResolvedSubagentStartRequest,
   SubagentCapabilities,
   SubagentProvider,
-  SubagentStartRequest,
 } from '@aeven/subagent'
 import { MAX_TIMER_DELAY_MS } from '@aeven/timeout'
+import { sessionDirectory } from '@aeven/working-directory'
 import { acpConfigurationFailure, type AcpRunSpec, DEFAULT_DISPOSE_EOF_GRACE_MS, DEFAULT_DISPOSE_GRACE_MS, type PermissionPolicy, startAcpRun } from './run.ts'
 
 export const name = 'subagent-acp'
@@ -35,8 +38,10 @@ export interface Config {
    * Working directory override for the child process and its ACP session.
    * Must be non-empty; a relative path resolves against the harness launch
    * directory at load, and the result must be an existing directory. When
-   * omitted, each child inherits its delegating parent session's cwd — and
-   * starting one from a parent session that has no cwd fails.
+   * omitted, each child starts in this device's directory for its delegating
+   * parent session's workspace — starting one from a parent session that
+   * records no directory fails, and a parent workspace with no folder on this
+   * device refuses.
    */
   cwd?: string
   /**
@@ -123,15 +128,18 @@ function assertUsableCwd(label: string, cwd: string): string {
 
 /**
  * Resolve the child's working directory: the deployment `cwd` override when
- * configured (already validated at load), else the parent session's workspace
- * cwd (validated here, its earliest resolvable point). Fails loud when neither
- * exists — falling back to the harness process cwd would silently bind the
- * child to the server's launch directory instead of the delegating session's
- * workspace (one server process serves many sessions, each with its own cwd).
+ * configured (already validated at load), else the parent session's directory
+ * on this device (validated here, its earliest resolvable point). Fails loud
+ * when the parent session records none — falling back to the harness process
+ * cwd would silently bind the child to the server's launch directory instead
+ * of the delegating session's workspace (one server process serves many
+ * sessions, each with its own cwd).
+ * @param configured - the load-validated `cwd` override, or `undefined` to inherit the parent session's directory.
+ * @param parentCwd - this device's directory for the parent session's workspace, or `undefined` when that session records none.
+ * @returns the absolute child working directory.
  */
-function resolveCwd(configured: string | undefined, request: SubagentStartRequest): string {
+function resolveCwd(configured: string | undefined, parentCwd: string | undefined): string {
   if (configured !== undefined) return configured
-  const parentCwd = request.parent.session.header.cwd
   if (parentCwd === undefined) {
     throw new Error('subagent-acp: no working directory for the child — configure `cwd` or delegate from a parent session that has one')
   }
@@ -156,13 +164,20 @@ class AcpProvider implements SubagentProvider {
 
   constructor(readonly name: string, private readonly ctx: Context, private readonly config: ResolvedConfig) {}
 
+  /**
+   * @throws {WorkingDirectoryUnavailableError} when the parent session's workspace has no folder on this device — that capability's refusal, not an ACP configuration failure.
+   */
   start(request: ResolvedSubagentStartRequest) {
     if (request.signal.aborted) {
       throw new Error('subagent request was aborted before the ACP child started')
     }
+    // Resolved ahead of the failure mapping below: a workspace with no folder
+    // here is the working-directory capability's refusal, so it reaches the
+    // caller as itself rather than reclassified as a configuration failure.
+    const parentCwd = sessionDirectory(this.ctx, request.parent.session)
     let cwd: string
     try {
-      cwd = resolveCwd(this.config.cwd, request)
+      cwd = resolveCwd(this.config.cwd, parentCwd)
     } catch (error: unknown) {
       const failure = acpConfigurationFailure(error)
       this.ctx.logger.warn(`subagent-acp "${this.name}": child start failed: %o`, error)

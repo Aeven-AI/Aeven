@@ -4,9 +4,11 @@
  * session, model route, and tools — driven over stdio JSON-RPC through the
  * TypeScript SDK client, so it shares no Cordis context. It accepts the
  * provider/model/reasoning/maxTokens subset of `agentOptions`; other start
- * features remain unsupported. The ONE thing it reads off `request.parent`
- * is the session's workspace cwd. This plugin uses named
- * exports only; a default would hide its loader metadata (see
+ * features remain unsupported. The ONE thing it reads off `request.parent` is
+ * the session whose workspace decides where the child starts: this device's
+ * directory for it, never the `cwd` its header recorded, with a workspace that
+ * has no folder here refusing through `WorkingDirectoryUnavailableError`. This
+ * plugin uses named exports only; a default would hide its loader metadata (see
  * `docs/postmortem/0001-acp-default-export-drops-inject.md`).
  * @module @aeven/subagent-avn-sdk
  */
@@ -18,6 +20,7 @@ import z from '@deepseek-ai/schemastery'
 import type { AgentOptions } from '@aeven/agent'
 import type { SubagentCapabilities, SubagentProvider, SubagentStartRequest } from '@aeven/subagent'
 import { assertPositiveFinite, NO_START_CAPABILITIES, resolveChildCwd, validateConfiguredCwd } from '@aeven/subagent'
+import { sessionDirectory } from '@aeven/working-directory'
 import {
   DEFAULT_DISPOSE_EOF_GRACE_MS,
   DEFAULT_DISPOSE_GRACE_MS,
@@ -46,9 +49,10 @@ export interface Config {
    * Working directory override for the child process and its SDK session
    * workspace. Must be non-empty; a relative path resolves against the
    * harness launch directory at load, and the result must be an existing
-   * directory. When omitted, each child inherits its delegating parent
-   * session's cwd — and starting one from a parent session that has no cwd
-   * fails.
+   * directory. When omitted, each child starts in this device's directory for
+   * its delegating parent session's workspace — starting one from a parent
+   * session that records no directory fails, and a parent workspace with no
+   * folder on this device refuses.
    */
   cwd?: string
   /** Provider route the child runtime initializes with (default `deepseek-official`). */
@@ -141,13 +145,22 @@ class SdkSubagentProvider implements SubagentProvider {
     this.agentRouteDefaults = Object.freeze({ provider: config.provider, model: config.model })
   }
 
+  /**
+   * @throws {WorkingDirectoryUnavailableError} when the parent session's workspace has no folder on this device and no `cwd` override is configured.
+   */
   start(request: SubagentStartRequest) {
     if (request.signal.aborted) {
       throw new Error('subagent request was aborted before the SDK child started')
     }
+    // An explicit configuration outranks the session, so only an unconfigured
+    // child consults the capability; its refusal for a workspace with no folder
+    // here reaches the caller as itself, ahead of the failure mapping below.
+    const parentCwd = this.config.cwd === undefined
+      ? sessionDirectory(this.ctx, request.parent.session)
+      : undefined
     let cwd: string
     try {
-      cwd = resolveChildCwd('subagent-avn-sdk', this.config.cwd, request.parent.session.header.cwd)
+      cwd = resolveChildCwd('subagent-avn-sdk', this.config.cwd, parentCwd)
     } catch (error: unknown) {
       const failure = sdkConfigurationFailure(error)
       this.ctx.logger.warn(`subagent-avn-sdk "${this.name}": child start failed: %o`, error)

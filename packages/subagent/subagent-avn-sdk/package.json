@@ -33,7 +33,8 @@
     "@aeven/sdk-client": "workspace:^",
     "@aeven/session": "workspace:^",
     "@aeven/subagent": "workspace:^",
-    "@aeven/subprocess": "workspace:^"
+    "@aeven/subprocess": "workspace:^",
+    "@aeven/working-directory": "workspace:^"
   },
   "dependencies": {
     "@aeven/brand": "workspace:^",
@@ -58,6 +59,7 @@
     "@aeven/subagent": "workspace:^",
     "@aeven/subprocess": "workspace:^",
     "@aeven/system-prompt": "workspace:^",
-    "@aeven/tool-subagent": "workspace:^"
+    "@aeven/tool-subagent": "workspace:^",
+    "@aeven/working-directory": "workspace:^"
   }
 }

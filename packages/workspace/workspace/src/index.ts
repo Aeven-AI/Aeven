@@ -449,11 +449,14 @@ export class WorkspaceRegistry extends Service {
   }
 
   /**
-   * Give a workspace that another device of the account registered a directory on this device. The directory
-   * stays here; the account's other devices keep their own.
-   * @param id - a workspace without a directory on this device.
+   * Point a workspace at a directory on this device. A record another device
+   * registered gains its first directory here; a folder record whose directory
+   * moved is relinked to the new one. Either way the account's other devices
+   * keep their own paths: the binding is device-local, while the workspace id
+   * is what they share.
+   * @param id - the workspace to point at a directory here.
    * @param path - existing directory, in a fully qualified spelling.
-   * @returns the workspace, now folder-backed.
+   * @returns the workspace, folder-backed and naming that directory.
    */
   async bind(id: WorkspaceId, path: string): Promise<Workspace> {
     const canonical = await realpathNormalize(path)
@@ -463,9 +466,12 @@ export class WorkspaceRegistry extends Service {
     return await this.enqueueOperation(async () => {
       const entity = this.entities.get(id)
       if (entity === undefined) throw new Error(`no workspace '${id}'`)
-      const taken = this.list().find(other => other.id !== id && other.path === canonical && other.owner === entity.owner)
+      const taken = this.list().find(other => other.id !== id
+        && other.owner === entity.owner
+        && (other.path === canonical || other.anchorPaths.includes(canonical)))
       if (taken !== undefined) throw new Error(`'${canonical}' is already the directory of workspace '${taken.title}'`)
-      await entity.bindDirectory(canonical)
+      if (entity.kind === 'folder') await entity.relinkDirectory(canonical)
+      else await entity.bindDirectory(canonical)
       return entity
     })
   }
@@ -1237,7 +1243,12 @@ export class WorkspaceRegistry extends Service {
     const byPath = new Map<string, Workspace>()
     const accounted = new Set<SessionId>()
     for (const workspace of this.list()) {
-      if (isFolderWorkspace(workspace)) byPath.set(workspace.path, workspace)
+      if (isFolderWorkspace(workspace)) {
+        byPath.set(workspace.path, workspace)
+        // A relinked workspace still owns its earlier directories, so a session
+        // recorded under one of them is re-admitted here rather than orphaned.
+        for (const anchor of workspace.anchorPaths) byPath.set(anchor, workspace)
+      }
       for (const sessionId of workspace.sessionIds) accounted.add(sessionId)
     }
     const defaultWorkspace = this.defaultWorkspaceId === undefined ? undefined : this.get(this.defaultWorkspaceId)
@@ -1290,7 +1301,9 @@ export class WorkspaceRegistry extends Service {
       // there is nothing to adopt from a header.
       // Only a workspace of the account the session belongs to adopts it.
       const target = this.list().find(
-        workspace => isFolderWorkspace(workspace) && workspace.path === path && workspace.owner === header.owner,
+        workspace => isFolderWorkspace(workspace)
+          && (workspace.path === path || workspace.anchorPaths.includes(path))
+          && workspace.owner === header.owner,
       )
       if (target === undefined || target.sessionIds.includes(header.id)) return
       await target.attachSession(header.id)

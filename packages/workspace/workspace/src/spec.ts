@@ -27,10 +27,16 @@ const workspaceId = z.string().transform(value => value as WorkspaceId)
  * `kind` defaults to `'folder'` so every record written before the field
  * existed parses unchanged — those deployments only ever created directory
  * workspaces, which is exactly what the default asserts.
+ *
+ * `anchorPaths` lists directories the workspace occupied earlier on this
+ * device, most recent first. It is device-local and never enters the account
+ * document: a path means nothing on another machine, while a session recorded
+ * under a replaced directory must stay attached after a relink.
  */
 export const workspaceRecord = z.object({
   kind: z.enum(['folder', 'virtual', 'remote']).default('folder'),
   path: z.string().optional(),
+  anchorPaths: z.array(z.string()).optional(),
   title: z.string(),
   owner: z.string().optional(),
   sessionIds: z.array(z.string().transform(value => brandString<SessionId>(value))),

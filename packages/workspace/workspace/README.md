@@ -169,7 +169,7 @@ These limits define when the project list is a poor fit or needs special operati
 
 - **Removal never deletes data** — removing a project leaves its folder, files, and session histories in place; those sessions are archived, and session deletion or folder removal are separate, absent capabilities ([decision](../../../.agents/notes/implemented/feature/2026-07-27-workspace-registration-deletion.md)).
 - **A received workspace opens after this device binds a directory** — a workspace that arrived from another device carries no path here, so it lists as `remote` until a path binding exists.
-- **A moved directory cannot be relinked yet** — a workspace whose folder moved keeps naming the old path, and `bind()` accepts only a workspace with no directory here, so repointing one needs the relink action that does not exist yet.
+- **A moved directory is relinked, not re-filed** — choosing the workspace's folder again ("Choose workspace" in the row menu) points it at the new directory and records the old one as an anchor, so the sessions recorded there stay attached; the workspace keeps both spellings for this device only.
 - **A session joins only with a recorded directory** — a session belongs to a project only when its record carries a directory that resolves to the project's path; sessions without one stay ungrouped, and a session from another directory cannot be moved in.
 - **External changes are seen late** — if another process deletes or damages a directory, the project reflects it only at the next refresh or restart.
 - **Archiving is one-way** — a hidden session keeps its history and its place, but no unarchive action exists yet; the archive set is a durable display filter.

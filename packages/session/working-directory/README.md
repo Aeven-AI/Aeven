@@ -62,7 +62,7 @@ Both throw `WorkingDirectoryUnavailableError` when the session's workspace has n
 
 ## Known Limitations and Deferred Work
 
-- **Relinking a moved folder is not available yet.** A workspace whose directory moved resolves to the stale binding; `WorkspaceRegistry.bind()` accepts only a workspace that has no directory on this device, so the record must be recreated or the folder restored until relink ships.
+- **A relinked workspace translates recorded paths by anchor.** When a workspace's folder moved and the workspace was relinked, a session recorded under the old directory resolves to the same place inside the new one; a recorded directory outside every anchor is used as recorded, so a move this device never learned about still resolves to the stale path.
 - **A replicated session runs at its workspace root.** Recording where inside the workspace a session works as a workspace-relative path is not implemented, so a session replicated from another device acts in the binding itself rather than in the subdirectory it last used.
 - **A device-local relocation is not portable.** A worktree or a directory the session entered outside its workspace is this device's own; the move lives in this process for a replicated session and in the log for one this device wrote.
 - **Identity reads stay on the header.** Session grouping, session-reference ranking, ACP session metadata, the procedural-memory scope, and the workspace registry's own cwd validation compare recorded directories rather than acting in one, so they keep reading `session.header.cwd` deliberately.
