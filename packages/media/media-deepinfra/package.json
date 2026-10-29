@@ -1,7 +1,7 @@
 {
   "name": "@aeven/media-deepinfra",
   "description": "DeepInfra image and video provider for the Aeven media seam — OpenAI-compatible image generation plus submit/poll/content video jobs, pinned to the DeepInfra origin",
-  "version": "0.3.26-alpha",
+  "version": "0.3.27-alpha",
   "publishConfig": {
     "access": "public"
   },

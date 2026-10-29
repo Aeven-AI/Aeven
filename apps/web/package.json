@@ -1,7 +1,7 @@
 {
   "name": "@aeven/web-frontend",
   "description": "Web application entry: vite build over the @aeven/client-web shell library; dist/ served by apps/cli's avn web",
-  "version": "0.3.26-alpha",
+  "version": "0.3.27-alpha",
   "publishConfig": {
     "access": "public"
   },

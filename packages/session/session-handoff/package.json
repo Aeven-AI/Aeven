@@ -1,7 +1,7 @@
 {
   "name": "@aeven/session-handoff",
   "description": "Service Definition for taking input to a session that another device of the account runs",
-  "version": "0.3.26-alpha",
+  "version": "0.3.27-alpha",
   "publishConfig": {
     "access": "public"
   },

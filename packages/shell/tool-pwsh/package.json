@@ -1,7 +1,7 @@
 {
   "name": "@aeven/tool-pwsh",
   "description": "Model-facing pwsh tool over the bash executor seam",
-  "version": "0.3.26-alpha",
+  "version": "0.3.27-alpha",
   "publishConfig": {
     "access": "public"
   },

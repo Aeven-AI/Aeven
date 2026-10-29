@@ -1,7 +1,7 @@
 {
   "name": "@aeven/system-prompt",
   "description": "System prompt assembly registry for the Aeven",
-  "version": "0.3.26-alpha",
+  "version": "0.3.27-alpha",
   "publishConfig": {
     "access": "public"
   },
