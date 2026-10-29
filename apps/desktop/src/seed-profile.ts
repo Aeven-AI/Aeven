@@ -1,8 +1,8 @@
 /** Relocatable Windows package layouts backed by the seed's content-addressed store. */
 
 import { createHash } from 'node:crypto'
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
-import { link, mkdir, readFile } from 'node:fs/promises'
+import { constants, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { copyFile, link, mkdir, readFile, stat } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import { load } from 'js-yaml'
 
@@ -121,10 +121,24 @@ async function writeBatch<T>(items: readonly T[], write: (item: T) => Promise<un
   }
 }
 
+async function linkProfileFile(source: string, destination: string): Promise<void> {
+  try {
+    await link(source, destination)
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    // Node reports NTFS's 1,024-link limit as UNKNOWN rather than EMLINK.
+    if (code !== 'EMLINK' && !(process.platform === 'win32' && code === 'UNKNOWN' && (await stat(source)).nlink >= 1024)) {
+      throw error
+    }
+    await copyFile(source, destination, constants.COPYFILE_EXCL)
+  }
+}
+
 /**
  * Recreate the packaged Windows dependency tree by hard-linking complete content objects into an empty profile.
- * Reused writable-store objects receive digest checks before linking; freshly verified extraction results retain
+ * Each reused writable-store object receives one digest check; freshly verified extraction results retain
  * their archive verification. No dependency resolution or lifecycle script runs. All writers finish before rejection.
+ * Files whose content object reached the filesystem's hard-link limit are copied with exclusive destination creation.
  * @param seedRoot - Integrity-verified seed containing the layout.
  * @param storeRoot - Persistent store populated from that seed's verified archives, on the profile's volume.
  * @param stagingProfile - New profile receiving node_modules.
@@ -144,14 +158,22 @@ export async function installSeedProfileLayout(
   const destination = join(stagingProfile, 'node_modules')
   await mkdir(destination)
   await writeBatch(layout.directories, path => mkdir(join(destination, path), { recursive: true }))
+  const verified = new Map<string, Promise<void>>()
   await writeBatch(layout.files, async (file) => {
     const source = join(storeRoot, file.content)
     if (!extracted.has(file.content)) {
-      const digest = createHash('sha512').update(await readFile(source)).digest('hex')
-      const expected = file.content.split('/').slice(2).join('').replace(/-exec$/u, '')
-      if (digest !== expected) throw new Error(`desktop seed profile: corrupt store content for ${file.path}`)
+      let verification = verified.get(file.content)
+      if (verification === undefined) {
+        verification = (async () => {
+          const digest = createHash('sha512').update(await readFile(source)).digest('hex')
+          const expected = file.content.split('/').slice(2).join('').replace(/-exec$/u, '')
+          if (digest !== expected) throw new Error(`desktop seed profile: corrupt store content for ${file.path}`)
+        })()
+        verified.set(file.content, verification)
+      }
+      await verification
     }
-    await link(source, join(destination, file.path))
+    await linkProfileFile(source, join(destination, file.path))
   })
   writeFileSync(join(destination, '.modules.yaml'), `${JSON.stringify({
     ...layout.modules,

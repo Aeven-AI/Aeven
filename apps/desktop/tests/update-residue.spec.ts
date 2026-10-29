@@ -78,6 +78,25 @@ describe('desktop update residue', () => {
     expect(existsSync(cacheDir)).toBe(false)
   })
 
+  it('keeps a newer Windows installer for the next check to reuse', async () => {
+    const { cacheDir } = await bench()
+    await stage(cacheDir, 'aeven-0.3.7-alpha-win-x64.exe')
+
+    const removed = await clearUpdateResidue({ cacheDir, installedVersion: '0.3.6-alpha' })
+
+    expect(removed).toEqual([])
+    expect(existsSync(join(cacheDir, 'pending'))).toBe(true)
+  })
+
+  it('clears a Windows installer the running release already covers', async () => {
+    const { cacheDir } = await bench()
+    await stage(cacheDir, 'aeven-0.3.6-alpha-win-x64.exe')
+
+    const removed = await clearUpdateResidue({ cacheDir, installedVersion: '0.3.6-alpha' })
+
+    expect(removed).toEqual([join(cacheDir, 'pending'), join(cacheDir, 'update.zip')])
+  })
+
   it('names the release an update artifact carries', async () => {
     expect(stagedVersion('aeven-0.3.6-alpha-mac-arm64.zip')).toBe('0.3.6-alpha')
     expect(stagedVersion('aeven-1.2.3-win-x64.exe')).toBe('1.2.3')

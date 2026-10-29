@@ -18,7 +18,7 @@ The application's own popup is the only update surface, and installing is the re
 - **The menu and a finished download both open it.** `Check for Updates…` opens the popup and starts the check; an automatic check stays silent while a release downloads and opens the popup once the download finishes. `update-prompt.ts` still decides whether a state warrants the surface, which is why a failure nobody asked about stays silent.
 - **Nothing installs on quit.** The coordinator sets `autoDownload = true` and `autoInstallOnAppQuit = false`. A downloaded release waits until **Restart and install**, which stops the avn child and hands the swap to electron-updater; **Later** dismisses the popup and leaves the release staged for the next launch.
 - **A release at or below the running version is not an update.** `doCheck` compares the feed's version with `updater.currentVersion` through semver before publishing `available`, so a staged artefact for the running release can never be offered again.
-- **Each launch clears what the last install left.** `clearUpdateResidue()` removes the staged download always (only the session that downloaded it can install it), the differential baseline and Squirrel's state file only once the release they describe is the running one, and `ShipItState.plist` only when no staged bundle remains beside it. It runs before the coordinator is constructed, so the first check of a launch already sees clean caches.
+- **Each launch clears what the last install left.** `clearUpdateResidue()` removes the staged download (only the session that downloaded it can install it), except a Windows installer newer than the running version, which stays for electron-updater to check against the next feed's digest and reuse; it removes the differential baseline and Squirrel's state file only once the release they describe is the running one, and `ShipItState.plist` only when no staged bundle remains beside it. It runs before the coordinator is constructed, so the first check of a launch already sees clean caches.
 
 ## Alternatives considered
 
@@ -32,7 +32,7 @@ The application's own popup is the only update surface, and installing is the re
 
 ## Consequences
 
-Quitting without answering keeps the staged download on disk until the next launch clears it, and the next check downloads the release again. That is the cost of never installing unasked, and it is bounded to one release's size.
+Quitting without answering keeps the staged download on disk until the next launch clears it, and the next check downloads the release again — except on Windows, where a newer installer stays and is reused once the checked feed's digest matches it. That is the cost of never installing unasked, and it is bounded to one release's size.
 
 The popup is desktop-only: the browser build has no carrier and registers nothing. A page that subscribes late still gets the shell's latest state and any pending surface request, so the menu works during the first seconds of a launch.
 
