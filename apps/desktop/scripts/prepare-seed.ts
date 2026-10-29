@@ -32,6 +32,7 @@ import {
 } from './macos-seed-store.ts'
 import { resolveDesktopTargetBuildPaths } from './desktop-build-paths.mjs'
 import { pruneSeedStore, type SeedStorePruneTarget } from './seed-store-prune.ts'
+import { createSeedProfileLayout } from '../src/seed-profile.ts'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const REPOSITORY_PATCHES = resolve(APP_ROOT, '..', '..', 'patches')
@@ -146,6 +147,10 @@ async function verifyOfflineInstallation(release: DesktopRelease): Promise<void>
       if (!existsSync(join(hostRoot, file))) {
         throw new Error(`desktop seed: local ${DESKTOP_HOST_PACKAGE}@${release.version} does not contain ${file}`)
       }
+    }
+    const target = pruneTarget()
+    if (target.platform === 'win32') {
+      await createSeedProfileLayout(SEED_ROOT, STORE_ROOT, installedModules, target.arch)
     }
   } finally {
     rmSync(installedModules, { recursive: true, force: true })

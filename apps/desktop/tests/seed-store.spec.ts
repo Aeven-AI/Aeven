@@ -121,6 +121,23 @@ describe('desktop seed store merge', () => {
 })
 
 describe('desktop seed store archives', () => {
+  it('extracts all shards into shared parent directories without losing files', async () => {
+    const root = temporaryRoot()
+    const seed = join(root, 'seed')
+    const store = join(seed, 'store')
+    mkdirSync(join(store, 'v11', 'files'), { recursive: true })
+    const names = Array.from({ length: 256 }, (_, index) => `package-${index}`)
+    for (const name of names) writeFileSync(join(store, 'v11', 'files', name), name)
+    archivePnpmStore(seed, store)
+    expect(readdirSync(join(seed, SEED_STORE_ARCHIVE_DIR))).toHaveLength(16)
+
+    const destination = join(root, 'extracted')
+    await extractPnpmStoreArchives(seed, destination)
+
+    expect(readdirSync(join(destination, 'v11', 'files')).sort()).toEqual([...names].sort())
+    for (const name of names) expect(readFileSync(join(destination, 'v11', 'files', name), 'utf8')).toBe(name)
+  })
+
   it('extracts package bytes and executable modes without retaining loose seed files', async () => {
     const root = temporaryRoot()
     const seed = join(root, 'seed')
@@ -157,8 +174,9 @@ describe('desktop seed store archives', () => {
     writeFileSync(join(existing, 'v11', 'index.db'), 'seed index')
 
     const destination = join(root, 'extracted')
-    await extractPnpmStoreArchives(seed, destination, existing)
+    const extracted = await extractPnpmStoreArchives(seed, destination, existing)
 
+    expect([...extracted].sort()).toEqual(['v11/files/missing', 'v11/files/truncated', 'v11/index.db'])
     expect(readdirSync(join(destination, 'v11', 'files')).sort()).toEqual(['missing', 'truncated'])
     expect(readFileSync(join(destination, 'v11', 'index.db'), 'utf8')).toBe('seed index')
   })

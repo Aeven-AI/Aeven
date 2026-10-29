@@ -34,6 +34,7 @@ import type { DesktopPaths } from './paths.ts'
 import { parseDesktopRelease, parseInstalledDesktopReleaseVersion, type DesktopRelease } from './release.ts'
 import { renameRetryingWindowsLocks } from './rename-retry.ts'
 import { extractPnpmStoreArchives, mergePnpmStore } from './seed-store.ts'
+import { installSeedProfileLayout, SEED_PROFILE_LAYOUT } from './seed-profile.ts'
 
 /**
  * Dependency patches a packaged Desktop project applies, by pnpm selector, to the file the project carries at its
@@ -481,15 +482,16 @@ export class DesktopProjectManager {
       await verifySeedIntegrity(seedDir)
       verifyDesktopCorePackageSet(seedDir, target.version)
       const prepared = await this.adoptPreparedProfile(seedDir)
+      let extracted: ReadonlySet<string> = new Set()
       if (prepared === undefined) {
         hooks.progress('unpacking')
-        await this.mergeSeedPnpmState(seedDir)
+        extracted = await this.mergeSeedPnpmState(seedDir)
       }
       const stagingProfile = prepared ?? this.newStagingProfile()
       try {
         if (prepared === undefined) {
           hooks.progress('installing')
-          await this.installProfile(seedDir, stagingProfile, this.runtime)
+          await this.installProfile(seedDir, stagingProfile, this.runtime, extracted)
         }
         hooks.progress('checking')
         await hooks.healthCheck(stagingProfile)
@@ -526,10 +528,10 @@ export class DesktopProjectManager {
       await verifySeedIntegrity(seedDir)
       verifyDesktopCorePackageSet(seedDir, target.version)
       removeOwnedDirectory(dirname(this.paths.prepared))
-      await this.mergeSeedPnpmState(seedDir)
+      const extracted = await this.mergeSeedPnpmState(seedDir)
       const stagingProfile = this.newStagingProfile()
       try {
-        await this.installProfile(seedDir, stagingProfile, runtime)
+        await this.installProfile(seedDir, stagingProfile, runtime, extracted)
         mkdirSync(dirname(this.paths.prepared), { recursive: true, mode: 0o700 })
         await renameRetryingWindowsLocks(stagingProfile, this.paths.prepared)
         return true
@@ -570,11 +572,21 @@ export class DesktopProjectManager {
    * @param seedDir - the release's packaged seed.
    * @param stagingProfile - empty staging profile directory.
    * @param runtime - the Node.js and pnpm that install the release.
+   * @param extracted - Store objects extracted from this transaction's integrity-verified seed.
    */
-  private async installProfile(seedDir: string, stagingProfile: string, runtime: DesktopRuntimeExecutables): Promise<void> {
+  private async installProfile(
+    seedDir: string,
+    stagingProfile: string,
+    runtime: DesktopRuntimeExecutables,
+    extracted: ReadonlySet<string>,
+  ): Promise<void> {
     const plugins = existsSync(this.paths.profile) ? pluginRecords(this.paths.profile) : []
     copyMetadata(seedDir, stagingProfile)
-    await this.runPnpm(runtime, stagingProfile, ['install', '--offline', '--frozen-lockfile', '--trust-lockfile'])
+    if (existsSync(join(seedDir, SEED_PROFILE_LAYOUT))) {
+      await installSeedProfileLayout(seedDir, this.paths.pnpm.store, stagingProfile, this.paths.profile, extracted)
+    } else {
+      await this.runPnpm(runtime, stagingProfile, ['install', '--offline', '--frozen-lockfile', '--trust-lockfile'])
+    }
     if (plugins.length === 0) return
     await this.runPnpm(runtime, stagingProfile, [
       'add',
@@ -591,12 +603,13 @@ export class DesktopProjectManager {
     return path
   }
 
-  private async mergeSeedPnpmState(seedDir: string): Promise<void> {
+  private async mergeSeedPnpmState(seedDir: string): Promise<ReadonlySet<string>> {
     const transactionRoot = join(this.paths.staging, randomUUID())
     const extractedStore = join(transactionRoot, 'store')
     try {
-      await extractPnpmStoreArchives(seedDir, extractedStore, this.paths.pnpm.store)
+      const extracted = await extractPnpmStoreArchives(seedDir, extractedStore, this.paths.pnpm.store)
       await mergePnpmStore(extractedStore, this.paths.pnpm.store)
+      return extracted
     } finally {
       discardOwnedDirectory(transactionRoot)
     }
