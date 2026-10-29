@@ -3,6 +3,7 @@ import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, 
 import { tmpdir } from 'node:os'
 import { join, relative, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { createSeedProfileLayout } from '../src/seed-profile.ts'
 import { afterEach, describe, expect, it } from 'vitest'
 import { resolveDesktopPaths } from '../src/paths.ts'
 import {
@@ -213,6 +214,36 @@ describe('desktop package policy', () => {
 })
 
 describe('desktop project transactions', () => {
+  it('activates a precomputed seed profile without launching pnpm', async () => {
+    const root = temporaryRoot()
+    const seed = join(root, 'seed')
+    createTestSeedMetadata(seed, release())
+    writeFileSync(join(seed, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
+    const modules = join(root, 'build', 'node_modules')
+    mkdirSync(modules, { recursive: true })
+    writeFileSync(join(modules, '.modules.yaml'), JSON.stringify({ nodeLinker: 'hoisted', storeDir: join(seed, 'store', 'v11') }))
+    for (const name of ['cli', 'desktop-host']) {
+      const directory = join(modules, '@aeven', name)
+      mkdirSync(directory, { recursive: true })
+      writeFileSync(join(directory, 'package.json'), JSON.stringify({ name: `@aeven/${name}`, version: '1.0.0' }))
+    }
+    await createSeedProfileLayout(seed, join(seed, 'store'), modules, process.arch)
+    archiveStore(seed)
+    writeIntegrity(seed)
+    const paths = resolveDesktopPaths(join(root, '.aeven'))
+    const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm: join(root, 'must-not-run.mjs') })
+    let checked = false
+    await expect(manager.applyRelease(seed, '1.0.0', hooks({
+      healthCheck: async (profile) => {
+        expect(readFileSync(join(profile, 'node_modules', '@aeven', 'desktop-host', 'package.json'), 'utf8')).toContain('1.0.0')
+        checked = true
+      },
+    }))).resolves.toBe(true)
+    expect(checked).toBe(true)
+    expect(manager.avnVersion()).toBe('1.0.0')
+    await expect(manager.applyRelease(seed, '1.0.0', hooks())).resolves.toBe(false)
+  })
+
   it('installs the offline seed and reconciles a mismatched private Host', async () => {
     const root = temporaryRoot()
     const seed = join(root, 'seed')

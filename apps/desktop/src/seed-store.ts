@@ -236,13 +236,20 @@ export function archivePnpmStore(
 /**
  * Validate and extract a packaged pnpm store archive set into an empty directory. Reading and writing stream through
  * the event loop, so the Electron main process stays responsive for the whole extraction.
+ * Windows extracts up to sixteen validated shards concurrently and awaits every writer before reporting a failure.
  * @param seedRoot - verified packaged seed directory.
  * @param destination - empty Desktop-owned temporary extraction directory.
  * @param existingStore - pnpm store whose files are left out of the extraction where it already holds a file of the
  *   same path and size. A pnpm content-addressed path names its bytes' digest, so such a file holds the same bytes;
  *   the size comparison catches a file an interrupted write truncated. Index databases are always extracted.
+ * @returns Paths actually extracted, after all writers finish. A caller that verified the seed inventory can trust
+ *   these bytes through its same-volume merge; skipped persistent-store files are not included.
  */
-export async function extractPnpmStoreArchives(seedRoot: string, destination: string, existingStore?: string): Promise<void> {
+export async function extractPnpmStoreArchives(
+  seedRoot: string,
+  destination: string,
+  existingStore?: string,
+): Promise<ReadonlySet<string>> {
   const manifest = readArchiveManifest(seedRoot)
   const archiveRoot = join(seedRoot, SEED_STORE_ARCHIVE_DIR)
   const actualFiles = readdirSync(archiveRoot, { withFileTypes: true }).map((entry) => {
@@ -299,23 +306,33 @@ export async function extractPnpmStoreArchives(seedRoot: string, destination: st
       throw new Error(`desktop seed: pnpm store archive ${archive.file} has an unexpected entry count`)
     }
   }
-  const absent = existingStore === undefined
-    ? undefined
-    : (path: string, entry: { readonly size: number }): boolean => {
-      if (isStoreIndexPath(path)) return true
+  const extracted = new Set<string>()
+  const absent = (path: string, entry: { readonly size: number }): boolean => {
+    if (existingStore !== undefined && !isStoreIndexPath(path)) {
       const stored = statSync(join(existingStore, ...path.split('/')), { throwIfNoEntry: false })
-      return stored?.isFile() !== true || stored.size !== entry.size
+      if (stored?.isFile() === true && stored.size === entry.size) return false
     }
-  for (const archive of manifest.archives) {
-    await extract({
+    extracted.add(path)
+    return true
+  }
+  // tar serializes every file within an extractor on Windows. Validated shards contain distinct files, so separate
+  // extractors can write concurrently; POSIX already parallelizes files within each extractor.
+  const concurrency = process.platform === 'win32' ? DEFAULT_SHARD_COUNT : 1
+  for (let offset = 0; offset < manifest.archives.length; offset += concurrency) {
+    const results = await Promise.allSettled(manifest.archives.slice(offset, offset + concurrency).map(archive => extract({
       chmod: true,
       cwd: destination,
       file: join(archiveRoot, archive.file),
-      ...(absent === undefined ? {} : { filter: absent }),
+      filter: absent,
       noMtime: true,
       preservePaths: false,
       processUmask: 0,
       strict: true,
-    })
+    })))
+    // All writers must finish before the caller can remove a failed extraction's temporary directory.
+    for (const result of results) {
+      if (result.status === 'rejected') throw result.reason
+    }
   }
+  return extracted
 }

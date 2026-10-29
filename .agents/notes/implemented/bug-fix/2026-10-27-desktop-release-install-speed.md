@@ -38,8 +38,10 @@ Against the reporting machine's seed and store, the unpack step of an upgrade to
 
 **Cache a successful seed verification.** A stamp keyed by file sizes and times would still need its own trust rules; skipping verification on the path that writes nothing needs none.
 
-**Shorten `pnpm install`.** It links about 22,000 files into a new staging `node_modules` and is now the largest remaining cost. Reusing the active profile's unchanged packages would change the staging transaction, and is left for a separate change.
+**Reuse the active profile's packages.** That would make staging depend on the previous installation's package layout. Windows instead recreates the release's [precomputed profile layout](2026-10-29-windows-precomputed-profile-layout.md) from the verified seed store, avoiding its initial pnpm installation without reading the old package tree.
 
 ## Consequences
+
+Windows `tar` reserves one shared path for every file within an extractor, serializing its writes. Extraction runs up to sixteen independent validated shards concurrently on Windows; POSIX keeps one extractor because it already writes independent files concurrently. All shard results settle before extraction rejects, so transaction cleanup cannot race a writer. Against the installed 0.3.28-alpha seed on the reporting Windows machine, extraction into an empty directory takes 30.3 s sequentially and 15.4 s concurrently. These measurements cover unpacking alone, not installation or Host startup. The shard tests preserve shared-parent file contents and prove that rejection waits for the remaining writers.
 
 The store merge now consumes its extraction, so the extraction directory holds only what failed to move when a rename gives up. A store file that matches a seed entry's path and size is trusted without comparing bytes; pnpm's own store integrity check still covers it at install time.

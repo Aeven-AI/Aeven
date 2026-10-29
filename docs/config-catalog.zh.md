@@ -4153,7 +4153,7 @@ export interface Config {
   requestTimeoutMs: number
   /** Most queued frames one publish request carries. */
   publishFrames: number
-  /** Most frame bytes one publish request carries; a larger single frame travels alone. */
+  /** Maximum complete publish request bytes, including base64url and JSON. */
   publishBytes: number
   /** Name this device shows the account's other devices; the host name unless configured. */
   deviceName: string
