@@ -114,7 +114,14 @@ export function apply(ctx: ClientContext): void {
     // The menu draws the languages the locale service publishes rather than a
     // list of its own, so a language pack registered elsewhere appears here too.
     hooks: { locale: ctx.locale },
-    setLocale: (id) => { ctx.locale.setLocale(id) },
+    setLocale: (id) => {
+      ctx.locale.setLocale(id)
+      // The mail server reads the account, not the page: a choice kept only in the browser
+      // would leave every message in the language it was written in before. A failed write is
+      // not worth an error here — the switch itself worked, and the next one tries again.
+      const reader = publishedReader()
+      if (reader !== undefined) void reader.setLocale(id).catch(() => undefined)
+    },
   })
 
   // The frame's corner, not a Session header seat: whether a reader is signed

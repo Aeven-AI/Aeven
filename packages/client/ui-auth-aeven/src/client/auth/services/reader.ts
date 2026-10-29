@@ -9,7 +9,7 @@
  */
 
 import { mediaUrl, webUrl } from './config.ts'
-import { cloud, mfa, removeAvatar, setDisplayName, signOut, uploadAvatar } from './api.ts'
+import { cloud, mfa, removeAvatar, setDisplayName, setLocale as storeLocale, signOut, uploadAvatar } from './api.ts'
 import { session } from './session.ts'
 
 /** What a plugin may know about the signed-in reader. */
@@ -34,6 +34,13 @@ export interface AevenReader {
    * @returns the name the API stored.
    */
   readonly setDisplayName: (displayName: string) => Promise<string>
+  /**
+   * Store the language Aeven writes mail to this account in, so a message sent
+   * later arrives in it rather than in whatever was chosen when it was written.
+   * @param locale - the app's locale id, one of `en`, `es` or `zh`.
+   * @returns the language the API stored.
+   */
+  readonly setLocale: (locale: string) => Promise<string>
   /**
    * Replace the account's picture with the picture the reader picked, and
    * restate the reader with it, so every surface that draws the reader follows.
@@ -89,6 +96,7 @@ export function publishReader(): void {
       publishReader()
       return stored
     },
+    setLocale: (locale: string) => storeLocale(locale),
     setImage: async (image: Blob) => {
       await uploadAvatar(image)
       publishReader()

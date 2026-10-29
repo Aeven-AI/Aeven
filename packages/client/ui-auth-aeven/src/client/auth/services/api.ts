@@ -239,6 +239,32 @@ export async function setDisplayName(displayName: string): Promise<string> {
   return stored
 }
 
+/** What `/set-locale` answers with. */
+interface LocaleGrant {
+  /** The stored language, echoed back. */
+  readonly locale?: string
+}
+
+/**
+ * Store the language Aeven writes mail to this account in.
+ *
+ * The mail server reads the account rather than the page, so a choice kept only in the
+ * browser would leave every message in English.
+ * @param locale - the app's locale id, one of `en`, `es` or `zh`.
+ * @returns the language the API stored.
+ * @throws {AevenApiError} when the API refuses the language or the bearer.
+ */
+export async function setLocale(locale: string): Promise<string> {
+  const bearer = await currentBearer()
+  const answer = await request<LocaleGrant>('/set-locale', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${bearer}` },
+    body: JSON.stringify({ locale }),
+  })
+  return answer.locale ?? locale
+}
+
 /**
  * One call to Aeven's own account routes under `/api/cloud`, as the signed-in reader.
  *
