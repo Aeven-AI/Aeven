@@ -16,7 +16,7 @@ import type { GenericCallView, TerminalCallView, ToolExecution, ToolResult, Tool
 import { HarnessError } from '@aeven/llm'
 import type { Agent } from '@aeven/agent'
 import type { JobId, JobRegistry } from '@aeven/jobs'
-import type {} from '@aeven/working-directory'
+import { sessionDirectory } from '@aeven/working-directory'
 import type {} from '@aeven/user-approval'
 import type {} from '@aeven/shell-env'
 import type { SandboxExecutionPolicy, SandboxMode } from '@aeven/sandbox'
@@ -153,14 +153,17 @@ function presentBashResult(args: unknown, result: ToolResult): ToolResultView | 
  * defaulting as the fallback. While the session directory is the workspace root, the
  * resolved sandbox-policy root stands in for it so workdir and confinement use the
  * exact same per-call identity.
+ * @param modelWorkdir - the call's `workdir`, absolute or relative to the session directory.
+ * @param directory - the session directory {@link sessionDirectory} resolved for this call;
+ *   the session header is not read here.
+ * @param policyWorkspaceRoot - the resolved sandbox-policy root for this call, when a confining executor is mounted.
+ * @returns the directory the shell call runs in, or undefined to leave executor defaulting.
  */
 function resolveWorkdir(
   modelWorkdir: string | undefined,
-  exec: { agent?: Agent },
+  directory: string | undefined,
   policyWorkspaceRoot: string | undefined,
-  loggedCwd: string | undefined,
 ): string | undefined {
-  const directory = loggedCwd ?? exec.agent?.session.header.cwd
   const canonical = directory === undefined ? undefined : canonicalPath(directory)
   const sessionCwd = policyWorkspaceRoot !== undefined && (canonical === undefined || canonical === policyWorkspaceRoot)
     ? policyWorkspaceRoot
@@ -419,9 +422,8 @@ export function apply(ctx: Context, config: Config = {}): void {
         : { ...(standingPolicy as SandboxExecutionPolicy), mode: approvedMode }
       const workdir = resolveWorkdir(
         args.workdir,
-        exec,
+        exec.agent === undefined ? undefined : sessionDirectory(ctx, exec.agent.session),
         standingPolicy?.workspaceRoot,
-        exec.agent === undefined ? undefined : ctx.get('workingDirectory')?.of(exec.agent.session),
       )
       const avnEnv = ctx.shellEnv.collect(exec)
       const request = {

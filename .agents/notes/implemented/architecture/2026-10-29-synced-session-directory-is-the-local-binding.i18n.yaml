@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-29-synced-session-directory-is-the-local-binding.md
+2026-10-29-synced-session-directory-is-the-local-binding.md: 5a54bbe3cfb17fdb7493afdb9525f3d6ed332fd4
+2026-10-29-synced-session-directory-is-the-local-binding.zh.md: 6042ce268c59bdd7f5da8f9607f016e9c0eef708

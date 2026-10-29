@@ -37,7 +37,8 @@
     "@aeven/session-persistence": "workspace:^",
     "@aeven/tools": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
-    "@aeven/session-projection": "workspace:^"
+    "@aeven/session-projection": "workspace:^",
+    "@aeven/working-directory": "workspace:^"
   },
   "devDependencies": {
     "@aeven/agent": "workspace:^",
@@ -53,6 +54,7 @@
     "@aeven/session-persistence-jsonl": "workspace:^",
     "@aeven/tools": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
-    "@aeven/session-projection": "workspace:^"
+    "@aeven/session-projection": "workspace:^",
+    "@aeven/working-directory": "workspace:^"
   }
 }

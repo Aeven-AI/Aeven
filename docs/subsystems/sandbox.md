@@ -198,19 +198,22 @@ Source: [`packages/sandbox/sandbox/src/index.ts`](../../packages/sandbox/sandbox
 
 ### `ctx.sandboxPolicy` — `SandboxPolicyService`
 
-The sandbox-policy service (`ctx.sandboxPolicy`). Owns the deployment default mode, fallback workspace root, and current request-time policy section. Tool layers call resolve for each execution so a session's mode log and immutable cwd travel together to every enforcing capability.
+The sandbox-policy service (`ctx.sandboxPolicy`). Owns the deployment default mode, fallback workspace root, and current request-time policy section. Tool layers call resolve for each execution so a session's mode log and workspace root travel together to every enforcing capability.
 
 ```ts cordis-catalog
 /**
  * Resolve the complete policy for one capability call. An approved explicit
  * mode outranks the session's last `sandbox/mode` event, which outranks the
- * deployment default. A session's workspace root — the logged root from
- * `ctx.workingDirectory` when composed, else its header cwd — is its
- * workspace-write boundary; the configured root is the fallback for
- * agentless calls and sessions without a cwd. A root that is a linked git
- * worktree also grants the repository's shared git directory.
+ * deployment default. A session's workspace root is this device's binding for
+ * the workspace that session belongs to, and is its workspace-write boundary;
+ * a session whose workspace has no folder here is refused rather than
+ * confined to a path its log recorded on another machine. The configured root
+ * is the fallback for agentless calls and sessions that record no directory
+ * at all. A root that is a linked git worktree also grants the repository's
+ * shared git directory.
  * @param request - optional session and approved mode override.
  * @returns the fully resolved per-call mode, absolute workspace root, and additional writable roots.
+ * @throws {WorkingDirectoryUnavailableError} when the session records a directory but no folder on this device stands for its workspace.
  */
 resolve(request: SandboxPolicyRequest = {}): SandboxExecutionPolicy
 

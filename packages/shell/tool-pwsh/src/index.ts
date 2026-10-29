@@ -28,7 +28,7 @@ import { HarnessError } from '@aeven/llm'
 import type { Agent } from '@aeven/agent'
 import type { JobId, JobRegistry } from '@aeven/jobs'
 import type {} from '@aeven/shell-env'
-import type {} from '@aeven/working-directory'
+import { sessionDirectory } from '@aeven/working-directory'
 import type {} from '@aeven/user-approval'
 import type { SandboxExecutionPolicy, SandboxMode } from '@aeven/sandbox'
 import { ESCALATION_TARGETS, approveEscalation, validateEscalationArgs } from '@aeven/sandbox'
@@ -158,18 +158,20 @@ function pwshDescription(
 }
 
 /**
- * Resolve an explicit workdir first, making a relative one session-workspace-relative;
- * otherwise use the session header cwd and leave executor defaulting as the fallback.
+ * Resolve an explicit workdir first, making a relative one session-directory-relative;
+ * otherwise use the session directory and leave executor defaulting as the fallback.
+ * @param modelWorkdir - the call's `workdir`, absolute or relative to the session directory.
+ * @param directory - the session directory {@link sessionDirectory} resolved for this call;
+ *   the session header is not read here.
+ * @returns the directory the pwsh call runs in, or undefined to leave executor defaulting.
  */
 function resolveWorkdir(
   modelWorkdir: string | undefined,
-  exec: { agent?: Agent },
-  loggedCwd: string | undefined,
+  directory: string | undefined,
 ): string | undefined {
-  const headerCwd = loggedCwd ?? exec.agent?.session.header.cwd
-  if (modelWorkdir === undefined) return headerCwd
-  if (headerCwd !== undefined && !isAbsolute(modelWorkdir)) {
-    return resolvePath(headerCwd, modelWorkdir)
+  if (modelWorkdir === undefined) return directory
+  if (directory !== undefined && !isAbsolute(modelWorkdir)) {
+    return resolvePath(directory, modelWorkdir)
   }
   return modelWorkdir
 }
@@ -434,8 +436,7 @@ export function apply(ctx: Context, config: Config = {}): void {
         : { ...(standingPolicy as SandboxExecutionPolicy), mode: approvedMode }
       const workdir = resolveWorkdir(
         args.workdir,
-        exec,
-        exec.agent === undefined ? undefined : ctx.get('workingDirectory')?.of(exec.agent.session),
+        exec.agent === undefined ? undefined : sessionDirectory(ctx, exec.agent.session),
       )
       const request = {
         command: args.command,

@@ -9,7 +9,7 @@ import { randomUUID } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { Agent } from '@aeven/agent'
-import type {} from '@aeven/working-directory'
+import { sessionDirectory } from '@aeven/working-directory'
 import { truncateWithoutSplittingSurrogatePair } from '@aeven/output-retention'
 import type { TerminalReadResult, TerminalSessionId } from '@aeven/terminal'
 import { deadline, timeoutOf } from '@aeven/timeout'
@@ -274,7 +274,7 @@ function persistentShells(ctx: Context, config: ResolvedConfig): PersistentShell
   }
 
   const get = (owner: Agent, signal: AbortSignal): Promise<TerminalSessionId> => {
-    const cwd = ctx.get('workingDirectory')?.of(owner.session) ?? owner.session.header.cwd
+    const cwd = sessionDirectory(ctx, owner.session)
     const existing = pending.get(owner)
     if (existing !== undefined) {
       if (spawnedIn.get(owner) === cwd) return existing

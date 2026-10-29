@@ -30,7 +30,7 @@ import { canonicalPath, type SandboxExecutionPolicy, type SandboxMode } from '@a
 import type { Session } from '@aeven/session'
 import type {} from '@aeven/session-projection'
 import type {} from '@aeven/system-prompt'
-import type {} from '@aeven/working-directory'
+import { sessionWorkspaceRoot } from '@aeven/working-directory'
 
 export { SANDBOX_MODES, setSandboxMode } from './session-mode.ts'
 
@@ -102,8 +102,9 @@ export interface Config {
   /** File-sandbox mode a session starts from (default: `read-only`). */
   mode?: SandboxMode
   /**
-   * Fallback root for agentless calls and sessions without a cwd (default:
-   * `process.cwd()`). Normal agent calls use their session cwd instead.
+   * Fallback root for agentless calls and for sessions that record no directory
+   * (default: `process.cwd()`). A session with a workspace uses this device's
+   * binding for it instead.
    */
   workspaceRoot?: string
 }
@@ -135,7 +136,7 @@ declare module '@aeven/session-projection/types' {
  * The sandbox-policy service (`ctx.sandboxPolicy`). Owns the deployment
  * default mode, fallback workspace root, and current request-time policy
  * section. Tool layers call {@link resolve} for each execution so a session's
- * mode log and immutable cwd travel together to every enforcing capability.
+ * mode log and workspace root travel together to every enforcing capability.
  */
 export class SandboxPolicyService extends Service {
   // Inline schema call: the config catalog walks `static Config` statically.
@@ -150,7 +151,7 @@ export class SandboxPolicyService extends Service {
 
   /** The deployment default mode — the fallback beneath a session override. */
   readonly defaultMode: SandboxMode
-  /** The absolute `workspace-write` fallback root for calls without a session cwd. */
+  /** The absolute `workspace-write` fallback root for calls without a session directory. */
   readonly workspaceRoot: string
   constructor(ctx: Context, config: Config) {
     super(ctx, 'sandboxPolicy')
@@ -185,19 +186,20 @@ export class SandboxPolicyService extends Service {
   /**
    * Resolve the complete policy for one capability call. An approved explicit
    * mode outranks the session's last `sandbox/mode` event, which outranks the
-   * deployment default. A session's workspace root — the logged root from
-   * `ctx.workingDirectory` when composed, else its header cwd — is its
-   * workspace-write boundary; the configured root is the fallback for
-   * agentless calls and sessions without a cwd. A root that is a linked git
-   * worktree also grants the repository's shared git directory.
+   * deployment default. A session's workspace root is this device's binding for
+   * the workspace that session belongs to, and is its workspace-write boundary;
+   * a session whose workspace has no folder here is refused rather than
+   * confined to a path its log recorded on another machine. The configured root
+   * is the fallback for agentless calls and sessions that record no directory
+   * at all. A root that is a linked git worktree also grants the repository's
+   * shared git directory.
    * @param request - optional session and approved mode override.
    * @returns the fully resolved per-call mode, absolute workspace root, and additional writable roots.
+   * @throws {WorkingDirectoryUnavailableError} when the session records a directory but no folder on this device stands for its workspace.
    */
   resolve(request: SandboxPolicyRequest = {}): SandboxExecutionPolicy {
     const { session } = request
-    const sessionRoot = session === undefined
-      ? undefined
-      : this.ctx.get('workingDirectory')?.rootOf(session) ?? session.header.cwd
+    const sessionRoot = session === undefined ? undefined : sessionWorkspaceRoot(this.ctx, session)
     const workspaceRoot = resolveWorkspaceRoot(sessionRoot ?? this.workspaceRoot)
     const gitDir = linkedWorktreeGitDir(workspaceRoot)
     return {

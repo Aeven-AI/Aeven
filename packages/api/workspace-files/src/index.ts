@@ -3,11 +3,11 @@
  * search over a Session's workspace, exposed as the `workspaceFiles` Remote
  * namespace for the right sidebar's file explorer.
  *
- * The workspace root is the Session header's `cwd`, with the sandbox policy's
- * root as the fallback for a Session that has none. Listings and searches stay
- * inside that root; a preview follows the composed filesystem's read access,
- * as the authenticated `/api/file` route already does for bytes. Nothing here
- * writes.
+ * The workspace root is this device's binding for the Session's workspace, with
+ * the sandbox policy's root as the fallback for a Session that records no
+ * directory. Listings and searches stay inside that root; a preview follows the
+ * composed filesystem's read access, as the authenticated `/api/file` route
+ * already does for bytes. Nothing here writes.
  *
  * A preview page is cut from `streamText`, which decodes as it goes, so a file
  * is read only up to the first character past the page and is never held whole
@@ -24,7 +24,7 @@ import type { Agent } from '@aeven/agent'
 import type {} from '@aeven/fs'
 import type { FsTarget } from '@aeven/fs'
 import type {} from '@aeven/sandbox-policy'
-import type {} from '@aeven/working-directory'
+import { sessionWorkspaceRoot } from '@aeven/working-directory'
 import { Remote, RemoteError, TypertRemoteService } from '@aeven/typert-protocol'
 import { scopeTarget } from '@aeven/scope'
 import { defineTool, jsonStringOutput } from '@aeven/tools'
@@ -182,7 +182,7 @@ export class WorkspaceFiles extends TypertRemoteService {
 
   /**
    * List the direct children of one directory inside the Session's workspace.
-   * @param agent - the Session asking; its header names the workspace root.
+   * @param agent - the Session asking; this device's binding for its workspace names the root.
    * @param path - workspace-relative or absolute path; empty for the root.
    * @param signal - caller cancellation.
    * @returns the root, the listed path and its children, bounded by the entry cap.
@@ -243,7 +243,7 @@ export class WorkspaceFiles extends TypertRemoteService {
   /**
    * Find entries whose name contains `query` (case-insensitive), walking the
    * workspace breadth-first and skipping the configured directory names.
-   * @param agent - the Session asking; its header names the workspace root.
+   * @param agent - the Session asking; this device's binding for its workspace names the root.
    * @param query - the name fragment to match.
    * @param signal - caller cancellation.
    * @returns the matches in walk order and whether a cap stopped the walk.
@@ -280,9 +280,15 @@ export class WorkspaceFiles extends TypertRemoteService {
     return { hits, truncated: false }
   }
 
-  /** The Session's workspace root: its logged root, its header `cwd`, or the sandbox policy root. */
+  /**
+   * The Session's workspace root: this device's binding for its workspace, or the sandbox policy root
+   * when it records no directory.
+   * @param agent - the Session asking.
+   * @returns the absolute root listings, previews and searches resolve against.
+   * @throws {WorkingDirectoryUnavailableError} when the Session's workspace has no folder on this device.
+   */
   private workspaceRootOf(agent: Agent): string {
-    return this.ctx.get('workingDirectory')?.rootOf(agent.session) ?? agent.session.header.cwd ?? this.ctx.sandboxPolicy.workspaceRoot
+    return sessionWorkspaceRoot(this.ctx, agent.session) ?? this.ctx.sandboxPolicy.workspaceRoot
   }
 
   /** Resolve `path` against the root and refuse it unless the workspace contains it. */

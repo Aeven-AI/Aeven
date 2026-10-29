@@ -39,6 +39,7 @@ import type {
   MediaVideoRequest,
 } from '@aeven/media'
 import type { FileAttachmentRef } from '@aeven/attachment'
+import { sessionDirectory } from '@aeven/working-directory'
 
 /** Settings namespace holding the image model choice and its selectable models. */
 export const MEDIA_SETTINGS_NAMESPACE = 'media'
@@ -308,6 +309,24 @@ export interface ReferenceReadContext {
   readonly cwd: string | undefined
   /** Cancellation for the resolution and the reads. */
   readonly signal: AbortSignal | undefined
+}
+
+/**
+ * The directory a call's reference image paths resolve against: the calling
+ * agent's session directory on this device, resolved by
+ * `@aeven/working-directory` from the session's workspace rather than from the
+ * path the header records, which names the device that wrote the log. A session
+ * whose workspace has no folder here fails with
+ * `WorkingDirectoryUnavailableError` rather than reading files on another path.
+ * @param ctx - the plugin context, through which `workingDirectory` resolves the directory.
+ * @param exec - the tool run; only its optional `agent` is read.
+ * @returns the directory on this device, or undefined for a call with no agent
+ *   (the filesystem backend then applies its own default).
+ * @throws when the agent's workspace has no folder on this device.
+ */
+function referenceDirectory(ctx: Context, exec: Pick<ToolRunContext, 'agent'>): string | undefined {
+  const session = exec.agent?.session
+  return session === undefined ? undefined : sessionDirectory(ctx, session)
 }
 
 /**
@@ -1017,7 +1036,7 @@ export function apply(ctx: Context, config: Config): void {
       const references = await readReferences(
         ctx.get('fs'),
         args.reference_images ?? [],
-        { cwd: exec.agent?.session.header.cwd, signal: exec.signal },
+        { cwd: referenceDirectory(ctx, exec), signal: exec.signal },
         chosen.maxReferenceImageBytes ?? DEFAULT_MAX_REFERENCE_IMAGE_BYTES,
       )
       const result = await ctx.media.generateImage(resolveRequest(args, chosen, references), exec.signal)
@@ -1131,7 +1150,7 @@ function registerVideoTool(ctx: Context, config: VideoConfig): void {
       const references = await readReferences(
         ctx.get('fs'),
         args.reference_images ?? [],
-        { cwd: exec.agent?.session.header.cwd, signal: exec.signal },
+        { cwd: referenceDirectory(ctx, exec), signal: exec.signal },
         chosen.maxReferenceImageBytes ?? DEFAULT_MAX_REFERENCE_IMAGE_BYTES,
       )
       const request = resolveVideoRequest(args, chosen, references)

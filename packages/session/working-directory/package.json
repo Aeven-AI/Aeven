@@ -27,6 +27,7 @@
   ],
   "license": "Apache-2.0",
   "dependencies": {
+    "@aeven/util-values": "workspace:^",
     "zod": "^4.4.3"
   },
   "peerDependencies": {
@@ -34,13 +35,20 @@
     "@aeven/session-projection": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
     "@aeven/system-prompt": "workspace:^",
-    "@aeven/agent": "workspace:^"
+    "@aeven/agent": "workspace:^",
+    "@aeven/workspace": "workspace:^"
+  },
+  "peerDependenciesMeta": {
+    "@aeven/workspace": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@aeven/session": "workspace:^",
     "@aeven/session-projection": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
     "@aeven/system-prompt": "workspace:^",
-    "@aeven/agent": "workspace:^"
+    "@aeven/agent": "workspace:^",
+    "@aeven/workspace": "workspace:^"
   }
 }

@@ -21,9 +21,9 @@ import { defaultWorkspaceTitle, realpathNormalize } from './paths.ts'
 import { kindPathAgrees, workspaceDomainSpec } from './spec.ts'
 import type { WorkspaceDomainState, WorkspaceRecord } from './spec.ts'
 import { WorkspaceSync, type SyncedWorkspaces, type SyncedWorkspace } from './sync.ts'
-import type { FolderWorkspace, Workspace, WorkspaceId as WorkspaceIdBrand } from './types.ts'
+import type { FolderWorkspace, SessionPlacement, Workspace, WorkspaceId as WorkspaceIdBrand } from './types.ts'
 
-export type { FolderWorkspace, Workspace, WorkspaceKind } from './types.ts'
+export type { FolderWorkspace, SessionPlacement, Workspace, WorkspaceKind } from './types.ts'
 export {
   INITIAL_WORKSPACE_DOMAIN_STATE,
   kindPathAgrees,
@@ -375,6 +375,31 @@ export class WorkspaceRegistry extends Service {
       for (const sessionId of workspace.sessionIds) if (!homes.has(sessionId)) homes.set(sessionId, home)
     }
     return homes
+  }
+
+  /**
+   * Name the workspace that accounts a Session on this device, as a consumer that needs a directory reads it.
+   *
+   * The answer is about this device only: a Session imported from another device is `pending` until its
+   * workspace arrives, never filed by the path in its header, because that path names another machine's folder.
+   * @param sessionId - the session.
+   * @returns the local workspace, the shared name it awaits, or the fact that none accounts it.
+   */
+  placeSession(sessionId: SessionId): SessionPlacement {
+    const filed = this.list().find(workspace => workspace.sessionIds.includes(sessionId))
+    if (filed !== undefined) return { state: 'filed', workspace: filed }
+    const pending = this.unfiled.get(sessionId)
+    return pending === undefined ? { state: 'unfiled' } : { state: 'pending', home: pending }
+  }
+
+  /**
+   * Whether a Session's log was published by another device, so the directory its header records belongs to that
+   * device rather than to this one.
+   * @param sessionId - the session to check.
+   * @returns whether this device holds a copy of another device's log.
+   */
+  replicated(sessionId: SessionId): boolean {
+    return this.host.replicated(sessionId)
   }
 
   private sharedName(id: WorkspaceId): string {

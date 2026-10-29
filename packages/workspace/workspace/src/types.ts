@@ -183,3 +183,21 @@ export interface Workspace {
  * path as authoritative instead of re-checking it.
  */
 export type FolderWorkspace = Workspace & { readonly kind: 'folder'; readonly path: string }
+
+/**
+ * Where one Session sits in this device's registry: which workspace owns it
+ * here, whether that workspace has arrived yet, or that no workspace names it.
+ *
+ * A Session's own header records the directory of the device that created it,
+ * so a consumer that needs a directory here asks this question first: `filed`
+ * hands it the local workspace (which may still carry no directory), while
+ * `pending` and `unfiled` say the workspace identity is known but nothing local
+ * can act in a directory yet.
+ */
+export type SessionPlacement =
+  /** A workspace on this device accounts the Session. */
+  | { readonly state: 'filed'; readonly workspace: Workspace }
+  /** The Session names a shared workspace that has not reached this device. */
+  | { readonly state: 'pending'; readonly home: string }
+  /** No workspace accounts the Session here. */
+  | { readonly state: 'unfiled' }

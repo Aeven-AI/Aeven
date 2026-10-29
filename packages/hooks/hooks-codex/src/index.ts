@@ -22,6 +22,7 @@ import type { ContentBlock, MessageSource } from '@aeven/llm'
 import type { UserMessage } from '@aeven/session'
 import type {} from '@aeven/session-persistence'
 import type { PostToolDecision, PreToolDecision, ToolExecution, ToolExecutionResult } from '@aeven/tools'
+import { sessionDirectory } from '@aeven/working-directory'
 import {
   appendHookInvoked,
   appendHookResult,
@@ -124,9 +125,10 @@ export function apply(ctx: Context, config: Config): void {
   ): Promise<MergedHookOutcome> {
     const groups: MatcherGroup[] = parsed[point] ?? []
     const outputs: HookOutput[] = []
-    // Run hooks in the agent's session workspace so relative paths address the
-    // user's project rather than the server launch directory.
-    const workdir = opts.agent?.session.header.cwd
+    // Run hooks in the session's directory on this device, resolved through the working-directory
+    // capability, so relative paths address the user's project rather than another device's path or the
+    // server launch directory.
+    const workdir = opts.agent === undefined ? undefined : sessionDirectory(ctx, opts.agent.session)
     for (const group of groups) {
       // Codex always interprets matchers as regexes; it has no literal fast path.
       if (!matchesMatcher(group.matcher, matchQuery, 'codex')) continue
@@ -295,7 +297,7 @@ function base(ctx: Context, agent: Agent | undefined, event: string, model: stri
     transcript_path: agent === undefined
       ? null
       : ctx.get('sessionPersistence')?.locate(agent.session.header)?.path ?? null,
-    cwd: agent?.session.header.cwd ?? process.cwd(),
+    cwd: agent === undefined ? process.cwd() : sessionDirectory(ctx, agent.session) ?? process.cwd(),
     hook_event_name: event,
     model,
     permission_mode: 'default',

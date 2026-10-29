@@ -25,6 +25,12 @@
     },
     {
       "path": "../../core/agent"
+    },
+    {
+      "path": "../../util/values"
+    },
+    {
+      "path": "../../workspace/workspace"
     }
   ]
 }

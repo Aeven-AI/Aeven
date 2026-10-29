@@ -16,6 +16,7 @@ import { createUserMessage } from '@aeven/llm'
 import type { Session, UserMessage } from '@aeven/session'
 import type {} from '@aeven/session-projection'
 import type { ToolExecution, ToolExecutionResult, ToolExecutionToken } from '@aeven/tools'
+import { sessionDirectory } from '@aeven/working-directory'
 import { Config, resolveConfig, workspaceBaselineIdentity, type ResolvedConfig } from './config.ts'
 import { findProjectRoot, loadBaselineInstructionSet } from './files.ts'
 import {
@@ -129,9 +130,10 @@ export function apply(ctx: Context, config: Config): void {
     const changes: AgentInstructionChange[] = []
     let desiredBaseline = false
     const authorityMessages = [...claimed]
-    // A session without a workspace, such as a personal chat, has no project instructions; the Host process
-    // cwd is the server's own checkout, not the person's workspace.
-    const cwd = agent.session.header.cwd
+    // The directory is the one this device resolves for the session's workspace, never the recorded header
+    // path of the device that wrote the log. A session without a workspace, such as a personal chat, has no
+    // project instructions.
+    const cwd = sessionDirectory(ctx, agent.session)
     if (cwd === undefined) return undefined
     const projectRoot = await findProjectRoot(cwd, resolved.projectRootMarkers, fileSystem, signal)
     const identity = workspaceBaselineIdentity(resolved, cwd, projectRoot)
@@ -201,6 +203,7 @@ export function apply(ctx: Context, config: Config): void {
       instructionVersions,
       fileSystem,
       {
+        cwd,
         authorityMessages,
         scopeMessages: pending,
         includeBaselineScopes: keepVisibleBaseline,

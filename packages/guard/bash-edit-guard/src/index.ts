@@ -9,8 +9,11 @@
  * call (`open(…, 'w')`, `write_text`, `writeFileSync`, …), or redirects (`>`, `>>`, `tee`) into it.
  * When every scripting write names its file as a string literal, only those files are checked, so a
  * script that reads a source file and writes scratch output passes. A relative path resolves against
- * the last `cd` before it in the command, or the working directory when none precedes it. Files under
- * the system temporary directories are never refused.
+ * the last `cd` before it in the command, or the Session's local directory when none precedes it; a
+ * Session that records no directory falls back to the process cwd. The header `cwd` is never the
+ * base — it names the machine that wrote the log — and a Session whose workspace has no folder here
+ * refuses instead of resolving against another path. Files under the system temporary directories
+ * are never refused.
  * @module @aeven/bash-edit-guard
  */
 
@@ -20,7 +23,7 @@ import { extname, isAbsolute, join, relative, resolve } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { ToolExecution } from '@aeven/tools'
-import type {} from '@aeven/working-directory'
+import { sessionDirectory } from '@aeven/working-directory'
 
 /** Cordis plugin name used by loader diagnostics. */
 export const name = 'bash-edit-guard'
@@ -108,8 +111,7 @@ export function apply(ctx: Context, config: Config): void {
     if (typeof args?.command !== 'string') return undefined
     const command = args.command
     const session = exec.agent?.session
-    const sessionCwd = (session === undefined ? undefined : ctx.get('workingDirectory')?.of(session) ?? session.header.cwd)
-      ?? process.cwd()
+    const sessionCwd = (session === undefined ? undefined : sessionDirectory(ctx, session)) ?? process.cwd()
     const workdir = typeof args.workdir === 'string' ? resolve(sessionCwd, args.workdir) : sessionCwd
     // Each `cd` resolves against the directory the one before it entered.
     const cds: Array<{ readonly dir: string; readonly index: number }> = []
