@@ -1,7 +1,7 @@
 {
   "name": "@aeven/api-workspace-files",
   "description": "Workspace file service for the right sidebar's file explorer: directory listings, text previews and a bounded name search over the workspaceFiles Remote namespace",
-  "version": "0.3.26-alpha",
+  "version": "0.3.27-alpha",
   "publishConfig": {
     "access": "public"
   },

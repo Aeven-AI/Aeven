@@ -1,7 +1,7 @@
 {
   "name": "@aeven/util-time",
   "description": "Zero-dependency time vocabulary shared by wire boundaries: canonicalClientTimeZone (IANA zone validation and canonicalization only, no formatting)",
-  "version": "0.3.26-alpha",
+  "version": "0.3.27-alpha",
   "publishConfig": {
     "access": "public"
   },

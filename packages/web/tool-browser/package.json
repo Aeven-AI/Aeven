@@ -1,7 +1,7 @@
 {
   "name": "@aeven/tool-browser",
   "description": "Model-facing browser_* tools that read and drive the browser beside a session",
-  "version": "0.3.26-alpha",
+  "version": "0.3.27-alpha",
   "publishConfig": {
     "access": "public"
   },
