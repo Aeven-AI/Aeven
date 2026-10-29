@@ -17,7 +17,7 @@ import { Sync, type SyncDevice, type SyncDocument, type SyncLease, type SyncStat
 import type { DeviceId } from '@aeven/sync-vault'
 import { SyncOffload } from './offload.ts'
 import { LanTransport, MdnsDiscovery } from './lan.ts'
-import { RelayConnection } from './relay.ts'
+import { RELAY_MAX_MESSAGE_BYTES, RelayConnection } from './relay.ts'
 import { SyncStore } from './store.ts'
 import { AccountVault } from './vault.ts'
 
@@ -35,7 +35,7 @@ export interface Config {
   requestTimeoutMs: number
   /** Most queued frames one publish request carries. */
   publishFrames: number
-  /** Most frame bytes one publish request carries; a larger single frame travels alone. */
+  /** Maximum complete publish request bytes, including base64url and JSON. */
   publishBytes: number
   /** Name this device shows the account's other devices; the host name unless configured. */
   deviceName: string
@@ -89,7 +89,7 @@ export default class YjsSync extends Sync {
     connectTimeoutMs: Schema.natural().min(100).default(10_000),
     requestTimeoutMs: Schema.natural().min(100).default(60_000),
     publishFrames: Schema.natural().min(1).default(100),
-    publishBytes: Schema.natural().min(1_024).default(2_097_152),
+    publishBytes: Schema.natural().min(1_024).max(RELAY_MAX_MESSAGE_BYTES).default(2_097_152),
     deviceName: Schema.string().min(1).default(hostname()),
     compactAfter: Schema.natural().min(1).default(200),
     snapshotAfter: Schema.natural().min(1).default(500),

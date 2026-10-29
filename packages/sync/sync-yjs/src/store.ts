@@ -6,7 +6,7 @@
 import { mkdirSync, rmSync } from 'node:fs'
 import { dirname } from 'node:path'
 import Database from 'better-sqlite3'
-import { fromBase64Url, generateDeviceId, toBase64Url, type DeviceId, type OpaqueId } from '@aeven/sync-vault'
+import { fromBase64Url, generateDeviceId, toBase64Url, type DeviceId, type EnvelopeHeader, type OpaqueId } from '@aeven/sync-vault'
 
 const SCHEMA_VERSION = 2
 
@@ -156,6 +156,8 @@ export class SyncStore {
       if (stored !== undefined) {
         this.db.exec('DELETE FROM doc_updates; DELETE FROM outbox; DELETE FROM counters; DELETE FROM seen; DELETE FROM since_snapshot;')
         this.db.prepare("DELETE FROM meta WHERE key = 'cursor'").run()
+        this.db.prepare("DELETE FROM meta WHERE key LIKE 'fragment:%'").run()
+        this.db.prepare("DELETE FROM meta WHERE key LIKE 'stream-complete:%'").run()
       }
       this.setMeta('key', encoded)
     })
@@ -263,11 +265,70 @@ export class SyncStore {
    * @returns whether the counter is new for this sender and id.
    */
   acceptCounter(device: DeviceId, id: OpaqueId, counter: number): boolean {
-    const row = this.statement('SELECT counter FROM seen WHERE device = ? AND id = ?').get(device, id) as { counter: number } | undefined
-    if (row !== undefined && counter <= row.counter) return false
+    if (!this.isNewCounter(device, id, counter)) return false
     this.statement('INSERT INTO seen (device, id, counter) VALUES (?, ?, ?) ON CONFLICT (device, id) DO UPDATE SET counter = excluded.counter')
       .run(device, id, counter)
+    const prefix = `fragment:${device}:${id}:`
+    for (const row of this.fragmentRows(prefix)) {
+      if (Number(row.key.slice(prefix.length).split(':')[0]) <= counter) this.statement('DELETE FROM meta WHERE key = ?').run(row.key)
+    }
     return true
+  }
+
+  /**
+   * Check a sender counter without advancing it before a fragmented payload is complete.
+   * @param device - sender.
+   * @param id - document.
+   * @param counter - logical payload counter.
+   * @returns whether it has not been accepted.
+   */
+  isNewCounter(device: DeviceId, id: OpaqueId, counter: number): boolean {
+    const row = this.statement('SELECT counter FROM seen WHERE device = ? AND id = ?').get(device, id) as { counter: number } | undefined
+    return row === undefined || counter > row.counter
+  }
+
+  private fragmentRows(prefix: string): Array<{ key: string; value: string }> {
+    return this.statement('SELECT key, value FROM meta WHERE key >= ? AND key < ?').all(prefix, `${prefix}\uffff`) as Array<{ key: string; value: string }>
+  }
+
+  /**
+   * Durably collect authenticated parts; callers commit this with their relay cursor and document writes.
+   * @param header - authenticated routing and part fields.
+   * @param payload - decrypted part or whole payload.
+   * @param sequence - relay position when reading a stream; records its first complete copy.
+   * @returns the complete payload, or undefined while parts are missing.
+   */
+  assemble(header: EnvelopeHeader, payload: Uint8Array, sequence?: number): Uint8Array | undefined {
+    const { fragment } = header
+    if (fragment === undefined) return payload
+    const prefix = `fragment:${header.device}:${header.id}:${String(header.counter)}:${fragment.id}:`
+    this.statement('INSERT OR IGNORE INTO meta (key, value) VALUES (?, ?)').run(
+      `${prefix}${String(fragment.index)}`, toBase64Url(payload),
+    )
+    const rows = this.fragmentRows(prefix)
+    if (rows.length !== fragment.count) return undefined
+    rows.sort((a, b) => Number(a.key.slice(prefix.length)) - Number(b.key.slice(prefix.length)))
+    const complete = new Uint8Array(Buffer.concat(rows.map(row => Buffer.from(row.value, 'base64url'))))
+    const logical = `fragment:${header.device}:${header.id}:${String(header.counter)}:`
+    this.statement('DELETE FROM meta WHERE key >= ? AND key < ?').run(logical, `${logical}\uffff`)
+    if (sequence !== undefined) {
+      this.statement('INSERT OR IGNORE INTO meta (key, value) VALUES (?, ?)').run(
+        `stream-complete:${header.device}:${header.id}:${String(header.counter)}`, String(sequence),
+      )
+    }
+    return complete
+  }
+
+  /**
+   * Recognize retransmitted stream parts while allowing a caller to replay the original stream from zero.
+   * @param header - authenticated stream header.
+   * @param sequence - part's relay position.
+   * @returns whether the part follows that logical payload's first complete copy.
+   */
+  duplicateStreamPart(header: EnvelopeHeader, sequence: number): boolean {
+    if (header.fragment === undefined) return false
+    const completed = this.meta(`stream-complete:${header.device}:${header.id}:${String(header.counter)}`)
+    return completed !== undefined && sequence > Number(completed)
   }
 
   /**
