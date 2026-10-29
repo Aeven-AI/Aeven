@@ -45,11 +45,23 @@ async function harness(options: { handoff?: boolean; signedIn?: boolean; claim?:
     } as never)
   }
   if (options.signedIn !== false) ctx.provide('identityUsers', { actingUser: () => ({ id: 'owner-1' }) } as never)
-  ctx.provide('workspaceRegistry', { get: () => undefined, list: () => options.binding === undefined ? [] : [{
-    kind: options.binding, path: options.binding === 'folder' ? '/bound-here' : undefined, sessionIds: [REMOTE],
-  }] } as never)
+  ctx.provide('workspaceRegistry', {
+    get: () => undefined,
+    list: () => options.binding === undefined ? [] : [{
+      kind: options.binding, path: options.binding === 'folder' ? '/bound-here' : undefined, sessionIds: [REMOTE],
+    }],
+    placeSession: () => options.binding === undefined
+      ? { state: 'unfiled' }
+      : options.binding === 'folder'
+        ? { state: 'filed', workspace: { kind: 'folder', path: '/bound-here', sessionIds: [REMOTE] } }
+        : { state: 'pending', home: '/bound-elsewhere' },
+    replicated: (id: SessionId) => options.binding === undefined && id === REMOTE,
+  } as never)
   const enter = vi.fn(() => Promise.resolve('/bound-here'))
-  ctx.provide('workingDirectory', { enter } as never)
+  ctx.provide('workingDirectory', {
+    enter,
+    local: () => ({ state: 'local', cwd: '/bound-here', root: '/bound-here' }),
+  } as never)
   const selection: ModelSelectionRef = { current: { provider: 'fixture', model: 'fixture-model' }, assembled: undefined }
   const agents = {
     resolveAgent: (id: SessionId) => Promise.resolve(id === LOCAL ? { agent } : options.claim && id === REMOTE ? { agent: { ...agent, id: copy.id, session: copy } } : { error: new Error(`resumed ${id}`) }),
@@ -65,10 +77,10 @@ async function harness(options: { handoff?: boolean; signedIn?: boolean; claim?:
 const requestId = 'request-1' as SessionRequestId
 
 describe('input for a session another device writes', () => {
-  it('continues locally after handover, rebinding paths to the workspace on this device', async () => {
+  it('continues locally after handover, in the folder this device holds', async () => {
     const { controller, forward, followup, enter } = await harness({ claim: true, binding: 'folder' })
     await expect(controller.prompt({ requestId, sessionId: REMOTE, mode: 'queue', content: [{ type: 'text', text: 'continue here' }] })).resolves.toEqual({ accepted: true })
-    expect(enter).toHaveBeenCalledWith(expect.objectContaining({ id: REMOTE }), '/bound-here')
+    expect(enter).not.toHaveBeenCalled()
     expect(followup).toHaveBeenCalledOnce()
     expect(forward).not.toHaveBeenCalled()
   })
