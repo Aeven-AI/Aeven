@@ -1,7 +1,7 @@
 {
   "name": "@aeven/api-gateway",
   "description": "Typert Remote Host dispatcher and Client API endpoint",
-  "version": "0.3.27-alpha",
+  "version": "0.3.28-alpha",
   "publishConfig": {
     "access": "public"
   },

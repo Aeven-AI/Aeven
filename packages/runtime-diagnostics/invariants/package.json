@@ -1,7 +1,7 @@
 {
   "name": "@aeven/invariants",
   "description": "Registry service for package-owned Aeven runtime invariants",
-  "version": "0.3.27-alpha",
+  "version": "0.3.28-alpha",
   "publishConfig": {
     "access": "public"
   },

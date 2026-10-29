@@ -1,7 +1,7 @@
 {
   "name": "@aeven/computer-use-formats",
   "description": "File-format recipes: produce and read documents without an application",
-  "version": "0.3.27-alpha",
+  "version": "0.3.28-alpha",
   "publishConfig": {
     "access": "public"
   },

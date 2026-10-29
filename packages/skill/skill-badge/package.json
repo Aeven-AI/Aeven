@@ -1,7 +1,7 @@
 {
   "name": "@aeven/skill-badge",
   "description": "Bundled avn badge skill provider for Aeven",
-  "version": "0.3.27-alpha",
+  "version": "0.3.28-alpha",
   "publishConfig": {
     "access": "public"
   },

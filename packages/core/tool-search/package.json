@@ -1,7 +1,7 @@
 {
   "name": "@aeven/tool-search",
   "description": "Deferred tools: tool schemas stay out of the model request until the model finds and loads them with tool_search",
-  "version": "0.3.27-alpha",
+  "version": "0.3.28-alpha",
   "publishConfig": {
     "access": "public"
   },

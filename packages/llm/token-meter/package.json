@@ -1,7 +1,7 @@
 {
   "name": "@aeven/token-meter",
   "description": "Replay-aware token measurement service (ctx.tokenMeter) for the Aeven",
-  "version": "0.3.27-alpha",
+  "version": "0.3.28-alpha",
   "publishConfig": {
     "access": "public"
   },
